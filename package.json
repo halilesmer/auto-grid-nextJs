@@ -1,0 +1,11 @@
+{
+  "name": "auto-grid-nextjs-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend_nextjs run dev",
+    "dev:frontend": "npm --prefix frontend_nextjs run dev:frontend",
+    "dev:backend": "cd worker_python && .venv/bin/python main.py",
+    "build": "npm --prefix frontend_nextjs run build"
+  }
+}
