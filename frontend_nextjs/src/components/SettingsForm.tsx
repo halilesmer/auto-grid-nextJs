@@ -14,7 +14,10 @@ export default function SettingsForm() {
   useEffect(() => {
     if (selectedAccount) {
       axios.get(`http://localhost:8000/api/settings/${selectedAccount}`)
-        .then(res => setSettings(res.data.settings || settings))
+        .then(res => {
+          const data = res.data?.settings || {};
+          setSettings(prev => ({ ...prev, ...data }));
+        })
         .catch(err => console.error(err));
     }
   }, [selectedAccount]);
