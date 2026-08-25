@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, LineSeries, UTCTimestamp } from 'lightweight-charts';
+import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp } from 'lightweight-charts';
 import { useBotStore } from '@/store/useBotStore';
 
 export default function ChartViewer() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const { metrics, updateMetrics } = useBotStore();
-  const lineSeriesRef = useRef<any>(null);
+  const candleSeriesRef = useRef<any>(null);
+  const rsiSeriesRef = useRef<any>(null);
   const chartRef = useRef<any>(null);
 
   useEffect(() => {
@@ -23,15 +24,47 @@ export default function ChartViewer() {
         vertLines: { color: 'rgba(255,255,255,0.1)' },
         horzLines: { color: 'rgba(255,255,255,0.1)' },
       },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.1)',
+      },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.1)',
+        timeVisible: true,
+        secondsVisible: true,
+      },
     });
 
-    const lineSeries = chart.addSeries(LineSeries, {
-      color: '#3b82f6',
+    const candleSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+    });
+
+    const rsiSeries = chart.addSeries(LineSeries, {
+      color: '#a855f7', // purple-500
       lineWidth: 2,
+      priceScaleId: 'rsi',
     });
     
+    chart.priceScale('rsi').applyOptions({
+      scaleMargins: {
+        top: 0.8,
+        bottom: 0,
+      },
+    });
+
+    chart.priceScale('right').applyOptions({
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.3,
+      },
+    });
+
     chartRef.current = chart;
-    lineSeriesRef.current = lineSeries;
+    candleSeriesRef.current = candleSeries;
+    rsiSeriesRef.current = rsiSeries;
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -41,16 +74,41 @@ export default function ChartViewer() {
 
     window.addEventListener('resize', handleResize);
 
-    // WebSocket connection for real-time data
     const ws = new WebSocket('ws://localhost:8000/ws/stream');
+    
+    let currentBar = {
+        time: 0 as UTCTimestamp,
+        open: 0,
+        high: 0,
+        low: 0,
+        close: 0,
+    };
+
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'METRICS') {
         updateMetrics(data.payload);
         
-        // Update chart (simulating time with simple incremental counter or timestamp)
+        const price = data.payload.price;
         const time = Math.floor(Date.now() / 1000) as UTCTimestamp;
-        lineSeries.update({ time, value: data.payload.price });
+        
+        if (currentBar.open === 0) {
+            currentBar = { time, open: price, high: price, low: price, close: price };
+        } else {
+            if (time - currentBar.time > 10) {
+                currentBar = { time, open: price, high: price, low: price, close: price };
+            } else {
+                currentBar.high = Math.max(currentBar.high, price);
+                currentBar.low = Math.min(currentBar.low, price);
+                currentBar.close = price;
+            }
+        }
+        
+        candleSeries.update(currentBar);
+
+        if (data.payload.rsi !== undefined) {
+          rsiSeries.update({ time, value: data.payload.rsi });
+        }
       }
     };
 
@@ -64,13 +122,14 @@ export default function ChartViewer() {
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-xl flex flex-col h-full">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-white">Live Price & Metrics</h3>
+        <h3 className="text-xl font-bold text-white">Live Price & Indicators</h3>
         <div className="flex space-x-4 text-sm font-semibold">
           <div className="text-gray-300">Price: <span className="text-white">{metrics.price}</span></div>
+          <div className="text-purple-400">RSI: {metrics.rsi ? metrics.rsi.toFixed(2) : '--'}</div>
           <div className={`text-${metrics.profit >= 0 ? 'green' : 'red'}-400`}>
-            P/L: ${metrics.profit.toFixed(2)}
+            P/L: ${metrics.profit !== undefined ? metrics.profit.toFixed(2) : '0.00'}
           </div>
-          <div className="text-blue-400">Positions: {metrics.open_positions}</div>
+          <div className="text-blue-400">Positions: {metrics.open_positions !== undefined ? metrics.open_positions : 0}</div>
         </div>
       </div>
       <div ref={chartContainerRef} className="flex-1 w-full relative" />

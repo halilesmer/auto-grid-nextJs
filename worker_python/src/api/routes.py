@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import json
 import os
 import asyncio
+from src.utils.mt5_connection import connect_to_mt5_with_timeout
 
 router = APIRouter()
 
@@ -18,11 +19,36 @@ class SettingsRequest(BaseModel):
     account_id: str
     settings: dict
 
+def run_auto_grid_engine(account_id: str):
+    print(f"Background engine started for {account_id}")
+
 @router.post("/start")
-async def start_bot(account_id: str):
-    # In a real setup, you'd spawn a subprocess or asyncio.to_thread here
-    # For now, we simulate starting
-    return {"status": "success", "message": f"Bot started for {account_id}"}
+async def start_bot(account_id: str, background_tasks: BackgroundTasks):
+    account_config = {}
+    try:
+        if os.path.exists(ACCOUNTS_FILE):
+            with open(ACCOUNTS_FILE, 'r') as f:
+                accounts = json.load(f)
+                # Find the account config by account_id (or login if structured differently)
+                if isinstance(accounts, dict):
+                    account_config = accounts.get(account_id, {})
+                elif isinstance(accounts, list):
+                    account_config = next((acc for acc in accounts if str(acc.get("login")) == account_id), {})
+    except Exception as e:
+        print(f"Error reading accounts: {e}")
+
+    # For safety in test environments, default some values if empty
+    if not account_config:
+        account_config = {"login": account_id, "password": "x", "server": "test"}
+
+    # Threaded call to MT5 connection so FastAPI Event Loop is not blocked
+    ok, is_timeout, detail = await asyncio.to_thread(connect_to_mt5_with_timeout, account_config, 15)
+    
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"MT5 Connection Failed: {detail}")
+
+    background_tasks.add_task(run_auto_grid_engine, account_id)
+    return {"status": "success", "message": f"MT5 Connected and Bot started for {account_id}"}
 
 @router.post("/stop")
 async def stop_bot(account_id: str):

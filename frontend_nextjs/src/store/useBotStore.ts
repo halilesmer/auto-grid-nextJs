@@ -7,6 +7,8 @@ interface BotState {
     price: number;
     profit: number;
     open_positions: number;
+    rsi?: number;
+    macd?: number;
   };
   setAccounts: (accounts: any[]) => void;
   setSelectedAccount: (accountId: string) => void;

@@ -19,16 +19,20 @@ export default function SettingsForm() {
     }
   }, [selectedAccount]);
 
-  const handleSave = async () => {
-    if (!selectedAccount) return;
+  const handleStartBot = async () => {
+    if (!selectedAccount) return alert('Select an account first!');
     try {
+      // 1. Önce ayarları kaydet
       await axios.post('http://localhost:8000/api/settings', {
         account_id: selectedAccount,
         settings
       });
-      alert('Settings saved!');
-    } catch (err) {
+      // 2. Sonra botu başlat
+      const res = await axios.post(`http://localhost:8000/api/start?account_id=${selectedAccount}`);
+      alert(res.data.message || 'Bot successfully started!');
+    } catch (err: any) {
       console.error(err);
+      alert(err.response?.data?.detail || 'Failed to start bot');
     }
   };
 
@@ -60,8 +64,8 @@ export default function SettingsForm() {
                className="bg-black/40 border border-white/20 text-white rounded p-2 focus:ring-2 focus:ring-blue-500" />
       </div>
 
-      <button onClick={handleSave} className="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded-lg transition-colors">
-        Save Settings
+      <button onClick={handleStartBot} className="mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
+        Save & Start Bot
       </button>
     </div>
   );

@@ -8,14 +8,14 @@ import axios from 'axios';
 export default function Home() {
   const { selectedAccount } = useBotStore();
 
-  const handleBotAction = async (action: 'start' | 'stop') => {
+  const handleStopBot = async () => {
     if (!selectedAccount) return alert('Select an account first!');
     try {
-      const res = await axios.post(`http://localhost:8000/api/${action}?account_id=${selectedAccount}`);
+      const res = await axios.post(`http://localhost:8000/api/stop?account_id=${selectedAccount}`);
       alert(res.data.message);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert(`Failed to ${action} bot`);
+      alert(err.response?.data?.detail || 'Failed to stop bot');
     }
   };
 
@@ -27,8 +27,9 @@ export default function Home() {
         action: 'CLEAR_ZONE'
       });
       alert('Clear zone signal sent!');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(err.response?.data?.detail || 'Failed to clear zone');
     }
   };
 
@@ -59,20 +60,15 @@ export default function Home() {
               {/* Controls */}
               <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-xl flex flex-col space-y-4">
                 <h3 className="text-xl font-bold text-white border-b border-white/10 pb-2">Bot Controls</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => handleBotAction('start')} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
-                    Start Bot
-                  </button>
-                  <button onClick={() => handleBotAction('stop')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-red-500/20 transition-all active:scale-95">
-                    Stop Bot
-                  </button>
-                </div>
-                <button onClick={handleClearZone} className="w-full mt-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
+                <button onClick={handleStopBot} className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-red-500/20 transition-all active:scale-95">
+                  Stop Bot
+                </button>
+                <button onClick={handleClearZone} className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
                   Clear Zone (Emergency)
                 </button>
               </div>
 
-              {/* Settings Form */}
+              {/* Settings Form (includes Save & Start Bot button) */}
               <SettingsForm />
 
             </div>
