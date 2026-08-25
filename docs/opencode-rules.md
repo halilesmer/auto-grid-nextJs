@@ -1,0 +1,1 @@
+Önce @token-saver.md ve @docs/proje_dosya_krokisi.md dosyalarını oku. Ardından şu sorunu çöz: 

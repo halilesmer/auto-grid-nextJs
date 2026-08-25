@@ -1,0 +1,27 @@
+# Streamlit ve Python önbellekleri
+__pycache__/
+.pytest_cache/
+.streamlit/
+
+
+# Sanal Ortamlar
+venv/
+.venv/
+
+# Konfigurationen und sensible Daten ignorieren
+configs/accounts.json
+configs/settings_*.json
+
+# 📄 Log Dosyaları ve Klasörleri
+*.log
+logs/
+*.tmp
+logs/*.txt
+
+# 🧠 Kalıcı Durum (state_manager) — runtime verisi, sürüm takibi dışında
+data/
+
+# İşletim Sistemi
+.DS_Store
+**/.DS_Store
+__MACOSX/
