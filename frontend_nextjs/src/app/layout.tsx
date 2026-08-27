@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
@@ -13,9 +13,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#0e1117",
+};
+
 export const metadata: Metadata = {
   title: "Auto Grid Terminal",
   description: "Next.js + FastAPI Algorithmic Trading Bot",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Grid Robot",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,24 +40,38 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="tr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-900 text-white" suppressHydrationWarning>
+      <body
+        className="min-h-full flex flex-col bg-gray-900 text-white"
+        suppressHydrationWarning
+      >
         <nav className="sticky top-0 z-50 flex gap-1 px-6 py-3 bg-gray-900/80 backdrop-blur border-b border-white/10">
           <Link
             href="/"
             className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-all"
           >
-            ⚡ Auto Grid
+            Grid Robot
           </Link>
           <Link
             href="/formasyon"
             className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-all"
           >
-            📈 Formasyon
+            Formasyon
           </Link>
         </nav>
-        <main className="flex-1">
-          {children}
-        </main>
+        <main className="flex-1">{children}</main>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/service-worker.js')
+                    .then(function(reg) { console.log('PWA SW registered:', reg.scope); })
+                    .catch(function(err) { console.log('PWA SW error:', err); });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
