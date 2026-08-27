@@ -1,7 +1,6 @@
 'use client';
 import AccountSelector from '@/components/AccountSelector';
 import SettingsForm from '@/components/SettingsForm';
-import ChartViewer from '@/components/ChartViewer';
 import { useBotStore } from '@/store/useBotStore';
 import axios from 'axios';
 
@@ -34,7 +33,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header Section */}
@@ -73,9 +72,9 @@ export default function Home() {
 
             </div>
 
-            {/* Main Area: Chart */}
-            <div className="lg:col-span-2 min-h-[500px]">
-              <ChartViewer />
+            {/* Main Area: Placeholder - Chart is in Formasyon page */}
+            <div className="lg:col-span-2 min-h-[500px] flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-xl">
+              <p className="text-gray-500 text-sm">📈 Grafik görüntülemek için <a href="/formasyon" className="text-blue-400 hover:underline">Formasyon</a> sekmesine geçin.</p>
             </div>
 
           </div>
@@ -87,6 +86,6 @@ export default function Home() {
         )}
 
       </div>
-    </main>
+    </div>
   );
 }
