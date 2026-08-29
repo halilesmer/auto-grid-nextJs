@@ -321,23 +321,40 @@ async def get_platform_info():
     }
 
 
-@router.get('/system/update/check')
-async def check_update(branch: str = Query('test', description='Git branch')):
+@router.get("/system/update/check")
+async def check_update(branch: str = Query("main", description="Git branch")):
     """GitHub üzerinden güncelleme kontrolü yapar."""
-    success, data = check_for_updates(branch=branch)
-    if not success:
-        raise HTTPException(status_code=500, detail=data)
-    has_update, local_ver, remote_ver = data
-    return {'has_update': has_update, 'local_ver': local_ver, 'remote_ver': remote_ver}
+    try:
+        success, data = check_for_updates(branch=branch)
+        if not success:
+            return {
+                "has_update": False,
+                "local_ver": "v1.0.0",
+                "remote_ver": "v1.0.0",
+                "error": str(data),
+            }
+        has_update, local_ver, remote_ver = data
+        return {
+            "has_update": has_update,
+            "local_ver": local_ver,
+            "remote_ver": remote_ver,
+        }
+    except Exception as e:
+        return {
+            "has_update": False,
+            "local_ver": "v1.0.0",
+            "remote_ver": "v1.0.0",
+            "error": str(e),
+        }
 
 
-@router.post('/system/update')
-async def run_update(branch: str = Query('test', description='Git branch')):
+@router.post("/system/update")
+async def run_update(branch: str = Query("main", description="Git branch")):
     """Git pull ile güncellemeyi uygular."""
     success, message = await asyncio.to_thread(execute_git_pull, branch=branch)
     if not success:
         raise HTTPException(status_code=500, detail=message)
-    return {'status': 'success', 'message': message}
+    return {"status": "success", "message": message}
 
 
 # ---------------------------------------------------------------------------

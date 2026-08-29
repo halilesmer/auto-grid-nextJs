@@ -35,11 +35,15 @@ export default function Home() {
 
   useEffect(() => {
     axios
-      .get(`${API}/system/update/check?branch=test`)
+      .get(`${API}/system/update/check?branch=main`)
       .then((res) => {
         const { has_update, local_ver, remote_ver } = res.data;
         if (has_update) {
-          setUpdateInfo({ hasUpdate: true, localVer: local_ver, remoteVer: remote_ver });
+          setUpdateInfo({
+            hasUpdate: true,
+            localVer: local_ver,
+            remoteVer: remote_ver,
+          });
         }
       })
       .catch(() => {});
@@ -58,10 +62,19 @@ export default function Home() {
   };
 
   const handleCheckUpdates = async () => {
-    setUpdateResult({ hasUpdate: false, localVer: '...', remoteVer: '...', loading: true });
+    setUpdateResult({
+      hasUpdate: false,
+      localVer: "...",
+      remoteVer: "...",
+      loading: true,
+    });
     try {
-      const res = await axios.get(`${API}/system/update/check?branch=test`);
-      setUpdateResult({ ...res.data, hasUpdate: res.data.has_update, loading: false });
+      const res = await axios.get(`${API}/system/update/check?branch=main`);
+      setUpdateResult({
+        ...res.data,
+        hasUpdate: res.data.has_update,
+        loading: false,
+      });
     } catch {
       setUpdateResult(null);
     }
@@ -71,10 +84,10 @@ export default function Home() {
     if (!updateResult) return;
     setUpdateResult({ ...updateResult, loading: true });
     try {
-      await axios.post(`${API}/system/update?branch=test`);
+      await axios.post(`${API}/system/update?branch=main`);
       window.location.reload();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Update failed');
+      alert(err.response?.data?.detail || "Update failed");
       setUpdateResult(null);
     }
   };

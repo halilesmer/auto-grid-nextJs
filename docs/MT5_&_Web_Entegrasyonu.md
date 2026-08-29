@@ -59,3 +59,16 @@ NEXT_PUBLIC_API_KEY=gizli_sifren_123
 
 
 * **Sonuç:** MacBook'ta `git push origin main` yaptığın an, Vercel kodu derler (Build) ve arayüz saniyeler içinde yeni versiyonuyla dünya çapında yayına girer.
+
+
+
+
+
+
+
+
+Mac'te kodu yaz ve kaydet.
+
+Mac'te git push yap.
+
+Windows VPS'te git pull yap ve Uvicorn'u yeniden başlat.
