@@ -1,6 +1,0 @@
-streamlit
-pandas
-ccxt
-psutil
-MetaTrader5
-plotly
