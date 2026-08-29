@@ -14,7 +14,11 @@ import { VERSION } from '@/app/version';
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
+
+// Ngrok güvenlik uyarı sayfasını atlamak için zorunlu başlık
+axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function Home() {
   const { selectedAccount, activeAccount, setUpdateInfo } = useBotStore();
