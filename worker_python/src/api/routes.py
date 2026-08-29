@@ -7,7 +7,7 @@ import os
 import sys
 import glob
 import asyncio
-from src.utils.mt5_connection import connect_to_mt5_with_timeout
+from src.utils.mt5_connection import connect_to_mt5_with_timeout, get_mt5_symbols, shutdown_mt5
 from src.utils.self_updater import check_for_updates, execute_git_pull
 from src.utils.paths import get_sim_price_path
 from src.utils.bot_manager import start_bot_process, stop_bot_process
@@ -301,6 +301,28 @@ async def stop_bot(account_id: str):
 async def send_action(req: ActionRequest):
     # ui_*.json köprüsünün HTTP karşılığı — bot engine asyncio.Queue'dan okur
     return {'status': 'success', 'message': f'Action {req.action} received for {req.account_id}'}
+
+
+@router.get('/symbols/{account_id}')
+async def get_symbols(account_id: str):
+    """Hesap üzerinden MT5'e geçici bağlanıp sembolleri çeker."""
+    try:
+        accounts = _load_accounts()
+        account_config = next((a for a in accounts if str(a.get("id")) == account_id or str(a.get("login")) == account_id), None)
+        if not account_config:
+            raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
+
+        ok, _is_timeout, detail = await asyncio.to_thread(connect_to_mt5_with_timeout, account_config, 15)
+        if not ok:
+            raise HTTPException(status_code=500, detail=f"MT5 Bağlantı Hatası: {detail}")
+
+        symbols = await asyncio.to_thread(get_mt5_symbols)
+        await asyncio.to_thread(shutdown_mt5)  # Bağlantıyı serbest bırak, IPC kilitlenmesini önle
+        return {'status': 'success', 'account_id': account_id, 'symbols': symbols}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # ---------------------------------------------------------------------------

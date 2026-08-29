@@ -283,6 +283,20 @@ def shutdown_mt5():
         except Exception:
             pass
 
+def get_mt5_symbols():
+    """MT5 terminalinden aktif sembolleri (Market Watch) çeker."""
+    if not MT5_AVAILABLE or platform.system() != "Windows":
+        return []
+    try:
+        symbols = mt5.symbols_get()
+        if symbols is None:
+            safe_log("MT5'ten sembol listesi alınamadı (Market Watch boş olabilir).", type="warning")
+            return []
+        return [s.name for s in symbols]
+    except Exception as e:
+        safe_log(f"Sembol çekme hatası: {e}", type="error")
+        return []
+
 
 # ==========================================
 # 🌟 DÜZELTME: GÜVENLİ ZAMAN AŞIMLI BAĞLANTI (MİMARİ ÇÖZÜM)

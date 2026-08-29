@@ -1,7 +1,6 @@
 # src/utils/config.py
 import json
 import os
-import streamlit as st
 
 # Merkezi yol yöneticisi
 from src.utils.paths import get_settings_path
@@ -21,22 +20,7 @@ DEFAULT_SETTINGS_AUTO_GRID = {
 
 def get_settings_file(engine_name: str = "Auto Grid") -> str:
     """Hesap ID ve motor adına göre benzersiz bir dosya adı üretir."""
-    account_id = "default"
-
-    if "ACTIVE_ACCOUNT_ID" in os.environ:
-        account_id = os.environ["ACTIVE_ACCOUNT_ID"]
-    else:
-        try:
-            if (
-                "selected_account" in st.session_state
-                and st.session_state.selected_account
-            ):
-                account_id = str(
-                    st.session_state.selected_account.get("login", "default")
-                )
-        except Exception:
-            pass
-
+    account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
     return get_settings_path(account_id, engine_name)
 
 
