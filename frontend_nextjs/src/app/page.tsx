@@ -1,18 +1,20 @@
 'use client';
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+
+import { Globe, Monitor, Power, RefreshCw, Server, Settings } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
 import AccountSelector from '@/components/AccountSelector';
 import BotControls from '@/components/BotControls';
-import SettingsForm from '@/components/SettingsForm';
 import ChartViewer from '@/components/ChartViewer';
-import LogViewer from '@/components/LogViewer';
-import SimulationBar from '@/components/SimulationBar';
 import ConfirmModal from '@/components/ConfirmModal';
-import { useBotStore } from '@/store/useBotStore';
+import LogViewer from '@/components/LogViewer';
+import SettingsForm from '@/components/SettingsForm';
+import SimulationBar from '@/components/SimulationBar';
 import { VERSION } from '@/app/version';
-import { Power, Settings, Monitor, Globe, Server, RefreshCw } from 'lucide-react';
+import axios from 'axios';
+import { useBotStore } from '@/store/useBotStore';
 
-const API = 'http://localhost:8000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export default function Home() {
   const { selectedAccount, activeAccount, setUpdateInfo } = useBotStore();
