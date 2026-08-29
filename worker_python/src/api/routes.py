@@ -62,12 +62,13 @@ def _find_settings_file(account_id: str) -> Optional[str]:
 class AccountModel(BaseModel):
     id: str
     account_name: str
-    env_type: str = 'DEMO'
+    env_type: str = "DEMO"
     login: int | str
     password: str
     server: str
-    mt5_path: Optional[str] = ''
-    notes: Optional[str] = ''
+    mt5_path: Optional[str] = ""
+    notes: Optional[str] = ""
+
 
 class SettingsPayload(BaseModel):
     settings: dict
