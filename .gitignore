@@ -11,6 +11,9 @@ venv/
 # Konfigurationen und sensible Daten ignorieren
 configs/accounts.json
 configs/settings_*.json
+worker_python/configs/*.json
+worker_python/logs/
+*.tmp
 
 # 📄 Log Dosyaları ve Klasörleri
 *.log
@@ -25,3 +28,6 @@ data/
 .DS_Store
 **/.DS_Store
 __MACOSX/
+
+# Mevcut .gitignore dosyanın en altına bunları ekle
+# Kullanıcı Verileri ve Hesaplar
