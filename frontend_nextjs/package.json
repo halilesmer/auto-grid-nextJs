@@ -20,7 +20,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@tailwindcss/oxide-darwin-arm64": "^4.3.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
