@@ -1,9 +1,16 @@
 'use client';
+
 import { useEffect, useState } from 'react';
+
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
 
-const API = 'http://localhost:8000/api';
+const rawAPI =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://tweet-overlying-monotone.ngrok-free.dev";
+const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
+
+axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function SimulationBar() {
   const { selectedAccount, simulatedPrice, setSimulatedPrice, isWindows, setIsWindows } =

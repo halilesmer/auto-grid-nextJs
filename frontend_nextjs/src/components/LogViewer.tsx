@@ -1,10 +1,17 @@
 'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { Download } from 'lucide-react';
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
-import { Download } from 'lucide-react';
 
-const API = 'http://localhost:8000/api';
+const rawAPI =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://tweet-overlying-monotone.ngrok-free.dev";
+const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
+
+axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 const POLL_INTERVAL_MS = 10_000;
 
 export default function LogViewer() {

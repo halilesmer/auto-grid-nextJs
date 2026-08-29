@@ -1,11 +1,18 @@
 'use client';
-import { useState, useCallback } from 'react';
+
+import { AlertTriangle, Pause, Play } from 'lucide-react';
+import { useCallback, useState } from 'react';
+
+import ConfirmModal from '@/components/ConfirmModal';
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
-import ConfirmModal from '@/components/ConfirmModal';
-import { Play, Pause, AlertTriangle } from 'lucide-react';
 
-const API = 'http://localhost:8000/api';
+const rawAPI =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://tweet-overlying-monotone.ngrok-free.dev";
+const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
+
+axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function BotControls() {
   const {
