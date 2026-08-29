@@ -194,7 +194,8 @@ export const useBotStore = create<BotState>((set) => ({
   setSelectedAccount: (accountId) => {
     set((state) => ({
       selectedAccount: accountId,
-      activeAccount: state.accounts.find((a) => a.id === accountId) || null,
+      activeAccount:
+        state.accounts.find((a) => String(a.id) === String(accountId)) || null,
     }));
   },
 

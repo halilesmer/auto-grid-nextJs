@@ -2,8 +2,8 @@
 import subprocess
 import sys
 import os
-import streamlit as st
 import time  # Bekleme (sleep) için eklendi
+import datetime
 from pathlib import Path
 
 # Proje dizinini al ki utils klasöründeki dosyalara ulaşabilelim
@@ -170,16 +170,14 @@ def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
                 f"WinError {winerr} (0x{winerr & 0xFFFFFFFF:08X}) | errno={errno_} | "
                 f"{str(e)} | dosya/kısım: {filename if filename else 'yok'}"
             )
-        st.error(
-            f"🚨 Sistem Hatası: {account_id} için robot başlatılamadı!\n\nDetay: {detail}"
-        )
+        # Subprocess içinde streamlit yok; sadece log'a yaz
+        print(f"🚨 Sistem Hatası: {account_id} için robot başlatılamadı!\nDetay: {detail}")
         try:
             err_path = get_err_log_path(account_id)
-            import datetime as _dt
 
             with open(err_path, "a", encoding="utf-8") as f:
                 f.write(
-                    f"[{_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                    f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
                     f"[START_ERROR] {detail}\n"
                 )
         except Exception:
@@ -207,6 +205,9 @@ def stop_bot_process(account_id: str) -> bool:
     # Böylece diğer Python uygulamaları (veya başka hesapların robotları) asla zarar görmez.
     for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
+            # Sadece python süreçlerini filtrele (performans)
+            if proc.info.get("name") and "python" not in proc.info["name"].lower():
+                continue
             cmdline = proc.info.get("cmdline") or []
             cmdline_str = " ".join(cmdline)
 

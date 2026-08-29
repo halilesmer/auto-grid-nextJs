@@ -5,7 +5,7 @@ import sys
 
 def get_project_root():
     """Projenin ana klasör yolunu güvenli bir şekilde döndürür."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 
 
 def ensure_git_repo(branch, project_root):
@@ -111,14 +111,17 @@ def execute_git_pull(branch="master"):
     if not is_git_ok:
         return False, error_message
 
+    stashed = False
     try:
-        subprocess.run(
-            ["git", "reset", "--hard"],
+        # Yerel değişiklikleri stash'le (kaybetme)
+        stash_res = subprocess.run(
+            ["git", "stash", "push", "-u", "-m", "auto-stash-before-pull"],
             cwd=project_root,
-            check=True,
+            check=False,  # stash yoksa hata vermesin
             capture_output=True,
             text=True,
         )
+        stashed = stash_res.returncode == 0 and "No local changes" not in (stash_res.stdout or "")
         subprocess.run(
             ["git", "fetch", "origin", branch],
             cwd=project_root,
@@ -133,6 +136,15 @@ def execute_git_pull(branch="master"):
             capture_output=True,
             text=True,
         )
+        if stashed:
+            # Yerel değişiklikleri geri yükle; çakışırsa stash korunur, akış bozulmaz
+            subprocess.run(
+                ["git", "stash", "pop"],
+                cwd=project_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
         return True, result.stdout
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
@@ -140,12 +152,18 @@ def execute_git_pull(branch="master"):
 
 
 def hard_restart_server():
+    """
+    DİKKAT: Bu fonksiyon cleanup (PID dosyaları, MT5 shutdown) yapmaz.
+    Sadece graceful shutdown sonrası çağrılmalı.
+    """
     project_root = get_project_root()
     launcher_script = os.path.join(project_root, "scripts", "launcher.py")
+    if not os.path.exists(launcher_script):
+        raise FileNotFoundError(f"Launcher script not found: {launcher_script}")
     os.execl(sys.executable, sys.executable, launcher_script)
 
 
-def check_for_updates(branch="test"):
+def check_for_updates(branch="main"):
     """
     Yerel (local) depo ile GitHub (origin) deposu arasındaki Git commit hash'lerini
     karşılaştırarak yeni bir güncelleme olup olmadığını %100 doğrulukla test eder.

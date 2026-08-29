@@ -5,7 +5,10 @@ import { useBotStore, type Account } from '@/store/useBotStore';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Plus, Edit3, Trash2, AlertTriangle, X, Download, RefreshCw } from 'lucide-react';
 
-const API = 'http://localhost:8000/api';
+const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
+
+// Ngrok header page.tsx'de merkezi olarak ayarlanıyor; duplicate önlemek için burada tekrar etmiyoruz
 
 function emptyAccount(): Account {
   return {
@@ -82,7 +85,7 @@ export default function AccountSelector() {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'login' ? parseInt(value, 10) || 0 : value,
+      [name]: name === 'login' ? (value ? parseInt(value, 10) : 0) : value,
     }));
   };
 
@@ -104,14 +107,12 @@ export default function AccountSelector() {
     setSaving(true);
     setError('');
     try {
+      const payload = { ...form, id: String(form.login), login: form.login };
       if (isEditing) {
-        await axios.delete(`${API}/accounts/${form.id}`);
+        await axios.put(`${API}/accounts/${form.id}`, payload);
+      } else {
+        await axios.post(`${API}/accounts`, payload);
       }
-      await axios.post(`${API}/accounts`, {
-        ...form,
-        id: String(form.login),
-        login: form.login,
-      });
       const res = await axios.get(`${API}/accounts`);
       setAccounts(res.data.accounts);
       setSelectedAccount(String(form.login));
@@ -306,11 +307,15 @@ export default function AccountSelector() {
                 MT5 Path *
                 {mt5Paths.length > 0 && (
                   <button
-                    onClick={() =>
-                      axios
-                        .get(`${API}/system/scan-mt5`)
-                        .then((res) => setMt5Paths(res.data.paths || []))
-                    }
+                    onClick={async () => {
+                      try {
+                        const res = await axios.get(`${API}/system/scan-mt5`);
+                        setMt5Paths(res.data.paths || []);
+                      } catch (e) {
+                        setMt5Paths([]);
+                        console.error('MT5 rescan failed', e);
+                      }
+                    }}
                     className="ml-2 text-blue-400 hover:text-blue-300"
                     title="Rescan MT5 paths"
                   >

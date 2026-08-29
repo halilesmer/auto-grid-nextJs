@@ -17,7 +17,8 @@ import { useBotStore } from '@/store/useBotStore';
 const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 
-// Ngrok güvenlik uyarı sayfasını atlamak için zorunlu başlık
+// Ngrok header merkezi axios instance'ta tanımlanmalı; geçici olarak burada bırakıldı
+// TODO: src/lib/axios.ts oluşturup merkezi instance export et
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function Home() {

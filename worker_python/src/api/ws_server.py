@@ -24,8 +24,14 @@ class ConnectionManager:
         self.active_connections.remove(websocket)
 
     async def broadcast(self, message: str):
+        disconnected = []
         for connection in self.active_connections:
-            await connection.send_text(message)
+            try:
+                await connection.send_text(message)
+            except Exception:
+                disconnected.append(connection)
+        for conn in disconnected:
+            self.disconnect(conn)
 
 manager = ConnectionManager()
 
@@ -64,31 +70,52 @@ def fetch_mt5_data(symbol="USOUSD"):
 
 async def real_bot_data_stream():
     """MT5'ten gerçek veriyi 1 saniyede bir çekip WS ile yayınlar."""
-    symbol = "USOUSD" # Sabit sembol (dinamik yapılabilir)
+    symbol = "USOUSD"  # TODO: config'ten al
     while True:
-        await asyncio.sleep(1.0)
-        
-        # MT5 API'sini Event Loop'u kilitlemesin diye thread içinde çalıştır
-        data = await asyncio.to_thread(fetch_mt5_data, symbol)
-        
-        if data:
-            indicators = get_latest_indicators(data["df"])
-            
-            payload = {
-                "type": "METRICS",
-                "payload": {
-                    "price": data["price"],
-                    "profit": data["profit"],
-                    "open_positions": data["open_positions"],
-                    "rsi": indicators["rsi"],
-                    "macd": indicators["macd"]
+        try:
+            await asyncio.sleep(1.0)
+
+            data = await asyncio.to_thread(fetch_mt5_data, symbol)
+
+            if data:
+                indicators = get_latest_indicators(data["df"])
+
+                payload = {
+                    "type": "METRICS",
+                    "payload": {
+                        "price": data["price"],
+                        "profit": data["profit"],
+                        "open_positions": data["open_positions"],
+                        "rsi": indicators["rsi"],
+                        "macd": indicators["macd"]
+                    }
                 }
-            }
-            await manager.broadcast(json.dumps(payload))
+                await manager.broadcast(json.dumps(payload))
+        except asyncio.CancelledError:
+            # Graceful shutdown
+            raise
+        except Exception as e:
+            print(f"[WS Stream] Unexpected error: {e}")
+            # Tekrar deneme için 5 sn bekle
+            await asyncio.sleep(5.0)
+
+# Module-level task reference for shutdown
+_stream_task: asyncio.Task | None = None
 
 @router.on_event("startup")
 async def startup_event():
-    asyncio.create_task(real_bot_data_stream())
+    global _stream_task
+    _stream_task = asyncio.create_task(real_bot_data_stream())
+
+@router.on_event("shutdown")
+async def shutdown_event():
+    global _stream_task
+    if _stream_task and not _stream_task.done():
+        _stream_task.cancel()
+        try:
+            await _stream_task
+        except asyncio.CancelledError:
+            pass
 
 @router.websocket("/stream")
 async def websocket_endpoint(websocket: WebSocket):

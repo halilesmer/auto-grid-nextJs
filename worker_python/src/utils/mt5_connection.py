@@ -5,6 +5,8 @@ import time
 import os
 import shutil  # 🌟 YENİ EKLENDİ (Dosya kopyalamak için)
 import datetime  # 🌟 YENİ EKLENDİ (Tarih formatı için)
+import psutil
+import subprocess
 
 from src.utils.paths import get_mt5_backup_dir  # 🌟 YENİ: Hesaba özel MT5 yedek klasörü
 
@@ -69,15 +71,13 @@ def connect_to_mt5(account_config, timeout_sec=60):
 
     def _kill_zombie_mt5(path):
         """Yardımcı Fonksiyon: Kilitlenmiş MT5'i işletim sistemi seviyesinde öldürür."""
-        try:
-            import psutil
-            import subprocess
+        # import psutil, subprocess  # KALDIRILDI: modül seviyesinde import edildi
 
-            target_exe = "terminal64.exe"
-            if path and os.path.exists(path):
-                target_exe = os.path.basename(path).lower()
+        target_exe = "terminal64.exe"
+        if path and os.path.exists(path):
+            target_exe = os.path.basename(path).lower()
 
-            for proc in psutil.process_iter(["pid", "name", "exe"]):
+        for proc in psutil.process_iter(["pid", "name", "exe"]):
                 try:
                     p_name = proc.info.get("name")
                     p_exe = proc.info.get("exe")
@@ -107,8 +107,6 @@ def connect_to_mt5(account_config, timeout_sec=60):
                     psutil.ZombieProcess,
                 ):
                     pass
-        except ImportError:
-            pass
 
     # ==============================================================
     # 🌟 GİRİŞ BİLGİLERİNİ GÜVENLİ ŞEKİLDE HAZIRLA (Try-Except ile)
@@ -291,7 +289,8 @@ def shutdown_mt5():
 # ==========================================
 def connect_to_mt5_with_timeout(account_config, timeout=60):
     """
-    connect_to_mt5'i doğrudan çağırır.
+    connect_to_mt5'i çağırır; timeout gerçekleşirse is_timeout=True döner.
+    Not: MT5 C-API kendi timeout'unu yönetir; bu wrapper hata kodlarını yorumlar.
     Dönüş: (başarı_bool, zaman_aşımı_bool, hata_detayı_str_or_None)
     """
     if not account_config:
@@ -299,7 +298,6 @@ def connect_to_mt5_with_timeout(account_config, timeout=60):
         return False, False, "[CONFIG] Bağlanılacak hesap seçilmedi."
 
     try:
-        # Doğrudan ana iş parçacığında bağlantı fonksiyonunu çağır (Thread yok!)
         ok, detail = connect_to_mt5(account_config, timeout_sec=timeout)
 
         is_timeout = False
@@ -356,8 +354,6 @@ def backup_mt5_logs(account_id):
     if os.path.exists(source_log_path):
         target_log_path = os.path.join(custom_log_dir, f"MT5_Terminal_{today_log_file}")
         try:
-            # copy2 kullanarak dosya izinleri ve oluşturulma tarihlerini de koruruz
             shutil.copy2(source_log_path, target_log_path)
-            # safe_log(f"MT5 Terminal Logu başarıyla yedeklendi.", type="warning")
         except Exception as e:
-            safe_log(f"MT5 Log kopyalama hatası: {e}")
+            safe_log(f"MT5 Log kopyalama hatası: {e}", type="warning")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -107,6 +107,26 @@ async def create_account(account: AccountModel):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@router.put('/accounts/{account_id}')
+async def update_account(account_id: str, account: AccountModel):
+    """Mevcut hesabı günceller."""
+    try:
+        accounts = _load_accounts()
+        idx = next((i for i, a in enumerate(accounts) if str(a.get('id')) == str(account_id)), None)
+        if idx is None:
+            raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
+        # Yeni id başka bir hesapta zaten varsa çakışma döndür (kendi kaydını hariç tut)
+        if any(str(a.get('id')) == str(account.id) for i, a in enumerate(accounts) if i != idx):
+            raise HTTPException(status_code=409, detail=f"Account '{account.id}' already exists")
+        accounts[idx] = account.model_dump()
+        _save_accounts(accounts)
+        return {'status': 'updated', 'account': accounts[idx]}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @router.delete('/accounts/{account_id}')
 async def delete_account(account_id: str):
     """Hesabı siler."""
@@ -167,7 +187,7 @@ async def update_settings(account_id: str, payload: SettingsPayload):
 async def get_logs(
     account_id: str,
     log_type: str = Query('all', description="'robot' | 'mt5' | 'metrics' | 'all'"),
-    lines: int  = Query(200,  description='Son kaç satır/kayıt döneceği'),
+    lines: int  = Query(200, ge=1, le=2000, description='Son kaç satır/kayıt döneceği'),
 ):
     """
     Hesaba ait logları diskten okur.
@@ -243,15 +263,17 @@ async def get_logs(
 async def start_bot(account_id: str):
     account_config: dict = {}
     try:
-        for acc in _load_accounts():
-            if str(acc.get("id")) == account_id or str(acc.get("login")) == account_id:
-                account_config = acc
-                break
+        accounts = _load_accounts()
     except Exception as exc:
-        print(f"Error reading accounts: {exc}")
+        raise HTTPException(status_code=500, detail=f"Error reading accounts: {exc}")
+
+    for acc in accounts:
+        if str(acc.get("id")) == account_id or str(acc.get("login")) == account_id:
+            account_config = acc
+            break
 
     if not account_config:
-        account_config = {"login": account_id, "password": "x", "server": "test"}
+        raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
 
     ok, _is_timeout, detail = await asyncio.to_thread(
         connect_to_mt5_with_timeout, account_config, 15
@@ -340,12 +362,7 @@ async def check_update(branch: str = Query("main", description="Git branch")):
             "remote_ver": remote_ver,
         }
     except Exception as e:
-        return {
-            "has_update": False,
-            "local_ver": "v1.0.0",
-            "remote_ver": "v1.0.0",
-            "error": str(e),
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/system/update")
