@@ -10,26 +10,10 @@ import subprocess
 
 from src.utils.paths import get_mt5_backup_dir  # 🌟 YENİ: Hesaba özel MT5 yedek klasörü
 
-# Streamlit sicher importieren, um Subprocess-Abstürze zu verhindern!
-try:
-    import streamlit as st
-    from streamlit.runtime.scriptrunner import get_script_run_ctx
-except ImportError:
-    st = None
-
-
 def safe_log(msg, type="error"):
-    """Zeigt Fehler im Dashboard an, schreibt sie aber im Hintergrund-Prozess sicher ins Log, ohne abzustürzen!"""
-    print(msg)  # Geht immer sicher in die bot_..._error.log Datei
-    if st is not None:
-        try:
-            if get_script_run_ctx() is not None:  # Prüft, ob wir im UI-Dashboard sind
-                if type == "error":
-                    st.error(msg)
-                elif type == "warning":
-                    st.warning(msg)
-        except Exception:
-            pass
+    """Konsola veya yönlendirilmiş log dosyasına güvenli mesaj yazar."""
+    prefix = "🔴 ERROR:" if type == "error" else "⚠️ WARNING:" if type == "warning" else "ℹ️ INFO:"
+    print(f"{prefix} {msg}")
 
 
 try:
