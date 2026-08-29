@@ -10,6 +10,7 @@ import asyncio
 from src.utils.mt5_connection import connect_to_mt5_with_timeout
 from src.utils.self_updater import check_for_updates, execute_git_pull
 from src.utils.paths import get_sim_price_path
+from src.utils.bot_manager import start_bot_process, stop_bot_process
 
 router = APIRouter()
 
@@ -235,35 +236,42 @@ async def get_logs(
 # ---------------------------------------------------------------------------
 # BOT KONTROL  —  /start  |  /stop  |  /action
 # ---------------------------------------------------------------------------
-def run_auto_grid_engine(account_id: str):
-    print(f'[Engine] Background engine started for {account_id}')
 
 
-@router.post('/start')
-async def start_bot(account_id: str, background_tasks: BackgroundTasks):
+@router.post("/start")
+async def start_bot(account_id: str):
     account_config: dict = {}
     try:
         for acc in _load_accounts():
-            if str(acc.get('id')) == account_id or str(acc.get('login')) == account_id:
+            if str(acc.get("id")) == account_id or str(acc.get("login")) == account_id:
                 account_config = acc
                 break
     except Exception as exc:
-        print(f'Error reading accounts: {exc}')
+        print(f"Error reading accounts: {exc}")
 
     if not account_config:
-        account_config = {'login': account_id, 'password': 'x', 'server': 'test'}
+        account_config = {"login": account_id, "password": "x", "server": "test"}
 
-    ok, _is_timeout, detail = await asyncio.to_thread(connect_to_mt5_with_timeout, account_config, 15)
+    ok, _is_timeout, detail = await asyncio.to_thread(
+        connect_to_mt5_with_timeout, account_config, 15
+    )
     if not ok:
-        raise HTTPException(status_code=500, detail=f'MT5 Connection Failed: {detail}')
+        raise HTTPException(status_code=500, detail=f"MT5 Connection Failed: {detail}")
 
-    background_tasks.add_task(run_auto_grid_engine, account_id)
-    return {'status': 'success', 'message': f'MT5 Connected and Bot started for {account_id}'}
+    success = start_bot_process(account_id, engine_name="Auto Grid")
+    if not success:
+        raise HTTPException(status_code=500, detail="Bot süreci başlatılamadı.")
+
+    return {
+        "status": "success",
+        "message": f"MT5 Connected and Bot started for {account_id}",
+    }
 
 
-@router.post('/stop')
+@router.post("/stop")
 async def stop_bot(account_id: str):
-    return {'status': 'success', 'message': f'Bot stopped for {account_id}'}
+    stop_bot_process(account_id)
+    return {"status": "success", "message": f"Bot stopped for {account_id}"}
 
 
 @router.post('/action')
