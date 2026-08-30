@@ -1,15 +1,16 @@
 'use client';
 
-import { Globe, Monitor, Power, RefreshCw, Server, Settings } from 'lucide-react';
+import { Globe, Monitor, Power, RefreshCw, Server, Settings, BarChart2, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 import AccountSelector from '@/components/AccountSelector';
 import BotControls from '@/components/BotControls';
-import ChartViewer from '@/components/ChartViewer';
 import ConfirmModal from '@/components/ConfirmModal';
 import LogViewer from '@/components/LogViewer';
 import SettingsForm from '@/components/SettingsForm';
 import SimulationBar from '@/components/SimulationBar';
+import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { VERSION } from '@/app/version';
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
@@ -17,12 +18,10 @@ import { useBotStore } from '@/store/useBotStore';
 const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 
-// Ngrok header merkezi axios instance'ta tanımlanmalı; geçici olarak burada bırakıldı
-// TODO: src/lib/axios.ts oluşturup merkezi instance export et
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function Home() {
-  const { selectedAccount, activeAccount, setUpdateInfo } = useBotStore();
+  const { selectedAccount, activeAccount, setUpdateInfo, settings, isRunning, liveData, setSettings } = useBotStore();
   const [shutdownOpen, setShutdownOpen] = useState(false);
   const [shuttingDown, setShuttingDown] = useState(false);
   const [showSysInfo, setShowSysInfo] = useState(false);
@@ -200,18 +199,40 @@ export default function Home() {
         {/* Simulation Bar (Mac only) */}
         {selectedAccount && <SimulationBar />}
 
+        {/* Navigation to Chart Page */}
+        {selectedAccount && (
+          <Link
+            href="/chart"
+            className="block w-full max-w-xs mx-auto md:mx-0"
+          >
+            <button
+              className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+            >
+              <BarChart2 size={24} />
+              <span className="text-lg">Grafik ve İstatistikleri Aç</span>
+              <ArrowRight size={20} />
+            </button>
+          </Link>
+        )}
+
         {/* Dashboard Grid */}
         {selectedAccount ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-            {/* Left (2/3): Chart + Logs */}
+            {/* Left (2/3): Zone Settings + Logs */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-[450px]">
-                <ChartViewer />
+                <ZoneSettingsPanel
+                  selectedAccount={selectedAccount}
+                  activeAccount={activeAccount}
+                  isRunning={isRunning}
+                  liveData={liveData}
+                  setZustandSettings={setSettings}
+                />
               </div>
               <LogViewer />
             </div>
 
-            {/* Right (1/3): Controls + Settings */}
+            {/* Right (1/3): Controls + Global Settings */}
             <div className="lg:col-span-1 space-y-6">
               <BotControls />
               <SettingsForm />

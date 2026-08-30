@@ -26,19 +26,22 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📂 src
 ┃ ┃ ┣ 📂 app                    # App Router (Next.js 14+)
 ┃ ┃ ┃ ┣ 📜 layout.tsx           # Root layout
-┃ ┃ ┃ ┣ 📜 page.tsx             # Ana sayfa (Dashboard)
+┃ ┃ ┃ ┣ 📜 page.tsx             # Ana sayfa (Dashboard) — *Güncellendi*
 ┃ ┃ ┃ ┣ 📜 globals.css          # Global stiller (Tailwind)
 ┃ ┃ ┃ ┣ 📜 version.ts           # Sürüm bilgisi
-┃ ┃ ┃ ┗ 📂 formasyon            # Formasyon sayfası
+┃ ┃ ┃ ┣ 📂 formasyon            # Formasyon sayfası
+┃ ┃ ┃ ┃ ┗ 📜 page.tsx
+┃ ┃ ┃ ┗ 📂 chart                # **YENİ: Grafik ve İstatistik Sayfası**
 ┃ ┃ ┃   ┗ 📜 page.tsx
 ┃ ┃ ┣ 📂 components             # React bileşenleri
 ┃ ┃ ┃ ┣ 📜 AccountSelector.tsx  # Hesap seçim
 ┃ ┃ ┃ ┣ 📜 BotControls.tsx      # Başlat/Durdur kontrolleri
-┃ ┃ ┃ ┣ 📜 ChartViewer.tsx      # Grafik görselleştirme
+┃ ┃ ┃ ┣ 📜 ChartViewer.tsx      # Grafik görselleştirme (Lightweight Charts)
 ┃ ┃ ┃ ┣ 📜 ConfirmModal.tsx     # Onay modalları
 ┃ ┃ ┃ ┣ 📜 LogViewer.tsx        # Log görüntüleyici
-┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # Ayar formu
-┃ ┃ ┃ ┗ 📜 SimulationBar.tsx    # Simülasyon çubuğu
+┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # **Güncellendi: Sadece Global Ayarlar (ORDER_TYPE, SYMBOL, LOOP_INTERVAL)**
+┃ ┃ ┃ ┣ 📜 SimulationBar.tsx    # Simülasyon çubuğu
+┃ ┃ ┃ ┗ 📜 ZoneSettingsPanel.tsx # **YENİ: Bölge Ayarları Paneli (Dinamik Zone Yönetimi)**
 ┃ ┃ ┗ 📂 store                  # Zustand state management
 ┃ ┃   ┗ 📜 useBotStore.ts       # Bot durumu ve aksiyonlar
 ┃ ┗ 📂 .next                    # Build çıktısı (git-ignore)
@@ -140,5 +143,50 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 
 1. **Başlatma**: Frontend → REST `/api/accounts` → Hesap listesi → Seçim → WebSocket `start` komutu → Worker `bot_runner` başlatır
 2. **Metrik Akışı**: Worker (MT5) → `auto_grid_engine` → WebSocket broadcast → Frontend `useBotStore` günceller → UI yeniden render
-3. **Ayar Değişikliği**: Frontend `SettingsForm` → REST `/api/settings` + WebSocket `update_settings` → Worker `config.py` kaydeder → Motor çalışma anında uygular
+3. **Ayar Değişikliği**: Frontend `SettingsForm` / `ZoneSettingsPanel` → REST `/api/settings` + WebSocket `update_settings` → Worker `config.py` kaydeder → Motor çalışma anında uygular
 4. **Durum Kurtarma**: Worker başlangıçta `state_manager.py` ile MT5'ten açık pozisyon/emirleri çeker → `data/state_*.json` yeniden inşa edilir → Frontend'e `state_restored` eventi gönderilir
+
+---
+
+## 🎨 UI/UX Yapısı (Güncellenmiş)
+
+### Sayfa Yapısı
+| Rota | Açıklama | Ana Bileşenler |
+|------|----------|----------------|
+| `/` | **Dashboard (Ana Sayfa)** | AccountSelector, SimulationBar, **ZoneSettingsPanel** (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), **📈 Grafik Butonu** |
+| `/chart` | **Grafik ve İstatistikler** | ChartViewer (sol 2/3), Gelecek Paneller (sağ 1/3: İstatistikler, Backtest, Deneme), **Ana Sayfaya Dön** butonu |
+| `/formasyon` | Formasyon Analizi | (Mevcut) |
+
+### Bileşen Sorumlulukları
+| Bileşen | Sorumluluk | State Kaynağı |
+|---------|------------|---------------|
+| `ZoneSettingsPanel.tsx` | **Dinamik Zone Yönetimi**: Bölge ekle/sil/düzenle, tüm zone alanları (Symbol, Order Type, Grid, Lot, TP/SL, Breakout, Pullback, Levels, Clear on Exit), Kaydet/Update | `useBotStore` (settings, liveData) + REST API |
+| `SettingsForm.tsx` | **Global Ayarlar**: ORDER_TYPE, SYMBOL, LOOP_INTERVAL_SECONDS | `useBotStore` (settings) + REST API |
+| `ChartViewer.tsx` | Canlı Mum grafiği + RSI (Lightweight Charts + WebSocket) | `useBotStore` (metrics, updateMetrics) |
+| `BotControls.tsx` | Bot Başlat/Durdur, Temizle, Sembol Seçimi | `useBotStore` (isRunning, selectedAccount) |
+
+---
+
+## 📝 Son Değişiklikler (2025-08-30)
+
+### Görev 1: Yeni Grafik ve İstatistik Sayfası (`/chart`)
+- `src/app/chart/page.tsx` oluşturuldu
+- `ChartViewer` bileşeni ana sayfadan bu sayfaya taşındı
+- Genişletilebilir Grid/Flex yapısı: Sol 2/3 Grafik, Sağ 1/3 gelecek paneller (İstatistikler, Backtest, Deneme)
+- "Ana Sayfaya Dön" butonu eklendi
+
+### Görev 2: Ana Sayfa Yönlendirme Butonu
+- Dashboard'a belirgin **"📈 Grafik ve İstatistikleri Aç"** butonu eklendi
+- Next.js `Link` bileşeni ile `/chart` rotasına yönlendirme
+
+### Görev 3: Bölge Ayarları (Zone Settings) Ana Sayfaya Entegrasyonu
+- `SettingsForm.tsx` içindeki Zone Settings kısmı `ZoneSettingsPanel.tsx` olarak ayrıldı
+- Ana sayfa sol panelde (2/3 genişlikte) `ZoneSettingsPanel` yerleştirildi
+- Kullanıcı artık ana sayfadan doğrudan bölgeleri ekleyip, çıkarıp düzenleyebiliyor
+- `SettingsForm.tsx` artık sadece **Global Settings** (ORDER_TYPE, SYMBOL, LOOP_INTERVAL) yönetiyor
+
+### Kritik Kurallara Uyum
+- ✅ WebSocket, REST API çağrıları ve Zustand (`useBotStore`) state yapısı **bozulmadı**
+- ✅ State bağlantılar yeni sayfalara/bileşenlere `props` veya `store` üzerinden doğru geçirildi
+- ✅ Tailwind CSS ile karanlık/aydınlık tema uyumu korundu
+- ✅ Sadece değişen/yeni dosyalar güncellendi
