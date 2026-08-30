@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe, Monitor, Power, RefreshCw, Server, Settings, BarChart2, ArrowRight } from 'lucide-react';
+import { Globe, Monitor, Power, RefreshCw, Server, Settings, BarChart2, ArrowRight, Save, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
@@ -21,7 +21,9 @@ const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function Home() {
-  const { selectedAccount, activeAccount, setUpdateInfo, settings, isRunning, liveData, setSettings } = useBotStore();
+  const { selectedAccount, activeAccount, setUpdateInfo, settings, isRunning, liveData, mergeAndSaveSettings } = useBotStore();
+  const [saveAllLoading, setSaveAllLoading] = useState(false);
+  const [saveAllError, setSaveAllError] = useState('');
   const [shutdownOpen, setShutdownOpen] = useState(false);
   const [shuttingDown, setShuttingDown] = useState(false);
   const [showSysInfo, setShowSysInfo] = useState(false);
@@ -93,6 +95,25 @@ export default function Home() {
   };
 
   const isLive = activeAccount?.env_type === 'LIVE';
+
+  const handleSaveAll = async () => {
+    if (!selectedAccount || !settings) return;
+    setSaveAllLoading(true);
+    setSaveAllError('');
+    try {
+      await mergeAndSaveSettings(API);
+    } catch (err: any) {
+      setSaveAllError(err.message || 'Tüm ayarları kaydetme başarısız');
+    } finally {
+      setSaveAllLoading(false);
+    }
+  };
+
+  const hasAnyChanges = settings && (
+    // Check if zones or globals have been modified
+    // This is a simple check - in reality you'd track dirty state
+    true
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
@@ -199,20 +220,41 @@ export default function Home() {
         {/* Simulation Bar (Mac only) */}
         {selectedAccount && <SimulationBar />}
 
-        {/* Navigation to Chart Page */}
+        {/* Navigation to Chart Page + Save All */}
         {selectedAccount && (
-          <Link
-            href="/chart"
-            className="block w-full max-w-xs mx-auto md:mx-0"
-          >
-            <button
-              className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link
+              href="/chart"
+              className="flex-1 sm:w-auto"
             >
-              <BarChart2 size={24} />
-              <span className="text-lg">Grafik ve İstatistikleri Aç</span>
-              <ArrowRight size={20} />
+              <button
+                className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+              >
+                <BarChart2 size={24} />
+                <span className="text-lg">Grafik ve İstatistikleri Aç</span>
+                <ArrowRight size={20} />
+              </button>
+            </Link>
+            
+            {/* Save All Button */}
+            <button
+              onClick={handleSaveAll}
+              disabled={saveAllLoading || !settings}
+              className="flex-1 sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+            >
+              <Save size={24} />
+              <span className="text-lg">{saveAllLoading ? 'Kaydediliyor...' : 'Tüm Ayarları Kaydet'}</span>
             </button>
-          </Link>
+          </div>
+        )}
+
+        {/* Save All Error Toast */}
+        {saveAllError && (
+          <div className="fixed bottom-6 right-6 z-50 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 flex items-center gap-3 shadow-2xl animate-slide-in">
+            <AlertCircle size={20} />
+            <span>{saveAllError}</span>
+            <button onClick={() => setSaveAllError('')} className="ml-4 text-red-400 hover:text-red-300">✕</button>
+          </div>
         )}
 
         {/* Dashboard Grid */}
@@ -226,7 +268,6 @@ export default function Home() {
                   activeAccount={activeAccount}
                   isRunning={isRunning}
                   liveData={liveData}
-                  setZustandSettings={setSettings}
                 />
               </div>
               <LogViewer />

@@ -137,6 +137,9 @@ interface BotState {
   setSelectedAccount: (accountId: string) => void;
   setActiveAccount: (account: Account | null) => void;
   setSettings: (settings: GlobalSettings | null) => void;
+  setGlobalSettings: (globals: Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>) => void;
+  setZones: (zones: ZoneSettings[] | ((prev: ZoneSettings[]) => ZoneSettings[])) => void;
+  mergeAndSaveSettings: (apiUrl: string) => Promise<void>;
   setLogs: (logs: Partial<LogsState>) => void;
   appendRobotLog: (line: string) => void;
   appendMt5Log: (line: string) => void;
@@ -175,7 +178,7 @@ const initialLiveData: LiveData = {
   algo_trading_error: false,
 };
 
-export const useBotStore = create<BotState>((set) => ({
+export const useBotStore = create<BotState>((set, get) => ({
   accounts: [],
   selectedAccount: null,
   activeAccount: null,
@@ -202,6 +205,38 @@ export const useBotStore = create<BotState>((set) => ({
   setActiveAccount: (account) => set({ activeAccount: account }),
 
   setSettings: (settings) => set({ settings }),
+
+  setGlobalSettings: (globals) =>
+    set((state) => ({
+      settings: state.settings
+        ? { ...state.settings, ...globals }
+        : { ORDER_TYPE: globals.ORDER_TYPE, SYMBOL: globals.SYMBOL, LOOP_INTERVAL_SECONDS: globals.LOOP_INTERVAL_SECONDS, ZONES: [] },
+    })),
+
+  setZones: (zonesOrUpdater) =>
+    set((state) => {
+      const currentZones = state.settings?.ZONES || [];
+      const newZones = typeof zonesOrUpdater === 'function' 
+        ? zonesOrUpdater(currentZones) 
+        : zonesOrUpdater;
+      return {
+        settings: state.settings
+          ? { ...state.settings, ZONES: newZones }
+          : { ORDER_TYPE: 'BUY', SYMBOL: 'USOUSD', LOOP_INTERVAL_SECONDS: 1.0, ZONES: newZones },
+      };
+    }),
+
+  mergeAndSaveSettings: async (apiUrl: string) => {
+    const { selectedAccount, settings } = get();
+    if (!selectedAccount || !settings) return;
+    
+    const res = await fetch(`${apiUrl}/settings/${selectedAccount}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify({ settings }),
+    });
+    if (!res.ok) throw new Error('Failed to save settings');
+  },
 
   setLogs: (logs) =>
     set((state) => ({

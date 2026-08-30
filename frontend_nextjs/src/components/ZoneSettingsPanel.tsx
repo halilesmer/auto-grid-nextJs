@@ -1,21 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
+import { useCallback, useState } from 'react';
 import { useBotStore, defaultZone, type ZoneSettings, type GlobalSettings } from '@/store/useBotStore';
-import { MoreVertical, Plus, Trash2, Save, AlertTriangle } from 'lucide-react';
+import { MoreVertical, Plus, Trash2, AlertTriangle, Save } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
-
-const rawAPI =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://tweet-overlying-monotone.ngrok-free.dev";
-const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
-
-axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
-
-function deepCloneSettings(s: GlobalSettings): GlobalSettings {
-  return JSON.parse(JSON.stringify(s));
-}
 
 function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings): boolean {
   if (!original) return true;
@@ -27,7 +15,6 @@ interface ZoneSettingsPanelProps {
   activeAccount: ReturnType<typeof useBotStore.getState>['activeAccount'];
   isRunning: boolean;
   liveData: ReturnType<typeof useBotStore.getState>['liveData'];
-  setZustandSettings: (settings: GlobalSettings | null) => void;
 }
 
 export default function ZoneSettingsPanel({
@@ -35,107 +22,41 @@ export default function ZoneSettingsPanel({
   activeAccount,
   isRunning,
   liveData,
-  setZustandSettings,
 }: ZoneSettingsPanelProps) {
-  const [localSettings, setLocalSettings] = useState<GlobalSettings | null>(null);
-  const [originalSettings, setOriginalSettings] = useState<GlobalSettings | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { settings, setZones } = useBotStore();
+  const [originalZones, setOriginalZones] = useState<ZoneSettings[]>([]);
   const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const mt5Connected = liveData.mt5_connected;
   const disableActionButtons = isRunning && !mt5Connected;
+  const zones = settings?.ZONES || [];
 
-  useEffect(() => {
-    if (!selectedAccount) {
-      setLocalSettings(null);
-      setOriginalSettings(null);
-      return;
+  // Orijinal zones'ları takip et (değişiklik kontrolü için)
+  useState(() => {
+    if (zones.length > 0 && originalZones.length === 0) {
+      setOriginalZones(zones.map(z => ({ ...z })));
     }
-    axios
-      .get(`${API}/settings/${selectedAccount}`)
-      .then((res) => {
-        const data: Record<string, unknown> = res.data?.settings || {};
-        const zones: ZoneSettings[] = (data.ZONES as ZoneSettings[] | undefined) || [];
-        if (zones.length === 0) {
-          zones.push(defaultZone());
-        }
-        const gs: GlobalSettings = {
-          ORDER_TYPE: (data.ORDER_TYPE as string) || zones[0]?.order_type || 'BUY',
-          SYMBOL: (data.SYMBOL as string) || zones[0]?.symbol || 'USOUSD',
-          LOOP_INTERVAL_SECONDS: (data.LOOP_INTERVAL_SECONDS as number) || 1.0,
-          ZONES: zones,
-        };
-        setLocalSettings(deepCloneSettings(gs));
-        setOriginalSettings(deepCloneSettings(gs));
-        setZustandSettings(gs);
-      })
-      .catch((err) => {
-        console.error('Failed to load settings', err);
-        const d = defaultZone();
-        const gs: GlobalSettings = {
-          ORDER_TYPE: d.order_type,
-          SYMBOL: d.symbol,
-          LOOP_INTERVAL_SECONDS: 1.0,
-          ZONES: [d],
-        };
-        setLocalSettings(deepCloneSettings(gs));
-        setOriginalSettings(deepCloneSettings(gs));
-        setZustandSettings(gs);
-      });
-  }, [selectedAccount, setZustandSettings]);
+  });
 
   const updateZone = useCallback((zoneId: string, field: string, value: unknown) => {
-    setLocalSettings((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        ZONES: prev.ZONES.map((z) => (z.id === zoneId ? { ...z, [field]: value } : z)),
-      };
-    });
-  }, []);
-
-  const updateGlobal = useCallback((field: string, value: unknown) => {
-    setLocalSettings((prev) => {
-      if (!prev) return prev;
-      return { ...prev, [field]: value };
-    });
-  }, []);
+    setZones((prevZones) => prevZones.map((z) => (z.id === zoneId ? { ...z, [field]: value } : z)));
+  }, [setZones]);
 
   const addZone = useCallback(() => {
-    setLocalSettings((prev) => {
-      if (!prev) return prev;
-      return { ...prev, ZONES: [...prev.ZONES, defaultZone()] };
-    });
-  }, []);
+    setZones((prevZones) => [...prevZones, defaultZone()]);
+  }, [setZones]);
 
   const removeZoneConfirmed = useCallback(() => {
     if (!deleteZoneId) return;
-    setLocalSettings((prev) => {
-      if (!prev) return prev;
-      const zones = prev.ZONES.filter((z) => z.id !== deleteZoneId);
-      return { ...prev, ZONES: zones.length > 0 ? zones : [defaultZone()] };
+    setZones((prevZones) => {
+      const filtered = prevZones.filter((z) => z.id !== deleteZoneId);
+      return filtered.length > 0 ? filtered : [defaultZone()];
     });
     setDeleteZoneId(null);
-  }, [deleteZoneId]);
+  }, [deleteZoneId, setZones]);
 
-  const handleSave = useCallback(async () => {
-    if (!selectedAccount || !localSettings) return;
-    setSaving(true);
-    setError('');
-    try {
-      await axios.post(`${API}/settings/${selectedAccount}`, { settings: localSettings });
-      const clone = deepCloneSettings(localSettings);
-      setOriginalSettings(clone);
-      setZustandSettings(clone);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save settings.');
-    } finally {
-      setSaving(false);
-    }
-  }, [selectedAccount, localSettings, setZustandSettings]);
-
-  if (!selectedAccount || !localSettings) return null;
+  if (!selectedAccount) return null;
 
   return (
     <div className="space-y-6">
@@ -149,39 +70,21 @@ export default function ZoneSettingsPanel({
         </div>
       )}
 
-      {/* Loop Interval */}
-      <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-400">Global Settings</h3>
-        <div className="flex items-center space-x-2">
-          <label className="text-sm text-gray-400 whitespace-nowrap">Loop Interval (s):</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0.1"
-            value={localSettings.LOOP_INTERVAL_SECONDS}
-            onChange={(e) =>
-              updateGlobal('LOOP_INTERVAL_SECONDS', parseFloat(e.target.value) || 1.0)
-            }
-            className="w-20 bg-black/40 border border-white/20 rounded-lg px-2 py-1 text-white text-center focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-        </div>
-      </div>
-
       {/* Dynamic Zones */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-white">Dynamic Zones</h3>
+        <h3 className="text-xl font-bold text-white">Dinamik Bölgeler</h3>
         <button
           onClick={addZone}
           disabled={disableActionButtons}
           className="flex items-center space-x-1 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-lg transition-all active:scale-95"
         >
           <Plus size={16} />
-          <span>Add Zone</span>
+          <span>Bölge Ekle</span>
         </button>
       </div>
 
-      {localSettings.ZONES.map((zone, idx) => {
-        const origZone = originalSettings?.ZONES?.find((z) => z.id === zone.id);
+      {zones.map((zone, idx) => {
+        const origZone = originalZones.find((z) => z.id === zone.id);
         const modified = zoneModified(origZone, zone);
 
         return (
@@ -192,35 +95,21 @@ export default function ZoneSettingsPanel({
             origZone={origZone}
             modified={modified}
             disableButtons={disableActionButtons}
-            saving={saving}
             onUpdate={updateZone}
             onDelete={() => setDeleteZoneId(zone.id)}
-            onSave={handleSave}
             liveData={liveData}
             activeAccount={activeAccount}
           />
         );
       })}
 
-      {/* Save all button */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50"
-        >
-          <Save size={18} />
-          <span>{saving ? 'Saving...' : 'Save All Settings'}</span>
-        </button>
-      </div>
-
       {/* Delete Zone Confirmation */}
       <ConfirmModal
         open={deleteZoneId !== null}
         onClose={() => setDeleteZoneId(null)}
         onConfirm={removeZoneConfirmed}
-        title="Delete Zone"
-        message="Are you sure you want to delete this zone?"
+        title="Bölge Sil"
+        message="Bu bölgeyi silmek istediğinizden emin misiniz?"
         variant="danger"
       />
     </div>
@@ -237,10 +126,8 @@ interface ZoneCardProps {
   origZone: ZoneSettings | undefined;
   modified: boolean;
   disableButtons: boolean;
-  saving: boolean;
   onUpdate: (zoneId: string, field: string, value: unknown) => void;
   onDelete: () => void;
-  onSave: () => void;
   liveData: ReturnType<typeof useBotStore.getState>['liveData'];
   activeAccount: ReturnType<typeof useBotStore.getState>['activeAccount'];
 }
@@ -251,10 +138,8 @@ function ZoneCard({
   origZone,
   modified,
   disableButtons,
-  saving,
   onUpdate,
   onDelete,
-  onSave,
   liveData,
   activeAccount,
 }: ZoneCardProps) {
@@ -272,34 +157,27 @@ function ZoneCard({
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h4 className="text-lg font-bold text-white">
-            Zone {idx + 1} &#8212; {zone.symbol} ({zone.order_type})
+            Bölge {idx + 1} &#8212; {zone.symbol} ({zone.order_type})
           </h4>
           <div className="text-sm text-gray-400 mt-0.5">
             <span>${liveData.current_price.toFixed(2)}</span>
             <span className="mx-2">|</span>
             <span>{activeAccount?.server || 'N/A'}</span>
             <span className="mx-2">|</span>
-            <span>{liveData.market_open ? 'Open' : 'Closed'}</span>
+            <span>{liveData.market_open ? 'Açık' : 'Kapalı'}</span>
             <span className="mx-2">|</span>
             <span className={liveData.profit >= 0 ? 'text-green-400' : 'text-red-400'}>
-              P/L: ${liveData.profit.toFixed(2)}
+              K/Z: ${liveData.profit.toFixed(2)}
             </span>
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={onSave}
-            disabled={saving || disableButtons}
-            className={`flex items-center space-x-1 text-sm font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
-              modified
-                ? 'bg-orange-600 hover:bg-orange-500 text-white'
-                : 'bg-white/10 hover:bg-white/20 text-gray-300'
-            }`}
-            title={modified ? 'Unsaved changes!' : 'Update'}
-          >
-            <Save size={14} />
-            <span>{modified ? 'Update' : 'Update'}</span>
-          </button>
+          {modified && (
+            <span className="text-xs text-orange-400 flex items-center gap-1">
+              <Save size={12} />
+              Kaydedilmedi
+            </span>
+          )}
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -315,7 +193,7 @@ function ZoneCard({
                   className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                   <Trash2 size={14} />
-                  <span>Delete Zone</span>
+                  <span>Bölgeyi Sil</span>
                 </button>
               </div>
             )}
@@ -327,7 +205,7 @@ function ZoneCard({
 
       {/* Row 1: Symbol, Order Type, Min, Max */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <InputGroup label="Symbol">
+        <InputGroup label="Sembol">
           <input
             type="text"
             value={zone.symbol}
@@ -335,7 +213,7 @@ function ZoneCard({
             className="input-s"
           />
         </InputGroup>
-        <InputGroup label="Order Type">
+        <InputGroup label="Emir Tipi">
           <select
             value={zone.order_type}
             onChange={(e) => update('order_type', e.target.value)}
@@ -346,7 +224,7 @@ function ZoneCard({
             <option value="BOTH">BOTH</option>
           </select>
         </InputGroup>
-        <InputGroup label="Min Price ($)">
+        <InputGroup label="Min Fiyat ($)">
           <input
             type="number"
             min={0}
@@ -356,7 +234,7 @@ function ZoneCard({
             className="input-s"
           />
         </InputGroup>
-        <InputGroup label="Max Price ($)">
+        <InputGroup label="Max Fiyat ($)">
           <input
             type="number"
             min={0}
@@ -379,18 +257,18 @@ function ZoneCard({
             className="w-4 h-4 rounded accent-blue-500"
           />
           <label htmlFor={`sync-${zone.id}`} className="text-sm text-gray-300">
-            Apply same settings to BUY and SELL
+            BUY ve SELL için aynı ayarları uygula
           </label>
         </div>
       )}
 
       {/* Direction label */}
-      {showBuyLabel && <p className="text-sm text-green-400 font-semibold">BUY (Buy) Grid Settings</p>}
-      {showSellLabel && <p className="text-sm text-red-400 font-semibold">SELL (Sell) Grid Settings</p>}
+      {showBuyLabel && <p className="text-sm text-green-400 font-semibold">BUY (Alış) Grid Ayarları</p>}
+      {showSellLabel && <p className="text-sm text-red-400 font-semibold">SELL (Satış) Grid Ayarları</p>}
 
       {/* Row 2: Grid, Lot, TP, SL */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <InputGroup label={isBoth && zone.sync_buy_sell ? 'Grid Step ($)' : isBoth ? 'BUY Grid ($)' : 'Grid Step ($)'}>
+        <InputGroup label={isBoth && zone.sync_buy_sell ? 'Grid Adımı ($)' : isBoth ? 'BUY Grid ($)' : 'Grid Adımı ($)'}>
           <input
             type="number"
             min={0.01}
@@ -410,7 +288,7 @@ function ZoneCard({
             className="input-s"
           />
         </InputGroup>
-        <InputGroup label={isBoth && zone.sync_buy_sell ? 'Take Profit ($)' : isBoth ? 'BUY TP ($)' : 'Take Profit ($)'}>
+        <InputGroup label={isBoth && zone.sync_buy_sell ? 'Kar Al ($)' : isBoth ? 'BUY KA ($)' : 'Kar Al ($)'}>
           <input
             type="number"
             min={0.01}
@@ -420,7 +298,7 @@ function ZoneCard({
             className="input-s"
           />
         </InputGroup>
-        <InputGroup label={isBoth && zone.sync_buy_sell ? 'Stop Loss ($)' : isBoth ? 'BUY SL ($)' : 'Stop Loss ($)'}>
+        <InputGroup label={isBoth && zone.sync_buy_sell ? 'Zarar Durdur ($)' : isBoth ? 'BUY ZD ($)' : 'Zarar Durdur ($)'}>
           <input
             type="number"
             min={0}
@@ -435,7 +313,7 @@ function ZoneCard({
       {/* SELL fields when BOTH and not synced */}
       {isBoth && !zone.sync_buy_sell && (
         <>
-          <p className="text-sm text-red-400 font-semibold">SELL Grid Settings</p>
+          <p className="text-sm text-red-400 font-semibold">SELL Grid Ayarları</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <InputGroup label="SELL Grid ($)">
               <input
@@ -457,7 +335,7 @@ function ZoneCard({
                 className="input-s"
               />
             </InputGroup>
-            <InputGroup label="SELL TP ($)">
+            <InputGroup label="SELL KA ($)">
               <input
                 type="number"
                 min={0.01}
@@ -467,7 +345,7 @@ function ZoneCard({
                 className="input-s"
               />
             </InputGroup>
-            <InputGroup label="SELL SL ($)">
+            <InputGroup label="SELL ZD ($)">
               <input
                 type="number"
                 min={0}
@@ -483,7 +361,7 @@ function ZoneCard({
 
       {/* Breakout & Pullback */}
       <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
-        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Breakout & Grid Levels</p>
+        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Kırılım ve Pullback Seviyeleri</p>
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
             <input
@@ -492,7 +370,7 @@ function ZoneCard({
               onChange={(e) => update('is_breakout', e.target.checked)}
               className="w-4 h-4 rounded accent-blue-500"
             />
-            <span>Trend-direction only</span>
+            <span>Sadece trend yönünde</span>
           </label>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-400 whitespace-nowrap">
@@ -525,7 +403,7 @@ function ZoneCard({
         </div>
         <hr className="border-white/5" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <InputGroup label="Levels Below">
+          <InputGroup label="Alt Seviyeler">
             <input
               type="number"
               min={1}
@@ -536,7 +414,7 @@ function ZoneCard({
               className="input-s"
             />
           </InputGroup>
-          <InputGroup label="Levels Above">
+          <InputGroup label="Üst Seviyeler">
             <input
               type="number"
               min={1}
@@ -547,7 +425,7 @@ function ZoneCard({
               className="input-s"
             />
           </InputGroup>
-          <InputGroup label="Max Positions">
+          <InputGroup label="Maks Pozisyon">
             <input
               type="number"
               min={0}
@@ -569,58 +447,58 @@ function ZoneCard({
             onChange={(e) => update('clear_on_exit', e.target.checked)}
             className="w-4 h-4 rounded accent-blue-500"
           />
-          <span>Clear when price exits zone</span>
+          <span>Fiyat bölgeden çıkınca temizle</span>
         </label>
         {zone.clear_on_exit && (
           <>
             <hr className="border-white/5" />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <InputGroup label="Exit Direction">
+              <InputGroup label="Çıkış Yönü">
                 <select
                   value={zone.clear_exit_side}
                   onChange={(e) => update('clear_exit_side', e.target.value)}
                   className="input-s"
                 >
-                  <option value="Farketmez">Any Direction</option>
-                  <option value="BUY (Yukarı)">BUY (Up)</option>
-                  <option value="SELL (Aşağı)">SELL (Down)</option>
+                  <option value="Farketmez">Herhangi</option>
+                  <option value="BUY (Yukarı)">BUY (Yukarı)</option>
+                  <option value="SELL (Aşağı)">SELL (Aşağı)</option>
                 </select>
               </InputGroup>
-              <InputGroup label="Target Side">
+              <InputGroup label="Hedef Taraf">
                 <select
                   value={zone.clear_target_side}
                   onChange={(e) => update('clear_target_side', e.target.value)}
                   className="input-s"
                 >
-                  <option value="Farketmez (Hepsi)">All</option>
-                  <option value="Sadece BUY İşlemleri">Only BUY</option>
-                  <option value="Sadece SELL İşlemleri">Only SELL</option>
+                  <option value="Farketmez (Hepsi)">Hepsi</option>
+                  <option value="Sadece BUY İşlemleri">Sadece BUY</option>
+                  <option value="Sadece SELL İşlemleri">Sadece SELL</option>
                 </select>
               </InputGroup>
-              <InputGroup label="Clear Scope">
+              <InputGroup label="Temizleme Kapsamı">
                 <select
                   value={zone.clear_scope}
                   onChange={(e) => update('clear_scope', e.target.value)}
                   className="input-s"
                 >
-                  <option value="Sadece Bekleyen Emirler">Pending Orders Only</option>
-                  <option value="Tüm İşlemler">All Positions</option>
+                  <option value="Sadece Bekleyen Emirler">Sadece Bekleyen Emirler</option>
+                  <option value="Tüm İşlemler">Tüm İşlemler</option>
                 </select>
               </InputGroup>
-              <InputGroup label="Exit Trigger">
+              <InputGroup label="Çıkış Tetikleyici">
                 <select
                   value={zone.exit_condition}
                   onChange={(e) => update('exit_condition', e.target.value)}
                   className="input-s"
                 >
-                  <option value="Anlık Fiyat">Instant Price</option>
-                  <option value="Mum Kapanışı">Candle Close</option>
+                  <option value="Anlık Fiyat">Anlık Fiyat</option>
+                  <option value="Mum Kapanışı">Mum Kapanışı</option>
                 </select>
               </InputGroup>
             </div>
             {zone.exit_condition === 'Mum Kapanışı' && (
               <div className="w-48">
-                <InputGroup label="Timeframe">
+                <InputGroup label="Zaman Dilimi">
                   <select
                     value={zone.exit_timeframe}
                     onChange={(e) => update('exit_timeframe', e.target.value)}
