@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe, Monitor, Power, RefreshCw, Server, Settings, BarChart2, ArrowRight, Save, AlertCircle } from 'lucide-react';
+import { Globe, Monitor, Power, RefreshCw, Server, Settings, Save, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
@@ -220,32 +220,16 @@ export default function Home() {
         {/* Simulation Bar (Mac only) */}
         {selectedAccount && <SimulationBar />}
 
-        {/* Navigation to Chart Page + Save All */}
+        {/* Save All Button */}
         {selectedAccount && (
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link
-              href="/chart"
-              className="flex-1 sm:w-auto"
-            >
-              <button
-                className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-              >
-                <BarChart2 size={24} />
-                <span className="text-lg">Grafik ve İstatistikleri Aç</span>
-                <ArrowRight size={20} />
-              </button>
-            </Link>
-            
-            {/* Save All Button */}
-            <button
-              onClick={handleSaveAll}
-              disabled={saveAllLoading || !settings}
-              className="flex-1 sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-            >
-              <Save size={24} />
-              <span className="text-lg">{saveAllLoading ? 'Kaydediliyor...' : 'Tüm Ayarları Kaydet'}</span>
-            </button>
-          </div>
+          <button
+            onClick={handleSaveAll}
+            disabled={saveAllLoading || !settings}
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+          >
+            <Save size={24} />
+            <span className="text-lg">{saveAllLoading ? 'Kaydediliyor...' : 'Tüm Ayarları Kaydet'}</span>
+          </button>
         )}
 
         {/* Save All Error Toast */}

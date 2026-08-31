@@ -31,11 +31,10 @@ sys.path.append(str(project_root))
 from src.utils.mt5_connection import connect_to_mt5_with_timeout
 
 # 🌟 YENİ: Merkezi yol yöneticisini içeri aktarıyoruz
-from src.utils.paths import get_metrics_path, get_sim_price_path
+from src.utils.paths import get_metrics_path, get_sim_price_path, get_ui_state_path
 
 # 🌟 YENİ: MT5 "Source of Truth" senkronizasyonu ve kalıcı state dosyası
 from src.utils.state_manager import build_synced_state, save_state
-
 
 def export_metrics_step(bot_engine, account_id):
     """Ana döngüye (main thread) entegre metrik dışa aktarıcı. Threading çökmesini engeller."""

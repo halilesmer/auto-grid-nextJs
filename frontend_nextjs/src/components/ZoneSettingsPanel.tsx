@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { useBotStore, defaultZone, type ZoneSettings, type GlobalSettings } from '@/store/useBotStore';
 import { MoreVertical, Plus, Trash2, AlertTriangle, Save } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
+import Link from 'next/link';
 
 function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings): boolean {
   if (!original) return true;
@@ -172,6 +173,13 @@ function ZoneCard({
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          <Link
+            href={`/chart?zone=${zone.id}`}
+            className="flex items-center justify-center text-xs font-bold px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all active:scale-95 shadow-md"
+            title="Bölgeye Özel Test ve İstatistikler"
+          >
+            Test
+          </Link>
           {modified && (
             <span className="text-xs text-orange-400 flex items-center gap-1">
               <Save size={12} />
