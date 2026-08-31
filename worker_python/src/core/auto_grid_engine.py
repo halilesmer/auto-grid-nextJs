@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 from src.utils.trade_utils import safe_send_order, TradeState
-from src.utils.config import get_settings_file
+from src.utils.config import load_settings
 
 # 🌟 YENİ: Merkezi yol yöneticisi
 from src.utils.paths import (
@@ -112,24 +112,23 @@ def load_dynamic_settings():
     global ZONES, LOOP_INTERVAL_SECONDS, SYMBOL, SYMBOL_INFO
 
     try:
-        settings_file = get_settings_file("Auto Grid")
-        with open(settings_file, "r", encoding="utf-8") as f:
-            settings = json.load(f)
-            ZONES = settings.get("ZONES", [])
-            LOOP_INTERVAL_SECONDS = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
+        # 🌟 KESİN ÇÖZÜM: Hardcoded dosya açmak yerine config.py'nin arayüzle senkronize çalışan akıllı yükleyicisini kullan!
+        settings = load_settings("Auto Grid")
+        ZONES = settings.get("ZONES", [])
+        LOOP_INTERVAL_SECONDS = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
 
-            # Dinamik sembol vizyonu için global sembolü de güncelliyoruz
-            if ZONES and "symbol" in ZONES[0]:
-                new_symbol = str(ZONES[0]["symbol"]).upper().strip()
+        # Dinamik sembol vizyonu için global sembolü de güncelliyoruz
+        if ZONES and "symbol" in ZONES[0]:
+            new_symbol = str(ZONES[0]["symbol"]).upper().strip()
 
-                # 🌟 KRİTİK HATA ÇÖZÜMÜ: Sembol değiştiğinde arka plandaki matematik kurallarını (digits, point, lot) da MT5'ten güncelleyerek hafızaya al!
-                if new_symbol != SYMBOL or SYMBOL_INFO is None:
-                    SYMBOL = new_symbol
-                    try:
-                        mt5.symbol_select(SYMBOL, True)
-                        SYMBOL_INFO = mt5.symbol_info(SYMBOL)
-                    except Exception:
-                        pass
+            # 🌟 KRİTİK HATA ÇÖZÜMÜ: Sembol değiştiğinde arka plandaki matematik kurallarını (digits, point, lot) da MT5'ten güncelleyerek hafızaya al!
+            if new_symbol != SYMBOL or SYMBOL_INFO is None:
+                SYMBOL = new_symbol
+                try:
+                    mt5.symbol_select(SYMBOL, True)
+                    SYMBOL_INFO = mt5.symbol_info(SYMBOL)
+                except Exception:
+                    pass
     except Exception:
         pass
 
