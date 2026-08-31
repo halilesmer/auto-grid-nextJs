@@ -22,13 +22,17 @@ export default function BotControls() {
     liveData,
     updateLiveData,
     setIsRunning,
+    setIsConnecting,
     availableSymbols,
     setAvailableSymbols,
   } = useBotStore();
 
   useEffect(() => {
+    // Bağlanma sürecindeyken bayat mt5_connected=false log polling verisinin
+    // isRunning'ı true → false zıplatmasını engelle.
+    if (isConnecting) return;
     setIsRunning(Boolean(liveData.mt5_connected));
-  }, [liveData.mt5_connected, setIsRunning]);
+  }, [liveData.mt5_connected, isConnecting, setIsRunning]);
 
   // Bot zaten çalışıyorken sayfa yenilenirse (F5) ya da mt5_connected true olduğunda
   // broker'ın desteklediği sembolleri çek. Liste zaten doluysa gereksiz istek atma.
@@ -63,14 +67,29 @@ export default function BotControls() {
     if (!selectedAccount) return;
     setLoading(true);
     setError("");
+
+    // CONNECTION LOCK: İstek atılmadan hemen önce kilidi kur.
+    setIsConnecting(true);
+    setIsRunning(true);
+
+    // Fallback unlock: 15 sn sonra kilit hâlâ duruyorsa zorla aç.
+    const unlockTimer = setTimeout(() => {
+      setIsConnecting(false);
+    }, 15000);
+
     try {
       const res = await axios.post(
         `${API}/start?account_id=${selectedAccount}`,
       );
       updateLiveData({ mt5_connected: true });
+      setIsConnecting(false);
       setIsRunning(true);
+      clearTimeout(unlockTimer);
       alert(res.data.message || "Bot started!");
     } catch (err) {
+      setIsConnecting(false);
+      setIsRunning(false);
+      clearTimeout(unlockTimer);
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.detail || "Failed to start bot.");
       } else {
@@ -79,7 +98,7 @@ export default function BotControls() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, updateLiveData, setIsRunning]);
+  }, [selectedAccount, updateLiveData, setIsRunning, setIsConnecting]);
 
   const handleStopBot = useCallback(async () => {
     if (!selectedAccount) return;

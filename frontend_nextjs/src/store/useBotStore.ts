@@ -281,9 +281,25 @@ export const useBotStore = create<BotState>((set, get) => ({
   setIsConnecting: (connecting) => set({ isConnecting: connecting }),
 
   updateLiveData: (data) =>
-    set((state) => ({
-      liveData: { ...state.liveData, ...data },
-    })),
+    set((state) => {
+      const next = { ...data };
+
+      // CONNECTION LOCK: Bağlanma sürecindeyken arka plan log polling'in
+      // getirdiği bayat mt5_connected=false değerini yok say. Gerçek bağlantı
+      // sinyali (mt5_connected=true) geldiğinde kilidi aç ve isConnecting=false yap.
+      if (state.isConnecting && next.mt5_connected === false) {
+        delete next.mt5_connected;
+      } else if (state.isConnecting && next.mt5_connected === true) {
+        return {
+          isConnecting: false,
+          liveData: { ...state.liveData, ...next },
+        };
+      }
+
+      return {
+        liveData: { ...state.liveData, ...next },
+      };
+    }),
 
   setIsWindows: (v) => set({ isWindows: v }),
 
