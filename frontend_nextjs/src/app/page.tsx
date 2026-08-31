@@ -20,10 +20,36 @@ const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function Home() {
-  const { selectedAccount, activeAccount, setUpdateInfo, settings, isRunning, liveData, mergeAndSaveSettings } = useBotStore();
+  const {
+    selectedAccount,
+    activeAccount,
+    setUpdateInfo,
+    settings,
+    isRunning,
+    liveData,
+    mergeAndSaveSettings,
+  } = useBotStore();
   const [saveAllLoading, setSaveAllLoading] = useState(false);
-  const [saveAllError, setSaveAllError] = useState('');
+  const [saveAllError, setSaveAllError] = useState("");
+  const [savedSettingsStr, setSavedSettingsStr] = useState<string | null>(null);
+  const [prevAccount, setPrevAccount] = useState<string | null>(
+    selectedAccount,
+  );
   const [shutdownOpen, setShutdownOpen] = useState(false);
+
+  if (selectedAccount !== prevAccount) {
+    setPrevAccount(selectedAccount);
+    setSavedSettingsStr(null);
+  }
+
+  const currentSettingsStr = settings ? JSON.stringify(settings) : "";
+  if (settings && savedSettingsStr === null) {
+    setSavedSettingsStr(currentSettingsStr);
+  }
+
+  const isDirty = Boolean(
+    settings && savedSettingsStr && currentSettingsStr !== savedSettingsStr,
+  );
   const [shuttingDown, setShuttingDown] = useState(false);
   const [showSysInfo, setShowSysInfo] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -104,6 +130,7 @@ const handleApplyUpdate = async () => {
     setSaveAllError("");
     try {
       await mergeAndSaveSettings(API);
+      setSavedSettingsStr(JSON.stringify(settings));
     } catch (err: unknown) {
       if (err instanceof Error) {
         setSaveAllError(err.message);
@@ -124,16 +151,20 @@ const handleApplyUpdate = async () => {
         <header className="flex items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-emerald-400">
-              Grid Robot Dashboard{' '}
-              <span className="text-base text-gray-500 font-normal">{VERSION}</span>
+              Grid Robot Dashboard{" "}
+              <span className="text-base text-gray-500 font-normal">
+                {VERSION}
+              </span>
             </h1>
             <div className="flex items-center gap-3 mt-1">
               <span
                 className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
-                  isLive ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
+                  isLive
+                    ? "bg-red-500/20 text-red-400"
+                    : "bg-blue-500/20 text-blue-400"
                 }`}
               >
-                {isLive ? '🔴 LIVE' : '🧪 TEST'}
+                {isLive ? "🔴 LIVE" : "🧪 TEST"}
               </span>
               <span className="text-xs text-gray-500">Auto Grid Engine</span>
             </div>
@@ -157,23 +188,29 @@ const handleApplyUpdate = async () => {
                     <div className="flex items-center gap-2 text-gray-300">
                       <Monitor size={14} className="text-gray-500" />
                       <span>
-                        Host:{' '}
-                        {typeof window !== 'undefined' ? window.location.hostname : 'N/A'}
+                        Host:{" "}
+                        {typeof window !== "undefined"
+                          ? window.location.hostname
+                          : "N/A"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-300">
                       <Server size={14} className="text-gray-500" />
                       <span>
-                        Port:{' '}
-                        {typeof window !== 'undefined' ? window.location.port || '3000' : '3000'}
+                        Port:{" "}
+                        {typeof window !== "undefined"
+                          ? window.location.port || "3000"
+                          : "3000"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-300">
                       <Globe size={14} className="text-gray-500" />
                       <span>
-                        URL:{' '}
+                        URL:{" "}
                         <span className="text-blue-400 text-xs break-all">
-                          {typeof window !== 'undefined' ? window.location.origin : ''}
+                          {typeof window !== "undefined"
+                            ? window.location.origin
+                            : ""}
                         </span>
                       </span>
                     </div>
@@ -226,11 +263,21 @@ const handleApplyUpdate = async () => {
         {selectedAccount && (
           <button
             onClick={handleSaveAll}
-            disabled={saveAllLoading || !settings}
-            className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+            disabled={saveAllLoading || !settings || !isDirty}
+            className={`w-full sm:w-auto flex items-center justify-center space-x-2 font-bold py-4 px-6 rounded-xl transition-all active:scale-[0.98] focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+              isDirty && !saveAllLoading
+                ? "bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/30"
+                : "bg-gray-800 text-gray-500 opacity-50 cursor-not-allowed border border-white/5"
+            }`}
           >
             <Save size={24} />
-            <span className="text-lg">{saveAllLoading ? 'Kaydediliyor...' : 'Tüm Ayarları Kaydet'}</span>
+            <span className="text-lg">
+              {saveAllLoading
+                ? "Kaydediliyor..."
+                : isDirty
+                  ? "Tüm Ayarları Kaydet"
+                  : "Kaydedildi"}
+            </span>
           </button>
         )}
 
@@ -239,7 +286,12 @@ const handleApplyUpdate = async () => {
           <div className="fixed bottom-6 right-6 z-50 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 flex items-center gap-3 shadow-2xl animate-slide-in">
             <AlertCircle size={20} />
             <span>{saveAllError}</span>
-            <button onClick={() => setSaveAllError('')} className="ml-4 text-red-400 hover:text-red-300">✕</button>
+            <button
+              onClick={() => setSaveAllError("")}
+              className="ml-4 text-red-400 hover:text-red-300"
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -287,11 +339,16 @@ const handleApplyUpdate = async () => {
                 </p>
                 <div className="text-sm text-gray-300 space-y-1">
                   <p>
-                    Current: <span className="text-white font-mono">{updateResult.localVer}</span>
+                    Current:{" "}
+                    <span className="text-white font-mono">
+                      {updateResult.localVer}
+                    </span>
                   </p>
                   <p>
-                    Latest:{' '}
-                    <span className="text-green-400 font-mono">{updateResult.remoteVer}</span>
+                    Latest:{" "}
+                    <span className="text-green-400 font-mono">
+                      {updateResult.remoteVer}
+                    </span>
                   </p>
                 </div>
                 <button
@@ -303,10 +360,14 @@ const handleApplyUpdate = async () => {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-green-400 text-sm font-semibold">You are up to date!</p>
+                <p className="text-green-400 text-sm font-semibold">
+                  You are up to date!
+                </p>
                 <p className="text-sm text-gray-400">
-                  Version:{' '}
-                  <span className="text-white font-mono">{updateResult.localVer}</span>
+                  Version:{" "}
+                  <span className="text-white font-mono">
+                    {updateResult.localVer}
+                  </span>
                 </p>
               </div>
             )}

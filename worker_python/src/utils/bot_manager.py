@@ -16,7 +16,8 @@ sys.path.append(str(project_root))
 import psutil  # 🌟 YENİ: İşletim sistemi süreçlerini okumak için
 
 # 🌟 YENİ: Merkezi yol yöneticisini içeri aktarıyoruz
-from src.utils.paths import get_err_log_path, get_pid_path
+from src.utils.paths import get_err_log_path, get_pid_path, get_metrics_path
+import json
 
 def _read_pid(account_id: str):
     """PID dosyasını okur. Yoksa veya bozuksa None döner."""
@@ -235,4 +236,19 @@ def stop_bot_process(account_id: str) -> bool:
         time.sleep(1.0)
 
     self_cleanup(account_id)
+
+    # Bot kapatıldığında diski bayat mt5_connected=true verisinden temizle
+    try:
+        metrics_path = get_metrics_path(account_id)
+        if os.path.exists(metrics_path):
+            with open(metrics_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            data["mt5_connected"] = False
+            tmp_file = metrics_path + ".tmp"
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+            os.replace(tmp_file, metrics_path)
+    except Exception:
+        pass
+
     return True

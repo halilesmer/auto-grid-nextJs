@@ -15,8 +15,8 @@ axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 const POLL_INTERVAL_MS = 10_000;
 
 export default function LogViewer() {
-  const { selectedAccount, logs, setLogs } = useBotStore();
-  const [tab, setTab] = useState<'robot' | 'mt5'>('robot');
+  const { selectedAccount, logs, setLogs, updateLiveData } = useBotStore();
+  const [tab, setTab] = useState<"robot" | "mt5">("robot");
   const robotRef = useRef<HTMLPreElement>(null);
   const mt5Ref = useRef<HTMLPreElement>(null);
 
@@ -24,7 +24,7 @@ export default function LogViewer() {
     if (!selectedAccount) return;
     try {
       const res = await axios.get(`${API}/logs/${selectedAccount}`, {
-        params: { log_type: 'all', lines: 200 },
+        params: { log_type: "all", lines: 200 },
       });
       const data = res.data;
       setLogs({
@@ -32,10 +32,13 @@ export default function LogViewer() {
         mt5_log: data.mt5_log || [],
         metrics: data.metrics || null,
       });
+      if (data.metrics) {
+        updateLiveData(data.metrics);
+      }
     } catch {
       // silent fail on poll
     }
-  }, [selectedAccount, setLogs]);
+  }, [selectedAccount, setLogs, updateLiveData]);
 
   useEffect(() => {
     fetchLogs();
@@ -44,7 +47,7 @@ export default function LogViewer() {
   }, [fetchLogs]);
 
   useEffect(() => {
-    const ref = tab === 'robot' ? robotRef : mt5Ref;
+    const ref = tab === "robot" ? robotRef : mt5Ref;
     if (ref.current) {
       ref.current.scrollTop = ref.current.scrollHeight;
     }
@@ -58,27 +61,27 @@ export default function LogViewer() {
 
   if (!selectedAccount) return null;
 
-  const activeLines = tab === 'robot' ? logs.robot_log : logs.mt5_log;
+  const activeLines = tab === "robot" ? logs.robot_log : logs.mt5_log;
 
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-xl overflow-hidden">
       <div className="flex items-center border-b border-white/10">
         <button
-          onClick={() => setTab('robot')}
+          onClick={() => setTab("robot")}
           className={`flex-1 py-3 text-sm font-semibold transition-all ${
-            tab === 'robot'
-              ? 'bg-white/10 text-white border-b-2 border-blue-400'
-              : 'text-gray-500 hover:text-gray-300'
+            tab === "robot"
+              ? "bg-white/10 text-white border-b-2 border-blue-400"
+              : "text-gray-500 hover:text-gray-300"
           }`}
         >
           Robot Logs
         </button>
         <button
-          onClick={() => setTab('mt5')}
+          onClick={() => setTab("mt5")}
           className={`flex-1 py-3 text-sm font-semibold transition-all ${
-            tab === 'mt5'
-              ? 'bg-white/10 text-white border-b-2 border-blue-400'
-              : 'text-gray-500 hover:text-gray-300'
+            tab === "mt5"
+              ? "bg-white/10 text-white border-b-2 border-blue-400"
+              : "text-gray-500 hover:text-gray-300"
           }`}
         >
           MT5 Terminal Logs
@@ -93,8 +96,8 @@ export default function LogViewer() {
             <span className="w-3 h-3 rounded-full bg-green-500" />
           </div>
           <span className="text-xs text-gray-500">
-            {tab === 'robot' ? 'Robot' : 'MT5'} — {selectedAccount} — Auto-refresh{' '}
-            {POLL_INTERVAL_MS / 1000}s
+            {tab === "robot" ? "Robot" : "MT5"} — {selectedAccount} —
+            Auto-refresh {POLL_INTERVAL_MS / 1000}s
           </span>
           <div className="flex items-center space-x-2">
             <button
@@ -115,29 +118,33 @@ export default function LogViewer() {
         </div>
 
         <pre
-          ref={tab === 'robot' ? robotRef : mt5Ref}
+          ref={tab === "robot" ? robotRef : mt5Ref}
           className="p-4 text-sm font-mono text-green-400 leading-relaxed overflow-auto h-64 whitespace-pre-wrap break-all"
         >
           {activeLines.length === 0 ? (
             <span className="text-gray-600">No log entries yet...</span>
           ) : (
             activeLines.map((line, i) => {
-              let colorClass = 'text-green-400';
-              if (line.includes('[ERROR]') || line.includes('ERROR') || line.includes('HATA')) {
-                colorClass = 'text-red-400';
-              } else if (line.includes('WARN') || line.includes('UYARI')) {
-                colorClass = 'text-yellow-400';
-              } else if (
-                line.includes('INFO') ||
-                line.includes('BAŞARILI') ||
-                line.includes('success')
+              let colorClass = "text-green-400";
+              if (
+                line.includes("[ERROR]") ||
+                line.includes("ERROR") ||
+                line.includes("HATA")
               ) {
-                colorClass = 'text-blue-400';
+                colorClass = "text-red-400";
+              } else if (line.includes("WARN") || line.includes("UYARI")) {
+                colorClass = "text-yellow-400";
+              } else if (
+                line.includes("INFO") ||
+                line.includes("BAŞARILI") ||
+                line.includes("success")
+              ) {
+                colorClass = "text-blue-400";
               }
               return (
                 <span key={i} className={colorClass}>
                   {line}
-                  {'\n'}
+                  {"\n"}
                 </span>
               );
             })

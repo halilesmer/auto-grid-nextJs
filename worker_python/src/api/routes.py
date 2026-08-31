@@ -314,6 +314,10 @@ async def start_bot(account_id: str):
 @router.post("/stop")
 async def stop_bot(account_id: str):
     stop_bot_process(account_id)
+    try:
+        await asyncio.to_thread(shutdown_mt5)
+    except Exception:
+        pass
     return {"status": "success", "message": f"Bot stopped for {account_id}"}
 
 
