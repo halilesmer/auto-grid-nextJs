@@ -9,6 +9,7 @@ import glob
 import asyncio
 import shutil
 import tempfile
+import zipfile
 from src.utils.mt5_connection import (
     connect_to_mt5_with_timeout,
     get_mt5_symbols,
@@ -474,18 +475,30 @@ async def run_update(branch: str = Query("main", description="Git branch")):
 @router.get("/logs/download/{account_id}")
 async def download_log(account_id: str, background_tasks: BackgroundTasks):
     account_dir = os.path.join(LOGS_DIR, account_id)
-
-    if not os.path.exists(account_dir) or not os.path.isdir(account_dir):
-        raise HTTPException(
-            status_code=404, detail=f"No log directory found for account {account_id}"
-        )
+    data_dir = os.path.join(BASE_DIR, "data")
 
     # Geçici ZIP oluştur
     fd, temp_zip_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
 
-    base_name = temp_zip_path[:-4]
-    shutil.make_archive(base_name, "zip", account_dir)
+    with zipfile.ZipFile(temp_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # 1. Hesap log klasöründeki tüm dosyaları ekle
+        if os.path.exists(account_dir) and os.path.isdir(account_dir):
+            for root, _, files in os.walk(account_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, account_dir)
+                    zipf.write(file_path, arcname=f"logs/{arcname}")
+
+        # 2. State (Hafıza) dosyasını ekle
+        state_file = os.path.join(data_dir, f"state_{account_id}.json")
+        if os.path.exists(state_file):
+            zipf.write(state_file, arcname=f"state_{account_id}.json")
+
+        # 3. Settings (Ayar) dosyasını ekle
+        settings_file = _find_settings_file(account_id)
+        if settings_file and os.path.exists(settings_file):
+            zipf.write(settings_file, arcname=os.path.basename(settings_file))
 
     # İndirme bitince sunucudaki geçici dosyayı temizle
     def cleanup():
@@ -496,7 +509,7 @@ async def download_log(account_id: str, background_tasks: BackgroundTasks):
 
     return FileResponse(
         path=temp_zip_path,
-        filename=f"MT5_Logs_{account_id}.zip",
+        filename=f"MT5_Logs_and_Configs_{account_id}.zip",
         media_type="application/zip",
     )
 

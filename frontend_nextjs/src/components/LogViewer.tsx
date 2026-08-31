@@ -1,7 +1,7 @@
 'use client';
 
 import { Download, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import axios from "axios";
 import { useBotStore } from "@/store/useBotStore";
