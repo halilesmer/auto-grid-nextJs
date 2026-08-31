@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from "react";
+import axios from 'axios';
 import {
   useBotStore,
   defaultZone,
@@ -9,6 +10,11 @@ import {
 import { MoreVertical, Plus, Trash2, AlertTriangle, Save, Play, Pause } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 import Link from 'next/link';
+
+const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
+
+axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings): boolean {
   if (!original) return true;
@@ -56,6 +62,39 @@ export default function ZoneSettingsPanel({
       );
     },
     [setZones],
+  );
+
+  const toggleZoneActive = useCallback(
+    async (zoneId: string, currentActive: boolean) => {
+      const newActive = !currentActive;
+
+      // 1. UI anında tepki versin (Optimistic Update)
+      setZones((prevZones) =>
+        prevZones.map((z) =>
+          z.id === zoneId ? { ...z, is_active: newActive } : z,
+        ),
+      );
+
+      if (!selectedAccount) return;
+
+      // 2. Ana butondan tamamen bağımsız olarak arka planda kaydet
+      try {
+        const currentSettings = useBotStore.getState().settings;
+        await axios.post(`${API}/settings/${selectedAccount}`, {
+          settings: currentSettings,
+        });
+      } catch (err) {
+        console.error("Bölge güncellenemedi", err);
+        alert("Bölge durumu kaydedilemedi!");
+        // Hata durumunda UI'ı eski haline geri döndür
+        setZones((prevZones) =>
+          prevZones.map((z) =>
+            z.id === zoneId ? { ...z, is_active: currentActive } : z,
+          ),
+        );
+      }
+    },
+    [setZones, selectedAccount],
   );
 
   const addZone = useCallback(() => {
@@ -113,6 +152,7 @@ export default function ZoneSettingsPanel({
             modified={modified}
             disableButtons={disableActionButtons}
             onUpdate={updateZone}
+            onToggleActive={toggleZoneActive}
             onDelete={() => setDeleteZoneId(zone.id)}
             liveData={liveData}
             activeAccount={activeAccount}
@@ -143,6 +183,7 @@ interface ZoneCardProps {
   modified: boolean;
   disableButtons: boolean;
   onUpdate: (zoneId: string, field: string, value: unknown) => void;
+  onToggleActive: (zoneId: string, currentActive: boolean) => void;
   onDelete: () => void;
   liveData: ReturnType<typeof useBotStore.getState>["liveData"];
   activeAccount: ReturnType<typeof useBotStore.getState>["activeAccount"];
@@ -154,6 +195,7 @@ function ZoneCard({
   modified,
   disableButtons,
   onUpdate,
+  onToggleActive,
   onDelete,
   liveData,
   activeAccount,
@@ -195,16 +237,16 @@ function ZoneCard({
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => update("is_active", !isActive)}
-            className={`flex items-center space-x-1 text-xs font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 shadow-md ${
+            onClick={() => onToggleActive(zone.id, isActive)}
+            className={`flex items-center space-x-1 text-xs font-bold px-4 py-1.5 rounded-lg transition-all active:scale-95 shadow-md ${
               isActive
                 ? "bg-emerald-600 hover:bg-emerald-500 text-white"
                 : "bg-amber-600 hover:bg-amber-500 text-white"
             }`}
-            title="Bölge İşlemlerini Başlat / Beklet"
+            title="Bölge İşlemlerini Yönet"
           >
-            {isActive ? <Play size={12} /> : <Pause size={12} />}
-            <span>{isActive ? "Aktif" : "Beklet"}</span>
+            {isActive ? <Pause size={14} /> : <Play size={14} />}
+            <span>{isActive ? "Bağlandı" : "Başlat"}</span>
           </button>
           <Link
             href={`/chart?zone=${zone.id}`}
