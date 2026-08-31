@@ -477,6 +477,18 @@ def process_zone_commands():
                     active_zones_state[int(zone_idx_str)] = state
         except Exception:
             pass
+    else:
+        # FALLBACK: UI state dosyası yoksa, settings dosyasındaki is_active'dan türet
+        # Bu, yeni eklenen bölgelerin veya ilk çalıştırmada çalışmasını sağlar.
+        for idx, zone in enumerate(ZONES):
+            if str(idx) not in active_zones_state:
+                is_active = zone.get("is_active", True)
+                active_zones_state[idx] = "START" if is_active else "PAUSE"
+                if is_active:
+                    log_message(
+                        f"ℹ️ Fallback: Bölge {idx+1} için is_active={is_active} -> START (UI state dosyası yok)",
+                        "INFO",
+                    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -16,7 +16,7 @@ from src.utils.mt5_connection import (
     shutdown_mt5,
 )
 from src.utils.self_updater import check_for_updates, execute_git_pull
-from src.utils.paths import get_sim_price_path
+from src.utils.paths import get_sim_price_path, get_ui_state_path
 from src.utils.bot_manager import start_bot_process, stop_bot_process
 
 router = APIRouter()
@@ -230,6 +230,52 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             "account_id": account_id,
             "file": os.path.basename(path),
         }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# UI STATE YÖNETİMİ  —  GET /ui-state/{account_id}  |  POST /ui-state/{account_id}
+# ---------------------------------------------------------------------------
+@router.get("/ui-state/{account_id}")
+async def get_ui_state(account_id: str):
+    """Frontend arayüz durumlarını (zone START/PAUSE/CLEAR) okur."""
+    path = get_ui_state_path(account_id)
+    if not os.path.exists(path):
+        return {"account_id": account_id, "states": {}}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            states = json.load(f)
+        return {"account_id": account_id, "states": states}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/ui-state/{account_id}")
+async def update_ui_state(account_id: str, payload: SettingsPayload):
+    """Frontend arayüz durumlarını (zone START/PAUSE/CLEAR) yazar/günceller.
+    Beklenen payload: { "settings": { "states": { "0": "START", "1": "PAUSE" } } }
+    """
+    path = get_ui_state_path(account_id)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        existing_states = {}
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    existing_states = json.load(f)
+            except Exception:
+                existing_states = {}
+
+        incoming_data = payload.settings.get("states", {})
+        if isinstance(incoming_data, dict):
+            existing_states.update(incoming_data)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(existing_states, f, indent=4, ensure_ascii=False)
+
+        return {"status": "saved", "account_id": account_id, "states": existing_states}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

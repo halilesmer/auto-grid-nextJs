@@ -141,6 +141,14 @@ export default function ZoneSettingsPanel({
         await axios.post(`${API}/settings/${selectedAccount}`, {
           settings: { ...remoteSettings, ZONES: updatedZones },
         });
+
+        // D. UI State dosyasını da güncelle (Engine bunu okuyarak zone START/PAUSE karar verir)
+        const zoneIdx = remoteZones.findIndex((z: any) => z.id === zoneId);
+        if (zoneIdx >= 0) {
+          await axios.post(`${API}/ui-state/${selectedAccount}`, {
+            settings: { states: { [zoneIdx]: newActive ? "START" : "PAUSE" } },
+          });
+        }
       } catch (err) {
         console.error("Bölge güncellenemedi", err);
         alert("Bölge durumu kaydedilemedi!");
