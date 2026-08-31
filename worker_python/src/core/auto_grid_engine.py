@@ -951,16 +951,28 @@ def manage_dynamic_grid():
 
     # 4. KAYAN AĞ (SLIDING GRID) ÖRÜLMESİ VE EKSİK TAMAMLAMA
 
-    # 🛑 GÜVENLİK DUVARI 1: Arayüzden bu bölge Başlatılmadıysa pas geç
-    if ACTIVE_ZONE is None:
+    # 🛑 GÜVENLİK DUVARI 1: Hedef Bölge Analizi
+    # ACTIVE_ZONE anlık olarak fiyatın içinde olduğu bölgeyi temsil eder. Eğer fiyat
+    # henüz o bölgede değilse ACTIVE_ZONE None olur ama biz yine de emir dizmek isteyebiliriz.
+    # O yüzden İlk aktif/zenginleştirilmiş bölgeyi (ZONES[0]) varsayılan referans al.
+    target_zone = (
+        ACTIVE_ZONE if ACTIVE_ZONE is not None else (ZONES[0] if ZONES else None)
+    )
+    target_idx = ACTIVE_ZONE_IDX if ACTIVE_ZONE_IDX is not None else 0
+
+    if target_zone is None:
         return True
 
-    is_zone_active = str(ACTIVE_ZONE.get("is_active", True)).lower() != "false"
-    if active_zones_state.get(ACTIVE_ZONE_IDX) in ["PAUSE", "AUTO_CLEAR", "CLEAR"]:
+    is_zone_active = str(target_zone.get("is_active", True)).lower() != "false"
+    if active_zones_state.get(target_idx) == "PAUSE":
         is_zone_active = False
 
     if not is_zone_active:
         return True
+
+    # Artık grid referanslarında ACTIVE_ZONE ve ACTIVE_ZONE_IDX yerine target_zone kullanıyoruz.
+    ACTIVE_ZONE = target_zone
+    ACTIVE_ZONE_IDX = target_idx
 
     # Ayarları Çek
     z_type = ACTIVE_ZONE.get("order_type", "BUY")

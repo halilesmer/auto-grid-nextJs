@@ -253,9 +253,7 @@ async def get_ui_state(account_id: str):
 
 @router.post("/ui-state/{account_id}")
 async def update_ui_state(account_id: str, payload: SettingsPayload):
-    """Frontend arayüz durumlarını (zone START/PAUSE/CLEAR) yazar/günceller.
-    Beklenen payload: { "settings": { "states": { "0": "START", "1": "PAUSE" } } }
-    """
+    """Frontend arayüz durumlarını yazar/günceller ve hatalı formatları onarır."""
     path = get_ui_state_path(account_id)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -268,9 +266,18 @@ async def update_ui_state(account_id: str, payload: SettingsPayload):
             except Exception:
                 existing_states = {}
 
-        incoming_data = payload.settings.get("states", {})
+        # Next.js'in payload formatındaki olası sapmaları yakalamak için esnek okuma
+        incoming_data = payload.settings.get("states")
+
+        # Eğer payload.settings'in kendisi zaten states içeriyorsa (Örn: {"0": "START"})
+        if not incoming_data and any(k.isdigit() for k in payload.settings.keys()):
+            incoming_data = payload.settings
+
         if isinstance(incoming_data, dict):
-            existing_states.update(incoming_data)
+            # Key'lerin kesinlikle string integer ('0', '1') olmasını sağla
+            for k, v in incoming_data.items():
+                if str(k).isdigit():
+                    existing_states[str(k)] = str(v).upper()
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(existing_states, f, indent=4, ensure_ascii=False)
