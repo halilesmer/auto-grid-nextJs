@@ -41,7 +41,7 @@ export default function ZoneSettingsPanel({
   liveData,
   isGlobalDirty,
 }: ZoneSettingsPanelProps) {
-  const { settings, setZones } = useBotStore();
+  const { settings, setZones, availableSymbols } = useBotStore();
   const [prevAccount, setPrevAccount] = useState<string | null>(
     selectedAccount,
   );
@@ -84,6 +84,31 @@ export default function ZoneSettingsPanel({
   const toggleZoneActive = useCallback(
     async (zoneId: string, currentActive: boolean) => {
       const newActive = !currentActive;
+
+      // KRİTİK KONTROL 1: Global motor kapalıysa bölge başlatılamaz
+      if (!liveData.mt5_connected || !isRunning) {
+        alert(
+          "MT5 bağlantısı yok! Lütfen önce sol üst menüden bot motorunu başlatın.",
+        );
+        return;
+      }
+
+      // KRİTİK KONTROL 2: Sembol broker tarafından desteklenmiyorsa başlatma
+      const zoneSymbol = useBotStore
+        .getState()
+        .settings?.ZONES?.find((z) => z.id === zoneId)?.symbol;
+      if (
+        zoneSymbol &&
+        availableSymbols.length > 0 &&
+        !availableSymbols.some(
+          (s) => s.toUpperCase() === zoneSymbol.toUpperCase(),
+        )
+      ) {
+        alert(
+          "Hatalı Sembol! Girdiğiniz sembol broker tarafından desteklenmiyor. Lütfen geçerli bir sembol girin.",
+        );
+        return;
+      }
 
       // 1. UI anında tepki versin (Optimistic Update)
       setZones((prevZones) =>
@@ -133,7 +158,7 @@ export default function ZoneSettingsPanel({
         );
       }
     },
-    [setZones, selectedAccount],
+    [setZones, selectedAccount, liveData.mt5_connected, isRunning, availableSymbols],
   );
 
   const addZone = useCallback(() => {
@@ -195,6 +220,7 @@ export default function ZoneSettingsPanel({
             onDelete={() => setDeleteZoneId(zone.id)}
             liveData={liveData}
             activeAccount={activeAccount}
+            availableSymbols={availableSymbols}
           />
         );
       })}
@@ -226,6 +252,7 @@ interface ZoneCardProps {
   onDelete: () => void;
   liveData: ReturnType<typeof useBotStore.getState>["liveData"];
   activeAccount: ReturnType<typeof useBotStore.getState>["activeAccount"];
+  availableSymbols: string[];
 }
 
 function ZoneCard({
@@ -238,6 +265,7 @@ function ZoneCard({
   onDelete,
   liveData,
   activeAccount,
+  availableSymbols,
 }: ZoneCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -338,8 +366,14 @@ function ZoneCard({
             onChange={(e) =>
               update("symbol", e.target.value.toUpperCase().trim())
             }
+            list={`broker-symbols-${zone.id}`}
             className="input-s"
           />
+          <datalist id={`broker-symbols-${zone.id}`}>
+            {availableSymbols.map((sym) => (
+              <option key={sym} value={sym} />
+            ))}
+          </datalist>
         </InputGroup>
         <InputGroup label="Emir Tipi">
           <select

@@ -134,6 +134,7 @@ interface BotState {
   isWindows: boolean;
   simulatedPrice: number;
   updateInfo: UpdateInfo | null;
+  availableSymbols: string[];
 
   setAccounts: (accounts: Account[]) => void;
   setSelectedAccount: (accountId: string) => void;
@@ -153,6 +154,7 @@ interface BotState {
   setIsWindows: (v: boolean) => void;
   setSimulatedPrice: (price: number) => void;
   setUpdateInfo: (info: UpdateInfo | null) => void;
+  setAvailableSymbols: (symbols: string[]) => void;
   reset: () => void;
 }
 
@@ -193,6 +195,7 @@ export const useBotStore = create<BotState>((set, get) => ({
   isWindows: true,
   simulatedPrice: 75.0,
   updateInfo: null,
+  availableSymbols: [],
 
   setAccounts: (accounts) => set({ accounts }),
 
@@ -288,6 +291,8 @@ export const useBotStore = create<BotState>((set, get) => ({
 
   setUpdateInfo: (info) => set({ updateInfo: info }),
 
+  setAvailableSymbols: (symbols) => set({ availableSymbols: symbols }),
+
   reset: () =>
     set({
       accounts: [],
@@ -302,5 +307,6 @@ export const useBotStore = create<BotState>((set, get) => ({
       isWindows: true,
       simulatedPrice: 75.0,
       updateInfo: null,
+      availableSymbols: [],
     }),
 }));

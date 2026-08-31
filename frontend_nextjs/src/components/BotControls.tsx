@@ -22,11 +22,38 @@ export default function BotControls() {
     liveData,
     updateLiveData,
     setIsRunning,
+    availableSymbols,
+    setAvailableSymbols,
   } = useBotStore();
 
   useEffect(() => {
     setIsRunning(Boolean(liveData.mt5_connected));
   }, [liveData.mt5_connected, setIsRunning]);
+
+  // Bot zaten çalışıyorken sayfa yenilenirse (F5) ya da mt5_connected true olduğunda
+  // broker'ın desteklediği sembolleri çek. Liste zaten doluysa gereksiz istek atma.
+  useEffect(() => {
+    if (!liveData.mt5_connected || !selectedAccount) return;
+    if (availableSymbols.length > 0) return;
+
+    let cancelled = false;
+    axios
+      .get(`${API}/symbols/${selectedAccount}`)
+      .then((res) => {
+        if (cancelled) return;
+        const symbols: string[] = res.data?.symbols || [];
+        if (symbols.length > 0) {
+          setAvailableSymbols(symbols);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch broker symbols:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [liveData.mt5_connected, selectedAccount, availableSymbols.length, setAvailableSymbols]);
 
   const [loading, setLoading] = useState(false);
   const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
