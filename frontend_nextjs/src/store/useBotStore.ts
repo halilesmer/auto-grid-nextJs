@@ -17,6 +17,7 @@ export interface Account {
 
 export interface ZoneSettings {
   id: string;
+  is_active?: boolean;
   symbol: string;
   order_type: string;
   min_price: number;
@@ -87,6 +88,7 @@ export function defaultZone(): ZoneSettings {
 
   return {
     id: crypto.randomUUID(),
+    is_active: false, // Yeni bölgeler varsayılan olarak "Beklet / PAUSE" modunda başlar
     symbol: 'USOUSD',
     order_type: 'BUY',
     min_price: 70.0,

@@ -208,8 +208,9 @@ function ZoneCard({
   const isBoth = zone.order_type === "BOTH";
   const showBuyLabel = zone.order_type === "BUY";
   const showSellLabel = zone.order_type === "SELL";
-  const isActive =
-    (zone as ZoneSettings & { is_active?: boolean }).is_active !== false;
+
+  // Eski kayıtlarla geriye dönük uyumluluk için !== false kullanmaya devam ediyoruz
+  const isActive = zone.is_active !== false;
 
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-xl shadow-xl space-y-4">
