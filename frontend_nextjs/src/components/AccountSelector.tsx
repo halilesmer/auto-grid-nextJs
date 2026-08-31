@@ -5,10 +5,13 @@ import { useBotStore, type Account } from '@/store/useBotStore';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Plus, Edit3, Trash2, AlertTriangle, X, Download, RefreshCw } from 'lucide-react';
 
-const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const rawAPI =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://tweet-overlying-monotone.ngrok-free.dev";
 const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 
-// Ngrok header page.tsx'de merkezi olarak ayarlanıyor; duplicate önlemek için burada tekrar etmiyoruz
+// Ngrok header duplicate hatasını engellemek ve erişim sorununu kökten çözmek için doğrudan ekliyoruz
+axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 function emptyAccount(): Account {
   return {

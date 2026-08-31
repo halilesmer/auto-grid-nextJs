@@ -6,14 +6,27 @@ from src.api.ws_server import router as ws_router
 
 app = FastAPI(title="Auto Grid Bot API")
 
-allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+allowed_origins = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()
+]
+
+# KÖK NEDEN ÇÖZÜMÜ: allow_origins=["*"] iken allow_credentials=True OLAMAZ (Network Error verir!)
+if "*" in allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(api_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")
