@@ -47,8 +47,25 @@ export default function Home() {
     setSavedSettingsStr(currentSettingsStr);
   }
 
+  // Başlat/Bağlandı (is_active) değişikliğini "Tüm Ayarları Kaydet" butonundan izole et
+  const sanitizeForCompare = (jsonStr: string | null) => {
+    if (!jsonStr) return null;
+    try {
+      const obj = JSON.parse(jsonStr);
+      if (Array.isArray(obj.ZONES)) {
+        obj.ZONES.forEach((z: any) => delete z.is_active);
+      }
+      return JSON.stringify(obj);
+    } catch {
+      return jsonStr;
+    }
+  };
+
   const isDirty = Boolean(
-    settings && savedSettingsStr && currentSettingsStr !== savedSettingsStr,
+    settings &&
+      savedSettingsStr &&
+      sanitizeForCompare(currentSettingsStr) !==
+        sanitizeForCompare(savedSettingsStr),
   );
   const [shuttingDown, setShuttingDown] = useState(false);
   const [showSysInfo, setShowSysInfo] = useState(false);
@@ -306,6 +323,7 @@ const handleApplyUpdate = async () => {
                   activeAccount={activeAccount}
                   isRunning={isRunning}
                   liveData={liveData}
+                  isGlobalDirty={isDirty}
                 />
               </div>
               <LogViewer />

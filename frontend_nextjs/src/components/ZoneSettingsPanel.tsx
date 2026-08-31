@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import axios from 'axios';
 import {
   useBotStore,
@@ -18,7 +18,12 @@ axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings): boolean {
   if (!original) return true;
-  return JSON.stringify(original) !== JSON.stringify(current);
+  const o = { ...original };
+  const c = { ...current };
+  // is_active değişikliği "Kaydedilmedi" uyarısını tetiklemesin
+  delete o.is_active;
+  delete c.is_active;
+  return JSON.stringify(o) !== JSON.stringify(c);
 }
 
 interface ZoneSettingsPanelProps {
@@ -26,6 +31,7 @@ interface ZoneSettingsPanelProps {
   activeAccount: ReturnType<typeof useBotStore.getState>['activeAccount'];
   isRunning: boolean;
   liveData: ReturnType<typeof useBotStore.getState>['liveData'];
+  isGlobalDirty?: boolean;
 }
 
 export default function ZoneSettingsPanel({
@@ -33,6 +39,7 @@ export default function ZoneSettingsPanel({
   activeAccount,
   isRunning,
   liveData,
+  isGlobalDirty,
 }: ZoneSettingsPanelProps) {
   const { settings, setZones } = useBotStore();
   const [prevAccount, setPrevAccount] = useState<string | null>(
@@ -54,6 +61,16 @@ export default function ZoneSettingsPanel({
   if (zones.length > 0 && originalZones.length === 0) {
     setOriginalZones(zones.map((z) => ({ ...z })));
   }
+
+  // YENİ: "Tüm Ayarları Kaydet" butonuna basıldığında (isDirty === false)
+  // "Kaydedilmedi" uyarılarını sıfırlar (originalZones günceller).
+  useEffect(() => {
+    if (isGlobalDirty === false) {
+      // Race condition'ı önlemek için zones bağımlılığını kaldırdık
+      const currentZones = useBotStore.getState().settings?.ZONES || [];
+      setOriginalZones(currentZones.map((z) => ({ ...z })));
+    }
+  }, [isGlobalDirty]);
 
   const updateZone = useCallback(
     (zoneId: string, field: string, value: unknown) => {
@@ -77,11 +94,33 @@ export default function ZoneSettingsPanel({
 
       if (!selectedAccount) return;
 
-      // 2. Ana butondan tamamen bağımsız olarak arka planda kaydet
+      // 2. Kirli (kaydedilmemiş) değişiklikleri bozmadan SADECE is_active yolla
       try {
-        const currentSettings = useBotStore.getState().settings;
+        // A. Sunucudaki son TEMİZ state'i çek
+        const res = await axios.get(`${API}/settings/${selectedAccount}`);
+        const remoteSettings = res.data?.settings || {};
+        const remoteZones: any[] = remoteSettings.ZONES || [];
+
+        // KRİTİK HATA DÜZELTMESİ: Bölge henüz sunucuda yoksa (yeni eklendiyse)
+        const existsRemotely = remoteZones.some((z) => z.id === zoneId);
+        if (!existsRemotely) {
+          alert("Bu bölge henüz kaydedilmemiş! Lütfen önce 'Tüm Ayarları Kaydet' butonuna basın.");
+          setZones((prevZones) =>
+            prevZones.map((z) =>
+              z.id === zoneId ? { ...z, is_active: currentActive } : z,
+            ),
+          );
+          return;
+        }
+
+        // B. Sadece ilgili bölgenin aktifliğini değiştir
+        const updatedZones = remoteZones.map((z: any) =>
+          z.id === zoneId ? { ...z, is_active: newActive } : z
+        );
+
+        // C. Temiz ayarları tekrar kaydet (Ekranda bekleyen değişiklikler güvende)
         await axios.post(`${API}/settings/${selectedAccount}`, {
-          settings: currentSettings,
+          settings: { ...remoteSettings, ZONES: updatedZones },
         });
       } catch (err) {
         console.error("Bölge güncellenemedi", err);
