@@ -481,7 +481,7 @@ def process_zone_commands():
         # FALLBACK: UI state dosyası yoksa, settings dosyasındaki is_active'dan türet
         # Bu, yeni eklenen bölgelerin veya ilk çalıştırmada çalışmasını sağlar.
         for idx, zone in enumerate(ZONES):
-            if str(idx) not in active_zones_state:
+            if idx not in active_zones_state:
                 is_active = zone.get("is_active", True)
                 active_zones_state[idx] = "START" if is_active else "PAUSE"
                 if is_active:
@@ -695,7 +695,7 @@ def manage_dynamic_grid():
             is_zone_active = (
                 str(ZONES[order_zone_idx].get("is_active", True)).lower() != "false"
             )
-        if active_zones_state.get(order_zone_idx) == "PAUSE":
+        if active_zones_state.get(order_zone_idx) in ["PAUSE", "AUTO_CLEAR", "CLEAR"]:
             is_zone_active = False
 
         # 🛡️ GÜVENLİK: Bölge pasifse ayardaki BUY/SELL ayrımını
@@ -807,7 +807,11 @@ def manage_dynamic_grid():
                     is_pos_zone_active = (
                         str(z_data.get("is_active", True)).lower() != "false"
                     )
-                    if active_zones_state.get(pos_zone_idx) == "PAUSE":
+                    if active_zones_state.get(pos_zone_idx) in [
+                        "PAUSE",
+                        "AUTO_CLEAR",
+                        "CLEAR",
+                    ]:
                         is_pos_zone_active = False
 
                     if not has_pending and is_pos_zone_active:
@@ -953,7 +957,7 @@ def manage_dynamic_grid():
         return True
 
     is_zone_active = str(ACTIVE_ZONE.get("is_active", True)).lower() != "false"
-    if active_zones_state.get(ACTIVE_ZONE_IDX) == "PAUSE":
+    if active_zones_state.get(ACTIVE_ZONE_IDX) in ["PAUSE", "AUTO_CLEAR", "CLEAR"]:
         is_zone_active = False
 
     if not is_zone_active:
