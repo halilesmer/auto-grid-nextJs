@@ -151,9 +151,12 @@ def log_message(msg, level="INFO"):
 
 
 # ===============================================================================
-# MT5 BAĞLANTISI (Simülasyon Tamamen Kaldırıldı)
+# MT5 BAĞLANTISI
 # ===============================================================================
-import MetaTrader5 as mt5
+try:
+    import MetaTrader5 as mt5
+except ImportError:
+    mt5 = None
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # KULLANICI AYARLARI

@@ -296,7 +296,7 @@ async def start_bot(account_id: str):
         raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
 
     ok, _is_timeout, detail = await asyncio.to_thread(
-        connect_to_mt5_with_timeout, account_config, 15
+        connect_to_mt5_with_timeout, account_config, 45
     )
     if not ok:
         raise HTTPException(status_code=500, detail=f"MT5 Connection Failed: {detail}")
