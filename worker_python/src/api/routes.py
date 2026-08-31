@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response, BackgroundTasks
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -7,6 +7,8 @@ import os
 import sys
 import glob
 import asyncio
+import shutil
+import tempfile
 from src.utils.mt5_connection import (
     connect_to_mt5_with_timeout,
     get_mt5_symbols,
@@ -453,20 +455,32 @@ async def run_update(branch: str = Query("main", description="Git branch")):
 
 
 @router.get("/logs/download/{account_id}")
-async def download_log(account_id: str):
-    candidates = [
-        os.path.join(LOGS_DIR, f"err_{account_id}.log"),
-        *glob.glob(os.path.join(LOGS_DIR, account_id, "err_*.log")),
-    ]
-    for c in candidates:
-        if os.path.exists(c):
-            return FileResponse(
-                path=c,
-                filename=f"MT5_{account_id}_bot.log",
-                media_type="text/plain",
-            )
-    raise HTTPException(
-        status_code=404, detail=f"No log file found for account {account_id}"
+async def download_log(account_id: str, background_tasks: BackgroundTasks):
+    account_dir = os.path.join(LOGS_DIR, account_id)
+
+    if not os.path.exists(account_dir) or not os.path.isdir(account_dir):
+        raise HTTPException(
+            status_code=404, detail=f"No log directory found for account {account_id}"
+        )
+
+    # Geçici ZIP oluştur
+    fd, temp_zip_path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    base_name = temp_zip_path[:-4]
+    shutil.make_archive(base_name, "zip", account_dir)
+
+    # İndirme bitince sunucudaki geçici dosyayı temizle
+    def cleanup():
+        if os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+
+    background_tasks.add_task(cleanup)
+
+    return FileResponse(
+        path=temp_zip_path,
+        filename=f"MT5_Logs_{account_id}.zip",
+        media_type="application/zip",
     )
 
 
