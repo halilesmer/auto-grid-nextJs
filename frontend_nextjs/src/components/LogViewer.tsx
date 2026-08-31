@@ -1,10 +1,10 @@
 'use client';
 
+import { Download, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Download } from 'lucide-react';
-import axios from 'axios';
-import { useBotStore } from '@/store/useBotStore';
+import axios from "axios";
+import { useBotStore } from "@/store/useBotStore";
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -15,7 +15,8 @@ axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 const POLL_INTERVAL_MS = 10_000;
 
 export default function LogViewer() {
-  const { selectedAccount, logs, setLogs, updateLiveData } = useBotStore();
+  const { selectedAccount, logs, setLogs, clearLogs, updateLiveData } =
+    useBotStore();
   const [tab, setTab] = useState<"robot" | "mt5">("robot");
   const robotRef = useRef<HTMLPreElement>(null);
   const mt5Ref = useRef<HTMLPreElement>(null);
@@ -56,6 +57,22 @@ export default function LogViewer() {
   const handleDownloadLog = () => {
     if (selectedAccount) {
       window.open(`${API}/logs/download/${selectedAccount}`);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!selectedAccount) return;
+    if (
+      !window.confirm(
+        "Bu hesaba ait tüm logları temizlemek istediğinize emin misiniz?",
+      )
+    )
+      return;
+    try {
+      await axios.delete(`${API}/logs/${selectedAccount}`);
+      clearLogs();
+    } catch (err) {
+      console.error("Loglar temizlenemedi", err);
     }
   };
 
@@ -100,13 +117,21 @@ export default function LogViewer() {
             Auto-refresh {POLL_INTERVAL_MS / 1000}s
           </span>
           <div className="flex items-center space-x-2">
-            <button
+           <button
               onClick={handleDownloadLog}
               className="text-xs text-gray-500 hover:text-gray-300 px-2 py-0.5 rounded hover:bg-white/10 transition-all flex items-center space-x-1"
               title="Download log file"
             >
               <Download size={12} />
               <span>Download</span>
+            </button>
+            <button
+              onClick={handleClearLogs}
+              className="text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded hover:bg-red-500/10 transition-all flex items-center space-x-1"
+              title="Clear all logs"
+            >
+              <Trash2 size={12} />
+              <span>Clear</span>
             </button>
             <button
               onClick={fetchLogs}

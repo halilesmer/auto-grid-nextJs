@@ -292,6 +292,23 @@ async def get_logs(
     return result
 
 
+@router.delete("/logs/{account_id}")
+async def clear_logs(account_id: str):
+    account_dir = os.path.join(LOGS_DIR, account_id)
+    if os.path.exists(account_dir) and os.path.isdir(account_dir):
+        for file_name in os.listdir(account_dir):
+            file_path = os.path.join(account_dir, file_name)
+            # KRİTİK DÜZELTME: Sadece .log uzantılı dosyaları hedef al (JSON ve TXT'leri koru)
+            if os.path.isfile(file_path) and file_name.endswith(".log"):
+                try:
+                    # Windows kilitlenmelerini önlemek için dosyayı silmek yerine içini boşaltıyoruz
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        pass
+                except Exception:
+                    pass
+    return {"status": "success", "message": f"Logs cleared for {account_id}"}
+
+
 # ---------------------------------------------------------------------------
 # BOT KONTROL  —  /start  |  /stop  |  /action
 # ---------------------------------------------------------------------------
