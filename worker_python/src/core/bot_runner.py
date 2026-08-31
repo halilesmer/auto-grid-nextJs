@@ -31,7 +31,7 @@ sys.path.append(str(project_root))
 from src.utils.mt5_connection import connect_to_mt5_with_timeout
 
 # 🌟 YENİ: Merkezi yol yöneticisini içeri aktarıyoruz
-from src.utils.paths import get_metrics_path, get_sim_price_path, get_ui_state_path
+from src.utils.paths import get_metrics_path, get_ui_state_path
 
 # 🌟 YENİ: MT5 "Source of Truth" senkronizasyonu ve kalıcı state dosyası
 from src.utils.state_manager import build_synced_state, save_state
@@ -39,7 +39,6 @@ from src.utils.state_manager import build_synced_state, save_state
 def export_metrics_step(bot_engine, account_id):
     """Ana döngüye (main thread) entegre metrik dışa aktarıcı. Threading çökmesini engeller."""
     metrics_file = get_metrics_path(account_id)
-    sim_file = get_sim_price_path(account_id)
 
     if hasattr(bot_engine, "get_live_metrics"):
         try:
@@ -48,14 +47,6 @@ def export_metrics_step(bot_engine, account_id):
             with open(tmp_metrics_file, "w", encoding="utf-8") as f:
                 json.dump(metrics, f)
             os.replace(tmp_metrics_file, metrics_file)
-        except Exception:
-            pass
-
-    if sys.platform != "win32" and os.path.exists(sim_file):
-        try:
-            with open(sim_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                bot_engine.SIMULATED_PRICE = data.get("price", 75.0)
         except Exception:
             pass
 

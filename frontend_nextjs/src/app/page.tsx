@@ -1,8 +1,7 @@
 'use client';
 
-import { Globe, Monitor, Power, RefreshCw, Server, Settings, Save, AlertCircle } from 'lucide-react';
+import { AlertCircle, Globe, Monitor, Power, RefreshCw, Save, Server, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 import AccountSelector from '@/components/AccountSelector';
 import BotControls from '@/components/BotControls';
@@ -10,8 +9,8 @@ import ConfirmModal from '@/components/ConfirmModal';
 import LogViewer from '@/components/LogViewer';
 import SettingsForm from '@/components/SettingsForm';
 import SimulationBar from '@/components/SimulationBar';
-import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { VERSION } from '@/app/version';
+import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
 
@@ -81,47 +80,50 @@ export default function Home() {
       setUpdateResult(null);
     }
   };
-
-  const handleApplyUpdate = async () => {
-    if (!updateResult) return;
-    setUpdateResult({ ...updateResult, loading: true });
-    try {
-      await axios.post(`${API}/system/update?branch=main`);
-      window.location.reload();
-    } catch (err: any) {
+const handleApplyUpdate = async () => {
+  if (!updateResult) return;
+  setUpdateResult({ ...updateResult, loading: true });
+  try {
+    await axios.post(`${API}/system/update?branch=main`);
+    window.location.reload();
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
       alert(err.response?.data?.detail || "Update failed");
-      setUpdateResult(null);
+    } else {
+      alert("Update failed");
     }
-  };
+    setUpdateResult(null);
+  }
+};
 
   const isLive = activeAccount?.env_type === 'LIVE';
 
   const handleSaveAll = async () => {
     if (!selectedAccount || !settings) return;
     setSaveAllLoading(true);
-    setSaveAllError('');
+    setSaveAllError("");
     try {
       await mergeAndSaveSettings(API);
-    } catch (err: any) {
-      setSaveAllError(err.message || 'Tüm ayarları kaydetme başarısız');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setSaveAllError(err.message);
+      } else {
+        setSaveAllError("Tüm ayarları kaydetme başarısız");
+      }
     } finally {
       setSaveAllLoading(false);
     }
   };
 
-  const hasAnyChanges = settings && (
-    // Check if zones or globals have been modified
-    // This is a simple check - in reality you'd track dirty state
-    true
-  );
+  
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <header className="flex items-start md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-emerald-400">
               Grid Robot Dashboard{' '}
               <span className="text-base text-gray-500 font-normal">{VERSION}</span>
             </h1>
@@ -225,7 +227,7 @@ export default function Home() {
           <button
             onClick={handleSaveAll}
             disabled={saveAllLoading || !settings}
-            className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900"
           >
             <Save size={24} />
             <span className="text-lg">{saveAllLoading ? 'Kaydediliyor...' : 'Tüm Ayarları Kaydet'}</span>
@@ -246,7 +248,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
             {/* Left (2/3): Zone Settings + Logs */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-[450px]">
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-112.5">
                 <ZoneSettingsPanel
                   selectedAccount={selectedAccount}
                   activeAccount={activeAccount}
@@ -265,7 +267,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="mt-20 flex flex-col items-center justify-center text-gray-500">
-            <div className="animate-pulse w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full animate-spin mb-4" />
+            <div className="animate-pulse w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full mb-4" />
             <p className="text-xl">Please select an account to continue.</p>
           </div>
         )}

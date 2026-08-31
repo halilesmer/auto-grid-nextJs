@@ -37,7 +37,6 @@ ACTIVE_ZONE_IDX = None
 
 IS_RUNNING = False
 INITIAL_CLEANUP_DONE = False
-SIMULATED_PRICE = 0.0
 
 # 🌟 YENİ: MT5 bağlantı durumu izleyici (Arayüze "bağlantı koptu" bilgisini iletir)
 CONNECTION_LOST = False
@@ -75,12 +74,6 @@ def get_live_metrics():
         "market_open": is_market_open(),
     }
 
-    if mt5 is None or IS_MAC_TEST_MODE:
-        if SIMULATED_PRICE > 0:
-            metrics["current_price"] = SIMULATED_PRICE
-        CONNECTION_LOST = False
-        return metrics
-
     terminal_info = mt5.terminal_info()
     if terminal_info is None or not getattr(terminal_info, "connected", False):
         # 🔴 MT5'e ulaşılamıyor VEYA Broker/Sunucu bağlantısı koptu!
@@ -108,8 +101,6 @@ def get_live_metrics():
     tick = mt5.symbol_info_tick(SYMBOL)
     if tick:
         metrics["current_price"] = tick.bid
-    elif SIMULATED_PRICE > 0:
-        metrics["current_price"] = SIMULATED_PRICE
 
     return metrics
 
@@ -160,139 +151,9 @@ def log_message(msg, level="INFO"):
 
 
 # ===============================================================================
-# 🍏🪟 MAC / WINDOWS UYUMLULUK KÖPRÜSÜ
+# MT5 BAĞLANTISI (Simülasyon Tamamen Kaldırıldı)
 # ===============================================================================
-try:
-    # 🚨 KESİN KONTROL: Eğer kütüphane varsa KESİNLİKLE gerçek MT5'i kullan!
-    import MetaTrader5 as mt5
-
-    IS_MAC_TEST_MODE = False
-
-    def set_mock_price(new_price):
-        pass
-
-except ImportError:
-    # Gerçek kütüphane YOKSA (Geliştirici Mac'indeysen) Sahte Moda Geç
-    IS_MAC_TEST_MODE = True
-    print(
-        "⚠️ UYARI: MetaTrader5 kütüphanesi bulunamadı! MT5 Sahte (Mock) modda çalışıyor!"
-    )
-    MOCK_CURRENT_PRICE = 75.00
-
-    def set_mock_price(new_price):
-        global MOCK_CURRENT_PRICE
-        MOCK_CURRENT_PRICE = new_price
-
-    class DummyMT5:
-        def __init__(self):
-            self.dummy_orders = []
-            self.ticket_counter = 1
-
-        TRADE_ACTION_DEAL = 1
-        TRADE_ACTION_PENDING = 5
-        TRADE_ACTION_REMOVE = 8
-        TRADE_ACTION_SLTP = 6
-        ORDER_TYPE_BUY_LIMIT = 2
-        ORDER_TYPE_BUY_STOP = 4
-        ORDER_TYPE_SELL_LIMIT = 3
-        ORDER_TYPE_SELL_STOP = 5
-        POSITION_TYPE_BUY = 0
-        POSITION_TYPE_SELL = 1
-        ORDER_TIME_GTC = 0
-        ORDER_FILLING_IOC = 1
-        ORDER_FILLING_FOK = 0
-        ORDER_FILLING_RETURN = 2
-        TRADE_RETCODE_DONE = 10009
-
-        def initialize(self):
-            return True
-
-        def shutdown(self):
-            pass
-
-        def last_error(self):
-            return (1, "Mock Error")
-
-        def terminal_info(self):
-            class TerminalInfo:
-                trade_allowed = True
-                connected = True
-
-            return TerminalInfo()
-
-        def symbol_info(self, symbol):
-            class SymbolInfo:
-                visible = True
-                trade_mode = 4
-                filling_mode = 1
-                point = 0.01
-                digits = 2
-                volume_min = 0.01
-                volume_max = 100.0
-                volume_step = 0.01
-
-            return SymbolInfo()
-
-        def symbol_select(self, symbol, visible):
-            return True
-
-        def symbol_info_tick(self, symbol):
-            class Tick:
-                bid = MOCK_CURRENT_PRICE
-                ask = MOCK_CURRENT_PRICE + 0.05
-
-            return Tick()
-
-        def orders_get(self, symbol=None):
-            return self.dummy_orders
-
-        def positions_get(self, symbol=None):
-            return []
-
-        def order_check(self, request):
-            class CheckResult:
-                retcode = 0
-
-            return CheckResult()
-
-        def order_send(self, request):
-            class SendResult:
-                retcode = 10009
-
-            if request.get("action") == self.TRADE_ACTION_PENDING:
-
-                class DummyOrder:
-                    def __init__(
-                        self, ticket, magic, price, type_, comment="", volume=0.0
-                    ):
-                        self.ticket = ticket
-                        self.magic = magic
-                        self.price_open = price
-                        self.type = type_
-                        self.comment = comment
-                        self.volume_current = volume
-                        self.volume_initial = volume
-
-                new_order = DummyOrder(
-                    self.ticket_counter,
-                    request.get("magic"),
-                    request.get("price"),
-                    request.get("type"),
-                    request.get("comment", ""),
-                    request.get("volume", 0.0),
-                )
-                self.dummy_orders.append(new_order)
-                self.ticket_counter += 1
-            elif request.get("action") == self.TRADE_ACTION_REMOVE:
-                ticket_to_remove = request.get("order")
-                self.dummy_orders = [
-                    o for o in self.dummy_orders if o.ticket != ticket_to_remove
-                ]
-            return SendResult()
-
-
-if IS_MAC_TEST_MODE:
-    mt5 = DummyMT5()
+import MetaTrader5 as mt5
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # KULLANICI AYARLARI
@@ -325,10 +186,6 @@ def normalize_volume(volume):
 
 
 def get_current_market_price(direction="BUY"):
-    global SIMULATED_PRICE
-    if IS_MAC_TEST_MODE and SIMULATED_PRICE > 0:
-        return SIMULATED_PRICE
-
     try:
         tick = mt5.symbol_info_tick(SYMBOL)
         if tick is None:
@@ -340,10 +197,6 @@ def get_current_market_price(direction="BUY"):
 
 
 def is_market_open():
-    # Mac simülatörü çalışıyorsa (veri akmayacağı için) piyasayı açık kabul et
-    if IS_MAC_TEST_MODE:
-        return True
-
     term_info = mt5.terminal_info()
     if term_info is None or not getattr(term_info, "connected", False):
         return False
@@ -454,8 +307,6 @@ def modify_position_tp_sl(position, tp_price, sl_price=None):
 
 
 def get_mt5_timeframe(tf_str):
-    if IS_MAC_TEST_MODE:
-        return 0
     mapping = {
         "M1": mt5.TIMEFRAME_M1,
         "M5": mt5.TIMEFRAME_M5,
@@ -483,26 +334,23 @@ def get_active_zone(tick_price):
             # Bölgenin kuralı "Mum Kapanışı" ise, giriş için de mum kapanışını kontrol et
             tf_str = zone.get("exit_timeframe", "M15")
             tf = get_mt5_timeframe(tf_str)
-            if IS_MAC_TEST_MODE:
-                close_price = tick_price
-            else:
-                rates = mt5.copy_rates_from_pos(SYMBOL, tf, 1, 1)  # Son kapanan mumu al
-                if rates is not None and len(rates) > 0:
-                    close_price = (
-                        rates[0]["close"]
-                        if isinstance(rates[0], dict)
-                        else getattr(
-                            rates[0],
-                            "close",
-                            (
-                                rates[0][4]
-                                if isinstance(rates[0], tuple)
-                                else rates[0]["close"]
-                            ),
-                        )
+            rates = mt5.copy_rates_from_pos(SYMBOL, tf, 1, 1)  # Son kapanan mumu al
+            if rates is not None and len(rates) > 0:
+                close_price = (
+                    rates[0]["close"]
+                    if isinstance(rates[0], dict)
+                    else getattr(
+                        rates[0],
+                        "close",
+                        (
+                            rates[0][4]
+                            if isinstance(rates[0], tuple)
+                            else rates[0]["close"]
+                        ),
                     )
-                else:
-                    close_price = tick_price
+                )
+            else:
+                close_price = tick_price
 
             if round(z_min, 5) <= round(close_price, 5) <= round(z_max, 5):
                 return zone, i
@@ -644,10 +492,6 @@ def check_remote_commands():
     emir KENDİSİ SİLİNİR (self-destruct) böylece tek seferlik tuş gibi çalışır.
     """
     global REMOTE_PAUSED, ACTIVE_ZONE, ACTIVE_ZONE_IDX
-
-    if IS_MAC_TEST_MODE:
-        # Mac test modunda DummyMT5 kullanılır; aynı mantık orada da çalışır.
-        pass
 
     orders = mt5.orders_get(symbol=SYMBOL)
     if orders is None or len(orders) == 0:
@@ -967,26 +811,23 @@ def manage_dynamic_grid():
         else:
             tf_str = ACTIVE_ZONE.get("exit_timeframe", "M15")
             tf = get_mt5_timeframe(tf_str)
-            if IS_MAC_TEST_MODE:
-                close_price = current_avg_price
-            else:
-                rates = mt5.copy_rates_from_pos(SYMBOL, tf, 1, 1)
-                if rates is not None and len(rates) > 0:
-                    close_price = (
-                        rates[0]["close"]
-                        if isinstance(rates[0], dict)
-                        else getattr(
-                            rates[0],
-                            "close",
-                            (
-                                rates[0][4]
-                                if isinstance(rates[0], tuple)
-                                else rates[0]["close"]
-                            ),
-                        )
+            rates = mt5.copy_rates_from_pos(SYMBOL, tf, 1, 1)
+            if rates is not None and len(rates) > 0:
+                close_price = (
+                    rates[0]["close"]
+                    if isinstance(rates[0], dict)
+                    else getattr(
+                        rates[0],
+                        "close",
+                        (
+                            rates[0][4]
+                            if isinstance(rates[0], tuple)
+                            else rates[0]["close"]
+                        ),
                     )
-                else:
-                    close_price = current_avg_price
+                )
+            else:
+                close_price = current_avg_price
 
             if round(close_price, 5) < round(z_min, 5) or round(close_price, 5) > round(
                 z_max, 5
@@ -1424,52 +1265,51 @@ def run_startup_checks():
     # İkinci kez initialize()/login() yapmak IPC çakışmasına yol açar.
     # Bunun yerine sadece mevcut bağlantının canlı olduğunu doğrula.
     # ==============================================================
-    if not IS_MAC_TEST_MODE:
-        account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
-        term_info = mt5.terminal_info()
-        if term_info is None or not getattr(term_info, "connected", False):
-            log_message(
-                "🔴 MT5 bağlantısı koptu! Terminal bilgisi alınamadı.",
-                "ERROR",
-            )
-            mt5.shutdown()
-            return False
-        account_info = mt5.account_info()
-        if account_info is not None:
-            log_message(
-                f"✅ MT5 bağlantısı canlı doğrulandı (Hesap: {account_info.login}, "
-                f"Sunucu: {account_info.server})"
-            )
-        else:
-            log_message(
-                "⚠️ Hesap bilgisi alınamadı ama terminal bağlı. Devam ediliyor...",
-                "WARN",
-            )
+    account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
+    term_info = mt5.terminal_info()
+    if term_info is None or not getattr(term_info, "connected", False):
+        log_message(
+            "🔴 MT5 bağlantısı koptu! Terminal bilgisi alınamadı.",
+            "ERROR",
+        )
+        mt5.shutdown()
+        return False
+    account_info = mt5.account_info()
+    if account_info is not None:
+        log_message(
+            f"✅ MT5 bağlantısı canlı doğrulandı (Hesap: {account_info.login}, "
+            f"Sunucu: {account_info.server})"
+        )
+    else:
+        log_message(
+            "⚠️ Hesap bilgisi alınamadı ama terminal bağlı. Devam ediliyor...",
+            "WARN",
+        )
 
-        # 🌟 YENİ: Bütün sembolleri MT5'ten çek ve arayüz (Autocomplete + Lot Kuralları) için JSON'a kaydet
-        try:
-            if hasattr(mt5, "symbols_get"):
-                all_symbols = mt5.symbols_get()
-                if all_symbols:
-                    sym_data = {}
-                    for s in all_symbols:
-                        if hasattr(s, "name"):
-                            sym_data[s.name] = {
-                                "vol_min": getattr(s, "volume_min", 0.01),
-                                "vol_max": getattr(s, "volume_max", 100.0),
-                                "vol_step": getattr(s, "volume_step", 0.01),
-                                "contract_size": getattr(
-                                    s, "trade_contract_size", 100000.0
-                                ),
-                            }
-                    if sym_data:
-                        sym_file = get_symbols_path(account_id)
-                        tmp_sym = sym_file + ".tmp"
-                        with open(tmp_sym, "w", encoding="utf-8") as f:
-                            json.dump(sym_data, f)
-                        os.replace(tmp_sym, sym_file)
-        except Exception as e:
-            log_message(f"Sembol listesi güncellenemedi: {e}", "WARN")
+    # 🌟 YENİ: Bütün sembolleri MT5'ten çek ve arayüz (Autocomplete + Lot Kuralları) için JSON'a kaydet
+    try:
+        if hasattr(mt5, "symbols_get"):
+            all_symbols = mt5.symbols_get()
+            if all_symbols:
+                sym_data = {}
+                for s in all_symbols:
+                    if hasattr(s, "name"):
+                        sym_data[s.name] = {
+                            "vol_min": getattr(s, "volume_min", 0.01),
+                            "vol_max": getattr(s, "volume_max", 100.0),
+                            "vol_step": getattr(s, "volume_step", 0.01),
+                            "contract_size": getattr(
+                                s, "trade_contract_size", 100000.0
+                            ),
+                        }
+                if sym_data:
+                    sym_file = get_symbols_path(account_id)
+                    tmp_sym = sym_file + ".tmp"
+                    with open(tmp_sym, "w", encoding="utf-8") as f:
+                        json.dump(sym_data, f)
+                    os.replace(tmp_sym, sym_file)
+    except Exception as e:
+        log_message(f"Sembol listesi güncellenemedi: {e}", "WARN")
 
     # 2. Aşama: Sembolü doğrudan senin inputundan alır ve MT5'e otomatik ekleme emri verir
     mt5.symbol_select(SYMBOL, True)

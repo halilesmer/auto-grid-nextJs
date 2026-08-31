@@ -1,12 +1,13 @@
 'use client';
 
-import Link from 'next/link';
-import ChartViewer from '@/components/ChartViewer';
 import { ArrowLeft, BarChart2 } from 'lucide-react';
+
+import ChartViewer from '@/components/ChartViewer';
+import Link from 'next/link';
 
 export default function ChartPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header with Back Button */}
         <header className="flex items-center justify-between gap-4">
@@ -20,7 +21,7 @@ export default function ChartPage() {
               <span className="text-lg font-semibold hidden sm:inline">Ana Sayfaya Dön</span>
             </Link>
             <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+              <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-emerald-400">
                 Grafik ve İstatistikler
               </h1>
               <p className="text-gray-500 mt-1">Canlı fiyat, indikatörler ve performans metrikleri</p>
@@ -36,7 +37,7 @@ export default function ChartPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chart Section (2/3 width) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-[500px]">
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-125">
               <ChartViewer />
             </div>
 

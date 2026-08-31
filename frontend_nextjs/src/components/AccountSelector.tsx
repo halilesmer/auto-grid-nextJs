@@ -31,6 +31,7 @@ export default function AccountSelector() {
     setSelectedAccount,
     activeAccount,
     isRunning,
+    setSettings,
   } = useBotStore();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,6 +50,14 @@ export default function AccountSelector() {
       .then((res) => setAccounts(res.data.accounts))
       .catch((err) => console.error('Failed to fetch accounts', err));
   }, [setAccounts]);
+
+  useEffect(() => {
+    if (!selectedAccount) return;
+    axios
+      .get(`${API}/settings/${selectedAccount}`)
+      .then((res) => setSettings(res.data.settings || res.data))
+      .catch((err) => console.error('Failed to fetch settings', err));
+  }, [selectedAccount, setSettings]);
 
   useEffect(() => {
     if (modalOpen) {
