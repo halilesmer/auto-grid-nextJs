@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { useBotStore, type GlobalSettings } from '@/store/useBotStore';
-import { AlertTriangle, Save } from 'lucide-react';
+import { useBotStore } from '@/store/useBotStore';
+import { AlertTriangle, Save, Minus, Plus } from 'lucide-react';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -12,83 +12,77 @@ const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
-function deepCloneSettings(s: GlobalSettings): GlobalSettings {
-  return JSON.parse(JSON.stringify(s));
-}
+const MIN_INTERVAL = 1;
+const MAX_INTERVAL = 60;
+const STEP_INTERVAL = 0.1;
 
 export default function SettingsForm() {
   const {
     selectedAccount,
-    setSettings: setZustandSettings,
     setGlobalSettings,
   } = useBotStore();
 
-  const [localGlobals, setLocalGlobals] = useState<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'> | null>(null);
-  const [originalGlobals, setOriginalGlobals] = useState<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'> | null>(null);
+  const [loopInterval, setLoopInterval] = useState<number>(1.0);
+  const [originalInterval, setOriginalInterval] = useState<number>(1.0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!selectedAccount) {
-      setLocalGlobals(null);
-      setOriginalGlobals(null);
+      setLoopInterval(1.0);
+      setOriginalInterval(1.0);
       return;
     }
     axios
       .get(`${API}/settings/${selectedAccount}`)
       .then((res) => {
         const data: Record<string, unknown> = res.data?.settings || {};
-        const globals = {
-          ORDER_TYPE: (data.ORDER_TYPE as string) || 'BUY',
-          SYMBOL: (data.SYMBOL as string) || 'USOUSD',
-          LOOP_INTERVAL_SECONDS: (data.LOOP_INTERVAL_SECONDS as number) || 1.0,
-        };
-        setLocalGlobals(globals);
-        setOriginalGlobals({ ...globals });
-        setGlobalSettings(globals);
+        const interval = (data.LOOP_INTERVAL_SECONDS as number) || 1.0;
+        setLoopInterval(interval);
+        setOriginalInterval(interval);
+        setGlobalSettings({ LOOP_INTERVAL_SECONDS: interval });
       })
       .catch((err) => {
         console.error('Failed to load global settings', err);
-        const globals = {
-          ORDER_TYPE: 'BUY',
-          SYMBOL: 'USOUSD',
-          LOOP_INTERVAL_SECONDS: 1.0,
-        };
-        setLocalGlobals(globals);
-        setOriginalGlobals({ ...globals });
-        setGlobalSettings(globals);
+        setLoopInterval(1.0);
+        setOriginalInterval(1.0);
+        setGlobalSettings({ LOOP_INTERVAL_SECONDS: 1.0 });
       });
   }, [selectedAccount, setGlobalSettings]);
 
-  const updateGlobal = useCallback((field: 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS', value: unknown) => {
-    setLocalGlobals((prev) => {
-      if (!prev) return prev;
-      return { ...prev, [field]: value };
-    });
+  const clampInterval = useCallback((value: number) => {
+    const stepped = Math.round(value * 10) / 10;
+    return Math.min(MAX_INTERVAL, Math.max(MIN_INTERVAL, stepped));
   }, []);
 
+  const increment = useCallback(() => {
+    setLoopInterval((prev) => clampInterval(prev + STEP_INTERVAL));
+  }, [clampInterval]);
+
+  const decrement = useCallback(() => {
+    setLoopInterval((prev) => clampInterval(prev - STEP_INTERVAL));
+  }, [clampInterval]);
+
   const handleSave = useCallback(async () => {
-    if (!selectedAccount || !localGlobals) return;
+    if (!selectedAccount) return;
     setSaving(true);
     setError('');
     try {
-      await axios.post(`${API}/settings/${selectedAccount}`, { settings: localGlobals });
-      setOriginalGlobals({ ...localGlobals });
-      setGlobalSettings(localGlobals);
+      await axios.post(`${API}/settings/${selectedAccount}`, {
+        settings: { LOOP_INTERVAL_SECONDS: loopInterval },
+      });
+      setOriginalInterval(loopInterval);
+      setGlobalSettings({ LOOP_INTERVAL_SECONDS: loopInterval });
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to save settings.');
     } finally {
       setSaving(false);
     }
-  }, [selectedAccount, localGlobals, setGlobalSettings]);
+  }, [selectedAccount, loopInterval, setGlobalSettings]);
 
-  const hasChanges = localGlobals && originalGlobals && (
-    localGlobals.ORDER_TYPE !== originalGlobals.ORDER_TYPE ||
-    localGlobals.SYMBOL !== originalGlobals.SYMBOL ||
-    localGlobals.LOOP_INTERVAL_SECONDS !== originalGlobals.LOOP_INTERVAL_SECONDS
-  );
+  const hasChanges = loopInterval !== originalInterval;
 
-  if (!selectedAccount || !localGlobals) return null;
+  if (!selectedAccount) return null;
 
   return (
     <div className="space-y-4">
@@ -109,40 +103,38 @@ export default function SettingsForm() {
           Genel Ayarlar
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <InputGroup label="Sembol">
-            <input
-              type="text"
-              value={localGlobals.SYMBOL}
-              onChange={(e) => updateGlobal('SYMBOL', e.target.value.toUpperCase().trim())}
-              className="input-s"
-            />
-          </InputGroup>
-
-          <InputGroup label="Emir Tipi">
-            <select
-              value={localGlobals.ORDER_TYPE}
-              onChange={(e) => updateGlobal('ORDER_TYPE', e.target.value)}
-              className="input-s"
+        <div className="flex flex-col space-y-1">
+          <span className="text-xs text-gray-400">Kontrol Sıklığı (sn)</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={decrement}
+              disabled={loopInterval <= MIN_INTERVAL}
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+              title="Azalt"
             >
-              <option value="BUY">BUY</option>
-              <option value="SELL">SELL</option>
-              <option value="BOTH">BOTH</option>
-            </select>
-          </InputGroup>
-
-          <InputGroup label="Döngü Aralığı (sn)">
+              <Minus size={18} />
+            </button>
             <input
               type="number"
-              step="0.1"
-              min="0.1"
-              value={localGlobals.LOOP_INTERVAL_SECONDS}
-              onChange={(e) =>
-                updateGlobal('LOOP_INTERVAL_SECONDS', parseFloat(e.target.value) || 1.0)
-              }
-              className="input-s"
+              step={STEP_INTERVAL}
+              min={MIN_INTERVAL}
+              max={MAX_INTERVAL}
+              value={loopInterval}
+              onChange={(e) => {
+                const parsed = parseFloat(e.target.value);
+                setLoopInterval(clampInterval(Number.isNaN(parsed) ? MIN_INTERVAL : parsed));
+              }}
+              className="w-24 bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white text-center font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
             />
-          </InputGroup>
+            <button
+              onClick={increment}
+              disabled={loopInterval >= MAX_INTERVAL}
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+              title="Artır"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="flex justify-end pt-2 border-t border-white/10">
@@ -152,23 +144,10 @@ export default function SettingsForm() {
             className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={18} />
-            <span>{saving ? 'Kaydediliyor...' : 'Genel Ayarları Kaydet'}</span>
+            <span>{saving ? 'Kaydediliyor...' : 'Kaydet'}</span>
           </button>
         </div>
       </div>
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Tiny input group helper                                              */
-/* ------------------------------------------------------------------ */
-
-function InputGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col space-y-1">
-      <span className="text-xs text-gray-400">{label}</span>
-      {children}
-    </label>
   );
 }

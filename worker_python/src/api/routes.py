@@ -193,15 +193,31 @@ async def update_settings(account_id: str, payload: SettingsPayload):
     try:
         os.makedirs(CONFIGS_DIR, exist_ok=True)
 
-        data_to_save = payload.settings
+        # Mevcut dosyayı oku (varsa) — parça parça güncelleme gelince korunacak
+        existing_data = {}
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except Exception:
+                existing_data = {}
 
-        # MATRUŞKA (NESTING) HATASI ÇÖZÜMÜ: Arayüz katmanlı gönderdiyse diske yazmadan önce temizle
+        # Gelen veriyi normalize et (matruşka/nesting temizliği)
+        incoming_data = payload.settings
         while (
-            isinstance(data_to_save, dict)
-            and "settings" in data_to_save
-            and isinstance(data_to_save["settings"], dict)
+            isinstance(incoming_data, dict)
+            and "settings" in incoming_data
+            and isinstance(incoming_data["settings"], dict)
         ):
-            data_to_save = data_to_save["settings"]
+            incoming_data = incoming_data["settings"]
+
+        # MERGE SEMANTİĞİ: Mevcut verinin üzerine gelen key'leri yaz, diğerlerini koru
+        # (örn: frontend sadece LOOP_INTERVAL_SECONDS gönderirse ZONES/SYMBOL silinmez)
+        if isinstance(existing_data, dict) and isinstance(incoming_data, dict):
+            existing_data.update(incoming_data)
+            data_to_save = existing_data
+        else:
+            data_to_save = incoming_data
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data_to_save, f, indent=4, ensure_ascii=False)

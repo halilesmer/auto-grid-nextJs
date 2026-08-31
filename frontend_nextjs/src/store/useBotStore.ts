@@ -137,7 +137,7 @@ interface BotState {
   setSelectedAccount: (accountId: string) => void;
   setActiveAccount: (account: Account | null) => void;
   setSettings: (settings: GlobalSettings | null) => void;
-  setGlobalSettings: (globals: Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>) => void;
+  setGlobalSettings: (globals: Partial<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>>) => void;
   setZones: (zones: ZoneSettings[] | ((prev: ZoneSettings[]) => ZoneSettings[])) => void;
   mergeAndSaveSettings: (apiUrl: string) => Promise<void>;
   setLogs: (logs: Partial<LogsState>) => void;
@@ -210,7 +210,12 @@ export const useBotStore = create<BotState>((set, get) => ({
     set((state) => ({
       settings: state.settings
         ? { ...state.settings, ...globals }
-        : { ORDER_TYPE: globals.ORDER_TYPE, SYMBOL: globals.SYMBOL, LOOP_INTERVAL_SECONDS: globals.LOOP_INTERVAL_SECONDS, ZONES: [] },
+        : {
+            ORDER_TYPE: globals.ORDER_TYPE ?? 'BUY',
+            SYMBOL: globals.SYMBOL ?? 'USOUSD',
+            LOOP_INTERVAL_SECONDS: globals.LOOP_INTERVAL_SECONDS ?? 1.0,
+            ZONES: [],
+          },
     })),
 
   setZones: (zonesOrUpdater) =>
