@@ -324,8 +324,11 @@ def get_mt5_timeframe(tf_str):
 
 # 1. ESKİ get_active_zone FONKSİYONUNU BUNUNLA DEĞİŞTİR (Giriş/Çıkış Asimetrisi Çözümü)
 def get_active_zone(tick_price):
-    for zone in ZONES:
-        i = zone.get("magic_idx", 0)
+    for i, zone in enumerate(ZONES):
+        # Arayüzden (Next.js) gelen is_active ayarını dikkate al
+        if str(zone.get("is_active", True)).lower() == "false":
+            continue
+
         z_min = float(zone.get("min_price", 0))
         z_max = float(zone.get("max_price", 0))
         cond = zone.get("exit_condition", "Anlık Fiyat")
@@ -648,10 +651,10 @@ def manage_dynamic_grid():
 
     # CANLI AYAR GÜNCELLEMESİ (Stale Reference Koruması)
     if ACTIVE_ZONE_IDX is not None:
-        found_zone = next(
-            (z for z in ZONES if z.get("magic_idx") == ACTIVE_ZONE_IDX), None
+        found_zone = (
+            ZONES[ACTIVE_ZONE_IDX] if 0 <= ACTIVE_ZONE_IDX < len(ZONES) else None
         )
-        if found_zone:
+        if found_zone and str(found_zone.get("is_active", True)).lower() != "false":
             ACTIVE_ZONE = found_zone
         else:
             ACTIVE_ZONE = None
@@ -673,18 +676,26 @@ def manage_dynamic_grid():
     # 1. ZOMBİ EMİR TEMİZLİĞİ VE BÖLGE KAPATMA (MUTLAK TEMİZLİK KURALI)
     for order in robot_orders:
         order_zone_idx = order.magic - BASE_MAGIC_NUMBER - 1
-        zone_state = active_zones_state.get(order_zone_idx, "CLEAR")
 
-        # 🛡️ GÜVENLİK: Bölge "START" değilse (PAUSE veya CLEAR ise), ayardaki BUY/SELL ayrımını
+        # Arayüzden gelen is_active durumu ve Devre Kesici (Circuit Breaker) kontrolü
+        is_zone_active = False
+        if 0 <= order_zone_idx < len(ZONES):
+            is_zone_active = (
+                str(ZONES[order_zone_idx].get("is_active", True)).lower() != "false"
+            )
+        if active_zones_state.get(order_zone_idx) == "PAUSE":
+            is_zone_active = False
+
+        # 🛡️ GÜVENLİK: Bölge pasifse ayardaki BUY/SELL ayrımını
         # tamamen yok sayar ve ACIK POZİSYONLAR HARİÇ tüm bekleyen emirleri acımasızca çöpe atar.
-        if zone_state != "START":
+        if not is_zone_active:
             dir_str = (
                 "BUY"
                 if order.type in [mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP]
                 else "SELL"
             )
             log_message(
-                f"🧹 Mutlak Temizlik (Durum: {zone_state}): Bölge {order_zone_idx+1} için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket})"
+                f"🧹 Mutlak Temizlik: Bölge {order_zone_idx+1} pasif olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket})"
             )
             cancel_order(order)
 
@@ -781,10 +792,13 @@ def manage_dynamic_grid():
                         for o in robot_orders
                     )
 
-                    if (
-                        not has_pending
-                        and active_zones_state.get(pos_zone_idx, "START") == "START"
-                    ):
+                    is_pos_zone_active = (
+                        str(z_data.get("is_active", True)).lower() != "false"
+                    )
+                    if active_zones_state.get(pos_zone_idx) == "PAUSE":
+                        is_pos_zone_active = False
+
+                    if not has_pending and is_pos_zone_active:
                         log_message(
                             f"🔄 Kısmi Dolum: Bölge {pos_zone_idx+1} | Kalan {remaining_lot} lot ({direction}) emir gönderiliyor."
                         )
@@ -922,11 +936,15 @@ def manage_dynamic_grid():
 
     # 4. KAYAN AĞ (SLIDING GRID) ÖRÜLMESİ VE EKSİK TAMAMLAMA
 
-    # 🛑 GÜVENLİK DUVARI 1: Arayüzden bu bölge Başlatılmadıysa (PAUSE/CLEAR) pas geç
-    if (
-        ACTIVE_ZONE is None
-        or active_zones_state.get(ACTIVE_ZONE_IDX, "START") != "START"
-    ):
+    # 🛑 GÜVENLİK DUVARI 1: Arayüzden bu bölge Başlatılmadıysa pas geç
+    if ACTIVE_ZONE is None:
+        return True
+
+    is_zone_active = str(ACTIVE_ZONE.get("is_active", True)).lower() != "false"
+    if active_zones_state.get(ACTIVE_ZONE_IDX) == "PAUSE":
+        is_zone_active = False
+
+    if not is_zone_active:
         return True
 
     # Ayarları Çek

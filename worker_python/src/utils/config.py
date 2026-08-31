@@ -28,21 +28,29 @@ def load_settings(engine_name: str = "Auto Grid"):
     """JSON dosyasından ayarları okur. Eski Model 2 dosyası varsa otomatik göç (migration) yapar."""
     file_path = get_settings_file(engine_name)
 
-    # 🌟 VERİ GÖÇÜ (MIGRATION): Kullanıcıların eski ayarları kaybolmasın diye Model 2'yi Auto Grid'e taşı
-    if engine_name == "Auto Grid" and not os.path.exists(file_path):
+    from src.utils.paths import CONFIGS_DIR
+
+    account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
+    generic_path = os.path.join(CONFIGS_DIR, f"settings_{account_id}.json")
+
+    # 🌟 KESİN ÇÖZÜM: Kopyalama yerine daima arayüzün kaydettiği güncel dosyayı okumayı tercih et!
+    active_path = generic_path if os.path.exists(generic_path) else file_path
+
+    # Eski Model 2 taşıması
+    if engine_name == "Auto Grid" and not os.path.exists(active_path):
         old_file_path = get_settings_file("Model 2")
         if os.path.exists(old_file_path):
             try:
-                os.rename(old_file_path, file_path)
+                os.rename(old_file_path, active_path)
             except Exception:
                 pass
 
-    if not os.path.exists(file_path):
+    if not os.path.exists(active_path):
         save_settings(DEFAULT_SETTINGS_AUTO_GRID, engine_name)
         return DEFAULT_SETTINGS_AUTO_GRID
 
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(active_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return DEFAULT_SETTINGS_AUTO_GRID
