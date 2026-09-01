@@ -51,7 +51,17 @@ def load_settings(engine_name: str = "Auto Grid"):
 
     try:
         with open(active_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+
+        # JSON'dan gelen "SYMBOL" ve "ORDER_TYPE" gibi anahtarları küçük harfe dönüştür
+        # (Motorun "symbol", "order_type" bekleyen bölümlerini çökertmemek için)
+        if isinstance(data, dict):
+            if "SYMBOL" in data and "symbol" not in data:
+                data["symbol"] = data["SYMBOL"]
+            if "ORDER_TYPE" in data and "order_type" not in data:
+                data["order_type"] = data["ORDER_TYPE"]
+
+        return data
     except Exception:
         return DEFAULT_SETTINGS_AUTO_GRID
 

@@ -35,10 +35,10 @@ function parseFloat5(value: string): number {
 }
 
 // 🌟 Yardımcı: Sembol detayına göre min/step/precision hesapla
-function getSymbolConfig(symbol: string, symbolDetails: Record<string, SymbolDetail>): { min: number; step: number; precision: number } {
+function getSymbolConfig(symbol: string, symbolDetails: Record<string, SymbolDetail>): { min: number; step: number; precision: number; volMin: number; volStep: number } {
   const detail = symbolDetails[symbol.toUpperCase()];
   if (!detail) {
-    return { min: 0, step: 0.00001, precision: 5 };
+    return { min: 0, step: 0.00001, precision: 5, volMin: 0.01, volStep: 0.01 };
   }
   const point = detail.point || 0.00001;
   const digits = detail.digits ?? 5;
@@ -46,6 +46,8 @@ function getSymbolConfig(symbol: string, symbolDetails: Record<string, SymbolDet
     min: point,
     step: point,
     precision: digits,
+    volMin: detail.volume_min ?? 0.01,
+    volStep: detail.volume_step ?? 0.01,
   };
 }
 
@@ -59,12 +61,11 @@ interface ZoneSettingsPanelProps {
 
 export default function ZoneSettingsPanel({
   selectedAccount,
-  activeAccount,
   isRunning,
   liveData,
   isGlobalDirty,
 }: ZoneSettingsPanelProps) {
-  const { settings, setZones, availableSymbols, symbolDetails } = useBotStore();
+  const { settings, setZones, availableSymbols } = useBotStore();
   const [prevAccount, setPrevAccount] = useState<string | null>(
     selectedAccount,
   );
@@ -87,28 +88,47 @@ export default function ZoneSettingsPanel({
 
   // EKSİK BAĞLANTI DÜZELTMESİ: Sembol detaylarını backend'den otomatik çekip Store'a yazan sistem
   useEffect(() => {
-    if (selectedAccount && liveData.mt5_connected) {
-      axios.get(`${API}/symbols/${selectedAccount}`)
+    if (selectedAccount) {
+      axios
+        .get(`${API}/symbols/${selectedAccount}`)
         .then((res) => {
-          const syms = res.data.symbols || [];
-          useBotStore.getState().setAvailableSymbols(syms.map((s: any) => s.name));
+          let symsData = res.data.symbols || res.data || {};
+          if (typeof symsData === "string") {
+            try {
+              symsData = JSON.parse(symsData);
+            } catch (e) {}
+          }
+
+          // Düz string dizisi ["USOUSD"] veya Obje {"USOUSD":{}} gelme ihtimaline karşı tam koruma
+          const syms: SymbolDetail[] = Array.isArray(symsData)
+            ? symsData.map((s) => (typeof s === "string" ? { name: s } : s))
+            : Object.entries(symsData).map(([key, val]) => {
+                const detail = (typeof val === "object" ? val : {}) as Omit<
+                  SymbolDetail,
+                  "name"
+                >;
+                return { name: key, ...detail } as SymbolDetail;
+              });
+
+          useBotStore.getState().setAvailableSymbols(syms.map((s) => s.name));
           const details: Record<string, SymbolDetail> = {};
-          syms.forEach((s: any) => {
-            details[s.name.toUpperCase()] = s;
+          syms.forEach((s) => {
+            if (s.name) details[s.name.toUpperCase()] = s;
           });
           useBotStore.getState().setSymbolDetails(details);
         })
         .catch((err) => console.error("Sembol detayları çekilemedi", err));
     }
-  }, [selectedAccount, liveData.mt5_connected]);
+  }, [selectedAccount]);
 
   // YENİ: "Tüm Ayarları Kaydet" butonuna basıldığında (isDirty === false)
   // "Kaydedilmedi" uyarılarını sıfırlar (originalZones günceller).
   useEffect(() => {
     if (isGlobalDirty === false) {
-      // Race condition'ı önlemek için zones bağımlılığını kaldırdık
-      const currentZones = useBotStore.getState().settings?.ZONES || [];
-      setOriginalZones(currentZones.map((z) => ({ ...z })));
+      queueMicrotask(() => {
+        const currentZones = useBotStore.getState().settings?.ZONES || [];
+        setOriginalZones(currentZones.map((z) => ({ ...z })));
+      });
     }
   }, [isGlobalDirty]);
 
@@ -156,7 +176,7 @@ export default function ZoneSettingsPanel({
         // A. Sunucudaki son TEMİZ state'i çek
         const res = await axios.get(`${API}/settings/${selectedAccount}`);
         const remoteSettings = res.data?.settings || {};
-        const remoteZones: any[] = remoteSettings.ZONES || [];
+        const remoteZones: ZoneSettings[] = remoteSettings.ZONES || [];
 
         // KRİTİK HATA DÜZELTMESİ: Bölge henüz sunucuda yoksa (yeni eklendiyse)
         const existsRemotely = remoteZones.some((z) => z.id === zoneId);
@@ -173,7 +193,7 @@ export default function ZoneSettingsPanel({
         }
 
         // B. Sadece ilgili bölgenin aktifliğini değiştir
-        const updatedZones = remoteZones.map((z: any) =>
+        const updatedZones = remoteZones.map((z) =>
           z.id === zoneId ? { ...z, is_active: newActive } : z,
         );
 
@@ -183,7 +203,7 @@ export default function ZoneSettingsPanel({
         });
 
         // D. UI State dosyasını da güncelle (Engine bunu okuyarak zone START/PAUSE karar verir)
-        const zoneIdx = remoteZones.findIndex((z: any) => z.id === zoneId);
+        const zoneIdx = remoteZones.findIndex((z) => z.id === zoneId);
         if (zoneIdx >= 0) {
           await axios.post(`${API}/ui-state/${selectedAccount}`, {
             settings: { states: { [zoneIdx]: newActive ? "START" : "PAUSE" } },
@@ -200,13 +220,7 @@ export default function ZoneSettingsPanel({
         );
       }
     },
-    [
-      setZones,
-      selectedAccount,
-      liveData.mt5_connected,
-      isRunning,
-      availableSymbols,
-    ],
+    [setZones, selectedAccount, availableSymbols],
   );
 
   const addZone = useCallback(() => {
@@ -252,7 +266,7 @@ export default function ZoneSettingsPanel({
         </button>
       </div>
 
-      {zones.map((zone, idx) => {
+      {zones.map((zone) => {
         const origZone = originalZones.find((z) => z.id === zone.id);
         const modified = zoneModified(origZone, zone);
 
@@ -260,14 +274,12 @@ export default function ZoneSettingsPanel({
           <ZoneCard
             key={zone.id}
             zone={zone}
-            idx={idx}
             modified={modified}
             disableButtons={disableActionButtons}
             onUpdate={updateZone}
             onToggleActive={toggleZoneActive}
             onDelete={() => setDeleteZoneId(zone.id)}
             liveData={liveData}
-            activeAccount={activeAccount}
             availableSymbols={availableSymbols}
             isRunning={isRunning}
           />
@@ -293,32 +305,29 @@ export default function ZoneSettingsPanel({
 
 interface ZoneCardProps {
   zone: ZoneSettings;
-  idx: number;
   modified: boolean;
   disableButtons: boolean;
   onUpdate: (zoneId: string, field: string, value: unknown) => void;
-  onToggleActive: (zoneId: string, currentActive: boolean) => void;
+  onToggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
   onDelete: () => void;
   liveData: ReturnType<typeof useBotStore.getState>["liveData"];
-  activeAccount: ReturnType<typeof useBotStore.getState>["activeAccount"];
   availableSymbols: string[];
   isRunning: boolean;
 }
 
 function ZoneCard({
   zone,
-  idx,
   modified,
   disableButtons,
   onUpdate,
   onToggleActive,
   onDelete,
   liveData,
-  activeAccount,
   availableSymbols,
   isRunning,
 }: ZoneCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const symbolDetails = useBotStore((state) => state.symbolDetails);
 
   const update = (field: string, value: unknown) =>
     onUpdate(zone.id, field, value);
@@ -327,7 +336,7 @@ function ZoneCard({
   const showBuyLabel = zone.order_type === "BUY";
   const showSellLabel = zone.order_type === "SELL";
 
-  // // Eski kayıtlarla geriye dönük uyumluluk için !== false kullanmaya devam ediyoruz
+  // Eski kayıtlarla geriye dönük uyumluluk için !== false kullanmaya devam ediyoruz
   const isActive = zone.is_active !== false;
 
   // Dürüst UI State Belirleme (4 Durum)
@@ -335,8 +344,8 @@ function ZoneCard({
 
   // KÖR INPUTLARIN ÇÖZÜMÜ: O sembole ait point ve digits değerlerini inputlara bağla
   const symbolConfig = useMemo(
-    () => getSymbolConfig(zone.symbol, useBotStore.getState().symbolDetails),
-    [zone.symbol, useBotStore.getState().symbolDetails]
+    () => getSymbolConfig(zone.symbol, symbolDetails),
+    [zone.symbol, symbolDetails],
   );
   let btnClass = "";
   let btnText = "";
@@ -433,13 +442,35 @@ function ZoneCard({
               update("symbol", e.target.value.toUpperCase().trim())
             }
             list={`broker-symbols-${zone.id}`}
-            className="input-s"
+            className={`input-s ${
+              availableSymbols.length > 0 &&
+              !availableSymbols.some(
+                (s) =>
+                  (s || "").toUpperCase().trim() ===
+                  zone.symbol.toUpperCase().trim(),
+              )
+                ? "border-red-500 text-red-400 focus:ring-red-500"
+                : ""
+            }`}
           />
           <datalist id={`broker-symbols-${zone.id}`}>
-            {availableSymbols.map((sym) => (
-              <option key={sym} value={sym} />
-            ))}
+            {availableSymbols
+              .filter((sym) => sym && sym.trim() !== "")
+              .slice(0, 100)
+              .map((sym, i) => (
+                <option key={`sym-${zone.id}-${i}`} value={sym} />
+              ))}
           </datalist>
+          {availableSymbols.length > 0 &&
+            !availableSymbols.some(
+              (s) =>
+                (s || "").toUpperCase().trim() ===
+                zone.symbol.toUpperCase().trim(),
+            ) && (
+              <span className="text-[11px] text-red-400 font-bold mt-1">
+                Geçersiz Sembol!
+              </span>
+            )}
         </InputGroup>
         <InputGroup label="Emir Tipi">
           <select
@@ -458,9 +489,7 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.min_price}
-            onChange={(e) =>
-              update("min_price", parseFloat5(e.target.value))
-            }
+            onChange={(e) => update("min_price", parseFloat5(e.target.value))}
             className="input-s"
           />
         </InputGroup>
@@ -470,9 +499,7 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.max_price}
-            onChange={(e) =>
-              update("max_price", parseFloat5(e.target.value))
-            }
+            onChange={(e) => update("max_price", parseFloat5(e.target.value))}
             className="input-s"
           />
         </InputGroup>
@@ -506,15 +533,15 @@ function ZoneCard({
         </p>
       )}
 
-{/* Row 2: Grid, Lot, TP, SL */}
+      {/* Row 2: Grid, Lot, TP, SL */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <InputGroup
           label={
             isBoth && zone.sync_buy_sell
               ? "Grid Adımı ($)"
               : isBoth
-              ? "BUY Grid ($)"
-              : "Grid Adımı ($)"
+                ? "BUY Grid ($)"
+                : "Grid Adımı ($)"
           }
         >
           <input
@@ -522,9 +549,7 @@ function ZoneCard({
             min={symbolConfig.min}
             step={symbolConfig.step}
             value={zone.grid_step}
-            onChange={(e) =>
-              update("grid_step", parseFloat5(e.target.value))
-            }
+            onChange={(e) => update("grid_step", parseFloat5(e.target.value))}
             className="input-s"
           />
         </InputGroup>
@@ -535,12 +560,10 @@ function ZoneCard({
         >
           <input
             type="number"
-            min={0.01}
-            step={symbolConfig.step}
+            min={symbolConfig.volMin}
+            step={symbolConfig.volStep}
             value={zone.lot_size}
-            onChange={(e) =>
-              update("lot_size", parseFloat5(e.target.value))
-            }
+            onChange={(e) => update("lot_size", parseFloat5(e.target.value))}
             className="input-s"
           />
         </InputGroup>
@@ -549,8 +572,8 @@ function ZoneCard({
             isBoth && zone.sync_buy_sell
               ? "Kar Al ($)"
               : isBoth
-              ? "BUY KA ($)"
-              : "Kar Al ($)"
+                ? "BUY KA ($)"
+                : "Kar Al ($)"
           }
         >
           <input
@@ -558,9 +581,7 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.take_profit}
-            onChange={(e) =>
-              update("take_profit", parseFloat5(e.target.value))
-            }
+            onChange={(e) => update("take_profit", parseFloat5(e.target.value))}
             className="input-s"
           />
         </InputGroup>
@@ -569,8 +590,8 @@ function ZoneCard({
             isBoth && zone.sync_buy_sell
               ? "Zarar Durdur ($)"
               : isBoth
-              ? "BUY ZD ($)"
-              : "Zarar Durdur ($)"
+                ? "BUY ZD ($)"
+                : "Zarar Durdur ($)"
           }
         >
           <input
@@ -578,9 +599,7 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.stop_loss}
-            onChange={(e) =>
-              update("stop_loss", parseFloat5(e.target.value))
-            }
+            onChange={(e) => update("stop_loss", parseFloat5(e.target.value))}
             className="input-s"
           />
         </InputGroup>
@@ -608,8 +627,8 @@ function ZoneCard({
             <InputGroup label="SELL Lot">
               <input
                 type="number"
-                min={0.01}
-                step={symbolConfig.step}
+                min={symbolConfig.volMin}
+                step={symbolConfig.volStep}
                 value={zone.sell_lot_size}
                 onChange={(e) =>
                   update("sell_lot_size", parseFloat5(e.target.value))
@@ -689,10 +708,7 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_pullback_distance}
                 onChange={(e) =>
-                  update(
-                    "sell_pullback_distance",
-                    parseFloat5(e.target.value),
-                  )
+                  update("sell_pullback_distance", parseFloat5(e.target.value))
                 }
                 disabled={!zone.is_breakout}
                 className="input-s w-24"
