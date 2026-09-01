@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import axios from 'axios';
 import {
   useBotStore,
   defaultZone,
   type ZoneSettings,
+  type SymbolDetail,
 } from "@/store/useBotStore";
 import { MoreVertical, Plus, Trash2, AlertTriangle, Save, Play, Pause } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -26,6 +27,28 @@ function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings)
   return JSON.stringify(o) !== JSON.stringify(c);
 }
 
+// 🌟 Yardımcı: 5 basamak hassasiyetle parseFloat (yuvarlama/kırpma yapmaz)
+function parseFloat5(value: string): number {
+  if (!value || value.trim() === "") return 0;
+  const num = parseFloat(value);
+  return isNaN(num) ? 0 : Number(num.toFixed(5));
+}
+
+// 🌟 Yardımcı: Sembol detayına göre min/step/precision hesapla
+function getSymbolConfig(symbol: string, symbolDetails: Record<string, SymbolDetail>): { min: number; step: number; precision: number } {
+  const detail = symbolDetails[symbol.toUpperCase()];
+  if (!detail) {
+    return { min: 0, step: 0.00001, precision: 5 };
+  }
+  const point = detail.point || 0.00001;
+  const digits = detail.digits ?? 5;
+  return {
+    min: point,
+    step: point,
+    precision: digits,
+  };
+}
+
 interface ZoneSettingsPanelProps {
   selectedAccount: string | null;
   activeAccount: ReturnType<typeof useBotStore.getState>['activeAccount'];
@@ -41,7 +64,7 @@ export default function ZoneSettingsPanel({
   liveData,
   isGlobalDirty,
 }: ZoneSettingsPanelProps) {
-  const { settings, setZones, availableSymbols } = useBotStore();
+  const { settings, setZones, availableSymbols, symbolDetails } = useBotStore();
   const [prevAccount, setPrevAccount] = useState<string | null>(
     selectedAccount,
   );
@@ -61,6 +84,23 @@ export default function ZoneSettingsPanel({
   if (zones.length > 0 && originalZones.length === 0) {
     setOriginalZones(zones.map((z) => ({ ...z })));
   }
+
+  // EKSİK BAĞLANTI DÜZELTMESİ: Sembol detaylarını backend'den otomatik çekip Store'a yazan sistem
+  useEffect(() => {
+    if (selectedAccount && liveData.mt5_connected) {
+      axios.get(`${API}/symbols/${selectedAccount}`)
+        .then((res) => {
+          const syms = res.data.symbols || [];
+          useBotStore.getState().setAvailableSymbols(syms.map((s: any) => s.name));
+          const details: Record<string, SymbolDetail> = {};
+          syms.forEach((s: any) => {
+            details[s.name.toUpperCase()] = s;
+          });
+          useBotStore.getState().setSymbolDetails(details);
+        })
+        .catch((err) => console.error("Sembol detayları çekilemedi", err));
+    }
+  }, [selectedAccount, liveData.mt5_connected]);
 
   // YENİ: "Tüm Ayarları Kaydet" butonuna basıldığında (isDirty === false)
   // "Kaydedilmedi" uyarılarını sıfırlar (originalZones günceller).
@@ -292,6 +332,12 @@ function ZoneCard({
 
   // Dürüst UI State Belirleme (4 Durum)
   const isGlobalRunning = liveData.mt5_connected && isRunning;
+
+  // KÖR INPUTLARIN ÇÖZÜMÜ: O sembole ait point ve digits değerlerini inputlara bağla
+  const symbolConfig = useMemo(
+    () => getSymbolConfig(zone.symbol, useBotStore.getState().symbolDetails),
+    [zone.symbol, useBotStore.getState().symbolDetails]
+  );
   let btnClass = "";
   let btnText = "";
   let btnIcon = <Play size={14} />;
@@ -410,10 +456,10 @@ function ZoneCard({
           <input
             type="number"
             min={0}
-            step={0.1}
+            step={symbolConfig.step}
             value={zone.min_price}
             onChange={(e) =>
-              update("min_price", parseFloat(e.target.value) || 0)
+              update("min_price", parseFloat5(e.target.value))
             }
             className="input-s"
           />
@@ -422,10 +468,10 @@ function ZoneCard({
           <input
             type="number"
             min={0}
-            step={0.1}
+            step={symbolConfig.step}
             value={zone.max_price}
             onChange={(e) =>
-              update("max_price", parseFloat(e.target.value) || 0)
+              update("max_price", parseFloat5(e.target.value))
             }
             className="input-s"
           />
@@ -460,24 +506,24 @@ function ZoneCard({
         </p>
       )}
 
-      {/* Row 2: Grid, Lot, TP, SL */}
+{/* Row 2: Grid, Lot, TP, SL */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <InputGroup
           label={
             isBoth && zone.sync_buy_sell
               ? "Grid Adımı ($)"
               : isBoth
-                ? "BUY Grid ($)"
-                : "Grid Adımı ($)"
+              ? "BUY Grid ($)"
+              : "Grid Adımı ($)"
           }
         >
           <input
             type="number"
-            min={0.01}
-            step={0.01}
+            min={symbolConfig.min}
+            step={symbolConfig.step}
             value={zone.grid_step}
             onChange={(e) =>
-              update("grid_step", parseFloat(e.target.value) || 0.01)
+              update("grid_step", parseFloat5(e.target.value))
             }
             className="input-s"
           />
@@ -490,10 +536,10 @@ function ZoneCard({
           <input
             type="number"
             min={0.01}
-            step={0.01}
+            step={symbolConfig.step}
             value={zone.lot_size}
             onChange={(e) =>
-              update("lot_size", parseFloat(e.target.value) || 0.01)
+              update("lot_size", parseFloat5(e.target.value))
             }
             className="input-s"
           />
@@ -503,17 +549,17 @@ function ZoneCard({
             isBoth && zone.sync_buy_sell
               ? "Kar Al ($)"
               : isBoth
-                ? "BUY KA ($)"
-                : "Kar Al ($)"
+              ? "BUY KA ($)"
+              : "Kar Al ($)"
           }
         >
           <input
             type="number"
-            min={0.01}
-            step={0.01}
+            min={0}
+            step={symbolConfig.step}
             value={zone.take_profit}
             onChange={(e) =>
-              update("take_profit", parseFloat(e.target.value) || 0.01)
+              update("take_profit", parseFloat5(e.target.value))
             }
             className="input-s"
           />
@@ -523,17 +569,17 @@ function ZoneCard({
             isBoth && zone.sync_buy_sell
               ? "Zarar Durdur ($)"
               : isBoth
-                ? "BUY ZD ($)"
-                : "Zarar Durdur ($)"
+              ? "BUY ZD ($)"
+              : "Zarar Durdur ($)"
           }
         >
           <input
             type="number"
             min={0}
-            step={0.01}
+            step={symbolConfig.step}
             value={zone.stop_loss}
             onChange={(e) =>
-              update("stop_loss", parseFloat(e.target.value) || 0)
+              update("stop_loss", parseFloat5(e.target.value))
             }
             className="input-s"
           />
@@ -550,11 +596,11 @@ function ZoneCard({
             <InputGroup label="SELL Grid ($)">
               <input
                 type="number"
-                min={0.01}
-                step={0.01}
+                min={symbolConfig.min}
+                step={symbolConfig.step}
                 value={zone.sell_grid_step}
                 onChange={(e) =>
-                  update("sell_grid_step", parseFloat(e.target.value) || 0.01)
+                  update("sell_grid_step", parseFloat5(e.target.value))
                 }
                 className="input-s"
               />
@@ -563,10 +609,10 @@ function ZoneCard({
               <input
                 type="number"
                 min={0.01}
-                step={0.01}
+                step={symbolConfig.step}
                 value={zone.sell_lot_size}
                 onChange={(e) =>
-                  update("sell_lot_size", parseFloat(e.target.value) || 0.01)
+                  update("sell_lot_size", parseFloat5(e.target.value))
                 }
                 className="input-s"
               />
@@ -574,11 +620,11 @@ function ZoneCard({
             <InputGroup label="SELL KA ($)">
               <input
                 type="number"
-                min={0.01}
-                step={0.01}
+                min={0}
+                step={symbolConfig.step}
                 value={zone.sell_take_profit}
                 onChange={(e) =>
-                  update("sell_take_profit", parseFloat(e.target.value) || 0.01)
+                  update("sell_take_profit", parseFloat5(e.target.value))
                 }
                 className="input-s"
               />
@@ -587,10 +633,10 @@ function ZoneCard({
               <input
                 type="number"
                 min={0}
-                step={0.01}
+                step={symbolConfig.step}
                 value={zone.sell_stop_loss}
                 onChange={(e) =>
-                  update("sell_stop_loss", parseFloat(e.target.value) || 0)
+                  update("sell_stop_loss", parseFloat5(e.target.value))
                 }
                 className="input-s"
               />
@@ -622,11 +668,11 @@ function ZoneCard({
             </span>
             <input
               type="number"
-              min={0.01}
-              step={0.05}
+              min={0}
+              step={symbolConfig.step}
               value={zone.pullback_distance}
               onChange={(e) =>
-                update("pullback_distance", parseFloat(e.target.value) || 0.01)
+                update("pullback_distance", parseFloat5(e.target.value))
               }
               disabled={!zone.is_breakout}
               className="input-s w-24"
@@ -639,13 +685,13 @@ function ZoneCard({
               </span>
               <input
                 type="number"
-                min={0.01}
-                step={0.05}
+                min={0}
+                step={symbolConfig.step}
                 value={zone.sell_pullback_distance}
                 onChange={(e) =>
                   update(
                     "sell_pullback_distance",
-                    parseFloat(e.target.value) || 0.01,
+                    parseFloat5(e.target.value),
                   )
                 }
                 disabled={!zone.is_breakout}

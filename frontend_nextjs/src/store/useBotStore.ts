@@ -15,6 +15,20 @@ export interface Account {
   notes: string;
 }
 
+export interface SymbolDetail {
+  name: string;
+  digits: number;
+  point: number;
+  volume_min: number;
+  volume_max: number;
+  volume_step: number;
+  trade_mode: number;
+  currency_base: string;
+  currency_profit: string;
+  currency_margin: string;
+  description?: string;
+}
+
 export interface ZoneSettings {
   id: string;
   is_active?: boolean;
@@ -135,6 +149,7 @@ interface BotState {
   simulatedPrice: number;
   updateInfo: UpdateInfo | null;
   availableSymbols: string[];
+  symbolDetails: Record<string, SymbolDetail>;
 
   setAccounts: (accounts: Account[]) => void;
   setSelectedAccount: (accountId: string) => void;
@@ -155,6 +170,8 @@ interface BotState {
   setSimulatedPrice: (price: number) => void;
   setUpdateInfo: (info: UpdateInfo | null) => void;
   setAvailableSymbols: (symbols: string[]) => void;
+  setSymbolDetails: (details: Record<string, SymbolDetail>) => void;
+  getSymbolDetail: (symbol: string) => SymbolDetail | undefined;
   reset: () => void;
 }
 
@@ -196,6 +213,7 @@ export const useBotStore = create<BotState>((set, get) => ({
   simulatedPrice: 75.0,
   updateInfo: null,
   availableSymbols: [],
+  symbolDetails: {},
 
   setAccounts: (accounts) => set({ accounts }),
 
@@ -309,6 +327,13 @@ export const useBotStore = create<BotState>((set, get) => ({
 
   setAvailableSymbols: (symbols) => set({ availableSymbols: symbols }),
 
+  setSymbolDetails: (details) => set({ symbolDetails: details }),
+
+  getSymbolDetail: (symbol) => {
+    const details = get().symbolDetails;
+    return details[symbol.toUpperCase()];
+  },
+
   reset: () =>
     set({
       accounts: [],
@@ -324,5 +349,6 @@ export const useBotStore = create<BotState>((set, get) => ({
       simulatedPrice: 75.0,
       updateInfo: null,
       availableSymbols: [],
+      symbolDetails: {},
     }),
 }));

@@ -1346,9 +1346,9 @@ def run_startup_checks():
                             "vol_min": getattr(s, "volume_min", 0.01),
                             "vol_max": getattr(s, "volume_max", 100.0),
                             "vol_step": getattr(s, "volume_step", 0.01),
-                            "contract_size": getattr(
-                                s, "trade_contract_size", 100000.0
-                            ),
+                            "contract_size": getattr(s, "trade_contract_size", 100000.0),
+                            "digits": getattr(s, "digits", 5),
+                            "point": getattr(s, "point", 0.00001)
                         }
                 if sym_data:
                     sym_file = get_symbols_path(account_id)

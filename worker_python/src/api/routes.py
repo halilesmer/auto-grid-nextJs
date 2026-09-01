@@ -445,7 +445,31 @@ async def get_symbols(account_id: str):
 
         symbols = await asyncio.to_thread(get_mt5_symbols)
         await asyncio.to_thread(shutdown_mt5)
-        return {"status": "success", "account_id": account_id, "symbols": symbols}
+        # 🌟 YENİ: Sembol detaylarına digits ve point ekle
+        detailed_symbols = []
+        for s in symbols:
+            if isinstance(s, dict):
+                detailed_symbols.append({
+                    **s,
+                    "digits": s.get("digits", 5),
+                    "point": s.get("point", 0.00001)
+                })
+            else:
+                # MT5 SymbolInfo nesnesi ise
+                detailed_symbols.append({
+                    "name": getattr(s, "name", ""),
+                    "description": getattr(s, "description", ""),
+                    "digits": getattr(s, "digits", 5),
+                    "point": getattr(s, "point", 0.00001),
+                    "volume_min": getattr(s, "volume_min", 0.01),
+                    "volume_max": getattr(s, "volume_max", 100.0),
+                    "volume_step": getattr(s, "volume_step", 0.01),
+                    "trade_mode": getattr(s, "trade_mode", 0),
+                    "currency_base": getattr(s, "currency_base", ""),
+                    "currency_profit": getattr(s, "currency_profit", ""),
+                    "currency_margin": getattr(s, "currency_margin", ""),
+                })
+        return {"status": "success", "account_id": account_id, "symbols": detailed_symbols}
     except HTTPException:
         raise
     except Exception as exc:
