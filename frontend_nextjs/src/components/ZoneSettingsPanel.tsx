@@ -103,14 +103,11 @@ export default function ZoneSettingsPanel({
 
   // EKSİK BAĞLANTI DÜZELTMESİ: Sembol detaylarını backend'den otomatik çekip Store'a yazan sistem
   useEffect(() => {
-    if (selectedAccount) {
-      axios
-        .get(`${API}/symbols/${selectedAccount}`)
+    if (selectedAccount && liveData.mt5_connected) {
+      axios.get(`${API}/symbols/${selectedAccount}`)
         .then((res) => {
           const syms = res.data.symbols || [];
-          useBotStore
-            .getState()
-            .setAvailableSymbols(syms.map((s: any) => s.name));
+          useBotStore.getState().setAvailableSymbols(syms.map((s: any) => s.name));
           const details: Record<string, SymbolDetail> = {};
           syms.forEach((s: any) => {
             details[s.name.toUpperCase()] = s;
@@ -119,7 +116,7 @@ export default function ZoneSettingsPanel({
         })
         .catch((err) => console.error("Sembol detayları çekilemedi", err));
     }
-  }, [selectedAccount]);
+  }, [selectedAccount, liveData.mt5_connected]);
 
   // YENİ: "Tüm Ayarları Kaydet" butonuna basıldığında (isDirty === false)
   // "Kaydedilmedi" uyarılarını sıfırlar (originalZones günceller).
@@ -452,26 +449,15 @@ function ZoneCard({
               update("symbol", e.target.value.toUpperCase().trim())
             }
             list={`broker-symbols-${zone.id}`}
-            className={`input-s ${
-              availableSymbols.length > 0 &&
-              !availableSymbols.includes(zone.symbol)
-                ? "border-red-500 text-red-400 focus:ring-red-500"
-                : ""
-            }`}
+            className="input-s"
           />
           <datalist id={`broker-symbols-${zone.id}`}>
             {availableSymbols
               .filter((sym) => sym && sym.trim() !== "")
               .map((sym, i) => (
-                <option key={`sym-${zone.id}-${i}`} value={sym} />
+                <option key={`${sym}-${i}`} value={sym} />
               ))}
           </datalist>
-          {availableSymbols.length > 0 &&
-            !availableSymbols.includes(zone.symbol) && (
-              <span className="text-[11px] text-red-400 font-bold mt-1">
-                Geçersiz Sembol!
-              </span>
-            )}
         </InputGroup>
         <InputGroup label="Emir Tipi">
           <select
