@@ -14,10 +14,105 @@ def normalize_volume(mt5_module, symbol, volume):
     symbol_info = mt5_module.symbol_info(symbol)
     if symbol_info is None:
         return float(volume)
-    step = symbol_info.volume_step
-    # Adıma göre tam yuvarlama yap ve string üzerinden float'a çevirerek bozulmayı önle
-    rounded_vol = round(volume / step) * step
-    return float(f"{rounded_vol:.6f}")
+    step = getattr(symbol_info, "volume_step", 0.01)
+    if step and step > 0:
+        rounded_vol = round(volume / step) * step
+        return float(f"{rounded_vol:.6f}")
+    return float(volume)
+
+
+def _format_request_prices(request: dict) -> str:
+    """Loglarda 'Bilinmiyor' görünmesini engelleyen dinamik fiyat biçimlendirici."""
+    parts = []
+    if request.get("price") is not None and request.get("price") > 0:
+        parts.append(f"Fiyat: {request['price']}")
+    if request.get("tp") is not None and request.get("tp") > 0:
+        parts.append(f"TP: {request['tp']}")
+    if request.get("sl") is not None and request.get("sl") > 0:
+        parts.append(f"SL: {request['sl']}")
+    return ", ".join(parts) if parts else "Fiyat Belirtilmedi"
+
+
+def enforce_stops_level(mt5_module, request: dict) -> dict:
+    """
+    Broker'ın minimum stops_level (durma mesafesi) kuralını denetler.
+    10016 (Invalid stops) hatasını önlemek için yakın TP/SL seviyelerini sınıra çeker.
+    """
+    symbol = request.get("symbol")
+    if not symbol:
+        return request
+
+    symbol_info = mt5_module.symbol_info(symbol)
+    if not symbol_info:
+        return request
+
+    stops_level = getattr(symbol_info, "trade_stops_level", 0)
+    point = getattr(symbol_info, "point", 0.00001)
+    digits = getattr(symbol_info, "digits", 5)
+    min_dist = stops_level * point
+
+    if min_dist <= 0:
+        return request
+
+    action = request.get("action")
+
+    # AÇIK POZİSYON TP/SL GÜNCELLEMESİ
+    if action == getattr(mt5_module, "TRADE_ACTION_SLTP", None):
+        ticket = request.get("position")
+        positions = mt5_module.positions_get(ticket=ticket) if ticket else None
+        if positions and len(positions) > 0:
+            pos = positions[0]
+            tick = mt5_module.symbol_info_tick(symbol)
+            if tick:
+                if pos.type == mt5_module.POSITION_TYPE_BUY:
+                    ref_price = tick.bid
+                    if (
+                        request.get("tp", 0.0) > 0
+                        and request["tp"] < ref_price + min_dist
+                    ):
+                        request["tp"] = round(ref_price + min_dist, digits)
+                    if (
+                        request.get("sl", 0.0) > 0
+                        and request["sl"] > ref_price - min_dist
+                    ):
+                        request["sl"] = round(ref_price - min_dist, digits)
+                elif pos.type == mt5_module.POSITION_TYPE_SELL:
+                    ref_price = tick.ask
+                    if (
+                        request.get("tp", 0.0) > 0
+                        and request["tp"] > ref_price - min_dist
+                    ):
+                        request["tp"] = round(ref_price - min_dist, digits)
+                    if (
+                        request.get("sl", 0.0) > 0
+                        and request["sl"] < ref_price + min_dist
+                    ):
+                        request["sl"] = round(ref_price + min_dist, digits)
+
+    # BEKLEYEN EMİR VERİLMESİ
+    elif action == getattr(mt5_module, "TRADE_ACTION_PENDING", None):
+        order_type = request.get("type")
+        price = request.get("price", 0.0)
+
+        if order_type in [
+            getattr(mt5_module, "ORDER_TYPE_BUY_LIMIT", None),
+            getattr(mt5_module, "ORDER_TYPE_BUY_STOP", None),
+        ]:
+            if request.get("tp", 0.0) > 0 and request["tp"] < price + min_dist:
+                request["tp"] = round(price + min_dist, digits)
+            if request.get("sl", 0.0) > 0 and request["sl"] > price - min_dist:
+                request["sl"] = round(price - min_dist, digits)
+
+        elif order_type in [
+            getattr(mt5_module, "ORDER_TYPE_SELL_LIMIT", None),
+            getattr(mt5_module, "ORDER_TYPE_SELL_STOP", None),
+        ]:
+            if request.get("tp", 0.0) > 0 and request["tp"] > price - min_dist:
+                request["tp"] = round(price - min_dist, digits)
+            if request.get("sl", 0.0) > 0 and request["sl"] < price + min_dist:
+                request["sl"] = round(price + min_dist, digits)
+
+    return request
 
 
 def safe_send_order(mt5_module, request, log_func=None):
@@ -25,11 +120,14 @@ def safe_send_order(mt5_module, request, log_func=None):
     Merkezi Emir Gönderici ve Hata Yakalayıcı.
     """
     try:
-        # KESİN KURAL: Gönderilmeden önce LOT değerini MT5'in beklediği hassasiyete göre kusursuzlaştır
+        # 1. KORUMA: Lot değerini temizle
         if "volume" in request and "symbol" in request:
             request["volume"] = normalize_volume(
                 mt5_module, request["symbol"], request["volume"]
             )
+
+        # 2. KORUMA: Broker stops_level mesafe denetimi (10016 engelleme)
+        request = enforce_stops_level(mt5_module, request)
 
         # Sadece yeni emir gönderimlerinde (PENDING/DEAL) ön kontrol yapılır.
         if request.get("action") in [
@@ -41,9 +139,12 @@ def safe_send_order(mt5_module, request, log_func=None):
                 retcode = check.retcode if check else -1
                 if retcode == 10027:
                     TradeState.algo_trading_disabled = True
-                    TradeState.last_error_message = "Algo Trading kapali!"
+                    TradeState.last_error_message = "Algo Trading kapalı!"
                 if log_func:
-                    log_func(f"❌ MT5 Check Hatası! Kodu: {retcode}", "ERROR")
+                    prices_str = _format_request_prices(request)
+                    log_func(
+                        f"❌ MT5 Check Hatası! Kodu: {retcode} | {prices_str}", "ERROR"
+                    )
                 return False
 
         # Asıl Emri Gönder
@@ -63,16 +164,16 @@ def safe_send_order(mt5_module, request, log_func=None):
 
             if result.retcode == 10027:
                 TradeState.algo_trading_disabled = True
-                TradeState.last_error_message = "Algo Trading kapali!"
+                TradeState.last_error_message = "Algo Trading kapalı!"
             else:
                 TradeState.last_error_message = (
                     f"Reddedildi: {err_code} - {err_comment}"
                 )
 
             if log_func:
-                # Senin tam olarak istediğin formatta detaylı hata logu
+                prices_str = _format_request_prices(request)
                 log_func(
-                    f"🔴 MT5 EMİR REDDİ ({err_code}): {err_comment} | Seviye Fiyatı: {request.get('price', 'Bilinmiyor')}",
+                    f"🔴 MT5 EMİR REDDİ ({err_code}): {err_comment} | Seviye Fiyatı: {prices_str}",
                     "ERROR",
                 )
             return False

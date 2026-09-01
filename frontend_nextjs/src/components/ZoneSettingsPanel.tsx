@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect } from "react";
 import axios from 'axios';
 import {
   useBotStore,
@@ -27,13 +27,12 @@ function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings)
   return JSON.stringify(o) !== JSON.stringify(c);
 }
 
-// 🌟 Yardımcı: Floating-point sapmalarını (0.049999999) temizleyen parseFloat
-function parseFloat5(value: string): number {
+// 🌟 Yardımcı: Sembolün hassasiyetine (digits) göre dinamik parseFloat
+function parseFloatCustom(value: string, precision: number = 5): number {
   if (!value || value.trim() === "") return 0;
   const num = parseFloat(value);
   if (isNaN(num)) return 0;
-  // Floating point hassasiyet sapmasını kesin olarak temizler
-  return Number(num.toFixed(5));
+  return Number(num.toFixed(precision));
 }
 
 // 🌟 Yardımcı: Sembol detayına göre min/step/precision hesapla
@@ -66,7 +65,7 @@ export default function ZoneSettingsPanel({
   liveData,
   isGlobalDirty,
 }: ZoneSettingsPanelProps) {
-  const { settings, setZones, availableSymbols } = useBotStore();
+  const { settings, setZones } = useBotStore();
   const [prevAccount, setPrevAccount] = useState<string | null>(
     selectedAccount,
   );
@@ -97,7 +96,7 @@ export default function ZoneSettingsPanel({
           if (typeof symsData === "string") {
             try {
               symsData = JSON.parse(symsData);
-            } catch (e) {}
+            } catch {}
           }
 
           // Düz string dizisi ["USOUSD"] veya Obje {"USOUSD":{}} gelme ihtimaline karşı tam koruma
@@ -221,7 +220,7 @@ export default function ZoneSettingsPanel({
         );
       }
     },
-    [setZones, selectedAccount, availableSymbols],
+    [setZones, selectedAccount],
   );
 
   const addZone = useCallback(() => {
@@ -281,7 +280,6 @@ export default function ZoneSettingsPanel({
             onToggleActive={toggleZoneActive}
             onDelete={() => setDeleteZoneId(zone.id)}
             liveData={liveData}
-            availableSymbols={availableSymbols}
             isRunning={isRunning}
           />
         );
@@ -312,7 +310,6 @@ interface ZoneCardProps {
   onToggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
   onDelete: () => void;
   liveData: ReturnType<typeof useBotStore.getState>["liveData"];
-  availableSymbols: string[];
   isRunning: boolean;
 }
 
@@ -324,7 +321,6 @@ function ZoneCard({
   onToggleActive,
   onDelete,
   liveData,
-  availableSymbols,
   isRunning,
 }: ZoneCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -355,11 +351,41 @@ function ZoneCard({
   // Dürüst UI State Belirleme (4 Durum)
   const isGlobalRunning = liveData.mt5_connected && isRunning;
 
-  // KÖR INPUTLARIN ÇÖZÜMÜ: O sembole ait point ve digits değerlerini inputlara bağla
-  const symbolConfig = useMemo(
-    () => getSymbolConfig(zone.symbol, symbolDetails),
-    [zone.symbol, symbolDetails],
-  );
+  // KÖR INPUTLARIN ÇÖZÜMÜ: O sembole ait point ve digits değerlerini dinamik hesapla
+  const symbolConfig = getSymbolConfig(zone.symbol, symbolDetails);
+  const stepStr = symbolConfig.volStep.toString();
+  const volPrecision = stepStr.includes(".") ? stepStr.split(".")[1].length : 2;
+
+  // Sembol değiştikçe veya detaylar yüklendikçe mevcut değerleri sembolün ondalığına (digits) otomatik eşitle
+  useEffect(() => {
+    const p = symbolConfig.precision;
+    const vp = volPrecision;
+
+    const fieldsToFix: Array<[string, number, number]> = [
+      ["min_price", zone.min_price, p],
+      ["max_price", zone.max_price, p],
+      ["grid_step", zone.grid_step, p],
+      ["take_profit", zone.take_profit, p],
+      ["stop_loss", zone.stop_loss, p],
+      ["sell_grid_step", zone.sell_grid_step, p],
+      ["sell_take_profit", zone.sell_take_profit, p],
+      ["sell_stop_loss", zone.sell_stop_loss, p],
+      ["pullback_distance", zone.pullback_distance, p],
+      ["sell_pullback_distance", zone.sell_pullback_distance, p],
+      ["lot_size", zone.lot_size, vp],
+      ["sell_lot_size", zone.sell_lot_size, vp],
+    ];
+
+    fieldsToFix.forEach(([field, val, prec]) => {
+      if (typeof val === "number" && !isNaN(val)) {
+        const rounded = Number(val.toFixed(prec));
+        if (rounded !== val) {
+          update(field, rounded);
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbolConfig.precision, volPrecision, zone.symbol]);
   let btnClass = "";
   let btnText = "";
   let btnIcon = <Play size={14} />;
@@ -499,7 +525,12 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.min_price}
-            onChange={(e) => update("min_price", parseFloat5(e.target.value))}
+            onChange={(e) =>
+              update(
+                "min_price",
+                parseFloatCustom(e.target.value, symbolConfig.precision),
+              )
+            }
             onBlur={() =>
               handleBlur("min_price", zone.min_price, symbolConfig.step)
             }
@@ -512,7 +543,12 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.max_price}
-            onChange={(e) => update("max_price", parseFloat5(e.target.value))}
+            onChange={(e) =>
+              update(
+                "max_price",
+                parseFloatCustom(e.target.value, symbolConfig.precision),
+              )
+            }
             onBlur={() =>
               handleBlur("max_price", zone.max_price, symbolConfig.step)
             }
@@ -565,7 +601,12 @@ function ZoneCard({
             min={symbolConfig.min}
             step={symbolConfig.step}
             value={zone.grid_step}
-            onChange={(e) => update("grid_step", parseFloat5(e.target.value))}
+            onChange={(e) =>
+              update(
+                "grid_step",
+                parseFloatCustom(e.target.value, symbolConfig.precision),
+              )
+            }
             onBlur={() =>
               handleBlur("grid_step", zone.grid_step, symbolConfig.step)
             }
@@ -582,7 +623,9 @@ function ZoneCard({
             min={symbolConfig.volMin}
             step={symbolConfig.volStep}
             value={zone.lot_size}
-            onChange={(e) => update("lot_size", parseFloat5(e.target.value))}
+            onChange={(e) =>
+              update("lot_size", parseFloatCustom(e.target.value, volPrecision))
+            }
             onBlur={() =>
               handleBlur("lot_size", zone.lot_size, symbolConfig.volStep)
             }
@@ -603,7 +646,12 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.take_profit}
-            onChange={(e) => update("take_profit", parseFloat5(e.target.value))}
+            onChange={(e) =>
+              update(
+                "take_profit",
+                parseFloatCustom(e.target.value, symbolConfig.precision),
+              )
+            }
             onBlur={() =>
               handleBlur("take_profit", zone.take_profit, symbolConfig.step)
             }
@@ -624,7 +672,12 @@ function ZoneCard({
             min={0}
             step={symbolConfig.step}
             value={zone.stop_loss}
-            onChange={(e) => update("stop_loss", parseFloat5(e.target.value))}
+            onChange={(e) =>
+              update(
+                "stop_loss",
+                parseFloatCustom(e.target.value, symbolConfig.precision),
+              )
+            }
             onBlur={() =>
               handleBlur("stop_loss", zone.stop_loss, symbolConfig.step)
             }
@@ -647,7 +700,10 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_grid_step}
                 onChange={(e) =>
-                  update("sell_grid_step", parseFloat5(e.target.value))
+                  update(
+                    "sell_grid_step",
+                    parseFloatCustom(e.target.value, symbolConfig.precision),
+                  )
                 }
                 onBlur={() =>
                   handleBlur(
@@ -666,7 +722,10 @@ function ZoneCard({
                 step={symbolConfig.volStep}
                 value={zone.sell_lot_size}
                 onChange={(e) =>
-                  update("sell_lot_size", parseFloat5(e.target.value))
+                  update(
+                    "sell_lot_size",
+                    parseFloatCustom(e.target.value, volPrecision),
+                  )
                 }
                 onBlur={() =>
                   handleBlur(
@@ -685,7 +744,10 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_take_profit}
                 onChange={(e) =>
-                  update("sell_take_profit", parseFloat5(e.target.value))
+                  update(
+                    "sell_take_profit",
+                    parseFloatCustom(e.target.value, symbolConfig.precision),
+                  )
                 }
                 onBlur={() =>
                   handleBlur(
@@ -704,7 +766,10 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_stop_loss}
                 onChange={(e) =>
-                  update("sell_stop_loss", parseFloat5(e.target.value))
+                  update(
+                    "sell_stop_loss",
+                    parseFloatCustom(e.target.value, symbolConfig.precision),
+                  )
                 }
                 onBlur={() =>
                   handleBlur(
@@ -747,7 +812,10 @@ function ZoneCard({
               step={symbolConfig.step}
               value={zone.pullback_distance}
               onChange={(e) =>
-                update("pullback_distance", parseFloat5(e.target.value))
+                update(
+                  "pullback_distance",
+                  parseFloatCustom(e.target.value, symbolConfig.precision),
+                )
               }
               onBlur={() =>
                 handleBlur(
@@ -771,7 +839,10 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_pullback_distance}
                 onChange={(e) =>
-                  update("sell_pullback_distance", parseFloat5(e.target.value))
+                  update(
+                    "sell_pullback_distance",
+                    parseFloatCustom(e.target.value, symbolConfig.precision),
+                  )
                 }
                 onBlur={() =>
                   handleBlur(
