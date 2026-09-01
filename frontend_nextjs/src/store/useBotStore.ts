@@ -234,8 +234,8 @@ export const useBotStore = create<BotState>((set, get) => ({
       settings: state.settings
         ? { ...state.settings, ...globals }
         : {
-            ORDER_TYPE: globals.ORDER_TYPE ?? 'BUY',
-            SYMBOL: globals.SYMBOL ?? 'USOUSD',
+            ORDER_TYPE: globals.ORDER_TYPE ?? "BUY",
+            SYMBOL: globals.SYMBOL ?? "USOUSD",
             LOOP_INTERVAL_SECONDS: globals.LOOP_INTERVAL_SECONDS ?? 1.0,
             ZONES: [],
           },
@@ -244,26 +244,47 @@ export const useBotStore = create<BotState>((set, get) => ({
   setZones: (zonesOrUpdater) =>
     set((state) => {
       const currentZones = state.settings?.ZONES || [];
-      const newZones = typeof zonesOrUpdater === 'function' 
-        ? zonesOrUpdater(currentZones) 
-        : zonesOrUpdater;
+      const newZones =
+        typeof zonesOrUpdater === "function"
+          ? zonesOrUpdater(currentZones)
+          : zonesOrUpdater;
       return {
         settings: state.settings
           ? { ...state.settings, ZONES: newZones }
-          : { ORDER_TYPE: 'BUY', SYMBOL: 'USOUSD', LOOP_INTERVAL_SECONDS: 1.0, ZONES: newZones },
+          : {
+              ORDER_TYPE: "BUY",
+              SYMBOL: "USOUSD",
+              LOOP_INTERVAL_SECONDS: 1.0,
+              ZONES: newZones,
+            },
       };
     }),
 
   mergeAndSaveSettings: async (apiUrl: string) => {
-    const { selectedAccount, settings } = get();
+    const { selectedAccount, settings, availableSymbols } = get();
     if (!selectedAccount || !settings) return;
-    
+
+    // Geçersiz Sembol Kayıt Koruması
+    if (availableSymbols && availableSymbols.length > 0) {
+      for (let i = 0; i < settings.ZONES.length; i++) {
+        const sym = settings.ZONES[i].symbol.toUpperCase().trim();
+        if (!availableSymbols.includes(sym)) {
+          throw new Error(
+            `Kayıt Reddedildi: Bölge ${i + 1} için girdiğiniz '${sym}' sembolü broker tarafından desteklenmiyor! Lütfen listeden geçerli bir sembol seçin.`,
+          );
+        }
+      }
+    }
+
     const res = await fetch(`${apiUrl}/settings/${selectedAccount}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
       body: JSON.stringify({ settings }),
     });
-    if (!res.ok) throw new Error('Failed to save settings');
+    if (!res.ok) throw new Error("Failed to save settings");
   },
 
   setLogs: (logs) =>
