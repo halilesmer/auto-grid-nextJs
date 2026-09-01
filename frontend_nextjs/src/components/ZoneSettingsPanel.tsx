@@ -27,25 +27,41 @@ function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings)
   return JSON.stringify(o) !== JSON.stringify(c);
 }
 
-// 🌟 Yardımcı: 5 basamak hassasiyetle parseFloat (yuvarlama/kırpma yapmaz)
-function parseFloat5(value: string): number {
-  if (!value || value.trim() === "") return 0;
-  const num = parseFloat(value);
-  return isNaN(num) ? 0 : Number(num.toFixed(5));
+// 🌟 JavaScript Floating-Point kaymasını önleyen tam hassas yuvarlama
+function roundToDigits(value: number, digits: number): number {
+  if (isNaN(value)) return 0;
+  const factor = Math.pow(10, digits);
+  return Math.round((value + Number.EPSILON) * factor) / factor;
 }
 
-// 🌟 Yardımcı: Sembol detayına göre min/step/precision hesapla
-function getSymbolConfig(symbol: string, symbolDetails: Record<string, SymbolDetail>): { min: number; step: number; precision: number } {
+// 🌟 Inputtan gelen veriyi sembolün broker basamağına göre parse eder
+function parseByDigits(value: string, digits: number): number {
+  if (!value || value.trim() === "") return 0;
+  const num = parseFloat(value);
+  if (isNaN(num)) return 0;
+  return roundToDigits(num, digits);
+}
+
+// 🌟 Sembolün broker detayına göre dinamik basamak (digits) ve lot hane (lotDigits) konfigürasyonu
+function getSymbolConfig(symbol: string, symbolDetails: Record<string, SymbolDetail>) {
   const detail = symbolDetails[symbol.toUpperCase()];
-  if (!detail) {
-    return { min: 0, step: 0.00001, precision: 5 };
-  }
-  const point = detail.point || 0.00001;
-  const digits = detail.digits ?? 5;
+  
+  // Broker verisi henüz gelmediyse varsayılan 3 basamak al (USOUSD için ideal)
+  const digits = detail?.digits ?? 3; 
+  const point = detail?.point ?? Math.pow(10, -digits);
+  
+  // Lot basamak sayısı (volume_step 0.01 ise 2 hane, 0.1 ise 1 hane)
+  const volStep = detail?.volume_step ?? 0.01;
+  const volStepStr = volStep.toString();
+  const lotDigits = volStepStr.includes(".") ? volStepStr.split(".")[1].length : 2;
+
   return {
+    digits,
+    lotDigits,
     min: point,
     step: point,
-    precision: digits,
+    volMin: detail?.volume_min ?? 0.01,
+    volStep: volStep,
   };
 }
 
@@ -459,7 +475,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.min_price}
             onChange={(e) =>
-              update("min_price", parseFloat5(e.target.value))
+              update("min_price", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -471,7 +487,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.max_price}
             onChange={(e) =>
-              update("max_price", parseFloat5(e.target.value))
+              update("max_price", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -523,7 +539,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.grid_step}
             onChange={(e) =>
-              update("grid_step", parseFloat5(e.target.value))
+              update("grid_step", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -535,11 +551,11 @@ function ZoneCard({
         >
           <input
             type="number"
-            min={0.01}
-            step={symbolConfig.step}
+            min={symbolConfig.volMin}
+            step={symbolConfig.volStep}
             value={zone.lot_size}
             onChange={(e) =>
-              update("lot_size", parseFloat5(e.target.value))
+              update("lot_size", parseByDigits(e.target.value, symbolConfig.lotDigits))
             }
             className="input-s"
           />
@@ -559,7 +575,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.take_profit}
             onChange={(e) =>
-              update("take_profit", parseFloat5(e.target.value))
+              update("take_profit", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -579,7 +595,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.stop_loss}
             onChange={(e) =>
-              update("stop_loss", parseFloat5(e.target.value))
+              update("stop_loss", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -600,7 +616,7 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_grid_step}
                 onChange={(e) =>
-                  update("sell_grid_step", parseFloat5(e.target.value))
+                  update("sell_grid_step", parseByDigits(e.target.value, symbolConfig.digits))
                 }
                 className="input-s"
               />
@@ -608,11 +624,11 @@ function ZoneCard({
             <InputGroup label="SELL Lot">
               <input
                 type="number"
-                min={0.01}
-                step={symbolConfig.step}
+                min={symbolConfig.volMin}
+                step={symbolConfig.volStep}
                 value={zone.sell_lot_size}
                 onChange={(e) =>
-                  update("sell_lot_size", parseFloat5(e.target.value))
+                  update("sell_lot_size", parseByDigits(e.target.value, symbolConfig.lotDigits))
                 }
                 className="input-s"
               />
@@ -624,7 +640,7 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_take_profit}
                 onChange={(e) =>
-                  update("sell_take_profit", parseFloat5(e.target.value))
+                  update("sell_take_profit", parseByDigits(e.target.value, symbolConfig.digits))
                 }
                 className="input-s"
               />
@@ -636,7 +652,7 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_stop_loss}
                 onChange={(e) =>
-                  update("sell_stop_loss", parseFloat5(e.target.value))
+                  update("sell_stop_loss", parseByDigits(e.target.value, symbolConfig.digits))
                 }
                 className="input-s"
               />
@@ -672,7 +688,7 @@ function ZoneCard({
               step={symbolConfig.step}
               value={zone.pullback_distance}
               onChange={(e) =>
-                update("pullback_distance", parseFloat5(e.target.value))
+                update("pullback_distance", parseByDigits(e.target.value, symbolConfig.digits))
               }
               disabled={!zone.is_breakout}
               className="input-s w-24"
@@ -691,7 +707,7 @@ function ZoneCard({
                 onChange={(e) =>
                   update(
                     "sell_pullback_distance",
-                    parseFloat5(e.target.value),
+                    parseByDigits(e.target.value, symbolConfig.digits),
                   )
                 }
                 disabled={!zone.is_breakout}
