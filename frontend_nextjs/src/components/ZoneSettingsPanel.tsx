@@ -452,11 +452,9 @@ function ZoneCard({
             className="input-s"
           />
           <datalist id={`broker-symbols-${zone.id}`}>
-            {availableSymbols
-              .filter((sym) => sym && sym.trim() !== "")
-              .map((sym, i) => (
-                <option key={`${sym}-${i}`} value={sym} />
-              ))}
+            {availableSymbols.map((sym) => (
+              <option key={sym} value={sym} />
+            ))}
           </datalist>
         </InputGroup>
         <InputGroup label="Emir Tipi">
@@ -477,10 +475,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.min_price}
             onChange={(e) =>
-              update(
-                "min_price",
-                parseByDigits(e.target.value, symbolConfig.digits),
-              )
+              update("min_price", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -492,10 +487,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.max_price}
             onChange={(e) =>
-              update(
-                "max_price",
-                parseByDigits(e.target.value, symbolConfig.digits),
-              )
+              update("max_price", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -530,15 +522,15 @@ function ZoneCard({
         </p>
       )}
 
-      {/* Row 2: Grid, Lot, TP, SL */}
+{/* Row 2: Grid, Lot, TP, SL */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <InputGroup
           label={
             isBoth && zone.sync_buy_sell
               ? "Grid Adımı ($)"
               : isBoth
-                ? "BUY Grid ($)"
-                : "Grid Adımı ($)"
+              ? "BUY Grid ($)"
+              : "Grid Adımı ($)"
           }
         >
           <input
@@ -547,10 +539,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.grid_step}
             onChange={(e) =>
-              update(
-                "grid_step",
-                parseByDigits(e.target.value, symbolConfig.digits),
-              )
+              update("grid_step", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -566,10 +555,7 @@ function ZoneCard({
             step={symbolConfig.volStep}
             value={zone.lot_size}
             onChange={(e) =>
-              update(
-                "lot_size",
-                parseByDigits(e.target.value, symbolConfig.lotDigits),
-              )
+              update("lot_size", parseByDigits(e.target.value, symbolConfig.lotDigits))
             }
             className="input-s"
           />
@@ -579,8 +565,8 @@ function ZoneCard({
             isBoth && zone.sync_buy_sell
               ? "Kar Al ($)"
               : isBoth
-                ? "BUY KA ($)"
-                : "Kar Al ($)"
+              ? "BUY KA ($)"
+              : "Kar Al ($)"
           }
         >
           <input
@@ -589,10 +575,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.take_profit}
             onChange={(e) =>
-              update(
-                "take_profit",
-                parseByDigits(e.target.value, symbolConfig.digits),
-              )
+              update("take_profit", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -602,8 +585,8 @@ function ZoneCard({
             isBoth && zone.sync_buy_sell
               ? "Zarar Durdur ($)"
               : isBoth
-                ? "BUY ZD ($)"
-                : "Zarar Durdur ($)"
+              ? "BUY ZD ($)"
+              : "Zarar Durdur ($)"
           }
         >
           <input
@@ -612,10 +595,7 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.stop_loss}
             onChange={(e) =>
-              update(
-                "stop_loss",
-                parseByDigits(e.target.value, symbolConfig.digits),
-              )
+              update("stop_loss", parseByDigits(e.target.value, symbolConfig.digits))
             }
             className="input-s"
           />
@@ -636,10 +616,7 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_grid_step}
                 onChange={(e) =>
-                  update(
-                    "sell_grid_step",
-                    parseByDigits(e.target.value, symbolConfig.digits),
-                  )
+                  update("sell_grid_step", parseByDigits(e.target.value, symbolConfig.digits))
                 }
                 className="input-s"
               />
@@ -651,10 +628,7 @@ function ZoneCard({
                 step={symbolConfig.volStep}
                 value={zone.sell_lot_size}
                 onChange={(e) =>
-                  update(
-                    "sell_lot_size",
-                    parseByDigits(e.target.value, symbolConfig.lotDigits),
-                  )
+                  update("sell_lot_size", parseByDigits(e.target.value, symbolConfig.lotDigits))
                 }
                 className="input-s"
               />
@@ -666,10 +640,7 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_take_profit}
                 onChange={(e) =>
-                  update(
-                    "sell_take_profit",
-                    parseByDigits(e.target.value, symbolConfig.digits),
-                  )
+                  update("sell_take_profit", parseByDigits(e.target.value, symbolConfig.digits))
                 }
                 className="input-s"
               />
@@ -681,10 +652,7 @@ function ZoneCard({
                 step={symbolConfig.step}
                 value={zone.sell_stop_loss}
                 onChange={(e) =>
-                  update(
-                    "sell_stop_loss",
-                    parseByDigits(e.target.value, symbolConfig.digits),
-                  )
+                  update("sell_stop_loss", parseByDigits(e.target.value, symbolConfig.digits))
                 }
                 className="input-s"
               />
@@ -720,10 +688,7 @@ function ZoneCard({
               step={symbolConfig.step}
               value={zone.pullback_distance}
               onChange={(e) =>
-                update(
-                  "pullback_distance",
-                  parseByDigits(e.target.value, symbolConfig.digits),
-                )
+                update("pullback_distance", parseByDigits(e.target.value, symbolConfig.digits))
               }
               disabled={!zone.is_breakout}
               className="input-s w-24"
