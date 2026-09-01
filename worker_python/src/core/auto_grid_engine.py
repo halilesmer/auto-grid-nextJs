@@ -298,12 +298,16 @@ def cancel_order(order):
 
 
 def modify_position_tp_sl(position, tp_price, sl_price=None):
+    tp_norm = normalize_price(tp_price) if tp_price else 0.0
+    sl_norm = (
+        normalize_price(sl_price) if sl_price is not None and sl_price > 0 else 0.0
+    )
     request = {
         "action": mt5.TRADE_ACTION_SLTP,
         "position": position.ticket,
         "symbol": SYMBOL,
-        "tp": tp_price,
-        "sl": sl_price if sl_price is not None and sl_price > 0 else 0.0,
+        "tp": tp_norm,
+        "sl": sl_norm,
     }
     return safe_send_order(mt5, request, log_message)
 
@@ -388,17 +392,17 @@ def send_pending_order(
         "symbol": SYMBOL,
         "volume": normalize_volume(lot),
         "type": order_type,
-        "price": price,
+        "price": normalize_price(price),
         "deviation": MAX_DEVIATION,
         "magic": BASE_MAGIC_NUMBER + zone_idx + 1,
         "comment": f"AutoGrid_Z{zone_idx + 1}",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_RETURN,  # 🌟 KESİN ÇÖZÜM: Bekleyen emirlerin FOK(0) kabul edilip sunucu tarafından silinmemesi için RETURN(2) zorunludur.
-        "tp": tp_price,
+        "tp": normalize_price(tp_price) if tp_price else 0.0,
     }
 
     if sl_price is not None and sl_price > 0:
-        request["sl"] = sl_price
+        request["sl"] = normalize_price(sl_price)
 
     # 🌟 HATA YAKALAMA (Back-off): Emri gönder ve sonucu kontrol et
     success = safe_send_order(mt5, request, log_message)

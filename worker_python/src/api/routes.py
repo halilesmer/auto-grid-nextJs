@@ -222,6 +222,10 @@ async def update_settings(account_id: str, payload: SettingsPayload):
         else:
             data_to_save = incoming_data
 
+        from src.utils.config import sanitize_settings
+
+        data_to_save = sanitize_settings(data_to_save)
+
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data_to_save, f, indent=4, ensure_ascii=False)
 

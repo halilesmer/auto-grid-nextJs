@@ -66,9 +66,28 @@ def load_settings(engine_name: str = "Auto Grid"):
         return DEFAULT_SETTINGS_AUTO_GRID
 
 
+def sanitize_settings(data):
+    """Float değerlerdeki sapmaları ve gereksiz küsuratları temizler."""
+    if isinstance(data, dict):
+        return {k: sanitize_settings(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_settings(item) for item in data]
+    elif isinstance(data, float):
+        r5 = round(data, 5)
+        r2 = round(r5, 2)
+        if abs(r5 - r2) < 0.0002:
+            return r2
+        r3 = round(r5, 3)
+        if abs(r5 - r3) < 0.0002:
+            return r3
+        return r5
+    return data
+
+
 def save_settings(settings_dict, engine_name: str = "Auto Grid"):
     """Yeni ayarları JSON dosyasına kaydeder."""
     file_path = get_settings_file(engine_name)
+    sanitized = sanitize_settings(settings_dict)
 
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(settings_dict, f, indent=4)
+        json.dump(sanitized, f, indent=4)

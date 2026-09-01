@@ -27,11 +27,13 @@ function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings)
   return JSON.stringify(o) !== JSON.stringify(c);
 }
 
-// 🌟 Yardımcı: 5 basamak hassasiyetle parseFloat (yuvarlama/kırpma yapmaz)
+// 🌟 Yardımcı: Floating-point sapmalarını (0.049999999) temizleyen parseFloat
 function parseFloat5(value: string): number {
   if (!value || value.trim() === "") return 0;
   const num = parseFloat(value);
-  return isNaN(num) ? 0 : Number(num.toFixed(5));
+  if (isNaN(num)) return 0;
+  // Floating point hassasiyet sapmasını kesin olarak temizler
+  return Number(num.toFixed(5));
 }
 
 // 🌟 Yardımcı: Sembol detayına göre min/step/precision hesapla
@@ -53,9 +55,8 @@ function getSymbolConfig(symbol: string, symbolDetails: Record<string, SymbolDet
 
 interface ZoneSettingsPanelProps {
   selectedAccount: string | null;
-  activeAccount: ReturnType<typeof useBotStore.getState>['activeAccount'];
   isRunning: boolean;
-  liveData: ReturnType<typeof useBotStore.getState>['liveData'];
+  liveData: ReturnType<typeof useBotStore.getState>["liveData"];
   isGlobalDirty?: boolean;
 }
 
@@ -146,15 +147,15 @@ export default function ZoneSettingsPanel({
       const newActive = !currentActive;
 
       // KRİTİK KONTROL 2: Sembol broker tarafından desteklenmiyorsa başlatma
-      const zoneSymbol = useBotStore
-        .getState()
-        .settings?.ZONES?.find((z) => z.id === zoneId)?.symbol;
+      const storeState = useBotStore.getState();
+      const zoneSymbol = storeState.settings?.ZONES?.find(
+        (z) => z.id === zoneId,
+      )?.symbol;
+
       if (
         zoneSymbol &&
-        availableSymbols.length > 0 &&
-        !availableSymbols.some(
-          (s) => s.toUpperCase() === zoneSymbol.toUpperCase(),
-        )
+        Object.keys(storeState.symbolDetails).length > 0 &&
+        !storeState.symbolDetails[zoneSymbol.toUpperCase().trim()]
       ) {
         alert(
           "Hatalı Sembol! Girdiğiniz sembol broker tarafından desteklenmiyor. Lütfen geçerli bir sembol girin.",
@@ -332,6 +333,18 @@ function ZoneCard({
   const update = (field: string, value: unknown) =>
     onUpdate(zone.id, field, value);
 
+  const handleBlur = (field: string, value: number, step: number) => {
+    if (value === undefined || value === null || isNaN(value) || !step) return;
+    const precision = field.toLowerCase().includes("lot")
+      ? step.toString().split(".")[1]?.length || 2
+      : symbolConfig.precision;
+
+    const rounded = Number(
+      (Math.round(value / step) * step).toFixed(precision),
+    );
+    if (rounded !== value) update(field, rounded);
+  };
+
   const isBoth = zone.order_type === "BOTH";
   const showBuyLabel = zone.order_type === "BUY";
   const showSellLabel = zone.order_type === "SELL";
@@ -443,29 +456,26 @@ function ZoneCard({
             }
             list={`broker-symbols-${zone.id}`}
             className={`input-s ${
-              availableSymbols.length > 0 &&
-              !availableSymbols.some(
-                (s) =>
-                  (s || "").toUpperCase().trim() ===
-                  zone.symbol.toUpperCase().trim(),
+              Object.keys(symbolDetails).length > 0 &&
+              zone.symbol &&
+              !Object.keys(symbolDetails).some(
+                (k) => k.toUpperCase() === zone.symbol.toUpperCase().trim(),
               )
                 ? "border-red-500 text-red-400 focus:ring-red-500"
                 : ""
             }`}
           />
           <datalist id={`broker-symbols-${zone.id}`}>
-            {availableSymbols
-              .filter((sym) => sym && sym.trim() !== "")
+            {Object.keys(symbolDetails)
               .slice(0, 100)
               .map((sym, i) => (
                 <option key={`sym-${zone.id}-${i}`} value={sym} />
               ))}
           </datalist>
-          {availableSymbols.length > 0 &&
-            !availableSymbols.some(
-              (s) =>
-                (s || "").toUpperCase().trim() ===
-                zone.symbol.toUpperCase().trim(),
+          {Object.keys(symbolDetails).length > 0 &&
+            zone.symbol &&
+            !Object.keys(symbolDetails).some(
+              (k) => k.toUpperCase() === zone.symbol.toUpperCase().trim(),
             ) && (
               <span className="text-[11px] text-red-400 font-bold mt-1">
                 Geçersiz Sembol!
@@ -490,6 +500,9 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.min_price}
             onChange={(e) => update("min_price", parseFloat5(e.target.value))}
+            onBlur={() =>
+              handleBlur("min_price", zone.min_price, symbolConfig.step)
+            }
             className="input-s"
           />
         </InputGroup>
@@ -500,6 +513,9 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.max_price}
             onChange={(e) => update("max_price", parseFloat5(e.target.value))}
+            onBlur={() =>
+              handleBlur("max_price", zone.max_price, symbolConfig.step)
+            }
             className="input-s"
           />
         </InputGroup>
@@ -550,6 +566,9 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.grid_step}
             onChange={(e) => update("grid_step", parseFloat5(e.target.value))}
+            onBlur={() =>
+              handleBlur("grid_step", zone.grid_step, symbolConfig.step)
+            }
             className="input-s"
           />
         </InputGroup>
@@ -564,6 +583,9 @@ function ZoneCard({
             step={symbolConfig.volStep}
             value={zone.lot_size}
             onChange={(e) => update("lot_size", parseFloat5(e.target.value))}
+            onBlur={() =>
+              handleBlur("lot_size", zone.lot_size, symbolConfig.volStep)
+            }
             className="input-s"
           />
         </InputGroup>
@@ -582,6 +604,9 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.take_profit}
             onChange={(e) => update("take_profit", parseFloat5(e.target.value))}
+            onBlur={() =>
+              handleBlur("take_profit", zone.take_profit, symbolConfig.step)
+            }
             className="input-s"
           />
         </InputGroup>
@@ -600,6 +625,9 @@ function ZoneCard({
             step={symbolConfig.step}
             value={zone.stop_loss}
             onChange={(e) => update("stop_loss", parseFloat5(e.target.value))}
+            onBlur={() =>
+              handleBlur("stop_loss", zone.stop_loss, symbolConfig.step)
+            }
             className="input-s"
           />
         </InputGroup>
@@ -621,6 +649,13 @@ function ZoneCard({
                 onChange={(e) =>
                   update("sell_grid_step", parseFloat5(e.target.value))
                 }
+                onBlur={() =>
+                  handleBlur(
+                    "sell_grid_step",
+                    zone.sell_grid_step,
+                    symbolConfig.step,
+                  )
+                }
                 className="input-s"
               />
             </InputGroup>
@@ -632,6 +667,13 @@ function ZoneCard({
                 value={zone.sell_lot_size}
                 onChange={(e) =>
                   update("sell_lot_size", parseFloat5(e.target.value))
+                }
+                onBlur={() =>
+                  handleBlur(
+                    "sell_lot_size",
+                    zone.sell_lot_size,
+                    symbolConfig.volStep,
+                  )
                 }
                 className="input-s"
               />
@@ -645,6 +687,13 @@ function ZoneCard({
                 onChange={(e) =>
                   update("sell_take_profit", parseFloat5(e.target.value))
                 }
+                onBlur={() =>
+                  handleBlur(
+                    "sell_take_profit",
+                    zone.sell_take_profit,
+                    symbolConfig.step,
+                  )
+                }
                 className="input-s"
               />
             </InputGroup>
@@ -656,6 +705,13 @@ function ZoneCard({
                 value={zone.sell_stop_loss}
                 onChange={(e) =>
                   update("sell_stop_loss", parseFloat5(e.target.value))
+                }
+                onBlur={() =>
+                  handleBlur(
+                    "sell_stop_loss",
+                    zone.sell_stop_loss,
+                    symbolConfig.step,
+                  )
                 }
                 className="input-s"
               />
@@ -693,6 +749,13 @@ function ZoneCard({
               onChange={(e) =>
                 update("pullback_distance", parseFloat5(e.target.value))
               }
+              onBlur={() =>
+                handleBlur(
+                  "pullback_distance",
+                  zone.pullback_distance,
+                  symbolConfig.step,
+                )
+              }
               disabled={!zone.is_breakout}
               className="input-s w-24"
             />
@@ -709,6 +772,13 @@ function ZoneCard({
                 value={zone.sell_pullback_distance}
                 onChange={(e) =>
                   update("sell_pullback_distance", parseFloat5(e.target.value))
+                }
+                onBlur={() =>
+                  handleBlur(
+                    "sell_pullback_distance",
+                    zone.sell_pullback_distance,
+                    symbolConfig.step,
+                  )
                 }
                 disabled={!zone.is_breakout}
                 className="input-s w-24"
