@@ -398,6 +398,69 @@ async def start_bot(account_id: str):
     if not success:
         raise HTTPException(status_code=500, detail="Bot süreci başlatılamadı.")
 
+    # MT5 taze bağlandığında sembolleri JSON önbelleğe otomatik kaydet
+    try:
+        # GERÇEK ÇÖZÜM: MT5'in broker ile sembol senkronizasyonunu bekle (Max 5 sn)
+        symbols = []
+        for _ in range(10):
+            symbols_temp = await asyncio.to_thread(get_mt5_symbols)
+            if symbols_temp and len(symbols_temp) > 0:
+                first_sym = symbols_temp[0]
+                name = (
+                    first_sym.get("name")
+                    if isinstance(first_sym, dict)
+                    else getattr(first_sym, "name", "")
+                )
+                if name and name.strip():
+                    symbols = symbols_temp
+                    break
+            await asyncio.sleep(0.5)
+
+        if symbols:
+            cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
+            cache_data = {}
+            if os.path.exists(cache_file):
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    cache_data = json.load(f)
+
+            detailed = []
+            for s in symbols:
+                if isinstance(s, dict):
+                    name = s.get("name", "")
+                    if name and name.strip():
+                        detailed.append(
+                            {
+                                **s,
+                                "digits": s.get("digits", 5),
+                                "point": s.get("point", 0.00001),
+                            }
+                        )
+                else:
+                    name = getattr(s, "name", "")
+                    if name and name.strip():
+                        detailed.append(
+                            {
+                                "name": name,
+                                "description": getattr(s, "description", ""),
+                                "digits": getattr(s, "digits", 5),
+                                "point": getattr(s, "point", 0.00001),
+                                "volume_min": getattr(s, "volume_min", 0.01),
+                                "volume_max": getattr(s, "volume_max", 100.0),
+                                "volume_step": getattr(s, "volume_step", 0.01),
+                                "trade_mode": getattr(s, "trade_mode", 0),
+                                "currency_base": getattr(s, "currency_base", ""),
+                                "currency_profit": getattr(s, "currency_profit", ""),
+                                "currency_margin": getattr(s, "currency_margin", ""),
+                            }
+                        )
+
+            if detailed:
+                cache_data[account_id] = {s["name"]: s for s in detailed}
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump(cache_data, f, indent=4, ensure_ascii=False)
+    except Exception:
+        pass
+
     return {
         "status": "success",
         "message": f"MT5 Connected and Bot started for {account_id}",
@@ -465,11 +528,36 @@ async def get_symbols(account_id: str):
             connect_to_mt5_with_timeout, account_config, 15
         )
         if not ok:
-            raise HTTPException(
-                status_code=500, detail=f"MT5 Bağlantı Hatası: {detail}"
-            )
+            # MT5 meşgulse/bağlanamadıysa 500 fırlatma, varsa JSON'daki son halini veya boş liste dön
+            cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
+            if os.path.exists(cache_file):
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    cache_data = json.load(f)
+                    symbol_dict = cache_data.get(account_id)
+                    if symbol_dict:
+                        return {
+                            "status": "success",
+                            "account_id": account_id,
+                            "symbols": list(symbol_dict.values()),
+                        }
+            return {"status": "warning", "account_id": account_id, "symbols": []}
 
-        symbols = await asyncio.to_thread(get_mt5_symbols)
+        # GERÇEK ÇÖZÜM: MT5'in broker ile sembol senkronizasyonunu bekle (Max 5 saniye)
+        symbols = []
+        for _ in range(10):
+            symbols_temp = await asyncio.to_thread(get_mt5_symbols)
+            if symbols_temp and len(symbols_temp) > 0:
+                first_sym = symbols_temp[0]
+                name = (
+                    first_sym.get("name")
+                    if isinstance(first_sym, dict)
+                    else getattr(first_sym, "name", "")
+                )
+                if name and name.strip():
+                    symbols = symbols_temp
+                    break
+            await asyncio.sleep(0.5)
+
         await asyncio.to_thread(shutdown_mt5)
         # 🌟 YENİ: Sembol detaylarına digits ve point ekle
         detailed_symbols = []
