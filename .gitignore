@@ -31,3 +31,5 @@ __MACOSX/
 
 # Mevcut .gitignore dosyanın en altına bunları ekle
 # Kullanıcı Verileri ve Hesaplar
+
+broker_symbols.json

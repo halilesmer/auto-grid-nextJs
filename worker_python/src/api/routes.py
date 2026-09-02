@@ -424,7 +424,29 @@ async def send_action(req: ActionRequest):
 
 @router.get("/symbols/{account_id}")
 async def get_symbols(account_id: str):
+    import time
     try:
+        # 1. Önce Hızlı Cache JSON Kontrolü (24 Saat Geçerlilik Süresi)
+        cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
+        if os.path.exists(cache_file):
+            file_age = time.time() - os.path.getmtime(cache_file)
+            if file_age < 86400:  # Dosya 24 saatten yeniyse cache kullan
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    cache_data = json.load(f)
+                    # Eşleşen account_id veya varsayılan broker verisini döndür
+                    symbol_dict = cache_data.get(account_id) or cache_data.get(
+                        "broker_or_account_1"
+                    )
+                    if symbol_dict:
+                        return {
+                            "status": "success",
+                            "account_id": account_id,
+                            "symbols": list(symbol_dict.values()),
+                        }
+            # YENİ EKLENEN MANTIK: Dosya var ama hesap cache'de yoksa, fallback'e devam etsin diye
+            # return etmediğimiz için kod akışı aşağı (MT5'e) devam edecektir. Bu zaten doğru kurgulanmış.
+
+        # 2. Cache'de yoksa MT5'e bağlanıp çek (Fallback)
         accounts = _load_accounts()
         account_config = next(
             (
@@ -460,20 +482,44 @@ async def get_symbols(account_id: str):
                 })
             else:
                 # MT5 SymbolInfo nesnesi ise
-                detailed_symbols.append({
-                    "name": getattr(s, "name", ""),
-                    "description": getattr(s, "description", ""),
-                    "digits": getattr(s, "digits", 5),
-                    "point": getattr(s, "point", 0.00001),
-                    "volume_min": getattr(s, "volume_min", 0.01),
-                    "volume_max": getattr(s, "volume_max", 100.0),
-                    "volume_step": getattr(s, "volume_step", 0.01),
-                    "trade_mode": getattr(s, "trade_mode", 0),
-                    "currency_base": getattr(s, "currency_base", ""),
-                    "currency_profit": getattr(s, "currency_profit", ""),
-                    "currency_margin": getattr(s, "currency_margin", ""),
-                })
-        return {"status": "success", "account_id": account_id, "symbols": detailed_symbols}
+                detailed_symbols.append(
+                    {
+                        "name": getattr(s, "name", ""),
+                        "description": getattr(s, "description", ""),
+                        "digits": getattr(s, "digits", 5),
+                        "point": getattr(s, "point", 0.00001),
+                        "volume_min": getattr(s, "volume_min", 0.01),
+                        "volume_max": getattr(s, "volume_max", 100.0),
+                        "volume_step": getattr(s, "volume_step", 0.01),
+                        "trade_mode": getattr(s, "trade_mode", 0),
+                        "currency_base": getattr(s, "currency_base", ""),
+                        "currency_profit": getattr(s, "currency_profit", ""),
+                        "currency_margin": getattr(s, "currency_margin", ""),
+                    }
+                )
+
+        # --- YENİ: MT5'ten çekilen taze veriyi JSON olarak otomatik üret/kaydet ---
+        cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
+        try:
+            cache_data = {}
+            if os.path.exists(cache_file):
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    cache_data = json.load(f)
+
+            # Bu hesap ID'si altına sembolleri kaydet
+            cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
+
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f, indent=4, ensure_ascii=False)
+        except Exception:
+            pass  # Dosya yazılamazsa bile API çökmesin
+        # ------------------------------------------------------------------------
+
+        return {
+            "status": "success",
+            "account_id": account_id,
+            "symbols": detailed_symbols,
+        }
     except HTTPException:
         raise
     except Exception as exc:

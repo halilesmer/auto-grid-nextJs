@@ -9,8 +9,9 @@ import {
   type SymbolDetail,
 } from "@/store/useBotStore";
 import { MoreVertical, Plus, Trash2, AlertTriangle, Save, Play, Pause } from 'lucide-react';
-import ConfirmModal from '@/components/ConfirmModal';
-import Link from 'next/link';
+import ConfirmModal from "@/components/ConfirmModal";
+import Link from "next/link";
+import SymbolAutoComplete from "@/components/SymbolAutoComplete";
 
 const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
@@ -474,30 +475,18 @@ function ZoneCard({
       {/* Row 1: Symbol, Order Type, Min, Max */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <InputGroup label="Sembol">
-          <input
-            type="text"
+          <SymbolAutoComplete
             value={zone.symbol}
-            onChange={(e) =>
-              update("symbol", e.target.value.toUpperCase().trim())
-            }
-            list={`broker-symbols-${zone.id}`}
-            className={`input-s ${
+            onChange={(val) => update("symbol", val)}
+            symbolDetails={symbolDetails}
+            hasError={
               Object.keys(symbolDetails).length > 0 &&
-              zone.symbol &&
+              Boolean(zone.symbol) &&
               !Object.keys(symbolDetails).some(
                 (k) => k.toUpperCase() === zone.symbol.toUpperCase().trim(),
               )
-                ? "border-red-500 text-red-400 focus:ring-red-500"
-                : ""
-            }`}
+            }
           />
-          <datalist id={`broker-symbols-${zone.id}`}>
-            {Object.keys(symbolDetails)
-              .slice(0, 100)
-              .map((sym, i) => (
-                <option key={`sym-${zone.id}-${i}`} value={sym} />
-              ))}
-          </datalist>
           {Object.keys(symbolDetails).length > 0 &&
             zone.symbol &&
             !Object.keys(symbolDetails).some(
