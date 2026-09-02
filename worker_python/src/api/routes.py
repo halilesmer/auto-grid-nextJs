@@ -10,6 +10,7 @@ import asyncio
 import shutil
 import tempfile
 import zipfile
+import time
 from src.utils.mt5_connection import (
     connect_to_mt5_with_timeout,
     get_mt5_symbols,
@@ -48,10 +49,6 @@ def _save_accounts(accounts: list) -> None:
 
 
 def _find_settings_file(account_id: str) -> Optional[str]:
-    """
-    Gerçek dosya adı pattern'i: settings_{account_id}_{strategy}.json
-    Önce tam eşleşme arar, sonra wildcard ile ilk bulunanı döner.
-    """
     exact = os.path.join(CONFIGS_DIR, f"settings_{account_id}.json")
     if os.path.exists(exact):
         return exact
@@ -85,7 +82,7 @@ class ActionRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# HESAP YÖNETİMİ  —  GET /accounts  |  POST /accounts  |  DELETE /accounts/{id}
+# HESAP YÖNETİMİ
 # ---------------------------------------------------------------------------
 @router.get("/accounts")
 async def get_accounts():
@@ -159,7 +156,7 @@ async def delete_account(account_id: str):
 
 
 # ---------------------------------------------------------------------------
-# AYARLAR YÖNETİMİ  —  GET /settings/{account_id}  |  POST /settings/{account_id}
+# AYARLAR YÖNETİMİ
 # ---------------------------------------------------------------------------
 @router.get("/settings/{account_id}")
 async def get_settings(account_id: str, response: Response):
@@ -171,7 +168,6 @@ async def get_settings(account_id: str, response: Response):
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # MATRUŞKA (NESTING) HATASI ÇÖZÜMÜ: Yanlışlıkla gömülmüş asıl ayarları çıkar
         while (
             isinstance(data, dict)
             and "settings" in data
@@ -196,7 +192,6 @@ async def update_settings(account_id: str, payload: SettingsPayload):
     try:
         os.makedirs(CONFIGS_DIR, exist_ok=True)
 
-        # Mevcut dosyayı oku (varsa) — parça parça güncelleme gelince korunacak
         existing_data = {}
         if os.path.exists(path):
             try:
@@ -205,7 +200,6 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             except Exception:
                 existing_data = {}
 
-        # Gelen veriyi normalize et (matruşka/nesting temizliği)
         incoming_data = payload.settings
         while (
             isinstance(incoming_data, dict)
@@ -214,8 +208,6 @@ async def update_settings(account_id: str, payload: SettingsPayload):
         ):
             incoming_data = incoming_data["settings"]
 
-        # MERGE SEMANTİĞİ: Mevcut verinin üzerine gelen key'leri yaz, diğerlerini koru
-        # (örn: frontend sadece LOOP_INTERVAL_SECONDS gönderirse ZONES/SYMBOL silinmez)
         if isinstance(existing_data, dict) and isinstance(incoming_data, dict):
             existing_data.update(incoming_data)
             data_to_save = existing_data
@@ -239,11 +231,10 @@ async def update_settings(account_id: str, payload: SettingsPayload):
 
 
 # ---------------------------------------------------------------------------
-# UI STATE YÖNETİMİ  —  GET /ui-state/{account_id}  |  POST /ui-state/{account_id}
+# UI STATE YÖNETİMİ
 # ---------------------------------------------------------------------------
 @router.get("/ui-state/{account_id}")
 async def get_ui_state(account_id: str):
-    """Frontend arayüz durumlarını (zone START/PAUSE/CLEAR) okur."""
     path = get_ui_state_path(account_id)
     if not os.path.exists(path):
         return {"account_id": account_id, "states": {}}
@@ -257,7 +248,6 @@ async def get_ui_state(account_id: str):
 
 @router.post("/ui-state/{account_id}")
 async def update_ui_state(account_id: str, payload: SettingsPayload):
-    """Frontend arayüz durumlarını yazar/günceller ve hatalı formatları onarır."""
     path = get_ui_state_path(account_id)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -270,15 +260,12 @@ async def update_ui_state(account_id: str, payload: SettingsPayload):
             except Exception:
                 existing_states = {}
 
-        # Next.js'in payload formatındaki olası sapmaları yakalamak için esnek okuma
         incoming_data = payload.settings.get("states")
 
-        # Eğer payload.settings'in kendisi zaten states içeriyorsa (Örn: {"0": "START"})
         if not incoming_data and any(k.isdigit() for k in payload.settings.keys()):
             incoming_data = payload.settings
 
         if isinstance(incoming_data, dict):
-            # Key'lerin kesinlikle string integer ('0', '1') olmasını sağla
             for k, v in incoming_data.items():
                 if str(k).isdigit():
                     existing_states[str(k)] = str(v).upper()
@@ -292,7 +279,7 @@ async def update_ui_state(account_id: str, payload: SettingsPayload):
 
 
 # ---------------------------------------------------------------------------
-# LOG OKUMA  —  GET /logs/{account_id}
+# LOG OKUMA & TEMİZLEME
 # ---------------------------------------------------------------------------
 @router.get("/logs/{account_id}")
 async def get_logs(
@@ -356,10 +343,8 @@ async def clear_logs(account_id: str):
     if os.path.exists(account_dir) and os.path.isdir(account_dir):
         for file_name in os.listdir(account_dir):
             file_path = os.path.join(account_dir, file_name)
-            # KRİTİK DÜZELTME: Sadece .log uzantılı dosyaları hedef al (JSON ve TXT'leri koru)
             if os.path.isfile(file_path) and file_name.endswith(".log"):
                 try:
-                    # Windows kilitlenmelerini önlemek için dosyayı silmek yerine içini boşaltıyoruz
                     with open(file_path, "w", encoding="utf-8") as f:
                         pass
                 except Exception:
@@ -368,10 +353,8 @@ async def clear_logs(account_id: str):
 
 
 # ---------------------------------------------------------------------------
-# BOT KONTROL  —  /start  |  /stop  |  /action
+# BOT KONTROL (GARANTİLİ SEMBOL ÖNBELLEKLEME EKLENDİ)
 # ---------------------------------------------------------------------------
-
-
 @router.post("/start")
 async def start_bot(account_id: str):
     account_config: dict = {}
@@ -388,78 +371,85 @@ async def start_bot(account_id: str):
     if not account_config:
         raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
 
+    # 1. MT5'e Bağlan
     ok, _is_timeout, detail = await asyncio.to_thread(
         connect_to_mt5_with_timeout, account_config, 45
     )
     if not ok:
         raise HTTPException(status_code=500, detail=f"MT5 Connection Failed: {detail}")
 
-    success = start_bot_process(account_id, engine_name="Auto Grid")
-    if not success:
-        raise HTTPException(status_code=500, detail="Bot süreci başlatılamadı.")
-
-    # MT5 taze bağlandığında sembolleri JSON önbelleğe otomatik kaydet
+    # 2. SUBPROCESS BAŞLAMADAN ÖNCE: Sembolleri çek ve broker_symbols.json dosyasını OLUŞTUR!
     try:
-        # GERÇEK ÇÖZÜM: MT5'in broker ile sembol senkronizasyonunu bekle (Max 5 sn)
-        symbols = []
-        for _ in range(10):
-            symbols_temp = await asyncio.to_thread(get_mt5_symbols)
-            if symbols_temp and len(symbols_temp) > 0:
-                first_sym = symbols_temp[0]
-                name = (
-                    first_sym.get("name")
-                    if isinstance(first_sym, dict)
-                    else getattr(first_sym, "name", "")
-                )
+        symbols_temp = await asyncio.to_thread(get_mt5_symbols)
+        if symbols_temp:
+            detailed_symbols = []
+            for s in symbols_temp:
+                name = s.get("name") if isinstance(s, dict) else getattr(s, "name", "")
                 if name and name.strip():
-                    symbols = symbols_temp
-                    break
-            await asyncio.sleep(0.5)
+                    desc = (
+                        s.get("description")
+                        if isinstance(s, dict)
+                        else getattr(s, "description", "")
+                    )
+                    digits = (
+                        s.get("digits")
+                        if isinstance(s, dict)
+                        else getattr(s, "digits", 5)
+                    )
+                    point = (
+                        s.get("point")
+                        if isinstance(s, dict)
+                        else getattr(s, "point", 0.00001)
+                    )
+                    vol_min = (
+                        s.get("volume_min")
+                        if isinstance(s, dict)
+                        else getattr(s, "volume_min", 0.01)
+                    )
+                    vol_max = (
+                        s.get("volume_max")
+                        if isinstance(s, dict)
+                        else getattr(s, "volume_max", 100.0)
+                    )
+                    vol_step = (
+                        s.get("volume_step")
+                        if isinstance(s, dict)
+                        else getattr(s, "volume_step", 0.01)
+                    )
+                    detailed_symbols.append(
+                        {
+                            "name": name,
+                            "description": desc or name,
+                            "digits": digits,
+                            "point": point,
+                            "volume_min": vol_min,
+                            "volume_max": vol_max,
+                            "volume_step": vol_step,
+                        }
+                    )
 
-        if symbols:
-            cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
-            cache_data = {}
-            if os.path.exists(cache_file):
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    cache_data = json.load(f)
-
-            detailed = []
-            for s in symbols:
-                if isinstance(s, dict):
-                    name = s.get("name", "")
-                    if name and name.strip():
-                        detailed.append(
-                            {
-                                **s,
-                                "digits": s.get("digits", 5),
-                                "point": s.get("point", 0.00001),
-                            }
-                        )
-                else:
-                    name = getattr(s, "name", "")
-                    if name and name.strip():
-                        detailed.append(
-                            {
-                                "name": name,
-                                "description": getattr(s, "description", ""),
-                                "digits": getattr(s, "digits", 5),
-                                "point": getattr(s, "point", 0.00001),
-                                "volume_min": getattr(s, "volume_min", 0.01),
-                                "volume_max": getattr(s, "volume_max", 100.0),
-                                "volume_step": getattr(s, "volume_step", 0.01),
-                                "trade_mode": getattr(s, "trade_mode", 0),
-                                "currency_base": getattr(s, "currency_base", ""),
-                                "currency_profit": getattr(s, "currency_profit", ""),
-                                "currency_margin": getattr(s, "currency_margin", ""),
-                            }
-                        )
-
-            if detailed:
-                cache_data[account_id] = {s["name"]: s for s in detailed}
+            if detailed_symbols:
+                cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
+                cache_data = {}
+                if os.path.exists(cache_file):
+                    try:
+                        with open(cache_file, "r", encoding="utf-8") as f:
+                            cache_data = json.load(f)
+                    except Exception:
+                        cache_data = {}
+                cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
                 with open(cache_file, "w", encoding="utf-8") as f:
                     json.dump(cache_data, f, indent=4, ensure_ascii=False)
     except Exception:
         pass
+    finally:
+        # FastAPI bağlantısını kapat ki alt süreç MT5'i sorunsuz kilitleyebilsin
+        await asyncio.to_thread(shutdown_mt5)
+
+    # 3. Alt süreci başlat
+    success = start_bot_process(account_id, engine_name="Auto Grid")
+    if not success:
+        raise HTTPException(status_code=500, detail="Bot süreci başlatılamadı.")
 
     return {
         "status": "success",
@@ -485,31 +475,32 @@ async def send_action(req: ActionRequest):
     }
 
 
+# ---------------------------------------------------------------------------
+# SEMBOL LİSTESİ YÖNETİMİ
+# ---------------------------------------------------------------------------
 @router.get("/symbols/{account_id}")
 async def get_symbols(account_id: str):
-    import time
     try:
-        # 1. Önce Hızlı Cache JSON Kontrolü (24 Saat Geçerlilik Süresi)
         cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
+
+        # 1. Önce Önbellek (broker_symbols.json) Var mı?
         if os.path.exists(cache_file):
-            file_age = time.time() - os.path.getmtime(cache_file)
-            if file_age < 86400:  # Dosya 24 saatten yeniyse cache kullan
+            try:
                 with open(cache_file, "r", encoding="utf-8") as f:
                     cache_data = json.load(f)
-                    # Eşleşen account_id veya varsayılan broker verisini döndür
                     symbol_dict = cache_data.get(account_id) or cache_data.get(
                         "broker_or_account_1"
                     )
-                    if symbol_dict:
+                    if symbol_dict and len(symbol_dict) > 0:
                         return {
                             "status": "success",
                             "account_id": account_id,
                             "symbols": list(symbol_dict.values()),
                         }
-            # YENİ EKLENEN MANTIK: Dosya var ama hesap cache'de yoksa, fallback'e devam etsin diye
-            # return etmediğimiz için kod akışı aşağı (MT5'e) devam edecektir. Bu zaten doğru kurgulanmış.
+            except Exception:
+                pass
 
-        # 2. Cache'de yoksa MT5'e bağlanıp çek (Fallback)
+        # 2. Önbellekte Yoksa MT5'e Bağlanıp Çek
         accounts = _load_accounts()
         account_config = next(
             (
@@ -527,96 +518,149 @@ async def get_symbols(account_id: str):
         ok, _is_timeout, detail = await asyncio.to_thread(
             connect_to_mt5_with_timeout, account_config, 15
         )
-        if not ok:
-            # MT5 meşgulse/bağlanamadıysa 500 fırlatma, varsa JSON'daki son halini veya boş liste dön
-            cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
-            if os.path.exists(cache_file):
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    cache_data = json.load(f)
-                    symbol_dict = cache_data.get(account_id)
-                    if symbol_dict:
-                        return {
-                            "status": "success",
-                            "account_id": account_id,
-                            "symbols": list(symbol_dict.values()),
-                        }
-            return {"status": "warning", "account_id": account_id, "symbols": []}
 
-        # GERÇEK ÇÖZÜM: MT5'in broker ile sembol senkronizasyonunu bekle (Max 5 saniye)
-        symbols = []
-        for _ in range(10):
-            symbols_temp = await asyncio.to_thread(get_mt5_symbols)
-            if symbols_temp and len(symbols_temp) > 0:
-                first_sym = symbols_temp[0]
-                name = (
-                    first_sym.get("name")
-                    if isinstance(first_sym, dict)
-                    else getattr(first_sym, "name", "")
-                )
-                if name and name.strip():
-                    symbols = symbols_temp
-                    break
-            await asyncio.sleep(0.5)
+        if ok:
+            try:
+                symbols = await asyncio.to_thread(get_mt5_symbols)
+                detailed_symbols = []
+                if symbols:
+                    for s in symbols:
+                        name = (
+                            s.get("name")
+                            if isinstance(s, dict)
+                            else getattr(s, "name", "")
+                        )
+                        if name and name.strip():
+                            desc = (
+                                s.get("description")
+                                if isinstance(s, dict)
+                                else getattr(s, "description", "")
+                            )
+                            digits = (
+                                s.get("digits")
+                                if isinstance(s, dict)
+                                else getattr(s, "digits", 5)
+                            )
+                            point = (
+                                s.get("point")
+                                if isinstance(s, dict)
+                                else getattr(s, "point", 0.00001)
+                            )
+                            vol_min = (
+                                s.get("volume_min")
+                                if isinstance(s, dict)
+                                else getattr(s, "volume_min", 0.01)
+                            )
+                            vol_max = (
+                                s.get("volume_max")
+                                if isinstance(s, dict)
+                                else getattr(s, "volume_max", 100.0)
+                            )
+                            vol_step = (
+                                s.get("volume_step")
+                                if isinstance(s, dict)
+                                else getattr(s, "volume_step", 0.01)
+                            )
+                            detailed_symbols.append(
+                                {
+                                    "name": name,
+                                    "description": desc or name,
+                                    "digits": digits,
+                                    "point": point,
+                                    "volume_min": vol_min,
+                                    "volume_max": vol_max,
+                                    "volume_step": vol_step,
+                                }
+                            )
 
-        await asyncio.to_thread(shutdown_mt5)
-        # 🌟 YENİ: Sembol detaylarına digits ve point ekle
-        detailed_symbols = []
-        for s in symbols:
-            if isinstance(s, dict):
-                detailed_symbols.append({
-                    **s,
-                    "digits": s.get("digits", 5),
-                    "point": s.get("point", 0.00001)
-                })
-            else:
-                # MT5 SymbolInfo nesnesi ise
-                detailed_symbols.append(
-                    {
-                        "name": getattr(s, "name", ""),
-                        "description": getattr(s, "description", ""),
-                        "digits": getattr(s, "digits", 5),
-                        "point": getattr(s, "point", 0.00001),
-                        "volume_min": getattr(s, "volume_min", 0.01),
-                        "volume_max": getattr(s, "volume_max", 100.0),
-                        "volume_step": getattr(s, "volume_step", 0.01),
-                        "trade_mode": getattr(s, "trade_mode", 0),
-                        "currency_base": getattr(s, "currency_base", ""),
-                        "currency_profit": getattr(s, "currency_profit", ""),
-                        "currency_margin": getattr(s, "currency_margin", ""),
-                    }
-                )
-
-        # --- YENİ: MT5'ten çekilen taze veriyi JSON olarak otomatik üret/kaydet ---
-        cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
-        try:
-            # Sadece ismi dolu olan geçerli sembolleri süz
-            valid_symbols = [
-                s for s in detailed_symbols if s.get("name") and s.get("name").strip()
-            ]
-
-            if valid_symbols:
-                cache_data = {}
-                if os.path.exists(cache_file):
-                    with open(cache_file, "r", encoding="utf-8") as f:
+                if detailed_symbols:
+                    cache_data = {}
+                    if os.path.exists(cache_file):
                         try:
-                            cache_data = json.load(f)
+                            with open(cache_file, "r", encoding="utf-8") as f:
+                                cache_data = json.load(f)
                         except Exception:
                             cache_data = {}
+                    cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
+                    with open(cache_file, "w", encoding="utf-8") as f:
+                        json.dump(cache_data, f, indent=4, ensure_ascii=False)
 
-                # Bu hesap ID'si altına sadece geçerli sembolleri kaydet
-                cache_data[account_id] = {s["name"]: s for s in valid_symbols}
+                    return {
+                        "status": "success",
+                        "account_id": account_id,
+                        "symbols": detailed_symbols,
+                    }
+            finally:
+                await asyncio.to_thread(shutdown_mt5)
 
-                with open(cache_file, "w", encoding="utf-8") as f:
-                    json.dump(cache_data, f, indent=4, ensure_ascii=False)
+        # 3. MT5 Bağlantısı Kurulamadıysa (Bot Çalıştığı İçin Meşgulse)
+        # Standart Sembol Listesiyle broker_symbols.json Dosyasını ANINDA Oluştur!
+        default_syms = [
+            {
+                "name": "USOUSD",
+                "description": "US Crude Oil",
+                "digits": 3,
+                "point": 0.001,
+                "volume_min": 0.01,
+                "volume_step": 0.01,
+            },
+            {
+                "name": "EURUSD",
+                "description": "Euro vs US Dollar",
+                "digits": 5,
+                "point": 0.00001,
+                "volume_min": 0.01,
+                "volume_step": 0.01,
+            },
+            {
+                "name": "GBPUSD",
+                "description": "Great Britain Pound vs US Dollar",
+                "digits": 5,
+                "point": 0.00001,
+                "volume_min": 0.01,
+                "volume_step": 0.01,
+            },
+            {
+                "name": "XAUUSD",
+                "description": "Gold vs US Dollar",
+                "digits": 2,
+                "point": 0.01,
+                "volume_min": 0.01,
+                "volume_step": 0.01,
+            },
+            {
+                "name": "USDJPY",
+                "description": "US Dollar vs Japanese Yen",
+                "digits": 3,
+                "point": 0.001,
+                "volume_min": 0.01,
+                "volume_step": 0.01,
+            },
+            {
+                "name": "BTCUSD",
+                "description": "Bitcoin vs US Dollar",
+                "digits": 2,
+                "point": 0.01,
+                "volume_min": 0.01,
+                "volume_step": 0.01,
+            },
+        ]
+
+        try:
+            cache_data = {}
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        cache_data = json.load(f)
+                except Exception:
+                    cache_data = {}
+            cache_data[account_id] = {s["name"]: s for s in default_syms}
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f, indent=4, ensure_ascii=False)
         except Exception:
-            pass  # Dosya yazılamazsa bile API çökmesin
-        # ------------------------------------------------------------------------
+            pass
 
-        return {
-            "status": "success",
-            "account_id": account_id,
-            "symbols": detailed_symbols,
-        }
+        return {"status": "warning", "account_id": account_id, "symbols": default_syms}
     except HTTPException:
         raise
     except Exception as exc:
@@ -624,10 +668,8 @@ async def get_symbols(account_id: str):
 
 
 # ---------------------------------------------------------------------------
-# SİSTEM ARAÇLARI  —  /system/scan-mt5  |  /system/update  |  /system/platform
+# SİSTEM ARAÇLARI
 # ---------------------------------------------------------------------------
-
-
 @router.get("/system/scan-mt5")
 async def scan_mt5_paths():
     if sys.platform != "win32":
@@ -692,21 +734,17 @@ async def run_update(branch: str = Query("main", description="Git branch")):
 
 
 # ---------------------------------------------------------------------------
-# LOG İNDİRME  —  /logs/download/{account_id}
+# LOG İNDİRME
 # ---------------------------------------------------------------------------
-
-
 @router.get("/logs/download/{account_id}")
 async def download_log(account_id: str, background_tasks: BackgroundTasks):
     account_dir = os.path.join(LOGS_DIR, account_id)
     data_dir = os.path.join(BASE_DIR, "data")
 
-    # Geçici ZIP oluştur
     fd, temp_zip_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
 
     with zipfile.ZipFile(temp_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        # 1. Hesap log klasöründeki tüm dosyaları ekle
         if os.path.exists(account_dir) and os.path.isdir(account_dir):
             for root, _, files in os.walk(account_dir):
                 for file in files:
@@ -714,17 +752,14 @@ async def download_log(account_id: str, background_tasks: BackgroundTasks):
                     arcname = os.path.relpath(file_path, account_dir)
                     zipf.write(file_path, arcname=f"logs/{arcname}")
 
-        # 2. State (Hafıza) dosyasını ekle
         state_file = os.path.join(data_dir, f"state_{account_id}.json")
         if os.path.exists(state_file):
             zipf.write(state_file, arcname=f"state_{account_id}.json")
 
-        # 3. Settings (Ayar) dosyasını ekle
         settings_file = _find_settings_file(account_id)
         if settings_file and os.path.exists(settings_file):
             zipf.write(settings_file, arcname=os.path.basename(settings_file))
 
-    # İndirme bitince sunucudaki geçici dosyayı temizle
     def cleanup():
         if os.path.exists(temp_zip_path):
             os.remove(temp_zip_path)
@@ -739,10 +774,8 @@ async def download_log(account_id: str, background_tasks: BackgroundTasks):
 
 
 # ---------------------------------------------------------------------------
-# MAC SIMÜLATÖRÜ  —  /bot/simulate-price
+# MAC SIMÜLATÖRÜ
 # ---------------------------------------------------------------------------
-
-
 class SimPricePayload(BaseModel):
     account_id: str
     price: float
