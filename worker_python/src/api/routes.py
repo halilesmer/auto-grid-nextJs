@@ -501,16 +501,25 @@ async def get_symbols(account_id: str):
         # --- YENİ: MT5'ten çekilen taze veriyi JSON olarak otomatik üret/kaydet ---
         cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
         try:
-            cache_data = {}
-            if os.path.exists(cache_file):
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    cache_data = json.load(f)
+            # Sadece ismi dolu olan geçerli sembolleri süz
+            valid_symbols = [
+                s for s in detailed_symbols if s.get("name") and s.get("name").strip()
+            ]
 
-            # Bu hesap ID'si altına sembolleri kaydet
-            cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
+            if valid_symbols:
+                cache_data = {}
+                if os.path.exists(cache_file):
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        try:
+                            cache_data = json.load(f)
+                        except Exception:
+                            cache_data = {}
 
-            with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump(cache_data, f, indent=4, ensure_ascii=False)
+                # Bu hesap ID'si altına sadece geçerli sembolleri kaydet
+                cache_data[account_id] = {s["name"]: s for s in valid_symbols}
+
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump(cache_data, f, indent=4, ensure_ascii=False)
         except Exception:
             pass  # Dosya yazılamazsa bile API çökmesin
         # ------------------------------------------------------------------------
