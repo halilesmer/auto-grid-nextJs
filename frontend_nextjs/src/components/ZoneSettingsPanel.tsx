@@ -241,15 +241,26 @@ export default function ZoneSettingsPanel({
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center space-x-2">
-          <AlertTriangle size={16} />
-          <span>{error}</span>
+      {(error || liveData.last_error) && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-start space-x-2 shadow-lg">
+          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+          <div className="flex flex-col">
+            {liveData.last_error && (
+              <span className="font-bold text-red-300 mb-0.5">
+                MT5 Terminal / Bağlantı Hatası
+              </span>
+            )}
+            <span>{error || liveData.last_error}</span>
+          </div>
           <button
-            onClick={() => setError("")}
-            className="ml-auto text-red-400 hover:text-red-300"
+            onClick={() => {
+              setError("");
+              if (liveData.last_error)
+                useBotStore.getState().updateLiveData({ last_error: null });
+            }}
+            className="ml-auto text-red-400 hover:text-red-300 px-2 font-bold"
           >
-            x
+            X
           </button>
         </div>
       )}

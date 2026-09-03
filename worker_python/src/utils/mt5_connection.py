@@ -62,35 +62,35 @@ def connect_to_mt5(account_config, timeout_sec=60):
             target_exe = os.path.basename(path).lower()
 
         for proc in psutil.process_iter(["pid", "name", "exe"]):
-                try:
-                    p_name = proc.info.get("name")
-                    p_exe = proc.info.get("exe")
+            try:
+                p_name = proc.info.get("name")
+                p_exe = proc.info.get("exe")
 
-                    if p_name and p_name.lower() == target_exe:
-                        # Eğer geçerli bir path varsa ve uyuşmuyorsa pas geç. Path yoksa ilk zombiyi vur.
-                        if path and os.path.exists(path) and p_exe:
-                            if (
+                if p_name and p_name.lower() == target_exe:
+                    # Eğer geçerli bir path varsa ve uyuşmuyorsa pas geç. Path yoksa ilk zombiyi vur.
+                    if path and os.path.exists(path) and p_exe:
+                        if (
                                 os.path.normpath(p_exe).lower()
                                 != os.path.normpath(path).lower()
                             ):
-                                continue
+                            continue
 
-                        safe_log(
+                    safe_log(
                             f"Asılı kalan MT5 terminali tespit edildi. Öldürülüyor... PID: {proc.info['pid']}",
                             type="warning",
                         )
-                        subprocess.call(
+                    subprocess.call(
                             ["taskkill", "/F", "/PID", str(proc.info["pid"])],
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                         )
-                        time.sleep(2.0)
-                except (
+                    time.sleep(2.0)
+            except (
                     psutil.NoSuchProcess,
                     psutil.AccessDenied,
                     psutil.ZombieProcess,
                 ):
-                    pass
+                pass
 
     # ==============================================================
     # 🌟 GİRİŞ BİLGİLERİNİ GÜVENLİ ŞEKİLDE HAZIRLA (Try-Except ile)
@@ -152,16 +152,32 @@ def connect_to_mt5(account_config, timeout_sec=60):
 
     if not init_success:
         last_err = mt5.last_error()
-        if last_err[0] == -10003:
+        err_code = last_err[0]
+        if err_code == -10003:
             safe_log(
-                f"🔴 MT5 IPC Bağlantısı Reddedildi! (Hata: {last_err}). Python (VS Code/Streamlit) ile MT5'in aynı yönetici (Run as Admin) yetkisine sahip olduğundan emin olun."
+                f"🔴 MT5 IPC Bağlantısı Reddedildi! (Hata: {last_err}). Python ile MT5'in aynı yönetici (Run as Admin) yetkisine sahip olduğundan emin olun."
             )
-            return False, f"[INIT] MT5 başlatılamadı. IPC Bağlantısı Reddedildi (hata kodu: {last_err[0]})"
+            return (
+                False,
+                f"[INIT] MT5 başlatılamadı. IPC Bağlantısı Reddedildi (hata kodu: {err_code})",
+            )
+        elif err_code == -10004:
+            safe_log(
+                f"🔴 MT5 Yetkilendirme/Bağlantı Hatası (-10004): Şifre veya sunucu adı hatalı olduğu için terminal iletişim kuramadı.",
+                type="error",
+            )
+            return (
+                False,
+                f"[INIT] Giriş Başarısız: Hesap şifresi, hesap numarası ({login_id}) veya sunucu adı ('{server}') yanlış! Lütfen bilgilerinizi ve MT5 terminalini kontrol edin.",
+            )
         else:
             safe_log(
                 f"🔴 MetaTrader 5 başlatılamadı! Lütfen terminal yolunu kontrol edin. Hata Kodu: {last_err}"
             )
-            return False, f"[INIT] MT5 başlatılamadı. Hata kodu: {last_err[0]} ({last_err[1]})"
+            return (
+                False,
+                f"[INIT] MT5 başlatılamadı. Hata kodu: {last_err[0]} ({last_err[1]})",
+            )
 
     # ==============================================================
     # 🌟 AŞAMA 2: OTO-LOGIN ZORLAMASI (mt5.login) - Açık terminal garantisi
@@ -193,9 +209,9 @@ def connect_to_mt5(account_config, timeout_sec=60):
             elif err_code == -10005:
                 err_msg = "🔴 BAĞLANTI HATASI: Terminal çok yavaş açıldı (IPC Timeout). Lütfen tekrar bağlan butonuna basın."
                 phase_msg = f"[LOGIN] IPC Timeout (-10005) — Terminal çok yavaş açıldı, login zaman aşımına uğradı"
-            elif err_code == 10004:
-                err_msg = "🔴 BAĞLANTI HATASI: Sunucuya bağlantı kurulamadı (Requote/No Connection). Aracı kurum sunucusu kapalı olabilir."
-                phase_msg = f"[LOGIN] Sunucuya bağlanılamadı. '{server}' sunucusu yanıt vermiyor (hata kodu: {err_code})"
+            elif err_code in (-10004, 10004):
+                err_msg = "🔴 BAĞLANTI HATASI: Yetkilendirme yapılamadı veya sunucuya bağlanılamadı. Şifre veya sunucu adı yanlış olabilir."
+                phase_msg = f"[LOGIN] Giriş Başarısız: Hesap şifresi veya sunucu adı ('{server}') hatalı! Lütfen bilgilerinizi kontrol edin (hata kodu: {err_code})"
             else:
                 phase_msg = f"[LOGIN] Giriş başarısız. Hata kodu: {err_code} ({last_err[1]})"
 

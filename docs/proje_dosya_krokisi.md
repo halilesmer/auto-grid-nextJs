@@ -10,9 +10,15 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┣ 📜 VERSION                    # Proje sürüm takip dosyası
 ┣ 📜 .gitignore
 ┣ 📜 .gitattributes
+┣ 📂 .agents                    # Agent kuralları
+┃ ┗ 📂 rules
+┃   ┗ 📜 token-saver.md         # Token tasarrufu kuralı
+┣ 📂 .vscode                    # VS Code ayarları
+┃ ┗ 📜 settings.json
 ┃
 ┣ 📂 frontend_nextjs            # Next.js 14+ Frontend (React, TypeScript, Tailwind)
 ┃ ┣ 📜 package.json
+┃ ┣ 📜 package-lock.json        # Bağımlılık kilit dosyası
 ┃ ┣ 📜 next.config.ts
 ┃ ┣ 📜 tsconfig.json
 ┃ ┣ 📜 eslint.config.mjs
@@ -20,9 +26,12 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📜 AGENTS.md
 ┃ ┣ 📜 CLAUDE.md
 ┃ ┣ 📜 README.md
-┃ ┣ 📂 public                   # Statik varlıklar (ikonlar)
+┃ ┣ 📜 next-env.d.ts            # Next.js TypeScript declarations
+┃ ┣ 📂 .next                    # Build çıktısı (git-ignore)
+┃ ┣ 📂 public                   # Statik varlıklar (ikonlar, PWA)
 ┃ ┃ ┣ 📜 icon-192.png
-┃ ┃ ┗ 📜 icon-512.png
+┃ ┃ ┣ 📜 icon-512.png
+┃ ┃ ┗ 📜 manifest.json          # PWA manifest
 ┃ ┣ 📂 src
 ┃ ┃ ┣ 📂 app                    # App Router (Next.js 14+)
 ┃ ┃ ┃ ┣ 📜 layout.tsx           # Root layout
@@ -41,10 +50,12 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 LogViewer.tsx        # Log görüntüleyici
 ┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # **Güncellendi: Sadece Global Ayarlar (ORDER_TYPE, SYMBOL, LOOP_INTERVAL)**
 ┃ ┃ ┃ ┣ 📜 SimulationBar.tsx    # Simülasyon çubuğu
+┃ ┃ ┃ ┣ 📜 SymbolAutoComplete.tsx # **YENİ: Sembol otomatik tamamlama**
 ┃ ┃ ┃ ┗ 📜 ZoneSettingsPanel.tsx # **YENİ: Bölge Ayarları Paneli (Dinamik Zone Yönetimi)**
 ┃ ┃ ┗ 📂 store                  # Zustand state management
 ┃ ┃   ┗ 📜 useBotStore.ts       # Bot durumu ve aksiyonlar
-┃ ┗ 📂 .next                    # Build çıktısı (git-ignore)
+┃ ┗ 📂 .vscode                  # Frontend VS Code ayarları
+┃   ┗ 📜 settings.json
 ┃
 ┣ 📂 worker_python              # Python FastAPI Worker (MT5 Entegrasyonu)
 ┃ ┣ 📜 main.py                  # FastAPI giriş noktası (WebSocket + REST)
@@ -54,6 +65,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 ws_server.py         # WebSocket sunucusu (Real-time iletişim)
 ┃ ┃ ┃ ┗ 📜 routes.py            # REST endpoint'leri
 ┃ ┃ ┣ 📂 core                   # Çekirdek ticaret mantığı
+┃ ┃ ┃ ┣ 📜 __init__.py          # Paket başlatma
 ┃ ┃ ┃ ┣ 📜 auto_grid_engine.py  # Grid stratejisi motoru
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
 ┃ ┃ ┃ ┗ 📜 indicator_calc.py    # Teknik indikatör hesaplamaları
@@ -76,12 +88,10 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📜 ara_yüz_dönüşüm.md       # Streamlit → Next.js dönüşüm notları
 ┃ ┣ 📜 MT5_&_Web_Entegrasyonu.md # MT5 ve Web entegrasyon detayları
 ┃ ┣ 📜 opencode-rules.md        # OpenCode kuralları
-┃ ┗ 📂 architecture             # Teknik mimari belgeleri
-┃   ┗ 📜 genel_arch.md          # Genel mimari dokümantasyonu
-┃
-┗ 📂 .github                    # CI/CD
-  ┗ 📂 workflows
-    ┗ 📜 release.yml            # Release workflow
+┃ ┣ 📂 architecture_python      # Python mimari belgeleri
+┃ ┃ ┗ 📜 genel_arch.md          # Genel mimari dokümantasyonu
+┃ ┗ 📂 NGrok                    # Ngrok tünel dokümantasyonu
+┃   ┗ 📜 Sistem ve Canlıya Alma.md # Sistem ve canlıya alma rehberi
 
 ---
 
@@ -167,7 +177,13 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 
 ---
 
-## 📝 Son Değişiklikler (2025-08-30)
+## 📝 Son Değişiklikler (2026-09-03)
+
+### Görev: Proje Dosya Yapısı (Kroki) Güncellemesi
+- `docs/proje_dosya_krokisi.md` dosyası mevcut proje yapısıyla senkronize edildi
+- Eksik dosyalar eklendi: `SymbolAutoComplete.tsx`, `next-env.d.ts`, `package-lock.json`, `manifest.json`, `src/core/__init__.py`, `.agents/rules/token-saver.md`, `.vscode/settings.json`, `NGrok/`, `architecture_python/`
+- Yanlış yollar düzeltildi: `docs/architecture/` → `docs/architecture_python/`
+- Olmayan `.github/workflows/release.yml` kaldırıldı
 
 ### Görev 1: Yeni Grafik ve İstatistik Sayfası (`/chart`)
 - `src/app/chart/page.tsx` oluşturuldu

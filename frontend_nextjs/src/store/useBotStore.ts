@@ -234,7 +234,7 @@ export const useBotStore = create<BotState>((set, get) => ({
     }
 
     // Diski/API'den gelen floating-point sapmalarını (0.04999) Zustand seviyesinde otomatik temizle
-    const sanitizeNumbers = (val: unknown): any => {
+    const sanitizeNumbers = (val: unknown): unknown => {
       if (typeof val === "number") {
         return Number(val.toFixed(5));
       }
@@ -242,16 +242,16 @@ export const useBotStore = create<BotState>((set, get) => ({
         return val.map(sanitizeNumbers);
       }
       if (val && typeof val === "object") {
-        const cleanObj: Record<string, any> = {};
+        const cleanObj: Record<string, unknown> = {};
         for (const k of Object.keys(val)) {
-          cleanObj[k] = sanitizeNumbers((val as any)[k]);
+          cleanObj[k] = sanitizeNumbers((val as Record<string, unknown>)[k]);
         }
         return cleanObj;
       }
       return val;
     };
 
-    set({ settings: sanitizeNumbers(settings) });
+    set({ settings: sanitizeNumbers(settings) as GlobalSettings });
   },
 
   setGlobalSettings: (globals) =>
@@ -335,6 +335,20 @@ export const useBotStore = create<BotState>((set, get) => ({
   updateLiveData: (data) =>
     set((state) => {
       const next = { ...data };
+
+      // YENİ MT5 HATA YAKALAMA: Gelen last_error object formatındaysa 'message' veya 'suggestion' alanını çıkar
+      if (next.last_error && typeof next.last_error === "object") {
+        const errObj = next.last_error as unknown as {
+          message?: string;
+          suggestion?: string;
+          detail?: string;
+        };
+        next.last_error =
+          errObj.message ||
+          errObj.suggestion ||
+          errObj.detail ||
+          JSON.stringify(errObj);
+      }
 
       // CONNECTION LOCK: Bağlanma sürecindeyken arka plan log polling'in
       // getirdiği bayat mt5_connected=false değerini yok say. Gerçek bağlantı

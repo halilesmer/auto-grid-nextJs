@@ -154,9 +154,12 @@ export default function LogViewer() {
               if (
                 line.includes("[ERROR]") ||
                 line.includes("ERROR") ||
-                line.includes("HATA")
+                line.includes("HATA") ||
+                line.includes("[INIT]") ||
+                line.includes("[LOGIN]") ||
+                line.includes("Giriş Başarısız")
               ) {
-                colorClass = "text-red-400";
+                colorClass = "text-red-400 font-semibold";
               } else if (line.includes("WARN") || line.includes("UYARI")) {
                 colorClass = "text-yellow-400";
               } else if (
