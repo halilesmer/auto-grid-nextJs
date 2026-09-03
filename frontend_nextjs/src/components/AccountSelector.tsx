@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { Eye, EyeOff } from "lucide-react";
 import axios from 'axios';
 import { useBotStore, type Account } from '@/store/useBotStore';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -45,6 +46,7 @@ export default function AccountSelector() {
   const [error, setError] = useState('');
   const [mt5Paths, setMt5Paths] = useState<string[]>([]);
   const [useCustomPath, setUseCustomPath] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -129,8 +131,12 @@ export default function AccountSelector() {
       setAccounts(res.data.accounts);
       setSelectedAccount(String(form.login));
       setModalOpen(false);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save account.');
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.detail || 'Failed to save account.');
+      } else {
+        setError('Failed to save account.');
+      }
     } finally {
       setSaving(false);
     }
@@ -148,8 +154,12 @@ export default function AccountSelector() {
         setSelectedAccount(remaining[0].id);
       }
       setDeleteOpen(false);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete account.');
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.detail || "Failed to delete account.");
+      } else {
+        setError("Failed to delete account.");
+      }
     } finally {
       setSaving(false);
     }
@@ -170,7 +180,7 @@ export default function AccountSelector() {
           </h2>
           <select
             className="bg-black/40 text-white border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            value={selectedAccount || ''}
+            value={selectedAccount || ""}
             onChange={(e) => setSelectedAccount(e.target.value)}
           >
             <option value="" disabled>
@@ -185,9 +195,9 @@ export default function AccountSelector() {
           {activeAccount && (
             <span
               className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
-                activeAccount.env_type === 'LIVE'
-                  ? 'bg-red-500/20 text-red-400'
-                  : 'bg-blue-500/20 text-blue-400'
+                activeAccount.env_type === "LIVE"
+                  ? "bg-red-500/20 text-red-400"
+                  : "bg-blue-500/20 text-blue-400"
               }`}
             >
               {activeAccount.env_type}
@@ -210,7 +220,9 @@ export default function AccountSelector() {
                 onClick={openEdit}
                 disabled={isRunning}
                 className="flex items-center space-x-1 text-xs text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1 rounded hover:bg-white/10 transition-all"
-                title={isRunning ? 'Stop the bot before editing' : 'Edit account'}
+                title={
+                  isRunning ? "Stop the bot before editing" : "Edit account"
+                }
               >
                 <Edit3 size={14} />
                 <span>Edit</span>
@@ -219,7 +231,9 @@ export default function AccountSelector() {
                 onClick={() => setDeleteOpen(true)}
                 disabled={isRunning}
                 className="flex items-center space-x-1 text-xs text-red-400 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1 rounded hover:bg-red-500/10 transition-all"
-                title={isRunning ? 'Stop the bot before deleting' : 'Delete account'}
+                title={
+                  isRunning ? "Stop the bot before deleting" : "Delete account"
+                }
               >
                 <Trash2 size={14} />
                 <span>Delete</span>
@@ -245,9 +259,12 @@ export default function AccountSelector() {
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold">
-              {isEditing ? 'Edit Account' : 'New MT5 Account'}
+              {isEditing ? "Edit Account" : "New MT5 Account"}
             </h3>
-            <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-white">
+            <button
+              onClick={() => setModalOpen(false)}
+              className="text-gray-400 hover:text-white"
+            >
               <X size={20} />
             </button>
           </div>
@@ -261,7 +278,9 @@ export default function AccountSelector() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Account Name *</label>
+              <label className="block text-sm text-gray-400 mb-1">
+                Account Name *
+              </label>
               <input
                 name="account_name"
                 value={form.account_name}
@@ -271,29 +290,45 @@ export default function AccountSelector() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Login (ID) *</label>
+              <label className="block text-sm text-gray-400 mb-1">
+                Login (ID) *
+              </label>
               <input
                 name="login"
                 type="number"
-                value={form.login || ''}
+                value={form.login || ""}
                 onChange={handleChange}
                 placeholder="e.g. 12345678"
                 className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Password *</label>
-              <input
-                name="password"
-                type="password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="MT5 Password"
-                className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+              <label className="block text-sm text-gray-400 mb-1">
+                Password *
+              </label>
+              <div className="relative w-full flex items-center">
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="MT5 Password"
+                  className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 pr-10 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 text-gray-400 hover:text-white transition-colors outline-none"
+                  title={showPassword ? "Hide Password" : "Show Password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Server *</label>
+              <label className="block text-sm text-gray-400 mb-1">
+                Server *
+              </label>
               <input
                 name="server"
                 value={form.server}
@@ -303,7 +338,9 @@ export default function AccountSelector() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Environment</label>
+              <label className="block text-sm text-gray-400 mb-1">
+                Environment
+              </label>
               <select
                 name="env_type"
                 value={form.env_type}
@@ -325,7 +362,7 @@ export default function AccountSelector() {
                         setMt5Paths(res.data.paths || []);
                       } catch (e) {
                         setMt5Paths([]);
-                        console.error('MT5 rescan failed', e);
+                        console.error("MT5 rescan failed", e);
                       }
                     }}
                     className="ml-2 text-blue-400 hover:text-blue-300"
@@ -338,7 +375,7 @@ export default function AccountSelector() {
               {mt5Paths.length > 0 && !useCustomPath ? (
                 <select
                   name="mt5_path_select"
-                  value={form.mt5_path || ''}
+                  value={form.mt5_path || ""}
                   onChange={handleMt5PathSelect}
                   className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
                 >
@@ -362,7 +399,9 @@ export default function AccountSelector() {
           </div>
 
           <div className="mt-4">
-            <label className="block text-sm text-gray-400 mb-1">Notes (Optional)</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              Notes (Optional)
+            </label>
             <textarea
               name="notes"
               value={form.notes}
@@ -386,7 +425,11 @@ export default function AccountSelector() {
               disabled={saving}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all active:scale-95 disabled:opacity-50"
             >
-              {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Account'}
+              {saving
+                ? "Saving..."
+                : isEditing
+                  ? "Save Changes"
+                  : "Add Account"}
             </button>
           </div>
         </div>
