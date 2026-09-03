@@ -225,7 +225,13 @@ export default function ZoneSettingsPanel({
   );
 
   const addZone = useCallback(() => {
-    setZones((prevZones) => [...prevZones, defaultZone()]);
+    // Yeni bölge eklenirken, global olarak seçili olan sembolü otomatik miras al
+    const currentGlobalSymbol =
+      useBotStore.getState().settings?.SYMBOL || "USOUSD";
+    setZones((prevZones) => [
+      ...prevZones,
+      { ...defaultZone(), symbol: currentGlobalSymbol },
+    ]);
   }, [setZones]);
 
   const removeZoneConfirmed = useCallback(() => {

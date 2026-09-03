@@ -236,7 +236,8 @@ export const useBotStore = create<BotState>((set, get) => ({
     // Diski/API'den gelen floating-point sapmalarını (0.04999) Zustand seviyesinde otomatik temizle
     const sanitizeNumbers = (val: unknown): unknown => {
       if (typeof val === "number") {
-        return Number(val.toFixed(5));
+        // Yüksek hassasiyetli sembollerde (Kripto vb.) veri kaybını önlemek için dinamik 8 hane yuvarlama
+        return Number(Math.round(val * 1e8) / 1e8);
       }
       if (Array.isArray(val)) {
         return val.map(sanitizeNumbers);

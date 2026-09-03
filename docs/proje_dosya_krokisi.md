@@ -201,8 +201,3 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 - Kullanıcı artık ana sayfadan doğrudan bölgeleri ekleyip, çıkarıp düzenleyebiliyor
 - `SettingsForm.tsx` artık sadece **Global Settings** (ORDER_TYPE, SYMBOL, LOOP_INTERVAL) yönetiyor
 
-### Kritik Kurallara Uyum
-- ✅ WebSocket, REST API çağrıları ve Zustand (`useBotStore`) state yapısı **bozulmadı**
-- ✅ State bağlantılar yeni sayfalara/bileşenlere `props` veya `store` üzerinden doğru geçirildi
-- ✅ Tailwind CSS ile karanlık/aydınlık tema uyumu korundu
-- ✅ Sadece değişen/yeni dosyalar güncellendi

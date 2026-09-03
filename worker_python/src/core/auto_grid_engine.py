@@ -184,7 +184,11 @@ def normalize_volume(volume):
     if SYMBOL_INFO.volume_step > 0:
         steps = round((volume - SYMBOL_INFO.volume_min) / SYMBOL_INFO.volume_step)
         volume = SYMBOL_INFO.volume_min + steps * SYMBOL_INFO.volume_step
-    return round(volume, 8)
+        # Floating point hatalarını önlemek için volume_step'in kendi ondalık sayısına göre yuvarla
+        step_str = str(SYMBOL_INFO.volume_step)
+        decimals = len(step_str.split(".")[1]) if "." in step_str else 0
+        return round(volume, decimals)
+    return round(volume, 2)
 
 
 def get_current_market_price(direction="BUY"):
