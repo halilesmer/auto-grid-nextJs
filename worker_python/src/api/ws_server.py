@@ -41,7 +41,7 @@ def fetch_mt5_data(symbol="USOUSD"):
     """
     if not MT5_AVAILABLE:
         return None
-    
+
     term_info = mt5.terminal_info()
     if term_info is None or not getattr(term_info, "connected", False):
         return None
@@ -50,22 +50,36 @@ def fetch_mt5_data(symbol="USOUSD"):
     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 100)
     if rates is None or len(rates) == 0:
         return None
-        
+
     df = pd.DataFrame(rates)
     df['time'] = pd.to_datetime(df['time'], unit='s')
-    
+
     # Pozisyonları ve P/L'yi al
     positions = mt5.positions_get(symbol=symbol)
     open_positions = len(positions) if positions else 0
     profit = sum(pos.profit for pos in positions) if positions else 0.0
-    
-    current_price = float(df.iloc[-1]['close'])
-    
+
+    orders = mt5.orders_get(symbol=symbol)
+    pending_orders = len(orders) if orders else 0
+
+    symbol_info = mt5.symbol_info(symbol)
+    trade_mode = getattr(symbol_info, "trade_mode", 0) if symbol_info else 0
+    disabled_mode = getattr(mt5, "SYMBOL_TRADE_MODE_DISABLED", 0)
+
+    market_open = (trade_mode != disabled_mode) and (
+        mt5.symbol_info_tick(symbol) is not None
+    )
+
+    current_price = float(df.iloc[-1]["close"])
+
     return {
         "df": df,
         "price": current_price,
         "profit": round(profit, 2),
-        "open_positions": open_positions
+        "open_positions": open_positions,
+        "pending_orders": pending_orders,
+        "market_open": market_open,
+        "mt5_connected": True,
     }
 
 async def real_bot_data_stream():
@@ -79,18 +93,53 @@ async def real_bot_data_stream():
 
             if data:
                 indicators = get_latest_indicators(data["df"])
-
-                payload = {
-                    "type": "METRICS",
-                    "payload": {
-                        "price": data["price"],
-                        "profit": data["profit"],
-                        "open_positions": data["open_positions"],
-                        "rsi": indicators["rsi"],
-                        "macd": indicators["macd"]
-                    }
+                combined_payload = {
+                    "mt5_connected": data["mt5_connected"],
+                    "market_open": data["market_open"],
+                    "current_price": data["price"],
+                    "price": data["price"],
+                    "profit": data["profit"],
+                    "open_positions": data["open_positions"],
+                    "pending_orders": data["pending_orders"],
+                    "rsi": indicators["rsi"],
+                    "macd": indicators["macd"],
                 }
-                await manager.broadcast(json.dumps(payload))
+
+                # Arayüz HTTP Polling için aktif hesabın JSON log dosyasına yaz
+                import os
+
+                base_dir = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "..", "..")
+                )
+                acc_id = "default"
+                try:
+                    with open(
+                        os.path.join(base_dir, "configs", "accounts.json"), "r"
+                    ) as f:
+                        acc_id = str(json.load(f)["accounts"][0]["id"])
+                except:
+                    pass
+
+                os.makedirs(os.path.join(base_dir, "logs"), exist_ok=True)
+                with open(
+                    os.path.join(base_dir, "logs", f"met_{acc_id}.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(combined_payload, f)
+
+                await manager.broadcast(
+                    json.dumps({"type": "METRICS", "payload": combined_payload})
+                )
+            else:
+                await manager.broadcast(
+                    json.dumps(
+                        {
+                            "type": "LIVE_DATA",
+                            "payload": {"mt5_connected": False, "market_open": False},
+                        }
+                    )
+                )
         except asyncio.CancelledError:
             # Graceful shutdown
             raise
