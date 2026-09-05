@@ -223,7 +223,7 @@ export default function ZoneSettingsPanel({
           ),
         );
       }
-    };,
+    },
     [setZones, selectedAccount],
   );
 
