@@ -193,9 +193,21 @@ export default function BotControls() {
 
       {/* Live Metrics */}
       <div className="space-y-2">
-        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">
-          Live Metrics
-        </p>
+        <div className="flex justify-between items-center">
+          <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">
+            Live Metrics
+          </p>
+          <div className="text-xs text-gray-500">
+            Market:{" "}
+            <span
+              className={
+                liveData.market_open ? "text-green-400" : "text-red-400"
+              }
+            >
+              {liveData.market_open ? "Open" : "Closed"}
+            </span>
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="text-gray-300">
             Price:{" "}
@@ -232,15 +244,7 @@ export default function BotControls() {
         </div>
       )}
 
-      {/* Market Status */}
-      <div className="text-xs text-gray-500">
-        Market:{" "}
-        <span
-          className={liveData.market_open ? "text-green-400" : "text-red-400"}
-        >
-          {liveData.market_open ? "Open" : "Closed"}
-        </span>
-      </div>
+      {/* Market Status yukarı taşındı */}
 
       {/* Stop Bot Confirmation */}
       <ConfirmModal
@@ -254,7 +258,6 @@ export default function BotControls() {
         variant="warning"
         loading={loading}
       />
-
     </div>
   );
 }

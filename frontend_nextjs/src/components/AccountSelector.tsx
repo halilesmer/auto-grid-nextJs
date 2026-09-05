@@ -47,13 +47,19 @@ export default function AccountSelector() {
   const [mt5Paths, setMt5Paths] = useState<string[]>([]);
   const [useCustomPath, setUseCustomPath] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [scanningMt5, setScanningMt5] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const mt5PathRef = useRef(form.mt5_path);
+
+  useEffect(() => {
+    mt5PathRef.current = form.mt5_path;
+  }, [form.mt5_path]);
 
   useEffect(() => {
     axios
       .get(`${API}/accounts`)
       .then((res) => setAccounts(res.data.accounts))
-      .catch((err) => console.error('Failed to fetch accounts', err));
+      .catch((err) => console.error("Failed to fetch accounts", err));
   }, [setAccounts]);
 
   useEffect(() => {
@@ -69,8 +75,19 @@ export default function AccountSelector() {
       dialogRef.current?.showModal();
       axios
         .get(`${API}/system/scan-mt5`)
-        .then((res) => setMt5Paths(res.data.paths || []))
-        .catch(() => setMt5Paths([]));
+        .then((res) => {
+          const paths = res.data.paths || [];
+          setMt5Paths(paths);
+          if (mt5PathRef.current && !paths.includes(mt5PathRef.current)) {
+            setUseCustomPath(true);
+          }
+        })
+        .catch(() => {
+          setMt5Paths([]);
+          setError(
+            "Otomatik tarama başarısız oldu, bağlantınızı kontrol edin veya yolu manuel girin.",
+          );
+        });
     } else {
       dialogRef.current?.close();
     }
@@ -104,13 +121,7 @@ export default function AccountSelector() {
   };
 
   const handleMt5PathSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (val === '__custom__') {
-      setUseCustomPath(true);
-    } else {
-      setUseCustomPath(false);
-      setForm((prev) => ({ ...prev, mt5_path: val }));
-    }
+    setForm((prev) => ({ ...prev, mt5_path: e.target.value }));
   };
 
   const handleSave = async () => {
@@ -354,24 +365,48 @@ export default function AccountSelector() {
             <div>
               <label className="block text-sm text-gray-400 mb-1">
                 MT5 Path *
-                {mt5Paths.length > 0 && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await axios.get(`${API}/system/scan-mt5`);
-                        setMt5Paths(res.data.paths || []);
-                      } catch (e) {
-                        setMt5Paths([]);
-                        console.error("MT5 rescan failed", e);
-                      }
-                    }}
-                    className="ml-2 text-blue-400 hover:text-blue-300"
-                    title="Rescan MT5 paths"
-                  >
-                    <RefreshCw size={12} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={scanningMt5}
+                  onClick={async () => {
+                    setScanningMt5(true);
+                    try {
+                      const res = await axios.get(`${API}/system/scan-mt5`);
+                      setMt5Paths(res.data.paths || []);
+                      setError("");
+                    } catch (e) {
+                      setMt5Paths([]);
+                      setError("MT5 yolları taranırken sunucu hatası oluştu.");
+                      console.error("MT5 rescan failed", e);
+                    } finally {
+                      setScanningMt5(false);
+                    }
+                  }}
+                  className="ml-2 text-blue-400 hover:text-blue-300 inline-flex items-center disabled:opacity-50"
+                  title="Rescan MT5 paths"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={scanningMt5 ? "animate-spin" : ""}
+                  />
+                </button>
               </label>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="customPath"
+                  checked={useCustomPath}
+                  onChange={(e) => setUseCustomPath(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-black/40 border-white/20 rounded focus:ring-blue-500"
+                />
+                <label
+                  htmlFor="customPath"
+                  className="text-xs text-gray-400 cursor-pointer"
+                >
+                  Manuel Gir (Custom Path)
+                </label>
+              </div>
+
               {mt5Paths.length > 0 && !useCustomPath ? (
                 <select
                   name="mt5_path_select"
@@ -379,12 +414,14 @@ export default function AccountSelector() {
                   onChange={handleMt5PathSelect}
                   className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
                 >
+                  <option value="" disabled>
+                    -- MT5 Yolunu Seçin --
+                  </option>
                   {mt5Paths.map((p) => (
                     <option key={p} value={p}>
                       {p}
                     </option>
                   ))}
-                  <option value="__custom__">Enter path manually...</option>
                 </select>
               ) : (
                 <input

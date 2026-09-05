@@ -173,7 +173,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 | `ZoneSettingsPanel.tsx` | **Dinamik Zone Yönetimi**: Bölge ekle/sil/düzenle, tüm zone alanları (Symbol, Order Type, Grid, Lot, TP/SL, Breakout, Pullback, Levels, Clear on Exit), Kaydet/Update | `useBotStore` (settings, liveData) + REST API |
 | `SettingsForm.tsx` | **Global Ayarlar**: ORDER_TYPE, LOOP_INTERVAL_SECONDS | `useBotStore` (settings) + REST API |
 | `ChartViewer.tsx` | Canlı Mum grafiği + RSI (Lightweight Charts + WebSocket) | `useBotStore` (metrics, updateMetrics) |
-| `BotControls.tsx` | Bot Başlat/Durdur, Temizle, Sembol Seçimi | `useBotStore` (isRunning, selectedAccount) |
+| `BotControls.tsx` | Bot Başlat/Durdur, Temizle, Sembol Seçimi, Canlı Metrik Gösterimi | `useBotStore` (isRunning, selectedAccount) |
 
 ---
 
