@@ -146,14 +146,17 @@ export default function ZoneSettingsPanel({
     async (zoneId: string, currentActive: boolean) => {
       const newActive = !currentActive;
 
-      // KRİTİK KONTROL 2: Sembol broker tarafından desteklenmiyorsa başlatma
+      // KRİTİK KONTROL 2: Sembol boşsa veya broker tarafından desteklenmiyorsa başlatma
       const storeState = useBotStore.getState();
-      const zoneSymbol = storeState.settings?.ZONES?.find(
-        (z) => z.id === zoneId,
-      )?.symbol;
+      const zoneSymbol =
+        storeState.settings?.ZONES?.find((z) => z.id === zoneId)?.symbol || "";
+
+      if (!zoneSymbol.trim()) {
+        alert("Hatalı Sembol! Lütfen bölge için geçerli bir sembol girin.");
+        return;
+      }
 
       if (
-        zoneSymbol &&
         Object.keys(storeState.symbolDetails).length > 0 &&
         !storeState.symbolDetails[zoneSymbol.toUpperCase().trim()]
       ) {
@@ -220,17 +223,22 @@ export default function ZoneSettingsPanel({
           ),
         );
       }
-    },
+    };,
     [setZones, selectedAccount],
   );
 
   const addZone = useCallback(() => {
-    // Yeni bölge eklenirken, global olarak seçili olan sembolü otomatik miras al
-    const currentGlobalSymbol =
-      useBotStore.getState().settings?.SYMBOL || "USOUSD";
+    // Yeni bölge eklenirken, en son eklenen bölgenin sembolünü miras al
+    const state = useBotStore.getState();
+    const currentZones = state.settings?.ZONES || [];
+    const lastSymbol =
+      currentZones.length > 0
+        ? currentZones[currentZones.length - 1].symbol
+        : "";
+
     setZones((prevZones) => [
       ...prevZones,
-      { ...defaultZone(), symbol: currentGlobalSymbol },
+      { ...defaultZone(), symbol: lastSymbol },
     ]);
   }, [setZones]);
 

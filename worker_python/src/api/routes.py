@@ -595,56 +595,7 @@ async def get_symbols(account_id: str):
 
         # 3. MT5 Bağlantısı Kurulamadıysa (Bot Çalıştığı İçin Meşgulse)
         # Standart Sembol Listesiyle broker_symbols.json Dosyasını ANINDA Oluştur!
-        default_syms = [
-            {
-                "name": "USOUSD",
-                "description": "US Crude Oil",
-                "digits": 3,
-                "point": 0.001,
-                "volume_min": 0.01,
-                "volume_step": 0.01,
-            },
-            {
-                "name": "EURUSD",
-                "description": "Euro vs US Dollar",
-                "digits": 5,
-                "point": 0.00001,
-                "volume_min": 0.01,
-                "volume_step": 0.01,
-            },
-            {
-                "name": "GBPUSD",
-                "description": "Great Britain Pound vs US Dollar",
-                "digits": 5,
-                "point": 0.00001,
-                "volume_min": 0.01,
-                "volume_step": 0.01,
-            },
-            {
-                "name": "XAUUSD",
-                "description": "Gold vs US Dollar",
-                "digits": 2,
-                "point": 0.01,
-                "volume_min": 0.01,
-                "volume_step": 0.01,
-            },
-            {
-                "name": "USDJPY",
-                "description": "US Dollar vs Japanese Yen",
-                "digits": 3,
-                "point": 0.001,
-                "volume_min": 0.01,
-                "volume_step": 0.01,
-            },
-            {
-                "name": "BTCUSD",
-                "description": "Bitcoin vs US Dollar",
-                "digits": 2,
-                "point": 0.01,
-                "volume_min": 0.01,
-                "volume_step": 0.01,
-            },
-        ]
+        default_syms = []
 
         try:
             cache_data = {}

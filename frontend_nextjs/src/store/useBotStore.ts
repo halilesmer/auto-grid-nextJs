@@ -61,7 +61,6 @@ export interface ZoneSettings {
 
 export interface GlobalSettings {
   ORDER_TYPE: string;
-  SYMBOL: string;
   LOOP_INTERVAL_SECONDS: number;
   ZONES: ZoneSettings[];
 }
@@ -99,12 +98,11 @@ export interface UpdateInfo {
 }
 
 export function defaultZone(): ZoneSettings {
-
   return {
     id: crypto.randomUUID(),
     is_active: false, // Yeni bölgeler varsayılan olarak "Beklet / PAUSE" modunda başlar
-    symbol: 'USOUSD',
-    order_type: 'BUY',
+    symbol: "",
+    order_type: "BUY",
     min_price: 70.0,
     max_price: 80.0,
     grid_step: 0.05,
@@ -123,11 +121,11 @@ export function defaultZone(): ZoneSettings {
     levels_above: 5,
     max_positions: 10,
     clear_on_exit: true,
-    clear_exit_side: 'SELL (Aşağı)',
-    clear_scope: 'Sadece Bekleyen Emirler',
-    clear_target_side: 'Sadece BUY İşlemleri',
-    exit_condition: 'Anlık Fiyat',
-    exit_timeframe: 'M15',
+    clear_exit_side: "SELL (Aşağı)",
+    clear_scope: "Sadece Bekleyen Emirler",
+    clear_target_side: "Sadece BUY İşlemleri",
+    exit_condition: "Anlık Fiyat",
+    exit_timeframe: "M15",
   };
 }
 
@@ -261,7 +259,6 @@ export const useBotStore = create<BotState>((set, get) => ({
         ? { ...state.settings, ...globals }
         : {
             ORDER_TYPE: globals.ORDER_TYPE ?? "BUY",
-            SYMBOL: globals.SYMBOL ?? "USOUSD",
             LOOP_INTERVAL_SECONDS: globals.LOOP_INTERVAL_SECONDS ?? 1.0,
             ZONES: [],
           },
@@ -279,7 +276,6 @@ export const useBotStore = create<BotState>((set, get) => ({
           ? { ...state.settings, ZONES: newZones }
           : {
               ORDER_TYPE: "BUY",
-              SYMBOL: "USOUSD",
               LOOP_INTERVAL_SECONDS: 1.0,
               ZONES: newZones,
             },

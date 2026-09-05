@@ -48,7 +48,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 ChartViewer.tsx      # Grafik görselleştirme (Lightweight Charts)
 ┃ ┃ ┃ ┣ 📜 ConfirmModal.tsx     # Onay modalları
 ┃ ┃ ┃ ┣ 📜 LogViewer.tsx        # Log görüntüleyici
-┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # **Güncellendi: Sadece Global Ayarlar (ORDER_TYPE, SYMBOL, LOOP_INTERVAL)**
+┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # **Güncellendi: Sadece Global Ayarlar (ORDER_TYPE, LOOP_INTERVAL)**
 ┃ ┃ ┃ ┣ 📜 SimulationBar.tsx    # Simülasyon çubuğu
 ┃ ┃ ┃ ┣ 📜 SymbolAutoComplete.tsx # **YENİ: Sembol otomatik tamamlama**
 ┃ ┃ ┃ ┗ 📜 ZoneSettingsPanel.tsx # **YENİ: Bölge Ayarları Paneli (Dinamik Zone Yönetimi)**
@@ -171,7 +171,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 | Bileşen | Sorumluluk | State Kaynağı |
 |---------|------------|---------------|
 | `ZoneSettingsPanel.tsx` | **Dinamik Zone Yönetimi**: Bölge ekle/sil/düzenle, tüm zone alanları (Symbol, Order Type, Grid, Lot, TP/SL, Breakout, Pullback, Levels, Clear on Exit), Kaydet/Update | `useBotStore` (settings, liveData) + REST API |
-| `SettingsForm.tsx` | **Global Ayarlar**: ORDER_TYPE, SYMBOL, LOOP_INTERVAL_SECONDS | `useBotStore` (settings) + REST API |
+| `SettingsForm.tsx` | **Global Ayarlar**: ORDER_TYPE, LOOP_INTERVAL_SECONDS | `useBotStore` (settings) + REST API |
 | `ChartViewer.tsx` | Canlı Mum grafiği + RSI (Lightweight Charts + WebSocket) | `useBotStore` (metrics, updateMetrics) |
 | `BotControls.tsx` | Bot Başlat/Durdur, Temizle, Sembol Seçimi | `useBotStore` (isRunning, selectedAccount) |
 
@@ -199,5 +199,5 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 - `SettingsForm.tsx` içindeki Zone Settings kısmı `ZoneSettingsPanel.tsx` olarak ayrıldı
 - Ana sayfa sol panelde (2/3 genişlikte) `ZoneSettingsPanel` yerleştirildi
 - Kullanıcı artık ana sayfadan doğrudan bölgeleri ekleyip, çıkarıp düzenleyebiliyor
-- `SettingsForm.tsx` artık sadece **Global Settings** (ORDER_TYPE, SYMBOL, LOOP_INTERVAL) yönetiyor
+- `SettingsForm.tsx` artık sadece **Global Settings** (ORDER_TYPE, LOOP_INTERVAL) yönetiyor
 

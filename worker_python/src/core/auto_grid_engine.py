@@ -25,13 +25,13 @@ LOOP_INTERVAL_SECONDS = (
 )
 ZONES = []
 ORDER_TYPE = "BUY"  # Sadece ilk başlatma koruması için tutuluyor
-SYMBOL = "USOUSD"
+ACTIVE_SYMBOLS = set()
+SYMBOL_INFOS = {}
 
 # ==========================================
 # GLOBAL DEĞİŞKENLER (Bot Manager İçin Zorunlu)
 # ==========================================
-SYMBOL_INFO = None
-FILLING_MODE = None
+FILLING_MODE = {}
 ACTIVE_ZONE = None
 ACTIVE_ZONE_IDX = None
 
@@ -71,36 +71,47 @@ def get_live_metrics():
         "remote_paused": REMOTE_PAUSED,
         "mt5_connected": True,
         "connection_lost": CONNECTION_LOST,
-        "market_open": is_market_open(),
+        "market_open": (
+            any(is_market_open(sym) for sym in ACTIVE_SYMBOLS)
+            if ACTIVE_SYMBOLS
+            else False
+        ),
     }
 
     terminal_info = mt5.terminal_info()
     if terminal_info is None or not getattr(terminal_info, "connected", False):
-        # 🔴 MT5'e ulaşılamıyor VEYA Broker/Sunucu bağlantısı koptu!
         CONNECTION_LOST = True
         metrics["mt5_connected"] = False
         metrics["market_open"] = False
         return metrics
 
-    # Bağlantı geri geldi
     CONNECTION_LOST = False
     metrics["mt5_connected"] = True
 
     if not terminal_info.trade_allowed:
         metrics["algo_trading_error"] = True
 
-    positions = mt5.positions_get(symbol=SYMBOL)
+    positions = mt5.positions_get()
     if positions:
-        metrics["open_positions"] = len(positions)
-        metrics["profit"] = round(sum(pos.profit for pos in positions), 2)
+        robot_pos = [
+            p
+            for p in positions
+            if BASE_MAGIC_NUMBER <= p.magic < BASE_MAGIC_NUMBER + 1000
+        ]
+        metrics["open_positions"] = len(robot_pos)
+        metrics["profit"] = round(sum(pos.profit for pos in robot_pos), 2)
 
-    orders = mt5.orders_get(symbol=SYMBOL)
+    orders = mt5.orders_get()
     if orders:
-        metrics["pending_orders"] = len(orders)
+        robot_orders = [
+            o for o in orders if BASE_MAGIC_NUMBER <= o.magic < BASE_MAGIC_NUMBER + 1000
+        ]
+        metrics["pending_orders"] = len(robot_orders)
 
-    tick = mt5.symbol_info_tick(SYMBOL)
-    if tick:
-        metrics["current_price"] = tick.bid
+    if ACTIVE_SYMBOLS:
+        tick = mt5.symbol_info_tick(list(ACTIVE_SYMBOLS)[0])
+        if tick:
+            metrics["current_price"] = tick.bid
 
     return metrics
 
@@ -109,24 +120,26 @@ def get_live_metrics():
 # GÜVENLİ YÜKLEME VE LOGLAMA FONKSİYONLARI
 # ==========================================
 def load_dynamic_settings():
-    global ZONES, LOOP_INTERVAL_SECONDS, SYMBOL, SYMBOL_INFO
+    global ZONES, LOOP_INTERVAL_SECONDS, ACTIVE_SYMBOLS, SYMBOL_INFOS
 
     try:
-        # 🌟 KESİN ÇÖZÜM: Hardcoded dosya açmak yerine config.py'nin arayüzle senkronize çalışan akıllı yükleyicisini kullan!
         settings = load_settings("Auto Grid")
         ZONES = settings.get("ZONES", [])
         LOOP_INTERVAL_SECONDS = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
 
-        # Dinamik sembol vizyonu için global sembolü de güncelliyoruz
-        if ZONES and "symbol" in ZONES[0]:
-            new_symbol = str(ZONES[0]["symbol"]).upper().strip()
+        ACTIVE_SYMBOLS.clear()
+        for zone in ZONES:
+            if "symbol" in zone and zone["symbol"]:
+                sym = str(zone["symbol"]).upper().strip()
+                ACTIVE_SYMBOLS.add(sym)
 
-            # 🌟 KRİTİK HATA ÇÖZÜMÜ: Sembol değiştiğinde arka plandaki matematik kurallarını (digits, point, lot) da MT5'ten güncelleyerek hafızaya al!
-            if new_symbol != SYMBOL or SYMBOL_INFO is None:
-                SYMBOL = new_symbol
+        for sym in ACTIVE_SYMBOLS:
+            if sym not in SYMBOL_INFOS:
                 try:
-                    mt5.symbol_select(SYMBOL, True)
-                    SYMBOL_INFO = mt5.symbol_info(SYMBOL)
+                    mt5.symbol_select(sym, True)
+                    info = mt5.symbol_info(sym)
+                    if info:
+                        SYMBOL_INFOS[sym] = info
                 except Exception:
                     pass
     except Exception:
@@ -168,73 +181,77 @@ LOG_TO_FILE = True
 LOG_FILE_PATH = "logs/grid_robot_log.txt"
 
 
-def normalize_price(price):
-    if SYMBOL_INFO is None:
+def normalize_price(price, symbol):
+    info = SYMBOL_INFOS.get(symbol)
+    if info is None:
         return round(price, 2)
-    point = SYMBOL_INFO.point
+    point = info.point
     if point == 0:
         return price
-    return round(round(price / point) * point, SYMBOL_INFO.digits)
+    return round(round(price / point) * point, info.digits)
 
 
-def normalize_volume(volume):
-    if SYMBOL_INFO is None:
+def normalize_volume(volume, symbol):
+    info = SYMBOL_INFOS.get(symbol)
+    if info is None:
         return volume
-    volume = max(SYMBOL_INFO.volume_min, min(volume, SYMBOL_INFO.volume_max))
-    if SYMBOL_INFO.volume_step > 0:
-        steps = round((volume - SYMBOL_INFO.volume_min) / SYMBOL_INFO.volume_step)
-        volume = SYMBOL_INFO.volume_min + steps * SYMBOL_INFO.volume_step
-        # Floating point hatalarını önlemek için volume_step'in kendi ondalık sayısına göre yuvarla
-        step_str = str(SYMBOL_INFO.volume_step)
+    volume = max(info.volume_min, min(volume, info.volume_max))
+    if info.volume_step > 0:
+        steps = round((volume - info.volume_min) / info.volume_step)
+        volume = info.volume_min + steps * info.volume_step
+        step_str = str(info.volume_step)
         decimals = len(step_str.split(".")[1]) if "." in step_str else 0
         return round(volume, decimals)
     return round(volume, 2)
 
 
-def get_current_market_price(direction="BUY"):
+def get_current_market_price(symbol, direction="BUY"):
+    if not symbol:
+        return None
     try:
-        tick = mt5.symbol_info_tick(SYMBOL)
+        tick = mt5.symbol_info_tick(symbol)
         if tick is None:
             return None
         return tick.ask if direction == "BUY" else tick.bid
     except Exception as e:
-        log_message(f"Fiyat alınamadı: {e}", "ERROR")
+        log_message(f"{symbol} fiyatı alınamadı: {e}", "ERROR")
         return None
 
 
-def is_market_open():
+def is_market_open(symbol):
+    if not symbol:
+        return False
     term_info = mt5.terminal_info()
     if term_info is None or not getattr(term_info, "connected", False):
         return False
 
-    info = mt5.symbol_info(SYMBOL)
+    info = mt5.symbol_info(symbol)
     if info is None or getattr(info, "trade_mode", 0) != 4:
         return False
 
-    tick = mt5.symbol_info_tick(SYMBOL)
+    tick = mt5.symbol_info_tick(symbol)
     if tick is None or getattr(tick, "time_msc", 0) == 0:
         return False
 
-    # time_msc her zaman UTC bazlı milisaniyedir. time.time() da UTC saniyesi verir.
-    # Bu sayede Broker'ın saat diliminden etkilenmeden KUSURSUZ ölçüm yapılır.
     return (time.time() * 1000 - tick.time_msc) <= 180000
 
 
-def determine_fill_mode():
+def determine_fill_mode(symbol):
     global FILLING_MODE
-    if SYMBOL_INFO is None:
+    info = SYMBOL_INFOS.get(symbol)
+    if info is None:
         return None
-    if SYMBOL_INFO.filling_mode & 2:
-        FILLING_MODE = mt5.ORDER_FILLING_IOC
-    elif SYMBOL_INFO.filling_mode & 1:
-        FILLING_MODE = mt5.ORDER_FILLING_FOK
+    if info.filling_mode & 2:
+        FILLING_MODE[symbol] = mt5.ORDER_FILLING_IOC
+    elif info.filling_mode & 1:
+        FILLING_MODE[symbol] = mt5.ORDER_FILLING_FOK
     else:
-        FILLING_MODE = mt5.ORDER_FILLING_RETURN
-    return FILLING_MODE
+        FILLING_MODE[symbol] = mt5.ORDER_FILLING_RETURN
+    return FILLING_MODE[symbol]
 
 
 def get_all_robot_orders():
-    orders = mt5.orders_get(symbol=SYMBOL)
+    orders = mt5.orders_get()
     if orders is None:
         return None
     return [
@@ -243,7 +260,7 @@ def get_all_robot_orders():
 
 
 def get_all_robot_positions():
-    positions = mt5.positions_get(symbol=SYMBOL)
+    positions = mt5.positions_get()
     if positions is None:
         return None
     return [
@@ -252,7 +269,7 @@ def get_all_robot_positions():
 
 
 def get_all_manual_positions():
-    positions = mt5.positions_get(symbol=SYMBOL)
+    positions = mt5.positions_get()
     if positions is None:
         return None
     return [
@@ -262,7 +279,7 @@ def get_all_manual_positions():
     ]
 
 
-def get_existing_levels_by_direction(buy_grid_step, sell_grid_step):
+def get_existing_levels_by_direction(buy_grid_step, sell_grid_step, symbol):
     buy_levels = set()
     sell_levels = set()
 
@@ -270,24 +287,26 @@ def get_existing_levels_by_direction(buy_grid_step, sell_grid_step):
     r_pos = get_all_robot_positions()
     m_pos = get_all_manual_positions()
 
-    def add_to_set(price, is_buy):
+    def add_to_set(price, is_buy, item_symbol):
+        if item_symbol != symbol:
+            return
         if is_buy:
             snapped = round(price / buy_grid_step) * buy_grid_step
-            buy_levels.add(normalize_price(snapped))
+            buy_levels.add(normalize_price(snapped, symbol))
         else:
             snapped = round(price / sell_grid_step) * sell_grid_step
-            sell_levels.add(normalize_price(snapped))
+            sell_levels.add(normalize_price(snapped, symbol))
 
     if orders:
         for o in orders:
             is_buy = o.type in [mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP]
-            add_to_set(o.price_open, is_buy)
+            add_to_set(o.price_open, is_buy, o.symbol)
     if r_pos:
         for p in r_pos:
-            add_to_set(p.price_open, p.type == mt5.POSITION_TYPE_BUY)
+            add_to_set(p.price_open, p.type == mt5.POSITION_TYPE_BUY, p.symbol)
     if m_pos:
         for p in m_pos:
-            add_to_set(p.price_open, p.type == mt5.POSITION_TYPE_BUY)
+            add_to_set(p.price_open, p.type == mt5.POSITION_TYPE_BUY, p.symbol)
 
     return buy_levels, sell_levels
 
@@ -296,20 +315,23 @@ def cancel_order(order):
     request = {
         "action": mt5.TRADE_ACTION_REMOVE,
         "order": order.ticket,
-        "symbol": SYMBOL,
+        "symbol": order.symbol,
     }
     return safe_send_order(mt5, request, log_message)
 
 
 def modify_position_tp_sl(position, tp_price, sl_price=None):
-    tp_norm = normalize_price(tp_price) if tp_price else 0.0
+    symbol = position.symbol
+    tp_norm = normalize_price(tp_price, symbol) if tp_price else 0.0
     sl_norm = (
-        normalize_price(sl_price) if sl_price is not None and sl_price > 0 else 0.0
+        normalize_price(sl_price, symbol)
+        if sl_price is not None and sl_price > 0
+        else 0.0
     )
     request = {
         "action": mt5.TRADE_ACTION_SLTP,
         "position": position.ticket,
-        "symbol": SYMBOL,
+        "symbol": symbol,
         "tp": tp_norm,
         "sl": sl_norm,
     }
@@ -330,11 +352,19 @@ def get_mt5_timeframe(tf_str):
 
 
 # 1. ESKİ get_active_zone FONKSİYONUNU BUNUNLA DEĞİŞTİR (Giriş/Çıkış Asimetrisi Çözümü)
-def get_active_zone(tick_price):
+def get_active_zone():
     for i, zone in enumerate(ZONES):
-        # Arayüzden (Next.js) gelen is_active ayarını dikkate al
         if str(zone.get("is_active", True)).lower() == "false":
             continue
+
+        z_sym = zone.get("symbol", "").upper().strip()
+        if not z_sym:
+            continue
+        bid = get_current_market_price(z_sym, "SELL")
+        ask = get_current_market_price(z_sym, "BUY")
+        if bid is None or ask is None:
+            continue
+        tick_price = (bid + ask) / 2.0
 
         z_min = float(zone.get("min_price", 0))
         z_max = float(zone.get("max_price", 0))
@@ -347,7 +377,7 @@ def get_active_zone(tick_price):
             # Bölgenin kuralı "Mum Kapanışı" ise, giriş için de mum kapanışını kontrol et
             tf_str = zone.get("exit_timeframe", "M15")
             tf = get_mt5_timeframe(tf_str)
-            rates = mt5.copy_rates_from_pos(SYMBOL, tf, 1, 1)  # Son kapanan mumu al
+            rates = mt5.copy_rates_from_pos(z_sym, tf, 1, 1)  # Son kapanan mumu al
             if rates is not None and len(rates) > 0:
                 close_price = (
                     rates[0]["close"]
@@ -372,9 +402,16 @@ def get_active_zone(tick_price):
 
 
 def send_pending_order(
-    price, lot, tp_price, sl_price=None, zone_idx=0, direction="BUY"
+    price, lot, tp_price, sl_price=None, zone_idx=0, direction="BUY", symbol=None
 ):
-    current_price = get_current_market_price(direction)
+    if not symbol:
+        log_message(
+            f"🚨 Hata: Bölge {zone_idx+1} için geçerli bir sembol atanmamış! İşlem iptal edildi.",
+            "ERROR",
+        )
+        return False
+
+    current_price = get_current_market_price(symbol, direction)
     if current_price is None:
         return False
 
@@ -393,20 +430,20 @@ def send_pending_order(
 
     request = {
         "action": mt5.TRADE_ACTION_PENDING,
-        "symbol": SYMBOL,
-        "volume": normalize_volume(lot),
+        "symbol": symbol,
+        "volume": normalize_volume(lot, symbol),
         "type": order_type,
-        "price": normalize_price(price),
+        "price": normalize_price(price, symbol),
         "deviation": MAX_DEVIATION,
         "magic": BASE_MAGIC_NUMBER + zone_idx + 1,
         "comment": f"AutoGrid_Z{zone_idx + 1}",
         "type_time": mt5.ORDER_TIME_GTC,
-        "type_filling": mt5.ORDER_FILLING_RETURN,  # 🌟 KESİN ÇÖZÜM: Bekleyen emirlerin FOK(0) kabul edilip sunucu tarafından silinmemesi için RETURN(2) zorunludur.
-        "tp": normalize_price(tp_price) if tp_price else 0.0,
+        "type_filling": mt5.ORDER_FILLING_RETURN,
+        "tp": normalize_price(tp_price, symbol) if tp_price else 0.0,
     }
 
     if sl_price is not None and sl_price > 0:
-        request["sl"] = normalize_price(sl_price)
+        request["sl"] = normalize_price(sl_price, symbol)
 
     # 🌟 HATA YAKALAMA (Back-off): Emri gönder ve sonucu kontrol et
     success = safe_send_order(mt5, request, log_message)
@@ -518,7 +555,7 @@ def check_remote_commands():
     """
     global REMOTE_PAUSED, ACTIVE_ZONE, ACTIVE_ZONE_IDX
 
-    orders = mt5.orders_get(symbol=SYMBOL)
+    orders = mt5.orders_get()
     if orders is None or len(orders) == 0:
         return False
 
@@ -685,8 +722,25 @@ def manage_dynamic_grid():
     if robot_positions is None or robot_orders is None:
         return False
 
-    current_price_buy = get_current_market_price("BUY")
-    current_price_sell = get_current_market_price("SELL")
+    # Hedef bölgeyi ve sembolünü bul
+    target_zone = (
+        ACTIVE_ZONE
+        if ACTIVE_ZONE is not None
+        else (
+            ZONES[ACTIVE_ZONE_IDX]
+            if ACTIVE_ZONE_IDX is not None and ACTIVE_ZONE_IDX < len(ZONES)
+            else (ZONES[0] if ZONES else None)
+        )
+    )
+    if not target_zone:
+        return False
+
+    zone_symbol = target_zone.get("symbol", "").upper().strip()
+    if not zone_symbol:
+        return False
+
+    current_price_buy = get_current_market_price(zone_symbol, "BUY")
+    current_price_sell = get_current_market_price(zone_symbol, "SELL")
     if current_price_buy is None or current_price_sell is None:
         return False
 
@@ -698,23 +752,25 @@ def manage_dynamic_grid():
 
         # Arayüzden gelen is_active durumu ve Devre Kesici (Circuit Breaker) kontrolü
         is_zone_active = False
+        zone_sym = ""
         if 0 <= order_zone_idx < len(ZONES):
             is_zone_active = (
                 str(ZONES[order_zone_idx].get("is_active", True)).lower() != "false"
             )
+            zone_sym = str(ZONES[order_zone_idx].get("symbol", "")).upper().strip()
+
         if active_zones_state.get(order_zone_idx) in ["PAUSE", "AUTO_CLEAR", "CLEAR"]:
             is_zone_active = False
 
-        # 🛡️ GÜVENLİK: Bölge pasifse ayardaki BUY/SELL ayrımını
-        # tamamen yok sayar ve ACIK POZİSYONLAR HARİÇ tüm bekleyen emirleri acımasızca çöpe atar.
-        if not is_zone_active:
+        # 🛡️ GÜVENLİK: Bölge pasifse VEYA emrin sembolü güncel bölge sembolüyle uyuşmuyorsa sil!
+        if not is_zone_active or (zone_sym and order.symbol != zone_sym):
             dir_str = (
                 "BUY"
                 if order.type in [mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP]
                 else "SELL"
             )
             log_message(
-                f"🧹 Mutlak Temizlik: Bölge {order_zone_idx+1} pasif olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket})"
+                f"🧹 Mutlak Temizlik: Bölge {order_zone_idx+1} pasif/uyumsuz olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket}, Sembol: {order.symbol})"
             )
             cancel_order(order)
 
@@ -729,6 +785,12 @@ def manage_dynamic_grid():
         pos_zone_idx = pos.magic - BASE_MAGIC_NUMBER - 1
         if 0 <= pos_zone_idx < len(ZONES):
             z_data = ZONES[pos_zone_idx]
+            zone_sym = str(z_data.get("symbol", "")).upper().strip()
+
+            # KRİTİK GÜVENLİK: Kullanıcı sembol değiştirdiyse, eski sembolün pozisyonuna işlem yapma
+            if not zone_sym or pos.symbol != zone_sym:
+                continue
+
             direction = "BUY" if pos.type == mt5.POSITION_TYPE_BUY else "SELL"
 
             is_sync = bool(z_data.get("sync_buy_sell", True))
@@ -801,7 +863,8 @@ def manage_dynamic_grid():
                     <= round(tolerance_step, 5)
                 )
                 remaining_lot = round(target_lot - total_pos_volume, 8)
-                vol_min = SYMBOL_INFO.volume_min if SYMBOL_INFO else 0.01
+                sym_info = SYMBOL_INFOS.get(z_data.get("symbol", "").upper().strip())
+                vol_min = sym_info.volume_min if sym_info else 0.01
 
                 if remaining_lot >= vol_min:
                     has_pending = any(
@@ -832,6 +895,7 @@ def manage_dynamic_grid():
                             expected_sl if expected_sl > 0 else None,
                             zone_idx=pos_zone_idx,
                             direction=direction,
+                            symbol=z_data.get("symbol", "").upper().strip(),
                         )
 
     robot_orders = get_all_robot_orders()
@@ -851,7 +915,8 @@ def manage_dynamic_grid():
         else:
             tf_str = ACTIVE_ZONE.get("exit_timeframe", "M15")
             tf = get_mt5_timeframe(tf_str)
-            rates = mt5.copy_rates_from_pos(SYMBOL, tf, 1, 1)
+            zone_sym = ACTIVE_ZONE.get("symbol", "").upper().strip()
+            rates = mt5.copy_rates_from_pos(zone_sym, tf, 1, 1) if zone_sym else None
             if rates is not None and len(rates) > 0:
                 close_price = (
                     rates[0]["close"]
@@ -949,7 +1014,7 @@ def manage_dynamic_grid():
             ACTIVE_ZONE_IDX = None
 
     # YENİ BÖLGEYE GİRİŞ (Güncellenmiş get_active_zone ile tutarlı)
-    new_zone, new_zone_idx = get_active_zone(current_avg_price)
+    new_zone, new_zone_idx = get_active_zone()
     if ACTIVE_ZONE is None and new_zone is not None:
         ACTIVE_ZONE = new_zone
         ACTIVE_ZONE_IDX = new_zone_idx
@@ -1173,7 +1238,8 @@ def manage_dynamic_grid():
                 )
                 if pos_vol > 0:
                     expected_lot = round(float(lot_val) - pos_vol, 8)
-                    if expected_lot < (SYMBOL_INFO.volume_min if SYMBOL_INFO else 0.01):
+                    sym_info = SYMBOL_INFOS.get(zone_symbol)
+                    if expected_lot < (sym_info.volume_min if sym_info else 0.01):
                         expected_lot = 0.0
                 else:
                     expected_lot = float(lot_val)
@@ -1219,7 +1285,8 @@ def manage_dynamic_grid():
                 )
                 if pos_vol > 0:
                     expected_lot = round(float(sell_lot_val) - pos_vol, 8)
-                    if expected_lot < (SYMBOL_INFO.volume_min if SYMBOL_INFO else 0.01):
+                    sym_info = SYMBOL_INFOS.get(zone_symbol)
+                    if expected_lot < (sym_info.volume_min if sym_info else 0.01):
                         expected_lot = 0.0
                 else:
                     expected_lot = float(sell_lot_val)
@@ -1247,7 +1314,7 @@ def manage_dynamic_grid():
 
     # EKSİK EMİRLERİ TAMAMLA (TP Olanların Yerini Doldurur)
     exist_buy_levels, exist_sell_levels = get_existing_levels_by_direction(
-        grid_step, sell_grid_step
+        grid_step, sell_grid_step, zone_symbol
     )
     eklenen_emir_sayisi = 0
 
@@ -1271,6 +1338,7 @@ def manage_dynamic_grid():
                 sl_price,
                 zone_idx=ACTIVE_ZONE_IDX,
                 direction="BUY",
+                symbol=zone_symbol,
             ):
                 eklenen_emir_sayisi += 1
 
@@ -1292,6 +1360,7 @@ def manage_dynamic_grid():
                 sl_price,
                 zone_idx=ACTIVE_ZONE_IDX,
                 direction="SELL",
+                symbol=zone_symbol,
             ):
                 eklenen_emir_sayisi += 1
 
@@ -1309,11 +1378,11 @@ def manage_dynamic_grid():
 
 
 def run_startup_checks():
-    global SYMBOL_INFO, FILLING_MODE, active_zones_state, CONSECUTIVE_ERRORS
+    global FILLING_MODE, active_zones_state, CONSECUTIVE_ERRORS
     CONSECUTIVE_ERRORS = {}  # Başlangıçta hata sayacını sıfırla
 
     log_message("=" * 60)
-    log_message("USOUSD Çift Yönlü Grid Robot(AUTO GRID) Baslatiliyor...")
+    log_message("Çoklu Sembol Grid Robot (AUTO GRID) Baslatiliyor...")
     log_message("=" * 60)
 
     # ==============================================================
@@ -1367,53 +1436,45 @@ def run_startup_checks():
     except Exception as e:
         log_message(f"Sembol listesi güncellenemedi: {e}", "WARN")
 
-    # 2. Aşama: Sembolü doğrudan senin inputundan alır ve MT5'e otomatik ekleme emri verir
-    mt5.symbol_select(SYMBOL, True)
+    # 2. Aşama: Aktif tüm sembolleri kontrol et ve MT5'e ekle
+    for sym in list(ACTIVE_SYMBOLS):
+        mt5.symbol_select(sym, True)
+        info = mt5.symbol_info(sym)
 
-    SYMBOL_INFO = mt5.symbol_info(SYMBOL)
-    if SYMBOL_INFO is None or not SYMBOL_INFO.visible:
-        # 🌟 İŞLEM ÖNCESİ SEMBOL (Pre-Flight) KONTROLÜ
-        log_message(
-            f"🚨 HATA: Sembol ({SYMBOL}) aracı kurum sunucusunda bulunamadı!",
-            "ERROR",
-        )
-        log_message(
-            "Lütfen arayüze girdiğiniz sembol adının (örn: XTIUSD) brokerınızla birebir aynı olduğundan emin olun.",
-            "ERROR",
-        )
+        if info is None or not info.visible:
+            log_message(
+                f"🚨 HATA: Sembol ({sym}) aracı kurum sunucusunda bulunamadı!", "ERROR"
+            )
+            log_message(
+                "Lütfen arayüze girdiğiniz sembol adının brokerınızla aynı olduğundan emin olun.",
+                "ERROR",
+            )
+            account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
+            try:
+                metrics_file = get_metrics_path(account_id)
+                if os.path.exists(metrics_file):
+                    with open(metrics_file, "r", encoding="utf-8") as f:
+                        metrics_data = json.load(f)
+                    metrics_data["startup_error"] = (
+                        f"Sembol hatası: {sym} piyasa izleminde yok."
+                    )
+                    tmp_metrics_file = metrics_file + ".tmp"
+                    with open(tmp_metrics_file, "w", encoding="utf-8") as f:
+                        json.dump(metrics_data, f)
+                    os.replace(tmp_metrics_file, metrics_file)
+            except Exception:
+                pass
+            mt5.shutdown()
+            return False
 
-        # Arayüze başlangıç hatası olarak bildir (Startup Error)
-        account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
-        try:
-            metrics_file = get_metrics_path(account_id)
-            if os.path.exists(metrics_file):
-                with open(metrics_file, "r", encoding="utf-8") as f:
-                    metrics_data = json.load(f)
+        if determine_fill_mode(sym) is None:
+            mt5.shutdown()
+            return False
 
-                metrics_data["startup_error"] = (
-                    f"Sembol hatası: {SYMBOL} piyasa izleminde yok veya bu hesapta işlem görmüyor."
-                )
-
-                tmp_metrics_file = metrics_file + ".tmp"
-                with open(tmp_metrics_file, "w", encoding="utf-8") as f:
-                    json.dump(metrics_data, f)
-                os.replace(tmp_metrics_file, metrics_file)
-        except Exception:
-            pass
-
-        mt5.shutdown()
-        return False
-
-    if determine_fill_mode() is None:
-        mt5.shutdown()
-        return False
-
-    if not is_market_open():
-        log_message("Piyasa su anda kapali. Acilmasi bekleniyor...", "WARN")
+    if ACTIVE_SYMBOLS and not any(is_market_open(sym) for sym in ACTIVE_SYMBOLS):
+        log_message("Piyasalar su anda kapali. Acilmasi bekleniyor...", "WARN")
     else:
-        tick = mt5.symbol_info_tick(SYMBOL)
-        if tick:
-            log_message(f"Piyasa acik. Bid: {tick.bid}, Ask: {tick.ask}")
+        log_message("Aktif piyasalar acik ve isleme hazir.")
 
     active_zones_state = {}
     robot_positions = get_all_robot_positions()
@@ -1502,7 +1563,9 @@ def main_loop():
                         "WARN",
                     )
 
-            if not is_market_open():
+            if ACTIVE_SYMBOLS and not any(
+                is_market_open(sym) for sym in ACTIVE_SYMBOLS
+            ):
                 time.sleep(MARKET_CLOSED_CHECK_INTERVAL)
                 continue
 

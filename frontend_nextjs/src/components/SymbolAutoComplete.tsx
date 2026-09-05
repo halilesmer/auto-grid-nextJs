@@ -21,7 +21,14 @@ export default function SymbolAutoComplete({
 }: SymbolAutoCompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Dışarıdan değer değişirse render sırasında inputu güncelle (ESLint fix)
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setSearchTerm(value);
+  }
 
   // Dışarı tıklamayı algıla ve açılır menüyü kapat
   useEffect(() => {
@@ -37,19 +44,14 @@ export default function SymbolAutoComplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Dışarıdan değer değişirse (örneğin hesap değişimi) inputu güncelle
-  useEffect(() => {
-    setSearchTerm(value);
-  }, [value]);
-
   const symbols = Object.values(symbolDetails);
+  const searchLower = (searchTerm || "").toLowerCase();
 
   // Hem sembol adına (USOUSD) hem de açıklamasına (Oil) göre filtreleme
   const filteredSymbols = symbols.filter(
     (sym) =>
-      sym.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (sym.description &&
-        sym.description.toLowerCase().includes(searchTerm.toLowerCase())),
+      sym.name.toLowerCase().includes(searchLower) ||
+      (sym.description && sym.description.toLowerCase().includes(searchLower)),
   );
 
   // Hata durumuna göre input kenarlığını kırmızı yap

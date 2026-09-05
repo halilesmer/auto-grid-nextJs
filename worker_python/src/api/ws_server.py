@@ -1,6 +1,9 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from contextlib import asynccontextmanager
 import asyncio
 import json
+import os
+import glob
 import pandas as pd
 from src.core.indicator_calc import get_latest_indicators
 
@@ -10,7 +13,24 @@ try:
 except ImportError:
     MT5_AVAILABLE = False
 
-router = APIRouter()
+_stream_task: asyncio.Task | None = None
+
+
+@asynccontextmanager
+async def router_lifespan(app):
+    global _stream_task
+    _stream_task = asyncio.create_task(real_bot_data_stream())
+    yield
+    if _stream_task and not _stream_task.done():
+        _stream_task.cancel()
+        try:
+            await _stream_task
+        except asyncio.CancelledError:
+            pass
+
+
+router = APIRouter(lifespan=router_lifespan)
+
 
 class ConnectionManager:
     def __init__(self):
@@ -33,34 +53,44 @@ class ConnectionManager:
         for conn in disconnected:
             self.disconnect(conn)
 
+
 manager = ConnectionManager()
 
-def fetch_mt5_data(symbol="USOUSD"):
+
+def fetch_mt5_data(symbol=""):
     """
     MT5'ten senkron olarak veri çeker. (Event loop'u bloklamamak için thread içinde çalışacak)
     """
-    if not MT5_AVAILABLE:
+    if not MT5_AVAILABLE or not symbol:
         return None
 
     term_info = mt5.terminal_info()
     if term_info is None or not getattr(term_info, "connected", False):
         return None
 
-    # Son 100 mumu çek
     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 100)
     if rates is None or len(rates) == 0:
         return None
 
     df = pd.DataFrame(rates)
-    df['time'] = pd.to_datetime(df['time'], unit='s')
+    df["time"] = pd.to_datetime(df["time"], unit="s")
 
-    # Pozisyonları ve P/L'yi al
-    positions = mt5.positions_get(symbol=symbol)
-    open_positions = len(positions) if positions else 0
-    profit = sum(pos.profit for pos in positions) if positions else 0.0
+    # Pozisyonları ve P/L'yi al (Tüm robot emirleri üzerinden)
+    positions = mt5.positions_get()
+    if positions:
+        r_pos = [p for p in positions if 200000 <= p.magic < 201000]
+        open_positions = len(r_pos)
+        profit = sum(pos.profit for pos in r_pos)
+    else:
+        open_positions = 0
+        profit = 0.0
 
-    orders = mt5.orders_get(symbol=symbol)
-    pending_orders = len(orders) if orders else 0
+    orders = mt5.orders_get()
+    if orders:
+        r_ord = [o for o in orders if 200000 <= o.magic < 201000]
+        pending_orders = len(r_ord)
+    else:
+        pending_orders = 0
 
     symbol_info = mt5.symbol_info(symbol)
     trade_mode = getattr(symbol_info, "trade_mode", 0) if symbol_info else 0
@@ -82,12 +112,32 @@ def fetch_mt5_data(symbol="USOUSD"):
         "mt5_connected": True,
     }
 
+
 async def real_bot_data_stream():
     """MT5'ten gerçek veriyi 1 saniyede bir çekip WS ile yayınlar."""
-    symbol = "USOUSD"  # TODO: config'ten al
     while True:
         try:
             await asyncio.sleep(1.0)
+
+            # Arayüzdeki aktif sembolü dinamik oku
+            base_dir = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..")
+            )
+            acc_id, symbol = "default", ""
+            try:
+                with open(os.path.join(base_dir, "configs", "accounts.json"), "r") as f:
+                    acc_id = str(json.load(f)["accounts"][0]["id"])
+                settings_files = glob.glob(
+                    os.path.join(base_dir, "configs", f"settings_{acc_id}*.json")
+                )
+                if settings_files:
+                    with open(settings_files[0], "r", encoding="utf-8") as f:
+                        settings_data = json.load(f)
+                        zones = settings_data.get("settings", {}).get("ZONES", [])
+                        if zones and "symbol" in zones[0]:
+                            symbol = str(zones[0]["symbol"]).upper().strip()
+            except Exception:
+                pass
 
             data = await asyncio.to_thread(fetch_mt5_data, symbol)
 
@@ -106,20 +156,6 @@ async def real_bot_data_stream():
                 }
 
                 # Arayüz HTTP Polling için aktif hesabın JSON log dosyasına yaz
-                import os
-
-                base_dir = os.path.abspath(
-                    os.path.join(os.path.dirname(__file__), "..", "..")
-                )
-                acc_id = "default"
-                try:
-                    with open(
-                        os.path.join(base_dir, "configs", "accounts.json"), "r"
-                    ) as f:
-                        acc_id = str(json.load(f)["accounts"][0]["id"])
-                except:
-                    pass
-
                 os.makedirs(os.path.join(base_dir, "logs"), exist_ok=True)
                 with open(
                     os.path.join(base_dir, "logs", f"met_{acc_id}.json"),
@@ -148,23 +184,8 @@ async def real_bot_data_stream():
             # Tekrar deneme için 5 sn bekle
             await asyncio.sleep(5.0)
 
-# Module-level task reference for shutdown
-_stream_task: asyncio.Task | None = None
 
-@router.on_event("startup")
-async def startup_event():
-    global _stream_task
-    _stream_task = asyncio.create_task(real_bot_data_stream())
-
-@router.on_event("shutdown")
-async def shutdown_event():
-    global _stream_task
-    if _stream_task and not _stream_task.done():
-        _stream_task.cancel()
-        try:
-            await _stream_task
-        except asyncio.CancelledError:
-            pass
+# (Eski startup/shutdown eventleri lifespan yapısına taşındığı için buradan temizlendi)
 
 @router.websocket("/stream")
 async def websocket_endpoint(websocket: WebSocket):
