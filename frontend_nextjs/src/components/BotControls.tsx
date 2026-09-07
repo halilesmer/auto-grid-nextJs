@@ -20,7 +20,6 @@ export default function BotControls() {
     activeAccount,
     isConnecting,
     liveData,
-    updateLiveData,
     setIsRunning,
     setIsConnecting,
     availableSymbols,
@@ -78,14 +77,13 @@ export default function BotControls() {
     }, 15000);
 
     try {
-      const res = await axios.post(
+      await axios.post(
         `${API}/start?account_id=${selectedAccount}`,
+        {},
+        { headers: { "ngrok-skip-browser-warning": "true" } },
       );
-      updateLiveData({ mt5_connected: true });
-      setIsConnecting(false);
-      setIsRunning(true);
-      clearTimeout(unlockTimer);
-      alert(res.data.message || "Bot started!");
+      // Backend gerçek bağlantı kurduğunda WebSocket veya polling üzerinden
+      // mt5_connected: true durumunu gönderecektir. Arayüz sahte durumu bekletiyor.
     } catch (err) {
       setIsConnecting(false);
       setIsRunning(false);
@@ -98,7 +96,7 @@ export default function BotControls() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, updateLiveData, setIsRunning, setIsConnecting]);
+  }, [selectedAccount, setIsRunning, setIsConnecting]);
 
   const handleStopBot = useCallback(async () => {
     if (!selectedAccount) return;
@@ -106,10 +104,13 @@ export default function BotControls() {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.post(`${API}/stop?account_id=${selectedAccount}`);
-      updateLiveData({ mt5_connected: false });
-      setIsRunning(false);
-      alert(res.data.message || "Bot stopped!");
+      await axios.post(
+        `${API}/stop?account_id=${selectedAccount}`,
+        {},
+        { headers: { "ngrok-skip-browser-warning": "true" } },
+      );
+      // Backend botu durdurduğunda WebSocket veya polling üzerinden
+      // mt5_connected: false durumunu gönderecektir.
     } catch (err) {
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.detail || "Failed to stop bot.");
@@ -119,7 +120,7 @@ export default function BotControls() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, updateLiveData, setIsRunning]);
+  }, [selectedAccount]);
 
   if (!selectedAccount) return null;
 
@@ -171,11 +172,11 @@ export default function BotControls() {
         {!liveData.mt5_connected ? (
           <button
             onClick={handleStartBot}
-            disabled={loading}
+            disabled={loading || isConnecting}
             className="flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-lg shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50"
           >
             <Play size={16} />
-            <span>{loading ? "..." : "Start Bot"}</span>
+            <span>{loading || isConnecting ? "..." : "Start Bot"}</span>
           </button>
         ) : (
           <button

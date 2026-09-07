@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { AlertTriangle, Minus, Plus, Save } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
-import { AlertTriangle, Save, Minus, Plus } from 'lucide-react';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -29,8 +30,11 @@ export default function SettingsForm() {
 
   useEffect(() => {
     if (!selectedAccount) {
-      setLoopInterval(1.0);
-      setOriginalInterval(1.0);
+      // Eşzamanlı (synchronous) render'ı ve ESLint hatasını önlemek için microtask/timeout kullanılır
+      setTimeout(() => {
+        setLoopInterval(1.0);
+        setOriginalInterval(1.0);
+      }, 0);
       return;
     }
     axios
@@ -43,7 +47,7 @@ export default function SettingsForm() {
         setGlobalSettings({ LOOP_INTERVAL_SECONDS: interval });
       })
       .catch((err) => {
-        console.error('Failed to load global settings', err);
+        console.error("Failed to load global settings", err);
         setLoopInterval(1.0);
         setOriginalInterval(1.0);
         setGlobalSettings({ LOOP_INTERVAL_SECONDS: 1.0 });
@@ -73,8 +77,9 @@ export default function SettingsForm() {
       });
       setOriginalInterval(loopInterval);
       setGlobalSettings({ LOOP_INTERVAL_SECONDS: loopInterval });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save settings.');
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { detail?: string } } };
+      setError(apiError.response?.data?.detail || 'Failed to save settings.');
     } finally {
       setSaving(false);
     }

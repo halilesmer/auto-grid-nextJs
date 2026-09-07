@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
 import axios from 'axios';
 import { useBotStore } from '@/store/useBotStore';
+import { useEffect } from 'react';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||

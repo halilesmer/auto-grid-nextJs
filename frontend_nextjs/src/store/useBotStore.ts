@@ -61,6 +61,7 @@ export interface ZoneSettings {
 
 export interface GlobalSettings {
   ORDER_TYPE: string;
+  SYMBOL: string;
   LOOP_INTERVAL_SECONDS: number;
   ZONES: ZoneSettings[];
 }
@@ -259,6 +260,7 @@ export const useBotStore = create<BotState>((set, get) => ({
         ? { ...state.settings, ...globals }
         : {
             ORDER_TYPE: globals.ORDER_TYPE ?? "BUY",
+            SYMBOL: globals.SYMBOL ?? "",
             LOOP_INTERVAL_SECONDS: globals.LOOP_INTERVAL_SECONDS ?? 1.0,
             ZONES: [],
           },
@@ -276,6 +278,7 @@ export const useBotStore = create<BotState>((set, get) => ({
           ? { ...state.settings, ZONES: newZones }
           : {
               ORDER_TYPE: "BUY",
+              SYMBOL: "",
               LOOP_INTERVAL_SECONDS: 1.0,
               ZONES: newZones,
             },

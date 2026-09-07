@@ -53,7 +53,7 @@ export default function Home() {
     try {
       const obj = JSON.parse(jsonStr);
       if (Array.isArray(obj.ZONES)) {
-        obj.ZONES.forEach((z: any) => delete z.is_active);
+        obj.ZONES.forEach((z: Record<string, unknown>) => delete z.is_active);
       }
       return JSON.stringify(obj);
     } catch {
@@ -320,7 +320,6 @@ const handleApplyUpdate = async () => {
               <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-112.5">
                 <ZoneSettingsPanel
                   selectedAccount={selectedAccount}
-                  activeAccount={activeAccount}
                   isRunning={isRunning}
                   liveData={liveData}
                   isGlobalDirty={isDirty}

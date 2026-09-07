@@ -54,9 +54,21 @@ export default function LogViewer() {
     }
   }, [logs, tab]);
 
-  const handleDownloadLog = () => {
+  const handleDownloadLog = async () => {
     if (selectedAccount) {
-      window.open(`${API}/logs/download/${selectedAccount}`);
+      try {
+        const res = await axios.get(`${API}/logs/download/${selectedAccount}`, {
+          responseType: "blob",
+        });
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `logs_${selectedAccount}.txt`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("İndirme hatası", err);
+      }
     }
   };
 

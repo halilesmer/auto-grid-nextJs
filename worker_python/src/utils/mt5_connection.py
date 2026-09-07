@@ -35,13 +35,13 @@ def connect_to_mt5(account_config, timeout_sec=60):
         import sys
 
         reason = (
-            MT5_IMPORT_ERROR if platform.system() == "Windows" else "Mac/Linux Ortamı"
+            MT5_IMPORT_ERROR if platform.system() == "Windows" else "Mac/Linux Ortamı (MT5 yalnızca Windows destekler)"
         )
         safe_log(
-            f"⚠️ UYARI: MT5 bağlantısı simüle ediliyor! Sebep: {reason} | Aktif Python Yolu: {sys.executable}",
-            type="warning",
+            f"🔴 BAĞLANTI HATASI: {reason} | Python: {sys.executable}",
+            type="error",
         )
-        return True, None
+        return False, f"[SYSTEM] MT5 Bağlantı Hatası: MetaTrader 5 Python kütüphanesi yalnızca Windows ortamında çalışır. ({reason})"
 
     # ==========================================
     # BUNDAN SONRASI SADECE WINDOWS'TA ÇALIŞIR
