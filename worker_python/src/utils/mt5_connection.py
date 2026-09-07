@@ -35,13 +35,18 @@ def connect_to_mt5(account_config, timeout_sec=60):
         import sys
 
         reason = (
-            MT5_IMPORT_ERROR if platform.system() == "Windows" else "Mac/Linux Ortamı (MT5 yalnızca Windows destekler)"
+            MT5_IMPORT_ERROR
+            if platform.system() == "Windows"
+            else "Mac/Linux Ortamı (MT5 yalnızca Windows destekler)"
         )
         safe_log(
             f"🔴 BAĞLANTI HATASI: {reason} | Python: {sys.executable}",
             type="error",
         )
-        return False, f"[SYSTEM] MT5 Bağlantı Hatası: MetaTrader 5 Python kütüphanesi yalnızca Windows ortamında çalışır. ({reason})"
+        return (
+            False,
+            f"[SYSTEM] MT5 Bağlantı Hatası: MetaTrader 5 Python kütüphanesi yalnızca Windows ortamında çalışır. ({reason})",
+        )
 
     # ==========================================
     # BUNDAN SONRASI SADECE WINDOWS'TA ÇALIŞIR
@@ -130,6 +135,12 @@ def connect_to_mt5(account_config, timeout_sec=60):
     # Eğer hesap bilgileri tamsa, MT5 açılırken doğrudan hesaba giriş yapsın diye parametreleri ekliyoruz
     if login_id > 0:
         init_kwargs.update({"login": login_id, "password": password, "server": server})
+
+    # 🌟 DÜZELTME: LiveUpdate sonrası IPC kilitlenmesi ve Port çakışmasını (10048) önlemek
+    # için mt5.initialize() çağrısından ÖNCE var olan asılı terminali öldürüyoruz.
+    _kill_zombie_mt5(mt5_path)
+    mt5.shutdown()
+    time.sleep(1.0)
 
     init_success = mt5.initialize(**init_kwargs)
 
