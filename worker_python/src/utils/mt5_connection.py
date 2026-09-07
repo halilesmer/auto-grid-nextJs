@@ -10,10 +10,25 @@ import subprocess
 
 from src.utils.paths import get_mt5_backup_dir  # 🌟 YENİ: Hesaba özel MT5 yedek klasörü
 
-def safe_log(msg, type="error"):
-    """Konsola veya yönlendirilmiş log dosyasına güvenli mesaj yazar."""
-    prefix = "🔴 ERROR:" if type == "error" else "⚠️ WARNING:" if type == "warning" else "ℹ️ INFO:"
-    print(f"{prefix} {msg}")
+
+def safe_log(msg, type="error", account_id=None):
+    """Konsola ve log dosyasına güvenli mesaj yazar."""
+    prefix = (
+        "🔴 ERROR:"
+        if type == "error"
+        else "⚠️ WARNING:" if type == "warning" else "ℹ️ INFO:"
+    )
+    formatted_msg = f"{prefix} {msg}"
+    print(formatted_msg)
+    if account_id:
+        try:
+            from src.utils.paths import get_account_log_file
+
+            log_file = get_account_log_file(str(account_id), "err")
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {formatted_msg}\n")
+        except Exception:
+            pass
 
 
 try:
@@ -253,28 +268,28 @@ def connect_to_mt5(account_config, timeout_sec=60):
     # Algo Trading Check
     terminal_info = mt5.terminal_info()
     if terminal_info is not None and not terminal_info.trade_allowed:
-        safe_log(
-            "🚨 KRİTİK HATA: MetaTrader 5'te 'Algo Trading' (Otomatik Ticaret) butonu kapalı!"
-        )
+        err_msg = "🚨 KRİTİK HATA: MetaTrader 5'te 'Algo Trading' (Otomatik Ticaret) butonu kapalı!"
+        safe_log(err_msg, account_id=login_id)
         mt5.shutdown()
-        return False, "[TERMINAL] Algo Trading kapalı! MT5 üst menüsünden 'Algo Trading' butonunu aktif (yeşil) yapın."
+        return (
+            False,
+            "[TERMINAL] Algo Trading kapalı! MT5 üst menüsünden 'Algo Trading' butonunu aktif (yeşil) yapın.",
+        )
 
     is_mt5_demo = account_info.trade_mode == mt5.ACCOUNT_TRADE_MODE_DEMO
     env_type = account_config.get("type", account_config.get("env_type", ""))
 
     if env_type == "LIVE" and is_mt5_demo:
-        safe_log(
-            "🚨 KRİTİK GÜVENLİK İHLALİ: Canlı (LIVE) ortam seçili ama MT5 hesabı DEMO!"
-        )
+        err_msg = "🚨 KRİTİK GÜVENLİK İHLALİ: Robot LIVE modunda seçili ama bağlanan MT5 hesabı DEMO!"
+        safe_log(err_msg, type="error", account_id=login_id)
         mt5.shutdown()
-        return False, "[SECURITY] Ortam uyuşmazlığı: Robot LIVE modunda ama MT5 hesabı DEMO."
+        return False, err_msg
 
     if env_type in ["DEMO", "TEST"] and not is_mt5_demo:
-        safe_log(
-            "🚨 KRİTİK GÜVENLİK İHLALİ: Test (TEST) ortamı seçili ama MT5 hesabı GERÇEK PARALI (LIVE)!"
-        )
+        err_msg = "🚨 KRİTİK GÜVENLİK İHLALİ: Robot TEST modunda seçili ama bağlanan MT5 hesabı GERÇEK (LIVE)!"
+        safe_log(err_msg, type="error", account_id=login_id)
         mt5.shutdown()
-        return False, "[SECURITY] Ortam uyuşmazlığı: Robot TEST modunda ama MT5 hesabı GERÇEK PARALI (LIVE)."
+        return False, err_msg
 
     # 🌟 BAĞLANTI BAŞARILI OLDUKTAN SONRA LOGLARI YEDEKLE
     backup_mt5_logs(login_id)
