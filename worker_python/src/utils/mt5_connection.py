@@ -41,6 +41,39 @@ except ImportError as e:
     MT5_IMPORT_ERROR = str(e)
 
 
+def _kill_zombie_mt5(path):
+    """Yardımcı Fonksiyon: Kilitlenmiş MT5'i işletim sistemi seviyesinde öldürür."""
+    target_exe = "terminal64.exe"
+    if path and os.path.exists(path):
+        target_exe = os.path.basename(path).lower()
+
+    for proc in psutil.process_iter(["pid", "name", "exe"]):
+        try:
+            p_name = proc.info.get("name")
+            p_exe = proc.info.get("exe")
+
+            if p_name and p_name.lower() == target_exe:
+                if path and os.path.exists(path) and p_exe:
+                    if (
+                        os.path.normpath(p_exe).lower()
+                        != os.path.normpath(path).lower()
+                    ):
+                        continue
+
+                safe_log(
+                    f"Asılı kalan MT5 terminali tespit edildi. Öldürülüyor... PID: {proc.info['pid']}",
+                    type="warning",
+                )
+                subprocess.call(
+                    ["taskkill", "/F", "/PID", str(proc.info["pid"])],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                time.sleep(2.0)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+
 def connect_to_mt5(account_config, timeout_sec=60):
     if not account_config:
         safe_log("Bağlanılacak hesap seçilmedi!")
@@ -55,66 +88,14 @@ def connect_to_mt5(account_config, timeout_sec=60):
             else "Mac/Linux Ortamı (MT5 yalnızca Windows destekler)"
         )
         safe_log(
-            f"🔴 BAĞLANTI HATASI: {reason} | Python: {sys.executable}",
-            type="error",
+            f"🔴 BAĞLANTI HATASI: {reason} | Python: {sys.executable}", type="error"
         )
         return (
             False,
             f"[SYSTEM] MT5 Bağlantı Hatası: MetaTrader 5 Python kütüphanesi yalnızca Windows ortamında çalışır. ({reason})",
         )
 
-    # ==========================================
-    # BUNDAN SONRASI SADECE WINDOWS'TA ÇALIŞIR
-    # ==========================================
-
-    mt5.shutdown()
-
-    # 1. NAVIGATOR: Welches Terminal soll gestartet werden?
-    mt5_path = account_config.get("mt5_path")
-    init_success = False
-
-    def _kill_zombie_mt5(path):
-        """Yardımcı Fonksiyon: Kilitlenmiş MT5'i işletim sistemi seviyesinde öldürür."""
-        # import psutil, subprocess  # KALDIRILDI: modül seviyesinde import edildi
-
-        target_exe = "terminal64.exe"
-        if path and os.path.exists(path):
-            target_exe = os.path.basename(path).lower()
-
-        for proc in psutil.process_iter(["pid", "name", "exe"]):
-            try:
-                p_name = proc.info.get("name")
-                p_exe = proc.info.get("exe")
-
-                if p_name and p_name.lower() == target_exe:
-                    # Eğer geçerli bir path varsa ve uyuşmuyorsa pas geç. Path yoksa ilk zombiyi vur.
-                    if path and os.path.exists(path) and p_exe:
-                        if (
-                                os.path.normpath(p_exe).lower()
-                                != os.path.normpath(path).lower()
-                            ):
-                            continue
-
-                    safe_log(
-                            f"Asılı kalan MT5 terminali tespit edildi. Öldürülüyor... PID: {proc.info['pid']}",
-                            type="warning",
-                        )
-                    subprocess.call(
-                            ["taskkill", "/F", "/PID", str(proc.info["pid"])],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
-                    time.sleep(2.0)
-            except (
-                    psutil.NoSuchProcess,
-                    psutil.AccessDenied,
-                    psutil.ZombieProcess,
-                ):
-                pass
-
-    # ==============================================================
-    # 🌟 GİRİŞ BİLGİLERİNİ GÜVENLİ ŞEKİLDE HAZIRLA (Try-Except ile)
-    # ==============================================================
+    # 1. Giriş bilgilerini doğrulama
     raw_login = account_config.get("login")
     password = account_config.get("password")
     server = account_config.get("server")
@@ -130,7 +111,14 @@ def connect_to_mt5(account_config, timeout_sec=60):
                 f"🔴 BAĞLANTI HATASI: Hesap numarası (Login) sadece rakamlardan oluşmalıdır! Girilen değer: '{raw_login}'",
                 type="error",
             )
-            return False, f"[CONFIG] Hesap numarası geçersiz: '{raw_login}' (sadece rakam olmalı)"
+            return (
+                False,
+                f"[CONFIG] Hesap numarası geçersiz: '{raw_login}' (sadece rakam olmalı)",
+            )
+
+    mt5.shutdown()
+    mt5_path = account_config.get("mt5_path")
+    init_success = False
 
     # ==============================================================
     # 🌟 AŞAMA 1: OTO-LOGIN İLE BAŞLATMA (mt5.initialize)
@@ -241,7 +229,7 @@ def connect_to_mt5(account_config, timeout_sec=60):
             else:
                 phase_msg = f"[LOGIN] Giriş başarısız. Hata kodu: {err_code} ({last_err[1]})"
 
-            safe_log(err_msg, type="error")
+            safe_log(err_msg, type="error", account_id=login_id)
             mt5.shutdown()  # Hata durumunda hafızada asılı kalmaması için kapatıldı
             return False, phase_msg
 
@@ -260,7 +248,9 @@ def connect_to_mt5(account_config, timeout_sec=60):
 
     if account_info is None:
         safe_log(
-            "Hesap bilgileri MetaTrader'dan alınamadı! (Auto-Login gecikmiş veya MT5 kapalı olabilir)"
+            "Hesap bilgileri MetaTrader'dan alınamadı! (Auto-Login gecikmiş veya MT5 kapalı olabilir)",
+            type="error",
+            account_id=login_id,
         )
         mt5.shutdown()
         return False, "[ACCOUNT] Hesap bilgisi alınamadı. MT5 terminali senkronize olamadı (3 deneme başarısız)"
@@ -295,6 +285,7 @@ def connect_to_mt5(account_config, timeout_sec=60):
     backup_mt5_logs(login_id)
 
     return True, None
+
 
 def shutdown_mt5():
     """MT5 bağlantı oturumunu serbest bırakır.
