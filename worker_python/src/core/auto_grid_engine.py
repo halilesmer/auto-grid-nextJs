@@ -813,16 +813,16 @@ def manage_dynamic_grid():
 
             # 1. TP/SL GÜNCELLEMESİ (Tüm açık pozisyonlar için bağımsız çalışır)
             expected_tp = (
-                normalize_price(pos.price_open + tp_val)
+                normalize_price(pos.price_open + tp_val, zone_sym)
                 if direction == "BUY"
-                else normalize_price(pos.price_open - tp_val)
+                else normalize_price(pos.price_open - tp_val, zone_sym)
             )
             expected_sl = 0.0
             if sl_val > 0:
                 expected_sl = (
-                    normalize_price(pos.price_open - sl_val)
+                    normalize_price(pos.price_open - sl_val, zone_sym)
                     if direction == "BUY"
-                    else normalize_price(pos.price_open + sl_val)
+                    else normalize_price(pos.price_open + sl_val, zone_sym)
                 )
 
             pos_tp = pos.tp if pos.tp else 0.0
@@ -955,7 +955,7 @@ def manage_dynamic_grid():
                         f"ℹ️ Fiyat bölgeden çıktı ({actual_exit_dir}) ancak temizlik '{trigger_side}' ayarlandığı için işlemler pas geçildi. Bölge pasif duruma alınıyor."
                     )
                 else:
-                    scope = "Sadece Bekleyen Emirler"
+                    scope = ACTIVE_ZONE.get("clear_scope", "Sadece Bekleyen Emirler")
                     target = ACTIVE_ZONE.get("clear_target_side", "Farketmez (Hepsi)")
 
                     log_message(
@@ -983,8 +983,57 @@ def manage_dynamic_grid():
                                 silinen_emir_sayisi += 1
 
                     log_message(
-                        f"🧹 Toplam {silinen_emir_sayisi} adet bekleyen {target} emri temizlendi. (Açık pozisyonlar korundu)"
+                        f"🧹 Toplam {silinen_emir_sayisi} adet bekleyen {target} emri temizlendi."
                     )
+
+                    # 🌟 DÜZELTME: Arayüzden "Açık Pozisyonlar" seçildiyse onları da piyasa fiyatından kapat!
+                    if "Pozisyon" in scope or "Tümü" in scope or "Hepsi" in scope:
+                        kapatilan_poz_sayisi = 0
+                        for pos in robot_positions:
+                            if pos.magic == target_magic:
+                                if (
+                                    target == "Farketmez (Hepsi)"
+                                    or (
+                                        target == "Sadece BUY İşlemleri"
+                                        and pos.type == mt5.POSITION_TYPE_BUY
+                                    )
+                                    or (
+                                        target == "Sadece SELL İşlemleri"
+                                        and pos.type == mt5.POSITION_TYPE_SELL
+                                    )
+                                ):
+                                    tick = mt5.symbol_info_tick(pos.symbol)
+                                    if tick:
+                                        close_type = (
+                                            mt5.ORDER_TYPE_SELL
+                                            if pos.type == mt5.POSITION_TYPE_BUY
+                                            else mt5.ORDER_TYPE_BUY
+                                        )
+                                        close_price = (
+                                            tick.bid
+                                            if pos.type == mt5.POSITION_TYPE_BUY
+                                            else tick.ask
+                                        )
+                                        req = {
+                                            "action": mt5.TRADE_ACTION_DEAL,
+                                            "position": pos.ticket,
+                                            "symbol": pos.symbol,
+                                            "volume": pos.volume,
+                                            "type": close_type,
+                                            "price": close_price,
+                                            "deviation": MAX_DEVIATION,
+                                            "magic": pos.magic,
+                                            "comment": "Zone_Exit_Close",
+                                            "type_time": mt5.ORDER_TIME_GTC,
+                                            "type_filling": FILLING_MODE.get(
+                                                pos.symbol, mt5.ORDER_FILLING_IOC
+                                            ),
+                                        }
+                                        safe_send_order(mt5, req, log_message)
+                                        kapatilan_poz_sayisi += 1
+                        log_message(
+                            f"💥 Toplam {kapatilan_poz_sayisi} adet {target} açık pozisyonu kapatıldı."
+                        )
 
                 robot_orders = get_all_robot_orders()
                 robot_positions = get_all_robot_positions()
@@ -1131,9 +1180,9 @@ def manage_dynamic_grid():
     for pos in robot_positions:
         if pos.magic == target_magic:
             if pos.type == mt5.POSITION_TYPE_BUY:
-                acceptable_buy_levels.append(normalize_price(pos.price_open))
+                acceptable_buy_levels.append(normalize_price(pos.price_open, zone_symbol))
             elif pos.type == mt5.POSITION_TYPE_SELL:
-                acceptable_sell_levels.append(normalize_price(pos.price_open))
+                acceptable_sell_levels.append(normalize_price(pos.price_open, zone_symbol))
     # --------------------------------------------------
 
     # KAYAN PENCEREYİ OLUŞTUR (Sliding Window)
@@ -1146,7 +1195,7 @@ def manage_dynamic_grid():
             for i in range(1, levels_below + 1):
                 p = buy_anchor_price - (i * grid_step)
                 if round(z_min, 5) <= round(p, 5) <= round(z_max, 5):
-                    desired_buy_levels.append(normalize_price(p))
+                    desired_buy_levels.append(normalize_price(p, zone_symbol))
 
         # Üstteki emirler (Stop)
         for i in range(1, levels_above + 1):
@@ -1158,7 +1207,7 @@ def manage_dynamic_grid():
                 continue  # Fiyat yeterince geri çekilmedi, bu seviyeyi şimdilik pas geç
 
             if round(z_min, 5) <= round(p, 5) <= round(z_max, 5):
-                desired_buy_levels.append(normalize_price(p))
+                desired_buy_levels.append(normalize_price(p, zone_symbol))
 
         # Toleranslı Kabul Bölgesi (Silinmeyecek Emirler)
         for i in range(-levels_below - buffer_steps, levels_above + buffer_steps + 1):
@@ -1167,7 +1216,7 @@ def manage_dynamic_grid():
             if is_breakout and level_p < current_avg_price:
                 continue
 
-            acceptable_buy_levels.append(normalize_price(level_p))
+            acceptable_buy_levels.append(normalize_price(level_p, zone_symbol))
 
     if z_type in ["SELL", "BOTH"]:
         # Üstteki emirler (Limit) - (Kırılım modu açıksa Limit emir DİZİLMEZ)
@@ -1175,7 +1224,7 @@ def manage_dynamic_grid():
             for i in range(1, levels_above + 1):
                 p = sell_anchor_price + (i * sell_grid_step)
                 if round(z_min, 5) <= round(p, 5) <= round(z_max, 5):
-                    desired_sell_levels.append(normalize_price(p))
+                    desired_sell_levels.append(normalize_price(p, zone_symbol))
 
         # Alttaki emirler (Stop)
         for i in range(1, levels_below + 1):
@@ -1187,7 +1236,7 @@ def manage_dynamic_grid():
                 continue  # Fiyat yeterince yukarı sekti mi? Hayır, o zaman pas geç.
 
             if round(z_min, 5) <= round(p, 5) <= round(z_max, 5):
-                desired_sell_levels.append(normalize_price(p))
+                desired_sell_levels.append(normalize_price(p, zone_symbol))
 
         # Toleranslı Kabul Bölgesi (Silinmeyecek Emirler)
         for i in range(-levels_below - buffer_steps, levels_above + buffer_steps + 1):
@@ -1196,7 +1245,7 @@ def manage_dynamic_grid():
             if is_breakout and level_p > current_avg_price:
                 continue
 
-            acceptable_sell_levels.append(normalize_price(level_p))
+            acceptable_sell_levels.append(normalize_price(level_p, zone_symbol))
 
     # BUY ve SELL yönleri için ayrı esnek tolerans (Grid'in %40'ı)
     buy_tolerance = grid_step * 0.4
@@ -1208,7 +1257,7 @@ def manage_dynamic_grid():
         if order.magic != target_magic:
             continue
 
-        order_price = normalize_price(order.price_open)
+        order_price = normalize_price(order.price_open, zone_symbol)
         is_valid = False
 
         if order.type in [mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP]:
@@ -1218,9 +1267,11 @@ def manage_dynamic_grid():
             )
             # 🌟 YENİ: Arayüzden güncellenen Lot, TP veya SL değerleri mevcut emirle uyuşmuyorsa emri sil
             if is_valid:
-                expected_tp = normalize_price(order_price + tp_val)
+                expected_tp = normalize_price(order_price + tp_val, zone_symbol)
                 expected_sl = (
-                    normalize_price(order_price - sl_val) if sl_val > 0 else 0.0
+                    normalize_price(order_price - sl_val, zone_symbol)
+                    if sl_val > 0
+                    else 0.0
                 )
                 order_tp = order.tp if order.tp else 0.0
                 order_sl = order.sl if order.sl else 0.0
@@ -1232,7 +1283,8 @@ def manage_dynamic_grid():
                     if p.magic == target_magic
                     and p.type == mt5.POSITION_TYPE_BUY
                     and abs(
-                        round(normalize_price(p.price_open), 5) - round(order_price, 5)
+                        round(normalize_price(p.price_open, zone_symbol), 5)
+                        - round(order_price, 5)
                     )
                     <= round(buy_tolerance, 5)
                 )
@@ -1245,7 +1297,9 @@ def manage_dynamic_grid():
                     expected_lot = float(lot_val)
 
                 expected_lot_norm = (
-                    normalize_volume(expected_lot) if expected_lot > 0 else 0.0
+                    normalize_volume(expected_lot, zone_symbol)
+                    if expected_lot > 0
+                    else 0.0
                 )
 
                 if (
@@ -1263,9 +1317,9 @@ def manage_dynamic_grid():
             )
             # 🌟 YENİ: Arayüzden güncellenen Lot, TP veya SL değerleri mevcut emirle uyuşmuyorsa emri sil
             if is_valid:
-                expected_tp = normalize_price(order_price - sell_tp_val)
+                expected_tp = normalize_price(order_price - sell_tp_val, zone_symbol)
                 expected_sl = (
-                    normalize_price(order_price + sell_sl_val)
+                    normalize_price(order_price + sell_sl_val, zone_symbol)
                     if sell_sl_val > 0
                     else 0.0
                 )
@@ -1279,7 +1333,8 @@ def manage_dynamic_grid():
                     if p.magic == target_magic
                     and p.type == mt5.POSITION_TYPE_SELL
                     and abs(
-                        round(normalize_price(p.price_open), 5) - round(order_price, 5)
+                        round(normalize_price(p.price_open, zone_symbol), 5)
+                        - round(order_price, 5)
                     )
                     <= round(sell_tolerance, 5)
                 )
@@ -1292,7 +1347,9 @@ def manage_dynamic_grid():
                     expected_lot = float(sell_lot_val)
 
                 expected_lot_norm = (
-                    normalize_volume(expected_lot) if expected_lot > 0 else 0.0
+                    normalize_volume(expected_lot, zone_symbol)
+                    if expected_lot > 0
+                    else 0.0
                 )
 
                 if (
