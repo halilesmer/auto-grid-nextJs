@@ -74,7 +74,11 @@ export default function ChartViewer() {
 
     window.addEventListener('resize', handleResize);
 
-    const ws = new WebSocket('ws://localhost:8000/ws/stream');
+    const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    // Convert http/https to ws/wss
+    const wsBaseUrl = rawAPI.replace(/^http/, 'ws').replace(/\/api$/, '');
+    const wsUrl = `${wsBaseUrl}/ws/stream`;
+    const ws = new WebSocket(wsUrl);
     
     let currentBar = {
         time: 0 as UTCTimestamp,

@@ -90,6 +90,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📜 opencode-rules.md        # OpenCode kuralları
 ┃ ┣ 📂 architecture_python      # Python mimari belgeleri
 ┃ ┃ ┗ 📜 genel_arch.md          # Genel mimari dokümantasyonu
+┃ ┣ 📜 windows_start_guide.md   # Windows hızlı başlatma rehberi (Terminal + Ngrok)
 ┃ ┗ 📂 NGrok                    # Ngrok tünel dokümantasyonu
 ┃   ┗ 📜 Sistem ve Canlıya Alma.md # Sistem ve canlıya alma rehberi
 

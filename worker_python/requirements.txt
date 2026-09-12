@@ -4,3 +4,4 @@ websockets
 pandas
 pandas-ta
 MetaTrader5
+psutil

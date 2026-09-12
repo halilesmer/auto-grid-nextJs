@@ -104,3 +104,24 @@ curl -X 'GET' \
 ```
 
 ```
+
+
+Kurzer Überblick der 2 Schritte:
+1. Terminal: Backend (FastAPI / Worker)
+Startet die MT5-Verbindung, Berechnungen und den WebSocket-Server:
+
+cmd
+
+
+cd C:\dev\auto-grid-nextJs\worker_python
+.venv\Scripts\activate
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+Bedeutung: Lädt den Python-Prozess im lokalen Netzwerk auf Port 8000.
+Erfolg: Application startup complete.
+2. Terminal: Ngrok-Tunnel
+Öffnet einen sicheren öffentlichen Tunnel ins Internet für das Vercel-Frontend:
+
+cmd
+
+
+ngrok http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev
