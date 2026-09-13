@@ -4,9 +4,13 @@ __pycache__/
 .streamlit/
 
 
-# Sanal Ortamlar
+# Virtual Environments
 venv/
 .venv/
+
+# Environment variables
+.env
+.env.*
 
 # Konfigurationen und sensible Daten ignorieren
 configs/accounts.json
