@@ -36,7 +36,7 @@ export default function BotControls() {
   // Bot zaten çalışıyorken sayfa yenilenirse (F5) ya da mt5_connected true olduğunda
   // broker'ın desteklediği sembolleri çek. Liste zaten doluysa gereksiz istek atma.
   useEffect(() => {
-    if (!liveData.mt5_connected || !selectedAccount) return;
+    if (!selectedAccount) return;
     if (availableSymbols.length > 0) return;
 
     let cancelled = false;
@@ -56,7 +56,12 @@ export default function BotControls() {
     return () => {
       cancelled = true;
     };
-  }, [liveData.mt5_connected, selectedAccount, availableSymbols.length, setAvailableSymbols]);
+  }, [
+    liveData.mt5_connected,
+    selectedAccount,
+    availableSymbols.length,
+    setAvailableSymbols,
+  ]);
 
   const [loading, setLoading] = useState(false);
   const [stopConfirmOpen, setStopConfirmOpen] = useState(false);

@@ -139,12 +139,10 @@ def connect_to_mt5(account_config, timeout_sec=60):
     if login_id > 0:
         init_kwargs.update({"login": login_id, "password": password, "server": server})
 
-    # 🌟 DÜZELTME: LiveUpdate sonrası IPC kilitlenmesi ve Port çakışmasını (10048) önlemek
-    # için mt5.initialize() çağrısından ÖNCE var olan asılı terminali öldürüyoruz.
-    _kill_zombie_mt5(mt5_path)
     mt5.shutdown()
-    time.sleep(1.0)
+    time.sleep(0.5)
 
+    # Açık olan terminale doğrudan bağlanmayı dene (Zorla kapatma yapma)
     init_success = mt5.initialize(**init_kwargs)
 
     # 🌟 ZOMBİ AVCISI (Kurtarma): Eğer ilk bağlantı başarısız olursa (IPC hatası vb.), terminal asılı kalmış demektir. Öldür ve tekrar dene!
@@ -238,22 +236,26 @@ def connect_to_mt5(account_config, timeout_sec=60):
     else:
         time.sleep(2.0)
 
-    # DÜZELTME: Hesap verilerini çekmek için 3 denemeli (Retry) güvenli döngü kuruldu
+    # DÜZELTME: Terminalin broker ile ağ senkronizasyonu için 10 saniyelik güvenli döngü
     account_info = None
-    for _ in range(3):
+    for attempt in range(10):
         account_info = mt5.account_info()
         if account_info is not None:
             break
         time.sleep(1.0)
 
     if account_info is None:
+        last_acc_err = mt5.last_error()
         safe_log(
-            "Hesap bilgileri MetaTrader'dan alınamadı! (Auto-Login gecikmiş veya MT5 kapalı olabilir)",
+            f"Hesap bilgileri MetaTrader'dan alınamadı! (Hata: {last_acc_err})",
             type="error",
             account_id=login_id,
         )
         mt5.shutdown()
-        return False, "[ACCOUNT] Hesap bilgisi alınamadı. MT5 terminali senkronize olamadı (3 deneme başarısız)"
+        return (
+            False,
+            f"[ACCOUNT] Hesap bilgisi alınamadı. MT5 terminali senkronize olamadı (10 saniye zaman aşımı, Hata: {last_acc_err})",
+        )
 
     # Algo Trading Check
     terminal_info = mt5.terminal_info()
