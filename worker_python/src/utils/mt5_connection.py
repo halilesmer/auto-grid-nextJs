@@ -7,8 +7,11 @@ import shutil  # 🌟 YENİ EKLENDİ (Dosya kopyalamak için)
 import datetime  # 🌟 YENİ EKLENDİ (Tarih formatı için)
 import psutil
 import subprocess
+import threading  # 🌟 YENİ EKLENDİ: Eşzamanlılık kontrolü için
 
 from src.utils.paths import get_mt5_backup_dir  # 🌟 YENİ: Hesaba özel MT5 yedek klasörü
+
+_MT5_LOCK = threading.Lock()  # 🌟 YENİ EKLENDİ: Race Condition koruması
 
 
 def safe_log(msg, type="error", account_id=None):
@@ -75,6 +78,23 @@ def _kill_zombie_mt5(path):
 
 
 def connect_to_mt5(account_config, timeout_sec=60):
+    """Eşzamanlı API isteklerinin MT5 IPC portunu çökertmesini önleyen kilitli sarmalayıcı"""
+    with _MT5_LOCK:
+        # 🌟 ERKEN ÇIKIŞ (EARLY EXIT): Zaten bağlıysak ve hesap doğruysa işlemi atla.
+        # Böylece arka arkaya gelen istekler birbirinin bağlantısını (shutdown) koparmaz.
+        try:
+            if MT5_AVAILABLE and mt5.terminal_info() is not None:
+                login_id = int(account_config.get("login", 0))
+                acc = mt5.account_info()
+                if acc is not None and acc.login == login_id:
+                    return True, None
+        except Exception:
+            pass
+
+        return _connect_to_mt5_internal(account_config, timeout_sec)
+
+
+def _connect_to_mt5_internal(account_config, timeout_sec=60):
     if not account_config:
         safe_log("Bağlanılacak hesap seçilmedi!")
         return False, "[CONFIG] Bağlanılacak hesap seçilmedi veya hesap bilgisi eksik."
@@ -121,44 +141,36 @@ def connect_to_mt5(account_config, timeout_sec=60):
     init_success = False
 
     # ==============================================================
-    # 🌟 AŞAMA 1: OTO-LOGIN İLE BAŞLATMA (mt5.initialize)
+    # 🌟 AŞAMA 1: GÜVENLİ BAŞLATMA VE KANCA (HOOK) STRATEJİSİ
     # ==============================================================
-    # PORTABLE mod kaldırıldı! Terminal artık AppData'daki kullanıcı ayarlarını (Algo Trading izni) tanıyacak.
     init_kwargs = {"timeout": int(timeout_sec * 1000)}
 
-    if mt5_path and os.path.exists(mt5_path):
-        # MT5 kütüphanesinin (C-API) dosya yolu huysuzluğunu gidermek için saf Windows formatına çeviriyoruz
-        init_kwargs["path"] = os.path.normpath(mt5_path)
-    elif mt5_path:
-        safe_log(
-            f"UYARI: Belirtilen MT5 yolu bulunamadı ({mt5_path}). Standart terminal açılıyor...",
-            type="warning",
-        )
-
-    # Eğer hesap bilgileri tamsa, MT5 açılırken doğrudan hesaba giriş yapsın diye parametreleri ekliyoruz
-    if login_id > 0:
-        init_kwargs.update({"login": login_id, "password": password, "server": server})
-
     mt5.shutdown()
-    time.sleep(0.5)
+    time.sleep(0.2)
 
-    # Açık olan terminale doğrudan bağlanmayı dene (Zorla kapatma yapma)
+    # 1. Önce dosya yolu (path) VERMEDEN, mevcut açık terminale doğrudan kilitlenmeyi (hook) dene
     init_success = mt5.initialize(**init_kwargs)
 
-    # 🌟 ZOMBİ AVCISI (Kurtarma): Eğer ilk bağlantı başarısız olursa (IPC hatası vb.), terminal asılı kalmış demektir. Öldür ve tekrar dene!
+    # 2. Eğer açık bir terminal bulunamadıysa (kapalıysa), belirtilen exe yolundan sıfırdan başlat
+    if not init_success and mt5_path and os.path.exists(mt5_path):
+        init_kwargs["path"] = os.path.normpath(mt5_path)
+        init_success = mt5.initialize(**init_kwargs)
+    elif not init_success and mt5_path:
+        safe_log(f"UYARI: Belirtilen MT5 yolu bulunamadı ({mt5_path}).", type="warning")
+
+    # 🌟 ZOMBİ AVCISI (Kurtarma): İlk bağlantı başarısız olursa (IPC hatası vb.) tekrar dene!
     if not init_success:
         last_err = mt5.last_error()
         safe_log(
-            f"İlk bağlantı başarısız (Hata: {last_err}). Terminal kilitli olabilir. Kurtarma protokolü başlatılıyor...",
+            f"İlk bağlantı başarısız (Hata: {last_err}). Gecikme telafisi deneniyor...",
             type="warning",
         )
 
-        _kill_zombie_mt5(mt5_path)
+        # KRİTİK DÜZELTME: Eşzamanlı API isteklerinin terminali zombi sanıp
+        # şiddetle öldürmesini engellemek için taskkill devre dışı bırakıldı.
+        # _kill_zombie_mt5(mt5_path)
 
-        safe_log(
-            "Terminal sıfırdan başlatılıyor. Bu işlem VPS hızına bağlı olarak 1-2 dakika sürebilir...",
-            type="warning",
-        )
+        time.sleep(1.0)
         init_kwargs["timeout"] = int((timeout_sec + 30) * 1000)
         init_success = mt5.initialize(**init_kwargs)
 
@@ -298,9 +310,13 @@ def shutdown_mt5():
     """
     if MT5_AVAILABLE and platform.system() == "Windows":
         try:
-            mt5.shutdown()
+            # KRİTİK DÜZELTME: Frontend'den gelen eşzamanlı isteklerin birbirinin
+            # bağlantısını (IPC) koparmaması için devre dışı bırakıldı.
+            pass
+            # mt5.shutdown()
         except Exception:
             pass
+
 
 def get_mt5_symbols():
     """MT5 terminalinden aktif sembolleri (Market Watch) çeker."""
