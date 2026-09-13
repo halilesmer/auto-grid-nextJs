@@ -66,13 +66,22 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┗ 📜 routes.py            # REST endpoint'leri
 ┃ ┃ ┣ 📂 core                   # Çekirdek ticaret mantığı
 ┃ ┃ ┃ ┣ 📜 __init__.py          # Paket başlatma
-┃ ┃ ┃ ┣ 📜 auto_grid_engine.py  # Grid stratejisi motoru
+┃ ┃ ┃ ┣ 📜 auto_grid_engine.py  # Grid stratejisi motoru (Ana orkestratör)
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
+┃ ┃ ┃ ┣ 📜 grid_execution.py    # Kayan ağ (Sliding Grid) yönetimi
+┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Fiyat/lot normalizasyonu ve yardımcılar
+┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrik ve durum hesaplamaları
+┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 bekleyen emir ve pozisyon işlemleri
+┃ ┃ ┃ ┣ 📜 grid_position_sync.py # Zombi temizliği ve kısmi dolum takibi
+┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal dinleme
+┃ ┃ ┃ ┣ 📜 grid_strategy.py     # Aktif bölge tespiti ve bölge komutları
 ┃ ┃ ┃ ┗ 📜 indicator_calc.py    # Teknik indikatör hesaplamaları
 ┃ ┃ ┗ 📂 utils                  # Yardımcı modüller
 ┃ ┃   ┣ 📜 bot_manager.py       # Süreç yönetimi
 ┃ ┃   ┣ 📜 config.py            # Konfigürasyon okuma/yazma
-┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi
+┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
+┃ ┃    📜 mt5_errors.py        # Hata ayrıştırma, zombi avcısı ve ortam kontrolü
+┃ ┃    📜 mt5_helpers.py       # İç bağlantı yöneticisi, sembol çekme ve log yedekleme
 ┃ ┃   ┣ 📜 paths.py             # Yol yönetimi
 ┃ ┃   ┣ 📜 profiler.py          # Performans ölçümü
 ┃ ┃   ┣ 📜 self_updater.py      # Otomatik güncelleme

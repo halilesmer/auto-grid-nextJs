@@ -3,14 +3,13 @@
 import platform
 import time
 import os
-import shutil  # 🌟 YENİ EKLENDİ (Dosya kopyalamak için)
-import datetime  # 🌟 YENİ EKLENDİ (Tarih formatı için)
-import psutil
-import psutil
-import subprocess
-import threading  # 🌟 YENİ EKLENDİ
-
-from src.utils.paths import get_mt5_backup_dir  # 🌟 YENİ: Hesaba özel MT5 yedek klasörü
+import threading
+from src.utils.mt5_errors import kill_zombie_mt5
+from src.utils.mt5_helpers import (
+    get_mt5_symbols_helper,
+    backup_mt5_logs_helper,
+    connect_internal_helper,
+)
 
 _MT5_LOCK = threading.Lock()  # 🌟 YENİ EKLENDİ: Race Condition koruması
 
@@ -36,7 +35,7 @@ def safe_log(msg, type="error", account_id=None):
 
 
 try:
-    import MetaTrader5 as mt5
+    import MetaTrader5 as mt5  # type: ignore
 
     MT5_AVAILABLE = True
     MT5_IMPORT_ERROR = None
@@ -47,35 +46,7 @@ except ImportError as e:
 
 def _kill_zombie_mt5(path):
     """Yardımcı Fonksiyon: Kilitlenmiş MT5'i işletim sistemi seviyesinde öldürür."""
-    target_exe = "terminal64.exe"
-    if path and os.path.exists(path):
-        target_exe = os.path.basename(path).lower()
-
-    for proc in psutil.process_iter(["pid", "name", "exe"]):
-        try:
-            p_name = proc.info.get("name")
-            p_exe = proc.info.get("exe")
-
-            if p_name and p_name.lower() == target_exe:
-                if path and os.path.exists(path) and p_exe:
-                    if (
-                        os.path.normpath(p_exe).lower()
-                        != os.path.normpath(path).lower()
-                    ):
-                        continue
-
-                safe_log(
-                    f"Asılı kalan MT5 terminali tespit edildi. Öldürülüyor... PID: {proc.info['pid']}",
-                    type="warning",
-                )
-                subprocess.call(
-                    ["taskkill", "/F", "/PID", str(proc.info["pid"])],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                time.sleep(2.0)
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
+    kill_zombie_mt5(path, safe_log)
 
 
 def connect_to_mt5(account_config, timeout_sec=60):
@@ -96,213 +67,14 @@ def connect_to_mt5(account_config, timeout_sec=60):
 
 
 def _connect_to_mt5_internal(account_config, timeout_sec=60):
-    if not account_config:
-        safe_log("Bağlanılacak hesap seçilmedi!")
-        return False, "[CONFIG] Bağlanılacak hesap seçilmedi veya hesap bilgisi eksik."
-
-    if not MT5_AVAILABLE or platform.system() != "Windows":
-        import sys
-
-        reason = (
-            MT5_IMPORT_ERROR
-            if platform.system() == "Windows"
-            else "Mac/Linux Ortamı (MT5 yalnızca Windows destekler)"
-        )
-        safe_log(
-            f"🔴 BAĞLANTI HATASI: {reason} | Python: {sys.executable}", type="error"
-        )
-        return (
-            False,
-            f"[SYSTEM] MT5 Bağlantı Hatası: MetaTrader 5 Python kütüphanesi yalnızca Windows ortamında çalışır. ({reason})",
-        )
-
-    # 1. Giriş bilgilerini doğrulama
-    raw_login = account_config.get("login")
-    password = account_config.get("password")
-    server = account_config.get("server")
-    login_id = 0
-
-    if raw_login and password and server:
-        try:
-            login_id = int(raw_login)
-            password = str(password)
-            server = str(server)
-        except ValueError:
-            safe_log(
-                f"🔴 BAĞLANTI HATASI: Hesap numarası (Login) sadece rakamlardan oluşmalıdır! Girilen değer: '{raw_login}'",
-                type="error",
-            )
-            return (
-                False,
-                f"[CONFIG] Hesap numarası geçersiz: '{raw_login}' (sadece rakam olmalı)",
-            )
-
-    mt5_path = account_config.get("mt5_path")
-    init_success = False
-
-    # ==============================================================
-    # 🌟 AŞAMA 1: KİLİTLİ VE PATH KORUMALI BAŞLATMA
-    # ==============================================================
-    with _MT5_LOCK:
-        try:
-            if MT5_AVAILABLE and mt5.terminal_info() is not None:
-                if (
-                    mt5.account_info() is not None
-                    and mt5.account_info().login == login_id
-                ):
-                    return True, None
-        except Exception:
-            pass
-
-        init_kwargs = {"timeout": int(timeout_sec * 1000)}
-        if mt5_path and os.path.exists(mt5_path):
-            init_kwargs["path"] = os.path.normpath(mt5_path)
-
-        mt5.shutdown()
-        time.sleep(0.2)
-        init_success = mt5.initialize(**init_kwargs)
-
-    # 🌟 ZOMBİ AVCISI (Kurtarma): İlk bağlantı başarısız olursa (IPC hatası vb.) tekrar dene!
-    if not init_success:
-        last_err = mt5.last_error()
-        safe_log(
-            f"İlk bağlantı başarısız (Hata: {last_err}). Gecikme telafisi deneniyor...",
-            type="warning",
-        )
-
-        # KRİTİK DÜZELTME: Eşzamanlı API isteklerinin terminali zombi sanıp
-        # şiddetle öldürmesini engellemek için taskkill devre dışı bırakıldı.
-        # _kill_zombie_mt5(mt5_path)
-
-        time.sleep(1.0)
-        init_kwargs["timeout"] = int((timeout_sec + 30) * 1000)
-        init_success = mt5.initialize(**init_kwargs)
-
-    if not init_success:
-        last_err = mt5.last_error()
-        err_code = last_err[0]
-        if err_code == -10003:
-            safe_log(
-                f"🔴 MT5 IPC Bağlantısı Reddedildi! (Hata: {last_err}). Python ile MT5'in aynı yönetici (Run as Admin) yetkisine sahip olduğundan emin olun."
-            )
-            return (
-                False,
-                f"[INIT] MT5 başlatılamadı. IPC Bağlantısı Reddedildi (hata kodu: {err_code})",
-            )
-        elif err_code == -10004:
-            safe_log(
-                f"🔴 MT5 Yetkilendirme/Bağlantı Hatası (-10004): Şifre veya sunucu adı hatalı olduğu için terminal iletişim kuramadı.",
-                type="error",
-            )
-            return (
-                False,
-                f"[INIT] Giriş Başarısız: Hesap şifresi, hesap numarası ({login_id}) veya sunucu adı ('{server}') yanlış! Lütfen bilgilerinizi ve MT5 terminalini kontrol edin.",
-            )
-        else:
-            safe_log(
-                f"🔴 MetaTrader 5 başlatılamadı! Lütfen terminal yolunu kontrol edin. Hata Kodu: {last_err}"
-            )
-            return (
-                False,
-                f"[INIT] MT5 başlatılamadı. Hata kodu: {last_err[0]} ({last_err[1]})",
-            )
-
-    # ==============================================================
-    # 🌟 AŞAMA 2: OTO-LOGIN ZORLAMASI (mt5.login) - Açık terminal garantisi
-    # ==============================================================
-    if login_id > 0:
-        # IPC TIMEOUT (-10005) KORUMASI: Terminal yeni açılıyorsa login'e ilk denemede
-        # yanıt veremeyebilir. 3 kez deneyip pes etmeden önce terminale nefes payı veriyoruz.
-        authorized = False
-        last_err = mt5.last_error()
-
-        for attempt in range(1, 4):
-            authorized = mt5.login(login=login_id, password=password, server=server)
-            if authorized:
-                break
-            last_err = mt5.last_error()
-            if attempt < 3:
-                time.sleep(1.5)
-
-        if not authorized:
-            err_code = last_err[0]
-            err_msg = f"🔴 MT5 Girişi Başarısız! (Hata: {last_err})"
-
-            # 🌟 ÖZEL HATA MESAJLARI (UI Çökmesini Engeller ve Açıklar)
-            if (
-                err_code == 1002 or err_code == 2
-            ):  # 1002: Geçersiz parametre, 2: Common error
-                err_msg = f"🔴 BAĞLANTI HATASI: Hesap No ({login_id}), Şifre veya Sunucu adı ({server}) YANLIŞ! Bilgileri kontrol edin."
-                phase_msg = f"[LOGIN] Giriş yapılamadı. Hesap {login_id}, şifre veya sunucu '{server}' hatalı (hata kodu: {err_code})"
-            elif err_code == -10005:
-                err_msg = "🔴 BAĞLANTI HATASI: Terminal çok yavaş açıldı (IPC Timeout). Lütfen tekrar bağlan butonuna basın."
-                phase_msg = f"[LOGIN] IPC Timeout (-10005) — Terminal çok yavaş açıldı, login zaman aşımına uğradı"
-            elif err_code in (-10004, 10004):
-                err_msg = "🔴 BAĞLANTI HATASI: Yetkilendirme yapılamadı veya sunucuya bağlanılamadı. Şifre veya sunucu adı yanlış olabilir."
-                phase_msg = f"[LOGIN] Giriş Başarısız: Hesap şifresi veya sunucu adı ('{server}') hatalı! Lütfen bilgilerinizi kontrol edin (hata kodu: {err_code})"
-            else:
-                phase_msg = f"[LOGIN] Giriş başarısız. Hata kodu: {err_code} ({last_err[1]})"
-
-            safe_log(err_msg, type="error", account_id=login_id)
-            mt5.shutdown()  # Hata durumunda hafızada asılı kalmaması için kapatıldı
-            return False, phase_msg
-
-        # Broker sunucusuyla senkronizasyon (fiyatların yüklenmesi) için MT5'e 1 saniye nefes payı ver
-        time.sleep(1.0)
-    else:
-        time.sleep(2.0)
-
-    # DÜZELTME: Terminalin broker ile ağ senkronizasyonu için 10 saniyelik güvenli döngü
-    account_info = None
-    for attempt in range(10):
-        account_info = mt5.account_info()
-        if account_info is not None:
-            break
-        time.sleep(1.0)
-
-    if account_info is None:
-        last_acc_err = mt5.last_error()
-        safe_log(
-            f"Hesap bilgileri MetaTrader'dan alınamadı! (Hata: {last_acc_err})",
-            type="error",
-            account_id=login_id,
-        )
-        mt5.shutdown()
-        return (
-            False,
-            f"[ACCOUNT] Hesap bilgisi alınamadı. MT5 terminali senkronize olamadı (10 saniye zaman aşımı, Hata: {last_acc_err})",
-        )
-
-    # Algo Trading Check
-    terminal_info = mt5.terminal_info()
-    if terminal_info is not None and not terminal_info.trade_allowed:
-        err_msg = "🚨 KRİTİK HATA: MetaTrader 5'te 'Algo Trading' (Otomatik Ticaret) butonu kapalı!"
-        safe_log(err_msg, account_id=login_id)
-        mt5.shutdown()
-        return (
-            False,
-            "[TERMINAL] Algo Trading kapalı! MT5 üst menüsünden 'Algo Trading' butonunu aktif (yeşil) yapın.",
-        )
-
-    is_mt5_demo = account_info.trade_mode == mt5.ACCOUNT_TRADE_MODE_DEMO
-    env_type = account_config.get("type", account_config.get("env_type", ""))
-
-    if env_type == "LIVE" and is_mt5_demo:
-        err_msg = "🚨 KRİTİK GÜVENLİK İHLALİ: Robot LIVE modunda seçili ama bağlanan MT5 hesabı DEMO!"
-        safe_log(err_msg, type="error", account_id=login_id)
-        mt5.shutdown()
-        return False, err_msg
-
-    if env_type in ["DEMO", "TEST"] and not is_mt5_demo:
-        err_msg = "🚨 KRİTİK GÜVENLİK İHLALİ: Robot TEST modunda seçili ama bağlanan MT5 hesabı GERÇEK (LIVE)!"
-        safe_log(err_msg, type="error", account_id=login_id)
-        mt5.shutdown()
-        return False, err_msg
-
-    # 🌟 BAĞLANTI BAŞARILI OLDUKTAN SONRA LOGLARI YEDEKLE
-    backup_mt5_logs(login_id)
-
-    return True, None
+    return connect_internal_helper(
+        account_config,
+        timeout_sec,
+        _MT5_LOCK,
+        safe_log,
+        MT5_AVAILABLE,
+        MT5_IMPORT_ERROR,
+    )
 
 
 def shutdown_mt5():
@@ -324,52 +96,28 @@ def shutdown_mt5():
 
 def get_mt5_symbols():
     """MT5 terminalinden aktif sembolleri (Market Watch) çeker."""
-    if not MT5_AVAILABLE or platform.system() != "Windows":
-        return []
-    try:
-        symbols = mt5.symbols_get()
-        if symbols is None:
-            safe_log("MT5'ten sembol listesi alınamadı (Market Watch boş olabilir).", type="warning")
-            return []
-        return [s.name for s in symbols]
-    except Exception as e:
-        safe_log(f"Sembol çekme hatası: {e}", type="error")
-        return []
+    return get_mt5_symbols_helper(MT5_AVAILABLE, safe_log)
 
 
-# ==========================================
-# 🌟 DÜZELTME: GÜVENLİ ZAMAN AŞIMLI BAĞLANTI (MİMARİ ÇÖZÜM)
-# ==========================================
 def connect_to_mt5_with_timeout(account_config, timeout=60):
-    """
-    connect_to_mt5'i çağırır; timeout gerçekleşirse is_timeout=True döner.
-    Not: MT5 C-API kendi timeout'unu yönetir; bu wrapper hata kodlarını yorumlar.
-    Dönüş: (başarı_bool, zaman_aşımı_bool, hata_detayı_str_or_None)
-    """
+    """connect_to_mt5'i çağırır; timeout gerçekleşirse is_timeout=True döner."""
     if not account_config:
         safe_log("Bağlanılacak hesap seçilmedi!")
         return False, False, "[CONFIG] Bağlanılacak hesap seçilmedi."
 
     try:
         ok, detail = connect_to_mt5(account_config, timeout_sec=timeout)
-
         is_timeout = False
-        # C-API'den dönen hatalarda "timeout" veya spesifik IPC (-10005) kodları varsa bunu yakala
         if (
             not ok
             and detail
-            and (
-                "Timeout" in detail
-                or "-10005" in str(detail)
-                or "-10003" in str(detail)
-            )
+            and any(k in str(detail) for k in ("Timeout", "-10005", "-10003"))
         ):
             is_timeout = True
             safe_log(
                 f"[TIMEOUT] MT5 bağlantısı {timeout} saniye içinde tamamlanamadı. "
                 "Terminal kapalı, sunucuya ulaşılamıyor veya açılışı çok yavaş."
             )
-
         return ok, is_timeout, detail
     except Exception as e:
         err_msg = f"[CRITICAL] Bağlantı fonksiyonu çöktü: {e}"
@@ -377,36 +125,6 @@ def connect_to_mt5_with_timeout(account_config, timeout=60):
         return False, False, err_msg
 
 
-# ==========================================
-# 🌟 YENİ: MT5 Terminal Loglarını Yedekleme Fonksiyonu
-# ==========================================
 def backup_mt5_logs(account_id):
-    """
-    MT5 Terminal loglarını okur ve projedeki ilgili hesabın log klasörüne kopyalar.
-    """
-    if not MT5_AVAILABLE or platform.system() != "Windows" or not account_id:
-        return  # Mac, MT5 olmayan ortam veya eksik hesap ID'sinde pas geç
-
-    # 1. Hesaba özel MT5 yedekleme klasörünü al
-    custom_log_dir = get_mt5_backup_dir(str(account_id))
-
-    # 2. MT5 Terminal bilgilerini çek
-    term_info = mt5.terminal_info()
-    if term_info is None:
-        return
-
-    # 3. MT5 log klasörünün yolunu bul
-    mt5_logs_dir = os.path.join(term_info.data_path, "Logs")
-
-    # 4. Bugünün tarihine göre dosya adını oluştur (Örn: 20260810.log)
-    today_str = datetime.datetime.now().strftime("%Y%m%d")
-    today_log_file = f"{today_str}.log"
-    source_log_path = os.path.join(mt5_logs_dir, today_log_file)
-
-    # 5. Dosyayı kendi klasörümüze kopyala
-    if os.path.exists(source_log_path):
-        target_log_path = os.path.join(custom_log_dir, f"MT5_Terminal_{today_log_file}")
-        try:
-            shutil.copy2(source_log_path, target_log_path)
-        except Exception as e:
-            safe_log(f"MT5 Log kopyalama hatası: {e}", type="warning")
+    """MT5 Terminal loglarını okur ve projedeki ilgili hesabın log klasörüne kopyalar."""
+    backup_mt5_logs_helper(account_id, MT5_AVAILABLE, safe_log)

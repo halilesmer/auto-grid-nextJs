@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 def calculate_rsi(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     """Saf Pandas ile RSI Hesaplama"""
