@@ -59,11 +59,12 @@ export default function LogViewer() {
       try {
         const res = await axios.get(`${API}/logs/download/${selectedAccount}`, {
           responseType: "blob",
+          headers: { "ngrok-skip-browser-warning": "true" },
         });
         const url = window.URL.createObjectURL(new Blob([res.data]));
         const a = document.createElement("a");
         a.href = url;
-        a.download = `logs_${selectedAccount}.txt`;
+        a.download = `MT5_Logs_${selectedAccount}.zip`;
         a.click();
         window.URL.revokeObjectURL(url);
       } catch (err) {

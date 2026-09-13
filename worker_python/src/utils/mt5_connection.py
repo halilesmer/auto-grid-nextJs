@@ -6,8 +6,9 @@ import os
 import shutil  # 🌟 YENİ EKLENDİ (Dosya kopyalamak için)
 import datetime  # 🌟 YENİ EKLENDİ (Tarih formatı için)
 import psutil
+import psutil
 import subprocess
-import threading  # 🌟 YENİ EKLENDİ: Eşzamanlılık kontrolü için
+import threading  # 🌟 YENİ EKLENDİ
 
 from src.utils.paths import get_mt5_backup_dir  # 🌟 YENİ: Hesaba özel MT5 yedek klasörü
 
@@ -136,27 +137,30 @@ def _connect_to_mt5_internal(account_config, timeout_sec=60):
                 f"[CONFIG] Hesap numarası geçersiz: '{raw_login}' (sadece rakam olmalı)",
             )
 
-    mt5.shutdown()
     mt5_path = account_config.get("mt5_path")
     init_success = False
 
     # ==============================================================
-    # 🌟 AŞAMA 1: GÜVENLİ BAŞLATMA VE KANCA (HOOK) STRATEJİSİ
+    # 🌟 AŞAMA 1: KİLİTLİ VE PATH KORUMALI BAŞLATMA
     # ==============================================================
-    init_kwargs = {"timeout": int(timeout_sec * 1000)}
+    with _MT5_LOCK:
+        try:
+            if MT5_AVAILABLE and mt5.terminal_info() is not None:
+                if (
+                    mt5.account_info() is not None
+                    and mt5.account_info().login == login_id
+                ):
+                    return True, None
+        except Exception:
+            pass
 
-    mt5.shutdown()
-    time.sleep(0.2)
+        init_kwargs = {"timeout": int(timeout_sec * 1000)}
+        if mt5_path and os.path.exists(mt5_path):
+            init_kwargs["path"] = os.path.normpath(mt5_path)
 
-    # 1. Önce dosya yolu (path) VERMEDEN, mevcut açık terminale doğrudan kilitlenmeyi (hook) dene
-    init_success = mt5.initialize(**init_kwargs)
-
-    # 2. Eğer açık bir terminal bulunamadıysa (kapalıysa), belirtilen exe yolundan sıfırdan başlat
-    if not init_success and mt5_path and os.path.exists(mt5_path):
-        init_kwargs["path"] = os.path.normpath(mt5_path)
+        mt5.shutdown()
+        time.sleep(0.2)
         init_success = mt5.initialize(**init_kwargs)
-    elif not init_success and mt5_path:
-        safe_log(f"UYARI: Belirtilen MT5 yolu bulunamadı ({mt5_path}).", type="warning")
 
     # 🌟 ZOMBİ AVCISI (Kurtarma): İlk bağlantı başarısız olursa (IPC hatası vb.) tekrar dene!
     if not init_success:
