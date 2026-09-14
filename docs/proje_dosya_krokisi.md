@@ -13,8 +13,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┣ 📂 .agents                    # Agent kuralları
 ┃ ┗ 📂 rules
 ┃   ┗ 📜 token-saver.md         # Token tasarrufu kuralı
-┣ 📂 .vscode                    # VS Code ayarları
-┃ ┗ 📜 settings.json
+┣ 📂 .vscode                    # VS Code ayarları (Root workspace)
+┃ ┗ 📜 settings.json            # CSS lint ignore (Tailwind v4 @theme/@utility direktifleri)
 ┃
 ┣ 📂 frontend_nextjs            # Next.js 14+ Frontend (React, TypeScript, Tailwind)
 ┃ ┣ 📜 package.json
@@ -55,7 +55,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┗ 📂 store                  # Zustand state management
 ┃ ┃   ┗ 📜 useBotStore.ts       # Bot durumu ve aksiyonlar
 ┃ ┗ 📂 .vscode                  # Frontend VS Code ayarları
-┃   ┗ 📜 settings.json
+┃   ┣ 📜 settings.json          # Tailwind associations, CSS/SCSS/Less validation kapatma
+┃   ┗ 📜 css.customdata.json    # Tailwind v4 IntelliSense (@theme, @utility, @variant, @source, @plugin)
 ┃
 ┣ 📂 worker_python              # Python FastAPI Worker (MT5 Entegrasyonu)
 ┃ ┣ 📜 main.py                  # FastAPI giriş noktası (WebSocket + REST)
@@ -64,24 +65,24 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┣ 📂 api                    # API katmanı
 ┃ ┃ ┃ ┣ 📜 ws_server.py         # WebSocket sunucusu (Real-time iletişim)
 ┃ ┃ ┃ ┗ 📜 routes.py            # REST endpoint'leri
-┃ ┃ ┣ 📂 core                   # Çekirdek ticaret mantığı
+┃ ┃ ┣ 📂 core                   # Çekirdek ticaret mantığı (Modüler Mimarisi - v0.7.25+)
 ┃ ┃ ┃ ┣ 📜 __init__.py          # Paket başlatma
-┃ ┃ ┃ ┣ 📜 auto_grid_engine.py  # Grid stratejisi motoru (Ana orkestratör)
+┃ ┃ ┃ ┣ 📜 auto_grid_engine.py  # **LEGACY** - Eski monolitik motor (geriye uyumluluk için tutuldu)
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
-┃ ┃ ┃ ┣ 📜 grid_execution.py    # Kayan ağ (Sliding Grid) yönetimi
-┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Fiyat/lot normalizasyonu ve yardımcılar
-┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrik ve durum hesaplamaları
-┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 bekleyen emir ve pozisyon işlemleri
-┃ ┃ ┃ ┣ 📜 grid_position_sync.py # Zombi temizliği ve kısmi dolum takibi
-┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal dinleme
-┃ ┃ ┃ ┣ 📜 grid_strategy.py     # Aktif bölge tespiti ve bölge komutları
-┃ ┃ ┃ ┗ 📜 indicator_calc.py    # Teknik indikatör hesaplamaları
+┃ ┃ ┃ ┣ 📜 grid_execution.py    # Kayan ağ (Sliding Grid) yönetimi - emir yerleştirme/silme, grid hesaplama, TP/SL
+┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Yardımcılar - fiyat/lot normalizasyonu, logging, market açık kontrolü, timeframe map
+┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı, MT5 bağlantı/market durumu
+┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no)
+┃ ┃ ┃ ┣ 📜 grid_position_sync.py # Zombi temizliği & kısmi dolum - pasif bölge temizliği, TP/SL senkron, kalan lot
+┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal - MT5 $1/$2 Buy Limit + GRID:START/STOP komutları
+┃ ┃ ┃ ┣ 📜 grid_strategy.py     # **Orkestratör** - Aktif bölge tespiti, giriş/çıkış, clear_on_exit, dynamic grid koordinasyonu
+┃ ┃ ┃ ┗ 📜 indicator_calc.py    # Teknik indikatörler - RSI/MACD (pandas-ta fallback ile saf pandas)
 ┃ ┃ ┗ 📂 utils                  # Yardımcı modüller
 ┃ ┃   ┣ 📜 bot_manager.py       # Süreç yönetimi
 ┃ ┃   ┣ 📜 config.py            # Konfigürasyon okuma/yazma
-┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
-┃ ┃    📜 mt5_errors.py        # Hata ayrıştırma, zombi avcısı ve ortam kontrolü
-┃ ┃    📜 mt5_helpers.py       # İç bağlantı yöneticisi, sembol çekme ve log yedekleme
+┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon - hata/helper'lar ayrıldı)
+┃ ┃   ┣ 📜 mt5_errors.py        # Hata ayrıştırma (-10003 IPC, -10004 auth, 10002 login), zombi killer, LIVE/DEMO güvenlik
+┃ ┃   ┣ 📜 mt5_helpers.py       # İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
 ┃ ┃   ┣ 📜 paths.py             # Yol yönetimi
 ┃ ┃   ┣ 📜 profiler.py          # Performans ölçümü
 ┃ ┃   ┣ 📜 self_updater.py      # Otomatik güncelleme
@@ -99,9 +100,9 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📜 opencode-rules.md        # OpenCode kuralları
 ┃ ┣ 📂 architecture_python      # Python mimari belgeleri
 ┃ ┃ ┗ 📜 genel_arch.md          # Genel mimari dokümantasyonu
-┃ ┣ 📜 windows_start_guide.md   # Windows hızlı başlatma rehberi (Terminal + Ngrok)
+┃ ┣ 📜 windows_start_guide.md   # Windows hızlı başlatma rehberi (2 Terminal: FastAPI + Ngrok) - Türkçe/Almanca
 ┃ ┗ 📂 NGrok                    # Ngrok tünel dokümantasyonu
-┃   ┗ 📜 Sistem ve Canlıya Alma.md # Sistem ve canlıya alma rehberi
+┃   ┗ 📜 Sistem ve Canlıya Alma.md # Deployment - Vercel ayarları, VPS servis komutları, API test uç noktaları
 
 ---
 
@@ -135,7 +136,34 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 - `bot_manager.py`: Alt süreç (subprocess) başlatma/durdurma, PID takibi (`logs/pid_*.txt`)
 - `mt5_connection.py`: MT5 terminal bağlantı havuzu ve yeniden bağlanma mantığı
 
-### 5. Dağıtım (Deployment)
+### 5. Worker Modüler Core Mimarisi (v0.7.25+)
+`auto_grid_engine.py` monolitik yapısından **8 odaklı modüle** ayrıldı (Single Responsibility Principle):
+
+| Modül | Sorumluluk | Ana İşlev |
+|-------|------------|-----------|
+| `grid_strategy.py` | **Orkestratör** | Bölge yaşam döngüsü, aktif bölge tespiti, giriş/çıkış, clear_on_exit, dynamic grid koordinasyonu |
+| `grid_execution.py` | **Grid Motoru** | Kayan ağ matematiksi, emir yerleştirme/silme, grid step/anchor hesaplama, TP/SL yönetimi |
+| `grid_orders.py` | **MT5 Emir Gateway** | Tüm MT5 emir/pozisyon CRUD (get/cancel/modify), pending order gönderme, magic number yönetimi |
+| `grid_position_sync.py` | **Pozisyon Mutabakati** | Zombi temizliği (pasif bölge), kısmi dolum takibi, TP/SL senkronizasyonu, kalan lot emri |
+| `grid_remote.py` | **Uzaktan Kontrol** | Mobil MT5 sinyal dinleme ($1/$2 Buy Limit, GRID:START/STOP komutları) |
+| `grid_metrics.py` | **Telemetri** | Canlı metrikler (P/L, pozisyon/emir sayısı, MT5 bağlantı/market durumu) → WebSocket broadcast |
+| `grid_helpers.py` | **Paylaşılan Yardımcılar** | Fiyat/lot normalizasyonu, logging, market açık kontrolü, timeframe mapping |
+| `indicator_calc.py` | **Teknik Analiz** | RSI/MACD hesaplama (pandas-ta fallback ile saf pandas) |
+
+**Veri Akışı (Modüler):**
+```
+grid_strategy (Orkestratör)
+    ├──→ grid_execution → grid_orders → MT5
+    ├──→ grid_position_sync → grid_orders → MT5
+    ├──→ grid_remote (bağımsız dinleme)
+    └──→ grid_metrics → WebSocket → Frontend
+```
+
+**Hata Yönetimi Katmanı (Yeni):**
+- `mt5_errors.py`: Hata kod ayrıştırma (-10003 IPC, -10004 auth, 10002 login), zombi MT5 process killer, LIVE/DEMO güvenlik doğrulaması
+- `mt5_helpers.py`: İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
+
+### 6. Dağıtım (Deployment)
 | Ortam | Frontend | Worker |
 |-------|----------|--------|
 | Geliştirme | `npm run dev` (Turbopack) | `python main.py` (uvicorn reload) |
@@ -162,9 +190,10 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 ## 📁 Önemli Veri Akışları
 
 1. **Başlatma**: Frontend → REST `/api/accounts` → Hesap listesi → Seçim → WebSocket `start` komutu → Worker `bot_runner` başlatır
-2. **Metrik Akışı**: Worker (MT5) → `auto_grid_engine` → WebSocket broadcast → Frontend `useBotStore` günceller → UI yeniden render
+2. **Metrik Akışı**: Worker (MT5) → `grid_strategy` → `grid_metrics` → WebSocket broadcast → Frontend `useBotStore` günceller → UI yeniden render
 3. **Ayar Değişikliği**: Frontend `SettingsForm` / `ZoneSettingsPanel` → REST `/api/settings` + WebSocket `update_settings` → Worker `config.py` kaydeder → Motor çalışma anında uygular
 4. **Durum Kurtarma**: Worker başlangıçta `state_manager.py` ile MT5'ten açık pozisyon/emirleri çeker → `data/state_*.json` yeniden inşa edilir → Frontend'e `state_restored` eventi gönderilir
+5. **Grid İşlem Döngüsü**: `grid_strategy` → `grid_execution` (grid math) → `grid_orders` (MT5 emir CRUD) → `grid_position_sync` (zombi/kısmi dolum) → `grid_metrics` (telemetri)
 
 ---
 
@@ -210,4 +239,37 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 - Ana sayfa sol panelde (2/3 genişlikte) `ZoneSettingsPanel` yerleştirildi
 - Kullanıcı artık ana sayfadan doğrudan bölgeleri ekleyip, çıkarıp düzenleyebiliyor
 - `SettingsForm.tsx` artık sadece **Global Settings** (ORDER_TYPE, LOOP_INTERVAL) yönetiyor
+
+---
+
+## 📝 Son Değişiklikler (2026-09-14)
+
+### Görev 1: Worker Core Modüler Mimarisi (Refactoring)
+**Commit:** `9be6b6f` - `refactor(worker): split auto_grid_engine and mt5_connection into modular components`
+
+- **8 yeni core modülü** oluşturuldu (`worker_python/src/core/`):
+  - `grid_execution.py` - Kayan ağ (Sliding Grid) yönetimi
+  - `grid_helpers.py` - Yardımcı fonksiyonlar (normalize, logging, market check)
+  - `grid_metrics.py` - Canlı metrik hesaplamaları
+  - `grid_orders.py` - MT5 Emir/Pozisyon CRUD işlemleri
+  - `grid_position_sync.py` - Zombi temizliği & kısmi dolum takibi
+  - `grid_remote.py` - Uzaktan mobil sinyal dinleme
+  - `grid_strategy.py` - Orkestratör: aktif bölge tespiti & koordinasyon
+  - `indicator_calc.py` - Teknik indikatörler (RSI/MACD)
+- `auto_grid_engine.py` **LEGACY** olarak işaretlendi (geriye uyumluluk için korundu)
+- Single Responsibility Principle uygulandı, testability ve bakım kolaylaştırıldı
+
+### Görev 2: Hata Yönetimi ve Yardımcı Katmanı Ayrıştırma
+- `mt5_errors.py` - Hata kod ayrıştırma (-10003 IPC, -10004 auth, 10002 login), zombi MT5 process killer, LIVE/DEMO güvenlik doğrulaması
+- `mt5_helpers.py` - İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
+- `mt5_connection.py` içinden çıkarılarak ayrı modüller haline getirildi
+
+### Görev 3: Windows Başlangıç ve Deployment Dokümantasyonu
+- `docs/windows_start_guide.md` - VPS için 2-terminal hızlı başlatma (FastAPI + Ngrok) - Türkçe/Almanca
+- `docs/NGrok/Sistem ve Canlıya Alma.md` - Deployment rehberi: Vercel env vars, `.vercelignore`, VPS servis komutları, API test uç noktaları
+
+### Görev 4: VS Code Tailwind CSS v4 Desteği
+- `.vscode/settings.json` - Root workspace: CSS lint ignore (@theme, @utility, @variant, @source, @plugin)
+- `frontend_nextjs/.vscode/settings.json` - Tailwind associations, CSS/SCSS/Less validation kapatma
+- `frontend_nextjs/.vscode/css.customdata.json` - Tailwind v4 IntelliSense custom data
 
