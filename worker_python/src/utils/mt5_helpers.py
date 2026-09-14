@@ -50,6 +50,38 @@ def backup_mt5_logs_helper(account_id, mt5_available, safe_log_fn):
             safe_log_fn(f"MT5 Log kopyalama hatası: {e}", type="warning")
 
 
+def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2):
+    """Exponential backoff retry for mt5.initialize() on IPC timeout/connection loss."""
+    for attempt in range(max_retries):
+        init_success = mt5.initialize(**init_kwargs)
+        if init_success:
+            return True
+        last_err = mt5.last_error()
+        err_code = last_err[0] if last_err else 0
+        if err_code in (-10005, -10003, -10004):
+            delay = base_delay * (2 ** attempt)
+            time.sleep(delay)
+            continue
+        break
+    return False
+
+
+def _retry_login(mt5, login_id, password, server, max_retries=3, base_delay=2):
+    """Exponential backoff retry for mt5.login() on transient failures."""
+    for attempt in range(max_retries):
+        authorized = mt5.login(login=login_id, password=str(password), server=str(server))
+        if authorized:
+            return True
+        last_err = mt5.last_error()
+        err_code = last_err[0] if last_err else 0
+        if err_code in (-10005, -10004, 1002, 2):
+            delay = base_delay * (2 ** attempt)
+            time.sleep(delay)
+            continue
+        break
+    return False
+
+
 def connect_internal_helper(
     account_config, timeout_sec, mt5_lock, safe_log_fn, mt5_available, mt5_import_error
 ):
@@ -111,32 +143,16 @@ def connect_internal_helper(
             pass
         mt5.shutdown()
         time.sleep(0.2)
-        init_success = mt5.initialize(**init_kwargs)
-
-    if not init_success:
-        time.sleep(1.0)
-        init_kwargs["timeout"] = int((timeout_sec + 30) * 1000)
-        init_success = mt5.initialize(**init_kwargs)
+        init_success = _retry_initialize(mt5, init_kwargs)
 
     if not init_success:
         return parse_init_error(mt5.last_error(), login_id, server, safe_log_fn)
 
     if login_id > 0:
-        authorized = False
-        last_err = mt5.last_error()
-        for attempt in range(1, 4):
-            authorized = mt5.login(
-                login=login_id, password=str(password), server=str(server)
-            )
-            if authorized:
-                break
-            last_err = mt5.last_error()
-            if attempt < 3:
-                time.sleep(1.5)
-
+        authorized = _retry_login(mt5, login_id, password, server)
         if not authorized:
             mt5.shutdown()
-            return parse_login_error(last_err, login_id, server, safe_log_fn)
+            return parse_login_error(mt5.last_error(), login_id, server, safe_log_fn)
         time.sleep(1.0)
     else:
         time.sleep(2.0)

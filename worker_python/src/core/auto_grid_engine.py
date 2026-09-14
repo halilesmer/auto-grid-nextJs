@@ -231,6 +231,26 @@ def run_startup_checks():
     return True
 
 
+def _reconnect_mt5(account_id, password, server, max_retries=3, base_delay=2):
+    """Attempt to reconnect to MT5 with exponential backoff."""
+    for attempt in range(max_retries):
+        if mt5.initialize():
+            if mt5.login(account_id, str(password), str(server)):
+                time.sleep(1.0)
+                account_info = mt5.account_info()
+                if account_info is not None:
+                    return True
+        last_err = mt5.last_error()
+        err_code = last_err[0] if last_err else 0
+        if err_code in (-10005, -10003, -10004, 1002, 2):
+            delay = base_delay * (2 ** attempt)
+            log_message(f"MT5 yeniden bağlanma denemesi {attempt + 1}/{max_retries} başarısız, {delay}s bekleniyor...", "WARN")
+            time.sleep(delay)
+            continue
+        break
+    return False
+
+
 def main_loop():
     global IS_RUNNING, INITIAL_CLEANUP_DONE, CONNECTION_LOST
     load_dynamic_settings()
@@ -241,6 +261,14 @@ def main_loop():
         return
 
     log_message("Robot calismaya basladi. (Durdurmak icin Ctrl+C)")
+
+    account_id = int(os.environ.get("ACTIVE_ACCOUNT_ID", "0"))
+    account_config = load_settings("Auto Grid")
+    password = account_config.get("password", "")
+    server = account_config.get("server", "")
+
+    consecutive_connection_losses = 0
+    max_consecutive_losses = 3
 
     try:
         while IS_RUNNING:
@@ -261,11 +289,26 @@ def main_loop():
                 ) and not CONNECTION_LOST:
                     CONNECTION_LOST = True
                     log_message("🚨 KRİTİK: MT5 BAĞLANTISI KOPTU!", "ERROR")
+
+                if account_id > 0 and password and server:
+                    log_message("MT5 yeniden bağlanma deneniyor...", "WARN")
+                    if _reconnect_mt5(account_id, password, server):
+                        CONNECTION_LOST = False
+                        consecutive_connection_losses = 0
+                        log_message("✅ MT5 bağlantısı yeniden kuruldu. Robot çalışmaya devam ediyor.", "WARN")
+                        continue
+                    else:
+                        consecutive_connection_losses += 1
+                        log_message(f"MT5 yeniden bağlanma başarısız ({consecutive_connection_losses}/{max_consecutive_losses})", "ERROR")
+                        if consecutive_connection_losses >= max_consecutive_losses:
+                            log_message("⛔ Maksimum yeniden bağlanma denemesi aşıldı. Robot durduruluyor.", "ERROR")
+                            break
                 time.sleep(10)
                 continue
             else:
                 if CONNECTION_LOST:
                     CONNECTION_LOST = False
+                    consecutive_connection_losses = 0
                     log_message(
                         "✅ MT5 bağlantısı geri geldi. Robot çalışmaya devam ediyor.",
                         "WARN",

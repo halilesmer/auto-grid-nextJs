@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build",
+			"path": "frontend_nextjs",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build - frontend_nextjs",
+			"detail": "next build"
+		}
+	]
+}

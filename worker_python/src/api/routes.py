@@ -373,7 +373,7 @@ async def start_bot(account_id: str):
 
     # 1. MT5'e Bağlan
     ok, _is_timeout, detail = await asyncio.to_thread(
-        connect_to_mt5_with_timeout, account_config, 45
+        connect_to_mt5_with_timeout, account_config, 120
     )
     if not ok:
         raise HTTPException(status_code=500, detail=f"MT5 Connection Failed: {detail}")
