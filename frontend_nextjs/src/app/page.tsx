@@ -1,14 +1,17 @@
 'use client';
 
-import { AlertCircle, Globe, Monitor, Power, RefreshCw, Save, Server, Settings } from 'lucide-react';
+import { Globe, Monitor, Power, RefreshCw, Server, Settings } from 'lucide-react';
 import { useBotStore } from '@/store/useBotStore';
 import { useDashboard } from '@/app/hooks/useDashboard';
 import AccountSelector from '@/components/account/AccountSelector';
 import BotControls from '@/components/BotControls';
 import ConfirmModal from '@/components/ConfirmModal';
+import ErrorToast from '@/components/ui/ErrorToast';
 import LogViewer from '@/components/LogViewer';
 import SettingsForm from '@/components/SettingsForm';
 import SimulationBar from '@/components/SimulationBar';
+import SaveSettingsBar from '@/components/dashboard/SaveSettingsBar';
+import UpdateModal from '@/components/dashboard/UpdateModal';
 import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { VERSION } from '@/app/version';
 
@@ -163,37 +166,19 @@ export default function Home() {
         {selectedAccount && <SimulationBar />}
 
         {selectedAccount && (
-          <button
-            onClick={handleSaveAll}
-            disabled={saveAllLoading || !settings || !isDirty}
-            className={`w-full sm:w-auto flex items-center justify-center space-x-2 font-bold py-4 px-6 rounded-xl transition-all active:scale-[0.98] focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-              isDirty && !saveAllLoading
-                ? 'bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/30'
-                : 'bg-gray-800 text-gray-500 opacity-50 cursor-not-allowed border border-white/5'
-            }`}
-          >
-            <Save size={24} />
-            <span className="text-lg">
-              {saveAllLoading
-                ? 'Kaydediliyor...'
-                : isDirty
-                ? 'Tüm Ayarları Kaydet'
-                : 'Kaydedildi'}
-            </span>
-          </button>
+          <SaveSettingsBar
+            isDirty={isDirty}
+            isLoading={saveAllLoading}
+            hasSettings={!!settings}
+            onSave={handleSaveAll}
+          />
         )}
 
         {saveAllError && (
-          <div className="fixed bottom-6 right-6 z-50 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 flex items-center gap-3 shadow-2xl animate-slide-in">
-            <AlertCircle size={20} />
-            <span>{saveAllError}</span>
-            <button
-              onClick={() => setSaveAllError('')}
-              className="ml-4 text-red-400 hover:text-red-300"
-            >
-              ✕
-            </button>
-          </div>
+          <ErrorToast
+            message={saveAllError}
+            onDismiss={() => setSaveAllError('')}
+          />
         )}
 
         {selectedAccount ? (
@@ -222,63 +207,15 @@ export default function Home() {
           </div>
         )}
 
-        {updateOpen && updateResult && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-bold text-white mb-4">Update Check</h3>
-              {updateResult.loading ? (
-                <p className="text-gray-400 text-sm">Checking for updates...</p>
-              ) : updateResult.hasUpdate ? (
-                <div className="space-y-3">
-                  <p className="text-yellow-400 text-sm font-semibold">
-                    New version available!
-                  </p>
-                  <div className="text-sm text-gray-300 space-y-1">
-                    <p>
-                      Current:{' '}
-                      <span className="text-white font-mono">
-                        {updateResult.localVer}
-                      </span>
-                    </p>
-                    <p>
-                      Latest:{' '}
-                      <span className="text-green-400 font-mono">
-                        {updateResult.remoteVer}
-                      </span>
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleApplyUpdate}
-                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition-all active:scale-95"
-                  >
-                    Apply Update (git pull)
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-green-400 text-sm font-semibold">
-                    You are up to date!
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Version:{' '}
-                    <span className="text-white font-mono">
-                      {updateResult.localVer}
-                    </span>
-                  </p>
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  setUpdateOpen(false);
-                  setUpdateResult(null);
-                }}
-                className="w-full mt-4 py-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-all"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
+        <UpdateModal
+          isOpen={updateOpen}
+          onClose={() => {
+            setUpdateOpen(false);
+            setUpdateResult(null);
+          }}
+          updateResult={updateResult}
+          onApplyUpdate={handleApplyUpdate}
+        />
 
         <ConfirmModal
           open={shutdownOpen}
