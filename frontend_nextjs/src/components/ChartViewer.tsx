@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp } from 'lightweight-charts';
+import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useBotStore } from '@/store/useBotStore';
 
 export default function ChartViewer() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const { metrics, updateMetrics } = useBotStore();
-  const candleSeriesRef = useRef<any>(null);
-  const rsiSeriesRef = useRef<any>(null);
-  const chartRef = useRef<any>(null);
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
