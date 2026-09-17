@@ -1,4 +1,4 @@
-import type { ZoneSettings, SymbolDetail } from '@/store/useBotStore';
+import type { ZoneSettings, SymbolDetail } from '@/store/types';
 
 export function defaultZone(): ZoneSettings {
   return {

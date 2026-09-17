@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useBotStore } from '@/store/useBotStore';
+import { useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
-import type { SymbolDetail } from '@/store/useBotStore';
+import type { SymbolDetail } from '@/store/types';
 
 export function useSymbolDetails(selectedAccount: string | null): Record<string, SymbolDetail> {
-  const setAvailableSymbols = useBotStore((state) => state.setAvailableSymbols);
-  const setSymbolDetails = useBotStore((state) => state.setSymbolDetails);
-  const symbolDetails = useBotStore((state) => state.symbolDetails);
+  const setAvailableSymbols = useSettingsStore((s) => s.setAvailableSymbols);
+  const setSymbolDetails = useSettingsStore((s) => s.setSymbolDetails);
+  const symbolDetails = useSettingsStore((s) => s.symbolDetails);
 
   useEffect(() => {
     if (!selectedAccount) return;

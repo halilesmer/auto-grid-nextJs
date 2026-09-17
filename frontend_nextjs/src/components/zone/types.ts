@@ -1,4 +1,4 @@
-import type { ZoneSettings, SymbolDetail } from '@/store/useBotStore';
+import type { ZoneSettings, SymbolDetail, LiveData } from '@/store/types';
 import type { SymbolConfig } from '@/utils/zoneHelpers';
 
 export type FieldUpdateFn = (field: string, value: unknown) => void;
@@ -86,7 +86,7 @@ export interface ZoneCardProps {
   onUpdate: (zoneId: string, field: string, value: unknown) => void;
   onToggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
   onDelete: () => void;
-  liveData: ReturnType<typeof import('@/store/useBotStore').useBotStore.getState>['liveData'];
+  liveData: LiveData;
   isRunning: boolean;
   symbolDetails: Record<string, SymbolDetail>;
   handleChange: HandleChangeFn;

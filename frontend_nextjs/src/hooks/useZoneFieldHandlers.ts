@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import type { ZoneSettings, SymbolDetail } from '@/store/useBotStore';
+import type { ZoneSettings, SymbolDetail } from '@/store/types';
 import { getSymbolConfig, parseFloatCustom } from '@/utils/zoneHelpers';
 
 export interface UseZoneFieldHandlersReturn {

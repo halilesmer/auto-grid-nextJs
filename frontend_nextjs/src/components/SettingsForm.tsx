@@ -4,17 +4,15 @@ import { AlertTriangle, Minus, Plus, Save } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { axiosInstance } from '@/services/api';
-import { useBotStore } from '@/store/useBotStore';
+import { useAccountStore, useSettingsStore } from '@/store';
 
 const MIN_INTERVAL = 1;
 const MAX_INTERVAL = 60;
 const STEP_INTERVAL = 0.1;
 
 export default function SettingsForm() {
-  const {
-    selectedAccount,
-    setGlobalSettings,
-  } = useBotStore();
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  const setGlobalSettings = useSettingsStore((s) => s.setGlobalSettings);
 
   const [loopInterval, setLoopInterval] = useState<number>(1.0);
   const [originalInterval, setOriginalInterval] = useState<number>(1.0);

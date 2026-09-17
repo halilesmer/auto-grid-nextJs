@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import ConfirmModal from '@/components/ConfirmModal';
 import axios from 'axios';
-import { useBotStore } from '@/store/useBotStore';
+import { useAccountStore, useBotRuntimeStore, useSettingsStore } from '@/store';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -15,26 +15,20 @@ const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function BotControls() {
-  const {
-    selectedAccount,
-    activeAccount,
-    isConnecting,
-    liveData,
-    setIsRunning,
-    setIsConnecting,
-    availableSymbols,
-    setAvailableSymbols,
-  } = useBotStore();
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  const activeAccount = useAccountStore((s) => s.activeAccount);
+  const isConnecting = useBotRuntimeStore((s) => s.isConnecting);
+  const liveData = useBotRuntimeStore((s) => s.liveData);
+  const setIsRunning = useBotRuntimeStore((s) => s.setIsRunning);
+  const setIsConnecting = useBotRuntimeStore((s) => s.setIsConnecting);
+  const availableSymbols = useSettingsStore((s) => s.availableSymbols);
+  const setAvailableSymbols = useSettingsStore((s) => s.setAvailableSymbols);
 
   useEffect(() => {
-    // Bağlanma sürecindeyken bayat mt5_connected=false log polling verisinin
-    // isRunning'ı true → false zıplatmasını engelle.
     if (isConnecting) return;
     setIsRunning(Boolean(liveData.mt5_connected));
   }, [liveData.mt5_connected, isConnecting, setIsRunning]);
 
-  // Bot zaten çalışıyorken sayfa yenilenirse (F5) ya da mt5_connected true olduğunda
-  // broker'ın desteklediği sembolleri çek. Liste zaten doluysa gereksiz istek atma.
   useEffect(() => {
     if (!selectedAccount) return;
     if (availableSymbols.length > 0) return;
@@ -72,11 +66,9 @@ export default function BotControls() {
     setLoading(true);
     setError("");
 
-    // CONNECTION LOCK: İstek atılmadan hemen önce kilidi kur.
     setIsConnecting(true);
     setIsRunning(true);
 
-    // Fallback unlock: 15 sn sonra kilit hâlâ duruyorsa zorla aç.
     const unlockTimer = setTimeout(() => {
       setIsConnecting(false);
     }, 15000);
@@ -87,8 +79,6 @@ export default function BotControls() {
         {},
         { headers: { "ngrok-skip-browser-warning": "true" } },
       );
-      // Backend gerçek bağlantı kurduğunda WebSocket veya polling üzerinden
-      // mt5_connected: true durumunu gönderecektir. Arayüz sahte durumu bekletiyor.
     } catch (err) {
       setIsConnecting(false);
       setIsRunning(false);
@@ -114,8 +104,6 @@ export default function BotControls() {
         {},
         { headers: { "ngrok-skip-browser-warning": "true" } },
       );
-      // Backend botu durdurduğunda WebSocket veya polling üzerinden
-      // mt5_connected: false durumunu gönderecektir.
     } catch (err) {
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.detail || "Failed to stop bot.");
@@ -249,8 +237,6 @@ export default function BotControls() {
           ALGO TRADING OFF: Please enable Algo Trading in your MT5 terminal.
         </div>
       )}
-
-      {/* Market Status yukarı taşındı */}
 
       {/* Stop Bot Confirmation */}
       <ConfirmModal

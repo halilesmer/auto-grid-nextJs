@@ -4,7 +4,7 @@ import { Download, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import axios from "axios";
-import { useBotStore } from "@/store/useBotStore";
+import { useAccountStore, useLogsStore, useBotRuntimeStore } from '@/store';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -15,8 +15,13 @@ axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 const POLL_INTERVAL_MS = 10_000;
 
 export default function LogViewer() {
-  const { selectedAccount, logs, setLogs, clearLogs, updateLiveData } =
-    useBotStore();
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  const robotLog = useLogsStore((s) => s.robot_log);
+  const mt5Log = useLogsStore((s) => s.mt5_log);
+  const setLogs = useLogsStore((s) => s.setLogs);
+  const clearLogs = useLogsStore((s) => s.clearLogs);
+  const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
+  
   const [tab, setTab] = useState<"robot" | "mt5">("robot");
   const robotRef = useRef<HTMLPreElement>(null);
   const mt5Ref = useRef<HTMLPreElement>(null);
@@ -31,7 +36,6 @@ export default function LogViewer() {
       setLogs({
         robot_log: data.robot_log || [],
         mt5_log: data.mt5_log || [],
-        metrics: data.metrics || null,
       });
       if (data.metrics) {
         updateLiveData(data.metrics);
@@ -52,7 +56,7 @@ export default function LogViewer() {
     if (ref.current) {
       ref.current.scrollTop = ref.current.scrollHeight;
     }
-  }, [logs, tab]);
+  }, [robotLog, mt5Log, tab]);
 
   const handleDownloadLog = async () => {
     if (selectedAccount) {
@@ -91,7 +95,7 @@ export default function LogViewer() {
 
   if (!selectedAccount) return null;
 
-  const activeLines = tab === "robot" ? logs.robot_log : logs.mt5_log;
+  const activeLines = tab === "robot" ? robotLog : mt5Log;
 
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-xl overflow-hidden">

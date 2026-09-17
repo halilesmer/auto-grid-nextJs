@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { axiosInstance, API } from '@/lib/api';
-import type { GlobalSettings } from '@/store/useBotStore';
+import type { GlobalSettings } from '@/store/types';
 
 interface UpdateResult {
   hasUpdate: boolean;

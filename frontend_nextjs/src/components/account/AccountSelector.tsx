@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useBotStore } from '@/store/useBotStore';
+import { useAccountStore, useSettingsStore, useBotRuntimeStore, resetAllStores } from '@/store';
 import ConfirmModal from '@/components/ConfirmModal';
 import {
   AccountDropdown,
@@ -17,14 +17,12 @@ import {
 import { API, axiosInstance } from '@/lib/api';
 
 export default function AccountSelector() {
-  const {
-    accounts: storeAccounts,
-    selectedAccount,
-    setSelectedAccount,
-    activeAccount,
-    isRunning,
-    setSettings,
-  } = useBotStore();
+  const storeAccounts = useAccountStore((s) => s.accounts);
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  const setSelectedAccount = useAccountStore((s) => s.setSelectedAccount);
+  const activeAccount = useAccountStore((s) => s.activeAccount);
+  const isRunning = useBotRuntimeStore((s) => s.isRunning);
+  const setSettings = useSettingsStore((s) => s.setSettings);
 
   const { paths: mt5Paths, isScanning: scanningMt5, scan: scanMT5 } = useMT5Scanner();
   const { fetchAccounts, createAccount, updateAccount, deleteAccount } = useAccounts();
@@ -64,6 +62,13 @@ export default function AccountSelector() {
         .catch((err) => console.error('Failed to fetch settings', err));
     }
   }, [selectedAccount, setSettings]);
+
+  // Reset all stores when account changes to prevent zombie state
+  useEffect(() => {
+    if (selectedAccount) {
+      resetAllStores();
+    }
+  }, [selectedAccount]);
 
   const handleMT5PathSelect = (path: string) => {
     handleChange('mt5_path', path);

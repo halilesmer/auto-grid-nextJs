@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useBotStore } from '@/store/useBotStore';
+import { useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import { defaultZone } from '@/utils/zoneHelpers';
-import type { ZoneSettings } from '@/store/useBotStore';
+import type { ZoneSettings } from '@/store/types';
 
 export interface UseZoneActionsReturn {
   toggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
@@ -17,6 +17,9 @@ export function useZoneActions(
   selectedAccount: string | null,
   setZones: (zones: ZoneSettings[] | ((prev: ZoneSettings[]) => ZoneSettings[])) => void
 ): UseZoneActionsReturn {
+  const settings = useSettingsStore((s) => s.settings);
+  const symbolDetails = useSettingsStore((s) => s.symbolDetails);
+
   const updateZone = useCallback(
     (zoneId: string, field: string, value: unknown) => {
       setZones((prevZones) =>
@@ -27,12 +30,11 @@ export function useZoneActions(
   );
 
   const addZone = useCallback(() => {
-    const state = useBotStore.getState();
-    const currentZones = state.settings?.ZONES || [];
+    const currentZones = settings?.ZONES || [];
     const lastSymbol = currentZones.length > 0 ? currentZones[currentZones.length - 1].symbol : '';
 
     setZones((prevZones) => [...prevZones, { ...defaultZone(), symbol: lastSymbol }]);
-  }, [setZones]);
+  }, [setZones, settings]);
 
   const deleteZone = useCallback(
     (zoneId: string) => {
@@ -48,8 +50,7 @@ export function useZoneActions(
     async (zoneId: string, currentActive: boolean) => {
       const newActive = !currentActive;
 
-      const storeState = useBotStore.getState();
-      const zoneSymbol = storeState.settings?.ZONES?.find((z) => z.id === zoneId)?.symbol || '';
+      const zoneSymbol = settings?.ZONES?.find((z) => z.id === zoneId)?.symbol || '';
 
       if (!zoneSymbol.trim()) {
         alert('Hatalı Sembol! Lütfen bölge için geçerli bir sembol girin.');
@@ -57,8 +58,8 @@ export function useZoneActions(
       }
 
       if (
-        Object.keys(storeState.symbolDetails).length > 0 &&
-        !storeState.symbolDetails[zoneSymbol.toUpperCase().trim()]
+        Object.keys(symbolDetails).length > 0 &&
+        !symbolDetails[zoneSymbol.toUpperCase().trim()]
       ) {
         alert(
           'Hatalı Sembol! Girdiğiniz sembol broker tarafından desteklenmiyor. Lütfen geçerli bir sembol girin.'
@@ -88,7 +89,7 @@ export function useZoneActions(
         );
       }
     },
-    [setZones, selectedAccount]
+    [setZones, selectedAccount, settings, symbolDetails]
   );
 
   return { toggleActive, addZone, deleteZone, updateZone };

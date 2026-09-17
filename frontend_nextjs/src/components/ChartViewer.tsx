@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp, IChartApi, ISeriesApi } from 'lightweight-charts';
-import { useBotStore } from '@/store/useBotStore';
+import { createChart, ColorType, LineSeries, CandlestickSeries, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { useBotRuntimeStore } from '@/store';
 
 export default function ChartViewer() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const { metrics, updateMetrics } = useBotStore();
+  const metrics = useBotRuntimeStore((s) => s.metrics);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -43,7 +43,7 @@ export default function ChartViewer() {
     });
 
     const rsiSeries = chart.addSeries(LineSeries, {
-      color: '#a855f7', // purple-500
+      color: '#a855f7',
       lineWidth: 2,
       priceScaleId: 'rsi',
     });
@@ -74,54 +74,11 @@ export default function ChartViewer() {
 
     window.addEventListener('resize', handleResize);
 
-    const rawAPI = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    // Convert http/https to ws/wss
-    const wsBaseUrl = rawAPI.replace(/^http/, 'ws').replace(/\/api$/, '');
-    const wsUrl = `${wsBaseUrl}/ws/stream`;
-    const ws = new WebSocket(wsUrl);
-    
-    let currentBar = {
-        time: 0 as UTCTimestamp,
-        open: 0,
-        high: 0,
-        low: 0,
-        close: 0,
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'METRICS') {
-        updateMetrics(data.payload);
-        
-        const price = data.payload.price;
-        const time = Math.floor(Date.now() / 1000) as UTCTimestamp;
-        
-        if (currentBar.open === 0) {
-            currentBar = { time, open: price, high: price, low: price, close: price };
-        } else {
-            if (time - currentBar.time > 10) {
-                currentBar = { time, open: price, high: price, low: price, close: price };
-            } else {
-                currentBar.high = Math.max(currentBar.high, price);
-                currentBar.low = Math.min(currentBar.low, price);
-                currentBar.close = price;
-            }
-        }
-        
-        candleSeries.update(currentBar);
-
-        if (data.payload.rsi !== undefined) {
-          rsiSeries.update({ time, value: data.payload.rsi });
-        }
-      }
-    };
-
     return () => {
       window.removeEventListener('resize', handleResize);
-      ws.close();
       chart.remove();
     };
-  }, [updateMetrics]);
+  }, []);
 
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-xl flex flex-col h-full">

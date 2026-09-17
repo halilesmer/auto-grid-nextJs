@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useBotStore } from '@/store/useBotStore';
+import { useSettingsStore, useBotRuntimeStore } from '@/store';
 import { Plus, AlertTriangle } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 
@@ -14,7 +14,7 @@ import { ZoneCard } from '@/components/zone';
 interface ZoneSettingsPanelProps {
   selectedAccount: string | null;
   isRunning: boolean;
-  liveData: ReturnType<typeof useBotStore.getState>['liveData'];
+  liveData: ReturnType<typeof useBotRuntimeStore.getState>['liveData'];
   isGlobalDirty?: boolean;
 }
 
@@ -24,7 +24,9 @@ export default function ZoneSettingsPanel({
   liveData,
   isGlobalDirty,
 }: ZoneSettingsPanelProps) {
-  const { settings, setZones } = useBotStore();
+  const settings = useSettingsStore((s) => s.settings);
+  const setZones = useSettingsStore((s) => s.setZones);
+  const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
   const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -67,7 +69,7 @@ export default function ZoneSettingsPanel({
             onClick={() => {
               setError('');
               if (liveData.last_error)
-                useBotStore.getState().updateLiveData({ last_error: null });
+                updateLiveData({ last_error: null });
             }}
             className="ml-auto text-red-400 hover:text-red-300 px-2 font-bold"
           >

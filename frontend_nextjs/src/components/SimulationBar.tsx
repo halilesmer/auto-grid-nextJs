@@ -1,7 +1,7 @@
 'use client';
 
 import axios from 'axios';
-import { useBotStore } from '@/store/useBotStore';
+import { useAccountStore, useSystemStore } from '@/store';
 import { useEffect } from 'react';
 
 const rawAPI =
@@ -12,13 +12,11 @@ const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function SimulationBar() {
-  const {
-    selectedAccount,
-    simulatedPrice,
-    setSimulatedPrice,
-    isWindows,
-    setIsWindows,
-  } = useBotStore();
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  const simulatedPrice = useSystemStore((s) => s.simulatedPrice);
+  const setSimulatedPrice = useSystemStore((s) => s.setSimulatedPrice);
+  const isWindows = useSystemStore((s) => s.isWindows);
+  const setIsWindows = useSystemStore((s) => s.setIsWindows);
 
   useEffect(() => {
     axios

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { SymbolDetail } from "@/store/useBotStore";
+import { SymbolDetail } from "@/store/types";
 
 interface SymbolAutoCompleteProps {
   value: string;

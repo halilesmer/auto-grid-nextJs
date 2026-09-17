@@ -1,7 +1,7 @@
 'use client';
 
 import { Globe, Monitor, Power, RefreshCw, Server, Settings } from 'lucide-react';
-import { useBotStore } from '@/store/useBotStore';
+import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
 import { useDashboard } from '@/app/hooks/useDashboard';
 import AccountSelector from '@/components/account/AccountSelector';
 import BotControls from '@/components/BotControls';
@@ -16,15 +16,16 @@ import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { VERSION } from '@/app/version';
 
 export default function Home() {
-  const {
-    selectedAccount,
-    activeAccount,
-    setUpdateInfo,
-    settings,
-    isRunning,
-    liveData,
-    mergeAndSaveSettings,
-  } = useBotStore();
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  const activeAccount = useAccountStore((s) => s.activeAccount);
+  const setUpdateInfo = useSystemStore((s) => s.setUpdateInfo);
+  const settings = useSettingsStore((s) => s.settings);
+  const isRunning = useBotRuntimeStore((s) => s.isRunning);
+  const liveData = useBotRuntimeStore((s) => s.liveData);
+  const mergeAndSaveSettings = useSettingsStore((s) => s.mergeAndSaveSettings);
+
+  // Initialize WebSocket connection when account is selected
+  useWebSocketManager(selectedAccount);
 
   const {
     saveAllLoading,
@@ -49,7 +50,7 @@ export default function Home() {
     selectedAccount,
     activeAccount,
     settings,
-    mergeAndSaveSettings,
+    mergeAndSaveSettings: (apiUrl: string) => mergeAndSaveSettings(apiUrl, selectedAccount || ''),
     setUpdateInfo,
   });
 

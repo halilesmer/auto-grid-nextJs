@@ -1,5 +1,5 @@
 import { axiosInstance } from './api';
-import type { ZoneSettings } from '@/store/useBotStore';
+import type { ZoneSettings } from '@/store/types';
 
 export interface RemoteSettings {
   ZONES?: ZoneSettings[];
