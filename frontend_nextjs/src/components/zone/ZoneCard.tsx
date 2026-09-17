@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useCallback } from 'react';
 import type { ZoneCardProps } from './types';
 import { getSymbolConfig } from '@/utils/zoneHelpers';
 import { ZoneHeader } from './ZoneHeader';
@@ -21,6 +22,7 @@ export function ZoneCard({
   symbolDetails,
   handleChange,
   handleBlur,
+  syncZonePrecision,
   validateSymbol,
 }: ZoneCardProps) {
   const isBoth = zone.order_type === 'BOTH';
@@ -30,11 +32,22 @@ export function ZoneCard({
   const isGlobalRunning = liveData.mt5_connected && isRunning;
   const symbolConfig = getSymbolConfig(zone.symbol, symbolDetails);
 
-  const update = (field: string, value: unknown) => onUpdate(zone.id, field, value);
+  const update = useCallback(
+    (field: string, value: unknown) => onUpdate(zone.id, field, value),
+    [onUpdate, zone.id]
+  );
 
-  const handleToggleActive = () => {
+  const handleToggleActive = useCallback(() => {
     onToggleActive(zone.id, isActive);
-  };
+  }, [onToggleActive, zone.id, isActive]);
+
+  // Precision sync when symbol changes - ensures all fields match new symbol's digits
+  useEffect(() => {
+    const volPrecision = symbolConfig.volStep.toString().includes('.')
+      ? symbolConfig.volStep.toString().split('.')[1].length
+      : 2;
+    syncZonePrecision(zone, symbolConfig, volPrecision, update);
+  }, [zone.symbol, symbolConfig, syncZonePrecision, zone, update]);
 
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-xl shadow-xl space-y-4">

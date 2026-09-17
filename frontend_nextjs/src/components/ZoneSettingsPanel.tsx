@@ -33,7 +33,7 @@ export default function ZoneSettingsPanel({
   const symbolDetails = useSymbolDetails(selectedAccount);
   const { modified } = useZoneDirtyTracking(zones, isGlobalDirty);
   const { toggleActive, addZone, deleteZone, updateZone } = useZoneActions(selectedAccount, setZones);
-  const { handleChange, handleBlur, validateSymbol } = useZoneFieldHandlers(symbolDetails);
+  const { handleChange, handleBlur, syncZonePrecision, validateSymbol } = useZoneFieldHandlers(symbolDetails);
 
   const handleDeleteZone = (zoneId: string) => {
     setDeleteZoneId(zoneId);
@@ -105,6 +105,7 @@ export default function ZoneSettingsPanel({
             symbolDetails={symbolDetails}
             handleChange={handleChange}
             handleBlur={handleBlur}
+            syncZonePrecision={syncZonePrecision}
             validateSymbol={validateSymbol}
           />
         );

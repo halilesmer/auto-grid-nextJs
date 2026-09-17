@@ -15,12 +15,16 @@ export function ZoneBasicFields({
 }: ZoneBasicFieldsProps) {
   const hasError = Object.keys(symbolDetails).length > 0 && Boolean(zone.symbol) && !validateSymbol(zone.symbol);
 
+  const handleSymbolChange = (val: string) => {
+    handleChange('symbol', val, zone, symbolConfig, update);
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <InputField label="Sembol" error={hasError && <span className="text-[11px] text-red-400 font-bold mt-1">Geçersiz Sembol!</span>}>
         <SymbolAutoComplete
           value={zone.symbol}
-          onChange={(val) => handleChange('symbol', val, zone, symbolConfig, update)}
+          onChange={handleSymbolChange}
           symbolDetails={symbolDetails}
           hasError={hasError}
         />

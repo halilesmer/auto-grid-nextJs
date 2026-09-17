@@ -19,6 +19,13 @@ export type HandleBlurFn = (
   update: FieldUpdateFn
 ) => void;
 
+export type SyncZonePrecisionFn = (
+  zone: ZoneSettings,
+  symbolConfig: SymbolConfig,
+  volPrecision: number,
+  update: FieldUpdateFn
+) => void;
+
 export interface ZoneHeaderProps {
   zone: ZoneSettings;
   isActive: boolean;
@@ -84,5 +91,6 @@ export interface ZoneCardProps {
   symbolDetails: Record<string, SymbolDetail>;
   handleChange: HandleChangeFn;
   handleBlur: HandleBlurFn;
+  syncZonePrecision: SyncZonePrecisionFn;
   validateSymbol: (symbol: string) => boolean;
 }

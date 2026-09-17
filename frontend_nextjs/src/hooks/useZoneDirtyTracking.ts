@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ZoneSettings } from '@/store/useBotStore';
 import { zoneModified } from '@/utils/zoneHelpers';
 
@@ -16,13 +16,18 @@ export function useZoneDirtyTracking(
   isGlobalDirty?: boolean
 ): UseZoneDirtyTrackingReturn {
   const [originalZones, setOriginalZones] = useState<ZoneSettings[]>([]);
+  const initializedRef = useRef(false);
 
   // Sync originalZones when zones load (initial mount or account change)
-  // This runs during render, not in useEffect, to avoid cascading renders
-  if (zones.length > 0 && originalZones.length === 0) {
-    setOriginalZones(zones.map((z) => ({ ...z })));
-  }
+  // Uses useRef + useEffect to avoid synchronous setState during render
+  useEffect(() => {
+    if (zones.length > 0 && !initializedRef.current) {
+      setOriginalZones(zones.map((z) => ({ ...z })));
+      initializedRef.current = true;
+    }
+  }, [zones]);
 
+  // Reset originalZones when global save completes (isGlobalDirty === false)
   useEffect(() => {
     if (isGlobalDirty === false) {
       queueMicrotask(() => {
