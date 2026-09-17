@@ -3,15 +3,8 @@
 import { AlertTriangle, Minus, Plus, Save } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-import axios from 'axios';
+import { axiosInstance } from '@/services/api';
 import { useBotStore } from '@/store/useBotStore';
-
-const rawAPI =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://tweet-overlying-monotone.ngrok-free.dev";
-const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
-
-axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 const MIN_INTERVAL = 1;
 const MAX_INTERVAL = 60;
@@ -30,15 +23,14 @@ export default function SettingsForm() {
 
   useEffect(() => {
     if (!selectedAccount) {
-      // Eşzamanlı (synchronous) render'ı ve ESLint hatasını önlemek için microtask/timeout kullanılır
       setTimeout(() => {
         setLoopInterval(1.0);
         setOriginalInterval(1.0);
       }, 0);
       return;
     }
-    axios
-      .get(`${API}/settings/${selectedAccount}`)
+    axiosInstance
+      .get(`/settings/${selectedAccount}`)
       .then((res) => {
         const data: Record<string, unknown> = res.data?.settings || {};
         const interval = (data.LOOP_INTERVAL_SECONDS as number) || 1.0;
@@ -47,7 +39,7 @@ export default function SettingsForm() {
         setGlobalSettings({ LOOP_INTERVAL_SECONDS: interval });
       })
       .catch((err) => {
-        console.error("Failed to load global settings", err);
+        console.error('Failed to load global settings', err);
         setLoopInterval(1.0);
         setOriginalInterval(1.0);
         setGlobalSettings({ LOOP_INTERVAL_SECONDS: 1.0 });
@@ -72,7 +64,7 @@ export default function SettingsForm() {
     setSaving(true);
     setError('');
     try {
-      await axios.post(`${API}/settings/${selectedAccount}`, {
+      await axiosInstance.post(`/settings/${selectedAccount}`, {
         settings: { LOOP_INTERVAL_SECONDS: loopInterval },
       });
       setOriginalInterval(loopInterval);
