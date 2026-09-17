@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes import router as api_router
+from src.api import api_router
 from src.api.ws_server import router as ws_router
 
 app = FastAPI(title="Auto Grid Bot API")
