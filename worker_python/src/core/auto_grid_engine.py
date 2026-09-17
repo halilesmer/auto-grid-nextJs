@@ -1,352 +1,211 @@
-import time
-import json
+# src/core/auto_grid_engine.py
+"""
+Auto Grid Trading Engine - Main Entry Point
+Backward compatible with bot_runner.py
+"""
 import os
-from src.utils.config import load_settings
-from src.utils.paths import (
-    get_symbols_path,
-    get_ui_state_path,
+import sys
+import time as _time
+import types
+
+from .state import state, GridState
+from .wrappers import (
+    get_live_metrics as _get_live_metrics,
+    load_dynamic_settings as _load_dynamic_settings,
+    get_active_zone as _get_active_zone,
+    send_pending_order as _send_pending_order,
+    process_zone_commands as _process_zone_commands,
+    check_remote_commands_wrapper as _check_remote_commands_wrapper,
+    manage_dynamic_grid as _manage_dynamic_grid,
+    mt5 as _mt5_ref,
 )
-from src.core.grid_helpers import (
-    log_message,
-    is_market_open,
-    determine_fill_mode,
-)
-from src.core.grid_metrics import calculate_live_metrics
-from src.core.grid_orders import (
-    BASE_MAGIC_NUMBER,
-    get_all_robot_orders,
-    get_all_robot_positions,
-    cancel_order,
-    send_pending_order_helper,
-)
-from src.core.grid_remote import check_remote_commands
-from src.core.grid_strategy import (
-    get_active_zone as get_active_zone_fn,
-    process_zone_commands as process_zone_commands_fn,
-    manage_dynamic_grid_logic,
+from .loop import main_loop as _main_loop
+from .startup import run_startup_checks, _reconnect_mt5
+
+
+_SYNC_ATTRS = (
+    "IS_RUNNING", "INITIAL_CLEANUP_DONE", "BASE_MAGIC_NUMBER",
+    "ZONES", "LOOP_INTERVAL_SECONDS", "ACTIVE_SYMBOLS", "SYMBOL_INFOS",
+    "FILLING_MODE", "ACTIVE_ZONE", "ACTIVE_ZONE_IDX", "REMOTE_PAUSED",
+    "CONNECTION_LOST", "CONSECUTIVE_ERRORS", "REMOTE_COMMAND_PREFIX",
+    "REMOTE_SIGNAL_STOP_PRICE", "REMOTE_SIGNAL_START_PRICE", "REMOTE_SIGNAL_VOLUME",
+    "active_zones_state",
 )
 
-LOOP_INTERVAL_SECONDS = 3.0
+_FUNC_ATTRS = (
+    "get_live_metrics", "load_dynamic_settings", "get_active_zone",
+    "send_pending_order", "process_zone_commands",
+    "check_remote_commands_wrapper", "manage_dynamic_grid",
+    "run_startup_checks", "main_loop",
+)
+
+
+class _AutoGridEngineModule(types.ModuleType):
+    def __init__(self, name):
+        super().__init__(name)
+        object.__setattr__(self, '_mt5_backing', _mt5_ref)
+        object.__setattr__(self, '_time_ref', _time)
+        # Initialize synced attributes
+        for attr in _SYNC_ATTRS:
+            object.__setattr__(self, attr, globals()[attr])
+        # Initialize function attributes
+        for attr in _FUNC_ATTRS:
+            object.__setattr__(self, attr, globals()[attr])
+
+    def __getattr__(self, name):
+        if name == "mt5":
+            return self._mt5_backing
+        if name == "time":
+            return self._time_ref
+        if name in _SYNC_ATTRS or name in _FUNC_ATTRS:
+            return object.__getattribute__(self, name)
+        raise AttributeError(f"module '{self.__name__}' has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        if name == "mt5":
+            object.__setattr__(self, '_mt5_backing', value)
+            import src.core.wrappers as w
+            w.mt5 = value
+        elif name == "time":
+            object.__setattr__(self, '_time_ref', value)
+        elif name in _SYNC_ATTRS:
+            object.__setattr__(self, name, value)
+        else:
+            object.__setattr__(self, name, value)
+        _sync_state_from_module(self)
+
+    def __dir__(self):
+        return list(super().__dir__()) + ["mt5", "time"] + list(_SYNC_ATTRS) + list(_FUNC_ATTRS)
+
+
+# Module-level state (synced with state.py)
+IS_RUNNING = False
+INITIAL_CLEANUP_DONE = False
+BASE_MAGIC_NUMBER = 200000
+
 ZONES = []
-ORDER_TYPE = "BUY"
+LOOP_INTERVAL_SECONDS = 3.0
 ACTIVE_SYMBOLS = set()
 SYMBOL_INFOS = {}
-
 FILLING_MODE = {}
 ACTIVE_ZONE = None
 ACTIVE_ZONE_IDX = None
-
-IS_RUNNING = False
-INITIAL_CLEANUP_DONE = False
+REMOTE_PAUSED = False
 CONNECTION_LOST = False
 CONSECUTIVE_ERRORS = {}
-
-REMOTE_PAUSED = False
 REMOTE_COMMAND_PREFIX = "GRID:"
 REMOTE_SIGNAL_STOP_PRICE = 1.0
 REMOTE_SIGNAL_START_PRICE = 2.0
 REMOTE_SIGNAL_VOLUME = 0.01
-
 active_zones_state = {}
 
-try:
-    import MetaTrader5 as mt5  # type: ignore
-except ImportError:
-    mt5 = None
 
-MARKET_CLOSED_CHECK_INTERVAL = 60
-LOG_TO_FILE = True
+def _sync_module_from_state(mod=None):
+    """Sync module attributes from state.py. If mod is provided, update that module instance."""
+    values = {
+        "IS_RUNNING": state.is_running,
+        "INITIAL_CLEANUP_DONE": state.initial_cleanup_done,
+        "ZONES": state.zones,
+        "LOOP_INTERVAL_SECONDS": state.loop_interval_seconds,
+        "ACTIVE_SYMBOLS": state.active_symbols,
+        "SYMBOL_INFOS": state.symbol_infos,
+        "FILLING_MODE": state.filling_mode,
+        "ACTIVE_ZONE": state.active_zone,
+        "ACTIVE_ZONE_IDX": state.active_zone_idx,
+        "REMOTE_PAUSED": state.remote_paused,
+        "CONNECTION_LOST": state.connection_lost,
+        "CONSECUTIVE_ERRORS": state.consecutive_errors,
+        "active_zones_state": state.active_zones_state,
+    }
+    
+    # Update globals for backward compat
+    globals().update(values)
+    
+    # Update module instance if provided
+    if mod is not None:
+        for k, v in values.items():
+            object.__setattr__(mod, k, v)
+
+
+def _sync_state_from_module(mod):
+    state.is_running = mod.IS_RUNNING
+    state.initial_cleanup_done = mod.INITIAL_CLEANUP_DONE
+    state.zones = mod.ZONES
+    state.loop_interval_seconds = mod.LOOP_INTERVAL_SECONDS
+    state.active_symbols = mod.ACTIVE_SYMBOLS
+    state.symbol_infos = mod.SYMBOL_INFOS
+    state.filling_mode = mod.FILLING_MODE
+    state.active_zone = mod.ACTIVE_ZONE
+    state.active_zone_idx = mod.ACTIVE_ZONE_IDX
+    state.remote_paused = mod.REMOTE_PAUSED
+    state.connection_lost = mod.CONNECTION_LOST
+    state.consecutive_errors = mod.CONSECUTIVE_ERRORS
+    state.active_zones_state = mod.active_zones_state
 
 
 def get_live_metrics():
-    global CONNECTION_LOST
-    res = calculate_live_metrics(mt5, ACTIVE_SYMBOLS, CONNECTION_LOST, REMOTE_PAUSED)
-    CONNECTION_LOST = res.get("connection_lost", False)
-    return res
+    _sync_module_from_state(sys.modules[__name__])
+    return _get_live_metrics()
 
 
 def load_dynamic_settings():
-    global ZONES, LOOP_INTERVAL_SECONDS, ACTIVE_SYMBOLS, SYMBOL_INFOS
-    try:
-        settings = load_settings("Auto Grid")
-        ZONES = settings.get("ZONES", [])
-        LOOP_INTERVAL_SECONDS = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
-        ACTIVE_SYMBOLS.clear()
-        for zone in ZONES:
-            if "symbol" in zone and zone["symbol"]:
-                ACTIVE_SYMBOLS.add(str(zone["symbol"]).upper().strip())
-
-        for sym in ACTIVE_SYMBOLS:
-            if sym not in SYMBOL_INFOS:
-                try:
-                    mt5.symbol_select(sym, True)
-                    info = mt5.symbol_info(sym)
-                    if info:
-                        SYMBOL_INFOS[sym] = info
-                except Exception:
-                    pass
-    except Exception:
-        pass
+    _sync_module_from_state(sys.modules[__name__])
+    _load_dynamic_settings()
+    _sync_module_from_state(sys.modules[__name__])
 
 
 def get_active_zone():
-    return get_active_zone_fn(mt5, ZONES)
+    _sync_module_from_state(sys.modules[__name__])
+    return _get_active_zone()
 
 
-def send_pending_order(
-    price, lot, tp_price, sl_price=None, zone_idx=0, direction="BUY", symbol=None
-):
-    return send_pending_order_helper(
-        mt5,
-        price,
-        lot,
-        tp_price,
-        sl_price,
-        zone_idx,
-        direction,
-        symbol,
-        SYMBOL_INFOS,
-        CONSECUTIVE_ERRORS,
-        active_zones_state,
-    )
+def send_pending_order(price, lot, tp_price, sl_price=None, zone_idx=0, direction="BUY", symbol=None):
+    _sync_module_from_state(sys.modules[__name__])
+    return _send_pending_order(price, lot, tp_price, sl_price, zone_idx, direction, symbol)
 
 
 def process_zone_commands():
-    process_zone_commands_fn(ZONES, active_zones_state)
+    _sync_module_from_state(sys.modules[__name__])
+    _process_zone_commands()
 
 
 def check_remote_commands_wrapper():
-    global REMOTE_PAUSED, ACTIVE_ZONE, ACTIVE_ZONE_IDX
-    found, REMOTE_PAUSED, reset_zone = check_remote_commands(mt5, REMOTE_PAUSED, ZONES)
-    if reset_zone:
-        ACTIVE_ZONE = None
-        ACTIVE_ZONE_IDX = None
-    return found
+    _sync_module_from_state(sys.modules[__name__])
+    return _check_remote_commands_wrapper()
 
 
 def manage_dynamic_grid():
-    global ACTIVE_ZONE, ACTIVE_ZONE_IDX
-    ok, ACTIVE_ZONE, ACTIVE_ZONE_IDX = manage_dynamic_grid_logic(
-        mt5,
-        ZONES,
-        ACTIVE_ZONE,
-        ACTIVE_ZONE_IDX,
-        REMOTE_PAUSED,
-        SYMBOL_INFOS,
-        CONSECUTIVE_ERRORS,
-        active_zones_state,
-        FILLING_MODE,
-    )
-    return ok
+    _sync_module_from_state(sys.modules[__name__])
+    return _manage_dynamic_grid()
 
 
-def run_startup_checks():
-    global FILLING_MODE, active_zones_state, CONSECUTIVE_ERRORS
-    CONSECUTIVE_ERRORS = {}
-    log_message("=" * 60)
-    log_message("Çoklu Sembol Grid Robot (AUTO GRID) Baslatiliyor...")
-    log_message("=" * 60)
-
-    account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
-    term_info = mt5.terminal_info() if mt5 else None
-    if term_info is None or not getattr(term_info, "connected", False):
-        log_message("🔴 MT5 bağlantısı koptu! Terminal bilgisi alınamadı.", "ERROR")
-        if mt5:
-            mt5.shutdown()
-        return False
-
-    account_info = mt5.account_info() if mt5 else None
-    if account_info is not None:
-        log_message(
-            f"✅ MT5 bağlantısı canlı doğrulandı (Hesap: {account_info.login}, Sunucu: {account_info.server})"
-        )
-
-    try:
-        if mt5 and hasattr(mt5, "symbols_get"):
-            all_symbols = mt5.symbols_get()
-            if all_symbols:
-                sym_data = {
-                    s.name: {
-                        "vol_min": getattr(s, "volume_min", 0.01),
-                        "vol_max": getattr(s, "volume_max", 100.0),
-                        "vol_step": getattr(s, "volume_step", 0.01),
-                        "contract_size": getattr(s, "trade_contract_size", 100000.0),
-                        "digits": getattr(s, "digits", 5),
-                        "point": getattr(s, "point", 0.00001),
-                    }
-                    for s in all_symbols
-                    if hasattr(s, "name")
-                }
-                if sym_data:
-                    sym_file = get_symbols_path(account_id)
-                    tmp_sym = sym_file + ".tmp"
-                    with open(tmp_sym, "w", encoding="utf-8") as f:
-                        json.dump(sym_data, f)
-                    os.replace(tmp_sym, sym_file)
-    except Exception as e:
-        log_message(f"Sembol listesi güncellenemedi: {e}", "WARN")
-
-    for sym in list(ACTIVE_SYMBOLS):
-        if mt5:
-            mt5.symbol_select(sym, True)
-            info = mt5.symbol_info(sym)
-            if info is None or not info.visible:
-                log_message(
-                    f"🚨 HATA: Sembol ({sym}) aracı kurum sunucusunda bulunamadı!",
-                    "ERROR",
-                )
-                mt5.shutdown()
-                return False
-            if determine_fill_mode(mt5, sym, SYMBOL_INFOS, FILLING_MODE) is None:
-                mt5.shutdown()
-                return False
-
-    if ACTIVE_SYMBOLS and not any(is_market_open(mt5, sym) for sym in ACTIVE_SYMBOLS):
-        log_message("Piyasalar su anda kapali. Acilmasi bekleniyor...", "WARN")
-    else:
-        log_message("Aktif piyasalar acik ve isleme hazir.")
-
-    active_zones_state = {}
-    robot_positions = get_all_robot_positions(mt5)
-    robot_orders = get_all_robot_orders(mt5)
-    if robot_positions is None or robot_orders is None:
-        log_message(
-            "Kritik Hata: MT5'ten veri alınamadı. Bağlantı stabil değil.", "ERROR"
-        )
-        if mt5:
-            mt5.shutdown()
-        return False
-
-    for item in robot_positions + robot_orders:
-        active_zones_state[item.magic - BASE_MAGIC_NUMBER - 1] = "START"
-
-    ui_states_file = get_ui_state_path(account_id)
-    if os.path.exists(ui_states_file):
-        try:
-            os.remove(ui_states_file)
-        except Exception:
-            pass
-
-    log_message("Tum baslangic kontrolleri basarili!")
-    return True
-
-
-def _reconnect_mt5(account_id, password, server, max_retries=3, base_delay=2):
-    """Attempt to reconnect to MT5 with exponential backoff."""
-    for attempt in range(max_retries):
-        if mt5.initialize():
-            if mt5.login(account_id, str(password), str(server)):
-                time.sleep(1.0)
-                account_info = mt5.account_info()
-                if account_info is not None:
-                    return True
-        last_err = mt5.last_error()
-        err_code = last_err[0] if last_err else 0
-        if err_code in (-10005, -10003, -10004, 1002, 2):
-            delay = base_delay * (2 ** attempt)
-            log_message(f"MT5 yeniden bağlanma denemesi {attempt + 1}/{max_retries} başarısız, {delay}s bekleniyor...", "WARN")
-            time.sleep(delay)
-            continue
-        break
-    return False
+def run_startup_checks(mt5_module):
+    _sync_module_from_state(sys.modules[__name__])
+    return run_startup_checks(mt5_module)
 
 
 def main_loop():
-    global IS_RUNNING, INITIAL_CLEANUP_DONE, CONNECTION_LOST
-    load_dynamic_settings()
-
-    if not run_startup_checks():
-        log_message("Baslangic kontrolleri basarisiz. Robot durduruluyor.", "ERROR")
-        time.sleep(10)
-        return
-
-    log_message("Robot calismaya basladi. (Durdurmak icin Ctrl+C)")
-
+    _sync_module_from_state(sys.modules[__name__])
     account_id = int(os.environ.get("ACTIVE_ACCOUNT_ID", "0"))
+    from src.utils.config import load_settings
     account_config = load_settings("Auto Grid")
     password = account_config.get("password", "")
     server = account_config.get("server", "")
+    _main_loop(sys.modules[__name__]._mt5_backing, account_id, password, server)
+    _sync_module_from_state(sys.modules[__name__])
 
-    consecutive_connection_losses = 0
-    max_consecutive_losses = 3
 
-    try:
-        while IS_RUNNING:
-            load_dynamic_settings()
-            try:
-                check_remote_commands_wrapper()
-            except Exception as e:
-                log_message(f"Uzaktan komut okuması başarısız: {e}", "ERROR")
-
-            term_info = mt5.terminal_info() if mt5 else None
-            if (
-                term_info is None
-                or not getattr(term_info, "connected", False)
-                or not getattr(term_info, "trade_allowed", False)
-            ):
-                if (
-                    term_info is None or not getattr(term_info, "connected", False)
-                ) and not CONNECTION_LOST:
-                    CONNECTION_LOST = True
-                    log_message("🚨 KRİTİK: MT5 BAĞLANTISI KOPTU!", "ERROR")
-
-                if account_id > 0 and password and server:
-                    log_message("MT5 yeniden bağlanma deneniyor...", "WARN")
-                    if _reconnect_mt5(account_id, password, server):
-                        CONNECTION_LOST = False
-                        consecutive_connection_losses = 0
-                        log_message("✅ MT5 bağlantısı yeniden kuruldu. Robot çalışmaya devam ediyor.", "WARN")
-                        continue
-                    else:
-                        consecutive_connection_losses += 1
-                        log_message(f"MT5 yeniden bağlanma başarısız ({consecutive_connection_losses}/{max_consecutive_losses})", "ERROR")
-                        if consecutive_connection_losses >= max_consecutive_losses:
-                            log_message("⛔ Maksimum yeniden bağlanma denemesi aşıldı. Robot durduruluyor.", "ERROR")
-                            break
-                time.sleep(10)
-                continue
-            else:
-                if CONNECTION_LOST:
-                    CONNECTION_LOST = False
-                    consecutive_connection_losses = 0
-                    log_message(
-                        "✅ MT5 bağlantısı geri geldi. Robot çalışmaya devam ediyor.",
-                        "WARN",
-                    )
-
-            if ACTIVE_SYMBOLS and not any(
-                is_market_open(mt5, sym) for sym in ACTIVE_SYMBOLS
-            ):
-                time.sleep(MARKET_CLOSED_CHECK_INTERVAL)
-                continue
-
-            if not INITIAL_CLEANUP_DONE:
-                log_message(
-                    "✅ Başlangıç emir koruması aktif. Eski bekleyen emirler silinmedi."
-                )
-                INITIAL_CLEANUP_DONE = True
-
-            try:
-                manage_dynamic_grid()
-            except Exception as e:
-                log_message(
-                    f"🚨 Hata (Crash Koruması): manage_dynamic_grid'de hata: {e}",
-                    "ERROR",
-                )
-
-            time.sleep(LOOP_INTERVAL_SECONDS)
-
-    except KeyboardInterrupt:
-        log_message("Kullanici tarafindan durduruldu.", "WARN")
-    finally:
-        log_message("🛑 Robot durduruldu. Bekleyen nöbetçi emirler temizleniyor.")
-        eski_emirler = get_all_robot_orders(mt5)
-        if eski_emirler:
-            for emir in eski_emirler:
-                cancel_order(mt5, emir)
-        if mt5:
-            mt5.shutdown()
+# Replace this module with our custom module class
+_new_module = _AutoGridEngineModule(__name__)
+sys.modules[__name__] = _new_module
 
 
 if __name__ == "__main__":
+    # For direct execution (e.g., python -m src.core.auto_grid_engine)
+    account_id = int(os.environ.get("ACTIVE_ACCOUNT_ID", "0"))
+    from src.utils.config import load_settings
+    account_config = load_settings("Auto Grid")
+    password = account_config.get("password", "")
+    server = account_config.get("server", "")
+    # Initialize mt5 connection here if needed
     main_loop()
