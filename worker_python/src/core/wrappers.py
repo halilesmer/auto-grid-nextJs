@@ -14,11 +14,9 @@ from src.core.grid_orders import (
     send_pending_order_helper,
 )
 from src.core.grid_remote import check_remote_commands
-from src.core.grid_strategy import (
-    get_active_zone as _get_active_zone,
-    process_zone_commands as _process_zone_commands,
-    manage_dynamic_grid_logic,
-)
+from src.core.grid_zone_selector import get_active_zone as _get_active_zone
+from src.core.grid_zone_state import process_zone_commands as _process_zone_commands
+from src.core.grid_orchestrator import manage_dynamic_grid as _manage_dynamic_grid
 
 mt5 = None
 
@@ -87,7 +85,7 @@ def check_remote_commands_wrapper():
 
 def manage_dynamic_grid():
     global state
-    ok, state.active_zone, state.active_zone_idx = manage_dynamic_grid_logic(
+    ok, state.active_zone, state.active_zone_idx = _manage_dynamic_grid(
         mt5,
         state.zones,
         state.active_zone,

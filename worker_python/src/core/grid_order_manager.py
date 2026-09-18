@@ -4,10 +4,14 @@ from src.core.grid_helpers import (
 )
 from src.core.grid_orders import (
     BASE_MAGIC_NUMBER,
+    MAX_DEVIATION,
     cancel_order,
+    get_all_robot_orders,
+    get_all_robot_positions,
     modify_position_tp_sl,
     send_pending_order_helper,
 )
+from src.utils.trade_utils import safe_send_order
 
 
 def clean_zombie_orders(mt5, robot_orders, zones, active_zones_state):
@@ -170,3 +174,95 @@ def process_partial_fills_and_tpsl(
                         consecutive_errors,
                         active_zones_state,
                     )
+
+
+def handle_zone_exit(
+    mt5,
+    active_zone: dict,
+    active_zone_idx: int,
+    robot_orders,
+    robot_positions,
+    filling_mode: dict,
+    current_avg_price: float,
+    close_price: float,
+    exit_cond: str,
+):
+    if not active_zone.get("clear_on_exit", True):
+        return
+
+    ref_price = current_avg_price if exit_cond == "Anlık Fiyat" else close_price
+    actual_exit_dir = "BUY (Yukarı)" if ref_price > active_zone.get("max_price", 0) else "SELL (Aşağı)"
+    trigger_side = active_zone.get("clear_exit_side", "Farketmez")
+
+    if trigger_side != "Farketmez" and trigger_side != actual_exit_dir:
+        return
+
+    scope = active_zone.get("clear_scope", "Sadece Bekleyen Emirler")
+    target = active_zone.get("clear_target_side", "Farketmez (Hepsi)")
+    target_magic = BASE_MAGIC_NUMBER + active_zone_idx + 1
+
+    for order in robot_orders:
+        if order.magic == target_magic:
+            if (
+                target == "Farketmez (Hepsi)"
+                or (
+                    target == "Sadece BUY İşlemleri"
+                    and order.type
+                    in [
+                        mt5.ORDER_TYPE_BUY_LIMIT,
+                        mt5.ORDER_TYPE_BUY_STOP,
+                    ]
+                )
+                or (
+                    target == "Sadece SELL İşlemleri"
+                    and order.type
+                    in [
+                        mt5.ORDER_TYPE_SELL_LIMIT,
+                        mt5.ORDER_TYPE_SELL_STOP,
+                    ]
+                )
+            ):
+                cancel_order(mt5, order)
+
+    if "Pozisyon" in scope or "Tümü" in scope or "Hepsi" in scope:
+        for pos in robot_positions:
+            if pos.magic == target_magic:
+                if (
+                    target == "Farketmez (Hepsi)"
+                    or (
+                        target == "Sadece BUY İşlemleri"
+                        and pos.type == mt5.POSITION_TYPE_BUY
+                    )
+                    or (
+                        target == "Sadece SELL İşlemleri"
+                        and pos.type == mt5.POSITION_TYPE_SELL
+                    )
+                ):
+                    tick = mt5.symbol_info_tick(pos.symbol)
+                    if tick:
+                        close_type = (
+                            mt5.ORDER_TYPE_SELL
+                            if pos.type == mt5.POSITION_TYPE_BUY
+                            else mt5.ORDER_TYPE_BUY
+                        )
+                        close_price_val = (
+                            tick.bid
+                            if pos.type == mt5.POSITION_TYPE_BUY
+                            else tick.ask
+                        )
+                        req = {
+                            "action": mt5.TRADE_ACTION_DEAL,
+                            "position": pos.ticket,
+                            "symbol": pos.symbol,
+                            "volume": pos.volume,
+                            "type": close_type,
+                            "price": close_price_val,
+                            "deviation": MAX_DEVIATION,
+                            "magic": pos.magic,
+                            "comment": "Zone_Exit_Close",
+                            "type_time": mt5.ORDER_TIME_GTC,
+                            "type_filling": filling_mode.get(
+                                pos.symbol, mt5.ORDER_FILLING_IOC
+                            ),
+                        }
+                        safe_send_order(mt5, req, log_message)
