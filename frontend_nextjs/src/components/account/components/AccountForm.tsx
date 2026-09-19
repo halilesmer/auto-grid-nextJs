@@ -20,6 +20,7 @@ export function AccountForm({
   onUseCustomPathChange,
   onRescanMT5,
   onSubmit,
+  onEditExisting,
 }: AccountFormProps) {
   return (
     <div className="p-6">
@@ -33,7 +34,16 @@ export function AccountForm({
           role="alert"
         >
           <AlertTriangle size={16} />
-          <span>{errors.general}</span>
+          <span className="flex-1">{errors.general}</span>
+          {onEditExisting && (
+            <button
+              type="button"
+              onClick={onEditExisting}
+              className="px-3 py-1 text-xs bg-red-500/20 border border-red-500/30 rounded text-red-300 hover:bg-red-500/30 transition-colors whitespace-nowrap"
+            >
+              Edit Existing
+            </button>
+          )}
         </div>
       )}
 

@@ -6,6 +6,11 @@ from src.api.ws_server import router as ws_router
 
 app = FastAPI(title="Auto Grid Bot API")
 
+@app.on_event("shutdown")
+def force_shutdown():
+    """Uvicorn kapandıktan sonra asılı kalan MT5/Bot thread'lerini zorla öldürür."""
+    os._exit(0)
+
 allowed_origins = [
     o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()
 ]

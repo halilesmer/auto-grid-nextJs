@@ -35,11 +35,47 @@ export interface AccountFormErrors {
   general?: string;
 }
 
+export interface ProblemDetail {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  instance?: string;
+}
+
+export interface DuplicateAccountProblem extends ProblemDetail {
+  type: 'https://auto-grid.io/errors/duplicate-account';
+  title: 'Duplicate Account';
+  status: 409;
+  code: 'DUPLICATE_ACCOUNT';
+  existing_account: Account;
+}
+
+export interface ApiErrorResponse<T extends ProblemDetail = ProblemDetail> {
+  detail: T;
+}
+
+export function isDuplicateAccountError(
+  err: unknown
+): err is { response?: { data?: ApiErrorResponse<DuplicateAccountProblem>; status: number } } {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'response' in err &&
+    typeof (err as { response?: unknown }).response === 'object' &&
+    (err as { response?: { status: number } }).response?.status === 409 &&
+    typeof (err as { response?: { data?: ApiErrorResponse<DuplicateAccountProblem> } }).response?.data?.detail === 'object' &&
+    (err as { response?: { data?: ApiErrorResponse<DuplicateAccountProblem> } }).response?.data?.detail?.code === 'DUPLICATE_ACCOUNT'
+  );
+}
+
 export interface UseAccountFormOptions {
   initialData?: Account | null;
+  existingAccounts?: Account[];
   onSave: (data: AccountFormData) => Promise<void>;
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  onDuplicate?: (existingAccount: Account) => void;
 }
 
 export interface UseAccountFormReturn {
@@ -113,6 +149,7 @@ export interface AccountFormProps {
   onUseCustomPathChange: (value: boolean) => void;
   onRescanMT5: () => void;
   onSubmit: () => void;
+  onEditExisting?: () => void;
 }
 
 export interface MT5PathSelectorProps {

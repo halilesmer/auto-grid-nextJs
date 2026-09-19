@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from src.api.models import AccountModel
+from src.api.errors import DuplicateAccountProblem
 from src.api.helpers import _load_accounts, _save_accounts
 
 router = APIRouter(tags=["Accounts"])
@@ -13,13 +14,25 @@ async def get_accounts():
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@router.post("/accounts", status_code=201)
+@router.post(
+    "/accounts",
+    status_code=201,
+    responses={409: {"model": DuplicateAccountProblem, "description": "Account already exists"}},
+)
 async def create_account(account: AccountModel):
     try:
         accounts = _load_accounts()
-        if any(str(a.get("id")) == str(account.id) for a in accounts):
+        existing = next(
+            (a for a in accounts if str(a.get("id")) == str(account.id)),
+            None,
+        )
+        if existing:
             raise HTTPException(
-                status_code=409, detail=f"Account '{account.id}' already exists"
+                status_code=409,
+                detail=DuplicateAccountProblem(
+                    detail=f"Account '{account.id}' already exists",
+                    existing_account=AccountModel(**existing),
+                ).model_dump(),
             )
         accounts.append(account.model_dump())
         _save_accounts(accounts)
@@ -30,7 +43,10 @@ async def create_account(account: AccountModel):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@router.put("/accounts/{account_id}")
+@router.put(
+    "/accounts/{account_id}",
+    responses={409: {"model": DuplicateAccountProblem, "description": "Account already exists"}},
+)
 async def update_account(account_id: str, account: AccountModel):
     try:
         accounts = _load_accounts()
@@ -42,13 +58,17 @@ async def update_account(account_id: str, account: AccountModel):
             raise HTTPException(
                 status_code=404, detail=f"Account '{account_id}' not found"
             )
-        if any(
-            str(a.get("id")) == str(account.id)
-            for i, a in enumerate(accounts)
-            if i != idx
-        ):
+        existing = next(
+            (a for i, a in enumerate(accounts) if i != idx and str(a.get("id")) == str(account.id)),
+            None,
+        )
+        if existing:
             raise HTTPException(
-                status_code=409, detail=f"Account '{account.id}' already exists"
+                status_code=409,
+                detail=DuplicateAccountProblem(
+                    detail=f"Account '{account.id}' already exists",
+                    existing_account=AccountModel(**existing),
+                ).model_dump(),
             )
         accounts[idx] = account.model_dump()
         _save_accounts(accounts)

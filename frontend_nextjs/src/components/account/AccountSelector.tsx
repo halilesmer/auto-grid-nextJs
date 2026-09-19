@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, resetAllStores } from '@/store';
+import type { Account } from './types';
+import { isDuplicateAccountError } from './types';
 import ConfirmModal from '@/components/ConfirmModal';
 import {
   AccountDropdown,
@@ -31,10 +33,12 @@ export default function AccountSelector() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [useCustomPath, setUseCustomPath] = useState(false);
+  const [duplicateAccount, setDuplicateAccount] = useState<Account | null>(null);
 
   const { formData, errors, isSaving, showPassword, handleChange, handleBlur, togglePassword, handleSubmit, resetForm } =
     useAccountForm({
       initialData: isEditing ? activeAccount : null,
+      existingAccounts: storeAccounts,
       onSave: async (data) => {
         if (isEditing && activeAccount) {
           await updateAccount(activeAccount.id, data);
@@ -47,6 +51,13 @@ export default function AccountSelector() {
       },
       onError: (err) => {
         console.error('Form error:', err);
+        if (isDuplicateAccountError(err)) {
+          const existing = err.response?.data?.detail?.existing_account;
+          if (existing) setDuplicateAccount(existing);
+        }
+      },
+      onDuplicate: (account) => {
+        setDuplicateAccount(account);
       },
     });
 
@@ -107,6 +118,39 @@ export default function AccountSelector() {
     }
   };
 
+  const handleDuplicateConfirm = useCallback((confirmEdit: boolean) => {
+    if (confirmEdit && duplicateAccount) {
+      resetForm(duplicateAccount);
+      setIsEditing(true);
+      setModalOpen(true);
+      scanMT5();
+    }
+    setDuplicateAccount(null);
+  }, [duplicateAccount, resetForm, scanMT5]);
+
+  const handleEditExisting = useCallback(() => {
+    if (duplicateAccount) {
+      resetForm(duplicateAccount);
+      setIsEditing(true);
+      // Keep modal open, don't call setModalOpen(true) again as it's already open
+      scanMT5();
+    }
+    setDuplicateAccount(null);
+  }, [duplicateAccount, resetForm, scanMT5]);
+
+  useEffect(() => {
+    if (duplicateAccount) {
+      // Using setTimeout to defer state update and satisfy lint rule
+      // window.confirm is synchronous but we need to update state after
+      setTimeout(() => {
+        const confirmed = window.confirm(
+          `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
+        );
+        handleDuplicateConfirm(confirmed);
+      }, 0);
+    }
+  }, [duplicateAccount, handleDuplicateConfirm]);
+
   return (
     <>
       <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-xl flex items-center justify-between gap-4">
@@ -143,6 +187,7 @@ export default function AccountSelector() {
           onUseCustomPathChange={setUseCustomPath}
           onRescanMT5={scanMT5}
           onSubmit={handleSubmit}
+          onEditExisting={handleEditExisting}
         />
       </AccountFormDialog>
 

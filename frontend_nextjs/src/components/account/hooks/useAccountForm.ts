@@ -29,9 +29,11 @@ function accountToFormData(account: Account): AccountFormData {
 
 export function useAccountForm({
   initialData,
+  existingAccounts = [],
   onSave,
   onSuccess,
   onError,
+  onDuplicate,
 }: UseAccountFormOptions): UseAccountFormReturn {
   const [formData, setFormData] = useState<AccountFormData>(() =>
     initialData ? accountToFormData(initialData) : emptyFormData()
@@ -137,6 +139,16 @@ export function useAccountForm({
       return;
     }
 
+    const loginStr = String(formData.login);
+    const duplicateAccount = existingAccounts.find(
+      (a) => String(a.id) === loginStr && (!initialData || String(initialData.id) !== loginStr)
+    );
+
+    if (duplicateAccount) {
+      onDuplicate?.(duplicateAccount);
+      return;
+    }
+
     setIsSaving(true);
     setErrors((prev) => ({ ...prev, general: undefined }));
 
@@ -150,7 +162,7 @@ export function useAccountForm({
     } finally {
       setIsSaving(false);
     }
-  }, [formData, onSave, onSuccess, onError, validateForm]);
+  }, [formData, initialData, existingAccounts, onSave, onSuccess, onError, onDuplicate, validateForm]);
 
   const displayErrors = useMemo(() => {
     const display: AccountFormErrors = {};

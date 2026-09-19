@@ -17,6 +17,8 @@ Startet die Schnittstelle für MT5, Berechnungen und WebSockets.
 cd C:\dev\auto-grid-nextJs\worker_python
 .venv\Scripts\activate
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
+oder
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 > **Erfolgskontrolle:** Zeigt am Ende `Application startup complete.` und `Uvicorn running on http://0.0.0.0:8000`.
 
