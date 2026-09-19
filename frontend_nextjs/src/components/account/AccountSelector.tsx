@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAccountStore, useSettingsStore, useBotRuntimeStore, resetAllStores } from '@/store';
+import { useAccountStore, useSettingsStore, useBotRuntimeStore } from '@/store';
 import type { Account } from './types';
 import { isDuplicateAccountError } from './types';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -27,7 +27,7 @@ export default function AccountSelector() {
   const setSettings = useSettingsStore((s) => s.setSettings);
 
   const { paths: mt5Paths, isScanning: scanningMt5, scan: scanMT5 } = useMT5Scanner();
-  const { fetchAccounts, createAccount, updateAccount, deleteAccount } = useAccounts();
+  const { fetchAccounts, createAccount, updateAccount, deleteAccount, isLoading } = useAccounts();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -39,6 +39,7 @@ export default function AccountSelector() {
     useAccountForm({
       initialData: isEditing ? activeAccount : null,
       existingAccounts: storeAccounts,
+      isLoading,
       onSave: async (data) => {
         if (isEditing && activeAccount) {
           await updateAccount(activeAccount.id, data);
@@ -74,21 +75,17 @@ export default function AccountSelector() {
     }
   }, [selectedAccount, setSettings]);
 
-  // Reset all stores when account changes to prevent zombie state
-  useEffect(() => {
-    if (selectedAccount) {
-      resetAllStores();
-    }
-  }, [selectedAccount]);
+  
 
   const handleMT5PathSelect = (path: string) => {
     handleChange('mt5_path', path);
   };
 
-  const openAdd = () => {
+  const openAdd = async () => {
     resetForm(null);
     setIsEditing(false);
     setUseCustomPath(false);
+    await fetchAccounts();
     setModalOpen(true);
     scanMT5();
   };
@@ -120,6 +117,7 @@ export default function AccountSelector() {
 
   const handleDuplicateConfirm = useCallback((confirmEdit: boolean) => {
     if (confirmEdit && duplicateAccount) {
+      useAccountStore.getState().setActiveAccount(duplicateAccount);
       resetForm(duplicateAccount);
       setIsEditing(true);
       setModalOpen(true);
@@ -130,6 +128,7 @@ export default function AccountSelector() {
 
   const handleEditExisting = useCallback(() => {
     if (duplicateAccount) {
+      useAccountStore.getState().setActiveAccount(duplicateAccount);
       resetForm(duplicateAccount);
       setIsEditing(true);
       // Keep modal open, don't call setModalOpen(true) again as it's already open
@@ -176,6 +175,7 @@ export default function AccountSelector() {
           formData={formData}
           errors={errors}
           isSaving={isSaving}
+          isLoading={isLoading}
           showPassword={showPassword}
           mt5Paths={mt5Paths}
           isScanningMT5={scanningMt5}

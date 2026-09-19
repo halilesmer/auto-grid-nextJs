@@ -72,6 +72,7 @@ export function isDuplicateAccountError(
 export interface UseAccountFormOptions {
   initialData?: Account | null;
   existingAccounts?: Account[];
+  isLoading?: boolean;
   onSave: (data: AccountFormData) => Promise<void>;
   onSuccess?: () => void;
   onError?: (error: string) => void;
@@ -138,6 +139,7 @@ export interface AccountFormProps {
   formData: AccountFormData;
   errors: AccountFormErrors;
   isSaving: boolean;
+  isLoading?: boolean;
   showPassword: boolean;
   mt5Paths: string[];
   isScanningMT5: boolean;

@@ -30,6 +30,7 @@ function accountToFormData(account: Account): AccountFormData {
 export function useAccountForm({
   initialData,
   existingAccounts = [],
+  isLoading = false,
   onSave,
   onSuccess,
   onError,
@@ -123,6 +124,11 @@ export function useAccountForm({
   }, [validateField]);
 
   const handleSubmit = useCallback(async () => {
+    if (isLoading) {
+      onError?.('Please wait for accounts to load before submitting.');
+      return;
+    }
+
     const allTouched: Record<keyof AccountFormData, boolean> = {
       account_name: true,
       login: true,
@@ -162,7 +168,7 @@ export function useAccountForm({
     } finally {
       setIsSaving(false);
     }
-  }, [formData, initialData, existingAccounts, onSave, onSuccess, onError, onDuplicate, validateForm]);
+  }, [formData, initialData, existingAccounts, isLoading, onSave, onSuccess, onError, onDuplicate, validateForm]);
 
   const displayErrors = useMemo(() => {
     const display: AccountFormErrors = {};

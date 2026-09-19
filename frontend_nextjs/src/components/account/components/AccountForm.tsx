@@ -9,6 +9,7 @@ export function AccountForm({
   formData,
   errors,
   isSaving,
+  isLoading,
   showPassword,
   mt5Paths,
   isScanningMT5,
@@ -181,10 +182,10 @@ export function AccountForm({
         <button
           type="button"
           onClick={() => onSubmit()}
-          disabled={isSaving}
+          disabled={isSaving || isLoading}
           className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all active:scale-95 disabled:opacity-50"
         >
-          {isSaving ? 'Saving...' : 'Save'}
+          {isSaving ? 'Saving...' : isLoading ? 'Loading accounts...' : 'Save'}
         </button>
       </div>
     </div>
