@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { Account, AccountFormData, UseAccountsReturn } from '../types';
 import { API, axiosInstance } from '@/lib/api';
+import { useAccountStore } from '@/store';
 
 export function useAccounts(): UseAccountsReturn {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -14,7 +15,9 @@ export function useAccounts(): UseAccountsReturn {
     setError(null);
     try {
       const res = await axiosInstance.get(`${API}/accounts`);
-      setAccounts(res.data.accounts || []);
+      const accounts = res.data.accounts || [];
+      setAccounts(accounts);
+      useAccountStore.getState().setAccounts(accounts);
     } catch (e) {
       const errMsg = 'Failed to fetch accounts';
       setError(errMsg);

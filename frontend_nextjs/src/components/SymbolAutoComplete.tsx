@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 
 import { SymbolDetail } from "@/store/types";
 
@@ -12,6 +12,8 @@ interface SymbolAutoCompleteProps {
   hasError?: boolean;
 }
 
+const MIN_SEARCH_LENGTH = 1;
+
 export default function SymbolAutoComplete({
   value,
   onChange,
@@ -21,16 +23,11 @@ export default function SymbolAutoComplete({
 }: SymbolAutoCompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
-  const [prevValue, setPrevValue] = useState(value);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
-  // Dışarıdan değer değişirse render sırasında inputu güncelle (ESLint fix)
-  if (value !== prevValue) {
-    setPrevValue(value);
-    setSearchTerm(value);
-  }
-
-  // Dışarı tıklamayı algıla ve açılır menüyü kapat
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -38,23 +35,96 @@ export default function SymbolAutoComplete({
         !wrapperRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setHighlightedIndex(-1);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const symbols = Object.values(symbolDetails);
+  const symbols = useMemo(() => Object.values(symbolDetails), [symbolDetails]);
   const searchLower = (searchTerm || "").toLowerCase();
+  const shouldFilter = searchLower.length >= MIN_SEARCH_LENGTH;
 
-  // Hem sembol adına (USOUSD) hem de açıklamasına (Oil) göre filtreleme
-  const filteredSymbols = symbols.filter(
-    (sym) =>
-      sym.name.toLowerCase().includes(searchLower) ||
-      (sym.description && sym.description.toLowerCase().includes(searchLower)),
+  const filteredSymbols = useMemo(() => {
+    if (!shouldFilter) return [];
+    return symbols.filter(
+      (sym) =>
+        sym.name.toLowerCase().includes(searchLower) ||
+        (sym.description && sym.description.toLowerCase().includes(searchLower)),
+    );
+  }, [symbols, searchLower, shouldFilter]);
+
+  const handleSelectSymbol = useCallback(
+    (symbolName: string) => {
+      const normalized = symbolName.toUpperCase().trim();
+      setSearchTerm(normalized);
+      onChange(normalized);
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    },
+    [onChange],
   );
 
-  // Hata durumuna göre input kenarlığını kırmızı yap
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!isOpen || filteredSymbols.length === 0) {
+        if (e.key === "Escape") {
+          setIsOpen(false);
+          setHighlightedIndex(-1);
+        }
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          setIsOpen(true);
+          setHighlightedIndex(e.key === "ArrowDown" ? 0 : filteredSymbols.length - 1);
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlightedIndex((prev) =>
+            prev < filteredSymbols.length - 1 ? prev + 1 : 0,
+          );
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlightedIndex((prev) =>
+            prev > 0 ? prev - 1 : filteredSymbols.length - 1,
+          );
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (highlightedIndex >= 0 && highlightedIndex < filteredSymbols.length) {
+            handleSelectSymbol(filteredSymbols[highlightedIndex].name);
+          }
+          break;
+        case "Escape":
+          setIsOpen(false);
+          setHighlightedIndex(-1);
+          inputRef.current?.blur();
+          break;
+        case "Tab":
+          if (highlightedIndex >= 0 && highlightedIndex < filteredSymbols.length) {
+            e.preventDefault();
+            handleSelectSymbol(filteredSymbols[highlightedIndex].name);
+          }
+          break;
+      }
+    },
+    [isOpen, filteredSymbols, highlightedIndex, handleSelectSymbol],
+  );
+
+  useEffect(() => {
+    if (highlightedIndex >= 0 && listRef.current) {
+      const item = listRef.current.children[highlightedIndex] as HTMLElement;
+      if (item) {
+        item.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [highlightedIndex]);
+
   const errorClass = hasError
     ? "border-red-500 text-red-400 focus:ring-red-500"
     : "border-white/20 text-white focus:ring-blue-500";
@@ -62,31 +132,42 @@ export default function SymbolAutoComplete({
   return (
     <div className="relative w-full" ref={wrapperRef}>
       <input
+        ref={inputRef}
         type="text"
         value={searchTerm}
         onChange={(e) => {
-          setSearchTerm(e.target.value);
-          onChange(e.target.value.toUpperCase().trim());
+          const val = e.target.value;
+          setSearchTerm(val);
+          onChange(val.toUpperCase().trim());
           setIsOpen(true);
+          setHighlightedIndex(-1);
         }}
         onFocus={() => setIsOpen(true)}
+        onKeyDown={handleKeyDown}
         className={`w-full bg-black/40 border rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:ring-2 transition-all ${errorClass} ${className}`}
         placeholder="Sembol Ara... (Örn: USOUSD)"
         autoComplete="off"
+        aria-autocomplete="list"
+        aria-controls="symbol-suggestions"
       />
 
-      {/* Açılır Menü Listesi */}
       {isOpen && filteredSymbols.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-gray-800 border border-gray-600 rounded-lg shadow-2xl text-sm scrollbar-thin scrollbar-thumb-gray-600">
-          {filteredSymbols.map((sym) => (
+        <ul
+          ref={listRef}
+          id="symbol-suggestions"
+          role="listbox"
+          className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-gray-800 border border-gray-600 rounded-lg shadow-2xl text-sm scrollbar-thin scrollbar-thumb-gray-600"
+        >
+          {filteredSymbols.map((sym, index) => (
             <li
               key={sym.name}
-              onClick={() => {
-                setSearchTerm(sym.name);
-                onChange(sym.name);
-                setIsOpen(false);
-              }}
-              className="px-3 py-2 cursor-pointer hover:bg-blue-600 flex flex-col transition-colors border-b border-gray-700/50 last:border-none"
+              role="option"
+              aria-selected={index === highlightedIndex}
+              onClick={() => handleSelectSymbol(sym.name)}
+              onMouseEnter={() => setHighlightedIndex(index)}
+              className={`px-3 py-2 cursor-pointer flex flex-col transition-colors border-b border-gray-700/50 last:border-none ${
+                index === highlightedIndex ? "bg-blue-600" : "hover:bg-blue-600"
+              }`}
             >
               <span className="font-bold text-white">{sym.name}</span>
               {sym.description && (
@@ -97,6 +178,12 @@ export default function SymbolAutoComplete({
             </li>
           ))}
         </ul>
+      )}
+
+      {isOpen && shouldFilter && filteredSymbols.length === 0 && symbols.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-3 text-sm text-gray-400">
+          Sembol bulunamadı
+        </div>
       )}
     </div>
   );
