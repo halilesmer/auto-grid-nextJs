@@ -3,6 +3,19 @@ import time
 import shutil
 import datetime
 import platform
+import asyncio
+import threading
+import json
+
+# Module-level state for in-flight request deduplication
+_IN_FLIGHT: dict[str, asyncio.Task] = {}
+_IN_FLIGHT_LOCK = threading.Lock()
+_CACHE_TTL_SECONDS = 3600  # 1 hour
+
+# Local BASE_DIR to avoid circular import from src.api.helpers
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+CACHE_FILE = os.path.join(BASE_DIR, "broker_symbols.json")
+
 from src.utils.paths import get_mt5_backup_dir
 from src.utils.mt5_errors import (
     parse_init_error,
@@ -197,3 +210,208 @@ def connect_internal_helper(
 
     backup_mt5_logs_helper(login_id, mt5_available, safe_log_fn)
     return True, None
+
+
+def _read_cache_file():
+    """Read and parse the cache file safely."""
+    try:
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _write_cache_file(cache_data: dict):
+    """Write cache file atomically (temp file + rename)."""
+    try:
+        temp_file = CACHE_FILE + ".tmp"
+        with open(temp_file, "w", encoding="utf-8") as f:
+            json.dump(cache_data, f, indent=4, ensure_ascii=False)
+        os.replace(temp_file, CACHE_FILE)
+    except Exception as e:
+        safe_log_fn(f"Cache yazma hatası: {e}", type="error")
+
+
+def _is_cache_fresh(account_id: str, cache_data: dict) -> bool:
+    """Check if cache for account_id is fresh (within TTL)."""
+    try:
+        # Check file modification time as TTL proxy
+        if os.path.exists(CACHE_FILE):
+            mtime = os.path.getmtime(CACHE_FILE)
+            age = time.time() - mtime
+            if age < _CACHE_TTL_SECONDS:
+                # Also verify account_id exists in cache
+                return account_id in cache_data and len(cache_data[account_id]) > 0
+    except Exception:
+        pass
+    return False
+
+
+def get_cached_symbols(account_id: str, safe_log_fn) -> tuple[list[dict] | None, bool]:
+    """
+    Get symbols from cache if fresh.
+    Returns: (symbols_list or None, is_fresh: bool)
+    """
+    cache_data = _read_cache_file()
+    if not cache_data:
+        return None, False
+    
+    account_cache = cache_data.get(account_id)
+    if not account_cache:
+        return None, False
+    
+    is_fresh = _is_cache_fresh(account_id, cache_data)
+    symbols = list(account_cache.values())
+    return symbols, is_fresh
+
+
+async def fetch_and_cache_symbols(account_id: str, account_config: dict, safe_log_fn) -> list[dict]:
+    """
+    Connect to MT5, fetch detailed symbols, update cache.
+    Called in background task. Raises on failure.
+    """
+    # Lazy imports to avoid circular dependency
+    from src.utils.mt5_connection import (
+        connect_to_mt5_with_timeout,
+        get_mt5_symbols,
+        shutdown_mt5,
+    )
+    
+    # Use shorter timeout for symbols endpoint (5 seconds)
+    ok, _is_timeout, detail = await asyncio.to_thread(
+        connect_to_mt5_with_timeout, account_config, 5
+    )
+    
+    if not ok:
+        raise Exception(detail or "MT5 connection failed")
+    
+    try:
+        symbols = await asyncio.to_thread(get_mt5_symbols)
+        detailed_symbols = []
+        if symbols:
+            for s in symbols:
+                name = (
+                    s.get("name")
+                    if isinstance(s, dict)
+                    else getattr(s, "name", "")
+                )
+                if name and name.strip():
+                    desc = (
+                        s.get("description")
+                        if isinstance(s, dict)
+                        else getattr(s, "description", "")
+                    )
+                    digits = (
+                        s.get("digits")
+                        if isinstance(s, dict)
+                        else getattr(s, "digits", 5)
+                    )
+                    point = (
+                        s.get("point")
+                        if isinstance(s, dict)
+                        else getattr(s, "point", 0.00001)
+                    )
+                    vol_min = (
+                        s.get("volume_min")
+                        if isinstance(s, dict)
+                        else getattr(s, "volume_min", 0.01)
+                    )
+                    vol_max = (
+                        s.get("volume_max")
+                        if isinstance(s, dict)
+                        else getattr(s, "volume_max", 100.0)
+                    )
+                    vol_step = (
+                        s.get("volume_step")
+                        if isinstance(s, dict)
+                        else getattr(s, "volume_step", 0.01)
+                    )
+                    detailed_symbols.append(
+                        {
+                            "name": name,
+                            "description": desc or name,
+                            "digits": digits,
+                            "point": point,
+                            "volume_min": vol_min,
+                            "volume_max": vol_max,
+                            "volume_step": vol_step,
+                        }
+                    )
+        
+        if detailed_symbols:
+            # Update cache atomically
+            cache_data = _read_cache_file()
+            cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
+            _write_cache_file(cache_data)
+        
+        return detailed_symbols
+    finally:
+        await asyncio.to_thread(shutdown_mt5)
+
+
+async def get_or_fetch_symbols(account_id: str, safe_log_fn) -> list[dict]:
+    """
+    Main entry point: get cached symbols or fetch from MT5 with deduplication.
+    Returns detailed symbols list (empty on failure).
+    """
+    # Lazy import to avoid circular dependency
+    from src.api.helpers import _load_accounts
+    
+    # 1. Try cache first (immediate)
+    cached, fresh = get_cached_symbols(account_id, safe_log_fn)
+    if cached and fresh:
+        return cached
+    
+    # 2. Find account config
+    accounts = _load_accounts()
+    account_config = next(
+        (
+            a
+            for a in accounts
+            if str(a.get("id")) == account_id or str(a.get("login")) == account_id
+        ),
+        None,
+    )
+    if not account_config:
+        safe_log_fn(f"Account '{account_id}' not found for symbols fetch", type="warning")
+        return cached or []  # Return stale cache if available
+    
+    # 3. Deduplicate in-flight requests
+    with _IN_FLIGHT_LOCK:
+        if account_id in _IN_FLIGHT:
+            task = _IN_FLIGHT[account_id]
+        else:
+            task = asyncio.create_task(
+                _fetch_and_cache_wrapper(account_id, account_config, safe_log_fn)
+            )
+            _IN_FLIGHT[account_id] = task
+    
+    # 4. If we have stale cache, return it immediately while background fetch runs
+    if cached:
+        # Don't await - let background task update cache
+        return cached
+    
+    # 5. No cache - wait for background task with timeout
+    try:
+        symbols = await asyncio.wait_for(task, timeout=10.0)
+        return symbols
+    except asyncio.TimeoutError:
+        safe_log_fn(f"MT5 symbols fetch timeout for {account_id}", type="warning")
+        return []
+    except Exception as e:
+        safe_log_fn(f"MT5 symbols fetch error for {account_id}: {e}", type="error")
+        return []
+    finally:
+        with _IN_FLIGHT_LOCK:
+            _IN_FLIGHT.pop(account_id, None)
+
+
+async def _fetch_and_cache_wrapper(account_id: str, account_config: dict, safe_log_fn) -> list[dict]:
+    """Wrapper to catch exceptions and clean up in-flight tracking."""
+    try:
+        return await fetch_and_cache_symbols(account_id, account_config, safe_log_fn)
+    except Exception as e:
+        safe_log_fn(f"Background symbols fetch failed for {account_id}: {e}", type="error")
+        raise

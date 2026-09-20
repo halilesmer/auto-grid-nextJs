@@ -156,7 +156,8 @@ export function useWebSocketManager(selectedAccount: string | null): {
       isMountedRef.current = false;
       disconnect();
     };
-  }, [selectedAccount, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccount]);
 
   return {
     isConnected,

@@ -64,7 +64,8 @@ export default function AccountSelector() {
 
   useEffect(() => {
     fetchAccounts();
-  }, [fetchAccounts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (selectedAccount) {
@@ -73,7 +74,8 @@ export default function AccountSelector() {
         .then((res) => setSettings(res.data.settings || res.data))
         .catch((err) => console.error('Failed to fetch settings', err));
     }
-  }, [selectedAccount, setSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccount]);
 
   
 
