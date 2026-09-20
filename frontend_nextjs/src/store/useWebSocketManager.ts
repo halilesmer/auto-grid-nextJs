@@ -31,55 +31,68 @@ export function useWebSocketManager(selectedAccount: string | null): {
   const connectRef = useRef<() => void>(() => {});
   const [isConnected, setIsConnected] = useState(false);
 
-  const updateMetrics = useBotRuntimeStore((s) => s.updateMetrics);
-  const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
-  const setWsError = useBotRuntimeStore((s) => s.setWsError);
-  const incrementWsRetries = useBotRuntimeStore((s) => s.incrementWsRetries);
-  const resetWsRetries = useBotRuntimeStore((s) => s.resetWsRetries);
+  // Stable refs to store actions (avoid selector reference changes)
+  const updateMetricsRef = useRef(useBotRuntimeStore.getState().updateMetrics);
+  const updateLiveDataRef = useRef(useBotRuntimeStore.getState().updateLiveData);
+  const setWsErrorRef = useRef(useBotRuntimeStore.getState().setWsError);
+  const incrementWsRetriesRef = useRef(useBotRuntimeStore.getState().incrementWsRetries);
+  const resetWsRetriesRef = useRef(useBotRuntimeStore.getState().resetWsRetries);
 
-  const appendRobotLog = useLogsStore((s) => s.appendRobotLog);
-  const appendMt5Log = useLogsStore((s) => s.appendMt5Log);
+  const appendRobotLogRef = useRef(useLogsStore.getState().appendRobotLog);
+  const appendMt5LogRef = useRef(useLogsStore.getState().appendMt5Log);
 
+  // Keep refs updated without triggering re-renders
+  useEffect(() => {
+    updateMetricsRef.current = useBotRuntimeStore.getState().updateMetrics;
+    updateLiveDataRef.current = useBotRuntimeStore.getState().updateLiveData;
+    setWsErrorRef.current = useBotRuntimeStore.getState().setWsError;
+    incrementWsRetriesRef.current = useBotRuntimeStore.getState().incrementWsRetries;
+    resetWsRetriesRef.current = useBotRuntimeStore.getState().resetWsRetries;
+    appendRobotLogRef.current = useLogsStore.getState().appendRobotLog;
+    appendMt5LogRef.current = useLogsStore.getState().appendMt5Log;
+  });
+
+  // Stable handleMessage using refs - never changes
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
       const data: WSMessage = JSON.parse(event.data);
 
       switch (data.type) {
         case 'METRICS':
-          updateMetrics(data.payload);
+          updateMetricsRef.current(data.payload);
           break;
         case 'LIVE_DATA':
-          updateLiveData(data.payload);
+          updateLiveDataRef.current(data.payload);
           break;
         case 'LOG':
           if (data.payload.logType === 'robot') {
-            appendRobotLog(data.payload.line);
+            appendRobotLogRef.current(data.payload.line);
           } else {
-            appendMt5Log(data.payload.line);
+            appendMt5LogRef.current(data.payload.line);
           }
           break;
       }
     } catch {
       // Ignore parse errors
     }
-  }, [updateMetrics, updateLiveData, appendRobotLog, appendMt5Log]);
+  }, []);
 
   const scheduleReconnect = useCallback(() => {
     if (retryCountRef.current >= MAX_RETRIES) {
-      setWsError('WebSocket connection failed after multiple attempts. Please connect manually.');
+      setWsErrorRef.current('WebSocket connection failed after multiple attempts. Please connect manually.');
       return;
     }
 
     const delay = Math.min(BASE_DELAY_MS * 2 ** retryCountRef.current, MAX_DELAY_MS);
     retryCountRef.current += 1;
-    incrementWsRetries();
+    incrementWsRetriesRef.current();
 
     reconnectTimerRef.current = setTimeout(() => {
       if (isMountedRef.current) {
         connectRef.current();
       }
     }, delay);
-  }, [incrementWsRetries, setWsError]);
+  }, []);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -90,8 +103,8 @@ export function useWebSocketManager(selectedAccount: string | null): {
 
     ws.onopen = () => {
       retryCountRef.current = 0;
-      resetWsRetries();
-      setWsError(null);
+      resetWsRetriesRef.current();
+      setWsErrorRef.current(null);
       setIsConnected(true);
     };
 
@@ -107,7 +120,7 @@ export function useWebSocketManager(selectedAccount: string | null): {
     ws.onerror = () => {
       // onclose will handle reconnection
     };
-  }, [selectedAccount, handleMessage, scheduleReconnect, resetWsRetries, setWsError]);
+  }, [selectedAccount, handleMessage, scheduleReconnect]);
 
   // Keep connectRef updated for use in scheduleReconnect (avoids circular dependency)
   useEffect(() => {
@@ -124,10 +137,11 @@ export function useWebSocketManager(selectedAccount: string | null): {
       wsRef.current = null;
     }
     retryCountRef.current = 0;
-    resetWsRetries();
+    resetWsRetriesRef.current();
     setIsConnected(false);
-  }, [resetWsRetries]);
+  }, []);
 
+  // Only depend on selectedAccount - connect/disconnect are stable
   useEffect(() => {
     isMountedRef.current = true;
 

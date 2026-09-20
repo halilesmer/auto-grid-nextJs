@@ -5,6 +5,7 @@ interface SettingsState {
   settings: GlobalSettings | null;
   availableSymbols: string[];
   symbolDetails: Record<string, SymbolDetail>;
+  isLoadingSymbols: boolean;
 
   setSettings: (settings: GlobalSettings | null) => void;
   setGlobalSettings: (globals: Partial<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>>) => void;
@@ -13,6 +14,7 @@ interface SettingsState {
   getSymbolDetail: (symbol: string) => SymbolDetail | undefined;
   setAvailableSymbols: (symbols: string[]) => void;
   setSymbolDetails: (details: Record<string, SymbolDetail>) => void;
+  setLoadingSymbols: (loading: boolean) => void;
   resetSettings: () => void;
 }
 
@@ -20,6 +22,7 @@ const initialState = {
   settings: null,
   availableSymbols: [],
   symbolDetails: {},
+  isLoadingSymbols: false,
 };
 
 function sanitizeNumbers(val: unknown): unknown {
@@ -104,6 +107,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setAvailableSymbols: (symbols) => set({ availableSymbols: symbols }),
 
   setSymbolDetails: (details) => set({ symbolDetails: details }),
+
+  setLoadingSymbols: (loading) => set({ isLoadingSymbols: loading }),
 
   resetSettings: () => set(initialState),
 }));

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import ConfirmModal from '@/components/ConfirmModal';
 import axios from 'axios';
-import { useAccountStore, useBotRuntimeStore, useSettingsStore } from '@/store';
+import { useAccountStore, useBotRuntimeStore } from '@/store';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -21,41 +21,11 @@ export default function BotControls() {
   const liveData = useBotRuntimeStore((s) => s.liveData);
   const setIsRunning = useBotRuntimeStore((s) => s.setIsRunning);
   const setIsConnecting = useBotRuntimeStore((s) => s.setIsConnecting);
-  const availableSymbols = useSettingsStore((s) => s.availableSymbols);
-  const setAvailableSymbols = useSettingsStore((s) => s.setAvailableSymbols);
 
   useEffect(() => {
     if (isConnecting) return;
     setIsRunning(Boolean(liveData.mt5_connected));
   }, [liveData.mt5_connected, isConnecting, setIsRunning]);
-
-  useEffect(() => {
-    if (!selectedAccount) return;
-    if (availableSymbols.length > 0) return;
-
-    let cancelled = false;
-    axios
-      .get(`${API}/symbols/${selectedAccount}`)
-      .then((res) => {
-        if (cancelled) return;
-        const symbols: string[] = res.data?.symbols || [];
-        if (symbols.length > 0) {
-          setAvailableSymbols(symbols);
-        }
-      })
-      .catch((err) => {
-        console.warn("Failed to fetch broker symbols:", err);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    liveData.mt5_connected,
-    selectedAccount,
-    availableSymbols.length,
-    setAvailableSymbols,
-  ]);
 
   const [loading, setLoading] = useState(false);
   const [stopConfirmOpen, setStopConfirmOpen] = useState(false);

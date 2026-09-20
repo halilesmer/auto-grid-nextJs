@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSettingsStore, useBotRuntimeStore } from '@/store';
-import { Plus, AlertTriangle } from 'lucide-react';
+import { Plus, AlertTriangle, Loader2 } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
@@ -26,6 +26,8 @@ export default function ZoneSettingsPanel({
 }: ZoneSettingsPanelProps) {
   const settings = useSettingsStore((s) => s.settings);
   const setZones = useSettingsStore((s) => s.setZones);
+  const isLoadingSymbols = useSettingsStore((s) => s.isLoadingSymbols);
+  const availableSymbols = useSettingsStore((s) => s.availableSymbols);
   const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
   const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -51,6 +53,18 @@ export default function ZoneSettingsPanel({
 
   const mt5Connected = liveData.mt5_connected;
   const disableActionButtons = isRunning && !mt5Connected;
+
+  // Show loading state while symbols are being fetched
+  if (isLoadingSymbols && availableSymbols.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <span className="ml-3 text-gray-400">Semboller yükleniyor...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -13,12 +13,14 @@ const STEP_INTERVAL = 0.1;
 export default function SettingsForm() {
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const setGlobalSettings = useSettingsStore((s) => s.setGlobalSettings);
+  const settings = useSettingsStore((s) => s.settings);
 
-  const [loopInterval, setLoopInterval] = useState<number>(1.0);
-  const [originalInterval, setOriginalInterval] = useState<number>(1.0);
+  const [loopInterval, setLoopInterval] = useState<number>(() => settings?.LOOP_INTERVAL_SECONDS ?? 1.0);
+  const [originalInterval, setOriginalInterval] = useState<number>(() => settings?.LOOP_INTERVAL_SECONDS ?? 1.0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Sync with store when account changes or store settings update
   useEffect(() => {
     if (!selectedAccount) {
       setTimeout(() => {
@@ -27,22 +29,13 @@ export default function SettingsForm() {
       }, 0);
       return;
     }
-    axiosInstance
-      .get(`/settings/${selectedAccount}`)
-      .then((res) => {
-        const data: Record<string, unknown> = res.data?.settings || {};
-        const interval = (data.LOOP_INTERVAL_SECONDS as number) || 1.0;
-        setLoopInterval(interval);
-        setOriginalInterval(interval);
-        setGlobalSettings({ LOOP_INTERVAL_SECONDS: interval });
-      })
-      .catch((err) => {
-        console.error('Failed to load global settings', err);
-        setLoopInterval(1.0);
-        setOriginalInterval(1.0);
-        setGlobalSettings({ LOOP_INTERVAL_SECONDS: 1.0 });
-      });
-  }, [selectedAccount, setGlobalSettings]);
+    const interval = settings?.LOOP_INTERVAL_SECONDS ?? 1.0;
+    setTimeout(() => {
+      setLoopInterval(interval);
+      setOriginalInterval(interval);
+      setGlobalSettings({ LOOP_INTERVAL_SECONDS: interval });
+    }, 0);
+  }, [selectedAccount, settings, setGlobalSettings]);
 
   const clampInterval = useCallback((value: number) => {
     const stepped = Math.round(value * 10) / 10;

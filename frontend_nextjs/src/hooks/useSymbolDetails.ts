@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import type { SymbolDetail } from '@/store/types';
@@ -8,17 +8,49 @@ import type { SymbolDetail } from '@/store/types';
 export function useSymbolDetails(selectedAccount: string | null): Record<string, SymbolDetail> {
   const setAvailableSymbols = useSettingsStore((s) => s.setAvailableSymbols);
   const setSymbolDetails = useSettingsStore((s) => s.setSymbolDetails);
+  const setLoadingSymbols = useSettingsStore((s) => s.setLoadingSymbols);
   const symbolDetails = useSettingsStore((s) => s.symbolDetails);
+  const availableSymbols = useSettingsStore((s) => s.availableSymbols);
+  const isLoadingSymbols = useSettingsStore((s) => s.isLoadingSymbols);
+
+  const lastFetchedAccountRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!selectedAccount) return;
+    if (!selectedAccount) {
+      lastFetchedAccountRef.current = null;
+      return;
+    }
+
+    // Guard: already fetched for this account and have data
+    if (
+      lastFetchedAccountRef.current === selectedAccount &&
+      availableSymbols.length > 0
+    ) {
+      return;
+    }
+
+    // Guard: already loading for this account
+    if (isLoadingSymbols && lastFetchedAccountRef.current === selectedAccount) {
+      return;
+    }
+
+    // Cancel previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    lastFetchedAccountRef.current = selectedAccount;
+    setLoadingSymbols(true);
 
     let cancelled = false;
 
     zoneApi
       .getSymbols(selectedAccount)
       .then((symsData) => {
-        if (cancelled) return;
+        if (cancelled || abortController.signal.aborted) return;
 
         if (typeof symsData === 'string') {
           try {
@@ -42,12 +74,23 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
         });
         setSymbolDetails(details);
       })
-      .catch((err) => console.error('Sembol detayları çekilemedi', err));
+      .catch((err) => {
+        if (err.name === 'AbortError' || abortController.signal.aborted) return;
+        console.error('Sembol detayları çekilemedi', err);
+      })
+      .finally(() => {
+        if (!cancelled && !abortController.signal.aborted) {
+          setLoadingSymbols(false);
+        }
+      });
 
     return () => {
       cancelled = true;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
-  }, [selectedAccount, setAvailableSymbols, setSymbolDetails]);
+  }, [selectedAccount, setAvailableSymbols, setSymbolDetails, setLoadingSymbols, availableSymbols.length, isLoadingSymbols]);
 
   return symbolDetails;
 }
