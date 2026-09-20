@@ -1,22 +1,23 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useAccountStore, useSettingsStore, useBotRuntimeStore } from '@/store';
-import type { Account } from './types';
-import { isDuplicateAccountError } from './types';
-import ConfirmModal from '@/components/ConfirmModal';
+import { API, axiosInstance } from '@/lib/api';
 import {
-  AccountDropdown,
   AccountActions,
-  AccountFormDialog,
+  AccountDropdown,
   AccountForm,
+  AccountFormDialog,
 } from './components';
 import {
-  useMT5Scanner,
-  useAccounts,
   useAccountForm,
+  useAccounts,
+  useMT5Scanner,
 } from './hooks';
-import { API, axiosInstance } from '@/lib/api';
+import { useAccountStore, useBotRuntimeStore, useSettingsStore } from '@/store';
+import { useCallback, useEffect, useState } from 'react';
+
+import type { Account } from './types';
+import ConfirmModal from '@/components/ConfirmModal';
+import { isDuplicateAccountError } from './types';
 
 export default function AccountSelector() {
   const storeAccounts = useAccountStore((s) => s.accounts);
@@ -83,11 +84,10 @@ export default function AccountSelector() {
     handleChange('mt5_path', path);
   };
 
-  const openAdd = async () => {
+  const openAdd = () => {
     resetForm(null);
     setIsEditing(false);
     setUseCustomPath(false);
-    await fetchAccounts();
     setModalOpen(true);
     scanMT5();
   };
