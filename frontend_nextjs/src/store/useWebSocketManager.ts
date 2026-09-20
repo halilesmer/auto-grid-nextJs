@@ -31,9 +31,14 @@ export function useWebSocketManager(selectedAccount: string | null): {
   const connectRef = useRef<() => void>(() => {});
   const [isConnected, setIsConnected] = useState(false);
 
-  const { updateMetrics, updateLiveData, setWsError, incrementWsRetries, resetWsRetries } =
-    useBotRuntimeStore();
-  const { appendRobotLog, appendMt5Log } = useLogsStore();
+  const updateMetrics = useBotRuntimeStore((s) => s.updateMetrics);
+  const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
+  const setWsError = useBotRuntimeStore((s) => s.setWsError);
+  const incrementWsRetries = useBotRuntimeStore((s) => s.incrementWsRetries);
+  const resetWsRetries = useBotRuntimeStore((s) => s.resetWsRetries);
+
+  const appendRobotLog = useLogsStore((s) => s.appendRobotLog);
+  const appendMt5Log = useLogsStore((s) => s.appendMt5Log);
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
