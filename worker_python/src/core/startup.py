@@ -4,9 +4,25 @@ import json
 import time
 from .state import state
 from .wrappers import load_dynamic_settings
-from src.utils.paths import get_symbols_path, get_ui_state_path
+from src.utils.paths import get_symbols_path, get_ui_state_path, get_metrics_path
 from src.core.grid_helpers import log_message, is_market_open, determine_fill_mode
 from src.core.grid_orders import get_all_robot_orders, get_all_robot_positions, BASE_MAGIC_NUMBER
+
+
+def _write_startup_error(account_id, message):
+    """Başlangıç hatasını metrik dosyasına yazar ki arayüz kullanıcıya gösterebilsin."""
+    try:
+        metrics_file = get_metrics_path(account_id)
+        if os.path.exists(metrics_file):
+            with open(metrics_file, "r", encoding="utf-8") as f:
+                metrics_data = json.load(f)
+            metrics_data["startup_error"] = message
+            tmp_metrics_file = metrics_file + ".tmp"
+            with open(tmp_metrics_file, "w", encoding="utf-8") as f:
+                json.dump(metrics_data, f)
+            os.replace(tmp_metrics_file, metrics_file)
+    except Exception:
+        pass
 
 
 def run_startup_checks(mt5_module) -> bool:
@@ -27,6 +43,11 @@ def run_startup_checks(mt5_module) -> bool:
     if account_info is not None:
         log_message(
             f"✅ MT5 bağlantısı canlı doğrulandı (Hesap: {account_info.login}, Sunucu: {account_info.server})"
+        )
+    else:
+        log_message(
+            "⚠️ Hesap bilgisi alınamadı ama terminal bağlı. Devam ediliyor...",
+            "WARN",
         )
 
     try:
@@ -63,6 +84,11 @@ def run_startup_checks(mt5_module) -> bool:
                     f"🚨 HATA: Sembol ({sym}) aracı kurum sunucusunda bulunamadı!",
                     "ERROR",
                 )
+                log_message(
+                    "Lütfen arayüze girdiğiniz sembol adının brokerınızla aynı olduğundan emin olun.",
+                    "ERROR",
+                )
+                _write_startup_error(account_id, f"Sembol hatası: {sym} piyasa izleminde yok.")
                 mt5_module.shutdown()
                 return False
             if determine_fill_mode(mt5_module, sym, state.symbol_infos, state.filling_mode) is None:
@@ -88,10 +114,18 @@ def run_startup_checks(mt5_module) -> bool:
     for item in robot_positions + robot_orders:
         state.active_zones_state[item.magic - BASE_MAGIC_NUMBER - 1] = "START"
 
+    if state.active_zones_state:
+        log_message(
+            f"🧠 Hafıza Kurtarıldı: Aktif bölgeler: {list(state.active_zones_state.keys())}"
+        )
+
     ui_states_file = get_ui_state_path(account_id)
     if os.path.exists(ui_states_file):
         try:
             os.remove(ui_states_file)
+            log_message(
+                "🛡️ Güvenlik Koruması: Arayüzden kalan eski temizlik komutları (ui_states) silindi."
+            )
         except Exception:
             pass
 

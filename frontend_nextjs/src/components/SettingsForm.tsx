@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, Minus, Plus, Save } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { axiosInstance } from '@/services/api';
 import { useAccountStore, useSettingsStore } from '@/store';
@@ -13,29 +13,29 @@ const STEP_INTERVAL = 0.1;
 export default function SettingsForm() {
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const setGlobalSettings = useSettingsStore((s) => s.setGlobalSettings);
-  const settings = useSettingsStore((s) => s.settings);
+  // Sadece ilgili alanı dinle: tüm settings nesnesine bağlanmak, setGlobalSettings
+  // ile birlikte sonsuz döngüye ve +/- değerinin geri sıfırlanmasına yol açıyordu.
+  // undefined = ayarlar henüz yüklenmedi; yüklendiyse alan yoksa varsayılan 1.0
+  const storedInterval = useSettingsStore((s) =>
+    s.settings ? (s.settings.LOOP_INTERVAL_SECONDS ?? 1.0) : undefined,
+  );
 
-  const [loopInterval, setLoopInterval] = useState<number>(() => settings?.LOOP_INTERVAL_SECONDS ?? 1.0);
-  const [originalInterval, setOriginalInterval] = useState<number>(() => settings?.LOOP_INTERVAL_SECONDS ?? 1.0);
+  const [loopInterval, setLoopInterval] = useState<number>(() => storedInterval ?? 1.0);
+  const [originalInterval, setOriginalInterval] = useState<number>(() => storedInterval ?? 1.0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Sync with store when account changes or store settings update
-  useEffect(() => {
-    if (!selectedAccount) {
-      setTimeout(() => {
-        setLoopInterval(1.0);
-        setOriginalInterval(1.0);
-      }, 0);
-      return;
+  // Hesap veya kayıtlı değer değişince yerel alanı eşitle (render sırasında, efekt yok).
+  // Ayarlar henüz yüklenmediyse (undefined) store'a sahte değer yazılmaz.
+  const [syncedFrom, setSyncedFrom] = useState({ account: selectedAccount, value: storedInterval });
+  if (syncedFrom.account !== selectedAccount || syncedFrom.value !== storedInterval) {
+    setSyncedFrom({ account: selectedAccount, value: storedInterval });
+    const next = selectedAccount ? storedInterval : 1.0;
+    if (next !== undefined) {
+      setLoopInterval(next);
+      setOriginalInterval(next);
     }
-    const interval = settings?.LOOP_INTERVAL_SECONDS ?? 1.0;
-    setTimeout(() => {
-      setLoopInterval(interval);
-      setOriginalInterval(interval);
-      setGlobalSettings({ LOOP_INTERVAL_SECONDS: interval });
-    }, 0);
-  }, [selectedAccount, settings, setGlobalSettings]);
+  }
 
   const clampInterval = useCallback((value: number) => {
     const stepped = Math.round(value * 10) / 10;

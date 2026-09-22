@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
-from src.api.models import AccountModel
+from typing import Any, Literal, Optional
 
 
 class ProblemDetail(BaseModel):
@@ -22,4 +21,5 @@ class DuplicateAccountProblem(ProblemDetail):
     title: Literal["Duplicate Account"] = "Duplicate Account"
     status: Literal[409] = 409
     code: Literal["DUPLICATE_ACCOUNT"] = "DUPLICATE_ACCOUNT"
-    existing_account: AccountModel = Field(..., description="The conflicting account")
+    # dict: eski/eksik alanlı kayıtlar doğrulamada patlayıp 409 yerine 500 döndürmesin
+    existing_account: dict[str, Any] = Field(..., description="The conflicting account")

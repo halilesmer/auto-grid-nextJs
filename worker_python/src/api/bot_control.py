@@ -3,11 +3,16 @@ import asyncio
 import os
 import json
 from src.api.models import ActionRequest, SimPricePayload
-from src.api.helpers import _load_accounts, BASE_DIR
+from src.api.helpers import _load_accounts
 from src.utils.mt5_connection import (
     connect_to_mt5_with_timeout,
     get_mt5_symbols,
     shutdown_mt5,
+)
+from src.utils.mt5_helpers import (
+    build_detailed_symbols,
+    _read_cache_file,
+    _write_cache_file,
 )
 from src.utils.bot_manager import start_bot_process, stop_bot_process
 from src.utils.paths import get_sim_price_path
@@ -41,65 +46,11 @@ async def start_bot(account_id: str):
     # 2. SUBPROCESS BAŞLAMADAN ÖNCE: Sembolleri çek ve broker_symbols.json dosyasını OLUŞTUR!
     try:
         symbols_temp = await asyncio.to_thread(get_mt5_symbols)
-        if symbols_temp:
-            detailed_symbols = []
-            for s in symbols_temp:
-                name = s.get("name") if isinstance(s, dict) else getattr(s, "name", "")
-                if name and name.strip():
-                    desc = (
-                        s.get("description")
-                        if isinstance(s, dict)
-                        else getattr(s, "description", "")
-                    )
-                    digits = (
-                        s.get("digits")
-                        if isinstance(s, dict)
-                        else getattr(s, "digits", 5)
-                    )
-                    point = (
-                        s.get("point")
-                        if isinstance(s, dict)
-                        else getattr(s, "point", 0.00001)
-                    )
-                    vol_min = (
-                        s.get("volume_min")
-                        if isinstance(s, dict)
-                        else getattr(s, "volume_min", 0.01)
-                    )
-                    vol_max = (
-                        s.get("volume_max")
-                        if isinstance(s, dict)
-                        else getattr(s, "volume_max", 100.0)
-                    )
-                    vol_step = (
-                        s.get("volume_step")
-                        if isinstance(s, dict)
-                        else getattr(s, "volume_step", 0.01)
-                    )
-                    detailed_symbols.append(
-                        {
-                            "name": name,
-                            "description": desc or name,
-                            "digits": digits,
-                            "point": point,
-                            "volume_min": vol_min,
-                            "volume_max": vol_max,
-                            "volume_step": vol_step,
-                        }
-                    )
-
-            if detailed_symbols:
-                cache_file = os.path.join(BASE_DIR, "broker_symbols.json")
-                cache_data = {}
-                if os.path.exists(cache_file):
-                    try:
-                        with open(cache_file, "r", encoding="utf-8") as f:
-                            cache_data = json.load(f)
-                    except Exception:
-                        cache_data = {}
-                cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
-                with open(cache_file, "w", encoding="utf-8") as f:
-                    json.dump(cache_data, f, indent=4, ensure_ascii=False)
+        detailed_symbols = build_detailed_symbols(symbols_temp)
+        if detailed_symbols:
+            cache_data = _read_cache_file()
+            cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
+            _write_cache_file(cache_data)
     except Exception:
         pass
     finally:

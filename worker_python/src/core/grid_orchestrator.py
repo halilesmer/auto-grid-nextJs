@@ -120,7 +120,7 @@ def manage_dynamic_grid(
         is_exited = is_zone_exited(mt5, active_zone, current_avg_price, zone_symbol)
 
         if is_exited:
-            handle_zone_exit(
+            should_mark_cleared = handle_zone_exit(
                 mt5,
                 active_zone,
                 active_zone_idx,
@@ -132,20 +132,23 @@ def manage_dynamic_grid(
                 exit_cond,
             )
 
-            account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
-            states_file = get_ui_state_path(account_id)
-            try:
-                bg_states = {}
-                if os.path.exists(states_file):
-                    with open(states_file, "r", encoding="utf-8") as f:
-                        bg_states = json.load(f)
-                bg_states[str(active_zone_idx)] = "AUTO_CLEAR"
-                tmp_file = states_file + ".tmp"
-                with open(tmp_file, "w", encoding="utf-8") as f:
-                    json.dump(bg_states, f)
-                os.replace(tmp_file, states_file)
-            except Exception:
-                pass
+            # Arayüze "DURDURULDU" bilgisini yalnızca clear_on_exit açıksa ilet
+            # (eski davranış). Kapalıysa bölgenin bekleyen emirleri korunur.
+            if should_mark_cleared:
+                account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
+                states_file = get_ui_state_path(account_id)
+                try:
+                    bg_states = {}
+                    if os.path.exists(states_file):
+                        with open(states_file, "r", encoding="utf-8") as f:
+                            bg_states = json.load(f)
+                    bg_states[str(active_zone_idx)] = "AUTO_CLEAR"
+                    tmp_file = states_file + ".tmp"
+                    with open(tmp_file, "w", encoding="utf-8") as f:
+                        json.dump(bg_states, f)
+                    os.replace(tmp_file, states_file)
+                except Exception:
+                    pass
 
             active_zone = None
             active_zone_idx = None

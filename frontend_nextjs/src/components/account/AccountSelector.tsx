@@ -22,12 +22,11 @@ import { isDuplicateAccountError } from './types';
 export default function AccountSelector() {
   const storeAccounts = useAccountStore((s) => s.accounts);
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
-  const setSelectedAccount = useAccountStore((s) => s.setSelectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
   const isRunning = useBotRuntimeStore((s) => s.isRunning);
   const setSettings = useSettingsStore((s) => s.setSettings);
 
-  const { paths: mt5Paths, isScanning: scanningMt5, scan: scanMT5 } = useMT5Scanner();
+  const { paths: mt5Paths, isScanning: scanningMt5, scan: scanMT5, error: mt5ScanError } = useMT5Scanner();
   const { fetchAccounts, createAccount, updateAccount, deleteAccount, isLoading } = useAccounts();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -35,6 +34,33 @@ export default function AccountSelector() {
   const [isEditing, setIsEditing] = useState(false);
   const [useCustomPath, setUseCustomPath] = useState(false);
   const [duplicateAccount, setDuplicateAccount] = useState<Account | null>(null);
+
+  // Hesap seçimi tek noktadan: hesap değişirse eski hesabın ayarlarını hemen temizle
+  // (aksi halde yeni hesabın "kaydedilmiş" referansı eski ayarlardan alınıyordu).
+  // Aynı hesap tekrar seçilse bile activeAccount güncel listeden yeniden kurulur.
+  const selectAccount = useCallback(
+    (accountId: string | null) => {
+      const store = useAccountStore.getState();
+      if (accountId !== store.selectedAccount) setSettings(null);
+      if (accountId) {
+        store.setSelectedAccount(accountId);
+      } else {
+        useAccountStore.setState({ selectedAccount: null, activeAccount: null });
+      }
+    },
+    [setSettings],
+  );
+
+  // MT5 yollarını tara; kayıtlı yol listede yoksa "Özel Yol" moduna geç (eski davranış)
+  const scanAndSyncPath = useCallback(
+    async (currentPath?: string | null) => {
+      const found = await scanMT5();
+      if (currentPath && !found.includes(currentPath)) {
+        setUseCustomPath(true);
+      }
+    },
+    [scanMT5],
+  );
 
   const { formData, errors, isSaving, showPassword, handleChange, handleBlur, togglePassword, handleSubmit, resetForm } =
     useAccountForm({
@@ -47,6 +73,8 @@ export default function AccountSelector() {
         } else {
           await createAccount(data);
         }
+        // Kaydedilen hesabı seç: activeAccount güncellenir, login değiştiyse eski id'de kalınmaz
+        selectAccount(String(data.login));
       },
       onSuccess: () => {
         setModalOpen(false);
@@ -69,16 +97,21 @@ export default function AccountSelector() {
   }, []);
 
   useEffect(() => {
-    if (selectedAccount) {
-      axiosInstance
-        .get(`${API}/settings/${selectedAccount}`)
-        .then((res) => setSettings(res.data.settings || res.data))
-        .catch((err) => console.error('Failed to fetch settings', err));
-    }
+    if (!selectedAccount) return;
+    // Hızlı hesap değişiminde geç gelen eski yanıt yeni hesabın ayarlarını ezmesin
+    let stale = false;
+    axiosInstance
+      .get(`${API}/settings/${selectedAccount}`)
+      .then((res) => {
+        if (!stale) setSettings(res.data.settings || res.data);
+      })
+      .catch((err) => console.error('Failed to fetch settings', err));
+    return () => {
+      stale = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAccount]);
 
-  
 
   const handleMT5PathSelect = (path: string) => {
     handleChange('mt5_path', path);
@@ -89,7 +122,7 @@ export default function AccountSelector() {
     setIsEditing(false);
     setUseCustomPath(false);
     setModalOpen(true);
-    scanMT5();
+    scanAndSyncPath();
   };
 
   const openEdit = () => {
@@ -98,13 +131,16 @@ export default function AccountSelector() {
     setIsEditing(true);
     setUseCustomPath(false);
     setModalOpen(true);
-    scanMT5();
+    scanAndSyncPath(activeAccount.mt5_path);
   };
 
   const handleDelete = async () => {
     if (!activeAccount) return;
     try {
       await deleteAccount(activeAccount.id);
+      // Silinen hesapta kalma: kalan ilk hesabı seç (yoksa seçimi temizle)
+      const remaining = useAccountStore.getState().accounts;
+      selectAccount(remaining.length > 0 ? String(remaining[0].id) : null);
       setDeleteOpen(false);
     } catch (e) {
       console.error('Delete error:', e);
@@ -119,25 +155,26 @@ export default function AccountSelector() {
 
   const handleDuplicateConfirm = useCallback((confirmEdit: boolean) => {
     if (confirmEdit && duplicateAccount) {
-      useAccountStore.getState().setActiveAccount(duplicateAccount);
+      // Seçim ve activeAccount birlikte değişmeli; yoksa silme/düzenleme başka hesaba gider
+      selectAccount(String(duplicateAccount.id));
       resetForm(duplicateAccount);
       setIsEditing(true);
       setModalOpen(true);
-      scanMT5();
+      scanAndSyncPath(duplicateAccount.mt5_path);
     }
     setDuplicateAccount(null);
-  }, [duplicateAccount, resetForm, scanMT5]);
+  }, [duplicateAccount, resetForm, scanAndSyncPath, selectAccount]);
 
   const handleEditExisting = useCallback(() => {
     if (duplicateAccount) {
-      useAccountStore.getState().setActiveAccount(duplicateAccount);
+      selectAccount(String(duplicateAccount.id));
       resetForm(duplicateAccount);
       setIsEditing(true);
       // Keep modal open, don't call setModalOpen(true) again as it's already open
-      scanMT5();
+      scanAndSyncPath(duplicateAccount.mt5_path);
     }
     setDuplicateAccount(null);
-  }, [duplicateAccount, resetForm, scanMT5]);
+  }, [duplicateAccount, resetForm, scanAndSyncPath, selectAccount]);
 
   useEffect(() => {
     if (duplicateAccount) {
@@ -159,7 +196,7 @@ export default function AccountSelector() {
           accounts={storeAccounts}
           selectedAccount={selectedAccount}
           activeAccount={activeAccount}
-          onSelect={setSelectedAccount}
+          onSelect={selectAccount}
         />
 
         <AccountActions
@@ -187,9 +224,10 @@ export default function AccountSelector() {
           onTogglePassword={togglePassword}
           onMT5PathSelect={handleMT5PathSelect}
           onUseCustomPathChange={setUseCustomPath}
-          onRescanMT5={scanMT5}
+          onRescanMT5={() => scanAndSyncPath(formData.mt5_path)}
+          mt5ScanError={mt5ScanError}
           onSubmit={handleSubmit}
-          onEditExisting={handleEditExisting}
+          onEditExisting={duplicateAccount ? handleEditExisting : undefined}
         />
       </AccountFormDialog>
 

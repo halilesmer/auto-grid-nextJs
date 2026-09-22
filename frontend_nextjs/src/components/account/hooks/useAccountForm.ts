@@ -162,9 +162,19 @@ export function useAccountForm({
       await onSave(formData);
       onSuccess?.();
     } catch (e) {
-      const errMsg = e instanceof Error ? e.message : 'Failed to save account.';
+      // Backend'in mesajını göster ("Request failed with status code 4xx" yerine)
+      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      const errMsg =
+        typeof detail === 'string'
+          ? detail
+          : typeof (detail as { detail?: unknown })?.detail === 'string'
+            ? (detail as { detail: string }).detail
+            : e instanceof Error
+              ? e.message
+              : 'Failed to save account.';
       setErrors((prev) => ({ ...prev, general: errMsg }));
-      onError?.(errMsg);
+      // Ham hatayı ilet: AccountSelector 409 (duplicate) durumunu buradan tanır
+      onError?.(e);
     } finally {
       setIsSaving(false);
     }
