@@ -89,7 +89,6 @@ export default function AccountSelector() {
     setIsEditing(false);
     setUseCustomPath(false);
     setModalOpen(true);
-    scanMT5();
   };
 
   const openEdit = () => {
@@ -98,7 +97,6 @@ export default function AccountSelector() {
     setIsEditing(true);
     setUseCustomPath(false);
     setModalOpen(true);
-    scanMT5();
   };
 
   const handleDelete = async () => {
@@ -117,16 +115,18 @@ export default function AccountSelector() {
     }
   };
 
-  const handleDuplicateConfirm = useCallback((confirmEdit: boolean) => {
-    if (confirmEdit && duplicateAccount) {
-      useAccountStore.getState().setActiveAccount(duplicateAccount);
-      resetForm(duplicateAccount);
-      setIsEditing(true);
-      setModalOpen(true);
-      scanMT5();
-    }
-    setDuplicateAccount(null);
-  }, [duplicateAccount, resetForm, scanMT5]);
+  const handleDuplicateConfirm = useCallback(
+    (confirmEdit: boolean) => {
+      if (confirmEdit && duplicateAccount) {
+        useAccountStore.getState().setActiveAccount(duplicateAccount);
+        resetForm(duplicateAccount);
+        setIsEditing(true);
+        setModalOpen(true);
+      }
+      setDuplicateAccount(null);
+    },
+    [duplicateAccount, resetForm],
+  );
 
   const handleEditExisting = useCallback(() => {
     if (duplicateAccount) {
@@ -134,10 +134,9 @@ export default function AccountSelector() {
       resetForm(duplicateAccount);
       setIsEditing(true);
       // Keep modal open, don't call setModalOpen(true) again as it's already open
-      scanMT5();
     }
     setDuplicateAccount(null);
-  }, [duplicateAccount, resetForm, scanMT5]);
+  }, [duplicateAccount, resetForm]);
 
   useEffect(() => {
     if (duplicateAccount) {
