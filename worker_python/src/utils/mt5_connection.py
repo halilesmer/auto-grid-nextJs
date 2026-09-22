@@ -11,7 +11,9 @@ from src.utils.mt5_helpers import (
     connect_internal_helper,
 )
 
-_MT5_LOCK = threading.Lock()  # 🌟 YENİ EKLENDİ: Race Condition koruması
+# RLock: connect_to_mt5 kilidi tutarken connect_internal_helper aynı kilidi
+# tekrar alır. Normal Lock ile aynı thread kendini kilitliyordu (deadlock).
+_MT5_LOCK = threading.RLock()  # Race Condition koruması
 
 
 def safe_log(msg, type="error", account_id=None):
@@ -25,9 +27,9 @@ def safe_log(msg, type="error", account_id=None):
     print(formatted_msg)
     if account_id:
         try:
-            from src.utils.paths import get_account_log_file
+            from src.utils.paths import get_err_log_path
 
-            log_file = get_account_log_file(str(account_id), "err")
+            log_file = get_err_log_path(str(account_id))
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {formatted_msg}\n")
         except Exception:

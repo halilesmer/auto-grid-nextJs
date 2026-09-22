@@ -187,20 +187,35 @@ def handle_zone_exit(
     close_price: float,
     exit_cond: str,
 ):
+    """
+    Bölge çıkışında temizlik yapar.
+    Dönüş: True -> bölge 'clear_on_exit' ile pasife alınmalı (AUTO_CLEAR yazılmalı),
+           False -> 'clear_on_exit' kapalı, bölgenin emirlerine dokunulmaz.
+    """
     if not active_zone.get("clear_on_exit", True):
-        return
+        return False
 
+    z_min = float(active_zone.get("min_price", 0))
+    z_max = float(active_zone.get("max_price", 0))
     ref_price = current_avg_price if exit_cond == "Anlık Fiyat" else close_price
-    actual_exit_dir = "BUY (Yukarı)" if ref_price > active_zone.get("max_price", 0) else "SELL (Aşağı)"
+    actual_exit_dir = "BUY (Yukarı)" if ref_price > z_max else "SELL (Aşağı)"
     trigger_side = active_zone.get("clear_exit_side", "Farketmez")
 
     if trigger_side != "Farketmez" and trigger_side != actual_exit_dir:
-        return
+        log_message(
+            f"ℹ️ Fiyat bölgeden çıktı ({actual_exit_dir}) ancak temizlik '{trigger_side}' ayarlandığı için işlemler pas geçildi. Bölge pasif duruma alınıyor."
+        )
+        return True
 
     scope = active_zone.get("clear_scope", "Sadece Bekleyen Emirler")
     target = active_zone.get("clear_target_side", "Farketmez (Hepsi)")
     target_magic = BASE_MAGIC_NUMBER + active_zone_idx + 1
 
+    log_message(
+        f"🧹 Bölge ({z_min}-{z_max}) DIŞINA ÇIKILDI! ({actual_exit_dir}). Kapsam: {scope} | Kapatılacak Yön: {target}"
+    )
+
+    silinen_emir_sayisi = 0
     for order in robot_orders:
         if order.magic == target_magic:
             if (
@@ -223,8 +238,12 @@ def handle_zone_exit(
                 )
             ):
                 cancel_order(mt5, order)
+                silinen_emir_sayisi += 1
+
+    log_message(f"🧹 Toplam {silinen_emir_sayisi} adet bekleyen {target} emri temizlendi.")
 
     if "Pozisyon" in scope or "Tümü" in scope or "Hepsi" in scope:
+        kapatilan_poz_sayisi = 0
         for pos in robot_positions:
             if pos.magic == target_magic:
                 if (
@@ -266,3 +285,7 @@ def handle_zone_exit(
                             ),
                         }
                         safe_send_order(mt5, req, log_message)
+                        kapatilan_poz_sayisi += 1
+        log_message(f"💥 Toplam {kapatilan_poz_sayisi} adet {target} açık pozisyonu kapatıldı.")
+
+    return True

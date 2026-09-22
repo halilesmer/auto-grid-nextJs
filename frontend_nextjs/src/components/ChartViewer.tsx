@@ -1,11 +1,18 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, LineSeries, CandlestickSeries, IChartApi, ISeriesApi } from 'lightweight-charts';
-import { useBotRuntimeStore } from '@/store';
+import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { useAccountStore, useBotRuntimeStore, useWebSocketManager } from '@/store';
+
+// Grafik sayfaları hesap seçilmeden de açılabilir; akış (/ws/stream) hesaba bağlı değil.
+const CHART_STREAM_KEY = 'chart';
+const BAR_SECONDS = 10;
 
 export default function ChartViewer() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const metrics = useBotRuntimeStore((s) => s.metrics);
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  // /chart ve /formasyon sayfalarında da canlı veri akışı açık olmalı
+  useWebSocketManager(selectedAccount ?? CHART_STREAM_KEY);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -74,7 +81,33 @@ export default function ChartViewer() {
 
     window.addEventListener('resize', handleResize);
 
+    // Gelen METRICS verisinden 10 saniyelik mumlar oluştur (store split'inde kaybolmuştu)
+    let currentBar = { time: 0 as UTCTimestamp, open: 0, high: 0, low: 0, close: 0 };
+    const unsubscribe = useBotRuntimeStore.subscribe((state, prev) => {
+      if (state.metrics === prev.metrics) return;
+      const { price, rsi } = state.metrics;
+      if (!Number.isFinite(price) || price <= 0) return;
+
+      const time = Math.floor(Date.now() / 1000) as UTCTimestamp;
+      if (currentBar.open === 0 || time - currentBar.time > BAR_SECONDS) {
+        currentBar = { time, open: price, high: price, low: price, close: price };
+      } else {
+        currentBar = {
+          ...currentBar,
+          high: Math.max(currentBar.high, price),
+          low: Math.min(currentBar.low, price),
+          close: price,
+        };
+      }
+      candleSeries.update(currentBar);
+
+      if (rsi !== undefined) {
+        rsiSeries.update({ time, value: rsi });
+      }
+    });
+
     return () => {
+      unsubscribe();
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };

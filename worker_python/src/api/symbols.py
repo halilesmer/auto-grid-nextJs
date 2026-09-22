@@ -1,8 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
-import asyncio
-import os
-import json
-from src.api.helpers import _load_accounts, BASE_DIR
+from fastapi import APIRouter, HTTPException
 from src.utils.mt5_helpers import get_or_fetch_symbols
 from src.utils.mt5_connection import safe_log
 

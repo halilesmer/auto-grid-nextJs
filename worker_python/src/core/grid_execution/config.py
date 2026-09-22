@@ -38,9 +38,9 @@ def extract_zone_config(
     if not isinstance(zone_dict, dict):
         raise InvalidZoneConfigError(f"Zone {zone_idx + 1}: config must be a dict")
 
-    order_type = zone_dict.get("order_type", "BUY").upper()
-    if order_type not in ("BUY", "SELL", "BOTH"):
-        raise InvalidZoneConfigError(f"Zone {zone_idx + 1}: invalid order_type '{order_type}'")
+    # Bilinmeyen order_type hata fırlatmaz: hiç seviye üretilmez ama pencere
+    # dışı emir temizliği ve max-pozisyon koruması çalışmaya devam eder (eski davranış).
+    order_type = str(zone_dict.get("order_type", "BUY")).upper()
 
     min_price = float(zone_dict.get("min_price", 0))
     max_price = float(zone_dict.get("max_price", 0))

@@ -78,10 +78,14 @@ class OrderValidator:
                         else float(config.lot_size)
                     )
 
-                    sym_info = self.symbol_infos.get(config.symbol)
-                    v_min = self._get_volume_min(sym_info)
-                    if expected_lot < v_min:
-                        expected_lot = 0.0
+                    # Kısmi dolum koruması: min. hacim kontrolü sadece o fiyatta
+                    # pozisyon varken yapılır. Aksi halde lot < volume_min olduğunda
+                    # emir her döngüde silinip yeniden gönderiliyordu.
+                    if pos_vol > 0:
+                        sym_info = self.symbol_infos.get(config.symbol)
+                        v_min = self._get_volume_min(sym_info)
+                        if expected_lot < v_min:
+                            expected_lot = 0.0
 
                     expected_lot_norm = (
                         normalize_volume(expected_lot, config.symbol, self.symbol_infos)
@@ -128,10 +132,14 @@ class OrderValidator:
                         else float(config.sell_lot_size)
                     )
 
-                    sym_info = self.symbol_infos.get(config.symbol)
-                    v_min = self._get_volume_min(sym_info)
-                    if expected_lot < v_min:
-                        expected_lot = 0.0
+                    # Kısmi dolum koruması: min. hacim kontrolü sadece o fiyatta
+                    # pozisyon varken yapılır. Aksi halde lot < volume_min olduğunda
+                    # emir her döngüde silinip yeniden gönderiliyordu.
+                    if pos_vol > 0:
+                        sym_info = self.symbol_infos.get(config.symbol)
+                        v_min = self._get_volume_min(sym_info)
+                        if expected_lot < v_min:
+                            expected_lot = 0.0
 
                     expected_lot_norm = (
                         normalize_volume(expected_lot, config.symbol, self.symbol_infos)

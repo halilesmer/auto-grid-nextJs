@@ -36,7 +36,8 @@ def get_mt5_symbols_helper(mt5_available, safe_log_fn):
                 type="warning",
             )
             return []
-        return [s.name for s in symbols]
+        # Detaylı bilgi (digits, volume_min, ...) için nesnelerin kendisi döner
+        return list(symbols)
     except Exception as e:
         safe_log_fn(f"Sembol çekme hatası: {e}", type="error")
         return []
@@ -71,7 +72,9 @@ def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2):
             return True
         last_err = mt5.last_error()
         err_code = last_err[0] if last_err else 0
-        if err_code in (-10005, -10003, -10004):
+        # Sadece geçici IPC hatalarında tekrar dene. -10004 (yetki/şifre hatası)
+        # tekrar denemekle düzelmez; son denemeden sonra da boşuna bekleme.
+        if err_code in (-10005, -10003) and attempt < max_retries - 1:
             delay = base_delay * (2 ** attempt)
             time.sleep(delay)
             continue
@@ -87,7 +90,8 @@ def _retry_login(mt5, login_id, password, server, max_retries=3, base_delay=2):
             return True
         last_err = mt5.last_error()
         err_code = last_err[0] if last_err else 0
-        if err_code in (-10005, -10004, 1002, 2):
+        # 1002/2/-10004 = hatalı şifre/sunucu -> tekrar deneme anlamsız
+        if err_code == -10005 and attempt < max_retries - 1:
             delay = base_delay * (2 ** attempt)
             time.sleep(delay)
             continue
@@ -164,8 +168,10 @@ def connect_internal_helper(
     if login_id > 0:
         authorized = _retry_login(mt5, login_id, password, server)
         if not authorized:
+            # Hata kodunu shutdown'dan ÖNCE al, yoksa shutdown'ın kodu okunur
+            login_err = mt5.last_error()
             mt5.shutdown()
-            return parse_login_error(mt5.last_error(), login_id, server, safe_log_fn)
+            return parse_login_error(login_err, login_id, server, safe_log_fn)
         time.sleep(1.0)
     else:
         time.sleep(2.0)
@@ -212,6 +218,32 @@ def connect_internal_helper(
     return True, None
 
 
+def build_detailed_symbols(symbols) -> list[dict]:
+    """MT5 sembol nesnelerini (veya dict'leri) arayüzün beklediği detaylı listeye çevirir."""
+
+    def _get(s, key, default):
+        val = s.get(key) if isinstance(s, dict) else getattr(s, key, default)
+        return default if val is None else val
+
+    detailed = []
+    for s in symbols or []:
+        name = _get(s, "name", "")
+        if not name or not str(name).strip():
+            continue
+        detailed.append(
+            {
+                "name": name,
+                "description": _get(s, "description", "") or name,
+                "digits": _get(s, "digits", 5),
+                "point": _get(s, "point", 0.00001),
+                "volume_min": _get(s, "volume_min", 0.01),
+                "volume_max": _get(s, "volume_max", 100.0),
+                "volume_step": _get(s, "volume_step", 0.01),
+            }
+        )
+    return detailed
+
+
 def _read_cache_file():
     """Read and parse the cache file safely."""
     try:
@@ -223,7 +255,7 @@ def _read_cache_file():
     return {}
 
 
-def _write_cache_file(cache_data: dict):
+def _write_cache_file(cache_data: dict, safe_log_fn=print):
     """Write cache file atomically (temp file + rename)."""
     try:
         temp_file = CACHE_FILE + ".tmp"
@@ -231,7 +263,7 @@ def _write_cache_file(cache_data: dict):
             json.dump(cache_data, f, indent=4, ensure_ascii=False)
         os.replace(temp_file, CACHE_FILE)
     except Exception as e:
-        safe_log_fn(f"Cache yazma hatası: {e}", type="error")
+        safe_log_fn(f"Cache yazma hatası: {e}")
 
 
 def _is_cache_fresh(account_id: str, cache_data: dict) -> bool:
@@ -279,9 +311,8 @@ async def fetch_and_cache_symbols(account_id: str, account_config: dict, safe_lo
         shutdown_mt5,
     )
     
-    # Use shorter timeout for symbols endpoint (5 seconds)
     ok, _is_timeout, detail = await asyncio.to_thread(
-        connect_to_mt5_with_timeout, account_config, 5
+        connect_to_mt5_with_timeout, account_config, 15
     )
     
     if not ok:
@@ -289,62 +320,13 @@ async def fetch_and_cache_symbols(account_id: str, account_config: dict, safe_lo
     
     try:
         symbols = await asyncio.to_thread(get_mt5_symbols)
-        detailed_symbols = []
-        if symbols:
-            for s in symbols:
-                name = (
-                    s.get("name")
-                    if isinstance(s, dict)
-                    else getattr(s, "name", "")
-                )
-                if name and name.strip():
-                    desc = (
-                        s.get("description")
-                        if isinstance(s, dict)
-                        else getattr(s, "description", "")
-                    )
-                    digits = (
-                        s.get("digits")
-                        if isinstance(s, dict)
-                        else getattr(s, "digits", 5)
-                    )
-                    point = (
-                        s.get("point")
-                        if isinstance(s, dict)
-                        else getattr(s, "point", 0.00001)
-                    )
-                    vol_min = (
-                        s.get("volume_min")
-                        if isinstance(s, dict)
-                        else getattr(s, "volume_min", 0.01)
-                    )
-                    vol_max = (
-                        s.get("volume_max")
-                        if isinstance(s, dict)
-                        else getattr(s, "volume_max", 100.0)
-                    )
-                    vol_step = (
-                        s.get("volume_step")
-                        if isinstance(s, dict)
-                        else getattr(s, "volume_step", 0.01)
-                    )
-                    detailed_symbols.append(
-                        {
-                            "name": name,
-                            "description": desc or name,
-                            "digits": digits,
-                            "point": point,
-                            "volume_min": vol_min,
-                            "volume_max": vol_max,
-                            "volume_step": vol_step,
-                        }
-                    )
-        
+        detailed_symbols = build_detailed_symbols(symbols)
+
         if detailed_symbols:
             # Update cache atomically
             cache_data = _read_cache_file()
             cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
-            _write_cache_file(cache_data)
+            _write_cache_file(cache_data, safe_log_fn)
         
         return detailed_symbols
     finally:
@@ -387,6 +369,8 @@ async def get_or_fetch_symbols(account_id: str, safe_log_fn) -> list[dict]:
                 _fetch_and_cache_wrapper(account_id, account_config, safe_log_fn)
             )
             _IN_FLIGHT[account_id] = task
+            # Arka planda biten görev de listeden silinmeli, yoksa cache bir daha yenilenmez
+            task.add_done_callback(lambda t, aid=account_id: _forget_in_flight(aid, t))
     
     # 4. If we have stale cache, return it immediately while background fetch runs
     if cached:
@@ -394,24 +378,27 @@ async def get_or_fetch_symbols(account_id: str, safe_log_fn) -> list[dict]:
         return cached
     
     # 5. No cache - wait for background task with timeout
+    # shield: zaman aşımı ortak görevi iptal etmesin (diğer bekleyenler CancelledError almasın)
     try:
-        symbols = await asyncio.wait_for(task, timeout=10.0)
-        return symbols
+        return await asyncio.wait_for(asyncio.shield(task), timeout=20.0)
     except asyncio.TimeoutError:
         safe_log_fn(f"MT5 symbols fetch timeout for {account_id}", type="warning")
         return []
     except Exception as e:
         safe_log_fn(f"MT5 symbols fetch error for {account_id}: {e}", type="error")
         return []
-    finally:
-        with _IN_FLIGHT_LOCK:
+
+
+def _forget_in_flight(account_id: str, task: asyncio.Task):
+    with _IN_FLIGHT_LOCK:
+        if _IN_FLIGHT.get(account_id) is task:
             _IN_FLIGHT.pop(account_id, None)
 
 
 async def _fetch_and_cache_wrapper(account_id: str, account_config: dict, safe_log_fn) -> list[dict]:
-    """Wrapper to catch exceptions and clean up in-flight tracking."""
+    """Hataları loglar ve boş liste döner (arka plan görevinde yakalanmamış istisna kalmasın)."""
     try:
         return await fetch_and_cache_symbols(account_id, account_config, safe_log_fn)
     except Exception as e:
         safe_log_fn(f"Background symbols fetch failed for {account_id}: {e}", type="error")
-        raise
+        return []

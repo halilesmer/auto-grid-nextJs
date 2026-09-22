@@ -33,7 +33,6 @@ export function useWebSocketManager(selectedAccount: string | null): {
 
   // Stable refs to store actions (avoid selector reference changes)
   const updateMetricsRef = useRef(useBotRuntimeStore.getState().updateMetrics);
-  const updateLiveDataRef = useRef(useBotRuntimeStore.getState().updateLiveData);
   const setWsErrorRef = useRef(useBotRuntimeStore.getState().setWsError);
   const incrementWsRetriesRef = useRef(useBotRuntimeStore.getState().incrementWsRetries);
   const resetWsRetriesRef = useRef(useBotRuntimeStore.getState().resetWsRetries);
@@ -44,7 +43,6 @@ export function useWebSocketManager(selectedAccount: string | null): {
   // Keep refs updated without triggering re-renders
   useEffect(() => {
     updateMetricsRef.current = useBotRuntimeStore.getState().updateMetrics;
-    updateLiveDataRef.current = useBotRuntimeStore.getState().updateLiveData;
     setWsErrorRef.current = useBotRuntimeStore.getState().setWsError;
     incrementWsRetriesRef.current = useBotRuntimeStore.getState().incrementWsRetries;
     resetWsRetriesRef.current = useBotRuntimeStore.getState().resetWsRetries;
@@ -62,7 +60,9 @@ export function useWebSocketManager(selectedAccount: string | null): {
           updateMetricsRef.current(data.payload);
           break;
         case 'LIVE_DATA':
-          updateLiveDataRef.current(data.payload);
+          // Sunucu bunu yalnızca API sürecinde MT5 verisi yokken ({mt5_connected:false})
+          // gönderir; bot sürecinin durumu değildir. liveData'ya yazmak çalışan botu
+          // "Durduruldu" gösteriyordu. Bot durumu log polling'den (useDashboard) gelir.
           break;
         case 'LOG':
           if (data.payload.logType === 'robot') {
@@ -95,7 +95,8 @@ export function useWebSocketManager(selectedAccount: string | null): {
   }, []);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    const state = wsRef.current?.readyState;
+    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
     if (!selectedAccount) return;
 
     const ws = new WebSocket(buildWsUrl());
@@ -133,7 +134,13 @@ export function useWebSocketManager(selectedAccount: string | null): {
       reconnectTimerRef.current = null;
     }
     if (wsRef.current) {
-      wsRef.current.close();
+      // Eski soketin onclose'u yeniden bağlanma zamanlamasın (çift soket oluşuyordu)
+      const ws = wsRef.current;
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.close();
       wsRef.current = null;
     }
     retryCountRef.current = 0;

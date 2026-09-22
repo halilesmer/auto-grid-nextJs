@@ -13,17 +13,24 @@ export interface UseZoneDirtyTrackingReturn {
 
 export function useZoneDirtyTracking(
   zones: ZoneSettings[],
-  isGlobalDirty?: boolean
+  isGlobalDirty?: boolean,
+  accountKey?: string | null
 ): UseZoneDirtyTrackingReturn {
   const [originalZones, setOriginalZones] = useState<ZoneSettings[]>([]);
   const initializedRef = useRef(false);
+  const accountKeyRef = useRef(accountKey);
 
   useEffect(() => {
+    // Hesap değişince referans (kaydedilmiş) bölgeler yeni hesabın ayarlarından alınmalı
+    if (accountKeyRef.current !== accountKey) {
+      accountKeyRef.current = accountKey;
+      initializedRef.current = false;
+    }
     if (zones.length > 0 && !initializedRef.current) {
       setOriginalZones(zones.map((z) => ({ ...z })));
       initializedRef.current = true;
     }
-  }, [zones]);
+  }, [zones, accountKey]);
 
   useEffect(() => {
     if (isGlobalDirty === false) {

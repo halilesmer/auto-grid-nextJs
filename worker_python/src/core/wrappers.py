@@ -18,7 +18,10 @@ from src.core.grid_zone_selector import get_active_zone as _get_active_zone
 from src.core.grid_zone_state import process_zone_commands as _process_zone_commands
 from src.core.grid_orchestrator import manage_dynamic_grid as _manage_dynamic_grid
 
-mt5 = None
+try:
+    import MetaTrader5 as mt5  # type: ignore
+except ImportError:
+    mt5 = None
 
 
 def get_live_metrics():
@@ -31,23 +34,28 @@ def get_live_metrics():
 def load_dynamic_settings():
     global state
     from src.utils.config import load_settings
-    settings = load_settings("Auto Grid")
-    state.zones = settings.get("ZONES", [])
-    state.loop_interval_seconds = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
-    state.active_symbols.clear()
-    for zone in state.zones:
-        if "symbol" in zone and zone["symbol"]:
-            state.active_symbols.add(str(zone["symbol"]).upper().strip())
 
-    for sym in state.active_symbols:
-        if sym not in state.symbol_infos:
-            try:
-                mt5.symbol_select(sym, True)
-                info = mt5.symbol_info(sym)
-                if info:
-                    state.symbol_infos[sym] = info
-            except Exception:
-                pass
+    # Ayar dosyası bozuk olsa bile döngü çökmemeli (eski davranış)
+    try:
+        settings = load_settings("Auto Grid")
+        state.zones = settings.get("ZONES", [])
+        state.loop_interval_seconds = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
+        state.active_symbols.clear()
+        for zone in state.zones:
+            if "symbol" in zone and zone["symbol"]:
+                state.active_symbols.add(str(zone["symbol"]).upper().strip())
+
+        for sym in state.active_symbols:
+            if sym not in state.symbol_infos:
+                try:
+                    mt5.symbol_select(sym, True)
+                    info = mt5.symbol_info(sym)
+                    if info:
+                        state.symbol_infos[sym] = info
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 def get_active_zone():
