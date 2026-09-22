@@ -31,7 +31,7 @@ async def create_account(account: AccountModel):
                 status_code=409,
                 detail=DuplicateAccountProblem(
                     detail=f"Account '{account.id}' already exists",
-                    existing_account=AccountModel(**existing),
+                    existing_account=dict(existing),
                 ).model_dump(),
             )
         accounts.append(account.model_dump())
@@ -67,7 +67,7 @@ async def update_account(account_id: str, account: AccountModel):
                 status_code=409,
                 detail=DuplicateAccountProblem(
                     detail=f"Account '{account.id}' already exists",
-                    existing_account=AccountModel(**existing),
+                    existing_account=dict(existing),
                 ).model_dump(),
             )
         accounts[idx] = account.model_dump()

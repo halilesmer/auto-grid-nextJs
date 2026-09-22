@@ -20,6 +20,7 @@ export function AccountForm({
   onMT5PathSelect,
   onUseCustomPathChange,
   onRescanMT5,
+  mt5ScanError,
   onSubmit,
   onEditExisting,
 }: AccountFormProps) {
@@ -155,6 +156,11 @@ export function AccountForm({
             onRescan={onRescanMT5}
             onCustomPathChange={(v) => onChange('mt5_path', v)}
           />
+          {mt5ScanError && (
+            <p className="mt-1 text-xs text-yellow-400" role="alert">
+              {mt5ScanError} Yolu manuel girebilirsiniz.
+            </p>
+          )}
           {errors.mt5_path && (
             <p className="mt-1 text-xs text-red-400" role="alert">
               {errors.mt5_path}

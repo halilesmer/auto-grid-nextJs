@@ -10,6 +10,9 @@ import { useZoneDirtyTracking } from '@/hooks/useZoneDirtyTracking';
 import { useZoneActions } from '@/hooks/useZoneActions';
 import { useZoneFieldHandlers } from '@/hooks/useZoneFieldHandlers';
 import { ZoneCard } from '@/components/zone';
+import type { ZoneSettings } from '@/store/types';
+
+const EMPTY_ZONES: ZoneSettings[] = [];
 
 interface ZoneSettingsPanelProps {
   selectedAccount: string | null;
@@ -32,10 +35,11 @@ export default function ZoneSettingsPanel({
   const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  const zones = settings?.ZONES || [];
+  // Sabit boş dizi: her render'da yeni [] üretmek dirty-tracking efektini döngüye sokuyordu
+  const zones = settings?.ZONES ?? EMPTY_ZONES;
 
   const symbolDetails = useSymbolDetails(selectedAccount);
-  const { modified } = useZoneDirtyTracking(zones, isGlobalDirty);
+  const { modified } = useZoneDirtyTracking(zones, isGlobalDirty, selectedAccount);
   const { toggleActive, addZone, deleteZone, updateZone } = useZoneActions(selectedAccount, setZones);
   const { handleChange, handleBlur, syncZonePrecision, validateSymbol } = useZoneFieldHandlers(symbolDetails);
 

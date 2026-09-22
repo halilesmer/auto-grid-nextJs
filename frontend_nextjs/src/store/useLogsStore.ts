@@ -43,12 +43,12 @@ export const useLogsStore = create<LogsStoreState>((set, get) => ({
     const state = get();
     const newBuffer = [...state._robotBuffer, line];
 
+    // Önce tampona yaz, sonra boşalt: aksi halde tamponu dolduran satır kayboluyordu
+    set({ _robotBuffer: newBuffer });
     if (newBuffer.length >= BUFFER_MAX_LINES) {
       get().flush();
       return;
     }
-
-    set({ _robotBuffer: newBuffer });
 
     if (!state._flushTimer) {
       const timer = setTimeout(() => {
@@ -62,12 +62,12 @@ export const useLogsStore = create<LogsStoreState>((set, get) => ({
     const state = get();
     const newBuffer = [...state._mt5Buffer, line];
 
+    // Önce tampona yaz, sonra boşalt: aksi halde tamponu dolduran satır kayboluyordu
+    set({ _mt5Buffer: newBuffer });
     if (newBuffer.length >= BUFFER_MAX_LINES) {
       get().flush();
       return;
     }
-
-    set({ _mt5Buffer: newBuffer });
 
     if (!state._flushTimer) {
       const timer = setTimeout(() => {

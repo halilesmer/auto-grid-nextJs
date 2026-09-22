@@ -1,20 +1,27 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useSettingsStore } from '@/store';
+import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import type { SymbolDetail } from '@/store/types';
 
+/**
+ * Seçili hesabın sembollerini bir kez çeker ve global store'a yazar.
+ * - Hesap değişince eski hesabın sembolleri temizlenir ve yeniden çekilir.
+ * - İlk çekimde liste boş geldiyse (MT5 kapalıydı), MT5 bağlanınca tekrar denenir.
+ *
+ * Not: isLoadingSymbols / availableSymbols bilerek bağımlılık listesinde DEĞİL.
+ * Efekt kendi set ettiği loading state'i yüzünden yeniden çalışıp kendi isteğini
+ * iptal ediyordu (sonsuz "Semboller yükleniyor...").
+ */
 export function useSymbolDetails(selectedAccount: string | null): Record<string, SymbolDetail> {
   const setAvailableSymbols = useSettingsStore((s) => s.setAvailableSymbols);
   const setSymbolDetails = useSettingsStore((s) => s.setSymbolDetails);
   const setLoadingSymbols = useSettingsStore((s) => s.setLoadingSymbols);
   const symbolDetails = useSettingsStore((s) => s.symbolDetails);
-  const availableSymbols = useSettingsStore((s) => s.availableSymbols);
-  const isLoadingSymbols = useSettingsStore((s) => s.isLoadingSymbols);
+  const mt5Connected = useBotRuntimeStore((s) => s.liveData.mt5_connected);
 
   const lastFetchedAccountRef = useRef<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!selectedAccount) {
@@ -22,26 +29,16 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
       return;
     }
 
-    // Guard: already fetched for this account and have data
-    if (
-      lastFetchedAccountRef.current === selectedAccount &&
-      availableSymbols.length > 0
-    ) {
+    const hasSymbols = useSettingsStore.getState().availableSymbols.length > 0;
+    if (lastFetchedAccountRef.current === selectedAccount && hasSymbols) {
       return;
     }
 
-    // Guard: already loading for this account
-    if (isLoadingSymbols && lastFetchedAccountRef.current === selectedAccount) {
-      return;
+    if (lastFetchedAccountRef.current !== selectedAccount) {
+      // Önceki hesabın sembolleri yeni hesapta "Geçersiz Sembol" hatasına yol açmasın
+      setAvailableSymbols([]);
+      setSymbolDetails({});
     }
-
-    // Cancel previous request if any
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
     lastFetchedAccountRef.current = selectedAccount;
     setLoadingSymbols(true);
 
@@ -50,7 +47,7 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
     zoneApi
       .getSymbols(selectedAccount)
       .then((symsData) => {
-        if (cancelled || abortController.signal.aborted) return;
+        if (cancelled) return;
 
         if (typeof symsData === 'string') {
           try {
@@ -75,22 +72,17 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
         setSymbolDetails(details);
       })
       .catch((err) => {
-        if (err.name === 'AbortError' || abortController.signal.aborted) return;
-        console.error('Sembol detayları çekilemedi', err);
+        if (!cancelled) console.error('Sembol detayları çekilemedi', err);
       })
       .finally(() => {
-        if (!cancelled && !abortController.signal.aborted) {
-          setLoadingSymbols(false);
-        }
+        if (!cancelled) setLoadingSymbols(false);
       });
 
     return () => {
       cancelled = true;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      setLoadingSymbols(false);
     };
-  }, [selectedAccount, setAvailableSymbols, setSymbolDetails, setLoadingSymbols, availableSymbols.length, isLoadingSymbols]);
+  }, [selectedAccount, mt5Connected, setAvailableSymbols, setSymbolDetails, setLoadingSymbols]);
 
   return symbolDetails;
 }

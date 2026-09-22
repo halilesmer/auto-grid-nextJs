@@ -75,7 +75,8 @@ export interface UseAccountFormOptions {
   isLoading?: boolean;
   onSave: (data: AccountFormData) => Promise<void>;
   onSuccess?: () => void;
-  onError?: (error: string) => void;
+  /** Doğrulama hatasında mesaj (string), API hatasında ham hata nesnesi (409 algılaması için) */
+  onError?: (error: unknown) => void;
   onDuplicate?: (existingAccount: Account) => void;
 }
 
@@ -97,7 +98,8 @@ export interface UseMT5ScannerReturn {
   paths: string[];
   isScanning: boolean;
   error: string | null;
-  scan: () => Promise<void>;
+  /** Bulunan yolları da döndürür (özel yol kontrolü için) */
+  scan: () => Promise<string[]>;
 }
 
 export interface UseAccountsReturn {
@@ -150,6 +152,7 @@ export interface AccountFormProps {
   onMT5PathSelect: (path: string) => void;
   onUseCustomPathChange: (value: boolean) => void;
   onRescanMT5: () => void;
+  mt5ScanError?: string | null;
   onSubmit: () => void;
   onEditExisting?: () => void;
 }
