@@ -19,6 +19,27 @@ import psutil  # 🌟 YENİ: İşletim sistemi süreçlerini okumak için
 from src.utils.paths import get_err_log_path, get_pid_path, get_metrics_path
 import json
 
+
+_LOG_PREFIX = {"error": "🔴 ERROR:", "warning": "⚠️ WARNING:", "info": "ℹ️ INFO:"}
+
+
+def log_step(account_id: str, msg: str, type: str = "info"):
+    """Start/Stop/Watchdog adımlarını hesabın robot loguna yazar; arayüz LogViewer'da canlı görür.
+    (Aksi halde bu adımlar sadece VPS'teki uvicorn konsolunda kalıyordu.)
+    safe_log ile aynı biçim; ama loglama hiçbir zaman isteği bozmasın diye
+    önce dosyaya yazılır ve konsol çıktısı (Windows kod sayfası) korunur."""
+    line = f"{_LOG_PREFIX.get(type, _LOG_PREFIX['info'])} {msg}"
+    try:
+        with open(get_err_log_path(account_id), "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {line}\n")
+    except Exception:
+        pass
+    try:
+        print(line)
+    except Exception:
+        pass
+
+
 def _current_version() -> str:
     """Kodun sürümü (VERSION dosyası). Bot süreci hangi kodla başladı, PID dosyasına yazılır."""
     try:

@@ -163,6 +163,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┗ 📜 wrappers.py          # Wrapper fonksiyonları
 ┃ ┃ ┗ 📂 utils                  # Yardımcı modüller
 ┃ ┃   ┣ 📜 bot_manager.py       # Süreç yönetimi
+┃ ┃   ┣ 📜 bot_watchdog.py      # Çöken/asılı botu otomatik yeniden başlatan bekçi
 ┃ ┃   ┣ 📜 config.py            # Konfigürasyon okuma/yazma
 ┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
 ┃ ┃   ┣ 📜 mt5_errors.py        # Hata kod ayrıştırma (-10003 IPC, -10004 auth, 10002 login), zombi killer, LIVE/DEMO güvenlik
@@ -224,6 +225,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 ### 4. Worker Süreç Yönetimi
 - `bot_runner.py`: Grid motoru döngüsünü çalıştırır
 - `bot_manager.py`: Alt süreç (subprocess) başlatma/durdurma, PID takibi (`logs/pid_*.txt`)
+- `bot_watchdog.py`: Start ile başlatılan bot çökerse veya 10 dk metrik yazmazsa (asılı) worker onu yeniden başlatır; Stop ile izleme biter. İzleme listesi yalnızca bellekte (worker yeniden başlarsa ölmüş botlar başlatılmaz, çalışanlar devralınır). 30 dk içinde 5 denemeden sonra vazgeçer. Loglar `[WATCHDOG]` önekiyle hesap loguna yazılır.
 - `mt5_connection.py`: MT5 terminal bağlantı havuzu ve yeniden bağlanma mantığı
 
 ### 5. Worker Modüler Core Mimarisi (v0.7.33+)
