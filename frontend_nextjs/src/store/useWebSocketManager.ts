@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useBotRuntimeStore } from './useBotRuntimeStore';
 import { useLogsStore } from './useLogsStore';
 import { Metrics, LiveData } from './types';
+import { API_BASE } from '@/lib/api';
 
 const MAX_RETRIES = 10;
 const BASE_DELAY_MS = 1000;
@@ -15,8 +16,7 @@ type WSMessage =
   | { type: 'LOG'; payload: { logType: 'robot' | 'mt5'; line: string } };
 
 function buildWsUrl(): string {
-  const rawAPI = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  return rawAPI.replace(/^http/, 'ws').replace(/\/api$/, '') + '/ws/stream';
+  return API_BASE.replace(/^http/, 'ws').replace(/\/api$/, '') + '/ws/stream';
 }
 
 export function useWebSocketManager(selectedAccount: string | null): {
