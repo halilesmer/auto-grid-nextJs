@@ -64,6 +64,10 @@ def backup_mt5_logs_helper(account_id, mt5_available, safe_log_fn):
             safe_log_fn(f"MT5 Log kopyalama hatası: {e}", type="warning")
 
 
+# MT5 IPC hataları: -10001 gönderme, -10002 alma, -10003 başlatma, -10005 zaman aşımı
+_IPC_ERROR_CODES = (-10001, -10002, -10003, -10005)
+
+
 def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2):
     """Exponential backoff retry for mt5.initialize() on IPC timeout/connection loss."""
     for attempt in range(max_retries):
@@ -161,6 +165,21 @@ def connect_internal_helper(
         mt5.shutdown()
         time.sleep(0.2)
         init_success = _retry_initialize(mt5, init_kwargs)
+
+        # Terminal IPC'ye cevap vermiyor (asılı/donmuş veya farklı yetkiyle açık):
+        # SADECE bu hesabın terminalini (mt5_path) kapat; initialize(path) onu yeniden başlatır.
+        if not init_success and "path" in init_kwargs:
+            err_code = (mt5.last_error() or (0,))[0]
+            if err_code in _IPC_ERROR_CODES:
+                from src.utils.mt5_errors import kill_zombie_mt5
+
+                if kill_zombie_mt5(init_kwargs["path"], safe_log_fn):
+                    safe_log_fn(
+                        f"MT5 terminali IPC hatası ({err_code}) nedeniyle yeniden başlatılıyor...",
+                        type="warning",
+                    )
+                    time.sleep(3)
+                    init_success = _retry_initialize(mt5, init_kwargs)
 
     if not init_success:
         return parse_init_error(mt5.last_error(), login_id, server, safe_log_fn)

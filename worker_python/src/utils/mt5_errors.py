@@ -1,35 +1,38 @@
 import os
-import subprocess
 import psutil
 
 
-def kill_zombie_mt5(path, safe_log_fn):
-    target_exe = "terminal64.exe"
-    if path and os.path.exists(path):
-        target_exe = os.path.basename(path).lower()
+def kill_zombie_mt5(path, safe_log_fn) -> int:
+    """Asılı kalmış MT5 terminalini sonlandırır. Sonlandırılan süreç sayısını döner.
+
+    GÜVENLİK: Yalnızca yolu `path` ile BİREBİR eşleşen terminal öldürülür. Yol verilmemişse
+    veya bir sürecin yolu okunamıyorsa (ör. yönetici haklı) o süreç atlanır; aksi halde
+    başka hesapların/uygulamaların terminalleri de kapanabilirdi.
+    """
+    if not path or not os.path.exists(path):
+        return 0
+    target = os.path.normpath(path).lower()
+    target_exe = os.path.basename(target)
+    killed = 0
 
     for proc in psutil.process_iter(["pid", "name", "exe"]):
         try:
-            p_name = proc.info.get("name")
+            p_name = (proc.info.get("name") or "").lower()
             p_exe = proc.info.get("exe")
-            if p_name and p_name.lower() == target_exe:
-                if path and os.path.exists(path) and p_exe:
-                    if (
-                        os.path.normpath(p_exe).lower()
-                        != os.path.normpath(path).lower()
-                    ):
-                        continue
-                safe_log_fn(
-                    f"Asılı kalan MT5 terminali tespit edildi. Öldürülüyor... PID: {proc.info['pid']}",
-                    type="warning",
-                )
-                subprocess.call(
-                    ["taskkill", "/F", "/PID", str(proc.info["pid"])],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            if p_name != target_exe or not p_exe:
+                continue
+            if os.path.normpath(p_exe).lower() != target:
+                continue
+            safe_log_fn(
+                f"Asılı kalan MT5 terminali tespit edildi. Öldürülüyor... PID: {proc.info['pid']}",
+                type="warning",
+            )
+            proc.kill()
+            proc.wait(timeout=10)
+            killed += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, psutil.TimeoutExpired):
             pass
+    return killed
 
 
 def parse_init_error(last_err, login_id, server, safe_log_fn):

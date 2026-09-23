@@ -19,16 +19,44 @@ import psutil  # 🌟 YENİ: İşletim sistemi süreçlerini okumak için
 from src.utils.paths import get_err_log_path, get_pid_path, get_metrics_path
 import json
 
-def _read_pid(account_id: str):
-    """PID dosyasını okur. Yoksa veya bozuksa None döner."""
+def _current_version() -> str:
+    """Kodun sürümü (VERSION dosyası). Bot süreci hangi kodla başladı, PID dosyasına yazılır."""
+    try:
+        # VERSION repo kökünde (worker_python'un bir üstü); güncelleme kontrolüyle aynı kaynak
+        from src.utils.self_updater import get_project_root
+
+        with open(os.path.join(get_project_root(), "VERSION"), "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
+def _read_pid_file(account_id: str):
+    """PID dosyası: 1. satır PID, 2. satır (varsa) botun başladığı kod sürümü."""
     pid_file = get_pid_path(account_id)
     if not os.path.exists(pid_file):
-        return None
+        return None, None
     try:
         with open(pid_file, "r") as f:
-            return int(f.read().strip())
+            lines = f.read().split()
+        pid = int(lines[0])
+        version = lines[1] if len(lines) > 1 else None
+        return pid, version
     except Exception:
-        return None
+        return None, None
+
+
+def _read_pid(account_id: str):
+    """PID dosyasını okur. Yoksa veya bozuksa None döner."""
+    return _read_pid_file(account_id)[0]
+
+
+def is_bot_outdated(account_id: str) -> bool:
+    """Çalışan bot, şu anki koddan (VERSION) farklı bir sürümle mi başlatıldı?
+    Eski PID dosyalarında sürüm yoktur → eski kod sayılır."""
+    _pid, version = _read_pid_file(account_id)
+    current = _current_version()
+    return bool(current) and version != current
 
 
 def _is_our_runner(pid: int, account_id: str) -> bool:
@@ -49,6 +77,14 @@ def _is_our_runner(pid: int, account_id: str) -> bool:
 
         try:
             cmdline = " ".join(p.cmdline() or [])
+        except psutil.AccessDenied:
+            # Yönetici haklarıyla çalışan süreç: komut satırı okunamaz. PID dosyası onu
+            # gösteriyor ve bir Python süreci ise bizimki say; aksi halde görünmez kalıp
+            # MT5 bağlantısını işgal ediyordu.
+            try:
+                return "python" in (p.name() or "").lower()
+            except Exception:
+                return False
         except Exception:
             cmdline = ""
 
@@ -139,10 +175,26 @@ def _detached_popen(cmd, stdout, stderr, env):
     )
 
 
+# Son başlatma hatası (hesap başına). Hata log dosyasının kendisinden de gelebilir
+# (ör. dosya yetkisi); o zaman log'a yazılamaz, bu yüzden API bunu yanıtta döndürür.
+_last_start_error: dict = {}
+
+
+def get_last_start_error(account_id: str):
+    return _last_start_error.get(str(account_id))
+
+
 def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
     """Belirli bir hesap için izole bir Subprocess (alt süreç) başlatır."""
+    _last_start_error.pop(str(account_id), None)
     if is_bot_running(account_id):
         return True  # Zaten çalışıyor
+
+    # PID dosyası olmayan artık/kopya bot süreçleri (ör. eski bir çalışmadan) aynı MT5
+    # terminalini işgal eder; yenisini başlatmadan önce hepsini kapat.
+    if find_bot_processes(account_id) and not stop_bot_process(account_id):
+        _last_start_error[str(account_id)] = get_last_stop_error(account_id)
+        return False
 
     log_file = None
     try:
@@ -167,7 +219,7 @@ def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
         # 🌟 YENİ: Sürecin ID'sini (PID) kalıcı olarak diske yaz! (RAM sıfırlansa da ölmez)
         pid_file = get_pid_path(account_id)
         with open(pid_file, "w") as f:
-            f.write(str(process.pid))
+            f.write(f"{process.pid}\n{_current_version()}")
 
         return True
 
@@ -178,10 +230,19 @@ def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
             winerr = getattr(e, "winerror", None)
             errno_ = getattr(e, "errno", None)
             filename = getattr(e, "filename", None)
+            # open() gibi CRT hatalarında winerror None olur; biçimlendirme çökmemeli
+            win_part = f"WinError {winerr} (0x{winerr & 0xFFFFFFFF:08X})" if winerr is not None else "WinError -"
             detail = (
-                f"WinError {winerr} (0x{winerr & 0xFFFFFFFF:08X}) | errno={errno_} | "
+                f"{type(e).__name__} | {win_part} | errno={errno_} | "
                 f"{str(e)} | dosya/kısım: {filename if filename else 'yok'}"
             )
+        if isinstance(e, PermissionError):
+            detail += (
+                " | İpucu: Dosya yönetici (admin) haklarıyla çalışan eski bir süreç tarafından "
+                "oluşturulmuş olabilir. Yönetici PowerShell'de worker_python klasöründe: "
+                'icacls logs /grant "${env:USERNAME}:(OI)(CI)M" /T /C /Q'
+            )
+        _last_start_error[str(account_id)] = detail
         # Subprocess içinde streamlit yok; sadece log'a yaz
         print(f"🚨 Sistem Hatası: {account_id} için robot başlatılamadı!\nDetay: {detail}")
         try:
@@ -204,47 +265,82 @@ def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
                 pass
 
 
+def find_bot_processes(account_id: str) -> list:
+    """Bu hesaba ait TÜM bot süreçlerini bulur (venv başlatıcısı + asıl python dahil).
+
+    Kaynaklar: komut satırı taraması (bot_runner.py + hesap ID ayrı argüman olarak) ve
+    PID dosyası (komut satırı yönetici hakları yüzünden okunamasa bile).
+    """
+    account_id = str(account_id)
+    found: dict = {}
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+        try:
+            name = (proc.info.get("name") or "").lower()
+            if "python" not in name:
+                continue
+            args = proc.info.get("cmdline") or []
+            if any("bot_runner.py" in a for a in args) and account_id in args:
+                found[proc.pid] = proc
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+
+    pid = _read_pid(account_id)
+    if pid is not None and pid not in found and _is_our_runner(pid, account_id):
+        try:
+            found[pid] = psutil.Process(pid)
+        except psutil.Error:
+            pass
+
+    # venv başlatıcısının alt süreci (asıl python) de bota aittir
+    for proc in list(found.values()):
+        try:
+            for child in proc.children(recursive=True):
+                found.setdefault(child.pid, child)
+        except psutil.Error:
+            pass
+    return list(found.values())
+
+
+_last_stop_error: dict = {}
+
+
+def get_last_stop_error(account_id: str):
+    return _last_stop_error.get(str(account_id))
+
+
 def stop_bot_process(account_id: str) -> bool:
     """
     🟡 Botu YALNIZCA durdurur. Hiçbir pozisyon veya bekleyen emre DOKUNMAZ.
 
-    🚀 PHASE 4: MT5'e bağlanıp emir silme / pozisyon kapatma mantığı KALDIRILDI.
-    İşlemler broker'da olduğu gibi kalır; bot kapatılır, arkasında iz bırakılmaz.
+    Bu hesaba ait tüm bot süreçlerini (kopyalar, eski sürümler, yönetici haklı olanlar)
+    bulur, sonlandırır ve gerçekten kapandıklarını DOĞRULAR. Kapatılamayan varsa False
+    döner ve PID dosyasını silmez; böylece süreç görünmez hale gelmez.
     """
-    killed_any = False
-
-    # Keskin Nişancı Mantığı: Sadece PID dosyasına güvenme, işletim sistemindeki tüm süreçleri tara!
-    # Böylece diğer Python uygulamaları (veya başka hesapların robotları) asla zarar görmez.
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+    _last_stop_error.pop(str(account_id), None)
+    procs = find_bot_processes(account_id)
+    denied = []
+    for proc in procs:
         try:
-            # Sadece python süreçlerini filtrele (performans)
-            if proc.info.get("name") and "python" not in proc.info["name"].lower():
-                continue
-            cmdline = proc.info.get("cmdline") or []
-            cmdline_str = " ".join(cmdline)
+            proc.kill()
+        except psutil.NoSuchProcess:
+            pass
+        except psutil.AccessDenied:
+            denied.append(proc.pid)
+        except psutil.Error:
+            pass
 
-            # SADECE bot_runner.py olan ve spesifik ACCOUNT_ID barındıran süreci avla
-            if "bot_runner.py" in cmdline_str and str(account_id) in cmdline_str:
-                if os.name == "nt":
-                    subprocess.call(
-                        ["taskkill", "/F", "/T", "/PID", str(proc.info["pid"])],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                else:
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=3)
-                    except psutil.TimeoutExpired:
-                        proc.kill()
-
-                killed_any = True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
-
-    if killed_any:
-        # Subprocess'in gerçekten kapanması için işletim sistemine 1 saniye nefes payı ver
-        time.sleep(1.0)
+    if procs:
+        _gone, alive = psutil.wait_procs(procs, timeout=5)
+        if alive:
+            pids = ",".join(str(p.pid) for p in alive)
+            reason = (
+                "yönetici (admin) haklarıyla çalışıyor" if denied else "sonlandırma zaman aşımı"
+            )
+            _last_stop_error[str(account_id)] = (
+                f"Bot süreci durdurulamadı (PID {pids}: {reason}). "
+                f"Yönetici PowerShell'de: Stop-Process -Id {pids} -Force"
+            )
+            return False
 
     self_cleanup(account_id)
 
