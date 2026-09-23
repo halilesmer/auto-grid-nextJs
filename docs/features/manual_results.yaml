@@ -26,6 +26,22 @@ SYS-04:
   notiz: 'Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto);
     Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, ''Manuel Gir'' ersetzt Auswahl
     durch Textfeld; Dialog ohne Speichern geschlossen'
+ACC-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /accounts → 1 Konto (7942034, DEMO, Eightcap-Demo), Dropdown zeigt
+    genau dieses'
+ACC-06:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/7942034 geladen,
+    UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall
+    1 s)'
+ACC-07:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis:
+    ohne Kontoauswahl zeigt der Header ebenfalls TEST'
 MET-03:
   status: fehlgeschlagen
   datum: '2026-09-23'

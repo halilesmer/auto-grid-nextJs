@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **4/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **7/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -15,7 +15,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | # | Kategorie | Stand |
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 4/4 |
-| 2 | **ACC** – Konten | 0/8 |
+| 2 | **ACC** – Konten | 3/8 |
 | 3 | **SET** – Allgemeine Einstellungen | 0/6 |
 | 4 | **SYM** – Symbole | 0/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 0/9 |
@@ -51,10 +51,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 2. ACC – Konten
 
-- [ ] **ACC-01** Kontoliste laden — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳
+- [x] **ACC-01** Kontoliste laden *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /accounts liefert alle Konten aus configs/accounts.json; das Dropdown zeigt sie an und schreibt sie in useAccountStore.
   - **Prüfung:** Dashboard öffnen, Dropdown „Select Account“ aufklappen.
   - **Erwartet:** Alle registrierten Konten erscheinen (inkl. DEMO-Testkonto).
+  - 📝 Claude: /accounts → 1 Konto (7942034, DEMO, Eightcap-Demo), Dropdown zeigt genau dieses
 - [ ] **ACC-02** Konto anlegen + Validierung — 🔌 api ⏳ · 🖥️ e2e ⏳
   - Dialog „New MT5 Account“; Pflichtfelder Name, Login, Passwort, Server, MT5-Pfad; Notizen max. 1000 Zeichen; POST /accounts.
   - **Prüfung:** „Add new account“ klicken, leer absenden. → (Nur mit einem Wegwerf-Konto!) Alle Felder ausfüllen und speichern.
@@ -71,14 +72,16 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft.
   - **Prüfung:** (Nur Wegwerf-Konto!) „Delete account“ → bestätigen.
   - **Erwartet:** Konto verschwindet aus dem Dropdown; bei laufendem Bot ist der Button deaktiviert.
-- [ ] **ACC-06** Kontoauswahl lädt Einstellungen — 🖥️ e2e ⏳ · 🌐 live ⏳
+- [x] **ACC-06** Kontoauswahl lädt Einstellungen *(teilweise)* — 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - Auswahl im Dropdown lädt GET /settings/{id} in useSettingsStore; ohne Konto erscheint der Leerzustand „No account selected“.
   - **Prüfung:** Seite ohne Auswahl öffnen, dann das DEMO-Konto wählen.
   - **Erwartet:** Zuerst Leerzustand, danach erscheinen Zonen und allgemeine Einstellungen des Kontos.
-- [ ] **ACC-07** LIVE/TEST-Kennzeichnung — 🖥️ e2e ⏳
+  - 📝 Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/7942034 geladen, UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall 1 s)
+- [x] **ACC-07** LIVE/TEST-Kennzeichnung *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Badge im Header und im Dropdown aus env_type (DEMO/LIVE) des Kontos.
   - **Prüfung:** DEMO-Konto wählen.
   - **Erwartet:** Badge zeigt TEST/DEMO, nicht LIVE.
+  - 📝 Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis: ohne Kontoauswahl zeigt der Header ebenfalls TEST
 - [ ] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ⏳
   - Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
   - **Prüfung:** Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
