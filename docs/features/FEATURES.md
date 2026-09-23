@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **1/69** abgehakt · ❌ 0 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **2/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -14,7 +14,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 | # | Kategorie | Stand |
 |---|---|---|
-| 1 | **SYS** – Verbindung & Infrastruktur | 1/4 |
+| 1 | **SYS** – Verbindung & Infrastruktur | 2/4 |
 | 2 | **ACC** – Konten | 0/8 |
 | 3 | **SET** – Allgemeine Einstellungen | 0/6 |
 | 4 | **SYM** – Symbole | 0/3 |
@@ -33,10 +33,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Worker auf dem VPS starten (start.bat), Frontend lokal starten (npm run dev:frontend). → http://localhost:3000 öffnen.
   - **Erwartet:** Kontoliste lädt, im Log-Bereich steht der Worker als online.
   - 📝 Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto 7942034 im Dropdown, 'Worker online'
-- [ ] **SYS-02** WebSocket-Stream + Reconnect — 🖥️ e2e ⏳ · 🌐 live ⏳
+- [x] **SYS-02** WebSocket-Stream + Reconnect *(teilweise)* — 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - Verbindung zu /ws/stream; Nachrichten METRICS, LIVE_DATA, LOG werden in die Stores geleitet; bei Abbruch automatischer Reconnect.
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
+  - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
 - [ ] **SYS-03** Plattform-Erkennung — 🔌 api ⏳ · 🖥️ e2e ⏳
   - GET /system/platform meldet, ob der Worker unter Windows läuft (steuert u. a. die Anzeige des Preis-Simulators).
   - **Prüfung:** Dashboard gegen den VPS-Worker öffnen.
@@ -267,11 +268,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - lightweight-charts baut 10-s-Kerzen aus WebSocket-METRICS, RSI auf eigener Skala; Farben folgen dem Theme.
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
-- [ ] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ⏳ · 🌐 live ⏳
+- [ ] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ⏳ · 🌐 live ⏳ · 👤 manuell ❌ 2026-09-23
   - ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
   - 🐞 **Bekannter Fehler:** ws_server liest settings["settings"]["ZONES"], gespeicherte Dateien sind aber flach; außerdem wird der Stream über ein Router-lifespan registriert, das beim include_router evtl. nie ausgelöst wird.
+  - 📝 Live bestätigt: nur LIVE_DATA mit mt5_connected=false, nie METRICS (ws_server.py:136 liest settings.settings.ZONES, Datei ist flach)
 - [ ] **MET-04** Bot-Telemetrie — 🧪 unit ⏳
   - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.

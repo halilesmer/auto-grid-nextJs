@@ -9,3 +9,14 @@ SYS-01:
   datum: '2026-09-23'
   notiz: 'Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto 7942034
     im Dropdown, ''Worker online'''
+SYS-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart
+    4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft
+    → siehe MET-03'
+MET-03:
+  status: fehlgeschlagen
+  datum: '2026-09-23'
+  notiz: 'Live bestätigt: nur LIVE_DATA mit mt5_connected=false, nie METRICS (ws_server.py:136
+    liest settings.settings.ZONES, Datei ist flach)'
