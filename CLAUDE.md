@@ -19,6 +19,7 @@ Development happens on a MacBook, split across two machines:
 
 - **Mac (local):** the frontend only. Run `npm run dev:frontend` and test at http://localhost:3000. `frontend_nextjs/.env.local` points `NEXT_PUBLIC_API_URL` at the worker's ngrok URL.
 - **Windows VPS:** the worker only, started with `worker_python/start.bat` (uvicorn crash watchdog via `run_uvicorn_watchdog.bat`, plus ngrok). See `docs/windows_start_guide.md`.
+- **Vercel:** the frontend is also deployed publicly through the Vercel GitHub integration (project `auto-grid-next-js`, root directory `frontend_nextjs`). Every PR branch gets a preview deployment (the `vercel[bot]` comment on the PR); there's no `vercel.json` in the repo, so the settings live in the Vercel dashboard. Everything in `NEXT_PUBLIC_*` ends up in the public JS bundle there, so never set secrets such as `NEXT_PUBLIC_WORKER_API_KEY` in Vercel. Once the worker has `WORKER_API_KEY` set, the Vercel deployment gets 401 from the worker; only the local frontend (key in `.env.local`) works.
 
 The worker can't run on the Mac (MT5 is Windows-only), so don't start it locally: `npm run dev` and `npm run dev:backend` aren't meant for this setup. Worker changes can only be checked statically here; they get tested once they're pulled onto the VPS and the worker is restarted.
 
@@ -44,6 +45,10 @@ python main.py         # uvicorn on 0.0.0.0:8000; set ENV=development for auto-r
 There is no test suite in either package.
 
 Frontend env (`frontend_nextjs/.env.local`): `NEXT_PUBLIC_API_URL` (base URL without `/api`, which is appended automatically). The WebSocket URL is derived from `API_BASE` in `buildWsUrl()` (`src/store/useWebSocketManager.ts`), so `NEXT_PUBLIC_WS_URL` is currently unused. If `NEXT_PUBLIC_API_URL` is missing, REST and WebSocket both fall back to the hard-coded ngrok URL in `src/lib/api.ts`. Worker CORS uses `ALLOWED_ORIGINS` (comma-separated, default `*`).
+
+API key: the worker reads `WORKER_API_KEY` (set on the VPS with `setx`, see `docs/windows_start_guide.md`). When it's set, every `/api/*` request must send the header `X-API-Key` (otherwise 401) and `/ws/stream` must pass `?api_key=…` (browsers can't set WebSocket headers); the check lives in `worker_python/src/api/auth.py`, the middleware in `main.py`, the WS check in `ws_server.py`. When it's unset the worker stays open as before and logs a warning at startup. The frontend sends `NEXT_PUBLIC_WORKER_API_KEY` from `.env.local`: use `axiosInstance` or `WORKER_HEADERS` from `src/lib/api.ts` for every worker call (never bare `axios`/`fetch` without them), and `buildWsUrl()` appends the key for the WebSocket.
+
+MT5 passwords never leave the worker: account responses go through `_public_account()` (`src/api/helpers.py`), which drops `password` and adds `has_password`. On `PUT /api/accounts/{id}` an empty or missing password keeps the stored one, so the edit form starts with an empty password field.
 
 ## Versioning
 

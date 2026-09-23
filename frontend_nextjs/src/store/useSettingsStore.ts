@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { WORKER_HEADERS } from '@/lib/api';
 import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
 interface SettingsState {
@@ -91,8 +92,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const res = await fetch(`${apiUrl}/settings/${selectedAccount}`, {
       method: 'POST',
       headers: {
+        ...WORKER_HEADERS,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
       },
       body: JSON.stringify({ settings }),
     });

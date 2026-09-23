@@ -20,6 +20,16 @@ def _load_accounts() -> list:
     return data
 
 
+def _public_account(account: dict) -> dict:
+    """API yanıtı için hesabın kopyası: MT5 şifresi asla dışarı verilmez.
+
+    Şifre yerine yalnızca kayıtlı olup olmadığı (`has_password`) döner.
+    """
+    public = {k: v for k, v in dict(account).items() if k != "password"}
+    public["has_password"] = bool(account.get("password"))
+    return public
+
+
 def _save_accounts(accounts: list) -> None:
     os.makedirs(CONFIGS_DIR, exist_ok=True)
     with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:

@@ -3,7 +3,8 @@ export interface Account {
   account_name: string;
   env_type: string;
   login: number;
-  password: string;
+  /** Worker şifreyi asla döndürmez; yalnızca kayıtlı olup olmadığını bildirir. */
+  has_password?: boolean;
   server: string;
   mt5_path: string;
   notes: string;

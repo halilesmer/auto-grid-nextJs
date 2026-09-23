@@ -3,7 +3,8 @@ export interface Account {
   account_name: string;
   env_type: string;
   login: number;
-  password: string;
+  /** Worker şifreyi asla döndürmez; yalnızca kayıtlı olup olmadığını bildirir. */
+  has_password?: boolean;
   server: string;
   mt5_path: string;
   notes: string;
@@ -85,6 +86,8 @@ export interface UseAccountFormReturn {
   errors: AccountFormErrors;
   isSaving: boolean;
   showPassword: boolean;
+  /** Yeni hesapta zorunlu; düzenlemede boş = kayıtlı şifre değişmez. */
+  passwordRequired: boolean;
   handleChange: (name: keyof AccountFormData, value: string | number) => void;
   handleBlur: (name: keyof AccountFormData) => void;
   togglePassword: () => void;
@@ -143,6 +146,7 @@ export interface AccountFormProps {
   isSaving: boolean;
   isLoading?: boolean;
   showPassword: boolean;
+  passwordRequired: boolean;
   mt5Paths: string[];
   isScanningMT5: boolean;
   useCustomPath: boolean;
@@ -170,6 +174,7 @@ export interface MT5PathSelectorProps {
 
 export interface PasswordFieldProps {
   value: string;
+  placeholder?: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
   showPassword: boolean;

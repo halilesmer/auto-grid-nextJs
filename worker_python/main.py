@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from src.api import api_router
+from src.api.auth import API_KEY_HEADER, api_key_required, is_valid_api_key, redact_api_key
 from src.api.ws_server import router as ws_router
 
 
@@ -16,7 +17,21 @@ class _NoisyEndpointFilter(logging.Filter):
         return "/api/logs" not in record.getMessage()
 
 
+class _RedactApiKeyFilter(logging.Filter):
+    """WebSocket anahtarı sorgu parametresiyle gelir (?api_key=...); uvicorn bunu
+    istek yoluyla birlikte loglar. Anahtar konsola/log dosyasına düşmesin."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        if "api_key=" in message:
+            record.msg = redact_api_key(message)
+            record.args = None
+        return True
+
+
 logging.getLogger("uvicorn.access").addFilter(_NoisyEndpointFilter())
+for _logger_name in ("uvicorn.access", "uvicorn.error"):
+    logging.getLogger(_logger_name).addFilter(_RedactApiKeyFilter())
 
 app = FastAPI(title="Auto Grid Bot API")
 
@@ -28,6 +43,12 @@ async def _startup_maintenance():
     import asyncio
     from src.api.bot_control import startup_maintenance
     from src.utils.bot_watchdog import run_watchdog
+
+    if not api_key_required():
+        print(
+            "⚠️ WARNING: WORKER_API_KEY ayarlı değil - /api/* ve /ws/stream kimlik doğrulamasız, "
+            "ngrok URL'sini bilen herkes erişebilir. Bkz. docs/windows_start_guide.md"
+        )
 
     loop = asyncio.get_running_loop()
     loop.create_task(asyncio.to_thread(startup_maintenance))
@@ -54,6 +75,23 @@ async def _unhandled_error_as_json(request: Request, call_next):
             status_code=500,
             content={"detail": f"Worker error in {request.url.path}: {type(exc).__name__}: {exc}"},
         )
+
+
+@app.middleware("http")
+async def _require_api_key(request: Request, call_next):
+    """WORKER_API_KEY ayarlıysa /api/* isteklerinde `X-API-Key` başlığını zorunlu kılar.
+
+    CORS middleware'inden ÖNCE eklenir (onun içinde çalışır): 401 yanıtı da CORS
+    başlıklarını alır ve preflight (OPTIONS) istekleri başlık taşımadığı için serbesttir.
+    WebSocket'ler buradan geçmez; onlar ws_server.py içinde kontrol edilir.
+    """
+    if (
+        request.method != "OPTIONS"
+        and (request.url.path == "/api" or request.url.path.startswith("/api/"))
+        and not is_valid_api_key(request.headers.get(API_KEY_HEADER))
+    ):
+        return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
+    return await call_next(request)
 
 
 allowed_origins = [

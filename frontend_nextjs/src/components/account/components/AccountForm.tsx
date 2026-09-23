@@ -12,6 +12,7 @@ export function AccountForm({
   isSaving,
   isLoading,
   showPassword,
+  passwordRequired,
   mt5Paths,
   isScanningMT5,
   useCustomPath,
@@ -91,10 +92,11 @@ export function AccountForm({
         </div>
         <div>
           <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            Password *
+            {passwordRequired ? 'Password *' : 'Password'}
           </label>
           <PasswordField
             value={formData.password}
+            placeholder={passwordRequired ? 'MT5 Password' : 'Leave empty to keep current password'}
             onChange={(v) => onChange('password', v)}
             onBlur={() => onBlur('password')}
             showPassword={showPassword}

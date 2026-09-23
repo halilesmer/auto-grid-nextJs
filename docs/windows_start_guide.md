@@ -16,6 +16,22 @@ Auf dem VPS läuft nur der Worker. Das Frontend läuft lokal auf dem MacBook (`n
 - **MetaTrader 5:** Muss geöffnet und eingeloggt sein.  
   `Extras` ➔ `Optionen` ➔ `Experten` ➔ **☑ Algorithmic Trading erlauben** aktivieren.
 
+- **API-Schlüssel (`WORKER_API_KEY`):** Der Worker ist über ngrok öffentlich erreichbar. Ohne Schlüssel kann jeder, der die URL kennt, Bots starten/stoppen, Einstellungen ändern oder `/api/system/update` auslösen. Beim Start ohne Schlüssel schreibt der Worker deshalb `⚠️ WARNING: WORKER_API_KEY ayarlı değil …` in die Konsole.
+  1. Schlüssel erzeugen (z. B. auf dem Mac): `openssl rand -hex 32`
+  2. Auf dem VPS dauerhaft als Benutzer-Umgebungsvariable setzen (danach `start.bat` **neu** per Doppelklick starten; bereits offene Konsolen sehen die Variable nicht):
+     ```cmd
+     setx WORKER_API_KEY "<schluessel>"
+     ```
+  3. Auf dem Mac denselben Wert in `frontend_nextjs/.env.local` eintragen und `npm run dev:frontend` neu starten (`NEXT_PUBLIC_*`-Variablen werden nur beim Start eingelesen):
+     ```
+     NEXT_PUBLIC_WORKER_API_KEY=<schluessel>
+     ```
+  
+  Ist `WORKER_API_KEY` gesetzt, verlangt der Worker den Schlüssel bei jedem `/api/*`-Request im Header `X-API-Key` (sonst `401`) und beim WebSocket `/ws/stream` als Query-Parameter `?api_key=…` (Browser können bei WebSockets keine Header setzen; sonst wird die Verbindung abgelehnt). Ist die Variable nicht gesetzt, läuft alles wie bisher ohne Schlüssel.
+  
+  Reihenfolge beim Umstellen: erst den Schlüssel im Frontend eintragen (ein Worker ohne Schlüssel ignoriert den Header), dann den Worker mit gesetztem `WORKER_API_KEY` neu starten. Der Schlüssel landet im Browser-Bundle – das Frontend deshalb nur lokal betreiben und nicht öffentlich deployen. Schlüssel wechseln = beide Werte ändern und beide Seiten neu starten.
+- **MT5-Passwörter:** Die API gibt gespeicherte Passwörter nicht mehr zurück (`GET /api/accounts` liefert nur `has_password`). Beim Bearbeiten eines Kontos bleibt das Passwortfeld leer; leer lassen = gespeichertes Passwort bleibt erhalten.
+
 ---
 
 ### 1. Terminal: FastAPI Backend (Worker)

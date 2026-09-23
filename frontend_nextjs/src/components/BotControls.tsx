@@ -9,16 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
 import { cn } from '@/lib/utils';
-import axios from 'axios';
+import { API, axiosInstance } from '@/lib/api';
 import { useAccountStore, useBotRuntimeStore, useLogsStore } from '@/store';
 import { getApiErrorMessage } from '@/lib/apiError';
-
-const rawAPI =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://tweet-overlying-monotone.ngrok-free.dev";
-const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
-
-axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function BotControls() {
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
@@ -65,10 +58,9 @@ export default function BotControls() {
     }, 180_000);
 
     try {
-      const res = await axios.post(
+      const res = await axiosInstance.post(
         `${API}/start?account_id=${selectedAccount}`,
         {},
-        { headers: { "ngrok-skip-browser-warning": "true" } },
       );
       pushActivity("info", res.data?.message || "Worker accepted the start request.");
       if (useBotRuntimeStore.getState().isConnecting) {
@@ -93,10 +85,9 @@ export default function BotControls() {
     setError("");
     pushActivity("info", `Stop requested for account ${selectedAccount}…`);
     try {
-      await axios.post(
+      await axiosInstance.post(
         `${API}/stop?account_id=${selectedAccount}`,
         {},
-        { headers: { "ngrok-skip-browser-warning": "true" } },
       );
       pushActivity("success", "Bot stopped. Positions and pending orders stay at the broker.");
     } catch (err) {

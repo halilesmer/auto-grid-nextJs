@@ -19,7 +19,8 @@ function accountToFormData(account: Account): AccountFormData {
   return {
     account_name: account.account_name,
     login: account.login,
-    password: account.password,
+    // Şifre API'den gelmez; boş bırakılırsa worker kayıtlı şifreyi korur
+    password: '',
     server: account.server,
     env_type: account.env_type as 'DEMO' | 'LIVE',
     mt5_path: account.mt5_path,
@@ -43,6 +44,9 @@ export function useAccountForm({
   const [isSaving, setIsSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState<Partial<Record<keyof AccountFormData, boolean>>>({});
+
+  // Düzenlemede şifre yalnızca worker'da hiç kayıtlı değilse zorunlu
+  const passwordRequired = !initialData || initialData.has_password === false;
 
   const resetForm = useCallback((data?: Account | null) => {
     setFormData(data ? accountToFormData(data) : emptyFormData());
@@ -82,7 +86,7 @@ export function useAccountForm({
         }
         break;
       case 'password':
-        if (!value || String(value).trim() === '') {
+        if (passwordRequired && (!value || String(value).trim() === '')) {
           error = 'Password is required';
         }
         break;
@@ -100,7 +104,7 @@ export function useAccountForm({
 
     setErrors((prev) => ({ ...prev, [name]: error }));
     return !error;
-  }, [formData]);
+  }, [formData, passwordRequired]);
 
   const handleBlur = useCallback((name: keyof AccountFormData) => {
     setTouched((prev) => ({ ...prev, [name]: true }));
@@ -195,6 +199,7 @@ export function useAccountForm({
     errors: displayErrors,
     isSaving,
     showPassword,
+    passwordRequired,
     handleChange,
     handleBlur,
     togglePassword,

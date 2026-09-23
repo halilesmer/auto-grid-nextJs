@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useBotRuntimeStore } from './useBotRuntimeStore';
 import { useLogsStore } from './useLogsStore';
 import { Metrics, LiveData } from './types';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, WORKER_API_KEY } from '@/lib/api';
 
 const MAX_RETRIES = 10;
 const BASE_DELAY_MS = 1000;
@@ -16,7 +16,9 @@ type WSMessage =
   | { type: 'LOG'; payload: { logType: 'robot' | 'mt5'; line: string } };
 
 function buildWsUrl(): string {
-  return API_BASE.replace(/^http/, 'ws').replace(/\/api$/, '') + '/ws/stream';
+  const url = API_BASE.replace(/^http/, 'ws').replace(/\/api$/, '') + '/ws/stream';
+  // Tarayıcılar WebSocket'e başlık ekleyemez → anahtar sorgu parametresiyle gider
+  return WORKER_API_KEY ? `${url}?api_key=${encodeURIComponent(WORKER_API_KEY)}` : url;
 }
 
 export function useWebSocketManager(selectedAccount: string | null): {

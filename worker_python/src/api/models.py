@@ -7,7 +7,8 @@ class AccountModel(BaseModel):
     account_name: str
     env_type: str = "DEMO"
     login: int | str
-    password: str
+    # Oluştururken zorunlu; güncellemede boş/eksik = kayıtlı şifre korunur (bkz. accounts.py)
+    password: Optional[str] = ""
     server: str
     mt5_path: Optional[str] = ""
     notes: Optional[str] = ""

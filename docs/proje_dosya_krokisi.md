@@ -124,7 +124,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📂 src
 ┃ ┃ ┣ 📂 api                    # API katmanı (Modüler Router Yapısı)
 ┃ ┃ ┃ ┣ 📜 __init__.py
-┃ ┃ ┃ ┣ 📜 accounts.py          # Hesap CRUD endpoint'leri
+┃ ┃ ┃ ┣ 📜 accounts.py          # Hesap CRUD endpoint'leri (şifre asla dönmez → has_password)
+┃ ┃ ┃ ┣ 📜 auth.py              # WORKER_API_KEY kontrolü (X-API-Key başlığı / WS ?api_key=)
 ┃ ┃ ┃ ┣ 📜 bot_control.py       # Bot başlat/durdur/temizle endpoint'leri
 ┃ ┃ ┃ ┣ 📜 errors.py            # Merkezi hata yönetimi
 ┃ ┃ ┃ ┣ 📜 helpers.py           # API yardımcı fonksiyonları
@@ -290,7 +291,8 @@ grid_orchestrator (Ana Orkestratör)
 | `system.py` | `/api/system` | Sistem durumu, versiyon, sağlık kontrolü |
 | `ui_state.py` | `/api/ui-state` | UI state kaydetme/yükleme (panel genişlikleri, vb.) |
 | `models.py` | - | Paylaşılan Pydantic modelleri (Request/Response) |
-| `helpers.py` | - | API ortak yardımcı fonksiyonları |
+| `helpers.py` | - | API ortak yardımcı fonksiyonları (`_public_account`: yanıtlardan şifreyi çıkarır) |
+| `auth.py` | - | `WORKER_API_KEY` ayarlıysa `/api/*` için `X-API-Key`, `/ws/stream` için `?api_key=` zorunlu (middleware: `main.py`) |
 | `errors.py` | - | Merkezi exception handler, hata response formatı |
 | `ws_server.py` | `/ws` | WebSocket bağlantı yönetimi, mesaj routing, broadcast |
 
