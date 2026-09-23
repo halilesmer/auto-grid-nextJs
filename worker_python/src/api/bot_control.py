@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 import asyncio
 import os
 import json
+import time
 from src.api.models import ActionRequest, SimPricePayload
 from src.api.helpers import _load_accounts
 from src.utils.mt5_connection import (
@@ -15,9 +16,34 @@ from src.utils.mt5_helpers import (
     _write_cache_file,
 )
 from src.utils.bot_manager import is_bot_running, start_bot_process, stop_bot_process
-from src.utils.paths import get_metrics_path, get_sim_price_path
+from src.utils.paths import (
+    get_err_log_path,
+    get_metrics_path,
+    get_pid_path,
+    get_sim_price_path,
+)
 
 router = APIRouter(tags=["Bot Control"])
+
+
+_LOG_PREFIX = {"error": "🔴 ERROR:", "warning": "⚠️ WARNING:", "info": "ℹ️ INFO:"}
+
+
+def _log_step(account_id: str, msg: str, type: str = "info"):
+    """Start/Stop adımlarını hesabın robot loguna yazar; arayüz LogViewer'da canlı görür.
+    (Aksi halde bu adımlar sadece VPS'teki uvicorn konsolunda kalıyordu.)
+    safe_log ile aynı biçim; ama loglama hiçbir zaman isteği bozmasın diye
+    önce dosyaya yazılır ve konsol çıktısı (Windows kod sayfası) korunur."""
+    line = f"{_LOG_PREFIX.get(type, _LOG_PREFIX['info'])} {msg}"
+    try:
+        with open(get_err_log_path(account_id), "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {line}\n")
+    except Exception:
+        pass
+    try:
+        print(line)
+    except Exception:
+        pass
 
 
 @router.post("/start")
@@ -36,20 +62,38 @@ async def start_bot(account_id: str):
     if not account_config:
         raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
 
+    already_running = is_bot_running(account_id)
+    _log_step(
+        account_id,
+        "[START] Başlatma isteği alındı."
+        + (" (Bot süreci zaten çalışıyor.)" if already_running else ""),
+    )
+
     # 0. Önceki çalışmadan kalan metrikleri (eski startup_error / mt5_connected)
     #    sil; aksi halde arayüz bağlantı sürerken bayat hatayı gösterir.
-    if not is_bot_running(account_id):
+    if not already_running:
         try:
             os.remove(get_metrics_path(account_id))
         except OSError:
             pass
 
     # 1. MT5'e Bağlan
-    ok, _is_timeout, detail = await asyncio.to_thread(
+    _log_step(
+        account_id,
+        f"[START] MT5'e bağlanılıyor (sunucu: {account_config.get('server')}, "
+        f"login: {account_config.get('login')}, zaman aşımı 120 sn)...",
+    )
+    ok, is_timeout, detail = await asyncio.to_thread(
         connect_to_mt5_with_timeout, account_config, 120
     )
     if not ok:
+        _log_step(
+            account_id,
+            f"[START] MT5 bağlantısı başarısız{' (zaman aşımı)' if is_timeout else ''}: {detail}",
+            type="error",
+        )
         raise HTTPException(status_code=500, detail=f"MT5 Connection Failed: {detail}")
+    _log_step(account_id, "[START] MT5 bağlantısı BAŞARILI. Semboller alınıyor...")
 
     # 2. SUBPROCESS BAŞLAMADAN ÖNCE: Sembolleri çek ve broker_symbols.json dosyasını OLUŞTUR!
     try:
@@ -59,16 +103,39 @@ async def start_bot(account_id: str):
             cache_data = _read_cache_file()
             cache_data[account_id] = {s["name"]: s for s in detailed_symbols}
             _write_cache_file(cache_data)
-    except Exception:
-        pass
+            _log_step(account_id, f"[START] {len(detailed_symbols)} sembol önbelleğe alındı.")
+        else:
+            _log_step(account_id, "[START] MT5'ten sembol alınamadı (Market Watch boş?).", type="warning")
+    except Exception as exc:
+        _log_step(account_id, f"[START] Sembol önbelleği oluşturulamadı: {exc}", type="warning")
     finally:
         # FastAPI bağlantısını kapat ki alt süreç MT5'i sorunsuz kilitleyebilsin
         await asyncio.to_thread(shutdown_mt5)
 
     # 3. Alt süreci başlat
+    if already_running:
+        _log_step(account_id, "[START] Bot süreci zaten çalışıyor, yeni süreç açılmadı.")
+        return {
+            "status": "success",
+            "message": f"MT5 Connected, bot already running for {account_id}",
+        }
+
+    _log_step(account_id, "[START] Bot süreci başlatılıyor...")
     success = start_bot_process(account_id, engine_name="Auto Grid")
     if not success:
+        _log_step(account_id, "[START] Bot süreci başlatılamadı (ayrıntı: START_ERROR satırı).", type="error")
         raise HTTPException(status_code=500, detail="Bot süreci başlatılamadı.")
+
+    pid = None
+    try:
+        with open(get_pid_path(account_id), "r") as f:
+            pid = f.read().strip()
+    except OSError:
+        pass
+    _log_step(
+        account_id,
+        f"[START] Bot süreci başlatıldı (PID {pid or '?'}). Bot kendi MT5 bağlantısını kuruyor...",
+    )
 
     return {
         "status": "success",
@@ -78,7 +145,9 @@ async def start_bot(account_id: str):
 
 @router.post("/stop")
 async def stop_bot(account_id: str):
+    _log_step(account_id, "[STOP] Durdurma isteği alındı. Açık pozisyon/emirlere dokunulmuyor.")
     stop_bot_process(account_id)
+    _log_step(account_id, "[STOP] Bot süreci durduruldu.")
     try:
         await asyncio.to_thread(shutdown_mt5)
     except Exception:

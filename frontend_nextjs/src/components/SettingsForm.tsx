@@ -4,6 +4,7 @@ import { AlertTriangle, Minus, Plus, Save } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { axiosInstance } from '@/services/api';
+import { getApiErrorMessage } from '@/lib/apiError';
 import { useAccountStore, useSettingsStore } from '@/store';
 
 const MIN_INTERVAL = 1;
@@ -61,8 +62,7 @@ export default function SettingsForm() {
       setOriginalInterval(loopInterval);
       setGlobalSettings({ LOOP_INTERVAL_SECONDS: loopInterval });
     } catch (err: unknown) {
-      const apiError = err as { response?: { data?: { detail?: string } } };
-      setError(apiError.response?.data?.detail || 'Failed to save settings.');
+      setError(await getApiErrorMessage(err, 'Failed to save settings'));
     } finally {
       setSaving(false);
     }

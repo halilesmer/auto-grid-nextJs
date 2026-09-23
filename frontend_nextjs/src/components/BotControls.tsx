@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import ConfirmModal from '@/components/ConfirmModal';
 import axios from 'axios';
-import { useAccountStore, useBotRuntimeStore } from '@/store';
+import { useAccountStore, useBotRuntimeStore, useLogsStore } from '@/store';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -22,6 +23,7 @@ export default function BotControls() {
   const setIsRunning = useBotRuntimeStore((s) => s.setIsRunning);
   const setIsConnecting = useBotRuntimeStore((s) => s.setIsConnecting);
   const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
+  const pushActivity = useLogsStore((s) => s.pushActivity);
   const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
@@ -45,56 +47,61 @@ export default function BotControls() {
 
     setIsConnecting(true);
     setIsRunning(true);
+    pushActivity("info", `Start requested for account ${selectedAccount} – worker is connecting to MT5…`);
 
     // Worker MT5'e önce API sürecinde, sonra bot sürecinde bağlanır (her biri
     // 120 sn'ye kadar). 15 sn sonra "Stopped" göstermek bağlantıyı yarıda
     // bırakılmış gibi gösteriyordu.
     if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
     unlockTimerRef.current = setTimeout(() => {
+      if (!useBotRuntimeStore.getState().isConnecting) return;
       setIsConnecting(false);
+      pushActivity("warn", "No connection after 180 s – check the Robot Logs tab for details.");
     }, 180_000);
 
     try {
-      await axios.post(
+      const res = await axios.post(
         `${API}/start?account_id=${selectedAccount}`,
         {},
         { headers: { "ngrok-skip-browser-warning": "true" } },
       );
+      pushActivity("info", res.data?.message || "Worker accepted the start request.");
+      if (useBotRuntimeStore.getState().isConnecting) {
+        pushActivity("info", "Bot process started – waiting for it to connect to MT5…");
+      }
     } catch (err) {
       setIsConnecting(false);
       setIsRunning(false);
       if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.detail || "Failed to start bot.");
-      } else {
-        setError("Failed to start bot.");
-      }
+      const message = await getApiErrorMessage(err, "Failed to start bot");
+      setError(message);
+      pushActivity("error", `Start failed: ${message}`);
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, setIsRunning, setIsConnecting, updateLiveData]);
+  }, [selectedAccount, setIsRunning, setIsConnecting, updateLiveData, pushActivity]);
 
   const handleStopBot = useCallback(async () => {
     if (!selectedAccount) return;
     setStopConfirmOpen(false);
     setLoading(true);
     setError("");
+    pushActivity("info", `Stop requested for account ${selectedAccount}…`);
     try {
       await axios.post(
         `${API}/stop?account_id=${selectedAccount}`,
         {},
         { headers: { "ngrok-skip-browser-warning": "true" } },
       );
+      pushActivity("success", "Bot stopped. Positions and pending orders stay at the broker.");
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.detail || "Failed to stop bot.");
-      } else {
-        setError("Failed to stop bot.");
-      }
+      const message = await getApiErrorMessage(err, "Failed to stop bot");
+      setError(message);
+      pushActivity("error", `Stop failed: ${message}`);
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount]);
+  }, [selectedAccount, pushActivity]);
 
   if (!selectedAccount) return null;
 

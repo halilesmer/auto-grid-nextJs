@@ -1,5 +1,6 @@
-import axios from 'axios';
 import { axiosInstance } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/apiError';
+import { useLogsStore } from '@/store';
 
 /**
  * Hesabın log/state/ayar ZIP'ini indirir.
@@ -9,6 +10,8 @@ import { axiosInstance } from '@/lib/api';
  * edilmez; Safari aksi halde indirmeyi sessizce iptal ediyor.
  */
 export async function downloadAccountLogs(accountId: string): Promise<void> {
+  const pushActivity = useLogsStore.getState().pushActivity;
+  pushActivity('info', `Preparing log archive for account ${accountId}…`);
   try {
     const res = await axiosInstance.get(`/logs/download/${accountId}`, {
       responseType: 'blob',
@@ -23,21 +26,10 @@ export async function downloadAccountLogs(accountId: string): Promise<void> {
     a.click();
     a.remove();
     setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    pushActivity('success', `Log archive downloaded (${Math.ceil(res.data.size / 1024)} KB).`);
   } catch (err) {
-    console.error('Log download failed', err);
-    let detail = 'Log download failed.';
-    if (axios.isAxiosError(err)) {
-      const data = err.response?.data;
-      if (data instanceof Blob) {
-        try {
-          detail = JSON.parse(await data.text()).detail || detail;
-        } catch {
-          // JSON olmayan hata gövdesi
-        }
-      } else if (!err.response) {
-        detail = 'Log download failed: worker not reachable.';
-      }
-    }
-    window.alert(detail);
+    const message = await getApiErrorMessage(err, 'Log download failed');
+    pushActivity('error', message);
+    window.alert(message);
   }
 }
