@@ -1,0 +1,7 @@
+# Manuelle Testergebnisse – wird von update_checklist.py --sign geschrieben (oder von Hand).
+# Format:
+#   ENG-13:
+#     status: bestanden      # oder: fehlgeschlagen
+#     datum: 2026-09-24
+#     notiz: optional
+{}
