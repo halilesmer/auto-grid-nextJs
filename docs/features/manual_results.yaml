@@ -4,4 +4,8 @@
 #     status: bestanden      # oder: fehlgeschlagen
 #     datum: 2026-09-24
 #     notiz: optional
-{}
+SYS-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto 7942034
+    im Dropdown, ''Worker online'''

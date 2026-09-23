@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **0/69** abgehakt · ❌ 0 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **1/69** abgehakt · ❌ 0 mit Fehlern · 🐞 6 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -14,7 +14,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 | # | Kategorie | Stand |
 |---|---|---|
-| 1 | **SYS** – Verbindung & Infrastruktur | 0/4 |
+| 1 | **SYS** – Verbindung & Infrastruktur | 1/4 |
 | 2 | **ACC** – Konten | 0/8 |
 | 3 | **SET** – Allgemeine Einstellungen | 0/6 |
 | 4 | **SYM** – Symbole | 0/3 |
@@ -28,10 +28,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 1. SYS – Verbindung & Infrastruktur
 
-- [ ] **SYS-01** Worker erreichbar (REST über ngrok) — 🌐 live ⏳
+- [x] **SYS-01** Worker erreichbar (REST über ngrok) *(teilweise)* — 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - Das Frontend erreicht den Worker über NEXT_PUBLIC_API_URL + /api; axios sendet den ngrok-skip-browser-warning-Header.
   - **Prüfung:** Worker auf dem VPS starten (start.bat), Frontend lokal starten (npm run dev:frontend). → http://localhost:3000 öffnen.
   - **Erwartet:** Kontoliste lädt, im Log-Bereich steht der Worker als online.
+  - 📝 Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto 7942034 im Dropdown, 'Worker online'
 - [ ] **SYS-02** WebSocket-Stream + Reconnect — 🖥️ e2e ⏳ · 🌐 live ⏳
   - Verbindung zu /ws/stream; Nachrichten METRICS, LIVE_DATA, LOG werden in die Stores geleitet; bei Abbruch automatischer Reconnect.
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
