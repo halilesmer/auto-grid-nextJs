@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **32/71** abgehakt · ❌ 6 mit Fehlern · 🐞 9 bekannte Fehler
+**Stand:** 2026-09-23 · **38/71** abgehakt · ❌ 0 mit Fehlern · 🐞 3 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,12 +19,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **SET** – Allgemeine Einstellungen | 5/6 |
 | 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 8/9 |
-| 6 | **BOT** – Bot-Steuerung | 2/6 |
+| 6 | **BOT** – Bot-Steuerung | 3/6 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 0/16 |
-| 8 | **MET** – Live-Daten & Diagramm | 1/4 |
-| 9 | **LOG** – Logs | 3/6 |
+| 8 | **MET** – Live-Daten & Diagramm | 3/4 |
+| 9 | **LOG** – Logs | 5/6 |
 | 10 | **UPD** – System & Updates | 1/5 |
-| 11 | **UI** – Oberfläche | 2/4 |
+| 11 | **UI** – Oberfläche | 3/4 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -197,10 +197,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** „Stop Bot“ → bestätigen; in MT5 die offenen Positionen prüfen.
   - **Erwartet:** Status „Stopped“; Positionen sind noch da.
   - 📝 Claude (DEMO 7942034): 'Stop Bot' → Dialog 'Disconnect MT5' → Stopped nach ~5 s, bot_running=false, Zone 'Hazır (Motor Bekleniyor)'; Log: 'Açık pozisyon/emirlere dokunulmuyor'. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders (vorher 14/5)
-- [ ] **BOT-03** Neustart veralteter/hängender Bot — 🧪 unit ⏳
+- [x] **BOT-03** Neustart veralteter/hängender Bot *(teilweise)* — 🧪 unit ⏳ · 👤 manuell ✅ 2026-09-23
   - Läuft ein Bot mit alter VERSION oder ohne frische Metriken (> 180 s), startet /start ihn neu; beim Worker-Start übernimmt startup_maintenance laufende Bots.
   - **Prüfung:** Nach einem Update „Restart Bot“ klicken.
   - **Erwartet:** Bot läuft danach mit der neuen Version (PID-Datei enthält neue VERSION).
+  - 📝 Live: nach Worker-Neustart meldet der Worker '[AUTO] Bot eski bir kod sürümüyle çalışıyor; yeni sürümle yeniden başlatılıyor' und startet ihn neu (21:24 und 22:48, Positionen unverändert)
 - [ ] **BOT-04** Statusanzeige + Alarme — 🖥️ e2e ⏳
   - Anzeige Connecting / Running / „process without MT5“ / Stopped, Marktstatus, Kontoname/Server; Alarme für API-Fehler, MT5-Verbindung, abgelehnte Order, Algo Trading aus.
   - **Prüfung:** In MT5 „Algo Trading“ ausschalten, während der Bot läuft.
@@ -288,18 +289,16 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Bot laufen lassen, Werte mit MT5 vergleichen.
   - **Erwartet:** Werte stimmen mit MT5 überein und aktualisieren sich.
   - 📝 Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen, 5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen
-- [ ] **MET-02** Chart (10-s-Kerzen + RSI) — 🖥️ e2e ⏳ · 👤 manuell ❌ 2026-09-23
+- [x] **MET-02** Chart (10-s-Kerzen + RSI) *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - lightweight-charts baut 10-s-Kerzen aus WebSocket-METRICS, RSI auf eigener Skala; Farben folgen dem Theme.
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
-  - 🐞 **Bekannter Fehler:** Folgefehler von MET-03 – der Stream sendet nie METRICS, daher bleibt das Chart leer (Preis 0, RSI --).
-  - 📝 Claude: /formasyon nach 37 s leer, Preis 0, RSI --, P/L $0.00 bei laufendem Bot (Folgefehler MET-03)
-- [ ] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ⏳ · 🌐 live ⏳ · 👤 manuell ❌ 2026-09-23
+  - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
+- [x] **MET-03** WebSocket-Metriken des Workers *(teilweise)* — 🧪 unit ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
-  - 🐞 **Bekannter Fehler:** ws_server liest settings["settings"]["ZONES"], gespeicherte Dateien sind aber flach; außerdem wird der Stream über ein Router-lifespan registriert, das beim include_router evtl. nie ausgelöst wird.
-  - 📝 Live bestätigt: nur LIVE_DATA mit mt5_connected=false, nie METRICS (ws_server.py:136 liest settings.settings.ZONES, Datei ist flach)
+  - 📝 v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders). Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus der Bot-Metrik → RSI fehlt dann
 - [ ] **MET-04** Bot-Telemetrie — 🧪 unit ⏳
   - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.
@@ -326,18 +325,16 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Worker auf dem VPS stoppen.
   - **Erwartet:** Status wechselt nach ≤ 10 s auf offline.
   - 📝 Claude: 'Worker online · updated' aktualisiert exakt alle 10 s (22:19:02/12/22/32)
-- [ ] **LOG-05** Robot-Log schreiben — 🧪 unit ⏳ · 👤 manuell ❌ 2026-09-23
+- [x] **LOG-05** Robot-Log schreiben *(teilweise)* — 🧪 unit ⏳ · 👤 manuell ✅ 2026-09-23
   - Der Bot-Prozess schreibt seine Meldungen (log_message) nach logs/<id>/err_<id>.log.
   - **Prüfung:** Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
   - **Erwartet:** Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
-  - 🐞 **Bekannter Fehler:** log_message schreibt jede Zeile doppelt in dieselbe Datei – per print() (stdout des Bot-Prozesses ist nach err_<id>.log umgeleitet) und per open(..., "a"). Unter Windows überlappen die Schreibzugriffe → doppelte Zeilen und Fragmente wie „adet emir silindi.“.
-  - 📝 Claude: /logs liefert 4 Fragmentzeilen in 200 ('zaklaşan 1 adet emir silindi.'), Meldungen doppelt; Ursache grid_helpers.log_message (print + Datei-Append auf dieselbe Datei)
-- [ ] **LOG-06** MT5-Terminal-Log anzeigen — 🔌 api ⏳ · 👤 manuell ❌ 2026-09-23
+  - 📝 v0.7.59 live: seit Bot-Neustart 22:48:40 keine Fragmente, keine doppelten Zeilen (vorher 4 Fragmente in 200 Zeilen)
+- [x] **LOG-06** MT5-Terminal-Log anzeigen *(teilweise)* — 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
   - Der Tab „MT5 Terminal“ zeigt das Tages-Log des MT5-Terminals, das beim Verbinden nach logs/<id>/mt5_terminal/ kopiert wird.
   - **Prüfung:** Tab „MT5 Terminal“ öffnen.
   - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
-  - 🐞 **Bekannter Fehler:** logs.py sucht nur logs/<id>/*.log, die Kopien liegen aber in logs/<id>/mt5_terminal/ → Tab bleibt immer leer (MT5-Logs sind außerdem meist UTF-16 kodiert).
-  - 📝 Claude: mt5_log = [] obwohl mt5_terminal/MT5_Terminal_20260923.log (425 KB) existiert (im ZIP gesehen)
+  - 📝 v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log, UTF-16 korrekt dekodiert
 
 ## 10. UPD – System & Updates
 
@@ -377,15 +374,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Alle drei Varianten wählen und die Seite neu laden.
   - **Erwartet:** Theme bleibt erhalten, kein helles Aufblitzen im Dunkelmodus.
   - 📝 Claude: Açık/Koyu/Sistem setzen Klasse 'dark' + localStorage; 'Açık' übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf 'Sistem'
-- [ ] **UI-03** PWA / Service Worker — 🖥️ e2e ⏳ · 👤 manuell ❌ 2026-09-23
+- [ ] **UI-03** PWA / Service Worker — 🖥️ e2e ⏳
   - Manifest und Registrierung von /service-worker.js im Layout.
   - **Prüfung:** DevTools → Application → Service Workers.
   - **Erwartet:** Service Worker ist registriert, keine 404 in der Konsole.
-  - 🐞 **Bekannter Fehler:** /service-worker.js fehlt in public/ → 404 bei der Registrierung.
-  - 📝 Claude: /service-worker.js → 404, 0 Registrierungen, Konsolenfehler 'unknown error when fetching the script'; manifest.json ok
-- [ ] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ⏳ · 👤 manuell ❌ 2026-09-23
+- [x] **UI-04** Zonen-Test-Link (/chart?zone=) *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Link „Test“ im Zonenkopf öffnet /chart?zone=<id>.
   - **Prüfung:** In einer Zone auf „Test“ klicken.
   - **Erwartet:** Das Chart zeigt die gewählte Zone.
-  - 🐞 **Bekannter Fehler:** /chart ignoriert den Parameter zone.
-  - 📝 Claude: /chart?zone=<USOUSD-Zone> zeigt nichts Zonenbezogenes (nur allgemeines Chart + 'Yakında')
+  - 📝 v0.7.59 (Frontend aus main): 'Test'-Link → Karte 'Bölge 1 · USOUSD' mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien 20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)

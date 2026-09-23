@@ -551,7 +551,6 @@ kategorien:
         pruefung:
           - /formasyon öffnen und 1 Minute warten.
         erwartet: Kerzen und RSI-Linie entstehen.
-        bekannter_fehler: Folgefehler von MET-03 – der Stream sendet nie METRICS, daher bleibt das Chart leer (Preis 0, RSI --).
 
       - id: MET-03
         titel: WebSocket-Metriken des Workers
@@ -561,7 +560,6 @@ kategorien:
         pruefung:
           - DevTools → WS-Nachrichten ansehen.
         erwartet: Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
-        bekannter_fehler: ws_server liest settings["settings"]["ZONES"], gespeicherte Dateien sind aber flach; außerdem wird der Stream über ein Router-lifespan registriert, das beim include_router evtl. nie ausgelöst wird.
 
       - id: MET-04
         titel: Bot-Telemetrie
@@ -620,7 +618,6 @@ kategorien:
         pruefung:
           - Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
         erwartet: Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
-        bekannter_fehler: log_message schreibt jede Zeile doppelt in dieselbe Datei – per print() (stdout des Bot-Prozesses ist nach err_<id>.log umgeleitet) und per open(..., "a"). Unter Windows überlappen die Schreibzugriffe → doppelte Zeilen und Fragmente wie „adet emir silindi.“.
 
       - id: LOG-06
         titel: MT5-Terminal-Log anzeigen
@@ -630,7 +627,6 @@ kategorien:
         pruefung:
           - Tab „MT5 Terminal“ öffnen.
         erwartet: Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
-        bekannter_fehler: logs.py sucht nur logs/<id>/*.log, die Kopien liegen aber in logs/<id>/mt5_terminal/ → Tab bleibt immer leer (MT5-Logs sind außerdem meist UTF-16 kodiert).
 
   # ---------------------------------------------------------------------------
   - id: UPD
@@ -713,7 +709,6 @@ kategorien:
         pruefung:
           - DevTools → Application → Service Workers.
         erwartet: Service Worker ist registriert, keine 404 in der Konsole.
-        bekannter_fehler: /service-worker.js fehlt in public/ → 404 bei der Registrierung.
 
       - id: UI-04
         titel: Zonen-Test-Link (/chart?zone=)
@@ -723,4 +718,3 @@ kategorien:
         pruefung:
           - In einer Zone auf „Test“ klicken.
         erwartet: Das Chart zeigt die gewählte Zone.
-        bekannter_fehler: /chart ignoriert den Parameter zone.

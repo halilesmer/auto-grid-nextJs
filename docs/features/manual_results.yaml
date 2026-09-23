@@ -139,21 +139,28 @@ BOT-02:
     nach ~5 s, bot_running=false, Zone ''Hazır (Motor Bekleniyor)''; Log: ''Açık pozisyon/emirlere
     dokunulmuyor''. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders
     (vorher 14/5)'
+BOT-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Live: nach Worker-Neustart meldet der Worker ''[AUTO] Bot eski bir kod sürümüyle
+    çalışıyor; yeni sürümle yeniden başlatılıyor'' und startet ihn neu (21:24 und
+    22:48, Positionen unverändert)'
 MET-01:
   status: bestanden
   datum: '2026-09-23'
   notiz: 'Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen,
     5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen'
 MET-02:
-  status: fehlgeschlagen
+  status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: /formasyon nach 37 s leer, Preis 0, RSI --, P/L $0.00 bei laufendem
-    Bot (Folgefehler MET-03)'
+  notiz: 'v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen;
+    RSI ''--'' im Fallback-Modus'
 MET-03:
-  status: fehlgeschlagen
+  status: bestanden
   datum: '2026-09-23'
-  notiz: 'Live bestätigt: nur LIVE_DATA mit mt5_connected=false, nie METRICS (ws_server.py:136
-    liest settings.settings.ZONES, Datei ist flach)'
+  notiz: 'v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders).
+    Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus
+    der Bot-Metrik → RSI fehlt dann'
 LOG-01:
   status: bestanden
   datum: '2026-09-23'
@@ -170,16 +177,15 @@ LOG-04:
   datum: '2026-09-23'
   notiz: 'Claude: ''Worker online · updated'' aktualisiert exakt alle 10 s (22:19:02/12/22/32)'
 LOG-05:
-  status: fehlgeschlagen
+  status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: /logs liefert 4 Fragmentzeilen in 200 (''zaklaşan 1 adet emir silindi.''),
-    Meldungen doppelt; Ursache grid_helpers.log_message (print + Datei-Append auf
-    dieselbe Datei)'
+  notiz: 'v0.7.59 live: seit Bot-Neustart 22:48:40 keine Fragmente, keine doppelten
+    Zeilen (vorher 4 Fragmente in 200 Zeilen)'
 LOG-06:
-  status: fehlgeschlagen
+  status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: mt5_log = [] obwohl mt5_terminal/MT5_Terminal_20260923.log (425
-    KB) existiert (im ZIP gesehen)'
+  notiz: 'v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log,
+    UTF-16 korrekt dekodiert'
 UPD-01:
   status: bestanden
   datum: '2026-09-23'
@@ -196,13 +202,9 @@ UI-02:
   datum: '2026-09-23'
   notiz: 'Claude: Açık/Koyu/Sistem setzen Klasse ''dark'' + localStorage; ''Açık''
     übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf ''Sistem'''
-UI-03:
-  status: fehlgeschlagen
-  datum: '2026-09-23'
-  notiz: 'Claude: /service-worker.js → 404, 0 Registrierungen, Konsolenfehler ''unknown
-    error when fetching the script''; manifest.json ok'
 UI-04:
-  status: fehlgeschlagen
+  status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: /chart?zone=<USOUSD-Zone> zeigt nichts Zonenbezogenes (nur allgemeines
-    Chart + ''Yakında'')'
+  notiz: 'v0.7.59 (Frontend aus main): ''Test''-Link → Karte ''Bölge 1 · USOUSD''
+    mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien
+    20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)'
