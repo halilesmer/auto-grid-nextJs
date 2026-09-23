@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **2/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **4/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -14,7 +14,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 | # | Kategorie | Stand |
 |---|---|---|
-| 1 | **SYS** – Verbindung & Infrastruktur | 2/4 |
+| 1 | **SYS** – Verbindung & Infrastruktur | 4/4 |
 | 2 | **ACC** – Konten | 0/8 |
 | 3 | **SET** – Allgemeine Einstellungen | 0/6 |
 | 4 | **SYM** – Symbole | 0/3 |
@@ -38,14 +38,16 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [ ] **SYS-03** Plattform-Erkennung — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **SYS-03** Plattform-Erkennung *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /system/platform meldet, ob der Worker unter Windows läuft (steuert u. a. die Anzeige des Preis-Simulators).
   - **Prüfung:** Dashboard gegen den VPS-Worker öffnen.
   - **Erwartet:** Auf Windows wird die „Mac Test Mode“-Leiste NICHT angezeigt.
-- [ ] **SYS-04** MT5-Terminal-Scanner — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳
+  - 📝 Claude: /system/platform → 200 {is_windows: true, platform: win32}; 'Mac Test Mode'-Leiste nicht sichtbar
+- [x] **SYS-04** MT5-Terminal-Scanner *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /system/scan-mt5 sucht terminal64.exe auf dem VPS; der Konto-Dialog bietet die Pfade zur Auswahl an (Rescan, eigener Pfad).
   - **Prüfung:** „Neues Konto“ öffnen, Feld MT5-Pfad ansehen, „Rescan“ klicken. → Checkbox „eigener Pfad“ aktivieren.
   - **Erwartet:** Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
+  - 📝 Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto); Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, 'Manuel Gir' ersetzt Auswahl durch Textfeld; Dialog ohne Speichern geschlossen
 
 ## 2. ACC – Konten
 

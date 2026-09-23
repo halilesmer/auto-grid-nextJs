@@ -15,6 +15,17 @@ SYS-02:
   notiz: 'Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart
     4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft
     → siehe MET-03'
+SYS-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /system/platform → 200 {is_windows: true, platform: win32}; ''Mac
+    Test Mode''-Leiste nicht sichtbar'
+SYS-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto);
+    Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, ''Manuel Gir'' ersetzt Auswahl
+    durch Textfeld; Dialog ohne Speichern geschlossen'
 MET-03:
   status: fehlgeschlagen
   datum: '2026-09-23'
