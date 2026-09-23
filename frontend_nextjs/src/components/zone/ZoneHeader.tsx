@@ -116,7 +116,7 @@ export function ZoneHeader({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.12 }}
-                className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-popover p-1 shadow-xl shadow-black/50"
+                className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-popover p-1 shadow-xl shadow-black/10 dark:shadow-black/50"
               >
                 <button
                   onClick={() => {

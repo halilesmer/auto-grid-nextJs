@@ -39,7 +39,7 @@ export function AccountFormDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="m-auto w-[calc(100%-2rem)] max-w-2xl rounded-xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl shadow-black/60 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+      className="m-auto w-[calc(100%-2rem)] max-w-2xl rounded-xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl shadow-black/15 dark:shadow-black/60 backdrop:bg-black/40 dark:backdrop:bg-black/70 backdrop:backdrop-blur-sm"
       onClose={handleClose}
       onKeyDown={handleKeyDown}
     >

@@ -28,7 +28,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
       {open && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <motion.div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -42,7 +42,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
             className={cn(
-              'relative w-full max-w-md rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl shadow-black/60',
+              'relative w-full max-w-md rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl shadow-black/15 dark:shadow-black/60',
               className,
             )}
           >

@@ -31,7 +31,7 @@ export function Alert({ tone = 'danger', title, children, onDismiss, className }
         <button
           type="button"
           onClick={onDismiss}
-          className="-m-1 rounded p-1 opacity-70 transition hover:bg-white/5 hover:opacity-100"
+          className="-m-1 rounded p-1 opacity-70 transition hover:bg-foreground/5 hover:opacity-100"
           aria-label="Dismiss"
         >
           <X className="size-3.5" />

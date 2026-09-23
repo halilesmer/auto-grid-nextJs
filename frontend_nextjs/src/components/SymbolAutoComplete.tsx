@@ -156,7 +156,7 @@ export default function SymbolAutoComplete({
           ref={listRef}
           id="symbol-suggestions"
           role="listbox"
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 text-sm shadow-2xl shadow-black/60"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 text-sm shadow-2xl shadow-black/15 dark:shadow-black/60"
         >
           {filteredSymbols.map((sym, index) => (
             <li
@@ -181,7 +181,7 @@ export default function SymbolAutoComplete({
       )}
 
       {isOpen && shouldFilter && filteredSymbols.length === 0 && symbols.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover p-3 text-sm text-muted-foreground shadow-2xl shadow-black/60">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover p-3 text-sm text-muted-foreground shadow-2xl shadow-black/15 dark:shadow-black/60">
           Sembol bulunamadı
         </div>
       )}
