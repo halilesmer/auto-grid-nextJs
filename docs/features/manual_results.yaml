@@ -42,6 +42,31 @@ ACC-07:
   datum: '2026-09-23'
   notiz: 'Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis:
     ohne Kontoauswahl zeigt der Header ebenfalls TEST'
+SET-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: GET /settings/7942034 → flache Datei settings_7942034.json (LOOP_INTERVAL_SECONDS,
+    ZONES); UI zeigt alle Werte korrekt (siehe ACC-06)'
+SET-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: + → 1,1 und Kaydet aktiv; 61 → 60, 0 → 1 begrenzt; gespeichert →
+    API 1,1, bleibt nach Neuladen; per − zurück auf 1 gespeichert'
+SET-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge ''Kaydedilmedi'';
+    ''Kaydet'' in der Leiste → API 201, Leiste weg; zurück auf 200 über ''Tüm Ayarları
+    Kaydet'' → API 200, ''Kaydedildi'''
+SET-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: POST LOOP_INTERVAL_SECONDS 1.00000001 → gespeichert als 1.0'
+SET-05:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen
+    danach identisch mit Sicherung'
 MET-03:
   status: fehlgeschlagen
   datum: '2026-09-23'

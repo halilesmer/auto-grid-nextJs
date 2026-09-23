@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **7/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **12/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -16,7 +16,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 4/4 |
 | 2 | **ACC** – Konten | 3/8 |
-| 3 | **SET** – Allgemeine Einstellungen | 0/6 |
+| 3 | **SET** – Allgemeine Einstellungen | 5/6 |
 | 4 | **SYM** – Symbole | 0/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 0/9 |
 | 6 | **BOT** – Bot-Steuerung | 0/6 |
@@ -89,26 +89,31 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 3. SET – Allgemeine Einstellungen
 
-- [ ] **SET-01** Einstellungen laden — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳
+- [x] **SET-01** Einstellungen laden *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
   - **Prüfung:** Konto wählen.
   - **Erwartet:** Zonen und Kontroll-Intervall entsprechen der Datei auf dem VPS.
-- [ ] **SET-02** Kontroll-Intervall (LOOP_INTERVAL_SECONDS) — 🖥️ e2e ⏳
+  - 📝 Claude: GET /settings/7942034 → flache Datei settings_7942034.json (LOOP_INTERVAL_SECONDS, ZONES); UI zeigt alle Werte korrekt (siehe ACC-06)
+- [x] **SET-02** Kontroll-Intervall (LOOP_INTERVAL_SECONDS) *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Stepper „Kontrol Sıklığı“ 1–60 s in 0,1er-Schritten; „Kaydet“ ist nur bei Änderung aktiv.
   - **Prüfung:** Mit −/+ den Wert ändern, 0 und 61 eintippen, speichern, neu laden.
   - **Erwartet:** Werte außerhalb 1–60 werden begrenzt; gespeicherter Wert bleibt nach Neuladen.
-- [ ] **SET-03** „Alle speichern“ + Dirty-Tracking — 🖥️ e2e ⏳
+  - 📝 Claude: + → 1,1 und Kaydet aktiv; 61 → 60, 0 → 1 begrenzt; gespeichert → API 1,1, bleibt nach Neuladen; per − zurück auf 1 gespeichert
+- [x] **SET-03** „Alle speichern“ + Dirty-Tracking *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert).
   - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
-- [ ] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ⏳ · 🔌 api ⏳
+  - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
+- [x] **SET-04** Werte bereinigen (Sanitizing) *(teilweise)* — 🧪 unit ⏳ · 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
   - Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
   - **Prüfung:** Lot 0.0100000001 eingeben und speichern.
   - **Erwartet:** Gespeichert wird 0.01.
-- [ ] **SET-05** Einstellungen zusammenführen (Merge) — 🔌 api ⏳
+  - 📝 Claude: POST LOOP_INTERVAL_SECONDS 1.00000001 → gespeichert als 1.0
+- [x] **SET-05** Einstellungen zusammenführen (Merge) *(teilweise)* — 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
   - POST /settings/{id} führt die neuen Werte mit der bestehenden Datei zusammen, statt sie zu überschreiben.
   - **Prüfung:** Nur das Intervall speichern.
   - **Erwartet:** Zonen bleiben unverändert.
+  - 📝 Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen danach identisch mit Sicherung
 - [ ] **SET-06** Globale Standardwerte (GLOBAL_*) — 🧪 unit ⏳
   - Standardwerte GLOBAL_GRID_STEP, GLOBAL_TAKE_PROFIT, GLOBAL_DEFAULT_LOT, MAX_OPEN_POSITIONS, MIN/MAX_PRICE_LIMIT, CLEAR_ON_ZONE_EXIT in utils/config.py.
   - **Prüfung:** Nicht manuell testbar.
