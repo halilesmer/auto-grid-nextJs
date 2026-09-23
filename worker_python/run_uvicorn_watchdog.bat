@@ -1,0 +1,13 @@
+@echo off
+REM Startet main.py und startet automatisch neu, falls der Prozess abstuerzt oder beendet wird.
+REM main.py aktiviert --reload nur, wenn ENV=development gesetzt ist (siehe main.py) -
+REM im Produktivbetrieb bewusst OHNE Reload, damit ein laufender Request/MT5-Vorgang
+REM nicht durch einen Datei-Watcher unterbrochen wird.
+cd /d "%~dp0"
+
+:loop
+.venv\Scripts\python.exe main.py
+echo.
+echo [Watchdog] Server beendet oder abgestuerzt - Neustart in 3 Sekunden... (CTRL+C zum Beenden)
+timeout /t 3 /nobreak >nul
+goto loop
