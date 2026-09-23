@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **23/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **25/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,7 +19,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **SET** – Allgemeine Einstellungen | 5/6 |
 | 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 8/9 |
-| 6 | **BOT** – Bot-Steuerung | 0/6 |
+| 6 | **BOT** – Bot-Steuerung | 2/6 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 0/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 0/4 |
 | 9 | **LOG** – Logs | 0/4 |
@@ -187,14 +187,16 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 6. BOT – Bot-Steuerung
 
-- [ ] **BOT-01** Bot starten — 🌐 live ⏳
+- [x] **BOT-01** Bot starten *(teilweise)* — 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - POST /start verbindet MT5 (Timeout 120 s), cached die Symbole, startet bot_runner.py als eigenen Prozess und stellt ihn unter Watchdog. UI-Timeout für „Connecting“ 180 s.
   - **Prüfung:** DEMO-Konto wählen, „Start Bot“.
   - **Erwartet:** Status wechselt über „Connecting“ zu „Running“, Markt offen/geschlossen wird angezeigt.
-- [ ] **BOT-02** Bot stoppen — 🌐 live ⏳
+  - 📝 Claude (DEMO 7942034): 'Start Bot' → Connecting → Running nach 5 s; Log: MT5-Login ok, 812 Symbole gecacht, Subprozess gestartet, Zone 0 aus Magic-Numbers als START wiederhergestellt, 'Yeni Bölgeye Girildi: Bölge 1'; keine Alarme, Zone 'Başladı'
+- [x] **BOT-02** Bot stoppen *(teilweise)* — 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - POST /stop nimmt den Bot aus dem Watchdog und beendet den Prozess; Positionen und Orders bleiben unangetastet. Bestätigung „Disconnect MT5“.
   - **Prüfung:** „Stop Bot“ → bestätigen; in MT5 die offenen Positionen prüfen.
   - **Erwartet:** Status „Stopped“; Positionen sind noch da.
+  - 📝 Claude (DEMO 7942034): 'Stop Bot' → Dialog 'Disconnect MT5' → Stopped nach ~5 s, bot_running=false, Zone 'Hazır (Motor Bekleniyor)'; Log: 'Açık pozisyon/emirlere dokunulmuyor'. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders (vorher 14/5)
 - [ ] **BOT-03** Neustart veralteter/hängender Bot — 🧪 unit ⏳
   - Läuft ein Bot mit alter VERSION oder ohne frische Metriken (> 180 s), startet /start ihn neu; beim Worker-Start übernimmt startup_maintenance laufende Bots.
   - **Prüfung:** Nach einem Update „Restart Bot“ klicken.
