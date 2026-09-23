@@ -242,7 +242,9 @@ def handle_zone_exit(
 
     log_message(f"🧹 Toplam {silinen_emir_sayisi} adet bekleyen {target} emri temizlendi.")
 
-    if "Pozisyon" in scope or "Tümü" in scope or "Hepsi" in scope:
+    # Arayüz "Tüm İşlemler" kaydeder; "Pozisyon"/"Tümü"/"Hepsi" eski (Streamlit) değerler.
+    # "Tüm" kontrolü olmadan "Tüm İşlemler" seçiliyken pozisyonlar hiç kapatılmıyordu.
+    if any(key in scope for key in ("Tüm", "Pozisyon", "Hepsi")):
         kapatilan_poz_sayisi = 0
         for pos in robot_positions:
             if pos.magic == target_magic:

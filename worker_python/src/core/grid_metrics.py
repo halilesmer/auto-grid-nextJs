@@ -4,8 +4,10 @@ from src.core.grid_helpers import is_market_open
 BASE_MAGIC_NUMBER = 200000
 
 
-def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused):
+def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, zone_states=None):
     metrics = {
+        # Motorun bölge durumları ({"0": "AUTO_CLEAR", ...}); arayüz bölgede uyarı + "Yeniden Başlat" gösterir
+        "zone_states": {str(k): v for k, v in (zone_states or {}).items()},
         "profit": 0.0,
         "open_positions": 0,
         "pending_orders": 0,

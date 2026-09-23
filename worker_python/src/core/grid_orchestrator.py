@@ -12,7 +12,7 @@ from .grid_zone_selector import (
     detect_zone_entry,
     is_zone_exited,
 )
-from .grid_zone_state import process_zone_commands
+from .grid_zone_state import STOPPED_ZONE_STATES, process_zone_commands
 from .grid_order_manager import (
     clean_zombie_orders,
     process_partial_fills_and_tpsl,
@@ -135,6 +135,9 @@ def manage_dynamic_grid(
             # Arayüze "DURDURULDU" bilgisini yalnızca clear_on_exit açıksa ilet
             # (eski davranış). Kapalıysa bölgenin bekleyen emirleri korunur.
             if should_mark_cleared:
+                # Hafızada da hemen işaretle: aynı turda zones[0]'a düşülüp sınırda
+                # tekrar emir konmasın (dosya ancak sonraki turda okunur).
+                active_zones_state[active_zone_idx] = "AUTO_CLEAR"
                 account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
                 states_file = get_ui_state_path(account_id)
                 try:
@@ -161,7 +164,9 @@ def manage_dynamic_grid(
         return True, active_zone, active_zone_idx
 
     is_zone_active = str(target_zone.get("is_active", True)).lower() != "false"
-    if active_zones_state.get(target_idx) == "PAUSE":
+    # Sadece PAUSE değil: AUTO_CLEAR/CLEAR bölgesi de emir koymamalı. Aksi halde
+    # clean_zombie_orders her tur siliyor, burada her tur yeniden konuyordu.
+    if active_zones_state.get(target_idx) in STOPPED_ZONE_STATES:
         is_zone_active = False
     if not is_zone_active:
         return True, active_zone, active_zone_idx

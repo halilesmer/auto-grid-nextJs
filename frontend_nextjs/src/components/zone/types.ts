@@ -32,7 +32,11 @@ export interface ZoneHeaderProps {
   isGlobalRunning: boolean;
   modified: boolean;
   disableButtons: boolean;
+  /** Motorun bu bölge için durumu (liveData.zone_states), ör. "AUTO_CLEAR" */
+  engineState?: string;
+  remotePaused?: boolean;
   onToggleActive: (zoneId: string, currentActive: boolean) => void;
+  onRestart: (zoneId: string) => void;
   onDelete: () => void;
 }
 
@@ -85,7 +89,10 @@ export interface ZoneCardProps {
   disableButtons: boolean;
   onUpdate: (zoneId: string, field: string, value: unknown) => void;
   onToggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
+  onRestart: (zoneId: string) => Promise<void>;
   onDelete: () => void;
+  /** Bölgenin sırası (motor bölgeleri kayıtlı sıraya göre numaralar) */
+  zoneIndex: number;
   liveData: LiveData;
   isRunning: boolean;
   symbolDetails: Record<string, SymbolDetail>;

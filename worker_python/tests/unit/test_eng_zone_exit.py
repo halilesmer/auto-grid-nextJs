@@ -87,11 +87,6 @@ def test_kerzenschluss_ausloeser(fake_mt5, ui_state_file):
 
 
 @pytest.mark.feature("ENG-10")
-@pytest.mark.xfail(
-    strict=True,
-    reason="Bekannter Fehler: Die UI speichert clear_scope='Tüm İşlemler', handle_zone_exit "
-    "prüft aber nur auf 'Pozisyon'/'Tümü'/'Hepsi' → Positionen werden nie geschlossen",
-)
 def test_umfang_tuem_islemler_schliesst_auch_positionen(fake_mt5):
     zone = make_zone(order_type="BUY", clear_on_exit=True, clear_scope="Tüm İşlemler")
     _, pos = _enter_then_exit(fake_mt5, zone, exit_bid=111.0)
@@ -99,12 +94,6 @@ def test_umfang_tuem_islemler_schliesst_auch_positionen(fake_mt5):
 
 
 @pytest.mark.feature("ENG-10")
-@pytest.mark.xfail(
-    strict=True,
-    reason="Bekannter Fehler: Nach dem Räumen fällt manage_dynamic_grid auf zones[0] zurück; "
-    "AUTO_CLEAR blockiert die Platzierung nicht (nur PAUSE). Liegt der Kurs knapp außerhalb, "
-    "werden die Grenz-Orders jeden Tick gelöscht (Zombie) und sofort neu gesetzt",
-)
 def test_nach_austritt_werden_keine_orders_neu_gesetzt(fake_mt5):
     m = fake_mt5
     zone = make_zone(order_type="BUY", clear_on_exit=True, min_price=90, max_price=97.2)
@@ -116,3 +105,39 @@ def test_nach_austritt_werden_keine_orders_neu_gesetzt(fake_mt5):
         engine.tick()
     new_pending = [r for r in m.sent[sent_before:] if r["action"] == m.TRADE_ACTION_PENDING]
     assert new_pending == [], f"{len(new_pending)} neue Pending Orders in 3 Ticks nach dem Austritt"
+
+
+@pytest.mark.feature("ENG-10")
+def test_nach_auto_clear_bleibt_die_zone_auch_bei_rueckkehr_gestoppt(fake_mt5, ui_state_file):
+    m = fake_mt5
+    zone = make_zone(order_type="BUY", clear_on_exit=True, min_price=90, max_price=97.2)
+    engine = EngineHarness(m, [zone])
+    engine.tick()
+    m.set_price("USOUSD", 99.0, fill=False)
+    engine.tick()
+    assert engine.active_zones_state[0] == "AUTO_CLEAR"
+
+    m.set_price("USOUSD", 96.5, fill=False)  # Kurs kommt zurück in die Zone
+    sent_before = len(m.sent)
+    for _ in range(3):
+        engine.tick()
+    assert m.sent[sent_before:] == []  # keine Orders, kein Hin und Her
+    assert engine.active_zones_state[0] == "AUTO_CLEAR"
+
+
+@pytest.mark.feature("ENG-10")
+def test_neustart_aus_dem_dashboard_nimmt_die_zone_wieder_auf(fake_mt5, ui_state_file):
+    m = fake_mt5
+    zone = make_zone(order_type="BUY", clear_on_exit=True, min_price=90, max_price=97.2)
+    engine = EngineHarness(m, [zone])
+    engine.tick()
+    m.set_price("USOUSD", 99.0, fill=False)
+    engine.tick()
+    m.set_price("USOUSD", 96.5, fill=False)
+    engine.tick()
+    assert m.robot_orders() == []
+
+    ui_state_file.write_text(json.dumps({"0": "START"}))  # „Yeniden Başlat“ → POST /ui-state
+    engine.tick()
+    assert engine.active_zones_state[0] == "START"
+    assert len(m.robot_orders()) > 0

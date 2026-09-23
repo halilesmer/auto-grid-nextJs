@@ -103,6 +103,10 @@ export interface LiveData {
   startup_error?: string | null;
   // Worker: bot süreci (bot_runner) çalışıyor mu – MT5 bağlantısından bağımsız
   bot_running?: boolean;
+  // Motorun bölge durumları, bölge sırasına göre: {"0": "START" | "PAUSE" | "AUTO_CLEAR" | "CLEAR"}
+  zone_states?: Record<string, string>;
+  // Motor telefondan ($1 sinyali / GRID:STOP) durduruldu
+  remote_paused?: boolean;
 }
 
 export interface UpdateInfo {
