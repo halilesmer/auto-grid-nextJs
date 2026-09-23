@@ -8,8 +8,18 @@ import tempfile
 import zipfile
 from src.api.helpers import _find_settings_file, LOGS_DIR, BASE_DIR
 from src.utils.bot_manager import is_bot_running
+from src.utils.paths import get_mt5_backup_dir
 
 router = APIRouter(tags=["Logs"])
+
+
+def _decode_log_bytes(raw: bytes) -> str:
+    """MT5 terminal logları genelde BOM'lu UTF-16 LE'dir; robot logları UTF-8."""
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16", errors="replace")
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return raw.decode("utf-8-sig", errors="replace")
+    return raw.decode("utf-8", errors="replace")
 
 
 @router.get("/logs/{account_id}")
@@ -23,8 +33,8 @@ async def get_logs(
     def _tail(filepath: str, n: int) -> list[str]:
         if not os.path.exists(filepath):
             return []
-        with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
-            all_lines = fh.readlines()
+        with open(filepath, "rb") as fh:
+            all_lines = _decode_log_bytes(fh.read()).splitlines()
         return [ln.rstrip() for ln in all_lines[-n:]]
 
     def _read_json(filepath: str):
@@ -51,12 +61,13 @@ async def get_logs(
 
     if log_type in ("mt5", "all"):
         mt5_lines: list[str] = []
-        mt5_pattern = os.path.join(LOGS_DIR, account_id, "*.log")
-        for lf in sorted(glob.glob(mt5_pattern)):
-            if "err_" not in os.path.basename(lf):
-                mt5_lines = _tail(lf, lines)
-                if mt5_lines:
-                    break
+        # MT5 terminal logları bağlanırken logs/<id>/mt5_terminal/MT5_Terminal_<YYYYMMDD>.log
+        # olarak kopyalanır (mt5_helpers.backup_mt5_logs_helper); en yenisinden başla.
+        mt5_pattern = os.path.join(get_mt5_backup_dir(account_id), "MT5_Terminal_*.log")
+        for lf in sorted(glob.glob(mt5_pattern), reverse=True):
+            mt5_lines = _tail(lf, lines)
+            if mt5_lines:
+                break
         result["mt5_log"] = mt5_lines
 
     if log_type in ("metrics", "all"):

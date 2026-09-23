@@ -1,6 +1,7 @@
 import time
 import datetime
 import os
+import sys
 from src.utils.paths import get_err_log_path
 
 LOG_TO_FILE = True
@@ -9,7 +10,11 @@ LOG_TO_FILE = True
 def log_message(msg, level="INFO"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted = f"[{timestamp}] [{level}] {msg}"
-    print(formatted)
+    # Bot alt süreci olarak çalışırken stdout zaten err_<id>.log'a gider; burada da
+    # print edilirse her satır dosyaya iki kez yazılır. Konsola sadece elle
+    # (terminalden) çalıştırıldığında yaz.
+    if sys.stdout is not None and sys.stdout.isatty():
+        print(formatted)
 
     account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
     if LOG_TO_FILE:

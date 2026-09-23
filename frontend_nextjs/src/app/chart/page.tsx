@@ -1,9 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { ArrowLeft, BarChart3, FlaskConical, Radio, ShieldCheck } from 'lucide-react';
 
 import ChartViewer from '@/components/ChartViewer';
+import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -46,9 +47,16 @@ export default function ChartPage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Chart Section (2/3 width) */}
         <div className="space-y-5 lg:col-span-2">
-          <div className="min-h-125">
-            <ChartViewer />
-          </div>
+          {/* useSearchParams (?zone=) Suspense sınırı gerektirir; aksi halde production build başarısız olur */}
+          <Suspense
+            fallback={
+              <div className="min-h-125">
+                <ChartViewer />
+              </div>
+            }
+          >
+            <ZoneChartPanel />
+          </Suspense>
 
           {/* Future: Statistics Panel Placeholder */}
           <div className="hidden lg:block">

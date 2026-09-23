@@ -4,8 +4,11 @@ import asyncio
 import json
 import os
 import glob
+import time
 import pandas as pd
 from src.core.indicator_calc import get_latest_indicators
+from src.utils.bot_manager import is_bot_running
+from src.utils.paths import get_metrics_path
 
 try:
     import MetaTrader5 as mt5
@@ -113,6 +116,42 @@ def fetch_mt5_data(symbol=""):
     }
 
 
+BOT_METRICS_MAX_AGE_SEC = 30
+
+
+def read_bot_metrics(acc_id: str, symbol: str = ""):
+    """Bot sürecinin yazdığı logs/<id>/met_<id>.json'dan METRICS payload'ı üretir.
+
+    RSI/MACD için mum verisi gerektiğinden bu anahtarlar gönderilmez (grafik '--' gösterir).
+    Bot çalışmıyorsa veya dosya bayatsa None döner.
+    """
+    if acc_id == "default" or not is_bot_running(acc_id):
+        return None
+    path = get_metrics_path(acc_id)
+    try:
+        if time.time() - os.path.getmtime(path) > BOT_METRICS_MAX_AGE_SEC:
+            return None
+        with open(path, "r", encoding="utf-8") as f:
+            metrics = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        # Bot dosyayı o an os.replace ile değiştiriyor olabilir (Windows kilidi)
+        return None
+
+    price = metrics.get("current_price") or metrics.get("price")
+    if not price:
+        return None
+    return {
+        "symbol": symbol,
+        "mt5_connected": bool(metrics.get("mt5_connected", True)),
+        "market_open": bool(metrics.get("market_open", False)),
+        "current_price": price,
+        "price": price,
+        "profit": metrics.get("profit", 0.0),
+        "open_positions": metrics.get("open_positions", 0),
+        "pending_orders": metrics.get("pending_orders", 0),
+    }
+
+
 async def real_bot_data_stream():
     """MT5'ten gerçek veriyi 1 saniyede bir çekip WS ile yayınlar."""
     while True:
@@ -133,17 +172,38 @@ async def real_bot_data_stream():
                 if settings_files:
                     with open(settings_files[0], "r", encoding="utf-8") as f:
                         settings_data = json.load(f)
-                        zones = settings_data.get("settings", {}).get("ZONES", [])
-                        if zones and "symbol" in zones[0]:
-                            symbol = str(zones[0]["symbol"]).upper().strip()
+                    # Kayıtlı dosyalar düz ({"ZONES": [...]}); eski/iç içe biçim de desteklenir
+                    while isinstance(settings_data, dict) and isinstance(
+                        settings_data.get("settings"), dict
+                    ):
+                        settings_data = settings_data["settings"]
+                    zones = (
+                        settings_data.get("ZONES", [])
+                        if isinstance(settings_data, dict)
+                        else []
+                    )
+                    if zones and "symbol" in zones[0]:
+                        symbol = str(zones[0]["symbol"]).upper().strip()
             except Exception:
                 pass
 
             data = await asyncio.to_thread(fetch_mt5_data, symbol)
 
+            if not data:
+                # API süreci MT5'e bağlı değilse (ör. worker yeniden başladı, /start
+                # çağrılmadı) bot sürecinin metrik dosyasına düş: grafik yine fiyat alır.
+                fallback = await asyncio.to_thread(read_bot_metrics, acc_id, symbol)
+                if fallback:
+                    await manager.broadcast(
+                        json.dumps({"type": "METRICS", "payload": fallback})
+                    )
+                    continue
+
             if data:
                 indicators = get_latest_indicators(data["df"])
                 combined_payload = {
+                    # Grafik sayfası (/chart?zone=) akışın hangi sembolü gösterdiğini bilmeli
+                    "symbol": symbol,
                     "mt5_connected": data["mt5_connected"],
                     "market_open": data["market_open"],
                     "current_price": data["price"],

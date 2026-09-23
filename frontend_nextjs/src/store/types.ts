@@ -85,6 +85,8 @@ export interface Metrics {
   open_positions: number;
   rsi?: number;
   macd?: number;
+  /** Akışın gösterdiği sembol (hesabın ilk bölgesi); eski worker'larda yok */
+  symbol?: string;
 }
 
 export interface LiveData {
