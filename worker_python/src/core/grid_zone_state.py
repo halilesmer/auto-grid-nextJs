@@ -2,6 +2,11 @@ import os
 import json
 from src.utils.paths import get_ui_state_path
 
+# Bu durumlardaki bölge emir koymaz; kalan emirleri clean_zombie_orders siler.
+# AUTO_CLEAR: fiyat bölgeden çıkınca temizlendi (clear_on_exit) → kullanıcı arayüzden
+# yeniden başlatana (START) veya bot yeniden başlayana kadar durur.
+STOPPED_ZONE_STATES = ("PAUSE", "AUTO_CLEAR", "CLEAR")
+
 
 def process_zone_commands(zones, active_zones_state):
     account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")

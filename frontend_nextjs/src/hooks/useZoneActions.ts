@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useSettingsStore } from '@/store';
+import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import { defaultZone } from '@/utils/zoneHelpers';
 import type { ZoneSettings } from '@/store/types';
 
 export interface UseZoneActionsReturn {
   toggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
+  restartZone: (zoneId: string) => Promise<void>;
   addZone: () => void;
   deleteZone: (zoneId: string) => void;
   updateZone: (zoneId: string, field: string, value: unknown) => void;
@@ -92,5 +93,27 @@ export function useZoneActions(
     [setZones, selectedAccount, settings, symbolDetails]
   );
 
-  return { toggleActive, addZone, deleteZone, updateZone };
+  // Otomatik temizlenen (AUTO_CLEAR) veya motorun duraklattığı bölgeyi yeniden başlatır
+  const restartZone = useCallback(
+    async (zoneId: string) => {
+      if (!selectedAccount) return;
+      try {
+        const zoneIdx = await zoneApi.setZoneState(selectedAccount, zoneId, 'START');
+        // Uyarı hemen kalksın; bir sonraki log polling'i motorun gerçek durumunu getirir
+        const { liveData, updateLiveData } = useBotRuntimeStore.getState();
+        updateLiveData({ zone_states: { ...(liveData.zone_states ?? {}), [String(zoneIdx)]: 'START' } });
+      } catch (err: unknown) {
+        const error = err as { message?: string };
+        if (error.message === 'ZONE_NOT_SAVED') {
+          alert('Bu bölge henüz kaydedilmemiş! Lütfen önce \'Tüm Ayarları Kaydet\' butonuna basın.');
+        } else {
+          console.error('Bölge yeniden başlatılamadı', err);
+          alert('Bölge yeniden başlatılamadı!');
+        }
+      }
+    },
+    [selectedAccount]
+  );
+
+  return { toggleActive, restartZone, addZone, deleteZone, updateZone };
 }

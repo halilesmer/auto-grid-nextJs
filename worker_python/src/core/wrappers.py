@@ -26,7 +26,9 @@ except ImportError:
 
 def get_live_metrics():
     global state
-    res = calculate_live_metrics(mt5, state.active_symbols, state.connection_lost, state.remote_paused)
+    res = calculate_live_metrics(
+        mt5, state.active_symbols, state.connection_lost, state.remote_paused, state.active_zones_state
+    )
     state.connection_lost = res.get("connection_lost", False)
     return res
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { FlaskConical, MoreHorizontal, Trash2, Pause, Play } from 'lucide-react';
+import { FlaskConical, MoreHorizontal, Trash2, Pause, Play, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { StatusDot } from '@/components/ui/status-dot';
@@ -17,7 +17,10 @@ export function ZoneHeader({
   isGlobalRunning,
   modified,
   disableButtons,
+  engineState,
+  remotePaused,
   onToggleActive,
+  onRestart,
   onDelete,
 }: ZoneHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -61,6 +64,44 @@ export function ZoneHeader({
     }
   }
 
+  // Bölge ayarlarda açık ama motor onu durdurmuş olabilir:
+  // AUTO_CLEAR = fiyat bölgeden çıktı ve temizlendi; PAUSE = üst üste reddedilen emirler.
+  // Uzaktan (telefon) durdurma tüm motoru etkiler; burada yeniden başlatılamaz.
+  const engineStop =
+    isGlobalRunning && isActive
+      ? remotePaused
+        ? {
+            label: 'Uzaktan durduruldu',
+            hint: 'Motor telefondan durduruldu. Devam etmek için MT5 uygulamasından $2 Buy Limit (0,01 lot) sinyali gönderin.',
+            canRestart: false,
+          }
+        : engineState === 'AUTO_CLEAR'
+          ? {
+              label: 'Otomatik temizlendi',
+              hint: 'Fiyat bölgeden çıktı: emirler temizlendi ve bölge durduruldu. Fiyat geri gelse de yeniden başlatana kadar emir konmaz.',
+              canRestart: true,
+            }
+          : engineState === 'PAUSE'
+            ? {
+                label: 'Motor durdurdu',
+                hint: 'Üst üste reddedilen emirler nedeniyle bölge güvenliğe alındı. Sebebi (ör. Algo Trading, lot, sembol) giderip yeniden başlatın.',
+                canRestart: true,
+              }
+            : null
+      : null;
+
+  if (engineStop) {
+    btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
+    btnText = engineStop.canRestart ? 'Yeniden Başlat' : 'Durduruldu';
+    btnIcon = <RotateCcw size={13} />;
+    dotTone = 'warning';
+  }
+
+  const handleMainClick = () => {
+    if (engineStop?.canRestart) onRestart(zone.id);
+    else if (!engineStop) onToggleActive(zone.id, isActive);
+  };
+
   const tone = ORDER_TONE[zone.order_type as keyof typeof ORDER_TONE] ?? 'neutral';
 
   return (
@@ -74,6 +115,11 @@ export function ZoneHeader({
             </span>
             <Badge tone={tone}>{zone.order_type}</Badge>
             {modified && <Badge tone="warning">Kaydedilmedi</Badge>}
+            {engineStop && (
+              <Badge tone="warning" title={engineStop.hint}>
+                {engineStop.label}
+              </Badge>
+            )}
           </div>
           <p className="mt-0.5 font-mono text-xs text-muted-foreground">
             {zone.min_price} – {zone.max_price}
@@ -83,12 +129,13 @@ export function ZoneHeader({
 
       <div className="flex items-center gap-1.5">
         <button
-          onClick={() => onToggleActive(zone.id, isActive)}
+          onClick={handleMainClick}
+          disabled={Boolean(engineStop && !engineStop.canRestart)}
           className={cn(
-            'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-all active:scale-[0.97]',
+            'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60',
             btnClass,
           )}
-          title="Bölge İşlemlerini Yönet"
+          title={engineStop ? engineStop.hint : 'Bölge İşlemlerini Yönet'}
         >
           {btnIcon}
           <span>{btnText}</span>

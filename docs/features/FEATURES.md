@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **54/71** abgehakt · ❌ 3 mit Fehlern · 🐞 4 bekannte Fehler
+**Stand:** 2026-09-23 · **55/71** abgehakt · ❌ 2 mit Fehlern · 🐞 3 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -20,7 +20,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 8/9 |
 | 6 | **BOT** – Bot-Steuerung | 3/6 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 14/16 |
+| 7 | **ENG** – Grid-Engine (Handelslogik) | 15/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 5/6 |
 | 10 | **UPD** – System & Updates | 1/5 |
@@ -253,11 +253,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Orders pausierter, bereinigter, inaktiver Zonen oder mit falschem Symbol werden gelöscht.
   - **Prüfung:** Zone mit offenen Orders pausieren.
   - **Erwartet:** Ihre Pending Orders verschwinden.
-- [ ] **ENG-10** Bereinigung beim Verlassen der Zone — 🧪 unit 🐞 2026-09-23 · 🌐 live ⏳
-  - Mit clear_on_exit: Richtung (clear_exit_side), Umfang (nur Orders / auch Positionen) und Zielseite (BUY/SELL/alle); danach ui_state AUTO_CLEAR.
-  - **Prüfung:** Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt.
-  - **Erwartet:** Orders (bzw. Positionen je nach Umfang) werden entfernt, Zone steht auf AUTO_CLEAR.
-  - 🐞 **Bekannter Fehler:** (1) Umfang „Tüm İşlemler“ (so speichert die UI) schließt keine Positionen – handle_zone_exit prüft nur auf „Pozisyon“/„Tümü“/„Hepsi“. (2) Nach dem Austritt fällt die Engine auf zones[0] zurück und AUTO_CLEAR blockiert die Platzierung nicht (nur PAUSE): liegt der Kurs knapp außerhalb, werden die Grenz-Orders jeden Tick gelöscht und neu gesetzt (im Test 3 + 3 Broker-Anfragen pro Tick).
+- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳
+  - Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart).
+  - **Prüfung:** Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt. → Warten, bis der Preis zurückkommt; dann „Yeniden Başlat“ in der Zone klicken.
+  - **Erwartet:** Orders (bei „Tüm İşlemler“ auch Positionen) werden entfernt; die Zone zeigt „Otomatik temizlendi“ und setzt keine Orders mehr, bis „Yeniden Başlat“ geklickt wird.
 - [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-09-23
   - Nach 3 abgelehnten Orders in Folge wird die Zone pausiert (ui_state PAUSE) und order_rejected_alarm gesetzt.
   - **Prüfung:** Nicht manuell testen.
@@ -301,7 +300,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
   - 📝 v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders). Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus der Bot-Metrik → RSI fehlt dann
 - [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-09-23
-  - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open nach met_<id>.json.
+  - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 

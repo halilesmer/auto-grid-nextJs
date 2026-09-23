@@ -468,14 +468,13 @@ kategorien:
 
       - id: ENG-10
         titel: Bereinigung beim Verlassen der Zone
-        beschreibung: "Mit clear_on_exit: Richtung (clear_exit_side), Umfang (nur Orders / auch Positionen) und Zielseite (BUY/SELL/alle); danach ui_state AUTO_CLEAR."
-        code: [worker_python/src/core/grid_order_manager.py, worker_python/src/core/grid_zone_selector.py]
+        beschreibung: "Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart)."
+        code: [worker_python/src/core/grid_order_manager.py, worker_python/src/core/grid_orchestrator.py, worker_python/src/core/grid_zone_selector.py, frontend_nextjs/src/components/zone/ZoneHeader.tsx]
         tiers: [unit, live]
         pruefung:
           - Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt.
-        erwartet: Orders (bzw. Positionen je nach Umfang) werden entfernt, Zone steht auf AUTO_CLEAR.
-        bekannter_fehler: "(1) Umfang „Tüm İşlemler“ (so speichert die UI) schließt keine Positionen – handle_zone_exit prüft nur auf „Pozisyon“/„Tümü“/„Hepsi“. (2) Nach dem Austritt fällt die Engine auf zones[0] zurück und AUTO_CLEAR blockiert die Platzierung nicht (nur PAUSE): liegt der Kurs knapp außerhalb, werden die Grenz-Orders jeden Tick gelöscht und neu gesetzt (im Test 3 + 3 Broker-Anfragen pro Tick)."
-
+          - Warten, bis der Preis zurückkommt; dann „Yeniden Başlat“ in der Zone klicken.
+        erwartet: Orders (bei „Tüm İşlemler“ auch Positionen) werden entfernt; die Zone zeigt „Otomatik temizlendi“ und setzt keine Orders mehr, bis „Yeniden Başlat“ geklickt wird.
       - id: ENG-11
         titel: Auto-Pause nach 3 Ablehnungen
         beschreibung: Nach 3 abgelehnten Orders in Folge wird die Zone pausiert (ui_state PAUSE) und order_rejected_alarm gesetzt.
@@ -564,7 +563,7 @@ kategorien:
 
       - id: MET-04
         titel: Bot-Telemetrie
-        beschreibung: calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open nach met_<id>.json.
+        beschreibung: calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
         code: [worker_python/src/core/grid_metrics.py, worker_python/src/core/bot_runner.py]
         tiers: [unit]
         pruefung:

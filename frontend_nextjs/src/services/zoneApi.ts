@@ -51,4 +51,20 @@ export const zoneApi = {
 
     return updatedSettings;
   },
+
+  /**
+   * Sadece motorun bölge durumunu değiştirir (is_active'e dokunmaz), ör. otomatik
+   * temizlenen (AUTO_CLEAR) bölgeyi yeniden başlatmak için. Motor kayıtlı sıraya göre çalışır.
+   */
+  async setZoneState(accountId: string, zoneId: string, state: 'START' | 'PAUSE'): Promise<number> {
+    const remoteSettings: RemoteSettings = await zoneApi.getSettings(accountId);
+    const zoneIdx = (remoteSettings.ZONES || []).findIndex((z) => z.id === zoneId);
+    if (zoneIdx < 0) {
+      throw new Error('ZONE_NOT_SAVED');
+    }
+    await axiosInstance.post(`/ui-state/${accountId}`, {
+      settings: { states: { [zoneIdx]: state } },
+    });
+    return zoneIdx;
+  },
 };

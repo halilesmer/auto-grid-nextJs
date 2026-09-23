@@ -19,7 +19,9 @@ export function ZoneCard({
   disableButtons,
   onUpdate,
   onToggleActive,
+  onRestart,
   onDelete,
+  zoneIndex,
   liveData,
   isRunning,
   symbolDetails,
@@ -72,7 +74,10 @@ export function ZoneCard({
           isGlobalRunning={isGlobalRunning}
           modified={modified}
           disableButtons={disableButtons}
+          engineState={liveData.zone_states?.[String(zoneIndex)]}
+          remotePaused={liveData.remote_paused}
           onToggleActive={handleToggleActive}
+          onRestart={onRestart}
           onDelete={onDelete}
         />
       </div>
