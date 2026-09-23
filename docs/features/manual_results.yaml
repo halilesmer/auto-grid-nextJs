@@ -1,0 +1,210 @@
+# Manuelle Testergebnisse – wird von update_checklist.py --sign geschrieben (oder von Hand).
+# Format:
+#   ENG-13:
+#     status: bestanden      # oder: fehlgeschlagen
+#     datum: 2026-09-24
+#     notiz: optional
+SYS-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto 7942034
+    im Dropdown, ''Worker online'''
+SYS-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart
+    4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft
+    → siehe MET-03'
+SYS-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /system/platform → 200 {is_windows: true, platform: win32}; ''Mac
+    Test Mode''-Leiste nicht sichtbar'
+SYS-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto);
+    Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, ''Manuel Gir'' ersetzt Auswahl
+    durch Textfeld; Dialog ohne Speichern geschlossen'
+ACC-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /accounts → 1 Konto (7942034, DEMO, Eightcap-Demo), Dropdown zeigt
+    genau dieses'
+ACC-06:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/7942034 geladen,
+    UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall
+    1 s)'
+ACC-07:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis:
+    ohne Kontoauswahl zeigt der Header ebenfalls TEST'
+SET-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: GET /settings/7942034 → flache Datei settings_7942034.json (LOOP_INTERVAL_SECONDS,
+    ZONES); UI zeigt alle Werte korrekt (siehe ACC-06)'
+SET-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: + → 1,1 und Kaydet aktiv; 61 → 60, 0 → 1 begrenzt; gespeichert →
+    API 1,1, bleibt nach Neuladen; per − zurück auf 1 gespeichert'
+SET-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge ''Kaydedilmedi'';
+    ''Kaydet'' in der Leiste → API 201, Leiste weg; zurück auf 200 über ''Tüm Ayarları
+    Kaydet'' → API 200, ''Kaydedildi'''
+SET-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: POST LOOP_INTERVAL_SECONDS 1.00000001 → gespeichert als 1.0'
+SET-05:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen
+    danach identisch mit Sicherung'
+SYM-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /symbols/7942034 → 200, 812 Symbole mit Details (USOUSD: digits
+    3, point 0.001, Volumen 0.01–50); 2. Abruf 72 ms statt 168 ms (Cache). 1-h-Ablauf/Hintergrund-Refresh
+    nicht live prüfbar → Unit-Test'
+SYM-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''XAU'' → 5 Vorschläge mit Beschreibung; ''gold'' findet auch über
+    Beschreibung; ''ZZQQ'' → ''Sembol bulunamadı''; nichts ausgewählt, per Neuladen
+    verworfen'
+SYM-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: USOUSD → Preisfelder step/min 0.001, Lot min/step 0.01; unbekanntes
+    Symbol → ''Geçersiz Sembol!''; nach Neuladen wieder USOUSD, API unverändert'
+ZON-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Bölge Ekle'' → Zähler 2, neue Zone inaktiv (is_active false, Symbol
+    der letzten Zone); gespeichert → API 2 Zonen, bleibt nach Neuladen'
+ZON-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Menü ''…'' → ''Bölgeyi Sil'' → Dialog ''Bölge Sil'' → Delete → Zähler
+    1, Leiste ''ungespeichert''; nach ''Tüm Ayarları Kaydet'' API = Sicherung'
+ZON-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Symbol per Autocomplete XAUUSD, Emir Tipi BOTH, Min/Max
+    500/600 → nach Neuladen in API und UI'
+ZON-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Grid 0.2, Lot 0.02, KA 0.3, ZD 1 → nach Neuladen in
+    API und UI'
+ZON-05:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): BOTH + Sync aus → SELL-Felder (und SELL-Pullback) erscheinen;
+    SELL 0.4/0.03/0.6/2 und sync_buy_sell=false gespeichert'
+ZON-06:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Breakout an, Pullback 0.7/SELL 0.9, Alt 3, Üst 4, Maks
+    2 → nach Neuladen in API und UI'
+ZON-07:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da;
+    BUY (Yukarı)/Hepsi/Tüm İşlemler; ''Mum Kapanışı'' blendet Zaman Dilimi (M1–D1)
+    ein, H1 gespeichert'
+ZON-09:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Badge ''Kaydedilmedi'' nur an der geänderten Zone, verschwindet
+    nach Speichern (auch bei SET-03 gesehen)'
+BOT-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (DEMO 7942034): ''Start Bot'' → Connecting → Running nach 5 s; Log:
+    MT5-Login ok, 812 Symbole gecacht, Subprozess gestartet, Zone 0 aus Magic-Numbers
+    als START wiederhergestellt, ''Yeni Bölgeye Girildi: Bölge 1''; keine Alarme,
+    Zone ''Başladı'''
+BOT-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (DEMO 7942034): ''Stop Bot'' → Dialog ''Disconnect MT5'' → Stopped
+    nach ~5 s, bot_running=false, Zone ''Hazır (Motor Bekleniyor)''; Log: ''Açık pozisyon/emirlere
+    dokunulmuyor''. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders
+    (vorher 14/5)'
+BOT-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Live: nach Worker-Neustart meldet der Worker ''[AUTO] Bot eski bir kod sürümüyle
+    çalışıyor; yeni sürümle yeniden başlatılıyor'' und startet ihn neu (21:24 und
+    22:48, Positionen unverändert)'
+MET-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen,
+    5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen'
+MET-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen;
+    RSI ''--'' im Fallback-Modus'
+MET-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders).
+    Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus
+    der Bot-Metrik → RSI fehlt dann'
+LOG-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Activity, Robot Logs (200 Zeilen), MT5 Terminal laden und wechseln
+    korrekt; Inhalt: siehe LOG-05 (Fragmente) und LOG-06 (MT5-Tab leer)'
+LOG-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Download log file'' → gültiges ZIP (54 KB) MT5_Logs_and_Configs_7942034.zip
+    mit err-Log, met/pid/symbols, 3 MT5-Terminal-Logs, state und settings; Download
+    im Browser abgefangen, nichts gespeichert'
+LOG-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Worker online · updated'' aktualisiert exakt alle 10 s (22:19:02/12/22/32)'
+LOG-05:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'v0.7.59 live: seit Bot-Neustart 22:48:40 keine Fragmente, keine doppelten
+    Zeilen (vorher 4 Fragmente in 200 Zeilen)'
+LOG-06:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log,
+    UTF-16 korrekt dekodiert'
+UPD-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Check for Updates'' → ''You are up to date''; API: local v0.7.58
+    = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000),
+    nicht des Workers'
+UI-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Dashboard ↔ Formasyon, Markierung wandert mit, Version v0.7.58 =
+    VERSION'
+UI-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Açık/Koyu/Sistem setzen Klasse ''dark'' + localStorage; ''Açık''
+    übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf ''Sistem'''
+UI-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'v0.7.59 (Frontend aus main): ''Test''-Link → Karte ''Bölge 1 · USOUSD''
+    mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien
+    20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)'

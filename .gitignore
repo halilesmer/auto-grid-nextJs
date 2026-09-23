@@ -39,3 +39,9 @@ __MACOSX/
 broker_symbols.json
 # Yerel test hesabı bilgisi (Claude hook / test protokolü)
 hooks/test-account.local.md
+
+# Funktionstests: Rohberichte (Ergebnisse landen in docs/features/results.json)
+.feature-results/
+frontend_nextjs/test-results/
+frontend_nextjs/playwright-report/
+frontend_nextjs/blob-report/

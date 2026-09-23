@@ -1,0 +1,721 @@
+# Auto Grid – Funktionskatalog (einzige Quelle der Wahrheit)
+#
+# Aus dieser Datei wird docs/features/FEATURES.md erzeugt:
+#   worker_python/.venv/bin/python scripts/features/update_checklist.py
+# FEATURES.md NIE von Hand bearbeiten.
+#
+# Reihenfolge = Testreihenfolge (Abhängigkeiten zuerst). Kategorien und Features
+# werden genau in dieser Reihenfolge getestet und in FEATURES.md angezeigt.
+#
+# Felder pro Feature:
+#   id               eindeutig, Format KAT-NN (wird in Tests als Tag benutzt: @pytest.mark.feature("ENG-05") / tag: '@ENG-05')
+#   titel            kurzer Name
+#   beschreibung     was die Funktion tut
+#   code             wichtigste Dateien (relativ zum Repo-Root)
+#   tiers            welche Testebenen das Feature abdecken sollen:
+#                      unit    – pytest + FakeMT5 (Mac/CI, ohne MT5)
+#                      api     – pytest + FastAPI TestClient (Mac/CI)
+#                      e2e     – Playwright gegen gemockten Worker (Mac/CI)
+#                      live    – Playwright gegen den echten Worker auf dem VPS (DEMO-Konto)
+#                      manuell – braucht eine manuelle Bestätigung (manual_results.yaml)
+#   pruefung         Schritte für den manuellen Test
+#   erwartet         erwartetes Ergebnis
+#   bekannter_fehler (optional) bekannter Defekt; Tests dafür sind als xfail markiert
+
+version: 1
+
+kategorien:
+
+  # ---------------------------------------------------------------------------
+  - id: SYS
+    titel: Verbindung & Infrastruktur
+    features:
+      - id: SYS-01
+        titel: Worker erreichbar (REST über ngrok)
+        beschreibung: Das Frontend erreicht den Worker über NEXT_PUBLIC_API_URL + /api; axios sendet den ngrok-skip-browser-warning-Header.
+        code: [frontend_nextjs/src/lib/api.ts, worker_python/main.py]
+        tiers: [live]
+        pruefung:
+          - Worker auf dem VPS starten (start.bat), Frontend lokal starten (npm run dev:frontend).
+          - http://localhost:3000 öffnen.
+        erwartet: Kontoliste lädt, im Log-Bereich steht der Worker als online.
+
+      - id: SYS-02
+        titel: WebSocket-Stream + Reconnect
+        beschreibung: Verbindung zu /ws/stream; Nachrichten METRICS, LIVE_DATA, LOG werden in die Stores geleitet; bei Abbruch automatischer Reconnect.
+        code: [frontend_nextjs/src/store/useWebSocketManager.ts, worker_python/src/api/ws_server.py]
+        tiers: [e2e, live]
+        pruefung:
+          - Dashboard öffnen, DevTools → Network → WS prüfen.
+          - Worker kurz neu starten.
+        erwartet: WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
+
+      - id: SYS-03
+        titel: Plattform-Erkennung
+        beschreibung: GET /system/platform meldet, ob der Worker unter Windows läuft (steuert u. a. die Anzeige des Preis-Simulators).
+        code: [worker_python/src/api/system.py, frontend_nextjs/src/components/SimulationBar.tsx]
+        tiers: [api, e2e]
+        pruefung:
+          - Dashboard gegen den VPS-Worker öffnen.
+        erwartet: Auf Windows wird die „Mac Test Mode“-Leiste NICHT angezeigt.
+
+      - id: SYS-04
+        titel: MT5-Terminal-Scanner
+        beschreibung: GET /system/scan-mt5 sucht terminal64.exe auf dem VPS; der Konto-Dialog bietet die Pfade zur Auswahl an (Rescan, eigener Pfad).
+        code: [worker_python/src/api/system.py, frontend_nextjs/src/components/account/components/MT5PathSelector.tsx, frontend_nextjs/src/components/account/hooks/useMT5Scanner.ts]
+        tiers: [api, e2e, live]
+        pruefung:
+          - „Neues Konto“ öffnen, Feld MT5-Pfad ansehen, „Rescan“ klicken.
+          - Checkbox „eigener Pfad“ aktivieren.
+        erwartet: Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
+
+  # ---------------------------------------------------------------------------
+  - id: ACC
+    titel: Konten
+    features:
+      - id: ACC-01
+        titel: Kontoliste laden
+        beschreibung: GET /accounts liefert alle Konten aus configs/accounts.json; das Dropdown zeigt sie an und schreibt sie in useAccountStore.
+        code: [worker_python/src/api/accounts.py, frontend_nextjs/src/components/account/hooks/useAccounts.ts, frontend_nextjs/src/components/account/components/AccountDropdown.tsx]
+        tiers: [api, e2e, live]
+        pruefung:
+          - Dashboard öffnen, Dropdown „Select Account“ aufklappen.
+        erwartet: Alle registrierten Konten erscheinen (inkl. DEMO-Testkonto).
+
+      - id: ACC-02
+        titel: Konto anlegen + Validierung
+        beschreibung: Dialog „New MT5 Account“; Pflichtfelder Name, Login, Passwort, Server, MT5-Pfad; Notizen max. 1000 Zeichen; POST /accounts.
+        code: [worker_python/src/api/accounts.py, worker_python/src/api/models.py, frontend_nextjs/src/components/account/components/AccountForm.tsx, frontend_nextjs/src/components/account/hooks/useAccountForm.ts]
+        tiers: [api, e2e]
+        pruefung:
+          - „Add new account“ klicken, leer absenden.
+          - "(Nur mit einem Wegwerf-Konto!) Alle Felder ausfüllen und speichern."
+        erwartet: Leeres Formular zeigt Pflichtfeld-Fehler; gültiges Konto erscheint danach im Dropdown.
+
+      - id: ACC-03
+        titel: Doppelter Login
+        beschreibung: Gleicher Login wie ein bestehendes Konto → Rückfrage „bestehendes Konto bearbeiten?“; der Worker antwortet mit 409 (RFC-7807-Problem).
+        code: [worker_python/src/api/accounts.py, worker_python/src/api/errors.py, frontend_nextjs/src/components/account/hooks/useAccountForm.ts]
+        tiers: [api, e2e]
+        pruefung:
+          - Neues Konto mit dem Login eines vorhandenen Kontos anlegen.
+        erwartet: Browser-Rückfrage erscheint; es entsteht kein zweites Konto.
+
+      - id: ACC-04
+        titel: Konto bearbeiten
+        beschreibung: PUT /accounts/{id}; gesperrt, solange der Bot läuft.
+        code: [worker_python/src/api/accounts.py, frontend_nextjs/src/components/account/components/AccountActions.tsx, frontend_nextjs/src/components/account/components/AccountFormDialog.tsx]
+        tiers: [api, e2e]
+        pruefung:
+          - Konto wählen, „Edit account“, Notiz ändern, speichern.
+        erwartet: Änderung bleibt nach Neuladen erhalten; bei laufendem Bot ist der Button deaktiviert.
+
+      - id: ACC-05
+        titel: Konto löschen
+        beschreibung: DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft.
+        code: [worker_python/src/api/accounts.py, frontend_nextjs/src/components/account/components/AccountActions.tsx]
+        tiers: [api, e2e]
+        pruefung:
+          - "(Nur Wegwerf-Konto!) „Delete account“ → bestätigen."
+        erwartet: Konto verschwindet aus dem Dropdown; bei laufendem Bot ist der Button deaktiviert.
+
+      - id: ACC-06
+        titel: Kontoauswahl lädt Einstellungen
+        beschreibung: Auswahl im Dropdown lädt GET /settings/{id} in useSettingsStore; ohne Konto erscheint der Leerzustand „No account selected“.
+        code: [frontend_nextjs/src/components/account/AccountSelector.tsx, frontend_nextjs/src/store/useSettingsStore.ts, frontend_nextjs/src/app/page.tsx]
+        tiers: [e2e, live]
+        pruefung:
+          - Seite ohne Auswahl öffnen, dann das DEMO-Konto wählen.
+        erwartet: Zuerst Leerzustand, danach erscheinen Zonen und allgemeine Einstellungen des Kontos.
+
+      - id: ACC-07
+        titel: LIVE/TEST-Kennzeichnung
+        beschreibung: Badge im Header und im Dropdown aus env_type (DEMO/LIVE) des Kontos.
+        code: [frontend_nextjs/src/components/account/components/EnvTypeBadge.tsx, frontend_nextjs/src/app/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - DEMO-Konto wählen.
+        erwartet: Badge zeigt TEST/DEMO, nicht LIVE.
+
+      - id: ACC-08
+        titel: LIVE/DEMO-Sicherheitsprüfung
+        beschreibung: Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
+        code: [worker_python/src/utils/mt5_errors.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+  # ---------------------------------------------------------------------------
+  - id: SET
+    titel: Allgemeine Einstellungen
+    features:
+      - id: SET-01
+        titel: Einstellungen laden
+        beschreibung: GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
+        code: [worker_python/src/api/settings.py, worker_python/src/utils/config.py]
+        tiers: [api, e2e, live]
+        pruefung:
+          - Konto wählen.
+        erwartet: Zonen und Kontroll-Intervall entsprechen der Datei auf dem VPS.
+
+      - id: SET-02
+        titel: Kontroll-Intervall (LOOP_INTERVAL_SECONDS)
+        beschreibung: Stepper „Kontrol Sıklığı“ 1–60 s in 0,1er-Schritten; „Kaydet“ ist nur bei Änderung aktiv.
+        code: [frontend_nextjs/src/components/SettingsForm.tsx, worker_python/src/core/loop.py]
+        tiers: [e2e]
+        pruefung:
+          - Mit −/+ den Wert ändern, 0 und 61 eintippen, speichern, neu laden.
+        erwartet: Werte außerhalb 1–60 werden begrenzt; gespeicherter Wert bleibt nach Neuladen.
+
+      - id: SET-03
+        titel: „Alle speichern“ + Dirty-Tracking
+        beschreibung: Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert).
+        code: [frontend_nextjs/src/components/dashboard/SaveSettingsBar.tsx, frontend_nextjs/src/store/useSettingsStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
+        erwartet: Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
+
+      - id: SET-04
+        titel: Werte bereinigen (Sanitizing)
+        beschreibung: Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
+        code: [worker_python/src/utils/config.py, worker_python/src/api/settings.py]
+        tiers: [unit, api]
+        pruefung:
+          - Lot 0.0100000001 eingeben und speichern.
+        erwartet: Gespeichert wird 0.01.
+
+      - id: SET-05
+        titel: Einstellungen zusammenführen (Merge)
+        beschreibung: POST /settings/{id} führt die neuen Werte mit der bestehenden Datei zusammen, statt sie zu überschreiben.
+        code: [worker_python/src/api/settings.py]
+        tiers: [api]
+        pruefung:
+          - Nur das Intervall speichern.
+        erwartet: Zonen bleiben unverändert.
+
+      - id: SET-06
+        titel: Globale Standardwerte (GLOBAL_*)
+        beschreibung: Standardwerte GLOBAL_GRID_STEP, GLOBAL_TAKE_PROFIT, GLOBAL_DEFAULT_LOT, MAX_OPEN_POSITIONS, MIN/MAX_PRICE_LIMIT, CLEAR_ON_ZONE_EXIT in utils/config.py.
+        code: [worker_python/src/utils/config.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testbar.
+        erwartet: Die Engine sollte diese Werte als Fallback nutzen.
+        bekannter_fehler: Die Engine liest diese Werte nie; nur LOOP_INTERVAL_SECONDS wird auf oberster Ebene verwendet.
+
+  # ---------------------------------------------------------------------------
+  - id: SYM
+    titel: Symbole
+    features:
+      - id: SYM-01
+        titel: Symbolliste + Cache
+        beschreibung: GET /symbols/{id} liefert Broker-Symbole aus broker_symbols.json; 1-h-Cache, bei Ablauf wird die alte Liste geliefert und im Hintergrund aktualisiert (doppelte Anfragen werden zusammengelegt).
+        code: [worker_python/src/api/symbols.py, worker_python/src/utils/mt5_helpers.py]
+        tiers: [unit, api, live]
+        pruefung:
+          - Zone öffnen, ins Symbolfeld klicken.
+        erwartet: Symbolliste des Brokers erscheint schnell (auch bei wiederholtem Öffnen).
+
+      - id: SYM-02
+        titel: Symbol-Autocomplete
+        beschreibung: Feld „Sembol Ara…“ filtert die Symbolliste beim Tippen.
+        code: [frontend_nextjs/src/components/SymbolAutoComplete.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "„XAU“ tippen und einen Vorschlag wählen."
+        erwartet: Nur passende Symbole erscheinen; Auswahl übernimmt das Symbol.
+
+      - id: SYM-03
+        titel: Symboldetails
+        beschreibung: Zu einem Symbol werden Details (Digits, Point, Volumen-Grenzen) geladen; daraus leiten die Zonenfelder Schrittweite, Minimum und Rundung ab, und unbekannte Symbole werden als „Geçersiz Sembol!“ markiert.
+        code: [frontend_nextjs/src/hooks/useSymbolDetails.ts, frontend_nextjs/src/utils/zoneHelpers.ts, frontend_nextjs/src/services/zoneApi.ts]
+        tiers: [e2e]
+        pruefung:
+          - Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools).
+          - Ein unbekanntes Symbol eintippen (nicht speichern).
+        erwartet: Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; unbekanntes Symbol zeigt „Geçersiz Sembol!“.
+
+  # ---------------------------------------------------------------------------
+  - id: ZON
+    titel: Zonen-Konfiguration (UI ↔ Backend)
+    features:
+      - id: ZON-01
+        titel: Zone hinzufügen
+        beschreibung: „Bölge Ekle“ fügt eine neue Zone mit Standardwerten hinzu; die Anzahl im Badge steigt.
+        code: [frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/hooks/useZoneActions.ts, frontend_nextjs/src/utils/zoneHelpers.ts]
+        tiers: [e2e]
+        pruefung:
+          - „Bölge Ekle“ klicken, speichern, neu laden.
+        erwartet: Neue Zone bleibt nach dem Neuladen erhalten.
+
+      - id: ZON-02
+        titel: Zone löschen
+        beschreibung: Menü „…“ → „Bölgeyi Sil“ → Bestätigung „Bölge Sil“.
+        code: [frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/components/ZoneSettingsPanel.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Test-Zone löschen und bestätigen, speichern.
+        erwartet: Zone ist weg, auch nach Neuladen.
+
+      - id: ZON-03
+        titel: Basisfelder (Symbol, Emir Tipi, Min/Max Fiyat)
+        beschreibung: Symbol, Ordertyp BUY/SELL/BOTH und Preisbereich der Zone.
+        code: [frontend_nextjs/src/components/zone/ZoneBasicFields.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Jedes Feld ändern, speichern, neu laden.
+        erwartet: Alle Werte bleiben erhalten; Ordertyp-Badge im Kopf passt.
+
+      - id: ZON-04
+        titel: Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur)
+        beschreibung: Gridabstand, Lotgröße, Take Profit, Stop Loss der Zone.
+        code: [frontend_nextjs/src/components/zone/ZoneGridFields.tsx, worker_python/src/core/grid_execution/config.py]
+        tiers: [e2e]
+        pruefung:
+          - Jedes Feld ändern, speichern, neu laden.
+        erwartet: Alle Werte bleiben erhalten.
+
+      - id: ZON-05
+        titel: SELL-Felder + BUY/SELL-Sync
+        beschreibung: Bei Ordertyp BOTH eigene SELL-Werte (SELL Grid/Lot/KA/ZD) oder Schalter „BUY ve SELL için aynı ayarları uygula“.
+        code: [frontend_nextjs/src/components/zone/ZoneSellFields.tsx, frontend_nextjs/src/components/zone/ZoneCard.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Ordertyp BOTH wählen, Sync aus → SELL-Felder ändern; Sync an.
+        erwartet: SELL-Felder erscheinen nur bei BOTH und Sync aus; Werte bleiben nach Speichern erhalten.
+
+      - id: ZON-06
+        titel: Breakout-Felder
+        beschreibung: Schalter „Sadece trend yönünde“, Pullback-Abstände, Alt/Üst Seviyeler (levels_below/above), Maks Pozisyon.
+        code: [frontend_nextjs/src/components/zone/ZoneBreakoutFields.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Breakout einschalten, Felder ändern, speichern, neu laden.
+        erwartet: Alle Werte bleiben erhalten.
+
+      - id: ZON-07
+        titel: Exit-Felder (Bereinigen beim Verlassen)
+        beschreibung: Schalter „Fiyat bölgeden çıkınca temizle“; dann Çıkış Yönü, Hedef Taraf, Temizleme Kapsamı, Çıkış Tetikleyici und bei „Mum Kapanışı“ zusätzlich Zaman Dilimi.
+        code: [frontend_nextjs/src/components/zone/ZoneExitFields.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Schalter an → Auswahlfelder prüfen; Auslöser „Mum Kapanışı“ wählen.
+        erwartet: Die vier Auswahlfelder erscheinen erst mit dem Schalter; Zeitrahmen nur bei Kerzenschluss.
+
+      - id: ZON-08
+        titel: Start/Pause pro Zone
+        beschreibung: Button im Zonenkopf (Başladı / Başla / Hazır / Kapalı) setzt is_active (POST /settings) und START/PAUSE in ui_state (POST /ui-state); Warnung bei ungültigem Symbol oder ungespeicherter Zone.
+        code: [frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/services/zoneApi.ts, worker_python/src/api/ui_state.py]
+        tiers: [api, e2e, live]
+        pruefung:
+          - Test-Zone starten und wieder pausieren.
+          - Neue, ungespeicherte Zone starten.
+        erwartet: Label wechselt passend; ungespeicherte Zone zeigt eine Warnung.
+
+      - id: ZON-09
+        titel: „Kaydedilmedi“-Badge
+        beschreibung: Zonen mit ungespeicherten Änderungen tragen den Badge „Kaydedilmedi“.
+        code: [frontend_nextjs/src/hooks/useZoneDirtyTracking.ts, frontend_nextjs/src/components/zone/ZoneHeader.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Ein Feld ändern, dann speichern.
+        erwartet: Badge erscheint nach der Änderung und verschwindet nach dem Speichern.
+
+  # ---------------------------------------------------------------------------
+  - id: BOT
+    titel: Bot-Steuerung
+    features:
+      - id: BOT-01
+        titel: Bot starten
+        beschreibung: POST /start verbindet MT5 (Timeout 120 s), cached die Symbole, startet bot_runner.py als eigenen Prozess und stellt ihn unter Watchdog. UI-Timeout für „Connecting“ 180 s.
+        code: [worker_python/src/api/bot_control.py, worker_python/src/utils/bot_manager.py, worker_python/src/core/bot_runner.py, frontend_nextjs/src/components/BotControls.tsx]
+        tiers: [live]
+        pruefung:
+          - DEMO-Konto wählen, „Start Bot“.
+        erwartet: Status wechselt über „Connecting“ zu „Running“, Markt offen/geschlossen wird angezeigt.
+
+      - id: BOT-02
+        titel: Bot stoppen
+        beschreibung: POST /stop nimmt den Bot aus dem Watchdog und beendet den Prozess; Positionen und Orders bleiben unangetastet. Bestätigung „Disconnect MT5“.
+        code: [worker_python/src/api/bot_control.py, worker_python/src/utils/bot_manager.py, frontend_nextjs/src/components/BotControls.tsx]
+        tiers: [live]
+        pruefung:
+          - „Stop Bot“ → bestätigen; in MT5 die offenen Positionen prüfen.
+        erwartet: Status „Stopped“; Positionen sind noch da.
+
+      - id: BOT-03
+        titel: Neustart veralteter/hängender Bot
+        beschreibung: Läuft ein Bot mit alter VERSION oder ohne frische Metriken (> 180 s), startet /start ihn neu; beim Worker-Start übernimmt startup_maintenance laufende Bots.
+        code: [worker_python/src/api/bot_control.py, worker_python/src/utils/bot_manager.py]
+        tiers: [unit]
+        pruefung:
+          - Nach einem Update „Restart Bot“ klicken.
+        erwartet: Bot läuft danach mit der neuen Version (PID-Datei enthält neue VERSION).
+
+      - id: BOT-04
+        titel: Statusanzeige + Alarme
+        beschreibung: Anzeige Connecting / Running / „process without MT5“ / Stopped, Marktstatus, Kontoname/Server; Alarme für API-Fehler, MT5-Verbindung, abgelehnte Order, Algo Trading aus.
+        code: [frontend_nextjs/src/components/BotControls.tsx, frontend_nextjs/src/store/useBotRuntimeStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - In MT5 „Algo Trading“ ausschalten, während der Bot läuft.
+        erwartet: Alarm „Algo Trading off“ erscheint; nach Einschalten verschwindet er.
+
+      - id: BOT-05
+        titel: Watchdog-Neustart
+        beschreibung: Alle 15 s Prüfung; abgestürzter oder hängender Bot (600 s ohne Metriken) wird mit Backoff 15/30/60/120/240 s neu gestartet.
+        code: [worker_python/src/utils/bot_watchdog.py]
+        tiers: [unit]
+        pruefung:
+          - Auf dem VPS den bot_runner-Prozess im Task-Manager beenden.
+        erwartet: Nach ≤ 30 s läuft der Bot wieder (Robot-Log zeigt Neustart).
+
+      - id: BOT-06
+        titel: Watchdog gibt auf
+        beschreibung: Nach 5 Neustarts in 30 min hört der Watchdog auf; gelöschte Konten werden nicht mehr beobachtet.
+        code: [worker_python/src/utils/bot_watchdog.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+  # ---------------------------------------------------------------------------
+  - id: ENG
+    titel: Grid-Engine (Handelslogik)
+    features:
+      - id: ENG-01
+        titel: Zonenwahl
+        beschreibung: Aktiv wird die erste aktive Zone, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt.
+        code: [worker_python/src/core/grid_zone_selector.py]
+        tiers: [unit]
+        pruefung:
+          - Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen.
+        erwartet: Orders entstehen nur in der Zone, in der der Preis liegt.
+
+      - id: ENG-02
+        titel: Sliding-Grid-Level
+        beschreibung: Level werden an round(mid/step)*step verankert, levels_below/levels_above Stufen, auf die Zone begrenzt; acceptable-Sets mit ±2 Stufen Puffer.
+        code: [worker_python/src/core/grid_execution/levels.py]
+        tiers: [unit]
+        pruefung:
+          - Bot laufen lassen, Pending Orders in MT5 ansehen.
+        erwartet: Orders liegen im Gridabstand um den Preis, nie außerhalb der Zone.
+
+      - id: ENG-03
+        titel: Breakout / Pullback
+        beschreibung: Im Breakout-Modus nur Orders in Trendrichtung, mit pullback_distance / sell_pullback_distance.
+        code: [worker_python/src/core/grid_execution/levels.py]
+        tiers: [unit]
+        pruefung:
+          - Breakout-Zone aktivieren, Orders ansehen.
+        erwartet: Orders nur in Trendrichtung und im Pullback-Abstand.
+
+      - id: ENG-04
+        titel: Zonen-Config lesen + Lot begrenzen
+        beschreibung: extract_zone_config liest order_type, grid_step, lot_size (auf 0,01–5,0 begrenzt), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
+        code: [worker_python/src/core/grid_execution/config.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-05
+        titel: Order-Platzierung LIMIT/STOP + TP/SL
+        beschreibung: Fehlende Level bekommen Pending Orders mit TP/SL; LIMIT oder STOP je nach Seite des Marktes; Toleranz 0,45 × Gridabstand; manuelle Positionen zählen als belegte Level.
+        code: [worker_python/src/core/grid_execution/placement.py, worker_python/src/core/grid_orders.py]
+        tiers: [unit, live]
+        pruefung:
+          - Test-Zone (0,01 Lot) um den aktuellen Preis starten.
+        erwartet: BUY LIMIT unter / BUY STOP über dem Preis (bzw. SELL umgekehrt), jeweils mit TP/SL.
+
+      - id: ENG-06
+        titel: Validierung + Bereinigung
+        beschreibung: Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen).
+        code: [worker_python/src/core/grid_execution/validation.py]
+        tiers: [unit]
+        pruefung:
+          - Bei laufendem Bot TP der Zone ändern und speichern.
+        erwartet: Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
+
+      - id: ENG-07
+        titel: Maximale Positionen
+        beschreibung: Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht.
+        code: [worker_python/src/core/grid_execution/handler.py]
+        tiers: [unit, live]
+        pruefung:
+          - Maks Pozisyon = 1 setzen und eine Position füllen lassen.
+        erwartet: Danach keine Pending Orders mehr in dieser Zone.
+
+      - id: ENG-08
+        titel: Teilausführung + TP/SL-Resync
+        beschreibung: Geänderte TP/SL-Werte werden auf offene Positionen übertragen; bei Teilausführung wird das Restlot neu gesendet.
+        code: [worker_python/src/core/grid_order_manager.py]
+        tiers: [unit]
+        pruefung:
+          - Bei offener Position den TP der Zone ändern und speichern.
+        erwartet: TP der offenen Position wird angepasst.
+
+      - id: ENG-09
+        titel: Zombie-Orders entfernen
+        beschreibung: Orders pausierter, bereinigter, inaktiver Zonen oder mit falschem Symbol werden gelöscht.
+        code: [worker_python/src/core/grid_order_manager.py]
+        tiers: [unit]
+        pruefung:
+          - Zone mit offenen Orders pausieren.
+        erwartet: Ihre Pending Orders verschwinden.
+
+      - id: ENG-10
+        titel: Bereinigung beim Verlassen der Zone
+        beschreibung: "Mit clear_on_exit: Richtung (clear_exit_side), Umfang (nur Orders / auch Positionen) und Zielseite (BUY/SELL/alle); danach ui_state AUTO_CLEAR."
+        code: [worker_python/src/core/grid_order_manager.py, worker_python/src/core/grid_zone_selector.py]
+        tiers: [unit, live]
+        pruefung:
+          - Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt.
+        erwartet: Orders (bzw. Positionen je nach Umfang) werden entfernt, Zone steht auf AUTO_CLEAR.
+        bekannter_fehler: "(1) Umfang „Tüm İşlemler“ (so speichert die UI) schließt keine Positionen – handle_zone_exit prüft nur auf „Pozisyon“/„Tümü“/„Hepsi“. (2) Nach dem Austritt fällt die Engine auf zones[0] zurück und AUTO_CLEAR blockiert die Platzierung nicht (nur PAUSE): liegt der Kurs knapp außerhalb, werden die Grenz-Orders jeden Tick gelöscht und neu gesetzt (im Test 3 + 3 Broker-Anfragen pro Tick)."
+
+      - id: ENG-11
+        titel: Auto-Pause nach 3 Ablehnungen
+        beschreibung: Nach 3 abgelehnten Orders in Folge wird die Zone pausiert (ui_state PAUSE) und order_rejected_alarm gesetzt.
+        code: [worker_python/src/core/grid_orders.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-12
+        titel: Order-Sicherheit (Stops-Level, order_check, 10027)
+        beschreibung: safe_send_order normalisiert Volumen, hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
+        code: [worker_python/src/utils/trade_utils.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-13
+        titel: Fernsteuerung per MT5-Handy-App
+        beschreibung: "Manuelle BUY LIMIT 0,01 Lot bei 1 $ = STOP, bei 2 $ = START; alternativ Kommentar GRID:STOP / GRID:START. STOP löscht alle Robot-Orders; die Signal-Order wird danach entfernt."
+        code: [worker_python/src/core/grid_remote.py]
+        tiers: [unit, manuell]
+        pruefung:
+          - In der MT5-App eine BUY LIMIT 0,01 bei Preis 1 setzen.
+          - Danach BUY LIMIT 0,01 bei Preis 2 setzen.
+        erwartet: Erst werden alle Robot-Orders gelöscht (remote_paused), dann läuft der Bot weiter; die Signal-Orders verschwinden.
+
+      - id: ENG-14
+        titel: Zustand beim Start wiederherstellen
+        beschreibung: Beim Bot-Start sind alle Zonen PAUSE; active_zones_state wird aus den Magic-Numbers der vorhandenen Orders/Positionen aufgebaut (data/state_<id>.json), alte ui_state-Datei gelöscht.
+        code: [worker_python/src/core/startup.py, worker_python/src/utils/state_manager.py, worker_python/src/core/bot_runner.py]
+        tiers: [unit]
+        pruefung:
+          - Bot mit offenen Orders stoppen und neu starten.
+        erwartet: Vorhandene Orders werden übernommen, nicht doppelt gesetzt.
+
+      - id: ENG-15
+        titel: Markt geschlossen + Reconnect
+        beschreibung: Bei geschlossenem Markt (trade_mode ≠ 4 oder Tick älter als 180 s) wartet die Schleife 60 s; Verbindungsverlust → Reconnect mit exponentiellem Backoff; nur „Algo Trading aus“ → warten statt neu einloggen.
+        code: [worker_python/src/core/loop.py, worker_python/src/core/reconnection.py, worker_python/src/core/grid_helpers.py]
+        tiers: [unit]
+        pruefung:
+          - Am Wochenende Dashboard ansehen.
+        erwartet: Markt wird als geschlossen angezeigt, keine neuen Orders.
+
+      - id: ENG-16
+        titel: Aufräumen beim Beenden der Schleife
+        beschreibung: Beim Verlassen der Hauptschleife werden alle Pending Orders des Robots gelöscht.
+        code: [worker_python/src/core/loop.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (/stop beendet den Prozess hart).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+  # ---------------------------------------------------------------------------
+  - id: MET
+    titel: Live-Daten & Diagramm
+    features:
+      - id: MET-01
+        titel: Kennzahlenleiste
+        beschreibung: Vier Kacheln Preis, Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern.
+        code: [frontend_nextjs/src/components/dashboard/MetricsStrip.tsx]
+        tiers: [e2e, live]
+        pruefung:
+          - Bot laufen lassen, Werte mit MT5 vergleichen.
+        erwartet: Werte stimmen mit MT5 überein und aktualisieren sich.
+
+      - id: MET-02
+        titel: Chart (10-s-Kerzen + RSI)
+        beschreibung: lightweight-charts baut 10-s-Kerzen aus WebSocket-METRICS, RSI auf eigener Skala; Farben folgen dem Theme.
+        code: [frontend_nextjs/src/components/ChartViewer.tsx]
+        tiers: [e2e]
+        pruefung:
+          - /formasyon öffnen und 1 Minute warten.
+        erwartet: Kerzen und RSI-Linie entstehen.
+
+      - id: MET-03
+        titel: WebSocket-Metriken des Workers
+        beschreibung: ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
+        code: [worker_python/src/api/ws_server.py, worker_python/src/core/indicator_calc.py]
+        tiers: [unit, live]
+        pruefung:
+          - DevTools → WS-Nachrichten ansehen.
+        erwartet: Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
+
+      - id: MET-04
+        titel: Bot-Telemetrie
+        beschreibung: calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open nach met_<id>.json.
+        code: [worker_python/src/core/grid_metrics.py, worker_python/src/core/bot_runner.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+  # ---------------------------------------------------------------------------
+  - id: LOG
+    titel: Logs
+    features:
+      - id: LOG-01
+        titel: Log-Tabs laden
+        beschreibung: Tabs Activity, Robot Logs, MT5 Terminal; GET /logs/{id}?log_type=all&lines=200; ohne laufenden Bot wird mt5_connected=false erzwungen.
+        code: [frontend_nextjs/src/components/LogViewer.tsx, worker_python/src/api/logs.py]
+        tiers: [api, e2e, live]
+        pruefung:
+          - Alle drei Tabs öffnen, „Refresh“.
+        erwartet: Jeder Tab zeigt seine Logs.
+
+      - id: LOG-02
+        titel: Logs löschen
+        beschreibung: Activity wird nur lokal geleert; Robot/MT5 nach Rückfrage per DELETE /logs/{id}.
+        code: [frontend_nextjs/src/components/LogViewer.tsx, worker_python/src/api/logs.py]
+        tiers: [api, e2e]
+        pruefung:
+          - Im Tab Robot Logs „Clear“ → bestätigen.
+        erwartet: Log ist leer, auch nach Refresh.
+
+      - id: LOG-03
+        titel: Logs als ZIP herunterladen
+        beschreibung: GET /logs/download/{id} liefert ein ZIP mit Logs, State- und Settings-Datei.
+        code: [frontend_nextjs/src/lib/downloadLogs.ts, worker_python/src/api/logs.py]
+        tiers: [api, e2e]
+        pruefung:
+          - „Download log file“ klicken, ZIP öffnen.
+        erwartet: ZIP enthält Logs, state_<id>.json und settings-Datei.
+
+      - id: LOG-04
+        titel: Worker-Status + Polling
+        beschreibung: Anzeige Worker online/offline; Abfrage alle 10 s (beim Verbinden alle 2 s).
+        code: [frontend_nextjs/src/components/LogViewer.tsx, frontend_nextjs/src/store/useLogsStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - Worker auf dem VPS stoppen.
+        erwartet: Status wechselt nach ≤ 10 s auf offline.
+
+      - id: LOG-05
+        titel: Robot-Log schreiben
+        beschreibung: Der Bot-Prozess schreibt seine Meldungen (log_message) nach logs/<id>/err_<id>.log.
+        code: [worker_python/src/core/grid_helpers.py, worker_python/src/utils/bot_manager.py]
+        tiers: [unit, manuell]
+        pruefung:
+          - Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
+        erwartet: Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
+
+      - id: LOG-06
+        titel: MT5-Terminal-Log anzeigen
+        beschreibung: Der Tab „MT5 Terminal“ zeigt das Tages-Log des MT5-Terminals, das beim Verbinden nach logs/<id>/mt5_terminal/ kopiert wird.
+        code: [worker_python/src/api/logs.py, worker_python/src/utils/mt5_helpers.py]
+        tiers: [api, manuell]
+        pruefung:
+          - Tab „MT5 Terminal“ öffnen.
+        erwartet: Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
+
+  # ---------------------------------------------------------------------------
+  - id: UPD
+    titel: System & Updates
+    features:
+      - id: UPD-01
+        titel: Update-Prüfung
+        beschreibung: „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
+        code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py, frontend_nextjs/src/components/dashboard/UpdateModal.tsx]
+        tiers: [api, e2e]
+        pruefung:
+          - „Check for Updates“ klicken.
+        erwartet: „You are up to date“ oder alte → neue Version.
+
+      - id: UPD-02
+        titel: Update anwenden
+        beschreibung: „Apply Update (git pull)“ → POST /system/update (stash, pull, stash pop), danach Seiten-Reload.
+        code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Nach einem Merge auf main das Update im Dashboard anwenden, danach Worker/Bot neu starten.
+        erwartet: VERSION auf dem VPS entspricht main.
+
+      - id: UPD-03
+        titel: System herunterfahren
+        beschreibung: Power-Button → Bestätigung → /stop, danach window.close().
+        code: [frontend_nextjs/src/app/hooks/useDashboard.ts, frontend_nextjs/src/components/ConfirmModal.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Power-Button → bestätigen.
+        erwartet: Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
+
+      - id: UPD-04
+        titel: Preis-Simulator (Mac-Testmodus)
+        beschreibung: Schieberegler 50–150, nur sichtbar wenn der Worker nicht unter Windows läuft; POST /bot/simulate-price.
+        code: [frontend_nextjs/src/components/SimulationBar.tsx, worker_python/src/api/bot_control.py]
+        tiers: [e2e]
+        pruefung:
+          - Nur mit einem Nicht-Windows-Worker sichtbar.
+        erwartet: Der simulierte Preis sollte in die Engine einfließen.
+        bekannter_fehler: /bot/simulate-price schreibt sim_<id>.json, das von niemandem gelesen wird – der Regler hat keine Wirkung.
+
+      - id: UPD-05
+        titel: Server-Neustart nach Update
+        beschreibung: self_updater.hard_restart_server soll den Worker nach einem Update neu starten.
+        code: [worker_python/src/utils/self_updater.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Worker startet neu.
+        bekannter_fehler: hard_restart_server verweist auf scripts/launcher.py, das nicht existiert.
+
+  # ---------------------------------------------------------------------------
+  - id: UI
+    titel: Oberfläche
+    features:
+      - id: UI-01
+        titel: Navigation
+        beschreibung: Logo, Version, Links Dashboard und Formasyon mit animierter Markierung.
+        code: [frontend_nextjs/src/components/layout/AppNav.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Zwischen Dashboard und Formasyon wechseln.
+        erwartet: Aktiver Link ist markiert, Version entspricht VERSION.
+
+      - id: UI-02
+        titel: Theme hell / dunkel / System
+        beschreibung: Umschalter „Açık / Koyu / Sistem“, gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
+        code: [frontend_nextjs/src/components/layout/ThemeToggle.tsx, frontend_nextjs/src/components/layout/ThemeSync.tsx, frontend_nextjs/src/app/layout.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Alle drei Varianten wählen und die Seite neu laden.
+        erwartet: Theme bleibt erhalten, kein helles Aufblitzen im Dunkelmodus.
+
+      - id: UI-03
+        titel: PWA / Service Worker
+        beschreibung: Manifest und Registrierung von /service-worker.js im Layout.
+        code: [frontend_nextjs/src/app/layout.tsx, frontend_nextjs/public/manifest.json]
+        tiers: [e2e]
+        pruefung:
+          - DevTools → Application → Service Workers.
+        erwartet: Service Worker ist registriert, keine 404 in der Konsole.
+
+      - id: UI-04
+        titel: Zonen-Test-Link (/chart?zone=)
+        beschreibung: Link „Test“ im Zonenkopf öffnet /chart?zone=<id>.
+        code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx]
+        tiers: [e2e]
+        pruefung:
+          - In einer Zone auf „Test“ klicken.
+        erwartet: Das Chart zeigt die gewählte Zone.

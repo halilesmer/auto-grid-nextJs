@@ -1,0 +1,11 @@
+# Entwicklungs-/Testabhängigkeiten (Mac + CI). Enthält NICHT MetaTrader5 (nur Windows).
+# Installation: pip install -r requirements-dev.txt
+fastapi
+uvicorn
+websockets
+pandas
+psutil
+pytest
+pytest-asyncio
+httpx
+pyyaml
