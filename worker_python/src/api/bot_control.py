@@ -17,6 +17,7 @@ from src.utils.mt5_helpers import (
 )
 from src.utils.bot_manager import (
     get_bot_process_age,
+    get_last_start_error,
     is_bot_running,
     start_bot_process,
     stop_bot_process,
@@ -159,8 +160,9 @@ async def start_bot(account_id: str):
     _log_step(account_id, "[START] Bot süreci başlatılıyor...")
     success = start_bot_process(account_id, engine_name="Auto Grid")
     if not success:
-        _log_step(account_id, "[START] Bot süreci başlatılamadı (ayrıntı: START_ERROR satırı).", type="error")
-        raise HTTPException(status_code=500, detail="Bot süreci başlatılamadı.")
+        reason = get_last_start_error(account_id) or "bilinmeyen hata"
+        _log_step(account_id, f"[START] Bot süreci başlatılamadı: {reason}", type="error")
+        raise HTTPException(status_code=500, detail=f"Bot süreci başlatılamadı: {reason}")
 
     pid = None
     try:

@@ -139,8 +139,18 @@ def _detached_popen(cmd, stdout, stderr, env):
     )
 
 
+# Son başlatma hatası (hesap başına). Hata log dosyasının kendisinden de gelebilir
+# (ör. dosya yetkisi); o zaman log'a yazılamaz, bu yüzden API bunu yanıtta döndürür.
+_last_start_error: dict = {}
+
+
+def get_last_start_error(account_id: str):
+    return _last_start_error.get(str(account_id))
+
+
 def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
     """Belirli bir hesap için izole bir Subprocess (alt süreç) başlatır."""
+    _last_start_error.pop(str(account_id), None)
     if is_bot_running(account_id):
         return True  # Zaten çalışıyor
 
@@ -184,6 +194,12 @@ def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
                 f"{type(e).__name__} | {win_part} | errno={errno_} | "
                 f"{str(e)} | dosya/kısım: {filename if filename else 'yok'}"
             )
+        if isinstance(e, PermissionError):
+            detail += (
+                " | İpucu: Dosya yönetici (admin) haklarıyla çalışan eski bir süreç tarafından "
+                "oluşturulmuş olabilir; worker'ı aynı haklarla çalıştırın veya dosya izinlerini düzeltin."
+            )
+        _last_start_error[str(account_id)] = detail
         # Subprocess içinde streamlit yok; sadece log'a yaz
         print(f"🚨 Sistem Hatası: {account_id} için robot başlatılamadı!\nDetay: {detail}")
         try:
