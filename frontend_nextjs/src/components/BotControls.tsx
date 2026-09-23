@@ -105,16 +105,24 @@ export default function BotControls() {
 
   if (!selectedAccount) return null;
 
+  // Süreç çalışıyor ama MT5'e bağlı değil (bağlantı kopmuş / asılı): hem yeniden
+  // başlatma hem durdurma sunulmalı, yoksa arayüzden çıkış yolu yoktu.
+  const processWithoutMt5 = !liveData.mt5_connected && Boolean(liveData.bot_running);
+
   const motorStatus = isConnecting
     ? "⏳"
     : liveData.mt5_connected
       ? "🟢"
-      : "🔴";
+      : processWithoutMt5
+        ? "🟠"
+        : "🔴";
   const motorLabel = isConnecting
     ? "Connecting..."
     : liveData.mt5_connected
       ? "Running"
-      : "Stopped";
+      : processWithoutMt5
+        ? "Bot process running – not connected to MT5"
+        : "Stopped";
 
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-xl space-y-4">
@@ -157,16 +165,20 @@ export default function BotControls() {
 
       {/* Buttons */}
       <div className="flex flex-wrap gap-2">
-        {!liveData.mt5_connected ? (
+        {!liveData.mt5_connected && (
           <button
             onClick={handleStartBot}
             disabled={loading || isConnecting}
+            title={processWithoutMt5 ? "Restarts the bot process and reconnects to MT5" : undefined}
             className="flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-lg shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50"
           >
             <Play size={16} />
-            <span>{loading || isConnecting ? "..." : "Start Bot"}</span>
+            <span>
+              {loading || isConnecting ? "..." : processWithoutMt5 ? "Restart Bot" : "Start Bot"}
+            </span>
           </button>
-        ) : (
+        )}
+        {(liveData.mt5_connected || processWithoutMt5) && (
           <button
             onClick={() => setStopConfirmOpen(true)}
             disabled={loading}

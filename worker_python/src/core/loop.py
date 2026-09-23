@@ -12,7 +12,7 @@ from src.core.grid_helpers import log_message, is_market_open
 from src.core.grid_orders import get_all_robot_orders, cancel_order
 
 
-def main_loop(mt5_module, account_id, password, server):
+def main_loop(mt5_module, account_id, password, server, mt5_path=None):
     load_dynamic_settings()
 
     if not run_startup_checks(mt5_module):
@@ -34,11 +34,20 @@ def main_loop(mt5_module, account_id, password, server):
             except Exception as e:
                 log_message(f"Uzaktan komut okuması başarısız: {e}", "ERROR")
 
-            is_healthy, consecutive_losses = check_connection_health(mt5_module, account_id, password, server, consecutive_losses)
+            is_healthy, consecutive_losses = check_connection_health(
+                mt5_module, account_id, password, server, consecutive_losses, mt5_path
+            )
             if not is_healthy:
-                if consecutive_losses >= max_losses:
-                    break
-                time.sleep(10)
+                # Süreç kapanmaz: terminal/sunucu geri gelince (ör. hafta sonu bakımı)
+                # robot kendiliğinden devam eder. Birkaç başarısız denemeden sonra
+                # terminali login denemeleriyle boğmamak için daha seyrek dene.
+                if consecutive_losses == max_losses:
+                    log_message(
+                        f"MT5 bağlantısı {max_losses} denemede kurulamadı. "
+                        "60 sn aralıklarla denemeye devam ediliyor (arayüzden Restart/Stop mümkün).",
+                        "ERROR",
+                    )
+                time.sleep(10 if consecutive_losses < max_losses else 60)
                 continue
 
             if state.active_symbols and not any(

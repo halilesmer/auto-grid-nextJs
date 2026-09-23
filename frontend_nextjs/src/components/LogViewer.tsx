@@ -98,8 +98,10 @@ export default function LogViewer() {
         robot_log: data.robot_log || [],
         mt5_log: data.mt5_log || [],
       });
-      if (data.metrics) {
-        updateLiveData(data.metrics);
+      const botRunning =
+        typeof data.bot_running === "boolean" ? { bot_running: data.bot_running } : {};
+      if (data.metrics || "bot_running" in botRunning) {
+        updateLiveData({ ...(data.metrics || {}), ...botRunning });
       }
       if (useLogsStore.getState().workerStatus.reachable === false) {
         pushActivity("success", "Connection to worker restored.");
