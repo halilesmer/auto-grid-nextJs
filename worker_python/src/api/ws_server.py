@@ -6,6 +6,7 @@ import os
 import glob
 import time
 import pandas as pd
+from src.api.auth import API_KEY_HEADER, API_KEY_QUERY_PARAM, is_valid_api_key
 from src.core.indicator_calc import get_latest_indicators
 from src.utils.bot_manager import is_bot_running
 from src.utils.paths import get_metrics_path
@@ -249,6 +250,12 @@ async def real_bot_data_stream():
 
 @router.websocket("/stream")
 async def websocket_endpoint(websocket: WebSocket):
+    # Tarayıcılar WS isteğine başlık ekleyemez → anahtar sorgu parametresiyle gelir
+    # (diğer istemciler için X-API-Key başlığı da kabul edilir)
+    provided = websocket.query_params.get(API_KEY_QUERY_PARAM) or websocket.headers.get(API_KEY_HEADER)
+    if not is_valid_api_key(provided):
+        await websocket.close(code=1008)  # policy violation; accept öncesi → HTTP 403
+        return
     await manager.connect(websocket)
     try:
         while True:

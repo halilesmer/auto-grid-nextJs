@@ -64,7 +64,7 @@ export default function AccountSelector() {
     [scanMT5],
   );
 
-  const { formData, errors, isSaving, showPassword, handleChange, handleBlur, togglePassword, handleSubmit, resetForm } =
+  const { formData, errors, isSaving, showPassword, passwordRequired, handleChange, handleBlur, togglePassword, handleSubmit, resetForm } =
     useAccountForm({
       initialData: isEditing ? activeAccount : null,
       existingAccounts: storeAccounts,
@@ -216,6 +216,7 @@ export default function AccountSelector() {
           isSaving={isSaving}
           isLoading={isLoading}
           showPassword={showPassword}
+          passwordRequired={passwordRequired}
           mt5Paths={mt5Paths}
           isScanningMT5={scanningMt5}
           useCustomPath={useCustomPath}

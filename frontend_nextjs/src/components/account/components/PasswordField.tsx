@@ -5,6 +5,7 @@ import type { PasswordFieldProps } from '../types';
 
 export function PasswordField({
   value,
+  placeholder = 'MT5 Password',
   onChange,
   onBlur,
   showPassword,
@@ -19,7 +20,8 @@ export function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
-          placeholder="MT5 Password"
+          placeholder={placeholder}
+          autoComplete="new-password"
           className={`input-s pr-10 ${error ? 'border-danger' : ''}`}
           aria-invalid={error ? 'true' : 'false'}
         />

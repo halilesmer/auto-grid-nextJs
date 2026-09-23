@@ -1,16 +1,9 @@
 'use client';
 
-import axios from 'axios';
+import { API, axiosInstance } from '@/lib/api';
 import { useAccountStore, useSystemStore } from '@/store';
 import { useEffect } from 'react';
 import { FlaskConical } from 'lucide-react';
-
-const rawAPI =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://tweet-overlying-monotone.ngrok-free.dev";
-const API = rawAPI.endsWith("/api") ? rawAPI : `${rawAPI}/api`;
-
-axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function SimulationBar() {
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
@@ -20,7 +13,7 @@ export default function SimulationBar() {
   const setIsWindows = useSystemStore((s) => s.setIsWindows);
 
   useEffect(() => {
-    axios
+    axiosInstance
       .get(`${API}/system/platform`)
       .then((res) => setIsWindows(res.data.is_windows === true))
       .catch(() => setIsWindows(true));
@@ -30,7 +23,7 @@ export default function SimulationBar() {
 
   const handleChange = (value: number) => {
     setSimulatedPrice(value);
-    axios
+    axiosInstance
       .post(`${API}/bot/simulate-price`, {
         account_id: selectedAccount,
         price: value,

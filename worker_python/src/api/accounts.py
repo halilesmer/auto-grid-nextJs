@@ -1,15 +1,19 @@
 from fastapi import APIRouter, HTTPException
 from src.api.models import AccountModel
 from src.api.errors import DuplicateAccountProblem
-from src.api.helpers import _load_accounts, _save_accounts
+from src.api.helpers import _load_accounts, _public_account, _save_accounts
 
 router = APIRouter(tags=["Accounts"])
+
+
+def _has_password(account: AccountModel) -> bool:
+    return bool((account.password or "").strip())
 
 
 @router.get("/accounts")
 async def get_accounts():
     try:
-        return {"accounts": _load_accounts()}
+        return {"accounts": [_public_account(a) for a in _load_accounts()]}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -21,6 +25,8 @@ async def get_accounts():
 )
 async def create_account(account: AccountModel):
     try:
+        if not _has_password(account):
+            raise HTTPException(status_code=422, detail="Password is required")
         accounts = _load_accounts()
         existing = next(
             (a for a in accounts if str(a.get("id")) == str(account.id)),
@@ -31,12 +37,12 @@ async def create_account(account: AccountModel):
                 status_code=409,
                 detail=DuplicateAccountProblem(
                     detail=f"Account '{account.id}' already exists",
-                    existing_account=dict(existing),
+                    existing_account=_public_account(existing),
                 ).model_dump(),
             )
         accounts.append(account.model_dump())
         _save_accounts(accounts)
-        return {"status": "created", "account": account.model_dump()}
+        return {"status": "created", "account": _public_account(accounts[-1])}
     except HTTPException:
         raise
     except Exception as exc:
@@ -67,12 +73,19 @@ async def update_account(account_id: str, account: AccountModel):
                 status_code=409,
                 detail=DuplicateAccountProblem(
                     detail=f"Account '{account.id}' already exists",
-                    existing_account=dict(existing),
+                    existing_account=_public_account(existing),
                 ).model_dump(),
             )
-        accounts[idx] = account.model_dump()
+        updated = account.model_dump()
+        # Şifre API'den hiç dönmediği için form onu boş gönderir: boş/eksik = değişmedi
+        if not _has_password(account):
+            stored = accounts[idx].get("password")
+            if not stored:
+                raise HTTPException(status_code=422, detail="Password is required")
+            updated["password"] = stored
+        accounts[idx] = updated
         _save_accounts(accounts)
-        return {"status": "updated", "account": accounts[idx]}
+        return {"status": "updated", "account": _public_account(accounts[idx])}
     except HTTPException:
         raise
     except Exception as exc:

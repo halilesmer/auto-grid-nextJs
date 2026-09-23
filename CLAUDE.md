@@ -45,6 +45,10 @@ There is no test suite in either package.
 
 Frontend env (`frontend_nextjs/.env.local`): `NEXT_PUBLIC_API_URL` (base URL without `/api`, which is appended automatically). The WebSocket URL is derived from `API_BASE` in `buildWsUrl()` (`src/store/useWebSocketManager.ts`), so `NEXT_PUBLIC_WS_URL` is currently unused. If `NEXT_PUBLIC_API_URL` is missing, REST and WebSocket both fall back to the hard-coded ngrok URL in `src/lib/api.ts`. Worker CORS uses `ALLOWED_ORIGINS` (comma-separated, default `*`).
 
+API key: the worker reads `WORKER_API_KEY` (set on the VPS with `setx`, see `docs/windows_start_guide.md`). When it's set, every `/api/*` request must send the header `X-API-Key` (otherwise 401) and `/ws/stream` must pass `?api_key=…` (browsers can't set WebSocket headers); the check lives in `worker_python/src/api/auth.py`, the middleware in `main.py`, the WS check in `ws_server.py`. When it's unset the worker stays open as before and logs a warning at startup. The frontend sends `NEXT_PUBLIC_WORKER_API_KEY` from `.env.local`: use `axiosInstance` or `WORKER_HEADERS` from `src/lib/api.ts` for every worker call (never bare `axios`/`fetch` without them), and `buildWsUrl()` appends the key for the WebSocket.
+
+MT5 passwords never leave the worker: account responses go through `_public_account()` (`src/api/helpers.py`), which drops `password` and adds `has_password`. On `PUT /api/accounts/{id}` an empty or missing password keeps the stored one, so the edit form starts with an empty password field.
+
 ## Versioning
 
 The GitHub Action `.github/workflows/version-bump.yml` bumps the patch version on every push to `main` (including PR merges): it rewrites `VERSION` and `frontend_nextjs/src/app/version.ts` and pushes a `chore: auto bump version to vX.Y.Z` commit to `main`. Don't edit these two files by hand, and pull `main` after a merge before pushing again. The worker's update check (`src/utils/self_updater.py`) compares the local `VERSION` with `origin/main`. This replaces the former local `.git/hooks/pre-push` hook; don't reinstall it, or versions get bumped twice.
