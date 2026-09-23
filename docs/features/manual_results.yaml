@@ -84,6 +84,47 @@ SYM-03:
   datum: '2026-09-23'
   notiz: 'Claude: USOUSD → Preisfelder step/min 0.001, Lot min/step 0.01; unbekanntes
     Symbol → ''Geçersiz Sembol!''; nach Neuladen wieder USOUSD, API unverändert'
+ZON-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Bölge Ekle'' → Zähler 2, neue Zone inaktiv (is_active false, Symbol
+    der letzten Zone); gespeichert → API 2 Zonen, bleibt nach Neuladen'
+ZON-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Menü ''…'' → ''Bölgeyi Sil'' → Dialog ''Bölge Sil'' → Delete → Zähler
+    1, Leiste ''ungespeichert''; nach ''Tüm Ayarları Kaydet'' API = Sicherung'
+ZON-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Symbol per Autocomplete XAUUSD, Emir Tipi BOTH, Min/Max
+    500/600 → nach Neuladen in API und UI'
+ZON-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Grid 0.2, Lot 0.02, KA 0.3, ZD 1 → nach Neuladen in
+    API und UI'
+ZON-05:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): BOTH + Sync aus → SELL-Felder (und SELL-Pullback) erscheinen;
+    SELL 0.4/0.03/0.6/2 und sync_buy_sell=false gespeichert'
+ZON-06:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Breakout an, Pullback 0.7/SELL 0.9, Alt 3, Üst 4, Maks
+    2 → nach Neuladen in API und UI'
+ZON-07:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da;
+    BUY (Yukarı)/Hepsi/Tüm İşlemler; ''Mum Kapanışı'' blendet Zaman Dilimi (M1–D1)
+    ein, H1 gespeichert'
+ZON-09:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Badge ''Kaydedilmedi'' nur an der geänderten Zone, verschwindet
+    nach Speichern (auch bei SET-03 gesehen)'
 MET-03:
   status: fehlgeschlagen
   datum: '2026-09-23'
