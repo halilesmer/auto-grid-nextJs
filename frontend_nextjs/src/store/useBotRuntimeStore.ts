@@ -48,6 +48,9 @@ function logLiveDataTransitions(prev: LiveData, curr: LiveData) {
   } else if (prev.mt5_connected && !curr.mt5_connected) {
     push('warn', 'Bot is no longer connected to MT5.');
   }
+  if (curr.bot_running && !curr.mt5_connected && !(prev.bot_running && !prev.mt5_connected)) {
+    push('warn', 'Bot process is running but not connected to MT5 – use Restart or Stop.');
+  }
   if (curr.startup_error && curr.startup_error !== prev.startup_error) {
     push('error', `MT5 connection failed: ${curr.startup_error}`);
   }

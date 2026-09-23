@@ -50,13 +50,35 @@ _STATE_ATTRS = {
 }
 
 
+def _load_account_config(account_id: str) -> dict:
+    """Hesap bilgilerini (şifre, sunucu, terminal yolu) configs/accounts.json'dan okur.
+
+    Eskiden bunlar ayar dosyasından (settings_*.json) okunuyordu; orada şifre/sunucu
+    hiç olmadığı için bağlantı koptuğunda yeniden bağlanma HİÇ denenmiyordu.
+    """
+    import json
+    from src.utils.paths import CONFIGS_DIR
+
+    try:
+        with open(os.path.join(CONFIGS_DIR, "accounts.json"), "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {}
+    accounts = data if isinstance(data, list) else data.get("accounts", [])
+    for acc in accounts:
+        if str(acc.get("login")) == account_id or str(acc.get("id")) == account_id:
+            return acc
+    return {}
+
+
 def main_loop():
-    account_id = int(os.environ.get("ACTIVE_ACCOUNT_ID", "0"))
-    from src.utils.config import load_settings
-    account_config = load_settings("Auto Grid")
+    raw_account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "0")
+    account_id = int(raw_account_id) if raw_account_id.isdigit() else 0
+    account_config = _load_account_config(raw_account_id)
     password = account_config.get("password", "")
     server = account_config.get("server", "")
-    _main_loop(_wrappers.mt5, account_id, password, server)
+    mt5_path = account_config.get("mt5_path") or None
+    _main_loop(_wrappers.mt5, account_id, password, server, mt5_path)
 
 
 class _AutoGridEngineModule(types.ModuleType):

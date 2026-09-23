@@ -47,7 +47,7 @@ Frontend env (`frontend_nextjs/.env.local`): `NEXT_PUBLIC_API_URL` (base URL wit
 
 ## Versioning
 
-A local `.git/hooks/pre-push` hook bumps the patch version on every push: it rewrites `VERSION` and `frontend_nextjs/src/app/version.ts` and creates a `chore: auto bump version to vX.Y.Z` commit. Don't edit these two files by hand, and expect that extra commit after pushing.
+The GitHub Action `.github/workflows/version-bump.yml` bumps the patch version on every push to `main` (including PR merges): it rewrites `VERSION` and `frontend_nextjs/src/app/version.ts` and pushes a `chore: auto bump version to vX.Y.Z` commit to `main`. Don't edit these two files by hand, and pull `main` after a merge before pushing again. The worker's update check (`src/utils/self_updater.py`) compares the local `VERSION` with `origin/main`. This replaces the former local `.git/hooks/pre-push` hook; don't reinstall it, or versions get bumped twice.
 
 ## Architecture
 

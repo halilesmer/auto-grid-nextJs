@@ -71,6 +71,8 @@ async def get_logs(
         if isinstance(metrics, dict) and not bot_running:
             metrics["mt5_connected"] = False
         result["metrics"] = metrics
+        # Arayüz, süreç çalışıp MT5'e bağlı değilken de Stop gösterebilsin
+        result["bot_running"] = bot_running
 
     return result
 

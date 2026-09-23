@@ -133,9 +133,11 @@ def run_startup_checks(mt5_module) -> bool:
     return True
 
 
-def _reconnect_mt5(mt5_module, account_id, password, server, max_retries=3, base_delay=2):
+def _reconnect_mt5(mt5_module, account_id, password, server, max_retries=3, base_delay=2, mt5_path=None):
+    # İlk bağlantıyla aynı terminale bağlan (birden fazla MT5 kuruluysa varsayılan yanlış olabilir)
+    init_kwargs = {"path": os.path.normpath(mt5_path)} if mt5_path and os.path.exists(mt5_path) else {}
     for attempt in range(max_retries):
-        if mt5_module.initialize():
+        if mt5_module.initialize(**init_kwargs):
             if mt5_module.login(account_id, str(password), str(server)):
                 time.sleep(1.0)
                 account_info = mt5_module.account_info()
