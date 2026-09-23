@@ -551,6 +551,7 @@ kategorien:
         pruefung:
           - /formasyon öffnen und 1 Minute warten.
         erwartet: Kerzen und RSI-Linie entstehen.
+        bekannter_fehler: Folgefehler von MET-03 – der Stream sendet nie METRICS, daher bleibt das Chart leer (Preis 0, RSI --).
 
       - id: MET-03
         titel: WebSocket-Metriken des Workers
@@ -610,6 +611,26 @@ kategorien:
         pruefung:
           - Worker auf dem VPS stoppen.
         erwartet: Status wechselt nach ≤ 10 s auf offline.
+
+      - id: LOG-05
+        titel: Robot-Log schreiben
+        beschreibung: Der Bot-Prozess schreibt seine Meldungen (log_message) nach logs/<id>/err_<id>.log.
+        code: [worker_python/src/core/grid_helpers.py, worker_python/src/utils/bot_manager.py]
+        tiers: [unit, manuell]
+        pruefung:
+          - Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
+        erwartet: Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
+        bekannter_fehler: log_message schreibt jede Zeile doppelt in dieselbe Datei – per print() (stdout des Bot-Prozesses ist nach err_<id>.log umgeleitet) und per open(..., "a"). Unter Windows überlappen die Schreibzugriffe → doppelte Zeilen und Fragmente wie „adet emir silindi.“.
+
+      - id: LOG-06
+        titel: MT5-Terminal-Log anzeigen
+        beschreibung: Der Tab „MT5 Terminal“ zeigt das Tages-Log des MT5-Terminals, das beim Verbinden nach logs/<id>/mt5_terminal/ kopiert wird.
+        code: [worker_python/src/api/logs.py, worker_python/src/utils/mt5_helpers.py]
+        tiers: [api, manuell]
+        pruefung:
+          - Tab „MT5 Terminal“ öffnen.
+        erwartet: Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
+        bekannter_fehler: logs.py sucht nur logs/<id>/*.log, die Kopien liegen aber in logs/<id>/mt5_terminal/ → Tab bleibt immer leer (MT5-Logs sind außerdem meist UTF-16 kodiert).
 
   # ---------------------------------------------------------------------------
   - id: UPD

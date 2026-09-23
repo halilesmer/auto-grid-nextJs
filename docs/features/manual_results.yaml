@@ -139,8 +139,70 @@ BOT-02:
     nach ~5 s, bot_running=false, Zone ''Hazır (Motor Bekleniyor)''; Log: ''Açık pozisyon/emirlere
     dokunulmuyor''. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders
     (vorher 14/5)'
+MET-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen,
+    5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen'
+MET-02:
+  status: fehlgeschlagen
+  datum: '2026-09-23'
+  notiz: 'Claude: /formasyon nach 37 s leer, Preis 0, RSI --, P/L $0.00 bei laufendem
+    Bot (Folgefehler MET-03)'
 MET-03:
   status: fehlgeschlagen
   datum: '2026-09-23'
   notiz: 'Live bestätigt: nur LIVE_DATA mit mt5_connected=false, nie METRICS (ws_server.py:136
     liest settings.settings.ZONES, Datei ist flach)'
+LOG-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Activity, Robot Logs (200 Zeilen), MT5 Terminal laden und wechseln
+    korrekt; Inhalt: siehe LOG-05 (Fragmente) und LOG-06 (MT5-Tab leer)'
+LOG-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Download log file'' → gültiges ZIP (54 KB) MT5_Logs_and_Configs_7942034.zip
+    mit err-Log, met/pid/symbols, 3 MT5-Terminal-Logs, state und settings; Download
+    im Browser abgefangen, nichts gespeichert'
+LOG-04:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Worker online · updated'' aktualisiert exakt alle 10 s (22:19:02/12/22/32)'
+LOG-05:
+  status: fehlgeschlagen
+  datum: '2026-09-23'
+  notiz: 'Claude: /logs liefert 4 Fragmentzeilen in 200 (''zaklaşan 1 adet emir silindi.''),
+    Meldungen doppelt; Ursache grid_helpers.log_message (print + Datei-Append auf
+    dieselbe Datei)'
+LOG-06:
+  status: fehlgeschlagen
+  datum: '2026-09-23'
+  notiz: 'Claude: mt5_log = [] obwohl mt5_terminal/MT5_Terminal_20260923.log (425
+    KB) existiert (im ZIP gesehen)'
+UPD-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''Check for Updates'' → ''You are up to date''; API: local v0.7.58
+    = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000),
+    nicht des Workers'
+UI-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Dashboard ↔ Formasyon, Markierung wandert mit, Version v0.7.58 =
+    VERSION'
+UI-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: Açık/Koyu/Sistem setzen Klasse ''dark'' + localStorage; ''Açık''
+    übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf ''Sistem'''
+UI-03:
+  status: fehlgeschlagen
+  datum: '2026-09-23'
+  notiz: 'Claude: /service-worker.js → 404, 0 Registrierungen, Konsolenfehler ''unknown
+    error when fetching the script''; manifest.json ok'
+UI-04:
+  status: fehlgeschlagen
+  datum: '2026-09-23'
+  notiz: 'Claude: /chart?zone=<USOUSD-Zone> zeigt nichts Zonenbezogenes (nur allgemeines
+    Chart + ''Yakında'')'

@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **25/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **32/71** abgehakt · ❌ 6 mit Fehlern · 🐞 9 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,10 +21,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 8/9 |
 | 6 | **BOT** – Bot-Steuerung | 2/6 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 0/16 |
-| 8 | **MET** – Live-Daten & Diagramm | 0/4 |
-| 9 | **LOG** – Logs | 0/4 |
-| 10 | **UPD** – System & Updates | 0/5 |
-| 11 | **UI** – Oberfläche | 0/4 |
+| 8 | **MET** – Live-Daten & Diagramm | 1/4 |
+| 9 | **LOG** – Logs | 3/6 |
+| 10 | **UPD** – System & Updates | 1/5 |
+| 11 | **UI** – Oberfläche | 2/4 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -283,14 +283,17 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 8. MET – Live-Daten & Diagramm
 
-- [ ] **MET-01** Kennzahlenleiste — 🖥️ e2e ⏳ · 🌐 live ⏳
+- [x] **MET-01** Kennzahlenleiste *(teilweise)* — 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - Vier Kacheln Preis, Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern.
   - **Prüfung:** Bot laufen lassen, Werte mit MT5 vergleichen.
   - **Erwartet:** Werte stimmen mit MT5 überein und aktualisieren sich.
-- [ ] **MET-02** Chart (10-s-Kerzen + RSI) — 🖥️ e2e ⏳
+  - 📝 Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen, 5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen
+- [ ] **MET-02** Chart (10-s-Kerzen + RSI) — 🖥️ e2e ⏳ · 👤 manuell ❌ 2026-09-23
   - lightweight-charts baut 10-s-Kerzen aus WebSocket-METRICS, RSI auf eigener Skala; Farben folgen dem Theme.
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
+  - 🐞 **Bekannter Fehler:** Folgefehler von MET-03 – der Stream sendet nie METRICS, daher bleibt das Chart leer (Preis 0, RSI --).
+  - 📝 Claude: /formasyon nach 37 s leer, Preis 0, RSI --, P/L $0.00 bei laufendem Bot (Folgefehler MET-03)
 - [ ] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ⏳ · 🌐 live ⏳ · 👤 manuell ❌ 2026-09-23
   - ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
@@ -304,29 +307,45 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 9. LOG – Logs
 
-- [ ] **LOG-01** Log-Tabs laden — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳
+- [x] **LOG-01** Log-Tabs laden *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - Tabs Activity, Robot Logs, MT5 Terminal; GET /logs/{id}?log_type=all&lines=200; ohne laufenden Bot wird mt5_connected=false erzwungen.
   - **Prüfung:** Alle drei Tabs öffnen, „Refresh“.
   - **Erwartet:** Jeder Tab zeigt seine Logs.
+  - 📝 Claude: Activity, Robot Logs (200 Zeilen), MT5 Terminal laden und wechseln korrekt; Inhalt: siehe LOG-05 (Fragmente) und LOG-06 (MT5-Tab leer)
 - [ ] **LOG-02** Logs löschen — 🔌 api ⏳ · 🖥️ e2e ⏳
   - Activity wird nur lokal geleert; Robot/MT5 nach Rückfrage per DELETE /logs/{id}.
   - **Prüfung:** Im Tab Robot Logs „Clear“ → bestätigen.
   - **Erwartet:** Log ist leer, auch nach Refresh.
-- [ ] **LOG-03** Logs als ZIP herunterladen — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **LOG-03** Logs als ZIP herunterladen *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /logs/download/{id} liefert ein ZIP mit Logs, State- und Settings-Datei.
   - **Prüfung:** „Download log file“ klicken, ZIP öffnen.
   - **Erwartet:** ZIP enthält Logs, state_<id>.json und settings-Datei.
-- [ ] **LOG-04** Worker-Status + Polling — 🖥️ e2e ⏳
+  - 📝 Claude: 'Download log file' → gültiges ZIP (54 KB) MT5_Logs_and_Configs_7942034.zip mit err-Log, met/pid/symbols, 3 MT5-Terminal-Logs, state und settings; Download im Browser abgefangen, nichts gespeichert
+- [x] **LOG-04** Worker-Status + Polling *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Anzeige Worker online/offline; Abfrage alle 10 s (beim Verbinden alle 2 s).
   - **Prüfung:** Worker auf dem VPS stoppen.
   - **Erwartet:** Status wechselt nach ≤ 10 s auf offline.
+  - 📝 Claude: 'Worker online · updated' aktualisiert exakt alle 10 s (22:19:02/12/22/32)
+- [ ] **LOG-05** Robot-Log schreiben — 🧪 unit ⏳ · 👤 manuell ❌ 2026-09-23
+  - Der Bot-Prozess schreibt seine Meldungen (log_message) nach logs/<id>/err_<id>.log.
+  - **Prüfung:** Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
+  - **Erwartet:** Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
+  - 🐞 **Bekannter Fehler:** log_message schreibt jede Zeile doppelt in dieselbe Datei – per print() (stdout des Bot-Prozesses ist nach err_<id>.log umgeleitet) und per open(..., "a"). Unter Windows überlappen die Schreibzugriffe → doppelte Zeilen und Fragmente wie „adet emir silindi.“.
+  - 📝 Claude: /logs liefert 4 Fragmentzeilen in 200 ('zaklaşan 1 adet emir silindi.'), Meldungen doppelt; Ursache grid_helpers.log_message (print + Datei-Append auf dieselbe Datei)
+- [ ] **LOG-06** MT5-Terminal-Log anzeigen — 🔌 api ⏳ · 👤 manuell ❌ 2026-09-23
+  - Der Tab „MT5 Terminal“ zeigt das Tages-Log des MT5-Terminals, das beim Verbinden nach logs/<id>/mt5_terminal/ kopiert wird.
+  - **Prüfung:** Tab „MT5 Terminal“ öffnen.
+  - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
+  - 🐞 **Bekannter Fehler:** logs.py sucht nur logs/<id>/*.log, die Kopien liegen aber in logs/<id>/mt5_terminal/ → Tab bleibt immer leer (MT5-Logs sind außerdem meist UTF-16 kodiert).
+  - 📝 Claude: mt5_log = [] obwohl mt5_terminal/MT5_Terminal_20260923.log (425 KB) existiert (im ZIP gesehen)
 
 ## 10. UPD – System & Updates
 
-- [ ] **UPD-01** Update-Prüfung — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **UPD-01** Update-Prüfung *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
+  - 📝 Claude: 'Check for Updates' → 'You are up to date'; API: local v0.7.58 = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000), nicht des Workers
 - [ ] **UPD-02** Update anwenden — 🖥️ e2e ⏳ · 👤 manuell ⏳
   - „Apply Update (git pull)“ → POST /system/update (stash, pull, stash pop), danach Seiten-Reload.
   - **Prüfung:** Nach einem Merge auf main das Update im Dashboard anwenden, danach Worker/Bot neu starten.
@@ -348,21 +367,25 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 11. UI – Oberfläche
 
-- [ ] **UI-01** Navigation — 🖥️ e2e ⏳
+- [x] **UI-01** Navigation *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Logo, Version, Links Dashboard und Formasyon mit animierter Markierung.
   - **Prüfung:** Zwischen Dashboard und Formasyon wechseln.
   - **Erwartet:** Aktiver Link ist markiert, Version entspricht VERSION.
-- [ ] **UI-02** Theme hell / dunkel / System — 🖥️ e2e ⏳
+  - 📝 Claude: Dashboard ↔ Formasyon, Markierung wandert mit, Version v0.7.58 = VERSION
+- [x] **UI-02** Theme hell / dunkel / System *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Umschalter „Açık / Koyu / Sistem“, gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
   - **Prüfung:** Alle drei Varianten wählen und die Seite neu laden.
   - **Erwartet:** Theme bleibt erhalten, kein helles Aufblitzen im Dunkelmodus.
-- [ ] **UI-03** PWA / Service Worker — 🖥️ e2e ⏳
+  - 📝 Claude: Açık/Koyu/Sistem setzen Klasse 'dark' + localStorage; 'Açık' übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf 'Sistem'
+- [ ] **UI-03** PWA / Service Worker — 🖥️ e2e ⏳ · 👤 manuell ❌ 2026-09-23
   - Manifest und Registrierung von /service-worker.js im Layout.
   - **Prüfung:** DevTools → Application → Service Workers.
   - **Erwartet:** Service Worker ist registriert, keine 404 in der Konsole.
   - 🐞 **Bekannter Fehler:** /service-worker.js fehlt in public/ → 404 bei der Registrierung.
-- [ ] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ⏳
+  - 📝 Claude: /service-worker.js → 404, 0 Registrierungen, Konsolenfehler 'unknown error when fetching the script'; manifest.json ok
+- [ ] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ⏳ · 👤 manuell ❌ 2026-09-23
   - Link „Test“ im Zonenkopf öffnet /chart?zone=<id>.
   - **Prüfung:** In einer Zone auf „Test“ klicken.
   - **Erwartet:** Das Chart zeigt die gewählte Zone.
   - 🐞 **Bekannter Fehler:** /chart ignoriert den Parameter zone.
+  - 📝 Claude: /chart?zone=<USOUSD-Zone> zeigt nichts Zonenbezogenes (nur allgemeines Chart + 'Yakında')
