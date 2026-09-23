@@ -31,7 +31,7 @@ sys.path.append(str(project_root))
 from src.utils.mt5_connection import connect_to_mt5_with_timeout
 
 # 🌟 YENİ: Merkezi yol yöneticisini içeri aktarıyoruz
-from src.utils.paths import get_metrics_path, get_ui_state_path
+from src.utils.paths import get_err_log_path, get_metrics_path, get_ui_state_path
 
 # 🌟 YENİ: MT5 "Source of Truth" senkronizasyonu ve kalıcı state dosyası
 from src.utils.state_manager import build_synced_state, save_state
@@ -51,6 +51,31 @@ def export_metrics_step(bot_engine, account_id):
             pass
 
 
+_ORIGINAL_STDIO: list = []
+
+
+def redirect_stdio_to_log(account_id):
+    """stdout/stderr'i err_<id>.log'a EKLEME (append) kipinde yeniden açar.
+
+    bot_manager bu dosyayı stdout olarak devrediyor; ancak devralınan tanıtıcı alt
+    süreçte append kipinde değil. Alt süreç kendi konumundan yazarken, log_message'ın
+    ve API sürecinin (log_step) sona eklediği satırların üzerine yazıyordu
+    (yarım satırlar: "...adet emir silindi."). Append kipinde her yazım dosya sonuna gider.
+    """
+    if sys.stdout is not None and sys.stdout.isatty():
+        return  # Elle terminalden çalıştırılıyor: konsol çıktısı kalsın
+    try:
+        log_stream = open(
+            get_err_log_path(account_id), "a", encoding="utf-8", errors="replace", buffering=1
+        )
+    except OSError:
+        return
+    # Eski sarmalayıcılar çöpe giderse devraldıkları tanıtıcıyı (fd 1/2) kapatır; referansı tut
+    _ORIGINAL_STDIO.extend([sys.stdout, sys.stderr])
+    sys.stdout = log_stream
+    sys.stderr = log_stream
+
+
 def main():
     # 1. Yöneticiden (bot_manager) gelen argümanları al
     if len(sys.argv) < 3:
@@ -59,6 +84,7 @@ def main():
 
     account_id = sys.argv[1]
     engine_name = sys.argv[2]
+    redirect_stdio_to_log(account_id)
 
     # Kilit Nokta: config.py'nin Streamlit olmadan da hangi hesapta olduğunu bilmesi için
     # İşletim Sistemi ortam değişkenlerine hesap ID'sini kazıyoruz!
