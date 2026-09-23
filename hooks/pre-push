@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# pre-push: GitHub'a gitmeden önce tam kontrol (~5 sn).
+# git stdin'e "<local_ref> <local_sha> <remote_ref> <remote_sha>" satırları verir.
+# Kod kontrolleri (tsc/eslint/ast) çalışma ağacını denetler; itilen commit'leri değil.
+# Atlamak (sadece acil durum): SKIP_HOOKS=1 git push ...
+[ "${SKIP_HOOKS:-}" = "1" ] && exit 0
+
+# shellcheck source=lib/checks.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/checks.sh"
+
+ZERO="0000000000000000000000000000000000000000"
+EMPTY_TREE="$(git hash-object -w -t tree /dev/null)" # boş ağaç nesnesi repoda yoksa yazar
+
+echo "▶ pre-push kontrolleri" >&2
+cd "$ROOT" || exit 1
+
+ALL_FILES=""
+ALL_DIFF=""
+RANGES=()
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "${local_sha:-}" ] && continue
+  [ "$local_sha" = "$ZERO" ] && continue # branch silme
+
+  if [ "$remote_sha" != "$ZERO" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    base="$remote_sha"
+  else
+    # yeni branch (veya remote_sha yerelde yok): main ile ortak atadan başla
+    base="$(git merge-base "$local_sha" origin/main 2>/dev/null || echo "$EMPTY_TREE")"
+  fi
+
+  RANGES+=("$base..$local_sha")
+  ALL_FILES+="$(git diff --name-only "$base" "$local_sha")"$'\n'
+  ALL_DIFF+="$(git diff "$base" "$local_sha")"$'\n'
+done
+
+if [ -z "${ALL_FILES//[$'\n ']/}" ]; then
+  echo "  (itilecek değişiklik yok)" >&2
+  exit 0
+fi
+
+# 1) Yasaklı dosyalar (silinenler hariç)
+check_forbidden_files < <(
+  for r in "${RANGES[@]}"; do
+    git diff --name-only --diff-filter=ACMR "${r%%..*}" "${r##*..}"
+  done | sort -u
+)
+
+# 2) Gizli veri
+check_secrets_diff <<< "$ALL_DIFF"
+
+# 3) Sürüm dosyaları
+for r in "${RANGES[@]}"; do
+  if [ "${r%%..*}" = "$EMPTY_TREE" ]; then
+    check_version_files "${r##*..}"
+  else
+    check_version_files "$r"
+  fi
+done
+
+# 4) Kod kontrolleri (sadece ilgili alan değiştiyse)
+if echo "$ALL_FILES" | grep -q '^frontend_nextjs/'; then
+  check_frontend
+fi
+check_worker < <(echo "$ALL_FILES" | grep -E '^worker_python/.*\.py$' | sort -u)
+
+# 5) Uyumluluk uyarıları (engellemez)
+check_compat_warnings <<< "$ALL_FILES"
+
+finish_checks

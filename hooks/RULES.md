@@ -1,0 +1,44 @@
+# Grid Robot — Kurallar (hook'ların denetlediği)
+
+Etiketler: **[otomatik]** = hook engeller veya uyarır · **[elle]** = hook denetlemez, sorumluluk sende/Claude'da.
+Kural eklemek için en alttaki prosedüre bak.
+
+## 1. GitHub'a yükleme
+
+1. **[elle]** `main`'e doğrudan push yok: `feat/…`, `fix/…` branch → PR → merge.
+2. **[otomatik]** `VERSION` ve `frontend_nextjs/src/app/version.ts` elle değiştirilmez. Her `main` push'unda GitHub Action bump eder (`chore: auto bump version`). Merge sonrası, tekrar push etmeden önce `git pull`.
+3. **[otomatik]** Şunlar asla commit'lenmez (gitignore'a rağmen `git add -f` yapılsa bile engellenir):
+   `worker_python/configs/*.json` (accounts, settings_*), `worker_python/data/`, `worker_python/logs/`, `.env*` (`.env.example` hariç), `broker_symbols.json`, `hooks/test-account.local.md`.
+4. **[otomatik]** Kodda/diff'te gizli veri yok: özel anahtar, `NGROK_AUTHTOKEN`, `password = "…"`, `api_key/secret/token = "…"` (16+ karakter). Yanlış alarm olursa değeri koddan çıkarıp env'e taşı; gerçekten gerekliyse `SKIP_HOOKS=1` ve nedenini PR'a yaz.
+5. **[otomatik]** Push öncesi frontend değiştiyse `tsc --noEmit` + `eslint .` temiz olmalı; worker `.py` dosyalarında sözdizimi hatası olmamalı.
+6. **[elle]** Commit mesajı: `feat|fix|chore|docs|refactor(kapsam): kısa açıklama`.
+7. **[elle]** `--no-verify` / `SKIP_HOOKS=1` yalnızca acil durumda; kullanıldıysa PR açıklamasına yaz.
+
+## 2. Uyumluluk
+
+1. **[otomatik-uyarı]** UI ↔ backend senkronu zorunlu (`.agents/rules/token-saver.md`): worker'da model / ayar / çekirdek (`src/api/models.py`, `src/api/settings.py`, `src/core/*.py`) değişince frontend (`types`, `store`, `components`, `services`, `hooks`) da güncellenmeden iş bitmiş sayılmaz. Hook, frontend hiç değişmediyse uyarır.
+2. **[elle]** Paylaşılan veri çeken hook'lar sonucu global Zustand store'a da yazar; mutasyon sonrası refetch (bkz. `frontend_nextjs/AGENTS.md`). Aksi halde dropdown'lar bayatlar / 409 alınır.
+3. **[elle]** Next.js kodu yazmadan önce `frontend_nextjs/node_modules/next/dist/docs/` oku (Next 16 breaking changes).
+4. **[otomatik-uyarı]** `auto_grid_engine.py` legacy'dir; yeni mantık modüler dosyalara (`grid_*.py`, `grid_execution/`).
+5. **[otomatik-uyarı]** Worker değişince Mac'te sadece statik kontrol yapılabilir. Worker Mac'te başlatılmaz (MT5 Windows'a özel); VPS'e pull + restart ile test edilir.
+6. **[elle]** Yorum/log/doküman dili dosyanın diline uyar (çoğunlukla Türkçe).
+7. **[elle]** Mimari değişince `docs/proje_dosya_krokisi.md` güncellenir.
+
+## 3. Test protokolü ("test et" denince)
+
+Claude her seferinde aynı demo hesabı kullanır; kullanıcıdan tekrar bilgi istenmez.
+
+1. `hooks/test-account.local.md` dosyasını oku (gitignore'lu; şablon: `test-account.example.md`).
+2. Frontend: `npm run dev:frontend` (`frontend_nextjs/`) → `http://localhost:3000`. Worker VPS'te ngrok üzerinden çalışır; `frontend_nextjs/.env.local` zaten ona bakar.
+3. `AccountSelector`'da **worker'da zaten kayıtlı** hesabı seç (dosyadaki Hesap ID / login). Mevcut datayı kullan; yeni hesap oluşturma, hesap silme yok.
+4. **Şifre / credential hiçbir forma yazılmaz ve hiçbir dosyaya kaydedilmez.** Hesap girişi gerekiyorsa kullanıcıya bırakılır.
+5. Bot start/stop veya emir gerektiren testler yalnızca dosyada `Tür: DEMO` yazıyorsa ve kullanıcı açıkça istediyse yapılır. Şüphe varsa dur ve sor.
+6. Worker'ı Mac'te başlatma. Worker tarafı değişikliği test edilecekse kullanıcıdan VPS'te pull + restart iste.
+7. Sonuçları kısa raporla: neyi seçtin, neyi doğruladın, neyi doğrulayamadın.
+
+## 4. Kural ekleme prosedürü
+
+1. Kuralı bu dosyaya `[otomatik]` veya `[elle]` etiketiyle yaz.
+2. `[otomatik]` ise `hooks/lib/checks.sh` içine `check_*` fonksiyonu ekle (engelleyici → `err`, uyarı → `warn`). Sayaçlar için fonksiyonu boru (`|`) ile değil `< <(...)` / `<<<` ile çağır (boru alt-kabuk açar, sayaç kaybolur).
+3. Fonksiyonu `pre-push` (ve gerekirse `pre-commit`, `claude/stop-check.sh`) içinden çağır.
+4. Hata yolunu bilerek tetikleyip test et.

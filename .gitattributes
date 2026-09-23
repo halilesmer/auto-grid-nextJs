@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Hook script'leri her platformda LF olmalı (Windows/Git Bash CRLF ile bozulur)
+hooks/** text eol=lf
+*.sh text eol=lf
