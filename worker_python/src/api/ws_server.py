@@ -119,7 +119,7 @@ def fetch_mt5_data(symbol=""):
 BOT_METRICS_MAX_AGE_SEC = 30
 
 
-def read_bot_metrics(acc_id: str):
+def read_bot_metrics(acc_id: str, symbol: str = ""):
     """Bot sürecinin yazdığı logs/<id>/met_<id>.json'dan METRICS payload'ı üretir.
 
     RSI/MACD için mum verisi gerektiğinden bu anahtarlar gönderilmez (grafik '--' gösterir).
@@ -141,6 +141,7 @@ def read_bot_metrics(acc_id: str):
     if not price:
         return None
     return {
+        "symbol": symbol,
         "mt5_connected": bool(metrics.get("mt5_connected", True)),
         "market_open": bool(metrics.get("market_open", False)),
         "current_price": price,
@@ -191,7 +192,7 @@ async def real_bot_data_stream():
             if not data:
                 # API süreci MT5'e bağlı değilse (ör. worker yeniden başladı, /start
                 # çağrılmadı) bot sürecinin metrik dosyasına düş: grafik yine fiyat alır.
-                fallback = await asyncio.to_thread(read_bot_metrics, acc_id)
+                fallback = await asyncio.to_thread(read_bot_metrics, acc_id, symbol)
                 if fallback:
                     await manager.broadcast(
                         json.dumps({"type": "METRICS", "payload": fallback})
@@ -201,6 +202,8 @@ async def real_bot_data_stream():
             if data:
                 indicators = get_latest_indicators(data["df"])
                 combined_payload = {
+                    # Grafik sayfası (/chart?zone=) akışın hangi sembolü gösterdiğini bilmeli
+                    "symbol": symbol,
                     "mt5_connected": data["mt5_connected"],
                     "market_open": data["market_open"],
                     "current_price": data["price"],
