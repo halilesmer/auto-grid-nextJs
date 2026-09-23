@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { Account } from './types';
 import ConfirmModal from '@/components/ConfirmModal';
+import { Card } from '@/components/ui/card';
 import { isDuplicateAccountError } from './types';
 
 export default function AccountSelector() {
@@ -190,7 +191,7 @@ export default function AccountSelector() {
 
   return (
     <>
-      <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-xl flex items-center justify-between gap-4">
+      <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between">
         <AccountDropdown
           accounts={storeAccounts}
           selectedAccount={selectedAccount}
@@ -206,7 +207,7 @@ export default function AccountSelector() {
           onDownloadLog={handleDownloadLog}
           onAdd={openAdd}
         />
-      </div>
+      </Card>
 
       <AccountFormDialog open={modalOpen} onClose={() => setModalOpen(false)} title={isEditing ? 'Edit Account' : 'New MT5 Account'}>
         <AccountForm

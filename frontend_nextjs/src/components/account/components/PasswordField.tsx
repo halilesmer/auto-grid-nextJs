@@ -12,27 +12,29 @@ export function PasswordField({
   error,
 }: PasswordFieldProps) {
   return (
-    <div className="relative w-full flex items-center">
-      <input
-        type={showPassword ? 'text' : 'password'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        placeholder="MT5 Password"
-        className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 pr-10 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-        aria-invalid={error ? 'true' : 'false'}
-      />
-      <button
-        type="button"
-        onClick={onToggleShow}
-        className="absolute right-3 text-gray-400 hover:text-white transition-colors outline-none"
-        aria-label={showPassword ? 'Hide Password' : 'Show Password'}
-        aria-pressed={showPassword}
-      >
-        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
+    <div>
+      <div className="relative flex w-full items-center">
+        <input
+          type={showPassword ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          placeholder="MT5 Password"
+          className={`input-s pr-10 ${error ? 'border-danger' : ''}`}
+          aria-invalid={error ? 'true' : 'false'}
+        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          className="absolute right-2.5 rounded p-0.5 text-muted-foreground outline-none transition-colors hover:text-foreground"
+          aria-label={showPassword ? 'Hide Password' : 'Show Password'}
+          aria-pressed={showPassword}
+        >
+          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
       {error && (
-        <p className="absolute bottom-full left-0 mb-1 text-xs text-red-400" role="alert">
+        <p className="mt-1 text-xs text-danger" role="alert">
           {error}
         </p>
       )}

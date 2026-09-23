@@ -1,72 +1,183 @@
 @import "tailwindcss";
 
+/*
+ * Tema: 21st.dev "Darkmatter" (serafimcloud) temel alındı.
+ * Trading için anlamsal renkler eklendi: success (kâr/BUY), danger (zarar/SELL),
+ * warning, info. Uygulama yalnızca koyu tema kullanır.
+ */
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #0d0c0e;
+  --foreground: #d6d6d6;
+  --card: #141315;
+  --card-foreground: #d6d6d6;
+  --popover: #171618;
+  --popover-foreground: #d6d6d6;
+  --primary: #e78a53;
+  --primary-foreground: #121113;
+  --secondary: #5f8787;
+  --secondary-foreground: #121113;
+  --muted: #1f1e20;
+  --muted-foreground: #8a8a8a;
+  --accent: #2a292b;
+  --accent-foreground: #e4e4e4;
+  --border: #252426;
+  --input: #2a292b;
+  --ring: #e78a53;
+
+  --success: #34c38f;
+  --success-foreground: #06170f;
+  --danger: #ef5b5b;
+  --danger-foreground: #1a0606;
+  --warning: #f1b44c;
+  --warning-foreground: #1a1204;
+  --info: #6aa9c9;
+
+  --chart-1: #5f8787;
+  --chart-2: #e78a53;
+  --chart-3: #fbcb97;
+  --chart-4: #888888;
+  --chart-5: #999999;
+
+  --radius: 0.75rem;
   color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--primary);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-destructive: var(--danger);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    background: var(--background);
+  }
+
+  /* Arka plan html'de; body şeffaf kalır ki body::before deseni görünsün */
+  body {
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Hafif ışık + ince ızgara: terminal hissi, içeriği bastırmadan */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 30rem at 15% -10%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 70%),
+      radial-gradient(50rem 30rem at 100% 0%, color-mix(in oklab, var(--secondary) 10%, transparent), transparent 70%),
+      linear-gradient(to right, color-mix(in oklab, var(--foreground) 3%, transparent) 1px, transparent 1px) 0 0 / 48px 48px,
+      linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 3%, transparent) 1px, transparent 1px) 0 0 / 48px 48px;
+    mask-image: linear-gradient(to bottom, black, transparent 80%);
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 35%, transparent);
+    color: var(--foreground);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    opacity: 0.35;
+  }
 }
 
-@keyframes pulse-green {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+@layer components {
+  /* Zone formlarındaki tüm alanların ortak stili */
+  .input-s {
+    width: 100%;
+    height: 2.25rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--input);
+    background: color-mix(in oklab, var(--background) 70%, transparent);
+    padding: 0 0.75rem;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--foreground);
+    outline: none;
+    transition: border-color 150ms, box-shadow 150ms, background-color 150ms;
   }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
-  }
-}
 
-@keyframes pulse-red {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+  .input-s:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--foreground) 22%, transparent);
   }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
-  }
-}
 
-.pulsing-green {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  background-color: #4caf50;
-  border-radius: 50%;
-  animation: pulse-green 2s infinite;
-  margin-right: 8px;
-}
+  .input-s:focus {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
+  }
 
-.pulsing-red {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  background-color: #f44336;
-  border-radius: 50%;
-  animation: pulse-red 2s infinite;
-  margin-right: 8px;
+  .input-s:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  select.input-s {
+    appearance: none;
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+  }
+
+  select.input-s option {
+    background: var(--popover);
+    color: var(--foreground);
+  }
+
+  textarea.input-s {
+    height: auto;
+    padding: 0.5rem 0.75rem;
+  }
 }
 
 @keyframes slide-in {
@@ -82,4 +193,16 @@ body {
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out forwards;
+}
+
+@keyframes ping-soft {
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-ping-soft {
+  animation: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }

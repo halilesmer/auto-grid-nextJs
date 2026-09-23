@@ -9,14 +9,23 @@ interface ErrorToastProps {
 
 export default function ErrorToast({ message, onDismiss }: ErrorToastProps) {
   return (
-    <div className="fixed bottom-6 right-6 z-50 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 flex items-center gap-3 shadow-2xl animate-slide-in">
-      <AlertCircle size={20} />
-      <span>{message}</span>
+    <div
+      role="alert"
+      className="fixed bottom-6 right-6 z-50 flex max-w-md items-start gap-3 rounded-xl border border-danger/40 bg-popover/95 p-4 text-sm shadow-2xl shadow-black/60 backdrop-blur animate-slide-in"
+    >
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-danger/15 text-danger">
+        <AlertCircle size={16} />
+      </div>
+      <div className="min-w-0 flex-1 pt-1">
+        <p className="font-semibold text-foreground">Hata</p>
+        <p className="mt-0.5 break-words text-muted-foreground">{message}</p>
+      </div>
       <button
         onClick={onDismiss}
-        className="ml-4 text-red-400 hover:text-red-300"
+        className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+        aria-label="Dismiss"
       >
-        <X size={16} />
+        <X size={14} />
       </button>
     </div>
   );

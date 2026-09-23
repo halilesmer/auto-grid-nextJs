@@ -1,6 +1,8 @@
 'use client';
 
-import { Globe, Monitor, Power, RefreshCw, Server, Settings } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Globe, Monitor, Power, RefreshCw, Server, Settings, UserRound } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
 import { useDashboard } from '@/app/hooks/useDashboard';
 import AccountSelector from '@/components/account/AccountSelector';
@@ -10,10 +12,13 @@ import ErrorToast from '@/components/ui/ErrorToast';
 import LogViewer from '@/components/LogViewer';
 import SettingsForm from '@/components/SettingsForm';
 import SimulationBar from '@/components/SimulationBar';
+import MetricsStrip from '@/components/dashboard/MetricsStrip';
 import SaveSettingsBar from '@/components/dashboard/SaveSettingsBar';
 import UpdateModal from '@/components/dashboard/UpdateModal';
 import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
-import { VERSION } from '@/app/version';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 export default function Home() {
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
@@ -23,6 +28,7 @@ export default function Home() {
   const isRunning = useBotRuntimeStore((s) => s.isRunning);
   const liveData = useBotRuntimeStore((s) => s.liveData);
   const mergeAndSaveSettings = useSettingsStore((s) => s.mergeAndSaveSettings);
+  const sysMenuRef = useRef<HTMLDivElement>(null);
 
   // Initialize WebSocket connection when account is selected
   useWebSocketManager(selectedAccount);
@@ -54,181 +60,184 @@ export default function Home() {
     setUpdateInfo,
   });
 
+  // Sistem menüsü dışına tıklanınca kapat
+  useEffect(() => {
+    if (!showSysInfo) return;
+    const onDown = (e: MouseEvent) => {
+      if (sysMenuRef.current && !sysMenuRef.current.contains(e.target as Node)) setShowSysInfo(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showSysInfo, setShowSysInfo]);
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-start md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-emerald-400">
-              Grid Robot Dashboard{' '}
-              <span className="text-base text-gray-500 font-normal">
-                {VERSION}
-              </span>
-            </h1>
-            <div className="flex items-center gap-3 mt-1">
-              <span
-                className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
-                  isLive
-                    ? 'bg-red-500/20 text-red-400'
-                    : 'bg-blue-500/20 text-blue-400'
-                }`}
-              >
-                {isLive ? '🔴 LIVE' : '🧪 TEST'}
-              </span>
-              <span className="text-xs text-gray-500">Auto Grid Engine</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="relative">
-              <button
-                onClick={() => setShowSysInfo(!showSysInfo)}
-                className="flex items-center space-x-1 text-xs text-gray-400 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 transition-all"
-                title="System Info"
-              >
-                <Settings size={18} />
-              </button>
-              {showSysInfo && (
-                <div className="absolute right-0 top-full mt-2 bg-gray-800 border border-white/10 rounded-xl shadow-2xl p-4 z-30 w-72 space-y-3">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">
-                    System Info
-                  </p>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Monitor size={14} className="text-gray-500" />
-                      <span>
-                        Host:{' '}
-                        {typeof window !== 'undefined'
-                          ? window.location.hostname
-                          : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Server size={14} className="text-gray-500" />
-                      <span>
-                        Port:{' '}
-                        {typeof window !== 'undefined'
-                          ? window.location.port || '3000'
-                          : '3000'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Globe size={14} className="text-gray-500" />
-                      <span>
-                        URL:{' '}
-                        <span className="text-blue-400 text-xs break-all">
-                          {typeof window !== 'undefined'
-                            ? window.location.origin
-                            : ''}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                  <hr className="border-white/10" />
-                  <button
-                    onClick={() => {
-                      setShowSysInfo(false);
-                      setUpdateOpen(true);
-                      handleCheckUpdates();
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 text-sm text-blue-400 hover:text-blue-300 px-3 py-2 rounded-lg hover:bg-blue-500/10 transition-all"
-                  >
-                    <RefreshCw size={14} />
-                    <span>Check for Updates</span>
-                  </button>
-                  <hr className="border-white/10" />
-                  <button
-                    onClick={() => {
-                      setShowSysInfo(false);
-                      setShutdownOpen(true);
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 text-sm text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-all"
-                  >
-                    <Power size={14} />
-                    <span>System Shutdown</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => setShutdownOpen(true)}
-              className="flex items-center space-x-1 text-xs text-red-400 hover:text-red-300 px-2 py-2 rounded-lg hover:bg-red-500/10 transition-all shrink-0"
-              title="System Shutdown"
-            >
-              <Power size={18} />
-            </button>
-          </div>
-        </header>
-
+    <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <AccountSelector />
+          <div className="mb-2 flex items-center gap-2">
+            <Badge tone={isLive ? 'danger' : 'info'}>
+              <span className={`size-1.5 rounded-full ${isLive ? 'bg-danger' : 'bg-info'}`} />
+              {isLive ? 'LIVE' : 'TEST'}
+            </Badge>
+            <span className="text-xs text-muted-foreground">Auto Grid Engine</span>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            Trading Dashboard
+          </h1>
         </div>
 
-        {selectedAccount && <SimulationBar />}
+        <div className="flex items-center gap-2">
+          {selectedAccount && (
+            <SaveSettingsBar
+              isDirty={isDirty}
+              isLoading={saveAllLoading}
+              hasSettings={!!settings}
+              onSave={handleSaveAll}
+            />
+          )}
 
-        {selectedAccount && (
-          <SaveSettingsBar
-            isDirty={isDirty}
-            isLoading={saveAllLoading}
-            hasSettings={!!settings}
-            onSave={handleSaveAll}
-          />
-        )}
+          <div className="relative" ref={sysMenuRef}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowSysInfo(!showSysInfo)}
+              title="System Info"
+              aria-expanded={showSysInfo}
+            >
+              <Settings size={16} />
+            </Button>
+            <AnimatePresence>
+              {showSysInfo && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full z-30 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl shadow-black/60"
+                >
+                  <div className="space-y-2.5 p-4">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      System Info
+                    </p>
+                    {[
+                      { icon: Monitor, label: 'Host', value: typeof window !== 'undefined' ? window.location.hostname : 'N/A' },
+                      { icon: Server, label: 'Port', value: typeof window !== 'undefined' ? window.location.port || '3000' : '3000' },
+                      { icon: Globe, label: 'URL', value: typeof window !== 'undefined' ? window.location.origin : '' },
+                    ].map(({ icon: Icon, label, value }) => (
+                      <div key={label} className="flex items-start gap-2.5 text-sm">
+                        <Icon size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+                        <span className="w-10 shrink-0 text-muted-foreground">{label}</span>
+                        <span className="min-w-0 break-all font-mono text-xs leading-5 text-foreground">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-border p-1.5">
+                    <button
+                      onClick={() => {
+                        setShowSysInfo(false);
+                        setUpdateOpen(true);
+                        handleCheckUpdates();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-accent"
+                    >
+                      <RefreshCw size={14} className="text-muted-foreground" />
+                      Check for Updates
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSysInfo(false);
+                        setShutdownOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger transition hover:bg-danger/10"
+                    >
+                      <Power size={14} />
+                      System Shutdown
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShutdownOpen(true)}
+            title="System Shutdown"
+            className="text-danger hover:bg-danger/10 hover:text-danger"
+          >
+            <Power size={16} />
+          </Button>
+        </div>
+      </header>
 
-        {saveAllError && (
-          <ErrorToast
-            message={saveAllError}
-            onDismiss={() => setSaveAllError('')}
-          />
-        )}
+      <AccountSelector />
 
-        {selectedAccount ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-112.5">
+      {selectedAccount && <SimulationBar />}
+
+      {saveAllError && (
+        <ErrorToast
+          message={saveAllError}
+          onDismiss={() => setSaveAllError('')}
+        />
+      )}
+
+      {selectedAccount ? (
+        <>
+          <MetricsStrip />
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="space-y-5 lg:col-span-2">
+              <Card className="p-5">
                 <ZoneSettingsPanel
                   selectedAccount={selectedAccount}
                   isRunning={isRunning}
                   liveData={liveData}
                   isGlobalDirty={isDirty}
                 />
-              </div>
+              </Card>
               <LogViewer />
             </div>
 
-            <div className="lg:col-span-1 space-y-6">
-              <BotControls />
-              <SettingsForm />
+            <div className="space-y-5 lg:col-span-1">
+              <div className="space-y-5 lg:sticky lg:top-20">
+                <BotControls />
+                <SettingsForm />
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="mt-20 flex flex-col items-center justify-center text-gray-500">
-            <div className="animate-pulse w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full mb-4" />
-            <p className="text-xl">Please select an account to continue.</p>
+        </>
+      ) : (
+        <Card className="flex flex-col items-center justify-center px-6 py-20 text-center">
+          <div className="mb-4 flex size-12 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
+            <UserRound size={22} />
           </div>
-        )}
+          <p className="text-base font-medium text-foreground">No account selected</p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            Pick an MT5 account above, or add a new one to start configuring grid zones.
+          </p>
+        </Card>
+      )}
 
-        <UpdateModal
-          isOpen={updateOpen}
-          onClose={() => {
-            setUpdateOpen(false);
-            setUpdateResult(null);
-          }}
-          updateResult={updateResult}
-          onApplyUpdate={handleApplyUpdate}
-        />
+      <UpdateModal
+        isOpen={updateOpen}
+        onClose={() => {
+          setUpdateOpen(false);
+          setUpdateResult(null);
+        }}
+        updateResult={updateResult}
+        onApplyUpdate={handleApplyUpdate}
+      />
 
-        <ConfirmModal
-          open={shutdownOpen}
-          onClose={() => setShutdownOpen(false)}
-          onConfirm={handleShutdown}
-          title="System Shutdown"
-          message="This will stop all running bots and close the interface. Open positions will remain safe on the broker side."
-          confirmLabel="Shutdown"
-          variant="danger"
-          loading={shuttingDown}
-        />
-      </div>
+      <ConfirmModal
+        open={shutdownOpen}
+        onClose={() => setShutdownOpen(false)}
+        onConfirm={handleShutdown}
+        title="System Shutdown"
+        message="This will stop all running bots and close the interface. Open positions will remain safe on the broker side."
+        confirmLabel="Shutdown"
+        variant="danger"
+        loading={shuttingDown}
+      />
     </div>
   );
 }

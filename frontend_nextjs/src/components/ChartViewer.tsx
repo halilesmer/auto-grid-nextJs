@@ -2,6 +2,8 @@
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { useAccountStore, useBotRuntimeStore, useWebSocketManager } from '@/store';
+import { CandlestickChart } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Grafik sayfaları hesap seçilmeden de açılabilir; akış (/ws/stream) hesaba bağlı değil.
 const CHART_STREAM_KEY = 'chart';
@@ -25,32 +27,38 @@ export default function ChartViewer() {
       height: 400,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#d1d5db',
+        textColor: '#8a8a8a',
+        fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
+        fontSize: 11,
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.1)' },
-        horzLines: { color: 'rgba(255,255,255,0.1)' },
+        vertLines: { color: 'rgba(255,255,255,0.04)' },
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      crosshair: {
+        vertLine: { color: 'rgba(231,138,83,0.4)', labelBackgroundColor: '#e78a53' },
+        horzLine: { color: 'rgba(231,138,83,0.4)', labelBackgroundColor: '#e78a53' },
       },
       rightPriceScale: {
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.06)',
       },
       timeScale: {
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.06)',
         timeVisible: true,
         secondsVisible: true,
       },
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
+      upColor: '#34c38f',
+      downColor: '#ef5b5b',
       borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      wickUpColor: '#34c38f',
+      wickDownColor: '#ef5b5b',
     });
 
     const rsiSeries = chart.addSeries(LineSeries, {
-      color: '#a855f7',
+      color: '#6aa9c9',
       lineWidth: 2,
       priceScaleId: 'rsi',
     });
@@ -113,20 +121,42 @@ export default function ChartViewer() {
     };
   }, []);
 
+  const profit = metrics.profit ?? 0;
+  const stats = [
+    { label: 'Price', value: metrics.price ?? '--', className: 'text-foreground' },
+    { label: 'RSI', value: metrics.rsi ? metrics.rsi.toFixed(2) : '--', className: 'text-info' },
+    {
+      label: 'P/L',
+      value: `$${profit.toFixed(2)}`,
+      className: profit > 0 ? 'text-success' : profit < 0 ? 'text-danger' : 'text-foreground',
+    },
+    { label: 'Positions', value: metrics.open_positions ?? 0, className: 'text-foreground' },
+  ];
+
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-xl flex flex-col h-full">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-white">Live Price & Indicators</h3>
-        <div className="flex space-x-4 text-sm font-semibold">
-          <div className="text-gray-300">Price: <span className="text-white">{metrics.price}</span></div>
-          <div className="text-purple-400">RSI: {metrics.rsi ? metrics.rsi.toFixed(2) : '--'}</div>
-          <div className={`text-${metrics.profit >= 0 ? 'green' : 'red'}-400`}>
-            P/L: ${metrics.profit !== undefined ? metrics.profit.toFixed(2) : '0.00'}
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card/80 backdrop-blur-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+            <CandlestickChart size={16} />
           </div>
-          <div className="text-blue-400">Positions: {metrics.open_positions !== undefined ? metrics.open_positions : 0}</div>
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">Live Price & Indicators</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{BAR_SECONDS}s candles · RSI overlay</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-md border border-border bg-muted/50 px-3 py-1.5">
+              <div className="text-[11px] font-medium text-muted-foreground">{s.label}</div>
+              <div className={cn('font-mono text-sm font-semibold tabular-nums', s.className)}>{s.value}</div>
+            </div>
+          ))}
         </div>
       </div>
-      <div ref={chartContainerRef} className="flex-1 w-full relative" />
+      <div className="flex-1 p-2">
+        <div ref={chartContainerRef} className="relative w-full" />
+      </div>
     </div>
   );
 }

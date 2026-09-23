@@ -3,6 +3,7 @@
 import axios from 'axios';
 import { useAccountStore, useSystemStore } from '@/store';
 import { useEffect } from 'react';
+import { FlaskConical } from 'lucide-react';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -40,14 +41,17 @@ export default function SimulationBar() {
   };
 
   return (
-    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 space-y-3">
+    <div className="space-y-3 rounded-xl border border-warning/30 bg-warning/[0.05] p-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="text-yellow-400 font-bold text-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-7 items-center justify-center rounded-md bg-warning/15 text-warning">
+            <FlaskConical size={14} />
+          </span>
+          <span className="text-sm font-semibold text-warning">
             Mac Test Mode — Price Simulator
           </span>
         </div>
-        <span className="text-yellow-200 font-mono font-bold text-lg">
+        <span className="font-mono text-lg font-semibold text-foreground">
           ${simulatedPrice.toFixed(2)}
         </span>
       </div>
@@ -58,9 +62,9 @@ export default function SimulationBar() {
         step={0.1}
         value={simulatedPrice}
         onChange={(e) => handleChange(parseFloat(e.target.value))}
-        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-accent accent-warning"
       />
-      <div className="flex justify-between text-xs text-gray-400">
+      <div className="flex justify-between font-mono text-[11px] text-muted-foreground">
         <span>$50.00</span>
         <span>$150.00</span>
       </div>
