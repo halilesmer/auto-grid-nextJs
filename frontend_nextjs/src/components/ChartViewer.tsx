@@ -1,6 +1,16 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp, IChartApi, ISeriesApi } from 'lightweight-charts';
+import {
+  createChart,
+  ColorType,
+  LineSeries,
+  CandlestickSeries,
+  LineStyle,
+  UTCTimestamp,
+  IChartApi,
+  IPriceLine,
+  ISeriesApi,
+} from 'lightweight-charts';
 import { useAccountStore, useBotRuntimeStore, useThemeStore, useWebSocketManager } from '@/store';
 import type { ResolvedTheme } from '@/lib/theme';
 import { CandlestickChart } from 'lucide-react';
@@ -38,8 +48,19 @@ const CHART_COLORS: Record<ResolvedTheme, {
   },
 };
 
-export default function ChartViewer() {
+/** Mum serisine çizilen yatay seviye (ör. bölgenin min/max fiyatı) */
+export interface ChartPriceLine {
+  price: number;
+  title: string;
+}
+
+interface ChartViewerProps {
+  priceLines?: ChartPriceLine[];
+}
+
+export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const priceLineRefs = useRef<IPriceLine[]>([]);
   const metrics = useBotRuntimeStore((s) => s.metrics);
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   // /chart ve /formasyon sayfalarında da canlı veri akışı açık olmalı
@@ -121,7 +142,8 @@ export default function ChartViewer() {
       }
       candleSeries.update(currentBar);
 
-      if (rsi !== undefined) {
+      // Worker RSI hesaplayamazsa null gönderebilir veya hiç göndermez (metrik yedeği)
+      if (typeof rsi === 'number' && Number.isFinite(rsi)) {
         rsiSeries.update({ time, value: rsi });
       }
     });
@@ -154,6 +176,34 @@ export default function ChartViewer() {
     });
     rsiSeriesRef.current?.applyOptions({ color: c.rsi });
   }, [resolvedTheme]);
+
+  // Seviye çizgileri: değişince eskiler silinip yeniden çizilir (tema rengi dahil)
+  useEffect(() => {
+    const series = candleSeriesRef.current;
+    if (!series) return;
+    const color = CHART_COLORS[resolvedTheme].crosshairLabel;
+    priceLineRefs.current = (priceLines ?? [])
+      .filter((l) => Number.isFinite(l.price) && l.price > 0)
+      .map((l) =>
+        series.createPriceLine({
+          price: l.price,
+          title: l.title,
+          color,
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+        }),
+      );
+    return () => {
+      // Unmount'ta grafik (chart.remove) bu temizlikten önce kaldırılmış olabilir
+      try {
+        priceLineRefs.current.forEach((line) => series.removePriceLine(line));
+      } catch {
+        /* seri zaten yok edildi */
+      }
+      priceLineRefs.current = [];
+    };
+  }, [priceLines, resolvedTheme]);
 
   const profit = metrics.profit ?? 0;
   const stats = [
