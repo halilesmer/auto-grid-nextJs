@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { LiveData, Metrics } from './types';
+import { useLogsStore } from './useLogsStore';
 
 const initialLiveData: LiveData = {
   mt5_connected: false,
@@ -11,6 +12,7 @@ const initialLiveData: LiveData = {
   order_rejected_alarm: false,
   last_error: null,
   algo_trading_error: false,
+  startup_error: null,
 };
 
 const initialMetrics: Metrics = {
@@ -35,6 +37,28 @@ interface BotRuntimeState {
   incrementWsRetries: () => void;
   resetWsRetries: () => void;
   resetRuntime: () => void;
+}
+
+// Sadece durum DEĞİŞİMLERİNİ Activity akışına yazar (her poll'da tekrar etmez)
+function logLiveDataTransitions(prev: LiveData, curr: LiveData) {
+  const push = useLogsStore.getState().pushActivity;
+
+  if (!prev.mt5_connected && curr.mt5_connected) {
+    push('success', 'Bot connected to MT5 – running.');
+  } else if (prev.mt5_connected && !curr.mt5_connected) {
+    push('warn', 'Bot is no longer connected to MT5.');
+  }
+  if (curr.startup_error && curr.startup_error !== prev.startup_error) {
+    push('error', `MT5 connection failed: ${curr.startup_error}`);
+  }
+  if (curr.algo_trading_error && !prev.algo_trading_error) {
+    push('warn', 'Algo Trading is disabled in the MT5 terminal.');
+  }
+  if (curr.order_rejected_alarm && !prev.order_rejected_alarm) {
+    push('error', `Order rejected by MT5/broker${curr.last_error ? `: ${curr.last_error}` : '.'}`);
+  } else if (curr.last_error && curr.last_error !== prev.last_error) {
+    push('error', `Bot error: ${curr.last_error}`);
+  }
 }
 
 export const useBotRuntimeStore = create<BotRuntimeState>((set, get) => ({
@@ -66,21 +90,25 @@ export const useBotRuntimeStore = create<BotRuntimeState>((set, get) => ({
         JSON.stringify(errObj);
     }
 
-    if (state.isConnecting && next.mt5_connected === false) {
+    let isConnecting = state.isConnecting;
+    let resetWs = false;
+    if (state.isConnecting && next.startup_error) {
+      // Bot süreci bağlanamadan kapandı: beklemeyi bitir, hatayı göster
+      isConnecting = false;
+    } else if (state.isConnecting && next.mt5_connected === false) {
       delete next.mt5_connected;
     } else if (state.isConnecting && next.mt5_connected === true) {
-      set({
-        isConnecting: false,
-        wsError: null,
-        wsRetries: 0,
-        liveData: { ...state.liveData, ...next },
-      });
-      return;
+      isConnecting = false;
+      resetWs = true;
     }
 
+    const liveData = { ...state.liveData, ...next };
     set({
-      liveData: { ...state.liveData, ...next },
+      isConnecting,
+      liveData,
+      ...(resetWs ? { wsError: null, wsRetries: 0 } : {}),
     });
+    logLiveDataTransitions(state.liveData, liveData);
   },
 
   updateMetrics: (data) =>

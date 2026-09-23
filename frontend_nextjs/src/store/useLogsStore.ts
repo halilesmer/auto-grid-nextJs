@@ -1,13 +1,18 @@
 import { create } from 'zustand';
-import { LogsState } from './types';
+import { ActivityEntry, ActivityLevel, LogsState, WorkerStatus } from './types';
 
 const FLUSH_INTERVAL_MS = 500;
 const BUFFER_MAX_LINES = 500;
 const LOG_MAX_LINES = 1000;
+const ACTIVITY_MAX_ENTRIES = 200;
 
 interface LogsStoreState {
   robot_log: string[];
   mt5_log: string[];
+  // Arayüzde olan biten (Start/Stop, bağlantı, hatalar) – LogViewer "Activity" sekmesi
+  activity: ActivityEntry[];
+  // Log polling'e göre worker (VPS/ngrok) erişilebilir mi
+  workerStatus: WorkerStatus;
 
   _robotBuffer: string[];
   _mt5Buffer: string[];
@@ -19,11 +24,16 @@ interface LogsStoreState {
   clearLogs: () => void;
   setLogs: (logs: Partial<LogsState>) => void;
   resetLogs: () => void;
+  pushActivity: (level: ActivityLevel, message: string) => void;
+  clearActivity: () => void;
+  setWorkerStatus: (status: WorkerStatus) => void;
 }
 
 const initialState = {
   robot_log: [],
   mt5_log: [],
+  activity: [] as ActivityEntry[],
+  workerStatus: { reachable: null, lastUpdate: null, error: null } as WorkerStatus,
   _robotBuffer: [],
   _mt5Buffer: [],
   _flushTimer: null,
@@ -118,6 +128,17 @@ export const useLogsStore = create<LogsStoreState>((set, get) => ({
       _robotBuffer: [],
       _mt5Buffer: [],
     })),
+
+  pushActivity: (level, message) =>
+    set((state) => ({
+      activity: [...state.activity, { ts: Date.now(), level, message }].slice(
+        -ACTIVITY_MAX_ENTRIES,
+      ),
+    })),
+
+  clearActivity: () => set({ activity: [] }),
+
+  setWorkerStatus: (workerStatus) => set({ workerStatus }),
 
   resetLogs: () => {
     const state = get();

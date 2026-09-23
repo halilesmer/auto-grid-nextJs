@@ -1,6 +1,7 @@
 'use client';
 
 import { API, axiosInstance } from '@/lib/api';
+import { downloadAccountLogs } from '@/lib/downloadLogs';
 import {
   AccountActions,
   AccountDropdown,
@@ -148,9 +149,7 @@ export default function AccountSelector() {
   };
 
   const handleDownloadLog = () => {
-    if (selectedAccount) {
-      window.open(`${API}/logs/download/${selectedAccount}`);
-    }
+    if (selectedAccount) downloadAccountLogs(selectedAccount);
   };
 
   const handleDuplicateConfirm = useCallback((confirmEdit: boolean) => {

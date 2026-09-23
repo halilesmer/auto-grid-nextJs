@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { axiosInstance, API } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/apiError';
 import type { GlobalSettings } from '@/store/types';
 
 interface UpdateResult {
@@ -157,12 +158,7 @@ export function useDashboard({
       await axiosInstance.post(`${API}/system/update?branch=main`);
       window.location.reload();
     } catch (err: unknown) {
-      if (err instanceof Error && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { detail?: string } } };
-        alert(axiosErr.response?.data?.detail || 'Update failed');
-      } else {
-        alert('Update failed');
-      }
+      alert(await getApiErrorMessage(err, 'Update failed'));
       setUpdateResult(null);
     }
   }, [updateResult]);
@@ -175,11 +171,7 @@ export function useDashboard({
       await mergeAndSaveSettings(API);
       setSavedSettingsStr(JSON.stringify(settings));
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setSaveAllError(err.message);
-      } else {
-        setSaveAllError('Tüm ayarları kaydetme başarısız');
-      }
+      setSaveAllError(await getApiErrorMessage(err, 'Tüm ayarları kaydetme başarısız'));
     } finally {
       setSaveAllLoading(false);
     }

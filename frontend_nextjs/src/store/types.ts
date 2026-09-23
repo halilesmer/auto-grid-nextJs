@@ -60,6 +60,20 @@ export interface GlobalSettings {
   ZONES: ZoneSettings[];
 }
 
+export type ActivityLevel = 'info' | 'success' | 'warn' | 'error';
+
+export interface ActivityEntry {
+  ts: number;
+  level: ActivityLevel;
+  message: string;
+}
+
+export interface WorkerStatus {
+  reachable: boolean | null; // null = henüz yoklanmadı
+  lastUpdate: number | null;
+  error: string | null;
+}
+
 export interface LogsState {
   robot_log: string[];
   mt5_log: string[];
@@ -83,6 +97,8 @@ export interface LiveData {
   order_rejected_alarm: boolean;
   last_error: string | null;
   algo_trading_error: boolean;
+  // bot_runner MT5'e bağlanamazsa met_<id>.json içine yazar
+  startup_error?: string | null;
 }
 
 export interface UpdateInfo {
