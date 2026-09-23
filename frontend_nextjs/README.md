@@ -1,44 +1,39 @@
-This is the [Next.js](https://nextjs.org) frontend of **Grid Robot**, an algorithmic trading bot monorepo. It pairs with a Python worker (`../worker_python`) that talks to MetaTrader 5 over a WebSocket connection for real-time, multi-account trading control.
+This is the [Next.js](https://nextjs.org) frontend of **Grid Robot**, an algorithmic trading bot monorepo. It pairs with a Python worker (`../worker_python`) that talks to MetaTrader 5 over REST and a WebSocket connection for real-time, multi-account trading control.
 
-## Getting Started
+## Dev setup
 
-Run the frontend only:
+The frontend runs locally (e.g. on a Mac). The worker runs on a Windows VPS, because the `MetaTrader5` package is Windows-only, and is exposed through ngrok.
 
-```bash
-npm run dev:frontend
-```
+1. Create `.env.local` in this folder and point it at the worker:
 
-Or run the frontend together with the Python worker (requires a `.venv` set up under `../worker_python`):
+   ```bash
+   NEXT_PUBLIC_API_URL=https://<your-ngrok-domain>
+   ```
 
-```bash
-npm run dev
-```
+   Leave off the trailing `/api`; it's appended automatically. The WebSocket URL (`wss://…/ws/stream`) is derived from the same value, so no separate WebSocket variable is needed.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Start the frontend only:
 
-Other useful scripts:
+   ```bash
+   npm run dev:frontend
+   ```
+
+3. Open [http://localhost:3000](http://localhost:3000).
+
+`npm run dev` starts the frontend and a local Python worker together. Use it only on a Windows machine that has `../worker_python/.venv` and MetaTrader 5 installed.
+
+## Backend on the VPS
+
+On the VPS, `worker_python\start.bat` starts the worker (with a crash watchdog) and the ngrok tunnel in two windows. See [`docs/windows_start_guide.md`](../docs/windows_start_guide.md) for the full steps.
+
+The worker's CORS setting reads `ALLOWED_ORIGINS` (comma-separated, default `*`). If you restrict it, include `http://localhost:3000`.
+
+Backend changes are only live after they're pulled onto the VPS and the worker is restarted.
+
+## Other scripts
 
 ```bash
 npm run build   # production build
 npm run start   # run the production build
 npm run lint    # eslint
 ```
-
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
