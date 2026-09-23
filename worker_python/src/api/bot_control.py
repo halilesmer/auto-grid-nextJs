@@ -22,20 +22,18 @@ from src.utils.bot_manager import (
     get_last_stop_error,
     is_bot_outdated,
     is_bot_running,
+    log_step as _log_step,
     start_bot_process,
     stop_bot_process,
 )
+from src.utils.bot_watchdog import account_lock, unwatch, watch
 from src.utils.paths import (
-    get_err_log_path,
     get_metrics_path,
     get_pid_path,
     get_sim_price_path,
 )
 
 router = APIRouter(tags=["Bot Control"])
-
-
-_LOG_PREFIX = {"error": "🔴 ERROR:", "warning": "⚠️ WARNING:", "info": "ℹ️ INFO:"}
 
 
 # Bot her döngüde (piyasa kapalıyken 60 sn'de bir) metrik yazar; bundan eski
@@ -57,23 +55,6 @@ def _running_bot_is_healthy(account_id: str) -> bool:
     return bool(data.get("mt5_connected")) and age < BOT_STALE_SECONDS
 
 
-def _log_step(account_id: str, msg: str, type: str = "info"):
-    """Start/Stop adımlarını hesabın robot loguna yazar; arayüz LogViewer'da canlı görür.
-    (Aksi halde bu adımlar sadece VPS'teki uvicorn konsolunda kalıyordu.)
-    safe_log ile aynı biçim; ama loglama hiçbir zaman isteği bozmasın diye
-    önce dosyaya yazılır ve konsol çıktısı (Windows kod sayfası) korunur."""
-    line = f"{_LOG_PREFIX.get(type, _LOG_PREFIX['info'])} {msg}"
-    try:
-        with open(get_err_log_path(account_id), "a", encoding="utf-8") as f:
-            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {line}\n")
-    except Exception:
-        pass
-    try:
-        print(line)
-    except Exception:
-        pass
-
-
 def _is_elevated() -> bool:
     try:
         import ctypes
@@ -90,6 +71,7 @@ def startup_maintenance():
       (pozisyon/emirlere dokunmaz). Yoksa güncelleme bot'a hiç ulaşmıyordu.
     - Yönetici hakları uyarısı: worker ile MT5/bot farklı haklarla çalışırsa dosya ve
       IPC erişimi bozulur.
+    - Hâlâ çalışan botları bekçi (watchdog) izlemesine alır; ölmüş botları başlatmaz.
     """
     if _is_elevated():
         print(
@@ -135,9 +117,26 @@ def startup_maintenance():
         except Exception as exc:
             print(f"⚠️ WARNING: Başlangıç bakımı ({account_id}) başarısız: {exc}")
 
+        # Bekçi bakım bittikten sonra devralır; aksi halde yukarıdaki stop/start arasına girebilirdi
+        try:
+            if is_bot_running(account_id):
+                watch(account_id, "Auto Grid")
+                _log_step(account_id, "[WATCHDOG] Çalışan bot izlemeye alındı (çökerse otomatik yeniden başlatılır).")
+        except Exception:
+            pass
+
 
 @router.post("/start")
 async def start_bot(account_id: str):
+    # Bekçi, Start sürerken (MT5 bağlantısı 120 sn'ye kadar) bu hesaba dokunmaz.
+    # watch() kilidin İÇİNDE: kilidi bekleyen bir Stop, izlemeyi her zaman en son kaldırır.
+    async with account_lock(account_id):
+        result = await _start_bot(account_id)
+        watch(account_id, "Auto Grid")
+    return result
+
+
+async def _start_bot(account_id: str):
     account_config: dict = {}
     try:
         accounts = _load_accounts()
@@ -233,7 +232,8 @@ async def start_bot(account_id: str):
         }
 
     _log_step(account_id, "[START] Bot süreci başlatılıyor...")
-    success = start_bot_process(account_id, engine_name="Auto Grid")
+    # Thread'de: artık süreçleri kapatırken 5 sn'ye kadar bekleyebilir (WS/bekçi donmasın)
+    success = await asyncio.to_thread(start_bot_process, account_id, "Auto Grid")
     if not success:
         reason = get_last_start_error(account_id) or "bilinmeyen hata"
         _log_step(account_id, f"[START] Bot süreci başlatılamadı: {reason}", type="error")
@@ -259,7 +259,12 @@ async def start_bot(account_id: str):
 @router.post("/stop")
 async def stop_bot(account_id: str):
     _log_step(account_id, "[STOP] Durdurma isteği alındı. Açık pozisyon/emirlere dokunulmuyor.")
-    if not await asyncio.to_thread(stop_bot_process, account_id):
+    # İzlemeyi kilidin İÇİNDE bırak: kilidi tutan bir Start bittikten sonra watch()
+    # çağırır; dışarıda unwatch edilseydi bekçi durdurulan botu yeniden başlatırdı.
+    async with account_lock(account_id):
+        unwatch(account_id)
+        stopped = await asyncio.to_thread(stop_bot_process, account_id)
+    if not stopped:
         reason = get_last_stop_error(account_id)
         _log_step(account_id, f"[STOP] {reason}", type="error")
         raise HTTPException(status_code=500, detail=reason)

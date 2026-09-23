@@ -23,11 +23,15 @@ app = FastAPI(title="Auto Grid Bot API")
 
 @app.on_event("startup")
 async def _startup_maintenance():
-    """Eski sürümle çalışan botları arka planda yeni kodla yeniden başlatır (API'yi bekletmez)."""
+    """Eski sürümle çalışan botları arka planda yeni kodla yeniden başlatır (API'yi bekletmez)
+    ve çöken/asılı botları yeniden başlatan bekçiyi (watchdog) çalıştırır."""
     import asyncio
     from src.api.bot_control import startup_maintenance
+    from src.utils.bot_watchdog import run_watchdog
 
-    asyncio.get_running_loop().create_task(asyncio.to_thread(startup_maintenance))
+    loop = asyncio.get_running_loop()
+    loop.create_task(asyncio.to_thread(startup_maintenance))
+    app.state.watchdog_task = loop.create_task(run_watchdog())
 
 @app.on_event("shutdown")
 def force_shutdown():

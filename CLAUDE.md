@@ -61,6 +61,7 @@ Zustand domain stores in `src/store/` (`useAccountStore`, `useSettingsStore`, `u
 
 ### Worker process model
 - The FastAPI process doesn't trade. `src/utils/bot_manager.py` starts one **detached subprocess per MT5 account** (`python -u src/core/bot_runner.py <account_id> <engine_name>`) and tracks it via PID files in `logs/`. Starting or stopping a bot means managing that process.
+- `src/utils/bot_watchdog.py` (started in `main.py`'s startup handler) restarts a bot that crashed or hangs (no metrics write for 10 min). It watches only bots started with `/start` (plus bots still running when the worker boots) until `/stop`. The watch list lives in memory, so bots that died during a worker/VPS restart are not revived. It gives up after 5 restarts in 30 min. `/start`, `/stop` and the watchdog share a per-account `account_lock`.
 - Trading loop: `bot_runner` → `loop` → `grid_orchestrator`, which coordinates `grid_zone_selector`/`grid_zone_state`, the `grid_execution/` package (level math, placement, validation), `grid_order_manager` → `grid_orders` (the only MT5 order/position CRUD gateway, magic-number based), `grid_remote` (mobile control via MT5 signals), and `grid_metrics` (telemetry).
 - `auto_grid_engine.py` is the legacy monolithic engine, kept for backward compatibility. Put new logic in the modular files.
 - MT5 connection/errors: `src/utils/mt5_connection.py`, `mt5_helpers.py` (retry/timeout), `mt5_errors.py` (error-code parsing, zombie-process cleanup, LIVE/DEMO safety check).
