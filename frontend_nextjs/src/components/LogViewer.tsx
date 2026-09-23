@@ -220,7 +220,7 @@ export default function LogViewer() {
         </div>
       </div>
 
-      <div className="bg-black/40">
+      <div className="bg-muted/60 dark:bg-black/40">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-2 font-mono text-[11px]">
           <div
             className="flex min-w-0 items-center gap-2"

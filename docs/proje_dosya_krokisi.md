@@ -38,7 +38,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┣ 📂 app                    # App Router (Next.js 14+)
 ┃ ┃ ┃ ┣ 📜 layout.tsx           # Root layout
 ┃ ┃ ┃ ┣ 📜 page.tsx             # Ana sayfa (Dashboard)
-┃ ┃ ┃ ┣ 📜 globals.css          # Global stiller (Tailwind)
+┃ ┃ ┃ ┣ 📜 globals.css          # Global stiller (Tailwind), açık (:root) / koyu (.dark) tema token'ları
 ┃ ┃ ┃ ┣ 📜 version.ts           # Sürüm bilgisi
 ┃ ┃ ┃ ┣ 📂 formasyon            # Formasyon sayfası
 ┃ ┃ ┃ ┃ ┗ 📜 page.tsx
@@ -108,6 +108,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 useLogsStore.ts      # Log yönetimi state
 ┃ ┃ ┃ ┣ 📜 useSettingsStore.ts  # Ayarlar state
 ┃ ┃ ┃ ┣ 📜 useSystemStore.ts    # Sistem durumu state
+┃ ┃ ┃ ┣ 📜 useThemeStore.ts     # Tema tercihi (Açık/Koyu/Sistem), localStorage'a persist
 ┃ ┃ ┃ ┣ 📜 useWebSocketManager.ts # WebSocket bağlantı yönetimi
 ┃ ┃ ┃ ┗ 📂 utils
 ┃ ┃ ┃   ┗ 📜 resetStores.ts     # Store sıfırlama yardımcıları
@@ -218,6 +219,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
   - `useSettingsStore.ts` - Global ayarlar, zone ayarları
   - `useLogsStore.ts` - Log mesajları, filtreleme
   - `useSystemStore.ts` - Sistem durumu, bağlantı durumu, versiyon
+  - `useThemeStore.ts` - Tema tercihi ve çözülmüş tema (`resolvedTheme`); tek `persist` kullanan store. İlk paint'teki `.dark` class'ını `layout.tsx`'teki inline script (`lib/theme.ts`) koyar, sonrasını `components/layout/ThemeSync.tsx` yönetir
   - `useWebSocketManager.ts` - WebSocket bağlantı yaşam döngüsü, reconnect, mesaj routing
 - **Worker**: `state_manager.py` - MT5 "Source of Truth" prensibiyle pozisyon/emir senkronizasyonu, `data/state_*.json` dosyalarına yazım
 - **Configs**: `worker_python/configs/` - `accounts.json`, `settings_*.json`

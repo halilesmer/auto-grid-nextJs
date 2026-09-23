@@ -1,11 +1,52 @@
 @import "tailwindcss";
 
+/* dark: prefix'i <html>'deki .dark class'ına bağlı (prefers-color-scheme'e değil) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Tema: 21st.dev "Darkmatter" (serafimcloud) temel alındı.
  * Trading için anlamsal renkler eklendi: success (kâr/BUY), danger (zarar/SELL),
- * warning, info. Uygulama yalnızca koyu tema kullanır.
+ * warning, info. :root açık tema, .dark koyu tema; seçim useThemeStore'da.
+ * Açık temada vurgu renkleri beyaz zeminde okunabilsin diye bir ton koyulaştırıldı.
  */
 :root {
+  --background: #f6f6f7;
+  --foreground: #1b1a1d;
+  --card: #ffffff;
+  --card-foreground: #1b1a1d;
+  --popover: #ffffff;
+  --popover-foreground: #1b1a1d;
+  --primary: #c9632b;
+  --primary-foreground: #ffffff;
+  --secondary: #4a7272;
+  --secondary-foreground: #ffffff;
+  --muted: #ececee;
+  --muted-foreground: #6a6a70;
+  --accent: #e4e4e7;
+  --accent-foreground: #1b1a1d;
+  --border: #e0e0e3;
+  --input: #d4d4d8;
+  --ring: #c9632b;
+
+  --success: #16895c;
+  --success-foreground: #ffffff;
+  --danger: #d93a3a;
+  --danger-foreground: #ffffff;
+  --warning: #b87a12;
+  --warning-foreground: #ffffff;
+  --info: #2f7aa3;
+
+  --chart-1: #4a7272;
+  --chart-2: #c9632b;
+  --chart-3: #d9964f;
+  --chart-4: #7a7a7a;
+  --chart-5: #9a9a9a;
+
+  --radius: 0.75rem;
+  color-scheme: light;
+}
+
+.dark {
   --background: #0d0c0e;
   --foreground: #d6d6d6;
   --card: #141315;
@@ -38,7 +79,6 @@
   --chart-4: #888888;
   --chart-5: #999999;
 
-  --radius: 0.75rem;
   color-scheme: dark;
 }
 

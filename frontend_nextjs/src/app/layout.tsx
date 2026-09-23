@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AppNav from "@/components/layout/AppNav";
+import ThemeSync from "@/components/layout/ThemeSync";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +18,10 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0d0c0e",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f6f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d0c0e" },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -38,12 +43,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="tr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // Varsayılan koyu; inline script ilk paint'ten önce kullanıcının tercihine göre düzeltir
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body
         className="min-h-full flex flex-col text-foreground"
         suppressHydrationWarning
       >
+        <ThemeSync />
         <AppNav />
         <main className="flex-1">{children}</main>
         <script

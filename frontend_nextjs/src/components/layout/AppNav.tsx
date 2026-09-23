@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { CandlestickChart, Grid3x3, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VERSION } from '@/app/version';
+import ThemeToggle from './ThemeToggle';
 
 const LINKS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -54,6 +55,10 @@ export default function AppNav() {
               </Link>
             );
           })}
+        </div>
+
+        <div className="ml-auto">
+          <ThemeToggle />
         </div>
       </div>
     </nav>

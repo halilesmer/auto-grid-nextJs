@@ -1,13 +1,42 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, LineSeries, CandlestickSeries, UTCTimestamp, IChartApi, ISeriesApi } from 'lightweight-charts';
-import { useAccountStore, useBotRuntimeStore, useWebSocketManager } from '@/store';
+import { useAccountStore, useBotRuntimeStore, useThemeStore, useWebSocketManager } from '@/store';
+import type { ResolvedTheme } from '@/lib/theme';
 import { CandlestickChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Grafik sayfaları hesap seçilmeden de açılabilir; akış (/ws/stream) hesaba bağlı değil.
 const CHART_STREAM_KEY = 'chart';
 const BAR_SECONDS = 10;
+
+// lightweight-charts renkleri JS ile verilir; Tailwind/CSS değişkenlerinden etkilenmez.
+// Değerler globals.css'teki token'larla eşleşmeli.
+const CHART_COLORS: Record<ResolvedTheme, {
+  text: string; grid: string; border: string; crosshair: string; crosshairLabel: string;
+  up: string; down: string; rsi: string;
+}> = {
+  dark: {
+    text: '#8a8a8a',
+    grid: 'rgba(255,255,255,0.04)',
+    border: 'rgba(255,255,255,0.06)',
+    crosshair: 'rgba(231,138,83,0.4)',
+    crosshairLabel: '#e78a53',
+    up: '#34c38f',
+    down: '#ef5b5b',
+    rsi: '#6aa9c9',
+  },
+  light: {
+    text: '#6a6a70',
+    grid: 'rgba(0,0,0,0.05)',
+    border: 'rgba(0,0,0,0.1)',
+    crosshair: 'rgba(201,99,43,0.45)',
+    crosshairLabel: '#c9632b',
+    up: '#16895c',
+    down: '#d93a3a',
+    rsi: '#2f7aa3',
+  },
+};
 
 export default function ChartViewer() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -18,6 +47,7 @@ export default function ChartViewer() {
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -27,38 +57,20 @@ export default function ChartViewer() {
       height: 400,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#8a8a8a',
         fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
         fontSize: 11,
       },
-      grid: {
-        vertLines: { color: 'rgba(255,255,255,0.04)' },
-        horzLines: { color: 'rgba(255,255,255,0.04)' },
-      },
-      crosshair: {
-        vertLine: { color: 'rgba(231,138,83,0.4)', labelBackgroundColor: '#e78a53' },
-        horzLine: { color: 'rgba(231,138,83,0.4)', labelBackgroundColor: '#e78a53' },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255,255,255,0.06)',
-      },
       timeScale: {
-        borderColor: 'rgba(255,255,255,0.06)',
         timeVisible: true,
         secondsVisible: true,
       },
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#34c38f',
-      downColor: '#ef5b5b',
       borderVisible: false,
-      wickUpColor: '#34c38f',
-      wickDownColor: '#ef5b5b',
     });
 
     const rsiSeries = chart.addSeries(LineSeries, {
-      color: '#6aa9c9',
       lineWidth: 2,
       priceScaleId: 'rsi',
     });
@@ -120,6 +132,28 @@ export default function ChartViewer() {
       chart.remove();
     };
   }, []);
+
+  // Renkler oluşturma efektinden sonra ve her tema değişiminde uygulanır (grafik yeniden yaratılmaz)
+  useEffect(() => {
+    const c = CHART_COLORS[resolvedTheme];
+    chartRef.current?.applyOptions({
+      layout: { textColor: c.text },
+      grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
+      crosshair: {
+        vertLine: { color: c.crosshair, labelBackgroundColor: c.crosshairLabel },
+        horzLine: { color: c.crosshair, labelBackgroundColor: c.crosshairLabel },
+      },
+      rightPriceScale: { borderColor: c.border },
+      timeScale: { borderColor: c.border },
+    });
+    candleSeriesRef.current?.applyOptions({
+      upColor: c.up,
+      downColor: c.down,
+      wickUpColor: c.up,
+      wickDownColor: c.down,
+    });
+    rsiSeriesRef.current?.applyOptions({ color: c.rsi });
+  }, [resolvedTheme]);
 
   const profit = metrics.profit ?? 0;
   const stats = [
