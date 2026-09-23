@@ -37,3 +37,5 @@ __MACOSX/
 # Kullanıcı Verileri ve Hesaplar
 
 broker_symbols.json
+# Yerel test hesabı bilgisi (Claude hook / test protokolü)
+hooks/test-account.local.md

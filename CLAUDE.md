@@ -72,6 +72,12 @@ Zustand domain stores in `src/store/` (`useAccountStore`, `useSettingsStore`, `u
 - `logs/` – per-account logs and PID files
 All of these are gitignored and may contain credentials.
 
+## Hooks & Kurallar
+
+- `hooks/` klasörü: git `pre-commit`/`pre-push` + Claude Code hook'ları (`.claude/settings.json`). Klonladıktan sonra bir kez: `bash hooks/install.sh`. Detay: `hooks/README.md`.
+- Kurallar (GitHub'a yükleme, uyumluluk, test protokolü): `hooks/RULES.md`. Hook hata verirse `--no-verify` ile geçme, hatayı düzelt.
+- **"Test et" denince:** önce `hooks/test-account.local.md` dosyasını oku (gitignore'lu demo hesap; şifre içermez), worker'da kayıtlı o hesabı seç, mevcut datayı kullan. Şifre forma yazılmaz. Protokol: `hooks/RULES.md` §3.
+
 ## Conventions
 
 - **UI ↔ backend sync is mandatory** (from `.agents/rules/token-saver.md`): a new or changed setting/parameter in the worker (engine, config JSON, Pydantic model) is not done until the matching UI field (zone components in `src/components/zone/`, `SettingsForm`, stores, types) reads and writes it correctly.

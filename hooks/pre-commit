@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# pre-commit: hızlı kontrol (<1 sn) — yasaklı dosya + gizli veri (sadece staged).
+# Atlamak (acil durum): SKIP_HOOKS=1 git commit ...
+[ "${SKIP_HOOKS:-}" = "1" ] && exit 0
+
+# shellcheck source=lib/checks.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/checks.sh"
+
+echo "▶ pre-commit kontrolleri" >&2
+cd "$ROOT" || exit 1
+
+check_forbidden_files < <(git diff --cached --name-only --diff-filter=ACMR)
+check_secrets_diff < <(git diff --cached)
+
+finish_checks
