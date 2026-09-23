@@ -16,8 +16,11 @@ from src.utils.mt5_helpers import (
     _write_cache_file,
 )
 from src.utils.bot_manager import (
+    find_bot_processes,
     get_bot_process_age,
     get_last_start_error,
+    get_last_stop_error,
+    is_bot_outdated,
     is_bot_running,
     start_bot_process,
     stop_bot_process,
@@ -71,6 +74,68 @@ def _log_step(account_id: str, msg: str, type: str = "info"):
         pass
 
 
+def _is_elevated() -> bool:
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def startup_maintenance():
+    """Worker açılışında (ör. güncelleme sonrası) çalışır; kullanıcı müdahalesi gerektirmez.
+
+    - Eski kod sürümüyle çalışan bot süreçlerini yeni kodla yeniden başlatır
+      (pozisyon/emirlere dokunmaz). Yoksa güncelleme bot'a hiç ulaşmıyordu.
+    - Yönetici hakları uyarısı: worker ile MT5/bot farklı haklarla çalışırsa dosya ve
+      IPC erişimi bozulur.
+    """
+    if _is_elevated():
+        print(
+            "⚠️ WARNING: Worker yönetici (admin) haklarıyla çalışıyor. MT5 terminali ve worker "
+            "aynı haklarla çalışmalı; start.bat'ı normal (yönetici olmadan) başlatın."
+        )
+    try:
+        accounts = _load_accounts()
+    except Exception as exc:
+        print(f"⚠️ WARNING: Başlangıç bakımı: accounts.json okunamadı: {exc}")
+        return
+
+    for acc in accounts:
+        account_id = str(acc.get("id") or acc.get("login") or "")
+        if not account_id:
+            continue
+        try:
+            if is_bot_running(account_id) and is_bot_outdated(account_id):
+                _log_step(
+                    account_id,
+                    "[AUTO] Bot eski bir kod sürümüyle çalışıyor; yeni sürümle yeniden başlatılıyor "
+                    "(pozisyon/emirlere dokunulmuyor)...",
+                    type="warning",
+                )
+                if not stop_bot_process(account_id):
+                    _log_step(account_id, f"[AUTO] {get_last_stop_error(account_id)}", type="error")
+                elif start_bot_process(account_id, engine_name="Auto Grid"):
+                    _log_step(account_id, "[AUTO] Bot yeni sürümle yeniden başlatıldı.")
+                else:
+                    _log_step(
+                        account_id,
+                        f"[AUTO] Bot yeniden başlatılamadı: {get_last_start_error(account_id)}",
+                        type="error",
+                    )
+            elif not is_bot_running(account_id) and find_bot_processes(account_id):
+                # PID dosyası olmayan bot süreci: kullanıcının çalışan botu olabilir, öldürme.
+                _log_step(
+                    account_id,
+                    "[AUTO] Kayıtsız bir bot süreci bulundu (PID dosyası yok). "
+                    "Start/Restart ile temiz şekilde yeniden başlatılabilir.",
+                    type="warning",
+                )
+        except Exception as exc:
+            print(f"⚠️ WARNING: Başlangıç bakımı ({account_id}) başarısız: {exc}")
+
+
 @router.post("/start")
 async def start_bot(account_id: str):
     account_config: dict = {}
@@ -94,16 +159,26 @@ async def start_bot(account_id: str):
         + (" (Bot süreci zaten çalışıyor.)" if already_running else ""),
     )
 
-    # Süreç canlı ama MT5'e bağlı değil / metrik yazmıyor → asılı kalmış; yeniden başlat.
+    # Süreç canlı ama MT5'e bağlı değil / metrik yazmıyor (asılı) ya da eski kodla
+    # çalışıyor (güncellemeden önce başlatılmış) → yeniden başlat.
     # Aksi halde Start hiçbir şey yapmıyor ve arayüz sonsuza kadar "bağlı değil" kalıyordu.
-    if already_running and not _running_bot_is_healthy(account_id):
+    restart_reason = None
+    if already_running:
+        if is_bot_outdated(account_id):
+            restart_reason = "eski bir kod sürümüyle çalışıyor"
+        elif not _running_bot_is_healthy(account_id):
+            restart_reason = "MT5'e bağlı değil veya yanıt vermiyor"
+    if restart_reason:
         _log_step(
             account_id,
-            "[START] Bot süreci çalışıyor ama MT5'e bağlı değil veya yanıt vermiyor. "
+            f"[START] Bot süreci {restart_reason}. "
             "Süreç yeniden başlatılıyor (pozisyon/emirlere dokunulmuyor)...",
             type="warning",
         )
-        await asyncio.to_thread(stop_bot_process, account_id)
+        if not await asyncio.to_thread(stop_bot_process, account_id):
+            reason = get_last_stop_error(account_id)
+            _log_step(account_id, f"[START] {reason}", type="error")
+            raise HTTPException(status_code=500, detail=reason)
         already_running = False
 
     # 0. Önceki çalışmadan kalan metrikleri (eski startup_error / mt5_connected)
@@ -184,7 +259,10 @@ async def start_bot(account_id: str):
 @router.post("/stop")
 async def stop_bot(account_id: str):
     _log_step(account_id, "[STOP] Durdurma isteği alındı. Açık pozisyon/emirlere dokunulmuyor.")
-    stop_bot_process(account_id)
+    if not await asyncio.to_thread(stop_bot_process, account_id):
+        reason = get_last_stop_error(account_id)
+        _log_step(account_id, f"[STOP] {reason}", type="error")
+        raise HTTPException(status_code=500, detail=reason)
     _log_step(account_id, "[STOP] Bot süreci durduruldu.")
     try:
         await asyncio.to_thread(shutdown_mt5)
