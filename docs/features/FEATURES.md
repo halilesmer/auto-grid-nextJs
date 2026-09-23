@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **38/71** abgehakt · ❌ 0 mit Fehlern · 🐞 3 bekannte Fehler
+**Stand:** 2026-09-23 · **54/71** abgehakt · ❌ 3 mit Fehlern · 🐞 4 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -15,13 +15,13 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | # | Kategorie | Stand |
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 4/4 |
-| 2 | **ACC** – Konten | 3/8 |
+| 2 | **ACC** – Konten | 4/8 |
 | 3 | **SET** – Allgemeine Einstellungen | 5/6 |
 | 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 8/9 |
 | 6 | **BOT** – Bot-Steuerung | 3/6 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 0/16 |
-| 8 | **MET** – Live-Daten & Diagramm | 3/4 |
+| 7 | **ENG** – Grid-Engine (Handelslogik) | 14/16 |
+| 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 5/6 |
 | 10 | **UPD** – System & Updates | 1/5 |
 | 11 | **UI** – Oberfläche | 3/4 |
@@ -82,7 +82,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** DEMO-Konto wählen.
   - **Erwartet:** Badge zeigt TEST/DEMO, nicht LIVE.
   - 📝 Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis: ohne Kontoauswahl zeigt der Header ebenfalls TEST
-- [ ] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ⏳
+- [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-09-23
   - Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
   - **Prüfung:** Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -104,7 +104,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
-- [x] **SET-04** Werte bereinigen (Sanitizing) *(teilweise)* — 🧪 unit ⏳ · 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SET-04** Werte bereinigen (Sanitizing) *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
   - Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
   - **Prüfung:** Lot 0.0100000001 eingeben und speichern.
   - **Erwartet:** Gespeichert wird 0.01.
@@ -114,7 +114,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur das Intervall speichern.
   - **Erwartet:** Zonen bleiben unverändert.
   - 📝 Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen danach identisch mit Sicherung
-- [ ] **SET-06** Globale Standardwerte (GLOBAL_*) — 🧪 unit ⏳
+- [ ] **SET-06** Globale Standardwerte (GLOBAL_*) — 🧪 unit 🐞 2026-09-23
   - Standardwerte GLOBAL_GRID_STEP, GLOBAL_TAKE_PROFIT, GLOBAL_DEFAULT_LOT, MAX_OPEN_POSITIONS, MIN/MAX_PRICE_LIMIT, CLEAR_ON_ZONE_EXIT in utils/config.py.
   - **Prüfung:** Nicht manuell testbar.
   - **Erwartet:** Die Engine sollte diese Werte als Fallback nutzen.
@@ -217,67 +217,68 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 7. ENG – Grid-Engine (Handelslogik)
 
-- [ ] **ENG-01** Zonenwahl — 🧪 unit ⏳
+- [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-09-23
   - Aktiv wird die erste aktive Zone, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt.
   - **Prüfung:** Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen.
   - **Erwartet:** Orders entstehen nur in der Zone, in der der Preis liegt.
-- [ ] **ENG-02** Sliding-Grid-Level — 🧪 unit ⏳
+- [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-09-23
   - Level werden an round(mid/step)*step verankert, levels_below/levels_above Stufen, auf die Zone begrenzt; acceptable-Sets mit ±2 Stufen Puffer.
   - **Prüfung:** Bot laufen lassen, Pending Orders in MT5 ansehen.
   - **Erwartet:** Orders liegen im Gridabstand um den Preis, nie außerhalb der Zone.
-- [ ] **ENG-03** Breakout / Pullback — 🧪 unit ⏳
+- [x] **ENG-03** Breakout / Pullback — 🧪 unit ✅ 2026-09-23
   - Im Breakout-Modus nur Orders in Trendrichtung, mit pullback_distance / sell_pullback_distance.
   - **Prüfung:** Breakout-Zone aktivieren, Orders ansehen.
   - **Erwartet:** Orders nur in Trendrichtung und im Pullback-Abstand.
-- [ ] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ⏳
+- [x] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ✅ 2026-09-23
   - extract_zone_config liest order_type, grid_step, lot_size (auf 0,01–5,0 begrenzt), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL — 🧪 unit ⏳ · 🌐 live ⏳
+- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳
   - Fehlende Level bekommen Pending Orders mit TP/SL; LIMIT oder STOP je nach Seite des Marktes; Toleranz 0,45 × Gridabstand; manuelle Positionen zählen als belegte Level.
   - **Prüfung:** Test-Zone (0,01 Lot) um den aktuellen Preis starten.
   - **Erwartet:** BUY LIMIT unter / BUY STOP über dem Preis (bzw. SELL umgekehrt), jeweils mit TP/SL.
-- [ ] **ENG-06** Validierung + Bereinigung — 🧪 unit ⏳
+- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-09-23
   - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen).
   - **Prüfung:** Bei laufendem Bot TP der Zone ändern und speichern.
   - **Erwartet:** Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
-- [ ] **ENG-07** Maximale Positionen — 🧪 unit ⏳ · 🌐 live ⏳
+- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳
   - Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht.
   - **Prüfung:** Maks Pozisyon = 1 setzen und eine Position füllen lassen.
   - **Erwartet:** Danach keine Pending Orders mehr in dieser Zone.
-- [ ] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ⏳
+- [x] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ✅ 2026-09-23
   - Geänderte TP/SL-Werte werden auf offene Positionen übertragen; bei Teilausführung wird das Restlot neu gesendet.
   - **Prüfung:** Bei offener Position den TP der Zone ändern und speichern.
   - **Erwartet:** TP der offenen Position wird angepasst.
-- [ ] **ENG-09** Zombie-Orders entfernen — 🧪 unit ⏳
+- [x] **ENG-09** Zombie-Orders entfernen — 🧪 unit ✅ 2026-09-23
   - Orders pausierter, bereinigter, inaktiver Zonen oder mit falschem Symbol werden gelöscht.
   - **Prüfung:** Zone mit offenen Orders pausieren.
   - **Erwartet:** Ihre Pending Orders verschwinden.
-- [ ] **ENG-10** Bereinigung beim Verlassen der Zone — 🧪 unit ⏳ · 🌐 live ⏳
+- [ ] **ENG-10** Bereinigung beim Verlassen der Zone — 🧪 unit 🐞 2026-09-23 · 🌐 live ⏳
   - Mit clear_on_exit: Richtung (clear_exit_side), Umfang (nur Orders / auch Positionen) und Zielseite (BUY/SELL/alle); danach ui_state AUTO_CLEAR.
   - **Prüfung:** Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt.
   - **Erwartet:** Orders (bzw. Positionen je nach Umfang) werden entfernt, Zone steht auf AUTO_CLEAR.
-- [ ] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ⏳
+  - 🐞 **Bekannter Fehler:** (1) Umfang „Tüm İşlemler“ (so speichert die UI) schließt keine Positionen – handle_zone_exit prüft nur auf „Pozisyon“/„Tümü“/„Hepsi“. (2) Nach dem Austritt fällt die Engine auf zones[0] zurück und AUTO_CLEAR blockiert die Platzierung nicht (nur PAUSE): liegt der Kurs knapp außerhalb, werden die Grenz-Orders jeden Tick gelöscht und neu gesetzt (im Test 3 + 3 Broker-Anfragen pro Tick).
+- [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-09-23
   - Nach 3 abgelehnten Orders in Folge wird die Zone pausiert (ui_state PAUSE) und order_rejected_alarm gesetzt.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ⏳
+- [x] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ✅ 2026-09-23
   - safe_send_order normalisiert Volumen, hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ⏳ · 👤 manuell ⏳
+- [ ] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-09-23 · 👤 manuell ⏳
   - Manuelle BUY LIMIT 0,01 Lot bei 1 $ = STOP, bei 2 $ = START; alternativ Kommentar GRID:STOP / GRID:START. STOP löscht alle Robot-Orders; die Signal-Order wird danach entfernt.
   - **Prüfung:** In der MT5-App eine BUY LIMIT 0,01 bei Preis 1 setzen. → Danach BUY LIMIT 0,01 bei Preis 2 setzen.
   - **Erwartet:** Erst werden alle Robot-Orders gelöscht (remote_paused), dann läuft der Bot weiter; die Signal-Orders verschwinden.
-- [ ] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ⏳
+- [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-09-23
   - Beim Bot-Start sind alle Zonen PAUSE; active_zones_state wird aus den Magic-Numbers der vorhandenen Orders/Positionen aufgebaut (data/state_<id>.json), alte ui_state-Datei gelöscht.
   - **Prüfung:** Bot mit offenen Orders stoppen und neu starten.
   - **Erwartet:** Vorhandene Orders werden übernommen, nicht doppelt gesetzt.
-- [ ] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ⏳
+- [x] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ✅ 2026-09-23
   - Bei geschlossenem Markt (trade_mode ≠ 4 oder Tick älter als 180 s) wartet die Schleife 60 s; Verbindungsverlust → Reconnect mit exponentiellem Backoff; nur „Algo Trading aus“ → warten statt neu einloggen.
   - **Prüfung:** Am Wochenende Dashboard ansehen.
   - **Erwartet:** Markt wird als geschlossen angezeigt, keine neuen Orders.
-- [ ] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ⏳
+- [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-09-23
   - Beim Verlassen der Hauptschleife werden alle Pending Orders des Robots gelöscht.
   - **Prüfung:** Nicht manuell testen (/stop beendet den Prozess hart).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -294,12 +295,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
   - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
-- [x] **MET-03** WebSocket-Metriken des Workers *(teilweise)* — 🧪 unit ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **MET-03** WebSocket-Metriken des Workers *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
   - 📝 v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders). Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus der Bot-Metrik → RSI fehlt dann
-- [ ] **MET-04** Bot-Telemetrie — 🧪 unit ⏳
+- [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-09-23
   - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -325,7 +326,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Worker auf dem VPS stoppen.
   - **Erwartet:** Status wechselt nach ≤ 10 s auf offline.
   - 📝 Claude: 'Worker online · updated' aktualisiert exakt alle 10 s (22:19:02/12/22/32)
-- [x] **LOG-05** Robot-Log schreiben *(teilweise)* — 🧪 unit ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-05** Robot-Log schreiben — 🧪 unit ✅ 2026-09-23 · 👤 manuell ✅ 2026-09-23
   - Der Bot-Prozess schreibt seine Meldungen (log_message) nach logs/<id>/err_<id>.log.
   - **Prüfung:** Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
   - **Erwartet:** Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
@@ -356,7 +357,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur mit einem Nicht-Windows-Worker sichtbar.
   - **Erwartet:** Der simulierte Preis sollte in die Engine einfließen.
   - 🐞 **Bekannter Fehler:** /bot/simulate-price schreibt sim_<id>.json, das von niemandem gelesen wird – der Regler hat keine Wirkung.
-- [ ] **UPD-05** Server-Neustart nach Update — 🧪 unit ⏳
+- [ ] **UPD-05** Server-Neustart nach Update — 🧪 unit 🐞 2026-09-23
   - self_updater.hard_restart_server soll den Worker nach einem Update neu starten.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Worker startet neu.

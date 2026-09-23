@@ -474,6 +474,7 @@ kategorien:
         pruefung:
           - Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt.
         erwartet: Orders (bzw. Positionen je nach Umfang) werden entfernt, Zone steht auf AUTO_CLEAR.
+        bekannter_fehler: "(1) Umfang „Tüm İşlemler“ (so speichert die UI) schließt keine Positionen – handle_zone_exit prüft nur auf „Pozisyon“/„Tümü“/„Hepsi“. (2) Nach dem Austritt fällt die Engine auf zones[0] zurück und AUTO_CLEAR blockiert die Platzierung nicht (nur PAUSE): liegt der Kurs knapp außerhalb, werden die Grenz-Orders jeden Tick gelöscht und neu gesetzt (im Test 3 + 3 Broker-Anfragen pro Tick)."
 
       - id: ENG-11
         titel: Auto-Pause nach 3 Ablehnungen
