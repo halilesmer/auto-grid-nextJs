@@ -15,7 +15,12 @@ from src.utils.mt5_helpers import (
     _read_cache_file,
     _write_cache_file,
 )
-from src.utils.bot_manager import is_bot_running, start_bot_process, stop_bot_process
+from src.utils.bot_manager import (
+    get_bot_process_age,
+    is_bot_running,
+    start_bot_process,
+    stop_bot_process,
+)
 from src.utils.paths import (
     get_err_log_path,
     get_metrics_path,
@@ -27,6 +32,25 @@ router = APIRouter(tags=["Bot Control"])
 
 
 _LOG_PREFIX = {"error": "🔴 ERROR:", "warning": "⚠️ WARNING:", "info": "ℹ️ INFO:"}
+
+
+# Bot her döngüde (piyasa kapalıyken 60 sn'de bir) metrik yazar; bundan eski
+# metrik = süreç asılı. İlk bağlantı da en fazla ~120 sn sürer.
+BOT_STALE_SECONDS = 180
+
+
+def _running_bot_is_healthy(account_id: str) -> bool:
+    """Çalışan bot süreci MT5'e bağlı ve güncel metrik yazıyor mu?"""
+    metrics_path = get_metrics_path(account_id)
+    try:
+        age = time.time() - os.path.getmtime(metrics_path)
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        # Henüz metrik yok: süreç yeni başlamış ve hâlâ bağlanıyor olabilir
+        process_age = get_bot_process_age(account_id)
+        return process_age is not None and process_age < BOT_STALE_SECONDS
+    return bool(data.get("mt5_connected")) and age < BOT_STALE_SECONDS
 
 
 def _log_step(account_id: str, msg: str, type: str = "info"):
@@ -68,6 +92,18 @@ async def start_bot(account_id: str):
         "[START] Başlatma isteği alındı."
         + (" (Bot süreci zaten çalışıyor.)" if already_running else ""),
     )
+
+    # Süreç canlı ama MT5'e bağlı değil / metrik yazmıyor → asılı kalmış; yeniden başlat.
+    # Aksi halde Start hiçbir şey yapmıyor ve arayüz sonsuza kadar "bağlı değil" kalıyordu.
+    if already_running and not _running_bot_is_healthy(account_id):
+        _log_step(
+            account_id,
+            "[START] Bot süreci çalışıyor ama MT5'e bağlı değil veya yanıt vermiyor. "
+            "Süreç yeniden başlatılıyor (pozisyon/emirlere dokunulmuyor)...",
+            type="warning",
+        )
+        await asyncio.to_thread(stop_bot_process, account_id)
+        already_running = False
 
     # 0. Önceki çalışmadan kalan metrikleri (eski startup_error / mt5_connected)
     #    sil; aksi halde arayüz bağlantı sürerken bayat hatayı gösterir.

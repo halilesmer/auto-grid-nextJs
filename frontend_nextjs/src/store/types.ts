@@ -99,6 +99,8 @@ export interface LiveData {
   algo_trading_error: boolean;
   // bot_runner MT5'e bağlanamazsa met_<id>.json içine yazar
   startup_error?: string | null;
+  // Worker: bot süreci (bot_runner) çalışıyor mu – MT5 bağlantısından bağımsız
+  bot_running?: boolean;
 }
 
 export interface UpdateInfo {

@@ -80,6 +80,17 @@ def is_bot_running(account_id: str) -> bool:
     return True
 
 
+def get_bot_process_age(account_id: str):
+    """Çalışan bot sürecinin yaşı (saniye). Süreç yoksa None."""
+    pid = _read_pid(account_id)
+    if pid is None or not _is_our_runner(pid, account_id):
+        return None
+    try:
+        return time.time() - psutil.Process(pid).create_time()
+    except Exception:
+        return None
+
+
 def self_cleanup(account_id: str):
     """Çalışmayan bir bota ait PID dosyasını temizler. (Sadece dosya, MT5'e dokunmaz)"""
     try:

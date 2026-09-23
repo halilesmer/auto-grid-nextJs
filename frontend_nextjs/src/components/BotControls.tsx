@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, Pause, Play, Server, UserRound } from 'lucide-react';
+import { Bot, Pause, Play, RotateCcw, Server, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import ConfirmModal from '@/components/ConfirmModal';
@@ -110,11 +110,17 @@ export default function BotControls() {
 
   if (!selectedAccount) return null;
 
+  // Süreç çalışıyor ama MT5'e bağlı değil (bağlantı kopmuş / asılı): hem yeniden
+  // başlatma hem durdurma sunulmalı, yoksa arayüzden çıkış yolu yoktu.
+  const processWithoutMt5 = !liveData.mt5_connected && Boolean(liveData.bot_running);
+
   const status = isConnecting
     ? { label: "Connecting…", tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
     : liveData.mt5_connected
       ? { label: "Running", tone: "success" as const, box: "border-success/30 bg-success/[0.06] text-success" }
-      : { label: "Stopped", tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
+      : processWithoutMt5
+        ? { label: "Bot process running – not connected to MT5", tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
+        : { label: "Stopped", tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
 
   return (
     <Card>
@@ -125,12 +131,12 @@ export default function BotControls() {
       />
       <CardContent className="space-y-4">
         {/* Durum paneli */}
-        <div className={cn("flex items-center justify-between rounded-lg border px-4 py-3", status.box)}>
-          <div className="flex items-center gap-2.5">
+        <div className={cn("flex items-center justify-between gap-3 rounded-lg border px-4 py-3", status.box)}>
+          <div className="flex min-w-0 items-center gap-2.5">
             <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
             <span className="text-sm font-semibold">{status.label}</span>
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className="shrink-0 text-xs text-muted-foreground">
             Market{" "}
             <span className={liveData.market_open ? "text-success" : "text-danger"}>
               {liveData.market_open ? "Open" : "Closed"}
@@ -151,30 +157,35 @@ export default function BotControls() {
           </div>
         )}
 
-        {!liveData.mt5_connected ? (
-          <Button
-            variant="success"
-            size="lg"
-            className="w-full"
-            onClick={handleStartBot}
-            disabled={isConnecting}
-            loading={loading || isConnecting}
-          >
-            {!(loading || isConnecting) && <Play size={16} fill="currentColor" />}
-            {loading || isConnecting ? "Connecting to MT5…" : "Start Bot"}
-          </Button>
-        ) : (
-          <Button
-            variant="danger"
-            size="lg"
-            className="w-full"
-            onClick={() => setStopConfirmOpen(true)}
-            loading={loading}
-          >
-            {!loading && <Pause size={16} fill="currentColor" />}
-            Stop Bot
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {!liveData.mt5_connected && (
+            <Button
+              variant="success"
+              size="lg"
+              className="flex-1"
+              onClick={handleStartBot}
+              disabled={isConnecting}
+              loading={loading || isConnecting}
+              title={processWithoutMt5 ? "Restarts the bot process and reconnects to MT5" : undefined}
+            >
+              {!(loading || isConnecting) &&
+                (processWithoutMt5 ? <RotateCcw size={16} /> : <Play size={16} fill="currentColor" />)}
+              {loading || isConnecting ? "Connecting to MT5…" : processWithoutMt5 ? "Restart Bot" : "Start Bot"}
+            </Button>
+          )}
+          {(liveData.mt5_connected || processWithoutMt5) && (
+            <Button
+              variant="danger"
+              size="lg"
+              className="flex-1"
+              onClick={() => setStopConfirmOpen(true)}
+              loading={loading}
+            >
+              {!loading && <Pause size={16} fill="currentColor" />}
+              Stop Bot
+            </Button>
+          )}
+        </div>
 
         {/* Hatalar ve alarmlar */}
         {error && (

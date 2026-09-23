@@ -1,0 +1,64 @@
+# Erhöht bei jedem Push auf main die Patch-Version (VERSION + frontend version.ts)
+# und committet das als "chore: auto bump version to vX.Y.Z".
+# Ersetzt den früheren lokalen .git/hooks/pre-push-Hook, der nur auf dem Mac lief
+# und daher Pushes aus anderen Umgebungen und GitHub-Merges nicht erfasst hat.
+name: Version bump
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+# Aufeinanderfolgende Pushes nacheinander abarbeiten, keiner wird abgebrochen
+concurrency:
+  group: version-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    # Eigener Bump-Commit löst keinen weiteren Bump aus (Pushes mit GITHUB_TOKEN
+    # starten ohnehin keine Workflows; das hier ist die zweite Sicherung).
+    if: "!startsWith(github.event.head_commit.message, 'chore: auto bump version')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Bump patch version and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch --depth=1 origin main
+            git reset --hard origin/main
+
+            current="$(tr -d '[:space:]' < VERSION)"
+            if [[ ! "$current" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              echo "::error::VERSION hat unerwartetes Format: '$current' (erwartet vX.Y.Z)"
+              exit 1
+            fi
+            next="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
+
+            printf '%s\n' "$next" > VERSION
+            printf "export const VERSION = '%s';\nexport const APP_VERSION = VERSION;\n" "$next" \
+              > frontend_nextjs/src/app/version.ts
+
+            git add VERSION frontend_nextjs/src/app/version.ts
+            git commit -m "chore: auto bump version to $next [skip ci]"
+
+            if git push origin HEAD:main; then
+              echo "Version $current -> $next"
+              exit 0
+            fi
+            echo "Push abgelehnt (main hat sich geändert), neuer Versuch $attempt/3..."
+            sleep $((attempt * 5))
+          done
+
+          echo "::error::Version-Bump konnte nicht gepusht werden"
+          exit 1
