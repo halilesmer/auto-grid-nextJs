@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import axios from "axios";
 import { useAccountStore, useLogsStore, useBotRuntimeStore } from '@/store';
+import { downloadAccountLogs } from '@/lib/downloadLogs';
 
 const rawAPI =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -58,23 +59,8 @@ export default function LogViewer() {
     }
   }, [robotLog, mt5Log, tab]);
 
-  const handleDownloadLog = async () => {
-    if (selectedAccount) {
-      try {
-        const res = await axios.get(`${API}/logs/download/${selectedAccount}`, {
-          responseType: "blob",
-          headers: { "ngrok-skip-browser-warning": "true" },
-        });
-        const url = window.URL.createObjectURL(new Blob([res.data]));
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `MT5_Logs_${selectedAccount}.zip`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error("İndirme hatası", err);
-      }
-    }
+  const handleDownloadLog = () => {
+    if (selectedAccount) downloadAccountLogs(selectedAccount);
   };
 
   const handleClearLogs = async () => {

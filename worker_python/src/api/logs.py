@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse
+import asyncio
 import json
 import os
 import glob
 import tempfile
 import zipfile
 from src.api.helpers import _find_settings_file, LOGS_DIR, BASE_DIR
+from src.utils.bot_manager import is_bot_running
 
 router = APIRouter(tags=["Logs"])
 
@@ -31,7 +33,8 @@ async def get_logs(
         try:
             with open(filepath, "r", encoding="utf-8") as fh:
                 return json.load(fh)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, OSError):
+            # Bot dosyayı o an os.replace ile değiştiriyor olabilir (Windows kilidi)
             return None
 
     if log_type in ("robot", "all"):
@@ -57,11 +60,17 @@ async def get_logs(
         result["mt5_log"] = mt5_lines
 
     if log_type in ("metrics", "all"):
-        metrics_path = os.path.join(LOGS_DIR, f"met_{account_id}.json")
-        if not os.path.exists(metrics_path):
-            alt = glob.glob(os.path.join(LOGS_DIR, account_id, "met_*.json"))
-            metrics_path = alt[0] if alt else metrics_path
-        result["metrics"] = _read_json(metrics_path)
+        # Önce bot sürecinin kendi metrik dosyası (logs/<id>/met_<id>.json) okunur;
+        # startup_error ve gerçek bot durumu sadece orada. logs/met_<id>.json ise
+        # API sürecinin WS yayını tarafından yazılır ve yalnızca yedek olarak kullanılır.
+        bot_running = is_bot_running(account_id)
+        metrics = _read_json(os.path.join(LOGS_DIR, account_id, f"met_{account_id}.json"))
+        if metrics is None and not bot_running:
+            metrics = _read_json(os.path.join(LOGS_DIR, f"met_{account_id}.json"))
+        # Bot süreci çalışmıyorsa bayat mt5_connected=true "Running" göstermesin
+        if isinstance(metrics, dict) and not bot_running:
+            metrics["mt5_connected"] = False
+        result["metrics"] = metrics
 
     return result
 
@@ -81,29 +90,48 @@ async def clear_logs(account_id: str):
     return {"status": "success", "message": f"Logs cleared for {account_id}"}
 
 
-@router.get("/logs/download/{account_id}")
-async def download_log(account_id: str, background_tasks: BackgroundTasks):
+def _build_log_zip(account_id: str) -> str:
     account_dir = os.path.join(LOGS_DIR, account_id)
     data_dir = os.path.join(BASE_DIR, "data")
 
     fd, temp_zip_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
 
+    def _safe_write(zipf: zipfile.ZipFile, file_path: str, arcname: str):
+        # Bot aynı anda .tmp dosyası yazıp os.replace yapıyor; kaybolan veya
+        # kilitli bir dosya tüm indirmeyi (500) bozmasın, sadece atlansın.
+        try:
+            zipf.write(file_path, arcname=arcname)
+        except (OSError, ValueError):
+            pass
+
     with zipfile.ZipFile(temp_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        if os.path.exists(account_dir) and os.path.isdir(account_dir):
+        if os.path.isdir(account_dir):
             for root, _, files in os.walk(account_dir):
                 for file in files:
+                    if file.endswith(".tmp"):
+                        continue
                     file_path = os.path.join(root, file)
                     arcname = os.path.relpath(file_path, account_dir)
-                    zipf.write(file_path, arcname=f"logs/{arcname}")
+                    _safe_write(zipf, file_path, f"logs/{arcname}")
 
         state_file = os.path.join(data_dir, f"state_{account_id}.json")
         if os.path.exists(state_file):
-            zipf.write(state_file, arcname=f"state_{account_id}.json")
+            _safe_write(zipf, state_file, f"state_{account_id}.json")
 
         settings_file = _find_settings_file(account_id)
         if settings_file and os.path.exists(settings_file):
-            zipf.write(settings_file, arcname=os.path.basename(settings_file))
+            _safe_write(zipf, settings_file, os.path.basename(settings_file))
+
+    return temp_zip_path
+
+
+@router.get("/logs/download/{account_id}")
+async def download_log(account_id: str, background_tasks: BackgroundTasks):
+    try:
+        temp_zip_path = await asyncio.to_thread(_build_log_zip, account_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Log arşivi oluşturulamadı: {exc}")
 
     def cleanup():
         if os.path.exists(temp_zip_path):

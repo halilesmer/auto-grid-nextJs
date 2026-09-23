@@ -11,6 +11,7 @@ const initialLiveData: LiveData = {
   order_rejected_alarm: false,
   last_error: null,
   algo_trading_error: false,
+  startup_error: null,
 };
 
 const initialMetrics: Metrics = {
@@ -66,7 +67,14 @@ export const useBotRuntimeStore = create<BotRuntimeState>((set, get) => ({
         JSON.stringify(errObj);
     }
 
-    if (state.isConnecting && next.mt5_connected === false) {
+    if (state.isConnecting && next.startup_error) {
+      // Bot süreci bağlanamadan kapandı: beklemeyi bitir, hatayı göster
+      set({
+        isConnecting: false,
+        liveData: { ...state.liveData, ...next },
+      });
+      return;
+    } else if (state.isConnecting && next.mt5_connected === false) {
       delete next.mt5_connected;
     } else if (state.isConnecting && next.mt5_connected === true) {
       set({

@@ -83,6 +83,8 @@ export interface LiveData {
   order_rejected_alarm: boolean;
   last_error: string | null;
   algo_trading_error: boolean;
+  // bot_runner MT5'e bağlanamazsa met_<id>.json içine yazar
+  startup_error?: string | null;
 }
 
 export interface UpdateInfo {

@@ -14,8 +14,8 @@ from src.utils.mt5_helpers import (
     _read_cache_file,
     _write_cache_file,
 )
-from src.utils.bot_manager import start_bot_process, stop_bot_process
-from src.utils.paths import get_sim_price_path
+from src.utils.bot_manager import is_bot_running, start_bot_process, stop_bot_process
+from src.utils.paths import get_metrics_path, get_sim_price_path
 
 router = APIRouter(tags=["Bot Control"])
 
@@ -35,6 +35,14 @@ async def start_bot(account_id: str):
 
     if not account_config:
         raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
+
+    # 0. Önceki çalışmadan kalan metrikleri (eski startup_error / mt5_connected)
+    #    sil; aksi halde arayüz bağlantı sürerken bayat hatayı gösterir.
+    if not is_bot_running(account_id):
+        try:
+            os.remove(get_metrics_path(account_id))
+        except OSError:
+            pass
 
     # 1. MT5'e Bağlan
     ok, _is_timeout, detail = await asyncio.to_thread(

@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, Pause, Play } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import ConfirmModal from '@/components/ConfirmModal';
 import axios from 'axios';
@@ -21,6 +21,12 @@ export default function BotControls() {
   const liveData = useBotRuntimeStore((s) => s.liveData);
   const setIsRunning = useBotRuntimeStore((s) => s.setIsRunning);
   const setIsConnecting = useBotRuntimeStore((s) => s.setIsConnecting);
+  const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
+  const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (isConnecting) return;
@@ -35,13 +41,18 @@ export default function BotControls() {
     if (!selectedAccount) return;
     setLoading(true);
     setError("");
+    updateLiveData({ startup_error: null });
 
     setIsConnecting(true);
     setIsRunning(true);
 
-    const unlockTimer = setTimeout(() => {
+    // Worker MT5'e önce API sürecinde, sonra bot sürecinde bağlanır (her biri
+    // 120 sn'ye kadar). 15 sn sonra "Stopped" göstermek bağlantıyı yarıda
+    // bırakılmış gibi gösteriyordu.
+    if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+    unlockTimerRef.current = setTimeout(() => {
       setIsConnecting(false);
-    }, 15000);
+    }, 180_000);
 
     try {
       await axios.post(
@@ -52,7 +63,7 @@ export default function BotControls() {
     } catch (err) {
       setIsConnecting(false);
       setIsRunning(false);
-      clearTimeout(unlockTimer);
+      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.detail || "Failed to start bot.");
       } else {
@@ -61,7 +72,7 @@ export default function BotControls() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, setIsRunning, setIsConnecting]);
+  }, [selectedAccount, setIsRunning, setIsConnecting, updateLiveData]);
 
   const handleStopBot = useCallback(async () => {
     if (!selectedAccount) return;
@@ -111,6 +122,13 @@ export default function BotControls() {
           >
             x
           </button>
+        </div>
+      )}
+
+      {!isConnecting && !liveData.mt5_connected && liveData.startup_error && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-start space-x-2">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <span className="break-words">MT5 connection failed: {liveData.startup_error}</span>
         </div>
       )}
 
