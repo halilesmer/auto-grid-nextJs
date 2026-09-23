@@ -1,8 +1,20 @@
+import logging
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api import api_router
 from src.api.ws_server import router as ws_router
+
+
+class _NoisyEndpointFilter(logging.Filter):
+    """Frontend pollt /api/logs mehrmals pro Sekunde - das erschlaegt die Konsole
+    und versteckt echte Fehler. Andere Zugriffe bleiben sichtbar."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/api/logs" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(_NoisyEndpointFilter())
 
 app = FastAPI(title="Auto Grid Bot API")
 
