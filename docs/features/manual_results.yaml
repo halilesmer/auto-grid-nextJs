@@ -67,6 +67,23 @@ SET-05:
   datum: '2026-09-23'
   notiz: 'Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen
     danach identisch mit Sicherung'
+SYM-01:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: /symbols/7942034 → 200, 812 Symbole mit Details (USOUSD: digits
+    3, point 0.001, Volumen 0.01–50); 2. Abruf 72 ms statt 168 ms (Cache). 1-h-Ablauf/Hintergrund-Refresh
+    nicht live prüfbar → Unit-Test'
+SYM-02:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: ''XAU'' → 5 Vorschläge mit Beschreibung; ''gold'' findet auch über
+    Beschreibung; ''ZZQQ'' → ''Sembol bulunamadı''; nichts ausgewählt, per Neuladen
+    verworfen'
+SYM-03:
+  status: bestanden
+  datum: '2026-09-23'
+  notiz: 'Claude: USOUSD → Preisfelder step/min 0.001, Lot min/step 0.01; unbekanntes
+    Symbol → ''Geçersiz Sembol!''; nach Neuladen wieder USOUSD, API unverändert'
 MET-03:
   status: fehlgeschlagen
   datum: '2026-09-23'

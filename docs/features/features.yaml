@@ -229,12 +229,13 @@ kategorien:
 
       - id: SYM-03
         titel: Symboldetails
-        beschreibung: Zu einem Symbol werden Details (Digits, Point, Volumen-Grenzen) geladen und zur Anzeige/Validierung genutzt.
-        code: [frontend_nextjs/src/hooks/useSymbolDetails.ts, frontend_nextjs/src/services/zoneApi.ts]
+        beschreibung: Zu einem Symbol werden Details (Digits, Point, Volumen-Grenzen) geladen; daraus leiten die Zonenfelder Schrittweite, Minimum und Rundung ab, und unbekannte Symbole werden als „Geçersiz Sembol!“ markiert.
+        code: [frontend_nextjs/src/hooks/useSymbolDetails.ts, frontend_nextjs/src/utils/zoneHelpers.ts, frontend_nextjs/src/services/zoneApi.ts]
         tiers: [e2e]
         pruefung:
-          - Symbol wählen, Preisfelder ansehen.
-        erwartet: Preise werden mit der richtigen Anzahl Nachkommastellen angezeigt.
+          - Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools).
+          - Ein unbekanntes Symbol eintippen (nicht speichern).
+        erwartet: Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; unbekanntes Symbol zeigt „Geçersiz Sembol!“.
 
   # ---------------------------------------------------------------------------
   - id: ZON

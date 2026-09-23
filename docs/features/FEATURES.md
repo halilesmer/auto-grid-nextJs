@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **12/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
+**Stand:** 2026-09-23 · **15/69** abgehakt · ❌ 1 mit Fehlern · 🐞 6 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -17,7 +17,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 1 | **SYS** – Verbindung & Infrastruktur | 4/4 |
 | 2 | **ACC** – Konten | 3/8 |
 | 3 | **SET** – Allgemeine Einstellungen | 5/6 |
-| 4 | **SYM** – Symbole | 0/3 |
+| 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 0/9 |
 | 6 | **BOT** – Bot-Steuerung | 0/6 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 0/16 |
@@ -122,18 +122,21 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 4. SYM – Symbole
 
-- [ ] **SYM-01** Symbolliste + Cache — 🧪 unit ⏳ · 🔌 api ⏳ · 🌐 live ⏳
+- [x] **SYM-01** Symbolliste + Cache *(teilweise)* — 🧪 unit ⏳ · 🔌 api ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /symbols/{id} liefert Broker-Symbole aus broker_symbols.json; 1-h-Cache, bei Ablauf wird die alte Liste geliefert und im Hintergrund aktualisiert (doppelte Anfragen werden zusammengelegt).
   - **Prüfung:** Zone öffnen, ins Symbolfeld klicken.
   - **Erwartet:** Symbolliste des Brokers erscheint schnell (auch bei wiederholtem Öffnen).
-- [ ] **SYM-02** Symbol-Autocomplete — 🖥️ e2e ⏳
+  - 📝 Claude: /symbols/7942034 → 200, 812 Symbole mit Details (USOUSD: digits 3, point 0.001, Volumen 0.01–50); 2. Abruf 72 ms statt 168 ms (Cache). 1-h-Ablauf/Hintergrund-Refresh nicht live prüfbar → Unit-Test
+- [x] **SYM-02** Symbol-Autocomplete *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - Feld „Sembol Ara…“ filtert die Symbolliste beim Tippen.
   - **Prüfung:** „XAU“ tippen und einen Vorschlag wählen.
   - **Erwartet:** Nur passende Symbole erscheinen; Auswahl übernimmt das Symbol.
-- [ ] **SYM-03** Symboldetails — 🖥️ e2e ⏳
-  - Zu einem Symbol werden Details (Digits, Point, Volumen-Grenzen) geladen und zur Anzeige/Validierung genutzt.
-  - **Prüfung:** Symbol wählen, Preisfelder ansehen.
-  - **Erwartet:** Preise werden mit der richtigen Anzahl Nachkommastellen angezeigt.
+  - 📝 Claude: 'XAU' → 5 Vorschläge mit Beschreibung; 'gold' findet auch über Beschreibung; 'ZZQQ' → 'Sembol bulunamadı'; nichts ausgewählt, per Neuladen verworfen
+- [x] **SYM-03** Symboldetails *(teilweise)* — 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
+  - Zu einem Symbol werden Details (Digits, Point, Volumen-Grenzen) geladen; daraus leiten die Zonenfelder Schrittweite, Minimum und Rundung ab, und unbekannte Symbole werden als „Geçersiz Sembol!“ markiert.
+  - **Prüfung:** Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools). → Ein unbekanntes Symbol eintippen (nicht speichern).
+  - **Erwartet:** Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; unbekanntes Symbol zeigt „Geçersiz Sembol!“.
+  - 📝 Claude: USOUSD → Preisfelder step/min 0.001, Lot min/step 0.01; unbekanntes Symbol → 'Geçersiz Sembol!'; nach Neuladen wieder USOUSD, API unverändert
 
 ## 5. ZON – Zonen-Konfiguration (UI ↔ Backend)
 
