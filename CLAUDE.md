@@ -13,12 +13,21 @@ Grid Robot: an algorithmic grid-trading bot for MetaTrader 5. Monorepo with two 
 
 `frontend_nextjs/AGENTS.md` (loaded via `frontend_nextjs/CLAUDE.md`) applies to all frontend work: this Next.js version has breaking changes — consult `frontend_nextjs/node_modules/next/dist/docs/` before writing Next.js code.
 
+## Dev setup
+
+Development happens on a MacBook, split across two machines:
+
+- **Mac (local):** the frontend only. Run `npm run dev:frontend` and test at http://localhost:3000. `frontend_nextjs/.env.local` points `NEXT_PUBLIC_API_URL` at the worker's ngrok URL.
+- **Windows VPS:** the worker only, started with `worker_python/start.bat` (uvicorn crash watchdog via `run_uvicorn_watchdog.bat`, plus ngrok). See `docs/windows_start_guide.md`.
+
+The worker can't run on the Mac (MT5 is Windows-only), so don't start it locally: `npm run dev` and `npm run dev:backend` aren't meant for this setup. Worker changes can only be checked statically here; they get tested once they're pulled onto the VPS and the worker is restarted.
+
 ## Commands
 
 Frontend (run inside `frontend_nextjs/`):
 
 ```bash
-npm run dev            # next dev + Python worker concurrently (needs worker_python/.venv)
+npm run dev            # next dev + Python worker concurrently (needs worker_python/.venv; Windows only)
 npm run dev:frontend   # Next.js only, http://localhost:3000
 npm run dev:backend    # worker only (worker_python/.venv/bin/python main.py)
 npm run build
@@ -34,7 +43,7 @@ python main.py         # uvicorn on 0.0.0.0:8000; set ENV=development for auto-r
 
 There is no test suite in either package.
 
-Frontend env (`frontend_nextjs/.env.local`): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`. If they're missing, `src/lib/api.ts` falls back to a hard-coded ngrok URL. Worker CORS uses `ALLOWED_ORIGINS` (comma-separated, default `*`).
+Frontend env (`frontend_nextjs/.env.local`): `NEXT_PUBLIC_API_URL` (base URL without `/api`, which is appended automatically). The WebSocket URL is derived from `API_BASE` in `buildWsUrl()` (`src/store/useWebSocketManager.ts`), so `NEXT_PUBLIC_WS_URL` is currently unused. If `NEXT_PUBLIC_API_URL` is missing, REST and WebSocket both fall back to the hard-coded ngrok URL in `src/lib/api.ts`. Worker CORS uses `ALLOWED_ORIGINS` (comma-separated, default `*`).
 
 ## Versioning
 
@@ -44,7 +53,7 @@ A local `.git/hooks/pre-push` hook bumps the patch version on every push: it rew
 
 ### Frontend ↔ Worker
 - REST under `/api/*` (FastAPI routers in `worker_python/src/api/`, one module per domain: accounts, bot_control, settings, symbols, logs, system, ui_state; shared Pydantic models in `models.py`, error handling in `errors.py`).
-- WebSocket at `/ws` (`src/api/ws_server.py`) pushes live metrics, logs, and status. On the client, `src/store/useWebSocketManager.ts` owns the connection and routes messages into the stores.
+- WebSocket at `/ws/stream` (`src/api/ws_server.py`, mounted under `/ws` in `main.py`) pushes live metrics, logs, and status. On the client, `src/store/useWebSocketManager.ts` owns the connection and routes messages into the stores.
 - Frontend HTTP calls go through `axiosInstance` in `src/lib/api.ts` (it sends the `ngrok-skip-browser-warning` header). Zone-specific calls live in `src/services/zoneApi.ts`.
 
 ### Frontend state

@@ -2,6 +2,10 @@
 
 Dieses System benötigt **2 aktive Konsolenfenster** sowie MetaTrader 5 im Hintergrund.
 
+Auf dem VPS läuft nur der Worker. Das Frontend läuft lokal auf dem MacBook (`npm run dev:frontend` in `frontend_nextjs/`) und verbindet sich über die ngrok-URL (`NEXT_PUBLIC_API_URL` in `frontend_nextjs/.env.local`) mit dem Worker.
+
+> **Schnellstart:** `worker_python\start.bat` öffnet beide Fenster automatisch (Worker mit Absturz-Watchdog, ohne `--reload`, plus ngrok). Die Schritte 1 und 2 unten sind der manuelle Weg.
+
 ---
 
 ### Vorbereitung (Einmalig)
@@ -26,7 +30,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ---
 
 ### 2. Terminal: Ngrok Tunnel
-Verbindet das lokale Backend sicher mit dem Vercel-Frontend über das Internet.
+Macht den Worker auf dem VPS über das Internet erreichbar, damit das lokale Frontend auf dem MacBook ihn ansprechen kann.
 
 ```cmd
 ngrok http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev
