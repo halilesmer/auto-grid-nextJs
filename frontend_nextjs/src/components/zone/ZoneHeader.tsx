@@ -1,9 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { MoreVertical, Trash2, Save, Play, Pause } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { FlaskConical, MoreHorizontal, Trash2, Pause, Play } from 'lucide-react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { StatusDot } from '@/components/ui/status-dot';
+import { cn } from '@/lib/utils';
 import type { ZoneHeaderProps } from './types';
+
+const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
 
 export function ZoneHeader({
   zone,
@@ -15,39 +21,73 @@ export function ZoneHeader({
   onDelete,
 }: ZoneHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [menuOpen]);
 
   let btnClass = '';
   let btnText = '';
-  let btnIcon = <Play size={14} />;
+  let btnIcon = <Play size={13} fill="currentColor" />;
+  let dotTone: 'success' | 'warning' | 'neutral' = 'neutral';
 
   if (isGlobalRunning) {
     if (isActive) {
-      btnClass = 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95';
+      btnClass = 'border-success/40 bg-success/10 text-success hover:bg-success/20';
       btnText = 'Başladı';
-      btnIcon = <Pause size={14} />;
+      btnIcon = <Pause size={13} fill="currentColor" />;
+      dotTone = 'success';
     } else {
-      btnClass = 'bg-amber-600 hover:bg-amber-500 text-white active:scale-95';
+      btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
       btnText = 'Başla';
-      btnIcon = <Play size={14} />;
+      btnIcon = <Play size={13} fill="currentColor" />;
     }
   } else {
     if (isActive) {
-      btnClass = 'bg-yellow-600 text-yellow-50 hover:bg-yellow-500 active:scale-95';
+      btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
       btnText = 'Hazır (Motor Bekleniyor)';
-      btnIcon = <Pause size={14} />;
+      btnIcon = <Pause size={13} fill="currentColor" />;
+      dotTone = 'warning';
     } else {
-      btnClass = 'bg-gray-700 text-gray-300 hover:bg-gray-600 active:scale-95';
+      btnClass = 'border-border bg-muted text-muted-foreground hover:bg-accent hover:text-foreground';
       btnText = 'Kapalı (Motoru Başlat)';
-      btnIcon = <Play size={14} />;
+      btnIcon = <Play size={13} fill="currentColor" />;
     }
   }
 
+  const tone = ORDER_TONE[zone.order_type as keyof typeof ORDER_TONE] ?? 'neutral';
+
   return (
-    <div className="flex items-center justify-between flex-wrap gap-2">
-      <div className="flex items-center space-x-2">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <StatusDot tone={dotTone} pulse={dotTone === 'success'} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-mono text-base font-semibold tracking-tight text-foreground">
+              {zone.symbol || '—'}
+            </span>
+            <Badge tone={tone}>{zone.order_type}</Badge>
+            {modified && <Badge tone="warning">Kaydedilmedi</Badge>}
+          </div>
+          <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+            {zone.min_price} – {zone.max_price}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => onToggleActive(zone.id, isActive)}
-          className={`flex items-center space-x-1 text-xs font-bold px-4 py-1.5 rounded-lg transition-all shadow-md ${btnClass}`}
+          className={cn(
+            'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-all active:scale-[0.97]',
+            btnClass,
+          )}
           title="Bölge İşlemlerini Yönet"
         >
           {btnIcon}
@@ -55,39 +95,43 @@ export function ZoneHeader({
         </button>
         <Link
           href={`/chart?zone=${zone.id}`}
-          className="flex items-center justify-center text-xs font-bold px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all active:scale-95 shadow-md"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"
           title="Bölgeye Özel Test ve İstatistikler"
         >
+          <FlaskConical size={13} />
           Test
         </Link>
-        {modified && (
-          <span className="text-xs text-orange-400 flex items-center gap-1">
-            <Save size={12} />
-            Kaydedilmedi
-          </span>
-        )}
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            aria-label="Bölge menüsü"
           >
-            <MoreVertical size={18} />
+            <MoreHorizontal size={16} />
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-white/10 rounded-lg shadow-xl py-1 z-20 w-48">
-              <button
-                onClick={() => {
-                  onDelete();
-                  setMenuOpen(false);
-                }}
-                disabled={disableButtons}
-                className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed flex items-center space-x-2"
+          <AnimatePresence>
+            {menuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.12 }}
+                className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-popover p-1 shadow-xl shadow-black/50"
               >
-                <Trash2 size={14} />
-                <span>Bölgeyi Sil</span>
-              </button>
-            </div>
-          )}
+                <button
+                  onClick={() => {
+                    onDelete();
+                    setMenuOpen(false);
+                  }}
+                  disabled={disableButtons}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <Trash2 size={14} />
+                  <span>Bölgeyi Sil</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

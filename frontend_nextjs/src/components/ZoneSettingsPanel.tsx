@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useSettingsStore, useBotRuntimeStore } from '@/store';
-import { Plus, AlertTriangle, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Layers3 } from 'lucide-react';
+import { Alert } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import ConfirmModal from '@/components/ConfirmModal';
 
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
@@ -62,51 +65,56 @@ export default function ZoneSettingsPanel({
   if (isLoadingSymbols && availableSymbols.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-          <span className="ml-3 text-gray-400">Semboller yükleniyor...</span>
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="size-5 animate-spin text-primary" />
+          <span className="ml-3 text-sm text-muted-foreground">Semboller yükleniyor...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {(error || liveData.last_error) && (
-        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-start space-x-2 shadow-lg">
-          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-          <div className="flex flex-col">
-            {liveData.last_error && (
-              <span className="font-bold text-red-300 mb-0.5">
-                MT5 Terminal / Bağlantı Hatası
-              </span>
-            )}
-            <span>{error || liveData.last_error}</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+            <Layers3 size={16} />
           </div>
-          <button
-            onClick={() => {
-              setError('');
-              if (liveData.last_error)
-                updateLiveData({ last_error: null });
-            }}
-            className="ml-auto text-red-400 hover:text-red-300 px-2 font-bold"
-          >
-            X
-          </button>
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
+              Dinamik Bölgeler
+              <Badge tone="neutral">{zones.length}</Badge>
+            </h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">Fiyat aralığı başına grid kuralları</p>
+          </div>
         </div>
+        <Button variant="primary" size="sm" onClick={addZone} disabled={disableActionButtons}>
+          <Plus size={14} />
+          Bölge Ekle
+        </Button>
+      </div>
+
+      {(error || liveData.last_error) && (
+        <Alert
+          tone="danger"
+          title={liveData.last_error ? 'MT5 Terminal / Bağlantı Hatası' : undefined}
+          onDismiss={() => {
+            setError('');
+            if (liveData.last_error)
+              updateLiveData({ last_error: null });
+          }}
+        >
+          {error || liveData.last_error}
+        </Alert>
       )}
 
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-white">Dinamik Bölgeler</h3>
-        <button
-          onClick={addZone}
-          disabled={disableActionButtons}
-          className="flex items-center space-x-1 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-lg transition-all active:scale-95"
-        >
-          <Plus size={16} />
-          <span>Bölge Ekle</span>
-        </button>
-      </div>
+      {zones.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-14 text-center">
+          <Layers3 size={22} className="mb-3 text-muted-foreground" />
+          <p className="text-sm font-medium text-foreground">Henüz bölge yok</p>
+          <p className="mt-1 text-xs text-muted-foreground">İlk grid bölgesini eklemek için &quot;Bölge Ekle&quot;ye tıklayın.</p>
+        </div>
+      )}
 
       {zones.map((zone) => {
         const isModified = modified(zone);

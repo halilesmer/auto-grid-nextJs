@@ -1,13 +1,17 @@
 'use client';
 
-import { Download, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, Bot, Download, MonitorCog, RefreshCw, Terminal, Trash2 } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { useAccountStore, useLogsStore, useBotRuntimeStore } from '@/store';
 import type { ActivityLevel } from '@/store';
 import { downloadAccountLogs } from '@/lib/downloadLogs';
+import AnimatedTabs from '@/components/ui/animated-tabs';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { StatusDot } from '@/components/ui/status-dot';
 
 const POLL_INTERVAL_MS = 10_000;
 // Bağlanırken ne olduğunu canlı görmek için daha sık yokla
@@ -15,17 +19,17 @@ const CONNECTING_POLL_INTERVAL_MS = 2_000;
 
 type Tab = "activity" | "robot" | "mt5";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "activity", label: "Activity" },
-  { id: "robot", label: "Robot Logs" },
-  { id: "mt5", label: "MT5 Terminal Logs" },
+const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
+  { id: "activity", label: "Activity", icon: <Activity size={14} /> },
+  { id: "robot", label: "Robot Logs", icon: <Bot size={14} /> },
+  { id: "mt5", label: "MT5 Terminal", icon: <MonitorCog size={14} /> },
 ];
 
 const ACTIVITY_COLORS: Record<ActivityLevel, string> = {
-  info: "text-blue-400",
-  success: "text-green-400",
-  warn: "text-yellow-400",
-  error: "text-red-400 font-semibold",
+  info: "text-info",
+  success: "text-success",
+  warn: "text-warning",
+  error: "text-danger font-semibold",
 };
 
 function formatTime(ts: number): string {
@@ -41,10 +45,10 @@ function logLineColor(line: string): string {
     line.includes("[LOGIN]") ||
     line.includes("Giriş Başarısız")
   ) {
-    return "text-red-400 font-semibold";
+    return "text-danger font-semibold";
   }
   if (line.includes("WARN") || line.includes("UYARI")) {
-    return "text-yellow-400";
+    return "text-warning";
   }
   if (
     line.includes("INFO") ||
@@ -53,9 +57,9 @@ function logLineColor(line: string): string {
     line.includes("BAŞARILI") ||
     line.includes("success")
   ) {
-    return "text-blue-400";
+    return "text-info";
   }
-  return "text-green-400";
+  return "text-foreground/75";
 }
 
 export default function LogViewer() {
@@ -169,101 +173,90 @@ export default function LogViewer() {
 
   const activeLines = tab === "robot" ? robotLog : mt5Log;
 
-  let statusDot = "bg-gray-500";
+  let statusTone: "neutral" | "warning" | "danger" | "success" = "neutral";
   let statusText = "Checking worker…";
   if (isConnecting) {
-    statusDot = "bg-yellow-400 animate-pulse";
+    statusTone = "warning";
     statusText = `Connecting to MT5… ${connectingSeconds}s`;
   } else if (workerStatus.reachable === false) {
-    statusDot = "bg-red-500";
+    statusTone = "danger";
     statusText = "Worker offline";
   } else if (workerStatus.reachable) {
-    statusDot = "bg-green-500";
+    statusTone = "success";
     statusText = workerStatus.lastUpdate
       ? `Worker online · updated ${formatTime(workerStatus.lastUpdate)}`
       : "Worker online";
   }
 
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-xl overflow-hidden">
-      <div className="flex items-center border-b border-white/10">
-        {TABS.map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`flex-1 py-3 text-sm font-semibold transition-all ${
-              tab === id
-                ? "bg-white/10 text-white border-b-2 border-blue-400"
-                : "text-gray-500 hover:text-gray-300"
-            }`}
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-border px-3 pt-2">
+        <AnimatedTabs
+          tabs={TABS}
+          activeTab={tab}
+          onChange={(id) => setTab(id as Tab)}
+          layoutId="log-viewer-tabs"
+          variant="underline"
+          className="border-b-0"
+        />
+        <div className="flex items-center gap-0.5 pb-1.5">
+          <Button variant="ghost" size="icon-sm" onClick={fetchLogs} title="Refresh">
+            <RefreshCw size={14} />
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={handleDownloadLog} title="Download log file">
+            <Download size={14} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleClearLogs}
+            title={tab === "activity" ? "Clear activity" : "Clear all logs"}
+            className="hover:bg-danger/10 hover:text-danger"
           >
-            {label}
-          </button>
-        ))}
+            <Trash2 size={14} />
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-black/70 rounded-b-xl">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-white/5 bg-black/40">
+      <div className="bg-black/40">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-2 font-mono text-[11px]">
           <div
-            className="flex items-center space-x-2 min-w-0"
+            className="flex min-w-0 items-center gap-2"
             title={workerStatus.error ?? undefined}
           >
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDot}`} />
-            <span className="text-xs text-gray-400 truncate">{statusText}</span>
+            <StatusDot tone={statusTone} pulse={statusTone === "warning" || statusTone === "success"} />
+            <span className="truncate text-muted-foreground">{statusText}</span>
           </div>
-          <span className="text-xs text-gray-500">
-            {selectedAccount} — Auto-refresh {pollInterval / 1000}s
+          <span className="flex items-center gap-1.5 text-muted-foreground/70">
+            <Terminal size={11} />
+            {selectedAccount} · refresh {pollInterval / 1000}s
           </span>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleDownloadLog}
-              className="text-xs text-gray-500 hover:text-gray-300 px-2 py-0.5 rounded hover:bg-white/10 transition-all flex items-center space-x-1"
-              title="Download log file"
-            >
-              <Download size={12} />
-              <span>Download</span>
-            </button>
-            <button
-              onClick={handleClearLogs}
-              className="text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded hover:bg-red-500/10 transition-all flex items-center space-x-1"
-              title={tab === "activity" ? "Clear activity" : "Clear all logs"}
-            >
-              <Trash2 size={12} />
-              <span>Clear</span>
-            </button>
-            <button
-              onClick={fetchLogs}
-              className="text-xs text-gray-500 hover:text-gray-300 px-2 py-0.5 rounded hover:bg-white/10 transition-all"
-            >
-              Refresh
-            </button>
-          </div>
         </div>
 
         {workerStatus.reachable === false && workerStatus.error && (
-          <div className="px-4 py-2 text-xs text-red-400 bg-red-500/10 border-b border-red-500/20">
+          <div className="border-b border-danger/20 bg-danger/[0.07] px-4 py-2 text-xs text-danger">
             {workerStatus.error}
           </div>
         )}
 
         <pre
           ref={logRef}
-          className="p-4 text-sm font-mono text-green-400 leading-relaxed overflow-auto h-64 whitespace-pre-wrap break-all"
+          className="h-72 overflow-auto whitespace-pre-wrap break-all p-4 font-mono text-[12.5px] leading-relaxed text-foreground/75"
         >
           {tab === "activity" ? (
             activity.length === 0 ? (
-              <span className="text-gray-600">No activity yet – actions like Start/Stop and errors appear here.</span>
+              <span className="text-muted-foreground/60">No activity yet – actions like Start/Stop and errors appear here.</span>
             ) : (
               activity.map((entry, i) => (
                 <span key={i} className={ACTIVITY_COLORS[entry.level]}>
-                  <span className="text-gray-500">{formatTime(entry.ts)}  </span>
+                  <span className="text-muted-foreground/60">{formatTime(entry.ts)}  </span>
                   {entry.message}
                   {"\n"}
                 </span>
               ))
             )
           ) : activeLines.length === 0 ? (
-            <span className="text-gray-600">No log entries yet...</span>
+            <span className="text-muted-foreground/60">No log entries yet...</span>
           ) : (
             activeLines.map((line, i) => (
               <span key={i} className={logLineColor(line)}>
@@ -274,6 +267,6 @@ export default function LogViewer() {
           )}
         </pre>
       </div>
-    </div>
+    </Card>
   );
 }

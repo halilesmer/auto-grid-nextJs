@@ -1,11 +1,14 @@
 'use client';
 
-import { AlertTriangle, Minus, Plus, Save } from 'lucide-react';
+import { Minus, Plus, Save, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { axiosInstance } from '@/services/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { useAccountStore, useSettingsStore } from '@/store';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 const MIN_INTERVAL = 1;
 const MAX_INTERVAL = 60;
@@ -73,69 +76,73 @@ export default function SettingsForm() {
   if (!selectedAccount) return null;
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center space-x-2">
-          <AlertTriangle size={16} />
-          <span>{error}</span>
-          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-300">
-            x
-          </button>
-        </div>
-      )}
+    <Card>
+      <CardHeader
+        icon={<SlidersHorizontal size={16} />}
+        title="Genel Ayarlar"
+        description="Motor döngüsü"
+      />
+      <CardContent className="space-y-4">
+        {error && (
+          <Alert tone="danger" onDismiss={() => setError('')}>
+            {error}
+          </Alert>
+        )}
 
-      {/* Global Settings Card */}
-      <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-xl shadow-xl space-y-4">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <span className="text-blue-400">⚙️</span>
-          Genel Ayarlar
-        </h3>
-
-        <div className="flex flex-col space-y-1">
-          <span className="text-xs text-gray-400">Kontrol Sıklığı (sn)</span>
-          <div className="flex items-center gap-2">
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Kontrol Sıklığı</span>
+            <span className="text-[11px] text-muted-foreground/70">
+              {MIN_INTERVAL}–{MAX_INTERVAL} sn
+            </span>
+          </div>
+          <div className="flex h-10 items-stretch overflow-hidden rounded-md border border-input bg-background/60 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
             <button
               onClick={decrement}
               disabled={loopInterval <= MIN_INTERVAL}
-              className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+              className="flex w-10 items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
               title="Azalt"
             >
-              <Minus size={18} />
+              <Minus size={15} />
             </button>
-            <input
-              type="number"
-              step={STEP_INTERVAL}
-              min={MIN_INTERVAL}
-              max={MAX_INTERVAL}
-              value={loopInterval}
-              onChange={(e) => {
-                const parsed = parseFloat(e.target.value);
-                setLoopInterval(clampInterval(Number.isNaN(parsed) ? MIN_INTERVAL : parsed));
-              }}
-              className="w-24 bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white text-center font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+            <div className="relative flex flex-1 items-center border-x border-input">
+              <input
+                type="number"
+                step={STEP_INTERVAL}
+                min={MIN_INTERVAL}
+                max={MAX_INTERVAL}
+                value={loopInterval}
+                onChange={(e) => {
+                  const parsed = parseFloat(e.target.value);
+                  setLoopInterval(clampInterval(Number.isNaN(parsed) ? MIN_INTERVAL : parsed));
+                }}
+                className="w-full bg-transparent text-center font-mono text-sm font-semibold text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <span className="pointer-events-none absolute right-3 text-xs text-muted-foreground">sn</span>
+            </div>
             <button
               onClick={increment}
               disabled={loopInterval >= MAX_INTERVAL}
-              className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+              className="flex w-10 items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
               title="Artır"
             >
-              <Plus size={18} />
+              <Plus size={15} />
             </button>
           </div>
         </div>
 
-        <div className="flex justify-end pt-2 border-t border-white/10">
-          <button
+        <div className="flex justify-end border-t border-border pt-4">
+          <Button
+            variant={hasChanges ? 'primary' : 'secondary'}
             onClick={handleSave}
-            disabled={saving || !hasChanges}
-            className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!hasChanges}
+            loading={saving}
           >
-            <Save size={18} />
-            <span>{saving ? 'Kaydediliyor...' : 'Kaydet'}</span>
-          </button>
+            {!saving && <Save size={15} />}
+            {saving ? 'Kaydediliyor...' : 'Kaydet'}
+          </Button>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

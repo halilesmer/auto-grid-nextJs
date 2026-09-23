@@ -14,8 +14,8 @@ export function InputField({ label, children, error, className, inputClassName }
   const mergedInputClass = inputClassName ?? '';
 
   return (
-    <label className={`flex flex-col space-y-1 ${className ?? ''}`}>
-      <span className="text-xs text-gray-400">{label}</span>
+    <label className={`flex min-w-0 flex-col gap-1.5 ${className ?? ''}`}>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {React.isValidElement(children)
         ? React.cloneElement(children as ReactElement<ComponentPropsWithoutRef<'input'>>, {
             className: `${(children as ReactElement<ComponentPropsWithoutRef<'input'>>).props.className ?? ''} ${mergedInputClass}`.trim(),

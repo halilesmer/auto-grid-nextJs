@@ -2,25 +2,23 @@
 
 import type { ZoneExitFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
+import { Switch } from '@/components/ui/switch';
 
 export function ZoneExitFields({
   zone,
   update,
 }: ZoneExitFieldsProps) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
-      <label className="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={zone.clear_on_exit}
-          onChange={(e) => update('clear_on_exit', e.target.checked)}
-          className="w-4 h-4 rounded accent-blue-500"
-        />
-        <span>Fiyat bölgeden çıkınca temizle</span>
-      </label>
+    <section className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+      <Switch
+        checked={zone.clear_on_exit}
+        onChange={(checked) => update('clear_on_exit', checked)}
+        label="Fiyat bölgeden çıkınca temizle"
+        description="Bölge dışına çıkıldığında emir/pozisyonları temizler"
+      />
       {zone.clear_on_exit && (
         <>
-          <hr className="border-white/5" />
+          <div className="h-px bg-border" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <InputField label="Çıkış Yönü">
               <select
@@ -82,6 +80,6 @@ export function ZoneExitFields({
           )}
         </>
       )}
-    </div>
+    </section>
   );
 }

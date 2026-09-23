@@ -2,6 +2,7 @@
 
 import type { ZoneSellFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
+import { SectionLabel } from '@/components/ui/card';
 
 export function ZoneSellFields({
   zone,
@@ -16,7 +17,7 @@ export function ZoneSellFields({
 
   return (
     <>
-      <p className="text-sm text-red-400 font-semibold">SELL Grid Ayarları</p>
+      <SectionLabel className="pt-1 text-danger">SELL Grid Ayarları</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <InputField label="SELL Grid ($)">
           <input

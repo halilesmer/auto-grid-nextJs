@@ -15,13 +15,13 @@ export function MT5PathSelector({
 }: MT5PathSelectorProps) {
   return (
     <div>
-      <label className="text-sm text-gray-400 mb-1 flex items-center">
+      <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
         MT5 Path *
         <button
           type="button"
           disabled={isScanning}
           onClick={onRescan}
-          className="ml-2 text-blue-400 hover:text-blue-300 inline-flex items-center disabled:opacity-50"
+          className="ml-2 inline-flex items-center text-primary hover:text-primary/80 disabled:opacity-50"
           title="Rescan MT5 paths"
           aria-label="Rescan MT5 paths"
         >
@@ -34,9 +34,9 @@ export function MT5PathSelector({
           id="customPath"
           checked={useCustomPath}
           onChange={(e) => onUseCustomPathChange(e.target.checked)}
-          className="w-4 h-4 text-blue-600 bg-black/40 border-white/20 rounded focus:ring-blue-500"
+          className="size-3.5 rounded accent-primary"
         />
-        <label htmlFor="customPath" className="text-xs text-gray-400 cursor-pointer">
+        <label htmlFor="customPath" className="cursor-pointer text-xs text-muted-foreground">
           Manuel Gir (Custom Path)
         </label>
       </div>
@@ -45,7 +45,7 @@ export function MT5PathSelector({
         <select
           value={selectedPath || ''}
           onChange={(e) => onPathSelect(e.target.value)}
-          className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+          className="input-s"
           aria-label="Select MT5 Path"
         >
           <option value="" disabled>
@@ -62,7 +62,7 @@ export function MT5PathSelector({
           value={selectedPath}
           onChange={(e) => onCustomPathChange(e.target.value)}
           placeholder="C:/Program Files/MetaTrader 5/terminal64.exe"
-          className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+          className="input-s"
           aria-label="Custom MT5 Path"
         />
       )}

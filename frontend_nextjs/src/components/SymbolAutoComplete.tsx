@@ -126,8 +126,8 @@ export default function SymbolAutoComplete({
   }, [highlightedIndex]);
 
   const errorClass = hasError
-    ? "border-red-500 text-red-400 focus:ring-red-500"
-    : "border-white/20 text-white focus:ring-blue-500";
+    ? "border-danger! text-danger"
+    : "";
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
@@ -144,7 +144,7 @@ export default function SymbolAutoComplete({
         }}
         onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
-        className={`w-full bg-black/40 border rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:ring-2 transition-all ${errorClass} ${className}`}
+        className={`input-s font-mono font-semibold placeholder:font-sans placeholder:font-normal ${errorClass} ${className}`}
         placeholder="Sembol Ara... (Örn: USOUSD)"
         autoComplete="off"
         aria-autocomplete="list"
@@ -156,7 +156,7 @@ export default function SymbolAutoComplete({
           ref={listRef}
           id="symbol-suggestions"
           role="listbox"
-          className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-gray-800 border border-gray-600 rounded-lg shadow-2xl text-sm scrollbar-thin scrollbar-thumb-gray-600"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 text-sm shadow-2xl shadow-black/60"
         >
           {filteredSymbols.map((sym, index) => (
             <li
@@ -165,13 +165,13 @@ export default function SymbolAutoComplete({
               aria-selected={index === highlightedIndex}
               onClick={() => handleSelectSymbol(sym.name)}
               onMouseEnter={() => setHighlightedIndex(index)}
-              className={`px-3 py-2 cursor-pointer flex flex-col transition-colors border-b border-gray-700/50 last:border-none ${
-                index === highlightedIndex ? "bg-blue-600" : "hover:bg-blue-600"
+              className={`flex cursor-pointer flex-col rounded-md px-3 py-2 transition-colors ${
+                index === highlightedIndex ? "bg-accent" : "hover:bg-accent"
               }`}
             >
-              <span className="font-bold text-white">{sym.name}</span>
+              <span className="font-mono font-semibold text-foreground">{sym.name}</span>
               {sym.description && (
-                <span className="text-xs text-gray-400 line-clamp-1">
+                <span className="line-clamp-1 text-xs text-muted-foreground">
                   {sym.description}
                 </span>
               )}
@@ -181,7 +181,7 @@ export default function SymbolAutoComplete({
       )}
 
       {isOpen && shouldFilter && filteredSymbols.length === 0 && symbols.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-3 text-sm text-gray-400">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover p-3 text-sm text-muted-foreground shadow-2xl shadow-black/60">
           Sembol bulunamadı
         </div>
       )}

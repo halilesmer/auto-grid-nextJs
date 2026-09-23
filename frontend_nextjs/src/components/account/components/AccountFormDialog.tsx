@@ -39,23 +39,21 @@ export function AccountFormDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl p-0 backdrop:bg-black/60 w-full max-w-2xl text-white"
+      className="m-auto w-[calc(100%-2rem)] max-w-2xl rounded-xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl shadow-black/60 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
       onClose={handleClose}
       onKeyDown={handleKeyDown}
     >
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-            aria-label="Close dialog"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        {children}
+      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <h3 className="text-base font-semibold tracking-tight">{title}</h3>
+        <button
+          onClick={onClose}
+          className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+          aria-label="Close dialog"
+        >
+          <X size={16} />
+        </button>
       </div>
+      <div className="p-6">{children}</div>
     </dialog>
   );
 }

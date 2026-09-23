@@ -1,5 +1,8 @@
 'use client';
-import { AlertTriangle, Info, XCircle, X } from 'lucide-react';
+import { AlertTriangle, Info, XCircle } from 'lucide-react';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export type ConfirmVariant = 'danger' | 'warning' | 'info' | 'error';
 
@@ -17,31 +20,14 @@ interface ConfirmModalProps {
   showCancel?: boolean;
 }
 
-const variantConfig: Record<ConfirmVariant, { icon: React.FC<{ size: number; color: string }>; iconColor: string; confirmBg: string; confirmHover: string }> = {
-  danger: {
-    icon: AlertTriangle,
-    iconColor: '#f87171',
-    confirmBg: 'bg-red-600',
-    confirmHover: 'hover:bg-red-500',
-  },
-  warning: {
-    icon: AlertTriangle,
-    iconColor: '#facc15',
-    confirmBg: 'bg-yellow-600',
-    confirmHover: 'hover:bg-yellow-500',
-  },
-  info: {
-    icon: Info,
-    iconColor: '#60a5fa',
-    confirmBg: 'bg-blue-600',
-    confirmHover: 'hover:bg-blue-500',
-  },
-  error: {
-    icon: XCircle,
-    iconColor: '#f87171',
-    confirmBg: 'bg-red-600',
-    confirmHover: 'hover:bg-red-500',
-  },
+const variantConfig: Record<
+  ConfirmVariant,
+  { icon: typeof Info; iconBox: string; button: 'danger' | 'warning' | 'primary' }
+> = {
+  danger: { icon: AlertTriangle, iconBox: 'bg-danger/15 text-danger', button: 'danger' },
+  warning: { icon: AlertTriangle, iconBox: 'bg-warning/15 text-warning', button: 'warning' },
+  info: { icon: Info, iconBox: 'bg-info/15 text-info', button: 'primary' },
+  error: { icon: XCircle, iconBox: 'bg-danger/15 text-danger', button: 'danger' },
 };
 
 const defaultLabels: Record<ConfirmVariant, string> = {
@@ -64,8 +50,6 @@ export default function ConfirmModal({
   loading = false,
   showCancel = true,
 }: ConfirmModalProps) {
-  if (!open) return null;
-
   const cfg = variantConfig[variant];
   const Icon = cfg.icon;
   const label = confirmLabel || defaultLabels[variant];
@@ -80,46 +64,36 @@ export default function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md">
-        <div className="flex items-center space-x-3 mb-4">
-          <Icon size={24} color={cfg.iconColor} />
-          <h3 className="text-lg font-bold text-white flex-1">{title}</h3>
-          {showCancel && (
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
-              <X size={18} />
-            </button>
-          )}
+    <Modal
+      open={open}
+      onClose={onClose}
+      dismissible={showCancel && !loading}
+      title={title}
+      icon={
+        <div className={cn('flex size-9 items-center justify-center rounded-lg', cfg.iconBox)}>
+          <Icon size={18} />
         </div>
+      }
+    >
+      <p className="text-sm leading-relaxed text-muted-foreground">{message}</p>
 
-        <p className="text-gray-300 mb-2">{message}</p>
+      {infoText && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-border bg-muted/60 p-3 text-xs text-muted-foreground">
+          <Info size={14} className="mt-0.5 shrink-0 text-info" />
+          <span>{infoText}</span>
+        </div>
+      )}
 
-        {infoText && (
-          <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-400 flex items-start space-x-2">
-            <Info size={16} color="#60a5fa" className="mt-0.5 shrink-0" />
-            <span>{infoText}</span>
-          </div>
+      <div className="mt-6 flex justify-end gap-2">
+        {showCancel && (
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            {cancelLabel}
+          </Button>
         )}
-
-        <div className="flex justify-end space-x-3">
-          {showCancel && (
-            <button
-              onClick={onClose}
-              disabled={loading}
-              className="px-4 py-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-all disabled:opacity-50"
-            >
-              {cancelLabel}
-            </button>
-          )}
-          <button
-            onClick={handleConfirm}
-            disabled={loading}
-            className={`px-6 py-2 ${cfg.confirmBg} ${cfg.confirmHover} text-white font-semibold rounded-lg transition-all active:scale-95 disabled:opacity-50`}
-          >
-            {loading ? '...' : label}
-          </button>
-        </div>
+        <Button variant={cfg.button} onClick={handleConfirm} loading={loading}>
+          {label}
+        </Button>
       </div>
-    </div>
+    </Modal>
   );
 }

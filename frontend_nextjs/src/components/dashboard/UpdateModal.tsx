@@ -1,5 +1,9 @@
 'use client';
 
+import { ArrowRight, CheckCircle2, DownloadCloud, Loader2, RefreshCw } from 'lucide-react';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
+
 interface UpdateResult {
   hasUpdate: boolean;
   localVer: string;
@@ -20,60 +24,47 @@ export default function UpdateModal({
   updateResult,
   onApplyUpdate,
 }: UpdateModalProps) {
-  if (!isOpen || !updateResult) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold text-white mb-4">Update Check</h3>
-        {updateResult.loading ? (
-          <p className="text-gray-400 text-sm">Checking for updates...</p>
-        ) : updateResult.hasUpdate ? (
-          <div className="space-y-3">
-            <p className="text-yellow-400 text-sm font-semibold">
-              New version available!
-            </p>
-            <div className="text-sm text-gray-300 space-y-1">
-              <p>
-                Current:{' '}
-                <span className="text-white font-mono">
-                  {updateResult.localVer}
-                </span>
-              </p>
-              <p>
-                Latest:{' '}
-                <span className="text-green-400 font-mono">
-                  {updateResult.remoteVer}
-                </span>
-              </p>
-            </div>
-            <button
-              onClick={onApplyUpdate}
-              className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition-all active:scale-95"
-            >
-              Apply Update (git pull)
-            </button>
+    <Modal
+      open={isOpen && !!updateResult}
+      onClose={onClose}
+      title="Update Check"
+      icon={
+        <div className="flex size-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <RefreshCw size={18} />
+        </div>
+      }
+    >
+      {updateResult?.loading ? (
+        <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Checking for updates...
+        </div>
+      ) : updateResult?.hasUpdate ? (
+        <div className="space-y-4">
+          <p className="text-sm font-medium text-warning">New version available</p>
+          <div className="flex items-center justify-center gap-3 rounded-lg border border-border bg-muted/60 p-4 font-mono text-sm">
+            <span className="text-muted-foreground">{updateResult.localVer}</span>
+            <ArrowRight size={14} className="text-muted-foreground" />
+            <span className="font-semibold text-success">{updateResult.remoteVer}</span>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-green-400 text-sm font-semibold">
-              You are up to date!
-            </p>
-            <p className="text-sm text-gray-400">
-              Version:{' '}
-              <span className="text-white font-mono">
-                {updateResult.localVer}
-              </span>
-            </p>
+          <Button variant="success" className="w-full" onClick={onApplyUpdate}>
+            <DownloadCloud size={16} />
+            Apply Update (git pull)
+          </Button>
+        </div>
+      ) : updateResult ? (
+        <div className="flex items-center gap-3 rounded-lg border border-success/25 bg-success/[0.06] p-4">
+          <CheckCircle2 size={18} className="text-success" />
+          <div className="text-sm">
+            <p className="font-medium text-foreground">You are up to date</p>
+            <p className="font-mono text-xs text-muted-foreground">{updateResult.localVer}</p>
           </div>
-        )}
-        <button
-          onClick={onClose}
-          className="w-full mt-4 py-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-all"
-        >
-          Close
-        </button>
-      </div>
-    </div>
+        </div>
+      ) : null}
+      <Button variant="ghost" className="mt-4 w-full" onClick={onClose}>
+        Close
+      </Button>
+    </Modal>
   );
 }

@@ -1,6 +1,8 @@
 'use client';
 
-import { Save } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Check, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface SaveSettingsBarProps {
   isDirty: boolean;
@@ -18,23 +20,45 @@ export default function SaveSettingsBar({
   const disabled = isLoading || !hasSettings || !isDirty;
 
   return (
-    <button
-      onClick={onSave}
-      disabled={disabled}
-      className={`w-full sm:w-auto flex items-center justify-center space-x-2 font-bold py-4 px-6 rounded-xl transition-all active:scale-[0.98] focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-        isDirty && !isLoading
-          ? 'bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/30'
-          : 'bg-gray-800 text-gray-500 opacity-50 cursor-not-allowed border border-white/5'
-      }`}
-    >
-      <Save size={24} />
-      <span className="text-lg">
-        {isLoading
-          ? 'Kaydediliyor...'
-          : isDirty
-          ? 'Tüm Ayarları Kaydet'
-          : 'Kaydedildi'}
-      </span>
-    </button>
+    <>
+      {/* Başlıktaki sabit buton */}
+      <Button
+        variant={isDirty ? 'primary' : 'secondary'}
+        onClick={onSave}
+        disabled={disabled}
+        loading={isLoading}
+        className="relative"
+      >
+        {!isLoading && (isDirty ? <Save size={15} /> : <Check size={15} />)}
+        {isLoading ? 'Kaydediliyor...' : isDirty ? 'Tüm Ayarları Kaydet' : 'Kaydedildi'}
+        {isDirty && !isLoading && (
+          <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-background bg-warning" />
+        )}
+      </Button>
+
+      {/* Uzun bölge listesinde kaydetmeyi unutmamak için alttaki yüzen çubuk */}
+      <AnimatePresence>
+        {isDirty && hasSettings && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
+            className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4"
+          >
+            <div className="flex items-center gap-4 rounded-xl border border-border bg-popover/90 py-2 pl-4 pr-2 shadow-2xl shadow-black/60 backdrop-blur-xl">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="size-2 rounded-full bg-warning" />
+                Kaydedilmemiş değişiklikler var
+              </span>
+              <Button variant="primary" size="sm" onClick={onSave} loading={isLoading} disabled={disabled}>
+                {!isLoading && <Save size={14} />}
+                Kaydet
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

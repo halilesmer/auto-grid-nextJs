@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import AppNav from "@/components/layout/AppNav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0e1117",
+  themeColor: "#0d0c0e",
 };
 
 export const metadata: Metadata = {
@@ -41,23 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body
-        className="min-h-full flex flex-col bg-gray-900 text-white"
+        className="min-h-full flex flex-col text-foreground"
         suppressHydrationWarning
       >
-        <nav className="sticky top-0 z-50 flex gap-1 px-6 py-3 bg-gray-900/80 backdrop-blur border-b border-white/10">
-          <Link
-            href="/"
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-          >
-            Grid Robot
-          </Link>
-          <Link
-            href="/formasyon"
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-          >
-            Formasyon
-          </Link>
-        </nav>
+        <AppNav />
         <main className="flex-1">{children}</main>
         <script
           dangerouslySetInnerHTML={{

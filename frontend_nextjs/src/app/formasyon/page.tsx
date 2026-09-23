@@ -4,17 +4,14 @@ import ChartViewer from '@/components/ChartViewer';
 
 export default function FormasyonPage() {
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-black p-6 md:p-10 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header>
-          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-purple-400 to-blue-400">
-            Formasyon Grafiği
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">Canlı fiyat grafiği ve teknik formasyon analizi</p>
-        </header>
-        <div className="flex-1 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-2 min-h-150">
-          <ChartViewer />
-        </div>
+    <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
+      <header>
+        <p className="mb-2 text-xs text-muted-foreground">Teknik analiz</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Formasyon Grafiği</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Canlı fiyat grafiği ve teknik formasyon analizi</p>
+      </header>
+      <div className="min-h-150">
+        <ChartViewer />
       </div>
     </div>
   );

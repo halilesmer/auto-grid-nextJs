@@ -21,7 +21,7 @@ export function ZoneBasicFields({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      <InputField label="Sembol" error={hasError && <span className="text-[11px] text-red-400 font-bold mt-1">Geçersiz Sembol!</span>}>
+      <InputField label="Sembol" error={hasError && <span className="text-[11px] font-semibold text-danger">Geçersiz Sembol!</span>}>
         <SymbolAutoComplete
           value={zone.symbol}
           onChange={handleSymbolChange}
