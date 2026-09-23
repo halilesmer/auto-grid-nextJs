@@ -178,8 +178,10 @@ def start_bot_process(account_id: str, engine_name: str = "Auto Grid") -> bool:
             winerr = getattr(e, "winerror", None)
             errno_ = getattr(e, "errno", None)
             filename = getattr(e, "filename", None)
+            # open() gibi CRT hatalarında winerror None olur; biçimlendirme çökmemeli
+            win_part = f"WinError {winerr} (0x{winerr & 0xFFFFFFFF:08X})" if winerr is not None else "WinError -"
             detail = (
-                f"WinError {winerr} (0x{winerr & 0xFFFFFFFF:08X}) | errno={errno_} | "
+                f"{type(e).__name__} | {win_part} | errno={errno_} | "
                 f"{str(e)} | dosya/kısım: {filename if filename else 'yok'}"
             )
         # Subprocess içinde streamlit yok; sadece log'a yaz
