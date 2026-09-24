@@ -57,6 +57,17 @@ def get_state_path(account_id: str) -> str:
     return os.path.join(_ensure_data_dir(), f"state_{safe}.json")
 
 
+def get_watched_bots_path() -> str:
+    """data/watched_bots.json — Start ile başlatılıp Stop edilmemiş botlar.
+    Worker/VPS yeniden başlayınca bu botlar otomatik devam ettirilir (bot_watchdog)."""
+    return os.path.join(_ensure_data_dir(), "watched_bots.json")
+
+
+def get_worker_console_log_path() -> str:
+    """logs/worker_console.log — worker konsol çıktısının kopyası (SSH/VPS sayfasından okunur)."""
+    return os.path.join(_ensure_logs_dir(), "worker_console.log")
+
+
 # ══════════════════════════════════════════════════════════
 # 3. LOGLAR VE CANLI KÖPRÜLER (logs/) — Her Hesap İçin İzole Klasör
 # ══════════════════════════════════════════════════════════

@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight, CheckCircle2, DownloadCloud, Loader2, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, CheckCircle2, DownloadCloud, Loader2, RefreshCw, Server } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 
@@ -62,7 +63,16 @@ export default function UpdateModal({
           </div>
         </div>
       ) : null}
-      <Button variant="ghost" className="mt-4 w-full" onClick={onClose}>
+      {/* Update/Neustart auch ohne erreichbaren Worker: per SSH über die VPS-Seite (nur lokal) */}
+      <Link
+        href="/vps"
+        onClick={onClose}
+        className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground transition hover:text-foreground"
+      >
+        <Server size={12} />
+        VPS-Steuerung (Worker neu starten, Logs)
+      </Link>
+      <Button variant="ghost" className="mt-2 w-full" onClick={onClose}>
         Close
       </Button>
     </Modal>

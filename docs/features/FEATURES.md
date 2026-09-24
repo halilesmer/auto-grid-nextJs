@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-24 · **72/72** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-24 · **76/81** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,12 +19,13 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 9/9 |
-| 6 | **BOT** – Bot-Steuerung | 6/6 |
+| 6 | **BOT** – Bot-Steuerung | 6/7 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
-| 10 | **UPD** – System & Updates | 4/4 |
-| 11 | **UI** – Oberfläche | 4/4 |
+| 10 | **UPD** – System & Updates | 5/6 |
+| 11 | **VPS** – VPS-Fernsteuerung vom Mac | 3/6 |
+| 12 | **UI** – Oberfläche | 4/4 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -221,6 +222,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Nach 5 Neustarts in 30 min hört der Watchdog auf; gelöschte Konten werden nicht mehr beobachtet.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [ ] **BOT-07** Bots nach Worker-/VPS-Neustart fortsetzen — 🧪 unit ✅ 2026-09-24 · 👤 manuell ⏳
+  - Die Watchdog-Liste (Start ohne Stop) steht zusätzlich in data/watched_bots.json. Beim Worker-Start liest main.py sie ein; startup_maintenance startet jeden dort eingetragenen, nicht laufenden Bot neu (auch LIVE) und stellt ihn unter Watchdog, auch wenn der erste Start scheitert. Gestoppte Bots, gelöschte Konten und Bots, bei denen der Watchdog aufgegeben hat, fehlen in der Liste.
+  - **Prüfung:** DEMO-Bot starten, dann auf der Seite „VPS“ → „VPS neu starten“.
+  - **Erwartet:** Nach dem Reboot läuft der Bot wieder; das Robot-Log zeigt „[AUTO] Bot … devam ettirildi“.
 
 ## 7. ENG – Grid-Engine (Handelslogik)
 
@@ -365,11 +370,46 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Update im Dashboard anwenden (System Info → Check for Updates → Apply Update). → Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
   - **Erwartet:** Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
   - 📝 Apply Update v0.7.70→v0.7.71 im Dashboard: Worker beendet sich, Watchdog startet neu, meldet v0.7.71; laufender Bot mit neuem Code neu gestartet
+- [x] **UPD-06** Abhängigkeiten nach Update installieren — 🧪 unit ✅ 2026-09-24
+  - Ändert ein Pull worker_python/requirements.txt, führt execute_git_pull danach pip install -r mit dem Python des Workers (.venv) aus. Schlägt pip fehl, meldet das Update einen Fehler und der Worker startet nicht neu (neuer Code würde ohne Paket abstürzen).
+  - **Prüfung:** Nicht manuell testen.
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [ ] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-09-24 · 👤 manuell ⏳
+  - Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers.
+  - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten.
+  - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
 
-## 11. UI – Oberfläche
+## 11. VPS – VPS-Fernsteuerung vom Mac
+
+- [ ] **VPS-01** VPS-Status — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ⏳
+  - Die Seite /vps zeigt per SSH (Route /api/vps/status → ops/windows/vps.ps1 status) Worker, ngrok samt öffentlicher URL, laufende Bots, Version/Branch, Autostart und Uptime. Ohne VPS_SSH_HOST (z. B. Vercel) erscheint nur ein Hinweis.
+  - **Prüfung:** Lokal npm run dev:frontend, Seite „VPS“ öffnen.
+  - **Erwartet:** Alle Kacheln grün; ist der Worker gestoppt, steht „Gestoppt“.
+- [ ] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ⏳
+  - Update-Prüfung über den Worker; „Update & Neustart“ läuft über den Worker (POST /system/update) oder, wenn er nicht läuft, über die Aufgabe AutoGrid-Update; „Worker neu starten“ über die Aufgabe AutoGrid-Start (start.bat); „ngrok neu starten“ beendet ngrok, run_ngrok_watchdog.bat startet ihn neu; „VPS neu starten“ per shutdown /r. Jede Aktion mit Bestätigung. git läuft nie per SSH als Administrator.
+  - **Prüfung:** „Worker neu starten“ → bestätigen. → „Update & Neustart“ nach einem Merge auf main.
+  - **Erwartet:** Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt.
+- [x] **VPS-03** Logs vom VPS — 🖥️ e2e ✅ 2026-09-24
+  - Tabs Worker (logs/worker_console.log), ngrok (logs/ngrok.log) und Update (logs/vps_update.log), jeweils die letzten 300 Zeilen per SSH.
+  - **Prüfung:** Tabs wechseln.
+  - **Erwartet:** Konsolenausgabe des Workers bzw. ngrok erscheint.
+- [x] **VPS-04** Schutz der VPS-Route — 🖥️ e2e ✅ 2026-09-24
+  - /api/vps/* antwortet nur auf localhost; POST nur mit eigener Origin; ohne VPS_SSH_HOST 404. Nur geprüfte Aktionen/Argumente gelangen in den SSH-Befehl, SSH-Daten stehen nur server-seitig in .env.local (kein NEXT_PUBLIC_).
+  - **Prüfung:** Nicht manuell testen.
+  - **Erwartet:** Abgedeckt durch e2e-Tests.
+- [x] **VPS-05** Konsolen-Log und ngrok-Watchdog — 🧪 unit ✅ 2026-09-24
+  - Unter dem Watchdog schreibt der Worker seine Konsolenausgabe zusätzlich nach logs/worker_console.log (rotiert ab 5 MB). run_ngrok_watchdog.bat startet ngrok bei Absturz neu und loggt nach logs/ngrok.log; start.bat und cleanup_old_instances.ps1 kennen ihn. Die PowerShell-Skripte sind reines ASCII (PowerShell 5.1).
+  - **Prüfung:** Nicht manuell testen.
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [ ] **VPS-06** Einmalige Einrichtung und Autostart — 👤 manuell ⏳
+  - ops/windows/setup_vps.ps1 (einmal als Administrator) installiert OpenSSH (nur Schlüssel), trägt den Mac-Schlüssel ein, setzt den Besitzer des Repos auf den normalen Benutzer, richtet Auto-Login ein (Passwort als LSA-Secret) und legt die Aufgaben AutoGrid-Start (bei Anmeldung) und AutoGrid-Update an, beide ohne höchste Rechte.
+  - **Prüfung:** Einrichtung nach docs/windows_start_guide.md, danach VPS über die Seite „VPS“ neu starten.
+  - **Erwartet:** Nach dem Reboot sind Auto-Login, Worker, ngrok und die vorher laufenden Bots von selbst wieder da.
+
+## 12. UI – Oberfläche
 
 - [x] **UI-01** Navigation — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
-  - Logo, Version, Links Dashboard und Formasyon mit animierter Markierung.
+  - Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung.
   - **Prüfung:** Zwischen Dashboard und Formasyon wechseln.
   - **Erwartet:** Aktiver Link ist markiert, Version entspricht VERSION.
   - 📝 Claude: Dashboard ↔ Formasyon, Markierung wandert mit, Version v0.7.58 = VERSION

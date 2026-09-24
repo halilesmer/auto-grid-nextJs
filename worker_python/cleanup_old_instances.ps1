@@ -14,9 +14,9 @@ function Stop-Pid($procId, $what) {
     }
 }
 
-# 1) Alte Watchdog-Fenster (sonst starten sie den Server nach 3 s wieder)
+# 1) Alte Watchdog-Fenster (sonst starten sie Server bzw. ngrok nach 3 s wieder)
 Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" |
-    Where-Object { $_.CommandLine -like '*run_uvicorn_watchdog.bat*' } |
+    Where-Object { $_.CommandLine -like '*run_uvicorn_watchdog.bat*' -or $_.CommandLine -like '*run_ngrok_watchdog.bat*' } |
     ForEach-Object { Stop-Pid $_.ProcessId 'Alter Watchdog' }
 
 # 2) Alter Worker auf Port 8000 (+ .venv-Starter)

@@ -86,6 +86,7 @@ test.describe('UI Oberfläche', () => {
     await expect(page.getByRole('heading', { name: 'Formasyon Grafiği' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Formasyon' })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'VPS' })).toHaveAttribute('href', '/vps');
 
     const version = readFileSync(path.join(__dirname, '../../../VERSION'), 'utf-8').trim();
     await expect(nav).toContainText(version);

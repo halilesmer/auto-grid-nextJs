@@ -400,6 +400,15 @@ kategorien:
           - Nicht manuell testen.
         erwartet: Abgedeckt durch Unit-Tests.
 
+      - id: BOT-07
+        titel: Bots nach Worker-/VPS-Neustart fortsetzen
+        beschreibung: Die Watchdog-Liste (Start ohne Stop) steht zusätzlich in data/watched_bots.json. Beim Worker-Start liest main.py sie ein; startup_maintenance startet jeden dort eingetragenen, nicht laufenden Bot neu (auch LIVE) und stellt ihn unter Watchdog, auch wenn der erste Start scheitert. Gestoppte Bots, gelöschte Konten und Bots, bei denen der Watchdog aufgegeben hat, fehlen in der Liste.
+        code: [worker_python/src/utils/bot_watchdog.py, worker_python/src/api/bot_control.py, worker_python/main.py, worker_python/src/utils/paths.py]
+        tiers: [unit, manuell]
+        pruefung:
+          - DEMO-Bot starten, dann auf der Seite „VPS“ → „VPS neu starten“.
+        erwartet: Nach dem Reboot läuft der Bot wieder; das Robot-Log zeigt „[AUTO] Bot … devam ettirildi“.
+
   # ---------------------------------------------------------------------------
   - id: ENG
     titel: Grid-Engine (Handelslogik)
@@ -688,13 +697,90 @@ kategorien:
           - Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
         erwartet: Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
 
+      - id: UPD-06
+        titel: Abhängigkeiten nach Update installieren
+        beschreibung: Ändert ein Pull worker_python/requirements.txt, führt execute_git_pull danach pip install -r mit dem Python des Workers (.venv) aus. Schlägt pip fehl, meldet das Update einen Fehler und der Worker startet nicht neu (neuer Code würde ohne Paket abstürzen).
+        code: [worker_python/src/utils/self_updater.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: UPD-07
+        titel: Automatisches Update
+        beschreibung: Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers.
+        code: [worker_python/src/utils/auto_updater.py, worker_python/main.py]
+        tiers: [unit, manuell]
+        pruefung:
+          - Einen PR nach main mergen und 5–10 Minuten warten.
+        erwartet: Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
+
+  # ---------------------------------------------------------------------------
+  - id: VPS
+    titel: VPS-Fernsteuerung vom Mac
+    features:
+      - id: VPS-01
+        titel: VPS-Status
+        beschreibung: Die Seite /vps zeigt per SSH (Route /api/vps/status → ops/windows/vps.ps1 status) Worker, ngrok samt öffentlicher URL, laufende Bots, Version/Branch, Autostart und Uptime. Ohne VPS_SSH_HOST (z. B. Vercel) erscheint nur ein Hinweis.
+        code: [frontend_nextjs/src/app/vps/page.tsx, frontend_nextjs/src/components/vps/VpsStatusPanel.tsx, frontend_nextjs/src/components/vps/useVps.ts, worker_python/ops/windows/vps.ps1]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Lokal npm run dev:frontend, Seite „VPS“ öffnen.
+        erwartet: Alle Kacheln grün; ist der Worker gestoppt, steht „Gestoppt“.
+
+      - id: VPS-02
+        titel: Aktionen (Update, Neustart, Reboot)
+        beschreibung: Update-Prüfung über den Worker; „Update & Neustart“ läuft über den Worker (POST /system/update) oder, wenn er nicht läuft, über die Aufgabe AutoGrid-Update; „Worker neu starten“ über die Aufgabe AutoGrid-Start (start.bat); „ngrok neu starten“ beendet ngrok, run_ngrok_watchdog.bat startet ihn neu; „VPS neu starten“ per shutdown /r. Jede Aktion mit Bestätigung. git läuft nie per SSH als Administrator.
+        code: [frontend_nextjs/src/components/vps/VpsActions.tsx, "frontend_nextjs/src/app/api/vps/[action]/route.ts", frontend_nextjs/src/lib/server/vpsSsh.ts, worker_python/ops/windows/vps.ps1]
+        tiers: [e2e, manuell]
+        pruefung:
+          - „Worker neu starten“ → bestätigen.
+          - „Update & Neustart“ nach einem Merge auf main.
+        erwartet: Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt.
+
+      - id: VPS-03
+        titel: Logs vom VPS
+        beschreibung: Tabs Worker (logs/worker_console.log), ngrok (logs/ngrok.log) und Update (logs/vps_update.log), jeweils die letzten 300 Zeilen per SSH.
+        code: [frontend_nextjs/src/components/vps/VpsLogViewer.tsx, worker_python/ops/windows/vps.ps1]
+        tiers: [e2e]
+        pruefung:
+          - Tabs wechseln.
+        erwartet: Konsolenausgabe des Workers bzw. ngrok erscheint.
+
+      - id: VPS-04
+        titel: Schutz der VPS-Route
+        beschreibung: /api/vps/* antwortet nur auf localhost; POST nur mit eigener Origin; ohne VPS_SSH_HOST 404. Nur geprüfte Aktionen/Argumente gelangen in den SSH-Befehl, SSH-Daten stehen nur server-seitig in .env.local (kein NEXT_PUBLIC_).
+        code: ["frontend_nextjs/src/app/api/vps/[action]/route.ts", frontend_nextjs/src/lib/server/vpsSsh.ts]
+        tiers: [e2e]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch e2e-Tests.
+
+      - id: VPS-05
+        titel: Konsolen-Log und ngrok-Watchdog
+        beschreibung: Unter dem Watchdog schreibt der Worker seine Konsolenausgabe zusätzlich nach logs/worker_console.log (rotiert ab 5 MB). run_ngrok_watchdog.bat startet ngrok bei Absturz neu und loggt nach logs/ngrok.log; start.bat und cleanup_old_instances.ps1 kennen ihn. Die PowerShell-Skripte sind reines ASCII (PowerShell 5.1).
+        code: [worker_python/src/utils/console_tee.py, worker_python/main.py, worker_python/run_ngrok_watchdog.bat, worker_python/start.bat, worker_python/cleanup_old_instances.ps1]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: VPS-06
+        titel: Einmalige Einrichtung und Autostart
+        beschreibung: ops/windows/setup_vps.ps1 (einmal als Administrator) installiert OpenSSH (nur Schlüssel), trägt den Mac-Schlüssel ein, setzt den Besitzer des Repos auf den normalen Benutzer, richtet Auto-Login ein (Passwort als LSA-Secret) und legt die Aufgaben AutoGrid-Start (bei Anmeldung) und AutoGrid-Update an, beide ohne höchste Rechte.
+        code: [worker_python/ops/windows/setup_vps.ps1, docs/windows_start_guide.md]
+        tiers: [manuell]
+        pruefung:
+          - Einrichtung nach docs/windows_start_guide.md, danach VPS über die Seite „VPS“ neu starten.
+        erwartet: Nach dem Reboot sind Auto-Login, Worker, ngrok und die vorher laufenden Bots von selbst wieder da.
+
   # ---------------------------------------------------------------------------
   - id: UI
     titel: Oberfläche
     features:
       - id: UI-01
         titel: Navigation
-        beschreibung: Logo, Version, Links Dashboard und Formasyon mit animierter Markierung.
+        beschreibung: Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung.
         code: [frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:

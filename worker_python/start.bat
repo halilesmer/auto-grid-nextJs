@@ -10,5 +10,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0cleanup_old_instances.
 
 start "Uvicorn API" cmd /k "run_uvicorn_watchdog.bat"
 
-REM ngrok-Domain ggf. anpassen, falls sich die Free-Domain aendert
-start "ngrok" cmd /k "ngrok http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev"
+REM ngrok mit eigener Neustart-Schleife (Domain steht in run_ngrok_watchdog.bat)
+start "ngrok" cmd /k "run_ngrok_watchdog.bat"

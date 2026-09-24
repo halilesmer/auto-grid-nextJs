@@ -18,7 +18,7 @@ Grid Robot: an algorithmic grid-trading bot for MetaTrader 5. Monorepo with two 
 Development happens on a MacBook, split across two machines:
 
 - **Mac (local):** the frontend only. Run `npm run dev:frontend` and test at http://localhost:3000. `frontend_nextjs/.env.local` points `NEXT_PUBLIC_API_URL` at the worker's ngrok URL.
-- **Windows VPS:** the worker only, started with `worker_python/start.bat` (uvicorn crash watchdog via `run_uvicorn_watchdog.bat`, plus ngrok). See `docs/windows_start_guide.md`.
+- **Windows VPS:** the worker only, started with `worker_python/start.bat` (uvicorn crash watchdog via `run_uvicorn_watchdog.bat`, ngrok crash watchdog via `run_ngrok_watchdog.bat`). See `docs/windows_start_guide.md`. After the one-time `worker_python/ops/windows/setup_vps.ps1` (admin: OpenSSH key-only, auto-login, scheduled tasks `AutoGrid-Start`/`AutoGrid-Update` with RunLevel Limited), the VPS is controlled from the Mac via the page `/vps`: the Next.js route `src/app/api/vps/[action]/route.ts` runs `ops/windows/vps.ps1` over SSH (`src/lib/server/vpsSsh.ts`, server-only env `VPS_SSH_HOST`/`VPS_SSH_KEY`/`VPS_REPO_PATH`, localhost only). Under the watchdog the worker auto-updates from `origin/main` (`src/utils/auto_updater.py`, `AUTO_UPDATE_MINUTES`, default 5) and resumes bots that were running before a restart (`data/watched_bots.json`). Rights rule: never run `git` on the VPS as administrator (files would become admin-owned and pulls fail); `vps.ps1` therefore never calls git over SSH, updates go through the worker or the limited `AutoGrid-Update` task.
 - **Vercel:** the frontend is also deployed publicly through the Vercel GitHub integration (project `auto-grid-next-js`, root directory `frontend_nextjs`). Every PR branch gets a preview deployment (the `vercel[bot]` comment on the PR); there's no `vercel.json` in the repo, so the settings live in the Vercel dashboard. Everything in `NEXT_PUBLIC_*` ends up in the public JS bundle there, so never set secrets such as `NEXT_PUBLIC_WORKER_API_KEY` in Vercel. Once the worker has `WORKER_API_KEY` set, the Vercel deployment gets 401 from the worker; only the local frontend (key in `.env.local`) works.
 
 The worker can't run on the Mac (MT5 is Windows-only), so don't start it locally: `npm run dev` and `npm run dev:backend` aren't meant for this setup. Worker changes can only be checked statically here; they get tested once they're pulled onto the VPS and the worker is restarted.
@@ -50,7 +50,7 @@ MT5 passwords never leave the worker: account responses go through `_public_acco
 
 ## Tests
 
-Feature catalog `docs/features/features.yaml` (72 features, in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
+Feature catalog `docs/features/features.yaml` (81 features, in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
 
 ```bash
 scripts/features/run.sh              # unit + api + e2e, then regenerate FEATURES.md

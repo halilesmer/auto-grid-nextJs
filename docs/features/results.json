@@ -139,6 +139,13 @@
       "tests": 3
     }
   },
+  "BOT-07": {
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 6
+    }
+  },
   "ENG-01": {
     "unit": {
       "datum": "2026-09-24",
@@ -583,6 +590,55 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 3
+    }
+  },
+  "UPD-06": {
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
+    }
+  },
+  "UPD-07": {
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 7
+    }
+  },
+  "VPS-01": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 3
+    }
+  },
+  "VPS-02": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "VPS-03": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "VPS-04": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "VPS-05": {
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 9
     }
   },
   "ZON-01": {

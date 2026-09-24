@@ -38,11 +38,13 @@ app = FastAPI(title="Auto Grid Bot API")
 
 @app.on_event("startup")
 async def _startup_maintenance():
-    """Eski sürümle çalışan botları arka planda yeni kodla yeniden başlatır (API'yi bekletmez)
-    ve çöken/asılı botları yeniden başlatan bekçiyi (watchdog) çalıştırır."""
+    """Eski sürümle çalışan botları arka planda yeni kodla yeniden başlatır (API'yi bekletmez),
+    Stop edilmemiş botları (ör. VPS reboot sonrası) devam ettirir, çöken/asılı botları yeniden
+    başlatan bekçiyi (watchdog) ve otomatik güncellemeyi çalıştırır."""
     import asyncio
     from src.api.bot_control import startup_maintenance
-    from src.utils.bot_watchdog import run_watchdog
+    from src.utils.auto_updater import run_auto_updater
+    from src.utils.bot_watchdog import load_persisted, run_watchdog
 
     if not api_key_required():
         print(
@@ -50,9 +52,13 @@ async def _startup_maintenance():
             "ngrok URL'sini bilen herkes erişebilir. Bkz. docs/windows_start_guide.md"
         )
 
+    # Liste burada (senkron) okunur: bakım thread'i başlamadan gelen bir /start dosyayı
+    # sadece kendi hesabıyla ezmesin
+    persisted = load_persisted()
     loop = asyncio.get_running_loop()
-    loop.create_task(asyncio.to_thread(startup_maintenance))
+    loop.create_task(asyncio.to_thread(startup_maintenance, persisted))
     app.state.watchdog_task = loop.create_task(run_watchdog())
+    app.state.auto_update_task = loop.create_task(run_auto_updater())
 
 @app.on_event("shutdown")
 def force_shutdown():
@@ -121,4 +127,11 @@ app.include_router(ws_router, prefix="/ws")
 
 if __name__ == "__main__":
     import uvicorn
+    from src.utils.self_updater import SUPERVISED_ENV
+
+    if os.getenv(SUPERVISED_ENV) == "1":
+        # VPS: konsol çıktısı ayrıca logs/worker_console.log'a (Mac'teki VPS sayfası okur)
+        from src.utils.console_tee import install as install_console_tee
+
+        install_console_tee()
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=os.getenv("ENV") == "development")
