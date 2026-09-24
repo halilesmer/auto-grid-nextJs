@@ -662,12 +662,12 @@ kategorien:
 
       - id: UPD-02
         titel: Update anwenden
-        beschreibung: „Apply Update (git pull)“ → POST /system/update (stash, pull, stash pop), danach Seiten-Reload.
+        beschreibung: „Apply Update (git pull)“ → POST /system/update (stash nur bei lokalen Änderungen, pull, stash pop), danach Seiten-Reload. Scheitert der Pull (z. B. Datei gesperrt oder ohne Schreibrecht), wird der Stand davor wiederhergestellt – keine halb aktualisierten Dateien, der Stash wird zurückgespielt.
         code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py]
-        tiers: [e2e, manuell]
+        tiers: [unit, e2e, manuell]
         pruefung:
-          - Nach einem Merge auf main das Update im Dashboard anwenden, danach Worker/Bot neu starten.
-        erwartet: VERSION auf dem VPS entspricht main.
+          - Nach einem Merge auf main das Update im Dashboard anwenden (Zahnrad → Check for Updates → Apply Update).
+        erwartet: VERSION auf dem VPS entspricht main; nach einem Fehler zeigt git status keine geänderten Dateien und git stash list keinen neuen Eintrag.
 
       - id: UPD-03
         titel: System herunterfahren

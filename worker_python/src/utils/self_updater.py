@@ -101,9 +101,32 @@ def ensure_git_repo(branch, project_root):
         return False, f"Beklenmeyen onarım hatası: {str(e)}"
 
 
+def _git(args, project_root, check=False):
+    return subprocess.run(
+        ["git", *args], cwd=project_root, check=check, capture_output=True, text=True
+    )
+
+
+def _rollback_failed_pull(project_root, restorable, stashed):
+    """Yarım kalan pull'u geri alır ve stash'lenen yerel değişiklikleri geri yükler.
+
+    Windows'ta bir dosya kilitli/yetkisizse git pull ortada durur: bazı dosyalar yeni
+    sürümdedir (ör. VERSION), HEAD eskidedir. Eskiden bu yarım hal ve 'auto-stash-before-pull'
+    stash'i öylece kalıyordu. Yerel değişiklik yoksa veya stash'e alındıysa çalışma alanı
+    güvenle HEAD'e döndürülür (ignore edilen configs/, logs/, .venv/ vb. dokunulmaz).
+    """
+    if not restorable:
+        return
+    _git(["reset", "--hard", "HEAD"], project_root)
+    _git(["clean", "-fd"], project_root)
+    if stashed:
+        _git(["stash", "pop"], project_root)
+
+
 def execute_git_pull(branch="master"):
     """
     Belirtilen branch üzerinden güvenli ve çakışmasız 'git pull' çalıştırır.
+    Başarısız olursa çalışma alanını pull öncesi haline döndürür.
     """
     project_root = get_project_root()
 
@@ -111,44 +134,27 @@ def execute_git_pull(branch="master"):
     if not is_git_ok:
         return False, error_message
 
+    status = _git(["status", "--porcelain"], project_root)
+    clean_before = status.returncode == 0 and not status.stdout.strip()
     stashed = False
-    try:
+    if not clean_before:
         # Yerel değişiklikleri stash'le (kaybetme)
-        stash_res = subprocess.run(
-            ["git", "stash", "push", "-u", "-m", "auto-stash-before-pull"],
-            cwd=project_root,
-            check=False,  # stash yoksa hata vermesin
-            capture_output=True,
-            text=True,
-        )
+        stash_res = _git(["stash", "push", "-u", "-m", "auto-stash-before-pull"], project_root)
         stashed = stash_res.returncode == 0 and "No local changes" not in (stash_res.stdout or "")
-        subprocess.run(
-            ["git", "fetch", "origin", branch],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        result = subprocess.run(
-            ["git", "pull", "origin", branch],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        if stashed:
-            # Yerel değişiklikleri geri yükle; çakışırsa stash korunur, akış bozulmaz
-            subprocess.run(
-                ["git", "stash", "pop"],
-                cwd=project_root,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-        return True, result.stdout
+
+    try:
+        _git(["fetch", "origin", branch], project_root, check=True)
+        result = _git(["pull", "origin", branch], project_root, check=True)
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
+        # Stash başarısızsa yerel değişiklikler hâlâ çalışma alanında: dokunma
+        _rollback_failed_pull(project_root, restorable=clean_before or stashed, stashed=stashed)
         return False, f"Git Çekme Hatası: {error_msg}"
+
+    if stashed:
+        # Yerel değişiklikleri geri yükle; çakışırsa stash korunur, akış bozulmaz
+        _git(["stash", "pop"], project_root)
+    return True, result.stdout
 
 
 # run_uvicorn_watchdog.bat bunu 1 yapar: süreç bitince aynı pencere yeni kodla yeniden başlatır.

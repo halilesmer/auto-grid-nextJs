@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-24 · **70/72** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-24 · **71/72** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -23,7 +23,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
-| 10 | **UPD** – System & Updates | 2/4 |
+| 10 | **UPD** – System & Updates | 3/4 |
 | 11 | **UI** – Oberfläche | 4/4 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -351,10 +351,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
   - 📝 Claude: 'Check for Updates' → 'You are up to date'; API: local v0.7.58 = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000), nicht des Workers
-- [ ] **UPD-02** Update anwenden — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ⏳
-  - „Apply Update (git pull)“ → POST /system/update (stash, pull, stash pop), danach Seiten-Reload.
-  - **Prüfung:** Nach einem Merge auf main das Update im Dashboard anwenden, danach Worker/Bot neu starten.
-  - **Erwartet:** VERSION auf dem VPS entspricht main.
+- [x] **UPD-02** Update anwenden — 🧪 unit ✅ 2026-09-24 · 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-24
+  - „Apply Update (git pull)“ → POST /system/update (stash nur bei lokalen Änderungen, pull, stash pop), danach Seiten-Reload. Scheitert der Pull (z. B. Datei gesperrt oder ohne Schreibrecht), wird der Stand davor wiederhergestellt – keine halb aktualisierten Dateien, der Stash wird zurückgespielt.
+  - **Prüfung:** Nach einem Merge auf main das Update im Dashboard anwenden (Zahnrad → Check for Updates → Apply Update).
+  - **Erwartet:** VERSION auf dem VPS entspricht main; nach einem Fehler zeigt git status keine geänderten Dateien und git stash list keinen neuen Eintrag.
+  - 📝 VPS per Dashboard-Update von v0.7.69 auf v0.7.70 (Worker meldet local_ver = remote_ver = v0.7.70). Erster Versuch scheiterte an Datei-Rechten in docs/features; nach takeown/icacls auf das Repo ok.
 - [x] **UPD-03** System herunterfahren — 🖥️ e2e ✅ 2026-09-24
   - Power-Button → Bestätigung → /stop, danach window.close().
   - **Prüfung:** Power-Button → bestätigen.

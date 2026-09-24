@@ -198,6 +198,12 @@ UPD-01:
   notiz: 'Claude: ''Check for Updates'' → ''You are up to date''; API: local v0.7.58
     = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000),
     nicht des Workers'
+UPD-02:
+  status: bestanden
+  datum: '2026-09-24'
+  notiz: VPS per Dashboard-Update von v0.7.69 auf v0.7.70 (Worker meldet local_ver
+    = remote_ver = v0.7.70). Erster Versuch scheiterte an Datei-Rechten in docs/features;
+    nach takeown/icacls auf das Repo ok.
 UI-01:
   status: bestanden
   datum: '2026-09-23'
