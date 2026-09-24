@@ -50,7 +50,6 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 ConfirmModal.tsx     # Onay modalları
 ┃ ┃ ┃ ┣ 📜 LogViewer.tsx        # Log görüntüleyici
 ┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # Global Ayarlar (ORDER_TYPE, LOOP_INTERVAL)
-┃ ┃ ┃ ┣ 📜 SimulationBar.tsx    # Simülasyon çubuğu
 ┃ ┃ ┃ ┣ 📜 SymbolAutoComplete.tsx # Sembol otomatik tamamlama
 ┃ ┃ ┃ ┣ 📜 ZoneSettingsPanel.tsx # Bölge Ayarları Paneli (Dinamik Zone Yönetimi)
 ┃ ┃ ┃ ┣ 📂 account              # Hesap yönetimi bileşenleri
@@ -339,7 +338,7 @@ grid_orchestrator (Ana Orkestratör)
 
 | Rota | Açıklama | Ana Bileşenler |
 |------|----------|----------------|
-| `/` | **Dashboard (Ana Sayfa)** | AccountSelector, SimulationBar, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
+| `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
 | `/chart` | **Grafik ve İstatistikler** | ChartViewer (sol 2/3), Gelecek Paneller (sağ 1/3: İstatistikler, Backtest, Deneme), Ana Sayfaya Dön butonu |
 | `/formasyon` | Formasyon Analizi | (Mevcut) |
 
@@ -354,7 +353,6 @@ grid_orchestrator (Ana Orkestratör)
 | `AccountSelector.tsx` | Hesap seçimi, yeni hesap ekleme, bağlantı testi | `useAccountStore` |
 | `SymbolAutoComplete.tsx` | Sembol arama, otomatik tamamlama, klavye navigasyonu | `useSymbolDetails` hook |
 | `LogViewer.tsx` | Real-time log akışı, filtreleme, seviye renklendirme | `useLogsStore` |
-| `SimulationBar.tsx` | Simülasyon modu geçişi, simülasyon ayarları | `useSettingsStore` |
 | `SaveSettingsBar.tsx` | Değişiklik takibi, kaydet/iptal barı | `useSettingsStore` (dirty tracking) |
 | `UpdateModal.tsx` | Versiyon güncelleme bildirimi, changelog | `useSystemStore` |
 

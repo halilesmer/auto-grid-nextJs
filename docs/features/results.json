@@ -343,6 +343,11 @@
     }
   },
   "MET-03": {
+    "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 6
+    },
     "live": {
       "datum": "2026-09-24",
       "status": "failed",
@@ -414,8 +419,8 @@
   "SET-06": {
     "unit": {
       "datum": "2026-09-24",
-      "status": "xfail",
-      "tests": 1
+      "status": "passed",
+      "tests": 4
     }
   },
   "SYM-01": {
@@ -558,18 +563,16 @@
       "tests": 1
     }
   },
-  "UPD-04": {
-    "e2e": {
-      "datum": "2026-09-24",
-      "status": "xfail",
-      "tests": 2
-    }
-  },
   "UPD-05": {
+    "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 3
+    },
     "unit": {
       "datum": "2026-09-24",
-      "status": "xfail",
-      "tests": 1
+      "status": "passed",
+      "tests": 3
     }
   },
   "ZON-01": {
@@ -636,6 +639,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
+    },
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 4
     }
   },
   "ZON-09": {

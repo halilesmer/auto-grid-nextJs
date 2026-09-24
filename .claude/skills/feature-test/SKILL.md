@@ -5,7 +5,7 @@ description: Run and maintain the Auto Grid feature tests and the feature checkl
 
 # Auto Grid feature tests
 
-The feature catalog `docs/features/features.yaml` is the single source of truth: 73 features in 11
+The feature catalog `docs/features/features.yaml` is the single source of truth: 72 features in 11
 categories (SYS, ACC, SET, SYM, ZON, BOT, ENG, MET, LOG, UPD, UI), listed in test order. Every test
 carries its feature ID, and `scripts/features/update_checklist.py` turns the test reports into the
 checklist `docs/features/FEATURES.md`. Never edit FEATURES.md or results.json by hand.
@@ -88,7 +88,7 @@ After a run, report in German, briefly:
 1. What ran (tiers, filter) and the counts (passed / failed / skipped / known bugs).
 2. Each failure by feature ID with the one-line reason from the output. Say whether it looks like
    a real bug or a test problem, and offer to fix real bugs.
-3. The checklist count from the runner (`FEATURES.md geschrieben: X/73 abgehakt`).
+3. The checklist count from the runner (`FEATURES.md geschrieben: X/72 abgehakt`).
 4. The next open feature (`run.sh next`), and features that only wait for a manual sign-off.
 
 Don't claim a feature passed unless its tests ran in this session. A skipped live test is not a

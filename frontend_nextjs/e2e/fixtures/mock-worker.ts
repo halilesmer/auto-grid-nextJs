@@ -254,10 +254,6 @@ export class MockWorker {
       s.botRunning[accountId] = false;
       return ok({ status: 'success', message: `Bot stopped for ${accountId}` });
     }
-    if (path === '/bot/simulate-price' && method === 'POST') {
-      // Wie der echte Worker: schreibt nur eine Datei, die niemand liest (UPD-04)
-      return ok({ status: 'success', account_id: body?.account_id, price: body?.price });
-    }
 
     // --------------------------------------------------------------- Logs
     if (seg[0] === 'logs' && seg.length === 2) {
@@ -294,7 +290,7 @@ export class MockWorker {
     }
     if (path === '/system/update' && method === 'POST') {
       s.update = { ...s.update, has_update: false, local_ver: s.update.remote_ver };
-      return ok({ status: 'success', message: 'Güncelleme tamamlandı' });
+      return ok({ status: 'success', message: 'Güncelleme tamamlandı', restarting: false });
     }
     return null;
   }
