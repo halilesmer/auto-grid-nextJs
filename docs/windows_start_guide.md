@@ -40,9 +40,10 @@ Was danach automatisch läuft:
    - trägt den Mac-Schlüssel ein,
    - gibt den Repo-Ordner wieder dem normalen Benutzer (repariert alte Admin-Dateien),
    - richtet Auto-Login ein,
+   - entfernt bei MT5-Terminals (`terminal64.exe`) den Haken „Programm als Administrator ausführen“ und leert den Kompatibilitäts-Cache von Windows. Der Worker läuft ohne Adminrechte und startet MT5 selbst; mit dem Haken scheitert das mit `-10003` „IPC initialize failed, Process create failed“,
    - legt die Aufgaben `AutoGrid-Start` (bei Anmeldung) und `AutoGrid-Update` an, beide **ohne** höchste Rechte.
 
-   Optionen: `-User <Name>` (Standard: aktueller Benutzer), `-SkipAutoLogon`, `-SkipRepoOwnership`. Das Skript darf beliebig oft laufen. Liegt `start.bat` noch im Autostart-Ordner, dort entfernen.
+   Optionen: `-User <Name>` (Standard: aktueller Benutzer), `-SkipAutoLogon`, `-SkipRepoOwnership`. Das Skript darf beliebig oft laufen, z. B. nach einer neuen MT5-Installation. Liegt `start.bat` noch im Autostart-Ordner, dort entfernen.
 3. **Firewall des VPS-Anbieters:** Port 22 (TCP) freigeben, falls der Anbieter eine eigene Firewall vor dem VPS hat. Am besten nur für die eigene IP.
 4. **Mac – `frontend_nextjs/.env.local`** ergänzen (bewusst **ohne** `NEXT_PUBLIC_`, landet nie im Browser/Vercel):
    ```
@@ -55,6 +56,7 @@ Was danach automatisch läuft:
 Hinweise:
 - Das RDP-Fenster künftig nur **schließen**, nicht abmelden. Bei einer Abmeldung enden MT5, Worker und ngrok (sie brauchen eine angemeldete Sitzung).
 - Die Seite „VPS“ funktioniert nur im lokalen Frontend: Die Route `/api/vps/*` antwortet nur auf `localhost` und nur, wenn `VPS_SSH_HOST` gesetzt ist. Auf Vercel ist sie aus.
+- **`-10003` „Process create failed“ nach einem Reboot:** `terminal64.exe` steht auf „Als Administrator ausführen“, der Worker (ohne Adminrechte) kann es nicht starten. `setup_vps.ps1` erneut ausführen (mit demselben `-PublicKey`; `-SkipAutoLogon -SkipRepoOwnership` sparen die Passwortabfrage und den Besitzer-Schritt). Wer den Registry-Eintrag unter `AppCompatFlags\Layers` von Hand löscht, muss danach `rundll32.exe apphelp.dll,ShimFlushCache` (als Administrator) ausführen, sonst bleibt der Fehler bis zum nächsten Reboot.
 - Logs auf dem VPS: `worker_python\logs\worker_console.log` (Konsole des Workers), `logs\ngrok.log`, `logs\vps_update.log` (Updates über die Aufgabe).
 
 ---

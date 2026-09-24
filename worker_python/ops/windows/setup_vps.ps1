@@ -11,7 +11,9 @@
 #   3. Besitzer des Repo-Ordners auf den normalen Benutzer setzen (repariert Dateien, die
 #      frueher per "git pull als Administrator" dem Administrator gehoerten)
 #   4. Auto-Login nach Neustart (Passwort als LSA-Secret, nicht im Klartext in der Registry)
-#   5. Geplante Aufgaben (normaler Benutzer, OHNE hoechste Rechte):
+#   5. Bei MT5-Terminals den Haken "Programm als Administrator ausfuehren" entfernen (sonst kann
+#      der Worker ohne Adminrechte MT5 nicht starten: -10003 "Process create failed")
+#   6. Geplante Aufgaben (normaler Benutzer, OHNE hoechste Rechte):
 #        AutoGrid-Start   bei Anmeldung -> start.bat (Worker + ngrok); auch "Worker neu starten"
 #        AutoGrid-Update  nur auf Abruf -> vps.ps1 update-local (git pull + pip + start.bat)
 #
@@ -173,7 +175,52 @@ public static class AutoGridLsa {
     Ok 'Auto-Login aktiv. RDP-Fenster kuenftig nur schliessen, NICHT abmelden (sonst stoppen MT5/Worker).'
 }
 
-# --------------------------------------------------------------------------- 5. Aufgaben
+# --------------------------------------------------------------------------- 5. MT5 ohne Admin-Zwang
+Step 'MT5-Terminals ohne "Als Administrator ausfuehren"'
+# Der Worker laeuft ohne Adminrechte (Aufgabe unten) und startet terminal64.exe selbst. Steht dort
+# der Kompatibilitaets-Haken RUNASADMIN, scheitert der Start mit Windows-Fehler 740 und MT5 meldet
+# -10003 "IPC initialize failed, Process create failed". Andere Kompatibilitaets-Flags bleiben.
+$layerKeys = @(
+    'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers'
+)
+try {
+    $sid = (New-Object Security.Principal.NTAccount($Account)).Translate([Security.Principal.SecurityIdentifier]).Value
+    if (Test-Path "Registry::HKEY_USERS\$sid") {
+        $layerKeys += "Registry::HKEY_USERS\$sid\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+    } else {
+        Warn "$Account ist nicht angemeldet - nur die Einstellung fuer alle Benutzer wird geprueft."
+    }
+} catch {
+    Warn "SID von $Account nicht gefunden - nur die Einstellung fuer alle Benutzer wird geprueft."
+}
+$fixed = 0
+foreach ($key in $layerKeys) {
+    if (-not (Test-Path $key)) { continue }
+    $item = Get-Item $key
+    foreach ($name in @($item.Property | Where-Object { $_ -like '*\terminal64.exe' })) {
+        $flags = @("$($item.GetValue($name))" -split '\s+' | Where-Object { $_ })
+        if ($flags -notcontains 'RUNASADMIN') { continue }
+        $rest = @($flags | Where-Object { $_ -ne 'RUNASADMIN' })
+        if (@($rest | Where-Object { $_ -ne '~' }).Count -eq 0) {
+            Remove-ItemProperty -Path $key -Name $name
+        } else {
+            Set-ItemProperty -Path $key -Name $name -Value ($rest -join ' ')
+        }
+        Ok "entfernt: $name"
+        $fixed++
+    }
+}
+if ($fixed -gt 0) {
+    # Windows merkt sich die alte Entscheidung im Kompatibilitaets-Cache. Der Eigenschaften-Dialog
+    # leert ihn selbst, eine Registry-Aenderung nicht: ohne Flush bleibt Fehler 740 bis zum Reboot.
+    & rundll32.exe 'apphelp.dll,ShimFlushCache'
+    Ok 'Kompatibilitaets-Cache geleert; der Worker kann MT5 jetzt ohne Adminrechte starten'
+} else {
+    Ok 'kein MT5-Terminal mit "Als Administrator ausfuehren" gefunden'
+}
+
+# --------------------------------------------------------------------------- 6. Aufgaben
 Step 'Geplante Aufgaben (normaler Benutzer, ohne hoechste Rechte)'
 $principal = New-ScheduledTaskPrincipal -UserId $Account -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
