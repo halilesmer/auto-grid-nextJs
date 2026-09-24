@@ -30,10 +30,12 @@ interface VpsMock {
   calls: string[];
   status: Record<string, unknown>;
   statusCode: number;
+  /** Antwort für /api/vps/logs; null = Standardzeilen */
+  logs: { body: Record<string, unknown>; code: number } | null;
 }
 
 async function mockVps(page: Page, overrides: Partial<VpsMock> = {}): Promise<VpsMock> {
-  const mock: VpsMock = { calls: [], status: { ...STATUS }, statusCode: 200, ...overrides };
+  const mock: VpsMock = { calls: [], status: { ...STATUS }, statusCode: 200, logs: null, ...overrides };
   await page.route('**/api/vps/**', async (route: Route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -44,8 +46,14 @@ async function mockVps(page: Page, overrides: Partial<VpsMock> = {}): Promise<Vp
     if (action === 'status') return reply(mock.status, mock.statusCode);
     if (action === 'check-update') return reply({ ok: true, has_update: true, local_ver: 'v0.7.70', remote_ver: 'v0.7.71' });
     if (action === 'logs') {
+      if (mock.logs) return reply(mock.logs.body, mock.logs.code);
       const log = url.searchParams.get('log');
-      return reply({ ok: true, log, lines: [`[${log}] Zeile 1`, `[${log}] Application startup complete.`] });
+      return reply({
+        ok: true,
+        log,
+        // uvicorn schreibt Farbcodes in worker_console.log
+        lines: [`[${log}] Zeile 1`, `\u001b[32mINFO\u001b[0m:     [${log}] Application startup complete.`],
+      });
     }
     if (req.method() === 'POST') return reply({ ok: true, message: `${action} ausgeführt` });
     return reply({ ok: false, error: 'unbekannt' }, 404);
@@ -139,11 +147,40 @@ test.describe('VPS Fernsteuerung', () => {
     const output = page.getByTestId('vps-log-output');
     await expect(output).toContainText('[worker] Application startup complete.');
 
+    await expect(output).toContainText('INFO:     [worker] Application startup complete.');
+    await expect(output).not.toContainText('\u001b');
+    await expect(output).not.toContainText('[32m');
+
     await page.getByRole('tab', { name: 'ngrok' }).click();
     await expect(output).toContainText('[ngrok] Zeile 1');
     await page.getByRole('tab', { name: 'Update' }).click();
     await expect(output).toContainText('[update] Zeile 1');
     expect(mock.calls).toContain('GET logs?log=update&lines=300');
+    await expect(page.getByTestId('vps-log-hint')).toHaveCount(0);
+  });
+
+  test('Log lädt mit dem Status neu und erklärt fehlendes ngrok-Log', { tag: '@VPS-03' }, async ({ page, worker }) => {
+    void worker;
+    await page.clock.install();
+    const mock = await mockVps(page, {
+      status: { ...STATUS, ngrok_watchdog: false },
+      // Stand vor dem Fix: Antwort zu groß für ssh (maxBuffer)
+      logs: { body: { ok: false, error: 'SSH fehlgeschlagen (Exit ERR_CHILD_PROCESS_STDIO_MAXBUFFER)' }, code: 502 },
+    });
+    await page.goto('/vps');
+    const output = page.getByTestId('vps-log-output');
+    await expect(output).toContainText('ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
+
+    // VPS hat sich inzwischen aktualisiert: der nächste Status-Poll holt das Log mit
+    mock.logs = null;
+    await page.clock.fastForward(16_000);
+    await expect(output).toContainText('[worker] Application startup complete.');
+
+    // ngrok ohne Neustart-Schleife schreibt kein ngrok.log -> Hinweis statt nur „keine Datei“
+    mock.logs = { body: { ok: true, log: 'ngrok', lines: [], note: 'Noch keine Datei ngrok.log' }, code: 200 };
+    await page.getByRole('tab', { name: 'ngrok' }).click();
+    await expect(output).toContainText('Noch keine Datei ngrok.log');
+    await expect(page.getByTestId('vps-log-hint')).toContainText('Worker neu starten');
   });
 });
 

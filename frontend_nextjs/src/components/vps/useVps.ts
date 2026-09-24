@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from '@/components/ui/animated-toast';
-import type { VpsAction, VpsActionResult, VpsLog, VpsLogResult, VpsStatus, VpsUpdateCheck } from '@/lib/vps';
+import {
+  stripAnsi,
+  type VpsAction,
+  type VpsActionResult,
+  type VpsLog,
+  type VpsLogResult,
+  type VpsStatus,
+  type VpsUpdateCheck,
+} from '@/lib/vps';
 
 // Bewusst nur lokaler State (wie useMT5Scanner): die VPS-Daten braucht keine andere Komponente.
 // Kein Worker-Aufruf – /api/vps/* ist die Next.js-Route auf dem Mac, die per SSH arbeitet.
@@ -43,6 +51,8 @@ export function useVps() {
   const [logNote, setLogNote] = useState<string | null>(null);
   const [logLoading, setLogLoading] = useState(true);
   const fastUntil = useRef(0);
+  // Der Poll liest den gerade gewählten Tab; späte Antworten eines alten Tabs werden verworfen
+  const logNameRef = useRef<VpsLog>('worker');
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -67,22 +77,27 @@ export function useVps() {
     }
   }, []);
 
-  // Setzt State erst nach dem ersten await (darf so auch direkt im Effect laufen)
-  const loadLogs = useCallback(async (which: VpsLog) => {
+  // Setzt State erst nach dem ersten await (darf so auch direkt im Effect laufen).
+  // background: Aufruf aus dem Status-Poll – scheitert er, bleiben die zuletzt gelesenen
+  // Zeilen stehen (dass der VPS weg ist, zeigt schon der Status-Banner).
+  const loadLogs = useCallback(async (which: VpsLog, background = false) => {
+    let lines: string[] | null = null;
+    let note: string | null = null;
     try {
       const { data } = await callVps<VpsLogResult | VpsActionResult>(`logs?log=${which}&lines=300`);
       if (data.ok && 'lines' in data) {
-        setLogLines(data.lines ?? []);
-        setLogNote(data.note ?? null);
+        lines = (data.lines ?? []).map(stripAnsi);
+        note = data.note ?? null;
       } else {
-        setLogLines([]);
-        setLogNote(errorOf(data, 'Log konnte nicht gelesen werden'));
+        note = errorOf(data, 'Log konnte nicht gelesen werden');
       }
     } catch (err) {
-      setLogNote(err instanceof Error ? err.message : 'Log konnte nicht gelesen werden');
-    } finally {
-      setLogLoading(false);
+      note = err instanceof Error ? err.message : 'Log konnte nicht gelesen werden';
     }
+    if (logNameRef.current !== which) return;
+    if (lines || !background) setLogLines(lines ?? []);
+    setLogNote(note);
+    setLogLoading(false);
   }, []);
 
   const refreshLogs = useCallback(
@@ -95,6 +110,7 @@ export function useVps() {
 
   const selectLog = useCallback(
     (which: VpsLog) => {
+      logNameRef.current = which;
       setLogName(which);
       refreshLogs(which);
     },
@@ -145,8 +161,11 @@ export function useVps() {
     let cancelled = false;
     let first = true;
     const loop = async () => {
-      // Erste Abfrage immer; danach nur, solange der Tab sichtbar ist (spart SSH-Verbindungen)
-      if (first || document.visibilityState === 'visible') await refreshStatus();
+      // Erste Abfrage immer; danach nur, solange der Tab sichtbar ist (spart SSH-Verbindungen).
+      // Das Log läuft mit: nach Update/Neustart zeigt es von selbst den neuen Stand.
+      if (first || document.visibilityState === 'visible') {
+        await Promise.all([refreshStatus(), loadLogs(logNameRef.current, !first)]);
+      }
       first = false;
       if (cancelled) return;
       timer = setTimeout(loop, Date.now() < fastUntil.current ? FAST_POLL_MS : POLL_MS);
@@ -156,14 +175,7 @@ export function useVps() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [refreshStatus]);
-
-  useEffect(() => {
-    const initial = async () => {
-      await loadLogs('worker');
-    };
-    void initial();
-  }, [loadLogs]);
+  }, [refreshStatus, loadLogs]);
 
   return {
     status,
