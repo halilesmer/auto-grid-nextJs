@@ -2,13 +2,14 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from contextlib import asynccontextmanager
 import asyncio
 import json
+import math
 import os
 import glob
 import time
 import pandas as pd
 from src.api.auth import API_KEY_HEADER, API_KEY_QUERY_PARAM, is_valid_api_key
 from src.core.indicator_calc import get_latest_indicators
-from src.utils.bot_manager import is_bot_running
+from src.utils.bot_manager import is_bot_running, log_step
 from src.utils.paths import get_metrics_path
 
 try:
@@ -153,95 +154,165 @@ def read_bot_metrics(acc_id: str, symbol: str = ""):
     }
 
 
+# MT5 sorgusu bu süreden uzun sürerse beklenmez: o tur bot metrikleri gönderilir.
+# (Takılan bir MT5 çağrısı akışı tamamen susturuyordu.)
+MT5_FETCH_TIMEOUT_SEC = 5.0
+# Aynı akış hatası robot loguna en fazla bu aralıkla yazılır
+STREAM_ERROR_LOG_INTERVAL_SEC = 60.0
+
+# worker_python/ (configs/, logs/ buradan okunur/yazılır; testler bu sabiti değiştirir)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+_fetch_task: asyncio.Future | None = None
+_last_stream_error = {"msg": None, "at": 0.0}
+
+
+def report_stream_error(acc_id: str, exc: BaseException) -> None:
+    """Akış hatasını hesabın robot loguna yazar (arayüz LogViewer'da görünür).
+
+    Eskiden sadece print ediliyordu: VPS'teki uvicorn konsolunu kimse görmediği için akış
+    sessizce susuyordu. Aynı hata dakikada bir kez yazılır.
+    """
+    msg = f"[WS Stream] {type(exc).__name__}: {exc}"
+    now = time.time()
+    if msg == _last_stream_error["msg"] and now - _last_stream_error["at"] < STREAM_ERROR_LOG_INTERVAL_SEC:
+        return
+    _last_stream_error.update(msg=msg, at=now)
+    if acc_id and acc_id != "default":
+        log_step(acc_id, msg, type="error")
+    else:
+        print(msg)
+
+
+def resolve_stream_target(base_dir: str) -> tuple[str, str]:
+    """Akışın hesabı (accounts.json'daki ilk hesap) ve sembolü (o hesabın ilk bölgesi)."""
+    acc_id, symbol = "default", ""
+    try:
+        with open(os.path.join(base_dir, "configs", "accounts.json"), "r") as f:
+            acc_id = str(json.load(f)["accounts"][0]["id"])
+        settings_files = glob.glob(
+            os.path.join(base_dir, "configs", f"settings_{acc_id}*.json")
+        )
+        if settings_files:
+            with open(settings_files[0], "r", encoding="utf-8") as f:
+                settings_data = json.load(f)
+            # Kayıtlı dosyalar düz ({"ZONES": [...]}); eski/iç içe biçim de desteklenir
+            while isinstance(settings_data, dict) and isinstance(
+                settings_data.get("settings"), dict
+            ):
+                settings_data = settings_data["settings"]
+            zones = (
+                settings_data.get("ZONES", [])
+                if isinstance(settings_data, dict)
+                else []
+            )
+            if zones and "symbol" in zones[0]:
+                symbol = str(zones[0]["symbol"]).upper().strip()
+    except Exception:
+        pass
+    return acc_id, symbol
+
+
+async def fetch_mt5_data_with_timeout(symbol: str):
+    """fetch_mt5_data'yı thread'de çalıştırır; takılırsa None döner.
+
+    Takılan sorgu bitene kadar yenisi başlatılmaz (thread'ler birikmesin); o sırada
+    çağıran bot metriklerine düşer.
+    """
+    global _fetch_task
+    if _fetch_task is None or _fetch_task.done():
+        _fetch_task = asyncio.ensure_future(asyncio.to_thread(fetch_mt5_data, symbol))
+    task = _fetch_task
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout=MT5_FETCH_TIMEOUT_SEC)
+    except asyncio.TimeoutError:
+        return None
+
+
+async def build_stream_message(acc_id: str, symbol: str) -> tuple[dict, dict | None]:
+    """Bir turun WS mesajı. İkinci değer: logs/met_<id>.json'a yazılacak payload (yalnızca MT5'ten)."""
+    try:
+        data = await fetch_mt5_data_with_timeout(symbol)
+    except Exception as exc:
+        report_stream_error(acc_id, exc)
+        data = None
+
+    if not data:
+        # API süreci MT5'e bağlı değilse (ör. worker yeniden başladı, /start
+        # çağrılmadı) bot sürecinin metrik dosyasına düş: grafik yine fiyat alır.
+        fallback = await asyncio.to_thread(read_bot_metrics, acc_id, symbol)
+        if fallback:
+            return {"type": "METRICS", "payload": fallback}, None
+        return {
+            "type": "LIVE_DATA",
+            "payload": {"mt5_connected": False, "market_open": False},
+        }, None
+
+    # İndikatör hatası (ör. uyumsuz pandas_ta) fiyat yayınını durdurmamalı
+    try:
+        indicators = get_latest_indicators(data["df"])
+    except Exception as exc:
+        report_stream_error(acc_id, exc)
+        indicators = {"rsi": None, "macd": None}
+
+    payload = {
+        # Grafik sayfası (/chart?zone=) akışın hangi sembolü gösterdiğini bilmeli
+        "symbol": symbol,
+        "mt5_connected": data["mt5_connected"],
+        "market_open": data["market_open"],
+        "current_price": data["price"],
+        "price": data["price"],
+        "profit": data["profit"],
+        "open_positions": data["open_positions"],
+        "pending_orders": data["pending_orders"],
+        "rsi": _finite(indicators.get("rsi")),
+        "macd": _finite(indicators.get("macd")),
+    }
+    return {"type": "METRICS", "payload": payload}, payload
+
+
+def _finite(value):
+    """NaN/inf → None: json.dumps yazar 'NaN', tarayıcının JSON.parse'ı tüm mesajı reddeder."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def write_stream_metrics(base_dir: str, acc_id: str, payload: dict) -> None:
+    """Arayüz HTTP polling'inin yedeği: logs/met_<id>.json (logs.py bot dosyası yoksa okur)."""
+    os.makedirs(os.path.join(base_dir, "logs"), exist_ok=True)
+    with open(
+        os.path.join(base_dir, "logs", f"met_{acc_id}.json"), "w", encoding="utf-8"
+    ) as f:
+        json.dump(payload, f)
+
+
 async def real_bot_data_stream():
     """MT5'ten gerçek veriyi 1 saniyede bir çekip WS ile yayınlar."""
+    base_dir = BASE_DIR
     while True:
+        acc_id = "default"
         try:
             await asyncio.sleep(1.0)
-
             # Arayüzdeki aktif sembolü dinamik oku
-            base_dir = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "..")
-            )
-            acc_id, symbol = "default", ""
-            try:
-                with open(os.path.join(base_dir, "configs", "accounts.json"), "r") as f:
-                    acc_id = str(json.load(f)["accounts"][0]["id"])
-                settings_files = glob.glob(
-                    os.path.join(base_dir, "configs", f"settings_{acc_id}*.json")
-                )
-                if settings_files:
-                    with open(settings_files[0], "r", encoding="utf-8") as f:
-                        settings_data = json.load(f)
-                    # Kayıtlı dosyalar düz ({"ZONES": [...]}); eski/iç içe biçim de desteklenir
-                    while isinstance(settings_data, dict) and isinstance(
-                        settings_data.get("settings"), dict
-                    ):
-                        settings_data = settings_data["settings"]
-                    zones = (
-                        settings_data.get("ZONES", [])
-                        if isinstance(settings_data, dict)
-                        else []
-                    )
-                    if zones and "symbol" in zones[0]:
-                        symbol = str(zones[0]["symbol"]).upper().strip()
-            except Exception:
-                pass
+            acc_id, symbol = resolve_stream_target(base_dir)
+            message, to_file = await build_stream_message(acc_id, symbol)
 
-            data = await asyncio.to_thread(fetch_mt5_data, symbol)
+            # Önce yayınla: dosya yazılamasa da (ör. Windows izinleri) akış devam eder
+            await manager.broadcast(json.dumps(message))
 
-            if not data:
-                # API süreci MT5'e bağlı değilse (ör. worker yeniden başladı, /start
-                # çağrılmadı) bot sürecinin metrik dosyasına düş: grafik yine fiyat alır.
-                fallback = await asyncio.to_thread(read_bot_metrics, acc_id, symbol)
-                if fallback:
-                    await manager.broadcast(
-                        json.dumps({"type": "METRICS", "payload": fallback})
-                    )
-                    continue
-
-            if data:
-                indicators = get_latest_indicators(data["df"])
-                combined_payload = {
-                    # Grafik sayfası (/chart?zone=) akışın hangi sembolü gösterdiğini bilmeli
-                    "symbol": symbol,
-                    "mt5_connected": data["mt5_connected"],
-                    "market_open": data["market_open"],
-                    "current_price": data["price"],
-                    "price": data["price"],
-                    "profit": data["profit"],
-                    "open_positions": data["open_positions"],
-                    "pending_orders": data["pending_orders"],
-                    "rsi": indicators["rsi"],
-                    "macd": indicators["macd"],
-                }
-
-                # Arayüz HTTP Polling için aktif hesabın JSON log dosyasına yaz
-                os.makedirs(os.path.join(base_dir, "logs"), exist_ok=True)
-                with open(
-                    os.path.join(base_dir, "logs", f"met_{acc_id}.json"),
-                    "w",
-                    encoding="utf-8",
-                ) as f:
-                    json.dump(combined_payload, f)
-
-                await manager.broadcast(
-                    json.dumps({"type": "METRICS", "payload": combined_payload})
-                )
-            else:
-                await manager.broadcast(
-                    json.dumps(
-                        {
-                            "type": "LIVE_DATA",
-                            "payload": {"mt5_connected": False, "market_open": False},
-                        }
-                    )
-                )
+            if to_file is not None:
+                try:
+                    write_stream_metrics(base_dir, acc_id, to_file)
+                except Exception as exc:
+                    report_stream_error(acc_id, exc)
         except asyncio.CancelledError:
             # Graceful shutdown
             raise
         except Exception as e:
-            print(f"[WS Stream] Unexpected error: {e}")
+            report_stream_error(acc_id, e)
             # Tekrar deneme için 5 sn bekle
             await asyncio.sleep(5.0)
 
