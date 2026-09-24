@@ -9,6 +9,7 @@ import { useAccountStore, useSettingsStore } from '@/store';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { toast } from '@/components/ui/animated-toast';
 
 const MIN_INTERVAL = 1;
 const MAX_INTERVAL = 60;
@@ -64,8 +65,13 @@ export default function SettingsForm() {
       });
       setOriginalInterval(loopInterval);
       setGlobalSettings({ LOOP_INTERVAL_SECONDS: loopInterval });
+      toast.success(`Kontrol sıklığı ${loopInterval.toFixed(1)} sn olarak kaydedildi.`, {
+        title: 'Genel ayarlar kaydedildi',
+      });
     } catch (err: unknown) {
-      setError(await getApiErrorMessage(err, 'Failed to save settings'));
+      const message = await getApiErrorMessage(err, 'Failed to save settings');
+      setError(message);
+      toast.error(message, { title: 'Genel ayarlar kaydedilemedi' });
     } finally {
       setSaving(false);
     }

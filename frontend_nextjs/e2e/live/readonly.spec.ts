@@ -53,7 +53,7 @@ function probeWebSocket(page: Page, url: string, holdMs = 0): Promise<string> {
 test.describe('Live (nur lesend)', () => {
   test('Worker erreichbar, Konto und Status im Dashboard', { tag: ['@SYS-01', '@ACC-01'] }, async ({ page, account, dashboard }) => {
     await dashboard.open(null);
-    await expect(dashboard.accountSelect.locator(`option[value="${account.id}"]`)).toHaveCount(1);
+    await expect((await dashboard.accountOptions()).filter({ hasText: `(${account.id})` })).toHaveCount(1);
     await dashboard.selectAccount(account.id);
     await expect(page.getByTestId('worker-status')).toContainText('Worker online');
     await expect(page.getByTestId('env-badge')).toHaveText('TEST');

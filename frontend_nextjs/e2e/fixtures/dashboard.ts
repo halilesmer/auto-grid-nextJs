@@ -12,13 +12,29 @@ export class Dashboard {
   }
 
   async selectAccount(accountId: string) {
-    await this.accountSelect.selectOption(accountId);
+    const options = await this.accountOptions();
+    await options.filter({ hasText: `(${accountId})` }).click();
+    await expect(this.accountSelect).toHaveAttribute('aria-expanded', 'false');
     // Einstellungen + Symbole geladen → Zonenbereich ist da
     await expect(this.page.getByText('Dinamik Bölgeler')).toBeVisible();
   }
 
+  /** Trigger der Konto-Combobox; zeigt das gewählte Konto als „Name (ID)“ bzw. den Platzhalter. */
   get accountSelect(): Locator {
-    return this.page.getByLabel('Select Account');
+    return this.page.getByRole('combobox', { name: 'Select Account' });
+  }
+
+  /** Öffnet die Kontoliste (falls geschlossen) und liefert ihre Einträge („Name (ID)“ + DEMO/LIVE). */
+  async accountOptions(): Promise<Locator> {
+    if ((await this.accountSelect.getAttribute('aria-expanded')) !== 'true') await this.accountSelect.click();
+    const listId = await this.accountSelect.getAttribute('aria-controls');
+    return this.page.locator(`[id="${listId}"]`).getByRole('option');
+  }
+
+  /** Schließt die offene Kontoliste (Fokus liegt im Suchfeld). */
+  async closeAccountList() {
+    await this.page.keyboard.press('Escape');
+    await expect(this.accountSelect).toHaveAttribute('aria-expanded', 'false');
   }
 
   zone(index = 0): Locator {

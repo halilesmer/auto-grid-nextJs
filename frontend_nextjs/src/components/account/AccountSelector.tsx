@@ -176,22 +176,9 @@ export default function AccountSelector() {
     setDuplicateAccount(null);
   }, [duplicateAccount, resetForm, scanAndSyncPath, selectAccount]);
 
-  useEffect(() => {
-    if (duplicateAccount) {
-      // Using setTimeout to defer state update and satisfy lint rule
-      // window.confirm is synchronous but we need to update state after
-      setTimeout(() => {
-        const confirmed = window.confirm(
-          `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
-        );
-        handleDuplicateConfirm(confirmed);
-      }, 0);
-    }
-  }, [duplicateAccount, handleDuplicateConfirm]);
-
   return (
     <>
-      <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between">
+      <Card className="relative z-20 flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between">
         <AccountDropdown
           accounts={storeAccounts}
           selectedAccount={selectedAccount}
@@ -209,7 +196,11 @@ export default function AccountSelector() {
         />
       </Card>
 
-      <AccountFormDialog open={modalOpen} onClose={() => setModalOpen(false)} title={isEditing ? 'Edit Account' : 'New MT5 Account'}>
+      <AccountFormDialog
+        open={modalOpen}
+        // Mükerrer hesap sorusu açıkken Escape yalnızca soruyu kapatsın, formu değil
+        onClose={() => !duplicateAccount && setModalOpen(false)}
+        title={isEditing ? 'Edit Account' : 'New MT5 Account'}>
         <AccountForm
           formData={formData}
           errors={errors}
@@ -229,6 +220,20 @@ export default function AccountSelector() {
           mt5ScanError={mt5ScanError}
           onSubmit={handleSubmit}
           onEditExisting={duplicateAccount ? handleEditExisting : undefined}
+        />
+        {/* Form <dialog>'u showModal ile top layer'da; soru onun içinde olmalı, yoksa arkasında kalır */}
+        <ConfirmModal
+          open={!!duplicateAccount}
+          onClose={() => handleDuplicateConfirm(false)}
+          onConfirm={() => handleDuplicateConfirm(true)}
+          title="Account already exists"
+          message={
+            duplicateAccount
+              ? `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
+              : ''
+          }
+          confirmLabel="Edit"
+          variant="warning"
         />
       </AccountFormDialog>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { axiosInstance, API } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { toast } from '@/components/ui/animated-toast';
 import type { GlobalSettings } from '@/store/types';
 
 // Worker güncellemeden sonra ~1,5 sn içinde kapanır, .bat 3 sn sonra yeniden başlatır
@@ -182,8 +183,11 @@ export function useDashboard({
     try {
       await mergeAndSaveSettings(API);
       setSavedSettingsStr(JSON.stringify(settings));
+      toast.success('Tüm ayarlar kaydedildi.', { title: 'Kaydedildi' });
     } catch (err: unknown) {
-      setSaveAllError(await getApiErrorMessage(err, 'Tüm ayarları kaydetme başarısız'));
+      const message = await getApiErrorMessage(err, 'Tüm ayarları kaydetme başarısız');
+      setSaveAllError(message);
+      toast.error(message, { title: 'Hata' });
     } finally {
       setSaveAllLoading(false);
     }

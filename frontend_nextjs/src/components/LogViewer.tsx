@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { useAccountStore, useLogsStore, useBotRuntimeStore } from '@/store';
 import type { ActivityLevel } from '@/store';
 import { downloadAccountLogs } from '@/lib/downloadLogs';
+import ConfirmModal from '@/components/ConfirmModal';
 import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -78,6 +79,8 @@ export default function LogViewer() {
 
   const [tab, setTab] = useState<Tab>("activity");
   const [connectingSeconds, setConnectingSeconds] = useState(0);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const logRef = useRef<HTMLPreElement>(null);
 
   // Start'a basılınca Activity sekmesine geç ve sayacı sıfırla (render sırasında
@@ -155,12 +158,12 @@ export default function LogViewer() {
       clearActivity();
       return;
     }
-    if (
-      !window.confirm(
-        "Bu hesaba ait tüm logları temizlemek istediğinize emin misiniz?",
-      )
-    )
-      return;
+    setClearConfirmOpen(true);
+  };
+
+  const confirmClearLogs = async () => {
+    if (!selectedAccount) return;
+    setClearing(true);
     try {
       await axiosInstance.delete(`/logs/${selectedAccount}`);
       clearLogs();
@@ -168,6 +171,9 @@ export default function LogViewer() {
     } catch (err) {
       pushActivity("error", await getApiErrorMessage(err, "Could not clear logs"));
       setTab("activity");
+    } finally {
+      setClearing(false);
+      setClearConfirmOpen(false);
     }
   };
 
@@ -191,6 +197,7 @@ export default function LogViewer() {
   }
 
   return (
+    <>
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-border px-3 pt-2">
         <AnimatedTabs
@@ -271,5 +278,18 @@ export default function LogViewer() {
         </pre>
       </div>
     </Card>
+
+    <ConfirmModal
+      open={clearConfirmOpen}
+      onClose={() => setClearConfirmOpen(false)}
+      onConfirm={confirmClearLogs}
+      title="Logları Temizle"
+      message="Bu hesaba ait tüm logları temizlemek istediğinize emin misiniz?"
+      confirmLabel="Temizle"
+      cancelLabel="Vazgeç"
+      variant="danger"
+      loading={clearing}
+    />
+    </>
   );
 }

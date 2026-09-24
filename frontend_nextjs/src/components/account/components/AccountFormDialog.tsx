@@ -32,6 +32,8 @@ export function AccountFormDialog({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDialogElement>) => {
     if (e.key === 'Escape') {
+      // Tarayıcının kendi kapatmasını engelle: kapatıp kapatmamaya onClose karar verir
+      e.preventDefault();
       onClose();
     }
   };
