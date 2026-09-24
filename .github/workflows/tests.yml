@@ -1,0 +1,84 @@
+# Funktionstests bei jedem PR und Push auf main (Katalog: docs/features/features.yaml).
+# Läuft ohne MT5 und ohne VPS: Worker-Tests mit FakeMT5 (unit) und TestClient (api),
+# Oberflächentests mit Playwright gegen den gemockten Worker (e2e).
+# Die Live-Tests gegen den VPS (npm run test:live) laufen nur lokal.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Neuer Push auf denselben Branch bricht den alten Lauf ab
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  catalog:
+    name: Funktionskatalog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml
+      - name: features.yaml prüfen
+        run: python scripts/features/update_checklist.py --check
+
+  worker:
+    name: Worker (unit + api)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker_python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: worker_python/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: pytest
+        run: python -m pytest -q --junitxml=../.feature-results/worker.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worker-junit
+          path: .feature-results/worker.xml
+          retention-days: 14
+
+  frontend:
+    name: Frontend (lint + e2e gemockt)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_nextjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend_nextjs/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - name: Playwright-Browser installieren
+        run: npx playwright install --with-deps chromium
+      - name: Playwright (mocked)
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend_nextjs/playwright-report/
+            frontend_nextjs/test-results/
+          retention-days: 14

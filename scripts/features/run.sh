@@ -2,6 +2,7 @@
 # Funktionstests ausführen und docs/features/FEATURES.md aktualisieren.
 #
 #   scripts/features/run.sh                 unit + api + e2e (alles, was ohne VPS läuft)
+#   scripts/features/run.sh ENG-05          ein Feature bzw. eine Kategorie (ZON) auf allen Ebenen ohne VPS
 #   scripts/features/run.sh unit [FILTER]   nur eine Ebene; FILTER = Feature-ID (ENG-05) oder Kategorie (ENG)
 #   scripts/features/run.sh live [FILTER]   gegen den VPS-Worker (DEMO); Handelstests zusätzlich mit E2E_LIVE_DEMO=1
 #   scripts/features/run.sh next            nächstes offenes Feature in Testreihenfolge
@@ -37,7 +38,10 @@ run_pytest() {  # $1 = tier (unit|api)
   fi
   echo "• $tier: pytest ${filter:+(Filter $filter)}"
   (cd "$WORKER" && "$PY" -m pytest "tests/$tier" -q \
-      --junitxml="$REPORTS/$tier.xml" ${filter:+--feature "$filter"}) || rc=1
+      --junitxml="$REPORTS/$tier.xml" ${filter:+--feature "$filter"})
+  local status=$?
+  # 5 = keine Tests für diesen Filter auf dieser Ebene (kein Fehler)
+  [ "$status" -eq 0 ] || [ "$status" -eq 5 ] || rc=1
 }
 
 run_playwright() {  # $1 = tier (e2e|live), $2 = Playwright-Projekt
@@ -50,9 +54,15 @@ run_playwright() {  # $1 = tier (e2e|live), $2 = Playwright-Projekt
   local live=0
   [ "$tier" = live ] && live=1
   (cd "$FRONTEND" && E2E_LIVE=$live PLAYWRIGHT_JSON_OUTPUT_NAME="$REPORTS/$tier.json" \
-      npx playwright test --project="$project" --reporter=list,json \
+      npx playwright test --project="$project" --reporter=list,json --pass-with-no-tests \
       ${filter:+--grep "@$filter"}) || rc=1
 }
+
+# Nur ID/Kategorie angegeben (ENG-05, ZON): alle Ebenen ohne VPS, gefiltert
+if [[ "$cmd" =~ ^[A-Z]{2,3}(-[0-9]{2})?$ ]]; then
+  filter="$cmd"
+  cmd=all
+fi
 
 case "$cmd" in
   all)    run_pytest unit; run_pytest api; run_playwright e2e mocked ;;
@@ -65,7 +75,7 @@ case "$cmd" in
   check)  exec "$PY" "$GEN" --check ;;
   sign)   exec "$PY" "$GEN" --sign "${2:?ID fehlt}" "${3:?STATUS fehlt}" ${4:+--notiz "$4"} ;;
   render) ;;
-  *) sed -n '2,13p' "$0"; exit 2 ;;
+  *) sed -n '2,14p' "$0"; exit 2 ;;
 esac
 
 "$PY" "$GEN" || rc=1
