@@ -1,13 +1,23 @@
 import os
+import time
+
 import psutil
 
+# Soğuk açılışta (ör. VPS yeniden başladıktan sonra) terminal IPC'ye dakikalarca cevap
+# vermeyebilir. Bu süreden genç bir terminal asılı değil, hâlâ açılıyordur. Başka bir
+# bağlantı denemesinin (aynı süreçte veya bot_runner'da) başlattığı terminali öldürmek
+# açılışı baştan başlatır; iki deneme birbirinin terminalini öldürüp durur.
+MT5_BOOT_GRACE_SEC = 180
 
-def kill_zombie_mt5(path, safe_log_fn) -> int:
+
+def kill_zombie_mt5(path, safe_log_fn, min_age_sec=MT5_BOOT_GRACE_SEC) -> int:
     """Asılı kalmış MT5 terminalini sonlandırır. Sonlandırılan süreç sayısını döner.
 
     GÜVENLİK: Yalnızca yolu `path` ile BİREBİR eşleşen terminal öldürülür. Yol verilmemişse
     veya bir sürecin yolu okunamıyorsa (ör. yönetici haklı) o süreç atlanır; aksi halde
     başka hesapların/uygulamaların terminalleri de kapanabilirdi.
+    `min_age_sec`'ten genç (veya başlangıç zamanı okunamayan) terminal açılıyor sayılır
+    ve öldürülmez.
     """
     if not path or not os.path.exists(path):
         return 0
@@ -15,7 +25,7 @@ def kill_zombie_mt5(path, safe_log_fn) -> int:
     target_exe = os.path.basename(target)
     killed = 0
 
-    for proc in psutil.process_iter(["pid", "name", "exe"]):
+    for proc in psutil.process_iter(["pid", "name", "exe", "create_time"]):
         try:
             p_name = (proc.info.get("name") or "").lower()
             p_exe = proc.info.get("exe")
@@ -23,8 +33,18 @@ def kill_zombie_mt5(path, safe_log_fn) -> int:
                 continue
             if os.path.normpath(p_exe).lower() != target:
                 continue
+            created = proc.info.get("create_time")
+            age = time.time() - created if created else None
+            if age is None or age < min_age_sec:
+                age_txt = f"{age:.0f} sn önce başlatıldı" if age is not None else "başlangıç zamanı okunamadı"
+                safe_log_fn(
+                    f"MT5 terminali henüz açılıyor ({age_txt}), öldürülmüyor. PID: {proc.info['pid']}",
+                    type="warning",
+                )
+                continue
             safe_log_fn(
-                f"Asılı kalan MT5 terminali tespit edildi. Öldürülüyor... PID: {proc.info['pid']}",
+                f"Asılı kalan MT5 terminali tespit edildi ({age:.0f} sn önce başlatıldı). "
+                f"Öldürülüyor... PID: {proc.info['pid']}",
                 type="warning",
             )
             proc.kill()
@@ -46,13 +66,16 @@ def parse_init_error(last_err, login_id, server, safe_log_fn):
             f"[INIT] MT5 başlatılamadı. IPC Bağlantısı Reddedildi (hata kodu: {err_code})",
         )
     elif err_code == -10004:
+        # initialize() şifre almaz: -10004 (RES_E_INTERNAL_FAIL_CONNECT, "No IPC connection")
+        # terminalin IPC kanalına ulaşılamadığı anlamına gelir, şifre hatası değildir.
         safe_log_fn(
-            "🔴 MT5 Yetkilendirme/Bağlantı Hatası (-10004): Şifre veya sunucu adı hatalı.",
+            f"🔴 MT5 terminaline IPC bağlantısı kurulamadı (-10004): Terminal hâlâ açılıyor veya yanıt vermiyor. (Hata: {last_err})",
             type="error",
         )
         return (
             False,
-            f"[INIT] Giriş Başarısız: Hesap şifresi, hesap numarası ({login_id}) veya sunucu adı ('{server}') yanlış!",
+            f"[INIT] MT5 terminaline bağlanılamadı (IPC bağlantısı yok, hata kodu: {err_code}). "
+            "Terminal hâlâ açılıyor olabilir; biraz bekleyip tekrar deneyin.",
         )
     else:
         safe_log_fn(

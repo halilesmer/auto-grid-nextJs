@@ -64,39 +64,69 @@ def backup_mt5_logs_helper(account_id, mt5_available, safe_log_fn):
             safe_log_fn(f"MT5 Log kopyalama hatası: {e}", type="warning")
 
 
-# MT5 IPC hataları: -10001 gönderme, -10002 alma, -10003 başlatma, -10005 zaman aşımı
-_IPC_ERROR_CODES = (-10001, -10002, -10003, -10005)
+# MT5 IPC hataları: -10001 gönderme, -10002 alma, -10003 başlatma,
+# -10004 IPC bağlantısı yok (terminal açılıyor), -10005 zaman aşımı
+_IPC_ERROR_CODES = (-10001, -10002, -10003, -10004, -10005)
+
+# Süre bütçesinde bundan az kaldıysa yeni initialize denemesi yapılmaz
+_MIN_ATTEMPT_SEC = 5
+# Asılı terminal ancak yeniden açılmasına bu kadar süre kaldıysa öldürülür;
+# yoksa terminal öldürülüp açılmadan bırakılırdı
+_RESTART_MIN_SEC = 30
 
 
-def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2):
-    """Exponential backoff retry for mt5.initialize() on IPC timeout/connection loss."""
+def _last_error_code(mt5):
+    last_err = mt5.last_error()
+    return last_err[0] if last_err else 0
+
+
+def _remaining(deadline):
+    return deadline - time.monotonic()
+
+
+def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2, deadline=None):
+    """Exponential backoff retry for mt5.initialize() on IPC timeout/connection loss.
+
+    `deadline` (time.monotonic) verilirse süre bütçesi aşılmaz: her denemenin MT5
+    zaman aşımı kalan süreyle sınırlanır, kalan süre bitince tekrar denenmez.
+    İlk deneme her zaman yapılır; yeterli süre kaldığından çağıran emin olur.
+    """
     for attempt in range(max_retries):
-        init_success = mt5.initialize(**init_kwargs)
-        if init_success:
+        kwargs = init_kwargs
+        if deadline is not None:
+            remaining = _remaining(deadline)
+            if attempt > 0 and remaining < _MIN_ATTEMPT_SEC:
+                break
+            if "timeout" in init_kwargs:
+                capped_ms = int(max(remaining, _MIN_ATTEMPT_SEC) * 1000)
+                kwargs = {**init_kwargs, "timeout": min(init_kwargs["timeout"], capped_ms)}
+        if mt5.initialize(**kwargs):
             return True
-        last_err = mt5.last_error()
-        err_code = last_err[0] if last_err else 0
-        # Sadece geçici IPC hatalarında tekrar dene. -10004 (yetki/şifre hatası)
-        # tekrar denemekle düzelmez; son denemeden sonra da boşuna bekleme.
-        if err_code in (-10005, -10003) and attempt < max_retries - 1:
+        # Sadece geçici IPC hatalarında tekrar dene; son denemeden sonra da boşuna bekleme.
+        if _last_error_code(mt5) in _IPC_ERROR_CODES and attempt < max_retries - 1:
             delay = base_delay * (2 ** attempt)
+            if deadline is not None and _remaining(deadline) - delay < _MIN_ATTEMPT_SEC:
+                break
             time.sleep(delay)
             continue
         break
     return False
 
 
-def _retry_login(mt5, login_id, password, server, max_retries=3, base_delay=2):
-    """Exponential backoff retry for mt5.login() on transient failures."""
+def _retry_login(mt5, login_id, password, server, max_retries=3, base_delay=2, deadline=None):
+    """Exponential backoff retry for mt5.login() on transient failures.
+
+    Terminal açıldıysa en az bir giriş denemesi yapılır; `deadline` geçtiyse tekrar denenmez.
+    """
     for attempt in range(max_retries):
         authorized = mt5.login(login=login_id, password=str(password), server=str(server))
         if authorized:
             return True
-        last_err = mt5.last_error()
-        err_code = last_err[0] if last_err else 0
         # 1002/2/-10004 = hatalı şifre/sunucu -> tekrar deneme anlamsız
-        if err_code == -10005 and attempt < max_retries - 1:
+        if _last_error_code(mt5) == -10005 and attempt < max_retries - 1:
             delay = base_delay * (2 ** attempt)
+            if deadline is not None and _remaining(deadline) - delay <= 0:
+                break
             time.sleep(delay)
             continue
         break
@@ -104,8 +134,28 @@ def _retry_login(mt5, login_id, password, server, max_retries=3, base_delay=2):
 
 
 def connect_internal_helper(
-    account_config, timeout_sec, mt5_lock, safe_log_fn, mt5_available, mt5_import_error
+    account_config,
+    timeout_sec,
+    mt5_lock,
+    safe_log_fn,
+    mt5_available,
+    mt5_import_error,
+    allow_restart=True,
+    deadline=None,
 ):
+    """MT5'e bağlanır ve giriş yapar; (başarılı_mı, hata_detayı) döner.
+
+    `timeout_sec` tüm terminal açılışının süre bütçesidir (kilit beklemesi, initialize
+    denemeleri ve asılı terminalin yeniden başlatılması dahil); `deadline` verilirse
+    (connect_to_mt5 kilidi beklemeden önce hesaplar) o kullanılır. Bütçe dolunca
+    tekrar denenmez: aksi halde thread MT5 kilidini dakikalarca tutuyor, /start gibi
+    bekleyen istekler de onunla birlikte asılı kalıyordu.
+    `allow_restart=False`: IPC hatasında terminal öldürülmez (ör. kısa süreli arka plan
+    sembol sorgusu, açılmakta olan terminali öldürmesin).
+    """
+    if deadline is None:
+        deadline = time.monotonic() + timeout_sec
+
     if not account_config:
         safe_log_fn("Bağlanılacak hesap seçilmedi!")
         return False, "[CONFIG] Bağlanılacak hesap seçilmedi veya hesap bilgisi eksik."
@@ -162,30 +212,55 @@ def connect_internal_helper(
                 return True, None
         except Exception:
             pass
+        if _remaining(deadline) < _MIN_ATTEMPT_SEC:
+            safe_log_fn(
+                f"[TIMEOUT] MT5 bağlantısına başlanamadı: başka bir MT5 bağlantısı {timeout_sec} sn'lik süreyi doldurdu.",
+                type="warning",
+            )
+            return (
+                False,
+                f"[TIMEOUT] MT5 bağlantısı {timeout_sec} sn içinde başlatılamadı (başka bir MT5 bağlantısı sürüyordu). Tekrar deneyin.",
+            )
         mt5.shutdown()
         time.sleep(0.2)
-        init_success = _retry_initialize(mt5, init_kwargs)
 
-        # Terminal IPC'ye cevap vermiyor (asılı/donmuş veya farklı yetkiyle açık):
+        can_restart = allow_restart and "path" in init_kwargs
+        if can_restart:
+            # İlk denemeye bütçenin yarısı: terminal asılıysa yeniden başlatmaya süre kalsın
+            now = time.monotonic()
+            first_deadline = now + max((deadline - now) / 2, _MIN_ATTEMPT_SEC)
+            init_success = _retry_initialize(mt5, init_kwargs, max_retries=1, deadline=first_deadline)
+        else:
+            init_success = _retry_initialize(mt5, init_kwargs, deadline=deadline)
+
+        # Terminal IPC'ye cevap vermiyor (asılı/donmuş, farklı yetkiyle açık veya hâlâ açılıyor):
         # SADECE bu hesabın terminalini (mt5_path) kapat; initialize(path) onu yeniden başlatır.
-        if not init_success and "path" in init_kwargs:
-            err_code = (mt5.last_error() or (0,))[0]
+        # kill_zombie_mt5 açılmakta olan (genç) terminale dokunmaz: o durumda kalan sürede
+        # terminalin açılması beklenir.
+        if not init_success and can_restart:
+            err_code = _last_error_code(mt5)
             if err_code in _IPC_ERROR_CODES:
                 from src.utils.mt5_errors import kill_zombie_mt5
 
-                if kill_zombie_mt5(init_kwargs["path"], safe_log_fn):
+                if _remaining(deadline) < _RESTART_MIN_SEC:
+                    safe_log_fn(
+                        f"MT5 terminali yanıt vermiyor ({err_code}) ama yeniden başlatmaya süre kalmadı; terminal kapatılmıyor.",
+                        type="warning",
+                    )
+                elif kill_zombie_mt5(init_kwargs["path"], safe_log_fn):
                     safe_log_fn(
                         f"MT5 terminali IPC hatası ({err_code}) nedeniyle yeniden başlatılıyor...",
                         type="warning",
                     )
                     time.sleep(3)
-                    init_success = _retry_initialize(mt5, init_kwargs)
+                if _remaining(deadline) >= _MIN_ATTEMPT_SEC:
+                    init_success = _retry_initialize(mt5, init_kwargs, deadline=deadline)
 
     if not init_success:
         return parse_init_error(mt5.last_error(), login_id, server, safe_log_fn)
 
     if login_id > 0:
-        authorized = _retry_login(mt5, login_id, password, server)
+        authorized = _retry_login(mt5, login_id, password, server, deadline=deadline)
         if not authorized:
             # Hata kodunu shutdown'dan ÖNCE al, yoksa shutdown'ın kodu okunur
             login_err = mt5.last_error()
@@ -330,8 +405,10 @@ async def fetch_and_cache_symbols(account_id: str, account_config: dict, safe_lo
         shutdown_mt5,
     )
     
+    # allow_restart=False: 15 sn'lik kısa sorgu, soğuk açılışta IPC hatası alır; terminali
+    # öldürürse /start'ın (veya bot_runner'ın) açmakta olduğu terminali de öldürür.
     ok, _is_timeout, detail = await asyncio.to_thread(
-        connect_to_mt5_with_timeout, account_config, 15
+        connect_to_mt5_with_timeout, account_config, 15, allow_restart=False
     )
     
     if not ok:
@@ -378,7 +455,14 @@ async def get_or_fetch_symbols(account_id: str, safe_log_fn) -> list[dict]:
     if not account_config:
         safe_log_fn(f"Account '{account_id}' not found for symbols fetch", type="warning")
         return cached or []  # Return stale cache if available
-    
+
+    # /start veya /stop bu hesapla meşgul: Start zaten MT5'e bağlanıp sembolleri
+    # önbelleğe yazar. Paralel bir bağlantı MT5 kilidini tutup onun süresini yerdi.
+    from src.utils.bot_watchdog import is_account_busy
+
+    if is_account_busy(account_id):
+        return cached or []
+
     # 3. Deduplicate in-flight requests
     with _IN_FLIGHT_LOCK:
         if account_id in _IN_FLIGHT:

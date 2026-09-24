@@ -439,7 +439,7 @@
     "unit": {
       "datum": "2026-09-24",
       "status": "passed",
-      "tests": 4
+      "tests": 6
     }
   },
   "SYM-02": {
@@ -519,6 +519,13 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    }
+  },
+  "SYS-06": {
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 11
     }
   },
   "UI-01": {
