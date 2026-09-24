@@ -525,7 +525,7 @@
     "unit": {
       "datum": "2026-09-24",
       "status": "passed",
-      "tests": 11
+      "tests": 24
     }
   },
   "UI-01": {

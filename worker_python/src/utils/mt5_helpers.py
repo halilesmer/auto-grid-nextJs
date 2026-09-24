@@ -20,6 +20,8 @@ from src.utils.paths import get_mt5_backup_dir
 from src.utils.mt5_errors import (
     parse_init_error,
     parse_login_error,
+    python_integration_error,
+    python_pipe_state,
     verify_account_environment,
 )
 
@@ -73,6 +75,8 @@ _MIN_ATTEMPT_SEC = 5
 # Asılı terminal ancak yeniden açılmasına bu kadar süre kaldıysa öldürülür;
 # yoksa terminal öldürülüp açılmadan bırakılırdı
 _RESTART_MIN_SEC = 30
+# Açılan terminalin Python kanalı bu aralıkla yoklanır
+_PIPE_POLL_SEC = 0.5
 
 
 def _last_error_code(mt5):
@@ -82,6 +86,29 @@ def _last_error_code(mt5):
 
 def _remaining(deadline):
     return deadline - time.monotonic()
+
+
+def _wait_for_python_pipe(path, deadline):
+    """Açılmakta olan terminalin Python kanalını bekler; son durumu döner (python_pipe_state).
+
+    initialize() kanal yoksa her denemede 60 sn bekler ve bu sürede tüm worker'ı kilitler;
+    burada ise kısa aralıklarla yoklanır ve kanal hiç gelmeyecekse (terminal
+    MT5_PIPE_STARTUP_SEC'ten eski) hemen "missing" döner.
+    """
+    state = python_pipe_state(path)
+    while state == "starting" and _remaining(deadline) > _MIN_ATTEMPT_SEC:
+        time.sleep(_PIPE_POLL_SEC)
+        state = python_pipe_state(path)
+    return state
+
+
+def _python_integration_missing(mt5, init_kwargs):
+    """initialize IPC hatasıyla bitti ve terminal açık ama Python kanalı yok mu?"""
+    return (
+        "path" in init_kwargs
+        and _last_error_code(mt5) in _IPC_ERROR_CODES
+        and python_pipe_state(init_kwargs["path"]) == "missing"
+    )
 
 
 def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2, deadline=None):
@@ -224,6 +251,11 @@ def connect_internal_helper(
         mt5.shutdown()
         time.sleep(0.2)
 
+        # Terminal açık ama Python kanalı yok ("Python integration" kapalı): initialize'ı
+        # hiç deneme, ayarı söyleyen net hatayı hemen dön. Açılmakta olan terminal beklenir.
+        if "path" in init_kwargs and _wait_for_python_pipe(init_kwargs["path"], deadline) == "missing":
+            return python_integration_error(safe_log_fn)
+
         can_restart = allow_restart and "path" in init_kwargs
         if can_restart:
             # İlk denemeye bütçenin yarısı: terminal asılıysa yeniden başlatmaya süre kalsın
@@ -232,6 +264,11 @@ def connect_internal_helper(
             init_success = _retry_initialize(mt5, init_kwargs, max_retries=1, deadline=first_deadline)
         else:
             init_success = _retry_initialize(mt5, init_kwargs, deadline=deadline)
+
+        # initialize terminali kendisi başlattıysa (ör. VPS yeniden başladıktan sonra) kanal
+        # eksikliği ancak burada görülür: yeniden başlatmak da işe yaramaz, net hata dön.
+        if not init_success and _python_integration_missing(mt5, init_kwargs):
+            return python_integration_error(safe_log_fn)
 
         # Terminal IPC'ye cevap vermiyor (asılı/donmuş, farklı yetkiyle açık veya hâlâ açılıyor):
         # SADECE bu hesabın terminalini (mt5_path) kapat; initialize(path) onu yeniden başlatır.
@@ -257,6 +294,8 @@ def connect_internal_helper(
                     init_success = _retry_initialize(mt5, init_kwargs, deadline=deadline)
 
     if not init_success:
+        if _python_integration_missing(mt5, init_kwargs):
+            return python_integration_error(safe_log_fn)
         return parse_init_error(mt5.last_error(), login_id, server, safe_log_fn)
 
     if login_id > 0:

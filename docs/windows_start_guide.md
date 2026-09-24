@@ -61,7 +61,8 @@ Hinweise:
 
 ### Vorbereitung (Einmalig)
 - **MetaTrader 5:** Muss geöffnet und eingeloggt sein.  
-  `Extras` ➔ `Optionen` ➔ `Experten` ➔ **☑ Algorithmic Trading erlauben** aktivieren.
+  `Extras` ➔ `Optionen` ➔ `Experten` ➔ **☑ Algorithmic Trading erlauben** aktivieren.  
+  `Extras` ➔ `Optionen` ➔ `Community` ➔ **☑ Python-Integration** muss angehakt sein. Ohne diesen Dienst legt das Terminal keinen Kanal für Python an; der Worker meldet dann „… 'Python integration' kutusunu işaretleyin …“. Die Einstellung wirkt erst nach einem Neustart von MT5. Ein Terminal, das schon lief, arbeitet deshalb bis zum nächsten VPS-Neustart weiter; der Fehler fällt erst danach auf (so am 24.09.2026).
 
 - **API-Schlüssel (`WORKER_API_KEY`):** Der Worker ist über ngrok öffentlich erreichbar. Ohne Schlüssel kann jeder, der die URL kennt, Bots starten/stoppen, Einstellungen ändern oder `/api/system/update` auslösen. Beim Start ohne Schlüssel schreibt der Worker deshalb `⚠️ WARNING: WORKER_API_KEY ayarlı değil …` in die Konsole.
   1. Schlüssel erzeugen (z. B. auf dem Mac): `openssl rand -hex 32`
