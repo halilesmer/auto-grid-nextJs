@@ -559,6 +559,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
+    },
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 3
     }
   },
   "UPD-03": {
