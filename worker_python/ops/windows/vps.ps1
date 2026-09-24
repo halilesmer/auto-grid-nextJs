@@ -26,6 +26,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Keine Fortschrittsanzeigen (landen per SSH sonst als CLIXML in der Ausgabe)
+$ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $WorkerDir = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -88,6 +90,9 @@ function Get-GitInfo {
     return $info
 }
 
+# Hinweis: Funktionsergebnisse immer mit @(...) umschliessen, bevor .Count benutzt wird.
+# PowerShell 5.1 packt ein einzelnes Ergebnis aus, und ein einzelnes CimInstance hat kein
+# .Count (-> $null, "0 Prozesse", obwohl einer laeuft).
 function Get-CmdWindows($pattern) {
     @(Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" | Where-Object { $_.CommandLine -like "*$pattern*" })
 }
@@ -119,15 +124,20 @@ function Get-Status {
         }
     }
 
-    $ngrokProcs = Get-NgrokProcesses
+    $ngrokProcs = @(Get-NgrokProcesses)
     $ngrok = @{ running = ($ngrokProcs.Count -gt 0); public_url = $null }
     try {
         $tunnels = Invoke-RestMethod -Uri 'http://127.0.0.1:4040/api/tunnels' -TimeoutSec 3 -UseBasicParsing
         $ngrok.public_url = ($tunnels.tunnels | Select-Object -First 1).public_url
     } catch {}
 
-    $bots = @(Get-CimInstance Win32_Process -Filter "Name like 'python%'" |
-        Where-Object { $_.CommandLine -like '*bot_runner.py*' } |
+    # .venv\Scripts\python.exe ist unter Windows nur ein Starter: er startet den echten Python
+    # mit derselben Befehlszeile als Kindprozess. Pro Bot nur den aeussersten Prozess zaehlen.
+    $botProcs = @(Get-CimInstance Win32_Process -Filter "Name like 'python%'" |
+        Where-Object { $_.CommandLine -like '*bot_runner.py*' })
+    $botPids = @($botProcs | ForEach-Object { $_.ProcessId })
+    $bots = @($botProcs |
+        Where-Object { $botPids -notcontains $_.ParentProcessId } |
         ForEach-Object {
             $account = ''
             if ($_.CommandLine -match 'bot_runner\.py"?\s+"?(\d+)') { $account = $Matches[1] }
@@ -144,9 +154,9 @@ function Get-Status {
         version = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { '' }
         git = Get-GitInfo
         worker = $worker
-        worker_watchdog = ((Get-CmdWindows 'run_uvicorn_watchdog.bat').Count -gt 0)
+        worker_watchdog = (@(Get-CmdWindows 'run_uvicorn_watchdog.bat').Count -gt 0)
         ngrok = $ngrok
-        ngrok_watchdog = ((Get-CmdWindows 'run_ngrok_watchdog.bat').Count -gt 0)
+        ngrok_watchdog = (@(Get-CmdWindows 'run_ngrok_watchdog.bat').Count -gt 0)
         bots = $bots
         mt5_terminals = @(Get-Process terminal64 -ErrorAction SilentlyContinue).Count
         session_active = (@(Get-Process explorer -ErrorAction SilentlyContinue).Count -gt 0)
@@ -170,7 +180,9 @@ function Get-Logs($which, $count) {
     if (-not (Test-Path $path)) {
         return @{ ok = $true; log = $which; lines = @(); note = "Noch keine Datei $($files[$which])" }
     }
-    $content = @(Get-Content $path -Tail $count -Encoding UTF8)
+    # "$_": Get-Content haengt jeder Zeile PSPath/PSProvider/... an; ConvertTo-Json (PS 5.1)
+    # serialisiert die mit (3 Zeilen -> ~6,7 MB JSON). Als reine Strings bleiben es Bytes.
+    $content = @(Get-Content $path -Tail $count -Encoding UTF8 | ForEach-Object { "$_" })
     return @{ ok = $true; log = $which; lines = $content }
 }
 
@@ -261,12 +273,12 @@ function Invoke-UpdateLocal {
 }
 
 function Invoke-RestartNgrok {
-    if ((Get-CmdWindows 'run_ngrok_watchdog.bat').Count -eq 0) {
+    if (@(Get-CmdWindows 'run_ngrok_watchdog.bat').Count -eq 0) {
         # Keine Neustart-Schleife fuer ngrok -> alles sauber ueber start.bat neu starten
         Start-Task $StartTask
         return @{ ok = $true; message = 'Kein ngrok-Watchdog aktiv - Worker und ngrok werden ueber start.bat neu gestartet.' }
     }
-    $procs = Get-NgrokProcesses
+    $procs = @(Get-NgrokProcesses)
     foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force }
     return @{ ok = $true; message = "ngrok beendet ($($procs.Count) Prozess(e)); der Watchdog startet ihn in ~3 s neu." }
 }

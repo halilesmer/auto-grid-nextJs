@@ -625,6 +625,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    },
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "VPS-04": {
@@ -638,7 +643,7 @@
     "unit": {
       "datum": "2026-09-24",
       "status": "passed",
-      "tests": 9
+      "tests": 10
     }
   },
   "ZON-01": {
