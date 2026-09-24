@@ -28,6 +28,13 @@ export function isVpsLog(value: string): value is VpsLog {
   return (VPS_LOGS as readonly string[]).includes(value);
 }
 
+// uvicorn färbt seine Konsole (ESC[32mINFO ESC[0m), die landen 1:1 in worker_console.log
+const ANSI_ESCAPE = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+
+export function stripAnsi(line: string): string {
+  return line.replace(ANSI_ESCAPE, '');
+}
+
 interface VpsTaskInfo {
   exists: boolean;
   state?: string;

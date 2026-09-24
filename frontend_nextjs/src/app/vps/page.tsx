@@ -62,6 +62,7 @@ export default function VpsPage() {
             />
             <VpsLogViewer
               logName={vps.logName}
+              status={vps.status}
               lines={vps.logLines}
               note={vps.logNote}
               loading={vps.logLoading}

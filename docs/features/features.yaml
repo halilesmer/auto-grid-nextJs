@@ -740,12 +740,13 @@ kategorien:
 
       - id: VPS-03
         titel: Logs vom VPS
-        beschreibung: Tabs Worker (logs/worker_console.log), ngrok (logs/ngrok.log) und Update (logs/vps_update.log), jeweils die letzten 300 Zeilen per SSH.
-        code: [frontend_nextjs/src/components/vps/VpsLogViewer.tsx, worker_python/ops/windows/vps.ps1]
+        beschreibung: Tabs Worker (logs/worker_console.log), ngrok (logs/ngrok.log) und Update (logs/vps_update.log), jeweils die letzten 300 Zeilen per SSH. Das Log lädt mit dem Status-Poll neu, Farbcodes von uvicorn werden entfernt; fehlt die Neustart-Schleife (dann gibt es kein Log), erklärt ein Hinweis den Klick auf „Worker neu starten“.
+        code: [frontend_nextjs/src/components/vps/VpsLogViewer.tsx, frontend_nextjs/src/components/vps/useVps.ts, worker_python/ops/windows/vps.ps1]
         tiers: [e2e]
         pruefung:
           - Tabs wechseln.
-        erwartet: Konsolenausgabe des Workers bzw. ngrok erscheint.
+          - Seite offen lassen, nachdem der VPS aktualisiert oder neu gestartet wurde.
+        erwartet: Konsolenausgabe des Workers bzw. ngrok erscheint ohne Farbcodes und aktualisiert sich von selbst; ein alter Fehler bleibt nicht stehen.
 
       - id: VPS-04
         titel: Schutz der VPS-Route

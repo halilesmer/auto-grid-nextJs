@@ -19,6 +19,12 @@ Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" |
     Where-Object { $_.CommandLine -like '*run_uvicorn_watchdog.bat*' -or $_.CommandLine -like '*run_ngrok_watchdog.bat*' } |
     ForEach-Object { Stop-Pid $_.ProcessId 'Alter Watchdog' }
 
+# 1b) ngrok-Fenster der alten start.bat (cmd /k "ngrok http 8000 ..."): ohne das bliebe nach
+#     Schritt 3 ein leerer Prompt offen, neben dem neuen run_ngrok_watchdog.bat-Fenster
+Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" |
+    Where-Object { $_.CommandLine -like '*/k*ngrok http 8000*' } |
+    ForEach-Object { Stop-Pid $_.ProcessId 'Altes ngrok-Fenster' }
+
 # 2) Alter Worker auf Port 8000 (+ .venv-Starter)
 foreach ($conn in Get-NetTCPConnection -LocalPort 8000 -State Listen) {
     $p = Get-CimInstance Win32_Process -Filter "ProcessId=$($conn.OwningProcess)"
