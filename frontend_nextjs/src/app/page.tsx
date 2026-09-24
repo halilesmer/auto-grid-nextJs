@@ -8,7 +8,6 @@ import { useDashboard } from '@/app/hooks/useDashboard';
 import AccountSelector from '@/components/account/AccountSelector';
 import BotControls from '@/components/BotControls';
 import ConfirmModal from '@/components/ConfirmModal';
-import ErrorToast from '@/components/ui/ErrorToast';
 import LogViewer from '@/components/LogViewer';
 import SettingsForm from '@/components/SettingsForm';
 import SimulationBar from '@/components/SimulationBar';
@@ -35,7 +34,6 @@ export default function Home() {
 
   const {
     saveAllLoading,
-    saveAllError,
     shutdownOpen,
     shuttingDown,
     showSysInfo,
@@ -47,7 +45,6 @@ export default function Home() {
     handleShutdown,
     handleCheckUpdates,
     handleApplyUpdate,
-    setSaveAllError,
     setShowSysInfo,
     setShutdownOpen,
     setUpdateOpen,
@@ -173,13 +170,6 @@ export default function Home() {
       <AccountSelector />
 
       {selectedAccount && <SimulationBar />}
-
-      {saveAllError && (
-        <ErrorToast
-          message={saveAllError}
-          onDismiss={() => setSaveAllError('')}
-        />
-      )}
 
       {selectedAccount ? (
         <>

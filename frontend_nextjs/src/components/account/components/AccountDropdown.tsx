@@ -1,8 +1,17 @@
 'use client';
 
 import { Wallet } from 'lucide-react';
+import { Combobox } from '@/components/ui/combobox';
 import { EnvTypeBadge } from './EnvTypeBadge';
-import type { AccountDropdownProps } from '../types';
+import type { Account, AccountDropdownProps } from '../types';
+
+const getAccountKey = (acc: Account) => String(acc.id);
+const getAccountLabel = (acc: Account) => `${acc.account_name} (${acc.id})`;
+// Ad, ID ve login üzerinden arama
+const filterAccount = (acc: Account, q: string) =>
+  acc.account_name.toLowerCase().includes(q) ||
+  String(acc.id).toLowerCase().includes(q) ||
+  String(acc.login ?? '').includes(q);
 
 export function AccountDropdown({
   accounts,
@@ -20,22 +29,34 @@ export function AccountDropdown({
         <span className="text-xs font-medium text-muted-foreground">
           MT5 Account
         </span>
-        <select
-          className="input-s font-medium"
-          value={selectedAccount || ''}
-          onChange={(e) => onSelect(e.target.value)}
+        <Combobox
+          items={accounts}
+          value={selectedAccount || null}
+          onChange={onSelect}
+          getKey={getAccountKey}
+          getLabel={getAccountLabel}
+          filter={filterAccount}
+          renderItem={(acc) => (
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-medium">{getAccountLabel(acc)}</span>
+              <span
+                className={
+                  acc.env_type === 'LIVE'
+                    ? 'shrink-0 text-[11px] font-semibold text-danger'
+                    : 'shrink-0 text-[11px] font-semibold text-info'
+                }
+              >
+                {acc.env_type}
+              </span>
+            </div>
+          )}
+          placeholder="-- Select an account --"
+          searchPlaceholder="Search account…"
+          emptyMessage="No account found"
           disabled={disabled}
+          className="font-medium"
           aria-label="Select Account"
-        >
-          <option value="" disabled>
-            -- Select an account --
-          </option>
-          {accounts.map((acc) => (
-            <option key={acc.id} value={acc.id}>
-              {acc.account_name} ({acc.id})
-            </option>
-          ))}
-        </select>
+        />
       </div>
       {activeAccount && (
         <div className="hidden self-end pb-2 md:block">

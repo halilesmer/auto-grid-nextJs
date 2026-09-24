@@ -176,22 +176,9 @@ export default function AccountSelector() {
     setDuplicateAccount(null);
   }, [duplicateAccount, resetForm, scanAndSyncPath, selectAccount]);
 
-  useEffect(() => {
-    if (duplicateAccount) {
-      // Using setTimeout to defer state update and satisfy lint rule
-      // window.confirm is synchronous but we need to update state after
-      setTimeout(() => {
-        const confirmed = window.confirm(
-          `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
-        );
-        handleDuplicateConfirm(confirmed);
-      }, 0);
-    }
-  }, [duplicateAccount, handleDuplicateConfirm]);
-
   return (
     <>
-      <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between">
+      <Card className="relative z-20 flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between">
         <AccountDropdown
           accounts={storeAccounts}
           selectedAccount={selectedAccount}
@@ -240,6 +227,20 @@ export default function AccountSelector() {
         message={`Are you sure you want to delete ${activeAccount?.account_name}? This action cannot be undone.`}
         variant="danger"
         loading={isSaving}
+      />
+
+      <ConfirmModal
+        open={!!duplicateAccount}
+        onClose={() => handleDuplicateConfirm(false)}
+        onConfirm={() => handleDuplicateConfirm(true)}
+        title="Account already exists"
+        message={
+          duplicateAccount
+            ? `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
+            : ''
+        }
+        confirmLabel="Edit"
+        variant="warning"
       />
     </>
   );

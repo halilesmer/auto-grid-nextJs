@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AppNav from "@/components/layout/AppNav";
 import ThemeSync from "@/components/layout/ThemeSync";
+import { Toaster } from "@/components/ui/animated-toast";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeSync />
         <AppNav />
         <main className="flex-1">{children}</main>
+        <Toaster />
         <script
           dangerouslySetInnerHTML={{
             __html: `
