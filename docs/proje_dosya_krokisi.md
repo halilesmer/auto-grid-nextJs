@@ -176,7 +176,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃   ┣ 📜 console_tee.py       # Worker konsolunu logs/worker_console.log'a da yazar (VPS sayfası okur)
 ┃ ┃   ┣ 📜 config.py            # Konfigürasyon okuma/yazma
 ┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
-┃ ┃   ┣ 📜 mt5_errors.py        # Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi killer (180 sn'den genç terminale dokunmaz), LIVE/DEMO güvenlik
+┃ ┃   ┣ 📜 mt5_errors.py        # Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi killer (180 sn'den genç terminale dokunmaz), Python kanalı kontrolü ('Python integration' kapalıysa net hata), LIVE/DEMO güvenlik
 ┃ ┃   ┣ 📜 mt5_helpers.py       # İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
 ┃ ┃   ┣ 📜 paths.py             # Yol yönetimi
 ┃ ┃   ┣ 📜 profiler.py          # Performans ölçümü
@@ -284,7 +284,7 @@ grid_orchestrator (Ana Orkestratör)
 ```
 
 **Hata Yönetimi Katmanı:**
-- `mt5_errors.py`: Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi MT5 process killer (açılmakta olan, 180 sn'den genç terminali öldürmez), LIVE/DEMO güvenlik doğrulaması
+- `mt5_errors.py`: Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi MT5 process killer (açılmakta olan, 180 sn'den genç terminali öldürmez), Python kanalı (named pipe `MT5.Terminal.<SHA-256>`) kontrolü: terminal açık ama kanal yoksa MT5'te 'Python integration' kapalıdır, initialize denenmeden net hata döner, LIVE/DEMO güvenlik doğrulaması
 - `mt5_helpers.py`: İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
 - `api/errors.py`: Merkezi API hata yönetimi, standart hata response formatı
 

@@ -1,17 +1,21 @@
-"""SYS-06 MT5-Verbindung: startendes Terminal wird nicht beendet, Timeout ist ein Gesamtbudget.
+"""SYS-06 MT5-Verbindung: startendes Terminal wird nicht beendet, Timeout ist ein Gesamtbudget,
+fehlende „Python integration“ wird sofort gemeldet.
 
 Nachgestellt ist der VPS-Kaltstart vom 2026-09-24: /start (120 s) und die Symbolabfrage
 (15 s) verbanden sich gleichzeitig, beendeten sich gegenseitig das startende terminal64.exe,
-und /start antwortete erst nach ~19 min.
+und /start antwortete erst nach ~19 min. Danach am selben Tag: In MT5 war unter
+Optionen → Community „Python integration“ abgewählt; das Terminal legte seinen Python-Kanal
+(named pipe) nie an, und jeder Versuch wartete 60 s auf -10003.
 
 Simuliert (ohne MetaTrader5/psutil-Prozesse):
 - eine Uhr (mt5_helpers/mt5_errors/mt5_connection benutzen sie statt `time`),
-- terminal64.exe-Prozesse mit Startzeit, Bootdauer und „hängt“,
+- terminal64.exe-Prozesse mit Startzeit, Bootdauer, „hängt“ und Python-Kanal (named pipe),
 - BootingMT5: initialize(path, timeout) startet das Terminal bei Bedarf und wartet höchstens
-  `timeout` ms auf dessen IPC; sonst -10005.
+  `timeout` ms auf dessen IPC; sonst -10005 (bzw. -10003, wenn der Kanal fehlt).
 """
 import asyncio
 import itertools
+import os
 import sys
 import threading
 import time
@@ -50,6 +54,11 @@ class SimTerminal:
     created: float
     boot_sec: float
     hung: bool = False
+    python_integration: bool = True
+    pipe_sec: float = 3.0  # so schnell legte das echte Terminal seinen Python-Kanal an
+
+    def has_pipe(self, now):
+        return self.python_integration and now - self.created >= self.pipe_sec
 
 
 class BootingMT5(FakeMT5):
@@ -58,15 +67,21 @@ class BootingMT5(FakeMT5):
         self.clock = clock
         self.exe = exe
         self.boot_sec = boot_sec
+        self.python_integration = True  # für Terminals, die initialize selbst startet
         self.procs: list[SimTerminal] = []
         self.killed: list[int] = []
         self.init_timeouts: list[float] = []
         self.ipc = False
         self._pids = itertools.count(2508)
 
-    def start_terminal(self, age=0.0, boot_sec=None, hung=False) -> SimTerminal:
+    def start_terminal(self, age=0.0, boot_sec=None, hung=False, python_integration=None, pipe_sec=3.0) -> SimTerminal:
         term = SimTerminal(
-            next(self._pids), self.clock.now - age, self.boot_sec if boot_sec is None else boot_sec, hung
+            next(self._pids),
+            self.clock.now - age,
+            self.boot_sec if boot_sec is None else boot_sec,
+            hung,
+            self.python_integration if python_integration is None else python_integration,
+            pipe_sec,
         )
         self.procs.append(term)
         return term
@@ -80,13 +95,16 @@ class BootingMT5(FakeMT5):
             self.start_terminal()  # initialize(path) startet das Terminal selbst
         term = self.procs[0]
         ready_in = term.created + term.boot_sec - self.clock.now
-        if not term.hung and ready_in <= wait:
+        if term.python_integration and not term.hung and ready_in <= wait:
             self.clock.sleep(ready_in)
             self.ipc = True
             self._last_error = (1, "Success")
             return True
         self.clock.sleep(wait)
-        self._last_error = (-10005, "IPC timeout")
+        if term.has_pipe(self.clock.now):
+            self._last_error = (-10005, "IPC timeout")
+        else:
+            self._last_error = (-10003, "IPC initialize failed, Pipe server didn't answer in 60 sec")
         return False
 
     def shutdown(self):
@@ -103,9 +121,13 @@ class BootingMT5(FakeMT5):
     def account_info(self):
         return self.account if self.ipc else None
 
-    # ------------------------------------------------------------------ psutil-Ersatz
+    # ------------------------------------------------------------------ psutil-/Pipe-Ersatz
     def process_iter(self, attrs=None):
         return [_FakeProc(self, t) for t in list(self.procs)]
+
+    def pipes(self):
+        name = me.mt5_pipe_name(os.path.realpath(self.exe))
+        return [name] if any(t.has_pipe(self.clock.now) for t in self.procs) else []
 
 
 class _FakeProc:
@@ -143,6 +165,7 @@ def mt5_env(tmp_path, monkeypatch):
     for mod in (mh, me, mc):
         monkeypatch.setattr(mod, "time", clock)
     monkeypatch.setattr(me.psutil, "process_iter", sim.process_iter)
+    monkeypatch.setattr(me, "_list_pipes", sim.pipes)
 
     account = {"login": LOGIN, "password": "pw", "server": "Fake-Demo", "type": "DEMO", "mt5_path": str(exe)}
     return sim, clock, account, logs
@@ -289,3 +312,109 @@ def test_init_fehler_10004_ist_kein_passwortfehler():
     ok, detail = me.parse_init_error((-10004, "No IPC connection"), LOGIN, "Fake-Demo", lambda *a, **k: None)
     assert not ok
     assert "-10004" in detail and "şifre" not in detail.lower()
+
+
+# --------------------------------------------------------------------------- Python integration
+PYTHON_INTEGRATION_HINT = "Python integration"
+
+
+@pytest.mark.feature("SYS-06")
+def test_pipe_name_wie_die_metatrader5_bibliothek():
+    """Name des Kanals, den das Terminal auf dem VPS für diesen Pfad anlegte."""
+    assert me.mt5_pipe_name(r"C:\Program Files\MT5_EC_D_H_34\terminal64.exe") == (
+        "MT5.Terminal.D265C4EC8A33037D96297AAEB6A2278C22A89E6FA5555FB4BE6CD1A53EA0E5E8"
+    )
+
+
+@pytest.mark.feature("SYS-06")
+@pytest.mark.parametrize("timeout, allow_restart", [(120, True), (15, False)])  # /start bzw. Symbolabfrage
+def test_offenes_terminal_ohne_python_integration_sofort_klare_meldung(mt5_env, timeout, allow_restart):
+    """Vorher: 60 s pro initialize-Versuch, dann -10003 „gleiche Adminrechte?“; Neustart half nie."""
+    sim, clock, account, logs = mt5_env
+    sim.start_terminal(age=600, python_integration=False)
+
+    ok, is_timeout, detail, elapsed = _connect(account, clock, timeout, allow_restart=allow_restart)
+
+    assert not ok and not is_timeout
+    assert PYTHON_INTEGRATION_HINT in detail and "Community" in detail
+    assert sim.initialize_calls == 0
+    assert sim.killed == []
+    assert elapsed < 1
+
+
+@pytest.mark.feature("SYS-06")
+def test_kaltstart_ohne_python_integration_meldet_nach_erstem_versuch(mt5_env):
+    """initialize startet das Terminal selbst (VPS-Neustart): ein Versuch, kein Neustart, klare Meldung."""
+    sim, clock, account, _ = mt5_env
+    sim.python_integration = False
+
+    ok, is_timeout, detail, elapsed = _connect(account, clock, 120)
+
+    assert not ok and not is_timeout
+    assert PYTHON_INTEGRATION_HINT in detail
+    assert sim.initialize_calls == 1
+    assert sim.killed == []
+    assert elapsed <= 60.5  # erster Versuch = halbes Budget; vorher 120 s und -10003
+
+
+@pytest.mark.feature("SYS-06")
+@pytest.mark.parametrize(
+    "python_integration, expect_ok, max_elapsed",
+    [
+        (True, True, 12 + 2),  # Kanal nach 10 s, IPC nach 12 s: normal verbinden (+ Login/Sync)
+        (False, False, me.MT5_PIPE_STARTUP_SEC + 1),  # Kanal kommt nie: Meldung, sobald das Terminal 30 s alt ist
+    ],
+)
+def test_startendes_terminal_wird_auf_python_kanal_abgewartet(mt5_env, python_integration, expect_ok, max_elapsed):
+    sim, clock, account, _ = mt5_env
+    sim.start_terminal(age=0, boot_sec=12, pipe_sec=10, python_integration=python_integration)
+
+    ok, _, detail, elapsed = _connect(account, clock, 120)
+
+    assert ok == expect_ok, detail
+    assert (PYTHON_INTEGRATION_HINT in (detail or "")) == (not expect_ok)
+    assert elapsed <= max_elapsed
+    assert sim.killed == []
+
+
+@pytest.mark.feature("SYS-06")
+def test_kanal_eines_anderen_terminals_blockiert_nicht(mt5_env, monkeypatch):
+    """Zweites Konto mit eigenem Terminal: ohne Gewissheit keine Sperre, sondern normaler Versuch."""
+    sim, clock, account, _ = mt5_env
+    sim.start_terminal(age=600, python_integration=False)
+    monkeypatch.setattr(me, "_list_pipes", lambda: ["MT5.Terminal.0123ABCD", "MT5.Terminal.Debugger.0123ABCD"])
+
+    ok, _, detail, _ = _connect(account, clock, 15, allow_restart=False)
+
+    assert not ok
+    assert sim.initialize_calls >= 1
+    assert PYTHON_INTEGRATION_HINT not in detail
+
+
+@pytest.mark.feature("SYS-06")
+@pytest.mark.parametrize(
+    "pipes, age, expected",
+    [
+        (None, 600, "unknown"),  # Kanäle nicht lesbar (kein Windows)
+        ([], None, "unknown"),  # Startzeit unlesbar
+        ([], 600, "missing"),
+        ([], 5, "starting"),
+        (["MT5.Terminal.Debugger.ABC"], 600, "missing"),  # MetaEditor-Debugger-Kanal zählt nicht
+    ],
+)
+def test_python_pipe_state(mt5_env, monkeypatch, pipes, age, expected):
+    sim, _, account, _ = mt5_env
+    term = sim.start_terminal(age=600 if age is None else age, python_integration=False)
+    if age is None:
+        monkeypatch.setattr(me.psutil, "process_iter", lambda attrs=None: [_FakeProc(sim, term, create_time=None)])
+    monkeypatch.setattr(me, "_list_pipes", lambda: pipes)
+
+    assert me.python_pipe_state(account["mt5_path"]) == expected
+
+
+@pytest.mark.feature("SYS-06")
+def test_python_pipe_state_ohne_terminal_und_mit_kanal(mt5_env):
+    sim, _, account, _ = mt5_env
+    assert me.python_pipe_state(account["mt5_path"]) == "no_terminal"
+    sim.start_terminal(age=600)
+    assert me.python_pipe_state(account["mt5_path"]) == "ready"
