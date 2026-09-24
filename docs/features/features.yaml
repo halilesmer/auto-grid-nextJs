@@ -69,6 +69,16 @@ kategorien:
           - Checkbox „eigener Pfad“ aktivieren.
         erwartet: Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
 
+      - id: SYS-05
+        titel: API-Schlüssel (WORKER_API_KEY)
+        beschreibung: Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet NEXT_PUBLIC_WORKER_API_KEY mit. Ohne Variable bleibt der Worker offen (mit Warnung beim Start).
+        code: [worker_python/src/api/auth.py, worker_python/main.py, worker_python/src/api/ws_server.py, frontend_nextjs/src/lib/api.ts]
+        tiers: [api, live]
+        pruefung:
+          - WORKER_API_KEY auf dem VPS setzen, Worker neu starten.
+          - Dashboard mit passendem NEXT_PUBLIC_WORKER_API_KEY öffnen; danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
+        erwartet: Dashboard funktioniert normal; der direkte Aufruf ohne Schlüssel liefert 401.
+
   # ---------------------------------------------------------------------------
   - id: ACC
     titel: Konten
@@ -145,6 +155,16 @@ kategorien:
         pruefung:
           - Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
         erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ACC-09
+        titel: Passwort nie in API-Antworten
+        beschreibung: Der Worker gibt MT5-Passwörter in keiner Antwort zurück (Liste, Anlegen, Bearbeiten, 409-Problem), sondern nur has_password. Leeres Passwort beim Bearbeiten = unverändert.
+        code: [worker_python/src/api/accounts.py, worker_python/src/api/helpers.py, frontend_nextjs/src/components/account/hooks/useAccountForm.ts]
+        tiers: [api]
+        pruefung:
+          - DevTools → Network → Antwort von /api/accounts ansehen.
+          - Konto bearbeiten, Passwortfeld leer lassen, speichern.
+        erwartet: Kein Feld „password“ in der Antwort; das Konto verbindet sich danach weiterhin (Passwort unverändert).
 
   # ---------------------------------------------------------------------------
   - id: SET

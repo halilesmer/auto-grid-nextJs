@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-23 · **55/71** abgehakt · ❌ 2 mit Fehlern · 🐞 3 bekannte Fehler
+**Stand:** 2026-09-24 · **65/73** abgehakt · ❌ 2 mit Fehlern · 🐞 3 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -14,15 +14,15 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 | # | Kategorie | Stand |
 |---|---|---|
-| 1 | **SYS** – Verbindung & Infrastruktur | 4/4 |
-| 2 | **ACC** – Konten | 4/8 |
+| 1 | **SYS** – Verbindung & Infrastruktur | 5/5 |
+| 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 5/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 8/9 |
-| 6 | **BOT** – Bot-Steuerung | 3/6 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 9/9 |
+| 6 | **BOT** – Bot-Steuerung | 5/6 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 15/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
-| 9 | **LOG** – Logs | 5/6 |
+| 9 | **LOG** – Logs | 6/6 |
 | 10 | **UPD** – System & Updates | 1/5 |
 | 11 | **UI** – Oberfläche | 3/4 |
 
@@ -38,37 +38,41 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [x] **SYS-03** Plattform-Erkennung *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-03** Plattform-Erkennung *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /system/platform meldet, ob der Worker unter Windows läuft (steuert u. a. die Anzeige des Preis-Simulators).
   - **Prüfung:** Dashboard gegen den VPS-Worker öffnen.
   - **Erwartet:** Auf Windows wird die „Mac Test Mode“-Leiste NICHT angezeigt.
   - 📝 Claude: /system/platform → 200 {is_windows: true, platform: win32}; 'Mac Test Mode'-Leiste nicht sichtbar
-- [x] **SYS-04** MT5-Terminal-Scanner *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-04** MT5-Terminal-Scanner *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /system/scan-mt5 sucht terminal64.exe auf dem VPS; der Konto-Dialog bietet die Pfade zur Auswahl an (Rescan, eigener Pfad).
   - **Prüfung:** „Neues Konto“ öffnen, Feld MT5-Pfad ansehen, „Rescan“ klicken. → Checkbox „eigener Pfad“ aktivieren.
   - **Erwartet:** Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
   - 📝 Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto); Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, 'Manuel Gir' ersetzt Auswahl durch Textfeld; Dialog ohne Speichern geschlossen
+- [x] **SYS-05** API-Schlüssel (WORKER_API_KEY) *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🌐 live ⏳
+  - Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet NEXT_PUBLIC_WORKER_API_KEY mit. Ohne Variable bleibt der Worker offen (mit Warnung beim Start).
+  - **Prüfung:** WORKER_API_KEY auf dem VPS setzen, Worker neu starten. → Dashboard mit passendem NEXT_PUBLIC_WORKER_API_KEY öffnen; danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
+  - **Erwartet:** Dashboard funktioniert normal; der direkte Aufruf ohne Schlüssel liefert 401.
 
 ## 2. ACC – Konten
 
-- [x] **ACC-01** Kontoliste laden *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-01** Kontoliste laden *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /accounts liefert alle Konten aus configs/accounts.json; das Dropdown zeigt sie an und schreibt sie in useAccountStore.
   - **Prüfung:** Dashboard öffnen, Dropdown „Select Account“ aufklappen.
   - **Erwartet:** Alle registrierten Konten erscheinen (inkl. DEMO-Testkonto).
   - 📝 Claude: /accounts → 1 Konto (7942034, DEMO, Eightcap-Demo), Dropdown zeigt genau dieses
-- [ ] **ACC-02** Konto anlegen + Validierung — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **ACC-02** Konto anlegen + Validierung *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳
   - Dialog „New MT5 Account“; Pflichtfelder Name, Login, Passwort, Server, MT5-Pfad; Notizen max. 1000 Zeichen; POST /accounts.
   - **Prüfung:** „Add new account“ klicken, leer absenden. → (Nur mit einem Wegwerf-Konto!) Alle Felder ausfüllen und speichern.
   - **Erwartet:** Leeres Formular zeigt Pflichtfeld-Fehler; gültiges Konto erscheint danach im Dropdown.
-- [ ] **ACC-03** Doppelter Login — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **ACC-03** Doppelter Login *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳
   - Gleicher Login wie ein bestehendes Konto → Rückfrage „bestehendes Konto bearbeiten?“; der Worker antwortet mit 409 (RFC-7807-Problem).
   - **Prüfung:** Neues Konto mit dem Login eines vorhandenen Kontos anlegen.
   - **Erwartet:** Browser-Rückfrage erscheint; es entsteht kein zweites Konto.
-- [ ] **ACC-04** Konto bearbeiten — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **ACC-04** Konto bearbeiten *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳
   - PUT /accounts/{id}; gesperrt, solange der Bot läuft.
   - **Prüfung:** Konto wählen, „Edit account“, Notiz ändern, speichern.
   - **Erwartet:** Änderung bleibt nach Neuladen erhalten; bei laufendem Bot ist der Button deaktiviert.
-- [ ] **ACC-05** Konto löschen — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **ACC-05** Konto löschen *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳
   - DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft.
   - **Prüfung:** (Nur Wegwerf-Konto!) „Delete account“ → bestätigen.
   - **Erwartet:** Konto verschwindet aus dem Dropdown; bei laufendem Bot ist der Button deaktiviert.
@@ -82,14 +86,18 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** DEMO-Konto wählen.
   - **Erwartet:** Badge zeigt TEST/DEMO, nicht LIVE.
   - 📝 Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis: ohne Kontoauswahl zeigt der Header ebenfalls TEST
-- [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-09-23
+- [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-09-24
   - Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
   - **Prüfung:** Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ACC-09** Passwort nie in API-Antworten — 🔌 api ✅ 2026-09-24
+  - Der Worker gibt MT5-Passwörter in keiner Antwort zurück (Liste, Anlegen, Bearbeiten, 409-Problem), sondern nur has_password. Leeres Passwort beim Bearbeiten = unverändert.
+  - **Prüfung:** DevTools → Network → Antwort von /api/accounts ansehen. → Konto bearbeiten, Passwortfeld leer lassen, speichern.
+  - **Erwartet:** Kein Feld „password“ in der Antwort; das Konto verbindet sich danach weiterhin (Passwort unverändert).
 
 ## 3. SET – Allgemeine Einstellungen
 
-- [x] **SET-01** Einstellungen laden *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SET-01** Einstellungen laden *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
   - **Prüfung:** Konto wählen.
   - **Erwartet:** Zonen und Kontroll-Intervall entsprechen der Datei auf dem VPS.
@@ -104,17 +112,17 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
-- [x] **SET-04** Werte bereinigen (Sanitizing) *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-09-24 · 🔌 api ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
   - **Prüfung:** Lot 0.0100000001 eingeben und speichern.
   - **Erwartet:** Gespeichert wird 0.01.
   - 📝 Claude: POST LOOP_INTERVAL_SECONDS 1.00000001 → gespeichert als 1.0
-- [x] **SET-05** Einstellungen zusammenführen (Merge) *(teilweise)* — 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SET-05** Einstellungen zusammenführen (Merge) — 🔌 api ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - POST /settings/{id} führt die neuen Werte mit der bestehenden Datei zusammen, statt sie zu überschreiben.
   - **Prüfung:** Nur das Intervall speichern.
   - **Erwartet:** Zonen bleiben unverändert.
   - 📝 Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen danach identisch mit Sicherung
-- [ ] **SET-06** Globale Standardwerte (GLOBAL_*) — 🧪 unit 🐞 2026-09-23
+- [ ] **SET-06** Globale Standardwerte (GLOBAL_*) — 🧪 unit 🐞 2026-09-24
   - Standardwerte GLOBAL_GRID_STEP, GLOBAL_TAKE_PROFIT, GLOBAL_DEFAULT_LOT, MAX_OPEN_POSITIONS, MIN/MAX_PRICE_LIMIT, CLEAR_ON_ZONE_EXIT in utils/config.py.
   - **Prüfung:** Nicht manuell testbar.
   - **Erwartet:** Die Engine sollte diese Werte als Fallback nutzen.
@@ -122,7 +130,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 4. SYM – Symbole
 
-- [x] **SYM-01** Symbolliste + Cache *(teilweise)* — 🧪 unit ⏳ · 🔌 api ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SYM-01** Symbolliste + Cache *(teilweise)* — 🧪 unit ✅ 2026-09-24 · 🔌 api ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /symbols/{id} liefert Broker-Symbole aus broker_symbols.json; 1-h-Cache, bei Ablauf wird die alte Liste geliefert und im Hintergrund aktualisiert (doppelte Anfragen werden zusammengelegt).
   - **Prüfung:** Zone öffnen, ins Symbolfeld klicken.
   - **Erwartet:** Symbolliste des Brokers erscheint schnell (auch bei wiederholtem Öffnen).
@@ -175,7 +183,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Schalter an → Auswahlfelder prüfen; Auslöser „Mum Kapanışı“ wählen.
   - **Erwartet:** Die vier Auswahlfelder erscheinen erst mit dem Schalter; Zeitrahmen nur bei Kerzenschluss.
   - 📝 Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da; BUY (Yukarı)/Hepsi/Tüm İşlemler; 'Mum Kapanışı' blendet Zaman Dilimi (M1–D1) ein, H1 gespeichert
-- [ ] **ZON-08** Start/Pause pro Zone — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳
+- [x] **ZON-08** Start/Pause pro Zone *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 🌐 live ⏳
   - Button im Zonenkopf (Başladı / Başla / Hazır / Kapalı) setzt is_active (POST /settings) und START/PAUSE in ui_state (POST /ui-state); Warnung bei ungültigem Symbol oder ungespeicherter Zone.
   - **Prüfung:** Test-Zone starten und wieder pausieren. → Neue, ungespeicherte Zone starten.
   - **Erwartet:** Label wechselt passend; ungespeicherte Zone zeigt eine Warnung.
@@ -197,7 +205,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** „Stop Bot“ → bestätigen; in MT5 die offenen Positionen prüfen.
   - **Erwartet:** Status „Stopped“; Positionen sind noch da.
   - 📝 Claude (DEMO 7942034): 'Stop Bot' → Dialog 'Disconnect MT5' → Stopped nach ~5 s, bot_running=false, Zone 'Hazır (Motor Bekleniyor)'; Log: 'Açık pozisyon/emirlere dokunulmuyor'. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders (vorher 14/5)
-- [x] **BOT-03** Neustart veralteter/hängender Bot *(teilweise)* — 🧪 unit ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **BOT-03** Neustart veralteter/hängender Bot — 🧪 unit ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Läuft ein Bot mit alter VERSION oder ohne frische Metriken (> 180 s), startet /start ihn neu; beim Worker-Start übernimmt startup_maintenance laufende Bots.
   - **Prüfung:** Nach einem Update „Restart Bot“ klicken.
   - **Erwartet:** Bot läuft danach mit der neuen Version (PID-Datei enthält neue VERSION).
@@ -206,78 +214,78 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Anzeige Connecting / Running / „process without MT5“ / Stopped, Marktstatus, Kontoname/Server; Alarme für API-Fehler, MT5-Verbindung, abgelehnte Order, Algo Trading aus.
   - **Prüfung:** In MT5 „Algo Trading“ ausschalten, während der Bot läuft.
   - **Erwartet:** Alarm „Algo Trading off“ erscheint; nach Einschalten verschwindet er.
-- [ ] **BOT-05** Watchdog-Neustart — 🧪 unit ⏳
+- [x] **BOT-05** Watchdog-Neustart — 🧪 unit ✅ 2026-09-24
   - Alle 15 s Prüfung; abgestürzter oder hängender Bot (600 s ohne Metriken) wird mit Backoff 15/30/60/120/240 s neu gestartet.
   - **Prüfung:** Auf dem VPS den bot_runner-Prozess im Task-Manager beenden.
   - **Erwartet:** Nach ≤ 30 s läuft der Bot wieder (Robot-Log zeigt Neustart).
-- [ ] **BOT-06** Watchdog gibt auf — 🧪 unit ⏳
+- [x] **BOT-06** Watchdog gibt auf — 🧪 unit ✅ 2026-09-24
   - Nach 5 Neustarts in 30 min hört der Watchdog auf; gelöschte Konten werden nicht mehr beobachtet.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 
 ## 7. ENG – Grid-Engine (Handelslogik)
 
-- [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-09-24
   - Aktiv wird die erste aktive Zone, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt.
   - **Prüfung:** Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen.
   - **Erwartet:** Orders entstehen nur in der Zone, in der der Preis liegt.
-- [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-09-24
   - Level werden an round(mid/step)*step verankert, levels_below/levels_above Stufen, auf die Zone begrenzt; acceptable-Sets mit ±2 Stufen Puffer.
   - **Prüfung:** Bot laufen lassen, Pending Orders in MT5 ansehen.
   - **Erwartet:** Orders liegen im Gridabstand um den Preis, nie außerhalb der Zone.
-- [x] **ENG-03** Breakout / Pullback — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-03** Breakout / Pullback — 🧪 unit ✅ 2026-09-24
   - Im Breakout-Modus nur Orders in Trendrichtung, mit pullback_distance / sell_pullback_distance.
   - **Prüfung:** Breakout-Zone aktivieren, Orders ansehen.
   - **Erwartet:** Orders nur in Trendrichtung und im Pullback-Abstand.
-- [x] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ✅ 2026-09-24
   - extract_zone_config liest order_type, grid_step, lot_size (auf 0,01–5,0 begrenzt), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳
+- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-09-24 · 🌐 live ⏳
   - Fehlende Level bekommen Pending Orders mit TP/SL; LIMIT oder STOP je nach Seite des Marktes; Toleranz 0,45 × Gridabstand; manuelle Positionen zählen als belegte Level.
   - **Prüfung:** Test-Zone (0,01 Lot) um den aktuellen Preis starten.
   - **Erwartet:** BUY LIMIT unter / BUY STOP über dem Preis (bzw. SELL umgekehrt), jeweils mit TP/SL.
-- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-09-24
   - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen).
   - **Prüfung:** Bei laufendem Bot TP der Zone ändern und speichern.
   - **Erwartet:** Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
-- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳
+- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-09-24 · 🌐 live ⏳
   - Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht.
   - **Prüfung:** Maks Pozisyon = 1 setzen und eine Position füllen lassen.
   - **Erwartet:** Danach keine Pending Orders mehr in dieser Zone.
-- [x] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ✅ 2026-09-24
   - Geänderte TP/SL-Werte werden auf offene Positionen übertragen; bei Teilausführung wird das Restlot neu gesendet.
   - **Prüfung:** Bei offener Position den TP der Zone ändern und speichern.
   - **Erwartet:** TP der offenen Position wird angepasst.
-- [x] **ENG-09** Zombie-Orders entfernen — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-09** Zombie-Orders entfernen — 🧪 unit ✅ 2026-09-24
   - Orders pausierter, bereinigter, inaktiver Zonen oder mit falschem Symbol werden gelöscht.
   - **Prüfung:** Zone mit offenen Orders pausieren.
   - **Erwartet:** Ihre Pending Orders verschwinden.
-- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳
+- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-09-24 · 🌐 live ⏳
   - Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart).
   - **Prüfung:** Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt. → Warten, bis der Preis zurückkommt; dann „Yeniden Başlat“ in der Zone klicken.
   - **Erwartet:** Orders (bei „Tüm İşlemler“ auch Positionen) werden entfernt; die Zone zeigt „Otomatik temizlendi“ und setzt keine Orders mehr, bis „Yeniden Başlat“ geklickt wird.
-- [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-09-24
   - Nach 3 abgelehnten Orders in Folge wird die Zone pausiert (ui_state PAUSE) und order_rejected_alarm gesetzt.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ✅ 2026-09-24
   - safe_send_order normalisiert Volumen, hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-09-23 · 👤 manuell ⏳
+- [ ] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-09-24 · 👤 manuell ⏳
   - Manuelle BUY LIMIT 0,01 Lot bei 1 $ = STOP, bei 2 $ = START; alternativ Kommentar GRID:STOP / GRID:START. STOP löscht alle Robot-Orders; die Signal-Order wird danach entfernt.
   - **Prüfung:** In der MT5-App eine BUY LIMIT 0,01 bei Preis 1 setzen. → Danach BUY LIMIT 0,01 bei Preis 2 setzen.
   - **Erwartet:** Erst werden alle Robot-Orders gelöscht (remote_paused), dann läuft der Bot weiter; die Signal-Orders verschwinden.
-- [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-09-24
   - Beim Bot-Start sind alle Zonen PAUSE; active_zones_state wird aus den Magic-Numbers der vorhandenen Orders/Positionen aufgebaut (data/state_<id>.json), alte ui_state-Datei gelöscht.
   - **Prüfung:** Bot mit offenen Orders stoppen und neu starten.
   - **Erwartet:** Vorhandene Orders werden übernommen, nicht doppelt gesetzt.
-- [x] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ✅ 2026-09-24
   - Bei geschlossenem Markt (trade_mode ≠ 4 oder Tick älter als 180 s) wartet die Schleife 60 s; Verbindungsverlust → Reconnect mit exponentiellem Backoff; nur „Algo Trading aus“ → warten statt neu einloggen.
   - **Prüfung:** Am Wochenende Dashboard ansehen.
   - **Erwartet:** Markt wird als geschlossen angezeigt, keine neuen Orders.
-- [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-09-23
+- [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-09-24
   - Beim Verlassen der Hauptschleife werden alle Pending Orders des Robots gelöscht.
   - **Prüfung:** Nicht manuell testen (/stop beendet den Prozess hart).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -294,28 +302,28 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
   - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
-- [x] **MET-03** WebSocket-Metriken des Workers *(teilweise)* — 🧪 unit ✅ 2026-09-23 · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **MET-03** WebSocket-Metriken des Workers *(teilweise)* — 🧪 unit ✅ 2026-09-24 · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
   - 📝 v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders). Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus der Bot-Metrik → RSI fehlt dann
-- [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-09-23
+- [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-09-24
   - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 
 ## 9. LOG – Logs
 
-- [x] **LOG-01** Log-Tabs laden *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-01** Log-Tabs laden *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
   - Tabs Activity, Robot Logs, MT5 Terminal; GET /logs/{id}?log_type=all&lines=200; ohne laufenden Bot wird mt5_connected=false erzwungen.
   - **Prüfung:** Alle drei Tabs öffnen, „Refresh“.
   - **Erwartet:** Jeder Tab zeigt seine Logs.
   - 📝 Claude: Activity, Robot Logs (200 Zeilen), MT5 Terminal laden und wechseln korrekt; Inhalt: siehe LOG-05 (Fragmente) und LOG-06 (MT5-Tab leer)
-- [ ] **LOG-02** Logs löschen — 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **LOG-02** Logs löschen *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳
   - Activity wird nur lokal geleert; Robot/MT5 nach Rückfrage per DELETE /logs/{id}.
   - **Prüfung:** Im Tab Robot Logs „Clear“ → bestätigen.
   - **Erwartet:** Log ist leer, auch nach Refresh.
-- [x] **LOG-03** Logs als ZIP herunterladen *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-03** Logs als ZIP herunterladen *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - GET /logs/download/{id} liefert ein ZIP mit Logs, State- und Settings-Datei.
   - **Prüfung:** „Download log file“ klicken, ZIP öffnen.
   - **Erwartet:** ZIP enthält Logs, state_<id>.json und settings-Datei.
@@ -325,12 +333,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Worker auf dem VPS stoppen.
   - **Erwartet:** Status wechselt nach ≤ 10 s auf offline.
   - 📝 Claude: 'Worker online · updated' aktualisiert exakt alle 10 s (22:19:02/12/22/32)
-- [x] **LOG-05** Robot-Log schreiben — 🧪 unit ✅ 2026-09-23 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-05** Robot-Log schreiben — 🧪 unit ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Der Bot-Prozess schreibt seine Meldungen (log_message) nach logs/<id>/err_<id>.log.
   - **Prüfung:** Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
   - **Erwartet:** Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
   - 📝 v0.7.59 live: seit Bot-Neustart 22:48:40 keine Fragmente, keine doppelten Zeilen (vorher 4 Fragmente in 200 Zeilen)
-- [x] **LOG-06** MT5-Terminal-Log anzeigen *(teilweise)* — 🔌 api ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-06** MT5-Terminal-Log anzeigen — 🔌 api ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Der Tab „MT5 Terminal“ zeigt das Tages-Log des MT5-Terminals, das beim Verbinden nach logs/<id>/mt5_terminal/ kopiert wird.
   - **Prüfung:** Tab „MT5 Terminal“ öffnen.
   - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
@@ -338,7 +346,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 10. UPD – System & Updates
 
-- [x] **UPD-01** Update-Prüfung *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **UPD-01** Update-Prüfung *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ⏳ · 👤 manuell ✅ 2026-09-23
   - „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
@@ -356,7 +364,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur mit einem Nicht-Windows-Worker sichtbar.
   - **Erwartet:** Der simulierte Preis sollte in die Engine einfließen.
   - 🐞 **Bekannter Fehler:** /bot/simulate-price schreibt sim_<id>.json, das von niemandem gelesen wird – der Regler hat keine Wirkung.
-- [ ] **UPD-05** Server-Neustart nach Update — 🧪 unit 🐞 2026-09-23
+- [ ] **UPD-05** Server-Neustart nach Update — 🧪 unit 🐞 2026-09-24
   - self_updater.hard_restart_server soll den Worker nach einem Update neu starten.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Worker startet neu.
