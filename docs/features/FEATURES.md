@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-24 · **71/72** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-24 · **72/72** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -23,7 +23,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
-| 10 | **UPD** – System & Updates | 3/4 |
+| 10 | **UPD** – System & Updates | 4/4 |
 | 11 | **UI** – Oberfläche | 4/4 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -360,10 +360,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Power-Button → Bestätigung → /stop, danach window.close().
   - **Prüfung:** Power-Button → bestätigen.
   - **Erwartet:** Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
-- [ ] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-09-24 · 🔌 api ✅ 2026-09-24 · 👤 manuell ⏳
+- [x] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-09-24 · 🔌 api ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-24
   - Nach einem erfolgreichen POST /system/update beendet sich der Worker nach 1,5 s (schedule_restart); run_uvicorn_watchdog.bat (setzt WORKER_SUPERVISED=1) startet ihn mit dem neuen Code neu. Ohne Watchdog kein Neustart. Das Dashboard wartet 8 s und lädt dann neu; veraltete Bots startet der neue Worker selbst neu (BOT-03).
   - **Prüfung:** Update im Dashboard anwenden (System Info → Check for Updates → Apply Update). → Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
   - **Erwartet:** Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
+  - 📝 Apply Update v0.7.70→v0.7.71 im Dashboard: Worker beendet sich, Watchdog startet neu, meldet v0.7.71; laufender Bot mit neuem Code neu gestartet
 
 ## 11. UI – Oberfläche
 
