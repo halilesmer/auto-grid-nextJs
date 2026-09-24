@@ -83,7 +83,7 @@ export default function ZoneSettingsPanel({
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
               Dinamik Bölgeler
-              <Badge tone="neutral">{zones.length}</Badge>
+              <Badge tone="neutral" data-testid="zone-count">{zones.length}</Badge>
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">Fiyat aralığı başına grid kuralları</p>
           </div>

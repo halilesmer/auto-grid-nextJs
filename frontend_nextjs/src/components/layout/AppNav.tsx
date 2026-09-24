@@ -38,6 +38,8 @@ export default function AppNav() {
               <Link
                 key={href}
                 href={href}
+                aria-current={active ? 'page' : undefined}
+                aria-label={label}
                 className={cn(
                   'relative flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                   active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',

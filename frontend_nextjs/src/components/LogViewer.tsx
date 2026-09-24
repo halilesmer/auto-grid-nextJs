@@ -227,7 +227,7 @@ export default function LogViewer() {
             title={workerStatus.error ?? undefined}
           >
             <StatusDot tone={statusTone} pulse={statusTone === "warning" || statusTone === "success"} />
-            <span className="truncate text-muted-foreground">{statusText}</span>
+            <span data-testid="worker-status" className="truncate text-muted-foreground">{statusText}</span>
           </div>
           <span className="flex items-center gap-1.5 text-muted-foreground/70">
             <Terminal size={11} />
@@ -243,6 +243,7 @@ export default function LogViewer() {
 
         <pre
           ref={logRef}
+          data-testid="log-output"
           className="h-72 overflow-auto whitespace-pre-wrap break-all p-4 font-mono text-[12.5px] leading-relaxed text-foreground/75"
         >
           {tab === "activity" ? (

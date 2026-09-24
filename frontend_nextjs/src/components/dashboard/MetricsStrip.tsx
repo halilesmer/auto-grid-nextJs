@@ -23,11 +23,17 @@ interface MetricProps {
   valueClassName?: string;
   footer?: ReactNode;
   accent?: string;
+  testId: string;
 }
 
-function Metric({ label, icon, value, valueClassName, footer, accent }: MetricProps) {
+function Metric({ label, icon, value, valueClassName, footer, accent, testId }: MetricProps) {
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-card/80 p-4 backdrop-blur-sm transition-colors hover:border-foreground/15">
+    <div
+      data-testid={testId}
+      // Zielwert für Tests: die Ziffern-Animation zeigt während des Wechsels alte + neue Zeichen
+      data-value={value}
+      className="group relative overflow-hidden rounded-xl border border-border bg-card/80 p-4 backdrop-blur-sm transition-colors hover:border-foreground/15"
+    >
       <div
         className={cn(
           'pointer-events-none absolute -right-8 -top-8 size-24 rounded-full opacity-0 blur-2xl transition-opacity group-hover:opacity-100',
@@ -62,6 +68,7 @@ export default function MetricsStrip() {
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Metric
         label="Price"
+        testId="metric-price"
         icon={<Activity size={14} />}
         value={formatMoney(liveData.current_price)}
         footer={
@@ -73,6 +80,7 @@ export default function MetricsStrip() {
       />
       <Metric
         label="Floating P/L"
+        testId="metric-profit"
         icon={profitNegative ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
         value={formatMoney(liveData.profit, true)}
         valueClassName={cn(profitPositive && 'text-success', profitNegative && 'text-danger')}
@@ -87,6 +95,7 @@ export default function MetricsStrip() {
       />
       <Metric
         label="Open Positions"
+        testId="metric-positions"
         icon={<Layers size={14} />}
         value={String(liveData.open_positions)}
         accent="bg-info/20"
@@ -94,6 +103,7 @@ export default function MetricsStrip() {
       />
       <Metric
         label="Pending Orders"
+        testId="metric-pending"
         icon={<Clock size={14} />}
         value={String(liveData.pending_orders)}
         accent="bg-secondary/25"

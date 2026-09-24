@@ -231,7 +231,11 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
         </div>
         <div className="flex flex-wrap gap-2">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-md border border-border bg-muted/50 px-3 py-1.5">
+            <div
+              key={s.label}
+              data-testid={`chart-stat-${s.label.toLowerCase().replace('/', '')}`}
+              className="rounded-md border border-border bg-muted/50 px-3 py-1.5"
+            >
               <div className="text-[11px] font-medium text-muted-foreground">{s.label}</div>
               <div className={cn('font-mono text-sm font-semibold tabular-nums', s.className)}>{s.value}</div>
             </div>

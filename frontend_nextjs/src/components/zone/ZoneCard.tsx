@@ -59,6 +59,7 @@ export function ZoneCard({
 
   return (
     <div
+      data-testid="zone-card"
       className={cn(
         'relative overflow-hidden rounded-xl border border-border bg-background/50 transition-colors',
         'before:absolute before:inset-y-0 before:left-0 before:w-[3px]',

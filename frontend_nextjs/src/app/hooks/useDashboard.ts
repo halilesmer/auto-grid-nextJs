@@ -82,6 +82,9 @@ export function useDashboard({
     if (!jsonStr) return null;
     try {
       const obj = JSON.parse(jsonStr);
+      // Kontrol sıklığının kendi "Kaydet" butonu var (SettingsForm); store'a ancak kaydedildikten
+      // sonra yazılır. Burada karşılaştırılırsa kayıttan sonra "kaydedilmemiş değişiklik" görünüyordu.
+      delete obj.LOOP_INTERVAL_SECONDS;
       if (Array.isArray(obj.ZONES)) {
         obj.ZONES.forEach((z: Record<string, unknown>) => {
           delete z.is_active;
@@ -141,9 +144,11 @@ export function useDashboard({
     });
     try {
       const res = await axiosInstance.get(`${API}/system/update/check?branch=main`);
+      // Worker snake_case döner (local_ver/remote_ver); modal localVer/remoteVer okur
       setUpdateResult({
-        ...res.data,
-        hasUpdate: res.data.has_update,
+        hasUpdate: Boolean(res.data.has_update),
+        localVer: res.data.local_ver ?? '',
+        remoteVer: res.data.remote_ver ?? '',
         loading: false,
       });
     } catch {

@@ -75,7 +75,7 @@ export default function Home() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <Badge tone={isLive ? 'danger' : 'info'}>
+            <Badge tone={isLive ? 'danger' : 'info'} data-testid="env-badge">
               <span className={`size-1.5 rounded-full ${isLive ? 'bg-danger' : 'bg-info'}`} />
               {isLive ? 'LIVE' : 'TEST'}
             </Badge>

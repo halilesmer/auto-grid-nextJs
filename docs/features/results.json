@@ -4,6 +4,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "ACC-02": {
@@ -11,10 +16,20 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 7
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "ACC-03": {
     "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "e2e": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
@@ -25,10 +40,34 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
     }
   },
   "ACC-05": {
     "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
+    }
+  },
+  "ACC-06": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ACC-07": {
+    "e2e": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
@@ -53,6 +92,13 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 5
+    }
+  },
+  "BOT-04": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 4
     }
   },
   "BOT-05": {
@@ -186,6 +232,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "LOG-02": {
@@ -193,10 +244,27 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "LOG-03": {
     "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "LOG-04": {
+    "e2e": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
@@ -211,6 +279,20 @@
   },
   "LOG-06": {
     "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "MET-01": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "MET-02": {
+    "e2e": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
@@ -235,6 +317,25 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 3
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "SET-02": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "SET-03": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
     }
   },
   "SET-04": {
@@ -270,8 +371,34 @@
       "tests": 4
     }
   },
+  "SYM-02": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "SYM-03": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "SYS-02": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
   "SYS-03": {
     "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "e2e": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
@@ -279,6 +406,11 @@
   },
   "SYS-04": {
     "api": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
+    },
+    "e2e": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
@@ -291,11 +423,65 @@
       "tests": 3
     }
   },
+  "UI-01": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "UI-02": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "UI-03": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "UI-04": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
+    }
+  },
   "UPD-01": {
     "api": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "UPD-02": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
+    }
+  },
+  "UPD-03": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "UPD-04": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "xfail",
+      "tests": 2
     }
   },
   "UPD-05": {
@@ -305,11 +491,72 @@
       "tests": 1
     }
   },
+  "ZON-01": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-02": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-03": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-04": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-05": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-06": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-07": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
   "ZON-08": {
     "api": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
+    },
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 4
+    }
+  },
+  "ZON-09": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   }
 }
