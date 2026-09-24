@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-24 · **68/72** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-24 · **69/72** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 9/9 |
 | 6 | **BOT** – Bot-Steuerung | 6/6 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 15/16 |
-| 8 | **MET** – Live-Daten & Diagramm | 3/4 |
+| 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
 | 10 | **UPD** – System & Updates | 2/4 |
 | 11 | **UI** – Oberfläche | 4/4 |
@@ -38,7 +38,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [x] **SYS-03** Plattform-Erkennung *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-09-24 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok).
   - **Prüfung:** GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
   - **Erwartet:** Antwort {"platform": "win32", "is_windows": true}.
@@ -301,7 +301,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
   - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
-- [ ] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-09-24 · 🌐 live ❌ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-09-24 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
