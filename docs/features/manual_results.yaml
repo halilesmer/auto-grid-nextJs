@@ -145,6 +145,12 @@ BOT-03:
   notiz: 'Live: nach Worker-Neustart meldet der Worker ''[AUTO] Bot eski bir kod sürümüyle
     çalışıyor; yeni sürümle yeniden başlatılıyor'' und startet ihn neu (21:24 und
     22:48, Positionen unverändert)'
+ENG-13:
+  status: bestanden
+  datum: '2026-09-24'
+  notiz: 'Nutzer per MT5-App: $1 Buy Limit → STOP (Robot-Orders gelöscht, Signal-Order
+    entfernt), $2 Buy Limit → START; Robot-Log 15:14/15:18 bestätigt, danach remote_paused
+    false, Bot läuft'
 MET-01:
   status: bestanden
   datum: '2026-09-23'
