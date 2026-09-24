@@ -120,7 +120,7 @@ test.describe('Live (nur lesend)', () => {
     expect(Date.now() - started).toBeLessThan(5_000);
   });
 
-  test('MT5-Scanner findet das Terminal des Testkontos', { tag: '@SYS-04' }, async ({ api, account }) => {
+  test('Plattform und MT5-Scanner', { tag: ['@SYS-03', '@SYS-04'] }, async ({ api, account }) => {
     const platform = await api.get<{ is_windows: boolean }>('/system/platform');
     expect(platform.is_windows).toBe(true);
     const { paths } = await api.get<{ paths: string[] }>('/system/scan-mt5');

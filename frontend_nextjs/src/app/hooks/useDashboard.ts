@@ -6,6 +6,9 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
 import type { GlobalSettings } from '@/store/types';
 
+// Worker güncellemeden sonra ~1,5 sn içinde kapanır, .bat 3 sn sonra yeniden başlatır
+const WORKER_RESTART_WAIT_MS = 8_000;
+
 interface UpdateResult {
   hasUpdate: boolean;
   localVer: string;
@@ -161,7 +164,11 @@ export function useDashboard({
     if (!updateResult) return;
     setUpdateResult({ ...updateResult, loading: true });
     try {
-      await axiosInstance.post(`${API}/system/update?branch=main`);
+      const res = await axiosInstance.post(`${API}/system/update?branch=main`);
+      // Worker yeni kodla yeniden başlıyor (run_uvicorn_watchdog.bat): tekrar ayağa kalkmasını bekle
+      if (res.data?.restarting) {
+        await new Promise((resolve) => setTimeout(resolve, WORKER_RESTART_WAIT_MS));
+      }
       window.location.reload();
     } catch (err: unknown) {
       alert(await getApiErrorMessage(err, 'Update failed'));

@@ -42,13 +42,28 @@ pip install -r requirements.txt
 python main.py         # uvicorn on 0.0.0.0:8000; set ENV=development for auto-reload
 ```
 
-There is no test suite in either package.
-
 Frontend env (`frontend_nextjs/.env.local`): `NEXT_PUBLIC_API_URL` (base URL without `/api`, which is appended automatically). The WebSocket URL is derived from `API_BASE` in `buildWsUrl()` (`src/store/useWebSocketManager.ts`), so `NEXT_PUBLIC_WS_URL` is currently unused. If `NEXT_PUBLIC_API_URL` is missing, REST and WebSocket both fall back to the hard-coded ngrok URL in `src/lib/api.ts`. Worker CORS uses `ALLOWED_ORIGINS` (comma-separated, default `*`).
 
 API key: the worker reads `WORKER_API_KEY` (set on the VPS with `setx`, see `docs/windows_start_guide.md`). When it's set, every `/api/*` request must send the header `X-API-Key` (otherwise 401) and `/ws/stream` must pass `?api_key=…` (browsers can't set WebSocket headers); the check lives in `worker_python/src/api/auth.py`, the middleware in `main.py`, the WS check in `ws_server.py`. When it's unset the worker stays open as before and logs a warning at startup. The frontend sends `NEXT_PUBLIC_WORKER_API_KEY` from `.env.local`: use `axiosInstance` or `WORKER_HEADERS` from `src/lib/api.ts` for every worker call (never bare `axios`/`fetch` without them), and `buildWsUrl()` appends the key for the WebSocket.
 
 MT5 passwords never leave the worker: account responses go through `_public_account()` (`src/api/helpers.py`), which drops `password` and adds `has_password`. On `PUT /api/accounts/{id}` an empty or missing password keeps the stored one, so the edit form starts with an empty password field.
+
+## Tests
+
+Feature catalog `docs/features/features.yaml` (72 features, in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
+
+```bash
+scripts/features/run.sh              # unit + api + e2e, then regenerate FEATURES.md
+scripts/features/run.sh ZON          # one category (or one feature: ENG-05)
+scripts/features/run.sh unit ENG-05  # one tier + filter
+scripts/features/run.sh live         # against the VPS worker, DEMO account, read-only
+scripts/features/run.sh next | show ID | sign ID bestanden "Notiz"
+```
+
+- **unit / api** (`worker_python/tests/`, pytest; needs `pip install -r requirements-dev.txt` in `worker_python/.venv`): the engine runs against `tests/fakes/fake_mt5.py`, an in-memory broker, so no MT5 is needed; API tests use FastAPI's `TestClient` with all paths redirected to a tmp dir. Tag with `@pytest.mark.feature("ENG-05")`; known bugs are `xfail(strict=True)`.
+- **e2e** (`frontend_nextjs/e2e/mocked/`, Playwright, `npm run test:e2e`): a production build in `.next-e2e` (`NEXT_DIST_DIR`, so it runs next to `npm run dev:frontend`) against a mocked worker (`e2e/fixtures/mock-worker.ts`, mirrors `worker_python/src/api/*`; fails on missing `X-API-Key` or unknown endpoints). Tag with `{ tag: '@ZON-05' }`. Stable selectors are `data-testid`/aria attributes (`zone-card`, `metric-*`, `bot-status`, `log-output` …).
+- **live** (`frontend_nextjs/e2e/live/`, `npm run test:live`): uses `.env.local` and the account from `hooks/test-account.local.md`; skips unless it's DEMO. Read-only by default; trading tests need `E2E_LIVE_DEMO=1` (and `E2E_LIVE_BOT_RESTART=1` for stop/start) and only run when the user explicitly asks (`hooks/RULES.md` §3).
+- **CI** (`.github/workflows/tests.yml`) runs the catalog check, worker tests, and frontend lint + tsc + e2e on every PR and push to `main`.
 
 ## Versioning
 

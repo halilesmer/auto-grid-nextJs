@@ -3,7 +3,7 @@ import asyncio
 import os
 import json
 import time
-from src.api.models import ActionRequest, SimPricePayload
+from src.api.models import ActionRequest
 from src.api.helpers import _load_accounts
 from src.utils.mt5_connection import (
     connect_to_mt5_with_timeout,
@@ -30,7 +30,6 @@ from src.utils.bot_watchdog import account_lock, unwatch, watch
 from src.utils.paths import (
     get_metrics_path,
     get_pid_path,
-    get_sim_price_path,
 )
 
 router = APIRouter(tags=["Bot Control"])
@@ -282,20 +281,3 @@ async def send_action(req: ActionRequest):
         "status": "success",
         "message": f"Action {req.action} received for {req.account_id}",
     }
-
-
-@router.post("/bot/simulate-price")
-async def set_simulated_price(payload: SimPricePayload):
-    sim_file = get_sim_price_path(payload.account_id)
-    try:
-        tmp = sim_file + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"price": payload.price}, f)
-        os.replace(tmp, sim_file)
-        return {
-            "status": "ok",
-            "account_id": payload.account_id,
-            "price": payload.price,
-        }
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))

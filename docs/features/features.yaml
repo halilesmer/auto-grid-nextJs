@@ -52,12 +52,12 @@ kategorien:
 
       - id: SYS-03
         titel: Plattform-Erkennung
-        beschreibung: GET /system/platform meldet, ob der Worker unter Windows läuft (steuert u. a. die Anzeige des Preis-Simulators).
-        code: [worker_python/src/api/system.py, frontend_nextjs/src/components/SimulationBar.tsx]
-        tiers: [api, e2e]
+        beschreibung: GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok).
+        code: [worker_python/src/api/system.py]
+        tiers: [api, live]
         pruefung:
-          - Dashboard gegen den VPS-Worker öffnen.
-        erwartet: Auf Windows wird die „Mac Test Mode“-Leiste NICHT angezeigt.
+          - GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
+        erwartet: 'Antwort {"platform": "win32", "is_windows": true}.'
 
       - id: SYS-04
         titel: MT5-Terminal-Scanner
@@ -216,14 +216,13 @@ kategorien:
         erwartet: Zonen bleiben unverändert.
 
       - id: SET-06
-        titel: Globale Standardwerte (GLOBAL_*)
-        beschreibung: Standardwerte GLOBAL_GRID_STEP, GLOBAL_TAKE_PROFIT, GLOBAL_DEFAULT_LOT, MAX_OPEN_POSITIONS, MIN/MAX_PRICE_LIMIT, CLEAR_ON_ZONE_EXIT in utils/config.py.
-        code: [worker_python/src/utils/config.py]
+        titel: Standardwerte (neue Datei, fehlende Zonenfelder)
+        beschreibung: Eine neue Einstellungsdatei enthält nur LOOP_INTERVAL_SECONDS und ZONES. Fehlt einer Zone ein Feld, nimmt die Engine dieselben Standardwerte wie eine neue Zone im UI (defaultZone). Die früheren GLOBAL_*-Schlüssel wurden nie gelesen und sind entfernt.
+        code: [worker_python/src/utils/config.py, worker_python/src/core/grid_execution/config.py, frontend_nextjs/src/utils/zoneHelpers.ts]
         tiers: [unit]
         pruefung:
           - Nicht manuell testbar.
-        erwartet: Die Engine sollte diese Werte als Fallback nutzen.
-        bekannter_fehler: Die Engine liest diese Werte nie; nur LOOP_INTERVAL_SECONDS wird auf oberster Ebene verwendet.
+        erwartet: Engine- und UI-Standardwerte stimmen überein; keine ungenutzten Schlüssel in neuen Dateien.
 
   # ---------------------------------------------------------------------------
   - id: SYM
@@ -679,25 +678,15 @@ kategorien:
           - Power-Button → bestätigen.
         erwartet: Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
 
-      - id: UPD-04
-        titel: Preis-Simulator (Mac-Testmodus)
-        beschreibung: Schieberegler 50–150, nur sichtbar wenn der Worker nicht unter Windows läuft; POST /bot/simulate-price.
-        code: [frontend_nextjs/src/components/SimulationBar.tsx, worker_python/src/api/bot_control.py]
-        tiers: [e2e]
-        pruefung:
-          - Nur mit einem Nicht-Windows-Worker sichtbar.
-        erwartet: Der simulierte Preis sollte in die Engine einfließen.
-        bekannter_fehler: /bot/simulate-price schreibt sim_<id>.json, das von niemandem gelesen wird – der Regler hat keine Wirkung.
-
       - id: UPD-05
         titel: Server-Neustart nach Update
-        beschreibung: self_updater.hard_restart_server soll den Worker nach einem Update neu starten.
-        code: [worker_python/src/utils/self_updater.py]
-        tiers: [unit]
+        beschreibung: Nach einem erfolgreichen POST /system/update beendet sich der Worker nach 1,5 s (schedule_restart); run_uvicorn_watchdog.bat (setzt WORKER_SUPERVISED=1) startet ihn mit dem neuen Code neu. Ohne Watchdog kein Neustart. Das Dashboard wartet 8 s und lädt dann neu; veraltete Bots startet der neue Worker selbst neu (BOT-03).
+        code: [worker_python/src/utils/self_updater.py, worker_python/src/api/system.py, worker_python/run_uvicorn_watchdog.bat, frontend_nextjs/src/app/hooks/useDashboard.ts]
+        tiers: [unit, api, manuell]
         pruefung:
-          - Nicht manuell testen.
-        erwartet: Worker startet neu.
-        bekannter_fehler: hard_restart_server verweist auf scripts/launcher.py, das nicht existiert.
+          - Update im Dashboard anwenden (System Info → Check for Updates → Apply Update).
+          - Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
+        erwartet: Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
 
   # ---------------------------------------------------------------------------
   - id: UI

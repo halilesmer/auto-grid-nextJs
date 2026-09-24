@@ -22,8 +22,3 @@ class ActionRequest(BaseModel):
     account_id: str
     action: str
     payload: dict = {}
-
-
-class SimPricePayload(BaseModel):
-    account_id: str
-    price: float

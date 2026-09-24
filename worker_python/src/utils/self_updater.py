@@ -1,6 +1,6 @@
 import subprocess
 import os
-import sys
+import threading
 
 
 def get_project_root():
@@ -151,16 +151,28 @@ def execute_git_pull(branch="master"):
         return False, f"Git Çekme Hatası: {error_msg}"
 
 
-def hard_restart_server():
+# run_uvicorn_watchdog.bat bunu 1 yapar: süreç bitince aynı pencere yeni kodla yeniden başlatır.
+SUPERVISED_ENV = "WORKER_SUPERVISED"
+RESTART_DELAY_SEC = 1.5
+
+
+def schedule_restart(delay: float = RESTART_DELAY_SEC) -> bool:
+    """Güncellemeden sonra worker'ı yeni kodla yeniden başlatır.
+
+    Süreç kendini `delay` saniye sonra kapatır (HTTP yanıtı önce gönderilsin diye);
+    run_uvicorn_watchdog.bat 3 sn içinde main.py'yi yeniden başlatır. Botlar ayrı süreçtir,
+    çalışmaya devam eder; yeni worker açılışta eski sürümle çalışanları yeniden başlatır
+    (startup_maintenance). Watchdog altında değilse (ör. elle `python main.py`) kapatmaz,
+    False döner – yeniden başlatma elle yapılmalı.
+
+    Eskiden hard_restart_server olmayan scripts/launcher.py'yi çağırıyordu.
     """
-    DİKKAT: Bu fonksiyon cleanup (PID dosyaları, MT5 shutdown) yapmaz.
-    Sadece graceful shutdown sonrası çağrılmalı.
-    """
-    project_root = get_project_root()
-    launcher_script = os.path.join(project_root, "scripts", "launcher.py")
-    if not os.path.exists(launcher_script):
-        raise FileNotFoundError(f"Launcher script not found: {launcher_script}")
-    os.execl(sys.executable, sys.executable, launcher_script)
+    if os.environ.get(SUPERVISED_ENV) != "1":
+        return False
+    timer = threading.Timer(delay, os._exit, args=(0,))
+    timer.daemon = True
+    timer.start()
+    return True
 
 
 def check_for_updates(branch="main"):

@@ -1,4 +1,4 @@
-/** SYS · Verbindung & Infrastruktur · UPD · Update, Shutdown, Preis-Simulator. */
+/** SYS · Verbindung & Infrastruktur · UPD · Update und Shutdown. */
 import { DEMO_ID, MT5_PATH, expect, test } from '../fixtures/test';
 
 test.describe('SYS Verbindung', () => {
@@ -16,16 +16,6 @@ test.describe('SYS Verbindung', () => {
     expect(worker.wsUrls).toHaveLength(2);
     worker.pushMetrics({ price: 98.5 });
     await expect(page.getByTestId('chart-stat-price')).toContainText('98.5');
-  });
-
-  test('Plattform: Mac-Testleiste nur außerhalb von Windows', { tag: '@SYS-03' }, async ({ page, worker, dashboard }) => {
-    await dashboard.open(DEMO_ID);
-    await expect(page.getByText('Mac Test Mode — Price Simulator')).toBeHidden();
-
-    worker.state.platform = 'darwin';
-    await page.reload();
-    await dashboard.selectAccount(DEMO_ID);
-    await expect(page.getByText('Mac Test Mode — Price Simulator')).toBeVisible();
   });
 
   test('MT5-Scanner und eigener Pfad', { tag: '@SYS-04' }, async ({ page, worker, dashboard }) => {
@@ -113,30 +103,5 @@ test.describe('UPD System', () => {
     await modal.getByRole('button', { name: 'Shutdown' }).click();
     await expect.poll(() => worker.callsTo('POST', '/api/stop').length).toBe(1);
     expect(worker.callsTo('POST', '/api/stop')[0].query.get('account_id')).toBe(DEMO_ID);
-  });
-
-  test('Preis-Simulator sendet den Preis an den Worker', { tag: '@UPD-04' }, async ({ page, worker, dashboard }) => {
-    worker.state.platform = 'darwin';
-    await dashboard.open(DEMO_ID);
-    const bar = page.getByText('Mac Test Mode — Price Simulator').locator('xpath=ancestor::div[3]');
-    await expect(bar).toContainText('$75.00');
-    await bar.getByRole('slider').fill('100');
-    await expect(bar).toContainText('$100.00');
-    await expect.poll(() => worker.callsTo('POST', '/api/bot/simulate-price').at(-1)?.body).toEqual({
-      account_id: DEMO_ID,
-      price: 100,
-    });
-  });
-
-  test('Simulierter Preis erreicht die Engine', { tag: '@UPD-04' }, async ({ page, worker, dashboard }) => {
-    // Bekannter Fehler: /bot/simulate-price schreibt sim_<id>.json, das weder Bot noch Metriken lesen.
-    // Der Mock bildet das nach; sobald der Worker den Preis nutzt, Mock anpassen und test.fail entfernen.
-    test.fail();
-    worker.state.platform = 'darwin';
-    worker.setBotRunning(DEMO_ID);
-    await dashboard.open(DEMO_ID);
-    await page.getByRole('slider').fill('100');
-    await dashboard.refreshLogs();
-    await expect(page.getByTestId('metric-price')).toHaveAttribute('data-value', '$100.00', { timeout: 3_000 });
   });
 });

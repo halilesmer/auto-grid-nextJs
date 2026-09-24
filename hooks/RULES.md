@@ -35,8 +35,21 @@ Claude her seferinde aynı demo hesabı kullanır; kullanıcıdan tekrar bilgi i
 5. Bot start/stop veya emir gerektiren testler yalnızca dosyada `Tür: DEMO` yazıyorsa ve kullanıcı açıkça istediyse yapılır. Şüphe varsa dur ve sor.
 6. Worker'ı Mac'te başlatma. Worker tarafı değişikliği test edilecekse kullanıcıdan VPS'te pull + restart iste.
 7. Sonuçları kısa raporla: neyi seçtin, neyi doğruladın, neyi doğrulayamadın.
+8. **[otomatik]** Otomatik live testler (`npm run test:live` veya `scripts/features/run.sh live`) aynı dosyayı okur; `Tür: DEMO` değilse veya worker hesabı `env_type: DEMO` olarak bildirmiyorsa atlanır. Bu testler yalnızca okur.
+9. **[elle]** İşlem testleri (`frontend_nextjs/e2e/live/trading.spec.ts`) yalnızca `E2E_LIVE_DEMO=1` ile, bot durdur/başlat ayrıca `E2E_LIVE_BOT_RESTART=1` ile çalışır. Bu değişkenler sadece kullanıcı bu konuşmada açıkça işlem testi istediyse verilir. Test bölgesi yalnızca sona eklenir (başa eklemek mevcut bölgelerin magic numaralarını kaydırır), ayarlar sonunda aynen geri yüklenir; mevcut bir aktif bölge fiyatı kapsıyorsa test kendini atlar. Kullanıcının bölgeleri test için değiştirilmez.
 
-## 4. Kural ekleme prosedürü
+## 4. Fonksiyon kataloğu ve otomatik testler
+
+Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FEATURES.md` (üretilir). Claude Code'da `/feature-test` skill'i (`.claude/skills/feature-test/SKILL.md`).
+
+1. **[elle]** Yeni veya değişen her özellik: `features.yaml`'da kayıt (`id`, `tiers`, `erwartet` …) + ilgili katmanda ID etiketli test (`@pytest.mark.feature("ENG-05")` / Playwright `tag: '@ENG-05'`). İkisi yoksa iş bitmiş sayılmaz.
+2. **[otomatik]** Her PR'da ve `main` push'unda `.github/workflows/tests.yml` çalışır: katalog kontrolü, worker testleri (unit + api), frontend lint + tsc + Playwright (mocked). PR yeşil olmadan merge edilmez.
+3. **[elle]** PR'dan önce yerelde `scripts/features/run.sh` (veya etkilenen kategori, ör. `run.sh ZON`) çalıştırılır; güncellenen `docs/features/results.json` ve `FEATURES.md` aynı PR'da commit'lenir. Bu iki dosya elle düzenlenmez.
+4. **[elle]** Henüz düzeltilmemiş bilinen hata: katalogda `bekannter_fehler` + test `xfail(strict=True)` / `test.fail()`. Hata düzelince ikisi de kaldırılır.
+5. **[elle]** Worker endpoint'i (yol, yanıt biçimi, hata kodu) değişince gemockte worker da güncellenir: `frontend_nextjs/e2e/fixtures/mock-worker.ts`. Mock, bilinmeyen endpoint'te ve `X-API-Key` eksikse testi düşürür.
+6. **[elle]** Manuel doğrulama `scripts/features/run.sh sign <ID> bestanden|fehlgeschlagen "not"` ile kaydedilir; notlara credential yazılmaz.
+
+## 5. Kural ekleme prosedürü
 
 1. Kuralı bu dosyaya `[otomatik]` veya `[elle]` etiketiyle yaz.
 2. `[otomatik]` ise `hooks/lib/checks.sh` içine `check_*` fonksiyonu ekle (engelleyici → `err`, uyarı → `warn`). Sayaçlar için fonksiyonu boru (`|`) ile değil `< <(...)` / `<<<` ile çağır (boru alt-kabuk açar, sayaç kaybolur).

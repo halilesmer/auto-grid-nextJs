@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 import sys
 import os
 import asyncio
-from src.utils.self_updater import check_for_updates, execute_git_pull
+from src.utils.self_updater import check_for_updates, execute_git_pull, schedule_restart
 
 router = APIRouter(tags=["System"])
 
@@ -67,4 +67,6 @@ async def run_update(branch: str = Query("main", description="Git branch")):
     success, message = await asyncio.to_thread(execute_git_pull, branch=branch)
     if not success:
         raise HTTPException(status_code=500, detail=message)
-    return {"status": "success", "message": message}
+    # Yeni kod ancak yeniden başlatınca yüklenir (watchdog .bat altında otomatik)
+    restarting = schedule_restart()
+    return {"status": "success", "message": message, "restarting": restarting}

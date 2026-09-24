@@ -110,11 +110,6 @@ def get_symbols_path(account_id: str) -> str:
     return os.path.join(get_account_log_dir(account_id), f"symbols_{safe}.json")
 
 
-def get_sim_price_path(account_id: str) -> str:
-    safe = safe_account_id(account_id)
-    return os.path.join(get_account_log_dir(account_id), f"sim_{safe}.json")
-
-
 def get_pid_path(account_id: str) -> str:
     safe = safe_account_id(account_id)
     return os.path.join(get_account_log_dir(account_id), f"pid_{safe}.txt")
