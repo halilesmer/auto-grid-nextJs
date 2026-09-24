@@ -1,5 +1,6 @@
 """UPD-06 pip nach Update · UPD-07 Auto-Update · BOT-07 Bots nach Neustart fortsetzen ·
-VPS-05 Konsolen-Log + Windows-Skripte (ngrok-Watchdog, ASCII-PowerShell)."""
+VPS-05 Konsolen-Log + Windows-Skripte (ngrok-Watchdog, ASCII-PowerShell) ·
+VPS-07 Prozesse mit Adminrechten erkennen, melden und beenden."""
 import asyncio
 import json
 import shutil
@@ -12,6 +13,7 @@ import pytest
 import src.api.bot_control as bot_control
 import src.utils.auto_updater as auto_updater
 import src.utils.bot_watchdog as wd
+import src.utils.elevation as elevation
 import src.utils.self_updater as updater
 from src.utils import paths
 from tests.conftest import TEST_ACCOUNT_ID, WORKER_ROOT
@@ -305,3 +307,75 @@ def test_vps_logs_als_reine_strings():
     vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
     body = vps[vps.index("function Get-Logs"):vps.index("function Start-Task")]
     assert 'ForEach-Object { "$_" }' in body
+
+
+# --------------------------------------------------------------------------- VPS-07
+@pytest.mark.feature("VPS-07")
+@pytest.mark.parametrize("etype, expected", [(2, True), (1, False), (3, False), (None, False)])
+def test_admin_nur_bei_split_token(monkeypatch, etype, expected):
+    """Nur TokenElevationTypeFull zählt: eingebautes Administrator-Konto/UAC aus (Default) ist
+    kein Rechte-Gefälle, der normale Worker (Limited) ohnehin nicht."""
+    monkeypatch.setattr(elevation, "_elevation_type", lambda: etype)
+    assert elevation.is_elevated() is expected
+
+
+@pytest.mark.feature("VPS-07")
+def test_elevation_ausserhalb_windows_none():
+    import os
+
+    if os.name == "nt":
+        pytest.skip("nur außerhalb von Windows")
+    assert elevation._elevation_type() is None and elevation.is_elevated() is False
+
+
+@pytest.mark.feature("VPS-07")
+def test_update_als_admin_verweigert(monkeypatch):
+    """Admin-Worker (heute nach dem Update: alte Admin-Neustart-Schleife gewann Port 8000) darf
+    kein git pull machen – die Repo-Dateien gehörten sonst dem Administrator."""
+    monkeypatch.setattr(updater, "is_elevated", lambda: True)
+
+    def no_git(*args, **kwargs):
+        raise AssertionError("git darf als Admin nicht laufen")
+
+    monkeypatch.setattr(updater, "_git", no_git)
+    monkeypatch.setattr(updater, "ensure_git_repo", no_git)
+    ok, message = updater.execute_git_pull("main")
+    assert ok is False
+    assert "Güncelleme yapılmadı" in message and "Admin-Prozesse beenden" in message
+
+
+@pytest.mark.feature("VPS-07")
+def test_worker_warnt_beim_start_als_admin():
+    main = Path(WORKER_ROOT, "main.py").read_text(encoding="utf-8")
+    body = main[main.index("async def _startup_maintenance"):main.index("def force_shutdown")]
+    assert "if is_elevated():" in body and "ELEVATED_HINT" in body
+
+
+@pytest.mark.feature("VPS-07")
+def test_cleanup_meldet_admin_reste():
+    """Ohne Adminrechte bleibt die Befehlszeile erhöhter Prozesse leer: die Schritte 1-3 finden
+    sie nicht. Schritt 4 erkennt sie daran und schreibt die Warnung ins Worker-Log (Seite VPS)."""
+    cleanup = Path(WORKER_ROOT, "cleanup_old_instances.ps1").read_text(encoding="ascii")
+    assert "-not $_.CommandLine" in cleanup
+    assert "python[\\d.]*|pythonw|ngrok|terminal64|timeout" in cleanup
+    assert "$hiddenParents -contains $_.ProcessId" in cleanup  # Neustart-Schleife = cmd mit verstecktem Kind
+    assert "'worker_console.log'), 'Append', 'Write', 'ReadWrite'" in cleanup
+    assert "Admin-Prozesse beenden" in cleanup
+
+
+@pytest.mark.feature("VPS-07")
+def test_vps_skript_erkennt_und_beendet_admin_reste():
+    vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
+    # Bezug ist die Desktop-Sitzung: eingebautes Administrator-Konto -> explorer selbst High -> nichts
+    detect = vps[vps.index("function Get-ElevatedProcesses"):vps.index("function Get-ElevatedSummary")]
+    assert "Get-Process explorer" in detect and "-le $baseline" in detect
+    assert "elevated = @(try { Get-ElevatedSummary } catch { })" in vps
+    # Erst die Neustart-Schleifen beenden, sonst starten sie Worker/ngrok nach 3 s wieder
+    assert "'worker-loop' = 0; 'ngrok-loop' = 0; 'worker' = 1" in vps
+    # restart: Admin-Schleifen/Worker/ngrok vor start.bat beenden (start.bat selbst kann es nicht), Bots nicht
+    restart = vps[vps.index("function Invoke-Restart"):vps.index("function Invoke-FixElevated")]
+    assert restart.index("Stop-ElevatedProcesses") < restart.index("Start-Task $StartTask")
+    assert "'bot'" not in restart and "'mt5'" not in restart
+    fix = vps[vps.index("function Invoke-FixElevated"):vps.index("function Get-TaskInfo")]
+    assert "'bot', 'mt5'" in fix and "Start-Task $StartTask" in fix
+    assert "'fix-elevated' { Out-Json (Invoke-FixElevated) }" in vps

@@ -45,7 +45,11 @@ async def _startup_maintenance():
     from src.api.bot_control import startup_maintenance
     from src.utils.auto_updater import run_auto_updater
     from src.utils.bot_watchdog import load_persisted, run_watchdog
+    from src.utils.elevation import ELEVATED_HINT, is_elevated
 
+    if is_elevated():
+        # Konsolda kimse okumuyor, ama logs/worker_console.log'u VPS sayfası gösteriyor
+        print(f"🔴 WARNING: {ELEVATED_HINT}")
     if not api_key_required():
         print(
             "⚠️ WARNING: WORKER_API_KEY ayarlı değil - /api/* ve /ws/stream kimlik doğrulamasız, "

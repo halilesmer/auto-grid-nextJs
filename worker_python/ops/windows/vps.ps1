@@ -6,7 +6,10 @@
 #   status               Worker/ngrok/Bots/Version/Autostart als JSON
 #   check-update         Update-Pruefung ueber den Worker (GET /api/system/update/check)
 #   logs <worker|ngrok|update> [zeilen]
-#   restart              Worker + ngrok neu starten (geplante Aufgabe AutoGrid-Start -> start.bat)
+#   restart              Worker + ngrok neu starten (geplante Aufgabe AutoGrid-Start -> start.bat);
+#                        Neustart-Schleifen/Worker/ngrok mit Adminrechten werden vorher beendet
+#   fix-elevated         alle AutoGrid-Prozesse mit Adminrechten beenden (auch Bots und MT5),
+#                        dann wie restart; der Worker setzt die Bots ohne Adminrechte fort
 #   restart-ngrok        nur ngrok beenden; run_ngrok_watchdog.bat startet ihn nach 3 s neu
 #   update               Update ueber den laufenden Worker (POST /api/system/update); ist er
 #                        nicht erreichbar, ueber die geplante Aufgabe AutoGrid-Update
@@ -101,6 +104,128 @@ function Get-NgrokProcesses {
     @(Get-CimInstance Win32_Process -Filter "Name='ngrok.exe'" | Where-Object { $_.CommandLine -like '*http 8000*' })
 }
 
+# --- Prozesse mit Administratorrechten ("Admin-Reste") ---------------------------------------
+# Laufen Neustart-Schleife, Worker, Bots, ngrok oder MT5 erhoeht (alte Aufgabe mit "hoechsten
+# Rechten", start.bat per "Als Administrator ausfuehren"), kann der normale Worker sie weder sehen
+# noch beenden: cleanup_old_instances.ps1 findet sie nicht, alte Schleifen starten Worker und Bots
+# neben den neuen wieder mit Adminrechten, und ein Update als Admin machte die Repo-Dateien zu
+# Admin-Dateien. Dieses Skript laeuft per SSH erhoeht und sieht alles. Admin-Rest = hoehere
+# Integritaetsstufe als die Desktop-Sitzung (explorer.exe). Eingebautes Konto "Administrator" oder
+# UAC aus: explorer laeuft selbst erhoeht -> es wird nichts gemeldet (dort gibt es kein Rechte-Gefaelle).
+$IntegritySource = @'
+using System;
+using System.Runtime.InteropServices;
+public static class AutoGridIntegrity {
+    [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+    [DllImport("advapi32.dll")] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+    [DllImport("advapi32.dll")] static extern bool GetTokenInformation(IntPtr token, int cls, IntPtr info, int len, out int ret);
+    [DllImport("advapi32.dll")] static extern IntPtr GetSidSubAuthority(IntPtr sid, uint index);
+    [DllImport("advapi32.dll")] static extern IntPtr GetSidSubAuthorityCount(IntPtr sid);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    // RID der Integritaetsstufe (0x2000 Medium, 0x3000 High, 0x4000 System); -1 = nicht lesbar
+    public static int Get(int pid) {
+        IntPtr process = OpenProcess(0x1000, false, pid);  // PROCESS_QUERY_LIMITED_INFORMATION
+        if (process == IntPtr.Zero) return -1;
+        IntPtr token;
+        if (!OpenProcessToken(process, 0x8, out token)) { CloseHandle(process); return -1; }  // TOKEN_QUERY
+        int len;
+        GetTokenInformation(token, 25, IntPtr.Zero, 0, out len);  // TokenIntegrityLevel
+        IntPtr buf = Marshal.AllocHGlobal(len);
+        try {
+            if (!GetTokenInformation(token, 25, buf, len, out len)) return -1;
+            IntPtr sid = Marshal.ReadIntPtr(buf);
+            int count = Marshal.ReadByte(GetSidSubAuthorityCount(sid));
+            return Marshal.ReadInt32(GetSidSubAuthority(sid, (uint)(count - 1)));
+        } finally {
+            Marshal.FreeHGlobal(buf);
+            CloseHandle(token);
+            CloseHandle(process);
+        }
+    }
+}
+'@
+
+function Get-Integrity([int]$procId) {
+    if (-not ('AutoGridIntegrity' -as [type])) { Add-Type -TypeDefinition $IntegritySource }
+    return [AutoGridIntegrity]::Get($procId)
+}
+
+function Get-ProcessRole($p) {
+    $cmd = "$($p.CommandLine)"
+    if ($p.Name -eq 'cmd.exe') {
+        if ($cmd -like '*run_uvicorn_watchdog.bat*') { return 'worker-loop' }
+        if ($cmd -like '*run_ngrok_watchdog.bat*' -or $cmd -like '*/k*ngrok http 8000*') { return 'ngrok-loop' }
+        return $null
+    }
+    if ($p.Name -eq 'ngrok.exe') { if ($cmd -like '*http 8000*') { return 'ngrok' } else { return $null } }
+    if ($p.Name -eq 'terminal64.exe') { return 'mt5' }
+    if ($cmd -like '*bot_runner.py*') { return 'bot' }
+    if ($cmd -like '*main.py*') { return 'worker' }
+    return $null
+}
+
+# Alle AutoGrid-Prozesse mit hoeherer Integritaetsstufe als die Desktop-Sitzung (inkl. der
+# Kindprozesse hinter .venv\Scripts\python.exe)
+function Get-ElevatedProcesses {
+    $baseline = 0x2000
+    $explorer = @(Get-Process explorer -ErrorAction SilentlyContinue)
+    if ($explorer.Count -gt 0) {
+        $il = Get-Integrity $explorer[0].Id
+        if ($il -gt 0) { $baseline = $il }
+    }
+    $found = @()
+    $candidates = @(Get-CimInstance Win32_Process -Filter "Name='cmd.exe' OR Name like 'python%' OR Name='ngrok.exe' OR Name='terminal64.exe'")
+    foreach ($p in $candidates) {
+        $role = Get-ProcessRole $p
+        if (-not $role) { continue }
+        if ((Get-Integrity ([int]$p.ProcessId)) -le $baseline) { continue }
+        $account = ''
+        if ($role -eq 'bot' -and "$($p.CommandLine)" -match 'bot_runner\.py"?\s+"?(\d+)') { $account = $Matches[1] }
+        $found += [pscustomobject]@{ pid = [int]$p.ProcessId; parent = [int]$p.ParentProcessId; role = $role; account = $account }
+    }
+    return $found
+}
+
+# Fuer die Anzeige: .venv-Starter + echter Python-Prozess = ein Eintrag (wie bei den Bots)
+function Get-ElevatedSummary {
+    $all = @(Get-ElevatedProcesses)
+    $ids = @($all | ForEach-Object { $_.pid })
+    return @($all | Where-Object { $ids -notcontains $_.parent } | ForEach-Object {
+        @{ pid = $_.pid; role = $_.role; account = $_.account }
+    })
+}
+
+function Stop-ElevatedProcesses([string[]]$Roles) {
+    # Erst die Neustart-Schleifen, sonst starten sie Worker/ngrok nach 3 s wieder
+    $order = @{ 'worker-loop' = 0; 'ngrok-loop' = 0; 'worker' = 1; 'ngrok' = 1; 'bot' = 2; 'mt5' = 3 }
+    $targets = @(Get-ElevatedProcesses | Where-Object { $Roles -contains $_.role } | Sort-Object { $order[$_.role] })
+    foreach ($t in $targets) { Stop-Process -Id $t.pid -Force -ErrorAction SilentlyContinue }
+    if ($targets.Count -gt 0) { Start-Sleep -Seconds 1 }
+    return $targets
+}
+
+function Invoke-Restart {
+    # start.bat laeuft ohne Adminrechte und kaeme an erhoehte Reste nicht heran (siehe oben)
+    $stopped = @(Stop-ElevatedProcesses @('worker-loop', 'ngrok-loop', 'worker', 'ngrok'))
+    Start-Task $StartTask
+    $message = 'Worker und ngrok werden neu gestartet (start.bat). Bereit nach ~10-20 s.'
+    if ($stopped.Count -gt 0) { $message += " Vorher $($stopped.Count) Prozess(e) mit Adminrechten beendet." }
+    return @{ ok = $true; message = $message }
+}
+
+function Invoke-FixElevated {
+    $stopped = @(Stop-ElevatedProcesses @('worker-loop', 'ngrok-loop', 'worker', 'ngrok', 'bot', 'mt5'))
+    if ($stopped.Count -eq 0) {
+        return @{ ok = $true; message = 'Keine Prozesse mit Adminrechten gefunden.' }
+    }
+    Start-Task $StartTask
+    $roles = ($stopped | ForEach-Object { $_.role } | Sort-Object -Unique) -join ', '
+    return @{
+        ok = $true
+        message = "$($stopped.Count) Prozess(e) mit Adminrechten beendet ($roles). Worker und ngrok starten ohne Adminrechte neu, der Worker setzt die Bots danach fort."
+    }
+}
+
 function Get-TaskInfo($name) {
     $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
     if (-not $task) { return @{ exists = $false } }
@@ -158,6 +283,8 @@ function Get-Status {
         ngrok = $ngrok
         ngrok_watchdog = (@(Get-CmdWindows 'run_ngrok_watchdog.bat').Count -gt 0)
         bots = $bots
+        # Erkennung darf den Status nie kippen (z. B. Add-Type gesperrt)
+        elevated = @(try { Get-ElevatedSummary } catch { })
         mt5_terminals = @(Get-Process terminal64 -ErrorAction SilentlyContinue).Count
         session_active = (@(Get-Process explorer -ErrorAction SilentlyContinue).Count -gt 0)
         autologon = ($winlogon -and "$($winlogon.AutoAdminLogon)" -eq '1')
@@ -287,10 +414,8 @@ try {
     switch ($Action) {
         'status' { Out-Json (Get-Status) }
         'logs' { Out-Json (Get-Logs ($(if ($Arg) { $Arg } else { 'worker' })) $Lines) }
-        'restart' {
-            Start-Task $StartTask
-            Out-Json @{ ok = $true; message = 'Worker und ngrok werden neu gestartet (start.bat). Bereit nach ~10-20 s.' }
-        }
+        'restart' { Out-Json (Invoke-Restart) }
+        'fix-elevated' { Out-Json (Invoke-FixElevated) }
         'restart-ngrok' { Out-Json (Invoke-RestartNgrok) }
         'check-update' { Out-Json (Invoke-CheckUpdate) }
         'update' { Out-Json (Invoke-Update) }
