@@ -76,7 +76,7 @@ export default function SettingsForm() {
   if (!selectedAccount) return null;
 
   return (
-    <Card>
+    <Card data-testid="general-settings">
       <CardHeader
         icon={<SlidersHorizontal size={16} />}
         title="Genel Ayarlar"
@@ -108,6 +108,7 @@ export default function SettingsForm() {
             <div className="relative flex flex-1 items-center border-x border-input">
               <input
                 type="number"
+                aria-label="Kontrol Sıklığı"
                 step={STEP_INTERVAL}
                 min={MIN_INTERVAL}
                 max={MAX_INTERVAL}

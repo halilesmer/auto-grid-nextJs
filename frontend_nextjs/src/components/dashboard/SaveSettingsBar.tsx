@@ -44,6 +44,7 @@ export default function SaveSettingsBar({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 24 }}
             transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
+            data-testid="unsaved-bar"
             className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4"
           >
             <div className="flex items-center gap-4 rounded-xl border border-border bg-popover/90 py-2 pl-4 pr-2 shadow-2xl shadow-black/15 dark:shadow-black/60 backdrop-blur-xl">

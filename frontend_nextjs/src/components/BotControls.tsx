@@ -114,7 +114,7 @@ export default function BotControls() {
         : { label: "Stopped", tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
 
   return (
-    <Card>
+    <Card data-testid="bot-controls">
       <CardHeader
         icon={<Bot size={16} />}
         title="Bot Controls"
@@ -125,7 +125,7 @@ export default function BotControls() {
         <div className={cn("flex items-center justify-between gap-3 rounded-lg border px-4 py-3", status.box)}>
           <div className="flex min-w-0 items-center gap-2.5">
             <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
-            <span className="text-sm font-semibold">{status.label}</span>
+            <span data-testid="bot-status" className="text-sm font-semibold">{status.label}</span>
           </div>
           <span className="shrink-0 text-xs text-muted-foreground">
             Market{" "}
