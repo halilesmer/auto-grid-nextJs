@@ -196,7 +196,11 @@ export default function AccountSelector() {
         />
       </Card>
 
-      <AccountFormDialog open={modalOpen} onClose={() => setModalOpen(false)} title={isEditing ? 'Edit Account' : 'New MT5 Account'}>
+      <AccountFormDialog
+        open={modalOpen}
+        // Mükerrer hesap sorusu açıkken Escape yalnızca soruyu kapatsın, formu değil
+        onClose={() => !duplicateAccount && setModalOpen(false)}
+        title={isEditing ? 'Edit Account' : 'New MT5 Account'}>
         <AccountForm
           formData={formData}
           errors={errors}
@@ -217,6 +221,20 @@ export default function AccountSelector() {
           onSubmit={handleSubmit}
           onEditExisting={duplicateAccount ? handleEditExisting : undefined}
         />
+        {/* Form <dialog>'u showModal ile top layer'da; soru onun içinde olmalı, yoksa arkasında kalır */}
+        <ConfirmModal
+          open={!!duplicateAccount}
+          onClose={() => handleDuplicateConfirm(false)}
+          onConfirm={() => handleDuplicateConfirm(true)}
+          title="Account already exists"
+          message={
+            duplicateAccount
+              ? `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
+              : ''
+          }
+          confirmLabel="Edit"
+          variant="warning"
+        />
       </AccountFormDialog>
 
       <ConfirmModal
@@ -227,20 +245,6 @@ export default function AccountSelector() {
         message={`Are you sure you want to delete ${activeAccount?.account_name}? This action cannot be undone.`}
         variant="danger"
         loading={isSaving}
-      />
-
-      <ConfirmModal
-        open={!!duplicateAccount}
-        onClose={() => handleDuplicateConfirm(false)}
-        onConfirm={() => handleDuplicateConfirm(true)}
-        title="Account already exists"
-        message={
-          duplicateAccount
-            ? `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
-            : ''
-        }
-        confirmLabel="Edit"
-        variant="warning"
       />
     </>
   );

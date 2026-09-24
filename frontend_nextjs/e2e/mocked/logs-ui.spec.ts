@@ -25,12 +25,18 @@ test.describe('LOG Logs', () => {
     await expect(dashboard.logOutput).toContainText('Bot gestartet');
     const clear = page.getByTitle('Clear all logs');
 
+    const confirm = page.getByRole('dialog').filter({ hasText: 'Logları Temizle' });
+
     // Abbrechen: nichts wird gelöscht
-    await dashboard.withDialog(() => clear.click(), 'dismiss');
+    await clear.click();
+    await expect(confirm).toContainText('logları temizlemek');
+    await confirm.getByRole('button', { name: 'Vazgeç' }).click();
+    await expect(confirm).toBeHidden();
     expect(worker.callsTo('DELETE', `/api/logs/${DEMO_ID}`)).toHaveLength(0);
 
-    const question = await dashboard.withDialog(() => clear.click(), 'accept');
-    expect(question).toContain('logları temizlemek');
+    await clear.click();
+    await confirm.getByRole('button', { name: 'Temizle', exact: true }).click();
+    await expect(confirm).toBeHidden();
     await expect(dashboard.logOutput).toHaveText('No log entries yet...');
     await dashboard.refreshLogs();
     await expect(dashboard.logOutput).toHaveText('No log entries yet...');
