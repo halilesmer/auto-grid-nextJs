@@ -257,6 +257,8 @@ def test_windows_skripte():
     assert "run_ngrok_watchdog.bat" in start and "run_uvicorn_watchdog.bat" in start
     cleanup = Path(WORKER_ROOT, "cleanup_old_instances.ps1").read_text(encoding="utf-8")
     assert "run_ngrok_watchdog.bat" in cleanup
+    # Fenster der alten start.bat (cmd /k "ngrok http 8000 ...") wird mit geschlossen
+    assert "'*/k*ngrok http 8000*'" in cleanup
 
 
 @pytest.mark.feature("VPS-05")
