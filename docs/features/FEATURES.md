@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-24 · **68/72** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-24 · **70/72** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -20,8 +20,8 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 9/9 |
 | 6 | **BOT** – Bot-Steuerung | 6/6 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 15/16 |
-| 8 | **MET** – Live-Daten & Diagramm | 3/4 |
+| 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
+| 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
 | 10 | **UPD** – System & Updates | 2/4 |
 | 11 | **UI** – Oberfläche | 4/4 |
@@ -38,7 +38,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [x] **SYS-03** Plattform-Erkennung *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-09-24 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok).
   - **Prüfung:** GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
   - **Erwartet:** Antwort {"platform": "win32", "is_windows": true}.
@@ -272,10 +272,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - safe_send_order normalisiert Volumen, hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-09-24 · 👤 manuell ⏳
+- [x] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-24
   - Manuelle BUY LIMIT 0,01 Lot bei 1 $ = STOP, bei 2 $ = START; alternativ Kommentar GRID:STOP / GRID:START. STOP löscht alle Robot-Orders; die Signal-Order wird danach entfernt.
   - **Prüfung:** In der MT5-App eine BUY LIMIT 0,01 bei Preis 1 setzen. → Danach BUY LIMIT 0,01 bei Preis 2 setzen.
   - **Erwartet:** Erst werden alle Robot-Orders gelöscht (remote_paused), dann läuft der Bot weiter; die Signal-Orders verschwinden.
+  - 📝 Nutzer per MT5-App: $1 Buy Limit → STOP (Robot-Orders gelöscht, Signal-Order entfernt), $2 Buy Limit → START; Robot-Log 15:14/15:18 bestätigt, danach remote_paused false, Bot läuft
 - [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-09-24
   - Beim Bot-Start sind alle Zonen PAUSE; active_zones_state wird aus den Magic-Numbers der vorhandenen Orders/Positionen aufgebaut (data/state_<id>.json), alte ui_state-Datei gelöscht.
   - **Prüfung:** Bot mit offenen Orders stoppen und neu starten.
@@ -301,7 +302,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
   - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
-- [ ] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-09-24 · 🌐 live ❌ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-09-24 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.

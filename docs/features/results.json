@@ -350,7 +350,7 @@
     },
     "live": {
       "datum": "2026-09-24",
-      "status": "failed",
+      "status": "passed",
       "tests": 1
     },
     "unit": {
@@ -475,6 +475,11 @@
       "tests": 1
     },
     "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "live": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
