@@ -280,3 +280,26 @@ def test_vps_skript_ruft_im_ssh_kontext_kein_git_auf():
     assert "Test-Elevated" in code and "self_updater update" in code
     setup = Path(WORKER_ROOT, "ops/windows/setup_vps.ps1").read_text(encoding="ascii")
     assert "-RunLevel Limited" in setup and "AutoGrid-Start" in setup and "AutoGrid-Update" in setup
+
+
+@pytest.mark.feature("VPS-05")
+def test_vps_skript_zaehlt_mit_array_klammern():
+    """PowerShell 5.1: ein einzelnes CimInstance hat kein .Count → ohne @(...) „0 Prozesse“,
+    obwohl einer läuft (Watchdog/ngrok wurden auf dem VPS fälschlich als gestoppt gemeldet)."""
+    import re
+
+    vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
+    unwrapped = re.findall(r"(?<!@)\((Get-[\w-]+[^()]*)\)\.Count", vps)
+    assert unwrapped == []
+    assert "$ngrokProcs = @(Get-NgrokProcesses)" in vps
+    # venv-Starter + echter Python-Prozess = ein Bot
+    assert "$botPids -notcontains $_.ParentProcessId" in vps
+
+
+@pytest.mark.feature("VPS-03")
+def test_vps_logs_als_reine_strings():
+    """Get-Content-Zeilen tragen PSPath/PSProvider mit; ConvertTo-Json machte aus 3 Zeilen ~6,7 MB
+    (SSH-Antwort über maxBuffer, Log-Tab zeigte ERR_CHILD_PROCESS_STDIO_MAXBUFFER)."""
+    vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
+    body = vps[vps.index("function Get-Logs"):vps.index("function Start-Task")]
+    assert 'ForEach-Object { "$_" }' in body

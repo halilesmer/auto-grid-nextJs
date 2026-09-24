@@ -80,6 +80,8 @@ export function runVps(config: VpsConfig, action: VpsAction, args: string[] = []
     '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=15',
     '-o', 'StrictHostKeyChecking=accept-new',
+    // Keine ssh-Warnungen (z. B. „post-quantum key exchange“ des Windows-sshd) in Fehlermeldungen
+    '-o', 'LogLevel=ERROR',
     ...(config.key ? ['-i', config.key, '-o', 'IdentitiesOnly=yes'] : []),
     config.host,
     remote,
