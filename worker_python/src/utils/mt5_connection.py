@@ -51,9 +51,20 @@ def _kill_zombie_mt5(path):
     kill_zombie_mt5(path, safe_log)
 
 
-def connect_to_mt5(account_config, timeout_sec=60):
-    """Eşzamanlı API isteklerinin MT5 IPC portunu çökertmesini önleyen kilitli sarmalayıcı"""
-    with _MT5_LOCK:
+def connect_to_mt5(account_config, timeout_sec=60, allow_restart=True):
+    """Eşzamanlı API isteklerinin MT5 IPC portunu çökertmesini önleyen kilitli sarmalayıcı.
+
+    `timeout_sec` kilit beklemesini de kapsar: kilidi tutan başka bir bağlantı denemesi
+    bu çağrıyı süresinin ötesinde bekletemez.
+    """
+    deadline = time.monotonic() + timeout_sec
+    if not _MT5_LOCK.acquire(timeout=timeout_sec):
+        safe_log(f"[TIMEOUT] Başka bir MT5 bağlantısı {timeout_sec} sn içinde bitmedi; bağlantı denenmedi.")
+        return (
+            False,
+            f"[TIMEOUT] MT5 bağlantısı {timeout_sec} sn içinde başlatılamadı (başka bir MT5 bağlantısı sürüyordu). Tekrar deneyin.",
+        )
+    try:
         # 🌟 ERKEN ÇIKIŞ (EARLY EXIT): Zaten bağlıysak ve hesap doğruysa işlemi atla.
         # Böylece arka arkaya gelen istekler birbirinin bağlantısını (shutdown) koparmaz.
         try:
@@ -65,10 +76,14 @@ def connect_to_mt5(account_config, timeout_sec=60):
         except Exception:
             pass
 
-        return _connect_to_mt5_internal(account_config, timeout_sec)
+        return _connect_to_mt5_internal(
+            account_config, timeout_sec, allow_restart=allow_restart, deadline=deadline
+        )
+    finally:
+        _MT5_LOCK.release()
 
 
-def _connect_to_mt5_internal(account_config, timeout_sec=60):
+def _connect_to_mt5_internal(account_config, timeout_sec=60, allow_restart=True, deadline=None):
     return connect_internal_helper(
         account_config,
         timeout_sec,
@@ -76,6 +91,8 @@ def _connect_to_mt5_internal(account_config, timeout_sec=60):
         safe_log,
         MT5_AVAILABLE,
         MT5_IMPORT_ERROR,
+        allow_restart=allow_restart,
+        deadline=deadline,
     )
 
 
@@ -101,19 +118,24 @@ def get_mt5_symbols():
     return get_mt5_symbols_helper(MT5_AVAILABLE, safe_log)
 
 
-def connect_to_mt5_with_timeout(account_config, timeout=60):
-    """connect_to_mt5'i çağırır; timeout gerçekleşirse is_timeout=True döner."""
+def connect_to_mt5_with_timeout(account_config, timeout=60, allow_restart=True):
+    """connect_to_mt5'i çağırır; timeout gerçekleşirse is_timeout=True döner.
+
+    `timeout` tüm bağlantının süre bütçesidir (kilit beklemesi + terminal açılışı);
+    yalnızca giriş/senkronizasyon bunun üzerine eklenebilir.
+    `allow_restart=False`: IPC hatasında asılı terminal öldürülüp yeniden başlatılmaz.
+    """
     if not account_config:
         safe_log("Bağlanılacak hesap seçilmedi!")
         return False, False, "[CONFIG] Bağlanılacak hesap seçilmedi."
 
     try:
-        ok, detail = connect_to_mt5(account_config, timeout_sec=timeout)
+        ok, detail = connect_to_mt5(account_config, timeout_sec=timeout, allow_restart=allow_restart)
         is_timeout = False
         if (
             not ok
             and detail
-            and any(k in str(detail) for k in ("Timeout", "-10005", "-10003"))
+            and any(k in str(detail) for k in ("[TIMEOUT]", "Timeout", "-10005", "-10004", "-10003"))
         ):
             is_timeout = True
             safe_log(

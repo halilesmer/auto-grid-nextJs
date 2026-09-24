@@ -64,6 +64,12 @@ def account_lock(account_id: str) -> asyncio.Lock:
     return lock
 
 
+def is_account_busy(account_id: str) -> bool:
+    """/start, /stop veya bekçi şu an bu hesap üzerinde çalışıyor mu? (kilit oluşturmaz)"""
+    lock = _locks.get(str(account_id))
+    return lock is not None and lock.locked()
+
+
 def _persist():
     """İzleme listesini diske yazar (atomik). Hata izlemeyi asla bozmaz."""
     path = get_watched_bots_path()

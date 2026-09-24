@@ -50,7 +50,7 @@ MT5 passwords never leave the worker: account responses go through `_public_acco
 
 ## Tests
 
-Feature catalog `docs/features/features.yaml` (81 features, in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
+Feature catalog `docs/features/features.yaml` (82 features, in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
 
 ```bash
 scripts/features/run.sh              # unit + api + e2e, then regenerate FEATURES.md

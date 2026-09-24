@@ -142,7 +142,8 @@ def main():
 
     print(f"[{account_id}] MT5 Terminaline bağlanılıyor...")
     # 🌟 ZAMAN AŞIMI KORUMASI: MT5 açılamazsa alt süreç de sessizce asılı kalmasın!
-    # 🌟 timeout=120sn: mt5.initialize iç timeout'u (120sn) ile eşleşir, ilk bağlantı sembol indirimi için yeterli
+    # 🌟 timeout=120sn: terminal açılışının toplam süre bütçesi (tekrar denemeler ve asılı
+    #    terminalin yeniden başlatılması dahil); açılmakta olan terminal öldürülmez.
     connection_success, connection_timed_out, connection_error = connect_to_mt5_with_timeout(
         active_account, timeout=120
     )
