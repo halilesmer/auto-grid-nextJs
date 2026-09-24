@@ -47,7 +47,9 @@ run_playwright() {  # $1 = tier (e2e|live), $2 = Playwright-Projekt
     return 0
   fi
   echo "• $tier: playwright --project=$project ${filter:+(Filter $filter)}"
-  (cd "$FRONTEND" && PLAYWRIGHT_JSON_OUTPUT_NAME="$REPORTS/$tier.json" \
+  local live=0
+  [ "$tier" = live ] && live=1
+  (cd "$FRONTEND" && E2E_LIVE=$live PLAYWRIGHT_JSON_OUTPUT_NAME="$REPORTS/$tier.json" \
       npx playwright test --project="$project" --reporter=list,json \
       ${filter:+--grep "@$filter"}) || rc=1
 }

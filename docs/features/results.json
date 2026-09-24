@@ -9,6 +9,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    },
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "ACC-02": {
@@ -64,6 +69,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    },
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "ACC-07": {
@@ -84,6 +94,20 @@
     "api": {
       "datum": "2026-09-24",
       "status": "passed",
+      "tests": 1
+    }
+  },
+  "BOT-01": {
+    "live": {
+      "datum": "2026-09-24",
+      "status": "skipped",
+      "tests": 1
+    }
+  },
+  "BOT-02": {
+    "live": {
+      "datum": "2026-09-24",
+      "status": "skipped",
       "tests": 1
     }
   },
@@ -144,6 +168,11 @@
     }
   },
   "ENG-05": {
+    "live": {
+      "datum": "2026-09-24",
+      "status": "skipped",
+      "tests": 1
+    },
     "unit": {
       "datum": "2026-09-24",
       "status": "passed",
@@ -179,6 +208,11 @@
     }
   },
   "ENG-10": {
+    "live": {
+      "datum": "2026-09-24",
+      "status": "skipped",
+      "tests": 1
+    },
     "unit": {
       "datum": "2026-09-24",
       "status": "passed",
@@ -237,6 +271,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    },
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "LOG-02": {
@@ -289,6 +328,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
+    },
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "MET-02": {
@@ -299,6 +343,11 @@
     }
   },
   "MET-03": {
+    "live": {
+      "datum": "2026-09-24",
+      "status": "failed",
+      "tests": 1
+    },
     "unit": {
       "datum": "2026-09-24",
       "status": "passed",
@@ -319,6 +368,11 @@
       "tests": 3
     },
     "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "live": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
@@ -365,6 +419,11 @@
     }
   },
   "SYM-01": {
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
     "unit": {
       "datum": "2026-09-24",
       "status": "passed",
@@ -385,8 +444,20 @@
       "tests": 1
     }
   },
+  "SYS-01": {
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    }
+  },
   "SYS-02": {
     "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "live": {
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 1
@@ -414,6 +485,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 2
+    },
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "SYS-05": {
@@ -421,6 +497,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 3
+    },
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
     }
   },
   "UI-01": {
@@ -550,6 +631,11 @@
       "datum": "2026-09-24",
       "status": "passed",
       "tests": 4
+    },
+    "live": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 2
     }
   },
   "ZON-09": {

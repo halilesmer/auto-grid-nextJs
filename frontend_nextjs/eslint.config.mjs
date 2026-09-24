@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Playwright: Testserver-Build (NEXT_DIST_DIR) und Berichte
     ".next-e2e/**",
+    ".next-live/**",
     "test-results/**",
     "playwright-report/**",
     "blob-report/**",
