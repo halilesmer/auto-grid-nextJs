@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-24 · **67/73** abgehakt · ❌ 4 mit Fehlern · 🐞 3 bekannte Fehler
+**Stand:** 2026-09-24 · **68/72** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -16,14 +16,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 5/5 |
 | 2 | **ACC** – Konten | 9/9 |
-| 3 | **SET** – Allgemeine Einstellungen | 5/6 |
+| 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 9/9 |
 | 6 | **BOT** – Bot-Steuerung | 6/6 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 15/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 3/4 |
 | 9 | **LOG** – Logs | 6/6 |
-| 10 | **UPD** – System & Updates | 2/5 |
+| 10 | **UPD** – System & Updates | 2/4 |
 | 11 | **UI** – Oberfläche | 4/4 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -38,10 +38,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
-  - GET /system/platform meldet, ob der Worker unter Windows läuft (steuert u. a. die Anzeige des Preis-Simulators).
-  - **Prüfung:** Dashboard gegen den VPS-Worker öffnen.
-  - **Erwartet:** Auf Windows wird die „Mac Test Mode“-Leiste NICHT angezeigt.
+- [x] **SYS-03** Plattform-Erkennung *(teilweise)* — 🔌 api ✅ 2026-09-24 · 🌐 live ⏳ · 👤 manuell ✅ 2026-09-23
+  - GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok).
+  - **Prüfung:** GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
+  - **Erwartet:** Antwort {"platform": "win32", "is_windows": true}.
   - 📝 Claude: /system/platform → 200 {is_windows: true, platform: win32}; 'Mac Test Mode'-Leiste nicht sichtbar
 - [x] **SYS-04** MT5-Terminal-Scanner — 🔌 api ✅ 2026-09-24 · 🖥️ e2e ✅ 2026-09-24 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /system/scan-mt5 sucht terminal64.exe auf dem VPS; der Konto-Dialog bietet die Pfade zur Auswahl an (Rescan, eigener Pfad).
@@ -122,11 +122,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur das Intervall speichern.
   - **Erwartet:** Zonen bleiben unverändert.
   - 📝 Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen danach identisch mit Sicherung
-- [ ] **SET-06** Globale Standardwerte (GLOBAL_*) — 🧪 unit 🐞 2026-09-24
-  - Standardwerte GLOBAL_GRID_STEP, GLOBAL_TAKE_PROFIT, GLOBAL_DEFAULT_LOT, MAX_OPEN_POSITIONS, MIN/MAX_PRICE_LIMIT, CLEAR_ON_ZONE_EXIT in utils/config.py.
+- [x] **SET-06** Standardwerte (neue Datei, fehlende Zonenfelder) — 🧪 unit ✅ 2026-09-24
+  - Eine neue Einstellungsdatei enthält nur LOOP_INTERVAL_SECONDS und ZONES. Fehlt einer Zone ein Feld, nimmt die Engine dieselben Standardwerte wie eine neue Zone im UI (defaultZone). Die früheren GLOBAL_*-Schlüssel wurden nie gelesen und sind entfernt.
   - **Prüfung:** Nicht manuell testbar.
-  - **Erwartet:** Die Engine sollte diese Werte als Fallback nutzen.
-  - 🐞 **Bekannter Fehler:** Die Engine liest diese Werte nie; nur LOOP_INTERVAL_SECONDS wird auf oberster Ebene verwendet.
+  - **Erwartet:** Engine- und UI-Standardwerte stimmen überein; keine ungenutzten Schlüssel in neuen Dateien.
 
 ## 4. SYM – Symbole
 
@@ -359,16 +358,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Power-Button → Bestätigung → /stop, danach window.close().
   - **Prüfung:** Power-Button → bestätigen.
   - **Erwartet:** Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
-- [ ] **UPD-04** Preis-Simulator (Mac-Testmodus) — 🖥️ e2e 🐞 2026-09-24
-  - Schieberegler 50–150, nur sichtbar wenn der Worker nicht unter Windows läuft; POST /bot/simulate-price.
-  - **Prüfung:** Nur mit einem Nicht-Windows-Worker sichtbar.
-  - **Erwartet:** Der simulierte Preis sollte in die Engine einfließen.
-  - 🐞 **Bekannter Fehler:** /bot/simulate-price schreibt sim_<id>.json, das von niemandem gelesen wird – der Regler hat keine Wirkung.
-- [ ] **UPD-05** Server-Neustart nach Update — 🧪 unit 🐞 2026-09-24
-  - self_updater.hard_restart_server soll den Worker nach einem Update neu starten.
-  - **Prüfung:** Nicht manuell testen.
-  - **Erwartet:** Worker startet neu.
-  - 🐞 **Bekannter Fehler:** hard_restart_server verweist auf scripts/launcher.py, das nicht existiert.
+- [ ] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-09-24 · 🔌 api ✅ 2026-09-24 · 👤 manuell ⏳
+  - Nach einem erfolgreichen POST /system/update beendet sich der Worker nach 1,5 s (schedule_restart); run_uvicorn_watchdog.bat (setzt WORKER_SUPERVISED=1) startet ihn mit dem neuen Code neu. Ohne Watchdog kein Neustart. Das Dashboard wartet 8 s und lädt dann neu; veraltete Bots startet der neue Worker selbst neu (BOT-03).
+  - **Prüfung:** Update im Dashboard anwenden (System Info → Check for Updates → Apply Update). → Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
+  - **Erwartet:** Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
 
 ## 11. UI – Oberfläche
 

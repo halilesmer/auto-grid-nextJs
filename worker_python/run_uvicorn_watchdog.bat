@@ -5,6 +5,10 @@ REM im Produktivbetrieb bewusst OHNE Reload, damit ein laufender Request/MT5-Vor
 REM nicht durch einen Datei-Watcher unterbrochen wird.
 cd /d "%~dp0"
 
+REM Signalisiert dem Worker, dass er nach einem Update (POST /api/system/update) sich selbst
+REM beenden darf: diese Schleife startet ihn dann mit dem neuen Code neu.
+set WORKER_SUPERVISED=1
+
 :loop
 .venv\Scripts\python.exe main.py
 echo.

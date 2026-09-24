@@ -1,19 +1,18 @@
 # src/utils/config.py
+import copy
 import json
 import os
 
 # Merkezi yol yöneticisi
 from src.utils.paths import get_settings_path
 
+# Yeni hesabın ayar dosyası. Grid/lot/TP gibi değerler bölge başınadır (ZONES); bir alan
+# eksikse varsayılanı grid_execution/config.extract_zone_config verir – arayüzdeki
+# defaultZone() ile aynı değerler (tests/unit/test_settings_defaults.py kontrol eder).
+# Eski GLOBAL_* / MAX_OPEN_POSITIONS / *_PRICE_LIMIT / CLEAR_ON_ZONE_EXIT anahtarları hiçbir
+# yerde okunmadığı için kaldırıldı; eski dosyalarda kalmaları zararsızdır.
 DEFAULT_SETTINGS_AUTO_GRID = {
-    "GLOBAL_GRID_STEP": 0.05,
-    "GLOBAL_TAKE_PROFIT": 0.05,
-    "GLOBAL_DEFAULT_LOT": 0.01,
-    "MAX_OPEN_POSITIONS": 999,
-    "MAX_PRICE_LIMIT": 120.00,
-    "MIN_PRICE_LIMIT": 20.00,
     "LOOP_INTERVAL_SECONDS": 1.0,
-    "CLEAR_ON_ZONE_EXIT": True,
     "ZONES": [],
 }
 
@@ -47,7 +46,8 @@ def load_settings(engine_name: str = "Auto Grid"):
 
     if not os.path.exists(active_path):
         save_settings(DEFAULT_SETTINGS_AUTO_GRID, engine_name)
-        return DEFAULT_SETTINGS_AUTO_GRID
+        # Kopya: çağıran sonucu değiştirirse modül varsayılanı bozulmasın
+        return copy.deepcopy(DEFAULT_SETTINGS_AUTO_GRID)
 
     try:
         with open(active_path, "r", encoding="utf-8") as f:
@@ -63,7 +63,7 @@ def load_settings(engine_name: str = "Auto Grid"):
 
         return data
     except Exception:
-        return DEFAULT_SETTINGS_AUTO_GRID
+        return copy.deepcopy(DEFAULT_SETTINGS_AUTO_GRID)
 
 
 def sanitize_settings(data):

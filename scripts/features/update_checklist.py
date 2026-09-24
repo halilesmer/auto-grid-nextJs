@@ -336,7 +336,10 @@ def main() -> int:
     known = set(by_id)
     unknown = sorted(set(results) - known)
     if unknown:
-        print(f"Warnung: Tests verweisen auf unbekannte IDs: {', '.join(unknown)}", file=sys.stderr)
+        # Aus dem Katalog entfernte Features (oder Tippfehler in einem Test-Tag): Ergebnisse verwerfen
+        print(f"Warnung: Ergebnisse für IDs ohne Katalogeintrag verworfen: {', '.join(unknown)}", file=sys.stderr)
+        for fid in unknown:
+            del results[fid]
     RESULTS.write_text(json.dumps(results, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     OUT.write_text(render(cats, results, manual), encoding="utf-8")
     done = sum(feature_state(f, results, manual)["checked"] for _, f in iter_features(cats))

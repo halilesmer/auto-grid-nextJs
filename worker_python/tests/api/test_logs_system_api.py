@@ -100,6 +100,30 @@ def test_update_pruefung(client, monkeypatch):
     assert body["has_update"] is False and body["error"] == "kein git"
 
 
+# --------------------------------------------------------------------------- UPD-05
+@pytest.mark.feature("UPD-05")
+@pytest.mark.parametrize("supervised", [True, False])
+def test_update_startet_worker_neu_wenn_ueberwacht(client, monkeypatch, supervised):
+    import src.api.system as system
+
+    monkeypatch.setattr(system, "execute_git_pull", lambda branch: (True, "Already up to date."))
+    calls = []
+    monkeypatch.setattr(system, "schedule_restart", lambda: calls.append(1) or supervised)
+    body = client.post("/api/system/update").json()
+    assert body == {"status": "success", "message": "Already up to date.", "restarting": supervised}
+    assert calls == [1]
+
+
+@pytest.mark.feature("UPD-05")
+def test_fehlgeschlagenes_update_startet_nicht_neu(client, monkeypatch):
+    import src.api.system as system
+
+    monkeypatch.setattr(system, "execute_git_pull", lambda branch: (False, "Permission denied"))
+    monkeypatch.setattr(system, "schedule_restart", lambda: pytest.fail("kein Neustart bei Fehler"))
+    res = client.post("/api/system/update")
+    assert res.status_code == 500 and res.json()["detail"] == "Permission denied"
+
+
 # --------------------------------------------------------------------------- SYS-03
 @pytest.mark.feature("SYS-03")
 def test_plattform(client, monkeypatch):

@@ -11,7 +11,6 @@ import ConfirmModal from '@/components/ConfirmModal';
 import ErrorToast from '@/components/ui/ErrorToast';
 import LogViewer from '@/components/LogViewer';
 import SettingsForm from '@/components/SettingsForm';
-import SimulationBar from '@/components/SimulationBar';
 import MetricsStrip from '@/components/dashboard/MetricsStrip';
 import SaveSettingsBar from '@/components/dashboard/SaveSettingsBar';
 import UpdateModal from '@/components/dashboard/UpdateModal';
@@ -171,8 +170,6 @@ export default function Home() {
       </header>
 
       <AccountSelector />
-
-      {selectedAccount && <SimulationBar />}
 
       {saveAllError && (
         <ErrorToast
