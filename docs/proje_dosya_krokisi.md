@@ -42,6 +42,10 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 version.ts           # Sürüm bilgisi
 ┃ ┃ ┃ ┣ 📂 formasyon            # Formasyon sayfası
 ┃ ┃ ┃ ┃ ┗ 📜 page.tsx
+┃ ┃ ┃ ┣ 📂 vps                  # VPS uzaktan kontrol sayfası (sadece lokal; components/vps/)
+┃ ┃ ┃ ┃ ┗ 📜 page.tsx
+┃ ┃ ┃ ┣ 📂 api/vps/[action]     # Route Handler: SSH ile ops/windows/vps.ps1 (localhost + VPS_SSH_HOST)
+┃ ┃ ┃ ┃ ┗ 📜 route.ts
 ┃ ┃ ┃ ┗ 📂 chart                # Grafik ve İstatistik Sayfası
 ┃ ┃ ┃   ┗ 📜 page.tsx
 ┃ ┃ ┣ 📂 components             # React bileşenleri
@@ -98,6 +102,9 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 api.ts               # Genel API istemcisi
 ┃ ┃ ┃ ┗ 📜 zoneApi.ts           # Zone API işlemleri
 ┃ ┃ ┣ 📂 lib                    # Kütüphane yardımcıları
+┃ ┃ ┃ ┣ 📜 vps.ts               # VPS aksiyonları ve tipleri (sayfa + route ortak)
+┃ ┃ ┃ ┣ 📂 server
+┃ ┃ ┃ ┃ ┗ 📜 vpsSsh.ts          # ssh çağrısı (sadece sunucu tarafı)
 ┃ ┃ ┃ ┗ 📜 api.ts               # API yardımcı fonksiyonları
 ┃ ┃ ┣ 📂 store                  # Zustand state management (Modüler)
 ┃ ┃ ┃ ┣ 📜 index.ts             # Barrel export
@@ -163,18 +170,22 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 state.py             # Core state yönetimi
 ┃ ┃ ┃ ┗ 📜 wrappers.py          # Wrapper fonksiyonları
 ┃ ┃ ┗ 📂 utils                  # Yardımcı modüller
+┃ ┃   ┣ 📜 auto_updater.py      # origin/main'i AUTO_UPDATE_MINUTES'ta bir kontrol eder, güncelleyip yeniden başlatır
 ┃ ┃   ┣ 📜 bot_manager.py       # Süreç yönetimi
-┃ ┃   ┣ 📜 bot_watchdog.py      # Çöken/asılı botu otomatik yeniden başlatan bekçi
+┃ ┃   ┣ 📜 bot_watchdog.py      # Çöken/asılı botu otomatik yeniden başlatan bekçi; liste data/watched_bots.json (reboot sonrası devam)
+┃ ┃   ┣ 📜 console_tee.py       # Worker konsolunu logs/worker_console.log'a da yazar (VPS sayfası okur)
 ┃ ┃   ┣ 📜 config.py            # Konfigürasyon okuma/yazma
 ┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
 ┃ ┃   ┣ 📜 mt5_errors.py        # Hata kod ayrıştırma (-10003 IPC, -10004 auth, 10002 login), zombi killer, LIVE/DEMO güvenlik
 ┃ ┃   ┣ 📜 mt5_helpers.py       # İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
 ┃ ┃   ┣ 📜 paths.py             # Yol yönetimi
 ┃ ┃   ┣ 📜 profiler.py          # Performans ölçümü
-┃ ┃   ┣ 📜 self_updater.py      # Otomatik güncelleme
+┃ ┃   ┣ 📜 self_updater.py      # git pull (+ requirements.txt değiştiyse pip), yeniden başlatma, CLI: python -m src.utils.self_updater update|check
 ┃ ┃   ┣ 📜 state_manager.py     # Pozisyon/emir state senkronizasyonu
 ┃ ┃   ┗ 📜 trade_utils.py       # Ticaret yardımcıları
-┃ ┣ 📂 data                     # State dosyaları (state_*.json)
+┃ ┣ 📂 ops/windows              # VPS uzaktan kontrol: setup_vps.ps1 (tek seferlik, admin), vps.ps1 (Mac'ten SSH ile çağrılır)
+┃ ┣ 📜 run_ngrok_watchdog.bat   # ngrok çökerse yeniden başlatır (logs/ngrok.log)
+┃ ┣ 📂 data                     # State dosyaları (state_*.json, watched_bots.json)
 ┃ ┣ 📂 logs                     # Log dosyaları
 ┃ ┗ 📂 .venv                    # Python sanal ortam (git-ignore)
 ┃
@@ -186,7 +197,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📜 opencode-rules.md        # OpenCode kuralları
 ┃ ┣ 📂 architecture_python      # Python mimari belgeleri
 ┃ ┃ ┗ 📜 genel_arch.md          # Genel mimari dokümantasyonu
-┃ ┣ 📜 windows_start_guide.md   # Windows hızlı başlatma rehberi (2 Terminal: FastAPI + Ngrok) - Türkçe/Almanca
+┃ ┣ 📜 windows_start_guide.md   # Windows başlatma + Mac'ten uzaktan kontrol kurulumu (setup_vps.ps1, /vps sayfası) - Almanca
 ┃ ┗ 📂 NGrok                    # Ngrok tünel dokümantasyonu
 ┃   ┗ 📜 Sistem ve Canlıya Alma.md # Deployment - Vercel ayarları, VPS servis komutları, API test uç noktaları
 
@@ -341,6 +352,7 @@ grid_orchestrator (Ana Orkestratör)
 | `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
 | `/chart` | **Grafik ve İstatistikler** | ChartViewer (sol 2/3), Gelecek Paneller (sağ 1/3: İstatistikler, Backtest, Deneme), Ana Sayfaya Dön butonu |
 | `/formasyon` | Formasyon Analizi | (Mevcut) |
+| `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsStatusPanel, VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
 
 ### Bileşen Sorumlulukları
 

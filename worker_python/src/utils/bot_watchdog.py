@@ -2,8 +2,10 @@
 """Bot Bekçisi (Watchdog): Kullanıcının Start ile başlattığı bot çökerse veya asılı
 kalırsa worker onu otomatik olarak yeniden başlatır. Stop ile izleme biter.
 
-- İzleme listesi SADECE bellekte tutulur: worker/VPS yeniden başlarsa ölmüş botlar
-  otomatik başlatılmaz. Açılışta hâlâ çalışan botlar ise izlemeye alınır (adopt).
+- İzleme listesi ayrıca data/watched_bots.json'a yazılır: worker/VPS yeniden başlarsa
+  Stop edilmemiş botları startup_maintenance (api/bot_control.py) yeniden başlatır.
+  Bekçi pes ederse veya hesap silinirse kayıt da silinir, bozuk bot devam ettirilmez.
+  Açılışta hâlâ çalışan botlar da izlemeye alınır (adopt).
 - Asılı tespiti yalnızca metrik dosyasının yaşına bakar, mt5_connected'a değil:
   broker bakımındayken loop.py süreci bilerek canlı tutup 60 sn'de bir yeniden dener.
 - Çökme döngüsü koruması: artan bekleme + 30 dk içinde en fazla 5 yeniden başlatma.
@@ -25,7 +27,8 @@ from src.utils.bot_manager import (
     stop_bot_process,
 )
 # src.api'den import YOK: api.bot_control bu modülü import eder (döngüsel import olurdu)
-from src.utils.paths import CONFIGS_DIR, get_metrics_path
+from src.utils import paths
+from src.utils.paths import get_metrics_path, get_watched_bots_path
 
 CHECK_INTERVAL_SECONDS = 15
 
@@ -61,13 +64,38 @@ def account_lock(account_id: str) -> asyncio.Lock:
     return lock
 
 
+def _persist():
+    """İzleme listesini diske yazar (atomik). Hata izlemeyi asla bozmaz."""
+    path = get_watched_bots_path()
+    data = {acc: entry.engine_name for acc, entry in _watched.items()}
+    try:
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp, path)
+    except OSError as exc:
+        print(f"⚠️ WARNING: watched_bots.json yazılamadı: {exc}")
+
+
+def load_persisted() -> dict:
+    """Son kaydedilen izleme listesi {account_id: engine_name} (dosya yoksa/bozuksa boş)."""
+    try:
+        with open(get_watched_bots_path(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
+
+
 def watch(account_id: str, engine_name: str = "Auto Grid"):
     """Hesabı izlemeye alır. Kullanıcının her Start'ı sayaçları sıfırlar."""
     _watched[str(account_id)] = _Entry(engine_name=engine_name)
+    _persist()
 
 
 def unwatch(account_id: str):
-    _watched.pop(str(account_id), None)
+    if _watched.pop(str(account_id), None) is not None:
+        _persist()
 
 
 def is_watched(account_id: str) -> bool:
@@ -90,12 +118,18 @@ def _account_exists(account_id: str) -> bool:
     """bot_runner hesabı login ile arar; hesap silinmiş/değişmişse bot hemen kapanır.
     Okuma hatasında True: geçici bir dosya sorunu izlemeyi bitirmesin."""
     try:
-        with open(os.path.join(CONFIGS_DIR, "accounts.json"), "r", encoding="utf-8") as f:
+        # paths.CONFIGS_DIR çağrı anında okunur (testler klasörü değiştirir)
+        with open(os.path.join(paths.CONFIGS_DIR, "accounts.json"), "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
         return True
     accounts = data if isinstance(data, list) else data.get("accounts", [])
     return any(str(acc.get("login")) == str(account_id) for acc in accounts)
+
+
+def account_exists(account_id: str) -> bool:
+    """Açılışta kayıtlı botları devam ettirmeden önce (api/bot_control.py) kullanılır."""
+    return _account_exists(account_id)
 
 
 def _restart(account_id: str, entry: _Entry, hung: bool) -> bool:

@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 import threading
 
 
@@ -123,16 +124,51 @@ def _rollback_failed_pull(project_root, restorable, stashed):
         _git(["stash", "pop"], project_root)
 
 
-def execute_git_pull(branch="master"):
+REQUIREMENTS_REL = "worker_python/requirements.txt"
+
+
+def _pip_install(requirements_path):
+    """Worker'ın kendi Python'u (.venv) ile bağımlılıkları kurar."""
+    return subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-r", requirements_path],
+        capture_output=True,
+        text=True,
+    )
+
+
+def _install_requirements_if_changed(project_root, old_head):
+    """Pull requirements.txt'yi değiştirdiyse pip install çalıştırır.
+
+    Döner: (ok, mesaj). Değişiklik yoksa (True, ""). Eskiden yeni bir paket gelince
+    worker yeniden başlarken ImportError ile çöküyor, VPS'te elle pip gerekiyordu.
+    """
+    if not old_head:
+        return True, ""
+    diff = _git(["diff", "--name-only", old_head, "HEAD", "--", REQUIREMENTS_REL], project_root)
+    if diff.returncode != 0 or not diff.stdout.strip():
+        return True, ""
+    res = _pip_install(os.path.join(project_root, *REQUIREMENTS_REL.split("/")))
+    if res.returncode != 0:
+        tail = (res.stderr or res.stdout or "").strip()[-800:]
+        return False, f"pip install hatası (requirements.txt değişti): {tail}"
+    return True, "requirements.txt değişti, bağımlılıklar kuruldu (pip install)."
+
+
+def execute_git_pull(branch="main"):
     """
     Belirtilen branch üzerinden güvenli ve çakışmasız 'git pull' çalıştırır.
     Başarısız olursa çalışma alanını pull öncesi haline döndürür.
+    requirements.txt değiştiyse bağımlılıkları da kurar; pip başarısızsa False döner
+    (yeniden başlatma yapılmaz, çünkü yeni kod eksik paketle çökerdi).
     """
     project_root = get_project_root()
 
     is_git_ok, error_message = ensure_git_repo(branch, project_root)
     if not is_git_ok:
         return False, error_message
+
+    head = _git(["rev-parse", "HEAD"], project_root)
+    old_head = head.stdout.strip() if head.returncode == 0 else ""
 
     status = _git(["status", "--porcelain"], project_root)
     clean_before = status.returncode == 0 and not status.stdout.strip()
@@ -154,7 +190,10 @@ def execute_git_pull(branch="master"):
     if stashed:
         # Yerel değişiklikleri geri yükle; çakışırsa stash korunur, akış bozulmaz
         _git(["stash", "pop"], project_root)
-    return True, result.stdout
+
+    pip_ok, pip_message = _install_requirements_if_changed(project_root, old_head)
+    message = "\n".join(m for m in (result.stdout.strip(), pip_message) if m)
+    return pip_ok, message
 
 
 # run_uvicorn_watchdog.bat bunu 1 yapar: süreç bitince aynı pencere yeni kodla yeniden başlatır.
@@ -243,3 +282,38 @@ def check_for_updates(branch="main"):
         return False, f"Bağlantı Hatası: {error_msg}"
     except Exception as e:
         return False, f"Sistem Hatası: {str(e)}"
+
+
+def current_branch():
+    """Yerel deponun aktif branch'i (okunamazsa "")."""
+    res = _git(["rev-parse", "--abbrev-ref", "HEAD"], get_project_root())
+    return res.stdout.strip() if res.returncode == 0 else ""
+
+
+def _cli(argv):
+    """VPS'te worker dışından güncelleme (ops/windows/vps.ps1, yönetici OLMAYAN görev):
+
+        python -m src.utils.self_updater update   # pull + gerekirse pip; çıkış kodu 0/1
+        python -m src.utils.self_updater check    # JSON: has_update, local_ver, remote_ver
+    """
+    import json
+
+    command = argv[1] if len(argv) > 1 else ""
+    if command == "update":
+        ok, message = execute_git_pull("main")
+        print(message)
+        return 0 if ok else 1
+    if command == "check":
+        ok, data = check_for_updates("main")
+        if not ok:
+            print(json.dumps({"error": str(data)}))
+            return 1
+        has_update, local_ver, remote_ver = data
+        print(json.dumps({"has_update": has_update, "local_ver": local_ver, "remote_ver": remote_ver}))
+        return 0
+    print(_cli.__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(_cli(sys.argv))

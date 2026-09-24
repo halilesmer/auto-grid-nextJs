@@ -155,8 +155,13 @@ export function useDashboard({
         remoteVer: res.data.remote_ver ?? '',
         loading: false,
       });
-    } catch {
+    } catch (err: unknown) {
       setUpdateResult(null);
+      // Worker nicht erreichbar: Neustart/Update geht dann nur noch per SSH über die VPS-Seite
+      const reason = await getApiErrorMessage(err, 'Update check failed');
+      toast.error(`${reason} – Worker über die Seite „VPS“ neu starten oder aktualisieren.`, {
+        title: 'Update Check',
+      });
     }
   }, []);
 

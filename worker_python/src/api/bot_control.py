@@ -26,7 +26,7 @@ from src.utils.bot_manager import (
     start_bot_process,
     stop_bot_process,
 )
-from src.utils.bot_watchdog import account_lock, unwatch, watch
+from src.utils.bot_watchdog import account_exists, account_lock, is_watched, unwatch, watch
 from src.utils.paths import (
     get_metrics_path,
     get_pid_path,
@@ -63,14 +63,16 @@ def _is_elevated() -> bool:
         return False
 
 
-def startup_maintenance():
+def startup_maintenance(persisted: dict | None = None):
     """Worker açılışında (ör. güncelleme sonrası) çalışır; kullanıcı müdahalesi gerektirmez.
 
     - Eski kod sürümüyle çalışan bot süreçlerini yeni kodla yeniden başlatır
       (pozisyon/emirlere dokunmaz). Yoksa güncelleme bot'a hiç ulaşmıyordu.
     - Yönetici hakları uyarısı: worker ile MT5/bot farklı haklarla çalışırsa dosya ve
       IPC erişimi bozulur.
-    - Hâlâ çalışan botları bekçi (watchdog) izlemesine alır; ölmüş botları başlatmaz.
+    - Hâlâ çalışan botları bekçi (watchdog) izlemesine alır.
+    - `persisted` (data/watched_bots.json, main.py açılışta okur): Stop edilmemiş ama
+      artık çalışmayan botları (ör. VPS yeniden başladı) yeniden başlatır – LIVE dahil.
     """
     if _is_elevated():
         print(
@@ -123,6 +125,41 @@ def startup_maintenance():
                 _log_step(account_id, "[WATCHDOG] Çalışan bot izlemeye alındı (çökerse otomatik yeniden başlatılır).")
         except Exception:
             pass
+
+    _resume_persisted_bots(persisted or {})
+
+
+def _resume_persisted_bots(persisted: dict):
+    """Worker/VPS yeniden başlamadan önce çalışan (Stop edilmemiş) botları devam ettirir.
+
+    Başlatma başarısız olsa da (ör. reboot sonrası MT5 henüz hazır değil) izlemeye alınır:
+    bekçi artan aralıklarla yeniden dener, 5 denemeden sonra pes eder ve kaydı siler.
+    """
+    for account_id, engine_name in persisted.items():
+        try:
+            if is_watched(account_id):
+                continue  # hâlâ çalışıyor, yukarıda izlemeye alındı
+            if not account_exists(account_id):
+                print(f"⚠️ WARNING: Kayıtlı bot {account_id} accounts.json'da yok; devam ettirilmiyor.")
+                continue
+            _log_step(
+                account_id,
+                "[AUTO] Bot, worker/VPS yeniden başlamadan önce çalışıyordu (Stop edilmemişti). "
+                "Yeniden başlatılıyor (pozisyon/emirlere dokunulmuyor)...",
+                type="warning",
+            )
+            if start_bot_process(account_id, engine_name=engine_name):
+                _log_step(account_id, "[AUTO] Bot worker/VPS yeniden başladıktan sonra devam ettirildi.")
+            else:
+                _log_step(
+                    account_id,
+                    f"[AUTO] Bot başlatılamadı: {get_last_start_error(account_id)} "
+                    "Bekçi (watchdog) tekrar deneyecek.",
+                    type="error",
+                )
+            watch(account_id, engine_name)
+        except Exception as exc:
+            print(f"⚠️ WARNING: Bot {account_id} devam ettirilemedi: {exc}")
 
 
 @router.post("/start")

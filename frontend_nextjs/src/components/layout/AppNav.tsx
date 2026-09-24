@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { CandlestickChart, Grid3x3, LayoutDashboard } from 'lucide-react';
+import { CandlestickChart, Grid3x3, LayoutDashboard, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VERSION } from '@/app/version';
 import ThemeToggle from './ThemeToggle';
@@ -11,6 +11,7 @@ import ThemeToggle from './ThemeToggle';
 const LINKS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/formasyon', label: 'Formasyon', icon: CandlestickChart },
+  { href: '/vps', label: 'VPS', icon: Server },
 ];
 
 export default function AppNav() {
