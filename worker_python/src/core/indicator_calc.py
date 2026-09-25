@@ -1,5 +1,27 @@
 import pandas as pd
 
+# pandas-ta durumu: None = henüz denenmedi, True/False = import sonucu (bir kez denenir)
+_pandas_ta_ok = None
+
+
+def _pandas_ta_available() -> bool:
+    """pandas-ta'yı bir kez import etmeyi dener ve sonucu hatırlar.
+
+    Sadece ImportError değil: Windows'ta VC++ Redistributable eksikse numba/llvmlite DLL'i
+    yüklenemez ve import OSError fırlatır. WS akışı saniyede bir çağırdığı için başarısız
+    import tekrar tekrar denenmez (worker yeniden başlayınca yeniden denenir).
+    """
+    global _pandas_ta_ok
+    if _pandas_ta_ok is None:
+        try:
+            import pandas_ta  # noqa: F401  (df.ta accessor'ını kaydeder)
+            _pandas_ta_ok = True
+        except Exception as exc:
+            _pandas_ta_ok = False
+            print(f"[Indicators] pandas-ta kullanılamıyor ({type(exc).__name__}: {exc}), saf pandas ile hesaplanıyor")
+    return _pandas_ta_ok
+
+
 def calculate_rsi(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     """Saf Pandas ile RSI Hesaplama"""
     delta = df['close'].diff()
@@ -31,13 +53,19 @@ def get_latest_indicators(df: pd.DataFrame) -> dict:
     if df is None or df.empty or len(df) < 30:
         return {"rsi": 0.0, "macd": 0.0, "macd_signal": 0.0, "macd_hist": 0.0}
         
-    try:
+    ta_ok = False
+    if _pandas_ta_available():
         # pandas-ta varsa kullanmayı dene
-        import pandas_ta as ta
-        df.ta.rsi(length=14, append=True)
-        df.ta.macd(fast=12, slow=26, signal=9, append=True)
-    except ImportError:
-        # pandas-ta yoksa kendi saf pandas fonksiyonlarımızı kullan
+        try:
+            df.ta.rsi(length=14, append=True)
+            df.ta.macd(fast=12, slow=26, signal=9, append=True)
+            ta_ok = True
+        except Exception:
+            # Hesaplama hatası (ör. pandas/numpy ile uyumsuz pandas-ta): aşağıdaki fallback
+            pass
+
+    if not ta_ok:
+        # pandas-ta yoksa veya çalışmıyorsa kendi saf pandas fonksiyonlarımızı kullan
         df = calculate_rsi(df, 14)
         df = calculate_macd(df, 12, 26, 9)
 
