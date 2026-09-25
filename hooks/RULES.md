@@ -50,7 +50,17 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
 5. **[elle]** Worker endpoint'i (yol, yanıt biçimi, hata kodu) değişince gemockte worker da güncellenir: `frontend_nextjs/e2e/fixtures/mock-worker.ts`. Mock, bilinmeyen endpoint'te ve `X-API-Key` eksikse testi düşürür.
 6. **[elle]** Manuel doğrulama `scripts/features/run.sh sign <ID> bestanden|fehlgeschlagen "not"` ile kaydedilir; notlara credential yazılmaz.
 
-## 5. Kural ekleme prosedürü
+## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
+
+Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını kendisi anlatır; kullanıcı belgeye bakmak zorunda kalmaz.
+
+1. **[otomatik]** Kapsam: her ayar, alan, anahtar, buton, bağlantı, sekme, menü öğesi ve durum/metrik kutusu. Alan ve anahtarlarda etiketin yanında (i) ikonu, butonlarda ve bağlantılarda hover/klavye odağında tooltip çıkar. `hint` zorunlu prop'tur: `InputField`, `Switch`, `Button`, `AnimatedTabs` sekmeleri, `ConfirmModal` (`confirmHint`), `Metric`/`Tile`/`Field` kutuları. Eksikse `tsc` düşer (pre-push, CI). Ham `<button>/<input>/<select>/<textarea>/<a>` için Playwright kapsama testi `UI-07` (CI): `Tooltip`/`InputField`/`FieldLabel` dışında kalan her görünür kontrol testi düşürür. Bilinçli istisna (üçüncü taraf bileşen, ör. TradingView bağlantısı) `data-tooltip-exempt` ile işaretlenir ve PR açıklamasında gerekçelendirilir.
+2. **[elle]** İçerik: ne işe yarar + birim/etki, kontrol devre dışıysa **neden** devre dışı. Etiketi tekrarlamak yetmez. 1–2 cümle (kabaca ≤ 250 karakter); çok satırlı olabilir (`\n`). Değere bağlı durumlar (ör. breakout'ta devre dışı kalan alan, kaydedilecek değişiklik yok) kendi metnini alır.
+3. **[elle]** Metinler i18n anahtarıdır: `<etiket-anahtarı>.hint` → `frontend_nextjs/src/i18n/messages/hints.ts` (tr/en/de yan yana). Kodda sabit metin yok; açıklama için yerel `title=` kullanılmaz (`Button`/`Badge` `title` kabul etmez). Yalnızca ikonlu butonlar erişilebilir adı için `aria-label` taşımaya devam eder.
+4. **[elle]** Yeni veya değişen ayar (UI↔backend senkronu, §2.1) hint metni yazılmadan tamamlanmış sayılmaz. Metni tahminle değil worker koduyla doğrula (`grid_execution/*`, `grid_order_manager.py`).
+5. **[elle]** Tooltip'i `components/ui/tooltip.tsx` (`Tooltip`, `InfoHint`, `FieldLabel`) ile yap; kendi popover'ını yazma. O bileşen Popover API'sini (top-layer) kullanır, bu yüzden `overflow-hidden` kartlarda kesilmez ve `<dialog>` pencerelerinin üstünde görünür.
+
+## 6. Kural ekleme prosedürü
 
 1. Kuralı bu dosyaya `[otomatik]` veya `[elle]` etiketiyle yaz.
 2. `[otomatik]` ise `hooks/lib/checks.sh` içine `check_*` fonksiyonu ekle (engelleyici → `err`, uyarı → `warn`). Sayaçlar için fonksiyonu boru (`|`) ile değil `< <(...)` / `<<<` ile çağır (boru alt-kabuk açar, sayaç kaybolur).

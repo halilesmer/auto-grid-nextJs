@@ -300,6 +300,8 @@ export function Combobox<T>({
           <motion.div
             ref={popupRef}
             data-slot="combobox-content"
+            // Suchfeld/Liste gehören zum Auslöser, dessen Beschriftung den Hinweis trägt
+            data-tooltip-exempt
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
@@ -475,7 +477,7 @@ export function ComboboxAutocomplete<T>({
       />
 
       {(showList || showEmptyState) && (
-        <div ref={popupRef} data-slot="autocomplete-content" className={popupClass}>
+        <div ref={popupRef} data-slot="autocomplete-content" data-tooltip-exempt className={popupClass}>
           {showList ? (
             <OptionList
               id={listId}

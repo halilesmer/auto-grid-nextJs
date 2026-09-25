@@ -23,14 +23,14 @@ test.describe('SET Einstellungen', () => {
     await expect(interval).toHaveValue('2');
     await expect(save).toBeDisabled();
 
-    await page.getByTitle(msg('settings.increase')).click();
+    await page.getByRole('button', { name: msg('settings.increase') }).click();
     await expect(interval).toHaveValue('2.1');
     await interval.fill('100');
     await expect(interval).toHaveValue('60');
-    await expect(page.getByTitle(msg('settings.increase'))).toBeDisabled();
+    await expect(page.getByRole('button', { name: msg('settings.increase') })).toBeDisabled();
     await interval.fill('0');
     await expect(interval).toHaveValue('1');
-    await expect(page.getByTitle(msg('settings.decrease'))).toBeDisabled();
+    await expect(page.getByRole('button', { name: msg('settings.decrease') })).toBeDisabled();
 
     await interval.fill('7.5');
     await save.click();

@@ -8,6 +8,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { API, axiosInstance } from '@/lib/api';
 import { useAccountStore, useBotRuntimeStore, useLogsStore } from '@/store';
@@ -108,12 +109,12 @@ export default function BotControls() {
   const processWithoutMt5 = !liveData.mt5_connected && Boolean(liveData.bot_running);
 
   const status = isConnecting
-    ? { label: t("bot.status.connecting"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
+    ? { label: t("bot.status.connecting"), hint: t("bot.status.connecting.hint"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
     : liveData.mt5_connected
-      ? { label: t("bot.status.running"), tone: "success" as const, box: "border-success/30 bg-success/[0.06] text-success" }
+      ? { label: t("bot.status.running"), hint: t("bot.status.running.hint"), tone: "success" as const, box: "border-success/30 bg-success/[0.06] text-success" }
       : processWithoutMt5
-        ? { label: t("bot.status.processNoMt5"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
-        : { label: t("bot.status.stopped"), tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
+        ? { label: t("bot.status.processNoMt5"), hint: t("bot.status.processNoMt5.hint"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
+        : { label: t("bot.status.stopped"), hint: t("bot.status.stopped.hint"), tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
 
   return (
     <Card data-testid="bot-controls">
@@ -125,16 +126,20 @@ export default function BotControls() {
       <CardContent className="space-y-4">
         {/* Durum paneli */}
         <div className={cn("flex items-center justify-between gap-3 rounded-lg border px-4 py-3", status.box)}>
-          <div className="flex min-w-0 items-center gap-2.5">
-            <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
-            <span data-testid="bot-status" className="text-sm font-semibold">{status.label}</span>
-          </div>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {t("bot.market")}{" "}
-            <span className={liveData.market_open ? "text-success" : "text-danger"}>
-              {liveData.market_open ? t("bot.market.open") : t("bot.market.closed")}
+          <Tooltip content={status.hint} className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
+              <span data-testid="bot-status" className="text-sm font-semibold">{status.label}</span>
+            </div>
+          </Tooltip>
+          <Tooltip content={t("bot.market.hint")}>
+            <span className="text-xs text-muted-foreground">
+              {t("bot.market")}{" "}
+              <span className={liveData.market_open ? "text-success" : "text-danger"}>
+                {liveData.market_open ? t("bot.market.open") : t("bot.market.closed")}
+              </span>
             </span>
-          </span>
+          </Tooltip>
         </div>
 
         {activeAccount && (
@@ -155,11 +160,17 @@ export default function BotControls() {
             <Button
               variant="success"
               size="lg"
-              className="flex-1"
+              wrapperClassName="flex-1"
               onClick={handleStartBot}
               disabled={isConnecting}
               loading={loading || isConnecting}
-              title={processWithoutMt5 ? t("bot.restartHint") : undefined}
+              hint={
+                loading || isConnecting
+                  ? t("bot.connecting.hint")
+                  : processWithoutMt5
+                    ? t("bot.restartHint")
+                    : t("bot.start.hint")
+              }
             >
               {!(loading || isConnecting) &&
                 (processWithoutMt5 ? <RotateCcw size={16} /> : <Play size={16} fill="currentColor" />)}
@@ -170,9 +181,10 @@ export default function BotControls() {
             <Button
               variant="danger"
               size="lg"
-              className="flex-1"
+              wrapperClassName="flex-1"
               onClick={() => setStopConfirmOpen(true)}
               loading={loading}
+              hint={t("bot.stop.hint")}
             >
               {!loading && <Pause size={16} fill="currentColor" />}
               {t("bot.stop")}
@@ -212,6 +224,7 @@ export default function BotControls() {
         message={t("bot.disconnect.message")}
         infoText={t("bot.disconnect.info")}
         confirmLabel={t("bot.disconnect.confirm")}
+        confirmHint={t("bot.disconnect.confirm.hint")}
         variant="warning"
         loading={loading}
       />

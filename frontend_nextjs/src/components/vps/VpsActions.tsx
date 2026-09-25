@@ -12,6 +12,13 @@ import { ACTION_TITLE_KEYS, type PostAction } from './useVps';
 // Admin-Prozesse beenden hat seinen eigenen Knopf in der Warnung (VpsElevatedWarning)
 type ButtonAction = Exclude<PostAction, 'fix-elevated'>;
 
+const ACTION_HINT_KEYS: Record<ButtonAction, MessageKey> = {
+  update: 'vps.action.update.hint',
+  restart: 'vps.action.restart.hint',
+  'restart-ngrok': 'vps.action.restartNgrok.hint',
+  reboot: 'vps.action.reboot.hint',
+};
+
 const CONFIRM: Record<ButtonAction, { message: MessageKey; info?: MessageKey; variant: 'warning' | 'danger' }> = {
   update: { message: 'vps.confirm.update.message', info: 'vps.confirm.update.info', variant: 'warning' },
   restart: { message: 'vps.confirm.restart.message', info: 'vps.confirm.restart.info', variant: 'warning' },
@@ -31,6 +38,9 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
   const t = useT();
   const [confirm, setConfirm] = useState<ButtonAction | null>(null);
   const cfg = confirm ? CONFIRM[confirm] : null;
+  // Deaktivierter Button erklärt warum: läuft gerade eine andere Aktion, wartet er darauf
+  const actionHint = (action: ButtonAction) =>
+    busy !== null && busy !== action ? t('vps.busy.hint') : t(ACTION_HINT_KEYS[action]);
 
   return (
     <>
@@ -51,6 +61,13 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
                 onClick={onCheckUpdate}
                 loading={busy === 'check-update'}
                 disabled={!workerRunning || busy !== null}
+                hint={
+                  !workerRunning
+                    ? t('vps.ctrl.check.noWorker.hint')
+                    : busy !== null && busy !== 'check-update'
+                      ? t('vps.busy.hint')
+                      : t('vps.ctrl.check.hint')
+                }
                 data-testid="vps-action-check-update"
               >
                 <RefreshCw size={14} />
@@ -82,6 +99,8 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               onClick={() => setConfirm('update')}
               loading={busy === 'update'}
               disabled={busy !== null}
+              wrapperClassName="w-full"
+              hint={actionHint('update')}
               data-testid="vps-action-update"
             >
               <DownloadCloud size={16} />
@@ -91,6 +110,8 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               onClick={() => setConfirm('restart')}
               loading={busy === 'restart'}
               disabled={busy !== null}
+              wrapperClassName="w-full"
+              hint={actionHint('restart')}
               data-testid="vps-action-restart"
             >
               <RotateCcw size={16} />
@@ -100,6 +121,8 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               onClick={() => setConfirm('restart-ngrok')}
               loading={busy === 'restart-ngrok'}
               disabled={busy !== null}
+              wrapperClassName="w-full"
+              hint={actionHint('restart-ngrok')}
               data-testid="vps-action-restart-ngrok"
             >
               <Globe size={16} />
@@ -111,6 +134,8 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               onClick={() => setConfirm('reboot')}
               loading={busy === 'reboot'}
               disabled={busy !== null}
+              wrapperClassName="w-full"
+              hint={actionHint('reboot')}
               data-testid="vps-action-reboot"
             >
               <Power size={16} />
@@ -134,6 +159,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
         infoText={cfg?.info ? t(cfg.info) : undefined}
         variant={cfg?.variant ?? 'warning'}
         confirmLabel={confirm ? t(ACTION_TITLE_KEYS[confirm]) : t('confirm.ok')}
+        confirmHint={confirm ? t(ACTION_HINT_KEYS[confirm]) : ''}
       />
     </>
   );

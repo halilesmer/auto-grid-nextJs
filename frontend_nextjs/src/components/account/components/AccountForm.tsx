@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 import { PasswordField } from './PasswordField';
 import { MT5PathSelector } from './MT5PathSelector';
@@ -39,22 +40,26 @@ export function AccountForm({
           <AlertTriangle size={16} />
           <span className="flex-1">{errors.general}</span>
           {onEditExisting && (
-            <button
-              type="button"
-              onClick={onEditExisting}
-              className="whitespace-nowrap rounded-md border border-danger/30 bg-danger/15 px-3 py-1 text-xs text-danger transition-colors hover:bg-danger/25"
-            >
-              {t('account.form.editExisting')}
-            </button>
+            <Tooltip content={t('account.form.editExisting.hint')}>
+              <button
+                type="button"
+                onClick={onEditExisting}
+                className="whitespace-nowrap rounded-md border border-danger/30 bg-danger/15 px-3 py-1 text-xs text-danger transition-colors hover:bg-danger/25"
+              >
+                {t('account.form.editExisting')}
+              </button>
+            </Tooltip>
           )}
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            {t('account.form.name')}
-          </label>
+        <div data-tooltip-scope>
+          <FieldLabel
+            label={t('account.form.name')}
+            hint={t('account.form.name.hint')}
+            className="mb-1.5 text-xs font-medium text-muted-foreground"
+          />
           <input
             name="account_name"
             value={formData.account_name}
@@ -71,10 +76,12 @@ export function AccountForm({
             </p>
           )}
         </div>
-        <div>
-          <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            {t('account.form.login')}
-          </label>
+        <div data-tooltip-scope>
+          <FieldLabel
+            label={t('account.form.login')}
+            hint={t('account.form.login.hint')}
+            className="mb-1.5 text-xs font-medium text-muted-foreground"
+          />
           <input
             name="login"
             type="number"
@@ -92,10 +99,12 @@ export function AccountForm({
             </p>
           )}
         </div>
-        <div>
-          <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            {passwordRequired ? t('account.form.password.required') : t('account.form.passwordLabel')}
-          </label>
+        <div data-tooltip-scope>
+          <FieldLabel
+            label={passwordRequired ? t('account.form.password.required') : t('account.form.passwordLabel')}
+            hint={passwordRequired ? t('account.form.password.hint') : t('account.form.password.keep.hint')}
+            className="mb-1.5 text-xs font-medium text-muted-foreground"
+          />
           <PasswordField
             value={formData.password}
             placeholder={passwordRequired ? t('account.form.password.placeholder') : t('account.form.password.keep')}
@@ -106,10 +115,12 @@ export function AccountForm({
             error={errors.password}
           />
         </div>
-        <div>
-          <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            {t('account.form.server')}
-          </label>
+        <div data-tooltip-scope>
+          <FieldLabel
+            label={t('account.form.server')}
+            hint={t('account.form.server.hint')}
+            className="mb-1.5 text-xs font-medium text-muted-foreground"
+          />
           <input
             name="server"
             value={formData.server}
@@ -126,10 +137,12 @@ export function AccountForm({
             </p>
           )}
         </div>
-        <div>
-          <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            {t('account.form.env')}
-          </label>
+        <div data-tooltip-scope>
+          <FieldLabel
+            label={t('account.form.env')}
+            hint={t('account.form.env.hint')}
+            className="mb-1.5 text-xs font-medium text-muted-foreground"
+          />
           <select
             name="env_type"
             value={formData.env_type}
@@ -165,10 +178,12 @@ export function AccountForm({
         </div>
       </div>
 
-      <div className="mt-4">
-        <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-          {t('account.form.notes')}
-        </label>
+      <div data-tooltip-scope className="mt-4">
+        <FieldLabel
+          label={t('account.form.notes')}
+          hint={t('account.form.notes.hint')}
+          className="mb-1.5 text-xs font-medium text-muted-foreground"
+        />
         <textarea
           name="notes"
           value={formData.notes}
@@ -186,6 +201,7 @@ export function AccountForm({
           onClick={() => onSubmit()}
           disabled={isLoading}
           loading={isSaving}
+          hint={isLoading ? t('account.form.waitLoading') : t('account.form.save.hint')}
         >
           {isSaving ? t('account.form.saving') : isLoading ? t('account.form.loading') : t('common.save')}
         </Button>

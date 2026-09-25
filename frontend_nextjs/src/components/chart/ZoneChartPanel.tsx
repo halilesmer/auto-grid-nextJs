@@ -8,14 +8,15 @@ import ChartViewer, { type ChartPriceLine } from '@/components/ChartViewer';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
+import { FieldLabel } from '@/components/ui/tooltip';
 import { useAccountStore, useBotRuntimeStore, useSettingsStore } from '@/store';
 import type { ZoneSettings } from '@/store/types';
 import { useT, type MessageKey } from '@/i18n';
 
-function Field({ label, value }: { label: string; value: string | number }) {
+function Field({ label, hint, value }: { label: string; hint: string; value: string | number }) {
   return (
     <div className="rounded-md border border-border bg-muted/50 px-3 py-2">
-      <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
+      <FieldLabel label={label} hint={hint} className="text-[11px] font-medium text-muted-foreground" />
       <div className="font-mono text-sm font-semibold tabular-nums text-foreground">{value}</div>
     </div>
   );
@@ -24,21 +25,22 @@ function Field({ label, value }: { label: string; value: string | number }) {
 function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
   const t = useT();
   const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
-  const fields: [MessageKey, string | number][] = [
-    ['chart.zone.priceRange', `${zone.min_price} – ${zone.max_price}`],
-    ['chart.zone.gridStep', zone.grid_step],
-    ['chart.zone.lot', zone.lot_size],
-    ['chart.zone.takeProfit', zone.take_profit],
-    ['chart.zone.stopLoss', zone.stop_loss],
-    ['chart.zone.levels', `${zone.levels_below} / ${zone.levels_above}`],
-    ['chart.zone.maxPositions', zone.max_positions],
+  // [Label, Hinweis, Wert]: die Hinweise sind dieselben wie in den Feldern der Zonenkarte
+  const fields: [MessageKey, MessageKey, string | number][] = [
+    ['chart.zone.priceRange', 'chart.zone.priceRange.hint', `${zone.min_price} – ${zone.max_price}`],
+    ['chart.zone.gridStep', 'zone.field.gridStep.hint', zone.grid_step],
+    ['chart.zone.lot', 'zone.field.lot.hint', zone.lot_size],
+    ['chart.zone.takeProfit', 'zone.field.takeProfit.hint', zone.take_profit],
+    ['chart.zone.stopLoss', 'zone.field.stopLoss.hint', zone.stop_loss],
+    ['chart.zone.levels', 'chart.zone.levels.hint', `${zone.levels_below} / ${zone.levels_above}`],
+    ['chart.zone.maxPositions', 'zone.breakout.maxPositions.hint', zone.max_positions],
   ];
   if (showSell) {
     fields.push(
-      ['chart.zone.sellGrid', zone.sell_grid_step],
-      ['chart.zone.sellLot', zone.sell_lot_size],
-      ['chart.zone.sellTakeProfit', zone.sell_take_profit],
-      ['chart.zone.sellStopLoss', zone.sell_stop_loss],
+      ['chart.zone.sellGrid', 'zone.field.sellGrid.hint', zone.sell_grid_step],
+      ['chart.zone.sellLot', 'zone.field.sellLot.hint', zone.sell_lot_size],
+      ['chart.zone.sellTakeProfit', 'zone.field.sellTakeProfit.hint', zone.sell_take_profit],
+      ['chart.zone.sellStopLoss', 'zone.field.sellStopLoss.hint', zone.sell_stop_loss],
     );
   }
 
@@ -50,14 +52,16 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
         description={zone.is_breakout ? t('chart.zone.breakout') : t('chart.zone.sliding')}
         actions={
           <div className="flex gap-2">
-            <Badge tone="info">{zone.order_type}</Badge>
-            <Badge tone={zone.is_active ? 'success' : 'neutral'}>{zone.is_active ? t('chart.zone.active') : t('chart.zone.inactive')}</Badge>
+            <Badge tone="info" hint={t('zone.field.orderType.hint')}>{zone.order_type}</Badge>
+            <Badge tone={zone.is_active ? 'success' : 'neutral'} hint={zone.is_active ? t('chart.zone.active.hint') : t('chart.zone.inactive.hint')}>
+              {zone.is_active ? t('chart.zone.active') : t('chart.zone.inactive')}
+            </Badge>
           </div>
         }
       />
       <div className="grid grid-cols-2 gap-2 px-5 pb-5 pt-4 sm:grid-cols-4">
-        {fields.map(([labelKey, value]) => (
-          <Field key={labelKey} label={t(labelKey)} value={value} />
+        {fields.map(([labelKey, hintKey, value]) => (
+          <Field key={labelKey} label={t(labelKey)} hint={t(hintKey)} value={value} />
         ))}
       </div>
     </Card>

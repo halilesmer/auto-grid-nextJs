@@ -15,6 +15,7 @@ import { useAccountStore, useBotRuntimeStore, useThemeStore, useWebSocketManager
 import type { ResolvedTheme } from '@/lib/theme';
 import { CandlestickChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FieldLabel } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/i18n';
 
 // Grafik sayfaları hesap seçilmeden de açılabilir; akış (/ws/stream) hesaba bağlı değil.
@@ -213,22 +214,31 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
     {
       id: 'price',
       label: t('chart.stat.price'),
+      hint: t('chart.stat.price.hint'),
       value: typeof metrics.price === 'number' ? fmt.number(metrics.price, { maximumFractionDigits: 8 }) : '--',
       className: 'text-foreground',
     },
     {
       id: 'rsi',
       label: t('chart.stat.rsi'),
+      hint: t('chart.stat.rsi.hint'),
       value: metrics.rsi ? fmt.number(metrics.rsi, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--',
       className: 'text-info',
     },
     {
       id: 'pl',
       label: t('chart.stat.pl'),
+      hint: t('chart.stat.pl.hint'),
       value: fmt.money(profit),
       className: profit > 0 ? 'text-success' : profit < 0 ? 'text-danger' : 'text-foreground',
     },
-    { id: 'positions', label: t('chart.stat.positions'), value: metrics.open_positions ?? 0, className: 'text-foreground' },
+    {
+      id: 'positions',
+      label: t('chart.stat.positions'),
+      hint: t('chart.stat.positions.hint'),
+      value: metrics.open_positions ?? 0,
+      className: 'text-foreground',
+    },
   ];
 
   return (
@@ -250,14 +260,15 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
               data-testid={`chart-stat-${s.id}`}
               className="rounded-md border border-border bg-muted/50 px-3 py-1.5"
             >
-              <div className="text-[11px] font-medium text-muted-foreground">{s.label}</div>
+              <FieldLabel label={s.label} hint={s.hint} className="text-[11px] font-medium text-muted-foreground" />
               <div className={cn('font-mono text-sm font-semibold tabular-nums', s.className)}>{s.value}</div>
             </div>
           ))}
         </div>
       </div>
       <div className="flex-1 p-2">
-        <div ref={chartContainerRef} className="relative w-full" />
+        {/* Die TradingView-Namensnennung (Link) erzeugt lightweight-charts selbst */}
+        <div ref={chartContainerRef} data-tooltip-exempt className="relative w-full" />
       </div>
     </div>
   );

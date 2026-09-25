@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
+import { Tooltip, type HintContent } from './tooltip';
 
 type Tone = 'neutral' | 'primary' | 'success' | 'danger' | 'warning' | 'info';
 
@@ -12,12 +13,14 @@ const TONES: Record<Tone, string> = {
   info: 'border-info/30 bg-info/10 text-info',
 };
 
-export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+export interface BadgeProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'title'> {
   tone?: Tone;
+  /** Erklärt, was der Zustand bedeutet (Pflicht bei Zustands-Badges, hooks/RULES.md §5). */
+  hint?: HintContent;
 }
 
-export function Badge({ tone = 'neutral', className, ...props }: BadgeProps) {
-  return (
+export function Badge({ tone = 'neutral', hint, className, ...props }: BadgeProps) {
+  const badge = (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold tracking-wide',
@@ -27,4 +30,5 @@ export function Badge({ tone = 'neutral', className, ...props }: BadgeProps) {
       {...props}
     />
   );
+  return hint ? <Tooltip content={hint}>{badge}</Tooltip> : badge;
 }

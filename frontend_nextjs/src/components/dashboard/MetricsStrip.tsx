@@ -4,12 +4,15 @@ import type { ReactNode } from 'react';
 import { Activity, Clock, Layers, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { AnimateDigits } from '@/components/ui/animate-digits';
 import { StatusDot } from '@/components/ui/status-dot';
+import { FieldLabel } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useBotRuntimeStore } from '@/store';
 import { useFormat, useT } from '@/i18n';
 
 interface MetricProps {
   label: string;
+  /** Pflicht (hooks/RULES.md §5): was die Kennzahl bedeutet. */
+  hint: string;
   icon: ReactNode;
   value: string;
   valueClassName?: string;
@@ -18,7 +21,7 @@ interface MetricProps {
   testId: string;
 }
 
-function Metric({ label, icon, value, valueClassName, footer, accent, testId }: MetricProps) {
+function Metric({ label, hint, icon, value, valueClassName, footer, accent, testId }: MetricProps) {
   return (
     <div
       data-testid={testId}
@@ -33,7 +36,7 @@ function Metric({ label, icon, value, valueClassName, footer, accent, testId }: 
         )}
       />
       <div className="flex items-center justify-between text-muted-foreground">
-        <span className="text-xs font-medium">{label}</span>
+        <FieldLabel label={label} hint={hint} className="text-xs font-medium" />
         <span className="opacity-70">{icon}</span>
       </div>
       <AnimateDigits
@@ -62,6 +65,7 @@ export default function MetricsStrip() {
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Metric
         label={t('metrics.price')}
+        hint={t('metrics.price.hint')}
         testId="metric-price"
         icon={<Activity size={14} />}
         value={formatMoney(liveData.current_price)}
@@ -74,6 +78,7 @@ export default function MetricsStrip() {
       />
       <Metric
         label={t('metrics.profit')}
+        hint={t('metrics.profit.hint')}
         testId="metric-profit"
         icon={profitNegative ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
         value={formatMoney(liveData.profit, true)}
@@ -89,6 +94,7 @@ export default function MetricsStrip() {
       />
       <Metric
         label={t('metrics.positions')}
+        hint={t('metrics.positions.hint')}
         testId="metric-positions"
         icon={<Layers size={14} />}
         value={String(liveData.open_positions)}
@@ -97,6 +103,7 @@ export default function MetricsStrip() {
       />
       <Metric
         label={t('metrics.pending')}
+        hint={t('metrics.pending.hint')}
         testId="metric-pending"
         icon={<Clock size={14} />}
         value={String(liveData.pending_orders)}

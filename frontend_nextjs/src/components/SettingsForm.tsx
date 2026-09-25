@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { toast } from '@/components/ui/animated-toast';
+import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/i18n';
 
 const MIN_INTERVAL = 1;
@@ -102,22 +103,31 @@ export default function SettingsForm() {
           </Alert>
         )}
 
-        <div className="space-y-2">
+        <div data-tooltip-scope className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <span className="text-xs font-medium text-muted-foreground">{t('settings.interval')}</span>
+            <FieldLabel
+              label={t('settings.interval')}
+              hint={t('settings.interval.hint')}
+              className="text-xs font-medium text-muted-foreground"
+            />
             <span className="text-[11px] text-muted-foreground/70">
               {MIN_INTERVAL}–{MAX_INTERVAL} {t('settings.unit.sec')}
             </span>
           </div>
           <div className="flex h-10 items-stretch overflow-hidden rounded-md border border-input bg-background/60 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
-            <button
-              onClick={decrement}
-              disabled={loopInterval <= MIN_INTERVAL}
-              className="flex w-10 items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-              title={t('settings.decrease')}
+            <Tooltip
+              content={loopInterval <= MIN_INTERVAL ? t('settings.decrease.min.hint') : t('settings.decrease.hint')}
+              className="w-10"
             >
-              <Minus size={15} />
-            </button>
+              <button
+                onClick={decrement}
+                disabled={loopInterval <= MIN_INTERVAL}
+                className="flex w-full items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label={t('settings.decrease')}
+              >
+                <Minus size={15} />
+              </button>
+            </Tooltip>
             <div className="relative flex flex-1 items-center border-x border-input">
               <NumberInput
                 aria-label={t('settings.interval')}
@@ -133,14 +143,19 @@ export default function SettingsForm() {
               />
               <span className="pointer-events-none absolute right-3 text-xs text-muted-foreground">{t('settings.unit.sec')}</span>
             </div>
-            <button
-              onClick={increment}
-              disabled={loopInterval >= MAX_INTERVAL}
-              className="flex w-10 items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-              title={t('settings.increase')}
+            <Tooltip
+              content={loopInterval >= MAX_INTERVAL ? t('settings.increase.max.hint') : t('settings.increase.hint')}
+              className="w-10"
             >
-              <Plus size={15} />
-            </button>
+              <button
+                onClick={increment}
+                disabled={loopInterval >= MAX_INTERVAL}
+                className="flex w-full items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label={t('settings.increase')}
+              >
+                <Plus size={15} />
+              </button>
+            </Tooltip>
           </div>
         </div>
 
@@ -150,6 +165,7 @@ export default function SettingsForm() {
             onClick={handleSave}
             disabled={!hasChanges}
             loading={saving}
+            hint={hasChanges ? t('settings.save.hint') : t('common.noChanges.hint')}
           >
             {!saving && <Save size={15} />}
             {saving ? t('common.saving') : t('common.save')}

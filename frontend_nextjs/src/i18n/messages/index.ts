@@ -4,6 +4,7 @@ import chart from './chart';
 import common from './common';
 import dashboard from './dashboard';
 import errors from './errors';
+import hints from './hints';
 import logs from './logs';
 import settings from './settings';
 import ui from './ui';
@@ -11,7 +12,7 @@ import vps from './vps';
 import zone from './zone';
 
 // Yeni bölüm: dosyayı ekle, buraya import et ve aşağıdaki listeye koy.
-const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, vps] as const;
+const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, vps, hints] as const;
 
 type Union2Intersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 

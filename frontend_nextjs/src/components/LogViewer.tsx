@@ -13,6 +13,7 @@ import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
+import { Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -21,10 +22,10 @@ const CONNECTING_POLL_INTERVAL_MS = 2_000;
 
 type Tab = "activity" | "robot" | "mt5";
 
-const TABS: { id: Tab; labelKey: MessageKey; icon: ReactNode }[] = [
-  { id: "activity", labelKey: "logs.tab.activity", icon: <Activity size={14} /> },
-  { id: "robot", labelKey: "logs.tab.robot", icon: <Bot size={14} /> },
-  { id: "mt5", labelKey: "logs.tab.mt5", icon: <MonitorCog size={14} /> },
+const TABS: { id: Tab; labelKey: MessageKey; hintKey: MessageKey; icon: ReactNode }[] = [
+  { id: "activity", labelKey: "logs.tab.activity", hintKey: "logs.tab.activity.hint", icon: <Activity size={14} /> },
+  { id: "robot", labelKey: "logs.tab.robot", hintKey: "logs.tab.robot.hint", icon: <Bot size={14} /> },
+  { id: "mt5", labelKey: "logs.tab.mt5", hintKey: "logs.tab.mt5.hint", icon: <MonitorCog size={14} /> },
 ];
 
 const ACTIVITY_COLORS: Record<ActivityLevel, string> = {
@@ -200,7 +201,7 @@ export default function LogViewer() {
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-border px-3 pt-2">
         <AnimatedTabs
-          tabs={TABS.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
+          tabs={TABS.map(({ id, labelKey, hintKey, icon }) => ({ id, label: t(labelKey), hint: t(hintKey), icon }))}
           activeTab={tab}
           onChange={(id) => setTab(id as Tab)}
           layoutId="log-viewer-tabs"
@@ -208,17 +209,18 @@ export default function LogViewer() {
           className="border-b-0"
         />
         <div className="flex items-center gap-0.5 pb-1.5">
-          <Button variant="ghost" size="icon-sm" onClick={fetchLogs} title={t("logs.refresh")}>
+          <Button variant="ghost" size="icon-sm" onClick={fetchLogs} hint={t("logs.refresh.hint")} aria-label={t("logs.refresh")}>
             <RefreshCw size={14} />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={handleDownloadLog} title={t("logs.download")}>
+          <Button variant="ghost" size="icon-sm" onClick={handleDownloadLog} hint={t("logs.download.hint")} aria-label={t("logs.download")}>
             <Download size={14} />
           </Button>
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={handleClearLogs}
-            title={tab === "activity" ? t("logs.clear.activity") : t("logs.clear.all")}
+            hint={tab === "activity" ? t("logs.clear.activity.hint") : t("logs.clear.all.hint")}
+            aria-label={tab === "activity" ? t("logs.clear.activity") : t("logs.clear.all")}
             className="hover:bg-danger/10 hover:text-danger"
           >
             <Trash2 size={14} />
@@ -228,13 +230,12 @@ export default function LogViewer() {
 
       <div className="bg-muted/60 dark:bg-black/40">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-2 font-mono text-[11px]">
-          <div
-            className="flex min-w-0 items-center gap-2"
-            title={workerStatus.error ?? undefined}
-          >
-            <StatusDot tone={statusTone} pulse={statusTone === "warning" || statusTone === "success"} />
-            <span data-testid="worker-status" className="truncate text-muted-foreground">{statusText}</span>
-          </div>
+          <Tooltip content={workerStatus.error ?? t("logs.status.hint")} className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <StatusDot tone={statusTone} pulse={statusTone === "warning" || statusTone === "success"} />
+              <span data-testid="worker-status" className="truncate text-muted-foreground">{statusText}</span>
+            </div>
+          </Tooltip>
           <span className="flex items-center gap-1.5 text-muted-foreground/70">
             <Terminal size={11} />
             {selectedAccount} · {t("logs.refreshEvery", { seconds: pollInterval / 1000 })}
@@ -285,6 +286,7 @@ export default function LogViewer() {
       title={t("logs.clearConfirm.title")}
       message={t("logs.clearConfirm.message")}
       confirmLabel={t("logs.clearConfirm.confirm")}
+      confirmHint={t("logs.clearConfirm.confirm.hint")}
       cancelLabel={t("logs.clearConfirm.cancel")}
       variant="danger"
       loading={clearing}

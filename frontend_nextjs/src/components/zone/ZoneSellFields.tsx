@@ -22,7 +22,7 @@ export function ZoneSellFields({
     <>
       <SectionLabel className="pt-1 text-danger">{t('zone.section.sellGridShort')}</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <InputField label={t('zone.field.sellGrid')}>
+        <InputField label={t('zone.field.sellGrid')} hint={t('zone.field.sellGrid.hint')}>
           <NumberInput
             min={symbolConfig.min}
             step={symbolConfig.step}
@@ -32,7 +32,7 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.field.sellLot')}>
+        <InputField label={t('zone.field.sellLot')} hint={t('zone.field.sellLot.hint')}>
           <NumberInput
             min={symbolConfig.volMin}
             step={symbolConfig.volStep}
@@ -42,7 +42,7 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.field.sellTakeProfit')}>
+        <InputField label={t('zone.field.sellTakeProfit')} hint={t('zone.field.sellTakeProfit.hint')}>
           <NumberInput
             min={0}
             step={symbolConfig.step}
@@ -52,7 +52,7 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.field.sellStopLoss')}>
+        <InputField label={t('zone.field.sellStopLoss')} hint={t('zone.field.sellStopLoss.hint')}>
           <NumberInput
             min={0}
             step={symbolConfig.step}

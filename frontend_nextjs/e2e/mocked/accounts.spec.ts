@@ -32,7 +32,8 @@ test.describe('ACC Konten', () => {
     await dashboard.open(DEMO_ID);
     await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.test'));
     const envBadge = (env: string) => page.locator('main span').filter({ hasText: new RegExp(`^${env}$`) });
-    await expect(envBadge('DEMO')).toBeVisible();
+    // Badge steckt im Tooltip-Wrapper (ebenfalls ein <span> mit demselben Text): der innerste ist der letzte
+    await expect(envBadge('DEMO').last()).toBeVisible();
 
     await dashboard.selectAccount(LIVE_ID);
     await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.live'));

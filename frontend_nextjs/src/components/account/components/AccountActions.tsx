@@ -23,7 +23,7 @@ export function AccountActions({
             variant="ghost"
             size="sm"
             onClick={onDownloadLog}
-            title={t('account.action.downloadLog')}
+            hint={t('account.action.downloadLog.hint')}
             aria-label={t('account.action.downloadLog')}
           >
             <Download size={14} />
@@ -34,7 +34,7 @@ export function AccountActions({
             size="sm"
             onClick={onEdit}
             disabled={isRunning}
-            title={isRunning ? t('account.action.editBlocked') : t('account.action.editTitle')}
+            hint={isRunning ? t('account.action.editBlocked') : t('account.action.edit.hint')}
             aria-label={isRunning ? t('account.action.editBlocked') : t('account.action.editTitle')}
           >
             <Edit3 size={14} />
@@ -46,7 +46,7 @@ export function AccountActions({
             onClick={onDelete}
             disabled={isRunning}
             className="text-danger hover:bg-danger/10 hover:text-danger"
-            title={isRunning ? t('account.action.deleteBlocked') : t('account.action.deleteTitle')}
+            hint={isRunning ? t('account.action.deleteBlocked') : t('account.action.delete.hint')}
             aria-label={isRunning ? t('account.action.deleteBlocked') : t('account.action.deleteTitle')}
           >
             <Trash2 size={14} />
@@ -55,7 +55,7 @@ export function AccountActions({
           <div className="mx-1 h-6 w-px bg-border" />
         </>
       )}
-      <Button variant="primary" onClick={onAdd} aria-label={t('account.action.add')}>
+      <Button variant="primary" onClick={onAdd} aria-label={t('account.action.add')} hint={t('account.action.add.hint')}>
         <Plus size={15} />
         <span>{t('account.action.new')}</span>
       </Button>

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useCallback, useId, useState } from "react";
 import { useT } from '@/i18n';
+import { Tooltip, type HintContent } from './tooltip';
 
 export interface AnimatedTabsProps {
   activeTab?: string;
@@ -12,7 +13,8 @@ export interface AnimatedTabsProps {
   defaultTab?: string;
   layoutId?: string;
   onChange?: (tabId: string) => void;
-  tabs: { id: string; label: string; icon?: ReactNode }[];
+  /** `hint` ist Pflicht (hooks/RULES.md §5): was der Tab zeigt. */
+  tabs: { id: string; label: string; icon?: ReactNode; hint: HintContent }[];
   variant?: "underline" | "pill" | "segment";
 }
 
@@ -136,31 +138,32 @@ export default function AnimatedTabs({
         const isActive = activeTab === tab.id;
 
         return (
-          <button
-            aria-selected={isActive}
-            className={getTabStyles(isActive)}
-            id={`${layoutId}-tab-${tab.id}`}
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            onKeyDown={(e) => handleKeyDown(e, index)}
-            role="tab"
-            tabIndex={isActive ? 0 : -1}
-            type="button"
-          >
-            {isActive && (
-              <motion.span
-                className={getIndicatorStyles()}
-                layout
-                layoutId={layoutId}
-                style={{ originY: "0px" }}
-                transition={shouldReduceMotion ? { duration: 0 } : SPRING}
-              />
-            )}
-            {tab.icon ? (
-              <span className="relative z-10">{tab.icon}</span>
-            ) : null}
-            <span className="relative z-10">{tab.label}</span>
-          </button>
+          <Tooltip key={tab.id} content={tab.hint} role="presentation">
+            <button
+              aria-selected={isActive}
+              className={getTabStyles(isActive)}
+              id={`${layoutId}-tab-${tab.id}`}
+              onClick={() => handleTabChange(tab.id)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+              role="tab"
+              tabIndex={isActive ? 0 : -1}
+              type="button"
+            >
+              {isActive && (
+                <motion.span
+                  className={getIndicatorStyles()}
+                  layout
+                  layoutId={layoutId}
+                  style={{ originY: "0px" }}
+                  transition={shouldReduceMotion ? { duration: 0 } : SPRING}
+                />
+              )}
+              {tab.icon ? (
+                <span className="relative z-10">{tab.icon}</span>
+              ) : null}
+              <span className="relative z-10">{tab.label}</span>
+            </button>
+          </Tooltip>
         );
       })}
     </div>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, CheckCircle2, DownloadCloud, Loader2, RefreshCw, Server } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 
 interface UpdateResult {
@@ -51,7 +52,7 @@ export default function UpdateModal({
             <ArrowRight size={14} className="text-muted-foreground" />
             <span className="font-semibold text-success">{updateResult.remoteVer}</span>
           </div>
-          <Button variant="success" className="w-full" onClick={onApplyUpdate}>
+          <Button variant="success" wrapperClassName="w-full" onClick={onApplyUpdate} hint={t('update.apply.hint')}>
             <DownloadCloud size={16} />
             {t('update.apply')}
           </Button>
@@ -66,15 +67,17 @@ export default function UpdateModal({
         </div>
       ) : null}
       {/* Update/Neustart auch ohne erreichbaren Worker: per SSH über die VPS-Seite (nur lokal) */}
-      <Link
-        href="/vps"
-        onClick={onClose}
-        className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground transition hover:text-foreground"
-      >
-        <Server size={12} />
-        {t('update.vpsLink')}
-      </Link>
-      <Button variant="ghost" className="mt-2 w-full" onClick={onClose}>
+      <Tooltip content={t('update.vpsLink.hint')} className="mt-4 flex w-full">
+        <Link
+          href="/vps"
+          onClick={onClose}
+          className="flex w-full items-center justify-center gap-2 text-xs text-muted-foreground transition hover:text-foreground"
+        >
+          <Server size={12} />
+          {t('update.vpsLink')}
+        </Link>
+      </Tooltip>
+      <Button variant="ghost" wrapperClassName="mt-2 w-full" onClick={onClose} hint={t('common.close.hint')}>
         {t('common.close')}
       </Button>
     </Modal>

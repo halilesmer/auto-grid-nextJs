@@ -81,6 +81,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📂 ui                   # Temel UI bileşenleri
 ┃ ┃ ┃ ┃ ┣ 📜 ErrorToast.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 InputField.tsx
+┃ ┃ ┃ ┃ ┣ 📜 tooltip.tsx          # Tooltip + InfoHint (i) + FieldLabel (Popover API/top-layer); hint zorunlu, bkz. hooks/RULES.md §5
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
 ┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri
 ┃ ┃ ┃   ┣ 📜 ZoneCard.tsx
@@ -111,7 +112,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 translate.ts         # translate(locale, key, params): {yer} tutucuları, çoğul (_one/_other), yedek sıra
 ┃ ┃ ┃ ┣ 📜 format.ts            # Sayı/para/saat biçimleyicileri (locale'e göre)
 ┃ ┃ ┃ ┣ 📜 index.ts             # useT(), t(), useFormat()
-┃ ┃ ┃ ┗ 📂 messages             # Bölüm başına bir dosya (common, dashboard, bot, zone, vps …), tr/en/de yan yana
+┃ ┃ ┃ ┗ 📂 messages             # Bölüm başına bir dosya (common, dashboard, bot, zone, vps …), tr/en/de yan yana; hints.ts = tüm tooltip metinleri (`<etiket-anahtarı>.hint`)
 ┃ ┃ ┣ 📂 store                  # Zustand state management (Modüler)
 ┃ ┃ ┃ ┣ 📜 index.ts             # Barrel export
 ┃ ┃ ┃ ┣ 📜 types.ts             # Store type tanımları

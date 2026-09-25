@@ -2,18 +2,21 @@
 
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { InfoHint, type HintContent } from './tooltip';
 
 interface SwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label?: ReactNode;
   description?: ReactNode;
+  /** Pflicht (hooks/RULES.md §5): erklärt, was der Schalter bewirkt (i18n-Key `<label-key>.hint`). */
+  hint: HintContent;
   disabled?: boolean;
   id?: string;
   className?: string;
 }
 
-export function Switch({ checked, onChange, label, description, disabled, id, className }: SwitchProps) {
+export function Switch({ checked, onChange, label, description, hint, disabled, id, className }: SwitchProps) {
   return (
     <label
       htmlFor={id}
@@ -43,12 +46,13 @@ export function Switch({ checked, onChange, label, description, disabled, id, cl
           )}
         />
       </button>
-      {(label || description) && (
-        <span className="flex flex-col">
+      <span className="flex flex-col">
+        <span className="flex items-center gap-1.5">
           {label && <span className="text-sm text-foreground">{label}</span>}
-          {description && <span className="text-xs text-muted-foreground">{description}</span>}
+          <InfoHint hint={hint} />
         </span>
-      )}
+        {description && <span className="text-xs text-muted-foreground">{description}</span>}
+      </span>
     </label>
   );
 }

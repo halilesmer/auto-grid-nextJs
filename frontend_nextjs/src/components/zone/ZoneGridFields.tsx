@@ -22,9 +22,8 @@ export function ZoneGridFields({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <InputField
-        label={
-          isBoth && !sync ? t('zone.field.buyGrid') : t('zone.field.gridStep')
-        }
+        label={isBoth && !sync ? t('zone.field.buyGrid') : t('zone.field.gridStep')}
+        hint={isBoth && !sync ? t('zone.field.buyGrid.hint') : t('zone.field.gridStep.hint')}
       >
         <NumberInput
           min={symbolConfig.min}
@@ -36,9 +35,8 @@ export function ZoneGridFields({
         />
       </InputField>
       <InputField
-        label={
-          isBoth && !sync ? t('zone.field.buyLot') : t('zone.field.lot')
-        }
+        label={isBoth && !sync ? t('zone.field.buyLot') : t('zone.field.lot')}
+        hint={isBoth && !sync ? t('zone.field.buyLot.hint') : t('zone.field.lot.hint')}
       >
         <NumberInput
           min={symbolConfig.volMin}
@@ -50,9 +48,8 @@ export function ZoneGridFields({
         />
       </InputField>
       <InputField
-        label={
-          isBoth && !sync ? t('zone.field.buyTakeProfit') : t('zone.field.takeProfit')
-        }
+        label={isBoth && !sync ? t('zone.field.buyTakeProfit') : t('zone.field.takeProfit')}
+        hint={isBoth && !sync ? t('zone.field.buyTakeProfit.hint') : t('zone.field.takeProfit.hint')}
       >
         <NumberInput
           min={0}
@@ -64,9 +61,8 @@ export function ZoneGridFields({
         />
       </InputField>
       <InputField
-        label={
-          isBoth && !sync ? t('zone.field.buyStopLoss') : t('zone.field.stopLoss')
-        }
+        label={isBoth && !sync ? t('zone.field.buyStopLoss') : t('zone.field.stopLoss')}
+        hint={isBoth && !sync ? t('zone.field.buyStopLoss.hint') : t('zone.field.stopLoss.hint')}
       >
         <NumberInput
           min={0}

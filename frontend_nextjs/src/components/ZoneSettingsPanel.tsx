@@ -107,14 +107,20 @@ export default function ZoneSettingsPanel({
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
               {t('zone.panel.title')}
-              <Badge tone="neutral" data-testid="zone-count">{zones.length}</Badge>
+              <Badge tone="neutral" data-testid="zone-count" hint={t('zone.panel.count.hint')}>{zones.length}</Badge>
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">{t('zone.panel.subtitle')}</p>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           {saveAction}
-          <Button variant="primary" size="sm" onClick={addZone} disabled={disableActionButtons}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={addZone}
+            disabled={disableActionButtons}
+            hint={disableActionButtons ? t('zone.panel.add.off.hint') : t('zone.panel.add.hint')}
+          >
             <Plus size={14} />
             {t('zone.panel.add')}
           </Button>
@@ -176,6 +182,7 @@ export default function ZoneSettingsPanel({
         onConfirm={handleRemoveZoneConfirmed}
         title={t('zone.delete.title')}
         message={t('zone.delete.message')}
+        confirmHint={t('zone.delete.confirm.hint')}
         variant="danger"
       />
     </div>

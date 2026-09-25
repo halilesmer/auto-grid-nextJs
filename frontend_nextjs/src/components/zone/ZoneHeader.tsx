@@ -7,11 +7,17 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/status-dot';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useT } from '@/i18n';
+import { useT, type MessageKey } from '@/i18n';
 import type { ZoneHeaderProps } from './types';
 
 const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
+const ORDER_HINT: Record<keyof typeof ORDER_TONE, MessageKey> = {
+  BUY: 'zone.header.badge.buy.hint',
+  SELL: 'zone.header.badge.sell.hint',
+  BOTH: 'zone.header.badge.both.hint',
+};
 
 export function ZoneHeader({
   zone,
@@ -42,6 +48,7 @@ export function ZoneHeader({
 
   let btnClass = '';
   let btnText = '';
+  let btnHint = '';
   let btnIcon = <Play size={13} fill="currentColor" />;
   let dotTone: 'success' | 'warning' | 'neutral' = 'neutral';
 
@@ -49,22 +56,26 @@ export function ZoneHeader({
     if (isActive) {
       btnClass = 'border-success/40 bg-success/10 text-success hover:bg-success/20';
       btnText = t('zone.header.started');
+      btnHint = t('zone.header.started.hint');
       btnIcon = <Pause size={13} fill="currentColor" />;
       dotTone = 'success';
     } else {
       btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
       btnText = t('zone.header.start');
+      btnHint = t('zone.header.start.hint');
       btnIcon = <Play size={13} fill="currentColor" />;
     }
   } else {
     if (isActive) {
       btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
       btnText = t('zone.header.ready');
+      btnHint = t('zone.header.ready.hint');
       btnIcon = <Pause size={13} fill="currentColor" />;
       dotTone = 'warning';
     } else {
       btnClass = 'border-border bg-muted text-muted-foreground hover:bg-accent hover:text-foreground';
       btnText = t('zone.header.off');
+      btnHint = t('zone.header.off.hint');
       btnIcon = <Play size={13} fill="currentColor" />;
     }
   }
@@ -98,6 +109,7 @@ export function ZoneHeader({
   if (engineStop) {
     btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
     btnText = engineStop.canRestart ? t('zone.header.restart') : t('zone.header.stopped');
+    btnHint = engineStop.hint;
     btnIcon = <RotateCcw size={13} />;
     dotTone = 'warning';
   }
@@ -118,10 +130,16 @@ export function ZoneHeader({
             <span className="truncate font-mono text-base font-semibold tracking-tight text-foreground">
               {zone.symbol || '—'}
             </span>
-            <Badge tone={tone}>{zone.order_type}</Badge>
-            {modified && <Badge tone="warning">{t('zone.header.unsaved')}</Badge>}
+            <Badge tone={tone} hint={t(ORDER_HINT[zone.order_type as keyof typeof ORDER_HINT] ?? ORDER_HINT.BOTH)}>
+              {zone.order_type}
+            </Badge>
+            {modified && (
+              <Badge tone="warning" hint={t('zone.header.unsaved.hint')}>
+                {t('zone.header.unsaved')}
+              </Badge>
+            )}
             {engineStop && (
-              <Badge tone="warning" title={engineStop.hint}>
+              <Badge tone="warning" hint={engineStop.hint}>
                 {engineStop.label}
               </Badge>
             )}
@@ -133,46 +151,50 @@ export function ZoneHeader({
       </div>
 
       <div className="flex items-center gap-1.5">
-        <button
-          onClick={handleMainClick}
-          disabled={Boolean(engineStop && !engineStop.canRestart)}
-          className={cn(
-            'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60',
-            btnClass,
-          )}
-          title={engineStop ? engineStop.hint : t('zone.header.manage')}
-        >
-          {btnIcon}
-          <span>{btnText}</span>
-        </button>
+        <Tooltip content={btnHint}>
+          <button
+            onClick={handleMainClick}
+            disabled={Boolean(engineStop && !engineStop.canRestart)}
+            className={cn(
+              'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60',
+              btnClass,
+            )}
+          >
+            {btnIcon}
+            <span>{btnText}</span>
+          </button>
+        </Tooltip>
         <Button
           size="sm"
           variant={modified ? 'primary' : 'secondary'}
           onClick={onSave}
           loading={saving}
           disabled={!modified}
-          title={t('zone.header.saveOnly')}
+          hint={modified ? t('zone.header.save.hint') : t('zone.header.save.off.hint')}
           data-testid="zone-save"
         >
           {!saving && <Save size={13} />}
           {t('common.save')}
         </Button>
-        <Link
-          href={`/chart?zone=${zone.id}`}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"
-          title={t('zone.header.testTitle')}
-        >
-          <FlaskConical size={13} />
-          {t('zone.header.test')}
-        </Link>
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
-            aria-label={t('zone.header.menu')}
+        <Tooltip content={t('zone.header.test.hint')}>
+          <Link
+            href={`/chart?zone=${zone.id}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"
           >
-            <MoreHorizontal size={16} />
-          </button>
+            <FlaskConical size={13} />
+            {t('zone.header.test')}
+          </Link>
+        </Tooltip>
+        <div className="relative" ref={menuRef}>
+          <Tooltip content={t('zone.header.menu.hint')}>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
+              aria-label={t('zone.header.menu')}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+          </Tooltip>
           <AnimatePresence>
             {menuOpen && (
               <motion.div
@@ -182,17 +204,22 @@ export function ZoneHeader({
                 transition={{ duration: 0.12 }}
                 className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-popover p-1 shadow-xl shadow-black/10 dark:shadow-black/50"
               >
-                <button
-                  onClick={() => {
-                    onDelete();
-                    setMenuOpen(false);
-                  }}
-                  disabled={disableButtons}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-30"
+                <Tooltip
+                  content={disableButtons ? t('zone.header.delete.off.hint') : t('zone.header.delete.hint')}
+                  className="w-full"
                 >
-                  <Trash2 size={14} />
-                  <span>{t('zone.header.delete')}</span>
-                </button>
+                  <button
+                    onClick={() => {
+                      onDelete();
+                      setMenuOpen(false);
+                    }}
+                    disabled={disableButtons}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <Trash2 size={14} />
+                    <span>{t('zone.header.delete')}</span>
+                  </button>
+                </Tooltip>
               </motion.div>
             )}
           </AnimatePresence>

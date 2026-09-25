@@ -17,12 +17,13 @@ export function ZoneExitFields({
         onChange={(checked) => update('clear_on_exit', checked)}
         label={t('zone.exit.clearOnExit')}
         description={t('zone.exit.clearOnExit.hint')}
+        hint={t('zone.exit.clearOnExit.tip')}
       />
       {zone.clear_on_exit && (
         <>
           <div className="h-px bg-border" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <InputField label={t('zone.exit.side')}>
+            <InputField label={t('zone.exit.side')} hint={t('zone.exit.side.hint')}>
               <select
                 value={zone.clear_exit_side}
                 onChange={(e) => update('clear_exit_side', e.target.value)}
@@ -33,7 +34,7 @@ export function ZoneExitFields({
                 <option value="SELL (Aşağı)">{t('zone.exit.side.down')}</option>
               </select>
             </InputField>
-            <InputField label={t('zone.exit.target')}>
+            <InputField label={t('zone.exit.target')} hint={t('zone.exit.target.hint')}>
               <select
                 value={zone.clear_target_side}
                 onChange={(e) => update('clear_target_side', e.target.value)}
@@ -44,7 +45,7 @@ export function ZoneExitFields({
                 <option value="Sadece SELL İşlemleri">{t('zone.exit.target.sell')}</option>
               </select>
             </InputField>
-            <InputField label={t('zone.exit.scope')}>
+            <InputField label={t('zone.exit.scope')} hint={t('zone.exit.scope.hint')}>
               <select
                 value={zone.clear_scope}
                 onChange={(e) => update('clear_scope', e.target.value)}
@@ -54,7 +55,7 @@ export function ZoneExitFields({
                 <option value="Tüm İşlemler">{t('zone.exit.scope.all')}</option>
               </select>
             </InputField>
-            <InputField label={t('zone.exit.trigger')}>
+            <InputField label={t('zone.exit.trigger')} hint={t('zone.exit.trigger.hint')}>
               <select
                 value={zone.exit_condition}
                 onChange={(e) => update('exit_condition', e.target.value)}
@@ -67,7 +68,7 @@ export function ZoneExitFields({
           </div>
           {zone.exit_condition === 'Mum Kapanışı' && (
             <div className="w-48">
-              <InputField label={t('zone.exit.timeframe')}>
+              <InputField label={t('zone.exit.timeframe')} hint={t('zone.exit.timeframe.hint')}>
                 <select
                   value={zone.exit_timeframe}
                   onChange={(e) => update('exit_timeframe', e.target.value)}

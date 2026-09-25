@@ -235,6 +235,7 @@ export default function AccountSelector() {
               : ''
           }
           confirmLabel={t('account.duplicate.confirm')}
+          confirmHint={t('account.duplicate.confirm.hint')}
           variant="warning"
         />
       </AccountFormDialog>
@@ -245,6 +246,7 @@ export default function AccountSelector() {
         onConfirm={handleDelete}
         title={t('account.delete.title')}
         message={t('account.delete.message', { name: activeAccount?.account_name ?? '' })}
+        confirmHint={t('account.delete.confirm.hint')}
         variant="danger"
         loading={isSaving}
       />

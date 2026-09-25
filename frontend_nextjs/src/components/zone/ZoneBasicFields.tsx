@@ -34,7 +34,7 @@ export function ZoneBasicFields({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      <InputField label={symbolLabel} error={hasError && <span className="text-[11px] font-semibold text-danger">{t('zone.field.symbolInvalid')}</span>}>
+      <InputField label={symbolLabel} hint={t('zone.field.symbol.hint')} error={hasError && <span className="text-[11px] font-semibold text-danger">{t('zone.field.symbolInvalid')}</span>}>
         <SymbolAutoComplete
           value={zone.symbol}
           onChange={handleSymbolChange}
@@ -42,7 +42,7 @@ export function ZoneBasicFields({
           hasError={hasError}
         />
       </InputField>
-      <InputField label={t('zone.field.orderType')}>
+      <InputField label={t('zone.field.orderType')} hint={t('zone.field.orderType.hint')}>
         <select
           value={zone.order_type}
           onChange={(e) => update('order_type', e.target.value)}
@@ -53,7 +53,7 @@ export function ZoneBasicFields({
           <option value="BOTH">BOTH</option>
         </select>
       </InputField>
-      <InputField label={t('zone.field.minPrice')}>
+      <InputField label={t('zone.field.minPrice')} hint={t('zone.field.minPrice.hint')}>
         <NumberInput
           min={0}
           step={symbolConfig.step}
@@ -63,7 +63,7 @@ export function ZoneBasicFields({
           className="input-s"
         />
       </InputField>
-      <InputField label={t('zone.field.maxPrice')}>
+      <InputField label={t('zone.field.maxPrice')} hint={t('zone.field.maxPrice.hint')}>
         <NumberInput
           min={0}
           step={symbolConfig.step}

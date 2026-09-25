@@ -875,3 +875,15 @@ kategorien:
         pruefung:
           - Bot mit MT5 verbinden, dann die Sprache zwischen EN und DE wechseln.
         erwartet: Der Preis in der Kennzahlenleiste wechselt zwischen Punkt und Komma als Dezimaltrenner.
+
+      - id: UI-07
+        titel: Hinweise (Tooltips) zu jedem Feld und Button
+        beschreibung: Jede Einstellung, jedes Feld, jeder Schalter, Button, Tab und Menüpunkt erklärt sich. Felder und Schalter tragen ein (i) hinter dem Label (Hover, Tastaturfokus oder Antippen), Buttons und Links zeigen den Tooltip bei Hover/Fokus, deaktivierte Buttons nennen den Grund. Der Tooltip ist ein Popover im Top-Layer (nicht von overflow-hidden abgeschnitten, über den Dialogen), Escape schließt zuerst nur ihn. Texte stehen als i18n-Schlüssel `<label-key>.hint` in src/i18n/messages/hints.ts (tr, en, de). `hint` ist Pflicht-Prop von InputField, Switch, Button, Tabs und ConfirmModal; der Abdeckungstest meldet jedes Bedienelement ohne Hinweis (hooks/RULES.md §5).
+        code: [frontend_nextjs/src/components/ui/tooltip.tsx, frontend_nextjs/src/components/ui/InputField.tsx, frontend_nextjs/src/components/ui/button.tsx, frontend_nextjs/src/components/ui/switch.tsx, frontend_nextjs/src/i18n/messages/hints.ts]
+        tiers: [e2e]
+        pruefung:
+          - Im Dashboard mit der Maus über das (i) hinter „Alt Seviyeler“, „Maks Pozisyon“ und „Çıkış Tetikleyici“ fahren.
+          - Mit Tab durch die Felder gehen; Escape drücken.
+          - Bei laufendem Bot über „Edit“ fahren; im Konto-Dialog über ein (i) fahren.
+          - Sprache auf EN und DE stellen.
+        erwartet: Zu jedem Element erscheint ein verständlicher Text in der gewählten Sprache. Er wird nicht abgeschnitten, liegt im Dialog über dem Dialog, Escape schließt erst den Tooltip. Ein deaktivierter Button nennt den Grund. Der Abdeckungstest findet kein Bedienelement ohne Hinweis.

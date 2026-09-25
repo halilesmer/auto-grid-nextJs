@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, type HintContent } from './tooltip';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'success' | 'danger' | 'warning';
 type Size = 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm';
@@ -23,16 +24,23 @@ const SIZES: Record<Size, string> = {
   'icon-sm': 'size-8',
 };
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+// `title` fehlt absichtlich: Erklärungen laufen über `hint` (hooks/RULES.md §5), nie über native Titel.
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'title'> {
   variant?: Variant;
   size?: Size;
   loading?: boolean;
+  /** Pflicht (hooks/RULES.md §5): wozu der Button dient; bei deaktiviertem Button auch warum. */
+  hint: HintContent;
+  /** Layout des Tooltip-Wrappers (z. B. `flex-1`, `w-full`), wenn der Button ihn füllen soll. */
+  wrapperClassName?: string;
 }
 
 export function Button({
   variant = 'secondary',
   size = 'md',
   loading = false,
+  hint,
+  wrapperClassName,
   className,
   children,
   disabled,
@@ -40,21 +48,26 @@ export function Button({
   ...props
 }: ButtonProps) {
   return (
-    <button
-      type={type}
-      disabled={disabled || loading}
-      className={cn(
-        'inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-md font-medium transition-all',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        'active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45',
-        VARIANTS[variant],
-        SIZES[size],
-        className,
-      )}
-      {...props}
-    >
-      {loading && <Loader2 className="size-4 animate-spin" />}
-      {children}
-    </button>
+    // Der Wrapper (nicht der Button) bekommt die Zeigerereignisse: ein deaktivierter Button hat
+    // pointer-events-none, soll aber trotzdem erklären, warum er deaktiviert ist.
+    <Tooltip content={hint} className={wrapperClassName}>
+      <button
+        type={type}
+        disabled={disabled || loading}
+        className={cn(
+          'inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-md font-medium transition-all',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45',
+          VARIANTS[variant],
+          SIZES[size],
+          wrapperClassName && 'w-full',
+          className,
+        )}
+        {...props}
+      >
+        {loading && <Loader2 className="size-4 animate-spin" />}
+        {children}
+      </button>
+    </Tooltip>
   );
 }
