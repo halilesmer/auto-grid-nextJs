@@ -88,6 +88,7 @@ export function ZoneCard({
           price={liveData.symbol_prices?.[zone.symbol.toUpperCase()]}
           priceDigits={symbolConfig.precision}
           marketOpen={liveData.zone_market_open?.[String(zoneIndex)]}
+          marketHours={liveData.zone_market_hours?.[String(zoneIndex)]}
           onToggleActive={handleToggleActive}
           onRestart={onRestart}
           onDelete={onDelete}

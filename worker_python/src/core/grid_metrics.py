@@ -1,5 +1,6 @@
 from src.utils.trade_utils import TradeState
 from src.core.grid_helpers import is_market_open
+from src.core import trading_hours
 
 BASE_MAGIC_NUMBER = 200000
 
@@ -47,6 +48,9 @@ def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, 
         return metrics
 
     metrics["mt5_connected"] = True
+    # Bölge başına olağan işlem saati (mum verisinden tahmin, önbellekli): {"0": "02:00-00:00"}
+    hours = {i: trading_hours.infer_trading_hours(mt5, sym) for i, sym in zone_symbols.items()}
+    metrics["zone_market_hours"] = {i: h for i, h in hours.items() if h}
     if not terminal_info.trade_allowed:
         metrics["algo_trading_error"] = True
 

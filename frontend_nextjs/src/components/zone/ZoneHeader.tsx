@@ -30,6 +30,7 @@ export function ZoneHeader({
   price,
   priceDigits,
   marketOpen,
+  marketHours,
   onToggleActive,
   onRestart,
   onDelete,
@@ -145,7 +146,11 @@ export function ZoneHeader({
             {isGlobalRunning && isActive && marketOpen !== undefined && (
               <Badge
                 tone={marketOpen ? 'success' : 'danger'}
-                hint={t('zone.market.hint')}
+                hint={
+                  marketHours
+                    ? t(marketOpen ? 'zone.market.hint.open' : 'zone.market.hint.closed', { hours: marketHours.replace(/-/g, '–') })
+                    : t('zone.market.hint')
+                }
                 data-testid="zone-market"
               >
                 {marketOpen ? t('zone.market.open') : t('zone.market.closed')}

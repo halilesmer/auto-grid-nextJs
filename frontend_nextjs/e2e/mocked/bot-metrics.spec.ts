@@ -80,6 +80,9 @@ test.describe('MET Live-Daten', () => {
 
     // Marktstatus gehört zur Zone (jedes Symbol hat eigene Handelszeiten)
     await expect(page.getByTestId('zone-market').first()).toHaveText(msg('zone.market.open'));
+    // Hover zeigt die übliche Handelszeit
+    await page.getByTestId('zone-market').first().hover();
+    await expect(page.getByRole('tooltip')).toContainText('02:00–00:00');
     worker.setMetrics(DEMO_ID, { zone_market_open: { '0': false } });
     await dashboard.refreshLogs();
     await expect(page.getByTestId('zone-market').first()).toHaveText(msg('zone.market.closed'));
