@@ -1,6 +1,6 @@
 # src/core/state.py
 from dataclasses import dataclass, field
-from typing import Dict, Set, Any, Optional
+from typing import Dict, Set, Any
 
 
 @dataclass
@@ -11,8 +11,8 @@ class GridState:
     symbol_infos: Dict[str, Any] = field(default_factory=dict)
 
     filling_mode: Dict[str, Any] = field(default_factory=dict)
-    active_zone: Any = None
-    active_zone_idx: Optional[int] = None
+    # Sembol → o sembolün aktif bölge indeksi (farklı sembollü bölgeler aynı anda çalışır)
+    active_zones: Dict[str, int] = field(default_factory=dict)
     active_zones_state: Dict[int, str] = field(default_factory=dict)
     consecutive_errors: Dict[str, int] = field(default_factory=dict)
     # Pozisyon ID → açan emrin ilk hacmi (history_orders_get önbelleği, bkz. grid_orders)
@@ -44,8 +44,7 @@ class GridState:
         self.is_running = False
         self.initial_cleanup_done = False
         self.connection_lost = False
-        self.active_zone = None
-        self.active_zone_idx = None
+        self.active_zones.clear()
 
 
 state = GridState()

@@ -445,12 +445,13 @@ kategorien:
     features:
       - id: ENG-01
         titel: Zonenwahl
-        beschreibung: Aktiv wird die erste aktive Zone, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt.
+        beschreibung: Pro Symbol ist höchstens eine Zone aktiv – die erste aktive Zone dieses Symbols, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt. Zonen mit verschiedenen Symbolen (z. B. USOUSD + XAUUSD) laufen gleichzeitig.
         code: [worker_python/src/core/grid_zone_selector.py]
         tiers: [unit]
         pruefung:
           - Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen.
-        erwartet: Orders entstehen nur in der Zone, in der der Preis liegt.
+          - Eine zweite Zone mit anderem Symbol anlegen und starten.
+        erwartet: Beim gleichen Symbol entstehen Orders nur in der Zone, in der der Preis liegt; eine Zone mit anderem Symbol bekommt zusätzlich eigene Orders.
 
       - id: ENG-02
         titel: Sliding-Grid-Level

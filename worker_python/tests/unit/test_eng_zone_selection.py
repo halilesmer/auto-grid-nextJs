@@ -2,7 +2,7 @@
 import pytest
 
 from src.core.grid_zone_selector import get_active_zone, is_zone_exited
-from tests.helpers import make_zone
+from tests.helpers import MAGIC_ZONE_1, EngineHarness, make_zone
 
 
 @pytest.mark.feature("ENG-01")
@@ -51,3 +51,41 @@ def test_zonenaustritt_nach_tick_und_nach_kerze(fake_mt5):
     fake_mt5.set_closed_candle("USOUSD", fake_mt5.TIMEFRAME_M15, 96.9)
     # Tick schon draußen, Kerze aber noch drin → noch kein Austritt
     assert is_zone_exited(fake_mt5, candle_zone, 97.005, "USOUSD") is False
+
+
+@pytest.mark.feature("ENG-01")
+def test_symbol_filter_behaelt_globale_indizes(fake_mt5):
+    fake_mt5.add_symbol("XAUUSD", bid=4293.00, ask=4293.20, digits=2, point=0.01)
+    zones = [make_zone(), make_zone(symbol="XAUUSD", min_price=4000, max_price=5000)]
+    assert get_active_zone(fake_mt5, zones, "XAUUSD")[1] == 1
+    assert get_active_zone(fake_mt5, zones, "USOUSD")[1] == 0
+
+
+@pytest.mark.feature("ENG-01")
+def test_zonen_verschiedener_symbole_laufen_gleichzeitig(fake_mt5):
+    """Bug 25.09: Zone 2 (XAUUSD) bekam keine Orders, weil nur Zone 1 (USOUSD) aktiv sein durfte."""
+    m = fake_mt5
+    m.add_symbol("XAUUSD", bid=4293.00, ask=4293.20, digits=2, point=0.01)
+    zones = [
+        make_zone(order_type="BUY"),
+        make_zone(symbol="XAUUSD", order_type="BOTH", min_price=4000, max_price=5000, grid_step=1.0,
+                  take_profit=1.0, levels_below=2, levels_above=2),
+    ]
+    engine = EngineHarness(m, zones)
+    engine.tick()
+
+    assert engine.active_zones == {"USOUSD": 0, "XAUUSD": 1}
+    assert m.robot_orders(MAGIC_ZONE_1)
+    xau = m.robot_orders(MAGIC_ZONE_1 + 1)
+    assert xau and all(o.symbol == "XAUUSD" for o in xau)
+    assert all(o.symbol == "USOUSD" for o in m.robot_orders(MAGIC_ZONE_1))
+
+
+@pytest.mark.feature("ENG-01")
+def test_gleiches_symbol_weiter_nur_eine_zone(fake_mt5):
+    m = fake_mt5
+    zones = [make_zone(min_price=90, max_price=100), make_zone(min_price=95, max_price=105)]
+    engine = EngineHarness(m, zones)
+    engine.tick()
+    assert engine.active_zones == {"USOUSD": 0}
+    assert m.robot_orders(MAGIC_ZONE_1) and not m.robot_orders(MAGIC_ZONE_1 + 1)

@@ -242,9 +242,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 ## 7. ENG – Grid-Engine (Handelslogik)
 
 - [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-09-25
-  - Aktiv wird die erste aktive Zone, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt.
-  - **Prüfung:** Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen.
-  - **Erwartet:** Orders entstehen nur in der Zone, in der der Preis liegt.
+  - Pro Symbol ist höchstens eine Zone aktiv – die erste aktive Zone dieses Symbols, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt. Zonen mit verschiedenen Symbolen (z. B. USOUSD + XAUUSD) laufen gleichzeitig.
+  - **Prüfung:** Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen. → Eine zweite Zone mit anderem Symbol anlegen und starten.
+  - **Erwartet:** Beim gleichen Symbol entstehen Orders nur in der Zone, in der der Preis liegt; eine Zone mit anderem Symbol bekommt zusätzlich eigene Orders.
 - [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-09-25
   - Level werden an round(mid/step)*step verankert, levels_below/levels_above Stufen, auf die Zone begrenzt; acceptable-Sets mit ±2 Stufen Puffer.
   - **Prüfung:** Bot laufen lassen, Pending Orders in MT5 ansehen.

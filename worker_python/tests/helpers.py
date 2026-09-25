@@ -10,8 +10,7 @@ class EngineHarness:
     def __init__(self, mt5, zones):
         self.mt5 = mt5
         self.zones = zones
-        self.active_zone = None
-        self.active_zone_idx = None
+        self.active_zones: dict = {}  # Sembol → aktif bölge indeksi
         self.remote_paused = False
         self.symbol_infos = dict(mt5.symbols)
         self.consecutive_errors: dict = {}
@@ -21,11 +20,10 @@ class EngineHarness:
     def tick(self) -> bool:
         from src.core.grid_orchestrator import manage_dynamic_grid
 
-        ok, self.active_zone, self.active_zone_idx = manage_dynamic_grid(
+        ok, self.active_zones = manage_dynamic_grid(
             self.mt5,
             self.zones,
-            self.active_zone,
-            self.active_zone_idx,
+            self.active_zones,
             self.remote_paused,
             self.symbol_infos,
             self.consecutive_errors,
