@@ -203,6 +203,8 @@ export default defineArea(
     'zone.field.buyLot.hint': 'BUY emirlerinin hacmi (lot). SELL için ayrı bir alan var.',
     'zone.field.takeProfit.hint':
       'Kâr al mesafesi ($): BUY için giriş fiyatının bu kadar üstüne, SELL için altına konur. Fiyat oraya ulaşınca pozisyon kârla kapanır.',
+    'zone.field.gridStep.guide': 'Referans ({symbol}): {range}. Spread’e yakın çok dar adım, emirlerin sürekli dolup silinip yeniden kurulmasına yol açar.',
+    'zone.field.takeProfit.guide': 'Referans ({symbol}): {range}. Spread’den küçük kâr al pratikte kazanç getirmez.',
     'zone.field.buyTakeProfit.hint': 'BUY pozisyonları için kâr al mesafesi ($): giriş fiyatının bu kadar üstü.',
     'zone.field.stopLoss.hint':
       'Zarar durdur mesafesi ($): BUY için giriş fiyatının bu kadar altına, SELL için üstüne konur. 0 = zarar durdur yok.',
@@ -444,6 +446,8 @@ export default defineArea(
     'zone.field.buyLot.hint': 'Volume of BUY orders (lots). SELL has its own field.',
     'zone.field.takeProfit.hint':
       'Take-profit distance ($): placed this far above the entry price for BUY, below it for SELL. The position closes in profit when the price gets there.',
+    'zone.field.gridStep.guide': 'Guideline for {symbol}: {range}. A very tight step (close to the spread) makes orders fill, get deleted and be re-placed constantly.',
+    'zone.field.takeProfit.guide': 'Guideline for {symbol}: {range}. A take profit smaller than the spread brings practically no gain.',
     'zone.field.buyTakeProfit.hint': 'Take-profit distance ($) for BUY positions: this far above the entry price.',
     'zone.field.stopLoss.hint':
       'Stop-loss distance ($): placed this far below the entry price for BUY, above it for SELL. 0 = no stop loss.',
@@ -685,6 +689,8 @@ export default defineArea(
     'zone.field.buyLot.hint': 'Volumen der BUY-Orders (Lots). SELL hat ein eigenes Feld.',
     'zone.field.takeProfit.hint':
       'Take-Profit-Abstand ($): bei BUY so weit über dem Einstiegspreis, bei SELL darunter. Erreicht der Preis ihn, schließt die Position im Gewinn.',
+    'zone.field.gridStep.guide': 'Richtwert für {symbol}: {range}. Sehr enge Abstände (nahe am Spread) führen dazu, dass Orders ständig gefüllt, gelöscht und neu gesetzt werden.',
+    'zone.field.takeProfit.guide': 'Richtwert für {symbol}: {range}. Ein Take Profit unterhalb des Spreads bringt praktisch keinen Gewinn.',
     'zone.field.buyTakeProfit.hint': 'Take-Profit-Abstand ($) für BUY-Positionen: so weit über dem Einstiegspreis.',
     'zone.field.stopLoss.hint':
       'Stop-Loss-Abstand ($): bei BUY so weit unter dem Einstiegspreis, bei SELL darüber. 0 = kein Stop Loss.',

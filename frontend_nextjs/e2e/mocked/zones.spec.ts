@@ -268,4 +268,30 @@ test.describe('ZON Zonen', () => {
     await min.blur();
     await expect(min).toHaveValue('0');
   });
+
+  test('Symbol-Richtwerte in den Hinweisen', { tag: '@ZON-12' }, async ({ page, worker, dashboard }) => {
+    worker.state.settings[DEMO_ID].ZONES = [
+      makeZone({ symbol: 'XAUUSD', min_price: 1800, max_price: 2000 }),
+      makeZone({ id: 'zone-e2e-2', symbol: 'FOOBAR', min_price: 1, max_price: 2 }),
+    ];
+    await dashboard.open(DEMO_ID);
+    const tooltip = page.getByRole('tooltip');
+    const hintOf = (zone: number, label: string) =>
+      dashboard
+        .zone(zone)
+        .locator('label')
+        .filter({ has: page.getByText(label, { exact: true }) })
+        .getByTestId('field-hint');
+
+    await hintOf(0, msg('zone.field.gridStep')).hover();
+    await expect(tooltip).toContainText(msg('zone.field.gridStep.hint'));
+    await expect(tooltip).toContainText(msg('zone.field.gridStep.guide', { symbol: 'XAUUSD', range: '1–5' }));
+    await page.mouse.move(0, 0);
+    await hintOf(0, msg('zone.field.takeProfit')).hover();
+    await expect(tooltip).toContainText(msg('zone.field.takeProfit.guide', { symbol: 'XAUUSD', range: '1–5' }));
+    await page.mouse.move(0, 0);
+
+    await hintOf(1, msg('zone.field.gridStep')).hover();
+    await expect(tooltip).toHaveText(msg('zone.field.gridStep.hint'));
+  });
 });
