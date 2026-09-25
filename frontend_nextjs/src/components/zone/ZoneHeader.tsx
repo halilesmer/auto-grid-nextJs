@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { FlaskConical, MoreHorizontal, Trash2, Pause, Play, RotateCcw } from 'lucide-react';
+import { FlaskConical, MoreHorizontal, Trash2, Pause, Play, RotateCcw, Save } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/status-dot';
 import { cn } from '@/lib/utils';
 import type { ZoneHeaderProps } from './types';
@@ -22,6 +23,8 @@ export function ZoneHeader({
   onToggleActive,
   onRestart,
   onDelete,
+  onSave,
+  saving,
 }: ZoneHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -140,6 +143,18 @@ export function ZoneHeader({
           {btnIcon}
           <span>{btnText}</span>
         </button>
+        <Button
+          size="sm"
+          variant={modified ? 'primary' : 'secondary'}
+          onClick={onSave}
+          loading={saving}
+          disabled={!modified}
+          title="Sadece bu bölgeyi kaydet"
+          data-testid="zone-save"
+        >
+          {!saving && <Save size={13} />}
+          Kaydet
+        </Button>
         <Link
           href={`/chart?zone=${zone.id}`}
           className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"

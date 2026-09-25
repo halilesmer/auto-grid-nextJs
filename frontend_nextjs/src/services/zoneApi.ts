@@ -17,6 +17,19 @@ export const zoneApi = {
     return res.data;
   },
 
+  /**
+   * Tek bir bölgeyi kaydeder: kayıtlı bölge listesinde aynı id'li bölge değiştirilir,
+   * yoksa (yeni bölge) sona eklenir. Diğer bölgelere ve ayarlara dokunulmaz.
+   */
+  async saveZone(accountId: string, zone: ZoneSettings, remoteSettings: RemoteSettings) {
+    const remoteZones: ZoneSettings[] = remoteSettings.ZONES || [];
+    const existsRemotely = remoteZones.some((z) => z.id === zone.id);
+    const ZONES = existsRemotely
+      ? remoteZones.map((z) => (z.id === zone.id ? zone : z))
+      : [...remoteZones, zone];
+    await axiosInstance.post(`/settings/${accountId}`, { settings: { ZONES } });
+  },
+
   async getSymbols(accountId: string) {
     const res = await axiosInstance.get(`/symbols/${accountId}`);
     return res.data?.symbols || res.data || {};

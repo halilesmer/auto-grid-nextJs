@@ -227,6 +227,30 @@ test.describe('ZON Zonen', () => {
     await page.getByRole('button', { name: 'Bölge Ekle' }).click();
     await expect(dashboard.zone(1).getByText('Kaydedilmedi', { exact: true })).toBeVisible();
   });
+  test('Einzelne Zone speichern', { tag: '@ZON-11' }, async ({ page, worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    await dashboard.zoneField('Lot').fill('0.05');
+    await page.getByRole('button', { name: 'Bölge Ekle' }).click();
+    const first = dashboard.zone(0);
+    const second = dashboard.zone(1);
+    const badge = (zone: typeof first) => zone.getByText('Kaydedilmedi', { exact: true });
+    await expect(first.getByTestId('zone-save')).toBeEnabled();
+
+    // Nur die neue Zone speichern: Zone 1 und der globale Zustand bleiben ungespeichert
+    await second.getByTestId('zone-save').click();
+    await expect(badge(second)).toBeHidden();
+    await expect(second.getByTestId('zone-save')).toBeDisabled();
+    expect(worker.zonesOf(DEMO_ID)).toHaveLength(2);
+    expect(worker.zonesOf(DEMO_ID)[0]).not.toMatchObject({ lot_size: 0.05 });
+    await expect(badge(first)).toBeVisible();
+    await expect(dashboard.saveAll).toHaveText('Tüm Ayarları Kaydet');
+
+    await first.getByTestId('zone-save').click();
+    await expect(badge(first)).toBeHidden();
+    await expect(dashboard.saveAll).toHaveText('Kaydedildi');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ lot_size: 0.05 });
+  });
+
   test('Zahlenfelder lassen sich leeren und neu tippen', { tag: '@ZON-10' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
     const min = dashboard.zoneField('Min Fiyat ($)');

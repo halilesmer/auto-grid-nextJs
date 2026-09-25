@@ -21,6 +21,8 @@ export function ZoneCard({
   onToggleActive,
   onRestart,
   onDelete,
+  onSave,
+  saving,
   zoneIndex,
   liveData,
   isRunning,
@@ -41,6 +43,10 @@ export function ZoneCard({
     (field: string, value: unknown) => onUpdate(zone.id, field, value),
     [onUpdate, zone.id]
   );
+
+  const handleSave = useCallback(() => {
+    void onSave(zone.id);
+  }, [onSave, zone.id]);
 
   const handleToggleActive = useCallback(() => {
     onToggleActive(zone.id, isActive);
@@ -80,6 +86,8 @@ export function ZoneCard({
           onToggleActive={handleToggleActive}
           onRestart={onRestart}
           onDelete={onDelete}
+          onSave={handleSave}
+          saving={saving}
         />
       </div>
 

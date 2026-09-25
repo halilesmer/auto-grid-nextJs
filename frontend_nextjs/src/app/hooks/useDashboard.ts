@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { axiosInstance, API } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
-import type { GlobalSettings } from '@/store/types';
+import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
 // Worker güncellemeden sonra ~1,5 sn içinde kapanır, .bat 3 sn sonra yeniden başlatır
 const WORKER_RESTART_WAIT_MS = 8_000;
@@ -37,6 +37,7 @@ interface UseDashboardReturn {
   isLive: boolean;
   currentSettingsStr: string;
   handleSaveAll: () => Promise<void>;
+  markZoneSaved: (zone: ZoneSettings) => void;
   handleShutdown: () => Promise<void>;
   handleCheckUpdates: () => Promise<void>;
   handleApplyUpdate: () => Promise<void>;
@@ -181,6 +182,24 @@ export function useDashboard({
     }
   }, [updateResult]);
 
+  // Tek bölge kaydedilince "kaydedilmiş" referansı sadece o bölge için güncellenir;
+  // böylece global isDirty diğer bölgelerin/ayarların kaydedilmemiş değişikliklerini korur.
+  const markZoneSaved = useCallback((zone: ZoneSettings) => {
+    setSavedSettingsStr((prev) => {
+      if (!prev) return prev;
+      try {
+        const obj = JSON.parse(prev);
+        const zones: ZoneSettings[] = Array.isArray(obj.ZONES) ? obj.ZONES : [];
+        obj.ZONES = zones.some((z) => z.id === zone.id)
+          ? zones.map((z) => (z.id === zone.id ? zone : z))
+          : [...zones, zone];
+        return JSON.stringify(obj);
+      } catch {
+        return prev;
+      }
+    });
+  }, []);
+
   const handleSaveAll = useCallback(async () => {
     if (!selectedAccount || !settings) return;
     setSaveAllLoading(true);
@@ -212,6 +231,7 @@ export function useDashboard({
       isLive,
       currentSettingsStr,
       handleSaveAll,
+      markZoneSaved,
       handleShutdown,
       handleCheckUpdates,
       handleApplyUpdate,
@@ -235,6 +255,7 @@ export function useDashboard({
       isLive,
       currentSettingsStr,
       handleSaveAll,
+      markZoneSaved,
       handleShutdown,
       handleCheckUpdates,
       handleApplyUpdate,
