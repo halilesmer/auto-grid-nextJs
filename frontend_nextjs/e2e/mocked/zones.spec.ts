@@ -227,4 +227,20 @@ test.describe('ZON Zonen', () => {
     await page.getByRole('button', { name: 'Bölge Ekle' }).click();
     await expect(dashboard.zone(1).getByText('Kaydedilmedi', { exact: true })).toBeVisible();
   });
+  test('Zahlenfelder lassen sich leeren und neu tippen', { tag: '@ZON-10' }, async ({ dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const min = dashboard.zoneField('Min Fiyat ($)');
+    await min.click();
+    await min.press('ControlOrMeta+a');
+    await min.press('Backspace');
+    await expect(min).toHaveValue('');
+
+    await min.pressSequentially('0.05');
+    await expect(min).toHaveValue('0.05');
+
+    await min.press('ControlOrMeta+a');
+    await min.press('Backspace');
+    await min.blur();
+    await expect(min).toHaveValue('0');
+  });
 });

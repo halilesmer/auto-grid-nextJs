@@ -3,6 +3,7 @@
 import SymbolAutoComplete from '@/components/SymbolAutoComplete';
 import type { ZoneBasicFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
+import { NumberInput } from '@/components/ui/NumberInput';
 
 export function ZoneBasicFields({
   zone,
@@ -41,8 +42,7 @@ export function ZoneBasicFields({
         </select>
       </InputField>
       <InputField label="Min Fiyat ($)">
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step={symbolConfig.step}
           value={zone.min_price}
@@ -52,8 +52,7 @@ export function ZoneBasicFields({
         />
       </InputField>
       <InputField label="Max Fiyat ($)">
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step={symbolConfig.step}
           value={zone.max_price}

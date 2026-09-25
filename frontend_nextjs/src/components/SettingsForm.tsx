@@ -9,6 +9,7 @@ import { useAccountStore, useSettingsStore } from '@/store';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { NumberInput } from '@/components/ui/NumberInput';
 import { toast } from '@/components/ui/animated-toast';
 
 const MIN_INTERVAL = 1;
@@ -112,8 +113,7 @@ export default function SettingsForm() {
               <Minus size={15} />
             </button>
             <div className="relative flex flex-1 items-center border-x border-input">
-              <input
-                type="number"
+              <NumberInput
                 aria-label="Kontrol Sıklığı"
                 step={STEP_INTERVAL}
                 min={MIN_INTERVAL}

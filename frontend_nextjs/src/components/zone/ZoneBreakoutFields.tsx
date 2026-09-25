@@ -2,6 +2,7 @@
 
 import type { ZoneBreakoutFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
+import { NumberInput } from '@/components/ui/NumberInput';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 
@@ -27,8 +28,7 @@ export function ZoneBreakoutFields({
           <span className="whitespace-nowrap text-xs text-muted-foreground">
             {isBoth && !sync ? 'BUY Pullback ($)' : 'Min Pullback ($)'}
           </span>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             step={symbolConfig.step}
             value={zone.pullback_distance}
@@ -41,8 +41,7 @@ export function ZoneBreakoutFields({
         {isBoth && !sync && (
           <div className="flex items-center gap-2">
             <span className="whitespace-nowrap text-xs text-muted-foreground">SELL Pullback ($)</span>
-            <input
-              type="number"
+            <NumberInput
               min={0}
               step={symbolConfig.step}
               value={zone.sell_pullback_distance}
@@ -57,8 +56,7 @@ export function ZoneBreakoutFields({
       <div className="h-px bg-border" />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <InputField label="Alt Seviyeler">
-          <input
-            type="number"
+          <NumberInput
             min={1}
             step={1}
             value={zone.levels_below}
@@ -68,8 +66,7 @@ export function ZoneBreakoutFields({
           />
         </InputField>
         <InputField label="Üst Seviyeler">
-          <input
-            type="number"
+          <NumberInput
             min={1}
             step={1}
             value={zone.levels_above}
@@ -79,8 +76,7 @@ export function ZoneBreakoutFields({
           />
         </InputField>
         <InputField label="Maks Pozisyon">
-          <input
-            type="number"
+          <NumberInput
             min={0}
             step={1}
             value={zone.max_positions}
