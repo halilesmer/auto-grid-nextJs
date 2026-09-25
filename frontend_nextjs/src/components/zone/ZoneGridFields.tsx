@@ -2,6 +2,7 @@
 
 import type { ZoneGridFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
+import { NumberInput } from '@/components/ui/NumberInput';
 
 export function ZoneGridFields({
   zone,
@@ -27,8 +28,7 @@ export function ZoneGridFields({
             : 'Grid Adımı ($)'
         }
       >
-        <input
-          type="number"
+        <NumberInput
           min={symbolConfig.min}
           step={symbolConfig.step}
           value={zone.grid_step}
@@ -42,8 +42,7 @@ export function ZoneGridFields({
           isBoth && sync ? 'Lot' : isBoth ? 'BUY Lot' : 'Lot'
         }
       >
-        <input
-          type="number"
+        <NumberInput
           min={symbolConfig.volMin}
           step={symbolConfig.volStep}
           value={zone.lot_size}
@@ -61,8 +60,7 @@ export function ZoneGridFields({
             : 'Kar Al ($)'
         }
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step={symbolConfig.step}
           value={zone.take_profit}
@@ -80,8 +78,7 @@ export function ZoneGridFields({
             : 'Zarar Durdur ($)'
         }
       >
-        <input
-          type="number"
+        <NumberInput
           min={0}
           step={symbolConfig.step}
           value={zone.stop_loss}

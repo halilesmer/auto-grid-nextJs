@@ -353,6 +353,15 @@ kategorien:
           - Ein Feld ändern, dann speichern.
         erwartet: Badge erscheint nach der Änderung und verschwindet nach dem Speichern.
 
+      - id: ZON-10
+        titel: Zahlenfelder leerbar
+        beschreibung: Zahlenfelder der Zone (Preis, Grid, Lot, KA/ZD, Pullback, Seviyeler) halten einen lokalen Text-Entwurf; die letzte Ziffer lässt sich löschen, erst beim Verlassen des Feldes erscheint wieder der echte Wert.
+        code: [frontend_nextjs/src/components/ui/NumberInput.tsx, frontend_nextjs/src/hooks/useZoneFieldHandlers.ts]
+        tiers: [e2e]
+        pruefung:
+          - Ein Zahlenfeld mit Rücktaste komplett leeren, dann neu tippen (z. B. 0.05) und das Feld verlassen.
+        erwartet: Feld bleibt beim Löschen leer, Zwischenstände wie „0.“ bleiben erhalten, nach dem Verlassen steht der gespeicherte Wert (leer → 0).
+
   # ---------------------------------------------------------------------------
   - id: BOT
     titel: Bot-Steuerung

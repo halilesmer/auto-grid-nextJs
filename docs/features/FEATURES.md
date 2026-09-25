@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-25 · **76/83** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-25 · **77/84** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -18,7 +18,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 9/9 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 10/10 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -152,50 +152,54 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 5. ZON – Zonen-Konfiguration (UI ↔ Backend)
 
-- [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - „Bölge Ekle“ fügt eine neue Zone mit Standardwerten hinzu; die Anzahl im Badge steigt.
   - **Prüfung:** „Bölge Ekle“ klicken, speichern, neu laden.
   - **Erwartet:** Neue Zone bleibt nach dem Neuladen erhalten.
   - 📝 Claude: 'Bölge Ekle' → Zähler 2, neue Zone inaktiv (is_active false, Symbol der letzten Zone); gespeichert → API 2 Zonen, bleibt nach Neuladen
-- [x] **ZON-02** Zone löschen — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-02** Zone löschen — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Menü „…“ → „Bölgeyi Sil“ → Bestätigung „Bölge Sil“.
   - **Prüfung:** Test-Zone löschen und bestätigen, speichern.
   - **Erwartet:** Zone ist weg, auch nach Neuladen.
   - 📝 Claude: Menü '…' → 'Bölgeyi Sil' → Dialog 'Bölge Sil' → Delete → Zähler 1, Leiste 'ungespeichert'; nach 'Tüm Ayarları Kaydet' API = Sicherung
-- [x] **ZON-03** Basisfelder (Symbol, Emir Tipi, Min/Max Fiyat) — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-03** Basisfelder (Symbol, Emir Tipi, Min/Max Fiyat) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Symbol, Ordertyp BUY/SELL/BOTH und Preisbereich der Zone.
   - **Prüfung:** Jedes Feld ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten; Ordertyp-Badge im Kopf passt.
   - 📝 Claude (Test-Zone): Symbol per Autocomplete XAUUSD, Emir Tipi BOTH, Min/Max 500/600 → nach Neuladen in API und UI
-- [x] **ZON-04** Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur) — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-04** Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Gridabstand, Lotgröße, Take Profit, Stop Loss der Zone.
   - **Prüfung:** Jedes Feld ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten.
   - 📝 Claude (Test-Zone): Grid 0.2, Lot 0.02, KA 0.3, ZD 1 → nach Neuladen in API und UI
-- [x] **ZON-05** SELL-Felder + BUY/SELL-Sync — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-05** SELL-Felder + BUY/SELL-Sync — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Bei Ordertyp BOTH eigene SELL-Werte (SELL Grid/Lot/KA/ZD) oder Schalter „BUY ve SELL için aynı ayarları uygula“.
   - **Prüfung:** Ordertyp BOTH wählen, Sync aus → SELL-Felder ändern; Sync an.
   - **Erwartet:** SELL-Felder erscheinen nur bei BOTH und Sync aus; Werte bleiben nach Speichern erhalten.
   - 📝 Claude (Test-Zone): BOTH + Sync aus → SELL-Felder (und SELL-Pullback) erscheinen; SELL 0.4/0.03/0.6/2 und sync_buy_sell=false gespeichert
-- [x] **ZON-06** Breakout-Felder — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-06** Breakout-Felder — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Schalter „Sadece trend yönünde“, Pullback-Abstände, Alt/Üst Seviyeler (levels_below/above), Maks Pozisyon.
   - **Prüfung:** Breakout einschalten, Felder ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten.
   - 📝 Claude (Test-Zone): Breakout an, Pullback 0.7/SELL 0.9, Alt 3, Üst 4, Maks 2 → nach Neuladen in API und UI
-- [x] **ZON-07** Exit-Felder (Bereinigen beim Verlassen) — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-07** Exit-Felder (Bereinigen beim Verlassen) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Schalter „Fiyat bölgeden çıkınca temizle“; dann Çıkış Yönü, Hedef Taraf, Temizleme Kapsamı, Çıkış Tetikleyici und bei „Mum Kapanışı“ zusätzlich Zaman Dilimi.
   - **Prüfung:** Schalter an → Auswahlfelder prüfen; Auslöser „Mum Kapanışı“ wählen.
   - **Erwartet:** Die vier Auswahlfelder erscheinen erst mit dem Schalter; Zeitrahmen nur bei Kerzenschluss.
   - 📝 Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da; BUY (Yukarı)/Hepsi/Tüm İşlemler; 'Mum Kapanışı' blendet Zaman Dilimi (M1–D1) ein, H1 gespeichert
-- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-24 · 🌐 live ✅ 2026-09-24
+- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24
   - Button im Zonenkopf (Başladı / Başla / Hazır / Kapalı) setzt is_active (POST /settings) und START/PAUSE in ui_state (POST /ui-state); Warnung bei ungültigem Symbol oder ungespeicherter Zone.
   - **Prüfung:** Test-Zone starten und wieder pausieren. → Neue, ungespeicherte Zone starten.
   - **Erwartet:** Label wechselt passend; ungespeicherte Zone zeigt eine Warnung.
-- [x] **ZON-09** „Kaydedilmedi“-Badge — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-09** „Kaydedilmedi“-Badge — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Zonen mit ungespeicherten Änderungen tragen den Badge „Kaydedilmedi“.
   - **Prüfung:** Ein Feld ändern, dann speichern.
   - **Erwartet:** Badge erscheint nach der Änderung und verschwindet nach dem Speichern.
   - 📝 Claude: Badge 'Kaydedilmedi' nur an der geänderten Zone, verschwindet nach Speichern (auch bei SET-03 gesehen)
+- [x] **ZON-10** Zahlenfelder leerbar — 🖥️ e2e ✅ 2026-09-25
+  - Zahlenfelder der Zone (Preis, Grid, Lot, KA/ZD, Pullback, Seviyeler) halten einen lokalen Text-Entwurf; die letzte Ziffer lässt sich löschen, erst beim Verlassen des Feldes erscheint wieder der echte Wert.
+  - **Prüfung:** Ein Zahlenfeld mit Rücktaste komplett leeren, dann neu tippen (z. B. 0.05) und das Feld verlassen.
+  - **Erwartet:** Feld bleibt beim Löschen leer, Zwischenstände wie „0.“ bleiben erhalten, nach dem Verlassen steht der gespeicherte Wert (leer → 0).
 
 ## 6. BOT – Bot-Steuerung
 
