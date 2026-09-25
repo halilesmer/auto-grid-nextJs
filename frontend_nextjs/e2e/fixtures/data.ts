@@ -63,6 +63,7 @@ export const RUNNING_METRICS: Partial<LiveData> = {
   mt5_connected: true,
   market_open: true,
   current_price: 97.25,
+  symbol_prices: { USOUSD: 97.25 },
   profit: -12.5,
   open_positions: 3,
   pending_orders: 4,

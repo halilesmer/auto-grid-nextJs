@@ -5,6 +5,8 @@ export interface Formatters {
   locale: Locale;
   number: (value: number, opts?: Intl.NumberFormatOptions) => string;
   money: (value: number, signed?: boolean) => string;
+  /** Symbolpreis mit festen Nachkommastellen (Symbol-Digits), ohne Währungszeichen. */
+  price: (value: number, digits?: number) => string;
   time: (value: Date | number | string) => string;
   dateTime: (value: Date | number | string) => string;
 }
@@ -19,6 +21,8 @@ export function makeFormatters(locale: Locale): Formatters {
       if (value < 0) return `-$${abs}`;
       return signed && value > 0 ? `+$${abs}` : `$${abs}`;
     },
+    price: (value, digits = 2) =>
+      value.toLocaleString(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits }),
     time: (value) => new Date(value).toLocaleTimeString(tag, { hour12: false }),
     dateTime: (value) => new Date(value).toLocaleString(tag, { hour12: false }),
   };

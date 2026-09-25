@@ -74,16 +74,18 @@ test.describe('MET Live-Daten', () => {
   test('Kennzahlenleiste zeigt und aktualisiert die Werte', { tag: '@MET-01' }, async ({ page, worker, dashboard }) => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
-    await expect(page.getByTestId('metric-price')).toHaveAttribute('data-value', fmt().money(97.25));
+    await expect(page.getByTestId('metric-price')).toHaveAttribute('data-value', fmt().price(97.25, 3));
+    // Zonen-Karte zeigt den Preis ihres Symbols (USOUSD, 3 Stellen)
+    await expect(page.getByTestId('zone-price').first()).toHaveText(fmt().price(97.25, 3));
     await expect(page.getByTestId('metric-profit')).toHaveAttribute('data-value', fmt().money(-12.5));
     await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '3');
     await expect(page.getByTestId('metric-pending')).toHaveAttribute('data-value', '4');
     await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.live'));
     await expect(page.getByTestId('metric-price')).toContainText(msg('metrics.marketOpen'));
 
-    worker.setMetrics(DEMO_ID, { current_price: 98.5, profit: 4.2, open_positions: 5 });
+    worker.setMetrics(DEMO_ID, { current_price: 98.5, symbol_prices: { USOUSD: 98.5 }, profit: 4.2, open_positions: 5 });
     await dashboard.refreshLogs();
-    await expect(page.getByTestId('metric-price')).toHaveAttribute('data-value', fmt().money(98.5));
+    await expect(page.getByTestId('metric-price')).toHaveAttribute('data-value', fmt().price(98.5, 3));
     await expect(page.getByTestId('metric-profit')).toHaveAttribute('data-value', fmt().money(4.2, true));
     await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '5');
 

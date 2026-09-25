@@ -6,7 +6,8 @@ import { AnimateDigits } from '@/components/ui/animate-digits';
 import { StatusDot } from '@/components/ui/status-dot';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useBotRuntimeStore } from '@/store';
+import { useBotRuntimeStore, useSettingsStore } from '@/store';
+import { getSymbolConfig } from '@/utils/zoneHelpers';
 import { useFormat, useT } from '@/i18n';
 
 interface MetricProps {
@@ -54,7 +55,10 @@ function Metric({ label, hint, icon, value, valueClassName, footer, accent, test
 
 export default function MetricsStrip() {
   const t = useT();
-  const { money: formatMoney } = useFormat();
+  const { money: formatMoney, price: formatPrice } = useFormat();
+  const firstSymbol = useSettingsStore((s) => s.settings?.ZONES?.[0]?.symbol);
+  const symbolDetails = useSettingsStore((s) => s.symbolDetails);
+  const priceDigits = firstSymbol ? getSymbolConfig(firstSymbol, symbolDetails).precision : undefined;
   const liveData = useBotRuntimeStore((s) => s.liveData);
   const isConnecting = useBotRuntimeStore((s) => s.isConnecting);
 
@@ -68,7 +72,7 @@ export default function MetricsStrip() {
         hint={t('metrics.price.hint')}
         testId="metric-price"
         icon={<Activity size={14} />}
-        value={formatMoney(liveData.current_price)}
+        value={formatPrice(liveData.current_price, priceDigits)}
         footer={
           <span className="flex items-center gap-1.5">
             <StatusDot tone={liveData.market_open ? 'success' : 'danger'} pulse={liveData.market_open} />

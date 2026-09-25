@@ -85,6 +85,8 @@ export function ZoneCard({
           disableButtons={disableButtons}
           engineState={liveData.zone_states?.[String(zoneIndex)]}
           remotePaused={liveData.remote_paused}
+          price={liveData.symbol_prices?.[zone.symbol.toUpperCase()]}
+          priceDigits={symbolConfig.precision}
           onToggleActive={handleToggleActive}
           onRestart={onRestart}
           onDelete={onDelete}

@@ -11,7 +11,8 @@ import {
   IPriceLine,
   ISeriesApi,
 } from 'lightweight-charts';
-import { useAccountStore, useBotRuntimeStore, useThemeStore, useWebSocketManager } from '@/store';
+import { useAccountStore, useBotRuntimeStore, useSettingsStore, useThemeStore, useWebSocketManager } from '@/store';
+import { getSymbolConfig } from '@/utils/zoneHelpers';
 import type { ResolvedTheme } from '@/lib/theme';
 import { CandlestickChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,7 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const priceLineRefs = useRef<IPriceLine[]>([]);
   const metrics = useBotRuntimeStore((s) => s.metrics);
+  const symbolDetails = useSettingsStore((s) => s.symbolDetails);
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   // /chart ve /formasyon sayfalarında da canlı veri akışı açık olmalı
   useWebSocketManager(selectedAccount ?? CHART_STREAM_KEY);
@@ -210,12 +212,13 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
   }, [priceLines, resolvedTheme]);
 
   const profit = metrics.profit ?? 0;
+  const priceDigits = metrics.symbol ? getSymbolConfig(metrics.symbol, symbolDetails).precision : undefined;
   const stats = [
     {
       id: 'price',
       label: t('chart.stat.price'),
       hint: t('chart.stat.price.hint'),
-      value: typeof metrics.price === 'number' ? fmt.number(metrics.price, { maximumFractionDigits: 8 }) : '--',
+      value: typeof metrics.price === 'number' ? fmt.price(metrics.price, priceDigits) : '--',
       className: 'text-foreground',
     },
     {

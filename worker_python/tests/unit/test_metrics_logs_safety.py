@@ -30,6 +30,7 @@ def test_telemetrie_zaehlt_nur_robot_orders_und_positionen(fake_mt5):
     assert metrics["profit"] == -0.75
     assert metrics["pending_orders"] == 1
     assert metrics["current_price"] == 97.0
+    assert metrics["symbol_prices"] == {"USOUSD": 97.0}
     assert metrics["mt5_connected"] and metrics["market_open"] and metrics["remote_paused"]
     assert metrics["algo_trading_error"] is False and metrics["order_rejected_alarm"] is False
 
