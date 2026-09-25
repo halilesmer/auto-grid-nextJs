@@ -406,7 +406,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 - [ ] **VPS-06** Einmalige Einrichtung und Autostart — 👤 manuell ⏳
-  - ops/windows/setup_vps.ps1 (einmal als Administrator) installiert OpenSSH (nur Schlüssel), trägt den Mac-Schlüssel ein, setzt den Besitzer des Repos auf den normalen Benutzer, richtet Auto-Login ein (Passwort als LSA-Secret) und legt die Aufgaben AutoGrid-Start (bei Anmeldung) und AutoGrid-Update an, beide ohne höchste Rechte.
+  - ops/windows/setup_vps.ps1 (einmal als Administrator) installiert OpenSSH (nur Schlüssel), trägt den Mac-Schlüssel ein, setzt den Besitzer des Repos auf den normalen Benutzer, richtet Auto-Login ein (Passwort als LSA-Secret), entfernt bei MT5-Terminals den Haken „Als Administrator ausführen“ (RUNASADMIN, samt Leeren des Kompatibilitäts-Caches) und legt die Aufgaben AutoGrid-Start (bei Anmeldung) und AutoGrid-Update an, beide ohne höchste Rechte.
   - **Prüfung:** Einrichtung nach docs/windows_start_guide.md, danach VPS über die Seite „VPS“ neu starten.
   - **Erwartet:** Nach dem Reboot sind Auto-Login, Worker, ngrok und die vorher laufenden Bots von selbst wieder da.
 - [ ] **VPS-07** Prozesse mit Adminrechten erkennen und beenden — 🧪 unit ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ⏳
