@@ -888,3 +888,14 @@ kategorien:
           - Bei laufendem Bot über „Edit“ fahren; im Konto-Dialog über ein (i) fahren.
           - Sprache auf EN und DE stellen.
         erwartet: Zu jedem Element erscheint ein verständlicher Text in der gewählten Sprache. Er wird nicht abgeschnitten, liegt im Dialog über dem Dialog, Escape schließt erst den Tooltip. Ein deaktivierter Button nennt den Grund. Der Abdeckungstest findet kein Bedienelement ohne Hinweis.
+
+      - id: UI-08
+        titel: Mobil (375 px) ohne horizontalen Überlauf
+        beschreibung: Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Ab Tablet-Breite bleibt das Layout unverändert.
+        code: [frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Dashboard bei 375 px Breite öffnen (Entwicklertools, Geräteleiste) und ein Konto mit Zone wählen.
+          - Sprache auf DE stellen und in der Zone einen Wert ändern.
+          - /formasyon, /vps und /chart bei 375 px ansehen.
+        erwartet: Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile.

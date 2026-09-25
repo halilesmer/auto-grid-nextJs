@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-25 · **81/88** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-25 · **82/89** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -25,7 +25,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 9 | **LOG** – Logs | 6/6 |
 | 10 | **UPD** – System & Updates | 5/6 |
 | 11 | **VPS** – VPS-Fernsteuerung vom Mac | 3/7 |
-| 12 | **UI** – Oberfläche | 7/7 |
+| 12 | **UI** – Oberfläche | 8/8 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -455,3 +455,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Jede Einstellung, jedes Feld, jeder Schalter, Button, Tab und Menüpunkt erklärt sich. Felder und Schalter tragen ein (i) hinter dem Label (Hover, Tastaturfokus oder Antippen), Buttons und Links zeigen den Tooltip bei Hover/Fokus, deaktivierte Buttons nennen den Grund. Der Tooltip ist ein Popover im Top-Layer (nicht von overflow-hidden abgeschnitten, über den Dialogen), Escape schließt zuerst nur ihn. Texte stehen als i18n-Schlüssel `<label-key>.hint` in src/i18n/messages/hints.ts (tr, en, de). `hint` ist Pflicht-Prop von InputField, Switch, Button, Tabs und ConfirmModal; der Abdeckungstest meldet jedes Bedienelement ohne Hinweis (hooks/RULES.md §5).
   - **Prüfung:** Im Dashboard mit der Maus über das (i) hinter „Alt Seviyeler“, „Maks Pozisyon“ und „Çıkış Tetikleyici“ fahren. → Mit Tab durch die Felder gehen; Escape drücken. → Bei laufendem Bot über „Edit“ fahren; im Konto-Dialog über ein (i) fahren. → Sprache auf EN und DE stellen.
   - **Erwartet:** Zu jedem Element erscheint ein verständlicher Text in der gewählten Sprache. Er wird nicht abgeschnitten, liegt im Dialog über dem Dialog, Escape schließt erst den Tooltip. Ein deaktivierter Button nennt den Grund. Der Abdeckungstest findet kein Bedienelement ohne Hinweis.
+- [x] **UI-08** Mobil (375 px) ohne horizontalen Überlauf — 🖥️ e2e ✅ 2026-09-25
+  - Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Ab Tablet-Breite bleibt das Layout unverändert.
+  - **Prüfung:** Dashboard bei 375 px Breite öffnen (Entwicklertools, Geräteleiste) und ein Konto mit Zone wählen. → Sprache auf DE stellen und in der Zone einen Wert ändern. → /formasyon, /vps und /chart bei 375 px ansehen.
+  - **Erwartet:** Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile.
