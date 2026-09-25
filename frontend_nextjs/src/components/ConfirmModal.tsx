@@ -3,6 +3,7 @@ import { AlertTriangle, Info, XCircle } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useT, type MessageKey } from '@/i18n';
 
 export type ConfirmVariant = 'danger' | 'warning' | 'info' | 'error';
 
@@ -30,11 +31,11 @@ const variantConfig: Record<
   error: { icon: XCircle, iconBox: 'bg-danger/15 text-danger', button: 'danger' },
 };
 
-const defaultLabels: Record<ConfirmVariant, string> = {
-  danger: 'Delete',
-  warning: 'Confirm',
-  info: 'OK',
-  error: 'OK',
+const defaultLabels: Record<ConfirmVariant, MessageKey> = {
+  danger: 'confirm.delete',
+  warning: 'confirm.confirm',
+  info: 'confirm.ok',
+  error: 'confirm.ok',
 };
 
 export default function ConfirmModal({
@@ -45,14 +46,15 @@ export default function ConfirmModal({
   message,
   infoText,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel,
   variant = 'danger',
   loading = false,
   showCancel = true,
 }: ConfirmModalProps) {
+  const t = useT();
   const cfg = variantConfig[variant];
   const Icon = cfg.icon;
-  const label = confirmLabel || defaultLabels[variant];
+  const label = confirmLabel || t(defaultLabels[variant]);
 
   const handleConfirm = async () => {
     if (onConfirm) {
@@ -87,7 +89,7 @@ export default function ConfirmModal({
       <div className="mt-6 flex justify-end gap-2">
         {showCancel && (
           <Button variant="ghost" onClick={onClose} disabled={loading}>
-            {cancelLabel}
+            {cancelLabel ?? t('common.cancel')}
           </Button>
         )}
         <Button variant={cfg.button} onClick={handleConfirm} loading={loading}>

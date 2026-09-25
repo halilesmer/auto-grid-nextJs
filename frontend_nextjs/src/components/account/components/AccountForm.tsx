@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useT } from '@/i18n';
 import { PasswordField } from './PasswordField';
 import { MT5PathSelector } from './MT5PathSelector';
 import type { AccountFormProps } from '../types';
@@ -26,6 +27,7 @@ export function AccountForm({
   onSubmit,
   onEditExisting,
 }: AccountFormProps) {
+  const t = useT();
   return (
     <div>
 
@@ -42,7 +44,7 @@ export function AccountForm({
               onClick={onEditExisting}
               className="whitespace-nowrap rounded-md border border-danger/30 bg-danger/15 px-3 py-1 text-xs text-danger transition-colors hover:bg-danger/25"
             >
-              Edit Existing
+              {t('account.form.editExisting')}
             </button>
           )}
         </div>
@@ -51,14 +53,14 @@ export function AccountForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            Account Name *
+            {t('account.form.name')}
           </label>
           <input
             name="account_name"
             value={formData.account_name}
             onChange={(e) => onChange('account_name', e.target.value)}
             onBlur={() => onBlur('account_name')}
-            placeholder="e.g. Live Account 1"
+            placeholder={t('account.form.name.placeholder')}
             className={`input-s ${errors.account_name ? 'border-danger' : ''}`}
             aria-invalid={errors.account_name ? 'true' : 'false'}
             aria-describedby={errors.account_name ? 'account_name-error' : undefined}
@@ -71,7 +73,7 @@ export function AccountForm({
         </div>
         <div>
           <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            Login (ID) *
+            {t('account.form.login')}
           </label>
           <input
             name="login"
@@ -79,7 +81,7 @@ export function AccountForm({
             value={formData.login || ''}
             onChange={(e) => onChange('login', e.target.value)}
             onBlur={() => onBlur('login')}
-            placeholder="e.g. 12345678"
+            placeholder={t('account.form.login.placeholder')}
             className={`input-s ${errors.login ? 'border-danger' : ''}`}
             aria-invalid={errors.login ? 'true' : 'false'}
             aria-describedby={errors.login ? 'login-error' : undefined}
@@ -92,11 +94,11 @@ export function AccountForm({
         </div>
         <div>
           <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            {passwordRequired ? 'Password *' : 'Password'}
+            {passwordRequired ? t('account.form.password.required') : t('account.form.passwordLabel')}
           </label>
           <PasswordField
             value={formData.password}
-            placeholder={passwordRequired ? 'MT5 Password' : 'Leave empty to keep current password'}
+            placeholder={passwordRequired ? t('account.form.password.placeholder') : t('account.form.password.keep')}
             onChange={(v) => onChange('password', v)}
             onBlur={() => onBlur('password')}
             showPassword={showPassword}
@@ -106,14 +108,14 @@ export function AccountForm({
         </div>
         <div>
           <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            Server *
+            {t('account.form.server')}
           </label>
           <input
             name="server"
             value={formData.server}
             onChange={(e) => onChange('server', e.target.value)}
             onBlur={() => onBlur('server')}
-            placeholder="e.g. Eightcap-Demo"
+            placeholder={t('account.form.server.placeholder')}
             className={`input-s ${errors.server ? 'border-danger' : ''}`}
             aria-invalid={errors.server ? 'true' : 'false'}
             aria-describedby={errors.server ? 'server-error' : undefined}
@@ -126,14 +128,14 @@ export function AccountForm({
         </div>
         <div>
           <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-            Environment
+            {t('account.form.env')}
           </label>
           <select
             name="env_type"
             value={formData.env_type}
             onChange={(e) => onChange('env_type', e.target.value)}
             className="input-s"
-            aria-label="Environment Type"
+            aria-label={t('account.form.env.aria')}
           >
             <option value="DEMO">DEMO</option>
             <option value="LIVE">LIVE</option>
@@ -152,7 +154,7 @@ export function AccountForm({
           />
           {mt5ScanError && (
             <p className="mt-1 text-xs text-warning" role="alert">
-              {mt5ScanError} Yolu manuel girebilirsiniz.
+              {t('account.path.scanHint', { error: mt5ScanError })}
             </p>
           )}
           {errors.mt5_path && (
@@ -165,7 +167,7 @@ export function AccountForm({
 
       <div className="mt-4">
         <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-          Notes (Optional)
+          {t('account.form.notes')}
         </label>
         <textarea
           name="notes"
@@ -173,7 +175,7 @@ export function AccountForm({
           onChange={(e) => onChange('notes', e.target.value)}
           maxLength={1000}
           rows={3}
-          placeholder="Private notes about this account... (Max 1000 chars)"
+          placeholder={t('account.form.notes.placeholder')}
           className="input-s resize-none"
         />
       </div>
@@ -185,7 +187,7 @@ export function AccountForm({
           disabled={isLoading}
           loading={isSaving}
         >
-          {isSaving ? 'Saving...' : isLoading ? 'Loading accounts...' : 'Save'}
+          {isSaving ? t('account.form.saving') : isLoading ? t('account.form.loading') : t('common.save')}
         </Button>
       </div>
     </div>

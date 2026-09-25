@@ -6,16 +6,19 @@ import { motion } from 'motion/react';
 import { CandlestickChart, Grid3x3, LayoutDashboard, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VERSION } from '@/app/version';
+import { useT, type MessageKey } from '@/i18n';
+import LanguageSwitcher from './LanguageSwitcher';
 import ThemeToggle from './ThemeToggle';
 
-const LINKS = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/formasyon', label: 'Formasyon', icon: CandlestickChart },
-  { href: '/vps', label: 'VPS', icon: Server },
+const LINKS: { href: string; labelKey: MessageKey; icon: typeof Server }[] = [
+  { href: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { href: '/formasyon', labelKey: 'nav.formation', icon: CandlestickChart },
+  { href: '/vps', labelKey: 'nav.vps', icon: Server },
 ];
 
 export default function AppNav() {
   const pathname = usePathname();
+  const t = useT();
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/75 backdrop-blur-xl">
@@ -33,7 +36,8 @@ export default function AppNav() {
         <div className="h-6 w-px shrink-0 bg-border" />
 
         <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
-          {LINKS.map(({ href, label, icon: Icon }) => {
+          {LINKS.map(({ href, labelKey, icon: Icon }) => {
+            const label = t(labelKey);
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
             return (
               <Link
@@ -60,7 +64,8 @@ export default function AppNav() {
           })}
         </div>
 
-        <div className="ml-auto shrink-0">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <LanguageSwitcher />
           <ThemeToggle />
         </div>
       </div>

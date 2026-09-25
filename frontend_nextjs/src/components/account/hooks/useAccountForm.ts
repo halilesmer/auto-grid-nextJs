@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import { t } from '@/i18n';
 import type { Account, AccountFormData, AccountFormErrors, UseAccountFormOptions, UseAccountFormReturn } from '../types';
 
 function emptyFormData(): AccountFormData {
@@ -77,27 +78,27 @@ export function useAccountForm({
     switch (name) {
       case 'account_name':
         if (!value || String(value).trim() === '') {
-          error = 'Account name is required';
+          error = t('account.validation.name');
         }
         break;
       case 'login':
         if (!value || Number(value) === 0) {
-          error = 'Login (ID) is required';
+          error = t('account.validation.login');
         }
         break;
       case 'password':
         if (passwordRequired && (!value || String(value).trim() === '')) {
-          error = 'Password is required';
+          error = t('account.validation.password');
         }
         break;
       case 'server':
         if (!value || String(value).trim() === '') {
-          error = 'Server is required';
+          error = t('account.validation.server');
         }
         break;
       case 'mt5_path':
         if (!value || String(value).trim() === '') {
-          error = 'MT5 Path is required';
+          error = t('account.validation.path');
         }
         break;
     }
@@ -129,7 +130,7 @@ export function useAccountForm({
 
   const handleSubmit = useCallback(async () => {
     if (isLoading) {
-      onError?.('Please wait for accounts to load before submitting.');
+      onError?.(t('account.form.waitLoading'));
       return;
     }
 
@@ -145,7 +146,7 @@ export function useAccountForm({
     setTouched(allTouched);
 
     if (!validateForm()) {
-      onError?.('Please fill all required fields (marked with *).');
+      onError?.(t('account.form.fillRequired'));
       return;
     }
 
@@ -175,7 +176,7 @@ export function useAccountForm({
             ? (detail as { detail: string }).detail
             : e instanceof Error
               ? e.message
-              : 'Failed to save account.';
+              : t('account.form.saveFailed');
       setErrors((prev) => ({ ...prev, general: errMsg }));
       // Ham hatayı ilet: AccountSelector 409 (duplicate) durumunu buradan tanır
       onError?.(e);

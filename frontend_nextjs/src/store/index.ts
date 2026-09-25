@@ -8,3 +8,4 @@ export { useWebSocketManager } from './useWebSocketManager';
 export { resetAllStores } from './utils/resetStores';
 export { shallow } from 'zustand/shallow';
 export { useThemeStore } from './useThemeStore';
+export { useLocaleStore } from './useLocaleStore';

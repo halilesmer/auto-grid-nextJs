@@ -25,6 +25,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 // patrick-xin/autocomplete: AutocompleteContent (Portal/Positioner yerine absolute konum)
 const popupClass = cn(
@@ -180,13 +181,14 @@ export function Combobox<T>({
   getLabel,
   filter,
   renderItem,
-  placeholder = 'Seçiniz…',
-  searchPlaceholder = 'Ara…',
-  emptyMessage = 'Sonuç bulunamadı',
+  placeholder,
+  searchPlaceholder,
+  emptyMessage,
   disabled = false,
   className,
   'aria-label': ariaLabel,
 }: ComboboxProps<T>) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -283,7 +285,7 @@ export function Combobox<T>({
         className={cn('input-s flex items-center gap-2 text-left', className)}
       >
         <span className={cn('min-w-0 flex-1 truncate', !selectedItem && 'text-muted-foreground')}>
-          {selectedItem ? getLabel(selectedItem) : placeholder}
+          {selectedItem ? getLabel(selectedItem) : (placeholder ?? t('ui.combobox.placeholder'))}
         </span>
         <ChevronDown
           className={cn(
@@ -318,7 +320,7 @@ export function Combobox<T>({
                   setHighlightedIndex(0);
                 }}
                 onKeyDown={onSearchKeyDown}
-                placeholder={searchPlaceholder}
+                placeholder={searchPlaceholder ?? t('ui.combobox.search')}
                 autoComplete="off"
                 aria-controls={listId}
                 aria-activedescendant={highlightedIndex >= 0 ? `${listId}-${highlightedIndex}` : undefined}
@@ -340,7 +342,7 @@ export function Combobox<T>({
               />
             ) : (
               <div data-slot="combobox-empty" className={emptyClass}>
-                {emptyMessage}
+                {emptyMessage ?? t('ui.combobox.empty')}
               </div>
             )}
           </motion.div>
@@ -376,11 +378,12 @@ export function ComboboxAutocomplete<T>({
   renderItem,
   onSelect,
   showEmpty = false,
-  emptyMessage = 'Sonuç bulunamadı',
+  emptyMessage,
   className,
   onFocus,
   ...inputProps
 }: ComboboxAutocompleteProps<T>) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -486,7 +489,7 @@ export function ComboboxAutocomplete<T>({
             />
           ) : (
             <div data-slot="autocomplete-empty" className={emptyClass}>
-              {emptyMessage}
+              {emptyMessage ?? t('ui.combobox.empty')}
             </div>
           )}
         </div>

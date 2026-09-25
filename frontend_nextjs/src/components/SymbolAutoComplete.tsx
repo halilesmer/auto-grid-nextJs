@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ComboboxAutocomplete } from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
 import { SymbolDetail } from "@/store/types";
+import { useT } from "@/i18n";
 
 interface SymbolAutoCompleteProps {
   value: string;
@@ -23,6 +24,7 @@ export default function SymbolAutoComplete({
   className = "",
   hasError = false,
 }: SymbolAutoCompleteProps) {
+  const t = useT();
   const [searchTerm, setSearchTerm] = useState(value);
 
   const symbols = useMemo(() => Object.values(symbolDetails), [symbolDetails]);
@@ -71,8 +73,8 @@ export default function SymbolAutoComplete({
         </div>
       )}
       showEmpty={shouldFilter && symbols.length > 0}
-      emptyMessage="Sembol bulunamadı"
-      placeholder="Sembol Ara... (Örn: USOUSD)"
+      emptyMessage={t("zone.symbol.empty")}
+      placeholder={t("zone.symbol.placeholder")}
       className={cn(
         "font-mono font-semibold placeholder:font-sans placeholder:font-normal",
         hasError && "border-danger! text-danger",

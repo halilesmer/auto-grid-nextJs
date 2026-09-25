@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useT } from '@/i18n';
 import type { AccountFormDialogProps } from '../types';
 
 export function AccountFormDialog({
@@ -10,6 +11,7 @@ export function AccountFormDialog({
   title,
   children,
 }: AccountFormDialogProps) {
+  const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export function AccountFormDialog({
         <button
           onClick={onClose}
           className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
-          aria-label="Close dialog"
+          aria-label={t('account.dialog.close')}
         >
           <X size={16} />
         </button>

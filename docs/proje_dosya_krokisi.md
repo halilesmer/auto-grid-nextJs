@@ -106,6 +106,12 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📂 server
 ┃ ┃ ┃ ┃ ┗ 📜 vpsSsh.ts          # ssh çağrısı (sadece sunucu tarafı)
 ┃ ┃ ┃ ┗ 📜 api.ts               # API yardımcı fonksiyonları
+┃ ┃ ┣ 📂 i18n                   # Çok dillilik (tr/en/de)
+┃ ┃ ┃ ┣ 📜 config.ts            # Diller, varsayılan (tr), storage anahtarı, <html lang> init script
+┃ ┃ ┃ ┣ 📜 translate.ts         # translate(locale, key, params): {yer} tutucuları, çoğul (_one/_other), yedek sıra
+┃ ┃ ┃ ┣ 📜 format.ts            # Sayı/para/saat biçimleyicileri (locale'e göre)
+┃ ┃ ┃ ┣ 📜 index.ts             # useT(), t(), useFormat()
+┃ ┃ ┃ ┗ 📂 messages             # Bölüm başına bir dosya (common, dashboard, bot, zone, vps …), tr/en/de yan yana
 ┃ ┃ ┣ 📂 store                  # Zustand state management (Modüler)
 ┃ ┃ ┃ ┣ 📜 index.ts             # Barrel export
 ┃ ┃ ┃ ┣ 📜 types.ts             # Store type tanımları
@@ -114,6 +120,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 useLogsStore.ts      # Log yönetimi state
 ┃ ┃ ┃ ┣ 📜 useSettingsStore.ts  # Ayarlar state
 ┃ ┃ ┃ ┣ 📜 useSystemStore.ts    # Sistem durumu state
+┃ ┃ ┃ ┣ 📜 useLocaleStore.ts    # Dil tercihi (tr/en/de), localStorage'a persist
 ┃ ┃ ┃ ┣ 📜 useThemeStore.ts     # Tema tercihi (Açık/Koyu/Sistem), localStorage'a persist
 ┃ ┃ ┃ ┣ 📜 useWebSocketManager.ts # WebSocket bağlantı yönetimi
 ┃ ┃ ┃ ┗ 📂 utils
@@ -231,6 +238,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
   - `useSettingsStore.ts` - Global ayarlar, zone ayarları
   - `useLogsStore.ts` - Log mesajları, filtreleme
   - `useSystemStore.ts` - Sistem durumu, bağlantı durumu, versiyon
+  - `useLocaleStore.ts` - Arayüz dili (`tr`/`en`/`de`), `useThemeStore` ile aynı kalıp: `persist` + `skipHydration`, `layout.tsx`'teki inline script (`i18n/config.ts`) `<html lang>`'ı ilk paint'ten önce koyar, sonrasını `components/layout/LocaleSync.tsx` yönetir. Metinler `src/i18n/messages/<bölüm>.ts` içinde (her bölümde tr/en/de yan yana, tsc aynı anahtarları zorlar); bileşenlerde `useT()`, bileşen dışında (hook içi toast, store, `apiError`) `t()`; sayı/saat için `useFormat()`
   - `useThemeStore.ts` - Tema tercihi ve çözülmüş tema (`resolvedTheme`); tek `persist` kullanan store. İlk paint'teki `.dark` class'ını `layout.tsx`'teki inline script (`lib/theme.ts`) koyar, sonrasını `components/layout/ThemeSync.tsx` yönetir
   - `useWebSocketManager.ts` - WebSocket bağlantı yaşam döngüsü, reconnect, mesaj routing
 - **Worker**: `state_manager.py` - MT5 "Source of Truth" prensibiyle pozisyon/emir senkronizasyonu, `data/state_*.json` dosyalarına yazım

@@ -12,6 +12,7 @@ import { ZoneExitFields } from './ZoneExitFields';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 export function ZoneCard({
   zone,
@@ -30,6 +31,7 @@ export function ZoneCard({
   syncZonePrecision,
   validateSymbol,
 }: ZoneCardProps) {
+  const t = useT();
   const isBoth = zone.order_type === 'BOTH';
   const showBuyLabel = zone.order_type === 'BUY';
   const showSellLabel = zone.order_type === 'SELL';
@@ -85,7 +87,7 @@ export function ZoneCard({
 
       <div className="space-y-5 px-5 py-5">
         <section className="space-y-3">
-          <SectionLabel>Temel</SectionLabel>
+          <SectionLabel>{t('zone.section.basic')}</SectionLabel>
           <ZoneBasicFields
             zone={zone}
             update={update}
@@ -99,11 +101,11 @@ export function ZoneCard({
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            {showBuyLabel && <SectionLabel className="text-success">BUY (Alış) Grid Ayarları</SectionLabel>}
-            {showSellLabel && <SectionLabel className="text-danger">SELL (Satış) Grid Ayarları</SectionLabel>}
+            {showBuyLabel && <SectionLabel className="text-success">{t('zone.section.buyGrid')}</SectionLabel>}
+            {showSellLabel && <SectionLabel className="text-danger">{t('zone.section.sellGrid')}</SectionLabel>}
             {isBoth && (
               <SectionLabel className={zone.sync_buy_sell ? undefined : 'text-success'}>
-                {zone.sync_buy_sell ? 'Grid Ayarları' : 'BUY Grid Ayarları'}
+                {zone.sync_buy_sell ? t('zone.section.grid') : t('zone.section.buyGridShort')}
               </SectionLabel>
             )}
             {isBoth && (
@@ -111,7 +113,7 @@ export function ZoneCard({
                 id={`sync-${zone.id}`}
                 checked={zone.sync_buy_sell}
                 onChange={(checked) => update('sync_buy_sell', checked)}
-                label={<span className="text-xs text-muted-foreground">BUY ve SELL için aynı ayarları uygula</span>}
+                label={<span className="text-xs text-muted-foreground">{t('zone.sync')}</span>}
               />
             )}
           </div>

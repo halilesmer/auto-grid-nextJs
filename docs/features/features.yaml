@@ -846,3 +846,22 @@ kategorien:
         pruefung:
           - In einer Zone auf „Test“ klicken.
         erwartet: Das Chart zeigt die gewählte Zone.
+
+      - id: UI-05
+        titel: Sprache Türkisch / Englisch / Deutsch
+        beschreibung: Umschalter TR · EN · DE in der Navigation (auf Mobil ein einzelner Button, der durchschaltet). Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
+        code: [frontend_nextjs/src/i18n/index.ts, frontend_nextjs/src/i18n/messages/index.ts, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/components/layout/LanguageSwitcher.tsx, frontend_nextjs/src/components/layout/LocaleSync.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Im Umschalter EN, dann DE, dann TR wählen und dabei Dashboard, /vps und /chart ansehen.
+          - Seite neu laden.
+        erwartet: Alle Texte wechseln sofort, die Sprache bleibt nach dem Reload erhalten, <html lang> stimmt. Keine hartcodierten Reste, keine überlaufenden Buttons (Deutsch ist am längsten).
+
+      - id: UI-06
+        titel: Zahlen- und Zeitformat folgt der Sprache
+        beschreibung: Preise und Gewinne ($97,25 in tr/de, $97.25 in en), Uhrzeiten in Logs und VPS-Seite sowie das Dezimalmuster im Symbol-Label („Sembol (0,00)“) richten sich nach der gewählten Sprache.
+        code: [frontend_nextjs/src/i18n/format.ts, frontend_nextjs/src/components/dashboard/MetricsStrip.tsx, frontend_nextjs/src/components/ChartViewer.tsx, frontend_nextjs/src/components/zone/ZoneBasicFields.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Bot mit MT5 verbinden, dann die Sprache zwischen EN und DE wechseln.
+        erwartet: Der Preis in der Kennzahlenleiste wechselt zwischen Punkt und Komma als Dezimaltrenner.

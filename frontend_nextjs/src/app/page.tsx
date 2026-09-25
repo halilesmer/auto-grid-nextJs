@@ -17,8 +17,10 @@ import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useT } from '@/i18n';
 
 export default function Home() {
+  const t = useT();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
   const setUpdateInfo = useSystemStore((s) => s.setUpdateInfo);
@@ -73,12 +75,12 @@ export default function Home() {
           <div className="mb-2 flex items-center gap-2">
             <Badge tone={isLive ? 'danger' : 'info'} data-testid="env-badge">
               <span className={`size-1.5 rounded-full ${isLive ? 'bg-danger' : 'bg-info'}`} />
-              {isLive ? 'LIVE' : 'TEST'}
+              {isLive ? t('dashboard.env.live') : t('dashboard.env.test')}
             </Badge>
-            <span className="text-xs text-muted-foreground">Auto Grid Engine</span>
+            <span className="text-xs text-muted-foreground">{t('dashboard.engine')}</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            Trading Dashboard
+            {t('dashboard.title')}
           </h1>
         </div>
 
@@ -97,7 +99,7 @@ export default function Home() {
               variant="outline"
               size="icon"
               onClick={() => setShowSysInfo(!showSysInfo)}
-              title="System Info"
+              title={t('dashboard.sysinfo.title')}
               aria-expanded={showSysInfo}
             >
               <Settings size={16} />
@@ -113,16 +115,16 @@ export default function Home() {
                 >
                   <div className="space-y-2.5 p-4">
                     <p className="text-xs font-medium text-muted-foreground">
-                      System Info
+                      {t('dashboard.sysinfo.title')}
                     </p>
                     {[
-                      { icon: Monitor, label: 'Host', value: typeof window !== 'undefined' ? window.location.hostname : 'N/A' },
-                      { icon: Server, label: 'Port', value: typeof window !== 'undefined' ? window.location.port || '3000' : '3000' },
-                      { icon: Globe, label: 'URL', value: typeof window !== 'undefined' ? window.location.origin : '' },
-                    ].map(({ icon: Icon, label, value }) => (
-                      <div key={label} className="flex items-start gap-2.5 text-sm">
+                      { icon: Monitor, labelKey: 'dashboard.sysinfo.host' as const, value: typeof window !== 'undefined' ? window.location.hostname : 'N/A' },
+                      { icon: Server, labelKey: 'dashboard.sysinfo.port' as const, value: typeof window !== 'undefined' ? window.location.port || '3000' : '3000' },
+                      { icon: Globe, labelKey: 'dashboard.sysinfo.url' as const, value: typeof window !== 'undefined' ? window.location.origin : '' },
+                    ].map(({ icon: Icon, labelKey, value }) => (
+                      <div key={labelKey} className="flex items-start gap-2.5 text-sm">
                         <Icon size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
-                        <span className="w-10 shrink-0 text-muted-foreground">{label}</span>
+                        <span className="w-10 shrink-0 text-muted-foreground">{t(labelKey)}</span>
                         <span className="min-w-0 break-all font-mono text-xs leading-5 text-foreground">{value}</span>
                       </div>
                     ))}
@@ -137,7 +139,7 @@ export default function Home() {
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-accent"
                     >
                       <RefreshCw size={14} className="text-muted-foreground" />
-                      Check for Updates
+                      {t('dashboard.sysinfo.checkUpdates')}
                     </button>
                     <button
                       onClick={() => {
@@ -147,7 +149,7 @@ export default function Home() {
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger transition hover:bg-danger/10"
                     >
                       <Power size={14} />
-                      System Shutdown
+                      {t('dashboard.shutdown')}
                     </button>
                   </div>
                 </motion.div>
@@ -158,7 +160,7 @@ export default function Home() {
             variant="outline"
             size="icon"
             onClick={() => setShutdownOpen(true)}
-            title="System Shutdown"
+            title={t('dashboard.shutdown')}
             className="text-danger hover:bg-danger/10 hover:text-danger"
           >
             <Power size={16} />
@@ -198,9 +200,9 @@ export default function Home() {
           <div className="mb-4 flex size-12 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
             <UserRound size={22} />
           </div>
-          <p className="text-base font-medium text-foreground">No account selected</p>
+          <p className="text-base font-medium text-foreground">{t('dashboard.empty.title')}</p>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Pick an MT5 account above, or add a new one to start configuring grid zones.
+            {t('dashboard.empty.text')}
           </p>
         </Card>
       )}
@@ -219,9 +221,9 @@ export default function Home() {
         open={shutdownOpen}
         onClose={() => setShutdownOpen(false)}
         onConfirm={handleShutdown}
-        title="System Shutdown"
-        message="This will stop all running bots and close the interface. Open positions will remain safe on the broker side."
-        confirmLabel="Shutdown"
+        title={t('dashboard.shutdown')}
+        message={t('dashboard.shutdown.message')}
+        confirmLabel={t('dashboard.shutdown.confirm')}
         variant="danger"
         loading={shuttingDown}
       />

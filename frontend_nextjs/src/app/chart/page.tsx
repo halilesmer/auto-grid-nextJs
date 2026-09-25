@@ -8,17 +8,20 @@ import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
+import { useT } from '@/i18n';
 
 function Placeholder({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
+  const t = useT();
   return (
     <Card>
-      <CardHeader icon={icon} title={title} actions={<Badge>Yakında</Badge>} />
+      <CardHeader icon={icon} title={title} actions={<Badge>{t('chart.soon')}</Badge>} />
       <p className="px-5 pb-6 pt-4 text-sm leading-relaxed text-muted-foreground">{text}</p>
     </Card>
   );
 }
 
 export default function ChartPage() {
+  const t = useT();
   return (
     <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
       {/* Header with Back Button */}
@@ -27,19 +30,19 @@ export default function ChartPage() {
           <Link
             href="/"
             className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground"
-            title="Ana Sayfaya Dön"
+            title={t('chart.page.back')}
           >
             <ArrowLeft size={14} />
-            Ana Sayfaya Dön
+            {t('chart.page.back')}
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            Grafik ve İstatistikler
+            {t('chart.page.title')}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Canlı fiyat, indikatörler ve performans metrikleri</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('chart.page.subtitle')}</p>
         </div>
         <Badge tone="success">
           <Radio size={12} />
-          Live Data Stream
+          {t('chart.page.stream')}
         </Badge>
       </header>
 
@@ -62,8 +65,8 @@ export default function ChartPage() {
           <div className="hidden lg:block">
             <Placeholder
               icon={<BarChart3 size={16} />}
-              title="İstatistikler Paneli"
-              text="Buraya backtest sonuçları, win/loss oranları, drawdown grafikleri eklenecek."
+              title={t('chart.stats.title')}
+              text={t('chart.stats.text')}
             />
           </div>
         </div>
@@ -72,13 +75,13 @@ export default function ChartPage() {
         <div className="space-y-5 lg:col-span-1">
           <Placeholder
             icon={<FlaskConical size={16} />}
-            title="Deneme / Backtest Paneli"
-            text="Strateji testleri, parametre optimizasyonu ve simülasyon kontrolleri buraya eklenecek."
+            title={t('chart.backtest.title')}
+            text={t('chart.backtest.text')}
           />
           <Placeholder
             icon={<ShieldCheck size={16} />}
-            title="Gelişmiş Analiz"
-            text="Risk metrikleri, korelasyon analizi ve portföy performansı buraya eklenecek."
+            title={t('chart.analysis.title')}
+            text={t('chart.analysis.text')}
           />
         </div>
       </div>

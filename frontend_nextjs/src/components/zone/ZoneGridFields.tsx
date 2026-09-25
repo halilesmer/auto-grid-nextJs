@@ -3,6 +3,7 @@
 import type { ZoneGridFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
+import { useT } from '@/i18n';
 
 export function ZoneGridFields({
   zone,
@@ -13,6 +14,7 @@ export function ZoneGridFields({
   handleChange,
   handleBlur,
 }: ZoneGridFieldsProps) {
+  const t = useT();
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -21,11 +23,7 @@ export function ZoneGridFields({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <InputField
         label={
-          isBoth && sync
-            ? 'Grid Adımı ($)'
-            : isBoth
-            ? 'BUY Grid ($)'
-            : 'Grid Adımı ($)'
+          isBoth && !sync ? t('zone.field.buyGrid') : t('zone.field.gridStep')
         }
       >
         <NumberInput
@@ -39,7 +37,7 @@ export function ZoneGridFields({
       </InputField>
       <InputField
         label={
-          isBoth && sync ? 'Lot' : isBoth ? 'BUY Lot' : 'Lot'
+          isBoth && !sync ? t('zone.field.buyLot') : t('zone.field.lot')
         }
       >
         <NumberInput
@@ -53,11 +51,7 @@ export function ZoneGridFields({
       </InputField>
       <InputField
         label={
-          isBoth && sync
-            ? 'Kar Al ($)'
-            : isBoth
-            ? 'BUY KA ($)'
-            : 'Kar Al ($)'
+          isBoth && !sync ? t('zone.field.buyTakeProfit') : t('zone.field.takeProfit')
         }
       >
         <NumberInput
@@ -71,11 +65,7 @@ export function ZoneGridFields({
       </InputField>
       <InputField
         label={
-          isBoth && sync
-            ? 'Zarar Durdur ($)'
-            : isBoth
-            ? 'BUY ZD ($)'
-            : 'Zarar Durdur ($)'
+          isBoth && !sync ? t('zone.field.buyStopLoss') : t('zone.field.stopLoss')
         }
       >
         <NumberInput

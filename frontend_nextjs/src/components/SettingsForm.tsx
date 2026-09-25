@@ -11,12 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { toast } from '@/components/ui/animated-toast';
+import { useFormat, useT } from '@/i18n';
 
 const MIN_INTERVAL = 1;
 const MAX_INTERVAL = 60;
 const STEP_INTERVAL = 0.1;
 
 export default function SettingsForm() {
+  const t = useT();
+  const fmt = useFormat();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const setGlobalSettings = useSettingsStore((s) => s.setGlobalSettings);
   // Sadece ilgili alanı dinle: tüm settings nesnesine bağlanmak, setGlobalSettings
@@ -66,17 +69,20 @@ export default function SettingsForm() {
       });
       setOriginalInterval(loopInterval);
       setGlobalSettings({ LOOP_INTERVAL_SECONDS: loopInterval });
-      toast.success(`Kontrol sıklığı ${loopInterval.toFixed(1)} sn olarak kaydedildi.`, {
-        title: 'Genel ayarlar kaydedildi',
-      });
+      toast.success(
+        t('settings.saved.text', {
+          value: fmt.number(loopInterval, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+        }),
+        { title: t('settings.saved.title') },
+      );
     } catch (err: unknown) {
-      const message = await getApiErrorMessage(err, 'Failed to save settings');
+      const message = await getApiErrorMessage(err, t('settings.saveFailed'));
       setError(message);
-      toast.error(message, { title: 'Genel ayarlar kaydedilemedi' });
+      toast.error(message, { title: t('settings.saveFailed.title') });
     } finally {
       setSaving(false);
     }
-  }, [selectedAccount, loopInterval, setGlobalSettings]);
+  }, [selectedAccount, loopInterval, setGlobalSettings, t, fmt]);
 
   const hasChanges = loopInterval !== originalInterval;
 
@@ -86,8 +92,8 @@ export default function SettingsForm() {
     <Card data-testid="general-settings">
       <CardHeader
         icon={<SlidersHorizontal size={16} />}
-        title="Genel Ayarlar"
-        description="Motor döngüsü"
+        title={t('settings.title')}
+        description={t('settings.subtitle')}
       />
       <CardContent className="space-y-4">
         {error && (
@@ -98,9 +104,9 @@ export default function SettingsForm() {
 
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Kontrol Sıklığı</span>
+            <span className="text-xs font-medium text-muted-foreground">{t('settings.interval')}</span>
             <span className="text-[11px] text-muted-foreground/70">
-              {MIN_INTERVAL}–{MAX_INTERVAL} sn
+              {MIN_INTERVAL}–{MAX_INTERVAL} {t('settings.unit.sec')}
             </span>
           </div>
           <div className="flex h-10 items-stretch overflow-hidden rounded-md border border-input bg-background/60 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
@@ -108,13 +114,13 @@ export default function SettingsForm() {
               onClick={decrement}
               disabled={loopInterval <= MIN_INTERVAL}
               className="flex w-10 items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-              title="Azalt"
+              title={t('settings.decrease')}
             >
               <Minus size={15} />
             </button>
             <div className="relative flex flex-1 items-center border-x border-input">
               <NumberInput
-                aria-label="Kontrol Sıklığı"
+                aria-label={t('settings.interval')}
                 step={STEP_INTERVAL}
                 min={MIN_INTERVAL}
                 max={MAX_INTERVAL}
@@ -125,13 +131,13 @@ export default function SettingsForm() {
                 }}
                 className="w-full bg-transparent text-center font-mono text-sm font-semibold text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <span className="pointer-events-none absolute right-3 text-xs text-muted-foreground">sn</span>
+              <span className="pointer-events-none absolute right-3 text-xs text-muted-foreground">{t('settings.unit.sec')}</span>
             </div>
             <button
               onClick={increment}
               disabled={loopInterval >= MAX_INTERVAL}
               className="flex w-10 items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-              title="Artır"
+              title={t('settings.increase')}
             >
               <Plus size={15} />
             </button>
@@ -146,7 +152,7 @@ export default function SettingsForm() {
             loading={saving}
           >
             {!saving && <Save size={15} />}
-            {saving ? 'Kaydediliyor...' : 'Kaydet'}
+            {saving ? t('common.saving') : t('common.save')}
           </Button>
         </div>
       </CardContent>

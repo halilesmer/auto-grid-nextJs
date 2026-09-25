@@ -19,9 +19,11 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Account } from './types';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Card } from '@/components/ui/card';
+import { useT } from '@/i18n';
 import { isDuplicateAccountError } from './types';
 
 export default function AccountSelector() {
+  const t = useT();
   const storeAccounts = useAccountStore((s) => s.accounts);
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
@@ -200,7 +202,7 @@ export default function AccountSelector() {
         open={modalOpen}
         // Mükerrer hesap sorusu açıkken Escape yalnızca soruyu kapatsın, formu değil
         onClose={() => !duplicateAccount && setModalOpen(false)}
-        title={isEditing ? 'Edit Account' : 'New MT5 Account'}>
+        title={isEditing ? t('account.dialog.edit') : t('account.dialog.new')}>
         <AccountForm
           formData={formData}
           errors={errors}
@@ -226,13 +228,13 @@ export default function AccountSelector() {
           open={!!duplicateAccount}
           onClose={() => handleDuplicateConfirm(false)}
           onConfirm={() => handleDuplicateConfirm(true)}
-          title="Account already exists"
+          title={t('account.duplicate.title')}
           message={
             duplicateAccount
-              ? `Account "${duplicateAccount.account_name}" (Login: ${duplicateAccount.login}) already exists. Edit it instead?`
+              ? t('account.duplicate.message', { name: duplicateAccount.account_name, login: duplicateAccount.login })
               : ''
           }
-          confirmLabel="Edit"
+          confirmLabel={t('account.duplicate.confirm')}
           variant="warning"
         />
       </AccountFormDialog>
@@ -241,8 +243,8 @@ export default function AccountSelector() {
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Delete Account"
-        message={`Are you sure you want to delete ${activeAccount?.account_name}? This action cannot be undone.`}
+        title={t('account.delete.title')}
+        message={t('account.delete.message', { name: activeAccount?.account_name ?? '' })}
         variant="danger"
         loading={isSaving}
       />

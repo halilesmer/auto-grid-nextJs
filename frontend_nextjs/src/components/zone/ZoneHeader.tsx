@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { StatusDot } from '@/components/ui/status-dot';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 import type { ZoneHeaderProps } from './types';
 
 const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
@@ -23,6 +24,7 @@ export function ZoneHeader({
   onRestart,
   onDelete,
 }: ZoneHeaderProps) {
+  const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -43,23 +45,23 @@ export function ZoneHeader({
   if (isGlobalRunning) {
     if (isActive) {
       btnClass = 'border-success/40 bg-success/10 text-success hover:bg-success/20';
-      btnText = 'Başladı';
+      btnText = t('zone.header.started');
       btnIcon = <Pause size={13} fill="currentColor" />;
       dotTone = 'success';
     } else {
       btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
-      btnText = 'Başla';
+      btnText = t('zone.header.start');
       btnIcon = <Play size={13} fill="currentColor" />;
     }
   } else {
     if (isActive) {
       btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
-      btnText = 'Hazır (Motor Bekleniyor)';
+      btnText = t('zone.header.ready');
       btnIcon = <Pause size={13} fill="currentColor" />;
       dotTone = 'warning';
     } else {
       btnClass = 'border-border bg-muted text-muted-foreground hover:bg-accent hover:text-foreground';
-      btnText = 'Kapalı (Motoru Başlat)';
+      btnText = t('zone.header.off');
       btnIcon = <Play size={13} fill="currentColor" />;
     }
   }
@@ -71,20 +73,20 @@ export function ZoneHeader({
     isGlobalRunning && isActive
       ? remotePaused
         ? {
-            label: 'Uzaktan durduruldu',
-            hint: 'Motor telefondan durduruldu. Devam etmek için MT5 uygulamasından $2 Buy Limit (0,01 lot) sinyali gönderin.',
+            label: t('zone.stop.remote.label'),
+            hint: t('zone.stop.remote.hint'),
             canRestart: false,
           }
         : engineState === 'AUTO_CLEAR'
           ? {
-              label: 'Otomatik temizlendi',
-              hint: 'Fiyat bölgeden çıktı: emirler temizlendi ve bölge durduruldu. Fiyat geri gelse de yeniden başlatana kadar emir konmaz.',
+              label: t('zone.stop.autoClear.label'),
+              hint: t('zone.stop.autoClear.hint'),
               canRestart: true,
             }
           : engineState === 'PAUSE'
             ? {
-                label: 'Motor durdurdu',
-                hint: 'Üst üste reddedilen emirler nedeniyle bölge güvenliğe alındı. Sebebi (ör. Algo Trading, lot, sembol) giderip yeniden başlatın.',
+                label: t('zone.stop.pause.label'),
+                hint: t('zone.stop.pause.hint'),
                 canRestart: true,
               }
             : null
@@ -92,7 +94,7 @@ export function ZoneHeader({
 
   if (engineStop) {
     btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';
-    btnText = engineStop.canRestart ? 'Yeniden Başlat' : 'Durduruldu';
+    btnText = engineStop.canRestart ? t('zone.header.restart') : t('zone.header.stopped');
     btnIcon = <RotateCcw size={13} />;
     dotTone = 'warning';
   }
@@ -114,7 +116,7 @@ export function ZoneHeader({
               {zone.symbol || '—'}
             </span>
             <Badge tone={tone}>{zone.order_type}</Badge>
-            {modified && <Badge tone="warning">Kaydedilmedi</Badge>}
+            {modified && <Badge tone="warning">{t('zone.header.unsaved')}</Badge>}
             {engineStop && (
               <Badge tone="warning" title={engineStop.hint}>
                 {engineStop.label}
@@ -135,7 +137,7 @@ export function ZoneHeader({
             'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60',
             btnClass,
           )}
-          title={engineStop ? engineStop.hint : 'Bölge İşlemlerini Yönet'}
+          title={engineStop ? engineStop.hint : t('zone.header.manage')}
         >
           {btnIcon}
           <span>{btnText}</span>
@@ -143,16 +145,16 @@ export function ZoneHeader({
         <Link
           href={`/chart?zone=${zone.id}`}
           className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"
-          title="Bölgeye Özel Test ve İstatistikler"
+          title={t('zone.header.testTitle')}
         >
           <FlaskConical size={13} />
-          Test
+          {t('zone.header.test')}
         </Link>
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
-            aria-label="Bölge menüsü"
+            aria-label={t('zone.header.menu')}
           >
             <MoreHorizontal size={16} />
           </button>
@@ -174,7 +176,7 @@ export function ZoneHeader({
                   className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <Trash2 size={14} />
-                  <span>Bölgeyi Sil</span>
+                  <span>{t('zone.header.delete')}</span>
                 </button>
               </motion.div>
             )}

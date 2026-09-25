@@ -8,24 +8,32 @@ import VpsElevatedWarning from '@/components/vps/VpsElevatedWarning';
 import VpsLogViewer from '@/components/vps/VpsLogViewer';
 import VpsStatusPanel from '@/components/vps/VpsStatusPanel';
 import { useVps } from '@/components/vps/useVps';
+import { useFormat, useT } from '@/i18n';
+
+// `...` im Text wird als <code> dargestellt
+function withCode(text: string) {
+  return text.split('`').map((part, i) => (i % 2 ? <code key={i}>{part}</code> : part));
+}
 
 export default function VpsPage() {
   const vps = useVps();
+  const t = useT();
+  const fmt = useFormat();
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="mb-2 text-xs text-muted-foreground">Windows-VPS</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">VPS-Steuerung</h1>
+          <p className="mb-2 text-xs text-muted-foreground">{t('vps.eyebrow')}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{t('vps.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Worker, ngrok, Updates und Neustarts vom Mac aus – ohne RDP und ohne Administrator-Fenster
+            {t('vps.subtitle')}
           </p>
         </div>
         {!vps.disabled && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {vps.refreshedAt && <span>Stand {vps.refreshedAt.toLocaleTimeString()}</span>}
-            <Button size="icon-sm" variant="ghost" onClick={() => void vps.refreshStatus()} aria-label="Status neu laden">
+            {vps.refreshedAt && <span>{t('vps.updated', { time: fmt.time(vps.refreshedAt) })}</span>}
+            <Button size="icon-sm" variant="ghost" onClick={() => void vps.refreshStatus()} aria-label={t('vps.refresh')}>
               <RefreshCw size={14} />
             </Button>
           </div>
@@ -35,20 +43,16 @@ export default function VpsPage() {
       {vps.loading ? (
         <Card className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
-          Verbinde per SSH mit dem VPS...
+          {t('vps.connecting')}
         </Card>
       ) : vps.disabled ? (
         <Card className="p-5" data-testid="vps-disabled">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <ServerOff size={16} className="text-muted-foreground" />
-            VPS-Steuerung ist hier nicht verfügbar
+            {t('vps.disabled.title')}
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{vps.disabled}</p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Sie funktioniert nur im lokalen Frontend auf dem Mac (<code>npm run dev:frontend</code>) mit{' '}
-            <code>VPS_SSH_HOST</code>, <code>VPS_SSH_KEY</code> und <code>VPS_REPO_PATH</code> in{' '}
-            <code>.env.local</code>. Einrichtung: <code>docs/windows_start_guide.md</code>.
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{withCode(t('vps.disabled.help'))}</p>
         </Card>
       ) : (
         <>

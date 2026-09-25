@@ -13,7 +13,7 @@
 import { execFile } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import { VPS_ACTIONS, type VpsAction } from '@/lib/vps';
+import { VPS_ACTIONS, type VpsAction, type VpsErrorCode, type VpsErrorParams } from '@/lib/vps';
 
 const DEFAULT_REPO_PATH = 'C:\\dev\\auto-grid-nextJs';
 // Laufwerk + Ordner, ohne Anführungszeichen/Steuerzeichen (wird in den entfernten Befehl eingesetzt)
@@ -44,6 +44,8 @@ export class VpsSshError extends Error {
   constructor(
     message: string,
     public readonly kind: 'config' | 'ssh' | 'remote',
+    public readonly code?: VpsErrorCode,
+    public readonly params?: VpsErrorParams,
   ) {
     super(message);
   }
@@ -65,10 +67,10 @@ function parseJsonOutput(stdout: string): Record<string, unknown> | null {
 
 export function runVps(config: VpsConfig, action: VpsAction, args: string[] = []): Promise<Record<string, unknown>> {
   if (!REPO_PATH_RE.test(config.repoPath)) {
-    return Promise.reject(new VpsSshError(`VPS_REPO_PATH ungültig: ${config.repoPath}`, 'config'));
+    return Promise.reject(new VpsSshError(`VPS_REPO_PATH ungültig: ${config.repoPath}`, 'config', 'repoPath', { path: config.repoPath }));
   }
   if (!args.every((a) => SAFE_ARG_RE.test(a))) {
-    return Promise.reject(new VpsSshError('Ungültiges Argument', 'config'));
+    return Promise.reject(new VpsSshError('Ungültiges Argument', 'config', 'badArg'));
   }
   const script = `${config.repoPath}\\worker_python\\ops\\windows\\vps.ps1`;
   const remote = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `"${script}"`, action, ...args].join(' ');
@@ -103,16 +105,27 @@ export function runVps(config: VpsConfig, action: VpsAction, args: string[] = []
           const code = (error as NodeJS.ErrnoException & { code?: number | string }).code;
           const killed = (error as { killed?: boolean }).killed;
           if (killed) {
-            reject(new VpsSshError(`Zeitüberschreitung nach ${VPS_ACTIONS[action].timeoutMs / 1000} s`, 'ssh'));
+            reject(new VpsSshError(
+                `Zeitüberschreitung nach ${VPS_ACTIONS[action].timeoutMs / 1000} s`,
+                'ssh',
+                'timeout',
+                { seconds: VPS_ACTIONS[action].timeoutMs / 1000 },
+              ));
           } else if (code === 'ENOENT') {
-            reject(new VpsSshError('ssh ist auf diesem Rechner nicht installiert', 'config'));
+            reject(new VpsSshError('ssh ist auf diesem Rechner nicht installiert', 'config', 'noSsh'));
           } else {
             const detail = stderr.trim().split(/\r?\n/).slice(-3).join(' ') || error.message;
-            reject(new VpsSshError(`SSH fehlgeschlagen (Exit ${code}): ${detail}`, 'ssh'));
+            reject(
+              new VpsSshError(`SSH fehlgeschlagen (Exit ${code}): ${detail}`, 'ssh', 'sshFailed', {
+                exit: String(code),
+                detail,
+              }),
+            );
           }
           return;
         }
-        reject(new VpsSshError(`Unerwartete Antwort vom VPS: ${stdout.slice(0, 300) || stderr.slice(0, 300)}`, 'remote'));
+        const output = stdout.slice(0, 300) || stderr.slice(0, 300);
+        reject(new VpsSshError(`Unerwartete Antwort vom VPS: ${output}`, 'remote', 'unexpected', { output }));
       },
     );
   });

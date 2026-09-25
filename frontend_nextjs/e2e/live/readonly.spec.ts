@@ -4,6 +4,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from './live';
+import { msg } from '../fixtures/i18n';
 
 /** Sammelt METRICS-Nachrichten des echten Streams, bis `count` erreicht ist. */
 async function collectMetrics(page: Page, count: number, timeout = 15_000) {
@@ -55,8 +56,8 @@ test.describe('Live (nur lesend)', () => {
     await dashboard.open(null);
     await expect((await dashboard.accountOptions()).filter({ hasText: `(${account.id})` })).toHaveCount(1);
     await dashboard.selectAccount(account.id);
-    await expect(page.getByTestId('worker-status')).toContainText('Worker online');
-    await expect(page.getByTestId('env-badge')).toHaveText('TEST');
+    await expect(page.getByTestId('worker-status')).toContainText(msg('logs.status.online'));
+    await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.test'));
   });
 
   test('API-Schlüssel wird verlangt (REST und WebSocket)', { tag: '@SYS-05' }, async ({ page, api, account }) => {
@@ -96,15 +97,15 @@ test.describe('Live (nur lesend)', () => {
     await dashboard.open(account.id);
 
     await expect(page.getByTestId('zone-count')).toHaveText(String(zones.length));
-    await expect(page.getByLabel('Kontrol Sıklığı')).toHaveValue(String(settings.LOOP_INTERVAL_SECONDS ?? 1));
+    await expect(page.getByLabel(msg('settings.interval'))).toHaveValue(String(settings.LOOP_INTERVAL_SECONDS ?? 1));
     for (const [i, zone] of zones.entries()) {
       await expect(dashboard.zone(i).getByPlaceholder(/Sembol Ara/)).toHaveValue(zone.symbol);
-      await expect(dashboard.zoneField('Emir Tipi', i)).toHaveValue(zone.order_type);
-      await expect(dashboard.zoneField('Min Fiyat ($)', i)).toHaveValue(String(zone.min_price));
-      await expect(dashboard.zoneField('Max Fiyat ($)', i)).toHaveValue(String(zone.max_price));
+      await expect(dashboard.zoneField(msg('zone.field.orderType'), i)).toHaveValue(zone.order_type);
+      await expect(dashboard.zoneField(msg('zone.field.minPrice'), i)).toHaveValue(String(zone.min_price));
+      await expect(dashboard.zoneField(msg('zone.field.maxPrice'), i)).toHaveValue(String(zone.max_price));
     }
     // Nur angesehen, nichts geändert
-    await expect(dashboard.saveAll).toHaveText('Kaydedildi');
+    await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
   });
 
   test('Symbolliste kommt aus dem Cache', { tag: '@SYM-01' }, async ({ api, account }) => {
@@ -136,8 +137,8 @@ test.describe('Live (nur lesend)', () => {
     await expect(price).toHaveAttribute('data-value', /^\$\d/);
 
     if (before.bot_running && before.metrics.mt5_connected) {
-      await expect(page.getByTestId('metric-profit')).toContainText('Live from MT5');
-      await expect(dashboard.botStatus).toHaveText('Running');
+      await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.live'));
+      await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
       const shown = Number((await price.getAttribute('data-value'))!.replace(/[$,]/g, ''));
       const now = (await api.botStatus(account.id)).metrics.current_price ?? 0;
       // Preis bewegt sich zwischen den Abfragen; 1 % Toleranz
@@ -145,7 +146,7 @@ test.describe('Live (nur lesend)', () => {
       const positions = Number(await page.getByTestId('metric-positions').getAttribute('data-value'));
       expect(positions).toBeGreaterThanOrEqual(0);
     } else {
-      await expect(page.getByTestId('metric-profit')).toContainText('Engine stopped');
+      await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.engineStopped'));
       await expect(dashboard.botStatus).toHaveText(/Stopped|not connected/);
     }
   });
@@ -153,14 +154,14 @@ test.describe('Live (nur lesend)', () => {
   test('Log-Tabs zeigen Robot- und MT5-Log', { tag: '@LOG-01' }, async ({ page, api, account, dashboard }) => {
     const logs = await api.logs(account.id);
     await dashboard.open(account.id);
-    await page.getByRole('tab', { name: 'Robot Logs' }).click();
+    await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
     if (logs.robot_log.length > 0) {
-      await expect(dashboard.logOutput).not.toHaveText('No log entries yet...');
+      await expect(dashboard.logOutput).not.toHaveText(msg('logs.empty.log'));
       await expect(dashboard.logOutput).toContainText(/\[\d{4}-\d{2}-\d{2}/);
     }
-    await page.getByRole('tab', { name: 'MT5 Terminal' }).click();
+    await page.getByRole('tab', { name: msg('logs.tab.mt5') }).click();
     if (logs.mt5_log.length > 0) {
-      await expect(dashboard.logOutput).not.toHaveText('No log entries yet...');
+      await expect(dashboard.logOutput).not.toHaveText(msg('logs.empty.log'));
     }
   });
 

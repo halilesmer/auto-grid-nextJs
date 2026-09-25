@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AppNav from "@/components/layout/AppNav";
+import LocaleSync from "@/components/layout/LocaleSync";
 import ThemeSync from "@/components/layout/ThemeSync";
+import { LOCALE_INIT_SCRIPT } from "@/i18n/config";
 import { Toaster } from "@/components/ui/animated-toast";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
@@ -54,12 +56,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
           suppressHydrationWarning
         />
+        {/* Seçili dili ilk paint'ten önce <html lang>'a yazar */}
+        <script
+          dangerouslySetInnerHTML={{ __html: LOCALE_INIT_SCRIPT }}
+          suppressHydrationWarning
+        />
       </head>
       <body
         className="min-h-full flex flex-col text-foreground"
         suppressHydrationWarning
       >
         <ThemeSync />
+        <LocaleSync />
         <AppNav />
         <main className="flex-1">{children}</main>
         <Toaster />

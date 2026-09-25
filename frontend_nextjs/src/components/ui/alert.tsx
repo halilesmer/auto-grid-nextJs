@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle, Info, X, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 type Tone = 'danger' | 'warning' | 'info';
 
@@ -19,6 +20,7 @@ interface AlertProps {
 }
 
 export function Alert({ tone = 'danger', title, children, onDismiss, className }: AlertProps) {
+  const t = useT();
   const { box, icon: Icon } = TONES[tone];
   return (
     <div role="alert" className={cn('flex items-start gap-3 rounded-lg border px-3.5 py-3 text-sm', box, className)}>
@@ -32,7 +34,7 @@ export function Alert({ tone = 'danger', title, children, onDismiss, className }
           type="button"
           onClick={onDismiss}
           className="-m-1 rounded p-1 opacity-70 transition hover:bg-foreground/5 hover:opacity-100"
-          aria-label="Dismiss"
+          aria-label={t('ui.dismiss')}
         >
           <X className="size-3.5" />
         </button>

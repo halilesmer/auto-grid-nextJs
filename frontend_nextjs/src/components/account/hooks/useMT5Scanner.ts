@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { UseMT5ScannerReturn } from '../types';
 import { API, axiosInstance } from '@/lib/api';
+import { t } from '@/i18n';
 
 export function useMT5Scanner(): UseMT5ScannerReturn {
   const [paths, setPaths] = useState<string[]>([]);
@@ -19,7 +20,7 @@ export function useMT5Scanner(): UseMT5ScannerReturn {
       return found;
     } catch (e) {
       setPaths([]);
-      const errMsg = 'MT5 yolları taranırken sunucu hatası oluştu.';
+      const errMsg = t('account.path.scanFailed');
       setError(errMsg);
       console.error('MT5 rescan failed', e);
       return [];

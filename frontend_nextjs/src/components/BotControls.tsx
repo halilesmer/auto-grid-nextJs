@@ -12,8 +12,10 @@ import { cn } from '@/lib/utils';
 import { API, axiosInstance } from '@/lib/api';
 import { useAccountStore, useBotRuntimeStore, useLogsStore } from '@/store';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { useT } from '@/i18n';
 
 export default function BotControls() {
+  const t = useT();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
   const isConnecting = useBotRuntimeStore((s) => s.isConnecting);
@@ -45,7 +47,7 @@ export default function BotControls() {
 
     setIsConnecting(true);
     setIsRunning(true);
-    pushActivity("info", `Start requested for account ${selectedAccount} – worker is connecting to MT5…`);
+    pushActivity("info", t("bot.activity.startRequested", { account: selectedAccount }));
 
     // Worker MT5'e önce API sürecinde, sonra bot sürecinde bağlanır (her biri
     // 120 sn'ye kadar). 15 sn sonra "Stopped" göstermek bağlantıyı yarıda
@@ -54,7 +56,7 @@ export default function BotControls() {
     unlockTimerRef.current = setTimeout(() => {
       if (!useBotRuntimeStore.getState().isConnecting) return;
       setIsConnecting(false);
-      pushActivity("warn", "No connection after 180 s – check the Robot Logs tab for details.");
+      pushActivity("warn", t("bot.activity.noConnection"));
     }, 180_000);
 
     try {
@@ -62,42 +64,42 @@ export default function BotControls() {
         `${API}/start?account_id=${selectedAccount}`,
         {},
       );
-      pushActivity("info", res.data?.message || "Worker accepted the start request.");
+      pushActivity("info", res.data?.message || t("bot.activity.accepted"));
       if (useBotRuntimeStore.getState().isConnecting) {
-        pushActivity("info", "Bot process started – waiting for it to connect to MT5…");
+        pushActivity("info", t("bot.activity.processStarted"));
       }
     } catch (err) {
       setIsConnecting(false);
       setIsRunning(false);
       if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
-      const message = await getApiErrorMessage(err, "Failed to start bot");
+      const message = await getApiErrorMessage(err, t("bot.startFailed"));
       setError(message);
-      pushActivity("error", `Start failed: ${message}`);
+      pushActivity("error", t("bot.activity.startFailed", { message }));
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, setIsRunning, setIsConnecting, updateLiveData, pushActivity]);
+  }, [selectedAccount, setIsRunning, setIsConnecting, updateLiveData, pushActivity, t]);
 
   const handleStopBot = useCallback(async () => {
     if (!selectedAccount) return;
     setStopConfirmOpen(false);
     setLoading(true);
     setError("");
-    pushActivity("info", `Stop requested for account ${selectedAccount}…`);
+    pushActivity("info", t("bot.activity.stopRequested", { account: selectedAccount }));
     try {
       await axiosInstance.post(
         `${API}/stop?account_id=${selectedAccount}`,
         {},
       );
-      pushActivity("success", "Bot stopped. Positions and pending orders stay at the broker.");
+      pushActivity("success", t("bot.activity.stopped"));
     } catch (err) {
-      const message = await getApiErrorMessage(err, "Failed to stop bot");
+      const message = await getApiErrorMessage(err, t("bot.stopFailed"));
       setError(message);
-      pushActivity("error", `Stop failed: ${message}`);
+      pushActivity("error", t("bot.activity.stopFailed", { message }));
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, pushActivity]);
+  }, [selectedAccount, pushActivity, t]);
 
   if (!selectedAccount) return null;
 
@@ -106,19 +108,19 @@ export default function BotControls() {
   const processWithoutMt5 = !liveData.mt5_connected && Boolean(liveData.bot_running);
 
   const status = isConnecting
-    ? { label: "Connecting…", tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
+    ? { label: t("bot.status.connecting"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
     : liveData.mt5_connected
-      ? { label: "Running", tone: "success" as const, box: "border-success/30 bg-success/[0.06] text-success" }
+      ? { label: t("bot.status.running"), tone: "success" as const, box: "border-success/30 bg-success/[0.06] text-success" }
       : processWithoutMt5
-        ? { label: "Bot process running – not connected to MT5", tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
-        : { label: "Stopped", tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
+        ? { label: t("bot.status.processNoMt5"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
+        : { label: t("bot.status.stopped"), tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
 
   return (
     <Card data-testid="bot-controls">
       <CardHeader
         icon={<Bot size={16} />}
-        title="Bot Controls"
-        description="MT5 engine lifecycle"
+        title={t("bot.title")}
+        description={t("bot.subtitle")}
       />
       <CardContent className="space-y-4">
         {/* Durum paneli */}
@@ -128,9 +130,9 @@ export default function BotControls() {
             <span data-testid="bot-status" className="text-sm font-semibold">{status.label}</span>
           </div>
           <span className="shrink-0 text-xs text-muted-foreground">
-            Market{" "}
+            {t("bot.market")}{" "}
             <span className={liveData.market_open ? "text-success" : "text-danger"}>
-              {liveData.market_open ? "Open" : "Closed"}
+              {liveData.market_open ? t("bot.market.open") : t("bot.market.closed")}
             </span>
           </span>
         </div>
@@ -157,11 +159,11 @@ export default function BotControls() {
               onClick={handleStartBot}
               disabled={isConnecting}
               loading={loading || isConnecting}
-              title={processWithoutMt5 ? "Restarts the bot process and reconnects to MT5" : undefined}
+              title={processWithoutMt5 ? t("bot.restartHint") : undefined}
             >
               {!(loading || isConnecting) &&
                 (processWithoutMt5 ? <RotateCcw size={16} /> : <Play size={16} fill="currentColor" />)}
-              {loading || isConnecting ? "Connecting to MT5…" : processWithoutMt5 ? "Restart Bot" : "Start Bot"}
+              {loading || isConnecting ? t("bot.connecting") : processWithoutMt5 ? t("bot.restart") : t("bot.start")}
             </Button>
           )}
           {(liveData.mt5_connected || processWithoutMt5) && (
@@ -173,7 +175,7 @@ export default function BotControls() {
               loading={loading}
             >
               {!loading && <Pause size={16} fill="currentColor" />}
-              Stop Bot
+              {t("bot.stop")}
             </Button>
           )}
         </div>
@@ -185,18 +187,18 @@ export default function BotControls() {
           </Alert>
         )}
         {!isConnecting && !liveData.mt5_connected && liveData.startup_error && (
-          <Alert tone="danger" title="MT5 connection failed">
+          <Alert tone="danger" title={t("bot.alert.startupFailed")}>
             {liveData.startup_error}
           </Alert>
         )}
         {liveData.order_rejected_alarm && (
-          <Alert tone="danger" title="Order rejected by MT5/Broker">
+          <Alert tone="danger" title={t("bot.alert.orderRejected")}>
             {liveData.last_error}
           </Alert>
         )}
         {liveData.algo_trading_error && (
-          <Alert tone="warning" title="Algo Trading is off">
-            Please enable Algo Trading in your MT5 terminal.
+          <Alert tone="warning" title={t("bot.alert.algoOff")}>
+            {t("bot.alert.algoOff.text")}
           </Alert>
         )}
       </CardContent>
@@ -206,10 +208,10 @@ export default function BotControls() {
         open={stopConfirmOpen}
         onClose={() => setStopConfirmOpen(false)}
         onConfirm={handleStopBot}
-        title="Disconnect MT5"
-        message="Are you sure you want to disconnect the MT5 connection?"
-        infoText="Open positions and pending orders are preserved on the broker side."
-        confirmLabel="Disconnect"
+        title={t("bot.disconnect.title")}
+        message={t("bot.disconnect.message")}
+        infoText={t("bot.disconnect.info")}
+        confirmLabel={t("bot.disconnect.confirm")}
         variant="warning"
         loading={loading}
       />

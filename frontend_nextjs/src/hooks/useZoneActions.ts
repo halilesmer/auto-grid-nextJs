@@ -5,6 +5,7 @@ import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import { defaultZone } from '@/utils/zoneHelpers';
 import type { ZoneSettings } from '@/store/types';
+import { t } from '@/i18n';
 
 export interface UseZoneActionsReturn {
   toggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
@@ -54,7 +55,7 @@ export function useZoneActions(
       const zoneSymbol = settings?.ZONES?.find((z) => z.id === zoneId)?.symbol || '';
 
       if (!zoneSymbol.trim()) {
-        alert('Hatalı Sembol! Lütfen bölge için geçerli bir sembol girin.');
+        alert(t('zone.alert.noSymbol'));
         return;
       }
 
@@ -62,9 +63,7 @@ export function useZoneActions(
         Object.keys(symbolDetails).length > 0 &&
         !symbolDetails[zoneSymbol.toUpperCase().trim()]
       ) {
-        alert(
-          'Hatalı Sembol! Girdiğiniz sembol broker tarafından desteklenmiyor. Lütfen geçerli bir sembol girin.'
-        );
+        alert(t('zone.alert.unsupportedSymbol'));
         return;
       }
 
@@ -80,10 +79,10 @@ export function useZoneActions(
       } catch (err: unknown) {
         const error = err as { message?: string };
         if (error.message === 'ZONE_NOT_SAVED') {
-          alert('Bu bölge henüz kaydedilmemiş! Lütfen önce \'Tüm Ayarları Kaydet\' butonuna basın.');
+          alert(t('zone.alert.notSaved'));
         } else {
           console.error('Bölge güncellenemedi', err);
-          alert('Bölge durumu kaydedilemedi!');
+          alert(t('zone.alert.toggleFailed'));
         }
         setZones((prevZones) =>
           prevZones.map((z) => (z.id === zoneId ? { ...z, is_active: currentActive } : z))
@@ -105,10 +104,10 @@ export function useZoneActions(
       } catch (err: unknown) {
         const error = err as { message?: string };
         if (error.message === 'ZONE_NOT_SAVED') {
-          alert('Bu bölge henüz kaydedilmemiş! Lütfen önce \'Tüm Ayarları Kaydet\' butonuna basın.');
+          alert(t('zone.alert.notSaved'));
         } else {
           console.error('Bölge yeniden başlatılamadı', err);
-          alert('Bölge yeniden başlatılamadı!');
+          alert(t('zone.alert.restartFailed'));
         }
       }
     },

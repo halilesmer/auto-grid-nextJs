@@ -6,6 +6,7 @@
  */
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
+import { msg } from '../fixtures/i18n';
 
 const STATUS = {
   ok: true,
@@ -67,18 +68,18 @@ test.describe('VPS Fernsteuerung', () => {
     await mockVps(page);
     await page.goto('/vps');
 
-    await expect(page.getByRole('heading', { name: 'VPS-Steuerung' })).toBeVisible();
-    await expect(page.getByTestId('vps-tile-worker')).toContainText('Läuft');
+    await expect(page.getByRole('heading', { name: msg('vps.title') })).toBeVisible();
+    await expect(page.getByTestId('vps-tile-worker')).toContainText(msg('bot.status.running'));
     await expect(page.getByTestId('vps-tile-worker')).toHaveAttribute('data-tone', 'success');
     await expect(page.getByTestId('vps-tile-ngrok')).toContainText('tweet-overlying-monotone');
-    await expect(page.getByTestId('vps-tile-bots')).toContainText('1 Bot läuft');
+    await expect(page.getByTestId('vps-tile-bots')).toContainText(msg('vps.tile.bots.running', { count: 1 }));
     await expect(page.getByTestId('vps-tile-bots')).toContainText('5039114');
     await expect(page.getByTestId('vps-tile-version')).toContainText('v0.7.71');
     await expect(page.getByTestId('vps-tile-version')).toContainText('main @ 6e6011d0');
-    await expect(page.getByTestId('vps-tile-autostart')).toContainText('Eingerichtet');
+    await expect(page.getByTestId('vps-tile-autostart')).toContainText(msg('vps.tile.autostart.ok'));
 
     const nav = page.getByRole('navigation');
-    await expect(nav.getByRole('link', { name: 'VPS' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: msg('nav.vps') })).toHaveAttribute('aria-current', 'page');
   });
 
   test('Worker gestoppt und SSH-Fehler', { tag: '@VPS-01' }, async ({ page, worker }) => {
@@ -86,16 +87,16 @@ test.describe('VPS Fernsteuerung', () => {
     const mock = await mockVps(page);
     mock.status = { ...STATUS, worker: { listening: false, reachable: false, error: null }, worker_watchdog: false };
     await page.goto('/vps');
-    await expect(page.getByTestId('vps-tile-worker')).toContainText('Gestoppt');
-    await expect(page.getByTestId('vps-tile-worker')).toContainText('Neustart-Schleife: fehlt');
+    await expect(page.getByTestId('vps-tile-worker')).toContainText(msg('bot.status.stopped'));
+    await expect(page.getByTestId('vps-tile-worker')).toContainText(msg('vps.tile.loop', { state: msg('vps.tile.loop.missing') }));
     // Ohne laufenden Worker keine Update-Prüfung, „Update & Neustart“ geht trotzdem (Aufgabe)
     await expect(page.getByTestId('vps-action-check-update')).toBeDisabled();
     await expect(page.getByTestId('vps-action-update')).toBeEnabled();
 
     mock.status = { ok: false, error: 'SSH fehlgeschlagen (Exit 255): Connection timed out' };
     mock.statusCode = 502;
-    await page.getByRole('button', { name: 'Status neu laden' }).click();
-    await expect(page.getByTestId('vps-status')).toContainText('VPS nicht erreichbar');
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
+    await expect(page.getByTestId('vps-status')).toContainText(msg('vps.status.unreachable'));
     await expect(page.getByTestId('vps-status')).toContainText('Connection timed out');
   });
 
@@ -106,7 +107,7 @@ test.describe('VPS Fernsteuerung', () => {
       statusCode: 404,
     });
     await page.goto('/vps');
-    await expect(page.getByTestId('vps-disabled')).toContainText('VPS_SSH_HOST fehlt');
+    await expect(page.getByTestId('vps-disabled')).toContainText('VPS_SSH_HOST');
     await expect(page.getByTestId('vps-action-restart')).toHaveCount(0);
   });
 
@@ -120,10 +121,10 @@ test.describe('VPS Fernsteuerung', () => {
     await expect(page.getByTestId('vps-update-result')).toContainText('v0.7.71');
 
     for (const [testId, action, confirm] of [
-      ['vps-action-update', 'update', 'Update & Neustart'],
-      ['vps-action-restart', 'restart', 'Worker neu starten'],
-      ['vps-action-restart-ngrok', 'restart-ngrok', 'ngrok neu starten'],
-      ['vps-action-reboot', 'reboot', 'VPS neu starten'],
+      ['vps-action-update', 'update', msg('vps.action.update')],
+      ['vps-action-restart', 'restart', msg('vps.action.restart')],
+      ['vps-action-restart-ngrok', 'restart-ngrok', msg('vps.action.restartNgrok')],
+      ['vps-action-reboot', 'reboot', msg('vps.action.reboot')],
     ] as const) {
       await page.getByTestId(testId).click();
       const dialog = page.getByRole('dialog');
@@ -136,7 +137,7 @@ test.describe('VPS Fernsteuerung', () => {
     // Abbrechen löst nichts aus
     const before = mock.calls.filter((c) => c.startsWith('POST')).length;
     await page.getByTestId('vps-action-reboot').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: msg('common.cancel') }).click();
     expect(mock.calls.filter((c) => c.startsWith('POST'))).toHaveLength(before);
   });
 
@@ -145,7 +146,7 @@ test.describe('VPS Fernsteuerung', () => {
     // Älteres vps.ps1 ohne Feld „elevated“ bzw. keine Reste: keine Warnung
     const mock = await mockVps(page);
     await page.goto('/vps');
-    await expect(page.getByTestId('vps-tile-worker')).toContainText('Läuft');
+    await expect(page.getByTestId('vps-tile-worker')).toContainText(msg('bot.status.running'));
     await expect(page.getByTestId('vps-elevated')).toHaveCount(0);
 
     mock.status = {
@@ -156,24 +157,24 @@ test.describe('VPS Fernsteuerung', () => {
         { pid: 7272, role: 'bot', account: '7942034' },
       ],
     };
-    await page.getByRole('button', { name: 'Status neu laden' }).click();
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
     const warning = page.getByTestId('vps-elevated');
-    await expect(warning).toContainText('3 Prozesse laufen mit Administratorrechten');
-    await expect(warning).toContainText('Worker-Neustart-Schleife · PID 5068');
+    await expect(warning).toContainText(msg('vps.elevated.title', { count: 3 }));
+    await expect(warning).toContainText(`${msg('vps.role.worker-loop')} · PID 5068`);
     await expect(warning).toContainText('Bot 7942034 · PID 7272');
 
     // Abbrechen löst nichts aus
     await page.getByTestId('vps-action-fix-elevated').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: msg('common.cancel') }).click();
     expect(mock.calls).not.toContain('POST fix-elevated');
 
     await page.getByTestId('vps-action-fix-elevated').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('Admin-Prozesse beenden?');
+    await expect(dialog).toContainText(msg('vps.elevated.confirmTitle'));
     // Betroffene Bots werden beendet und vom Worker ohne Adminrechte fortgesetzt
-    await expect(dialog).toContainText('Bots und MT5 werden dabei beendet');
+    await expect(dialog).toContainText(msg('vps.elevated.infoBots'));
     mock.status = { ...STATUS, elevated: [] };
-    await dialog.getByRole('button', { name: 'Admin-Prozesse beenden' }).click();
+    await dialog.getByRole('button', { name: msg('vps.action.fixElevated') }).click();
     await expect.poll(() => mock.calls).toContain('POST fix-elevated');
     await expect(page.getByText('fix-elevated ausgeführt')).toBeVisible();
     await expect(warning).toHaveCount(0);
@@ -190,9 +191,9 @@ test.describe('VPS Fernsteuerung', () => {
     await expect(output).not.toContainText('\u001b');
     await expect(output).not.toContainText('[32m');
 
-    await page.getByRole('tab', { name: 'ngrok' }).click();
+    await page.getByRole('tab', { name: msg('vps.log.tab.ngrok') }).click();
     await expect(output).toContainText('[ngrok] Zeile 1');
-    await page.getByRole('tab', { name: 'Update' }).click();
+    await page.getByRole('tab', { name: msg('vps.log.tab.update') }).click();
     await expect(output).toContainText('[update] Zeile 1');
     expect(mock.calls).toContain('GET logs?log=update&lines=300');
     await expect(page.getByTestId('vps-log-hint')).toHaveCount(0);
@@ -217,9 +218,9 @@ test.describe('VPS Fernsteuerung', () => {
 
     // ngrok ohne Neustart-Schleife schreibt kein ngrok.log -> Hinweis statt nur „keine Datei“
     mock.logs = { body: { ok: true, log: 'ngrok', lines: [], note: 'Noch keine Datei ngrok.log' }, code: 200 };
-    await page.getByRole('tab', { name: 'ngrok' }).click();
+    await page.getByRole('tab', { name: msg('vps.log.tab.ngrok') }).click();
     await expect(output).toContainText('Noch keine Datei ngrok.log');
-    await expect(page.getByTestId('vps-log-hint')).toContainText('Worker neu starten');
+    await expect(page.getByTestId('vps-log-hint')).toContainText(msg('vps.action.restart'));
   });
 });
 
@@ -234,6 +235,6 @@ test.describe('VPS Routen-Schutz', () => {
 
     const foreignOrigin = await request.post('/api/vps/reboot', { headers: { Origin: 'https://evil.example' } });
     expect(foreignOrigin.status()).toBe(403);
-    expect(await foreignOrigin.json()).toMatchObject({ ok: false, error: 'Ungültige Origin' });
+    expect(await foreignOrigin.json()).toMatchObject({ ok: false, error: 'Ungültige Origin', code: 'badOrigin' });
   });
 });

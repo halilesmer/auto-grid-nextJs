@@ -5,14 +5,16 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useThemeStore } from '@/store';
 import type { ThemePreference } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import { useT, type MessageKey } from '@/i18n';
 
-const OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Açık', icon: Sun },
-  { value: 'dark', label: 'Koyu', icon: Moon },
-  { value: 'system', label: 'Sistem', icon: Monitor },
+const OPTIONS: { value: ThemePreference; labelKey: MessageKey; icon: typeof Sun }[] = [
+  { value: 'light', labelKey: 'common.theme.light', icon: Sun },
+  { value: 'dark', labelKey: 'common.theme.dark', icon: Moon },
+  { value: 'system', labelKey: 'common.theme.system', icon: Monitor },
 ];
 
 export default function ThemeToggle() {
+  const t = useT();
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
 
@@ -21,13 +23,15 @@ export default function ThemeToggle() {
   const current = OPTIONS[currentIndex];
   const next = OPTIONS[(currentIndex + 1) % OPTIONS.length];
   const CurrentIcon = current.icon;
+  const currentLabel = t(current.labelKey);
+  const nextLabel = t(next.labelKey);
 
   return (
     <>
       <button
         type="button"
-        aria-label={`Tema: ${current.label} (sonraki: ${next.label})`}
-        title={`Tema: ${current.label}`}
+        aria-label={t('common.theme.aria', { current: currentLabel, next: nextLabel })}
+        title={t('common.theme.title', { current: currentLabel })}
         onClick={() => setTheme(next.value)}
         className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-muted/50 text-foreground transition-colors hover:bg-muted sm:hidden"
       >
@@ -36,11 +40,12 @@ export default function ThemeToggle() {
 
       <div
         role="radiogroup"
-        aria-label="Tema"
+        aria-label={t('common.theme')}
         className="hidden items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5 sm:flex"
       >
-        {OPTIONS.map(({ value, label, icon: Icon }) => {
+        {OPTIONS.map(({ value, labelKey, icon: Icon }) => {
           const active = theme === value;
+          const label = t(labelKey);
           return (
             <button
               key={value}

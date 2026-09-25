@@ -2,9 +2,14 @@
  * Seitenobjekt des Dashboards, gemeinsam für gemockte (e2e/mocked) und Live-Tests (e2e/live).
  */
 import { expect, type Locator, type Page } from '@playwright/test';
+import { msg, type Lang } from './i18n';
 
 export class Dashboard {
-  constructor(readonly page: Page) {}
+  constructor(
+    readonly page: Page,
+    /** Sprache der Oberfläche (siehe `appLocale` in test.ts) */
+    readonly lang: Lang = 'tr',
+  ) {}
 
   async open(accountId: string | null) {
     await this.page.goto('/');
@@ -16,12 +21,12 @@ export class Dashboard {
     await options.filter({ hasText: `(${accountId})` }).click();
     await expect(this.accountSelect).toHaveAttribute('aria-expanded', 'false');
     // Einstellungen + Symbole geladen → Zonenbereich ist da
-    await expect(this.page.getByText('Dinamik Bölgeler')).toBeVisible();
+    await expect(this.page.getByText(msg('zone.panel.title', undefined, this.lang))).toBeVisible();
   }
 
   /** Trigger der Konto-Combobox; zeigt das gewählte Konto als „Name (ID)“ bzw. den Platzhalter. */
   get accountSelect(): Locator {
-    return this.page.getByRole('combobox', { name: 'Select Account' });
+    return this.page.getByRole('combobox', { name: msg('account.select.aria', undefined, this.lang) });
   }
 
   /** Öffnet die Kontoliste (falls geschlossen) und liefert ihre Einträge („Name (ID)“ + DEMO/LIVE). */
@@ -74,13 +79,14 @@ export class Dashboard {
   }
 
   get saveAll(): Locator {
-    return this.page.getByRole('button', { name: /Tüm Ayarları Kaydet|Kaydedildi|Kaydediliyor/ });
+    const labels = [msg('saveBar.saveAll', undefined, this.lang), msg('common.saved', undefined, this.lang), msg('common.saving', undefined, this.lang)];
+    return this.page.getByRole('button', { name: new RegExp(labels.map((l) => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')) });
   }
 
   /** „Tüm Ayarları Kaydet“ klicken und warten, bis der Kopf-Button „Kaydedildi“ zeigt. */
   async saveAllSettings() {
-    await this.page.getByRole('button', { name: 'Tüm Ayarları Kaydet' }).click();
-    await expect(this.saveAll).toHaveText(/Kaydedildi/);
+    await this.page.getByRole('button', { name: msg('saveBar.saveAll', undefined, this.lang) }).click();
+    await expect(this.saveAll).toHaveText(msg('common.saved', undefined, this.lang));
   }
 
   get logOutput(): Locator {
@@ -93,6 +99,6 @@ export class Dashboard {
 
   /** Log-Polling sofort auslösen (statt 10 s zu warten). */
   async refreshLogs() {
-    await this.page.getByRole('button', { name: 'Refresh' }).click();
+    await this.page.getByRole('button', { name: msg('logs.refresh', undefined, this.lang) }).click();
   }
 }

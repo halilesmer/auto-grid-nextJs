@@ -23,6 +23,7 @@ Kural eklemek için en alttaki prosedüre bak.
 5. **[otomatik-uyarı]** Worker değişince Mac'te sadece statik kontrol yapılabilir. Worker Mac'te başlatılmaz (MT5 Windows'a özel); VPS'e pull + restart ile test edilir.
 6. **[elle]** Yorum/log/doküman dili dosyanın diline uyar (çoğunlukla Türkçe).
 7. **[elle]** Mimari değişince `docs/proje_dosya_krokisi.md` güncellenir.
+8. **[elle]** Kullanıcıya görünen her metin i18n'den gelir (`frontend_nextjs/src/i18n/messages/<bölüm>.ts`, tr/en/de yan yana; bileşende `useT()`, bileşen dışında `t()`). Kodda sabit metin yok; worker'a giden değerler (`clear_*`, `exit_condition`) ve worker mesajları çevrilmez. e2e testlerinde metinler `msg('anahtar')` ile alınır.
 
 ## 3. Test protokolü ("test et" denince)
 

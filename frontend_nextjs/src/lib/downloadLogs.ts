@@ -1,6 +1,7 @@
 import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { useLogsStore } from '@/store';
+import { t } from '@/i18n';
 
 /**
  * Hesabın log/state/ayar ZIP'ini indirir.
@@ -11,7 +12,7 @@ import { useLogsStore } from '@/store';
  */
 export async function downloadAccountLogs(accountId: string): Promise<void> {
   const pushActivity = useLogsStore.getState().pushActivity;
-  pushActivity('info', `Preparing log archive for account ${accountId}…`);
+  pushActivity('info', t('logs.download.preparing', { account: accountId }));
   try {
     const res = await axiosInstance.get(`/logs/download/${accountId}`, {
       responseType: 'blob',
@@ -26,9 +27,9 @@ export async function downloadAccountLogs(accountId: string): Promise<void> {
     a.click();
     a.remove();
     setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
-    pushActivity('success', `Log archive downloaded (${Math.ceil(res.data.size / 1024)} KB).`);
+    pushActivity('success', t('logs.download.done', { size: Math.ceil(res.data.size / 1024) }));
   } catch (err) {
-    const message = await getApiErrorMessage(err, 'Log download failed');
+    const message = await getApiErrorMessage(err, t('logs.download.failed'));
     pushActivity('error', message);
     window.alert(message);
   }

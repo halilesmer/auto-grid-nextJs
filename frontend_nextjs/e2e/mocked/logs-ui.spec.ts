@@ -2,17 +2,18 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
+import { msg } from '../fixtures/i18n';
 
 test.describe('LOG Logs', () => {
   test('Tabs zeigen Robot- und MT5-Log', { tag: '@LOG-01' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await expect(page.getByRole('tab', { name: 'Activity' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: msg('logs.tab.activity') })).toHaveAttribute('aria-selected', 'true');
 
-    await page.getByRole('tab', { name: 'Robot Logs' }).click();
+    await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
     await expect(dashboard.logOutput).toContainText('[START] Bot gestartet');
     await expect(dashboard.logOutput).toContainText('3 emir yerleştirildi');
 
-    await page.getByRole('tab', { name: 'MT5 Terminal' }).click();
+    await page.getByRole('tab', { name: msg('logs.tab.mt5') }).click();
     await expect(dashboard.logOutput).toContainText('buy limit 0.01 USOUSD at 96.750');
 
     const [call] = worker.callsTo('GET', `/api/logs/${DEMO_ID}`);
@@ -21,57 +22,57 @@ test.describe('LOG Logs', () => {
 
   test('Logs löschen', { tag: '@LOG-02' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await page.getByRole('tab', { name: 'Robot Logs' }).click();
+    await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
     await expect(dashboard.logOutput).toContainText('Bot gestartet');
-    const clear = page.getByTitle('Clear all logs');
+    const clear = page.getByTitle(msg('logs.clear.all'));
 
-    const confirm = page.getByRole('dialog').filter({ hasText: 'Logları Temizle' });
+    const confirm = page.getByRole('dialog').filter({ hasText: msg('logs.clearConfirm.title') });
 
     // Abbrechen: nichts wird gelöscht
     await clear.click();
     await expect(confirm).toContainText('logları temizlemek');
-    await confirm.getByRole('button', { name: 'Vazgeç' }).click();
+    await confirm.getByRole('button', { name: msg('logs.clearConfirm.cancel') }).click();
     await expect(confirm).toBeHidden();
     expect(worker.callsTo('DELETE', `/api/logs/${DEMO_ID}`)).toHaveLength(0);
 
     await clear.click();
-    await confirm.getByRole('button', { name: 'Temizle', exact: true }).click();
+    await confirm.getByRole('button', { name: msg('logs.clearConfirm.confirm'), exact: true }).click();
     await expect(confirm).toBeHidden();
-    await expect(dashboard.logOutput).toHaveText('No log entries yet...');
+    await expect(dashboard.logOutput).toHaveText(msg('logs.empty.log'));
     await dashboard.refreshLogs();
-    await expect(dashboard.logOutput).toHaveText('No log entries yet...');
+    await expect(dashboard.logOutput).toHaveText(msg('logs.empty.log'));
     expect(worker.callsTo('DELETE', `/api/logs/${DEMO_ID}`)).toHaveLength(1);
 
     // Activity-Tab leert nur die Anzeige, ohne Worker-Aufruf
-    await page.getByRole('tab', { name: 'Activity' }).click();
-    await page.getByTitle('Clear activity').click();
-    await expect(dashboard.logOutput).toContainText('No activity yet');
+    await page.getByRole('tab', { name: msg('logs.tab.activity') }).click();
+    await page.getByTitle(msg('logs.clear.activity')).click();
+    await expect(dashboard.logOutput).toContainText(msg('logs.empty.activity'));
     expect(worker.callsTo('DELETE', `/api/logs/${DEMO_ID}`)).toHaveLength(1);
   });
 
   test('Logs als ZIP herunterladen', { tag: '@LOG-03' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const download = page.waitForEvent('download');
-    await page.getByTitle('Download log file').click();
+    await page.getByTitle(msg('logs.download')).click();
     expect((await download).suggestedFilename()).toBe(`MT5_Logs_and_Configs_${DEMO_ID}.zip`);
-    await expect(dashboard.logOutput).toContainText('Log archive downloaded');
+    await expect(dashboard.logOutput).toContainText(msg('logs.download.done', { size: 1 }));
   });
 
   test('Worker-Status: online, offline nach dem nächsten Polling, wieder online', { tag: '@LOG-04' }, async ({ page, worker, dashboard }) => {
     test.slow(); // wartet einen echten 10-s-Polling-Zyklus ab
     await dashboard.open(DEMO_ID);
     const status = page.getByTestId('worker-status');
-    await expect(status).toContainText('Worker online · updated');
-    await expect(page.getByText(`${DEMO_ID} · refresh 10s`)).toBeVisible();
+    await expect(status).toContainText(msg('logs.status.onlineUpdated', { time: '' }).trim());
+    await expect(page.getByText(`${DEMO_ID} · ${msg('logs.refreshEvery', { seconds: 10 })}`)).toBeVisible();
 
     worker.offline = true;
-    await expect(status).toHaveText('Worker offline', { timeout: 15_000 });
-    await expect(page.getByText('worker not reachable (VPS or ngrok offline?)').first()).toBeVisible();
+    await expect(status).toHaveText(msg('logs.status.offline'), { timeout: 15_000 });
+    await expect(page.getByText(msg('error.unreachable')).first()).toBeVisible();
 
     worker.offline = false;
     await dashboard.refreshLogs();
-    await expect(status).toContainText('Worker online');
-    await expect(dashboard.logOutput).toContainText('Connection to worker restored.');
+    await expect(status).toContainText(msg('logs.status.online'));
+    await expect(dashboard.logOutput).toContainText(msg('logs.restored'));
   });
 });
 
@@ -79,14 +80,14 @@ test.describe('UI Oberfläche', () => {
   test('Navigation und Version', { tag: '@UI-01' }, async ({ page }) => {
     await page.goto('/');
     const nav = page.getByRole('navigation');
-    await expect(nav.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).toHaveAttribute('aria-current', 'page');
 
-    await nav.getByRole('link', { name: 'Formasyon' }).click();
+    await nav.getByRole('link', { name: msg('nav.formation') }).click();
     await expect(page).toHaveURL(/\/formasyon$/);
-    await expect(page.getByRole('heading', { name: 'Formasyon Grafiği' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Formasyon' })).toHaveAttribute('aria-current', 'page');
-    await expect(nav.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current', 'page');
-    await expect(nav.getByRole('link', { name: 'VPS' })).toHaveAttribute('href', '/vps');
+    await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
+    await expect(nav.getByRole('link', { name: msg('nav.formation') })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).not.toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: msg('nav.vps') })).toHaveAttribute('href', '/vps');
 
     const version = readFileSync(path.join(__dirname, '../../../VERSION'), 'utf-8').trim();
     await expect(nav).toContainText(version);
@@ -102,24 +103,24 @@ test.describe('UI Oberfläche', () => {
     });
     const html = page.locator('html');
     const darkAtLoad = () => page.evaluate(() => (window as unknown as { __darkAtLoad: boolean }).__darkAtLoad);
-    const theme = page.getByRole('radiogroup', { name: 'Tema' });
+    const theme = page.getByRole('radiogroup', { name: msg('common.theme') });
 
     await page.goto('/');
     await expect(html).toHaveClass(/\bdark\b/); // Standard: dunkel
-    await theme.getByRole('radio', { name: 'Açık' }).click();
+    await theme.getByRole('radio', { name: msg('bot.market.open') }).click();
     await expect(html).not.toHaveClass(/\bdark\b/);
 
     await page.reload();
     expect(await darkAtLoad()).toBe(false);
-    await expect(theme.getByRole('radio', { name: 'Açık' })).toHaveAttribute('aria-checked', 'true');
+    await expect(theme.getByRole('radio', { name: msg('bot.market.open') })).toHaveAttribute('aria-checked', 'true');
 
-    await theme.getByRole('radio', { name: 'Koyu' }).click();
+    await theme.getByRole('radio', { name: msg('common.theme.dark') }).click();
     await page.reload();
     expect(await darkAtLoad()).toBe(true);
 
     // System folgt dem Betriebssystem, auch bei Wechsel zur Laufzeit
     await page.emulateMedia({ colorScheme: 'light' });
-    await theme.getByRole('radio', { name: 'Sistem' }).click();
+    await theme.getByRole('radio', { name: msg('common.theme.system') }).click();
     await expect(html).not.toHaveClass(/\bdark\b/);
     await page.emulateMedia({ colorScheme: 'dark' });
     await expect(html).toHaveClass(/\bdark\b/);
@@ -131,7 +132,7 @@ test.describe('UI Oberfläche', () => {
     test('Header scrollt nicht horizontal', { tag: '@UI-01' }, async ({ page }) => {
       await page.goto('/');
       const nav = page.getByRole('navigation');
-      await expect(nav.getByRole('link', { name: 'VPS' })).toBeVisible();
+      await expect(nav.getByRole('link', { name: msg('nav.vps') })).toBeVisible();
       const { scrollWidth, clientWidth } = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
@@ -145,7 +146,7 @@ test.describe('UI Oberfläche', () => {
     test('Theme-Zyklus-Button statt Radiogroup', { tag: '@UI-02' }, async ({ page }) => {
       await page.goto('/');
       const html = page.locator('html');
-      await expect(page.getByRole('radiogroup', { name: 'Tema' })).toBeHidden();
+      await expect(page.getByRole('radiogroup', { name: msg('common.theme') })).toBeHidden();
       const cycle = page.getByRole('button', { name: /^Tema: / });
 
       await expect(cycle).toHaveAccessibleName(/^Tema: Koyu/);
@@ -183,7 +184,7 @@ test.describe('UI Oberfläche', () => {
 
   test('Zonen-Test-Link öffnet /chart mit der Zone', { tag: '@UI-04' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await dashboard.zone().getByRole('link', { name: 'Test' }).click();
+    await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
     await expect(page).toHaveURL(`/chart?zone=${ZONE_ID}`);
     await expect(page.getByText('Bölge 1 · USOUSD')).toBeVisible();
     await expect(page.getByText('90 – 110')).toBeVisible();
@@ -191,13 +192,13 @@ test.describe('UI Oberfläche', () => {
     // Stream zeigt ein anderes Symbol → Hinweis, keine Zonenlinien
     await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
     worker.pushMetrics({ price: 1950, symbol: 'XAUUSD' });
-    await expect(page.getByRole('alert').filter({ hasText: 'Farklı sembol' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: msg('chart.zone.mismatch.title') })).toBeVisible();
   });
 
   test('Unbekannte Zone auf /chart', { tag: '@UI-04' }, async ({ page }) => {
     await page.goto('/chart?zone=gibt-es-nicht');
-    await expect(page.getByRole('alert').filter({ hasText: 'Bölge bulunamadı' })).toContainText(
-      "önce Dashboard'da hesabı seçin",
+    await expect(page.getByRole('alert').filter({ hasText: msg('chart.zone.notFound') })).toContainText(
+      msg('chart.zone.notFound.noAccount'),
     );
   });
 });

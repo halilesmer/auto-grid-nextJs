@@ -7,6 +7,7 @@ import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useT } from '@/i18n';
 
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useZoneDirtyTracking } from '@/hooks/useZoneDirtyTracking';
@@ -30,6 +31,7 @@ export default function ZoneSettingsPanel({
   liveData,
   isGlobalDirty,
 }: ZoneSettingsPanelProps) {
+  const t = useT();
   const settings = useSettingsStore((s) => s.settings);
   const setZones = useSettingsStore((s) => s.setZones);
   const isLoadingSymbols = useSettingsStore((s) => s.isLoadingSymbols);
@@ -67,7 +69,7 @@ export default function ZoneSettingsPanel({
       <div className="space-y-6">
         <div className="flex items-center justify-center py-16">
           <Loader2 className="size-5 animate-spin text-primary" />
-          <span className="ml-3 text-sm text-muted-foreground">Semboller yükleniyor...</span>
+          <span className="ml-3 text-sm text-muted-foreground">{t('zone.panel.loadingSymbols')}</span>
         </div>
       </div>
     );
@@ -82,22 +84,22 @@ export default function ZoneSettingsPanel({
           </div>
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
-              Dinamik Bölgeler
+              {t('zone.panel.title')}
               <Badge tone="neutral" data-testid="zone-count">{zones.length}</Badge>
             </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">Fiyat aralığı başına grid kuralları</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('zone.panel.subtitle')}</p>
           </div>
         </div>
         <Button variant="primary" size="sm" onClick={addZone} disabled={disableActionButtons}>
           <Plus size={14} />
-          Bölge Ekle
+          {t('zone.panel.add')}
         </Button>
       </div>
 
       {(error || liveData.last_error) && (
         <Alert
           tone="danger"
-          title={liveData.last_error ? 'MT5 Terminal / Bağlantı Hatası' : undefined}
+          title={liveData.last_error ? t('zone.panel.terminalError') : undefined}
           onDismiss={() => {
             setError('');
             if (liveData.last_error)
@@ -111,8 +113,8 @@ export default function ZoneSettingsPanel({
       {zones.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-14 text-center">
           <Layers3 size={22} className="mb-3 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">Henüz bölge yok</p>
-          <p className="mt-1 text-xs text-muted-foreground">İlk grid bölgesini eklemek için &quot;Bölge Ekle&quot;ye tıklayın.</p>
+          <p className="text-sm font-medium text-foreground">{t('zone.panel.empty.title')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('zone.panel.empty.text')}</p>
         </div>
       )}
 
@@ -145,8 +147,8 @@ export default function ZoneSettingsPanel({
         open={deleteZoneId !== null}
         onClose={() => setDeleteZoneId(null)}
         onConfirm={handleRemoveZoneConfirmed}
-        title="Bölge Sil"
-        message="Bu bölgeyi silmek istediğinizden emin misiniz?"
+        title={t('zone.delete.title')}
+        message={t('zone.delete.message')}
         variant="danger"
       />
     </div>

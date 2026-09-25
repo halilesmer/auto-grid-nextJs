@@ -18,6 +18,7 @@
  * E2E_LIVE_BOT_RESTART=1.
  */
 import { LiveWorker, expect, test, type LiveZone } from './live';
+import { msg } from '../fixtures/i18n';
 
 const DEMO_ENABLED = process.env.E2E_LIVE_DEMO === '1';
 const RESTART_ENABLED = process.env.E2E_LIVE_BOT_RESTART === '1';
@@ -156,22 +157,22 @@ test.describe('Live-Handel (DEMO)', () => {
     expect(logs.robot_log.join('\n')).toContain(`Bölge ${testIdx + 1}`);
 
     await dashboard.open(account.id);
-    await expect(dashboard.zone(testIdx).getByRole('button', { name: 'Başladı' })).toBeVisible();
+    await expect(dashboard.zone(testIdx).getByRole('button', { name: msg('zone.header.started') })).toBeVisible();
   });
 
   test('Pause/Start der Testzone über die Oberfläche', { tag: '@ZON-08' }, async ({ api, account, dashboard }) => {
     test.skip(!snapshot || testIdx < 0, 'Testzone fehlt');
     await dashboard.open(account.id);
     const zone = dashboard.zone(testIdx);
-    await zone.getByRole('button', { name: 'Başladı' }).click();
-    await expect(zone.getByRole('button', { name: 'Başla', exact: true })).toBeVisible();
+    await zone.getByRole('button', { name: msg('zone.header.started') }).click();
+    await expect(zone.getByRole('button', { name: msg('zone.header.start'), exact: true })).toBeVisible();
     await waitFor(() => api.uiStates(account.id), (s) => s[String(testIdx)] === 'PAUSE', 20_000, 'PAUSE im ui-state');
     // Bestehende Zonen bleiben unverändert gestartet
     const states = await api.uiStates(account.id);
     snapshot!.zones.forEach((_, i) => expect(states[String(i)]).not.toBe('CLEAR'));
 
-    await zone.getByRole('button', { name: 'Başla', exact: true }).click();
-    await expect(zone.getByRole('button', { name: 'Başladı' })).toBeVisible();
+    await zone.getByRole('button', { name: msg('zone.header.start'), exact: true }).click();
+    await expect(zone.getByRole('button', { name: msg('zone.header.started') })).toBeVisible();
     await waitFor(() => api.uiStates(account.id), (s) => s[String(testIdx)] === 'START', 20_000, 'START im ui-state');
   });
 
@@ -192,7 +193,7 @@ test.describe('Live-Handel (DEMO)', () => {
       'AUTO_CLEAR der Testzone',
     );
     await dashboard.open(account.id);
-    await expect(dashboard.zone(testIdx).getByText('Otomatik temizlendi')).toBeVisible();
+    await expect(dashboard.zone(testIdx).getByText(msg('zone.stop.autoClear.label'))).toBeVisible();
     // Die bestehenden Zonen laufen weiter
     const after = await api.botStatus(account.id);
     snapshot!.zones.forEach((_, i) => expect(after.metrics.zone_states?.[String(i)]).not.toMatch(/CLEAR|PAUSE/));
@@ -211,15 +212,15 @@ test.describe('Live Bot Stop/Start (DEMO)', () => {
     try {
       await dashboard.open(account.id);
       const controls = page.getByTestId('bot-controls');
-      await controls.getByRole('button', { name: 'Stop Bot' }).click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
+      await controls.getByRole('button', { name: msg('bot.stop') }).click();
+      await page.getByRole('dialog').getByRole('button', { name: msg('bot.disconnect.confirm') }).click();
       await waitFor(() => api.botStatus(account.id), (s) => !s.bot_running, 60_000, 'Bot gestoppt');
       await dashboard.refreshLogs();
-      await expect(dashboard.botStatus).toHaveText('Stopped');
+      await expect(dashboard.botStatus).toHaveText(msg('bot.status.stopped'));
 
-      await controls.getByRole('button', { name: 'Start Bot' }).click();
-      await expect(dashboard.botStatus).toHaveText('Running', { timeout: 180_000 });
-      await expect(controls).toContainText(/Market (Open|Closed)/);
+      await controls.getByRole('button', { name: msg('bot.start') }).click();
+      await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'), { timeout: 180_000 });
+      await expect(controls).toContainText(new RegExp(`${msg('bot.market')} (${msg('bot.market.open')}|${msg('bot.market.closed')})`));
       // Positionen bleiben beim Broker (Stop schließt nichts); TP kann zwischendurch Positionen schließen
       const after = await api.botStatus(account.id);
       if (positionsBefore > 0) expect(Number(after.metrics.open_positions ?? 0)).toBeGreaterThan(0);

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useT } from '@/i18n';
 
 interface SaveSettingsBarProps {
   isDirty: boolean;
@@ -17,6 +18,7 @@ export default function SaveSettingsBar({
   hasSettings,
   onSave,
 }: SaveSettingsBarProps) {
+  const t = useT();
   const disabled = isLoading || !hasSettings || !isDirty;
 
   return (
@@ -30,7 +32,7 @@ export default function SaveSettingsBar({
         className="relative"
       >
         {!isLoading && (isDirty ? <Save size={15} /> : <Check size={15} />)}
-        {isLoading ? 'Kaydediliyor...' : isDirty ? 'Tüm Ayarları Kaydet' : 'Kaydedildi'}
+        {isLoading ? t('common.saving') : isDirty ? t('saveBar.saveAll') : t('common.saved')}
         {isDirty && !isLoading && (
           <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-background bg-warning" />
         )}
@@ -50,11 +52,11 @@ export default function SaveSettingsBar({
             <div className="flex items-center gap-4 rounded-xl border border-border bg-popover/90 py-2 pl-4 pr-2 shadow-2xl shadow-black/15 dark:shadow-black/60 backdrop-blur-xl">
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="size-2 rounded-full bg-warning" />
-                Kaydedilmemiş değişiklikler var
+                {t('saveBar.unsaved')}
               </span>
               <Button variant="primary" size="sm" onClick={onSave} loading={isLoading} disabled={disabled}>
                 {!isLoading && <Save size={14} />}
-                Kaydet
+                {t('common.save')}
               </Button>
             </div>
           </motion.div>
