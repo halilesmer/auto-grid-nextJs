@@ -206,7 +206,10 @@ export default function LogViewer() {
           onChange={(id) => setTab(id as Tab)}
           layoutId="log-viewer-tabs"
           variant="underline"
-          className="border-b-0"
+          // Schmal (Mobil): Leiste scrollt selbst, statt vom overflow-hidden der Karte abgeschnitten zu werden.
+          // Der Innenabstand (mit gleich großem negativem Außenabstand, Layout bleibt gleich) lässt Fokusring
+          // und Unterstrich des Tabs unbeschnitten.
+          className="-mx-1 -mt-1 -mb-1 max-w-full overflow-x-auto overscroll-x-contain border-b-0 px-1 pt-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
         <div className="flex items-center gap-0.5 pb-1.5">
           <Button variant="ghost" size="icon-sm" onClick={fetchLogs} hint={t("logs.refresh.hint")} aria-label={t("logs.refresh")}>

@@ -901,11 +901,12 @@ kategorien:
 
       - id: UI-08
         titel: Mobil (375 px) ohne horizontalen Überlauf
-        beschreibung: Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Ab Tablet-Breite bleibt das Layout unverändert.
-        code: [frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx]
+        beschreibung: Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Ab Tablet-Breite bleibt das Layout unverändert.
+        code: [frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/components/LogViewer.tsx, frontend_nextjs/src/components/ui/animated-tabs.tsx]
         tiers: [e2e]
         pruefung:
           - Dashboard bei 375 px Breite öffnen (Entwicklertools, Geräteleiste) und ein Konto mit Zone wählen.
           - Sprache auf DE stellen und in der Zone einen Wert ändern.
           - /formasyon, /vps und /chart bei 375 px ansehen.
-        erwartet: Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile.
+          - Im Log-Viewer unter dem Zonenbereich die Tab-Leiste nach links wischen und den dritten Tab („MT5 Terminal“) antippen.
+        erwartet: Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile. Die Tab-Leiste des Log-Viewers lässt sich wischen, jeder Tab ist erreichbar und nach dem Antippen ganz sichtbar.
