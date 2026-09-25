@@ -125,6 +125,40 @@ test.describe('UI Oberfläche', () => {
     await expect(html).toHaveClass(/\bdark\b/);
   });
 
+  test.describe('Mobil (375px)', () => {
+    test.use({ viewport: { width: 375, height: 812 } });
+
+    test('Header scrollt nicht horizontal', { tag: '@UI-01' }, async ({ page }) => {
+      await page.goto('/');
+      const nav = page.getByRole('navigation');
+      await expect(nav.getByRole('link', { name: 'VPS' })).toBeVisible();
+      const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+      // Logo-Text bleibt einzeilig
+      const logo = await nav.getByText('Grid Robot', { exact: true }).boundingBox();
+      expect(logo!.height).toBeLessThan(24);
+    });
+
+    test('Theme-Zyklus-Button statt Radiogroup', { tag: '@UI-02' }, async ({ page }) => {
+      await page.goto('/');
+      const html = page.locator('html');
+      await expect(page.getByRole('radiogroup', { name: 'Tema' })).toBeHidden();
+      const cycle = page.getByRole('button', { name: /^Tema: / });
+
+      await expect(cycle).toHaveAccessibleName(/^Tema: Koyu/);
+      await cycle.click();
+      await expect(cycle).toHaveAccessibleName(/^Tema: Sistem/);
+      await cycle.click();
+      await expect(cycle).toHaveAccessibleName(/^Tema: Açık/);
+      await expect(html).not.toHaveClass(/\bdark\b/);
+      await page.reload();
+      await expect(cycle).toHaveAccessibleName(/^Tema: Açık/);
+    });
+  });
+
   test.describe('PWA', () => {
     test.use({ serviceWorkers: 'allow' });
 

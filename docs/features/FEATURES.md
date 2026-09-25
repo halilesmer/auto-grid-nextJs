@@ -416,21 +416,21 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 12. UI – Oberfläche
 
-- [x] **UI-01** Navigation — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
-  - Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung.
-  - **Prüfung:** Zwischen Dashboard und Formasyon wechseln.
-  - **Erwartet:** Aktiver Link ist markiert, Version entspricht VERSION.
+- [x] **UI-01** Navigation — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+  - Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung. Auf Mobil (375px) kompakter, ohne horizontales Scrollen.
+  - **Prüfung:** Zwischen Dashboard und Formasyon wechseln. → Bei 375px Breite öffnen.
+  - **Erwartet:** Aktiver Link ist markiert, Version entspricht VERSION. Bei 375px kein horizontales Scrollen, „Grid Robot“ bricht nicht um.
   - 📝 Claude: Dashboard ↔ Formasyon, Markierung wandert mit, Version v0.7.58 = VERSION
-- [x] **UI-02** Theme hell / dunkel / System — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
-  - Umschalter „Açık / Koyu / Sistem“, gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
+- [x] **UI-02** Theme hell / dunkel / System — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+  - Umschalter „Açık / Koyu / Sistem“ (auf Mobil ein einzelner Button, der der Reihe nach durchschaltet), gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
   - **Prüfung:** Alle drei Varianten wählen und die Seite neu laden.
   - **Erwartet:** Theme bleibt erhalten, kein helles Aufblitzen im Dunkelmodus.
   - 📝 Claude: Açık/Koyu/Sistem setzen Klasse 'dark' + localStorage; 'Açık' übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf 'Sistem'
-- [x] **UI-03** PWA / Service Worker — 🖥️ e2e ✅ 2026-09-24
+- [x] **UI-03** PWA / Service Worker — 🖥️ e2e ✅ 2026-09-25
   - Manifest und Registrierung von /service-worker.js im Layout.
   - **Prüfung:** DevTools → Application → Service Workers.
   - **Erwartet:** Service Worker ist registriert, keine 404 in der Konsole.
-- [x] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
   - Link „Test“ im Zonenkopf öffnet /chart?zone=<id>.
   - **Prüfung:** In einer Zone auf „Test“ klicken.
   - **Erwartet:** Das Chart zeigt die gewählte Zone.

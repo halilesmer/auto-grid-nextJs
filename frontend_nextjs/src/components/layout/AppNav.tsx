@@ -19,20 +19,20 @@ export default function AppNav() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/75 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-6 px-4 md:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
+      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 sm:gap-6 md:px-8">
+        <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]">
             <Grid3x3 size={16} strokeWidth={2.5} />
           </span>
           <span className="flex flex-col leading-none">
-            <span className="text-sm font-semibold tracking-tight text-foreground">Grid Robot</span>
+            <span className="whitespace-nowrap text-sm font-semibold tracking-tight text-foreground">Grid Robot</span>
             <span className="mt-0.5 font-mono text-[10px] text-muted-foreground">{VERSION}</span>
           </span>
         </Link>
 
-        <div className="h-6 w-px bg-border" />
+        <div className="h-6 w-px shrink-0 bg-border" />
 
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
           {LINKS.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
             return (
@@ -42,7 +42,7 @@ export default function AppNav() {
                 aria-current={active ? 'page' : undefined}
                 aria-label={label}
                 className={cn(
-                  'relative flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  'relative flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm sm:px-3 font-medium transition-colors',
                   active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -60,7 +60,7 @@ export default function AppNav() {
           })}
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto shrink-0">
           <ThemeToggle />
         </div>
       </div>

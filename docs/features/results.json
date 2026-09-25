@@ -530,28 +530,28 @@
   },
   "UI-01": {
     "e2e": {
-      "datum": "2026-09-24",
+      "datum": "2026-09-25",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     }
   },
   "UI-02": {
     "e2e": {
-      "datum": "2026-09-24",
+      "datum": "2026-09-25",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     }
   },
   "UI-03": {
     "e2e": {
-      "datum": "2026-09-24",
+      "datum": "2026-09-25",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-04": {
     "e2e": {
-      "datum": "2026-09-24",
+      "datum": "2026-09-25",
       "status": "passed",
       "tests": 2
     }

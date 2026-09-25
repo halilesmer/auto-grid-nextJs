@@ -16,39 +16,57 @@ export default function ThemeToggle() {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
 
+  // Mobilde tek buton: tıklayınca sıradaki temaya geçer (Açık → Koyu → Sistem)
+  const currentIndex = Math.max(0, OPTIONS.findIndex((o) => o.value === theme));
+  const current = OPTIONS[currentIndex];
+  const next = OPTIONS[(currentIndex + 1) % OPTIONS.length];
+  const CurrentIcon = current.icon;
+
   return (
-    <div
-      role="radiogroup"
-      aria-label="Tema"
-      className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5"
-    >
-      {OPTIONS.map(({ value, label, icon: Icon }) => {
-        const active = theme === value;
-        return (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            aria-label={label}
-            title={label}
-            onClick={() => setTheme(value)}
-            className={cn(
-              'relative flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors',
-              active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {active && (
-              <motion.span
-                layoutId="theme-toggle-active"
-                className="absolute inset-0 rounded-md border border-border bg-card shadow-sm"
-                transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
-              />
-            )}
-            <Icon size={14} className="relative z-10" />
-          </button>
-        );
-      })}
-    </div>
+    <>
+      <button
+        type="button"
+        aria-label={`Tema: ${current.label} (sonraki: ${next.label})`}
+        title={`Tema: ${current.label}`}
+        onClick={() => setTheme(next.value)}
+        className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-muted/50 text-foreground transition-colors hover:bg-muted sm:hidden"
+      >
+        <CurrentIcon size={14} />
+      </button>
+
+      <div
+        role="radiogroup"
+        aria-label="Tema"
+        className="hidden items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5 sm:flex"
+      >
+        {OPTIONS.map(({ value, label, icon: Icon }) => {
+          const active = theme === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={label}
+              title={label}
+              onClick={() => setTheme(value)}
+              className={cn(
+                'relative flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors',
+                active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {active && (
+                <motion.span
+                  layoutId="theme-toggle-active"
+                  className="absolute inset-0 rounded-md border border-border bg-card shadow-sm"
+                  transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
+                />
+              )}
+              <Icon size={14} className="relative z-10" />
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
