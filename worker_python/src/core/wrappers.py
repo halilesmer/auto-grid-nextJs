@@ -88,18 +88,16 @@ def check_remote_commands_wrapper():
     global state
     found, state.remote_paused, reset_zone = check_remote_commands(mt5, state.remote_paused, state.zones)
     if reset_zone:
-        state.active_zone = None
-        state.active_zone_idx = None
+        state.active_zones.clear()
     return found
 
 
 def manage_dynamic_grid():
     global state
-    ok, state.active_zone, state.active_zone_idx = _manage_dynamic_grid(
+    ok, state.active_zones = _manage_dynamic_grid(
         mt5,
         state.zones,
-        state.active_zone,
-        state.active_zone_idx,
+        state.active_zones,
         state.remote_paused,
         state.symbol_infos,
         state.consecutive_errors,

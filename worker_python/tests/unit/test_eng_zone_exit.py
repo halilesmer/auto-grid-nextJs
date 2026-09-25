@@ -10,7 +10,7 @@ def _enter_then_exit(m, zone, exit_bid):
     """Tick 1 im Bereich (Orders werden gesetzt), dann Kurs aus der Zone bewegen und Tick 2."""
     engine = EngineHarness(m, [zone])
     engine.tick()
-    assert engine.active_zone_idx == 0 and m.robot_orders()
+    assert engine.active_zones == {"USOUSD": 0} and m.robot_orders()
     pos = m.add_position("USOUSD", m.POSITION_TYPE_BUY, 96.5, tp=96.6, magic=MAGIC_ZONE_1)
     m.set_price("USOUSD", exit_bid, fill=False)
     engine.tick()

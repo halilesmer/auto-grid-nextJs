@@ -45,12 +45,18 @@ def is_zone_exited(
     )
 
 
-def get_active_zone(mt5, zones):
+def zone_symbol_of(zone: dict) -> str:
+    return str(zone.get("symbol", "")).upper().strip()
+
+
+def get_active_zone(mt5, zones, symbol=None):
+    """Fiyatı içeren ilk aktif bölge. symbol verilirse yalnızca o sembolün bölgeleri
+    aranır (indeksler yine tüm listeye göre)."""
     for i, zone in enumerate(zones):
         if str(zone.get("is_active", True)).lower() == "false":
             continue
-        z_sym = zone.get("symbol", "").upper().strip()
-        if not z_sym:
+        z_sym = zone_symbol_of(zone)
+        if not z_sym or (symbol is not None and z_sym != symbol):
             continue
         bid = get_current_market_price(mt5, z_sym, "SELL")
         ask = get_current_market_price(mt5, z_sym, "BUY")
@@ -90,14 +96,14 @@ def get_active_zone(mt5, zones):
     return None, None
 
 
-def detect_zone_entry(mt5, zones, active_zone, active_zone_idx):
+def detect_zone_entry(mt5, zones, active_zone, active_zone_idx, symbol=None):
     if active_zone is not None:
         return active_zone, active_zone_idx
 
-    new_zone, new_zone_idx = get_active_zone(mt5, zones)
+    new_zone, new_zone_idx = get_active_zone(mt5, zones, symbol)
     if new_zone is not None:
         log_message(
-            f"📍 Yeni Bölgeye Girildi: Bölge {new_zone_idx+1} ({new_zone.get('min_price')}-{new_zone.get('max_price')})"
+            f"📍 Yeni Bölgeye Girildi: Bölge {new_zone_idx+1} {zone_symbol_of(new_zone)} ({new_zone.get('min_price')}-{new_zone.get('max_price')})"
         )
         return new_zone, new_zone_idx
 
