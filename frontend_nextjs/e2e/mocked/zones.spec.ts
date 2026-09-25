@@ -220,7 +220,7 @@ test.describe('ZON Zonen', () => {
     const badge = dashboard.zone().getByText(msg('zone.header.unsaved'), { exact: true });
     await expect(badge).toBeHidden();
 
-    await dashboard.zoneField(msg('chart.zone.lot')).fill('0.05');
+    await dashboard.zoneField(msg('zone.field.lot')).fill('0.05');
     await expect(badge).toBeVisible();
     await dashboard.saveAllSettings();
     await expect(badge).toBeHidden();
@@ -228,6 +228,30 @@ test.describe('ZON Zonen', () => {
     await page.getByRole('button', { name: msg('zone.panel.add') }).click();
     await expect(dashboard.zone(1).getByText(msg('zone.header.unsaved'), { exact: true })).toBeVisible();
   });
+  test('Einzelne Zone speichern', { tag: '@ZON-11' }, async ({ page, worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    await dashboard.zoneField(msg('zone.field.lot')).fill('0.05');
+    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
+    const first = dashboard.zone(0);
+    const second = dashboard.zone(1);
+    const badge = (zone: typeof first) => zone.getByText(msg('zone.header.unsaved'), { exact: true });
+    await expect(first.getByTestId('zone-save')).toBeEnabled();
+
+    // Nur die neue Zone speichern: Zone 1 und der globale Zustand bleiben ungespeichert
+    await second.getByTestId('zone-save').click();
+    await expect(badge(second)).toBeHidden();
+    await expect(second.getByTestId('zone-save')).toBeDisabled();
+    expect(worker.zonesOf(DEMO_ID)).toHaveLength(2);
+    expect(worker.zonesOf(DEMO_ID)[0]).not.toMatchObject({ lot_size: 0.05 });
+    await expect(badge(first)).toBeVisible();
+    await expect(dashboard.saveAll).toHaveText(msg('saveBar.saveAll'));
+
+    await first.getByTestId('zone-save').click();
+    await expect(badge(first)).toBeHidden();
+    await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ lot_size: 0.05 });
+  });
+
   test('Zahlenfelder lassen sich leeren und neu tippen', { tag: '@ZON-10' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
     const min = dashboard.zoneField(msg('zone.field.minPrice'));

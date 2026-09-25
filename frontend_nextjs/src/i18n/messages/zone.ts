@@ -89,6 +89,9 @@ export default defineArea(
       'Hatalı Sembol! Girdiğiniz sembol broker tarafından desteklenmiyor. Lütfen geçerli bir sembol girin.',
     'zone.alert.notSaved': 'Bu bölge henüz kaydedilmemiş! Lütfen önce ‘Tüm Ayarları Kaydet’ butonuna basın.',
     'zone.alert.toggleFailed': 'Bölge durumu kaydedilemedi!',
+    'zone.header.saveOnly': 'Sadece bu bölgeyi kaydet',
+    'zone.saved.text': '{symbol} bölgesi kaydedildi.',
+    'zone.saveFailed': 'Bölge kaydedilemedi',
     'zone.alert.restartFailed': 'Bölge yeniden başlatılamadı!',
   },
   {
@@ -179,6 +182,9 @@ export default defineArea(
       'Invalid symbol! The symbol you entered is not supported by the broker. Please enter a valid symbol.',
     'zone.alert.notSaved': 'This zone has not been saved yet! Please click ‘Save All Settings’ first.',
     'zone.alert.toggleFailed': 'Could not save the zone status!',
+    'zone.header.saveOnly': 'Save only this zone',
+    'zone.saved.text': 'Zone {symbol} saved.',
+    'zone.saveFailed': 'Could not save zone',
     'zone.alert.restartFailed': 'Could not restart the zone!',
   },
   {
@@ -269,6 +275,9 @@ export default defineArea(
       'Ungültiges Symbol! Das eingegebene Symbol wird vom Broker nicht unterstützt. Bitte gib ein gültiges Symbol ein.',
     'zone.alert.notSaved': 'Diese Zone wurde noch nicht gespeichert! Bitte klicke zuerst auf „Alle Einstellungen speichern“.',
     'zone.alert.toggleFailed': 'Zonenstatus konnte nicht gespeichert werden!',
+    'zone.header.saveOnly': 'Nur diese Zone speichern',
+    'zone.saved.text': 'Zone {symbol} gespeichert.',
+    'zone.saveFailed': 'Zone konnte nicht gespeichert werden',
     'zone.alert.restartFailed': 'Zone konnte nicht neu gestartet werden!',
   },
 );

@@ -38,6 +38,8 @@ export interface ZoneHeaderProps {
   onToggleActive: (zoneId: string, currentActive: boolean) => void;
   onRestart: (zoneId: string) => void;
   onDelete: () => void;
+  onSave: () => void;
+  saving: boolean;
 }
 
 export interface ZoneBasicFieldsProps {
@@ -91,6 +93,9 @@ export interface ZoneCardProps {
   onToggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
   onRestart: (zoneId: string) => Promise<void>;
   onDelete: () => void;
+  /** Sadece bu bölgeyi kaydeder */
+  onSave: (zoneId: string) => Promise<void>;
+  saving: boolean;
   /** Bölgenin sırası (motor bölgeleri kayıtlı sıraya göre numaralar) */
   zoneIndex: number;
   liveData: LiveData;

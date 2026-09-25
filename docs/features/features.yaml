@@ -362,6 +362,16 @@ kategorien:
           - Ein Zahlenfeld mit Rücktaste komplett leeren, dann neu tippen (z. B. 0.05) und das Feld verlassen.
         erwartet: Feld bleibt beim Löschen leer, Zwischenstände wie „0.“ bleiben erhalten, nach dem Verlassen steht der gespeicherte Wert (leer → 0).
 
+      - id: ZON-11
+        titel: Einzelne Zone speichern
+        beschreibung: Jede Zonenkarte hat einen eigenen „Kaydet“-Button, der nur diese Zone im Worker ersetzt (neue Zone wird angehängt). Andere Zonen und Einstellungen mit ungespeicherten Änderungen bleiben ungespeichert; „Tüm Ayarları Kaydet“ (neben „Bölge Ekle“) speichert weiterhin alles.
+        code: [frontend_nextjs/src/hooks/useZoneActions.ts, frontend_nextjs/src/services/zoneApi.ts, frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/app/hooks/useDashboard.ts]
+        tiers: [e2e]
+        pruefung:
+          - Zone 1 ändern, Zone hinzufügen, nur bei der neuen Zone „Kaydet“ klicken.
+          - Danach bei Zone 1 „Kaydet“ klicken.
+        erwartet: Nach dem ersten Klick liegt die neue Zone im Worker, Zone 1 trägt weiter „Kaydedilmedi“ und „Tüm Ayarları Kaydet“ bleibt aktiv; nach dem zweiten Klick sind Badge und Dirty-Zustand weg.
+
   # ---------------------------------------------------------------------------
   - id: BOT
     titel: Bot-Steuerung

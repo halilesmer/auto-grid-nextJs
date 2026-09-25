@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-25 · **79/86** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-25 · **80/87** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -18,7 +18,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 10/10 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 11/11 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -200,6 +200,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Zahlenfelder der Zone (Preis, Grid, Lot, KA/ZD, Pullback, Seviyeler) halten einen lokalen Text-Entwurf; die letzte Ziffer lässt sich löschen, erst beim Verlassen des Feldes erscheint wieder der echte Wert.
   - **Prüfung:** Ein Zahlenfeld mit Rücktaste komplett leeren, dann neu tippen (z. B. 0.05) und das Feld verlassen.
   - **Erwartet:** Feld bleibt beim Löschen leer, Zwischenstände wie „0.“ bleiben erhalten, nach dem Verlassen steht der gespeicherte Wert (leer → 0).
+- [x] **ZON-11** Einzelne Zone speichern — 🖥️ e2e ✅ 2026-09-25
+  - Jede Zonenkarte hat einen eigenen „Kaydet“-Button, der nur diese Zone im Worker ersetzt (neue Zone wird angehängt). Andere Zonen und Einstellungen mit ungespeicherten Änderungen bleiben ungespeichert; „Tüm Ayarları Kaydet“ (neben „Bölge Ekle“) speichert weiterhin alles.
+  - **Prüfung:** Zone 1 ändern, Zone hinzufügen, nur bei der neuen Zone „Kaydet“ klicken. → Danach bei Zone 1 „Kaydet“ klicken.
+  - **Erwartet:** Nach dem ersten Klick liegt die neue Zone im Worker, Zone 1 trägt weiter „Kaydedilmedi“ und „Tüm Ayarları Kaydet“ bleibt aktiv; nach dem zweiten Klick sind Badge und Dirty-Zustand weg.
 
 ## 6. BOT – Bot-Steuerung
 

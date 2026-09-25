@@ -43,6 +43,7 @@ export default function Home() {
     isDirty,
     isLive,
     handleSaveAll,
+    markZoneSaved,
     handleShutdown,
     handleCheckUpdates,
     handleApplyUpdate,
@@ -85,15 +86,6 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2">
-          {selectedAccount && (
-            <SaveSettingsBar
-              isDirty={isDirty}
-              isLoading={saveAllLoading}
-              hasSettings={!!settings}
-              onSave={handleSaveAll}
-            />
-          )}
-
           <div className="relative" ref={sysMenuRef}>
             <Button
               variant="outline"
@@ -182,6 +174,15 @@ export default function Home() {
                   isRunning={isRunning}
                   liveData={liveData}
                   isGlobalDirty={isDirty}
+                  onZoneSaved={markZoneSaved}
+                  saveAction={
+                    <SaveSettingsBar
+                      isDirty={isDirty}
+                      isLoading={saveAllLoading}
+                      hasSettings={!!settings}
+                      onSave={handleSaveAll}
+                    />
+                  }
                 />
               </Card>
               <LogViewer />

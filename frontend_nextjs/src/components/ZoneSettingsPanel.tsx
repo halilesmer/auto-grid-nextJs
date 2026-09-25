@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useSettingsStore, useBotRuntimeStore } from '@/store';
 import { Plus, Loader2, Layers3 } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
@@ -23,6 +23,10 @@ interface ZoneSettingsPanelProps {
   isRunning: boolean;
   liveData: ReturnType<typeof useBotRuntimeStore.getState>['liveData'];
   isGlobalDirty?: boolean;
+  /** Steht im Kopf links neben „Bölge Ekle“ (z. B. „Tüm Ayarları Kaydet“). */
+  saveAction?: ReactNode;
+  /** Tek bir bölge kaydedilince çağrılır (global dirty referansını günceller). */
+  onZoneSaved?: (zone: ZoneSettings) => void;
 }
 
 export default function ZoneSettingsPanel({
@@ -30,6 +34,8 @@ export default function ZoneSettingsPanel({
   isRunning,
   liveData,
   isGlobalDirty,
+  saveAction,
+  onZoneSaved,
 }: ZoneSettingsPanelProps) {
   const t = useT();
   const settings = useSettingsStore((s) => s.settings);
@@ -44,8 +50,24 @@ export default function ZoneSettingsPanel({
   const zones = settings?.ZONES ?? EMPTY_ZONES;
 
   const symbolDetails = useSymbolDetails(selectedAccount);
-  const { modified } = useZoneDirtyTracking(zones, isGlobalDirty, selectedAccount);
-  const { toggleActive, restartZone, addZone, deleteZone, updateZone } = useZoneActions(selectedAccount, setZones);
+  const { modified, setOriginalZones } = useZoneDirtyTracking(zones, isGlobalDirty, selectedAccount);
+
+  const handleZoneSaved = useCallback(
+    (zone: ZoneSettings) => {
+      const saved = { ...zone };
+      setOriginalZones((prev) =>
+        prev.some((z) => z.id === saved.id) ? prev.map((z) => (z.id === saved.id ? saved : z)) : [...prev, saved]
+      );
+      onZoneSaved?.(zone);
+    },
+    [setOriginalZones, onZoneSaved]
+  );
+
+  const { toggleActive, restartZone, saveZone, savingZoneId, addZone, deleteZone, updateZone } = useZoneActions(
+    selectedAccount,
+    setZones,
+    handleZoneSaved
+  );
   const { handleChange, handleBlur, syncZonePrecision, validateSymbol } = useZoneFieldHandlers(symbolDetails);
 
   const handleDeleteZone = (zoneId: string) => {
@@ -90,10 +112,13 @@ export default function ZoneSettingsPanel({
             <p className="mt-0.5 text-xs text-muted-foreground">{t('zone.panel.subtitle')}</p>
           </div>
         </div>
-        <Button variant="primary" size="sm" onClick={addZone} disabled={disableActionButtons}>
-          <Plus size={14} />
-          {t('zone.panel.add')}
-        </Button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {saveAction}
+          <Button variant="primary" size="sm" onClick={addZone} disabled={disableActionButtons}>
+            <Plus size={14} />
+            {t('zone.panel.add')}
+          </Button>
+        </div>
       </div>
 
       {(error || liveData.last_error) && (
@@ -131,6 +156,8 @@ export default function ZoneSettingsPanel({
             onToggleActive={toggleActive}
             onRestart={restartZone}
             onDelete={() => handleDeleteZone(zone.id)}
+            onSave={saveZone}
+            saving={savingZoneId === zone.id}
             zoneIndex={index}
             liveData={liveData}
             isRunning={isRunning}
