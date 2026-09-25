@@ -3,6 +3,8 @@ import os
 import sys
 import threading
 
+from src.utils.elevation import ELEVATED_HINT, is_elevated
+
 
 def get_project_root():
     """Projenin ana klasör yolunu güvenli bir şekilde döndürür."""
@@ -160,7 +162,12 @@ def execute_git_pull(branch="main"):
     Başarısız olursa çalışma alanını pull öncesi haline döndürür.
     requirements.txt değiştiyse bağımlılıkları da kurar; pip başarısızsa False döner
     (yeniden başlatma yapılmaz, çünkü yeni kod eksik paketle çökerdi).
+    Yönetici haklarıyla çalışan süreçte hiç başlamaz: git dosyaları yöneticiye ait yapar,
+    sonraki normal güncellemeler "Permission denied" ile düşerdi.
     """
+    if is_elevated():
+        return False, f"Güncelleme yapılmadı: {ELEVATED_HINT}"
+
     project_root = get_project_root()
 
     is_git_ok, error_message = ensure_git_repo(branch, project_root)

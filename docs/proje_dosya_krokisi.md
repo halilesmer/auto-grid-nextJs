@@ -174,16 +174,17 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃   ┣ 📜 bot_manager.py       # Süreç yönetimi
 ┃ ┃   ┣ 📜 bot_watchdog.py      # Çöken/asılı botu otomatik yeniden başlatan bekçi; liste data/watched_bots.json (reboot sonrası devam)
 ┃ ┃   ┣ 📜 console_tee.py       # Worker konsolunu logs/worker_console.log'a da yazar (VPS sayfası okur)
+┃ ┃   ┣ 📜 elevation.py         # Worker yönetici (admin) haklarıyla mı? (UAC split token) → açılışta uyarı, git pull yok
 ┃ ┃   ┣ 📜 config.py            # Konfigürasyon okuma/yazma
 ┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
 ┃ ┃   ┣ 📜 mt5_errors.py        # Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi killer (180 sn'den genç terminale dokunmaz), Python kanalı kontrolü ('Python integration' kapalıysa net hata), LIVE/DEMO güvenlik
 ┃ ┃   ┣ 📜 mt5_helpers.py       # İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
 ┃ ┃   ┣ 📜 paths.py             # Yol yönetimi
 ┃ ┃   ┣ 📜 profiler.py          # Performans ölçümü
-┃ ┃   ┣ 📜 self_updater.py      # git pull (+ requirements.txt değiştiyse pip), yeniden başlatma, CLI: python -m src.utils.self_updater update|check
+┃ ┃   ┣ 📜 self_updater.py      # git pull (+ requirements.txt değiştiyse pip; admin haklarıyla asla), yeniden başlatma, CLI: python -m src.utils.self_updater update|check
 ┃ ┃   ┣ 📜 state_manager.py     # Pozisyon/emir state senkronizasyonu
 ┃ ┃   ┗ 📜 trade_utils.py       # Ticaret yardımcıları
-┃ ┣ 📂 ops/windows              # VPS uzaktan kontrol: setup_vps.ps1 (tek seferlik, admin), vps.ps1 (Mac'ten SSH ile çağrılır)
+┃ ┣ 📂 ops/windows              # VPS uzaktan kontrol: setup_vps.ps1 (tek seferlik, admin), vps.ps1 (Mac'ten SSH ile çağrılır; admin haklı kalıntıları bulur/sonlandırır: fix-elevated)
 ┃ ┣ 📜 run_ngrok_watchdog.bat   # ngrok çökerse yeniden başlatır (logs/ngrok.log)
 ┃ ┣ 📂 data                     # State dosyaları (state_*.json, watched_bots.json)
 ┃ ┣ 📂 logs                     # Log dosyaları
@@ -352,7 +353,7 @@ grid_orchestrator (Ana Orkestratör)
 | `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
 | `/chart` | **Grafik ve İstatistikler** | ChartViewer (sol 2/3), Gelecek Paneller (sağ 1/3: İstatistikler, Backtest, Deneme), Ana Sayfaya Dön butonu |
 | `/formasyon` | Formasyon Analizi | (Mevcut) |
-| `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsStatusPanel, VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
+| `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsElevatedWarning (admin haklı süreçler), VpsStatusPanel, VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
 
 ### Bileşen Sorumlulukları
 

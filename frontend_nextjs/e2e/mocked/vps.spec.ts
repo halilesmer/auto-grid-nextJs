@@ -140,6 +140,45 @@ test.describe('VPS Fernsteuerung', () => {
     expect(mock.calls.filter((c) => c.startsWith('POST'))).toHaveLength(before);
   });
 
+  test('Admin-Reste: Warnung und Beenden mit Bestätigung', { tag: '@VPS-07' }, async ({ page, worker }) => {
+    void worker;
+    // Älteres vps.ps1 ohne Feld „elevated“ bzw. keine Reste: keine Warnung
+    const mock = await mockVps(page);
+    await page.goto('/vps');
+    await expect(page.getByTestId('vps-tile-worker')).toContainText('Läuft');
+    await expect(page.getByTestId('vps-elevated')).toHaveCount(0);
+
+    mock.status = {
+      ...STATUS,
+      elevated: [
+        { pid: 5068, role: 'worker-loop', account: '' },
+        { pid: 424, role: 'worker', account: '' },
+        { pid: 7272, role: 'bot', account: '7942034' },
+      ],
+    };
+    await page.getByRole('button', { name: 'Status neu laden' }).click();
+    const warning = page.getByTestId('vps-elevated');
+    await expect(warning).toContainText('3 Prozesse laufen mit Administratorrechten');
+    await expect(warning).toContainText('Worker-Neustart-Schleife · PID 5068');
+    await expect(warning).toContainText('Bot 7942034 · PID 7272');
+
+    // Abbrechen löst nichts aus
+    await page.getByTestId('vps-action-fix-elevated').click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click();
+    expect(mock.calls).not.toContain('POST fix-elevated');
+
+    await page.getByTestId('vps-action-fix-elevated').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Admin-Prozesse beenden?');
+    // Betroffene Bots werden beendet und vom Worker ohne Adminrechte fortgesetzt
+    await expect(dialog).toContainText('Bots und MT5 werden dabei beendet');
+    mock.status = { ...STATUS, elevated: [] };
+    await dialog.getByRole('button', { name: 'Admin-Prozesse beenden' }).click();
+    await expect.poll(() => mock.calls).toContain('POST fix-elevated');
+    await expect(page.getByText('fix-elevated ausgeführt')).toBeVisible();
+    await expect(warning).toHaveCount(0);
+  });
+
   test('Logs von Worker, ngrok und Update', { tag: '@VPS-03' }, async ({ page, worker }) => {
     void worker;
     const mock = await mockVps(page);

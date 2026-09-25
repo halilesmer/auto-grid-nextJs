@@ -9,6 +9,8 @@ Auf dem VPS läuft nur der Worker. Das Frontend läuft lokal auf dem MacBook (`n
 > `start.bat` darf beliebig oft gestartet werden: Vorher beendet `cleanup_old_instances.ps1` alte Watchdog-, Worker- (Port 8000) und ngrok-Instanzen. Bot-Prozesse und das MT5-Terminal bleiben dabei unberührt. Beim Start ersetzt der Worker außerdem Bots, die noch mit einer älteren Code-Version laufen (z. B. nach `git pull`).
 >
 > **Wichtig:** `start.bat` und das MT5-Terminal mit denselben Rechten starten, am besten beide **ohne** „Als Administrator ausführen“. Prozesse und Dateien eines Admin-Prozesses kann der normale Worker weder beenden noch beschreiben.
+>
+> Laufen trotzdem Neustart-Schleifen, Worker, Bots, ngrok oder MT5 mit Adminrechten (z. B. von einer älteren Aufgabe mit „höchsten Rechten“), zeigt die Seite „VPS“ eine rote Warnung mit PID und dem Knopf **„Admin-Prozesse beenden“**: Er beendet sie per SSH und startet Worker und ngrok ohne Adminrechte neu; der Worker setzt die Bots danach fort. `cleanup_old_instances.ps1` selbst kann solche Reste nicht beenden (es sieht nicht einmal ihre Befehlszeile), schreibt sie aber ins Worker-Log (`[Cleanup] !! …`). Ein Worker mit Adminrechten warnt beim Start und macht kein `git pull`.
 
 ---
 

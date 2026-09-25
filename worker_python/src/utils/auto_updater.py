@@ -8,6 +8,7 @@ varsa çeker (gerekirse pip install) ve kendini yeniden başlatır (run_uvicorn_
   (ör. VPS'te elle commit) her turda pull + yeniden başlatma döngüsüne girmez.
 - AUTO_UPDATE_MINUTES (varsayılan 5, 0 = kapalı).
 - Git bu süreçte, yani yönetici OLMAYAN worker haklarıyla çalışır; dosya sahipliği bozulmaz.
+  Worker yine de yönetici haklarıyla açıldıysa execute_git_pull hiç çekmez (elevation.py).
 - Botlar ayrı süreçtir; yeni worker eski sürümle çalışan botları yeniden başlatır (BOT-03).
 """
 import asyncio

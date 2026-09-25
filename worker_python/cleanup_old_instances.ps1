@@ -45,4 +45,36 @@ Get-CimInstance Win32_Process -Filter "Name='ngrok.exe'" |
     Where-Object { $_.CommandLine -like '*http 8000*' } |
     ForEach-Object { Stop-Pid $_.ProcessId 'Alter ngrok' }
 
+# 4) Reste mit Administratorrechten laut melden. Laeuft dieses Skript normal (ohne Adminrechte,
+#    z. B. ueber die Aufgabe AutoGrid-Start), sieht es von erhoehten Prozessen nur Name und PID:
+#    Die Befehlszeile bleibt leer, Beenden scheitert. Die Schritte 1-3 finden sie deshalb gar
+#    nicht, und alte Neustart-Schleifen laufen neben den neuen weiter (starten Worker und Bots
+#    wieder mit Adminrechten). Diese Konsole sieht niemand -> zusaetzlich ins Worker-Log, das die
+#    Seite "VPS" auf dem Mac anzeigt. Beenden kann sie nur ein erhoehter Prozess (vps.ps1 per SSH).
+$session = (Get-Process -Id $PID).SessionId
+$procs = @(Get-CimInstance Win32_Process -Filter "SessionId=$session")
+$hidden = @($procs | Where-Object { -not $_.CommandLine -and $_.Name -match '^(python[\d.]*|pythonw|ngrok|terminal64|timeout)\.exe$' })
+$hiddenParents = @($hidden | ForEach-Object { $_.ParentProcessId })
+# Neustart-Schleife = verstecktes cmd.exe mit verstecktem python/ngrok/timeout als Kind
+$loops = @($procs | Where-Object { $_.Name -eq 'cmd.exe' -and -not $_.CommandLine -and $hiddenParents -contains $_.ProcessId })
+$report = @($loops) + @($hidden | Where-Object { $_.Name -ne 'timeout.exe' })
+if ($report.Count -gt 0) {
+    $list = ($report | ForEach-Object { "$($_.Name) (PID $($_.ProcessId))" }) -join ', '
+    $lines = @(
+        "[Cleanup] !! $($report.Count) Prozess(e) laufen mit Administratorrechten und lassen sich ohne Adminrechte weder pruefen noch beenden: $list",
+        "[Cleanup] !! Folge: alte Neustart-Schleifen, Worker oder Bots laufen neben den neuen weiter und starten sie wieder mit Adminrechten.",
+        "[Cleanup] !! Abhilfe: auf dem Mac Seite 'VPS' -> 'Admin-Prozesse beenden' (oder in einer Administrator-PowerShell: Stop-Process -Id <PID> -Force)."
+    )
+    foreach ($line in $lines) { Write-Host $line -ForegroundColor Red }
+    try {
+        $logDir = Join-Path $PSScriptRoot 'logs'
+        New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+        # FileShare ReadWrite: der laufende Worker haelt die Datei offen (console_tee)
+        $stream = [IO.File]::Open((Join-Path $logDir 'worker_console.log'), 'Append', 'Write', 'ReadWrite')
+        $writer = New-Object IO.StreamWriter($stream, (New-Object Text.UTF8Encoding($false)))
+        foreach ($line in $lines) { $writer.WriteLine("$(Get-Date -Format s) $line") }
+        $writer.Close()
+    } catch {}
+}
+
 Start-Sleep -Seconds 1

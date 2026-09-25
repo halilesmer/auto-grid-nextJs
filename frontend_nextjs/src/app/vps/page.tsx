@@ -4,6 +4,7 @@ import { Loader2, RefreshCw, ServerOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import VpsActions from '@/components/vps/VpsActions';
+import VpsElevatedWarning from '@/components/vps/VpsElevatedWarning';
 import VpsLogViewer from '@/components/vps/VpsLogViewer';
 import VpsStatusPanel from '@/components/vps/VpsStatusPanel';
 import { useVps } from '@/components/vps/useVps';
@@ -51,6 +52,12 @@ export default function VpsPage() {
         </Card>
       ) : (
         <>
+          <VpsElevatedWarning
+            processes={vps.status?.elevated ?? []}
+            busy={vps.busy === 'fix-elevated'}
+            disabled={vps.busy !== null}
+            onFix={() => vps.runAction('fix-elevated')}
+          />
           <VpsStatusPanel status={vps.status} sshError={vps.statusError} />
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
             <VpsActions

@@ -9,6 +9,8 @@ export const VPS_ACTIONS = {
   'check-update': { method: 'GET', timeoutMs: 90_000 },
   logs: { method: 'GET', timeoutMs: 30_000 },
   restart: { method: 'POST', timeoutMs: 30_000 },
+  // Admin-Reste beenden (auch Bots/MT5), dann wie restart
+  'fix-elevated': { method: 'POST', timeoutMs: 60_000 },
   'restart-ngrok': { method: 'POST', timeoutMs: 30_000 },
   // Worker macht git pull + ggf. pip install: kann dauern
   update: { method: 'POST', timeoutMs: 330_000 },
@@ -35,6 +37,25 @@ export function stripAnsi(line: string): string {
   return line.replace(ANSI_ESCAPE, '');
 }
 
+/**
+ * AutoGrid-Prozess, der mit Administratorrechten läuft (höhere Integritätsstufe als die
+ * Desktop-Sitzung). Der normale Worker kann ihn weder sehen noch beenden.
+ */
+export interface VpsElevatedProcess {
+  pid: number;
+  role: string;
+  account: string;
+}
+
+export const ELEVATED_ROLE_LABELS: Record<string, string> = {
+  'worker-loop': 'Worker-Neustart-Schleife',
+  'ngrok-loop': 'ngrok-Neustart-Schleife',
+  worker: 'Worker',
+  ngrok: 'ngrok',
+  bot: 'Bot',
+  mt5: 'MT5-Terminal',
+};
+
 interface VpsTaskInfo {
   exists: boolean;
   state?: string;
@@ -52,6 +73,8 @@ export interface VpsStatus {
   ngrok: { running: boolean; public_url: string | null };
   ngrok_watchdog: boolean;
   bots: { pid: number; account: string }[];
+  /** fehlt bei älteren vps.ps1-Ständen */
+  elevated?: VpsElevatedProcess[];
   mt5_terminals: number;
   session_active: boolean;
   autologon: boolean;

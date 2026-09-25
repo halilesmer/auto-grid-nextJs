@@ -653,6 +653,18 @@
       "tests": 10
     }
   },
+  "VPS-07": {
+    "e2e": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 1
+    },
+    "unit": {
+      "datum": "2026-09-24",
+      "status": "passed",
+      "tests": 9
+    }
+  },
   "ZON-01": {
     "e2e": {
       "datum": "2026-09-24",
