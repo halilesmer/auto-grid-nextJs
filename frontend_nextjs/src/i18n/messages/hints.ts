@@ -165,6 +165,7 @@ export default defineArea(
     'zone.header.badge.both.hint': 'Bu bölge hem BUY hem SELL emirleri verir.',
     'zone.market.hint': "Bu bölgenin sembolü için piyasa açık mı. Her sembolün işlem saati farklıdır; kapalıyken bu bölgede yeni emir yerleştirilemez.",
     'zone.header.unsaved.hint': 'Bu bölgede henüz kaydedilmemiş değişiklikler var.',
+    'zone.header.price.hint': 'Bu bölgenin sembolünün anlık fiyatı (Bid), sembol basamak sayısıyla. Motor çalışmıyorsa "--".',
     'zone.header.started.hint':
       'Bölge etkin ve motor emirleri yönetiyor. Tıklayınca bölgeyi devre dışı bırakır (hemen kaydedilir).',
     'zone.header.start.hint':
@@ -408,6 +409,7 @@ export default defineArea(
     'zone.header.badge.both.hint': 'This zone places both BUY and SELL orders.',
     'zone.market.hint': "Whether the market is open for this zone's symbol. Every symbol has its own trading hours; no new orders can be placed in this zone while it is closed.",
     'zone.header.unsaved.hint': 'This zone has changes that are not saved yet.',
+    'zone.header.price.hint': 'Live price (bid) of this zone\'s symbol, shown with the symbol\'s digits. "--" while the engine is not running.',
     'zone.header.started.hint':
       'The zone is active and the engine manages its orders. Click to disable the zone (saved immediately).',
     'zone.header.start.hint':
@@ -651,6 +653,7 @@ export default defineArea(
     'zone.header.badge.both.hint': 'Diese Zone setzt BUY- und SELL-Orders.',
     'zone.market.hint': "Ob der Markt für das Symbol dieser Zone geöffnet ist. Jedes Symbol hat eigene Handelszeiten; bei geschlossenem Markt können in dieser Zone keine neuen Orders gesetzt werden.",
     'zone.header.unsaved.hint': 'Diese Zone hat Änderungen, die noch nicht gespeichert sind.',
+    'zone.header.price.hint': 'Aktueller Preis (Bid) des Zonen-Symbols, mit den Nachkommastellen des Symbols. "--", solange die Engine nicht läuft.',
     'zone.header.started.hint':
       'Die Zone ist aktiv und die Engine verwaltet ihre Orders. Klick deaktiviert die Zone (wird sofort gespeichert).',
     'zone.header.start.hint':

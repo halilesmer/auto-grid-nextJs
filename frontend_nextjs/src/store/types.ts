@@ -94,6 +94,8 @@ export interface LiveData {
   mt5_connected: boolean;
   market_open: boolean;
   current_price: number;
+  /** Sembol başına anlık fiyat (bölge kartları); eski worker'larda yok */
+  symbol_prices?: Record<string, number>;
   profit: number;
   open_positions: number;
   pending_orders: number;

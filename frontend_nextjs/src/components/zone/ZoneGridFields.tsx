@@ -30,6 +30,7 @@ export function ZoneGridFields({
         <NumberInput
           min={symbolConfig.min}
           step={symbolConfig.step}
+          maxDecimals={symbolConfig.precision}
           value={zone.grid_step}
           onChange={(e) => handleChange('grid_step', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('grid_step', zone.grid_step, symbolConfig.step, symbolConfig.precision, update)}
@@ -43,6 +44,7 @@ export function ZoneGridFields({
         <NumberInput
           min={symbolConfig.volMin}
           step={symbolConfig.volStep}
+          maxDecimals={volPrecision}
           value={zone.lot_size}
           onChange={(e) => handleChange('lot_size', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('lot_size', zone.lot_size, symbolConfig.volStep, volPrecision, update)}
@@ -56,6 +58,7 @@ export function ZoneGridFields({
         <NumberInput
           min={0}
           step={symbolConfig.step}
+          maxDecimals={symbolConfig.precision}
           value={zone.take_profit}
           onChange={(e) => handleChange('take_profit', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('take_profit', zone.take_profit, symbolConfig.step, symbolConfig.precision, update)}
@@ -69,6 +72,7 @@ export function ZoneGridFields({
         <NumberInput
           min={0}
           step={symbolConfig.step}
+          maxDecimals={symbolConfig.precision}
           value={zone.stop_loss}
           onChange={(e) => handleChange('stop_loss', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('stop_loss', zone.stop_loss, symbolConfig.step, symbolConfig.precision, update)}

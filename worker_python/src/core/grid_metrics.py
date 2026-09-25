@@ -20,6 +20,8 @@ def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, 
         "open_positions": 0,
         "pending_orders": 0,
         "current_price": 0.0,
+        # Sembol başına anlık fiyat (bölge kartları kendi sembolünü gösterir)
+        "symbol_prices": {},
         "algo_trading_error": TradeState.algo_trading_disabled,
         "order_rejected_alarm": bool(TradeState.last_error_message),
         "last_error": TradeState.last_error_message,
@@ -66,8 +68,14 @@ def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, 
         metrics["pending_orders"] = len(robot_orders)
 
     if active_symbols:
-        tick = mt5.symbol_info_tick(list(active_symbols)[0])
-        if tick:
-            metrics["current_price"] = tick.bid
+        for sym in sorted(active_symbols):
+            tick = mt5.symbol_info_tick(sym)
+            if tick:
+                metrics["symbol_prices"][sym] = tick.bid
+        if metrics["symbol_prices"]:
+            first = sorted(active_symbols)[0]
+            metrics["current_price"] = metrics["symbol_prices"].get(
+                first, next(iter(metrics["symbol_prices"].values()))
+            )
 
     return metrics

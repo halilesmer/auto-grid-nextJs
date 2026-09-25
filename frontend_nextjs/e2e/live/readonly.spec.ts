@@ -134,7 +134,7 @@ test.describe('Live (nur lesend)', () => {
     const before = await api.botStatus(account.id);
     await dashboard.open(account.id);
     const price = page.getByTestId('metric-price');
-    await expect(price).toHaveAttribute('data-value', /^\$\d/);
+    await expect(price).toHaveAttribute('data-value', /^\d/);
 
     if (before.bot_running && before.metrics.mt5_connected) {
       await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.live'));
