@@ -6,6 +6,7 @@ from src.core.grid_helpers import (
     normalize_price,
     normalize_volume,
     get_current_market_price,
+    determine_fill_mode,
     log_message,
 )
 
@@ -224,6 +225,11 @@ def send_pending_order_helper(
         request["sl"] = normalize_price(sl_price, symbol, symbol_infos)
 
     success = safe_send_order(mt5, request, log_message)
+    return _track_send_result(success, zone_idx, consecutive_errors, active_zones_state)
+
+
+def _track_send_result(success, zone_idx, consecutive_errors, active_zones_state):
+    """Üst üste 3 reddedilen emirde bölgeyi PAUSE'a alır (bekleyen ve piyasa emri ortak)."""
     if not success:
         consecutive_errors[zone_idx] = consecutive_errors.get(zone_idx, 0) + 1
 
@@ -255,3 +261,64 @@ def send_pending_order_helper(
         if zone_idx in consecutive_errors:
             consecutive_errors[zone_idx] = 0
     return True
+
+
+def send_market_order_helper(
+    mt5,
+    lot,
+    tp_distance,
+    sl_distance,
+    zone_idx,
+    direction,
+    symbol,
+    symbol_infos,
+    consecutive_errors,
+    active_zones_state,
+    filling_mode=None,
+):
+    """Sinyal girişi (entry_mode SIGNAL_MARKET): anlık fiyattan piyasa emri. TP/SL, giriş
+    fiyatına (BUY → Ask, SELL → Bid) göre mesafe olarak verilir; açık pozisyon TP senkronu
+    (grid_order_manager) sonra gerçek açılış fiyatına göre düzeltir."""
+    if not symbol or mt5 is None:
+        log_message(
+            f"🚨 Hata: Bölge {zone_idx+1} için geçerli bir sembol atanmamış!", "ERROR"
+        )
+        return False
+
+    price = get_current_market_price(mt5, symbol, direction)
+    if price is None:
+        return False
+
+    if direction == "BUY":
+        order_type = mt5.ORDER_TYPE_BUY
+        tp_price = price + tp_distance if tp_distance > 0 else 0.0
+        sl_price = price - sl_distance if sl_distance > 0 else 0.0
+    else:
+        order_type = mt5.ORDER_TYPE_SELL
+        tp_price = price - tp_distance if tp_distance > 0 else 0.0
+        sl_price = price + sl_distance if sl_distance > 0 else 0.0
+
+    fill = (filling_mode or {}).get(symbol)
+    if fill is None:
+        fill = determine_fill_mode(mt5, symbol, symbol_infos, filling_mode if filling_mode is not None else {})
+    if fill is None:
+        fill = mt5.ORDER_FILLING_IOC
+
+    request = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": symbol,
+        "volume": normalize_volume(lot, symbol, symbol_infos),
+        "type": order_type,
+        "price": normalize_price(price, symbol, symbol_infos),
+        "deviation": MAX_DEVIATION,
+        "magic": BASE_MAGIC_NUMBER + zone_idx + 1,
+        "comment": f"AutoGrid_Z{zone_idx + 1}_SIG",
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": fill,
+        "tp": normalize_price(tp_price, symbol, symbol_infos) if tp_price else 0.0,
+    }
+    if sl_price:
+        request["sl"] = normalize_price(sl_price, symbol, symbol_infos)
+
+    success = safe_send_order(mt5, request, log_message)
+    return _track_send_result(success, zone_idx, consecutive_errors, active_zones_state)

@@ -8,6 +8,7 @@ Zusätzlich gibt es Test-Hebel:
     reject(retcode, times)    nächste order_check-Aufrufe ablehnen (z. B. 10016, 10027)
     silent_reject_next()      order_send meldet OK, Order erscheint aber nicht im Buch
     set_closed_candle(...)    Schlusskurs der letzten geschlossenen Kerze (exit_condition)
+    set_candles(sym, tf, [c]) Serie geschlossener Kerzen (älteste zuerst) für Indikator-Signale
     add_order/add_position    Ausgangslage aufbauen (auch manuelle Orders ohne Robot-Magic);
                               add_position(order_volume=...) = Position aus teilweise gefüllter Order
     partial_fill_next(vol)    nächste Füllung einer Pending Order nur mit `vol` (Rest verfällt, IOC)
@@ -35,6 +36,8 @@ class SymbolInfo:
     visible: bool = True
     filling_mode: int = 2  # Bitmaske: 1 = FOK, 2 = IOC
     trade_contract_size: float = 1000.0
+    trade_tick_value: float = 1.0  # Gewinn pro Tick und 1 Lot (Kontowährung)
+    trade_tick_size: float = 0.001
     description: str = ""
 
 
@@ -157,6 +160,7 @@ class FakeMT5:
         self.sent: list[dict] = []
         self.checked: list[dict] = []
         self.closed_candles: dict[tuple[str, int], float] = {}
+        self.candles: dict[tuple[str, int], list[dict]] = {}
         self.shutdown_called = False
         self.initialize_calls = 0
         self.login_calls = 0
@@ -188,6 +192,12 @@ class FakeMT5:
 
     def set_closed_candle(self, symbol: str, timeframe: int, close: float):
         self.closed_candles[(symbol, timeframe)] = close
+
+    def set_candles(self, symbol: str, timeframe: int, closes: list[float], start_time: int = 1_700_000_000):
+        """Geschlossene Kerzen (älteste zuerst); die letzte ist die zuletzt geschlossene."""
+        self.candles[(symbol, timeframe)] = [
+            {"time": start_time + i * 60, "close": c} for i, c in enumerate(closes)
+        ]
 
     def add_order(self, symbol, type, price, volume=0.01, tp=0.0, sl=0.0, magic=0, comment="") -> Order:
         order = Order(next(self._tickets), symbol, type, price, volume, tp, sl, magic, comment)
@@ -274,6 +284,9 @@ class FakeMT5:
         return tuple(self.history.values())
 
     def copy_rates_from_pos(self, symbol, timeframe, start_pos, count):
+        series = self.candles.get((symbol, timeframe))
+        if series is not None:
+            return series[-count:] if count else []
         close = self.closed_candles.get((symbol, timeframe))
         if close is None:
             return None

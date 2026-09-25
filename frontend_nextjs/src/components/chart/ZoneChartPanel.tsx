@@ -24,7 +24,7 @@ function Field({ label, hint, value }: { label: string; hint: string; value: str
 
 function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
   const t = useT();
-  const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
+  const showSell = (zone.order_type === 'BOTH' || zone.order_type === 'AUTO') && !zone.sync_buy_sell;
   // [Label, Hinweis, Wert]: die Hinweise sind dieselben wie in den Feldern der Zonenkarte
   const fields: [MessageKey, MessageKey, string | number][] = [
     ['chart.zone.priceRange', 'chart.zone.priceRange.hint', `${zone.min_price} – ${zone.max_price}`],
