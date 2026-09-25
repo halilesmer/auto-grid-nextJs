@@ -139,7 +139,8 @@ def test_tp_sl_offener_positionen_wird_nachgezogen(fake_mt5):
 @pytest.mark.feature("ENG-08")
 def test_teilausfuehrung_restlot_wird_nachgesendet(fake_mt5):
     m = fake_mt5
-    m.add_position("USOUSD", m.POSITION_TYPE_BUY, 96.9, volume=0.01, tp=97.0, magic=MAGIC_ZONE_1)
+    # Order über 0.03 wurde nur mit 0.01 gefüllt, der Rest ist verfallen
+    m.add_position("USOUSD", m.POSITION_TYPE_BUY, 96.9, volume=0.01, tp=97.0, magic=MAGIC_ZONE_1, order_volume=0.03)
     engine = EngineHarness(m, [make_zone(order_type="BUY", lot_size=0.03)])
     engine.tick()
 
@@ -148,6 +149,85 @@ def test_teilausfuehrung_restlot_wird_nachgesendet(fake_mt5):
     # stabil: der nächste Tick löscht die Rest-Order nicht wieder
     engine.tick()
     assert [o.ticket for o in m.robot_orders() if round(o.price_open, 3) == 96.9] == [rest[0].ticket]
+
+    # Rest wird gefüllt → Level komplett (0.01 + 0.02 = Order-Volumen 0.03), kein weiterer Nachschub
+    m.set_price("USOUSD", 96.88)
+    sent_before = len(m.sent)
+    engine.tick()
+    assert sorted(p.volume for p in m.robot_positions() if round(p.price_open, 3) == 96.9) == [0.01, 0.02]
+    assert not [r for r in m.sent[sent_before:] if r.get("volume") and round(r["price"], 3) == 96.9]
+
+
+@pytest.mark.feature("ENG-08")
+def test_teilausfuehrung_im_echten_ablauf(fake_mt5):
+    """Die Engine setzt 0.02, der Broker füllt nur 0.01: das Restlot wird genau einmal nachgesendet."""
+    m = fake_mt5
+    engine = EngineHarness(m, [make_zone(order_type="BUY", lot_size=0.02)])
+    engine.tick()
+    m.partial_fill_next(0.01)
+    m.set_price("USOUSD", 96.85)  # Buy-Limit 96.9 wird (teilweise) gefüllt
+    assert [p.volume for p in m.robot_positions()] == [0.01]
+
+    engine.tick()
+    rest = [o for o in m.robot_orders() if round(o.price_open, 3) == 96.9]
+    assert len(rest) == 1 and rest[0].volume_initial == 0.01
+
+
+@pytest.mark.feature("ENG-08")
+def test_lot_erhoehung_ist_keine_teilausfuehrung(fake_mt5, robot_log):
+    """24.09.: lot_size 0.01 → 0.02 geändert. Voll gefüllte 0.01-Positionen galten als „halb
+    gefüllt“; für jede ging eine „Rest“-Order raus (Kısmi Dolum)."""
+    m = fake_mt5
+    for price in (96.5, 96.6, 96.7):
+        m.add_position("USOUSD", m.POSITION_TYPE_BUY, price, volume=0.01, tp=price + 0.1, magic=MAGIC_ZONE_1)
+    engine = EngineHarness(m, [make_zone(order_type="BUY", lot_size=0.02)])
+    engine.tick()
+    engine.tick()
+
+    assert not [o for o in m.robot_orders() if round(o.price_open, 3) in (96.5, 96.6, 96.7)]
+    assert not any("Kısmi Dolum" in line for line in robot_log())
+    # neue Grid-Orders bekommen das neue Lot
+    assert {o.volume_initial for o in m.robot_orders()} == {0.02}
+
+
+@pytest.mark.feature("ENG-08")
+def test_keine_gesendet_geloescht_schleife_am_positionslimit(fake_mt5, robot_log):
+    """24.09.: 14 Positionen bei max_positions 10. Der Nachschub setzte Orders, die
+    Max-Positionen-Sperre löschte sie im selben Tick wieder: ~8.700 Sell-Stops in einer Stunde."""
+    m = fake_mt5
+    for price in (97.5, 97.6, 97.7):  # teilweise gefüllte SELLs (Order 0.02, gefüllt 0.01)
+        m.add_position("USOUSD", m.POSITION_TYPE_SELL, price, volume=0.01, tp=price - 0.1, magic=MAGIC_ZONE_1,
+                       order_volume=0.02)
+    engine = EngineHarness(m, [make_zone(order_type="SELL", lot_size=0.02, max_positions=3)])
+    for _ in range(5):
+        engine.tick()
+
+    pending_or_removed = [r for r in m.sent if r["action"] in (m.TRADE_ACTION_PENDING, m.TRADE_ACTION_REMOVE)]
+    assert pending_or_removed == []
+    assert m.robot_orders() == []
+    assert not any("Kısmi Dolum" in line for line in robot_log())
+    # die Sperre meldet sich einmal, nicht bei jedem Tick
+    assert sum("Maksimum pozisyon" in line for line in robot_log()) == 1
+
+
+@pytest.mark.feature("ENG-08")
+def test_tp_hinter_dem_kurs_wird_nicht_endlos_gesendet(fake_mt5, robot_log):
+    """24.09.: TP verkleinert, der Kurs stand schon über dem neuen TP einer BUY-Position →
+    MT5 lehnt ab (10016 Invalid stops), der Bot schickte es trotzdem jeden Tick (1.083×)."""
+    m = fake_mt5  # Bid 97.000
+    pos = m.add_position("USOUSD", m.POSITION_TYPE_BUY, 96.5, tp=97.5, magic=MAGIC_ZONE_1)
+    engine = EngineHarness(m, [make_zone(order_type="BUY", take_profit=0.05, max_positions=1)])
+    for _ in range(3):
+        engine.tick()
+
+    assert not [r for r in m.sent if r["action"] == m.TRADE_ACTION_SLTP]
+    assert round(pos.tp, 3) == 97.5
+    assert sum("TP/SL Bekliyor" in line for line in robot_log()) == 1
+
+    # Kurs fällt unter den neuen TP → jetzt gültig und wird gesetzt
+    m.set_price("USOUSD", 96.52)
+    engine.tick()
+    assert round(pos.tp, 3) == 96.55
 
 
 # --------------------------------------------------------------------------- ENG-09

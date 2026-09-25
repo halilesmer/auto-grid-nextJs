@@ -480,7 +480,7 @@ kategorien:
 
       - id: ENG-07
         titel: Maximale Positionen
-        beschreibung: Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht.
+        beschreibung: Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht; die Warnung erscheint einmal (erneut nur, wenn sich die Zahl ändert), nicht bei jedem Tick. Auch der Restlot-Nachschub (ENG-08) setzt dann nichts.
         code: [worker_python/src/core/grid_execution/handler.py]
         tiers: [unit, live]
         pruefung:
@@ -489,12 +489,13 @@ kategorien:
 
       - id: ENG-08
         titel: Teilausführung + TP/SL-Resync
-        beschreibung: Geänderte TP/SL-Werte werden auf offene Positionen übertragen; bei Teilausführung wird das Restlot neu gesendet.
-        code: [worker_python/src/core/grid_order_manager.py]
+        beschreibung: Geänderte TP/SL-Werte werden auf offene Positionen übertragen; liegt der neue TP/SL schon auf der falschen Seite des Kurses (MT5 würde mit 10016 ablehnen), wartet der Bot mit einer einmaligen Meldung und setzt ihn, sobald der Kurs es zulässt. Bei Teilausführung wird das Restlot neu gesendet, gemessen am Volumen der eröffnenden Order (history_orders_get), nicht am Lot in den Einstellungen; ein später erhöhtes Lot löst also keinen Nachschub aus. Am Positionslimit (ENG-07) kein Nachschub.
+        code: [worker_python/src/core/grid_order_manager.py, worker_python/src/core/grid_orders.py, worker_python/src/core/grid_execution/validation.py]
         tiers: [unit]
         pruefung:
           - Bei offener Position den TP der Zone ändern und speichern.
-        erwartet: TP der offenen Position wird angepasst.
+          - "Nur DEMO: bei offenen 0,01-Positionen das Lot der Zone auf 0,02 erhöhen und speichern."
+        erwartet: TP der offenen Position wird angepasst (liegt er schon hinter dem Kurs, steht einmal „TP/SL Bekliyor“ im Log). Nach der Lot-Erhöhung keine „Kısmi Dolum“-Meldungen und keine Orders auf den Leveln der offenen Positionen; neue Grid-Orders haben 0,02.
 
       - id: ENG-09
         titel: Zombie-Orders entfernen

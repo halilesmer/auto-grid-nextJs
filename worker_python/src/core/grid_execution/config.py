@@ -30,6 +30,13 @@ class ZoneConfig:
     target_magic: int
 
 
+def max_positions_of(zone_dict: dict) -> int:
+    """Bölgenin pozisyon sınırı (0 = sınırsız → 500). Max-pozisyon koruması (handler) ve kısmi
+    dolum tamamlaması (grid_order_manager) aynı sınırı kullanmalı: biri emir koyup diğeri
+    her döngüde silmesin (24.09: ~8.700 Sell-Stop gönder/sil döngüsü)."""
+    return int(zone_dict.get("max_positions", 10)) or 500
+
+
 def extract_zone_config(
     zone_dict: dict,
     zone_idx: int,
@@ -73,7 +80,7 @@ def extract_zone_config(
 
     levels_below = int(zone_dict.get("levels_below", 5))
     levels_above = int(zone_dict.get("levels_above", 5))
-    max_positions_allowed = int(zone_dict.get("max_positions", 10)) or 500
+    max_positions_allowed = max_positions_of(zone_dict)
 
     is_breakout = bool(zone_dict.get("is_breakout", False))
     pullback_distance = float(zone_dict.get("pullback_distance", 0.50))
