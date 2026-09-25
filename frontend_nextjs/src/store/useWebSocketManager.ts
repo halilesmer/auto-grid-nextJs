@@ -5,6 +5,7 @@ import { useBotRuntimeStore } from './useBotRuntimeStore';
 import { useLogsStore } from './useLogsStore';
 import { Metrics, LiveData } from './types';
 import { API_BASE, WORKER_API_KEY } from '@/lib/api';
+import { t } from '@/i18n';
 
 const MAX_RETRIES = 10;
 const BASE_DELAY_MS = 1000;
@@ -81,7 +82,7 @@ export function useWebSocketManager(selectedAccount: string | null): {
 
   const scheduleReconnect = useCallback(() => {
     if (retryCountRef.current >= MAX_RETRIES) {
-      setWsErrorRef.current('WebSocket connection failed after multiple attempts. Please connect manually.');
+      setWsErrorRef.current(t('ws.failed'));
       return;
     }
 

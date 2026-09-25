@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from '@/components/ui/animated-toast';
+import { t, type MessageKey } from '@/i18n';
 import {
+  isVpsErrorCode,
   stripAnsi,
   type VpsAction,
   type VpsActionResult,
@@ -33,8 +35,10 @@ async function callVps<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise
   return { status: res.status, data: data as T };
 }
 
+// Server-Fehler mit Code werden in der aktuellen Sprache angezeigt, sonst der Klartext der Route
 function errorOf(data: unknown, fallback: string): string {
-  const d = data as { error?: string; message?: string } | null;
+  const d = data as { error?: string; message?: string; code?: unknown; params?: Record<string, string | number> } | null;
+  if (isVpsErrorCode(d?.code)) return t(`vps.err.${d.code}`, d.params);
   return d?.error || d?.message || fallback;
 }
 
@@ -58,7 +62,7 @@ export function useVps() {
     try {
       const { status: code, data } = await callVps<VpsStatus | VpsActionResult>('status');
       if (code === 404) {
-        setDisabled(errorOf(data, 'VPS-Steuerung deaktiviert'));
+        setDisabled(errorOf(data, t('vps.status.disabled')));
         setStatus(null);
         return;
       }
@@ -67,10 +71,10 @@ export function useVps() {
         setStatus(data as VpsStatus);
         setStatusError(null);
       } else {
-        setStatusError(errorOf(data, 'VPS nicht erreichbar'));
+        setStatusError(errorOf(data, t('vps.status.unreachable')));
       }
     } catch (err) {
-      setStatusError(err instanceof Error ? err.message : 'Next.js-Server nicht erreichbar');
+      setStatusError(err instanceof Error ? err.message : t('vps.status.serverUnreachable'));
     } finally {
       setLoading(false);
       setRefreshedAt(new Date());
@@ -89,10 +93,10 @@ export function useVps() {
         lines = (data.lines ?? []).map(stripAnsi);
         note = data.note ?? null;
       } else {
-        note = errorOf(data, 'Log konnte nicht gelesen werden');
+        note = errorOf(data, t('vps.log.readFailed'));
       }
     } catch (err) {
-      note = err instanceof Error ? err.message : 'Log konnte nicht gelesen werden';
+      note = err instanceof Error ? err.message : t('vps.log.readFailed');
     }
     if (logNameRef.current !== which) return;
     if (lines || !background) setLogLines(lines ?? []);
@@ -125,10 +129,10 @@ export function useVps() {
         setUpdateCheck(data);
       } else {
         setUpdateCheck(null);
-        toast.error(errorOf(data, 'Update-Prüfung fehlgeschlagen'), { title: 'Update-Prüfung' });
+        toast.error(errorOf(data, t('vps.update.checkFailed')), { title: t('vps.update.check') });
       }
     } catch {
-      toast.error('Update-Prüfung fehlgeschlagen', { title: 'Update-Prüfung' });
+      toast.error(t('vps.update.checkFailed'), { title: t('vps.update.check') });
     } finally {
       setBusy(null);
     }
@@ -140,14 +144,16 @@ export function useVps() {
       try {
         const { data } = await callVps<VpsActionResult>(action, 'POST');
         if (data.ok) {
-          toast.success(data.message || 'Erledigt', { title: ACTION_TITLES[action] });
+          toast.success(data.message || t('vps.action.done'), { title: t(ACTION_TITLE_KEYS[action]) });
           fastUntil.current = Date.now() + FAST_POLL_DURATION_MS;
           if (action === 'update') setUpdateCheck(null);
         } else {
-          toast.error(errorOf(data, 'Fehlgeschlagen'), { title: ACTION_TITLES[action] });
+          toast.error(errorOf(data, t('vps.action.failed')), { title: t(ACTION_TITLE_KEYS[action]) });
         }
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Fehlgeschlagen', { title: ACTION_TITLES[action] });
+        toast.error(err instanceof Error ? err.message : t('vps.action.failed'), {
+          title: t(ACTION_TITLE_KEYS[action]),
+        });
       } finally {
         setBusy(null);
         void refreshStatus();
@@ -197,12 +203,12 @@ export function useVps() {
   };
 }
 
-export const ACTION_TITLES: Record<PostAction, string> = {
-  update: 'Update & Neustart',
-  restart: 'Worker neu starten',
-  'fix-elevated': 'Admin-Prozesse beenden',
-  'restart-ngrok': 'ngrok neu starten',
-  reboot: 'VPS neu starten',
+export const ACTION_TITLE_KEYS: Record<PostAction, MessageKey> = {
+  update: 'vps.action.update',
+  restart: 'vps.action.restart',
+  'fix-elevated': 'vps.action.fixElevated',
+  'restart-ngrok': 'vps.action.restartNgrok',
+  reboot: 'vps.action.reboot',
 };
 
 export type { PostAction };

@@ -6,15 +6,7 @@ import { AnimateDigits } from '@/components/ui/animate-digits';
 import { StatusDot } from '@/components/ui/status-dot';
 import { cn } from '@/lib/utils';
 import { useBotRuntimeStore } from '@/store';
-
-function formatMoney(value: number, signed = false): string {
-  const abs = Math.abs(value).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  if (value < 0) return `-$${abs}`;
-  return signed && value > 0 ? `+$${abs}` : `$${abs}`;
-}
+import { useFormat, useT } from '@/i18n';
 
 interface MetricProps {
   label: string;
@@ -58,6 +50,8 @@ function Metric({ label, icon, value, valueClassName, footer, accent, testId }: 
 }
 
 export default function MetricsStrip() {
+  const t = useT();
+  const { money: formatMoney } = useFormat();
   const liveData = useBotRuntimeStore((s) => s.liveData);
   const isConnecting = useBotRuntimeStore((s) => s.isConnecting);
 
@@ -67,19 +61,19 @@ export default function MetricsStrip() {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Metric
-        label="Price"
+        label={t('metrics.price')}
         testId="metric-price"
         icon={<Activity size={14} />}
         value={formatMoney(liveData.current_price)}
         footer={
           <span className="flex items-center gap-1.5">
             <StatusDot tone={liveData.market_open ? 'success' : 'danger'} pulse={liveData.market_open} />
-            Market {liveData.market_open ? 'open' : 'closed'}
+            {liveData.market_open ? t('metrics.marketOpen') : t('metrics.marketClosed')}
           </span>
         }
       />
       <Metric
-        label="Floating P/L"
+        label={t('metrics.profit')}
         testId="metric-profit"
         icon={profitNegative ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
         value={formatMoney(liveData.profit, true)}
@@ -87,29 +81,29 @@ export default function MetricsStrip() {
         accent={profitNegative ? 'bg-danger/20' : 'bg-success/20'}
         footer={
           isConnecting
-            ? 'Connecting…'
+            ? t('metrics.connecting')
             : liveData.mt5_connected
-              ? 'Live from MT5'
-              : 'Engine stopped'
+              ? t('metrics.live')
+              : t('metrics.engineStopped')
         }
       />
       <Metric
-        label="Open Positions"
+        label={t('metrics.positions')}
         testId="metric-positions"
         icon={<Layers size={14} />}
         value={String(liveData.open_positions)}
         accent="bg-info/20"
-        footer="Filled grid levels"
+        footer={t('metrics.positions.footer')}
       />
       <Metric
-        label="Pending Orders"
+        label={t('metrics.pending')}
         testId="metric-pending"
         icon={<Clock size={14} />}
         value={String(liveData.pending_orders)}
         accent="bg-secondary/25"
         footer={
           <span className="flex items-center gap-1.5">
-            <Wallet size={12} /> Waiting at broker
+            <Wallet size={12} /> {t('metrics.pending.footer')}
           </span>
         }
       />

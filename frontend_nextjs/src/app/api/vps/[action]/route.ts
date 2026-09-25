@@ -29,7 +29,7 @@ function guard(request: NextRequest): Response | null {
   const host = request.headers.get('host');
   const forwardedHost = request.headers.get('x-forwarded-host');
   if (!LOCAL_HOSTS.has(hostname(host)) || (forwardedHost && !LOCAL_HOSTS.has(hostname(forwardedHost)))) {
-    return json({ ok: false, error: 'VPS-Steuerung nur lokal (localhost) erlaubt' }, 403);
+    return json({ ok: false, error: 'VPS-Steuerung nur lokal (localhost) erlaubt', code: 'localOnly' }, 403);
   }
   if (request.method !== 'GET') {
     const origin = request.headers.get('origin');
@@ -40,7 +40,7 @@ function guard(request: NextRequest): Response | null {
       originHost = '';
     }
     if (!originHost || originHost !== host) {
-      return json({ ok: false, error: 'Ungültige Origin' }, 403);
+      return json({ ok: false, error: 'Ungültige Origin', code: 'badOrigin' }, 403);
     }
   }
   return null;
@@ -52,19 +52,34 @@ async function handle(request: NextRequest, ctx: { params: Promise<{ action: str
 
   const config = getVpsConfig();
   if (!config) {
-    return json({ ok: false, error: 'VPS-Steuerung deaktiviert: VPS_SSH_HOST fehlt in .env.local' }, 404);
+    return json(
+      { ok: false, error: 'VPS-Steuerung deaktiviert: VPS_SSH_HOST fehlt in .env.local', code: 'disabled' },
+      404,
+    );
   }
 
   const { action } = await ctx.params;
-  if (!isVpsAction(action)) return json({ ok: false, error: `Unbekannte Aktion: ${action}` }, 404);
+  if (!isVpsAction(action)) {
+    return json({ ok: false, error: `Unbekannte Aktion: ${action}`, code: 'unknownAction', params: { action } }, 404);
+  }
   if (VPS_ACTIONS[action].method !== request.method) {
-    return json({ ok: false, error: `${action} erwartet ${VPS_ACTIONS[action].method}` }, 405);
+    return json(
+      {
+        ok: false,
+        error: `${action} erwartet ${VPS_ACTIONS[action].method}`,
+        code: 'wrongMethod',
+        params: { action, method: VPS_ACTIONS[action].method },
+      },
+      405,
+    );
   }
 
   const args: string[] = [];
   if (action === 'logs') {
     const log = request.nextUrl.searchParams.get('log') ?? 'worker';
-    if (!isVpsLog(log)) return json({ ok: false, error: `Unbekanntes Log: ${log}` }, 400);
+    if (!isVpsLog(log)) {
+      return json({ ok: false, error: `Unbekanntes Log: ${log}`, code: 'unknownLog', params: { log } }, 400);
+    }
     const lines = Math.min(2000, Math.max(10, Number(request.nextUrl.searchParams.get('lines')) || 300));
     args.push(log, String(lines));
   }
@@ -75,7 +90,15 @@ async function handle(request: NextRequest, ctx: { params: Promise<{ action: str
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const status = err instanceof VpsSshError && err.kind === 'config' ? 500 : 502;
-    return json({ ok: false, error: message, ssh_failed: err instanceof VpsSshError && err.kind === 'ssh' }, status);
+    return json(
+      {
+        ok: false,
+        error: message,
+        ssh_failed: err instanceof VpsSshError && err.kind === 'ssh',
+        ...(err instanceof VpsSshError && err.code ? { code: err.code, params: err.params } : {}),
+      },
+      status,
+    );
   }
 }
 

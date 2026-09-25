@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { t } from '@/i18n';
 
 /**
  * Worker/ngrok hatalarını kullanıcıya gösterilebilir tek bir metne çevirir.
@@ -11,9 +12,9 @@ export async function getApiErrorMessage(err: unknown, fallback: string): Promis
 
   if (!err.response) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
-      return `${fallback}: request timed out`;
+      return `${fallback}: ${t('error.timeout')}`;
     }
-    return `${fallback}: worker not reachable (VPS or ngrok offline?)`;
+    return `${fallback}: ${t('error.unreachable')}`;
   }
 
   const { status, headers } = err.response;
@@ -36,13 +37,13 @@ export async function getApiErrorMessage(err: unknown, fallback: string): Promis
     (headers?.['ngrok-error-code'] as string | undefined) ||
     (typeof data === 'string' ? data.match(/ERR_NGROK_\d+/)?.[0] : undefined);
   if (ngrokCode) {
-    return `${fallback}: ngrok tunnel offline (${ngrokCode}) – is the worker running on the VPS?`;
+    return `${fallback}: ${t('error.ngrok', { code: ngrokCode })}`;
   }
 
   const detail = extractDetail(data);
   if (detail) return detail;
 
-  return `${fallback} (HTTP ${status})`;
+  return `${fallback} ${t('error.http', { status })}`;
 }
 
 function extractDetail(data: unknown): string | null {

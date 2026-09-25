@@ -5,6 +5,7 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { useT } from '@/i18n';
 
 export function ZoneBreakoutFields({
   zone,
@@ -15,18 +16,19 @@ export function ZoneBreakoutFields({
   handleChange,
   handleBlur,
 }: ZoneBreakoutFieldsProps) {
+  const t = useT();
   return (
     <section className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
-      <SectionLabel>Kırılım ve Pullback Seviyeleri</SectionLabel>
+      <SectionLabel>{t('zone.breakout.title')}</SectionLabel>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <Switch
           checked={zone.is_breakout}
           onChange={(checked) => update('is_breakout', checked)}
-          label="Sadece trend yönünde"
+          label={t('zone.breakout.trendOnly')}
         />
         <div className="flex items-center gap-2">
           <span className="whitespace-nowrap text-xs text-muted-foreground">
-            {isBoth && !sync ? 'BUY Pullback ($)' : 'Min Pullback ($)'}
+            {isBoth && !sync ? t('zone.breakout.buyPullback') : t('zone.breakout.minPullback')}
           </span>
           <NumberInput
             min={0}
@@ -40,7 +42,7 @@ export function ZoneBreakoutFields({
         </div>
         {isBoth && !sync && (
           <div className="flex items-center gap-2">
-            <span className="whitespace-nowrap text-xs text-muted-foreground">SELL Pullback ($)</span>
+            <span className="whitespace-nowrap text-xs text-muted-foreground">{t('zone.breakout.sellPullback')}</span>
             <NumberInput
               min={0}
               step={symbolConfig.step}
@@ -55,7 +57,7 @@ export function ZoneBreakoutFields({
       </div>
       <div className="h-px bg-border" />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <InputField label="Alt Seviyeler">
+        <InputField label={t('zone.breakout.levelsBelow')}>
           <NumberInput
             min={1}
             step={1}
@@ -65,7 +67,7 @@ export function ZoneBreakoutFields({
             className="input-s"
           />
         </InputField>
-        <InputField label="Üst Seviyeler">
+        <InputField label={t('zone.breakout.levelsAbove')}>
           <NumberInput
             min={1}
             step={1}
@@ -75,7 +77,7 @@ export function ZoneBreakoutFields({
             className="input-s"
           />
         </InputField>
-        <InputField label="Maks Pozisyon">
+        <InputField label={t('zone.breakout.maxPositions')}>
           <NumberInput
             min={0}
             step={1}

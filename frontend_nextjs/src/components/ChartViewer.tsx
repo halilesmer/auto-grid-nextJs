@@ -15,6 +15,7 @@ import { useAccountStore, useBotRuntimeStore, useThemeStore, useWebSocketManager
 import type { ResolvedTheme } from '@/lib/theme';
 import { CandlestickChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFormat, useT } from '@/i18n';
 
 // Grafik sayfaları hesap seçilmeden de açılabilir; akış (/ws/stream) hesaba bağlı değil.
 const CHART_STREAM_KEY = 'chart';
@@ -59,6 +60,8 @@ interface ChartViewerProps {
 }
 
 export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
+  const t = useT();
+  const fmt = useFormat();
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const priceLineRefs = useRef<IPriceLine[]>([]);
   const metrics = useBotRuntimeStore((s) => s.metrics);
@@ -207,14 +210,25 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
 
   const profit = metrics.profit ?? 0;
   const stats = [
-    { label: 'Price', value: metrics.price ?? '--', className: 'text-foreground' },
-    { label: 'RSI', value: metrics.rsi ? metrics.rsi.toFixed(2) : '--', className: 'text-info' },
     {
-      label: 'P/L',
-      value: `$${profit.toFixed(2)}`,
+      id: 'price',
+      label: t('chart.stat.price'),
+      value: typeof metrics.price === 'number' ? fmt.number(metrics.price, { maximumFractionDigits: 8 }) : '--',
+      className: 'text-foreground',
+    },
+    {
+      id: 'rsi',
+      label: t('chart.stat.rsi'),
+      value: metrics.rsi ? fmt.number(metrics.rsi, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--',
+      className: 'text-info',
+    },
+    {
+      id: 'pl',
+      label: t('chart.stat.pl'),
+      value: fmt.money(profit),
       className: profit > 0 ? 'text-success' : profit < 0 ? 'text-danger' : 'text-foreground',
     },
-    { label: 'Positions', value: metrics.open_positions ?? 0, className: 'text-foreground' },
+    { id: 'positions', label: t('chart.stat.positions'), value: metrics.open_positions ?? 0, className: 'text-foreground' },
   ];
 
   return (
@@ -225,15 +239,15 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
             <CandlestickChart size={16} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">Live Price & Indicators</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">{BAR_SECONDS}s candles · RSI overlay</p>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">{t('chart.viewer.title')}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('chart.viewer.subtitle', { seconds: BAR_SECONDS })}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {stats.map((s) => (
             <div
               key={s.label}
-              data-testid={`chart-stat-${s.label.toLowerCase().replace('/', '')}`}
+              data-testid={`chart-stat-${s.id}`}
               className="rounded-md border border-border bg-muted/50 px-3 py-1.5"
             >
               <div className="text-[11px] font-medium text-muted-foreground">{s.label}</div>

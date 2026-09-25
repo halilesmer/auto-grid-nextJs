@@ -6,31 +6,17 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { VpsUpdateCheck } from '@/lib/vps';
-import { ACTION_TITLES, type PostAction } from './useVps';
+import { useT, type MessageKey } from '@/i18n';
+import { ACTION_TITLE_KEYS, type PostAction } from './useVps';
 
 // Admin-Prozesse beenden hat seinen eigenen Knopf in der Warnung (VpsElevatedWarning)
 type ButtonAction = Exclude<PostAction, 'fix-elevated'>;
 
-const CONFIRM: Record<ButtonAction, { message: string; info?: string; variant: 'warning' | 'danger' }> = {
-  update: {
-    message: 'Der Worker holt den neuesten Stand von main (git pull, bei Bedarf pip install) und startet neu.',
-    info: 'git läuft dabei mit den normalen Rechten des Workers, nie als Administrator. Laufende Bots werden danach mit der neuen Version neu gestartet, Positionen und Orders bleiben unberührt.',
-    variant: 'warning',
-  },
-  restart: {
-    message: 'Worker und ngrok werden über start.bat neu gestartet. Das Dashboard ist ~10–20 s nicht erreichbar.',
-    info: 'Bots sind eigene Prozesse und laufen weiter. Neustart-Schleifen, Worker oder ngrok mit Adminrechten werden vorher beendet.',
-    variant: 'warning',
-  },
-  'restart-ngrok': {
-    message: 'Der ngrok-Tunnel wird beendet und nach ~3 s automatisch neu gestartet.',
-    variant: 'warning',
-  },
-  reboot: {
-    message: 'Windows auf dem VPS wird neu gestartet. Danach melden sich Auto-Login, Worker und ngrok selbst wieder an.',
-    info: 'Alle Bots, die vorher liefen (nicht gestoppt), starten danach automatisch wieder – auch LIVE. Dauer: meist 1–3 Minuten.',
-    variant: 'danger',
-  },
+const CONFIRM: Record<ButtonAction, { message: MessageKey; info?: MessageKey; variant: 'warning' | 'danger' }> = {
+  update: { message: 'vps.confirm.update.message', info: 'vps.confirm.update.info', variant: 'warning' },
+  restart: { message: 'vps.confirm.restart.message', info: 'vps.confirm.restart.info', variant: 'warning' },
+  'restart-ngrok': { message: 'vps.confirm.restartNgrok.message', variant: 'warning' },
+  reboot: { message: 'vps.confirm.reboot.message', info: 'vps.confirm.reboot.info', variant: 'danger' },
 };
 
 interface Props {
@@ -42,20 +28,21 @@ interface Props {
 }
 
 export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction, workerRunning }: Props) {
+  const t = useT();
   const [confirm, setConfirm] = useState<ButtonAction | null>(null);
   const cfg = confirm ? CONFIRM[confirm] : null;
 
   return (
     <>
       <Card>
-        <CardHeader title="Steuerung" description="Alles läuft per SSH über den lokalen Next.js-Server" icon={<Power size={16} />} />
+        <CardHeader title={t('vps.ctrl.title')} description={t('vps.ctrl.subtitle')} icon={<Power size={16} />} />
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-border bg-muted/40 p-3" data-testid="vps-update">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm">
-                <p className="font-medium text-foreground">Updates</p>
+                <p className="font-medium text-foreground">{t('vps.ctrl.updates')}</p>
                 <p className="text-xs text-muted-foreground">
-                  {workerRunning ? 'Prüft origin/main über den Worker auf dem VPS' : 'Worker läuft nicht – Update geht trotzdem (über die Aufgabe AutoGrid-Update)'}
+                  {workerRunning ? t('vps.ctrl.updates.worker') : t('vps.ctrl.updates.noWorker')}
                 </p>
               </div>
               <Button
@@ -67,7 +54,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
                 data-testid="vps-action-check-update"
               >
                 <RefreshCw size={14} />
-                Nach Updates suchen
+                {t('vps.ctrl.check')}
               </Button>
             </div>
             {updateCheck && (
@@ -81,7 +68,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
                 ) : (
                   <div className="flex items-center gap-2 text-sm text-success">
                     <CheckCircle2 size={16} />
-                    Aktuell ({updateCheck.local_ver})
+                    {t('vps.ctrl.upToDate', { version: updateCheck.local_ver })}
                   </div>
                 )}
               </div>
@@ -98,7 +85,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               data-testid="vps-action-update"
             >
               <DownloadCloud size={16} />
-              Update &amp; Neustart
+              {t('vps.action.update')}
             </Button>
             <Button
               onClick={() => setConfirm('restart')}
@@ -107,7 +94,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               data-testid="vps-action-restart"
             >
               <RotateCcw size={16} />
-              Worker neu starten
+              {t('vps.action.restart')}
             </Button>
             <Button
               onClick={() => setConfirm('restart-ngrok')}
@@ -116,7 +103,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               data-testid="vps-action-restart-ngrok"
             >
               <Globe size={16} />
-              ngrok neu starten
+              {t('vps.action.restartNgrok')}
             </Button>
             <Button
               variant="outline"
@@ -127,7 +114,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
               data-testid="vps-action-reboot"
             >
               <Power size={16} />
-              VPS neu starten
+              {t('vps.action.reboot')}
             </Button>
           </div>
         </CardContent>
@@ -142,12 +129,11 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
           setConfirm(null);
           if (action) await onAction(action);
         }}
-        title={confirm ? `${ACTION_TITLES[confirm]}?` : ''}
-        message={cfg?.message ?? ''}
-        infoText={cfg?.info}
+        title={confirm ? t('vps.action.confirmTitle', { action: t(ACTION_TITLE_KEYS[confirm]) }) : ''}
+        message={cfg ? t(cfg.message) : ''}
+        infoText={cfg?.info ? t(cfg.info) : undefined}
         variant={cfg?.variant ?? 'warning'}
-        confirmLabel={confirm ? ACTION_TITLES[confirm] : 'OK'}
-        cancelLabel="Abbrechen"
+        confirmLabel={confirm ? t(ACTION_TITLE_KEYS[confirm]) : t('confirm.ok')}
       />
     </>
   );

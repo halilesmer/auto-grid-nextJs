@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { t } from '@/i18n';
 import { LiveData, Metrics } from './types';
 import { useLogsStore } from './useLogsStore';
 
@@ -44,23 +45,23 @@ function logLiveDataTransitions(prev: LiveData, curr: LiveData) {
   const push = useLogsStore.getState().pushActivity;
 
   if (!prev.mt5_connected && curr.mt5_connected) {
-    push('success', 'Bot connected to MT5 – running.');
+    push('success', t('bot.activity.connected'));
   } else if (prev.mt5_connected && !curr.mt5_connected) {
-    push('warn', 'Bot is no longer connected to MT5.');
+    push('warn', t('bot.activity.disconnected'));
   }
   if (curr.bot_running && !curr.mt5_connected && !(prev.bot_running && !prev.mt5_connected)) {
-    push('warn', 'Bot process is running but not connected to MT5 – use Restart or Stop.');
+    push('warn', t('bot.activity.processNoMt5'));
   }
   if (curr.startup_error && curr.startup_error !== prev.startup_error) {
-    push('error', `MT5 connection failed: ${curr.startup_error}`);
+    push('error', t('bot.activity.mt5Failed', { message: curr.startup_error }));
   }
   if (curr.algo_trading_error && !prev.algo_trading_error) {
-    push('warn', 'Algo Trading is disabled in the MT5 terminal.');
+    push('warn', t('bot.activity.algoOff'));
   }
   if (curr.order_rejected_alarm && !prev.order_rejected_alarm) {
-    push('error', `Order rejected by MT5/broker${curr.last_error ? `: ${curr.last_error}` : '.'}`);
+    push('error', t('bot.activity.orderRejected', { detail: curr.last_error ? `: ${curr.last_error}` : '.' }));
   } else if (curr.last_error && curr.last_error !== prev.last_error) {
-    push('error', `Bot error: ${curr.last_error}`);
+    push('error', t('bot.activity.botError', { message: curr.last_error }));
   }
 }
 

@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
 import { defaultZone } from '@/utils/zoneHelpers';
 import type { ZoneSettings } from '@/store/types';
+import { t } from '@/i18n';
 
 export interface UseZoneActionsReturn {
   toggleActive: (zoneId: string, currentActive: boolean) => Promise<void>;
@@ -55,9 +56,9 @@ export function useZoneActions(
 
   const getSymbolError = useCallback(
     (zoneSymbol: string): string | null => {
-      if (!zoneSymbol.trim()) return 'Hatalı Sembol! Lütfen bölge için geçerli bir sembol girin.';
+      if (!zoneSymbol.trim()) return t('zone.alert.noSymbol');
       if (Object.keys(symbolDetails).length > 0 && !symbolDetails[zoneSymbol.toUpperCase().trim()]) {
-        return 'Hatalı Sembol! Girdiğiniz sembol broker tarafından desteklenmiyor. Lütfen geçerli bir sembol girin.';
+        return t('zone.alert.unsupportedSymbol');
       }
       return null;
     },
@@ -82,9 +83,9 @@ export function useZoneActions(
         const remoteSettings = await zoneApi.getSettings(selectedAccount);
         await zoneApi.saveZone(selectedAccount, zone, remoteSettings);
         onZoneSaved?.(zone);
-        toast.success(`${zone.symbol} bölgesi kaydedildi.`, { title: 'Kaydedildi' });
+        toast.success(t('zone.saved.text', { symbol: zone.symbol }), { title: t('common.saved') });
       } catch (err: unknown) {
-        const message = await getApiErrorMessage(err, 'Bölge kaydedilemedi');
+        const message = await getApiErrorMessage(err, t('zone.saveFailed'));
         toast.error(message, { title: 'Hata' });
       } finally {
         setSavingZoneId(null);
@@ -115,10 +116,10 @@ export function useZoneActions(
       } catch (err: unknown) {
         const error = err as { message?: string };
         if (error.message === 'ZONE_NOT_SAVED') {
-          alert('Bu bölge henüz kaydedilmemiş! Lütfen önce \'Tüm Ayarları Kaydet\' butonuna basın.');
+          alert(t('zone.alert.notSaved'));
         } else {
           console.error('Bölge güncellenemedi', err);
-          alert('Bölge durumu kaydedilemedi!');
+          alert(t('zone.alert.toggleFailed'));
         }
         setZones((prevZones) =>
           prevZones.map((z) => (z.id === zoneId ? { ...z, is_active: currentActive } : z))
@@ -140,10 +141,10 @@ export function useZoneActions(
       } catch (err: unknown) {
         const error = err as { message?: string };
         if (error.message === 'ZONE_NOT_SAVED') {
-          alert('Bu bölge henüz kaydedilmemiş! Lütfen önce \'Tüm Ayarları Kaydet\' butonuna basın.');
+          alert(t('zone.alert.notSaved'));
         } else {
           console.error('Bölge yeniden başlatılamadı', err);
-          alert('Bölge yeniden başlatılamadı!');
+          alert(t('zone.alert.restartFailed'));
         }
       }
     },

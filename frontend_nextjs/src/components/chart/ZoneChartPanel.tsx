@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
 import { useAccountStore, useBotRuntimeStore, useSettingsStore } from '@/store';
 import type { ZoneSettings } from '@/store/types';
+import { useT, type MessageKey } from '@/i18n';
 
 function Field({ label, value }: { label: string; value: string | number }) {
   return (
@@ -21,22 +22,23 @@ function Field({ label, value }: { label: string; value: string | number }) {
 }
 
 function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
+  const t = useT();
   const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
-  const fields: [string, string | number][] = [
-    ['Fiyat Aralığı', `${zone.min_price} – ${zone.max_price}`],
-    ['Grid Adımı', zone.grid_step],
-    ['Lot', zone.lot_size],
-    ['Kar Al', zone.take_profit],
-    ['Zarar Durdur', zone.stop_loss],
-    ['Alt / Üst Seviye', `${zone.levels_below} / ${zone.levels_above}`],
-    ['Maks Pozisyon', zone.max_positions],
+  const fields: [MessageKey, string | number][] = [
+    ['chart.zone.priceRange', `${zone.min_price} – ${zone.max_price}`],
+    ['chart.zone.gridStep', zone.grid_step],
+    ['chart.zone.lot', zone.lot_size],
+    ['chart.zone.takeProfit', zone.take_profit],
+    ['chart.zone.stopLoss', zone.stop_loss],
+    ['chart.zone.levels', `${zone.levels_below} / ${zone.levels_above}`],
+    ['chart.zone.maxPositions', zone.max_positions],
   ];
   if (showSell) {
     fields.push(
-      ['SELL Grid', zone.sell_grid_step],
-      ['SELL Lot', zone.sell_lot_size],
-      ['SELL KA', zone.sell_take_profit],
-      ['SELL ZD', zone.sell_stop_loss],
+      ['chart.zone.sellGrid', zone.sell_grid_step],
+      ['chart.zone.sellLot', zone.sell_lot_size],
+      ['chart.zone.sellTakeProfit', zone.sell_take_profit],
+      ['chart.zone.sellStopLoss', zone.sell_stop_loss],
     );
   }
 
@@ -44,18 +46,18 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
     <Card>
       <CardHeader
         icon={<Layers size={16} />}
-        title={`Bölge ${index + 1} · ${zone.symbol || '—'}`}
-        description={zone.is_breakout ? 'Kırılım modu (sadece trend yönünde)' : 'Kayan grid'}
+        title={t('chart.zone.title', { n: index + 1, symbol: zone.symbol || '—' })}
+        description={zone.is_breakout ? t('chart.zone.breakout') : t('chart.zone.sliding')}
         actions={
           <div className="flex gap-2">
             <Badge tone="info">{zone.order_type}</Badge>
-            <Badge tone={zone.is_active ? 'success' : 'neutral'}>{zone.is_active ? 'Aktif' : 'Pasif'}</Badge>
+            <Badge tone={zone.is_active ? 'success' : 'neutral'}>{zone.is_active ? t('chart.zone.active') : t('chart.zone.inactive')}</Badge>
           </div>
         }
       />
       <div className="grid grid-cols-2 gap-2 px-5 pb-5 pt-4 sm:grid-cols-4">
-        {fields.map(([label, value]) => (
-          <Field key={label} label={label} value={value} />
+        {fields.map(([labelKey, value]) => (
+          <Field key={labelKey} label={t(labelKey)} value={value} />
         ))}
       </div>
     </Card>
@@ -67,6 +69,7 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
  * Bölge bilgisi useSettingsStore'dan gelir (Dashboard'da hesap seçiliyken dolu).
  */
 export default function ZoneChartPanel() {
+  const t = useT();
   const zoneId = useSearchParams().get('zone');
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const zones = useSettingsStore((s) => s.settings?.ZONES);
@@ -83,25 +86,24 @@ export default function ZoneChartPanel() {
   const priceLines = useMemo<ChartPriceLine[] | undefined>(() => {
     if (!zone || symbolMismatch) return undefined;
     return [
-      { price: zone.max_price, title: 'Bölge Max' },
-      { price: zone.min_price, title: 'Bölge Min' },
+      { price: zone.max_price, title: t('chart.zone.lineMax') },
+      { price: zone.min_price, title: t('chart.zone.lineMin') },
     ];
-  }, [zone, symbolMismatch]);
+  }, [zone, symbolMismatch, t]);
 
   return (
     <div className="space-y-5">
       {zoneId && !zone && (
-        <Alert tone="info" title="Bölge bulunamadı">
+        <Alert tone="info" title={t('chart.zone.notFound')}>
           {selectedAccount
-            ? 'Bu hesabın ayarlarında bu bölge yok (silinmiş olabilir).'
-            : "Bölge bilgisi için önce Dashboard'da hesabı seçin ve bölgenin „Test“ bağlantısını kullanın."}
+            ? t('chart.zone.notFound.withAccount')
+            : t('chart.zone.notFound.noAccount')}
         </Alert>
       )}
       {zone && <ZoneInfoCard zone={zone} index={index} />}
       {symbolMismatch && zone && (
-        <Alert tone="warning" title="Farklı sembol">
-          Grafik akışı {streamSymbol} gösteriyor (hesabın ilk bölgesi); bu bölge {zone.symbol}. Bölge
-          seviyeleri bu yüzden grafiğe çizilmedi.
+        <Alert tone="warning" title={t('chart.zone.mismatch.title')}>
+          {t('chart.zone.mismatch.text', { stream: streamSymbol ?? '', symbol: zone.symbol })}
         </Alert>
       )}
       <div className="min-h-125">

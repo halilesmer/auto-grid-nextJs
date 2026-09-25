@@ -4,6 +4,7 @@ import type { ZoneSellFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { SectionLabel } from '@/components/ui/card';
+import { useT } from '@/i18n';
 
 export function ZoneSellFields({
   zone,
@@ -12,15 +13,16 @@ export function ZoneSellFields({
   handleChange,
   handleBlur,
 }: ZoneSellFieldsProps) {
+  const t = useT();
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
 
   return (
     <>
-      <SectionLabel className="pt-1 text-danger">SELL Grid Ayarları</SectionLabel>
+      <SectionLabel className="pt-1 text-danger">{t('zone.section.sellGridShort')}</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <InputField label="SELL Grid ($)">
+        <InputField label={t('zone.field.sellGrid')}>
           <NumberInput
             min={symbolConfig.min}
             step={symbolConfig.step}
@@ -30,7 +32,7 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label="SELL Lot">
+        <InputField label={t('zone.field.sellLot')}>
           <NumberInput
             min={symbolConfig.volMin}
             step={symbolConfig.volStep}
@@ -40,7 +42,7 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label="SELL KA ($)">
+        <InputField label={t('zone.field.sellTakeProfit')}>
           <NumberInput
             min={0}
             step={symbolConfig.step}
@@ -50,7 +52,7 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label="SELL ZD ($)">
+        <InputField label={t('zone.field.sellStopLoss')}>
           <NumberInput
             min={0}
             step={symbolConfig.step}

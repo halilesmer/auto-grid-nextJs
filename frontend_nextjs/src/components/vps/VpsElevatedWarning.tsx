@@ -5,7 +5,17 @@ import { ShieldAlert } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { ELEVATED_ROLE_LABELS, type VpsElevatedProcess } from '@/lib/vps';
+import type { VpsElevatedProcess } from '@/lib/vps';
+import { useT, type MessageKey } from '@/i18n';
+
+const ROLE_KEYS: Record<string, MessageKey> = {
+  'worker-loop': 'vps.role.worker-loop',
+  'ngrok-loop': 'vps.role.ngrok-loop',
+  worker: 'vps.role.worker',
+  ngrok: 'vps.role.ngrok',
+  bot: 'vps.role.bot',
+  mt5: 'vps.role.mt5',
+};
 
 interface Props {
   processes: VpsElevatedProcess[];
@@ -21,6 +31,7 @@ interface Props {
  * Worker/Bots wieder mit Adminrechten. Nur vps.ps1 (per SSH erhöht) kann sie beenden.
  */
 export default function VpsElevatedWarning({ processes, busy, disabled, onFix }: Props) {
+  const t = useT();
   const [confirm, setConfirm] = useState(false);
   if (processes.length === 0) return null;
   const withBots = processes.some((p) => p.role === 'bot' || p.role === 'mt5');
@@ -30,19 +41,18 @@ export default function VpsElevatedWarning({ processes, busy, disabled, onFix }:
       <div data-testid="vps-elevated">
         <Alert
           tone="danger"
-          title={`${processes.length === 1 ? '1 Prozess läuft' : `${processes.length} Prozesse laufen`} mit Administratorrechten`}
+          title={t('vps.elevated.title', { count: processes.length })}
         >
           <ul className="mt-1 space-y-0.5 font-mono text-xs">
             {processes.map((p) => (
               <li key={p.pid}>
-                {ELEVATED_ROLE_LABELS[p.role] ?? p.role}
+                {ROLE_KEYS[p.role] ? t(ROLE_KEYS[p.role]) : p.role}
                 {p.account ? ` ${p.account}` : ''} · PID {p.pid}
               </li>
             ))}
           </ul>
           <p className="mt-2 text-xs">
-            Der normale Worker kann diese Prozesse weder sehen noch beenden. Alte Neustart-Schleifen laufen neben den
-            neuen weiter und starten Worker und Bots wieder mit Adminrechten, Stop und Updates wirken dann nicht richtig.
+            {t('vps.elevated.text')}
           </p>
           <Button
             size="sm"
@@ -54,7 +64,7 @@ export default function VpsElevatedWarning({ processes, busy, disabled, onFix }:
             data-testid="vps-action-fix-elevated"
           >
             <ShieldAlert size={14} />
-            Admin-Prozesse beenden
+            {t('vps.elevated.fix')}
           </Button>
         </Alert>
       </div>
@@ -66,16 +76,11 @@ export default function VpsElevatedWarning({ processes, busy, disabled, onFix }:
           setConfirm(false);
           await onFix();
         }}
-        title="Admin-Prozesse beenden?"
-        message="Alle AutoGrid-Prozesse mit Administratorrechten werden beendet, danach starten Worker und ngrok ohne Adminrechte neu."
-        infoText={
-          withBots
-            ? 'Betroffene Bots und MT5 werden dabei beendet; der Worker startet die Bots danach ohne Adminrechte wieder (auch LIVE). Positionen und Orders bleiben unberührt.'
-            : 'Bots ohne Adminrechte laufen weiter.'
-        }
+        title={t('vps.elevated.confirmTitle')}
+        message={t('vps.elevated.confirmMessage')}
+        infoText={withBots ? t('vps.elevated.infoBots') : t('vps.elevated.infoNoBots')}
         variant="danger"
-        confirmLabel="Admin-Prozesse beenden"
-        cancelLabel="Abbrechen"
+        confirmLabel={t('vps.elevated.fix')}
       />
     </>
   );

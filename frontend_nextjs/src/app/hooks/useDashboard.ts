@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { axiosInstance, API } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
+import { t } from '@/i18n';
 import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
 // Worker güncellemeden sonra ~1,5 sn içinde kapanır, .bat 3 sn sonra yeniden başlatır
@@ -159,9 +160,9 @@ export function useDashboard({
     } catch (err: unknown) {
       setUpdateResult(null);
       // Worker nicht erreichbar: Neustart/Update geht dann nur noch per SSH über die VPS-Seite
-      const reason = await getApiErrorMessage(err, 'Update check failed');
-      toast.error(`${reason} – Worker über die Seite „VPS“ neu starten oder aktualisieren.`, {
-        title: 'Update Check',
+      const reason = await getApiErrorMessage(err, t('update.checkFailed'));
+      toast.error(t('update.checkFailed.hint', { reason }), {
+        title: t('update.title'),
       });
     }
   }, []);
@@ -177,7 +178,7 @@ export function useDashboard({
       }
       window.location.reload();
     } catch (err: unknown) {
-      alert(await getApiErrorMessage(err, 'Update failed'));
+      alert(await getApiErrorMessage(err, t('update.applyFailed')));
       setUpdateResult(null);
     }
   }, [updateResult]);
@@ -207,11 +208,11 @@ export function useDashboard({
     try {
       await mergeAndSaveSettings(API);
       setSavedSettingsStr(JSON.stringify(settings));
-      toast.success('Tüm ayarlar kaydedildi.', { title: 'Kaydedildi' });
+      toast.success(t('dashboard.saveAll.success'), { title: t('common.saved') });
     } catch (err: unknown) {
-      const message = await getApiErrorMessage(err, 'Tüm ayarları kaydetme başarısız');
+      const message = await getApiErrorMessage(err, t('dashboard.saveAll.failed'));
       setSaveAllError(message);
-      toast.error(message, { title: 'Hata' });
+      toast.error(message, { title: t('common.error') });
     } finally {
       setSaveAllLoading(false);
     }

@@ -1,6 +1,7 @@
 'use client';
 
 import { RefreshCw } from 'lucide-react';
+import { useT } from '@/i18n';
 import type { MT5PathSelectorProps } from '../types';
 
 export function MT5PathSelector({
@@ -13,17 +14,18 @@ export function MT5PathSelector({
   onRescan,
   onCustomPathChange,
 }: MT5PathSelectorProps) {
+  const t = useT();
   return (
     <div>
       <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-        MT5 Path *
+        {t('account.path.label')}
         <button
           type="button"
           disabled={isScanning}
           onClick={onRescan}
           className="ml-2 inline-flex items-center text-primary hover:text-primary/80 disabled:opacity-50"
-          title="Rescan MT5 paths"
-          aria-label="Rescan MT5 paths"
+          title={t('account.path.rescan')}
+          aria-label={t('account.path.rescan')}
         >
           <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
         </button>
@@ -37,7 +39,7 @@ export function MT5PathSelector({
           className="size-3.5 rounded accent-primary"
         />
         <label htmlFor="customPath" className="cursor-pointer text-xs text-muted-foreground">
-          Manuel Gir (Custom Path)
+          {t('account.path.custom')}
         </label>
       </div>
 
@@ -46,10 +48,10 @@ export function MT5PathSelector({
           value={selectedPath || ''}
           onChange={(e) => onPathSelect(e.target.value)}
           className="input-s"
-          aria-label="Select MT5 Path"
+          aria-label={t('account.path.select.aria')}
         >
           <option value="" disabled>
-            -- MT5 Yolunu Seçin --
+            {t('account.path.select.placeholder')}
           </option>
           {paths.map((p) => (
             <option key={p} value={p}>
@@ -63,7 +65,7 @@ export function MT5PathSelector({
           onChange={(e) => onCustomPathChange(e.target.value)}
           placeholder="C:/Program Files/MetaTrader 5/terminal64.exe"
           className="input-s"
-          aria-label="Custom MT5 Path"
+          aria-label={t('account.path.custom.aria')}
         />
       )}
     </div>

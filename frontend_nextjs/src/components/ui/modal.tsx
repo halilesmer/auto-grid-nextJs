@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 interface ModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, icon, children, className, dismissible = true }: ModalProps) {
+  const t = useT();
   useEffect(() => {
     if (!open || !dismissible) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -55,7 +57,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
                     type="button"
                     onClick={onClose}
                     className="ml-auto rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
-                    aria-label="Close"
+                    aria-label={t('ui.close')}
                   >
                     <X className="size-4" />
                   </button>

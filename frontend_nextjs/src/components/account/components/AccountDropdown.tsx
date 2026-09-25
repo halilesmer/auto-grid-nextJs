@@ -2,6 +2,7 @@
 
 import { Wallet } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
+import { useT } from '@/i18n';
 import { EnvTypeBadge } from './EnvTypeBadge';
 import type { Account, AccountDropdownProps } from '../types';
 
@@ -20,6 +21,7 @@ export function AccountDropdown({
   onSelect,
   disabled = false,
 }: AccountDropdownProps) {
+  const t = useT();
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
       <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground sm:flex">
@@ -27,7 +29,7 @@ export function AccountDropdown({
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-sm">
         <span className="text-xs font-medium text-muted-foreground">
-          MT5 Account
+          {t('account.label')}
         </span>
         <Combobox
           items={accounts}
@@ -50,12 +52,12 @@ export function AccountDropdown({
               </span>
             </div>
           )}
-          placeholder="-- Select an account --"
-          searchPlaceholder="Search account…"
-          emptyMessage="No account found"
+          placeholder={t('account.select.placeholder')}
+          searchPlaceholder={t('account.select.search')}
+          emptyMessage={t('account.select.empty')}
           disabled={disabled}
           className="font-medium"
-          aria-label="Select Account"
+          aria-label={t('account.select.aria')}
         />
       </div>
       {activeAccount && (

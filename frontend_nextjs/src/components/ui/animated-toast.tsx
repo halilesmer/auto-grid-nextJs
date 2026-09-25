@@ -8,6 +8,7 @@ import { AlertCircle, AlertTriangle, Bell, CheckCircle2, Info, X } from 'lucide-
 import { AnimatePresence, motion } from 'motion/react';
 import { create } from 'zustand';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'default';
 
@@ -96,6 +97,7 @@ const progressColors: Record<ToastType, string> = {
 };
 
 function ToastItem({ toast: t, index }: { toast: ToastItemData; index: number }) {
+  const translate = useT();
   const remove = useToastStore((s) => s.remove);
   const { id, type, title, message, duration } = t;
 
@@ -134,7 +136,7 @@ function ToastItem({ toast: t, index }: { toast: ToastItemData; index: number })
           type="button"
           onClick={() => remove(id)}
           className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Kapat"
+          aria-label={translate('ui.dismiss')}
         >
           <X className="size-4" />
         </button>

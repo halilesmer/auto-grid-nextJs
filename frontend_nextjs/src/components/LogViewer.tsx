@@ -13,6 +13,7 @@ import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
+import { useFormat, useT, type MessageKey } from '@/i18n';
 
 const POLL_INTERVAL_MS = 10_000;
 // Bağlanırken ne olduğunu canlı görmek için daha sık yokla
@@ -20,10 +21,10 @@ const CONNECTING_POLL_INTERVAL_MS = 2_000;
 
 type Tab = "activity" | "robot" | "mt5";
 
-const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
-  { id: "activity", label: "Activity", icon: <Activity size={14} /> },
-  { id: "robot", label: "Robot Logs", icon: <Bot size={14} /> },
-  { id: "mt5", label: "MT5 Terminal", icon: <MonitorCog size={14} /> },
+const TABS: { id: Tab; labelKey: MessageKey; icon: ReactNode }[] = [
+  { id: "activity", labelKey: "logs.tab.activity", icon: <Activity size={14} /> },
+  { id: "robot", labelKey: "logs.tab.robot", icon: <Bot size={14} /> },
+  { id: "mt5", labelKey: "logs.tab.mt5", icon: <MonitorCog size={14} /> },
 ];
 
 const ACTIVITY_COLORS: Record<ActivityLevel, string> = {
@@ -32,10 +33,6 @@ const ACTIVITY_COLORS: Record<ActivityLevel, string> = {
   warn: "text-warning",
   error: "text-danger font-semibold",
 };
-
-function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour12: false });
-}
 
 function logLineColor(line: string): string {
   if (
@@ -64,6 +61,8 @@ function logLineColor(line: string): string {
 }
 
 export default function LogViewer() {
+  const t = useT();
+  const { time: formatTime } = useFormat();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const robotLog = useLogsStore((s) => s.robot_log);
   const mt5Log = useLogsStore((s) => s.mt5_log);
@@ -111,11 +110,11 @@ export default function LogViewer() {
         updateLiveData({ ...(data.metrics || {}), ...botRunning });
       }
       if (useLogsStore.getState().workerStatus.reachable === false) {
-        pushActivity("success", "Connection to worker restored.");
+        pushActivity("success", t("logs.restored"));
       }
       setWorkerStatus({ reachable: true, lastUpdate: Date.now(), error: null });
     } catch (err) {
-      const message = await getApiErrorMessage(err, "Could not load logs");
+      const message = await getApiErrorMessage(err, t("logs.loadFailed"));
       const prev = useLogsStore.getState().workerStatus;
       // Sadece durum değişiminde yaz; her poll'da tekrar etme
       if (prev.reachable !== false) {
@@ -123,7 +122,7 @@ export default function LogViewer() {
       }
       setWorkerStatus({ ...prev, reachable: false, error: message });
     }
-  }, [selectedAccount, setLogs, updateLiveData, pushActivity, setWorkerStatus]);
+  }, [selectedAccount, setLogs, updateLiveData, pushActivity, setWorkerStatus, t]);
 
   const pollInterval = isConnecting ? CONNECTING_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
 
@@ -167,9 +166,9 @@ export default function LogViewer() {
     try {
       await axiosInstance.delete(`/logs/${selectedAccount}`);
       clearLogs();
-      pushActivity("info", "Log files cleared.");
+      pushActivity("info", t("logs.cleared"));
     } catch (err) {
-      pushActivity("error", await getApiErrorMessage(err, "Could not clear logs"));
+      pushActivity("error", await getApiErrorMessage(err, t("logs.clearFailed")));
       setTab("activity");
     } finally {
       setClearing(false);
@@ -182,18 +181,18 @@ export default function LogViewer() {
   const activeLines = tab === "robot" ? robotLog : mt5Log;
 
   let statusTone: "neutral" | "warning" | "danger" | "success" = "neutral";
-  let statusText = "Checking worker…";
+  let statusText = t("logs.status.checking");
   if (isConnecting) {
     statusTone = "warning";
-    statusText = `Connecting to MT5… ${connectingSeconds}s`;
+    statusText = t("logs.status.connecting", { seconds: connectingSeconds });
   } else if (workerStatus.reachable === false) {
     statusTone = "danger";
-    statusText = "Worker offline";
+    statusText = t("logs.status.offline");
   } else if (workerStatus.reachable) {
     statusTone = "success";
     statusText = workerStatus.lastUpdate
-      ? `Worker online · updated ${formatTime(workerStatus.lastUpdate)}`
-      : "Worker online";
+      ? t("logs.status.onlineUpdated", { time: formatTime(workerStatus.lastUpdate) })
+      : t("logs.status.online");
   }
 
   return (
@@ -201,7 +200,7 @@ export default function LogViewer() {
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-border px-3 pt-2">
         <AnimatedTabs
-          tabs={TABS}
+          tabs={TABS.map(({ id, labelKey, icon }) => ({ id, label: t(labelKey), icon }))}
           activeTab={tab}
           onChange={(id) => setTab(id as Tab)}
           layoutId="log-viewer-tabs"
@@ -209,17 +208,17 @@ export default function LogViewer() {
           className="border-b-0"
         />
         <div className="flex items-center gap-0.5 pb-1.5">
-          <Button variant="ghost" size="icon-sm" onClick={fetchLogs} title="Refresh">
+          <Button variant="ghost" size="icon-sm" onClick={fetchLogs} title={t("logs.refresh")}>
             <RefreshCw size={14} />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={handleDownloadLog} title="Download log file">
+          <Button variant="ghost" size="icon-sm" onClick={handleDownloadLog} title={t("logs.download")}>
             <Download size={14} />
           </Button>
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={handleClearLogs}
-            title={tab === "activity" ? "Clear activity" : "Clear all logs"}
+            title={tab === "activity" ? t("logs.clear.activity") : t("logs.clear.all")}
             className="hover:bg-danger/10 hover:text-danger"
           >
             <Trash2 size={14} />
@@ -238,7 +237,7 @@ export default function LogViewer() {
           </div>
           <span className="flex items-center gap-1.5 text-muted-foreground/70">
             <Terminal size={11} />
-            {selectedAccount} · refresh {pollInterval / 1000}s
+            {selectedAccount} · {t("logs.refreshEvery", { seconds: pollInterval / 1000 })}
           </span>
         </div>
 
@@ -255,7 +254,7 @@ export default function LogViewer() {
         >
           {tab === "activity" ? (
             activity.length === 0 ? (
-              <span className="text-muted-foreground/60">No activity yet – actions like Start/Stop and errors appear here.</span>
+              <span className="text-muted-foreground/60">{t("logs.empty.activity")}</span>
             ) : (
               activity.map((entry, i) => (
                 <span key={i} className={ACTIVITY_COLORS[entry.level]}>
@@ -266,7 +265,7 @@ export default function LogViewer() {
               ))
             )
           ) : activeLines.length === 0 ? (
-            <span className="text-muted-foreground/60">No log entries yet...</span>
+            <span className="text-muted-foreground/60">{t("logs.empty.log")}</span>
           ) : (
             activeLines.map((line, i) => (
               <span key={i} className={logLineColor(line)}>
@@ -283,10 +282,10 @@ export default function LogViewer() {
       open={clearConfirmOpen}
       onClose={() => setClearConfirmOpen(false)}
       onConfirm={confirmClearLogs}
-      title="Logları Temizle"
-      message="Bu hesaba ait tüm logları temizlemek istediğinize emin misiniz?"
-      confirmLabel="Temizle"
-      cancelLabel="Vazgeç"
+      title={t("logs.clearConfirm.title")}
+      message={t("logs.clearConfirm.message")}
+      confirmLabel={t("logs.clearConfirm.confirm")}
+      cancelLabel={t("logs.clearConfirm.cancel")}
       variant="danger"
       loading={clearing}
     />

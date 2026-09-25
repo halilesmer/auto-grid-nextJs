@@ -47,15 +47,6 @@ export interface VpsElevatedProcess {
   account: string;
 }
 
-export const ELEVATED_ROLE_LABELS: Record<string, string> = {
-  'worker-loop': 'Worker-Neustart-Schleife',
-  'ngrok-loop': 'ngrok-Neustart-Schleife',
-  worker: 'Worker',
-  ngrok: 'ngrok',
-  bot: 'Bot',
-  mt5: 'MT5-Terminal',
-};
-
 interface VpsTaskInfo {
   exists: boolean;
   state?: string;
@@ -99,10 +90,37 @@ export interface VpsLogResult {
   note?: string;
 }
 
+/**
+ * Fehler der Route /api/vps/[action] tragen zusätzlich einen Code (+ Parameter): der Client übersetzt sie über
+ * `vps.err.<code>`; `error` bleibt der deutsche Klartext für alte Clients und Tests.
+ */
+export const VPS_ERROR_CODES = [
+  'localOnly',
+  'badOrigin',
+  'disabled',
+  'unknownAction',
+  'wrongMethod',
+  'unknownLog',
+  'repoPath',
+  'badArg',
+  'timeout',
+  'noSsh',
+  'sshFailed',
+  'unexpected',
+] as const;
+export type VpsErrorCode = (typeof VPS_ERROR_CODES)[number];
+export type VpsErrorParams = Record<string, string | number>;
+
+export function isVpsErrorCode(value: unknown): value is VpsErrorCode {
+  return typeof value === 'string' && (VPS_ERROR_CODES as readonly string[]).includes(value);
+}
+
 export interface VpsActionResult {
   ok: boolean;
   message?: string;
   error?: string;
+  code?: VpsErrorCode;
+  params?: VpsErrorParams;
   via?: 'worker' | 'task';
   restarting?: boolean;
 }

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { t } from '@/i18n';
 import { WORKER_HEADERS } from '@/lib/api';
 import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
@@ -97,7 +98,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       },
       body: JSON.stringify({ settings }),
     });
-    if (!res.ok) throw new Error('Failed to save settings');
+    if (!res.ok) throw new Error(t('settings.saveFailed'));
   },
 
   getSymbolDetail: (symbol) => {
