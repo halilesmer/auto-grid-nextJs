@@ -155,7 +155,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
     await expect(tooltip).toHaveCount(0);
 
     await hint.hover();
-    await expect(tooltip).toHaveText(msg('zone.field.gridStep.hint'));
+    await expect(tooltip).toContainText(msg('zone.field.gridStep.hint'));
     await page.keyboard.press('Escape');
     await expect(tooltip).toHaveCount(0);
 
@@ -252,6 +252,6 @@ test.describe('UI-07 Hinweise: Sprache', () => {
   test('Der Hinweis folgt der gewählten Sprache', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await fieldHint(dashboard.zone(), msg('zone.field.gridStep', undefined, 'de')).hover();
-    await expect(page.getByRole('tooltip')).toHaveText(msg('zone.field.gridStep.hint', undefined, 'de'));
+    await expect(page.getByRole('tooltip')).toContainText(msg('zone.field.gridStep.hint', undefined, 'de'));
   });
 });

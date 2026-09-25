@@ -4,6 +4,7 @@ import type { ZoneGridFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { useT } from '@/i18n';
+import { useGuidedHints } from './useGuidedHints';
 
 export function ZoneGridFields({
   zone,
@@ -15,6 +16,7 @@ export function ZoneGridFields({
   handleBlur,
 }: ZoneGridFieldsProps) {
   const t = useT();
+  const guided = useGuidedHints(zone.symbol);
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -23,7 +25,7 @@ export function ZoneGridFields({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <InputField
         label={isBoth && !sync ? t('zone.field.buyGrid') : t('zone.field.gridStep')}
-        hint={isBoth && !sync ? t('zone.field.buyGrid.hint') : t('zone.field.gridStep.hint')}
+        hint={guided.step(isBoth && !sync ? t('zone.field.buyGrid.hint') : t('zone.field.gridStep.hint'))}
       >
         <NumberInput
           min={symbolConfig.min}
@@ -49,7 +51,7 @@ export function ZoneGridFields({
       </InputField>
       <InputField
         label={isBoth && !sync ? t('zone.field.buyTakeProfit') : t('zone.field.takeProfit')}
-        hint={isBoth && !sync ? t('zone.field.buyTakeProfit.hint') : t('zone.field.takeProfit.hint')}
+        hint={guided.tp(isBoth && !sync ? t('zone.field.buyTakeProfit.hint') : t('zone.field.takeProfit.hint'))}
       >
         <NumberInput
           min={0}

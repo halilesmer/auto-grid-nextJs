@@ -372,6 +372,16 @@ kategorien:
           - Danach bei Zone 1 „Kaydet“ klicken.
         erwartet: Nach dem ersten Klick liegt die neue Zone im Worker, Zone 1 trägt weiter „Kaydedilmedi“ und „Tüm Ayarları Kaydet“ bleibt aktiv; nach dem zweiten Klick sind Badge und Dirty-Zustand weg.
 
+      - id: ZON-12
+        titel: Symbol-Richtwerte in den Hinweisen
+        beschreibung: Der (i)-Hinweis von Grid-Abstand und Take Profit (Buy/Sell) nennt für gängige Symbole (Gold, Silber, Forex, BTC/ETH, US-Indizes, Öl) einen Richtwert; bei unbekanntem Symbol bleibt der Text unverändert. Nur Anzeige, keine Validierung.
+        code: [frontend_nextjs/src/utils/symbolGuidance.ts, frontend_nextjs/src/components/zone/useGuidedHints.ts, frontend_nextjs/src/components/zone/ZoneGridFields.tsx, frontend_nextjs/src/components/zone/ZoneSellFields.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Symbol auf XAUUSD stellen, mit der Maus über das (i) von Grid-Abstand und Take Profit fahren.
+          - Symbol auf ein unbekanntes Symbol stellen.
+        erwartet: Bei XAUUSD steht „1–5“ als Richtwert im Hinweis; bei unbekanntem Symbol nur der Standardtext.
+
   # ---------------------------------------------------------------------------
   - id: BOT
     titel: Bot-Steuerung
