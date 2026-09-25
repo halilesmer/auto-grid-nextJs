@@ -363,7 +363,7 @@
     "unit": {
       "datum": "2026-09-25",
       "status": "passed",
-      "tests": 1
+      "tests": 5
     }
   },
   "MET-04": {
