@@ -106,6 +106,8 @@ export interface LiveData {
   bot_running?: boolean;
   // Motorun bölge durumları, bölge sırasına göre: {"0": "START" | "PAUSE" | "AUTO_CLEAR" | "CLEAR"}
   zone_states?: Record<string, string>;
+  // Bölge başına piyasa durumu (sembolün işlem saatine göre): {"0": true, ...}
+  zone_market_open?: Record<string, boolean>;
   // Motor telefondan ($1 sinyali / GRID:STOP) durduruldu
   remote_paused?: boolean;
 }

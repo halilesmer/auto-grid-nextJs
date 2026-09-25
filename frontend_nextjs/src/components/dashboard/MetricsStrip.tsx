@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import { Activity, Clock, Layers, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { AnimateDigits } from '@/components/ui/animate-digits';
-import { StatusDot } from '@/components/ui/status-dot';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useBotRuntimeStore } from '@/store';
@@ -69,12 +68,6 @@ export default function MetricsStrip() {
         testId="metric-price"
         icon={<Activity size={14} />}
         value={formatMoney(liveData.current_price)}
-        footer={
-          <span className="flex items-center gap-1.5">
-            <StatusDot tone={liveData.market_open ? 'success' : 'danger'} pulse={liveData.market_open} />
-            {liveData.market_open ? t('metrics.marketOpen') : t('metrics.marketClosed')}
-          </span>
-        }
       />
       <Metric
         label={t('metrics.profit')}

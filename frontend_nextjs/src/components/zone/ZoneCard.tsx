@@ -85,6 +85,7 @@ export function ZoneCard({
           disableButtons={disableButtons}
           engineState={liveData.zone_states?.[String(zoneIndex)]}
           remotePaused={liveData.remote_paused}
+          marketOpen={liveData.zone_market_open?.[String(zoneIndex)]}
           onToggleActive={handleToggleActive}
           onRestart={onRestart}
           onDelete={onDelete}
