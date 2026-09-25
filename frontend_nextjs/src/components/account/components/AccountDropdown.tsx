@@ -2,6 +2,7 @@
 
 import { Wallet } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
+import { FieldLabel } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 import { EnvTypeBadge } from './EnvTypeBadge';
 import type { Account, AccountDropdownProps } from '../types';
@@ -27,10 +28,12 @@ export function AccountDropdown({
       <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground sm:flex">
         <Wallet size={16} />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-sm">
-        <span className="text-xs font-medium text-muted-foreground">
-          {t('account.label')}
-        </span>
+      <div data-tooltip-scope className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-sm">
+        <FieldLabel
+          label={t('account.label')}
+          hint={t('account.label.hint')}
+          className="text-xs font-medium text-muted-foreground"
+        />
         <Combobox
           items={accounts}
           value={selectedAccount || null}

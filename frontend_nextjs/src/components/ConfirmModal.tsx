@@ -15,6 +15,8 @@ interface ConfirmModalProps {
   message: string;
   infoText?: string;
   confirmLabel?: string;
+  /** Pflicht (hooks/RULES.md §5): was passiert, wenn man bestätigt. */
+  confirmHint: string;
   cancelLabel?: string;
   variant?: ConfirmVariant;
   loading?: boolean;
@@ -46,6 +48,7 @@ export default function ConfirmModal({
   message,
   infoText,
   confirmLabel,
+  confirmHint,
   cancelLabel,
   variant = 'danger',
   loading = false,
@@ -88,11 +91,11 @@ export default function ConfirmModal({
 
       <div className="mt-6 flex justify-end gap-2">
         {showCancel && (
-          <Button variant="ghost" onClick={onClose} disabled={loading}>
+          <Button variant="ghost" onClick={onClose} disabled={loading} hint={t('common.cancel.hint')}>
             {cancelLabel ?? t('common.cancel')}
           </Button>
         )}
-        <Button variant={cfg.button} onClick={handleConfirm} loading={loading}>
+        <Button variant={cfg.button} onClick={handleConfirm} loading={loading} hint={confirmHint}>
           {label}
         </Button>
       </div>

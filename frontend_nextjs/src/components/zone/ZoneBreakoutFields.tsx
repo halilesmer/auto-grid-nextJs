@@ -5,6 +5,7 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { InfoHint } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 
 export function ZoneBreakoutFields({
@@ -25,11 +26,21 @@ export function ZoneBreakoutFields({
           checked={zone.is_breakout}
           onChange={(checked) => update('is_breakout', checked)}
           label={t('zone.breakout.trendOnly')}
+          hint={t('zone.breakout.trendOnly.hint')}
         />
-        <div className="flex items-center gap-2">
+        <div data-tooltip-scope className="flex items-center gap-2">
           <span className="whitespace-nowrap text-xs text-muted-foreground">
             {isBoth && !sync ? t('zone.breakout.buyPullback') : t('zone.breakout.minPullback')}
           </span>
+          <InfoHint
+            hint={
+              !zone.is_breakout
+                ? t('zone.breakout.pullback.off.hint')
+                : isBoth && !sync
+                  ? t('zone.breakout.buyPullback.hint')
+                  : t('zone.breakout.minPullback.hint')
+            }
+          />
           <NumberInput
             min={0}
             step={symbolConfig.step}
@@ -41,8 +52,9 @@ export function ZoneBreakoutFields({
           />
         </div>
         {isBoth && !sync && (
-          <div className="flex items-center gap-2">
+          <div data-tooltip-scope className="flex items-center gap-2">
             <span className="whitespace-nowrap text-xs text-muted-foreground">{t('zone.breakout.sellPullback')}</span>
+            <InfoHint hint={zone.is_breakout ? t('zone.breakout.sellPullback.hint') : t('zone.breakout.pullback.off.hint')} />
             <NumberInput
               min={0}
               step={symbolConfig.step}
@@ -57,7 +69,14 @@ export function ZoneBreakoutFields({
       </div>
       <div className="h-px bg-border" />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <InputField label={t('zone.breakout.levelsBelow')}>
+        <InputField
+          label={t('zone.breakout.levelsBelow')}
+          hint={
+            zone.is_breakout && zone.order_type === 'BUY'
+              ? t('zone.breakout.levelsBelow.off.hint')
+              : t('zone.breakout.levelsBelow.hint')
+          }
+        >
           <NumberInput
             min={1}
             step={1}
@@ -67,7 +86,14 @@ export function ZoneBreakoutFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.breakout.levelsAbove')}>
+        <InputField
+          label={t('zone.breakout.levelsAbove')}
+          hint={
+            zone.is_breakout && zone.order_type === 'SELL'
+              ? t('zone.breakout.levelsAbove.off.hint')
+              : t('zone.breakout.levelsAbove.hint')
+          }
+        >
           <NumberInput
             min={1}
             step={1}
@@ -77,7 +103,7 @@ export function ZoneBreakoutFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.breakout.maxPositions')}>
+        <InputField label={t('zone.breakout.maxPositions')} hint={t('zone.breakout.maxPositions.hint')}>
           <NumberInput
             min={0}
             step={1}

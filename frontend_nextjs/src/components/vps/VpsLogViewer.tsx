@@ -14,6 +14,11 @@ const LABEL_KEYS: Record<VpsLog, MessageKey> = {
   ngrok: 'vps.log.tab.ngrok',
   update: 'vps.log.tab.update',
 };
+const HINT_KEYS: Record<VpsLog, MessageKey> = {
+  worker: 'vps.log.tab.worker.hint',
+  ngrok: 'vps.log.tab.ngrok.hint',
+  update: 'vps.log.tab.update.hint',
+};
 
 // Beide Logdateien schreiben erst die Neustart-Schleifen aus start.bat
 // (run_uvicorn_watchdog.bat -> worker_console.log, run_ngrok_watchdog.bat -> ngrok.log)
@@ -66,14 +71,14 @@ export default function VpsLogViewer({ logName, status, lines, note, loading, on
         description={t('vps.log.subtitle')}
         icon={<ScrollText size={16} />}
         actions={
-          <Button size="icon-sm" variant="ghost" onClick={onRefresh} loading={loading} aria-label={t('vps.log.refresh')}>
+          <Button size="icon-sm" variant="ghost" onClick={onRefresh} loading={loading} aria-label={t('vps.log.refresh')} hint={t('vps.log.refresh.hint')}>
             {!loading && <RefreshCw size={14} />}
           </Button>
         }
       />
       <CardContent className="space-y-3">
         <AnimatedTabs
-          tabs={VPS_LOGS.map((id) => ({ id, label: t(LABEL_KEYS[id]) }))}
+          tabs={VPS_LOGS.map((id) => ({ id, label: t(LABEL_KEYS[id]), hint: t(HINT_KEYS[id]) }))}
           activeTab={logName}
           onChange={(id) => onSelect(id as VpsLog)}
           variant="segment"

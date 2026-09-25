@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { AlertTriangle, Info, X, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
+import { Tooltip } from './tooltip';
 
 type Tone = 'danger' | 'warning' | 'info';
 
@@ -30,14 +31,16 @@ export function Alert({ tone = 'danger', title, children, onDismiss, className }
         {children && <div className="break-words text-foreground/80">{children}</div>}
       </div>
       {onDismiss && (
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="-m-1 rounded p-1 opacity-70 transition hover:bg-foreground/5 hover:opacity-100"
-          aria-label={t('ui.dismiss')}
-        >
-          <X className="size-3.5" />
-        </button>
+        <Tooltip content={t('ui.dismiss.hint')} className="-m-1">
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded p-1 opacity-70 transition hover:bg-foreground/5 hover:opacity-100"
+            aria-label={t('ui.dismiss')}
+          >
+            <X className="size-3.5" />
+          </button>
+        </Tooltip>
       )}
     </div>
   );

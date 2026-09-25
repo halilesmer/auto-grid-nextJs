@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { create } from 'zustand';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
+import { Tooltip } from './tooltip';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'default';
 
@@ -132,14 +133,16 @@ function ToastItem({ toast: t, index }: { toast: ToastItemData; index: number })
             {message}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => remove(id)}
-          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label={translate('ui.dismiss')}
-        >
-          <X className="size-4" />
-        </button>
+        <Tooltip content={translate('ui.dismiss.hint')}>
+          <button
+            type="button"
+            onClick={() => remove(id)}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label={translate('ui.dismiss')}
+          >
+            <X className="size-4" />
+          </button>
+        </Tooltip>
       </div>
 
       {duration > 0 && (

@@ -33,7 +33,7 @@ export default function VpsPage() {
         {!vps.disabled && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {vps.refreshedAt && <span>{t('vps.updated', { time: fmt.time(vps.refreshedAt) })}</span>}
-            <Button size="icon-sm" variant="ghost" onClick={() => void vps.refreshStatus()} aria-label={t('vps.refresh')}>
+            <Button size="icon-sm" variant="ghost" onClick={() => void vps.refreshStatus()} aria-label={t('vps.refresh')} hint={t('vps.refresh.hint')}>
               <RefreshCw size={14} />
             </Button>
           </div>

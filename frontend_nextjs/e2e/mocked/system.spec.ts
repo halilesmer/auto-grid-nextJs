@@ -55,7 +55,7 @@ test.describe('SYS Verbindung', () => {
 test.describe('UPD System', () => {
   test('Update-Prüfung', { tag: '@UPD-01' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await page.getByTitle(msg('dashboard.sysinfo.title')).click();
+    await page.getByRole('button', { name: msg('dashboard.sysinfo.title') }).click();
     await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
     const modal = page.getByRole('dialog');
     await expect(modal).toContainText(msg('update.upToDate'));
@@ -63,7 +63,7 @@ test.describe('UPD System', () => {
     await modal.getByRole('button', { name: msg('common.close'), exact: true }).last().click();
 
     worker.state.update = { has_update: true, local_ver: 'v0.7.61', remote_ver: 'v0.7.62' };
-    await page.getByTitle(msg('dashboard.sysinfo.title')).click();
+    await page.getByRole('button', { name: msg('dashboard.sysinfo.title') }).click();
     await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
     await expect(modal).toContainText(msg('update.available'));
     await expect(modal).toContainText('v0.7.61v0.7.62');
@@ -73,7 +73,7 @@ test.describe('UPD System', () => {
   test('Update anwenden lädt die Seite neu', { tag: '@UPD-02' }, async ({ page, worker, dashboard }) => {
     worker.state.update = { has_update: true, local_ver: 'v0.7.61', remote_ver: 'v0.7.62' };
     await dashboard.open(DEMO_ID);
-    await page.getByTitle(msg('dashboard.sysinfo.title')).click();
+    await page.getByRole('button', { name: msg('dashboard.sysinfo.title') }).click();
     await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
 
     const reloaded = page.waitForEvent('framenavigated');
@@ -87,7 +87,7 @@ test.describe('UPD System', () => {
     worker.state.update = { has_update: true, local_ver: 'v0.7.61', remote_ver: 'v0.7.62' };
     worker.overrides.set('POST /api/system/update', { status: 500, body: { detail: 'git pull fehlgeschlagen' } });
     await dashboard.open(DEMO_ID);
-    await page.getByTitle(msg('dashboard.sysinfo.title')).click();
+    await page.getByRole('button', { name: msg('dashboard.sysinfo.title') }).click();
     await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
     const message = await dashboard.withDialog(() =>
       page.getByRole('button', { name: msg('update.apply') }).click(),
@@ -98,7 +98,7 @@ test.describe('UPD System', () => {
   test('System herunterfahren stoppt den Bot', { tag: '@UPD-03' }, async ({ page, worker, dashboard }) => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
-    await page.locator('header').getByTitle(msg('dashboard.shutdown')).click();
+    await page.locator('header').getByRole('button', { name: msg('dashboard.shutdown') }).click();
     const modal = page.getByRole('dialog');
     await expect(modal).toContainText(msg('dashboard.shutdown.message'));
     await modal.getByRole('button', { name: msg('dashboard.shutdown.confirm') }).click();

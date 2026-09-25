@@ -1,6 +1,7 @@
 'use client';
 
 import { RefreshCw } from 'lucide-react';
+import { FieldLabel, InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 import type { MT5PathSelectorProps } from '../types';
 
@@ -16,20 +17,21 @@ export function MT5PathSelector({
 }: MT5PathSelectorProps) {
   const t = useT();
   return (
-    <div>
-      <label className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">
-        {t('account.path.label')}
-        <button
-          type="button"
-          disabled={isScanning}
-          onClick={onRescan}
-          className="ml-2 inline-flex items-center text-primary hover:text-primary/80 disabled:opacity-50"
-          title={t('account.path.rescan')}
-          aria-label={t('account.path.rescan')}
-        >
-          <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
-        </button>
-      </label>
+    <div data-tooltip-scope>
+      <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <FieldLabel label={t('account.path.label')} hint={t('account.path.label.hint')} />
+        <Tooltip content={isScanning ? t('account.path.scanning.hint') : t('account.path.rescan.hint')}>
+          <button
+            type="button"
+            disabled={isScanning}
+            onClick={onRescan}
+            className="inline-flex items-center text-primary hover:text-primary/80 disabled:opacity-50"
+            aria-label={t('account.path.rescan')}
+          >
+            <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
+          </button>
+        </Tooltip>
+      </div>
       <div className="flex items-center space-x-2 mb-2">
         <input
           type="checkbox"
@@ -41,6 +43,7 @@ export function MT5PathSelector({
         <label htmlFor="customPath" className="cursor-pointer text-xs text-muted-foreground">
           {t('account.path.custom')}
         </label>
+        <InfoHint hint={t('account.path.custom.hint')} />
       </div>
 
       {paths.length > 0 && !useCustomPath ? (

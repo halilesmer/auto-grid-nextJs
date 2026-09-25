@@ -24,7 +24,7 @@ test.describe('LOG Logs', () => {
     await dashboard.open(DEMO_ID);
     await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
     await expect(dashboard.logOutput).toContainText('Bot gestartet');
-    const clear = page.getByTitle(msg('logs.clear.all'));
+    const clear = page.getByRole('button', { name: msg('logs.clear.all') });
 
     const confirm = page.getByRole('dialog').filter({ hasText: msg('logs.clearConfirm.title') });
 
@@ -45,7 +45,7 @@ test.describe('LOG Logs', () => {
 
     // Activity-Tab leert nur die Anzeige, ohne Worker-Aufruf
     await page.getByRole('tab', { name: msg('logs.tab.activity') }).click();
-    await page.getByTitle(msg('logs.clear.activity')).click();
+    await page.getByRole('button', { name: msg('logs.clear.activity') }).click();
     await expect(dashboard.logOutput).toContainText(msg('logs.empty.activity'));
     expect(worker.callsTo('DELETE', `/api/logs/${DEMO_ID}`)).toHaveLength(1);
   });
@@ -53,7 +53,7 @@ test.describe('LOG Logs', () => {
   test('Logs als ZIP herunterladen', { tag: '@LOG-03' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const download = page.waitForEvent('download');
-    await page.getByTitle(msg('logs.download')).click();
+    await page.getByRole('button', { name: msg('logs.download') }).click();
     expect((await download).suggestedFilename()).toBe(`MT5_Logs_and_Configs_${DEMO_ID}.zip`);
     await expect(dashboard.logOutput).toContainText(msg('logs.download.done', { size: 1 }));
   });

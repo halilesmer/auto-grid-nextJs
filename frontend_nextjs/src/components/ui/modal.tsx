@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
+import { Tooltip } from './tooltip';
 
 interface ModalProps {
   open: boolean;
@@ -53,14 +54,16 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
                 {icon}
                 {title && <h3 className="flex-1 text-base font-semibold tracking-tight">{title}</h3>}
                 {dismissible && (
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="ml-auto rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
-                    aria-label={t('ui.close')}
-                  >
-                    <X className="size-4" />
-                  </button>
+                  <Tooltip content={t('ui.close.hint')} className="ml-auto">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                      aria-label={t('ui.close')}
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </Tooltip>
                 )}
               </div>
             )}

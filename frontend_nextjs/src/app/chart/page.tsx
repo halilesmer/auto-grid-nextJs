@@ -8,13 +8,14 @@ import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
+import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 
 function Placeholder({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   const t = useT();
   return (
     <Card>
-      <CardHeader icon={icon} title={title} actions={<Badge>{t('chart.soon')}</Badge>} />
+      <CardHeader icon={icon} title={title} actions={<Badge hint={t('chart.soon.hint')}>{t('chart.soon')}</Badge>} />
       <p className="px-5 pb-6 pt-4 text-sm leading-relaxed text-muted-foreground">{text}</p>
     </Card>
   );
@@ -27,20 +28,21 @@ export default function ChartPage() {
       {/* Header with Back Button */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link
-            href="/"
-            className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground"
-            title={t('chart.page.back')}
-          >
-            <ArrowLeft size={14} />
-            {t('chart.page.back')}
-          </Link>
+          <Tooltip content={t('chart.page.back.hint')} className="mb-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground"
+            >
+              <ArrowLeft size={14} />
+              {t('chart.page.back')}
+            </Link>
+          </Tooltip>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
             {t('chart.page.title')}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('chart.page.subtitle')}</p>
         </div>
-        <Badge tone="success">
+        <Badge tone="success" hint={t('chart.page.stream.hint')}>
           <Radio size={12} />
           {t('chart.page.stream')}
         </Badge>

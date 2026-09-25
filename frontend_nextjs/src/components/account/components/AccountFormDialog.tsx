@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 import type { AccountFormDialogProps } from '../types';
 
@@ -49,13 +50,15 @@ export function AccountFormDialog({
     >
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <h3 className="text-base font-semibold tracking-tight">{title}</h3>
-        <button
-          onClick={onClose}
-          className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
-          aria-label={t('account.dialog.close')}
-        >
-          <X size={16} />
-        </button>
+        <Tooltip content={t('account.dialog.close.hint')}>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            aria-label={t('account.dialog.close')}
+          >
+            <X size={16} />
+          </button>
+        </Tooltip>
       </div>
       <div className="p-6">{children}</div>
     </dialog>

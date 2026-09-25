@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Bot, Cpu, GitBranch, Globe, Power, Server } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
+import { FieldLabel } from '@/components/ui/tooltip';
 import type { VpsStatus } from '@/lib/vps';
 import { useT, type MessageKey } from '@/i18n';
 
@@ -12,6 +13,7 @@ type Tone = 'success' | 'danger' | 'warning' | 'neutral';
 function Tile({
   icon,
   title,
+  hint,
   tone,
   value,
   children,
@@ -19,6 +21,8 @@ function Tile({
 }: {
   icon: ReactNode;
   title: string;
+  /** Pflicht (hooks/RULES.md §5): was die Kachel anzeigt. */
+  hint: string;
   tone: Tone;
   value: string;
   children?: ReactNode;
@@ -28,7 +32,7 @@ function Tile({
     <Card className="p-4" data-testid={testId} data-tone={tone}>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {icon}
-        <span>{title}</span>
+        <FieldLabel label={title} hint={hint} />
       </div>
       <div className="mt-2 flex items-center gap-2">
         <StatusDot tone={tone} pulse={tone === 'success'} />
@@ -88,7 +92,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
         </div>
       )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Tile icon={<Server size={14} />} title={t('vps.tile.worker')} tone={workerTone} value={workerValue} testId="vps-tile-worker">
+        <Tile icon={<Server size={14} />} title={t('vps.tile.worker')} hint={t('vps.tile.worker.hint')} tone={workerTone} value={workerValue} testId="vps-tile-worker">
           <p>{loop(status.worker_watchdog)}</p>
           {worker.error && <p className="truncate font-mono">{worker.error}</p>}
         </Tile>
@@ -96,6 +100,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
         <Tile
           icon={<Globe size={14} />}
           title={t('vps.tile.ngrok')}
+          hint={t('vps.tile.ngrok.hint')}
           tone={ngrokTone}
           value={status.ngrok.running ? t('vps.tile.ngrok.online') : t('vps.tile.ngrok.offline')}
           testId="vps-tile-ngrok"
@@ -107,6 +112,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
         <Tile
           icon={<Bot size={14} />}
           title={t('vps.tile.bots')}
+          hint={t('vps.tile.bots.hint')}
           tone={status.bots.length > 0 ? 'success' : 'neutral'}
           value={t('vps.tile.bots.running', { count: status.bots.length })}
           testId="vps-tile-bots"
@@ -122,6 +128,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
         <Tile
           icon={<GitBranch size={14} />}
           title={t('vps.tile.version')}
+          hint={t('vps.tile.version.hint')}
           tone={status.git.branch === 'main' ? 'success' : 'warning'}
           value={status.version || '?'}
           testId="vps-tile-version"
@@ -135,6 +142,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
         <Tile
           icon={<Power size={14} />}
           title={t('vps.tile.autostart')}
+          hint={t('vps.tile.autostart.hint')}
           tone={status.autologon && status.tasks.start.exists ? 'success' : 'warning'}
           value={status.autologon && status.tasks.start.exists ? t('vps.tile.autostart.ok') : t('vps.tile.autostart.incomplete')}
           testId="vps-tile-autostart"
@@ -150,7 +158,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
           </p>
         </Tile>
 
-        <Tile icon={<Cpu size={14} />} title={t('vps.tile.system')} tone="success" value={status.hostname} testId="vps-tile-system">
+        <Tile icon={<Cpu size={14} />} title={t('vps.tile.system')} hint={t('vps.tile.system.hint')} tone="success" value={status.hostname} testId="vps-tile-system">
           <p>{t('vps.tile.uptime', { time: uptime(status.uptime_minutes, t) })}</p>
         </Tile>
       </div>

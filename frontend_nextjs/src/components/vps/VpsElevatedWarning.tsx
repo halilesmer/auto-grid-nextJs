@@ -57,10 +57,12 @@ export default function VpsElevatedWarning({ processes, busy, disabled, onFix }:
           <Button
             size="sm"
             variant="outline"
-            className="mt-3 text-danger"
+            className="text-danger"
+            wrapperClassName="mt-3"
             onClick={() => setConfirm(true)}
             loading={busy}
             disabled={disabled}
+            hint={disabled && !busy ? t('vps.busy.hint') : t('vps.elevated.fix.hint')}
             data-testid="vps-action-fix-elevated"
           >
             <ShieldAlert size={14} />
@@ -81,6 +83,7 @@ export default function VpsElevatedWarning({ processes, busy, disabled, onFix }:
         infoText={withBots ? t('vps.elevated.infoBots') : t('vps.elevated.infoNoBots')}
         variant="danger"
         confirmLabel={t('vps.elevated.fix')}
+        confirmHint={t('vps.elevated.fix.hint')}
       />
     </>
   );

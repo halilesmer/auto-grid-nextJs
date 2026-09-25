@@ -30,6 +30,13 @@ export default function SaveSettingsBar({
         disabled={disabled}
         loading={isLoading}
         className="relative"
+        hint={
+          isLoading
+            ? t('saveBar.saving.hint')
+            : isDirty
+              ? t('saveBar.saveAll.hint')
+              : t('saveBar.saved.hint')
+        }
       >
         {!isLoading && (isDirty ? <Save size={15} /> : <Check size={15} />)}
         {isLoading ? t('common.saving') : isDirty ? t('saveBar.saveAll') : t('common.saved')}
@@ -54,7 +61,14 @@ export default function SaveSettingsBar({
                 <span className="size-2 rounded-full bg-warning" />
                 {t('saveBar.unsaved')}
               </span>
-              <Button variant="primary" size="sm" onClick={onSave} loading={isLoading} disabled={disabled}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onSave}
+                loading={isLoading}
+                disabled={disabled}
+                hint={t('saveBar.saveAll.hint')}
+              >
                 {!isLoading && <Save size={14} />}
                 {t('common.save')}
               </Button>

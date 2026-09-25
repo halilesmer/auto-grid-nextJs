@@ -122,6 +122,7 @@ export function ZoneCard({
                 checked={zone.sync_buy_sell}
                 onChange={(checked) => update('sync_buy_sell', checked)}
                 label={<span className="text-xs text-muted-foreground">{t('zone.sync')}</span>}
+                hint={t('zone.sync.hint')}
               />
             )}
           </div>

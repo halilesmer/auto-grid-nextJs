@@ -17,6 +17,7 @@ import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 
 export default function Home() {
@@ -74,7 +75,11 @@ export default function Home() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <Badge tone={isLive ? 'danger' : 'info'} data-testid="env-badge">
+            <Badge
+              tone={isLive ? 'danger' : 'info'}
+              data-testid="env-badge"
+              hint={isLive ? t('account.env.live.hint') : t('account.env.demo.hint')}
+            >
               <span className={`size-1.5 rounded-full ${isLive ? 'bg-danger' : 'bg-info'}`} />
               {isLive ? t('dashboard.env.live') : t('dashboard.env.test')}
             </Badge>
@@ -91,7 +96,8 @@ export default function Home() {
               variant="outline"
               size="icon"
               onClick={() => setShowSysInfo(!showSysInfo)}
-              title={t('dashboard.sysinfo.title')}
+              hint={t('dashboard.sysinfo.hint')}
+              aria-label={t('dashboard.sysinfo.title')}
               aria-expanded={showSysInfo}
             >
               <Settings size={16} />
@@ -122,27 +128,31 @@ export default function Home() {
                     ))}
                   </div>
                   <div className="border-t border-border p-1.5">
-                    <button
-                      onClick={() => {
-                        setShowSysInfo(false);
-                        setUpdateOpen(true);
-                        handleCheckUpdates();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-accent"
-                    >
-                      <RefreshCw size={14} className="text-muted-foreground" />
-                      {t('dashboard.sysinfo.checkUpdates')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowSysInfo(false);
-                        setShutdownOpen(true);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger transition hover:bg-danger/10"
-                    >
-                      <Power size={14} />
-                      {t('dashboard.shutdown')}
-                    </button>
+                    <Tooltip content={t('dashboard.sysinfo.checkUpdates.hint')} className="w-full">
+                      <button
+                        onClick={() => {
+                          setShowSysInfo(false);
+                          setUpdateOpen(true);
+                          handleCheckUpdates();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-accent"
+                      >
+                        <RefreshCw size={14} className="text-muted-foreground" />
+                        {t('dashboard.sysinfo.checkUpdates')}
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={t('dashboard.shutdown.hint')} className="w-full">
+                      <button
+                        onClick={() => {
+                          setShowSysInfo(false);
+                          setShutdownOpen(true);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger transition hover:bg-danger/10"
+                      >
+                        <Power size={14} />
+                        {t('dashboard.shutdown')}
+                      </button>
+                    </Tooltip>
                   </div>
                 </motion.div>
               )}
@@ -152,7 +162,8 @@ export default function Home() {
             variant="outline"
             size="icon"
             onClick={() => setShutdownOpen(true)}
-            title={t('dashboard.shutdown')}
+            hint={t('dashboard.shutdown.hint')}
+            aria-label={t('dashboard.shutdown')}
             className="text-danger hover:bg-danger/10 hover:text-danger"
           >
             <Power size={16} />
@@ -225,6 +236,7 @@ export default function Home() {
         title={t('dashboard.shutdown')}
         message={t('dashboard.shutdown.message')}
         confirmLabel={t('dashboard.shutdown.confirm')}
+        confirmHint={t('dashboard.shutdown.confirm.hint')}
         variant="danger"
         loading={shuttingDown}
       />
