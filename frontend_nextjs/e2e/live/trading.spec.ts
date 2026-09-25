@@ -220,7 +220,6 @@ test.describe('Live Bot Stop/Start (DEMO)', () => {
 
       await controls.getByRole('button', { name: msg('bot.start') }).click();
       await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'), { timeout: 180_000 });
-      await expect(controls).toContainText(new RegExp(`${msg('bot.market')} (${msg('bot.market.open')}|${msg('bot.market.closed')})`));
       // Positionen bleiben beim Broker (Stop schließt nichts); TP kann zwischendurch Positionen schließen
       const after = await api.botStatus(account.id);
       if (positionsBefore > 0) expect(Number(after.metrics.open_positions ?? 0)).toBeGreaterThan(0);

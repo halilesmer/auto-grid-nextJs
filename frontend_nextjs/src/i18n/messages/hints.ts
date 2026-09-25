@@ -44,7 +44,6 @@ export default defineArea(
       'Bot süreci var ama MT5 bağlantısı yok (kopmuş veya asılı). “Botu Yeniden Başlat” veya “Botu Durdur” kullanın.',
     'bot.status.stopped.hint':
       'Bot çalışmıyor, yeni emir konmaz. Mevcut pozisyonlar ve bekleyen emirler broker’da kalır.',
-    'bot.market.hint': 'Piyasanın açık olup olmadığı. Kapalıyken yeni emir yerleştirilemez.',
     'bot.start.hint':
       'Bu hesap için bot sürecini başlatır ve MT5’e bağlanır. Etkin bölgeler için grid emirleri yerleştirilir.',
     'bot.connecting.hint': 'MT5 bağlantısı kuruluyor (3 dakikaya kadar sürebilir). Bitene kadar bekleyin.',
@@ -85,7 +84,7 @@ export default defineArea(
     'saveBar.saveAll.hint': 'Tüm bölgelerdeki kaydedilmemiş değişiklikleri kaydeder.',
     'saveBar.saved.hint': 'Tüm değişiklikler kayıtlı.',
     'saveBar.saving.hint': 'Kaydediliyor…',
-    'metrics.price.hint': 'Bölge sembolünün anlık fiyatı ve piyasa durumu.',
+    'metrics.price.hint': 'Bölge sembolünün anlık fiyatı.',
     'metrics.profit.hint': 'Açık pozisyonların toplam kâr/zararı (yüzen K/Z, henüz gerçekleşmemiş).',
     'metrics.positions.hint': 'Şu anda açık olan pozisyonların sayısı.',
     'metrics.pending.hint': 'Broker’da bekleyen, henüz dolmamış grid emirlerinin sayısı.',
@@ -164,6 +163,7 @@ export default defineArea(
     'zone.header.badge.buy.hint': 'Bu bölge yalnızca BUY (alış) emirleri verir.',
     'zone.header.badge.sell.hint': 'Bu bölge yalnızca SELL (satış) emirleri verir.',
     'zone.header.badge.both.hint': 'Bu bölge hem BUY hem SELL emirleri verir.',
+    'zone.market.hint': "Bu bölgenin sembolü için piyasa açık mı. Her sembolün işlem saati farklıdır; kapalıyken bu bölgede yeni emir yerleştirilemez.",
     'zone.header.unsaved.hint': 'Bu bölgede henüz kaydedilmemiş değişiklikler var.',
     'zone.header.started.hint':
       'Bölge etkin ve motor emirleri yönetiyor. Tıklayınca bölgeyi devre dışı bırakır (hemen kaydedilir).',
@@ -287,7 +287,6 @@ export default defineArea(
       'A bot process exists but has no MT5 connection (dropped or hanging). Use “Restart Bot” or “Stop Bot”.',
     'bot.status.stopped.hint':
       'The bot is not running, no new orders are placed. Existing positions and pending orders stay at the broker.',
-    'bot.market.hint': 'Whether the market is open. No new orders can be placed while it is closed.',
     'bot.start.hint':
       'Starts the bot process for this account and connects to MT5. Grid orders are placed for active zones.',
     'bot.connecting.hint': 'The MT5 connection is being established (can take up to 3 minutes). Please wait.',
@@ -328,7 +327,7 @@ export default defineArea(
     'saveBar.saveAll.hint': 'Saves all unsaved changes in all zones.',
     'saveBar.saved.hint': 'All changes are saved.',
     'saveBar.saving.hint': 'Saving…',
-    'metrics.price.hint': 'Current price of the zone symbol and the market status.',
+    'metrics.price.hint': 'Current price of the zone symbol.',
     'metrics.profit.hint': 'Total profit/loss of the open positions (floating P/L, not yet realised).',
     'metrics.positions.hint': 'Number of currently open positions.',
     'metrics.pending.hint': 'Number of grid orders waiting at the broker that are not filled yet.',
@@ -407,6 +406,7 @@ export default defineArea(
     'zone.header.badge.buy.hint': 'This zone only places BUY orders.',
     'zone.header.badge.sell.hint': 'This zone only places SELL orders.',
     'zone.header.badge.both.hint': 'This zone places both BUY and SELL orders.',
+    'zone.market.hint': "Whether the market is open for this zone's symbol. Every symbol has its own trading hours; no new orders can be placed in this zone while it is closed.",
     'zone.header.unsaved.hint': 'This zone has changes that are not saved yet.',
     'zone.header.started.hint':
       'The zone is active and the engine manages its orders. Click to disable the zone (saved immediately).',
@@ -530,7 +530,6 @@ export default defineArea(
       'Ein Bot-Prozess existiert, hat aber keine MT5-Verbindung (abgebrochen oder hängt). „Bot neu starten“ oder „Bot stoppen“ nutzen.',
     'bot.status.stopped.hint':
       'Der Bot läuft nicht, es werden keine neuen Orders gesetzt. Vorhandene Positionen und Pending Orders bleiben beim Broker.',
-    'bot.market.hint': 'Ob der Markt geöffnet ist. Bei geschlossenem Markt können keine neuen Orders gesetzt werden.',
     'bot.start.hint':
       'Startet den Bot-Prozess für dieses Konto und verbindet sich mit MT5. Für aktive Zonen werden Grid-Orders gesetzt.',
     'bot.connecting.hint': 'Die MT5-Verbindung wird aufgebaut (kann bis zu 3 Minuten dauern). Bitte warten.',
@@ -571,7 +570,7 @@ export default defineArea(
     'saveBar.saveAll.hint': 'Speichert alle ungespeicherten Änderungen in allen Zonen.',
     'saveBar.saved.hint': 'Alle Änderungen sind gespeichert.',
     'saveBar.saving.hint': 'Wird gespeichert…',
-    'metrics.price.hint': 'Aktueller Preis des Zonen-Symbols und Marktstatus.',
+    'metrics.price.hint': 'Aktueller Preis des Zonen-Symbols.',
     'metrics.profit.hint': 'Gesamtgewinn/-verlust der offenen Positionen (schwebender G/V, noch nicht realisiert).',
     'metrics.positions.hint': 'Anzahl der aktuell offenen Positionen.',
     'metrics.pending.hint': 'Anzahl der beim Broker wartenden, noch nicht ausgeführten Grid-Orders.',
@@ -650,6 +649,7 @@ export default defineArea(
     'zone.header.badge.buy.hint': 'Diese Zone setzt nur BUY-Orders (Kauf).',
     'zone.header.badge.sell.hint': 'Diese Zone setzt nur SELL-Orders (Verkauf).',
     'zone.header.badge.both.hint': 'Diese Zone setzt BUY- und SELL-Orders.',
+    'zone.market.hint': "Ob der Markt für das Symbol dieser Zone geöffnet ist. Jedes Symbol hat eigene Handelszeiten; bei geschlossenem Markt können in dieser Zone keine neuen Orders gesetzt werden.",
     'zone.header.unsaved.hint': 'Diese Zone hat Änderungen, die noch nicht gespeichert sind.',
     'zone.header.started.hint':
       'Die Zone ist aktiv und die Engine verwaltet ihre Orders. Klick deaktiviert die Zone (wird sofort gespeichert).',

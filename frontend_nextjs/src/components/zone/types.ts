@@ -35,6 +35,8 @@ export interface ZoneHeaderProps {
   /** Motorun bu bölge için durumu (liveData.zone_states), ör. "AUTO_CLEAR" */
   engineState?: string;
   remotePaused?: boolean;
+  /** Bu bölgenin sembolü için piyasa açık mı (liveData.zone_market_open); bilinmiyorsa undefined */
+  marketOpen?: boolean;
   onToggleActive: (zoneId: string, currentActive: boolean) => void;
   onRestart: (zoneId: string) => void;
   onDelete: () => void;
