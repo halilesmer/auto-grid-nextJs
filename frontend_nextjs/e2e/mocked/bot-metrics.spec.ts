@@ -4,17 +4,13 @@ import { fmt, msg } from '../fixtures/i18n';
 
 test.describe('BOT Status und Alarme', () => {
   test('Start: Connecting → Running, Stop mit Rückfrage', { tag: '@BOT-04' }, async ({ page, worker, dashboard }) => {
-    worker.setMetrics(DEMO_ID, { market_open: false });
     await dashboard.open(DEMO_ID);
     const controls = page.getByTestId('bot-controls');
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.stopped'));
-    await expect(controls).toContainText(`${msg('bot.market')} ${msg('bot.market.closed')}`);
-    worker.setMetrics(DEMO_ID, { market_open: true });
 
     await controls.getByRole('button', { name: msg('bot.start') }).click();
     // Während des Verbindens pollt das Dashboard alle 2 s und wechselt dann auf „Running“
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'), { timeout: 8_000 });
-    await expect(controls).toContainText(`${msg('bot.market')} ${msg('bot.market.open')}`);
     expect(worker.callsTo('POST', '/api/start')[0].query.get('account_id')).toBe(DEMO_ID);
     await expect(dashboard.logOutput).toContainText(msg('bot.activity.connected'));
 
@@ -81,7 +77,12 @@ test.describe('MET Live-Daten', () => {
     await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '3');
     await expect(page.getByTestId('metric-pending')).toHaveAttribute('data-value', '4');
     await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.live'));
-    await expect(page.getByTestId('metric-price')).toContainText(msg('metrics.marketOpen'));
+
+    // Marktstatus gehört zur Zone (jedes Symbol hat eigene Handelszeiten)
+    await expect(page.getByTestId('zone-market').first()).toHaveText(msg('zone.market.open'));
+    worker.setMetrics(DEMO_ID, { zone_market_open: { '0': false } });
+    await dashboard.refreshLogs();
+    await expect(page.getByTestId('zone-market').first()).toHaveText(msg('zone.market.closed'));
 
     worker.setMetrics(DEMO_ID, { current_price: 98.5, symbol_prices: { USOUSD: 98.5 }, profit: 4.2, open_positions: 5 });
     await dashboard.refreshLogs();

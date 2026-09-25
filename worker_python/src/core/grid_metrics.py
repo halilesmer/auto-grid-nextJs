@@ -4,8 +4,16 @@ from src.core.grid_helpers import is_market_open
 BASE_MAGIC_NUMBER = 200000
 
 
-def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, zone_states=None):
+def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, zone_states=None, zones=None):
+    zone_symbols = {
+        str(i): str(z.get("symbol") or "").upper().strip()
+        for i, z in enumerate(zones or [])
+    }
     metrics = {
+        # Bölge başına piyasa durumu (her sembolün işlem saati farklı): {"0": True, ...}
+        "zone_market_open": {
+            i: bool(sym) and is_market_open(mt5, sym) for i, sym in zone_symbols.items()
+        },
         # Motorun bölge durumları ({"0": "AUTO_CLEAR", ...}); arayüz bölgede uyarı + "Yeniden Başlat" gösterir
         "zone_states": {str(k): v for k, v in (zone_states or {}).items()},
         "profit": 0.0,
@@ -35,6 +43,7 @@ def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, 
     if terminal_info is None or not getattr(terminal_info, "connected", False):
         metrics["mt5_connected"] = False
         metrics["market_open"] = False
+        metrics["zone_market_open"] = {i: False for i in zone_symbols}
         return metrics
 
     metrics["mt5_connected"] = True

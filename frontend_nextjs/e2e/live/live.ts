@@ -48,6 +48,7 @@ export interface LiveMetrics {
   open_positions?: number;
   pending_orders?: number;
   zone_states?: Record<string, string>;
+  zone_market_open?: Record<string, boolean>;
   remote_paused?: boolean;
   [key: string]: unknown;
 }

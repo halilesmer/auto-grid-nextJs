@@ -72,6 +72,7 @@ export const RUNNING_METRICS: Partial<LiveData> = {
   algo_trading_error: false,
   startup_error: null,
   zone_states: { '0': 'START' },
+  zone_market_open: { '0': true },
   remote_paused: false,
 };
 

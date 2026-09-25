@@ -29,6 +29,7 @@ export function ZoneHeader({
   remotePaused,
   price,
   priceDigits,
+  marketOpen,
   onToggleActive,
   onRestart,
   onDelete,
@@ -139,6 +140,15 @@ export function ZoneHeader({
             {modified && (
               <Badge tone="warning" hint={t('zone.header.unsaved.hint')}>
                 {t('zone.header.unsaved')}
+              </Badge>
+            )}
+            {isGlobalRunning && isActive && marketOpen !== undefined && (
+              <Badge
+                tone={marketOpen ? 'success' : 'danger'}
+                hint={t('zone.market.hint')}
+                data-testid="zone-market"
+              >
+                {marketOpen ? t('zone.market.open') : t('zone.market.closed')}
               </Badge>
             )}
             {engineStop && (

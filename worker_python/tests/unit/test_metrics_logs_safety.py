@@ -53,6 +53,17 @@ def test_zonen_zustaende_der_engine_werden_exportiert(fake_mt5):
 
 
 @pytest.mark.feature("MET-04")
+def test_marktstatus_pro_zone(fake_mt5):
+    zones = [{"symbol": "USOUSD"}, {"symbol": "usousd "}, {"symbol": ""}, {"symbol": "NOSUCH"}]
+    metrics = calculate_live_metrics(fake_mt5, {"USOUSD"}, False, False, zones=zones)
+    assert metrics["zone_market_open"] == {"0": True, "1": True, "2": False, "3": False}
+    assert calculate_live_metrics(fake_mt5, {"USOUSD"}, False, False)["zone_market_open"] == {}
+    fake_mt5.terminal.connected = False
+    metrics = calculate_live_metrics(fake_mt5, {"USOUSD"}, False, False, zones=zones)
+    assert not any(metrics["zone_market_open"].values())
+
+
+@pytest.mark.feature("MET-04")
 def test_ohne_terminal_nicht_verbunden(fake_mt5):
     fake_mt5.terminal.connected = False
     metrics = calculate_live_metrics(fake_mt5, {"USOUSD"}, False, False)

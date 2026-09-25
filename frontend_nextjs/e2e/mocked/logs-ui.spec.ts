@@ -107,12 +107,12 @@ test.describe('UI Oberfläche', () => {
 
     await page.goto('/');
     await expect(html).toHaveClass(/\bdark\b/); // Standard: dunkel
-    await theme.getByRole('radio', { name: msg('bot.market.open') }).click();
+    await theme.getByRole('radio', { name: msg('common.theme.light') }).click();
     await expect(html).not.toHaveClass(/\bdark\b/);
 
     await page.reload();
     expect(await darkAtLoad()).toBe(false);
-    await expect(theme.getByRole('radio', { name: msg('bot.market.open') })).toHaveAttribute('aria-checked', 'true');
+    await expect(theme.getByRole('radio', { name: msg('common.theme.light') })).toHaveAttribute('aria-checked', 'true');
 
     await theme.getByRole('radio', { name: msg('common.theme.dark') }).click();
     await page.reload();

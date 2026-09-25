@@ -39,6 +39,8 @@ export interface ZoneHeaderProps {
   price?: number;
   /** Symbol-Digits für die Preisanzeige */
   priceDigits?: number;
+  /** Bu bölgenin sembolü için piyasa açık mı (liveData.zone_market_open); bilinmiyorsa undefined */
+  marketOpen?: boolean;
   onToggleActive: (zoneId: string, currentActive: boolean) => void;
   onRestart: (zoneId: string) => void;
   onDelete: () => void;

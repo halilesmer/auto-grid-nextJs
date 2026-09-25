@@ -132,14 +132,6 @@ export default function BotControls() {
               <span data-testid="bot-status" className="text-sm font-semibold">{status.label}</span>
             </div>
           </Tooltip>
-          <Tooltip content={t("bot.market.hint")}>
-            <span className="text-xs text-muted-foreground">
-              {t("bot.market")}{" "}
-              <span className={liveData.market_open ? "text-success" : "text-danger"}>
-                {liveData.market_open ? t("bot.market.open") : t("bot.market.closed")}
-              </span>
-            </span>
-          </Tooltip>
         </div>
 
         {activeAccount && (
