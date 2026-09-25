@@ -803,16 +803,17 @@ kategorien:
     features:
       - id: UI-01
         titel: Navigation
-        beschreibung: Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung.
+        beschreibung: Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung. Auf Mobil (375px) kompakter, ohne horizontales Scrollen.
         code: [frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
           - Zwischen Dashboard und Formasyon wechseln.
-        erwartet: Aktiver Link ist markiert, Version entspricht VERSION.
+          - Bei 375px Breite öffnen.
+        erwartet: Aktiver Link ist markiert, Version entspricht VERSION. Bei 375px kein horizontales Scrollen, „Grid Robot“ bricht nicht um.
 
       - id: UI-02
         titel: Theme hell / dunkel / System
-        beschreibung: Umschalter „Açık / Koyu / Sistem“, gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
+        beschreibung: Umschalter „Açık / Koyu / Sistem“ (auf Mobil ein einzelner Button, der der Reihe nach durchschaltet), gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
         code: [frontend_nextjs/src/components/layout/ThemeToggle.tsx, frontend_nextjs/src/components/layout/ThemeSync.tsx, frontend_nextjs/src/app/layout.tsx]
         tiers: [e2e]
         pruefung:
