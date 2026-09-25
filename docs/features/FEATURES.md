@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-25 · **82/89** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-25 · **91/98** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -18,9 +18,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 12/12 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 14/14 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
+| 7 | **ENG** – Grid-Engine (Handelslogik) | 22/22 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
 | 10 | **UPD** – System & Updates | 5/6 |
@@ -208,6 +208,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der (i)-Hinweis von Grid-Abstand und Take Profit (Buy/Sell) nennt für gängige Symbole (Gold, Silber, Forex, BTC/ETH, US-Indizes, Öl) einen Richtwert; bei unbekanntem Symbol bleibt der Text unverändert. Nur Anzeige, keine Validierung.
   - **Prüfung:** Symbol auf XAUUSD stellen, mit der Maus über das (i) von Grid-Abstand und Take Profit fahren. → Symbol auf ein unbekanntes Symbol stellen.
   - **Erwartet:** Bei XAUUSD steht „1–5“ als Richtwert im Hinweis; bei unbekanntem Symbol nur der Standardtext.
+- [x] **ZON-13** Einstiegsregel speichern (Modus, Indikatoren, Limits, Gewinnziel) — 🖥️ e2e ✅ 2026-09-25
+  - Abschnitt „Giriş Kuralı“ jeder Zone: Einstiegsmodus (GRID / GRID_FILTER / SIGNAL_MARKET), Signal-Zeitrahmen, EMA/RSI/Bollinger an/aus mit Parametern, Max. BUY/SELL-Positionen, Max. Spread, Gewinnziel Preis oder Geld. Emir Tipi „AUTO“ ist nur mit Signal wählbar; zurück auf „Grid“ wird daraus BOTH. Ältere Zonen ohne diese Felder zeigen die Worker-Defaults (Grid, EMA 50, RSI 14 < 40 / > 60).
+  - **Prüfung:** Einstiegsmodus „Sinyalde piyasa emri“, Emir Tipi AUTO, Zeitrahmen M1, Bollinger an, Max. BUY 2, Gewinnziel „Para tutarı“ 5 wählen, speichern, neu laden. → Einstiegsmodus zurück auf „Grid (her seviye)“ stellen.
+  - **Erwartet:** Alle Werte bleiben nach dem Neuladen erhalten; bei „Grid“ ist AUTO gesperrt und Emir Tipi springt auf BOTH.
+- [x] **ZON-14** Infotext der Einstiegsregel und gesperrte Felder — 🖥️ e2e ✅ 2026-09-25
+  - Oben im Abschnitt beschreibt ein Infotext die aktive Regel in Klartext (Modus, BUY/SELL-Bedingungen, Zeitrahmen, Richtung bei AUTO, Take Profit, Limits, Spread, Verlust über Zonen-Ausstieg). Im Market-Modus sind Grid-Abstand, Stufen und Breakout gesperrt, bei Geld-TP das Preis-TP-Feld; die Tooltips sagen warum.
+  - **Prüfung:** Zone auf „Sinyalde piyasa emri“, BUY, TP 1, Max. BUY 2 stellen und den Infotext lesen. → Gewinnziel auf „Para tutarı“ stellen.
+  - **Erwartet:** Infotext nennt Market-Order, „BUY: Kapanış > EMA 50 ve RSI 14 < 40“ und „en fazla 2 BUY“; Grid-Abstand/Stufen sind grau, bei Geld-TP auch „Kar Al ($)“.
 
 ## 6. BOT – Bot-Steuerung
 
@@ -310,6 +318,30 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Beim Verlassen der Hauptschleife werden alle Pending Orders des Robots gelöscht.
   - **Prüfung:** Nicht manuell testen (/stop beendet den Prozess hart).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-17** Indikator-Signal als Grid-Filter — 🧪 unit ✅ 2026-09-25
+  - Mit entry_mode GRID_FILTER setzt die Zone Grid-Orders nur, solange das Signal zustimmt (grid_signals.py, abgeschlossene Kerzen des signal_timeframe, UND-Verknüpfung): BUY bei Schluss > EMA, RSI < rsi_buy_below, Schluss ≤ unteres Bollinger-Band; SELL gespiegelt. Ohne Signal werden die Pending Orders dieser Seite gelöscht. Zu wenige Kerzen = kein Einstieg. entry_mode GRID (Standard) ignoriert das Signal.
+  - **Prüfung:** Nur DEMO: Zone auf „Grid + sinyal filtresi“, M5, EMA+RSI an; Log beobachten.
+  - **Erwartet:** Bei Signalwechsel eine Zeile „📡 Sinyal: Bölge N | BUY ✅/⛔ SELL ✅/⛔ …“; ohne Signal keine Pending Orders der gesperrten Seite.
+- [x] **ENG-18** Signal → Market-Order (Scalping) — 🧪 unit ✅ 2026-09-25
+  - Mit entry_mode SIGNAL_MARKET baut die Zone kein Grid (vorhandene Pending Orders werden gelöscht); stimmt das Signal zu, ist der Kurs in Min–Max und ein Platz frei, öffnet sie pro Tick und Richtung eine Market-Order mit TP/SL ab Ask/Bid. Nach dem TP wird sofort wieder eröffnet, solange das Signal gilt. Verluste begrenzen die Zonen-Ausstiegsregeln (ENG-10) und ggf. Stop Loss.
+  - **Prüfung:** Nur DEMO: Gold-Zone auf „Sinyalde piyasa emri“, M1, Max. BUY 1, TP 1.
+  - **Erwartet:** Bei Signal „📈 Sinyal Girişi“ im Log und eine Position mit TP = Einstieg + 1; keine zweite, solange eine offen ist.
+- [x] **ENG-19** Max. Positionen pro Richtung — 🧪 unit ✅ 2026-09-25
+  - max_buy_positions / max_sell_positions (0 = aus) begrenzen jede Seite zusätzlich zu max_positions. Ist eine Seite voll, werden ihre Pending Orders gelöscht; sonst liegen nur so viele Pending Orders wie freie Plätze, die kursnächsten zuerst. Teilausführungs-Nachschub (ENG-08) hält das Limit ebenfalls ein.
+  - **Prüfung:** BOTH-Zone mit Max. BUY 1 und einer offenen BUY-Position beobachten.
+  - **Erwartet:** Es liegen nur SELL-Pending-Orders.
+- [x] **ENG-20** Take Profit als Geldbetrag — 🧪 unit ✅ 2026-09-25
+  - tp_mode MONEY: take_profit_money (bzw. sell_take_profit_money) wird mit dem Lot der Zone und trade_tick_value/trade_tick_size in einen Preisabstand umgerechnet; Placement, Validierung, Market-Einstieg und TP-Resync nutzen denselben Wert (tp_distance_of). Fehlt die Symbol-Info, gilt der Preis-TP.
+  - **Prüfung:** Nur DEMO: Gewinnziel „Para tutarı“ 1 bei 0,01 Lot Gold einstellen.
+  - **Erwartet:** TP der Orders liegt so weit vom Einstieg, dass die Position bei Erreichen ca. 1 (Kontowährung) Gewinn hat; der TP wird nicht jede Runde verändert.
+- [x] **ENG-21** Spread-Filter — 🧪 unit ✅ 2026-09-25
+  - Mit max_spread > 0 gibt es keinen neuen Einstieg (Filter- und Market-Modus sowie AUTO), solange Ask − Bid größer ist; offene Positionen bleiben unberührt.
+  - **Prüfung:** Nicht manuell testen.
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-22** Richtung automatisch (AUTO) — 🧪 unit ✅ 2026-09-25
+  - order_type AUTO lässt den Roboter die Richtung wählen: mit EMA nur BUY über der EMA, nur SELL darunter; ohne EMA die Seite, deren RSI/Bollinger-Signal zustimmt; ohne Indikator gar nicht. Nie beide Seiten gleichzeitig neu; offene Positionen der Gegenseite laufen bis TP/Ausstieg weiter. AUTO nutzt das Signal auch im Modus GRID.
+  - **Prüfung:** Nur DEMO: Zone mit Emir Tipi AUTO im Filter-Modus beobachten, bis der Trend wechselt.
+  - **Erwartet:** Es liegen immer nur Orders einer Seite; nach Trendwechsel die der anderen.
 
 ## 8. MET – Live-Daten & Diagramm
 
@@ -329,7 +361,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
   - 📝 v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders). Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus der Bot-Metrik → RSI fehlt dann
 - [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-09-25
-  - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
+  - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open, den Marktstatus je Zone-Symbol (zone_market_open) samt aus M5-Kerzen abgeleiteter Handelszeit (zone_market_hours) und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 

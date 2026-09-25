@@ -2,7 +2,12 @@ from src.core.grid_helpers import (
     log_message,
     normalize_price,
 )
-from src.core.grid_execution.config import max_positions_of
+from src.core.grid_execution.config import (
+    entry_mode_of,
+    max_direction_of,
+    max_positions_of,
+    tp_distance_of,
+)
 from src.core.grid_orders import (
     BASE_MAGIC_NUMBER,
     MAX_DEVIATION,
@@ -95,13 +100,11 @@ def process_partial_fills_and_tpsl(
         direction = "BUY" if pos.type == mt5.POSITION_TYPE_BUY else "SELL"
         is_sync = bool(z_data.get("sync_buy_sell", True))
 
+        # TP mesafesi grid_execution ile aynı hesaptan (tp_mode MONEY → lot'a göre fiyat mesafesi)
+        tp_val = tp_distance_of(z_data, direction, symbol_infos)
         if direction == "BUY" or is_sync:
-            tp_val = float(z_data.get("take_profit", 0.05))
             sl_val = float(z_data.get("stop_loss", 0.0))
         else:
-            tp_val = float(
-                z_data.get("sell_take_profit", z_data.get("take_profit", 0.05))
-            )
             sl_val = float(z_data.get("sell_stop_loss", z_data.get("stop_loss", 0.0)))
 
         expected_tp = (
@@ -162,6 +165,13 @@ def process_partial_fills_and_tpsl(
         # döngü siler; burada emir koymak sonsuz gönder/sil döngüsü olurdu
         zone_positions = sum(1 for p in robot_positions if p.magic == pos.magic)
         if zone_positions >= max_positions_of(z_data):
+            continue
+        # Yön sınırı da aynı: handler o yönün bekleyen emirlerini siler
+        side_positions = sum(1 for p in robot_positions if p.magic == pos.magic and p.type == pos.type)
+        if side_positions >= max_direction_of(z_data, direction):
+            continue
+        # Sinyal modunda bekleyen emir yok (handler siler); kısmi dolum tamamlanmaz
+        if entry_mode_of(z_data) == "SIGNAL_MARKET":
             continue
 
         positions_at_level = [

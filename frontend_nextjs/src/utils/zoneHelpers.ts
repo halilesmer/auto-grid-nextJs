@@ -1,5 +1,43 @@
 import type { ZoneSettings, SymbolDetail } from '@/store/types';
 
+/** Standardwerte der Einstiegsregel (= Worker-Defaults in grid_execution/config.py); GRID = Verhalten wie bisher. */
+export const ENTRY_DEFAULTS = {
+  entry_mode: 'GRID',
+  signal_timeframe: 'M5',
+  use_ema: true,
+  ema_period: 50,
+  use_rsi: true,
+  rsi_period: 14,
+  rsi_buy_below: 40,
+  rsi_sell_above: 60,
+  use_bollinger: false,
+  bb_period: 20,
+  bb_deviation: 2,
+  max_spread: 0,
+  max_buy_positions: 0,
+  max_sell_positions: 0,
+  tp_mode: 'PRICE',
+  take_profit_money: 0,
+  sell_take_profit_money: 0,
+} as const satisfies Partial<ZoneSettings>;
+
+export type ResolvedEntry = { -readonly [K in keyof typeof ENTRY_DEFAULTS]-?: NonNullable<ZoneSettings[K]> };
+
+/** Einstiegsfelder einer Zone mit Defaults für ältere Zonen ohne diese Felder. */
+export function entryOf(zone: ZoneSettings): ResolvedEntry {
+  const out = { ...ENTRY_DEFAULTS } as ResolvedEntry;
+  for (const key of Object.keys(ENTRY_DEFAULTS) as (keyof ResolvedEntry)[]) {
+    const v = zone[key];
+    if (v !== undefined && v !== null) (out as Record<string, unknown>)[key] = v;
+  }
+  return out;
+}
+
+/** Signal wird ausgewertet: Filter-/Market-Modus oder Richtung AUTO (Worker: handler._entry_permissions). */
+export function usesSignal(zone: ZoneSettings): boolean {
+  return entryOf(zone).entry_mode !== 'GRID' || zone.order_type === 'AUTO';
+}
+
 export function defaultZone(): ZoneSettings {
   return {
     id: crypto.randomUUID(),
@@ -29,6 +67,7 @@ export function defaultZone(): ZoneSettings {
     clear_target_side: 'Sadece BUY İşlemleri',
     exit_condition: 'Anlık Fiyat',
     exit_timeframe: 'M15',
+    ...ENTRY_DEFAULTS,
   };
 }
 

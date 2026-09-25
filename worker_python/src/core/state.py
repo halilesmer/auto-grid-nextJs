@@ -21,6 +21,10 @@ class GridState:
     limit_warned_zones: Dict[int, int] = field(default_factory=dict)
     # Bilet → (TP, SL): fiyatın yanlış tarafında kalan TP/SL için bir kez yazılan uyarı
     tpsl_blocked_logged: Dict[int, tuple] = field(default_factory=dict)
+    # Bölge → (önbellek anahtarı, SignalResult): sinyal yalnızca yeni mum kapanınca hesaplanır
+    signal_cache: Dict[int, tuple] = field(default_factory=dict)
+    # Bölge → (buy_ok, sell_ok): sinyal satırı sadece durum değişince loglanır
+    signal_logged: Dict[int, tuple] = field(default_factory=dict)
 
     is_running: bool = False
     initial_cleanup_done: bool = False
@@ -41,6 +45,8 @@ class GridState:
         self.opening_volumes.clear()
         self.limit_warned_zones.clear()
         self.tpsl_blocked_logged.clear()
+        self.signal_cache.clear()
+        self.signal_logged.clear()
         self.is_running = False
         self.initial_cleanup_done = False
         self.connection_lost = False
