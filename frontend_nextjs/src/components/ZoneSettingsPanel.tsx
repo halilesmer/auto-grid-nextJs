@@ -99,9 +99,10 @@ export default function ZoneSettingsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+      {/* Dar ekranda (375 px) butonlar başlığın altına iner; ml-auto onları sağda tutar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
             <Layers3 size={16} />
           </div>
           <div>
@@ -112,7 +113,7 @@ export default function ZoneSettingsPanel({
             <p className="mt-0.5 text-xs text-muted-foreground">{t('zone.panel.subtitle')}</p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {saveAction}
           <Button
             variant="primary"

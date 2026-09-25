@@ -150,7 +150,8 @@ export function ZoneHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      {/* flex-wrap: bei 375 px ist die Gruppe breiter als die Karte (DE noch mehr) und bricht um statt zu überlaufen */}
+      <div className="flex flex-wrap items-center gap-1.5">
         <Tooltip content={btnHint}>
           <button
             onClick={handleMainClick}
