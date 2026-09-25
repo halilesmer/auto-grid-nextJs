@@ -49,7 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Tarayıcı eklentileri <head>'e script enjekte edebiliyor; pozisyon kayınca hydration uyarısı çıkmasın */}
+        <script
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+          suppressHydrationWarning
+        />
       </head>
       <body
         className="min-h-full flex flex-col text-foreground"
