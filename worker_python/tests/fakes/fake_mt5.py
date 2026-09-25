@@ -8,7 +8,10 @@ Zusätzlich gibt es Test-Hebel:
     reject(retcode, times)    nächste order_check-Aufrufe ablehnen (z. B. 10016, 10027)
     silent_reject_next()      order_send meldet OK, Order erscheint aber nicht im Buch
     set_closed_candle(...)    Schlusskurs der letzten geschlossenen Kerze (exit_condition)
-    add_order/add_position    Ausgangslage aufbauen (auch manuelle Orders ohne Robot-Magic)
+    add_order/add_position    Ausgangslage aufbauen (auch manuelle Orders ohne Robot-Magic);
+                              add_position(order_volume=...) = Position aus teilweise gefüllter Order
+    partial_fill_next(vol)    nächste Füllung einer Pending Order nur mit `vol` (Rest verfällt, IOC)
+    history                   Order-Historie (gefüllt/gelöscht) für history_orders_get
     sent                      Liste aller order_send-Requests
 """
 from __future__ import annotations
@@ -72,6 +75,11 @@ class Position:
     magic: int = 0
     profit: float = 0.0
     comment: str = ""
+    identifier: int = 0  # Positions-ID = Ticket der eröffnenden Order (wie im echten Paket)
+
+    def __post_init__(self):
+        if not self.identifier:
+            self.identifier = self.ticket
 
 
 @dataclass
@@ -155,6 +163,8 @@ class FakeMT5:
         self._tickets = itertools.count(1000)
         self._rejections: list[_Rejection] = []
         self._silent_reject = 0
+        self._partial_fills: list[float] = []
+        self.history: dict[int, Order] = {}
         self._last_error = (1, "Success")
 
     # ------------------------------------------------------------------ Aufbau (Test-Hebel)
@@ -184,10 +194,21 @@ class FakeMT5:
         self.orders.append(order)
         return order
 
-    def add_position(self, symbol, type, price, volume=0.01, tp=0.0, sl=0.0, magic=0, profit=0.0) -> Position:
+    def add_position(self, symbol, type, price, volume=0.01, tp=0.0, sl=0.0, magic=0, profit=0.0,
+                     order_volume: float | None = None) -> Position:
+        """Offene Position samt eröffnender Order in der Historie. order_volume > volume =
+        die Order wurde nur teilweise gefüllt (Rest verfallen)."""
         pos = Position(next(self._tickets), symbol, type, price, volume, tp, sl, magic, profit)
+        order_type = self.ORDER_TYPE_BUY if type == self.POSITION_TYPE_BUY else self.ORDER_TYPE_SELL
+        self.history[pos.identifier] = Order(pos.identifier, symbol, order_type, price,
+                                             order_volume if order_volume is not None else volume,
+                                             tp, sl, magic, volume_current=0.0)
         self.positions.append(pos)
         return pos
+
+    def partial_fill_next(self, volume: float, times: int = 1):
+        """Die nächsten `times` Füllungen von Pending Orders nur mit `volume` (Rest verfällt)."""
+        self._partial_fills.extend([volume] * times)
 
     def reject(self, retcode: int, times: int = 1):
         """Die nächsten `times` order_check-Aufrufe liefern `retcode` statt 0."""
@@ -244,6 +265,14 @@ class FakeMT5:
         items = [p for p in self.positions if (ticket is None or p.ticket == ticket) and (symbol is None or p.symbol == symbol)]
         return tuple(items)
 
+    def history_orders_get(self, ticket=None, position=None):
+        if ticket is not None:
+            order = self.history.get(ticket)
+            return (order,) if order else ()
+        if position is not None:
+            return tuple(o for t, o in self.history.items() if t == position)
+        return tuple(self.history.values())
+
     def copy_rates_from_pos(self, symbol, timeframe, start_pos, count):
         close = self.closed_candles.get((symbol, timeframe))
         if close is None:
@@ -275,9 +304,11 @@ class FakeMT5:
             return Result(retcode=self.TRADE_RETCODE_DONE, order=order.ticket)
 
         if action == self.TRADE_ACTION_REMOVE:
-            before = len(self.orders)
+            removed = [o for o in self.orders if o.ticket == request["order"]]
             self.orders = [o for o in self.orders if o.ticket != request["order"]]
-            return Result(retcode=self.TRADE_RETCODE_DONE if len(self.orders) < before else 10013)
+            for o in removed:
+                self.history[o.ticket] = o
+            return Result(retcode=self.TRADE_RETCODE_DONE if removed else 10013)
 
         if action == self.TRADE_ACTION_SLTP:
             for p in self.positions:
@@ -313,8 +344,13 @@ class FakeMT5:
             )
             if filled:
                 pos_type = self.POSITION_TYPE_BUY if o.type in self.BUY_TYPES else self.POSITION_TYPE_SELL
-                self.positions.append(Position(o.ticket, o.symbol, pos_type, o.price_open, o.volume_current,
+                volume = o.volume_current
+                if self._partial_fills:
+                    volume = min(volume, self._partial_fills.pop(0))
+                self.positions.append(Position(o.ticket, o.symbol, pos_type, o.price_open, volume,
                                                o.tp, o.sl, o.magic, 0.0, o.comment))
+                o.volume_current = 0.0
+                self.history[o.ticket] = o
             else:
                 still_open.append(o)
         self.orders = still_open

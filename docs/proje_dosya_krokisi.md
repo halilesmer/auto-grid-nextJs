@@ -148,12 +148,12 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
 ┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Yardımcılar - fiyat/lot normalizasyonu, logging, market açık kontrolü, timeframe map
 ┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı, MT5 bağlantı/market durumu
-┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no)
+┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no), açan emrin hacmi (history) → kısmi dolumda kalan lot
 ┃ ┃ ┃ ┣ 📜 grid_position_sync.py # Zombi temizliği & kısmi dolum - pasif bölge temizliği, TP/SL senkron, kalan lot
 ┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal - MT5 $1/$2 Buy Limit + GRID:START/STOP komutları
 ┃ ┃ ┃ ┣ 📜 indicator_calc.py    # Teknik indikatörler - RSI/MACD (pandas-ta fallback ile saf pandas)
 ┃ ┃ ┃ ┣ 📜 grid_orchestrator.py # Orkestratör - aktif bölge tespiti, giriş/çıkış, clear_on_exit, dynamic grid koordinasyonu
-┃ ┃ ┃ ┣ 📜 grid_order_manager.py # Emir yönetimi - emir yaşam döngüsü, batch işlemler
+┃ ┃ ┃ ┣ 📜 grid_order_manager.py # Emir yönetimi - zombi emirler, TP/SL senkronu (fiyat geçtiyse bekler), kısmi dolum tamamlama (açan emre göre, max pozisyonda yok), bölge çıkışı
 ┃ ┃ ┃ ┣ 📜 grid_zone_selector.py # Bölge seçimi - en uygun bölge tespiti, filtreleme
 ┃ ┃ ┃ ┣ 📜 grid_zone_state.py   # Bölge state yönetimi - bölge durumu, geçişler, veri tutımı
 ┃ ┃ ┃ ┣ 📂 grid_execution       # Grid Execution Paketi (v0.7.36+)

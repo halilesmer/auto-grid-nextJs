@@ -5,6 +5,7 @@ from src.core.grid_orders import (
     cancel_order,
     get_existing_levels_by_direction,
 )
+from src.core.state import state
 
 from .config import extract_zone_config, ZoneConfig
 from .levels import generate_levels, LevelSets
@@ -37,10 +38,14 @@ def handle_sliding_grid(
         )
 
         if current_open_positions >= config.max_positions:
-            log_message(
-                f"⚠️ DİKKAT: Bölge {active_zone_idx+1} Maksimum pozisyon sınırına ulaştı ({config.max_positions}).",
-                "WARN",
-            )
+            # Her döngü değil, yalnızca sınıra ulaşınca / sayı değişince (24.09: saniyede bir satır)
+            if state.limit_warned_zones.get(active_zone_idx) != current_open_positions:
+                state.limit_warned_zones[active_zone_idx] = current_open_positions
+                log_message(
+                    f"⚠️ DİKKAT: Bölge {active_zone_idx+1} Maksimum pozisyon sınırına ulaştı "
+                    f"({current_open_positions}/{config.max_positions}). Yeni emir konmuyor.",
+                    "WARN",
+                )
             cancelled = sum(
                 1 for o in robot_orders if o.magic == config.target_magic and cancel_order(mt5_module, o)
             )
@@ -49,6 +54,7 @@ def handle_sliding_grid(
                     f"🛡️ Güvenlik Koruması: Sınır aşıldığı için {cancelled} bekleyen emir temizlendi."
                 )
             return True
+        state.limit_warned_zones.pop(active_zone_idx, None)
 
         levels: LevelSets = generate_levels(
             config, current_avg_price, robot_positions, symbol_infos, mt5_module, log_message

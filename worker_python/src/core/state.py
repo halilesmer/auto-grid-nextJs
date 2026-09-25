@@ -15,6 +15,12 @@ class GridState:
     active_zone_idx: Optional[int] = None
     active_zones_state: Dict[int, str] = field(default_factory=dict)
     consecutive_errors: Dict[str, int] = field(default_factory=dict)
+    # Pozisyon ID → açan emrin ilk hacmi (history_orders_get önbelleği, bkz. grid_orders)
+    opening_volumes: Dict[int, float] = field(default_factory=dict)
+    # Bölge → uyarı verildiğindeki pozisyon sayısı (max pozisyon uyarısı her döngü tekrarlanmasın)
+    limit_warned_zones: Dict[int, int] = field(default_factory=dict)
+    # Bilet → (TP, SL): fiyatın yanlış tarafında kalan TP/SL için bir kez yazılan uyarı
+    tpsl_blocked_logged: Dict[int, tuple] = field(default_factory=dict)
 
     is_running: bool = False
     initial_cleanup_done: bool = False
@@ -32,6 +38,9 @@ class GridState:
     def reset(self):
         self.active_zones_state.clear()
         self.consecutive_errors.clear()
+        self.opening_volumes.clear()
+        self.limit_warned_zones.clear()
+        self.tpsl_blocked_logged.clear()
         self.is_running = False
         self.initial_cleanup_done = False
         self.connection_lost = False

@@ -92,6 +92,53 @@ def get_existing_levels_by_direction(
     return buy_levels, sell_levels
 
 
+def get_opening_order_volume(mt5, position):
+    """Pozisyonu açan emrin ilk hacmi (volume_initial); bilinmiyorsa None.
+
+    Kısmi dolum AYARLARDAKİ lot ile değil, gerçekten gönderilen emirle ölçülür. Aksi halde
+    kullanıcı lot'u sonradan büyütünce (24.09: 0.01 → 0.02) her eski pozisyon "eksik
+    dolmuş" sayılıp her döngüde "kalan" emir gönderiliyordu. Değer değişmez → önbellek.
+    """
+    from src.core.state import state
+
+    ident = getattr(position, "identifier", 0) or position.ticket
+    cached = state.opening_volumes.get(ident)
+    if cached is not None:
+        return cached
+    try:
+        orders = mt5.history_orders_get(ticket=ident)
+    except Exception:
+        return None
+    if not orders:
+        return None
+    volume = float(getattr(orders[0], "volume_initial", 0.0) or 0.0)
+    if volume <= 0:
+        return None
+    state.opening_volumes[ident] = volume
+    return volume
+
+
+def remaining_lot_at_level(mt5, positions_at_level, symbol, symbol_infos):
+    """Bir seviyedeki kısmi dolumdan eksik kalan lot. 0.0: tam dolu, açan emir bilinmiyor
+    veya kalan volume_min'in altında. Hedef = o seviyeyi açan emirlerin en büyüğü (tamamlama
+    emrinin kendi hacmi daha küçüktür). Kısmi dolum (grid_order_manager) ve emir doğrulaması
+    (grid_execution/validation) aynı hesabı kullanır; biri koyduğunu diğeri silmez."""
+    if not positions_at_level:
+        return 0.0
+    initial = [v for v in (get_opening_order_volume(mt5, p) for p in positions_at_level) if v]
+    if not initial:
+        return 0.0
+    remaining = round(max(initial) - sum(float(p.volume) for p in positions_at_level), 8)
+    info = symbol_infos.get(symbol)
+    if isinstance(info, dict):
+        vol_min = float(info.get("vol_min", info.get("volume_min", 0.01)))
+    else:
+        vol_min = float(getattr(info, "volume_min", 0.01) or 0.01) if info is not None else 0.01
+    if remaining < vol_min - 1e-9:
+        return 0.0
+    return normalize_volume(remaining, symbol, symbol_infos)
+
+
 def cancel_order(mt5, order):
     if mt5 is None:
         return False
