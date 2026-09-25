@@ -749,5 +749,12 @@
       "status": "passed",
       "tests": 1
     }
+  },
+  "ZON-11": {
+    "e2e": {
+      "datum": "2026-09-25",
+      "status": "passed",
+      "tests": 1
+    }
   }
 }

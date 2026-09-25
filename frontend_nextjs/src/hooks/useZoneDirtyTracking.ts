@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { ZoneSettings } from '@/store/types';
 import { zoneModified } from '@/utils/zoneHelpers';
 
@@ -8,7 +8,7 @@ export interface UseZoneDirtyTrackingReturn {
   originalZones: ZoneSettings[];
   modified: (zone: ZoneSettings) => boolean;
   resetOriginalZones: () => void;
-  setOriginalZones: (zones: ZoneSettings[]) => void;
+  setOriginalZones: Dispatch<SetStateAction<ZoneSettings[]>>;
 }
 
 export function useZoneDirtyTracking(
