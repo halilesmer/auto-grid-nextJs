@@ -1,5 +1,10 @@
-// Combobox: 21st.dev'deki combobox'lardan (shugar/combobox, patrick-xin/autocomplete) esinlenen,
-// bağımlılıksız kendi uyarlamamız. 21st günlük kotası (2026-09-24) toast için kullanıldı.
+// 21st.dev: shugar/combobox
+// 21st.dev: patrick-xin/autocomplete
+// İki 21st bileşeninin yapı ve stilini, yeni bağımlılık eklemeden uyarladık:
+//  - shugar/combobox: arama ikonlu giriş, açıkken dönen ok, seçim tiki, alana göre yukarı/aşağı açılma
+//  - patrick-xin/autocomplete: data-slot yapısı, popup/öğe/boş-durum stilleri, data-highlighted
+// Orijinaller @base-ui/react, class-variance-authority, @radix-ui/react-slot ve Geist yardımcı
+// bileşenlerine bağlıydı; bunların yerine tema token'ları (globals.css) ve `.input-s` kullanılıyor.
 // İki kullanım:
 //  - <Combobox>: select benzeri; tetikleyici buton + arama kutulu açılır liste (hesap seçimi)
 //  - <ComboboxAutocomplete>: serbest metin girişi + öneri listesi (sembol arama)
@@ -9,6 +14,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -17,11 +23,20 @@ import {
   type ReactNode,
 } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, ChevronsUpDown, Search } from 'lucide-react';
+import { Check, ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const popoverClass =
-  'absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover text-sm text-popover-foreground shadow-2xl shadow-black/15 dark:shadow-black/60';
+// patrick-xin/autocomplete: AutocompleteContent (Portal/Positioner yerine absolute konum)
+const popupClass = cn(
+  'absolute left-0 right-0 z-50 flex flex-col overflow-hidden',
+  'rounded-md border border-border bg-popover text-sm text-popover-foreground',
+  'shadow-2xl shadow-black/15 dark:shadow-black/60',
+  // Varsayılan: aşağı açıl; useFlipSide yer yoksa data-side="top" yazar (shugar/combobox)
+  'top-full mt-1 data-[side=top]:top-auto data-[side=top]:bottom-full data-[side=top]:mt-0 data-[side=top]:mb-1',
+);
+
+// patrick-xin/autocomplete: AutocompleteEmpty
+const emptyClass = 'p-3 text-center text-sm text-muted-foreground';
 
 // Dışarı tıklanınca kapat
 function useOutsideClose(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
@@ -43,6 +58,35 @@ function useScrollHighlighted(listRef: React.RefObject<HTMLUListElement | null>,
   }, [listRef, index]);
 }
 
+// shugar/combobox getPosition: aşağıda yer yoksa ve yukarıda varsa popup'ı yukarı aç.
+// State yerine data-side DOM özniteliği yazılır (render döngüsü yok).
+function useFlipSide(
+  anchorRef: React.RefObject<HTMLElement | null>,
+  popupRef: React.RefObject<HTMLElement | null>,
+  open: boolean,
+) {
+  useLayoutEffect(() => {
+    if (!open) return;
+    const update = () => {
+      const anchor = anchorRef.current;
+      const popup = popupRef.current;
+      if (!anchor || !popup) return;
+      const rect = anchor.getBoundingClientRect();
+      const height = popup.offsetHeight + 4;
+      const fitsBelow = rect.bottom + height <= window.innerHeight;
+      const fitsAbove = rect.top - height >= 0;
+      popup.dataset.side = !fitsBelow && fitsAbove ? 'top' : 'bottom';
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  });
+}
+
 interface OptionListProps<T> {
   id: string;
   items: T[];
@@ -53,9 +97,9 @@ interface OptionListProps<T> {
   onHighlight: (index: number) => void;
   onSelect: (item: T) => void;
   listRef: React.RefObject<HTMLUListElement | null>;
-  className?: string;
 }
 
+// patrick-xin/autocomplete: AutocompleteList + AutocompleteItem, shugar/combobox: ComboboxOption tiki
 function OptionList<T>({
   id,
   items,
@@ -66,10 +110,15 @@ function OptionList<T>({
   onHighlight,
   onSelect,
   listRef,
-  className,
 }: OptionListProps<T>) {
   return (
-    <ul ref={listRef} id={id} role="listbox" className={cn('max-h-60 overflow-y-auto p-1', className)}>
+    <ul
+      ref={listRef}
+      id={id}
+      role="listbox"
+      data-slot="combobox-list"
+      className="max-h-60 scroll-py-1 overflow-y-auto p-1 outline-none"
+    >
       {items.map((item, index) => {
         const key = getKey(item);
         const highlighted = index === highlightedIndex;
@@ -80,6 +129,9 @@ function OptionList<T>({
             id={`${id}-${index}`}
             role="option"
             aria-selected={selected || highlighted}
+            data-slot="combobox-item"
+            data-highlighted={highlighted || undefined}
+            data-selected={selected || undefined}
             // mousedown'da seç: input blur'u listeyi kapatmadan önce
             onMouseDown={(e) => {
               e.preventDefault();
@@ -87,8 +139,8 @@ function OptionList<T>({
             }}
             onMouseEnter={() => onHighlight(index)}
             className={cn(
-              'flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors',
-              highlighted ? 'bg-accent text-accent-foreground' : 'hover:bg-accent',
+              'flex cursor-pointer select-none items-center gap-2 rounded-md px-3 py-2 outline-none transition-colors',
+              'hover:bg-accent data-highlighted:bg-accent data-highlighted:text-accent-foreground',
             )}
           >
             <div className="min-w-0 flex-1">{renderItem(item, { highlighted, selected })}</div>
@@ -101,7 +153,7 @@ function OptionList<T>({
 }
 
 /* ------------------------------------------------------------------ */
-/* Select benzeri combobox                                              */
+/* Select benzeri combobox (shugar/combobox)                            */
 /* ------------------------------------------------------------------ */
 
 interface ComboboxProps<T> {
@@ -140,6 +192,7 @@ export function Combobox<T>({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
@@ -162,6 +215,7 @@ export function Combobox<T>({
 
   useOutsideClose(wrapperRef, close);
   useScrollHighlighted(listRef, highlightedIndex);
+  useFlipSide(triggerRef, popupRef, open);
 
   const openList = () => {
     if (disabled) return;
@@ -213,7 +267,7 @@ export function Combobox<T>({
   };
 
   return (
-    <div ref={wrapperRef} className="relative w-full">
+    <div ref={wrapperRef} data-slot="combobox" className="relative w-full">
       <button
         ref={triggerRef}
         type="button"
@@ -223,6 +277,7 @@ export function Combobox<T>({
         aria-controls={listId}
         aria-label={ariaLabel}
         disabled={disabled}
+        data-slot="combobox-trigger"
         onClick={() => (open ? close() : openList())}
         onKeyDown={onTriggerKeyDown}
         className={cn('input-s flex items-center gap-2 text-left', className)}
@@ -230,19 +285,30 @@ export function Combobox<T>({
         <span className={cn('min-w-0 flex-1 truncate', !selectedItem && 'text-muted-foreground')}>
           {selectedItem ? getLabel(selectedItem) : placeholder}
         </span>
-        <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+        <ChevronDown
+          className={cn(
+            'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            open && 'rotate-180 text-foreground',
+          )}
+        />
       </button>
 
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            ref={popupRef}
+            data-slot="combobox-content"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.12 }}
-            className={popoverClass}
+            className={popupClass}
           >
-            <div className="flex items-center gap-2 border-b border-border px-3">
+            {/* shugar/combobox: ComboboxInput prefix arama ikonu */}
+            <div
+              data-slot="combobox-input-group"
+              className="flex items-center gap-2 border-b border-border px-3"
+            >
               <Search className="size-4 shrink-0 text-muted-foreground" />
               <input
                 ref={searchRef}
@@ -256,6 +322,7 @@ export function Combobox<T>({
                 autoComplete="off"
                 aria-controls={listId}
                 aria-activedescendant={highlightedIndex >= 0 ? `${listId}-${highlightedIndex}` : undefined}
+                data-slot="combobox-input"
                 className="h-9 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
             </div>
@@ -272,7 +339,9 @@ export function Combobox<T>({
                 listRef={listRef}
               />
             ) : (
-              <div className="p-3 text-muted-foreground">{emptyMessage}</div>
+              <div data-slot="combobox-empty" className={emptyClass}>
+                {emptyMessage}
+              </div>
             )}
           </motion.div>
         )}
@@ -282,7 +351,7 @@ export function Combobox<T>({
 }
 
 /* ------------------------------------------------------------------ */
-/* Serbest metinli autocomplete                                         */
+/* Serbest metinli autocomplete (patrick-xin/autocomplete)              */
 /* ------------------------------------------------------------------ */
 
 interface ComboboxAutocompleteProps<T>
@@ -316,8 +385,12 @@ export function ComboboxAutocomplete<T>({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
+
+  const showList = open && items.length > 0;
+  const showEmptyState = open && showEmpty && items.length === 0;
 
   const close = useCallback(() => {
     setOpen(false);
@@ -326,6 +399,7 @@ export function ComboboxAutocomplete<T>({
 
   useOutsideClose(wrapperRef, close);
   useScrollHighlighted(listRef, highlightedIndex);
+  useFlipSide(inputRef, popupRef, showList || showEmptyState);
 
   const select = (item: T) => {
     onSelect(item);
@@ -361,6 +435,7 @@ export function ComboboxAutocomplete<T>({
         inputRef.current?.blur();
         break;
       case 'Tab':
+        // Tab vurgulanan öneriyi alır
         if (highlightedIndex >= 0 && highlightedIndex < items.length) {
           e.preventDefault();
           select(items[highlightedIndex]);
@@ -370,7 +445,7 @@ export function ComboboxAutocomplete<T>({
   };
 
   return (
-    <div ref={wrapperRef} className="relative w-full">
+    <div ref={wrapperRef} data-slot="autocomplete" className="relative w-full">
       <input
         {...inputProps}
         ref={inputRef}
@@ -389,29 +464,32 @@ export function ComboboxAutocomplete<T>({
         onKeyDown={onKeyDown}
         autoComplete="off"
         aria-autocomplete="list"
-        aria-expanded={open && items.length > 0}
+        aria-expanded={showList}
         aria-controls={listId}
         aria-activedescendant={highlightedIndex >= 0 ? `${listId}-${highlightedIndex}` : undefined}
+        data-slot="autocomplete-input"
         className={cn('input-s', className)}
       />
 
-      {open && items.length > 0 && (
-        <div className={popoverClass}>
-          <OptionList
-            id={listId}
-            items={items}
-            getKey={getKey}
-            renderItem={renderItem}
-            highlightedIndex={highlightedIndex}
-            onHighlight={setHighlightedIndex}
-            onSelect={select}
-            listRef={listRef}
-          />
+      {(showList || showEmptyState) && (
+        <div ref={popupRef} data-slot="autocomplete-content" className={popupClass}>
+          {showList ? (
+            <OptionList
+              id={listId}
+              items={items}
+              getKey={getKey}
+              renderItem={renderItem}
+              highlightedIndex={highlightedIndex}
+              onHighlight={setHighlightedIndex}
+              onSelect={select}
+              listRef={listRef}
+            />
+          ) : (
+            <div data-slot="autocomplete-empty" className={emptyClass}>
+              {emptyMessage}
+            </div>
+          )}
         </div>
-      )}
-
-      {open && showEmpty && items.length === 0 && (
-        <div className={cn(popoverClass, 'p-3 text-muted-foreground')}>{emptyMessage}</div>
       )}
     </div>
   );
