@@ -633,7 +633,7 @@ kategorien:
 
       - id: MET-04
         titel: Bot-Telemetrie
-        beschreibung: calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open, den Marktstatus je Zone-Symbol (zone_market_open) und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
+        beschreibung: calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open, den Marktstatus je Zone-Symbol (zone_market_open) samt aus M5-Kerzen abgeleiteter Handelszeit (zone_market_hours) und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
         code: [worker_python/src/core/grid_metrics.py, worker_python/src/core/bot_runner.py]
         tiers: [unit]
         pruefung:

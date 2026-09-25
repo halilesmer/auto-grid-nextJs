@@ -41,6 +41,8 @@ export interface ZoneHeaderProps {
   priceDigits?: number;
   /** Bu bölgenin sembolü için piyasa açık mı (liveData.zone_market_open); bilinmiyorsa undefined */
   marketOpen?: boolean;
+  /** Sembolün olağan işlem saati (liveData.zone_market_hours), ör. "02:00-00:00"; bilinmiyorsa undefined */
+  marketHours?: string;
   onToggleActive: (zoneId: string, currentActive: boolean) => void;
   onRestart: (zoneId: string) => void;
   onDelete: () => void;

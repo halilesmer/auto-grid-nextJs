@@ -110,6 +110,8 @@ export interface LiveData {
   zone_states?: Record<string, string>;
   // Bölge başına piyasa durumu (sembolün işlem saatine göre): {"0": true, ...}
   zone_market_open?: Record<string, boolean>;
+  // Bölge başına olağan işlem saati (mum verisinden tahmin, broker saati): {"0": "02:00-00:00"}
+  zone_market_hours?: Record<string, string>;
   // Motor telefondan ($1 sinyali / GRID:STOP) durduruldu
   remote_paused?: boolean;
 }
