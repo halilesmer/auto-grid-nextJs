@@ -3,7 +3,7 @@
 
 import { cn } from "@/lib/utils";
 import { motion, useReducedMotion } from "motion/react";
-import { type ReactNode, useCallback, useId, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useT } from '@/i18n';
 import { Tooltip, type HintContent } from './tooltip';
 
@@ -44,6 +44,21 @@ export default function AnimatedTabs({
 
   const isControlled = controlledActiveTab !== undefined;
   const activeTab = isControlled ? controlledActiveTab : internalActiveTab;
+
+  // Scrollt die Leiste (`className` mit overflow-x-auto, z. B. Log-Tabs auf Mobil), den gewählten Tab in Sicht holen.
+  // Bewusst kein scrollIntoView: das würde auch die Seite verschieben, wenn der Tab z. B. von einem Fehler gewählt wird.
+  const tablistRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = tablistRef.current;
+    const tab = list?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    if (!list || !tab || list.scrollWidth <= list.clientWidth) return;
+    // Innenabstand der Leiste mitzählen, damit der Fokusring des Tabs nicht angeschnitten wird
+    const { paddingLeft, paddingRight } = getComputedStyle(list);
+    const start = tab.offsetLeft - parseFloat(paddingLeft);
+    const end = tab.offsetLeft + tab.offsetWidth + parseFloat(paddingRight);
+    if (start < list.scrollLeft) list.scrollLeft = start;
+    else if (end > list.scrollLeft + list.clientWidth) list.scrollLeft = end - list.clientWidth;
+  }, [activeTab]);
 
   const handleTabChange = useCallback(
     (tabId: string) => {
@@ -132,6 +147,7 @@ export default function AnimatedTabs({
     <div
       aria-label={t('ui.tabs')}
       className={cn(baseContainerStyles, className)}
+      ref={tablistRef}
       role="tablist"
     >
       {tabs.map((tab, index) => {

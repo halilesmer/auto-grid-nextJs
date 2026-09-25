@@ -1,7 +1,8 @@
 /**
  * UI-08 · Mobil (375 px): keine Seite läuft horizontal über, und die Buttons des Zonenbereichs liegen
  * vollständig im Fenster. Kopfzeile des Panels („Kaydedildi“ / „Bölge Ekle“) und Zonenkopf (Status, Kaydet,
- * Test, ⋯) brechen um, statt die Karte zu sprengen. Deutsch hat die längsten Beschriftungen.
+ * Test, ⋯) brechen um, statt die Karte zu sprengen. Die Tab-Leisten der Logs (Dashboard, /vps) sind bedienbar:
+ * jeder Tab ist erreichbar, auch wenn die Leiste breiter ist als die Karte. Deutsch hat die längsten Beschriftungen.
  */
 import type { Locator, Page, Route } from '@playwright/test';
 import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, test, type AppLocale, type Dashboard } from '../fixtures/test';
@@ -39,6 +40,83 @@ async function expectZoneAreaInViewport(dashboard: Dashboard, lang: AppLocale) {
   await expectInViewport(page, zone.getByRole('button', { name: msg('zone.header.menu', undefined, lang) }), 'Zonenmenü');
 }
 
+/**
+ * Der Tab lässt sich antippen: er liegt ganz im Fenster und ganz in seiner Tab-Leiste, und an beiden Enden und in
+ * der Mitte trifft ein Tipp wirklich ihn (ein overflow-hidden-Elternteil würde ihn abschneiden, ohne dass die
+ * Seite horizontal überläuft, deshalb reicht die Prüfung der Seitenbreite dafür nicht).
+ */
+function tabFullyVisible(tab: Locator): Promise<boolean> {
+  return tab.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const list = el.closest('[role="tablist"]')!.getBoundingClientRect();
+    const inWindow = r.left >= 0 && r.right <= window.innerWidth;
+    const inList = r.left >= list.left - 0.5 && r.right <= list.right + 0.5;
+    const y = r.top + r.height / 2;
+    const hit = [r.left + 3, r.left + r.width / 2, r.right - 3].every((x) => el.contains(document.elementFromPoint(x, y)));
+    return inWindow && inList && hit;
+  });
+}
+
+/**
+ * Tab-Leiste bedienbar: sie ragt nicht über ihre Karte hinaus, ist bei zu wenig Platz selbst horizontal scrollbar,
+ * und jeder Tab lässt sich wählen und liegt danach vollständig sichtbar in der Leiste.
+ */
+async function expectTabsReachable(page: Page, tablist: Locator, tabCount: number) {
+  await expectInViewport(page, tablist, 'Tab-Leiste');
+  const list = (await tablist.boundingBox())!;
+  const card = (await tablist.locator('xpath=..').boundingBox())!;
+  expect(list.x + list.width, 'Tab-Leiste ragt rechts über ihre Karte hinaus').toBeLessThanOrEqual(card.x + card.width + 0.5);
+  const scrollable = await tablist.evaluate((el) => {
+    const { overflowX } = getComputedStyle(el);
+    return el.scrollWidth <= el.clientWidth || overflowX === 'auto' || overflowX === 'scroll';
+  });
+  expect(scrollable, 'Tab-Leiste ist breiter als ihr Platz, aber nicht scrollbar').toBe(true);
+
+  const tabs = tablist.getByRole('tab');
+  await expect(tabs).toHaveCount(tabCount);
+  for (let i = 0; i < tabCount; i++) {
+    const tab = tabs.nth(i);
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    await expect.poll(() => tabFullyVisible(tab), { message: `Tab ${i + 1} ist nach dem Wählen nicht ganz sichtbar` }).toBe(true);
+  }
+  // Auch der erste Tab ist nach dem Zurückwählen wieder ganz da (Leiste scrollt nach links zurück)
+  await tabs.first().click();
+  await expect.poll(() => tabFullyVisible(tabs.first())).toBe(true);
+}
+
+/** Antworten der Route /api/vps/* (läuft im Next.js-Server, im Test gemockt). */
+async function mockVps(page: Page) {
+  // Status mit Adminprozessen: die längste Variante der Seite „VPS“
+  await page.route('**/api/vps/**', async (route: Route) => {
+    const action = new URL(route.request().url()).pathname.replace('/api/vps/', '');
+    if (action === 'status') {
+      return route.fulfill({
+        json: {
+          ok: true,
+          hostname: 'VPS-01',
+          version: 'v0.7.71',
+          git: { branch: 'main', commit: '6e6011d0' },
+          worker: { listening: true, reachable: true, error: null },
+          worker_watchdog: true,
+          ngrok: { running: true, public_url: 'https://tweet-overlying-monotone.ngrok-free.dev' },
+          ngrok_watchdog: true,
+          bots: [{ pid: 4711, account: '5039114' }],
+          mt5_terminals: 1,
+          session_active: true,
+          autologon: true,
+          auto_update_minutes: null,
+          tasks: { start: { exists: true, state: 'Ready' }, update: { exists: true, state: 'Ready' } },
+          boot_time: '2026-09-24T08:00:00',
+          uptime_minutes: 125,
+          elevated: [{ pid: 100, role: 'worker' }, { pid: 200, role: 'bot', account: '5039114' }],
+        },
+      });
+    }
+    return route.fulfill({ json: { ok: true, log: 'worker', lines: ['Zeile 1'] } });
+  });
+}
+
 for (const lang of LOCALES) {
   test.describe(`Zonenbereich (${lang})`, () => {
     test.use({ appLocale: lang });
@@ -64,6 +142,25 @@ for (const lang of LOCALES) {
       await expectNoPageOverflow(page);
     });
   });
+
+  test.describe(`Log-Tabs (${lang})`, () => {
+    test.use({ appLocale: lang });
+
+    test('Dashboard: Tab-Leiste des Log-Viewers ist bedienbar', { tag: '@UI-08' }, async ({ page, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      await expectTabsReachable(page, page.getByRole('tablist'), 3);
+      await expectNoPageOverflow(page);
+    });
+
+    test('/vps: Tab-Leiste des VPS-Logs ist bedienbar', { tag: '@UI-08' }, async ({ page, worker }) => {
+      void worker;
+      await mockVps(page);
+      await page.goto('/vps');
+      await expect(page.getByTestId('vps-log-output')).toBeVisible();
+      await expectTabsReachable(page, page.getByRole('tablist'), 3);
+      await expectNoPageOverflow(page);
+    });
+  });
 }
 
 test.describe('Weitere Seiten (de)', () => {
@@ -71,34 +168,7 @@ test.describe('Weitere Seiten (de)', () => {
 
   test('Formasyon, VPS und Chart laufen nicht über', { tag: '@UI-08' }, async ({ page, worker, dashboard }) => {
     void worker;
-    // Status mit Adminprozessen: die längste Variante der Seite „VPS“
-    await page.route('**/api/vps/**', async (route: Route) => {
-      const action = new URL(route.request().url()).pathname.replace('/api/vps/', '');
-      if (action === 'status') {
-        return route.fulfill({
-          json: {
-            ok: true,
-            hostname: 'VPS-01',
-            version: 'v0.7.71',
-            git: { branch: 'main', commit: '6e6011d0' },
-            worker: { listening: true, reachable: true, error: null },
-            worker_watchdog: true,
-            ngrok: { running: true, public_url: 'https://tweet-overlying-monotone.ngrok-free.dev' },
-            ngrok_watchdog: true,
-            bots: [{ pid: 4711, account: '5039114' }],
-            mt5_terminals: 1,
-            session_active: true,
-            autologon: true,
-            auto_update_minutes: null,
-            tasks: { start: { exists: true, state: 'Ready' }, update: { exists: true, state: 'Ready' } },
-            boot_time: '2026-09-24T08:00:00',
-            uptime_minutes: 125,
-            elevated: [{ pid: 100, role: 'worker' }, { pid: 200, role: 'bot', account: '5039114' }],
-          },
-        });
-      }
-      return route.fulfill({ json: { ok: true, log: 'worker', lines: ['Zeile 1'] } });
-    });
+    await mockVps(page);
 
     // Über die Navigation, damit das gewählte Konto erhalten bleibt
     await dashboard.open(DEMO_ID);
