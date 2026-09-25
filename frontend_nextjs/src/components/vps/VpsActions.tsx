@@ -8,7 +8,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { VpsUpdateCheck } from '@/lib/vps';
 import { ACTION_TITLES, type PostAction } from './useVps';
 
-const CONFIRM: Record<PostAction, { message: string; info?: string; variant: 'warning' | 'danger' }> = {
+// Admin-Prozesse beenden hat seinen eigenen Knopf in der Warnung (VpsElevatedWarning)
+type ButtonAction = Exclude<PostAction, 'fix-elevated'>;
+
+const CONFIRM: Record<ButtonAction, { message: string; info?: string; variant: 'warning' | 'danger' }> = {
   update: {
     message: 'Der Worker holt den neuesten Stand von main (git pull, bei Bedarf pip install) und startet neu.',
     info: 'git läuft dabei mit den normalen Rechten des Workers, nie als Administrator. Laufende Bots werden danach mit der neuen Version neu gestartet, Positionen und Orders bleiben unberührt.',
@@ -16,7 +19,7 @@ const CONFIRM: Record<PostAction, { message: string; info?: string; variant: 'wa
   },
   restart: {
     message: 'Worker und ngrok werden über start.bat neu gestartet. Das Dashboard ist ~10–20 s nicht erreichbar.',
-    info: 'Bots sind eigene Prozesse und laufen weiter.',
+    info: 'Bots sind eigene Prozesse und laufen weiter. Neustart-Schleifen, Worker oder ngrok mit Adminrechten werden vorher beendet.',
     variant: 'warning',
   },
   'restart-ngrok': {
@@ -39,7 +42,7 @@ interface Props {
 }
 
 export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction, workerRunning }: Props) {
-  const [confirm, setConfirm] = useState<PostAction | null>(null);
+  const [confirm, setConfirm] = useState<ButtonAction | null>(null);
   const cfg = confirm ? CONFIRM[confirm] : null;
 
   return (

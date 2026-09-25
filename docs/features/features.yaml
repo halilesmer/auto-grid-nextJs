@@ -787,6 +787,16 @@ kategorien:
           - Einrichtung nach docs/windows_start_guide.md, danach VPS über die Seite „VPS“ neu starten.
         erwartet: Nach dem Reboot sind Auto-Login, Worker, ngrok und die vorher laufenden Bots von selbst wieder da.
 
+      - id: VPS-07
+        titel: Prozesse mit Adminrechten erkennen und beenden
+        beschreibung: Laufen Neustart-Schleife, Worker, Bots, ngrok oder MT5 mit Adminrechten (alte Aufgabe mit höchsten Rechten, start.bat „Als Administrator“), kann der normale Worker sie weder sehen noch beenden. vps.ps1 status meldet sie (höhere Integritätsstufe als explorer.exe), die Seite „VPS“ zeigt eine rote Warnung mit „Admin-Prozesse beenden“ (fix-elevated, danach Neustart ohne Adminrechte, der Worker setzt die Bots fort); „Worker neu starten“ beendet Admin-Schleifen/-Worker/-ngrok vorher selbst. cleanup_old_instances.ps1 schreibt nicht beendbare Reste ins Worker-Log. Ein Worker mit Adminrechten warnt beim Start und macht kein git pull.
+        code: [worker_python/ops/windows/vps.ps1, worker_python/cleanup_old_instances.ps1, worker_python/src/utils/elevation.py, worker_python/src/utils/self_updater.py, frontend_nextjs/src/components/vps/VpsElevatedWarning.tsx]
+        tiers: [unit, e2e, manuell]
+        pruefung:
+          - Seite „VPS“ öffnen, wenn nichts mit Adminrechten läuft.
+          - "Nur mit Absprache: auf dem VPS start.bat per Rechtsklick „Als Administrator ausführen“, danach Seite „VPS“ neu laden und „Admin-Prozesse beenden“."
+        erwartet: Ohne Admin-Prozesse keine Warnung. Mit Admin-Start nennt die Warnung Neustart-Schleifen und Worker mit PID; nach „Admin-Prozesse beenden“ verschwindet sie, Worker und ngrok laufen wieder ohne Adminrechte und das Worker-Log zeigt keine neue Admin-Warnung.
+
   # ---------------------------------------------------------------------------
   - id: UI
     titel: Oberfläche
