@@ -44,6 +44,7 @@ export function ZoneBreakoutFields({
           <NumberInput
             min={0}
             step={symbolConfig.step}
+            maxDecimals={symbolConfig.precision}
             value={zone.pullback_distance}
             onChange={(e) => handleChange('pullback_distance', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('pullback_distance', zone.pullback_distance, symbolConfig.step, symbolConfig.precision, update)}
@@ -58,6 +59,7 @@ export function ZoneBreakoutFields({
             <NumberInput
               min={0}
               step={symbolConfig.step}
+              maxDecimals={symbolConfig.precision}
               value={zone.sell_pullback_distance}
               onChange={(e) => handleChange('sell_pullback_distance', e.target.value, zone, symbolConfig, update)}
               onBlur={() => handleBlur('sell_pullback_distance', zone.sell_pullback_distance, symbolConfig.step, symbolConfig.precision, update)}
@@ -80,6 +82,7 @@ export function ZoneBreakoutFields({
           <NumberInput
             min={1}
             step={1}
+            maxDecimals={0}
             value={zone.levels_below}
             onChange={(e) => update('levels_below', parseInt(e.target.value, 10) || 1)}
             disabled={zone.is_breakout && zone.order_type === 'BUY'}
@@ -97,6 +100,7 @@ export function ZoneBreakoutFields({
           <NumberInput
             min={1}
             step={1}
+            maxDecimals={0}
             value={zone.levels_above}
             onChange={(e) => update('levels_above', parseInt(e.target.value, 10) || 1)}
             disabled={zone.is_breakout && zone.order_type === 'SELL'}
@@ -107,6 +111,7 @@ export function ZoneBreakoutFields({
           <NumberInput
             min={0}
             step={1}
+            maxDecimals={0}
             value={zone.max_positions}
             onChange={(e) => update('max_positions', parseInt(e.target.value, 10) || 0)}
             className="input-s"

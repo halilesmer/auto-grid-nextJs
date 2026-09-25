@@ -80,6 +80,19 @@ test.describe('ZON Zonen', () => {
     });
   });
 
+  test('Zahlenfelder nehmen nur so viele Nachkommastellen an wie das Symbol', { tag: '@ZON-04' }, async ({ dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const grid = dashboard.zoneField(msg('zone.field.gridStep'));
+    await grid.clear();
+    await grid.pressSequentially('0.123456');
+    await expect(grid).toHaveValue('0.123');
+
+    const lot = dashboard.zoneField('Lot');
+    await lot.clear();
+    await lot.pressSequentially('0.12345');
+    await expect(lot).toHaveValue('0.12');
+  });
+
   test('SELL-Felder nur bei BOTH ohne Sync', { tag: '@ZON-05' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();

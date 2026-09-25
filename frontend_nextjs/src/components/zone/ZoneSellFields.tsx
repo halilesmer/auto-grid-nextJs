@@ -28,6 +28,7 @@ export function ZoneSellFields({
           <NumberInput
             min={symbolConfig.min}
             step={symbolConfig.step}
+            maxDecimals={symbolConfig.precision}
             value={zone.sell_grid_step}
             onChange={(e) => handleChange('sell_grid_step', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('sell_grid_step', zone.sell_grid_step, symbolConfig.step, symbolConfig.precision, update)}
@@ -38,6 +39,7 @@ export function ZoneSellFields({
           <NumberInput
             min={symbolConfig.volMin}
             step={symbolConfig.volStep}
+            maxDecimals={volPrecision}
             value={zone.sell_lot_size}
             onChange={(e) => handleChange('sell_lot_size', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('sell_lot_size', zone.sell_lot_size, symbolConfig.volStep, volPrecision, update)}
@@ -48,6 +50,7 @@ export function ZoneSellFields({
           <NumberInput
             min={0}
             step={symbolConfig.step}
+            maxDecimals={symbolConfig.precision}
             value={zone.sell_take_profit}
             onChange={(e) => handleChange('sell_take_profit', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('sell_take_profit', zone.sell_take_profit, symbolConfig.step, symbolConfig.precision, update)}
@@ -58,6 +61,7 @@ export function ZoneSellFields({
           <NumberInput
             min={0}
             step={symbolConfig.step}
+            maxDecimals={symbolConfig.precision}
             value={zone.sell_stop_loss}
             onChange={(e) => handleChange('sell_stop_loss', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('sell_stop_loss', zone.sell_stop_loss, symbolConfig.step, symbolConfig.precision, update)}

@@ -57,6 +57,7 @@ export function ZoneBasicFields({
         <NumberInput
           min={0}
           step={symbolConfig.step}
+          maxDecimals={symbolConfig.precision}
           value={zone.min_price}
           onChange={(e) => handleChange('min_price', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('min_price', zone.min_price, symbolConfig.step, symbolConfig.precision, update)}
@@ -67,6 +68,7 @@ export function ZoneBasicFields({
         <NumberInput
           min={0}
           step={symbolConfig.step}
+          maxDecimals={symbolConfig.precision}
           value={zone.max_price}
           onChange={(e) => handleChange('max_price', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('max_price', zone.max_price, symbolConfig.step, symbolConfig.precision, update)}
