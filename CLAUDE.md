@@ -109,7 +109,8 @@ All of these are gitignored and may contain credentials.
 
 ## Modell-Nutzung
 - Für Codebase-Erkundung, Suche und einfache Recherche: Subagent `explorer` (Haiku).
-- Für Code-Review: Subagent `reviewer` (Sonnet).
+- Für Code-Review: Subagent `reviewer` (Sonnet), nach fertigen Änderungen und vor Commit/PR. Er ist nur lesend (kein `git diff`), also Diff bzw. geänderte Dateien und Zweck im Prompt übergeben.
+- Definitionen: `.claude/agents/explorer.md`, `.claude/agents/reviewer.md`.
 - Für Architekturentscheidungen und schwieriges Debugging: mich darauf hinweisen,
   dass ein Wechsel zu Opus (oder höherer /effort) sinnvoll wäre, statt selbst zu raten.
 - Nicht während einer laufenden Aufgabe das Modell wechseln.
