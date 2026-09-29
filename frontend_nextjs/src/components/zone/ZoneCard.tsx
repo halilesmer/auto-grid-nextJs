@@ -151,6 +151,13 @@ export function ZoneCard({
                 label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
                 hint={t('zone.stepByLoss.hint')}
               />
+              <Switch
+                id={`instant-entry-${zone.id}`}
+                checked={!!zone.instant_entry}
+                onChange={(checked) => update('instant_entry', checked)}
+                label={<span className="text-xs text-muted-foreground">{t('zone.instantEntry')}</span>}
+                hint={t('zone.instantEntry.hint')}
+              />
               {isBoth && (
                 <Switch
                   id={`sync-${zone.id}`}

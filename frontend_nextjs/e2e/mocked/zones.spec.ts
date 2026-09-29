@@ -321,9 +321,14 @@ test.describe('ZON Zonen', () => {
     await expect(grid).toHaveValue('5');
     const pullback = zone.getByText(msg('zone.breakout.minPullbackLoss')).locator('xpath=..').locator('input');
     await expect(pullback).toHaveValue('5');
+    // TP 0,5 → 5 $ (Gewinn), SL 0 bleibt 0
+    const tp = dashboard.zoneField(msg('zone.field.takeProfitLoss'));
+    await expect(tp).toHaveValue('5');
+    await expect(dashboard.zoneField(msg('zone.field.stopLossLoss'))).toHaveValue('0');
 
     await grid.fill('10');
-    await expect(zone.getByTestId('loss-preview')).toContainText('≈ 1 ');
+    await expect(zone.getByTestId('loss-preview').first()).toContainText('≈ 1 ');
+    await tp.fill('2');
     await dashboard.zoneSwitch(msg('zone.breakout.trendOnly')).click();
     await pullback.fill('3');
 
@@ -331,12 +336,14 @@ test.describe('ZON Zonen', () => {
     await expect(dashboard.zoneSwitch(msg('zone.stepByLoss'))).toHaveAttribute('aria-checked', 'true');
     await expect(grid).toHaveValue('10');
     await expect(pullback).toHaveValue('3');
-    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ step_by_loss: true, grid_step: 10, pullback_distance: 3 });
+    await expect(tp).toHaveValue('2');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ step_by_loss: true, grid_step: 10, pullback_distance: 3, take_profit: 2 });
 
     // Zurück auf Preisabstand: 10 $ → 1,0; 3 $ → 0,3
     await dashboard.zoneSwitch(msg('zone.stepByLoss')).click();
     await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toHaveValue('1');
     await expect(zone.getByText(msg('zone.breakout.minPullback')).locator('xpath=..').locator('input')).toHaveValue('0.3');
+    await expect(dashboard.zoneField(msg('zone.field.takeProfit'))).toHaveValue('0.2');
   });
 
   test('Abstand nach Verlust ($): EURUSD 0,00100 bei 0,1 Lot = 10 $', { tag: '@ZON-13' }, async ({ worker, dashboard }) => {
@@ -349,6 +356,21 @@ test.describe('ZON Zonen', () => {
     await expect(dashboard.zoneField(msg('zone.field.gridStepLoss'))).toHaveValue('10');
     const pullback = dashboard.zone().getByText(msg('zone.breakout.minPullbackLoss')).locator('xpath=..').locator('input');
     await expect(pullback).toHaveValue('5');
-    await expect(dashboard.zone().getByTestId('loss-preview')).toBeVisible();
+    await expect(dashboard.zone().getByTestId('loss-preview').first()).toBeVisible();
+  });
+
+  test('Sofort erste Position: eigener Schalter je Zone', { tag: '@ZON-14' }, async ({ worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const instant = dashboard.zoneSwitch(msg('zone.instantEntry'));
+    await expect(instant).toHaveAttribute('aria-checked', 'false');
+    await instant.click();
+    await expect(instant).toHaveAttribute('aria-checked', 'true');
+    // Unabhängig von „Abstand nach Verlust“
+    await expect(dashboard.zoneSwitch(msg('zone.stepByLoss'))).toHaveAttribute('aria-checked', 'false');
+
+    await saveAndReload(dashboard);
+    await expect(dashboard.zoneSwitch(msg('zone.instantEntry'))).toHaveAttribute('aria-checked', 'true');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ instant_entry: true });
+    expect(worker.zonesOf(DEMO_ID)[0].step_by_loss).toBeFalsy();
   });
 });

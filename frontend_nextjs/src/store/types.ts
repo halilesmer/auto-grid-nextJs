@@ -46,6 +46,8 @@ export interface ZoneSettings {
   is_breakout: boolean;
   /** „Abstand nach Verlust ($)“: grid_step/sell_grid_step/pullback_* sind $-Beträge statt Preisabstände */
   step_by_loss?: boolean;
+  /** Ohne offene Position je Seite sofort eine Markt-Position eröffnen (Worker: instant_entry.py) */
+  instant_entry?: boolean;
   pullback_distance: number;
   sell_pullback_distance: number;
   sync_buy_sell: boolean;

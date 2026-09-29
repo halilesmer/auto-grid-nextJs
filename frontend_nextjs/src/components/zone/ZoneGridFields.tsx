@@ -66,30 +66,48 @@ export function ZoneGridFields({
         />
       </InputField>
       <InputField
-        label={isBoth && !sync ? t('zone.field.buyTakeProfit') : t('zone.field.takeProfit')}
-        hint={guided.tp(isBoth && !sync ? t('zone.field.buyTakeProfit.hint') : t('zone.field.takeProfit.hint'))}
+        label={
+          byLoss
+            ? t(split ? 'zone.field.buyTakeProfitLoss' : 'zone.field.takeProfitLoss')
+            : t(split ? 'zone.field.buyTakeProfit' : 'zone.field.takeProfit')
+        }
+        hint={
+          byLoss
+            ? t(split ? 'zone.field.buyTakeProfitLoss.hint' : 'zone.field.takeProfitLoss.hint')
+            : guided.tp(t(split ? 'zone.field.buyTakeProfit.hint' : 'zone.field.takeProfit.hint'))
+        }
+        error={byLoss && <LossPreview amount={zone.take_profit} lot={zone.lot_size} symbolConfig={symbolConfig} />}
       >
         <NumberInput
           min={0}
-          step={symbolConfig.step}
-          maxDecimals={symbolConfig.precision}
+          step={stepCfg.step}
+          maxDecimals={stepCfg.precision}
           value={zone.take_profit}
-          onChange={(e) => handleChange('take_profit', e.target.value, zone, symbolConfig, update)}
-          onBlur={() => handleBlur('take_profit', zone.take_profit, symbolConfig.step, symbolConfig.precision, update)}
+          onChange={(e) => handleChange('take_profit', e.target.value, zone, stepCfg, update)}
+          onBlur={() => handleBlur('take_profit', zone.take_profit, stepCfg.step, stepCfg.precision, update)}
           className="input-s"
         />
       </InputField>
       <InputField
-        label={isBoth && !sync ? t('zone.field.buyStopLoss') : t('zone.field.stopLoss')}
-        hint={isBoth && !sync ? t('zone.field.buyStopLoss.hint') : t('zone.field.stopLoss.hint')}
+        label={
+          byLoss
+            ? t(split ? 'zone.field.buyStopLossLoss' : 'zone.field.stopLossLoss')
+            : t(split ? 'zone.field.buyStopLoss' : 'zone.field.stopLoss')
+        }
+        hint={
+          byLoss
+            ? t(split ? 'zone.field.buyStopLossLoss.hint' : 'zone.field.stopLossLoss.hint')
+            : t(split ? 'zone.field.buyStopLoss.hint' : 'zone.field.stopLoss.hint')
+        }
+        error={byLoss && <LossPreview amount={zone.stop_loss} lot={zone.lot_size} symbolConfig={symbolConfig} />}
       >
         <NumberInput
           min={0}
-          step={symbolConfig.step}
-          maxDecimals={symbolConfig.precision}
+          step={stepCfg.step}
+          maxDecimals={stepCfg.precision}
           value={zone.stop_loss}
-          onChange={(e) => handleChange('stop_loss', e.target.value, zone, symbolConfig, update)}
-          onBlur={() => handleBlur('stop_loss', zone.stop_loss, symbolConfig.step, symbolConfig.precision, update)}
+          onChange={(e) => handleChange('stop_loss', e.target.value, zone, stepCfg, update)}
+          onBlur={() => handleBlur('stop_loss', zone.stop_loss, stepCfg.step, stepCfg.precision, update)}
           className="input-s"
         />
       </InputField>

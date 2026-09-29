@@ -8,7 +8,8 @@ from src.core.grid_orders import (
 from src.core.state import state
 
 from .config import extract_zone_config, ZoneConfig
-from .levels import generate_levels, LevelSets
+from .levels import generate_levels, is_position_anchored, LevelSets
+from .instant_entry import open_instant_positions
 from .validation import OrderValidator
 from .placement import OrderPlacer
 from .exceptions import (
@@ -56,6 +57,12 @@ def handle_sliding_grid(
             return True
         state.limit_warned_zones.pop(active_zone_idx, None)
 
+        if open_instant_positions(
+            mt5_module, config, active_zone_idx, robot_positions, current_avg_price, symbol_infos, log_message
+        ):
+            # Yeni pozisyon bir sonraki turda görünür; ızgara ona göre kurulur
+            return True
+
         levels: LevelSets = generate_levels(
             config, current_avg_price, robot_positions, symbol_infos, mt5_module, log_message
         )
@@ -64,7 +71,8 @@ def handle_sliding_grid(
         validator.validate_and_cleanup(robot_orders, robot_positions, config, levels, active_zone_idx)
 
         exist_buy_levels, exist_sell_levels = get_existing_levels_by_direction(
-            mt5_module, config.grid_step, config.sell_grid_step, config.symbol, symbol_infos
+            mt5_module, config.grid_step, config.sell_grid_step, config.symbol, symbol_infos,
+            snap=not is_position_anchored(config),
         )
 
         placer = OrderPlacer(mt5_module, symbol_infos, log_message)

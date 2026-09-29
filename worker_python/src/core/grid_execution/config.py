@@ -29,6 +29,7 @@ class ZoneConfig:
     sell_pullback_distance: float
     target_magic: int
     step_by_loss: bool = False
+    instant_entry: bool = False
 
 
 def money_per_price_unit(symbol: str, symbol_infos: dict | None) -> float | None:
@@ -73,8 +74,8 @@ def extract_zone_config(
     log_message: Callable[[str, str], None] = default_log_message,
     symbol_infos: dict | None = None,
 ) -> ZoneConfig:
-    """`step_by_loss` açıksa grid_step / sell_grid_step / pullback değerleri fiyat değil
-    tutar ($) olarak girilmiştir; burada ilgili lot ile fiyat mesafesine çevrilir
+    """`step_by_loss` açıksa grid_step / sell_grid_step / pullback / TP / SL değerleri fiyat
+    değil tutar ($) olarak girilmiştir; burada ilgili lot ile fiyat mesafesine çevrilir
     (symbol_infos gerekir). Döngünün geri kalanı yalnızca fiyat mesafesi görür."""
     if not isinstance(zone_dict, dict):
         raise InvalidZoneConfigError(f"Zone {zone_idx + 1}: config must be a dict")
@@ -131,13 +132,18 @@ def extract_zone_config(
                 )
             return d
 
-        # Pullback 0 olabilir (= sınır yok); 0'ı 1 point'e yükseltme
+        def _conv0(amount: float, lot: float) -> float:
+            # Pullback / TP / SL 0 olabilir (= yok); 0'ı 1 point'e yükseltme
+            return _conv(amount, lot) if amount > 0 else 0.0
+
         grid_step = _conv(grid_step, lot_val)
         sell_grid_step = _conv(sell_grid_step, sell_lot_val)
-        pullback_distance = _conv(pullback_distance, lot_val) if pullback_distance > 0 else 0.0
-        sell_pullback_distance = (
-            _conv(sell_pullback_distance, sell_lot_val) if sell_pullback_distance > 0 else 0.0
-        )
+        pullback_distance = _conv0(pullback_distance, lot_val)
+        sell_pullback_distance = _conv0(sell_pullback_distance, sell_lot_val)
+        tp_val = _conv0(tp_val, lot_val)
+        sl_val = _conv0(sl_val, lot_val)
+        sell_tp_val = _conv0(sell_tp_val, sell_lot_val)
+        sell_sl_val = _conv0(sell_sl_val, sell_lot_val)
 
     return ZoneConfig(
         order_type=order_type,
@@ -161,4 +167,5 @@ def extract_zone_config(
         sell_pullback_distance=sell_pullback_distance,
         target_magic=target_magic,
         step_by_loss=step_by_loss,
+        instant_entry=bool(zone_dict.get("instant_entry", False)),
     )

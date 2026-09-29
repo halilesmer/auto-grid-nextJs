@@ -18,6 +18,7 @@ export function defaultZone(): ZoneSettings {
     sell_stop_loss: 0.0,
     is_breakout: false,
     step_by_loss: false,
+    instant_entry: false,
     pullback_distance: 0.5,
     sell_pullback_distance: 0.5,
     sync_buy_sell: true,
@@ -59,8 +60,17 @@ export interface SymbolConfig {
   moneyPerUnit: number | null;
 }
 
-/** Abstände (Grid, Pullback), die bei „Abstand nach Verlust“ als $-Betrag gelten */
-export const LOSS_DISTANCE_FIELDS = ['grid_step', 'sell_grid_step', 'pullback_distance', 'sell_pullback_distance'] as const;
+/** Abstände (Grid, Pullback, TP, SL), die bei „Abstand nach Verlust“ als $-Betrag gelten */
+export const LOSS_DISTANCE_FIELDS = [
+  'grid_step',
+  'sell_grid_step',
+  'pullback_distance',
+  'sell_pullback_distance',
+  'take_profit',
+  'sell_take_profit',
+  'stop_loss',
+  'sell_stop_loss',
+] as const;
 
 /** Eingabe-Konfiguration für Abstandsfelder: im Verlust-Modus $-Beträge mit 2 Nachkommastellen. */
 export function distanceConfig(symbolConfig: SymbolConfig, byLoss: boolean | undefined): SymbolConfig {

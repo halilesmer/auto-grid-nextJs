@@ -54,25 +54,33 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.field.sellTakeProfit')} hint={guided.tp(t('zone.field.sellTakeProfit.hint'))}>
+        <InputField
+          label={byLoss ? t('zone.field.sellTakeProfitLoss') : t('zone.field.sellTakeProfit')}
+          hint={byLoss ? t('zone.field.sellTakeProfitLoss.hint') : guided.tp(t('zone.field.sellTakeProfit.hint'))}
+          error={byLoss && <LossPreview amount={zone.sell_take_profit} lot={zone.sell_lot_size} symbolConfig={symbolConfig} />}
+        >
           <NumberInput
             min={0}
-            step={symbolConfig.step}
-            maxDecimals={symbolConfig.precision}
+            step={stepCfg.step}
+            maxDecimals={stepCfg.precision}
             value={zone.sell_take_profit}
-            onChange={(e) => handleChange('sell_take_profit', e.target.value, zone, symbolConfig, update)}
-            onBlur={() => handleBlur('sell_take_profit', zone.sell_take_profit, symbolConfig.step, symbolConfig.precision, update)}
+            onChange={(e) => handleChange('sell_take_profit', e.target.value, zone, stepCfg, update)}
+            onBlur={() => handleBlur('sell_take_profit', zone.sell_take_profit, stepCfg.step, stepCfg.precision, update)}
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.field.sellStopLoss')} hint={t('zone.field.sellStopLoss.hint')}>
+        <InputField
+          label={byLoss ? t('zone.field.sellStopLossLoss') : t('zone.field.sellStopLoss')}
+          hint={byLoss ? t('zone.field.sellStopLossLoss.hint') : t('zone.field.sellStopLoss.hint')}
+          error={byLoss && <LossPreview amount={zone.sell_stop_loss} lot={zone.sell_lot_size} symbolConfig={symbolConfig} />}
+        >
           <NumberInput
             min={0}
-            step={symbolConfig.step}
-            maxDecimals={symbolConfig.precision}
+            step={stepCfg.step}
+            maxDecimals={stepCfg.precision}
             value={zone.sell_stop_loss}
-            onChange={(e) => handleChange('sell_stop_loss', e.target.value, zone, symbolConfig, update)}
-            onBlur={() => handleBlur('sell_stop_loss', zone.sell_stop_loss, symbolConfig.step, symbolConfig.precision, update)}
+            onChange={(e) => handleChange('sell_stop_loss', e.target.value, zone, stepCfg, update)}
+            onBlur={() => handleBlur('sell_stop_loss', zone.sell_stop_loss, stepCfg.step, stepCfg.precision, update)}
             className="input-s"
           />
         </InputField>

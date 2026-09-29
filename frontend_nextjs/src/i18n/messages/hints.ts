@@ -249,7 +249,7 @@ export default defineArea(
     'zone.breakout.sellPullback.hint':
       'Breakout modunda SELL emirleri, güncel fiyatın en az bu kadar ($) altındaki seviyelerden başlar; daha yakın seviyeler atlanır.',
     'zone.stepByLoss.hint':
-      'Açıkken Grid ve Pullback mesafeleri fiyat değil tutar ($) olarak girilir: son açılan pozisyon bu kadar zarara ulaşınca bir sonraki pozisyon açılır. Mesafe lot büyüklüğüne göre hesaplanır (2 kat lot = yarı mesafe). Açık pozisyonların hepsi aynı anda zararda olduğundan toplam zarar daha hızlı büyür (10 $, 30 $, 60 $ …). Spread ve komisyon dahil değildir.',
+      'Açıkken Grid, Pullback, Kar Al ve Zarar Durdur mesafeleri fiyat değil tutar ($) olarak girilir: son açılan pozisyon bu kadar zarara ulaşınca bir sonraki pozisyon açılır. Mesafe lot büyüklüğüne göre hesaplanır (2 kat lot = yarı mesafe). Açık pozisyonların hepsi aynı anda zararda olduğundan toplam zarar daha hızlı büyür (10 $, 30 $, 60 $ …). Spread ve komisyon dahil değildir.',
     'zone.field.gridStepLoss.hint':
       'Son açılan pozisyon bu kadar zarara (hesap para birimi, $) ulaşınca bir sonraki pozisyon açılır. Bot, tutarı lot büyüklüğüyle fiyat mesafesine çevirir.',
     'zone.field.buyGridLoss.hint':
@@ -262,6 +262,20 @@ export default defineArea(
       'Breakout modunda BUY emirleri, BUY lotu ile bu tutara ($) karşılık gelen mesafeden daha uzak seviyelerden başlar. 0 = sınır yok.',
     'zone.breakout.sellPullbackLoss.hint':
       'Breakout modunda SELL emirleri, SELL lotu ile bu tutara ($) karşılık gelen mesafeden daha uzak seviyelerden başlar. 0 = sınır yok.',
+    'zone.field.takeProfitLoss.hint':
+      'Pozisyon bu kadar kâra ($) ulaşınca kapanır. Bot, tutarı lot büyüklüğüyle fiyat mesafesine çevirir.',
+    'zone.field.buyTakeProfitLoss.hint':
+      'BUY pozisyonu bu kadar kâra ($) ulaşınca kapanır; BUY lotu ile fiyat mesafesine çevrilir.',
+    'zone.field.sellTakeProfitLoss.hint':
+      'SELL pozisyonu bu kadar kâra ($) ulaşınca kapanır; SELL lotu ile fiyat mesafesine çevrilir.',
+    'zone.field.stopLossLoss.hint':
+      'Pozisyon bu kadar zarara ($) ulaşınca kapanır; lot büyüklüğüyle fiyat mesafesine çevrilir. 0 = zarar durdur yok.',
+    'zone.field.buyStopLossLoss.hint':
+      'BUY pozisyonu bu kadar zarara ($) ulaşınca kapanır; BUY lotu ile çevrilir. 0 = zarar durdur yok.',
+    'zone.field.sellStopLossLoss.hint':
+      'SELL pozisyonu bu kadar zarara ($) ulaşınca kapanır; SELL lotu ile çevrilir. 0 = zarar durdur yok.',
+    'zone.instantEntry.hint':
+      'Açıkken bot, bir yönde (BUY/SELL) açık pozisyon yoksa beklemeden güncel fiyattan piyasa emriyle bir pozisyon açar: başlatınca ve o yönün tüm pozisyonları kapandıktan sonra (ör. kâr al). BUY ve SELL bölgesinde ikisi de açılır. Sonraki seviyeler bu pozisyondan itibaren grid adımı kadar uzağa konur. Yalnızca fiyat bölge aralığındayken.',
     'zone.breakout.pullback.off.hint': 'Yalnızca “Sadece trend yönünde” (breakout) açıkken kullanılır.',
     'zone.breakout.levelsBelow.hint':
       'Referans fiyatın altında kaç grid seviyesi (emir) kurulacağı; her seviye Grid Adımı kadar uzaktadır.',
@@ -529,7 +543,7 @@ export default defineArea(
     'zone.breakout.sellPullback.hint':
       'In breakout mode SELL orders start at levels at least this far ($) below the current price; closer levels are skipped.',
     'zone.stepByLoss.hint':
-      'When on, grid and pullback distances are entered as an amount ($) instead of a price: once the most recently opened position reaches this loss, the next position is opened. The distance depends on the lot size (double lot = half the distance). Because all open positions are in loss at the same time, the total loss grows faster (10 $, 30 $, 60 $ …). Spread and commission are not included.',
+      'When on, grid, pullback, take profit and stop loss distances are entered as an amount ($) instead of a price: once the most recently opened position reaches this loss, the next position is opened. The distance depends on the lot size (double lot = half the distance). Because all open positions are in loss at the same time, the total loss grows faster (10 $, 30 $, 60 $ …). Spread and commission are not included.',
     'zone.field.gridStepLoss.hint':
       'Once the most recently opened position has lost this amount (account currency, $), the next position is opened. The bot converts the amount to a price distance using the lot size.',
     'zone.field.buyGridLoss.hint':
@@ -542,6 +556,20 @@ export default defineArea(
       'In breakout mode BUY orders start at levels further away than the distance this amount ($) equals with the BUY lot. 0 = no limit.',
     'zone.breakout.sellPullbackLoss.hint':
       'In breakout mode SELL orders start at levels further away than the distance this amount ($) equals with the SELL lot. 0 = no limit.',
+    'zone.field.takeProfitLoss.hint':
+      'The position closes once it is this much ($) in profit. The bot converts the amount into a price distance using the lot size.',
+    'zone.field.buyTakeProfitLoss.hint':
+      'A BUY position closes once it is this much ($) in profit; converted with the BUY lot.',
+    'zone.field.sellTakeProfitLoss.hint':
+      'A SELL position closes once it is this much ($) in profit; converted with the SELL lot.',
+    'zone.field.stopLossLoss.hint':
+      'The position closes once it is this much ($) in loss; converted into a price distance using the lot size. 0 = no stop loss.',
+    'zone.field.buyStopLossLoss.hint':
+      'A BUY position closes once it is this much ($) in loss; converted with the BUY lot. 0 = no stop loss.',
+    'zone.field.sellStopLossLoss.hint':
+      'A SELL position closes once it is this much ($) in loss; converted with the SELL lot. 0 = no stop loss.',
+    'zone.instantEntry.hint':
+      'When on, the bot opens a market position at the current price right away whenever a side (BUY/SELL) has no open position: on start and after all positions of that side have closed (e.g. take profit). A BUY and SELL zone opens both. The next levels are placed one grid step away from this position. Only while the price is inside the zone range.',
     'zone.breakout.pullback.off.hint': 'Only used while “Trend direction only” (breakout) is on.',
     'zone.breakout.levelsBelow.hint':
       'How many grid levels (orders) are built below the reference price; each level is one grid step apart.',
@@ -809,7 +837,7 @@ export default defineArea(
     'zone.breakout.sellPullback.hint':
       'Im Breakout-Modus beginnen SELL-Orders bei Leveln, die mindestens so weit ($) unter dem aktuellen Preis liegen; nähere Level werden übersprungen.',
     'zone.stepByLoss.hint':
-      'Wenn an, werden Grid- und Pullback-Abstände als Betrag ($) statt als Preis eingegeben: Sobald die zuletzt eröffnete Position diesen Verlust erreicht, wird die nächste Position eröffnet. Der Abstand hängt von der Lotgröße ab (doppelte Lotgröße = halber Abstand). Da alle offenen Positionen gleichzeitig im Minus sind, wächst der Gesamtverlust schneller (10 $, 30 $, 60 $ …). Spread und Kommission sind nicht enthalten.',
+      'Wenn an, werden Grid-, Pullback-, Take-Profit- und Stop-Loss-Abstände als Betrag ($) statt als Preis eingegeben: Sobald die zuletzt eröffnete Position diesen Verlust erreicht, wird die nächste Position eröffnet. Der Abstand hängt von der Lotgröße ab (doppelte Lotgröße = halber Abstand). Da alle offenen Positionen gleichzeitig im Minus sind, wächst der Gesamtverlust schneller (10 $, 30 $, 60 $ …). Spread und Kommission sind nicht enthalten.',
     'zone.field.gridStepLoss.hint':
       'Sobald die zuletzt eröffnete Position diesen Betrag (Kontowährung, $) im Minus ist, wird die nächste Position eröffnet. Der Bot rechnet den Betrag mit der Lotgröße in einen Preisabstand um.',
     'zone.field.buyGridLoss.hint':
@@ -822,6 +850,20 @@ export default defineArea(
       'Im Breakout-Modus beginnen BUY-Orders erst jenseits des Abstands, der mit dem BUY-Lot diesem Betrag ($) entspricht. 0 = keine Grenze.',
     'zone.breakout.sellPullbackLoss.hint':
       'Im Breakout-Modus beginnen SELL-Orders erst jenseits des Abstands, der mit dem SELL-Lot diesem Betrag ($) entspricht. 0 = keine Grenze.',
+    'zone.field.takeProfitLoss.hint':
+      'Die Position wird geschlossen, sobald sie diesen Betrag ($) im Plus ist. Der Bot rechnet den Betrag mit der Lotgröße in einen Preisabstand um.',
+    'zone.field.buyTakeProfitLoss.hint':
+      'Eine BUY-Position wird geschlossen, sobald sie diesen Betrag ($) im Plus ist; umgerechnet mit dem BUY-Lot.',
+    'zone.field.sellTakeProfitLoss.hint':
+      'Eine SELL-Position wird geschlossen, sobald sie diesen Betrag ($) im Plus ist; umgerechnet mit dem SELL-Lot.',
+    'zone.field.stopLossLoss.hint':
+      'Die Position wird geschlossen, sobald sie diesen Betrag ($) im Minus ist; mit der Lotgröße in einen Preisabstand umgerechnet. 0 = kein Stop Loss.',
+    'zone.field.buyStopLossLoss.hint':
+      'Eine BUY-Position wird geschlossen, sobald sie diesen Betrag ($) im Minus ist; umgerechnet mit dem BUY-Lot. 0 = kein Stop Loss.',
+    'zone.field.sellStopLossLoss.hint':
+      'Eine SELL-Position wird geschlossen, sobald sie diesen Betrag ($) im Minus ist; umgerechnet mit dem SELL-Lot. 0 = kein Stop Loss.',
+    'zone.instantEntry.hint':
+      'Wenn an, eröffnet der Bot sofort eine Position zum aktuellen Preis, sobald auf einer Seite (BUY/SELL) keine Position offen ist: beim Start und nachdem alle Positionen dieser Seite geschlossen wurden (z. B. Take Profit). Bei einer BUY-und-SELL-Zone werden beide eröffnet. Die nächsten Level liegen einen Grid-Abstand von dieser Position entfernt. Nur solange der Preis im Zonenbereich liegt.',
     'zone.breakout.pullback.off.hint': 'Wird nur genutzt, solange „Nur in Trendrichtung“ (Breakout) eingeschaltet ist.',
     'zone.breakout.levelsBelow.hint':
       'Wie viele Grid-Level (Orders) unter dem Referenzpreis aufgebaut werden; jedes Level liegt einen Grid-Schritt entfernt.',

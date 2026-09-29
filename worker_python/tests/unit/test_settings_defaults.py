@@ -32,6 +32,7 @@ ENGINE_FIELDS = {
     "max_positions": "max_positions",
     "is_breakout": "is_breakout",
     "step_by_loss": "step_by_loss",
+    "instant_entry": "instant_entry",
     "sync_buy_sell": "sync_buy_sell",
     "order_type": "order_type",
 }

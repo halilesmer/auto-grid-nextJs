@@ -13,6 +13,22 @@ class LevelSets:
     acceptable_sell: list[float]
 
 
+def is_position_anchored(config: ZoneConfig) -> bool:
+    """"Zarara göre aralık" / "anında giriş": seviyeler sabit fiyat ızgarasında değil, o yönün
+    son açılan pozisyonundan itibaren adım adım (son pozisyon tam `grid_step` kadar zarardayken
+    sıradaki açılır)."""
+    return config.step_by_loss or config.instant_entry
+
+
+def _anchor(config: ZoneConfig, price: float, robot_positions: list, pos_type: int, step: float) -> float:
+    if is_position_anchored(config):
+        side = [p for p in robot_positions if p.magic == config.target_magic and p.type == pos_type]
+        if side:
+            last = max(side, key=lambda p: (getattr(p, "time_msc", 0) or 0, p.ticket))
+            return last.price_open + round((price - last.price_open) / step) * step
+    return round(price / step) * step
+
+
 def generate_levels(
     config: ZoneConfig,
     current_avg_price: float,
@@ -21,8 +37,12 @@ def generate_levels(
     mt5_module,
     log_message: Callable[[str, str], None] = default_log_message,
 ) -> LevelSets:
-    buy_anchor_price = round(current_avg_price / config.grid_step) * config.grid_step
-    sell_anchor_price = round(current_avg_price / config.sell_grid_step) * config.sell_grid_step
+    buy_anchor_price = _anchor(
+        config, current_avg_price, robot_positions, mt5_module.POSITION_TYPE_BUY, config.grid_step
+    )
+    sell_anchor_price = _anchor(
+        config, current_avg_price, robot_positions, mt5_module.POSITION_TYPE_SELL, config.sell_grid_step
+    )
 
     desired_buy_levels: list[float] = []
     desired_sell_levels: list[float] = []
