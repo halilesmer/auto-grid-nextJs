@@ -42,6 +42,7 @@ test.describe('ACC Konten', () => {
     await expect(page.getByTestId('metric-pending')).toHaveAttribute('data-value', '0');
     // Preis-Karte gibt es nicht mehr (#63): G/V des ersten Kontos (-12,50) darf nicht stehen bleiben
     await expect(page.getByTestId('metric-profit')).not.toHaveAttribute('data-value', fmt().money(-12.5));
+    await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.engineStopped'));
 
     await dashboard.selectAccount(DEMO_ID);
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
