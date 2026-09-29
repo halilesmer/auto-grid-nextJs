@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-29 · **97/108** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-29 · **98/109** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -20,7 +20,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 4 | **SYM** – Symbole | 4/4 |
 | 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/15 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 24/24 |
+| 7 | **ENG** – Grid-Engine (Handelslogik) | 25/25 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/7 |
 | 10 | **UPD** – System & Updates | 5/6 |
@@ -374,6 +374,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 - [x] **ENG-24** Manuelle Eingriffe in MT5 respektieren — 🧪 unit ✅ 2026-09-29
   - Verschwindet eine Fraktal-Order, ohne dass der Bot sie gelöscht hat (gefüllt, in MT5 von Hand gelöscht, abgelaufen), oder gibt es eine Position dieses Fraktals, gilt das Fraktal als erledigt – auch nach dem Schließen der Position wird dafür keine neue Order gesetzt. Der Merker (Zone + Seite → Kerzenzeit) steht in data/fractal_state_<Konto>.json und übersteht Neustarts; ein neueres Fraktal öffnet wieder eine Order. Vom Bot selbst gelöschte Orders (Zone pausiert, Max. Positionen, Verschieben) zählen nicht.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-25** Von außen gelöschte Orders erkennen + Order-Flut-Bremse — 🧪 unit ✅ 2026-09-29
+  - Der Bot merkt sich jede Pending Order, die er setzt. Verschwindet sie, ohne dass er sie gelöscht hat und ohne Füllung (keine Position, Historie nicht FILLED), schreibt er eine Warnung mit dem Status aus der MT5-Historie (CANCELED/EXPIRED/REJECTED …), Ticket, Preis und Lebensdauer. Werden in einer Zone 10 Orders innerhalb von 60 s so entfernt, pausiert die Zone (wie ENG-11) mit Alarm, statt die Level endlos neu zu setzen; Positionen bleiben unberührt. Auch wer selbst 10 Orders in 60 s in MT5 löscht, pausiert so die Zone (Neustart über die Oberfläche). Anlass - am 29.09. verschwanden auf Konto 7947315 alle Orders 2–5 s nach dem Setzen, ohne Löschung im Journal des eigenen Terminals, und der Bot setzte rund 200 Orders pro Minute.
+  - **Prüfung:** Nicht manuell testen (Order-Löschung von außen lässt sich nur mit einem zweiten Terminal nachstellen). → Im Ernstfall - Robot-Log nach „MT5'te kayboldu“ bzw. „Emir seli durduruldu“ durchsuchen; der Historien-Status zeigt, wer löscht.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 
 ## 8. MET – Live-Daten & Diagramm

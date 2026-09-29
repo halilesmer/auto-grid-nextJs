@@ -19,6 +19,7 @@ from .grid_order_manager import (
     handle_zone_exit,
 )
 from .grid_execution.handler import handle_sliding_grid
+from .grid_execution.vanished import check_vanished_orders
 
 
 def _is_enabled(zone):
@@ -83,6 +84,9 @@ def manage_dynamic_grid(
     robot_positions = get_all_robot_positions(mt5)
     if robot_orders is None or robot_positions is None:
         return False, active_zones
+
+    # Bot silmeden kaybolan emirler: logla, sel olursa bölgeyi durdur (ENG-25)
+    check_vanished_orders(mt5, zones, robot_orders, robot_positions, active_zones_state)
 
     process_partial_fills_and_tpsl(
         mt5,

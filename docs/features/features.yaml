@@ -752,6 +752,16 @@ kategorien:
           - Nicht manuell testen (siehe ZON-15).
         erwartet: Abgedeckt durch Unit-Tests.
 
+      - id: ENG-25
+        titel: Von außen gelöschte Orders erkennen + Order-Flut-Bremse
+        beschreibung: Der Bot merkt sich jede Pending Order, die er setzt. Verschwindet sie, ohne dass er sie gelöscht hat und ohne Füllung (keine Position, Historie nicht FILLED), schreibt er eine Warnung mit dem Status aus der MT5-Historie (CANCELED/EXPIRED/REJECTED …), Ticket, Preis und Lebensdauer. Werden in einer Zone 10 Orders innerhalb von 60 s so entfernt, pausiert die Zone (wie ENG-11) mit Alarm, statt die Level endlos neu zu setzen; Positionen bleiben unberührt. Auch wer selbst 10 Orders in 60 s in MT5 löscht, pausiert so die Zone (Neustart über die Oberfläche). Anlass - am 29.09. verschwanden auf Konto 7947315 alle Orders 2–5 s nach dem Setzen, ohne Löschung im Journal des eigenen Terminals, und der Bot setzte rund 200 Orders pro Minute.
+        code: [worker_python/src/core/grid_execution/vanished.py, worker_python/src/core/grid_orders.py, worker_python/src/core/grid_orchestrator.py, worker_python/src/utils/trade_utils.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (Order-Löschung von außen lässt sich nur mit einem zweiten Terminal nachstellen).
+          - Im Ernstfall - Robot-Log nach „MT5'te kayboldu“ bzw. „Emir seli durduruldu“ durchsuchen; der Historien-Status zeigt, wer löscht.
+        erwartet: Abgedeckt durch Unit-Tests.
+
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm

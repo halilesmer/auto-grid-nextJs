@@ -81,9 +81,11 @@ def reset_trade_state():
 
     TradeState.algo_trading_disabled = False
     TradeState.last_error_message = ""
+    TradeState.last_order_ticket = 0
     yield
     TradeState.algo_trading_disabled = False
     TradeState.last_error_message = ""
+    TradeState.last_order_ticket = 0
 
 
 @pytest.fixture(autouse=True)

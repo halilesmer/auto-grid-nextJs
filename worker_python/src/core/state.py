@@ -33,6 +33,12 @@ class GridState:
     fractal_done_loaded: bool = False
     # Tekrarlanmasın diye bir kez yazılan fraktal log anahtarları
     fractal_logged: Dict[tuple, Any] = field(default_factory=dict)
+    # Botun koyduğu bekleyen emirler: bilet → (bölge indeksi, konma zamanı monotonic, fiyat).
+    # Bot silerse kayıt düşer; bot silmeden ve dolmadan kaybolan emir "dışarıdan silindi" sayılır
+    # (grid_execution/vanished.py, emir seli freni).
+    placed_orders: Dict[int, tuple] = field(default_factory=dict)
+    # Bölge → dışarıdan silinen emirlerin zamanları (monotonic, kayan pencere)
+    vanished_times: Dict[int, list] = field(default_factory=dict)
 
     is_running: bool = False
     initial_cleanup_done: bool = False
@@ -59,6 +65,8 @@ class GridState:
         self.fractal_done.clear()
         self.fractal_done_loaded = False
         self.fractal_logged.clear()
+        self.placed_orders.clear()
+        self.vanished_times.clear()
         self.is_running = False
         self.initial_cleanup_done = False
         self.connection_lost = False
