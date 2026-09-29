@@ -112,6 +112,26 @@ export default defineArea(
     'nav.language.cycle.hint': 'Dil: {current}. Tıklayınca {next} diline geçer.',
     'nav.language.option.hint': 'Arayüz dilini {language} yapar.',
 
+    // --- VPS-Verbindung ---
+    'connection.chip.hint': 'Worker (VPS) bağlantısı: {status}. Tıklayınca bağlantı penceresini açar.',
+    'connection.field.link.hint':
+      'VPS kurulumunun verdiği bağlantı linkini veya kodunu buraya yapıştır; adres ve anahtar kendiliğinden dolar.',
+    'connection.field.url.hint':
+      'Worker’ın https adresi (ngrok alan adın), ör. https://alanadi.ngrok-free.dev. Sonuna “/api” eklemene gerek yok.',
+    'connection.field.key.hint':
+      'VPS’teki WORKER_API_KEY ile aynı değer. Yalnızca bu tarayıcıda saklanır; anahtarı veya linki kimseyle paylaşma.',
+    'connection.key.show.hint': 'API anahtarını okunabilir gösterir.',
+    'connection.key.hide.hint': 'API anahtarını noktalarla gizler.',
+    'connection.action.test.hint':
+      'Girilen adres ve anahtarla worker’a bir deneme isteği gönderir. Hiçbir şey kaydedilmez.',
+    'connection.action.connect.hint':
+      'Adresi ve anahtarı bu tarayıcıya kaydeder ve sayfayı yeniden yükler. Önce başarılı bir test gerekir.',
+    'connection.action.disconnect.hint':
+      'Kayıtlı adresi ve anahtarı bu tarayıcıdan siler (onay ister). VPS’teki worker etkilenmez.',
+    'connection.disconnect.confirm.hint': 'Bu tarayıcıdaki bağlantıyı siler; botlar VPS’te çalışmaya devam eder.',
+    'connection.gate.connect.hint':
+      'Bağlantı penceresini açar: adres ve anahtarı gir ya da bağlantı linkini yapıştır.',
+
     // --- Genel ayarlar ---
     'settings.interval.hint':
       'Motor döngüsünün piyasayı ve emirleri kaç saniyede bir kontrol ettiği (1–60 sn). Küçük değer: hızlı tepki ama daha fazla yük; büyük değer: hafif ama yavaş tepki. Değişiklik Kaydet ile worker’a yazılır.',
@@ -372,6 +392,26 @@ export default defineArea(
     'nav.language.cycle.hint': 'Language: {current}. Click to switch to {next}.',
     'nav.language.option.hint': 'Sets the interface language to {language}.',
 
+    // --- VPS connection ---
+    'connection.chip.hint': 'Worker (VPS) connection: {status}. Click to open the connection dialog.',
+    'connection.field.link.hint':
+      'Paste the connection link or code your VPS setup printed; address and key fill in by themselves.',
+    'connection.field.url.hint':
+      'The worker’s https address (your ngrok domain), e.g. https://yourname.ngrok-free.dev. No need to add “/api”.',
+    'connection.field.key.hint':
+      'The same value as WORKER_API_KEY on the VPS. Stored in this browser only; never share the key or the link.',
+    'connection.key.show.hint': 'Shows the API key as readable text.',
+    'connection.key.hide.hint': 'Hides the API key behind dots.',
+    'connection.action.test.hint':
+      'Sends a trial request to the worker with the entered address and key. Nothing is saved.',
+    'connection.action.connect.hint':
+      'Saves the address and key in this browser and reloads the page. A successful test is required first.',
+    'connection.action.disconnect.hint':
+      'Removes the saved address and key from this browser (asks to confirm). The worker on the VPS is not affected.',
+    'connection.disconnect.confirm.hint': 'Removes the connection from this browser; bots keep running on the VPS.',
+    'connection.gate.connect.hint':
+      'Opens the connection dialog: enter address and key, or paste the connection link.',
+
     // --- General settings ---
     'settings.interval.hint':
       'How often the engine loop checks the market and orders, in seconds (1–60 s). Small value: fast reaction but more load; large value: light but slow reaction. The change is written to the worker with Save.',
@@ -631,6 +671,26 @@ export default defineArea(
     'nav.vps.hint': 'VPS-Verwaltung: Worker-Status, Update, Neustart und Logs.',
     'nav.language.cycle.hint': 'Sprache: {current}. Klick wechselt zu {next}.',
     'nav.language.option.hint': 'Stellt die Oberflächensprache auf {language}.',
+
+    // --- VPS-Verbindung ---
+    'connection.chip.hint': 'Worker-(VPS-)Verbindung: {status}. Klick öffnet den Verbindungsdialog.',
+    'connection.field.link.hint':
+      'Füge den Verbindungs-Link oder -Code aus der VPS-Einrichtung ein; Adresse und Key füllen sich von selbst.',
+    'connection.field.url.hint':
+      'Die https-Adresse des Workers (deine ngrok-Domain), z. B. https://deinname.ngrok-free.dev. „/api“ musst du nicht anhängen.',
+    'connection.field.key.hint':
+      'Derselbe Wert wie WORKER_API_KEY auf dem VPS. Wird nur in diesem Browser gespeichert; Key und Link nie weitergeben.',
+    'connection.key.show.hint': 'Zeigt den API-Key als lesbaren Text.',
+    'connection.key.hide.hint': 'Verbirgt den API-Key hinter Punkten.',
+    'connection.action.test.hint':
+      'Schickt mit der eingegebenen Adresse und dem Key eine Testanfrage an den Worker. Es wird nichts gespeichert.',
+    'connection.action.connect.hint':
+      'Speichert Adresse und Key in diesem Browser und lädt die Seite neu. Vorher ist ein erfolgreicher Test nötig.',
+    'connection.action.disconnect.hint':
+      'Löscht die gespeicherte Adresse und den Key aus diesem Browser (mit Bestätigung). Der Worker auf dem VPS bleibt unberührt.',
+    'connection.disconnect.confirm.hint': 'Löscht die Verbindung in diesem Browser; die Bots laufen auf dem VPS weiter.',
+    'connection.gate.connect.hint':
+      'Öffnet den Verbindungsdialog: Adresse und Key eingeben oder den Verbindungs-Link einfügen.',
 
     // --- Allgemeine Einstellungen ---
     'settings.interval.hint':

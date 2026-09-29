@@ -535,6 +535,27 @@
       "tests": 24
     }
   },
+  "SYS-07": {
+    "e2e": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 4
+    }
+  },
+  "SYS-08": {
+    "e2e": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 5
+    }
+  },
+  "SYS-09": {
+    "e2e": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 7
+    }
+  },
   "UI-01": {
     "e2e": {
       "datum": "2026-09-29",
@@ -581,7 +602,7 @@
     "e2e": {
       "datum": "2026-09-29",
       "status": "passed",
-      "tests": 13
+      "tests": 14
     }
   },
   "UI-08": {
@@ -678,7 +699,7 @@
     "e2e": {
       "datum": "2026-09-29",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     }
   },
   "VPS-05": {
@@ -803,7 +824,7 @@
     "e2e": {
       "datum": "2026-09-29",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     }
   }
 }

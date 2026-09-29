@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { t } from '@/i18n';
-import { WORKER_HEADERS } from '@/lib/api';
+import { apiUrl, getWorkerHeaders } from '@/lib/api';
 import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
 interface SettingsState {
@@ -12,7 +12,7 @@ interface SettingsState {
   setSettings: (settings: GlobalSettings | null) => void;
   setGlobalSettings: (globals: Partial<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>>) => void;
   setZones: (zones: ZoneSettings[] | ((prev: ZoneSettings[]) => ZoneSettings[])) => void;
-  mergeAndSaveSettings: (apiUrl: string, selectedAccount: string) => Promise<void>;
+  mergeAndSaveSettings: (selectedAccount: string) => Promise<void>;
   getSymbolDetail: (symbol: string) => SymbolDetail | undefined;
   setAvailableSymbols: (symbols: string[]) => void;
   setSymbolDetails: (details: Record<string, SymbolDetail>) => void;
@@ -86,14 +86,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       };
     }),
 
-  mergeAndSaveSettings: async (apiUrl: string, selectedAccount: string) => {
+  mergeAndSaveSettings: async (selectedAccount: string) => {
     const { settings } = get();
     if (!selectedAccount || !settings) return;
 
-    const res = await fetch(`${apiUrl}/settings/${selectedAccount}`, {
+    const res = await fetch(apiUrl(`/settings/${selectedAccount}`), {
       method: 'POST',
       headers: {
-        ...WORKER_HEADERS,
+        ...getWorkerHeaders(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ settings }),

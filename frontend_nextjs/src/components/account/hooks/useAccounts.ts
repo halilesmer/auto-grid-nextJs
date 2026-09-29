@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import type { Account, AccountFormData, UseAccountsReturn } from '../types';
-import { API, axiosInstance } from '@/lib/api';
+import { axiosInstance } from '@/lib/api';
 import { useAccountStore } from '@/store';
 import { t } from '@/i18n';
 
@@ -15,7 +15,7 @@ export function useAccounts(): UseAccountsReturn {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await axiosInstance.get(`${API}/accounts`);
+      const res = await axiosInstance.get(`/accounts`);
       const accounts = res.data.accounts || [];
       setAccounts(accounts);
       useAccountStore.getState().setAccounts(accounts);
@@ -31,7 +31,7 @@ export function useAccounts(): UseAccountsReturn {
   const createAccount = useCallback(async (data: AccountFormData): Promise<Account> => {
     setError(null);
     const payload = { ...data, id: String(data.login), login: data.login };
-    const res = await axiosInstance.post<Account>(`${API}/accounts`, payload);
+    const res = await axiosInstance.post<Account>(`/accounts`, payload);
     await fetchAccounts();
     return res.data;
   }, [fetchAccounts]);
@@ -39,14 +39,14 @@ export function useAccounts(): UseAccountsReturn {
   const updateAccount = useCallback(async (id: string, data: AccountFormData): Promise<Account> => {
     setError(null);
     const payload = { ...data, id: String(data.login), login: data.login };
-    const res = await axiosInstance.put<Account>(`${API}/accounts/${id}`, payload);
+    const res = await axiosInstance.put<Account>(`/accounts/${id}`, payload);
     await fetchAccounts();
     return res.data;
   }, [fetchAccounts]);
 
   const deleteAccount = useCallback(async (id: string): Promise<void> => {
     setError(null);
-    await axiosInstance.delete(`${API}/accounts/${id}`);
+    await axiosInstance.delete(`/accounts/${id}`);
     await fetchAccounts();
   }, [fetchAccounts]);
 

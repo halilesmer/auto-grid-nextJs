@@ -4,6 +4,8 @@
  * in einem Tooltip-Wrapper noch neben einem (i)-Hinweis steht.
  */
 import type { Locator, Page } from '@playwright/test';
+import { startDisconnected } from '../fixtures/connection';
+import { E2E_API_KEY, MOCK_API } from '../fixtures/env';
 import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
@@ -93,6 +95,31 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     // Rückfrage (Modal mit „Abbrechen“ und Bestätigen)
     await page.getByRole('button', { name: msg('account.action.deleteTitle') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+  });
+
+  test('Verbindung: Anleitung, Dialog und Trennen-Rückfrage', { tag: '@UI-07' }, async ({ page, worker }) => {
+    void worker;
+    await startDisconnected(page);
+    await page.goto('/');
+    await expect(page.getByTestId('connection-gate')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+
+    await page.getByTestId('connection-gate-connect').click();
+    await expect(page.getByTestId('connection-dialog')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+
+    // Verbunden: mit „Trennen" im Dialog und der Rückfrage dahinter
+    await page.getByTestId('connection-url').fill(MOCK_API);
+    await page.getByTestId('connection-key').fill(E2E_API_KEY);
+    await page.getByTestId('connection-test').click();
+    await page.getByTestId('connection-connect').click();
+    await expect(page.getByTestId('connection-chip')).toHaveAttribute('data-status', 'connected');
+    await page.getByTestId('connection-chip').click();
+    await expect(page.getByTestId('connection-disconnect')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+    await page.getByTestId('connection-disconnect').click();
+    await expect(page.getByRole('dialog').filter({ hasText: msg('connection.disconnect.title') })).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
   });
 

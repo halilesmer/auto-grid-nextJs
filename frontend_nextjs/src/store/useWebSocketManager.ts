@@ -4,7 +4,8 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useBotRuntimeStore } from './useBotRuntimeStore';
 import { useLogsStore } from './useLogsStore';
 import { Metrics, LiveData } from './types';
-import { API_BASE, WORKER_API_KEY } from '@/lib/api';
+import { toWsUrl } from '@/lib/connectionCode';
+import { getConnection } from './useConnectionStore';
 import { t } from '@/i18n';
 
 const MAX_RETRIES = 10;
@@ -16,10 +17,10 @@ type WSMessage =
   | { type: 'LIVE_DATA'; payload: Partial<LiveData> }
   | { type: 'LOG'; payload: { logType: 'robot' | 'mt5'; line: string } };
 
-function buildWsUrl(): string {
-  const url = API_BASE.replace(/^http/, 'ws').replace(/\/api$/, '') + '/ws/stream';
-  // Tarayıcılar WebSocket'e başlık ekleyemez → anahtar sorgu parametresiyle gider
-  return WORKER_API_KEY ? `${url}?api_key=${encodeURIComponent(WORKER_API_KEY)}` : url;
+function buildWsUrl(): string | null {
+  const { baseUrl, apiKey } = getConnection();
+  // Tarayıcılar WebSocket'e başlık ekleyemez → anahtar sorgu parametresiyle gider (toWsUrl)
+  return baseUrl ? toWsUrl(baseUrl, apiKey) : null;
 }
 
 export function useWebSocketManager(selectedAccount: string | null): {
@@ -101,8 +102,10 @@ export function useWebSocketManager(selectedAccount: string | null): {
     const state = wsRef.current?.readyState;
     if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
     if (!selectedAccount) return;
+    const url = buildWsUrl();
+    if (!url) return; // Worker henüz bağlanmadı (ConnectionGate zaten sayfayı göstermez)
 
-    const ws = new WebSocket(buildWsUrl());
+    const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {

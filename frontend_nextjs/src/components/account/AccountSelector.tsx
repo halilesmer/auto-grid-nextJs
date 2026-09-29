@@ -1,6 +1,6 @@
 'use client';
 
-import { API, axiosInstance } from '@/lib/api';
+import { axiosInstance } from '@/lib/api';
 import { downloadAccountLogs } from '@/lib/downloadLogs';
 import {
   AccountActions,
@@ -105,7 +105,7 @@ export default function AccountSelector() {
     // Hızlı hesap değişiminde geç gelen eski yanıt yeni hesabın ayarlarını ezmesin
     let stale = false;
     axiosInstance
-      .get(`${API}/settings/${selectedAccount}`)
+      .get(`/settings/${selectedAccount}`)
       .then((res) => {
         if (!stale) setSettings(res.data.settings || res.data);
       })
