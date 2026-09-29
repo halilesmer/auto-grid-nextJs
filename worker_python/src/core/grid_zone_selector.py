@@ -1,5 +1,6 @@
 from src.core.grid_helpers import (
     log_message,
+    zone_log_id,
     get_current_market_price,
     get_mt5_timeframe,
 )
@@ -103,7 +104,8 @@ def detect_zone_entry(mt5, zones, active_zone, active_zone_idx, symbol=None):
     new_zone, new_zone_idx = get_active_zone(mt5, zones, symbol)
     if new_zone is not None:
         log_message(
-            f"📍 Yeni Bölgeye Girildi: Bölge {new_zone_idx+1} {zone_symbol_of(new_zone)} ({new_zone.get('min_price')}-{new_zone.get('max_price')})"
+            f"📍 Yeni Bölgeye Girildi: Bölge {new_zone_idx+1} {zone_symbol_of(new_zone)} ({new_zone.get('min_price')}-{new_zone.get('max_price')})",
+            zone_id=zone_log_id(new_zone, new_zone_idx),
         )
         return new_zone, new_zone_idx
 

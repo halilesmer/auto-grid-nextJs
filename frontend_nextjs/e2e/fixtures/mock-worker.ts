@@ -289,8 +289,11 @@ export class MockWorker {
         // Wie logs.py: ohne Metrikdatei null (frisches Konto), sonst mt5_connected nur bei laufendem Bot
         const metrics = stored ? { ...stored, ...(running ? {} : { mt5_connected: false }) } : null;
         const lines = Number(url.searchParams.get('lines') || 100);
+        // wie worker_python/src/api/logs.py: zone_id süzt den Robot-Log auf "[Z:<id>] "
+        const zoneId = url.searchParams.get('zone_id');
+        const robot = (s.robotLog[id] ?? []).filter((l) => !zoneId || l.includes(`[Z:${zoneId}] `));
         return ok({
-          robot_log: (s.robotLog[id] ?? []).slice(-lines),
+          robot_log: robot.slice(-lines),
           mt5_log: (s.mt5Log[id] ?? []).slice(-lines),
           metrics,
           bot_running: running,

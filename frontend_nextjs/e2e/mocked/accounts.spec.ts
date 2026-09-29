@@ -33,13 +33,15 @@ test.describe('ACC Konten', () => {
     await dashboard.open(DEMO_ID);
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
     await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '3');
+    await expect(page.getByTestId('metric-profit')).toHaveAttribute('data-value', fmt().money(-12.5));
 
     // Frisches Konto: Bot läuft nicht, noch keine Metrikdatei (GET /logs → metrics: null)
     await dashboard.selectAccount(LIVE_ID);
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.stopped'));
     await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '0');
     await expect(page.getByTestId('metric-pending')).toHaveAttribute('data-value', '0');
-    await expect(page.getByTestId('metric-price')).not.toHaveAttribute('data-value', fmt().price(97.25, 3));
+    // Preis-Karte gibt es nicht mehr (#63): G/V des ersten Kontos (-12,50) darf nicht stehen bleiben
+    await expect(page.getByTestId('metric-profit')).not.toHaveAttribute('data-value', fmt().money(-12.5));
 
     await dashboard.selectAccount(DEMO_ID);
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));

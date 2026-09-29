@@ -133,13 +133,13 @@ test.describe('Live (nur lesend)', () => {
   test('Kennzahlenleiste entspricht dem Worker', { tag: '@MET-01' }, async ({ page, api, account, dashboard }) => {
     const before = await api.botStatus(account.id);
     await dashboard.open(account.id);
-    const price = page.getByTestId('metric-price');
-    await expect(price).toHaveAttribute('data-value', /^\d/);
+    const price = page.getByTestId('zone-price').first();
+    await expect(price).toHaveText(/\d/);
 
     if (before.bot_running && before.metrics.mt5_connected) {
       await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.live'));
       await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
-      const shown = Number((await price.getAttribute('data-value'))!.replace(/[$,]/g, ''));
+      const shown = Number((await price.textContent())!.replace(/[^\d.]/g, ''));
       const now = (await api.botStatus(account.id)).metrics.current_price ?? 0;
       // Preis bewegt sich zwischen den Abfragen; 1 % Toleranz
       expect(Math.abs(shown - now) / now).toBeLessThan(0.01);
