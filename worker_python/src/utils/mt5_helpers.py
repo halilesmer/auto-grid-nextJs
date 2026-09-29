@@ -26,6 +26,7 @@ from src.utils.mt5_errors import (
     python_pipe_state,
     verify_account_environment,
 )
+from src.utils.mt5_terminal_guard import foreign_terminal_error, missing_path_error
 
 def get_mt5_symbols_helper(mt5_available, safe_log_fn):
     if not mt5_available or platform.system() != "Windows":
@@ -226,7 +227,12 @@ def connect_internal_helper(
                 f"[CONFIG] Hesap numarası geçersiz: '{raw_login}' (sadece rakam olmalı)",
             )
 
-    mt5_path = account_config.get("mt5_path")
+    mt5_path = (account_config.get("mt5_path") or "").strip()
+    # Yol girilmiş ama yoksa yolsuz initialize herhangi bir terminale (başka hesabınkine) bağlanırdı
+    path_err = missing_path_error(mt5_path)
+    if path_err:
+        safe_log_fn(path_err, type="error", account_id=login_id or None)
+        return False, path_err
     init_kwargs = {"timeout": int(timeout_sec * 1000)}
     if mt5_path and os.path.exists(mt5_path):
         init_kwargs["path"] = os.path.normpath(mt5_path)
@@ -301,6 +307,12 @@ def connect_internal_helper(
         return parse_init_error(mt5.last_error(), login_id, server, safe_log_fn)
 
     if login_id > 0:
+        # login bağlı terminalin oturumunu değiştirir: başka hesabın terminaliyse dokunma
+        foreign_err = foreign_terminal_error(mt5, login_id)
+        if foreign_err:
+            safe_log_fn(foreign_err, type="error", account_id=login_id)
+            mt5.shutdown()
+            return False, foreign_err
         authorized = _retry_login(mt5, login_id, password, server, deadline=deadline)
         if not authorized:
             # Hata kodunu shutdown'dan ÖNCE al, yoksa shutdown'ın kodu okunur

@@ -29,11 +29,6 @@ def main_loop(mt5_module, account_id, password, server, mt5_path=None):
     try:
         while state.is_running:
             load_dynamic_settings()
-            try:
-                check_remote_commands_wrapper()
-            except Exception as e:
-                log_message(f"Uzaktan komut okuması başarısız: {e}", "ERROR")
-
             is_healthy, consecutive_losses = check_connection_health(
                 mt5_module, account_id, password, server, consecutive_losses, mt5_path
             )
@@ -49,6 +44,13 @@ def main_loop(mt5_module, account_id, password, server, mt5_path=None):
                     )
                 time.sleep(10 if consecutive_losses < max_losses else 60)
                 continue
+
+            # Uzaktan komutlar bağlantı/hesap kontrolünden SONRA: terminal başka hesaba geçmişse
+            # (ACC-11) o hesabın emirleri okunup GRID:STOP vb. ile silinmesin
+            try:
+                check_remote_commands_wrapper()
+            except Exception as e:
+                log_message(f"Uzaktan komut okuması başarısız: {e}", "ERROR")
 
             if state.active_symbols and not any(
                 is_market_open(mt5_module, sym) for sym in state.active_symbols
