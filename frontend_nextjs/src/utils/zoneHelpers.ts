@@ -38,11 +38,17 @@ export function usesSignal(zone: ZoneSettings): boolean {
   return entryOf(zone).entry_mode !== 'GRID' || zone.order_type === 'AUTO';
 }
 
-/** Zone nutzt eine vom Standard abweichende Einstiegsregel (dann wird der Abschnitt sofort gezeigt). */
+/** Zone nutzt eine vom Standard abweichende Einstiegsregel (dann steht der Schalter „Signal-Einstieg“ auf an). */
 export function entryCustomized(zone: ZoneSettings): boolean {
   if (zone.order_type === 'AUTO') return true;
   const e = entryOf(zone);
   return (Object.keys(ENTRY_DEFAULTS) as (keyof ResolvedEntry)[]).some((key) => e[key] !== ENTRY_DEFAULTS[key]);
+}
+
+/** Schalter „Signal-Einstieg“ aus: alle Einstiegsfelder auf Standard, AUTO → BOTH (Zone verhält sich wie vorher). */
+export function resetEntry(zone: ZoneSettings, update: (field: string, value: unknown) => void): void {
+  for (const [key, value] of Object.entries(ENTRY_DEFAULTS)) update(key, value);
+  if (zone.order_type === 'AUTO') update('order_type', 'BOTH');
 }
 
 export function defaultZone(): ZoneSettings {

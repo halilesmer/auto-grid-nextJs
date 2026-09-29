@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useCallback, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import type { ZoneCardProps } from './types';
-import { entryCustomized, getSymbolConfig } from '@/utils/zoneHelpers';
+import { entryCustomized, getSymbolConfig, resetEntry } from '@/utils/zoneHelpers';
 import { ZoneHeader } from './ZoneHeader';
 import { ZoneBasicFields } from './ZoneBasicFields';
 import { ZoneGridFields } from './ZoneGridFields';
@@ -13,7 +12,6 @@ import { ZoneExitFields } from './ZoneExitFields';
 import { ZoneEntryFields } from './ZoneEntryFields';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
 
@@ -44,9 +42,8 @@ export function ZoneCard({
   const isActive = zone.is_active !== false;
   const isGlobalRunning = liveData.mt5_connected && isRunning;
   const symbolConfig = getSymbolConfig(zone.symbol, symbolDetails);
-  // Einstiegsregel standardmäßig ausgeblendet (Zone sieht aus wie vorher); offen, wenn schon eine Regel aktiv ist
-  const entryActive = entryCustomized(zone);
-  const [showEntry, setShowEntry] = useState(entryActive);
+  // Schalter „Signal-Einstieg“: aus = Einstiegsfelder auf Standard (Zone wie vorher); an, wenn schon eine Regel gesetzt ist
+  const [entryOn, setEntryOn] = useState(() => entryCustomized(zone));
 
   const update = useCallback(
     (field: string, value: unknown) => onUpdate(zone.id, field, value),
@@ -115,29 +112,22 @@ export function ZoneCard({
             handleChange={handleChange}
             handleBlur={handleBlur}
             validateSymbol={validateSymbol}
-            showEntry={showEntry}
+            entryOn={entryOn}
           />
         </section>
 
-        <div className="space-y-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            data-testid="zone-entry-toggle"
-            aria-expanded={showEntry}
-            onClick={() => setShowEntry((open) => !open)}
-            hint={entryActive && !showEntry ? t('zone.entry.toggle.active.hint') : t('zone.entry.toggle.hint')}
-            className="-ml-3"
-          >
-            <ChevronDown className={cn('size-4 transition-transform', showEntry && 'rotate-180')} />
-            {showEntry ? t('zone.entry.toggle.hide') : t('zone.entry.toggle.show')}
-            {entryActive && (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">
-                {t('zone.entry.toggle.active')}
-              </span>
-            )}
-          </Button>
-          {showEntry && <ZoneEntryFields zone={zone} update={update} symbolConfig={symbolConfig} />}
+        <div className="space-y-3" data-testid="zone-entry-switch">
+          <Switch
+            id={`entry-${zone.id}`}
+            checked={entryOn}
+            onChange={(checked) => {
+              setEntryOn(checked);
+              if (!checked) resetEntry(zone, update);
+            }}
+            label={<span className="text-sm font-medium">{t('zone.entry.switch')}</span>}
+            hint={t('zone.entry.switch.hint')}
+          />
+          {entryOn && <ZoneEntryFields zone={zone} update={update} symbolConfig={symbolConfig} />}
         </div>
 
         <section className="space-y-3">

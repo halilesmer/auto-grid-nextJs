@@ -1,4 +1,4 @@
-/** ZON-13/14/15 · Einstiegsregel der Zone: ein-/ausblenden, Signal-Felder speichern/laden, Infotext und gesperrte Felder. */
+/** ZON-13/14/15 · Einstiegsregel der Zone: Schalter „Signal-Einstieg“, Signal-Felder speichern/laden, Infotext und gesperrte Felder. */
 import { DEMO_ID, expect, makeZone, test, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
@@ -8,45 +8,47 @@ async function saveAndReload(dashboard: Dashboard) {
   await dashboard.selectAccount(DEMO_ID);
 }
 
-/** Erweiterte Einstiegsregel einer Standard-Zone aufklappen. */
+/** Schalter „Signal-Einstieg“ einer Standard-Zone einschalten. */
 async function openEntry(dashboard: Dashboard) {
-  await dashboard.zone().getByTestId('zone-entry-toggle').click();
+  await dashboard.zoneSwitch(msg('zone.entry.switch')).click();
 }
 
 test.describe('ZON Einstiegsregel', () => {
-  test('Standard-Zone zeigt die Einstiegsregel erst nach Klick', { tag: '@ZON-15' }, async ({ dashboard }) => {
+  test('Standard-Zone: Signal-Einstieg aus, Einschalten zeigt die Felder', { tag: '@ZON-15' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
-    const toggle = zone.getByTestId('zone-entry-toggle');
+    const entrySwitch = dashboard.zoneSwitch(msg('zone.entry.switch'));
     const orderType = dashboard.zoneField(msg('zone.field.orderType'));
-    // Zone wie vorher: kein Abschnitt, keine AUTO-Option, kein „aktiv“
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(toggle).not.toContainText(msg('zone.entry.toggle.active'));
+    // Zone wie vorher: Schalter aus, kein Abschnitt, keine AUTO-Option
+    await expect(entrySwitch).toHaveAttribute('aria-checked', 'false');
     await expect(zone.getByTestId('zone-entry')).toHaveCount(0);
     await expect(orderType.locator('option[value="AUTO"]')).toHaveCount(0);
 
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await entrySwitch.click();
+    await expect(entrySwitch).toHaveAttribute('aria-checked', 'true');
     await expect(zone.getByTestId('zone-entry')).toBeVisible();
     await expect(orderType.locator('option[value="AUTO"]')).toHaveCount(1);
-
-    await toggle.click();
-    await expect(zone.getByTestId('zone-entry')).toHaveCount(0);
   });
 
-  test('Zone mit aktiver Regel ist sofort aufgeklappt', { tag: '@ZON-15' }, async ({ worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'GRID_FILTER' })];
+  test('Ausschalten setzt die Einstiegsregel auf Standard zurück', { tag: '@ZON-15' }, async ({ worker, dashboard }) => {
+    worker.state.settings[DEMO_ID].ZONES = [
+      makeZone({ entry_mode: 'SIGNAL_MARKET', order_type: 'AUTO', max_spread: 0.5, tp_mode: 'MONEY', take_profit_money: 5 }),
+    ];
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
-    const toggle = zone.getByTestId('zone-entry-toggle');
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(toggle).toContainText(msg('zone.entry.toggle.active'));
+    const entrySwitch = dashboard.zoneSwitch(msg('zone.entry.switch'));
+    await expect(entrySwitch).toHaveAttribute('aria-checked', 'true');
     await expect(zone.getByTestId('zone-entry')).toBeVisible();
 
-    // Zuklappen ändert nichts an der Regel, „aktiv“ bleibt sichtbar
-    await toggle.click();
+    await entrySwitch.click();
     await expect(zone.getByTestId('zone-entry')).toHaveCount(0);
-    await expect(toggle).toContainText(msg('zone.entry.toggle.active'));
+    await expect(dashboard.zoneField(msg('zone.field.orderType'))).toHaveValue('BOTH');
+
+    await saveAndReload(dashboard);
+    await expect(dashboard.zoneSwitch(msg('zone.entry.switch'))).toHaveAttribute('aria-checked', 'false');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({
+      entry_mode: 'GRID', order_type: 'BOTH', max_spread: 0, tp_mode: 'PRICE', take_profit_money: 0,
+    });
   });
 
   test('Signal-Felder werden gespeichert und wieder gelesen', { tag: '@ZON-13' }, async ({ worker, dashboard }) => {

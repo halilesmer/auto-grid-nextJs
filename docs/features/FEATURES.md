@@ -216,10 +216,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Oben im Abschnitt beschreibt ein Infotext die aktive Regel in Klartext (Modus, BUY/SELL-Bedingungen, Zeitrahmen, Richtung bei AUTO, Take Profit, Limits, Spread, Verlust über Zonen-Ausstieg). Im Market-Modus sind Grid-Abstand, Stufen und Breakout gesperrt, bei Geld-TP das Preis-TP-Feld; die Tooltips sagen warum.
   - **Prüfung:** Zone auf „Sinyalde piyasa emri“, BUY, TP 1, Max. BUY 2 stellen und den Infotext lesen. → Gewinnziel auf „Para tutarı“ stellen.
   - **Erwartet:** Infotext nennt Market-Order, „BUY: Kapanış > EMA 50 ve RSI 14 < 40“ und „en fazla 2 BUY“; Grid-Abstand/Stufen sind grau, bei Geld-TP auch „Kar Al ($)“.
-- [x] **ZON-15** Einstiegsregel standardmäßig ausgeblendet — 🖥️ e2e ✅ 2026-09-29
-  - Eine Zone sieht aus wie vor der Einstiegsregel: unter den Grundfeldern steht nur der Button „Gelişmiş giriş kuralını göster“. Erst ein Klick zeigt den Abschnitt „Giriş Kuralı“ und die Option AUTO im Emir Tipi. Nutzt die Zone schon eine abweichende Regel (Modus, Indikatoren, Limits, Spread, Geld-TP oder AUTO), ist der Abschnitt sofort offen und der Button trägt „aktif“. Der Zustand wird nicht gespeichert; Ausblenden ändert keine Einstellung.
-  - **Prüfung:** Neue Zone anlegen, dann auf den Button klicken und wieder zuklappen. → Zone mit „Grid + sinyal filtresi“ öffnen.
-  - **Erwartet:** Neue Zone ohne Abschnitt und ohne AUTO; nach Klick beides sichtbar. Die Filter-Zone ist sofort offen und zeigt „aktif“.
+- [x] **ZON-15** Schalter „Signal-Einstieg“ pro Zone — 🖥️ e2e ✅ 2026-09-29
+  - Eine Zone sieht aus und arbeitet wie vor der Einstiegsregel: unter den Grundfeldern steht nur der Schalter „Sinyal girişi“ (aus). Erst eingeschaltet erscheinen der Abschnitt „Giriş Kuralı“ und die Option AUTO im Emir Tipi. Nutzt die Zone schon eine abweichende Regel (Modus, Indikatoren, Limits, Spread, Geld-TP oder AUTO), steht der Schalter auf an. Ausschalten setzt alle Einstiegswerte auf Standard zurück (AUTO → BOTH), wirksam nach dem Speichern.
+  - **Prüfung:** Neue Zone anlegen und „Sinyal girişi“ einschalten. → Zone mit Market-Modus, AUTO und Geld-TP öffnen, Schalter ausschalten, speichern, neu laden.
+  - **Erwartet:** Neue Zone ohne Abschnitt und ohne AUTO; eingeschaltet beides sichtbar. Die Market-Zone startet mit Schalter an; nach Ausschalten und Speichern ist sie Grid/BOTH mit Standardwerten und der Schalter bleibt aus.
 
 ## 6. BOT – Bot-Steuerung
 

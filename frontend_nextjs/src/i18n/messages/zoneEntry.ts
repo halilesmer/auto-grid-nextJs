@@ -5,9 +5,7 @@ import { defineArea } from './define';
 export default defineArea(
   {
     'zone.section.entry': 'Giriş Kuralı',
-    'zone.entry.toggle.show': 'Gelişmiş giriş kuralını göster',
-    'zone.entry.toggle.hide': 'Gelişmiş giriş kuralını gizle',
-    'zone.entry.toggle.active': 'aktif',
+    'zone.entry.switch': 'Sinyal girişi',
     'zone.field.orderType.auto': 'AUTO (robot seçer)',
     'zone.entry.mode': 'Giriş Modu',
     'zone.entry.mode.grid': 'Grid (her seviye)',
@@ -61,9 +59,7 @@ export default defineArea(
   },
   {
     'zone.section.entry': 'Entry rule',
-    'zone.entry.toggle.show': 'Show advanced entry rule',
-    'zone.entry.toggle.hide': 'Hide advanced entry rule',
-    'zone.entry.toggle.active': 'active',
+    'zone.entry.switch': 'Signal entry',
     'zone.field.orderType.auto': 'AUTO (robot decides)',
     'zone.entry.mode': 'Entry mode',
     'zone.entry.mode.grid': 'Grid (every level)',
@@ -117,9 +113,7 @@ export default defineArea(
   },
   {
     'zone.section.entry': 'Einstiegsregel',
-    'zone.entry.toggle.show': 'Erweiterte Einstiegsregel anzeigen',
-    'zone.entry.toggle.hide': 'Erweiterte Einstiegsregel ausblenden',
-    'zone.entry.toggle.active': 'aktiv',
+    'zone.entry.switch': 'Signal-Einstieg',
     'zone.field.orderType.auto': 'AUTO (Roboter entscheidet)',
     'zone.entry.mode': 'Einstiegsmodus',
     'zone.entry.mode.grid': 'Grid (jede Stufe)',

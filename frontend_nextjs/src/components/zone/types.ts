@@ -58,8 +58,8 @@ export interface ZoneBasicFieldsProps {
   handleChange: HandleChangeFn;
   handleBlur: HandleBlurFn;
   validateSymbol: (symbol: string) => boolean;
-  /** Erweiterte Einstiegsregel eingeblendet → AUTO im Emir Tipi wählbar. */
-  showEntry: boolean;
+  /** Schalter „Signal-Einstieg“ an → AUTO im Emir Tipi wählbar. */
+  entryOn: boolean;
 }
 
 export interface ZoneGridFieldsProps {

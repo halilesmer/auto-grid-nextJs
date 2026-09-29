@@ -253,8 +253,7 @@ export default defineArea(
       'Mum kapanışının hangi periyotta kontrol edileceği (M1 = 1 dakika … D1 = 1 gün). Son kapanan mum bölgenin dışında kapanırsa çıkış sayılır.',
 
     // --- Bölge: giriş kuralı (grid_signals.py) ---
-    'zone.entry.toggle.hint': 'Giriş modu (sinyal filtresi, piyasa emri), EMA/RSI/Bollinger, yön başına pozisyon limiti, spread filtresi, para cinsinden kâr hedefi ve AUTO emir tipini gösterir/gizler. Gizlemek ayarları değiştirmez.',
-    'zone.entry.toggle.active.hint': 'Bu bölgede standart dışı bir giriş kuralı ayarlı ve robot onu uyguluyor. Görmek veya değiştirmek için tıkla.',
+    'zone.entry.switch.hint': 'Açıkken bölgenin giriş kuralı ayarlanabilir: giriş modu (sinyal filtresi, piyasa emri), EMA/RSI/Bollinger, yön başına pozisyon limiti, spread filtresi, para cinsinden kâr hedefi ve AUTO emir tipi. Kapatınca bu değerlerin hepsi standarda döner ve bölge eskisi gibi çalışır (kaydettikten sonra).',
     'zone.entry.mode.hint':
       'Robot ne zaman pozisyon açar?\nGrid (her seviye): eski davranış, sinyal beklemeden her grid seviyesine bekleyen emir.\nGrid + sinyal filtresi: grid seviyeleri kalır ama emirler yalnızca sinyal onaylarken durur.\nSinyalde piyasa emri: grid yok; sinyal gelince anlık fiyattan açar, Kâr Al ile hızlı çıkar (scalping). Örnek altın: 4000’de al, 4001’de kapat.',
     'zone.entry.timeframe.hint':
@@ -536,8 +535,7 @@ export default defineArea(
       'Timeframe of the candle close check (M1 = 1 minute … D1 = 1 day). If the last closed candle closes outside the zone, that counts as an exit.',
 
     // --- Zone: entry rule (grid_signals.py) ---
-    'zone.entry.toggle.hint': 'Shows/hides the entry mode (signal filter, market order), EMA/RSI/Bollinger, position limit per direction, spread filter, money take profit and the AUTO order type. Hiding does not change any setting.',
-    'zone.entry.toggle.active.hint': 'This zone has a non-default entry rule and the robot applies it. Click to view or change it.',
+    'zone.entry.switch.hint': 'When on, the entry rule of this zone can be set: entry mode (signal filter, market order), EMA/RSI/Bollinger, position limit per direction, spread filter, money take profit and the AUTO order type. Turning it off resets all these values to standard and the zone works as before (after saving).',
     'zone.entry.mode.hint':
       'When does the robot open a position?\nGrid (every level): previous behaviour, a pending order on every grid level without waiting for a signal.\nGrid + signal filter: the grid levels stay, but orders only exist while the signal agrees.\nMarket order on signal: no grid; opens at the current price when the signal fires and exits quickly at the take profit (scalping). Example gold: buy at 4000, close at 4001.',
     'zone.entry.timeframe.hint':
@@ -819,8 +817,7 @@ export default defineArea(
       'Zeitrahmen der Kerzenschluss-Prüfung (M1 = 1 Minute … D1 = 1 Tag). Schließt die letzte abgeschlossene Kerze außerhalb der Zone, gilt das als Ausbruch.',
 
     // --- Zone: Einstiegsregel (grid_signals.py) ---
-    'zone.entry.toggle.hint': 'Blendet Einstiegsmodus (Signalfilter, Market-Order), EMA/RSI/Bollinger, Positionslimit pro Richtung, Spread-Filter, Gewinnziel als Geldbetrag und den Emir Tipi AUTO ein/aus. Ausblenden ändert keine Einstellung.',
-    'zone.entry.toggle.active.hint': 'In dieser Zone ist eine vom Standard abweichende Einstiegsregel eingestellt und der Roboter wendet sie an. Klicken zum Ansehen oder Ändern.',
+    'zone.entry.switch.hint': 'An: die Einstiegsregel der Zone ist einstellbar – Einstiegsmodus (Signalfilter, Market-Order), EMA/RSI/Bollinger, Positionslimit pro Richtung, Spread-Filter, Gewinnziel als Geldbetrag und Emir Tipi AUTO. Aus: alle diese Werte gehen auf Standard zurück und die Zone arbeitet wie vorher (nach dem Speichern).',
     'zone.entry.mode.hint':
       'Wann eröffnet der Roboter eine Position?\nGrid (jede Stufe): bisheriges Verhalten, auf jeder Grid-Stufe eine Pending Order, ohne auf ein Signal zu warten.\nGrid + Signalfilter: die Grid-Stufen bleiben, Orders liegen aber nur, solange das Signal zustimmt.\nMarket-Order bei Signal: kein Grid; eröffnet beim Signal zum aktuellen Preis und steigt schnell am Take Profit aus (Scalping). Beispiel Gold: bei 4000 kaufen, bei 4001 schließen.',
     'zone.entry.timeframe.hint':
