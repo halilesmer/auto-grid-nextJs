@@ -105,3 +105,10 @@ All of these are gitignored and may contain credentials.
 - **Every setting, field and button needs a tooltip** (`hooks/RULES.md` §5): `hint` is a required prop of `InputField`, `Switch`, `Button`, tab items and `ConfirmModal` (tsc fails without it); fields get an (i) icon, buttons a hover/focus tooltip, all via `src/components/ui/tooltip.tsx`. The text is an i18n key `<label-key>.hint` in `src/i18n/messages/hints.ts` (tr/en/de) and says what the control does, its unit/effect and, if it is disabled, why. A plain `<button>`/`<input>` outside `Tooltip`/`InputField` fails the e2e coverage test `UI-07`; no native `title=` for explanations.
 - Code comments, logs, and docs are mostly in Turkish. Match the language of the file you're editing.
 - **Library docs:** for questions or code involving Next.js, React, Tailwind, Zustand, lightweight-charts or FastAPI, look up current docs with the Context7 MCP (`.mcp.json`) first. For Next.js also check `frontend_nextjs/node_modules/next/dist/docs/` (see `frontend_nextjs/AGENTS.md`).
+
+## Modell-Nutzung
+- Für Codebase-Erkundung, Suche und einfache Recherche: Subagent `explorer` (Haiku).
+- Für Code-Review: Subagent `reviewer` (Sonnet).
+- Für Architekturentscheidungen und schwieriges Debugging: mich darauf hinweisen,
+  dass ein Wechsel zu Opus (oder höherer /effort) sinnvoll wäre, statt selbst zu raten.
+- Nicht während einer laufenden Aufgabe das Modell wechseln.
