@@ -7,6 +7,8 @@ Zusätzlich gibt es Test-Hebel:
     set_price(sym, bid)       Kurs bewegen → Pending Orders füllen, TP/SL auslösen
     reject(retcode, times)    nächste order_check-Aufrufe ablehnen (z. B. 10016, 10027)
     silent_reject_next()      order_send meldet OK, Order erscheint aber nicht im Buch
+    remove_externally(...)    Pending Orders verschwinden ohne order_send des Bots (Broker/anderes
+                              Terminal löscht sie; Historie mit ORDER_STATE_CANCELED o. Ä.)
     set_closed_candle(...)    Schlusskurs der letzten geschlossenen Kerze (exit_condition)
     set_rates(sym, tf, bars)  vollständige OHLC-Kerzen (geschlossen, alt → neu) für Fraktale/ATR/SAR;
                               die laufende Kerze (Position 0) wird aus dem aktuellen Tick gebildet
@@ -62,6 +64,7 @@ class Order:
     magic: int = 0
     comment: str = ""
     volume_current: float | None = None
+    state: int = 1  # ORDER_STATE_PLACED; Historie: FILLED (4), CANCELED (2), EXPIRED (6) ...
 
     def __post_init__(self):
         if self.volume_current is None:
@@ -132,6 +135,10 @@ class FakeMT5:
     TRADE_ACTION_MODIFY = 7
     TRADE_ACTION_REMOVE = 8
     ORDER_TIME_GTC = 0
+    ORDER_STATE_PLACED = 1
+    ORDER_STATE_CANCELED = 2
+    ORDER_STATE_FILLED = 4
+    ORDER_STATE_EXPIRED = 6
     ORDER_FILLING_FOK = 0
     ORDER_FILLING_IOC = 1
     ORDER_FILLING_RETURN = 2
@@ -217,7 +224,7 @@ class FakeMT5:
         order_type = self.ORDER_TYPE_BUY if type == self.POSITION_TYPE_BUY else self.ORDER_TYPE_SELL
         self.history[pos.identifier] = Order(pos.identifier, symbol, order_type, price,
                                              order_volume if order_volume is not None else volume,
-                                             tp, sl, magic, volume_current=0.0)
+                                             tp, sl, magic, volume_current=0.0, state=self.ORDER_STATE_FILLED)
         self.positions.append(pos)
         return pos
 
@@ -231,6 +238,18 @@ class FakeMT5:
 
     def silent_reject_next(self, times: int = 1):
         self._silent_reject += times
+
+    def remove_externally(self, tickets=None, state: int | None = None) -> list[Order]:
+        """Löscht Pending Orders (alle Robot-Orders oder `tickets`) an order_send vorbei – wie ein
+        Broker/Dealer oder ein anderes Terminal am selben Konto. Historie-Status: `state`
+        (Standard ORDER_STATE_CANCELED)."""
+        wanted = set(tickets) if tickets is not None else {o.ticket for o in self.robot_orders()}
+        removed = [o for o in self.orders if o.ticket in wanted]
+        self.orders = [o for o in self.orders if o.ticket not in wanted]
+        for o in removed:
+            o.state = self.ORDER_STATE_CANCELED if state is None else state
+            self.history[o.ticket] = o
+        return removed
 
     # Abfragen für Assertions
     def robot_orders(self, magic: int | None = None) -> list[Order]:
@@ -330,6 +349,7 @@ class FakeMT5:
             removed = [o for o in self.orders if o.ticket == request["order"]]
             self.orders = [o for o in self.orders if o.ticket != request["order"]]
             for o in removed:
+                o.state = self.ORDER_STATE_CANCELED
                 self.history[o.ticket] = o
             return Result(retcode=self.TRADE_RETCODE_DONE if removed else 10013)
 
@@ -381,6 +401,7 @@ class FakeMT5:
                 self.positions.append(Position(o.ticket, o.symbol, pos_type, o.price_open, volume,
                                                o.tp, o.sl, o.magic, 0.0, o.comment))
                 o.volume_current = 0.0
+                o.state = self.ORDER_STATE_FILLED
                 self.history[o.ticket] = o
             else:
                 still_open.append(o)

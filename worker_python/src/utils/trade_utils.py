@@ -7,6 +7,8 @@ class TradeState:
 
     algo_trading_disabled = False
     last_error_message = ""
+    # Son başarılı bekleyen emrin bileti (dışarıdan silinen emir takibi, grid_execution/vanished.py)
+    last_order_ticket = 0
 
 
 def normalize_volume(mt5_module, symbol, volume):
@@ -192,6 +194,7 @@ def safe_send_order(mt5_module, request, log_func=None):
                         "ERROR",
                     )
                 return False
+            TradeState.last_order_ticket = result.order
 
         # İşlem başarılıysa hatayı sıfırla
         TradeState.algo_trading_disabled = False

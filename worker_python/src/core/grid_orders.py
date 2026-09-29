@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import time
 from src.utils.trade_utils import safe_send_order, TradeState
 from src.utils.paths import get_ui_state_path
 from src.core.grid_helpers import (
@@ -165,12 +166,15 @@ def cancel_order(mt5, order):
         "symbol": order.symbol,
     }
     ok = safe_send_order(mt5, request, log_message)
-    if ok and parse_fractal_comment(getattr(order, "comment", "")):
-        # Hangi modül silerse silsin (zombi temizliği, max pozisyon, bölge çıkışı): bot sildi,
-        # fractal_entry bunu "elle silindi" saymasın
+    if ok:
         from src.core.state import state
 
-        state.fractal_own_cancels.add(order.ticket)
+        # Bot sildi: kaybolan emir takibi (vanished.py) bunu "dışarıdan silindi" saymasın
+        state.placed_orders.pop(order.ticket, None)
+        if parse_fractal_comment(getattr(order, "comment", "")):
+            # Hangi modül silerse silsin (zombi temizliği, max pozisyon, bölge çıkışı): bot sildi,
+            # fractal_entry bunu "elle silindi" saymasın
+            state.fractal_own_cancels.add(order.ticket)
     return ok
 
 
@@ -265,6 +269,7 @@ def send_pending_order_helper(
     if sl_price is not None and sl_price > 0:
         request["sl"] = normalize_price(sl_price, symbol, symbol_infos)
 
+    TradeState.last_order_ticket = 0
     success = safe_send_order(mt5, request, log_message)
     if not success:
         consecutive_errors[zone_idx] = consecutive_errors.get(zone_idx, 0) + 1
@@ -275,25 +280,35 @@ def send_pending_order_helper(
                 f"🚨 DİKKAT: Bölge {zone_idx+1} için üst üste {consecutive_errors[zone_idx]} işlem reddedildi! (Detay: {last_err_msg}). Bölge güvenliğe alınıyor.",
                 "ERROR",
             )
-            account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
-            states_file = get_ui_state_path(account_id)
-            try:
-                bg_states = {}
-                if os.path.exists(states_file):
-                    with open(states_file, "r", encoding="utf-8") as f:
-                        bg_states = json.load(f)
-                bg_states[str(zone_idx)] = "PAUSE"
-                tmp_file = states_file + ".tmp"
-                with open(tmp_file, "w", encoding="utf-8") as f:
-                    json.dump(bg_states, f)
-                os.replace(tmp_file, states_file)
-            except Exception:
-                pass
-
-            active_zones_state[zone_idx] = "PAUSE"
+            pause_zone_for_safety(zone_idx, active_zones_state)
             consecutive_errors[zone_idx] = 0
         return False
     else:
         if zone_idx in consecutive_errors:
             consecutive_errors[zone_idx] = 0
+        if TradeState.last_order_ticket:
+            from src.core.state import state
+
+            state.placed_orders[TradeState.last_order_ticket] = (zone_idx, time.monotonic(), request["price"])
     return True
+
+
+def pause_zone_for_safety(zone_idx, active_zones_state):
+    """Bölgeyi PAUSE'a alır (ui_states dosyası + motor durumu): yeni emir konmaz, bekleyen
+    emirleri Mutlak Temizlik siler, pozisyonlara dokunulmaz. Arayüzden yeniden başlatılır."""
+    account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
+    states_file = get_ui_state_path(account_id)
+    try:
+        bg_states = {}
+        if os.path.exists(states_file):
+            with open(states_file, "r", encoding="utf-8") as f:
+                bg_states = json.load(f)
+        bg_states[str(zone_idx)] = "PAUSE"
+        tmp_file = states_file + ".tmp"
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(bg_states, f)
+        os.replace(tmp_file, states_file)
+    except Exception:
+        pass
+
+    active_zones_state[zone_idx] = "PAUSE"
