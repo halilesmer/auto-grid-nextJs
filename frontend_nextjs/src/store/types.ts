@@ -52,7 +52,29 @@ export interface ZoneSettings {
   clear_target_side: string;
   exit_condition: string;
   exit_timeframe: string;
+  // Giriş kuralı (worker grid_signals / grid_execution). Eski kayıtlarda yok → ENTRY_DEFAULTS.
+  entry_mode?: EntryMode;
+  signal_timeframe?: string;
+  use_ema?: boolean;
+  ema_period?: number;
+  use_rsi?: boolean;
+  rsi_period?: number;
+  rsi_buy_below?: number;
+  rsi_sell_above?: number;
+  use_bollinger?: boolean;
+  bb_period?: number;
+  bb_deviation?: number;
+  max_spread?: number;
+  max_buy_positions?: number;
+  max_sell_positions?: number;
+  tp_mode?: TpMode;
+  take_profit_money?: number;
+  sell_take_profit_money?: number;
 }
+
+/** Worker-Werte (nicht übersetzen): GRID = Grid wie bisher, GRID_FILTER = Grid nur bei Signal, SIGNAL_MARKET = Market-Order bei Signal */
+export type EntryMode = 'GRID' | 'GRID_FILTER' | 'SIGNAL_MARKET';
+export type TpMode = 'PRICE' | 'MONEY';
 
 export interface GlobalSettings {
   ORDER_TYPE: string;

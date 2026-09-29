@@ -12,11 +12,12 @@ import { cn } from '@/lib/utils';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import type { ZoneHeaderProps } from './types';
 
-const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
+const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary', AUTO: 'primary' } as const;
 const ORDER_HINT: Record<keyof typeof ORDER_TONE, MessageKey> = {
   BUY: 'zone.header.badge.buy.hint',
   SELL: 'zone.header.badge.sell.hint',
   BOTH: 'zone.header.badge.both.hint',
+  AUTO: 'zone.header.badge.auto.hint',
 };
 
 export function ZoneHeader({

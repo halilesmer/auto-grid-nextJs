@@ -163,6 +163,7 @@ export default defineArea(
     'zone.header.badge.buy.hint': 'Bu bölge yalnızca BUY (alış) emirleri verir.',
     'zone.header.badge.sell.hint': 'Bu bölge yalnızca SELL (satış) emirleri verir.',
     'zone.header.badge.both.hint': 'Bu bölge hem BUY hem SELL emirleri verir.',
+    'zone.header.badge.auto.hint': 'Robot yönü sinyale göre kendisi seçer; aynı anda yalnızca bir yönde yeni giriş.',
     'zone.market.hint.open': "Piyasa açık. Genelde {hours} arası (broker sunucu saati).",
     'zone.market.hint.closed': "Piyasa kapalı. Genelde {hours} arası açık (broker sunucu saati). Kapalıyken bu bölgede yeni emir yerleştirilemez.",
     'zone.market.hint': "Bu bölgenin sembolü için piyasa açık mı. Her sembolün işlem saati farklıdır; kapalıyken bu bölgede yeni emir yerleştirilemez.",
@@ -190,7 +191,7 @@ export default defineArea(
     'zone.field.symbol.hint':
       'İşlem yapılacak enstrüman (broker’ın MT5 sembol adı, ör. USOUSD). Yazarak arayın, listeden seçin. Parantez içi: sembolün fiyat ondalık basamağı.',
     'zone.field.orderType.hint':
-      'BUY: yalnızca alış emirleri.\nSELL: yalnızca satış emirleri.\nBOTH: her iki yön; BUY ve SELL ayrı ayarlanabilir.',
+      'BUY: yalnızca alış emirleri.\nSELL: yalnızca satış emirleri.\nBOTH: her iki yön; BUY ve SELL ayrı ayarlanabilir.\nAUTO: robot yönü kendisi seçer (EMA üstü → BUY, altı → SELL). Yalnızca Giriş Modu “Grid + sinyal filtresi” veya “Sinyalde piyasa emri” iken seçilebilir.',
     'zone.field.minPrice.hint':
       'Bölgenin alt sınırı. Emirler yalnızca Min–Max aralığına konur; fiyat bunun altına inerse bölge çıkışı sayılır.',
     'zone.field.maxPrice.hint':
@@ -250,6 +251,40 @@ export default defineArea(
       'Anlık Fiyat: fiyat sınırı geçer geçmez tetiklenir.\nMum Kapanışı: yalnızca seçilen periyottaki mum bölgenin dışında kapanırsa tetiklenir (kısa iğne hareketlerine karşı daha güvenli).',
     'zone.exit.timeframe.hint':
       'Mum kapanışının hangi periyotta kontrol edileceği (M1 = 1 dakika … D1 = 1 gün). Son kapanan mum bölgenin dışında kapanırsa çıkış sayılır.',
+
+    // --- Bölge: giriş kuralı (grid_signals.py) ---
+    'zone.entry.mode.hint':
+      'Robot ne zaman pozisyon açar?\nGrid (her seviye): eski davranış, sinyal beklemeden her grid seviyesine bekleyen emir.\nGrid + sinyal filtresi: grid seviyeleri kalır ama emirler yalnızca sinyal onaylarken durur.\nSinyalde piyasa emri: grid yok; sinyal gelince anlık fiyattan açar, Kâr Al ile hızlı çıkar (scalping). Örnek altın: 4000’de al, 4001’de kapat.',
+    'zone.entry.timeframe.hint':
+      'Göstergelerin hangi mum periyodunda hesaplanacağı (M1 = 1 dakika … D1 = 1 gün). Yalnızca kapanmış mumlar kullanılır; kısa periyot = daha çok ama daha gürültülü sinyal.',
+    'zone.entry.timeframe.off.hint': 'Giriş Modu “Grid (her seviye)” iken sinyal kullanılmaz.',
+    'zone.entry.maxSpread.hint':
+      'Alış–satış farkı (Ask − Bid, fiyat biriminde $) bu değerden büyükse yeni giriş yapılmaz; açık pozisyonlara dokunulmaz. Küçük kâr hedeflerinde önemlidir: altında 1 $ hedefte 0,50 $ spread kârın yarısını yer. 0 = filtre kapalı.',
+    'zone.entry.ema.hint':
+      'Trend filtresi: BUY yalnızca son kapanış EMA’nın üstündeyken, SELL yalnızca altındayken. AUTO yönünde yön seçimini de EMA yapar.',
+    'zone.entry.emaPeriod.hint': 'EMA’nın kaç mumdan hesaplanacağı. Büyük değer = yavaş, ana trend (ör. 50); küçük = hızlı tepki (ör. 20).',
+    'zone.entry.rsi.hint':
+      'Geri çekilme şartı: BUY için RSI “BUY: RSI altında” değerinin altında, SELL için “SELL: RSI üstünde” değerinin üstünde olmalı. EMA ile birlikte: trend yönünde kısa düşüşte al.',
+    'zone.entry.rsiPeriod.hint': 'RSI’ın kaç mumdan hesaplanacağı (Wilder yöntemi, MT5 ile aynı). Standart 14.',
+    'zone.entry.rsiBuyBelow.hint': 'BUY girişi için RSI bu değerin altında olmalı (0–100). 30 = güçlü aşırı satım, 40 = trend içinde hafif geri çekilme.',
+    'zone.entry.rsiSellAbove.hint': 'SELL girişi için RSI bu değerin üstünde olmalı (0–100). 70 = güçlü aşırı alım, 60 = trend içinde hafif tepki.',
+    'zone.entry.bb.hint':
+      'Bant şartı: BUY yalnızca kapanış alt Bollinger bandına değdiğinde/altındayken, SELL üst banttayken. Diğer göstergelerle VE ile bağlanır; sinyal sayısını azaltır.',
+    'zone.entry.bbPeriod.hint': 'Bollinger orta çizgisinin (ortalama) kaç mumdan hesaplanacağı. Standart 20.',
+    'zone.entry.bbDeviation.hint': 'Bantların ortalamadan kaç standart sapma uzakta olduğu. Standart 2; büyük değer = daha seyrek sinyal.',
+    'zone.entry.maxBuy.hint':
+      'Bu bölgede aynı anda açık olabilecek en fazla BUY pozisyonu. Dolunca yeni BUY emri konmaz, bekleyen BUY emirleri silinir. 0 = ayrı sınır yok (yalnızca Maks. Pozisyon).',
+    'zone.entry.maxSell.hint':
+      'Bu bölgede aynı anda açık olabilecek en fazla SELL pozisyonu. Dolunca yeni SELL emri konmaz, bekleyen SELL emirleri silinir. 0 = ayrı sınır yok (yalnızca Maks. Pozisyon).',
+    'zone.entry.tpMode.hint':
+      'Kâr al nasıl belirlenir?\nFiyat mesafesi: “Kâr Al” alanındaki mesafe ($), ör. altında +1 = 4000 → 4001.\nPara tutarı: pozisyon başına hedef kâr (hesap para birimi); robot lot ve sembol tick değeriyle fiyat mesafesine çevirir.',
+    'zone.entry.tpMoney.hint':
+      'Pozisyon başına hedef kâr, hesap para biriminde (ör. 5 = 5 €/$). Bölgenin lot’u ile fiyat mesafesine çevrilir: mesafe = tutar ÷ (lot × tick değeri ÷ tick boyutu). Spread ve komisyon dahil değildir.',
+    'zone.entry.buyTpMoney.hint': 'BUY pozisyonları için hedef kâr (hesap para birimi), BUY lot’u ile fiyat mesafesine çevrilir.',
+    'zone.entry.sellTpMoney.hint': 'SELL pozisyonları için hedef kâr (hesap para birimi), SELL lot’u ile fiyat mesafesine çevrilir.',
+    'zone.field.takeProfit.money.hint': 'Kâr Hedefi “Para tutarı” seçili: kâr al mesafesini robot para tutarından hesaplar; bu alan kullanılmaz.',
+    'zone.field.gridStep.market.hint': 'Giriş Modu “Sinyalde piyasa emri”: grid seviyesi kurulmaz, bu alan kullanılmaz.',
+    'zone.breakout.market.hint': 'Giriş Modu “Sinyalde piyasa emri”: grid seviyesi ve breakout kullanılmaz.',
   },
   {
     // --- Account ---
@@ -409,6 +444,7 @@ export default defineArea(
     'zone.header.badge.buy.hint': 'This zone only places BUY orders.',
     'zone.header.badge.sell.hint': 'This zone only places SELL orders.',
     'zone.header.badge.both.hint': 'This zone places both BUY and SELL orders.',
+    'zone.header.badge.auto.hint': 'The robot picks the direction from the signal; new entries on one side at a time.',
     'zone.market.hint.open': "Market open. Usually {hours} (broker server time).",
     'zone.market.hint.closed': "Market closed. Usually open {hours} (broker server time). No new orders can be placed in this zone while it is closed.",
     'zone.market.hint': "Whether the market is open for this zone's symbol. Every symbol has its own trading hours; no new orders can be placed in this zone while it is closed.",
@@ -436,7 +472,7 @@ export default defineArea(
     'zone.field.symbol.hint':
       'Instrument to trade (the broker’s MT5 symbol name, e.g. USOUSD). Type to search, pick from the list. In brackets: the symbol’s price decimals.',
     'zone.field.orderType.hint':
-      'BUY: buy orders only.\nSELL: sell orders only.\nBOTH: both directions; BUY and SELL can be set separately.',
+      'BUY: buy orders only.\nSELL: sell orders only.\nBOTH: both directions; BUY and SELL can be set separately.\nAUTO: the robot picks the direction itself (above the EMA → BUY, below → SELL). Only available when the entry mode is “Grid + signal filter” or “Market order on signal”.',
     'zone.field.minPrice.hint':
       'Lower limit of the zone. Orders are only placed within Min–Max; if the price falls below it, that counts as leaving the zone.',
     'zone.field.maxPrice.hint':
@@ -496,6 +532,40 @@ export default defineArea(
       'Current Price: triggers as soon as the price crosses the limit.\nCandle Close: triggers only if the candle of the chosen timeframe closes outside the zone (safer against short wicks).',
     'zone.exit.timeframe.hint':
       'Timeframe of the candle close check (M1 = 1 minute … D1 = 1 day). If the last closed candle closes outside the zone, that counts as an exit.',
+
+    // --- Zone: entry rule (grid_signals.py) ---
+    'zone.entry.mode.hint':
+      'When does the robot open a position?\nGrid (every level): previous behaviour, a pending order on every grid level without waiting for a signal.\nGrid + signal filter: the grid levels stay, but orders only exist while the signal agrees.\nMarket order on signal: no grid; opens at the current price when the signal fires and exits quickly at the take profit (scalping). Example gold: buy at 4000, close at 4001.',
+    'zone.entry.timeframe.hint':
+      'Candle timeframe the indicators are computed on (M1 = 1 minute … D1 = 1 day). Only closed candles are used; a short timeframe gives more but noisier signals.',
+    'zone.entry.timeframe.off.hint': 'With entry mode “Grid (every level)” no signal is used.',
+    'zone.entry.maxSpread.hint':
+      'No new entry while the bid–ask gap (Ask − Bid, in price units $) is above this value; open positions are untouched. Matters for small profit targets: on gold a $0.50 spread eats half of a $1 target. 0 = filter off.',
+    'zone.entry.ema.hint':
+      'Trend filter: BUY only while the last close is above the EMA, SELL only while below. With AUTO the EMA also picks the direction.',
+    'zone.entry.emaPeriod.hint': 'Number of candles for the EMA. Large = slow, main trend (e.g. 50); small = reacts faster (e.g. 20).',
+    'zone.entry.rsi.hint':
+      'Pullback condition: for BUY the RSI must be below “BUY: RSI below”, for SELL above “SELL: RSI above”. Combined with the EMA: buy the short dip in the trend direction.',
+    'zone.entry.rsiPeriod.hint': 'Number of candles for the RSI (Wilder method, same as MT5). Standard is 14.',
+    'zone.entry.rsiBuyBelow.hint': 'For a BUY entry the RSI must be below this value (0–100). 30 = strongly oversold, 40 = mild pullback within a trend.',
+    'zone.entry.rsiSellAbove.hint': 'For a SELL entry the RSI must be above this value (0–100). 70 = strongly overbought, 60 = mild bounce within a trend.',
+    'zone.entry.bb.hint':
+      'Band condition: BUY only when the close touches/is below the lower Bollinger band, SELL at the upper band. Combined with the other indicators by AND; gives fewer signals.',
+    'zone.entry.bbPeriod.hint': 'Number of candles for the Bollinger middle line (average). Standard is 20.',
+    'zone.entry.bbDeviation.hint': 'How many standard deviations the bands are away from the average. Standard is 2; larger = fewer signals.',
+    'zone.entry.maxBuy.hint':
+      'Maximum number of BUY positions open at the same time in this zone. When full, no new BUY orders and pending BUY orders are removed. 0 = no separate limit (only Max. positions).',
+    'zone.entry.maxSell.hint':
+      'Maximum number of SELL positions open at the same time in this zone. When full, no new SELL orders and pending SELL orders are removed. 0 = no separate limit (only Max. positions).',
+    'zone.entry.tpMode.hint':
+      'How is the take profit set?\nPrice distance: the distance in the “Take profit” field ($), e.g. gold +1 = 4000 → 4001.\nMoney amount: target profit per position (account currency); the robot converts it into a price distance using the lot and the symbol tick value.',
+    'zone.entry.tpMoney.hint':
+      'Target profit per position in account currency (e.g. 5 = 5 €/$). Converted with the zone lot into a price distance: distance = amount ÷ (lot × tick value ÷ tick size). Spread and commission are not included.',
+    'zone.entry.buyTpMoney.hint': 'Target profit for BUY positions (account currency), converted with the BUY lot into a price distance.',
+    'zone.entry.sellTpMoney.hint': 'Target profit for SELL positions (account currency), converted with the SELL lot into a price distance.',
+    'zone.field.takeProfit.money.hint': 'Profit target “Money amount” is selected: the robot derives the take profit distance from the amount; this field is not used.',
+    'zone.field.gridStep.market.hint': 'Entry mode “Market order on signal”: no grid levels are built, this field is not used.',
+    'zone.breakout.market.hint': 'Entry mode “Market order on signal”: grid levels and breakout are not used.',
   },
   {
     // --- Konto ---
@@ -655,6 +725,7 @@ export default defineArea(
     'zone.header.badge.buy.hint': 'Diese Zone setzt nur BUY-Orders (Kauf).',
     'zone.header.badge.sell.hint': 'Diese Zone setzt nur SELL-Orders (Verkauf).',
     'zone.header.badge.both.hint': 'Diese Zone setzt BUY- und SELL-Orders.',
+    'zone.header.badge.auto.hint': 'Der Roboter wählt die Richtung anhand des Signals; neue Einstiege immer nur auf einer Seite.',
     'zone.market.hint.open': "Markt offen. Zw. {hours} (Serverzeit des Brokers).",
     'zone.market.hint.closed': "Markt geschlossen. Üblich: Zw. {hours} (Serverzeit des Brokers). Bei geschlossenem Markt können in dieser Zone keine neuen Orders gesetzt werden.",
     'zone.market.hint': "Ob der Markt für das Symbol dieser Zone geöffnet ist. Jedes Symbol hat eigene Handelszeiten; bei geschlossenem Markt können in dieser Zone keine neuen Orders gesetzt werden.",
@@ -682,7 +753,7 @@ export default defineArea(
     'zone.field.symbol.hint':
       'Zu handelndes Instrument (MT5-Symbolname des Brokers, z. B. USOUSD). Zum Suchen tippen, aus der Liste wählen. In Klammern: Preis-Nachkommastellen des Symbols.',
     'zone.field.orderType.hint':
-      'BUY: nur Kauf-Orders.\nSELL: nur Verkaufs-Orders.\nBOTH: beide Richtungen; BUY und SELL lassen sich getrennt einstellen.',
+      'BUY: nur Kauf-Orders.\nSELL: nur Verkaufs-Orders.\nBOTH: beide Richtungen; BUY und SELL lassen sich getrennt einstellen.\nAUTO: der Roboter wählt die Richtung selbst (über der EMA → BUY, darunter → SELL). Nur wählbar, wenn der Einstiegsmodus „Grid + Signalfilter“ oder „Market-Order bei Signal“ ist.',
     'zone.field.minPrice.hint':
       'Untergrenze der Zone. Orders werden nur zwischen Min und Max gesetzt; fällt der Preis darunter, gilt das als Verlassen der Zone.',
     'zone.field.maxPrice.hint':
@@ -742,5 +813,39 @@ export default defineArea(
       'Aktueller Preis: löst aus, sobald der Preis die Grenze überschreitet.\nKerzenschluss: löst nur aus, wenn die Kerze des gewählten Zeitrahmens außerhalb der Zone schließt (sicherer gegen kurze Dochte).',
     'zone.exit.timeframe.hint':
       'Zeitrahmen der Kerzenschluss-Prüfung (M1 = 1 Minute … D1 = 1 Tag). Schließt die letzte abgeschlossene Kerze außerhalb der Zone, gilt das als Ausbruch.',
+
+    // --- Zone: Einstiegsregel (grid_signals.py) ---
+    'zone.entry.mode.hint':
+      'Wann eröffnet der Roboter eine Position?\nGrid (jede Stufe): bisheriges Verhalten, auf jeder Grid-Stufe eine Pending Order, ohne auf ein Signal zu warten.\nGrid + Signalfilter: die Grid-Stufen bleiben, Orders liegen aber nur, solange das Signal zustimmt.\nMarket-Order bei Signal: kein Grid; eröffnet beim Signal zum aktuellen Preis und steigt schnell am Take Profit aus (Scalping). Beispiel Gold: bei 4000 kaufen, bei 4001 schließen.',
+    'zone.entry.timeframe.hint':
+      'Kerzen-Zeitrahmen, auf dem die Indikatoren berechnet werden (M1 = 1 Minute … D1 = 1 Tag). Es zählen nur abgeschlossene Kerzen; kurzer Zeitrahmen = mehr, aber unruhigere Signale.',
+    'zone.entry.timeframe.off.hint': 'Im Einstiegsmodus „Grid (jede Stufe)“ wird kein Signal verwendet.',
+    'zone.entry.maxSpread.hint':
+      'Kein neuer Einstieg, solange die Geld-Brief-Spanne (Ask − Bid, in Preiseinheiten $) über diesem Wert liegt; offene Positionen bleiben unberührt. Wichtig bei kleinen Gewinnzielen: bei Gold frisst 0,50 $ Spread die Hälfte von 1 $ Ziel. 0 = Filter aus.',
+    'zone.entry.ema.hint':
+      'Trendfilter: BUY nur, wenn der letzte Schlusskurs über der EMA liegt, SELL nur darunter. Bei AUTO wählt die EMA auch die Richtung.',
+    'zone.entry.emaPeriod.hint': 'Anzahl Kerzen für die EMA. Groß = langsam, Haupttrend (z. B. 50); klein = reagiert schneller (z. B. 20).',
+    'zone.entry.rsi.hint':
+      'Rücksetzer-Bedingung: Für BUY muss der RSI unter „BUY: RSI unter“ liegen, für SELL über „SELL: RSI über“. Zusammen mit der EMA: den kurzen Rücksetzer in Trendrichtung kaufen.',
+    'zone.entry.rsiPeriod.hint': 'Anzahl Kerzen für den RSI (Wilder-Methode wie in MT5). Standard 14.',
+    'zone.entry.rsiBuyBelow.hint': 'Für einen BUY-Einstieg muss der RSI unter diesem Wert liegen (0–100). 30 = stark überverkauft, 40 = leichter Rücksetzer im Trend.',
+    'zone.entry.rsiSellAbove.hint': 'Für einen SELL-Einstieg muss der RSI über diesem Wert liegen (0–100). 70 = stark überkauft, 60 = leichte Gegenbewegung im Trend.',
+    'zone.entry.bb.hint':
+      'Band-Bedingung: BUY nur, wenn der Schlusskurs das untere Bollinger-Band berührt/unterschreitet, SELL am oberen Band. Mit den anderen Indikatoren UND-verknüpft; ergibt weniger Signale.',
+    'zone.entry.bbPeriod.hint': 'Anzahl Kerzen für die Bollinger-Mittellinie (Durchschnitt). Standard 20.',
+    'zone.entry.bbDeviation.hint': 'Wie viele Standardabweichungen die Bänder vom Durchschnitt entfernt sind. Standard 2; größer = seltenere Signale.',
+    'zone.entry.maxBuy.hint':
+      'Höchstzahl gleichzeitig offener BUY-Positionen in dieser Zone. Ist sie erreicht, kommen keine neuen BUY-Orders, und Pending-BUY-Orders werden gelöscht. 0 = kein eigenes Limit (nur Max. Positionen).',
+    'zone.entry.maxSell.hint':
+      'Höchstzahl gleichzeitig offener SELL-Positionen in dieser Zone. Ist sie erreicht, kommen keine neuen SELL-Orders, und Pending-SELL-Orders werden gelöscht. 0 = kein eigenes Limit (nur Max. Positionen).',
+    'zone.entry.tpMode.hint':
+      'Wie wird der Take Profit bestimmt?\nPreisabstand: der Abstand im Feld „Take Profit“ ($), z. B. Gold +1 = 4000 → 4001.\nGeldbetrag: Zielgewinn pro Position (Kontowährung); der Roboter rechnet ihn über Lot und Tick-Wert des Symbols in einen Preisabstand um.',
+    'zone.entry.tpMoney.hint':
+      'Zielgewinn pro Position in Kontowährung (z. B. 5 = 5 €/$). Wird mit dem Lot der Zone in einen Preisabstand umgerechnet: Abstand = Betrag ÷ (Lot × Tick-Wert ÷ Tick-Größe). Spread und Kommission sind nicht enthalten.',
+    'zone.entry.buyTpMoney.hint': 'Zielgewinn für BUY-Positionen (Kontowährung), mit dem BUY-Lot in einen Preisabstand umgerechnet.',
+    'zone.entry.sellTpMoney.hint': 'Zielgewinn für SELL-Positionen (Kontowährung), mit dem SELL-Lot in einen Preisabstand umgerechnet.',
+    'zone.field.takeProfit.money.hint': 'Gewinnziel „Geldbetrag“ ist gewählt: der Roboter berechnet den TP-Abstand aus dem Betrag; dieses Feld wird nicht verwendet.',
+    'zone.field.gridStep.market.hint': 'Einstiegsmodus „Market-Order bei Signal“: es werden keine Grid-Stufen gebaut, dieses Feld wird nicht verwendet.',
+    'zone.breakout.market.hint': 'Einstiegsmodus „Market-Order bei Signal“: Grid-Stufen und Breakout werden nicht verwendet.',
   },
 );

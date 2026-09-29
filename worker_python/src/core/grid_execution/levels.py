@@ -46,7 +46,7 @@ def generate_levels(
                     normalize_price(pos.price_open, config.symbol, symbol_infos)
                 )
 
-    if config.order_type in ("BUY", "BOTH"):
+    if config.order_type in ("BUY", "BOTH", "AUTO"):
         if not config.is_breakout:
             for i in range(1, config.levels_below + 1):
                 p = buy_anchor_price - (i * config.grid_step)
@@ -66,7 +66,7 @@ def generate_levels(
                 continue
             acceptable_buy_levels.append(normalize_price(level_p, config.symbol, symbol_infos))
 
-    if config.order_type in ("SELL", "BOTH"):
+    if config.order_type in ("SELL", "BOTH", "AUTO"):
         if not config.is_breakout:
             for i in range(1, config.levels_above + 1):
                 p = sell_anchor_price + (i * config.sell_grid_step)

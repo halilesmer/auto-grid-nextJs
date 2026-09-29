@@ -6,6 +6,7 @@ import { NumberInput } from '@/components/ui/NumberInput';
 import { SectionLabel } from '@/components/ui/card';
 import { useT } from '@/i18n';
 import { useGuidedHints } from './useGuidedHints';
+import { entryOf } from '@/utils/zoneHelpers';
 
 export function ZoneSellFields({
   zone,
@@ -16,6 +17,9 @@ export function ZoneSellFields({
 }: ZoneSellFieldsProps) {
   const t = useT();
   const guided = useGuidedHints(zone.symbol);
+  const { entry_mode, tp_mode } = entryOf(zone);
+  const noGrid = entry_mode === 'SIGNAL_MARKET';
+  const moneyTp = tp_mode === 'MONEY';
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -24,7 +28,7 @@ export function ZoneSellFields({
     <>
       <SectionLabel className="pt-1 text-danger">{t('zone.section.sellGridShort')}</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <InputField label={t('zone.field.sellGrid')} hint={guided.step(t('zone.field.sellGrid.hint'))}>
+        <InputField label={t('zone.field.sellGrid')} hint={noGrid ? t('zone.field.gridStep.market.hint') : guided.step(t('zone.field.sellGrid.hint'))}>
           <NumberInput
             min={symbolConfig.min}
             step={symbolConfig.step}
@@ -32,6 +36,7 @@ export function ZoneSellFields({
             value={zone.sell_grid_step}
             onChange={(e) => handleChange('sell_grid_step', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('sell_grid_step', zone.sell_grid_step, symbolConfig.step, symbolConfig.precision, update)}
+            disabled={noGrid}
             className="input-s"
           />
         </InputField>
@@ -46,7 +51,7 @@ export function ZoneSellFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.field.sellTakeProfit')} hint={guided.tp(t('zone.field.sellTakeProfit.hint'))}>
+        <InputField label={t('zone.field.sellTakeProfit')} hint={moneyTp ? t('zone.field.takeProfit.money.hint') : guided.tp(t('zone.field.sellTakeProfit.hint'))}>
           <NumberInput
             min={0}
             step={symbolConfig.step}
@@ -54,6 +59,7 @@ export function ZoneSellFields({
             value={zone.sell_take_profit}
             onChange={(e) => handleChange('sell_take_profit', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('sell_take_profit', zone.sell_take_profit, symbolConfig.step, symbolConfig.precision, update)}
+            disabled={moneyTp}
             className="input-s"
           />
         </InputField>
