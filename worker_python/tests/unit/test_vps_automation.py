@@ -1,6 +1,7 @@
 """UPD-06 pip nach Update · UPD-07 Auto-Update · BOT-07 Bots nach Neustart fortsetzen ·
 VPS-05 Konsolen-Log + Windows-Skripte (ngrok-Watchdog, ASCII-PowerShell) ·
-VPS-07 Prozesse mit Adminrechten erkennen, melden und beenden."""
+VPS-07 Prozesse mit Adminrechten erkennen, melden und beenden ·
+VPS-08 Bootstrap-Skript (frisches VPS, Verbindungs-Link)."""
 import asyncio
 import json
 import shutil
@@ -266,7 +267,8 @@ def test_windows_skripte():
 @pytest.mark.feature("VPS-05")
 @pytest.mark.parametrize(
     "script",
-    ["ops/windows/vps.ps1", "ops/windows/setup_vps.ps1", "cleanup_old_instances.ps1",
+    ["ops/windows/vps.ps1", "ops/windows/setup_vps.ps1", "ops/windows/bootstrap.ps1",
+     "ops/windows/bootstrap-user.ps1", "ops/windows/connect-link.ps1", "cleanup_old_instances.ps1",
      "start.bat", "run_uvicorn_watchdog.bat", "run_ngrok_watchdog.bat"],
 )
 def test_windows_skripte_sind_ascii(script):
@@ -379,3 +381,74 @@ def test_vps_skript_erkennt_und_beendet_admin_reste():
     fix = vps[vps.index("function Invoke-FixElevated"):vps.index("function Get-TaskInfo")]
     assert "'bot', 'mt5'" in fix and "Start-Task $StartTask" in fix
     assert "'fix-elevated' { Out-Json (Invoke-FixElevated) }" in vps
+
+
+# --------------------------------------------------------------------------- VPS-08
+@pytest.mark.feature("VPS-08")
+def test_bootstrap_verlangt_adminrechte_und_git_pip_laufen_nicht_erhoeht():
+    """bootstrap.ps1 braucht Adminrechte (Systeminstallationen, Registry, Aufgaben); git/pip
+    laufen aber nie erhoeht (Rechte-Regel) - dafuer eine eigene Aufgabe mit RunLevel Limited."""
+    bootstrap = Path(WORKER_ROOT, "ops/windows/bootstrap.ps1").read_text(encoding="ascii")
+    assert bootstrap.startswith("#Requires -RunAsAdministrator")
+    code = "\n".join(line for line in bootstrap.splitlines() if not line.lstrip().startswith("#"))
+    assert "git clone" not in code and "pip install" not in code and "python -m venv" not in code
+    assert "-RunLevel Limited" in bootstrap and "'bootstrap-user.ps1'" in bootstrap
+    assert "Register-ScheduledTask -TaskName $taskName" in bootstrap
+    assert "Unregister-ScheduledTask -TaskName $taskName" in bootstrap
+    # setup_vps.ps1 (SSH/Auto-Login/MT5-Fix/Aufgaben) wird ohne -PublicKey aufgerufen (kein Mac geplant)
+    assert "-PublicKey" not in bootstrap
+    assert "$setupArgs = @('-User', $User)" in bootstrap
+    assert "(Join-Path $ScriptDir 'setup_vps.ps1') @setupArgs" in bootstrap
+
+    user_script = Path(WORKER_ROOT, "ops/windows/bootstrap-user.ps1").read_text(encoding="ascii")
+    assert "git clone $RepoUrl $RepoPath" in user_script
+    assert "python -m venv" in user_script
+    assert "pip install -r" in user_script
+    assert "Test-Elevated" in user_script and "throw " in user_script
+
+
+@pytest.mark.feature("VPS-08")
+def test_bootstrap_erzeugt_api_key_und_ngrok_domain_nur_wenn_noetig():
+    user_script = Path(WORKER_ROOT, "ops/windows/bootstrap-user.ps1").read_text(encoding="ascii")
+    body = user_script[user_script.index("# 3) API-Schluessel"):user_script.index("# 4) ngrok")]
+    assert "GetEnvironmentVariable('WORKER_API_KEY', 'User')" in body
+    assert "if (-not $key)" in body and "setx.exe WORKER_API_KEY" in body
+    ngrok = user_script[user_script.index("# 4) ngrok"):]
+    assert "if (-not (Test-Path $ngrokExe))" in ngrok
+    assert "SetEnvironmentVariable('Path'" in ngrok  # nicht setx.exe (kappt lange PATH-Werte)
+    assert "config add-authtoken" in ngrok and "setx.exe NGROK_DOMAIN" in ngrok
+
+
+@pytest.mark.feature("VPS-08")
+def test_verbindungs_link_format_passt_zu_connectioncode_ts():
+    """Muss zu frontend_nextjs/src/lib/connectionCode.ts passen: base64url(JSON {v,u,k})."""
+    link_script = Path(WORKER_ROOT, "ops/windows/connect-link.ps1").read_text(encoding="ascii")
+    assert "v = 1; u = $address; k = $apiKey" in link_script
+    assert "ConvertTo-Json -Compress" in link_script
+    # base64url ohne Padding: +/- , //_ , kein '='
+    assert ".Replace('+', '-').Replace('/', '_').TrimEnd('=')" in link_script
+    assert "/#connect=$code" in link_script
+    assert "Set-Clipboard" in link_script
+
+    bootstrap = Path(WORKER_ROOT, "ops/windows/bootstrap.ps1").read_text(encoding="ascii")
+    assert "connect-link.ps1" in bootstrap
+
+
+@pytest.mark.feature("VPS-08")
+def test_setup_vps_publickey_ist_optional():
+    """setup_vps.ps1 laeuft auch ohne Mac/SSH (bootstrap.ps1 ruft es ohne -PublicKey auf)."""
+    setup = Path(WORKER_ROOT, "ops/windows/setup_vps.ps1").read_text(encoding="ascii")
+    assert "[Parameter(Mandatory = $true)] [string]$PublicKey" not in setup
+    assert "[string]$PublicKey = ''" in setup
+    assert "if ($PublicKey) {" in setup
+    # Rechte-relevante Schritte laufen unabhaengig vom SSH-Schluessel weiter
+    assert "-RunLevel Limited" in setup and "AutoGrid-Start" in setup and "AutoGrid-Update" in setup
+
+
+@pytest.mark.feature("VPS-08")
+def test_ngrok_watchdog_liest_domain_aus_umgebungsvariable():
+    """Bootstrap setzt NGROK_DOMAIN per setx; ohne sie bleibt Halils bisheriger Wert die Vorgabe."""
+    ngrok = Path(WORKER_ROOT, "run_ngrok_watchdog.bat").read_text(encoding="ascii")
+    assert "if not defined NGROK_DOMAIN set NGROK_DOMAIN=tweet-overlying-monotone.ngrok-free.dev" in ngrok
+    # Bestehende Testzeichenketten (test_windows_skripte) bleiben unveraendert
+    assert "ngrok http 8000" in ngrok and "--log=logs\\ngrok.log" in ngrok and "goto loop" in ngrok

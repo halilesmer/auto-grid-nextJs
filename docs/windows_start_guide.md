@@ -14,6 +14,28 @@ Auf dem VPS läuft nur der Worker. Das Frontend läuft lokal auf dem MacBook (`n
 
 ---
 
+## Schnellstart per Bootstrap (frischer VPS)
+
+Auf einem frischen Windows-VPS (noch kein Git/Python/Repo) richtet ein einziger Befehl alles ein: Git, Python 3.11 und das VC++-Redistributable installieren (falls sie fehlen), Repo klonen, Python-Umgebung + `requirements.txt`, einen `WORKER_API_KEY` erzeugen, ngrok einrichten, danach Auto-Login und die geplanten Aufgaben (wie `setup_vps.ps1`, siehe unten) und den Worker starten. Am Ende steht ein **Verbindungs-Link**, den man im Frontend öffnet oder in den Verbindungsdialog einfügt – fertig, ohne RDP-Herumklicken.
+
+1. Per RDP anmelden, eine **Administrator-PowerShell** öffnen, dann:
+   ```powershell
+   irm https://raw.githubusercontent.com/halilesmer/auto-grid-nextJs/main/worker_python/ops/windows/bootstrap.ps1 | iex
+   ```
+2. Das Skript fragt nach einem **ngrok-Authtoken** und einer **festen Domain** (kostenloser Account auf [dashboard.ngrok.com](https://dashboard.ngrok.com) reicht: „Your Authtoken“ bzw. „Domains → Create Domain“) sowie – außer bei `-SkipAutoLogon` – nach dem Windows-Passwort (Auto-Login nach einem Neustart, wie bei `setup_vps.ps1`).
+3. Am Ende erscheint der Verbindungs-Link (auch in der Zwischenablage): im Browser öffnen oder auf der Web-Oberfläche „VPS verbinden“ klicken und einfügen.
+4. Nur noch **MT5 fehlt** (steht auch in der Ausgabe): MetaTrader 5 des Brokers installieren und einloggen, unter Extras → Optionen → Experten „Algorithmic Trading erlauben“ und unter Community „Python integration“ anhaken, MT5 einmal neu starten. Danach das MT5-Konto in der Web-Oberfläche anlegen.
+
+Darf beliebig oft laufen (idempotent) – z. B. um `git`/Python/ngrok auf einem zweiten VPS genauso einzurichten, oder erneut, falls ein Schritt beim ersten Mal scheiterte. Mit Parametern statt `irm | iex` (z. B. eigener Repo-Pfad):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1 -RepoPath C:\dev\auto-grid-nextJs -SkipAutoLogon
+```
+Ein weiteres Gerät verbinden oder der Schlüssel hat sich geändert: `worker_python\ops\windows\connect-link.ps1` erneut ausführen (baut denselben Link neu, ohne den Rest anzufassen).
+
+Das Bootstrap-Skript richtet **keinen SSH-Zugang** ein (das macht `setup_vps.ps1 -PublicKey ...` separat, siehe unten) – Steuerung läuft über die Web-Oberfläche. Wie überall auf dem VPS: `git`/`pip` laufen dabei nie mit Adminrechten (eigene geplante Aufgabe mit `RunLevel Limited`), auch wenn das Bootstrap-Skript selbst eine Administrator-PowerShell braucht (Systeminstallationen, Registry, Aufgaben).
+
+---
+
 ## Fernsteuerung vom Mac (empfohlen)
 
 Nach einer **einmaligen** Einrichtung wird der VPS komplett vom Mac aus gesteuert: Seite **„VPS“** im lokalen Frontend (http://localhost:3000/vps). Dort gibt es Status (Worker, ngrok, Bots, Version, Autostart), „Nach Updates suchen“, „Update & Neustart“, „Worker neu starten“, „ngrok neu starten“, „VPS neu starten“ und die Logs. Kein RDP, kein Administrator-Fenster.
