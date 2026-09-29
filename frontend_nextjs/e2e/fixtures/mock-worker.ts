@@ -61,13 +61,14 @@ export class MockWorker {
   readonly overrides = new Map<string, Reply>();
   /** URLs aller WebSocket-Verbindungen (inkl. Reconnects). */
   readonly wsUrls: string[] = [];
-  private sockets = new Set<WebSocketRoute>();
+  /** Offene Streams und ihr Konto aus ?account_id= (null: ohne Parameter → erstes Konto). */
+  private sockets = new Map<WebSocketRoute, string | null>();
 
   async install(page: Page) {
     await page.route(`${MOCK_API}/**`, (route) => this.handle(route));
     await page.routeWebSocket(/\/ws\/stream/, (ws) => {
       this.wsUrls.push(ws.url());
-      this.sockets.add(ws);
+      this.sockets.set(ws, new URL(ws.url()).searchParams.get('account_id'));
       ws.onClose(() => this.sockets.delete(ws));
       // Client sendet nichts; eingehende Nachrichten werden ignoriert
       ws.onMessage(() => {});
@@ -102,15 +103,32 @@ export class MockWorker {
     return this.sockets.size;
   }
 
-  /** METRICS-Nachricht an alle offenen Streams (wie ws_server.real_bot_data_stream). */
+  /** Konten der offenen Streams (null: ohne ?account_id=). */
+  get socketAccounts(): (string | null)[] {
+    return [...this.sockets.values()];
+  }
+
+  /**
+   * METRICS-Nachricht wie ws_server.real_bot_data_stream: mit account_id nur an die Streams
+   * dieses Kontos (ohne ?account_id= zählt das erste Konto), ohne account_id an alle.
+   */
   pushMetrics(payload: Partial<Metrics>) {
     const message = JSON.stringify({ type: 'METRICS', payload });
-    for (const ws of this.sockets) ws.send(message);
+    const firstAccount = this.state.accounts[0]?.id ?? 'default';
+    for (const [ws, account] of this.sockets) {
+      if (payload.account_id == null || String(payload.account_id) === (account ?? firstAccount)) ws.send(message);
+    }
+  }
+
+  /** Wie ein älterer Worker, der ?account_id= nicht kennt: METRICS an alle Streams. */
+  pushMetricsToAll(payload: Partial<Metrics>) {
+    const message = JSON.stringify({ type: 'METRICS', payload });
+    for (const ws of this.sockets.keys()) ws.send(message);
   }
 
   /** Alle Streams serverseitig schließen (Worker-Neustart); der Client soll neu verbinden. */
   dropWebSockets() {
-    for (const ws of this.sockets) ws.close({ code: 1012, reason: 'Service Restart' });
+    for (const ws of this.sockets.keys()) ws.close({ code: 1012, reason: 'Service Restart' });
     this.sockets.clear();
   }
 

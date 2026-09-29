@@ -61,9 +61,9 @@ test.describe('ACC Konten', () => {
     worker.pushMetrics({ account_id: LIVE_ID, price: 98.5 });
     await expect(price).toContainText(fmt().number(98.5));
 
-    // Der Worker streamt immer das erste Konto → hier nicht anzeigen. Die RSI-Nachricht danach
+    // Älterer Worker streamt allen das erste Konto → hier nicht anzeigen. Die RSI-Nachricht danach
     // zeigt, dass die DEMO-Nachricht (in Reihenfolge) schon verarbeitet ist.
-    worker.pushMetrics({ account_id: DEMO_ID, price: 97.25 });
+    worker.pushMetricsToAll({ account_id: DEMO_ID, price: 97.25 });
     worker.pushMetrics({ account_id: LIVE_ID, rsi: 55.123 });
     await expect(page.getByTestId('chart-stat-rsi')).toContainText(
       fmt().number(55.123, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -71,8 +71,29 @@ test.describe('ACC Konten', () => {
     await expect(price).toContainText(fmt().number(98.5));
 
     // Ohne account_id (älterer Worker) wird weiter angezeigt
-    worker.pushMetrics({ price: 99.75 });
+    worker.pushMetricsToAll({ price: 99.75 });
     await expect(price).toContainText(fmt().number(99.75));
+  });
+
+  test('Stream folgt dem gewählten Konto', { tag: '@ACC-10' }, async ({ page, worker, dashboard }) => {
+    worker.state.settings[LIVE_ID].ZONES = [makeZone()];
+    await dashboard.open(DEMO_ID);
+    await expect.poll(() => worker.socketAccounts).toEqual([DEMO_ID]);
+    expect(new URL(worker.wsUrls.at(-1)!).searchParams.get('api_key')).toBe('e2e-key');
+
+    // Kontowechsel: alter Stream zu, neuer mit ?account_id= des zweiten Kontos
+    await dashboard.selectAccount(LIVE_ID);
+    await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
+
+    await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
+    await expect(page).toHaveURL(`/chart?zone=${ZONE_ID}`);
+    await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
+    // Der Worker schickt diesem Stream die Metriken des zweiten Kontos (RSI, Live-Preis)
+    worker.pushMetrics({ account_id: LIVE_ID, price: 98.5, rsi: 55.123 });
+    await expect(page.getByTestId('chart-stat-price')).toContainText(fmt().number(98.5));
+    await expect(page.getByTestId('chart-stat-rsi')).toContainText(
+      fmt().number(55.123, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    );
   });
 
   test('LIVE/TEST-Kennzeichnung', { tag: '@ACC-07' }, async ({ page, dashboard }) => {

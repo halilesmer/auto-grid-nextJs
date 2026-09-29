@@ -327,7 +327,7 @@ grid_orchestrator (Ana Orkestratör)
 | `helpers.py` | - | API ortak yardımcı fonksiyonları (`_public_account`: yanıtlardan şifreyi çıkarır) |
 | `auth.py` | - | `WORKER_API_KEY` ayarlıysa `/api/*` için `X-API-Key`, `/ws/stream` için `?api_key=` zorunlu (middleware: `main.py`) |
 | `errors.py` | - | Merkezi exception handler, hata response formatı |
-| `ws_server.py` | `/ws` | WebSocket bağlantı yönetimi, mesaj routing, broadcast |
+| `ws_server.py` | `/ws` | WebSocket bağlantı yönetimi; her bağlantıya `?account_id=` ile seçilen hesabın metriklerini gönderir (parametresiz: ilk hesap). API sürecinin MT5'i yalnızca bağlı olduğu hesap için kullanılır, diğer hesaplar bot sürecinin metrik dosyasından (`logs/<id>/met_<id>.json`) |
 
 ### 7. Dağıtım (Deployment)
 

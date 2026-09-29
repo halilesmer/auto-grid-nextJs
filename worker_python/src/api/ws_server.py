@@ -38,19 +38,39 @@ router = APIRouter(lifespan=router_lifespan)
 
 
 class ConnectionManager:
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
+    """Açık WS bağlantıları ve her birinin izlediği hesap.
 
-    async def connect(self, websocket: WebSocket):
+    Hesap, tarayıcıda seçili olandır (?account_id=); None: parametre göndermeyen eski
+    istemci veya hesap seçmeden açılan grafik sayfası → accounts.json'daki ilk hesap.
+    """
+
+    def __init__(self):
+        self.active_connections: dict[WebSocket, str | None] = {}
+
+    async def connect(self, websocket: WebSocket, account_id: str | None = None):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_connections[websocket] = account_id
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        # pop: gönderim hatası bağlantıyı zaten çıkarmış olabilir (remove ValueError atıyordu)
+        self.active_connections.pop(websocket, None)
+
+    def requested_accounts(self) -> set[str | None]:
+        return set(self.active_connections.values())
+
+    async def send_to(self, requested: set[str | None], message: str):
+        """Mesajı yalnızca bu hesaplardan birini isteyen bağlantılara gönderir."""
+        await self._send(
+            [ws for ws, acc in list(self.active_connections.items()) if acc in requested],
+            message,
+        )
 
     async def broadcast(self, message: str):
+        await self._send(list(self.active_connections), message)
+
+    async def _send(self, connections: list[WebSocket], message: str):
         disconnected = []
-        for connection in self.active_connections:
+        for connection in connections:
             try:
                 await connection.send_text(message)
             except Exception:
@@ -62,15 +82,25 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-def fetch_mt5_data(symbol=""):
+def fetch_mt5_data(symbols_by_login: dict[int, str]):
     """
     MT5'ten senkron olarak veri çeker. (Event loop'u bloklamamak için thread içinde çalışacak)
+
+    API sürecinin MT5 bağlantısı aynı anda tek bir terminale bağlıdır: veri yalnızca o
+    terminalde açık olan hesap için (login → sembol eşlemesinden) çekilir. Dönen sözlükteki
+    login/symbol, verinin hangi hesaba ait olduğunu söyler; diğer hesaplar bot metriklerine düşer.
     """
-    if not MT5_AVAILABLE or not symbol:
+    if not MT5_AVAILABLE or not symbols_by_login:
         return None
 
     term_info = mt5.terminal_info()
     if term_info is None or not getattr(term_info, "connected", False):
+        return None
+
+    acc_info = mt5.account_info()
+    login = int(acc_info.login) if acc_info is not None else None
+    symbol = symbols_by_login.get(login)
+    if not symbol:
         return None
 
     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 100)
@@ -108,6 +138,8 @@ def fetch_mt5_data(symbol=""):
     current_price = float(df.iloc[-1]["close"])
 
     return {
+        "login": login,
+        "symbol": symbol,
         "df": df,
         "price": current_price,
         "profit": round(profit, 2),
@@ -185,44 +217,71 @@ def report_stream_error(acc_id: str, exc: BaseException) -> None:
         print(msg)
 
 
-def resolve_stream_target(base_dir: str) -> tuple[str, str]:
-    """Akışın hesabı (accounts.json'daki ilk hesap) ve sembolü (o hesabın ilk bölgesi)."""
-    acc_id, symbol = "default", ""
+def load_stream_accounts(base_dir: str) -> list[dict]:
+    """accounts.json'daki hesaplar (turda bir kez okunur); okunamazsa boş liste."""
     try:
         with open(os.path.join(base_dir, "configs", "accounts.json"), "r") as f:
-            acc_id = str(json.load(f)["accounts"][0]["id"])
-        settings_files = glob.glob(
-            os.path.join(base_dir, "configs", f"settings_{acc_id}*.json")
-        )
-        if settings_files:
-            with open(settings_files[0], "r", encoding="utf-8") as f:
-                settings_data = json.load(f)
-            # Kayıtlı dosyalar düz ({"ZONES": [...]}); eski/iç içe biçim de desteklenir
-            while isinstance(settings_data, dict) and isinstance(
-                settings_data.get("settings"), dict
-            ):
-                settings_data = settings_data["settings"]
-            zones = (
-                settings_data.get("ZONES", [])
-                if isinstance(settings_data, dict)
-                else []
-            )
-            if zones and "symbol" in zones[0]:
-                symbol = str(zones[0]["symbol"]).upper().strip()
+            accounts = json.load(f)["accounts"]
+        return accounts if isinstance(accounts, list) else []
     except Exception:
-        pass
-    return acc_id, symbol
+        return []
 
 
-async def fetch_mt5_data_with_timeout(symbol: str):
+def first_zone_symbol(base_dir: str, acc_id: str) -> str:
+    """Hesabın ilk bölgesinin sembolü (Auto Grid ayar dosyası önce); yoksa boş."""
+    # "_" şart: settings_1001* aksi halde settings_10011_... dosyasını da yakalar
+    settings_files = sorted(
+        glob.glob(os.path.join(base_dir, "configs", f"settings_{acc_id}_*.json")),
+        key=lambda path: (not path.endswith("_Auto_Grid.json"), path),
+    )
+    if not settings_files:
+        return ""
+    try:
+        with open(settings_files[0], "r", encoding="utf-8") as f:
+            settings_data = json.load(f)
+    except Exception:
+        return ""
+    # Kayıtlı dosyalar düz ({"ZONES": [...]}); eski/iç içe biçim de desteklenir
+    while isinstance(settings_data, dict) and isinstance(settings_data.get("settings"), dict):
+        settings_data = settings_data["settings"]
+    zones = settings_data.get("ZONES", []) if isinstance(settings_data, dict) else []
+    if zones and isinstance(zones[0], dict) and "symbol" in zones[0]:
+        return str(zones[0]["symbol"]).upper().strip()
+    return ""
+
+
+def resolve_stream_target(
+    base_dir: str, accounts: list[dict], requested: str | None = None
+) -> tuple[str, str, int | None]:
+    """Akışın hesabı, sembolü (o hesabın ilk bölgesi) ve MT5 login'i.
+
+    `requested`: tarayıcıda seçili hesap; None ise accounts.json'daki ilk hesap.
+    accounts.json'da olmayan hesap için sembol ve login boş döner (yalnızca durum gönderilir).
+    """
+    if requested is None:
+        account = accounts[0] if accounts else None
+    else:
+        account = next((a for a in accounts if str(a.get("id")) == requested), None)
+    if not isinstance(account, dict) or "id" not in account:
+        return requested or "default", "", None
+    acc_id = str(account["id"])
+    try:
+        login = int(account.get("login") or 0) or None
+    except (TypeError, ValueError):
+        login = None
+    return acc_id, first_zone_symbol(base_dir, acc_id), login
+
+
+async def fetch_mt5_data_with_timeout(symbols_by_login: dict[int, str]):
     """fetch_mt5_data'yı thread'de çalıştırır; takılırsa None döner.
 
-    Takılan sorgu bitene kadar yenisi başlatılmaz (thread'ler birikmesin); o sırada
-    çağıran bot metriklerine düşer.
+    Turda tek sorgu vardır (hangi hesaba ait olduğu sonuçta yazar); takılan sorgu bitene
+    kadar yenisi başlatılmaz (thread'ler birikmesin), o sırada tüm hesaplar bot
+    metriklerine düşer. Böylece takılma turu en fazla bir kez geciktirir, hesap başına değil.
     """
     global _fetch_task
     if _fetch_task is None or _fetch_task.done():
-        _fetch_task = asyncio.ensure_future(asyncio.to_thread(fetch_mt5_data, symbol))
+        _fetch_task = asyncio.ensure_future(asyncio.to_thread(fetch_mt5_data, symbols_by_login))
     task = _fetch_task
     try:
         return await asyncio.wait_for(asyncio.shield(task), timeout=MT5_FETCH_TIMEOUT_SEC)
@@ -230,23 +289,23 @@ async def fetch_mt5_data_with_timeout(symbol: str):
         return None
 
 
-async def build_stream_message(acc_id: str, symbol: str) -> tuple[dict, dict | None]:
-    """Bir turun WS mesajı. İkinci değer: logs/met_<id>.json'a yazılacak payload (yalnızca MT5'ten)."""
-    try:
-        data = await fetch_mt5_data_with_timeout(symbol)
-    except Exception as exc:
-        report_stream_error(acc_id, exc)
-        data = None
+async def build_stream_message(
+    acc_id: str, symbol: str, data: dict | None, known: bool = True
+) -> tuple[dict, dict | None]:
+    """Bir hesabın bu turdaki WS mesajı. `data`: bu hesaba ait MT5 verisi (yoksa None).
 
+    İkinci değer: logs/met_<id>.json'a yazılacak payload (yalnızca MT5'ten).
+    `known=False`: accounts.json'da olmayan hesap → dosyalara dokunmadan yalnızca durum.
+    """
     if not data:
-        # API süreci MT5'e bağlı değilse (ör. worker yeniden başladı, /start
-        # çağrılmadı) bot sürecinin metrik dosyasına düş: grafik yine fiyat alır.
-        fallback = await asyncio.to_thread(read_bot_metrics, acc_id, symbol)
+        # API süreci bu hesabın terminaline bağlı değilse (başka hesap, worker yeniden
+        # başladı, /start çağrılmadı) bot sürecinin metrik dosyasına düş: grafik yine fiyat alır.
+        fallback = await asyncio.to_thread(read_bot_metrics, acc_id, symbol) if known else None
         if fallback:
             return {"type": "METRICS", "payload": fallback}, None
         return {
             "type": "LIVE_DATA",
-            "payload": {"mt5_connected": False, "market_open": False},
+            "payload": {"account_id": acc_id, "mt5_connected": False, "market_open": False},
         }, None
 
     # İndikatör hatası (ör. uyumsuz pandas_ta) fiyat yayınını durdurmamalı
@@ -257,8 +316,8 @@ async def build_stream_message(acc_id: str, symbol: str) -> tuple[dict, dict | N
         indicators = {"rsi": None, "macd": None}
 
     payload = {
-        # Akış hep accounts.json'daki ilk hesabı yayınlar; arayüz başka hesap seçiliyken
-        # bu metrikleri account_id'ye bakarak yok sayar
+        # Her bağlantı kendi hesabını alır; arayüz yine de account_id'ye bakar (eski worker
+        # hep ilk hesabı yayınlıyordu)
         "account_id": acc_id,
         # Grafik sayfası (/chart?zone=) akışın hangi sembolü gösterdiğini bilmeli
         "symbol": symbol,
@@ -293,25 +352,74 @@ def write_stream_metrics(base_dir: str, acc_id: str, payload: dict) -> None:
         json.dump(payload, f)
 
 
+def group_stream_targets(
+    base_dir: str, requested: set[str | None]
+) -> dict[str, tuple[str, int | None, set[str | None]]]:
+    """Bağlantıların istediği hesapları çözer: hesap → (sembol, login, bu hesabı isteyen anahtarlar).
+
+    Parametresiz bağlantı (None) ile ilk hesabı açıkça isteyen bağlantı aynı hesaptır: bir kez işlenir.
+    """
+    accounts = load_stream_accounts(base_dir)
+    targets: dict[str, tuple[str, int | None, set[str | None]]] = {}
+    for req in requested:
+        acc_id, symbol, login = resolve_stream_target(base_dir, accounts, req)
+        if acc_id in targets:
+            targets[acc_id][2].add(req)
+        else:
+            targets[acc_id] = (symbol, login, {req})
+    return targets
+
+
+async def fetch_attached_account_data(
+    targets: dict[str, tuple[str, int | None, set[str | None]]],
+) -> dict | None:
+    """Turun tek MT5 sorgusu: API sürecinin terminalindeki hesap istenenlerden biriyse onun verisi."""
+    symbols_by_login = {login: symbol for symbol, login, _ in targets.values() if login and symbol}
+    if not symbols_by_login:
+        return None
+    try:
+        return await fetch_mt5_data_with_timeout(symbols_by_login)
+    except Exception as exc:
+        report_stream_error(next(iter(targets)), exc)
+        return None
+
+
 async def real_bot_data_stream():
-    """MT5'ten gerçek veriyi 1 saniyede bir çekip WS ile yayınlar."""
+    """Her bağlantının hesabı için veriyi 1 saniyede bir toplayıp yalnızca o bağlantılara gönderir."""
     base_dir = BASE_DIR
     while True:
         acc_id = "default"
         try:
             await asyncio.sleep(1.0)
-            # Arayüzdeki aktif sembolü dinamik oku
-            acc_id, symbol = resolve_stream_target(base_dir)
-            message, to_file = await build_stream_message(acc_id, symbol)
+            # Bağlantı yoksa da ilk hesap işlenir: logs/met_<id>.json yedeği güncel kalır
+            requested = manager.requested_accounts() or {None}
+            # Arayüzdeki aktif hesap/sembol her turda dinamik okunur
+            targets = group_stream_targets(base_dir, requested)
+            mt5_data = await fetch_attached_account_data(targets)
 
-            # Önce yayınla: dosya yazılamasa da (ör. Windows izinleri) akış devam eder
-            await manager.broadcast(json.dumps(message))
-
-            if to_file is not None:
+            for acc_id, (symbol, login, receivers) in targets.items():
+                # Bir hesabın hatası (ör. bozuk metrik dosyası) diğer hesapların turunu düşürmesin
                 try:
-                    write_stream_metrics(base_dir, acc_id, to_file)
+                    own = (
+                        mt5_data
+                        if mt5_data and login and mt5_data.get("login") == login and mt5_data.get("symbol") == symbol
+                        else None
+                    )
+                    message, to_file = await build_stream_message(acc_id, symbol, own, known=login is not None)
+
+                    # Önce gönder: dosya yazılamasa da (ör. Windows izinleri) akış devam eder
+                    await manager.send_to(receivers, json.dumps(message))
+                except asyncio.CancelledError:
+                    raise
                 except Exception as exc:
                     report_stream_error(acc_id, exc)
+                    continue
+
+                if to_file is not None:
+                    try:
+                        write_stream_metrics(base_dir, acc_id, to_file)
+                    except Exception as exc:
+                        report_stream_error(acc_id, exc)
         except asyncio.CancelledError:
             # Graceful shutdown
             raise
@@ -331,10 +439,18 @@ async def websocket_endpoint(websocket: WebSocket):
     if not is_valid_api_key(provided):
         await websocket.close(code=1008)  # policy violation; accept öncesi → HTTP 403
         return
-    await manager.connect(websocket)
+    # Tarayıcıda seçili hesap; yoksa ilk hesap. Yalnızca rakam (MT5 login'i, dosya adlarında
+    # kullanılır): geçersiz değer başka bir hesaba yorumlanmaz, reddedilir.
+    account_id = websocket.query_params.get("account_id")
+    if account_id is not None and not (account_id.isascii() and account_id.isdigit()):
+        await websocket.close(code=1008)
+        return
+    await manager.connect(websocket, account_id)
     try:
         while True:
             data = await websocket.receive_text()
             print(f"Received from WS client: {data}")
     except WebSocketDisconnect:
+        pass
+    finally:
         manager.disconnect(websocket)

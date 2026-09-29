@@ -73,7 +73,7 @@ The GitHub Action `.github/workflows/version-bump.yml` bumps the patch version o
 
 ### Frontend ↔ Worker
 - REST under `/api/*` (FastAPI routers in `worker_python/src/api/`, one module per domain: accounts, bot_control, settings, symbols, logs, system, ui_state; shared Pydantic models in `models.py`, error handling in `errors.py`).
-- WebSocket at `/ws/stream` (`src/api/ws_server.py`, mounted under `/ws` in `main.py`) pushes live metrics, logs, and status. On the client, `src/store/useWebSocketManager.ts` owns the connection and routes messages into the stores.
+- WebSocket at `/ws/stream` (`src/api/ws_server.py`, mounted under `/ws` in `main.py`) pushes live metrics, logs, and status. Each connection gets the metrics of the account in `?account_id=` (the one selected in the browser; without it, the first account in `accounts.json`): from the API process's MT5 only if that terminal is logged into this account, otherwise from the bot process's metrics file. On the client, `src/store/useWebSocketManager.ts` owns the connection (reconnects when the selected account changes) and routes messages into the stores.
 - Frontend HTTP calls go through `axiosInstance` in `src/lib/api.ts` (it sends the `ngrok-skip-browser-warning` header). Zone-specific calls live in `src/services/zoneApi.ts`.
 
 ### Frontend state

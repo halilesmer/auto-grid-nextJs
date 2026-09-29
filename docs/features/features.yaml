@@ -209,12 +209,13 @@ kategorien:
 
       - id: ACC-10
         titel: Kontowechsel zeigt nur Daten des gewählten Kontos
-        beschreibung: Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. WS-Metriken tragen account_id; Metriken eines anderen Kontos ignoriert das Frontend.
-        code: [frontend_nextjs/src/components/account/AccountSelector.tsx, frontend_nextjs/src/store/useWebSocketManager.ts, worker_python/src/api/ws_server.py]
+        beschreibung: Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. Der WS-Stream folgt dem gewählten Konto (/ws/stream?account_id=, neu verbunden beim Wechsel); der Worker sendet jeder Verbindung nur ihr Konto – aus der MT5-Abfrage des API-Prozesses nur, wenn dessen Terminal an diesem Konto angemeldet ist, sonst aus der Metrikdatei des Bot-Prozesses. WS-Metriken tragen account_id; Metriken eines anderen Kontos (älterer Worker) ignoriert das Frontend.
+        code: [frontend_nextjs/src/components/account/AccountSelector.tsx, frontend_nextjs/src/store/useWebSocketManager.ts, frontend_nextjs/src/lib/connectionCode.ts, worker_python/src/api/ws_server.py]
         tiers: [api, e2e, live]
         pruefung:
           - Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft.
-        erwartet: Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status.
+          - Zweites Konto mit laufendem Bot wählen, /chart bzw. /formasyon öffnen; DevTools → WS-URL und Nachrichten ansehen.
+        erwartet: Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status. Mit laufendem Bot bekommt das zweite Konto eigene Stream-Metriken (Live-Preis im Chart; die WS-URL enthält account_id=<Konto>, jede METRICS-Nachricht dessen account_id).
 
   # ---------------------------------------------------------------------------
   - id: SET
@@ -775,7 +776,7 @@ kategorien:
 
       - id: MET-03
         titel: WebSocket-Metriken des Workers
-        beschreibung: ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0; jede METRICS-Nachricht trägt account_id (siehe ACC-10).
+        beschreibung: ws_server sendet jeder Verbindung jede Sekunde Preis, RSI, MACD, P/L, Positionen für ihr Konto (?account_id=, ohne Parameter das erste Konto) und dessen Zone 0; jede METRICS-Nachricht trägt account_id (siehe ACC-10). RSI/MACD gibt es nur, wenn das MT5-Terminal des API-Prozesses an diesem Konto angemeldet ist; sonst Preis/P/L aus der Metrikdatei des Bots.
         code: [worker_python/src/api/ws_server.py, worker_python/src/core/indicator_calc.py]
         tiers: [unit, live]
         pruefung:
