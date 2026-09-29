@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
@@ -18,12 +18,10 @@ interface ModalProps {
   dismissible?: boolean;
 }
 
-const subscribe = () => () => {};
-
 export function Modal({ open, onClose, title, icon, children, className, dismissible = true }: ModalProps) {
   const t = useT();
-  // Portal nur im Browser (SSR-sicher)
-  const isClient = useSyncExternalStore(subscribe, () => true, () => false);
+  // Anker bleibt an der Einbaustelle, um den Portal-Container zu bestimmen (erst im Browser vorhanden)
+  const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null);
   useEffect(() => {
     if (!open || !dismissible) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -31,55 +29,62 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
     return () => window.removeEventListener('keydown', onKey);
   }, [open, dismissible, onClose]);
 
-  // Portal nach body: sonst wird `fixed` relativ zu transformierten Vorfahren (Zonenkarten) positioniert
-  if (!isClient) return null;
+  // Portal: sonst wird `fixed` relativ zu transformierten Vorfahren (Zonenkarten) positioniert.
+  // Steckt das Modal in einem nativen <dialog> (showModal, Top Layer), muss es dort hinein – sonst liegt es dahinter.
+  const container = anchor ? (anchor.closest('dialog') ?? document.body) : null;
 
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <motion.div
-            className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={dismissible ? onClose : undefined}
-          />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            initial={{ opacity: 0, y: 12, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
-            className={cn(
-              'relative w-full max-w-md rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl shadow-black/15 dark:shadow-black/60',
-              className,
-            )}
-          >
-            {(title || dismissible) && (
-              <div className="mb-4 flex items-center gap-3">
-                {icon}
-                {title && <h3 className="flex-1 text-base font-semibold tracking-tight">{title}</h3>}
-                {dismissible && (
-                  <Tooltip content={t('ui.close.hint')} className="ml-auto">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
-                      aria-label={t('ui.close')}
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </Tooltip>
+  return (
+    <>
+      <span ref={setAnchor} hidden />
+      {container &&
+        createPortal(
+        <AnimatePresence>
+          {open && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div
+                className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={dismissible ? onClose : undefined}
+              />
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
+                className={cn(
+                  'relative w-full max-w-md rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl shadow-black/15 dark:shadow-black/60',
+                  className,
                 )}
-              </div>
-            )}
-            {children}
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>,
-    document.body,
+              >
+                {(title || dismissible) && (
+                  <div className="mb-4 flex items-center gap-3">
+                    {icon}
+                    {title && <h3 className="flex-1 text-base font-semibold tracking-tight">{title}</h3>}
+                    {dismissible && (
+                      <Tooltip content={t('ui.close.hint')} className="ml-auto">
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          className="rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                          aria-label={t('ui.close')}
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </Tooltip>
+                    )}
+                  </div>
+                )}
+                {children}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+          container,
+        )}
+    </>
   );
 }
