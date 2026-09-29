@@ -5,7 +5,6 @@ import type { ZoneBasicFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { useFormat, useT } from '@/i18n';
-import { entryOf } from '@/utils/zoneHelpers';
 
 export function ZoneBasicFields({
   zone,
@@ -52,9 +51,6 @@ export function ZoneBasicFields({
           <option value="BUY">BUY</option>
           <option value="SELL">SELL</option>
           <option value="BOTH">BOTH</option>
-          <option value="AUTO" disabled={entryOf(zone).entry_mode === 'GRID'}>
-            {t('zone.field.orderType.auto')}
-          </option>
         </select>
       </InputField>
       <InputField label={t('zone.field.minPrice')} hint={t('zone.field.minPrice.hint')}>
