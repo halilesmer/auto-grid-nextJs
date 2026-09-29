@@ -225,6 +225,20 @@ test.describe('VPS Fernsteuerung', () => {
 });
 
 test.describe('VPS Routen-Schutz', () => {
+  // Öffentliche Version (Vercel): die Route bleibt zu, die Seite erklärt das statt ein rotes Fehlerpanel zu zeigen
+  test('nicht-lokale Version: Hinweis statt Fehler', { tag: '@VPS-04' }, async ({ page, worker }) => {
+    void worker;
+    await page.route('**/api/vps/**', (route) =>
+      route.fulfill({
+        status: 403,
+        json: { ok: false, error: 'VPS-Steuerung nur lokal (localhost) erlaubt', code: 'localOnly' },
+      }),
+    );
+    await page.goto('/vps');
+    await expect(page.getByTestId('vps-local-only')).toContainText(msg('vps.localOnly.title'));
+    await expect(page.getByTestId('vps-status')).toBeHidden();
+  });
+
   // Echter Testserver: fremder Host/fremde Origin wird abgewiesen, bevor irgendetwas per SSH läuft
   test('nur localhost und gleiche Origin', { tag: '@VPS-04' }, async ({ request }) => {
     const foreignHost = await request.get('/api/vps/status', { headers: { 'X-Forwarded-Host': 'evil.example' } });

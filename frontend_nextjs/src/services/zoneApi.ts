@@ -1,4 +1,4 @@
-import { axiosInstance } from './api';
+import { axiosInstance } from '@/lib/api';
 import type { ZoneSettings } from '@/store/types';
 
 export interface RemoteSettings {

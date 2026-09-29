@@ -56,6 +56,10 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # Global Ayarlar (ORDER_TYPE, LOOP_INTERVAL)
 ┃ ┃ ┃ ┣ 📜 SymbolAutoComplete.tsx # Sembol otomatik tamamlama
 ┃ ┃ ┃ ┣ 📜 ZoneSettingsPanel.tsx # Bölge Ayarları Paneli (Dinamik Zone Yönetimi)
+┃ ┃ ┃ ┣ 📂 connection            # Worker bağlantısı (tarayıcıda girilen adres + API key)
+┃ ┃ ┃ ┃ ┣ 📜 ConnectionChip.tsx  # Header'daki durum göstergesi (bağlı/bağlı değil/…), tıklayınca dialog açar
+┃ ┃ ┃ ┃ ┣ 📜 ConnectionDialog.tsx # Adres+key formu, bağlantı-linki alanı, test/bağlan/bağlantıyı kes
+┃ ┃ ┃ ┃ ┗ 📜 ConnectionGate.tsx  # Bağlantı yokken /vps hariç tüm sayfaların yerine rehber kart gösterir
 ┃ ┃ ┃ ┣ 📂 account              # Hesap yönetimi bileşenleri
 ┃ ┃ ┃ ┃ ┣ 📜 AccountSelector.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 index.ts
@@ -106,7 +110,9 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 vps.ts               # VPS aksiyonları ve tipleri (sayfa + route ortak)
 ┃ ┃ ┃ ┣ 📂 server
 ┃ ┃ ┃ ┃ ┗ 📜 vpsSsh.ts          # ssh çağrısı (sadece sunucu tarafı)
-┃ ┃ ┃ ┗ 📜 api.ts               # API yardımcı fonksiyonları
+┃ ┃ ┃ ┣ 📜 connectionCode.ts    # Adres normalizasyonu + bağlantı-linki (#connect=…) encode/decode; saf fonksiyonlar
+┃ ┃ ┃ ┣ 📜 connection.ts        # probeWorker(): GET /system/platform ile adres+key testi (ok/insecure/unauthorized/unreachable/notWorker)
+┃ ┃ ┃ ┗ 📜 api.ts               # axiosInstance + getWorkerHeaders()/apiUrl(); adres/key useConnectionStore'dan okunur (build-time değil)
 ┃ ┃ ┣ 📂 i18n                   # Çok dillilik (tr/en/de)
 ┃ ┃ ┃ ┣ 📜 config.ts            # Diller, varsayılan (tr), storage anahtarı, <html lang> init script
 ┃ ┃ ┃ ┣ 📜 translate.ts         # translate(locale, key, params): {yer} tutucuları, çoğul (_one/_other), yedek sıra
@@ -123,6 +129,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 useSystemStore.ts    # Sistem durumu state
 ┃ ┃ ┃ ┣ 📜 useLocaleStore.ts    # Dil tercihi (tr/en/de), localStorage'a persist
 ┃ ┃ ┃ ┣ 📜 useThemeStore.ts     # Tema tercihi (Açık/Koyu/Sistem), localStorage'a persist
+┃ ┃ ┃ ┣ 📜 useConnectionStore.ts # Worker adresi+API key (localStorage'a persist, cihaza özel); yoksa NEXT_PUBLIC_API_URL/KEY başlangıç değeri olur
+┃ ┃ ┃ ┣ 📜 useConnectionDialogStore.ts # Bağlantı dialogunun açık/kapalı durumu (persist edilmez)
 ┃ ┃ ┃ ┣ 📜 useWebSocketManager.ts # WebSocket bağlantı yönetimi
 ┃ ┃ ┃ ┗ 📂 utils
 ┃ ┃ ┃   ┗ 📜 resetStores.ts     # Store sıfırlama yardımcıları
@@ -241,6 +249,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
   - `useSystemStore.ts` - Sistem durumu, bağlantı durumu, versiyon
   - `useLocaleStore.ts` - Arayüz dili (`tr`/`en`/`de`), `useThemeStore` ile aynı kalıp: `persist` + `skipHydration`, `layout.tsx`'teki inline script (`i18n/config.ts`) `<html lang>`'ı ilk paint'ten önce koyar, sonrasını `components/layout/LocaleSync.tsx` yönetir. Metinler `src/i18n/messages/<bölüm>.ts` içinde (her bölümde tr/en/de yan yana, tsc aynı anahtarları zorlar); bileşenlerde `useT()`, bileşen dışında (hook içi toast, store, `apiError`) `t()`; sayı/saat için `useFormat()`
   - `useThemeStore.ts` - Tema tercihi ve çözülmüş tema (`resolvedTheme`); tek `persist` kullanan store. İlk paint'teki `.dark` class'ını `layout.tsx`'teki inline script (`lib/theme.ts`) koyar, sonrasını `components/layout/ThemeSync.tsx` yönetir
+  - `useConnectionStore.ts` - Worker adresi + API key (aynı `persist`+`skipHydration` kalıbı, `components/layout/ConnectionSync.tsx` rehydrate eder). Vercel'de build-time env yok: adres/key sadece bu tarayıcının `localStorage`'ında durur, worker'a doğrudan tarayıcıdan gider (Vercel sunucusu görmez). `lib/api.ts`'teki `axiosInstance`/`apiUrl()`/`getWorkerHeaders()` ve `useWebSocketManager`'daki `toWsUrl()` her istekte buradan okur; bağlantı yoksa `NotConnectedError` fırlatılır. `ConnectionGate` bağlantı yokken `/vps` hariç tüm sayfaların yerine bir rehber kart gösterir. Bağlantı-linki (`#connect=…`, `lib/connectionCode.ts`) adres+key'i doldurur ama hiçbir zaman sessizce kaydetmez – kullanıcı dialogda onaylamalı. worker_python/ops/windows/connect-link.ps1 (planlanan) aynı kod biçimini üretecek.
   - `useWebSocketManager.ts` - WebSocket bağlantı yaşam döngüsü, reconnect, mesaj routing
 - **Worker**: `state_manager.py` - MT5 "Source of Truth" prensibiyle pozisyon/emir senkronizasyonu, `data/state_*.json` dosyalarına yazım
 - **Configs**: `worker_python/configs/` - `accounts.json`, `settings_*.json`
@@ -308,7 +317,7 @@ grid_orchestrator (Ana Orkestratör)
 | `settings.py` | `/api/settings` | Global/Zone ayarları yükleme, kaydetme |
 | `symbols.py` | `/api/symbols` | Sembol arama, detay, tick bilgisi |
 | `logs.py` | `/api/logs` | Log sorgulama, filtreleme, indirme |
-| `system.py` | `/api/system` | Sistem durumu, versiyon, sağlık kontrolü |
+| `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update; ayrı bir `/health` yok |
 | `ui_state.py` | `/api/ui-state` | UI state kaydetme/yükleme (panel genişlikleri, vb.) |
 | `models.py` | - | Paylaşılan Pydantic modelleri (Request/Response) |
 | `helpers.py` | - | API ortak yardımcı fonksiyonları (`_public_account`: yanıtlardan şifreyi çıkarır) |

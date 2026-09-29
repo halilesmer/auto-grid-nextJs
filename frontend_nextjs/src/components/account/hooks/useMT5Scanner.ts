@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import type { UseMT5ScannerReturn } from '../types';
-import { API, axiosInstance } from '@/lib/api';
+import { axiosInstance } from '@/lib/api';
 import { t } from '@/i18n';
 
 export function useMT5Scanner(): UseMT5ScannerReturn {
@@ -14,7 +14,7 @@ export function useMT5Scanner(): UseMT5ScannerReturn {
     setIsScanning(true);
     setError(null);
     try {
-      const res = await axiosInstance.get(`${API}/system/scan-mt5`);
+      const res = await axiosInstance.get(`/system/scan-mt5`);
       const found: string[] = res.data.paths || [];
       setPaths(found);
       return found;
