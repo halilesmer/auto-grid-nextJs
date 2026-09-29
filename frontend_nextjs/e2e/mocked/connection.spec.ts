@@ -216,6 +216,9 @@ test.describe('SYS-08 Verbindungs-Link', () => {
 
     expect(toWsUrl('https://a.example', 'k y')).toBe('wss://a.example/ws/stream?api_key=k%20y');
     expect(toWsUrl('http://localhost:8000', '')).toBe('ws://localhost:8000/ws/stream');
+    expect(toWsUrl('https://a.example', 'k', '1002')).toBe('wss://a.example/ws/stream?api_key=k&account_id=1002');
+    expect(toWsUrl('http://localhost:8000', '', '1002')).toBe('ws://localhost:8000/ws/stream?account_id=1002');
+    expect(toWsUrl('http://localhost:8000', 'k', null)).toBe('ws://localhost:8000/ws/stream?api_key=k');
 
     expect(isMixedContent('http://a.example', 'https:')).toBe(true);
     expect(isMixedContent('http://localhost:8000', 'https:')).toBe(false);

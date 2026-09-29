@@ -18,13 +18,21 @@ type WSMessage =
   | { type: 'LIVE_DATA'; payload: Partial<LiveData> }
   | { type: 'LOG'; payload: { logType: 'robot' | 'mt5'; line: string } };
 
-function buildWsUrl(): string | null {
+function buildWsUrl(accountId: string | null): string | null {
   const { baseUrl, apiKey } = getConnection();
-  // Tarayıcılar WebSocket'e başlık ekleyemez → anahtar sorgu parametresiyle gider (toWsUrl)
-  return baseUrl ? toWsUrl(baseUrl, apiKey) : null;
+  // Tarayıcılar WebSocket'e başlık ekleyemez → anahtar sorgu parametresiyle gider (toWsUrl).
+  // account_id: worker seçili hesabın metriklerini gönderir (hesap değişince yeniden bağlanılır)
+  return baseUrl ? toWsUrl(baseUrl, apiKey, accountId) : null;
 }
 
-export function useWebSocketManager(selectedAccount: string | null): {
+/**
+ * `selectedAccount`: akışın hesabı; değişince soket yeniden açılır.
+ * `always`: hesap seçilmeden de bağlan (/chart, /formasyon) → worker ilk hesabı gönderir.
+ */
+export function useWebSocketManager(
+  selectedAccount: string | null,
+  { always = false }: { always?: boolean } = {},
+): {
   isConnected: boolean;
   connect: () => void;
   disconnect: () => void;
@@ -62,9 +70,9 @@ export function useWebSocketManager(selectedAccount: string | null): {
 
       switch (data.type) {
         case 'METRICS': {
-          // Akış hep worker'daki ilk hesabı yayınlar: başka hesap seçiliyken onun metriklerini
-          // gösterme. Hesap seçili değilse (/chart), eski worker account_id göndermezse veya
-          // worker hesabı bilmiyorsa ("default") kabul.
+          // Worker her soketin kendi hesabını gönderir (?account_id=). Eski worker hep ilk hesabı
+          // yayınlıyordu: başka hesap seçiliyken onun metriklerini gösterme. Hesap seçili değilse
+          // (/chart), account_id yoksa veya worker hesabı bilmiyorsa ("default") kabul.
           const streamAccount = data.payload.account_id;
           const selected = useAccountStore.getState().selectedAccount;
           const foreign =
@@ -111,8 +119,8 @@ export function useWebSocketManager(selectedAccount: string | null): {
   const connect = useCallback(() => {
     const state = wsRef.current?.readyState;
     if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
-    if (!selectedAccount) return;
-    const url = buildWsUrl();
+    if (!selectedAccount && !always) return;
+    const url = buildWsUrl(selectedAccount);
     if (!url) return; // Worker henüz bağlanmadı (ConnectionGate zaten sayfayı göstermez)
 
     const ws = new WebSocket(url);
@@ -137,7 +145,7 @@ export function useWebSocketManager(selectedAccount: string | null): {
     ws.onerror = () => {
       // onclose will handle reconnection
     };
-  }, [selectedAccount, handleMessage, scheduleReconnect]);
+  }, [selectedAccount, always, handleMessage, scheduleReconnect]);
 
   // Keep connectRef updated for use in scheduleReconnect (avoids circular dependency)
   useEffect(() => {
@@ -164,11 +172,11 @@ export function useWebSocketManager(selectedAccount: string | null): {
     setIsConnected(false);
   }, []);
 
-  // Only depend on selectedAccount - connect/disconnect are stable
+  // Hesap değişince eski soket kapanır (cleanup) ve yeni hesabın URL'siyle yenisi açılır
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (selectedAccount) {
+    if (selectedAccount || always) {
       connect();
     } else {
       // Wrap in setTimeout to avoid synchronous setState in effect
@@ -180,7 +188,7 @@ export function useWebSocketManager(selectedAccount: string | null): {
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAccount]);
+  }, [selectedAccount, always]);
 
   return {
     isConnected,

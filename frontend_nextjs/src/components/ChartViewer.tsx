@@ -19,8 +19,6 @@ import { cn } from '@/lib/utils';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/i18n';
 
-// Grafik sayfaları hesap seçilmeden de açılabilir; akış (/ws/stream) hesaba bağlı değil.
-const CHART_STREAM_KEY = 'chart';
 const BAR_SECONDS = 10;
 
 // lightweight-charts renkleri JS ile verilir; Tailwind/CSS değişkenlerinden etkilenmez.
@@ -69,8 +67,9 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
   const metrics = useBotRuntimeStore((s) => s.metrics);
   const symbolDetails = useSettingsStore((s) => s.symbolDetails);
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
-  // /chart ve /formasyon sayfalarında da canlı veri akışı açık olmalı
-  useWebSocketManager(selectedAccount ?? CHART_STREAM_KEY);
+  // /chart ve /formasyon sayfalarında da canlı veri akışı açık olmalı; hesap seçilmemişse
+  // (sayfa doğrudan açıldı) worker ilk hesabın akışını gönderir
+  useWebSocketManager(selectedAccount, { always: true });
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const chartRef = useRef<IChartApi | null>(null);

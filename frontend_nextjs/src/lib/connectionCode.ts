@@ -52,10 +52,17 @@ export function toApiUrl(baseUrl: string): string {
   return `${baseUrl}/api`;
 }
 
-/** WebSocket-Adresse. Browser können bei WebSockets keine Header setzen, der Key geht als Query-Parameter mit. */
-export function toWsUrl(baseUrl: string, apiKey: string): string {
+/**
+ * WebSocket-Adresse. Browser können bei WebSockets keine Header setzen, der Key geht als Query-Parameter mit.
+ * `accountId`: der Worker streamt die Metriken dieses Kontos (ohne: das erste Konto aus accounts.json).
+ */
+export function toWsUrl(baseUrl: string, apiKey: string, accountId?: string | null): string {
   const url = `${baseUrl.replace(/^http/, 'ws')}/ws/stream`;
-  return apiKey ? `${url}?api_key=${encodeURIComponent(apiKey)}` : url;
+  const query = [
+    apiKey && `api_key=${encodeURIComponent(apiKey)}`,
+    accountId && `account_id=${encodeURIComponent(accountId)}`,
+  ].filter(Boolean);
+  return query.length ? `${url}?${query.join('&')}` : url;
 }
 
 export function hostOf(baseUrl: string): string {
