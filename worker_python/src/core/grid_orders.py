@@ -63,8 +63,10 @@ def get_all_manual_positions(mt5=None):
 
 
 def get_existing_levels_by_direction(
-    mt5, buy_grid_step, sell_grid_step, symbol, symbol_infos
+    mt5, buy_grid_step, sell_grid_step, symbol, symbol_infos, snap=True
 ):
+    """snap=False: fiyatlar sabit ızgaraya yuvarlanmaz (pozisyona göre kayan ızgara, levels.py);
+    yuvarlama yarım adıma kadar kaydırıp mevcut emri tanınmaz yapar → her döngü yeni emir."""
     buy_levels, sell_levels = set(), set()
     orders = get_all_robot_orders(mt5)
     r_pos = get_all_robot_positions(mt5)
@@ -74,7 +76,7 @@ def get_existing_levels_by_direction(
         if item_symbol != symbol:
             return
         step = buy_grid_step if is_buy else sell_grid_step
-        snapped = round(price / step) * step
+        snapped = round(price / step) * step if snap else price
         target_set = buy_levels if is_buy else sell_levels
         target_set.add(normalize_price(snapped, symbol, symbol_infos))
 

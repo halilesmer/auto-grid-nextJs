@@ -36,6 +36,9 @@ class SymbolInfo:
     filling_mode: int = 2  # Bitmaske: 1 = FOK, 2 = IOC
     trade_contract_size: float = 1000.0
     description: str = ""
+    # 0 = nicht gesetzt → wie MT5: tick_value/tick_size; Fallback in money_per_price_unit ist contract_size
+    trade_tick_size: float = 0.0
+    trade_tick_value: float = 0.0
 
 
 @dataclass

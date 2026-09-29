@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-29 · **86/94** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-29 · **88/98** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -18,9 +18,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 12/12 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 12/14 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 16/16 |
+| 7 | **ENG** – Grid-Engine (Handelslogik) | 18/18 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
 | 10 | **UPD** – System & Updates | 5/6 |
@@ -220,6 +220,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der (i)-Hinweis von Grid-Abstand und Take Profit (Buy/Sell) nennt für gängige Symbole (Gold, Silber, Forex, BTC/ETH, US-Indizes, Öl) einen Richtwert; bei unbekanntem Symbol bleibt der Text unverändert. Nur Anzeige, keine Validierung.
   - **Prüfung:** Symbol auf XAUUSD stellen, mit der Maus über das (i) von Grid-Abstand und Take Profit fahren. → Symbol auf ein unbekanntes Symbol stellen.
   - **Erwartet:** Bei XAUUSD steht „1–5“ als Richtwert im Hinweis; bei unbekanntem Symbol nur der Standardtext.
+- [ ] **ZON-13** Abstand nach Verlust ($) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
+  - Schalter „Abstand nach Verlust ($)“ in der Zonenkarte. Wenn an, sind Grid-Abstand (BUY/SELL), Min./BUY-/SELL-Pullback, Take Profit und Stop Loss $-Beträge statt Preisabstände; beim Umschalten werden vorhandene Werte mit Lotgröße und Tick-Wert umgerechnet, unter dem Feld steht der entsprechende Preisabstand. Wird mit der Zone gespeichert (step_by_loss).
+  - **Prüfung:** Zone mit EURUSD, 0,10 Lot anlegen, „Abstand nach Verlust ($)“ einschalten, Grid-Abstand 10 und Take Profit 5 eingeben. → Speichern, Bot auf dem DEMO-Konto laufen lassen und die Pending Orders in MT5 ansehen.
+  - **Erwartet:** Unter dem Feld steht „≈ 0,001 Preisabstand bei 0,1 Lot“; die Orders liegen 0,00100 auseinander (ab der zuletzt eröffneten Position), jede neue Position öffnet, wenn die vorige 10 $ im Minus ist; der TP liegt 0,00050 vom Einstieg.
+- [ ] **ZON-14** Sofort erste Position — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
+  - Schalter „Sofort erste Position“ in der Zonenkarte (instant_entry), unabhängig von „Abstand nach Verlust“. Wird mit der Zone gespeichert.
+  - **Prüfung:** Zone (BUY und SELL) auf dem DEMO-Konto anlegen, Preis innerhalb des Bereichs, „Sofort erste Position“ einschalten, speichern, Bot starten. → Warten, bis eine Seite per Take Profit schließt.
+  - **Erwartet:** Beim Start öffnen sofort 1 BUY und 1 SELL zum Marktpreis; die Pending Orders liegen einen Grid-Abstand davon entfernt; nach dem TP öffnet der Bot auf dieser Seite sofort wieder eine Position.
 
 ## 6. BOT – Bot-Steuerung
 
@@ -321,6 +329,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 - [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-09-29
   - Beim Verlassen der Hauptschleife werden alle Pending Orders des Robots gelöscht.
   - **Prüfung:** Nicht manuell testen (/stop beendet den Prozess hart).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-17** Grid-Abstand nach Verlust ($) umrechnen — 🧪 unit ✅ 2026-09-29
+  - Bei step_by_loss rechnet extract_zone_config grid_step, sell_grid_step, die Pullbacks sowie TP/SL (auch beim Nachziehen offener Positionen) als $-Betrag mit Lotgröße und trade_tick_value/trade_tick_size (Fallback Kontraktgröße) in Preisabstände um, gerundet auf den Point; die neue Position öffnet, wenn die vorige diesen Betrag im Minus ist. Ohne Symbolinfo wird die Zone abgelehnt.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-13).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit ✅ 2026-09-29
+  - Bei instant_entry öffnet die Engine je Seite (BUY/SELL, bei BOTH beide) sofort eine Markt-Position, wenn die Zone dort keine offene Position hat und der Preis im Zonenbereich liegt – beim Start und nach dem Schließen (z. B. TP). Abgelehnte Orders werden erst nach 30 s wiederholt. Bei instant_entry/step_by_loss richtet sich das Raster an der zuletzt eröffneten Position der Seite aus (nicht am festen Preisraster).
+  - **Prüfung:** Nicht manuell testen (siehe ZON-14).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 
 ## 8. MET – Live-Daten & Diagramm

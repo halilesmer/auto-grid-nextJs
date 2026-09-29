@@ -90,18 +90,20 @@ export function useZoneFieldHandlers(
     ) => {
       const p = symbolConfig.precision;
       const vp = volPrecision;
+      // Abstände/TP/SL als $-Betrag („Abstand nach Verlust“): immer 2 Nachkommastellen
+      const dp = zone.step_by_loss ? 2 : p;
 
       const fieldsToFix: Array<[string, number, number]> = [
         ['min_price', zone.min_price, p],
         ['max_price', zone.max_price, p],
-        ['grid_step', zone.grid_step, p],
-        ['take_profit', zone.take_profit, p],
-        ['stop_loss', zone.stop_loss, p],
-        ['sell_grid_step', zone.sell_grid_step, p],
-        ['sell_take_profit', zone.sell_take_profit, p],
-        ['sell_stop_loss', zone.sell_stop_loss, p],
-        ['pullback_distance', zone.pullback_distance, p],
-        ['sell_pullback_distance', zone.sell_pullback_distance, p],
+        ['grid_step', zone.grid_step, dp],
+        ['take_profit', zone.take_profit, dp],
+        ['stop_loss', zone.stop_loss, dp],
+        ['sell_grid_step', zone.sell_grid_step, dp],
+        ['sell_take_profit', zone.sell_take_profit, dp],
+        ['sell_stop_loss', zone.sell_stop_loss, dp],
+        ['pullback_distance', zone.pullback_distance, dp],
+        ['sell_pullback_distance', zone.sell_pullback_distance, dp],
         ['lot_size', zone.lot_size, vp],
         ['sell_lot_size', zone.sell_lot_size, vp],
       ];

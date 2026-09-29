@@ -2,7 +2,8 @@ from src.core.grid_helpers import (
     log_message,
     normalize_price,
 )
-from src.core.grid_execution.config import max_positions_of
+from src.core.grid_execution.config import extract_zone_config, max_positions_of
+from src.core.grid_execution.exceptions import InvalidZoneConfigError
 from src.core.grid_orders import (
     BASE_MAGIC_NUMBER,
     MAX_DEVIATION,
@@ -93,16 +94,15 @@ def process_partial_fills_and_tpsl(
             continue
 
         direction = "BUY" if pos.type == mt5.POSITION_TYPE_BUY else "SELL"
-        is_sync = bool(z_data.get("sync_buy_sell", True))
-
-        if direction == "BUY" or is_sync:
-            tp_val = float(z_data.get("take_profit", 0.05))
-            sl_val = float(z_data.get("stop_loss", 0.0))
+        # TP/SL ve grid adımı ızgarayla aynı kaynaktan (step_by_loss: tutar → fiyat mesafesi)
+        try:
+            cfg = extract_zone_config(z_data, pos_zone_idx, symbol_infos=symbol_infos)
+        except InvalidZoneConfigError:
+            continue
+        if direction == "BUY":
+            tp_val, sl_val = cfg.take_profit, cfg.stop_loss
         else:
-            tp_val = float(
-                z_data.get("sell_take_profit", z_data.get("take_profit", 0.05))
-            )
-            sl_val = float(z_data.get("sell_stop_loss", z_data.get("stop_loss", 0.0)))
+            tp_val, sl_val = cfg.sell_take_profit, cfg.sell_stop_loss
 
         expected_tp = (
             normalize_price(pos.price_open + tp_val, zone_sym, symbol_infos)
@@ -142,11 +142,7 @@ def process_partial_fills_and_tpsl(
                 )
                 modify_position_tp_sl(mt5, pos, expected_tp, expected_sl, symbol_infos)
 
-        grid_step_tmp = float(z_data.get("grid_step", 0.05))
-        sell_grid_step_tmp = float(z_data.get("sell_grid_step", grid_step_tmp))
-        tolerance_step = (
-            grid_step_tmp * 0.4 if direction == "BUY" else sell_grid_step_tmp * 0.4
-        )
+        tolerance_step = (cfg.grid_step if direction == "BUY" else cfg.sell_grid_step) * 0.4
 
         is_processed = any(
             direction == p_dir

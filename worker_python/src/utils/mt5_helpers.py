@@ -372,6 +372,10 @@ def build_detailed_symbols(symbols) -> list[dict]:
                 "volume_min": _get(s, "volume_min", 0.01),
                 "volume_max": _get(s, "volume_max", 100.0),
                 "volume_step": _get(s, "volume_step", 0.01),
+                # "Zarara göre aralık" tutar → fiyat mesafesi önizlemesi için (UI)
+                "trade_tick_value": _get(s, "trade_tick_value", 0.0),
+                "trade_tick_size": _get(s, "trade_tick_size", 0.0),
+                "trade_contract_size": _get(s, "trade_contract_size", 0.0),
             }
         )
     return detailed

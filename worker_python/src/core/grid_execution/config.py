@@ -28,6 +28,37 @@ class ZoneConfig:
     sell_stop_loss: float
     sell_pullback_distance: float
     target_magic: int
+    step_by_loss: bool = False
+    instant_entry: bool = False
+
+
+def money_per_price_unit(symbol: str, symbol_infos: dict | None) -> float | None:
+    """1 lot pozisyonun fiyat 1,0 birim hareket ettiğinde kazandığı/kaybettiği tutar
+    (hesap para birimi). MT5: trade_tick_value / trade_tick_size; yoksa kontrat büyüklüğü."""
+    info = (symbol_infos or {}).get(symbol)
+    if info is None:
+        return None
+    tick_value = float(getattr(info, "trade_tick_value", 0) or 0)
+    tick_size = float(getattr(info, "trade_tick_size", 0) or 0)
+    if tick_value > 0 and tick_size > 0:
+        return tick_value / tick_size
+    contract = float(getattr(info, "trade_contract_size", 0) or 0)
+    return contract if contract > 0 else None
+
+
+def money_to_price_distance(amount: float, lot: float, symbol: str, symbol_infos: dict | None) -> float | None:
+    """"Zarara göre aralık": tutar ($) → fiyat mesafesi. `lot` hacimli bir pozisyon bu mesafede
+    tam `amount` kadar zarar eder. Sembolün fiyat adımına (point) yuvarlanır, en az 1 point.
+    Sembol bilgisi yoksa None."""
+    per_unit = money_per_price_unit(symbol, symbol_infos)
+    if not per_unit or lot <= 0:
+        return None
+    distance = float(amount) / (lot * per_unit)
+    info = symbol_infos.get(symbol)
+    point = float(getattr(info, "point", 0) or 0)
+    if point > 0:
+        distance = max(point, round(round(distance / point) * point, int(getattr(info, "digits", 5))))
+    return distance
 
 
 def max_positions_of(zone_dict: dict) -> int:
@@ -41,7 +72,11 @@ def extract_zone_config(
     zone_dict: dict,
     zone_idx: int,
     log_message: Callable[[str, str], None] = default_log_message,
+    symbol_infos: dict | None = None,
 ) -> ZoneConfig:
+    """`step_by_loss` açıksa grid_step / sell_grid_step / pullback / TP / SL değerleri fiyat
+    değil tutar ($) olarak girilmiştir; burada ilgili lot ile fiyat mesafesine çevrilir
+    (symbol_infos gerekir). Döngünün geri kalanı yalnızca fiyat mesafesi görür."""
     if not isinstance(zone_dict, dict):
         raise InvalidZoneConfigError(f"Zone {zone_idx + 1}: config must be a dict")
 
@@ -87,6 +122,29 @@ def extract_zone_config(
 
     target_magic = BASE_MAGIC_NUMBER + zone_idx + 1
 
+    step_by_loss = bool(zone_dict.get("step_by_loss", False))
+    if step_by_loss:
+        def _conv(amount: float, lot: float) -> float:
+            d = money_to_price_distance(amount, lot, symbol, symbol_infos)
+            if d is None:
+                raise InvalidZoneConfigError(
+                    f"Zone {zone_idx + 1}: {symbol} için tick değeri yok, zarara göre aralık hesaplanamıyor"
+                )
+            return d
+
+        def _conv0(amount: float, lot: float) -> float:
+            # Pullback / TP / SL 0 olabilir (= yok); 0'ı 1 point'e yükseltme
+            return _conv(amount, lot) if amount > 0 else 0.0
+
+        grid_step = _conv(grid_step, lot_val)
+        sell_grid_step = _conv(sell_grid_step, sell_lot_val)
+        pullback_distance = _conv0(pullback_distance, lot_val)
+        sell_pullback_distance = _conv0(sell_pullback_distance, sell_lot_val)
+        tp_val = _conv0(tp_val, lot_val)
+        sl_val = _conv0(sl_val, lot_val)
+        sell_tp_val = _conv0(sell_tp_val, sell_lot_val)
+        sell_sl_val = _conv0(sell_sl_val, sell_lot_val)
+
     return ZoneConfig(
         order_type=order_type,
         min_price=min_price,
@@ -108,4 +166,6 @@ def extract_zone_config(
         sell_stop_loss=sell_sl_val,
         sell_pullback_distance=sell_pullback_distance,
         target_magic=target_magic,
+        step_by_loss=step_by_loss,
+        instant_entry=bool(zone_dict.get("instant_entry", False)),
     )
