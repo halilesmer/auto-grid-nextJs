@@ -88,12 +88,6 @@ export interface ZoneBreakoutFieldsProps {
   handleBlur: HandleBlurFn;
 }
 
-export interface ZoneEntryFieldsProps {
-  zone: ZoneSettings;
-  update: FieldUpdateFn;
-  symbolConfig: SymbolConfig;
-}
-
 export interface ZoneExitFieldsProps {
   zone: ZoneSettings;
   update: FieldUpdateFn;
