@@ -5,8 +5,9 @@ REM Schleife startet ihn dann neu). Log: logs\ngrok.log (liest die VPS-Seite per
 cd /d "%~dp0"
 if not exist logs mkdir logs
 
-REM ngrok-Domain ggf. anpassen, falls sich die Free-Domain aendert
-set NGROK_DOMAIN=tweet-overlying-monotone.ngrok-free.dev
+REM Domain kommt aus der Benutzer-Umgebungsvariable NGROK_DOMAIN (setx, siehe bootstrap.ps1);
+REM ohne sie bleibt der bisherige Wert die Vorgabe.
+if not defined NGROK_DOMAIN set NGROK_DOMAIN=tweet-overlying-monotone.ngrok-free.dev
 
 :loop
 REM Log vor jedem Start auf max. ~5 MB begrenzen (waehrend ngrok laeuft, ist die Datei gesperrt)

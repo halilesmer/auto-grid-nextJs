@@ -5,7 +5,11 @@
 #   cd C:\dev\auto-grid-nextJs\worker_python\ops\windows
 #   powershell -ExecutionPolicy Bypass -File .\setup_vps.ps1 -PublicKey "ssh-ed25519 AAAA... mac"
 #
-# Was passiert:
+# -PublicKey ist optional: ohne ihn wird kein SSH eingerichtet (kein Mac mit der Seite "VPS"
+# geplant, z. B. bei bootstrap.ps1) und die Schritte 1-2 entfallen; alles andere (3-6) laeuft
+# trotzdem, damit MT5-Rechte-Fix, Auto-Login und die Aufgaben AutoGrid-Start/-Update entstehen.
+#
+# Was passiert (mit -PublicKey):
 #   1. OpenSSH-Server installieren, automatisch starten, Port 22 freigeben, NUR Key-Login
 #   2. Den Mac-Schluessel (-PublicKey) eintragen
 #   3. Besitzer des Repo-Ordners auf den normalen Benutzer setzen (repariert Dateien, die
@@ -21,7 +25,7 @@
 # bzw. die VPS-Seite im Mac-Frontend (oder automatisch, AUTO_UPDATE_MINUTES).
 # Datei bewusst nur ASCII: Windows PowerShell 5.1 liest Skripte ohne BOM als ANSI.
 param(
-    [Parameter(Mandatory = $true)] [string]$PublicKey,
+    [string]$PublicKey = '',
     # Windows-Benutzer, unter dem MT5 und der Worker laufen (Standard: der aktuelle)
     [string]$User = $env:USERNAME,
     [switch]$SkipAutoLogon,
@@ -39,58 +43,62 @@ function Step($text) { Write-Host "`n==> $text" -ForegroundColor Cyan }
 function Ok($text) { Write-Host "    $text" -ForegroundColor Green }
 function Warn($text) { Write-Host "    $text" -ForegroundColor Yellow }
 
-if (-not $PublicKey.Trim().StartsWith('ssh-')) {
+if ($PublicKey -and -not $PublicKey.Trim().StartsWith('ssh-')) {
     throw 'PublicKey sieht nicht wie ein SSH-Schluessel aus (erwartet "ssh-ed25519 AAAA...").'
 }
 
-# --------------------------------------------------------------------------- 1. OpenSSH
-Step 'OpenSSH-Server'
-$cap = Get-WindowsCapability -Online | Where-Object { $_.Name -like 'OpenSSH.Server*' } | Select-Object -First 1
-if (-not $cap) { throw 'OpenSSH.Server ist auf diesem Windows nicht verfuegbar.' }
-if ($cap.State -ne 'Installed') {
-    Add-WindowsCapability -Online -Name $cap.Name | Out-Null
-    Ok 'installiert'
-} else {
-    Ok 'bereits installiert'
-}
-Set-Service -Name sshd -StartupType Automatic
-Start-Service sshd
-if (-not (Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue)) {
-    New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' `
-        -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null
-}
-Ok 'Dienst laeuft und startet automatisch, Port 22 offen'
-
-# --------------------------------------------------------------------------- 2. Schluessel
-Step "Mac-Schluessel fuer $Account"
-# sshd liest fuer Administratoren NUR administrators_authorized_keys (Match Group administrators),
-# fuer normale Benutzer ~\.ssh\authorized_keys. Die Gruppenpruefung (Get-LocalGroupMember) ist
-# unter Windows unzuverlaessig - deshalb in beide Dateien eintragen.
-$keyFiles = @(
-    @{ path = (Join-Path $env:ProgramData 'ssh\administrators_authorized_keys'); grant = @("*${AdminsSid}:F", "*${SystemSid}:F") },
-    @{ path = (Join-Path "C:\Users\$User" '.ssh\authorized_keys'); grant = @("${Account}:F", "*${SystemSid}:F") }
-)
-foreach ($kf in $keyFiles) {
-    New-Item -ItemType Directory -Force -Path (Split-Path $kf.path) | Out-Null
-    $existing = if (Test-Path $kf.path) { @(Get-Content $kf.path) } else { @() }
-    if ($existing -notcontains $PublicKey.Trim()) {
-        Add-Content -Path $kf.path -Value $PublicKey.Trim() -Encoding ascii
-        Ok "eingetragen in $($kf.path)"
+# --------------------------------------------------------------------------- 1.-2. OpenSSH + Schluessel
+if ($PublicKey) {
+    Step 'OpenSSH-Server'
+    $cap = Get-WindowsCapability -Online | Where-Object { $_.Name -like 'OpenSSH.Server*' } | Select-Object -First 1
+    if (-not $cap) { throw 'OpenSSH.Server ist auf diesem Windows nicht verfuegbar.' }
+    if ($cap.State -ne 'Installed') {
+        Add-WindowsCapability -Online -Name $cap.Name | Out-Null
+        Ok 'installiert'
     } else {
-        Ok "bereits vorhanden in $($kf.path)"
+        Ok 'bereits installiert'
     }
-    $icaclsArgs = @($kf.path, '/inheritance:r')
-    foreach ($g in $kf.grant) { $icaclsArgs += @('/grant', $g) }
-    & icacls.exe @icaclsArgs | Out-Null
-}
+    Set-Service -Name sshd -StartupType Automatic
+    Start-Service sshd
+    if (-not (Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue)) {
+        New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' `
+            -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null
+    }
+    Ok 'Dienst laeuft und startet automatisch, Port 22 offen'
 
-# Nur noch Key-Login (RDP bleibt davon unberuehrt). Direktiven VOR dem ersten "Match"-Block einfuegen.
-$config = Join-Path $env:ProgramData 'ssh\sshd_config'
-$lines = @(Get-Content $config | Where-Object { $_ -notmatch '^\s*#?\s*(PasswordAuthentication|PubkeyAuthentication)\s' })
-$lines = @('PubkeyAuthentication yes', 'PasswordAuthentication no') + $lines
-Set-Content -Path $config -Value $lines -Encoding ascii
-Restart-Service sshd
-Ok 'Passwort-Login per SSH deaktiviert, nur Schluessel'
+    Step "Mac-Schluessel fuer $Account"
+    # sshd liest fuer Administratoren NUR administrators_authorized_keys (Match Group administrators),
+    # fuer normale Benutzer ~\.ssh\authorized_keys. Die Gruppenpruefung (Get-LocalGroupMember) ist
+    # unter Windows unzuverlaessig - deshalb in beide Dateien eintragen.
+    $keyFiles = @(
+        @{ path = (Join-Path $env:ProgramData 'ssh\administrators_authorized_keys'); grant = @("*${AdminsSid}:F", "*${SystemSid}:F") },
+        @{ path = (Join-Path "C:\Users\$User" '.ssh\authorized_keys'); grant = @("${Account}:F", "*${SystemSid}:F") }
+    )
+    foreach ($kf in $keyFiles) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $kf.path) | Out-Null
+        $existing = if (Test-Path $kf.path) { @(Get-Content $kf.path) } else { @() }
+        if ($existing -notcontains $PublicKey.Trim()) {
+            Add-Content -Path $kf.path -Value $PublicKey.Trim() -Encoding ascii
+            Ok "eingetragen in $($kf.path)"
+        } else {
+            Ok "bereits vorhanden in $($kf.path)"
+        }
+        $icaclsArgs = @($kf.path, '/inheritance:r')
+        foreach ($g in $kf.grant) { $icaclsArgs += @('/grant', $g) }
+        & icacls.exe @icaclsArgs | Out-Null
+    }
+
+    # Nur noch Key-Login (RDP bleibt davon unberuehrt). Direktiven VOR dem ersten "Match"-Block einfuegen.
+    $config = Join-Path $env:ProgramData 'ssh\sshd_config'
+    $lines = @(Get-Content $config | Where-Object { $_ -notmatch '^\s*#?\s*(PasswordAuthentication|PubkeyAuthentication)\s' })
+    $lines = @('PubkeyAuthentication yes', 'PasswordAuthentication no') + $lines
+    Set-Content -Path $config -Value $lines -Encoding ascii
+    Restart-Service sshd
+    Ok 'Passwort-Login per SSH deaktiviert, nur Schluessel'
+} else {
+    Step 'OpenSSH-Server + Mac-Schluessel'
+    Ok 'uebersprungen (kein -PublicKey angegeben)'
+}
 
 # --------------------------------------------------------------------------- 3. Repo-Besitzer
 if (-not $SkipRepoOwnership) {
@@ -247,7 +255,8 @@ if ($old.Count -gt 0) {
 }
 
 Step 'Fertig'
-Write-Host @"
+if ($PublicKey) {
+    Write-Host @"
     Auf dem Mac in frontend_nextjs/.env.local eintragen:
       VPS_SSH_HOST=$User@<VPS-IP>
       VPS_SSH_KEY=~/.ssh/autogrid_vps
@@ -257,3 +266,13 @@ Write-Host @"
     Regel: git auf dem VPS nie als Administrator ausfuehren. Updates nur ueber das Dashboard
     bzw. die VPS-Seite im Mac-Frontend.
 "@
+} else {
+    Write-Host @"
+    Ohne -PublicKey: kein SSH eingerichtet, die Seite "VPS" bleibt aus. Steuerung laeuft ueber
+    die Web-Oberflaeche (Verbindungslink/-dialog); spaeter per SSH nachruesten:
+      setup_vps.ps1 -PublicKey "ssh-ed25519 AAAA... mac" -SkipAutoLogon -SkipRepoOwnership
+
+    Regel: git auf dem VPS nie als Administrator ausfuehren. Updates laufen ueber den Worker
+    selbst (AUTO_UPDATE_MINUTES) bzw. die Aufgabe AutoGrid-Update.
+"@
+}

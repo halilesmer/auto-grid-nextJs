@@ -200,7 +200,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃   ┣ 📜 self_updater.py      # git pull (+ requirements.txt değiştiyse pip; admin haklarıyla asla), yeniden başlatma, CLI: python -m src.utils.self_updater update|check
 ┃ ┃   ┣ 📜 state_manager.py     # Pozisyon/emir state senkronizasyonu
 ┃ ┃   ┗ 📜 trade_utils.py       # Ticaret yardımcıları
-┃ ┣ 📂 ops/windows              # VPS uzaktan kontrol: setup_vps.ps1 (tek seferlik, admin), vps.ps1 (Mac'ten SSH ile çağrılır; admin haklı kalıntıları bulur/sonlandırır: fix-elevated)
+┃ ┣ 📂 ops/windows              # VPS uzaktan kontrol: setup_vps.ps1 (tek seferlik, admin, -PublicKey artık opsiyonel), vps.ps1 (Mac'ten SSH ile çağrılır; admin haklı kalıntıları bulur/sonlandırır: fix-elevated), bootstrap.ps1 (sıfır VPS: git/python/vcredist kurar, repo/venv/api-key/ngrok'u RunLevel Limited bir görevle (bootstrap-user.ps1) kurar, setup_vps.ps1'i çağırır, worker'ı başlatır, connect-link.ps1 ile bağlantı linki verir)
 ┃ ┣ 📜 run_ngrok_watchdog.bat   # ngrok çökerse yeniden başlatır (logs/ngrok.log)
 ┃ ┣ 📂 data                     # State dosyaları (state_*.json, watched_bots.json)
 ┃ ┣ 📂 logs                     # Log dosyaları
