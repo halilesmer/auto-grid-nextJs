@@ -114,7 +114,8 @@ export function defaultState() {
     robotLog: {
       [DEMO_ID]: [
         '[2026-09-24 08:00:00] [INFO] [START] Bot gestartet',
-        '[2026-09-24 08:00:01] [INFO] Bölge 1 USOUSD: 3 emir yerleştirildi',
+        '[2026-09-24 08:00:01] [INFO] [Z:zone-e2e-1] Bölge 1 USOUSD: 3 emir yerleştirildi',
+        '[2026-09-24 08:00:02] [WARN] [Z:zone-fremd] Bölge 2 XAUUSD: fremde Zone',
       ],
     } as Record<string, string[]>,
     mt5Log: {

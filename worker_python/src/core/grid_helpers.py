@@ -2,14 +2,36 @@ import time
 import datetime
 import os
 import sys
+import contextlib
+import contextvars
 from src.utils.paths import get_err_log_path
 
 LOG_TO_FILE = True
 
 
-def log_message(msg, level="INFO"):
+# Bölge işlenirken yazılan her satır "[Z:<zone_id>]" etiketi alır; arayüz bölge loglarını
+# bununla süzer (GET /logs/{id}?zone_id=...). Konum numarası (Bölge N) değişebilir, id değişmez.
+_current_zone_id: contextvars.ContextVar = contextvars.ContextVar("current_zone_id", default=None)
+
+
+def zone_log_id(zone, idx) -> str:
+    return str((zone or {}).get("id") or f"idx{idx}")
+
+
+@contextlib.contextmanager
+def zone_log_context(zone_id):
+    token = _current_zone_id.set(zone_id)
+    try:
+        yield
+    finally:
+        _current_zone_id.reset(token)
+
+
+def log_message(msg, level="INFO", zone_id=None):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    formatted = f"[{timestamp}] [{level}] {msg}"
+    zone_id = zone_id or _current_zone_id.get()
+    zone_tag = f"[Z:{zone_id}] " if zone_id else ""
+    formatted = f"[{timestamp}] [{level}] {zone_tag}{msg}"
     # Bot alt süreci olarak çalışırken stdout zaten err_<id>.log'a gider; burada da
     # print edilirse her satır dosyaya iki kez yazılır. Konsola sadece elle
     # (terminalden) çalıştırıldığında yaz.

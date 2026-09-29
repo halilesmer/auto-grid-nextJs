@@ -5,7 +5,8 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 
 import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
-import { useAccountStore, useLogsStore, useBotRuntimeStore } from '@/store';
+import { useAccountStore, useLogsStore, useBotRuntimeStore, useSettingsStore } from '@/store';
+import { logLineColor, splitZoneTag } from '@/lib/logLines';
 import type { ActivityLevel } from '@/store';
 import { downloadAccountLogs } from '@/lib/downloadLogs';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -35,32 +36,6 @@ const ACTIVITY_COLORS: Record<ActivityLevel, string> = {
   error: "text-danger font-semibold",
 };
 
-function logLineColor(line: string): string {
-  if (
-    line.includes("[ERROR]") ||
-    line.includes("ERROR") ||
-    line.includes("HATA") ||
-    line.includes("[INIT]") ||
-    line.includes("[LOGIN]") ||
-    line.includes("Giriş Başarısız")
-  ) {
-    return "text-danger font-semibold";
-  }
-  if (line.includes("WARN") || line.includes("UYARI")) {
-    return "text-warning";
-  }
-  if (
-    line.includes("INFO") ||
-    line.includes("[START]") ||
-    line.includes("[STOP]") ||
-    line.includes("BAŞARILI") ||
-    line.includes("success")
-  ) {
-    return "text-info";
-  }
-  return "text-foreground/75";
-}
-
 export default function LogViewer() {
   const t = useT();
   const { time: formatTime } = useFormat();
@@ -76,6 +51,7 @@ export default function LogViewer() {
   const setWorkerStatus = useLogsStore((s) => s.setWorkerStatus);
   const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
   const isConnecting = useBotRuntimeStore((s) => s.isConnecting);
+  const zones = useSettingsStore((s) => s.settings?.ZONES);
 
   const [tab, setTab] = useState<Tab>("activity");
   const [connectingSeconds, setConnectingSeconds] = useState(0);
@@ -271,12 +247,21 @@ export default function LogViewer() {
           ) : activeLines.length === 0 ? (
             <span className="text-muted-foreground/60">{t("logs.empty.log")}</span>
           ) : (
-            activeLines.map((line, i) => (
-              <span key={i} className={logLineColor(line)}>
-                {line}
-                {"\n"}
-              </span>
-            ))
+            activeLines.map((line, i) => {
+              const { zoneId, text } = tab === "robot" ? splitZoneTag(line) : { zoneId: null, text: line };
+              const zoneNo = zoneId ? (zones?.findIndex((z) => z.id === zoneId) ?? -1) + 1 : 0;
+              return (
+                <span key={i} className={logLineColor(line)}>
+                  {zoneId && (
+                    <span data-testid="log-zone-badge" className="mr-1.5 rounded bg-primary/15 px-1 py-px text-[10.5px] font-semibold text-primary">
+                      {zoneNo > 0 ? t("logs.zoneBadge", { n: zoneNo }) : t("logs.zoneBadge.unknown")}
+                    </span>
+                  )}
+                  {text}
+                  {"\n"}
+                </span>
+              );
+            })
           )}
         </pre>
       </div>

@@ -15,6 +15,7 @@ import { ZoneSellFields } from './ZoneSellFields';
 import { ZoneBreakoutFields } from './ZoneBreakoutFields';
 import { ZoneExitFields } from './ZoneExitFields';
 import { ZoneFractalFields } from './ZoneFractalFields';
+import { ZoneLogs } from './ZoneLogs';
 import { InputField } from '@/components/ui/InputField';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -252,6 +253,8 @@ export function ZoneCard({
           zone={zone}
           update={update}
         />
+
+        <ZoneLogs zoneId={zone.id} />
       </div>
     </div>
   );

@@ -831,6 +831,15 @@ kategorien:
           - Tab „MT5 Terminal“ öffnen.
         erwartet: Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
 
+      - id: LOG-07
+        titel: Zonen-Logs
+        beschreibung: Jede Robot-Log-Zeile, die zu einer Zone gehört, trägt das Tag [Z:<zone_id>]; GET /logs/{id}?zone_id=… filtert darauf, und jede Zonenkarte zeigt ihre eigenen Logs aufklappbar an.
+        code: [worker_python/src/core/grid_helpers.py, worker_python/src/api/logs.py, frontend_nextjs/src/components/zone/ZoneLogs.tsx]
+        tiers: [unit, api, e2e, manuell]
+        pruefung:
+          - Bot mit zwei Zonen laufen lassen, in einer Zonenkarte „Logs“ aufklappen.
+        erwartet: Nur Zeilen dieser Zone erscheinen (ohne Tag); im Robot-Log-Tab steht das Zonen-Badge vor der Zeile.
+
   # ---------------------------------------------------------------------------
   - id: UPD
     titel: System & Updates

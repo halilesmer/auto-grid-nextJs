@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-29 · **95/105** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-29 · **95/106** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -22,7 +22,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 24/24 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
-| 9 | **LOG** – Logs | 6/6 |
+| 9 | **LOG** – Logs | 6/7 |
 | 10 | **UPD** – System & Updates | 5/6 |
 | 11 | **VPS** – VPS-Fernsteuerung vom Mac | 3/8 |
 | 12 | **UI** – Oberfläche | 8/8 |
@@ -421,6 +421,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Tab „MT5 Terminal“ öffnen.
   - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
   - 📝 v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log, UTF-16 korrekt dekodiert
+- [ ] **LOG-07** Zonen-Logs — 🧪 unit ✅ 2026-09-29 · 🔌 api ✅ 2026-09-29 · 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
+  - Jede Robot-Log-Zeile, die zu einer Zone gehört, trägt das Tag [Z:<zone_id>]; GET /logs/{id}?zone_id=… filtert darauf, und jede Zonenkarte zeigt ihre eigenen Logs aufklappbar an.
+  - **Prüfung:** Bot mit zwei Zonen laufen lassen, in einer Zonenkarte „Logs“ aufklappen.
+  - **Erwartet:** Nur Zeilen dieser Zone erscheinen (ohne Tag); im Robot-Log-Tab steht das Zonen-Badge vor der Zeile.
 
 ## 10. UPD – System & Updates
 

@@ -20,6 +20,23 @@ test.describe('LOG Logs', () => {
     expect(call.query.get('log_type')).toBe('all');
   });
 
+  test('Zonen-Logs zeigen nur die eigene Zone', { tag: '@LOG-07' }, async ({ page, worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const card = page.getByTestId('zone-card').first();
+    await card.getByRole('button', { name: msg('zone.logs.toggle') }).click();
+    const out = card.getByTestId('zone-log-output');
+    await expect(out).toContainText('3 emir yerleştirildi');
+    await expect(out).not.toContainText('fremde Zone');
+    await expect(out).not.toContainText('[Z:');
+    const call = worker.callsTo('GET', `/api/logs/${DEMO_ID}`).find((c) => c.query.get('zone_id'));
+    expect(call?.query.get('zone_id')).toBe(ZONE_ID);
+
+    // Robot-Tab: Tag als Zonen-Badge statt Rohtext
+    await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
+    await expect(dashboard.logOutput.getByTestId('log-zone-badge').first()).toHaveText(msg('logs.zoneBadge', { n: 1 }));
+    await expect(dashboard.logOutput).not.toContainText('[Z:');
+  });
+
   test('Logs löschen', { tag: '@LOG-02' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
