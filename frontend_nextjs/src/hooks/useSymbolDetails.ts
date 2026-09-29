@@ -18,6 +18,7 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
   const setAvailableSymbols = useSettingsStore((s) => s.setAvailableSymbols);
   const setSymbolDetails = useSettingsStore((s) => s.setSymbolDetails);
   const setLoadingSymbols = useSettingsStore((s) => s.setLoadingSymbols);
+  const setSymbolsError = useSettingsStore((s) => s.setSymbolsError);
   const symbolDetails = useSettingsStore((s) => s.symbolDetails);
   const mt5Connected = useBotRuntimeStore((s) => s.liveData.mt5_connected);
 
@@ -38,6 +39,7 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
       // Önceki hesabın sembolleri yeni hesapta "Geçersiz Sembol" hatasına yol açmasın
       setAvailableSymbols([]);
       setSymbolDetails({});
+      setSymbolsError(null);
     }
     lastFetchedAccountRef.current = selectedAccount;
     setLoadingSymbols(true);
@@ -46,8 +48,9 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
 
     zoneApi
       .getSymbols(selectedAccount)
-      .then((symsData) => {
+      .then(({ symbols: rawSymbols, error }) => {
         if (cancelled) return;
+        let symsData = rawSymbols;
 
         if (typeof symsData === 'string') {
           try {
@@ -70,9 +73,12 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
           if (s.name) details[s.name.toUpperCase()] = s;
         });
         setSymbolDetails(details);
+        setSymbolsError(syms.length === 0 ? error : null);
       })
       .catch((err) => {
-        if (!cancelled) console.error('Sembol detayları çekilemedi', err);
+        if (cancelled) return;
+        console.error('Sembol detayları çekilemedi', err);
+        setSymbolsError(null);
       })
       .finally(() => {
         if (!cancelled) setLoadingSymbols(false);
@@ -82,7 +88,7 @@ export function useSymbolDetails(selectedAccount: string | null): Record<string,
       cancelled = true;
       setLoadingSymbols(false);
     };
-  }, [selectedAccount, mt5Connected, setAvailableSymbols, setSymbolDetails, setLoadingSymbols]);
+  }, [selectedAccount, mt5Connected, setAvailableSymbols, setSymbolDetails, setLoadingSymbols, setSymbolsError]);
 
   return symbolDetails;
 }

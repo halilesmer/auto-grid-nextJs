@@ -207,6 +207,15 @@ kategorien:
           - Konto bearbeiten, Passwortfeld leer lassen, speichern.
         erwartet: Kein Feld „password“ in der Antwort; das Konto verbindet sich danach weiterhin (Passwort unverändert).
 
+      - id: ACC-10
+        titel: Kontowechsel zeigt nur Daten des gewählten Kontos
+        beschreibung: Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. WS-Metriken tragen account_id; Metriken eines anderen Kontos ignoriert das Frontend.
+        code: [frontend_nextjs/src/components/account/AccountSelector.tsx, frontend_nextjs/src/store/useWebSocketManager.ts, worker_python/src/api/ws_server.py]
+        tiers: [api, e2e, live]
+        pruefung:
+          - Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft.
+        erwartet: Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status.
+
   # ---------------------------------------------------------------------------
   - id: SET
     titel: Allgemeine Einstellungen
@@ -296,6 +305,15 @@ kategorien:
           - Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools).
           - Ein unbekanntes Symbol eintippen (nicht speichern).
         erwartet: Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; unbekanntes Symbol zeigt „Geçersiz Sembol!“.
+
+      - id: SYM-04
+        titel: Symbolfehler sichtbar
+        beschreibung: Kann der Worker die Symbole nicht aus MT5 holen (z. B. Terminal nicht eingeloggt), liefert GET /symbols/{id} neben der leeren Liste ein Feld error mit der MT5-Meldung und schreibt sie ins Robot-Log des Kontos; das Symbolfeld zeigt darunter einen Hinweis statt still leer zu bleiben.
+        code: [worker_python/src/api/symbols.py, worker_python/src/utils/mt5_helpers.py, frontend_nextjs/src/hooks/useSymbolDetails.ts, frontend_nextjs/src/components/zone/ZoneBasicFields.tsx]
+        tiers: [unit, api, e2e]
+        pruefung:
+          - Konto wählen, dessen MT5-Terminal nicht erreichbar oder nicht eingeloggt ist, und eine Zone öffnen.
+        erwartet: Unter dem Symbolfeld steht „Symbole konnten nicht aus MT5 geladen werden“ mit der MT5-Meldung; dieselbe Meldung steht im Robot-Log.
 
   # ---------------------------------------------------------------------------
   - id: ZON
@@ -757,7 +775,7 @@ kategorien:
 
       - id: MET-03
         titel: WebSocket-Metriken des Workers
-        beschreibung: ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0.
+        beschreibung: ws_server sendet jede Sekunde Preis, RSI, MACD, P/L, Positionen für das erste Konto / Zone 0; jede METRICS-Nachricht trägt account_id (siehe ACC-10).
         code: [worker_python/src/api/ws_server.py, worker_python/src/core/indicator_calc.py]
         tiers: [unit, live]
         pruefung:

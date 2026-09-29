@@ -24,6 +24,7 @@ def symbols_env(tmp_path, monkeypatch):
     monkeypatch.setattr(mh, "CACHE_FILE", str(cache))
     monkeypatch.setattr(helpers, "ACCOUNTS_FILE", str(accounts))
     mh._IN_FLIGHT.clear()
+    mh._LAST_FETCH_ERROR.clear()
 
     calls = []
 
@@ -43,6 +44,7 @@ def symbols_env(tmp_path, monkeypatch):
 
     yield cache, calls, write_cache
     mh._IN_FLIGHT.clear()
+    mh._LAST_FETCH_ERROR.clear()
 
 
 def _get(account_id=TEST_ACCOUNT_ID):
@@ -122,3 +124,25 @@ def test_unbekanntes_konto_ohne_mt5_abfrage(symbols_env):
     _, calls, _ = symbols_env
     assert asyncio.run(_get("9999")) == []
     assert calls == []
+
+
+@pytest.mark.feature("SYM-04")
+def test_fehlgeschlagene_abfrage_merkt_fehler_und_loggt_ins_konto(symbols_env, monkeypatch):
+    logged = []
+
+    async def failing_fetch(account_id, account_config, safe_log_fn):
+        raise Exception("[TIMEOUT] MT5 bağlantısı 15 sn içinde başlatılamadı")
+
+    monkeypatch.setattr(mh, "fetch_and_cache_symbols", failing_fetch)
+    result = asyncio.run(
+        mh.get_or_fetch_symbols(TEST_ACCOUNT_ID, lambda msg, **kw: logged.append((msg, kw)))
+    )
+
+    assert result == []
+    assert "[TIMEOUT]" in mh.get_symbols_fetch_error(TEST_ACCOUNT_ID)
+    assert any(kw.get("account_id") == TEST_ACCOUNT_ID for _, kw in logged)
+
+    # Erfolgreiche Abfrage danach löscht den Fehler
+    monkeypatch.setattr(mh, "fetch_and_cache_symbols", lambda *a: asyncio.sleep(0, result=[USO]))
+    assert asyncio.run(_get()) == [USO]
+    assert mh.get_symbols_fetch_error(TEST_ACCOUNT_ID) is None

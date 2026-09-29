@@ -143,6 +143,7 @@ def read_bot_metrics(acc_id: str, symbol: str = ""):
     if not price:
         return None
     return {
+        "account_id": acc_id,
         "symbol": symbol,
         "mt5_connected": bool(metrics.get("mt5_connected", True)),
         "market_open": bool(metrics.get("market_open", False)),
@@ -256,6 +257,9 @@ async def build_stream_message(acc_id: str, symbol: str) -> tuple[dict, dict | N
         indicators = {"rsi": None, "macd": None}
 
     payload = {
+        # Akış hep accounts.json'daki ilk hesabı yayınlar; arayüz başka hesap seçiliyken
+        # bu metrikleri account_id'ye bakarak yok sayar
+        "account_id": acc_id,
         # Grafik sayfası (/chart?zone=) akışın hangi sembolü gösterdiğini bilmeli
         "symbol": symbol,
         "mt5_connected": data["mt5_connected"],

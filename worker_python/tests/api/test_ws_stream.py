@@ -78,6 +78,7 @@ def robot_log() -> str:
 
 
 @pytest.mark.feature("MET-03")
+@pytest.mark.feature("ACC-10")
 def test_sendet_metriken_mit_symbol_und_rsi(stream, monkeypatch):
     ws, sent, worker_dir = stream
     monkeypatch.setattr(ws, "fetch_mt5_data", lambda symbol: mt5_data(RISING))
@@ -86,6 +87,7 @@ def test_sendet_metriken_mit_symbol_und_rsi(stream, monkeypatch):
     msg = sent[0]
     assert msg["type"] == "METRICS"
     assert msg["payload"]["symbol"] == "USOUSD"
+    assert msg["payload"]["account_id"] == TEST_ACCOUNT_ID  # ACC-10: Frontend filtert danach
     assert msg["payload"]["price"] == RISING[-1]
     assert isinstance(msg["payload"]["rsi"], float)
     json.dumps(msg, allow_nan=False)

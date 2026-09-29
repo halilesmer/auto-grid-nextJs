@@ -1,6 +1,6 @@
-/** ACC · Konten: Liste, Anlegen, Duplikat, Bearbeiten, Löschen, Auswahl, LIVE/TEST-Kennzeichnung. */
-import { DEMO_ID, LIVE_ID, MT5_PATH, expect, test } from '../fixtures/test';
-import { msg } from '../fixtures/i18n';
+/** ACC · Konten: Liste, Anlegen, Duplikat, Bearbeiten, Löschen, Auswahl, Kontowechsel, LIVE/TEST-Kennzeichnung. */
+import { DEMO_ID, LIVE_ID, MT5_PATH, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
+import { fmt, msg } from '../fixtures/i18n';
 
 test.describe('ACC Konten', () => {
   test('Kontoliste zeigt alle Konten', { tag: '@ACC-01' }, async ({ page, dashboard }) => {
@@ -26,6 +26,50 @@ test.describe('ACC Konten', () => {
     await dashboard.selectAccount(LIVE_ID);
     await expect(page.getByText(msg('zone.panel.empty.title'))).toBeVisible();
     await expect(page.getByLabel(msg('settings.interval'))).toHaveValue('1');
+  });
+
+  test('Kontowechsel lässt keine Laufzeitdaten des vorigen Kontos stehen', { tag: '@ACC-10' }, async ({ page, worker, dashboard }) => {
+    worker.setBotRunning(DEMO_ID);
+    await dashboard.open(DEMO_ID);
+    await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
+    await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '3');
+
+    // Frisches Konto: Bot läuft nicht, noch keine Metrikdatei (GET /logs → metrics: null)
+    await dashboard.selectAccount(LIVE_ID);
+    await expect(dashboard.botStatus).toHaveText(msg('bot.status.stopped'));
+    await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '0');
+    await expect(page.getByTestId('metric-pending')).toHaveAttribute('data-value', '0');
+    await expect(page.getByTestId('metric-price')).not.toHaveAttribute('data-value', fmt().price(97.25, 3));
+
+    await dashboard.selectAccount(DEMO_ID);
+    await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
+    await expect(page.getByTestId('metric-positions')).toHaveAttribute('data-value', '3');
+  });
+
+  test('Stream-Metriken eines anderen Kontos werden ignoriert', { tag: '@ACC-10' }, async ({ page, worker, dashboard }) => {
+    worker.state.settings[LIVE_ID].ZONES = [makeZone()];
+    await dashboard.open(LIVE_ID);
+    // Client-Navigation: das gewählte Konto bleibt im Store
+    await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
+    await expect(page).toHaveURL(`/chart?zone=${ZONE_ID}`);
+    await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
+    const price = page.getByTestId('chart-stat-price');
+
+    worker.pushMetrics({ account_id: LIVE_ID, price: 98.5 });
+    await expect(price).toContainText(fmt().number(98.5));
+
+    // Der Worker streamt immer das erste Konto → hier nicht anzeigen. Die RSI-Nachricht danach
+    // zeigt, dass die DEMO-Nachricht (in Reihenfolge) schon verarbeitet ist.
+    worker.pushMetrics({ account_id: DEMO_ID, price: 97.25 });
+    worker.pushMetrics({ account_id: LIVE_ID, rsi: 55.123 });
+    await expect(page.getByTestId('chart-stat-rsi')).toContainText(
+      fmt().number(55.123, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    );
+    await expect(price).toContainText(fmt().number(98.5));
+
+    // Ohne account_id (älterer Worker) wird weiter angezeigt
+    worker.pushMetrics({ price: 99.75 });
+    await expect(price).toContainText(fmt().number(99.75));
   });
 
   test('LIVE/TEST-Kennzeichnung', { tag: '@ACC-07' }, async ({ page, dashboard }) => {

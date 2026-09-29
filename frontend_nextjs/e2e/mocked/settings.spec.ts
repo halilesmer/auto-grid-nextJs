@@ -1,4 +1,4 @@
-/** SET · Allgemeine Einstellungen · SYM · Symbole (Autocomplete, Schrittweiten aus den Symboldetails). */
+/** SET · Allgemeine Einstellungen · SYM · Symbole (Autocomplete, Schrittweiten aus den Symboldetails, Abruffehler). */
 import { DEMO_ID, expect, makeZone, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
@@ -116,5 +116,16 @@ test.describe('SYM Symbole', () => {
 
     await input.fill('FOOBAR');
     await expect(dashboard.zone().getByText(msg('zone.field.symbolInvalid'))).toBeVisible();
+  });
+
+  test('MT5-Fehler beim Symbolabruf wird unter dem Symbolfeld angezeigt', { tag: '@SYM-04' }, async ({ worker, dashboard }) => {
+    const error = '[TIMEOUT] MT5 bağlantısı 15 sn içinde başlatılamadı';
+    worker.state.symbolsError = error;
+    await dashboard.open(DEMO_ID);
+    await expect(dashboard.zone().getByTestId('symbols-error')).toHaveText(
+      msg('zone.field.symbolsUnavailable', { message: error }),
+    );
+    // Ohne Symbolliste gilt das gespeicherte Symbol nicht als ungültig
+    await expect(dashboard.zone().getByText(msg('zone.field.symbolInvalid'))).toBeHidden();
   });
 });

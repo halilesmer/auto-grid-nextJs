@@ -8,6 +8,8 @@ interface SettingsState {
   availableSymbols: string[];
   symbolDetails: Record<string, SymbolDetail>;
   isLoadingSymbols: boolean;
+  /** Worker sembolleri MT5'ten alamadıysa hata metni (liste boş) */
+  symbolsError: string | null;
 
   setSettings: (settings: GlobalSettings | null) => void;
   setGlobalSettings: (globals: Partial<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>>) => void;
@@ -17,6 +19,7 @@ interface SettingsState {
   setAvailableSymbols: (symbols: string[]) => void;
   setSymbolDetails: (details: Record<string, SymbolDetail>) => void;
   setLoadingSymbols: (loading: boolean) => void;
+  setSymbolsError: (error: string | null) => void;
   resetSettings: () => void;
 }
 
@@ -25,6 +28,7 @@ const initialState = {
   availableSymbols: [],
   symbolDetails: {},
   isLoadingSymbols: false,
+  symbolsError: null,
 };
 
 function sanitizeNumbers(val: unknown): unknown {
@@ -111,6 +115,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setSymbolDetails: (details) => set({ symbolDetails: details }),
 
   setLoadingSymbols: (loading) => set({ isLoadingSymbols: loading }),
+
+  setSymbolsError: (error) => set({ symbolsError: error }),
 
   resetSettings: () => set(initialState),
 }));

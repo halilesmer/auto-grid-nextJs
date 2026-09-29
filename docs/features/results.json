@@ -97,6 +97,18 @@
       "tests": 1
     }
   },
+  "ACC-10": {
+    "api": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 1
+    },
+    "e2e": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 2
+    }
+  },
   "BOT-01": {
     "live": {
       "datum": "2026-09-24",
@@ -507,6 +519,23 @@
   },
   "SYM-03": {
     "e2e": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "SYM-04": {
+    "api": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 2
+    },
+    "e2e": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 1
+    },
+    "unit": {
       "datum": "2026-09-29",
       "status": "passed",
       "tests": 1
