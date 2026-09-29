@@ -1,12 +1,11 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Activity, Clock, Layers, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { Clock, Layers, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { AnimateDigits } from '@/components/ui/animate-digits';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useBotRuntimeStore, useSettingsStore } from '@/store';
-import { getSymbolConfig } from '@/utils/zoneHelpers';
+import { useBotRuntimeStore } from '@/store';
 import { useFormat, useT } from '@/i18n';
 
 interface MetricProps {
@@ -54,10 +53,7 @@ function Metric({ label, hint, icon, value, valueClassName, footer, accent, test
 
 export default function MetricsStrip() {
   const t = useT();
-  const { money: formatMoney, price: formatPrice } = useFormat();
-  const firstSymbol = useSettingsStore((s) => s.settings?.ZONES?.[0]?.symbol);
-  const symbolDetails = useSettingsStore((s) => s.symbolDetails);
-  const priceDigits = firstSymbol ? getSymbolConfig(firstSymbol, symbolDetails).precision : undefined;
+  const { money: formatMoney } = useFormat();
   const liveData = useBotRuntimeStore((s) => s.liveData);
   const isConnecting = useBotRuntimeStore((s) => s.isConnecting);
 
@@ -65,14 +61,7 @@ export default function MetricsStrip() {
   const profitNegative = liveData.profit < 0;
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Metric
-        label={t('metrics.price')}
-        hint={t('metrics.price.hint')}
-        testId="metric-price"
-        icon={<Activity size={14} />}
-        value={formatPrice(liveData.current_price, priceDigits)}
-      />
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       <Metric
         label={t('metrics.profit')}
         hint={t('metrics.profit.hint')}

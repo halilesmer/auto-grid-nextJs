@@ -51,11 +51,11 @@ test.describe('UI Sprache', () => {
       worker.setBotRunning(DEMO_ID);
       await dashboard.open(DEMO_ID);
       await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-      await expect(page.getByTestId('metric-price')).toHaveAttribute('data-value', fmt('de').price(97.25, 3));
+      await expect(page.getByTestId('zone-price').first()).toHaveText(fmt('de').price(97.25, 3));
       expect(fmt('de').price(97.25, 3)).toBe('97,250');
 
       await page.getByTestId('language-en').click();
-      await expect(page.getByTestId('metric-price')).toHaveAttribute('data-value', '97.250');
+      await expect(page.getByTestId('zone-price').first()).toHaveText('97.250');
       await expect(page.getByTestId('metric-profit')).toHaveAttribute('data-value', '-$12.50');
     });
   });

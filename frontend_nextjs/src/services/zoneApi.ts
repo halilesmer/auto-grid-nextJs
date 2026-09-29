@@ -84,4 +84,12 @@ export const zoneApi = {
     });
     return zoneIdx;
   },
+
+  /** Yalnızca bu bölgenin robot log satırları ("[Z:<id>]" etiketli). */
+  async getZoneLogs(accountId: string, zoneId: string, lines = 100): Promise<string[]> {
+    const res = await axiosInstance.get(`/logs/${accountId}`, {
+      params: { log_type: 'robot', lines, zone_id: zoneId },
+    });
+    return res.data?.robot_log || [];
+  },
 };

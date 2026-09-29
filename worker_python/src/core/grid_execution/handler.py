@@ -1,6 +1,6 @@
 from typing import Callable
 
-from src.core.grid_helpers import log_message as default_log_message
+from src.core.grid_helpers import log_message as default_log_message, zone_log_context, zone_log_id
 from src.core.grid_orders import (
     cancel_order,
     get_existing_levels_by_direction,
@@ -32,6 +32,26 @@ def handle_sliding_grid(
     current_avg_price: float,
     log_message: Callable[[str, str], None] = default_log_message,
 ) -> bool:
+    # Bu bölgenin işlenmesi sırasında yazılan tüm loglar bölge id'siyle etiketlenir
+    with zone_log_context(zone_log_id(active_zone, active_zone_idx)):
+        return _handle_sliding_grid(
+            mt5_module, active_zone, active_zone_idx, robot_positions, robot_orders, symbol_infos,
+            consecutive_errors, active_zones_state, current_avg_price, log_message,
+        )
+
+
+def _handle_sliding_grid(
+    mt5_module,
+    active_zone: dict,
+    active_zone_idx: int,
+    robot_positions: list,
+    robot_orders: list,
+    symbol_infos: dict,
+    consecutive_errors: dict,
+    active_zones_state: dict,
+    current_avg_price: float,
+    log_message: Callable[[str, str], None],
+) -> bool:
     try:
         config: ZoneConfig = extract_zone_config(active_zone, active_zone_idx, log_message, symbol_infos)
 
@@ -59,7 +79,7 @@ def handle_sliding_grid(
                 mt5_module,
                 config,
                 active_zone_idx,
-                str(active_zone.get("id") or f"idx{active_zone_idx}"),
+                zone_log_id(active_zone, active_zone_idx),
                 robot_positions,
                 robot_orders,
                 symbol_infos,
