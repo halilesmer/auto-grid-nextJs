@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useBotRuntimeStore } from './useBotRuntimeStore';
 import { useLogsStore } from './useLogsStore';
+import { useAccountStore } from './useAccountStore';
 import { Metrics, LiveData } from './types';
 import { toWsUrl } from '@/lib/connectionCode';
 import { getConnection } from './useConnectionStore';
@@ -60,9 +61,18 @@ export function useWebSocketManager(selectedAccount: string | null): {
       const data: WSMessage = JSON.parse(event.data);
 
       switch (data.type) {
-        case 'METRICS':
+        case 'METRICS': {
+          // Akış hep worker'daki ilk hesabı yayınlar: başka hesap seçiliyken onun metriklerini
+          // gösterme. Hesap seçili değilse (/chart), eski worker account_id göndermezse veya
+          // worker hesabı bilmiyorsa ("default") kabul.
+          const streamAccount = data.payload.account_id;
+          const selected = useAccountStore.getState().selectedAccount;
+          const foreign =
+            streamAccount != null && streamAccount !== 'default' && selected && String(streamAccount) !== String(selected);
+          if (foreign) break;
           updateMetricsRef.current(data.payload);
           break;
+        }
         case 'LIVE_DATA':
           // Sunucu bunu yalnızca API sürecinde MT5 verisi yokken ({mt5_connected:false})
           // gönderir; bot sürecinin durumu değildir. liveData'ya yazmak çalışan botu

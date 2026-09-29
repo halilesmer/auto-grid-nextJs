@@ -30,9 +30,13 @@ export const zoneApi = {
     await axiosInstance.post(`/settings/${accountId}`, { settings: { ZONES } });
   },
 
+  /** Semboller + (liste boşsa) worker'ın MT5 hata metni */
   async getSymbols(accountId: string) {
     const res = await axiosInstance.get(`/symbols/${accountId}`);
-    return res.data?.symbols || res.data || {};
+    return {
+      symbols: res.data?.symbols || res.data || {},
+      error: typeof res.data?.error === 'string' ? (res.data.error as string) : null,
+    };
   },
 
   async toggleZoneActive(

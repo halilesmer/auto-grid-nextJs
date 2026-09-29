@@ -77,6 +77,8 @@ export default function LogViewer() {
         params: { log_type: "all", lines: 200 },
       });
       const data = res.data;
+      // Hesap bu arada değiştiyse eski hesabın cevabı yeni hesabın durumunu ezmesin
+      if (useAccountStore.getState().selectedAccount !== selectedAccount) return;
       setLogs({
         robot_log: data.robot_log || [],
         mt5_log: data.mt5_log || [],

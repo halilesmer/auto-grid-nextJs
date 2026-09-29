@@ -11,6 +11,8 @@ import json
 _IN_FLIGHT: dict[str, asyncio.Task] = {}
 _IN_FLIGHT_LOCK = threading.Lock()
 _CACHE_TTL_SECONDS = 3600  # 1 hour
+# Hesap başına son başarısız sembol çekiminin hata metni (GET /symbols bunu arayüze iletir)
+_LAST_FETCH_ERROR: dict[str, str] = {}
 
 # Local BASE_DIR to avoid circular import from src.api.helpers
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -544,7 +546,18 @@ def _forget_in_flight(account_id: str, task: asyncio.Task):
 async def _fetch_and_cache_wrapper(account_id: str, account_config: dict, safe_log_fn) -> list[dict]:
     """Hataları loglar ve boş liste döner (arka plan görevinde yakalanmamış istisna kalmasın)."""
     try:
-        return await fetch_and_cache_symbols(account_id, account_config, safe_log_fn)
+        symbols = await fetch_and_cache_symbols(account_id, account_config, safe_log_fn)
     except Exception as e:
-        safe_log_fn(f"Background symbols fetch failed for {account_id}: {e}", type="error")
+        _LAST_FETCH_ERROR[account_id] = str(e)
+        # account_id ile: hata hesabın robot loguna da yazılır (arayüz LogViewer'da görünür)
+        safe_log_fn(
+            f"Semboller MT5'ten alınamadı: {e}", type="error", account_id=account_id
+        )
         return []
+    _LAST_FETCH_ERROR.pop(account_id, None)
+    return symbols
+
+
+def get_symbols_fetch_error(account_id: str) -> str | None:
+    """Bu hesabın son sembol çekimi başarısızsa hata metni, değilse None."""
+    return _LAST_FETCH_ERROR.get(account_id)

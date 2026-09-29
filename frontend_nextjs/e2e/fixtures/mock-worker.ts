@@ -238,6 +238,8 @@ export class MockWorker {
       if (method === 'GET') return ok({ account_id: id, states: s.uiState[id] ?? {} });
     }
     if (seg[0] === 'symbols' && method === 'GET') {
+      // Wie symbols.py: leere Liste + „error“, wenn MT5 die Symbole nicht liefern konnte
+      if (s.symbolsError) return ok({ status: 'success', account_id: seg[1], symbols: [], error: s.symbolsError });
       return ok({ status: 'success', account_id: seg[1], symbols: s.symbols });
     }
 
@@ -265,9 +267,9 @@ export class MockWorker {
       }
       if (method === 'GET') {
         const running = Boolean(s.botRunning[id]);
-        const metrics = running
-          ? { ...(s.metrics[id] ?? {}) }
-          : { ...(s.metrics[id] ?? {}), mt5_connected: false };
+        const stored = s.metrics[id];
+        // Wie logs.py: ohne Metrikdatei null (frisches Konto), sonst mt5_connected nur bei laufendem Bot
+        const metrics = stored ? { ...stored, ...(running ? {} : { mt5_connected: false }) } : null;
         const lines = Number(url.searchParams.get('lines') || 100);
         // wie worker_python/src/api/logs.py: zone_id süzt den Robot-Log auf "[Z:<id>] "
         const zoneId = url.searchParams.get('zone_id');

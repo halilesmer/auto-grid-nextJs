@@ -113,6 +113,8 @@ export interface Metrics {
   macd?: number;
   /** Akışın gösterdiği sembol (hesabın ilk bölgesi); eski worker'larda yok */
   symbol?: string;
+  /** Akışın ait olduğu hesap; seçili hesaptan farklıysa yok sayılır. Eski worker'larda yok */
+  account_id?: string;
 }
 
 export interface LiveData {

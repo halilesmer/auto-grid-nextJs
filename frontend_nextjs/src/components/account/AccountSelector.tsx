@@ -45,7 +45,12 @@ export default function AccountSelector() {
   const selectAccount = useCallback(
     (accountId: string | null) => {
       const store = useAccountStore.getState();
-      if (accountId !== store.selectedAccount) setSettings(null);
+      if (accountId !== store.selectedAccount) {
+        setSettings(null);
+        // Önceki hesabın durumu/fiyatı/pozisyonları yeni hesapta "Çalışıyor" gibi kalmasın:
+        // yeni hesabın metrikleri gelene kadar boş başla
+        useBotRuntimeStore.getState().resetRuntime();
+      }
       if (accountId) {
         store.setSelectedAccount(accountId);
       } else {

@@ -123,6 +123,8 @@ export function defaultState() {
     } as Record<string, string[]>,
     metrics: { [DEMO_ID]: { ...RUNNING_METRICS } } as Record<string, Partial<LiveData>>,
     botRunning: {} as Record<string, boolean>,
+    /** Fehlertext von GET /symbols (MT5 nicht erreichbar); null = Symbole werden geliefert */
+    symbolsError: null as string | null,
     symbols: [
       symbol('USOUSD', 3, 'US Crude Oil'),
       symbol('XAUUSD', 2, 'Gold vs US Dollar', 0.01, 100),
