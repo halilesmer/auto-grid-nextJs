@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,8 +18,12 @@ interface ModalProps {
   dismissible?: boolean;
 }
 
+const subscribe = () => () => {};
+
 export function Modal({ open, onClose, title, icon, children, className, dismissible = true }: ModalProps) {
   const t = useT();
+  // Portal nur im Browser (SSR-sicher)
+  const isClient = useSyncExternalStore(subscribe, () => true, () => false);
   useEffect(() => {
     if (!open || !dismissible) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -26,7 +31,10 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
     return () => window.removeEventListener('keydown', onKey);
   }, [open, dismissible, onClose]);
 
-  return (
+  // Portal nach body: sonst wird `fixed` relativ zu transformierten Vorfahren (Zonenkarten) positioniert
+  if (!isClient) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -71,6 +79,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
