@@ -373,4 +373,51 @@ test.describe('ZON Zonen', () => {
     expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ instant_entry: true });
     expect(worker.zonesOf(DEMO_ID)[0].step_by_loss).toBeFalsy();
   });
+
+  test('Einstiegsmodus Fraktal: eigene Felder statt Grid', { tag: '@ZON-15' }, async ({ worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const zone = dashboard.zone();
+    const mode = zone.getByTestId('entry-mode');
+    await expect(mode).toHaveValue('grid');
+    await expect(zone.getByTestId('fractal-fields')).toHaveCount(0);
+
+    await mode.selectOption('fractal');
+    await expect(zone.getByTestId('fractal-fields')).toBeVisible();
+    // Grid-Felder und -Schalter sind im Fraktal-Modus ausgeblendet
+    await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toHaveCount(0);
+    await expect(zone.getByText(msg('zone.stepByLoss'))).toHaveCount(0);
+    await expect(zone.getByText(msg('zone.breakout.title'))).toHaveCount(0);
+    // Standard: H4, Ausbruch, ATR 14 × 1,5, Chance/Risiko 2
+    await expect(zone.getByTestId('fractal-timeframe')).toHaveValue('H4');
+    await expect(zone.getByTestId('fractal-order-mode')).toHaveValue('breakout');
+    await expect(zone.getByTestId('fractal-sl-mode')).toHaveValue('atr');
+    await expect(dashboard.zoneField(msg('zone.fractal.atrPeriod'))).toHaveValue('14');
+    await expect(dashboard.zoneField(msg('zone.fractal.sarStep'))).toHaveCount(0);
+
+    await zone.getByTestId('fractal-timeframe').selectOption('M15');
+    await zone.getByTestId('fractal-order-mode').selectOption('rebound');
+    await zone.getByTestId('fractal-sl-mode').selectOption('sar');
+    await expect(dashboard.zoneField(msg('zone.fractal.atrPeriod'))).toHaveCount(0);
+    await dashboard.zoneField(msg('zone.fractal.sarStep')).fill('0.03');
+    await dashboard.zoneField(msg('zone.fractal.slBuffer')).fill('0.2');
+    await dashboard.zoneField(msg('zone.fractal.rr')).fill('3');
+
+    await saveAndReload(dashboard);
+    await expect(dashboard.zone().getByTestId('entry-mode')).toHaveValue('fractal');
+    await expect(dashboard.zone().getByTestId('fractal-sl-mode')).toHaveValue('sar');
+    await expect(dashboard.zoneField(msg('zone.fractal.rr'))).toHaveValue('3');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({
+      entry_mode: 'fractal',
+      fractal_timeframe: 'M15',
+      fractal_order_mode: 'rebound',
+      fractal_sl_mode: 'sar',
+      fractal_sar_step: 0.03,
+      fractal_sl_buffer: 0.2,
+      fractal_rr: 3,
+    });
+
+    // Zurück auf Grid: Grid-Felder wieder da
+    await dashboard.zone().getByTestId('entry-mode').selectOption('grid');
+    await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toBeVisible();
+  });
 });

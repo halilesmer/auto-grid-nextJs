@@ -298,6 +298,25 @@ export default defineArea(
       'Anlık Fiyat: fiyat sınırı geçer geçmez tetiklenir.\nMum Kapanışı: yalnızca seçilen periyottaki mum bölgenin dışında kapanırsa tetiklenir (kısa iğne hareketlerine karşı daha güvenli).',
     'zone.exit.timeframe.hint':
       'Mum kapanışının hangi periyotta kontrol edileceği (M1 = 1 dakika … D1 = 1 gün). Son kapanan mum bölgenin dışında kapanırsa çıkış sayılır.',
+    'zone.entryMode.hint':
+      'Grid: fiyat aralığında kayan ızgara emirleri.\nFraktal: yalnızca seçilen zaman dilimindeki en yeni fraktalın seviyesinde, taraf başına tek bekleyen emir. Yeni fraktal oluşunca emir taşınır; fiyat seviyeyi geçtiyse emir konmaz. MT5\'te elle silinen emir veya kapatılan pozisyon için aynı fraktala tekrar emir konmaz.',
+    'zone.fractal.timeframe.hint':
+      'Fraktalların arandığı mum periyodu (M1 = 1 dakika … D1 = 1 gün). Fraktal 5 mumdan oluşur ve ancak sağdaki iki mum kapandıktan sonra geçerlidir; ATR ve SAR da bu periyotta hesaplanır.',
+    'zone.fractal.orderMode.hint':
+      'Kırılım: üst fraktal → Buy Stop, alt fraktal → Sell Stop (seviyenin kırılmasına oynar).\nDönüş: üst fraktal → Sell Limit, alt fraktal → Buy Limit (seviyeden geri dönüşe oynar).\nYön (BUY/SELL/Her İkisi) hangi tarafların açılacağını sınırlar; fraktal bölgenin fiyat aralığı içinde olmalı.',
+    'zone.fractal.slMode.hint':
+      'ATR: fraktal mumunun ucu ± çarpan × ATR (tipik mum dalgalanması).\nParabolic SAR: SAR noktası; açık pozisyonda her yeni mumda yalnızca kâr yönünde çekilir.\nKarşı fraktal: BUY için son alt fraktalın, SELL için son üst fraktalın ötesi + tampon.\nFraktal mumu: BUY için fraktal mumunun dibi − tampon, SELL için tepesi + tampon.\nHesaplanamazsa veya yanlış taraftaysa fraktal mumu + tampon kullanılır.',
+    'zone.fractal.slBuffer.hint':
+      'SL\'nin fraktal mumunun / karşı fraktalın ne kadar ötesine konacağı (fiyat birimi, ör. 0,05). ATR veya SAR hesaplanamadığında yedek olarak da kullanılır.',
+    'zone.fractal.atrPeriod.hint':
+      'ATR\'nin kaç mumun gerçek aralık ortalaması olduğu (MT5 ATR göstergesiyle aynı, varsayılan 14).',
+    'zone.fractal.atrMultiplier.hint':
+      'SL mesafesi = çarpan × ATR, fraktal mumunun ucundan itibaren. Büyük değer = daha geniş SL (varsayılan 1,5).',
+    'zone.fractal.sarStep.hint':
+      'Parabolic SAR ivme adımı (MT5 varsayılanı 0,02). Büyük değer SAR\'ı fiyata daha hızlı yaklaştırır.',
+    'zone.fractal.sarMax.hint': 'Parabolic SAR ivmesinin üst sınırı (MT5 varsayılanı 0,2).',
+    'zone.fractal.rr.hint':
+      'TP = giriş ± bu değer × SL mesafesi. Örn. 2: TP, SL\'nin iki katı uzakta. 0 = TP yok.',
   },
   {
     // --- Account ---
@@ -592,6 +611,25 @@ export default defineArea(
       'Current Price: triggers as soon as the price crosses the limit.\nCandle Close: triggers only if the candle of the chosen timeframe closes outside the zone (safer against short wicks).',
     'zone.exit.timeframe.hint':
       'Timeframe of the candle close check (M1 = 1 minute … D1 = 1 day). If the last closed candle closes outside the zone, that counts as an exit.',
+    'zone.entryMode.hint':
+      'Grid: sliding grid orders across the price range.\nFractal: a single pending order per side at the level of the latest fractal on the chosen timeframe. A new fractal moves the order; if price has already passed the level, no order is placed. If you delete the order or close the position in MT5, the same fractal is not traded again.',
+    'zone.fractal.timeframe.hint':
+      'Candle period in which fractals are detected (M1 = 1 minute … D1 = 1 day). A fractal spans 5 candles and is only valid once the two candles to its right have closed; ATR and SAR use this period too.',
+    'zone.fractal.orderMode.hint':
+      'Breakout: upper fractal → Buy Stop, lower fractal → Sell Stop (trades a break of the level).\nRebound: upper fractal → Sell Limit, lower fractal → Buy Limit (trades a bounce off the level).\nDirection (BUY/SELL/Both) limits which sides are traded; the fractal must lie within the zone\'s price range.',
+    'zone.fractal.slMode.hint':
+      'ATR: tip of the fractal candle ± multiplier × ATR (typical candle range).\nParabolic SAR: the SAR dot; on open positions it is moved on each new candle, only in the profit direction.\nOpposite fractal: beyond the last lower fractal (BUY) or upper fractal (SELL) + buffer.\nFractal candle: low of the fractal candle − buffer (BUY), high + buffer (SELL).\nIf it cannot be calculated or lands on the wrong side, fractal candle + buffer is used.',
+    'zone.fractal.slBuffer.hint':
+      'How far beyond the fractal candle / opposite fractal the SL is placed (price units, e.g. 0.05). Also the fallback when ATR or SAR cannot be calculated.',
+    'zone.fractal.atrPeriod.hint':
+      'Number of candles averaged for the ATR true range (same as the MT5 ATR indicator, default 14).',
+    'zone.fractal.atrMultiplier.hint':
+      'SL distance = multiplier × ATR, measured from the tip of the fractal candle. Higher = wider SL (default 1.5).',
+    'zone.fractal.sarStep.hint':
+      'Parabolic SAR acceleration step (MT5 default 0.02). Higher values move the SAR toward price faster.',
+    'zone.fractal.sarMax.hint': 'Upper limit of the Parabolic SAR acceleration (MT5 default 0.2).',
+    'zone.fractal.rr.hint':
+      'TP = entry ± this value × SL distance. E.g. 2: TP twice as far as the SL. 0 = no TP.',
   },
   {
     // --- Konto ---
@@ -886,5 +924,24 @@ export default defineArea(
       'Aktueller Preis: löst aus, sobald der Preis die Grenze überschreitet.\nKerzenschluss: löst nur aus, wenn die Kerze des gewählten Zeitrahmens außerhalb der Zone schließt (sicherer gegen kurze Dochte).',
     'zone.exit.timeframe.hint':
       'Zeitrahmen der Kerzenschluss-Prüfung (M1 = 1 Minute … D1 = 1 Tag). Schließt die letzte abgeschlossene Kerze außerhalb der Zone, gilt das als Ausbruch.',
+    'zone.entryMode.hint':
+      'Grid: gleitende Raster-Orders im Preisbereich.\nFraktal: je Seite eine einzige Pending-Order auf Höhe des jüngsten Fraktals im gewählten Zeitrahmen. Ein neues Fraktal verschiebt die Order; hat der Kurs das Niveau schon erreicht, wird keine gesetzt. Löschst du die Order oder schließt die Position in MT5, wird dasselbe Fraktal nicht erneut gehandelt.',
+    'zone.fractal.timeframe.hint':
+      'Kerzenperiode, in der Fraktale gesucht werden (M1 = 1 Minute … D1 = 1 Tag). Ein Fraktal besteht aus 5 Kerzen und gilt erst, wenn die zwei Kerzen rechts davon geschlossen sind; ATR und SAR nutzen dieselbe Periode.',
+    'zone.fractal.orderMode.hint':
+      'Ausbruch: oberes Fraktal → Buy Stop, unteres Fraktal → Sell Stop (setzt auf den Bruch des Niveaus).\nAbpraller: oberes Fraktal → Sell Limit, unteres Fraktal → Buy Limit (setzt auf die Umkehr am Niveau).\nDie Richtung (BUY/SELL/Beide) begrenzt die Seiten; das Fraktal muss im Preisbereich der Zone liegen.',
+    'zone.fractal.slMode.hint':
+      'ATR: Spitze der Fraktal-Kerze ± Faktor × ATR (typische Kerzenschwankung).\nParabolic SAR: SAR-Punkt; bei offenen Positionen mit jeder neuen Kerze nachgezogen, nur in Gewinnrichtung.\nGegenfraktal: jenseits des letzten unteren (BUY) bzw. oberen Fraktals (SELL) + Puffer.\nFraktal-Kerze: Tief der Fraktal-Kerze − Puffer (BUY), Hoch + Puffer (SELL).\nLässt er sich nicht berechnen oder liegt er auf der falschen Seite, gilt Fraktal-Kerze + Puffer.',
+    'zone.fractal.slBuffer.hint':
+      'Wie weit jenseits der Fraktal-Kerze / des Gegenfraktals der SL liegt (Preiseinheiten, z. B. 0,05). Auch Rückfallwert, wenn ATR oder SAR nicht berechenbar sind.',
+    'zone.fractal.atrPeriod.hint':
+      'Über wie viele Kerzen die True Range für den ATR gemittelt wird (wie der MT5-ATR-Indikator, Standard 14).',
+    'zone.fractal.atrMultiplier.hint':
+      'SL-Abstand = Faktor × ATR, gemessen ab der Spitze der Fraktal-Kerze. Größer = weiterer SL (Standard 1,5).',
+    'zone.fractal.sarStep.hint':
+      'Beschleunigungsschritt des Parabolic SAR (MT5-Standard 0,02). Größer = SAR nähert sich dem Kurs schneller.',
+    'zone.fractal.sarMax.hint': 'Obergrenze der Parabolic-SAR-Beschleunigung (MT5-Standard 0,2).',
+    'zone.fractal.rr.hint':
+      'TP = Einstieg ± dieser Wert × SL-Abstand. Z. B. 2: TP doppelt so weit wie der SL. 0 = kein TP.',
   },
 );

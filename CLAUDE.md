@@ -50,7 +50,7 @@ MT5 passwords never leave the worker: account responses go through `_public_acco
 
 ## Tests
 
-Feature catalog `docs/features/features.yaml` (94 features, in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
+Feature catalog `docs/features/features.yaml` (105 features, in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
 
 ```bash
 scripts/features/run.sh              # unit + api + e2e, then regenerate FEATURES.md
@@ -89,6 +89,7 @@ Zustand domain stores in `src/store/` (`useAccountStore`, `useSettingsStore`, `u
 ### Persistence (all paths from `src/utils/paths.py`, relative to `worker_python/`)
 - `configs/settings_<accountId>_<Engine_Name>.json` – per-account settings and zones; `configs/accounts.json` – account list
 - `data/state_<accountId>.json` – runtime state; MT5 is the source of truth and `state_manager.py` rebuilds this file from MT5 on startup
+- `data/fractal_state_<accountId>.json` – fractal zones: last handled (filled / manually deleted) fractal per zone and side, so it isn't traded again after a restart
 - `logs/` – per-account logs and PID files
 All of these are gitignored and may contain credentials.
 

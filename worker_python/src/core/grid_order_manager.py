@@ -2,7 +2,7 @@ from src.core.grid_helpers import (
     log_message,
     normalize_price,
 )
-from src.core.grid_execution.config import extract_zone_config, max_positions_of
+from src.core.grid_execution.config import extract_zone_config, is_fractal_zone, max_positions_of
 from src.core.grid_execution.exceptions import InvalidZoneConfigError
 from src.core.grid_orders import (
     BASE_MAGIC_NUMBER,
@@ -91,6 +91,10 @@ def process_partial_fills_and_tpsl(
         z_data = zones[pos_zone_idx]
         zone_sym = str(z_data.get("symbol", "")).upper().strip()
         if not zone_sym or pos.symbol != zone_sym:
+            continue
+        # Fraktal bölgesi: SL/TP emirle birlikte fraktaldan hesaplandı (elle değişiklik de korunur);
+        # ızgara TP/SL senkronu ve kısmi dolum tamamlaması uygulanmaz
+        if is_fractal_zone(z_data):
             continue
 
         direction = "BUY" if pos.type == mt5.POSITION_TYPE_BUY else "SELL"

@@ -31,8 +31,21 @@ export function defaultZone(): ZoneSettings {
     clear_target_side: 'Sadece BUY İşlemleri',
     exit_condition: 'Anlık Fiyat',
     exit_timeframe: 'M15',
+    entry_mode: 'grid',
+    fractal_timeframe: 'H4',
+    fractal_order_mode: 'breakout',
+    fractal_sl_mode: 'atr',
+    fractal_sl_buffer: 0.05,
+    fractal_atr_period: 14,
+    fractal_atr_multiplier: 1.5,
+    fractal_sar_step: 0.02,
+    fractal_sar_max: 0.2,
+    fractal_rr: 2.0,
   };
 }
+
+/** Zeitrahmen, die der Worker kennt (grid_helpers.get_mt5_timeframe) */
+export const TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'] as const;
 
 export function zoneModified(original: ZoneSettings | undefined, current: ZoneSettings): boolean {
   if (!original) return true;

@@ -8,6 +8,8 @@ Zusätzlich gibt es Test-Hebel:
     reject(retcode, times)    nächste order_check-Aufrufe ablehnen (z. B. 10016, 10027)
     silent_reject_next()      order_send meldet OK, Order erscheint aber nicht im Buch
     set_closed_candle(...)    Schlusskurs der letzten geschlossenen Kerze (exit_condition)
+    set_rates(sym, tf, bars)  vollständige OHLC-Kerzen (geschlossen, alt → neu) für Fraktale/ATR/SAR;
+                              die laufende Kerze (Position 0) wird aus dem aktuellen Tick gebildet
     add_order/add_position    Ausgangslage aufbauen (auch manuelle Orders ohne Robot-Magic);
                               add_position(order_volume=...) = Position aus teilweise gefüllter Order
     partial_fill_next(vol)    nächste Füllung einer Pending Order nur mit `vol` (Rest verfällt, IOC)
@@ -160,6 +162,7 @@ class FakeMT5:
         self.sent: list[dict] = []
         self.checked: list[dict] = []
         self.closed_candles: dict[tuple[str, int], float] = {}
+        self.rates: dict[tuple[str, int], list[dict]] = {}
         self.shutdown_called = False
         self.initialize_calls = 0
         self.login_calls = 0
@@ -191,6 +194,15 @@ class FakeMT5:
 
     def set_closed_candle(self, symbol: str, timeframe: int, close: float):
         self.closed_candles[(symbol, timeframe)] = close
+
+    def set_rates(self, symbol: str, timeframe: int, bars: list[dict]):
+        """bars: geschlossene Kerzen alt → neu, je {time, open, high, low, close}."""
+        self.rates[(symbol, timeframe)] = [dict(b) for b in bars]
+
+    def _forming_bar(self, symbol: str, bars: list[dict]) -> dict:
+        step = bars[-1]["time"] - bars[-2]["time"] if len(bars) >= 2 else 60
+        bid = self.ticks[symbol].bid
+        return {"time": bars[-1]["time"] + step, "open": bid, "high": bid, "low": bid, "close": bid}
 
     def add_order(self, symbol, type, price, volume=0.01, tp=0.0, sl=0.0, magic=0, comment="") -> Order:
         order = Order(next(self._tickets), symbol, type, price, volume, tp, sl, magic, comment)
@@ -277,6 +289,14 @@ class FakeMT5:
         return tuple(self.history.values())
 
     def copy_rates_from_pos(self, symbol, timeframe, start_pos, count):
+        bars = self.rates.get((symbol, timeframe))
+        if bars:
+            # Wie MT5: Position 0 = laufende Kerze, Ergebnis alt → neu
+            full = bars + [self._forming_bar(symbol, bars)]
+            end = len(full) - start_pos
+            if end <= 0:
+                return None
+            return [dict(b) for b in full[max(0, end - count) : end]]
         close = self.closed_candles.get((symbol, timeframe))
         if close is None:
             return None
@@ -312,6 +332,14 @@ class FakeMT5:
             for o in removed:
                 self.history[o.ticket] = o
             return Result(retcode=self.TRADE_RETCODE_DONE if removed else 10013)
+
+        if action == self.TRADE_ACTION_MODIFY:
+            for o in self.orders:
+                if o.ticket == request["order"]:
+                    o.price_open = request.get("price", o.price_open)
+                    o.sl, o.tp = request.get("sl", 0.0), request.get("tp", 0.0)
+                    return Result(retcode=self.TRADE_RETCODE_DONE)
+            return Result(retcode=10013)
 
         if action == self.TRADE_ACTION_SLTP:
             for p in self.positions:

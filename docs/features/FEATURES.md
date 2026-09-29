@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-29 · **88/98** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-29 · **94/105** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -18,9 +18,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 12/14 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 12/15 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 18/18 |
+| 7 | **ENG** – Grid-Engine (Handelslogik) | 24/24 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 9 | **LOG** – Logs | 6/6 |
 | 10 | **UPD** – System & Updates | 5/6 |
@@ -228,6 +228,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Schalter „Sofort erste Position“ in der Zonenkarte (instant_entry), unabhängig von „Abstand nach Verlust“. Wird mit der Zone gespeichert.
   - **Prüfung:** Zone (BUY und SELL) auf dem DEMO-Konto anlegen, Preis innerhalb des Bereichs, „Sofort erste Position“ einschalten, speichern, Bot starten. → Warten, bis eine Seite per Take Profit schließt.
   - **Erwartet:** Beim Start öffnen sofort 1 BUY und 1 SELL zum Marktpreis; die Pending Orders liegen einen Grid-Abstand davon entfernt; nach dem TP öffnet der Bot auf dieser Seite sofort wieder eine Position.
+- [ ] **ZON-15** Einstiegsmodus Fraktal — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
+  - Auswahl „Einstiegsmodus“ (Grid/Fraktal, entry_mode) in der Zonenkarte. Im Fraktal-Modus werden Grid-Felder, „Abstand nach Verlust“, „Sofort erste Position“ und Trend/Pullback ausgeblendet; stattdessen Zeitrahmen (M1–D1, Standard H4), Ordertyp (Ausbruch/Abpraller), Lot, Max. Positionen, SL-Methode (ATR/SAR/Gegenfraktal/Fraktal-Kerze) mit passenden Feldern, SL-Puffer und Chance/Risiko. Wird mit der Zone gespeichert.
+  - **Prüfung:** Zone auf dem DEMO-Konto auf „Fraktal“ stellen, H4, Ausbruch, SL „Automatisch (ATR)“, speichern, Bot starten. → Im MT5-Chart (H4) den Indikator „Fractals“ und ATR(14) einblenden und mit den Pending Orders vergleichen. → Eine Fraktal-Order in MT5 von Hand löschen.
+  - **Erwartet:** Je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
 
 ## 6. BOT – Bot-Steuerung
 
@@ -337,6 +341,30 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 - [x] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit ✅ 2026-09-29
   - Bei instant_entry öffnet die Engine je Seite (BUY/SELL, bei BOTH beide) sofort eine Markt-Position, wenn die Zone dort keine offene Position hat und der Preis im Zonenbereich liegt – beim Start und nach dem Schließen (z. B. TP). Abgelehnte Orders werden erst nach 30 s wiederholt. Bei instant_entry/step_by_loss richtet sich das Raster an der zuletzt eröffneten Position der Seite aus (nicht am festen Preisraster).
   - **Prüfung:** Nicht manuell testen (siehe ZON-14).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-19** Fraktal-Erkennung, ATR und Parabolic SAR — 🧪 unit ✅ 2026-09-29
+  - Bill-Williams-Fraktale aus 5 geschlossenen Kerzen wie MT5 Fractals.mq5 (Mitte > beide rechten, >= beide linken Nachbarn; erst gültig, wenn die zwei rechten Kerzen geschlossen sind). ATR als einfacher Durchschnitt der True Range wie MT5 ATR.mq5, Parabolic SAR nach Wilder inkl. Wert der laufenden Kerze.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-15).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-20** Fraktal-Orders (Ausbruch / Abpraller) — 🧪 unit ✅ 2026-09-29
+  - Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit}.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-15).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-21** Fraktal-Order verschieben / löschen — 🧪 unit ✅ 2026-09-29
+  - Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (immer höchstens eine je Seite). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, gilt es als verbraucht – die Order wird gelöscht und nicht neu gesetzt. Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-15).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-22** Fraktal-SL-Methoden und TP nach Chance/Risiko — 🧪 unit ✅ 2026-09-29
+  - SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-15).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-23** Fraktal-Positionen – kein TP/SL-Abgleich, SAR nachziehen — 🧪 unit ✅ 2026-09-29
+  - Für Positionen einer Fraktal-Zone entfallen der TP/SL-Abgleich mit den Grid-Werten und die Teilfüllungs-Nachorder, auch von Hand geänderte SL/TP bleiben stehen. Im SAR-Modus wird der SL offener Positionen mit jeder Kerze auf den neuen SAR gezogen, nur in Gewinnrichtung und außerhalb von stops_level.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-15).
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-24** Manuelle Eingriffe in MT5 respektieren — 🧪 unit ✅ 2026-09-29
+  - Verschwindet eine Fraktal-Order, ohne dass der Bot sie gelöscht hat (gefüllt, in MT5 von Hand gelöscht, abgelaufen), oder gibt es eine Position dieses Fraktals, gilt das Fraktal als erledigt – auch nach dem Schließen der Position wird dafür keine neue Order gesetzt. Der Merker (Zone + Seite → Kerzenzeit) steht in data/fractal_state_<Konto>.json und übersteht Neustarts; ein neueres Fraktal öffnet wieder eine Order. Vom Bot selbst gelöschte Orders (Zone pausiert, Max. Positionen, Verschieben) zählen nicht.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 
 ## 8. MET – Live-Daten & Diagramm

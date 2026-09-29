@@ -30,6 +30,32 @@ class ZoneConfig:
     target_magic: int
     step_by_loss: bool = False
     instant_entry: bool = False
+    # Giriş modu: "grid" (kayan ızgara) veya "fractal" (yalnızca fraktal seviyelerinde emir, fractal_entry.py)
+    entry_mode: str = "grid"
+    fractal_timeframe: str = "H4"
+    fractal_order_mode: str = "breakout"  # breakout: kırılım (Stop) · rebound: dönüş (Limit)
+    fractal_sl_mode: str = "atr"  # atr · sar · opposite_fractal · buffer
+    fractal_sl_buffer: float = 0.05
+    fractal_atr_period: int = 14
+    fractal_atr_multiplier: float = 1.5
+    fractal_sar_step: float = 0.02
+    fractal_sar_max: float = 0.2
+    fractal_rr: float = 2.0  # TP = SL mesafesi × rr; 0 = TP yok
+
+
+ENTRY_MODES = ("grid", "fractal")
+FRACTAL_TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
+FRACTAL_ORDER_MODES = ("breakout", "rebound")
+FRACTAL_SL_MODES = ("atr", "sar", "opposite_fractal", "buffer")
+
+
+def _choice(value, allowed: tuple, default: str) -> str:
+    value = str(value if value is not None else default)
+    return value if value in allowed else default
+
+
+def is_fractal_zone(zone_dict: dict) -> bool:
+    return isinstance(zone_dict, dict) and zone_dict.get("entry_mode") == "fractal"
 
 
 def money_per_price_unit(symbol: str, symbol_infos: dict | None) -> float | None:
@@ -122,7 +148,10 @@ def extract_zone_config(
 
     target_magic = BASE_MAGIC_NUMBER + zone_idx + 1
 
-    step_by_loss = bool(zone_dict.get("step_by_loss", False))
+    entry_mode = _choice(zone_dict.get("entry_mode"), ENTRY_MODES, "grid")
+    # Fraktal modunda ızgara/TP/SL alanları kullanılmaz; $ → fiyat dönüşümü (tick değeri
+    # gerektirir) gereksiz yere hata fırlatmasın
+    step_by_loss = bool(zone_dict.get("step_by_loss", False)) and entry_mode == "grid"
     if step_by_loss:
         def _conv(amount: float, lot: float) -> float:
             d = money_to_price_distance(amount, lot, symbol, symbol_infos)
@@ -168,4 +197,14 @@ def extract_zone_config(
         target_magic=target_magic,
         step_by_loss=step_by_loss,
         instant_entry=bool(zone_dict.get("instant_entry", False)),
+        entry_mode=entry_mode,
+        fractal_timeframe=_choice(zone_dict.get("fractal_timeframe"), FRACTAL_TIMEFRAMES, "H4"),
+        fractal_order_mode=_choice(zone_dict.get("fractal_order_mode"), FRACTAL_ORDER_MODES, "breakout"),
+        fractal_sl_mode=_choice(zone_dict.get("fractal_sl_mode"), FRACTAL_SL_MODES, "atr"),
+        fractal_sl_buffer=max(0.0, float(zone_dict.get("fractal_sl_buffer", 0.05))),
+        fractal_atr_period=max(1, int(zone_dict.get("fractal_atr_period", 14))),
+        fractal_atr_multiplier=max(0.0, float(zone_dict.get("fractal_atr_multiplier", 1.5))),
+        fractal_sar_step=max(0.001, float(zone_dict.get("fractal_sar_step", 0.02))),
+        fractal_sar_max=max(0.001, float(zone_dict.get("fractal_sar_max", 0.2))),
+        fractal_rr=max(0.0, float(zone_dict.get("fractal_rr", 2.0))),
     )

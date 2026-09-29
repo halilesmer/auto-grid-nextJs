@@ -14,6 +14,8 @@ import { ZoneGridFields } from './ZoneGridFields';
 import { ZoneSellFields } from './ZoneSellFields';
 import { ZoneBreakoutFields } from './ZoneBreakoutFields';
 import { ZoneExitFields } from './ZoneExitFields';
+import { ZoneFractalFields } from './ZoneFractalFields';
+import { InputField } from '@/components/ui/InputField';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -42,6 +44,7 @@ export function ZoneCard({
   const isBoth = zone.order_type === 'BOTH';
   const showBuyLabel = zone.order_type === 'BUY';
   const showSellLabel = zone.order_type === 'SELL';
+  const isFractal = zone.entry_mode === 'fractal';
   const isActive = zone.is_active !== false;
   const isGlobalRunning = liveData.mt5_connected && isRunning;
   const symbolConfig = getSymbolConfig(zone.symbol, symbolDetails);
@@ -135,29 +138,25 @@ export function ZoneCard({
         </section>
 
         <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {showBuyLabel && <SectionLabel className="text-success">{t('zone.section.buyGrid')}</SectionLabel>}
-            {showSellLabel && <SectionLabel className="text-danger">{t('zone.section.sellGrid')}</SectionLabel>}
-            {isBoth && (
-              <SectionLabel className={zone.sync_buy_sell ? undefined : 'text-success'}>
-                {zone.sync_buy_sell ? t('zone.section.grid') : t('zone.section.buyGridShort')}
-              </SectionLabel>
-            )}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-              <Switch
-                id={`step-by-loss-${zone.id}`}
-                checked={!!zone.step_by_loss}
-                onChange={handleStepByLoss}
-                label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
-                hint={t('zone.stepByLoss.hint')}
-              />
-              <Switch
-                id={`instant-entry-${zone.id}`}
-                checked={!!zone.instant_entry}
-                onChange={(checked) => update('instant_entry', checked)}
-                label={<span className="text-xs text-muted-foreground">{t('zone.instantEntry')}</span>}
-                hint={t('zone.instantEntry.hint')}
-              />
+          <div className="w-full sm:w-64">
+            <InputField label={t('zone.entryMode')} hint={t('zone.entryMode.hint')}>
+              <select
+                data-testid="entry-mode"
+                value={isFractal ? 'fractal' : 'grid'}
+                onChange={(e) => update('entry_mode', e.target.value)}
+                className="input-s"
+              >
+                <option value="grid">{t('zone.entryMode.grid')}</option>
+                <option value="fractal">{t('zone.entryMode.fractal')}</option>
+              </select>
+            </InputField>
+          </div>
+        </section>
+
+        {isFractal ? (
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <SectionLabel>{t('zone.section.fractal')}</SectionLabel>
               {isBoth && (
                 <Switch
                   id={`sync-${zone.id}`}
@@ -168,38 +167,86 @@ export function ZoneCard({
                 />
               )}
             </div>
-          </div>
-
-          <ZoneGridFields
-            zone={zone}
-            update={update}
-            symbolConfig={symbolConfig}
-            isBoth={isBoth}
-            sync={zone.sync_buy_sell}
-            handleChange={handleChange}
-            handleBlur={handleBlur}
-          />
-
-          {isBoth && !zone.sync_buy_sell && (
-            <ZoneSellFields
+            <ZoneFractalFields
               zone={zone}
               update={update}
               symbolConfig={symbolConfig}
+              isBoth={isBoth}
+              sync={zone.sync_buy_sell}
               handleChange={handleChange}
               handleBlur={handleBlur}
             />
-          )}
-        </section>
+          </section>
+        ) : (
+          <>
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {showBuyLabel && <SectionLabel className="text-success">{t('zone.section.buyGrid')}</SectionLabel>}
+                {showSellLabel && <SectionLabel className="text-danger">{t('zone.section.sellGrid')}</SectionLabel>}
+                {isBoth && (
+                  <SectionLabel className={zone.sync_buy_sell ? undefined : 'text-success'}>
+                    {zone.sync_buy_sell ? t('zone.section.grid') : t('zone.section.buyGridShort')}
+                  </SectionLabel>
+                )}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <Switch
+                    id={`step-by-loss-${zone.id}`}
+                    checked={!!zone.step_by_loss}
+                    onChange={handleStepByLoss}
+                    label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
+                    hint={t('zone.stepByLoss.hint')}
+                  />
+                  <Switch
+                    id={`instant-entry-${zone.id}`}
+                    checked={!!zone.instant_entry}
+                    onChange={(checked) => update('instant_entry', checked)}
+                    label={<span className="text-xs text-muted-foreground">{t('zone.instantEntry')}</span>}
+                    hint={t('zone.instantEntry.hint')}
+                  />
+                  {isBoth && (
+                    <Switch
+                      id={`sync-${zone.id}`}
+                      checked={zone.sync_buy_sell}
+                      onChange={(checked) => update('sync_buy_sell', checked)}
+                      label={<span className="text-xs text-muted-foreground">{t('zone.sync')}</span>}
+                      hint={t('zone.sync.hint')}
+                    />
+                  )}
+                </div>
+              </div>
 
-        <ZoneBreakoutFields
-          zone={zone}
-          update={update}
-          symbolConfig={symbolConfig}
-          isBoth={isBoth}
-          sync={zone.sync_buy_sell}
-          handleChange={handleChange}
-          handleBlur={handleBlur}
-        />
+              <ZoneGridFields
+                zone={zone}
+                update={update}
+                symbolConfig={symbolConfig}
+                isBoth={isBoth}
+                sync={zone.sync_buy_sell}
+                handleChange={handleChange}
+                handleBlur={handleBlur}
+              />
+
+              {isBoth && !zone.sync_buy_sell && (
+                <ZoneSellFields
+                  zone={zone}
+                  update={update}
+                  symbolConfig={symbolConfig}
+                  handleChange={handleChange}
+                  handleBlur={handleBlur}
+                />
+              )}
+            </section>
+
+            <ZoneBreakoutFields
+              zone={zone}
+              update={update}
+              symbolConfig={symbolConfig}
+              isBoth={isBoth}
+              sync={zone.sync_buy_sell}
+              handleChange={handleChange}
+              handleBlur={handleBlur}
+            />
+          </>
+        )}
 
         <ZoneExitFields
           zone={zone}

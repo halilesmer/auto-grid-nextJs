@@ -282,6 +282,48 @@
       "tests": 7
     }
   },
+  "ENG-19": {
+    "unit": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 6
+    }
+  },
+  "ENG-20": {
+    "unit": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 5
+    }
+  },
+  "ENG-21": {
+    "unit": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 3
+    }
+  },
+  "ENG-22": {
+    "unit": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 8
+    }
+  },
+  "ENG-23": {
+    "unit": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 4
+    }
+  },
+  "ENG-24": {
+    "unit": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 4
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-09-29",
@@ -842,6 +884,13 @@
     }
   },
   "ZON-14": {
+    "e2e": {
+      "datum": "2026-09-29",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-15": {
     "e2e": {
       "datum": "2026-09-29",
       "status": "passed",
