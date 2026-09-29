@@ -35,6 +35,16 @@ ENGINE_FIELDS = {
     "instant_entry": "instant_entry",
     "sync_buy_sell": "sync_buy_sell",
     "order_type": "order_type",
+    "entry_mode": "entry_mode",
+    "fractal_timeframe": "fractal_timeframe",
+    "fractal_order_mode": "fractal_order_mode",
+    "fractal_sl_mode": "fractal_sl_mode",
+    "fractal_sl_buffer": "fractal_sl_buffer",
+    "fractal_atr_period": "fractal_atr_period",
+    "fractal_atr_multiplier": "fractal_atr_multiplier",
+    "fractal_sar_step": "fractal_sar_step",
+    "fractal_sar_max": "fractal_sar_max",
+    "fractal_rr": "fractal_rr",
 }
 
 

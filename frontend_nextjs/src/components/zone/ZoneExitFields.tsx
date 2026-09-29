@@ -4,6 +4,7 @@ import type { ZoneExitFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { Switch } from '@/components/ui/switch';
 import { useT } from '@/i18n';
+import { TIMEFRAMES } from '@/utils/zoneHelpers';
 
 export function ZoneExitFields({
   zone,
@@ -74,7 +75,7 @@ export function ZoneExitFields({
                   onChange={(e) => update('exit_timeframe', e.target.value)}
                   className="input-s"
                 >
-                  {['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'].map((tf) => (
+                  {TIMEFRAMES.map((tf) => (
                     <option key={tf} value={tf}>{tf}</option>
                   ))}
                 </select>

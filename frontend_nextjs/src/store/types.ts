@@ -60,7 +60,24 @@ export interface ZoneSettings {
   clear_target_side: string;
   exit_condition: string;
   exit_timeframe: string;
+  /** „grid“ (gleitendes Raster) oder „fractal“ (Orders nur auf Fraktal-Niveaus, Worker: fractal_entry.py) */
+  entry_mode?: EntryMode;
+  fractal_timeframe?: string;
+  fractal_order_mode?: FractalOrderMode;
+  fractal_sl_mode?: FractalSlMode;
+  /** Preisabstand jenseits von Fraktal-Kerze / Gegenfraktal (auch Rückfall-SL) */
+  fractal_sl_buffer?: number;
+  fractal_atr_period?: number;
+  fractal_atr_multiplier?: number;
+  fractal_sar_step?: number;
+  fractal_sar_max?: number;
+  /** TP = SL-Abstand × Faktor; 0 = kein TP */
+  fractal_rr?: number;
 }
+
+export type EntryMode = 'grid' | 'fractal';
+export type FractalOrderMode = 'breakout' | 'rebound';
+export type FractalSlMode = 'atr' | 'sar' | 'opposite_fractal' | 'buffer';
 
 export interface GlobalSettings {
   ORDER_TYPE: string;

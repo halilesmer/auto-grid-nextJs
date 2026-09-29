@@ -4,5 +4,6 @@ export { ZoneGridFields } from './ZoneGridFields';
 export { ZoneSellFields } from './ZoneSellFields';
 export { ZoneBreakoutFields } from './ZoneBreakoutFields';
 export { ZoneExitFields } from './ZoneExitFields';
+export { ZoneFractalFields } from './ZoneFractalFields';
 export { ZoneCard } from './ZoneCard';
 export * from './types';

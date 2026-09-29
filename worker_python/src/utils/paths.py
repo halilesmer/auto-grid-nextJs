@@ -57,6 +57,14 @@ def get_state_path(account_id: str) -> str:
     return os.path.join(_ensure_data_dir(), f"state_{safe}.json")
 
 
+def get_fractal_state_path(account_id: str) -> str:
+    """Örn: data/fractal_state_7946558.json — fraktal modunda işlenmiş (dolmuş veya elle
+    silinmiş) son fraktal, bölge ve taraf başına. Yeniden başlatmada aynı fraktala tekrar emir
+    konmasın diye kalıcı."""
+    safe = safe_account_id(account_id)
+    return os.path.join(_ensure_data_dir(), f"fractal_state_{safe}.json")
+
+
 def get_watched_bots_path() -> str:
     """data/watched_bots.json — Start ile başlatılıp Stop edilmemiş botlar.
     Worker/VPS yeniden başlayınca bu botlar otomatik devam ettirilir (bot_watchdog)."""

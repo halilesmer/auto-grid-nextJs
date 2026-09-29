@@ -104,6 +104,7 @@ export function useZoneFieldHandlers(
         ['sell_stop_loss', zone.sell_stop_loss, dp],
         ['pullback_distance', zone.pullback_distance, dp],
         ['sell_pullback_distance', zone.sell_pullback_distance, dp],
+        ['fractal_sl_buffer', zone.fractal_sl_buffer ?? 0, p],
         ['lot_size', zone.lot_size, vp],
         ['sell_lot_size', zone.sell_lot_size, vp],
       ];

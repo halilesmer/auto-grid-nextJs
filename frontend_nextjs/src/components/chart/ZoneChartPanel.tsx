@@ -22,13 +22,42 @@ function Field({ label, hint, value }: { label: string; hint: string; value: str
   );
 }
 
+const SL_MODE_KEYS: Record<string, MessageKey> = {
+  atr: 'zone.fractal.slMode.atr',
+  sar: 'zone.fractal.slMode.sar',
+  opposite_fractal: 'zone.fractal.slMode.opposite',
+  buffer: 'zone.fractal.slMode.buffer',
+};
+
+/** Fraktal-Zone: Grid-Abstand/TP/SL/Ebenen gelten nicht, stattdessen die Fraktal-Einstellungen */
+function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [MessageKey, MessageKey, string | number][] {
+  const fields: [MessageKey, MessageKey, string | number][] = [
+    ['chart.zone.priceRange', 'chart.zone.priceRange.hint', `${zone.min_price} – ${zone.max_price}`],
+    ['zone.fractal.timeframe', 'zone.fractal.timeframe.hint', zone.fractal_timeframe ?? 'H4'],
+    [
+      'zone.fractal.orderMode',
+      'zone.fractal.orderMode.hint',
+      t(zone.fractal_order_mode === 'rebound' ? 'zone.fractal.orderMode.rebound' : 'zone.fractal.orderMode.breakout'),
+    ],
+    ['chart.zone.lot', 'zone.field.lot.hint', zone.lot_size],
+    ['zone.fractal.slMode', 'zone.fractal.slMode.hint', t(SL_MODE_KEYS[zone.fractal_sl_mode ?? 'atr'] ?? SL_MODE_KEYS.atr)],
+    ['zone.fractal.rr', 'zone.fractal.rr.hint', zone.fractal_rr ?? 2],
+    ['chart.zone.maxPositions', 'zone.breakout.maxPositions.hint', zone.max_positions],
+  ];
+  if (zone.order_type === 'BOTH' && !zone.sync_buy_sell) {
+    fields.push(['chart.zone.sellLot', 'zone.field.sellLot.hint', zone.sell_lot_size]);
+  }
+  return fields;
+}
+
 function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
   const t = useT();
+  const isFractal = zone.entry_mode === 'fractal';
   const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
   // „Abstand nach Verlust“: Grid-Abstände, TP und SL sind $-Beträge
   const dist = (v: number) => (zone.step_by_loss ? t('chart.zone.lossValue', { value: v }) : v);
   // [Label, Hinweis, Wert]: die Hinweise sind dieselben wie in den Feldern der Zonenkarte
-  const fields: [MessageKey, MessageKey, string | number][] = [
+  const fields: [MessageKey, MessageKey, string | number][] = isFractal ? fractalFields(zone, t) : [
     ['chart.zone.priceRange', 'chart.zone.priceRange.hint', `${zone.min_price} – ${zone.max_price}`],
     ['chart.zone.gridStep', zone.step_by_loss ? 'zone.field.gridStepLoss.hint' : 'zone.field.gridStep.hint', dist(zone.grid_step)],
     ['chart.zone.lot', 'zone.field.lot.hint', zone.lot_size],
@@ -37,7 +66,7 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
     ['chart.zone.levels', 'chart.zone.levels.hint', `${zone.levels_below} / ${zone.levels_above}`],
     ['chart.zone.maxPositions', 'zone.breakout.maxPositions.hint', zone.max_positions],
   ];
-  if (showSell) {
+  if (showSell && !isFractal) {
     fields.push(
       ['chart.zone.sellGrid', zone.step_by_loss ? 'zone.field.sellGridLoss.hint' : 'zone.field.sellGrid.hint', dist(zone.sell_grid_step)],
       ['chart.zone.sellLot', 'zone.field.sellLot.hint', zone.sell_lot_size],
@@ -51,7 +80,9 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
       <CardHeader
         icon={<Layers size={16} />}
         title={t('chart.zone.title', { n: index + 1, symbol: zone.symbol || '—' })}
-        description={zone.is_breakout ? t('chart.zone.breakout') : t('chart.zone.sliding')}
+        description={
+          isFractal ? t('zone.section.fractal') : zone.is_breakout ? t('chart.zone.breakout') : t('chart.zone.sliding')
+        }
         actions={
           <div className="flex gap-2">
             <Badge tone="info" hint={t('zone.field.orderType.hint')}>{zone.order_type}</Badge>

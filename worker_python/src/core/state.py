@@ -23,6 +23,16 @@ class GridState:
     tpsl_blocked_logged: Dict[int, tuple] = field(default_factory=dict)
     # (bölge, yön) → son "anında giriş" piyasa emrinin zamanı (monotonic; tekrar gönderme freni)
     instant_entry_sent: Dict[tuple, float] = field(default_factory=dict)
+    # Fraktal modu (grid_execution/fractal_entry.py):
+    # bölge indeksi → {bilet: (işlenmiş-anahtarı, taraf "U"/"D", fraktal mum zamanı)} — botun gördüğü fraktal emirleri
+    fractal_tracked: Dict[int, Dict[int, tuple]] = field(default_factory=dict)
+    # Botun kendi iptal ettiği fraktal emirleri (kaybolan emir elle mi silindi, ayırt etmek için)
+    fractal_own_cancels: Set[int] = field(default_factory=set)
+    # "bölge_id:sembol:zaman_dilimi:taraf" → işlenmiş (dolmuş / elle silinmiş) son fraktalın zamanı; dosyada kalıcı
+    fractal_done: Dict[str, int] = field(default_factory=dict)
+    fractal_done_loaded: bool = False
+    # Tekrarlanmasın diye bir kez yazılan fraktal log anahtarları
+    fractal_logged: Dict[tuple, Any] = field(default_factory=dict)
 
     is_running: bool = False
     initial_cleanup_done: bool = False
@@ -44,6 +54,11 @@ class GridState:
         self.limit_warned_zones.clear()
         self.tpsl_blocked_logged.clear()
         self.instant_entry_sent.clear()
+        self.fractal_tracked.clear()
+        self.fractal_own_cancels.clear()
+        self.fractal_done.clear()
+        self.fractal_done_loaded = False
+        self.fractal_logged.clear()
         self.is_running = False
         self.initial_cleanup_done = False
         self.connection_lost = False

@@ -432,6 +432,17 @@ kategorien:
           - Warten, bis eine Seite per Take Profit schließt.
         erwartet: Beim Start öffnen sofort 1 BUY und 1 SELL zum Marktpreis; die Pending Orders liegen einen Grid-Abstand davon entfernt; nach dem TP öffnet der Bot auf dieser Seite sofort wieder eine Position.
 
+      - id: ZON-15
+        titel: Einstiegsmodus Fraktal
+        beschreibung: Auswahl „Einstiegsmodus“ (Grid/Fraktal, entry_mode) in der Zonenkarte. Im Fraktal-Modus werden Grid-Felder, „Abstand nach Verlust“, „Sofort erste Position“ und Trend/Pullback ausgeblendet; stattdessen Zeitrahmen (M1–D1, Standard H4), Ordertyp (Ausbruch/Abpraller), Lot, Max. Positionen, SL-Methode (ATR/SAR/Gegenfraktal/Fraktal-Kerze) mit passenden Feldern, SL-Puffer und Chance/Risiko. Wird mit der Zone gespeichert.
+        code: [frontend_nextjs/src/components/zone/ZoneCard.tsx, frontend_nextjs/src/components/zone/ZoneFractalFields.tsx, frontend_nextjs/src/utils/zoneHelpers.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Zone auf dem DEMO-Konto auf „Fraktal“ stellen, H4, Ausbruch, SL „Automatisch (ATR)“, speichern, Bot starten.
+          - Im MT5-Chart (H4) den Indikator „Fractals“ und ATR(14) einblenden und mit den Pending Orders vergleichen.
+          - Eine Fraktal-Order in MT5 von Hand löschen.
+        erwartet: Je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
+
   # ---------------------------------------------------------------------------
   - id: BOT
     titel: Bot-Steuerung
@@ -666,6 +677,60 @@ kategorien:
         tiers: [unit]
         pruefung:
           - Nicht manuell testen (siehe ZON-14).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-19
+        titel: Fraktal-Erkennung, ATR und Parabolic SAR
+        beschreibung: Bill-Williams-Fraktale aus 5 geschlossenen Kerzen wie MT5 Fractals.mq5 (Mitte > beide rechten, >= beide linken Nachbarn; erst gültig, wenn die zwei rechten Kerzen geschlossen sind). ATR als einfacher Durchschnitt der True Range wie MT5 ATR.mq5, Parabolic SAR nach Wilder inkl. Wert der laufenden Kerze.
+        code: [worker_python/src/core/grid_execution/fractal_signals.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-15).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-20
+        titel: Fraktal-Orders (Ausbruch / Abpraller)
+        beschreibung: Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit}.
+        code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/handler.py, worker_python/src/core/grid_execution/config.py, worker_python/src/core/grid_orders.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-15).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-21
+        titel: Fraktal-Order verschieben / löschen
+        beschreibung: Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (immer höchstens eine je Seite). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, gilt es als verbraucht – die Order wird gelöscht und nicht neu gesetzt. Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
+        code: [worker_python/src/core/grid_execution/fractal_entry.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-15).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-22
+        titel: Fraktal-SL-Methoden und TP nach Chance/Risiko
+        beschreibung: SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP.
+        code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/fractal_signals.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-15).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-23
+        titel: Fraktal-Positionen – kein TP/SL-Abgleich, SAR nachziehen
+        beschreibung: Für Positionen einer Fraktal-Zone entfallen der TP/SL-Abgleich mit den Grid-Werten und die Teilfüllungs-Nachorder, auch von Hand geänderte SL/TP bleiben stehen. Im SAR-Modus wird der SL offener Positionen mit jeder Kerze auf den neuen SAR gezogen, nur in Gewinnrichtung und außerhalb von stops_level.
+        code: [worker_python/src/core/grid_order_manager.py, worker_python/src/core/grid_execution/fractal_entry.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-15).
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-24
+        titel: Manuelle Eingriffe in MT5 respektieren
+        beschreibung: Verschwindet eine Fraktal-Order, ohne dass der Bot sie gelöscht hat (gefüllt, in MT5 von Hand gelöscht, abgelaufen), oder gibt es eine Position dieses Fraktals, gilt das Fraktal als erledigt – auch nach dem Schließen der Position wird dafür keine neue Order gesetzt. Der Merker (Zone + Seite → Kerzenzeit) steht in data/fractal_state_<Konto>.json und übersteht Neustarts; ein neueres Fraktal öffnet wieder eine Order. Vom Bot selbst gelöschte Orders (Zone pausiert, Max. Positionen, Verschieben) zählen nicht.
+        code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_orders.py, worker_python/src/utils/paths.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-15).
         erwartet: Abgedeckt durch Unit-Tests.
 
   # ---------------------------------------------------------------------------

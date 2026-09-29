@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from src.utils.trade_utils import safe_send_order, TradeState
 from src.utils.paths import get_ui_state_path
 from src.core.grid_helpers import (
@@ -141,6 +142,20 @@ def remaining_lot_at_level(mt5, positions_at_level, symbol, symbol_infos):
     return normalize_volume(remaining, symbol, symbol_infos)
 
 
+FRACTAL_COMMENT_RE = re.compile(r"^AutoGrid_Z\d+_F([UD])(\d+)$")
+
+
+def fractal_comment(zone_idx, side, bar_time):
+    """Fraktal emrinin yorumu: AutoGrid_Z{n}_F{U|D}{mum zamanı} (MT5 sınırı 31 karakter)."""
+    return f"AutoGrid_Z{zone_idx + 1}_F{side}{int(bar_time)}"
+
+
+def parse_fractal_comment(comment):
+    """(taraf, mum zamanı) ya da fraktal emri değilse None."""
+    m = FRACTAL_COMMENT_RE.match(str(comment or ""))
+    return (m.group(1), int(m.group(2))) if m else None
+
+
 def cancel_order(mt5, order):
     if mt5 is None:
         return False
@@ -149,7 +164,14 @@ def cancel_order(mt5, order):
         "order": order.ticket,
         "symbol": order.symbol,
     }
-    return safe_send_order(mt5, request, log_message)
+    ok = safe_send_order(mt5, request, log_message)
+    if ok and parse_fractal_comment(getattr(order, "comment", "")):
+        # Hangi modül silerse silsin (zombi temizliği, max pozisyon, bölge çıkışı): bot sildi,
+        # fractal_entry bunu "elle silindi" saymasın
+        from src.core.state import state
+
+        state.fractal_own_cancels.add(order.ticket)
+    return ok
 
 
 def modify_position_tp_sl(mt5, position, tp_price, sl_price, symbol_infos):
@@ -172,6 +194,23 @@ def modify_position_tp_sl(mt5, position, tp_price, sl_price, symbol_infos):
     return safe_send_order(mt5, request, log_message)
 
 
+def modify_pending_order(mt5, order, sl_price, tp_price, symbol_infos):
+    """Bekleyen emrin yalnızca SL/TP'sini değiştirir (fiyat, hacim, bilet aynı kalır)."""
+    if mt5 is None:
+        return False
+    symbol = order.symbol
+    request = {
+        "action": mt5.TRADE_ACTION_MODIFY,
+        "order": order.ticket,
+        "symbol": symbol,
+        "price": order.price_open,
+        "sl": normalize_price(sl_price, symbol, symbol_infos) if sl_price else 0.0,
+        "tp": normalize_price(tp_price, symbol, symbol_infos) if tp_price else 0.0,
+        "type_time": mt5.ORDER_TIME_GTC,
+    }
+    return safe_send_order(mt5, request, log_message)
+
+
 def send_pending_order_helper(
     mt5,
     price,
@@ -184,6 +223,7 @@ def send_pending_order_helper(
     symbol_infos,
     consecutive_errors,
     active_zones_state,
+    comment=None,
 ):
     if not symbol or mt5 is None:
         log_message(
@@ -216,7 +256,7 @@ def send_pending_order_helper(
         "price": normalize_price(price, symbol, symbol_infos),
         "deviation": MAX_DEVIATION,
         "magic": BASE_MAGIC_NUMBER + zone_idx + 1,
-        "comment": f"AutoGrid_Z{zone_idx + 1}",
+        "comment": comment or f"AutoGrid_Z{zone_idx + 1}",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_RETURN,
         "tp": normalize_price(tp_price, symbol, symbol_infos) if tp_price else 0.0,

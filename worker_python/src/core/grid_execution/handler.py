@@ -10,6 +10,7 @@ from src.core.state import state
 from .config import extract_zone_config, ZoneConfig
 from .levels import generate_levels, is_position_anchored, LevelSets
 from .instant_entry import open_instant_positions
+from .fractal_entry import manage_fractal_orders
 from .validation import OrderValidator
 from .placement import OrderPlacer
 from .exceptions import (
@@ -38,7 +39,8 @@ def handle_sliding_grid(
             [p for p in robot_positions if p.magic == config.target_magic]
         )
 
-        if current_open_positions >= config.max_positions:
+        at_limit = current_open_positions >= config.max_positions
+        if at_limit:
             # Her döngü değil, yalnızca sınıra ulaşınca / sayı değişince (24.09: saniyede bir satır)
             if state.limit_warned_zones.get(active_zone_idx) != current_open_positions:
                 state.limit_warned_zones[active_zone_idx] = current_open_positions
@@ -47,6 +49,27 @@ def handle_sliding_grid(
                     f"({current_open_positions}/{config.max_positions}). Yeni emir konmuyor.",
                     "WARN",
                 )
+        else:
+            state.limit_warned_zones.pop(active_zone_idx, None)
+
+        if config.entry_mode == "fractal":
+            # Izgara yok: anında giriş, seviye üretimi ve ızgara doğrulaması atlanır. Sınırda da
+            # çağrılır: bekleyen emirleri kendisi siler, SAR takibi ve "işlenmiş" kaydı sürer.
+            return manage_fractal_orders(
+                mt5_module,
+                config,
+                active_zone_idx,
+                str(active_zone.get("id") or f"idx{active_zone_idx}"),
+                robot_positions,
+                robot_orders,
+                symbol_infos,
+                consecutive_errors,
+                active_zones_state,
+                log_message,
+                allow_new_orders=not at_limit,
+            )
+
+        if at_limit:
             cancelled = sum(
                 1 for o in robot_orders if o.magic == config.target_magic and cancel_order(mt5_module, o)
             )
@@ -55,7 +78,6 @@ def handle_sliding_grid(
                     f"🛡️ Güvenlik Koruması: Sınır aşıldığı için {cancelled} bekleyen emir temizlendi."
                 )
             return True
-        state.limit_warned_zones.pop(active_zone_idx, None)
 
         if open_instant_positions(
             mt5_module, config, active_zone_idx, robot_positions, current_avg_price, symbol_infos, log_message
