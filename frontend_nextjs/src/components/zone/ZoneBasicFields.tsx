@@ -15,6 +15,7 @@ export function ZoneBasicFields({
   handleChange,
   handleBlur,
   validateSymbol,
+  showEntry,
 }: ZoneBasicFieldsProps) {
   const t = useT();
   const fmt = useFormat();
@@ -52,9 +53,12 @@ export function ZoneBasicFields({
           <option value="BUY">BUY</option>
           <option value="SELL">SELL</option>
           <option value="BOTH">BOTH</option>
-          <option value="AUTO" disabled={entryOf(zone).entry_mode === 'GRID'}>
-            {t('zone.field.orderType.auto')}
-          </option>
+          {/* AUTO gehört zur erweiterten Einstiegsregel: nur sichtbar, wenn eingeblendet oder schon gewählt */}
+          {(showEntry || zone.order_type === 'AUTO') && (
+            <option value="AUTO" disabled={entryOf(zone).entry_mode === 'GRID'}>
+              {t('zone.field.orderType.auto')}
+            </option>
+          )}
         </select>
       </InputField>
       <InputField label={t('zone.field.minPrice')} hint={t('zone.field.minPrice.hint')}>

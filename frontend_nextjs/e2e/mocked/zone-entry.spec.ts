@@ -1,4 +1,4 @@
-/** ZON-13/14 · Einstiegsregel der Zone: Signal-Felder speichern/laden, Infotext und gesperrte Felder. */
+/** ZON-13/14/15 · Einstiegsregel der Zone: ein-/ausblenden, Signal-Felder speichern/laden, Infotext und gesperrte Felder. */
 import { DEMO_ID, expect, makeZone, test, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
@@ -8,10 +8,51 @@ async function saveAndReload(dashboard: Dashboard) {
   await dashboard.selectAccount(DEMO_ID);
 }
 
+/** Erweiterte Einstiegsregel einer Standard-Zone aufklappen. */
+async function openEntry(dashboard: Dashboard) {
+  await dashboard.zone().getByTestId('zone-entry-toggle').click();
+}
+
 test.describe('ZON Einstiegsregel', () => {
+  test('Standard-Zone zeigt die Einstiegsregel erst nach Klick', { tag: '@ZON-15' }, async ({ dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const zone = dashboard.zone();
+    const toggle = zone.getByTestId('zone-entry-toggle');
+    const orderType = dashboard.zoneField(msg('zone.field.orderType'));
+    // Zone wie vorher: kein Abschnitt, keine AUTO-Option, kein „aktiv“
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).not.toContainText(msg('zone.entry.toggle.active'));
+    await expect(zone.getByTestId('zone-entry')).toHaveCount(0);
+    await expect(orderType.locator('option[value="AUTO"]')).toHaveCount(0);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(zone.getByTestId('zone-entry')).toBeVisible();
+    await expect(orderType.locator('option[value="AUTO"]')).toHaveCount(1);
+
+    await toggle.click();
+    await expect(zone.getByTestId('zone-entry')).toHaveCount(0);
+  });
+
+  test('Zone mit aktiver Regel ist sofort aufgeklappt', { tag: '@ZON-15' }, async ({ worker, dashboard }) => {
+    worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'GRID_FILTER' })];
+    await dashboard.open(DEMO_ID);
+    const zone = dashboard.zone();
+    const toggle = zone.getByTestId('zone-entry-toggle');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(toggle).toContainText(msg('zone.entry.toggle.active'));
+    await expect(zone.getByTestId('zone-entry')).toBeVisible();
+
+    // Zuklappen ändert nichts an der Regel, „aktiv“ bleibt sichtbar
+    await toggle.click();
+    await expect(zone.getByTestId('zone-entry')).toHaveCount(0);
+    await expect(toggle).toContainText(msg('zone.entry.toggle.active'));
+  });
+
   test('Signal-Felder werden gespeichert und wieder gelesen', { tag: '@ZON-13' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
+    await openEntry(dashboard);
     // Alte Zone ohne Einstiegsfelder: Standard „Grid“, keine Indikator-Schalter
     await expect(dashboard.zoneField(msg('zone.entry.mode'))).toHaveValue('GRID');
     await expect(dashboard.zoneSwitch(msg('zone.entry.ema'))).toBeHidden();
@@ -45,6 +86,7 @@ test.describe('ZON Einstiegsregel', () => {
 
   test('AUTO nur mit Signal; zurück auf Grid setzt BOTH', { tag: '@ZON-13' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openEntry(dashboard);
     const orderType = dashboard.zoneField(msg('zone.field.orderType'));
     await expect(orderType.locator('option[value="AUTO"]')).toHaveAttribute('disabled', '');
 

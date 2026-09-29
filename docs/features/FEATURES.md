@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-25 · **91/98** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-29 · **92/99** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -18,7 +18,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 14/14 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 15/15 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 22/22 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -34,7 +34,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Worker auf dem VPS starten (start.bat), Frontend lokal starten (npm run dev:frontend). → http://localhost:3000 öffnen.
   - **Erwartet:** Kontoliste lädt, im Log-Bereich steht der Worker als online.
   - 📝 Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto 7942034 im Dropdown, 'Worker online'
-- [x] **SYS-02** WebSocket-Stream + Reconnect — 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-02** WebSocket-Stream + Reconnect — 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Verbindung zu /ws/stream; Nachrichten METRICS, LIVE_DATA, LOG werden in die Stores geleitet; bei Abbruch automatischer Reconnect.
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
@@ -44,7 +44,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
   - **Erwartet:** Antwort {"platform": "win32", "is_windows": true}.
   - 📝 Claude: /system/platform → 200 {is_windows: true, platform: win32}; 'Mac Test Mode'-Leiste nicht sichtbar
-- [x] **SYS-04** MT5-Terminal-Scanner — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-04** MT5-Terminal-Scanner — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /system/scan-mt5 sucht terminal64.exe auf dem VPS; der Konto-Dialog bietet die Pfade zur Auswahl an (Rescan, eigener Pfad).
   - **Prüfung:** „Neues Konto“ öffnen, Feld MT5-Pfad ansehen, „Rescan“ klicken. → Checkbox „eigener Pfad“ aktivieren.
   - **Erwartet:** Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
@@ -60,33 +60,33 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 2. ACC – Konten
 
-- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /accounts liefert alle Konten aus configs/accounts.json; das Dropdown zeigt sie an und schreibt sie in useAccountStore.
   - **Prüfung:** Dashboard öffnen, Dropdown „Select Account“ aufklappen.
   - **Erwartet:** Alle registrierten Konten erscheinen (inkl. DEMO-Testkonto).
   - 📝 Claude: /accounts → 1 Konto (7942034, DEMO, Eightcap-Demo), Dropdown zeigt genau dieses
-- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25
+- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29
   - Dialog „New MT5 Account“; Pflichtfelder Name, Login, Passwort, Server, MT5-Pfad; Notizen max. 1000 Zeichen; POST /accounts.
   - **Prüfung:** „Add new account“ klicken, leer absenden. → (Nur mit einem Wegwerf-Konto!) Alle Felder ausfüllen und speichern.
   - **Erwartet:** Leeres Formular zeigt Pflichtfeld-Fehler; gültiges Konto erscheint danach im Dropdown.
-- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25
+- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29
   - Gleicher Login wie ein bestehendes Konto → Rückfrage „bestehendes Konto bearbeiten?“; der Worker antwortet mit 409 (RFC-7807-Problem).
   - **Prüfung:** Neues Konto mit dem Login eines vorhandenen Kontos anlegen.
   - **Erwartet:** Browser-Rückfrage erscheint; es entsteht kein zweites Konto.
-- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25
+- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29
   - PUT /accounts/{id}; gesperrt, solange der Bot läuft.
   - **Prüfung:** Konto wählen, „Edit account“, Notiz ändern, speichern.
   - **Erwartet:** Änderung bleibt nach Neuladen erhalten; bei laufendem Bot ist der Button deaktiviert.
-- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25
+- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29
   - DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft.
   - **Prüfung:** (Nur Wegwerf-Konto!) „Delete account“ → bestätigen.
   - **Erwartet:** Konto verschwindet aus dem Dropdown; bei laufendem Bot ist der Button deaktiviert.
-- [x] **ACC-06** Kontoauswahl lädt Einstellungen — 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-06** Kontoauswahl lädt Einstellungen — 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Auswahl im Dropdown lädt GET /settings/{id} in useSettingsStore; ohne Konto erscheint der Leerzustand „No account selected“.
   - **Prüfung:** Seite ohne Auswahl öffnen, dann das DEMO-Konto wählen.
   - **Erwartet:** Zuerst Leerzustand, danach erscheinen Zonen und allgemeine Einstellungen des Kontos.
   - 📝 Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/7942034 geladen, UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall 1 s)
-- [x] **ACC-07** LIVE/TEST-Kennzeichnung — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-07** LIVE/TEST-Kennzeichnung — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Badge im Header und im Dropdown aus env_type (DEMO/LIVE) des Kontos.
   - **Prüfung:** DEMO-Konto wählen.
   - **Erwartet:** Badge zeigt TEST/DEMO, nicht LIVE.
@@ -102,17 +102,17 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 3. SET – Allgemeine Einstellungen
 
-- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
   - **Prüfung:** Konto wählen.
   - **Erwartet:** Zonen und Kontroll-Intervall entsprechen der Datei auf dem VPS.
   - 📝 Claude: GET /settings/7942034 → flache Datei settings_7942034.json (LOOP_INTERVAL_SECONDS, ZONES); UI zeigt alle Werte korrekt (siehe ACC-06)
-- [x] **SET-02** Kontroll-Intervall (LOOP_INTERVAL_SECONDS) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-02** Kontroll-Intervall (LOOP_INTERVAL_SECONDS) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Stepper „Kontrol Sıklığı“ 1–60 s in 0,1er-Schritten; „Kaydet“ ist nur bei Änderung aktiv.
   - **Prüfung:** Mit −/+ den Wert ändern, 0 und 61 eintippen, speichern, neu laden.
   - **Erwartet:** Werte außerhalb 1–60 werden begrenzt; gespeicherter Wert bleibt nach Neuladen.
   - 📝 Claude: + → 1,1 und Kaydet aktiv; 61 → 60, 0 → 1 begrenzt; gespeichert → API 1,1, bleibt nach Neuladen; per − zurück auf 1 gespeichert
-- [x] **SET-03** „Alle speichern“ + Dirty-Tracking — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-03** „Alle speichern“ + Dirty-Tracking — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert).
   - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
@@ -139,12 +139,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Zone öffnen, ins Symbolfeld klicken.
   - **Erwartet:** Symbolliste des Brokers erscheint schnell (auch bei wiederholtem Öffnen).
   - 📝 Claude: /symbols/7942034 → 200, 812 Symbole mit Details (USOUSD: digits 3, point 0.001, Volumen 0.01–50); 2. Abruf 72 ms statt 168 ms (Cache). 1-h-Ablauf/Hintergrund-Refresh nicht live prüfbar → Unit-Test
-- [x] **SYM-02** Symbol-Autocomplete — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **SYM-02** Symbol-Autocomplete — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Feld „Sembol Ara…“ filtert die Symbolliste beim Tippen.
   - **Prüfung:** „XAU“ tippen und einen Vorschlag wählen.
   - **Erwartet:** Nur passende Symbole erscheinen; Auswahl übernimmt das Symbol.
   - 📝 Claude: 'XAU' → 5 Vorschläge mit Beschreibung; 'gold' findet auch über Beschreibung; 'ZZQQ' → 'Sembol bulunamadı'; nichts ausgewählt, per Neuladen verworfen
-- [x] **SYM-03** Symboldetails — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **SYM-03** Symboldetails — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Zu einem Symbol werden Details (Digits, Point, Volumen-Grenzen) geladen; daraus leiten die Zonenfelder Schrittweite, Minimum und Rundung ab, und unbekannte Symbole werden als „Geçersiz Sembol!“ markiert.
   - **Prüfung:** Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools). → Ein unbekanntes Symbol eintippen (nicht speichern).
   - **Erwartet:** Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; unbekanntes Symbol zeigt „Geçersiz Sembol!“.
@@ -152,70 +152,74 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 5. ZON – Zonen-Konfiguration (UI ↔ Backend)
 
-- [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - „Bölge Ekle“ fügt eine neue Zone mit Standardwerten hinzu; die Anzahl im Badge steigt.
   - **Prüfung:** „Bölge Ekle“ klicken, speichern, neu laden.
   - **Erwartet:** Neue Zone bleibt nach dem Neuladen erhalten.
   - 📝 Claude: 'Bölge Ekle' → Zähler 2, neue Zone inaktiv (is_active false, Symbol der letzten Zone); gespeichert → API 2 Zonen, bleibt nach Neuladen
-- [x] **ZON-02** Zone löschen — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-02** Zone löschen — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Menü „…“ → „Bölgeyi Sil“ → Bestätigung „Bölge Sil“.
   - **Prüfung:** Test-Zone löschen und bestätigen, speichern.
   - **Erwartet:** Zone ist weg, auch nach Neuladen.
   - 📝 Claude: Menü '…' → 'Bölgeyi Sil' → Dialog 'Bölge Sil' → Delete → Zähler 1, Leiste 'ungespeichert'; nach 'Tüm Ayarları Kaydet' API = Sicherung
-- [x] **ZON-03** Basisfelder (Symbol, Emir Tipi, Min/Max Fiyat) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-03** Basisfelder (Symbol, Emir Tipi, Min/Max Fiyat) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Symbol, Ordertyp BUY/SELL/BOTH und Preisbereich der Zone.
   - **Prüfung:** Jedes Feld ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten; Ordertyp-Badge im Kopf passt.
   - 📝 Claude (Test-Zone): Symbol per Autocomplete XAUUSD, Emir Tipi BOTH, Min/Max 500/600 → nach Neuladen in API und UI
-- [x] **ZON-04** Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-04** Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Gridabstand, Lotgröße, Take Profit, Stop Loss der Zone.
   - **Prüfung:** Jedes Feld ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten.
   - 📝 Claude (Test-Zone): Grid 0.2, Lot 0.02, KA 0.3, ZD 1 → nach Neuladen in API und UI
-- [x] **ZON-05** SELL-Felder + BUY/SELL-Sync — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-05** SELL-Felder + BUY/SELL-Sync — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Bei Ordertyp BOTH eigene SELL-Werte (SELL Grid/Lot/KA/ZD) oder Schalter „BUY ve SELL için aynı ayarları uygula“.
   - **Prüfung:** Ordertyp BOTH wählen, Sync aus → SELL-Felder ändern; Sync an.
   - **Erwartet:** SELL-Felder erscheinen nur bei BOTH und Sync aus; Werte bleiben nach Speichern erhalten.
   - 📝 Claude (Test-Zone): BOTH + Sync aus → SELL-Felder (und SELL-Pullback) erscheinen; SELL 0.4/0.03/0.6/2 und sync_buy_sell=false gespeichert
-- [x] **ZON-06** Breakout-Felder — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-06** Breakout-Felder — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Schalter „Sadece trend yönünde“, Pullback-Abstände, Alt/Üst Seviyeler (levels_below/above), Maks Pozisyon.
   - **Prüfung:** Breakout einschalten, Felder ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten.
   - 📝 Claude (Test-Zone): Breakout an, Pullback 0.7/SELL 0.9, Alt 3, Üst 4, Maks 2 → nach Neuladen in API und UI
-- [x] **ZON-07** Exit-Felder (Bereinigen beim Verlassen) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-07** Exit-Felder (Bereinigen beim Verlassen) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Schalter „Fiyat bölgeden çıkınca temizle“; dann Çıkış Yönü, Hedef Taraf, Temizleme Kapsamı, Çıkış Tetikleyici und bei „Mum Kapanışı“ zusätzlich Zaman Dilimi.
   - **Prüfung:** Schalter an → Auswahlfelder prüfen; Auslöser „Mum Kapanışı“ wählen.
   - **Erwartet:** Die vier Auswahlfelder erscheinen erst mit dem Schalter; Zeitrahmen nur bei Kerzenschluss.
   - 📝 Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da; BUY (Yukarı)/Hepsi/Tüm İşlemler; 'Mum Kapanışı' blendet Zaman Dilimi (M1–D1) ein, H1 gespeichert
-- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24
+- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24
   - Button im Zonenkopf (Başladı / Başla / Hazır / Kapalı) setzt is_active (POST /settings) und START/PAUSE in ui_state (POST /ui-state); Warnung bei ungültigem Symbol oder ungespeicherter Zone.
   - **Prüfung:** Test-Zone starten und wieder pausieren. → Neue, ungespeicherte Zone starten.
   - **Erwartet:** Label wechselt passend; ungespeicherte Zone zeigt eine Warnung.
-- [x] **ZON-09** „Kaydedilmedi“-Badge — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-09** „Kaydedilmedi“-Badge — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Zonen mit ungespeicherten Änderungen tragen den Badge „Kaydedilmedi“.
   - **Prüfung:** Ein Feld ändern, dann speichern.
   - **Erwartet:** Badge erscheint nach der Änderung und verschwindet nach dem Speichern.
   - 📝 Claude: Badge 'Kaydedilmedi' nur an der geänderten Zone, verschwindet nach Speichern (auch bei SET-03 gesehen)
-- [x] **ZON-10** Zahlenfelder leerbar — 🖥️ e2e ✅ 2026-09-25
+- [x] **ZON-10** Zahlenfelder leerbar — 🖥️ e2e ✅ 2026-09-29
   - Zahlenfelder der Zone (Preis, Grid, Lot, KA/ZD, Pullback, Seviyeler) halten einen lokalen Text-Entwurf; die letzte Ziffer lässt sich löschen, erst beim Verlassen des Feldes erscheint wieder der echte Wert.
   - **Prüfung:** Ein Zahlenfeld mit Rücktaste komplett leeren, dann neu tippen (z. B. 0.05) und das Feld verlassen.
   - **Erwartet:** Feld bleibt beim Löschen leer, Zwischenstände wie „0.“ bleiben erhalten, nach dem Verlassen steht der gespeicherte Wert (leer → 0).
-- [x] **ZON-11** Einzelne Zone speichern — 🖥️ e2e ✅ 2026-09-25
+- [x] **ZON-11** Einzelne Zone speichern — 🖥️ e2e ✅ 2026-09-29
   - Jede Zonenkarte hat einen eigenen „Kaydet“-Button, der nur diese Zone im Worker ersetzt (neue Zone wird angehängt). Andere Zonen und Einstellungen mit ungespeicherten Änderungen bleiben ungespeichert; „Tüm Ayarları Kaydet“ (neben „Bölge Ekle“) speichert weiterhin alles.
   - **Prüfung:** Zone 1 ändern, Zone hinzufügen, nur bei der neuen Zone „Kaydet“ klicken. → Danach bei Zone 1 „Kaydet“ klicken.
   - **Erwartet:** Nach dem ersten Klick liegt die neue Zone im Worker, Zone 1 trägt weiter „Kaydedilmedi“ und „Tüm Ayarları Kaydet“ bleibt aktiv; nach dem zweiten Klick sind Badge und Dirty-Zustand weg.
-- [x] **ZON-12** Symbol-Richtwerte in den Hinweisen — 🖥️ e2e ✅ 2026-09-25
+- [x] **ZON-12** Symbol-Richtwerte in den Hinweisen — 🖥️ e2e ✅ 2026-09-29
   - Der (i)-Hinweis von Grid-Abstand und Take Profit (Buy/Sell) nennt für gängige Symbole (Gold, Silber, Forex, BTC/ETH, US-Indizes, Öl) einen Richtwert; bei unbekanntem Symbol bleibt der Text unverändert. Nur Anzeige, keine Validierung.
   - **Prüfung:** Symbol auf XAUUSD stellen, mit der Maus über das (i) von Grid-Abstand und Take Profit fahren. → Symbol auf ein unbekanntes Symbol stellen.
   - **Erwartet:** Bei XAUUSD steht „1–5“ als Richtwert im Hinweis; bei unbekanntem Symbol nur der Standardtext.
-- [x] **ZON-13** Einstiegsregel speichern (Modus, Indikatoren, Limits, Gewinnziel) — 🖥️ e2e ✅ 2026-09-25
+- [x] **ZON-13** Einstiegsregel speichern (Modus, Indikatoren, Limits, Gewinnziel) — 🖥️ e2e ✅ 2026-09-29
   - Abschnitt „Giriş Kuralı“ jeder Zone: Einstiegsmodus (GRID / GRID_FILTER / SIGNAL_MARKET), Signal-Zeitrahmen, EMA/RSI/Bollinger an/aus mit Parametern, Max. BUY/SELL-Positionen, Max. Spread, Gewinnziel Preis oder Geld. Emir Tipi „AUTO“ ist nur mit Signal wählbar; zurück auf „Grid“ wird daraus BOTH. Ältere Zonen ohne diese Felder zeigen die Worker-Defaults (Grid, EMA 50, RSI 14 < 40 / > 60).
   - **Prüfung:** Einstiegsmodus „Sinyalde piyasa emri“, Emir Tipi AUTO, Zeitrahmen M1, Bollinger an, Max. BUY 2, Gewinnziel „Para tutarı“ 5 wählen, speichern, neu laden. → Einstiegsmodus zurück auf „Grid (her seviye)“ stellen.
   - **Erwartet:** Alle Werte bleiben nach dem Neuladen erhalten; bei „Grid“ ist AUTO gesperrt und Emir Tipi springt auf BOTH.
-- [x] **ZON-14** Infotext der Einstiegsregel und gesperrte Felder — 🖥️ e2e ✅ 2026-09-25
+- [x] **ZON-14** Infotext der Einstiegsregel und gesperrte Felder — 🖥️ e2e ✅ 2026-09-29
   - Oben im Abschnitt beschreibt ein Infotext die aktive Regel in Klartext (Modus, BUY/SELL-Bedingungen, Zeitrahmen, Richtung bei AUTO, Take Profit, Limits, Spread, Verlust über Zonen-Ausstieg). Im Market-Modus sind Grid-Abstand, Stufen und Breakout gesperrt, bei Geld-TP das Preis-TP-Feld; die Tooltips sagen warum.
   - **Prüfung:** Zone auf „Sinyalde piyasa emri“, BUY, TP 1, Max. BUY 2 stellen und den Infotext lesen. → Gewinnziel auf „Para tutarı“ stellen.
   - **Erwartet:** Infotext nennt Market-Order, „BUY: Kapanış > EMA 50 ve RSI 14 < 40“ und „en fazla 2 BUY“; Grid-Abstand/Stufen sind grau, bei Geld-TP auch „Kar Al ($)“.
+- [x] **ZON-15** Einstiegsregel standardmäßig ausgeblendet — 🖥️ e2e ✅ 2026-09-29
+  - Eine Zone sieht aus wie vor der Einstiegsregel: unter den Grundfeldern steht nur der Button „Gelişmiş giriş kuralını göster“. Erst ein Klick zeigt den Abschnitt „Giriş Kuralı“ und die Option AUTO im Emir Tipi. Nutzt die Zone schon eine abweichende Regel (Modus, Indikatoren, Limits, Spread, Geld-TP oder AUTO), ist der Abschnitt sofort offen und der Button trägt „aktif“. Der Zustand wird nicht gespeichert; Ausblenden ändert keine Einstellung.
+  - **Prüfung:** Neue Zone anlegen, dann auf den Button klicken und wieder zuklappen. → Zone mit „Grid + sinyal filtresi“ öffnen.
+  - **Erwartet:** Neue Zone ohne Abschnitt und ohne AUTO; nach Klick beides sichtbar. Die Filter-Zone ist sofort offen und zeigt „aktif“.
 
 ## 6. BOT – Bot-Steuerung
 
@@ -234,7 +238,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nach einem Update „Restart Bot“ klicken.
   - **Erwartet:** Bot läuft danach mit der neuen Version (PID-Datei enthält neue VERSION).
   - 📝 Live: nach Worker-Neustart meldet der Worker '[AUTO] Bot eski bir kod sürümüyle çalışıyor; yeni sürümle yeniden başlatılıyor' und startet ihn neu (21:24 und 22:48, Positionen unverändert)
-- [x] **BOT-04** Statusanzeige + Alarme — 🖥️ e2e ✅ 2026-09-25
+- [x] **BOT-04** Statusanzeige + Alarme — 🖥️ e2e ✅ 2026-09-29
   - Anzeige Connecting / Running / „process without MT5“ / Stopped, Marktstatus, Kontoname/Server; Alarme für API-Fehler, MT5-Verbindung, abgelehnte Order, Algo Trading aus.
   - **Prüfung:** In MT5 „Algo Trading“ ausschalten, während der Bot läuft.
   - **Erwartet:** Alarm „Algo Trading off“ erscheint; nach Einschalten verschwindet er.
@@ -345,12 +349,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 8. MET – Live-Daten & Diagramm
 
-- [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Vier Kacheln Preis, Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern.
   - **Prüfung:** Bot laufen lassen, Werte mit MT5 vergleichen.
   - **Erwartet:** Werte stimmen mit MT5 überein und aktualisieren sich.
   - 📝 Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen, 5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen
-- [x] **MET-02** Chart (10-s-Kerzen + RSI) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-02** Chart (10-s-Kerzen + RSI) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - lightweight-charts baut 10-s-Kerzen aus WebSocket-METRICS, RSI auf eigener Skala; Farben folgen dem Theme.
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
@@ -367,21 +371,21 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 9. LOG – Logs
 
-- [x] **LOG-01** Log-Tabs laden — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-01** Log-Tabs laden — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Tabs Activity, Robot Logs, MT5 Terminal; GET /logs/{id}?log_type=all&lines=200; ohne laufenden Bot wird mt5_connected=false erzwungen.
   - **Prüfung:** Alle drei Tabs öffnen, „Refresh“.
   - **Erwartet:** Jeder Tab zeigt seine Logs.
   - 📝 Claude: Activity, Robot Logs (200 Zeilen), MT5 Terminal laden und wechseln korrekt; Inhalt: siehe LOG-05 (Fragmente) und LOG-06 (MT5-Tab leer)
-- [x] **LOG-02** Logs löschen — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25
+- [x] **LOG-02** Logs löschen — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29
   - Activity wird nur lokal geleert; Robot/MT5 nach Rückfrage per DELETE /logs/{id}.
   - **Prüfung:** Im Tab Robot Logs „Clear“ → bestätigen.
   - **Erwartet:** Log ist leer, auch nach Refresh.
-- [x] **LOG-03** Logs als ZIP herunterladen — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-03** Logs als ZIP herunterladen — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - GET /logs/download/{id} liefert ein ZIP mit Logs, State- und Settings-Datei.
   - **Prüfung:** „Download log file“ klicken, ZIP öffnen.
   - **Erwartet:** ZIP enthält Logs, state_<id>.json und settings-Datei.
   - 📝 Claude: 'Download log file' → gültiges ZIP (54 KB) MT5_Logs_and_Configs_7942034.zip mit err-Log, met/pid/symbols, 3 MT5-Terminal-Logs, state und settings; Download im Browser abgefangen, nichts gespeichert
-- [x] **LOG-04** Worker-Status + Polling — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-04** Worker-Status + Polling — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Anzeige Worker online/offline; Abfrage alle 10 s (beim Verbinden alle 2 s).
   - **Prüfung:** Worker auf dem VPS stoppen.
   - **Erwartet:** Status wechselt nach ≤ 10 s auf offline.
@@ -399,17 +403,17 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 10. UPD – System & Updates
 
-- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
   - 📝 Claude: 'Check for Updates' → 'You are up to date'; API: local v0.7.58 = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000), nicht des Workers
-- [x] **UPD-02** Update anwenden — 🧪 unit ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-24
+- [x] **UPD-02** Update anwenden — 🧪 unit ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-24
   - „Apply Update (git pull)“ → POST /system/update (stash nur bei lokalen Änderungen, pull, stash pop), danach Seiten-Reload. Scheitert der Pull (z. B. Datei gesperrt oder ohne Schreibrecht), wird der Stand davor wiederhergestellt – keine halb aktualisierten Dateien, der Stash wird zurückgespielt.
   - **Prüfung:** Nach einem Merge auf main das Update im Dashboard anwenden (Zahnrad → Check for Updates → Apply Update).
   - **Erwartet:** VERSION auf dem VPS entspricht main; nach einem Fehler zeigt git status keine geänderten Dateien und git stash list keinen neuen Eintrag.
   - 📝 VPS per Dashboard-Update von v0.7.69 auf v0.7.70 (Worker meldet local_ver = remote_ver = v0.7.70). Erster Versuch scheiterte an Datei-Rechten in docs/features; nach takeown/icacls auf das Repo ok.
-- [x] **UPD-03** System herunterfahren — 🖥️ e2e ✅ 2026-09-25
+- [x] **UPD-03** System herunterfahren — 🖥️ e2e ✅ 2026-09-29
   - Power-Button → Bestätigung → /stop, danach window.close().
   - **Prüfung:** Power-Button → bestätigen.
   - **Erwartet:** Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
@@ -429,19 +433,19 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 11. VPS – VPS-Fernsteuerung vom Mac
 
-- [ ] **VPS-01** VPS-Status — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ⏳
+- [ ] **VPS-01** VPS-Status — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
   - Die Seite /vps zeigt per SSH (Route /api/vps/status → ops/windows/vps.ps1 status) Worker, ngrok samt öffentlicher URL, laufende Bots, Version/Branch, Autostart und Uptime. Ohne VPS_SSH_HOST (z. B. Vercel) erscheint nur ein Hinweis.
   - **Prüfung:** Lokal npm run dev:frontend, Seite „VPS“ öffnen.
   - **Erwartet:** Alle Kacheln grün; ist der Worker gestoppt, steht „Gestoppt“.
-- [ ] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ⏳
+- [ ] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
   - Update-Prüfung über den Worker; „Update & Neustart“ läuft über den Worker (POST /system/update) oder, wenn er nicht läuft, über die Aufgabe AutoGrid-Update; „Worker neu starten“ über die Aufgabe AutoGrid-Start (start.bat); „ngrok neu starten“ beendet ngrok, run_ngrok_watchdog.bat startet ihn neu; „VPS neu starten“ per shutdown /r. Jede Aktion mit Bestätigung. git läuft nie per SSH als Administrator.
   - **Prüfung:** „Worker neu starten“ → bestätigen. → „Update & Neustart“ nach einem Merge auf main.
   - **Erwartet:** Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt.
-- [x] **VPS-03** Logs vom VPS — 🖥️ e2e ✅ 2026-09-25
+- [x] **VPS-03** Logs vom VPS — 🖥️ e2e ✅ 2026-09-29
   - Tabs Worker (logs/worker_console.log), ngrok (logs/ngrok.log) und Update (logs/vps_update.log), jeweils die letzten 300 Zeilen per SSH. Das Log lädt mit dem Status-Poll neu, Farbcodes von uvicorn werden entfernt; fehlt die Neustart-Schleife (dann gibt es kein Log), erklärt ein Hinweis den Klick auf „Worker neu starten“.
   - **Prüfung:** Tabs wechseln. → Seite offen lassen, nachdem der VPS aktualisiert oder neu gestartet wurde.
   - **Erwartet:** Konsolenausgabe des Workers bzw. ngrok erscheint ohne Farbcodes und aktualisiert sich von selbst; ein alter Fehler bleibt nicht stehen.
-- [x] **VPS-04** Schutz der VPS-Route — 🖥️ e2e ✅ 2026-09-25
+- [x] **VPS-04** Schutz der VPS-Route — 🖥️ e2e ✅ 2026-09-29
   - /api/vps/* antwortet nur auf localhost; POST nur mit eigener Origin; ohne VPS_SSH_HOST 404. Nur geprüfte Aktionen/Argumente gelangen in den SSH-Befehl, SSH-Daten stehen nur server-seitig in .env.local (kein NEXT_PUBLIC_).
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch e2e-Tests.
@@ -453,45 +457,45 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - ops/windows/setup_vps.ps1 (einmal als Administrator) installiert OpenSSH (nur Schlüssel), trägt den Mac-Schlüssel ein, setzt den Besitzer des Repos auf den normalen Benutzer, richtet Auto-Login ein (Passwort als LSA-Secret), entfernt bei MT5-Terminals den Haken „Als Administrator ausführen“ (RUNASADMIN, samt Leeren des Kompatibilitäts-Caches) und legt die Aufgaben AutoGrid-Start (bei Anmeldung) und AutoGrid-Update an, beide ohne höchste Rechte.
   - **Prüfung:** Einrichtung nach docs/windows_start_guide.md, danach VPS über die Seite „VPS“ neu starten.
   - **Erwartet:** Nach dem Reboot sind Auto-Login, Worker, ngrok und die vorher laufenden Bots von selbst wieder da.
-- [ ] **VPS-07** Prozesse mit Adminrechten erkennen und beenden — 🧪 unit ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ⏳
+- [ ] **VPS-07** Prozesse mit Adminrechten erkennen und beenden — 🧪 unit ✅ 2026-09-25 · 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
   - Laufen Neustart-Schleife, Worker, Bots, ngrok oder MT5 mit Adminrechten (alte Aufgabe mit höchsten Rechten, start.bat „Als Administrator“), kann der normale Worker sie weder sehen noch beenden. vps.ps1 status meldet sie (höhere Integritätsstufe als explorer.exe), die Seite „VPS“ zeigt eine rote Warnung mit „Admin-Prozesse beenden“ (fix-elevated, danach Neustart ohne Adminrechte, der Worker setzt die Bots fort); „Worker neu starten“ beendet Admin-Schleifen/-Worker/-ngrok vorher selbst. cleanup_old_instances.ps1 schreibt nicht beendbare Reste ins Worker-Log. Ein Worker mit Adminrechten warnt beim Start und macht kein git pull.
   - **Prüfung:** Seite „VPS“ öffnen, wenn nichts mit Adminrechten läuft. → Nur mit Absprache: auf dem VPS start.bat per Rechtsklick „Als Administrator ausführen“, danach Seite „VPS“ neu laden und „Admin-Prozesse beenden“.
   - **Erwartet:** Ohne Admin-Prozesse keine Warnung. Mit Admin-Start nennt die Warnung Neustart-Schleifen und Worker mit PID; nach „Admin-Prozesse beenden“ verschwindet sie, Worker und ngrok laufen wieder ohne Adminrechte und das Worker-Log zeigt keine neue Admin-Warnung.
 
 ## 12. UI – Oberfläche
 
-- [x] **UI-01** Navigation — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-01** Navigation — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung. Auf Mobil (375px) kompakter, ohne horizontales Scrollen.
   - **Prüfung:** Zwischen Dashboard und Formasyon wechseln. → Bei 375px Breite öffnen.
   - **Erwartet:** Aktiver Link ist markiert, Version entspricht VERSION. Bei 375px kein horizontales Scrollen, „Grid Robot“ bricht nicht um.
   - 📝 Claude: Dashboard ↔ Formasyon, Markierung wandert mit, Version v0.7.58 = VERSION
-- [x] **UI-02** Theme hell / dunkel / System — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-02** Theme hell / dunkel / System — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Umschalter „Açık / Koyu / Sistem“ (auf Mobil ein einzelner Button, der der Reihe nach durchschaltet), gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
   - **Prüfung:** Alle drei Varianten wählen und die Seite neu laden.
   - **Erwartet:** Theme bleibt erhalten, kein helles Aufblitzen im Dunkelmodus.
   - 📝 Claude: Açık/Koyu/Sistem setzen Klasse 'dark' + localStorage; 'Açık' übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf 'Sistem'
-- [x] **UI-03** PWA / Service Worker — 🖥️ e2e ✅ 2026-09-25
+- [x] **UI-03** PWA / Service Worker — 🖥️ e2e ✅ 2026-09-29
   - Manifest und Registrierung von /service-worker.js im Layout.
   - **Prüfung:** DevTools → Application → Service Workers.
   - **Erwartet:** Service Worker ist registriert, keine 404 in der Konsole.
-- [x] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ✅ 2026-09-25 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
   - Link „Test“ im Zonenkopf öffnet /chart?zone=<id>.
   - **Prüfung:** In einer Zone auf „Test“ klicken.
   - **Erwartet:** Das Chart zeigt die gewählte Zone.
   - 📝 v0.7.59 (Frontend aus main): 'Test'-Link → Karte 'Bölge 1 · USOUSD' mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien 20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)
-- [x] **UI-05** Sprache Türkisch / Englisch / Deutsch — 🖥️ e2e ✅ 2026-09-25
+- [x] **UI-05** Sprache Türkisch / Englisch / Deutsch — 🖥️ e2e ✅ 2026-09-29
   - Umschalter TR · EN · DE in der Navigation (auf Mobil ein einzelner Button, der durchschaltet). Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
   - **Prüfung:** Im Umschalter EN, dann DE, dann TR wählen und dabei Dashboard, /vps und /chart ansehen. → Seite neu laden.
   - **Erwartet:** Alle Texte wechseln sofort, die Sprache bleibt nach dem Reload erhalten, <html lang> stimmt. Keine hartcodierten Reste, keine überlaufenden Buttons (Deutsch ist am längsten).
-- [x] **UI-06** Zahlen- und Zeitformat folgt der Sprache — 🖥️ e2e ✅ 2026-09-25
+- [x] **UI-06** Zahlen- und Zeitformat folgt der Sprache — 🖥️ e2e ✅ 2026-09-29
   - Preise und Gewinne ($97,25 in tr/de, $97.25 in en), Uhrzeiten in Logs und VPS-Seite sowie das Dezimalmuster im Symbol-Label („Sembol (0,00)“) richten sich nach der gewählten Sprache.
   - **Prüfung:** Bot mit MT5 verbinden, dann die Sprache zwischen EN und DE wechseln.
   - **Erwartet:** Der Preis in der Kennzahlenleiste wechselt zwischen Punkt und Komma als Dezimaltrenner.
-- [x] **UI-07** Hinweise (Tooltips) zu jedem Feld und Button — 🖥️ e2e ✅ 2026-09-25
+- [x] **UI-07** Hinweise (Tooltips) zu jedem Feld und Button — 🖥️ e2e ✅ 2026-09-29
   - Jede Einstellung, jedes Feld, jeder Schalter, Button, Tab und Menüpunkt erklärt sich. Felder und Schalter tragen ein (i) hinter dem Label (Hover, Tastaturfokus oder Antippen), Buttons und Links zeigen den Tooltip bei Hover/Fokus, deaktivierte Buttons nennen den Grund. Der Tooltip ist ein Popover im Top-Layer (nicht von overflow-hidden abgeschnitten, über den Dialogen), Escape schließt zuerst nur ihn. Texte stehen als i18n-Schlüssel `<label-key>.hint` in src/i18n/messages/hints.ts (tr, en, de). `hint` ist Pflicht-Prop von InputField, Switch, Button, Tabs und ConfirmModal; der Abdeckungstest meldet jedes Bedienelement ohne Hinweis (hooks/RULES.md §5).
   - **Prüfung:** Im Dashboard mit der Maus über das (i) hinter „Alt Seviyeler“, „Maks Pozisyon“ und „Çıkış Tetikleyici“ fahren. → Mit Tab durch die Felder gehen; Escape drücken. → Bei laufendem Bot über „Edit“ fahren; im Konto-Dialog über ein (i) fahren. → Sprache auf EN und DE stellen.
   - **Erwartet:** Zu jedem Element erscheint ein verständlicher Text in der gewählten Sprache. Er wird nicht abgeschnitten, liegt im Dialog über dem Dialog, Escape schließt erst den Tooltip. Ein deaktivierter Button nennt den Grund. Der Abdeckungstest findet kein Bedienelement ohne Hinweis.
-- [x] **UI-08** Mobil (375 px) ohne horizontalen Überlauf — 🖥️ e2e ✅ 2026-09-25
+- [x] **UI-08** Mobil (375 px) ohne horizontalen Überlauf — 🖥️ e2e ✅ 2026-09-29
   - Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Ab Tablet-Breite bleibt das Layout unverändert.
   - **Prüfung:** Dashboard bei 375 px Breite öffnen (Entwicklertools, Geräteleiste) und ein Konto mit Zone wählen. → Sprache auf DE stellen und in der Zone einen Wert ändern. → /formasyon, /vps und /chart bei 375 px ansehen. → Im Log-Viewer unter dem Zonenbereich die Tab-Leiste nach links wischen und den dritten Tab („MT5 Terminal“) antippen.
   - **Erwartet:** Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile. Die Tab-Leiste des Log-Viewers lässt sich wischen, jeder Tab ist erreichbar und nach dem Antippen ganz sichtbar.

@@ -38,6 +38,13 @@ export function usesSignal(zone: ZoneSettings): boolean {
   return entryOf(zone).entry_mode !== 'GRID' || zone.order_type === 'AUTO';
 }
 
+/** Zone nutzt eine vom Standard abweichende Einstiegsregel (dann wird der Abschnitt sofort gezeigt). */
+export function entryCustomized(zone: ZoneSettings): boolean {
+  if (zone.order_type === 'AUTO') return true;
+  const e = entryOf(zone);
+  return (Object.keys(ENTRY_DEFAULTS) as (keyof ResolvedEntry)[]).some((key) => e[key] !== ENTRY_DEFAULTS[key]);
+}
+
 export function defaultZone(): ZoneSettings {
   return {
     id: crypto.randomUUID(),

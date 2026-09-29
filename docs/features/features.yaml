@@ -402,6 +402,16 @@ kategorien:
           - Gewinnziel auf „Para tutarı“ stellen.
         erwartet: "Infotext nennt Market-Order, „BUY: Kapanış > EMA 50 ve RSI 14 < 40“ und „en fazla 2 BUY“; Grid-Abstand/Stufen sind grau, bei Geld-TP auch „Kar Al ($)“."
 
+      - id: ZON-15
+        titel: Einstiegsregel standardmäßig ausgeblendet
+        beschreibung: "Eine Zone sieht aus wie vor der Einstiegsregel: unter den Grundfeldern steht nur der Button „Gelişmiş giriş kuralını göster“. Erst ein Klick zeigt den Abschnitt „Giriş Kuralı“ und die Option AUTO im Emir Tipi. Nutzt die Zone schon eine abweichende Regel (Modus, Indikatoren, Limits, Spread, Geld-TP oder AUTO), ist der Abschnitt sofort offen und der Button trägt „aktif“. Der Zustand wird nicht gespeichert; Ausblenden ändert keine Einstellung."
+        code: [frontend_nextjs/src/components/zone/ZoneCard.tsx, frontend_nextjs/src/components/zone/ZoneBasicFields.tsx, frontend_nextjs/src/utils/zoneHelpers.ts]
+        tiers: [e2e]
+        pruefung:
+          - Neue Zone anlegen, dann auf den Button klicken und wieder zuklappen.
+          - Zone mit „Grid + sinyal filtresi“ öffnen.
+        erwartet: Neue Zone ohne Abschnitt und ohne AUTO; nach Klick beides sichtbar. Die Filter-Zone ist sofort offen und zeigt „aktif“.
+
   # ---------------------------------------------------------------------------
   - id: BOT
     titel: Bot-Steuerung
