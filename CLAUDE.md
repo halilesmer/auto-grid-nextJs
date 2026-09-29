@@ -97,6 +97,7 @@ All of these are gitignored and may contain credentials.
 - `hooks/` klasörü: git `pre-commit`/`pre-push` + Claude Code hook'ları (`.claude/settings.json`). Klonladıktan sonra bir kez: `bash hooks/install.sh`. Detay: `hooks/README.md`.
 - Kurallar (GitHub'a yükleme, uyumluluk, test protokolü): `hooks/RULES.md`. Hook hata verirse `--no-verify` ile geçme, hatayı düzelt.
 - **"Test et" denince:** önce `hooks/test-account.local.md` dosyasını oku (gitignore'lu demo hesap; şifre içermez), worker'da kayıtlı o hesabı seç, mevcut datayı kullan. Şifre forma yazılmaz. Protokol: `hooks/RULES.md` §3.
+- **Branch-Aufräumen:** ein Branch, der über einen gemergten PR (oder direkt) in `main` aufgegangen ist, wird gelöscht (lokal + remote) — nicht als offene Nachfrage stehen lassen. Vor dem Löschen mit `git merge-base --is-ancestor <branch> main` verifizieren, dass er wirklich gemergt ist. Nicht gemergte Branches nur melden, nicht löschen.
 
 ## Conventions
 
