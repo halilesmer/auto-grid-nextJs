@@ -125,6 +125,11 @@ ZON-09:
   datum: '2026-09-23'
   notiz: 'Claude: Badge ''Kaydedilmedi'' nur an der geänderten Zone, verschwindet
     nach Speichern (auch bei SET-03 gesehen)'
+ZON-15:
+  status: bestanden
+  datum: '2026-09-29'
+  notiz: 'VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte
+    Order nicht neu gesetzt'
 BOT-01:
   status: bestanden
   datum: '2026-09-23'

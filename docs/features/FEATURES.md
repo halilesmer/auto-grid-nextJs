@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-29 · **94/105** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-29 · **95/105** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -18,7 +18,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 2 | **ACC** – Konten | 9/9 |
 | 3 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 4 | **SYM** – Symbole | 3/3 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 12/15 |
+| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/15 |
 | 6 | **BOT** – Bot-Steuerung | 6/7 |
 | 7 | **ENG** – Grid-Engine (Handelslogik) | 24/24 |
 | 8 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -228,10 +228,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Schalter „Sofort erste Position“ in der Zonenkarte (instant_entry), unabhängig von „Abstand nach Verlust“. Wird mit der Zone gespeichert.
   - **Prüfung:** Zone (BUY und SELL) auf dem DEMO-Konto anlegen, Preis innerhalb des Bereichs, „Sofort erste Position“ einschalten, speichern, Bot starten. → Warten, bis eine Seite per Take Profit schließt.
   - **Erwartet:** Beim Start öffnen sofort 1 BUY und 1 SELL zum Marktpreis; die Pending Orders liegen einen Grid-Abstand davon entfernt; nach dem TP öffnet der Bot auf dieser Seite sofort wieder eine Position.
-- [ ] **ZON-15** Einstiegsmodus Fraktal — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ⏳
+- [x] **ZON-15** Einstiegsmodus Fraktal — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-29
   - Auswahl „Einstiegsmodus“ (Grid/Fraktal, entry_mode) in der Zonenkarte. Im Fraktal-Modus werden Grid-Felder, „Abstand nach Verlust“, „Sofort erste Position“ und Trend/Pullback ausgeblendet; stattdessen Zeitrahmen (M1–D1, Standard H4), Ordertyp (Ausbruch/Abpraller), Lot, Max. Positionen, SL-Methode (ATR/SAR/Gegenfraktal/Fraktal-Kerze) mit passenden Feldern, SL-Puffer und Chance/Risiko. Wird mit der Zone gespeichert.
   - **Prüfung:** Zone auf dem DEMO-Konto auf „Fraktal“ stellen, H4, Ausbruch, SL „Automatisch (ATR)“, speichern, Bot starten. → Im MT5-Chart (H4) den Indikator „Fractals“ und ATR(14) einblenden und mit den Pending Orders vergleichen. → Eine Fraktal-Order in MT5 von Hand löschen.
   - **Erwartet:** Je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
+  - 📝 VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte Order nicht neu gesetzt
 
 ## 6. BOT – Bot-Steuerung
 
