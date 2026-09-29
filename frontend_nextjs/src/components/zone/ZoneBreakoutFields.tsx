@@ -7,7 +7,6 @@ import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { InfoHint } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
-import { entryOf } from '@/utils/zoneHelpers';
 
 export function ZoneBreakoutFields({
   zone,
@@ -19,7 +18,6 @@ export function ZoneBreakoutFields({
   handleBlur,
 }: ZoneBreakoutFieldsProps) {
   const t = useT();
-  const noGrid = entryOf(zone).entry_mode === 'SIGNAL_MARKET';
   return (
     <section className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
       <SectionLabel>{t('zone.breakout.title')}</SectionLabel>
@@ -28,8 +26,7 @@ export function ZoneBreakoutFields({
           checked={zone.is_breakout}
           onChange={(checked) => update('is_breakout', checked)}
           label={t('zone.breakout.trendOnly')}
-          hint={noGrid ? t('zone.breakout.market.hint') : t('zone.breakout.trendOnly.hint')}
-          disabled={noGrid}
+          hint={t('zone.breakout.trendOnly.hint')}
         />
         <div data-tooltip-scope className="flex items-center gap-2">
           <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -51,7 +48,7 @@ export function ZoneBreakoutFields({
             value={zone.pullback_distance}
             onChange={(e) => handleChange('pullback_distance', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('pullback_distance', zone.pullback_distance, symbolConfig.step, symbolConfig.precision, update)}
-            disabled={noGrid || !zone.is_breakout}
+            disabled={!zone.is_breakout}
             className="input-s w-28"
           />
         </div>
@@ -66,7 +63,7 @@ export function ZoneBreakoutFields({
               value={zone.sell_pullback_distance}
               onChange={(e) => handleChange('sell_pullback_distance', e.target.value, zone, symbolConfig, update)}
               onBlur={() => handleBlur('sell_pullback_distance', zone.sell_pullback_distance, symbolConfig.step, symbolConfig.precision, update)}
-              disabled={noGrid || !zone.is_breakout}
+              disabled={!zone.is_breakout}
               className="input-s w-28"
             />
           </div>
@@ -77,9 +74,7 @@ export function ZoneBreakoutFields({
         <InputField
           label={t('zone.breakout.levelsBelow')}
           hint={
-            noGrid
-              ? t('zone.breakout.market.hint')
-              : zone.is_breakout && zone.order_type === 'BUY'
+            zone.is_breakout && zone.order_type === 'BUY'
               ? t('zone.breakout.levelsBelow.off.hint')
               : t('zone.breakout.levelsBelow.hint')
           }
@@ -90,16 +85,14 @@ export function ZoneBreakoutFields({
             maxDecimals={0}
             value={zone.levels_below}
             onChange={(e) => update('levels_below', parseInt(e.target.value, 10) || 1)}
-            disabled={noGrid || (zone.is_breakout && zone.order_type === 'BUY')}
+            disabled={zone.is_breakout && zone.order_type === 'BUY'}
             className="input-s"
           />
         </InputField>
         <InputField
           label={t('zone.breakout.levelsAbove')}
           hint={
-            noGrid
-              ? t('zone.breakout.market.hint')
-              : zone.is_breakout && zone.order_type === 'SELL'
+            zone.is_breakout && zone.order_type === 'SELL'
               ? t('zone.breakout.levelsAbove.off.hint')
               : t('zone.breakout.levelsAbove.hint')
           }
@@ -110,7 +103,7 @@ export function ZoneBreakoutFields({
             maxDecimals={0}
             value={zone.levels_above}
             onChange={(e) => update('levels_above', parseInt(e.target.value, 10) || 1)}
-            disabled={noGrid || (zone.is_breakout && zone.order_type === 'SELL')}
+            disabled={zone.is_breakout && zone.order_type === 'SELL'}
             className="input-s"
           />
         </InputField>

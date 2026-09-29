@@ -32,8 +32,7 @@ async function unhinted(page: Page): Promise<string[]> {
   }, CONTROLS);
 }
 
-/** Alle Felder der Zonenkarte sichtbar: BOTH ohne Sync, Breakout und „bei Verlassen temizle“ an, Kerzenschluss,
- * Einstiegsregel mit Signalfilter, allen Indikatoren und Geld-TP. */
+/** Alle Felder der Zonenkarte sichtbar: BOTH ohne Sync, Breakout und „bei Verlassen temizle“ an, Kerzenschluss. */
 function fullZone() {
   return makeZone({
     order_type: 'BOTH',
@@ -41,9 +40,6 @@ function fullZone() {
     is_breakout: true,
     clear_on_exit: true,
     exit_condition: 'Mum Kapanışı',
-    entry_mode: 'GRID_FILTER',
-    use_bollinger: true,
-    tp_mode: 'MONEY',
   });
 }
 

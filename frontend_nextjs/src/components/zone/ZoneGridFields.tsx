@@ -5,7 +5,6 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { useT } from '@/i18n';
 import { useGuidedHints } from './useGuidedHints';
-import { entryOf } from '@/utils/zoneHelpers';
 
 export function ZoneGridFields({
   zone,
@@ -18,9 +17,6 @@ export function ZoneGridFields({
 }: ZoneGridFieldsProps) {
   const t = useT();
   const guided = useGuidedHints(zone.symbol);
-  const { entry_mode, tp_mode } = entryOf(zone);
-  const noGrid = entry_mode === 'SIGNAL_MARKET';
-  const moneyTp = tp_mode === 'MONEY';
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -29,7 +25,7 @@ export function ZoneGridFields({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <InputField
         label={isBoth && !sync ? t('zone.field.buyGrid') : t('zone.field.gridStep')}
-        hint={noGrid ? t('zone.field.gridStep.market.hint') : guided.step(isBoth && !sync ? t('zone.field.buyGrid.hint') : t('zone.field.gridStep.hint'))}
+        hint={guided.step(isBoth && !sync ? t('zone.field.buyGrid.hint') : t('zone.field.gridStep.hint'))}
       >
         <NumberInput
           min={symbolConfig.min}
@@ -38,7 +34,6 @@ export function ZoneGridFields({
           value={zone.grid_step}
           onChange={(e) => handleChange('grid_step', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('grid_step', zone.grid_step, symbolConfig.step, symbolConfig.precision, update)}
-          disabled={noGrid}
           className="input-s"
         />
       </InputField>
@@ -58,7 +53,7 @@ export function ZoneGridFields({
       </InputField>
       <InputField
         label={isBoth && !sync ? t('zone.field.buyTakeProfit') : t('zone.field.takeProfit')}
-        hint={moneyTp ? t('zone.field.takeProfit.money.hint') : guided.tp(isBoth && !sync ? t('zone.field.buyTakeProfit.hint') : t('zone.field.takeProfit.hint'))}
+        hint={guided.tp(isBoth && !sync ? t('zone.field.buyTakeProfit.hint') : t('zone.field.takeProfit.hint'))}
       >
         <NumberInput
           min={0}
@@ -67,7 +62,6 @@ export function ZoneGridFields({
           value={zone.take_profit}
           onChange={(e) => handleChange('take_profit', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('take_profit', zone.take_profit, symbolConfig.step, symbolConfig.precision, update)}
-          disabled={moneyTp}
           className="input-s"
         />
       </InputField>

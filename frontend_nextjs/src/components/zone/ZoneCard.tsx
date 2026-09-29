@@ -9,7 +9,6 @@ import { ZoneGridFields } from './ZoneGridFields';
 import { ZoneSellFields } from './ZoneSellFields';
 import { ZoneBreakoutFields } from './ZoneBreakoutFields';
 import { ZoneExitFields } from './ZoneExitFields';
-import { ZoneEntryFields } from './ZoneEntryFields';
 import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -35,8 +34,7 @@ export function ZoneCard({
   validateSymbol,
 }: ZoneCardProps) {
   const t = useT();
-  // AUTO handelt beide Seiten (Roboter wählt je Signal) → Felder wie BOTH
-  const isBoth = zone.order_type === 'BOTH' || zone.order_type === 'AUTO';
+  const isBoth = zone.order_type === 'BOTH';
   const showBuyLabel = zone.order_type === 'BUY';
   const showSellLabel = zone.order_type === 'SELL';
   const isActive = zone.is_active !== false;
@@ -112,8 +110,6 @@ export function ZoneCard({
             validateSymbol={validateSymbol}
           />
         </section>
-
-        <ZoneEntryFields zone={zone} update={update} symbolConfig={symbolConfig} />
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
