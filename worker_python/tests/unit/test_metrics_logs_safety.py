@@ -106,6 +106,32 @@ def test_log_message_schreibt_jede_zeile_genau_einmal(robot_log, capsys):
     assert capsys.readouterr().out == ""  # kein zweiter Weg über stdout (Bot-Prozess: stdout = Log-Datei)
 
 
+# --------------------------------------------------------------------------- LOG-07
+@pytest.mark.feature("LOG-07")
+def test_bolgen_loglari_tragen_zonen_id(robot_log):
+    from src.core.grid_helpers import log_message, zone_log_context
+
+    log_message("ohne Zone")
+    log_message("explizit", zone_id="z-a")
+    with zone_log_context("z-b"):
+        log_message("im Kontext")
+    log_message("danach")
+    lines = robot_log()
+    assert any(ln.endswith("[INFO] ohne Zone") for ln in lines)
+    assert any(ln.endswith("[INFO] [Z:z-a] explizit") for ln in lines)
+    assert any(ln.endswith("[INFO] [Z:z-b] im Kontext") for ln in lines)
+    assert any(ln.endswith("[INFO] danach") for ln in lines)
+
+
+@pytest.mark.feature("LOG-07")
+def test_bolgen_handler_etikettiert_seine_loglari(robot_log, fake_mt5):
+    from src.core.grid_execution.handler import handle_sliding_grid
+
+    zone = {"id": "zone-42", "symbol": "USOUSD", "min_price": 100, "max_price": 90}  # ungültig → Fehlerlog
+    assert handle_sliding_grid(fake_mt5, zone, 0, [], [], {}, {}, {}, 95.0) is False
+    assert any("[Z:zone-42]" in ln and "zone 1" in ln for ln in robot_log())
+
+
 # --------------------------------------------------------------------------- ACC-08
 @pytest.mark.feature("ACC-08")
 @pytest.mark.parametrize(

@@ -1,6 +1,7 @@
 from src.core.grid_helpers import (
     log_message,
     normalize_price,
+    zone_log_id,
 )
 from src.core.grid_execution.config import extract_zone_config, is_fractal_zone, max_positions_of
 from src.core.grid_execution.exceptions import InvalidZoneConfigError
@@ -39,7 +40,8 @@ def clean_zombie_orders(mt5, robot_orders, zones, active_zones_state):
                 else "SELL"
             )
             log_message(
-                f"🧹 Mutlak Temizlik: Bölge {order_zone_idx+1} pasif/uyumsuz olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket}, Sembol: {order.symbol})"
+                f"🧹 Mutlak Temizlik: Bölge {order_zone_idx+1} pasif/uyumsuz olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket}, Sembol: {order.symbol})",
+                zone_id=zone_log_id(zones[order_zone_idx], order_zone_idx) if 0 <= order_zone_idx < len(zones) else None,
             )
             cancel_order(mt5, order)
 
@@ -138,11 +140,13 @@ def process_partial_fills_and_tpsl(
                         f"{f' / SL {expected_sl}' if expected_sl else ''} fiyatın yanlış tarafında (MT5 reddederdi). "
                         "Fiyat uygun olunca ayarlanır.",
                         "WARN",
+                        zone_id=zone_log_id(z_data, pos_zone_idx),
                     )
             else:
                 state.tpsl_blocked_logged.pop(pos.ticket, None)
                 log_message(
-                    f"🔄 Açık Pozisyon Güncellemesi: Bölge {pos_zone_idx+1} | Bilet {pos.ticket} için yeni TP/SL ayarlanıyor."
+                    f"🔄 Açık Pozisyon Güncellemesi: Bölge {pos_zone_idx+1} | Bilet {pos.ticket} için yeni TP/SL ayarlanıyor.",
+                    zone_id=zone_log_id(z_data, pos_zone_idx),
                 )
                 modify_position_tp_sl(mt5, pos, expected_tp, expected_sl, symbol_infos)
 
@@ -188,7 +192,8 @@ def process_partial_fills_and_tpsl(
 
         if not has_pending and is_pos_zone_active:
             log_message(
-                f"🔄 Kısmi Dolum: Bölge {pos_zone_idx+1} | Kalan {remaining_lot} lot ({direction}) emir gönderiliyor."
+                f"🔄 Kısmi Dolum: Bölge {pos_zone_idx+1} | Kalan {remaining_lot} lot ({direction}) emir gönderiliyor.",
+                zone_id=zone_log_id(z_data, pos_zone_idx),
             )
             send_pending_order_helper(
                 mt5,

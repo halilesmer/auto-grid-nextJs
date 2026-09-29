@@ -90,6 +90,17 @@ Hinweise:
   `Extras` ➔ `Optionen` ➔ `Experten` ➔ **☑ Algorithmic Trading erlauben** aktivieren.  
   `Extras` ➔ `Optionen` ➔ `Community` ➔ **☑ Python-Integration** muss angehakt sein. Ohne diesen Dienst legt das Terminal keinen Kanal für Python an; der Worker meldet dann „… 'Python integration' kutusunu işaretleyin …“. Die Einstellung wirkt erst nach einem Neustart von MT5. Ein Terminal, das schon lief, arbeitet deshalb bis zum nächsten VPS-Neustart weiter; der Fehler fällt erst danach auf (so am 24.09.2026).
 
+- **MetaTrader 5 installieren, wenn der VPS `download.terminal.free` nicht erreicht:** Auf manchen VPS ist das MetaQuotes-CDN blockiert (`mt5setup.exe` im Browser: `ERR_CONNECTION_TIMED_OUT`, `Test-NetConnection download.terminal.free -Port 443` schlägt fehl; `download.mql5.com` genauso). Die Broker-Server selbst sind dabei meist erreichbar. Vorgehen (so am 29.09.2026):
+  1. `mt5setup.exe` (oder das Setup des Brokers, das seine Server schon enthält) auf dem Mac herunterladen und per SCP auf den VPS kopieren: `scp -i <VPS_SSH_KEY> mt5setup.exe <VPS_SSH_HOST>:C:/Users/<benutzer>/Downloads/` (Werte aus `frontend_nextjs/.env.local`; `VPS_SSH_HOST` enthält Benutzer und Adresse).
+  2. Der Web-Installer lädt seine Dateien nach und fragt dann nach einem Proxy. Der Mac dient als SOCKS5-Proxy für den VPS, per SSH-Rückwärtstunnel (auf dem **Mac**, das Terminal offen lassen):
+     ```bash
+     ssh -N -R 1080 -o ServerAliveInterval=30 -i <VPS_SSH_KEY> <VPS_SSH_HOST>
+     ```
+     Im Proxy-Dialog des Installers: Server `127.0.0.1:1080`, Typ **SOCKS5**, Login und Passwort leer.
+  3. Das installierte Terminal hat eine **eigene** Proxy-Einstellung (`Extras` ➔ `Optionen` ➔ `Server` ➔ `Proxy`, dieselben Werte). Ohne sie findet die Firmensuche im Dialog „Handelskonto eröffnen“ nur „MetaQuotes Ltd.“, aber nicht den Broker.
+  4. Nach der Einrichtung des Kontos den Proxy im Terminal **wieder ausschalten** und den Tunnel beenden. Der Verkehr zum Broker läuft sonst über den Mac; bricht der Tunnel ab (Ruhezustand, WLAN-Wechsel), hängt MT5 bei `0 / 0 Kb`. Baut das Terminal ohne Proxy die Verbindung wieder auf, ist der Bot unabhängig vom Mac.
+  5. Mehrere Terminals nebeneinander sind möglich: jedes in einen eigenen Ordner installieren und im Konto den passenden Terminal-Pfad wählen. Python-Integration und Algo-Handel (siehe oben) in jedem Terminal aktivieren.
+
 - **Microsoft Visual C++ Redistributable 2015–2022 (x64):** Muss auf dem VPS installiert sein. Fehlt sie (kein `vcruntime140.dll`, `vcruntime140_1.dll`, `msvcp140.dll` in `C:\Windows\System32`), kann `llvmlite` (über `numba`) seine DLL nicht laden und `import pandas_ta` scheitert mit `OSError: Could not find/load shared object file`. Der WS-Stream rechnet RSI/MACD dann mit reinem pandas (Hinweis `[Indicators] pandas-ta kullanılamıyor …` im Worker-Log). Installation einmal per RDP: `vc_redist.x64.exe` von Microsoft (https://aka.ms/vs/17/release/vc_redist.x64.exe) per Doppelklick in der GUI als Administrator installieren, danach den Worker neu starten. **Nicht** per SSH installieren und dabei kein `git` oder `pip` als Administrator ausführen (siehe „Regel – Rechte“).
 
 - **API-Schlüssel (`WORKER_API_KEY`):** Der Worker ist über ngrok öffentlich erreichbar. Ohne Schlüssel kann jeder, der die URL kennt, Bots starten/stoppen, Einstellungen ändern oder `/api/system/update` auslösen. Beim Start ohne Schlüssel schreibt der Worker deshalb `⚠️ WARNING: WORKER_API_KEY ayarlı değil …` in die Konsole.

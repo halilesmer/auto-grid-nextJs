@@ -55,6 +55,19 @@ def test_gestoppter_bot_meldet_nicht_verbunden(client, account_logs, bot_running
     assert "robot_log" not in body
 
 
+# --------------------------------------------------------------------------- LOG-07
+@pytest.mark.feature("LOG-07")
+def test_zonen_filter_liefert_nur_eigene_zeilen(client, account_logs, bot_running):
+    log = account_logs / f"err_{TEST_ACCOUNT_ID}.log"
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write("[2026-09-24 08:01:00] [INFO] [Z:z1] Bölge 1 eins\n")
+        fh.write("[2026-09-24 08:01:01] [INFO] [Z:z2] Bölge 2 zwei\n")
+        fh.write("[2026-09-24 08:01:02] [INFO] [Z:z10] Bölge 3 zehn\n")
+    body = client.get(LOGS_URL, params={"log_type": "robot", "zone_id": "z1"}).json()
+    assert body["robot_log"] == ["[2026-09-24 08:01:00] [INFO] [Z:z1] Bölge 1 eins"]
+    assert client.get(LOGS_URL, params={"log_type": "robot", "zone_id": "yok"}).json()["robot_log"] == []
+
+
 # --------------------------------------------------------------------------- LOG-06
 @pytest.mark.feature("LOG-06")
 def test_mt5_tab_liest_neueste_kopie_utf16(client, account_logs, bot_running):
