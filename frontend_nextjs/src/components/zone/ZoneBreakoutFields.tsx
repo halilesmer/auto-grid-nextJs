@@ -7,6 +7,7 @@ import { SectionLabel } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { InfoHint } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
+import { distanceConfig } from '@/utils/zoneHelpers';
 
 export function ZoneBreakoutFields({
   zone,
@@ -18,6 +19,9 @@ export function ZoneBreakoutFields({
   handleBlur,
 }: ZoneBreakoutFieldsProps) {
   const t = useT();
+  const byLoss = !!zone.step_by_loss;
+  const split = isBoth && !sync;
+  const pbCfg = distanceConfig(symbolConfig, byLoss);
   return (
     <section className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
       <SectionLabel>{t('zone.breakout.title')}</SectionLabel>
@@ -30,39 +34,51 @@ export function ZoneBreakoutFields({
         />
         <div data-tooltip-scope className="flex items-center gap-2">
           <span className="whitespace-nowrap text-xs text-muted-foreground">
-            {isBoth && !sync ? t('zone.breakout.buyPullback') : t('zone.breakout.minPullback')}
+            {byLoss
+              ? t(split ? 'zone.breakout.buyPullbackLoss' : 'zone.breakout.minPullbackLoss')
+              : t(split ? 'zone.breakout.buyPullback' : 'zone.breakout.minPullback')}
           </span>
           <InfoHint
             hint={
               !zone.is_breakout
                 ? t('zone.breakout.pullback.off.hint')
-                : isBoth && !sync
-                  ? t('zone.breakout.buyPullback.hint')
-                  : t('zone.breakout.minPullback.hint')
+                : byLoss
+                  ? t(split ? 'zone.breakout.buyPullbackLoss.hint' : 'zone.breakout.minPullbackLoss.hint')
+                  : t(split ? 'zone.breakout.buyPullback.hint' : 'zone.breakout.minPullback.hint')
             }
           />
           <NumberInput
             min={0}
-            step={symbolConfig.step}
-            maxDecimals={symbolConfig.precision}
+            step={pbCfg.step}
+            maxDecimals={pbCfg.precision}
             value={zone.pullback_distance}
-            onChange={(e) => handleChange('pullback_distance', e.target.value, zone, symbolConfig, update)}
-            onBlur={() => handleBlur('pullback_distance', zone.pullback_distance, symbolConfig.step, symbolConfig.precision, update)}
+            onChange={(e) => handleChange('pullback_distance', e.target.value, zone, pbCfg, update)}
+            onBlur={() => handleBlur('pullback_distance', zone.pullback_distance, pbCfg.step, pbCfg.precision, update)}
             disabled={!zone.is_breakout}
             className="input-s w-28"
           />
         </div>
         {isBoth && !sync && (
           <div data-tooltip-scope className="flex items-center gap-2">
-            <span className="whitespace-nowrap text-xs text-muted-foreground">{t('zone.breakout.sellPullback')}</span>
-            <InfoHint hint={zone.is_breakout ? t('zone.breakout.sellPullback.hint') : t('zone.breakout.pullback.off.hint')} />
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {byLoss ? t('zone.breakout.sellPullbackLoss') : t('zone.breakout.sellPullback')}
+            </span>
+            <InfoHint
+              hint={
+                !zone.is_breakout
+                  ? t('zone.breakout.pullback.off.hint')
+                  : byLoss
+                    ? t('zone.breakout.sellPullbackLoss.hint')
+                    : t('zone.breakout.sellPullback.hint')
+              }
+            />
             <NumberInput
               min={0}
-              step={symbolConfig.step}
-              maxDecimals={symbolConfig.precision}
+              step={pbCfg.step}
+              maxDecimals={pbCfg.precision}
               value={zone.sell_pullback_distance}
-              onChange={(e) => handleChange('sell_pullback_distance', e.target.value, zone, symbolConfig, update)}
-              onBlur={() => handleBlur('sell_pullback_distance', zone.sell_pullback_distance, symbolConfig.step, symbolConfig.precision, update)}
+              onChange={(e) => handleChange('sell_pullback_distance', e.target.value, zone, pbCfg, update)}
+              onBlur={() => handleBlur('sell_pullback_distance', zone.sell_pullback_distance, pbCfg.step, pbCfg.precision, update)}
               disabled={!zone.is_breakout}
               className="input-s w-28"
             />

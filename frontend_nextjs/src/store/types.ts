@@ -22,6 +22,10 @@ export interface SymbolDetail {
   currency_profit: string;
   currency_margin: string;
   description?: string;
+  /** Für „Abstand nach Verlust“: $ je Tick bei 1 Lot, Tick-Größe, Kontraktgröße (ältere Worker: fehlt) */
+  trade_tick_value?: number;
+  trade_tick_size?: number;
+  trade_contract_size?: number;
 }
 
 export interface ZoneSettings {
@@ -40,6 +44,8 @@ export interface ZoneSettings {
   sell_take_profit: number;
   sell_stop_loss: number;
   is_breakout: boolean;
+  /** „Abstand nach Verlust ($)“: grid_step/sell_grid_step/pullback_* sind $-Beträge statt Preisabstände */
+  step_by_loss?: boolean;
   pullback_distance: number;
   sell_pullback_distance: number;
   sync_buy_sell: boolean;

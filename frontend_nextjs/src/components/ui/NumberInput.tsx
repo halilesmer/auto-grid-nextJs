@@ -31,12 +31,16 @@ export function NumberInput({ value, maxDecimals, onChange, onBlur, ...rest }: N
 
   // Wert von außen geändert (Symbolwechsel, Laden, Blur-Rundung): Entwurf angleichen.
   // Ein leerer Entwurf bleibt erhalten, damit das Löschen nicht sofort überschrieben wird.
+  let nextDraft = draft;
   if (value !== prevValue) {
     setPrevValue(value);
-    if (draft !== '' && Number(draft) !== value) setDraft(toText(value));
+    if (draft !== '' && Number(draft) !== value) nextDraft = toText(value);
   }
-  // Symbolwechsel: zu lange Nachkommastellen im Entwurf kürzen.
-  if (draft !== clip(draft, maxDecimals)) setDraft(clip(draft, maxDecimals));
+  // Symbolwechsel: zu lange Nachkommastellen im Entwurf kürzen. Auf den neuen Entwurf
+  // anwenden – sonst überschreibt das Kürzen des alten Texts einen gleichzeitig neuen Wert
+  // (Umschalten „Abstand nach Verlust“: 0.001 → 10 $ mit 2 Stellen ergab „0.00“).
+  nextDraft = clip(nextDraft, maxDecimals);
+  if (nextDraft !== draft) setDraft(nextDraft);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (maxDecimals !== undefined && decimalsIn(e.target.value) > maxDecimals) {

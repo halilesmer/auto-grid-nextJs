@@ -5,6 +5,8 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { useT } from '@/i18n';
 import { useGuidedHints } from './useGuidedHints';
+import { LossPreview } from './LossPreview';
+import { distanceConfig } from '@/utils/zoneHelpers';
 
 export function ZoneGridFields({
   zone,
@@ -17,6 +19,9 @@ export function ZoneGridFields({
 }: ZoneGridFieldsProps) {
   const t = useT();
   const guided = useGuidedHints(zone.symbol);
+  const byLoss = !!zone.step_by_loss;
+  const stepCfg = distanceConfig(symbolConfig, byLoss);
+  const split = isBoth && !sync;
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -24,16 +29,25 @@ export function ZoneGridFields({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <InputField
-        label={isBoth && !sync ? t('zone.field.buyGrid') : t('zone.field.gridStep')}
-        hint={guided.step(isBoth && !sync ? t('zone.field.buyGrid.hint') : t('zone.field.gridStep.hint'))}
+        label={
+          byLoss
+            ? t(split ? 'zone.field.buyGridLoss' : 'zone.field.gridStepLoss')
+            : t(split ? 'zone.field.buyGrid' : 'zone.field.gridStep')
+        }
+        hint={
+          byLoss
+            ? t(split ? 'zone.field.buyGridLoss.hint' : 'zone.field.gridStepLoss.hint')
+            : guided.step(t(split ? 'zone.field.buyGrid.hint' : 'zone.field.gridStep.hint'))
+        }
+        error={byLoss && <LossPreview amount={zone.grid_step} lot={zone.lot_size} symbolConfig={symbolConfig} />}
       >
         <NumberInput
-          min={symbolConfig.min}
-          step={symbolConfig.step}
-          maxDecimals={symbolConfig.precision}
+          min={stepCfg.min}
+          step={stepCfg.step}
+          maxDecimals={stepCfg.precision}
           value={zone.grid_step}
-          onChange={(e) => handleChange('grid_step', e.target.value, zone, symbolConfig, update)}
-          onBlur={() => handleBlur('grid_step', zone.grid_step, symbolConfig.step, symbolConfig.precision, update)}
+          onChange={(e) => handleChange('grid_step', e.target.value, zone, stepCfg, update)}
+          onBlur={() => handleBlur('grid_step', zone.grid_step, stepCfg.step, stepCfg.precision, update)}
           className="input-s"
         />
       </InputField>

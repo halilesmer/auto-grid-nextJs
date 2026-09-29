@@ -2,7 +2,12 @@
 
 import { useEffect, useCallback } from 'react';
 import type { ZoneCardProps } from './types';
-import { getSymbolConfig } from '@/utils/zoneHelpers';
+import {
+  getSymbolConfig,
+  LOSS_DISTANCE_FIELDS,
+  lossToPriceDistance,
+  priceDistanceToLoss,
+} from '@/utils/zoneHelpers';
 import { ZoneHeader } from './ZoneHeader';
 import { ZoneBasicFields } from './ZoneBasicFields';
 import { ZoneGridFields } from './ZoneGridFields';
@@ -44,6 +49,24 @@ export function ZoneCard({
   const update = useCallback(
     (field: string, value: unknown) => onUpdate(zone.id, field, value),
     [onUpdate, zone.id]
+  );
+
+  // Modus umschalten: vorhandene Abstände mit der Lotgröße umrechnen, damit der effektive
+  // Abstand gleich bleibt (ohne Tick-Wert des Symbols bleiben die Zahlen stehen)
+  const handleStepByLoss = useCallback(
+    (on: boolean) => {
+      const sellLot = zone.sync_buy_sell ? zone.lot_size : zone.sell_lot_size;
+      for (const field of LOSS_DISTANCE_FIELDS) {
+        const lot = field.startsWith('sell_') ? sellLot : zone.lot_size;
+        const value = zone[field];
+        const converted = on
+          ? priceDistanceToLoss(value, lot, symbolConfig)
+          : lossToPriceDistance(value, lot, symbolConfig);
+        if (converted !== null && converted !== value) update(field, converted);
+      }
+      update('step_by_loss', on);
+    },
+    [zone, symbolConfig, update]
   );
 
   const handleSave = useCallback(() => {
@@ -120,15 +143,24 @@ export function ZoneCard({
                 {zone.sync_buy_sell ? t('zone.section.grid') : t('zone.section.buyGridShort')}
               </SectionLabel>
             )}
-            {isBoth && (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
               <Switch
-                id={`sync-${zone.id}`}
-                checked={zone.sync_buy_sell}
-                onChange={(checked) => update('sync_buy_sell', checked)}
-                label={<span className="text-xs text-muted-foreground">{t('zone.sync')}</span>}
-                hint={t('zone.sync.hint')}
+                id={`step-by-loss-${zone.id}`}
+                checked={!!zone.step_by_loss}
+                onChange={handleStepByLoss}
+                label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
+                hint={t('zone.stepByLoss.hint')}
               />
-            )}
+              {isBoth && (
+                <Switch
+                  id={`sync-${zone.id}`}
+                  checked={zone.sync_buy_sell}
+                  onChange={(checked) => update('sync_buy_sell', checked)}
+                  label={<span className="text-xs text-muted-foreground">{t('zone.sync')}</span>}
+                  hint={t('zone.sync.hint')}
+                />
+              )}
+            </div>
           </div>
 
           <ZoneGridFields

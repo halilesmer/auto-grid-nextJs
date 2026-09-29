@@ -42,11 +42,16 @@ export function makeZone(overrides: Partial<ZoneSettings> = {}): ZoneSettings {
   };
 }
 
-function symbol(name: string, digits: number, description: string, volumeMin = 0.01): SymbolDetail {
+function symbol(name: string, digits: number, description: string, volumeMin = 0.01, contract = 1000): SymbolDetail {
+  const point = Number((10 ** -digits).toFixed(digits));
   return {
     name,
     digits,
-    point: Number((10 ** -digits).toFixed(digits)),
+    point,
+    // wie MT5: $ je Tick bei 1 Lot (Kontowährung USD) → „Abstand nach Verlust“-Vorschau
+    trade_tick_size: point,
+    trade_tick_value: Number((point * contract).toFixed(8)),
+    trade_contract_size: contract,
     volume_min: volumeMin,
     volume_max: 100,
     volume_step: volumeMin,
@@ -119,8 +124,8 @@ export function defaultState() {
     botRunning: {} as Record<string, boolean>,
     symbols: [
       symbol('USOUSD', 3, 'US Crude Oil'),
-      symbol('XAUUSD', 2, 'Gold vs US Dollar'),
-      symbol('EURUSD', 5, 'Euro vs US Dollar', 0.1),
+      symbol('XAUUSD', 2, 'Gold vs US Dollar', 0.01, 100),
+      symbol('EURUSD', 5, 'Euro vs US Dollar', 0.1, 100000),
     ],
     mt5Paths: [MT5_PATH, 'C:/Program Files/MT5_EC_Demo/terminal64.exe'],
     platform: 'win32',

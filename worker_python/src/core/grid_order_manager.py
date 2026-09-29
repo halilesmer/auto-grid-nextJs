@@ -2,7 +2,7 @@ from src.core.grid_helpers import (
     log_message,
     normalize_price,
 )
-from src.core.grid_execution.config import max_positions_of
+from src.core.grid_execution.config import max_positions_of, money_to_price_distance
 from src.core.grid_orders import (
     BASE_MAGIC_NUMBER,
     MAX_DEVIATION,
@@ -143,7 +143,15 @@ def process_partial_fills_and_tpsl(
                 modify_position_tp_sl(mt5, pos, expected_tp, expected_sl, symbol_infos)
 
         grid_step_tmp = float(z_data.get("grid_step", 0.05))
-        sell_grid_step_tmp = float(z_data.get("sell_grid_step", grid_step_tmp))
+        sell_grid_step_tmp = float(z_data.get("sell_grid_step", grid_step_tmp)) if not is_sync else grid_step_tmp
+        if z_data.get("step_by_loss"):
+            # Tutar ($) → fiyat mesafesi (extract_zone_config ile aynı çeviri)
+            buy_lot = max(0.01, min(5.0, float(z_data.get("lot_size", 0.01))))
+            sell_lot = buy_lot if is_sync else max(0.01, min(5.0, float(z_data.get("sell_lot_size", buy_lot))))
+            grid_step_tmp = money_to_price_distance(grid_step_tmp, buy_lot, zone_sym, symbol_infos) or grid_step_tmp
+            sell_grid_step_tmp = (
+                money_to_price_distance(sell_grid_step_tmp, sell_lot, zone_sym, symbol_infos) or sell_grid_step_tmp
+            )
         tolerance_step = (
             grid_step_tmp * 0.4 if direction == "BUY" else sell_grid_step_tmp * 0.4
         )

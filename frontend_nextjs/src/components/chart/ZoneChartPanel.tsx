@@ -25,10 +25,12 @@ function Field({ label, hint, value }: { label: string; hint: string; value: str
 function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
   const t = useT();
   const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
+  // „Abstand nach Verlust“: Grid-Abstände sind $-Beträge
+  const dist = (v: number) => (zone.step_by_loss ? t('chart.zone.lossValue', { value: v }) : v);
   // [Label, Hinweis, Wert]: die Hinweise sind dieselben wie in den Feldern der Zonenkarte
   const fields: [MessageKey, MessageKey, string | number][] = [
     ['chart.zone.priceRange', 'chart.zone.priceRange.hint', `${zone.min_price} – ${zone.max_price}`],
-    ['chart.zone.gridStep', 'zone.field.gridStep.hint', zone.grid_step],
+    ['chart.zone.gridStep', zone.step_by_loss ? 'zone.field.gridStepLoss.hint' : 'zone.field.gridStep.hint', dist(zone.grid_step)],
     ['chart.zone.lot', 'zone.field.lot.hint', zone.lot_size],
     ['chart.zone.takeProfit', 'zone.field.takeProfit.hint', zone.take_profit],
     ['chart.zone.stopLoss', 'zone.field.stopLoss.hint', zone.stop_loss],
@@ -37,7 +39,7 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
   ];
   if (showSell) {
     fields.push(
-      ['chart.zone.sellGrid', 'zone.field.sellGrid.hint', zone.sell_grid_step],
+      ['chart.zone.sellGrid', zone.step_by_loss ? 'zone.field.sellGridLoss.hint' : 'zone.field.sellGrid.hint', dist(zone.sell_grid_step)],
       ['chart.zone.sellLot', 'zone.field.sellLot.hint', zone.sell_lot_size],
       ['chart.zone.sellTakeProfit', 'zone.field.sellTakeProfit.hint', zone.sell_take_profit],
       ['chart.zone.sellStopLoss', 'zone.field.sellStopLoss.hint', zone.sell_stop_loss],

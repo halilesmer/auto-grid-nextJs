@@ -228,6 +228,20 @@ export default defineArea(
       'Breakout modunda BUY emirleri, güncel fiyatın en az bu kadar ($) üstündeki seviyelerden başlar; daha yakın seviyeler atlanır.',
     'zone.breakout.sellPullback.hint':
       'Breakout modunda SELL emirleri, güncel fiyatın en az bu kadar ($) altındaki seviyelerden başlar; daha yakın seviyeler atlanır.',
+    'zone.stepByLoss.hint':
+      'Açıkken Grid ve Pullback mesafeleri fiyat değil tutar ($) olarak girilir: son açılan pozisyon bu kadar zarara ulaşınca bir sonraki pozisyon açılır. Mesafe lot büyüklüğüne göre hesaplanır (2 kat lot = yarı mesafe). Açık pozisyonların hepsi aynı anda zararda olduğundan toplam zarar daha hızlı büyür (10 $, 30 $, 60 $ …). Spread ve komisyon dahil değildir.',
+    'zone.field.gridStepLoss.hint':
+      'Son açılan pozisyon bu kadar zarara (hesap para birimi, $) ulaşınca bir sonraki pozisyon açılır. Bot, tutarı lot büyüklüğüyle fiyat mesafesine çevirir.',
+    'zone.field.buyGridLoss.hint':
+      'Son BUY pozisyonu bu kadar zarara ($) ulaşınca bir sonraki BUY açılır; BUY lotu ile fiyat mesafesine çevrilir.',
+    'zone.field.sellGridLoss.hint':
+      'Son SELL pozisyonu bu kadar zarara ($) ulaşınca bir sonraki SELL açılır; SELL lotu ile fiyat mesafesine çevrilir.',
+    'zone.breakout.minPullbackLoss.hint':
+      'Breakout modunda ilk emir, güncel fiyattan en az bu tutar ($) kadar uzakta olmalı (lot büyüklüğüyle fiyat mesafesine çevrilir); daha yakın seviyeler atlanır. 0 = sınır yok.',
+    'zone.breakout.buyPullbackLoss.hint':
+      'Breakout modunda BUY emirleri, BUY lotu ile bu tutara ($) karşılık gelen mesafeden daha uzak seviyelerden başlar. 0 = sınır yok.',
+    'zone.breakout.sellPullbackLoss.hint':
+      'Breakout modunda SELL emirleri, SELL lotu ile bu tutara ($) karşılık gelen mesafeden daha uzak seviyelerden başlar. 0 = sınır yok.',
     'zone.breakout.pullback.off.hint': 'Yalnızca “Sadece trend yönünde” (breakout) açıkken kullanılır.',
     'zone.breakout.levelsBelow.hint':
       'Referans fiyatın altında kaç grid seviyesi (emir) kurulacağı; her seviye Grid Adımı kadar uzaktadır.',
@@ -474,6 +488,20 @@ export default defineArea(
       'In breakout mode BUY orders start at levels at least this far ($) above the current price; closer levels are skipped.',
     'zone.breakout.sellPullback.hint':
       'In breakout mode SELL orders start at levels at least this far ($) below the current price; closer levels are skipped.',
+    'zone.stepByLoss.hint':
+      'When on, grid and pullback distances are entered as an amount ($) instead of a price: once the most recently opened position reaches this loss, the next position is opened. The distance depends on the lot size (double lot = half the distance). Because all open positions are in loss at the same time, the total loss grows faster (10 $, 30 $, 60 $ …). Spread and commission are not included.',
+    'zone.field.gridStepLoss.hint':
+      'Once the most recently opened position has lost this amount (account currency, $), the next position is opened. The bot converts the amount to a price distance using the lot size.',
+    'zone.field.buyGridLoss.hint':
+      'Once the last BUY position has lost this amount ($), the next BUY is opened; converted to a price distance with the BUY lot.',
+    'zone.field.sellGridLoss.hint':
+      'Once the last SELL position has lost this amount ($), the next SELL is opened; converted to a price distance with the SELL lot.',
+    'zone.breakout.minPullbackLoss.hint':
+      'In breakout mode the first level must be at least this amount ($) away from the current price (converted to a price distance with the lot size); closer levels are skipped. 0 = no limit.',
+    'zone.breakout.buyPullbackLoss.hint':
+      'In breakout mode BUY orders start at levels further away than the distance this amount ($) equals with the BUY lot. 0 = no limit.',
+    'zone.breakout.sellPullbackLoss.hint':
+      'In breakout mode SELL orders start at levels further away than the distance this amount ($) equals with the SELL lot. 0 = no limit.',
     'zone.breakout.pullback.off.hint': 'Only used while “Trend direction only” (breakout) is on.',
     'zone.breakout.levelsBelow.hint':
       'How many grid levels (orders) are built below the reference price; each level is one grid step apart.',
@@ -720,6 +748,20 @@ export default defineArea(
       'Im Breakout-Modus beginnen BUY-Orders bei Leveln, die mindestens so weit ($) über dem aktuellen Preis liegen; nähere Level werden übersprungen.',
     'zone.breakout.sellPullback.hint':
       'Im Breakout-Modus beginnen SELL-Orders bei Leveln, die mindestens so weit ($) unter dem aktuellen Preis liegen; nähere Level werden übersprungen.',
+    'zone.stepByLoss.hint':
+      'Wenn an, werden Grid- und Pullback-Abstände als Betrag ($) statt als Preis eingegeben: Sobald die zuletzt eröffnete Position diesen Verlust erreicht, wird die nächste Position eröffnet. Der Abstand hängt von der Lotgröße ab (doppelte Lotgröße = halber Abstand). Da alle offenen Positionen gleichzeitig im Minus sind, wächst der Gesamtverlust schneller (10 $, 30 $, 60 $ …). Spread und Kommission sind nicht enthalten.',
+    'zone.field.gridStepLoss.hint':
+      'Sobald die zuletzt eröffnete Position diesen Betrag (Kontowährung, $) im Minus ist, wird die nächste Position eröffnet. Der Bot rechnet den Betrag mit der Lotgröße in einen Preisabstand um.',
+    'zone.field.buyGridLoss.hint':
+      'Sobald die letzte BUY-Position diesen Betrag ($) im Minus ist, wird die nächste BUY eröffnet; umgerechnet mit dem BUY-Lot.',
+    'zone.field.sellGridLoss.hint':
+      'Sobald die letzte SELL-Position diesen Betrag ($) im Minus ist, wird die nächste SELL eröffnet; umgerechnet mit dem SELL-Lot.',
+    'zone.breakout.minPullbackLoss.hint':
+      'Im Breakout-Modus muss das erste Level mindestens diesen Betrag ($) vom aktuellen Preis entfernt sein (mit der Lotgröße in einen Preisabstand umgerechnet); nähere Level werden übersprungen. 0 = keine Grenze.',
+    'zone.breakout.buyPullbackLoss.hint':
+      'Im Breakout-Modus beginnen BUY-Orders erst jenseits des Abstands, der mit dem BUY-Lot diesem Betrag ($) entspricht. 0 = keine Grenze.',
+    'zone.breakout.sellPullbackLoss.hint':
+      'Im Breakout-Modus beginnen SELL-Orders erst jenseits des Abstands, der mit dem SELL-Lot diesem Betrag ($) entspricht. 0 = keine Grenze.',
     'zone.breakout.pullback.off.hint': 'Wird nur genutzt, solange „Nur in Trendrichtung“ (Breakout) eingeschaltet ist.',
     'zone.breakout.levelsBelow.hint':
       'Wie viele Grid-Level (Orders) unter dem Referenzpreis aufgebaut werden; jedes Level liegt einen Grid-Schritt entfernt.',

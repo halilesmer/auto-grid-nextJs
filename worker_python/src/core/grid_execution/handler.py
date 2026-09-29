@@ -31,7 +31,7 @@ def handle_sliding_grid(
     log_message: Callable[[str, str], None] = default_log_message,
 ) -> bool:
     try:
-        config: ZoneConfig = extract_zone_config(active_zone, active_zone_idx, log_message)
+        config: ZoneConfig = extract_zone_config(active_zone, active_zone_idx, log_message, symbol_infos)
 
         current_open_positions = len(
             [p for p in robot_positions if p.magic == config.target_magic]
