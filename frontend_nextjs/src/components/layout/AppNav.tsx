@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { VERSION } from '@/app/version';
 import { useT, type MessageKey } from '@/i18n';
+import ConnectionChip from '@/components/connection/ConnectionChip';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeToggle from './ThemeToggle';
 
@@ -69,10 +70,13 @@ export default function AppNav() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <ConnectionChip variant="inline" />
           <LanguageSwitcher />
           <ThemeToggle />
         </div>
       </div>
+      {/* Handy: kein Platz in der Kopfzeile, der Status steht in einer schmalen Zeile darunter */}
+      <ConnectionChip variant="bar" />
     </nav>
   );
 }

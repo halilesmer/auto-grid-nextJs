@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { API, axiosInstance } from '@/lib/api';
+import { axiosInstance } from '@/lib/api';
 import { useAccountStore, useBotRuntimeStore, useLogsStore } from '@/store';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { useT } from '@/i18n';
@@ -62,7 +62,7 @@ export default function BotControls() {
 
     try {
       const res = await axiosInstance.post(
-        `${API}/start?account_id=${selectedAccount}`,
+        `/start?account_id=${selectedAccount}`,
         {},
       );
       pushActivity("info", res.data?.message || t("bot.activity.accepted"));
@@ -89,7 +89,7 @@ export default function BotControls() {
     pushActivity("info", t("bot.activity.stopRequested", { account: selectedAccount }));
     try {
       await axiosInstance.post(
-        `${API}/stop?account_id=${selectedAccount}`,
+        `/stop?account_id=${selectedAccount}`,
         {},
       );
       pushActivity("success", t("bot.activity.stopped"));

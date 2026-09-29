@@ -30,7 +30,7 @@ export default function VpsPage() {
             {t('vps.subtitle')}
           </p>
         </div>
-        {!vps.disabled && (
+        {!vps.disabled && !vps.localOnly && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {vps.refreshedAt && <span>{t('vps.updated', { time: fmt.time(vps.refreshedAt) })}</span>}
             <Button size="icon-sm" variant="ghost" onClick={() => void vps.refreshStatus()} aria-label={t('vps.refresh')} hint={t('vps.refresh.hint')}>
@@ -44,6 +44,14 @@ export default function VpsPage() {
         <Card className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           {t('vps.connecting')}
+        </Card>
+      ) : vps.localOnly ? (
+        <Card className="p-5" data-testid="vps-local-only">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <ServerOff size={16} className="text-muted-foreground" />
+            {t('vps.localOnly.title')}
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">{t('vps.localOnly.body')}</p>
         </Card>
       ) : vps.disabled ? (
         <Card className="p-5" data-testid="vps-disabled">

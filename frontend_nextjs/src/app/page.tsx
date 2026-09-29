@@ -56,7 +56,7 @@ export default function Home() {
     selectedAccount,
     activeAccount,
     settings,
-    mergeAndSaveSettings: (apiUrl: string) => mergeAndSaveSettings(apiUrl, selectedAccount || ''),
+    mergeAndSaveSettings: () => mergeAndSaveSettings(selectedAccount || ''),
     setUpdateInfo,
   });
 

@@ -2,7 +2,7 @@
 
 Dieses System benötigt **2 aktive Konsolenfenster** sowie MetaTrader 5 im Hintergrund.
 
-Auf dem VPS läuft nur der Worker. Das Frontend läuft lokal auf dem MacBook (`npm run dev:frontend` in `frontend_nextjs/`) und verbindet sich über die ngrok-URL (`NEXT_PUBLIC_API_URL` in `frontend_nextjs/.env.local`) mit dem Worker.
+Auf dem VPS läuft nur der Worker. Das Frontend läuft lokal auf dem MacBook (`npm run dev:frontend` in `frontend_nextjs/`) oder öffentlich auf Vercel; es verbindet sich über die ngrok-Adresse und den API-Schlüssel des Workers, die im Browser eingegeben werden (Knopf „VPS verbinden“ oben rechts, oder ein Verbindungs-Link `#connect=…`) und nur dort (im `localStorage` dieses Browsers) gespeichert bleiben – nie auf dem Vercel-Server. `frontend_nextjs/.env.local` (`NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_WORKER_API_KEY`) ist nur noch der Startwert für die lokale Entwicklung, solange im Browser noch nichts gespeichert ist.
 
 > **Schnellstart:** `worker_python\start.bat` öffnet beide Fenster automatisch (Worker mit Absturz-Watchdog, ohne `--reload`, plus ngrok). Die Schritte 1 und 2 unten sind der manuelle Weg.
 >
@@ -57,7 +57,7 @@ Was danach automatisch läuft:
 
 Hinweise:
 - Das RDP-Fenster künftig nur **schließen**, nicht abmelden. Bei einer Abmeldung enden MT5, Worker und ngrok (sie brauchen eine angemeldete Sitzung).
-- Die Seite „VPS“ funktioniert nur im lokalen Frontend: Die Route `/api/vps/*` antwortet nur auf `localhost` und nur, wenn `VPS_SSH_HOST` gesetzt ist. Auf Vercel ist sie aus.
+- Die Seite „VPS“ funktioniert nur im lokalen Frontend: Die Route `/api/vps/*` antwortet nur auf `localhost` und nur, wenn `VPS_SSH_HOST` gesetzt ist. Auf Vercel zeigt sie stattdessen einen Hinweis („nur lokal“) statt eines Fehlers – die Worker-Verbindung (Dashboard, Bots) läuft dort unabhängig davon über den Verbindungsdialog.
 - **`-10003` „Process create failed“ nach einem Reboot:** `terminal64.exe` steht auf „Als Administrator ausführen“, der Worker (ohne Adminrechte) kann es nicht starten. `setup_vps.ps1` erneut ausführen (mit demselben `-PublicKey`; `-SkipAutoLogon -SkipRepoOwnership` sparen die Passwortabfrage und den Besitzer-Schritt). Wer den Registry-Eintrag unter `AppCompatFlags\Layers` von Hand löscht, muss danach `rundll32.exe apphelp.dll,ShimFlushCache` (als Administrator) ausführen, sonst bleibt der Fehler bis zum nächsten Reboot.
 - Logs auf dem VPS: `worker_python\logs\worker_console.log` (Konsole des Workers), `logs\ngrok.log`, `logs\vps_update.log` (Updates über die Aufgabe).
 
@@ -76,14 +76,11 @@ Hinweise:
      ```cmd
      setx WORKER_API_KEY "<schluessel>"
      ```
-  3. Auf dem Mac denselben Wert in `frontend_nextjs/.env.local` eintragen und `npm run dev:frontend` neu starten (`NEXT_PUBLIC_*`-Variablen werden nur beim Start eingelesen):
-     ```
-     NEXT_PUBLIC_WORKER_API_KEY=<schluessel>
-     ```
+  3. Im Frontend (egal ob lokal oder auf Vercel) oben rechts auf den Verbindungs-Chip klicken, „VPS verbinden“ öffnen, ngrok-Adresse und denselben Schlüssel eintragen, testen, verbinden. Adresse und Schlüssel bleiben nur im `localStorage` dieses Browsers – lokal reicht alternativ weiterhin `NEXT_PUBLIC_WORKER_API_KEY` in `frontend_nextjs/.env.local` als Startwert (`npm run dev:frontend` danach neu starten, `NEXT_PUBLIC_*`-Variablen werden nur beim Start eingelesen).
   
   Ist `WORKER_API_KEY` gesetzt, verlangt der Worker den Schlüssel bei jedem `/api/*`-Request im Header `X-API-Key` (sonst `401`) und beim WebSocket `/ws/stream` als Query-Parameter `?api_key=…` (Browser können bei WebSockets keine Header setzen; sonst wird die Verbindung abgelehnt). Ist die Variable nicht gesetzt, läuft alles wie bisher ohne Schlüssel.
   
-  Reihenfolge beim Umstellen: erst den Schlüssel im Frontend eintragen (ein Worker ohne Schlüssel ignoriert den Header), dann den Worker mit gesetztem `WORKER_API_KEY` neu starten. Der Schlüssel landet im Browser-Bundle – das Frontend deshalb nur lokal betreiben und nicht öffentlich deployen. Schlüssel wechseln = beide Werte ändern und beide Seiten neu starten.
+  Reihenfolge beim Umstellen: erst im Frontend verbinden bzw. den neuen Schlüssel eintragen (ein Worker ohne Schlüssel ignoriert den Header), dann den Worker mit gesetztem `WORKER_API_KEY` neu starten. Schlüssel wechseln = im Verbindungsdialog neu verbinden (oder `.env.local`) und den Worker neu starten.
 - **MT5-Passwörter:** Die API gibt gespeicherte Passwörter nicht mehr zurück (`GET /api/accounts` liefert nur `has_password`). Beim Bearbeiten eines Kontos bleibt das Passwortfeld leer; leer lassen = gespeichertes Passwort bleibt erhalten.
 
 ---

@@ -32,8 +32,8 @@ kategorien:
     features:
       - id: SYS-01
         titel: Worker erreichbar (REST über ngrok)
-        beschreibung: Das Frontend erreicht den Worker über NEXT_PUBLIC_API_URL + /api; axios sendet den ngrok-skip-browser-warning-Header.
-        code: [frontend_nextjs/src/lib/api.ts, worker_python/main.py]
+        beschreibung: Das Frontend erreicht den Worker über die im Browser gespeicherte Verbindung (Adresse + /api); axios sendet den ngrok-skip-browser-warning-Header. NEXT_PUBLIC_API_URL/NEXT_PUBLIC_WORKER_API_KEY sind nur noch der Startwert für die lokale Entwicklung (siehe SYS-07).
+        code: [frontend_nextjs/src/lib/api.ts, frontend_nextjs/src/store/useConnectionStore.ts, worker_python/main.py]
         tiers: [live]
         pruefung:
           - Worker auf dem VPS starten (start.bat), Frontend lokal starten (npm run dev:frontend).
@@ -71,13 +71,43 @@ kategorien:
 
       - id: SYS-05
         titel: API-Schlüssel (WORKER_API_KEY)
-        beschreibung: Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet NEXT_PUBLIC_WORKER_API_KEY mit. Ohne Variable bleibt der Worker offen (mit Warnung beim Start).
+        beschreibung: Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start).
         code: [worker_python/src/api/auth.py, worker_python/main.py, worker_python/src/api/ws_server.py, frontend_nextjs/src/lib/api.ts]
         tiers: [api, live]
         pruefung:
           - WORKER_API_KEY auf dem VPS setzen, Worker neu starten.
-          - Dashboard mit passendem NEXT_PUBLIC_WORKER_API_KEY öffnen; danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
+          - Dashboard mit passendem Schlüssel verbinden (SYS-07); danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
         erwartet: Dashboard funktioniert normal; der direkte Aufruf ohne Schlüssel liefert 401.
+
+      - id: SYS-07
+        titel: Verbindung im Browser einrichten
+        beschreibung: Worker-Adresse und API-Key werden im Verbindungsdialog eingegeben oder per Link übernommen, mit GET /api/system/platform getestet (ok/falscher Key/unsicher/nicht erreichbar/kein Worker) und erst nach erfolgreichem Test im Browser (localStorage) gespeichert; „Verbinden“ und „Trennen“ laden die Seite neu. Ohne Verbindung zeigt die Seite eine Anleitung statt des Dashboards; NEXT_PUBLIC_API_URL/NEXT_PUBLIC_WORKER_API_KEY dienen nur als Startwert, wenn noch nichts gespeichert ist.
+        code: [frontend_nextjs/src/store/useConnectionStore.ts, frontend_nextjs/src/lib/connection.ts, frontend_nextjs/src/lib/api.ts, frontend_nextjs/src/components/connection/ConnectionDialog.tsx, frontend_nextjs/src/components/connection/ConnectionGate.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Im Browser localStorage den Eintrag grid-robot-connection löschen und neu laden.
+          - Über den Knopf „VPS verbinden“ Adresse und Schlüssel eingeben, testen, verbinden; danach trennen.
+        erwartet: Ohne Verbindung erscheint die Anleitung statt des Dashboards; „Verbinden“ ist erst nach erfolgreichem Test klickbar und lädt danach das Dashboard; „Trennen“ führt zur Anleitung zurück.
+
+      - id: SYS-08
+        titel: Verbindungs-Link
+        beschreibung: Ein Link/Code (#connect=…, base64url-JSON {v,u,k}) füllt Adresse und Schlüssel im Dialog und testet sofort; nichts wird ohne Bestätigung gespeichert, das Fragment verschwindet sofort aus der Adresszeile. worker_python/ops/windows/connect-link.ps1 erzeugt denselben Code.
+        code: [frontend_nextjs/src/lib/connectionCode.ts, frontend_nextjs/src/components/layout/ConnectionSync.tsx, frontend_nextjs/src/components/connection/ConnectionDialog.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Einen Verbindungs-Link mit gültigem Code öffnen (z. B. #connect=…).
+          - Einen unvollständigen/kaputten Code öffnen.
+        erwartet: Gültiger Link zeigt das Ziel im Dialog und ein erfolgreiches Testergebnis, ohne die Verbindung schon zu speichern; ungültiger Code zeigt eine Fehlermeldung.
+
+      - id: SYS-09
+        titel: Verbindungsstatus im Header
+        beschreibung: Ein Chip in der Kopfzeile (ab sm) bzw. eine Zeile darunter (Handy) zeigt Host und Status (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden) und prüft alle 30 s sowie bei Fenster-Fokus erneut über SYS-07.
+        code: [frontend_nextjs/src/components/connection/ConnectionChip.tsx, frontend_nextjs/src/components/layout/ConnectionSync.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Bei laufendem Worker das Dashboard öffnen, dann den API-Key auf dem VPS ändern.
+          - Zurück ins Browserfenster wechseln (Fokus).
+        erwartet: Der Chip zeigt zunächst „Verbunden“, nach dem Fokuswechsel „API-Key abgelehnt“.
 
       - id: SYS-06
         titel: MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration)
@@ -792,7 +822,7 @@ kategorien:
 
       - id: VPS-04
         titel: Schutz der VPS-Route
-        beschreibung: /api/vps/* antwortet nur auf localhost; POST nur mit eigener Origin; ohne VPS_SSH_HOST 404. Nur geprüfte Aktionen/Argumente gelangen in den SSH-Befehl, SSH-Daten stehen nur server-seitig in .env.local (kein NEXT_PUBLIC_).
+        beschreibung: /api/vps/* antwortet nur auf localhost; POST nur mit eigener Origin; ohne VPS_SSH_HOST 404. Nur geprüfte Aktionen/Argumente gelangen in den SSH-Befehl, SSH-Daten stehen nur server-seitig in .env.local (kein NEXT_PUBLIC_). Auf der öffentlichen (Vercel-)Version antwortet ein fremder Host mit 403 localOnly; die Seite /vps zeigt dafür einen Hinweis statt eines roten Fehlerpanels und bleibt ohne Worker-Verbindung nutzbar (ConnectionGate lässt /vps offen).
         code: ["frontend_nextjs/src/app/api/vps/[action]/route.ts", frontend_nextjs/src/lib/server/vpsSsh.ts]
         tiers: [e2e]
         pruefung:

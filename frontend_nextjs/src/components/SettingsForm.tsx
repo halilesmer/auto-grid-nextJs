@@ -3,7 +3,7 @@
 import { Minus, Plus, Save, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
-import { axiosInstance } from '@/services/api';
+import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { useAccountStore, useSettingsStore } from '@/store';
 import { Alert } from '@/components/ui/alert';

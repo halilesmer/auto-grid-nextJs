@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { axiosInstance, API } from '@/lib/api';
+import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
 import { t } from '@/i18n';
@@ -21,7 +21,7 @@ interface UseDashboardConfig {
   selectedAccount: string | null;
   activeAccount: { env_type: string } | null;
   settings: GlobalSettings | null;
-  mergeAndSaveSettings: (apiUrl: string) => Promise<void>;
+  mergeAndSaveSettings: () => Promise<void>;
   setUpdateInfo: (info: { hasUpdate: boolean; localVer: string; remoteVer: string }) => void;
 }
 
@@ -115,7 +115,7 @@ export function useDashboard({
 
   useEffect(() => {
     axiosInstance
-      .get(`${API}/system/update/check?branch=main`)
+      .get(`/system/update/check?branch=main`)
       .then((res) => {
         const { has_update, local_ver, remote_ver } = res.data;
         if (has_update) {
@@ -133,7 +133,7 @@ export function useDashboard({
     setShuttingDown(true);
     try {
       if (selectedAccount) {
-        await axiosInstance.post(`${API}/stop?account_id=${selectedAccount}`);
+        await axiosInstance.post(`/stop?account_id=${selectedAccount}`);
       }
     } catch {
       // best-effort stop
@@ -149,7 +149,7 @@ export function useDashboard({
       loading: true,
     });
     try {
-      const res = await axiosInstance.get(`${API}/system/update/check?branch=main`);
+      const res = await axiosInstance.get(`/system/update/check?branch=main`);
       // Worker snake_case döner (local_ver/remote_ver); modal localVer/remoteVer okur
       setUpdateResult({
         hasUpdate: Boolean(res.data.has_update),
@@ -171,7 +171,7 @@ export function useDashboard({
     if (!updateResult) return;
     setUpdateResult({ ...updateResult, loading: true });
     try {
-      const res = await axiosInstance.post(`${API}/system/update?branch=main`);
+      const res = await axiosInstance.post(`/system/update?branch=main`);
       // Worker yeni kodla yeniden başlıyor (run_uvicorn_watchdog.bat): tekrar ayağa kalkmasını bekle
       if (res.data?.restarting) {
         await new Promise((resolve) => setTimeout(resolve, WORKER_RESTART_WAIT_MS));
@@ -206,7 +206,7 @@ export function useDashboard({
     setSaveAllLoading(true);
     setSaveAllError('');
     try {
-      await mergeAndSaveSettings(API);
+      await mergeAndSaveSettings();
       setSavedSettingsStr(JSON.stringify(settings));
       toast.success(t('dashboard.saveAll.success'), { title: t('common.saved') });
     } catch (err: unknown) {

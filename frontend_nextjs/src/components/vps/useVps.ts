@@ -46,6 +46,7 @@ export function useVps() {
   const [status, setStatus] = useState<VpsStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [disabled, setDisabled] = useState<string | null>(null);
+  const [localOnly, setLocalOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
   const [busy, setBusy] = useState<PostAction | 'check-update' | null>(null);
@@ -61,6 +62,12 @@ export function useVps() {
   const refreshStatus = useCallback(async () => {
     try {
       const { status: code, data } = await callVps<VpsStatus | VpsActionResult>('status');
+      // Öffentliche Version (Vercel): die Route ist bewusst nur für localhost offen, kein Fehler
+      if (code === 403 && (data as { code?: unknown } | null)?.code === 'localOnly') {
+        setLocalOnly(true);
+        setStatus(null);
+        return;
+      }
       if (code === 404) {
         setDisabled(errorOf(data, t('vps.status.disabled')));
         setStatus(null);
@@ -187,6 +194,7 @@ export function useVps() {
     status,
     statusError,
     disabled,
+    localOnly,
     loading,
     refreshedAt,
     busy,
