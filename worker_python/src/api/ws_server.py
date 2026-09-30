@@ -7,7 +7,8 @@ import os
 import glob
 import time
 import pandas as pd
-from src.api.auth import API_KEY_HEADER, API_KEY_QUERY_PARAM, is_valid_api_key
+from src.api.access import can_access_account
+from src.api.auth import API_KEY_HEADER, API_KEY_QUERY_PARAM, authenticate
 from src.core.indicator_calc import get_latest_indicators
 from src.utils.bot_manager import is_bot_running, log_step
 from src.utils.paths import get_metrics_path
@@ -35,6 +36,22 @@ async def router_lifespan(app):
 
 
 router = APIRouter(lifespan=router_lifespan)
+
+# Wie oft eine offene Verbindung ihre Berechtigung neu prüft (Schlüssel erneuert/Benutzer gelöscht,
+# Konto umgezogen oder gelöscht): der Stream läuft sonst bis zum Trennen weiter
+WS_REVALIDATE_SECONDS = 5.0
+
+
+async def _revalidate(websocket: WebSocket, provided: str | None, account_id: str | None):
+    """Schließt die Verbindung, sobald Schlüssel oder Konto-Zugriff nicht mehr gelten."""
+    while True:
+        await asyncio.sleep(WS_REVALIDATE_SECONDS)
+        principal = authenticate(provided)
+        if principal is None or (
+            not principal.is_admin and (account_id is None or not can_access_account(principal, account_id))
+        ):
+            await websocket.close(code=1008)
+            return
 
 
 class ConnectionManager:
@@ -436,7 +453,8 @@ async def websocket_endpoint(websocket: WebSocket):
     # Tarayıcılar WS isteğine başlık ekleyemez → anahtar sorgu parametresiyle gelir
     # (diğer istemciler için X-API-Key başlığı da kabul edilir)
     provided = websocket.query_params.get(API_KEY_QUERY_PARAM) or websocket.headers.get(API_KEY_HEADER)
-    if not is_valid_api_key(provided):
+    principal = authenticate(provided)
+    if principal is None:
         await websocket.close(code=1008)  # policy violation; accept öncesi → HTTP 403
         return
     # Tarayıcıda seçili hesap; yoksa ilk hesap. Yalnızca rakam (MT5 login'i, dosya adlarında
@@ -445,7 +463,12 @@ async def websocket_endpoint(websocket: WebSocket):
     if account_id is not None and not (account_id.isascii() and account_id.isdigit()):
         await websocket.close(code=1008)
         return
+    # Kullanıcı yalnızca kendi hesabını izler; "ilk hesap" yedeği yalnızca yöneticiye açık
+    if not principal.is_admin and (account_id is None or not can_access_account(principal, account_id)):
+        await websocket.close(code=1008)
+        return
     await manager.connect(websocket, account_id)
+    guard = asyncio.create_task(_revalidate(websocket, provided, account_id))
     try:
         while True:
             data = await websocket.receive_text()
@@ -453,4 +476,5 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
+        guard.cancel()
         manager.disconnect(websocket)

@@ -1,13 +1,14 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 import json
 import os
+from src.api.access import account_access
 from src.api.models import SettingsPayload
 from src.api.helpers import _find_settings_file, CONFIGS_DIR
 
 router = APIRouter(tags=["Settings"])
 
 
-@router.get("/settings/{account_id}")
+@router.get("/settings/{account_id}", dependencies=[Depends(account_access)])
 async def get_settings(account_id: str, response: Response):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     path = _find_settings_file(account_id)
@@ -33,7 +34,7 @@ async def get_settings(account_id: str, response: Response):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@router.post("/settings/{account_id}")
+@router.post("/settings/{account_id}", dependencies=[Depends(account_access)])
 async def update_settings(account_id: str, payload: SettingsPayload):
     path = _find_settings_file(account_id) or os.path.join(
         CONFIGS_DIR, f"settings_{account_id}.json"

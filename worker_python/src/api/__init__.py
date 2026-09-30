@@ -6,6 +6,7 @@ from src.api.logs import router as logs_router
 from src.api.bot_control import router as bot_control_router
 from src.api.symbols import router as symbols_router
 from src.api.system import router as system_router
+from src.api.users import router as users_router
 
 api_router = APIRouter()
 
@@ -16,5 +17,6 @@ api_router.include_router(logs_router)
 api_router.include_router(bot_control_router)
 api_router.include_router(symbols_router)
 api_router.include_router(system_router)
+api_router.include_router(users_router)
 
 __all__ = ["api_router"]

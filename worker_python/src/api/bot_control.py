@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 import asyncio
 import os
 import json
 import time
+from src.api.access import account_access, assert_account_access
 from src.api.models import ActionRequest
 from src.api.helpers import _load_accounts
 from src.utils.mt5_connection import (
@@ -162,7 +163,7 @@ def _resume_persisted_bots(persisted: dict):
             print(f"⚠️ WARNING: Bot {account_id} devam ettirilemedi: {exc}")
 
 
-@router.post("/start")
+@router.post("/start", dependencies=[Depends(account_access)])
 async def start_bot(account_id: str):
     # Bekçi, Start sürerken (MT5 bağlantısı 120 sn'ye kadar) bu hesaba dokunmaz.
     # watch() kilidin İÇİNDE: kilidi bekleyen bir Stop, izlemeyi her zaman en son kaldırır.
@@ -292,7 +293,7 @@ async def _start_bot(account_id: str):
     }
 
 
-@router.post("/stop")
+@router.post("/stop", dependencies=[Depends(account_access)])
 async def stop_bot(account_id: str):
     _log_step(account_id, "[STOP] Durdurma isteği alındı. Açık pozisyon/emirlere dokunulmuyor.")
     # İzlemeyi kilidin İÇİNDE bırak: kilidi tutan bir Start bittikten sonra watch()
@@ -313,7 +314,8 @@ async def stop_bot(account_id: str):
 
 
 @router.post("/action")
-async def send_action(req: ActionRequest):
+async def send_action(req: ActionRequest, request: Request):
+    assert_account_access(request, req.account_id)
     return {
         "status": "success",
         "message": f"Action {req.action} received for {req.account_id}",

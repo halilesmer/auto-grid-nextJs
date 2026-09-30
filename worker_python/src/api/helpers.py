@@ -7,6 +7,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 CONFIGS_DIR = os.path.join(BASE_DIR, "configs")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 ACCOUNTS_FILE = os.path.join(CONFIGS_DIR, "accounts.json")
+USERS_FILE = os.path.join(CONFIGS_DIR, "users.json")
 
 
 def _load_accounts() -> list:

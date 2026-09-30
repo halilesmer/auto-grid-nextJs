@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 import asyncio
 import json
@@ -6,6 +6,7 @@ import os
 import glob
 import tempfile
 import zipfile
+from src.api.access import account_access
 from src.api.helpers import _find_settings_file, LOGS_DIR, BASE_DIR
 from src.utils.bot_manager import is_bot_running
 from src.utils.paths import get_mt5_backup_dir
@@ -22,7 +23,7 @@ def _decode_log_bytes(raw: bytes) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
-@router.get("/logs/{account_id}")
+@router.get("/logs/{account_id}", dependencies=[Depends(account_access)])
 async def get_logs(
     account_id: str,
     log_type: str = Query("all", description="'robot' | 'mt5' | 'metrics' | 'all'"),
@@ -94,7 +95,7 @@ async def get_logs(
     return result
 
 
-@router.delete("/logs/{account_id}")
+@router.delete("/logs/{account_id}", dependencies=[Depends(account_access)])
 async def clear_logs(account_id: str):
     account_dir = os.path.join(LOGS_DIR, account_id)
     if os.path.exists(account_dir) and os.path.isdir(account_dir):
@@ -145,7 +146,7 @@ def _build_log_zip(account_id: str) -> str:
     return temp_zip_path
 
 
-@router.get("/logs/download/{account_id}")
+@router.get("/logs/download/{account_id}", dependencies=[Depends(account_access)])
 async def download_log(account_id: str, background_tasks: BackgroundTasks):
     try:
         temp_zip_path = await asyncio.to_thread(_build_log_zip, account_id)

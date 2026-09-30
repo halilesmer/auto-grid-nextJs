@@ -1,13 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 import json
 import os
+from src.api.access import account_access
 from src.api.models import SettingsPayload
 from src.utils.paths import get_ui_state_path
 
 router = APIRouter(tags=["UI State"])
 
 
-@router.get("/ui-state/{account_id}")
+@router.get("/ui-state/{account_id}", dependencies=[Depends(account_access)])
 async def get_ui_state(account_id: str):
     path = get_ui_state_path(account_id)
     if not os.path.exists(path):
@@ -20,7 +21,7 @@ async def get_ui_state(account_id: str):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@router.post("/ui-state/{account_id}")
+@router.post("/ui-state/{account_id}", dependencies=[Depends(account_access)])
 async def update_ui_state(account_id: str, payload: SettingsPayload):
     path = get_ui_state_path(account_id)
     try:

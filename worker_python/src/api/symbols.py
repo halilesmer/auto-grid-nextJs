@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from src.api.access import account_access
 from src.utils.mt5_helpers import get_or_fetch_symbols, get_symbols_fetch_error
 from src.utils.mt5_connection import safe_log
 
 router = APIRouter(tags=["Symbols"])
 
 
-@router.get("/symbols/{account_id}")
+@router.get("/symbols/{account_id}", dependencies=[Depends(account_access)])
 async def get_symbols(account_id: str):
     try:
         symbols = await get_or_fetch_symbols(account_id, safe_log)
