@@ -9,6 +9,8 @@ import { TIMEFRAMES } from '@/utils/zoneHelpers';
 // Faktoren (ATR, SAR, Chance/Risiko) sind keine Preise: eigene Schrittweite statt Symbol-Digits
 const FACTOR = { step: 0.1, precision: 2 };
 const SAR = { step: 0.01, precision: 3 };
+// Wie FRACTAL_MAX_ORDERS im Worker (grid_execution/config.py)
+const MAX_ORDERS = 20;
 
 export function ZoneFractalFields({
   zone,
@@ -22,6 +24,13 @@ export function ZoneFractalFields({
   const t = useT();
   const split = isBoth && !sync;
   const slMode = zone.fractal_sl_mode ?? 'atr';
+  // Ein Feld gilt für die gewählte Richtung bzw. bei „Buy/Sell gleich“ für beide; getrennt nur bei split
+  const countKey =
+    split || zone.order_type === 'BUY'
+      ? 'zone.fractal.buyOrderCount'
+      : zone.order_type === 'SELL'
+        ? 'zone.fractal.sellOrderCount'
+        : 'zone.fractal.orderCount';
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -33,6 +42,19 @@ export function ZoneFractalFields({
       maxDecimals={cfg.precision}
       value={zone[field] ?? fallback}
       onChange={(e) => handleChange(field, e.target.value, zone, { ...symbolConfig, precision: cfg.precision }, update)}
+      className="input-s"
+    />
+  );
+
+  const countField = (field: 'fractal_order_count' | 'sell_fractal_order_count') => (
+    <NumberInput
+      data-testid={field === 'fractal_order_count' ? 'fractal-order-count' : 'fractal-sell-order-count'}
+      min={1}
+      max={MAX_ORDERS}
+      step={1}
+      maxDecimals={0}
+      value={zone[field] ?? 1}
+      onChange={(e) => update(field, Math.min(MAX_ORDERS, Math.max(1, parseInt(e.target.value, 10) || 1)))}
       className="input-s"
     />
   );
@@ -90,6 +112,14 @@ export function ZoneFractalFields({
               onBlur={() => handleBlur('sell_lot_size', zone.sell_lot_size, symbolConfig.volStep, volPrecision, update, symbolConfig)}
               className="input-s"
             />
+          </InputField>
+        ) : null}
+        <InputField label={t(countKey)} hint={t(`${countKey}.hint`)}>
+          {countField('fractal_order_count')}
+        </InputField>
+        {split ? (
+          <InputField label={t('zone.fractal.sellOrderCount')} hint={t('zone.fractal.sellOrderCount.hint')}>
+            {countField('sell_fractal_order_count')}
           </InputField>
         ) : null}
         <InputField label={t('zone.breakout.maxPositions')} hint={t('zone.breakout.maxPositions.hint')}>

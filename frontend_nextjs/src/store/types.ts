@@ -73,6 +73,9 @@ export interface ZoneSettings {
   fractal_sar_max?: number;
   /** TP = SL-Abstand × Faktor; 0 = kein TP */
   fractal_rr?: number;
+  /** Pending-Orders auf den letzten N Fraktalen je Richtung (1–20); Sell-Wert nur bei BOTH ohne „Buy/Sell gleich“ */
+  fractal_order_count?: number;
+  sell_fractal_order_count?: number;
 }
 
 export type EntryMode = 'grid' | 'fractal';

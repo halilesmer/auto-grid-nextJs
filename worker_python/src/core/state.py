@@ -28,8 +28,8 @@ class GridState:
     fractal_tracked: Dict[int, Dict[int, tuple]] = field(default_factory=dict)
     # Botun kendi iptal ettiği fraktal emirleri (kaybolan emir elle mi silindi, ayırt etmek için)
     fractal_own_cancels: Set[int] = field(default_factory=set)
-    # "bölge_id:sembol:zaman_dilimi:taraf" → işlenmiş (dolmuş / elle silinmiş) son fraktalın zamanı; dosyada kalıcı
-    fractal_done: Dict[str, int] = field(default_factory=dict)
+    # "bölge_id:sembol:zaman_dilimi:taraf" → işlenmiş (dolmuş / elle silinmiş) fraktalların zamanları; dosyada kalıcı
+    fractal_done: Dict[str, Set[int]] = field(default_factory=dict)
     fractal_done_loaded: bool = False
     # Tekrarlanmasın diye bir kez yazılan fraktal log anahtarları
     fractal_logged: Dict[tuple, Any] = field(default_factory=dict)

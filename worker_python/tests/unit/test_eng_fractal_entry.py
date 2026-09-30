@@ -1,12 +1,14 @@
-"""ENG-20 … ENG-24 Zonen-Modus „Fraktal“ (grid_execution/fractal_entry.py).
+"""ENG-20 … ENG-24, ENG-26 Zonen-Modus „Fraktal“ (grid_execution/fractal_entry.py).
 
 Kursbild (USOUSD, Bid 97,000 / Ask 97,010, H4): 20 ruhige Kerzen, dann ein oberes Fraktal bei
 97,6 (Kerze low 96,8) und ein unteres Fraktal bei 96,5 (Kerze high 97,3), beide unberührt.
 """
 import json
+import os
 
 import pytest
 
+from src.core.grid_execution.config import extract_zone_config
 from src.core.grid_execution.fractal_signals import atr, parabolic_sar
 from src.core.state import state
 from src.utils.paths import get_fractal_state_path
@@ -262,7 +264,7 @@ def test_elle_geloeschte_order_wird_nicht_neu_gesetzt_auch_nach_neustart(fake_mt
     h.tick()
     assert fake_mt5.orders == []
     done = json.load(open(_state_file(), encoding="utf-8"))["done"]
-    assert done == {"zone-test:USOUSD:H4:U": T0 + UP_IDX * STEP}
+    assert done == {"zone-test:USOUSD:H4:U": [T0 + UP_IDX * STEP]}
 
     state.reset()  # Bot-Neustart
     h = setup(fake_mt5, order_type="BUY")
@@ -313,3 +315,150 @@ def test_vom_bot_geloeschte_order_zaehlt_nicht_als_manuell(fake_mt5):
     h.zones[0]["is_active"] = True
     h.tick()
     assert order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP).price_open == pytest.approx(97.6)
+
+
+# --------------------------------------------------------------------------- ENG-26
+# Zweites oberes Fraktal bei 97,45 (Kerze 28) unter dem älteren 97,6 → beide unberührt
+UP2_IDX = 28
+TWO_UP = FLAT + SHAPE + [(97.2, 96.8), (97.45, 96.9), (97.3, 96.85), (97.25, 96.9)]
+# Drittes oberes Fraktal bei 97,5 (Kerze 32): durchbricht 97,45, 97,6 bleibt unberührt
+THREE_UP = TWO_UP + [(97.2, 96.9), (97.5, 96.95), (97.3, 96.9), (97.25, 96.9)]
+
+
+def prices(fake_mt5, order_type):
+    return sorted(round(o.price_open, 3) for o in fake_mt5.robot_orders(MAGIC_ZONE_1) if o.type == order_type)
+
+
+@pytest.mark.feature("ENG-26")
+def test_anzahl_zwei_setzt_orders_auf_die_letzten_zwei_fraktale(fake_mt5):
+    h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2)
+    h.tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.45, 97.6]
+    assert {o.comment for o in fake_mt5.orders} == {
+        f"AutoGrid_Z1_FU{T0 + UP_IDX * STEP}", f"AutoGrid_Z1_FU{T0 + UP2_IDX * STEP}",
+    }
+    sent = len(fake_mt5.sent)
+    h.tick()
+    h.tick()
+    assert len(fake_mt5.sent) == sent  # stabil, kein Löschen/Neusetzen
+
+
+@pytest.mark.feature("ENG-26")
+def test_fenster_wandert_und_leerer_platz_wird_nicht_aufgefuellt(fake_mt5):
+    h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2)
+    h.tick()
+    fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_H4, bars(THREE_UP))
+    h.tick()
+    # Letzte zwei: 97,5 und 97,45 (durchbrochen → Platz bleibt leer); 97,6 ist aus dem Fenster
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.5]
+
+    h.zones[0]["fractal_order_count"] = 3
+    h.tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.5, 97.6]
+
+
+@pytest.mark.feature("ENG-26")
+def test_ausgeloeste_order_laesst_die_anderen_stehen(fake_mt5):
+    h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2)
+    h.tick()
+    older = next(o for o in fake_mt5.orders if o.price_open == pytest.approx(97.6))
+    fake_mt5.set_price("USOUSD", 97.46, 97.47)  # BUY STOP 97,45 füllt
+    assert len(fake_mt5.robot_positions(MAGIC_ZONE_1)) == 1
+    sent = len(fake_mt5.sent)
+    h.tick()
+    h.tick()
+    assert [o.ticket for o in fake_mt5.orders] == [older.ticket]
+    assert len(fake_mt5.sent) == sent
+    done = json.load(open(_state_file(), encoding="utf-8"))["done"]
+    assert done == {"zone-test:USOUSD:H4:U": [T0 + UP2_IDX * STEP]}
+
+
+@pytest.mark.feature("ENG-26")
+def test_elle_geloeschte_order_bleibt_weg_andere_bleibt(fake_mt5):
+    h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2)
+    h.tick()
+    fake_mt5.orders[:] = [o for o in fake_mt5.orders if o.price_open != pytest.approx(97.6)]  # von Hand gelöscht
+    h.tick()
+    h.tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.45]
+
+    state.reset()  # Bot-Neustart
+    h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2)
+    h.tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.45]
+
+
+@pytest.mark.feature("ENG-26")
+def test_vom_bot_geloeschte_orders_gelten_nicht_als_erledigt(fake_mt5):
+    h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2, max_positions=1)
+    h.tick()
+    # Anzahl verkleinern: die überzählige Order fällt weg …
+    h.zones[0]["fractal_order_count"] = 1
+    h.tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.45]
+    # … und kommt beim Vergrößern wieder
+    h.zones[0]["fractal_order_count"] = 2
+    h.tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.45, 97.6]
+
+    # Positionslimit: alle Orders weg, danach wieder beide
+    fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 96.0, magic=MAGIC_ZONE_1)
+    h.tick()
+    assert fake_mt5.orders == []
+    fake_mt5.positions.clear()
+    h.tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.45, 97.6]
+    assert not os.path.exists(_state_file())
+
+
+@pytest.mark.feature("ENG-26")
+def test_hinweis_merker_nur_fuer_fraktale_im_fenster(fake_mt5):
+    h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2, max_price=97.5)  # 97,6 außerhalb
+    h.tick()
+    assert (0, "U", T0 + UP_IDX * STEP) in state.fractal_logged
+    h.zones[0]["fractal_order_count"] = 1
+    h.tick()
+    assert not [k for k in state.fractal_logged if k[-1] == T0 + UP_IDX * STEP]
+
+
+@pytest.mark.feature("ENG-26")
+def test_getrennte_anzahl_fuer_buy_und_sell(fake_mt5):
+    # Abpraller: obere Fraktale → SELL LIMIT, unteres → BUY LIMIT
+    zone = dict(fractal_order_mode="rebound", sync_buy_sell=False, fractal_order_count=1, sell_fractal_order_count=2)
+    setup(fake_mt5, TWO_UP, **zone).tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_SELL_LIMIT) == [97.45, 97.6]
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_LIMIT) == [96.5]
+
+    # „Buy/Sell gleich“: die Sell-Anzahl wird ignoriert
+    fake_mt5.orders.clear()
+    state.reset()
+    setup(fake_mt5, TWO_UP, **{**zone, "sync_buy_sell": True}).tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_SELL_LIMIT) == [97.45]
+
+
+@pytest.mark.feature("ENG-26")
+def test_anzahl_wird_begrenzt():
+    def counts(**zone):
+        cfg = extract_zone_config(fractal_zone(**zone), 0)
+        return cfg.fractal_order_count, cfg.sell_fractal_order_count
+
+    assert counts() == (1, 1)
+    assert counts(fractal_order_count=99) == (20, 20)
+    assert counts(fractal_order_count=0) == (1, 1)
+    assert counts(fractal_order_count="x") == (1, 1)
+    assert counts(fractal_order_count=None) == (1, 1)
+    assert counts(fractal_order_count=float("inf")) == (1, 1)
+    assert counts(fractal_order_count="5") == (5, 5)
+    assert counts(sync_buy_sell=False, fractal_order_count=3) == (3, 3)  # Sell ohne eigenen Wert = Buy
+    assert counts(sync_buy_sell=False, fractal_order_count=3, sell_fractal_order_count=99) == (3, 20)
+    # Eigene Sell-Anzahl nur bei Richtung „Beide“
+    assert counts(order_type="SELL", sync_buy_sell=False, fractal_order_count=3, sell_fractal_order_count=5) == (3, 3)
+
+
+@pytest.mark.feature("ENG-26")
+def test_alte_zustandsdatei_mit_einzelzeit_wird_gelesen(fake_mt5):
+    os.makedirs(os.path.dirname(_state_file()), exist_ok=True)
+    with open(_state_file(), "w", encoding="utf-8") as f:
+        json.dump({"done": {"zone-test:USOUSD:H4:U": T0 + UP2_IDX * STEP}}, f)
+    setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2).tick()
+    assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.6]

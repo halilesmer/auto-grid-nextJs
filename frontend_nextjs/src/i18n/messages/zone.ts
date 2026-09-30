@@ -131,6 +131,9 @@ export default defineArea(
     'zone.fractal.sarStep': 'SAR Adımı',
     'zone.fractal.sarMax': 'SAR Maksimum',
     'zone.fractal.rr': 'Risk/Ödül (TP = SL × …)',
+    'zone.fractal.orderCount': 'Emir Sayısı (BUY & SELL)',
+    'zone.fractal.buyOrderCount': 'BUY Emir Sayısı',
+    'zone.fractal.sellOrderCount': 'SELL Emir Sayısı',
   },
   {
     'zone.panel.loadingSymbols': 'Loading symbols...',
@@ -262,6 +265,9 @@ export default defineArea(
     'zone.fractal.sarStep': 'SAR step',
     'zone.fractal.sarMax': 'SAR maximum',
     'zone.fractal.rr': 'Reward/risk (TP = SL × …)',
+    'zone.fractal.orderCount': 'Order count (BUY & SELL)',
+    'zone.fractal.buyOrderCount': 'BUY order count',
+    'zone.fractal.sellOrderCount': 'SELL order count',
   },
   {
     'zone.panel.loadingSymbols': 'Symbole werden geladen...',
@@ -393,5 +399,8 @@ export default defineArea(
     'zone.fractal.sarStep': 'SAR-Schritt',
     'zone.fractal.sarMax': 'SAR-Maximum',
     'zone.fractal.rr': 'Chance/Risiko (TP = SL × …)',
+    'zone.fractal.orderCount': 'Anzahl Orders (BUY & SELL)',
+    'zone.fractal.buyOrderCount': 'Anzahl BUY-Orders',
+    'zone.fractal.sellOrderCount': 'Anzahl SELL-Orders',
   },
 );

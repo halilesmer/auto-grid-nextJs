@@ -471,4 +471,47 @@ test.describe('ZON Zonen', () => {
     await dashboard.zone().getByTestId('entry-mode').selectOption('grid');
     await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toBeVisible();
   });
+
+  test('Fraktal: Anzahl Orders je Richtung', { tag: '@ZON-16' }, async ({ worker, dashboard }) => {
+    worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })];
+    await dashboard.open(DEMO_ID);
+    const buy = dashboard.zoneField(msg('zone.fractal.buyOrderCount'));
+    const sell = dashboard.zoneField(msg('zone.fractal.sellOrderCount'));
+    const both = dashboard.zoneField(msg('zone.fractal.orderCount'));
+
+    // Nur BUY: ein Feld, Standard 1
+    await expect(buy).toHaveValue('1');
+    await expect(sell).toHaveCount(0);
+    await expect(both).toHaveCount(0);
+
+    // Beide + „Buy/Sell gleich“: ein gemeinsames Feld
+    await dashboard.zoneField(msg('zone.field.orderType')).selectOption('BOTH');
+    await expect(both).toHaveValue('1');
+    await expect(buy).toHaveCount(0);
+    await expect(sell).toHaveCount(0);
+    await both.fill('3');
+
+    // „Gleich“ aus: getrennte Felder, der bisherige Wert bleibt die BUY-Anzahl
+    await dashboard.zoneSwitch(msg('zone.sync')).click();
+    await expect(both).toHaveCount(0);
+    await expect(buy).toHaveValue('3');
+    await sell.fill('2');
+    // Mehr als 20 wird begrenzt (wie im Worker)
+    await buy.fill('99');
+    await expect(buy).toHaveValue('20');
+    await buy.fill('4');
+
+    await saveAndReload(dashboard);
+    await expect(dashboard.zoneField(msg('zone.fractal.buyOrderCount'))).toHaveValue('4');
+    await expect(dashboard.zoneField(msg('zone.fractal.sellOrderCount'))).toHaveValue('2');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({
+      entry_mode: 'fractal', order_type: 'BOTH', sync_buy_sell: false,
+      fractal_order_count: 4, sell_fractal_order_count: 2,
+    });
+
+    // Nur SELL: ein Feld mit SELL-Beschriftung
+    await dashboard.zoneField(msg('zone.field.orderType')).selectOption('SELL');
+    await expect(dashboard.zoneField(msg('zone.fractal.sellOrderCount'))).toHaveValue('4');
+    await expect(dashboard.zoneField(msg('zone.fractal.buyOrderCount'))).toHaveCount(0);
+  });
 });

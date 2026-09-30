@@ -44,8 +44,19 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
     ['zone.fractal.rr', 'zone.fractal.rr.hint', zone.fractal_rr ?? 2],
     ['chart.zone.maxPositions', 'zone.breakout.maxPositions.hint', zone.max_positions],
   ];
+  const count = zone.fractal_order_count ?? 1;
   if (zone.order_type === 'BOTH' && !zone.sync_buy_sell) {
     fields.push(['chart.zone.sellLot', 'zone.field.sellLot.hint', zone.sell_lot_size]);
+    // Getrennt: BUY / SELL
+    fields.push(['zone.fractal.orderCount', 'zone.fractal.orderCount.hint', `${count} / ${zone.sell_fractal_order_count ?? count}`]);
+  } else {
+    const key =
+      zone.order_type === 'BUY'
+        ? 'zone.fractal.buyOrderCount'
+        : zone.order_type === 'SELL'
+          ? 'zone.fractal.sellOrderCount'
+          : 'zone.fractal.orderCount';
+    fields.push([key, `${key}.hint`, count]);
   }
   return fields;
 }
