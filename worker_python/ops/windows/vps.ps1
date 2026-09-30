@@ -71,7 +71,7 @@ function Test-BuiltinAdmin {
 function Get-GitInfo {
     # .git direkt lesen statt git aufzurufen (git als Administrator = Rechteproblem, s. o.)
     $gitDir = Join-Path $RepoRoot '.git'
-    $info = @{ branch = ''; commit = '' }
+    $info = @{ branch = ''; commit = ''; updated_at = $null }
     try {
         $head = (Get-Content (Join-Path $gitDir 'HEAD') -Raw).Trim()
         if ($head -like 'ref: *') {
@@ -89,6 +89,12 @@ function Get-GitInfo {
             $info.commit = $head
         }
     } catch {}
+    # Letzte Aktualisierung = wann HEAD zuletzt bewegt wurde (git pull haengt eine Zeile an das Reflog an)
+    foreach ($rel in @('logs\HEAD', 'VERSION')) {
+        $base = if ($rel -eq 'VERSION') { $RepoRoot } else { $gitDir }
+        $item = Get-Item (Join-Path $base $rel) -ErrorAction SilentlyContinue
+        if ($item) { $info.updated_at = $item.LastWriteTimeUtc.ToString('o'); break }
+    }
     if ($info.commit.Length -gt 8) { $info.commit = $info.commit.Substring(0, 8) }
     return $info
 }

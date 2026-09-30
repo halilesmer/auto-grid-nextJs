@@ -12,7 +12,7 @@ const STATUS = {
   ok: true,
   hostname: 'VPS-01',
   version: 'v0.7.71',
-  git: { branch: 'main', commit: '6e6011d0' },
+  git: { branch: 'main', commit: '6e6011d0', updated_at: '2026-09-30T08:15:00.000Z' },
   worker: { listening: true, reachable: true, error: null },
   worker_watchdog: true,
   ngrok: { running: true, public_url: 'https://tweet-overlying-monotone.ngrok-free.dev' },
@@ -76,6 +76,7 @@ test.describe('VPS Fernsteuerung', () => {
     await expect(page.getByTestId('vps-tile-bots')).toContainText('5039114');
     await expect(page.getByTestId('vps-tile-version')).toContainText('v0.7.71');
     await expect(page.getByTestId('vps-tile-version')).toContainText('main @ 6e6011d0');
+    await expect(page.getByTestId('vps-tile-version')).toContainText(msg('vps.tile.updatedAt', { time: '' }).trim());
     await expect(page.getByTestId('vps-tile-autostart')).toContainText(msg('vps.tile.autostart.ok'));
 
     const nav = page.getByRole('navigation');

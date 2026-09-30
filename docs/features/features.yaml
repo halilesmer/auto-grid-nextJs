@@ -946,7 +946,7 @@ kategorien:
     features:
       - id: VPS-01
         titel: VPS-Status
-        beschreibung: Die Seite /vps zeigt per SSH (Route /api/vps/status → ops/windows/vps.ps1 status) Worker, ngrok samt öffentlicher URL, laufende Bots, Version/Branch, Autostart und Uptime. Ohne VPS_SSH_HOST (z. B. Vercel) erscheint nur ein Hinweis.
+        beschreibung: Die Seite /vps zeigt per SSH (Route /api/vps/status → ops/windows/vps.ps1 status) Worker, ngrok samt öffentlicher URL, laufende Bots, Version/Branch samt Zeitpunkt der letzten Aktualisierung (Reflog .git/logs/HEAD), Autostart und Uptime. Ohne VPS_SSH_HOST (z. B. Vercel) erscheint nur ein Hinweis.
         code: [frontend_nextjs/src/app/vps/page.tsx, frontend_nextjs/src/components/vps/VpsStatusPanel.tsx, frontend_nextjs/src/components/vps/useVps.ts, worker_python/ops/windows/vps.ps1]
         tiers: [e2e, manuell]
         pruefung:
