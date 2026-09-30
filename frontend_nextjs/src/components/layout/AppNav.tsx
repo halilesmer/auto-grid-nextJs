@@ -3,24 +3,35 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { CandlestickChart, Grid3x3, LayoutDashboard, Server } from 'lucide-react';
+import { CandlestickChart, Grid3x3, LayoutDashboard, Server, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { VERSION } from '@/app/version';
 import { useT, type MessageKey } from '@/i18n';
 import ConnectionChip from '@/components/connection/ConnectionChip';
+import { useAuthStore, type Me } from '@/store/useAuthStore';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeToggle from './ThemeToggle';
 
-const LINKS: { href: string; labelKey: MessageKey; hintKey: MessageKey; icon: typeof Server }[] = [
+const LINKS: {
+  href: string;
+  labelKey: MessageKey;
+  hintKey: MessageKey;
+  icon: typeof Server;
+  /** Sichtbarkeit je Rolle; fehlt = für alle. `me` ist null, solange die Rolle nicht geladen ist. */
+  visible?: (me: Me | null) => boolean;
+}[] = [
   { href: '/', labelKey: 'nav.dashboard', hintKey: 'nav.dashboard.hint', icon: LayoutDashboard },
   { href: '/formasyon', labelKey: 'nav.formation', hintKey: 'nav.formation.hint', icon: CandlestickChart },
-  { href: '/vps', labelKey: 'nav.vps', hintKey: 'nav.vps.hint', icon: Server },
+  // /vps läuft auch ohne Worker-Verbindung: erst ausblenden, wenn feststeht, dass es kein Admin ist
+  { href: '/vps', labelKey: 'nav.vps', hintKey: 'nav.vps.hint', icon: Server, visible: (me) => !me || me.role === 'admin' },
+  { href: '/users', labelKey: 'nav.users', hintKey: 'nav.users.hint', icon: Users, visible: (me) => me?.role === 'admin' },
 ];
 
 export default function AppNav() {
   const pathname = usePathname();
   const t = useT();
+  const me = useAuthStore((s) => s.me);
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/75 backdrop-blur-xl">
@@ -40,7 +51,7 @@ export default function AppNav() {
         <div className="h-6 w-px shrink-0 bg-border" />
 
         <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
-          {LINKS.map(({ href, labelKey, hintKey, icon: Icon }) => {
+          {LINKS.filter((link) => !link.visible || link.visible(me)).map(({ href, labelKey, hintKey, icon: Icon }) => {
             const label = t(labelKey);
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
             return (

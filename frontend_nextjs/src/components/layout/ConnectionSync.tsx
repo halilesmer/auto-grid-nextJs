@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect } from 'react';
 import { probeWorker, statusFromProbe } from '@/lib/connection';
 import { readConnectHash } from '@/lib/connectionCode';
 import { useConnectionDialogStore } from '@/store/useConnectionDialogStore';
+import { loadMe } from '@/services/usersApi';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 
 const POLL_MS = 30_000;
@@ -44,7 +46,11 @@ export default function ConnectionSync() {
     const check = async () => {
       if (document.visibilityState === 'hidden') return;
       const result = await probeWorker(baseUrl, apiKey);
-      if (!cancelled) useConnectionStore.getState().setStatus(statusFromProbe(result));
+      if (cancelled) return;
+      useConnectionStore.getState().setStatus(statusFromProbe(result));
+      // Rolle (Admin/Benutzer) hängt am Schlüssel: einmal laden, sobald der Worker antwortet.
+      // Schlüsselwechsel lädt die Seite neu (ConnectionDialog), `me` bleibt also aktuell.
+      if (result.ok && !useAuthStore.getState().me) await loadMe();
     };
 
     void check();

@@ -164,6 +164,21 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     expect(await unhinted(page)).toEqual([]);
   });
 
+  test('Benutzerseite mit Dialogen: jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker }) => {
+    worker.addUser('Anna');
+    await page.goto('/users');
+    await expect(page.getByTestId('user-row')).toHaveCount(1);
+    expect(await unhinted(page)).toEqual([]);
+
+    // „Benutzer anlegen“ und die einmalige Schlüsselanzeige (Modal)
+    await page.getByTestId('add-user').click();
+    await page.getByTestId('create-user-name').fill('Ben');
+    expect(await unhinted(page)).toEqual([]);
+    await page.getByTestId('create-user-submit').click();
+    await expect(page.getByTestId('key-reveal')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+  });
+
   test('Formasyon- und Chart-Seite', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     void worker;
     await page.goto('/formasyon');

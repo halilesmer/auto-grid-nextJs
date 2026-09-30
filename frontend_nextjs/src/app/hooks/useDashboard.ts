@@ -5,6 +5,7 @@ import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
 import { t } from '@/i18n';
+import { useIsAdmin } from '@/store/useAuthStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
@@ -57,6 +58,7 @@ export function useDashboard({
   mergeAndSaveSettings,
   setUpdateInfo,
 }: UseDashboardConfig): UseDashboardReturn {
+  const isAdmin = useIsAdmin();
   const [saveAllLoading, setSaveAllLoading] = useState(false);
   const [saveAllError, setSaveAllError] = useState('');
   const [savedSettingsStr, setSavedSettingsStr] = useState<string | null>(null);
@@ -113,6 +115,8 @@ export function useDashboard({
   }, [activeAccount]);
 
   useEffect(() => {
+    // Update/Neustart des Workers sind Admin-Sache (Benutzer bekämen 403)
+    if (!isAdmin) return;
     axiosInstance
       .get(`/system/update/check?branch=main`)
       .then((res) => {
@@ -126,7 +130,7 @@ export function useDashboard({
         }
       })
       .catch(() => {});
-  }, [setUpdateInfo]);
+  }, [setUpdateInfo, isAdmin]);
 
   const handleShutdown = useCallback(async () => {
     setShuttingDown(true);

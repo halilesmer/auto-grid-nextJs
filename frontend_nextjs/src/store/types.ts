@@ -8,6 +8,8 @@ export interface Account {
   server: string;
   mt5_path: string;
   notes: string;
+  /** Sahip kullanıcının kimliği; boş/yok = yöneticiye ait (worker: accounts.py). */
+  owner?: string | null;
 }
 
 export interface SymbolDetail {

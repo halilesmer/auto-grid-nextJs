@@ -113,6 +113,8 @@ Hinweise:
   
   Ist `WORKER_API_KEY` gesetzt, verlangt der Worker den Schlüssel bei jedem `/api/*`-Request im Header `X-API-Key` (sonst `401`) und beim WebSocket `/ws/stream` als Query-Parameter `?api_key=…` (Browser können bei WebSockets keine Header setzen; sonst wird die Verbindung abgelehnt). Ist die Variable nicht gesetzt, läuft alles wie bisher ohne Schlüssel.
   
+  **Mehrere Benutzer:** `WORKER_API_KEY` ist der Administrator-Schlüssel. Weitere Benutzer bekommen persönliche Schlüssel, die der Administrator im Frontend auf der Seite „Benutzer“ (`/users`) anlegt; damit sehen sie nur ihre eigenen Konten. Einrichtung und Betrieb: [`docs/mehrbenutzer.md`](mehrbenutzer.md).
+
   Reihenfolge beim Umstellen: erst im Frontend verbinden bzw. den neuen Schlüssel eintragen (ein Worker ohne Schlüssel ignoriert den Header), dann den Worker mit gesetztem `WORKER_API_KEY` neu starten. Schlüssel wechseln = im Verbindungsdialog neu verbinden (oder `.env.local`) und den Worker neu starten.
 - **MT5-Passwörter:** Die API gibt gespeicherte Passwörter nicht mehr zurück (`GET /api/accounts` liefert nur `has_password`). Beim Bearbeiten eines Kontos bleibt das Passwortfeld leer; leer lassen = gespeichertes Passwort bleibt erhalten.
 

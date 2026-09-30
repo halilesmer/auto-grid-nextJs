@@ -7,6 +7,7 @@ import { useAccountStore } from './useAccountStore';
 import { Metrics, LiveData } from './types';
 import { toWsUrl } from '@/lib/connectionCode';
 import { getConnection } from './useConnectionStore';
+import { useIsAdmin } from './useAuthStore';
 import { t } from '@/i18n';
 
 const MAX_RETRIES = 10;
@@ -27,7 +28,8 @@ function buildWsUrl(accountId: string | null): string | null {
 
 /**
  * `selectedAccount`: akışın hesabı; değişince soket yeniden açılır.
- * `always`: hesap seçilmeden de bağlan (/chart, /formasyon) → worker ilk hesabı gönderir.
+ * `always`: hesap seçilmeden de bağlan (/chart, /formasyon) → worker ilk hesabı gönderir
+ * (yalnızca yönetici; kullanıcı hesap seçmeden bağlanamaz, worker 1008 ile kapatır).
  */
 export function useWebSocketManager(
   selectedAccount: string | null,
@@ -43,6 +45,8 @@ export function useWebSocketManager(
   const isMountedRef = useRef(true);
   const connectRef = useRef<() => void>(() => {});
   const [isConnected, setIsConnected] = useState(false);
+  const isAdmin = useIsAdmin();
+  const wantsStream = Boolean(selectedAccount) || (always && isAdmin);
 
   // Stable refs to store actions (avoid selector reference changes)
   const updateMetricsRef = useRef(useBotRuntimeStore.getState().updateMetrics);
@@ -119,7 +123,7 @@ export function useWebSocketManager(
   const connect = useCallback(() => {
     const state = wsRef.current?.readyState;
     if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
-    if (!selectedAccount && !always) return;
+    if (!wantsStream) return;
     const url = buildWsUrl(selectedAccount);
     if (!url) return; // Worker henüz bağlanmadı (ConnectionGate zaten sayfayı göstermez)
 
@@ -145,7 +149,7 @@ export function useWebSocketManager(
     ws.onerror = () => {
       // onclose will handle reconnection
     };
-  }, [selectedAccount, always, handleMessage, scheduleReconnect]);
+  }, [selectedAccount, wantsStream, handleMessage, scheduleReconnect]);
 
   // Keep connectRef updated for use in scheduleReconnect (avoids circular dependency)
   useEffect(() => {
@@ -176,7 +180,7 @@ export function useWebSocketManager(
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (selectedAccount || always) {
+    if (wantsStream) {
       connect();
     } else {
       // Wrap in setTimeout to avoid synchronous setState in effect
@@ -188,7 +192,7 @@ export function useWebSocketManager(
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAccount, always]);
+  }, [selectedAccount, wantsStream]);
 
   return {
     isConnected,

@@ -4,6 +4,8 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
+import { useIsAdmin } from '@/store/useAuthStore';
+import { useUsersStore } from '@/store/useUsersStore';
 import { PasswordField } from './PasswordField';
 import { MT5PathSelector } from './MT5PathSelector';
 import type { AccountFormProps } from '../types';
@@ -29,6 +31,10 @@ export function AccountForm({
   onEditExisting,
 }: AccountFormProps) {
   const t = useT();
+  const isAdmin = useIsAdmin();
+  const users = useUsersStore((s) => s.users);
+  // Ohne Benutzer gäbe es nur „Administrator“ zur Wahl: Feld weglassen (der gespeicherte Besitzer bleibt im Formular erhalten)
+  const showOwner = isAdmin && (users.length > 0 || Boolean(formData.owner));
   return (
     <div>
 
@@ -154,6 +160,33 @@ export function AccountForm({
             <option value="LIVE">LIVE</option>
           </select>
         </div>
+        {showOwner && (
+          <div data-tooltip-scope>
+            <FieldLabel
+              label={t('users.owner.label')}
+              hint={t('users.owner.label.hint')}
+              className="mb-1.5 text-xs font-medium text-muted-foreground"
+            />
+            <select
+              name="owner"
+              data-testid="account-owner"
+              value={formData.owner}
+              onChange={(e) => onChange('owner', e.target.value)}
+              className="input-s"
+              aria-label={t('users.owner.label')}
+            >
+              <option value="">{t('users.owner.none')}</option>
+              {formData.owner && !users.some((u) => u.id === formData.owner) && (
+                <option value={formData.owner}>{formData.owner}</option>
+              )}
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <MT5PathSelector
             paths={mt5Paths}

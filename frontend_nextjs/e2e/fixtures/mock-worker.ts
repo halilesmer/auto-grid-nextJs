@@ -8,8 +8,8 @@
  */
 import type { Page, Route, WebSocketRoute } from '@playwright/test';
 import type { LiveData, Metrics } from '../../src/store/types';
-import { defaultState, type MockState, type StoredAccount } from './data';
-import { E2E_API_KEY, MOCK_API } from './env';
+import { defaultState, type MockState, type MockUser, type StoredAccount } from './data';
+import { E2E_API_KEY, E2E_USER_KEY, MOCK_API } from './env';
 
 type Json = Record<string, unknown>;
 
@@ -23,6 +23,13 @@ export interface WorkerCall {
 interface Reply {
   status: number;
   body: unknown;
+}
+
+/** Wer die Anfrage stellt: Admin (E2E_API_KEY) oder ein Benutzer mit persönlichem Schlüssel. */
+interface Principal {
+  role: 'admin' | 'user';
+  id: string;
+  name: string;
 }
 
 const CORS_HEADERS = {
@@ -76,6 +83,19 @@ export class MockWorker {
   }
 
   // ------------------------------------------------------------------ Hilfen für Tests
+  /** Legt einen Benutzer an (wie POST /users) und gibt seinen Schlüssel zurück. */
+  addUser(name = 'Anna', id = 'u_anna', key = E2E_USER_KEY): MockUser {
+    const user: MockUser = { id, name, key, created_at: '2026-09-30T10:00:00+00:00' };
+    this.state.users.push(user);
+    return user;
+  }
+
+  /** Setzt den Besitzer eines Kontos (wie der Admin im Konto-Formular). */
+  setOwner(accountId: string, ownerId: string | null) {
+    const account = this.state.accounts.find((a) => String(a.id) === accountId);
+    if (account) account.owner = ownerId;
+  }
+
   callsTo(method: string, path: string | RegExp): WorkerCall[] {
     return this.calls.filter(
       (c) => c.method === method && (typeof path === 'string' ? c.path === path : path.test(c.path)),
@@ -154,13 +174,18 @@ export class MockWorker {
     this.calls.push({ method, path: url.pathname, query: url.searchParams, body });
 
     const headers = await request.allHeaders();
-    if (headers['x-api-key'] !== E2E_API_KEY) {
+    const principal = this.principalOf(headers['x-api-key']);
+    if (!principal) {
       this.unauthorized.push(`${method} ${url.pathname}`);
       return this.reply(route, { status: 401, body: { detail: 'Invalid or missing API key' } });
     }
 
     const override = this.overrides.get(`${method} ${url.pathname}`);
     if (override) return this.reply(route, override);
+
+    // Wie access.py: ein Benutzer erreicht nur eigene Konten, jedes andere ist 404
+    const denied = this.accessDenied(principal, method, url);
+    if (denied) return this.reply(route, denied);
 
     if (method === 'GET' && url.pathname.startsWith('/api/logs/download/')) {
       const id = url.pathname.split('/').pop()!;
@@ -177,7 +202,7 @@ export class MockWorker {
       });
     }
 
-    const reply = this.dispatch(method, url, body);
+    const reply = this.dispatch(method, url, body, principal);
     if (!reply) {
       this.unhandled.push(`${method} ${url.pathname}`);
       return this.reply(route, { status: 404, body: { detail: 'Not Found' } });
@@ -194,21 +219,81 @@ export class MockWorker {
     });
   }
 
-  private dispatch(method: string, url: URL, body: Json | null): Reply | null {
+  private principalOf(key: string | undefined): Principal | null {
+    if (key === E2E_API_KEY) return { role: 'admin', id: 'admin', name: 'admin' };
+    const user = this.state.users.find((u) => u.key === key);
+    return user ? { role: 'user', id: user.id, name: user.name } : null;
+  }
+
+  /** Konto-ID, auf die sich die Anfrage bezieht (Pfad oder ?account_id=); null bei globalen Routen. */
+  private scopedAccountId(method: string, url: URL): string | null {
+    const seg = url.pathname.replace(/^\/api/, '').split('/').filter(Boolean);
+    if (seg[0] === 'logs' && seg[1] === 'download') return seg[2] ?? null;
+    if (['settings', 'ui-state', 'symbols', 'logs'].includes(seg[0]) && seg.length === 2) return seg[1];
+    if (seg[0] === 'accounts' && seg.length === 2 && method !== 'GET') return seg[1];
+    if (seg[0] === 'start' || seg[0] === 'stop') return url.searchParams.get('account_id') ?? '';
+    return null;
+  }
+
+  private accessDenied(principal: Principal, method: string, url: URL): Reply | null {
+    if (principal.role === 'admin') return null;
+    const id = this.scopedAccountId(method, url);
+    if (id === null) return null;
+    const own = this.state.accounts.some((a) => String(a.id) === id && a.owner === principal.id);
+    return own ? null : { status: 404, body: { detail: `Account '${id}' not found` } };
+  }
+
+  private dispatch(method: string, url: URL, body: Json | null, principal: Principal): Reply | null {
     const s = this.state;
     const path = url.pathname.replace(/^\/api/, '');
     const seg = path.split('/').filter(Boolean);
     const ok = (b: unknown): Reply => ({ status: 200, body: b });
+    const admin = principal.role === 'admin';
+    const forbidden: Reply = { status: 403, body: { detail: 'Administrator access required' } };
+
+    // --------------------------------------------------------------- Benutzer (Admin)
+    if (path === '/auth/me' && method === 'GET') return ok(principal);
+    if (seg[0] === 'users') {
+      if (!admin) return forbidden;
+      const accountCount = (userId: string) => s.accounts.filter((a) => a.owner === userId).length;
+      const publicUser = (u: MockUser) => ({ id: u.id, name: u.name, created_at: u.created_at, account_count: accountCount(u.id) });
+      if (path === '/users' && method === 'GET') return ok({ users: s.users.map(publicUser) });
+      if (path === '/users' && method === 'POST') {
+        const name = String((body as Json | null)?.name ?? '').trim();
+        if (!name) return { status: 422, body: { detail: 'name must not be empty' } };
+        if (s.users.some((u) => u.name.toLowerCase() === name.toLowerCase())) {
+          return { status: 409, body: { detail: `User '${name}' already exists` } };
+        }
+        const user = this.addUser(name, `u_${s.users.length + 1}`, `issued-key-${s.users.length + 1}`);
+        return { status: 201, body: { user: publicUser(user), key: user.key } };
+      }
+      const user = s.users.find((u) => u.id === seg[1]);
+      if (!user) return { status: 404, body: { detail: `User '${seg[1]}' not found` } };
+      if (seg[2] === 'key' && method === 'POST') {
+        user.key = `${user.key}-renewed`;
+        return ok({ user: publicUser(user), key: user.key });
+      }
+      if (seg.length === 2 && method === 'DELETE') {
+        s.users = s.users.filter((u) => u.id !== user.id);
+        for (const account of s.accounts) if (account.owner === user.id) account.owner = null;
+        return ok({ status: 'deleted', user_id: user.id });
+      }
+    }
 
     // --------------------------------------------------------------- Konten
     if (path === '/accounts' && method === 'GET') {
-      return ok({ accounts: s.accounts.map(publicAccount) });
+      const visible = admin ? s.accounts : s.accounts.filter((a) => a.owner === principal.id);
+      return ok({ accounts: visible.map(publicAccount) });
     }
     if (path === '/accounts' && method === 'POST') {
-      const account = body as unknown as StoredAccount;
+      // Kopie: `calls` hält den Body des Aufrufs, den der Test später prüft (unverändert, wie ihn der Browser sandte)
+      const account = { ...(body as unknown as StoredAccount) };
       if (!account.password) return { status: 422, body: { detail: 'Password is required' } };
       const existing = s.accounts.find((a) => String(a.id) === String(account.id));
-      if (existing) return this.duplicate(existing);
+      // Wie accounts.py: Details zum Konto nur, wenn der Aufrufer es sehen darf
+      if (existing) return admin || existing.owner === principal.id ? this.duplicate(existing) : this.hiddenDuplicate(existing);
+      // Benutzer: Besitzer ist immer man selbst; Admin: aus dem Formular (leer = ohne Besitzer)
+      account.owner = admin ? account.owner || null : principal.id;
       s.accounts.push(account);
       return { status: 201, body: { status: 'created', account: publicAccount(account) } };
     }
@@ -221,7 +306,9 @@ export class MockWorker {
         if (clash) return this.duplicate(clash);
         // Leeres Passwort = gespeichertes behalten (PR #15)
         const password = update.password || s.accounts[idx].password;
-        s.accounts[idx] = { ...update, password };
+        // Besitzer bleibt; nur der Admin ändert ihn (und nur, wenn das Formular ihn mitsendet)
+        const owner = admin && 'owner' in update ? update.owner || null : s.accounts[idx].owner;
+        s.accounts[idx] = { ...update, password, owner };
         return ok({ status: 'updated', account: publicAccount(s.accounts[idx]) });
       }
       if (method === 'DELETE') {
@@ -309,13 +396,19 @@ export class MockWorker {
       return ok({ paths: s.platform === 'win32' ? s.mt5Paths : [], platform: s.platform });
     }
     if (path === '/system/update/check' && method === 'GET') {
+      if (!admin) return forbidden;
       return ok({ ...s.update });
     }
     if (path === '/system/update' && method === 'POST') {
+      if (!admin) return forbidden;
       s.update = { ...s.update, has_update: false, local_ver: s.update.remote_ver };
       return ok({ status: 'success', message: 'Güncelleme tamamlandı', restarting: false });
     }
     return null;
+  }
+
+  private hiddenDuplicate(existing: StoredAccount): Reply {
+    return { status: 409, body: { detail: `Account '${existing.id}' already exists` } };
   }
 
   private duplicate(existing: StoredAccount): Reply {

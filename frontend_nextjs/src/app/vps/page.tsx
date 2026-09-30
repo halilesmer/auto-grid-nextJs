@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, RefreshCw, ServerOff } from 'lucide-react';
+import AdminOnly from '@/components/auth/AdminOnly';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import VpsActions from '@/components/vps/VpsActions';
@@ -15,7 +16,7 @@ function withCode(text: string) {
   return text.split('`').map((part, i) => (i % 2 ? <code key={i}>{part}</code> : part));
 }
 
-export default function VpsPage() {
+function VpsView() {
   const vps = useVps();
   const t = useT();
   const fmt = useFormat();
@@ -92,5 +93,13 @@ export default function VpsPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function VpsPage() {
+  return (
+    <AdminOnly>
+      <VpsView />
+    </AdminOnly>
   );
 }

@@ -19,6 +19,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Account } from './types';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useT } from '@/i18n';
+import { usersApi } from '@/services/usersApi';
+import { useIsAdmin } from '@/store/useAuthStore';
 import { isDuplicateAccountError } from './types';
 
 /** Konto-Dropdown + Aktionsmenü als Fragment: die Steuerleiste (page.tsx) legt beide nebeneinander. */
@@ -29,6 +31,7 @@ export default function AccountSelector() {
   const activeAccount = useAccountStore((s) => s.activeAccount);
   const isRunning = useBotRuntimeStore((s) => s.isRunning);
   const setSettings = useSettingsStore((s) => s.setSettings);
+  const isAdmin = useIsAdmin();
 
   const { paths: mt5Paths, isScanning: scanningMt5, scan: scanMT5, error: mt5ScanError } = useMT5Scanner();
   const { fetchAccounts, createAccount, updateAccount, deleteAccount, isLoading } = useAccounts();
@@ -104,6 +107,11 @@ export default function AccountSelector() {
     fetchAccounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Benutzerliste nur für den Admin: Besitzer-Auswahl im Formular und Besitzername im Dropdown
+  useEffect(() => {
+    if (isAdmin) usersApi.fetchUsers().catch(() => {});
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!selectedAccount) return;

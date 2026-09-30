@@ -8,6 +8,8 @@ export interface Account {
   server: string;
   mt5_path: string;
   notes: string;
+  /** Sahip kullanıcının kimliği; boş/yok = yöneticiye ait (worker: accounts.py). */
+  owner?: string | null;
 }
 
 export interface AccountFormData {
@@ -18,6 +20,8 @@ export interface AccountFormData {
   env_type: 'DEMO' | 'LIVE';
   mt5_path: string;
   notes: string;
+  /** Yalnızca yönetici gönderir ve değiştirir (boş = yönetici); kullanıcı için worker yok sayar. */
+  owner: string;
 }
 
 export interface MT5PathOption {
@@ -33,6 +37,7 @@ export interface AccountFormErrors {
   env_type?: string;
   mt5_path?: string;
   notes?: string;
+  owner?: string;
   general?: string;
 }
 
