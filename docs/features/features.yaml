@@ -1131,6 +1131,16 @@ kategorien:
           - „Worker neu starten“ → bestätigen.
         erwartet: Version, Laufzeit und Log erscheinen; nach ~20 s ist der Worker wieder erreichbar und die Laufzeit beginnt von vorn.
 
+      - id: VPS-10
+        titel: Selbstheilung (Tunnel-Watchdog)
+        beschreibung: Die geplante Aufgabe AutoGrid-Tunnel (setup_vps.ps1, alle 5 min) führt ops/windows/tunnel_watchdog.ps1 aus und prüft, ob die öffentliche ngrok-URL (NGROK_DOMAIN) /api/system/platform beantwortet (401/403 zählt als erreichbar). Wenn nicht und der Worker lokal antwortet, beendet sie ngrok (run_ngrok_watchdog.bat startet ihn neu); antwortet auch der Worker nicht, erst abwarten (Neustart-Schleife), dann Worker + ngrok über AutoGrid-Start. Nach 3 Fehlschlägen in Folge Reboot per shutdown /r – höchstens einmal pro Stunde und 3-mal in 24 h, nicht ohne Internet und nicht bei ERR_NGROK_334 (Domain woanders online); nichts in den ersten 10 min nach dem Start und während eines Updates. Der Fehlschlag wird vor der Aktion gespeichert (Zeiten in UTC, Datei atomar ersetzt). Kein Fernzugriff nötig; die Aufgabe hat höchste Rechte nur für den Reboot, ruft nie git auf und startet Worker/ngrok nie selbst. Zustand in data/tunnel_watchdog.json, Log logs/tunnel_watchdog.log; die Seite „VPS“ zeigt „Selbstheilung“ in der ngrok-Kachel (Warnung bei Tunnel-Fehlschlägen, „keine Prüfung seit n min“ wenn die Aufgabe nicht mehr läuft, letzter Auto-Reboot) und den Log-Tab „Tunnel“.
+        code: [worker_python/ops/windows/tunnel_watchdog.ps1, worker_python/ops/windows/setup_vps.ps1, worker_python/ops/windows/vps.ps1, frontend_nextjs/src/components/vps/VpsStatusPanel.tsx, frontend_nextjs/src/components/vps/VpsLogViewer.tsx]
+        tiers: [unit, e2e, manuell]
+        pruefung:
+          - Auf dem VPS in einer Administrator-PowerShell setup_vps.ps1 -SkipAutoLogon -SkipRepoOwnership erneut ausführen, dann tunnel_watchdog.ps1 -DryRun.
+          - "Nur mit Absprache: ngrok.exe im Task-Manager beenden und das ngrok-Fenster schließen (keine Neustart-Schleife mehr), ~5-10 min warten."
+        erwartet: "DryRun meldet keinen Fehler bzw. „AKTION: ngrok neu starten.“, wenn der Tunnel weg ist. Nach dem Schließen startet der Watchdog Worker + ngrok über AutoGrid-Start, die URL antwortet wieder, und die Seite „VPS“ zeigt „Selbstheilung: URL erreichbar“ sowie die Einträge im Log-Tab „Tunnel“."
+
   # ---------------------------------------------------------------------------
   - id: UI
     titel: Oberfläche

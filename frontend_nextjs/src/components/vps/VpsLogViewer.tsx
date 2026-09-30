@@ -13,11 +13,13 @@ const LABEL_KEYS: Record<VpsLog, MessageKey> = {
   worker: 'vps.log.tab.worker',
   ngrok: 'vps.log.tab.ngrok',
   update: 'vps.log.tab.update',
+  tunnel: 'vps.log.tab.tunnel',
 };
 const HINT_KEYS: Record<VpsLog, MessageKey> = {
   worker: 'vps.log.tab.worker.hint',
   ngrok: 'vps.log.tab.ngrok.hint',
   update: 'vps.log.tab.update.hint',
+  tunnel: 'vps.log.tab.tunnel.hint',
 };
 
 // Beide Logdateien schreiben erst die Neustart-Schleifen aus start.bat

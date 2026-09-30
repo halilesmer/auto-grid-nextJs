@@ -20,6 +20,9 @@
 #   6. Geplante Aufgaben (normaler Benutzer, OHNE hoechste Rechte):
 #        AutoGrid-Start   bei Anmeldung -> start.bat (Worker + ngrok); auch "Worker neu starten"
 #        AutoGrid-Update  nur auf Abruf -> vps.ps1 update-local (git pull + pip + start.bat)
+#   7. Tunnel-Watchdog AutoGrid-Tunnel alle 5 Minuten -> tunnel_watchdog.ps1 (prueft die oeffentliche
+#      ngrok-URL, startet ngrok neu und rebootet den VPS nach mehreren Fehlschlaegen). Laeuft mit
+#      hoechsten Rechten (fuer den Reboot), ruft aber nie git auf; -SkipTunnelWatchdog laesst ihn weg.
 #
 # Danach: git auf dem VPS NIE als Administrator ausfuehren. Updates nur ueber das Dashboard
 # bzw. die VPS-Seite im Mac-Frontend (oder automatisch, AUTO_UPDATE_MINUTES).
@@ -29,7 +32,8 @@ param(
     # Windows-Benutzer, unter dem MT5 und der Worker laufen (Standard: der aktuelle)
     [string]$User = $env:USERNAME,
     [switch]$SkipAutoLogon,
-    [switch]$SkipRepoOwnership
+    [switch]$SkipRepoOwnership,
+    [switch]$SkipTunnelWatchdog
 )
 
 $ErrorActionPreference = 'Stop'
@@ -247,6 +251,27 @@ $updateAction = New-ScheduledTaskAction -Execute 'powershell.exe' `
 Register-ScheduledTask -TaskName 'AutoGrid-Update' -Action $updateAction `
     -Principal $principal -Settings $settings -Force | Out-Null
 Ok 'AutoGrid-Update: auf Abruf (Update, wenn der Worker nicht laeuft)'
+
+# --------------------------------------------------------------------------- 7. Tunnel-Watchdog
+Step 'Tunnel-Watchdog (Selbstheilung ohne Fernzugriff)'
+if ($SkipTunnelWatchdog) {
+    Warn 'uebersprungen (-SkipTunnelWatchdog)'
+} else {
+    # Hoechste Rechte nur fuer shutdown /r. Das Skript startet Worker/ngrok nie selbst (nur ueber
+    # AutoGrid-Start, RunLevel Limited) und ruft nie git auf - es entstehen keine Admin-Prozesse.
+    $tunnelPrincipal = New-ScheduledTaskPrincipal -UserId $Account -LogonType Interactive -RunLevel Highest
+    $tunnelSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+        -ExecutionTimeLimit (New-TimeSpan -Minutes 4) -MultipleInstances IgnoreNew -StartWhenAvailable
+    $tunnel = Join-Path $PSScriptRoot 'tunnel_watchdog.ps1'
+    $tunnelAction = New-ScheduledTaskAction -Execute 'powershell.exe' `
+        -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$tunnel`"" -WorkingDirectory $WorkerDir
+    # Ohne -RepetitionDuration wiederholt sich der Ausloeser unbegrenzt (auch nach einem Reboot)
+    $tunnelTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5)
+    Register-ScheduledTask -TaskName 'AutoGrid-Tunnel' -Action $tunnelAction -Trigger $tunnelTrigger `
+        -Principal $tunnelPrincipal -Settings $tunnelSettings -Force | Out-Null
+    Ok 'AutoGrid-Tunnel: alle 5 min oeffentliche ngrok-URL pruefen, ngrok neu starten, notfalls Reboot'
+    Ok "Log: $WorkerDir\logs\tunnel_watchdog.log"
+}
 
 $startup = [Environment]::GetFolderPath('Startup')
 $old = @(Get-ChildItem $startup -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*start*' })

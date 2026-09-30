@@ -172,7 +172,7 @@ export default defineArea(
     'vps.tile.worker.hint':
       'FastAPI worker’ının (uvicorn) durumu; botları o yönetir. “Yanıt vermiyor” = port açık ama cevap gelmiyor.',
     'vps.tile.ngrok.hint':
-      'ngrok tüneli arayüzü internet üzerinden worker’a bağlar. Çevrimdışıysa arayüz worker’a ulaşamaz.',
+      'ngrok tüneli arayüzü internet üzerinden worker’a bağlar. Çevrimdışıysa arayüz worker’a ulaşamaz. Kendini onarma (AutoGrid-Tunnel görevi): URL 5 dakikada bir kontrol edilir, cevap yoksa ngrok yeniden başlatılır, 3 kez üst üste başarısız olursa VPS yeniden başlatılır (en fazla saatte bir, günde 3 kez).',
     'vps.tile.bots.hint': 'VPS’te çalışan bot süreçleri (hesap başına bir tane) ve açık MT5 terminali sayısı.',
     'vps.tile.version.hint':
       'VPS’teki kurulu sürüm ile git dalı/commit’i ve son güncelleme zamanı. Dal “main” değilse uyarı gösterilir; otomatik güncelleme main’den çeker.',
@@ -193,6 +193,7 @@ export default defineArea(
     'vps.log.tab.worker.hint': 'Worker konsol logu (uvicorn, worker_console.log).',
     'vps.log.tab.ngrok.hint': 'ngrok tünelinin logu (ngrok.log).',
     'vps.log.tab.update.hint': 'Otomatik güncelleme görevinin logu.',
+    'vps.log.tab.tunnel.hint': 'Tünel watchdog’unun logu (tunnel_watchdog.log): herkese açık ngrok URL’si 5 dakikada bir kontrol edilir; hatalar, ngrok yeniden başlatmaları ve otomatik VPS yeniden başlatmaları burada görünür.',
     'vps.log.refresh.hint': 'Logu VPS’ten yeniden çeker (otomatik yenileme de düzenli çalışır).',
 
     // --- Bölge: başlık ve panel ---
@@ -517,7 +518,7 @@ export default defineArea(
     'vps.tile.worker.hint':
       'State of the FastAPI worker (uvicorn), which manages the bots. “Not responding” = port is open but no answer.',
     'vps.tile.ngrok.hint':
-      'The ngrok tunnel connects the UI to the worker over the internet. If it is offline the UI cannot reach the worker.',
+      'The ngrok tunnel connects the UI to the worker over the internet. If it is offline the UI cannot reach the worker. Self-healing (task AutoGrid-Tunnel): the URL is checked every 5 minutes; without an answer ngrok is restarted, and after 3 failures in a row the VPS reboots itself (at most once an hour, 3 times a day).',
     'vps.tile.bots.hint': 'Bot processes running on the VPS (one per account) and the number of open MT5 terminals.',
     'vps.tile.version.hint':
       'Installed version on the VPS with its git branch/commit and when it was last updated. A warning shows if the branch is not “main”; auto-update pulls from main.',
@@ -538,6 +539,7 @@ export default defineArea(
     'vps.log.tab.worker.hint': 'Worker console log (uvicorn, worker_console.log).',
     'vps.log.tab.ngrok.hint': 'Log of the ngrok tunnel (ngrok.log).',
     'vps.log.tab.update.hint': 'Log of the automatic update task.',
+    'vps.log.tab.tunnel.hint': 'Log of the tunnel watchdog (tunnel_watchdog.log): the public ngrok URL is checked every 5 minutes; failures, ngrok restarts and automatic VPS reboots show up here.',
     'vps.log.refresh.hint': 'Fetches the log from the VPS again (it also refreshes regularly on its own).',
 
     // --- Zone: header and panel ---
@@ -862,7 +864,7 @@ export default defineArea(
     'vps.tile.worker.hint':
       'Zustand des FastAPI-Workers (uvicorn), der die Bots verwaltet. „Antwortet nicht“ = Port offen, aber keine Antwort.',
     'vps.tile.ngrok.hint':
-      'Der ngrok-Tunnel verbindet die Oberfläche über das Internet mit dem Worker. Ist er offline, erreicht die Oberfläche den Worker nicht.',
+      'Der ngrok-Tunnel verbindet die Oberfläche über das Internet mit dem Worker. Ist er offline, erreicht die Oberfläche den Worker nicht. Selbstheilung (Aufgabe AutoGrid-Tunnel): Die URL wird alle 5 Minuten geprüft; ohne Antwort wird ngrok neu gestartet, nach 3 Fehlschlägen in Folge startet der VPS selbst neu (höchstens einmal pro Stunde, 3-mal am Tag).',
     'vps.tile.bots.hint': 'Auf dem VPS laufende Bot-Prozesse (einer pro Konto) und Anzahl der offenen MT5-Terminals.',
     'vps.tile.version.hint':
       'Installierte Version auf dem VPS mit Git-Branch/Commit und dem Zeitpunkt der letzten Aktualisierung. Ist der Branch nicht „main“, erscheint eine Warnung; das Auto-Update holt von main.',
@@ -883,6 +885,7 @@ export default defineArea(
     'vps.log.tab.worker.hint': 'Worker-Konsolenlog (uvicorn, worker_console.log).',
     'vps.log.tab.ngrok.hint': 'Log des ngrok-Tunnels (ngrok.log).',
     'vps.log.tab.update.hint': 'Log der automatischen Update-Aufgabe.',
+    'vps.log.tab.tunnel.hint': 'Log des Tunnel-Watchdogs (tunnel_watchdog.log): Die öffentliche ngrok-URL wird alle 5 Minuten geprüft; Fehlschläge, ngrok-Neustarts und automatische VPS-Neustarts stehen hier.',
     'vps.log.refresh.hint': 'Holt das Log erneut vom VPS (es aktualisiert sich auch regelmäßig von selbst).',
 
     // --- Zone: Kopf und Panel ---

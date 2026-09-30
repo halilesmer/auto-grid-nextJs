@@ -157,7 +157,7 @@ for (const lang of LOCALES) {
       await mockVps(page);
       await page.goto('/vps');
       await expect(page.getByTestId('vps-log-output')).toBeVisible();
-      await expectTabsReachable(page, page.getByRole('tablist'), 3);
+      await expectTabsReachable(page, page.getByRole('tablist'), 4);
       await expectNoPageOverflow(page);
     });
   });

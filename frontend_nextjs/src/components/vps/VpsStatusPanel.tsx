@@ -50,6 +50,23 @@ export function uptime(minutes: number, t: (key: MessageKey, params?: Record<str
   return t('vps.uptime.days', { n: Math.floor(hours / 24) });
 }
 
+type TFn = (key: MessageKey, params?: Record<string, string | number>) => string;
+
+// Aufgabe läuft alle 5 min; deutlich älter = deaktiviert, keine Sitzung oder Skriptfehler
+const SELF_HEAL_STALE_MINUTES = 15;
+
+// Tunnel-Watchdog (AutoGrid-Tunnel): eingerichtet? prüft er noch? letzte Prüfung ok oder wie oft in Folge fehlgeschlagen?
+function selfHealState(status: VpsStatus, t: TFn): string {
+  if (!status.tasks.tunnel?.exists) return t('vps.tile.selfHeal.missing');
+  const wd = status.tunnel_watchdog;
+  if (!wd || !wd.last_check) return t('vps.tile.selfHeal.pending');
+  if ((wd.check_age_minutes ?? 0) > SELF_HEAL_STALE_MINUTES && status.uptime_minutes > SELF_HEAL_STALE_MINUTES) {
+    return t('vps.tile.selfHeal.stale', { n: wd.check_age_minutes ?? 0 });
+  }
+  if (wd.failures > 0) return t('vps.tile.selfHeal.failing', { n: wd.failures });
+  return wd.last_ok ? t('vps.tile.selfHeal.ok') : t('vps.tile.selfHeal.pending');
+}
+
 export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus | null; sshError: string | null }) {
   const t = useT();
   const fmt = useFormat();
@@ -72,12 +89,16 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
     : worker.listening
       ? t('vps.tile.worker.noAnswer')
       : t('vps.tile.worker.stopped');
-  const ngrokTone: Tone = status.ngrok.running ? 'success' : 'danger';
+  // Tunnel-Prozess läuft, die öffentliche URL antwortet aber nicht (laut Watchdog, Worker lokal ok) -> Warnung
+  const tunnelFailing = !!status.tunnel_watchdog?.failures && status.tunnel_watchdog.last_result === 'tunnel-down';
+  const ngrokTone: Tone = !status.ngrok.running ? 'danger' : tunnelFailing ? 'warning' : 'success';
   const autoUpdate =
     status.auto_update_minutes === '0'
       ? t('vps.tile.autoUpdate.off')
       : t('vps.tile.autoUpdate.every', { minutes: status.auto_update_minutes || 5 });
   const on = (v: boolean) => (v ? t('vps.tile.on') : t('vps.tile.off'));
+  const selfHeal = selfHealState(status, t);
+  const lastReboot = status.tunnel_watchdog?.reboots.at(-1);
   const loop = (v: boolean) => t('vps.tile.loop', { state: v ? t('vps.tile.loop.active') : t('vps.tile.loop.missing') });
 
   return (
@@ -108,6 +129,8 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
         >
           {status.ngrok.public_url && <p className="truncate font-mono">{status.ngrok.public_url}</p>}
           <p>{loop(status.ngrok_watchdog)}</p>
+          <p data-testid="vps-self-heal">{t('vps.tile.selfHeal', { state: selfHeal })}</p>
+          {lastReboot && <p>{t('vps.tile.selfHeal.lastReboot', { time: fmt.dateTime(lastReboot) })}</p>}
         </Tile>
 
         <Tile
