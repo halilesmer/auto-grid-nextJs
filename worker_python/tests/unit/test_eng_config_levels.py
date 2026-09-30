@@ -26,6 +26,50 @@ def test_lot_wird_auf_001_bis_5_begrenzt():
     assert extract_zone_config(make_zone(lot_size=0.37), 0).lot_size == 0.37
 
 
+def _eurusd_min_01(fake_mt5):
+    """Broker, dessen kleinster Lot 0,1 ist (Schritt 0,1) – nicht die üblichen 0,01."""
+    fake_mt5.add_symbol("EURUSD", bid=1.1, digits=5, point=0.00001, volume_min=0.1, volume_step=0.1)
+    return dict(fake_mt5.symbols)
+
+
+@pytest.mark.feature("ENG-04")
+def test_lot_ist_nie_0_sondern_mindestens_das_broker_minimum(fake_mt5):
+    infos = _eurusd_min_01(fake_mt5)
+    fake_mt5.add_symbol("GER40", bid=18000, volume_min=1.0, volume_step=1.0)
+    infos = dict(fake_mt5.symbols)
+
+    def lot(symbol, raw):
+        return extract_zone_config(make_zone(symbol=symbol, lot_size=raw), 0, symbol_infos=infos).lot_size
+
+    # 0, negativ, leer und Text werden bei jedem Symbol zu dessen Minimum
+    for raw in (0, 0.0, -1, None, "", "abc"):
+        assert lot("EURUSD", raw) == 0.1
+        assert lot("USOUSD", raw) == 0.01  # USOUSD: Minimum 0,01
+        assert lot("GER40", raw) == 1.0
+    # Unter dem Minimum des jeweiligen Symbols wird angehoben, darüber bleibt der Wert
+    assert [lot("EURUSD", raw) for raw in (0.01, 0.04)] == [0.1, 0.1]
+    assert [lot("GER40", raw) for raw in (0.01, 0.5)] == [1.0, 1.0]
+    assert [lot("USOUSD", raw) for raw in (0.01, 0.04)] == [0.01, 0.04]
+    assert lot("EURUSD", 0.3) == 0.3
+    assert lot("EURUSD", 0.37) == 0.4  # Schritt 0,1 ab Minimum
+    assert lot("EURUSD", 12) == 5.0  # feste Obergrenze der Engine bleibt
+
+
+@pytest.mark.feature("ENG-04")
+def test_sell_lot_hat_dasselbe_minimum_und_faellt_auf_buy_lot_zurueck(fake_mt5):
+    infos = _eurusd_min_01(fake_mt5)
+
+    def cfg(**zone):
+        return extract_zone_config(make_zone(symbol="EURUSD", sync_buy_sell=False, **zone), 0, symbol_infos=infos)
+
+    assert (cfg(lot_size=0.3, sell_lot_size=0).lot_size, cfg(lot_size=0.3, sell_lot_size=0).sell_lot_size) == (0.3, 0.1)
+    assert cfg(lot_size=0.01, sell_lot_size=0.02).sell_lot_size == 0.1
+    assert cfg(lot_size=0.3, sell_lot_size=None).sell_lot_size == 0.3  # leer → BUY-Lot wie bei fehlendem Schlüssel
+    # Sync: SELL übernimmt den (angehobenen) BUY-Lot
+    synced = extract_zone_config(make_zone(symbol="EURUSD", lot_size=0), 0, symbol_infos=infos)
+    assert (synced.lot_size, synced.sell_lot_size) == (0.1, 0.1)
+
+
 @pytest.mark.feature("ENG-04")
 def test_ungueltige_zonen_werden_abgelehnt():
     with pytest.raises(InvalidZoneConfigError):

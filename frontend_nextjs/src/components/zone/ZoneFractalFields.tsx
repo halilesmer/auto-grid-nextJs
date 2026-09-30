@@ -69,11 +69,12 @@ export function ZoneFractalFields({
         >
           <NumberInput
             min={symbolConfig.volMin}
+            max={Number.isFinite(symbolConfig.volMax) ? symbolConfig.volMax : undefined}
             step={symbolConfig.volStep}
             maxDecimals={volPrecision}
             value={zone.lot_size}
             onChange={(e) => handleChange('lot_size', e.target.value, zone, symbolConfig, update)}
-            onBlur={() => handleBlur('lot_size', zone.lot_size, symbolConfig.volStep, volPrecision, update)}
+            onBlur={() => handleBlur('lot_size', zone.lot_size, symbolConfig.volStep, volPrecision, update, symbolConfig)}
             className="input-s"
           />
         </InputField>
@@ -81,11 +82,12 @@ export function ZoneFractalFields({
           <InputField label={t('zone.field.sellLot')} hint={t('zone.field.sellLot.hint')}>
             <NumberInput
               min={symbolConfig.volMin}
+              max={Number.isFinite(symbolConfig.volMax) ? symbolConfig.volMax : undefined}
               step={symbolConfig.volStep}
               maxDecimals={volPrecision}
               value={zone.sell_lot_size}
               onChange={(e) => handleChange('sell_lot_size', e.target.value, zone, symbolConfig, update)}
-              onBlur={() => handleBlur('sell_lot_size', zone.sell_lot_size, symbolConfig.volStep, volPrecision, update)}
+              onBlur={() => handleBlur('sell_lot_size', zone.sell_lot_size, symbolConfig.volStep, volPrecision, update, symbolConfig)}
               className="input-s"
             />
           </InputField>

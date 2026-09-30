@@ -11,16 +11,51 @@ class TradeState:
     last_order_ticket = 0
 
 
+def _info_value(info, names, default):
+    """Sembol bilgisinden ilk dolu alanı okur (nesne özelliği ya da dict anahtarı)."""
+    for name in names:
+        value = info.get(name) if isinstance(info, dict) else getattr(info, name, None)
+        if value:
+            return float(value)
+    return default
+
+
+def _decimals(x: float) -> int:
+    text = f"{x:.10f}".rstrip("0")
+    return len(text.split(".")[1]) if "." in text else 0
+
+
+def snap_volume(volume, info):
+    """Lotu sembolün broker kurallarına oturtur: en az volume_min (0, negatif veya geçersiz
+    değer de volume_min olur), en çok volume_max; adımlar volume_min'den başlayarak sayılır.
+    Grid'in tek lot mantığı: `grid_helpers.normalize_volume` ve `normalize_volume` bunu kullanır."""
+    try:
+        volume = float(volume)
+    except (TypeError, ValueError):
+        volume = 0.0
+    if volume != volume or volume in (float("inf"), float("-inf")):
+        volume = 0.0
+    vol_min = _info_value(info, ("volume_min", "vol_min"), 0.01)
+    vol_max = max(_info_value(info, ("volume_max", "vol_max"), float("inf")), vol_min)
+    vol_step = _info_value(info, ("volume_step", "vol_step"), 0.0)
+
+    volume = max(vol_min, min(volume, vol_max))
+    if vol_step <= 0:
+        return round(volume, max(2, _decimals(vol_min)))
+    # + 1e-9 wie im UI (zoneHelpers.normalizeLot): halbe Schritte einheitlich aufrunden
+    steps = round((volume - vol_min) / vol_step + 1e-9)
+    while steps > 0 and vol_min + steps * vol_step > vol_max + 1e-9:
+        steps -= 1
+    return round(vol_min + steps * vol_step, max(_decimals(vol_step), _decimals(vol_min)))
+
+
 def normalize_volume(mt5_module, symbol, volume):
-    """Lot miktarını MT5'in kabul edeceği tam formata zorlar (Örn: 0.020000001 -> 0.02)"""
+    """Lot miktarını MT5'in kabul edeceği tam formata zorlar (Örn: 0.020000001 -> 0.02).
+    volume_min'in altı (0 dahil) volume_min'e, volume_max'ın üstü volume_max'a çekilir."""
     symbol_info = mt5_module.symbol_info(symbol)
     if symbol_info is None:
         return float(volume)
-    step = getattr(symbol_info, "volume_step", 0.01)
-    if step and step > 0:
-        rounded_vol = round(volume / step) * step
-        return float(f"{rounded_vol:.6f}")
-    return float(volume)
+    return snap_volume(volume, symbol_info)
 
 
 def _format_request_prices(request: dict) -> str:

@@ -113,6 +113,8 @@ test.describe('SYM Symbole', () => {
     await expect(dashboard.zoneField(msg('zone.field.minPrice'))).toHaveAttribute('step', '0.00001');
     await expect(dashboard.zoneField(msg('chart.zone.lot'))).toHaveAttribute('step', '0.1');
     await expect(dashboard.zoneField(msg('chart.zone.lot'))).toHaveAttribute('min', '0.1');
+    // Der Default-Lot 0.01 liegt unter dem Minimum des Symbols → auf 0.1 angehoben (nie 0)
+    await expect(dashboard.zoneField(msg('chart.zone.lot'))).toHaveValue('0.1');
 
     await input.fill('FOOBAR');
     await expect(dashboard.zone().getByText(msg('zone.field.symbolInvalid'))).toBeVisible();

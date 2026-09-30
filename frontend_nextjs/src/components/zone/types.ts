@@ -16,13 +16,13 @@ export type HandleBlurFn = (
   value: number | undefined,
   step: number,
   precision: number,
-  update: FieldUpdateFn
+  update: FieldUpdateFn,
+  symbolConfig?: SymbolConfig
 ) => void;
 
 export type SyncZonePrecisionFn = (
   zone: ZoneSettings,
   symbolConfig: SymbolConfig,
-  volPrecision: number,
   update: FieldUpdateFn
 ) => void;
 
