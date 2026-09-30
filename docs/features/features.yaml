@@ -333,11 +333,11 @@ kategorien:
 
       - id: SET-03
         titel: „Alle speichern“ + Dirty-Tracking
-        beschreibung: Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert).
+        beschreibung: Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert). Auch per Cmd+Enter (Mac) / Strg+Enter (Windows); das Kürzel steht als Badge neben „Kaydet“.
         code: [frontend_nextjs/src/components/dashboard/SaveSettingsBar.tsx, frontend_nextjs/src/store/useSettingsStore.ts]
         tiers: [e2e]
         pruefung:
-          - Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
+          - Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“ oder Cmd/Strg+Enter.
         erwartet: Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
 
       - id: SET-04
@@ -553,7 +553,18 @@ kategorien:
           - Zone auf dem DEMO-Konto auf „Fraktal“ stellen, H4, Ausbruch, SL „Automatisch (ATR)“, speichern, Bot starten.
           - Im MT5-Chart (H4) den Indikator „Fractals“ und ATR(14) einblenden und mit den Pending Orders vergleichen.
           - Eine Fraktal-Order in MT5 von Hand löschen.
-        erwartet: Je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
+        erwartet: Mit Anzahl 1 (Standard, siehe ZON-16) je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
+
+      - id: ZON-16
+        titel: Fraktal – Anzahl Orders je Richtung
+        beschreibung: Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
+        code: [frontend_nextjs/src/components/zone/ZoneFractalFields.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/utils/zoneHelpers.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten.
+          - Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen.
+          - Eine der Orders in MT5 von Hand löschen.
+        erwartet: Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
 
   # ---------------------------------------------------------------------------
   - id: BOT
@@ -802,7 +813,7 @@ kategorien:
 
       - id: ENG-20
         titel: Fraktal-Orders (Ausbruch / Abpraller)
-        beschreibung: Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit}.
+        beschreibung: Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit}.
         code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/handler.py, worker_python/src/core/grid_execution/config.py, worker_python/src/core/grid_orders.py]
         tiers: [unit]
         pruefung:
@@ -811,7 +822,7 @@ kategorien:
 
       - id: ENG-21
         titel: Fraktal-Order verschieben / löschen
-        beschreibung: Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (immer höchstens eine je Seite). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, gilt es als verbraucht – die Order wird gelöscht und nicht neu gesetzt. Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
+        beschreibung: Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (mit Anzahl 1 immer höchstens eine je Seite, sonst wandert das Fenster der letzten N, siehe ENG-26). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, gilt es als verbraucht – die Order wird gelöscht und nicht neu gesetzt. Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
         code: [worker_python/src/core/grid_execution/fractal_entry.py]
         tiers: [unit]
         pruefung:
@@ -838,7 +849,7 @@ kategorien:
 
       - id: ENG-24
         titel: Manuelle Eingriffe in MT5 respektieren
-        beschreibung: Verschwindet eine Fraktal-Order, ohne dass der Bot sie gelöscht hat (gefüllt, in MT5 von Hand gelöscht, abgelaufen), oder gibt es eine Position dieses Fraktals, gilt das Fraktal als erledigt – auch nach dem Schließen der Position wird dafür keine neue Order gesetzt. Der Merker (Zone + Seite → Kerzenzeit) steht in data/fractal_state_<Konto>.json und übersteht Neustarts; ein neueres Fraktal öffnet wieder eine Order. Vom Bot selbst gelöschte Orders (Zone pausiert, Max. Positionen, Verschieben) zählen nicht.
+        beschreibung: Verschwindet eine Fraktal-Order, ohne dass der Bot sie gelöscht hat (gefüllt, in MT5 von Hand gelöscht, abgelaufen), oder gibt es eine Position dieses Fraktals, gilt das Fraktal als erledigt – auch nach dem Schließen der Position wird dafür keine neue Order gesetzt. Der Merker (Zone + Seite → Kerzenzeiten der erledigten Fraktale) steht in data/fractal_state_<Konto>.json und übersteht Neustarts; ein neueres Fraktal öffnet wieder eine Order. Vom Bot selbst gelöschte Orders (Zone pausiert, Max. Positionen, Verschieben) zählen nicht.
         code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_orders.py, worker_python/src/utils/paths.py]
         tiers: [unit]
         pruefung:
@@ -853,6 +864,15 @@ kategorien:
         pruefung:
           - Nicht manuell testen (Order-Löschung von außen lässt sich nur mit einem zweiten Terminal nachstellen).
           - Im Ernstfall - Robot-Log nach „MT5'te kayboldu“ bzw. „Emir seli durduruldu“ durchsuchen; der Historien-Status zeigt, wer löscht.
+        erwartet: Abgedeckt durch Unit-Tests.
+
+      - id: ENG-26
+        titel: Fraktal – mehrere Orders je Richtung
+        beschreibung: fractal_order_count (BUY) und sell_fractal_order_count (SELL, nur bei BOTH ohne sync_buy_sell, sonst = BUY-Wert) legen fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (1–20, Standard 1). Betrachtet werden nur die letzten N Fraktale der Seite - ist eines erreicht, ausgelöst, von Hand gelöscht oder außerhalb des Preisbereichs, bleibt sein Platz leer, ältere rücken nicht nach. Nur Pending Orders zählen - „Max. Positionen“ wird wie bisher erst in der nächsten Runde geprüft, lösen mehrere Orders zwischen zwei Runden aus, kann es kurz überschritten werden. Ein neues Fraktal schiebt das Fenster weiter, die Order des ältesten wird gelöscht. „Erledigt“ wird je Fraktal gemerkt, damit eine ausgelöste Order die übrigen nicht löscht; alte Zustandsdateien mit nur einer Kerzenzeit je Seite werden weiter gelesen.
+        code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/config.py, worker_python/src/core/state.py]
+        tiers: [unit]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-16).
         erwartet: Abgedeckt durch Unit-Tests.
 
   # ---------------------------------------------------------------------------

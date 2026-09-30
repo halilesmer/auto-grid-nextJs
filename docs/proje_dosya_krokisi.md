@@ -279,7 +279,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 | `grid_execution/` (paket) | **Grid Motoru** | Kayan Ağ (Sliding Grid) | Grid step/anchor hesaplama, emir yerleştirme/silme, TP/SL yönetimi |
 | &nbsp;&nbsp;`├── config.py` | | Grid Konfig | Grid parametreleri, validation |
 | &nbsp;&nbsp;`├── exceptions.py` | | İstisnalar | Grid özel hata sınıfları |
-| &nbsp;&nbsp;`├── fractal_entry.py` | | Fraktal Girişi | `entry_mode: "fractal"`: taraf başına en yeni fraktala tek bekleyen emir (Stop/Limit), yeni fraktalda taşıma, elle silinen emri `data/fractal_state_<hesap>.json` ile hatırlama |
+| &nbsp;&nbsp;`├── fractal_entry.py` | | Fraktal Girişi | `entry_mode: "fractal"`: yön başına en yeni N fraktala (`fractal_order_count` / `sell_fractal_order_count`, varsayılan 1) birer bekleyen emir (Stop/Limit), yeni fraktalda taşıma, elle silinen emri `data/fractal_state_<hesap>.json` ile hatırlama |
 | &nbsp;&nbsp;`├── fractal_signals.py` | | Göstergeler | MT5 ile aynı Fraktal, ATR (SMA) ve Parabolic SAR |
 | &nbsp;&nbsp;`├── handler.py` | | Ana Handler | Grid işlem koordinasyonu |
 | &nbsp;&nbsp;`├── levels.py` | | Seviyeler | Grid seviye/fiyat hesaplamaları |
