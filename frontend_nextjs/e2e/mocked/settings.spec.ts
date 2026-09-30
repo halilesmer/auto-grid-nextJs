@@ -68,6 +68,22 @@ test.describe('SET Einstellungen', () => {
     expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ max_price: 120, min_price: 90 });
   });
 
+  test('Abbrechen verwirft ungespeicherte Änderungen', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const bar = page.getByTestId('unsaved-bar');
+    const maxPrice = dashboard.zoneField(msg('zone.field.maxPrice'));
+    const before = await maxPrice.inputValue();
+
+    await maxPrice.fill('120');
+    await expect(bar).toBeVisible();
+    await bar.getByRole('button', { name: msg('common.cancel') }).click();
+
+    await expect(bar).toBeHidden();
+    await expect(maxPrice).toHaveValue(before);
+    await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
+    expect(worker.callsTo('POST', `/api/settings/${DEMO_ID}`)).toHaveLength(0);
+  });
+
   test('Speicherfehler wird angezeigt, Änderung bleibt ungespeichert', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     worker.overrides.set(`POST /api/settings/${DEMO_ID}`, { status: 500, body: { detail: 'Disk voll' } });

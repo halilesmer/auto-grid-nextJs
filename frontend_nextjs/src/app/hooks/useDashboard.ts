@@ -5,6 +5,7 @@ import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
 import { t } from '@/i18n';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
 // Worker güncellemeden sonra ~1,5 sn içinde kapanır, .bat 3 sn sonra yeniden başlatır
@@ -37,6 +38,7 @@ interface UseDashboardReturn {
   isLive: boolean;
   currentSettingsStr: string;
   handleSaveAll: () => Promise<void>;
+  handleDiscard: () => void;
   markZoneSaved: (zone: ZoneSettings) => void;
   handleShutdown: () => Promise<void>;
   handleCheckUpdates: () => Promise<void>;
@@ -198,6 +200,27 @@ export function useDashboard({
     });
   }, []);
 
+  // Verwirft ungespeicherte Änderungen; vom Vergleich ausgenommene Felder (Kontrollintervall,
+  // is_active) haben eigene Speichern-Wege und bleiben unverändert.
+  const handleDiscard = useCallback(() => {
+    if (!savedSettingsStr || !settings) return;
+    try {
+      const saved = JSON.parse(savedSettingsStr) as GlobalSettings;
+      const currentZones = new Map((settings.ZONES ?? []).map((z) => [z.id, z]));
+      const restored: GlobalSettings = {
+        ...saved,
+        LOOP_INTERVAL_SECONDS: settings.LOOP_INTERVAL_SECONDS,
+        ZONES: (saved.ZONES ?? []).map((z) => {
+          const cur = currentZones.get(z.id);
+          return cur ? { ...z, is_active: cur.is_active } : z;
+        }),
+      };
+      useSettingsStore.getState().setSettings(restored);
+    } catch {
+      // ungültiger Referenzstand: nichts verwerfen
+    }
+  }, [savedSettingsStr, settings]);
+
   const handleSaveAll = useCallback(async () => {
     if (!selectedAccount || !settings) return;
     setSaveAllLoading(true);
@@ -230,6 +253,7 @@ export function useDashboard({
       isLive,
       currentSettingsStr,
       handleSaveAll,
+      handleDiscard,
       markZoneSaved,
       handleShutdown,
       handleCheckUpdates,
@@ -252,6 +276,7 @@ export function useDashboard({
       isLive,
       currentSettingsStr,
       handleSaveAll,
+      handleDiscard,
       markZoneSaved,
       handleShutdown,
       handleCheckUpdates,

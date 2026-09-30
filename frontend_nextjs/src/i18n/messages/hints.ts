@@ -83,6 +83,7 @@ export default defineArea(
     'dashboard.shutdown.confirm.hint':
       'Tüm botları durdurur ve arayüzü kapatır. Açık pozisyonlar broker’da kalır.',
     'saveBar.saveAll.hint': 'Tüm bölgelerdeki kaydedilmemiş değişiklikleri kaydeder.',
+    'saveBar.discard.hint': 'Kaydedilmemiş tüm değişiklikleri atar ve son kaydedilen duruma döner.',
     'saveBar.saved.hint': 'Tüm değişiklikler kayıtlı.',
     'saveBar.saving.hint': 'Kaydediliyor…',
     'metrics.price.hint': 'Bölge sembolünün anlık fiyatı.',
@@ -403,6 +404,7 @@ export default defineArea(
     'dashboard.shutdown.confirm.hint':
       'Stops all bots and closes the interface. Open positions stay at the broker.',
     'saveBar.saveAll.hint': 'Saves all unsaved changes in all zones.',
+    'saveBar.discard.hint': 'Discards all unsaved changes and restores the last saved state.',
     'saveBar.saved.hint': 'All changes are saved.',
     'saveBar.saving.hint': 'Saving…',
     'metrics.price.hint': 'Current price of the zone symbol.',
@@ -723,6 +725,7 @@ export default defineArea(
     'dashboard.shutdown.confirm.hint':
       'Stoppt alle Bots und schließt die Oberfläche. Offene Positionen bleiben beim Broker.',
     'saveBar.saveAll.hint': 'Speichert alle ungespeicherten Änderungen in allen Zonen.',
+    'saveBar.discard.hint': 'Verwirft alle ungespeicherten Änderungen und stellt den zuletzt gespeicherten Stand wieder her.',
     'saveBar.saved.hint': 'Alle Änderungen sind gespeichert.',
     'saveBar.saving.hint': 'Wird gespeichert…',
     'metrics.price.hint': 'Aktueller Preis des Zonen-Symbols.',
