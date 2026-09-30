@@ -31,7 +31,6 @@ interface UseDashboardReturn {
   savedSettingsStr: string | null;
   shutdownOpen: boolean;
   shuttingDown: boolean;
-  showSysInfo: boolean;
   updateOpen: boolean;
   updateResult: UpdateResult | null;
   isDirty: boolean;
@@ -43,7 +42,6 @@ interface UseDashboardReturn {
   handleCheckUpdates: () => Promise<void>;
   handleApplyUpdate: () => Promise<void>;
   setSaveAllError: (error: string) => void;
-  setShowSysInfo: (show: boolean) => void;
   setShutdownOpen: (open: boolean) => void;
   setUpdateOpen: (open: boolean) => void;
   setUpdateResult: (result: UpdateResult | null) => void;
@@ -62,7 +60,6 @@ export function useDashboard({
   const [savedSettingsStr, setSavedSettingsStr] = useState<string | null>(null);
   const [shutdownOpen, setShutdownOpen] = useState(false);
   const [shuttingDown, setShuttingDown] = useState(false);
-  const [showSysInfo, setShowSysInfo] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
 
@@ -225,7 +222,6 @@ export function useDashboard({
       savedSettingsStr,
       shutdownOpen,
       shuttingDown,
-      showSysInfo,
       updateOpen,
       updateResult,
       isDirty,
@@ -237,7 +233,6 @@ export function useDashboard({
       handleCheckUpdates,
       handleApplyUpdate,
       setSaveAllError,
-      setShowSysInfo,
       setShutdownOpen,
       setUpdateOpen,
       setUpdateResult,
@@ -249,7 +244,6 @@ export function useDashboard({
       savedSettingsStr,
       shutdownOpen,
       shuttingDown,
-      showSysInfo,
       updateOpen,
       updateResult,
       isDirty,

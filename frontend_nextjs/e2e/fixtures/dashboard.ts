@@ -42,6 +42,12 @@ export class Dashboard {
     await expect(this.accountSelect).toHaveAttribute('aria-expanded', 'false');
   }
 
+  /** Öffnet das Kontomenü (⋯ neben der Kontoauswahl): Log, Bearbeiten, Löschen, Neues Konto. */
+  async openAccountMenu(lang: Lang = this.lang) {
+    const trigger = this.page.getByRole('button', { name: msg('account.action.menu', undefined, lang) });
+    if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  }
+
   zone(index = 0): Locator {
     return this.page.getByTestId('zone-card').nth(index);
   }

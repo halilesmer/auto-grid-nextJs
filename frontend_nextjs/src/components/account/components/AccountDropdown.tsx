@@ -1,10 +1,8 @@
 'use client';
 
-import { Wallet } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
-import { FieldLabel } from '@/components/ui/tooltip';
+import { InfoHint } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
-import { EnvTypeBadge } from './EnvTypeBadge';
 import type { Account, AccountDropdownProps } from '../types';
 
 const getAccountKey = (acc: Account) => String(acc.id);
@@ -18,22 +16,13 @@ const filterAccount = (acc: Account, q: string) =>
 export function AccountDropdown({
   accounts,
   selectedAccount,
-  activeAccount,
   onSelect,
   disabled = false,
 }: AccountDropdownProps) {
   const t = useT();
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
-      <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground sm:flex">
-        <Wallet size={16} />
-      </div>
-      <div data-tooltip-scope className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-sm">
-        <FieldLabel
-          label={t('account.label')}
-          hint={t('account.label.hint')}
-          className="text-xs font-medium text-muted-foreground"
-        />
+    <div data-tooltip-scope className="flex min-w-0 flex-1 items-center gap-1.5 sm:w-72 sm:flex-none">
+      <div className="min-w-0 flex-1">
         <Combobox
           items={accounts}
           value={selectedAccount || null}
@@ -63,11 +52,7 @@ export function AccountDropdown({
           aria-label={t('account.select.aria')}
         />
       </div>
-      {activeAccount && (
-        <div className="hidden self-end pb-2 md:block">
-          <EnvTypeBadge envType={activeAccount.env_type as 'DEMO' | 'LIVE'} />
-        </div>
-      )}
+      <InfoHint hint={t('account.label.hint')} />
     </div>
   );
 }

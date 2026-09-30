@@ -99,17 +99,14 @@ test.describe('ACC Konten', () => {
   test('LIVE/TEST-Kennzeichnung', { tag: '@ACC-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.test'));
-    const envBadge = (env: string) => page.locator('main span').filter({ hasText: new RegExp(`^${env}$`) });
-    // Badge steckt im Tooltip-Wrapper (ebenfalls ein <span> mit demselben Text): der innerste ist der letzte
-    await expect(envBadge('DEMO').last()).toBeVisible();
 
     await dashboard.selectAccount(LIVE_ID);
     await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.live'));
-    await expect(envBadge(msg('dashboard.env.live')).last()).toBeVisible();
   });
 
   test('Neues Konto: Pflichtfelder und Anlegen', { tag: '@ACC-02' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(null);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.add') }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: msg('account.dialog.new') })).toBeVisible();
@@ -142,6 +139,7 @@ test.describe('ACC Konten', () => {
 
   test('Doppelter Login: Rückfrage, kein zweites Konto', { tag: '@ACC-03' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(null);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.add') }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByPlaceholder(msg('account.form.name.placeholder')).fill('Doppelt');
@@ -175,6 +173,7 @@ test.describe('ACC Konten', () => {
 
   test('Konto bearbeiten: Passwort bleibt, Änderung bleibt erhalten', { tag: '@ACC-04' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.editTitle') }).click();
     const dialog = page.getByRole('dialog');
     const password = dialog.getByPlaceholder(msg('account.form.password.keep'));
@@ -196,12 +195,14 @@ test.describe('ACC Konten', () => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
+    await dashboard.openAccountMenu();
     await expect(page.getByRole('button', { name: msg('account.action.editBlocked') })).toBeDisabled();
     await expect(page.getByRole('button', { name: msg('account.action.deleteBlocked') })).toBeDisabled();
   });
 
   test('Konto löschen', { tag: '@ACC-05' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.deleteTitle') }).click();
     const modal = page.getByRole('dialog');
     await expect(modal).toContainText(msg('account.delete.message', { name: 'E2E Demo' }));

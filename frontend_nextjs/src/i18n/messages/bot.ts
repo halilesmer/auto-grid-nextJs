@@ -2,8 +2,6 @@ import { defineArea } from './define';
 
 export default defineArea(
   {
-    'bot.title': 'Bot Kontrolü',
-    'bot.subtitle': 'MT5 motor yaşam döngüsü',
     'bot.status.connecting': 'Bağlanıyor…',
     'bot.status.running': 'Çalışıyor',
     'bot.status.processNoMt5': 'Bot süreci çalışıyor – MT5’e bağlı değil',
@@ -49,8 +47,6 @@ export default defineArea(
     'metrics.pending.footer': 'Brokerda bekliyor',
   },
   {
-    'bot.title': 'Bot Controls',
-    'bot.subtitle': 'MT5 engine lifecycle',
     'bot.status.connecting': 'Connecting…',
     'bot.status.running': 'Running',
     'bot.status.processNoMt5': 'Bot process running – not connected to MT5',
@@ -96,8 +92,6 @@ export default defineArea(
     'metrics.pending.footer': 'Waiting at broker',
   },
   {
-    'bot.title': 'Bot-Steuerung',
-    'bot.subtitle': 'MT5-Engine-Lebenszyklus',
     'bot.status.connecting': 'Verbindung wird aufgebaut…',
     'bot.status.running': 'Läuft',
     'bot.status.processNoMt5': 'Bot-Prozess läuft – nicht mit MT5 verbunden',

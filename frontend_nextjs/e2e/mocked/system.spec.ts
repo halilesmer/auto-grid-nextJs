@@ -21,6 +21,7 @@ test.describe('SYS Verbindung', () => {
 
   test('MT5-Scanner und eigener Pfad', { tag: '@SYS-04' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(null);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.add') }).click();
     const dialog = page.getByRole('dialog');
     const select = dialog.getByLabel(msg('account.path.select.aria'));
@@ -45,6 +46,7 @@ test.describe('SYS Verbindung', () => {
   test('Gespeicherter Pfad außerhalb der Scan-Liste öffnet „eigener Pfad“', { tag: '@SYS-04' }, async ({ page, worker, dashboard }) => {
     worker.state.accounts[0].mt5_path = 'D:/Portable/MT5/terminal64.exe';
     await dashboard.open(DEMO_ID);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.editTitle') }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByLabel(msg('account.path.custom'))).toBeChecked();
@@ -98,7 +100,8 @@ test.describe('UPD System', () => {
   test('System herunterfahren stoppt den Bot', { tag: '@UPD-03' }, async ({ page, worker, dashboard }) => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
-    await page.locator('header').getByRole('button', { name: msg('dashboard.shutdown') }).click();
+    await page.getByRole('button', { name: msg('dashboard.sysinfo.title') }).click();
+    await page.getByRole('button', { name: msg('dashboard.shutdown') }).click();
     const modal = page.getByRole('dialog');
     await expect(modal).toContainText(msg('dashboard.shutdown.message'));
     await modal.getByRole('button', { name: msg('dashboard.shutdown.confirm') }).click();

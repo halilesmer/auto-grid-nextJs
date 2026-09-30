@@ -1,12 +1,11 @@
 'use client';
 
-import { Bot, Pause, Play, RotateCcw, Server, UserRound } from 'lucide-react';
+import { Pause, Play, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import ConfirmModal from '@/components/ConfirmModal';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -116,96 +115,78 @@ export default function BotControls() {
         ? { label: t("bot.status.processNoMt5"), hint: t("bot.status.processNoMt5.hint"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
         : { label: t("bot.status.stopped"), hint: t("bot.status.stopped.hint"), tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
 
+  const busy = loading || isConnecting;
+  const hasAlerts =
+    Boolean(error) ||
+    (!isConnecting && !liveData.mt5_connected && Boolean(liveData.startup_error)) ||
+    Boolean(liveData.order_rejected_alarm) ||
+    Boolean(liveData.algo_trading_error);
+
   return (
-    <Card data-testid="bot-controls">
-      <CardHeader
-        icon={<Bot size={16} />}
-        title={t("bot.title")}
-        description={t("bot.subtitle")}
-      />
-      <CardContent className="space-y-4">
-        {/* Durum paneli */}
-        <div className={cn("flex items-center justify-between gap-3 rounded-lg border px-4 py-3", status.box)}>
-          <Tooltip content={status.hint} className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
-              <span data-testid="bot-status" className="text-sm font-semibold">{status.label}</span>
-            </div>
-          </Tooltip>
-        </div>
-
-        {activeAccount && (
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2">
-              <UserRound size={13} className="shrink-0 text-muted-foreground" />
-              <span className="truncate text-foreground" title={activeAccount.account_name}>{activeAccount.account_name}</span>
-            </div>
-            <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2">
-              <Server size={13} className="shrink-0 text-muted-foreground" />
-              <span className="truncate text-foreground" title={activeAccount.server}>{activeAccount.server}</span>
-            </div>
+    // `contents`: durum/butonlar ve alarm satırı kontrol çubuğunun (page.tsx) kendi flex öğeleri olur
+    <div data-testid="bot-controls" className="contents">
+      <div className="order-3 flex min-w-0 basis-full items-center gap-2 sm:basis-auto xl:border-l xl:border-border xl:pl-4">
+        {/* Durum */}
+        <Tooltip
+          content={activeAccount ? `${status.hint}\n${activeAccount.account_name} · ${activeAccount.server}` : status.hint}
+          className="min-w-0 flex-1 sm:flex-none"
+        >
+          <div className={cn("flex h-9 w-full min-w-0 items-center gap-2 rounded-md border px-3", status.box)}>
+            <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
+            <span data-testid="bot-status" className="truncate text-sm font-semibold">{status.label}</span>
           </div>
-        )}
+        </Tooltip>
 
-        <div className="flex gap-2">
-          {!liveData.mt5_connected && (
-            <Button
-              variant="success"
-              size="lg"
-              wrapperClassName="flex-1"
-              onClick={handleStartBot}
-              disabled={isConnecting}
-              loading={loading || isConnecting}
-              hint={
-                loading || isConnecting
-                  ? t("bot.connecting.hint")
-                  : processWithoutMt5
-                    ? t("bot.restartHint")
-                    : t("bot.start.hint")
-              }
-            >
-              {!(loading || isConnecting) &&
-                (processWithoutMt5 ? <RotateCcw size={16} /> : <Play size={16} fill="currentColor" />)}
-              {loading || isConnecting ? t("bot.connecting") : processWithoutMt5 ? t("bot.restart") : t("bot.start")}
-            </Button>
+        {!liveData.mt5_connected && (
+          <Button
+            variant="success"
+            onClick={handleStartBot}
+            disabled={isConnecting}
+            loading={busy}
+            hint={busy ? t("bot.connecting.hint") : processWithoutMt5 ? t("bot.restartHint") : t("bot.start.hint")}
+          >
+            {!busy && (processWithoutMt5 ? <RotateCcw size={15} /> : <Play size={15} fill="currentColor" />)}
+            {busy ? t("bot.connecting") : processWithoutMt5 ? t("bot.restart") : t("bot.start")}
+          </Button>
+        )}
+        {(liveData.mt5_connected || processWithoutMt5) && (
+          <Button
+            variant="danger"
+            onClick={() => setStopConfirmOpen(true)}
+            loading={loading}
+            hint={t("bot.stop.hint")}
+          >
+            {!loading && <Pause size={15} fill="currentColor" />}
+            {t("bot.stop")}
+          </Button>
+        )}
+      </div>
+
+      {/* Hatalar ve alarmlar: çubuğun altında tam genişlikte */}
+      {hasAlerts && (
+        <div className="order-last basis-full space-y-2">
+          {error && (
+            <Alert tone="danger" onDismiss={() => setError("")}>
+              {error}
+            </Alert>
           )}
-          {(liveData.mt5_connected || processWithoutMt5) && (
-            <Button
-              variant="danger"
-              size="lg"
-              wrapperClassName="flex-1"
-              onClick={() => setStopConfirmOpen(true)}
-              loading={loading}
-              hint={t("bot.stop.hint")}
-            >
-              {!loading && <Pause size={16} fill="currentColor" />}
-              {t("bot.stop")}
-            </Button>
+          {!isConnecting && !liveData.mt5_connected && liveData.startup_error && (
+            <Alert tone="danger" title={t("bot.alert.startupFailed")}>
+              {liveData.startup_error}
+            </Alert>
+          )}
+          {liveData.order_rejected_alarm && (
+            <Alert tone="danger" title={t("bot.alert.orderRejected")}>
+              {liveData.last_error}
+            </Alert>
+          )}
+          {liveData.algo_trading_error && (
+            <Alert tone="warning" title={t("bot.alert.algoOff")}>
+              {t("bot.alert.algoOff.text")}
+            </Alert>
           )}
         </div>
-
-        {/* Hatalar ve alarmlar */}
-        {error && (
-          <Alert tone="danger" onDismiss={() => setError("")}>
-            {error}
-          </Alert>
-        )}
-        {!isConnecting && !liveData.mt5_connected && liveData.startup_error && (
-          <Alert tone="danger" title={t("bot.alert.startupFailed")}>
-            {liveData.startup_error}
-          </Alert>
-        )}
-        {liveData.order_rejected_alarm && (
-          <Alert tone="danger" title={t("bot.alert.orderRejected")}>
-            {liveData.last_error}
-          </Alert>
-        )}
-        {liveData.algo_trading_error && (
-          <Alert tone="warning" title={t("bot.alert.algoOff")}>
-            {t("bot.alert.algoOff.text")}
-          </Alert>
-        )}
-      </CardContent>
+      )}
 
       {/* Stop Bot Confirmation */}
       <ConfirmModal
@@ -220,6 +201,6 @@ export default function BotControls() {
         variant="warning"
         loading={loading}
       />
-    </Card>
+    </div>
   );
 }

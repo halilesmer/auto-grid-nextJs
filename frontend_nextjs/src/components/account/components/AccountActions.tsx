@@ -1,10 +1,11 @@
 'use client';
 
-import { Download, Edit3, Trash2, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Download, Edit3, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/i18n';
 import type { AccountActionsProps } from '../types';
 
+/** Alle Konto-Aktionen in einem Menü-Button (Log, Bearbeiten, Löschen, Neues Konto). */
 export function AccountActions({
   activeAccount,
   isRunning,
@@ -16,49 +17,52 @@ export function AccountActions({
 }: AccountActionsProps) {
   const t = useT();
   return (
-    <div className="flex items-center gap-1.5">
+    <DropdownMenu
+      label={t('account.action.menu')}
+      hint={t('account.action.menu.hint')}
+      icon={<MoreHorizontal size={16} />}
+    >
       {activeAccount && !disabled && (
-        <>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDownloadLog}
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            icon={<Download size={14} />}
+            onSelect={onDownloadLog}
             hint={t('account.action.downloadLog.hint')}
             aria-label={t('account.action.downloadLog')}
           >
-            <Download size={14} />
-            <span className="hidden sm:inline">{t('account.action.log')}</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onEdit}
+            {t('account.action.downloadLog')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<Edit3 size={14} />}
+            onSelect={onEdit}
             disabled={isRunning}
             hint={isRunning ? t('account.action.editBlocked') : t('account.action.edit.hint')}
             aria-label={isRunning ? t('account.action.editBlocked') : t('account.action.editTitle')}
           >
-            <Edit3 size={14} />
-            <span className="hidden sm:inline">{t('account.action.edit')}</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDelete}
+            {t('account.action.edit')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<Trash2 size={14} />}
+            onSelect={onDelete}
             disabled={isRunning}
-            className="text-danger hover:bg-danger/10 hover:text-danger"
+            tone="danger"
             hint={isRunning ? t('account.action.deleteBlocked') : t('account.action.delete.hint')}
             aria-label={isRunning ? t('account.action.deleteBlocked') : t('account.action.deleteTitle')}
           >
-            <Trash2 size={14} />
-            <span className="hidden sm:inline">{t('account.action.delete')}</span>
-          </Button>
-          <div className="mx-1 h-6 w-px bg-border" />
-        </>
+            {t('account.action.delete')}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       )}
-      <Button variant="primary" onClick={onAdd} aria-label={t('account.action.add')} hint={t('account.action.add.hint')}>
-        <Plus size={15} />
-        <span>{t('account.action.new')}</span>
-      </Button>
-    </div>
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          icon={<Plus size={14} />}
+          onSelect={onAdd}
+          hint={t('account.action.add.hint')}
+          aria-label={t('account.action.add')}
+        >
+          {t('account.action.new')}
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </DropdownMenu>
   );
 }

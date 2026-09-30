@@ -18,10 +18,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { Account } from './types';
 import ConfirmModal from '@/components/ConfirmModal';
-import { Card } from '@/components/ui/card';
 import { useT } from '@/i18n';
 import { isDuplicateAccountError } from './types';
 
+/** Konto-Dropdown + Aktionsmenü als Fragment: die Steuerleiste (page.tsx) legt beide nebeneinander. */
 export default function AccountSelector() {
   const t = useT();
   const storeAccounts = useAccountStore((s) => s.accounts);
@@ -185,23 +185,21 @@ export default function AccountSelector() {
 
   return (
     <>
-      <Card className="relative z-20 flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between">
-        <AccountDropdown
-          accounts={storeAccounts}
-          selectedAccount={selectedAccount}
-          activeAccount={activeAccount}
-          onSelect={selectAccount}
-        />
+      <AccountDropdown
+        accounts={storeAccounts}
+        selectedAccount={selectedAccount}
+        activeAccount={activeAccount}
+        onSelect={selectAccount}
+      />
 
-        <AccountActions
-          activeAccount={activeAccount}
-          isRunning={isRunning}
-          onEdit={openEdit}
-          onDelete={() => setDeleteOpen(true)}
-          onDownloadLog={handleDownloadLog}
-          onAdd={openAdd}
-        />
-      </Card>
+      <AccountActions
+        activeAccount={activeAccount}
+        isRunning={isRunning}
+        onEdit={openEdit}
+        onDelete={() => setDeleteOpen(true)}
+        onDownloadLog={handleDownloadLog}
+        onAdd={openAdd}
+      />
 
       <AccountFormDialog
         open={modalOpen}

@@ -34,6 +34,7 @@ test.describe('UI Sprache', () => {
   test('Sprache gilt auch für Dialoge, Toasts und Unterseiten', { tag: '@UI-05' }, async ({ page, dashboard }) => {
     await dashboard.open(null);
     await page.getByTestId('language-en').click();
+    await dashboard.openAccountMenu('en');
     await page.getByRole('button', { name: msg('account.action.add', undefined, 'en') }).click();
     await expect(page.getByRole('heading', { name: msg('account.dialog.new', undefined, 'en') })).toBeVisible();
     await page.keyboard.press('Escape');

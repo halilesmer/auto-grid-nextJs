@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-29 · **98/110** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-30 · **98/111** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -25,7 +25,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 9 | **LOG** – Logs | 6/7 |
 | 10 | **UPD** – System & Updates | 5/6 |
 | 11 | **VPS** – VPS-Fernsteuerung vom Mac | 3/8 |
-| 12 | **UI** – Oberfläche | 8/8 |
+| 12 | **UI** – Oberfläche | 8/9 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -99,7 +99,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Zuerst Leerzustand, danach erscheinen Zonen und allgemeine Einstellungen des Kontos.
   - 📝 Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/7942034 geladen, UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall 1 s)
 - [x] **ACC-07** LIVE/TEST-Kennzeichnung — 🖥️ e2e ✅ 2026-09-29 · 👤 manuell ✅ 2026-09-23
-  - Badge im Header und im Dropdown aus env_type (DEMO/LIVE) des Kontos.
+  - Badge (TEST/LIVE) am Anfang der Steuerleiste und Kennzeichnung DEMO/LIVE je Eintrag der Kontoliste, beides aus env_type des Kontos.
   - **Prüfung:** DEMO-Konto wählen.
   - **Erwartet:** Badge zeigt TEST/DEMO, nicht LIVE.
   - 📝 Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis: ohne Kontoauswahl zeigt der Header ebenfalls TEST
@@ -544,3 +544,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Ab Tablet-Breite bleibt das Layout unverändert.
   - **Prüfung:** Dashboard bei 375 px Breite öffnen (Entwicklertools, Geräteleiste) und ein Konto mit Zone wählen. → Sprache auf DE stellen und in der Zone einen Wert ändern. → /formasyon, /vps und /chart bei 375 px ansehen. → Im Log-Viewer unter dem Zonenbereich die Tab-Leiste nach links wischen und den dritten Tab („MT5 Terminal“) antippen.
   - **Erwartet:** Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile. Die Tab-Leiste des Log-Viewers lässt sich wischen, jeder Tab ist erreichbar und nach dem Antippen ganz sichtbar.
+- [ ] **UI-09** Kompakte Steuerleiste (Konto, Bot, Intervall) — 🖥️ e2e ⏳
+  - Über den Kennzahlen liegt eine einzige Leiste mit LIVE/TEST-Badge, Kontoauswahl, Kontomenü (⋯ mit Bot-Log herunterladen, Bearbeiten, Löschen, Neues Konto), Bot-Status mit Start/Neustart/Stopp, Prüfintervall mit Speichern und Systemmenü (Zahnrad mit Systeminfo, Update-Prüfung, Herunterfahren). Ab etwa 1280 px ist das eine Zeile; schmaler brechen die Gruppen um, bei 375 px ohne horizontalen Überlauf. Alarme der Bot-Steuerung erscheinen in voller Breite unter der Leiste. Zonen und Log nutzen darunter die volle Breite.
+  - **Prüfung:** Dashboard auf dem Desktop öffnen und ein Konto wählen. → Auf ⋯ neben der Kontoauswahl klicken, dann Escape drücken. → Fenster auf 375 px Breite verkleinern.
+  - **Erwartet:** Konto, Bot-Steuerung und Prüfintervall stehen in einer Zeile. Das ⋯-Menü zeigt Log, Bearbeiten, Löschen und Neues Konto und schließt mit Escape. Bei 375 px stehen die Gruppen untereinander, nichts läuft über.
