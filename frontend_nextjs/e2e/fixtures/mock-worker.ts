@@ -404,6 +404,24 @@ export class MockWorker {
       s.update = { ...s.update, has_update: false, local_ver: s.update.remote_ver };
       return ok({ status: 'success', message: 'Güncelleme tamamlandı', restarting: false });
     }
+    if (path === '/system/worker/status' && method === 'GET') {
+      if (!admin) return forbidden;
+      return ok({
+        version: s.update.local_ver,
+        uptime_sec: 7500,
+        supervised: true,
+        bots_running: 1,
+        bots_total: s.accounts.length,
+      });
+    }
+    if (path === '/system/worker/log' && method === 'GET') {
+      if (!admin) return forbidden;
+      return ok({ lines: ['\u001b[32mINFO\u001b[0m:     Application startup complete.'] });
+    }
+    if (path === '/system/restart' && method === 'POST') {
+      if (!admin) return forbidden;
+      return ok({ status: 'success', restarting: true });
+    }
     return null;
   }
 

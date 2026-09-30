@@ -240,6 +240,23 @@ test.describe('VPS Routen-Schutz', () => {
     await expect(page.getByTestId('vps-status')).toBeHidden();
   });
 
+  // Online-Steuerung über die Worker-API, wenn die SSH-Route zu ist (Vercel)
+  test('Worker online steuern: Status, Log, Neustart', { tag: '@VPS-09' }, async ({ page, worker }) => {
+    await page.route('**/api/vps/**', (route) =>
+      route.fulfill({ status: 403, json: { ok: false, error: 'lokal', code: 'localOnly' } }),
+    );
+    await page.goto('/vps');
+    const panel = page.getByTestId('vps-online');
+    await expect(panel.getByTestId('vps-online-bots')).toContainText('1/');
+    await expect(panel.getByTestId('vps-online-uptime')).toBeVisible();
+    // Farbcodes von uvicorn werden entfernt
+    await expect(panel.getByTestId('vps-online-log')).toHaveText('INFO:     Application startup complete.');
+
+    await panel.getByTestId('vps-online-restart').click();
+    await page.getByRole('dialog').getByRole('button', { name: msg('vps.action.restart') }).click();
+    await expect.poll(() => worker.callsTo('POST', '/api/system/restart').length).toBe(1);
+  });
+
   // Echter Testserver: fremder Host/fremde Origin wird abgewiesen, bevor irgendetwas per SSH läuft
   test('nur localhost und gleiche Origin', { tag: '@VPS-04' }, async ({ request }) => {
     const foreignHost = await request.get('/api/vps/status', { headers: { 'X-Forwarded-Host': 'evil.example' } });

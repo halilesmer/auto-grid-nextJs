@@ -166,3 +166,48 @@ def test_mt5_scanner_findet_terminals(client, monkeypatch, tmp_path):
 def test_mt5_scanner_ausserhalb_windows_leer(client, monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin")
     assert client.get("/api/system/scan-mt5").json() == {"paths": [], "platform": "darwin"}
+
+
+# --------------------------------------------------------------------------- VPS-09
+@pytest.mark.feature("VPS-09")
+def test_worker_status_liefert_version_und_bots(client, monkeypatch):
+    from src.api import system
+
+    monkeypatch.setattr(system, "_current_version", lambda: "v9.9.9")
+    monkeypatch.setattr(system, "_load_accounts", lambda: [{"id": "a"}, {"id": "b"}])
+    monkeypatch.setattr(system, "is_bot_running", lambda acc: acc == "a")
+    monkeypatch.setenv("WORKER_SUPERVISED", "1")
+    body = client.get("/api/system/worker/status").json()
+    assert body["version"] == "v9.9.9" and body["supervised"] is True
+    assert body["bots_running"] == 1 and body["bots_total"] == 2
+    assert body["uptime_sec"] >= 0
+
+
+@pytest.mark.feature("VPS-09")
+@pytest.mark.parametrize("supervised", [True, False])
+def test_worker_neustart_nur_unter_watchdog(client, monkeypatch, supervised):
+    from src.api import system
+
+    monkeypatch.setattr(system, "schedule_restart", lambda: supervised)
+    res = client.post("/api/system/restart")
+    if supervised:
+        assert res.json() == {"status": "success", "restarting": True}
+    else:
+        assert res.status_code == 409
+
+
+@pytest.mark.feature("VPS-09")
+def test_worker_log_liefert_letzte_zeilen(client, worker_dir, monkeypatch):
+    from src.api import system
+
+    path = worker_dir / "logs" / "worker_console.log"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text("".join(f"zeile {i}\n" for i in range(50)), encoding="utf-8")
+    monkeypatch.setattr(system, "get_worker_console_log_path", lambda: str(path))
+    body = client.get("/api/system/worker/log", params={"lines": 10}).json()
+    assert body["lines"] == [f"zeile {i}" for i in range(40, 50)]
+    # uvicorn-Zugriffslog der WebSocket-Verbindung enthält den Schlüssel
+    path.write_text("".join(f"zeile {i}\n" for i in range(9)) + 'GET /ws/stream?api_key=geheim123 HTTP/1.1\n', encoding="utf-8")
+    assert "geheim123" not in "".join(client.get("/api/system/worker/log", params={"lines": 10}).json()["lines"])
+    path.unlink()
+    assert client.get("/api/system/worker/log").json()["lines"] == []

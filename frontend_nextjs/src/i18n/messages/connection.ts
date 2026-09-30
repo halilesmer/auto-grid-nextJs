@@ -66,7 +66,7 @@ export default defineArea(
 
     'vps.localOnly.title': 'Bu sayfa yalnızca yerel çalışır',
     'vps.localOnly.body':
-      'VPS sayfası, Mac’inde çalışan yerel frontend’den SSH ile VPS’i yönetir; herkese açık (Vercel) sürümde kapalıdır. Worker’a bağlanmak için üstteki bağlantı düğmesini kullan.',
+      'VPS sayfası, Mac’inde çalışan yerel frontend’den SSH ile VPS’i yönetir; herkese açık (Vercel) sürümde kapalıdır. Aşağıda worker’ı yönetici anahtarıyla doğrudan API üzerinden yönetebilirsin (durum, yeniden başlatma, log).',
   },
   {
     'connection.chip.connect': 'Connect VPS',
@@ -131,7 +131,7 @@ export default defineArea(
 
     'vps.localOnly.title': 'This page only works locally',
     'vps.localOnly.body':
-      'The VPS page manages the VPS over SSH from the local frontend on your Mac; it is off in the public (Vercel) version. Use the connection button above to connect to the worker.',
+      'The VPS page manages the VPS over SSH from the local frontend on your Mac; it is off in the public (Vercel) version. Below you can manage the worker directly through its API with the admin key (status, restart, log).',
   },
   {
     'connection.chip.connect': 'VPS verbinden',
@@ -196,6 +196,6 @@ export default defineArea(
 
     'vps.localOnly.title': 'Diese Seite läuft nur lokal',
     'vps.localOnly.body':
-      'Die VPS-Seite steuert den VPS per SSH vom lokalen Frontend auf deinem Mac; in der öffentlichen (Vercel-)Version ist sie aus. Zum Verbinden mit dem Worker nutze den Verbindungs-Knopf oben.',
+      'Die VPS-Seite steuert den VPS per SSH vom lokalen Frontend auf deinem Mac; in der öffentlichen (Vercel-)Version ist sie aus. Darunter steuerst du den Worker direkt über seine API mit dem Admin-Schlüssel (Status, Neustart, Log).',
   },
 );
