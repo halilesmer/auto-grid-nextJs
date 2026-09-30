@@ -47,6 +47,20 @@ test.describe('UI-09 Steuerleiste (Desktop)', () => {
     await expect(bar.getByRole('button', { name: msg('account.action.add') })).toBeVisible();
     await expect(bar.getByRole('button', { name: msg('account.action.editTitle') })).toBeHidden();
   });
+
+  test('Leiste bleibt beim Scrollen oben fixiert', { tag: '@UI-09' }, async ({ page, dashboard }) => {
+    await page.setViewportSize({ width: 1440, height: 600 });
+    await dashboard.open(DEMO_ID);
+    const bar = page.getByTestId('control-bar');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    expect(await page.evaluate(() => window.scrollY), 'Seite muss scrollbar sein').toBeGreaterThan(100);
+    await expect(bar).toBeInViewport();
+    const box = await bar.boundingBox();
+    // Direkt unter der Navigation (64 px), nicht weggescrollt
+    expect(box!.y).toBeGreaterThanOrEqual(56);
+    expect(box!.y).toBeLessThanOrEqual(80);
+    await expect(bar.getByRole('button', { name: msg('bot.start') })).toBeInViewport();
+  });
 });
 
 test.describe('UI-09 Steuerleiste (375 px)', () => {

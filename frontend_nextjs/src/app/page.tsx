@@ -61,7 +61,7 @@ export default function Home() {
       {/* Kontrol çubuğu: hesap, bot kontrolü, genel ayarlar ve sistem menüsü tek satırda */}
       {/* Sıra (order-*): hesap 1 · sistem menüsü 2 (lg'den itibaren 4, en sağda) · bot + aralık 3
           (BotControls/SettingsForm içinde) · alarmlar order-last, tam genişlik */}
-      <Card data-testid="control-bar" className="relative z-20 flex flex-wrap items-center gap-x-4 gap-y-3 p-3">
+      <Card data-testid="control-bar" className="relative z-20 flex flex-wrap bg-card/95 lg:sticky lg:top-16 items-center gap-x-4 gap-y-3 p-3">
         <div className="order-1 flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
           {activeAccount && (
             <Badge
