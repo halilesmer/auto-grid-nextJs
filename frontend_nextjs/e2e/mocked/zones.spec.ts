@@ -308,7 +308,7 @@ test.describe('ZON Zonen', () => {
     expect(worker.zonesOf(DEMO_ID)).toHaveLength(2);
     expect(worker.zonesOf(DEMO_ID)[0]).not.toMatchObject({ lot_size: 0.05 });
     await expect(badge(first)).toBeVisible();
-    await expect(dashboard.saveAll).toHaveText(msg('saveBar.saveAll'));
+    await expect(dashboard.saveAll).toContainText(msg('saveBar.saveAll'));
 
     await first.getByTestId('zone-save').click();
     await expect(badge(first)).toBeHidden();

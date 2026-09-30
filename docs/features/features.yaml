@@ -252,11 +252,11 @@ kategorien:
 
       - id: SET-03
         titel: „Alle speichern“ + Dirty-Tracking
-        beschreibung: Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert).
+        beschreibung: Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert). Auch per Cmd+Enter (Mac) / Strg+Enter (Windows); das Kürzel steht als Badge neben „Kaydet“.
         code: [frontend_nextjs/src/components/dashboard/SaveSettingsBar.tsx, frontend_nextjs/src/store/useSettingsStore.ts]
         tiers: [e2e]
         pruefung:
-          - Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
+          - Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“ oder Cmd/Strg+Enter.
         erwartet: Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
 
       - id: SET-04
