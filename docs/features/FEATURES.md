@@ -133,8 +133,8 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Werte außerhalb 1–60 werden begrenzt; gespeicherter Wert bleibt nach Neuladen.
   - 📝 Claude: + → 1,1 und Kaydet aktiv; 61 → 60, 0 → 1 begrenzt; gespeichert → API 1,1, bleibt nach Neuladen; per − zurück auf 1 gespeichert
 - [x] **SET-03** „Alle speichern“ + Dirty-Tracking — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
-  - Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert).
-  - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
+  - Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert). Auch per Cmd+Enter (Mac) / Strg+Enter (Windows); das Kürzel steht als Badge neben „Kaydet“.
+  - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“ oder Cmd/Strg+Enter.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
 - [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-09-30 · 🔌 api ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
