@@ -181,7 +181,3 @@ export interface PasswordFieldProps {
   onToggleShow: () => void;
   error?: string;
 }
-
-export interface EnvTypeBadgeProps {
-  envType: 'DEMO' | 'LIVE';
-}

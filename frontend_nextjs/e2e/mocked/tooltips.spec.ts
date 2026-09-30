@@ -69,6 +69,8 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     await openMenus(dashboard);
 
     expect(await unhinted(page)).toEqual([]);
+    await dashboard.openAccountMenu();
+    expect(await unhinted(page)).toEqual([]);
   });
 
   test('Dashboard (Bot läuft): jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
@@ -82,6 +84,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
 
   test('Konto-Dialog und Rückfragen', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.add') }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -93,6 +96,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     await dialog.getByRole('button', { name: msg('account.dialog.close') }).click();
 
     // Rückfrage (Modal mit „Abbrechen“ und Bestätigen)
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.deleteTitle') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
@@ -215,6 +219,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
   test('Deaktivierter Button nennt den Grund', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
+    await dashboard.openAccountMenu();
     const edit = page.getByRole('button', { name: msg('account.action.editBlocked') });
     await expect(edit).toBeDisabled();
     // Der Wrapper bekommt die Zeigerereignisse (der Button selbst hat pointer-events: none)
@@ -224,6 +229,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
 
   test('Der Tooltip liegt im Konto-Dialog über dem Dialog; Escape schließt erst ihn', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await dashboard.openAccountMenu();
     await page.getByRole('button', { name: msg('account.action.add') }).click();
     const dialog = page.getByRole('dialog');
     await dialog.locator('[data-tooltip-scope]').first().getByTestId('field-hint').hover();

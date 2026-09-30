@@ -1,6 +1,6 @@
 'use client';
 
-import { Minus, Plus, Save, SlidersHorizontal } from 'lucide-react';
+import { Minus, Plus, Save } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { axiosInstance } from '@/lib/api';
@@ -8,7 +8,6 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { useAccountStore, useSettingsStore } from '@/store';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { toast } from '@/components/ui/animated-toast';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
@@ -90,88 +89,76 @@ export default function SettingsForm() {
   if (!selectedAccount) return null;
 
   return (
-    <Card data-testid="general-settings">
-      <CardHeader
-        icon={<SlidersHorizontal size={16} />}
-        title={t('settings.title')}
-        description={t('settings.subtitle')}
+    <div
+      data-testid="general-settings"
+      data-tooltip-scope
+      className="order-3 flex min-w-0 flex-wrap items-center gap-2 xl:border-l xl:border-border xl:pl-4"
+    >
+      <FieldLabel
+        label={t('settings.interval')}
+        hint={t('settings.interval.hint')}
+        className="text-xs font-medium text-muted-foreground"
       />
-      <CardContent className="space-y-4">
-        {error && (
-          <Alert tone="danger" onDismiss={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
-        <div data-tooltip-scope className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <FieldLabel
-              label={t('settings.interval')}
-              hint={t('settings.interval.hint')}
-              className="text-xs font-medium text-muted-foreground"
-            />
-            <span className="text-[11px] text-muted-foreground/70">
-              {MIN_INTERVAL}–{MAX_INTERVAL} {t('settings.unit.sec')}
-            </span>
-          </div>
-          <div className="flex h-10 items-stretch overflow-hidden rounded-md border border-input bg-background/60 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
-            <Tooltip
-              content={loopInterval <= MIN_INTERVAL ? t('settings.decrease.min.hint') : t('settings.decrease.hint')}
-              className="w-10"
-            >
-              <button
-                onClick={decrement}
-                disabled={loopInterval <= MIN_INTERVAL}
-                className="flex w-full items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-                aria-label={t('settings.decrease')}
-              >
-                <Minus size={15} />
-              </button>
-            </Tooltip>
-            <div className="relative flex flex-1 items-center border-x border-input">
-              <NumberInput
-                aria-label={t('settings.interval')}
-                step={STEP_INTERVAL}
-                min={MIN_INTERVAL}
-                max={MAX_INTERVAL}
-                value={loopInterval}
-                onChange={(e) => {
-                  const parsed = parseFloat(e.target.value);
-                  setLoopInterval(clampInterval(Number.isNaN(parsed) ? MIN_INTERVAL : parsed));
-                }}
-                className="w-full bg-transparent text-center font-mono text-sm font-semibold text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="pointer-events-none absolute right-3 text-xs text-muted-foreground">{t('settings.unit.sec')}</span>
-            </div>
-            <Tooltip
-              content={loopInterval >= MAX_INTERVAL ? t('settings.increase.max.hint') : t('settings.increase.hint')}
-              className="w-10"
-            >
-              <button
-                onClick={increment}
-                disabled={loopInterval >= MAX_INTERVAL}
-                className="flex w-full items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-                aria-label={t('settings.increase')}
-              >
-                <Plus size={15} />
-              </button>
-            </Tooltip>
-          </div>
-        </div>
-
-        <div className="flex justify-end border-t border-border pt-4">
-          <Button
-            variant={hasChanges ? 'primary' : 'secondary'}
-            onClick={handleSave}
-            disabled={!hasChanges}
-            loading={saving}
-            hint={hasChanges ? t('settings.save.hint') : t('common.noChanges.hint')}
+      <div className="flex h-9 w-32 items-stretch overflow-hidden rounded-md border border-input bg-background/60 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
+        <Tooltip
+          content={loopInterval <= MIN_INTERVAL ? t('settings.decrease.min.hint') : t('settings.decrease.hint')}
+          className="w-8 shrink-0"
+        >
+          <button
+            onClick={decrement}
+            disabled={loopInterval <= MIN_INTERVAL}
+            className="flex h-full w-full items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label={t('settings.decrease')}
           >
-            {!saving && <Save size={15} />}
-            {saving ? t('common.saving') : t('common.save')}
-          </Button>
+            <Minus size={14} />
+          </button>
+        </Tooltip>
+        <div className="flex min-w-0 flex-1 items-center gap-1 border-x border-input px-1.5">
+          <NumberInput
+            aria-label={t('settings.interval')}
+            step={STEP_INTERVAL}
+            min={MIN_INTERVAL}
+            max={MAX_INTERVAL}
+            value={loopInterval}
+            onChange={(e) => {
+              const parsed = parseFloat(e.target.value);
+              setLoopInterval(clampInterval(Number.isNaN(parsed) ? MIN_INTERVAL : parsed));
+            }}
+            className="w-full min-w-0 bg-transparent text-right font-mono text-sm font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span className="pointer-events-none shrink-0 text-xs text-muted-foreground">{t('settings.unit.sec')}</span>
         </div>
-      </CardContent>
-    </Card>
+        <Tooltip
+          content={loopInterval >= MAX_INTERVAL ? t('settings.increase.max.hint') : t('settings.increase.hint')}
+          className="w-8 shrink-0"
+        >
+          <button
+            onClick={increment}
+            disabled={loopInterval >= MAX_INTERVAL}
+            className="flex h-full w-full items-center justify-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label={t('settings.increase')}
+          >
+            <Plus size={14} />
+          </button>
+        </Tooltip>
+      </div>
+      <Button
+        variant={hasChanges ? 'primary' : 'secondary'}
+        size="icon"
+        onClick={handleSave}
+        disabled={!hasChanges}
+        loading={saving}
+        hint={hasChanges ? t('settings.save.hint') : t('common.noChanges.hint')}
+        aria-label={t('common.save')}
+      >
+        {!saving && <Save size={15} />}
+      </Button>
+
+      {error && (
+        <Alert tone="danger" onDismiss={() => setError('')} className="basis-full">
+          {error}
+        </Alert>
+      )}
+    </div>
   );
 }

@@ -2,8 +2,6 @@ import { defineArea } from './define';
 
 export default defineArea(
   {
-    'settings.title': 'Genel Ayarlar',
-    'settings.subtitle': 'Motor döngüsü',
     'settings.interval': 'Kontrol Sıklığı',
     'settings.unit.sec': 'sn',
     'settings.decrease': 'Azalt',
@@ -17,8 +15,6 @@ export default defineArea(
     'confirm.ok': 'Tamam',
   },
   {
-    'settings.title': 'General Settings',
-    'settings.subtitle': 'Engine loop',
     'settings.interval': 'Check Interval',
     'settings.unit.sec': 's',
     'settings.decrease': 'Decrease',
@@ -32,8 +28,6 @@ export default defineArea(
     'confirm.ok': 'OK',
   },
   {
-    'settings.title': 'Allgemeine Einstellungen',
-    'settings.subtitle': 'Engine-Schleife',
     'settings.interval': 'Prüfintervall',
     'settings.unit.sec': 's',
     'settings.decrease': 'Verringern',

@@ -181,8 +181,8 @@ kategorien:
 
       - id: ACC-07
         titel: LIVE/TEST-Kennzeichnung
-        beschreibung: Badge im Header und im Dropdown aus env_type (DEMO/LIVE) des Kontos.
-        code: [frontend_nextjs/src/components/account/components/EnvTypeBadge.tsx, frontend_nextjs/src/app/page.tsx]
+        beschreibung: Badge (TEST/LIVE) am Anfang der Steuerleiste und Kennzeichnung DEMO/LIVE je Eintrag der Kontoliste, beides aus env_type des Kontos.
+        code: [frontend_nextjs/src/app/page.tsx, frontend_nextjs/src/components/account/components/AccountDropdown.tsx]
         tiers: [e2e]
         pruefung:
           - DEMO-Konto wählen.
@@ -1102,3 +1102,14 @@ kategorien:
           - /formasyon, /vps und /chart bei 375 px ansehen.
           - Im Log-Viewer unter dem Zonenbereich die Tab-Leiste nach links wischen und den dritten Tab („MT5 Terminal“) antippen.
         erwartet: Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile. Die Tab-Leiste des Log-Viewers lässt sich wischen, jeder Tab ist erreichbar und nach dem Antippen ganz sichtbar.
+
+      - id: UI-09
+        titel: Kompakte Steuerleiste (Konto, Bot, Intervall)
+        beschreibung: Über den Kennzahlen liegt eine einzige Leiste mit LIVE/TEST-Badge, Kontoauswahl, Kontomenü (⋯ mit Bot-Log herunterladen, Bearbeiten, Löschen, Neues Konto), Bot-Status mit Start/Neustart/Stopp, Prüfintervall mit Speichern und Systemmenü (Zahnrad mit Systeminfo, Update-Prüfung, Herunterfahren). Ab etwa 1280 px ist das eine Zeile; schmaler brechen die Gruppen um, bei 375 px ohne horizontalen Überlauf. Alarme der Bot-Steuerung erscheinen in voller Breite unter der Leiste. Zonen und Log nutzen darunter die volle Breite.
+        code: [frontend_nextjs/src/app/page.tsx, frontend_nextjs/src/components/BotControls.tsx, frontend_nextjs/src/components/SettingsForm.tsx, frontend_nextjs/src/components/account/components/AccountActions.tsx, frontend_nextjs/src/components/ui/dropdown-menu.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Dashboard auf dem Desktop öffnen und ein Konto wählen.
+          - Auf ⋯ neben der Kontoauswahl klicken, dann Escape drücken.
+          - Fenster auf 375 px Breite verkleinern.
+        erwartet: Konto, Bot-Steuerung und Prüfintervall stehen in einer Zeile. Das ⋯-Menü zeigt Log, Bearbeiten, Löschen und Neues Konto und schließt mit Escape. Bei 375 px stehen die Gruppen untereinander, nichts läuft über.
