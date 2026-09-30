@@ -42,6 +42,9 @@ class ZoneConfig:
     fractal_sar_step: float = 0.02
     fractal_sar_max: float = 0.2
     fractal_rr: float = 2.0  # TP = SL mesafesi × rr; 0 = TP yok
+    # Yön başına en yeni kaç fraktala bekleyen emir konur (BUY / SELL); 1 = yalnızca en yeni fraktal
+    fractal_order_count: int = 1
+    sell_fractal_order_count: int = 1
     fractal_tp_by_money: bool = False  # True: TP = sabit tutar (hesap para birimi) → fiyat mesafesi
     fractal_tp_money: float = 10.0
 
@@ -50,6 +53,14 @@ ENTRY_MODES = ("grid", "fractal")
 FRACTAL_TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
 FRACTAL_ORDER_MODES = ("breakout", "rebound")
 FRACTAL_SL_MODES = ("atr", "sar", "opposite_fractal", "buffer")
+FRACTAL_MAX_ORDERS = 20
+
+
+def _fractal_count(value, default: int) -> int:
+    try:
+        return min(FRACTAL_MAX_ORDERS, max(1, int(value)))
+    except (TypeError, ValueError, OverflowError):
+        return default
 
 
 def _choice(value, allowed: tuple, default: str) -> str:
@@ -194,6 +205,13 @@ def extract_zone_config(
     # Fraktal modunda ızgara/TP/SL alanları kullanılmaz; $ → fiyat dönüşümü (tick değeri
     # gerektirir) gereksiz yere hata fırlatmasın
     step_by_loss = bool(zone_dict.get("step_by_loss", False)) and entry_mode == "grid"
+    # Ayrı SELL sayısı yalnızca "BOTH + eşit değil" iken geçerli (UI'de de ancak o zaman görünür)
+    fractal_order_count = _fractal_count(zone_dict.get("fractal_order_count", 1), 1)
+    sell_fractal_order_count = fractal_order_count
+    if order_type == "BOTH" and not is_sync:
+        sell_fractal_order_count = _fractal_count(
+            zone_dict.get("sell_fractal_order_count", fractal_order_count), fractal_order_count
+        )
     if step_by_loss:
         def _conv(amount: float, lot: float) -> float:
             d = money_to_price_distance(amount, lot, symbol, symbol_infos)
@@ -249,6 +267,8 @@ def extract_zone_config(
         fractal_sar_step=max(0.001, float(zone_dict.get("fractal_sar_step", 0.02))),
         fractal_sar_max=max(0.001, float(zone_dict.get("fractal_sar_max", 0.2))),
         fractal_rr=max(0.0, float(zone_dict.get("fractal_rr", 2.0))),
+        fractal_order_count=fractal_order_count,
+        sell_fractal_order_count=sell_fractal_order_count,
         fractal_tp_by_money=bool(zone_dict.get("fractal_tp_by_money", False)),
         fractal_tp_money=max(0.0, float(zone_dict.get("fractal_tp_money", 10.0))),
     )

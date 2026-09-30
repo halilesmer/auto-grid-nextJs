@@ -303,7 +303,7 @@ export default defineArea(
     'zone.exit.timeframe.hint':
       'Mum kapanışının hangi periyotta kontrol edileceği (M1 = 1 dakika … D1 = 1 gün). Son kapanan mum bölgenin dışında kapanırsa çıkış sayılır.',
     'zone.entryMode.hint':
-      'Grid: fiyat aralığında kayan ızgara emirleri.\nFraktal: yalnızca seçilen zaman dilimindeki en yeni fraktalın seviyesinde, taraf başına tek bekleyen emir. Yeni fraktal oluşunca emir taşınır; fiyat seviyeyi geçtiyse emir konmaz. MT5\'te elle silinen emir veya kapatılan pozisyon için aynı fraktala tekrar emir konmaz.',
+      'Grid: fiyat aralığında kayan ızgara emirleri.\nFraktal: yalnızca seçilen zaman dilimindeki en yeni fraktalların seviyesinde bekleyen emir (yön başına „Emir Sayısı“ kadar, varsayılan 1). Yeni fraktal oluşunca emirler kayar; fiyat seviyeyi geçtiyse emir konmaz. MT5\'te elle silinen emir veya kapatılan pozisyon için aynı fraktala tekrar emir konmaz.',
     'zone.fractal.timeframe.hint':
       'Fraktalların arandığı mum periyodu (M1 = 1 dakika … D1 = 1 gün). Fraktal 5 mumdan oluşur ve ancak sağdaki iki mum kapandıktan sonra geçerlidir; ATR ve SAR da bu periyotta hesaplanır.',
     'zone.fractal.orderMode.hint':
@@ -319,6 +319,12 @@ export default defineArea(
     'zone.fractal.sarStep.hint':
       'Parabolic SAR ivme adımı (MT5 varsayılanı 0,02). Büyük değer SAR\'ı fiyata daha hızlı yaklaştırır.',
     'zone.fractal.sarMax.hint': 'Parabolic SAR ivmesinin üst sınırı (MT5 varsayılanı 0,2).',
+    'zone.fractal.orderCount.hint':
+      'Yön başına (BUY ve SELL ayrı ayrı) en yeni kaç fraktala bekleyen emir konacağı (1–20). Fiyatın ulaştığı, dolan veya elle silinen fraktalın yeri boş kalır; daha eski fraktalla doldurulmaz. Açık pozisyonları „Maks Pozisyon“ sınırlar.',
+    'zone.fractal.buyOrderCount.hint':
+      'En yeni kaç fraktala BUY bekleyen emri konacağı (1–20). Fiyatın ulaştığı, dolan veya elle silinen fraktalın yeri boş kalır; daha eski fraktalla doldurulmaz. Açık pozisyonları „Maks Pozisyon“ sınırlar.',
+    'zone.fractal.sellOrderCount.hint':
+      'En yeni kaç fraktala SELL bekleyen emri konacağı (1–20). Fiyatın ulaştığı, dolan veya elle silinen fraktalın yeri boş kalır; daha eski fraktalla doldurulmaz. Açık pozisyonları „Maks Pozisyon“ sınırlar.',
     'zone.fractal.rr.hint':
       'TP = giriş ± bu değer × SL mesafesi. Örn. 2: TP, SL\'nin iki katı uzakta. 0 = TP yok.',
     'zone.fractal.tpByMoney.hint':
@@ -624,7 +630,7 @@ export default defineArea(
     'zone.exit.timeframe.hint':
       'Timeframe of the candle close check (M1 = 1 minute … D1 = 1 day). If the last closed candle closes outside the zone, that counts as an exit.',
     'zone.entryMode.hint':
-      'Grid: sliding grid orders across the price range.\nFractal: a single pending order per side at the level of the latest fractal on the chosen timeframe. A new fractal moves the order; if price has already passed the level, no order is placed. If you delete the order or close the position in MT5, the same fractal is not traded again.',
+      'Grid: sliding grid orders across the price range.\nFractal: pending orders only at the levels of the latest fractals on the chosen timeframe (as many per direction as “order count”, default 1). A new fractal shifts the orders; if price has already passed the level, no order is placed. If you delete the order or close the position in MT5, the same fractal is not traded again.',
     'zone.fractal.timeframe.hint':
       'Candle period in which fractals are detected (M1 = 1 minute … D1 = 1 day). A fractal spans 5 candles and is only valid once the two candles to its right have closed; ATR and SAR use this period too.',
     'zone.fractal.orderMode.hint':
@@ -640,6 +646,12 @@ export default defineArea(
     'zone.fractal.sarStep.hint':
       'Parabolic SAR acceleration step (MT5 default 0.02). Higher values move the SAR toward price faster.',
     'zone.fractal.sarMax.hint': 'Upper limit of the Parabolic SAR acceleration (MT5 default 0.2).',
+    'zone.fractal.orderCount.hint':
+      'How many of the latest fractals get a pending order, per direction (BUY and SELL each; 1–20). A fractal that price has reached, that was filled or deleted by hand leaves its slot empty; older fractals do not move up. Open positions are limited by “Max Positions”.',
+    'zone.fractal.buyOrderCount.hint':
+      'How many of the latest fractals get a BUY pending order (1–20). A fractal that price has reached, that was filled or deleted by hand leaves its slot empty; older fractals do not move up. Open positions are limited by “Max Positions”.',
+    'zone.fractal.sellOrderCount.hint':
+      'How many of the latest fractals get a SELL pending order (1–20). A fractal that price has reached, that was filled or deleted by hand leaves its slot empty; older fractals do not move up. Open positions are limited by “Max Positions”.',
     'zone.fractal.rr.hint':
       'TP = entry ± this value × SL distance. E.g. 2: TP twice as far as the SL. 0 = no TP.',
     'zone.fractal.tpByMoney.hint':
@@ -945,7 +957,7 @@ export default defineArea(
     'zone.exit.timeframe.hint':
       'Zeitrahmen der Kerzenschluss-Prüfung (M1 = 1 Minute … D1 = 1 Tag). Schließt die letzte abgeschlossene Kerze außerhalb der Zone, gilt das als Ausbruch.',
     'zone.entryMode.hint':
-      'Grid: gleitende Raster-Orders im Preisbereich.\nFraktal: je Seite eine einzige Pending-Order auf Höhe des jüngsten Fraktals im gewählten Zeitrahmen. Ein neues Fraktal verschiebt die Order; hat der Kurs das Niveau schon erreicht, wird keine gesetzt. Löschst du die Order oder schließt die Position in MT5, wird dasselbe Fraktal nicht erneut gehandelt.',
+      'Grid: gleitende Raster-Orders im Preisbereich.\nFraktal: Pending-Orders nur auf Höhe der jüngsten Fraktale im gewählten Zeitrahmen (je Richtung so viele wie „Anzahl Orders“, Standard 1). Ein neues Fraktal verschiebt die Orders; hat der Kurs das Niveau schon erreicht, wird keine gesetzt. Löschst du die Order oder schließt die Position in MT5, wird dasselbe Fraktal nicht erneut gehandelt.',
     'zone.fractal.timeframe.hint':
       'Kerzenperiode, in der Fraktale gesucht werden (M1 = 1 Minute … D1 = 1 Tag). Ein Fraktal besteht aus 5 Kerzen und gilt erst, wenn die zwei Kerzen rechts davon geschlossen sind; ATR und SAR nutzen dieselbe Periode.',
     'zone.fractal.orderMode.hint':
@@ -961,6 +973,12 @@ export default defineArea(
     'zone.fractal.sarStep.hint':
       'Beschleunigungsschritt des Parabolic SAR (MT5-Standard 0,02). Größer = SAR nähert sich dem Kurs schneller.',
     'zone.fractal.sarMax.hint': 'Obergrenze der Parabolic-SAR-Beschleunigung (MT5-Standard 0,2).',
+    'zone.fractal.orderCount.hint':
+      'Auf wie vielen der jüngsten Fraktale je Richtung (BUY und SELL jeweils) eine Pending-Order steht (1–20). Ein erreichtes, ausgelöstes oder von Hand gelöschtes Fraktal lässt seinen Platz leer; ältere rücken nicht nach. Offene Positionen begrenzt „Max. Positionen“.',
+    'zone.fractal.buyOrderCount.hint':
+      'Auf wie vielen der jüngsten Fraktale eine BUY-Pending-Order steht (1–20). Ein erreichtes, ausgelöstes oder von Hand gelöschtes Fraktal lässt seinen Platz leer; ältere rücken nicht nach. Offene Positionen begrenzt „Max. Positionen“.',
+    'zone.fractal.sellOrderCount.hint':
+      'Auf wie vielen der jüngsten Fraktale eine SELL-Pending-Order steht (1–20). Ein erreichtes, ausgelöstes oder von Hand gelöschtes Fraktal lässt seinen Platz leer; ältere rücken nicht nach. Offene Positionen begrenzt „Max. Positionen“.',
     'zone.fractal.rr.hint':
       'TP = Einstieg ± dieser Wert × SL-Abstand. Z. B. 2: TP doppelt so weit wie der SL. 0 = kein TP.',
     'zone.fractal.tpByMoney.hint':

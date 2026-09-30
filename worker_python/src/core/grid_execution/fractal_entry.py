@@ -1,14 +1,16 @@
 """Fraktal giriş modu: bölge ızgara yerine yalnızca fraktal seviyelerinde bekleyen emir koyar.
 
-Her taraf (üst "U" / alt "D") için en yeni onaylanmış fraktal tek bir bekleyen emir alır:
+Her taraf (üst "U" / alt "D") için en yeni N onaylanmış fraktal birer bekleyen emir alır
+(N = yön başına fractal_order_count / sell_fractal_order_count, varsayılan 1):
 - breakout (kırılım): üst fraktal → BUY STOP, alt fraktal → SELL STOP
 - rebound (dönüş):    üst fraktal → SELL LIMIT, alt fraktal → BUY LIMIT
-Yeni fraktal oluşunca emir taşınır (eskisi silinir, yenisi konur). Fiyat fraktal seviyesine
-ulaştıysa fraktal "tüketilmiştir", emir konmaz.
+Yeni fraktal oluşunca pencere kayar (en eski fraktalın emri silinir, yenisi konur). Fiyat fraktal
+seviyesine ulaştıysa fraktal "tüketilmiştir", emir konmaz; yeri boş kalır, daha eski fraktalla
+doldurulmaz.
 
 Elle müdahale korunur: fraktal emri bot silmeden kaybolursa (doldu, MT5'te elle silindi, süresi
 doldu) o fraktal "işlenmiş" sayılır ve data/fractal_state_<hesap>.json'a yazılır; aynı fraktala
-bir daha emir konmaz, ancak aynı taraftaki daha yeni bir fraktal yeniden emir açar.
+bir daha emir konmaz, diğer fraktalların emirleri etkilenmez.
 """
 import datetime
 import json
@@ -33,7 +35,7 @@ from src.core.grid_orders import (
 from src.core.state import state
 from src.utils.paths import get_fractal_state_path
 
-from .config import ZoneConfig, money_to_price_distance
+from .config import FRACTAL_MAX_ORDERS, ZoneConfig, money_to_price_distance
 from .fractal_signals import Fractal, atr, find_fractals, parabolic_sar
 
 # Fraktal + ATR/SAR için okunan kapanmış mum sayısı
@@ -83,7 +85,9 @@ def _load_done() -> None:
     try:
         with open(_state_file(), "r", encoding="utf-8") as f:
             data = json.load(f)
-        state.fractal_done.update({str(k): int(v) for k, v in (data.get("done") or {}).items()})
+        for k, v in (data.get("done") or {}).items():
+            # Eski biçim: anahtar başına tek zaman (int)
+            state.fractal_done[str(k)] = {int(t) for t in (v if isinstance(v, list) else [v])}
     except (OSError, ValueError, AttributeError, TypeError):
         pass
 
@@ -93,7 +97,7 @@ def _save_done() -> None:
     tmp = path + ".tmp"
     try:
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"done": state.fractal_done}, f)
+            json.dump({"done": {k: sorted(v) for k, v in state.fractal_done.items()}}, f)
         os.replace(tmp, path)
     except OSError:
         pass
@@ -105,9 +109,13 @@ def _done_key(zone_key: str, config: ZoneConfig, side: str) -> str:
 
 
 def _mark_done(key: str, bar_time: int) -> bool:
-    if state.fractal_done.get(key, 0) >= bar_time:
+    times = state.fractal_done.setdefault(key, set())
+    if int(bar_time) in times:
         return False
-    state.fractal_done[key] = int(bar_time)
+    times.add(int(bar_time))
+    # Yalnızca en yeni FRACTAL_MAX_ORDERS fraktal aday olabilir; daha eski kayıtlar gereksiz
+    if len(times) > FRACTAL_MAX_ORDERS:
+        state.fractal_done[key] = set(sorted(times)[-FRACTAL_MAX_ORDERS:])
     return True
 
 
@@ -147,6 +155,13 @@ def _update_done(zone_idx, zone_key, config, zone_orders, zone_positions, log_me
 
 
 # --------------------------------------------------------------------------- hedef emirler
+def _direction_of(config: ZoneConfig, side: str) -> str:
+    breakout = config.fractal_order_mode == "breakout"
+    if side == "U":
+        return "BUY" if breakout else "SELL"
+    return "SELL" if breakout else "BUY"
+
+
 def _sl_for(config: ZoneConfig, direction: str, f: Fractal, ups, downs, atr_vals, sar_vals):
     """Seçilen moda göre SL fiyatı (normalize edilmemiş) veya hesaplanamıyorsa None."""
     buf = config.fractal_sl_buffer
@@ -173,22 +188,18 @@ def _build_desired(
     tick, symbol_infos, log_message,
 ):
     breakout = config.fractal_order_mode == "breakout"
-    if side == "U":
-        direction = "BUY" if breakout else "SELL"
-    else:
-        direction = "SELL" if breakout else "BUY"
-    if config.order_type not in (direction, "BOTH"):
-        return None
+    direction = _direction_of(config, side)
 
-    log_key = (zone_idx, side)
+    # Fraktal zamanı anahtarda: taraf başına birden çok fraktal aynı turda değerlendirilir
+    log_key = (zone_idx, side, f.time)
     tf = config.fractal_timeframe
     label = f"Bölge {zone_idx+1} | {tf} {SIDE_NAMES[side]} fraktal {f.price} ({_fmt_time(f.time)})"
 
     done_key = _done_key(zone_key, config, side)
-    if f.time <= state.fractal_done.get(done_key, 0):
+    if f.time in state.fractal_done.get(done_key, ()):
         return None
     if not (config.min_price <= f.price <= config.max_price):
-        _log_once(log_key, ("range", f.time), f"ℹ️ Fraktal: {label} bölge aralığı dışında, emir yok.", "INFO", log_message)
+        _log_once(log_key, "range", f"ℹ️ Fraktal: {label} bölge aralığı dışında, emir yok.", "INFO", log_message)
         return None
 
     later = list(closed[f.index + 1 :]) + [forming]
@@ -197,7 +208,7 @@ def _build_desired(
     else:
         consumed = any(float(b["low"]) <= f.price for b in later) or float(tick.ask) <= f.price
     if consumed:
-        _log_once(log_key, ("consumed", f.time), f"ℹ️ Fraktal: {label} fiyatça geçildi, emir yok.", "INFO", log_message)
+        _log_once(log_key, "consumed", f"ℹ️ Fraktal: {label} fiyatça geçildi, emir yok.", "INFO", log_message)
         return None
 
     info = symbol_infos.get(config.symbol)
@@ -216,7 +227,7 @@ def _build_desired(
     if not valid(sl):
         fallback = f.low - config.fractal_sl_buffer if direction == "BUY" else f.high + config.fractal_sl_buffer
         _log_once(
-            (zone_idx, side, "sl"), f.time,
+            (zone_idx, side, "sl", f.time), "fallback",
             f"⚠️ Fraktal: {label} için SL ({config.fractal_sl_mode}) hesaplanamadı veya yanlış tarafta; "
             f"fraktal mumu + tampon kullanılıyor.",
             "WARN", log_message,
@@ -225,7 +236,7 @@ def _build_desired(
     sl = normalize_price(sl, config.symbol, symbol_infos)
     if not valid(sl):
         _log_once(
-            (zone_idx, side, "sl"), ("invalid", f.time),
+            (zone_idx, side, "sl_invalid", f.time), "invalid",
             f"⚠️ Fraktal: {label} için geçerli SL yok (tampon 0?). Emir konmuyor.", "WARN", log_message,
         )
         return None
@@ -246,7 +257,7 @@ def _build_desired(
             tp_dist = money_to_price_distance(config.fractal_tp_money, lot, config.symbol, symbol_infos) or 0.0
             if tp_dist == 0.0:
                 _log_once(
-                    (zone_idx, side, "tpmoney"), f.time,
+                    (zone_idx, side, "tpmoney", f.time), "missing",
                     f"⚠️ Fraktal: {label} için tutar → fiyat mesafesi hesaplanamadı (tick değeri yok); TP konmuyor.",
                     "WARN", log_message,
                 )
@@ -262,10 +273,10 @@ def _build_desired(
     eps = min_dist / 10
     stops_ok = risk >= stops - eps and (tp == 0.0 or abs(tp - entry) >= stops - eps)
     if not price_ok:
-        _log_once(log_key, ("near", f.time), f"⏸️ Fraktal: {label} fiyata çok yakın, emir bekliyor.", "INFO", log_message)
+        _log_once(log_key, "near", f"⏸️ Fraktal: {label} fiyata çok yakın, emir bekliyor.", "INFO", log_message)
     elif not stops_ok:
         _log_once(
-            log_key, ("stops", f.time),
+            log_key, "stops",
             f"⚠️ Fraktal: {label} için SL/TP girişe broker'ın asgari mesafesinden ({stops}) yakın; emir konmuyor.",
             "WARN", log_message,
         )
@@ -330,15 +341,27 @@ def manage_fractal_orders(
     sar_vals, sar_long = parabolic_sar(closed, config.fractal_sar_step, config.fractal_sar_max)
 
     desired: list[DesiredOrder] = []
+    candidates: set[int] = set()
     for side, items in (("U", ups), ("D", downs)):
-        if not items or not allow_new_orders:
+        direction = _direction_of(config, side)
+        if not allow_new_orders or config.order_type not in (direction, "BOTH"):
             continue
-        d = _build_desired(
-            mt5, config, zone_idx, zone_key, side, items[-1], closed, forming, ups, downs,
-            atr_vals, sar_vals, tick, symbol_infos, log_message,
-        )
-        if d is not None:
-            desired.append(d)
+        count = config.fractal_order_count if direction == "BUY" else config.sell_fractal_order_count
+        # Yalnızca en yeni `count` fraktal: geçersiz olanın yeri boş kalır, daha eskiyle doldurulmaz
+        for f in reversed(items[-count:]):
+            candidates.add(f.time)
+            d = _build_desired(
+                mt5, config, zone_idx, zone_key, side, f, closed, forming, ups, downs,
+                atr_vals, sar_vals, tick, symbol_infos, log_message,
+            )
+            if d is not None:
+                desired.append(d)
+    # Pencereden çıkan fraktalların "bir kez yaz" kayıtları birikmesin (pozisyon sınırında adaylar
+    # hesaplanmaz; kayıtlar kalsın ki sınır kalkınca aynı loglar tekrar yazılmasın)
+    if allow_new_orders:
+        stale = [k for k in state.fractal_logged if k[0] == zone_idx and k[-1] != "rates" and k[-1] not in candidates]
+        for key in stale:
+            del state.fractal_logged[key]
 
     info = symbol_infos.get(symbol)
     point = float(getattr(info, "point", 0) or 0) if info is not None else 0.0

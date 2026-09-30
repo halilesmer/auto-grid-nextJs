@@ -41,6 +41,8 @@ export function defaultZone(): ZoneSettings {
     fractal_sar_step: 0.02,
     fractal_sar_max: 0.2,
     fractal_rr: 2.0,
+    fractal_order_count: 1,
+    sell_fractal_order_count: 1,
     fractal_tp_by_money: false,
     fractal_tp_money: 10,
   };

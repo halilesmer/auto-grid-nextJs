@@ -350,6 +350,13 @@
       "tests": 4
     }
   },
+  "ENG-26": {
+    "unit": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 9
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-09-30",
@@ -958,6 +965,13 @@
     }
   },
   "ZON-15": {
+    "e2e": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-16": {
     "e2e": {
       "datum": "2026-09-30",
       "status": "passed",
