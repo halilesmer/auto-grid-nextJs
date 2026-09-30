@@ -28,9 +28,9 @@ const CHART_COLORS: Record<ResolvedTheme, {
   up: string; down: string; rsi: string;
 }> = {
   dark: {
-    text: '#8a8a8a',
-    grid: 'rgba(255,255,255,0.04)',
-    border: 'rgba(255,255,255,0.06)',
+    text: '#9d9da3',
+    grid: 'rgba(255,255,255,0.06)',
+    border: 'rgba(255,255,255,0.1)',
     crosshair: 'rgba(231,138,83,0.4)',
     crosshairLabel: '#e78a53',
     up: '#34c38f',
