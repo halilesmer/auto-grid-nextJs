@@ -27,7 +27,7 @@ function useShortcutLabel() {
 
 function Kbd({ children }: { children: string }) {
   return (
-    <kbd className="rounded border border-current/30 px-1 font-sans text-[10px] leading-4 opacity-70">
+    <kbd className="hidden rounded border border-current/30 px-1 sm:inline font-sans text-[10px] leading-4 opacity-70">
       {children}
     </kbd>
   );
