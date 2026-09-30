@@ -1,9 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from src.api.auth import require_admin
+from src.api.auth import redact_api_key, require_admin
 import sys
 import os
 import asyncio
-from src.utils.self_updater import check_for_updates, execute_git_pull, schedule_restart
+import time
+from collections import deque
+import psutil
+from src.api.helpers import _load_accounts
+from src.utils.bot_manager import _current_version, is_bot_running
+from src.utils.paths import get_worker_console_log_path
+from src.utils.self_updater import (
+    SUPERVISED_ENV,
+    check_for_updates,
+    execute_git_pull,
+    schedule_restart,
+)
 
 router = APIRouter(tags=["System"])
 
@@ -76,3 +87,47 @@ async def run_update(branch: str = Query("main", description="Git branch")):
     # Yeni kod ancak yeniden başlatınca yüklenir (watchdog .bat altında otomatik)
     restarting = schedule_restart()
     return {"status": "success", "message": message, "restarting": restarting}
+
+
+@router.get("/system/worker/status", dependencies=[Depends(require_admin)])
+async def worker_status():
+    """VPS-Seite (online): Sürüm, çalışma süresi, watchdog altında mı, çalışan bot sayısı."""
+    uptime = None
+    try:
+        uptime = int(time.time() - psutil.Process().create_time())
+    except Exception:
+        pass
+    accounts = _load_accounts()
+    running = sum(1 for a in accounts if is_bot_running(a.get("id", "")))
+    return {
+        "version": _current_version(),
+        "uptime_sec": uptime,
+        "supervised": os.environ.get(SUPERVISED_ENV) == "1",
+        "bots_running": running,
+        "bots_total": len(accounts),
+    }
+
+
+@router.post("/system/restart", dependencies=[Depends(require_admin)])
+async def restart_worker():
+    """Worker'ı yeniden başlatır (watchdog .bat 3 sn içinde açar); botlar ayrı süreç, çalışmaya devam eder."""
+    if not schedule_restart():
+        raise HTTPException(
+            status_code=409,
+            detail="Worker run_uvicorn_watchdog.bat altında çalışmıyor - otomatik yeniden başlatma yok, VPS'te start.bat ile elle başlatın.",
+        )
+    return {"status": "success", "restarting": True}
+
+
+@router.get("/system/worker/log", dependencies=[Depends(require_admin)])
+async def worker_log(lines: int = Query(300, ge=10, le=2000)):
+    """logs/worker_console.log'un son satırları (Mac'teki SSH yolunun online karşılığı)."""
+    path = get_worker_console_log_path()
+    if not os.path.exists(path):
+        return {"lines": []}
+
+    def _tail() -> list[str]:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return [redact_api_key(ln.rstrip("\r\n")) for ln in deque(f, maxlen=lines)]
+
+    return {"lines": await asyncio.to_thread(_tail)}

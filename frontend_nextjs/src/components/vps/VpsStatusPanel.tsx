@@ -43,7 +43,7 @@ function Tile({
   );
 }
 
-function uptime(minutes: number, t: (key: MessageKey, params?: Record<string, string | number>) => string): string {
+export function uptime(minutes: number, t: (key: MessageKey, params?: Record<string, string | number>) => string): string {
   if (minutes < 60) return t('vps.uptime.min', { n: minutes });
   const hours = Math.floor(minutes / 60);
   if (hours < 48) return t('vps.uptime.hours', { h: hours, m: minutes % 60 });

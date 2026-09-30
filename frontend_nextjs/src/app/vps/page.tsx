@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import VpsActions from '@/components/vps/VpsActions';
 import VpsElevatedWarning from '@/components/vps/VpsElevatedWarning';
+import VpsOnlinePanel from '@/components/vps/VpsOnlinePanel';
 import VpsLogViewer from '@/components/vps/VpsLogViewer';
 import VpsStatusPanel from '@/components/vps/VpsStatusPanel';
 import { useVps } from '@/components/vps/useVps';
@@ -47,13 +48,16 @@ function VpsView() {
           {t('vps.connecting')}
         </Card>
       ) : vps.localOnly ? (
-        <Card className="p-5" data-testid="vps-local-only">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <ServerOff size={16} className="text-muted-foreground" />
-            {t('vps.localOnly.title')}
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">{t('vps.localOnly.body')}</p>
-        </Card>
+        <>
+          <Card className="p-5" data-testid="vps-local-only">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <ServerOff size={16} className="text-muted-foreground" />
+              {t('vps.localOnly.title')}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('vps.localOnly.body')}</p>
+          </Card>
+          <VpsOnlinePanel />
+        </>
       ) : vps.disabled ? (
         <Card className="p-5" data-testid="vps-disabled">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">

@@ -348,6 +348,7 @@ export default defineArea(
       'Açık: TP, Risk/Ödül çarpanı yerine sabit bir tutardır (hesap para birimi). Kapalı: TP = SL mesafesi × çarpan.',
     'zone.fractal.tpMoney.hint':
       'Pozisyon başına hedef kâr (hesap para birimi). TP, bu tutarın o yönün lot büyüklüğünde karşılık geldiği fiyat mesafesine konur. 0 = TP yok.',
+    'vps.online.restart.hint': 'Worker’ı worker API’si üzerinden yeniden başlatır (run_uvicorn_watchdog.bat açar). Botlar çalışmaya devam eder; yalnızca yönetici anahtarıyla, watchdog altında kullanılabilir.',
   },
   {
     // --- Account ---
@@ -692,6 +693,7 @@ export default defineArea(
       'On: the TP is a fixed amount (account currency) instead of the reward/risk factor. Off: TP = SL distance × factor.',
     'zone.fractal.tpMoney.hint':
       'Target profit per position (account currency). The TP is placed at the price distance this amount equals at that side\'s lot size. 0 = no TP.',
+    'vps.online.restart.hint': 'Restarts the worker through the worker API (run_uvicorn_watchdog.bat brings it back). Bots keep running; admin key only, and only under the restart loop.',
   },
   {
     // --- Konto ---
@@ -1036,5 +1038,6 @@ export default defineArea(
       'An: Der TP ist ein fester Betrag (Kontowährung) statt des Chance/Risiko-Faktors. Aus: TP = SL-Abstand × Faktor.',
     'zone.fractal.tpMoney.hint':
       'Ziel-Gewinn pro Position (Kontowährung). Der TP liegt im Preisabstand, der diesem Betrag beim Lot der jeweiligen Seite entspricht. 0 = kein TP.',
+    'vps.online.restart.hint': 'Startet den Worker über die Worker-API neu (run_uvicorn_watchdog.bat startet ihn wieder). Bots laufen weiter; nur mit Admin-Schlüssel und nur unter der Neustart-Schleife.',
   },
 );

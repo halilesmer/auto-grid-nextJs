@@ -409,3 +409,12 @@ def test_systemrouten_nur_fuer_admin(multi):
     # Verbindungstest und MT5-Suche (Konto-Formular) bleiben für alle offen
     assert c.get("/api/system/platform", headers=multi.anna).status_code == 200
     assert c.get("/api/system/scan-mt5", headers=multi.anna).status_code == 200
+
+
+@pytest.mark.feature("VPS-09")
+def test_worker_online_endpunkte_sind_nur_fuer_admin(multi):
+    c = multi.client
+    for method, path in (("get", "/api/system/worker/status"), ("get", "/api/system/worker/log"), ("post", "/api/system/restart")):
+        assert getattr(c, method)(path, headers=multi.anna).status_code == 403
+        assert getattr(c, method)(path).status_code == 401
+    assert c.get("/api/system/worker/status", headers=multi.admin).status_code == 200

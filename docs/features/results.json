@@ -507,7 +507,7 @@
     "e2e": {
       "datum": "2026-09-30",
       "status": "passed",
-      "tests": 4
+      "tests": 2
     }
   },
   "SET-04": {
@@ -718,7 +718,7 @@
     "e2e": {
       "datum": "2026-09-30",
       "status": "passed",
-      "tests": 15
+      "tests": 14
     }
   },
   "UI-08": {
