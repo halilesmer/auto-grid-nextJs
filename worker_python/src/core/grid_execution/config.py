@@ -3,6 +3,7 @@ from typing import Callable
 
 from src.core.grid_helpers import log_message as default_log_message
 from src.core.grid_orders import BASE_MAGIC_NUMBER
+from src.utils.trade_utils import snap_volume
 from .exceptions import InvalidZoneConfigError
 
 
@@ -87,6 +88,40 @@ def money_to_price_distance(amount: float, lot: float, symbol: str, symbol_infos
     return distance
 
 
+MAX_LOT = 5.0  # motorun lot üst sınırı (broker volume_max'ından bağımsız güvenlik sınırı)
+
+# Yükseltilen lotu her döngüde tekrar loglamamak için: (bölge, sembol, taraf, girilen, kullanılan)
+_lot_raised_logged: set = set()
+
+
+def _lot_of(raw, symbol: str, symbol_infos: dict | None, zone_idx: int, side: str,
+            log_message: Callable[[str, str], None]) -> float:
+    """Zonedeki lot değerini sembolün broker kurallarına oturtur. Lot asla 0 kalmaz: 0, negatif,
+    boş veya geçersiz değer sembolün `volume_min`'ine (brokera göre değişir) yükselir; adım
+    `volume_step`, üst sınır MAX_LOT ve `volume_max`. Sembol bilgisi yoksa 0,01 tabanı geçerli."""
+    try:
+        lot = float(raw)
+    except (TypeError, ValueError):
+        lot = 0.0
+    if lot != lot:  # NaN
+        lot = 0.0
+    capped = min(MAX_LOT, lot)
+    info = (symbol_infos or {}).get(symbol)
+    result = snap_volume(capped, info) if info is not None else max(0.01, capped)
+    if result > lot + 1e-9:
+        key = (zone_idx, symbol, side, lot, result)
+        if key not in _lot_raised_logged:
+            if len(_lot_raised_logged) > 200:
+                _lot_raised_logged.clear()
+            _lot_raised_logged.add(key)
+            log_message(
+                f"Zone {zone_idx + 1}: {side} lot {lot:g} {symbol} için geçersiz/minimumun altında "
+                f"→ {result:g} kullanılıyor",
+                "WARNING",
+            )
+    return result
+
+
 def max_positions_of(zone_dict: dict) -> int:
     """Bölgenin pozisyon sınırı (0 = sınırsız → 500). Max-pozisyon koruması (handler) ve kısmi
     dolum tamamlaması (grid_order_manager) aynı sınırı kullanmalı: biri emir koyup diğeri
@@ -116,12 +151,12 @@ def extract_zone_config(
         raise InvalidZoneConfigError(f"Zone {zone_idx + 1}: min_price must be < max_price")
 
     grid_step = max(0.00001, float(zone_dict.get("grid_step", 0.05)))
-    lot_val = max(0.01, min(5.0, float(zone_dict.get("lot_size", 0.01))))
     tp_val = float(zone_dict.get("take_profit", 0.05))
     sl_val = float(zone_dict.get("stop_loss", 0.0))
     symbol = zone_dict.get("symbol", "").upper().strip()
     if not symbol:
         raise InvalidZoneConfigError(f"Zone {zone_idx + 1}: symbol is required")
+    lot_val = _lot_of(zone_dict.get("lot_size", 0.01), symbol, symbol_infos, zone_idx, "BUY", log_message)
 
     is_sync = bool(zone_dict.get("sync_buy_sell", True))
     if is_sync:
@@ -132,7 +167,12 @@ def extract_zone_config(
         sell_pullback_distance = float(zone_dict.get("pullback_distance", 0.50))
     else:
         sell_grid_step = max(0.00001, float(zone_dict.get("sell_grid_step", grid_step)))
-        sell_lot_val = max(0.01, min(5.0, float(zone_dict.get("sell_lot_size", lot_val))))
+        raw_sell_lot = zone_dict.get("sell_lot_size")
+        sell_lot_val = (
+            lot_val
+            if raw_sell_lot in (None, "")
+            else _lot_of(raw_sell_lot, symbol, symbol_infos, zone_idx, "SELL", log_message)
+        )
         sell_tp_val = float(zone_dict.get("sell_take_profit", tp_val))
         sell_sl_val = float(zone_dict.get("sell_stop_loss", sl_val))
         sell_pullback_distance = float(

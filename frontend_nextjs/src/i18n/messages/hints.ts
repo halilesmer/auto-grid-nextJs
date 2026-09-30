@@ -224,8 +224,8 @@ export default defineArea(
     'zone.field.buyGrid.hint':
       'BUY tarafı için iki grid seviyesi arasındaki fiyat mesafesi ($). SELL için ayrı bir alan var.',
     'zone.field.lot.hint':
-      'Her grid emrinin hacmi (lot). Sembolün en küçük lot ve adım kuralına göre yuvarlanır; motor 0,01–5 lot ile sınırlar.',
-    'zone.field.buyLot.hint': 'BUY emirlerinin hacmi (lot). SELL için ayrı bir alan var.',
+      'Her grid emrinin hacmi (lot). En az sembolün brokerdaki en küçük lotu olabilir: 0 veya daha küçük değer bu minimuma yükseltilir, adım kuralına göre yuvarlanır; motor üstten 5 lot ile sınırlar.',
+    'zone.field.buyLot.hint': 'BUY emirlerinin hacmi (lot). En az sembolün brokerdaki en küçük lotu; 0 veya daha küçük değer bu minimuma yükseltilir. SELL için ayrı bir alan var.',
     'zone.field.takeProfit.hint':
       'Kâr al mesafesi ($): BUY için giriş fiyatının bu kadar üstüne, SELL için altına konur. Fiyat oraya ulaşınca pozisyon kârla kapanır.',
     'zone.field.gridStep.guide': 'Referans ({symbol}): {range}. Spread’e yakın çok dar adım, emirlerin sürekli dolup silinip yeniden kurulmasına yol açar.',
@@ -236,7 +236,8 @@ export default defineArea(
     'zone.field.buyStopLoss.hint':
       'BUY pozisyonları için zarar durdur mesafesi ($): giriş fiyatının bu kadar altı. 0 = zarar durdur yok.',
     'zone.field.sellGrid.hint': 'SELL tarafı için iki grid seviyesi arasındaki fiyat mesafesi ($).',
-    'zone.field.sellLot.hint': 'SELL emirlerinin hacmi (lot).',
+    'zone.field.sellLot.hint':
+      'SELL emirlerinin hacmi (lot). En az sembolün brokerdaki en küçük lotu; 0 veya daha küçük değer bu minimuma yükseltilir.',
     'zone.field.sellTakeProfit.hint': 'SELL pozisyonları için kâr al mesafesi ($): giriş fiyatının bu kadar altı.',
     'zone.field.sellStopLoss.hint':
       'SELL pozisyonları için zarar durdur mesafesi ($): giriş fiyatının bu kadar üstü. 0 = zarar durdur yok.',
@@ -539,8 +540,8 @@ export default defineArea(
     'zone.field.buyGrid.hint':
       'Price distance between two grid levels for the BUY side ($). SELL has its own field.',
     'zone.field.lot.hint':
-      'Volume of every grid order (lots). Rounded to the symbol’s minimum lot and step; the engine limits it to 0.01–5 lots.',
-    'zone.field.buyLot.hint': 'Volume of BUY orders (lots). SELL has its own field.',
+      'Volume of every grid order (lots). Never below the symbol’s minimum lot at your broker: 0 or a smaller value is raised to that minimum and rounded to the lot step; the engine caps it at 5 lots.',
+    'zone.field.buyLot.hint': 'Volume of BUY orders (lots). Never below the symbol’s minimum lot at your broker; 0 or a smaller value is raised to it. SELL has its own field.',
     'zone.field.takeProfit.hint':
       'Take-profit distance ($): placed this far above the entry price for BUY, below it for SELL. The position closes in profit when the price gets there.',
     'zone.field.gridStep.guide': 'Guideline for {symbol}: {range}. A very tight step (close to the spread) makes orders fill, get deleted and be re-placed constantly.',
@@ -551,7 +552,8 @@ export default defineArea(
     'zone.field.buyStopLoss.hint':
       'Stop-loss distance ($) for BUY positions: this far below the entry price. 0 = no stop loss.',
     'zone.field.sellGrid.hint': 'Price distance between two grid levels for the SELL side ($).',
-    'zone.field.sellLot.hint': 'Volume of SELL orders (lots).',
+    'zone.field.sellLot.hint':
+      'Volume of SELL orders (lots). Never below the symbol’s minimum lot at your broker; 0 or a smaller value is raised to it.',
     'zone.field.sellTakeProfit.hint': 'Take-profit distance ($) for SELL positions: this far below the entry price.',
     'zone.field.sellStopLoss.hint':
       'Stop-loss distance ($) for SELL positions: this far above the entry price. 0 = no stop loss.',
@@ -854,8 +856,8 @@ export default defineArea(
     'zone.field.buyGrid.hint':
       'Preisabstand zwischen zwei Grid-Leveln für die BUY-Seite ($). SELL hat ein eigenes Feld.',
     'zone.field.lot.hint':
-      'Volumen jeder Grid-Order (Lots). Wird nach kleinstem Lot und Schritt des Symbols gerundet; die Engine begrenzt auf 0,01–5 Lots.',
-    'zone.field.buyLot.hint': 'Volumen der BUY-Orders (Lots). SELL hat ein eigenes Feld.',
+      'Volumen jeder Grid-Order (Lots). Mindestens der kleinste Lot des Symbols bei deinem Broker: 0 oder ein kleinerer Wert wird auf dieses Minimum angehoben und auf den Lot-Schritt gerundet; die Engine begrenzt nach oben auf 5 Lots.',
+    'zone.field.buyLot.hint': 'Volumen der BUY-Orders (Lots). Mindestens der kleinste Lot des Symbols bei deinem Broker; 0 oder ein kleinerer Wert wird darauf angehoben. SELL hat ein eigenes Feld.',
     'zone.field.takeProfit.hint':
       'Take-Profit-Abstand ($): bei BUY so weit über dem Einstiegspreis, bei SELL darunter. Erreicht der Preis ihn, schließt die Position im Gewinn.',
     'zone.field.gridStep.guide': 'Richtwert für {symbol}: {range}. Sehr enge Abstände (nahe am Spread) führen dazu, dass Orders ständig gefüllt, gelöscht und neu gesetzt werden.',
@@ -866,7 +868,8 @@ export default defineArea(
     'zone.field.buyStopLoss.hint':
       'Stop-Loss-Abstand ($) für BUY-Positionen: so weit unter dem Einstiegspreis. 0 = kein Stop Loss.',
     'zone.field.sellGrid.hint': 'Preisabstand zwischen zwei Grid-Leveln für die SELL-Seite ($).',
-    'zone.field.sellLot.hint': 'Volumen der SELL-Orders (Lots).',
+    'zone.field.sellLot.hint':
+      'Volumen der SELL-Orders (Lots). Mindestens der kleinste Lot des Symbols bei deinem Broker; 0 oder ein kleinerer Wert wird darauf angehoben.',
     'zone.field.sellTakeProfit.hint': 'Take-Profit-Abstand ($) für SELL-Positionen: so weit unter dem Einstiegspreis.',
     'zone.field.sellStopLoss.hint':
       'Stop-Loss-Abstand ($) für SELL-Positionen: so weit über dem Einstiegspreis. 0 = kein Stop Loss.',

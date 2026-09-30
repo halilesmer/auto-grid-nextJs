@@ -5,7 +5,7 @@ import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
-import { defaultZone } from '@/utils/zoneHelpers';
+import { defaultZone, getSymbolConfig, normalizeZoneLots } from '@/utils/zoneHelpers';
 import type { ZoneSettings } from '@/store/types';
 import { t } from '@/i18n';
 
@@ -41,8 +41,13 @@ export function useZoneActions(
     const currentZones = settings?.ZONES || [];
     const lastSymbol = currentZones.length > 0 ? currentZones[currentZones.length - 1].symbol : '';
 
-    setZones((prevZones) => [...prevZones, { ...defaultZone(), symbol: lastSymbol }]);
-  }, [setZones, settings]);
+    // Start-Lot = kleinster Lot des Symbols beim Broker (nicht fest 0.01)
+    const minLot = getSymbolConfig(lastSymbol, symbolDetails).volMin;
+    setZones((prevZones) => [
+      ...prevZones,
+      { ...defaultZone(), symbol: lastSymbol, lot_size: minLot, sell_lot_size: minLot },
+    ]);
+  }, [setZones, settings, symbolDetails]);
 
   const deleteZone = useCallback(
     (zoneId: string) => {
@@ -69,14 +74,18 @@ export function useZoneActions(
   const saveZone = useCallback(
     async (zoneId: string) => {
       if (!selectedAccount) return;
-      const zone = useSettingsStore.getState().settings?.ZONES?.find((z) => z.id === zoneId);
-      if (!zone) return;
+      const stored = useSettingsStore.getState().settings?.ZONES?.find((z) => z.id === zoneId);
+      if (!stored) return;
 
-      const symbolError = getSymbolError(zone.symbol || '');
+      const symbolError = getSymbolError(stored.symbol || '');
       if (symbolError) {
         alert(symbolError);
         return;
       }
+
+      // Nie einen Lot ≤ 0 oder unter dem Symbol-Minimum speichern (auch UI-Stand angleichen)
+      const zone = normalizeZoneLots(stored, useSettingsStore.getState().symbolDetails);
+      if (zone !== stored) setZones((prevZones) => prevZones.map((z) => (z.id === zoneId ? zone : z)));
 
       setSavingZoneId(zoneId);
       try {
@@ -91,7 +100,7 @@ export function useZoneActions(
         setSavingZoneId(null);
       }
     },
-    [selectedAccount, getSymbolError, onZoneSaved]
+    [selectedAccount, getSymbolError, onZoneSaved, setZones]
   );
 
   const toggleActive = useCallback(

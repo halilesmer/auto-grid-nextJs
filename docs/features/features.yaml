@@ -316,7 +316,7 @@ kategorien:
         pruefung:
           - Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools).
           - Ein unbekanntes Symbol eintippen (nicht speichern).
-        erwartet: Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; unbekanntes Symbol zeigt „Geçersiz Sembol!“.
+        erwartet: Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; liegt der Lot unter dem Minimum des Symbols, wird er darauf angehoben (nie 0); unbekanntes Symbol zeigt „Geçersiz Sembol!“.
 
       - id: SYM-04
         titel: Symbolfehler sichtbar
@@ -360,12 +360,13 @@ kategorien:
 
       - id: ZON-04
         titel: Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur)
-        beschreibung: Gridabstand, Lotgröße, Take Profit, Stop Loss der Zone.
-        code: [frontend_nextjs/src/components/zone/ZoneGridFields.tsx, worker_python/src/core/grid_execution/config.py]
+        beschreibung: Gridabstand, Lotgröße, Take Profit, Stop Loss der Zone. Der Lot ist nie 0 und nie kleiner als der kleinste Lot des Symbols beim Broker (volume_min) - Symbolwechsel, Laden, neue Zone und Speichern heben ihn auf mindestens dieses Minimum an; ein leeres Feld oder 0 beim Tippen fällt auf den letzten gültigen Lot zurück.
+        code: [frontend_nextjs/src/components/zone/ZoneGridFields.tsx, frontend_nextjs/src/utils/zoneHelpers.ts, frontend_nextjs/src/hooks/useZoneFieldHandlers.ts, worker_python/src/core/grid_execution/config.py]
         tiers: [e2e]
         pruefung:
           - Jedes Feld ändern, speichern, neu laden.
-        erwartet: Alle Werte bleiben erhalten.
+          - Lot leeren oder 0 eintragen und das Feld verlassen; danach ein Symbol mit größerem Mindestlot wählen (z. B. 0,1).
+        erwartet: Alle Werte bleiben erhalten; der Lot bleibt nie bei 0, sondern zeigt mindestens das Minimum des Symbols.
 
       - id: ZON-05
         titel: SELL-Felder + BUY/SELL-Sync
@@ -574,8 +575,8 @@ kategorien:
 
       - id: ENG-04
         titel: Zonen-Config lesen + Lot begrenzen
-        beschreibung: extract_zone_config liest order_type, grid_step, lot_size (auf 0,01–5,0 begrenzt), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
-        code: [worker_python/src/core/grid_execution/config.py]
+        beschreibung: extract_zone_config liest order_type, grid_step, lot_size und sell_lot_size (nie 0 - mindestens volume_min des Symbols beim Broker und auf dessen Lot-Schritt gerundet, nach oben auf 5,0 begrenzt; ohne Symbolinfos gilt 0,01 als Minimum), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
+        code: [worker_python/src/core/grid_execution/config.py, worker_python/src/utils/trade_utils.py]
         tiers: [unit]
         pruefung:
           - Nicht manuell testen.
@@ -647,7 +648,7 @@ kategorien:
 
       - id: ENG-12
         titel: Order-Sicherheit (Stops-Level, order_check, 10027)
-        beschreibung: safe_send_order normalisiert Volumen, hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
+        beschreibung: safe_send_order normalisiert Volumen (nie unter volume_min - auch 0 wird zum Minimum -, nie über volume_max, Schritt ab volume_min), hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
         code: [worker_python/src/utils/trade_utils.py]
         tiers: [unit]
         pruefung:

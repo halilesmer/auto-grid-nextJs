@@ -1,7 +1,7 @@
 """ENG-12 Order-Sicherheit: safe_send_order (Volumen, Stops-Level, order_check, 10027, stille Ablehnung)."""
 import pytest
 
-from src.utils.trade_utils import TradeState, safe_send_order
+from src.utils.trade_utils import TradeState, safe_send_order, snap_volume
 from tests.fakes.fake_mt5 import Result
 
 
@@ -24,6 +24,30 @@ def _pending(m, price=96.9, tp=97.0, sl=0.0, volume=0.01, type_=None):
 def test_volumen_wird_auf_den_lotschritt_normalisiert(fake_mt5):
     assert safe_send_order(fake_mt5, _pending(fake_mt5, volume=0.020000001)) is True
     assert fake_mt5.sent[-1]["volume"] == 0.02
+
+
+@pytest.mark.feature("ENG-12")
+def test_volumen_0_oder_unter_broker_minimum_wird_zum_minimum(fake_mt5):
+    m = fake_mt5
+    m.symbols["USOUSD"].volume_min = 0.1
+    m.symbols["USOUSD"].volume_step = 0.1
+    for raw in (0, 0.01, 0.04):
+        assert safe_send_order(m, _pending(m, volume=raw)) is True
+        assert m.sent[-1]["volume"] == 0.1  # nie 0 an den Broker
+    assert safe_send_order(m, _pending(m, volume=999)) is True
+    assert m.sent[-1]["volume"] == 50.0  # volume_max
+
+
+@pytest.mark.feature("ENG-12")
+def test_snap_volume_akzeptiert_objekt_und_dict_infos():
+    info = {"vol_min": 0.5, "vol_step": 0.5, "vol_max": 10}
+    assert snap_volume(0, info) == 0.5
+    assert snap_volume(float("nan"), info) == 0.5
+    assert snap_volume(1.2, info) == 1.0
+    assert snap_volume(99, info) == 10.0
+    # Auch ohne Lot-Schritt und mit sehr kleinem Minimum wird nie 0 daraus
+    assert snap_volume(0, {"volume_min": 0.001}) == 0.001
+    assert snap_volume(0.15, {"volume_min": 0.1, "volume_step": 0.1}) == 0.2  # halber Schritt wie im UI
 
 
 @pytest.mark.feature("ENG-12")

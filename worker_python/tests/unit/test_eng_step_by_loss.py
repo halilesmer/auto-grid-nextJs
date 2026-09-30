@@ -41,6 +41,17 @@ def test_zone_config_rechnet_grid_und_pullback_je_seite_um(fake_mt5):
 
 
 @pytest.mark.feature("ENG-17")
+def test_umrechnung_nutzt_den_lot_mit_broker_minimum(fake_mt5):
+    # Minimum 0,1 Lot: gehandelt wird 0,1 (nicht 0,01) – der $-Abstand muss dafür gelten
+    fake_mt5.add_symbol("EURUSD", bid=1.10000, digits=5, point=0.00001, volume_min=0.1, volume_step=0.1,
+                        trade_tick_size=0.00001, trade_tick_value=1.0, trade_contract_size=100000)
+    cfg = _cfg(fake_mt5, symbol="EURUSD", step_by_loss=True, grid_step=10, lot_size=0.01,
+               pullback_distance=0, take_profit=0)
+    assert cfg.lot_size == 0.1
+    assert cfg.grid_step == pytest.approx(0.001)  # 10 $ bei 0,1 Lot (nicht 0,01 → 0,01)
+
+
+@pytest.mark.feature("ENG-17")
 def test_ohne_checkbox_bleiben_preisabstaende_unveraendert(fake_mt5):
     cfg = _cfg(fake_mt5, grid_step=1, pullback_distance=5)
     assert (cfg.step_by_loss, cfg.grid_step, cfg.pullback_distance) == (False, 1.0, 5.0)

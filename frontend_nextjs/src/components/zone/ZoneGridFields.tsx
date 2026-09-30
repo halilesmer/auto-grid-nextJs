@@ -57,11 +57,12 @@ export function ZoneGridFields({
       >
         <NumberInput
           min={symbolConfig.volMin}
+          max={Number.isFinite(symbolConfig.volMax) ? symbolConfig.volMax : undefined}
           step={symbolConfig.volStep}
           maxDecimals={volPrecision}
           value={zone.lot_size}
           onChange={(e) => handleChange('lot_size', e.target.value, zone, symbolConfig, update)}
-          onBlur={() => handleBlur('lot_size', zone.lot_size, symbolConfig.volStep, volPrecision, update)}
+          onBlur={() => handleBlur('lot_size', zone.lot_size, symbolConfig.volStep, volPrecision, update, symbolConfig)}
           className="input-s"
         />
       </InputField>
