@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
 import { FieldLabel } from '@/components/ui/tooltip';
 import type { VpsStatus } from '@/lib/vps';
-import { useT, type MessageKey } from '@/i18n';
+import { useFormat, useT, type MessageKey } from '@/i18n';
 
 type Tone = 'success' | 'danger' | 'warning' | 'neutral';
 
@@ -52,6 +52,7 @@ function uptime(minutes: number, t: (key: MessageKey, params?: Record<string, st
 
 export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus | null; sshError: string | null }) {
   const t = useT();
+  const fmt = useFormat();
   if (!status) {
     return (
       <Card className="p-4" data-testid="vps-status">
@@ -136,6 +137,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
           <p className="font-mono">
             {status.git.branch || '?'} @ {status.git.commit || '?'}
           </p>
+          {status.git.updated_at && <p>{t('vps.tile.updatedAt', { time: fmt.dateTime(status.git.updated_at) })}</p>}
           <p>{t('vps.tile.autoUpdate', { state: autoUpdate })}</p>
         </Tile>
 

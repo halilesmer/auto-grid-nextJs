@@ -157,7 +157,7 @@ export default defineArea(
       'ngrok tüneli arayüzü internet üzerinden worker’a bağlar. Çevrimdışıysa arayüz worker’a ulaşamaz.',
     'vps.tile.bots.hint': 'VPS’te çalışan bot süreçleri (hesap başına bir tane) ve açık MT5 terminali sayısı.',
     'vps.tile.version.hint':
-      'VPS’teki kurulu sürüm ile git dalı/commit’i. Dal “main” değilse uyarı gösterilir; otomatik güncelleme main’den çeker.',
+      'VPS’teki kurulu sürüm ile git dalı/commit’i ve son güncelleme zamanı. Dal “main” değilse uyarı gösterilir; otomatik güncelleme main’den çeker.',
     'vps.tile.autostart.hint':
       'VPS açılışta kendiliğinden çalışıyor mu: otomatik oturum açma + AutoGrid-Start görevi. “Eksik” ise yeniden başlatma sonrası worker gelmez.',
     'vps.tile.system.hint': 'VPS’in bilgisayar adı ve ne zamandır açık olduğu.',
@@ -472,7 +472,7 @@ export default defineArea(
       'The ngrok tunnel connects the UI to the worker over the internet. If it is offline the UI cannot reach the worker.',
     'vps.tile.bots.hint': 'Bot processes running on the VPS (one per account) and the number of open MT5 terminals.',
     'vps.tile.version.hint':
-      'Installed version on the VPS with its git branch/commit. A warning shows if the branch is not “main”; auto-update pulls from main.',
+      'Installed version on the VPS with its git branch/commit and when it was last updated. A warning shows if the branch is not “main”; auto-update pulls from main.',
     'vps.tile.autostart.hint':
       'Whether the VPS starts everything on boot: automatic logon + the AutoGrid-Start task. If “Incomplete” the worker will not come back after a reboot.',
     'vps.tile.system.hint': 'Computer name of the VPS and how long it has been up.',
@@ -787,7 +787,7 @@ export default defineArea(
       'Der ngrok-Tunnel verbindet die Oberfläche über das Internet mit dem Worker. Ist er offline, erreicht die Oberfläche den Worker nicht.',
     'vps.tile.bots.hint': 'Auf dem VPS laufende Bot-Prozesse (einer pro Konto) und Anzahl der offenen MT5-Terminals.',
     'vps.tile.version.hint':
-      'Installierte Version auf dem VPS mit Git-Branch/Commit. Ist der Branch nicht „main“, erscheint eine Warnung; das Auto-Update holt von main.',
+      'Installierte Version auf dem VPS mit Git-Branch/Commit und dem Zeitpunkt der letzten Aktualisierung. Ist der Branch nicht „main“, erscheint eine Warnung; das Auto-Update holt von main.',
     'vps.tile.autostart.hint':
       'Ob der VPS beim Hochfahren alles selbst startet: automatische Anmeldung + Aufgabe AutoGrid-Start. Bei „Unvollständig“ kommt der Worker nach einem Neustart nicht zurück.',
     'vps.tile.system.hint': 'Rechnername des VPS und wie lange er schon läuft.',

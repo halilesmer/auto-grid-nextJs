@@ -58,7 +58,8 @@ export interface VpsStatus {
   ok: true;
   hostname: string;
   version: string;
-  git: { branch: string; commit: string };
+  /** updated_at (UTC-ISO): wann HEAD zuletzt bewegt wurde; fehlt bei älteren vps.ps1-Ständen */
+  git: { branch: string; commit: string; updated_at?: string | null };
   worker: { listening: boolean; reachable: boolean; error: string | null };
   worker_watchdog: boolean;
   ngrok: { running: boolean; public_url: string | null };
