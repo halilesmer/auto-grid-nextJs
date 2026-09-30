@@ -93,6 +93,57 @@ test.describe('ZON Zonen', () => {
     await expect(lot).toHaveValue('0.12');
   });
 
+  test('Lot bleibt nie 0: leer oder „0“ fällt auf den letzten gültigen Lot zurück', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const lot = dashboard.zoneField(msg('zone.field.lot')); // USOUSD: kleinster Lot 0.01
+
+    // Startwert ist schon das Minimum: Leeren oder „0“ kann ihn nicht darunter drücken
+    await lot.clear();
+    await lot.blur();
+    await expect(lot).toHaveValue('0.01');
+    await lot.fill('0');
+    await lot.blur();
+    await expect(lot).toHaveValue('0.01');
+
+    // Nach einem gültigen Wert behält das Feld diesen, statt bei leerer Eingabe auf 0 zu fallen
+    await lot.fill('0.05');
+    await lot.clear();
+    await lot.blur();
+    await expect(lot).toHaveValue('0.05');
+
+    await dashboard.saveAllSettings();
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ lot_size: 0.05 });
+  });
+
+  test('Gespeicherter Lot 0 wird beim Laden und Speichern auf das Minimum gebracht', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
+    worker.state.settings[DEMO_ID].ZONES = [makeZone({ lot_size: 0, sell_lot_size: 0 })];
+    await dashboard.open(DEMO_ID);
+    await expect(dashboard.zoneField(msg('zone.field.lot'))).toHaveValue('0.01');
+
+    await dashboard.saveAllSettings();
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ lot_size: 0.01, sell_lot_size: 0.01 });
+  });
+
+  test('Symbolwechsel auf größeres Minimum hebt den Lot an, Speichern schickt kein 0', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const symbol = dashboard.zone().getByPlaceholder(/Sembol Ara/);
+    await symbol.fill('EURUSD'); // Broker: volume_min/step 0.1, Zone hat 0.01
+    await symbol.press('Escape');
+    await expect(dashboard.zoneField(msg('zone.field.lot'))).toHaveValue('0.1');
+
+    await dashboard.saveAllSettings();
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ symbol: 'EURUSD', lot_size: 0.1, sell_lot_size: 0.1 });
+  });
+
+  test('Neue Zone startet mit dem Minimum-Lot ihres Symbols', { tag: '@ZON-01' }, async ({ page, dashboard, worker }) => {
+    worker.state.settings[DEMO_ID].ZONES = [makeZone({ symbol: 'EURUSD', lot_size: 0.1, sell_lot_size: 0.1 })];
+    await dashboard.open(DEMO_ID);
+    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
+    await expect(page.getByTestId('zone-count')).toHaveText('2');
+    await expect(dashboard.zone(1).getByPlaceholder(/Sembol Ara/)).toHaveValue('EURUSD');
+    await expect(dashboard.zoneField(msg('zone.field.lot'), 1)).toHaveValue('0.1');
+  });
+
   test('SELL-Felder nur bei BOTH ohne Sync', { tag: '@ZON-05' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();

@@ -5,6 +5,7 @@ import sys
 import contextlib
 import contextvars
 from src.utils.paths import get_err_log_path
+from src.utils.trade_utils import snap_volume
 
 LOG_TO_FILE = True
 
@@ -62,14 +63,7 @@ def normalize_volume(volume, symbol, symbol_infos):
     info = symbol_infos.get(symbol)
     if info is None:
         return volume
-    volume = max(info.volume_min, min(volume, info.volume_max))
-    if info.volume_step > 0:
-        steps = round((volume - info.volume_min) / info.volume_step)
-        volume = info.volume_min + steps * info.volume_step
-        step_str = str(info.volume_step)
-        decimals = len(step_str.split(".")[1]) if "." in step_str else 0
-        return round(volume, decimals)
-    return round(volume, 2)
+    return snap_volume(volume, info)
 
 
 def get_current_market_price(mt5, symbol, direction="BUY"):

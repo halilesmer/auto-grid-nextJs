@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { t } from '@/i18n';
 import { apiUrl, getWorkerHeaders } from '@/lib/api';
+import { normalizeZoneLots } from '@/utils/zoneHelpers';
 import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
 interface SettingsState {
@@ -14,7 +15,8 @@ interface SettingsState {
   setSettings: (settings: GlobalSettings | null) => void;
   setGlobalSettings: (globals: Partial<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>>) => void;
   setZones: (zones: ZoneSettings[] | ((prev: ZoneSettings[]) => ZoneSettings[])) => void;
-  mergeAndSaveSettings: (selectedAccount: string) => Promise<void>;
+  /** Speichert alle Einstellungen; liefert den tatsächlich gesendeten Stand (Lots ggf. auf das Symbol-Minimum angehoben). */
+  mergeAndSaveSettings: (selectedAccount: string) => Promise<GlobalSettings | null>;
   getSymbolDetail: (symbol: string) => SymbolDetail | undefined;
   setAvailableSymbols: (symbols: string[]) => void;
   setSymbolDetails: (details: Record<string, SymbolDetail>) => void;
@@ -91,8 +93,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }),
 
   mergeAndSaveSettings: async (selectedAccount: string) => {
-    const { settings } = get();
-    if (!selectedAccount || !settings) return;
+    const { settings: current, symbolDetails } = get();
+    if (!selectedAccount || !current) return null;
+
+    // Nie einen Lot ≤ 0 oder unter dem Symbol-Minimum speichern (auch UI-Stand angleichen)
+    const zones = current.ZONES?.map((z) => normalizeZoneLots(z, symbolDetails));
+    const fixed = !!zones && zones.some((z, i) => z !== current.ZONES[i]);
+    const settings = fixed ? { ...current, ZONES: zones } : current;
+    if (fixed) set({ settings });
 
     const res = await fetch(apiUrl(`/settings/${selectedAccount}`), {
       method: 'POST',
@@ -103,6 +111,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       body: JSON.stringify({ settings }),
     });
     if (!res.ok) throw new Error(t('settings.saveFailed'));
+    return settings;
   },
 
   getSymbolDetail: (symbol) => {

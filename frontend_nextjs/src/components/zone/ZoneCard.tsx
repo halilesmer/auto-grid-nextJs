@@ -6,6 +6,7 @@ import {
   getSymbolConfig,
   LOSS_DISTANCE_FIELDS,
   lossToPriceDistance,
+  normalizeZoneLots,
   priceDistanceToLoss,
 } from '@/utils/zoneHelpers';
 import { ZoneHeader } from './ZoneHeader';
@@ -83,11 +84,20 @@ export function ZoneCard({
 
   // Precision sync when symbol changes - ensures all fields match new symbol's digits
   useEffect(() => {
-    const volPrecision = symbolConfig.volStep.toString().includes('.')
-      ? symbolConfig.volStep.toString().split('.')[1].length
-      : 2;
-    syncZonePrecision(zone, symbolConfig, volPrecision, update);
+    syncZonePrecision(zone, symbolConfig, update);
   }, [zone.symbol, symbolConfig, syncZonePrecision, zone, update]);
+
+  // Lot nie 0 / unter dem Minimum des Symbols beim Broker: bei Symbolwechsel, beim Laden der
+  // Symboldaten und beim Öffnen einer Zone mit ungültigem Lot auf dessen Raster bringen. Bewusst
+  // nur an die Symbol-Regeln gebunden, nicht an den Lot selbst – sonst würde jede Tastatureingabe
+  // („2" auf dem Weg zu „20") sofort auf das Minimum angehoben.
+  const { volMin, volStep, volMax } = symbolConfig;
+  useEffect(() => {
+    const fixed = normalizeZoneLots(zone, symbolDetails);
+    if (fixed.lot_size !== zone.lot_size) update('lot_size', fixed.lot_size);
+    if (fixed.sell_lot_size !== zone.sell_lot_size) update('sell_lot_size', fixed.sell_lot_size);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone.symbol, volMin, volStep, volMax, update]);
 
   const accent =
     zone.order_type === 'BUY' ? 'before:bg-success' : zone.order_type === 'SELL' ? 'before:bg-danger' : 'before:bg-primary';

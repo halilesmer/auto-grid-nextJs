@@ -21,7 +21,7 @@ interface UseDashboardConfig {
   selectedAccount: string | null;
   activeAccount: { env_type: string } | null;
   settings: GlobalSettings | null;
-  mergeAndSaveSettings: () => Promise<void>;
+  mergeAndSaveSettings: () => Promise<GlobalSettings | null>;
   setUpdateInfo: (info: { hasUpdate: boolean; localVer: string; remoteVer: string }) => void;
 }
 
@@ -203,8 +203,10 @@ export function useDashboard({
     setSaveAllLoading(true);
     setSaveAllError('');
     try {
-      await mergeAndSaveSettings();
-      setSavedSettingsStr(JSON.stringify(settings));
+      // Der gesendete Stand (nicht der Store nach dem POST): Eingaben während des Speicherns
+      // bleiben „ungespeichert"; das Speichern kann Lots auf das Symbol-Minimum angehoben haben
+      const saved = await mergeAndSaveSettings();
+      setSavedSettingsStr(JSON.stringify(saved ?? settings));
       toast.success(t('dashboard.saveAll.success'), { title: t('common.saved') });
     } catch (err: unknown) {
       const message = await getApiErrorMessage(err, t('dashboard.saveAll.failed'));
