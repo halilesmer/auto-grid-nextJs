@@ -5,7 +5,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from src.api import api_router
-from src.api.auth import API_KEY_HEADER, api_key_required, is_valid_api_key, redact_api_key
+from src.api import auth as _auth
+from src.api.auth import API_KEY_HEADER, authenticate, redact_api_key
 from src.api.ws_server import router as ws_router
 
 
@@ -50,11 +51,17 @@ async def _startup_maintenance():
     if is_elevated():
         # Konsolda kimse okumuyor, ama logs/worker_console.log'u VPS sayfası gösteriyor
         print(f"🔴 WARNING: {ELEVATED_HINT}")
-    if not api_key_required():
-        print(
-            "⚠️ WARNING: WORKER_API_KEY ayarlı değil - /api/* ve /ws/stream kimlik doğrulamasız, "
-            "ngrok URL'sini bilen herkes erişebilir. Bkz. docs/windows_start_guide.md"
-        )
+    if not _auth.WORKER_API_KEY:
+        if _auth.api_key_required():
+            print(
+                "⚠️ WARNING: WORKER_API_KEY ayarlı değil ama kullanıcılar var - anahtarsız istekler reddedilir "
+                "ve kimse yönetici (admin) değil. WORKER_API_KEY'i ayarlayın. Bkz. docs/mehrbenutzer.md"
+            )
+        else:
+            print(
+                "⚠️ WARNING: WORKER_API_KEY ayarlı değil - /api/* ve /ws/stream kimlik doğrulamasız, "
+                "ngrok URL'sini bilen herkes erişebilir. Bkz. docs/windows_start_guide.md"
+            )
 
     # Liste burada (senkron) okunur: bakım thread'i başlamadan gelen bir /start dosyayı
     # sadece kendi hesabıyla ezmesin
@@ -89,18 +96,20 @@ async def _unhandled_error_as_json(request: Request, call_next):
 
 @app.middleware("http")
 async def _require_api_key(request: Request, call_next):
-    """WORKER_API_KEY ayarlıysa /api/* isteklerinde `X-API-Key` başlığını zorunlu kılar.
+    """WORKER_API_KEY ayarlıysa (veya kullanıcı varsa) /api/* isteklerinde `X-API-Key` başlığını zorunlu kılar.
 
     CORS middleware'inden ÖNCE eklenir (onun içinde çalışır): 401 yanıtı da CORS
     başlıklarını alır ve preflight (OPTIONS) istekleri başlık taşımadığı için serbesttir.
     WebSocket'ler buradan geçmez; onlar ws_server.py içinde kontrol edilir.
     """
-    if (
-        request.method != "OPTIONS"
-        and (request.url.path == "/api" or request.url.path.startswith("/api/"))
-        and not is_valid_api_key(request.headers.get(API_KEY_HEADER))
+    if request.method != "OPTIONS" and (
+        request.url.path == "/api" or request.url.path.startswith("/api/")
     ):
-        return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
+        # Anahtarın sahibi (yönetici/kullanıcı) sonraki katmanlara taşınır (bkz. access.py)
+        principal = authenticate(request.headers.get(API_KEY_HEADER))
+        if principal is None:
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
+        request.state.principal = principal
     return await call_next(request)
 
 

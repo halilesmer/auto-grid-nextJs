@@ -71,7 +71,7 @@ kategorien:
 
       - id: SYS-05
         titel: API-Schlüssel (WORKER_API_KEY)
-        beschreibung: Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start).
+        beschreibung: Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start). WORKER_API_KEY ist der Admin-Schlüssel; Benutzer bekommen eigene Schlüssel (USR-01).
         code: [worker_python/src/api/auth.py, worker_python/main.py, worker_python/src/api/ws_server.py, frontend_nextjs/src/lib/api.ts]
         tiers: [api, live]
         pruefung:
@@ -227,6 +227,87 @@ kategorien:
           - Bei Konto 2 im Bearbeiten-Dialog einen nicht existierenden MT5-Pfad eintragen, speichern und für Konto 2 eine Zone öffnen (Symbolliste) bzw. „Bot starten“ klicken.
           - Danach den richtigen Pfad wieder eintragen.
         erwartet: Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
+
+  # ---------------------------------------------------------------------------
+  - id: USR
+    titel: Benutzer & Zugriff
+    features:
+      - id: USR-01
+        titel: Persönliche Schlüssel und Rollen
+        beschreibung: Der Worker ordnet jeden X-API-Key (bzw. ?api_key= am WebSocket) einer Rolle zu. WORKER_API_KEY = Admin (sieht alles); der persönliche Schlüssel eines Benutzers (configs/users.json, nur als sha256-Hash) = Benutzer (nur eigene Konten). Unbekannt oder fehlend → 401. Ohne WORKER_API_KEY und ohne Benutzer bleibt der Worker offen (wie bisher, alle Admin); gibt es Benutzer (oder eine unlesbare users.json), aber keinen WORKER_API_KEY, wird ein Zugriff ohne Schlüssel abgelehnt. GET /api/auth/me liefert Name und Rolle.
+        code: [worker_python/src/api/auth.py, worker_python/src/api/users_store.py, worker_python/main.py]
+        tiers: [api]
+        pruefung:
+          - Mit dem Admin-Schlüssel und mit dem Schlüssel eines Benutzers GET /api/auth/me aufrufen.
+          - Mit einem falschen Schlüssel dasselbe versuchen.
+        erwartet: Admin- und Benutzerschlüssel liefern die jeweilige Rolle, ein falscher Schlüssel 401.
+
+      - id: USR-02
+        titel: Benutzerverwaltung (Admin)
+        beschreibung: GET/POST /api/users, POST /api/users/{id}/key (Schlüssel erneuern), DELETE /api/users/{id} – nur mit Admin-Schlüssel (sonst 403). Der Schlüssel wird nur in der Antwort auf Anlegen/Erneuern angezeigt. Namen sind eindeutig (ohne Groß-/Kleinschreibung), 1–40 Zeichen. Ohne gesetzten WORKER_API_KEY verweigert der Worker das Anlegen (409), denn im offenen Modus ist jeder Admin und der erste Benutzer würde alle aussperren. Beim Löschen bleiben die Konten und ihre Bots erhalten und werden „ohne Besitzer“ (gehören dem Admin).
+        code: [worker_python/src/api/users.py, worker_python/src/api/users_store.py, worker_python/src/api/models.py]
+        tiers: [api]
+        pruefung:
+          - Als Admin einen Benutzer anlegen, den Schlüssel notieren, damit verbinden.
+          - Schlüssel erneuern und mit dem alten Schlüssel verbinden.
+        erwartet: Der neue Schlüssel funktioniert sofort, der alte wird nach dem Erneuern mit 401 abgelehnt; Benutzer sehen die Verwaltung nicht.
+
+      - id: USR-03
+        titel: Konto-Besitzer
+        beschreibung: Konten tragen ein Feld owner (Benutzer-ID). Benutzer sehen und legen nur eigene Konten an (Besitzer wird vom Worker gesetzt, der Body wird ignoriert); der Admin sieht alle Konten und kann den Besitzer beim Anlegen/Bearbeiten setzen (Altbestand ohne Besitzer gehört dem Admin). Bearbeiten erhält den Besitzer. Die Konto-ID darf nur aus Ziffern bestehen (Dateinamen); id und login dürfen nicht mit einem anderen Konto kollidieren; ein Duplikat verrät keine Daten fremder Konten (409 ohne existing_account). Benutzer müssen einen mt5_path angeben, der ein von scan-mt5 gefundenes Terminal ist und nicht zu einem Konto eines anderen Besitzers gehört. Bearbeiten und Löschen eines Kontos lehnt der Worker bei laufendem Bot mit 409 ab.
+        code: [worker_python/src/api/accounts.py, worker_python/src/api/models.py, worker_python/src/api/system.py]
+        tiers: [api, e2e]
+        pruefung:
+          - Als Benutzer ein Konto anlegen und als Admin die Kontoliste öffnen.
+          - Als Benutzer ein Konto mit der Login-Nummer eines fremden Kontos anlegen.
+        erwartet: Das Konto erscheint beim Benutzer und beim Admin (mit Besitzer), aber nicht bei anderen Benutzern; das Duplikat wird ohne Details zum fremden Konto abgelehnt.
+
+      - id: USR-04
+        titel: Isolation aller kontobezogenen Endpunkte
+        beschreibung: Einstellungen, UI-Zustand, Symbole, Logs (lesen, löschen, herunterladen), Start/Stop, Aktionen sowie Konto bearbeiten/löschen prüfen den Besitzer und antworten für fremde oder unbekannte Konten mit 404. Das schließt auch Glob- und Pfad-Tricks (/settings/*, /logs/download/..) aus. Der Admin behält Zugriff auf alle Konten.
+        code: [worker_python/src/api/access.py, worker_python/src/api/settings.py, worker_python/src/api/ui_state.py, worker_python/src/api/symbols.py, worker_python/src/api/logs.py, worker_python/src/api/bot_control.py]
+        tiers: [api]
+        pruefung:
+          - Mit dem Schlüssel eines Benutzers per curl ein Konto eines anderen Benutzers abrufen (Einstellungen, Logs, Start).
+        erwartet: Immer 404; das eigene Konto und der Admin kommen durch.
+
+      - id: USR-05
+        titel: WebSocket-Isolation
+        beschreibung: /ws/stream?api_key=…&account_id=… – Benutzer verbinden nur mit eigenen Konten (sonst Schließen mit 1008); ohne account_id kein „erstes Konto“-Fallback. Der Admin verbindet wie bisher. Bei offener Verbindung prüft der Worker die Berechtigung alle 5 s neu und schließt sie (1008), wenn Schlüssel erneuert/Benutzer gelöscht wurde oder das Konto den Besitzer wechselt bzw. gelöscht wird.
+        code: [worker_python/src/api/ws_server.py, worker_python/src/api/access.py]
+        tiers: [api]
+        pruefung:
+          - Mit dem Schlüssel eines Benutzers eine WebSocket-Verbindung für ein fremdes Konto öffnen.
+        erwartet: Die Verbindung wird abgelehnt; für das eigene Konto kommen Live-Daten. Erneuert der Admin den Schlüssel, endet die offene Verbindung nach wenigen Sekunden.
+
+      - id: USR-06
+        titel: Systemrouten nur für Admin
+        beschreibung: GET /system/update/check und POST /system/update (git pull + Neustart) verlangen den Admin-Schlüssel (403 für Benutzer). Verbindungstest (/system/platform) und MT5-Suche (/system/scan-mt5) bleiben für alle offen.
+        code: [worker_python/src/api/system.py, worker_python/src/api/auth.py]
+        tiers: [api]
+        pruefung:
+          - Mit dem Schlüssel eines Benutzers POST /api/system/update aufrufen.
+        erwartet: 403; es wird kein git pull und kein Neustart ausgelöst.
+
+      - id: USR-07
+        titel: Benutzerseite (Admin)
+        beschreibung: Die Seite /users (Nav-Eintrag „Benutzer“, nur mit Admin-Schlüssel) listet die Benutzer mit Anzahl ihrer Konten. „Benutzer anlegen“ zeigt den persönlichen Schlüssel und einen fertigen Verbindungs-Link (Worker-Adresse + Schlüssel) genau einmal; „Neuer Schlüssel“ und „Löschen“ fragen vorher nach. Konten eines gelöschten Benutzers bleiben und gehören danach dem Administrator. Doppelte Namen meldet der Worker.
+        code: [frontend_nextjs/src/app/users/page.tsx, frontend_nextjs/src/components/users/UsersTable.tsx, frontend_nextjs/src/components/users/CreateUserDialog.tsx, frontend_nextjs/src/components/users/KeyRevealDialog.tsx, frontend_nextjs/src/services/usersApi.ts, frontend_nextjs/src/store/useUsersStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - Mit dem Admin-Schlüssel „Benutzer“ öffnen, einen Benutzer anlegen, Schlüssel/Link kopieren, das Fenster schließen.
+          - Schlüssel erneuern und den Benutzer danach löschen.
+        erwartet: Der Schlüssel erscheint nur im Fenster direkt nach dem Anlegen bzw. Erneuern; die Liste zeigt Name, Konten und Erstellzeit; nach dem Löschen ist der Benutzer weg und seine Konten sind noch da.
+
+      - id: USR-08
+        titel: Ansicht eines Benutzers
+        beschreibung: Mit einem persönlichen Schlüssel zeigen Kontoliste und Verbindungsdialog nur die eigenen Konten und die Rolle („Verbunden als …“). Die Navigation hat keine Einträge „VPS“ und „Benutzer“, die Seiten selbst zeigen „Nur für Administratoren“, das Dashboard-Menü hat keine Update-Prüfung und es wird keine Update-Anfrage gestellt. Ein neues Konto bekommt der Benutzer als Besitzer vom Worker (das Formular hat keine Besitzer-Auswahl). Chart-Seiten öffnen ohne gewähltes Konto keinen Stream.
+        code: [frontend_nextjs/src/store/useAuthStore.ts, frontend_nextjs/src/components/auth/AdminOnly.tsx, frontend_nextjs/src/components/layout/AppNav.tsx, frontend_nextjs/src/components/layout/ConnectionSync.tsx, frontend_nextjs/src/store/useWebSocketManager.ts, frontend_nextjs/src/app/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Im Browser (privates Fenster) mit dem Verbindungs-Link eines Benutzers verbinden.
+          - Kontoliste, Navigation, Einstellungsmenü im Dashboard und die Seiten /users und /vps ansehen.
+        erwartet: Nur die eigenen Konten erscheinen; „VPS“ und „Benutzer“ fehlen in der Navigation, ihre Seiten zeigen den Administrator-Hinweis; die Update-Prüfung fehlt im Menü.
 
   # ---------------------------------------------------------------------------
   - id: SET

@@ -13,6 +13,7 @@ function emptyFormData(): AccountFormData {
     env_type: 'DEMO',
     mt5_path: '',
     notes: '',
+    owner: '',
   };
 }
 
@@ -26,6 +27,7 @@ function accountToFormData(account: Account): AccountFormData {
     env_type: account.env_type as 'DEMO' | 'LIVE',
     mt5_path: account.mt5_path,
     notes: account.notes,
+    owner: account.owner ?? '',
   };
 }
 
@@ -142,6 +144,7 @@ export function useAccountForm({
       env_type: true,
       mt5_path: true,
       notes: true,
+      owner: true,
     };
     setTouched(allTouched);
 

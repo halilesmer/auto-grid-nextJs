@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-30 · **100/113** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-09-30 · **108/121** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -16,16 +16,17 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 8/9 |
 | 2 | **ACC** – Konten | 10/11 |
-| 3 | **SET** – Allgemeine Einstellungen | 6/6 |
-| 4 | **SYM** – Symbole | 4/4 |
-| 5 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/16 |
-| 6 | **BOT** – Bot-Steuerung | 6/7 |
-| 7 | **ENG** – Grid-Engine (Handelslogik) | 26/26 |
-| 8 | **MET** – Live-Daten & Diagramm | 4/4 |
-| 9 | **LOG** – Logs | 6/7 |
-| 10 | **UPD** – System & Updates | 5/6 |
-| 11 | **VPS** – VPS-Fernsteuerung vom Mac | 3/8 |
-| 12 | **UI** – Oberfläche | 9/9 |
+| 3 | **USR** – Benutzer & Zugriff | 8/8 |
+| 4 | **SET** – Allgemeine Einstellungen | 6/6 |
+| 5 | **SYM** – Symbole | 4/4 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/16 |
+| 7 | **BOT** – Bot-Steuerung | 6/7 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 26/26 |
+| 9 | **MET** – Live-Daten & Diagramm | 4/4 |
+| 10 | **LOG** – Logs | 6/7 |
+| 11 | **UPD** – System & Updates | 5/6 |
+| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 3/8 |
+| 13 | **UI** – Oberfläche | 9/9 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -50,7 +51,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
   - 📝 Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto); Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, 'Manuel Gir' ersetzt Auswahl durch Textfeld; Dialog ohne Speichern geschlossen
 - [x] **SYS-05** API-Schlüssel (WORKER_API_KEY) — 🔌 api ✅ 2026-09-30 · 🌐 live ✅ 2026-09-24
-  - Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start).
+  - Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start). WORKER_API_KEY ist der Admin-Schlüssel; Benutzer bekommen eigene Schlüssel (USR-01).
   - **Prüfung:** WORKER_API_KEY auf dem VPS setzen, Worker neu starten. → Dashboard mit passendem Schlüssel verbinden (SYS-07); danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
   - **Erwartet:** Dashboard funktioniert normal; der direkte Aufruf ohne Schlüssel liefert 401.
 - [x] **SYS-07** Verbindung im Browser einrichten — 🖥️ e2e ✅ 2026-09-30
@@ -120,7 +121,42 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur DEMO. Zwei Konten mit je eigenem Terminal, Bot von Konto 1 läuft. → Bei Konto 2 im Bearbeiten-Dialog einen nicht existierenden MT5-Pfad eintragen, speichern und für Konto 2 eine Zone öffnen (Symbolliste) bzw. „Bot starten“ klicken. → Danach den richtigen Pfad wieder eintragen.
   - **Erwartet:** Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
 
-## 3. SET – Allgemeine Einstellungen
+## 3. USR – Benutzer & Zugriff
+
+- [x] **USR-01** Persönliche Schlüssel und Rollen — 🔌 api ✅ 2026-09-30
+  - Der Worker ordnet jeden X-API-Key (bzw. ?api_key= am WebSocket) einer Rolle zu. WORKER_API_KEY = Admin (sieht alles); der persönliche Schlüssel eines Benutzers (configs/users.json, nur als sha256-Hash) = Benutzer (nur eigene Konten). Unbekannt oder fehlend → 401. Ohne WORKER_API_KEY und ohne Benutzer bleibt der Worker offen (wie bisher, alle Admin); gibt es Benutzer (oder eine unlesbare users.json), aber keinen WORKER_API_KEY, wird ein Zugriff ohne Schlüssel abgelehnt. GET /api/auth/me liefert Name und Rolle.
+  - **Prüfung:** Mit dem Admin-Schlüssel und mit dem Schlüssel eines Benutzers GET /api/auth/me aufrufen. → Mit einem falschen Schlüssel dasselbe versuchen.
+  - **Erwartet:** Admin- und Benutzerschlüssel liefern die jeweilige Rolle, ein falscher Schlüssel 401.
+- [x] **USR-02** Benutzerverwaltung (Admin) — 🔌 api ✅ 2026-09-30
+  - GET/POST /api/users, POST /api/users/{id}/key (Schlüssel erneuern), DELETE /api/users/{id} – nur mit Admin-Schlüssel (sonst 403). Der Schlüssel wird nur in der Antwort auf Anlegen/Erneuern angezeigt. Namen sind eindeutig (ohne Groß-/Kleinschreibung), 1–40 Zeichen. Ohne gesetzten WORKER_API_KEY verweigert der Worker das Anlegen (409), denn im offenen Modus ist jeder Admin und der erste Benutzer würde alle aussperren. Beim Löschen bleiben die Konten und ihre Bots erhalten und werden „ohne Besitzer“ (gehören dem Admin).
+  - **Prüfung:** Als Admin einen Benutzer anlegen, den Schlüssel notieren, damit verbinden. → Schlüssel erneuern und mit dem alten Schlüssel verbinden.
+  - **Erwartet:** Der neue Schlüssel funktioniert sofort, der alte wird nach dem Erneuern mit 401 abgelehnt; Benutzer sehen die Verwaltung nicht.
+- [x] **USR-03** Konto-Besitzer — 🔌 api ✅ 2026-09-30 · 🖥️ e2e ✅ 2026-09-30
+  - Konten tragen ein Feld owner (Benutzer-ID). Benutzer sehen und legen nur eigene Konten an (Besitzer wird vom Worker gesetzt, der Body wird ignoriert); der Admin sieht alle Konten und kann den Besitzer beim Anlegen/Bearbeiten setzen (Altbestand ohne Besitzer gehört dem Admin). Bearbeiten erhält den Besitzer. Die Konto-ID darf nur aus Ziffern bestehen (Dateinamen); id und login dürfen nicht mit einem anderen Konto kollidieren; ein Duplikat verrät keine Daten fremder Konten (409 ohne existing_account). Benutzer müssen einen mt5_path angeben, der ein von scan-mt5 gefundenes Terminal ist und nicht zu einem Konto eines anderen Besitzers gehört. Bearbeiten und Löschen eines Kontos lehnt der Worker bei laufendem Bot mit 409 ab.
+  - **Prüfung:** Als Benutzer ein Konto anlegen und als Admin die Kontoliste öffnen. → Als Benutzer ein Konto mit der Login-Nummer eines fremden Kontos anlegen.
+  - **Erwartet:** Das Konto erscheint beim Benutzer und beim Admin (mit Besitzer), aber nicht bei anderen Benutzern; das Duplikat wird ohne Details zum fremden Konto abgelehnt.
+- [x] **USR-04** Isolation aller kontobezogenen Endpunkte — 🔌 api ✅ 2026-09-30
+  - Einstellungen, UI-Zustand, Symbole, Logs (lesen, löschen, herunterladen), Start/Stop, Aktionen sowie Konto bearbeiten/löschen prüfen den Besitzer und antworten für fremde oder unbekannte Konten mit 404. Das schließt auch Glob- und Pfad-Tricks (/settings/*, /logs/download/..) aus. Der Admin behält Zugriff auf alle Konten.
+  - **Prüfung:** Mit dem Schlüssel eines Benutzers per curl ein Konto eines anderen Benutzers abrufen (Einstellungen, Logs, Start).
+  - **Erwartet:** Immer 404; das eigene Konto und der Admin kommen durch.
+- [x] **USR-05** WebSocket-Isolation — 🔌 api ✅ 2026-09-30
+  - /ws/stream?api_key=…&account_id=… – Benutzer verbinden nur mit eigenen Konten (sonst Schließen mit 1008); ohne account_id kein „erstes Konto“-Fallback. Der Admin verbindet wie bisher. Bei offener Verbindung prüft der Worker die Berechtigung alle 5 s neu und schließt sie (1008), wenn Schlüssel erneuert/Benutzer gelöscht wurde oder das Konto den Besitzer wechselt bzw. gelöscht wird.
+  - **Prüfung:** Mit dem Schlüssel eines Benutzers eine WebSocket-Verbindung für ein fremdes Konto öffnen.
+  - **Erwartet:** Die Verbindung wird abgelehnt; für das eigene Konto kommen Live-Daten. Erneuert der Admin den Schlüssel, endet die offene Verbindung nach wenigen Sekunden.
+- [x] **USR-06** Systemrouten nur für Admin — 🔌 api ✅ 2026-09-30
+  - GET /system/update/check und POST /system/update (git pull + Neustart) verlangen den Admin-Schlüssel (403 für Benutzer). Verbindungstest (/system/platform) und MT5-Suche (/system/scan-mt5) bleiben für alle offen.
+  - **Prüfung:** Mit dem Schlüssel eines Benutzers POST /api/system/update aufrufen.
+  - **Erwartet:** 403; es wird kein git pull und kein Neustart ausgelöst.
+- [x] **USR-07** Benutzerseite (Admin) — 🖥️ e2e ✅ 2026-09-30
+  - Die Seite /users (Nav-Eintrag „Benutzer“, nur mit Admin-Schlüssel) listet die Benutzer mit Anzahl ihrer Konten. „Benutzer anlegen“ zeigt den persönlichen Schlüssel und einen fertigen Verbindungs-Link (Worker-Adresse + Schlüssel) genau einmal; „Neuer Schlüssel“ und „Löschen“ fragen vorher nach. Konten eines gelöschten Benutzers bleiben und gehören danach dem Administrator. Doppelte Namen meldet der Worker.
+  - **Prüfung:** Mit dem Admin-Schlüssel „Benutzer“ öffnen, einen Benutzer anlegen, Schlüssel/Link kopieren, das Fenster schließen. → Schlüssel erneuern und den Benutzer danach löschen.
+  - **Erwartet:** Der Schlüssel erscheint nur im Fenster direkt nach dem Anlegen bzw. Erneuern; die Liste zeigt Name, Konten und Erstellzeit; nach dem Löschen ist der Benutzer weg und seine Konten sind noch da.
+- [x] **USR-08** Ansicht eines Benutzers — 🖥️ e2e ✅ 2026-09-30
+  - Mit einem persönlichen Schlüssel zeigen Kontoliste und Verbindungsdialog nur die eigenen Konten und die Rolle („Verbunden als …“). Die Navigation hat keine Einträge „VPS“ und „Benutzer“, die Seiten selbst zeigen „Nur für Administratoren“, das Dashboard-Menü hat keine Update-Prüfung und es wird keine Update-Anfrage gestellt. Ein neues Konto bekommt der Benutzer als Besitzer vom Worker (das Formular hat keine Besitzer-Auswahl). Chart-Seiten öffnen ohne gewähltes Konto keinen Stream.
+  - **Prüfung:** Im Browser (privates Fenster) mit dem Verbindungs-Link eines Benutzers verbinden. → Kontoliste, Navigation, Einstellungsmenü im Dashboard und die Seiten /users und /vps ansehen.
+  - **Erwartet:** Nur die eigenen Konten erscheinen; „VPS“ und „Benutzer“ fehlen in der Navigation, ihre Seiten zeigen den Administrator-Hinweis; die Update-Prüfung fehlt im Menü.
+
+## 4. SET – Allgemeine Einstellungen
 
 - [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-09-30 · 🖥️ e2e ✅ 2026-09-30 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
@@ -133,8 +169,8 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Werte außerhalb 1–60 werden begrenzt; gespeicherter Wert bleibt nach Neuladen.
   - 📝 Claude: + → 1,1 und Kaydet aktiv; 61 → 60, 0 → 1 begrenzt; gespeichert → API 1,1, bleibt nach Neuladen; per − zurück auf 1 gespeichert
 - [x] **SET-03** „Alle speichern“ + Dirty-Tracking — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
-  - Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert).
-  - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“.
+  - Bei ungespeicherten Änderungen erscheint die schwebende Leiste „Kaydedilmemiş değişiklikler var“; „Tüm Ayarları Kaydet“ speichert alles (is_active wird beim Vergleich ignoriert). Auch per Cmd+Enter (Mac) / Strg+Enter (Windows); das Kürzel steht als Badge neben „Kaydet“.
+  - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“ oder Cmd/Strg+Enter.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
 - [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-09-30 · 🔌 api ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
@@ -152,7 +188,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nicht manuell testbar.
   - **Erwartet:** Engine- und UI-Standardwerte stimmen überein; keine ungenutzten Schlüssel in neuen Dateien.
 
-## 4. SYM – Symbole
+## 5. SYM – Symbole
 
 - [x] **SYM-01** Symbolliste + Cache *(teilweise)* — 🧪 unit ✅ 2026-09-30 · 🔌 api ⏳ · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /symbols/{id} liefert Broker-Symbole aus broker_symbols.json; 1-h-Cache, bei Ablauf wird die alte Liste geliefert und im Hintergrund aktualisiert (doppelte Anfragen werden zusammengelegt). Solange /start oder /stop für das Konto läuft, verbindet sich die Abfrage nicht selbst mit MT5 (alte Liste bzw. leer); /start füllt den Cache.
@@ -174,7 +210,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Konto wählen, dessen MT5-Terminal nicht erreichbar oder nicht eingeloggt ist, und eine Zone öffnen.
   - **Erwartet:** Unter dem Symbolfeld steht „Symbole konnten nicht aus MT5 geladen werden“ mit der MT5-Meldung; dieselbe Meldung steht im Robot-Log.
 
-## 5. ZON – Zonen-Konfiguration (UI ↔ Backend)
+## 6. ZON – Zonen-Konfiguration (UI ↔ Backend)
 
 - [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
   - „Bölge Ekle“ fügt eine neue Zone mit Standardwerten hinzu; die Anzahl im Badge steigt.
@@ -250,7 +286,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
 
-## 6. BOT – Bot-Steuerung
+## 7. BOT – Bot-Steuerung
 
 - [x] **BOT-01** Bot starten *(teilweise)* — 🌐 live ⏭️ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - POST /start verbindet MT5 (Timeout 120 s), cached die Symbole, startet bot_runner.py als eigenen Prozess und stellt ihn unter Watchdog. UI-Timeout für „Connecting“ 180 s.
@@ -284,7 +320,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** DEMO-Bot starten, dann auf der Seite „VPS“ → „VPS neu starten“.
   - **Erwartet:** Nach dem Reboot läuft der Bot wieder; das Robot-Log zeigt „[AUTO] Bot … devam ettirildi“.
 
-## 7. ENG – Grid-Engine (Handelslogik)
+## 8. ENG – Grid-Engine (Handelslogik)
 
 - [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-09-30
   - Pro Symbol ist höchstens eine Zone aktiv – die erste aktive Zone dieses Symbols, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt. Zonen mit verschiedenen Symbolen (z. B. USOUSD + XAUUSD) laufen gleichzeitig.
@@ -392,7 +428,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nicht manuell testen (siehe ZON-16).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 
-## 8. MET – Live-Daten & Diagramm
+## 9. MET – Live-Daten & Diagramm
 
 - [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-09-30 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Vier Kacheln Preis, Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern.
@@ -414,7 +450,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 
-## 9. LOG – Logs
+## 10. LOG – Logs
 
 - [x] **LOG-01** Log-Tabs laden — 🔌 api ✅ 2026-09-30 · 🖥️ e2e ✅ 2026-09-30 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Tabs Activity, Robot Logs, MT5 Terminal; GET /logs/{id}?log_type=all&lines=200; ohne laufenden Bot wird mt5_connected=false erzwungen.
@@ -450,7 +486,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Bot mit zwei Zonen laufen lassen, in einer Zonenkarte „Logs“ aufklappen.
   - **Erwartet:** Nur Zeilen dieser Zone erscheinen (ohne Tag); im Robot-Log-Tab steht das Zonen-Badge vor der Zeile.
 
-## 10. UPD – System & Updates
+## 11. UPD – System & Updates
 
 - [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-09-30 · 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
   - „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
@@ -480,7 +516,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten.
   - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
 
-## 11. VPS – VPS-Fernsteuerung vom Mac
+## 12. VPS – VPS-Fernsteuerung vom Mac
 
 - [ ] **VPS-01** VPS-Status — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ⏳
   - Die Seite /vps zeigt per SSH (Route /api/vps/status → ops/windows/vps.ps1 status) Worker, ngrok samt öffentlicher URL, laufende Bots, Version/Branch samt Zeitpunkt der letzten Aktualisierung (Reflog .git/logs/HEAD), Autostart und Uptime. Ohne VPS_SSH_HOST (z. B. Vercel) erscheint nur ein Hinweis.
@@ -515,7 +551,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Auf einem frischen Windows-VPS (oder einem, auf dem Git/Python/Repo noch fehlen), in einer Administrator-PowerShell den Einzeiler ausführen. → ngrok-Authtoken und eine feste Domain eingeben, danach das Windows-Passwort (Auto-Login) oder -SkipAutoLogon verwenden.
   - **Erwartet:** Git/Python/VC++-Redistributable werden installiert (oder als vorhanden erkannt), das Repo liegt unter C:\dev\auto-grid-nextJs, der Worker antwortet auf Port 8000, ngrok zeigt eine öffentliche URL, und am Ende erscheint ein Verbindungs-Link, der im Frontend („VPS verbinden“) sofort einen erfolgreichen Test ergibt. Ein zweiter Lauf des Einzeilers ändert nichts Bestehendes (idempotent).
 
-## 12. UI – Oberfläche
+## 13. UI – Oberfläche
 
 - [x] **UI-01** Navigation — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
   - Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung. Auf Mobil (375px) kompakter, ohne horizontales Scrollen.

@@ -8,3 +8,5 @@ export const E2E_PORT = Number(process.env.E2E_PORT || 3100);
 export const MOCK_API = 'http://mock-worker.test';
 // Kein echtes Geheimnis: prüft nur, dass jede Worker-Anfrage den Schlüssel mitsendet (SYS-05)
 export const E2E_API_KEY = 'e2e-key';
+// Persönlicher Schlüssel des Test-Benutzers (worker.addUser()); Rolle „Benutzer“ statt Admin (USR-01)
+export const E2E_USER_KEY = 'e2e-user-key';

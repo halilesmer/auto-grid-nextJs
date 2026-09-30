@@ -112,8 +112,25 @@ export default defineArea(
     'nav.dashboard.hint': 'Ana sayfa: hesap, bölgeler, bot kontrolü ve loglar.',
     'nav.formation.hint': 'Fiyat grafiği ve formasyonlar.',
     'nav.vps.hint': 'VPS yönetimi: worker durumu, güncelleme, yeniden başlatma ve loglar.',
+    'nav.users.hint': 'Kullanıcı yönetimi (yalnızca yönetici): kullanıcı ekle, anahtarlarını yenile, sil.',
     'nav.language.cycle.hint': 'Dil: {current}. Tıklayınca {next} diline geçer.',
     'nav.language.option.hint': 'Arayüz dilini {language} yapar.',
+
+    // --- Kullanıcılar ---
+    'users.refresh.hint': 'Kullanıcı listesini worker’dan yeniden yükler.',
+    'users.add.hint': 'Yeni bir kullanıcı oluşturur ve ona kişisel bir anahtar üretir. Kullanıcı bu anahtarla bağlanınca yalnızca kendi hesaplarını görür.',
+    'users.action.newKey.hint': 'Bu kullanıcı için yeni bir anahtar üretir (onay ister). Eski anahtar hemen geçersiz olur.',
+    'users.action.delete.hint': 'Kullanıcıyı siler (onay ister). Hesapları ve botları kalır, yöneticiye ait olur.',
+    'users.create.name.hint': 'Kullanıcının görünen adı (1–40 karakter, benzersiz). Yalnızca listede ve sahip seçiminde gösterilir.',
+    'users.create.submit.hint': 'Kullanıcıyı oluşturur ve kişisel anahtarını bir kez gösterir.',
+    'users.key.field.hint': 'Kullanıcının kişisel anahtarı. “VPS’e bağlan” penceresindeki API anahtarı alanına girilir. Yalnızca şimdi görünür; kimseyle paylaşma.',
+    'users.key.copy.hint': 'Anahtarı panoya kopyalar.',
+    'users.link.field.hint': 'Adresi ve anahtarı içeren hazır bağlantı linki. Kullanıcı bunu tarayıcısında açınca bağlantı penceresi dolu gelir; link anahtarı içerir, güvenli ilet.',
+    'users.link.copy.hint': 'Bağlantı linkini panoya kopyalar.',
+    'users.key.done.hint': 'Pencereyi kapatır. Anahtar bundan sonra tekrar gösterilmez.',
+    'users.rotate.confirm.hint': 'Yeni anahtarı üretir ve eskisini hemen geçersiz kılar.',
+    'users.delete.confirm.hint': 'Kullanıcıyı ve anahtarını kalıcı olarak siler; hesapları sahipsiz kalır.',
+    'users.owner.label.hint': 'Hesabın sahibi. Kullanıcı yalnızca kendi hesaplarını görür ve yönetir; “Yönetici” seçiliyse hesabı yalnızca yönetici anahtarı görür.',
 
     // --- VPS-Verbindung ---
     'connection.chip.hint': 'Worker (VPS) bağlantısı: {status}. Tıklayınca bağlantı penceresini açar.',
@@ -122,7 +139,7 @@ export default defineArea(
     'connection.field.url.hint':
       'Worker’ın https adresi (ngrok alan adın), ör. https://alanadi.ngrok-free.dev. Sonuna “/api” eklemene gerek yok.',
     'connection.field.key.hint':
-      'VPS’teki WORKER_API_KEY ile aynı değer. Yalnızca bu tarayıcıda saklanır; anahtarı veya linki kimseyle paylaşma.',
+      'VPS’teki WORKER_API_KEY (yönetici) ya da yöneticinin sana verdiği kişisel anahtar. Kişisel anahtarla yalnızca kendi hesaplarını görürsün. Yalnızca bu tarayıcıda saklanır; anahtarı veya linki kimseyle paylaşma.',
     'connection.key.show.hint': 'API anahtarını okunabilir gösterir.',
     'connection.key.hide.hint': 'API anahtarını noktalarla gizler.',
     'connection.action.test.hint':
@@ -439,8 +456,25 @@ export default defineArea(
     'nav.dashboard.hint': 'Home page: account, zones, bot control and logs.',
     'nav.formation.hint': 'Price chart and formations.',
     'nav.vps.hint': 'VPS management: worker status, update, restart and logs.',
+    'nav.users.hint': 'User management (administrator only): add users, renew their keys, delete them.',
     'nav.language.cycle.hint': 'Language: {current}. Click to switch to {next}.',
     'nav.language.option.hint': 'Sets the interface language to {language}.',
+
+    // --- Users ---
+    'users.refresh.hint': 'Reloads the user list from the worker.',
+    'users.add.hint': 'Creates a new user and generates a personal key for them. Connected with that key, the user only sees their own accounts.',
+    'users.action.newKey.hint': 'Generates a new key for this user (asks first). The old key stops working immediately.',
+    'users.action.delete.hint': 'Deletes the user (asks first). Their accounts and bots are kept and belong to the administrator.',
+    'users.create.name.hint': 'Display name of the user (1–40 characters, unique). Only shown in the list and in the owner picker.',
+    'users.create.submit.hint': 'Creates the user and shows their personal key once.',
+    'users.key.field.hint': 'The user’s personal key. Goes into the API key field of the “Connect to VPS” dialog. Visible only now; never share it.',
+    'users.key.copy.hint': 'Copies the key to the clipboard.',
+    'users.link.field.hint': 'Ready-made connection link with address and key. Opening it in a browser prefills the connect dialog; the link contains the key, so pass it on safely.',
+    'users.link.copy.hint': 'Copies the connection link to the clipboard.',
+    'users.key.done.hint': 'Closes the window. The key will not be shown again.',
+    'users.rotate.confirm.hint': 'Generates the new key and invalidates the old one immediately.',
+    'users.delete.confirm.hint': 'Permanently deletes the user and their key; their accounts become unassigned.',
+    'users.owner.label.hint': 'Owner of the account. A user only sees and manages their own accounts; with “Administrator” selected only the administrator key sees the account.',
 
     // --- VPS connection ---
     'connection.chip.hint': 'Worker (VPS) connection: {status}. Click to open the connection dialog.',
@@ -449,7 +483,7 @@ export default defineArea(
     'connection.field.url.hint':
       'The worker’s https address (your ngrok domain), e.g. https://yourname.ngrok-free.dev. No need to add “/api”.',
     'connection.field.key.hint':
-      'The same value as WORKER_API_KEY on the VPS. Stored in this browser only; never share the key or the link.',
+      'WORKER_API_KEY on the VPS (administrator) or the personal key the administrator gave you. With a personal key you only see your own accounts. Stored in this browser only; never share the key or the link.',
     'connection.key.show.hint': 'Shows the API key as readable text.',
     'connection.key.hide.hint': 'Hides the API key behind dots.',
     'connection.action.test.hint':
@@ -766,8 +800,25 @@ export default defineArea(
     'nav.dashboard.hint': 'Startseite: Konto, Zonen, Bot-Steuerung und Logs.',
     'nav.formation.hint': 'Preischart und Formationen.',
     'nav.vps.hint': 'VPS-Verwaltung: Worker-Status, Update, Neustart und Logs.',
+    'nav.users.hint': 'Benutzerverwaltung (nur Administrator): Benutzer anlegen, Schlüssel erneuern, löschen.',
     'nav.language.cycle.hint': 'Sprache: {current}. Klick wechselt zu {next}.',
     'nav.language.option.hint': 'Stellt die Oberflächensprache auf {language}.',
+
+    // --- Benutzer ---
+    'users.refresh.hint': 'Lädt die Benutzerliste neu vom Worker.',
+    'users.add.hint': 'Legt einen neuen Benutzer an und erzeugt seinen persönlichen Schlüssel. Verbunden mit diesem Schlüssel sieht der Benutzer nur seine eigenen Konten.',
+    'users.action.newKey.hint': 'Erzeugt einen neuen Schlüssel für diesen Benutzer (fragt nach). Der alte Schlüssel wird sofort ungültig.',
+    'users.action.delete.hint': 'Löscht den Benutzer (fragt nach). Seine Konten und Bots bleiben erhalten und gehören danach dem Administrator.',
+    'users.create.name.hint': 'Anzeigename des Benutzers (1–40 Zeichen, eindeutig). Erscheint nur in der Liste und in der Besitzer-Auswahl.',
+    'users.create.submit.hint': 'Legt den Benutzer an und zeigt seinen persönlichen Schlüssel einmalig an.',
+    'users.key.field.hint': 'Persönlicher Schlüssel des Benutzers. Kommt in das Feld „API-Key“ im Dialog „Mit VPS verbinden“. Nur jetzt sichtbar; nie weitergeben.',
+    'users.key.copy.hint': 'Kopiert den Schlüssel in die Zwischenablage.',
+    'users.link.field.hint': 'Fertiger Verbindungs-Link mit Adresse und Schlüssel. Im Browser geöffnet füllt er den Verbindungsdialog vor; der Link enthält den Schlüssel, also sicher weitergeben.',
+    'users.link.copy.hint': 'Kopiert den Verbindungs-Link in die Zwischenablage.',
+    'users.key.done.hint': 'Schließt das Fenster. Der Schlüssel wird danach nicht mehr angezeigt.',
+    'users.rotate.confirm.hint': 'Erzeugt den neuen Schlüssel und macht den alten sofort ungültig.',
+    'users.delete.confirm.hint': 'Löscht den Benutzer samt Schlüssel endgültig; seine Konten sind danach ohne Besitzer.',
+    'users.owner.label.hint': 'Besitzer des Kontos. Ein Benutzer sieht und verwaltet nur seine eigenen Konten; bei „Administrator“ sieht das Konto nur der Administrator-Schlüssel.',
 
     // --- VPS-Verbindung ---
     'connection.chip.hint': 'Worker-(VPS-)Verbindung: {status}. Klick öffnet den Verbindungsdialog.',
@@ -776,7 +827,7 @@ export default defineArea(
     'connection.field.url.hint':
       'Die https-Adresse des Workers (deine ngrok-Domain), z. B. https://deinname.ngrok-free.dev. „/api“ musst du nicht anhängen.',
     'connection.field.key.hint':
-      'Derselbe Wert wie WORKER_API_KEY auf dem VPS. Wird nur in diesem Browser gespeichert; Key und Link nie weitergeben.',
+      'WORKER_API_KEY auf dem VPS (Administrator) oder der persönliche Schlüssel, den dir der Administrator gegeben hat. Mit einem persönlichen Schlüssel siehst du nur deine eigenen Konten. Wird nur in diesem Browser gespeichert; Key und Link nie weitergeben.',
     'connection.key.show.hint': 'Zeigt den API-Key als lesbaren Text.',
     'connection.key.hide.hint': 'Verbirgt den API-Key hinter Punkten.',
     'connection.action.test.hint':

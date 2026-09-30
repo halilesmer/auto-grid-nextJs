@@ -18,6 +18,7 @@ export default defineArea(
     'nav.dashboard': 'Dashboard',
     'nav.formation': 'Formasyon',
     'nav.vps': 'VPS',
+    'nav.users': 'Kullanıcılar',
     'nav.language.aria': 'Dil: {current} (sonraki: {next})',
   },
   {
@@ -37,6 +38,7 @@ export default defineArea(
     'nav.dashboard': 'Dashboard',
     'nav.formation': 'Formation',
     'nav.vps': 'VPS',
+    'nav.users': 'Users',
     'nav.language.aria': 'Language: {current} (next: {next})',
   },
   {
@@ -56,6 +58,7 @@ export default defineArea(
     'nav.dashboard': 'Dashboard',
     'nav.formation': 'Formation',
     'nav.vps': 'VPS',
+    'nav.users': 'Benutzer',
     'nav.language.aria': 'Sprache: {current} (nächste: {next})',
   },
 );

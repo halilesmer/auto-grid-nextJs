@@ -9,6 +9,14 @@ export const ZONE_ID = 'zone-e2e-1';
 /** Konto so, wie es der Worker speichert (mit Passwort); nach außen geht es ohne. */
 export type StoredAccount = Account & { password?: string };
 
+/** Benutzer wie in configs/users.json; im Mock steht der Schlüssel im Klartext (der Worker speichert nur den Hash). */
+export interface MockUser {
+  id: string;
+  name: string;
+  key: string;
+  created_at: string;
+}
+
 export function makeZone(overrides: Partial<ZoneSettings> = {}): ZoneSettings {
   return {
     id: ZONE_ID,
@@ -133,6 +141,8 @@ export function defaultState() {
     mt5Paths: [MT5_PATH, 'C:/Program Files/MT5_EC_Demo/terminal64.exe'],
     platform: 'win32',
     update: { has_update: false, local_ver: 'v0.7.62', remote_ver: 'v0.7.62' },
+    /** Benutzer mit persönlichem Schlüssel; leer = Einzelbetrieb wie bisher (nur der Admin-Schlüssel). */
+    users: [] as MockUser[],
   };
 }
 

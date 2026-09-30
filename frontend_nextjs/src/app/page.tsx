@@ -16,9 +16,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/i18n';
+import { useIsAdmin } from '@/store/useAuthStore';
 
 export default function Home() {
   const t = useT();
+  const isAdmin = useIsAdmin();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
   const setUpdateInfo = useSystemStore((s) => s.setUpdateInfo);
@@ -102,16 +104,19 @@ export default function Home() {
             ))}
           </div>
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              icon={<RefreshCw size={14} />}
-              hint={t('dashboard.sysinfo.checkUpdates.hint')}
-              onSelect={() => {
-                setUpdateOpen(true);
-                handleCheckUpdates();
-              }}
-            >
-              {t('dashboard.sysinfo.checkUpdates')}
-            </DropdownMenuItem>
+            {/* Worker-Update (git pull + Neustart) ist Admin-Sache: der Worker antwortet Benutzern mit 403 */}
+            {isAdmin && (
+              <DropdownMenuItem
+                icon={<RefreshCw size={14} />}
+                hint={t('dashboard.sysinfo.checkUpdates.hint')}
+                onSelect={() => {
+                  setUpdateOpen(true);
+                  handleCheckUpdates();
+                }}
+              >
+                {t('dashboard.sysinfo.checkUpdates')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               icon={<Power size={14} />}
               tone="danger"

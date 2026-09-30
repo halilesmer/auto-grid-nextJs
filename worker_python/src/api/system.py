@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from src.api.auth import require_admin
 import sys
 import os
 import asyncio
@@ -7,10 +8,10 @@ from src.utils.self_updater import check_for_updates, execute_git_pull, schedule
 router = APIRouter(tags=["System"])
 
 
-@router.get("/system/scan-mt5")
-async def scan_mt5_paths():
+def find_mt5_terminals() -> list[str]:
+    """Kurulu MT5 terminalleri (terminal64.exe yolları, "/" ayraçlı); Windows dışında boş."""
     if sys.platform != "win32":
-        return {"paths": [], "platform": sys.platform}
+        return []
 
     base_dirs = [
         os.environ.get("ProgramFiles", "C:\\Program Files"),
@@ -30,7 +31,12 @@ async def scan_mt5_paths():
                         found_paths.append(normalized)
         except PermissionError:
             pass
-    return {"paths": found_paths, "platform": sys.platform}
+    return found_paths
+
+
+@router.get("/system/scan-mt5")
+async def scan_mt5_paths():
+    return {"paths": find_mt5_terminals(), "platform": sys.platform}
 
 
 @router.get("/system/platform")
@@ -41,7 +47,7 @@ async def get_platform_info():
     }
 
 
-@router.get("/system/update/check")
+@router.get("/system/update/check", dependencies=[Depends(require_admin)])
 async def check_update(branch: str = Query("main", description="Git branch")):
     try:
         success, data = check_for_updates(branch=branch)
@@ -62,7 +68,7 @@ async def check_update(branch: str = Query("main", description="Git branch")):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/system/update")
+@router.post("/system/update", dependencies=[Depends(require_admin)])
 async def run_update(branch: str = Query("main", description="Git branch")):
     success, message = await asyncio.to_thread(execute_git_pull, branch=branch)
     if not success:

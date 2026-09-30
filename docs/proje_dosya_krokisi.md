@@ -42,7 +42,9 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 version.ts           # Sürüm bilgisi
 ┃ ┃ ┃ ┣ 📂 formasyon            # Formasyon sayfası
 ┃ ┃ ┃ ┃ ┗ 📜 page.tsx
-┃ ┃ ┃ ┣ 📂 vps                  # VPS uzaktan kontrol sayfası (sadece lokal; components/vps/)
+┃ ┃ ┃ ┣ 📂 vps                  # VPS uzaktan kontrol sayfası (sadece lokal, yalnızca admin; components/vps/)
+┃ ┃ ┃ ┃ ┗ 📜 page.tsx
+┃ ┃ ┃ ┣ 📂 users                # Kullanıcı yönetimi (yalnızca admin; components/users/, store/useUsersStore.ts, services/usersApi.ts)
 ┃ ┃ ┃ ┃ ┗ 📜 page.tsx
 ┃ ┃ ┃ ┣ 📂 api/vps/[action]     # Route Handler: SSH ile ops/windows/vps.ps1 (localhost + VPS_SSH_HOST)
 ┃ ┃ ┃ ┃ ┗ 📜 route.ts
@@ -146,8 +148,9 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┣ 📂 src
 ┃ ┃ ┣ 📂 api                    # API katmanı (Modüler Router Yapısı)
 ┃ ┃ ┃ ┣ 📜 __init__.py
-┃ ┃ ┃ ┣ 📜 accounts.py          # Hesap CRUD endpoint'leri (şifre asla dönmez → has_password)
-┃ ┃ ┃ ┣ 📜 auth.py              # WORKER_API_KEY kontrolü (X-API-Key başlığı / WS ?api_key=)
+┃ ┃ ┃ ┣ 📜 access.py            # Hesap sahipliği kontrolü (`account_access` bağımlılığı: kullanıcı yalnızca kendi hesaplarına erişir, aksi 404)
+┃ ┃ ┃ ┣ 📜 accounts.py          # Hesap CRUD endpoint'leri (şifre asla dönmez → has_password; `owner` alanı)
+┃ ┃ ┃ ┣ 📜 auth.py              # Anahtar → rol (admin/kullanıcı): WORKER_API_KEY = admin, kişisel anahtar = kullanıcı (X-API-Key başlığı / WS ?api_key=)
 ┃ ┃ ┃ ┣ 📜 bot_control.py       # Bot başlat/durdur/temizle endpoint'leri
 ┃ ┃ ┃ ┣ 📜 errors.py            # Merkezi hata yönetimi
 ┃ ┃ ┃ ┣ 📜 helpers.py           # API yardımcı fonksiyonları
@@ -157,6 +160,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 symbols.py           # Sembol endpoint'leri
 ┃ ┃ ┃ ┣ 📜 system.py            # Sistem durumu endpoint'leri
 ┃ ┃ ┃ ┣ 📜 ui_state.py          # UI state endpoint'leri
+┃ ┃ ┃ ┣ 📜 users.py             # Kullanıcı yönetimi (yalnızca admin) ve GET /auth/me
+┃ ┃ ┃ ┣ 📜 users_store.py       # configs/users.json: kullanıcı başına kişisel anahtar (yalnızca sha256 özeti saklanır)
 ┃ ┃ ┃ ┗ 📜 ws_server.py         # WebSocket sunucusu (Real-time iletişim)
 ┃ ┃ ┣ 📂 core                   # Çekirdek ticaret mantığı (Modüler Mimarisi - v0.7.33+)
 ┃ ┃ ┃ ┣ 📜 __init__.py          # Paket başlatma
@@ -321,11 +326,13 @@ grid_orchestrator (Ana Orkestratör)
 | `settings.py` | `/api/settings` | Global/Zone ayarları yükleme, kaydetme |
 | `symbols.py` | `/api/symbols` | Sembol arama, detay, tick bilgisi |
 | `logs.py` | `/api/logs` | Log sorgulama, filtreleme, indirme |
-| `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update; ayrı bir `/health` yok |
+| `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update (yalnızca admin); ayrı bir `/health` yok |
 | `ui_state.py` | `/api/ui-state` | UI state kaydetme/yükleme (panel genişlikleri, vb.) |
 | `models.py` | - | Paylaşılan Pydantic modelleri (Request/Response) |
 | `helpers.py` | - | API ortak yardımcı fonksiyonları (`_public_account`: yanıtlardan şifreyi çıkarır) |
-| `auth.py` | - | `WORKER_API_KEY` ayarlıysa `/api/*` için `X-API-Key`, `/ws/stream` için `?api_key=` zorunlu (middleware: `main.py`) |
+| `auth.py` | - | `WORKER_API_KEY` ayarlıysa (veya kullanıcı varsa) `/api/*` için `X-API-Key`, `/ws/stream` için `?api_key=` zorunlu (middleware: `main.py`). Anahtar bir role çözülür: `WORKER_API_KEY` = admin (her hesabı görür), kişisel anahtar = kullanıcı (yalnızca kendi hesapları). Bkz. `docs/mehrbenutzer.md` |
+| `access.py` | - | Sahiplik kontrolü: hesaba bağlı her route `Depends(account_access)` kullanır; kullanıcı için yabancı/olmayan hesap 404 |
+| `users.py` | `/api/users`, `/api/auth/me` | Kullanıcı ekleme/anahtar yenileme/silme (yalnızca admin), kimlik sorgusu |
 | `errors.py` | - | Merkezi exception handler, hata response formatı |
 | `ws_server.py` | `/ws` | WebSocket bağlantı yönetimi; her bağlantıya `?account_id=` ile seçilen hesabın metriklerini gönderir (parametresiz: ilk hesap). API sürecinin MT5'i yalnızca bağlı olduğu hesap için kullanılır, diğer hesaplar bot sürecinin metrik dosyasından (`logs/<id>/met_<id>.json`) |
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 
@@ -12,6 +12,30 @@ class AccountModel(BaseModel):
     server: str
     mt5_path: Optional[str] = ""
     notes: Optional[str] = ""
+    # Hesabın sahibi (kullanıcı kimliği); boş = yöneticiye ait. Kullanıcı olarak oluştururken
+    # sunucu kendi kimliğini yazar, yalnızca yönetici değiştirebilir (bkz. accounts.py)
+    owner: Optional[str] = None
+
+    @field_validator("id")
+    @classmethod
+    def _id_digits_only(cls, value: str) -> str:
+        # Kimlik dosya adlarında/yollarında kullanılır (settings_<id>, logs/<id>): yalnızca
+        # rakam (MT5 login'i); ".." veya "*" gibi değerler yol gezinme/glob açığı olurdu
+        if not (value.isascii() and value.isdigit()):
+            raise ValueError("id must be digits only (MT5 login)")
+        return value
+
+
+class UserCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("name must not be empty")
+        return value
 
 
 class SettingsPayload(BaseModel):

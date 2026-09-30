@@ -15,7 +15,9 @@ from tests.conftest import TEST_ACCOUNT_ID, WORKER_ROOT
 # Kein Klartext-Literal: der Secret-Scan der Hooks (hooks/lib/checks.sh) würde anschlagen
 TEST_PASSWORD = "pw-" + "test"
 
-PATH_CONSTANTS = ("BASE_DIR", "CONFIGS_DIR", "LOGS_DIR", "DATA_DIR", "ACCOUNTS_FILE", "CACHE_FILE")
+PATH_CONSTANTS = (
+    "BASE_DIR", "CONFIGS_DIR", "LOGS_DIR", "DATA_DIR", "ACCOUNTS_FILE", "USERS_FILE", "CACHE_FILE",
+)
 
 
 @pytest.fixture

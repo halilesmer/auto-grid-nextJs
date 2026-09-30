@@ -12,6 +12,7 @@ import { useT, type MessageKey } from '@/i18n';
 import { probeWorker, type ProbeFailure, type ProbeResult } from '@/lib/connection';
 import { decodeConnectionCode, hostOf, normalizeBaseUrl } from '@/lib/connectionCode';
 import { useConnectionDialogStore } from '@/store/useConnectionDialogStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 
 const FAILURE_KEYS: Record<ProbeFailure, MessageKey> = {
@@ -37,6 +38,7 @@ function ConnectionForm({ link, onClose, onRequestDisconnect }: {
   const t = useT();
   const savedUrl = useConnectionStore((s) => s.baseUrl);
   const savedKey = useConnectionStore((s) => s.apiKey);
+  const me = useAuthStore((s) => s.me);
 
   // Anfangswerte: Verbindungs-Link, sonst die gespeicherte Verbindung
   const [initial] = useState(() => {
@@ -120,6 +122,12 @@ function ConnectionForm({ link, onClose, onRequestDisconnect }: {
   return (
     <div className="space-y-4" data-testid="connection-dialog">
       <p className="text-sm leading-relaxed text-muted-foreground">{t('connection.dialog.intro')}</p>
+
+      {me && savedUrl && (
+        <p className="text-xs font-medium text-foreground" data-testid="connection-identity">
+          {t('auth.identity', { name: me.name, role: t(me.role === 'admin' ? 'auth.role.admin' : 'auth.role.user') })}
+        </p>
+      )}
 
       {fromLink && previewHost && (
         <div data-testid="connection-from-link">

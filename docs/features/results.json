@@ -507,7 +507,7 @@
     "e2e": {
       "datum": "2026-09-30",
       "status": "passed",
-      "tests": 2
+      "tests": 4
     }
   },
   "SET-04": {
@@ -718,7 +718,7 @@
     "e2e": {
       "datum": "2026-09-30",
       "status": "passed",
-      "tests": 14
+      "tests": 15
     }
   },
   "UI-08": {
@@ -790,6 +790,67 @@
       "datum": "2026-09-30",
       "status": "passed",
       "tests": 7
+    }
+  },
+  "USR-01": {
+    "api": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 5
+    }
+  },
+  "USR-02": {
+    "api": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 6
+    }
+  },
+  "USR-03": {
+    "api": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 13
+    },
+    "e2e": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 3
+    }
+  },
+  "USR-04": {
+    "api": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 17
+    }
+  },
+  "USR-05": {
+    "api": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 5
+    }
+  },
+  "USR-06": {
+    "api": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "USR-07": {
+    "e2e": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 4
+    }
+  },
+  "USR-08": {
+    "e2e": {
+      "datum": "2026-09-30",
+      "status": "passed",
+      "tests": 3
     }
   },
   "VPS-01": {

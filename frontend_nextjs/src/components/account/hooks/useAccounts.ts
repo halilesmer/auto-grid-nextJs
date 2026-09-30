@@ -4,7 +4,15 @@ import { useState, useCallback } from 'react';
 import type { Account, AccountFormData, UseAccountsReturn } from '../types';
 import { axiosInstance } from '@/lib/api';
 import { useAccountStore } from '@/store';
+import { useAuthStore } from '@/store/useAuthStore';
 import { t } from '@/i18n';
+
+/** Worker-Nutzlast: id = login; die Besitzer-Auswahl gibt es nur für den Admin (Benutzer: Worker ignoriert sie). */
+function toPayload(data: AccountFormData) {
+  const { owner, ...rest } = data;
+  const isAdmin = useAuthStore.getState().me?.role === 'admin';
+  return { ...rest, ...(isAdmin ? { owner } : {}), id: String(data.login), login: data.login };
+}
 
 export function useAccounts(): UseAccountsReturn {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -30,16 +38,14 @@ export function useAccounts(): UseAccountsReturn {
 
   const createAccount = useCallback(async (data: AccountFormData): Promise<Account> => {
     setError(null);
-    const payload = { ...data, id: String(data.login), login: data.login };
-    const res = await axiosInstance.post<Account>(`/accounts`, payload);
+    const res = await axiosInstance.post<Account>(`/accounts`, toPayload(data));
     await fetchAccounts();
     return res.data;
   }, [fetchAccounts]);
 
   const updateAccount = useCallback(async (id: string, data: AccountFormData): Promise<Account> => {
     setError(null);
-    const payload = { ...data, id: String(data.login), login: data.login };
-    const res = await axiosInstance.put<Account>(`/accounts/${id}`, payload);
+    const res = await axiosInstance.put<Account>(`/accounts/${id}`, toPayload(data));
     await fetchAccounts();
     return res.data;
   }, [fetchAccounts]);

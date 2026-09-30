@@ -18,6 +18,17 @@ export async function startDisconnected(page: Page) {
   }, CONNECTION_STORAGE_KEY);
 }
 
+/**
+ * Verbunden mit einem anderen Schlüssel als dem Admin-Schlüssel (z. B. E2E_USER_KEY): der Eintrag steht
+ * vor dem ersten Laden im localStorage, die Seite ist danach „als Benutzer“ verbunden.
+ */
+export async function connectWithKey(page: Page, baseUrl: string, apiKey: string) {
+  await page.addInitScript(
+    ([key, value]) => localStorage.setItem(key, value),
+    [CONNECTION_STORAGE_KEY, JSON.stringify({ state: { baseUrl, apiKey }, version: 0 })],
+  );
+}
+
 /** Der gespeicherte Eintrag (oder null). */
 export function storedConnection(page: Page) {
   return page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null') as unknown, CONNECTION_STORAGE_KEY);
