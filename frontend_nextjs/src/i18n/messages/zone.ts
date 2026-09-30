@@ -131,6 +131,8 @@ export default defineArea(
     'zone.fractal.sarStep': 'SAR Adımı',
     'zone.fractal.sarMax': 'SAR Maksimum',
     'zone.fractal.rr': 'Risk/Ödül (TP = SL × …)',
+    'zone.fractal.tpByMoney': 'TP tutar olarak ($)',
+    'zone.fractal.tpMoney': 'TP tutarı ($)',
   },
   {
     'zone.panel.loadingSymbols': 'Loading symbols...',
@@ -262,6 +264,8 @@ export default defineArea(
     'zone.fractal.sarStep': 'SAR step',
     'zone.fractal.sarMax': 'SAR maximum',
     'zone.fractal.rr': 'Reward/risk (TP = SL × …)',
+    'zone.fractal.tpByMoney': 'TP as amount ($)',
+    'zone.fractal.tpMoney': 'TP amount ($)',
   },
   {
     'zone.panel.loadingSymbols': 'Symbole werden geladen...',
@@ -393,5 +397,7 @@ export default defineArea(
     'zone.fractal.sarStep': 'SAR-Schritt',
     'zone.fractal.sarMax': 'SAR-Maximum',
     'zone.fractal.rr': 'Chance/Risiko (TP = SL × …)',
+    'zone.fractal.tpByMoney': 'TP als Betrag ($)',
+    'zone.fractal.tpMoney': 'TP-Betrag ($)',
   },
 );

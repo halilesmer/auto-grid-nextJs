@@ -320,6 +320,10 @@ export default defineArea(
     'zone.fractal.sarMax.hint': 'Parabolic SAR ivmesinin üst sınırı (MT5 varsayılanı 0,2).',
     'zone.fractal.rr.hint':
       'TP = giriş ± bu değer × SL mesafesi. Örn. 2: TP, SL\'nin iki katı uzakta. 0 = TP yok.',
+    'zone.fractal.tpByMoney.hint':
+      'Açık: TP, Risk/Ödül çarpanı yerine sabit bir tutardır (hesap para birimi). Kapalı: TP = SL mesafesi × çarpan.',
+    'zone.fractal.tpMoney.hint':
+      'Pozisyon başına hedef kâr (hesap para birimi). TP, bu tutarın o yönün lot büyüklüğünde karşılık geldiği fiyat mesafesine konur. 0 = TP yok.',
   },
   {
     // --- Account ---
@@ -636,6 +640,10 @@ export default defineArea(
     'zone.fractal.sarMax.hint': 'Upper limit of the Parabolic SAR acceleration (MT5 default 0.2).',
     'zone.fractal.rr.hint':
       'TP = entry ± this value × SL distance. E.g. 2: TP twice as far as the SL. 0 = no TP.',
+    'zone.fractal.tpByMoney.hint':
+      'On: the TP is a fixed amount (account currency) instead of the reward/risk factor. Off: TP = SL distance × factor.',
+    'zone.fractal.tpMoney.hint':
+      'Target profit per position (account currency). The TP is placed at the price distance this amount equals at that side\'s lot size. 0 = no TP.',
   },
   {
     // --- Konto ---
@@ -952,5 +960,9 @@ export default defineArea(
     'zone.fractal.sarMax.hint': 'Obergrenze der Parabolic-SAR-Beschleunigung (MT5-Standard 0,2).',
     'zone.fractal.rr.hint':
       'TP = Einstieg ± dieser Wert × SL-Abstand. Z. B. 2: TP doppelt so weit wie der SL. 0 = kein TP.',
+    'zone.fractal.tpByMoney.hint':
+      'An: Der TP ist ein fester Betrag (Kontowährung) statt des Chance/Risiko-Faktors. Aus: TP = SL-Abstand × Faktor.',
+    'zone.fractal.tpMoney.hint':
+      'Ziel-Gewinn pro Position (Kontowährung). Der TP liegt im Preisabstand, der diesem Betrag beim Lot der jeweiligen Seite entspricht. 0 = kein TP.',
   },
 );

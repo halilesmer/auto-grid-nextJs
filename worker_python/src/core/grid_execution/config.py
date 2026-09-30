@@ -42,6 +42,8 @@ class ZoneConfig:
     fractal_sar_step: float = 0.02
     fractal_sar_max: float = 0.2
     fractal_rr: float = 2.0  # TP = SL mesafesi × rr; 0 = TP yok
+    fractal_tp_by_money: bool = False  # True: TP = sabit tutar (hesap para birimi) → fiyat mesafesi
+    fractal_tp_money: float = 10.0
 
 
 ENTRY_MODES = ("grid", "fractal")
@@ -247,4 +249,6 @@ def extract_zone_config(
         fractal_sar_step=max(0.001, float(zone_dict.get("fractal_sar_step", 0.02))),
         fractal_sar_max=max(0.001, float(zone_dict.get("fractal_sar_max", 0.2))),
         fractal_rr=max(0.0, float(zone_dict.get("fractal_rr", 2.0))),
+        fractal_tp_by_money=bool(zone_dict.get("fractal_tp_by_money", False)),
+        fractal_tp_money=max(0.0, float(zone_dict.get("fractal_tp_money", 10.0))),
     )

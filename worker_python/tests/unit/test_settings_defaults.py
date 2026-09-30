@@ -45,6 +45,8 @@ ENGINE_FIELDS = {
     "fractal_sar_step": "fractal_sar_step",
     "fractal_sar_max": "fractal_sar_max",
     "fractal_rr": "fractal_rr",
+    "fractal_tp_by_money": "fractal_tp_by_money",
+    "fractal_tp_money": "fractal_tp_money",
 }
 
 
