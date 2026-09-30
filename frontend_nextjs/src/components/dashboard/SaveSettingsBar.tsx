@@ -10,6 +10,7 @@ interface SaveSettingsBarProps {
   isLoading: boolean;
   hasSettings: boolean;
   onSave: () => Promise<void>;
+  onDiscard: () => void;
 }
 
 export default function SaveSettingsBar({
@@ -17,6 +18,7 @@ export default function SaveSettingsBar({
   isLoading,
   hasSettings,
   onSave,
+  onDiscard,
 }: SaveSettingsBarProps) {
   const t = useT();
   const disabled = isLoading || !hasSettings || !isDirty;
@@ -61,6 +63,16 @@ export default function SaveSettingsBar({
                 <span className="size-2 rounded-full bg-warning" />
                 {t('saveBar.unsaved')}
               </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onDiscard}
+                disabled={isLoading}
+                data-testid="unsaved-discard"
+                hint={t('saveBar.discard.hint')}
+              >
+                {t('common.cancel')}
+              </Button>
               <Button
                 variant="primary"
                 size="sm"

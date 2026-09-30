@@ -39,6 +39,7 @@ export default function Home() {
     isDirty,
     isLive,
     handleSaveAll,
+    handleDiscard,
     markZoneSaved,
     handleShutdown,
     handleCheckUpdates,
@@ -140,6 +141,7 @@ export default function Home() {
                   isLoading={saveAllLoading}
                   hasSettings={!!settings}
                   onSave={handleSaveAll}
+                  onDiscard={handleDiscard}
                 />
               }
             />
