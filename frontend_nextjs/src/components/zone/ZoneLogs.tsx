@@ -80,7 +80,7 @@ export function ZoneLogs({ zoneId }: { zoneId: string }) {
         <pre
           ref={logRef}
           data-testid="zone-log-output"
-          className="max-h-56 overflow-auto whitespace-pre-wrap break-all border-t border-border/60 bg-muted/60 p-3 font-mono text-[11.5px] leading-relaxed text-foreground/75 dark:bg-black/40"
+          className="max-h-56 overflow-auto whitespace-pre-wrap break-all border-t border-border/60 bg-muted/60 p-3 font-mono text-[11.5px] leading-relaxed text-foreground/75 dark:bg-background/50"
         >
           {error ? (
             <span className="text-danger">{error}</span>

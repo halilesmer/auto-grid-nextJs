@@ -209,7 +209,7 @@ export default function LogViewer() {
         </div>
       </div>
 
-      <div className="bg-muted/60 dark:bg-black/40">
+      <div className="bg-muted/60 dark:bg-background/50">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-2 font-mono text-[11px]">
           <Tooltip content={workerStatus.error ?? t("logs.status.hint")} className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
