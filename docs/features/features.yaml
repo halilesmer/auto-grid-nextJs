@@ -465,7 +465,7 @@ kategorien:
 
       - id: ZON-15
         titel: Einstiegsmodus Fraktal
-        beschreibung: Auswahl „Einstiegsmodus“ (Grid/Fraktal, entry_mode) in der Zonenkarte. Im Fraktal-Modus werden Grid-Felder, „Abstand nach Verlust“, „Sofort erste Position“ und Trend/Pullback ausgeblendet; stattdessen Zeitrahmen (M1–D1, Standard H4), Ordertyp (Ausbruch/Abpraller), Lot, Max. Positionen, SL-Methode (ATR/SAR/Gegenfraktal/Fraktal-Kerze) mit passenden Feldern, SL-Puffer und Chance/Risiko. Wird mit der Zone gespeichert.
+        beschreibung: Auswahl „Einstiegsmodus“ (Grid/Fraktal, entry_mode) in der Zonenkarte. Im Fraktal-Modus werden Grid-Felder, „Abstand nach Verlust“, „Sofort erste Position“ und Trend/Pullback ausgeblendet; stattdessen Zeitrahmen (M1–D1, Standard H4), Ordertyp (Ausbruch/Abpraller), Lot, Max. Positionen, SL-Methode (ATR/SAR/Gegenfraktal/Fraktal-Kerze) mit passenden Feldern, SL-Puffer und Chance/Risiko (per Switch „TP als Betrag“ stattdessen TP-Betrag in Kontowährung). Wird mit der Zone gespeichert.
         code: [frontend_nextjs/src/components/zone/ZoneCard.tsx, frontend_nextjs/src/components/zone/ZoneFractalFields.tsx, frontend_nextjs/src/utils/zoneHelpers.ts]
         tiers: [e2e, manuell]
         pruefung:
@@ -739,7 +739,7 @@ kategorien:
 
       - id: ENG-22
         titel: Fraktal-SL-Methoden und TP nach Chance/Risiko
-        beschreibung: SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP.
+        beschreibung: SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP; mit fractal_tp_by_money stattdessen TP = Einstieg ± Preisabstand, der fractal_tp_money (Kontowährung) beim Lot der Seite entspricht (0 oder kein Tick-Wert = kein TP).
         code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/fractal_signals.py]
         tiers: [unit]
         pruefung:

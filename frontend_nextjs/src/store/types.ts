@@ -73,6 +73,9 @@ export interface ZoneSettings {
   fractal_sar_max?: number;
   /** TP = SL-Abstand × Faktor; 0 = kein TP */
   fractal_rr?: number;
+  /** true: TP als Geldbetrag (Kontowährung) statt SL × Faktor */
+  fractal_tp_by_money?: boolean;
+  fractal_tp_money?: number;
 }
 
 export type EntryMode = 'grid' | 'fractal';

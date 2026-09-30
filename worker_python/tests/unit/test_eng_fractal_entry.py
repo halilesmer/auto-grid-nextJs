@@ -168,6 +168,19 @@ def test_rr_null_bedeutet_kein_tp(fake_mt5):
 
 
 @pytest.mark.feature("ENG-22")
+def test_tp_als_geldbetrag_statt_rr(fake_mt5):
+    # Kontraktgröße 1000, Lot 1 → 1,0 Preiseinheit = 1000; 500 → TP-Abstand 0,5 (rr 2 wird ignoriert)
+    setup(fake_mt5, order_type="BUY", lot_size=1.0, fractal_tp_by_money=True, fractal_tp_money=500).tick()
+    assert order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP).tp == pytest.approx(97.6 + 0.5)
+
+
+@pytest.mark.feature("ENG-22")
+def test_tp_geldbetrag_null_bedeutet_kein_tp(fake_mt5):
+    setup(fake_mt5, order_type="BUY", lot_size=1.0, fractal_tp_by_money=True, fractal_tp_money=0).tick()
+    assert order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP).tp == 0.0
+
+
+@pytest.mark.feature("ENG-22")
 def test_kein_gueltiger_sl_keine_order(fake_mt5):
     # Abpraller-BUY bei 96,5 mit Puffer 0: SL = Einstieg → keine Order
     setup(fake_mt5, order_type="BUY", fractal_order_mode="rebound", fractal_sl_buffer=0).tick()

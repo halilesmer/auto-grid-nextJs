@@ -467,6 +467,14 @@ test.describe('ZON Zonen', () => {
       fractal_rr: 3,
     });
 
+    // TP als Geldbetrag: Switch ersetzt das Chance/Risiko-Feld, beide Werte bleiben gespeichert
+    await zone.getByRole('switch', { name: msg('zone.fractal.tpByMoney') }).click();
+    await expect(dashboard.zoneField(msg('zone.fractal.rr'))).toHaveCount(0);
+    await dashboard.zoneField(msg('zone.fractal.tpMoney')).fill('25');
+    await saveAndReload(dashboard);
+    await expect(dashboard.zoneField(msg('zone.fractal.tpMoney'))).toHaveValue('25');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_tp_by_money: true, fractal_tp_money: 25, fractal_rr: 3 });
+
     // Zurück auf Grid: Grid-Felder wieder da
     await dashboard.zone().getByTestId('entry-mode').selectOption('grid');
     await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toBeVisible();
