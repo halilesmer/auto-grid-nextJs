@@ -326,6 +326,10 @@ export default defineArea(
       'En yeni kaç fraktala SELL bekleyen emri konacağı (1–20). Fiyatın ulaştığı, dolan veya elle silinen fraktalın yeri boş kalır; daha eski fraktalla doldurulmaz. Açık pozisyonları „Maks Pozisyon“ sınırlar.',
     'zone.fractal.rr.hint':
       'TP = giriş ± bu değer × SL mesafesi. Örn. 2: TP, SL\'nin iki katı uzakta. 0 = TP yok.',
+    'zone.fractal.tpByMoney.hint':
+      'Açık: TP, Risk/Ödül çarpanı yerine sabit bir tutardır (hesap para birimi). Kapalı: TP = SL mesafesi × çarpan.',
+    'zone.fractal.tpMoney.hint':
+      'Pozisyon başına hedef kâr (hesap para birimi). TP, bu tutarın o yönün lot büyüklüğünde karşılık geldiği fiyat mesafesine konur. 0 = TP yok.',
   },
   {
     // --- Account ---
@@ -648,6 +652,10 @@ export default defineArea(
       'How many of the latest fractals get a SELL pending order (1–20). A fractal that price has reached, that was filled or deleted by hand leaves its slot empty; older fractals do not move up. Open positions are limited by “Max Positions”.',
     'zone.fractal.rr.hint':
       'TP = entry ± this value × SL distance. E.g. 2: TP twice as far as the SL. 0 = no TP.',
+    'zone.fractal.tpByMoney.hint':
+      'On: the TP is a fixed amount (account currency) instead of the reward/risk factor. Off: TP = SL distance × factor.',
+    'zone.fractal.tpMoney.hint':
+      'Target profit per position (account currency). The TP is placed at the price distance this amount equals at that side\'s lot size. 0 = no TP.',
   },
   {
     // --- Konto ---
@@ -970,5 +978,9 @@ export default defineArea(
       'Auf wie vielen der jüngsten Fraktale eine SELL-Pending-Order steht (1–20). Ein erreichtes, ausgelöstes oder von Hand gelöschtes Fraktal lässt seinen Platz leer; ältere rücken nicht nach. Offene Positionen begrenzt „Max. Positionen“.',
     'zone.fractal.rr.hint':
       'TP = Einstieg ± dieser Wert × SL-Abstand. Z. B. 2: TP doppelt so weit wie der SL. 0 = kein TP.',
+    'zone.fractal.tpByMoney.hint':
+      'An: Der TP ist ein fester Betrag (Kontowährung) statt des Chance/Risiko-Faktors. Aus: TP = SL-Abstand × Faktor.',
+    'zone.fractal.tpMoney.hint':
+      'Ziel-Gewinn pro Position (Kontowährung). Der TP liegt im Preisabstand, der diesem Betrag beim Lot der jeweiligen Seite entspricht. 0 = kein TP.',
   },
 );

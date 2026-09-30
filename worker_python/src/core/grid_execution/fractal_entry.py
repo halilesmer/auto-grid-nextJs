@@ -35,7 +35,7 @@ from src.core.grid_orders import (
 from src.core.state import state
 from src.utils.paths import get_fractal_state_path
 
-from .config import FRACTAL_MAX_ORDERS, ZoneConfig
+from .config import FRACTAL_MAX_ORDERS, ZoneConfig, money_to_price_distance
 from .fractal_signals import Fractal, atr, find_fractals, parabolic_sar
 
 # Fraktal + ATR/SAR için okunan kapanmış mum sayısı
@@ -242,11 +242,6 @@ def _build_desired(
         return None
 
     risk = abs(entry - sl)
-    tp = 0.0
-    if config.fractal_rr > 0:
-        tp = entry + config.fractal_rr * risk if direction == "BUY" else entry - config.fractal_rr * risk
-        tp = normalize_price(tp, config.symbol, symbol_infos)
-
     if direction == "BUY":
         order_type = mt5.ORDER_TYPE_BUY_STOP if breakout else mt5.ORDER_TYPE_BUY_LIMIT
         gap = entry - float(tick.ask) if breakout else float(tick.ask) - entry
@@ -255,6 +250,24 @@ def _build_desired(
         order_type = mt5.ORDER_TYPE_SELL_STOP if breakout else mt5.ORDER_TYPE_SELL_LIMIT
         gap = float(tick.bid) - entry if breakout else entry - float(tick.bid)
         lot = config.sell_lot_size
+
+    tp_dist = 0.0
+    if config.fractal_tp_by_money:
+        if config.fractal_tp_money > 0:
+            tp_dist = money_to_price_distance(config.fractal_tp_money, lot, config.symbol, symbol_infos) or 0.0
+            if tp_dist == 0.0:
+                _log_once(
+                    (zone_idx, side, "tpmoney", f.time), "missing",
+                    f"⚠️ Fraktal: {label} için tutar → fiyat mesafesi hesaplanamadı (tick değeri yok); TP konmuyor.",
+                    "WARN", log_message,
+                )
+    elif config.fractal_rr > 0:
+        tp_dist = config.fractal_rr * risk
+    tp = 0.0
+    if tp_dist > 0:
+        tp = entry + tp_dist if direction == "BUY" else entry - tp_dist
+        tp = normalize_price(tp, config.symbol, symbol_infos)
+
     # Fiyat seviyeye stops_level'den yakınsa MT5 reddeder (3 ret bölgeyi durdurur) → bekle
     price_ok = gap > stops and gap > 0
     eps = min_dist / 10

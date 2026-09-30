@@ -134,6 +134,8 @@ export default defineArea(
     'zone.fractal.orderCount': 'Emir Sayısı (BUY & SELL)',
     'zone.fractal.buyOrderCount': 'BUY Emir Sayısı',
     'zone.fractal.sellOrderCount': 'SELL Emir Sayısı',
+    'zone.fractal.tpByMoney': 'TP tutar olarak ($)',
+    'zone.fractal.tpMoney': 'TP tutarı ($)',
   },
   {
     'zone.panel.loadingSymbols': 'Loading symbols...',
@@ -268,6 +270,8 @@ export default defineArea(
     'zone.fractal.orderCount': 'Order count (BUY & SELL)',
     'zone.fractal.buyOrderCount': 'BUY order count',
     'zone.fractal.sellOrderCount': 'SELL order count',
+    'zone.fractal.tpByMoney': 'TP as amount ($)',
+    'zone.fractal.tpMoney': 'TP amount ($)',
   },
   {
     'zone.panel.loadingSymbols': 'Symbole werden geladen...',
@@ -402,5 +406,7 @@ export default defineArea(
     'zone.fractal.orderCount': 'Anzahl Orders (BUY & SELL)',
     'zone.fractal.buyOrderCount': 'Anzahl BUY-Orders',
     'zone.fractal.sellOrderCount': 'Anzahl SELL-Orders',
+    'zone.fractal.tpByMoney': 'TP als Betrag ($)',
+    'zone.fractal.tpMoney': 'TP-Betrag ($)',
   },
 );

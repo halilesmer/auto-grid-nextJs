@@ -3,8 +3,10 @@
 import type { ZoneFractalFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
+import { Switch } from '@/components/ui/switch';
 import { useT } from '@/i18n';
 import { TIMEFRAMES } from '@/utils/zoneHelpers';
+import { LossPreview } from './LossPreview';
 
 // Faktoren (ATR, SAR, Chance/Risiko) sind keine Preise: eigene Schrittweite statt Symbol-Digits
 const FACTOR = { step: 0.1, precision: 2 };
@@ -31,6 +33,7 @@ export function ZoneFractalFields({
       : zone.order_type === 'SELL'
         ? 'zone.fractal.sellOrderCount'
         : 'zone.fractal.orderCount';
+  const tpByMoney = !!zone.fractal_tp_by_money;
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -189,9 +192,44 @@ export function ZoneFractalFields({
             className="input-s"
           />
         </InputField>
-        <InputField label={t('zone.fractal.rr')} hint={t('zone.fractal.rr.hint')}>
-          {factorField('fractal_rr', FACTOR, 2)}
-        </InputField>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          {tpByMoney ? (
+            <InputField
+              label={t('zone.fractal.tpMoney')}
+              hint={t('zone.fractal.tpMoney.hint')}
+              error={
+                <LossPreview
+                  amount={zone.fractal_tp_money ?? 10}
+                  lot={zone.lot_size}
+                  symbolConfig={symbolConfig}
+                />
+              }
+            >
+              <NumberInput
+                data-testid="fractal-tp-money"
+                min={0}
+                step={0.01}
+                maxDecimals={2}
+                value={zone.fractal_tp_money ?? 10}
+                onChange={(e) =>
+                  handleChange('fractal_tp_money', e.target.value, zone, { ...symbolConfig, precision: 2 }, update)
+                }
+                className="input-s"
+              />
+            </InputField>
+          ) : (
+            <InputField label={t('zone.fractal.rr')} hint={t('zone.fractal.rr.hint')}>
+              {factorField('fractal_rr', FACTOR, 2)}
+            </InputField>
+          )}
+          <Switch
+            id={`fractal-tp-by-money-${zone.id}`}
+            checked={tpByMoney}
+            onChange={(checked) => update('fractal_tp_by_money', checked)}
+            label={<span className="text-xs text-muted-foreground">{t('zone.fractal.tpByMoney')}</span>}
+            hint={t('zone.fractal.tpByMoney.hint')}
+          />
+        </div>
       </div>
     </div>
   );

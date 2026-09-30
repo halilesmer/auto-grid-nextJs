@@ -45,6 +45,8 @@ class ZoneConfig:
     # Yön başına en yeni kaç fraktala bekleyen emir konur (BUY / SELL); 1 = yalnızca en yeni fraktal
     fractal_order_count: int = 1
     sell_fractal_order_count: int = 1
+    fractal_tp_by_money: bool = False  # True: TP = sabit tutar (hesap para birimi) → fiyat mesafesi
+    fractal_tp_money: float = 10.0
 
 
 ENTRY_MODES = ("grid", "fractal")
@@ -267,4 +269,6 @@ def extract_zone_config(
         fractal_rr=max(0.0, float(zone_dict.get("fractal_rr", 2.0))),
         fractal_order_count=fractal_order_count,
         sell_fractal_order_count=sell_fractal_order_count,
+        fractal_tp_by_money=bool(zone_dict.get("fractal_tp_by_money", False)),
+        fractal_tp_money=max(0.0, float(zone_dict.get("fractal_tp_money", 10.0))),
     )

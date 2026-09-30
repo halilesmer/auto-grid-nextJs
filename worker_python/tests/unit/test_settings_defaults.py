@@ -47,6 +47,8 @@ ENGINE_FIELDS = {
     "fractal_rr": "fractal_rr",
     "fractal_order_count": "fractal_order_count",
     "sell_fractal_order_count": "sell_fractal_order_count",
+    "fractal_tp_by_money": "fractal_tp_by_money",
+    "fractal_tp_money": "fractal_tp_money",
 }
 
 
