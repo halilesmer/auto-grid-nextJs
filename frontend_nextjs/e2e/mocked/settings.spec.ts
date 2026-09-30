@@ -50,6 +50,20 @@ test.describe('SET Einstellungen', () => {
     await expect(interval).toHaveValue('7.5');
   });
 
+  test('Cmd/Strg+Enter speichert', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    // Ohne Änderungen passiert nichts
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
+
+    await dashboard.zoneField(msg('zone.field.maxPrice')).fill('130');
+    await expect(page.getByTestId('unsaved-bar')).toBeVisible();
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
+    await expect(page.getByTestId('unsaved-bar')).toBeHidden();
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ max_price: 130 });
+  });
+
   test('„Alle speichern“ + Dirty-Tracking', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const bar = page.getByTestId('unsaved-bar');
@@ -58,7 +72,7 @@ test.describe('SET Einstellungen', () => {
     await expect(bar).toBeHidden();
 
     await dashboard.zoneField(msg('zone.field.maxPrice')).fill('120');
-    await expect(dashboard.saveAll).toHaveText(msg('saveBar.saveAll'));
+    await expect(dashboard.saveAll).toContainText(msg('saveBar.saveAll'));
     await expect(bar).toContainText(msg('saveBar.unsaved'));
 
     // Die schwebende Leiste speichert ebenfalls
@@ -90,7 +104,7 @@ test.describe('SET Einstellungen', () => {
     await dashboard.zoneField(msg('zone.field.maxPrice')).fill('120');
     await page.getByRole('button', { name: msg('saveBar.saveAll') }).click();
     await expect(page.getByText(/Tüm ayarları kaydetme başarısız|Failed to save settings/)).toBeVisible();
-    await expect(dashboard.saveAll).toHaveText(msg('saveBar.saveAll'));
+    await expect(dashboard.saveAll).toContainText(msg('saveBar.saveAll'));
   });
 });
 
