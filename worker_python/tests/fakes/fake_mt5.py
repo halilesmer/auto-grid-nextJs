@@ -95,6 +95,7 @@ class TerminalInfo:
     connected: bool = True
     trade_allowed: bool = True
     data_path: str = ""
+    path: str = ""  # Installationsordner (terminal_info().path im echten Paket)
 
 
 @dataclass

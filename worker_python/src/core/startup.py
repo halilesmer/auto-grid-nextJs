@@ -7,6 +7,7 @@ from .wrappers import load_dynamic_settings
 from src.utils.paths import get_symbols_path, get_ui_state_path, get_metrics_path
 from src.core.grid_helpers import log_message, is_market_open, determine_fill_mode
 from src.core.grid_orders import get_all_robot_orders, get_all_robot_positions, BASE_MAGIC_NUMBER
+from src.utils.mt5_terminal_guard import foreign_terminal_error, missing_path_error
 
 
 def _write_startup_error(account_id, message):
@@ -134,10 +135,24 @@ def run_startup_checks(mt5_module) -> bool:
 
 
 def _reconnect_mt5(mt5_module, account_id, password, server, max_retries=3, base_delay=2, mt5_path=None):
-    # İlk bağlantıyla aynı terminale bağlan (birden fazla MT5 kuruluysa varsayılan yanlış olabilir)
-    init_kwargs = {"path": os.path.normpath(mt5_path)} if mt5_path and os.path.exists(mt5_path) else {}
+    # İlk bağlantıyla aynı terminale bağlan (birden fazla MT5 kuruluysa varsayılan yanlış olabilir).
+    # Yol girilmiş ama yoksa yolsuz initialize başka hesabın terminaline bağlanırdı (ACC-11).
+    # Reddedilince shutdown: modül yabancı terminale bağlı kalıp uzaktan komut/_cleanup ile
+    # o hesabın emirlerine dokunmasın.
+    path_err = missing_path_error(mt5_path)
+    if path_err:
+        log_message(path_err, "ERROR")
+        mt5_module.shutdown()
+        return False
+    mt5_path = (mt5_path or "").strip()
+    init_kwargs = {"path": os.path.normpath(mt5_path)} if mt5_path else {}
     for attempt in range(max_retries):
         if mt5_module.initialize(**init_kwargs):
+            foreign_err = foreign_terminal_error(mt5_module, account_id)
+            if foreign_err:
+                log_message(foreign_err, "ERROR")
+                mt5_module.shutdown()
+                return False
             if mt5_module.login(account_id, str(password), str(server)):
                 time.sleep(1.0)
                 account_info = mt5_module.account_info()
