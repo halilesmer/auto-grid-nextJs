@@ -79,9 +79,17 @@ test.describe('SYS-07 Verbindung im Browser', () => {
     await runTest.click();
     await expect(error).toHaveAttribute('data-reason', 'unauthorized');
     await expect(error).toContainText(msg('connection.test.unauthorized'));
+    await expect(dialog.getByTestId('connection-test-detail')).toContainText('HTTP 401');
     await expect(connect).toBeDisabled();
     expect(worker.unauthorized).toEqual(['GET /api/system/platform']);
     worker.unauthorized.length = 0; // erwartet: der Test wollte genau diese 401
+
+    // Leeres Key-Feld: eigene Meldung statt „Key abgelehnt"
+    await key.fill('');
+    await runTest.click();
+    await expect(error).toHaveAttribute('data-reason', 'missingKey');
+    await expect(error).toContainText(msg('connection.test.missingKey'));
+    worker.unauthorized.length = 0;
 
     // Eine Adresse, die antwortet, aber kein Worker ist
     worker.overrides.set('GET /api/system/platform', { status: 200, body: { hello: 'world' } });

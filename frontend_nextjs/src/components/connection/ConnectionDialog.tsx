@@ -18,7 +18,9 @@ import { useConnectionStore } from '@/store/useConnectionStore';
 const FAILURE_KEYS: Record<ProbeFailure, MessageKey> = {
   invalid: 'connection.test.invalid',
   insecure: 'connection.test.insecure',
+  missingKey: 'connection.test.missingKey',
   unauthorized: 'connection.test.unauthorized',
+  timeout: 'connection.test.timeout',
   unreachable: 'connection.test.unreachable',
   notWorker: 'connection.test.notWorker',
 };
@@ -229,10 +231,18 @@ function ConnectionForm({ link, onClose, onRequestDisconnect }: {
         )}
         {tested && !tested.ok && (
           <div data-testid="connection-test-error" data-reason={tested.reason}>
-            <Alert tone={tested.reason === 'unauthorized' ? 'warning' : 'danger'}>
+            <Alert tone={tested.reason === 'unauthorized' || tested.reason === 'missingKey' ? 'warning' : 'danger'}>
               {tested.ngrokCode
                 ? t('connection.test.unreachable.ngrok', { code: tested.ngrokCode })
                 : t(FAILURE_KEYS[tested.reason])}
+              {tested.detail && (
+                <span
+                  data-testid="connection-test-detail"
+                  className="mt-1 block break-all font-mono text-[11px] text-muted-foreground"
+                >
+                  {t('connection.test.detail', { detail: tested.detail, url: tested.probedUrl ?? '' })}
+                </span>
+              )}
             </Alert>
           </div>
         )}
