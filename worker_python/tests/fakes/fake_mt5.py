@@ -17,7 +17,8 @@ Zusätzlich gibt es Test-Hebel:
     partial_fill_next(vol)    nächste Füllung einer Pending Order nur mit `vol` (Rest verfällt, IOC)
     history                   Order-Historie (gefüllt/gelöscht) für history_orders_get
     add_deal(...)             Deal im Deal-Buch für history_deals_get (Zeit = Brokerzeit wie MT5)
-    copy_rates_range          liefert die mit set_rates gesetzten Kerzen im Zeitraum (Brokerzeit)
+    copy_rates_range/_from    liefert die mit set_rates gesetzten Kerzen im Zeitraum bzw. bis zu einem
+                              Zeitpunkt (Brokerzeit)
     sent                      Liste aller order_send-Requests
 """
 from __future__ import annotations
@@ -117,6 +118,7 @@ class AccountInfo:
     trade_mode: int = 0  # ACCOUNT_TRADE_MODE_DEMO
     currency: str = "USD"
     margin_mode: int = 2  # ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+    balance: float = 10000.0
 
 
 @dataclass
@@ -375,6 +377,11 @@ class FakeMT5:
         bars = self.rates.get((symbol, timeframe)) or []
         found = [dict(b) for b in bars if int(date_from) <= b["time"] <= int(date_to)]
         return found or None
+
+    def copy_rates_from(self, symbol, timeframe, date_from, count):
+        """Wie MT5: `count` Kerzen bis einschließlich date_from (Brokerzeit), alt → neu."""
+        bars = [dict(b) for b in self.rates.get((symbol, timeframe)) or [] if b["time"] <= int(date_from)]
+        return bars[-count:] or None
 
     def copy_rates_from_pos(self, symbol, timeframe, start_pos, count):
         bars = self.rates.get((symbol, timeframe))
