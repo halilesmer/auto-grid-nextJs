@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -191,6 +192,12 @@ async def delete_account(account_id: str):
                 status_code=404, detail=f"Account '{account_id}' not found"
             )
         _save_accounts(filtered)
+        try:
+            from src.utils import market_db
+
+            await asyncio.to_thread(market_db.delete_account, str(account_id))
+        except Exception as exc:  # noqa: BLE001  (arşiv silinemese de hesap silinmiş olur)
+            print(f"⚠️ [MARKET-DB] Hesabın deal arşivi silinemedi: {exc}")
         return {"status": "deleted", "account_id": account_id}
     except HTTPException:
         raise

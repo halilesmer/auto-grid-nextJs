@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-01 · **115/129** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-01 · **116/131** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 5/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 5/5 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 6/7 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -621,6 +621,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Das Zahnrad schaltet Zonengrenzen im Chart und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das.
   - **Prüfung:** Zahnrad öffnen, „Karte mit Zonen-Einstellungen“ ausschalten, Seite neu laden.
   - **Erwartet:** Die Karte bleibt nach dem Neuladen ausgeblendet; das Panel nennt die nicht abschaltbaren Hinweise.
+- [ ] **ANA-04** Kursdatenbank mit Abdeckung — 🔌 api ✅ 2026-10-01 · 👤 manuell ⏳
+  - SQLite auf dem VPS (worker_python/data/market.sqlite, gitignored). GET /market/{id}/rates?symbol&timeframe=M1…D1&from&to (MT5-Zeit, halb offen, nur eigene Konten) holt nur die Teile, die noch nicht in der Datenbank sind, aus MT5 und liefert spaltenweise (t,o,h,l,c,v,s; höchstens 50.000 Kerzen, Rest über next_from). Jeder Bereich hat einen Zustand: vollständig (zwischen erster und letzter gelieferter Kerze), bestätigte Pause (keine Kerzen, aber davor und danach welche, höchstens 4 Tage: Wochenende, Feiertag) oder nicht verfügbar (vor der ersten Kerze, die MT5 hat; nach 24 h neu versucht). Die neueste MT5-Kerze wird nie gespeichert, nur mitgeliefert (live_from). Fehler werden nicht gespeichert; was fehlt, steht mit Grund in missing (unavailable, error, busy). Schutz des Live-Bots: Abruf in Stücken (höchstens 31 Tage M1), immer nur einer gleichzeitig, 0,5 s Pause, ohne Login und ohne Terminal-Neustart; ist das Konto in /start oder /stop, kommt nur der Datenbank-Bestand. GET /market/{id}/coverage zeigt den Bestand und die Größe. Bei jedem Abruf wird ein verlässlicher Broker-Abstand protokolliert. Ab MARKET_DB_MAX_MB (Standard 5000) werden keine Kerzen mehr gespeichert. Täglich und vor jeder Migration ein Backup (data/backups, 7 Stück); eine fehlgeschlagene Migration lässt die alte Version und die Daten-Endpunkte antworten 503, der Handel läuft weiter.
+  - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten. → Im Browser (angemeldet als Admin) /api/market/<Konto>/rates?symbol=<Symbol>&timeframe=M1&from=<Montag 00:00 als Unix-Sekunden>&to=<Montag 01:00> zweimal aufrufen (Header X-API-Key, z. B. mit curl). → Danach /api/market/<Konto>/coverage?symbol=<Symbol> aufrufen. → Im MT5-Journal und im Bot-Log nachsehen, ob während der Abrufe etwas passiert ist.
+  - **Erwartet:** Beide Aufrufe liefern dieselben 60 Kerzen, die Zeiten passen zum MT5-Chart (Brokerzeit). Coverage zeigt den Bereich als „complete“. Im Journal keine neue Zeile „authorized on …“, im Bot-Log kein Verbindungsabbruch.
+- [x] **ANA-07** Deal-Archiv und Zonen-Register — 🔌 api ✅ 2026-10-01
+  - GET /history/{id}/deals?from&to (MT5-Zeit, nur eigene Konten) archiviert alle Deals des Kontos in der Datenbank, auch manuelle Trades sowie Ein- und Auszahlungen; gefiltert wird erst bei der Auswertung. Abgeglichene Zeiträume werden einzeln gemerkt (ein Abgleich von „diese Woche“ sagt nichts über „letztes Jahr“); der jüngste Rand (24 h plus Puffer für den Broker-Abstand) wird jedes Mal neu abgeglichen. Liegt der Einstieg einer Position vor dem Zeitraum, wird er nachgeladen und mitgeliefert. Die Antwort enthält Kontowährung, Kontostand, Kontomodell und das Zonen-Register. Das Register (POST /settings) merkt sich je Magic-Nummer Zone, Symbol und Name, auch für gelöschte Zonen (deleted_at), und jede geänderte Fassung der Zonen-Einstellungen mit Zeitstempel. Konto löschen löscht dessen Deal-Archiv.
+  - **Prüfung:** /api/history/<Konto>/deals?from=<vor 30 Tagen> aufrufen (X-API-Key).
+  - **Erwartet:** Alle Deals der letzten 30 Tage wie in MT5 unter Historie → Deals, auch Ein- und Auszahlungen; „zones“ nennt die Zonen mit ihrer Magic-Nummer.
 - [x] **ANA-10** Kalender in Brokerzeit — 🔌 api ✅ 2026-10-01 · 🖥️ e2e ✅ 2026-10-01
   - Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1).
   - **Prüfung:** Auf der Analyse-Seite den Zeitraum öffnen, „Letztes Jahr“ wählen. → Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden. → „31.02.26“ eingeben.
