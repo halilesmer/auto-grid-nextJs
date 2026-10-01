@@ -1326,3 +1326,24 @@ kategorien:
           - Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist.
           - Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
         erwartet: Ticket und Uhrzeit des letzten Deals stimmen sekundengenau mit MT5 überein, Tick- und Kerzenzeit passen zur Serverzeit in MT5, der Broker-Abstand ist eine glatte Zahl (z. B. UTC+3) und „verlässlich“. Das Kontomodell ist „hedging“. Im MT5-Journal erscheint keine neue Zeile „authorized on …“, der Bot-Log zeigt keinen Verbindungsabbruch.
+
+  - id: BKT
+    titel: Backtest (Musterlösungen, Nachbau, Rechner)
+    features:
+      - id: BKT-01
+        titel: Musterlösungen des Python-Bots
+        beschreibung: "17 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen, Ausbruch, step_by_loss, Rauschen, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7)."
+        code: [worker_python/tests/parity/runner.py, worker_python/tests/parity/make_scenarios.py, worker_python/src/core/clock.py, worker_python/tests/unit/test_parity_golden.py]
+        tiers: [unit]
+        pruefung:
+          - In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q` ausführen.
+        erwartet: Alle Szenarien gleichen ihrer Musterlösung; zweimal abgespielt ergibt dieselbe Folge.
+
+      - id: BKT-09
+        titel: Zukunftsdaten-Test
+        beschreibung: "Für jedes Szenario werden ab einem Tick k (nach einem und nach zwei Dritteln) alle späteren Kurse verändert. Alle Ereignisse vor k müssen gleich bleiben (docs/analyse-regeln.md §5 „kein Blick in die Zukunft“); danach muss sich etwas ändern, sonst prüft der Test nichts."
+        code: [worker_python/tests/parity/runner.py, worker_python/tests/unit/test_parity_golden.py]
+        tiers: [unit]
+        pruefung:
+          - In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q -k spaetere` ausführen.
+        erwartet: Grün für alle Szenarien.

@@ -1,7 +1,6 @@
 """Anında ilk pozisyon (`instant_entry`): bölgenin bir yönünde (BUY/SELL) açık pozisyon yoksa
 o yönde hemen piyasa emriyle bir pozisyon açılır — bot başlarken ve o yönün tüm pozisyonları
 kapandıktan sonra (ör. TP). Ardından grid bu pozisyondan itibaren kurulur (levels.py, çapa)."""
-import time
 from typing import Callable
 
 from src.core.grid_helpers import (
@@ -11,6 +10,7 @@ from src.core.grid_helpers import (
     log_message as default_log_message,
 )
 from src.core.grid_orders import MAX_DEVIATION, zone_number
+from src.core import clock
 from src.core.state import state
 from src.utils.trade_utils import safe_send_order
 from .config import ZoneConfig
@@ -27,10 +27,11 @@ def open_instant_positions(
     current_avg_price: float,
     symbol_infos: dict,
     log_message: Callable[[str, str], None] = default_log_message,
-    now: Callable[[], float] = time.monotonic,
+    now: Callable[[], float] | None = None,
 ) -> int:
     if not config.instant_entry or mt5 is None:
         return 0
+    now = now or clock.monotonic
     # Fiyat bölge dışındaysa (sembolün ilk bölgesine düşülmüş) pozisyon açma
     if not (config.min_price <= current_avg_price <= config.max_price):
         return 0

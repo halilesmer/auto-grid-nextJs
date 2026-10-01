@@ -180,6 +180,20 @@
       "tests": 10
     }
   },
+  "BKT-01": {
+    "unit": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 36
+    }
+  },
+  "BKT-09": {
+    "unit": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 17
+    }
+  },
   "BOT-01": {
     "live": {
       "datum": "2026-09-24",

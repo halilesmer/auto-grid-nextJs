@@ -10,7 +10,7 @@ Her döngüde kaybolan emirler MT5 geçmişindeki durumuyla (CANCELED/EXPIRED/RE
 böylece silenin kim olduğu anlaşılır. Bir bölgede VANISH_WINDOW_SEC içinde VANISH_LIMIT emir
 dışarıdan silinirse bölge güvenliğe alınır (PAUSE, ENG-11 ile aynı yol) ve alarm verilir.
 """
-import time
+from src.core import clock
 from typing import Callable
 
 from src.core.grid_helpers import log_message as default_log_message, zone_log_id
@@ -59,7 +59,7 @@ def check_vanished_orders(
 
     open_tickets = {o.ticket for o in robot_orders}
     position_ids = {getattr(p, "identifier", 0) or p.ticket for p in robot_positions}
-    t_now = now() if now else time.monotonic()
+    t_now = now() if now else clock.monotonic()
     removed: dict = {}
     index_by_magic = zone_index_by_magic(zones)
 

@@ -1,0 +1,558 @@
+[
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 97.0,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.9,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.7,
+  "volume": 0.01,
+  "tp": 96.8,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 97.2,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 97.3,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 97.4,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 97.0,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 97.1,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 97.2,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 96.8,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.7,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.7,
+  "volume": 0.01,
+  "tp": 96.6,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ },
+ {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.6,
+  "volume": 0.01,
+  "tp": 96.7,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 97.1,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 96.9,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.6,
+  "volume": 0.01,
+  "tp": 96.5,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 5,
+  "t": 25,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.9,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 6,
+  "t": 30,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 8,
+  "t": 40,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 96.6,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 8,
+  "t": 40,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 96.4,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 10,
+  "t": 50,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.8,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 11,
+  "t": 55,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 11,
+  "t": 55,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.9,
+  "price": 96.79,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 11,
+  "t": 55,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 96.8,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 13,
+  "t": 65,
+  "ev": "cancel",
+  "type": "BUY_STOP",
+  "price": 97.3,
+  "magic": 200001
+ },
+ {
+  "i": 13,
+  "t": 65,
+  "ev": "cancel",
+  "type": "SELL_LIMIT",
+  "price": 97.3,
+  "magic": 200001
+ },
+ {
+  "i": 15,
+  "t": 75,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.7,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 16,
+  "t": 80,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.7,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 16,
+  "t": 80,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.8,
+  "price": 96.69,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 16,
+  "t": 80,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.7,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 18,
+  "t": 90,
+  "ev": "cancel",
+  "type": "BUY_STOP",
+  "price": 97.2,
+  "magic": 200001
+ },
+ {
+  "i": 18,
+  "t": 90,
+  "ev": "cancel",
+  "type": "SELL_LIMIT",
+  "price": 97.2,
+  "magic": 200001
+ },
+ {
+  "i": 20,
+  "t": 100,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.6,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 21,
+  "t": 105,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.6,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 21,
+  "t": 105,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.7,
+  "price": 96.59,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 21,
+  "t": 105,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 96.7,
+  "volume": 0.01,
+  "tp": 96.6,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "cancel",
+  "type": "BUY_STOP",
+  "price": 97.1,
+  "magic": 200001
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "cancel",
+  "type": "SELL_LIMIT",
+  "price": 97.1,
+  "magic": 200001
+ },
+ {
+  "i": 25,
+  "t": 125,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.6,
+  "price": 96.49,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "cancel",
+  "type": "BUY_STOP",
+  "price": 97.0,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "cancel",
+  "type": "SELL_LIMIT",
+  "price": 97.0,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "cancel",
+  "type": "SELL_LIMIT",
+  "price": 96.9,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "cancel",
+  "type": "SELL_LIMIT",
+  "price": 96.8,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "cancel",
+  "type": "SELL_LIMIT",
+  "price": 96.7,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "close",
+  "type": "BUY",
+  "open": 96.9,
+  "price": 96.48,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "close",
+  "type": "BUY",
+  "open": 96.8,
+  "price": 96.48,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "close",
+  "type": "BUY",
+  "open": 96.7,
+  "price": 96.48,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "close",
+  "type": "BUY",
+  "open": 96.6,
+  "price": 96.48,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "close",
+  "type": "SELL",
+  "open": 96.5,
+  "price": 96.49,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "close",
+  "type": "BUY",
+  "open": 96.5,
+  "price": 96.48,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "active",
+  "zones": {}
+ },
+ {
+  "i": 55,
+  "t": 275,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ }
+]

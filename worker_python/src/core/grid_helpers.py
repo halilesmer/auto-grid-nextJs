@@ -1,4 +1,4 @@
-import time
+from src.core import clock
 import datetime
 import os
 import sys
@@ -94,7 +94,7 @@ def is_market_open(mt5, symbol):
     if tick is None or getattr(tick, "time_msc", 0) == 0:
         return False
 
-    return (time.time() * 1000 - tick.time_msc) <= 180000
+    return (clock.wall() * 1000 - tick.time_msc) <= 180000
 
 
 def determine_fill_mode(mt5, symbol, symbol_infos, filling_mode_dict):

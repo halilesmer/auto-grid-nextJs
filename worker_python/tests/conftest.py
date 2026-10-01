@@ -29,6 +29,12 @@ def pytest_addoption(parser):
         default=None,
         help="Nur Tests dieser Feature-ID (ENG-05) oder Kategorie (ENG) ausführen",
     )
+    parser.addoption(
+        "--update-golden",
+        action="store_true",
+        default=False,
+        help="Musterlösungen (tests/parity/golden) neu schreiben statt vergleichen",
+    )
 
 
 def _feature_ids(item) -> list[str]:
