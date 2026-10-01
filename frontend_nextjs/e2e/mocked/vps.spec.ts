@@ -225,6 +225,75 @@ test.describe('VPS Fernsteuerung', () => {
   });
 });
 
+test.describe('VPS Selbstheilung', () => {
+  const tunnelTask = { exists: true, state: 'Ready' };
+
+  test('Kachel zeigt Tunnel-Watchdog, Fehlschläge und letzten Auto-Reboot', { tag: '@VPS-10' }, async ({ page, worker }) => {
+    void worker;
+    const mock = await mockVps(page, {
+      status: {
+        ...STATUS,
+        tasks: { ...STATUS.tasks, tunnel: tunnelTask },
+        tunnel_watchdog: {
+          failures: 0,
+          check_age_minutes: 2,
+          last_check: '2026-09-30T10:05:00Z',
+          last_ok: '2026-09-30T10:05:00Z',
+          last_result: 'ok',
+          last_action: '',
+          reboots: [],
+        },
+      },
+    });
+    await page.goto('/vps');
+    const tile = page.getByTestId('vps-tile-ngrok');
+    const selfHeal = page.getByTestId('vps-self-heal');
+    await expect(selfHeal).toHaveText(msg('vps.tile.selfHeal', { state: msg('vps.tile.selfHeal.ok') }));
+    await expect(tile).toHaveAttribute('data-tone', 'success');
+
+    // Öffentliche URL antwortet nicht mehr, ein Auto-Reboot liegt hinter uns -> Warnung
+    mock.status = {
+      ...mock.status,
+      tunnel_watchdog: {
+        failures: 2,
+        check_age_minutes: 1,
+        last_check: '2026-09-30T10:15:00Z',
+        last_ok: '2026-09-30T10:05:00Z',
+        last_result: 'tunnel-down',
+        last_action: 'restart-ngrok',
+        reboots: ['2026-09-29T03:10:00Z'],
+      },
+    };
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
+    await expect(selfHeal).toHaveText(
+      msg('vps.tile.selfHeal', { state: msg('vps.tile.selfHeal.failing', { n: 2 }) }),
+    );
+    await expect(tile).toHaveAttribute('data-tone', 'warning');
+    await expect(tile).toContainText(msg('vps.tile.selfHeal.lastReboot', { time: '' }).trim());
+
+    await page.getByRole('tab', { name: msg('vps.log.tab.tunnel') }).click();
+    await expect(page.getByTestId('vps-log-output')).toContainText('[tunnel] Zeile 1');
+    expect(mock.calls).toContain('GET logs?log=tunnel&lines=300');
+
+    // Aufgabe prüft seit 40 min nicht mehr (deaktiviert, keine Sitzung): sichtbar statt „ok“
+    mock.status = {
+      ...mock.status,
+      tunnel_watchdog: { ...(mock.status.tunnel_watchdog as object), failures: 0, last_result: 'ok', check_age_minutes: 40 },
+    };
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
+    await expect(selfHeal).toHaveText(msg('vps.tile.selfHeal', { state: msg('vps.tile.selfHeal.stale', { n: 40 }) }));
+  });
+
+  test('ohne Aufgabe AutoGrid-Tunnel: „nicht eingerichtet“', { tag: '@VPS-10' }, async ({ page, worker }) => {
+    void worker;
+    await mockVps(page);
+    await page.goto('/vps');
+    await expect(page.getByTestId('vps-self-heal')).toHaveText(
+      msg('vps.tile.selfHeal', { state: msg('vps.tile.selfHeal.missing') }),
+    );
+  });
+});
+
 test.describe('VPS Routen-Schutz', () => {
   // Öffentliche Version (Vercel): die Route bleibt zu, die Seite erklärt das statt ein rotes Fehlerpanel zu zeigen
   test('nicht-lokale Version: Hinweis statt Fehler', { tag: '@VPS-04' }, async ({ page, worker }) => {

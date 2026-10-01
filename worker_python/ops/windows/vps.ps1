@@ -5,7 +5,7 @@
 #
 #   status               Worker/ngrok/Bots/Version/Autostart als JSON
 #   check-update         Update-Pruefung ueber den Worker (GET /api/system/update/check)
-#   logs <worker|ngrok|update> [zeilen]
+#   logs <worker|ngrok|update|tunnel> [zeilen]
 #   restart              Worker + ngrok neu starten (geplante Aufgabe AutoGrid-Start -> start.bat);
 #                        Neustart-Schleifen/Worker/ngrok mit Adminrechten werden vorher beendet
 #   fix-elevated         alle AutoGrid-Prozesse mit Adminrechten beenden (auch Bots und MT5),
@@ -38,6 +38,7 @@ $RepoRoot = (Resolve-Path (Join-Path $WorkerDir '..')).Path
 $LogsDir = Join-Path $WorkerDir 'logs'
 $StartTask = 'AutoGrid-Start'
 $UpdateTask = 'AutoGrid-Update'
+$TunnelTask = 'AutoGrid-Tunnel'
 $WorkerUrl = 'http://127.0.0.1:8000'
 
 function Out-Json($obj) {
@@ -244,6 +245,29 @@ function Get-TaskInfo($name) {
     }
 }
 
+function Get-TunnelWatchdogState {
+    # Zustand von tunnel_watchdog.ps1 (Aufgabe AutoGrid-Tunnel); fehlt, solange er nie lief
+    $file = Join-Path $WorkerDir 'data\tunnel_watchdog.json'
+    if (-not (Test-Path $file)) { return $null }
+    try {
+        $s = Get-Content $file -Raw | ConvertFrom-Json
+        # Alter der letzten Pruefung hier berechnen: die Zeiten sind UTC, der Browser kennt die Uhr des VPS nicht
+        $age = $null
+        if ($s.last_check) { $age = [int]((Get-Date) - [datetime]$s.last_check).TotalMinutes }
+        return @{
+            failures = [int]$s.failures
+            check_age_minutes = $age
+            last_check = $s.last_check
+            last_ok = $s.last_ok
+            last_result = "$($s.last_result)"
+            last_action = "$($s.last_action)"
+            reboots = @($s.reboots | Where-Object { $_ } | ForEach-Object { "$_" })
+        }
+    } catch {
+        return $null
+    }
+}
+
 function Get-Status {
     $worker = @{ listening = (Test-WorkerListening); reachable = $false; error = $null }
     if ($worker.listening) {
@@ -295,7 +319,8 @@ function Get-Status {
         session_active = (@(Get-Process explorer -ErrorAction SilentlyContinue).Count -gt 0)
         autologon = ($winlogon -and "$($winlogon.AutoAdminLogon)" -eq '1')
         auto_update_minutes = [Environment]::GetEnvironmentVariable('AUTO_UPDATE_MINUTES', 'User')
-        tasks = @{ start = Get-TaskInfo $StartTask; update = Get-TaskInfo $UpdateTask }
+        tasks = @{ start = Get-TaskInfo $StartTask; update = Get-TaskInfo $UpdateTask; tunnel = Get-TaskInfo $TunnelTask }
+        tunnel_watchdog = Get-TunnelWatchdogState
         boot_time = $os.LastBootUpTime.ToString('s')
         uptime_minutes = [int]((Get-Date) - $os.LastBootUpTime).TotalMinutes
     }
@@ -306,8 +331,9 @@ function Get-Logs($which, $count) {
         worker = 'worker_console.log'
         ngrok = 'ngrok.log'
         update = 'vps_update.log'
+        tunnel = 'tunnel_watchdog.log'
     }
-    if (-not $files.ContainsKey($which)) { throw "Unbekanntes Log: $which (worker|ngrok|update)" }
+    if (-not $files.ContainsKey($which)) { throw "Unbekanntes Log: $which (worker|ngrok|update|tunnel)" }
     $count = [Math]::Max(10, [Math]::Min($count, 2000))
     $path = Join-Path $LogsDir $files[$which]
     if (-not (Test-Path $path)) {

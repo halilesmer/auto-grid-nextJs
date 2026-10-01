@@ -1,7 +1,7 @@
 /**
  * /api/vps/[action] – VPS-Fernsteuerung für die Seite /vps (nur lokal auf dem Mac).
  *
- * GET  status | check-update | logs?log=worker|ngrok|update&lines=300
+ * GET  status | check-update | logs?log=worker|ngrok|update|tunnel&lines=300
  * POST update | restart | restart-ngrok | reboot
  *
  * Schutz (diese Route startet SSH-Befehle auf dem VPS):

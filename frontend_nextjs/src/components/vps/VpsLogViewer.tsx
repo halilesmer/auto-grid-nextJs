@@ -13,11 +13,13 @@ const LABEL_KEYS: Record<VpsLog, MessageKey> = {
   worker: 'vps.log.tab.worker',
   ngrok: 'vps.log.tab.ngrok',
   update: 'vps.log.tab.update',
+  tunnel: 'vps.log.tab.tunnel',
 };
 const HINT_KEYS: Record<VpsLog, MessageKey> = {
   worker: 'vps.log.tab.worker.hint',
   ngrok: 'vps.log.tab.ngrok.hint',
   update: 'vps.log.tab.update.hint',
+  tunnel: 'vps.log.tab.tunnel.hint',
 };
 
 // Beide Logdateien schreiben erst die Neustart-Schleifen aus start.bat
@@ -83,6 +85,8 @@ export default function VpsLogViewer({ logName, status, lines, note, loading, on
           onChange={(id) => onSelect(id as VpsLog)}
           variant="segment"
           layoutId="vps-log-tabs"
+          // 4 Tabs: auf 375 px je nach Schrift knapp -> nie über die Karte hinaus, notfalls wischen (wie LogViewer)
+          className="max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
         {hint && (
           <div

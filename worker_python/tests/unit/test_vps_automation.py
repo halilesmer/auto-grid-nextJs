@@ -1,7 +1,8 @@
 """UPD-06 pip nach Update · UPD-07 Auto-Update · BOT-07 Bots nach Neustart fortsetzen ·
 VPS-05 Konsolen-Log + Windows-Skripte (ngrok-Watchdog, ASCII-PowerShell) ·
 VPS-07 Prozesse mit Adminrechten erkennen, melden und beenden ·
-VPS-08 Bootstrap-Skript (frisches VPS, Verbindungs-Link)."""
+VPS-08 Bootstrap-Skript (frisches VPS, Verbindungs-Link) ·
+VPS-10 Tunnel-Watchdog (Selbstheilung: öffentliche URL prüfen, ngrok neu starten, Reboot)."""
 import asyncio
 import json
 import shutil
@@ -268,7 +269,8 @@ def test_windows_skripte():
 @pytest.mark.parametrize(
     "script",
     ["ops/windows/vps.ps1", "ops/windows/setup_vps.ps1", "ops/windows/bootstrap.ps1",
-     "ops/windows/bootstrap-user.ps1", "ops/windows/connect-link.ps1", "cleanup_old_instances.ps1",
+     "ops/windows/bootstrap-user.ps1", "ops/windows/connect-link.ps1", "ops/windows/tunnel_watchdog.ps1",
+     "cleanup_old_instances.ps1",
      "start.bat", "run_uvicorn_watchdog.bat", "run_ngrok_watchdog.bat"],
 )
 def test_windows_skripte_sind_ascii(script):
@@ -452,3 +454,58 @@ def test_ngrok_watchdog_liest_domain_aus_umgebungsvariable():
     assert "if not defined NGROK_DOMAIN set NGROK_DOMAIN=tweet-overlying-monotone.ngrok-free.dev" in ngrok
     # Bestehende Testzeichenketten (test_windows_skripte) bleiben unveraendert
     assert "ngrok http 8000" in ngrok and "--log=logs\\ngrok.log" in ngrok and "goto loop" in ngrok
+
+
+# --------------------------------------------------------------------------- VPS-10
+def _ps_code(path):
+    text = Path(WORKER_ROOT, path).read_text(encoding="ascii")
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
+@pytest.mark.feature("VPS-10")
+def test_tunnel_watchdog_prueft_oeffentliche_url_und_heilt():
+    code = _ps_code("ops/windows/tunnel_watchdog.ps1")
+    # öffentliche ngrok-URL (Domain wie run_ngrok_watchdog.bat) und lokal zur Unterscheidung
+    assert '"https://$domain"' in code and "'http://127.0.0.1:8000'" in code
+    assert "/api/system/platform" in code and "X-API-Key" in code and "ngrok-skip-browser-warning" in code
+    assert "Get-UserEnv 'NGROK_DOMAIN'" in code and "set NGROK_DOMAIN=" in code
+    # Nur eine echte Worker-Antwort zählt; 401/403 = Worker erreichbar (kein Reboot wegen Schlüssel)
+    assert "is_windows" in code and "($code -eq 401 -or $code -eq 403) -and $body -like '*\"detail\"*'" in code
+    # Heilung: ngrok beenden (Schleife startet neu) bzw. AutoGrid-Start, dann Reboot
+    assert "Stop-Process" in code and "Start-ScheduledTask -TaskName $StartTask" in code
+    assert "shutdown.exe /r" in code and "$state.failures -ge $FailuresBeforeReboot" in code
+
+
+@pytest.mark.feature("VPS-10")
+def test_tunnel_watchdog_bremst_reboots_und_bleibt_ohne_adminprozesse():
+    code = _ps_code("ops/windows/tunnel_watchdog.ps1")
+    # Bremse gegen Reboot-Schleifen + Schonfrist nach dem Start
+    for param in ("$FailuresBeforeReboot = 3", "$BootGraceMinutes = 10",
+                  "$MinMinutesBetweenReboots = 60", "$MaxRebootsPerDay = 3"):
+        assert param in code
+    assert "Get-RebootBlocker" in code and "$uptime -lt $BootGraceMinutes" in code
+    # kein Reboot, wenn er nicht helfen kann (kein Internet, Domain woanders online) oder ein Update läuft
+    assert "Test-Internet" in code and "ERR_NGROK_334" in code and "Test-UpdateRunning" in code
+    # Fehlschlag wird vor der Aktion gesichert, Zustand atomar geschrieben
+    assert "Save-State $state\n\n    try {\n        Invoke-Heal $state $localError $now" in code
+    assert "Move-Item -Force $tmp $StateFile" in code
+    # Läuft mit höchsten Rechten: nie git, Worker/ngrok nie selbst starten (sonst Admin-Prozesse, VPS-07)
+    import re
+
+    assert not re.search(r"&\s*git|git\s+(pull|fetch|reset|checkout|clone)", code, re.IGNORECASE)
+    assert "Start-Process" not in code and "ngrok http" not in code
+    # -DryRun ändert nichts
+    assert "if ($DryRun) { return }" in code and "if (-not $DryRun) { Start-AutoGrid }" in code
+
+
+@pytest.mark.feature("VPS-10")
+def test_setup_legt_tunnel_aufgabe_an_und_vps_status_meldet_sie():
+    setup = _ps_code("ops/windows/setup_vps.ps1")
+    assert "'AutoGrid-Tunnel'" in setup and "tunnel_watchdog.ps1" in setup
+    assert "-RepetitionInterval (New-TimeSpan -Minutes 5)" in setup
+    assert "-RunLevel Highest" in setup and "SkipTunnelWatchdog" in setup
+    # AutoGrid-Start/-Update bleiben ohne höchste Rechte
+    assert "-RunLevel Limited" in setup
+    vps = _ps_code("ops/windows/vps.ps1")
+    assert "tunnel = 'tunnel_watchdog.log'" in vps
+    assert "tunnel = Get-TaskInfo $TunnelTask" in vps and "tunnel_watchdog = Get-TunnelWatchdogState" in vps

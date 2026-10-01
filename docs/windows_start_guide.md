@@ -44,6 +44,7 @@ Was danach automatisch läuft:
 - **Nach einem Reboot:** Windows meldet sich selbst an (Auto-Login), die Aufgabe `AutoGrid-Start` startet `start.bat` (Worker + ngrok). Bots, die vorher liefen und nicht gestoppt wurden, startet der Worker wieder (auch LIVE). MT5 startet jeder Bot selbst.
 - **Updates:** Der Worker prüft alle 5 Minuten `origin/main` und aktualisiert sich selbst (git pull, bei geändertem `requirements.txt` auch `pip install`), danach Neustart. Abschalten: `setx AUTO_UPDATE_MINUTES 0`, Intervall ändern: `setx AUTO_UPDATE_MINUTES 15` (danach Worker neu starten).
 - **Abstürze:** Worker und ngrok haben je eine Neustart-Schleife (`run_uvicorn_watchdog.bat`, `run_ngrok_watchdog.bat`).
+- **Selbstheilung (Tunnel-Watchdog):** Die Aufgabe `AutoGrid-Tunnel` (`ops/windows/tunnel_watchdog.ps1`) prüft alle 5 Minuten, ob die **öffentliche** ngrok-URL `/api/system/platform` beantwortet. Wenn nicht und der Worker lokal antwortet, beendet sie ngrok (die Neustart-Schleife startet ihn neu); antwortet auch der Worker nicht, startet sie Worker + ngrok über `AutoGrid-Start`. Nach **3 Fehlschlägen in Folge** (~15 min) startet sie den VPS neu – höchstens einmal pro Stunde und 3-mal in 24 h, die ersten 10 Minuten nach dem Start wird nichts unternommen. Kein Reboot, wenn er nicht helfen kann: Der VPS kommt gar nicht ins Internet, oder ngrok meldet `ERR_NGROK_334` (dieselbe Domain ist schon auf einem anderen Rechner online). Während ein Update läuft (`AutoGrid-Update` oder `git` des Workers), macht er gar nichts. Das alles ohne Fernzugriff. Grenze: Die Aufgabe läuft nur in der angemeldeten Sitzung; scheitert schon das Auto-Login, hilft nur ein Reboot von außen (Seite „VPS“ oder Hoster-Konsole). Prüft sie länger als 15 Minuten nicht mehr, zeigt die Seite „VPS“ das an. Zustand/Log: `worker_python\data\tunnel_watchdog.json`, `logs\tunnel_watchdog.log` (Seite „VPS“: ngrok-Kachel „Selbstheilung“ und Log-Tab „Tunnel“). Testlauf ohne Aktion: `powershell -ExecutionPolicy Bypass -File worker_python\ops\windows\tunnel_watchdog.ps1 -DryRun`. Abschalten: Aufgabe `AutoGrid-Tunnel` in der Aufgabenplanung deaktivieren.
 
 > **Regel – Rechte:** `git` auf dem VPS **nie als Administrator** ausführen (auch nicht in einer Admin-PowerShell), Updates nur über das Dashboard bzw. die Seite „VPS“ (oder automatisch). Sonst gehören Dateien im Repo dem Administrator, der normale Worker kann sie nicht mehr überschreiben, und `git pull` bricht ab. Die Fernsteuerung hält sich selbst daran: Per SSH läuft nie `git`. Updates macht der Worker selbst oder die Aufgabe `AutoGrid-Update`, beide mit normalen Rechten.
 
@@ -65,9 +66,10 @@ Was danach automatisch läuft:
    - gibt den Repo-Ordner wieder dem normalen Benutzer (repariert alte Admin-Dateien),
    - richtet Auto-Login ein,
    - entfernt bei MT5-Terminals (`terminal64.exe`) den Haken „Programm als Administrator ausführen“ und leert den Kompatibilitäts-Cache von Windows. Der Worker läuft ohne Adminrechte und startet MT5 selbst; mit dem Haken scheitert das mit `-10003` „IPC initialize failed, Process create failed“,
-   - legt die Aufgaben `AutoGrid-Start` (bei Anmeldung) und `AutoGrid-Update` an, beide **ohne** höchste Rechte.
+   - legt die Aufgaben `AutoGrid-Start` (bei Anmeldung) und `AutoGrid-Update` an, beide **ohne** höchste Rechte,
+   - legt den Tunnel-Watchdog `AutoGrid-Tunnel` an (alle 5 Minuten, siehe „Selbstheilung“ oben). Er läuft mit höchsten Rechten, nur damit der Reboot sicher klappt; er ruft nie `git` auf und startet Worker/ngrok nie selbst, nur über `AutoGrid-Start`.
 
-   Optionen: `-User <Name>` (Standard: aktueller Benutzer), `-SkipAutoLogon`, `-SkipRepoOwnership`. Das Skript darf beliebig oft laufen, z. B. nach einer neuen MT5-Installation. Liegt `start.bat` noch im Autostart-Ordner, dort entfernen.
+   Optionen: `-User <Name>` (Standard: aktueller Benutzer), `-SkipAutoLogon`, `-SkipRepoOwnership`, `-SkipTunnelWatchdog`. **Bestehender VPS:** Den Tunnel-Watchdog bekommt er mit einem erneuten Lauf in einer Administrator-PowerShell: `.\setup_vps.ps1 -SkipAutoLogon -SkipRepoOwnership` (mit `-PublicKey`, falls SSH schon eingerichtet ist). Das Skript darf beliebig oft laufen, z. B. nach einer neuen MT5-Installation. Liegt `start.bat` noch im Autostart-Ordner, dort entfernen.
 3. **Firewall des VPS-Anbieters:** Port 22 (TCP) freigeben, falls der Anbieter eine eigene Firewall vor dem VPS hat. Am besten nur für die eigene IP.
 4. **Mac – `frontend_nextjs/.env.local`** ergänzen (bewusst **ohne** `NEXT_PUBLIC_`, landet nie im Browser/Vercel):
    ```
@@ -81,7 +83,7 @@ Hinweise:
 - Das RDP-Fenster künftig nur **schließen**, nicht abmelden. Bei einer Abmeldung enden MT5, Worker und ngrok (sie brauchen eine angemeldete Sitzung).
 - Die Seite „VPS“ funktioniert nur im lokalen Frontend: Die Route `/api/vps/*` antwortet nur auf `localhost` und nur, wenn `VPS_SSH_HOST` gesetzt ist. Auf Vercel zeigt sie stattdessen einen Hinweis („nur lokal“) statt eines Fehlers – die Worker-Verbindung (Dashboard, Bots) läuft dort unabhängig davon über den Verbindungsdialog.
 - **`-10003` „Process create failed“ nach einem Reboot:** `terminal64.exe` steht auf „Als Administrator ausführen“, der Worker (ohne Adminrechte) kann es nicht starten. `setup_vps.ps1` erneut ausführen (mit demselben `-PublicKey`; `-SkipAutoLogon -SkipRepoOwnership` sparen die Passwortabfrage und den Besitzer-Schritt). Wer den Registry-Eintrag unter `AppCompatFlags\Layers` von Hand löscht, muss danach `rundll32.exe apphelp.dll,ShimFlushCache` (als Administrator) ausführen, sonst bleibt der Fehler bis zum nächsten Reboot.
-- Logs auf dem VPS: `worker_python\logs\worker_console.log` (Konsole des Workers), `logs\ngrok.log`, `logs\vps_update.log` (Updates über die Aufgabe).
+- Logs auf dem VPS: `worker_python\logs\worker_console.log` (Konsole des Workers), `logs\ngrok.log`, `logs\vps_update.log` (Updates über die Aufgabe), `logs\tunnel_watchdog.log` (Selbstheilung).
 
 ---
 

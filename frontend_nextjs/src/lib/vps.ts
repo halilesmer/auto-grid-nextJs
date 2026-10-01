@@ -19,7 +19,7 @@ export const VPS_ACTIONS = {
 
 export type VpsAction = keyof typeof VPS_ACTIONS;
 
-export const VPS_LOGS = ['worker', 'ngrok', 'update'] as const;
+export const VPS_LOGS = ['worker', 'ngrok', 'update', 'tunnel'] as const;
 export type VpsLog = (typeof VPS_LOGS)[number];
 
 export function isVpsAction(value: string): value is VpsAction {
@@ -47,6 +47,25 @@ export interface VpsElevatedProcess {
   account: string;
 }
 
+/**
+ * Selbstheilung (ops/windows/tunnel_watchdog.ps1, Aufgabe AutoGrid-Tunnel): prüft alle 5 min
+ * die öffentliche ngrok-URL, startet ngrok neu und rebootet den VPS nach mehreren Fehlschlägen.
+ */
+export interface VpsTunnelWatchdog {
+  failures: number;
+  /** Minuten seit der letzten Prüfung (vom VPS berechnet); groß = Aufgabe läuft nicht mehr */
+  check_age_minutes: number | null;
+  /** Zeiten in UTC (ISO mit Z) */
+  last_check: string | null;
+  last_ok: string | null;
+  /** ok | tunnel-down | worker-down | update-running | grace | no-domain */
+  last_result: string;
+  /** wait | restart-ngrok | restart-all | reboot | error: … */
+  last_action: string;
+  /** Zeitpunkte automatischer Reboots der letzten 7 Tage */
+  reboots: string[];
+}
+
 interface VpsTaskInfo {
   exists: boolean;
   state?: string;
@@ -71,7 +90,10 @@ export interface VpsStatus {
   session_active: boolean;
   autologon: boolean;
   auto_update_minutes: string | null;
-  tasks: { start: VpsTaskInfo; update: VpsTaskInfo };
+  /** tunnel fehlt bei älteren vps.ps1-Ständen */
+  tasks: { start: VpsTaskInfo; update: VpsTaskInfo; tunnel?: VpsTaskInfo };
+  /** Zustand von tunnel_watchdog.ps1; null, solange er nie lief, fehlt bei älteren vps.ps1-Ständen */
+  tunnel_watchdog?: VpsTunnelWatchdog | null;
   boot_time: string;
   uptime_minutes: number;
 }
