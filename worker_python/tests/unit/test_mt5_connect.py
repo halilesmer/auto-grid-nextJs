@@ -398,6 +398,13 @@ def test_init_fehler_10004_ist_kein_passwortfehler():
     assert "-10004" in detail and "şifre" not in detail.lower()
 
 
+@pytest.mark.feature("SYS-06")
+def test_init_fehler_minus6_erklaert_passwort_und_server():
+    ok, detail = me.parse_init_error((-6, "Terminal: Authorization failed"), LOGIN, "eightcap-demo", lambda *a, **k: None)
+    assert not ok
+    assert "-6" in detail and "şifre" in detail and "'eightcap-demo'" in detail and str(LOGIN) in detail
+
+
 # --------------------------------------------------------------------------- Python integration
 PYTHON_INTEGRATION_HINT = "Python integration"
 
