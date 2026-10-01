@@ -85,6 +85,8 @@ export default function VpsLogViewer({ logName, status, lines, note, loading, on
           onChange={(id) => onSelect(id as VpsLog)}
           variant="segment"
           layoutId="vps-log-tabs"
+          // 4 Tabs: auf 375 px je nach Schrift knapp -> nie über die Karte hinaus, notfalls wischen (wie LogViewer)
+          className="max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
         {hint && (
           <div
