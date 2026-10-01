@@ -40,9 +40,13 @@ export default defineArea(
     'connection.test.insecure':
       'Bu sayfa https ile açık; tarayıcı http:// adreslerini engeller. https:// adresi (ngrok) kullan.',
     'connection.test.unauthorized':
-      'Worker’a ulaşıldı ama API anahtarı kabul edilmedi. Anahtarı VPS’teki WORKER_API_KEY ile karşılaştır.',
+      'Worker’a ulaşıldı ama API anahtarı kabul edilmedi. Kendi kullanıcı anahtarını (yöneticiden aldığın) ya da VPS’teki WORKER_API_KEY’i eksiksiz, boşluksuz gir; anahtar kaybolduysa yönetici /users sayfasında yenisini oluşturabilir.',
+    'connection.test.missingKey': 'Worker bir API anahtarı istiyor ama alan boş. Yöneticiden aldığın anahtarı gir.',
+    'connection.test.timeout':
+      'Worker 8 saniye içinde yanıt vermedi. VPS yoğun ya da yeniden başlıyor olabilir; biraz sonra tekrar dene.',
+    'connection.test.detail': 'Teknik bilgi: {detail} · {url}',
     'connection.test.unreachable':
-      'Worker’a ulaşılamadı. Adres doğru mu, VPS’te worker ve ngrok tüneli çalışıyor mu?',
+      'Tarayıcı worker’dan hiç yanıt alamadı. Adres doğru mu, VPS’te worker ve ngrok çalışıyor mu? Başka cihazda çalışıyorsa sebep bu bilgisayardaki VPN, proxy, firma ağı ya da reklam engelleyici olabilir.',
     'connection.test.unreachable.ngrok':
       'ngrok tüneli çevrimdışı ({code}). VPS’te worker ve ngrok çalışıyor mu?',
     'connection.test.notWorker': 'Bu adres bir Grid Robot worker’ı gibi yanıt vermiyor.',
@@ -105,9 +109,13 @@ export default defineArea(
     'connection.test.insecure':
       'This page is served over https, so the browser blocks http:// addresses. Use an https:// address (ngrok).',
     'connection.test.unauthorized':
-      'The worker answered but rejected the API key. Compare it with WORKER_API_KEY on the VPS.',
+      'The worker answered but rejected the API key. Enter your personal user key (from the admin) or the VPS’s WORKER_API_KEY completely and without spaces; if the key is lost, the admin can create a new one on the /users page.',
+    'connection.test.missingKey': 'The worker requires an API key but the field is empty. Enter the key you got from the admin.',
+    'connection.test.timeout':
+      'The worker did not answer within 8 seconds. The VPS may be busy or restarting; try again in a moment.',
+    'connection.test.detail': 'Technical details: {detail} · {url}',
     'connection.test.unreachable':
-      'The worker could not be reached. Is the address right, and are the worker and the ngrok tunnel running on the VPS?',
+      'The browser got no answer at all. Is the address right, and are the worker and ngrok running on the VPS? If it works on another device, a VPN, proxy, company network or ad blocker on this computer may be blocking it.',
     'connection.test.unreachable.ngrok':
       'The ngrok tunnel is offline ({code}). Are the worker and ngrok running on the VPS?',
     'connection.test.notWorker': 'This address does not answer like a Grid Robot worker.',
@@ -170,9 +178,13 @@ export default defineArea(
     'connection.test.insecure':
       'Diese Seite läuft über https, der Browser blockiert deshalb http://-Adressen. Nimm eine https://-Adresse (ngrok).',
     'connection.test.unauthorized':
-      'Der Worker hat geantwortet, aber den API-Key abgelehnt. Vergleiche ihn mit WORKER_API_KEY auf dem VPS.',
+      'Der Worker hat geantwortet, aber den API-Key abgelehnt. Gib deinen persönlichen Benutzer-Key (vom Admin) oder den WORKER_API_KEY des VPS vollständig und ohne Leerzeichen ein; ist der Key verloren, kann der Admin auf der Seite /users einen neuen erzeugen.',
+    'connection.test.missingKey': 'Der Worker verlangt einen API-Key, das Feld ist aber leer. Gib den Key ein, den du vom Admin bekommen hast.',
+    'connection.test.timeout':
+      'Der Worker hat nicht innerhalb von 8 Sekunden geantwortet. Der VPS ist evtl. ausgelastet oder startet neu; versuch es gleich noch einmal.',
+    'connection.test.detail': 'Technische Details: {detail} · {url}',
     'connection.test.unreachable':
-      'Der Worker ist nicht erreichbar. Stimmt die Adresse, laufen Worker und ngrok-Tunnel auf dem VPS?',
+      'Der Browser hat gar keine Antwort bekommen. Stimmt die Adresse, laufen Worker und ngrok auf dem VPS? Klappt es auf einem anderen Gerät, blockiert hier vermutlich VPN, Proxy, Firmennetz oder ein Werbeblocker.',
     'connection.test.unreachable.ngrok':
       'Der ngrok-Tunnel ist offline ({code}). Laufen Worker und ngrok auf dem VPS?',
     'connection.test.notWorker': 'Diese Adresse antwortet nicht wie ein Grid-Robot-Worker.',

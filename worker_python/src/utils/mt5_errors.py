@@ -149,6 +149,19 @@ def parse_init_error(last_err, login_id, server, safe_log_fn):
             False,
             f"[INIT] MT5 başlatılamadı. IPC Bağlantısı Reddedildi (hata kodu: {err_code})",
         )
+    elif err_code == -6:
+        # -6 = RES_E_AUTH_FAILED: terminal açıldı, ama broker bu hesap/şifre/sunucu ile girişi reddetti
+        safe_log_fn(
+            f"🔴 MT5 girişi reddedildi (-6, Authorization failed): Hesap {login_id}, sunucu '{server}'. (Hata: {last_err})",
+            type="error",
+        )
+        return (
+            False,
+            f"[INIT] MT5 girişi reddedildi (hata kodu: -6, Authorization failed): broker hesap {login_id} için "
+            f"şifreyi veya sunucu adını ('{server}') kabul etmedi. Hesabı düzenleyip ana (master) şifreyi "
+            "yeniden girin (yatırımcı/investor şifresi değil) ve sunucu adını MT5'teki gibi yazın "
+            "(ör. 'Eightcap-Demo'). Sorun sürerse aynı bilgilerle MT5 terminalinde elle giriş yapmayı deneyin.",
+        )
     elif err_code == -10004:
         # initialize() şifre almaz: -10004 (RES_E_INTERNAL_FAIL_CONNECT, "No IPC connection")
         # terminalin IPC kanalına ulaşılamadığı anlamına gelir, şifre hatası değildir.
@@ -174,7 +187,7 @@ def parse_init_error(last_err, login_id, server, safe_log_fn):
 def parse_login_error(last_err, login_id, server, safe_log_fn):
     err_code = last_err[0]
     err_msg = f"🔴 MT5 Girişi Başarısız! (Hata: {last_err})"
-    if err_code in (1002, 2):
+    if err_code in (1002, 2, -6):
         err_msg = f"🔴 BAĞLANTI HATASI: Hesap No ({login_id}), Şifre veya Sunucu adı ({server}) YANLIŞ! Bilgileri kontrol edin."
         phase_msg = f"[LOGIN] Giriş yapılamadı. Hesap {login_id}, şifre veya sunucu '{server}' hatalı (hata kodu: {err_code})"
     elif err_code == -10005:

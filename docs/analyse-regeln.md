@@ -20,7 +20,8 @@ Kurz gesagt:
   Beispiel wegen Sommerzeit. Eine pauschale Umrechnung würde Fehler erzeugen, die man später nicht
   mehr sieht.
 - **Abstand messen:** Der Worker misst den Abstand zur echten Uhr bei jedem MT5-Kontakt und
-  speichert jede Messung mit Datum (ab der Datenbank, Schritt 2). Den ersten Messpunkt liefert der
+  speichert jede verlässliche Messung mit Datum (Tabelle `broker_offset_log`, bei jedem
+  Kerzen-Abruf). Den ersten Messpunkt liefert der
   Zeit-Check (Schritt 0, unten). Gezählt werden nur „verlässliche“ Messungen (frischer Tick); je Tag
   gilt der häufigste Wert.
 - **Tage und Kalender:** Tagesgrenzen gelten in MT5-Zeit, also so, wie der Broker seinen Tag
@@ -73,6 +74,19 @@ Kurz gesagt:
   gespeichert. Der jüngste Rand wird immer mit 24 h Überlappung neu abgeglichen.
 - **Ehrliches Versprechen:** Was einmal archiviert ist, bleibt. Was MT5 schon beim ersten Abruf
   nicht mehr hatte, kann die Datenbank nicht zurückholen.
+
+**Umsetzung (Schritt 2, ANA-04/ANA-07):** `worker_python/src/utils/market_db.py` (SQLite,
+`data/market.sqlite`) und `market_sync.py`.
+- Eine Abfrage `[from, to)` holt bei MT5 nur, was in `rate_coverage` noch fehlt.
+- Gelieferte Kerzen von der ersten bis zur letzten: **vollständig** (Lücken dazwischen sind Pausen).
+- Vor der ersten gelieferten Kerze: **Pause**, wenn MT5 davor noch eine Kerze hat, sonst
+  **nicht verfügbar**. Nach der letzten: **Pause**, denn es gibt eine neuere Kerze.
+- Eine leere Strecke gilt nur bis 4 Tage als Pause (Wochenende + Feiertag). Längere leere
+  Strecken sind **nicht verfügbar**: Das Terminal kann die Historie gerade noch laden, und eine
+  bestätigte Pause würde nie wieder abgefragt.
+- Die neueste MT5-Kerze (meist die laufende) wird nie gespeichert, nur mitgeliefert (`live_from`).
+- Deals: abgeglichen gilt ein Zeitraum nur bis „jetzt − 36 h“ (24 h Überlappung + 12 h, weil der
+  Broker-Abstand beim Abgleich nicht bekannt sein muss). Alles danach wird jedes Mal neu geholt.
 
 ## 4. Kennzahlen
 
@@ -156,7 +170,9 @@ rechnet der Broker-Teil des Nachbaus und wird mit eigenen, von Hand gerechneten 
   - Nur `/start` meldet sich weiterhin immer an.
 - Datenabrufe starten nie ein Terminal neu (`allow_restart=False`) und laufen nicht, während `/start`
   oder `/stop` dasselbe Konto bearbeitet (409).
-- Historien-Abrufe kommen später in kleinen Stücken, einer nach dem anderen, mit Pausen (Schritt 2).
+- **Historien-Abrufe** (Schritt 2) laufen in Stücken von höchstens 31 Tagen M1, immer nur einer
+  gleichzeitig (Semaphore), mit 0,5 s Pause; jedes Stück verbindet sich kurz und gibt die Sperre
+  wieder frei. Ist das Konto in `/start` oder `/stop`, liefert die API nur den Datenbank-Bestand.
 
 ---
 

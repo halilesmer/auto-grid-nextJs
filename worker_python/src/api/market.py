@@ -3,17 +3,19 @@
 - /time-check (ANA-13): salt-okunur, yalnızca yönetici. Broker saati, hesap modeli
   (hedging/netting) ve sembolün kâr hesabı türü VPS'te bununla ölçülür.
 - /clock (ANA-10): takvimin "bugün/bu hafta" gibi seçimleri için broker saati farkı.
+- /rates, /coverage (ANA-04): mum veritabanı; eksik parçalar MT5'ten ihtiyaç anında çekilir.
+- /history/{id}/deals (ANA-07): hesabın deal arşivi ve bölge kaydı.
 """
 import asyncio
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.access import account_access
 from src.api.auth import require_admin
 from src.api.helpers import _find_settings_file, _load_accounts, _load_settings_data
-from src.utils import mt5_market
+from src.utils import market_db, market_sync, mt5_market
 from src.utils.bot_watchdog import is_account_busy
 
 router = APIRouter(tags=["Market"])
@@ -124,3 +126,93 @@ async def clock(account_id: str, symbol: Optional[str] = None):
         if last:
             return _clock_reply(account_id, last[0], cached=True)
         raise error
+
+
+def _account_or_404(account_id: str) -> dict:
+    account = next((a for a in _load_accounts() if str(a.get("id")) == account_id), None)
+    if account is None:
+        raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
+    # Mumlar sunucuya aittir (kaynak = sunucu adı): sunucusu olmayan hesaplar karışmasın
+    if not str(account.get("server") or "").strip():
+        raise HTTPException(status_code=400, detail="Hesapta MT5 sunucusu yok; önce hesabı düzenleyin.")
+    return account
+
+
+def _clock_now(account_id: str) -> tuple[float | None, int | None]:
+    """Son güvenilir ölçümden şimdiki broker saati ve farkı (ölçüm yoksa None)."""
+    last = _last_clock.get(account_id)
+    if not last:
+        return None, None
+    offset = last[0]["offset_sec"]
+    return round(time.time() + offset, 3), offset
+
+
+@router.get("/market/{account_id}/rates", dependencies=[Depends(account_access)])
+async def rates(
+    account_id: str,
+    symbol: str,
+    timeframe: str = "M1",
+    from_: int = Query(..., alias="from", ge=0),
+    to: int = Query(..., gt=0),
+):
+    """Mumlar [from, to) MT5 zamanında, sütun sütun. Eksik/alınamayan parçalar `missing`'de."""
+    if timeframe not in market_sync.TIMEFRAMES:
+        raise HTTPException(status_code=400, detail=f"Zaman dilimi {timeframe} desteklenmiyor")
+    if to <= from_:
+        raise HTTPException(status_code=400, detail="'to', 'from'dan büyük olmalı")
+    account = _account_or_404(account_id)
+    symbol = symbol.strip()
+    if not symbol:
+        raise HTTPException(status_code=400, detail="Sembol boş")
+    try:
+        result = await asyncio.to_thread(
+            market_sync.get_rates, account, symbol, timeframe, from_, to, is_account_busy(account_id)
+        )
+    except market_db.MarketDbUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except mt5_market.MarketDataError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    server_now, offset = _clock_now(account_id)
+    return {"account_id": account_id, **result, "server_now": server_now, "offset_sec": offset}
+
+
+@router.get("/market/{account_id}/coverage", dependencies=[Depends(account_access)])
+async def coverage(account_id: str, symbol: str):
+    """Bu sembol için veritabanındaki durum: zaman dilimi ve durum başına aralık, veritabanı boyutu."""
+    account = _account_or_404(account_id)
+    try:
+        summary = await asyncio.to_thread(market_db.coverage_summary, str(account.get("server") or ""), symbol)
+    except market_db.MarketDbUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    server_now, offset = _clock_now(account_id)
+    return {
+        "account_id": account_id,
+        "symbol": symbol,
+        "source": account.get("server"),
+        "coverage": summary,
+        "db_bytes": market_db.size_bytes(),
+        "db_max_bytes": market_db.max_bytes(),
+        "server_now": server_now,
+        "offset_sec": offset,
+    }
+
+
+@router.get("/history/{account_id}/deals", dependencies=[Depends(account_access)])
+async def deals(
+    account_id: str,
+    from_: int = Query(0, alias="from", ge=0),
+    to: Optional[int] = Query(None, gt=0),
+    resync: bool = False,
+):
+    """Hesabın tüm deal'leri [from, to) MT5 zamanında (bakiye işlemleri dahil) + bölge kaydı."""
+    account = _account_or_404(account_id)
+    # Üst sınır yoksa "şimdi": broker en fazla UTC+14, bir gün pay her farkı kapsar
+    to = to or int(time.time()) + mt5_market.FUTURE_MARGIN_SEC
+    if to <= from_:
+        raise HTTPException(status_code=400, detail="'to', 'from'dan büyük olmalı")
+    try:
+        return await asyncio.to_thread(
+            market_sync.get_deals, account_id, account, from_, to, is_account_busy(account_id), resync
+        )
+    except market_db.MarketDbUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
