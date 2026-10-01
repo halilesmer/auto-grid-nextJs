@@ -1,0 +1,136 @@
+[
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.6,
+  "volume": 0.01,
+  "tp": 100.024,
+  "sl": 96.388,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FU1790549100"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 93.818,
+  "sl": 97.841,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FD1790550900"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ },
+ {
+  "i": 120,
+  "t": 3600,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 99.15,
+  "sl": 96.375,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FU1790554500"
+ },
+ {
+  "i": 129,
+  "t": 3870,
+  "ev": "fill",
+  "type": "BUY_STOP",
+  "price": 97.3,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 150,
+  "t": 4500,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 95.128,
+  "sl": 97.636,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FD1790555400"
+ },
+ {
+  "i": 220,
+  "t": 6600,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.8,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 240,
+  "t": 7200,
+  "ev": "cancel",
+  "type": "BUY_STOP",
+  "price": 97.6,
+  "magic": 200001
+ },
+ {
+  "i": 240,
+  "t": 7200,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.5,
+  "volume": 0.01,
+  "tp": 99.416,
+  "sl": 96.542,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FU1790558100"
+ },
+ {
+  "i": 329,
+  "t": 9870,
+  "ev": "fill",
+  "type": "BUY_STOP",
+  "price": 97.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 330,
+  "t": 9900,
+  "ev": "cancel",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "magic": 200001
+ },
+ {
+  "i": 330,
+  "t": 9900,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.6,
+  "volume": 0.01,
+  "tp": 94.72,
+  "sl": 97.54,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FD1790560800"
+ },
+ {
+  "i": 343,
+  "t": 10290,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.8,
+  "price": 97.64,
+  "reason": "sl",
+  "volume": 0.01,
+  "magic": 200001
+ }
+]

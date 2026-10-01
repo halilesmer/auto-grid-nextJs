@@ -1,0 +1,74 @@
+[
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 97.6,
+  "volume": 0.01,
+  "tp": 97.5,
+  "sl": 97.65,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FU1790549100"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 96.6,
+  "sl": 96.45,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FD1790550900"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ },
+ {
+  "i": 60,
+  "t": 1200,
+  "ev": "fill",
+  "type": "SELL_LIMIT",
+  "price": 97.6,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 64,
+  "t": 1280,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 97.6,
+  "price": 97.65,
+  "reason": "sl",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 180,
+  "t": 3600,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "magic": 200001
+ },
+ {
+  "i": 180,
+  "t": 3600,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 97.65,
+  "volume": 0.01,
+  "tp": 97.55,
+  "sl": 97.7,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FU1790554500"
+ }
+]

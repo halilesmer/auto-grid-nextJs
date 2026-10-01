@@ -176,6 +176,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 __init__.py          # Paket başlatma
 ┃ ┃ ┃ ┣ 📜 auto_grid_engine.py  # **LEGACY** - Eski monolitik motor (geriye uyumluluk için tutuldu)
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
+┃ ┃ ┃ ┣ 📜 clock.py             # Motorun saati (canlıda gerçek saat; örnek çözümlerde simüle saat, tests/parity)
 ┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Yardımcılar - fiyat/lot normalizasyonu, logging, market açık kontrolü, timeframe map
 ┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı, MT5 bağlantı/market durumu
 ┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no), açan emrin hacmi (history) → kısmi dolumda kalan lot; zone_magic/zone_index_by_magic: emir/pozisyonun bölgesi sıradan değil magic'ten bulunur

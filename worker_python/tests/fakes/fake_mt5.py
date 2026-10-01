@@ -228,6 +228,7 @@ class FakeMT5:
         self.history: dict[int, Order] = {}
         self.deals: list[Deal] = []
         self._last_error = (1, "Success")
+        self.clock = time.time  # Tick-Zeit; Musterlösungen (tests/parity) setzen eine simulierte Uhr
 
     # ------------------------------------------------------------------ Aufbau (Test-Hebel)
     def add_symbol(self, name: str, bid: float, ask: float | None = None, **info) -> SymbolInfo:
@@ -239,7 +240,7 @@ class FakeMT5:
         """Setzt den Kurs. Mit fill=True werden Pending Orders ausgeführt und TP/SL ausgelöst."""
         info = self.symbols[symbol]
         ask = round(bid + 10 * info.point, info.digits) if ask is None else ask
-        now_msc = int(time.time() * 1000)
+        now_msc = int(self.clock() * 1000)
         self.ticks[symbol] = Tick(bid=bid, ask=ask, time_msc=now_msc, time=now_msc // 1000)
         if fill:
             self._fill_pending(symbol)
@@ -247,7 +248,7 @@ class FakeMT5:
 
     def set_tick_age(self, symbol: str, seconds: float):
         """Letzten Tick künstlich altern lassen (Markt geschlossen / keine Ticks)."""
-        self.ticks[symbol].time_msc = int((time.time() - seconds) * 1000)
+        self.ticks[symbol].time_msc = int((self.clock() - seconds) * 1000)
         self.ticks[symbol].time = self.ticks[symbol].time_msc // 1000
 
     def set_closed_candle(self, symbol: str, timeframe: int, close: float):

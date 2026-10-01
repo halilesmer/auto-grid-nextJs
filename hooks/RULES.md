@@ -49,6 +49,7 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
 4. **[elle]** Henüz düzeltilmemiş bilinen hata: katalogda `bekannter_fehler` + test `xfail(strict=True)` / `test.fail()`. Hata düzelince ikisi de kaldırılır.
 5. **[elle]** Worker endpoint'i (yol, yanıt biçimi, hata kodu) değişince gemockte worker da güncellenir: `frontend_nextjs/e2e/fixtures/mock-worker.ts`. Mock, bilinmeyen endpoint'te ve `X-API-Key` eksikse testi düşürür.
 6. **[elle]** Manuel doğrulama `scripts/features/run.sh sign <ID> bestanden|fehlgeschlagen "not"` ile kaydedilir; notlara credential yazılmaz.
+7. **[otomatik]** Bot mantığı değişince (`grid_execution/**`, `grid_orchestrator.py`, `grid_zone_selector.py`, `grid_order_manager.py`, `grid_orders.py`, `grid_helpers.py`, `grid_zone_state.py`) örnek çözümler (BKT-01, `worker_python/tests/parity/golden`) testi düşer. Değişiklik bilinçliyse `pytest tests/unit/test_parity_golden.py --update-golden` ile yeniden yazılır, fark PR'da gerekçelendirilir ve tarayıcıdaki bot kopyası (`frontend_nextjs/src/lib/backtest/engine/`, Schritt 7) aynı PR'da uyarlanır.
 
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
 

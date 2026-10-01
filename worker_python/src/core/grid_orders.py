@@ -1,7 +1,7 @@
 import os
 import json
 import re
-import time
+from src.core import clock
 from src.utils.trade_utils import safe_send_order, TradeState
 from src.utils.paths import get_ui_state_path
 from src.core.grid_helpers import (
@@ -305,7 +305,7 @@ def send_pending_order_helper(
             from src.core.state import state
 
             # magic saklanır (sıra değil): arada bölge silinse de emir kendi bölgesine yazılır
-            state.placed_orders[TradeState.last_order_ticket] = (magic, time.monotonic(), request["price"])
+            state.placed_orders[TradeState.last_order_ticket] = (magic, clock.monotonic(), request["price"])
     return True
 
 
