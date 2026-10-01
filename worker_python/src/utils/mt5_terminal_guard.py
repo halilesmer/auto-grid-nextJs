@@ -7,6 +7,7 @@ mt5.login() bağlı terminalin oturumunu değiştirir. initialize() yol (path) o
 bağlantısını kaybetti. Bu modül iki kuralı uygular:
 - Hesabın mt5_path'i girilmiş ama dosya yoksa yolsuz initialize yapılmaz.
 - Bağlanılan terminal accounts.json'da başka bir hesabın terminaliyse login yapılmaz.
+- Veri sorgusu (data_query), terminalde çalışan başka bir hesabın botu varsa oturumu değiştirmez.
 """
 import json
 import os
@@ -76,3 +77,27 @@ def foreign_terminal_error(mt5, login_id, accounts=None):
         f"[TERMINAL] Bağlanılan MT5 terminali ({term_path}) {owner} hesabına ait; {login_id} için "
         "oturumu değiştirilmedi. Bu hesabın terminal yolunu (mt5_path) kontrol edin."
     )
+
+
+def running_bot_session_error(mt5, login_id, accounts=None, is_running=None):
+    """Terminal başka bir hesapta oturum açmış ve o hesabın botu çalışıyorsa hata metni, değilse None.
+
+    Paylaşılan terminalde (bilerek hesap değiştirme, foreign_terminal_owner) login, orada çalışan
+    botun bağlantısını keser. /start bunu bilerek yapabilir; veri sorgusu asla.
+    """
+    try:
+        acc = mt5.account_info()
+    except Exception:
+        return None
+    current = getattr(acc, "login", None) if acc is not None else None
+    if not current or str(current) == str(login_id):
+        return None
+    if is_running is None:
+        from src.utils.bot_manager import is_bot_running as is_running
+    for acc_cfg in _load_accounts() if accounts is None else accounts:
+        if str(acc_cfg.get("login")) == str(current) and is_running(str(acc_cfg.get("id"))):
+            return (
+                f"[TERMINAL] Bu MT5 terminalinde {current} hesabının botu çalışıyor; {login_id} için veri "
+                "sorgusu oturumu değiştirmedi. Bu hesabın kendi terminal yolunu (mt5_path) girin."
+            )
+    return None

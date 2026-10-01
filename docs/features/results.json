@@ -1,12 +1,12 @@
 {
   "ACC-01": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
@@ -18,55 +18,55 @@
   },
   "ACC-02": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 7
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "ACC-03": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "ACC-04": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "ACC-05": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "ACC-06": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
@@ -78,42 +78,54 @@
   },
   "ACC-07": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "ACC-08": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 5
     }
   },
   "ACC-09": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "ACC-10": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 6
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     }
   },
   "ACC-11": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 14
+    }
+  },
+  "ANA-13": {
+    "api": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 18
+    },
+    "unit": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 10
     }
   },
   "BOT-01": {
@@ -132,35 +144,35 @@
   },
   "BOT-03": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 5
     }
   },
   "BOT-04": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 4
     }
   },
   "BOT-05": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 4
     }
   },
   "BOT-06": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     }
   },
   "BOT-07": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 6
     }
@@ -371,12 +383,12 @@
   },
   "LOG-01": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
@@ -388,69 +400,69 @@
   },
   "LOG-02": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "LOG-03": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "LOG-04": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "LOG-05": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "LOG-06": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "LOG-07": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "MET-01": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
@@ -462,14 +474,14 @@
   },
   "MET-02": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "MET-03": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 7
     },
@@ -479,14 +491,14 @@
       "tests": 1
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 5
     }
   },
   "MET-04": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 11
     }
@@ -498,7 +510,7 @@
       "tests": 3
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
@@ -510,16 +522,16 @@
   },
   "SET-02": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "SET-03": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
-      "tests": 2
+      "tests": 4
     }
   },
   "SET-04": {
@@ -529,7 +541,7 @@
       "tests": 1
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
@@ -543,7 +555,7 @@
   },
   "SET-06": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 4
     }
@@ -555,38 +567,38 @@
       "tests": 1
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 6
     }
   },
   "SYM-02": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "SYM-03": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "SYM-04": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
@@ -600,7 +612,7 @@
   },
   "SYS-02": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
@@ -612,7 +624,7 @@
   },
   "SYS-03": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
@@ -629,12 +641,12 @@
   },
   "SYS-04": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
@@ -646,7 +658,7 @@
   },
   "SYS-05": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     },
@@ -658,270 +670,282 @@
   },
   "SYS-06": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 24
     }
   },
   "SYS-07": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 4
     }
   },
   "SYS-08": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 5
     }
   },
   "SYS-09": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 7
     }
   },
   "UI-01": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-02": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-03": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-04": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-05": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 4
     }
   },
   "UI-06": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-07": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
-      "tests": 14
+      "tests": 15
     }
   },
   "UI-08": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 13
     }
   },
   "UI-09": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 6
     }
   },
   "UPD-01": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "UPD-02": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     }
   },
   "UPD-03": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "UPD-05": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     }
   },
   "UPD-06": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "UPD-07": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 7
     }
   },
   "USR-01": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 5
     }
   },
   "USR-02": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 6
     }
   },
   "USR-03": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 13
     },
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     }
   },
   "USR-04": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 17
     }
   },
   "USR-05": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 5
     }
   },
   "USR-06": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "USR-07": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 4
     }
   },
   "USR-08": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     }
   },
   "VPS-01": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 3
     }
   },
   "VPS-02": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-03": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-04": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     }
   },
   "VPS-05": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
-      "tests": 13
+      "tests": 14
     }
   },
   "VPS-07": {
     "e2e": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 1
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 9
     }
   },
   "VPS-08": {
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 5
+    }
+  },
+  "VPS-09": {
+    "api": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 5
+    },
+    "e2e": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 1
     }
   },
   "VPS-10": {
@@ -987,7 +1011,7 @@
   },
   "ZON-08": {
     "api": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 2
     },
@@ -1002,7 +1026,7 @@
       "tests": 2
     },
     "unit": {
-      "datum": "2026-09-30",
+      "datum": "2026-10-01",
       "status": "passed",
       "tests": 4
     }

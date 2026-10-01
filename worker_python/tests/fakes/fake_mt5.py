@@ -16,6 +16,8 @@ Zusätzlich gibt es Test-Hebel:
                               add_position(order_volume=...) = Position aus teilweise gefüllter Order
     partial_fill_next(vol)    nächste Füllung einer Pending Order nur mit `vol` (Rest verfällt, IOC)
     history                   Order-Historie (gefüllt/gelöscht) für history_orders_get
+    add_deal(...)             Deal im Deal-Buch für history_deals_get (Zeit = Brokerzeit wie MT5)
+    copy_rates_range          liefert die mit set_rates gesetzten Kerzen im Zeitraum (Brokerzeit)
     sent                      Liste aller order_send-Requests
 """
 from __future__ import annotations
@@ -43,6 +45,15 @@ class SymbolInfo:
     # 0 = nicht gesetzt → wie MT5: tick_value/tick_size; Fallback in money_per_price_unit ist contract_size
     trade_tick_size: float = 0.0
     trade_tick_value: float = 0.0
+    trade_tick_value_profit: float = 0.0
+    trade_tick_value_loss: float = 0.0
+    trade_calc_mode: int = 0  # SYMBOL_CALC_MODE_FOREX
+    currency_profit: str = "USD"
+    spread: int = 10
+    swap_mode: int = 1  # SYMBOL_SWAP_MODE_POINTS
+    swap_long: float = 0.0
+    swap_short: float = 0.0
+    swap_rollover3days: int = 3  # Mittwoch (0 = Sonntag)
 
 
 @dataclass
@@ -50,6 +61,7 @@ class Tick:
     bid: float
     ask: float
     time_msc: int = 0
+    time: int = 0  # Sekunden, Brokerzeit wie im echten Paket
 
 
 @dataclass
@@ -103,6 +115,33 @@ class AccountInfo:
     login: int = 1001
     server: str = "Fake-Demo"
     trade_mode: int = 0  # ACCOUNT_TRADE_MODE_DEMO
+    currency: str = "USD"
+    margin_mode: int = 2  # ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+
+
+@dataclass
+class Deal:
+    ticket: int
+    symbol: str
+    type: int  # DEAL_TYPE_BUY / SELL / BALANCE ...
+    entry: int  # DEAL_ENTRY_IN / OUT / INOUT / OUT_BY
+    time: int  # Sekunden, Brokerzeit
+    volume: float = 0.0
+    price: float = 0.0
+    profit: float = 0.0
+    commission: float = 0.0
+    swap: float = 0.0
+    fee: float = 0.0
+    magic: int = 0
+    order: int = 0
+    position_id: int = 0
+    reason: int = 0
+    comment: str = ""
+    time_msc: int = 0
+
+    def __post_init__(self):
+        if not self.time_msc:
+            self.time_msc = self.time * 1000
 
 
 @dataclass
@@ -148,6 +187,14 @@ class FakeMT5:
     SYMBOL_TRADE_MODE_FULL = 4
     ACCOUNT_TRADE_MODE_DEMO = 0
     ACCOUNT_TRADE_MODE_REAL = 2
+    # Gewinnberechnungsarten (Auswahl)
+    SYMBOL_CALC_MODE_FOREX = 0
+    SYMBOL_CALC_MODE_FUTURES = 1
+    SYMBOL_CALC_MODE_CFD = 2
+    SYMBOL_CALC_MODE_CFDINDEX = 3
+    SYMBOL_CALC_MODE_CFDLEVERAGE = 4
+    SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE = 5
+    SYMBOL_CALC_MODE_EXCH_STOCKS = 32
     # Zeitrahmen
     TIMEFRAME_M1 = 1
     TIMEFRAME_M5 = 5
@@ -179,6 +226,7 @@ class FakeMT5:
         self._silent_reject = 0
         self._partial_fills: list[float] = []
         self.history: dict[int, Order] = {}
+        self.deals: list[Deal] = []
         self._last_error = (1, "Success")
 
     # ------------------------------------------------------------------ Aufbau (Test-Hebel)
@@ -191,7 +239,8 @@ class FakeMT5:
         """Setzt den Kurs. Mit fill=True werden Pending Orders ausgeführt und TP/SL ausgelöst."""
         info = self.symbols[symbol]
         ask = round(bid + 10 * info.point, info.digits) if ask is None else ask
-        self.ticks[symbol] = Tick(bid=bid, ask=ask, time_msc=int(time.time() * 1000))
+        now_msc = int(time.time() * 1000)
+        self.ticks[symbol] = Tick(bid=bid, ask=ask, time_msc=now_msc, time=now_msc // 1000)
         if fill:
             self._fill_pending(symbol)
             self._trigger_tp_sl(symbol)
@@ -199,6 +248,7 @@ class FakeMT5:
     def set_tick_age(self, symbol: str, seconds: float):
         """Letzten Tick künstlich altern lassen (Markt geschlossen / keine Ticks)."""
         self.ticks[symbol].time_msc = int((time.time() - seconds) * 1000)
+        self.ticks[symbol].time = self.ticks[symbol].time_msc // 1000
 
     def set_closed_candle(self, symbol: str, timeframe: int, close: float):
         self.closed_candles[(symbol, timeframe)] = close
@@ -211,6 +261,11 @@ class FakeMT5:
         step = bars[-1]["time"] - bars[-2]["time"] if len(bars) >= 2 else 60
         bid = self.ticks[symbol].bid
         return {"time": bars[-1]["time"] + step, "open": bid, "high": bid, "low": bid, "close": bid}
+
+    def add_deal(self, symbol, type, entry, time, **fields) -> Deal:
+        deal = Deal(next(self._tickets), symbol, type, entry, time, **fields)
+        self.deals.append(deal)
+        return deal
 
     def add_order(self, symbol, type, price, volume=0.01, tp=0.0, sl=0.0, magic=0, comment="") -> Order:
         order = Order(next(self._tickets), symbol, type, price, volume, tp, sl, magic, comment)
@@ -307,6 +362,19 @@ class FakeMT5:
         if position is not None:
             return tuple(o for t, o in self.history.items() if t == position)
         return tuple(self.history.values())
+
+    def history_deals_get(self, date_from=None, date_to=None, group=None, ticket=None, position=None):
+        items = [
+            d for d in self.deals
+            if (date_from is None or d.time >= int(date_from)) and (date_to is None or d.time <= int(date_to))
+            and (ticket is None or d.ticket == ticket) and (position is None or d.position_id == position)
+        ]
+        return tuple(items)
+
+    def copy_rates_range(self, symbol, timeframe, date_from, date_to):
+        bars = self.rates.get((symbol, timeframe)) or []
+        found = [dict(b) for b in bars if int(date_from) <= b["time"] <= int(date_to)]
+        return found or None
 
     def copy_rates_from_pos(self, symbol, timeframe, start_pos, count):
         bars = self.rates.get((symbol, timeframe))
