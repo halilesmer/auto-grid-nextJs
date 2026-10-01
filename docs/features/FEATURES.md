@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-09-30 · **108/122** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-01 · **109/123** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -25,7 +25,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
-| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 3/9 |
+| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -554,6 +554,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Wo die SSH-Route zu ist (öffentliche Vercel-Version), zeigt /vps unter dem Hinweis ein Panel „Worker (online)“, das direkt die Worker-API mit dem Admin-Schlüssel nutzt (alles admin-only) – GET /system/worker/status (Version, Laufzeit, unter Neustart-Schleife?, laufende Bots), GET /system/worker/log (letzte Zeilen von logs/worker_console.log, Farbcodes entfernt) und POST /system/restart (Worker beendet sich, run_uvicorn_watchdog.bat startet ihn in ~3 s neu; ohne Watchdog 409 und deaktivierter Knopf). Update-Prüfung/Update bleiben im Systemmenü des Dashboards. ngrok-/VPS-Neustart geht bewusst nur per SSH, denn ist der Tunnel weg, ist auch die API nicht erreichbar.
   - **Prüfung:** Auf der Vercel-Version mit Admin-Schlüssel verbinden, Seite „VPS“ öffnen. → „Worker neu starten“ → bestätigen.
   - **Erwartet:** Version, Laufzeit und Log erscheinen; nach ~20 s ist der Worker wieder erreichbar und die Laufzeit beginnt von vorn.
+- [x] **VPS-10** Selbstheilung (Tunnel-Watchdog) — 🧪 unit ✅ 2026-10-01 · 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
+  - Die geplante Aufgabe AutoGrid-Tunnel (setup_vps.ps1, alle 5 min) führt ops/windows/tunnel_watchdog.ps1 aus und prüft, ob die öffentliche ngrok-URL (NGROK_DOMAIN) /api/system/platform beantwortet (401/403 zählt als erreichbar). Wenn nicht und der Worker lokal antwortet, beendet sie ngrok (run_ngrok_watchdog.bat startet ihn neu); antwortet auch der Worker nicht, erst abwarten (Neustart-Schleife), dann Worker + ngrok über AutoGrid-Start. Nach 3 Fehlschlägen in Folge Reboot per shutdown /r – höchstens einmal pro Stunde und 3-mal in 24 h, nicht ohne Internet und nicht bei ERR_NGROK_334 (Domain woanders online); nichts in den ersten 10 min nach dem Start und während eines Updates. Der Fehlschlag wird vor der Aktion gespeichert (Zeiten in UTC, Datei atomar ersetzt). Kein Fernzugriff nötig; die Aufgabe hat höchste Rechte nur für den Reboot, ruft nie git auf und startet Worker/ngrok nie selbst. Zustand in data/tunnel_watchdog.json, Log logs/tunnel_watchdog.log; die Seite „VPS“ zeigt „Selbstheilung“ in der ngrok-Kachel (Warnung bei Tunnel-Fehlschlägen, „keine Prüfung seit n min“ wenn die Aufgabe nicht mehr läuft, letzter Auto-Reboot) und den Log-Tab „Tunnel“.
+  - **Prüfung:** Auf dem VPS in einer Administrator-PowerShell setup_vps.ps1 -SkipAutoLogon -SkipRepoOwnership erneut ausführen, dann tunnel_watchdog.ps1 -DryRun. → Nur mit Absprache: ngrok.exe im Task-Manager beenden und das ngrok-Fenster schließen (keine Neustart-Schleife mehr), ~5-10 min warten.
+  - **Erwartet:** DryRun meldet keinen Fehler bzw. „AKTION: ngrok neu starten.“, wenn der Tunnel weg ist. Nach dem Schließen startet der Watchdog Worker + ngrok über AutoGrid-Start, die URL antwortet wieder, und die Seite „VPS“ zeigt „Selbstheilung: URL erreichbar“ sowie die Einträge im Log-Tab „Tunnel“.
+  - 📝 VPS 2026-10-01: setup_vps.ps1 legt AutoGrid-Tunnel an, Aufgabe laeuft alle 5 min (LastTaskResult 0, last_result ok, Zeiten UTC). Ausfall-Test: ngrok-Schleife + ngrok.exe beendet -> 04:18 FEHLER 1/3 (404, Worker lokal OK) + AutoGrid-Start, 04:23 OK antwortet wieder.
 
 ## 13. UI – Oberfläche
 
