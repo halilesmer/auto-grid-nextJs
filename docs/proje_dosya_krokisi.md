@@ -170,14 +170,14 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
 ┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Yardımcılar - fiyat/lot normalizasyonu, logging, market açık kontrolü, timeframe map
 ┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı, MT5 bağlantı/market durumu
-┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no), açan emrin hacmi (history) → kısmi dolumda kalan lot
+┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no), açan emrin hacmi (history) → kısmi dolumda kalan lot; zone_magic/zone_index_by_magic: emir/pozisyonun bölgesi sıradan değil magic'ten bulunur
 ┃ ┃ ┃ ┣ 📜 grid_position_sync.py # Zombi temizliği & kısmi dolum - pasif bölge temizliği, TP/SL senkron, kalan lot
 ┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal - MT5 $1/$2 Buy Limit + GRID:START/STOP komutları
 ┃ ┃ ┃ ┣ 📜 indicator_calc.py    # Teknik indikatörler - RSI/MACD (pandas-ta fallback ile saf pandas)
 ┃ ┃ ┃ ┣ 📜 grid_orchestrator.py # Orkestratör - aktif bölge tespiti, giriş/çıkış, clear_on_exit, dynamic grid koordinasyonu
 ┃ ┃ ┃ ┣ 📜 grid_order_manager.py # Emir yönetimi - zombi emirler, TP/SL senkronu (fiyat geçtiyse bekler), kısmi dolum tamamlama (açan emre göre, max pozisyonda yok), bölge çıkışı
 ┃ ┃ ┃ ┣ 📜 grid_zone_selector.py # Bölge seçimi - en uygun bölge tespiti, filtreleme
-┃ ┃ ┃ ┣ 📜 grid_zone_state.py   # Bölge state yönetimi - bölge durumu, geçişler, veri tutımı
+┃ ┃ ┃ ┣ 📜 grid_zone_state.py   # Bölge state yönetimi - bölge durumu, geçişler, veri tutımı; rekey_zone_state: bölge silinince sıraya bağlı durumu (aktif bölge, PAUSE/AUTO_CLEAR + ui_state dosyası, fraktal takibi) magic'e göre yeni sıraya taşır
 ┃ ┃ ┃ ┣ 📂 grid_execution       # Grid Execution Paketi (v0.7.36+)
 ┃ ┃ ┃ ┃ ┣ 📜 __init__.py
 ┃ ┃ ┃ ┃ ┣ 📜 config.py          # Grid konfigürasyonu
@@ -208,7 +208,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃   ┣ 📜 profiler.py          # Performans ölçümü
 ┃ ┃   ┣ 📜 self_updater.py      # git pull (+ requirements.txt değiştiyse pip; admin haklarıyla asla), yeniden başlatma, CLI: python -m src.utils.self_updater update|check
 ┃ ┃   ┣ 📜 state_manager.py     # Pozisyon/emir state senkronizasyonu
-┃ ┃   ┗ 📜 trade_utils.py       # Ticaret yardımcıları
+┃ ┃   ┣ 📜 trade_utils.py       # Ticaret yardımcıları
+┃ ┃   ┗ 📜 zone_magic.py        # Bölgelerin kalıcı magic numarası (ENG-27): zone_magic/zone_index_by_magic (API + motor ortak), ayar kaydında worker verir (ZONE_MAGIC_MAX, tekrar verilmez), remap_ui_states
 ┃ ┣ 📂 ops/windows              # VPS uzaktan kontrol: setup_vps.ps1 (tek seferlik, admin, -PublicKey artık opsiyonel), vps.ps1 (Mac'ten SSH ile çağrılır; admin haklı kalıntıları bulur/sonlandırır: fix-elevated), bootstrap.ps1 (sıfır VPS: git/python/vcredist kurar, repo/venv/api-key/ngrok'u RunLevel Limited bir görevle (bootstrap-user.ps1) kurar, setup_vps.ps1'i çağırır, worker'ı başlatır, connect-link.ps1 ile bağlantı linki verir)
 ┃ ┣ 📜 run_ngrok_watchdog.bat   # ngrok çökerse yeniden başlatır (logs/ngrok.log)
 ┃ ┣ 📂 data                     # State dosyaları (state_*.json, watched_bots.json)
@@ -287,7 +288,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 | &nbsp;&nbsp;`├── levels.py` | | Seviyeler | Grid seviye/fiyat hesaplamaları |
 | &nbsp;&nbsp;`├── placement.py` | | Yerleştirme | Emir gönderme, modifikasyon, iptal |
 | &nbsp;&nbsp;`└── validation.py` | | Doğrulama | Sembol, lot, fiyat doğrulama kuralları |
-| `grid_orders.py` | **MT5 Gateway** | MT5 Emir CRUD | Tüm MT5 emir/pozisyon CRUD, pending order, magic number yönetimi |
+| `grid_orders.py` | **MT5 Gateway** | MT5 Emir CRUD | Tüm MT5 emir/pozisyon CRUD, pending order, magic number yönetimi (bölgenin kalıcı `magic`'i, ENG-27; sıra = magic değil) |
 | `grid_position_sync.py` | **Senkonizasyon** | Pozisyon Mutabakati | Zombi temizliği, kısmi dolum takibi, TP/SL senkron, kalan lot emri |
 | `grid_remote.py` | **Uzaktan Kontrol** | Mobil Sinyal | MT5 $1/$2 Buy Limit, GRID:START/STOP komut dinleme |
 | `grid_metrics.py` | **Telemetri** | Canlı Metrikler | P/L, pozisyon/emir sayısı, MT5 bağlantı/market durumu → WebSocket broadcast |

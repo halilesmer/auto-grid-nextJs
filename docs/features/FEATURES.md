@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-01 · **109/124** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-01 · **110/125** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/16 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 26/26 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 27/27 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
@@ -428,6 +428,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - fractal_order_count (BUY) und sell_fractal_order_count (SELL, nur bei BOTH ohne sync_buy_sell, sonst = BUY-Wert) legen fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (1–20, Standard 1). Betrachtet werden nur die letzten N Fraktale der Seite - ist eines erreicht, ausgelöst, von Hand gelöscht oder außerhalb des Preisbereichs, bleibt sein Platz leer, ältere rücken nicht nach. Nur Pending Orders zählen - „Max. Positionen“ wird wie bisher erst in der nächsten Runde geprüft, lösen mehrere Orders zwischen zwei Runden aus, kann es kurz überschritten werden. Ein neues Fraktal schiebt das Fenster weiter, die Order des ältesten wird gelöscht. „Erledigt“ wird je Fraktal gemerkt, damit eine ausgelöste Order die übrigen nicht löscht; alte Zustandsdateien mit nur einer Kerzenzeit je Seite werden weiter gelesen.
   - **Prüfung:** Nicht manuell testen (siehe ZON-16).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-27** Feste Magic-Nummer je Zone (Löschen verschiebt nichts) — 🧪 unit ✅ 2026-10-01 · 🔌 api ✅ 2026-10-01
+  - Jede Zone bekommt beim Speichern eine feste Magic-Nummer (200001–200999), die nur der Worker vergibt und nie neu vergibt (ZONE_MAGIC_MAX). Bestehende Zonen behalten ihre bisherige Nummer (200000 + Listenplatz + 1), offene Orders und Positionen bleiben also zugeordnet. Die Engine findet die Zone einer Order/Position über die Magic, nicht mehr über den Listenplatz - wird eine Zone gelöscht, behalten die Zonen dahinter ihre Orders, Positionen, TP/SL und ihren Status; Orders der gelöschten Zone werden als Zombies gelöscht, ihre Positionen bekommen nicht mehr den TP/SL einer anderen Zone. Der laufende Bot erkennt das Löschen beim Neuladen der Einstellungen und trägt seinen nach Listenplatz geführten Zustand (aktive Zone je Symbol, PAUSE/AUTO_CLEAR auch in der ui_state-Datei, Fraktal-Tracking, Ablehnungs- und Verschwunden-Zähler) über die Magic auf den neuen Platz um; war die gelöschte Zone die aktive, gilt nicht plötzlich ihr Nachbar als aktiv (sonst liefe dort der Zonen-Ausstieg). Ist die Einstellungsdatei beim Neuladen kurz unlesbar (wird gerade geschrieben, Windows-Sperre), läuft der Bot mit den zuletzt gelesenen Zonen weiter, statt „keine Zonen“ anzunehmen und alle Robot-Orders als Zombies zu löschen; die API schreibt die Datei atomar. Order-Kommentare (AutoGrid_Z{n}, Fraktal AutoGrid_Z{n}_F…) nehmen n aus der Magic. Anlass - vorher rutschten beim Löschen von Zone 1 alle Magic-Nummern dahinter um eins.
+  - **Prüfung:** Demo-Konto mit zwei Zonen auf demselben Symbol, beide mit offenen Orders (und möglichst einer Position). → Zone 1 löschen und speichern. → Zone 2 behält ihre Orders und Positionen (gleiche Tickets, Magic 200002), ihre TP/SL ändern sich nicht; nur die Orders von Zone 1 verschwinden.
+  - **Erwartet:** Löschen einer Zone lässt die übrigen Zonen unverändert weiterlaufen.
 
 ## 9. MET – Live-Daten & Diagramm
 

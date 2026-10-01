@@ -875,6 +875,17 @@ kategorien:
           - Nicht manuell testen (siehe ZON-16).
         erwartet: Abgedeckt durch Unit-Tests.
 
+      - id: ENG-27
+        titel: Feste Magic-Nummer je Zone (Löschen verschiebt nichts)
+        beschreibung: Jede Zone bekommt beim Speichern eine feste Magic-Nummer (200001–200999), die nur der Worker vergibt und nie neu vergibt (ZONE_MAGIC_MAX). Bestehende Zonen behalten ihre bisherige Nummer (200000 + Listenplatz + 1), offene Orders und Positionen bleiben also zugeordnet. Die Engine findet die Zone einer Order/Position über die Magic, nicht mehr über den Listenplatz - wird eine Zone gelöscht, behalten die Zonen dahinter ihre Orders, Positionen, TP/SL und ihren Status; Orders der gelöschten Zone werden als Zombies gelöscht, ihre Positionen bekommen nicht mehr den TP/SL einer anderen Zone. Der laufende Bot erkennt das Löschen beim Neuladen der Einstellungen und trägt seinen nach Listenplatz geführten Zustand (aktive Zone je Symbol, PAUSE/AUTO_CLEAR auch in der ui_state-Datei, Fraktal-Tracking, Ablehnungs- und Verschwunden-Zähler) über die Magic auf den neuen Platz um; war die gelöschte Zone die aktive, gilt nicht plötzlich ihr Nachbar als aktiv (sonst liefe dort der Zonen-Ausstieg). Ist die Einstellungsdatei beim Neuladen kurz unlesbar (wird gerade geschrieben, Windows-Sperre), läuft der Bot mit den zuletzt gelesenen Zonen weiter, statt „keine Zonen“ anzunehmen und alle Robot-Orders als Zombies zu löschen; die API schreibt die Datei atomar. Order-Kommentare (AutoGrid_Z{n}, Fraktal AutoGrid_Z{n}_F…) nehmen n aus der Magic. Anlass - vorher rutschten beim Löschen von Zone 1 alle Magic-Nummern dahinter um eins.
+        code: [worker_python/src/utils/zone_magic.py, worker_python/src/api/settings.py, worker_python/src/core/grid_zone_state.py, worker_python/src/core/wrappers.py, worker_python/src/core/grid_orders.py, worker_python/src/core/grid_order_manager.py, worker_python/src/core/grid_execution/config.py, worker_python/src/core/grid_execution/vanished.py, worker_python/src/core/startup.py]
+        tiers: [unit, api]
+        pruefung:
+          - Demo-Konto mit zwei Zonen auf demselben Symbol, beide mit offenen Orders (und möglichst einer Position).
+          - Zone 1 löschen und speichern.
+          - Zone 2 behält ihre Orders und Positionen (gleiche Tickets, Magic 200002), ihre TP/SL ändern sich nicht; nur die Orders von Zone 1 verschwinden.
+        erwartet: Löschen einer Zone lässt die übrigen Zonen unverändert weiterlaufen.
+
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm

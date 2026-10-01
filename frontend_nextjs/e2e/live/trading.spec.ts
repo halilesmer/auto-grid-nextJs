@@ -11,8 +11,8 @@
  * Ablauf: Einstellungen + ui-state sichern → Testzone ANHÄNGEN (0,01 Lot, je 1 Level, max. 1
  * Position) → Orders (ENG-05) → Pause/Start über die Oberfläche (ZON-08) → Zone vom Preis
  * wegschieben (ENG-10, „Otomatik temizlendi“) → Einstellungen wiederherstellen.
- * Die Testzone wird nur angehängt: vorne einfügen würde die Magic-Numbers bestehender Zonen
- * verschieben (200000 + Index + 1).
+ * Die Testzone wird nur angehängt: seit ENG-27 hat jede Zone eine feste Magic-Number, die
+ * Zonen-Status (ui-state) hängen aber weiter am Listenplatz.
  *
  * BOT-01/02 (Stop + Start) unterbrechen den laufenden Bot kurz; nur mit zusätzlich
  * E2E_LIVE_BOT_RESTART=1.
