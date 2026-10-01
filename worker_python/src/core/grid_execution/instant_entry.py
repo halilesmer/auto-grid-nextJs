@@ -10,7 +10,7 @@ from src.core.grid_helpers import (
     normalize_volume,
     log_message as default_log_message,
 )
-from src.core.grid_orders import MAX_DEVIATION
+from src.core.grid_orders import MAX_DEVIATION, zone_number
 from src.core.state import state
 from src.utils.trade_utils import safe_send_order
 from .config import ZoneConfig
@@ -68,7 +68,7 @@ def open_instant_positions(
             "price": price,
             "deviation": MAX_DEVIATION,
             "magic": config.target_magic,
-            "comment": f"AutoGrid_Z{zone_idx + 1}_Start",
+            "comment": f"AutoGrid_Z{zone_number(config.target_magic)}_Start",
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": state.filling_mode.get(config.symbol, mt5.ORDER_FILLING_IOC),
             "tp": normalize_price(price + sign * tp, config.symbol, symbol_infos) if tp > 0 else 0.0,

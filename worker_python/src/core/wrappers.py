@@ -8,6 +8,7 @@ from src.core.grid_helpers import (
 from src.core.grid_metrics import calculate_live_metrics
 from src.core.grid_orders import (
     BASE_MAGIC_NUMBER,
+    zone_magic,
     get_all_robot_orders,
     get_all_robot_positions,
     cancel_order,
@@ -15,7 +16,10 @@ from src.core.grid_orders import (
 )
 from src.core.grid_remote import check_remote_commands
 from src.core.grid_zone_selector import get_active_zone as _get_active_zone
-from src.core.grid_zone_state import process_zone_commands as _process_zone_commands
+from src.core.grid_zone_state import (
+    process_zone_commands as _process_zone_commands,
+    rekey_zone_state,
+)
 from src.core.grid_orchestrator import manage_dynamic_grid as _manage_dynamic_grid
 
 try:
@@ -38,10 +42,27 @@ def load_dynamic_settings():
     global state
     from src.utils.config import load_settings
 
+    # Ayar dosyası o an okunamıyorsa (API yazıyor, Windows kilidi, bozuk JSON) bu tur eski
+    # bölgelerle devam: boş liste "bütün bölgeler silindi" sayılır, emirleri temizlenirdi
+    try:
+        settings = load_settings("Auto Grid", raise_on_error=True)
+    except Exception as exc:
+        if not getattr(load_dynamic_settings, "_read_failed", False):
+            log_message(f"Ayar dosyası okunamadı, son okunan ayarla devam ediliyor: {exc}", "WARN")
+        load_dynamic_settings._read_failed = True
+        return
+    load_dynamic_settings._read_failed = False
+
     # Ayar dosyası bozuk olsa bile döngü çökmemeli (eski davranış)
     try:
-        settings = load_settings("Auto Grid")
-        state.zones = settings.get("ZONES", [])
+        previous_zones = state.zones
+        zones = settings.get("ZONES", []) if isinstance(settings, dict) else []
+        state.zones = zones if isinstance(zones, list) else []
+        # Bölge silindiyse sıraya bağlı durumu magic'e göre taşı (ENG-27)
+        try:
+            rekey_zone_state(state, previous_zones, state.zones, log=log_message)
+        except Exception as exc:
+            log_message(f"Bölge durumu yeni sıraya taşınamadı: {exc}", "ERROR")
         state.loop_interval_seconds = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
         state.active_symbols.clear()
         for zone in state.zones:
@@ -66,6 +87,7 @@ def get_active_zone():
 
 
 def send_pending_order(price, lot, tp_price, sl_price=None, zone_idx=0, direction="BUY", symbol=None):
+    zone = state.zones[zone_idx] if 0 <= zone_idx < len(state.zones) else {}
     return send_pending_order_helper(
         mt5,
         price,
@@ -78,6 +100,7 @@ def send_pending_order(price, lot, tp_price, sl_price=None, zone_idx=0, directio
         state.symbol_infos,
         state.consecutive_errors,
         state.active_zones_state,
+        magic=zone_magic(zone, zone_idx),
     )
 
 

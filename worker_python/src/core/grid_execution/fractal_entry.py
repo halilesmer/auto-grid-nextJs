@@ -391,10 +391,10 @@ def manage_fractal_orders(
     for i, d in enumerate(desired):
         if i in matched or not d.placeable:
             continue
-        comment = fractal_comment(zone_idx, d.side, d.fractal.time)
+        comment = fractal_comment(config.target_magic, d.side, d.fractal.time)
         ok = send_pending_order_helper(
             mt5, d.price, d.lot, d.tp, d.sl, zone_idx, d.direction, symbol, symbol_infos,
-            consecutive_errors, active_zones_state, comment=comment,
+            consecutive_errors, active_zones_state, comment=comment, magic=config.target_magic,
         )
         if ok:
             # Hemen izlemeye al: bir sonraki turdan önce elle silinirse de fark edilsin

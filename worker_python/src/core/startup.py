@@ -6,7 +6,12 @@ from .state import state
 from .wrappers import load_dynamic_settings
 from src.utils.paths import get_symbols_path, get_ui_state_path, get_metrics_path
 from src.core.grid_helpers import log_message, is_market_open, determine_fill_mode
-from src.core.grid_orders import get_all_robot_orders, get_all_robot_positions, BASE_MAGIC_NUMBER
+from src.core.grid_orders import (
+    BASE_MAGIC_NUMBER,
+    get_all_robot_orders,
+    get_all_robot_positions,
+    zone_index_by_magic,
+)
 from src.utils.mt5_terminal_guard import foreign_terminal_error, missing_path_error
 
 
@@ -112,8 +117,15 @@ def run_startup_checks(mt5_module) -> bool:
             mt5_module.shutdown()
         return False
 
+    # Emri/pozisyonu olan bölgeler: magic → bugünkü sıra (silinmiş bölgenin magic'i atlanır).
+    # Ayarlar henüz okunmadıysa eski hesap: sıra = magic - BASE - 1
+    index_by_magic = zone_index_by_magic(state.zones)
     for item in robot_positions + robot_orders:
-        state.active_zones_state[item.magic - BASE_MAGIC_NUMBER - 1] = "START"
+        zone_idx = index_by_magic.get(item.magic)
+        if zone_idx is None and not state.zones:
+            zone_idx = item.magic - BASE_MAGIC_NUMBER - 1
+        if zone_idx is not None:
+            state.active_zones_state[zone_idx] = "START"
 
     if state.active_zones_state:
         log_message(

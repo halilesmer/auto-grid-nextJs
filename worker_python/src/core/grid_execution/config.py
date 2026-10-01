@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from src.core.grid_helpers import log_message as default_log_message
-from src.core.grid_orders import BASE_MAGIC_NUMBER
+from src.core.grid_orders import zone_magic
 from src.utils.trade_utils import snap_volume
 from .exceptions import InvalidZoneConfigError
 
@@ -199,7 +199,8 @@ def extract_zone_config(
     is_breakout = bool(zone_dict.get("is_breakout", False))
     pullback_distance = float(zone_dict.get("pullback_distance", 0.50))
 
-    target_magic = BASE_MAGIC_NUMBER + zone_idx + 1
+    # Kalıcı bölge numarası (ayarlardaki `magic`); eski bölgelerde sıradan
+    target_magic = zone_magic(zone_dict, zone_idx)
 
     entry_mode = _choice(zone_dict.get("entry_mode"), ENTRY_MODES, "grid")
     # Fraktal modunda ızgara/TP/SL alanları kullanılmaz; $ → fiyat dönüşümü (tick değeri

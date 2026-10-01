@@ -6,7 +6,6 @@ from src.core.grid_helpers import (
 from src.core.grid_execution.config import extract_zone_config, is_fractal_zone, max_positions_of
 from src.core.grid_execution.exceptions import InvalidZoneConfigError
 from src.core.grid_orders import (
-    BASE_MAGIC_NUMBER,
     MAX_DEVIATION,
     cancel_order,
     get_all_robot_orders,
@@ -14,14 +13,18 @@ from src.core.grid_orders import (
     modify_position_tp_sl,
     remaining_lot_at_level,
     send_pending_order_helper,
+    zone_index_by_magic,
+    zone_magic,
 )
 from src.core.state import state
 from src.utils.trade_utils import safe_send_order
 
 
 def clean_zombie_orders(mt5, robot_orders, zones, active_zones_state):
+    # Emrin bölgesi magic'ten bulunur (sıra değil): listede olmayan magic silinmiş bölgenindir
+    index_by_magic = zone_index_by_magic(zones)
     for order in robot_orders:
-        order_zone_idx = order.magic - BASE_MAGIC_NUMBER - 1
+        order_zone_idx = index_by_magic.get(order.magic, -1)
         is_zone_active = False
         zone_sym = ""
         if 0 <= order_zone_idx < len(zones):
@@ -39,8 +42,9 @@ def clean_zombie_orders(mt5, robot_orders, zones, active_zones_state):
                 if order.type in [mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP]
                 else "SELL"
             )
+            zone_label = order_zone_idx + 1 if order_zone_idx >= 0 else f"(silinmiş, magic {order.magic})"
             log_message(
-                f"🧹 Mutlak Temizlik: Bölge {order_zone_idx+1} pasif/uyumsuz olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket}, Sembol: {order.symbol})",
+                f"🧹 Mutlak Temizlik: Bölge {zone_label} pasif/uyumsuz olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket}, Sembol: {order.symbol})",
                 zone_id=zone_log_id(zones[order_zone_idx], order_zone_idx) if 0 <= order_zone_idx < len(zones) else None,
             )
             cancel_order(mt5, order)
@@ -86,8 +90,10 @@ def process_partial_fills_and_tpsl(
         del state.opening_volumes[ident]
 
     processed_prices = set()
+    index_by_magic = zone_index_by_magic(zones)
     for pos in robot_positions:
-        pos_zone_idx = pos.magic - BASE_MAGIC_NUMBER - 1
+        # Silinmiş bölgenin pozisyonu (magic listede yok) başka bölgenin TP/SL'ini almaz
+        pos_zone_idx = index_by_magic.get(pos.magic, -1)
         if not (0 <= pos_zone_idx < len(zones)):
             continue
         z_data = zones[pos_zone_idx]
@@ -207,6 +213,7 @@ def process_partial_fills_and_tpsl(
                 symbol_infos,
                 consecutive_errors,
                 active_zones_state,
+                magic=pos.magic,
             )
 
 
@@ -243,7 +250,7 @@ def handle_zone_exit(
 
     scope = active_zone.get("clear_scope", "Sadece Bekleyen Emirler")
     target = active_zone.get("clear_target_side", "Farketmez (Hepsi)")
-    target_magic = BASE_MAGIC_NUMBER + active_zone_idx + 1
+    target_magic = zone_magic(active_zone, active_zone_idx)
 
     log_message(
         f"🧹 Bölge ({z_min}-{z_max}) DIŞINA ÇIKILDI! ({actual_exit_dir}). Kapsam: {scope} | Kapatılacak Yön: {target}"
