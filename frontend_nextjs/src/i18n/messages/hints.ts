@@ -24,7 +24,7 @@ export default defineArea(
     'account.form.login.hint': 'MT5 hesap numaranız (sayısal Login/ID).',
     'account.form.password.hint': 'MT5 hesap şifreniz. Yalnızca worker’da saklanır, arayüze geri gönderilmez.',
     'account.form.password.keep.hint':
-      'Boş bırakırsanız kayıtlı şifre korunur. Yalnızca değiştirmek istiyorsanız yeni şifre girin.',
+      'Alan bilerek boş: şifre güvenlik için yalnızca worker’da saklanır ve arayüze geri gönderilmez. Boş bırakırsanız kayıtlı şifre korunur. Değiştirmek için MT5 ana (master) şifresinin tamamını girin, yatırımcı (investor) şifresini değil.',
     'account.form.password.show.hint': 'Şifreyi düz metin olarak gösterir; yanınızda kimse yokken kullanın.',
     'account.form.password.hide.hint': 'Şifreyi tekrar gizler.',
     'account.form.server.hint': 'Broker’ın MT5 sunucu adı, MT5’te göründüğü gibi (ör. Eightcap-Demo).',
@@ -387,7 +387,7 @@ export default defineArea(
     'account.form.login.hint': 'Your MT5 account number (numeric login/ID).',
     'account.form.password.hint': 'Your MT5 account password. It is stored on the worker only and never sent back to the UI.',
     'account.form.password.keep.hint':
-      'If left empty the saved password is kept. Only enter a new password if you want to change it.',
+      'This field is empty on purpose: for security the password is stored on the worker only and never sent back to the UI. Leave it empty to keep the saved password. To change it, enter the full MT5 master password, not the investor password.',
     'account.form.password.show.hint': 'Shows the password as plain text; use it only when nobody is looking.',
     'account.form.password.hide.hint': 'Hides the password again.',
     'account.form.server.hint': 'The broker’s MT5 server name, exactly as shown in MT5 (e.g. Eightcap-Demo).',
@@ -750,7 +750,7 @@ export default defineArea(
     'account.form.login.hint': 'Ihre MT5-Kontonummer (numerischer Login/ID).',
     'account.form.password.hint': 'Ihr MT5-Kontopasswort. Es wird nur auf dem Worker gespeichert und nie an die Oberfläche zurückgeschickt.',
     'account.form.password.keep.hint':
-      'Bleibt das Feld leer, wird das gespeicherte Passwort beibehalten. Nur eingeben, wenn Sie es ändern wollen.',
+      'Das Feld ist absichtlich leer: Das Passwort wird aus Sicherheitsgründen nur auf dem Worker gespeichert und nie an die Oberfläche zurückgeschickt. Leer lassen, um das gespeicherte Passwort zu behalten. Zum Ändern das vollständige MT5-Master-Passwort eingeben, nicht das Investor-Passwort.',
     'account.form.password.show.hint': 'Zeigt das Passwort als Klartext; nur nutzen, wenn niemand mitsieht.',
     'account.form.password.hide.hint': 'Blendet das Passwort wieder aus.',
     'account.form.server.hint': 'Name des MT5-Servers Ihres Brokers, genau wie in MT5 angezeigt (z. B. Eightcap-Demo).',

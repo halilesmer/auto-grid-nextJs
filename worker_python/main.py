@@ -3,6 +3,7 @@ import os
 import traceback
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from src.api import api_router
 from src.api import auth as _auth
@@ -134,6 +135,9 @@ else:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Mum ve deal yanıtları büyük olabilir (50.000 mum)
+app.add_middleware(GZipMiddleware, minimum_size=2048)
 
 app.include_router(api_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")

@@ -137,6 +137,20 @@
       "tests": 1
     }
   },
+  "ANA-04": {
+    "api": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 19
+    }
+  },
+  "ANA-07": {
+    "api": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 6
+    }
+  },
   "ANA-10": {
     "api": {
       "datum": "2026-10-01",
@@ -794,7 +808,7 @@
     "e2e": {
       "datum": "2026-10-01",
       "status": "passed",
-      "tests": 16
+      "tests": 1
     }
   },
   "UI-08": {

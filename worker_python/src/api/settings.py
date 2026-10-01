@@ -37,6 +37,16 @@ async def get_settings(account_id: str, response: Response):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+def _record_zone_registry(account_id: str, settings) -> None:
+    """Bölge kaydı (docs/analyse-regeln.md §2): hata kaydı asla engellemez."""
+    try:
+        from src.utils import market_db
+
+        market_db.record_zones(account_id, settings.get("ZONES") if isinstance(settings, dict) else [])
+    except Exception as exc:  # noqa: BLE001
+        safe_log(f"⚠️ [MARKET-DB] Bölge kaydı yazılamadı: {exc}")
+
+
 @router.post("/settings/{account_id}", dependencies=[Depends(account_access)])
 async def update_settings(account_id: str, payload: SettingsPayload):
     path = _find_settings_file(account_id) or os.path.join(
@@ -93,6 +103,8 @@ async def update_settings(account_id: str, payload: SettingsPayload):
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+
+        await asyncio.to_thread(_record_zone_registry, account_id, data_to_save)
 
         return {
             "status": "saved",
