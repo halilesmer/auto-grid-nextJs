@@ -23,6 +23,7 @@ router = APIRouter(tags=["Market"])
 # Broker saati farkı yalnızca yaz/kış saatinde değişir: güvenilir ölçüm 10 dk tekrar kullanılır
 # (sayfa her açılışta MT5'e bağlanmasın). Son güvenilir ölçüm, MT5'e ulaşılamayınca yedek olur.
 CLOCK_CACHE_SEC = 600
+OFFSET_LOG_MAX_AGE = 24 * 3600  # /rates, /coverage: DB-Protokoll nur so lange als „aktuell“
 # Piyasa kapalıyken (güvenilir ölçüm yok) her sayfa açılışı MT5'e bağlanmasın: kısa süre tekrar kullanılır
 UNSURE_CACHE_SEC = 60
 _last_clock: dict[str, tuple[dict, float]] = {}
@@ -138,12 +139,21 @@ def _account_or_404(account_id: str) -> dict:
     return account
 
 
-def _clock_now(account_id: str) -> tuple[float | None, int | None]:
-    """Son güvenilir ölçümden şimdiki broker saati ve farkı (ölçüm yoksa None)."""
+def _clock_now(account_id: str, server: str = "") -> tuple[float | None, int | None]:
+    """Son güvenilir ölçümden şimdiki broker saati ve farkı (ölçüm yoksa None).
+
+    Önce /clock'un bellekteki ölçümü; yoksa (ör. worker yeniden başladı) veritabanına mum
+    çekerken kaydedilen son güvenilir fark (en fazla OFFSET_LOG_MAX_AGE eski, yaz saati değişimi).
+    """
     last = _last_clock.get(account_id)
-    if not last:
+    offset = last[0]["offset_sec"] if last else None
+    if offset is None and server:
+        try:
+            offset = market_db.last_broker_offset(server, OFFSET_LOG_MAX_AGE)
+        except market_db.MarketDbUnavailable:
+            offset = None
+    if offset is None:
         return None, None
-    offset = last[0]["offset_sec"]
     return round(time.time() + offset, 3), offset
 
 
@@ -172,7 +182,7 @@ async def rates(
         raise HTTPException(status_code=503, detail=str(exc))
     except mt5_market.MarketDataError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
-    server_now, offset = _clock_now(account_id)
+    server_now, offset = _clock_now(account_id, str(account.get("server") or ""))
     return {"account_id": account_id, **result, "server_now": server_now, "offset_sec": offset}
 
 
@@ -184,7 +194,7 @@ async def coverage(account_id: str, symbol: str):
         summary = await asyncio.to_thread(market_db.coverage_summary, str(account.get("server") or ""), symbol)
     except market_db.MarketDbUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    server_now, offset = _clock_now(account_id)
+    server_now, offset = _clock_now(account_id, str(account.get("server") or ""))
     return {
         "account_id": account_id,
         "symbol": symbol,
