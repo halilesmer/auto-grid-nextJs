@@ -68,6 +68,7 @@ export interface ZoneSettings {
   entry_mode?: EntryMode;
   fractal_timeframe?: string;
   fractal_order_mode?: FractalOrderMode;
+  fractal_use_sl?: boolean;
   fractal_sl_mode?: FractalSlMode;
   /** Preisabstand jenseits von Fraktal-Kerze / Gegenfraktal (auch Rückfall-SL) */
   fractal_sl_buffer?: number;

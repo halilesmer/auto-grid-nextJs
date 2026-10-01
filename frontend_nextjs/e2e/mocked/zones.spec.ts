@@ -480,6 +480,22 @@ test.describe('ZON Zonen', () => {
     await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toBeVisible();
   });
 
+  test('Fraktal: Schalter Mit SL', { tag: '@ZON-17' }, async ({ worker, dashboard }) => {
+    worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })];
+    await dashboard.open(DEMO_ID);
+    await expect(dashboard.zoneField(msg('zone.fractal.slMode'))).toBeVisible();
+    await expect(dashboard.zoneField(msg('zone.fractal.rr'))).toBeVisible();
+
+    await dashboard.zoneSwitch(msg('zone.fractal.useSl')).click();
+    await expect(dashboard.zoneField(msg('zone.fractal.slMode'))).toHaveCount(0);
+    await expect(dashboard.zoneField(msg('zone.fractal.slBuffer'))).toHaveCount(0);
+    await expect(dashboard.zoneField(msg('zone.fractal.tpMoney'))).toBeVisible();
+
+    await saveAndReload(dashboard);
+    await expect(dashboard.zoneField(msg('zone.fractal.slMode'))).toHaveCount(0);
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_use_sl: false });
+  });
+
   test('Fraktal: Anzahl Orders je Richtung', { tag: '@ZON-16' }, async ({ worker, dashboard }) => {
     worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })];
     await dashboard.open(DEMO_ID);
