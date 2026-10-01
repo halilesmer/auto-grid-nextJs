@@ -61,6 +61,7 @@ class OrderPlacer:
                     self.symbol_infos,
                     consecutive_errors,
                     active_zones_state,
+                    magic=config.target_magic,
                 ):
                     placed_count += 1
 
@@ -87,6 +88,7 @@ class OrderPlacer:
                     self.symbol_infos,
                     consecutive_errors,
                     active_zones_state,
+                    magic=config.target_magic,
                 ):
                     placed_count += 1
 

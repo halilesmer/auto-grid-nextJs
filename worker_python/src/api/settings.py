@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
+import asyncio
+import copy
 import json
 import os
 from src.api.access import account_access
 from src.api.models import SettingsPayload
 from src.api.helpers import _find_settings_file, CONFIGS_DIR
+from src.utils.mt5_connection import safe_log
 
 router = APIRouter(tags=["Settings"])
 
@@ -58,6 +61,8 @@ async def update_settings(account_id: str, payload: SettingsPayload):
         ):
             incoming_data = incoming_data["settings"]
 
+        # Kayıttan önceki hâl: bölge magic'leri ve durum sıraları buna göre korunur
+        previous = copy.deepcopy(existing_data) if isinstance(existing_data, dict) else {}
         if isinstance(existing_data, dict) and isinstance(incoming_data, dict):
             existing_data.update(incoming_data)
             data_to_save = existing_data
@@ -65,11 +70,29 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             data_to_save = incoming_data
 
         from src.utils.config import sanitize_settings
+        from src.utils.zone_magic import assign_zone_magics
 
-        data_to_save = sanitize_settings(data_to_save)
+        # Her bölgeye kalıcı magic (ENG-27); bölge silinince sıraya bağlı durumu bot taşır
+        # (grid_zone_state.rekey_zone_state, ayarları yeniden okuduğu turda)
+        data_to_save = assign_zone_magics(previous, sanitize_settings(data_to_save), log=safe_log)
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data_to_save, f, indent=4, ensure_ascii=False)
+        # Atomik yaz: bot her turda okur, yarım dosya görmesin. Windows'ta bot dosyayı o an
+        # okuyorsa os.replace reddedilir → kısa tekrar
+        tmp_path = f"{path}.api.tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data_to_save, f, indent=4, ensure_ascii=False)
+            for attempt in range(5):
+                try:
+                    os.replace(tmp_path, path)
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    await asyncio.sleep(0.05)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
         return {
             "status": "saved",

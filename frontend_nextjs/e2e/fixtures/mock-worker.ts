@@ -45,6 +45,42 @@ function publicAccount(account: StoredAccount) {
   return { ...copy, has_password: Boolean(account.password) };
 }
 
+/** Wie src/utils/zone_magic.py (ENG-27): feste Magic je Zone, nur der Worker vergibt sie, nie doppelt. */
+function assignZoneMagics(previous: Json, merged: Json): Json {
+  const BASE = 200000;
+  const oldZones = (previous.ZONES as Json[] | undefined) ?? [];
+  // Schlüssel wie _zone_key: id, sonst (sehr alte Datei) der Listenplatz; bei doppelter id gilt die erste
+  const keyOf = (z: Json, i: number) => (z.id ? `id:${String(z.id)}` : `idx:${i}`);
+  const known = new Map<string, number>();
+  oldZones.forEach((z, i) => {
+    const m = Number(z.magic);
+    if (!known.has(keyOf(z, i))) {
+      known.set(keyOf(z, i), Number.isInteger(m) && m > BASE && m < BASE + 1000 ? m : BASE + i + 1);
+    }
+  });
+  let highest = Math.max(BASE, Number(previous.ZONE_MAGIC_MAX) || BASE, ...Array.from(known.values()));
+  const taken = new Set<number>();
+  const zones = ((merged.ZONES as Json[] | undefined) ?? []).map((z) => ({ ...z }));
+  const pending: Json[] = [];
+  for (const [i, z] of zones.entries()) {
+    const m = known.get(keyOf(z, i));
+    if (m !== undefined && !taken.has(m)) {
+      z.magic = m;
+      taken.add(m);
+    } else pending.push(z);
+  }
+  for (const z of pending) {
+    highest += 1;
+    z.magic = highest;
+    taken.add(highest);
+  }
+  const result: Json = { ...merged };
+  if (merged.ZONES !== undefined) result.ZONES = zones;
+  if (highest > BASE) result.ZONE_MAGIC_MAX = highest;
+  else delete result.ZONE_MAGIC_MAX;
+  return result;
+}
+
 /** Wie src/api/settings.py: alte verschachtelte Dateien/Nutzlasten ({settings: {settings: …}}) auspacken. */
 function unwrapSettings(value: unknown): Json {
   let current = (value ?? {}) as Json;
@@ -324,7 +360,8 @@ export class MockWorker {
         return ok({ account_id: id, settings: s.settings[id] ?? {} });
       }
       if (method === 'POST') {
-        s.settings[id] = { ...(s.settings[id] ?? {}), ...unwrapSettings(body) };
+        const previous = s.settings[id] ?? {};
+        s.settings[id] = assignZoneMagics(previous, { ...previous, ...unwrapSettings(body) });
         return ok({ status: 'saved', account_id: id });
       }
     }

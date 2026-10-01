@@ -23,8 +23,13 @@ def get_settings_file(engine_name: str = "Auto Grid") -> str:
     return get_settings_path(account_id, engine_name)
 
 
-def load_settings(engine_name: str = "Auto Grid"):
-    """JSON dosyasından ayarları okur. Eski Model 2 dosyası varsa otomatik göç (migration) yapar."""
+def load_settings(engine_name: str = "Auto Grid", raise_on_error: bool = False):
+    """JSON dosyasından ayarları okur. Eski Model 2 dosyası varsa otomatik göç (migration) yapar.
+
+    raise_on_error: okuma/ayrıştırma hatası varsayılan ayar (ZONES: []) yerine istisna verir.
+    Bot döngüsü bunu kullanır: dosya o an yazılıyor/kilitliyse "hiç bölge yok" sanıp tüm
+    emirleri silmek yerine o tur eski ayarla devam eder.
+    """
     file_path = get_settings_file(engine_name)
 
     from src.utils.paths import CONFIGS_DIR
@@ -63,6 +68,8 @@ def load_settings(engine_name: str = "Auto Grid"):
 
         return data
     except Exception:
+        if raise_on_error:
+            raise
         return copy.deepcopy(DEFAULT_SETTINGS_AUTO_GRID)
 
 

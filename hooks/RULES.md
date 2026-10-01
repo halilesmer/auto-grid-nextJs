@@ -37,7 +37,7 @@ Claude her seferinde aynı demo hesabı kullanır; kullanıcıdan tekrar bilgi i
 6. Worker'ı Mac'te başlatma. Worker tarafı değişikliği test edilecekse kullanıcıdan VPS'te pull + restart iste.
 7. Sonuçları kısa raporla: neyi seçtin, neyi doğruladın, neyi doğrulayamadın.
 8. **[otomatik]** Otomatik live testler (`npm run test:live` veya `scripts/features/run.sh live`) aynı dosyayı okur; `Tür: DEMO` değilse veya worker hesabı `env_type: DEMO` olarak bildirmiyorsa atlanır. Bu testler yalnızca okur.
-9. **[elle]** İşlem testleri (`frontend_nextjs/e2e/live/trading.spec.ts`) yalnızca `E2E_LIVE_DEMO=1` ile, bot durdur/başlat ayrıca `E2E_LIVE_BOT_RESTART=1` ile çalışır. Bu değişkenler sadece kullanıcı bu konuşmada açıkça işlem testi istediyse verilir. Test bölgesi yalnızca sona eklenir (başa eklemek mevcut bölgelerin magic numaralarını kaydırır), ayarlar sonunda aynen geri yüklenir; mevcut bir aktif bölge fiyatı kapsıyorsa test kendini atlar. Kullanıcının bölgeleri test için değiştirilmez.
+9. **[elle]** İşlem testleri (`frontend_nextjs/e2e/live/trading.spec.ts`) yalnızca `E2E_LIVE_DEMO=1` ile, bot durdur/başlat ayrıca `E2E_LIVE_BOT_RESTART=1` ile çalışır. Bu değişkenler sadece kullanıcı bu konuşmada açıkça işlem testi istediyse verilir. Test bölgesi yalnızca sona eklenir (ENG-27'den beri magic numaraları kaymaz, ama bölge durumları hâlâ sıraya bağlıdır), ayarlar sonunda aynen geri yüklenir; mevcut bir aktif bölge fiyatı kapsıyorsa test kendini atlar. Kullanıcının bölgeleri test için değiştirilmez.
 
 ## 4. Fonksiyon kataloğu ve otomatik testler
 

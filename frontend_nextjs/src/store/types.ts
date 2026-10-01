@@ -32,6 +32,8 @@ export interface SymbolDetail {
 
 export interface ZoneSettings {
   id: string;
+  /** Feste Magic-Nummer der Zone (ENG-27): vergibt nur der Worker beim Speichern, nur lesen */
+  magic?: number;
   is_active?: boolean;
   symbol: string;
   order_type: string;
@@ -92,6 +94,8 @@ export interface GlobalSettings {
   SYMBOL: string;
   LOOP_INTERVAL_SECONDS: number;
   ZONES: ZoneSettings[];
+  /** Höchste je vergebene Zonen-Magic (ENG-27, vom Worker verwaltet) */
+  ZONE_MAGIC_MAX?: number;
 }
 
 export type ActivityLevel = 'info' | 'success' | 'warn' | 'error';

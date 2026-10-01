@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-01 · **109/123** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-01 · **110/124** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/16 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 26/26 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 27/27 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
@@ -158,7 +158,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 4. SET – Allgemeine Einstellungen
 
-- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-09-30 · 🖥️ e2e ✅ 2026-09-30 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-10-01 · 🖥️ e2e ✅ 2026-09-30 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
   - **Prüfung:** Konto wählen.
   - **Erwartet:** Zonen und Kontroll-Intervall entsprechen der Datei auf dem VPS.
@@ -173,12 +173,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“ oder Cmd/Strg+Enter.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
-- [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-09-30 · 🔌 api ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-09-30 · 🔌 api ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
   - **Prüfung:** Lot 0.0100000001 eingeben und speichern.
   - **Erwartet:** Gespeichert wird 0.01.
   - 📝 Claude: POST LOOP_INTERVAL_SECONDS 1.00000001 → gespeichert als 1.0
-- [x] **SET-05** Einstellungen zusammenführen (Merge) — 🔌 api ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-05** Einstellungen zusammenführen (Merge) — 🔌 api ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - POST /settings/{id} führt die neuen Werte mit der bestehenden Datei zusammen, statt sie zu überschreiben.
   - **Prüfung:** Nur das Intervall speichern.
   - **Erwartet:** Zonen bleiben unverändert.
@@ -212,76 +212,76 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 6. ZON – Zonen-Konfiguration (UI ↔ Backend)
 
-- [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - „Bölge Ekle“ fügt eine neue Zone mit Standardwerten hinzu; die Anzahl im Badge steigt.
   - **Prüfung:** „Bölge Ekle“ klicken, speichern, neu laden.
   - **Erwartet:** Neue Zone bleibt nach dem Neuladen erhalten.
   - 📝 Claude: 'Bölge Ekle' → Zähler 2, neue Zone inaktiv (is_active false, Symbol der letzten Zone); gespeichert → API 2 Zonen, bleibt nach Neuladen
-- [x] **ZON-02** Zone löschen — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-02** Zone löschen — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Menü „…“ → „Bölgeyi Sil“ → Bestätigung „Bölge Sil“.
   - **Prüfung:** Test-Zone löschen und bestätigen, speichern.
   - **Erwartet:** Zone ist weg, auch nach Neuladen.
   - 📝 Claude: Menü '…' → 'Bölgeyi Sil' → Dialog 'Bölge Sil' → Delete → Zähler 1, Leiste 'ungespeichert'; nach 'Tüm Ayarları Kaydet' API = Sicherung
-- [x] **ZON-03** Basisfelder (Symbol, Emir Tipi, Min/Max Fiyat) — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-03** Basisfelder (Symbol, Emir Tipi, Min/Max Fiyat) — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Symbol, Ordertyp BUY/SELL/BOTH und Preisbereich der Zone.
   - **Prüfung:** Jedes Feld ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten; Ordertyp-Badge im Kopf passt.
   - 📝 Claude (Test-Zone): Symbol per Autocomplete XAUUSD, Emir Tipi BOTH, Min/Max 500/600 → nach Neuladen in API und UI
-- [x] **ZON-04** Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur) — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-04** Grid-Felder (Grid Adımı, Lot, Kar Al, Zarar Durdur) — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Gridabstand, Lotgröße, Take Profit, Stop Loss der Zone. Der Lot ist nie 0 und nie kleiner als der kleinste Lot des Symbols beim Broker (volume_min) - Symbolwechsel, Laden, neue Zone und Speichern heben ihn auf mindestens dieses Minimum an; ein leeres Feld oder 0 beim Tippen fällt auf den letzten gültigen Lot zurück.
   - **Prüfung:** Jedes Feld ändern, speichern, neu laden. → Lot leeren oder 0 eintragen und das Feld verlassen; danach ein Symbol mit größerem Mindestlot wählen (z. B. 0,1).
   - **Erwartet:** Alle Werte bleiben erhalten; der Lot bleibt nie bei 0, sondern zeigt mindestens das Minimum des Symbols.
   - 📝 Claude (Test-Zone): Grid 0.2, Lot 0.02, KA 0.3, ZD 1 → nach Neuladen in API und UI
-- [x] **ZON-05** SELL-Felder + BUY/SELL-Sync — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-05** SELL-Felder + BUY/SELL-Sync — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Bei Ordertyp BOTH eigene SELL-Werte (SELL Grid/Lot/KA/ZD) oder Schalter „BUY ve SELL için aynı ayarları uygula“.
   - **Prüfung:** Ordertyp BOTH wählen, Sync aus → SELL-Felder ändern; Sync an.
   - **Erwartet:** SELL-Felder erscheinen nur bei BOTH und Sync aus; Werte bleiben nach Speichern erhalten.
   - 📝 Claude (Test-Zone): BOTH + Sync aus → SELL-Felder (und SELL-Pullback) erscheinen; SELL 0.4/0.03/0.6/2 und sync_buy_sell=false gespeichert
-- [x] **ZON-06** Breakout-Felder — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-06** Breakout-Felder — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Schalter „Sadece trend yönünde“, Pullback-Abstände, Alt/Üst Seviyeler (levels_below/above), Maks Pozisyon.
   - **Prüfung:** Breakout einschalten, Felder ändern, speichern, neu laden.
   - **Erwartet:** Alle Werte bleiben erhalten.
   - 📝 Claude (Test-Zone): Breakout an, Pullback 0.7/SELL 0.9, Alt 3, Üst 4, Maks 2 → nach Neuladen in API und UI
-- [x] **ZON-07** Exit-Felder (Bereinigen beim Verlassen) — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-07** Exit-Felder (Bereinigen beim Verlassen) — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Schalter „Fiyat bölgeden çıkınca temizle“; dann Çıkış Yönü, Hedef Taraf, Temizleme Kapsamı, Çıkış Tetikleyici und bei „Mum Kapanışı“ zusätzlich Zaman Dilimi.
   - **Prüfung:** Schalter an → Auswahlfelder prüfen; Auslöser „Mum Kapanışı“ wählen.
   - **Erwartet:** Die vier Auswahlfelder erscheinen erst mit dem Schalter; Zeitrahmen nur bei Kerzenschluss.
   - 📝 Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da; BUY (Yukarı)/Hepsi/Tüm İşlemler; 'Mum Kapanışı' blendet Zaman Dilimi (M1–D1) ein, H1 gespeichert
-- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-09-30 · 🖥️ e2e ✅ 2026-09-30 · 🌐 live ✅ 2026-09-24
+- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-09-30 · 🖥️ e2e ✅ 2026-10-01 · 🌐 live ✅ 2026-09-24
   - Button im Zonenkopf (Başladı / Başla / Hazır / Kapalı) setzt is_active (POST /settings) und START/PAUSE in ui_state (POST /ui-state); Warnung bei ungültigem Symbol oder ungespeicherter Zone.
   - **Prüfung:** Test-Zone starten und wieder pausieren. → Neue, ungespeicherte Zone starten.
   - **Erwartet:** Label wechselt passend; ungespeicherte Zone zeigt eine Warnung.
-- [x] **ZON-09** „Kaydedilmedi“-Badge — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-23
+- [x] **ZON-09** „Kaydedilmedi“-Badge — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
   - Zonen mit ungespeicherten Änderungen tragen den Badge „Kaydedilmedi“.
   - **Prüfung:** Ein Feld ändern, dann speichern.
   - **Erwartet:** Badge erscheint nach der Änderung und verschwindet nach dem Speichern.
   - 📝 Claude: Badge 'Kaydedilmedi' nur an der geänderten Zone, verschwindet nach Speichern (auch bei SET-03 gesehen)
-- [x] **ZON-10** Zahlenfelder leerbar — 🖥️ e2e ✅ 2026-09-30
+- [x] **ZON-10** Zahlenfelder leerbar — 🖥️ e2e ✅ 2026-10-01
   - Zahlenfelder der Zone (Preis, Grid, Lot, KA/ZD, Pullback, Seviyeler) halten einen lokalen Text-Entwurf; die letzte Ziffer lässt sich löschen, erst beim Verlassen des Feldes erscheint wieder der echte Wert.
   - **Prüfung:** Ein Zahlenfeld mit Rücktaste komplett leeren, dann neu tippen (z. B. 0.05) und das Feld verlassen.
   - **Erwartet:** Feld bleibt beim Löschen leer, Zwischenstände wie „0.“ bleiben erhalten, nach dem Verlassen steht der gespeicherte Wert (leer → 0).
-- [x] **ZON-11** Einzelne Zone speichern — 🖥️ e2e ✅ 2026-09-30
+- [x] **ZON-11** Einzelne Zone speichern — 🖥️ e2e ✅ 2026-10-01
   - Jede Zonenkarte hat einen eigenen „Kaydet“-Button, der nur diese Zone im Worker ersetzt (neue Zone wird angehängt). Andere Zonen und Einstellungen mit ungespeicherten Änderungen bleiben ungespeichert; „Tüm Ayarları Kaydet“ (neben „Bölge Ekle“) speichert weiterhin alles.
   - **Prüfung:** Zone 1 ändern, Zone hinzufügen, nur bei der neuen Zone „Kaydet“ klicken. → Danach bei Zone 1 „Kaydet“ klicken.
   - **Erwartet:** Nach dem ersten Klick liegt die neue Zone im Worker, Zone 1 trägt weiter „Kaydedilmedi“ und „Tüm Ayarları Kaydet“ bleibt aktiv; nach dem zweiten Klick sind Badge und Dirty-Zustand weg.
-- [x] **ZON-12** Symbol-Richtwerte in den Hinweisen — 🖥️ e2e ✅ 2026-09-30
+- [x] **ZON-12** Symbol-Richtwerte in den Hinweisen — 🖥️ e2e ✅ 2026-10-01
   - Der (i)-Hinweis von Grid-Abstand und Take Profit (Buy/Sell) nennt für gängige Symbole (Gold, Silber, Forex, BTC/ETH, US-Indizes, Öl) einen Richtwert; bei unbekanntem Symbol bleibt der Text unverändert. Nur Anzeige, keine Validierung.
   - **Prüfung:** Symbol auf XAUUSD stellen, mit der Maus über das (i) von Grid-Abstand und Take Profit fahren. → Symbol auf ein unbekanntes Symbol stellen.
   - **Erwartet:** Bei XAUUSD steht „1–5“ als Richtwert im Hinweis; bei unbekanntem Symbol nur der Standardtext.
-- [ ] **ZON-13** Abstand nach Verlust ($) — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ⏳
+- [ ] **ZON-13** Abstand nach Verlust ($) — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ⏳
   - Schalter „Abstand nach Verlust ($)“ in der Zonenkarte. Wenn an, sind Grid-Abstand (BUY/SELL), Min./BUY-/SELL-Pullback, Take Profit und Stop Loss $-Beträge statt Preisabstände; beim Umschalten werden vorhandene Werte mit Lotgröße und Tick-Wert umgerechnet, unter dem Feld steht der entsprechende Preisabstand. Wird mit der Zone gespeichert (step_by_loss).
   - **Prüfung:** Zone mit EURUSD, 0,10 Lot anlegen, „Abstand nach Verlust ($)“ einschalten, Grid-Abstand 10 und Take Profit 5 eingeben. → Speichern, Bot auf dem DEMO-Konto laufen lassen und die Pending Orders in MT5 ansehen.
   - **Erwartet:** Unter dem Feld steht „≈ 0,001 Preisabstand bei 0,1 Lot“; die Orders liegen 0,00100 auseinander (ab der zuletzt eröffneten Position), jede neue Position öffnet, wenn die vorige 10 $ im Minus ist; der TP liegt 0,00050 vom Einstieg.
-- [ ] **ZON-14** Sofort erste Position — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ⏳
+- [ ] **ZON-14** Sofort erste Position — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ⏳
   - Schalter „Sofort erste Position“ in der Zonenkarte (instant_entry), unabhängig von „Abstand nach Verlust“. Wird mit der Zone gespeichert.
   - **Prüfung:** Zone (BUY und SELL) auf dem DEMO-Konto anlegen, Preis innerhalb des Bereichs, „Sofort erste Position“ einschalten, speichern, Bot starten. → Warten, bis eine Seite per Take Profit schließt.
   - **Erwartet:** Beim Start öffnen sofort 1 BUY und 1 SELL zum Marktpreis; die Pending Orders liegen einen Grid-Abstand davon entfernt; nach dem TP öffnet der Bot auf dieser Seite sofort wieder eine Position.
-- [x] **ZON-15** Einstiegsmodus Fraktal — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-29
+- [x] **ZON-15** Einstiegsmodus Fraktal — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-29
   - Auswahl „Einstiegsmodus“ (Grid/Fraktal, entry_mode) in der Zonenkarte. Im Fraktal-Modus werden Grid-Felder, „Abstand nach Verlust“, „Sofort erste Position“ und Trend/Pullback ausgeblendet; stattdessen Zeitrahmen (M1–D1, Standard H4), Ordertyp (Ausbruch/Abpraller), Lot, Max. Positionen, SL-Methode (ATR/SAR/Gegenfraktal/Fraktal-Kerze) mit passenden Feldern, SL-Puffer und Chance/Risiko (per Switch „TP als Betrag“ stattdessen TP-Betrag in Kontowährung). Wird mit der Zone gespeichert.
   - **Prüfung:** Zone auf dem DEMO-Konto auf „Fraktal“ stellen, H4, Ausbruch, SL „Automatisch (ATR)“, speichern, Bot starten. → Im MT5-Chart (H4) den Indikator „Fractals“ und ATR(14) einblenden und mit den Pending Orders vergleichen. → Eine Fraktal-Order in MT5 von Hand löschen.
   - **Erwartet:** Mit Anzahl 1 (Standard, siehe ZON-16) je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
   - 📝 VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte Order nicht neu gesetzt
-- [ ] **ZON-16** Fraktal – Anzahl Orders je Richtung — 🖥️ e2e ✅ 2026-09-30 · 👤 manuell ⏳
+- [ ] **ZON-16** Fraktal – Anzahl Orders je Richtung — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ⏳
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
@@ -322,111 +322,115 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 8. ENG – Grid-Engine (Handelslogik)
 
-- [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-10-01
   - Pro Symbol ist höchstens eine Zone aktiv – die erste aktive Zone dieses Symbols, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt. Zonen mit verschiedenen Symbolen (z. B. USOUSD + XAUUSD) laufen gleichzeitig.
   - **Prüfung:** Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen. → Eine zweite Zone mit anderem Symbol anlegen und starten.
   - **Erwartet:** Beim gleichen Symbol entstehen Orders nur in der Zone, in der der Preis liegt; eine Zone mit anderem Symbol bekommt zusätzlich eigene Orders.
-- [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-10-01
   - Level werden an round(mid/step)*step verankert, levels_below/levels_above Stufen, auf die Zone begrenzt; acceptable-Sets mit ±2 Stufen Puffer.
   - **Prüfung:** Bot laufen lassen, Pending Orders in MT5 ansehen.
   - **Erwartet:** Orders liegen im Gridabstand um den Preis, nie außerhalb der Zone.
-- [x] **ENG-03** Breakout / Pullback — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-03** Breakout / Pullback — 🧪 unit ✅ 2026-10-01
   - Im Breakout-Modus nur Orders in Trendrichtung, mit pullback_distance / sell_pullback_distance.
   - **Prüfung:** Breakout-Zone aktivieren, Orders ansehen.
   - **Erwartet:** Orders nur in Trendrichtung und im Pullback-Abstand.
-- [x] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ✅ 2026-10-01
   - extract_zone_config liest order_type, grid_step, lot_size und sell_lot_size (nie 0 - mindestens volume_min des Symbols beim Broker und auf dessen Lot-Schritt gerundet, nach oben auf 5,0 begrenzt; ohne Symbolinfos gilt 0,01 als Minimum), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-09-30 · 🌐 live ⏭️ 2026-09-24
+- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-10-01 · 🌐 live ⏭️ 2026-09-24
   - Fehlende Level bekommen Pending Orders mit TP/SL; LIMIT oder STOP je nach Seite des Marktes; Toleranz 0,45 × Gridabstand; manuelle Positionen zählen als belegte Level.
   - **Prüfung:** Test-Zone (0,01 Lot) um den aktuellen Preis starten.
   - **Erwartet:** BUY LIMIT unter / BUY STOP über dem Preis (bzw. SELL umgekehrt), jeweils mit TP/SL.
-- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-10-01
   - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen).
   - **Prüfung:** Bei laufendem Bot TP der Zone ändern und speichern.
   - **Erwartet:** Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
-- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-09-30 · 🌐 live ⏳
+- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-10-01 · 🌐 live ⏳
   - Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht; die Warnung erscheint einmal (erneut nur, wenn sich die Zahl ändert), nicht bei jedem Tick. Auch der Restlot-Nachschub (ENG-08) setzt dann nichts.
   - **Prüfung:** Maks Pozisyon = 1 setzen und eine Position füllen lassen.
   - **Erwartet:** Danach keine Pending Orders mehr in dieser Zone.
-- [x] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ✅ 2026-10-01
   - Geänderte TP/SL-Werte werden auf offene Positionen übertragen; liegt der neue TP/SL schon auf der falschen Seite des Kurses (MT5 würde mit 10016 ablehnen), wartet der Bot mit einer einmaligen Meldung und setzt ihn, sobald der Kurs es zulässt. Bei Teilausführung wird das Restlot neu gesendet, gemessen am Volumen der eröffnenden Order (history_orders_get), nicht am Lot in den Einstellungen; ein später erhöhtes Lot löst also keinen Nachschub aus. Am Positionslimit (ENG-07) kein Nachschub.
   - **Prüfung:** Bei offener Position den TP der Zone ändern und speichern. → Nur DEMO: bei offenen 0,01-Positionen das Lot der Zone auf 0,02 erhöhen und speichern.
   - **Erwartet:** TP der offenen Position wird angepasst (liegt er schon hinter dem Kurs, steht einmal „TP/SL Bekliyor“ im Log). Nach der Lot-Erhöhung keine „Kısmi Dolum“-Meldungen und keine Orders auf den Leveln der offenen Positionen; neue Grid-Orders haben 0,02.
-- [x] **ENG-09** Zombie-Orders entfernen — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-09** Zombie-Orders entfernen — 🧪 unit ✅ 2026-10-01
   - Orders pausierter, bereinigter, inaktiver Zonen oder mit falschem Symbol werden gelöscht.
   - **Prüfung:** Zone mit offenen Orders pausieren.
   - **Erwartet:** Ihre Pending Orders verschwinden.
-- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-09-30 · 🌐 live ⏭️ 2026-09-24
+- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-10-01 · 🌐 live ⏭️ 2026-09-24
   - Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart).
   - **Prüfung:** Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt. → Warten, bis der Preis zurückkommt; dann „Yeniden Başlat“ in der Zone klicken.
   - **Erwartet:** Orders (bei „Tüm İşlemler“ auch Positionen) werden entfernt; die Zone zeigt „Otomatik temizlendi“ und setzt keine Orders mehr, bis „Yeniden Başlat“ geklickt wird.
-- [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-10-01
   - Nach 3 abgelehnten Orders in Folge wird die Zone pausiert (ui_state PAUSE) und order_rejected_alarm gesetzt.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ✅ 2026-10-01
   - safe_send_order normalisiert Volumen (nie unter volume_min - auch 0 wird zum Minimum -, nie über volume_max, Schritt ab volume_min), hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-09-30 · 👤 manuell ✅ 2026-09-24
+- [x] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-24
   - Manuelle BUY LIMIT 0,01 Lot bei 1 $ = STOP, bei 2 $ = START; alternativ Kommentar GRID:STOP / GRID:START. STOP löscht alle Robot-Orders; die Signal-Order wird danach entfernt.
   - **Prüfung:** In der MT5-App eine BUY LIMIT 0,01 bei Preis 1 setzen. → Danach BUY LIMIT 0,01 bei Preis 2 setzen.
   - **Erwartet:** Erst werden alle Robot-Orders gelöscht (remote_paused), dann läuft der Bot weiter; die Signal-Orders verschwinden.
   - 📝 Nutzer per MT5-App: $1 Buy Limit → STOP (Robot-Orders gelöscht, Signal-Order entfernt), $2 Buy Limit → START; Robot-Log 15:14/15:18 bestätigt, danach remote_paused false, Bot läuft
-- [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-10-01
   - Beim Bot-Start sind alle Zonen PAUSE; active_zones_state wird aus den Magic-Numbers der vorhandenen Orders/Positionen aufgebaut (data/state_<id>.json), alte ui_state-Datei gelöscht.
   - **Prüfung:** Bot mit offenen Orders stoppen und neu starten.
   - **Erwartet:** Vorhandene Orders werden übernommen, nicht doppelt gesetzt.
-- [x] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ✅ 2026-10-01
   - Bei geschlossenem Markt (trade_mode ≠ 4 oder Tick älter als 180 s) wartet die Schleife 60 s; Verbindungsverlust → Reconnect mit exponentiellem Backoff; nur „Algo Trading aus“ → warten statt neu einloggen.
   - **Prüfung:** Am Wochenende Dashboard ansehen.
   - **Erwartet:** Markt wird als geschlossen angezeigt, keine neuen Orders.
-- [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-10-01
   - Beim Verlassen der Hauptschleife werden alle Pending Orders des Robots gelöscht.
   - **Prüfung:** Nicht manuell testen (/stop beendet den Prozess hart).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-17** Grid-Abstand nach Verlust ($) umrechnen — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-17** Grid-Abstand nach Verlust ($) umrechnen — 🧪 unit ✅ 2026-10-01
   - Bei step_by_loss rechnet extract_zone_config grid_step, sell_grid_step, die Pullbacks sowie TP/SL (auch beim Nachziehen offener Positionen) als $-Betrag mit Lotgröße und trade_tick_value/trade_tick_size (Fallback Kontraktgröße) in Preisabstände um, gerundet auf den Point; die neue Position öffnet, wenn die vorige diesen Betrag im Minus ist. Ohne Symbolinfo wird die Zone abgelehnt.
   - **Prüfung:** Nicht manuell testen (siehe ZON-13).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit ✅ 2026-10-01
   - Bei instant_entry öffnet die Engine je Seite (BUY/SELL, bei BOTH beide) sofort eine Markt-Position, wenn die Zone dort keine offene Position hat und der Preis im Zonenbereich liegt – beim Start und nach dem Schließen (z. B. TP). Abgelehnte Orders werden erst nach 30 s wiederholt. Bei instant_entry/step_by_loss richtet sich das Raster an der zuletzt eröffneten Position der Seite aus (nicht am festen Preisraster).
   - **Prüfung:** Nicht manuell testen (siehe ZON-14).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-19** Fraktal-Erkennung, ATR und Parabolic SAR — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-19** Fraktal-Erkennung, ATR und Parabolic SAR — 🧪 unit ✅ 2026-10-01
   - Bill-Williams-Fraktale aus 5 geschlossenen Kerzen wie MT5 Fractals.mq5 (Mitte > beide rechten, >= beide linken Nachbarn; erst gültig, wenn die zwei rechten Kerzen geschlossen sind). ATR als einfacher Durchschnitt der True Range wie MT5 ATR.mq5, Parabolic SAR nach Wilder inkl. Wert der laufenden Kerze.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-20** Fraktal-Orders (Ausbruch / Abpraller) — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-20** Fraktal-Orders (Ausbruch / Abpraller) — 🧪 unit ✅ 2026-10-01
   - Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit}.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-21** Fraktal-Order verschieben / löschen — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-21** Fraktal-Order verschieben / löschen — 🧪 unit ✅ 2026-10-01
   - Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (mit Anzahl 1 immer höchstens eine je Seite, sonst wandert das Fenster der letzten N, siehe ENG-26). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, gilt es als verbraucht – die Order wird gelöscht und nicht neu gesetzt. Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-22** Fraktal-SL-Methoden und TP nach Chance/Risiko — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-22** Fraktal-SL-Methoden und TP nach Chance/Risiko — 🧪 unit ✅ 2026-10-01
   - SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP; mit fractal_tp_by_money stattdessen TP = Einstieg ± Preisabstand, der fractal_tp_money (Kontowährung) beim Lot der Seite entspricht (0 oder kein Tick-Wert = kein TP).
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-23** Fraktal-Positionen – kein TP/SL-Abgleich, SAR nachziehen — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-23** Fraktal-Positionen – kein TP/SL-Abgleich, SAR nachziehen — 🧪 unit ✅ 2026-10-01
   - Für Positionen einer Fraktal-Zone entfallen der TP/SL-Abgleich mit den Grid-Werten und die Teilfüllungs-Nachorder, auch von Hand geänderte SL/TP bleiben stehen. Im SAR-Modus wird der SL offener Positionen mit jeder Kerze auf den neuen SAR gezogen, nur in Gewinnrichtung und außerhalb von stops_level.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-24** Manuelle Eingriffe in MT5 respektieren — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-24** Manuelle Eingriffe in MT5 respektieren — 🧪 unit ✅ 2026-10-01
   - Verschwindet eine Fraktal-Order, ohne dass der Bot sie gelöscht hat (gefüllt, in MT5 von Hand gelöscht, abgelaufen), oder gibt es eine Position dieses Fraktals, gilt das Fraktal als erledigt – auch nach dem Schließen der Position wird dafür keine neue Order gesetzt. Der Merker (Zone + Seite → Kerzenzeiten der erledigten Fraktale) steht in data/fractal_state_<Konto>.json und übersteht Neustarts; ein neueres Fraktal öffnet wieder eine Order. Vom Bot selbst gelöschte Orders (Zone pausiert, Max. Positionen, Verschieben) zählen nicht.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-25** Von außen gelöschte Orders erkennen + Order-Flut-Bremse — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-25** Von außen gelöschte Orders erkennen + Order-Flut-Bremse — 🧪 unit ✅ 2026-10-01
   - Der Bot merkt sich jede Pending Order, die er setzt. Verschwindet sie, ohne dass er sie gelöscht hat und ohne Füllung (keine Position, Historie nicht FILLED), schreibt er eine Warnung mit dem Status aus der MT5-Historie (CANCELED/EXPIRED/REJECTED …), Ticket, Preis und Lebensdauer. Werden in einer Zone 10 Orders innerhalb von 60 s so entfernt, pausiert die Zone (wie ENG-11) mit Alarm, statt die Level endlos neu zu setzen; Positionen bleiben unberührt. Auch wer selbst 10 Orders in 60 s in MT5 löscht, pausiert so die Zone (Neustart über die Oberfläche). Anlass - am 29.09. verschwanden auf Konto 7947315 alle Orders 2–5 s nach dem Setzen, ohne Löschung im Journal des eigenen Terminals, und der Bot setzte rund 200 Orders pro Minute.
   - **Prüfung:** Nicht manuell testen (Order-Löschung von außen lässt sich nur mit einem zweiten Terminal nachstellen). → Im Ernstfall - Robot-Log nach „MT5'te kayboldu“ bzw. „Emir seli durduruldu“ durchsuchen; der Historien-Status zeigt, wer löscht.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-26** Fraktal – mehrere Orders je Richtung — 🧪 unit ✅ 2026-09-30
+- [x] **ENG-26** Fraktal – mehrere Orders je Richtung — 🧪 unit ✅ 2026-10-01
   - fractal_order_count (BUY) und sell_fractal_order_count (SELL, nur bei BOTH ohne sync_buy_sell, sonst = BUY-Wert) legen fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (1–20, Standard 1). Betrachtet werden nur die letzten N Fraktale der Seite - ist eines erreicht, ausgelöst, von Hand gelöscht oder außerhalb des Preisbereichs, bleibt sein Platz leer, ältere rücken nicht nach. Nur Pending Orders zählen - „Max. Positionen“ wird wie bisher erst in der nächsten Runde geprüft, lösen mehrere Orders zwischen zwei Runden aus, kann es kurz überschritten werden. Ein neues Fraktal schiebt das Fenster weiter, die Order des ältesten wird gelöscht. „Erledigt“ wird je Fraktal gemerkt, damit eine ausgelöste Order die übrigen nicht löscht; alte Zustandsdateien mit nur einer Kerzenzeit je Seite werden weiter gelesen.
   - **Prüfung:** Nicht manuell testen (siehe ZON-16).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
+- [x] **ENG-27** Feste Magic-Nummer je Zone (Löschen verschiebt nichts) — 🧪 unit ✅ 2026-10-01 · 🔌 api ✅ 2026-10-01
+  - Jede Zone bekommt beim Speichern eine feste Magic-Nummer (200001–200999), die nur der Worker vergibt und nie neu vergibt (ZONE_MAGIC_MAX). Bestehende Zonen behalten ihre bisherige Nummer (200000 + Listenplatz + 1), offene Orders und Positionen bleiben also zugeordnet. Die Engine findet die Zone einer Order/Position über die Magic, nicht mehr über den Listenplatz - wird eine Zone gelöscht, behalten die Zonen dahinter ihre Orders, Positionen, TP/SL und ihren Status; Orders der gelöschten Zone werden als Zombies gelöscht, ihre Positionen bekommen nicht mehr den TP/SL einer anderen Zone. Der laufende Bot erkennt das Löschen beim Neuladen der Einstellungen und trägt seinen nach Listenplatz geführten Zustand (aktive Zone je Symbol, PAUSE/AUTO_CLEAR auch in der ui_state-Datei, Fraktal-Tracking, Ablehnungs- und Verschwunden-Zähler) über die Magic auf den neuen Platz um; war die gelöschte Zone die aktive, gilt nicht plötzlich ihr Nachbar als aktiv (sonst liefe dort der Zonen-Ausstieg). Ist die Einstellungsdatei beim Neuladen kurz unlesbar (wird gerade geschrieben, Windows-Sperre), läuft der Bot mit den zuletzt gelesenen Zonen weiter, statt „keine Zonen“ anzunehmen und alle Robot-Orders als Zombies zu löschen; die API schreibt die Datei atomar. Order-Kommentare (AutoGrid_Z{n}, Fraktal AutoGrid_Z{n}_F…) nehmen n aus der Magic. Anlass - vorher rutschten beim Löschen von Zone 1 alle Magic-Nummern dahinter um eins.
+  - **Prüfung:** Demo-Konto mit zwei Zonen auf demselben Symbol, beide mit offenen Orders (und möglichst einer Position). → Zone 1 löschen und speichern. → Zone 2 behält ihre Orders und Positionen (gleiche Tickets, Magic 200002), ihre TP/SL ändern sich nicht; nur die Orders von Zone 1 verschwinden.
+  - **Erwartet:** Löschen einer Zone lässt die übrigen Zonen unverändert weiterlaufen.
 
 ## 9. MET – Live-Daten & Diagramm
 

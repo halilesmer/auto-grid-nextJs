@@ -14,7 +14,7 @@ import time
 from typing import Callable
 
 from src.core.grid_helpers import log_message as default_log_message, zone_log_id
-from src.core.grid_orders import pause_zone_for_safety
+from src.core.grid_orders import pause_zone_for_safety, zone_index_by_magic
 from src.core.state import state
 from src.utils.trade_utils import TradeState
 
@@ -61,11 +61,15 @@ def check_vanished_orders(
     position_ids = {getattr(p, "identifier", 0) or p.ticket for p in robot_positions}
     t_now = now() if now else time.monotonic()
     removed: dict = {}
+    index_by_magic = zone_index_by_magic(zones)
 
-    for ticket, (zone_idx, placed_at, price) in list(state.placed_orders.items()):
+    for ticket, (magic, placed_at, price) in list(state.placed_orders.items()):
         if ticket in open_tickets:
             continue
         del state.placed_orders[ticket]
+        zone_idx = index_by_magic.get(magic)
+        if zone_idx is None:
+            continue  # bölge bu arada silindi: emirlerini zombi temizliği (bot) sildi
         if ticket in position_ids:
             continue  # doldu, pozisyon açık
         hist = _history_order(mt5, ticket)

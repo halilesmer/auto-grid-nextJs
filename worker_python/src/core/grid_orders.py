@@ -11,7 +11,14 @@ from src.core.grid_helpers import (
     log_message,
 )
 
-BASE_MAGIC_NUMBER = 200000
+# Bölge magic yardımcıları API ile ortak (ENG-27); buradan da içe aktarılabilir
+from src.utils.zone_magic import (
+    BASE_MAGIC_NUMBER,
+    zone_index_by_magic,
+    zone_magic,
+    zone_number,
+)
+
 MAX_DEVIATION = 20
 
 
@@ -146,9 +153,13 @@ def remaining_lot_at_level(mt5, positions_at_level, symbol, symbol_infos):
 FRACTAL_COMMENT_RE = re.compile(r"^AutoGrid_Z\d+_F([UD])(\d+)$")
 
 
-def fractal_comment(zone_idx, side, bar_time):
-    """Fraktal emrinin yorumu: AutoGrid_Z{n}_F{U|D}{mum zamanı} (MT5 sınırı 31 karakter)."""
-    return f"AutoGrid_Z{zone_idx + 1}_F{side}{int(bar_time)}"
+def fractal_comment(magic, side, bar_time):
+    """Fraktal emrinin yorumu: AutoGrid_Z{n}_F{U|D}{mum zamanı} (MT5 sınırı 31 karakter).
+
+    n bölgenin magic'inden gelir; sıradan gelseydi bölge silinince yorumlar kayar ve işlenmiş
+    fraktal yeniden emir alırdı.
+    """
+    return f"AutoGrid_Z{zone_number(magic)}_F{side}{int(bar_time)}"
 
 
 def parse_fractal_comment(comment):
@@ -228,7 +239,11 @@ def send_pending_order_helper(
     consecutive_errors,
     active_zones_state,
     comment=None,
+    magic=None,
 ):
+    # magic: bölgenin kalıcı numarası (zone_magic / config.target_magic); verilmezse sıradan
+    if magic is None:
+        magic = BASE_MAGIC_NUMBER + zone_idx + 1
     if not symbol or mt5 is None:
         log_message(
             f"🚨 Hata: Bölge {zone_idx+1} için geçerli bir sembol atanmamış!", "ERROR"
@@ -259,8 +274,8 @@ def send_pending_order_helper(
         "type": order_type,
         "price": normalize_price(price, symbol, symbol_infos),
         "deviation": MAX_DEVIATION,
-        "magic": BASE_MAGIC_NUMBER + zone_idx + 1,
-        "comment": comment or f"AutoGrid_Z{zone_idx + 1}",
+        "magic": magic,
+        "comment": comment or f"AutoGrid_Z{zone_number(magic)}",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_RETURN,
         "tp": normalize_price(tp_price, symbol, symbol_infos) if tp_price else 0.0,
@@ -289,7 +304,8 @@ def send_pending_order_helper(
         if TradeState.last_order_ticket:
             from src.core.state import state
 
-            state.placed_orders[TradeState.last_order_ticket] = (zone_idx, time.monotonic(), request["price"])
+            # magic saklanır (sıra değil): arada bölge silinse de emir kendi bölgesine yazılır
+            state.placed_orders[TradeState.last_order_ticket] = (magic, time.monotonic(), request["price"])
     return True
 
 
