@@ -237,11 +237,31 @@ def test_abdeckung_und_abstandsmessung(client, broker):
     res = client.get(f"/api/market/{TEST_ACCOUNT_ID}/coverage", params={"symbol": SYMBOL})
     assert res.status_code == 200
     body = res.json()
-    assert {(c["state"], c["bars"]) for c in body["coverage"]} == {("gap_confirmed", 10), ("complete", 10)}
+    # Kerzen nur im complete-Bereich; die Pause hat keine (VPS-Test 01.10.: Pause meldete 60)
+    assert {(c["state"], c["bars"]) for c in body["coverage"]} == {("gap_confirmed", 0), ("complete", 10)}
     assert body["db_bytes"] > 0
+    # Ohne /clock-Aufruf (z. B. nach Worker-Neustart) kommt der Abstand aus dem Protokoll
+    assert body["offset_sec"] == 10800
+    assert abs(body["server_now"] - (time.time() + 10800)) < 5
     with market_db.reading() as conn:
         assert [tuple(r) for r in conn.execute("SELECT server, offset_sec FROM broker_offset_log")] == [
             ("Fake-Demo", 10800)]
+
+
+@pytest.mark.feature("ANA-04")
+def test_rates_liefert_abstand_aus_dem_protokoll(client, broker):
+    broker.ticks[SYMBOL].time = int(time.time()) + 3 * 3600
+    body = get_rates(client, SAT, MON + 600)
+    assert body["offset_sec"] == 10800
+    assert body["server_now"] is not None
+
+
+@pytest.mark.feature("ANA-04")
+def test_veralteter_abstand_wird_nicht_geliefert(client, broker):
+    market_db.log_broker_offset("Fake-Demo", time.time() - 2 * 86400, 10800)
+    broker.ticks[SYMBOL].time = 0  # keine verlässliche Messung jetzt
+    body = get_rates(client, SAT, MON + 600)
+    assert body["offset_sec"] is None and body["server_now"] is None
 
 
 # --------------------------------------------------------------------------- Backup / Migration
