@@ -180,14 +180,18 @@ export function useWebSocketManager(
   useEffect(() => {
     isMountedRef.current = true;
 
+    let deferredDisconnect: ReturnType<typeof setTimeout> | null = null;
     if (wantsStream) {
       connect();
     } else {
       // Wrap in setTimeout to avoid synchronous setState in effect
-      setTimeout(() => disconnect(), 0);
+      deferredDisconnect = setTimeout(() => disconnect(), 0);
     }
 
     return () => {
+      // Hesap sayfa yüklenir yüklenmez seçilirse (Analiz sayfası ?account=) bu efekt hemen yeniden
+      // çalışıp akışı açar; önceki turun gecikmeli disconnect'i onu yeniden bağlanmadan kapatırdı
+      if (deferredDisconnect) clearTimeout(deferredDisconnect);
       isMountedRef.current = false;
       disconnect();
     };

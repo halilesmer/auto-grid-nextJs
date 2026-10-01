@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Button, type ButtonProps } from './button';
@@ -40,6 +40,21 @@ export function DropdownMenu({
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Panel seitlich in den Bildschirm schieben (schmale Ansicht, Auslöser nah am Rand). `translate`
+  // statt `transform`: die Einblend-Animation setzt transform.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!open || !panel) return;
+    panel.style.translate = '';
+    const { left, right } = panel.getBoundingClientRect();
+    const margin = 8;
+    let dx = 0;
+    if (right > window.innerWidth - margin) dx = window.innerWidth - margin - right;
+    if (left + dx < margin) dx = margin - left;
+    if (dx) panel.style.translate = `${Math.round(dx)}px 0`;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +90,7 @@ export function DropdownMenu({
       <AnimatePresence>
         {open && (
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0, y: -6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
@@ -91,6 +107,11 @@ export function DropdownMenu({
       </AnimatePresence>
     </div>
   );
+}
+
+/** Schließt das umgebende DropdownMenu (z. B. nach „Übernehmen“ in einem Panel mit Formular). */
+export function useDropdownClose() {
+  return useContext(CloseContext);
 }
 
 /** Gruppe von Einträgen; mehrere Gruppen werden durch eine Linie getrennt. */

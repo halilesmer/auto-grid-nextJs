@@ -116,11 +116,49 @@
       "tests": 14
     }
   },
+  "ANA-01": {
+    "e2e": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 4
+    }
+  },
+  "ANA-02": {
+    "e2e": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 4
+    }
+  },
+  "ANA-03": {
+    "e2e": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ANA-10": {
+    "api": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 7
+    },
+    "e2e": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 8
+    }
+  },
   "ANA-13": {
     "api": {
       "datum": "2026-10-01",
       "status": "passed",
       "tests": 18
+    },
+    "live": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 1
     },
     "unit": {
       "datum": "2026-10-01",
@@ -742,7 +780,7 @@
     "e2e": {
       "datum": "2026-10-01",
       "status": "passed",
-      "tests": 15
+      "tests": 16
     }
   },
   "UI-08": {

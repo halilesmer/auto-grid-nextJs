@@ -1,15 +1,27 @@
 'use client';
 
-import { Suspense, type ReactNode } from 'react';
-import { ArrowLeft, BarChart3, FlaskConical, Radio, ShieldCheck } from 'lucide-react';
+import { Suspense, useEffect, useMemo, type ReactNode } from 'react';
+import { BarChart3, CandlestickChart, FlaskConical } from 'lucide-react';
 
-import ChartViewer from '@/components/ChartViewer';
 import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
-import Link from 'next/link';
+import { AccountDropdown } from '@/components/account/components';
+import { useAccounts } from '@/components/account/hooks';
+import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
+import { BrokerClockNotice, formatOffset } from '@/components/analysis/BrokerClockNotice';
+import { DateRangePicker } from '@/components/analysis/DateRangePicker';
+import { LicenseInfo } from '@/components/analysis/LicenseInfo';
+import { ZoneSelect } from '@/components/analysis/ZoneSelect';
+import AnimatedTabs from '@/components/ui/animated-tabs';
+import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
-import { Tooltip } from '@/components/ui/tooltip';
+import { useAccountSettings } from '@/hooks/useAccountSettings';
+import { useAnalysisParams, type AnalysisTab } from '@/hooks/useAnalysisParams';
+import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useT } from '@/i18n';
+import { brokerToday } from '@/lib/serverTime';
+import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
+import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
 function Placeholder({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   const t = useT();
@@ -21,72 +33,142 @@ function Placeholder({ icon, title, text }: { icon: ReactNode; title: string; te
   );
 }
 
-export default function ChartPage() {
+/**
+ * Analyse-Seite (/chart): Tabs Chart, Statistik, Backtest für ein Konto und eine Zone; Zeitraum in
+ * Brokertagen. Der Zustand steht in der URL (useAnalysisParams), Regeln: docs/analyse-regeln.md.
+ */
+function AnalysisView() {
   const t = useT();
+  const { tab, accountId: urlAccount, zoneId, range, setTab, setAccount, adoptAccount, setZone, setRange } =
+    useAnalysisParams();
+  const accounts = useAccountStore((s) => s.accounts);
+  const selected = useAccountStore((s) => s.selectedAccount);
+  const activeAccount = useAccountStore((s) => s.activeAccount);
+  const settings = useSettingsStore((s) => s.settings);
+  const loadedAccount = useSettingsStore((s) => s.loadedAccount);
+  const showZoneLines = useAnalysisPrefsStore((s) => s.showZoneLines);
+  const showZoneCard = useAnalysisPrefsStore((s) => s.showZoneCard);
+  const { fetchAccounts } = useAccounts();
+
+  const accountId = urlAccount ?? selected;
+  // Erst mit geladener Liste: ein unbekanntes/fremdes Konto aus der Adresse wird nie global gewählt
+  const accountKnown = accounts.some((a) => String(a.id) === accountId);
+
+  useEffect(() => {
+    useAnalysisPrefsStore.persist.rehydrate();
+  }, []);
+
+  // Direkt aufgerufen (Neuladen, Link): Kontoliste selbst laden
+  useEffect(() => {
+    if (useAccountStore.getState().accounts.length === 0) fetchAccounts();
+  }, [fetchAccounts]);
+
+  // Die Adresse ist die Quelle: sie wählt das Konto global (Dashboard und WebSocket folgen). Ohne
+  // ?account= wird das schon gewählte Konto in die Adresse übernommen. Die Kontoauswahl ändert nur die
+  // Adresse; so gibt es keinen Zwischenstand, in dem Store und Adresse verschiedene Konten nennen.
+  useEffect(() => {
+    if (urlAccount) {
+      if (accountKnown && urlAccount !== useAccountStore.getState().selectedAccount) selectAccount(urlAccount);
+    } else if (selected) {
+      adoptAccount(selected);
+    }
+  }, [urlAccount, selected, accountKnown, adoptAccount]);
+
+  // Ungespeicherte Zonen-Änderungen bleiben: nur laden, wenn noch nicht die Zonen dieses Kontos da sind
+  const settingsError = useAccountSettings(accountKnown ? accountId : null, 'ifMissing');
+  const zones = useMemo(
+    () => (accountId && loadedAccount === accountId && settings ? (settings.ZONES ?? []) : null),
+    [accountId, loadedAccount, settings],
+  );
+
+  // Ohne ?zone= die erste Zone des Kontos
+  useEffect(() => {
+    if (!zoneId && zones && zones.length > 0) setZone(zones[0].id);
+  }, [zoneId, zones, setZone]);
+
+  const clock = useBrokerClock(accountKnown ? accountId : null);
+  // Ohne sichere Messung in UTC (docs/analyse-regeln.md §1); der Hinweis darüber sagt es
+  const today = brokerToday(clock.clock?.reliable ? clock.clock.offset_sec : 0);
+
+  const tabs: { id: AnalysisTab; label: string; hint: string; icon: ReactNode }[] = [
+    { id: 'chart', label: t('analysis.tab.chart'), hint: t('analysis.tab.chart.hint'), icon: <CandlestickChart size={14} /> },
+    { id: 'stats', label: t('analysis.tab.stats'), hint: t('analysis.tab.stats.hint'), icon: <BarChart3 size={14} /> },
+    { id: 'backtest', label: t('analysis.tab.backtest'), hint: t('analysis.tab.backtest.hint'), icon: <FlaskConical size={14} /> },
+  ];
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
-      {/* Header with Back Button */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Tooltip content={t('chart.page.back.hint')} className="mb-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground"
-            >
-              <ArrowLeft size={14} />
-              {t('chart.page.back')}
-            </Link>
-          </Tooltip>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            {t('chart.page.title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('chart.page.subtitle')}</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{t('analysis.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('analysis.subtitle')}</p>
         </div>
-        <Badge tone="success" hint={t('chart.page.stream.hint')}>
-          <Radio size={12} />
-          {t('chart.page.stream')}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {clock.clock?.reliable && (
+            <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">
+              {t('analysis.clock.badge', { offset: formatOffset(clock.clock.offset_sec) })}
+            </Badge>
+          )}
+          <LicenseInfo />
+          <AnalysisSettingsPanel />
+        </div>
       </header>
 
-      {/* Main Grid Layout - Expandable for future panels */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Chart Section (2/3 width) */}
-        <div className="space-y-5 lg:col-span-2">
-          {/* useSearchParams (?zone=) Suspense sınırı gerektirir; aksi halde production build başarısız olur */}
-          <Suspense
-            fallback={
-              <div className="min-h-125">
-                <ChartViewer />
-              </div>
-            }
-          >
-            <ZoneChartPanel />
-          </Suspense>
-
-          {/* Future: Statistics Panel Placeholder */}
-          <div className="hidden lg:block">
-            <Placeholder
-              icon={<BarChart3 size={16} />}
-              title={t('chart.stats.title')}
-              text={t('chart.stats.text')}
-            />
+      <div className="flex flex-wrap items-center gap-2" data-testid="analysis-controls">
+        {/* Handy: jede Auswahl in eigener Zeile, sonst werden Konto- und Zonenname abgeschnitten */}
+        <div className="w-full sm:w-auto">
+          <AccountDropdown
+            accounts={accounts}
+            selectedAccount={accountId}
+            activeAccount={activeAccount}
+            onSelect={(id) => {
+              if (id !== accountId) setAccount(id);
+            }}
+          />
+        </div>
+        {accountKnown && (
+          <div className="w-full sm:w-auto">
+            <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
           </div>
-        </div>
-
-        {/* Side Panel (1/3 width) - Future: Backtest & Demo Panels */}
-        <div className="space-y-5 lg:col-span-1">
-          <Placeholder
-            icon={<FlaskConical size={16} />}
-            title={t('chart.backtest.title')}
-            text={t('chart.backtest.text')}
-          />
-          <Placeholder
-            icon={<ShieldCheck size={16} />}
-            title={t('chart.analysis.title')}
-            text={t('chart.analysis.text')}
-          />
-        </div>
+        )}
+        <DateRangePicker value={range} today={today} onChange={setRange} />
       </div>
+
+      {accountKnown && <BrokerClockNotice state={clock} />}
+      {accountKnown && settingsError && (
+        <Alert tone="danger" title={t('analysis.zone.failed')}>
+          {settingsError}
+        </Alert>
+      )}
+
+      <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" />
+
+      {!accountId ? (
+        <Alert tone="info" title={t('analysis.noAccount.title')}>
+          {t('analysis.noAccount.text')}
+        </Alert>
+      ) : !accountKnown ? (
+        accounts.length > 0 && (
+          <Alert tone="warning" title={t('analysis.noAccount.title')}>
+            {t('analysis.account.notFound', { id: accountId })}
+          </Alert>
+        )
+      ) : tab === 'chart' ? (
+        <ZoneChartPanel zoneId={zoneId} zones={zones} showZoneLines={showZoneLines} showZoneCard={showZoneCard} />
+      ) : tab === 'stats' ? (
+        <Placeholder icon={<BarChart3 size={16} />} title={t('analysis.stats.title')} text={t('analysis.stats.text')} />
+      ) : (
+        <Placeholder icon={<FlaskConical size={16} />} title={t('analysis.backtest.title')} text={t('analysis.backtest.text')} />
+      )}
     </div>
+  );
+}
+
+export default function AnalysisPage() {
+  // useSearchParams braucht eine Suspense-Grenze, sonst schlägt der Produktions-Build fehl
+  return (
+    <Suspense fallback={<div className="min-h-125" />}>
+      <AnalysisView />
+    </Suspense>
   );
 }

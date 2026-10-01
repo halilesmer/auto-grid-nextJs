@@ -266,6 +266,7 @@ export class MockWorker {
     const seg = url.pathname.replace(/^\/api/, '').split('/').filter(Boolean);
     if (seg[0] === 'logs' && seg[1] === 'download') return seg[2] ?? null;
     if (['settings', 'ui-state', 'symbols', 'logs'].includes(seg[0]) && seg.length === 2) return seg[1];
+    if (seg[0] === 'market' && seg.length === 3) return seg[1];
     if (seg[0] === 'accounts' && seg.length === 2 && method !== 'GET') return seg[1];
     if (seg[0] === 'start' || seg[0] === 'stop') return url.searchParams.get('account_id') ?? '';
     return null;
@@ -383,6 +384,30 @@ export class MockWorker {
       // Wie symbols.py: leere Liste + „error“, wenn MT5 die Symbole nicht liefern konnte
       if (s.symbolsError) return ok({ status: 'success', account_id: seg[1], symbols: [], error: s.symbolsError });
       return ok({ status: 'success', account_id: seg[1], symbols: s.symbols });
+    }
+
+    // --------------------------------------------------------------- Analyse (market.py)
+    if (seg[0] === 'market' && seg[2] === 'clock' && method === 'GET') {
+      if (!s.accounts.some((a) => String(a.id) === seg[1])) {
+        return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      }
+      // Wie market.py: ohne sichere Messung (Markt zu) kein Abstand
+      if (!s.brokerClockReliable) {
+        return ok({ account_id: seg[1], reliable: false, offset_sec: null, offset_hours: null, server_now: null, cached: false });
+      }
+      const now = Date.now() / 1000;
+      const offset = s.brokerOffset;
+      return ok({
+        account_id: seg[1],
+        offset_sec: offset,
+        offset_hours: offset / 3600,
+        raw_sec: offset - 2,
+        reliable: true,
+        source_symbol: 'USOUSD',
+        measured_at: now,
+        server_now: now + offset,
+        cached: false,
+      });
     }
 
     // --------------------------------------------------------------- Bot

@@ -4,9 +4,11 @@ import { fmt, msg } from '../fixtures/i18n';
 
 test.describe('SYS Verbindung', () => {
   test('WebSocket verbindet mit API-Schlüssel und nach Abbruch neu', { tag: '@SYS-02' }, async ({ page, worker }) => {
-    await page.goto('/chart');
-    await expect.poll(() => worker.openSockets).toBe(1);
-    expect(new URL(worker.wsUrls[0]).searchParams.get('api_key')).toBe('e2e-key');
+    // Die Analyse-Seite zeigt den Live-Chart erst mit gewähltem Konto; der Stream gehört diesem Konto
+    await page.goto(`/chart?account=${DEMO_ID}`);
+    await expect.poll(() => worker.socketAccounts).toEqual([DEMO_ID]);
+    expect(new URL(worker.wsUrls.at(-1)!).searchParams.get('api_key')).toBe('e2e-key');
+    const connects = worker.wsUrls.length;
 
     worker.pushMetrics({ price: 97.25 });
     await expect(page.getByTestId('chart-stat-price')).toContainText(fmt().number(97.25, { maximumFractionDigits: 8 }));
@@ -14,7 +16,7 @@ test.describe('SYS Verbindung', () => {
     // Worker-Neustart: Verbindung weg → Client verbindet sich nach 1 s selbst wieder
     worker.dropWebSockets();
     await expect.poll(() => worker.openSockets, { timeout: 5_000 }).toBe(1);
-    expect(worker.wsUrls).toHaveLength(2);
+    expect(worker.wsUrls).toHaveLength(connects + 1);
     worker.pushMetrics({ price: 98.5 });
     await expect(page.getByTestId('chart-stat-price')).toContainText(fmt().number(98.5));
   });

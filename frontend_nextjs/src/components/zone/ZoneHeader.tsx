@@ -10,6 +10,7 @@ import { StatusDot } from '@/components/ui/status-dot';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useFormat, useT, type MessageKey } from '@/i18n';
+import { useAccountStore } from '@/store';
 import type { ZoneHeaderProps } from './types';
 
 const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
@@ -38,6 +39,9 @@ export function ZoneHeader({
   saving,
 }: ZoneHeaderProps) {
   const t = useT();
+  // Analyse-Seite mit Konto und Zone (Neuladen und geteilte Links zeigen dieselbe Zone)
+  const selectedAccount = useAccountStore((s) => s.selectedAccount);
+  const chartHref = `/chart?${new URLSearchParams({ ...(selectedAccount ? { account: selectedAccount } : {}), zone: zone.id })}`;
   const fmt = useFormat();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -205,7 +209,7 @@ export function ZoneHeader({
         </Button>
         <Tooltip content={t('zone.header.test.hint')}>
           <Link
-            href={`/chart?zone=${zone.id}`}
+            href={chartHref}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"
           >
             <FlaskConical size={13} />

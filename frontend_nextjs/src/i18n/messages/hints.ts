@@ -54,8 +54,6 @@ export default defineArea(
       'Botu durdurur ve MT5 bağlantısını keser. Açık pozisyonlar ve bekleyen emirler broker’da kalır.',
 
     // --- Grafik ---
-    'chart.page.back.hint': 'Dashboard’a (ana sayfa) döner.',
-    'chart.page.stream.hint': 'Fiyat verisi worker’dan canlı akışla gelir.',
     'chart.soon.hint': 'Bu panel henüz hazır değil, sonraki sürümlerde eklenecek.',
     'chart.zone.active.hint': 'Bölge etkin: bot bu bölge için emir yönetir.',
     'chart.zone.inactive.hint': 'Bölge pasif: bot bu bölgeye emir koymaz.',
@@ -350,6 +348,25 @@ export default defineArea(
     'zone.fractal.tpMoney.hint':
       'Pozisyon başına hedef kâr (hesap para birimi). TP, bu tutarın o yönün lot büyüklüğünde karşılık geldiği fiyat mesafesine konur. 0 = TP yok.',
     'vps.online.restart.hint': 'Worker’ı worker API’si üzerinden yeniden başlatır (run_uvicorn_watchdog.bat açar). Botlar çalışmaya devam eder; yalnızca yönetici anahtarıyla, watchdog altında kullanılabilir.',
+    // --- Analiz ---
+    'nav.analysis.hint': 'Analiz sayfası: seçili hesap ve bölge için grafik, istatistik ve backtest.',
+    'analysis.tab.chart.hint': 'MT5 fiyat grafiği; bölge sınırları ve bölge ayarlarıyla.',
+    'analysis.tab.stats.hint': 'Gerçek işlemlerden metrikler ve eğriler (geliştiriliyor).',
+    'analysis.tab.backtest.hint': 'Bölgenin bir kopyasını geçmiş fiyatlarla test eder (geliştiriliyor). Gerçek bölge değişmez.',
+    'analysis.zone.hint': 'Analiz edilen bölge (yalnızca seçili hesabın bölgeleri). Kaydedilmemiş değişiklikler de dikkate alınır.',
+    'analysis.range.hint': 'Analiz edilen zaman aralığı, broker günü (MT5 saati) olarak. Hazır seçimler veya GG.AA.YY ile serbest aralık.',
+    'analysis.range.preset.hint': 'Aralığı „{label}“ yapar (broker günleri).',
+    'analysis.range.from.hint': 'İlk gün, GG.AA.YY (ör. 01.09.26). Bu günün başından itibaren sayılır.',
+    'analysis.range.to.hint': 'Son gün, GG.AA.YY. Bu günün sonuna kadar sayılır.',
+    'analysis.range.apply.hint': 'Girilen başlangıç ve bitişi kullanır.',
+    'analysis.range.apply.off.hint': 'Önce iki geçerli tarih girin (GG.AA.YY); başlangıç bitişten sonra olamaz.',
+    'analysis.range.calendar.hint': 'Takvimde ilk tıklama başlangıç, ikinci tıklama bitiş gününü seçer.',
+    'analysis.settings.hint': 'Grafikte ve sayfada neyin gösterileceğini seçer. Uyarılar ve model sınırları her zaman görünür.',
+    'analysis.settings.zoneLines.hint': 'Bölgenin alt ve üst fiyat sınırını grafikte yatay çizgi olarak gösterir.',
+    'analysis.settings.zoneCard.hint': 'Seçili bölgenin ayarlarını grafiğin üstünde kart olarak gösterir.',
+    'analysis.license.hint': 'Grafik kütüphanesinin lisans bilgisini gösterir (TradingView).',
+    'analysis.license.link.hint': 'TradingView web sitesini yeni sekmede açar.',
+    'analysis.clock.badge.hint': 'Broker saatinin UTC’ye farkı (worker MT5’ten ölçer). „Bugün“ ve gün sınırları buna göre hesaplanır.',
   },
   {
     // --- Account ---
@@ -400,8 +417,6 @@ export default defineArea(
       'Stops the bot and disconnects from MT5. Open positions and pending orders stay at the broker.',
 
     // --- Chart ---
-    'chart.page.back.hint': 'Returns to the dashboard (home page).',
-    'chart.page.stream.hint': 'Price data arrives as a live stream from the worker.',
     'chart.soon.hint': 'This panel is not ready yet and will be added in a later version.',
     'chart.zone.active.hint': 'Zone active: the bot manages orders for this zone.',
     'chart.zone.inactive.hint': 'Zone inactive: the bot places no orders for this zone.',
@@ -696,6 +711,25 @@ export default defineArea(
     'zone.fractal.tpMoney.hint':
       'Target profit per position (account currency). The TP is placed at the price distance this amount equals at that side\'s lot size. 0 = no TP.',
     'vps.online.restart.hint': 'Restarts the worker through the worker API (run_uvicorn_watchdog.bat brings it back). Bots keep running; admin key only, and only under the restart loop.',
+    // --- Analysis ---
+    'nav.analysis.hint': 'Analysis page: chart, statistics and backtest for the selected account and zone.',
+    'analysis.tab.chart.hint': 'MT5 price chart with the zone limits and the zone settings.',
+    'analysis.tab.stats.hint': 'Metrics and curves from real trades (in progress).',
+    'analysis.tab.backtest.hint': 'Tests a copy of the zone against past prices (in progress). The real zone does not change.',
+    'analysis.zone.hint': 'Zone being analysed (only zones of the selected account). Unsaved changes are included.',
+    'analysis.range.hint': 'Period being analysed, in broker days (MT5 time). Presets or a custom range as DD.MM.YY.',
+    'analysis.range.preset.hint': 'Sets the period to “{label}” (broker days).',
+    'analysis.range.from.hint': 'First day, DD.MM.YY (e.g. 01.09.26). Counts from the start of this day.',
+    'analysis.range.to.hint': 'Last day, DD.MM.YY. Counts up to the end of this day.',
+    'analysis.range.apply.hint': 'Uses the entered start and end.',
+    'analysis.range.apply.off.hint': 'Enter two valid dates first (DD.MM.YY); the start must not be after the end.',
+    'analysis.range.calendar.hint': 'In the calendar the first click picks the start day, the second the end day.',
+    'analysis.settings.hint': 'Chooses what the chart and page show. Warnings and model limits are always shown.',
+    'analysis.settings.zoneLines.hint': 'Shows the zone’s lower and upper price limit as horizontal lines in the chart.',
+    'analysis.settings.zoneCard.hint': 'Shows the selected zone’s settings as a card above the chart.',
+    'analysis.license.hint': 'Shows the licence notice of the chart library (TradingView).',
+    'analysis.license.link.hint': 'Opens the TradingView website in a new tab.',
+    'analysis.clock.badge.hint': 'Offset of the broker clock from UTC (measured by the worker from MT5). “Today” and day boundaries use it.',
   },
   {
     // --- Konto ---
@@ -746,8 +780,6 @@ export default defineArea(
       'Stoppt den Bot und trennt die MT5-Verbindung. Offene Positionen und Pending Orders bleiben beim Broker.',
 
     // --- Chart ---
-    'chart.page.back.hint': 'Zurück zum Dashboard (Startseite).',
-    'chart.page.stream.hint': 'Die Preisdaten kommen als Live-Stream vom Worker.',
     'chart.soon.hint': 'Dieses Panel ist noch nicht fertig und kommt in einer späteren Version.',
     'chart.zone.active.hint': 'Zone aktiv: Der Bot verwaltet Orders für diese Zone.',
     'chart.zone.inactive.hint': 'Zone inaktiv: Der Bot setzt für diese Zone keine Orders.',
@@ -1042,5 +1074,24 @@ export default defineArea(
     'zone.fractal.tpMoney.hint':
       'Ziel-Gewinn pro Position (Kontowährung). Der TP liegt im Preisabstand, der diesem Betrag beim Lot der jeweiligen Seite entspricht. 0 = kein TP.',
     'vps.online.restart.hint': 'Startet den Worker über die Worker-API neu (run_uvicorn_watchdog.bat startet ihn wieder). Bots laufen weiter; nur mit Admin-Schlüssel und nur unter der Neustart-Schleife.',
+    // --- Analyse ---
+    'nav.analysis.hint': 'Analyse-Seite: Chart, Statistik und Backtest für das gewählte Konto und die Zone.',
+    'analysis.tab.chart.hint': 'MT5-Kurschart mit den Zonengrenzen und den Zonen-Einstellungen.',
+    'analysis.tab.stats.hint': 'Kennzahlen und Kurven aus echten Trades (in Arbeit).',
+    'analysis.tab.backtest.hint': 'Testet eine Kopie der Zone mit alten Kursen (in Arbeit). Die echte Zone ändert sich nicht.',
+    'analysis.zone.hint': 'Die analysierte Zone (nur Zonen des gewählten Kontos). Ungespeicherte Änderungen zählen mit.',
+    'analysis.range.hint': 'Der analysierte Zeitraum in Brokertagen (MT5-Zeit). Vorauswahl oder eigener Zeitraum als TT.MM.JJ.',
+    'analysis.range.preset.hint': 'Setzt den Zeitraum auf „{label}“ (Brokertage).',
+    'analysis.range.from.hint': 'Erster Tag, TT.MM.JJ (z. B. 01.09.26). Zählt ab Beginn dieses Tages.',
+    'analysis.range.to.hint': 'Letzter Tag, TT.MM.JJ. Zählt bis zum Ende dieses Tages.',
+    'analysis.range.apply.hint': 'Übernimmt den eingegebenen Beginn und das Ende.',
+    'analysis.range.apply.off.hint': 'Zuerst zwei gültige Daten eingeben (TT.MM.JJ); der Beginn darf nicht nach dem Ende liegen.',
+    'analysis.range.calendar.hint': 'Im Kalender wählt der erste Klick den ersten Tag, der zweite den letzten.',
+    'analysis.settings.hint': 'Legt fest, was Chart und Seite zeigen. Warnungen und Modellgrenzen sind immer sichtbar.',
+    'analysis.settings.zoneLines.hint': 'Zeigt die untere und obere Preisgrenze der Zone als waagrechte Linien im Chart.',
+    'analysis.settings.zoneCard.hint': 'Zeigt die Einstellungen der gewählten Zone als Karte über dem Chart.',
+    'analysis.license.hint': 'Zeigt den Lizenzhinweis der Chart-Bibliothek (TradingView).',
+    'analysis.license.link.hint': 'Öffnet die Website von TradingView in einem neuen Tab.',
+    'analysis.clock.badge.hint': 'Abstand der Brokeruhr zu UTC (vom Worker in MT5 gemessen). „Heute“ und die Tagesgrenzen richten sich danach.',
   },
 );

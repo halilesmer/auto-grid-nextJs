@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-01 · **111/125** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-01 · **115/129** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 5/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 1/1 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 5/5 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -581,10 +581,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Manifest und Registrierung von /service-worker.js im Layout.
   - **Prüfung:** DevTools → Application → Service Workers.
   - **Erwartet:** Service Worker ist registriert, keine 404 in der Konsole.
-- [x] **UI-04** Zonen-Test-Link (/chart?zone=) — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
-  - Link „Test“ im Zonenkopf öffnet /chart?zone=<id>.
+- [x] **UI-04** Zonen-Test-Link (/chart?account=&zone=) — 🖥️ e2e ✅ 2026-10-01 · 👤 manuell ✅ 2026-09-23
+  - Link „Test“ im Zonenkopf öffnet die Analyse-Seite /chart?account=<Konto>&zone=<id> mit dieser Zone. Eine Zone, die es im Konto nicht gibt, meldet „Bölge bulunamadı“.
   - **Prüfung:** In einer Zone auf „Test“ klicken.
-  - **Erwartet:** Das Chart zeigt die gewählte Zone.
+  - **Erwartet:** Die Analyse-Seite zeigt das Konto und die gewählte Zone mit ihren Einstellungen.
   - 📝 v0.7.59 (Frontend aus main): 'Test'-Link → Karte 'Bölge 1 · USOUSD' mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien 20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)
 - [x] **UI-05** Sprache Türkisch / Englisch / Deutsch — 🖥️ e2e ✅ 2026-10-01
   - Umschalter TR · EN · DE in der Navigation (auf Mobil ein einzelner Button, der durchschaltet). Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
@@ -609,7 +609,23 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 
-- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) *(teilweise)* — 🧪 unit ✅ 2026-10-01 · 🔌 api ✅ 2026-10-01 · 🌐 live ⏳ · 👤 manuell ✅ 2026-10-01
+- [x] **ANA-01** Analyse-Seite mit Tabs — 🖥️ e2e ✅ 2026-10-01
+  - Menüpunkt „Analyse“ (/chart) mit den Tabs Chart, Statistik und Backtest (Statistik und Backtest noch Platzhalter). Konto, Zone, Tab und Zeitraum stehen in der URL (?account=&zone=&tab=&range= bzw. &from=&to=); Neuladen und geteilte Links zeigen dieselbe Ansicht, ohne ?account= wird das im Dashboard gewählte Konto übernommen. Der Chart-Tab zeigt die Einstellungen der Zone und ihre Preisgrenzen im Live-Chart. Ein Info-Symbol zeigt den Lizenzhinweis von TradingView Lightweight Charts™ mit Link zu tradingview.com. Bei 375 px stehen Konto, Zone und Zeitraum untereinander; Panels bleiben im Bildschirm.
+  - **Prüfung:** Im Menü „Analyse“ öffnen, ein Konto wählen. → Tab „Statistik“ wählen und die Seite neu laden. → Auf das Info-Symbol neben dem Zahnrad klicken. → Fenster auf 375 px Breite verkleinern.
+  - **Erwartet:** Die erste Zone des Kontos ist gewählt und steht mit dem Konto in der Adresse; nach dem Neuladen ist derselbe Tab offen. Der Lizenzhinweis nennt TradingView und verlinkt tradingview.com. Bei 375 px läuft nichts über.
+- [x] **ANA-02** Konto- und Zonenwahl ohne fremde Daten — 🖥️ e2e ✅ 2026-10-01
+  - Die Analyse-Seite wählt das Konto für die ganze App (Dashboard und Live-Stream folgen, gemeinsame Funktion selectAccount). Beim Kontowechsel werden Zonen, Status und Preise des alten Kontos sofort geleert; die Zonenwahl zeigt nur Zonen, die für genau dieses Konto geladen wurden (useSettingsStore.loadedAccount). Eine verspätete Antwort für ein vorher gewähltes Konto wird verworfen. Sind die Zonen dieses Kontos schon geladen, lädt die Seite sie nicht neu (ungespeicherte Zonen-Änderungen bleiben erhalten). Wird das Konto direkt beim Laden über die Adresse gewählt, verbindet sich der Live-Stream mit diesem Konto (vorher schloss ein verzögertes Trennen im WebSocket-Manager den gerade geöffneten Stream).
+  - **Prüfung:** Auf der Analyse-Seite ein Konto mit Zonen wählen, dann ein Konto ohne Zonen. → Danach zum Dashboard wechseln.
+  - **Erwartet:** Nach dem Wechsel ist keine Zone des alten Kontos mehr zu sehen, die Zonenwahl ist leer. Das Dashboard zeigt das zuletzt gewählte Konto.
+- [x] **ANA-03** Anzeige-Schalter (Zahnrad) — 🖥️ e2e ✅ 2026-10-01
+  - Das Zahnrad schaltet Zonengrenzen im Chart und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das.
+  - **Prüfung:** Zahnrad öffnen, „Karte mit Zonen-Einstellungen“ ausschalten, Seite neu laden.
+  - **Erwartet:** Die Karte bleibt nach dem Neuladen ausgeblendet; das Panel nennt die nicht abschaltbaren Hinweise.
+- [x] **ANA-10** Kalender in Brokerzeit — 🔌 api ✅ 2026-10-01 · 🖥️ e2e ✅ 2026-10-01
+  - Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1).
+  - **Prüfung:** Auf der Analyse-Seite den Zeitraum öffnen, „Letztes Jahr“ wählen. → Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden. → „31.02.26“ eingeben.
+  - **Erwartet:** Neben dem Titel steht „Broker UTC+3“ (je nach Broker). „Letztes Jahr“ zeigt 01.01.–31.12. des Vorjahres; der eigene Zeitraum bleibt nach dem Neuladen; ein ungültiges Datum wird rot gemeldet und „Übernehmen“ ist gesperrt.
+- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-01 · 🔌 api ✅ 2026-10-01 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
   - **Erwartet:** Ticket und Uhrzeit des letzten Deals stimmen sekundengenau mit MT5 überein, Tick- und Kerzenzeit passen zur Serverzeit in MT5, der Broker-Abstand ist eine glatte Zahl (z. B. UTC+3) und „verlässlich“. Das Kontomodell ist „hedging“. Im MT5-Journal erscheint keine neue Zeile „authorized on …“, der Bot-Log zeigt keinen Verbindungsabbruch.
