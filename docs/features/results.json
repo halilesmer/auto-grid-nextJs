@@ -912,6 +912,18 @@
       "tests": 5
     }
   },
+  "VPS-10": {
+    "e2e": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 2
+    },
+    "unit": {
+      "datum": "2026-10-01",
+      "status": "passed",
+      "tests": 3
+    }
+  },
   "ZON-01": {
     "e2e": {
       "datum": "2026-09-30",

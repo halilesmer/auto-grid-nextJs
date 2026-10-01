@@ -214,6 +214,13 @@ UPD-05:
   datum: '2026-09-24'
   notiz: 'Apply Update v0.7.70→v0.7.71 im Dashboard: Worker beendet sich, Watchdog
     startet neu, meldet v0.7.71; laufender Bot mit neuem Code neu gestartet'
+VPS-10:
+  status: bestanden
+  datum: '2026-10-01'
+  notiz: 'VPS 2026-10-01: setup_vps.ps1 legt AutoGrid-Tunnel an, Aufgabe laeuft alle
+    5 min (LastTaskResult 0, last_result ok, Zeiten UTC). Ausfall-Test: ngrok-Schleife
+    + ngrok.exe beendet -> 04:18 FEHLER 1/3 (404, Worker lokal OK) + AutoGrid-Start,
+    04:23 OK antwortet wieder.'
 UI-01:
   status: bestanden
   datum: '2026-09-23'
