@@ -9,6 +9,8 @@ export interface Formatters {
   price: (value: number, digits?: number) => string;
   time: (value: Date | number | string) => string;
   dateTime: (value: Date | number | string) => string;
+  /** MT5-Zeit (Sekunden, wie UTC gerechnet) als Datum + Uhrzeit, unabhängig von der Zeitzone des Browsers. */
+  mt5DateTime: (mt5Sec: number) => string;
 }
 
 export function makeFormatters(locale: Locale): Formatters {
@@ -25,5 +27,15 @@ export function makeFormatters(locale: Locale): Formatters {
       value.toLocaleString(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits }),
     time: (value) => new Date(value).toLocaleTimeString(tag, { hour12: false }),
     dateTime: (value) => new Date(value).toLocaleString(tag, { hour12: false }),
+    mt5DateTime: (mt5Sec) =>
+      new Date(mt5Sec * 1000).toLocaleString(tag, {
+        timeZone: 'UTC',
+        hour12: false,
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
   };
 }

@@ -19,7 +19,7 @@ import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useAnalysisParams, type AnalysisTab } from '@/hooks/useAnalysisParams';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useT } from '@/i18n';
-import { brokerToday } from '@/lib/serverTime';
+import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/serverTime';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
@@ -39,8 +39,19 @@ function Placeholder({ icon, title, text }: { icon: ReactNode; title: string; te
  */
 function AnalysisView() {
   const t = useT();
-  const { tab, accountId: urlAccount, zoneId, range, setTab, setAccount, adoptAccount, setZone, setRange } =
-    useAnalysisParams();
+  const {
+    tab,
+    accountId: urlAccount,
+    zoneId,
+    range,
+    timeframe,
+    setTab,
+    setAccount,
+    adoptAccount,
+    setZone,
+    setRange,
+    setTimeframe,
+  } = useAnalysisParams();
   const accounts = useAccountStore((s) => s.accounts);
   const selected = useAccountStore((s) => s.selectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
@@ -48,6 +59,14 @@ function AnalysisView() {
   const loadedAccount = useSettingsStore((s) => s.loadedAccount);
   const showZoneLines = useAnalysisPrefsStore((s) => s.showZoneLines);
   const showZoneCard = useAnalysisPrefsStore((s) => s.showZoneCard);
+  const showLevels = useAnalysisPrefsStore((s) => s.showLevels);
+  const showTrades = useAnalysisPrefsStore((s) => s.showTrades);
+  const showPauses = useAnalysisPrefsStore((s) => s.showPauses);
+  const showRsi = useAnalysisPrefsStore((s) => s.showRsi);
+  const prefs = useMemo(
+    () => ({ showZoneLines, showZoneCard, showLevels, showTrades, showPauses, showRsi }),
+    [showZoneLines, showZoneCard, showLevels, showTrades, showPauses, showRsi],
+  );
   const { fetchAccounts } = useAccounts();
 
   const accountId = urlAccount ?? selected;
@@ -88,7 +107,14 @@ function AnalysisView() {
 
   const clock = useBrokerClock(accountKnown ? accountId : null);
   // Ohne sichere Messung in UTC (docs/analyse-regeln.md §1); der Hinweis darüber sagt es
-  const today = brokerToday(clock.clock?.reliable ? clock.clock.offset_sec : 0);
+  const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
+  const today = brokerToday(offsetSec ?? 0);
+  // Zeitraum in MT5-Sekunden, halb offen; „alles“ endet mit dem heutigen Brokertag
+  const bounds = useMemo(() => {
+    const days = 'preset' in range ? presetRange(range.preset, today) : range.custom;
+    const b = rangeBounds(days);
+    return { from: b.from, to: b.to ?? dayStart(today) + DAY_SEC };
+  }, [range, today]);
 
   const tabs: { id: AnalysisTab; label: string; hint: string; icon: ReactNode }[] = [
     { id: 'chart', label: t('analysis.tab.chart'), hint: t('analysis.tab.chart.hint'), icon: <CandlestickChart size={14} /> },
@@ -154,7 +180,17 @@ function AnalysisView() {
           </Alert>
         )
       ) : tab === 'chart' ? (
-        <ZoneChartPanel zoneId={zoneId} zones={zones} showZoneLines={showZoneLines} showZoneCard={showZoneCard} />
+        <ZoneChartPanel
+          accountId={accountId}
+          zoneId={zoneId}
+          zones={zones}
+          timeframe={timeframe}
+          onTimeframe={setTimeframe}
+          range={bounds}
+          offsetSec={offsetSec}
+          clockReady={!clock.loading}
+          prefs={prefs}
+        />
       ) : tab === 'stats' ? (
         <Placeholder icon={<BarChart3 size={16} />} title={t('analysis.stats.title')} text={t('analysis.stats.text')} />
       ) : (

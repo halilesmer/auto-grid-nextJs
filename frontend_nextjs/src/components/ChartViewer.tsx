@@ -5,19 +5,15 @@ import {
   ColorType,
   LineSeries,
   CandlestickSeries,
-  LineStyle,
   UTCTimestamp,
   IChartApi,
-  IPriceLine,
   ISeriesApi,
 } from 'lightweight-charts';
-import { useAccountStore, useBotRuntimeStore, useSettingsStore, useThemeStore, useWebSocketManager } from '@/store';
-import { getSymbolConfig } from '@/utils/zoneHelpers';
+import { useAccountStore, useBotRuntimeStore, useThemeStore, useWebSocketManager } from '@/store';
+import { LiveStats } from '@/components/chart/LiveStats';
 import type { ResolvedTheme } from '@/lib/theme';
 import { CandlestickChart } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { FieldLabel } from '@/components/ui/tooltip';
-import { useFormat, useT } from '@/i18n';
+import { useT } from '@/i18n';
 
 const BAR_SECONDS = 10;
 
@@ -49,23 +45,9 @@ const CHART_COLORS: Record<ResolvedTheme, {
   },
 };
 
-/** Mum serisine çizilen yatay seviye (ör. bölgenin min/max fiyatı) */
-export interface ChartPriceLine {
-  price: number;
-  title: string;
-}
-
-interface ChartViewerProps {
-  priceLines?: ChartPriceLine[];
-}
-
-export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
+export default function ChartViewer() {
   const t = useT();
-  const fmt = useFormat();
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const priceLineRefs = useRef<IPriceLine[]>([]);
-  const metrics = useBotRuntimeStore((s) => s.metrics);
-  const symbolDetails = useSettingsStore((s) => s.symbolDetails);
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   // /chart ve /formasyon sayfalarında da canlı veri akışı açık olmalı; hesap seçilmemişse
   // (sayfa doğrudan açıldı) worker ilk hesabın akışını gönderir
@@ -182,67 +164,6 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
     rsiSeriesRef.current?.applyOptions({ color: c.rsi });
   }, [resolvedTheme]);
 
-  // Seviye çizgileri: değişince eskiler silinip yeniden çizilir (tema rengi dahil)
-  useEffect(() => {
-    const series = candleSeriesRef.current;
-    if (!series) return;
-    const color = CHART_COLORS[resolvedTheme].crosshairLabel;
-    priceLineRefs.current = (priceLines ?? [])
-      .filter((l) => Number.isFinite(l.price) && l.price > 0)
-      .map((l) =>
-        series.createPriceLine({
-          price: l.price,
-          title: l.title,
-          color,
-          lineWidth: 1,
-          lineStyle: LineStyle.Dashed,
-          axisLabelVisible: true,
-        }),
-      );
-    return () => {
-      // Unmount'ta grafik (chart.remove) bu temizlikten önce kaldırılmış olabilir
-      try {
-        priceLineRefs.current.forEach((line) => series.removePriceLine(line));
-      } catch {
-        /* seri zaten yok edildi */
-      }
-      priceLineRefs.current = [];
-    };
-  }, [priceLines, resolvedTheme]);
-
-  const profit = metrics.profit ?? 0;
-  const priceDigits = metrics.symbol ? getSymbolConfig(metrics.symbol, symbolDetails).precision : undefined;
-  const stats = [
-    {
-      id: 'price',
-      label: t('chart.stat.price'),
-      hint: t('chart.stat.price.hint'),
-      value: typeof metrics.price === 'number' ? fmt.price(metrics.price, priceDigits) : '--',
-      className: 'text-foreground',
-    },
-    {
-      id: 'rsi',
-      label: t('chart.stat.rsi'),
-      hint: t('chart.stat.rsi.hint'),
-      value: metrics.rsi ? fmt.number(metrics.rsi, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--',
-      className: 'text-info',
-    },
-    {
-      id: 'pl',
-      label: t('chart.stat.pl'),
-      hint: t('chart.stat.pl.hint'),
-      value: fmt.money(profit),
-      className: profit > 0 ? 'text-success' : profit < 0 ? 'text-danger' : 'text-foreground',
-    },
-    {
-      id: 'positions',
-      label: t('chart.stat.positions'),
-      hint: t('chart.stat.positions.hint'),
-      value: metrics.open_positions ?? 0,
-      className: 'text-foreground',
-    },
-  ];
-
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-card/80 backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-4">
@@ -255,18 +176,7 @@ export default function ChartViewer({ priceLines }: ChartViewerProps = {}) {
             <p className="mt-0.5 text-xs text-muted-foreground">{t('chart.viewer.subtitle', { seconds: BAR_SECONDS })}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              data-testid={`chart-stat-${s.id}`}
-              className="rounded-md border border-border bg-muted/50 px-3 py-1.5"
-            >
-              <FieldLabel label={s.label} hint={s.hint} className="text-[11px] font-medium text-muted-foreground" />
-              <div className={cn('font-mono text-sm font-semibold tabular-nums', s.className)}>{s.value}</div>
-            </div>
-          ))}
-        </div>
+        <LiveStats />
       </div>
       <div className="flex-1 p-2">
         {/* Die TradingView-Namensnennung (Link) erzeugt lightweight-charts selbst */}

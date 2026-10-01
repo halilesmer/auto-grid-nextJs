@@ -35,6 +35,33 @@ def test_telemetrie_zaehlt_nur_robot_orders_und_positionen(fake_mt5):
     assert metrics["algo_trading_error"] is False and metrics["order_rejected_alarm"] is False
 
 
+@pytest.mark.feature("ANA-06")
+def test_telemetrie_listet_robot_positionen_und_orders(fake_mt5, monkeypatch):
+    m = fake_mt5
+    m.add_position("USOUSD", m.POSITION_TYPE_BUY, 96.9, volume=0.02, tp=97.4, magic=MAGIC_ZONE_1, profit=-1.25)
+    m.add_position("USOUSD", m.POSITION_TYPE_BUY, 95.0, magic=0)  # manuell: nicht gelistet
+    m.add_order("USOUSD", m.ORDER_TYPE_BUY_LIMIT, 96.8, sl=96.0, magic=MAGIC_ZONE_1)
+
+    metrics = calculate_live_metrics(m, {"USOUSD"}, connection_lost=False, remote_paused=False)
+
+    [pos] = metrics["positions"]
+    assert (pos["magic"], pos["type"], pos["price_open"], pos["volume"], pos["tp"], pos["profit"]) == (
+        MAGIC_ZONE_1, m.POSITION_TYPE_BUY, 96.9, 0.02, 97.4, -1.25)
+    [order] = metrics["orders"]
+    assert (order["magic"], order["type"], order["price_open"], order["sl"]) == (
+        MAGIC_ZONE_1, m.ORDER_TYPE_BUY_LIMIT, 96.8, 96.0)
+    # Höchstens MAX_LISTED, die Zähler bleiben vollständig
+    monkeypatch.setattr("src.core.grid_metrics.MAX_LISTED", 0)
+    metrics = calculate_live_metrics(m, {"USOUSD"}, connection_lost=False, remote_paused=False)
+    assert metrics["positions"] == [] and metrics["open_positions"] == 1
+
+
+@pytest.mark.feature("ANA-06")
+def test_ohne_positionen_leere_listen(fake_mt5):
+    metrics = calculate_live_metrics(fake_mt5, {"USOUSD"}, False, False)
+    assert metrics["positions"] == [] and metrics["orders"] == []
+
+
 @pytest.mark.feature("MET-04")
 def test_alarme_in_der_telemetrie(fake_mt5):
     fake_mt5.terminal.trade_allowed = False

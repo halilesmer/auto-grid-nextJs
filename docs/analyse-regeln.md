@@ -88,6 +88,27 @@ Kurz gesagt:
 - Deals: abgeglichen gilt ein Zeitraum nur bis „jetzt − 36 h“ (24 h Überlappung + 12 h, weil der
   Broker-Abstand beim Abgleich nicht bekannt sein muss). Alles danach wird jedes Mal neu geholt.
 
+**Anzeige im Chart (Schritt 3, ANA-05/06/11):** `frontend_nextjs/src/lib/analysis/candles.ts`.
+- Gezeichnet werden nur Kerzen, die `/rates` geliefert hat. Ein fehlender Bereich (`missing`:
+  nicht verfügbar, Fehler, Konto beschäftigt) wird zu Leerstellen **ohne Preis** (nur Zeitstempel,
+  höchstens 120 je Bereich) und grau schraffiert; darüber steht ein Hinweis ohne Schalter mit
+  Zeitraum, Grund und letzter Prüfung. Er endet „jetzt“ auf der Brokeruhr: die Zukunft fehlt nie.
+- **Marktpause** im Chart: Lücke zwischen zwei echten Kerzen, mindestens zwei Kerzen lang und
+  länger als eine Kerze + 15 min (Wochenende, Feiertag, Tagespause). Eine einzelne Kerze ohne Ticks
+  ist keine Pause. Pausen sind dünne gestrichelte Linien und abschaltbar.
+- Der Chart lädt erst, wenn die Antwort der Brokeruhr da ist (sonst stünde der Zeitraum zweimal
+  fest und MT5 würde zweimal gefragt). Höchstens 100.000 Kerzen; ist der Zeitraum länger, wird nur
+  das Ende geladen, mit Hinweis.
+- **Laufende Kerze:** Reicht der Zeitraum bis jetzt, holt der Browser alle 60 s das Endstück neu
+  (der Worker hält eine Antwort mit laufender Kerze 30 s im Cache). Dazwischen schreibt der
+  Live-Preis des Streams nur die Kerze der aktuellen Zeitspanne fort oder beginnt die direkt
+  folgende; nur bei gleichem Konto und Symbol, offenem Markt und sicherer Brokeruhr. Nach einer
+  Pause oder Lücke entsteht so nie eine Kerze, die MT5 nicht hat.
+- **Stufen** (`src/lib/analysis/levels.ts`) rechnen wie `grid_execution/levels.py` vom aktuellen
+  Preis aus (Anzeige, der Bot rechnet selbst). **Positionen und Orders** kommen aus der
+  Bot-Telemetrie (`grid_metrics.py`, `positions[]`/`orders[]`, höchstens 500) und werden über die
+  feste Magic-Nummer der Zone zugeordnet; ohne laufenden Bot gibt es keine.
+
 ## 4. Kennzahlen
 
 | Begriff | Regel |
