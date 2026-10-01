@@ -97,6 +97,12 @@ export class LiveWorker {
     return (await res.json()) as T;
   }
 
+  /** GET ohne Status-Assertion: Status und JSON-Antwort zum selbst Prüfen (ein einziger Aufruf). */
+  async fetch<T = Json>(apiPath: string): Promise<{ status: number; body: T }> {
+    const res = await this.request.get(`${this.base}/api${apiPath}`, { headers: this.headers() });
+    return { status: res.status(), body: (await res.json().catch(() => ({}))) as T };
+  }
+
   async status(apiPath: string, withKey = true): Promise<number> {
     const res = await this.request.get(`${this.base}/api${apiPath}`, { headers: this.headers(withKey) });
     return res.status();

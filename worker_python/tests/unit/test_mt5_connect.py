@@ -113,6 +113,8 @@ class BootingMT5(FakeMT5):
 
     def login(self, login, password=None, server=None):
         self.login_calls += 1
+        if self.ipc:
+            self.account.login, self.account.server = login, server
         return self.ipc
 
     def terminal_info(self):
@@ -240,15 +242,97 @@ def test_symbolabfrage_beendet_nie_ein_terminal(mt5_env):
 def test_symbolabfrage_verbindet_ohne_neustart(monkeypatch):
     seen = {}
 
-    def fake_connect(account_config, timeout=60, allow_restart=True):
-        seen.update(timeout=timeout, allow_restart=allow_restart)
+    def fake_connect(account_config, timeout=60, allow_restart=True, data_query=False):
+        seen.update(timeout=timeout, allow_restart=allow_restart, data_query=data_query)
         return False, True, "[TIMEOUT] test"
 
     monkeypatch.setattr(mc, "connect_to_mt5_with_timeout", fake_connect)
 
     with pytest.raises(Exception, match="TIMEOUT"):
         asyncio.run(mh.fetch_and_cache_symbols("1001", {"login": LOGIN}, lambda *a, **k: None))
-    assert seen == {"timeout": 15, "allow_restart": False}
+    assert seen == {"timeout": 15, "allow_restart": False, "data_query": True}
+
+
+# --------------------------------------------------------------------------- Datenabruf schont die Sitzung (ANA-13)
+@pytest.mark.feature("ANA-13")
+@pytest.mark.parametrize(
+    "terminal_login, terminal_server, data_query, logins",
+    [
+        (LOGIN, "Fake-Demo", True, 0),  # Terminal schon in diesem Konto (Bot läuft): kein erneuter Login
+        (LOGIN, "fake-demo ", True, 0),  # Servername nur anders geschrieben
+        (LOGIN, "Fake-Demo", False, 1),  # /start: wie bisher immer Login
+        (9999, "Fake-Demo", True, 1),  # Terminal in anderem Konto ohne laufenden Bot: anmelden
+        (LOGIN, "Old-Server", True, 1),  # Server in accounts.json geändert: neu anmelden
+    ],
+)
+def test_datenabruf_meldet_sich_nicht_unnoetig_an(mt5_env, terminal_login, terminal_server, data_query, logins):
+    """Der API-Prozess ist noch nicht mit dem Terminal verbunden (oder war es mit einem anderen
+    Konto): initialize hängt sich an das laufende Terminal. login() würde dessen Sitzung neu
+    aufbauen, auch für dasselbe Konto, und kann den Bot dort kurz trennen."""
+    sim, clock, account, _ = mt5_env
+    sim.start_terminal(age=600)
+    sim.account.login, sim.account.server = terminal_login, terminal_server
+
+    ok, _, detail, _ = _connect(account, clock, 15, allow_restart=False, data_query=data_query)
+
+    assert ok, detail
+    assert sim.login_calls == logins
+    assert sim.account.login == LOGIN
+
+
+@pytest.mark.feature("ANA-13")
+@pytest.mark.parametrize(
+    "info_after_sec, logins",
+    [
+        (1, 0),  # Kontoinfo kommt kurz nach initialize: abwarten, Bot-Sitzung bleibt
+        (10, 1),  # Terminal bleibt länger stumm: nach 3 s wie bisher anmelden
+    ],
+)
+def test_datenabruf_wartet_kurz_auf_die_kontoinfo(mt5_env, monkeypatch, info_after_sec, logins):
+    """Direkt nach dem Anhängen an ein laufendes Terminal kann account_info() noch None sein.
+    Ein Login auf Verdacht würde die Sitzung des dort laufenden Bots neu aufbauen."""
+    sim, clock, account, _ = mt5_env
+    sim.start_terminal(age=600)
+    real = sim.account_info
+    ready_at = {}
+
+    def delayed_info():
+        if not sim.ipc:
+            return None
+        ready_at.setdefault("t", clock.now + info_after_sec)
+        return real() if clock.now >= ready_at["t"] else None
+
+    monkeypatch.setattr(sim, "account_info", delayed_info)
+
+    ok, _, detail, _ = _connect(account, clock, 15, allow_restart=False, data_query=True)
+
+    assert ok, detail
+    assert sim.login_calls == logins
+
+
+@pytest.mark.feature("ANA-13")
+@pytest.mark.parametrize("data_query, bot_running, logins", [(True, True, 0), (True, False, 1), (False, True, 1)])
+def test_datenabruf_wechselt_nie_das_konto_eines_laufenden_bots(mt5_env, monkeypatch, data_query, bot_running, logins):
+    """Geteiltes Terminal: dort ist Konto 7777 angemeldet. Läuft dessen Bot, meldet ein Datenabruf
+    für unser Konto das Terminal nicht um (das würde den Bot trennen); /start darf es weiterhin."""
+    import json
+
+    import src.utils.bot_manager as bm
+    import src.utils.paths as paths
+
+    sim, clock, account, _ = mt5_env
+    sim.start_terminal(age=600)
+    sim.account.login = 7777
+    with open(os.path.join(paths.CONFIGS_DIR, "accounts.json"), "w", encoding="utf-8") as f:
+        json.dump({"accounts": [{"id": "acc-b", "login": 7777, "mt5_path": ""}]}, f)
+    monkeypatch.setattr(bm, "is_bot_running", lambda account_id: bot_running and account_id == "acc-b")
+
+    ok, _, detail, _ = _connect(account, clock, 15, allow_restart=False, data_query=data_query)
+
+    assert sim.login_calls == logins
+    assert ok == (logins == 1), detail
+    if not ok:
+        assert "[TERMINAL]" in detail and "7777" in detail
 
 
 # --------------------------------------------------------------------------- Zeitbudget

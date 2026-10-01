@@ -26,7 +26,11 @@ from src.utils.mt5_errors import (
     python_pipe_state,
     verify_account_environment,
 )
-from src.utils.mt5_terminal_guard import foreign_terminal_error, missing_path_error
+from src.utils.mt5_terminal_guard import (
+    foreign_terminal_error,
+    missing_path_error,
+    running_bot_session_error,
+)
 
 def get_mt5_symbols_helper(mt5_available, safe_log_fn):
     if not mt5_available or platform.system() != "Windows":
@@ -143,6 +147,37 @@ def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2, deadline=No
     return False
 
 
+_ACCOUNT_INFO_WAIT_SEC = 3
+
+
+def _wait_for_account_info(mt5, deadline=None):
+    """account_info() dolu olana kadar en fazla _ACCOUNT_INFO_WAIT_SEC (ve `deadline`) bekler."""
+    stop = time.monotonic() + _ACCOUNT_INFO_WAIT_SEC
+    if deadline is not None:
+        stop = min(stop, deadline)
+    while True:
+        try:
+            if mt5.account_info() is not None:
+                return
+        except Exception:
+            pass
+        if time.monotonic() >= stop:
+            return
+        time.sleep(0.5)
+
+
+def _logged_in_as(mt5, login_id, server=None):
+    """Bağlı terminal şu an bu hesapta (ve `server` verilmişse bu sunucuda) mı oturum açmış?"""
+    try:
+        acc = mt5.account_info()
+    except Exception:
+        return False
+    if acc is None or acc.login != login_id:
+        return False
+    # Sunucu değiştiyse (accounts.json güncellendi) yeni sunucuya login gerekir
+    return not server or str(getattr(acc, "server", "")).strip().lower() == str(server).strip().lower()
+
+
 def _retry_login(mt5, login_id, password, server, max_retries=3, base_delay=2, deadline=None):
     """Exponential backoff retry for mt5.login() on transient failures.
 
@@ -172,6 +207,7 @@ def connect_internal_helper(
     mt5_import_error,
     allow_restart=True,
     deadline=None,
+    data_query=False,
 ):
     """MT5'e bağlanır ve giriş yapar; (başarılı_mı, hata_detayı) döner.
 
@@ -182,6 +218,10 @@ def connect_internal_helper(
     bekleyen istekler de onunla birlikte asılı kalıyordu.
     `allow_restart=False`: IPC hatasında terminal öldürülmez (ör. kısa süreli arka plan
     sembol sorgusu, açılmakta olan terminali öldürmesin).
+    `data_query=True` (veri sorguları: sembol listesi, analiz): oturum gereksiz yere değiştirilmez.
+    Terminal zaten bu hesapta (ve sunucuda) ise login() çağrılmaz; login aynı hesapta da oturumu
+    yeniden kurar ve o terminalde çalışan botun bağlantısını kısa süre koparabilir. Terminal başka
+    bir hesaptaysa ve o hesabın botu çalışıyorsa login yerine hata döner (docs/analyse-regeln.md §8).
     """
     if deadline is None:
         deadline = time.monotonic() + timeout_sec
@@ -306,9 +346,17 @@ def connect_internal_helper(
             return python_integration_error(safe_log_fn)
         return parse_init_error(mt5.last_error(), login_id, server, safe_log_fn)
 
-    if login_id > 0:
+    if data_query and login_id > 0:
+        # Yeni bağlanınca hesap bilgisi birkaç sn gecikebilir; oturum kararı (login mi, değil mi)
+        # boş bilgiyle verilirse çalışan botun oturumu boşuna yeniden kurulurdu
+        _wait_for_account_info(mt5, deadline)
+    already_logged_in = data_query and login_id > 0 and _logged_in_as(mt5, login_id, server)
+    if login_id > 0 and not already_logged_in:
         # login bağlı terminalin oturumunu değiştirir: başka hesabın terminaliyse dokunma
         foreign_err = foreign_terminal_error(mt5, login_id)
+        if not foreign_err and data_query:
+            # Veri sorgusu, terminalde çalışan başka bir botun oturumunu asla değiştirmez
+            foreign_err = running_bot_session_error(mt5, login_id)
         if foreign_err:
             safe_log_fn(foreign_err, type="error", account_id=login_id)
             mt5.shutdown()
@@ -320,7 +368,7 @@ def connect_internal_helper(
             mt5.shutdown()
             return parse_login_error(login_err, login_id, server, safe_log_fn)
         time.sleep(1.0)
-    else:
+    elif login_id <= 0:
         time.sleep(2.0)
 
     account_info = None
@@ -464,8 +512,9 @@ async def fetch_and_cache_symbols(account_id: str, account_config: dict, safe_lo
     
     # allow_restart=False: 15 sn'lik kısa sorgu, soğuk açılışta IPC hatası alır; terminali
     # öldürürse /start'ın (veya bot_runner'ın) açmakta olduğu terminali de öldürür.
+    # data_query: terminal zaten bu hesaptaysa (botu çalışıyor) oturuma dokunma
     ok, _is_timeout, detail = await asyncio.to_thread(
-        connect_to_mt5_with_timeout, account_config, 15, allow_restart=False
+        connect_to_mt5_with_timeout, account_config, 15, allow_restart=False, data_query=True
     )
     
     if not ok:

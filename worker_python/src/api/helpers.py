@@ -44,3 +44,12 @@ def _find_settings_file(account_id: str) -> Optional[str]:
     pattern = os.path.join(CONFIGS_DIR, f"settings_{account_id}_*.json")
     matches = glob.glob(pattern)
     return matches[0] if matches else None
+
+
+def _load_settings_data(path: str) -> dict:
+    """Ayar dosyasını okur; eski kayıtlardaki iç içe {"settings": {...}} sarmalarını açar."""
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    while isinstance(data, dict) and "settings" in data and isinstance(data["settings"], dict):
+        data = data["settings"]
+    return data

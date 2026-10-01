@@ -51,7 +51,7 @@ def _kill_zombie_mt5(path):
     kill_zombie_mt5(path, safe_log)
 
 
-def connect_to_mt5(account_config, timeout_sec=60, allow_restart=True):
+def connect_to_mt5(account_config, timeout_sec=60, allow_restart=True, data_query=False):
     """Eşzamanlı API isteklerinin MT5 IPC portunu çökertmesini önleyen kilitli sarmalayıcı.
 
     `timeout_sec` kilit beklemesini de kapsar: kilidi tutan başka bir bağlantı denemesi
@@ -77,13 +77,19 @@ def connect_to_mt5(account_config, timeout_sec=60, allow_restart=True):
             pass
 
         return _connect_to_mt5_internal(
-            account_config, timeout_sec, allow_restart=allow_restart, deadline=deadline
+            account_config,
+            timeout_sec,
+            allow_restart=allow_restart,
+            deadline=deadline,
+            data_query=data_query,
         )
     finally:
         _MT5_LOCK.release()
 
 
-def _connect_to_mt5_internal(account_config, timeout_sec=60, allow_restart=True, deadline=None):
+def _connect_to_mt5_internal(
+    account_config, timeout_sec=60, allow_restart=True, deadline=None, data_query=False
+):
     return connect_internal_helper(
         account_config,
         timeout_sec,
@@ -93,6 +99,7 @@ def _connect_to_mt5_internal(account_config, timeout_sec=60, allow_restart=True,
         MT5_IMPORT_ERROR,
         allow_restart=allow_restart,
         deadline=deadline,
+        data_query=data_query,
     )
 
 
@@ -118,19 +125,25 @@ def get_mt5_symbols():
     return get_mt5_symbols_helper(MT5_AVAILABLE, safe_log)
 
 
-def connect_to_mt5_with_timeout(account_config, timeout=60, allow_restart=True):
+def connect_to_mt5_with_timeout(account_config, timeout=60, allow_restart=True, data_query=False):
     """connect_to_mt5'i çağırır; timeout gerçekleşirse is_timeout=True döner.
 
     `timeout` tüm bağlantının süre bütçesidir (kilit beklemesi + terminal açılışı);
     yalnızca giriş/senkronizasyon bunun üzerine eklenebilir.
     `allow_restart=False`: IPC hatasında asılı terminal öldürülüp yeniden başlatılmaz.
+    `data_query=True`: veri sorgusu, oturumu gereksiz değiştirmez (bkz. connect_internal_helper).
     """
     if not account_config:
         safe_log("Bağlanılacak hesap seçilmedi!")
         return False, False, "[CONFIG] Bağlanılacak hesap seçilmedi."
 
     try:
-        ok, detail = connect_to_mt5(account_config, timeout_sec=timeout, allow_restart=allow_restart)
+        ok, detail = connect_to_mt5(
+            account_config,
+            timeout_sec=timeout,
+            allow_restart=allow_restart,
+            data_query=data_query,
+        )
         is_timeout = False
         if (
             not ok

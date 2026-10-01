@@ -155,6 +155,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 errors.py            # Merkezi hata yönetimi
 ┃ ┃ ┃ ┣ 📜 helpers.py           # API yardımcı fonksiyonları
 ┃ ┃ ┃ ┣ 📜 logs.py              # Log endpoint'leri
+┃ ┃ ┃ ┣ 📜 market.py            # Analiz sayfası veri uçları; şimdilik GET /market/{id}/time-check (salt-okunur, yalnızca admin, ANA-13)
 ┃ ┃ ┃ ┣ 📜 models.py            # Pydantic modelleri
 ┃ ┃ ┃ ┣ 📜 settings.py          # Ayarlar endpoint'leri
 ┃ ┃ ┃ ┣ 📜 symbols.py           # Sembol endpoint'leri
@@ -201,7 +202,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃   ┣ 📜 config.py            # Konfigürasyon okuma/yazma
 ┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
 ┃ ┃   ┣ 📜 mt5_errors.py        # Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi killer (180 sn'den genç terminale dokunmaz), Python kanalı kontrolü ('Python integration' kapalıysa net hata), LIVE/DEMO güvenlik
-┃ ┃   ┣ 📜 mt5_helpers.py       # İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
+┃ ┃   ┣ 📜 mt5_helpers.py       # İç bağlantı yöneticisi (retry/timeout, veri sorgusu kipi `data_query`), sembol çekme, MT5 terminal log yedekleme
+┃ ┃   ┣ 📜 mt5_market.py        # Analiz için salt-okunur MT5 sorguları (zaman kontrolü: broker saati ↔ UTC, son M1 mumları, son işlem, hedging/netting, sembol kâr hesabı türü)
 ┃ ┃   ┣ 📜 paths.py             # Yol yönetimi
 ┃ ┃   ┣ 📜 profiler.py          # Performans ölçümü
 ┃ ┃   ┣ 📜 self_updater.py      # git pull (+ requirements.txt değiştiyse pip; admin haklarıyla asla), yeniden başlatma, CLI: python -m src.utils.self_updater update|check
@@ -313,7 +315,7 @@ grid_orchestrator (Ana Orkestratör)
 
 **Hata Yönetimi Katmanı:**
 - `mt5_errors.py`: Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi MT5 process killer (açılmakta olan, 180 sn'den genç terminali öldürmez), Python kanalı (named pipe `MT5.Terminal.<SHA-256>`) kontrolü: terminal açık ama kanal yoksa MT5'te 'Python integration' kapalıdır, initialize denenmeden net hata döner, LIVE/DEMO güvenlik doğrulaması
-- `mt5_helpers.py`: İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme
+- `mt5_helpers.py`: İç bağlantı yöneticisi (retry/timeout), sembol çekme, MT5 terminal log yedekleme. Veri sorguları (sembol listesi, analiz) `data_query=True` ile bağlanır: terminal zaten o hesaptaysa (ve sunucudaysa) `login()` çağrılmaz; terminal başka bir hesaptaysa ve o hesabın botu çalışıyorsa oturum değiştirilmez, hata döner (`mt5_terminal_guard.running_bot_session_error`)
 - `api/errors.py`: Merkezi API hata yönetimi, standart hata response formatı
 
 ### 6. API Katmanı (Modüler Router Yapısı - v0.7.34+)
@@ -326,6 +328,7 @@ grid_orchestrator (Ana Orkestratör)
 | `settings.py` | `/api/settings` | Global/Zone ayarları yükleme, kaydetme |
 | `symbols.py` | `/api/symbols` | Sembol arama, detay, tick bilgisi |
 | `logs.py` | `/api/logs` | Log sorgulama, filtreleme, indirme |
+| `market.py` | `/api/market` | Analiz sayfası verisi; şimdilik `/market/{id}/time-check` (yalnızca admin, salt-okunur): broker saati, son M1 mumları, son işlem, hesap modeli. Kurallar: `docs/analyse-regeln.md` |
 | `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update (yalnızca admin); ayrı bir `/health` yok |
 | `ui_state.py` | `/api/ui-state` | UI state kaydetme/yükleme (panel genişlikleri, vb.) |
 | `models.py` | - | Paylaşılan Pydantic modelleri (Request/Response) |

@@ -1235,3 +1235,20 @@ kategorien:
           - Auf ⋯ neben der Kontoauswahl klicken, dann Escape drücken.
           - Fenster auf 375 px Breite verkleinern.
         erwartet: Konto, Bot-Steuerung und Prüfintervall stehen in einer Zeile. Das ⋯-Menü zeigt Log, Bearbeiten, Löschen und Neues Konto und schließt mit Escape. Bei 375 px stehen die Gruppen untereinander, nichts läuft über.
+
+  # ---------------------------------------------------------------------------
+  - id: ANA
+    titel: Analyse (Chart, Statistik, Backtest)
+    features:
+      - id: ANA-13
+        titel: Zeit-Check und Login-Schonung (Schritt 0)
+        beschreibung: "GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft."
+        code: [worker_python/src/api/market.py, worker_python/src/utils/mt5_market.py, worker_python/src/utils/mt5_helpers.py, worker_python/src/utils/mt5_connection.py, frontend_nextjs/e2e/live/time-check.spec.ts, docs/analyse-regeln.md]
+        tiers: [unit, api, live, manuell]
+        pruefung:
+          - Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen.
+          - Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen.
+          - Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen.
+          - Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist.
+          - Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
+        erwartet: Ticket und Uhrzeit des letzten Deals stimmen sekundengenau mit MT5 überein, Tick- und Kerzenzeit passen zur Serverzeit in MT5, der Broker-Abstand ist eine glatte Zahl (z. B. UTC+3) und „verlässlich“. Das Kontomodell ist „hedging“. Im MT5-Journal erscheint keine neue Zeile „authorized on …“, der Bot-Log zeigt keinen Verbindungsabbruch.
