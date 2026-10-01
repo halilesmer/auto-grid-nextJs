@@ -217,14 +217,15 @@ def _build_desired(
     min_dist = max(point, 1e-9)
 
     entry = normalize_price(f.price, config.symbol, symbol_infos)
-    sl = _sl_for(config, direction, f, ups, downs, atr_vals, sar_vals)
+    use_sl = config.fractal_use_sl
+    sl = _sl_for(config, direction, f, ups, downs, atr_vals, sar_vals) if use_sl else 0.0
 
     def valid(value):
         if value is None:
             return False
         return entry - value >= min_dist if direction == "BUY" else value - entry >= min_dist
 
-    if not valid(sl):
+    if use_sl and not valid(sl):
         fallback = f.low - config.fractal_sl_buffer if direction == "BUY" else f.high + config.fractal_sl_buffer
         _log_once(
             (zone_idx, side, "sl", f.time), "fallback",
@@ -233,15 +234,15 @@ def _build_desired(
             "WARN", log_message,
         )
         sl = fallback
-    sl = normalize_price(sl, config.symbol, symbol_infos)
-    if not valid(sl):
+    sl = normalize_price(sl, config.symbol, symbol_infos) if use_sl else 0.0
+    if use_sl and not valid(sl):
         _log_once(
             (zone_idx, side, "sl_invalid", f.time), "invalid",
             f"⚠️ Fraktal: {label} için geçerli SL yok (tampon 0?). Emir konmuyor.", "WARN", log_message,
         )
         return None
 
-    risk = abs(entry - sl)
+    risk = abs(entry - sl) if use_sl else 0.0
     if direction == "BUY":
         order_type = mt5.ORDER_TYPE_BUY_STOP if breakout else mt5.ORDER_TYPE_BUY_LIMIT
         gap = entry - float(tick.ask) if breakout else float(tick.ask) - entry
@@ -261,7 +262,7 @@ def _build_desired(
                     f"⚠️ Fraktal: {label} için tutar → fiyat mesafesi hesaplanamadı (tick değeri yok); TP konmuyor.",
                     "WARN", log_message,
                 )
-    elif config.fractal_rr > 0:
+    elif use_sl and config.fractal_rr > 0:  # Chance/Risiko braucht einen SL
         tp_dist = config.fractal_rr * risk
     tp = 0.0
     if tp_dist > 0:
@@ -271,7 +272,7 @@ def _build_desired(
     # Fiyat seviyeye stops_level'den yakınsa MT5 reddeder (3 ret bölgeyi durdurur) → bekle
     price_ok = gap > stops and gap > 0
     eps = min_dist / 10
-    stops_ok = risk >= stops - eps and (tp == 0.0 or abs(tp - entry) >= stops - eps)
+    stops_ok = (not use_sl or risk >= stops - eps) and (tp == 0.0 or abs(tp - entry) >= stops - eps)
     if not price_ok:
         _log_once(log_key, "near", f"⏸️ Fraktal: {label} fiyata çok yakın, emir bekliyor.", "INFO", log_message)
     elif not stops_ok:
@@ -408,7 +409,7 @@ def manage_fractal_orders(
                 f"SL {d.sl}{f' TP {d.tp}' if d.tp else ''}"
             )
 
-    if config.fractal_sl_mode == "sar":
+    if config.fractal_use_sl and config.fractal_sl_mode == "sar":
         _trail_sar(mt5, config, zone_idx, zone_positions, sar_vals[-1], sar_long[-1], tick, symbol_infos, log_message)
 
     return True

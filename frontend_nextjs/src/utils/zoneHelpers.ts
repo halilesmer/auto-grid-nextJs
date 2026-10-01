@@ -34,6 +34,7 @@ export function defaultZone(): ZoneSettings {
     entry_mode: 'grid',
     fractal_timeframe: 'H4',
     fractal_order_mode: 'breakout',
+    fractal_use_sl: true,
     fractal_sl_mode: 'atr',
     fractal_sl_buffer: 0.05,
     fractal_atr_period: 14,
