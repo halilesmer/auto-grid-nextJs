@@ -165,6 +165,11 @@ def time_check(account_config: dict, symbol: str) -> dict:
 
     Bağlantı + sorgu tek kilit altında: arada başka bir istek terminali başka hesaba geçiremez.
     """
+    return _connected(account_config, lambda mt5: collect_time_check(mt5, account_config, symbol))
+
+
+def _connected(account_config: dict, collect):
+    """Kilit altında veri sorgusu kipinde bağlanır ve `collect(mt5)` sonucunu döner."""
     if not mc._MT5_LOCK.acquire(timeout=CONNECT_TIMEOUT_SEC):
         raise MarketDataError(
             f"[TIMEOUT] Başka bir MT5 bağlantısı {CONNECT_TIMEOUT_SEC} sn içinde bitmedi. Tekrar deneyin."
@@ -175,12 +180,27 @@ def time_check(account_config: dict, symbol: str) -> dict:
         )
         if not ok:
             raise MarketDataError(detail or "MT5 bağlantısı kurulamadı")
-        return collect_time_check(mc.mt5, account_config, symbol)
+        return collect(mc.mt5)
     finally:
         mc._MT5_LOCK.release()
 
 
-def collect_time_check(mt5, account_config: dict, symbol: str) -> dict:
+def measure_clock(account_config: dict, symbol: str | None) -> dict:
+    """Broker saati: sembolün (yoksa Market Watch'ın) en taze tick'inden fark ölçümü."""
+
+    def collect(mt5):
+        _check_account(mt5, account_config)
+        tick, utc_at = _offset_reading(mt5, symbol) if symbol else (None, time.time())
+        name, best, best_utc = _freshest_reading(mt5, symbol, tick, utc_at)
+        if best is None:
+            raise MarketDataError("[TICK] Market Watch'ta tick yok; broker saati ölçülemedi.")
+        return {**broker_offset(best.time, best_utc), "source_symbol": name, "measured_at": round(best_utc, 3)}
+
+    return _connected(account_config, collect)
+
+
+def _check_account(mt5, account_config: dict):
+    """Terminal bu hesapta mı? Değilse sorgu yapılmaz (başka hesabın verisi dönmesin)."""
     try:
         login = int(account_config.get("login") or 0)
     except (TypeError, ValueError):
@@ -188,7 +208,11 @@ def collect_time_check(mt5, account_config: dict, symbol: str) -> dict:
     acc = mt5.account_info()
     if acc is None or acc.login != login:
         raise MarketDataError(f"[ACCOUNT] Terminal {login} hesabında değil; sorgu yapılmadı.")
+    return acc
 
+
+def collect_time_check(mt5, account_config: dict, symbol: str) -> dict:
+    acc = _check_account(mt5, account_config)
     info = mt5.symbol_info(symbol)
     if info is None:
         raise MarketDataError(f"[SYMBOL] {symbol} bu hesapta bulunamadı.", status=404)

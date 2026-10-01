@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Layers } from 'lucide-react';
 
 import ChartViewer, { type ChartPriceLine } from '@/components/ChartViewer';
@@ -9,7 +8,7 @@ import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
 import { FieldLabel } from '@/components/ui/tooltip';
-import { useAccountStore, useBotRuntimeStore, useSettingsStore } from '@/store';
+import { useBotRuntimeStore } from '@/store';
 import type { ZoneSettings } from '@/store/types';
 import { useT, type MessageKey } from '@/i18n';
 
@@ -114,15 +113,21 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
   );
 }
 
+interface ZoneChartPanelProps {
+  /** Zone aus der URL (?zone=); null = keine gewählt */
+  zoneId: string | null;
+  /** Zonen des gewählten Kontos; null = werden noch geladen */
+  zones: ZoneSettings[] | null;
+  showZoneLines: boolean;
+  showZoneCard: boolean;
+}
+
 /**
- * /chart?zone=<id>: seçili bölgenin ayarlarını gösterir ve min/max fiyatını grafiğe çizer.
- * Bölge bilgisi useSettingsStore'dan gelir (Dashboard'da hesap seçiliyken dolu).
+ * Chart-Tab der Analyse-Seite: Einstellungen der gewählten Zone und ihre min/max-Preise im Chart.
+ * Die Zonen kommen von der Seite (nur die des gewählten Kontos, siehe useAccountSettings).
  */
-export default function ZoneChartPanel() {
+export default function ZoneChartPanel({ zoneId, zones, showZoneLines, showZoneCard }: ZoneChartPanelProps) {
   const t = useT();
-  const zoneId = useSearchParams().get('zone');
-  const selectedAccount = useAccountStore((s) => s.selectedAccount);
-  const zones = useSettingsStore((s) => s.settings?.ZONES);
   const streamSymbol = useBotRuntimeStore((s) => s.metrics.symbol);
 
   const index = zoneId && zones ? zones.findIndex((z) => z.id === zoneId) : -1;
@@ -134,23 +139,21 @@ export default function ZoneChartPanel() {
   );
 
   const priceLines = useMemo<ChartPriceLine[] | undefined>(() => {
-    if (!zone || symbolMismatch) return undefined;
+    if (!zone || symbolMismatch || !showZoneLines) return undefined;
     return [
       { price: zone.max_price, title: t('chart.zone.lineMax') },
       { price: zone.min_price, title: t('chart.zone.lineMin') },
     ];
-  }, [zone, symbolMismatch, t]);
+  }, [zone, symbolMismatch, showZoneLines, t]);
 
   return (
     <div className="space-y-5">
-      {zoneId && !zone && (
+      {zoneId && zones && !zone && (
         <Alert tone="info" title={t('chart.zone.notFound')}>
-          {selectedAccount
-            ? t('chart.zone.notFound.withAccount')
-            : t('chart.zone.notFound.noAccount')}
+          {t('chart.zone.notFound.withAccount')}
         </Alert>
       )}
-      {zone && <ZoneInfoCard zone={zone} index={index} />}
+      {zone && showZoneCard && <ZoneInfoCard zone={zone} index={index} />}
       {symbolMismatch && zone && (
         <Alert tone="warning" title={t('chart.zone.mismatch.title')}>
           {t('chart.zone.mismatch.text', { stream: streamSymbol ?? '', symbol: zone.symbol })}

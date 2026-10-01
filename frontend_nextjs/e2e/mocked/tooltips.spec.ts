@@ -187,7 +187,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
 
     await dashboard.open(DEMO_ID);
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
-    await expect(page).toHaveURL(new RegExp(`/chart\\?zone=${ZONE_ID}`));
+    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByText(msg('chart.zone.priceRange'))).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
   });

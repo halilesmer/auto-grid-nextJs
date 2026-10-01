@@ -1,6 +1,5 @@
 'use client';
 
-import { axiosInstance } from '@/lib/api';
 import { downloadAccountLogs } from '@/lib/downloadLogs';
 import {
   AccountActions,
@@ -13,7 +12,8 @@ import {
   useAccounts,
   useMT5Scanner,
 } from './hooks';
-import { useAccountStore, useBotRuntimeStore, useSettingsStore } from '@/store';
+import { selectAccount as selectAccountInStore, useAccountStore, useBotRuntimeStore } from '@/store';
+import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { Account } from './types';
@@ -30,7 +30,6 @@ export default function AccountSelector() {
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
   const isRunning = useBotRuntimeStore((s) => s.isRunning);
-  const setSettings = useSettingsStore((s) => s.setSettings);
   const isAdmin = useIsAdmin();
 
   const { paths: mt5Paths, isScanning: scanningMt5, scan: scanMT5, error: mt5ScanError } = useMT5Scanner();
@@ -42,26 +41,9 @@ export default function AccountSelector() {
   const [useCustomPath, setUseCustomPath] = useState(false);
   const [duplicateAccount, setDuplicateAccount] = useState<Account | null>(null);
 
-  // Hesap seçimi tek noktadan: hesap değişirse eski hesabın ayarlarını hemen temizle
-  // (aksi halde yeni hesabın "kaydedilmiş" referansı eski ayarlardan alınıyordu).
-  // Aynı hesap tekrar seçilse bile activeAccount güncel listeden yeniden kurulur.
-  const selectAccount = useCallback(
-    (accountId: string | null) => {
-      const store = useAccountStore.getState();
-      if (accountId !== store.selectedAccount) {
-        setSettings(null);
-        // Önceki hesabın durumu/fiyatı/pozisyonları yeni hesapta "Çalışıyor" gibi kalmasın:
-        // yeni hesabın metrikleri gelene kadar boş başla
-        useBotRuntimeStore.getState().resetRuntime();
-      }
-      if (accountId) {
-        store.setSelectedAccount(accountId);
-      } else {
-        useAccountStore.setState({ selectedAccount: null, activeAccount: null });
-      }
-    },
-    [setSettings],
-  );
+  // Hesap seçimi tek noktadan (src/store/utils/selectAccount.ts): eski hesabın ayarları ve
+  // çalışma durumu hemen temizlenir.
+  const selectAccount = selectAccountInStore;
 
   // MT5 yollarını tara; kayıtlı yol listede yoksa "Özel Yol" moduna geç (eski davranış)
   const scanAndSyncPath = useCallback(
@@ -113,22 +95,7 @@ export default function AccountSelector() {
     if (isAdmin) usersApi.fetchUsers().catch(() => {});
   }, [isAdmin]);
 
-  useEffect(() => {
-    if (!selectedAccount) return;
-    // Hızlı hesap değişiminde geç gelen eski yanıt yeni hesabın ayarlarını ezmesin
-    let stale = false;
-    axiosInstance
-      .get(`/settings/${selectedAccount}`)
-      .then((res) => {
-        if (!stale) setSettings(res.data.settings || res.data);
-      })
-      .catch((err) => console.error('Failed to fetch settings', err));
-    return () => {
-      stale = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAccount]);
-
+  useAccountSettings(selectedAccount);
 
   const handleMT5PathSelect = (path: string) => {
     handleChange('mt5_path', path);

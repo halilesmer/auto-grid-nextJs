@@ -6,6 +6,8 @@ import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
 interface SettingsState {
   settings: GlobalSettings | null;
+  /** Konto, für das `settings` geladen wurde (useAccountSettings); null = keins/unklar. */
+  loadedAccount: string | null;
   availableSymbols: string[];
   symbolDetails: Record<string, SymbolDetail>;
   isLoadingSymbols: boolean;
@@ -13,6 +15,8 @@ interface SettingsState {
   symbolsError: string | null;
 
   setSettings: (settings: GlobalSettings | null) => void;
+  /** Vom Worker geladene Einstellungen eines Kontos (setzt auch loadedAccount). */
+  setLoadedSettings: (accountId: string, settings: GlobalSettings) => void;
   setGlobalSettings: (globals: Partial<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>>) => void;
   setZones: (zones: ZoneSettings[] | ((prev: ZoneSettings[]) => ZoneSettings[])) => void;
   /** Speichert alle Einstellungen; liefert den tatsächlich gesendeten Stand (Lots ggf. auf das Symbol-Minimum angehoben). */
@@ -27,6 +31,7 @@ interface SettingsState {
 
 const initialState = {
   settings: null,
+  loadedAccount: null,
   availableSymbols: [],
   symbolDetails: {},
   isLoadingSymbols: false,
@@ -55,10 +60,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setSettings: (settings) => {
     if (!settings) {
-      set({ settings: null });
+      set({ settings: null, loadedAccount: null });
       return;
     }
     set({ settings: sanitizeNumbers(settings) as GlobalSettings });
+  },
+
+  setLoadedSettings: (accountId, settings) => {
+    get().setSettings(settings);
+    set({ loadedAccount: accountId });
   },
 
   setGlobalSettings: (globals) =>

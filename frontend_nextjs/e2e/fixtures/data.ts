@@ -141,6 +141,9 @@ export function defaultState() {
     mt5Paths: [MT5_PATH, 'C:/Program Files/MT5_EC_Demo/terminal64.exe'],
     platform: 'win32',
     update: { has_update: false, local_ver: 'v0.7.62', remote_ver: 'v0.7.62' },
+    /** Brokeruhr je Konto (GET /market/{id}/clock): Abstand zu UTC in Sekunden; reliable=false = Markt zu. */
+    brokerOffset: 3 * 3600,
+    brokerClockReliable: true,
     /** Benutzer mit persönlichem Schlüssel; leer = Einzelbetrieb wie bisher (nur der Admin-Schlüssel). */
     users: [] as MockUser[],
   };

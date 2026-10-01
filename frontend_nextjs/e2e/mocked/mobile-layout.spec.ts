@@ -182,7 +182,7 @@ test.describe('Weitere Seiten (de)', () => {
     await expect(page.getByTestId('vps-elevated')).toBeVisible();
     await expectNoPageOverflow(page);
 
-    await page.goto(`/chart?zone=${ZONE_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByRole('navigation')).toBeVisible();
     await expectNoPageOverflow(page);
   });

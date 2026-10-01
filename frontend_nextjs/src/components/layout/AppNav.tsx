@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { CandlestickChart, Grid3x3, LayoutDashboard, Server, Users } from 'lucide-react';
+import { CandlestickChart, ChartLine, Grid3x3, LayoutDashboard, Server, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { VERSION } from '@/app/version';
@@ -22,6 +22,7 @@ const LINKS: {
   visible?: (me: Me | null) => boolean;
 }[] = [
   { href: '/', labelKey: 'nav.dashboard', hintKey: 'nav.dashboard.hint', icon: LayoutDashboard },
+  { href: '/chart', labelKey: 'nav.analysis', hintKey: 'nav.analysis.hint', icon: ChartLine },
   { href: '/formasyon', labelKey: 'nav.formation', hintKey: 'nav.formation.hint', icon: CandlestickChart },
   // /vps läuft auch ohne Worker-Verbindung: erst ausblenden, wenn feststeht, dass es kein Admin ist
   { href: '/vps', labelKey: 'nav.vps', hintKey: 'nav.vps.hint', icon: Server, visible: (me) => !me || me.role === 'admin' },
@@ -35,7 +36,7 @@ export default function AppNav() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/75 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 sm:gap-6 md:px-8">
+      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-4 sm:gap-6 md:px-8">
         <Tooltip content={t('nav.home.hint', { version: VERSION })}>
           <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]">
@@ -48,7 +49,8 @@ export default function AppNav() {
           </Link>
         </Tooltip>
 
-        <div className="h-6 w-px shrink-0 bg-border" />
+        {/* Handy: ohne Trennstrich, damit alle Menü-Symbole (bis zu 5) in die Zeile passen */}
+        <div className="hidden h-6 w-px shrink-0 bg-border sm:block" />
 
         <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
           {LINKS.filter((link) => !link.visible || link.visible(me)).map(({ href, labelKey, hintKey, icon: Icon }) => {
@@ -61,7 +63,7 @@ export default function AppNav() {
                   aria-current={active ? 'page' : undefined}
                   aria-label={label}
                   className={cn(
-                    'relative flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm sm:px-3 font-medium transition-colors',
+                    'relative flex items-center gap-2 rounded-md px-1.5 py-1.5 text-sm sm:px-3 font-medium transition-colors',
                     active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -80,7 +82,7 @@ export default function AppNav() {
           })}
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <ConnectionChip variant="inline" />
           <LanguageSwitcher />
           <ThemeToggle />

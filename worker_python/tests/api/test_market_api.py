@@ -283,3 +283,101 @@ def test_nur_admin_und_nur_vorhandene_konten(client, broker, seed_accounts, monk
                       headers={"X-API-Key": admin_key}).status_code == 404
     assert client.get(URL, params={"symbol": SYMBOL}, headers={"X-API-Key": admin_key}).status_code == 200
     assert len(broker.connect_calls) == 1
+
+
+# --------------------------------------------------------------------------- Brokeruhr (ANA-10)
+CLOCK_URL = f"/api/market/{TEST_ACCOUNT_ID}/clock"
+
+
+@pytest.fixture(autouse=True)
+def empty_clock_cache(monkeypatch):
+    import src.api.market as market
+
+    monkeypatch.setattr(market, "_last_clock", {})
+    monkeypatch.setattr(market, "_last_unsure", {})
+    monkeypatch.setattr(market, "_clock_locks", {})
+
+
+@pytest.mark.feature("ANA-10")
+def test_uhr_liefert_brokerabstand_und_merkt_ihn_sich(client, broker):
+    first = client.get(CLOCK_URL, params={"symbol": SYMBOL})
+    assert first.status_code == 200, first.text
+    body = first.json()
+    assert body["offset_sec"] == OFFSET and body["reliable"] is True and body["cached"] is False
+    assert abs(body["server_now"] - (time.time() + OFFSET)) < 5
+
+    again = client.get(CLOCK_URL, params={"symbol": SYMBOL}).json()
+
+    assert again["cached"] is True and again["offset_sec"] == OFFSET
+    assert len(broker.connect_calls) == 1  # zweiter Aufruf ohne MT5
+
+
+@pytest.mark.feature("ANA-10")
+def test_uhr_ohne_symbol_nimmt_die_marktuebersicht(client, broker):
+    body = client.get(CLOCK_URL).json()  # keine Zone gespeichert
+    assert body["source_symbol"] == SYMBOL and body["reliable"] is True
+
+
+@pytest.mark.feature("ANA-10")
+def test_uhr_bei_geschlossenem_markt_ohne_abstand(client, broker):
+    """Alter Tick: der daraus gerundete Abstand (hier „UTC−45“) wäre Unsinn → kein Abstand."""
+    broker.ticks[SYMBOL].time -= 2 * 86400 + 7 * 60
+
+    body = client.get(CLOCK_URL, params={"symbol": SYMBOL}).json()
+
+    assert body["reliable"] is False and body["cached"] is False
+    assert body["offset_sec"] is None and body["offset_hours"] is None and body["server_now"] is None
+    # Kurz danach: keine neue MT5-Verbindung
+    client.get(CLOCK_URL, params={"symbol": SYMBOL})
+    assert len(broker.connect_calls) == 1
+
+
+@pytest.mark.feature("ANA-10")
+def test_uhr_bei_geschlossenem_markt_mit_letzter_sicherer_messung(client, broker, monkeypatch):
+    import src.api.market as market
+
+    client.get(CLOCK_URL, params={"symbol": SYMBOL})
+    monkeypatch.setattr(market, "CLOCK_CACHE_SEC", 0)
+    broker.ticks[SYMBOL].time -= 2 * 86400 + 7 * 60
+
+    body = client.get(CLOCK_URL, params={"symbol": SYMBOL}).json()
+
+    assert body["reliable"] is True and body["cached"] is True and body["offset_sec"] == OFFSET
+
+
+@pytest.mark.feature("ANA-10")
+def test_uhr_faellt_auf_letzte_sichere_messung_zurueck(client, broker, monkeypatch):
+    import src.api.market as market
+
+    client.get(CLOCK_URL, params={"symbol": SYMBOL})
+    monkeypatch.setattr(market, "CLOCK_CACHE_SEC", 0)  # Messung abgelaufen
+    monkeypatch.setattr(mc, "connect_to_mt5_with_timeout", lambda *a, **k: (False, True, "[TIMEOUT] test"))
+
+    body = client.get(CLOCK_URL, params={"symbol": SYMBOL}).json()
+
+    assert body["cached"] is True and body["offset_sec"] == OFFSET and body["reliable"] is True
+
+
+@pytest.mark.feature("ANA-10")
+def test_uhr_ohne_messung_meldet_fehler(client, broker, monkeypatch):
+    import src.api.market as market
+
+    monkeypatch.setattr(market, "is_account_busy", lambda account_id: True)
+    assert client.get(CLOCK_URL).status_code == 409
+    monkeypatch.setattr(market, "is_account_busy", lambda account_id: False)
+    monkeypatch.setattr(mc, "connect_to_mt5_with_timeout", lambda *a, **k: (False, True, "[TIMEOUT] test"))
+    assert client.get(CLOCK_URL).status_code == 503
+
+
+@pytest.mark.feature("ANA-10")
+def test_uhr_fuer_eigene_konten_auch_ohne_admin(client, broker, seed_accounts, monkeypatch):
+    import src.api.auth as auth
+    from src.api import users_store
+
+    monkeypatch.setattr(auth, "WORKER_API_KEY", secrets.token_urlsafe(24))
+    owner, owner_key = users_store.create_user("Anna")
+    other, other_key = users_store.create_user("Ben")
+    seed_accounts(account(owner=owner["id"]))
+
+    assert client.get(CLOCK_URL, headers={"X-API-Key": owner_key}).status_code == 200
+    assert client.get(CLOCK_URL, headers={"X-API-Key": other_key}).status_code == 404

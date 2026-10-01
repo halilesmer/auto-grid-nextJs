@@ -199,11 +199,11 @@ test.describe('UI Oberfläche', () => {
     });
   });
 
-  test('Zonen-Test-Link öffnet /chart mit der Zone', { tag: '@UI-04' }, async ({ page, worker, dashboard }) => {
+  test('Zonen-Test-Link öffnet /chart mit Konto und Zone', { tag: '@UI-04' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
-    await expect(page).toHaveURL(`/chart?zone=${ZONE_ID}`);
-    await expect(page.getByText('Bölge 1 · USOUSD')).toBeVisible();
+    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await expect(page.getByTestId('zone-select')).toContainText('Bölge 1 · USOUSD');
     await expect(page.getByText('90 – 110')).toBeVisible();
 
     // Stream zeigt ein anderes Symbol → Hinweis, keine Zonenlinien
@@ -212,10 +212,11 @@ test.describe('UI Oberfläche', () => {
     await expect(page.getByRole('alert').filter({ hasText: msg('chart.zone.mismatch.title') })).toBeVisible();
   });
 
-  test('Unbekannte Zone auf /chart', { tag: '@UI-04' }, async ({ page }) => {
-    await page.goto('/chart?zone=gibt-es-nicht');
+  test('Unbekannte Zone auf /chart', { tag: '@UI-04' }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/chart?account=${DEMO_ID}&zone=gibt-es-nicht`);
     await expect(page.getByRole('alert').filter({ hasText: msg('chart.zone.notFound') })).toContainText(
-      msg('chart.zone.notFound.noAccount'),
+      msg('chart.zone.notFound.withAccount'),
     );
   });
 });

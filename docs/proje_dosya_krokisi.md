@@ -48,7 +48,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┗ 📜 page.tsx
 ┃ ┃ ┃ ┣ 📂 api/vps/[action]     # Route Handler: SSH ile ops/windows/vps.ps1 (localhost + VPS_SSH_HOST)
 ┃ ┃ ┃ ┃ ┗ 📜 route.ts
-┃ ┃ ┃ ┗ 📂 chart                # Grafik ve İstatistik Sayfası
+┃ ┃ ┃ ┗ 📂 chart                # Analiz sayfası (menü „Analiz“): Grafik / İstatistik / Backtest sekmeleri, hesap+bölge+tarih URL'de
 ┃ ┃ ┃   ┗ 📜 page.tsx
 ┃ ┃ ┣ 📂 components             # React bileşenleri
 ┃ ┃ ┃ ┣ 📜 BotControls.tsx      # Başlat/Durdur kontrolleri
@@ -89,6 +89,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┣ 📜 InputField.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 tooltip.tsx          # Tooltip + InfoHint (i) + FieldLabel (Popover API/top-layer); hint zorunlu, bkz. hooks/RULES.md §5
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
+┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice
 ┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri
 ┃ ┃ ┃   ┣ 📜 ZoneCard.tsx
 ┃ ┃ ┃   ┣ 📜 ZoneHeader.tsx
@@ -100,6 +101,9 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃   ┣ 📜 index.ts
 ┃ ┃ ┃   ┗ 📜 types.ts
 ┃ ┃ ┣ 📂 hooks                  # Custom React hooks
+┃ ┃ ┃ ┣ 📜 useAccountSettings.ts # Hesabın ayarlarını yükler (loadedAccount ile; geç gelen yanıt atılır)
+┃ ┃ ┃ ┣ 📜 useAnalysisParams.ts # Analiz sayfasının URL durumu (tab, account, zone, range/from/to)
+┃ ┃ ┃ ┣ 📜 useBrokerClock.ts    # GET /market/{id}/clock: broker saatinin UTC farkı
 ┃ ┃ ┃ ┣ 📜 useSymbolDetails.ts
 ┃ ┃ ┃ ┣ 📜 useZoneActions.ts
 ┃ ┃ ┃ ┣ 📜 useZoneDirtyTracking.ts
@@ -107,8 +111,10 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┗ 📜 index.ts
 ┃ ┃ ┣ 📂 services               # API servis katmanı
 ┃ ┃ ┃ ┣ 📜 api.ts               # Genel API istemcisi
+┃ ┃ ┃ ┣ 📜 marketApi.ts         # Analiz verisi (şimdilik broker saati)
 ┃ ┃ ┃ ┗ 📜 zoneApi.ts           # Zone API işlemleri
 ┃ ┃ ┣ 📂 lib                    # Kütüphane yardımcıları
+┃ ┃ ┃ ┣ 📜 serverTime.ts        # Zaman modeli: broker günü (MT5 zamanı, UTC aritmetiği), hazır aralıklar, yarı açık aralıklar (docs/analyse-regeln.md §1)
 ┃ ┃ ┃ ┣ 📜 vps.ts               # VPS aksiyonları ve tipleri (sayfa + route ortak)
 ┃ ┃ ┃ ┣ 📂 server
 ┃ ┃ ┃ ┃ ┗ 📜 vpsSsh.ts          # ssh çağrısı (sadece sunucu tarafı)
@@ -127,7 +133,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 useAccountStore.ts   # Hesap yönetimi state
 ┃ ┃ ┃ ┣ 📜 useBotRuntimeStore.ts # Bot çalışma durumu state
 ┃ ┃ ┃ ┣ 📜 useLogsStore.ts      # Log yönetimi state
-┃ ┃ ┃ ┣ 📜 useSettingsStore.ts  # Ayarlar state
+┃ ┃ ┃ ┣ 📜 useSettingsStore.ts  # Ayarlar state; loadedAccount = ayarların ait olduğu hesap
+┃ ┃ ┃ ┣ 📜 useAnalysisPrefsStore.ts # Analiz sayfası görünüm anahtarları (localStorage, skipHydration)
 ┃ ┃ ┃ ┣ 📜 useSystemStore.ts    # Sistem durumu state
 ┃ ┃ ┃ ┣ 📜 useLocaleStore.ts    # Dil tercihi (tr/en/de), localStorage'a persist
 ┃ ┃ ┃ ┣ 📜 useThemeStore.ts     # Tema tercihi (Açık/Koyu/Sistem), localStorage'a persist
@@ -135,7 +142,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 useConnectionDialogStore.ts # Bağlantı dialogunun açık/kapalı durumu (persist edilmez)
 ┃ ┃ ┃ ┣ 📜 useWebSocketManager.ts # WebSocket bağlantı yönetimi
 ┃ ┃ ┃ ┗ 📂 utils
-┃ ┃ ┃   ┗ 📜 resetStores.ts     # Store sıfırlama yardımcıları
+┃ ┃ ┃   ┣ 📜 resetStores.ts     # Store sıfırlama yardımcıları
+┃ ┃ ┃   ┗ 📜 selectAccount.ts   # Tek noktadan hesap seçimi (Dashboard + Analiz): eski hesabın ayar/çalışma durumu hemen temizlenir
 ┃ ┃ ┗ 📂 utils                  # Genel yardımcı fonksiyonlar
 ┃ ┃   ┗ 📜 zoneHelpers.ts
 ┃ ┗ 📂 .vscode                  # Frontend VS Code ayarları
@@ -329,7 +337,7 @@ grid_orchestrator (Ana Orkestratör)
 | `settings.py` | `/api/settings` | Global/Zone ayarları yükleme, kaydetme |
 | `symbols.py` | `/api/symbols` | Sembol arama, detay, tick bilgisi |
 | `logs.py` | `/api/logs` | Log sorgulama, filtreleme, indirme |
-| `market.py` | `/api/market` | Analiz sayfası verisi; şimdilik `/market/{id}/time-check` (yalnızca admin, salt-okunur): broker saati, son M1 mumları, son işlem, hesap modeli. Kurallar: `docs/analyse-regeln.md` |
+| `market.py` | `/api/market` | Analiz sayfası verisi: `/market/{id}/time-check` (yalnızca admin, salt-okunur): broker saati, son M1 mumları, son işlem, hesap modeli; `/market/{id}/clock` (kendi hesabı): broker saati farkı, 10 dk önbellek, MT5'e ulaşılamazsa son güvenilir ölçüm. Kurallar: `docs/analyse-regeln.md` |
 | `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update (yalnızca admin); ayrı bir `/health` yok |
 | `ui_state.py` | `/api/ui-state` | UI state kaydetme/yükleme (panel genişlikleri, vb.) |
 | `models.py` | - | Paylaşılan Pydantic modelleri (Request/Response) |
@@ -384,7 +392,7 @@ grid_orchestrator (Ana Orkestratör)
 | Rota | Açıklama | Ana Bileşenler |
 |------|----------|----------------|
 | `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
-| `/chart` | **Grafik ve İstatistikler** | ChartViewer (sol 2/3), Gelecek Paneller (sağ 1/3: İstatistikler, Backtest, Deneme), Ana Sayfaya Dön butonu |
+| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + canlı ChartViewer), İstatistik, Backtest (yer tutucu); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&range=`) |
 | `/formasyon` | Formasyon Analizi | (Mevcut) |
 | `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsElevatedWarning (admin haklı süreçler), VpsStatusPanel, VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
 
@@ -431,6 +439,9 @@ grid_orchestrator (Ana Orkestratör)
 
 | Hook | Sorumluluk |
 |------|------------|
+| `useAccountSettings.ts` | Hesabın ayarlarını `useSettingsStore`'a yükler (`always` = Dashboard, `ifMissing` = Analiz: kaydedilmemiş değişiklikler kalır) |
+| `useAnalysisParams.ts` | Analiz sayfasının URL durumu |
+| `useBrokerClock.ts` | Broker saati farkı (`/market/{id}/clock`) |
 | `useSymbolDetails.ts` | Sembol detayları (digits, point, min/max lot, swap), cache'leme |
 | `useZoneActions.ts` | Zone CRUD aksiyonları (add, remove, update, reorder, duplicate) |
 | `useZoneDirtyTracking.ts` | Form değişiklik takibi, kaydet/iptal durumu |

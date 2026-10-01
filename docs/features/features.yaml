@@ -1185,13 +1185,13 @@ kategorien:
         erwartet: Service Worker ist registriert, keine 404 in der Konsole.
 
       - id: UI-04
-        titel: Zonen-Test-Link (/chart?zone=)
-        beschreibung: Link „Test“ im Zonenkopf öffnet /chart?zone=<id>.
+        titel: Zonen-Test-Link (/chart?account=&zone=)
+        beschreibung: Link „Test“ im Zonenkopf öffnet die Analyse-Seite /chart?account=<Konto>&zone=<id> mit dieser Zone. Eine Zone, die es im Konto nicht gibt, meldet „Bölge bulunamadı“.
         code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx]
         tiers: [e2e]
         pruefung:
           - In einer Zone auf „Test“ klicken.
-        erwartet: Das Chart zeigt die gewählte Zone.
+        erwartet: Die Analyse-Seite zeigt das Konto und die gewählte Zone mit ihren Einstellungen.
 
       - id: UI-05
         titel: Sprache Türkisch / Englisch / Deutsch
@@ -1251,6 +1251,48 @@ kategorien:
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
     features:
+      - id: ANA-01
+        titel: Analyse-Seite mit Tabs
+        beschreibung: "Menüpunkt „Analyse“ (/chart) mit den Tabs Chart, Statistik und Backtest (Statistik und Backtest noch Platzhalter). Konto, Zone, Tab und Zeitraum stehen in der URL (?account=&zone=&tab=&range= bzw. &from=&to=); Neuladen und geteilte Links zeigen dieselbe Ansicht, ohne ?account= wird das im Dashboard gewählte Konto übernommen. Der Chart-Tab zeigt die Einstellungen der Zone und ihre Preisgrenzen im Live-Chart. Ein Info-Symbol zeigt den Lizenzhinweis von TradingView Lightweight Charts™ mit Link zu tradingview.com. Bei 375 px stehen Konto, Zone und Zeitraum untereinander; Panels bleiben im Bildschirm."
+        code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts, frontend_nextjs/src/components/analysis/LicenseInfo.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Im Menü „Analyse“ öffnen, ein Konto wählen.
+          - Tab „Statistik“ wählen und die Seite neu laden.
+          - Auf das Info-Symbol neben dem Zahnrad klicken.
+          - Fenster auf 375 px Breite verkleinern.
+        erwartet: Die erste Zone des Kontos ist gewählt und steht mit dem Konto in der Adresse; nach dem Neuladen ist derselbe Tab offen. Der Lizenzhinweis nennt TradingView und verlinkt tradingview.com. Bei 375 px läuft nichts über.
+
+      - id: ANA-02
+        titel: Konto- und Zonenwahl ohne fremde Daten
+        beschreibung: "Die Analyse-Seite wählt das Konto für die ganze App (Dashboard und Live-Stream folgen, gemeinsame Funktion selectAccount). Beim Kontowechsel werden Zonen, Status und Preise des alten Kontos sofort geleert; die Zonenwahl zeigt nur Zonen, die für genau dieses Konto geladen wurden (useSettingsStore.loadedAccount). Eine verspätete Antwort für ein vorher gewähltes Konto wird verworfen. Sind die Zonen dieses Kontos schon geladen, lädt die Seite sie nicht neu (ungespeicherte Zonen-Änderungen bleiben erhalten). Wird das Konto direkt beim Laden über die Adresse gewählt, verbindet sich der Live-Stream mit diesem Konto (vorher schloss ein verzögertes Trennen im WebSocket-Manager den gerade geöffneten Stream)."
+        code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/hooks/useAccountSettings.ts, frontend_nextjs/src/store/utils/selectAccount.ts, frontend_nextjs/src/store/useSettingsStore.ts, frontend_nextjs/src/components/analysis/ZoneSelect.tsx, frontend_nextjs/src/store/useWebSocketManager.ts]
+        tiers: [e2e]
+        pruefung:
+          - Auf der Analyse-Seite ein Konto mit Zonen wählen, dann ein Konto ohne Zonen.
+          - Danach zum Dashboard wechseln.
+        erwartet: Nach dem Wechsel ist keine Zone des alten Kontos mehr zu sehen, die Zonenwahl ist leer. Das Dashboard zeigt das zuletzt gewählte Konto.
+
+      - id: ANA-03
+        titel: Anzeige-Schalter (Zahnrad)
+        beschreibung: "Das Zahnrad schaltet Zonengrenzen im Chart und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das."
+        code: [frontend_nextjs/src/components/analysis/AnalysisSettingsPanel.tsx, frontend_nextjs/src/store/useAnalysisPrefsStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - Zahnrad öffnen, „Karte mit Zonen-Einstellungen“ ausschalten, Seite neu laden.
+        erwartet: Die Karte bleibt nach dem Neuladen ausgeblendet; das Panel nennt die nicht abschaltbaren Hinweise.
+
+      - id: ANA-10
+        titel: Kalender in Brokerzeit
+        beschreibung: "Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1)."
+        code: [frontend_nextjs/src/lib/serverTime.ts, frontend_nextjs/src/components/analysis/DateRangePicker.tsx, frontend_nextjs/src/components/analysis/BrokerClockNotice.tsx, frontend_nextjs/src/hooks/useBrokerClock.ts, worker_python/src/api/market.py, worker_python/src/utils/mt5_market.py]
+        tiers: [api, e2e]
+        pruefung:
+          - Auf der Analyse-Seite den Zeitraum öffnen, „Letztes Jahr“ wählen.
+          - Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden.
+          - „31.02.26“ eingeben.
+        erwartet: Neben dem Titel steht „Broker UTC+3“ (je nach Broker). „Letztes Jahr“ zeigt 01.01.–31.12. des Vorjahres; der eigene Zeitraum bleibt nach dem Neuladen; ein ungültiges Datum wird rot gemeldet und „Übernehmen“ ist gesperrt.
+
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)
         beschreibung: "GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft."

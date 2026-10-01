@@ -27,8 +27,16 @@ Kurz gesagt:
   rechnet. So liegen auch Swap und D1-Kerzen.
 - **Zeiträume sind halb offen.** „Vom 01.03. bis 31.03.“ heißt intern: ab 01.03. 00:00 bis vor
   01.04. 00:00. Es gibt kein künstliches 23:59:59.
-- **„Heute“, „diese Woche“:** Diese Vorauswahlen nutzen die aktuelle Brokerzeit (VPS-Uhr + gemessener
-  Abstand), nicht die Uhr des Browsers.
+- **„Heute“, „diese Woche“:** Diese Vorauswahlen nutzen die aktuelle Brokerzeit (Uhr + gemessener
+  Abstand), nicht die Uhr des Browsers. Den Abstand liefert `GET /api/market/{id}/clock` (der Worker
+  merkt sich eine sichere Messung 10 min; ohne MT5 gilt die letzte sichere). Ein alter Tick (Markt zu)
+  ergibt keinen Abstand, nie einen geschätzten. Ist er unbekannt, rechnet die Seite vorerst in UTC,
+  fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis.
+- **Vorauswahlen** (`frontend_nextjs/src/lib/serverTime.ts`): Die Woche beginnt am Montag. „Letzte
+  7/30/90 Tage“ schließen heute ein. „Letzte 12 Monate“ beginnt am Tag nach demselben Datum im
+  Vorjahr (29.02. → 28.02.). „Alles“ hat keine Grenzen. Vorauswahlen bleiben in der Adresse als Name
+  (`range=last30`) und werden beim Neuladen neu auf „heute“ bezogen; eigene Zeiträume stehen als
+  Tage darin (`from=2026-09-01&to=2026-09-15`).
 - **Anzeige:** Chart und Tabellen zeigen MT5-Zeit, beschriftet als „Brokerzeit (MT5)“.
   Lightweight Charts kennt keine Zeitzonen; die Zeiten gehen deshalb unverändert an den Chart.
 - **Abfragen an MT5** bekommen Zeiten als ganze Sekunden, nie als `datetime` ohne Zeitzone: die
