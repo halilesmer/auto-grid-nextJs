@@ -181,14 +181,14 @@ aussieht.
    Im Bot-Log darf kein Verbindungsabbruch stehen.
 5. Ergebnis eintragen (Tabelle unten) und `scripts/features/run.sh sign ANA-13 bestanden "Notiz"`.
 
-**Messergebnisse:**
+**Messergebnisse** (01.10.2026, DEMO 7942034 @ Eightcap-Demo, USOUSD, Bot lief):
 
 | Prüfung | Ergebnis |
 |---|---|
-| Letzter Deal: Ticket und Zeit in MT5 = API | offen |
-| Kerzen- und Tickzeit passen zur MT5-Serverzeit | offen |
-| Broker-Abstand (Sommer/Winter) | offen |
-| Zeitzone des VPS | offen |
-| Kontomodell des DEMO-Kontos (Hedging?) | offen |
-| Berechnungsart der genutzten Symbole | offen |
-| Kein neuer Login im MT5-Journal beim Datenabruf | offen |
+| Letzter Deal: Ticket und Zeit in MT5 = API | ✓ #231139614, 16:34:13 in MT5-Historie und API gleich |
+| Kerzen- und Tickzeit passen zur MT5-Serverzeit | ✓ letzte M1-Kerze 16:42 = laufende Minute des Ticks 16:42:15 |
+| Broker-Abstand | UTC+3 (Sommerzeit), verlässlich (roh 10799 s); Winterwert offen |
+| Zeitzone des VPS | UTC+2; das MT5-Journal zeigt VPS-Zeit (1 h hinter der Brokerzeit) |
+| Kontomodell des DEMO-Kontos | Hedging → Backtest möglich |
+| Berechnungsart der genutzten Symbole | USOUSD: CFD mit Hebel (unterstützt), Gewinnwährung USD, Dreifach-Swap Freitag |
+| Kein neuer Login im MT5-Journal beim Datenabruf | ✓ keine „authorized on …“-Zeile beim Check (Journal 15:40–15:45 VPS-Zeit) |

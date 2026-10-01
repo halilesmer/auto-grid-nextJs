@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-01 · **110/125** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-01 · **111/125** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 5/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 0/1 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 1/1 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -609,7 +609,8 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 
-- [ ] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-01 · 🔌 api ✅ 2026-10-01 · 🌐 live ⏳ · 👤 manuell ⏳
+- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) *(teilweise)* — 🧪 unit ✅ 2026-10-01 · 🔌 api ✅ 2026-10-01 · 🌐 live ⏳ · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
   - **Erwartet:** Ticket und Uhrzeit des letzten Deals stimmen sekundengenau mit MT5 überein, Tick- und Kerzenzeit passen zur Serverzeit in MT5, der Broker-Abstand ist eine glatte Zahl (z. B. UTC+3) und „verlässlich“. Das Kontomodell ist „hedging“. Im MT5-Journal erscheint keine neue Zeile „authorized on …“, der Bot-Log zeigt keinen Verbindungsabbruch.
+  - 📝 VPS 01.10.2026: Deal #231139614 16:34:13 = MT5, UTC+3 verlässlich, Hedging, kein Login im Journal

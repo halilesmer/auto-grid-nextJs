@@ -237,3 +237,8 @@ UI-04:
   notiz: 'v0.7.59 (Frontend aus main): ''Test''-Link → Karte ''Bölge 1 · USOUSD''
     mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien
     20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)'
+ANA-13:
+  status: bestanden
+  datum: '2026-10-01'
+  notiz: 'VPS 01.10.2026: Deal #231139614 16:34:13 = MT5, UTC+3 verlässlich, Hedging,
+    kein Login im Journal'
