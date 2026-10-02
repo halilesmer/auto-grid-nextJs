@@ -116,13 +116,31 @@ def test_neues_fraktal_verschiebt_die_order(fake_mt5):
 
 
 @pytest.mark.feature("ENG-21")
-def test_durchbrochenes_fraktal_wird_geloescht_und_nicht_neu_gesetzt(fake_mt5):
-    h = setup(fake_mt5, order_type="BUY")
-    h.tick()
-    assert fake_mt5.orders
-    fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_H4, bars(FLAT + SHAPE + [(97.7, 97.0)]))
+def test_durchbrochenes_fraktal_bekommt_keine_order(fake_mt5):
+    h = setup(fake_mt5, FLAT + SHAPE + [(97.7, 97.0), (97.3, 96.9)], order_type="BUY")
     h.tick()
     h.tick()
+    assert fake_mt5.orders == []
+
+
+@pytest.mark.feature("ENG-21")
+def test_bestehende_buy_limit_bleibt_wenn_nur_der_bid_das_fraktal_beruehrt(fake_mt5):
+    # Kerzen sind Bid, BUY LIMIT füllt auf Ask: Bid erreicht das untere Fraktal, Ask nicht → Order bleibt
+    h = setup(fake_mt5, order_type="BUY", fractal_order_mode="rebound")
+    h.tick()
+    order = order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_LIMIT)
+    assert order.price_open == pytest.approx(96.5)
+    fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_H4, bars(FLAT + SHAPE + [(96.9, 96.5), (96.7, 96.505)]))
+    fake_mt5.set_price("USOUSD", 96.505, 96.515)
+    sent = len(fake_mt5.sent)
+    h.tick()
+    h.tick()
+    assert [o.ticket for o in fake_mt5.orders] == [order.ticket]
+    assert len(fake_mt5.sent) == sent  # nicht gelöscht, nicht neu gesetzt, SL/TP nicht geändert
+
+    fake_mt5.set_price("USOUSD", 96.49, 96.5)  # Ask erreicht die Order → füllt
+    h.tick()
+    assert len(fake_mt5.robot_positions(MAGIC_ZONE_1)) == 1
     assert fake_mt5.orders == []
 
 
@@ -377,9 +395,10 @@ def test_anzahl_zwei_setzt_orders_auf_die_letzten_zwei_fraktale(fake_mt5):
 def test_fenster_wandert_und_leerer_platz_wird_nicht_aufgefuellt(fake_mt5):
     h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2)
     h.tick()
+    fake_mt5.set_price("USOUSD", 97.46, 97.47)  # BUY STOP 97,45 füllt
     fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_H4, bars(THREE_UP))
     h.tick()
-    # Letzte zwei: 97,5 und 97,45 (durchbrochen → Platz bleibt leer); 97,6 ist aus dem Fenster
+    # Letzte zwei: 97,5 und 97,45 (ausgelöst → Platz bleibt leer); 97,6 ist aus dem Fenster
     assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.5]
 
     h.zones[0]["fractal_order_count"] = 3
