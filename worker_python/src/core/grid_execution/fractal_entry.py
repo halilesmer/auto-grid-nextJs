@@ -5,8 +5,10 @@ Her taraf (üst "U" / alt "D") için en yeni N onaylanmış fraktal birer bekley
 - breakout (kırılım): üst fraktal → BUY STOP, alt fraktal → SELL STOP
 - rebound (dönüş):    üst fraktal → SELL LIMIT, alt fraktal → BUY LIMIT
 Yeni fraktal oluşunca pencere kayar (en eski fraktalın emri silinir, yenisi konur). Fiyat fraktal
-seviyesine ulaştıysa fraktal "tüketilmiştir", emir konmaz; yeri boş kalır, daha eski fraktalla
-doldurulmaz.
+seviyesine ulaştıysa fraktal "tüketilmiştir", yeni emir konmaz; yeri boş kalır, daha eski fraktalla
+doldurulmaz. O fraktalın zaten bekleyen emri ise silinmez: dolup dolmayacağına MT5 karar verir. Mumlar
+Bid'dir, BUY LIMIT ise Ask'ta dolar; Bid alt fraktala değip Ask değmeyince emir dolmamış olur ve
+silinseydi, fiyat her yaklaştığında emir kaybolurdu.
 
 Elle müdahale korunur: fraktal emri bot silmeden kaybolursa (doldu, MT5'te elle silindi, süresi
 doldu) o fraktal "işlenmiş" sayılır ve data/fractal_state_<hesap>.json'a yazılır; aynı fraktala
@@ -57,10 +59,11 @@ class DesiredOrder:
     price_ok: bool  # False: fiyat girişe stops_level'den yakın → yeni emir konmaz
     stops_ok: bool  # False: SL/TP girişe stops_level'den yakın (MT5 reddeder / enforce_stops_level kaydırır)
     done_key: str
+    consumed: bool = False  # True: fiyat fraktala ulaştı → yeni emir yok, mevcut emir kalır
 
     @property
     def placeable(self) -> bool:
-        return self.price_ok and self.stops_ok
+        return not self.consumed and self.price_ok and self.stops_ok
 
 
 def _log_once(key: tuple, value, msg: str, level: str, log_message) -> None:
@@ -190,10 +193,8 @@ def _build_desired(
     breakout = config.fractal_order_mode == "breakout"
     direction = _direction_of(config, side)
 
-    # Fraktal zamanı anahtarda: taraf başına birden çok fraktal aynı turda değerlendirilir
-    log_key = (zone_idx, side, f.time)
-    tf = config.fractal_timeframe
-    label = f"Bölge {zone_idx+1} | {tf} {SIDE_NAMES[side]} fraktal {f.price} ({_fmt_time(f.time)})"
+    log_key = _log_key(zone_idx, side, f)
+    label = _label(config, zone_idx, side, f)
 
     done_key = _done_key(zone_key, config, side)
     if f.time in state.fractal_done.get(done_key, ()):
@@ -207,16 +208,26 @@ def _build_desired(
         consumed = any(float(b["high"]) >= f.price for b in later) or float(tick.bid) >= f.price
     else:
         consumed = any(float(b["low"]) <= f.price for b in later) or float(tick.ask) <= f.price
+
+    if direction == "BUY":
+        order_type = mt5.ORDER_TYPE_BUY_STOP if breakout else mt5.ORDER_TYPE_BUY_LIMIT
+        lot = config.lot_size
+    else:
+        order_type = mt5.ORDER_TYPE_SELL_STOP if breakout else mt5.ORDER_TYPE_SELL_LIMIT
+        lot = config.sell_lot_size
+    entry = normalize_price(f.price, config.symbol, symbol_infos)
+    volume = normalize_volume(lot, config.symbol, symbol_infos)
     if consumed:
-        _log_once(log_key, "consumed", f"ℹ️ Fraktal: {label} fiyatça geçildi, emir yok.", "INFO", log_message)
-        return None
+        # Yalnızca mevcut emri eşleştirmek için (silinmesin): yeni emir yok, SL/TP'ye dokunulmaz
+        # (stops_ok=False → MODIFY yok; fiyatın dibinde freeze_level'e takılırdı), SL uyarısı da yok.
+        # "Geçildi" logu manage_fractal_orders'ta: mevcut emir olup olmadığı orada belli.
+        return DesiredOrder(side, f, direction, order_type, entry, 0.0, 0.0, volume, False, False, done_key, True)
 
     info = symbol_infos.get(config.symbol)
     point = float(getattr(info, "point", 0) or 0) if info is not None else 0.0
     stops = float(getattr(info, "trade_stops_level", 0) or 0) * point if info is not None else 0.0
     min_dist = max(point, 1e-9)
 
-    entry = normalize_price(f.price, config.symbol, symbol_infos)
     use_sl = config.fractal_use_sl
     sl = _sl_for(config, direction, f, ups, downs, atr_vals, sar_vals) if use_sl else 0.0
 
@@ -244,13 +255,9 @@ def _build_desired(
 
     risk = abs(entry - sl) if use_sl else 0.0
     if direction == "BUY":
-        order_type = mt5.ORDER_TYPE_BUY_STOP if breakout else mt5.ORDER_TYPE_BUY_LIMIT
         gap = entry - float(tick.ask) if breakout else float(tick.ask) - entry
-        lot = config.lot_size
     else:
-        order_type = mt5.ORDER_TYPE_SELL_STOP if breakout else mt5.ORDER_TYPE_SELL_LIMIT
         gap = float(tick.bid) - entry if breakout else entry - float(tick.bid)
-        lot = config.sell_lot_size
 
     tp_dist = 0.0
     if config.fractal_tp_by_money:
@@ -283,9 +290,17 @@ def _build_desired(
         )
 
     return DesiredOrder(
-        side, f, direction, order_type, entry, sl, tp,
-        normalize_volume(lot, config.symbol, symbol_infos), price_ok, stops_ok, done_key,
+        side, f, direction, order_type, entry, sl, tp, volume, price_ok, stops_ok, done_key,
     )
+
+
+def _log_key(zone_idx: int, side: str, f: Fractal) -> tuple:
+    # Fraktal zamanı anahtarda: taraf başına birden çok fraktal aynı turda değerlendirilir
+    return (zone_idx, side, f.time)
+
+
+def _label(config: ZoneConfig, zone_idx: int, side: str, f: Fractal) -> str:
+    return f"Bölge {zone_idx+1} | {config.fractal_timeframe} {SIDE_NAMES[side]} fraktal {f.price} ({_fmt_time(f.time)})"
 
 
 def _same_entry(order, d: DesiredOrder, tol: float) -> bool:
@@ -376,6 +391,13 @@ def manage_fractal_orders(
             d = desired[hit]
             matched.add(hit)
             tracked[order.ticket] = (d.done_key, d.side, d.fractal.time)
+            if d.consumed:
+                _log_once(
+                    (zone_idx, d.side, "touched", d.fractal.time), "kept",
+                    f"ℹ️ Fraktal: {_label(config, zone_idx, d.side, d.fractal)} fiyatça ulaşıldı; "
+                    f"emir (Bilet {order.ticket}) MT5'te kalıyor, dolumu broker belirler.",
+                    "INFO", log_message,
+                )
             # Aynı fraktal, yalnızca SL/TP değişti (SAR/karşı fraktal yeni mumda): sil-koy yerine değiştir.
             # Yeni SL/TP geçersizse mevcut emir olduğu gibi kalır.
             if not _same_stops(order, d, tol) and d.stops_ok:
@@ -390,7 +412,16 @@ def manage_fractal_orders(
             log_message(f"🔁 Fraktal: Bölge {zone_idx+1} | Bilet {order.ticket} ({order.price_open}) siliniyor ({reason}).")
 
     for i, d in enumerate(desired):
-        if i in matched or not d.placeable:
+        if i in matched:
+            continue
+        if d.consumed:
+            _log_once(
+                _log_key(zone_idx, d.side, d.fractal), "consumed",
+                f"ℹ️ Fraktal: {_label(config, zone_idx, d.side, d.fractal)} fiyatça geçildi, emir yok.",
+                "INFO", log_message,
+            )
+            continue
+        if not d.placeable:
             continue
         comment = fractal_comment(config.target_magic, d.side, d.fractal.time)
         ok = send_pending_order_helper(

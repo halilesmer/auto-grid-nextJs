@@ -54,14 +54,6 @@
  {
   "i": 180,
   "t": 3600,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.5,
-  "magic": 200001
- },
- {
-  "i": 180,
-  "t": 3600,
   "ev": "place",
   "type": "SELL_LIMIT",
   "price": 97.65,
@@ -70,5 +62,25 @@
   "sl": 97.7,
   "magic": 200001,
   "comment": "AutoGrid_Z1_FU1790554500"
+ },
+ {
+  "i": 181,
+  "t": 3620,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 185,
+  "t": 3700,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 96.5,
+  "price": 96.45,
+  "reason": "sl",
+  "volume": 0.01,
+  "magic": 200001
  }
 ]

@@ -423,14 +423,14 @@
     "unit": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 3
+      "tests": 4
     }
   },
   "ENG-22": {
     "unit": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 10
+      "tests": 12
     }
   },
   "ENG-23": {

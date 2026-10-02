@@ -410,7 +410,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 - [x] **ENG-21** Fraktal-Order verschieben / löschen — 🧪 unit ✅ 2026-10-02
-  - Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (mit Anzahl 1 immer höchstens eine je Seite, sonst wandert das Fenster der letzten N, siehe ENG-26). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, gilt es als verbraucht – die Order wird gelöscht und nicht neu gesetzt. Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
+  - Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (mit Anzahl 1 immer höchstens eine je Seite, sonst wandert das Fenster der letzten N, siehe ENG-26). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, bevor eine Order steht, gilt es als verbraucht – es wird keine Order gesetzt. Eine bereits gesetzte Order bleibt dagegen stehen, ob sie füllt, entscheidet MT5 (Kerzen sind Bid, eine BUY LIMIT füllt erst, wenn der Ask das Niveau erreicht). Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 - [x] **ENG-22** Fraktal-SL-Methoden und TP nach Chance/Risiko — 🧪 unit ✅ 2026-10-02
