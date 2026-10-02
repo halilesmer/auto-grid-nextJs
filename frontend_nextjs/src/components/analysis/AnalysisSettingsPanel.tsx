@@ -10,6 +10,8 @@ const SWITCHES: { key: keyof AnalysisPrefs; label: MessageKey; hint: MessageKey;
   { key: 'showZoneLines', label: 'analysis.settings.zoneLines', hint: 'analysis.settings.zoneLines.hint', id: 'analysis-pref-zone-lines' },
   { key: 'showLevels', label: 'analysis.settings.levels', hint: 'analysis.settings.levels.hint', id: 'analysis-pref-levels' },
   { key: 'showTrades', label: 'analysis.settings.trades', hint: 'analysis.settings.trades.hint', id: 'analysis-pref-trades' },
+  { key: 'showHistory', label: 'analysis.settings.history', hint: 'analysis.settings.history.hint', id: 'analysis-pref-history' },
+  { key: 'showFractals', label: 'analysis.settings.fractals', hint: 'analysis.settings.fractals.hint', id: 'analysis-pref-fractals' },
   { key: 'showPauses', label: 'analysis.settings.pauses', hint: 'analysis.settings.pauses.hint', id: 'analysis-pref-pauses' },
   { key: 'showRsi', label: 'analysis.settings.rsi', hint: 'analysis.settings.rsi.hint', id: 'analysis-pref-rsi' },
   { key: 'showZoneCard', label: 'analysis.settings.zoneCard', hint: 'analysis.settings.zoneCard.hint', id: 'analysis-pref-zone-card' },

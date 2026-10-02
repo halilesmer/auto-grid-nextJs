@@ -63,9 +63,11 @@ function AnalysisView() {
   const showTrades = useAnalysisPrefsStore((s) => s.showTrades);
   const showPauses = useAnalysisPrefsStore((s) => s.showPauses);
   const showRsi = useAnalysisPrefsStore((s) => s.showRsi);
+  const showHistory = useAnalysisPrefsStore((s) => s.showHistory);
+  const showFractals = useAnalysisPrefsStore((s) => s.showFractals);
   const prefs = useMemo(
-    () => ({ showZoneLines, showZoneCard, showLevels, showTrades, showPauses, showRsi }),
-    [showZoneLines, showZoneCard, showLevels, showTrades, showPauses, showRsi],
+    () => ({ showZoneLines, showZoneCard, showLevels, showTrades, showPauses, showRsi, showHistory, showFractals }),
+    [showZoneLines, showZoneCard, showLevels, showTrades, showPauses, showRsi, showHistory, showFractals],
   );
   const { fetchAccounts } = useAccounts();
 

@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { t } from '@/i18n';
 
+/** İstek iptal edildi (AbortController): hata değil, yeni seçim için eski cevap atılır. */
+export const isAbortError = (err: unknown) =>
+  axios.isCancel(err) || (err instanceof Error && err.name === 'CanceledError');
+
 /**
  * Worker/ngrok hatalarını kullanıcıya gösterilebilir tek bir metne çevirir.
  * Blob gövdeleri (dosya indirme) okunabilsin diye async.

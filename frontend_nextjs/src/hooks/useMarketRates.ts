@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { t } from '@/i18n';
-import { getApiErrorMessage } from '@/lib/apiError';
+import { getApiErrorMessage, isAbortError as isAbort } from '@/lib/apiError';
 import {
   barsOf,
   MAX_CHART_BARS,
@@ -90,8 +89,6 @@ async function loadAll(
     serverNow: last?.server_now ?? null,
   };
 }
-
-const isAbort = (err: unknown) => axios.isCancel(err) || (err instanceof Error && err.name === 'CanceledError');
 
 /**
  * Kerzen für den Chart-Tab aus GET /market/{id}/rates. Eine Antwort für eine andere Auswahl

@@ -269,6 +269,7 @@ export class MockWorker {
     if (seg[0] === 'logs' && seg[1] === 'download') return seg[2] ?? null;
     if (['settings', 'ui-state', 'symbols', 'logs'].includes(seg[0]) && seg.length === 2) return seg[1];
     if (seg[0] === 'market' && seg.length === 3) return seg[1];
+    if (seg[0] === 'history' && seg.length === 3) return seg[1];
     if (seg[0] === 'accounts' && seg.length === 2 && method !== 'GET') return seg[1];
     if (seg[0] === 'start' || seg[0] === 'stop') return url.searchParams.get('account_id') ?? '';
     return null;
@@ -280,6 +281,28 @@ export class MockWorker {
     if (id === null) return null;
     const own = this.state.accounts.some((a) => String(a.id) === id && a.owner === principal.id);
     return own ? null : { status: 404, body: { detail: `Account '${id}' not found` } };
+  }
+
+  /**
+   * Wie market_sync.get_deals/market_db.read_deals: Deals [from, to) + Einstiege älterer Positionen
+   * (für die Zuordnung), Kontodaten, Zonen-Register und fehlende Teile.
+   */
+  private deals(accountId: string, q: URLSearchParams) {
+    const from = Number(q.get('from') ?? 0);
+    const to = q.get('to') ? Number(q.get('to')) : Number.MAX_SAFE_INTEGER;
+    const all = [...(this.state.deals[accountId] ?? [])].sort((a, b) => a.time - b.time || a.ticket - b.ticket);
+    const inside = all.filter((d) => d.time >= from && d.time < to);
+    const positions = new Set(inside.map((d) => d.position_id).filter(Boolean));
+    const earlier = all.filter((d) => d.time < from && positions.has(d.position_id));
+    return {
+      account_id: accountId,
+      from,
+      to,
+      deals: [...earlier, ...inside],
+      account: { currency: 'USD', balance: 10000, margin_mode: 2, updated_at: Math.floor(Date.now() / 1000) },
+      zones: this.state.zoneRegistry[accountId] ?? [],
+      missing: this.state.dealsMissing.filter((m) => m.to > from && m.from < to),
+    };
   }
 
   /**
@@ -471,6 +494,12 @@ export class MockWorker {
       }
       if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
       return ok(this.rates(seg[1], url.searchParams));
+    }
+
+    if (seg[0] === 'history' && seg[2] === 'deals' && method === 'GET') {
+      const account = s.accounts.find((a) => String(a.id) === seg[1]);
+      if (!account) return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      return ok(this.deals(seg[1], url.searchParams));
     }
 
     // --------------------------------------------------------------- Bot

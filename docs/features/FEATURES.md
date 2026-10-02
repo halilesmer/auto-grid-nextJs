@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-02 · **123/137** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-02 · **123/138** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 5/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 10/10 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 10/11 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 2/2 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -645,6 +645,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - GET /history/{id}/deals?from&to (MT5-Zeit, nur eigene Konten) archiviert alle Deals des Kontos in der Datenbank, auch manuelle Trades sowie Ein- und Auszahlungen; gefiltert wird erst bei der Auswertung. Abgeglichene Zeiträume werden einzeln gemerkt (ein Abgleich von „diese Woche“ sagt nichts über „letztes Jahr“); der jüngste Rand (24 h plus Puffer für den Broker-Abstand) wird jedes Mal neu abgeglichen. Liegt der Einstieg einer Position vor dem Zeitraum, wird er nachgeladen und mitgeliefert. Die Antwort enthält Kontowährung, Kontostand, Kontomodell und das Zonen-Register. Das Register (POST /settings) merkt sich je Magic-Nummer Zone, Symbol und Name, auch für gelöschte Zonen (deleted_at), und jede geänderte Fassung der Zonen-Einstellungen mit Zeitstempel. Konto löschen löscht dessen Deal-Archiv.
   - **Prüfung:** /api/history/<Konto>/deals?from=<vor 30 Tagen> aufrufen (X-API-Key).
   - **Erwartet:** Alle Deals der letzten 30 Tage wie in MT5 unter Historie → Deals, auch Ein- und Auszahlungen; „zones“ nennt die Zonen mit ihrer Magic-Nummer.
+- [ ] **ANA-08** Trades im Chart und Trade-Archiv (Pfeile, Fraktale) — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ⏳
+  - Der Chart-Tab lädt für denselben Zeitraum wie die Kerzen das Deal-Archiv (GET /history/{id}/deals, ANA-07) und führt Ein- und Ausstiege über die Positionsnummer zusammen (src/lib/analysis/tradePairing.ts): jeder Ausstieg ist ein Trade, eine Teilschließung ein eigener Trade mit nach Volumen verteilten Einstiegskosten; eine Umkehr (INOUT, Netting) schließt die Position und eröffnet den Rest in der Gegenrichtung; Close By ist gekennzeichnet; Netto = Gewinn + Kommission + Swap + Gebühr. Zone nur über das Zonen-Register: Magic im Register und Einstieg nach dem Registereintrag (MT5-Zeit minus Broker-Abstand, ohne Messung minus 14 h); sonst „Zone unbekannt“, nie geraten. Magic 200000, Ein-/Auszahlungen, manuelle Trades und andere Zonen erscheinen nicht (gezählt). Im Chart: Pfeil am Einstieg (Kauf grün, Verkauf rot), Punkt am Ausstieg nach Ergebnis, gepunktete Verbindung, „Zone unbekannt“ grau mit „?“; unter dem Fadenkreuz die Trades der Kerze; abschaltbar. Fraktal-Zonen zeigen Bill-Williams-Fraktale aus geschlossenen Kerzen (gleiche Regel wie der Bot, nie über eine Datenlücke), vom Bot gehandelte Fraktale (Order-Kommentar) orange; mit Hinweis und Knopf, wenn der Chart einen anderen Zeitrahmen als die Zone hat. Darunter das Trade-Archiv der Zone (neueste zuerst, höchstens 500 Zeilen): Schließzeit, Richtung, Lot, Ein-/Ausstieg, Netto, Zone, Hinweise (TP/SL, Teilschließung, Umkehr, Close By, vor dem Zeitraum eröffnet, Einstieg fehlt) und Sprung in den Chart. Fehlende Teile des Archivs (Konto beschäftigt, MT5-Fehler) stehen als Pflicht-Hinweis darüber. Reicht der Zeitraum bis jetzt, alle 2 min neu.
+  - **Prüfung:** Analyse → Chart-Tab, DEMO-Konto mit Trades seit dem Zonen-Register, Grid-Zone, Zeitraum „Letzte 7 Tage“, Zeitrahmen M15. → Im MT5-Terminal unter Werkzeuge → Historie → Deals denselben Zeitraum ansehen und einige Trades vergleichen. → In der Trade-Liste bei einem Trade auf „Im Chart zeigen“ klicken und mit der Maus über den Pfeil fahren. → Eine Fraktal-Zone wählen und den Zeitrahmen der Zone einstellen.
+  - **Erwartet:** Jeder Ausstieg der Zone steht mit Zeit (Brokerzeit), Preis, Lot und Netto wie in MT5 in der Liste; Teilschließungen sind einzeln und markiert; Trades aus der Zeit vor dem Register heißen „Zone unbekannt“. Pfeile und Punkte liegen im Chart auf Kerze und Preis der Ausführung. In der Fraktal-Zone liegen die Dreiecke dort, wo der MT5-Indikator „Fractals“ seine Pfeile zeigt.
 - [x] **ANA-10** Kalender in Brokerzeit — 🔌 api ✅ 2026-10-02 · 🖥️ e2e ✅ 2026-10-02
   - Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1).
   - **Prüfung:** Auf der Analyse-Seite den Zeitraum öffnen, „Letztes Jahr“ wählen. → Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden. → „31.02.26“ eingeben.

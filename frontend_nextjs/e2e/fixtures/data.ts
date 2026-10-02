@@ -1,5 +1,6 @@
 /** Testdaten des gemockten Workers. Jeder Test bekommt eine frische Kopie (defaultState()). */
 import type { Account, LiveData, SymbolDetail, ZoneSettings } from '../../src/store/types';
+import type { Deal, ZoneRegistryEntry } from '../../src/lib/analysis/tradePairing';
 
 export const DEMO_ID = '1001';
 export const LIVE_ID = '2002';
@@ -148,6 +149,12 @@ export function defaultState() {
     ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],
     /** Antwort von /rates erzwingt einen Fehler (z. B. 503 Datenbank nicht bereit); null = normal */
     ratesError: null as { status: number; detail: string } | null,
+    /** Deal-Archiv je Konto (GET /history/{id}/deals), MT5-Zeit; Einstiege vor `from` kommen wie im Worker mit. */
+    deals: {} as Record<string, Deal[]>,
+    /** Zonen-Register je Konto (created_at = echte Unix-Sekunden) */
+    zoneRegistry: {} as Record<string, ZoneRegistryEntry[]>,
+    /** Fehlende Teile des Deal-Archivs (busy/error) */
+    dealsMissing: [] as { from: number; to: number; reason: string }[],
     /** Benutzer mit persönlichem Schlüssel; leer = Einzelbetrieb wie bisher (nur der Admin-Schlüssel). */
     users: [] as MockUser[],
   };

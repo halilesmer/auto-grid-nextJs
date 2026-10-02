@@ -193,3 +193,106 @@ export class PauseLinesPrimitive extends BasePrimitive {
     });
   };
 }
+
+/** Verbindung Einstieg → Ausstieg eines Trades (gepunktet), Farbe nach Ergebnis. */
+export interface TradeLink {
+  key: string;
+  from: { time: number; price: number };
+  to: { time: number; price: number };
+  color: string;
+}
+
+export class TradeLinksPrimitive extends BasePrimitive {
+  private links: TradeLink[] = [];
+
+  constructor() {
+    super('normal');
+  }
+
+  set(links: TradeLink[]) {
+    this.links = links;
+    this.update();
+  }
+
+  /** Wie x(), aber zur nächsten Zeit auf der Achse (ein Trade-Zeitpunkt liegt nicht immer auf einem Punkt) */
+  private nearestX(time: number): number | null {
+    const scale = this.chart?.timeScale();
+    const index = scale?.timeToIndex(time as UTCTimestamp, true);
+    if (!scale || index === null || index === undefined) return null;
+    return scale.logicalToCoordinate(index as unknown as Logical);
+  }
+
+  protected draw: Draw = (target) => {
+    if (this.links.length === 0 || !this.series) return;
+    const series = this.series;
+    const segs = this.links.flatMap((l) => {
+      const x1 = this.nearestX(l.from.time);
+      const x2 = this.nearestX(l.to.time);
+      const y1 = series.priceToCoordinate(l.from.price);
+      const y2 = series.priceToCoordinate(l.to.price);
+      return x1 === null || x2 === null || y1 === null || y2 === null ? [] : [{ x1, x2, y1: Number(y1), y2: Number(y2), color: l.color }];
+    });
+    target.useBitmapCoordinateSpace(({ context, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
+      context.save();
+      context.lineWidth = Math.max(1, Math.round(hr));
+      context.setLineDash([2 * hr, 3 * hr]);
+      for (const s of segs) {
+        context.strokeStyle = s.color;
+        context.beginPath();
+        context.moveTo(Math.round(s.x1 * hr), Math.round(s.y1 * vr));
+        context.lineTo(Math.round(s.x2 * hr), Math.round(s.y2 * vr));
+        context.stroke();
+      }
+      context.restore();
+    });
+  };
+}
+
+/** Fraktal: kleines Dreieck über dem Hoch (oben) bzw. unter dem Tief (unten); gehandelte kräftiger. */
+export interface FractalMark {
+  time: number;
+  price: number;
+  side: 'U' | 'D';
+  color: string;
+  traded: boolean;
+}
+
+export class FractalsPrimitive extends BasePrimitive {
+  private marks: FractalMark[] = [];
+
+  constructor() {
+    super('top');
+  }
+
+  set(marks: FractalMark[]) {
+    this.marks = marks;
+    this.update();
+  }
+
+  protected draw: Draw = (target) => {
+    if (this.marks.length === 0 || !this.series) return;
+    const series = this.series;
+    const pts = this.marks.flatMap((m) => {
+      const x = this.x(m.time);
+      const y = series.priceToCoordinate(m.price);
+      return x === null || y === null ? [] : [{ x, y: Number(y), m }];
+    });
+    target.useBitmapCoordinateSpace(({ context, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
+      for (const { x, y, m } of pts) {
+        const size = (m.traded ? 5 : 3.5) * hr;
+        const gap = 4 * vr;
+        const cx = x * hr;
+        // Spitze zeigt auf den Preis: oben über dem Hoch nach oben, unten unter dem Tief nach unten
+        const tip = m.side === 'U' ? y * vr - gap - size * 1.4 : y * vr + gap + size * 1.4;
+        const base = m.side === 'U' ? y * vr - gap : y * vr + gap;
+        context.beginPath();
+        context.moveTo(cx, tip);
+        context.lineTo(cx - size, base);
+        context.lineTo(cx + size, base);
+        context.closePath();
+        context.fillStyle = m.color;
+        context.fill();
+      }
+    });
+  };
+}

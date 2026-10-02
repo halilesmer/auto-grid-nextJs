@@ -1,26 +1,38 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { CandlestickChart, Layers, Loader2 } from 'lucide-react';
 
-import { ChartCore, type OverlayLine } from '@/components/analysis/chart/ChartCore';
+import {
+  ChartCore,
+  type FractalPoint,
+  type LineTone,
+  type OverlayLine,
+  type TradeLinkLine,
+  type TradeMarker,
+} from '@/components/analysis/chart/ChartCore';
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
 import { DataQualityBanner } from '@/components/analysis/DataQualityBanner';
+import { TradesTable } from '@/components/analysis/TradesTable';
+import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
 import { FieldLabel, InfoHint } from '@/components/ui/tooltip';
 import { LiveStats } from '@/components/chart/LiveStats';
+import { useDealsHistory } from '@/hooks/useDealsHistory';
 import { useLiveTrades } from '@/hooks/useLiveTrades';
 import { useMarketRates } from '@/hooks/useMarketRates';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
-import { buildChartData, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
+import { buildChartData, isTimeframe, ratesWindow, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
+import { findFractals } from '@/lib/analysis/fractals';
+import { belongsToZoneView, pairTrades, type Trade } from '@/lib/analysis/tradePairing';
 import { zoneLevels, type LevelsUnavailable, type ZoneLevels } from '@/lib/analysis/levels';
 import { brokerNow } from '@/lib/serverTime';
 import { useBotRuntimeStore, useWebSocketManager } from '@/store';
 import type { AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
-import { useT, type MessageKey } from '@/i18n';
+import { useFormat, useT, type MessageKey } from '@/i18n';
 
 function Field({ label, hint, value }: { label: string; hint: string; value: string | number }) {
   return (
@@ -154,6 +166,10 @@ const ORDER_TYPES: Record<number, string> = {
 const isBuyOrder = (type: number) => type % 2 === 0;
 /** Bis zu so vielen Positionen + Orders mit Beschriftung an der Preisachse */
 const MAX_LABELED_TRADES = 20;
+/** Bis zu so vielen Trades im Chart mit Text an den Pfeilen (Lot, Ergebnis); mehr würde sich überdecken */
+const MAX_LABELED_HISTORY = 30;
+
+const netTone = (net: number): LineTone => (net > 0 ? 'up' : net < 0 ? 'down' : 'muted');
 
 const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
   fractal: 'analysis.chart.levels.fractal',
@@ -207,6 +223,8 @@ export default function ZoneChartPanel({
     () => (symbol && clockReady ? { accountId, symbol, timeframe, from: range.from, to: range.to } : null),
     [accountId, symbol, clockReady, timeframe, range.from, range.to],
   );
+  // Neue Auswahl: Ansicht neu ausrichten, ein alter Sprung zu einem Trade gilt nicht mehr
+  const viewKey = request ? `${request.accountId}|${request.symbol}|${request.timeframe}|${request.from}|${request.to}` : '';
   const rates = useMarketRates(request, nowSec);
   const data = rates.data;
 
@@ -216,6 +234,43 @@ export default function ZoneChartPanel({
     const clipAt = offsetSec !== null ? brokerNow(offsetSec, data.loadedAt) : data.loadedAt / 1000;
     return buildChartData(data.bars, data.missing, tfSec, clipAt);
   }, [data, tfSec, offsetSec]);
+
+  // Trade-Archiv: derselbe Zeitraum wie die Kerzen (bei „alles“ bzw. gekürztem Zeitraum ab dem geladenen Beginn)
+  const dealsRequest = useMemo(() => {
+    if (!symbol || !clockReady) return null;
+    const win = ratesWindow(range.from, range.to, tfSec);
+    return { accountId, from: win.clipped || range.from === null ? win.from : range.from, to: range.to };
+  }, [accountId, symbol, clockReady, range.from, range.to, tfSec]);
+  const dealsLive = range.to > nowSec();
+  const deals = useDealsHistory(dealsRequest, dealsLive);
+  const pairing = useMemo(
+    () => (deals.data ? pairTrades(deals.data.deals, deals.data.zones, offsetSec) : null),
+    [deals.data, offsetSec],
+  );
+  const zoneMagic = zone?.magic;
+  const history = useMemo(() => {
+    if (!pairing || !symbol || !dealsRequest) return null;
+    // Der Worker liefert ältere Deals offener Positionen mit (für Einstiegspreis und Zone); gezeigt wird nur,
+    // was im Zeitraum liegt: Trades nach Schließzeit, Einstiege nach Einstiegszeit
+    const inRange = (time: number) => time >= dealsRequest.from && time < dealsRequest.to;
+    const inside = pairing.trades.filter((tr) => inRange(tr.exitTime));
+    const trades = inside.filter((tr) => belongsToZoneView(tr, symbol, zoneMagic));
+    const entries = pairing.entries.filter((e) => inRange(e.time) && belongsToZoneView(e, symbol, zoneMagic));
+    return {
+      trades,
+      entries,
+      openEntries: entries.filter((e) => !e.closed).length,
+      otherTrades: inside.length - trades.length,
+    };
+  }, [pairing, symbol, zoneMagic, dealsRequest]);
+  const [focus, setFocus] = useState<{ time: number; seq: number; view: string } | null>(null);
+  const focusTrade = useCallback(
+    (tr: Trade) => {
+      setFocus((f) => ({ time: Math.floor((tr.entryTime ?? tr.exitTime) / tfSec) * tfSec, seq: (f?.seq ?? 0) + 1, view: viewKey }));
+      document.querySelector('[data-testid="analysis-chart-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [tfSec, viewKey],
+  );
 
   // Live-Preis nur für dieses Konto und Symbol, bei offenem Markt und sicherer Uhr
   const streamMatches = Boolean(
@@ -291,9 +346,90 @@ export default function ZoneChartPanel({
   const linesJson = JSON.stringify(rawLines);
   const lines = useMemo(() => JSON.parse(linesJson) as OverlayLine[], [linesJson]);
 
+  // Trades im Chart: Pfeil am Einstieg, Punkt am Ausstieg, gepunktete Verbindung. „Zone unbekannt“ grau mit „?“
+  const fmt = useFormat();
+  const overlays = useMemo(() => {
+    const out = { markers: [] as TradeMarker[], links: [] as TradeLinkLine[], notes: new Map<number, string[]>() };
+    if (!history || !prefs.showHistory) return out;
+    const bar = (time: number) => Math.floor(time / tfSec) * tfSec;
+    // Nur auf geladenen Kerzen: davor oder danach würde lightweight-charts den Punkt an den Rand klemmen
+    const first = chart?.points[0]?.time ?? Infinity;
+    const last = chart?.points[chart.points.length - 1]?.time ?? -Infinity;
+    const onChart = (time: number) => bar(time) >= first && bar(time) <= last;
+    const labels = history.trades.length + history.entries.length <= MAX_LABELED_HISTORY;
+    const digits = data?.digits ?? undefined;
+    const note = (time: number, text: string) => {
+      const list = out.notes.get(time);
+      if (list) list.push(text);
+      else out.notes.set(time, [text]);
+    };
+    for (const e of history.entries) {
+      if (!onChart(e.time)) continue;
+      const unknown = e.zone.kind !== 'zone';
+      const side = e.side === 'buy' ? 'BUY' : 'SELL';
+      const vol = fmt.number(e.volume, { maximumFractionDigits: 3 });
+      out.markers.push({
+        key: e.id,
+        time: bar(e.time),
+        price: e.price,
+        kind: e.side === 'buy' ? 'entryBuy' : 'entrySell',
+        tone: unknown ? 'muted' : e.side === 'buy' ? 'up' : 'down',
+        text: labels ? `${unknown ? '? ' : ''}${vol}` : undefined,
+      });
+      note(
+        bar(e.time),
+        t(e.reversal ? 'analysis.trades.note.reversalEntry' : 'analysis.trades.note.entry', {
+          side,
+          volume: vol,
+          price: fmt.price(e.price, digits),
+          zone: unknown ? t('analysis.trades.unknownZone') : '',
+        }).trim(),
+      );
+    }
+    for (const tr of history.trades) {
+      if (!onChart(tr.exitTime)) continue;
+      const unknown = tr.zone.kind !== 'zone';
+      const net = `${tr.net > 0 ? '+' : ''}${fmt.number(tr.net, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const tone = unknown ? 'muted' : netTone(tr.net);
+      out.markers.push({ key: tr.id, time: bar(tr.exitTime), price: tr.exitPrice, kind: 'exit', tone, text: labels ? net : undefined });
+      // Einstieg vor dem Chart: keine Verbindung (sie begänne sonst an der ersten Kerze)
+      if (tr.entryTime !== null && tr.entryPrice !== null && onChart(tr.entryTime)) {
+        out.links.push({
+          key: tr.id,
+          from: { time: bar(tr.entryTime), price: tr.entryPrice },
+          to: { time: bar(tr.exitTime), price: tr.exitPrice },
+          tone,
+        });
+      }
+      note(
+        bar(tr.exitTime),
+        t('analysis.trades.note.exit', {
+          side: tr.side === 'buy' ? 'BUY' : 'SELL',
+          volume: fmt.number(tr.volume, { maximumFractionDigits: 3 }),
+          price: fmt.price(tr.exitPrice, digits),
+          net,
+          zone: unknown ? t('analysis.trades.unknownZone') : '',
+        }).trim(),
+      );
+    }
+    return out;
+  }, [history, prefs.showHistory, tfSec, chart, data?.digits, fmt, t]);
+
+  // Fraktale (nur Fraktal-Zonen) aus den geschlossenen Kerzen; die der Bot gehandelt hat, hervorgehoben
+  const isFractalZone = zone?.entry_mode === 'fractal';
+  const fractalTf = zone?.fractal_timeframe && isTimeframe(zone.fractal_timeframe) ? zone.fractal_timeframe : 'H4';
+  const fractals = useMemo<FractalPoint[]>(() => {
+    if (!isFractalZone || !prefs.showFractals || !data) return [];
+    const traded = new Set(
+      timeframe === fractalTf
+        ? (history?.entries ?? []).filter((e) => e.fractal && e.zone.kind === 'zone').map((e) => `${e.fractal!.side}${e.fractal!.time}`)
+        : [],
+    );
+    return findFractals(data.bars, data.missing, data.liveFrom).map((f) => ({ ...f, traded: traded.has(`${f.side}${f.time}`) }));
+  }, [isFractalZone, prefs.showFractals, data, history, timeframe, fractalTf]);
+
   const band = zone && prefs.showZoneLines ? { min: zone.min_price, max: zone.max_price } : null;
   const marketHours = index >= 0 ? liveData.zone_market_hours?.[String(index)] : undefined;
-  const viewKey = request ? `${request.accountId}|${request.symbol}|${request.timeframe}|${request.from}|${request.to}` : '';
 
   return (
     <div className="space-y-5">
@@ -366,6 +502,11 @@ export default function ZoneChartPanel({
                 showPauses={prefs.showPauses}
                 showRsi={prefs.showRsi}
                 live={live}
+                markers={overlays.markers}
+                links={overlays.links}
+                fractals={fractals}
+                notes={overlays.notes}
+                focus={focus && focus.view === viewKey ? focus : null}
               />
             ) : (
               <div className="h-[360px] animate-pulse rounded-lg bg-muted/40 sm:h-[480px]" data-testid="analysis-chart-loading" />
@@ -378,6 +519,14 @@ export default function ZoneChartPanel({
               {prefs.showLevels && <LegendItem swatch="inline-block w-4 border-t border-dotted border-success" label={t('analysis.chart.key.levels')} />}
               {prefs.showTrades && <LegendItem swatch="inline-block w-4 border-t-2 border-success" label={t('analysis.chart.key.positions')} />}
               {prefs.showTrades && <LegendItem swatch="inline-block w-4 border-t border-dashed border-danger" label={t('analysis.chart.key.orders')} />}
+              {prefs.showHistory && (
+                <LegendItem swatch="inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent border-b-success" label={t('analysis.chart.key.entry')} />
+              )}
+              {prefs.showHistory && <LegendItem swatch="inline-block size-2 rounded-full bg-danger" label={t('analysis.chart.key.exit')} />}
+              {prefs.showHistory && <LegendItem swatch="inline-block size-2 rounded-full bg-muted-foreground" label={t('analysis.chart.key.unknown')} />}
+              {isFractalZone && prefs.showFractals && (
+                <LegendItem swatch="inline-block size-0 border-x-[4px] border-b-[6px] border-x-transparent border-b-primary" label={t('analysis.chart.key.fractal')} />
+              )}
               <InfoHint hint={t('analysis.chart.key.hint')} />
             </div>
 
@@ -385,6 +534,14 @@ export default function ZoneChartPanel({
               <p className="text-xs text-muted-foreground" data-testid="levels-note">
                 {t(LEVELS_UNAVAILABLE[levels.unavailable])}
               </p>
+            )}
+            {isFractalZone && prefs.showFractals && timeframe !== fractalTf && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="fractal-tf-note">
+                <span>{t('analysis.chart.fractals.otherTf', { tf: fractalTf })}</span>
+                <Button size="sm" variant="outline" hint={t('analysis.chart.fractals.switch.hint', { tf: fractalTf })} onClick={() => onTimeframe(fractalTf)}>
+                  {t('analysis.chart.fractals.switch', { tf: fractalTf })}
+                </Button>
+              </div>
             )}
             {prefs.showTrades && (
               <p className="text-xs text-muted-foreground" data-testid="trades-note">
@@ -397,6 +554,20 @@ export default function ZoneChartPanel({
             )}
           </div>
         </Card>
+      )}
+      {zone && dealsRequest && (
+        <TradesTable
+          trades={history?.trades ?? []}
+          openEntries={history?.openEntries ?? 0}
+          otherTrades={history?.otherTrades ?? 0}
+          from={dealsRequest.from}
+          digits={data?.digits ?? null}
+          currency={deals.data?.account?.currency ?? null}
+          loading={deals.loading}
+          error={deals.error}
+          missing={deals.data?.missing ?? []}
+          onFocus={focusTrade}
+        />
       )}
     </div>
   );
