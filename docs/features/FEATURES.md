@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-02 · **124/140** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-02 · **125/140** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,7 +19,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 14/18 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 15/18 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 28/28 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -291,10 +291,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
-- [ ] **ZON-18** Fraktal – mehrere Setups je Zone (Plus-Button) — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ⏳
+- [x] **ZON-18** Fraktal – mehrere Setups je Zone (Plus-Button) — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ✅ 2026-10-02
   - Eine Fraktal-Zone hat zunächst ein Setup (die bisherigen Felder). Der Button „Setup hinzufügen“ (Plus-Icon) legt bei jedem Klick ein weiteres an (höchstens 10 zusätzlich), mit den Werten von Setup 1 als Start. Jedes Setup hat eigenen Zeitrahmen, Lot (Buy/Sell getrennt wie bisher), Anzahl Orders, TP-Wert (Chance/Risiko bzw. Betrag) und Max. Positionen; Ordermodus, SL-Schalter und SL-Methode sowie die TP-Art (Schalter „TP als Betrag“) gelten für die ganze Zone. Ab zwei Setups tragen die Blöcke eine Überschrift „Setup n“ (Nummer vom Worker, neues Setup „Neues Setup“ bis zum Speichern), jedes Zusatz-Setup hat einen Entfernen-Button. Bei einem schon gespeicherten Setup fragt ein Dialog, ob seine Pending Orders gelöscht werden („Orders löschen“) oder in MT5 bleiben („Orders behalten“ → Nummer in fractal_kept_sids); ein noch ungespeichertes Setup verschwindet ohne Rückfrage. Gespeichert in fractal_setups; die Infokarte im Diagramm zeigt die Anzahl Setups.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, Setup 1 = H4 / 0,01 Lot. → Zweimal „Setup hinzufügen“, Setup 2 = M1 / 0,02 Lot / Max. Positionen 1, Setup 3 = M5; speichern, Bot starten. → In MT5 die Kommentare der Pending Orders ansehen (AutoGrid_Z{n}_FU…, …_F2U…, …_F3U…). → Setup 3 entfernen, im Dialog „Orders löschen“ wählen und speichern. → Setup 2 entfernen, im Dialog „Orders behalten“ wählen und speichern.
   - **Erwartet:** Jedes Setup setzt seine Orders auf den Fraktalen seines Zeitrahmens mit eigenem Lot/TP; ist Setup 2 bei 1 Position, setzt nur Setup 2 nichts mehr. Nach „Orders löschen“ verschwinden nur die Pending Orders von Setup 3; nach „Orders behalten“ bleiben die von Setup 2 unverändert in MT5. Positionen bleiben in beiden Fällen.
+  - 📝 Live DEMO 7942034, GBPUSD-Testzone, Setups H4/M1(0,02, Max 1→2)/M5→H1: sid 2/3 vom Worker, nach Neuladen erhalten; Kommentar AutoGrid_Z4_F2U…; Max. Positionen je Setup greift (Kurgu 2 1/1, Kurgu 1 weiter); Entfernen+Orders löschen: nur Order von Setup 3 gelöscht; Entfernen+Orders behalten: kept_sids=[2], keine Löschung (Order wurde zeitgleich gefüllt); keine Order-Flut. Nebenbefund: Setup 1 setzte beim Start kurz eine Order auf altem H4-Fraktal und ersetzte sie 2 s später.
 
 ## 7. BOT – Bot-Steuerung
 
