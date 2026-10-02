@@ -1,10 +1,29 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 from src.core.grid_helpers import log_message as default_log_message
 from src.core.grid_orders import zone_magic
+from src.utils.zone_magic import FRACTAL_SETUP_ID_MAX
 from src.utils.trade_utils import snap_volume
 from .exceptions import InvalidZoneConfigError
+
+
+@dataclass(slots=True, frozen=True)
+class FractalSetup:
+    """Fraktal bölgesinde bir emir kurgusu (zaman dilimi, lot, TP, adet, pozisyon sınırı).
+
+    Kurgu 1 bölgenin düz alanlarıdır (eski bölgelerle aynı); ek kurgular `fractal_setups`
+    listesinden gelir, numaralarını (sid ≥ 2) worker kayıtta verir (zone_magic.assign_fractal_setup_ids).
+    """
+    sid: int
+    timeframe: str
+    lot_size: float
+    sell_lot_size: float
+    order_count: int
+    sell_order_count: int
+    rr: float
+    tp_money: float
+    max_positions: int
 
 
 @dataclass(slots=True)
@@ -48,6 +67,11 @@ class ZoneConfig:
     sell_fractal_order_count: int = 1
     fractal_tp_by_money: bool = False  # True: TP = sabit tutar (hesap para birimi) → fiyat mesafesi
     fractal_tp_money: float = 10.0
+    # Kurgu 1 (yukarıdaki düz alanlar) + ek kurgular; yalnızca fraktal modunda kullanılır
+    fractal_setups: tuple = field(default_factory=tuple)
+    # Ayarlarda olup geçersiz değer veya sınır yüzünden atlanan kurguların numaraları: bekleyen
+    # emirlerine dokunulmaz (silinmiş kurgu sayılmaz)
+    fractal_idle_sids: frozenset = field(default_factory=frozenset)
 
 
 ENTRY_MODES = ("grid", "fractal")
@@ -55,6 +79,9 @@ FRACTAL_TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
 FRACTAL_ORDER_MODES = ("breakout", "rebound")
 FRACTAL_SL_MODES = ("atr", "sar", "opposite_fractal", "buffer")
 FRACTAL_MAX_ORDERS = 20
+# Bölge başına ek kurgu sayısı (kurgu 1 hariç); en büyük kurgu numarası zone_magic'te
+FRACTAL_MAX_EXTRA_SETUPS = 10
+FRACTAL_MAX_SETUP_ID = FRACTAL_SETUP_ID_MAX
 
 
 def _fractal_count(value, default: int) -> int:
@@ -136,11 +163,79 @@ def _lot_of(raw, symbol: str, symbol_infos: dict | None, zone_idx: int, side: st
     return result
 
 
-def max_positions_of(zone_dict: dict) -> int:
+def max_positions_of(zone_dict: dict, default: int = 10) -> int:
     """Bölgenin pozisyon sınırı (0 = sınırsız → 500). Max-pozisyon koruması (handler) ve kısmi
     dolum tamamlaması (grid_order_manager) aynı sınırı kullanmalı: biri emir koyup diğeri
     her döngüde silmesin (24.09: ~8.700 Sell-Stop gönder/sil döngüsü)."""
-    return int(zone_dict.get("max_positions", 10)) or 500
+    return int(zone_dict.get("max_positions", default)) or 500
+
+
+# Geçersiz ek kurguyu her döngüde tekrar loglamamak için: (bölge, kurgu girdisinin metni)
+_setup_skipped_logged: set = set()
+
+
+def _skip_log(zone_idx: int, raw, why: str, log_message) -> None:
+    key = (zone_idx, repr(raw), why)
+    if key not in _setup_skipped_logged:
+        if len(_setup_skipped_logged) > 200:
+            _setup_skipped_logged.clear()
+        _setup_skipped_logged.add(key)
+        log_message(f"Zone {zone_idx + 1}: fraktal kurgusu atlandı ({why}): {raw!r}", "WARNING")
+
+
+def _extra_setups(zone_dict: dict, zone_idx: int, base: FractalSetup, symbol: str, symbol_infos,
+                  order_type: str, is_sync: bool, log_message) -> tuple[list, frozenset]:
+    """`fractal_setups` listesindeki ek kurgular ve atlanan kurguların numaraları. Eksik alan
+    kurgu 1'in değerini alır; numarası geçersiz/tekrarlanan veya değeri okunamayan kurgu ve
+    FRACTAL_MAX_EXTRA_SETUPS'tan sonrakiler atlanır (bir kez loglanır)."""
+    raw_list = zone_dict.get("fractal_setups")
+    if not isinstance(raw_list, list):
+        return [], frozenset()
+    result, seen, idle = [], {base.sid}, set()
+    for raw in raw_list:
+        raw_sid = raw.get("sid") if isinstance(raw, dict) else None
+        if isinstance(raw_sid, int) and not isinstance(raw_sid, bool) and raw_sid not in seen:
+            idle.add(raw_sid)  # geçerliyse aşağıda çıkarılır
+        if len(result) >= FRACTAL_MAX_EXTRA_SETUPS:
+            _skip_log(zone_idx, raw, f"en fazla {FRACTAL_MAX_EXTRA_SETUPS} ek kurgu", log_message)
+            continue
+        try:
+            if not isinstance(raw, dict):
+                raise ValueError("not a dict")
+            sid = raw.get("sid")
+            if isinstance(sid, bool) or not isinstance(sid, (int, float, str)):
+                raise ValueError("sid")
+            sid = int(sid)
+            if not (2 <= sid <= FRACTAL_MAX_SETUP_ID) or sid in seen:
+                raise ValueError("sid")
+            lot = _lot_of(raw.get("lot_size", base.lot_size), symbol, symbol_infos, zone_idx, f"BUY#{sid}", log_message)
+            sell_lot = lot
+            count = _fractal_count(raw.get("fractal_order_count", base.order_count), base.order_count)
+            sell_count = count
+            if not is_sync:
+                raw_sell = raw.get("sell_lot_size")
+                if raw_sell not in (None, ""):
+                    sell_lot = _lot_of(raw_sell, symbol, symbol_infos, zone_idx, f"SELL#{sid}", log_message)
+                if order_type == "BOTH":
+                    sell_count = _fractal_count(raw.get("sell_fractal_order_count", count), count)
+            setup = FractalSetup(
+                sid=sid,
+                timeframe=_choice(raw.get("fractal_timeframe"), FRACTAL_TIMEFRAMES, base.timeframe),
+                lot_size=lot,
+                sell_lot_size=sell_lot,
+                order_count=count,
+                sell_order_count=sell_count,
+                rr=max(0.0, float(raw.get("fractal_rr", base.rr))),
+                tp_money=max(0.0, float(raw.get("fractal_tp_money", base.tp_money))),
+                max_positions=max_positions_of(raw, base.max_positions),
+            )
+        except (TypeError, ValueError, OverflowError):
+            _skip_log(zone_idx, raw, "geçersiz değer; bekleyen emirleri kalır", log_message)
+            continue
+        seen.add(sid)
+        idle.discard(sid)
+        result.append(setup)
+    return result, frozenset(idle - seen)
 
 
 def extract_zone_config(
@@ -214,6 +309,21 @@ def extract_zone_config(
         sell_fractal_order_count = _fractal_count(
             zone_dict.get("sell_fractal_order_count", fractal_order_count), fractal_order_count
         )
+    fractal_timeframe = _choice(zone_dict.get("fractal_timeframe"), FRACTAL_TIMEFRAMES, "H4")
+    fractal_rr = max(0.0, float(zone_dict.get("fractal_rr", 2.0)))
+    fractal_tp_money = max(0.0, float(zone_dict.get("fractal_tp_money", 10.0)))
+    fractal_setups: tuple = ()
+    fractal_idle_sids: frozenset = frozenset()
+    if entry_mode == "fractal":
+        base_setup = FractalSetup(
+            sid=1, timeframe=fractal_timeframe, lot_size=lot_val, sell_lot_size=sell_lot_val,
+            order_count=fractal_order_count, sell_order_count=sell_fractal_order_count,
+            rr=fractal_rr, tp_money=fractal_tp_money, max_positions=max_positions_allowed,
+        )
+        extra, fractal_idle_sids = _extra_setups(
+            zone_dict, zone_idx, base_setup, symbol, symbol_infos, order_type, is_sync, log_message,
+        )
+        fractal_setups = (base_setup, *extra)
     if step_by_loss:
         def _conv(amount: float, lot: float) -> float:
             d = money_to_price_distance(amount, lot, symbol, symbol_infos)
@@ -260,7 +370,7 @@ def extract_zone_config(
         step_by_loss=step_by_loss,
         instant_entry=bool(zone_dict.get("instant_entry", False)),
         entry_mode=entry_mode,
-        fractal_timeframe=_choice(zone_dict.get("fractal_timeframe"), FRACTAL_TIMEFRAMES, "H4"),
+        fractal_timeframe=fractal_timeframe,
         fractal_order_mode=_choice(zone_dict.get("fractal_order_mode"), FRACTAL_ORDER_MODES, "breakout"),
         fractal_use_sl=bool(zone_dict.get("fractal_use_sl", True)),
         fractal_sl_mode=_choice(zone_dict.get("fractal_sl_mode"), FRACTAL_SL_MODES, "atr"),
@@ -269,9 +379,11 @@ def extract_zone_config(
         fractal_atr_multiplier=max(0.0, float(zone_dict.get("fractal_atr_multiplier", 1.5))),
         fractal_sar_step=max(0.001, float(zone_dict.get("fractal_sar_step", 0.02))),
         fractal_sar_max=max(0.001, float(zone_dict.get("fractal_sar_max", 0.2))),
-        fractal_rr=max(0.0, float(zone_dict.get("fractal_rr", 2.0))),
+        fractal_rr=fractal_rr,
         fractal_order_count=fractal_order_count,
         sell_fractal_order_count=sell_fractal_order_count,
         fractal_tp_by_money=bool(zone_dict.get("fractal_tp_by_money", False)),
-        fractal_tp_money=max(0.0, float(zone_dict.get("fractal_tp_money", 10.0))),
+        fractal_tp_money=fractal_tp_money,
+        fractal_setups=fractal_setups,
+        fractal_idle_sids=fractal_idle_sids,
     )

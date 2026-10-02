@@ -58,6 +58,13 @@ const EPS = 1e-9;
 
 export type Side = 'buy' | 'sell';
 
+/** Fraktal-Order aus dem Kommentar: Setup-Nummer (1 = Zonenfelder), Seite und Kerzenzeit */
+export interface FractalRef {
+  sid: number;
+  side: 'U' | 'D';
+  time: number;
+}
+
 /**
  * Zuordnung eines Trades:
  * - zone: Magic im Register, Einstieg nach dem Registereintrag;
@@ -102,8 +109,8 @@ export interface Trade {
   closeBy: boolean;
   magic: number | null;
   zone: ZoneMatch;
-  /** Fraktal-Order: Seite und Kerzenzeit aus dem Kommentar AutoGrid_Z{n}_F{U|D}{zeit} */
-  fractal: { side: 'U' | 'D'; time: number } | null;
+  /** Fraktal-Order: Setup, Seite und Kerzenzeit aus dem Kommentar AutoGrid_Z{n}_F{k}{U|D}{zeit} */
+  fractal: FractalRef | null;
 }
 
 /** Einstieg (für Pfeile im Chart), auch wenn die Position im Zeitraum nicht geschlossen wurde. */
@@ -120,7 +127,7 @@ export interface TradeEntry {
   reversal: boolean;
   magic: number | null;
   zone: ZoneMatch;
-  fractal: { side: 'U' | 'D'; time: number } | null;
+  fractal: FractalRef | null;
   /** Die Seite dieses Einstiegs wurde ganz geschlossen (Teilschließungen allein zählen nicht) */
   closed: boolean;
 }
@@ -138,10 +145,11 @@ const num = (v: number | null | undefined) => (typeof v === 'number' && Number.i
 const sideOf = (dealType: number): Side => (dealType === DEAL_BUY ? 'buy' : 'sell');
 const opposite = (s: Side): Side => (s === 'buy' ? 'sell' : 'buy');
 
-const FRACTAL_COMMENT = /^AutoGrid_Z\d+_F([UD])(\d+)$/;
-export function parseFractalComment(comment: string | null | undefined): { side: 'U' | 'D'; time: number } | null {
+// Setup 1: AutoGrid_Z{n}_F{U|D}{zeit}, Setup k ≥ 2: AutoGrid_Z{n}_F{k}{U|D}{zeit} (worker grid_orders.fractal_comment)
+const FRACTAL_COMMENT = /^AutoGrid_Z\d+_F(\d*)([UD])(\d+)$/;
+export function parseFractalComment(comment: string | null | undefined): FractalRef | null {
   const m = FRACTAL_COMMENT.exec(String(comment ?? ''));
-  return m ? { side: m[1] as 'U' | 'D', time: Number(m[2]) } : null;
+  return m ? { sid: m[1] ? Number(m[1]) : 1, side: m[2] as 'U' | 'D', time: Number(m[3]) } : null;
 }
 
 /**

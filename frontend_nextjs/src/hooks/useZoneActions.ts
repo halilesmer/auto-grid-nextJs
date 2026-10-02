@@ -5,7 +5,7 @@ import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { toast } from '@/components/ui/animated-toast';
-import { defaultZone, getSymbolConfig, normalizeZoneLots } from '@/utils/zoneHelpers';
+import { defaultZone, getSymbolConfig, normalizeZoneLots, withServerSetupIds } from '@/utils/zoneHelpers';
 import type { ZoneSettings } from '@/store/types';
 import { t } from '@/i18n';
 
@@ -91,7 +91,17 @@ export function useZoneActions(
       try {
         const remoteSettings = await zoneApi.getSettings(selectedAccount);
         await zoneApi.saveZone(selectedAccount, zone, remoteSettings);
-        onZoneSaved?.(zone);
+        // Neue Fraktal-Setups bekommen ihre Nummer erst im Worker: zurücklesen und übernehmen
+        let saved = zone;
+        if (zone.fractal_setups?.some((s) => s.sid === undefined)) {
+          const fresh = await zoneApi.getSettings(selectedAccount);
+          const server = (fresh.ZONES as ZoneSettings[] | undefined)?.find((z) => z.id === zoneId);
+          saved = withServerSetupIds(zone, server);
+          if (saved !== zone) {
+            setZones((prev) => prev.map((z) => (z.id === zoneId ? withServerSetupIds(z, server) : z)));
+          }
+        }
+        onZoneSaved?.(saved);
         toast.success(t('zone.saved.text', { symbol: zone.symbol }), { title: t('common.saved') });
       } catch (err: unknown) {
         const message = await getApiErrorMessage(err, t('zone.saveFailed'));

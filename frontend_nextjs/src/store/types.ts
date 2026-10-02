@@ -84,6 +84,26 @@ export interface ZoneSettings {
   /** true: TP als Geldbetrag (Kontowährung) statt SL × Faktor */
   fractal_tp_by_money?: boolean;
   fractal_tp_money?: number;
+  /** Weitere Fraktal-Setups (Setup 1 = die Felder oben); sid vergibt der Worker beim Speichern (ENG-28) */
+  fractal_setups?: FractalSetup[];
+  /** Höchste je vergebene Setup-Nummer der Zone (vom Worker verwaltet, nur lesend) */
+  fractal_setup_seq?: number;
+}
+
+/** Ein zusätzliches Fraktal-Setup: gleiche Feldnamen wie die Zone, gemeinsam bleiben Ordermodus, SL und TP-Art. */
+export interface FractalSetup {
+  /** 2–99, fehlt bei einem noch nicht gespeicherten Setup */
+  sid?: number;
+  /** Stabile Client-ID: der Worker findet darüber die Nummer, auch wenn die Oberfläche sie noch nicht kennt */
+  id?: string;
+  fractal_timeframe: string;
+  lot_size: number;
+  sell_lot_size: number;
+  fractal_order_count: number;
+  sell_fractal_order_count: number;
+  fractal_rr: number;
+  fractal_tp_money: number;
+  max_positions: number;
 }
 
 export type EntryMode = 'grid' | 'fractal';

@@ -574,6 +574,17 @@ kategorien:
           - Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen.
           - Eine der Orders in MT5 von Hand löschen.
         erwartet: Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
+      - id: ZON-18
+        titel: Fraktal – mehrere Setups je Zone (Plus-Button)
+        beschreibung: Eine Fraktal-Zone hat zunächst ein Setup (die bisherigen Felder). Der Button „Setup hinzufügen“ (Plus-Icon) legt bei jedem Klick ein weiteres an (höchstens 10 zusätzlich), mit den Werten von Setup 1 als Start. Jedes Setup hat eigenen Zeitrahmen, Lot (Buy/Sell getrennt wie bisher), Anzahl Orders, TP-Wert (Chance/Risiko bzw. Betrag) und Max. Positionen; Ordermodus, SL-Schalter und SL-Methode sowie die TP-Art (Schalter „TP als Betrag“) gelten für die ganze Zone. Ab zwei Setups tragen die Blöcke eine Überschrift „Setup n“ (Nummer vom Worker, neues Setup „Neues Setup“ bis zum Speichern), jedes Zusatz-Setup hat einen Entfernen-Button. Gespeichert in fractal_setups; die Infokarte im Diagramm zeigt die Anzahl Setups.
+        code: [frontend_nextjs/src/components/zone/ZoneFractalFields.tsx, frontend_nextjs/src/components/zone/ZoneFractalSetupFields.tsx, frontend_nextjs/src/utils/zoneHelpers.ts, frontend_nextjs/src/store/types.ts, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, Setup 1 = H4 / 0,01 Lot.
+          - Zweimal „Setup hinzufügen“, Setup 2 = M1 / 0,02 Lot / Max. Positionen 1, Setup 3 = M5; speichern, Bot starten.
+          - In MT5 die Kommentare der Pending Orders ansehen (AutoGrid_Z{n}_FU…, …_F2U…, …_F3U…).
+          - Setup 3 entfernen und speichern.
+        erwartet: Jedes Setup setzt seine Orders auf den Fraktalen seines Zeitrahmens mit eigenem Lot/TP; ist Setup 2 bei 1 Position, setzt nur Setup 2 nichts mehr. Nach dem Entfernen verschwinden nur die Pending Orders von Setup 3, seine Positionen bleiben.
 
   # ---------------------------------------------------------------------------
   - id: BOT
@@ -822,7 +833,7 @@ kategorien:
 
       - id: ENG-20
         titel: Fraktal-Orders (Ausbruch / Abpraller)
-        beschreibung: Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit}.
+        beschreibung: Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit} (weitere Setups mit Nummer, siehe ENG-28).
         code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/handler.py, worker_python/src/core/grid_execution/config.py, worker_python/src/core/grid_orders.py]
         tiers: [unit]
         pruefung:
@@ -894,6 +905,14 @@ kategorien:
           - Zone 1 löschen und speichern.
           - Zone 2 behält ihre Orders und Positionen (gleiche Tickets, Magic 200002), ihre TP/SL ändern sich nicht; nur die Orders von Zone 1 verschwinden.
         erwartet: Löschen einer Zone lässt die übrigen Zonen unverändert weiterlaufen.
+      - id: ENG-28
+        titel: Fraktal-Setups – eigene Orders, Kommentar und Max. Positionen je Setup
+        beschreibung: Die Engine führt jedes Setup einer Fraktal-Zone getrennt (Setup 1 = Zonenfelder, weitere aus fractal_setups) - Kerzen je Zeitrahmen einmal pro Runde, Orders mit eigenem Lot/TP/Anzahl. Kommentar AutoGrid_Z{n}_F{k}{U|D}{Kerzenzeit}, bei Setup 1 ohne k (wie bisher). Eine Order gehört über den Kommentar zu ihrem Setup (ohne lesbaren Kommentar Setup 1), eine Position über ihren Kommentar oder den der Eröffnungsorder (Historie); gleicher Preis in zwei Setups ergibt zwei Orders. Max. Positionen gilt je Setup - ein volles Setup löscht nur seine Pending Orders. Der Erledigt-Merker gilt je Setup (Schlüssel mit :S{k}, Setup 1 unverändert). Pending Orders eines entfernten Setups werden gelöscht. Die Setup-Nummer (2–99) vergibt der Worker beim Speichern wie die Zonen-Magic - eine Nummer vom Client gilt nur, wenn sie das Setup vorher schon hatte; gelöschte Nummern werden nie wieder vergeben (fractal_setup_seq), damit die Statistik je Setup nie zwei Setups mischt. Ungültige Setups (Nummer, Werte) überspringt die Engine mit einer Logzeile.
+        code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/config.py, worker_python/src/core/grid_execution/handler.py, worker_python/src/core/grid_orders.py, worker_python/src/utils/zone_magic.py, worker_python/src/api/settings.py, frontend_nextjs/src/lib/analysis/tradePairing.ts]
+        tiers: [unit, api, e2e]
+        pruefung:
+          - Nicht manuell testen (siehe ZON-18).
+        erwartet: Abgedeckt durch Unit-, API- und Musterlösungs-Tests (fractal_two_setups).
 
   # ---------------------------------------------------------------------------
   - id: MET

@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-02 · **123/138** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-02 · **124/140** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,9 +19,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 14/17 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 14/18 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 27/27 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 28/28 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
@@ -291,6 +291,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
+- [ ] **ZON-18** Fraktal – mehrere Setups je Zone (Plus-Button) — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ⏳
+  - Eine Fraktal-Zone hat zunächst ein Setup (die bisherigen Felder). Der Button „Setup hinzufügen“ (Plus-Icon) legt bei jedem Klick ein weiteres an (höchstens 10 zusätzlich), mit den Werten von Setup 1 als Start. Jedes Setup hat eigenen Zeitrahmen, Lot (Buy/Sell getrennt wie bisher), Anzahl Orders, TP-Wert (Chance/Risiko bzw. Betrag) und Max. Positionen; Ordermodus, SL-Schalter und SL-Methode sowie die TP-Art (Schalter „TP als Betrag“) gelten für die ganze Zone. Ab zwei Setups tragen die Blöcke eine Überschrift „Setup n“ (Nummer vom Worker, neues Setup „Neues Setup“ bis zum Speichern), jedes Zusatz-Setup hat einen Entfernen-Button. Gespeichert in fractal_setups; die Infokarte im Diagramm zeigt die Anzahl Setups.
+  - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, Setup 1 = H4 / 0,01 Lot. → Zweimal „Setup hinzufügen“, Setup 2 = M1 / 0,02 Lot / Max. Positionen 1, Setup 3 = M5; speichern, Bot starten. → In MT5 die Kommentare der Pending Orders ansehen (AutoGrid_Z{n}_FU…, …_F2U…, …_F3U…). → Setup 3 entfernen und speichern.
+  - **Erwartet:** Jedes Setup setzt seine Orders auf den Fraktalen seines Zeitrahmens mit eigenem Lot/TP; ist Setup 2 bei 1 Position, setzt nur Setup 2 nichts mehr. Nach dem Entfernen verschwinden nur die Pending Orders von Setup 3, seine Positionen bleiben.
 
 ## 7. BOT – Bot-Steuerung
 
@@ -406,7 +410,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 - [x] **ENG-20** Fraktal-Orders (Ausbruch / Abpraller) — 🧪 unit ✅ 2026-10-02
-  - Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit}.
+  - Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit} (weitere Setups mit Nummer, siehe ENG-28).
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 - [x] **ENG-21** Fraktal-Order verschieben / löschen — 🧪 unit ✅ 2026-10-02
@@ -437,6 +441,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Jede Zone bekommt beim Speichern eine feste Magic-Nummer (200001–200999), die nur der Worker vergibt und nie neu vergibt (ZONE_MAGIC_MAX). Bestehende Zonen behalten ihre bisherige Nummer (200000 + Listenplatz + 1), offene Orders und Positionen bleiben also zugeordnet. Die Engine findet die Zone einer Order/Position über die Magic, nicht mehr über den Listenplatz - wird eine Zone gelöscht, behalten die Zonen dahinter ihre Orders, Positionen, TP/SL und ihren Status; Orders der gelöschten Zone werden als Zombies gelöscht, ihre Positionen bekommen nicht mehr den TP/SL einer anderen Zone. Der laufende Bot erkennt das Löschen beim Neuladen der Einstellungen und trägt seinen nach Listenplatz geführten Zustand (aktive Zone je Symbol, PAUSE/AUTO_CLEAR auch in der ui_state-Datei, Fraktal-Tracking, Ablehnungs- und Verschwunden-Zähler) über die Magic auf den neuen Platz um; war die gelöschte Zone die aktive, gilt nicht plötzlich ihr Nachbar als aktiv (sonst liefe dort der Zonen-Ausstieg). Ist die Einstellungsdatei beim Neuladen kurz unlesbar (wird gerade geschrieben, Windows-Sperre), läuft der Bot mit den zuletzt gelesenen Zonen weiter, statt „keine Zonen“ anzunehmen und alle Robot-Orders als Zombies zu löschen; die API schreibt die Datei atomar. Order-Kommentare (AutoGrid_Z{n}, Fraktal AutoGrid_Z{n}_F…) nehmen n aus der Magic. Anlass - vorher rutschten beim Löschen von Zone 1 alle Magic-Nummern dahinter um eins.
   - **Prüfung:** Demo-Konto mit zwei Zonen auf demselben Symbol, beide mit offenen Orders (und möglichst einer Position). → Zone 1 löschen und speichern. → Zone 2 behält ihre Orders und Positionen (gleiche Tickets, Magic 200002), ihre TP/SL ändern sich nicht; nur die Orders von Zone 1 verschwinden.
   - **Erwartet:** Löschen einer Zone lässt die übrigen Zonen unverändert weiterlaufen.
+- [x] **ENG-28** Fraktal-Setups – eigene Orders, Kommentar und Max. Positionen je Setup — 🧪 unit ✅ 2026-10-02 · 🔌 api ✅ 2026-10-02 · 🖥️ e2e ✅ 2026-10-02
+  - Die Engine führt jedes Setup einer Fraktal-Zone getrennt (Setup 1 = Zonenfelder, weitere aus fractal_setups) - Kerzen je Zeitrahmen einmal pro Runde, Orders mit eigenem Lot/TP/Anzahl. Kommentar AutoGrid_Z{n}_F{k}{U|D}{Kerzenzeit}, bei Setup 1 ohne k (wie bisher). Eine Order gehört über den Kommentar zu ihrem Setup (ohne lesbaren Kommentar Setup 1), eine Position über ihren Kommentar oder den der Eröffnungsorder (Historie); gleicher Preis in zwei Setups ergibt zwei Orders. Max. Positionen gilt je Setup - ein volles Setup löscht nur seine Pending Orders. Der Erledigt-Merker gilt je Setup (Schlüssel mit :S{k}, Setup 1 unverändert). Pending Orders eines entfernten Setups werden gelöscht. Die Setup-Nummer (2–99) vergibt der Worker beim Speichern wie die Zonen-Magic - eine Nummer vom Client gilt nur, wenn sie das Setup vorher schon hatte; gelöschte Nummern werden nie wieder vergeben (fractal_setup_seq), damit die Statistik je Setup nie zwei Setups mischt. Ungültige Setups (Nummer, Werte) überspringt die Engine mit einer Logzeile.
+  - **Prüfung:** Nicht manuell testen (siehe ZON-18).
+  - **Erwartet:** Abgedeckt durch Unit-, API- und Musterlösungs-Tests (fractal_two_setups).
 
 ## 9. MET – Live-Daten & Diagramm
 

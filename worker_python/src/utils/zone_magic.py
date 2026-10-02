@@ -123,6 +123,99 @@ def assign_zone_magics(previous, merged, log=None):
     return merged
 
 
+# Fraktal kurgu numaraları (ENG-28): kurgu 1 bölgenin düz alanlarıdır, ek kurgular 2..99
+# (emir yorumunda en çok iki hane, AutoGrid_Z{n}_F{kurgu}{U|D}{zaman} ≤ 31 karakter)
+FRACTAL_SETUP_ID_MAX = 99
+FRACTAL_SETUP_SEQ_KEY = "fractal_setup_seq"
+
+
+def _setup_ids(zone):
+    setups = zone.get("fractal_setups") if isinstance(zone, dict) else None
+    ids = set()
+    for setup in setups if isinstance(setups, list) else []:
+        sid = setup.get("sid") if isinstance(setup, dict) else None
+        if isinstance(sid, int) and not isinstance(sid, bool) and 2 <= sid <= FRACTAL_SETUP_ID_MAX:
+            ids.add(sid)
+    return ids
+
+
+def assign_fractal_setup_ids(previous, merged, log=None):
+    """`merged` bölgelerindeki ek fraktal kurgularına kalıcı numara (`sid`) yazar (yerinde).
+
+    Bölge magic'i gibi (ENG-27): istemcinin gönderdiği numara yalnızca aynı bölgenin önceki
+    kaydında varsa geçerli (numarasız gelen kurgu, önceki kayıttaki aynı `id`'nin numarasını alır); yeni kurgu, bölgede şimdiye kadar verilen en büyük numaranın bir
+    fazlasını alır (`fractal_setup_seq`). Silinen kurgunun numarası tekrar verilmez: istatistik
+    iki farklı kurgunun işlemlerini karıştırmaz.
+    """
+    before = {}
+    for idx, zone in enumerate(_zones(previous)):
+        if isinstance(zone, dict):
+            before.setdefault(_zone_key(zone, idx), zone)
+
+    for idx, zone in enumerate(_zones(merged)):
+        if not isinstance(zone, dict):
+            continue
+        prev = before.get(_zone_key(zone, idx)) or {}
+        known = _setup_ids(prev)
+        try:
+            highest = int(prev.get(FRACTAL_SETUP_SEQ_KEY) or 1)
+        except (TypeError, ValueError):
+            highest = 1
+        highest = max([min(max(highest, 1), FRACTAL_SETUP_ID_MAX), *known])
+
+        setups = zone.get("fractal_setups")
+        if not isinstance(setups, list):
+            zone.pop("fractal_setups", None)
+            if highest > 1:
+                zone[FRACTAL_SETUP_SEQ_KEY] = highest
+            else:
+                zone.pop(FRACTAL_SETUP_SEQ_KEY, None)
+            continue
+        setups = [s for s in setups if isinstance(s, dict)]
+        # Kurgunun istemci kimliği (`id`) → önceki kayıttaki numarası: arayüz numarayı henüz
+        # görmeden (kaydet → hemen tekrar kaydet) gönderse de kurgu numarasını korur
+        by_id = {}
+        prev_setups = prev.get("fractal_setups")
+        for old in prev_setups if isinstance(prev_setups, list) else []:
+            if isinstance(old, dict) and old.get("id") and old.get("sid") in known:
+                by_id.setdefault(str(old["id"]), old["sid"])
+        taken, pending = set(), []
+        for setup in setups:
+            sid = setup.get("sid")
+            if isinstance(sid, int) and not isinstance(sid, bool) and sid in known and sid not in taken:
+                taken.add(sid)
+            else:
+                pending.append(setup)
+        rest = []
+        for setup in pending:
+            sid = by_id.get(str(setup.get("id"))) if setup.get("id") else None
+            if sid is not None and sid not in taken:
+                setup["sid"] = sid
+                taken.add(sid)
+            else:
+                rest.append(setup)
+        for setup in rest:
+            if highest < FRACTAL_SETUP_ID_MAX:
+                highest += 1
+                sid = highest
+            else:
+                # 98 numaranın hepsi bir kez verildi: kullanılmayan en küçük numara
+                free = [n for n in range(2, FRACTAL_SETUP_ID_MAX + 1) if n not in taken]
+                if not free:
+                    raise ValueError("Fraktal kurgu numaraları (2-99) dolu")
+                sid = next((n for n in free if n not in known), free[0])
+                if log:
+                    log(f"Fraktal kurgu numaraları doldu; kullanılmayan {sid} yeniden veriliyor.", type="warning")
+            setup["sid"] = sid
+            taken.add(sid)
+        zone["fractal_setups"] = setups
+        if highest > 1:
+            zone[FRACTAL_SETUP_SEQ_KEY] = highest
+        else:
+            zone.pop(FRACTAL_SETUP_SEQ_KEY, None)
+    return merged
+
+
 def remap_ui_states(path, old_zones, new_zones):
     """ui_state dosyasındaki sıra anahtarlı bölge durumlarını magic üzerinden yeni sıraya taşır.
 

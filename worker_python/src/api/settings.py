@@ -80,11 +80,13 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             data_to_save = incoming_data
 
         from src.utils.config import sanitize_settings
-        from src.utils.zone_magic import assign_zone_magics
+        from src.utils.zone_magic import assign_fractal_setup_ids, assign_zone_magics
 
         # Her bölgeye kalıcı magic (ENG-27); bölge silinince sıraya bağlı durumu bot taşır
         # (grid_zone_state.rekey_zone_state, ayarları yeniden okuduğu turda)
         data_to_save = assign_zone_magics(previous, sanitize_settings(data_to_save), log=safe_log)
+        # Ek fraktal kurgularına kalıcı numara (ENG-28); emir yorumu ve istatistik bu numarayı taşır
+        data_to_save = assign_fractal_setup_ids(previous, data_to_save, log=safe_log)
 
         # Atomik yaz: bot her turda okur, yarım dosya görmesin. Windows'ta bot dosyayı o an
         # okuyorsa os.replace reddedilir → kısa tekrar

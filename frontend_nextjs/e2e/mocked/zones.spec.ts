@@ -538,4 +538,57 @@ test.describe('ZON Zonen', () => {
     await expect(dashboard.zoneField(msg('zone.fractal.sellOrderCount'))).toHaveValue('4');
     await expect(dashboard.zoneField(msg('zone.fractal.buyOrderCount'))).toHaveCount(0);
   });
+
+  test('Fraktal: mehrere Setups mit Plus-Button', { tag: '@ZON-18' }, async ({ worker, dashboard }) => {
+    worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'fractal', order_type: 'BUY', fractal_timeframe: 'H4' })];
+    await dashboard.open(DEMO_ID);
+    const zone = dashboard.zone();
+    const setups = zone.getByTestId('fractal-setup');
+    const field = (setup: number, label: string) =>
+      setups.nth(setup).locator('label').filter({ has: dashboard.page.getByText(label, { exact: true }) })
+        .locator('input, select').first();
+
+    // Anfangs nur ein Setup, ohne Überschrift
+    await expect(setups).toHaveCount(1);
+    await expect(zone.getByText(msg('zone.fractal.setup', { n: 1 }), { exact: true })).toHaveCount(0);
+
+    // Jeder Klick auf Plus legt ein Setup an, mit den Werten von Setup 1
+    await zone.getByTestId('fractal-setup-add').click();
+    await zone.getByTestId('fractal-setup-add').click();
+    await expect(setups).toHaveCount(3);
+    await expect(zone.getByText(msg('zone.fractal.setup', { n: 1 }), { exact: true })).toBeVisible();
+    await expect(setups.nth(1).getByTestId('fractal-timeframe')).toHaveValue('H4');
+    await expect(setups.nth(1).getByText(msg('zone.fractal.setup.new'))).toBeVisible();
+
+    await setups.nth(1).getByTestId('fractal-timeframe').selectOption('M1');
+    await field(1, msg('zone.field.lot')).fill('0.03');
+    await field(1, msg('zone.fractal.rr')).fill('1.5');
+    await field(1, msg('zone.fractal.maxPositions')).fill('2');
+    await setups.nth(2).getByTestId('fractal-timeframe').selectOption('M5');
+
+    // Speichern ohne Neuladen: die Nummern erscheinen sofort; zweimal speichern ändert sie nicht
+    await dashboard.saveAllSettings();
+    await expect(zone.getByText(msg('zone.fractal.setup', { n: 2 }), { exact: true })).toBeVisible();
+    await field(2, msg('zone.fractal.maxPositions')).fill('4');
+    await dashboard.saveAllSettings();
+    expect((worker.zonesOf(DEMO_ID)[0].fractal_setups as { sid: number }[]).map((s) => s.sid)).toEqual([2, 3]);
+
+    await dashboard.page.reload();
+    await dashboard.selectAccount(DEMO_ID);
+    await expect(setups).toHaveCount(3);
+    await expect(zone.getByText(msg('zone.fractal.setup', { n: 2 }), { exact: true })).toBeVisible();
+    await expect(setups.nth(1).getByTestId('fractal-timeframe')).toHaveValue('M1');
+    await expect(field(1, msg('zone.field.lot'))).toHaveValue('0.03');
+    expect(worker.zonesOf(DEMO_ID)[0].fractal_setups).toEqual([
+      expect.objectContaining({ sid: 2, fractal_timeframe: 'M1', lot_size: 0.03, fractal_rr: 1.5, max_positions: 2 }),
+      expect.objectContaining({ sid: 3, fractal_timeframe: 'M5', max_positions: 4 }),
+    ]);
+
+    // Entfernen: Setup 2 weg, Setup 3 behält seine Nummer
+    await setups.nth(1).getByTestId('fractal-setup-remove').click();
+    await saveAndReload(dashboard);
+    await expect(setups).toHaveCount(2);
+    await expect(zone.getByText(msg('zone.fractal.setup', { n: 3 }), { exact: true })).toBeVisible();
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_setups: [{ sid: 3 }], fractal_setup_seq: 3 });
+  });
 });

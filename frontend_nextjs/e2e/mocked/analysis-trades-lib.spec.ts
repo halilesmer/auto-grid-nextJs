@@ -5,7 +5,14 @@
  */
 import { expect, test } from '@playwright/test';
 import { findFractals } from '../../src/lib/analysis/fractals';
-import { belongsToZoneView, matchZone, pairTrades, type Deal, type ZoneRegistryEntry } from '../../src/lib/analysis/tradePairing';
+import {
+  belongsToZoneView,
+  matchZone,
+  pairTrades,
+  parseFractalComment,
+  type Deal,
+  type ZoneRegistryEntry,
+} from '../../src/lib/analysis/tradePairing';
 
 const H = 3600;
 /** Register seit T0 (echte Zeit); Broker UTC+3 */
@@ -220,5 +227,12 @@ test.describe('ANA-08 Fraktale', () => {
     expect(findFractals(bars, [{ from: 190, to: 230, reason: 'unavailable', checked_at: null }], null)).toEqual([
       { time: 420, price: 4, side: 'U' },
     ]);
+  });
+
+  test('Fraktal-Kommentar mit Setup-Nummer (Setup 1 ohne Nummer)', { tag: '@ENG-28' }, () => {
+    expect(parseFractalComment('AutoGrid_Z1_FU1790000000')).toEqual({ sid: 1, side: 'U', time: 1790000000 });
+    expect(parseFractalComment('AutoGrid_Z12_F7D5')).toEqual({ sid: 7, side: 'D', time: 5 });
+    expect(parseFractalComment('AutoGrid_Z1_F2X5')).toBeNull();
+    expect(parseFractalComment('[tp 97.5]')).toBeNull();
   });
 });

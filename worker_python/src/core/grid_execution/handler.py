@@ -55,6 +55,23 @@ def _handle_sliding_grid(
     try:
         config: ZoneConfig = extract_zone_config(active_zone, active_zone_idx, log_message, symbol_infos)
 
+        if config.entry_mode == "fractal":
+            # Izgara yok: anında giriş, seviye üretimi ve ızgara doğrulaması atlanır. Pozisyon sınırı
+            # kurgu başına fractal_entry'de: sınırdaki kurgunun bekleyen emirlerini kendisi siler,
+            # SAR takibi ve "işlenmiş" kaydı sürer.
+            return manage_fractal_orders(
+                mt5_module,
+                config,
+                active_zone_idx,
+                zone_log_id(active_zone, active_zone_idx),
+                robot_positions,
+                robot_orders,
+                symbol_infos,
+                consecutive_errors,
+                active_zones_state,
+                log_message,
+            )
+
         current_open_positions = len(
             [p for p in robot_positions if p.magic == config.target_magic]
         )
@@ -71,23 +88,6 @@ def _handle_sliding_grid(
                 )
         else:
             state.limit_warned_zones.pop(active_zone_idx, None)
-
-        if config.entry_mode == "fractal":
-            # Izgara yok: anında giriş, seviye üretimi ve ızgara doğrulaması atlanır. Sınırda da
-            # çağrılır: bekleyen emirleri kendisi siler, SAR takibi ve "işlenmiş" kaydı sürer.
-            return manage_fractal_orders(
-                mt5_module,
-                config,
-                active_zone_idx,
-                zone_log_id(active_zone, active_zone_idx),
-                robot_positions,
-                robot_orders,
-                symbol_infos,
-                consecutive_errors,
-                active_zones_state,
-                log_message,
-                allow_new_orders=not at_limit,
-            )
 
         if at_limit:
             cancelled = sum(

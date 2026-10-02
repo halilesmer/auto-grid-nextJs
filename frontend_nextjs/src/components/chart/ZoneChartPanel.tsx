@@ -65,7 +65,7 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
     zone.fractal_tp_by_money || zone.fractal_use_sl === false
       ? ['zone.fractal.tpMoney', 'zone.fractal.tpMoney.hint', t('chart.zone.profitValue', { value: zone.fractal_tp_money ?? 10 })]
       : ['zone.fractal.rr', 'zone.fractal.rr.hint', zone.fractal_rr ?? 2],
-    ['chart.zone.maxPositions', 'zone.breakout.maxPositions.hint', zone.max_positions],
+    ['chart.zone.maxPositions', 'zone.fractal.maxPositions.hint', zone.max_positions],
   ];
   const count = zone.fractal_order_count ?? 1;
   if (zone.order_type === 'BOTH' && !zone.sync_buy_sell) {
@@ -81,6 +81,8 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
           : 'zone.fractal.orderCount';
     fields.push([key, `${key}.hint`, count]);
   }
+  const extra = zone.fractal_setups?.length ?? 0;
+  if (extra > 0) fields.push(['chart.zone.setups', 'chart.zone.setups.hint', 1 + extra]);
   return fields;
 }
 
@@ -420,13 +422,16 @@ export default function ZoneChartPanel({
   const fractalTf = zone?.fractal_timeframe && isTimeframe(zone.fractal_timeframe) ? zone.fractal_timeframe : 'H4';
   const fractals = useMemo<FractalPoint[]>(() => {
     if (!isFractalZone || !prefs.showFractals || !data) return [];
+    // Nur Einstiege der Setups, deren Zeitrahmen gerade angezeigt wird
+    const setupTf = (sid: number) =>
+      sid === 1 ? fractalTf : zone?.fractal_setups?.find((s) => s.sid === sid)?.fractal_timeframe;
     const traded = new Set(
-      timeframe === fractalTf
-        ? (history?.entries ?? []).filter((e) => e.fractal && e.zone.kind === 'zone').map((e) => `${e.fractal!.side}${e.fractal!.time}`)
-        : [],
+      (history?.entries ?? [])
+        .filter((e) => e.fractal && e.zone.kind === 'zone' && setupTf(e.fractal.sid) === timeframe)
+        .map((e) => `${e.fractal!.side}${e.fractal!.time}`),
     );
     return findFractals(data.bars, data.missing, data.liveFrom).map((f) => ({ ...f, traded: traded.has(`${f.side}${f.time}`) }));
-  }, [isFractalZone, prefs.showFractals, data, history, timeframe, fractalTf]);
+  }, [isFractalZone, prefs.showFractals, data, history, timeframe, fractalTf, zone?.fractal_setups]);
 
   const band = zone && prefs.showZoneLines ? { min: zone.min_price, max: zone.max_price } : null;
   const marketHours = index >= 0 ? liveData.zone_market_hours?.[String(index)] : undefined;

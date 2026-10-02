@@ -464,7 +464,7 @@ def test_vom_bot_geloeschte_orders_gelten_nicht_als_erledigt(fake_mt5):
 def test_hinweis_merker_nur_fuer_fraktale_im_fenster(fake_mt5):
     h = setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2, max_price=97.5)  # 97,6 außerhalb
     h.tick()
-    assert (0, "U", T0 + UP_IDX * STEP) in state.fractal_logged
+    assert (0, 1, "U", T0 + UP_IDX * STEP) in state.fractal_logged  # (Zone, Setup, Seite, Kerzenzeit)
     h.zones[0]["fractal_order_count"] = 1
     h.tick()
     assert not [k for k in state.fractal_logged if k[-1] == T0 + UP_IDX * STEP]
@@ -511,3 +511,164 @@ def test_alte_zustandsdatei_mit_einzelzeit_wird_gelesen(fake_mt5):
         json.dump({"done": {"zone-test:USOUSD:H4:U": T0 + UP2_IDX * STEP}}, f)
     setup(fake_mt5, TWO_UP, order_type="BUY", fractal_order_count=2).tick()
     assert prices(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP) == [97.6]
+
+
+# --------------------------------------------------------------------------- ENG-28 Setups
+UP_T, DOWN_T = T0 + UP_IDX * STEP, T0 + DOWN_IDX * STEP
+
+
+def two_setups(fake_mt5, extra=None, **zone_overrides):
+    """Setup 1 = H4 (Zonenfelder), Setup 2 = M15 mit gleichem Kursbild, 0,02 Lot und R/R 1."""
+    fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_M15, bars(FLAT + SHAPE))
+    setups = extra if extra is not None else [
+        {"sid": 2, "fractal_timeframe": "M15", "lot_size": 0.02, "fractal_rr": 1.0, "max_positions": 5},
+    ]
+    return setup(fake_mt5, order_type="BUY", fractal_setups=setups, **zone_overrides)
+
+
+def by_comment(fake_mt5):
+    return {o.comment: o for o in fake_mt5.robot_orders(MAGIC_ZONE_1)}
+
+
+@pytest.mark.feature("ENG-28")
+def test_zwei_setups_setzen_eigene_orders(fake_mt5):
+    two_setups(fake_mt5).tick()
+    orders = by_comment(fake_mt5)
+    assert set(orders) == {f"AutoGrid_Z1_FU{UP_T}", f"AutoGrid_Z1_F2U{UP_T}"}
+    s1, s2 = orders[f"AutoGrid_Z1_FU{UP_T}"], orders[f"AutoGrid_Z1_F2U{UP_T}"]
+    # Gleicher Fraktal-Preis, aber eigenes Lot und eigener TP je Setup
+    assert (s1.price_open, s1.volume_initial, s1.sl, s1.tp) == pytest.approx((97.6, 0.01, 96.75, 99.3))
+    assert (s2.price_open, s2.volume_initial, s2.sl, s2.tp) == pytest.approx((97.6, 0.02, 96.75, 98.45))
+
+
+@pytest.mark.feature("ENG-28")
+def test_gleiche_order_in_zwei_setups_bleibt_stabil(fake_mt5):
+    # Gleiches Lot und gleicher TF: zwei identische Orders, jede bleibt ihrem Setup zugeordnet
+    h = two_setups(fake_mt5, [{"sid": 2, "fractal_timeframe": "H4"}])
+    h.tick()
+    sent = len(fake_mt5.sent)
+    h.tick()
+    h.tick()
+    assert len(fake_mt5.sent) == sent
+    assert set(by_comment(fake_mt5)) == {f"AutoGrid_Z1_FU{UP_T}", f"AutoGrid_Z1_F2U{UP_T}"}
+
+
+@pytest.mark.feature("ENG-28")
+def test_max_positionen_gilt_je_setup(fake_mt5):
+    h = two_setups(fake_mt5, max_positions=1)
+    h.tick()
+    # Position von Setup 1 (ohne Kommentar → Setup 1): nur dessen Order wird gelöscht
+    fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 96.0, magic=MAGIC_ZONE_1)
+    h.tick()
+    assert set(by_comment(fake_mt5)) == {f"AutoGrid_Z1_F2U{UP_T}"}
+
+
+@pytest.mark.feature("ENG-28")
+def test_position_ueber_eroeffnungsorder_dem_setup_zugeordnet(fake_mt5):
+    h = two_setups(fake_mt5, extra=[{"sid": 2, "fractal_timeframe": "M15", "lot_size": 0.02, "max_positions": 1}])
+    h.tick()
+    # Broker hat den Positionskommentar überschrieben; die Eröffnungsorder trägt den Setup-Kommentar
+    pos = fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 96.0, magic=MAGIC_ZONE_1)
+    pos.comment = "[tp]"
+    fake_mt5.history[pos.identifier].comment = f"AutoGrid_Z1_F2U{T0}"
+    h.tick()
+    assert set(by_comment(fake_mt5)) == {f"AutoGrid_Z1_FU{UP_T}"}
+
+
+@pytest.mark.feature("ENG-28")
+def test_geloeschtes_setup_verliert_seine_pending_orders(fake_mt5):
+    h = two_setups(fake_mt5)
+    h.tick()
+    h.zones[0]["fractal_setups"] = []
+    h.tick()
+    assert set(by_comment(fake_mt5)) == {f"AutoGrid_Z1_FU{UP_T}"}
+
+
+@pytest.mark.feature("ENG-28")
+def test_erledigt_merker_je_setup(fake_mt5):
+    h = two_setups(fake_mt5)
+    h.tick()
+    s2 = by_comment(fake_mt5)[f"AutoGrid_Z1_F2U{UP_T}"]
+    fake_mt5.orders.remove(s2)  # in MT5 von Hand gelöscht
+    h.tick()
+    h.tick()
+    assert set(by_comment(fake_mt5)) == {f"AutoGrid_Z1_FU{UP_T}"}
+    with open(_state_file(), encoding="utf-8") as f:
+        done = json.load(f)["done"]
+    assert done == {"zone-test:USOUSD:M15:U:S2": [UP_T]}
+
+
+@pytest.mark.feature("ENG-28")
+def test_ohne_setups_bleibt_alles_wie_bisher():
+    cfg = extract_zone_config(fractal_zone(), 0)
+    assert [s.sid for s in cfg.fractal_setups] == [1]
+    s1 = cfg.fractal_setups[0]
+    assert (s1.timeframe, s1.lot_size, s1.order_count, s1.rr, s1.max_positions) == ("H4", 0.01, 1, 2.0, cfg.max_positions)
+    assert extract_zone_config(make_zone(), 0).fractal_setups == ()  # Grid-Zone
+
+
+@pytest.mark.feature("ENG-28")
+def test_setup_werte_werden_geprueft():
+    def sids(setups, **zone):
+        return [s.sid for s in extract_zone_config(fractal_zone(fractal_setups=setups, **zone), 0).fractal_setups]
+
+    # Ungültige, doppelte oder fehlende Nummern werden übersprungen; höchstens 10 Zusatz-Setups
+    assert sids([{"sid": 2}, {"sid": 2}, {"sid": 1}, {"sid": 0}, {"sid": 100}, {}, "x", {"sid": True}]) == [1, 2]
+    assert sids([{"sid": n} for n in range(2, 20)]) == list(range(1, 12))
+    assert sids("kaputt") == [1]
+    s = extract_zone_config(fractal_zone(fractal_setups=[{"sid": 3, "fractal_timeframe": "XX", "fractal_order_count": 50,
+                                                          "max_positions": 0}]), 0).fractal_setups[1]
+    # Fehlende/ungültige Felder → Wert von Setup 1, Anzahl begrenzt, 0 Positionen = unbegrenzt
+    assert (s.sid, s.timeframe, s.lot_size, s.order_count, s.rr, s.max_positions) == (3, "H4", 0.01, 20, 2.0, 500)
+    # Eigenes Sell-Lot / eigene Sell-Anzahl nur ohne „Buy/Sell gleich“
+    split = [{"sid": 2, "lot_size": 0.02, "sell_lot_size": 0.03, "fractal_order_count": 2, "sell_fractal_order_count": 3}]
+    s = extract_zone_config(fractal_zone(fractal_setups=split, sync_buy_sell=False), 0).fractal_setups[1]
+    assert (s.lot_size, s.sell_lot_size, s.order_count, s.sell_order_count) == (0.02, 0.03, 2, 3)
+    s = extract_zone_config(fractal_zone(fractal_setups=split), 0).fractal_setups[1]
+    assert (s.lot_size, s.sell_lot_size, s.order_count, s.sell_order_count) == (0.02, 0.02, 2, 2)
+
+
+@pytest.mark.feature("ENG-28")
+def test_kommentar_mit_setup_nummer():
+    from src.core.grid_orders import fractal_comment, parse_fractal_comment
+
+    assert fractal_comment(MAGIC_ZONE_1, "U", 5) == "AutoGrid_Z1_FU5"
+    assert fractal_comment(MAGIC_ZONE_1, "D", 5, 12) == "AutoGrid_Z1_F12D5"
+    assert len(fractal_comment(200999, "U", 1_759_400_000, 99)) <= 31
+    assert parse_fractal_comment("AutoGrid_Z1_FU5") == (1, "U", 5)
+    assert parse_fractal_comment("AutoGrid_Z7_F12D5") == (12, "D", 5)
+    assert parse_fractal_comment("AutoGrid_Z7_F12X5") is None
+
+
+@pytest.mark.feature("ENG-28")
+def test_ungueltiges_setup_behaelt_seine_orders(fake_mt5):
+    h = two_setups(fake_mt5)
+    h.tick()
+    h.zones[0]["fractal_setups"][0]["fractal_rr"] = "kaputt"  # Setup 2 wird übersprungen, nicht gelöscht
+    h.tick()
+    assert set(by_comment(fake_mt5)) == {f"AutoGrid_Z1_FU{UP_T}", f"AutoGrid_Z1_F2U{UP_T}"}
+
+
+@pytest.mark.feature("ENG-28")
+def test_position_eines_entfernten_setups_zaehlt_fuer_setup_1(fake_mt5):
+    h = setup(fake_mt5, order_type="BUY", max_positions=1)
+    pos = fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 96.0, magic=MAGIC_ZONE_1)
+    pos.comment = f"AutoGrid_Z1_F5U{T0}"  # Setup 5 gibt es nicht mehr
+    h.tick()
+    assert fake_mt5.orders == []
+
+
+@pytest.mark.feature("ENG-28")
+def test_sar_zieht_je_setup_mit_dessen_zeitrahmen(fake_mt5):
+    rising = [(95.5 + 0.05 * i, 95.3 + 0.05 * i) for i in range(30)]
+    falling = [(97.5 - 0.02 * i, 97.3 - 0.02 * i) for i in range(30)]
+    fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_M15, bars(falling))
+    h = setup(fake_mt5, rising, order_type="BUY", fractal_sl_mode="sar",
+              fractal_setups=[{"sid": 2, "fractal_timeframe": "M15"}])
+    sar_h4 = round(parabolic_sar(bars(rising), 0.02, 0.2)[0][-1], 3)
+    p1 = fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 96.0, sl=90.0, magic=MAGIC_ZONE_1)
+    p2 = fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 96.0, sl=90.0, magic=MAGIC_ZONE_1)
+    p2.comment = f"AutoGrid_Z1_F2U{T0}"
+    h.tick()
+    assert p1.sl == pytest.approx(sar_h4)
+    assert p2.sl == pytest.approx(90.0)  # M15-SAR fällt (Short-Trend): BUY-SL wird nicht gezogen
