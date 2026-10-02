@@ -188,7 +188,16 @@ def read_bot_metrics(acc_id: str, symbol: str = ""):
         # Bot dosyayı o an os.replace ile değiştiriyor olabilir (Windows kilidi)
         return None
 
-    price = metrics.get("current_price") or metrics.get("price")
+    # current_price botun alfabetik ilk sembolüdür; akışın sembolü başka olabilir. Fiyat ile sembol
+    # her zaman aynı sembole ait olsun (grafik canlı mumu başka sembolün fiyatıyla güncellemesin)
+    prices = metrics.get("symbol_prices") if isinstance(metrics.get("symbol_prices"), dict) else {}
+    if symbol and prices.get(symbol):
+        price = prices[symbol]
+    elif prices:
+        symbol = sorted(prices)[0]
+        price = prices[symbol]
+    else:
+        price = metrics.get("current_price") or metrics.get("price")
     if not price:
         return None
     return {
@@ -245,9 +254,15 @@ def load_stream_accounts(base_dir: str) -> list[dict]:
 
 
 def first_zone_symbol(base_dir: str, acc_id: str) -> str:
-    """Hesabın ilk bölgesinin sembolü (Auto Grid ayar dosyası önce); yoksa boş."""
+    """Hesabın ilk bölgesinin sembolü; yoksa boş.
+
+    Dosya sırası API'deki gibi (helpers._find_settings_file): önce settings_<id>.json, sonra
+    Auto Grid ayar dosyası, sonra diğerleri. Önceden yalnızca settings_<id>_*.json aranıyordu;
+    motor adı olmayan dosyada akışın sembolü boş kalıyordu.
+    """
+    exact = os.path.join(base_dir, "configs", f"settings_{acc_id}.json")
     # "_" şart: settings_1001* aksi halde settings_10011_... dosyasını da yakalar
-    settings_files = sorted(
+    settings_files = ([exact] if os.path.exists(exact) else []) + sorted(
         glob.glob(os.path.join(base_dir, "configs", f"settings_{acc_id}_*.json")),
         key=lambda path: (not path.endswith("_Auto_Grid.json"), path),
     )

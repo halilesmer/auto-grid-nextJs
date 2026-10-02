@@ -144,6 +144,10 @@ export function defaultState() {
     /** Brokeruhr je Konto (GET /market/{id}/clock): Abstand zu UTC in Sekunden; reliable=false = Markt zu. */
     brokerOffset: 3 * 3600,
     brokerClockReliable: true,
+    /** Fehlende Kerzen-Bereiche (GET /market/{id}/rates → missing), MT5-Zeit; dort liefert der Mock keine Kerzen. */
+    ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],
+    /** Antwort von /rates erzwingt einen Fehler (z. B. 503 Datenbank nicht bereit); null = normal */
+    ratesError: null as { status: number; detail: string } | null,
     /** Benutzer mit persönlichem Schlüssel; leer = Einzelbetrieb wie bisher (nur der Admin-Schlüssel). */
     users: [] as MockUser[],
   };

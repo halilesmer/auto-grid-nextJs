@@ -41,6 +41,11 @@ MAX_ENTRY_LOOKUPS = 200
 MAX_PAUSE_SEC = 4 * 86400
 ENTRY_IN = 0
 _FETCH_SLOT = threading.Semaphore(1)
+# Uç parçası (canlı mumu içeren yanıt) 30 sn tekrar kullanılır: grafik her dakika ucu yeniler,
+# birden fazla sekme/kullanıcı aynı anda sorsa da MT5'e en fazla 30 sn'de bir bağlanılır
+TAIL_CACHE_SEC = 30
+_tail_cache: dict[tuple, tuple[float, dict]] = {}
+_tail_lock = threading.Lock()
 # Girişi MT5'te de bulunamayan pozisyonlar (hesap başına): her istekte yeniden sorulmaz
 _entry_lookups_done: dict[str, set[int]] = {}
 
@@ -128,10 +133,31 @@ def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: 
     """Mumlar [a, b): eksik parçalar MT5'ten çekilir, veritabanından verilir.
 
     MT5'e ulaşılamaz veya hesap meşgulse veritabanındakiler + `missing` döner.
+    Canlı mumu içeren yanıt TAIL_CACHE_SEC boyunca aynı istek için tekrar verilir.
     """
-    tf_name, tf_sec = TIMEFRAMES[timeframe]
+    tf_sec = TIMEFRAMES[timeframe][1]
     source = str(account.get("server") or "")
     a, b = _align(a, b, tf_sec)
+    key = (source, symbol, timeframe, a, b)
+    with _tail_lock:
+        hit = _tail_cache.get(key)
+        if hit and time.monotonic() - hit[0] < TAIL_CACHE_SEC:
+            return hit[1]
+    result = _get_rates(account, source, symbol, timeframe, a, b, busy)
+    with _tail_lock:
+        # Süresi dolanlar atılır (sözlük büyümesin)
+        now = time.monotonic()
+        for k in [k for k, (at, _) in _tail_cache.items() if now - at >= TAIL_CACHE_SEC]:
+            del _tail_cache[k]
+        # Geçici sorun (meşgul, MT5 hatası) önbellekte kalmasın: bir dahaki istek yeniden denesin
+        transient = any(m["reason"] in ("busy", "error") for m in result["missing"])
+        if result["live_from"] is not None and not transient:
+            _tail_cache[key] = (now, result)
+    return result
+
+
+def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, b: int, busy: bool) -> dict:
+    tf_name, tf_sec = TIMEFRAMES[timeframe]
     # Bir yanıt en fazla MAX_BARS mum: takvim süresi bunu aşarsa geri kalanı next_from ile
     end = min(b, a + MAX_BARS * tf_sec)
     todo, missing = db.plan_rates(source, symbol, tf_sec, a, end)

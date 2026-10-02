@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { isDayString, RANGE_PRESETS, type DayRange, type RangePreset } from '@/lib/serverTime';
+import { DEFAULT_TIMEFRAME, isTimeframe, type Timeframe } from '@/lib/analysis/candles';
 
 export const ANALYSIS_TABS = ['chart', 'stats', 'backtest'] as const;
 export type AnalysisTab = (typeof ANALYSIS_TABS)[number];
@@ -13,7 +14,7 @@ export type RangeSelection = { preset: RangePreset } | { custom: DayRange };
 export const DEFAULT_RANGE: RangeSelection = { preset: 'last30' };
 
 /**
- * Zustand der Analyse-Seite in der URL (/chart?tab=&account=&zone=&range= bzw. &from=&to=):
+ * Zustand der Analyse-Seite in der URL (/chart?tab=&account=&zone=&tf=&range= bzw. &from=&to=):
  * Neuladen und geteilte Links zeigen dieselbe Ansicht. Änderungen ersetzen den Eintrag im
  * Verlauf (kein „Zurück“ durch jeden Klick).
  */
@@ -31,6 +32,8 @@ export function useAnalysisParams() {
   const rangeParam = params.get('range');
   const fromParam = params.get('from');
   const toParam = params.get('to');
+  const tfParam = params.get('tf');
+  const timeframe: Timeframe = isTimeframe(tfParam) ? tfParam : DEFAULT_TIMEFRAME;
 
   const range = useMemo<RangeSelection>(() => {
     if (isDayString(fromParam) && isDayString(toParam) && fromParam <= toParam) {
@@ -69,6 +72,10 @@ export function useAnalysisParams() {
   // Konto aus dem Store in die URL schreiben (Seite ohne ?account= geöffnet): Zone bleibt
   const adoptAccount = useCallback((value: string) => update({ account: value }), [update]);
   const setZone = useCallback((value: string | null) => update({ zone: value }), [update]);
+  const setTimeframe = useCallback(
+    (value: Timeframe) => update({ tf: value === DEFAULT_TIMEFRAME ? null : value }),
+    [update],
+  );
   const setRange = useCallback(
     (value: RangeSelection) =>
       update(
@@ -79,5 +86,5 @@ export function useAnalysisParams() {
     [update],
   );
 
-  return { tab, accountId, zoneId, range, setTab, setAccount, adoptAccount, setZone, setRange };
+  return { tab, accountId, zoneId, range, timeframe, setTab, setAccount, adoptAccount, setZone, setRange, setTimeframe };
 }

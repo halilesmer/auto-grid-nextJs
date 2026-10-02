@@ -89,7 +89,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┣ 📜 InputField.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 tooltip.tsx          # Tooltip + InfoHint (i) + FieldLabel (Popover API/top-layer); hint zorunlu, bkz. hooks/RULES.md §5
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
-┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice
+┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz)
+┃ ┃ ┃ ┃ ┗ 📂 chart              # Grafik sekmesi: ChartCore (lightweight-charts, mumlar + boşluklar, RSI bölmesi, fiyat çizgileri), primitives.ts (bölge bandı, eksik veri taraması, piyasa arası çizgileri), TimeframeSelect
 ┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri
 ┃ ┃ ┃   ┣ 📜 ZoneCard.tsx
 ┃ ┃ ┃   ┣ 📜 ZoneHeader.tsx
@@ -102,6 +103,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃   ┗ 📜 types.ts
 ┃ ┃ ┣ 📂 hooks                  # Custom React hooks
 ┃ ┃ ┃ ┣ 📜 useAccountSettings.ts # Hesabın ayarlarını yükler (loadedAccount ile; geç gelen yanıt atılır)
+┃ ┃ ┃ ┣ 📜 useMarketRates.ts    # GET /market/{id}/rates: grafik mumları (sayfalı, eski yanıt atılır, 60 sn'de bir uç yenilenir)
+┃ ┃ ┃ ┣ 📜 useLiveTrades.ts     # Bot metriklerinden açık pozisyon/emir listesi (5 sn, useBotRuntimeStore.liveData)
 ┃ ┃ ┃ ┣ 📜 useAnalysisParams.ts # Analiz sayfasının URL durumu (tab, account, zone, range/from/to)
 ┃ ┃ ┃ ┣ 📜 useBrokerClock.ts    # GET /market/{id}/clock: broker saatinin UTC farkı
 ┃ ┃ ┃ ┣ 📜 useSymbolDetails.ts
@@ -111,9 +114,11 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┗ 📜 index.ts
 ┃ ┃ ┣ 📂 services               # API servis katmanı
 ┃ ┃ ┃ ┣ 📜 api.ts               # Genel API istemcisi
-┃ ┃ ┃ ┣ 📜 marketApi.ts         # Analiz verisi (şimdilik broker saati)
+┃ ┃ ┃ ┣ 📜 marketApi.ts         # Analiz verisi: broker saati, mumlar (/rates)
 ┃ ┃ ┃ ┗ 📜 zoneApi.ts           # Zone API işlemleri
 ┃ ┃ ┣ 📂 lib                    # Kütüphane yardımcıları
+┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı)
+┃ ┃ ┃ ┣ 📜 chartTheme.ts        # Grafik renkleri tema token'larından (çalışma anında okunur)
 ┃ ┃ ┃ ┣ 📜 serverTime.ts        # Zaman modeli: broker günü (MT5 zamanı, UTC aritmetiği), hazır aralıklar, yarı açık aralıklar (docs/analyse-regeln.md §1)
 ┃ ┃ ┃ ┣ 📜 vps.ts               # VPS aksiyonları ve tipleri (sayfa + route ortak)
 ┃ ┃ ┃ ┣ 📂 server
@@ -178,7 +183,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
 ┃ ┃ ┃ ┣ 📜 clock.py             # Motorun saati (canlıda gerçek saat; örnek çözümlerde simüle saat, tests/parity)
 ┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Yardımcılar - fiyat/lot normalizasyonu, logging, market açık kontrolü, timeframe map
-┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı, MT5 bağlantı/market durumu
+┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı ve listeleri (en fazla 500, analiz grafiği), MT5 bağlantı/market durumu
 ┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no), açan emrin hacmi (history) → kısmi dolumda kalan lot; zone_magic/zone_index_by_magic: emir/pozisyonun bölgesi sıradan değil magic'ten bulunur
 ┃ ┃ ┃ ┣ 📜 grid_position_sync.py # Zombi temizliği & kısmi dolum - pasif bölge temizliği, TP/SL senkron, kalan lot
 ┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal - MT5 $1/$2 Buy Limit + GRID:START/STOP komutları
@@ -395,7 +400,7 @@ grid_orchestrator (Ana Orkestratör)
 | Rota | Açıklama | Ana Bileşenler |
 |------|----------|----------------|
 | `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
-| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + canlı ChartViewer), İstatistik, Backtest (yer tutucu); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&range=`) |
+| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + MT5 mumları: zaman dilimi, eksik veri, piyasa araları, bölge bandı, kademeler, pozisyon/emirler, RSI), İstatistik, Backtest (yer tutucu); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&tf=&range=`) |
 | `/formasyon` | Formasyon Analizi | (Mevcut) |
 | `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsElevatedWarning (admin haklı süreçler), VpsStatusPanel, VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
 

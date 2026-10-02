@@ -13,7 +13,7 @@ export default defineArea(
     'chart.zone.notFound.withAccount': 'Bu hesabın ayarlarında bu bölge yok (silinmiş olabilir).',
     'chart.zone.mismatch.title': 'Farklı sembol',
     'chart.zone.mismatch.text':
-      'Grafik akışı {stream} gösteriyor (hesabın ilk bölgesi); bu bölge {symbol}. Bölge seviyeleri bu yüzden grafiğe çizilmedi.',
+      'Canlı akış {stream} gösteriyor (hesabın ilk bölgesi); bu bölge {symbol}. Canlı değerler {stream} içindir; grafik {symbol} mumlarını gösterir ama son mum canlı güncellenmez.',
     'chart.zone.title': 'Bölge {n} · {symbol}',
     'chart.zone.breakout': 'Kırılım modu (sadece trend yönünde)',
     'chart.zone.sliding': 'Kayan grid',
@@ -51,7 +51,7 @@ export default defineArea(
     'chart.zone.notFound.withAccount': 'This zone is not in this account’s settings (it may have been deleted).',
     'chart.zone.mismatch.title': 'Different symbol',
     'chart.zone.mismatch.text':
-      'The chart stream shows {stream} (the account’s first zone); this zone is {symbol}. That is why the zone levels were not drawn on the chart.',
+      'The live stream shows {stream} (the account’s first zone); this zone is {symbol}. The live values belong to {stream}; the chart shows {symbol} candles, but the last candle is not updated live.',
     'chart.zone.title': 'Zone {n} · {symbol}',
     'chart.zone.breakout': 'Breakout mode (trend direction only)',
     'chart.zone.sliding': 'Sliding grid',
@@ -89,7 +89,7 @@ export default defineArea(
     'chart.zone.notFound.withAccount': 'Diese Zone ist in den Einstellungen dieses Kontos nicht vorhanden (evtl. gelöscht).',
     'chart.zone.mismatch.title': 'Anderes Symbol',
     'chart.zone.mismatch.text':
-      'Der Chart-Stream zeigt {stream} (erste Zone des Kontos); diese Zone ist {symbol}. Deshalb wurden die Zonenlevel nicht im Chart eingezeichnet.',
+      'Der Live-Stream zeigt {stream} (erste Zone des Kontos); diese Zone ist {symbol}. Die Live-Werte gehören zu {stream}; der Chart zeigt die Kerzen von {symbol}, aber die letzte Kerze wird nicht live fortgeschrieben.',
     'chart.zone.title': 'Zone {n} · {symbol}',
     'chart.zone.breakout': 'Breakout-Modus (nur in Trendrichtung)',
     'chart.zone.sliding': 'Gleitendes Grid',

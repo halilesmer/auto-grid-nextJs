@@ -128,6 +128,37 @@ export interface Metrics {
   symbol?: string;
   /** Akışın ait olduğu hesap; seçili hesaptan farklıysa yok sayılır. Eski worker'larda yok */
   account_id?: string;
+  /** Sembolün piyasası açık mı (akış); kapalıyken grafik canlı mum üretmez */
+  market_open?: boolean;
+}
+
+/** Offene Robot-Position aus den Live-Metriken (grid_metrics.py, ANA-06); type 0 = BUY, 1 = SELL */
+export interface LivePosition {
+  ticket: number;
+  symbol: string;
+  magic: number;
+  type: number;
+  volume: number | null;
+  price_open: number | null;
+  sl: number;
+  tp: number;
+  profit: number | null;
+  /** Eröffnung in MT5-Zeit (Sekunden bzw. Millisekunden) */
+  time: number | null;
+  time_msc?: number | null;
+}
+
+/** Pending-Order des Robots; type wie MT5 ORDER_TYPE_* (2 = BUY LIMIT, 3 = SELL LIMIT, 4 = BUY STOP, 5 = SELL STOP …) */
+export interface LiveOrder {
+  ticket: number;
+  symbol: string;
+  magic: number;
+  type: number;
+  volume: number | null;
+  price_open: number | null;
+  sl: number;
+  tp: number;
+  time: number | null;
 }
 
 export interface LiveData {
@@ -154,6 +185,9 @@ export interface LiveData {
   zone_market_hours?: Record<string, string>;
   // Motor telefondan ($1 sinyali / GRID:STOP) durduruldu
   remote_paused?: boolean;
+  // Robot pozisyonları ve emirleri (en fazla 500); eski worker'larda veya MT5 bağlı değilken yok
+  positions?: LivePosition[];
+  orders?: LiveOrder[];
 }
 
 export interface UpdateInfo {

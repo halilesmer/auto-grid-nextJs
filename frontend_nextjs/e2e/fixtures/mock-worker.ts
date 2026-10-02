@@ -102,6 +102,8 @@ export class MockWorker {
   offline = false;
   /** Erzwungene Antwort je "METHODE /api/pfad" (z. B. Fehler 500 für /system/scan-mt5). */
   readonly overrides = new Map<string, Reply>();
+  /** Anzahl Kerzen je Antwort von /market/{id}/rates, in Reihenfolge (der Chart darf nicht mehr zeigen). */
+  readonly ratesDelivered: number[] = [];
   /** URLs aller WebSocket-Verbindungen (inkl. Reconnects). */
   readonly wsUrls: string[] = [];
   /** Offene Streams und ihr Konto aus ?account_id= (null: ohne Parameter → erstes Konto). */
@@ -280,6 +282,59 @@ export class MockWorker {
     return own ? null : { status: 404, body: { detail: `Account '${id}' not found` } };
   }
 
+  /**
+   * Wie market_sync.get_rates: Kerzen [from, to) in MT5-Zeit, spaltenweise, höchstens 50.000 (Rest über
+   * next_from). Wochenende = keine Kerzen (Pause), `ratesMissing` = keine Kerzen + Eintrag in `missing`.
+   * Die neueste Kerze (jetzt auf der Brokeruhr) ist die laufende (`live_from`).
+   */
+  private rates(accountId: string, q: URLSearchParams) {
+    const TF: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600, H4: 14400, D1: 86400 };
+    const timeframe = q.get('timeframe') ?? 'M1';
+    const tf = TF[timeframe] ?? 60;
+    const a = Math.floor(Number(q.get('from')) / tf) * tf;
+    const b = Math.ceil(Number(q.get('to')) / tf) * tf;
+    const end = Math.min(b, a + 50_000 * tf);
+    const latest = Math.floor((Date.now() / 1000 + this.state.brokerOffset) / tf) * tf;
+    const missing = this.state.ratesMissing
+      .filter((m) => m.to > a && m.from < end)
+      .map((m) => ({ ...m, from: Math.max(m.from, a), to: Math.min(m.to, end) }));
+    const cols = { t: [] as number[], o: [] as number[], h: [] as number[], l: [] as number[], c: [] as number[] };
+    const mid = (t: number) => 97 + 2 * Math.sin(t / 43200) + 0.3 * Math.sin(t / 2700);
+    for (let t = a; t < end && t <= latest; t += tf) {
+      const weekday = new Date(t * 1000).getUTCDay();
+      if (tf < 86400 && (weekday === 0 || weekday === 6)) continue;
+      if (missing.some((m) => t >= m.from && t < m.to)) continue;
+      const open = mid(t);
+      const close = mid(t + tf);
+      cols.t.push(t);
+      cols.o.push(Number(open.toFixed(3)));
+      cols.c.push(Number(close.toFixed(3)));
+      cols.h.push(Number((Math.max(open, close) + 0.05).toFixed(3)));
+      cols.l.push(Number((Math.min(open, close) - 0.05).toFixed(3)));
+    }
+    this.ratesDelivered.push(cols.t.length);
+    const now = Date.now() / 1000;
+    return {
+      account_id: accountId,
+      source: 'Broker-Demo',
+      symbol: q.get('symbol'),
+      timeframe,
+      from: a,
+      to: b,
+      ...cols,
+      v: cols.t.map(() => 10),
+      s: cols.t.map(() => 3),
+      live_from: cols.t.length && cols.t[cols.t.length - 1] === latest ? latest : null,
+      digits: 3,
+      point: 0.001,
+      next_from: end < b ? end : null,
+      missing,
+      db_full: false,
+      server_now: this.state.brokerClockReliable ? now + this.state.brokerOffset : null,
+      offset_sec: this.state.brokerClockReliable ? this.state.brokerOffset : null,
+    };
+  }
+
   private dispatch(method: string, url: URL, body: Json | null, principal: Principal): Reply | null {
     const s = this.state;
     const path = url.pathname.replace(/^\/api/, '');
@@ -408,6 +463,14 @@ export class MockWorker {
         server_now: now + offset,
         cached: false,
       });
+    }
+
+    if (seg[0] === 'market' && seg[2] === 'rates' && method === 'GET') {
+      if (!s.accounts.some((a) => String(a.id) === seg[1])) {
+        return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      }
+      if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
+      return ok(this.rates(seg[1], url.searchParams));
     }
 
     // --------------------------------------------------------------- Bot

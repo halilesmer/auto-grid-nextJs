@@ -1262,7 +1262,7 @@ kategorien:
     features:
       - id: ANA-01
         titel: Analyse-Seite mit Tabs
-        beschreibung: "Menüpunkt „Analyse“ (/chart) mit den Tabs Chart, Statistik und Backtest (Statistik und Backtest noch Platzhalter). Konto, Zone, Tab und Zeitraum stehen in der URL (?account=&zone=&tab=&range= bzw. &from=&to=); Neuladen und geteilte Links zeigen dieselbe Ansicht, ohne ?account= wird das im Dashboard gewählte Konto übernommen. Der Chart-Tab zeigt die Einstellungen der Zone und ihre Preisgrenzen im Live-Chart. Ein Info-Symbol zeigt den Lizenzhinweis von TradingView Lightweight Charts™ mit Link zu tradingview.com. Bei 375 px stehen Konto, Zone und Zeitraum untereinander; Panels bleiben im Bildschirm."
+        beschreibung: "Menüpunkt „Analyse“ (/chart) mit den Tabs Chart, Statistik und Backtest (Statistik und Backtest noch Platzhalter). Konto, Zone, Tab und Zeitraum stehen in der URL (?account=&zone=&tab=&range= bzw. &from=&to=); Neuladen und geteilte Links zeigen dieselbe Ansicht, ohne ?account= wird das im Dashboard gewählte Konto übernommen. Der Chart-Tab zeigt die Einstellungen der Zone und ihren Kursverlauf (ANA-05). Ein Info-Symbol zeigt den Lizenzhinweis von TradingView Lightweight Charts™ mit Link zu tradingview.com. Bei 375 px stehen Konto, Zone und Zeitraum untereinander; Panels bleiben im Bildschirm."
         code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts, frontend_nextjs/src/components/analysis/LicenseInfo.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
@@ -1284,7 +1284,7 @@ kategorien:
 
       - id: ANA-03
         titel: Anzeige-Schalter (Zahnrad)
-        beschreibung: "Das Zahnrad schaltet Zonengrenzen im Chart und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das."
+        beschreibung: "Das Zahnrad schaltet Zonenband, Grid-Stufen, Positionen/Orders, Marktpausen, RSI und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das."
         code: [frontend_nextjs/src/components/analysis/AnalysisSettingsPanel.tsx, frontend_nextjs/src/store/useAnalysisPrefsStore.ts]
         tiers: [e2e]
         pruefung:
@@ -1302,6 +1302,28 @@ kategorien:
           - Danach /api/market/<Konto>/coverage?symbol=<Symbol> aufrufen.
           - Im MT5-Journal und im Bot-Log nachsehen, ob während der Abrufe etwas passiert ist.
         erwartet: Beide Aufrufe liefern dieselben 60 Kerzen, die Zeiten passen zum MT5-Chart (Brokerzeit). Coverage zeigt den Bereich als „complete“. Im Journal keine neue Zeile „authorized on …“, im Bot-Log kein Verbindungsabbruch.
+
+      - id: ANA-05
+        titel: Chart-Tab mit Kerzen, Zonenband und Stufen
+        beschreibung: "Der Chart-Tab zeigt die MT5-Kerzen der gewählten Zone für Zeitraum und Zeitrahmen (M1 … D1, in der Adresse ?tf=, Standard M15) aus GET /market/{id}/rates, höchstens 100.000 Kerzen (sonst nur das Ende, mit Hinweis), Zeiten unverändert als Brokerzeit (MT5). Darüber das Zonenband (min–max als gestrichelte Linien und helle Fläche) und die Grid-Stufen, die der Bot vom aktuellen Preis aus rechnet (src/lib/analysis/levels.ts, gleiche Rechnung wie grid_execution/levels.py inkl. Breakout-Pullback und „Abstand nach Verlust“; Fraktal-Zonen haben keine Stufen, mit Hinweis). RSI(14, Wilder) im Browser aus den gezeigten Kerzen, eigener Bereich. Liegt der Zeitraum bis jetzt, kommt alle 60 s das Endstück neu (der Worker hält es 30 s im Cache); die laufende Kerze wächst mit dem Live-Preis, aber nur bei passendem Konto und Symbol, offenem Markt und sicherer Brokeruhr. Band, Stufen und RSI sind im Zahnrad abschaltbar."
+        code: [frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/analysis/chart/primitives.ts, frontend_nextjs/src/components/analysis/chart/TimeframeSelect.tsx, frontend_nextjs/src/lib/analysis/levels.ts, frontend_nextjs/src/lib/analysis/candles.ts, frontend_nextjs/src/hooks/useMarketRates.ts, worker_python/src/utils/market_sync.py]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Analyse öffnen, ein DEMO-Konto mit laufendem Bot und eine Grid-Zone wählen, Zeitraum „Letzte 7 Tage“.
+          - Zeitrahmen M15, dann H1 wählen und die Seite neu laden.
+          - Im MT5-Terminal denselben Chart (Symbol, H1) daneben öffnen.
+        erwartet: Die Kerzen stimmen in Zeit und Preis mit dem MT5-Chart überein (Brokerzeit). Nach dem Neuladen ist H1 noch gewählt. Das Zonenband liegt auf min/max der Zone; die Stufen liegen dort, wo der Bot seine Orders setzt.
+
+      - id: ANA-06
+        titel: Offene Positionen und Orders im Chart
+        beschreibung: "Die Bot-Telemetrie (grid_metrics.calculate_live_metrics) liefert zusätzlich positions[] und orders[] der Robot-Magics (Ticket, Magic, Typ, Volumen, Einstiegspreis, SL, TP, Gewinn, MT5-Zeit; höchstens 500). Der Chart-Tab liest sie alle 5 s über GET /logs/{id}?log_type=metrics und zeigt nur die der gewählten Zone (feste Magic-Nummer und Symbol): Positionen als durchgezogene Linie mit Beschriftung (BUY/SELL + Lot), TP/SL gepunktet, Pending-Orders gestrichelt (BUY LIMIT …). Ohne laufenden Bot oder ohne Magic (Zone nie gespeichert) keine Linien, dafür ein Hinweis. Die geschätzte Handelszeit der Zone steht als „geschätzt“ daneben. Abschaltbar im Zahnrad."
+        code: [worker_python/src/core/grid_metrics.py, frontend_nextjs/src/hooks/useLiveTrades.ts, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/store/types.ts]
+        tiers: [unit, e2e, manuell]
+        pruefung:
+          - Bot auf dem DEMO-Konto laufen lassen, bis die Zone Orders und mindestens eine Position hat.
+          - Analyse → Chart-Tab mit dieser Zone öffnen und mit der Liste „Handel“ im MT5-Terminal vergleichen.
+          - Bot stoppen und 10 Sekunden warten.
+        erwartet: Jede Position und Order dieser Zone erscheint auf ihrem Preis, Orders anderer Zonen nicht; die Anzahl unter dem Chart stimmt mit MT5 überein. Nach dem Stopp verschwinden die Linien und der Hinweis „Bot läuft nicht“ erscheint.
 
       - id: ANA-07
         titel: Deal-Archiv und Zonen-Register
@@ -1322,6 +1344,16 @@ kategorien:
           - Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden.
           - „31.02.26“ eingeben.
         erwartet: Neben dem Titel steht „Broker UTC+3“ (je nach Broker). „Letztes Jahr“ zeigt 01.01.–31.12. des Vorjahres; der eigene Zeitraum bleibt nach dem Neuladen; ein ungültiges Datum wird rot gemeldet und „Übernehmen“ ist gesperrt.
+
+      - id: ANA-11
+        titel: Fehlende Daten und Marktpausen im Chart
+        beschreibung: "Keine erfundenen Kerzen: Bereiche, die laut /rates fehlen (unavailable, error, busy), werden Leerstellen ohne Preis (nur Zeitstempel, höchstens 120 je Bereich) und grau schraffiert mit „Keine Daten“ gezeichnet; darüber ein Pflicht-Hinweis ohne Schalter mit Zeitraum, Grund und letzter Prüfung (DataQualityBanner). Bis „jetzt“ abgeschnitten, die Zukunft fehlt nie. Marktpausen (Lücke zwischen zwei echten Kerzen, mindestens zwei Kerzen lang und länger als eine Kerze + 15 min: Wochenende, Feiertag, Tagespause) sind dünne gestrichelte Trennlinien, abschaltbar; eine einzelne fehlende Kerze ohne Ticks ist keine Pause. Der RSI läuft nicht über eine Datenlücke. Gekürzter Zeitraum und volle Datenbank werden ebenfalls gemeldet."
+        code: [frontend_nextjs/src/lib/analysis/candles.ts, frontend_nextjs/src/components/analysis/DataQualityBanner.tsx, frontend_nextjs/src/components/analysis/chart/primitives.ts, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Analyse → Chart-Tab, Zeitraum über ein Wochenende (z. B. „Letzte 7 Tage“), Zeitrahmen M15.
+          - Einen Zeitraum wählen, der vor dem Beginn der MT5-Historie des Symbols liegt (z. B. „Letztes Jahr“ bei M1).
+        erwartet: Am Wochenende eine dünne gestrichelte Linie statt Kerzen. Vor dem Beginn der Historie eine grau schraffierte Fläche „Keine Daten“ und ein gelber Hinweis mit Zeitraum und Grund „in MT5 nicht vorhanden“; dort steht keine einzige Kerze.
 
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)

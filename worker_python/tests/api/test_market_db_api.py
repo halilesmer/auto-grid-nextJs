@@ -13,7 +13,7 @@ import time
 import pytest
 
 import src.utils.mt5_connection as mc
-from src.utils import market_db, market_sync
+from src.utils import market_db, market_sync, mt5_market
 from tests.api.conftest import account
 from tests.conftest import TEST_ACCOUNT_ID
 from tests.fakes.fake_mt5 import FakeMT5
@@ -31,6 +31,7 @@ DEALS_URL = f"/api/history/{TEST_ACCOUNT_ID}/deals"
 @pytest.fixture(autouse=True)
 def fresh_entry_lookups(monkeypatch):
     monkeypatch.setattr(market_sync, "_entry_lookups_done", {})
+    monkeypatch.setattr(market_sync, "_tail_cache", {})
 
 
 def _bars(start, end, step=60):
@@ -155,9 +156,48 @@ def test_laufende_kerze_wird_geliefert_aber_nie_gespeichert(client, broker):
     assert coverage_rows() == [(MON + 3600, LIVE, "complete")]
     with market_db.reading() as conn:
         assert conn.execute("SELECT COUNT(*) FROM rates WHERE t_mt5 >= ?", (LIVE,)).fetchone()[0] == 0
-    # Der offene Rand wird beim nächsten Mal wieder gefragt
+    # Der offene Rand wird beim nächsten Mal wieder gefragt (nach dem 30-s-Cache)
+    market_sync._tail_cache.clear()
     get_rates(client, MON + 3600, LIVE + 3600)
     assert broker.range_calls[-1] == (LIVE, LIVE + 3600 - 1)
+
+
+@pytest.mark.feature("ANA-04")
+def test_endstueck_wird_30_sekunden_wiederverwendet(client, broker, monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(market_sync.time, "monotonic", lambda: now[0])
+    first = get_rates(client, MON + 3600, LIVE + 3600)
+    calls = len(broker.connects)
+    now[0] += 29
+    again = get_rates(client, MON + 3600, LIVE + 3600)
+    # server_now/offset_sec setzt der Endpunkt bei jeder Antwort neu; die Kerzen kommen aus dem Cache
+    assert {k: v for k, v in again.items() if k not in ("server_now", "offset_sec")} == {
+        k: v for k, v in first.items() if k not in ("server_now", "offset_sec")}
+    assert len(broker.connects) == calls  # kein neuer MT5-Kontakt
+    now[0] += 2
+    get_rates(client, MON + 3600, LIVE + 3600)
+    assert len(broker.connects) > calls
+    # Ohne laufende Kerze (abgeschlossener Zeitraum) wird nichts zwischengespeichert
+    get_rates(client, MON, MON + 3600)
+    assert all(k[3] != MON for k in market_sync._tail_cache)
+
+
+@pytest.mark.feature("ANA-04")
+def test_endstueck_mit_stoerung_wird_nicht_zwischengespeichert(client, broker, monkeypatch):
+    real = market_sync._fetch_chunk
+    calls = []
+
+    def flaky(account, symbol, tf_name, a, b):
+        calls.append((a, b))
+        if len(calls) == 1:  # erstes Stück: MT5-Fehler, zweites liefert die laufende Kerze
+            raise mt5_market.MarketDataError("[RATES] timeout")
+        return real(account, symbol, tf_name, a, b)
+
+    monkeypatch.setattr(market_sync, "CHUNK_BARS", 60)
+    monkeypatch.setattr(market_sync, "_fetch_chunk", flaky)
+    body = get_rates(client, LIVE - 3600, LIVE + 60)
+    assert body["live_from"] == LIVE and any(m["reason"] == "error" for m in body["missing"])
+    assert market_sync._tail_cache == {}
 
 
 @pytest.mark.feature("ANA-04")
