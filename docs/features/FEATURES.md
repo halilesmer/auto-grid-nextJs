@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-02 · **117/136** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-02 · **117/137** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,7 +19,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/16 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/17 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 27/27 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -283,6 +283,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Zone auf dem DEMO-Konto auf „Fraktal“ stellen, H4, Ausbruch, SL „Automatisch (ATR)“, speichern, Bot starten. → Im MT5-Chart (H4) den Indikator „Fractals“ und ATR(14) einblenden und mit den Pending Orders vergleichen. → Eine Fraktal-Order in MT5 von Hand löschen.
   - **Erwartet:** Mit Anzahl 1 (Standard, siehe ZON-16) je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
   - 📝 VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte Order nicht neu gesetzt
+- [ ] **ZON-17** Fraktal – Schalter „Mit SL“ — 🖥️ e2e ⏳ · 🧪 unit ⏳
+  - Im Fraktal-Modus blendet der Schalter „Mit SL (Stop Loss)“ (fractal_use_sl, Standard an) die SL-Felder (Methode, ATR, SAR, Puffer) aus; Orders kommen dann ohne SL. Ohne SL ist „TP als Betrag“ fest aktiv (Chance/Risiko braucht einen SL). Wird mit der Zone gespeichert.
+  - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, „Mit SL“ ausschalten, speichern, Bot starten.
+  - **Erwartet:** Pending Orders ohne SL in MT5; TP nur als Betrag.
 - [ ] **ZON-16** Fraktal – Anzahl Orders je Richtung — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ⏳
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
@@ -410,7 +414,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 - [x] **ENG-22** Fraktal-SL-Methoden und TP nach Chance/Risiko — 🧪 unit ✅ 2026-10-02
-  - SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP; mit fractal_tp_by_money stattdessen TP = Einstieg ± Preisabstand, der fractal_tp_money (Kontowährung) beim Lot der Seite entspricht (0 oder kein Tick-Wert = kein TP).
+  - SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP; mit fractal_use_sl=false (Schalter „Mit SL“ aus) kommt die Order ohne SL, dann ist nur TP als Betrag möglich (kein Chance/Risiko-TP, kein SAR-Nachziehen); mit fractal_tp_by_money stattdessen TP = Einstieg ± Preisabstand, der fractal_tp_money (Kontowährung) beim Lot der Seite entspricht (0 oder kein Tick-Wert = kein TP).
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
 - [x] **ENG-23** Fraktal-Positionen – kein TP/SL-Abgleich, SAR nachziehen — 🧪 unit ✅ 2026-10-02

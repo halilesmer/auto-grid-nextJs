@@ -25,6 +25,7 @@ export function ZoneFractalFields({
 }: ZoneFractalFieldsProps) {
   const t = useT();
   const split = isBoth && !sync;
+  const useSl = zone.fractal_use_sl ?? true;
   const slMode = zone.fractal_sl_mode ?? 'atr';
   // Ein Feld gilt für die gewählte Richtung bzw. bei „Buy/Sell gleich“ für beide; getrennt nur bei split
   const countKey =
@@ -33,7 +34,8 @@ export function ZoneFractalFields({
       : zone.order_type === 'SELL'
         ? 'zone.fractal.sellOrderCount'
         : 'zone.fractal.orderCount';
-  const tpByMoney = !!zone.fractal_tp_by_money;
+  // Chance/Risiko-TP braucht einen SL: ohne SL nur TP als Betrag
+  const tpByMoney = !useSl || !!zone.fractal_tp_by_money;
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;
@@ -138,6 +140,17 @@ export function ZoneFractalFields({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="flex min-w-0 flex-col justify-end pb-2">
+          <Switch
+            id={`fractal-use-sl-${zone.id}`}
+            checked={useSl}
+            onChange={(checked) => update('fractal_use_sl', checked)}
+            label={<span className="text-sm">{t('zone.fractal.useSl')}</span>}
+            hint={t('zone.fractal.useSl.hint')}
+          />
+        </div>
+        {useSl && (
+          <>
         <InputField label={t('zone.fractal.slMode')} hint={t('zone.fractal.slMode.hint')}>
           <select
             data-testid="fractal-sl-mode"
@@ -192,6 +205,8 @@ export function ZoneFractalFields({
             className="input-s"
           />
         </InputField>
+          </>
+        )}
         <div className="flex min-w-0 flex-col gap-1.5">
           {tpByMoney ? (
             <InputField
@@ -225,6 +240,7 @@ export function ZoneFractalFields({
           <Switch
             id={`fractal-tp-by-money-${zone.id}`}
             checked={tpByMoney}
+            disabled={!useSl}
             onChange={(checked) => update('fractal_tp_by_money', checked)}
             label={<span className="text-xs text-muted-foreground">{t('zone.fractal.tpByMoney')}</span>}
             hint={t('zone.fractal.tpByMoney.hint')}

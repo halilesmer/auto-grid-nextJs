@@ -35,6 +35,7 @@ class ZoneConfig:
     entry_mode: str = "grid"
     fractal_timeframe: str = "H4"
     fractal_order_mode: str = "breakout"  # breakout: kırılım (Stop) · rebound: dönüş (Limit)
+    fractal_use_sl: bool = True  # False: Fraktal-Orders ohne Stop Loss
     fractal_sl_mode: str = "atr"  # atr · sar · opposite_fractal · buffer
     fractal_sl_buffer: float = 0.05
     fractal_atr_period: int = 14
@@ -261,6 +262,7 @@ def extract_zone_config(
         entry_mode=entry_mode,
         fractal_timeframe=_choice(zone_dict.get("fractal_timeframe"), FRACTAL_TIMEFRAMES, "H4"),
         fractal_order_mode=_choice(zone_dict.get("fractal_order_mode"), FRACTAL_ORDER_MODES, "breakout"),
+        fractal_use_sl=bool(zone_dict.get("fractal_use_sl", True)),
         fractal_sl_mode=_choice(zone_dict.get("fractal_sl_mode"), FRACTAL_SL_MODES, "atr"),
         fractal_sl_buffer=max(0.0, float(zone_dict.get("fractal_sl_buffer", 0.05))),
         fractal_atr_period=max(1, int(zone_dict.get("fractal_atr_period", 14))),

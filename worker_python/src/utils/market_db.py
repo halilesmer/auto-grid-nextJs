@@ -410,7 +410,18 @@ def coverage_summary(source: str, symbol: str) -> list[dict]:
         counts = dict(conn.execute(
             "SELECT timeframe, COUNT(*) FROM rates WHERE source=? AND symbol=? GROUP BY timeframe", (source, symbol)
         ).fetchall())
-    return [{**dict(r), "bars": counts.get(r["timeframe"], 0)} for r in rows]
+    # Kerzen liegen nur in "complete"-Bereichen; Pause/nicht verfügbar haben per Definition keine
+    return [{**dict(r), "bars": counts.get(r["timeframe"], 0) if r["state"] == STATE_COMPLETE else 0} for r in rows]
+
+
+def last_broker_offset(server: str, max_age_sec: int) -> int | None:
+    """Jüngster protokollierter (verlässlicher) Broker-Abstand des Servers, höchstens max_age_sec alt."""
+    with reading() as conn:
+        row = conn.execute(
+            "SELECT offset_sec FROM broker_offset_log WHERE server=? AND observed_utc>=? "
+            "ORDER BY observed_utc DESC LIMIT 1", (server, int(time.time()) - max_age_sec),
+        ).fetchone()
+    return int(row[0]) if row else None
 
 
 def log_broker_offset(server: str, observed_utc: float, offset_sec: int):

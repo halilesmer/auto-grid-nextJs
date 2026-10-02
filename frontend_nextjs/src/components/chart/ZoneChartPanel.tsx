@@ -50,7 +50,7 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
     ],
     ['chart.zone.lot', 'zone.field.lot.hint', zone.lot_size],
     ['zone.fractal.slMode', 'zone.fractal.slMode.hint', t(SL_MODE_KEYS[zone.fractal_sl_mode ?? 'atr'] ?? SL_MODE_KEYS.atr)],
-    zone.fractal_tp_by_money
+    zone.fractal_tp_by_money || zone.fractal_use_sl === false
       ? ['zone.fractal.tpMoney', 'zone.fractal.tpMoney.hint', t('chart.zone.profitValue', { value: zone.fractal_tp_money ?? 10 })]
       : ['zone.fractal.rr', 'zone.fractal.rr.hint', zone.fractal_rr ?? 2],
     ['chart.zone.maxPositions', 'zone.breakout.maxPositions.hint', zone.max_positions],

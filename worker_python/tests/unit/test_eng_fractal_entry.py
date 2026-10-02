@@ -183,6 +183,23 @@ def test_tp_geldbetrag_null_bedeutet_kein_tp(fake_mt5):
 
 
 @pytest.mark.feature("ENG-22")
+def test_ohne_sl_order_ohne_sl_und_rr_tp(fake_mt5):
+    setup(fake_mt5, order_type="BUY", fractal_use_sl=False).tick()
+    buy = order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP)
+    assert buy.sl == 0.0
+    assert buy.tp == 0.0  # Chance/Risiko braucht einen SL
+
+
+@pytest.mark.feature("ENG-22")
+def test_ohne_sl_tp_als_geldbetrag(fake_mt5):
+    setup(fake_mt5, order_type="BUY", lot_size=1.0, fractal_use_sl=False,
+          fractal_tp_by_money=True, fractal_tp_money=500).tick()
+    buy = order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP)
+    assert buy.sl == 0.0
+    assert buy.tp == pytest.approx(97.6 + 0.5)
+
+
+@pytest.mark.feature("ENG-22")
 def test_kein_gueltiger_sl_keine_order(fake_mt5):
     # Abpraller-BUY bei 96,5 mit Puffer 0: SL = Einstieg → keine Order
     setup(fake_mt5, order_type="BUY", fractal_order_mode="rebound", fractal_sl_buffer=0).tick()
