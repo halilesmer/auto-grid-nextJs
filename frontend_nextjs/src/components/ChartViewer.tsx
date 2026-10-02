@@ -62,7 +62,7 @@ export default function ChartViewer() {
 
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: 400,
+      height: chartContainerRef.current.clientHeight || 400,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
@@ -103,7 +103,10 @@ export default function ChartViewer() {
 
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
       }
     };
 
@@ -178,9 +181,9 @@ export default function ChartViewer() {
         </div>
         <LiveStats />
       </div>
-      <div className="flex-1 p-2">
+      <div className="min-h-0 flex-1 p-2">
         {/* Die TradingView-Namensnennung (Link) erzeugt lightweight-charts selbst */}
-        <div ref={chartContainerRef} data-tooltip-exempt className="relative w-full" />
+        <div ref={chartContainerRef} data-tooltip-exempt className="relative h-full w-full" />
       </div>
     </div>
   );

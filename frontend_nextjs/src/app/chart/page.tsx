@@ -125,7 +125,7 @@ function AnalysisView() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
+    <div className="w-full space-y-5 px-4 py-6 md:px-8 md:py-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{t('analysis.title')}</h1>
