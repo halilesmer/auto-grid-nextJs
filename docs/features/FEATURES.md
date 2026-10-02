@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-02 · **117/137** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-02 · **123/137** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -14,12 +14,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 | # | Kategorie | Stand |
 |---|---|---|
-| 1 | **SYS** – Verbindung & Infrastruktur | 7/9 |
+| 1 | **SYS** – Verbindung & Infrastruktur | 8/9 |
 | 2 | **ACC** – Konten | 10/11 |
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 13/17 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 14/17 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 27/27 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 5/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 6/10 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 10/10 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 2/2 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -56,7 +56,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start). WORKER_API_KEY ist der Admin-Schlüssel; Benutzer bekommen eigene Schlüssel (USR-01).
   - **Prüfung:** WORKER_API_KEY auf dem VPS setzen, Worker neu starten. → Dashboard mit passendem Schlüssel verbinden (SYS-07); danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
   - **Erwartet:** Dashboard funktioniert normal; der direkte Aufruf ohne Schlüssel liefert 401.
-- [ ] **SYS-07** Verbindung im Browser einrichten — 🖥️ e2e ❌ 2026-10-02
+- [x] **SYS-07** Verbindung im Browser einrichten — 🖥️ e2e ✅ 2026-10-02
   - Worker-Adresse und API-Key werden im Verbindungsdialog eingegeben oder per Link übernommen, mit GET /api/system/platform getestet (ok/falscher Key/unsicher/nicht erreichbar/kein Worker) und erst nach erfolgreichem Test im Browser (localStorage) gespeichert; „Verbinden“ und „Trennen“ laden die Seite neu. Ohne Verbindung zeigt die Seite eine Anleitung statt des Dashboards; NEXT_PUBLIC_API_URL/NEXT_PUBLIC_WORKER_API_KEY dienen nur als Startwert, wenn noch nichts gespeichert ist.
   - **Prüfung:** Im Browser localStorage den Eintrag grid-robot-connection löschen und neu laden. → Über den Knopf „VPS verbinden“ Adresse und Schlüssel eingeben, testen, verbinden; danach trennen.
   - **Erwartet:** Ohne Verbindung erscheint die Anleitung statt des Dashboards; „Verbinden“ ist erst nach erfolgreichem Test klickbar und lädt danach das Dashboard; „Trennen“ führt zur Anleitung zurück.
@@ -283,7 +283,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Zone auf dem DEMO-Konto auf „Fraktal“ stellen, H4, Ausbruch, SL „Automatisch (ATR)“, speichern, Bot starten. → Im MT5-Chart (H4) den Indikator „Fractals“ und ATR(14) einblenden und mit den Pending Orders vergleichen. → Eine Fraktal-Order in MT5 von Hand löschen.
   - **Erwartet:** Mit Anzahl 1 (Standard, siehe ZON-16) je Seite genau eine Pending Order auf Höhe des jüngsten, noch nicht erreichten Fraktals (Buy Stop am oberen, Sell Stop am unteren); SL = Fraktal-Kerze ± 1,5 × ATR, TP = 2 × SL-Abstand. Die von Hand gelöschte Order wird nicht neu gesetzt, erst beim nächsten Fraktal dieser Seite.
   - 📝 VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte Order nicht neu gesetzt
-- [ ] **ZON-17** Fraktal – Schalter „Mit SL“ — 🖥️ e2e ⏳ · 🧪 unit ⏳
+- [x] **ZON-17** Fraktal – Schalter „Mit SL“ *(teilweise)* — 🖥️ e2e ✅ 2026-10-02 · 🧪 unit ⏳
   - Im Fraktal-Modus blendet der Schalter „Mit SL (Stop Loss)“ (fractal_use_sl, Standard an) die SL-Felder (Methode, ATR, SAR, Puffer) aus; Orders kommen dann ohne SL. Ohne SL ist „TP als Betrag“ fest aktiv (Chance/Risiko braucht einen SL). Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, „Mit SL“ ausschalten, speichern, Bot starten.
   - **Erwartet:** Pending Orders ohne SL in MT5; TP nur als Betrag.
@@ -626,18 +626,21 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Das Zahnrad schaltet Zonenband, Grid-Stufen, Positionen/Orders, Marktpausen, RSI und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das.
   - **Prüfung:** Zahnrad öffnen, „Karte mit Zonen-Einstellungen“ ausschalten, Seite neu laden.
   - **Erwartet:** Die Karte bleibt nach dem Neuladen ausgeblendet; das Panel nennt die nicht abschaltbaren Hinweise.
-- [ ] **ANA-04** Kursdatenbank mit Abdeckung — 🔌 api ✅ 2026-10-02 · 👤 manuell ⏳
+- [x] **ANA-04** Kursdatenbank mit Abdeckung — 🔌 api ✅ 2026-10-02 · 👤 manuell ✅ 2026-10-02
   - SQLite auf dem VPS (worker_python/data/market.sqlite, gitignored). GET /market/{id}/rates?symbol&timeframe=M1…D1&from&to (MT5-Zeit, halb offen, nur eigene Konten) holt nur die Teile, die noch nicht in der Datenbank sind, aus MT5 und liefert spaltenweise (t,o,h,l,c,v,s; höchstens 50.000 Kerzen, Rest über next_from). Jeder Bereich hat einen Zustand: vollständig (zwischen erster und letzter gelieferter Kerze), bestätigte Pause (keine Kerzen, aber davor und danach welche, höchstens 4 Tage: Wochenende, Feiertag) oder nicht verfügbar (vor der ersten Kerze, die MT5 hat; nach 24 h neu versucht). Die neueste MT5-Kerze wird nie gespeichert, nur mitgeliefert (live_from). Fehler werden nicht gespeichert; was fehlt, steht mit Grund in missing (unavailable, error, busy). Schutz des Live-Bots: Abruf in Stücken (höchstens 31 Tage M1), immer nur einer gleichzeitig, 0,5 s Pause, ohne Login und ohne Terminal-Neustart; ist das Konto in /start oder /stop, kommt nur der Datenbank-Bestand. GET /market/{id}/coverage zeigt den Bestand und die Größe. Bei jedem Abruf wird ein verlässlicher Broker-Abstand protokolliert. Ab MARKET_DB_MAX_MB (Standard 5000) werden keine Kerzen mehr gespeichert. Täglich und vor jeder Migration ein Backup (data/backups, 7 Stück); eine fehlgeschlagene Migration lässt die alte Version und die Daten-Endpunkte antworten 503, der Handel läuft weiter.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten. → Im Browser (angemeldet als Admin) /api/market/<Konto>/rates?symbol=<Symbol>&timeframe=M1&from=<Montag 00:00 als Unix-Sekunden>&to=<Montag 01:00> zweimal aufrufen (Header X-API-Key, z. B. mit curl). → Danach /api/market/<Konto>/coverage?symbol=<Symbol> aufrufen. → Im MT5-Journal und im Bot-Log nachsehen, ob während der Abrufe etwas passiert ist.
   - **Erwartet:** Beide Aufrufe liefern dieselben 60 Kerzen, die Zeiten passen zum MT5-Chart (Brokerzeit). Coverage zeigt den Bereich als „complete“. Im Journal keine neue Zeile „authorized on …“, im Bot-Log kein Verbindungsabbruch.
-- [ ] **ANA-05** Chart-Tab mit Kerzen, Zonenband und Stufen — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ⏳
+  - 📝 02.10.26 VPS v0.7.140+ (nach #93): /rates liefert offset_sec 10800 und server_now; Kerzen identisch mit MT5-M1 aus time-check; coverage plausibel (complete/gap/unavailable)
+- [x] **ANA-05** Chart-Tab mit Kerzen, Zonenband und Stufen — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ✅ 2026-10-02
   - Der Chart-Tab zeigt die MT5-Kerzen der gewählten Zone für Zeitraum und Zeitrahmen (M1 … D1, in der Adresse ?tf=, Standard M15) aus GET /market/{id}/rates, höchstens 100.000 Kerzen (sonst nur das Ende, mit Hinweis), Zeiten unverändert als Brokerzeit (MT5). Darüber das Zonenband (min–max als gestrichelte Linien und helle Fläche) und die Grid-Stufen, die der Bot vom aktuellen Preis aus rechnet (src/lib/analysis/levels.ts, gleiche Rechnung wie grid_execution/levels.py inkl. Breakout-Pullback und „Abstand nach Verlust“; Fraktal-Zonen haben keine Stufen, mit Hinweis). RSI(14, Wilder) im Browser aus den gezeigten Kerzen, eigener Bereich. Liegt der Zeitraum bis jetzt, kommt alle 60 s das Endstück neu (der Worker hält es 30 s im Cache); die laufende Kerze wächst mit dem Live-Preis, aber nur bei passendem Konto und Symbol, offenem Markt und sicherer Brokeruhr. Band, Stufen und RSI sind im Zahnrad abschaltbar.
   - **Prüfung:** Analyse öffnen, ein DEMO-Konto mit laufendem Bot und eine Grid-Zone wählen, Zeitraum „Letzte 7 Tage“. → Zeitrahmen M15, dann H1 wählen und die Seite neu laden. → Im MT5-Terminal denselben Chart (Symbol, H1) daneben öffnen.
   - **Erwartet:** Die Kerzen stimmen in Zeit und Preis mit dem MT5-Chart überein (Brokerzeit). Nach dem Neuladen ist H1 noch gewählt. Das Zonenband liegt auf min/max der Zone; die Stufen liegen dort, wo der Bot seine Orders setzt.
-- [ ] **ANA-06** Offene Positionen und Orders im Chart — 🧪 unit ✅ 2026-10-02 · 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ⏳
-  - Die Bot-Telemetrie (grid_metrics.calculate_live_metrics) liefert zusätzlich positions[] und orders[] der Robot-Magics (Ticket, Magic, Typ, Volumen, Einstiegspreis, SL, TP, Gewinn, MT5-Zeit; höchstens 500). Der Chart-Tab liest sie alle 5 s über GET /logs/{id}?log_type=metrics und zeigt nur die der gewählten Zone (feste Magic-Nummer und Symbol): Positionen als durchgezogene Linie mit Beschriftung (BUY/SELL + Lot), TP/SL gepunktet, Pending-Orders gestrichelt (BUY LIMIT …). Ohne laufenden Bot oder ohne Magic (Zone nie gespeichert) keine Linien, dafür ein Hinweis. Die geschätzte Handelszeit der Zone steht als „geschätzt“ daneben. Abschaltbar im Zahnrad.
+  - 📝 02.10.26 DEMO 7942034 live: Kerzen = rohe MT5-Kerzen; M15 7 Tage, D1 alles (3491 ab 2013, Hinweis gekürzt); tf in URL; Stufen USOUSD/EURUSD per levels.ts gegen echte Bot-Orders geprüft (Raster identisch, freie Stufen durch Positionen belegt); Live-Kerze folgt Stream-Preis, neue Kerze zum Minutenwechsel
+- [x] **ANA-06** Offene Positionen und Orders im Chart — 🧪 unit ✅ 2026-10-02 · 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ✅ 2026-10-02
+  - Die Bot-Telemetrie (grid_metrics.calculate_live_metrics) liefert zusätzlich positions[] und orders[] der Robot-Magics (Ticket, Magic, Typ, Volumen, Einstiegspreis, SL, TP, Gewinn, MT5-Zeit; höchstens 500). Der Chart-Tab liest sie alle 5 s über GET /logs/{id}?log_type=metrics und zeigt nur die der gewählten Zone (feste Magic-Nummer und Symbol): Positionen als durchgezogene Linie mit Beschriftung (BUY/SELL + Lot), TP/SL gepunktet, Pending-Orders gestrichelt (BUY LIMIT …); ab mehr als 20 Linien ohne Beschriftung an der Preisachse (überdecken sich sonst). Ohne laufenden Bot oder ohne Magic (Zone nie gespeichert) keine Linien, dafür ein Hinweis. Die geschätzte Handelszeit der Zone steht als „geschätzt“ daneben. Abschaltbar im Zahnrad.
   - **Prüfung:** Bot auf dem DEMO-Konto laufen lassen, bis die Zone Orders und mindestens eine Position hat. → Analyse → Chart-Tab mit dieser Zone öffnen und mit der Liste „Handel“ im MT5-Terminal vergleichen. → Bot stoppen und 10 Sekunden warten.
   - **Erwartet:** Jede Position und Order dieser Zone erscheint auf ihrem Preis, Orders anderer Zonen nicht; die Anzahl unter dem Chart stimmt mit MT5 überein. Nach dem Stopp verschwinden die Linien und der Hinweis „Bot läuft nicht“ erscheint.
+  - 📝 02.10.26 DEMO 7942034 nach Deploy #94: Telemetrie liefert positions/orders; Chart zeigt USOUSD 64 Pos/3 Orders, EURUSD 3 Pos/20 Orders = Worker-Listen je Magic; Fraktal-Zone 0/0; ab 20 Linien ohne Achsenbeschriftung
 - [x] **ANA-07** Deal-Archiv und Zonen-Register — 🔌 api ✅ 2026-10-02
   - GET /history/{id}/deals?from&to (MT5-Zeit, nur eigene Konten) archiviert alle Deals des Kontos in der Datenbank, auch manuelle Trades sowie Ein- und Auszahlungen; gefiltert wird erst bei der Auswertung. Abgeglichene Zeiträume werden einzeln gemerkt (ein Abgleich von „diese Woche“ sagt nichts über „letztes Jahr“); der jüngste Rand (24 h plus Puffer für den Broker-Abstand) wird jedes Mal neu abgeglichen. Liegt der Einstieg einer Position vor dem Zeitraum, wird er nachgeladen und mitgeliefert. Die Antwort enthält Kontowährung, Kontostand, Kontomodell und das Zonen-Register. Das Register (POST /settings) merkt sich je Magic-Nummer Zone, Symbol und Name, auch für gelöschte Zonen (deleted_at), und jede geänderte Fassung der Zonen-Einstellungen mit Zeitstempel. Konto löschen löscht dessen Deal-Archiv.
   - **Prüfung:** /api/history/<Konto>/deals?from=<vor 30 Tagen> aufrufen (X-API-Key).
@@ -646,10 +649,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1).
   - **Prüfung:** Auf der Analyse-Seite den Zeitraum öffnen, „Letztes Jahr“ wählen. → Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden. → „31.02.26“ eingeben.
   - **Erwartet:** Neben dem Titel steht „Broker UTC+3“ (je nach Broker). „Letztes Jahr“ zeigt 01.01.–31.12. des Vorjahres; der eigene Zeitraum bleibt nach dem Neuladen; ein ungültiges Datum wird rot gemeldet und „Übernehmen“ ist gesperrt.
-- [ ] **ANA-11** Fehlende Daten und Marktpausen im Chart — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ⏳
+- [x] **ANA-11** Fehlende Daten und Marktpausen im Chart — 🖥️ e2e ✅ 2026-10-02 · 👤 manuell ✅ 2026-10-02
   - Keine erfundenen Kerzen: Bereiche, die laut /rates fehlen (unavailable, error, busy), werden Leerstellen ohne Preis (nur Zeitstempel, höchstens 120 je Bereich) und grau schraffiert mit „Keine Daten“ gezeichnet; darüber ein Pflicht-Hinweis ohne Schalter mit Zeitraum, Grund und letzter Prüfung (DataQualityBanner). Bis „jetzt“ abgeschnitten, die Zukunft fehlt nie. Marktpausen (Lücke zwischen zwei echten Kerzen, mindestens zwei Kerzen lang und länger als eine Kerze + 15 min: Wochenende, Feiertag, Tagespause) sind dünne gestrichelte Trennlinien, abschaltbar; eine einzelne fehlende Kerze ohne Ticks ist keine Pause. Der RSI läuft nicht über eine Datenlücke. Gekürzter Zeitraum und volle Datenbank werden ebenfalls gemeldet.
   - **Prüfung:** Analyse → Chart-Tab, Zeitraum über ein Wochenende (z. B. „Letzte 7 Tage“), Zeitrahmen M15. → Einen Zeitraum wählen, der vor dem Beginn der MT5-Historie des Symbols liegt (z. B. „Letztes Jahr“ bei M1).
   - **Erwartet:** Am Wochenende eine dünne gestrichelte Linie statt Kerzen. Vor dem Beginn der Historie eine grau schraffierte Fläche „Keine Daten“ und ein gelber Hinweis mit Zeitraum und Grund „in MT5 nicht vorhanden“; dort steht keine einzige Kerze.
+  - 📝 02.10.26 DEMO 7942034: M1 Jan 2026 = 0 Kerzen, Fläche Keine Daten + Hinweis unavailable; M1 22.-23.06. Historie ab 23.06. 06:55 → links schraffiert, rechts echte Kerzen, RSI ohne Brücke; Tagespausen 00:00-01:00 als Linien
 - [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-02 · 🔌 api ✅ 2026-10-02 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.

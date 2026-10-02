@@ -237,6 +237,30 @@ UI-04:
   notiz: 'v0.7.59 (Frontend aus main): ''Test''-Link → Karte ''Bölge 1 · USOUSD''
     mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien
     20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)'
+ANA-04:
+  status: bestanden
+  datum: '2026-10-02'
+  notiz: '02.10.26 VPS v0.7.140+ (nach #93): /rates liefert offset_sec 10800 und server_now;
+    Kerzen identisch mit MT5-M1 aus time-check; coverage plausibel (complete/gap/unavailable)'
+ANA-05:
+  status: bestanden
+  datum: '2026-10-02'
+  notiz: '02.10.26 DEMO 7942034 live: Kerzen = rohe MT5-Kerzen; M15 7 Tage, D1 alles
+    (3491 ab 2013, Hinweis gekürzt); tf in URL; Stufen USOUSD/EURUSD per levels.ts
+    gegen echte Bot-Orders geprüft (Raster identisch, freie Stufen durch Positionen
+    belegt); Live-Kerze folgt Stream-Preis, neue Kerze zum Minutenwechsel'
+ANA-06:
+  status: bestanden
+  datum: '2026-10-02'
+  notiz: '02.10.26 DEMO 7942034 nach Deploy #94: Telemetrie liefert positions/orders;
+    Chart zeigt USOUSD 64 Pos/3 Orders, EURUSD 3 Pos/20 Orders = Worker-Listen je
+    Magic; Fraktal-Zone 0/0; ab 20 Linien ohne Achsenbeschriftung'
+ANA-11:
+  status: bestanden
+  datum: '2026-10-02'
+  notiz: '02.10.26 DEMO 7942034: M1 Jan 2026 = 0 Kerzen, Fläche Keine Daten + Hinweis
+    unavailable; M1 22.-23.06. Historie ab 23.06. 06:55 → links schraffiert, rechts
+    echte Kerzen, RSI ohne Brücke; Tagespausen 00:00-01:00 als Linien'
 ANA-13:
   status: bestanden
   datum: '2026-10-01'

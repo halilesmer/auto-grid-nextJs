@@ -7,14 +7,15 @@ import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { getSymbolConfig } from '@/utils/zoneHelpers';
 
 /** Kennzahlen aus dem Live-Stream (Preis, RSI, P/L, Positionen): /formasyon und Chart-Tab der Analyse. */
-export function LiveStats() {
+export function LiveStats({ digits }: { digits?: number } = {}) {
   const t = useT();
   const fmt = useFormat();
   const metrics = useBotRuntimeStore((s) => s.metrics);
   const symbolDetails = useSettingsStore((s) => s.symbolDetails);
 
   const profit = metrics.profit ?? 0;
-  const priceDigits = metrics.symbol ? getSymbolConfig(metrics.symbol, symbolDetails).precision : undefined;
+  // Nachkommastellen: vom Aufrufer (z. B. aus /rates), sonst aus den Symbolinfos
+  const priceDigits = digits ?? (metrics.symbol ? getSymbolConfig(metrics.symbol, symbolDetails).precision : undefined);
   const stats = [
     {
       id: 'price',
