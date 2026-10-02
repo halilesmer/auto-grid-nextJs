@@ -148,7 +148,7 @@
     "e2e": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 4
+      "tests": 5
     }
   },
   "ANA-06": {
@@ -770,7 +770,7 @@
   "SYS-07": {
     "e2e": {
       "datum": "2026-10-02",
-      "status": "failed",
+      "status": "passed",
       "tests": 4
     }
   },
@@ -1173,6 +1173,13 @@
     }
   },
   "ZON-16": {
+    "e2e": {
+      "datum": "2026-10-02",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-17": {
     "e2e": {
       "datum": "2026-10-02",
       "status": "passed",

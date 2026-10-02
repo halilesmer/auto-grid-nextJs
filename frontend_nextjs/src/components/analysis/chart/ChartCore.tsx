@@ -172,6 +172,7 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
     if (!chart || !candles) return;
     candles.setData(data.points.map((p) => ({ ...p, time: p.time as UTCTimestamp })));
     lastBar.current = data.bars.length > 0 ? data.bars[data.bars.length - 1] : null;
+    if (lastBar.current) containerRef.current?.setAttribute('data-last-bar', `${lastBar.current.time}:${lastBar.current.close}`);
     // Nur bei neuer Auswahl ausrichten; das Nachladen des Endstücks lässt die Ansicht stehen
     if (fittedKey.current === viewKey || data.points.length === 0) return;
     fittedKey.current = viewKey;
@@ -281,9 +282,12 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
     if (!bar || (lastPoint && bar.time < lastPoint.time)) return;
     candlesRef.current.update({ ...bar, time: bar.time as UTCTimestamp });
     lastBar.current = bar;
+    // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
+    containerRef.current?.setAttribute('data-last-bar', `${bar.time}:${bar.close}`);
   }, [live, timeframeSec, data.points]);
 
-  const shown = hover?.bar ?? (hover ? null : (data.bars[data.bars.length - 1] ?? null));
+  // Nur unter dem Fadenkreuz: ohne Maus würde die Legende die geladene statt der laufenden Kerze zeigen
+  const shown = hover?.bar ?? null;
   return (
     <div className="relative">
       <div

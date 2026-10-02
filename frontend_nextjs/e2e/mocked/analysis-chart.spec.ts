@@ -103,6 +103,27 @@ test.describe('ANA-05 Zonenband und Stufen', () => {
   });
 });
 
+test.describe('ANA-05 Laufende Kerze', () => {
+  test('Live-Preis schreibt die laufende Kerze fort, ein fremder Preis nicht', { tag: '@ANA-05' }, async ({ page, worker }) => {
+    await page.goto(`${URL}&tf=D1`);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(chart).toHaveAttribute('data-last-bar', /:/);
+    await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
+    const today = String(Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / DAY) * DAY);
+
+    worker.pushMetrics({ account_id: DEMO_ID, symbol: 'USOUSD', price: 97.531, market_open: true });
+    await expect(chart).toHaveAttribute('data-last-bar', `${today}:97.531`);
+    // Preis eines anderen Symbols (EURUSD im USOUSD-Stream): keine Kerze daraus
+    worker.pushMetrics({ account_id: DEMO_ID, symbol: 'USOUSD', price: 1.1242, market_open: true });
+    await page.waitForTimeout(500);
+    await expect(chart).toHaveAttribute('data-last-bar', `${today}:97.531`);
+    // Markt zu: keine Fortschreibung
+    worker.pushMetrics({ account_id: DEMO_ID, symbol: 'USOUSD', price: 97.6, market_open: false });
+    await page.waitForTimeout(500);
+    await expect(chart).toHaveAttribute('data-last-bar', `${today}:97.531`);
+  });
+});
+
 test.describe('ANA-06 Positionen und Orders', () => {
   test('Nur Positionen und Orders dieser Zone, nur bei laufendem Bot', { tag: '@ANA-06' }, async ({ page, worker }) => {
     worker.state.settings[DEMO_ID] = { ZONES: [makeZone({ magic: 200001 })] };

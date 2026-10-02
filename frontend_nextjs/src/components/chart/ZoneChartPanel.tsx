@@ -152,6 +152,8 @@ const ORDER_TYPES: Record<number, string> = {
   7: 'SELL STOP LIMIT',
 };
 const isBuyOrder = (type: number) => type % 2 === 0;
+/** Bis zu so vielen Positionen + Orders mit Beschriftung an der Preisachse */
+const MAX_LABELED_TRADES = 20;
 
 const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
   fractal: 'analysis.chart.levels.fractal',
@@ -267,18 +269,20 @@ export default function ZoneChartPanel({
       levels.sell.forEach((p, i) => out.push({ key: `lvl-s-${i}`, price: p, title: '', tone: 'down', style: 'dotted' }));
     }
     if (prefs.showTrades) {
+      // Viele Positionen: Beschriftungen an der Preisachse würden sich überdecken, die Linien bleiben
+      const labels = positions.length + orders.length <= MAX_LABELED_TRADES;
       for (const p of positions) {
         if (p.price_open === null) continue;
         const buy = p.type === 0;
         const tone = buy ? 'up' : 'down';
-        out.push({ key: `pos-${p.ticket}`, price: p.price_open, title: `${buy ? 'BUY' : 'SELL'} ${p.volume ?? ''}`.trim(), tone, style: 'solid', width: 2, axisLabel: true });
+        out.push({ key: `pos-${p.ticket}`, price: p.price_open, title: `${buy ? 'BUY' : 'SELL'} ${p.volume ?? ''}`.trim(), tone, style: 'solid', width: 2, axisLabel: labels });
         if (p.tp > 0) out.push({ key: `pos-tp-${p.ticket}`, price: p.tp, title: 'TP', tone: 'up', style: 'dotted' });
         if (p.sl > 0) out.push({ key: `pos-sl-${p.ticket}`, price: p.sl, title: 'SL', tone: 'down', style: 'dotted' });
       }
       for (const o of orders) {
         if (o.price_open === null) continue;
         const name = ORDER_TYPES[o.type] ?? String(o.type);
-        out.push({ key: `ord-${o.ticket}`, price: o.price_open, title: `${name} ${o.volume ?? ''}`.trim(), tone: isBuyOrder(o.type) ? 'up' : 'down', style: 'dashed', axisLabel: true });
+        out.push({ key: `ord-${o.ticket}`, price: o.price_open, title: `${name} ${o.volume ?? ''}`.trim(), tone: isBuyOrder(o.type) ? 'up' : 'down', style: 'dashed', axisLabel: labels });
       }
     }
     return out;
@@ -308,7 +312,7 @@ export default function ZoneChartPanel({
             actions={rates.loading ? <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label={t('analysis.chart.loading')} /> : undefined}
           />
           <div className="space-y-3 px-5 pb-5 pt-4">
-            <LiveStats />
+            <LiveStats digits={streamMatches ? (data?.digits ?? undefined) : undefined} />
             {symbolMismatch && (
               <Alert tone="warning" title={t('chart.zone.mismatch.title')}>
                 {t('chart.zone.mismatch.text', { stream: metrics.symbol ?? '', symbol: zone.symbol })}
