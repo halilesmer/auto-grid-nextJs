@@ -28,11 +28,13 @@ class GridState:
     fractal_tracked: Dict[int, Dict[int, tuple]] = field(default_factory=dict)
     # Botun kendi iptal ettiği fraktal emirleri (kaybolan emir elle mi silindi, ayırt etmek için)
     fractal_own_cancels: Set[int] = field(default_factory=set)
-    # "bölge_id:sembol:zaman_dilimi:taraf" → işlenmiş (dolmuş / elle silinmiş) fraktalların zamanları; dosyada kalıcı
+    # "bölge_id:sembol:zaman_dilimi:taraf[:S{kurgu}]" → işlenmiş (dolmuş / elle silinmiş) fraktalların zamanları; dosyada kalıcı
     fractal_done: Dict[str, Set[int]] = field(default_factory=dict)
     fractal_done_loaded: bool = False
     # Tekrarlanmasın diye bir kez yazılan fraktal log anahtarları
     fractal_logged: Dict[tuple, Any] = field(default_factory=dict)
+    # Pozisyon ID → fraktal kurgu numarası (açan emrin yorumundan; history_orders_get önbelleği)
+    fractal_position_setup: Dict[int, int] = field(default_factory=dict)
     # Botun koyduğu bekleyen emirler: bilet → (bölge magic, konma zamanı monotonic, fiyat).
     # Bot silerse kayıt düşer; bot silmeden ve dolmadan kaybolan emir "dışarıdan silindi" sayılır
     # (grid_execution/vanished.py, emir seli freni).
@@ -68,6 +70,7 @@ class GridState:
         self.fractal_done.clear()
         self.fractal_done_loaded = False
         self.fractal_logged.clear()
+        self.fractal_position_setup.clear()
         self.placed_orders.clear()
         self.vanished_times.clear()
         self.ui_remap_pending = None

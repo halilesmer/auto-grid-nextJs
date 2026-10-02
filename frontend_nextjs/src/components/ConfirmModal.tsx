@@ -21,6 +21,8 @@ interface ConfirmModalProps {
   variant?: ConfirmVariant;
   loading?: boolean;
   showCancel?: boolean;
+  /** Optionale zweite Wahl neben der Bestätigung (z. B. „behalten“ statt „löschen“); hint wie confirmHint Pflicht */
+  secondary?: { label: string; hint: string; onClick: () => void | Promise<void> };
 }
 
 const variantConfig: Record<
@@ -53,6 +55,7 @@ export default function ConfirmModal({
   variant = 'danger',
   loading = false,
   showCancel = true,
+  secondary,
 }: ConfirmModalProps) {
   const t = useT();
   const cfg = variantConfig[variant];
@@ -66,6 +69,11 @@ export default function ConfirmModal({
     if (!loading) {
       onClose();
     }
+  };
+
+  const handleSecondary = async () => {
+    await secondary?.onClick();
+    if (!loading) onClose();
   };
 
   return (
@@ -89,10 +97,15 @@ export default function ConfirmModal({
         </div>
       )}
 
-      <div className="mt-6 flex justify-end gap-2">
+      <div className="mt-6 flex flex-wrap justify-end gap-2">
         {showCancel && (
           <Button variant="ghost" onClick={onClose} disabled={loading} hint={t('common.cancel.hint')}>
             {cancelLabel ?? t('common.cancel')}
+          </Button>
+        )}
+        {secondary && (
+          <Button variant="outline" onClick={handleSecondary} disabled={loading} hint={secondary.hint}>
+            {secondary.label}
           </Button>
         )}
         <Button variant={cfg.button} onClick={handleConfirm} loading={loading} hint={confirmHint}>

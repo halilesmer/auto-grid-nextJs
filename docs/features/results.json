@@ -480,6 +480,23 @@
       "tests": 14
     }
   },
+  "ENG-28": {
+    "api": {
+      "datum": "2026-10-02",
+      "status": "passed",
+      "tests": 6
+    },
+    "e2e": {
+      "datum": "2026-10-02",
+      "status": "passed",
+      "tests": 1
+    },
+    "unit": {
+      "datum": "2026-10-02",
+      "status": "passed",
+      "tests": 13
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-10-02",
@@ -1187,6 +1204,13 @@
     }
   },
   "ZON-17": {
+    "e2e": {
+      "datum": "2026-10-02",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "ZON-18": {
     "e2e": {
       "datum": "2026-10-02",
       "status": "passed",

@@ -1,0 +1,148 @@
+[
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.6,
+  "volume": 0.01,
+  "tp": 99.3,
+  "sl": 96.75,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FU1790549100"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 94.8,
+  "sl": 97.35,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FD1790550900"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.6,
+  "volume": 0.02,
+  "tp": 98.45,
+  "sl": 96.75,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_F2U1790549100"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.02,
+  "tp": 95.65,
+  "sl": 97.35,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_F2D1790550900"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ },
+ {
+  "i": 59,
+  "t": 1180,
+  "ev": "fill",
+  "type": "BUY_STOP",
+  "price": 97.6,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 59,
+  "t": 1180,
+  "ev": "fill",
+  "type": "BUY_STOP",
+  "price": 97.6,
+  "volume": 0.02,
+  "magic": 200001
+ },
+ {
+  "i": 59,
+  "t": 1180,
+  "ev": "cancel",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "magic": 200001
+ },
+ {
+  "i": 155,
+  "t": 3100,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.6,
+  "price": 96.75,
+  "reason": "sl",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 155,
+  "t": 3100,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.6,
+  "price": 96.75,
+  "reason": "sl",
+  "volume": 0.02,
+  "magic": 200001
+ },
+ {
+  "i": 155,
+  "t": 3100,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.02,
+  "tp": 95.65,
+  "sl": 97.35,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_F2D1790550900"
+ },
+ {
+  "i": 180,
+  "t": 3600,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 180,
+  "t": 3600,
+  "ev": "fill",
+  "type": "SELL_STOP",
+  "price": 96.5,
+  "volume": 0.02,
+  "magic": 200001
+ },
+ {
+  "i": 180,
+  "t": 3600,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.65,
+  "volume": 0.01,
+  "tp": 98.23,
+  "sl": 97.36,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FU1790554500"
+ }
+]
