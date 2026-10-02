@@ -141,6 +141,13 @@ export default defineArea(
     'zone.fractal.setup.new': 'Yeni kurgu (kaydedince numara alır)',
     'zone.fractal.setup.add': 'Kurgu Ekle',
     'zone.fractal.setup.remove': 'Kurguyu kaldır',
+    'zone.fractal.setup.removeConfirm.title': 'Kurgu {n} kaldırılsın mı?',
+    'zone.fractal.setup.removeConfirm.message':
+      'Bu kurgunun MT5\'te bekleyen emirleri olabilir. Kaydedince bu emirler silinsin mi, yoksa MT5\'te kalsın mı?',
+    'zone.fractal.setup.removeConfirm.info':
+      'Açık pozisyonlar her iki durumda da kalır. Kalan emirleri bot artık yönetmez (fraktal kayınca taşınmaz, SL/TP değiştirilmez); dolarlarsa pozisyonları kurgu 1\'in pozisyon sınırına sayılır.',
+    'zone.fractal.setup.removeConfirm.delete': 'Emirleri sil',
+    'zone.fractal.setup.removeConfirm.keep': 'Emirler kalsın',
     'zone.fractal.maxPositions': 'Maks Pozisyon',
   },
   {
@@ -283,6 +290,13 @@ export default defineArea(
     'zone.fractal.setup.new': 'New setup (numbered on save)',
     'zone.fractal.setup.add': 'Add setup',
     'zone.fractal.setup.remove': 'Remove setup',
+    'zone.fractal.setup.removeConfirm.title': 'Remove setup {n}?',
+    'zone.fractal.setup.removeConfirm.message':
+      'This setup may have pending orders in MT5. Should they be deleted when you save, or stay in MT5?',
+    'zone.fractal.setup.removeConfirm.info':
+      'Open positions stay either way. The bot no longer manages kept orders (they are not moved to new fractals, SL/TP are not changed); if they fill, their positions count towards setup 1\'s position limit.',
+    'zone.fractal.setup.removeConfirm.delete': 'Delete orders',
+    'zone.fractal.setup.removeConfirm.keep': 'Keep orders',
     'zone.fractal.maxPositions': 'Max Positions',
   },
   {
@@ -425,6 +439,13 @@ export default defineArea(
     'zone.fractal.setup.new': 'Neues Setup (Nummer beim Speichern)',
     'zone.fractal.setup.add': 'Setup hinzufügen',
     'zone.fractal.setup.remove': 'Setup entfernen',
+    'zone.fractal.setup.removeConfirm.title': 'Setup {n} entfernen?',
+    'zone.fractal.setup.removeConfirm.message':
+      'Dieses Setup hat möglicherweise Pending Orders in MT5. Sollen sie beim Speichern gelöscht werden oder in MT5 bleiben?',
+    'zone.fractal.setup.removeConfirm.info':
+      'Offene Positionen bleiben in jedem Fall. Behaltene Orders verwaltet der Bot nicht mehr (kein Nachziehen auf neue Fraktale, keine SL/TP-Änderung); werden sie gefüllt, zählen ihre Positionen zum Positionslimit von Setup 1.',
+    'zone.fractal.setup.removeConfirm.delete': 'Orders löschen',
+    'zone.fractal.setup.removeConfirm.keep': 'Orders behalten',
     'zone.fractal.maxPositions': 'Max. Positionen',
   },
 );

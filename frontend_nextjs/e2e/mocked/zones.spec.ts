@@ -584,11 +584,33 @@ test.describe('ZON Zonen', () => {
       expect.objectContaining({ sid: 3, fractal_timeframe: 'M5', max_positions: 4 }),
     ]);
 
-    // Entfernen: Setup 2 weg, Setup 3 behält seine Nummer
+    // Ungespeichertes Setup: ohne Rückfrage weg (es hat noch keine Orders)
+    await zone.getByTestId('fractal-setup-add').click();
+    await expect(setups).toHaveCount(4);
+    await setups.nth(3).getByTestId('fractal-setup-remove').click();
+    await expect(setups).toHaveCount(3);
+    await expect(dashboard.page.getByRole('dialog')).toHaveCount(0);
+
+    // Gespeichertes Setup: Rückfrage; Abbrechen ändert nichts
+    const dialog = dashboard.page.getByRole('dialog');
     await setups.nth(1).getByTestId('fractal-setup-remove').click();
+    await expect(dialog.getByText(msg('zone.fractal.setup.removeConfirm.title', { n: 2 }))).toBeVisible();
+    await dialog.getByRole('button', { name: msg('common.cancel') }).click();
+    await expect(setups).toHaveCount(3);
+
+    // „Orders behalten“: Setup 2 weg, seine Nummer steht in fractal_kept_sids, Setup 3 behält seine Nummer
+    await setups.nth(1).getByTestId('fractal-setup-remove').click();
+    await dialog.getByRole('button', { name: msg('zone.fractal.setup.removeConfirm.keep') }).click();
     await saveAndReload(dashboard);
     await expect(setups).toHaveCount(2);
     await expect(zone.getByText(msg('zone.fractal.setup', { n: 3 }), { exact: true })).toBeVisible();
-    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_setups: [{ sid: 3 }], fractal_setup_seq: 3 });
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_setups: [{ sid: 3 }], fractal_setup_seq: 3, fractal_kept_sids: [2] });
+
+    // „Orders löschen“: Setup 3 weg, der Bot darf seine Orders löschen (nicht in fractal_kept_sids)
+    await setups.nth(1).getByTestId('fractal-setup-remove').click();
+    await dialog.getByRole('button', { name: msg('zone.fractal.setup.removeConfirm.delete') }).click();
+    await saveAndReload(dashboard);
+    await expect(setups).toHaveCount(1);
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_setups: [], fractal_kept_sids: [2] });
   });
 });

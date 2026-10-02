@@ -353,7 +353,9 @@ export default defineArea(
       'Bu bölgeye bir kurgu daha ekler (ör. aynı fraktal mantığı M1, M5 ve H4\'te farklı lot ve TP ile). Her kurgu kendi emirlerini koyar; Analiz → İstatistik kurgu başına pozisyon sayısını ve kâr/zararı gösterir. Yeni kurgu, ilk kurgunun değerleriyle başlar.',
     'zone.fractal.setup.addLimit.hint': 'En fazla 10 ek kurgu eklenebilir; yenisi için önce birini kaldırın.',
     'zone.fractal.setup.remove.hint':
-      'Bu kurguyu kaldırır. Kaydedince kurgunun bekleyen emirleri silinir; açık pozisyonları MT5\'te kalır. Numarası tekrar verilmez, istatistikte „silindi“ olarak görünür.',
+      'Bu kurguyu kaldırır. Kaydedilmiş bir kurguda önce bekleyen emirlerinin silinip silinmeyeceği sorulur; açık pozisyonları MT5\'te kalır. Numarası tekrar verilmez, istatistikte „silindi“ olarak görünür.',
+    'zone.fractal.setup.removeConfirm.delete.hint': 'Kurguyu kaldırır; kaydedince bot bu kurgunun bekleyen emirlerini MT5\'te siler. Açık pozisyonlar kalır.',
+    'zone.fractal.setup.removeConfirm.keep.hint': 'Kurguyu kaldırır; bekleyen emirleri MT5\'te kalır ve bot onlara dokunmaz. İsterseniz MT5\'te elle silebilirsiniz.',
     'zone.fractal.maxPositions.hint':
       'Bu kurgunun aynı anda açık olabilecek en fazla pozisyonu. Sınıra ulaşınca bu kurgu yeni emir koymaz ve bekleyen emirlerini siler; diğer kurgular çalışmaya devam eder. 0 = sınırsız (motor en çok 500 ile sınırlar).',
     'chart.zone.setups.hint': 'Bu fraktal bölgesindeki kurgu sayısı (kurgu 1 + ek kurgular). Her kurgunun kendi zaman dilimi, lotu, TP\'si ve pozisyon sınırı vardır; bilgi kartındaki diğer değerler kurgu 1\'e aittir.',
@@ -747,7 +749,9 @@ export default defineArea(
       'Adds another setup to this zone (e.g. the same fractal logic on M1, M5 and H4 with different lot and TP). Each setup places its own orders; Analysis → Statistics shows positions and profit/loss per setup. A new setup starts with the values of the first one.',
     'zone.fractal.setup.addLimit.hint': 'At most 10 additional setups; remove one before adding another.',
     'zone.fractal.setup.remove.hint':
-      'Removes this setup. After saving, its pending orders are deleted; its open positions stay in MT5. Its number is never reused and shows as “deleted” in the statistics.',
+      'Removes this setup. For a saved setup you are asked first whether its pending orders should be deleted; its open positions stay in MT5. Its number is never reused and shows as “deleted” in the statistics.',
+    'zone.fractal.setup.removeConfirm.delete.hint': 'Removes the setup; after saving, the bot deletes this setup\'s pending orders in MT5. Open positions stay.',
+    'zone.fractal.setup.removeConfirm.keep.hint': 'Removes the setup; its pending orders stay in MT5 and the bot leaves them alone. You can delete them by hand in MT5.',
     'zone.fractal.maxPositions.hint':
       'Maximum number of positions of this setup open at the same time. Once reached, this setup places no new orders and deletes its pending ones; the other setups keep running. 0 = unlimited (the engine caps it at 500).',
     'chart.zone.setups.hint': 'Number of setups in this fractal zone (setup 1 + additional setups). Each setup has its own timeframe, lot, TP and position limit; the other values on this card belong to setup 1.',
@@ -1141,7 +1145,9 @@ export default defineArea(
       'Fügt dieser Zone ein weiteres Setup hinzu (z. B. dieselbe Fraktal-Logik auf M1, M5 und H4 mit anderem Lot und TP). Jedes Setup setzt eigene Orders; Analyse → Statistik zeigt Positionen und Gewinn/Verlust je Setup. Ein neues Setup startet mit den Werten des ersten.',
     'zone.fractal.setup.addLimit.hint': 'Höchstens 10 zusätzliche Setups; zuerst eines entfernen.',
     'zone.fractal.setup.remove.hint':
-      'Entfernt dieses Setup. Nach dem Speichern werden seine Pending Orders gelöscht; offene Positionen bleiben in MT5. Seine Nummer wird nie wieder vergeben und erscheint in der Statistik als „gelöscht“.',
+      'Entfernt dieses Setup. Bei einem gespeicherten Setup wird vorher gefragt, ob seine Pending Orders gelöscht werden sollen; offene Positionen bleiben in MT5. Seine Nummer wird nie wieder vergeben und erscheint in der Statistik als „gelöscht“.',
+    'zone.fractal.setup.removeConfirm.delete.hint': 'Entfernt das Setup; nach dem Speichern löscht der Bot die Pending Orders dieses Setups in MT5. Offene Positionen bleiben.',
+    'zone.fractal.setup.removeConfirm.keep.hint': 'Entfernt das Setup; seine Pending Orders bleiben in MT5, der Bot fasst sie nicht mehr an. Löschen kannst du sie bei Bedarf von Hand in MT5.',
     'zone.fractal.maxPositions.hint':
       'Höchstzahl gleichzeitig offener Positionen dieses Setups. Ist sie erreicht, setzt dieses Setup keine neuen Orders und löscht seine Pending Orders; die anderen Setups laufen weiter. 0 = unbegrenzt (die Engine deckelt bei 500).',
     'chart.zone.setups.hint': 'Anzahl Setups dieser Fraktal-Zone (Setup 1 + weitere). Jedes Setup hat eigenen Zeitrahmen, Lot, TP und Positionslimit; die übrigen Werte dieser Karte gehören zu Setup 1.',

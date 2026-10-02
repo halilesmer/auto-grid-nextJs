@@ -139,6 +139,20 @@ def _setup_ids(zone):
     return ids
 
 
+def _clean_kept_sids(zone, active, highest):
+    """`fractal_kept_sids` (kaldırılıp emirleri MT5'te bırakılan kurgular): yalnızca verilmiş
+    (≤ highest) ve artık listede olmayan numaralar; boşsa alan kalkar."""
+    raw = zone.get("fractal_kept_sids")
+    kept = sorted({
+        n for n in (raw if isinstance(raw, list) else [])
+        if isinstance(n, int) and not isinstance(n, bool) and 2 <= n <= highest and n not in active
+    })
+    if kept:
+        zone["fractal_kept_sids"] = kept
+    else:
+        zone.pop("fractal_kept_sids", None)
+
+
 def assign_fractal_setup_ids(previous, merged, log=None):
     """`merged` bölgelerindeki ek fraktal kurgularına kalıcı numara (`sid`) yazar (yerinde).
 
@@ -166,6 +180,7 @@ def assign_fractal_setup_ids(previous, merged, log=None):
         setups = zone.get("fractal_setups")
         if not isinstance(setups, list):
             zone.pop("fractal_setups", None)
+            _clean_kept_sids(zone, set(), highest)
             if highest > 1:
                 zone[FRACTAL_SETUP_SEQ_KEY] = highest
             else:
@@ -209,6 +224,7 @@ def assign_fractal_setup_ids(previous, merged, log=None):
             setup["sid"] = sid
             taken.add(sid)
         zone["fractal_setups"] = setups
+        _clean_kept_sids(zone, taken, highest)
         if highest > 1:
             zone[FRACTAL_SETUP_SEQ_KEY] = highest
         else:

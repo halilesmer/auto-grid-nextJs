@@ -672,3 +672,14 @@ def test_sar_zieht_je_setup_mit_dessen_zeitrahmen(fake_mt5):
     h.tick()
     assert p1.sl == pytest.approx(sar_h4)
     assert p2.sl == pytest.approx(90.0)  # M15-SAR fällt (Short-Trend): BUY-SL wird nicht gezogen
+
+
+@pytest.mark.feature("ENG-28")
+def test_entferntes_setup_mit_orders_behalten(fake_mt5):
+    h = two_setups(fake_mt5)
+    h.tick()
+    h.zones[0]["fractal_setups"] = []
+    h.zones[0]["fractal_kept_sids"] = [2]  # beim Entfernen „Orders behalten“ gewählt
+    h.tick()
+    h.tick()
+    assert set(by_comment(fake_mt5)) == {f"AutoGrid_Z1_FU{UP_T}", f"AutoGrid_Z1_F2U{UP_T}"}

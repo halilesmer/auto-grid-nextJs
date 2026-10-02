@@ -77,6 +77,17 @@ def test_zweites_speichern_ohne_nummer_behaelt_sie_ueber_die_id(client, worker_d
 
 
 @pytest.mark.feature("ENG-28")
+def test_behaltene_setups_werden_bereinigt(client, worker_dir):
+    _path(worker_dir).write_text("{}", encoding="utf-8")
+    _save(client, _zone([{"id": "a"}, {"id": "b"}]))  # Setups 2 und 3
+    # 2 entfernt mit „Orders behalten“; 3 läuft noch, 7 und "x" gab es nie
+    saved = _save(client, _zone([{"id": "b", "sid": 3}], fractal_kept_sids=[2, 3, 7, "x", 2]))
+    assert saved["fractal_kept_sids"] == [2]
+    saved = _save(client, _zone([{"id": "b", "sid": 3}], fractal_kept_sids=[]))
+    assert "fractal_kept_sids" not in saved
+
+
+@pytest.mark.feature("ENG-28")
 def test_zone_ohne_setups_bleibt_unveraendert(client, worker_dir):
     _path(worker_dir).write_text(json.dumps({}), encoding="utf-8")
     saved = _save(client, make_zone(id="a"))

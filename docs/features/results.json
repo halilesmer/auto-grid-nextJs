@@ -484,7 +484,7 @@
     "api": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 4
+      "tests": 6
     },
     "e2e": {
       "datum": "2026-10-02",
@@ -494,7 +494,7 @@
     "unit": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 9
+      "tests": 13
     }
   },
   "LOG-01": {

@@ -88,6 +88,8 @@ export interface ZoneSettings {
   fractal_setups?: FractalSetup[];
   /** Höchste je vergebene Setup-Nummer der Zone (vom Worker verwaltet, nur lesend) */
   fractal_setup_seq?: number;
+  /** Entfernte Setups, deren Pending Orders in MT5 bleiben sollen (der Bot löscht sie nicht) */
+  fractal_kept_sids?: number[];
 }
 
 /** Ein zusätzliches Fraktal-Setup: gleiche Feldnamen wie die Zone, gemeinsam bleiben Ordermodus, SL und TP-Art. */

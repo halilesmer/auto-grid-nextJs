@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ZoneFractalFieldsProps } from './types';
 import type { FractalSetup } from '@/store/types';
+import ConfirmModal from '@/components/ConfirmModal';
 import { Button } from '@/components/ui/button';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
@@ -35,7 +37,18 @@ export function ZoneFractalFields({
   const canAdd = setups.length < MAX_EXTRA_FRACTAL_SETUPS;
 
   const addSetup = () => update('fractal_setups', [...setups, newFractalSetup(zone)]);
-  const removeSetup = (index: number) => update('fractal_setups', setups.filter((_, i) => i !== index));
+  // Gespeichertes Setup (mit Nummer): erst fragen, ob seine Pending Orders gelöscht werden sollen
+  const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
+  const confirmSid = confirmIndex !== null ? setups[confirmIndex]?.sid : undefined;
+  const removeSetup = (index: number, keepOrders = false) => {
+    const sid = setups[index]?.sid;
+    update('fractal_setups', setups.filter((_, i) => i !== index));
+    const kept = zone.fractal_kept_sids ?? [];
+    if (sid === undefined) return;
+    if (keepOrders && !kept.includes(sid)) update('fractal_kept_sids', [...kept, sid]);
+    if (!keepOrders && kept.includes(sid)) update('fractal_kept_sids', kept.filter((k) => k !== sid));
+  };
+  const askRemove = (index: number) => (setups[index]?.sid === undefined ? removeSetup(index) : setConfirmIndex(index));
   // Schreibt ein Feld eines Zusatz-Setups; die Zone hält die ganze Liste
   const setupUpdate = (index: number) => (field: string, value: unknown) =>
     update(
@@ -172,7 +185,7 @@ export function ZoneFractalFields({
               size="icon-sm"
               aria-label={t('zone.fractal.setup.remove')}
               hint={t('zone.fractal.setup.remove.hint')}
-              onClick={() => removeSetup(index)}
+              onClick={() => askRemove(index)}
             >
               <Trash2 size={14} />
             </Button>
@@ -192,6 +205,27 @@ export function ZoneFractalFields({
         <Plus size={14} />
         {t('zone.fractal.setup.add')}
       </Button>
+
+      <ConfirmModal
+        open={confirmIndex !== null}
+        onClose={() => setConfirmIndex(null)}
+        onConfirm={() => {
+          if (confirmIndex !== null) removeSetup(confirmIndex);
+        }}
+        title={t('zone.fractal.setup.removeConfirm.title', { n: confirmSid ?? '' })}
+        message={t('zone.fractal.setup.removeConfirm.message')}
+        infoText={t('zone.fractal.setup.removeConfirm.info')}
+        confirmLabel={t('zone.fractal.setup.removeConfirm.delete')}
+        confirmHint={t('zone.fractal.setup.removeConfirm.delete.hint')}
+        secondary={{
+          label: t('zone.fractal.setup.removeConfirm.keep'),
+          hint: t('zone.fractal.setup.removeConfirm.keep.hint'),
+          onClick: () => {
+            if (confirmIndex !== null) removeSetup(confirmIndex, true);
+          },
+        }}
+        variant="danger"
+      />
     </div>
   );
 }

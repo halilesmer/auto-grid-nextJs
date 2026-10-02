@@ -126,6 +126,14 @@ function assignFractalSetupIds(previous: Json, merged: Json): Json {
         taken.add(setup.sid as number);
       }
       zone.fractal_setups = setups;
+      // Wie _clean_kept_sids: nur vergebene, nicht mehr aktive Nummern
+      const kept = Array.from(
+        new Set(((z.fractal_kept_sids as unknown[] | undefined) ?? []).filter(
+          (n): n is number => Number.isInteger(n) && (n as number) >= 2 && (n as number) <= highest && !taken.has(n as number),
+        )),
+      ).sort((a, b) => a - b);
+      if (kept.length) zone.fractal_kept_sids = kept;
+      else delete zone.fractal_kept_sids;
     }
     if (highest > 1) zone.fractal_setup_seq = highest;
     else delete zone.fractal_setup_seq;

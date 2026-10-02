@@ -69,8 +69,9 @@ class ZoneConfig:
     fractal_tp_money: float = 10.0
     # Kurgu 1 (yukarıdaki düz alanlar) + ek kurgular; yalnızca fraktal modunda kullanılır
     fractal_setups: tuple = field(default_factory=tuple)
-    # Ayarlarda olup geçersiz değer veya sınır yüzünden atlanan kurguların numaraları: bekleyen
-    # emirlerine dokunulmaz (silinmiş kurgu sayılmaz)
+    # Bekleyen emirlerine dokunulmayan kurgu numaraları: ayarlarda olup geçersiz değer veya sınır
+    # yüzünden atlananlar (silinmiş sayılmaz) ve kaldırılırken "emirler kalsın" seçilenler
+    # (fractal_kept_sids)
     fractal_idle_sids: frozenset = field(default_factory=frozenset)
 
 
@@ -172,6 +173,13 @@ def max_positions_of(zone_dict: dict, default: int = 10) -> int:
 
 # Geçersiz ek kurguyu her döngüde tekrar loglamamak için: (bölge, kurgu girdisinin metni)
 _setup_skipped_logged: set = set()
+
+
+def _kept_sids(zone_dict: dict) -> frozenset:
+    raw = zone_dict.get("fractal_kept_sids")
+    if not isinstance(raw, list):
+        return frozenset()
+    return frozenset(n for n in raw if isinstance(n, int) and not isinstance(n, bool) and 2 <= n <= FRACTAL_MAX_SETUP_ID)
 
 
 def _skip_log(zone_idx: int, raw, why: str, log_message) -> None:
@@ -324,6 +332,8 @@ def extract_zone_config(
             zone_dict, zone_idx, base_setup, symbol, symbol_infos, order_type, is_sync, log_message,
         )
         fractal_setups = (base_setup, *extra)
+        # Kaldırılırken "emirler kalsın" seçilen kurgular: bekleyen emirlerine dokunulmaz
+        fractal_idle_sids = fractal_idle_sids | _kept_sids(zone_dict)
     if step_by_loss:
         def _conv(amount: float, lot: float) -> float:
             d = money_to_price_distance(amount, lot, symbol, symbol_infos)
