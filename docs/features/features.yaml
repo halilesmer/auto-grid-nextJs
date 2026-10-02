@@ -834,7 +834,7 @@ kategorien:
 
       - id: ENG-20
         titel: Fraktal-Orders (Ausbruch / Abpraller)
-        beschreibung: Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit} (weitere Setups mit Nummer, siehe ENG-28).
+        beschreibung: Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit} (weitere Setups mit Nummer, siehe ENG-28). Liegt die laufende Kerze mehr als zwei Perioden vor dem letzten Tick (MT5 lädt die Geschichte eines Symbols beim ersten Abruf noch nach), wartet die Engine und setzt keine Order auf ein veraltetes Fraktal.
         code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/handler.py, worker_python/src/core/grid_execution/config.py, worker_python/src/core/grid_orders.py]
         tiers: [unit]
         pruefung:
