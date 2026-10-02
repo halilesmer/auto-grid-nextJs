@@ -47,6 +47,8 @@ from .fractal_signals import Fractal, atr, find_fractals, parabolic_sar
 
 # Fraktal + ATR/SAR için okunan kapanmış mum sayısı
 RATES_COUNT = 300
+# Zaman dilimi süresi (sn): oluşan mum son tikten bu kadar eskiyse geçmiş henüz senkronize değil
+_TF_SECONDS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 14400, "D1": 86400}
 
 SIDE_NAMES = {"U": "üst", "D": "alt"}
 
@@ -382,8 +384,26 @@ def _same_stops(order, d: DesiredOrder, tol: float) -> bool:
     return abs(float(order.sl or 0.0) - d.sl) <= tol and abs(float(order.tp or 0.0) - d.tp) <= tol
 
 
-def _read_market(mt5, config: ZoneConfig, timeframe: str, zone_idx: int, log_message):
+def _rates_stale(rates, timeframe: str, tick) -> bool:
+    """MT5 bir sembolün geçmişini ilk istekte yerel önbellekten döndürür; sunucuyla senkronize
+    olana kadar mumlar günler/haftalar eski olabilir ve eski bir fraktala emir konur. Son tik,
+    oluşan mumun içinde olmalı: tik bu mumun 2 dönem sonrasındaysa veri bayattır."""
+    tick_time = int(getattr(tick, "time", 0) or 0)
+    if not tick_time:
+        return False
+    return tick_time - int(rates[-1]["time"]) > 2 * _TF_SECONDS.get(timeframe, 900)
+
+
+def _read_market(mt5, config: ZoneConfig, timeframe: str, zone_idx: int, log_message, tick=None):
     rates = mt5.copy_rates_from_pos(config.symbol, get_mt5_timeframe(mt5, timeframe), 0, RATES_COUNT + 1)
+    if rates is not None and len(rates) >= 6 and tick is not None and _rates_stale(rates, timeframe, tick):
+        _log_once(
+            (zone_idx, "rates", timeframe), "stale",
+            f"⏳ Fraktal: Bölge {zone_idx+1} için {config.symbol} {timeframe} mumları henüz güncel değil "
+            f"(MT5 geçmişi yükleniyor), bekleniyor.",
+            "INFO", log_message,
+        )
+        return None
     if rates is None or len(rates) < 6:
         _log_once(
             (zone_idx, "rates", timeframe), "missing",
@@ -454,7 +474,7 @@ def manage_fractal_orders(
     for setup in setups:
         setup_orders = orders_by_sid.pop(setup.sid, [])
         if setup.timeframe not in markets:
-            markets[setup.timeframe] = _read_market(mt5, config, setup.timeframe, zone_idx, log_message)
+            markets[setup.timeframe] = _read_market(mt5, config, setup.timeframe, zone_idx, log_message, tick)
         m = markets[setup.timeframe]
         if m is None:
             ok = False  # mumlar yok: bu kurgunun emirlerine dokunulmaz

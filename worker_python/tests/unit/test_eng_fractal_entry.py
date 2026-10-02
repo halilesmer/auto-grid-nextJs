@@ -23,6 +23,22 @@ SHAPE = [(97.3, 96.9), (97.4, 96.95), (97.6, 96.8), (97.5, 96.7), (97.3, 96.5), 
 UP_IDX, DOWN_IDX = 22, 24  # Index der Fraktal-Kerzen in FLAT + SHAPE
 
 
+@pytest.fixture(autouse=True)
+def _broker_clock(fake_mt5):
+    """Tik zamanı, gerçek MT5'teki gibi oluşan mumun içinde (son kapanmış mumdan hemen sonra);
+    aksi halde mumlar bayat sayılır (ENG-20)."""
+    fake_mt5.clock = lambda: max((b[-1]["time"] for b in fake_mt5.rates.values() if b), default=T0) + 60
+    set_rates = fake_mt5.set_rates
+
+    def set_rates_and_touch_tick(symbol, timeframe, bars_):
+        set_rates(symbol, timeframe, bars_)
+        tick = fake_mt5.ticks[symbol]
+        tick.time_msc = int(fake_mt5.clock() * 1000)
+        tick.time = tick.time_msc // 1000
+
+    fake_mt5.set_rates = set_rates_and_touch_tick
+
+
 def bars(hl):
     return [
         {"time": T0 + i * STEP, "open": (h + lo) / 2, "high": h, "low": lo, "close": (h + lo) / 2}
@@ -60,6 +76,21 @@ def test_ausbruch_setzt_stop_orders_auf_fraktalhoehe(fake_mt5):
     assert (sell.price_open, sell.sl, sell.tp) == pytest.approx((96.5, 97.35, 94.8))
     assert buy.comment == f"AutoGrid_Z1_FU{T0 + UP_IDX * STEP}"
     assert sell.comment == f"AutoGrid_Z1_FD{T0 + DOWN_IDX * STEP}"
+    assert len(fake_mt5.orders) == 2
+
+
+@pytest.mark.feature("ENG-20")
+def test_bayate_mumlar_setzen_keine_order(fake_mt5):
+    # MT5 liefert beim ersten Abruf den alten lokalen Bestand: letzte Kerze Wochen vor dem Tick
+    h = setup(fake_mt5)
+    fake_mt5.clock = lambda: T0 + 60 * STEP
+    fake_mt5.set_price("USOUSD", fake_mt5.ticks["USOUSD"].bid, fill=False)
+    h.tick()
+    assert fake_mt5.orders == []
+    # Geschichte nachgeladen: Tick wieder in der laufenden Kerze → Orders kommen
+    fake_mt5.clock = lambda: T0 + len(FLAT + SHAPE) * STEP + 60
+    fake_mt5.set_price("USOUSD", fake_mt5.ticks["USOUSD"].bid, fill=False)
+    h.tick()
     assert len(fake_mt5.orders) == 2
 
 

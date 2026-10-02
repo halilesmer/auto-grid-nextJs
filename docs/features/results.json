@@ -141,7 +141,7 @@
     "api": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 21
+      "tests": 23
     }
   },
   "ANA-05": {
@@ -217,14 +217,14 @@
     "unit": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 36
+      "tests": 38
     }
   },
   "BKT-09": {
     "unit": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 17
+      "tests": 18
     }
   },
   "BOT-01": {
@@ -423,7 +423,7 @@
     "unit": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 5
+      "tests": 6
     }
   },
   "ENG-21": {
