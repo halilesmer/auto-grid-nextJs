@@ -19,6 +19,10 @@ export interface AnalysisPrefs {
   showPauses: boolean;
   /** RSI(14) im eigenen Bereich unter den Kerzen */
   showRsi: boolean;
+  /** Abgeschlossene Trades aus dem Archiv als Pfeile im Chart */
+  showHistory: boolean;
+  /** Fraktale (nur Fraktal-Zonen) */
+  showFractals: boolean;
 }
 
 interface AnalysisPrefsState extends AnalysisPrefs {
@@ -33,6 +37,8 @@ const DEFAULTS: AnalysisPrefs = {
   showTrades: true,
   showPauses: true,
   showRsi: true,
+  showHistory: true,
+  showFractals: true,
 };
 
 export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
@@ -44,14 +50,11 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
     {
       name: ANALYSIS_PREFS_KEY,
       storage: createJSONStorage(() => localStorage),
-      partialize: ({ showZoneLines, showZoneCard, showLevels, showTrades, showPauses, showRsi }): AnalysisPrefs => ({
-        showZoneLines,
-        showZoneCard,
-        showLevels,
-        showTrades,
-        showPauses,
-        showRsi,
-      }),
+      partialize: (s): AnalysisPrefs => {
+        const out = { ...DEFAULTS };
+        for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) out[key] = s[key];
+        return out;
+      },
       // Wie ThemeSync: erst nach der Hydration lesen (rehydrate() in app/chart/page.tsx), sonst SSR-Abweichung
       skipHydration: true,
       // Nur bekannte boolesche Felder übernehmen (alter/kaputter Speicherstand)

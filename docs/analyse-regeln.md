@@ -56,6 +56,30 @@ Kurz gesagt:
 - **Ein- und Ausstiege** werden über die Positionsnummer (`position_id`) zusammengeführt.
 - **Magic 200000** gehört zu keiner Zone und wird ausgeschlossen.
 
+**Umsetzung (Schritt 5, ANA-08):** `frontend_nextjs/src/lib/analysis/tradePairing.ts`.
+- Deals werden je Positionsnummer in Zeitfolge abgearbeitet. Ein Einstieg (IN) erhöht die offene
+  Seite (Durchschnittspreis nach Volumen), jeder Ausstieg (OUT, OUT_BY) ist ein Trade über das
+  geschlossene Volumen mit dem anteiligen Teil der Einstiegskosten.
+- **Umkehr** (INOUT, nur Netting): schließt die offene Seite (Trade mit dem Gewinn des Deals) und
+  eröffnet den Rest in der Gegenrichtung; Kommission und Gebühr des Deals werden nach Volumen auf
+  beide Teile verteilt.
+- Ohne Einstieg im Archiv (MT5 hat ihn nicht mehr): Seite aus dem Ausstieg, kein Einstiegspreis,
+  Zone unbekannt.
+- **Zuordnung:** Magic im Register **und** Einstieg nach `created_at` des Registers. Das Register
+  zählt in echter Zeit, die Deals in MT5-Zeit: verglichen wird Einstieg − Broker-Abstand; ohne sichere
+  Messung mit dem größten möglichen Abstand (14 h), also lieber „unbekannt“ als falsch.
+  Gerechnet wird mit dem heutigen Abstand; liegt der Einstieg in der anderen Sommer-/Winterzeit des
+  Brokers, kann das nur Trades innerhalb 1 h um den Registereintrag betreffen.
+- Gezeigt wird nur, was im Zeitraum liegt: Trades nach Schließzeit, Einstiege nach Einstiegszeit. Ältere
+  Deals offener Positionen kommen nur für Einstiegspreis und Zone mit. Mehr geschlossen als im Archiv
+  eröffnet, oder eine Umkehr ohne bekannten Einstieg: Ausstieg ohne Einstieg (nicht geraten).
+- Der Chart einer Zone zeigt ihre Trades und die „Zone unbekannt“-Trades desselben Symbols (grau);
+  andere Zonen, manuelle Trades (Magic 0) und fremde Programme werden nur gezählt.
+- **Fraktale** (`src/lib/analysis/fractals.ts`) rechnen wie `fractal_signals.find_fractals` aus
+  geschlossenen Kerzen, nie über einen fehlenden Bereich hinweg. Vom Bot gehandelt heißt: ein
+  Einstieg der Zone trägt den Order-Kommentar `AutoGrid_Z{n}_F{U|D}{Kerzenzeit}` dieses Fraktals
+  (nur im Fraktal-Zeitrahmen der Zone sichtbar).
+
 ## 3. Vollständigkeit der Daten
 
 „Abgefragt“ heißt nicht „vollständig“. Jeder Kerzen-Zeitraum hat genau einen dieser Zustände:

@@ -5,12 +5,15 @@ import {
   CandlestickSeries,
   ColorType,
   createChart,
+  createSeriesMarkers,
   LineSeries,
   LineStyle,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
   type MouseEventParams,
+  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
@@ -18,7 +21,14 @@ import { useFormat, useT } from '@/i18n';
 import { isBar, liveBar, wilderRsi, type Bar, type ChartData } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
-import { MissingDataPrimitive, PauseLinesPrimitive, ZoneBandPrimitive } from './primitives';
+import {
+  FractalsPrimitive,
+  MissingDataPrimitive,
+  PauseLinesPrimitive,
+  TradeLinksPrimitive,
+  ZoneBandPrimitive,
+  type FractalMark,
+} from './primitives';
 
 export type LineTone = 'primary' | 'up' | 'down' | 'muted';
 
@@ -33,6 +43,32 @@ export interface OverlayLine {
   axisLabel?: boolean;
 }
 
+/** Trade-Pfeil bzw. Ausstiegspunkt (Zeit = Öffnungszeit der Kerze, Preis = Ausführungspreis). */
+export interface TradeMarker {
+  key: string;
+  time: number;
+  price: number;
+  kind: 'entryBuy' | 'entrySell' | 'exit';
+  tone: LineTone;
+  text?: string;
+}
+
+/** Verbindung Einstieg → Ausstieg (Zeiten = Öffnungszeit der Kerze). */
+export interface TradeLinkLine {
+  key: string;
+  from: { time: number; price: number };
+  to: { time: number; price: number };
+  tone: LineTone;
+}
+
+export interface FractalPoint {
+  time: number;
+  price: number;
+  side: 'U' | 'D';
+  /** Der Bot hat auf dieses Fraktal eine Order gesetzt, die ausgeführt wurde */
+  traded: boolean;
+}
+
 interface ChartCoreProps {
   data: ChartData;
   timeframeSec: number;
@@ -45,7 +81,25 @@ interface ChartCoreProps {
   showRsi: boolean;
   /** Live-Preis des Streams für die laufende Kerze; null = keine Live-Kerze (anderes Symbol, Uhr unsicher) */
   live: { price: number; nowSec: number } | null;
+  /** Trades aus dem Archiv: Pfeile, Ausstiege, Verbindungen (leer = aus) */
+  markers?: TradeMarker[];
+  links?: TradeLinkLine[];
+  fractals?: FractalPoint[];
+  /** Zusatzzeilen unter dem Fadenkreuz je Kerzenzeit (z. B. Trades dieser Kerze) */
+  notes?: Map<number, string[]>;
+  /** Ansicht auf diese Kerzenzeit setzen; `seq` erzwingt es auch bei gleicher Zeit erneut */
+  focus?: { time: number; seq: number } | null;
 }
+
+const EMPTY_MARKERS: TradeMarker[] = [];
+const EMPTY_LINKS: TradeLinkLine[] = [];
+const EMPTY_FRACTALS: FractalPoint[] = [];
+/** Ab so vielen Trade-Markern werden Pfeile kleiner und Verbindungen blasser (sonst verdecken sie die Kerzen) */
+const DENSE_MARKERS = 200;
+/** Höchstens so viele Trade-Zeilen unter dem Fadenkreuz */
+const MAX_HOVER_NOTES = 4;
+/** Beim Springen zu einem Trade: so viele Kerzen links und rechts davon */
+const FOCUS_BARS = 60;
 
 const RSI_PERIOD = 14;
 /** Bis zu so vielen Punkten passt die Ansicht den ganzen Zeitraum ein, sonst die letzten VISIBLE_BARS */
@@ -63,14 +117,36 @@ function toneColor(c: ChartColors, tone: LineTone) {
  * Chart (er rechnet sie wie UTC, docs/analyse-regeln.md §1). Fehlende Bereiche sind Leerstellen mit
  * grauer Schraffur, nie erfundene Kerzen.
  */
-export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, showPauses, showRsi, live }: ChartCoreProps) {
+export function ChartCore({
+  data,
+  timeframeSec,
+  digits,
+  viewKey,
+  band,
+  lines,
+  showPauses,
+  showRsi,
+  live,
+  markers = EMPTY_MARKERS,
+  links = EMPTY_LINKS,
+  fractals = EMPTY_FRACTALS,
+  notes,
+  focus,
+}: ChartCoreProps) {
   const t = useT();
   const fmt = useFormat();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const primitives = useRef<{ band: ZoneBandPrimitive; missing: MissingDataPrimitive; pauses: PauseLinesPrimitive } | null>(null);
+  const primitives = useRef<{
+    band: ZoneBandPrimitive;
+    missing: MissingDataPrimitive;
+    pauses: PauseLinesPrimitive;
+    links: TradeLinksPrimitive;
+    fractals: FractalsPrimitive;
+  } | null>(null);
+  const markersApi = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const priceLines = useRef<IPriceLine[]>([]);
   const lastBar = useRef<Bar | null>(null);
   const fittedKey = useRef<string | null>(null);
@@ -103,12 +179,17 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
     const band = new ZoneBandPrimitive();
     const missing = new MissingDataPrimitive();
     const pauses = new PauseLinesPrimitive();
+    const links = new TradeLinksPrimitive();
+    const fractalMarks = new FractalsPrimitive();
     candles.attachPrimitive(band);
     candles.attachPrimitive(missing);
     candles.attachPrimitive(pauses);
+    candles.attachPrimitive(links);
+    candles.attachPrimitive(fractalMarks);
+    markersApi.current = createSeriesMarkers(candles, []);
     chartRef.current = chart;
     candlesRef.current = candles;
-    primitives.current = { band, missing, pauses };
+    primitives.current = { band, missing, pauses, links, fractals: fractalMarks };
 
     const onMove = (param: MouseEventParams<Time>) => {
       if (param.time === undefined) {
@@ -126,6 +207,7 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
       candlesRef.current = null;
       rsiRef.current = null;
       primitives.current = null;
+      markersApi.current = null;
       priceLines.current = [];
       // Ein neu angelegter Chart (z. B. StrictMode im Dev-Modus) muss wieder ausgerichtet werden
       fittedKey.current = null;
@@ -236,6 +318,66 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
     };
   }, [lines, colors]);
 
+  // Trades aus dem Archiv: Pfeile am Ausführungspreis, Ausstiege als Punkt, Verbindung gepunktet
+  useEffect(() => {
+    const api = markersApi.current;
+    if (!api || !colors) return;
+    const dense = markers.length > DENSE_MARKERS;
+    const list: SeriesMarker<Time>[] = [...markers]
+      .sort((a, b) => a.time - b.time)
+      .map((m) => {
+        const color = toneColor(colors, m.tone);
+        const base = { id: m.key, time: m.time as UTCTimestamp, price: m.price, color, text: m.text, size: dense ? 0.5 : 1 };
+        // Kaufpfeil zeigt von unten auf den Preis, Verkaufspfeil von oben
+        if (m.kind === 'entryBuy') return { ...base, shape: 'arrowUp', position: 'atPriceTop' } as const;
+        if (m.kind === 'entrySell') return { ...base, shape: 'arrowDown', position: 'atPriceBottom' } as const;
+        return { ...base, shape: 'circle', position: 'atPriceMiddle', size: dense ? 0.35 : 0.6 } as const;
+      });
+    api.setMarkers(list);
+    containerRef.current?.setAttribute('data-markers', String(list.length));
+  }, [markers, colors, data]);
+
+  useEffect(() => {
+    if (!colors || !primitives.current) return;
+    primitives.current.links.set(
+      links.map((l) => ({
+        key: l.key,
+        from: l.from,
+        to: l.to,
+        color: withAlpha(toneColor(colors, l.tone), links.length > DENSE_MARKERS / 2 ? 0.3 : 0.8),
+      })),
+    );
+  }, [links, colors, data]);
+
+  useEffect(() => {
+    if (!colors || !primitives.current) return;
+    const marks: FractalMark[] = fractals.map((f) => ({
+      ...f,
+      color: f.traded ? colors.primary : withAlpha(colors.muted, 0.7),
+    }));
+    primitives.current.fractals.set(marks);
+    containerRef.current?.setAttribute('data-fractals', String(marks.length));
+  }, [fractals, colors, data]);
+
+  // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
+  const pointsRef = useRef(data.points);
+  useEffect(() => {
+    pointsRef.current = data.points;
+  }, [data.points]);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !focus) return;
+    const pts = pointsRef.current;
+    let lo = 0;
+    let hi = pts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (pts[mid].time < focus.time) lo = mid + 1;
+      else hi = mid;
+    }
+    chart.timeScale().setVisibleLogicalRange({ from: lo - FOCUS_BARS, to: lo + FOCUS_BARS });
+  }, [focus]);
+
   // RSI im eigenen Bereich, aus den angezeigten Kerzen
   useEffect(() => {
     const chart = chartRef.current;
@@ -288,6 +430,12 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
 
   // Nur unter dem Fadenkreuz: ohne Maus würde die Legende die geladene statt der laufenden Kerze zeigen
   const shown = hover?.bar ?? null;
+  const allNotes = hover ? (notes?.get(hover.time) ?? []) : [];
+  // Viele Trades in einer Kerze: nur die ersten, der Rest gezählt (sonst deckt die Legende den Chart zu)
+  const hoverNotes =
+    allNotes.length > MAX_HOVER_NOTES
+      ? [...allNotes.slice(0, MAX_HOVER_NOTES), t('analysis.chart.notes.more', { n: allNotes.length - MAX_HOVER_NOTES })]
+      : allNotes;
   return (
     <div className="relative">
       <div
@@ -303,6 +451,11 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
             </span>
           ))
         ) : null}
+        {hoverNotes.map((n, i) => (
+          <span key={i} className="basis-full text-foreground" data-testid="chart-legend-note">
+            {n}
+          </span>
+        ))}
       </div>
       {/* Die TradingView-Namensnennung (Link) erzeugt lightweight-charts selbst */}
       <div
