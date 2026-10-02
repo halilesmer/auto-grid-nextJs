@@ -487,7 +487,7 @@ export default function ZoneChartPanel({
               // statt eines leeren Charts; der Grund steht im Hinweis darüber
               <div
                 data-testid="analysis-chart-empty"
-                className="flex h-[360px] items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_9px,color-mix(in_oklab,var(--muted-foreground)_22%,transparent)_9px_10px)] text-sm font-medium text-muted-foreground sm:h-[480px]"
+                className="flex h-[max(360px,calc(100dvh-22rem))] items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_9px,color-mix(in_oklab,var(--muted-foreground)_22%,transparent)_9px_10px)] text-sm font-medium text-muted-foreground"
               >
                 {t('analysis.chart.noData')}
               </div>
@@ -509,7 +509,7 @@ export default function ZoneChartPanel({
                 focus={focus && focus.view === viewKey ? focus : null}
               />
             ) : (
-              <div className="h-[360px] animate-pulse rounded-lg bg-muted/40 sm:h-[480px]" data-testid="analysis-chart-loading" />
+              <div className="h-[max(360px,calc(100dvh-22rem))] animate-pulse rounded-lg bg-muted/40" data-testid="analysis-chart-loading" />
             )}
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground" data-testid="chart-key">

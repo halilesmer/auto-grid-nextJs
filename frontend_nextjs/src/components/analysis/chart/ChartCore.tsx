@@ -465,7 +465,7 @@ export function ChartCore({
         data-bars={data.bars.length}
         data-gap-areas={data.missing.length}
         data-pauses={data.pauses.length}
-        className="h-[360px] w-full sm:h-[480px]"
+        className="h-[max(360px,calc(100dvh-22rem))] w-full"
       />
     </div>
   );
