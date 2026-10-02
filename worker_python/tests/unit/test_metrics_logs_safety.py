@@ -121,6 +121,34 @@ def test_ws_fallback_liest_frische_bot_metriken(monkeypatch, tmp_path):
     assert ws.read_bot_metrics("1001") is None
 
 
+@pytest.mark.feature("MET-03")
+def test_ws_fallback_preis_gehoert_zum_gemeldeten_symbol(monkeypatch, tmp_path):
+    """Der Bot schreibt current_price des alphabetisch ersten Symbols: der Stream darf ihn nicht
+    unter dem Symbol einer anderen Zone senden (der Analyse-Chart würde sonst die Live-Kerze verfälschen)."""
+    import src.api.ws_server as ws
+
+    path = tmp_path / "met.json"
+    path.write_text(json.dumps({"current_price": 1.1242, "symbol_prices": {"EURUSD": 1.1242, "USOUSD": 95.98},
+                                "mt5_connected": True}))
+    monkeypatch.setattr(ws, "get_metrics_path", lambda acc: str(path))
+    monkeypatch.setattr(ws, "is_bot_running", lambda acc: True)
+
+    assert (ws.read_bot_metrics("1001", "USOUSD")["symbol"], ws.read_bot_metrics("1001", "USOUSD")["price"]) == ("USOUSD", 95.98)
+    # Unbekanntes oder leeres Symbol: das Symbol, zu dem der Preis gehört
+    payload = ws.read_bot_metrics("1001", "")
+    assert (payload["symbol"], payload["price"]) == ("EURUSD", 1.1242)
+
+
+@pytest.mark.feature("MET-03")
+def test_stream_symbol_auch_aus_settings_ohne_motorname(tmp_path):
+    import src.api.ws_server as ws
+
+    (tmp_path / "configs").mkdir(exist_ok=True)
+    (tmp_path / "configs" / "settings_1001.json").write_text(json.dumps({"ZONES": [{"symbol": "usousd"}]}))
+    (tmp_path / "configs" / "settings_1001_Other.json").write_text(json.dumps({"ZONES": [{"symbol": "XAUUSD"}]}))
+    assert ws.first_zone_symbol(str(tmp_path), "1001") == "USOUSD"
+
+
 # --------------------------------------------------------------------------- LOG-05
 @pytest.mark.feature("LOG-05")
 def test_log_message_schreibt_jede_zeile_genau_einmal(robot_log, capsys):

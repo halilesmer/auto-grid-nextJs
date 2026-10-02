@@ -49,7 +49,7 @@ interface ChartCoreProps {
 
 const RSI_PERIOD = 14;
 /** Bis zu so vielen Punkten passt die Ansicht den ganzen Zeitraum ein, sonst die letzten VISIBLE_BARS */
-const FIT_MAX_POINTS = 600;
+const FIT_MAX_POINTS = 2000;
 const VISIBLE_BARS = 300;
 
 const LINE_STYLE = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted } as const;
@@ -127,6 +127,9 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
       rsiRef.current = null;
       primitives.current = null;
       priceLines.current = [];
+      // Ein neu angelegter Chart (z. B. StrictMode im Dev-Modus) muss wieder ausgerichtet werden
+      fittedKey.current = null;
+      lastBar.current = null;
     };
   }, []);
 
@@ -170,11 +173,23 @@ export function ChartCore({ data, timeframeSec, digits, viewKey, band, lines, sh
     candles.setData(data.points.map((p) => ({ ...p, time: p.time as UTCTimestamp })));
     lastBar.current = data.bars.length > 0 ? data.bars[data.bars.length - 1] : null;
     // Nur bei neuer Auswahl ausrichten; das Nachladen des Endstücks lässt die Ansicht stehen
-    if (fittedKey.current !== viewKey && data.points.length > 0) {
-      fittedKey.current = viewKey;
-      if (data.points.length <= FIT_MAX_POINTS) chart.timeScale().fitContent();
-      else chart.timeScale().setVisibleLogicalRange({ from: data.points.length - VISIBLE_BARS, to: data.points.length + 3 });
-    }
+    if (fittedKey.current === viewKey || data.points.length === 0) return;
+    fittedKey.current = viewKey;
+    const n = data.points.length;
+    const from = n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS;
+    // autoSize setzt die Breite erst nach dem ersten ResizeObserver-Lauf; vorher bliebe die Ansicht
+    // beim Standard-Kerzenabstand stehen
+    let frame = 0;
+    let tries = 0;
+    const align = () => {
+      if (chart.timeScale().width() === 0 && tries++ < 60) {
+        frame = requestAnimationFrame(align);
+        return;
+      }
+      chart.timeScale().setVisibleLogicalRange({ from, to: n + 3 });
+    };
+    align();
+    return () => cancelAnimationFrame(frame);
   }, [data, viewKey]);
 
   // Fehlende Bereiche (immer) und Marktpausen (abschaltbar)

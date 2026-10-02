@@ -221,17 +221,21 @@ export default function ZoneChartPanel({
       metrics.symbol?.toUpperCase() === symbol &&
       (!metrics.account_id || String(metrics.account_id) === accountId),
   );
+  const lastClose = data && data.bars.length > 0 ? data.bars[data.bars.length - 1].close : null;
+  // Zusätzliche Sicherung: ein Preis weit weg vom letzten Schlusskurs gehört zu einem anderen Symbol
+  const plausible = lastClose !== null && metrics.price > 0 && Math.abs(metrics.price / lastClose - 1) < 0.2;
   const live = useMemo(
     () =>
-      isConnected && streamMatches && offsetSec !== null && data?.liveFrom != null && metrics.market_open !== false && metrics.price > 0
+      isConnected && streamMatches && plausible && offsetSec !== null && data?.liveFrom != null && metrics.market_open !== false
         ? { price: metrics.price, nowSec: brokerNow(offsetSec) }
         : null,
-    [isConnected, streamMatches, offsetSec, data?.liveFrom, metrics.market_open, metrics.price],
+    [isConnected, streamMatches, plausible, offsetSec, data?.liveFrom, metrics.market_open, metrics.price],
   );
   // Der Stream zeigt die erste Zone des Kontos: bei anderem Symbol gehören die Live-Werte nicht zu dieser Zone
   const symbolMismatch = Boolean(symbol && metrics.symbol && metrics.symbol.toUpperCase() !== symbol);
-  const lastClose = data && data.bars.length > 0 ? data.bars[data.bars.length - 1].close : null;
-  const currentPrice = streamMatches && metrics.price > 0 ? metrics.price : lastClose;
+  // Stufen gelten für den aktuellen Kurs: Live-Preis, sonst der Schluss der laufenden Kerze; bei einem
+  // Zeitraum in der Vergangenheit keine Stufen (sie lägen um einen alten Kurs)
+  const currentPrice = streamMatches && plausible ? metrics.price : data?.liveFrom != null ? lastClose : null;
 
   const botRunning = liveData.bot_running === true;
   const positions = useMemo(
@@ -338,7 +342,16 @@ export default function ZoneChartPanel({
               </Alert>
             )}
 
-            {chart ? (
+            {chart && data && data.bars.length === 0 ? (
+              // Keine einzige Kerze: lightweight-charts kann reine Leerstellen nicht verteilen. Eine Fläche
+              // statt eines leeren Charts; der Grund steht im Hinweis darüber
+              <div
+                data-testid="analysis-chart-empty"
+                className="flex h-[360px] items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_9px,color-mix(in_oklab,var(--muted-foreground)_22%,transparent)_9px_10px)] text-sm font-medium text-muted-foreground sm:h-[480px]"
+              >
+                {t('analysis.chart.noData')}
+              </div>
+            ) : chart ? (
               <ChartCore
                 data={chart}
                 timeframeSec={tfSec}

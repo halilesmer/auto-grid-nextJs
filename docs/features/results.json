@@ -585,7 +585,7 @@
     "unit": {
       "datum": "2026-10-02",
       "status": "passed",
-      "tests": 5
+      "tests": 7
     }
   },
   "MET-04": {
@@ -770,7 +770,7 @@
   "SYS-07": {
     "e2e": {
       "datum": "2026-10-02",
-      "status": "passed",
+      "status": "failed",
       "tests": 4
     }
   },

@@ -8,6 +8,7 @@ import type {
   IChartApiBase,
   IPrimitivePaneRenderer,
   IPrimitivePaneView,
+  Logical,
   ISeriesApi,
   ISeriesPrimitive,
   PrimitivePaneViewZOrder,
@@ -50,8 +51,15 @@ abstract class BasePrimitive implements ISeriesPrimitive<Time> {
     this.requestUpdate?.();
   }
 
+  /**
+   * x eines Zeitpunkts, auch außerhalb der Ansicht (timeToCoordinate liefert dort null: ein halb
+   * sichtbarer Bereich würde sonst gar nicht gezeichnet). Der logische Index ist der Punkt auf der Zeitachse.
+   */
   protected x(time: number): number | null {
-    return this.chart?.timeScale().timeToCoordinate(time as UTCTimestamp) ?? null;
+    const scale = this.chart?.timeScale();
+    const index = scale?.timeToIndex(time as UTCTimestamp, false);
+    if (!scale || index === null || index === undefined) return null;
+    return scale.logicalToCoordinate(index as unknown as Logical);
   }
 
   protected halfBar(): number {
