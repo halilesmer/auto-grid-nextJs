@@ -130,6 +130,15 @@ ZON-15:
   datum: '2026-09-29'
   notiz: 'VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte
     Order nicht neu gesetzt'
+ZON-18:
+  status: bestanden
+  datum: '2026-10-02'
+  notiz: 'Live DEMO 7942034, GBPUSD-Testzone, Setups H4/M1(0,02, Max 1→2)/M5→H1: sid
+    2/3 vom Worker, nach Neuladen erhalten; Kommentar AutoGrid_Z4_F2U…; Max. Positionen
+    je Setup greift (Kurgu 2 1/1, Kurgu 1 weiter); Entfernen+Orders löschen: nur Order
+    von Setup 3 gelöscht; Entfernen+Orders behalten: kept_sids=[2], keine Löschung
+    (Order wurde zeitgleich gefüllt); keine Order-Flut. Nebenbefund: Setup 1 setzte
+    beim Start kurz eine Order auf altem H4-Fraktal und ersetzte sie 2 s später.'
 BOT-01:
   status: bestanden
   datum: '2026-09-23'
