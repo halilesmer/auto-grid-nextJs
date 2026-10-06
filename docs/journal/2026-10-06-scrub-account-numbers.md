@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: fix
 status: open
-pr: [104]
+pr: [104, 106]
 features: [ACC-11, ENG-25, VPS-08, VPS-10]
 areas: [docs, tests, worker, ops]
 ---
