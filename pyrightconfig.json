@@ -1,0 +1,28 @@
+{
+  "include": ["worker_python"],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "worker_python/data",
+    "worker_python/logs",
+    "worker_python/configs"
+  ],
+  "venvPath": "worker_python",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Windows",
+  "stubPath": "worker_python/typings",
+  "executionEnvironments": [{ "root": "worker_python" }],
+  "typeCheckingMode": "basic",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalSubscript": "none",
+  "reportOptionalOperand": "none",
+  "reportOptionalIterable": "none",
+  "reportOptionalCall": "none",
+  "reportArgumentType": "none",
+  "reportIndexIssue": "none",
+  "reportOperatorIssue": "none",
+  "reportUnsupportedDunderAll": "none",
+  "reportMissingModuleSource": "none"
+}

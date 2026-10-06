@@ -15,7 +15,7 @@ Bu, `git config core.hooksPath hooks` ayarlar. Claude Code hook'ları `.claude/s
 | Hook | Tetikleyici | Kontrol | Süre |
 |---|---|---|---|
 | `pre-commit` | `git commit` | yasaklı dosya + gizli veri (staged) | <1 sn |
-| `pre-push` | `git push` | yasaklı dosya, gizli veri, sürüm dosyaları, `tsc` + `eslint`, worker `.py` sözdizimi, uyumluluk uyarıları | ~5 sn |
+| `pre-push` | `git push` | yasaklı dosya, gizli veri, sürüm dosyaları, `tsc` + `eslint`, worker `.py` sözdizimi, uyumluluk uyarıları, proje günlüğü uyarısı (kod değişip `docs/journal/` kaydı yoksa, RULES §7) | ~5 sn |
 | `claude/post-edit.sh` | Claude her `Edit`/`Write` sonrası | düzenlenen dosya: `eslint` / Python sözdizimi / gizli veri | ~3 sn |
 | `claude/stop-check.sh` | Claude her tur sonunda | tüm değişiklikler: `tsc` + `eslint` + worker + gizli veri. Hata varsa Claude durmaz, düzeltir. Aynı değişiklik seti temiz geçtiyse tekrar çalışmaz. | ~5 sn |
 

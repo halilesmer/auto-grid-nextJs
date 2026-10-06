@@ -17,6 +17,7 @@ cd "$ROOT" || exit 1
 ALL_FILES=""
 ALL_DIFF=""
 RANGES=()
+LOCAL_SHAS=()
 
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "${local_sha:-}" ] && continue
@@ -30,6 +31,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
 
   RANGES+=("$base..$local_sha")
+  LOCAL_SHAS+=("$local_sha")
   ALL_FILES+="$(git diff --name-only "$base" "$local_sha")"$'\n'
   ALL_DIFF+="$(git diff "$base" "$local_sha")"$'\n'
 done
@@ -66,5 +68,8 @@ check_worker < <(echo "$ALL_FILES" | grep -E '^worker_python/.*\.py$' | sort -u)
 
 # 5) Uyumluluk uyarıları (engellemez)
 check_compat_warnings <<< "$ALL_FILES"
+
+# 6) Proje günlüğü: kod değişen branch'te docs/journal kaydı var mı (engellemez)
+check_journal_entry < <(printf '%s\n' "${LOCAL_SHAS[@]}")
 
 finish_checks
