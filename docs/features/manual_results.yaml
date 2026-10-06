@@ -7,8 +7,8 @@
 SYS-01:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto 7942034
-    im Dropdown, ''Worker online'''
+  notiz: 'Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto A im Dropdown,
+    ''Worker online'''
 SYS-02:
   status: bestanden
   datum: '2026-09-23'
@@ -29,13 +29,13 @@ SYS-04:
 ACC-01:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: /accounts → 1 Konto (7942034, DEMO, Eightcap-Demo), Dropdown zeigt
-    genau dieses'
+  notiz: 'Claude: /accounts → 1 Konto (A, DEMO, Demo-Server), Dropdown zeigt genau
+    dieses'
 ACC-06:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/7942034 geladen,
-    UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall
+  notiz: 'Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/{id} geladen, UI
+    = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall
     1 s)'
 ACC-07:
   status: bestanden
@@ -45,7 +45,7 @@ ACC-07:
 SET-01:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: GET /settings/7942034 → flache Datei settings_7942034.json (LOOP_INTERVAL_SECONDS,
+  notiz: 'Claude: GET /settings/{id} → flache Datei settings_{id}.json (LOOP_INTERVAL_SECONDS,
     ZONES); UI zeigt alle Werte korrekt (siehe ACC-06)'
 SET-02:
   status: bestanden
@@ -70,8 +70,8 @@ SET-05:
 SYM-01:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: /symbols/7942034 → 200, 812 Symbole mit Details (USOUSD: digits
-    3, point 0.001, Volumen 0.01–50); 2. Abruf 72 ms statt 168 ms (Cache). 1-h-Ablauf/Hintergrund-Refresh
+  notiz: 'Claude: /symbols/{id} → 200, 812 Symbole mit Details (USOUSD: digits 3,
+    point 0.001, Volumen 0.01–50); 2. Abruf 72 ms statt 168 ms (Cache). 1-h-Ablauf/Hintergrund-Refresh
     nicht live prüfbar → Unit-Test'
 SYM-02:
   status: bestanden
@@ -133,7 +133,7 @@ ZON-15:
 ZON-18:
   status: bestanden
   datum: '2026-10-02'
-  notiz: 'Live DEMO 7942034, GBPUSD-Testzone, Setups H4/M1(0,02, Max 1→2)/M5→H1: sid
+  notiz: 'Live DEMO-Konto A, GBPUSD-Testzone, Setups H4/M1(0,02, Max 1→2)/M5→H1: sid
     2/3 vom Worker, nach Neuladen erhalten; Kommentar AutoGrid_Z4_F2U…; Max. Positionen
     je Setup greift (Kurgu 2 1/1, Kurgu 1 weiter); Entfernen+Orders löschen: nur Order
     von Setup 3 gelöscht; Entfernen+Orders behalten: kept_sids=[2], keine Löschung
@@ -142,14 +142,14 @@ ZON-18:
 BOT-01:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude (DEMO 7942034): ''Start Bot'' → Connecting → Running nach 5 s; Log:
+  notiz: 'Claude (DEMO-Konto A): ''Start Bot'' → Connecting → Running nach 5 s; Log:
     MT5-Login ok, 812 Symbole gecacht, Subprozess gestartet, Zone 0 aus Magic-Numbers
     als START wiederhergestellt, ''Yeni Bölgeye Girildi: Bölge 1''; keine Alarme,
     Zone ''Başladı'''
 BOT-02:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude (DEMO 7942034): ''Stop Bot'' → Dialog ''Disconnect MT5'' → Stopped
+  notiz: 'Claude (DEMO-Konto A): ''Stop Bot'' → Dialog ''Disconnect MT5'' → Stopped
     nach ~5 s, bot_running=false, Zone ''Hazır (Motor Bekleniyor)''; Log: ''Açık pozisyon/emirlere
     dokunulmuyor''. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders
     (vorher 14/5)'
@@ -189,7 +189,7 @@ LOG-01:
 LOG-03:
   status: bestanden
   datum: '2026-09-23'
-  notiz: 'Claude: ''Download log file'' → gültiges ZIP (54 KB) MT5_Logs_and_Configs_7942034.zip
+  notiz: 'Claude: ''Download log file'' → gültiges ZIP (54 KB) MT5_Logs_and_Configs_{id}.zip
     mit err-Log, met/pid/symbols, 3 MT5-Terminal-Logs, state und settings; Download
     im Browser abgefangen, nichts gespeichert'
 LOG-04:
@@ -254,20 +254,20 @@ ANA-04:
 ANA-05:
   status: bestanden
   datum: '2026-10-02'
-  notiz: '02.10.26 DEMO 7942034 live: Kerzen = rohe MT5-Kerzen; M15 7 Tage, D1 alles
+  notiz: '02.10.26 DEMO-Konto A live: Kerzen = rohe MT5-Kerzen; M15 7 Tage, D1 alles
     (3491 ab 2013, Hinweis gekürzt); tf in URL; Stufen USOUSD/EURUSD per levels.ts
     gegen echte Bot-Orders geprüft (Raster identisch, freie Stufen durch Positionen
     belegt); Live-Kerze folgt Stream-Preis, neue Kerze zum Minutenwechsel'
 ANA-06:
   status: bestanden
   datum: '2026-10-02'
-  notiz: '02.10.26 DEMO 7942034 nach Deploy #94: Telemetrie liefert positions/orders;
+  notiz: '02.10.26 DEMO-Konto A nach Deploy #94: Telemetrie liefert positions/orders;
     Chart zeigt USOUSD 64 Pos/3 Orders, EURUSD 3 Pos/20 Orders = Worker-Listen je
     Magic; Fraktal-Zone 0/0; ab 20 Linien ohne Achsenbeschriftung'
 ANA-11:
   status: bestanden
   datum: '2026-10-02'
-  notiz: '02.10.26 DEMO 7942034: M1 Jan 2026 = 0 Kerzen, Fläche Keine Daten + Hinweis
+  notiz: '02.10.26 DEMO-Konto A: M1 Jan 2026 = 0 Kerzen, Fläche Keine Daten + Hinweis
     unavailable; M1 22.-23.06. Historie ab 23.06. 06:55 → links schraffiert, rechts
     echte Kerzen, RSI ohne Brücke; Tagespausen 00:00-01:00 als Linien'
 ANA-13:

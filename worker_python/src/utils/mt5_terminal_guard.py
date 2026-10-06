@@ -3,7 +3,7 @@
 
 mt5.login() bağlı terminalin oturumunu değiştirir. initialize() yol (path) olmadan
 çağrılırsa MetaTrader5 kütüphanesi çalışan herhangi bir terminale bağlanır; 29.09'da
-7947315'in girişi böylece 7942034'ün terminalinde (T34) yapıldı ve o hesabın botu
+hesap B'nin girişi böylece hesap A'nın terminalinde (T34) yapıldı ve o hesabın botu
 bağlantısını kaybetti. Bu modül iki kuralı uygular:
 - Hesabın mt5_path'i girilmiş ama dosya yoksa yolsuz initialize yapılmaz.
 - Bağlanılan terminal accounts.json'da başka bir hesabın terminaliyse login yapılmaz.

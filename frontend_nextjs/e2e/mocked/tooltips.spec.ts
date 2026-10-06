@@ -142,7 +142,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
             worker_watchdog: true,
             ngrok: { running: true, public_url: 'https://example.ngrok-free.dev' },
             ngrok_watchdog: true,
-            bots: [{ pid: 4711, account: '5039114' }],
+            bots: [{ pid: 4711, account: '12345678' }],
             mt5_terminals: 1,
             session_active: true,
             autologon: true,

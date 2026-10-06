@@ -1,14 +1,14 @@
-C:\ngrok\ngrok.exe http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev
+C:\ngrok\ngrok.exe http 8000 --domain=<NGROK_DOMAIN>
 
 
 
 Şu an sistemin 2 kritik bileşeni VPS üzerinde aktif ve hazır:
 
-Ngrok Tüneli (Pencere 1): [https://tweet-overlying-monotone.ngrok-free.dev](https://tweet-overlying-monotone.ngrok-free.dev) adresini 8000 portuna bağlıyor.
+Ngrok Tüneli (Pencere 1): `https://<NGROK_DOMAIN>` adresini 8000 portuna bağlıyor.
 
 FastAPI Sunucusu (Pencere 2): Application startup complete. ibaresiyle arka planda çalışıyor.
 
-https://tweet-overlying-monotone.ngrok-free.dev/docs
+`https://<NGROK_DOMAIN>/docs`
 
 
 
@@ -19,7 +19,7 @@ https://tweet-overlying-monotone.ngrok-free.dev/docs
 | Bileşen | Çalıştığı Yer | Görevi / Adres |
 | :--- | :--- | :--- |
 | **Ön Yüz (Frontend)** | Vercel | `https://auto-grid-next-js.vercel.app` |
-| **Tünel (Ngrok)** | VPS ↔ İnternet | `https://tweet-overlying-monotone.ngrok-free.dev` |
+| **Tünel (Ngrok)** | VPS ↔ İnternet | `https://<NGROK_DOMAIN>` |
 | **Arka Yüz (Backend)** | Windows VPS | FastAPI (Uvicorn) - Port: `8000` |
 | **Borsa Motoru** | Windows VPS | MetaTrader 5 (MT5) |
 
@@ -34,7 +34,7 @@ Vercel paneli üzerinde yapılması gereken ve sorunsuz derlemeyi sağlayan ayar
 * **Include files outside the root directory:** `Enabled` (Açık)
 * **Environment Variables (Çevre Değişkenleri):**
   * **Key:** `NEXT_PUBLIC_API_URL`
-  * **Value:** `https://tweet-overlying-monotone.ngrok-free.dev`
+  * **Value:** `https://<NGROK_DOMAIN>`
 
 ---
 
@@ -79,7 +79,7 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ### Terminal 2: Ngrok Tüneli
 
 ```cmd
-ngrok http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev
+ngrok http 8000 --domain=<NGROK_DOMAIN>
 
 ```
 
@@ -89,11 +89,11 @@ ngrok http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev
 
 Tünelin ve VPS servislerinin çalıştığını doğrulamak için kullanılabilecek uç noktalar:
 
-* **Swagger UI:** `https://tweet-overlying-monotone.ngrok-free.dev/docs`
+* **Swagger UI:** `https://<NGROK_DOMAIN>/docs`
 * **Platform Kontrolü (cURL Testi):**
 ```bash
 curl -X 'GET' \
-  '[https://tweet-overlying-monotone.ngrok-free.dev/api/system/platform](https://tweet-overlying-monotone.ngrok-free.dev/api/system/platform)' \
+  'https://<NGROK_DOMAIN>/api/system/platform' \
   -H 'accept: application/json'
 
 ```
@@ -124,4 +124,4 @@ Erfolg: Application startup complete.
 cmd
 
 
-ngrok http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev
+ngrok http 8000 --domain=<NGROK_DOMAIN>

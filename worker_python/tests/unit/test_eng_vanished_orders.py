@@ -1,6 +1,6 @@
 """ENG-25 Von außen gelöschte Orders erkennen + Order-Flut-Bremse (grid_execution/vanished.py).
 
-Vorfall 29.09. (Konto 7947315): Pending Orders verschwanden 2–5 s nach dem Setzen, ohne dass der
+Vorfall 29.09. (DEMO-Konto B): Pending Orders verschwanden 2–5 s nach dem Setzen, ohne dass der
 Bot sie gelöscht hatte; der Bot setzte die Level endlos neu (~200 Orders/min).
 """
 import json
