@@ -3,12 +3,21 @@ import asyncio
 import copy
 import json
 import os
+import shutil
+from pydantic import TypeAdapter, ValidationError
 from src.api.access import account_access
-from src.api.models import SettingsPayload
+from src.api.models import SettingsPayload, SymbolSettings
 from src.api.helpers import _find_settings_file, CONFIGS_DIR
+from src.utils import symbol_setups
+from src.utils.bot_manager import is_bot_running
+from src.utils.bot_watchdog import account_lock
 from src.utils.mt5_connection import safe_log
+from src.utils.paths import get_ui_state_path
+from src.utils.zone_magic import remap_ui_states, zone_magics
 
 router = APIRouter(tags=["Settings"])
+
+_SYMBOLS = TypeAdapter(list[SymbolSettings])
 
 
 @router.get("/settings/{account_id}", dependencies=[Depends(account_access)])
@@ -31,7 +40,8 @@ async def get_settings(account_id: str, response: Response):
         return {
             "account_id": account_id,
             "file": os.path.basename(path),
-            "settings": data,
+            # SYMBOLS ve aynı bölgelerin düz listesi ZONES (bugünkü arayüz ZONES okur ve gönderir)
+            "settings": symbol_setups.for_client(data),
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
@@ -42,9 +52,54 @@ def _record_zone_registry(account_id: str, settings) -> None:
     try:
         from src.utils import market_db
 
-        market_db.record_zones(account_id, settings.get("ZONES") if isinstance(settings, dict) else [])
+        market_db.record_zones(account_id, symbol_setups.settings_zones(settings))
     except Exception as exc:  # noqa: BLE001
         safe_log(f"⚠️ [MARKET-DB] Bölge kaydı yazılamadı: {exc}")
+
+
+def _check_symbols(settings) -> None:
+    """Gelen `SYMBOLS` yapısı sınırda denetlenir: bozuk yapı kayıtta bütün bölgeleri siler gibi görünürdü.
+
+    `ZONES` da geldiyse `SYMBOLS` kullanılmaz (symbol_setups.to_flat), denetlenmez.
+    """
+    if not isinstance(settings, dict) or symbol_setups.SYMBOLS_KEY not in settings:
+        return
+    if symbol_setups.ZONES_KEY in settings:
+        return
+    try:
+        _SYMBOLS.validate_python(settings[symbol_setups.SYMBOLS_KEY])
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=f"SYMBOLS: {exc}") from exc
+
+
+def _backup_before_symbols(path: str) -> None:
+    """Eski biçimli (ZONES) dosyanın ilk gruplu kayıttan önceki kopyası (ZON-19).
+
+    Alt klasörde durur: settings_<id>_*.json araması (helpers._find_settings_file) kopyayı bulmasın.
+    """
+    backup_dir = os.path.join(CONFIGS_DIR, "backup")
+    os.makedirs(backup_dir, exist_ok=True)
+    name = os.path.splitext(os.path.basename(path))[0] + ".before-symbols.json"
+    shutil.copy2(path, os.path.join(backup_dir, name))
+
+
+async def _remap_ui_state_of_stopped_bot(account_id: str, old_zones, new_zones) -> None:
+    """Bölge sırası değiştiyse (gruplama, silme) sıra anahtarlı ui_state dosyasını taşır.
+
+    Çalışan bot bunu ayarları yeniden okurken kendisi yapar (grid_zone_state.rekey_zone_state);
+    API de taşırsa dosya iki kez taşınırdı. Durmuş bot ilk okumada eski sırayı bilmez: burada
+    taşınır. Kilit: aynı anda /start botu başlatmasın.
+    """
+    if zone_magics(old_zones) == zone_magics(new_zones):
+        return
+    async with account_lock(account_id):
+        if is_bot_running(account_id):
+            return
+        try:
+            await asyncio.to_thread(remap_ui_states, get_ui_state_path(account_id), old_zones, new_zones)
+        except OSError as exc:
+            # Ayarlar kaydedildi; kayıt başarısız sayılmaz. Bot başlayınca bölge durumu eski sırayla okunur
+            safe_log(f"⚠️ [SETTINGS] ui_state yeni bölge sırasına taşınamadı: {exc}")
 
 
 @router.post("/settings/{account_id}", dependencies=[Depends(account_access)])
@@ -70,12 +125,16 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             and isinstance(incoming_data["settings"], dict)
         ):
             incoming_data = incoming_data["settings"]
+        _check_symbols(incoming_data)
 
+        # Magic ve kurgu numaraları düz bölge listesinde verilir; kayıt sembol → kurulum biçimindedir
+        # (ZON-19). Gelen ZONES ya da SYMBOLS kayıtlı bölgelerin yerine geçer.
+        legacy_file = symbol_setups.is_legacy(existing_data)
         # Kayıttan önceki hâl: bölge magic'leri ve durum sıraları buna göre korunur
-        previous = copy.deepcopy(existing_data) if isinstance(existing_data, dict) else {}
+        previous = symbol_setups.to_flat(copy.deepcopy(existing_data)) if isinstance(existing_data, dict) else {}
         if isinstance(existing_data, dict) and isinstance(incoming_data, dict):
-            existing_data.update(incoming_data)
-            data_to_save = existing_data
+            data_to_save = symbol_setups.to_flat(existing_data)
+            data_to_save.update(symbol_setups.to_flat(incoming_data))
         else:
             data_to_save = incoming_data
 
@@ -87,6 +146,9 @@ async def update_settings(account_id: str, payload: SettingsPayload):
         data_to_save = assign_zone_magics(previous, sanitize_settings(data_to_save), log=safe_log)
         # Ek fraktal kurgularına kalıcı numara (ENG-28); emir yorumu ve istatistik bu numarayı taşır
         data_to_save = assign_fractal_setup_ids(previous, data_to_save, log=safe_log)
+        data_to_save = symbol_setups.to_grouped(data_to_save)
+        if legacy_file:
+            await asyncio.to_thread(_backup_before_symbols, path)
 
         # Atomik yaz: bot her turda okur, yarım dosya görmesin. Windows'ta bot dosyayı o an
         # okuyorsa os.replace reddedilir → kısa tekrar
@@ -106,6 +168,9 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
+        await _remap_ui_state_of_stopped_bot(
+            account_id, symbol_setups.settings_zones(previous), symbol_setups.settings_zones(data_to_save)
+        )
         await asyncio.to_thread(_record_zone_registry, account_id, data_to_save)
 
         return {
@@ -113,5 +178,7 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             "account_id": account_id,
             "file": os.path.basename(path),
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

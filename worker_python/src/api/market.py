@@ -17,6 +17,7 @@ from src.api.auth import require_admin
 from src.api.helpers import _find_settings_file, _load_accounts, _load_settings_data
 from src.utils import market_db, market_sync, mt5_market
 from src.utils.bot_watchdog import is_account_busy
+from src.utils.symbol_setups import settings_zones
 
 router = APIRouter(tags=["Market"])
 
@@ -37,7 +38,7 @@ def _first_zone_symbol(account_id: str) -> Optional[str]:
     if path is None:
         return None
     try:
-        zones = _load_settings_data(path).get("ZONES") or []
+        zones = settings_zones(_load_settings_data(path))
     except Exception:
         return None
     return next((z["symbol"] for z in zones if isinstance(z, dict) and z.get("symbol")), None)

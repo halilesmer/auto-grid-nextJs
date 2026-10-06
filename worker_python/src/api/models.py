@@ -42,6 +42,15 @@ class SettingsPayload(BaseModel):
     settings: dict
 
 
+class SymbolSettings(BaseModel):
+    """Ayar kaydındaki sembol (ZON-19): kurulumlarını (eski bölgeler) gruplar.
+
+    Yalnızca yapı denetlenir; kurulum alanları serbesttir (motor varsayılanları kendisi tamamlar).
+    """
+    symbol: str
+    setups: list[dict]
+
+
 class ActionRequest(BaseModel):
     account_id: str
     action: str

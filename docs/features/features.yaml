@@ -586,6 +586,16 @@ kategorien:
           - Setup 3 entfernen, im Dialog „Orders löschen“ wählen und speichern.
           - Setup 2 entfernen, im Dialog „Orders behalten“ wählen und speichern.
         erwartet: Jedes Setup setzt seine Orders auf den Fraktalen seines Zeitrahmens mit eigenem Lot/TP; ist Setup 2 bei 1 Position, setzt nur Setup 2 nichts mehr. Nach „Orders löschen“ verschwinden nur die Pending Orders von Setup 3; nach „Orders behalten“ bleiben die von Setup 2 unverändert in MT5. Positionen bleiben in beiden Fällen.
+      - id: ZON-19
+        titel: Symbol mit Setups – Speicherformat und Migration (Worker)
+        beschreibung: Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27); Fraktal-Kurgunummern (ENG-28) bleiben. Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert SYMBOLS und dieselben Zonen als ZONES in Engine-Reihenfolge, damit die heutige Oberfläche weiterläuft. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (die heutige Oberfläche schickt veraltete SYMBOLS mit; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
+        code: [worker_python/src/utils/symbol_setups.py, worker_python/src/api/settings.py, worker_python/src/api/models.py, worker_python/src/core/wrappers.py, worker_python/src/api/ws_server.py, worker_python/src/api/market.py, worker_python/src/utils/state_manager.py]
+        tiers: [unit, api]
+        pruefung:
+          - DEMO-Konto mit zwei Zonen auf XAUUSD und einer auf EURUSD, alle mit offenen Orders; Bot läuft.
+          - Worker auf den neuen Stand bringen, im Dashboard eine Einstellung ändern und speichern.
+          - configs/settings_<id>_Auto_Grid.json und configs/backup/ ansehen; MT5-Orders und Bot-Log prüfen.
+        erwartet: Die Datei enthält SYMBOLS mit XAUUSD (2 Setups) und EURUSD (1 Setup), alle Magic-Nummern wie vorher; die Kopie der alten Datei liegt in configs/backup/. Der Bot behält alle Orders und Positionen (gleiche Tickets), das Dashboard zeigt alle drei Zonen wie vorher.
 
   # ---------------------------------------------------------------------------
   - id: BOT

@@ -21,6 +21,7 @@ from src.core.grid_zone_state import (
     rekey_zone_state,
 )
 from src.core.grid_orchestrator import manage_dynamic_grid as _manage_dynamic_grid
+from src.utils.symbol_setups import settings_zones
 
 try:
     import MetaTrader5 as mt5  # type: ignore
@@ -56,8 +57,8 @@ def load_dynamic_settings():
     # Ayar dosyası bozuk olsa bile döngü çökmemeli (eski davranış)
     try:
         previous_zones = state.zones
-        zones = settings.get("ZONES", []) if isinstance(settings, dict) else []
-        state.zones = zones if isinstance(zones, list) else []
+        # Her kurulum bir bölge (ZON-19): sembol sırası, sembol içinde kurulum sırası
+        state.zones = settings_zones(settings)
         # Bölge silindiyse sıraya bağlı durumu magic'e göre taşı (ENG-27)
         try:
             rekey_zone_state(state, previous_zones, state.zones, log=log_message)

@@ -16,6 +16,7 @@ venv/
 configs/accounts.json
 configs/settings_*.json
 worker_python/configs/*.json
+worker_python/configs/backup/
 worker_python/logs/
 *.tmp
 

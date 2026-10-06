@@ -43,7 +43,7 @@ def test_speichern_fuehrt_zusammen_statt_zu_ueberschreiben(client, worker_dir):
     path = _write_settings(worker_dir, {"LOOP_INTERVAL_SECONDS": 1.0, "ZONES": [make_zone()]})
     assert client.post(URL, json={"settings": {"LOOP_INTERVAL_SECONDS": 2.5}}).json()["status"] == "saved"
     saved = json.loads(path.read_text(encoding="utf-8"))
-    assert saved["LOOP_INTERVAL_SECONDS"] == 2.5 and saved["ZONES"][0]["id"] == "zone-test"
+    assert saved["LOOP_INTERVAL_SECONDS"] == 2.5 and saved["SYMBOLS"][0]["setups"][0]["id"] == "zone-test"
 
 
 @pytest.mark.feature("SET-05")
@@ -61,7 +61,7 @@ def test_speichern_rundet_fliesskomma(client, worker_dir):
     client.post(URL, json={"settings": {"LOOP_INTERVAL_SECONDS": 1.00000001,
                                         "ZONES": [make_zone(lot_size=0.0100000001)]}})
     saved = json.loads(path.read_text(encoding="utf-8"))
-    assert saved["LOOP_INTERVAL_SECONDS"] == 1.0 and saved["ZONES"][0]["lot_size"] == 0.01
+    assert saved["LOOP_INTERVAL_SECONDS"] == 1.0 and saved["SYMBOLS"][0]["setups"][0]["lot_size"] == 0.01
 
 
 # --------------------------------------------------------------------------- ZON-08
