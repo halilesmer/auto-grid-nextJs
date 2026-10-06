@@ -413,6 +413,14 @@ def connect_internal_helper(
     return True, None
 
 
+# Backtest maliyet alanları (BKT-04, docs/analyse-regeln.md §6): sembol listesi ve zaman kontrolü
+# (mt5_market._SYMBOL_FIELDS) aynı listeyi kullanır. MT5 bir alanı vermezse değer None kalır, tahmin edilmez.
+SYMBOL_COST_FIELDS = (
+    "trade_calc_mode", "trade_tick_value_profit", "trade_tick_value_loss", "currency_profit",
+    "swap_mode", "swap_long", "swap_short", "swap_rollover3days", "spread", "trade_stops_level",
+)
+
+
 def build_detailed_symbols(symbols) -> list[dict]:
     """MT5 sembol nesnelerini (veya dict'leri) arayüzün beklediği detaylı listeye çevirir."""
 
@@ -438,6 +446,7 @@ def build_detailed_symbols(symbols) -> list[dict]:
                 "trade_tick_value": _get(s, "trade_tick_value", 0.0),
                 "trade_tick_size": _get(s, "trade_tick_size", 0.0),
                 "trade_contract_size": _get(s, "trade_contract_size", 0.0),
+                **{k: _get(s, k, None) for k in SYMBOL_COST_FIELDS},
             }
         )
     return detailed
@@ -493,8 +502,10 @@ def get_cached_symbols(account_id: str, safe_log_fn) -> tuple[list[dict] | None,
     if not account_cache:
         return None, False
     
-    is_fresh = _is_cache_fresh(account_id, cache_data)
     symbols = list(account_cache.values())
+    # Maliyet alanları (BKT-04) eklenmeden önce yazılmış kayıt taze sayılmaz: arka planda yenilenir
+    has_cost_fields = all(isinstance(sym, dict) and set(SYMBOL_COST_FIELDS) <= sym.keys() for sym in symbols)
+    is_fresh = has_cost_fields and _is_cache_fresh(account_id, cache_data)
     return symbols, is_fresh
 
 

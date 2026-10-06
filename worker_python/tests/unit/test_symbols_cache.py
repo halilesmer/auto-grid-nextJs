@@ -12,8 +12,9 @@ import src.utils.bot_watchdog as wd
 import src.utils.mt5_helpers as mh
 from tests.conftest import TEST_ACCOUNT_ID
 
-USO = {"name": "USOUSD", "digits": 3, "point": 0.001}
-XAU = {"name": "XAUUSD", "digits": 2, "point": 0.01}
+COSTS = {k: None for k in mh.SYMBOL_COST_FIELDS}
+USO = {"name": "USOUSD", "digits": 3, "point": 0.001, **COSTS}
+XAU = {"name": "XAUUSD", "digits": 2, "point": 0.01, **COSTS}
 
 
 @pytest.fixture

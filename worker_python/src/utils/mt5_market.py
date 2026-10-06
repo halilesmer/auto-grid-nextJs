@@ -12,6 +12,7 @@ bunu VPS'in gerçek UTC'siyle karşılaştırıp broker farkını tahmin eder.
 import time
 
 from src.utils import mt5_connection as mc
+from src.utils.mt5_helpers import SYMBOL_COST_FIELDS
 
 CONNECT_TIMEOUT_SEC = 15
 # Son M1 mumlarını ararken geriye bakış: hafta sonunu ve uzun bayram aralarını (Paskalya) kapsar
@@ -41,11 +42,7 @@ _DEAL_FIELDS = (
     "ticket", "order", "position_id", "time", "time_msc", "type", "entry", "magic", "reason",
     "symbol", "volume", "price", "profit", "commission", "swap", "fee", "comment",
 )
-_SYMBOL_FIELDS = (
-    "digits", "point", "spread", "trade_calc_mode", "currency_profit", "trade_tick_size",
-    "trade_tick_value", "trade_tick_value_profit", "trade_tick_value_loss", "trade_contract_size",
-    "swap_mode", "swap_long", "swap_short", "swap_rollover3days",
-)
+_SYMBOL_FIELDS = ("digits", "point", "trade_tick_size", "trade_tick_value", "trade_contract_size", *SYMBOL_COST_FIELDS)
 _BAR_FIELDS = ("time", "open", "high", "low", "close", "tick_volume", "spread")
 
 

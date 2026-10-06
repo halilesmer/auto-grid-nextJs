@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: []
+pr: [110, 111]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -24,8 +24,8 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 
 | Step | Content | Features | State |
 |---|---|---|---|
-| B0 | This plan, catalog entries, architecture map | – | done (this PR) |
-| B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | open |
+| B0 | This plan, catalog entries, architecture map | – | done (PR #110) |
+| B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | open |
 | B3 | Engine port, fractal (ATR, SAR, setups) | BKT-03 | open |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
@@ -233,9 +233,27 @@ Plan for each step:
 
 B0 (this PR): `scripts/features/update_checklist.py --check` passes.
 
+## Result B1 (PR #111)
+
+| File | Change |
+|---|---|
+| `worker_python/src/utils/mt5_helpers.py` | New tuple `SYMBOL_COST_FIELDS`. `build_detailed_symbols` adds these fields to each symbol. A value that MT5 does not give stays `null`. `get_cached_symbols`: a cache entry without the cost fields is not fresh. |
+| `worker_python/src/utils/mt5_market.py` | `_SYMBOL_FIELDS` uses `SYMBOL_COST_FIELDS`. The time check also gives `trade_stops_level` now. |
+| `frontend_nextjs/src/store/types.ts` | `SymbolDetail` has the cost fields. They are optional, because the symbol cache (max. 1 h) of an older worker does not have them. |
+| `frontend_nextjs/src/lib/backtest/commission.ts` | `proposeCommission(deals, symbol)`: commission per lot (round turn) = −Σ commission ÷ Σ closed volume. |
+| `frontend_nextjs/e2e/fixtures/data.ts` | The mock symbols have the cost fields. |
+
+Decisions:
+
+- The tuple is in `mt5_helpers.py`, not in `mt5_market.py`. `mt5_market` imports `mt5_connection`, and `mt5_connection` imports `mt5_helpers`. An import from `mt5_market` in `mt5_helpers` makes a cycle.
+- The commission proposal uses only fully closed positions of the symbol. An open or partly closed position does not have the exit commission yet, and the value is too low. A position with a reversal deal (`DEAL_ENTRY_INOUT`, netting) does not count, because the backtest supports hedging only. A position with a close-by deal (`DEAL_ENTRY_OUT_BY`) does not count, because some brokers book the commission on one of the two positions only. The bot does not use close-by. `fee` is not commission and does not count.
+- The symbol cache (`broker_symbols.json`, TTL 1 h) has one file time for all accounts. Thus, an entry from before B1 can stay "fresh" for more than 1 h. An entry without the cost fields is now never fresh: the worker gives the old list once and refreshes it in the background. The backtest (B4) must not use a default value when a cost field is missing.
+- A broker that books commission only at the entry (or only at the exit) gives the correct round-turn value with this formula.
+
 ## Open points
 
-- [ ] B1: cost values of the symbol, commission proposal. Check "Max. bars = Unlimited" on the VPS (DEMO, read only).
+- [x] B1: cost values of the symbol, commission proposal (PR #111).
+- [ ] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
 - [ ] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files.
 - [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
