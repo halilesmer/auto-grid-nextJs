@@ -23,7 +23,7 @@ areas: [frontend]
 | 0, 0b, 1–5 | Rules, fixed magic, page shell, database, chart tab, golden scenarios, trades and archive | done (PR #86–#98) |
 | PR A | More fractal setups in one zone (ZON-18, ENG-28) | done (PR #100, live test #101, follow-up fix #102) |
 | 6 = PR B | Statistics tab (ANA-09) | done (PR #108, live check on DEMO passed) |
-| 6b | MFE/MAE (ANA-12) | done (PR #109), live check open |
+| 6b | MFE/MAE (ANA-12) | done (PR #109, live check on DEMO passed) |
 | 7 | Bot logic in the browser (`frontend_nextjs/src/lib/backtest/engine/`) | open |
 | 8 | Backtest runner, CSV import with checks | open |
 | 9 | Backtest tab | open |
@@ -55,7 +55,7 @@ Tests: catalog entries ANA-09 (statistics, curves, split for each setup) and ANA
   - M1 loads once for each symbol, only on the button, newest trades first, at most 100,000 M1 candles. Older trades stay open; a second press loads them.
   - Missing candles, a missing entry, a SELL candle without spread or a trade open for more than 100,000 minutes: "cannot be calculated", never 0.
   - A gap only because the account is busy (or an MT5 error) is temporary: the trade stays open for the next press. Symbols load one after the other, because the worker reads only one range from MT5 at a time (`market_sync._FETCH_SLOT`, 30 s wait). Parallel requests came back as "busy" (review finding).
-  - Open: live check on DEMO (read only) and the manual test of ANA-12.
+  - Live check on DEMO, 2026-10-06, read only: 122 trades of one zone (7 days), all calculated. One BUY and one SELL (with spread) are equal to a separate calculation from the raw `/deals` and M1 `/rates` responses, in points and money.
 - [ ] Step 7: bot logic in the browser. The event sequence must be equal to the golden scenarios.
 - [ ] Step 8: backtest runner. No event is skipped without a message. An aborted import cannot be used.
 - [ ] Step 9: backtest tab. The real zone is never saved. An old result never shows under a different account.

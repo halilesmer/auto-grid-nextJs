@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-06 · **126/142** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-06 · **127/142** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 5/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 11/13 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/13 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 2/2 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -672,10 +672,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Analyse → Chart-Tab, Zeitraum über ein Wochenende (z. B. „Letzte 7 Tage“), Zeitrahmen M15. → Einen Zeitraum wählen, der vor dem Beginn der MT5-Historie des Symbols liegt (z. B. „Letztes Jahr“ bei M1).
   - **Erwartet:** Am Wochenende eine dünne gestrichelte Linie statt Kerzen. Vor dem Beginn der Historie eine grau schraffierte Fläche „Keine Daten“ und ein gelber Hinweis mit Zeitraum und Grund „in MT5 nicht vorhanden“; dort steht keine einzige Kerze.
   - 📝 02.10.26 DEMO-Konto A: M1 Jan 2026 = 0 Kerzen, Fläche Keine Daten + Hinweis unavailable; M1 22.-23.06. Historie ab 23.06. 06:55 → links schraffiert, rechts echte Kerzen, RSI ohne Brücke; Tagespausen 00:00-01:00 als Linien
-- [ ] **ANA-12** MFE/MAE echter Trades — 🖥️ e2e ✅ 2026-10-06 · 👤 manuell ⏳
+- [x] **ANA-12** MFE/MAE echter Trades — 🖥️ e2e ✅ 2026-10-06 · 👤 manuell ✅ 2026-10-06
   - Das Trade-Archiv (dieselbe Tabelle im Chart-Tab und neu unten im Statistik-Tab für den gewählten Umfang) zeigt je Trade Setup (aus dem Order-Kommentar, Beschriftung aus den aktuellen Einstellungen) und MFE/MAE: größter Zwischengewinn und größter Zwischenverlust in Punkten und Kontowährung. Nur auf Knopfdruck „MFE/MAE berechnen“: M1-Kerzen einmal je Symbol über die Spanne der noch offenen Trades (neueste zuerst, höchstens 100.000 M1-Kerzen, darüber Hinweis und erneut drücken). Rechnung (src/lib/analysis/excursions.ts, docs/analyse-regeln.md §4): nur Kerzen strikt zwischen Einstiegs- und Ausstiegskerze plus Ein-/Ausstiegspreis, also Untergrenze („geschätzt“); BUY auf Bid, SELL auf Ask = Bid + Spread der Kerze. Geld aus dem Trade selbst (Gewinn ÷ Preisabstand), bei Ausstieg = Einstieg nur Punkte. Fehlende Kerzen (missing), fehlender Einstieg, SELL-Kerze ohne Spread oder Trade länger als 100.000 Minuten offen → „nicht berechenbar“ mit Grund, nie 0; Marktpausen sind kein Fehler. Vorläufige Fälle (Spanne über der Obergrenze, Lücke nur wegen Konto beschäftigt/MT5-Fehler, point unbekannt) bleiben offen und werden beim nächsten Knopfdruck neu versucht. Symbole werden nacheinander geladen (Worker lädt eine Spanne zugleich). Ergebnisse gelten je Trade und Konto; unter einem anderen Konto erscheinen sie nie.
   - **Prüfung:** Analyse → Statistik-Tab, Zone mit Trades der letzten Tage, unten „MFE/MAE berechnen“ drücken. → Zwei Trades im MT5-Terminal (M1-Chart) nachsehen; bei einem SELL den Spread der Kerzen beachten.
   - **Erwartet:** Jede Zeile zeigt +MFE / −MAE in Punkten und darunter in Kontowährung. Die Werte liegen nicht über dem, was der M1-Chart zwischen Ein- und Ausstieg zeigt (Untergrenze). Ein Trade, dessen Einstieg fehlt oder in dessen Spanne Kerzen fehlen, zeigt „nicht berechenbar“, nie 0.
+  - 📝 Live DEMO 2026-10-06, nur lesend: Zone 1 USOUSD, 7 Tage, 122 Trades alle berechnet (0 nicht berechenbar). Gegenrechnung aus rohem /deals + /rates M1: BUY 808/532 Pkt, SELL 408/372 Pkt (mit Spread), Geld 1,62/1,07 bzw. 0,41/0,37 – identisch mit der Tabelle.
 - [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-02 · 🔌 api ✅ 2026-10-02 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
