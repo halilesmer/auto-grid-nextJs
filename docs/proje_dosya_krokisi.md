@@ -120,7 +120,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 historyApi.ts        # Deal arşivi (/history/{id}/deals)
 ┃ ┃ ┃ ┗ 📜 zoneApi.ts           # Zone API işlemleri
 ┃ ┃ ┣ 📂 lib                    # Kütüphane yardımcıları
-┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı), tradePairing.ts (deal → işlem: position_id, kısmi kapanış, INOUT, bölge kaydı; docs/analyse-regeln.md §2), fractals.ts (find_fractals ile aynı), stats.ts / curves.ts / groupings.ts (istatistik sekmesi), excursions.ts (MFE/MAE, docs/analyse-regeln.md §4)
+┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı), tradePairing.ts (deal → işlem: position_id, kısmi kapanış, INOUT, bölge kaydı; docs/analyse-regeln.md §2), fractals.ts (find_fractals ile aynı), stats.ts / curves.ts / groupings.ts (istatistik sekmesi), excursions.ts (MFE/MAE, docs/analyse-regeln.md §4); backtest de bunları kullanır (plan: `lib/backtest/` engine/broker/data, BKT-02…13)
 ┃ ┃ ┃ ┣ 📜 chartTheme.ts        # Grafik renkleri tema token'larından (çalışma anında okunur)
 ┃ ┃ ┃ ┣ 📜 serverTime.ts        # Zaman modeli: broker günü (MT5 zamanı, UTC aritmetiği), hazır aralıklar, yarı açık aralıklar (docs/analyse-regeln.md §1)
 ┃ ┃ ┃ ┣ 📜 vps.ts               # VPS aksiyonları ve tipleri (sayfa + route ortak)
@@ -403,7 +403,8 @@ grid_orchestrator (Ana Orkestratör)
 | Rota | Açıklama | Ana Bileşenler |
 |------|----------|----------------|
 | `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
-| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + MT5 mumları: zaman dilimi, eksik veri, piyasa araları, bölge bandı, kademeler, pozisyon/emirler, RSI), İstatistik, Backtest (yer tutucu); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&tf=&range=`) |
+| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + MT5 mumları: zaman dilimi, eksik veri, piyasa araları, bölge bandı, kademeler, pozisyon/emirler, RSI), İstatistik (KPI, eğriler, bölge/setup dağılımı, MFE/MAE), Backtest (yer tutucu; B5'te kalkar, yerine `/backtest`); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&tf=&range=`) |
+| `/backtest` | **Backtest** *(planlandı, BKT-02…13)* | Kendi sayfası: setup rozetleri, „Backtest oluştur“ diyaloğu (`ZoneFieldsEditor`), KPI/karşılaştırma, grafik + tekrar oynatma, preset'ler, „bölgeye aktar“ (kaydetmeden). Hesaplama tarayıcıda (`lib/backtest/`, Web Worker), worker sadece mum/sembol/preset verir. Plan: `docs/journal/2026-10-06-backtest-module-plan.md` |
 | `/formasyon` | Formasyon Analizi | (Mevcut) |
 | `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsElevatedWarning (admin haklı süreçler), VpsStatusPanel, VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
 
