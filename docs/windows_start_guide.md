@@ -139,7 +139,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ---
 
 ### 2. Terminal: Ngrok Tunnel
-Macht den Worker auf dem VPS über das Internet erreichbar, damit das lokale Frontend auf dem MacBook ihn ansprechen kann. `<NGROK_DOMAIN>` ist die eigene statische ngrok-Domain (Benutzer-Umgebungsvariable `NGROK_DOMAIN`, siehe `bootstrap.ps1`).
+Macht den Worker auf dem VPS über das Internet erreichbar, damit das lokale Frontend auf dem MacBook ihn ansprechen kann. `<NGROK_DOMAIN>` ist die eigene statische ngrok-Domain (Benutzer-Umgebungsvariable `NGROK_DOMAIN`, siehe `bootstrap.ps1`). `run_ngrok_watchdog.bat` hat keine Vorgabe mehr: Fehlt die Variable, startet ngrok nicht, und `logs\ngrok.log` zeigt `NGROK_DOMAIN fehlt`. Einmalig setzen mit `setx NGROK_DOMAIN <NGROK_DOMAIN>`; das ngrok-Fenster liest die Variable alle 60 s neu aus der Registry und startet dann von selbst.
 
 ```cmd
 ngrok http 8000 --domain=<NGROK_DOMAIN>

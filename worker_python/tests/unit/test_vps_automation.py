@@ -449,9 +449,15 @@ def test_setup_vps_publickey_ist_optional():
 
 @pytest.mark.feature("VPS-08")
 def test_ngrok_watchdog_liest_domain_aus_umgebungsvariable():
-    """Bootstrap setzt NGROK_DOMAIN per setx; ohne sie bleibt Halils bisheriger Wert die Vorgabe."""
+    """Die Domain kommt nur aus NGROK_DOMAIN (setx durch bootstrap); keine feste Domain im Repo."""
     ngrok = Path(WORKER_ROOT, "run_ngrok_watchdog.bat").read_text(encoding="ascii")
-    assert "if not defined NGROK_DOMAIN set NGROK_DOMAIN=tweet-overlying-monotone.ngrok-free.dev" in ngrok
+    assert "set NGROK_DOMAIN=" not in ngrok.replace('set "NGROK_DOMAIN=%%B"', "")
+    assert "ngrok-free" not in ngrok
+    # Prozess sieht ein spaeteres setx nicht: Fallback auf die Registry (HKCU\Environment)
+    assert "reg query HKCU\\Environment /v NGROK_DOMAIN" in ngrok
+    # Ohne Domain kein ngrok-Start (zufaellige Adresse), sondern Hinweis im Log und neuer Versuch
+    assert "if defined NGROK_DOMAIN goto loop" in ngrok and "goto domain" in ngrok
+    assert "if not defined DOMAIN_LOGGED >>logs\\ngrok.log echo lvl=eror" in ngrok
     # Bestehende Testzeichenketten (test_windows_skripte) bleiben unveraendert
     assert "ngrok http 8000" in ngrok and "--log=logs\\ngrok.log" in ngrok and "goto loop" in ngrok
 
@@ -465,10 +471,10 @@ def _ps_code(path):
 @pytest.mark.feature("VPS-10")
 def test_tunnel_watchdog_prueft_oeffentliche_url_und_heilt():
     code = _ps_code("ops/windows/tunnel_watchdog.ps1")
-    # öffentliche ngrok-URL (Domain wie run_ngrok_watchdog.bat) und lokal zur Unterscheidung
+    # öffentliche ngrok-URL (Domain aus NGROK_DOMAIN wie run_ngrok_watchdog.bat) und lokal zur Unterscheidung
     assert '"https://$domain"' in code and "'http://127.0.0.1:8000'" in code
     assert "/api/system/platform" in code and "X-API-Key" in code and "ngrok-skip-browser-warning" in code
-    assert "Get-UserEnv 'NGROK_DOMAIN'" in code and "set NGROK_DOMAIN=" in code
+    assert "Get-UserEnv 'NGROK_DOMAIN'" in code and "set NGROK_DOMAIN=" not in code
     # Nur eine echte Worker-Antwort zählt; 401/403 = Worker erreichbar (kein Reboot wegen Schlüssel)
     assert "is_windows" in code and "($code -eq 401 -or $code -eq 403) -and $body -like '*\"detail\"*'" in code
     # Heilung: ngrok beenden (Schleife startet neu) bzw. AutoGrid-Start, dann Reboot
