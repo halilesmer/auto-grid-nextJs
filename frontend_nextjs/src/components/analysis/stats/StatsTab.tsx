@@ -16,6 +16,8 @@ import { computeStats } from '@/lib/analysis/stats';
 import { pairTrades } from '@/lib/analysis/tradePairing';
 import { brokerNow } from '@/lib/serverTime';
 import type { ZoneSettings } from '@/store/types';
+import { useSetupLabel } from '../useSetupLabel';
+import { TradesTable } from '../TradesTable';
 import { BreakdownTable } from './BreakdownTable';
 import { CurveChart } from './CurveChart';
 import { StatsKpis } from './StatsKpis';
@@ -81,25 +83,7 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
     (zones ?? []).forEach((zone, i) => zone.magic !== undefined && m.set(zone.magic, { zone, n: i + 1 }));
     return m;
   }, [zones]);
-  const setupLabel = useCallback((zone: ZoneSettings | undefined, sid: number) => {
-    if (zone?.entry_mode === 'fractal') {
-      const s =
-        sid === 1
-          ? { tf: zone.fractal_timeframe, lot: zone.lot_size, rr: zone.fractal_rr }
-          : (() => {
-              const x = zone.fractal_setups?.find((f) => f.sid === sid);
-              return x ? { tf: x.fractal_timeframe, lot: x.lot_size, rr: x.fractal_rr } : null;
-            })();
-      if (s)
-        return t('analysis.stats.setup.detail', {
-          sid,
-          tf: s.tf ?? '—',
-          lot: fmt.number(s.lot ?? 0, { maximumFractionDigits: 3 }),
-          rr: fmt.number(s.rr ?? 0, { maximumFractionDigits: 2 }),
-        });
-    }
-    return t('analysis.stats.setup.deleted', { sid });
-  }, [t, fmt]);
+  const setupLabel = useSetupLabel();
   const zoneLabel = (magic: number) => {
     const z = zoneByMagic.get(magic);
     if (z) return t('analysis.zone.option', { n: z.n, symbol: z.zone.symbol || '—' });
@@ -287,6 +271,21 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
               {groups.length > 0 && <BreakdownTable groups={groups} label={groupLabel} currency={currency} />}
             </div>
           </Card>
+
+          <TradesTable
+            accountId={accountId}
+            zones={zones}
+            variant="scope"
+            trades={view.trades}
+            openEntries={0}
+            otherTrades={0}
+            from={from}
+            digits={null}
+            currency={currency}
+            loading={deals.loading}
+            error={null}
+            missing={[]}
+          />
         </>
       )}
     </div>

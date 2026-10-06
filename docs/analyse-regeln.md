@@ -143,6 +143,7 @@ Kurz gesagt:
 | Zeitpunkt für Filter, Wochentag, Stunde | Schließzeit (MT5-Zeit); ein Trade, der vor dem Zeitraum eröffnet wurde, zählt mit und wird markiert |
 | Grid-Zyklus | ein Trade, der durch TP geschlossen wurde |
 | Profit-Faktor | Summe der Gewinne ÷ Summe der Verluste (netto), ohne Bewertung wie „gut ab 1,5“ |
+| MFE / MAE | größter Zwischengewinn / -verlust eines echten Trades aus M1-Kerzen strikt zwischen Einstiegs- und Ausstiegskerze plus Ein- und Ausstiegspreis; die Randkerzen zählen nicht, der Wert ist eine Untergrenze („geschätzt“). BUY auf Bid, SELL auf Ask = Bid + Spread der Kerze. Geld = Abstand × \|Gewinn ÷ Preisabstand des Trades\|, bei Ausstieg = Einstieg nur Punkte. Fehlende Kerzen in der Spanne, fehlender Einstieg, SELL-Kerze ohne Spread oder Trade länger als 100.000 M1-Kerzen offen: „nicht berechenbar“, nie 0; fehlt die Spanne nur vorübergehend (Konto beschäftigt, MT5-Fehler), bleibt der Trade offen für einen neuen Versuch |
 
 **Drei getrennte Kurven, überall so beschriftet:**
 
