@@ -28,6 +28,8 @@ Der Aufrufer übergibt den Diff oder die geänderten Dateien und den Zweck der �
    - Neues/geändertes Feature hat einen Eintrag in `docs/features/features.yaml` und einen getaggten Test.
    - Neue Logik in die modularen Engine-Dateien, nicht in `auto_grid_engine.py`.
    - `VERSION` und `frontend_nextjs/src/app/version.ts` nicht von Hand geändert.
+   - Review-Checkliste aus `hooks/RULES.md` §9.1: keine blockierenden Aufrufe (MT5, Datei, Subprozess, HTTP) direkt in `async def`-Endpunkten (`asyncio.to_thread`); neue/geänderte Status- und Enum-Werte bei allen Verbrauchern nachgezogen (Worker, Frontend-Types/Stores, `e2e/fixtures/mock-worker.ts`); Bot-Start/-Stop über `account_lock`; Zeitgrenzen (Brokerzeit/UTC/lokal, Tag/Woche/Jahr, Sommerzeit); Auth/Ownership (`account_access`, `require_admin`), wiederholte Requests, Teilfehler.
+   - Bugfix mit Test, der ohne den Fix fehlschlägt, oder dokumentiertem Live-Check (`hooks/RULES.md` §8.2); Ursache und Lehren im Journal-Eintrag (`docs/journal/`, §7), dort keine Kontonummern, Servernamen oder IPs.
 4. **Lesbarkeit:** unklare Namen, unnötige Komplexität, Duplikate zu bestehenden Helfern, Kommentarsprache passend zur Datei (meist Türkisch).
 
 ## Antwort
