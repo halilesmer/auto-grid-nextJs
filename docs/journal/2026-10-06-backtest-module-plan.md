@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [110, 111, B2PR]
+pr: [110, 111, 113]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -26,7 +26,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 |---|---|---|---|
 | B0 | This plan, catalog entries, architecture map | – | done (PR #110) |
 | B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
-| B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #B2PR) |
+| B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #113) |
 | B3 | Engine port, fractal (ATR, SAR, setups) | BKT-03 | open |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
@@ -250,7 +250,7 @@ Decisions:
 - The symbol cache (`broker_symbols.json`, TTL 1 h) has one file time for all accounts. Thus, an entry from before B1 can stay "fresh" for more than 1 h. An entry without the cost fields is now never fresh: the worker gives the old list once and refreshes it in the background. The backtest (B4) must not use a default value when a cost field is missing.
 - A broker that books commission only at the entry (or only at the exit) gives the correct round-turn value with this formula.
 
-## Result B2 (PR #B2PR)
+## Result B2 (PR #113)
 
 | File | Change |
 |---|---|
@@ -274,7 +274,7 @@ Decisions:
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
 - [ ] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
-- [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #B2PR).
+- [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #113).
 - [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
 - [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
