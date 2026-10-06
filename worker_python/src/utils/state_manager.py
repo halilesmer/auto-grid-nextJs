@@ -15,6 +15,7 @@ import time
 import datetime
 
 from src.utils.paths import get_state_path, get_settings_path
+from src.utils.symbol_setups import settings_zones
 
 
 def _atomic_write(file_path, data):
@@ -154,7 +155,7 @@ def build_synced_state(bot_engine, account_id, log_func=None):
         "positions": robot_positions,
         "pending_orders": robot_orders,
         "config": {
-            "zones": settings.get("ZONES", []),
+            "zones": settings_zones(settings),
             "loop_interval_seconds": settings.get("LOOP_INTERVAL_SECONDS", 1.0),
             "symbol": settings.get("SYMBOL", ""),
         },

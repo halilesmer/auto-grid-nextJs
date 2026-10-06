@@ -29,7 +29,8 @@ def _saved(worker_dir):
 
 
 def _magics(worker_dir):
-    return {z["id"]: z["magic"] for z in _saved(worker_dir)["ZONES"]}
+    # Datei speichert Symbol → Setups (ZON-19); jedes Setup ist eine Zone
+    return {s["id"]: s["magic"] for g in _saved(worker_dir)["SYMBOLS"] for s in g["setups"]}
 
 
 def _save_zones(client, *zones):
@@ -86,7 +87,7 @@ def test_doppelte_zonen_id_bekommt_eine_eigene_nummer(client, worker_dir):
     _write(worker_dir, {})
     _save_zones(client, make_zone(id="a"))
     _save_zones(client, make_zone(id="a"), make_zone(id="a"))
-    zones = _saved(worker_dir)["ZONES"]
+    zones = _saved(worker_dir)["SYMBOLS"][0]["setups"]  # beide USOUSD
     assert [z["magic"] for z in zones] == [200001, 200002]
 
 

@@ -12,6 +12,7 @@ from src.api.auth import API_KEY_HEADER, API_KEY_QUERY_PARAM, authenticate
 from src.core.indicator_calc import get_latest_indicators
 from src.utils.bot_manager import is_bot_running, log_step
 from src.utils.paths import get_metrics_path
+from src.utils.symbol_setups import settings_zones
 
 try:
     import MetaTrader5 as mt5
@@ -273,10 +274,11 @@ def first_zone_symbol(base_dir: str, acc_id: str) -> str:
             settings_data = json.load(f)
     except Exception:
         return ""
-    # Kayıtlı dosyalar düz ({"ZONES": [...]}); eski/iç içe biçim de desteklenir
+    # Kayıtlı dosyalar sembol → kurulum ({"SYMBOLS": [...]}, ZON-19) ya da eski düz {"ZONES": [...]};
+    # eski iç içe {"settings": ...} biçimi de desteklenir
     while isinstance(settings_data, dict) and isinstance(settings_data.get("settings"), dict):
         settings_data = settings_data["settings"]
-    zones = settings_data.get("ZONES", []) if isinstance(settings_data, dict) else []
+    zones = settings_zones(settings_data)
     if zones and isinstance(zones[0], dict) and "symbol" in zones[0]:
         return str(zones[0]["symbol"]).upper().strip()
     return ""
