@@ -2,7 +2,7 @@
 date: 2026-10-02
 type: plan
 status: open
-pr: [86, 87, 88, 89, 90, 91, 93, 94, 96, 98, 100, 101, 102, 108]
+pr: [86, 87, 88, 89, 90, 91, 93, 94, 96, 98, 100, 101, 102, 108, 109]
 features: [ZON-18, ENG-28, ANA-09, ANA-12]
 areas: [frontend]
 ---
@@ -23,12 +23,12 @@ areas: [frontend]
 | 0, 0b, 1–5 | Rules, fixed magic, page shell, database, chart tab, golden scenarios, trades and archive | done (PR #86–#98) |
 | PR A | More fractal setups in one zone (ZON-18, ENG-28) | done (PR #100, live test #101, follow-up fix #102) |
 | 6 = PR B | Statistics tab (ANA-09) | done (PR #108, live check on DEMO passed) |
-| 6b | MFE/MAE (ANA-12) | done (PR #PRNUM), live check open |
+| 6b | MFE/MAE (ANA-12) | done (PR #109), live check open |
 | 7 | Bot logic in the browser (`frontend_nextjs/src/lib/backtest/engine/`) | open |
 | 8 | Backtest runner, CSV import with checks | open |
 | 9 | Backtest tab | open |
 
-ANA-09 (PR #108) and ANA-12 (PR #PRNUM) are in `docs/features/features.yaml`.
+ANA-09 (PR #108) and ANA-12 (PR #109) are in `docs/features/features.yaml`.
 
 ## Solution (plan for PR B)
 
@@ -49,7 +49,7 @@ Tests: catalog entries ANA-09 (statistics, curves, split for each setup) and ANA
 ## Open points
 
 - [x] Step 6 (PR B): statistics tab (PR #108). Live check on DEMO, 2026-10-06, read only: the net value and the trade count for one zone and for the whole account are equal to a separate calculation from the raw `/deals` response.
-- [x] Step 6b: MFE/MAE (ANA-12), with the setup and MFE/MAE columns in `TradesTable` (PR #PRNUM). Rule in `docs/analyse-regeln.md` §4.
+- [x] Step 6b: MFE/MAE (ANA-12), with the setup and MFE/MAE columns in `TradesTable` (PR #109). Rule in `docs/analyse-regeln.md` §4.
   - Lower limit: only the M1 candles strictly between the entry candle and the exit candle count, plus the entry and exit price. SELL uses Ask = Bid + candle spread.
   - Money comes from the trade itself (profit ÷ price distance). This needs no new symbol values (tick value) from the worker.
   - M1 loads once for each symbol, only on the button, newest trades first, at most 100,000 M1 candles. Older trades stay open; a second press loads them.
