@@ -57,7 +57,7 @@ test.describe('ANA Analyse-Seite', () => {
 
     await tab(page, 'analysis.tab.stats').click();
     await expect(page).toHaveURL(/tab=stats/);
-    await expect(page.getByText(msg('analysis.stats.text'))).toBeVisible();
+    await expect(page.getByTestId('stats-tab')).toBeVisible();
 
     await page.reload();
     await expect(tab(page, 'analysis.tab.stats')).toHaveAttribute('aria-selected', 'true');

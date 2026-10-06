@@ -11,6 +11,7 @@ import { BrokerClockNotice, formatOffset } from '@/components/analysis/BrokerClo
 import { DateRangePicker } from '@/components/analysis/DateRangePicker';
 import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { ZoneSelect } from '@/components/analysis/ZoneSelect';
+import { StatsTab } from '@/components/analysis/stats/StatsTab';
 import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -157,7 +158,17 @@ function AnalysisView() {
       );
     }
     if (tab === 'stats') {
-      return <Placeholder icon={<BarChart3 size={16} />} title={t('analysis.stats.title')} text={t('analysis.stats.text')} />;
+      return (
+        <StatsTab
+          key={accountId}
+          accountId={accountId}
+          zones={zones}
+          zoneId={zoneId}
+          range={bounds}
+          offsetSec={offsetSec}
+          clockReady={!clock.loading}
+        />
+      );
     }
     return <Placeholder icon={<FlaskConical size={16} />} title={t('analysis.backtest.title')} text={t('analysis.backtest.text')} />;
   };
