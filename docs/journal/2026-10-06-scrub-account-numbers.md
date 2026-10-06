@@ -57,7 +57,7 @@ Labels for the accounts (use the same labels in all entries):
 ## Open points
 - [ ] Owner: decide if the git history gets a rewrite. Old commits keep the values. Do not force push without this decision.
 - [x] Remove the real ngrok domain from `worker_python/run_ngrok_watchdog.bat` and from `test_vps_automation.py` (VPS-08). Separate PR.
-- [ ] Owner, before the merge of the follow-up PR: make sure that `NGROK_DOMAIN` is set on the VPS. Run `reg query HKCU\Environment /v NGROK_DOMAIN` as the worker user. If the value is missing, run `setx NGROK_DOMAIN <domain>`. Without it, ngrok does not start after the next auto-update.
+- [x] Owner, before the merge of the follow-up PR: make sure that `NGROK_DOMAIN` is set on the VPS. The owner confirmed it on 2026-10-06. Run `reg query HKCU\Environment /v NGROK_DOMAIN` as the worker user. If the value is missing, run `setx NGROK_DOMAIN <domain>`. Without it, ngrok does not start after the next auto-update.
 - [ ] Optional, separate PR: `.bat` files have LF line endings in the repository (`* text=auto`). cmd can fail to find a `goto` label at a 512-byte boundary in an LF file. The risk existed before. A change in `.gitattributes` (`*.bat text eol=crlf`) can make files dirty in existing checkouts and stop the auto-update, so examine it first.
 - [ ] After the merge and the auto-update on the VPS: restart ngrok on the page `/vps`. Make sure that the tunnel comes back with the same URL (the bat file has no Windows test in CI).
 
