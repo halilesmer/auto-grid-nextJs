@@ -264,6 +264,12 @@ ANA-06:
   notiz: '02.10.26 DEMO-Konto A nach Deploy #94: Telemetrie liefert positions/orders;
     Chart zeigt USOUSD 64 Pos/3 Orders, EURUSD 3 Pos/20 Orders = Worker-Listen je
     Magic; Fraktal-Zone 0/0; ab 20 Linien ohne Achsenbeschriftung'
+ANA-09:
+  status: bestanden
+  datum: '2026-10-06'
+  notiz: 'Live DEMO 2026-10-06, 30 Tage, nur lesend: Zone 1 116 Trades +149,34 USD
+    und ganzes Konto 1915 Trades +431,43 USD gleich wie rohe /deals; je Setup erkennt
+    Z4 Setup 2 (gelöscht)'
 ANA-11:
   status: bestanden
   datum: '2026-10-02'
