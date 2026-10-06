@@ -3,6 +3,7 @@ import json
 from src.core.grid_helpers import (
     get_current_market_price,
     get_mt5_timeframe,
+    log_message,
 )
 from src.core.grid_orders import get_all_robot_orders, get_all_robot_positions
 from src.utils.paths import get_ui_state_path
@@ -20,6 +21,7 @@ from .grid_order_manager import (
 )
 from .grid_execution.handler import handle_sliding_grid
 from .grid_execution.vanished import check_vanished_orders
+from .legacy_setup_orders import cancel_legacy_orders, without_legacy_orders
 
 
 def _is_enabled(zone):
@@ -45,6 +47,7 @@ def manage_dynamic_grid(
     consecutive_errors,
     active_zones_state,
     filling_mode,
+    legacy_orders_mode="",
 ):
     """Bir motor turu. Her sembol için en fazla BİR aktif bölge vardır (active_zones:
     sembol → bölge indeksi). Farklı sembollü bölgeler aynı anda işlem görür; aynı
@@ -80,6 +83,8 @@ def manage_dynamic_grid(
         return False, active_zones
 
     clean_zombie_orders(mt5, robot_orders, zones, active_zones_state)
+    # Kaldırılan ek kurguların emirleri yalnızca kullanıcı onayıyla silinir (ENG-29)
+    cancel_legacy_orders(mt5, legacy_orders_mode, log_message)
     robot_orders = get_all_robot_orders(mt5)
     robot_positions = get_all_robot_positions(mt5)
     if robot_orders is None or robot_positions is None:
@@ -224,7 +229,8 @@ def _manage_symbol(
     if not is_zone_active:
         return True, active_zone_idx
 
-    robot_orders = get_all_robot_orders(mt5)
+    # Kaldırılan ek kurguların emirleri bölgenin emri sayılmaz: fraktal/ızgara onları silmez (ENG-29)
+    robot_orders = without_legacy_orders(get_all_robot_orders(mt5))
     robot_positions = get_all_robot_positions(mt5)
     if robot_orders is None or robot_positions is None:
         return False, target_idx

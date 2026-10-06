@@ -132,7 +132,7 @@ Do not write these data in an entry:
 | zone | A price range with its own grid or fractal settings | band, area |
 | level | One price step of the grid in a zone | |
 | magic | The fixed number of a zone; its MT5 orders carry it (ENG-27) | |
-| setup | One fractal configuration in a zone (ZON-18) | |
+| setup | One configuration of a symbol; a former zone (ZON-19). Before ENG-29, the word also meant an additional fractal configuration in a zone | |
 | pending order | An order that waits for its price (limit or stop) | |
 | fill | MT5 executes a pending order, and a position opens | trigger, hit |
 | journal | This project journal (`docs/journal/`) | — |

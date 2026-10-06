@@ -349,21 +349,17 @@ export default defineArea(
       'Açık: TP, Risk/Ödül çarpanı yerine sabit bir tutardır (hesap para birimi). Kapalı: TP = SL mesafesi × çarpan.',
     'zone.fractal.tpMoney.hint':
       'Pozisyon başına hedef kâr (hesap para birimi). TP, bu tutarın o yönün lot büyüklüğünde karşılık geldiği fiyat mesafesine konur. 0 = TP yok.',
-    'zone.fractal.setup.add.hint':
-      'Bu bölgeye bir kurgu daha ekler (ör. aynı fraktal mantığı M1, M5 ve H4\'te farklı lot ve TP ile). Her kurgu kendi emirlerini koyar; Analiz → İstatistik kurgu başına pozisyon sayısını ve kâr/zararı gösterir. Yeni kurgu, ilk kurgunun değerleriyle başlar.',
-    'zone.fractal.setup.addLimit.hint': 'En fazla 10 ek kurgu eklenebilir; yenisi için önce birini kaldırın.',
-    'zone.fractal.setup.remove.hint':
-      'Bu kurguyu kaldırır. Kaydedilmiş bir kurguda önce bekleyen emirlerinin silinip silinmeyeceği sorulur; açık pozisyonları MT5\'te kalır. Numarası tekrar verilmez, istatistikte „silindi“ olarak görünür.',
-    'zone.fractal.setup.removeConfirm.delete.hint': 'Kurguyu kaldırır; kaydedince bot bu kurgunun bekleyen emirlerini MT5\'te siler. Açık pozisyonlar kalır.',
-    'zone.fractal.setup.removeConfirm.keep.hint': 'Kurguyu kaldırır; bekleyen emirleri MT5\'te kalır ve bot onlara dokunmaz. İsterseniz MT5\'te elle silebilirsiniz.',
     'zone.fractal.maxPositions.hint':
-      'Bu kurgunun aynı anda açık olabilecek en fazla pozisyonu. Sınıra ulaşınca bu kurgu yeni emir koymaz ve bekleyen emirlerini siler; diğer kurgular çalışmaya devam eder. 0 = sınırsız (motor en çok 500 ile sınırlar).',
-    'chart.zone.setups.hint': 'Bu fraktal bölgesindeki kurgu sayısı (kurgu 1 + ek kurgular). Her kurgunun kendi zaman dilimi, lotu, TP\'si ve pozisyon sınırı vardır; bilgi kartındaki diğer değerler kurgu 1\'e aittir.',
+      'Bu bölgede aynı anda açık olabilecek en fazla pozisyon. Sınıra ulaşınca bölge yeni emir koymaz ve bekleyen emirlerini siler. 0 = sınırsız (motor en çok 500 ile sınırlar).',
+    'zone.legacyOrders.delete.hint':
+      'Kararı kaydeder; bot bir sonraki turda bu emirleri MT5\'te siler. Açık pozisyonlar kalır.',
+    'zone.legacyOrders.keep.hint':
+      'Kararı kaydeder; emirler MT5\'te kalır, bot onlara dokunmaz ve bu pencere bir daha açılmaz.',
     'vps.online.restart.hint': 'Worker’ı worker API’si üzerinden yeniden başlatır (run_uvicorn_watchdog.bat açar). Botlar çalışmaya devam eder; yalnızca yönetici anahtarıyla, watchdog altında kullanılabilir.',
     // --- Analiz ---
     'nav.analysis.hint': 'Analiz sayfası: seçili hesap ve bölge için grafik, istatistik ve backtest.',
     'analysis.tab.chart.hint': 'MT5 fiyat grafiği; bölge sınırları ve bölge ayarlarıyla.',
-    'analysis.tab.stats.hint': 'Gerçek işlemlerden metrikler, eğriler ve bölge/setup dağılımı.',
+    'analysis.tab.stats.hint': 'Gerçek işlemlerden metrikler, eğriler ve bölge dağılımı.',
     'analysis.tab.backtest.hint': 'Bölgenin bir kopyasını geçmiş fiyatlarla test eder (geliştiriliyor). Gerçek bölge değişmez.',
     'analysis.zone.hint': 'Analiz edilen bölge (yalnızca seçili hesabın bölgeleri). Kaydedilmemiş değişiklikler de dikkate alınır.',
     'analysis.range.hint': 'Analiz edilen zaman aralığı, broker günü (MT5 saati) olarak. Hazır seçimler veya GG.AA.YY ile serbest aralık.',
@@ -400,7 +396,6 @@ export default defineArea(
     'analysis.trades.reason.tp.hint': 'Take Profit ile kapandı.',
     'analysis.trades.reason.so.hint': 'Teminat yetersizliğinden broker tarafından kapatıldı (Stop Out).',
     'analysis.trades.focus.hint': 'Grafiği bu işlemin girişine (yoksa çıkışına) kaydırır.',
-    'analysis.trades.col.setup.hint': 'Fraktal emrinin setup’ı (emir yorumundan). Ayrıntı güncel ayarlardan; setup artık yoksa „silindi“. Grid işlemlerinde boş.',
     'analysis.trades.col.mfe.hint': 'MFE: işlemin ara sıra ulaştığı en büyük kâr, MAE: en büyük zarar; puan ve hesap para birimi. Tahmindir (alt sınır): yalnızca giriş ve çıkış mumu arasındaki M1 mumları ile giriş/çıkış fiyatı sayılır. SELL için Ask = Bid + mumun spread’i. Para, işlemin kendi kârından türetilir (giriş = çıkışta yok).',
     'analysis.trades.mfe.compute.hint': 'Tablodaki henüz hesaplanmamış işlemler için M1 mumlarını yükler (sembol başına bir kez, en yeniler önce) ve MFE/MAE hesaplar. Parantezde: açık işlem sayısı. Hepsi hesaplanınca devre dışı.',
     'analysis.trades.mfe.reason.noEntry.hint': 'Giriş deal’i arşivde yok: giriş fiyatı ve zamanı bilinmiyor.',
@@ -409,7 +404,7 @@ export default defineArea(
     'analysis.trades.mfe.reason.missing.hint': 'Giriş ile çıkış arasında M1 mumları eksik (MT5’ten alınamadı). 0 gösterilmez.',
     'analysis.trades.mfe.reason.noSpread.hint': 'SELL için mum spread’i gerekli, ama bir mumda yok.',
     'analysis.trades.mfe.reason.noPoint.hint': 'Sembolün point değeri bilinmiyor: puan hesaplanamaz.',
-    'analysis.stats.scope.hint': 'Hangi işlemler sayılır: tüm hesap, bir bölgenin tamamı veya bölgenin tek bir fraktal setup’ı.',
+    'analysis.stats.scope.hint': 'Hangi işlemler sayılır: tüm hesap veya bir bölge.',
     'analysis.stats.kpi.net.hint': 'Kâr + komisyon + swap + ücret, dönemde kapanan işlemler.',
     'analysis.stats.kpi.trades.hint': 'Her kapanış (kısmi dahil) bir işlemdir; pozisyon = farklı pozisyon numarası.',
     'analysis.stats.kpi.winRate.hint': 'Net kârı > 0 olan işlemlerin oranı.',
@@ -423,7 +418,6 @@ export default defineArea(
     'analysis.stats.curve.balance.hint': 'Bugünkü bakiyeden geriye hesaplanan hesap bakiyesi; arşivde boşluk varsa gizli.',
     'analysis.stats.curve.drawdown.hint': 'Gerçekleşen kâr eğrisinin önceki zirveye uzaklığı.',
     'analysis.stats.by.zone.hint': 'Kayıtlı bölgeye göre; bilinmeyen, manuel ve diğer işlemler ayrı.',
-    'analysis.stats.by.setup.hint': 'Her fraktal setup ayrı (emir yorumundaki numara); fraktal olmayan bölge işlemleri “setup yok”.',
     'analysis.stats.by.weekday.hint': 'Kapanış gününe göre (MT5 saati).',
     'analysis.stats.by.hour.hint': 'Kapanış saatine göre (MT5 saati).',
   },
@@ -771,21 +765,17 @@ export default defineArea(
       'On: the TP is a fixed amount (account currency) instead of the reward/risk factor. Off: TP = SL distance × factor.',
     'zone.fractal.tpMoney.hint':
       'Target profit per position (account currency). The TP is placed at the price distance this amount equals at that side\'s lot size. 0 = no TP.',
-    'zone.fractal.setup.add.hint':
-      'Adds another setup to this zone (e.g. the same fractal logic on M1, M5 and H4 with different lot and TP). Each setup places its own orders; Analysis → Statistics shows positions and profit/loss per setup. A new setup starts with the values of the first one.',
-    'zone.fractal.setup.addLimit.hint': 'At most 10 additional setups; remove one before adding another.',
-    'zone.fractal.setup.remove.hint':
-      'Removes this setup. For a saved setup you are asked first whether its pending orders should be deleted; its open positions stay in MT5. Its number is never reused and shows as “deleted” in the statistics.',
-    'zone.fractal.setup.removeConfirm.delete.hint': 'Removes the setup; after saving, the bot deletes this setup\'s pending orders in MT5. Open positions stay.',
-    'zone.fractal.setup.removeConfirm.keep.hint': 'Removes the setup; its pending orders stay in MT5 and the bot leaves them alone. You can delete them by hand in MT5.',
     'zone.fractal.maxPositions.hint':
-      'Maximum number of positions of this setup open at the same time. Once reached, this setup places no new orders and deletes its pending ones; the other setups keep running. 0 = unlimited (the engine caps it at 500).',
-    'chart.zone.setups.hint': 'Number of setups in this fractal zone (setup 1 + additional setups). Each setup has its own timeframe, lot, TP and position limit; the other values on this card belong to setup 1.',
+      'Maximum number of positions of this zone open at the same time. Once reached, the zone places no new orders and deletes its pending ones. 0 = unlimited (the engine caps it at 500).',
+    'zone.legacyOrders.delete.hint':
+      'Saves the decision; on its next round the bot deletes these orders in MT5. Open positions stay.',
+    'zone.legacyOrders.keep.hint':
+      'Saves the decision; the orders stay in MT5, the bot leaves them alone and this window does not open again.',
     'vps.online.restart.hint': 'Restarts the worker through the worker API (run_uvicorn_watchdog.bat brings it back). Bots keep running; admin key only, and only under the restart loop.',
     // --- Analysis ---
     'nav.analysis.hint': 'Analysis page: chart, statistics and backtest for the selected account and zone.',
     'analysis.tab.chart.hint': 'MT5 price chart with the zone limits and the zone settings.',
-    'analysis.tab.stats.hint': 'Metrics, curves and per-zone/per-setup breakdown from real trades.',
+    'analysis.tab.stats.hint': 'Metrics, curves and per-zone breakdown from real trades.',
     'analysis.tab.backtest.hint': 'Tests a copy of the zone against past prices (in progress). The real zone does not change.',
     'analysis.zone.hint': 'Zone being analysed (only zones of the selected account). Unsaved changes are included.',
     'analysis.range.hint': 'Period being analysed, in broker days (MT5 time). Presets or a custom range as DD.MM.YY.',
@@ -822,7 +812,6 @@ export default defineArea(
     'analysis.trades.reason.tp.hint': 'Closed by take profit.',
     'analysis.trades.reason.so.hint': 'Closed by the broker for lack of margin (stop out).',
     'analysis.trades.focus.hint': 'Scrolls the chart to this trade’s entry (or its exit if the entry is unknown).',
-    'analysis.trades.col.setup.hint': 'Setup of the fractal order (from the order comment). Details from the current settings; “deleted” if the setup no longer exists. Empty for grid trades.',
     'analysis.trades.col.mfe.hint': 'MFE: largest interim profit of the trade, MAE: largest interim loss; in points and account currency. Estimated (lower limit): only the M1 candles between the entry and exit candle plus the entry/exit price count. For SELL, Ask = Bid + the candle’s spread. Money is derived from the trade’s own profit (not shown if exit = entry).',
     'analysis.trades.mfe.compute.hint': 'Loads the M1 candles for the trades in the table not computed yet (once per symbol, newest first) and computes MFE/MAE. In brackets: number of open trades. Disabled when all are computed.',
     'analysis.trades.mfe.reason.noEntry.hint': 'The entry deal is not in the archive: entry price and time are unknown.',
@@ -831,7 +820,7 @@ export default defineArea(
     'analysis.trades.mfe.reason.missing.hint': 'M1 candles between entry and exit are missing (could not be read from MT5). 0 is never shown.',
     'analysis.trades.mfe.reason.noSpread.hint': 'SELL needs the candle spread, but one candle has none.',
     'analysis.trades.mfe.reason.noPoint.hint': 'The symbol’s point value is unknown: points cannot be calculated.',
-    'analysis.stats.scope.hint': 'Which trades count: the whole account, a whole zone, or one fractal setup of a zone.',
+    'analysis.stats.scope.hint': 'Which trades count: the whole account or one zone.',
     'analysis.stats.kpi.net.hint': 'Profit + commission + swap + fee of trades closed in the period.',
     'analysis.stats.kpi.trades.hint': 'Every exit (partials included) is a trade; positions = distinct position numbers.',
     'analysis.stats.kpi.winRate.hint': 'Share of trades with net > 0.',
@@ -845,7 +834,6 @@ export default defineArea(
     'analysis.stats.curve.balance.hint': 'Account balance counted back from today; hidden if the archive has gaps.',
     'analysis.stats.curve.drawdown.hint': 'Distance of the realized profit curve from its previous high.',
     'analysis.stats.by.zone.hint': 'Per registered zone; unknown, manual and other trades separately.',
-    'analysis.stats.by.setup.hint': 'Each fractal setup separately (number from the order comment); non-fractal zone trades are “no setup”.',
     'analysis.stats.by.weekday.hint': 'By day of the close (MT5 time).',
     'analysis.stats.by.hour.hint': 'By hour of the close (MT5 time).',
   },
@@ -1193,21 +1181,17 @@ export default defineArea(
       'An: Der TP ist ein fester Betrag (Kontowährung) statt des Chance/Risiko-Faktors. Aus: TP = SL-Abstand × Faktor.',
     'zone.fractal.tpMoney.hint':
       'Ziel-Gewinn pro Position (Kontowährung). Der TP liegt im Preisabstand, der diesem Betrag beim Lot der jeweiligen Seite entspricht. 0 = kein TP.',
-    'zone.fractal.setup.add.hint':
-      'Fügt dieser Zone ein weiteres Setup hinzu (z. B. dieselbe Fraktal-Logik auf M1, M5 und H4 mit anderem Lot und TP). Jedes Setup setzt eigene Orders; Analyse → Statistik zeigt Positionen und Gewinn/Verlust je Setup. Ein neues Setup startet mit den Werten des ersten.',
-    'zone.fractal.setup.addLimit.hint': 'Höchstens 10 zusätzliche Setups; zuerst eines entfernen.',
-    'zone.fractal.setup.remove.hint':
-      'Entfernt dieses Setup. Bei einem gespeicherten Setup wird vorher gefragt, ob seine Pending Orders gelöscht werden sollen; offene Positionen bleiben in MT5. Seine Nummer wird nie wieder vergeben und erscheint in der Statistik als „gelöscht“.',
-    'zone.fractal.setup.removeConfirm.delete.hint': 'Entfernt das Setup; nach dem Speichern löscht der Bot die Pending Orders dieses Setups in MT5. Offene Positionen bleiben.',
-    'zone.fractal.setup.removeConfirm.keep.hint': 'Entfernt das Setup; seine Pending Orders bleiben in MT5, der Bot fasst sie nicht mehr an. Löschen kannst du sie bei Bedarf von Hand in MT5.',
     'zone.fractal.maxPositions.hint':
-      'Höchstzahl gleichzeitig offener Positionen dieses Setups. Ist sie erreicht, setzt dieses Setup keine neuen Orders und löscht seine Pending Orders; die anderen Setups laufen weiter. 0 = unbegrenzt (die Engine deckelt bei 500).',
-    'chart.zone.setups.hint': 'Anzahl Setups dieser Fraktal-Zone (Setup 1 + weitere). Jedes Setup hat eigenen Zeitrahmen, Lot, TP und Positionslimit; die übrigen Werte dieser Karte gehören zu Setup 1.',
+      'Höchstzahl gleichzeitig offener Positionen dieser Zone. Ist sie erreicht, setzt die Zone keine neuen Orders und löscht ihre Pending Orders. 0 = unbegrenzt (die Engine deckelt bei 500).',
+    'zone.legacyOrders.delete.hint':
+      'Speichert die Entscheidung; der Bot löscht diese Orders in seiner nächsten Runde in MT5. Offene Positionen bleiben.',
+    'zone.legacyOrders.keep.hint':
+      'Speichert die Entscheidung; die Orders bleiben in MT5, der Bot fasst sie nicht an und dieses Fenster erscheint nicht wieder.',
     'vps.online.restart.hint': 'Startet den Worker über die Worker-API neu (run_uvicorn_watchdog.bat startet ihn wieder). Bots laufen weiter; nur mit Admin-Schlüssel und nur unter der Neustart-Schleife.',
     // --- Analyse ---
     'nav.analysis.hint': 'Analyse-Seite: Chart, Statistik und Backtest für das gewählte Konto und die Zone.',
     'analysis.tab.chart.hint': 'MT5-Kurschart mit den Zonengrenzen und den Zonen-Einstellungen.',
-    'analysis.tab.stats.hint': 'Kennzahlen, Kurven und Aufteilung je Zone/Setup aus echten Trades.',
+    'analysis.tab.stats.hint': 'Kennzahlen, Kurven und Aufteilung je Zone aus echten Trades.',
     'analysis.tab.backtest.hint': 'Testet eine Kopie der Zone mit alten Kursen (in Arbeit). Die echte Zone ändert sich nicht.',
     'analysis.zone.hint': 'Die analysierte Zone (nur Zonen des gewählten Kontos). Ungespeicherte Änderungen zählen mit.',
     'analysis.range.hint': 'Der analysierte Zeitraum in Brokertagen (MT5-Zeit). Vorauswahl oder eigener Zeitraum als TT.MM.JJ.',
@@ -1244,7 +1228,6 @@ export default defineArea(
     'analysis.trades.reason.tp.hint': 'Durch Take Profit geschlossen.',
     'analysis.trades.reason.so.hint': 'Vom Broker wegen fehlender Margin geschlossen (Stop-out).',
     'analysis.trades.focus.hint': 'Verschiebt den Chart zum Einstieg dieses Trades (ohne Einstieg zum Ausstieg).',
-    'analysis.trades.col.setup.hint': 'Setup der Fraktal-Order (aus dem Order-Kommentar). Details aus den aktuellen Einstellungen; „gelöscht“, wenn es das Setup nicht mehr gibt. Bei Grid-Trades leer.',
     'analysis.trades.col.mfe.hint': 'MFE: größter Zwischengewinn des Trades, MAE: größter Zwischenverlust; in Punkten und Kontowährung. Geschätzt (Untergrenze): Es zählen nur die M1-Kerzen zwischen Einstiegs- und Ausstiegskerze plus Ein-/Ausstiegspreis. Bei SELL gilt Ask = Bid + Spread der Kerze. Geld wird aus dem Gewinn des Trades selbst abgeleitet (fehlt bei Ausstieg = Einstieg).',
     'analysis.trades.mfe.compute.hint': 'Lädt die M1-Kerzen für die noch nicht berechneten Trades der Tabelle (einmal je Symbol, neueste zuerst) und berechnet MFE/MAE. In Klammern: Anzahl offener Trades. Deaktiviert, wenn alle berechnet sind.',
     'analysis.trades.mfe.reason.noEntry.hint': 'Der Einstiegs-Deal fehlt im Archiv: Einstiegspreis und -zeit sind unbekannt.',
@@ -1253,7 +1236,7 @@ export default defineArea(
     'analysis.trades.mfe.reason.missing.hint': 'Zwischen Ein- und Ausstieg fehlen M1-Kerzen (aus MT5 nicht lesbar). Es wird nie 0 gezeigt.',
     'analysis.trades.mfe.reason.noSpread.hint': 'SELL braucht den Spread der Kerze, eine Kerze hat keinen.',
     'analysis.trades.mfe.reason.noPoint.hint': 'Der point-Wert des Symbols ist unbekannt: Punkte nicht berechenbar.',
-    'analysis.stats.scope.hint': 'Welche Trades zählen: ganzes Konto, eine ganze Zone oder ein einzelnes Fraktal-Setup einer Zone.',
+    'analysis.stats.scope.hint': 'Welche Trades zählen: ganzes Konto oder eine Zone.',
     'analysis.stats.kpi.net.hint': 'Gewinn + Kommission + Swap + Gebühr der im Zeitraum geschlossenen Trades.',
     'analysis.stats.kpi.trades.hint': 'Jeder Ausstieg (auch Teilschließung) ist ein Trade; Positionen = verschiedene Positionsnummern.',
     'analysis.stats.kpi.winRate.hint': 'Anteil der Trades mit Netto > 0.',
@@ -1267,7 +1250,6 @@ export default defineArea(
     'analysis.stats.curve.balance.hint': 'Kontostand, vom heutigen Stand zurückgerechnet; bei Lücken im Archiv ausgeblendet.',
     'analysis.stats.curve.drawdown.hint': 'Abstand der realisierten Gewinnkurve zum bisherigen Höchststand.',
     'analysis.stats.by.zone.hint': 'Je registrierter Zone; unbekannte, manuelle und andere Trades getrennt.',
-    'analysis.stats.by.setup.hint': 'Jedes Fraktal-Setup einzeln (Nummer aus dem Order-Kommentar); Zonen-Trades ohne Fraktal = „ohne Setup“.',
     'analysis.stats.by.weekday.hint': 'Nach Tag der Schließung (MT5-Zeit).',
     'analysis.stats.by.hour.hint': 'Nach Stunde der Schließung (MT5-Zeit).',
   },

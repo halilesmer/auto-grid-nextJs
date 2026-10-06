@@ -1,5 +1,5 @@
 /**
- * Reine Rechenfälle (von Hand nachgerechnet) für den Statistik-Tab: Kennzahlen, Aufteilung je Zone/Setup/
+ * Reine Rechenfälle (von Hand nachgerechnet) für den Statistik-Tab: Kennzahlen, Aufteilung je Zone/
  * Wochentag/Stunde, Kurven (realisiert, Drawdown, Kontostand rückwärts).
  * ANA-09 Statistik-Tab
  * ANA-12 MFE/MAE aus M1-Kerzen
@@ -43,8 +43,8 @@ function deal(p: Partial<Deal> & Pick<Deal, 'position_id' | 'time' | 'type' | 'e
 }
 
 /**
- * A: Setup 1, TP, Netto 10 − 0,5 − 0,5 = 9 · B: Setup 2, −4 · C: Grid ohne Fraktal, TP, +3 ·
- * D: Setup 7 (nicht mehr in den Einstellungen), +2 · E: manuell, −1
+ * A: Fraktal, TP, Netto 10 − 0,5 − 0,5 = 9 · B: früheres Zusatz-Setup 2, −4 · C: Grid ohne Fraktal, TP, +3 ·
+ * D: früheres Zusatz-Setup 7, +2 · E: manuell, −1
  */
 function sample() {
   const deals = [
@@ -105,21 +105,17 @@ test.describe('ANA-09 Statistik-Rechnung', () => {
     expect([s.trades, s.positions]).toEqual([2, 1]);
   });
 
-  test('Je Setup: Setup 1, 2, gelöschtes 7, ohne Setup, manuell', { tag: '@ANA-09' }, () => {
-    const groups = breakdown(sample(), 'setup');
-    expect(groups.map((g) => g.key)).toEqual(['s:200001:1', 's:200001:2', 's:200001:7', 's:200001:none', 'manual']);
-    expect(groups.map((g) => g.stats.net)).toEqual([9, -4, 2, 3, -1].map((v) => expect.closeTo(v, 6)));
+  test('Je Zone: Zone, manuell', { tag: '@ANA-09' }, () => {
     expect(breakdown(sample(), 'zone').map((g) => [g.key, g.stats.trades])).toEqual([
       ['z:200001', 4],
       ['manual', 1],
     ]);
   });
 
-  test('Umfang: Konto, Zone, Setup; „Zone unbekannt“ zählt zu keiner Zone', { tag: '@ANA-09' }, () => {
+  test('Umfang: Konto, Zone; „Zone unbekannt“ zählt zu keiner Zone', { tag: '@ANA-09' }, () => {
     const trades = sample();
     expect(trades.filter((tr) => inScope(tr, { kind: 'account' }))).toHaveLength(5);
     expect(trades.filter((tr) => inScope(tr, { kind: 'zone', magic: 200001 }))).toHaveLength(4);
-    expect(trades.filter((tr) => inScope(tr, { kind: 'setup', magic: 200001, sid: 2 })).map((tr) => tr.net)).toEqual([-4]);
     // Vor dem Registereintrag eröffnet → unbekannt
     const early = pairTrades(
       [
@@ -130,7 +126,7 @@ test.describe('ANA-09 Statistik-Rechnung', () => {
       OFFSET,
     ).trades;
     expect(inScope(early[0], { kind: 'zone', magic: 200001 })).toBe(false);
-    expect(groupKey(early[0], 'setup')).toBe('unknown');
+    expect(groupKey(early[0], 'zone')).toBe('unknown');
   });
 
   test('Wochentag und Stunde nach Schließzeit (MT5)', { tag: '@ANA-09' }, () => {

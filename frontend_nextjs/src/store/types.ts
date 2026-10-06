@@ -103,28 +103,6 @@ export interface ZoneSettings {
   /** true: TP als Geldbetrag (Kontowährung) statt SL × Faktor */
   fractal_tp_by_money?: boolean;
   fractal_tp_money?: number;
-  /** Weitere Fraktal-Setups (Setup 1 = die Felder oben); sid vergibt der Worker beim Speichern (ENG-28) */
-  fractal_setups?: FractalSetup[];
-  /** Höchste je vergebene Setup-Nummer der Zone (vom Worker verwaltet, nur lesend) */
-  fractal_setup_seq?: number;
-  /** Entfernte Setups, deren Pending Orders in MT5 bleiben sollen (der Bot löscht sie nicht) */
-  fractal_kept_sids?: number[];
-}
-
-/** Ein zusätzliches Fraktal-Setup: gleiche Feldnamen wie die Zone, gemeinsam bleiben Ordermodus, SL und TP-Art. */
-export interface FractalSetup {
-  /** 2–99, fehlt bei einem noch nicht gespeicherten Setup */
-  sid?: number;
-  /** Stabile Client-ID: der Worker findet darüber die Nummer, auch wenn die Oberfläche sie noch nicht kennt */
-  id?: string;
-  fractal_timeframe: string;
-  lot_size: number;
-  sell_lot_size: number;
-  fractal_order_count: number;
-  sell_fractal_order_count: number;
-  fractal_rr: number;
-  fractal_tp_money: number;
-  max_positions: number;
 }
 
 export type EntryMode = 'grid' | 'fractal';
@@ -138,6 +116,8 @@ export interface GlobalSettings {
   ZONES: ZoneSettings[];
   /** Höchste je vergebene Zonen-Magic (ENG-27, vom Worker verwaltet) */
   ZONE_MAGIC_MAX?: number;
+  /** Entscheidung über Pending Orders entfernter Fraktal-Zusatz-Setups (ENG-29); fehlt = noch offen */
+  LEGACY_SETUP_ORDERS?: 'delete' | 'keep';
 }
 
 export type ActivityLevel = 'info' | 'success' | 'warn' | 'error';
@@ -229,6 +209,8 @@ export interface LiveData {
   // Robot pozisyonları ve emirleri (en fazla 500); eski worker'larda veya MT5 bağlı değilken yok
   positions?: LivePosition[];
   orders?: LiveOrder[];
+  // Pending Orders entfernter Fraktal-Zusatz-Setups (ENG-29): das Dashboard fragt, ob sie gelöscht werden
+  legacy_setup_orders?: LiveOrder[];
 }
 
 export interface UpdateInfo {

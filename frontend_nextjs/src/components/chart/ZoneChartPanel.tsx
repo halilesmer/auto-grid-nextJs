@@ -88,8 +88,6 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
     const key = orderCountKey(zone.order_type);
     fields.push([key, `${key}.hint`, count]);
   }
-  const extra = zone.fractal_setups?.length ?? 0;
-  if (extra > 0) fields.push(['chart.zone.setups', 'chart.zone.setups.hint', 1 + extra]);
   return fields;
 }
 
@@ -433,16 +431,13 @@ export default function ZoneChartPanel({
   const fractalTf = zone?.fractal_timeframe && isTimeframe(zone.fractal_timeframe) ? zone.fractal_timeframe : 'H4';
   const fractals = useMemo<FractalPoint[]>(() => {
     if (!isFractalZone || !prefs.showFractals || !data) return [];
-    // Nur Einstiege der Setups, deren Zeitrahmen gerade angezeigt wird
-    const setupTf = (sid: number) =>
-      sid === 1 ? fractalTf : zone?.fractal_setups?.find((s) => s.sid === sid)?.fractal_timeframe;
     const traded = new Set(
-      (history?.entries ?? [])
-        .filter((e) => e.fractal && e.zone.kind === 'zone' && setupTf(e.fractal.sid) === timeframe)
-        .map((e) => `${e.fractal!.side}${e.fractal!.time}`),
+      timeframe === fractalTf
+        ? (history?.entries ?? []).filter((e) => e.fractal && e.zone.kind === 'zone').map((e) => `${e.fractal!.side}${e.fractal!.time}`)
+        : [],
     );
     return findFractals(data.bars, data.missing, data.liveFrom).map((f) => ({ ...f, traded: traded.has(`${f.side}${f.time}`) }));
-  }, [isFractalZone, prefs.showFractals, data, history, timeframe, fractalTf, zone?.fractal_setups]);
+  }, [isFractalZone, prefs.showFractals, data, history, timeframe, fractalTf]);
 
   const band = zone && prefs.showZoneLines ? { min: zone.min_price, max: zone.max_price } : null;
   const marketHours = index >= 0 ? liveData.zone_market_hours?.[String(index)] : undefined;
@@ -577,7 +572,6 @@ export default function ZoneChartPanel({
       {zone && dealsRequest && (
         <TradesTable
           accountId={accountId}
-          zones={zones}
           variant="zone"
           trades={history?.trades ?? []}
           openEntries={history?.openEntries ?? 0}

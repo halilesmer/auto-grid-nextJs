@@ -58,9 +58,8 @@ const EPS = 1e-9;
 
 export type Side = 'buy' | 'sell';
 
-/** Fraktal-Order aus dem Kommentar: Setup-Nummer (1 = Zonenfelder), Seite und Kerzenzeit */
+/** Fraktal-Order aus dem Kommentar: Seite und Kerzenzeit */
 export interface FractalRef {
-  sid: number;
   side: 'U' | 'D';
   time: number;
 }
@@ -145,11 +144,12 @@ const num = (v: number | null | undefined) => (typeof v === 'number' && Number.i
 const sideOf = (dealType: number): Side => (dealType === DEAL_BUY ? 'buy' : 'sell');
 const opposite = (s: Side): Side => (s === 'buy' ? 'sell' : 'buy');
 
-// Setup 1: AutoGrid_Z{n}_F{U|D}{zeit}, Setup k ≥ 2: AutoGrid_Z{n}_F{k}{U|D}{zeit} (worker grid_orders.fractal_comment)
-const FRACTAL_COMMENT = /^AutoGrid_Z\d+_F(\d*)([UD])(\d+)$/;
+// AutoGrid_Z{n}_F{U|D}{zeit} (worker grid_orders.fractal_comment). Orders früherer Zusatz-Setups
+// (AutoGrid_Z{n}_F{k}{U|D}{zeit}, ENG-29) hatten einen eigenen Zeitrahmen: kein Fraktal der Zone
+const FRACTAL_COMMENT = /^AutoGrid_Z\d+_F([UD])(\d+)$/;
 export function parseFractalComment(comment: string | null | undefined): FractalRef | null {
   const m = FRACTAL_COMMENT.exec(String(comment ?? ''));
-  return m ? { sid: m[1] ? Number(m[1]) : 1, side: m[2] as 'U' | 'D', time: Number(m[3]) } : null;
+  return m ? { side: m[1] as 'U' | 'D', time: Number(m[2]) } : null;
 }
 
 /**

@@ -22,6 +22,7 @@ from src.core.grid_zone_state import (
 )
 from src.core.grid_orchestrator import manage_dynamic_grid as _manage_dynamic_grid
 from src.utils.symbol_setups import settings_zones
+from src.core.legacy_setup_orders import legacy_mode_of
 
 try:
     import MetaTrader5 as mt5  # type: ignore
@@ -65,6 +66,7 @@ def load_dynamic_settings():
         except Exception as exc:
             log_message(f"Bölge durumu yeni sıraya taşınamadı: {exc}", "ERROR")
         state.loop_interval_seconds = settings.get("LOOP_INTERVAL_SECONDS", 1.0)
+        state.legacy_setup_orders_mode = legacy_mode_of(settings)
         state.active_symbols.clear()
         for zone in state.zones:
             if "symbol" in zone and zone["symbol"]:
@@ -128,5 +130,6 @@ def manage_dynamic_grid():
         state.consecutive_errors,
         state.active_zones_state,
         state.filling_mode,
+        legacy_orders_mode=state.legacy_setup_orders_mode,
     )
     return ok

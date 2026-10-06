@@ -8,6 +8,7 @@ from pydantic import TypeAdapter, ValidationError
 from src.api.access import account_access
 from src.api.models import SettingsPayload, SymbolSettings
 from src.api.helpers import _find_settings_file, CONFIGS_DIR
+from src.core.legacy_setup_orders import LEGACY_MODES, LEGACY_SETUP_ORDERS_KEY
 from src.utils import symbol_setups
 from src.utils.bot_manager import is_bot_running
 from src.utils.bot_watchdog import account_lock
@@ -72,6 +73,22 @@ def _check_symbols(settings) -> None:
         raise HTTPException(status_code=422, detail=f"SYMBOLS: {exc}") from exc
 
 
+def _check_legacy_mode(settings) -> None:
+    """Kaldırılan ek kurgu emirleri için karar (ENG-29) yalnızca "delete" veya "keep" olabilir."""
+    if not isinstance(settings, dict) or LEGACY_SETUP_ORDERS_KEY not in settings:
+        return
+    if settings[LEGACY_SETUP_ORDERS_KEY] not in LEGACY_MODES:
+        raise HTTPException(status_code=422, detail=f"{LEGACY_SETUP_ORDERS_KEY}: {' | '.join(LEGACY_MODES)}")
+
+
+def _drop_fractal_setup_fields(settings) -> None:
+    """Kaldırılan fraktal ek kurgularının (eski ENG-28) alanları kayıtta bölgelerden silinir."""
+    for zone in symbol_setups.settings_zones(settings):
+        if isinstance(zone, dict):
+            for key in ("fractal_setups", "fractal_setup_seq", "fractal_kept_sids"):
+                zone.pop(key, None)
+
+
 def _backup_before_symbols(path: str) -> None:
     """Eski biçimli (ZONES) dosyanın ilk gruplu kayıttan önceki kopyası (ZON-19).
 
@@ -126,8 +143,9 @@ async def update_settings(account_id: str, payload: SettingsPayload):
         ):
             incoming_data = incoming_data["settings"]
         _check_symbols(incoming_data)
+        _check_legacy_mode(incoming_data)
 
-        # Magic ve kurgu numaraları düz bölge listesinde verilir; kayıt sembol → kurulum biçimindedir
+        # Magic numaraları düz bölge listesinde verilir; kayıt sembol → kurulum biçimindedir
         # (ZON-19). Gelen ZONES ya da SYMBOLS kayıtlı bölgelerin yerine geçer.
         legacy_file = symbol_setups.is_legacy(existing_data)
         # Kayıttan önceki hâl: bölge magic'leri ve durum sıraları buna göre korunur
@@ -139,13 +157,12 @@ async def update_settings(account_id: str, payload: SettingsPayload):
             data_to_save = incoming_data
 
         from src.utils.config import sanitize_settings
-        from src.utils.zone_magic import assign_fractal_setup_ids, assign_zone_magics
+        from src.utils.zone_magic import assign_zone_magics
 
         # Her bölgeye kalıcı magic (ENG-27); bölge silinince sıraya bağlı durumu bot taşır
         # (grid_zone_state.rekey_zone_state, ayarları yeniden okuduğu turda)
         data_to_save = assign_zone_magics(previous, sanitize_settings(data_to_save), log=safe_log)
-        # Ek fraktal kurgularına kalıcı numara (ENG-28); emir yorumu ve istatistik bu numarayı taşır
-        data_to_save = assign_fractal_setup_ids(previous, data_to_save, log=safe_log)
+        _drop_fractal_setup_fields(data_to_save)
         data_to_save = symbol_setups.to_grouped(data_to_save)
         if legacy_file:
             await asyncio.to_thread(_backup_before_symbols, path)

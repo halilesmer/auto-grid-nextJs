@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { t } from '@/i18n';
 import { apiUrl, getWorkerHeaders } from '@/lib/api';
-import { normalizeZoneLots, withServerSetupIds } from '@/utils/zoneHelpers';
+import { normalizeZoneLots } from '@/utils/zoneHelpers';
 import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
 interface SettingsState {
@@ -121,17 +121,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       body: JSON.stringify({ settings }),
     });
     if (!res.ok) throw new Error(t('settings.saveFailed'));
-    if (!settings.ZONES?.some((z) => z.fractal_setups?.some((s) => s.sid === undefined))) return settings;
-
-    // Neue Fraktal-Setups bekommen ihre Nummer erst im Worker: zurücklesen und übernehmen
-    // (nur die Nummern; Eingaben während des Speicherns bleiben)
-    const fresh = await fetch(apiUrl(`/settings/${selectedAccount}`), { headers: getWorkerHeaders() });
-    if (!fresh.ok) return settings;
-    const serverZones: ZoneSettings[] = (await fresh.json())?.settings?.ZONES ?? [];
-    const patch = (z: ZoneSettings) => withServerSetupIds(z, serverZones.find((s) => s.id === z.id));
-    const latest = get().settings;
-    if (latest?.ZONES) set({ settings: { ...latest, ZONES: latest.ZONES.map(patch) } });
-    return { ...settings, ZONES: settings.ZONES.map(patch) };
+    return settings;
   },
 
   getSymbolDetail: (symbol) => {

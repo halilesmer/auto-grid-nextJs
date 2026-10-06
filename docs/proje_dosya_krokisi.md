@@ -89,7 +89,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┣ 📜 InputField.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 tooltip.tsx          # Tooltip + InfoHint (i) + FieldLabel (Popover API/top-layer); hint zorunlu, bkz. hooks/RULES.md §5
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
-┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„bölge bilinmiyor“, setup, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), useSetupLabel (setup etiketi), stats/ (StatsTab, StatsKpis, BreakdownTable, CurveChart)
+┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„bölge bilinmiyor“, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), stats/ (StatsTab, StatsKpis, BreakdownTable, CurveChart)
 ┃ ┃ ┃ ┃ ┗ 📂 chart              # Grafik sekmesi: ChartCore (lightweight-charts, mumlar + boşluklar, RSI bölmesi, fiyat çizgileri), primitives.ts (bölge bandı, eksik veri taraması, piyasa arası çizgileri), TimeframeSelect
 ┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri
 ┃ ┃ ┃   ┣ 📜 ZoneCard.tsx
@@ -187,10 +187,11 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 bot_runner.py        # Bot çalıştırma döngüsü
 ┃ ┃ ┃ ┣ 📜 clock.py             # Motorun saati (canlıda gerçek saat; örnek çözümlerde simüle saat, tests/parity)
 ┃ ┃ ┃ ┣ 📜 grid_helpers.py      # Yardımcılar - fiyat/lot normalizasyonu, logging, market açık kontrolü, timeframe map
-┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı ve listeleri (en fazla 500, analiz grafiği), MT5 bağlantı/market durumu
+┃ ┃ ┃ ┣ 📜 grid_metrics.py      # Canlı metrikler - P/L, pozisyon/emir sayısı ve listeleri (en fazla 500, analiz grafiği), kaldırılan fraktal kurgularının kalan emirleri (legacy_setup_orders), MT5 bağlantı/market durumu
 ┃ ┃ ┃ ┣ 📜 grid_orders.py       # MT5 Emir/Pozisyon CRUD - get/cancel/modify, pending order gönderme (magic no), açan emrin hacmi (history) → kısmi dolumda kalan lot; zone_magic/zone_index_by_magic: emir/pozisyonun bölgesi sıradan değil magic'ten bulunur
 ┃ ┃ ┃ ┣ 📜 grid_position_sync.py # Zombi temizliği & kısmi dolum - pasif bölge temizliği, TP/SL senkron, kalan lot
 ┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal - MT5 $1/$2 Buy Limit + GRID:START/STOP komutları
+┃ ┃ ┃ ┣ 📜 legacy_setup_orders.py # Kaldırılan fraktal ek kurgularının (ENG-29) MT5'te kalan emirleri: bölge emri sayılmaz; ayardaki LEGACY_SETUP_ORDERS=delete ise iptal
 ┃ ┃ ┃ ┣ 📜 indicator_calc.py    # Teknik indikatörler - RSI/MACD (pandas-ta fallback ile saf pandas)
 ┃ ┃ ┃ ┣ 📜 grid_orchestrator.py # Orkestratör - aktif bölge tespiti, giriş/çıkış, clear_on_exit, dynamic grid koordinasyonu
 ┃ ┃ ┃ ┣ 📜 grid_order_manager.py # Emir yönetimi - zombi emirler, TP/SL senkronu (fiyat geçtiyse bekler), kısmi dolum tamamlama (açan emre göre, max pozisyonda yok), bölge çıkışı

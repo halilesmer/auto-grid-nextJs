@@ -16,6 +16,7 @@ class EngineHarness:
         self.consecutive_errors: dict = {}
         self.active_zones_state: dict = {}
         self.filling_mode: dict = {}
+        self.legacy_orders_mode = ""  # LEGACY_SETUP_ORDERS aus den Einstellungen (ENG-29)
 
     def tick(self) -> bool:
         from src.core.grid_orchestrator import manage_dynamic_grid
@@ -29,6 +30,7 @@ class EngineHarness:
             self.consecutive_errors,
             self.active_zones_state,
             self.filling_mode,
+            legacy_orders_mode=self.legacy_orders_mode,
         )
         return ok
 

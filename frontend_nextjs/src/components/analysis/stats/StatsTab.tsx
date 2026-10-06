@@ -16,7 +16,6 @@ import { computeStats } from '@/lib/analysis/stats';
 import { pairTrades } from '@/lib/analysis/tradePairing';
 import { brokerNow } from '@/lib/serverTime';
 import type { ZoneSettings } from '@/store/types';
-import { useSetupLabel } from '../useSetupLabel';
 import { TradesTable } from '../TradesTable';
 import { BreakdownTable } from './BreakdownTable';
 import { CurveChart } from './CurveChart';
@@ -42,20 +41,17 @@ interface ScopeItem {
 type CurveKind = 'realized' | 'balance' | 'drawdown';
 
 function scopeKey(s: StatsScope) {
-  if (s.kind === 'account') return 'account';
-  return s.kind === 'zone' ? `zone:${s.magic}` : `setup:${s.magic}:${s.sid}`;
+  return s.kind === 'account' ? 'account' : `zone:${s.magic}`;
 }
 
-/** Vorauswahl der Aufteilung: Konto je Zone, Fraktal-Zone je Setup, sonst je Wochentag */
-function defaultBreakdownFor(scope: StatsScope, zone: ZoneSettings | undefined): BreakdownKind {
-  if (scope.kind === 'account') return 'zone';
-  return scope.kind === 'zone' && zone?.entry_mode === 'fractal' ? 'setup' : 'weekday';
+/** Vorauswahl der Aufteilung: Konto je Zone, Zone je Wochentag */
+function defaultBreakdownFor(scope: StatsScope): BreakdownKind {
+  return scope.kind === 'account' ? 'zone' : 'weekday';
 }
 
 /**
  * Statistik-Tab (ANA-09): Kennzahlen, Kurven und Aufteilung der im Zeitraum geschlossenen Trades für das
- * ganze Konto, eine Zone (alle Setups) oder ein Fraktal-Setup einer Zone. Zone über das Register,
- * Setup über den Order-Kommentar AutoGrid_Z{n}_F{k}{U|D}{zeit}.
+ * ganze Konto oder eine Zone. Zone über das Register.
  */
 export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockReady }: StatsTabProps) {
   const t = useT();
@@ -83,7 +79,6 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
     (zones ?? []).forEach((zone, i) => zone.magic !== undefined && m.set(zone.magic, { zone, n: i + 1 }));
     return m;
   }, [zones]);
-  const setupLabel = useSetupLabel();
   const zoneLabel = (magic: number) => {
     const z = zoneByMagic.get(magic);
     if (z) return t('analysis.zone.option', { n: z.n, symbol: z.zone.symbol || '—' });
@@ -98,15 +93,9 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
       const base = { n: i + 1, symbol: zone.symbol || '—' };
       const zs: StatsScope = { kind: 'zone', magic: zone.magic };
       items.push({ key: scopeKey(zs), scope: zs, label: t('analysis.stats.scope.zone', base) });
-      if (zone.entry_mode !== 'fractal') return;
-      const sids = [1, ...(zone.fractal_setups ?? []).flatMap((s) => (s.sid ? [s.sid] : []))];
-      for (const sid of sids) {
-        const ss: StatsScope = { kind: 'setup', magic: zone.magic, sid };
-        items.push({ key: scopeKey(ss), scope: ss, label: t('analysis.stats.scope.setup', { ...base, setup: setupLabel(zone, sid) }) });
-      }
     });
     return items;
-  }, [zones, t, setupLabel]);
+  }, [zones, t]);
 
   const urlZone = zones?.find((z) => z.id === zoneId);
   const defaultKey = urlZone?.magic !== undefined ? `zone:${urlZone.magic}` : 'account';
@@ -115,9 +104,8 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
   const chosen = choice?.zoneId === zoneId ? choice.key : null;
   const current = scopes.find((s) => s.key === (chosen ?? defaultKey)) ?? scopes[0];
   const scope = current.scope;
-  const scopeZone = scope.kind === 'account' ? undefined : zoneByMagic.get(scope.magic)?.zone;
 
-  const defaultBreakdown = defaultBreakdownFor(scope, scopeZone);
+  const defaultBreakdown = defaultBreakdownFor(scope);
   const [breakdownChoice, setBreakdownChoice] = useState<{ scope: string; kind: BreakdownKind } | null>(null);
   const kind = breakdownChoice?.scope === current.key ? breakdownChoice.kind : defaultBreakdown;
   const [curve, setCurve] = useState<CurveKind>('realized');
@@ -149,15 +137,10 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
     if (key === 'other') return t('analysis.stats.group.other');
     if (kind === 'weekday') return t(`analysis.stats.weekday.${key}` as MessageKey);
     if (kind === 'hour') return `${key.padStart(2, '0')}:00`;
-    const [type, magicStr, sid] = key.split(':');
-    const magic = Number(magicStr);
-    if (type === 'z') return zoneLabel(magic);
-    const setup =
-      sid === 'none' ? t('analysis.stats.setup.none') : setupLabel(zoneByMagic.get(magic)?.zone, Number(sid));
-    return scope.kind === 'account' ? `${zoneLabel(magic)} · ${setup}` : setup;
+    return zoneLabel(Number(key.split(':')[1]));
   };
 
-  const breakdownTabs = (['zone', 'setup', 'weekday', 'hour'] as const)
+  const breakdownTabs = (['zone', 'weekday', 'hour'] as const)
     .filter((k) => scope.kind === 'account' || k !== 'zone')
     .map((k) => ({ id: k, label: t(`analysis.stats.by.${k}`), hint: t(`analysis.stats.by.${k}.hint`) }));
   const curveTabs = (['realized', 'balance', 'drawdown'] as const).map((k) => ({
@@ -274,7 +257,6 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
 
           <TradesTable
             accountId={accountId}
-            zones={zones}
             variant="scope"
             trades={view.trades}
             openEntries={0}

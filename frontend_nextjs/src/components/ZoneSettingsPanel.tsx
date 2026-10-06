@@ -7,6 +7,7 @@ import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ConfirmModal from '@/components/ConfirmModal';
+import { LegacySetupOrdersDialog } from '@/components/LegacySetupOrdersDialog';
 import { useT } from '@/i18n';
 
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
@@ -176,6 +177,8 @@ export default function ZoneSettingsPanel({
           />
         );
       })}
+
+      <LegacySetupOrdersDialog accountId={selectedAccount} />
 
       <ConfirmModal
         open={deleteZoneId !== null}
