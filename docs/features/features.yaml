@@ -1444,12 +1444,12 @@ kategorien:
 
       # --- Geplant (offen), Plan: docs/journal/2026-10-06-backtest-module-plan.md; Schritt B1–B9 steht im Titel.
       - id: BKT-02
-        titel: Bot-Nachbau Grid im Browser (B2, geplant)
-        beschreibung: "Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01."
-        code: [frontend_nextjs/src/lib/analysis/levels.ts, worker_python/tests/parity/runner.py]
+        titel: Bot-Nachbau Grid im Browser (B2)
+        beschreibung: "Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01. Die Engine schreibt Log-Codes statt Texte (Übersetzung mit dem Run-Log, B4); Fraktal-Zonen folgen mit B3."
+        code: [frontend_nextjs/src/lib/backtest/engine/orchestrator.ts, frontend_nextjs/src/lib/backtest/engine/pyRound.ts, frontend_nextjs/src/lib/backtest/broker/simBroker.ts, frontend_nextjs/src/lib/analysis/levels.ts, frontend_nextjs/e2e/fixtures/parity.ts, worker_python/tests/parity/runner.py]
         tiers: [e2e]
         pruefung:
-          - Playwright-Projekt logic (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
+          - Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
         erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; pyRound gleicht Pythons round() in allen Grenzfällen.
 
       - id: BKT-03
@@ -1458,7 +1458,7 @@ kategorien:
         code: [frontend_nextjs/src/lib/analysis/fractals.ts, worker_python/tests/parity/runner.py]
         tiers: [e2e]
         pruefung:
-          - Playwright-Projekt logic mit den 5 Fraktal-Szenarien ausführen.
+          - Playwright-Logiktest ohne Browserseite (wie BKT-02, e2e/fixtures/parity.ts) mit den 5 Fraktal-Szenarien ausführen.
         erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios.
 
       - id: BKT-04
@@ -1469,7 +1469,7 @@ kategorien:
         pruefung:
           - pytest für die Kostenfelder der Symbolliste ausführen.
           - Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen.
-          - Playwright-Projekt logic (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
+          - Playwright-Logiktest ohne Browserseite (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
         erwartet: Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.
 
       - id: BKT-05

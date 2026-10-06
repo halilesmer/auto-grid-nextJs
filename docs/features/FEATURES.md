@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-06 · **127/153** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-06 · **128/153** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/13 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 2/13 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 3/13 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -693,17 +693,17 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Für jedes Szenario werden ab einem Tick k (nach einem und nach zwei Dritteln) alle späteren Kurse verändert. Alle Ereignisse vor k müssen gleich bleiben (docs/analyse-regeln.md §5 „kein Blick in die Zukunft“); danach muss sich etwas ändern, sonst prüft der Test nichts.
   - **Prüfung:** In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q -k spaetere` ausführen.
   - **Erwartet:** Grün für alle Szenarien.
-- [ ] **BKT-02** Bot-Nachbau Grid im Browser (B2, geplant) — 🖥️ e2e ⏳
-  - Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01.
-  - **Prüfung:** Playwright-Projekt logic (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
+- [x] **BKT-02** Bot-Nachbau Grid im Browser (B2) — 🖥️ e2e ✅ 2026-10-06
+  - Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01. Die Engine schreibt Log-Codes statt Texte (Übersetzung mit dem Run-Log, B4); Fraktal-Zonen folgen mit B3.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
   - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; pyRound gleicht Pythons round() in allen Grenzfällen.
 - [ ] **BKT-03** Bot-Nachbau Fraktal im Browser (B3, geplant) — 🖥️ e2e ⏳
   - Fraktal-Signale, Fraktal-Einstieg und Indikatoren (ATR, SAR) des Bots als TypeScript in frontend_nextjs/src/lib/backtest/engine/, mit mehreren Setups je Zone (ZON-18); Fraktale aus src/lib/analysis/fractals.ts.
-  - **Prüfung:** Playwright-Projekt logic mit den 5 Fraktal-Szenarien ausführen.
+  - **Prüfung:** Playwright-Logiktest ohne Browserseite (wie BKT-02, e2e/fixtures/parity.ts) mit den 5 Fraktal-Szenarien ausführen.
   - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios.
 - [ ] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4, geplant) — 🧪 unit ⏳ · 🔌 api ⏳ · 🖥️ e2e ⏳
   - Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ immer sichtbar.
-  - **Prüfung:** pytest für die Kostenfelder der Symbolliste ausführen. → Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen. → Playwright-Projekt logic (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
+  - **Prüfung:** pytest für die Kostenfelder der Symbolliste ausführen. → Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen. → Playwright-Logiktest ohne Browserseite (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
   - **Erwartet:** Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.
 - [ ] **BKT-05** CSV-Import von Kursdaten (B9, geplant) — 🔌 api ⏳ · 🖥️ e2e ⏳
   - Kerzen aus einer CSV-Datei in market.sqlite laden, wenn MT5 nicht genug Historie liefert: POST /market/{id}/imports, PUT …/chunk, POST …/commit, DELETE; Staging, Prüfung (Zeitfolge, OHLC, Zeitzone), source = csv:<import_id>. Überlappung mit vorhandenen Daten nur mit „ersetzen“. Dialog auf /backtest.
