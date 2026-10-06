@@ -22,14 +22,15 @@ export function ZoneBasicFields({
   const hasError = Object.keys(symbolDetails).length > 0 && Boolean(zone.symbol) && !validateSymbol(zone.symbol);
   // Worker sembolleri MT5'ten alamadı: autocomplete'in neden boş kaldığını göster
   const symbolsError = useSettingsStore((s) => s.symbolsError);
-  const symbolFieldError = hasError ? (
-    <span className="text-[11px] font-semibold text-danger">{t('zone.field.symbolInvalid')}</span>
-  ) : symbolsError ? (
+  const symbolsUnavailable = symbolsError ? (
     <span data-testid="symbols-error" role="status" className="flex items-start gap-1 text-[11px] text-muted-foreground break-words min-w-0">
       <AlertTriangle size={12} aria-hidden className="mt-px shrink-0 text-warning" />
       <span className="min-w-0">{t('zone.field.symbolsUnavailable', { message: symbolsError })}</span>
     </span>
   ) : null;
+  const symbolFieldError = hasError ? (
+    <span className="text-[11px] font-semibold text-danger">{t('zone.field.symbolInvalid')}</span>
+  ) : symbolsUnavailable;
 
   // Sembolün ondalık basamakları desen olarak, ör. digits=2 → "0,00" (tr/de) veya "0.00" (en)
   const digits = symbolDetails[zone.symbol?.toUpperCase()]?.digits;

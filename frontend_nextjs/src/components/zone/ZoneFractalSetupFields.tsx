@@ -39,6 +39,13 @@ interface Props {
   handleBlur: HandleBlurFn;
 }
 
+// Ein Feld gilt für die gewählte Richtung bzw. bei „Buy/Sell gleich“ für beide; getrennt nur bei split
+function orderCountKey({ split, orderType }: { split: boolean; orderType: string }) {
+  if (split || orderType === 'BUY') return 'zone.fractal.buyOrderCount' as const;
+  if (orderType === 'SELL') return 'zone.fractal.sellOrderCount' as const;
+  return 'zone.fractal.orderCount' as const;
+}
+
 export function ZoneFractalSetupFields({
   zone,
   values,
@@ -50,13 +57,7 @@ export function ZoneFractalSetupFields({
   handleBlur,
 }: Props) {
   const t = useT();
-  // Ein Feld gilt für die gewählte Richtung bzw. bei „Buy/Sell gleich“ für beide; getrennt nur bei split
-  const countKey =
-    split || zone.order_type === 'BUY'
-      ? 'zone.fractal.buyOrderCount'
-      : zone.order_type === 'SELL'
-        ? 'zone.fractal.sellOrderCount'
-        : 'zone.fractal.orderCount';
+  const countKey = orderCountKey({ split, orderType: zone.order_type });
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
     : 2;

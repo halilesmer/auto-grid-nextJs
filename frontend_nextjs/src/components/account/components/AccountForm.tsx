@@ -3,12 +3,18 @@
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
-import { useT } from '@/i18n';
+import { useT, type MessageKey } from '@/i18n';
 import { useIsAdmin } from '@/store/useAuthStore';
 import { useUsersStore } from '@/store/useUsersStore';
 import { PasswordField } from './PasswordField';
 import { MT5PathSelector } from './MT5PathSelector';
 import type { AccountFormProps } from '../types';
+
+function submitLabelKey({ isSaving, isLoading }: { isSaving?: boolean; isLoading?: boolean }): MessageKey {
+  if (isSaving) return 'account.form.saving';
+  if (isLoading) return 'account.form.loading';
+  return 'common.save';
+}
 
 export function AccountForm({
   formData,
@@ -236,7 +242,7 @@ export function AccountForm({
           loading={isSaving}
           hint={isLoading ? t('account.form.waitLoading') : t('account.form.save.hint')}
         >
-          {isSaving ? t('account.form.saving') : isLoading ? t('account.form.loading') : t('common.save')}
+          {t(submitLabelKey({ isSaving, isLoading }))}
         </Button>
       </div>
     </div>

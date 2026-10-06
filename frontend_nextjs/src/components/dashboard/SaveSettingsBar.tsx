@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useT } from '@/i18n';
+import { useT, type MessageKey } from '@/i18n';
 
 interface SaveSettingsBarProps {
   isDirty: boolean;
@@ -33,6 +33,12 @@ function Kbd({ children }: { children: string }) {
   );
 }
 
+function saveButtonText({ isLoading, isDirty }: { isLoading: boolean; isDirty: boolean }): { label: MessageKey; hint: MessageKey } {
+  if (isLoading) return { label: 'common.saving', hint: 'saveBar.saving.hint' };
+  if (isDirty) return { label: 'saveBar.saveAll', hint: 'saveBar.saveAll.hint' };
+  return { label: 'common.saved', hint: 'saveBar.saved.hint' };
+}
+
 export default function SaveSettingsBar({
   isDirty,
   isLoading,
@@ -42,6 +48,7 @@ export default function SaveSettingsBar({
 }: SaveSettingsBarProps) {
   const t = useT();
   const disabled = isLoading || !hasSettings || !isDirty;
+  const saveText = saveButtonText({ isLoading, isDirty });
   const shortcut = useShortcutLabel();
 
   // Cmd+Enter (Mac) / Ctrl+Enter (Windows) kaydeder
@@ -65,16 +72,10 @@ export default function SaveSettingsBar({
         disabled={disabled}
         loading={isLoading}
         className="relative"
-        hint={
-          isLoading
-            ? t('saveBar.saving.hint')
-            : isDirty
-              ? t('saveBar.saveAll.hint')
-              : t('saveBar.saved.hint')
-        }
+        hint={t(saveText.hint)}
       >
         {!isLoading && (isDirty ? <Save size={15} /> : <Check size={15} />)}
-        {isLoading ? t('common.saving') : isDirty ? t('saveBar.saveAll') : t('common.saved')}
+        {t(saveText.label)}
         {isDirty && !isLoading && <Kbd>{shortcut}</Kbd>}
         {isDirty && !isLoading && (
           <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-background bg-warning" />

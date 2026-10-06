@@ -14,6 +14,26 @@ import { useAccountStore, useBotRuntimeStore, useLogsStore } from '@/store';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { useT } from '@/i18n';
 
+type BotState = "connecting" | "running" | "processNoMt5" | "stopped";
+
+const STATUS_STYLE: Record<BotState, { tone: "warning" | "success" | "neutral"; box: string }> = {
+  connecting: { tone: "warning", box: "border-warning/30 bg-warning/[0.06] text-warning" },
+  running: { tone: "success", box: "border-success/30 bg-success/[0.06] text-success" },
+  processNoMt5: { tone: "warning", box: "border-warning/30 bg-warning/[0.06] text-warning" },
+  stopped: { tone: "neutral", box: "border-border bg-muted/60 text-muted-foreground" },
+};
+
+function botState({ isConnecting, mt5Connected, processWithoutMt5 }: {
+  isConnecting: boolean;
+  mt5Connected: boolean;
+  processWithoutMt5: boolean;
+}): BotState {
+  if (isConnecting) return "connecting";
+  if (mt5Connected) return "running";
+  if (processWithoutMt5) return "processNoMt5";
+  return "stopped";
+}
+
 export default function BotControls() {
   const t = useT();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
@@ -107,13 +127,10 @@ export default function BotControls() {
   // başlatma hem durdurma sunulmalı, yoksa arayüzden çıkış yolu yoktu.
   const processWithoutMt5 = !liveData.mt5_connected && Boolean(liveData.bot_running);
 
-  const status = isConnecting
-    ? { label: t("bot.status.connecting"), hint: t("bot.status.connecting.hint"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
-    : liveData.mt5_connected
-      ? { label: t("bot.status.running"), hint: t("bot.status.running.hint"), tone: "success" as const, box: "border-success/30 bg-success/[0.06] text-success" }
-      : processWithoutMt5
-        ? { label: t("bot.status.processNoMt5"), hint: t("bot.status.processNoMt5.hint"), tone: "warning" as const, box: "border-warning/30 bg-warning/[0.06] text-warning" }
-        : { label: t("bot.status.stopped"), hint: t("bot.status.stopped.hint"), tone: "neutral" as const, box: "border-border bg-muted/60 text-muted-foreground" };
+  const state = botState({ isConnecting, mt5Connected: Boolean(liveData.mt5_connected), processWithoutMt5 });
+  const status = { label: t(`bot.status.${state}`), hint: t(`bot.status.${state}.hint`), ...STATUS_STYLE[state] };
+  const startLabel = processWithoutMt5 ? t("bot.restart") : t("bot.start");
+  const startHint = processWithoutMt5 ? t("bot.restartHint") : t("bot.start.hint");
 
   const busy = loading || isConnecting;
   const hasAlerts =
@@ -143,10 +160,10 @@ export default function BotControls() {
             onClick={handleStartBot}
             disabled={isConnecting}
             loading={busy}
-            hint={busy ? t("bot.connecting.hint") : processWithoutMt5 ? t("bot.restartHint") : t("bot.start.hint")}
+            hint={busy ? t("bot.connecting.hint") : startHint}
           >
             {!busy && (processWithoutMt5 ? <RotateCcw size={15} /> : <Play size={15} fill="currentColor" />)}
-            {busy ? t("bot.connecting") : processWithoutMt5 ? t("bot.restart") : t("bot.start")}
+            {busy ? t("bot.connecting") : startLabel}
           </Button>
         )}
         {(liveData.mt5_connected || processWithoutMt5) && (

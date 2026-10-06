@@ -185,7 +185,10 @@ export function wilderRsi(closes: number[], period = 14): (number | null)[] {
   }
   gain /= period;
   loss /= period;
-  const value = () => (loss === 0 ? (gain === 0 ? 50 : 100) : 100 - 100 / (1 + gain / loss));
+  const value = () => {
+    if (loss === 0) return gain === 0 ? 50 : 100;
+    return 100 - 100 / (1 + gain / loss);
+  };
   out[period] = value();
   for (let i = period + 1; i < closes.length; i++) {
     const d = closes[i] - closes[i - 1];

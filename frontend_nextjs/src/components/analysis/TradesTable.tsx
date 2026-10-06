@@ -36,6 +36,12 @@ interface TradesTableProps {
   onFocus: (trade: Trade) => void;
 }
 
+function netClass(net: number) {
+  if (net > 0) return 'text-success';
+  if (net < 0) return 'text-danger';
+  return 'text-muted-foreground';
+}
+
 /**
  * Trade-Archiv der Zone (ANA-08): Ausstiege im Zeitraum, neueste zuerst. Teilschließung, Umkehr und
  * Close By sind gekennzeichnet; Trades aus der Zeit vor dem Zonen-Register heißen „Zone unbekannt“.
@@ -93,11 +99,12 @@ export function TradesTable({
           </div>
         )}
 
-        {!loading && !error && rows.length === 0 ? (
+        {!loading && !error && rows.length === 0 && (
           <p className="text-sm text-muted-foreground" data-testid="trades-empty">
             {t('analysis.trades.empty')}
           </p>
-        ) : rows.length > 0 ? (
+        )}
+        {rows.length > 0 && (
           <div className="max-h-[420px] overflow-auto rounded-lg border border-border">
             <table className="w-full min-w-[46rem] text-xs">
               <thead className="sticky top-0 z-10 bg-card">
@@ -160,7 +167,7 @@ export function TradesTable({
                       <td
                         className={cn(
                           'whitespace-nowrap px-3 py-1.5 text-right font-semibold',
-                          tr.net > 0 ? 'text-success' : tr.net < 0 ? 'text-danger' : 'text-muted-foreground',
+                          netClass(tr.net),
                         )}
                         data-testid="trade-net"
                       >
@@ -225,7 +232,7 @@ export function TradesTable({
               </tbody>
             </table>
           </div>
-        ) : null}
+        )}
 
         <p className="text-xs text-muted-foreground" data-testid="trades-summary">
           {t('analysis.trades.summary', {

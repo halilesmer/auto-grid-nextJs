@@ -109,7 +109,10 @@ const VISIBLE_BARS = 300;
 const LINE_STYLE = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted } as const;
 
 function toneColor(c: ChartColors, tone: LineTone) {
-  return tone === 'up' ? c.up : tone === 'down' ? c.down : tone === 'muted' ? c.muted : c.primary;
+  if (tone === 'up') return c.up;
+  if (tone === 'down') return c.down;
+  if (tone === 'muted') return c.muted;
+  return c.primary;
 }
 
 /**
@@ -442,15 +445,13 @@ export function ChartCore({
         className="pointer-events-none absolute left-2 top-1 z-10 flex flex-wrap gap-x-3 font-mono text-[11px] tabular-nums text-muted-foreground"
         data-testid="chart-legend"
       >
-        {hover && !hover.bar ? (
-          <span className="text-warning">{t('analysis.chart.noData')}</span>
-        ) : shown ? (
+        {hover && !hover.bar && <span className="text-warning">{t('analysis.chart.noData')}</span>}
+        {shown &&
           (['open', 'high', 'low', 'close'] as const).map((k) => (
             <span key={k}>
               {t(`analysis.chart.ohlc.${k}`)} <span className="text-foreground">{fmt.price(shown[k], digits ?? undefined)}</span>
             </span>
-          ))
-        ) : null}
+          ))}
         {hoverNotes.map((n, i) => (
           <span key={i} className="basis-full text-foreground" data-testid="chart-legend-note">
             {n}

@@ -21,6 +21,43 @@ interface UpdateModalProps {
   onApplyUpdate: () => void;
 }
 
+function UpdateStatus({ result, onApplyUpdate }: { result: UpdateResult; onApplyUpdate: () => void }) {
+  const t = useT();
+  if (result.loading) {
+    return (
+      <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+        {t('update.checking')}
+      </div>
+    );
+  }
+  if (result.hasUpdate) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm font-medium text-warning">{t('update.available')}</p>
+        <div className="flex items-center justify-center gap-3 rounded-lg border border-border bg-muted/60 p-4 font-mono text-sm">
+          <span className="text-muted-foreground">{result.localVer}</span>
+          <ArrowRight size={14} className="text-muted-foreground" />
+          <span className="font-semibold text-success">{result.remoteVer}</span>
+        </div>
+        <Button variant="success" wrapperClassName="w-full" onClick={onApplyUpdate} hint={t('update.apply.hint')}>
+          <DownloadCloud size={16} />
+          {t('update.apply')}
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-success/25 bg-success/[0.06] p-4">
+      <CheckCircle2 size={18} className="text-success" />
+      <div className="text-sm">
+        <p className="font-medium text-foreground">{t('update.upToDate')}</p>
+        <p className="font-mono text-xs text-muted-foreground">{result.localVer}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function UpdateModal({
   isOpen,
   onClose,
@@ -39,33 +76,7 @@ export default function UpdateModal({
         </div>
       }
     >
-      {updateResult?.loading ? (
-        <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          {t('update.checking')}
-        </div>
-      ) : updateResult?.hasUpdate ? (
-        <div className="space-y-4">
-          <p className="text-sm font-medium text-warning">{t('update.available')}</p>
-          <div className="flex items-center justify-center gap-3 rounded-lg border border-border bg-muted/60 p-4 font-mono text-sm">
-            <span className="text-muted-foreground">{updateResult.localVer}</span>
-            <ArrowRight size={14} className="text-muted-foreground" />
-            <span className="font-semibold text-success">{updateResult.remoteVer}</span>
-          </div>
-          <Button variant="success" wrapperClassName="w-full" onClick={onApplyUpdate} hint={t('update.apply.hint')}>
-            <DownloadCloud size={16} />
-            {t('update.apply')}
-          </Button>
-        </div>
-      ) : updateResult ? (
-        <div className="flex items-center gap-3 rounded-lg border border-success/25 bg-success/[0.06] p-4">
-          <CheckCircle2 size={18} className="text-success" />
-          <div className="text-sm">
-            <p className="font-medium text-foreground">{t('update.upToDate')}</p>
-            <p className="font-mono text-xs text-muted-foreground">{updateResult.localVer}</p>
-          </div>
-        </div>
-      ) : null}
+      {updateResult && <UpdateStatus result={updateResult} onApplyUpdate={onApplyUpdate} />}
       {/* Update/Neustart auch ohne erreichbaren Worker: per SSH über die VPS-Seite (nur lokal) */}
       <Tooltip content={t('update.vpsLink.hint')} className="mt-4 flex w-full">
         <Link

@@ -41,6 +41,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
   // Deaktivierter Button erklärt warum: läuft gerade eine andere Aktion, wartet er darauf
   const actionHint = (action: ButtonAction) =>
     busy !== null && busy !== action ? t('vps.busy.hint') : t(ACTION_HINT_KEYS[action]);
+  const checkHint = busy !== null && busy !== 'check-update' ? t('vps.busy.hint') : t('vps.ctrl.check.hint');
 
   return (
     <>
@@ -61,13 +62,7 @@ export default function VpsActions({ busy, updateCheck, onCheckUpdate, onAction,
                 onClick={onCheckUpdate}
                 loading={busy === 'check-update'}
                 disabled={!workerRunning || busy !== null}
-                hint={
-                  !workerRunning
-                    ? t('vps.ctrl.check.noWorker.hint')
-                    : busy !== null && busy !== 'check-update'
-                      ? t('vps.busy.hint')
-                      : t('vps.ctrl.check.hint')
-                }
+                hint={workerRunning ? checkHint : t('vps.ctrl.check.noWorker.hint')}
                 data-testid="vps-action-check-update"
               >
                 <RefreshCw size={14} />

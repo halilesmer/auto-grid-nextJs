@@ -247,11 +247,17 @@ export function Combobox<T>({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setHighlightedIndex((p) => (filtered.length === 0 ? -1 : p < filtered.length - 1 ? p + 1 : 0));
+        setHighlightedIndex((p) => {
+          if (filtered.length === 0) return -1;
+          return p < filtered.length - 1 ? p + 1 : 0;
+        });
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setHighlightedIndex((p) => (filtered.length === 0 ? -1 : p > 0 ? p - 1 : filtered.length - 1));
+        setHighlightedIndex((p) => {
+          if (filtered.length === 0) return -1;
+          return p > 0 ? p - 1 : filtered.length - 1;
+        });
         break;
       case 'Enter':
         e.preventDefault();

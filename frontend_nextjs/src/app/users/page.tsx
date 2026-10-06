@@ -91,19 +91,19 @@ function UsersView() {
 
       {error && <Alert tone="danger">{error}</Alert>}
 
-      {!loaded && loading ? (
+      {!loaded && loading && (
         <Card className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           {t('users.loading')}
         </Card>
-      ) : loaded && users.length === 0 ? (
+      )}
+      {loaded && users.length === 0 && (
         <Card className="flex items-center gap-2 p-5 text-sm text-muted-foreground" data-testid="users-empty">
           <UsersRound size={16} className="shrink-0" />
           {t('users.empty')}
         </Card>
-      ) : (
-        loaded && <UsersTable users={users} onRotate={setRotating} onDelete={setDeleting} />
       )}
+      {loaded && users.length > 0 && <UsersTable users={users} onRotate={setRotating} onDelete={setDeleting} />}
 
       <CreateUserDialog
         key={createKey}

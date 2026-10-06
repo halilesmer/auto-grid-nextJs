@@ -6,7 +6,7 @@ import { AnimateDigits } from '@/components/ui/animate-digits';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useBotRuntimeStore } from '@/store';
-import { useFormat, useT } from '@/i18n';
+import { useFormat, useT, type MessageKey } from '@/i18n';
 
 interface MetricProps {
   label: string;
@@ -51,6 +51,12 @@ function Metric({ label, hint, icon, value, valueClassName, footer, accent, test
   );
 }
 
+function engineFooterKey({ isConnecting, mt5Connected }: { isConnecting: boolean; mt5Connected: boolean }): MessageKey {
+  if (isConnecting) return 'metrics.connecting';
+  if (mt5Connected) return 'metrics.live';
+  return 'metrics.engineStopped';
+}
+
 export default function MetricsStrip() {
   const t = useT();
   const { money: formatMoney } = useFormat();
@@ -70,13 +76,7 @@ export default function MetricsStrip() {
         value={formatMoney(liveData.profit, true)}
         valueClassName={cn(profitPositive && 'text-success', profitNegative && 'text-danger')}
         accent={profitNegative ? 'bg-danger/20' : 'bg-success/20'}
-        footer={
-          isConnecting
-            ? t('metrics.connecting')
-            : liveData.mt5_connected
-              ? t('metrics.live')
-              : t('metrics.engineStopped')
-        }
+        footer={t(engineFooterKey({ isConnecting, mt5Connected: Boolean(liveData.mt5_connected) }))}
       />
       <Metric
         label={t('metrics.positions')}

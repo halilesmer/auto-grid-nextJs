@@ -67,6 +67,16 @@ function selfHealState(status: VpsStatus, t: TFn): string {
   return wd.last_ok ? t('vps.tile.selfHeal.ok') : t('vps.tile.selfHeal.pending');
 }
 
+type WorkerState = 'running' | 'noAnswer' | 'stopped';
+
+const WORKER_TONE: Record<WorkerState, Tone> = { running: 'success', noAnswer: 'warning', stopped: 'danger' };
+
+function workerState(worker: VpsStatus['worker']): WorkerState {
+  if (worker.reachable) return 'running';
+  if (worker.listening) return 'noAnswer';
+  return 'stopped';
+}
+
 export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus | null; sshError: string | null }) {
   const t = useT();
   const fmt = useFormat();
@@ -83,15 +93,13 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
   }
 
   const worker = status.worker;
-  const workerTone: Tone = worker.reachable ? 'success' : worker.listening ? 'warning' : 'danger';
-  const workerValue = worker.reachable
-    ? t('vps.tile.worker.running')
-    : worker.listening
-      ? t('vps.tile.worker.noAnswer')
-      : t('vps.tile.worker.stopped');
+  const workerNow = workerState(worker);
+  const workerTone = WORKER_TONE[workerNow];
+  const workerValue = t(`vps.tile.worker.${workerNow}`);
   // Tunnel-Prozess läuft, die öffentliche URL antwortet aber nicht (laut Watchdog, Worker lokal ok) -> Warnung
   const tunnelFailing = !!status.tunnel_watchdog?.failures && status.tunnel_watchdog.last_result === 'tunnel-down';
-  const ngrokTone: Tone = !status.ngrok.running ? 'danger' : tunnelFailing ? 'warning' : 'success';
+  const tunnelTone: Tone = tunnelFailing ? 'warning' : 'success';
+  const ngrokTone: Tone = status.ngrok.running ? tunnelTone : 'danger';
   const autoUpdate =
     status.auto_update_minutes === '0'
       ? t('vps.tile.autoUpdate.off')
