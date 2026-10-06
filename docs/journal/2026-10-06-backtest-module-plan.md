@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [110, 111, 114]
+pr: [110, 111, 114, 115]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -27,7 +27,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B0 | This plan, catalog entries, architecture map | – | done (PR #110) |
 | B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #114) |
-| B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done |
+| B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
 | B3 | Engine port, fractal (ATR, SAR, setups) | BKT-03 | open |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
@@ -285,7 +285,7 @@ Decisions:
 - A test checks rule 1: no file in `src/lib/backtest/` uses `mergeAndSaveSettings`, `/settings` or a store hook.
 - Not ported: `rekey_zone_state` (the backtest does not load settings again during a run), `grid_remote`, `grid_metrics`, `grid_safety`. A fractal zone gives the error `engine.fractalNotPorted` until B3.
 
-## Result B2.1
+## Result B2.1 (PR #115)
 
 Before B2.1, all 18 scenarios used 1 zone, 1 symbol with `trade_stops_level` 0 and without tick values, the exit target "Farketmez (Hepsi)" and `max_positions` 10, 3 or 1. A backtest with real symbols (B4) reaches more paths. B2.1 adds 11 scenarios with golden files (now 29; 24 of them for BKT-02). The 18 old scenario and golden files did not change (byte-equal).
 
@@ -337,7 +337,7 @@ Decisions:
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
 - [x] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
 - [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #114).
-- [x] B2 follow-up from the review of PR #114 = B2.1: 11 new scenarios, and the TS port agrees with all 24 (see "Result B2.1"). Two symbols and the top-up after a partial fill stay V2 (see "Not simulated").
+- [x] B2 follow-up from the review of PR #114 = B2.1 (PR #115): 11 new scenarios, and the TS port agrees with all 24 (see "Result B2.1"). Two symbols and the top-up after a partial fill stay V2 (see "Not simulated").
 - [ ] Bot defect found in B2.1: with a stops level larger than the TP or SL distance, the bot cancels and sends all orders in each loop (`2026-10-06-stops-level-order-flood.md`). A fix changes `grid_stops_level.json` and the TS port.
 - [ ] B4: `simBroker.bars()` builds all candles again from all ticks at each call. Keep the candles incrementally for runs with up to 1 million candles.
 - [ ] B4 (from B2.1): `simBroker.symbolInfoOf` uses the FakeMT5 default for a missing symbol field. In a real run, a missing field must block the run or show a warning.
