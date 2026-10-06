@@ -38,6 +38,9 @@ function scaledInteger(x: number, ndigits: number): bigint {
 
 /** Wie Python f"{x:.{ndigits}f}" (ndigits ≥ 0) */
 export function pyFormatFixed(x: number, ndigits: number): string {
+  if (!Number.isInteger(ndigits) || ndigits < 0 || ndigits > 100) {
+    throw new RangeError(`pyFormatFixed: ndigits must be an integer 0…100, got ${ndigits}`);
+  }
   if (!Number.isFinite(x)) return String(x);
   const digits = x === 0 ? '0' : scaledInteger(x, ndigits).toString();
   const padded = digits.padStart(ndigits + 1, '0');

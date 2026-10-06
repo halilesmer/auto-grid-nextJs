@@ -4,7 +4,7 @@
  * Fraktal-Zonen (fractal_entry.py) kommen mit B3; bis dahin meldet der Durchlauf einen Fehler.
  */
 import { levelSets } from '@/lib/analysis/levels';
-import { extractZoneConfig } from './config';
+import { extractZoneConfig, InvalidZoneConfigError } from './config';
 import { normalizePrice, type SymbolInfos } from './helpers';
 import { openInstantPositions } from './instantEntry';
 import { cancelOrder, getExistingLevelsByDirection } from './orders';
@@ -83,7 +83,8 @@ export function handleSlidingGrid(
     placeMissingOrders(broker, config, levels, existing, zoneIdx, infos, state);
     return true;
   } catch (e) {
-    state.log('ERROR', 'engine.zoneError', { zone: zoneIdx + 1, error: e instanceof Error ? e.message : String(e) });
+    if (e instanceof InvalidZoneConfigError) state.log('ERROR', e.code, e.params);
+    else state.log('ERROR', 'engine.zoneError', { zone: zoneIdx + 1, error: e instanceof Error ? e.name : 'unknown' });
     return false;
   }
 }

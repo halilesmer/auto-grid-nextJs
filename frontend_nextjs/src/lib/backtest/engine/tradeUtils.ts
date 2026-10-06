@@ -91,6 +91,17 @@ export function enforceStopsLevel(broker: Broker, request: TradeRequest): TradeR
 
 /** Zentraler Versand: Lot normieren, Stops prüfen, order_check, order_send, stille Ablehnung erkennen */
 export function safeSendOrder(broker: Broker, request: TradeRequest, state: EngineState): boolean {
+  try {
+    return sendOrder(broker, request, state);
+  } catch (e) {
+    // Wie Python (except Exception): zählt als abgelehnte Order
+    state.lastErrorMessage = `exception: ${e instanceof Error ? e.name : 'unknown'}`;
+    state.log('ERROR', 'order.exception', { error: e instanceof Error ? e.name : 'unknown' });
+    return false;
+  }
+}
+
+function sendOrder(broker: Broker, request: TradeRequest, state: EngineState): boolean {
   if (request.volume !== undefined && request.symbol !== undefined) {
     request.volume = brokerNormalizeVolume(broker, request.symbol, request.volume);
   }

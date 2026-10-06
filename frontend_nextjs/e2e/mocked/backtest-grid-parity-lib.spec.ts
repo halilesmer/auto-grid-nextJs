@@ -44,6 +44,16 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     expect(runScenario(scenario)).toEqual(runScenario(scenario));
   });
 
+  test('Der Backtest speichert nie eine Zone (Regel 1 des Plans)', { tag: '@BKT-02' }, () => {
+    const root = path.resolve(__dirname, '../../src/lib/backtest');
+    const files = fs.readdirSync(root, { recursive: true, encoding: 'utf-8' }).filter((f) => /\.tsx?$/.test(f));
+    expect(files.length).toBeGreaterThan(10);
+    for (const file of files) {
+      const code = fs.readFileSync(path.join(root, file), 'utf-8');
+      expect(code, file).not.toMatch(/mergeAndSaveSettings|\/settings\b|@\/store\/use/);
+    }
+  });
+
   test('pyRound gleicht Pythons round() in allen Grenzfällen', { tag: '@BKT-02' }, () => {
     const cases = JSON.parse(fs.readFileSync(path.join(PARITY_DIR, 'golden', 'pyround.json'), 'utf-8')) as [number, number, number][];
     expect(cases.length).toBeGreaterThan(20);

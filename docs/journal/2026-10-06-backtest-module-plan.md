@@ -277,6 +277,9 @@ Decisions:
 - The engine writes log codes with values (`grid.maxPositions`, `zone.exited` …), not the Turkish texts of the bot. The run log (B4) translates them with i18n. The logs are not part of the parity.
 - There is no Playwright project `logic`: the `webServer` starts for each project. The logic tests use the pattern `e2e/mocked/*-lib.spec.ts`, as `backtest-costs-lib.spec.ts`. Thus `run.sh` and CI need no change. BKT-02/03/04 in the catalog say this now.
 - In parity mode a position has no `time_msc` (FakeMT5). The anchor of `step_by_loss` / `instant_entry` is then the position with the highest ticket. The ticket counter starts at 1000 and counts as in FakeMT5.
+- A zone key with the value `undefined` counts as missing (as in JSON for Python). `pyFloat` throws for `null`, `undefined` and text that is not a number, as Python `float()`.
+- Invalid zone settings give a log code with values (`config.minNotBelowMax`, `config.noSymbol`, `config.noTickValue`), not an English text.
+- A test checks rule 1: no file in `src/lib/backtest/` uses `mergeAndSaveSettings`, `/settings` or a store hook.
 - Not ported: `rekey_zone_state` (the backtest does not load settings again during a run), `grid_remote`, `grid_metrics`, `grid_safety`. A fractal zone gives the error `engine.fractalNotPorted` until B3.
 
 ## Open points
@@ -284,6 +287,8 @@ Decisions:
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
 - [x] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
 - [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #114).
+- [ ] B2 follow-up (from the review of PR #114): the 13 scenarios do not test these paths. The code agrees with Python when read, but no golden file checks it: `trade_stops_level` > 0 (`enforceStopsLevel`, TP/SL on the wrong side), the exit targets "Sadece BUY İşlemleri" / "Sadece SELL İşlemleri" (the UI default is BUY), `clear_exit_side` not equal to the exit, `step_by_loss` with tick values, two symbols, `max_positions = 0`, the top-up after a partial fill (the simBroker cannot fill partly). Add scenarios in `make_scenarios.py`, write the golden files again, and change the count in the BKT-02 spec.
+- [ ] B4: `simBroker.bars()` builds all candles again from all ticks at each call. Keep the candles incrementally for runs with up to 1 million candles.
 - [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
 - [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.

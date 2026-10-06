@@ -10,7 +10,18 @@ import { snapVolume } from './tradeUtils';
 import type { ZoneDict } from './types';
 import { zoneMagic } from './zoneMagic';
 
-export class InvalidZoneConfigError extends Error {}
+/** Ungültige Zone; `code` ist der Log-Code (der Run-Log übersetzt ihn), nicht der Text */
+export class InvalidZoneConfigError extends Error {
+  constructor(
+    readonly code: string,
+    readonly params: Record<string, unknown>,
+  ) {
+    super(code);
+  }
+}
+
+/** Obergrenze des Speichers für gemeldete Lot-Anhebungen (wie in Python) */
+const LOT_RAISED_LOG_CAP = 200;
 
 export interface ZoneConfig {
   orderType: string;
@@ -74,12 +85,24 @@ export function moneyToPriceDistance(amount: number, lot: number, symbol: string
 
 function lotOf(raw: unknown, symbol: string, infos: SymbolInfos, zoneIdx: number, side: string, state: EngineState): number {
   // Ungültiger Wert oder NaN → 0 (wird unten auf volume_min gehoben)
-  let lot = pyFloat(raw);
+  let lot: number;
+  try {
+    lot = pyFloat(raw);
+  } catch {
+    lot = 0;
+  }
   if (Number.isNaN(lot)) lot = 0;
   const capped = Math.min(MAX_LOT, lot);
   const info = infos[symbol];
   const result = info ? snapVolume(capped, info) : Math.max(0.01, capped);
-  if (result > lot + 1e-9) state.log('WARN', 'config.lotRaised', { zone: zoneIdx + 1, symbol, side, lot, used: result });
+  if (result > lot + 1e-9) {
+    const key = `${zoneIdx}|${symbol}|${side}|${lot}|${result}`;
+    if (!state.lotRaisedLogged.has(key)) {
+      if (state.lotRaisedLogged.size > LOT_RAISED_LOG_CAP) state.lotRaisedLogged.clear();
+      state.lotRaisedLogged.add(key);
+      state.log('WARN', 'config.lotRaised', { zone: zoneIdx + 1, symbol, side, lot, used: result });
+    }
+  }
   return result;
 }
 
@@ -88,13 +111,13 @@ export function extractZoneConfig(zone: ZoneDict, zoneIdx: number, infos: Symbol
 
   const minPrice = pyFloat(zget(zone, 'min_price', 0));
   const maxPrice = pyFloat(zget(zone, 'max_price', 0));
-  if (minPrice >= maxPrice) throw new InvalidZoneConfigError(`Zone ${zoneIdx + 1}: min_price must be < max_price`);
+  if (minPrice >= maxPrice) throw new InvalidZoneConfigError('config.minNotBelowMax', { zone: zoneIdx + 1, minPrice, maxPrice });
 
   let gridStep = Math.max(0.00001, pyFloat(zget(zone, 'grid_step', 0.05)));
   let tp = pyFloat(zget(zone, 'take_profit', 0.05));
   let sl = pyFloat(zget(zone, 'stop_loss', 0.0));
   const symbol = String(zget(zone, 'symbol', '')).toUpperCase().trim();
-  if (!symbol) throw new InvalidZoneConfigError(`Zone ${zoneIdx + 1}: symbol is required`);
+  if (!symbol) throw new InvalidZoneConfigError('config.noSymbol', { zone: zoneIdx + 1 });
   const lot = lotOf(zget(zone, 'lot_size', 0.01), symbol, infos, zoneIdx, 'BUY', state);
 
   const sync = Boolean(zget(zone, 'sync_buy_sell', true));
@@ -126,7 +149,7 @@ export function extractZoneConfig(zone: ZoneDict, zoneIdx: number, infos: Symbol
   if (stepByLoss) {
     const conv = (amount: number, l: number) => {
       const d = moneyToPriceDistance(amount, l, symbol, infos);
-      if (d === null) throw new InvalidZoneConfigError(`Zone ${zoneIdx + 1}: no tick value for ${symbol}`);
+      if (d === null) throw new InvalidZoneConfigError('config.noTickValue', { zone: zoneIdx + 1, symbol });
       return d;
     };
     // Pullback / TP / SL dürfen 0 sein (= keiner); 0 nicht auf 1 point heben

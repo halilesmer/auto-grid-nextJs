@@ -21,22 +21,24 @@ export interface PlacedOrder {
 }
 
 export class EngineState {
-  /** Bölge → PAUSE/START/AUTO_CLEAR/CLEAR (active_zones_state) */
+  /** Zone → PAUSE/START/AUTO_CLEAR/CLEAR (active_zones_state) */
   readonly activeZonesState = new Map<number, string>();
-  /** Bölge → abgelehnte Orders in Folge (consecutive_errors) */
+  /** Zone → abgelehnte Orders in Folge (consecutive_errors) */
   readonly consecutiveErrors = new Map<number, number>();
   /** Positions-ID → Volumen der eröffnenden Order (opening_volumes) */
   readonly openingVolumes = new Map<number, number>();
-  /** Bölge → Positionszahl bei der letzten Warnung „Höchstzahl erreicht“ */
+  /** Zone → Positionszahl bei der letzten Warnung „Höchstzahl erreicht“ */
   readonly limitWarnedZones = new Map<number, number>();
   /** Ticket → "tp|sl", für das die Warnung „TP/SL auf der falschen Seite“ schon kam */
   readonly tpslBlockedLogged = new Map<number, string>();
-  /** "bölge|BUY" → Zeit der letzten Sofort-Einstiegs-Order (30-s-Bremse) */
+  /** "zone|BUY" → Zeit der letzten Sofort-Einstiegs-Order (30-s-Bremse) */
   readonly instantEntrySent = new Map<string, number>();
   /** Vom Bot gesetzte Pending Orders: Ticket → (Magic, Zeit, Preis) */
   readonly placedOrders = new Map<number, PlacedOrder>();
-  /** Bölge → Zeiten von außen gelöschter Orders (gleitendes Fenster) */
+  /** Zone → Zeiten von außen gelöschter Orders (gleitendes Fenster) */
   readonly vanishedTimes = new Map<number, number[]>();
+  /** Schon gemeldete Lot-Anhebungen (config._lot_raised_logged): nur einmal loggen */
+  readonly lotRaisedLogged = new Set<string>();
   /** Vom Bot selbst gelöschte Fraktal-Orders */
   readonly fractalOwnCancels = new Set<number>();
   /** Inhalt von ui_state_<konto>.json; null = Datei gibt es nicht */
@@ -57,7 +59,7 @@ export class EngineState {
     this.sink({ level, code, params });
   }
 
-  /** Schreibt einen Bölge-Zustand in die „Datei“ ui_state (wie bg_states[str(idx)] = …) */
+  /** Schreibt einen Zonen-Zustand in die „Datei“ ui_state (wie bg_states[str(idx)] = …) */
   writeUiState(zoneIdx: number, value: string): void {
     this.uiStates = { ...(this.uiStates ?? {}), [String(zoneIdx)]: value };
   }

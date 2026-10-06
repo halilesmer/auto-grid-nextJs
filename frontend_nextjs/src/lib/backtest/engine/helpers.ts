@@ -10,14 +10,24 @@ import { TF_SECONDS } from './types';
 
 export type SymbolInfos = Record<string, SymbolInfo | undefined>;
 
-/** zone.get(key, fallback): Standardwert nur, wenn der Schlüssel fehlt */
+/**
+ * zone.get(key, fallback): Standardwert nur, wenn der Schlüssel fehlt. `undefined` zählt als fehlend:
+ * Python bekommt die Zone als JSON, dort gibt es keinen Schlüssel mit undefined.
+ */
 export function zget(zone: ZoneDict, key: string, fallback: unknown): unknown {
-  return key in zone ? zone[key] : fallback;
+  const value = zone[key];
+  return value === undefined ? fallback : value;
 }
 
-/** Python float(x) */
+/** Python float(x): None, leerer oder ungültiger Text werfen (TypeError/ValueError in Python) */
 export function pyFloat(value: unknown): number {
-  return typeof value === 'number' ? value : Number(value);
+  if (typeof value === 'number') return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
+    if (!Number.isNaN(n)) return n;
+  }
+  throw new TypeError(`float(): invalid value ${String(value)}`);
 }
 
 /** Python int(x): Richtung 0 abschneiden */

@@ -138,7 +138,7 @@ export function modifyPositionTpSl(
   );
 }
 
-/** Bölge auf PAUSE: keine neuen Orders, die Zombie-Bereinigung löscht die Pending Orders */
+/** Zone auf PAUSE: keine neuen Orders, die Zombie-Bereinigung löscht die Pending Orders */
 export function pauseZoneForSafety(zoneIdx: number, state: EngineState): void {
   state.writeUiState(zoneIdx, 'PAUSE');
   state.activeZonesState.set(zoneIdx, 'PAUSE');

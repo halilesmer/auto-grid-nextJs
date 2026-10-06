@@ -11,7 +11,7 @@ import { zoneIndexByMagic } from './zoneMagic';
 export const VANISH_WINDOW_SEC = 60.0;
 export const VANISH_LIMIT = 10;
 
-/** Rückgabe: Bölge → Zahl der in diesem Durchlauf von außen gelöschten Orders */
+/** Rückgabe: Zone → Zahl der in diesem Durchlauf von außen gelöschten Orders */
 export function checkVanishedOrders(
   broker: Broker,
   zones: readonly ZoneDict[],
