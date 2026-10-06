@@ -1468,7 +1468,8 @@ kategorien:
         tiers: [unit, api, e2e]
         pruefung:
           - pytest für die Kostenfelder der Symbolliste ausführen.
-          - Playwright-Projekt logic mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
+          - Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen.
+          - Playwright-Projekt logic (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
         erwartet: Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.
 
       - id: BKT-05

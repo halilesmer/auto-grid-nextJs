@@ -3,16 +3,19 @@
  * BKT-04 / docs/analyse-regeln.md §6. Der Backtest bucht den Wert je zur Hälfte bei Ein- und Ausstieg.
  *
  * Regeln:
- * - Nur Kauf/Verkauf-Deals (DEAL_TYPE_BUY/SELL) des Symbols; Einzahlungen usw. zählen nicht.
+ * - Nur Kauf/Verkauf-Deals (DEAL_TYPE_BUY/SELL) des Symbols (Groß-/Kleinschreibung egal) mit Positionsnummer;
+ *   Einzahlungen usw. zählen nicht.
  * - Nur ganz geschlossene Positionen: Einstiegs- und Ausstiegsvolumen sind gleich. Eine offene oder
  *   teilweise geschlossene Position hätte die Ausstiegskommission noch nicht und würde den Wert verfälschen.
  * - Umkehr-Deals (DEAL_ENTRY_INOUT, nur Netting) machen die Position ungültig: der Backtest kennt nur Hedging.
+ * - Close-By (DEAL_ENTRY_OUT_BY) ebenso: manche Broker buchen die Kommission dann nur auf einer der beiden
+ *   Positionen, der Wert je Position wäre falsch. Der Bot schließt nie per Close-By.
  * - Kommission je Lot = −Σ commission ÷ Σ geschlossenes Volumen. Ein Broker, der nur beim Einstieg
  *   (oder nur beim Ausstieg) berechnet, ergibt so trotzdem den Wert für hin und zurück.
  * - `fee` (Gebühr je Deal) ist keine Kommission und zählt nicht mit.
  * Ergebnis ist positiv für Kosten (MT5 bucht die Kommission negativ). Ohne passende Positionen: null.
  */
-import { DEAL_BUY, DEAL_SELL, ENTRY_IN, ENTRY_INOUT, ENTRY_OUT, ENTRY_OUT_BY, type Deal } from '../analysis/tradePairing';
+import { DEAL_BUY, DEAL_SELL, ENTRY_IN, ENTRY_OUT, type Deal } from '../analysis/tradePairing';
 
 const EPS = 1e-9;
 
@@ -33,9 +36,10 @@ interface PositionSum {
 }
 
 export function proposeCommission(deals: readonly Deal[], symbol: string): CommissionProposal | null {
+  const wanted = symbol.toUpperCase();
   const byPosition = new Map<number, PositionSum>();
   for (const d of deals) {
-    if (d.symbol !== symbol || (d.type !== DEAL_BUY && d.type !== DEAL_SELL) || d.position_id == null) continue;
+    if (d.symbol?.toUpperCase() !== wanted || (d.type !== DEAL_BUY && d.type !== DEAL_SELL) || !d.position_id) continue;
     let p = byPosition.get(d.position_id);
     if (!p) {
       p = { inVolume: 0, outVolume: 0, commission: 0, invalid: false };
@@ -43,8 +47,8 @@ export function proposeCommission(deals: readonly Deal[], symbol: string): Commi
     }
     const volume = d.volume ?? 0;
     if (d.entry === ENTRY_IN) p.inVolume += volume;
-    else if (d.entry === ENTRY_OUT || d.entry === ENTRY_OUT_BY) p.outVolume += volume;
-    else if (d.entry === ENTRY_INOUT) p.invalid = true;
+    else if (d.entry === ENTRY_OUT) p.outVolume += volume;
+    else p.invalid = true; // ENTRY_INOUT, ENTRY_OUT_BY
     p.commission += d.commission ?? 0;
   }
 

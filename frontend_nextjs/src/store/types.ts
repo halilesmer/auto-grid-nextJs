@@ -21,7 +21,8 @@ export interface SymbolDetail {
   volume_step: number;
   trade_mode: number;
   currency_base: string;
-  currency_profit: string;
+  /** Gewinnwährung; null = MT5 liefert sie nicht */
+  currency_profit: string | null;
   currency_margin: string;
   description?: string;
   /** Für „Abstand nach Verlust“: $ je Tick bei 1 Lot, Tick-Größe, Kontraktgröße (ältere Worker: fehlt) */
@@ -29,10 +30,11 @@ export interface SymbolDetail {
   trade_tick_size?: number;
   trade_contract_size?: number;
   // Kostenwerte für den Backtest (BKT-04, docs/analyse-regeln.md §6). null = MT5 liefert den Wert
-  // nicht; fehlt = älterer Worker oder alter Symbol-Cache (max. 1 h).
+  // nicht; fehlt = älterer Worker oder ein Cache-Eintrag von vorher (der Worker liefert ihn einmal und
+  // erneuert ihn im Hintergrund). Fehlt ein Wert, rechnet der Backtest nicht mit einem Ersatzwert.
   /** MT5 SYMBOL_CALC_MODE_* (0 Forex, 2 CFD, 3 CFD-Index, 4 CFD mit Hebel, 5 Forex ohne Hebel) */
   trade_calc_mode?: number | null;
-  /** Wert eines Ticks bei 1 Lot in Kontowährung, für Gewinn bzw. Verlust */
+  /** Wert eines Ticks bei 1 Lot in Kontowährung, für Gewinn bzw. Verlust; ≤ 0 = unbekannt */
   trade_tick_value_profit?: number | null;
   trade_tick_value_loss?: number | null;
   /** MT5 SYMBOL_SWAP_MODE_* (Einheit von swap_long/swap_short) */

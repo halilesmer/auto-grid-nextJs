@@ -83,6 +83,7 @@ def test_zeitcheck_liefert_brokerzeit_kerzen_deal_und_modell(client, broker):
     assert body["account"]["margin_mode_name"] == "hedging"
     assert body["symbol_info"]["trade_calc_mode_name"] == "cfd"
     assert body["symbol_info"]["swap_rollover3days_name"] == "friday"
+    assert body["symbol_info"]["trade_stops_level"] == 0  # BKT-04: gemeinsame Kostenfeld-Liste
     assert body["backtest_support"] == {"account_hedging": True, "calc_mode_supported": True}
 
 

@@ -72,6 +72,38 @@ test.describe('Kommissions-Vorschlag je Lot', () => {
     expect(p!.lots).toBeCloseTo(0.4, 9);
   });
 
+  test('Gebühr (fee) ist keine Kommission und zählt nicht', { tag: '@BKT-04' }, () => {
+    const p = proposeCommission(
+      [
+        deal({ position_id: 10, type: 0, entry: 0, volume: 0.1, commission: -0.35, fee: -2 }),
+        deal({ position_id: 10, type: 1, entry: 1, volume: 0.1, commission: -0.35, fee: -2 }),
+      ],
+      'XAUUSD',
+    );
+    expect(p!.perLot).toBeCloseTo(7, 9);
+  });
+
+  test('Close-By und Ausstieg ohne Einstieg im Archiv zählen nicht; Symbol ohne Groß-/Kleinschreibung', { tag: '@BKT-04' }, () => {
+    const p = proposeCommission(
+      [
+        // Close-By: zwei Positionen gegeneinander geschlossen, Kommission nur auf einer
+        deal({ position_id: 11, type: 0, entry: 0, volume: 0.1, commission: -0.35 }),
+        deal({ position_id: 12, type: 1, entry: 0, volume: 0.1, commission: -0.35 }),
+        deal({ position_id: 11, type: 1, entry: 3, volume: 0.1, commission: -0.7 }),
+        deal({ position_id: 12, type: 0, entry: 3, volume: 0.1, commission: 0 }),
+        // nur der Ausstieg ist im Archiv
+        deal({ position_id: 13, type: 1, entry: 1, volume: 0.1, commission: -5 }),
+        // ohne Positionsnummer
+        deal({ position_id: 0, type: 0, entry: 0, volume: 0.1, commission: -5 }),
+        deal({ position_id: 0, type: 1, entry: 1, volume: 0.1, commission: -5 }),
+        ...CLOSED,
+      ],
+      'xauusd',
+    );
+    expect(p!.perLot).toBeCloseTo(7, 9);
+    expect(p!.positions).toBe(2);
+  });
+
   test('Broker bucht nur beim Einstieg: 1,00 ÷ 0,20 = 5,00 je Lot hin und zurück', { tag: '@BKT-04' }, () => {
     const p = proposeCommission(
       [
@@ -97,7 +129,7 @@ test.describe('Kommissions-Vorschlag je Lot', () => {
   });
 });
 
-test('Mock-Worker: /symbols liefert alle Kostenfelder (wie mt5_helpers.SYMBOL_COST_FIELDS)', { tag: '@BKT-04' }, () => {
+test('Mock-Daten: jedes Symbol hat alle Kostenfelder (wie mt5_helpers.SYMBOL_COST_FIELDS)', { tag: '@BKT-04' }, () => {
   const fields = [
     'trade_calc_mode', 'trade_tick_value_profit', 'trade_tick_value_loss', 'currency_profit', 'swap_mode',
     'swap_long', 'swap_short', 'swap_rollover3days', 'spread', 'trade_stops_level',

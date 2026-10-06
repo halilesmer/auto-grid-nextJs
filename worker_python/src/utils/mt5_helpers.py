@@ -502,8 +502,10 @@ def get_cached_symbols(account_id: str, safe_log_fn) -> tuple[list[dict] | None,
     if not account_cache:
         return None, False
     
-    is_fresh = _is_cache_fresh(account_id, cache_data)
     symbols = list(account_cache.values())
+    # Maliyet alanları (BKT-04) eklenmeden önce yazılmış kayıt taze sayılmaz: arka planda yenilenir
+    has_cost_fields = all(isinstance(sym, dict) and set(SYMBOL_COST_FIELDS) <= sym.keys() for sym in symbols)
+    is_fresh = has_cost_fields and _is_cache_fresh(account_id, cache_data)
     return symbols, is_fresh
 
 

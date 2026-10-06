@@ -1,9 +1,13 @@
 """BKT-04 (B1) Kostenfelder der Symbolliste: build_detailed_symbols liefert alle Werte, die der
 Backtest für Gewinn, Swap und Spread braucht (docs/analyse-regeln.md §6)."""
+import json
+
 import pytest
 
+import src.utils.mt5_helpers as mh
 from src.utils.mt5_helpers import SYMBOL_COST_FIELDS, build_detailed_symbols
 from src.utils.mt5_market import _SYMBOL_FIELDS
+from tests.conftest import TEST_ACCOUNT_ID
 from tests.fakes.fake_mt5 import SymbolInfo
 
 COST_FIELDS = {
@@ -42,3 +46,18 @@ def test_fehlendes_kostenfeld_bleibt_none():
 @pytest.mark.feature("BKT-04")
 def test_zeitkontrolle_nutzt_dieselbe_feldliste():
     assert set(SYMBOL_COST_FIELDS) <= set(_SYMBOL_FIELDS)
+
+
+@pytest.mark.feature("BKT-04")
+def test_alter_cache_ohne_kostenfelder_wird_erneuert(tmp_path, monkeypatch):
+    """Ein Cache-Eintrag aus der Zeit vor BKT-04 ist nie „frisch“: die Liste kommt sofort,
+    aber eine MT5-Abfrage holt die Kostenfelder nach (sonst fehlen sie bis zu 1 h)."""
+    cache = tmp_path / "broker_symbols.json"
+    cache.write_text(json.dumps({TEST_ACCOUNT_ID: {"USOUSD": {"name": "USOUSD", "digits": 3}}}))
+    monkeypatch.setattr(mh, "CACHE_FILE", str(cache))
+
+    symbols, fresh = mh.get_cached_symbols(TEST_ACCOUNT_ID, lambda *a, **k: None)
+    assert symbols == [{"name": "USOUSD", "digits": 3}] and fresh is False
+
+    cache.write_text(json.dumps({TEST_ACCOUNT_ID: {"USOUSD": build_detailed_symbols([SymbolInfo(name="USOUSD")])[0]}}))
+    assert mh.get_cached_symbols(TEST_ACCOUNT_ID, lambda *a, **k: None)[1] is True
