@@ -35,7 +35,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
 | B9 | CSV import (worker process and dialog) | BKT-05 | open |
 
-Order: B0 → B1 and B2 in parallel → B3 → B4 → B5 → B6 → B7 → B8. Do B9 earlier if MT5 on the VPS cannot give 1 year of M1 with "Max. bars = Unlimited". B1 checks this on the DEMO account, read only.
+Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4.
 
 ## Corrections to the first concept
 
@@ -250,10 +250,18 @@ Decisions:
 - The symbol cache (`broker_symbols.json`, TTL 1 h) has one file time for all accounts. Thus, an entry from before B1 can stay "fresh" for more than 1 h. An entry without the cost fields is now never fresh: the worker gives the old list once and refreshes it in the background. The backtest (B4) must not use a default value when a cost field is missing.
 - A broker that books commission only at the entry (or only at the exit) gives the correct round-turn value with this formula.
 
+## Result of the history check (B1, 2026-10-06)
+
+- The user did the check on the DEMO account. "Max. bars in chart" = "Unlimited" is set and active.
+- `/chart` shows M1 back to 2026-07-29 only (approx. 10 weeks). These candles are in `market.sqlite` from earlier queries.
+- The M1 chart in the MT5 terminal goes back to 2026-10-02 only.
+- Result: MT5 does not give 1 year of M1 for this account. A backtest over 1 year needs the CSV import (B9).
+- Until B9 is done, the backtest uses the available data. The missing range shows as `missing` (rule 4).
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
-- [ ] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
+- [x] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
 - [ ] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files.
 - [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
