@@ -70,7 +70,7 @@ Sources for the tool rows: the README and the docs of each repository, read on 2
 
 - [ ] Owner: add the plugins `typescript-lsp` and `pyright-lsp` in the desktop app (**+ → Plugins → Add plugin**, user scope). Then examine in a new session that the diagnostics show after an edit.
 - [ ] `"model": "opusplan"` is set in `~/.claude/settings.json` of the owner. Examine in a new session that plan mode uses Opus and the implementation uses Sonnet. If the model picker of the desktop app overrides the setting, select `opusplan` there.
-- [ ] Remove the MT5 account numbers from tracked files (code comments, tests, docs). Separate PR. The git history keeps them.
+- [x] Remove the MT5 account numbers from tracked files (code comments, tests, docs). Separate PR. The git history keeps them. Done in `2026-10-06-scrub-account-numbers.md`.
 
 ## Lessons
 

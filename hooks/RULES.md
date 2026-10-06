@@ -108,7 +108,7 @@ Purpose: a colleague, or Claude in a new session, can continue the work without 
 5. **[elle]** External AI review (for important decisions):
    1. Make one review packet for all reviewers. The full repository has approx. 790,000 tokens, so always limit the packet with `--include`, for example: `npx repomix@1.18.1 --include "worker_python/src/core/grid_execution/**,docs/analyse-regeln.md"`. The command uses `repomix.config.json` and writes the gitignored file `repomix-review.xml` (with line numbers). Keep a packet below approx. 150,000 tokens; repomix shows the total.
    2. Read the security report of repomix ("No suspicious files detected"). Do not put files from `worker_python/configs/`, `data/`, `logs/` or `.env*` in a packet. The config and `.gitignore` keep them out (tested on 2026-10-06).
-   3. Some tracked files still contain MT5 account numbers (open point in `docs/journal/2026-10-06-rules-journal-model-usage.md`). Until they are removed, search the packet before you send it: `grep -nE '[0-9]{7,}' repomix-review.xml`.
+   3. Search the packet for private data before you send it: `grep -nE '[0-9]{7,}' repomix-review.xml` and `grep -n 'ngrok-free' repomix-review.xml` (only placeholder domains are permitted). The tracked files contain no MT5 account numbers, but `worker_python/run_ngrok_watchdog.bat` still contains the real ngrok domain (open point in `docs/journal/2026-10-06-scrub-account-numbers.md`).
    4. Give each reviewer the same packet and the same question. Ask for findings in a fixed form: severity, `file:line`, reason.
    5. Merge the answers into one list. Mark the points where the reviewers do not agree.
    6. Check each finding against the code and the tests before you change code. A majority is not a proof.
