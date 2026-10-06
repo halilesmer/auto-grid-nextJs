@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-06 · **129/153** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-06 · **128/153** abgehakt · ❌ 1 mit Fehlern · 🐞 1 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 15/18 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 28/28 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 27/28 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
@@ -353,10 +353,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Fehlende Level bekommen Pending Orders mit TP/SL; LIMIT oder STOP je nach Seite des Marktes; Toleranz 0,45 × Gridabstand; manuelle Positionen zählen als belegte Level.
   - **Prüfung:** Test-Zone (0,01 Lot) um den aktuellen Preis starten.
   - **Erwartet:** BUY LIMIT unter / BUY STOP über dem Preis (bzw. SELL umgekehrt), jeweils mit TP/SL.
-- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-10-02
+- [ ] **ENG-06** Validierung + Bereinigung — 🧪 unit 🐞 2026-10-06
   - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen).
   - **Prüfung:** Bei laufendem Bot TP der Zone ändern und speichern.
   - **Erwartet:** Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
+  - 🐞 **Bekannter Fehler:** Ist der Stops Level des Symbols größer als der TP- oder SL-Abstand der Zone, verschiebt enforce_stops_level den TP/SL jeder neuen Order; validation.py vergleicht mit dem TP/SL der Zone, hält die Order für falsch und löscht und setzt alle Orders in jeder Runde neu (docs/journal/2026-10-06-stops-level-order-flood.md).
 - [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-10-02 · 🌐 live ⏳
   - Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht; die Warnung erscheint einmal (erneut nur, wenn sich die Zahl ändert), nicht bei jedem Tick. Auch der Restlot-Nachschub (ENG-08) setzt dann nichts.
   - **Prüfung:** Maks Pozisyon = 1 setzen und eine Position füllen lassen.

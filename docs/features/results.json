@@ -238,7 +238,7 @@
     "e2e": {
       "datum": "2026-10-06",
       "status": "passed",
-      "tests": 39
+      "tests": 40
     }
   },
   "BKT-04": {
@@ -356,9 +356,9 @@
   },
   "ENG-06": {
     "unit": {
-      "datum": "2026-10-02",
-      "status": "passed",
-      "tests": 2
+      "datum": "2026-10-06",
+      "status": "xfail",
+      "tests": 3
     }
   },
   "ENG-07": {
