@@ -3,12 +3,18 @@
 import { useCallback } from 'react';
 import { Combobox } from '@/components/ui/combobox';
 import { InfoHint } from '@/components/ui/tooltip';
-import { useT } from '@/i18n';
+import { useT, type MessageKey } from '@/i18n';
 import type { ZoneSettings } from '@/store/types';
 
 interface ZoneItem {
   zone: ZoneSettings;
   n: number;
+}
+
+function placeholderKey(zones: ZoneSettings[] | null): MessageKey {
+  if (zones === null) return 'analysis.zone.loading';
+  if (zones.length === 0) return 'analysis.zone.empty';
+  return 'analysis.zone.placeholder';
 }
 
 /** Zonenwahl der Analyse-Seite: nur Zonen des gewählten Kontos (`zones` = null: werden geladen). */
@@ -37,13 +43,7 @@ export function ZoneSelect({
           getKey={(item) => item.zone.id}
           getLabel={label}
           filter={(item, q) => label(item).toLowerCase().includes(q)}
-          placeholder={
-            zones === null
-              ? t('analysis.zone.loading')
-              : zones.length === 0
-                ? t('analysis.zone.empty')
-                : t('analysis.zone.placeholder')
-          }
+          placeholder={t(placeholderKey(zones))}
           searchPlaceholder={t('analysis.zone.search')}
           emptyMessage={t('analysis.zone.empty')}
           disabled={zones === null || zones.length === 0}

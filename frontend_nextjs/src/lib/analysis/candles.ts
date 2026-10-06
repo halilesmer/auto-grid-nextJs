@@ -38,6 +38,8 @@ export interface RateColumns {
   h: number[];
   l: number[];
   c: number[];
+  /** Spread je Kerze in Punkten (MT5), fehlt in reinen Kerzen-Testdaten */
+  s?: (number | null)[];
 }
 
 export interface Bar {
@@ -82,15 +84,21 @@ export function isBar(p: ChartPoint): p is Bar {
  * Spalten → Kerzen. Eine unvollständige Zeile (null/NaN) wird nicht gezeichnet statt geraten; sie
  * erscheint als fehlender Bereich (Grund „invalid“).
  */
-export function barsOf(rates: RateColumns, tfSec: number): { bars: Bar[]; invalid: MissingRange[] } {
+export function barsOf(
+  rates: RateColumns,
+  tfSec: number,
+): { bars: Bar[]; spread: (number | null)[]; invalid: MissingRange[] } {
   const bars: Bar[] = [];
+  const spread: (number | null)[] = [];
   const invalid: MissingRange[] = [];
   for (let i = 0; i < rates.t.length; i++) {
     const bar = { time: rates.t[i], open: rates.o[i], high: rates.h[i], low: rates.l[i], close: rates.c[i] };
-    if ([bar.open, bar.high, bar.low, bar.close].every(Number.isFinite)) bars.push(bar);
-    else invalid.push({ from: bar.time, to: bar.time + tfSec, reason: 'invalid', checked_at: null });
+    if ([bar.open, bar.high, bar.low, bar.close].every(Number.isFinite)) {
+      bars.push(bar);
+      spread.push(rates.s?.[i] ?? null);
+    } else invalid.push({ from: bar.time, to: bar.time + tfSec, reason: 'invalid', checked_at: null });
   }
-  return { bars, invalid };
+  return { bars, spread, invalid };
 }
 
 /** Höchstens so viele Kerzen im Chart (zwei Antworten des Workers); mehr: größeren Zeitrahmen wählen */
@@ -185,7 +193,10 @@ export function wilderRsi(closes: number[], period = 14): (number | null)[] {
   }
   gain /= period;
   loss /= period;
-  const value = () => (loss === 0 ? (gain === 0 ? 50 : 100) : 100 - 100 / (1 + gain / loss));
+  const value = () => {
+    if (loss === 0) return gain === 0 ? 50 : 100;
+    return 100 - 100 / (1 + gain / loss);
+  };
   out[period] = value();
   for (let i = period + 1; i < closes.length; i++) {
     const d = closes[i] - closes[i - 1];

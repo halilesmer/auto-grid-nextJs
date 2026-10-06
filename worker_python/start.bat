@@ -10,5 +10,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0cleanup_old_instances.
 
 start "Uvicorn API" cmd /k "run_uvicorn_watchdog.bat"
 
-REM ngrok mit eigener Neustart-Schleife (Domain steht in run_ngrok_watchdog.bat)
+REM ngrok mit eigener Neustart-Schleife (Domain aus der Benutzer-Variable NGROK_DOMAIN)
 start "ngrok" cmd /k "run_ngrok_watchdog.bat"

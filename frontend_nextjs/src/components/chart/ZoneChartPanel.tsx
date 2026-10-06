@@ -50,6 +50,18 @@ const SL_MODE_KEYS: Record<string, MessageKey> = {
   buffer: 'zone.fractal.slMode.buffer',
 };
 
+function orderCountKey(orderType: string) {
+  if (orderType === 'BUY') return 'zone.fractal.buyOrderCount' as const;
+  if (orderType === 'SELL') return 'zone.fractal.sellOrderCount' as const;
+  return 'zone.fractal.orderCount' as const;
+}
+
+function zoneKindKey({ isFractal, isBreakout }: { isFractal: boolean; isBreakout: boolean }): MessageKey {
+  if (isFractal) return 'zone.section.fractal';
+  if (isBreakout) return 'chart.zone.breakout';
+  return 'chart.zone.sliding';
+}
+
 /** Fraktal-Zone: Grid-Abstand/TP/SL/Ebenen gelten nicht, stattdessen die Fraktal-Einstellungen */
 function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [MessageKey, MessageKey, string | number][] {
   const fields: [MessageKey, MessageKey, string | number][] = [
@@ -73,12 +85,7 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
     // Getrennt: BUY / SELL
     fields.push(['zone.fractal.orderCount', 'zone.fractal.orderCount.hint', `${count} / ${zone.sell_fractal_order_count ?? count}`]);
   } else {
-    const key =
-      zone.order_type === 'BUY'
-        ? 'zone.fractal.buyOrderCount'
-        : zone.order_type === 'SELL'
-          ? 'zone.fractal.sellOrderCount'
-          : 'zone.fractal.orderCount';
+    const key = orderCountKey(zone.order_type);
     fields.push([key, `${key}.hint`, count]);
   }
   const extra = zone.fractal_setups?.length ?? 0;
@@ -116,9 +123,7 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
       <CardHeader
         icon={<Layers size={16} />}
         title={t('chart.zone.title', { n: index + 1, symbol: zone.symbol || '—' })}
-        description={
-          isFractal ? t('zone.section.fractal') : zone.is_breakout ? t('chart.zone.breakout') : t('chart.zone.sliding')
-        }
+        description={t(zoneKindKey({ isFractal, isBreakout: zone.is_breakout }))}
         actions={
           <div className="flex gap-2">
             <Badge tone="info" hint={t('zone.field.orderType.hint')}>{zone.order_type}</Badge>
@@ -171,7 +176,11 @@ const MAX_LABELED_TRADES = 20;
 /** Bis zu so vielen Trades im Chart mit Text an den Pfeilen (Lot, Ergebnis); mehr würde sich überdecken */
 const MAX_LABELED_HISTORY = 30;
 
-const netTone = (net: number): LineTone => (net > 0 ? 'up' : net < 0 ? 'down' : 'muted');
+function netTone(net: number): LineTone {
+  if (net > 0) return 'up';
+  if (net < 0) return 'down';
+  return 'muted';
+}
 
 const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
   fractal: 'analysis.chart.levels.fractal',
@@ -294,7 +303,8 @@ export default function ZoneChartPanel({
   const symbolMismatch = Boolean(symbol && metrics.symbol && metrics.symbol.toUpperCase() !== symbol);
   // Stufen gelten für den aktuellen Kurs: Live-Preis, sonst der Schluss der laufenden Kerze; bei einem
   // Zeitraum in der Vergangenheit keine Stufen (sie lägen um einen alten Kurs)
-  const currentPrice = streamMatches && plausible ? metrics.price : data?.liveFrom != null ? lastClose : null;
+  const candleClose = data?.liveFrom != null ? lastClose : null;
+  const currentPrice = streamMatches && plausible ? metrics.price : candleClose;
 
   const botRunning = liveData.bot_running === true;
   const positions = useMemo(
@@ -370,12 +380,13 @@ export default function ZoneChartPanel({
       const unknown = e.zone.kind !== 'zone';
       const side = e.side === 'buy' ? 'BUY' : 'SELL';
       const vol = fmt.number(e.volume, { maximumFractionDigits: 3 });
+      const sideTone = e.side === 'buy' ? 'up' : 'down';
       out.markers.push({
         key: e.id,
         time: bar(e.time),
         price: e.price,
         kind: e.side === 'buy' ? 'entryBuy' : 'entrySell',
-        tone: unknown ? 'muted' : e.side === 'buy' ? 'up' : 'down',
+        tone: unknown ? 'muted' : sideTone,
         text: labels ? `${unknown ? '? ' : ''}${vol}` : undefined,
       });
       note(
@@ -435,6 +446,7 @@ export default function ZoneChartPanel({
 
   const band = zone && prefs.showZoneLines ? { min: zone.min_price, max: zone.max_price } : null;
   const marketHours = index >= 0 ? liveData.zone_market_hours?.[String(index)] : undefined;
+  const isChartEmpty = Boolean(chart && data && data.bars.length === 0);
 
   return (
     <div className="space-y-5">
@@ -487,7 +499,7 @@ export default function ZoneChartPanel({
               </Alert>
             )}
 
-            {chart && data && data.bars.length === 0 ? (
+            {isChartEmpty && (
               // Keine einzige Kerze: lightweight-charts kann reine Leerstellen nicht verteilen. Eine Fläche
               // statt eines leeren Charts; der Grund steht im Hinweis darüber
               <div
@@ -496,7 +508,8 @@ export default function ZoneChartPanel({
               >
                 {t('analysis.chart.noData')}
               </div>
-            ) : chart ? (
+            )}
+            {chart && !isChartEmpty && (
               <ChartCore
                 data={chart}
                 timeframeSec={tfSec}
@@ -513,7 +526,8 @@ export default function ZoneChartPanel({
                 notes={overlays.notes}
                 focus={focus && focus.view === viewKey ? focus : null}
               />
-            ) : (
+            )}
+            {!chart && (
               <div className="h-[max(360px,calc(100dvh-22rem))] animate-pulse rounded-lg bg-muted/40" data-testid="analysis-chart-loading" />
             )}
 
@@ -550,11 +564,11 @@ export default function ZoneChartPanel({
             )}
             {prefs.showTrades && (
               <p className="text-xs text-muted-foreground" data-testid="trades-note">
-                {!botRunning
-                  ? t('analysis.chart.trades.botStopped')
-                  : zone.magic === undefined
-                    ? t('analysis.chart.trades.noMagic')
-                    : t('analysis.chart.trades.count', { positions: positions.length, orders: orders.length })}
+                {!botRunning && t('analysis.chart.trades.botStopped')}
+                {botRunning && zone.magic === undefined && t('analysis.chart.trades.noMagic')}
+                {botRunning &&
+                  zone.magic !== undefined &&
+                  t('analysis.chart.trades.count', { positions: positions.length, orders: orders.length })}
               </p>
             )}
           </div>
@@ -562,6 +576,9 @@ export default function ZoneChartPanel({
       )}
       {zone && dealsRequest && (
         <TradesTable
+          accountId={accountId}
+          zones={zones}
+          variant="zone"
           trades={history?.trades ?? []}
           openEntries={history?.openEntries ?? 0}
           otherTrades={history?.otherTrades ?? 0}

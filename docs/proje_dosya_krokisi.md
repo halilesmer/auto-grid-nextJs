@@ -89,7 +89,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┣ 📜 InputField.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 tooltip.tsx          # Tooltip + InfoHint (i) + FieldLabel (Popover API/top-layer); hint zorunlu, bkz. hooks/RULES.md §5
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
-┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (bölgenin işlem arşivi: kısmi/ters çevirme/„bölge bilinmiyor“, grafiğe atlama)
+┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„bölge bilinmiyor“, setup, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), useSetupLabel (setup etiketi), stats/ (StatsTab, StatsKpis, BreakdownTable, CurveChart)
 ┃ ┃ ┃ ┃ ┗ 📂 chart              # Grafik sekmesi: ChartCore (lightweight-charts, mumlar + boşluklar, RSI bölmesi, fiyat çizgileri), primitives.ts (bölge bandı, eksik veri taraması, piyasa arası çizgileri), TimeframeSelect
 ┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri
 ┃ ┃ ┃   ┣ 📜 ZoneCard.tsx
@@ -104,6 +104,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┣ 📂 hooks                  # Custom React hooks
 ┃ ┃ ┃ ┣ 📜 useAccountSettings.ts # Hesabın ayarlarını yükler (loadedAccount ile; geç gelen yanıt atılır)
 ┃ ┃ ┃ ┣ 📜 useMarketRates.ts    # GET /market/{id}/rates: grafik mumları (sayfalı, eski yanıt atılır, 60 sn'de bir uç yenilenir)
+┃ ┃ ┃ ┣ 📜 useExcursions.ts     # MFE/MAE: düğmeyle sembol başına M1 yükler (en fazla 100.000 mum), hesap değişince sonuçlar atılır
 ┃ ┃ ┃ ┣ 📜 useDealsHistory.ts   # GET /history/{id}/deals: deal arşivi + bölge kaydı (eski yanıt atılır, aralık şimdiye uzanıyorsa 2 dk'da bir)
 ┃ ┃ ┃ ┣ 📜 useLiveTrades.ts     # Bot metriklerinden açık pozisyon/emir listesi (5 sn, useBotRuntimeStore.liveData)
 ┃ ┃ ┃ ┣ 📜 useAnalysisParams.ts # Analiz sayfasının URL durumu (tab, account, zone, range/from/to)
@@ -119,7 +120,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 historyApi.ts        # Deal arşivi (/history/{id}/deals)
 ┃ ┃ ┃ ┗ 📜 zoneApi.ts           # Zone API işlemleri
 ┃ ┃ ┣ 📂 lib                    # Kütüphane yardımcıları
-┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı), tradePairing.ts (deal → işlem: position_id, kısmi kapanış, INOUT, bölge kaydı; docs/analyse-regeln.md §2), fractals.ts (find_fractals ile aynı)
+┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı), tradePairing.ts (deal → işlem: position_id, kısmi kapanış, INOUT, bölge kaydı; docs/analyse-regeln.md §2), fractals.ts (find_fractals ile aynı), stats.ts / curves.ts / groupings.ts (istatistik sekmesi), excursions.ts (MFE/MAE, docs/analyse-regeln.md §4); backtest de bunları kullanır (plan: `lib/backtest/` engine/broker/data, BKT-02…13)
 ┃ ┃ ┃ ┣ 📜 chartTheme.ts        # Grafik renkleri tema token'larından (çalışma anında okunur)
 ┃ ┃ ┃ ┣ 📜 serverTime.ts        # Zaman modeli: broker günü (MT5 zamanı, UTC aritmetiği), hazır aralıklar, yarı açık aralıklar (docs/analyse-regeln.md §1)
 ┃ ┃ ┃ ┣ 📜 vps.ts               # VPS aksiyonları ve tipleri (sayfa + route ortak)
@@ -402,7 +403,8 @@ grid_orchestrator (Ana Orkestratör)
 | Rota | Açıklama | Ana Bileşenler |
 |------|----------|----------------|
 | `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
-| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + MT5 mumları: zaman dilimi, eksik veri, piyasa araları, bölge bandı, kademeler, pozisyon/emirler, RSI), İstatistik, Backtest (yer tutucu); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&tf=&range=`) |
+| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + MT5 mumları: zaman dilimi, eksik veri, piyasa araları, bölge bandı, kademeler, pozisyon/emirler, RSI), İstatistik (KPI, eğriler, bölge/setup dağılımı, MFE/MAE), Backtest (yer tutucu; B5'te kalkar, yerine `/backtest`); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&tf=&range=`) |
+| `/backtest` | **Backtest** *(planlandı, BKT-02…13)* | Kendi sayfası: setup rozetleri, „Backtest oluştur“ diyaloğu (`ZoneFieldsEditor`), KPI/karşılaştırma, grafik + tekrar oynatma, preset'ler, „bölgeye aktar“ (kaydetmeden). Hesaplama tarayıcıda (`lib/backtest/`, Web Worker), worker sadece mum/sembol/preset verir. Plan: `docs/journal/2026-10-06-backtest-module-plan.md` |
 | `/formasyon` | Formasyon Analizi | (Mevcut) |
 | `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsElevatedWarning (admin haklı süreçler), VpsStatusPanel, VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
 

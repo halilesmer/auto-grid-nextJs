@@ -31,6 +31,15 @@ function accountToFormData(account: Account): AccountFormData {
   };
 }
 
+// Backend'in mesajı ("Request failed with status code 4xx" yerine); yoksa null
+function saveErrorMessage(e: unknown): string | null {
+  const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (typeof (detail as { detail?: unknown })?.detail === 'string') return (detail as { detail: string }).detail;
+  if (e instanceof Error) return e.message;
+  return null;
+}
+
 export function useAccountForm({
   initialData,
   existingAccounts = [],
@@ -59,9 +68,10 @@ export function useAccountForm({
   }, []);
 
   const handleChange = useCallback((name: keyof AccountFormData, value: string | number) => {
+    const loginNumber = value ? parseInt(String(value), 10) : 0;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'login' ? (value ? parseInt(String(value), 10) : 0) : value,
+      [name]: name === 'login' ? loginNumber : value,
     }));
     setErrors((prev) => {
       if (prev[name]) {
@@ -170,16 +180,7 @@ export function useAccountForm({
       await onSave(formData);
       onSuccess?.();
     } catch (e) {
-      // Backend'in mesajını göster ("Request failed with status code 4xx" yerine)
-      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-      const errMsg =
-        typeof detail === 'string'
-          ? detail
-          : typeof (detail as { detail?: unknown })?.detail === 'string'
-            ? (detail as { detail: string }).detail
-            : e instanceof Error
-              ? e.message
-              : t('account.form.saveFailed');
+      const errMsg = saveErrorMessage(e) ?? t('account.form.saveFailed');
       setErrors((prev) => ({ ...prev, general: errMsg }));
       // Ham hatayı ilet: AccountSelector 409 (duplicate) durumunu buradan tanır
       onError?.(e);

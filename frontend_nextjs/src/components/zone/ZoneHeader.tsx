@@ -20,6 +20,19 @@ const ORDER_HINT: Record<keyof typeof ORDER_TONE, MessageKey> = {
   BOTH: 'zone.header.badge.both.hint',
 };
 
+function engineStopReason({
+  remotePaused,
+  engineState,
+}: {
+  remotePaused: ZoneHeaderProps['remotePaused'];
+  engineState: ZoneHeaderProps['engineState'];
+}) {
+  if (remotePaused) return 'remote' as const;
+  if (engineState === 'AUTO_CLEAR') return 'autoClear' as const;
+  if (engineState === 'PAUSE') return 'pause' as const;
+  return null;
+}
+
 export function ZoneHeader({
   zone,
   isActive,
@@ -92,28 +105,12 @@ export function ZoneHeader({
   // Bölge ayarlarda açık ama motor onu durdurmuş olabilir:
   // AUTO_CLEAR = fiyat bölgeden çıktı ve temizlendi; PAUSE = üst üste reddedilen emirler.
   // Uzaktan (telefon) durdurma tüm motoru etkiler; burada yeniden başlatılamaz.
-  const engineStop =
-    isGlobalRunning && isActive
-      ? remotePaused
-        ? {
-            label: t('zone.stop.remote.label'),
-            hint: t('zone.stop.remote.hint'),
-            canRestart: false,
-          }
-        : engineState === 'AUTO_CLEAR'
-          ? {
-              label: t('zone.stop.autoClear.label'),
-              hint: t('zone.stop.autoClear.hint'),
-              canRestart: true,
-            }
-          : engineState === 'PAUSE'
-            ? {
-                label: t('zone.stop.pause.label'),
-                hint: t('zone.stop.pause.hint'),
-                canRestart: true,
-              }
-            : null
-      : null;
+  const stopReason = isGlobalRunning && isActive ? engineStopReason({ remotePaused, engineState }) : null;
+  const engineStop = stopReason && {
+    label: t(`zone.stop.${stopReason}.label`),
+    hint: t(`zone.stop.${stopReason}.hint`),
+    canRestart: stopReason !== 'remote',
+  };
 
   if (engineStop) {
     btnClass = 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20';

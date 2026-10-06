@@ -40,6 +40,13 @@ broker_symbols.json
 # Yerel test hesabı bilgisi (Claude hook / test protokolü)
 hooks/test-account.local.md
 
+# Dış yapay zekâ incelemeleri: repomix paketi (hooks/RULES.md §9.5) — commit'lenmez
+repomix-review.xml
+repomix-output.*
+
+# Claude Code masaüstü uygulamasının worktree'leri
+.claude/worktrees/
+
 # Funktionstests: Rohberichte (Ergebnisse landen in docs/features/results.json)
 .feature-results/
 frontend_nextjs/test-results/

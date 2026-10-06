@@ -5,9 +5,18 @@ REM Schleife startet ihn dann neu). Log: logs\ngrok.log (liest die VPS-Seite per
 cd /d "%~dp0"
 if not exist logs mkdir logs
 
-REM Domain kommt aus der Benutzer-Umgebungsvariable NGROK_DOMAIN (setx, siehe bootstrap.ps1);
-REM ohne sie bleibt der bisherige Wert die Vorgabe.
-if not defined NGROK_DOMAIN set NGROK_DOMAIN=tweet-overlying-monotone.ngrok-free.dev
+REM Domain kommt nur aus der Benutzer-Umgebungsvariable NGROK_DOMAIN (setx, siehe bootstrap.ps1).
+REM Sieht dieser Prozess sie noch nicht (vor dem setx gestartet), direkt aus der Registry lesen.
+REM Ohne Domain kein Start: eine zufaellige ngrok-Adresse wuerde Frontend und Tunnel-Watchdog brechen.
+:domain
+if not defined NGROK_DOMAIN for /f "tokens=2,*" %%A in ('reg query HKCU\Environment /v NGROK_DOMAIN 2^>nul ^| find "NGROK_DOMAIN"') do set "NGROK_DOMAIN=%%B"
+if defined NGROK_DOMAIN goto loop
+echo [Watchdog] NGROK_DOMAIN fehlt - "setx NGROK_DOMAIN <domain>" ausfuehren. Neuer Versuch in 60 Sekunden...
+REM Nur einmal ins Log schreiben (die 5-MB-Rotation unten laeuft in dieser Warteschleife nicht)
+if not defined DOMAIN_LOGGED >>logs\ngrok.log echo lvl=eror msg="NGROK_DOMAIN fehlt: setx NGROK_DOMAIN <domain> ausfuehren (siehe bootstrap.ps1)"
+set DOMAIN_LOGGED=1
+timeout /t 60 /nobreak >nul
+goto domain
 
 :loop
 REM Log vor jedem Start auf max. ~5 MB begrenzen (waehrend ngrok laeuft, ist die Datei gesperrt)

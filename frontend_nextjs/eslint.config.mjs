@@ -5,6 +5,15 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Okunabilirlik: iç içe ternary yok; boş blok/catch yok (bilerek yutulan hata loglanır, nedeni yazılır);
+  // return ile biten daldan sonra else yok
+  {
+    rules: {
+      "no-nested-ternary": "error",
+      "no-empty": "error",
+      "no-else-return": ["error", { allowElseIf: false }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

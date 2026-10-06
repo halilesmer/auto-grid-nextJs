@@ -2,6 +2,7 @@
  * Trades im Chart und Trade-Archiv (Schritt 5 des Plans) aus GET /history/{id}/deals.
  * Abnahme: Teilschließungen, Umkehr-Positionen und „Zone unbekannt“ werden richtig dargestellt.
  * ANA-08 Pfeile/Fraktale/Trade-Archiv
+ * ANA-12 MFE/MAE auch im Trade-Archiv des Chart-Tabs
  */
 import type { Page } from '@playwright/test';
 import type { Deal } from '../../src/lib/analysis/tradePairing';
@@ -153,5 +154,20 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
     await page.goto(URL);
     await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-fractals', '0');
     await expect(page.getByTestId('chart-key')).not.toContainText(msg('analysis.chart.key.fractal'));
+  });
+});
+
+test.describe('ANA-12 MFE/MAE im Chart-Tab', () => {
+  test('Dieselbe Tabelle: Knopf berechnet MFE/MAE für alle Zeilen', { tag: '@ANA-12' }, async ({ page, worker }) => {
+    seed(worker);
+    await page.goto(URL);
+
+    const archive = page.getByTestId('trades-archive');
+    await expect(archive.getByTestId('trade-row')).toHaveCount(6);
+    const compute = archive.getByTestId('mfe-compute');
+    await expect(compute).toHaveText(msg('analysis.trades.mfe.compute', { n: 6 }));
+    await compute.click();
+    await expect(compute).toHaveText(msg('analysis.trades.mfe.compute', { n: 0 }));
+    await expect(archive.getByTestId('trade-mfe').filter({ hasText: msg('analysis.trades.mfe.unit') })).toHaveCount(6);
   });
 });

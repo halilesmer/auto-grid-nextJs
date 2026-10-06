@@ -59,7 +59,8 @@ export function zoneLevels(
   const symbol = (zone.symbol ?? '').toUpperCase();
   const detail = symbolDetails[symbol];
   const cfg = getSymbolConfig(symbol, symbolDetails);
-  const grid = pricePoint && pricePoint.point > 0 ? pricePoint : detail && detail.point > 0 ? detail : null;
+  const detailGrid = detail && detail.point > 0 ? detail : null;
+  const grid = pricePoint && pricePoint.point > 0 ? pricePoint : detailGrid;
   if (!grid) return { buy: [], sell: [], unavailable: 'noSymbolInfo' };
   const normalize = (p: number) => Number((pyRound(p / grid.point) * grid.point).toFixed(grid.digits));
   const lotOf = (raw: number) => {

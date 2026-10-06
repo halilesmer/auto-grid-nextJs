@@ -99,11 +99,9 @@ function Get-UserEnv($name) {
 }
 
 function Get-NgrokDomain {
+    # Einzige Quelle wie in run_ngrok_watchdog.bat: die Benutzer-Variable NGROK_DOMAIN (setx)
     $domain = Get-UserEnv 'NGROK_DOMAIN'
     if ($domain) { return $domain.Trim() }
-    # Vorgabe steht in run_ngrok_watchdog.bat (set NGROK_DOMAIN=...), nicht doppelt pflegen
-    $bat = Join-Path $WorkerDir 'run_ngrok_watchdog.bat'
-    if ((Test-Path $bat) -and ((Get-Content $bat -Raw) -match 'set NGROK_DOMAIN=(\S+)')) { return $Matches[1] }
     return $null
 }
 
