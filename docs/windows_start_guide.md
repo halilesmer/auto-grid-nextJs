@@ -139,9 +139,9 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ---
 
 ### 2. Terminal: Ngrok Tunnel
-Macht den Worker auf dem VPS über das Internet erreichbar, damit das lokale Frontend auf dem MacBook ihn ansprechen kann.
+Macht den Worker auf dem VPS über das Internet erreichbar, damit das lokale Frontend auf dem MacBook ihn ansprechen kann. `<NGROK_DOMAIN>` ist die eigene statische ngrok-Domain (Benutzer-Umgebungsvariable `NGROK_DOMAIN`, siehe `bootstrap.ps1`).
 
 ```cmd
-ngrok http 8000 --domain=tweet-overlying-monotone.ngrok-free.dev
+ngrok http 8000 --domain=<NGROK_DOMAIN>
 ```
 > **Erfolgskontrolle:** Zeigt `Session Status: online` und verweist auf Port `8000`.

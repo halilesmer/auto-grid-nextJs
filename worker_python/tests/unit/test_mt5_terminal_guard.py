@@ -1,10 +1,10 @@
 """ACC-11 Ein Konto meldet sich nie im MT5-Terminal eines anderen Kontos an.
 
-Nachgestellt ist der 29.09.2026, 20:41:34: Terminal T34 (Konto 7942034, Bot läuft) wurde
-kurz auf Konto 7947315 angemeldet. Die Verbindung für 7947315 lief ohne gültigen mt5_path;
+Nachgestellt ist der 29.09.2026, 20:41:34: Terminal T34 (Konto A, Bot läuft) wurde
+kurz auf Konto B angemeldet. Die Verbindung für B lief ohne gültigen mt5_path;
 initialize() ohne Pfad hängt sich an irgendein laufendes Terminal, login() stellt dessen
-Konto um. Der Bot von 7942034 verlor die Verbindung und hätte, wäre das Terminal auf 7947315
-geblieben, dort mit seinen Zonen gehandelt.
+Konto um. Der Bot von A verlor die Verbindung und hätte, wäre das Terminal auf B
+geblieben, dort mit seinen Zonen gehandelt. Im Test ist A = OTHER_LOGIN und B = LOGIN.
 """
 import json
 import os
@@ -19,7 +19,7 @@ from src.utils import mt5_terminal_guard as guard
 from src.utils import paths
 from tests.unit.test_mt5_connect import LOGIN, mt5_env  # noqa: F401 (Fixture)
 
-OTHER_LOGIN = 7942034
+OTHER_LOGIN = 2002
 
 
 def _write_accounts(accounts):
@@ -47,7 +47,7 @@ def test_terminal_eines_anderen_kontos_wird_erkannt(fake_mt5, tmp_path):
 
     fake_mt5.terminal.path = os.path.dirname(other)
     assert guard.foreign_terminal_owner(fake_mt5, LOGIN) == (OTHER_LOGIN, os.path.dirname(other))
-    assert "7942034" in guard.foreign_terminal_error(fake_mt5, LOGIN)
+    assert f"{OTHER_LOGIN} hesabına ait" in guard.foreign_terminal_error(fake_mt5, LOGIN)
 
     fake_mt5.terminal.path = os.path.dirname(own)
     assert guard.foreign_terminal_owner(fake_mt5, LOGIN) is None
@@ -141,15 +141,15 @@ def test_bot_reconnect_meldet_sich_nicht_im_fremden_terminal_an(fake_mt5, tmp_pa
 
 @pytest.mark.feature("ACC-11")
 def test_bot_handelt_nicht_wenn_sein_terminal_auf_ein_anderes_konto_umgestellt_wurde(fake_mt5, monkeypatch, robot_log):
-    """T34 ist noch verbunden, aber auf 7947315 angemeldet: nicht handeln, eigenes Konto zurückholen."""
-    fake_mt5.account.login = 7947315
+    """T34 ist noch verbunden, aber auf Konto B angemeldet: nicht handeln, eigenes Konto zurückholen."""
+    fake_mt5.account.login = LOGIN
     calls = []
     monkeypatch.setattr(reconnection, "_reconnect_mt5", lambda *a, **k: calls.append(a) or False)
 
     assert reconnection.check_connection_health(fake_mt5, OTHER_LOGIN, "pw", "srv", 0) == (False, 1)
     assert calls and calls[0][1] == OTHER_LOGIN
     assert state.connection_lost is True
-    assert any("başka bir hesaba (7947315)" in line for line in robot_log())
+    assert any(f"başka bir hesaba ({LOGIN})" in line for line in robot_log())
 
     # Eigenes Konto wieder angemeldet → weiter
     fake_mt5.account.login = OTHER_LOGIN
@@ -159,7 +159,7 @@ def test_bot_handelt_nicht_wenn_sein_terminal_auf_ein_anderes_konto_umgestellt_w
 
 @pytest.mark.feature("ACC-11")
 def test_fremdes_konto_bei_algo_trading_aus_wird_trotzdem_erkannt(fake_mt5, monkeypatch):
-    fake_mt5.account.login = 7947315
+    fake_mt5.account.login = LOGIN
     fake_mt5.terminal.trade_allowed = False
     calls = []
     monkeypatch.setattr(reconnection, "_reconnect_mt5", lambda *a, **k: calls.append(a) or True)

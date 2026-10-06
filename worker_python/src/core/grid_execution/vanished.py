@@ -3,8 +3,8 @@
 Botun koyduğu bekleyen emir MT5'te kaybolur ama bot silmemiş ve emir dolmamışsa (pozisyon yok,
 geçmişte FILLED değil) emri başka biri silmiştir: elle (MT5/mobil), broker/dealer, aynı hesaba
 bağlı başka bir terminal veya EA. Bot bunu fark etmezse eksik seviyeyi her döngüde yeniden koyar; 29.09'da
-7947315 hesabında dakikada ~200 emir kondu, hiçbiri 5 sn'den uzun yaşamadı ve silme işlemi bu
-terminalin journal'ında hiç görünmedi (bkz. docs/features/features.yaml ENG-25).
+ikinci DEMO hesabında (hesap B) dakikada ~200 emir kondu, hiçbiri 5 sn'den uzun yaşamadı ve silme
+işlemi bu terminalin journal'ında hiç görünmedi (bkz. docs/features/features.yaml ENG-25).
 
 Her döngüde kaybolan emirler MT5 geçmişindeki durumuyla (CANCELED/EXPIRED/REJECTED...) loglanır;
 böylece silenin kim olduğu anlaşılır. Bir bölgede VANISH_WINDOW_SEC içinde VANISH_LIMIT emir

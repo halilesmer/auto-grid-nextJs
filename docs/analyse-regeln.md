@@ -256,7 +256,7 @@ aussieht.
    Im Bot-Log darf kein Verbindungsabbruch stehen.
 5. Ergebnis eintragen (Tabelle unten) und `scripts/features/run.sh sign ANA-13 bestanden "Notiz"`.
 
-**Messergebnisse** (01.10.2026, DEMO 7942034 @ Eightcap-Demo, USOUSD, Bot lief):
+**Messergebnisse** (01.10.2026, DEMO-Konto A @ Demo-Server, USOUSD, Bot lief):
 
 | Prüfung | Ergebnis |
 |---|---|

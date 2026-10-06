@@ -99,9 +99,9 @@ async function mockVps(page: Page) {
           git: { branch: 'main', commit: '6e6011d0' },
           worker: { listening: true, reachable: true, error: null },
           worker_watchdog: true,
-          ngrok: { running: true, public_url: 'https://tweet-overlying-monotone.ngrok-free.dev' },
+          ngrok: { running: true, public_url: 'https://example-tunnel-subdomain.ngrok-free.dev' },
           ngrok_watchdog: true,
-          bots: [{ pid: 4711, account: '5039114' }],
+          bots: [{ pid: 4711, account: '12345678' }],
           mt5_terminals: 1,
           session_active: true,
           autologon: true,
@@ -109,7 +109,7 @@ async function mockVps(page: Page) {
           tasks: { start: { exists: true, state: 'Ready' }, update: { exists: true, state: 'Ready' } },
           boot_time: '2026-09-24T08:00:00',
           uptime_minutes: 125,
-          elevated: [{ pid: 100, role: 'worker' }, { pid: 200, role: 'bot', account: '5039114' }],
+          elevated: [{ pid: 100, role: 'worker' }, { pid: 200, role: 'bot', account: '12345678' }],
         },
       });
     }
