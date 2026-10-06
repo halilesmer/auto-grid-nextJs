@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-06 · **127/142** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-06 · **127/153** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/13 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 2/2 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 2/13 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -686,10 +686,54 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 ## 15. BKT – Backtest (Musterlösungen, Nachbau, Rechner)
 
 - [x] **BKT-01** Musterlösungen des Python-Bots — 🧪 unit ✅ 2026-10-02
-  - 17 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen, Ausbruch, step_by_loss, Rauschen, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7).
+  - 18 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen, Ausbruch, step_by_loss, Rauschen, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7).
   - **Prüfung:** In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q` ausführen.
   - **Erwartet:** Alle Szenarien gleichen ihrer Musterlösung; zweimal abgespielt ergibt dieselbe Folge.
 - [x] **BKT-09** Zukunftsdaten-Test — 🧪 unit ✅ 2026-10-02
   - Für jedes Szenario werden ab einem Tick k (nach einem und nach zwei Dritteln) alle späteren Kurse verändert. Alle Ereignisse vor k müssen gleich bleiben (docs/analyse-regeln.md §5 „kein Blick in die Zukunft“); danach muss sich etwas ändern, sonst prüft der Test nichts.
   - **Prüfung:** In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q -k spaetere` ausführen.
   - **Erwartet:** Grün für alle Szenarien.
+- [ ] **BKT-02** Bot-Nachbau Grid im Browser (B2, geplant) — 🖥️ e2e ⏳
+  - Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01.
+  - **Prüfung:** Playwright-Projekt logic (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
+  - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; pyRound gleicht Pythons round() in allen Grenzfällen.
+- [ ] **BKT-03** Bot-Nachbau Fraktal im Browser (B3, geplant) — 🖥️ e2e ⏳
+  - Fraktal-Signale, Fraktal-Einstieg und Indikatoren (ATR, SAR) des Bots als TypeScript in frontend_nextjs/src/lib/backtest/engine/, mit mehreren Setups je Zone (ZON-18); Fraktale aus src/lib/analysis/fractals.ts.
+  - **Prüfung:** Playwright-Projekt logic mit den 5 Fraktal-Szenarien ausführen.
+  - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios.
+- [ ] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4, geplant) — 🧪 unit ⏳ · 🔌 api ⏳ · 🖥️ e2e ⏳
+  - Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ immer sichtbar.
+  - **Prüfung:** pytest für die Kostenfelder der Symbolliste ausführen. → Playwright-Projekt logic mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
+  - **Erwartet:** Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.
+- [ ] **BKT-05** CSV-Import von Kursdaten (B9, geplant) — 🔌 api ⏳ · 🖥️ e2e ⏳
+  - Kerzen aus einer CSV-Datei in market.sqlite laden, wenn MT5 nicht genug Historie liefert: POST /market/{id}/imports, PUT …/chunk, POST …/commit, DELETE; Staging, Prüfung (Zeitfolge, OHLC, Zeitzone), source = csv:<import_id>. Überlappung mit vorhandenen Daten nur mit „ersetzen“. Dialog auf /backtest.
+  - **Prüfung:** pytest für den Import-Vorgang (prüfen, abbrechen, ersetzen) ausführen. → Auf /backtest eine CSV importieren und im Dialog als Datenquelle wählen.
+  - **Erwartet:** Ein abgebrochener oder fehlerhafter Import ist nicht wählbar; eine Überlappung geht nur mit „ersetzen“.
+- [ ] **BKT-06** Seite /backtest mit Setup-Dialog (B5, geplant) — 🖥️ e2e ⏳
+  - Eigene Seite /backtest (Menü „Backtest“), Zustand in der URL (?account=&zone=&setup=). Dialog „Backtest erstellen/bearbeiten“ mit Basis (Konto, Symbol, Zeitraum, Datenauflösung M1/M5/M15/H1, Abdeckung), Kosten, Zone (ZoneFieldsEditor, derselbe Editor wie auf der Zonenseite; Startwert aus Zone, Preset oder leer) und Modell. Ergebnis: StatsKpis + RunSummary, CurveChart (realisiert, Drawdown, Equity), TradesTable mit fertigen MFE/MAE, Laufprotokoll. Der Backtest speichert nie eine Zone (kein POST /settings, kein mergeAndSaveSettings in components/backtest/ und lib/backtest/). Der Backtest-Tab auf /chart entfällt.
+  - **Prüfung:** Menü „Backtest“ öffnen, ein Setup anlegen und testen. → Fenster auf 375 px verkleinern.
+  - **Erwartet:** Der Lauf zeigt KPIs, Kurven, Trades und Laufprotokoll; während des ganzen Ablaufs geht kein POST /settings an den Worker. Bei 375 px ist der Dialog eine Vollbildseite und nichts läuft über.
+- [ ] **BKT-07** Backtest-Chart mit Wiedergabe (B6, geplant) — 🖥️ e2e ⏳
+  - Chart auf analysis/chart/ChartCore.tsx: Kerzen, Zonenband, Grid-Stufen, Pfeile, TP/SL, Equity-/Balance-Bereich; Wiedergabe 1x/5x/10x/Max; Anzeige-Zeitrahmen. Der Rechen-Worker liefert die Anzeige-Kerzen je Zeitrahmen und Bereich (höchstens etwa 50.000), gerechnet wird mit allen. Lücken sind grau.
+  - **Prüfung:** Einen Lauf über 1 Jahr M1 öffnen, Anzeige-Zeitrahmen wechseln, Wiedergabe starten.
+  - **Erwartet:** Höchstens 50.000 gezeichnete Kerzen; die Wiedergabe zeigt nie Daten nach dem aktuellen Wiedergabe-Zeitpunkt; Lücken sind grau.
+- [ ] **BKT-08** Mehrere Setups (B7, geplant) — 🖥️ e2e ⏳
+  - Bis zu 6 Setups auf der Seite, je ein eigener Lauf (runId, Web Worker, Fortschritt), höchstens 2 gleichzeitig. Badges (Symbol, Auflösung, Modus, Abstand, TP, Spread, Lot, Zeitraum, Status) mit Bearbeiten, Duplizieren, In Zone übernehmen, Entfernen. Equity-Kurven überlagerbar; „Aggregiert“ nur bei gleichem Zeitraum und gleicher Kontowährung, sonst aus mit Grund. Ein Kontowechsel leert alle Ergebnisse, die Setups bleiben.
+  - **Prüfung:** Zwei Setups anlegen (eines dupliziert und geändert) und beide laufen lassen. → Das Konto wechseln.
+  - **Erwartet:** Beide Läufe laufen parallel; ein spät fertiger Lauf überschreibt kein anderes Setup. Nach dem Kontowechsel sind keine alten Ergebnisse sichtbar.
+- [ ] **BKT-10** Hinweise zu Daten und Modell (B5, geplant) — 🖥️ e2e ⏳
+  - Auf /backtest und im Laufprotokoll stehen immer, nicht abschaltbar: Datenlücken (missing), Modellgrenzen (nicht simuliert: Margin/Stop-out, Ablehnungen, verschwundene Orders, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich), „Kosten geschätzt“, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand kleiner ist als die mittlere Kerzenspanne der Auflösung.
+  - **Prüfung:** Einen Lauf mit Datenlücke und Auflösung M5 starten.
+  - **Erwartet:** Lücken-, Modell- und Margin-Hinweis sind sichtbar und lassen sich nicht ausblenden.
+- [ ] **BKT-11** Backtest-Presets je Benutzer (B8, geplant) — 🔌 api ⏳ · 🖥️ e2e ⏳
+  - Presets (Name, Zone ohne id/magic/sid/is_active, Kosten, Modell, Auflösung, letzter Zeitraum, Symbol, App-Version; keine Ergebnisse) im Worker: Tabelle backtest_presets in market.sqlite mit owner (Principal aus src/api/auth.py); GET/POST /api/backtest/presets, PUT/DELETE /api/backtest/presets/{pid}. Fremde Presets liefern 404. Menü „Presets“: laden als neues Setup, umbenennen, löschen, In Zone übernehmen.
+  - **Prüfung:** pytest für die Preset-Routen mit zwei Benutzern ausführen. → Auf /backtest ein Setup als Preset speichern, Seite neu laden, Preset laden.
+  - **Erwartet:** Das Preset ist nach dem Neuladen da; das Preset eines anderen Benutzers liefert 404.
+- [ ] **BKT-12** Zone ↔ Backtest in beide Richtungen (B5 + B8, geplant) — 🖥️ e2e ⏳
+  - Zone → Backtest: Der Test-Knopf in ZoneHeader.tsx legt die Zone (auch ungespeichert, mit Vermerk) in useBacktestHandoffStore (sessionStorage) und öffnet /backtest?account=&zone=; ohne Übergabe gelten die gespeicherten Werte. Backtest → Zone: „In Zone übernehmen“ (Setup-Badge, Preset) mit Zielkonto (nur eigene), „Zone X ersetzen“ (behält id, magic, is_active, sid) oder „als neue Zone“ (neue id, ohne magic und sid, is_active = false); Symbol fehlt → gesperrt; Lots über normalizeZoneLots. Die Werte landen über useZoneTransferStore ungespeichert und als geändert markiert im Dashboard, mit Banner; nichts wird automatisch gespeichert.
+  - **Prüfung:** In einer Zone einen Wert ändern (nicht speichern) und den Test-Knopf drücken. → Auf /backtest ein Setup „In Zone übernehmen“ → als neue Zone.
+  - **Erwartet:** Der Backtest-Dialog zeigt den ungespeicherten Wert mit Vermerk. Im Dashboard erscheint die neue Zone inaktiv, als geändert markiert, mit Banner; ohne Klick auf „Speichern“ geht kein POST /settings an den Worker.
+- [ ] **BKT-13** Setup-Vergleich (B7, geplant) — 🖥️ e2e ⏳
+  - Vergleichstabelle mit den KPIs (computeStats aus src/lib/analysis/stats.ts) aller Setups nebeneinander, Testende (offener G/V, End-Equity) je Setup und Aufteilung je Setup, Wochentag und Stunde über BreakdownTable.
+  - **Prüfung:** Drei Setups laufen lassen und die Vergleichstabelle öffnen.
+  - **Erwartet:** Jede Spalte stimmt mit den KPIs des einzeln gewählten Setups überein.

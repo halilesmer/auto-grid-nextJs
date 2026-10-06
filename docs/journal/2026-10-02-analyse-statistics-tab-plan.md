@@ -24,9 +24,9 @@ areas: [frontend]
 | PR A | More fractal setups in one zone (ZON-18, ENG-28) | done (PR #100, live test #101, follow-up fix #102) |
 | 6 = PR B | Statistics tab (ANA-09) | done (PR #108, live check on DEMO passed) |
 | 6b | MFE/MAE (ANA-12) | done (PR #109, live check on DEMO passed) |
-| 7 | Bot logic in the browser (`frontend_nextjs/src/lib/backtest/engine/`) | open |
-| 8 | Backtest runner, CSV import with checks | open |
-| 9 | Backtest tab | open |
+| 7 | Bot logic in the browser (`frontend_nextjs/src/lib/backtest/engine/`) | moved: see `2026-10-06-backtest-module-plan.md` (steps B1–B9) |
+| 8 | Backtest runner, CSV import with checks | moved: see `2026-10-06-backtest-module-plan.md` (steps B1–B9) |
+| 9 | Backtest tab | moved: see `2026-10-06-backtest-module-plan.md` (steps B1–B9); the backtest gets its own page `/backtest` |
 
 ANA-09 (PR #108) and ANA-12 (PR #109) are in `docs/features/features.yaml`.
 
@@ -56,9 +56,9 @@ Tests: catalog entries ANA-09 (statistics, curves, split for each setup) and ANA
   - Missing candles, a missing entry, a SELL candle without spread or a trade open for more than 100,000 minutes: "cannot be calculated", never 0.
   - A gap only because the account is busy (or an MT5 error) is temporary: the trade stays open for the next press. Symbols load one after the other, because the worker reads only one range from MT5 at a time (`market_sync._FETCH_SLOT`, 30 s wait). Parallel requests came back as "busy" (review finding).
   - Live check on DEMO, 2026-10-06, read only: 122 trades of one zone (7 days), all calculated. One BUY and one SELL (with spread) are equal to a separate calculation from the raw `/deals` and M1 `/rates` responses, in points and money.
-- [ ] Step 7: bot logic in the browser. The event sequence must be equal to the golden scenarios.
-- [ ] Step 8: backtest runner. No event is skipped without a message. An aborted import cannot be used.
-- [ ] Step 9: backtest tab. The real zone is never saved. An old result never shows under a different account.
+- [x] Step 7: bot logic in the browser. Moved to `2026-10-06-backtest-module-plan.md` (B2, B3).
+- [x] Step 8: backtest runner and CSV import. Moved to `2026-10-06-backtest-module-plan.md` (B4, B9).
+- [x] Step 9: backtest tab. Moved to `2026-10-06-backtest-module-plan.md` (B5–B8, page `/backtest`).
 - [x] The zone registry of the DEMO account has entries since 2026-10-02. Trades that opened before the registry entry stay "zone unknown" (by design). On 2026-10-06 this was most trades of the last 30 days.
 - [ ] Observation (2026-10-02): `/api/logs` requests waited up to 15 s while a long `/rates` fetch from MT5 ran. The cause is not known.
 - [ ] Manual tests that are still open: see `docs/features/FEATURES.md` (`scripts/features/run.sh next`).
