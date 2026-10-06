@@ -64,13 +64,17 @@ def fractal_zone(**overrides):
 
 OSC = [97.0, 96.6, 97.2, 96.7, 97.4, 96.9, 97.1]
 
+# Ausstiegs-Standard einer neuen Zone in der Oberfläche (frontend_nextjs/src/utils/zoneHelpers.ts, defaultZone)
+UI_CLEAR = {"clear_on_exit": True, "clear_exit_side": "SELL (Aşağı)", "clear_scope": "Sadece Bekleyen Emirler",
+            "clear_target_side": "Sadece BUY İşlemleri"}
+
 
 def scenarios() -> dict[str, dict]:
     s = {}
 
-    def add(name, description, zones, ticks, history=None):
-        s[name] = {"name": name, "description": description, "symbol": SYMBOL, "start": START,
-                   "zones": zones, "history": history or {}, "ticks": ticks}
+    def add(name, description, zones, ticks, history=None, symbol=None):
+        s[name] = {"name": name, "description": description, "symbol": {**SYMBOL, **(symbol or {})},
+                   "start": START, "zones": zones, "history": history or {}, "ticks": ticks}
 
     add("grid_buy", "BUY-Grid, Kurs pendelt: Füllungen, TP, Nachziehen des Grids",
         [make_zone(id="z1", order_type="BUY")], walk(OSC, seed=1))
@@ -103,6 +107,19 @@ def scenarios() -> dict[str, dict]:
         [make_zone(id="z1", order_type="BUY", min_price=96.0, max_price=97.5, clear_on_exit=True,
                    exit_condition="Mum Kapanışı", exit_timeframe="M1")],
         walk([97.0, 97.6, 97.4, 97.7, 97.7], seed=13, every=10))
+    add("exit_ui_default_up", "UI-Standard, Ausstieg nach oben: Seite passt nicht, kein Löschen, trotzdem "
+        "AUTO_CLEAR; die Orders löscht der nächste Tick (clean_zombie_orders)",
+        [make_zone(id="z1", order_type="BUY", min_price=96.0, max_price=97.5, **UI_CLEAR)],
+        walk([97.0, 96.7, 97.8, 97.3], seed=20))
+    add("exit_ui_default_down", "UI-Standard, Ausstieg nach unten: nur BUY-Orders sofort löschen, "
+        "SELL-Orders erst im nächsten Tick",
+        [make_zone(id="z1", order_type="BOTH", min_price=96.8, max_price=98.0, **UI_CLEAR)],
+        walk([97.0, 96.6, 97.0], seed=21))
+    add("exit_up_sell_only_all", "Ausstieg nach oben, alles schließen, nur SELL: BUY-Positionen bleiben offen",
+        [make_zone(id="z1", order_type="BOTH", min_price=96.0, max_price=97.5, take_profit=1.0, max_positions=20,
+                   clear_on_exit=True, clear_exit_side="BUY (Yukarı)", clear_scope="Tüm İşlemler",
+                   clear_target_side="Sadece SELL İşlemleri")],
+        walk([97.0, 96.75, 97.35, 97.8, 97.3], seed=22))
     add("instant_entry", "Sofort-Einstieg mit 30-s-Bremse, TP schließt, neuer Einstieg",
         [make_zone(id="z1", order_type="BUY", instant_entry=True, take_profit=0.05)],
         walk([97.0, 97.1, 96.9, 97.2, 96.95], step=0.01, seed=14))
