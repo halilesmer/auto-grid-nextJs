@@ -234,6 +234,13 @@
       "tests": 38
     }
   },
+  "BKT-02": {
+    "e2e": {
+      "datum": "2026-10-06",
+      "status": "passed",
+      "tests": 17
+    }
+  },
   "BKT-09": {
     "unit": {
       "datum": "2026-10-02",
