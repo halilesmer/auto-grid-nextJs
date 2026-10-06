@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [110, 111, 114]
+pr: [110, 111, 114, 115]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -27,6 +27,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B0 | This plan, catalog entries, architecture map | – | done (PR #110) |
 | B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #114) |
+| B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
 | B3 | Engine port, fractal (ATR, SAR, setups) | BKT-03 | open |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
@@ -35,7 +36,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
 | B9 | CSV import (worker process and dialog) | BKT-05 | open |
 
-Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4.
+Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4. B2.1 comes from the review of PR #114.
 
 ## Corrections to the first concept
 
@@ -196,8 +197,10 @@ These modules came with PR #108 (ANA-09) and PR #109 (ANA-12). Do not make new c
 The run log and the page show these limits:
 
 - Margin and stop-out.
-- Rejects, vanished orders (ENG-25), auto pause (ENG-11), partial fills.
+- Rejects, vanished orders (ENG-25), auto pause (ENG-11), partial fills. Also rejects for the stops level and the freeze level: the `simBroker` accepts each order.
+- The top-up after a partial fill (gap G6 of B2.1): in V1 the top-up branch of `process_partial_fills_and_tpsl` never runs, because the `simBroker` always fills the full volume. No golden file checks it (V2).
 - Remote commands, reconnect, more zones of one account at the same time. V1 tests one zone for each setup.
+- Two symbols or more zones in one run (gap G4b of B2.1): no golden file checks the port for this (V2).
 - The costs are estimates. Swap and foreign currency use the rates of today.
 
 ### Version 2 (not in this plan)
@@ -282,13 +285,64 @@ Decisions:
 - A test checks rule 1: no file in `src/lib/backtest/` uses `mergeAndSaveSettings`, `/settings` or a store hook.
 - Not ported: `rekey_zone_state` (the backtest does not load settings again during a run), `grid_remote`, `grid_metrics`, `grid_safety`. A fractal zone gives the error `engine.fractalNotPorted` until B3.
 
+## Result B2.1 (PR #115)
+
+Before B2.1, all 18 scenarios used 1 zone, 1 symbol with `trade_stops_level` 0 and without tick values, the exit target "Farketmez (Hepsi)" and `max_positions` 10, 3 or 1. A backtest with real symbols (B4) reaches more paths. B2.1 adds 11 scenarios with golden files (now 29; 24 of them for BKT-02). The 18 old scenario and golden files did not change (byte-equal).
+
+| Gap | Scenario | Path |
+|---|---|---|
+| G2 | `exit_ui_default_up` | UI default of a new zone (`zoneHelpers.ts` `defaultZone`: exit side SELL, target only BUY, only pending orders), exit up: the side does not agree, nothing is cancelled, the zone still gets AUTO_CLEAR; `clean_zombie_orders` cancels the orders in the next tick. |
+| G2 | `exit_ui_default_down` | UI default, exit down: only the BUY orders are cancelled in the exit tick, the SELL orders in the next tick. |
+| G2 | `exit_up_sell_only_all` | Exit up, "Tüm İşlemler", target only SELL: the SELL positions close, the BUY positions stay open. |
+| G1 | `grid_stops_level` | `trade_stops_level` 50 points, TP 0.03: `enforce_stops_level` moves the TP of the orders; TP resync (`sltp`) for BUY and SELL, and the wait when the new TP is on the wrong side. Records a bot defect, see `2026-10-06-stops-level-order-flood.md`. |
+| G3 | `grid_step_by_loss_tick_value` | `step_by_loss` with tick value 3.0 / tick size 0.01 (300 for each price unit), BOTH without sync, SELL with its own lot; distances rounded to points. |
+| G5 | `grid_max_positions_unlimited` | `max_positions` 0 = no limit (500): 15 fills. |
+| G5 | `grid_lot_below_min` | `volume_min` and `volume_step` 0.1: BUY lot 0.05 → 0.1, SELL lot 0.25 → 0.3. |
+| G5 | `grid_sell_lot_empty` | BOTH without sync, `sell_lot_size` "": SELL uses the BUY lot 0.03 (not `volume_min`). |
+| G5 | `grid_sync_ignores_sell` | BOTH with sync: all `sell_*` fields are ignored. |
+| G4a | `grid_start_outside_no_clear` | The run starts above the zone, `clear_on_exit` off: the bot trades the grid of the first zone of the symbol before the price enters, and does not clean up at the exit. |
+| G7 | `exit_stored_magic` | Zone with the stored `magic` 200007: orders, comment `AutoGrid_Z7`, exit and clean-up use this magic. |
+
+| File | Change |
+|---|---|
+| `worker_python/tests/parity/make_scenarios.py` | `add(..., symbol=None)` merges extra symbol fields into `SYMBOL`; 11 new scenarios; `UI_CLEAR` = exit fields of the UI default. |
+| `worker_python/tests/parity/scenarios/`, `golden/` | 11 new scenario files and 11 new golden files. |
+| `frontend_nextjs/e2e/mocked/backtest-grid-parity-lib.spec.ts` | Count 24. One guard test for each new scenario: the golden file reaches the path (for example `sltp` events, 15 fills, the cancels in the exit tick and in the next tick). |
+
+Result: the TS port agrees with all 24 scenarios on the first run. No change in `src/lib/backtest/` was necessary.
+
+Decisions:
+
+- Mutation check, because all new scenarios were green at once. Procedure: one change in the TS port, then the BKT-02 spec, then restore the file. Each change made only its new scenario red, and no old scenario:
+
+  | Change in the TS port | Red scenario |
+  |---|---|
+  | Exit target filter and exit side ignored | `exit_ui_default_up`, `exit_ui_default_down` |
+  | `tpslOnWrongSide` always false | `grid_stops_level` |
+  | `enforceStopsLevel` without effect | `grid_stops_level` |
+  | Tick value ignored | `grid_step_by_loss_tick_value` |
+  | `max_positions` 0 → 10 | `grid_max_positions_unlimited` |
+  | `""` is not empty | `grid_sell_lot_empty` |
+  | Sync reads `sell_grid_step` | `grid_sync_ignores_sell` |
+  | Stored magic ignored | `exit_stored_magic` |
+  | `clear_on_exit` ignored | `grid_start_outside_no_clear` |
+
+- Before B2.1, no scenario left a zone with `clear_on_exit` off.
+- A guard test compares the exit fields of `exit_ui_default_*` with `defaultZone()`. When the UI default changes, the test fails.
+- G1 uses price steps of 0.07 and 1 level for each side. With steps of 0.02 the defect prevents all fills (no `sltp`), and the golden file had 3,493 events.
+- G4b (two symbols, more zones) and G6 (top-up after a partial fill) are not in B2.1. See "Not simulated".
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
 - [x] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
 - [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #114).
-- [ ] B2 follow-up (from the review of PR #114): the 13 scenarios do not test these paths. The code agrees with Python when read, but no golden file checks it: `trade_stops_level` > 0 (`enforceStopsLevel`, TP/SL on the wrong side), the exit targets "Sadece BUY İşlemleri" / "Sadece SELL İşlemleri" (the UI default is BUY), `clear_exit_side` not equal to the exit, `step_by_loss` with tick values, two symbols, `max_positions = 0`, the top-up after a partial fill (the simBroker cannot fill partly). Add scenarios in `make_scenarios.py`, write the golden files again, and change the count in the BKT-02 spec.
+- [x] B2 follow-up from the review of PR #114 = B2.1 (PR #115): 11 new scenarios, and the TS port agrees with all 24 (see "Result B2.1"). Two symbols and the top-up after a partial fill stay V2 (see "Not simulated").
+- [ ] Bot defect found in B2.1: with a stops level larger than the TP or SL distance, the bot cancels and sends all orders in each loop (`2026-10-06-stops-level-order-flood.md`). A fix changes `grid_stops_level.json` and the TS port.
 - [ ] B4: `simBroker.bars()` builds all candles again from all ticks at each call. Keep the candles incrementally for runs with up to 1 million candles.
+- [ ] B4 (from B2.1): `simBroker.symbolInfoOf` uses the FakeMT5 default for a missing symbol field. In a real run, a missing field must block the run or show a warning.
+- [ ] B4 (from B2.1): the run log tells that rejects for the stops level and the freeze level are not simulated.
+- [ ] B4 (from B2.1): set `is_active: true` on the copy of the zone. The UI default is `false`, and an inactive zone gives an empty run.
 - [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
 - [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.

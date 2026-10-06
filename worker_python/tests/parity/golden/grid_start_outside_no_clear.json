@@ -1,0 +1,546 @@
+[
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ },
+ {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.5,
+  "volume": 0.01,
+  "tp": 97.6,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 8,
+  "t": 40,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.4,
+  "volume": 0.01,
+  "tp": 97.5,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 13,
+  "t": 65,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 97.4,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 18,
+  "t": 90,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 97.3,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 21,
+  "t": 105,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 97.2,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 26,
+  "t": 130,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.4,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 28,
+  "t": 140,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 97.1,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 31,
+  "t": 155,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 33,
+  "t": 165,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 97.0,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 36,
+  "t": 180,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 38,
+  "t": 190,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.9,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 41,
+  "t": 205,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 43,
+  "t": 215,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.7,
+  "volume": 0.01,
+  "tp": 96.8,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 46,
+  "t": 230,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 48,
+  "t": 240,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.6,
+  "volume": 0.01,
+  "tp": 96.7,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 51,
+  "t": 255,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 53,
+  "t": 265,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 96.6,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 65,
+  "t": 325,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 96.9,
+  "price": 97.0,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 65,
+  "t": 325,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 97.0,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 68,
+  "t": 340,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "magic": 200001
+ },
+ {
+  "i": 70,
+  "t": 350,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.0,
+  "price": 97.1,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 70,
+  "t": 350,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 97.1,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 73,
+  "t": 365,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 96.6,
+  "magic": 200001
+ },
+ {
+  "i": 75,
+  "t": 375,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.1,
+  "price": 97.2,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 75,
+  "t": 375,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 97.2,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 78,
+  "t": 390,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 96.7,
+  "magic": 200001
+ },
+ {
+  "i": 80,
+  "t": 400,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.2,
+  "price": 97.3,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 80,
+  "t": 400,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 97.3,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 83,
+  "t": 415,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "magic": 200001
+ },
+ {
+  "i": 85,
+  "t": 425,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.3,
+  "price": 97.4,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 85,
+  "t": 425,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 97.4,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 88,
+  "t": 440,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "magic": 200001
+ },
+ {
+  "i": 90,
+  "t": 450,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.4,
+  "price": 97.5,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 90,
+  "t": 450,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.4,
+  "volume": 0.01,
+  "tp": 97.5,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 93,
+  "t": 465,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "magic": 200001
+ },
+ {
+  "i": 95,
+  "t": 475,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.5,
+  "price": 97.6,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 95,
+  "t": 475,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.5,
+  "volume": 0.01,
+  "tp": 97.6,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 98,
+  "t": 490,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "magic": 200001
+ },
+ {
+  "i": 103,
+  "t": 515,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "magic": 200001
+ },
+ {
+  "i": 108,
+  "t": 540,
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "magic": 200001
+ },
+ {
+  "i": 123,
+  "t": 615,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 97.4,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 128,
+  "t": 640,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 97.3,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 131,
+  "t": 655,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 133,
+  "t": 665,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 97.2,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 136,
+  "t": 680,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.4,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 138,
+  "t": 690,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 97.1,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 141,
+  "t": 705,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 143,
+  "t": 715,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 97.0,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 146,
+  "t": 730,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 148,
+  "t": 740,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.9,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ }
+]

@@ -64,13 +64,17 @@ def fractal_zone(**overrides):
 
 OSC = [97.0, 96.6, 97.2, 96.7, 97.4, 96.9, 97.1]
 
+# Ausstiegs-Standard einer neuen Zone in der Oberfläche (frontend_nextjs/src/utils/zoneHelpers.ts, defaultZone)
+UI_CLEAR = {"clear_on_exit": True, "clear_exit_side": "SELL (Aşağı)", "clear_scope": "Sadece Bekleyen Emirler",
+            "clear_target_side": "Sadece BUY İşlemleri"}
+
 
 def scenarios() -> dict[str, dict]:
     s = {}
 
-    def add(name, description, zones, ticks, history=None):
-        s[name] = {"name": name, "description": description, "symbol": SYMBOL, "start": START,
-                   "zones": zones, "history": history or {}, "ticks": ticks}
+    def add(name, description, zones, ticks, history=None, symbol=None):
+        s[name] = {"name": name, "description": description, "symbol": {**SYMBOL, **(symbol or {})},
+                   "start": START, "zones": zones, "history": history or {}, "ticks": ticks}
 
     add("grid_buy", "BUY-Grid, Kurs pendelt: Füllungen, TP, Nachziehen des Grids",
         [make_zone(id="z1", order_type="BUY")], walk(OSC, seed=1))
@@ -85,11 +89,38 @@ def scenarios() -> dict[str, dict]:
         [make_zone(id="z1", order_type="BUY", stop_loss=0.3)], walk([97.0, 96.2, 96.8], seed=5))
     add("grid_max_positions", "Höchstens 3 Positionen, Kurs fällt weit",
         [make_zone(id="z1", order_type="BUY", max_positions=3)], walk([97.0, 96.0, 96.4], seed=6))
+    add("grid_max_positions_unlimited", "max_positions 0 = ohne Grenze (500): Kurs fällt über 15 Stufen",
+        [make_zone(id="z1", order_type="BUY", max_positions=0)], walk([97.0, 95.4, 95.8], seed=25))
+    add("grid_lot_below_min", "volume_min/volume_step 0,1: BUY-Lot 0,05 wird 0,1, SELL-Lot 0,25 rastet auf die Stufe",
+        [make_zone(id="z1", order_type="BOTH", sync_buy_sell=False, lot_size=0.05, sell_lot_size=0.25,
+                   sell_grid_step=0.15, sell_take_profit=0.15)],
+        walk(OSC, seed=26), symbol={"volume_min": 0.1, "volume_step": 0.1})
+    add("grid_sell_lot_empty", "BOTH ohne Sync, sell_lot_size leer: SELL nimmt das BUY-Lot 0,03",
+        [make_zone(id="z1", order_type="BOTH", sync_buy_sell=False, lot_size=0.03, sell_lot_size="",
+                   sell_grid_step=0.15, sell_take_profit=0.15)], walk(OSC, seed=27))
+    add("grid_sync_ignores_sell", "BOTH mit Sync: alle sell_*-Felder (Abstand, Lot, TP, SL) werden ignoriert",
+        [make_zone(id="z1", order_type="BOTH", sell_grid_step=0.25, sell_lot_size=None, sell_take_profit=0.3,
+                   sell_stop_loss=0.2)], walk(OSC, seed=28))
     add("grid_breakout", "Ausbruchsmodus mit Pullback",
         [make_zone(id="z1", order_type="BOTH", is_breakout=True, pullback_distance=0.3,
                    sell_pullback_distance=0.3)], walk([97.0, 97.6, 97.2, 96.4, 96.9], seed=8))
     add("grid_step_by_loss", "Abstand wächst mit Verlustpositionen (step_by_loss)",
         [make_zone(id="z1", order_type="BUY", step_by_loss=True)], walk([97.0, 96.3, 96.9], seed=9))
+    add("grid_stops_level", "Stops Level 50 Points, TP 0,03: der Broker-Abstand verschiebt TP der Orders, "
+        "danach TP-Abgleich der Positionen (sltp) erst, wenn der neue TP nicht auf der falschen Seite liegt",
+        [make_zone(id="z1", order_type="BOTH", take_profit=0.03, levels_below=1, levels_above=1)],
+        walk(OSC, step=0.07, seed=23),
+        symbol={"trade_stops_level": 50})
+    add("grid_step_by_loss_tick_value", "step_by_loss mit Tick-Wert (3,0 je 0,01 → 300 je Preiseinheit), "
+        "BOTH ohne Sync: SELL rechnet mit eigenem Lot; Abstände auf Points gerundet",
+        [make_zone(id="z1", order_type="BOTH", step_by_loss=True, sync_buy_sell=False, grid_step=0.5,
+                   take_profit=0.4, stop_loss=1.5, sell_grid_step=0.5, sell_lot_size=0.02,
+                   sell_take_profit=0.4, sell_stop_loss=1.5)],
+        walk(OSC, seed=24), symbol={"trade_tick_value": 3.0, "trade_tick_size": 0.01})
+    add("grid_start_outside_no_clear", "Start über der Zone, ohne clear_on_exit: Eintritt, Austritt nach oben "
+        "ohne Aufräumen, Wiedereintritt",
+        [make_zone(id="z1", order_type="BUY", min_price=96.5, max_price=97.5)],
+        walk([97.9, 96.8, 97.9, 97.1], seed=30))
     add("grid_noise", "BOTH-Grid mit verrauschtem Kurs (viele kleine Bewegungen)",
         [make_zone(id="z1", order_type="BOTH")], walk(OSC, step=0.01, seed=10, noise=0.015))
     add("exit_clear_pending", "Kurs verlässt die Zone nach oben: Pending Orders löschen, AUTO_CLEAR",
@@ -103,6 +134,22 @@ def scenarios() -> dict[str, dict]:
         [make_zone(id="z1", order_type="BUY", min_price=96.0, max_price=97.5, clear_on_exit=True,
                    exit_condition="Mum Kapanışı", exit_timeframe="M1")],
         walk([97.0, 97.6, 97.4, 97.7, 97.7], seed=13, every=10))
+    add("exit_ui_default_up", "UI-Standard, Ausstieg nach oben: Seite passt nicht, kein Löschen, trotzdem "
+        "AUTO_CLEAR; die Orders löscht der nächste Tick (clean_zombie_orders)",
+        [make_zone(id="z1", order_type="BUY", min_price=96.0, max_price=97.5, **UI_CLEAR)],
+        walk([97.0, 96.7, 97.8, 97.3], seed=20))
+    add("exit_ui_default_down", "UI-Standard, Ausstieg nach unten: nur BUY-Orders sofort löschen, "
+        "SELL-Orders erst im nächsten Tick",
+        [make_zone(id="z1", order_type="BOTH", min_price=96.8, max_price=98.0, **UI_CLEAR)],
+        walk([97.0, 96.6, 97.0], seed=21))
+    add("exit_up_sell_only_all", "Ausstieg nach oben, alles schließen, nur SELL: BUY-Positionen bleiben offen",
+        [make_zone(id="z1", order_type="BOTH", min_price=96.0, max_price=97.5, take_profit=1.0, max_positions=20,
+                   clear_on_exit=True, clear_exit_side="BUY (Yukarı)", clear_scope="Tüm İşlemler",
+                   clear_target_side="Sadece SELL İşlemleri")],
+        walk([97.0, 96.75, 97.35, 97.8, 97.3], seed=22))
+    add("exit_stored_magic", "Zone mit gespeicherter magic 200007: Orders, Ausstieg und Aufräumen über diese magic",
+        [make_zone(id="z1", magic=200007, order_type="BUY", min_price=96.0, max_price=97.5, clear_on_exit=True)],
+        walk([97.0, 96.7, 97.8, 97.3], seed=29))
     add("instant_entry", "Sofort-Einstieg mit 30-s-Bremse, TP schließt, neuer Einstieg",
         [make_zone(id="z1", order_type="BUY", instant_entry=True, take_profit=0.05)],
         walk([97.0, 97.1, 96.9, 97.2, 96.95], step=0.01, seed=14))

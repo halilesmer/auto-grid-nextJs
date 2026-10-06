@@ -722,6 +722,7 @@ kategorien:
         pruefung:
           - Bei laufendem Bot TP der Zone ändern und speichern.
         erwartet: Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
+        bekannter_fehler: "Ist der Stops Level des Symbols größer als der TP- oder SL-Abstand der Zone, verschiebt enforce_stops_level den TP/SL jeder neuen Order; validation.py vergleicht mit dem TP/SL der Zone, hält die Order für falsch und löscht und setzt alle Orders in jeder Runde neu (docs/journal/2026-10-06-stops-level-order-flood.md)."
 
       - id: ENG-07
         titel: Maximale Positionen
@@ -1436,7 +1437,7 @@ kategorien:
     features:
       - id: BKT-01
         titel: Musterlösungen des Python-Bots
-        beschreibung: "18 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen, Ausbruch, step_by_loss, Rauschen, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7)."
+        beschreibung: "29 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen und max_positions 0, Ausbruch, step_by_loss mit Kontraktgröße und mit Tick-Wert, Rauschen, Stops Level > 0, Lot unter volume_min, leeres sell_lot_size ohne Sync, Sync ignoriert sell_*, Start außerhalb der Zone ohne clear_on_exit, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, mit dem UI-Standard (nur BUY, Seite passt nicht), nur SELL schließen und gespeicherter magic, Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7)."
         code: [worker_python/tests/parity/runner.py, worker_python/tests/parity/make_scenarios.py, worker_python/src/core/clock.py, worker_python/tests/unit/test_parity_golden.py]
         tiers: [unit]
         pruefung:
@@ -1459,8 +1460,8 @@ kategorien:
         code: [frontend_nextjs/src/lib/backtest/engine/orchestrator.ts, frontend_nextjs/src/lib/backtest/engine/pyRound.ts, frontend_nextjs/src/lib/backtest/broker/simBroker.ts, frontend_nextjs/src/lib/analysis/levels.ts, frontend_nextjs/e2e/fixtures/parity.ts, worker_python/tests/parity/runner.py]
         tiers: [e2e]
         pruefung:
-          - Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
-        erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; pyRound gleicht Pythons round() in allen Grenzfällen.
+          - Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 24 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
+        erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B2.1-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (sltp bei Stops Level, mehr als 10 Füllungen bei max_positions 0 …); pyRound gleicht Pythons round() in allen Grenzfällen.
 
       - id: BKT-03
         titel: Bot-Nachbau Fraktal im Browser (B3, geplant)
