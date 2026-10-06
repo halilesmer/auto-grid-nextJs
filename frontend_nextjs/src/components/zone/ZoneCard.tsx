@@ -23,6 +23,12 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
 
+function accentClass(orderType: string) {
+  if (orderType === 'BUY') return 'before:bg-success';
+  if (orderType === 'SELL') return 'before:bg-danger';
+  return 'before:bg-primary';
+}
+
 export function ZoneCard({
   zone,
   modified,
@@ -99,8 +105,7 @@ export function ZoneCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zone.symbol, volMin, volStep, volMax, update]);
 
-  const accent =
-    zone.order_type === 'BUY' ? 'before:bg-success' : zone.order_type === 'SELL' ? 'before:bg-danger' : 'before:bg-primary';
+  const accent = accentClass(zone.order_type);
 
   return (
     <div

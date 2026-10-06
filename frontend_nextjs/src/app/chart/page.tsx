@@ -124,6 +124,44 @@ function AnalysisView() {
     { id: 'backtest', label: t('analysis.tab.backtest'), hint: t('analysis.tab.backtest.hint'), icon: <FlaskConical size={14} /> },
   ];
 
+  const renderTab = () => {
+    if (!accountId) {
+      return (
+        <Alert tone="info" title={t('analysis.noAccount.title')}>
+          {t('analysis.noAccount.text')}
+        </Alert>
+      );
+    }
+    if (!accountKnown) {
+      return (
+        accounts.length > 0 && (
+          <Alert tone="warning" title={t('analysis.noAccount.title')}>
+            {t('analysis.account.notFound', { id: accountId })}
+          </Alert>
+        )
+      );
+    }
+    if (tab === 'chart') {
+      return (
+        <ZoneChartPanel
+          accountId={accountId}
+          zoneId={zoneId}
+          zones={zones}
+          timeframe={timeframe}
+          onTimeframe={setTimeframe}
+          range={bounds}
+          offsetSec={offsetSec}
+          clockReady={!clock.loading}
+          prefs={prefs}
+        />
+      );
+    }
+    if (tab === 'stats') {
+      return <Placeholder icon={<BarChart3 size={16} />} title={t('analysis.stats.title')} text={t('analysis.stats.text')} />;
+    }
+    return <Placeholder icon={<FlaskConical size={16} />} title={t('analysis.backtest.title')} text={t('analysis.backtest.text')} />;
+  };
+
   return (
     <div className="w-full space-y-5 px-4 py-6 md:px-8 md:py-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -171,33 +209,7 @@ function AnalysisView() {
 
       <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" />
 
-      {!accountId ? (
-        <Alert tone="info" title={t('analysis.noAccount.title')}>
-          {t('analysis.noAccount.text')}
-        </Alert>
-      ) : !accountKnown ? (
-        accounts.length > 0 && (
-          <Alert tone="warning" title={t('analysis.noAccount.title')}>
-            {t('analysis.account.notFound', { id: accountId })}
-          </Alert>
-        )
-      ) : tab === 'chart' ? (
-        <ZoneChartPanel
-          accountId={accountId}
-          zoneId={zoneId}
-          zones={zones}
-          timeframe={timeframe}
-          onTimeframe={setTimeframe}
-          range={bounds}
-          offsetSec={offsetSec}
-          clockReady={!clock.loading}
-          prefs={prefs}
-        />
-      ) : tab === 'stats' ? (
-        <Placeholder icon={<BarChart3 size={16} />} title={t('analysis.stats.title')} text={t('analysis.stats.text')} />
-      ) : (
-        <Placeholder icon={<FlaskConical size={16} />} title={t('analysis.backtest.title')} text={t('analysis.backtest.text')} />
-      )}
+      {renderTab()}
     </div>
   );
 }

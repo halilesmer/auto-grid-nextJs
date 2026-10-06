@@ -234,8 +234,8 @@ export default function LogViewer() {
           data-testid="log-output"
           className="h-72 overflow-auto whitespace-pre-wrap break-all p-4 font-mono text-[12.5px] leading-relaxed text-foreground/75"
         >
-          {tab === "activity" ? (
-            activity.length === 0 ? (
+          {tab === "activity" &&
+            (activity.length === 0 ? (
               <span className="text-muted-foreground/60">{t("logs.empty.activity")}</span>
             ) : (
               activity.map((entry, i) => (
@@ -245,26 +245,27 @@ export default function LogViewer() {
                   {"\n"}
                 </span>
               ))
-            )
-          ) : activeLines.length === 0 ? (
-            <span className="text-muted-foreground/60">{t("logs.empty.log")}</span>
-          ) : (
-            activeLines.map((line, i) => {
-              const { zoneId, text } = tab === "robot" ? splitZoneTag(line) : { zoneId: null, text: line };
-              const zoneNo = zoneId ? (zones?.findIndex((z) => z.id === zoneId) ?? -1) + 1 : 0;
-              return (
-                <span key={i} className={logLineColor(line)}>
-                  {zoneId && (
-                    <span data-testid="log-zone-badge" className="mr-1.5 rounded bg-primary/15 px-1 py-px text-[10.5px] font-semibold text-primary">
-                      {zoneNo > 0 ? t("logs.zoneBadge", { n: zoneNo }) : t("logs.zoneBadge.unknown")}
-                    </span>
-                  )}
-                  {text}
-                  {"\n"}
-                </span>
-              );
-            })
-          )}
+            ))}
+          {tab !== "activity" &&
+            (activeLines.length === 0 ? (
+              <span className="text-muted-foreground/60">{t("logs.empty.log")}</span>
+            ) : (
+              activeLines.map((line, i) => {
+                const { zoneId, text } = tab === "robot" ? splitZoneTag(line) : { zoneId: null, text: line };
+                const zoneNo = zoneId ? (zones?.findIndex((z) => z.id === zoneId) ?? -1) + 1 : 0;
+                return (
+                  <span key={i} className={logLineColor(line)}>
+                    {zoneId && (
+                      <span data-testid="log-zone-badge" className="mr-1.5 rounded bg-primary/15 px-1 py-px text-[10.5px] font-semibold text-primary">
+                        {zoneNo > 0 ? t("logs.zoneBadge", { n: zoneNo }) : t("logs.zoneBadge.unknown")}
+                      </span>
+                    )}
+                    {text}
+                    {"\n"}
+                  </span>
+                );
+              })
+            ))}
         </pre>
       </div>
     </Card>
