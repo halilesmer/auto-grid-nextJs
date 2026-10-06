@@ -99,6 +99,12 @@ def scenarios() -> dict[str, dict]:
         [make_zone(id="z1", order_type="BOTH", take_profit=0.03, levels_below=1, levels_above=1)],
         walk(OSC, step=0.07, seed=23),
         symbol={"trade_stops_level": 50})
+    add("grid_step_by_loss_tick_value", "step_by_loss mit Tick-Wert (3,0 je 0,01 → 300 je Preiseinheit), "
+        "BOTH ohne Sync: SELL rechnet mit eigenem Lot; Abstände auf Points gerundet",
+        [make_zone(id="z1", order_type="BOTH", step_by_loss=True, sync_buy_sell=False, grid_step=0.5,
+                   take_profit=0.4, stop_loss=1.5, sell_grid_step=0.5, sell_lot_size=0.02,
+                   sell_take_profit=0.4, sell_stop_loss=1.5)],
+        walk(OSC, seed=24), symbol={"trade_tick_value": 3.0, "trade_tick_size": 0.01})
     add("grid_noise", "BOTH-Grid mit verrauschtem Kurs (viele kleine Bewegungen)",
         [make_zone(id="z1", order_type="BOTH")], walk(OSC, step=0.01, seed=10, noise=0.015))
     add("exit_clear_pending", "Kurs verlässt die Zone nach oben: Pending Orders löschen, AUTO_CLEAR",

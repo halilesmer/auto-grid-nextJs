@@ -36,9 +36,9 @@ function kindsInTick(events: SimEvent[], i: number, ev: string): unknown[] {
 }
 
 test.describe('BKT-02 Bot-Nachbau Grid', () => {
-  test('Genau die 17 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
+  test('Genau die 18 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
     // Ein neues Szenario in make_scenarios.py fällt hier auf und braucht eine bewusste Entscheidung
-    expect(GRID_SCENARIOS).toHaveLength(17);
+    expect(GRID_SCENARIOS).toHaveLength(18);
     expect(GRID_SCENARIOS.every((n) => /^(grid_|exit_|instant_)/.test(n))).toBe(true);
   });
 
@@ -84,6 +84,17 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     // BUY ab 97,1: der neue TP 97,13 läge zu nah am Kurs, die Position schließt am verschobenen TP 97,15
     expect(golden.filter((e) => e.ev === 'sltp' && e.open === 97.1)).toEqual([]);
     expect(golden).toContainEqual(expect.objectContaining({ ev: 'exit', type: 'BUY', open: 97.1, price: 97.16, reason: 'tp' }));
+  });
+
+  test('step_by_loss rechnet mit Tick-Wert und Lot je Seite (nicht mit der Kontraktgröße)', { tag: '@BKT-02' }, () => {
+    const golden = loadGolden('grid_step_by_loss_tick_value');
+    const places = golden.filter((e) => e.i === 0 && e.ev === 'place');
+    // 3,0 je 0,01 = 300 je Preiseinheit; BUY 0,01 Lot: Abstand 0,5/3 = 0,167, TP 0,4/3 = 0,133, SL 1,5/3 = 0,5
+    expect(places[0]).toMatchObject({ type: 'BUY_LIMIT', price: 96.86, volume: 0.01, tp: 96.993, sl: 96.36 });
+    expect(places[1]).toMatchObject({ type: 'BUY_LIMIT', price: 96.693 });
+    // SELL 0,02 Lot: Abstand 0,5/6 = 0,083, TP 0,4/6 = 0,067, SL 1,5/6 = 0,25
+    expect(places[6]).toMatchObject({ type: 'SELL_LIMIT', price: 97.11, volume: 0.02, tp: 97.043, sl: 97.36 });
+    expect(places[7]).toMatchObject({ type: 'SELL_LIMIT', price: 97.193 });
   });
 
   test('Zweimal abgespielt ergibt dieselbe Folge (kein Zustand zwischen Läufen)', { tag: '@BKT-02' }, () => {
