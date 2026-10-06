@@ -6,6 +6,12 @@ import { useFormat, useT, type MessageKey } from '@/i18n';
 import type { TradeStats } from '@/lib/analysis/stats';
 import { cn } from '@/lib/utils';
 
+/** Farbe nach Vorzeichen: Gewinn grün, Verlust rot, sonst `neutral` */
+export function signTone(value: number | null | undefined, neutral = 'text-foreground') {
+  if (!value) return neutral;
+  return value > 0 ? 'text-success' : 'text-danger';
+}
+
 function Tile({ id, label, value, sub, tone }: { id: string; label: MessageKey; value: ReactNode; sub?: ReactNode; tone?: number | null }) {
   const t = useT();
   return (
@@ -17,7 +23,7 @@ function Tile({ id, label, value, sub, tone }: { id: string; label: MessageKey; 
       <div
         className={cn(
           'mt-1 truncate font-mono text-base font-semibold tabular-nums',
-          tone === undefined || tone === null || tone === 0 ? 'text-foreground' : tone > 0 ? 'text-success' : 'text-danger',
+          signTone(tone),
         )}
         data-testid={`stat-${id}-value`}
       >

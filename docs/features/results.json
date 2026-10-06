@@ -120,7 +120,7 @@
     "e2e": {
       "datum": "2026-10-06",
       "status": "passed",
-      "tests": 4
+      "tests": 1
     }
   },
   "ANA-02": {
@@ -821,42 +821,42 @@
   },
   "UI-01": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-02": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-03": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-04": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-05": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 4
     }
   },
   "UI-06": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
@@ -865,7 +865,7 @@
     "e2e": {
       "datum": "2026-10-06",
       "status": "passed",
-      "tests": 1
+      "tests": 16
     }
   },
   "UI-08": {
@@ -877,7 +877,7 @@
   },
   "UI-09": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 6
     }

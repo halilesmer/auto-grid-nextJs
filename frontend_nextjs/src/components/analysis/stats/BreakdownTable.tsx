@@ -3,6 +3,7 @@
 import { useFormat, useT } from '@/i18n';
 import type { Group } from '@/lib/analysis/groupings';
 import { cn } from '@/lib/utils';
+import { signTone } from './StatsKpis';
 
 /** Zeilen je Gruppe: Positionen, Trades, Trefferquote, Netto, Profitfaktor */
 export function BreakdownTable({ groups, label, currency }: { groups: Group[]; label: (key: string) => string; currency: string | null }) {
@@ -33,7 +34,7 @@ export function BreakdownTable({ groups, label, currency }: { groups: Group[]; l
               <td
                 className={cn(
                   'whitespace-nowrap px-3 py-1.5 text-right font-semibold',
-                  stats.net > 0 ? 'text-success' : stats.net < 0 ? 'text-danger' : 'text-muted-foreground',
+                  signTone(stats.net, 'text-muted-foreground'),
                 )}
                 data-testid="breakdown-net"
               >

@@ -39,8 +39,16 @@ interface ScopeItem {
 
 type CurveKind = 'realized' | 'balance' | 'drawdown';
 
-const scopeKey = (s: StatsScope) =>
-  s.kind === 'account' ? 'account' : s.kind === 'zone' ? `zone:${s.magic}` : `setup:${s.magic}:${s.sid}`;
+function scopeKey(s: StatsScope) {
+  if (s.kind === 'account') return 'account';
+  return s.kind === 'zone' ? `zone:${s.magic}` : `setup:${s.magic}:${s.sid}`;
+}
+
+/** Vorauswahl der Aufteilung: Konto je Zone, Fraktal-Zone je Setup, sonst je Wochentag */
+function defaultBreakdownFor(scope: StatsScope, zone: ZoneSettings | undefined): BreakdownKind {
+  if (scope.kind === 'account') return 'zone';
+  return scope.kind === 'zone' && zone?.entry_mode === 'fractal' ? 'setup' : 'weekday';
+}
 
 /**
  * Statistik-Tab (ANA-09): Kennzahlen, Kurven und Aufteilung der im Zeitraum geschlossenen Trades für das
@@ -125,8 +133,7 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
   const scope = current.scope;
   const scopeZone = scope.kind === 'account' ? undefined : zoneByMagic.get(scope.magic)?.zone;
 
-  const defaultBreakdown: BreakdownKind =
-    scope.kind === 'account' ? 'zone' : scope.kind === 'zone' && scopeZone?.entry_mode === 'fractal' ? 'setup' : 'weekday';
+  const defaultBreakdown = defaultBreakdownFor(scope, scopeZone);
   const [breakdownChoice, setBreakdownChoice] = useState<{ scope: string; kind: BreakdownKind } | null>(null);
   const kind = breakdownChoice?.scope === current.key ? breakdownChoice.kind : defaultBreakdown;
   const [curve, setCurve] = useState<CurveKind>('realized');
@@ -241,20 +248,18 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
               <div className="overflow-x-auto">
                 <AnimatedTabs tabs={curveTabs} activeTab={curve} onChange={(id) => setCurve(id as CurveKind)} layoutId="stats-curve" variant="segment" />
               </div>
-              {curve === 'balance' ? (
-                balance?.ok ? (
-                  <>
-                    <CurveChart points={balance.points} base={balance.points[0]?.value ?? 0} testId="curve-balance" />
-                    <p className="text-xs text-muted-foreground">{t('analysis.stats.curve.balance.scope')}</p>
-                  </>
-                ) : (
-                  balance && (
-                    <p className="text-sm text-muted-foreground" data-testid="curve-balance-off" data-reason={balance.reason}>
-                      {t(`analysis.stats.curve.balance.${balance.reason}`)}
-                    </p>
-                  )
-                )
-              ) : (
+              {curve === 'balance' && balance?.ok && (
+                <>
+                  <CurveChart points={balance.points} base={balance.points[0]?.value ?? 0} testId="curve-balance" />
+                  <p className="text-xs text-muted-foreground">{t('analysis.stats.curve.balance.scope')}</p>
+                </>
+              )}
+              {curve === 'balance' && balance && !balance.ok && (
+                <p className="text-sm text-muted-foreground" data-testid="curve-balance-off" data-reason={balance.reason}>
+                  {t(`analysis.stats.curve.balance.${balance.reason}`)}
+                </p>
+              )}
+              {curve !== 'balance' && (
                 <CurveChart
                   points={curve === 'realized' ? view.realized : view.drawdown}
                   base={0}

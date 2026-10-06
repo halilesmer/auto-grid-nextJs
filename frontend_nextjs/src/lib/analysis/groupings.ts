@@ -55,7 +55,9 @@ export function breakdown(trades: Trade[], kind: BreakdownKind): Group[] {
     if (kind === 'hour') return [0, Number(key), 0];
     if (key in ORDER) return [ORDER[key], 0, 0];
     const [, magic, sid] = key.split(':');
-    return [0, Number(magic), sid === undefined ? 0 : sid === 'none' ? 1000 : Number(sid)];
+    // Zone: nur die Magic; Setup: Nummer, „ohne Setup“ ans Ende
+    if (sid === undefined) return [0, Number(magic), 0];
+    return [0, Number(magic), sid === 'none' ? 1000 : Number(sid)];
   };
   return [...map.entries()]
     .map(([key, list]) => ({ key, stats: computeStats(list) }))
