@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [110, 111]
+pr: [110, 111, B2PR]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -26,7 +26,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 |---|---|---|---|
 | B0 | This plan, catalog entries, architecture map | – | done (PR #110) |
 | B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
-| B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | open |
+| B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #B2PR) |
 | B3 | Engine port, fractal (ATR, SAR, setups) | BKT-03 | open |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
@@ -250,11 +250,31 @@ Decisions:
 - The symbol cache (`broker_symbols.json`, TTL 1 h) has one file time for all accounts. Thus, an entry from before B1 can stay "fresh" for more than 1 h. An entry without the cost fields is now never fresh: the worker gives the old list once and refreshes it in the background. The backtest (B4) must not use a default value when a cost field is missing.
 - A broker that books commission only at the entry (or only at the exit) gives the correct round-turn value with this formula.
 
+## Result B2 (PR #B2PR)
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/lib/backtest/engine/` | Port of the grid engine, one file for each Python module, with the source in the header: `orchestrator`, `handler`, `zoneSelector`, `zoneState`, `orderManager`, `gridOrders`, `config`, `levels`, `validation`, `placement`, `instantEntry`, `vanished`, `tradeUtils`, `gridHelpers`, `zoneMagic`, `pyRound`. `mt5.ts` has the MT5 constants, the data types and the interface `BrokerApi`. `state.ts` has `EngineState` and the Python helpers (`pyGet`, `pyFloat`, `pyInt`, `pyBool`, `pyStr`). |
+| `frontend_nextjs/src/lib/backtest/broker/simBroker.ts` | Simulated broker in parity mode, as the FakeMT5 with `TimelineMT5` of the golden files. Each action sends an event in the format of the golden files. |
+| `frontend_nextjs/e2e/fixtures/parity.ts` | Replays a scenario as `tests/parity/runner.py` (market first, then one bot run per tick; prices rounded to digits + 2). |
+| `frontend_nextjs/e2e/mocked/backtest-parity-lib.spec.ts` | BKT-02: the 13 grid, exit and instant scenarios, `pyround.json`, and two runs give the same sequence. |
+
+Decisions:
+
+- Each run has its own `EngineState` and `LoopState`. Python keeps this state in module singletons (`state`, `TradeState`). More setups in one session (B7) need independent runs.
+- The ui_state file is `EngineState.uiStates` (`null` = no file, as at a fresh bot start). `process_zone_commands` and the writes for AUTO_CLEAR and PAUSE use it. `rekey_zone_state` is not ported, because the zone list does not change during a run.
+- The engine has its own `levels.ts`. `src/lib/analysis/levels.ts` (chart) calculates only the desired levels. The engine also needs the acceptable levels for the order check. The plan said to use the chart module again; that is not sufficient.
+- `pyRound` calculates exactly with BigInt. `toFixed` rounds an exact half up, Python rounds it to even (for example `round(0.125, 2)` = 0.12). The tsconfig target is ES2017, thus `BigInt(…)` and no `10n` literals.
+- `SimBroker` gives the same objects as the FakeMT5 (no copies). The engine sees a change (for example a new TP) in the same run.
+- A position of the simulator has `openTime` for B4, but no `time_msc`. `levels._anchor` sorts by `time_msc`, then by ticket. The FakeMT5 has no `time_msc`, thus the parity uses the ticket order.
+- A fractal zone logs an error and does not trade. B3 adds `fractal_entry`.
+- B4 note: `pyRound` with BigInt is slow for millions of calls. If B4 is too slow, add a fast path (`toFixed` when the value is not near a half).
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
 - [ ] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
-- [ ] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files.
+- [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #B2PR).
 - [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
 - [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.

@@ -121,6 +121,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┗ 📜 zoneApi.ts           # Zone API işlemleri
 ┃ ┃ ┣ 📂 lib                    # Kütüphane yardımcıları
 ┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı), tradePairing.ts (deal → işlem: position_id, kısmi kapanış, INOUT, bölge kaydı; docs/analyse-regeln.md §2), fractals.ts (find_fractals ile aynı), stats.ts / curves.ts / groupings.ts (istatistik sekmesi), excursions.ts (MFE/MAE, docs/analyse-regeln.md §4); backtest de bunları kullanır (plan: `lib/backtest/` engine/broker/data, BKT-02…13)
+┃ ┃ ┃ ┣ 📂 backtest             # Backtest (BKT): commission.ts (komisyon önerisi, B1); engine/ = botun grid motorunun TS kopyası (Python modülü başına bir dosya, başlıkta kaynak; orchestrator → handler → levels/validation/placement/instantEntry, pyRound = Python round()); broker/simBroker.ts = parite modunda simüle broker (FakeMT5 gibi). Musterlösungen ile ölçülür (BKT-02, e2e/mocked/backtest-parity-lib.spec.ts); fraktal B3'te
 ┃ ┃ ┃ ┣ 📜 chartTheme.ts        # Grafik renkleri tema token'larından (çalışma anında okunur)
 ┃ ┃ ┃ ┣ 📜 serverTime.ts        # Zaman modeli: broker günü (MT5 zamanı, UTC aritmetiği), hazır aralıklar, yarı açık aralıklar (docs/analyse-regeln.md §1)
 ┃ ┃ ┃ ┣ 📜 vps.ts               # VPS aksiyonları ve tipleri (sayfa + route ortak)

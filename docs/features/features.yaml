@@ -1442,16 +1442,16 @@ kategorien:
           - In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q -k spaetere` ausführen.
         erwartet: Grün für alle Szenarien.
 
-      # --- Geplant (offen), Plan: docs/journal/2026-10-06-backtest-module-plan.md; Schritt B1–B9 steht im Titel.
       - id: BKT-02
-        titel: Bot-Nachbau Grid im Browser (B2, geplant)
-        beschreibung: "Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01."
-        code: [frontend_nextjs/src/lib/analysis/levels.ts, worker_python/tests/parity/runner.py]
+        titel: Bot-Nachbau Grid im Browser
+        beschreibung: "Die Grid-Logik des Bots als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf: Orchestrator (manage_dynamic_grid), Zonenwahl und -zustand (ui_state als EngineState.uiStates), Order-Verwaltung (Zombie-Orders, TP/SL-Abgleich, Teilfüllung, Zonen-Ausstieg), handler, config, levels (gewünschte und zulässige Stufen), Prüfung, Platzierung, Sofort-Einstieg mit 30-s-Bremse, vanished, trade_utils, zone_magic und pyRound (Pythons round() exakt mit BigInt). Jeder Lauf hat seinen eigenen Zustand (EngineState), keine Modul-Singletons. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus wie der FakeMT5 der Musterlösungen: Füllung zum Orderpreis, TP/SL zum aktuellen Kurs, je Tick erst Markt dann Bot, Kerzen nur aus Historie und bisherigen Ticks; jede Aktion meldet ein Ereignis im Format der Golden-Files. Fraktal-Zonen (B3) melden einen Fehler statt zu handeln. Gemessen an den Musterlösungen aus BKT-01; ändert sich die Bot-Logik bewusst (--update-golden), muss der Nachbau mitziehen."
+        code: [frontend_nextjs/src/lib/backtest/engine/orchestrator.ts, frontend_nextjs/src/lib/backtest/broker/simBroker.ts, frontend_nextjs/src/lib/backtest/engine/pyRound.ts, frontend_nextjs/e2e/fixtures/parity.ts, worker_python/tests/parity/runner.py]
         tiers: [e2e]
         pruefung:
-          - Playwright-Projekt logic (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
-        erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; pyRound gleicht Pythons round() in allen Grenzfällen.
+          - Im frontend_nextjs `npx playwright test e2e/mocked/backtest-parity-lib.spec.ts` ausführen (reine Rechnung ohne Browserseite).
+        erwartet: Alle 13 Grid-, Exit- und Sofort-Einstieg-Szenarien geben genau die Ereignisfolge ihrer Golden-Datei; pyRound gleicht Pythons round() in allen Fällen von pyround.json; zweimal abgespielt ergibt dieselbe Folge.
 
+      # --- Geplant (offen), Plan: docs/journal/2026-10-06-backtest-module-plan.md; Schritt B1–B9 steht im Titel.
       - id: BKT-03
         titel: Bot-Nachbau Fraktal im Browser (B3, geplant)
         beschreibung: "Fraktal-Signale, Fraktal-Einstieg und Indikatoren (ATR, SAR) des Bots als TypeScript in frontend_nextjs/src/lib/backtest/engine/, mit mehreren Setups je Zone (ZON-18); Fraktale aus src/lib/analysis/fractals.ts."
