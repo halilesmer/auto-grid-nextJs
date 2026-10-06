@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [110, 111]
+pr: [110, 111, B2PR]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -26,7 +26,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 |---|---|---|---|
 | B0 | This plan, catalog entries, architecture map | – | done (PR #110) |
 | B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
-| B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | open |
+| B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #B2PR) |
 | B3 | Engine port, fractal (ATR, SAR, setups) | BKT-03 | open |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
@@ -227,7 +227,7 @@ Plan for each step:
 | Tier | Checks |
 |---|---|
 | unit / api (pytest) | Cost fields of the symbol; presets with `owner`, 404 for a different user; CSV process (check, abort, replace). `scripts/features/run.sh unit BKT`, `api BKT` |
-| logic (Playwright project `logic`, no browser page) | Parity of all scenarios in `worker_python/tests/parity/` and `pyround.json`; hand-calculated cases; future-data test |
+| logic (Playwright spec `e2e/mocked/*-lib.spec.ts`, no browser page; see "Result B2") | Parity of all scenarios in `worker_python/tests/parity/` and `pyround.json`; hand-calculated cases; future-data test |
 | e2e (mock worker) | Test button → backtest with unsaved values; no `POST /settings` from the backtest (the mock counts); transfer → dashboard unsaved and marked; account change without old results; notes cannot be hidden; tooltips (UI-07); 375 px (UI-08) |
 | live (DEMO, read only) | One run over 30 days of M1. Compare with the trades of the same zone (plausible, not equal). Measure load time and memory for 1 year of M1. |
 
@@ -258,11 +258,32 @@ Decisions:
 - Result: MT5 does not give 1 year of M1 for this account. A backtest over 1 year needs the CSV import (B9).
 - Until B9 is done, the backtest uses the available data. The missing range shows as `missing` (rule 4).
 
+## Result B2 (PR #B2PR)
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/lib/backtest/engine/` | New. One file for each Python module, with the source in the header: `pyRound`, `types`, `state`, `tradeUtils`, `helpers`, `zoneMagic`, `orders`, `config`, `validation`, `placement`, `instantEntry`, `vanished`, `handler`, `orderManager`, `zoneSelector`, `zoneState`, `orchestrator`. |
+| `frontend_nextjs/src/lib/backtest/broker/simBroker.ts` | New. FakeMT5 + TimelineMT5 + Recorder of `tests/parity/runner.py`: order book, fill at the order price, TP/SL, candles from the history and the ticks until now, events as in the golden files. |
+| `frontend_nextjs/src/lib/analysis/levels.ts` | The core of `generate_levels` is now `levelSets()` (desired and acceptable levels). `zoneLevels()` (chart) and the engine use it. Rounding with `pyRound`. |
+| `frontend_nextjs/e2e/fixtures/parity.ts` | New. Scenario driver as `runner.run`: per tick the market step, then one bot run, then `active`. B3 uses it again. |
+| `frontend_nextjs/e2e/mocked/backtest-grid-parity-lib.spec.ts` | New. `@BKT-02`: 13 scenarios equal to the golden files, `pyround.json` with `Object.is` (also `-0`), a second run gives the same sequence. |
+
+Result: all 13 scenarios and all `pyround.json` cases agree on the first run of the port.
+
+Decisions:
+
+- `pyRound` rounds the exact binary value (mantissa and exponent with BigInt, ties to even), as CPython. `toFixed` rounds exact ties up, for example `round(0.125, 2)` gives 0.12 in Python. `round(x)` without digits gives `+0`, `round(x, n)` can give `-0`, as in Python.
+- The engine has no global state. `EngineState` is one object for each run. It also holds the content of `ui_state_<account>.json` (`uiStates`, `null` = no file).
+- The engine writes log codes with values (`grid.maxPositions`, `zone.exited` …), not the Turkish texts of the bot. The run log (B4) translates them with i18n. The logs are not part of the parity.
+- There is no Playwright project `logic`: the `webServer` starts for each project. The logic tests use the pattern `e2e/mocked/*-lib.spec.ts`, as `backtest-costs-lib.spec.ts`. Thus `run.sh` and CI need no change. BKT-02/03/04 in the catalog say this now.
+- In parity mode a position has no `time_msc` (FakeMT5). The anchor of `step_by_loss` / `instant_entry` is then the position with the highest ticket. The ticket counter starts at 1000 and counts as in FakeMT5.
+- Not ported: `rekey_zone_state` (the backtest does not load settings again during a run), `grid_remote`, `grid_metrics`, `grid_safety`. A fractal zone gives the error `engine.fractalNotPorted` until B3.
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
 - [x] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
-- [ ] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files.
+- [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #B2PR).
 - [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
 - [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
