@@ -36,9 +36,9 @@ function kindsInTick(events: SimEvent[], i: number, ev: string): unknown[] {
 }
 
 test.describe('BKT-02 Bot-Nachbau Grid', () => {
-  test('Genau die 22 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
+  test('Genau die 24 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
     // Ein neues Szenario in make_scenarios.py fällt hier auf und braucht eine bewusste Entscheidung
-    expect(GRID_SCENARIOS).toHaveLength(22);
+    expect(GRID_SCENARIOS).toHaveLength(24);
     expect(GRID_SCENARIOS.every((n) => /^(grid_|exit_|instant_)/.test(n))).toBe(true);
   });
 
@@ -117,6 +117,22 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     const places = loadGolden('grid_sync_ignores_sell').filter((e) => e.i === 0 && e.ev === 'place');
     expect(places[6]).toMatchObject({ type: 'SELL_LIMIT', price: 97.1, volume: 0.01, tp: 97.0, sl: 0 });
     expect(places[7]).toMatchObject({ type: 'SELL_LIMIT', price: 97.2 });
+  });
+
+  test('Start über der Zone ohne clear_on_exit: Grid der ersten Zone läuft, kein Aufräumen', { tag: '@BKT-02' }, () => {
+    const name = 'grid_start_outside_no_clear';
+    const golden = loadGolden(name);
+    // Bid 97,84 liegt über max_price 97,5, trotzdem setzt der Bot die oberste Stufe der Zone
+    expect(loadScenario(name).ticks[3]).toEqual([15, 97.84]);
+    expect(golden.find((e) => e.ev === 'place')).toMatchObject({ i: 3, type: 'BUY_LIMIT', price: 97.5 });
+    expect(golden.filter((e) => e.ev === 'active')).toEqual([{ i: 0, t: 0, ev: 'active', zones: { USOUSD: 0 } }]);
+  });
+
+  test('Gespeicherte magic 200007 gilt für Orders, Kommentar und Aufräumen', { tag: '@BKT-02' }, () => {
+    const golden = loadGolden('exit_stored_magic');
+    expect([...new Set(golden.filter((e) => 'magic' in e).map((e) => e.magic))]).toEqual([200007]);
+    expect([...new Set(golden.filter((e) => e.ev === 'place').map((e) => e.comment))]).toEqual(['AutoGrid_Z7']);
+    expect(kindsInTick(golden, exitTick(golden), 'cancel')).toEqual(['BUY_LIMIT', 'BUY_LIMIT', 'BUY_LIMIT', 'BUY_LIMIT']);
   });
 
   test('Zweimal abgespielt ergibt dieselbe Folge (kein Zustand zwischen Läufen)', { tag: '@BKT-02' }, () => {

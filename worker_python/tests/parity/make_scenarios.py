@@ -117,6 +117,10 @@ def scenarios() -> dict[str, dict]:
                    take_profit=0.4, stop_loss=1.5, sell_grid_step=0.5, sell_lot_size=0.02,
                    sell_take_profit=0.4, sell_stop_loss=1.5)],
         walk(OSC, seed=24), symbol={"trade_tick_value": 3.0, "trade_tick_size": 0.01})
+    add("grid_start_outside_no_clear", "Start über der Zone, ohne clear_on_exit: Eintritt, Austritt nach oben "
+        "ohne Aufräumen, Wiedereintritt",
+        [make_zone(id="z1", order_type="BUY", min_price=96.5, max_price=97.5)],
+        walk([97.9, 96.8, 97.9, 97.1], seed=30))
     add("grid_noise", "BOTH-Grid mit verrauschtem Kurs (viele kleine Bewegungen)",
         [make_zone(id="z1", order_type="BOTH")], walk(OSC, step=0.01, seed=10, noise=0.015))
     add("exit_clear_pending", "Kurs verlässt die Zone nach oben: Pending Orders löschen, AUTO_CLEAR",
@@ -143,6 +147,9 @@ def scenarios() -> dict[str, dict]:
                    clear_on_exit=True, clear_exit_side="BUY (Yukarı)", clear_scope="Tüm İşlemler",
                    clear_target_side="Sadece SELL İşlemleri")],
         walk([97.0, 96.75, 97.35, 97.8, 97.3], seed=22))
+    add("exit_stored_magic", "Zone mit gespeicherter magic 200007: Orders, Ausstieg und Aufräumen über diese magic",
+        [make_zone(id="z1", magic=200007, order_type="BUY", min_price=96.0, max_price=97.5, clear_on_exit=True)],
+        walk([97.0, 96.7, 97.8, 97.3], seed=29))
     add("instant_entry", "Sofort-Einstieg mit 30-s-Bremse, TP schließt, neuer Einstieg",
         [make_zone(id="z1", order_type="BUY", instant_entry=True, take_profit=0.05)],
         walk([97.0, 97.1, 96.9, 97.2, 96.95], step=0.01, seed=14))
