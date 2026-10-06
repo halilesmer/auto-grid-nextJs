@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-06 · **128/153** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-06 · **129/153** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/13 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 3/13 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 4/13 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -685,23 +685,23 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 15. BKT – Backtest (Musterlösungen, Nachbau, Rechner)
 
-- [x] **BKT-01** Musterlösungen des Python-Bots — 🧪 unit ✅ 2026-10-02
-  - 18 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen, Ausbruch, step_by_loss, Rauschen, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7).
+- [x] **BKT-01** Musterlösungen des Python-Bots — 🧪 unit ✅ 2026-10-06
+  - 29 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen und max_positions 0, Ausbruch, step_by_loss mit Kontraktgröße und mit Tick-Wert, Rauschen, Stops Level > 0, Lot unter volume_min, leeres sell_lot_size ohne Sync, Sync ignoriert sell_*, Start außerhalb der Zone ohne clear_on_exit, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, mit dem UI-Standard (nur BUY, Seite passt nicht), nur SELL schließen und gespeicherter magic, Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7).
   - **Prüfung:** In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q` ausführen.
   - **Erwartet:** Alle Szenarien gleichen ihrer Musterlösung; zweimal abgespielt ergibt dieselbe Folge.
-- [x] **BKT-09** Zukunftsdaten-Test — 🧪 unit ✅ 2026-10-02
+- [x] **BKT-09** Zukunftsdaten-Test — 🧪 unit ✅ 2026-10-06
   - Für jedes Szenario werden ab einem Tick k (nach einem und nach zwei Dritteln) alle späteren Kurse verändert. Alle Ereignisse vor k müssen gleich bleiben (docs/analyse-regeln.md §5 „kein Blick in die Zukunft“); danach muss sich etwas ändern, sonst prüft der Test nichts.
   - **Prüfung:** In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q -k spaetere` ausführen.
   - **Erwartet:** Grün für alle Szenarien.
 - [x] **BKT-02** Bot-Nachbau Grid im Browser (B2) — 🖥️ e2e ✅ 2026-10-06
   - Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01. Die Engine schreibt Log-Codes statt Texte (Übersetzung mit dem Run-Log, B4); Fraktal-Zonen folgen mit B3.
-  - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 13 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
-  - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; pyRound gleicht Pythons round() in allen Grenzfällen.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 24 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
+  - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B2.1-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (sltp bei Stops Level, mehr als 10 Füllungen bei max_positions 0 …); pyRound gleicht Pythons round() in allen Grenzfällen.
 - [ ] **BKT-03** Bot-Nachbau Fraktal im Browser (B3, geplant) — 🖥️ e2e ⏳
   - Fraktal-Signale, Fraktal-Einstieg und Indikatoren (ATR, SAR) des Bots als TypeScript in frontend_nextjs/src/lib/backtest/engine/, mit mehreren Setups je Zone (ZON-18); Fraktale aus src/lib/analysis/fractals.ts.
   - **Prüfung:** Playwright-Logiktest ohne Browserseite (wie BKT-02, e2e/fixtures/parity.ts) mit den 5 Fraktal-Szenarien ausführen.
   - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios.
-- [ ] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4, geplant) — 🧪 unit ⏳ · 🔌 api ⏳ · 🖥️ e2e ⏳
+- [x] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4, geplant) — 🧪 unit ✅ 2026-10-06 · 🔌 api ✅ 2026-10-06 · 🖥️ e2e ✅ 2026-10-06
   - Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ immer sichtbar.
   - **Prüfung:** pytest für die Kostenfelder der Symbolliste ausführen. → Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen. → Playwright-Logiktest ohne Browserseite (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
   - **Erwartet:** Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.

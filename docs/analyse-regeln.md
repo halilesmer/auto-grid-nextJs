@@ -172,7 +172,7 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
   „Sensitivität: beide Kerzenwege“ (zwei Läufe, Spanne anzeigen; eine Prüfung, keine Garantie),
   „Modell mit Gap-Ausführung“ (bei Kurslücken Füllung zum Marktpreis).
 
-**Musterlösungen (Schritt 4, BKT-01/BKT-09):** `worker_python/tests/parity/` spielt 17 Szenarien
+**Musterlösungen (Schritt 4, BKT-01/BKT-09):** `worker_python/tests/parity/` spielt 29 Szenarien
 mit dem echten Python-Bot ab (erst der Markt, dann der Bot, simulierte Uhr über `src/core/clock.py`)
 und speichert die Ereignisfolge in `tests/parity/golden/`. Der Nachbau im Browser muss dieselbe
 Folge liefern. Gefüllt wird wie im FakeMT5 zum Orderpreis („Paritätsmodus“); Kosten und Gewinne
