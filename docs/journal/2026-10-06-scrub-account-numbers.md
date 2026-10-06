@@ -2,9 +2,9 @@
 date: 2026-10-06
 type: fix
 status: open
-pr: [104]
-features: [ACC-11, ENG-25]
-areas: [docs, tests, worker]
+pr: [104, 106]
+features: [ACC-11, ENG-25, VPS-08, VPS-10]
+areas: [docs, tests, worker, ops]
 ---
 
 # Remove MT5 account numbers from tracked files
@@ -41,7 +41,7 @@ Labels for the accounts (use the same labels in all entries):
 ## Why
 - This PR does not rewrite the git history. A force push breaks all clones and open branches, and the old values stay in forks and caches. The owner decides about a rewrite (open point).
 - The broker server-name format example stays in `account.ts`, `hints.ts`, `mt5_errors.py` and `test_mt5_connect.py` (owner decision). It shows the format of a server name, not a private server.
-- `worker_python/run_ngrok_watchdog.bat` keeps the real domain as the fallback when `NGROK_DOMAIN` is not set. `test_vps_automation.py` (VPS-08) pins this fallback. A removal changes the runtime behavior on the VPS, so it gets a separate PR.
+- In PR 104, `worker_python/run_ngrok_watchdog.bat` kept the real domain as the fallback when `NGROK_DOMAIN` is not set. A removal changes the runtime behavior on the VPS, so it got a separate PR (see "Follow-up: ngrok domain fallback").
 
 ## Verification
 
@@ -56,7 +56,34 @@ Labels for the accounts (use the same labels in all entries):
 
 ## Open points
 - [ ] Owner: decide if the git history gets a rewrite. Old commits keep the values. Do not force push without this decision.
-- [ ] Remove the real ngrok domain from `worker_python/run_ngrok_watchdog.bat` and from `test_vps_automation.py` (VPS-08). First make sure that `NGROK_DOMAIN` is set on the VPS (`setx`). Separate PR.
+- [x] Remove the real ngrok domain from `worker_python/run_ngrok_watchdog.bat` and from `test_vps_automation.py` (VPS-08). Separate PR.
+- [x] Owner, before the merge of the follow-up PR: make sure that `NGROK_DOMAIN` is set on the VPS. The owner confirmed it on 2026-10-06. Run `reg query HKCU\Environment /v NGROK_DOMAIN` as the worker user. If the value is missing, run `setx NGROK_DOMAIN <domain>`. Without it, ngrok does not start after the next auto-update.
+- [ ] Optional, separate PR: `.bat` files have LF line endings in the repository (`* text=auto`). cmd can fail to find a `goto` label at a 512-byte boundary in an LF file. The risk existed before. A change in `.gitattributes` (`*.bat text eol=crlf`) can make files dirty in existing checkouts and stop the auto-update, so examine it first.
+- [ ] After the merge and the auto-update on the VPS: restart ngrok on the page `/vps`. Make sure that the tunnel comes back with the same URL (the bat file has no Windows test in CI).
+
+## Follow-up: ngrok domain fallback
+
+The bat file had the real domain as a fallback. The tunnel watchdog (VPS-10) read the same line as its own fallback. Now `NGROK_DOMAIN` is the only source.
+
+| File | Change |
+|---|---|
+| `worker_python/run_ngrok_watchdog.bat` | No default domain. If `NGROK_DOMAIN` is not in the process, the script reads it from `HKCU\Environment` (`reg query`). If it is still missing, ngrok does not start: the script writes `NGROK_DOMAIN fehlt` to `logs\ngrok.log` one time and tries again every 60 s. |
+| `worker_python/ops/windows/vps.ps1` | `restart-ngrok` with the watchdog window open but no ngrok process: the message says that the watchdog probably waits for `NGROK_DOMAIN`. |
+| `worker_python/ops/windows/tunnel_watchdog.ps1` | `Get-NgrokDomain` reads only `NGROK_DOMAIN`; the bat fallback is removed. Without a domain, the check logs `no-domain` and does nothing (as before). |
+| `worker_python/tests/unit/test_vps_automation.py` | VPS-08 and VPS-10 tests: no fixed domain, registry fallback, no start without a domain |
+| `worker_python/start.bat`, `docs/windows_start_guide.md`, `docs/features/features.yaml` | Text: the domain comes from `NGROK_DOMAIN` |
+| `hooks/RULES.md` §9.5.3 | The tracked files contain no real ngrok domain now |
+
+Why no ngrok start without a domain: ngrok then gets a random URL. The stored worker address in the browsers and the tunnel watchdog use the fixed domain, so a random URL breaks the connection without a clear error. A waiting loop with a log line shows the cause on the page `/vps` (log tab "ngrok").
+
+Why the registry read: `setx` changes only new processes. A bat window that started before the `setx` does not see the value. The tunnel watchdog has the same fallback in `Get-UserEnv`.
+
+| Check | Result |
+|---|---|
+| `pytest tests/unit/test_vps_automation.py` | 47 passed |
+| `scripts/features/run.sh unit VPS-08` / `VPS-10` | passed |
+| `git grep` for the old domain (searched without output of the value) | nothing found |
+| The bat file on Windows | not verified: CI and this session have no Windows. See the open point. |
 
 ## Lessons
 - Use labels ("DEMO account A") and fake values from the start. A later cleanup does not remove the values from the git history.

@@ -439,6 +439,10 @@ function Invoke-RestartNgrok {
     }
     $procs = @(Get-NgrokProcesses)
     foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force }
+    if ($procs.Count -eq 0) {
+        # Fenster laeuft, aber kein ngrok: meist wartet run_ngrok_watchdog.bat auf NGROK_DOMAIN
+        return @{ ok = $true; message = 'Kein ngrok-Prozess aktiv - der Watchdog wartet vermutlich auf NGROK_DOMAIN (siehe ngrok-Log).' }
+    }
     return @{ ok = $true; message = "ngrok beendet ($($procs.Count) Prozess(e)); der Watchdog startet ihn in ~3 s neu." }
 }
 
