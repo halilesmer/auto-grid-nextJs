@@ -229,23 +229,40 @@
   },
   "BKT-01": {
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
-      "tests": 38
+      "tests": 60
     }
   },
   "BKT-02": {
     "e2e": {
       "datum": "2026-10-06",
       "status": "passed",
-      "tests": 17
+      "tests": 40
+    }
+  },
+  "BKT-04": {
+    "api": {
+      "datum": "2026-10-06",
+      "status": "passed",
+      "tests": 1
+    },
+    "e2e": {
+      "datum": "2026-10-06",
+      "status": "passed",
+      "tests": 7
+    },
+    "unit": {
+      "datum": "2026-10-06",
+      "status": "passed",
+      "tests": 4
     }
   },
   "BKT-09": {
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
-      "tests": 18
+      "tests": 29
     }
   },
   "BOT-01": {
@@ -339,9 +356,9 @@
   },
   "ENG-06": {
     "unit": {
-      "datum": "2026-10-02",
-      "status": "passed",
-      "tests": 2
+      "datum": "2026-10-06",
+      "status": "xfail",
+      "tests": 3
     }
   },
   "ENG-07": {

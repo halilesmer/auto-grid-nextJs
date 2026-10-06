@@ -101,6 +101,22 @@ def test_order_mit_falschem_tp_lot_oder_weit_weg_wird_ersetzt(fake_mt5):
 
 
 @pytest.mark.feature("ENG-06")
+@pytest.mark.xfail(strict=True, reason="bekannter Fehler: validation.py vergleicht den vom Stops Level verschobenen "
+                   "TP mit dem TP der Zone (docs/journal/2026-10-06-stops-level-order-flood.md)")
+def test_vom_stops_level_verschobener_tp_bleibt_stehen(fake_mt5):
+    m = fake_mt5
+    m.symbols["USOUSD"].trade_stops_level = 50  # 0,05 Abstand > TP 0,03: enforce_stops_level verschiebt den TP
+    engine = EngineHarness(m, [make_zone(order_type="BUY", take_profit=0.03)])
+    engine.tick()
+    first = {o.ticket for o in m.robot_orders()}
+    assert len(first) == 6
+
+    engine.tick()  # gleicher Kurs: nichts zu ändern
+
+    assert {o.ticket for o in m.robot_orders()} == first
+
+
+@pytest.mark.feature("ENG-06")
 def test_tp_aenderung_in_den_einstellungen_setzt_orders_neu(fake_mt5):
     zone = make_zone(order_type="BUY", take_profit=0.1)
     engine = EngineHarness(fake_mt5, [zone])

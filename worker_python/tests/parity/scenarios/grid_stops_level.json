@@ -1,0 +1,227 @@
+{
+ "name": "grid_stops_level",
+ "description": "Stops Level 50 Points, TP 0,03: der Broker-Abstand verschiebt TP der Orders, danach TP-Abgleich der Positionen (sltp) erst, wenn der neue TP nicht auf der falschen Seite liegt",
+ "symbol": {
+  "name": "USOUSD",
+  "digits": 3,
+  "point": 0.001,
+  "spread_points": 10,
+  "trade_contract_size": 1000.0,
+  "trade_stops_level": 50
+ },
+ "start": 1790553600,
+ "zones": [
+  {
+   "id": "z1",
+   "is_active": true,
+   "symbol": "USOUSD",
+   "order_type": "BOTH",
+   "min_price": 90.0,
+   "max_price": 110.0,
+   "grid_step": 0.1,
+   "lot_size": 0.01,
+   "take_profit": 0.03,
+   "stop_loss": 0.0,
+   "sell_grid_step": 0.1,
+   "sell_lot_size": 0.01,
+   "sell_take_profit": 0.1,
+   "sell_stop_loss": 0.0,
+   "is_breakout": false,
+   "pullback_distance": 0.5,
+   "sell_pullback_distance": 0.5,
+   "sync_buy_sell": true,
+   "levels_below": 1,
+   "levels_above": 1,
+   "max_positions": 10,
+   "clear_on_exit": false,
+   "clear_exit_side": "Farketmez",
+   "clear_scope": "Sadece Bekleyen Emirler",
+   "clear_target_side": "Farketmez (Hepsi)",
+   "exit_condition": "Anl\u0131k Fiyat",
+   "exit_timeframe": "M15"
+  }
+ ],
+ "history": {},
+ "ticks": [
+  [
+   0,
+   97.0
+  ],
+  [
+   5,
+   96.93
+  ],
+  [
+   10,
+   96.86
+  ],
+  [
+   15,
+   96.79
+  ],
+  [
+   20,
+   96.72
+  ],
+  [
+   25,
+   96.65
+  ],
+  [
+   30,
+   96.6
+  ],
+  [
+   35,
+   96.67
+  ],
+  [
+   40,
+   96.74
+  ],
+  [
+   45,
+   96.81
+  ],
+  [
+   50,
+   96.88
+  ],
+  [
+   55,
+   96.95
+  ],
+  [
+   60,
+   97.02
+  ],
+  [
+   65,
+   97.09
+  ],
+  [
+   70,
+   97.16
+  ],
+  [
+   75,
+   97.2
+  ],
+  [
+   80,
+   97.13
+  ],
+  [
+   85,
+   97.06
+  ],
+  [
+   90,
+   96.99
+  ],
+  [
+   95,
+   96.92
+  ],
+  [
+   100,
+   96.85
+  ],
+  [
+   105,
+   96.78
+  ],
+  [
+   110,
+   96.71
+  ],
+  [
+   115,
+   96.7
+  ],
+  [
+   120,
+   96.77
+  ],
+  [
+   125,
+   96.84
+  ],
+  [
+   130,
+   96.91
+  ],
+  [
+   135,
+   96.98
+  ],
+  [
+   140,
+   97.05
+  ],
+  [
+   145,
+   97.12
+  ],
+  [
+   150,
+   97.19
+  ],
+  [
+   155,
+   97.26
+  ],
+  [
+   160,
+   97.33
+  ],
+  [
+   165,
+   97.4
+  ],
+  [
+   170,
+   97.33
+  ],
+  [
+   175,
+   97.26
+  ],
+  [
+   180,
+   97.19
+  ],
+  [
+   185,
+   97.12
+  ],
+  [
+   190,
+   97.05
+  ],
+  [
+   195,
+   96.98
+  ],
+  [
+   200,
+   96.91
+  ],
+  [
+   205,
+   96.9
+  ],
+  [
+   210,
+   96.97
+  ],
+  [
+   215,
+   97.04
+  ],
+  [
+   220,
+   97.1
+  ]
+ ]
+}
