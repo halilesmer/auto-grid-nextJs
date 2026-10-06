@@ -276,6 +276,13 @@ ANA-11:
   notiz: '02.10.26 DEMO-Konto A: M1 Jan 2026 = 0 Kerzen, Fläche Keine Daten + Hinweis
     unavailable; M1 22.-23.06. Historie ab 23.06. 06:55 → links schraffiert, rechts
     echte Kerzen, RSI ohne Brücke; Tagespausen 00:00-01:00 als Linien'
+ANA-12:
+  status: bestanden
+  datum: '2026-10-06'
+  notiz: 'Live DEMO 2026-10-06, nur lesend: Zone 1 USOUSD, 7 Tage, 122 Trades alle
+    berechnet (0 nicht berechenbar). Gegenrechnung aus rohem /deals + /rates M1: BUY
+    808/532 Pkt, SELL 408/372 Pkt (mit Spread), Geld 1,62/1,07 bzw. 0,41/0,37 – identisch
+    mit der Tabelle.'
 ANA-13:
   status: bestanden
   datum: '2026-10-01'

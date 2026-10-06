@@ -2,12 +2,15 @@
  * Reine Rechenfälle (von Hand nachgerechnet) für den Statistik-Tab: Kennzahlen, Aufteilung je Zone/Setup/
  * Wochentag/Stunde, Kurven (realisiert, Drawdown, Kontostand rückwärts).
  * ANA-09 Statistik-Tab
+ * ANA-12 MFE/MAE aus M1-Kerzen
  */
 import { expect, test } from '@playwright/test';
 import { balanceCurve, drawdownCurve, realizedCurve } from '../../src/lib/analysis/curves';
 import { breakdown, groupKey, inScope } from '../../src/lib/analysis/groupings';
+import type { Bar } from '../../src/lib/analysis/candles';
+import { excursion, isFinal, m1Spans, type M1Data } from '../../src/lib/analysis/excursions';
 import { computeStats } from '../../src/lib/analysis/stats';
-import { pairTrades, type Deal, type ZoneRegistryEntry } from '../../src/lib/analysis/tradePairing';
+import { pairTrades, type Deal, type Trade, type ZoneRegistryEntry } from '../../src/lib/analysis/tradePairing';
 
 const H = 3600;
 const T0 = 1_790_000_000;
@@ -166,5 +169,148 @@ test.describe('ANA-09 Statistik-Rechnung', () => {
     expect(balanceCurve(deals, 1100, range, 1, now)).toEqual({ ok: false, reason: 'missing' });
     expect(balanceCurve(deals, 1100, range, 0, range.to + 1)).toEqual({ ok: false, reason: 'notToNow' });
     expect(balanceCurve(deals, null, range, 0, now)).toEqual({ ok: false, reason: 'noBalance' });
+  });
+});
+
+/** Trade mit den Feldern, die MFE/MAE braucht (Zeiten MT5-Sekunden, Volumen 0,1 → 1 Preiseinheit = 10) */
+function trade(p: Partial<Trade> & Pick<Trade, 'side' | 'entryTime' | 'entryPrice' | 'exitTime' | 'exitPrice' | 'profit'>): Trade {
+  return {
+    id: `${p.exitTime}`,
+    positionId: 1,
+    symbol: 'USOUSD',
+    volume: 0.1,
+    exitTicket: 1,
+    exitReason: null,
+    commission: 0,
+    fee: 0,
+    swap: 0,
+    net: p.profit,
+    partial: false,
+    reversal: false,
+    closeBy: false,
+    magic: 200001,
+    zone: { kind: 'unknown', magic: 200001 },
+    fractal: null,
+    ...p,
+  };
+}
+
+const bar = (time: number, high: number, low: number): Bar => ({ time, open: low, high, low, close: high });
+/**
+ * Einstiegskerze E (Extreme 101/99 dürfen nicht zählen), vier Zwischenkerzen E+1…E+4 min, Ausstiegskerze
+ * E+5 min (Extreme 102/98 dürfen nicht zählen). point 0,01.
+ */
+function m1(p: Partial<M1Data> = {}): M1Data {
+  return {
+    bars: [
+      bar(THU, 101, 99),
+      bar(THU + 60, 100.3, 99.9),
+      bar(THU + 120, 100.5, 99.95),
+      bar(THU + 180, 100.1, 99.7),
+      bar(THU + 240, 100.25, 99.8),
+      bar(THU + 300, 102, 98),
+    ],
+    spread: [9, 2, 2, 5, 2, 9],
+    missing: [],
+    from: THU,
+    to: THU + 360,
+    point: 0.01,
+    ...p,
+  };
+}
+const BUY = { side: 'buy', entryTime: THU + 30, entryPrice: 100, exitTime: THU + 310, exitPrice: 100.2, profit: 2 } as const;
+const SELL = { side: 'sell', entryTime: THU + 30, entryPrice: 100, exitTime: THU + 310, exitPrice: 99.8, profit: 2 } as const;
+
+test.describe('ANA-12 MFE/MAE-Rechnung', () => {
+  test('BUY: nur Zwischenkerzen zählen; MFE 50 Punkte / 5,00, MAE 30 Punkte / 3,00', { tag: '@ANA-12' }, () => {
+    const r = excursion(trade(BUY), m1());
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.mfe).toBeCloseTo(0.5, 9);
+    expect(r.mae).toBeCloseTo(0.3, 9);
+    expect(r.mfePts).toBeCloseTo(50, 6);
+    expect(r.maePts).toBeCloseTo(30, 6);
+    expect(r.mfeMoney).toBeCloseTo(5, 6);
+    expect(r.maeMoney).toBeCloseTo(3, 6);
+  });
+
+  test('SELL: Ask = Bid + Spread; MFE 25 Punkte (Tief 99,70 + 5), MAE 52 Punkte (Hoch 100,50 + 2)', { tag: '@ANA-12' }, () => {
+    const r = excursion(trade(SELL), m1());
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.mfePts).toBeCloseTo(25, 6);
+    expect(r.maePts).toBeCloseTo(52, 6);
+    expect(r.mfeMoney).toBeCloseTo(2.5, 6);
+    expect(r.maeMoney).toBeCloseTo(5.2, 6);
+  });
+
+  test('Ein- und Ausstieg in derselben Kerze: nur die Preise, Randkerze zählt nicht', { tag: '@ANA-12' }, () => {
+    const r = excursion(trade({ side: 'buy', entryTime: THU + 10, entryPrice: 100, exitTime: THU + 50, exitPrice: 99.9, profit: -1 }), m1());
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.mfePts).toBe(0);
+    expect(r.maePts).toBeCloseTo(10, 6);
+    expect(r.maeMoney).toBeCloseTo(1, 6);
+  });
+
+  test('Marktpause (Kerzen fehlen ohne missing) ist berechenbar', { tag: '@ANA-12' }, () => {
+    const data = m1();
+    const keep = [0, 1, 4, 5];
+    const r = excursion(trade(BUY), { ...data, bars: keep.map((i) => data.bars[i]), spread: keep.map((i) => data.spread[i]) });
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.mfePts).toBeCloseTo(30, 6);
+    expect(r.maePts).toBeCloseTo(20, 6);
+  });
+
+  test('Nicht berechenbar, nie 0: Lücke, kein Einstieg, kein Spread (SELL), nicht geladen, kein point', { tag: '@ANA-12' }, () => {
+    const gap = m1({ missing: [{ from: THU + 120, to: THU + 180, reason: 'unavailable', checked_at: null }] });
+    expect(excursion(trade(BUY), gap)).toEqual({ ok: false, reason: 'missing' });
+    expect(excursion(trade({ ...BUY, entryTime: null, entryPrice: null }), m1())).toEqual({ ok: false, reason: 'noEntry' });
+    expect(excursion(trade(SELL), m1({ spread: [9, 2, null, 5, 2, 9] }))).toEqual({ ok: false, reason: 'noSpread' });
+    expect(excursion(trade(BUY), m1({ spread: [9, 2, null, 5, 2, 9] })).ok).toBe(true);
+    expect(excursion(trade(BUY), m1({ from: THU + 120 }))).toEqual({ ok: false, reason: 'notLoaded' });
+    expect(excursion(trade(BUY), null)).toEqual({ ok: false, reason: 'notLoaded' });
+    expect(excursion(trade(BUY), m1({ point: null }))).toEqual({ ok: false, reason: 'noPoint' });
+  });
+
+  test('Ausstieg = Einstieg: Punkte ja, Geld nicht ableitbar (null)', { tag: '@ANA-12' }, () => {
+    const r = excursion(trade({ ...BUY, exitPrice: 100, profit: 0 }), m1());
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.mfePts).toBeCloseTo(50, 6);
+    expect(r.mfeMoney).toBeNull();
+    expect(r.maeMoney).toBeNull();
+  });
+
+  test('Ladespanne je Symbol: neueste Trades zuerst, gekappt bei der Obergrenze', { tag: '@ANA-12' }, () => {
+    const newest = trade({ ...BUY, entryTime: THU + 6000, exitTime: THU + 6310 });
+    const old = trade({ ...BUY, entryTime: THU, exitTime: THU + 310 });
+    const sameBar = trade({ ...BUY, entryTime: THU + 9000, exitTime: THU + 9030 });
+    expect(m1Spans([old, newest, sameBar], 10)).toEqual(new Map([['USOUSD', { from: THU + 6060, to: THU + 6300, capped: true }]]));
+    expect(m1Spans([old, newest], 200)).toEqual(new Map([['USOUSD', { from: THU + 60, to: THU + 6300, capped: false }]]));
+  });
+
+  test('Übergroßer neuester Trade blockiert ältere nicht; er selbst ist endgültig „zu lang“', { tag: '@ANA-12' }, () => {
+    const huge = trade({ ...BUY, entryTime: THU + 10_000, exitTime: THU + 10_000 + 200 * 60 });
+    const old = trade({ ...BUY, entryTime: THU, exitTime: THU + 310 });
+    expect(m1Spans([huge, old], 100)).toEqual(new Map([['USOUSD', { from: THU + 60, to: THU + 300, capped: false }]]));
+    const long = trade({ ...BUY, entryTime: THU, exitTime: THU + 100_002 * 60 });
+    const r = excursion(long, m1());
+    expect(r).toEqual({ ok: false, reason: 'tooLong' });
+    expect(isFinal(r)).toBe(true);
+  });
+
+  test('Lücke nur „busy“/„error“: vorläufig (Knopf erneut); „unavailable“: endgültig', { tag: '@ANA-12' }, () => {
+    const busy = excursion(trade(BUY), m1({ missing: [{ from: THU + 120, to: THU + 180, reason: 'busy', checked_at: null }] }));
+    expect(busy).toEqual({ ok: false, reason: 'busy' });
+    expect(isFinal(busy)).toBe(false);
+    const mixed = excursion(
+      trade(BUY),
+      m1({
+        missing: [
+          { from: THU + 60, to: THU + 120, reason: 'error', checked_at: null },
+          { from: THU + 180, to: THU + 240, reason: 'unavailable', checked_at: null },
+        ],
+      }),
+    );
+    expect(mixed).toEqual({ ok: false, reason: 'missing' });
+    expect(isFinal(mixed)).toBe(true);
+    expect(isFinal(excursion(trade(BUY), null))).toBe(false);
   });
 });

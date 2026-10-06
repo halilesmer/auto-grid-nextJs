@@ -576,6 +576,9 @@ export default function ZoneChartPanel({
       )}
       {zone && dealsRequest && (
         <TradesTable
+          accountId={accountId}
+          zones={zones}
+          variant="zone"
           trades={history?.trades ?? []}
           openEntries={history?.openEntries ?? 0}
           otherTrades={history?.otherTrades ?? 0}

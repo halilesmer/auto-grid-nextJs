@@ -1,6 +1,7 @@
 /**
  * Statistik-Tab der Analyse-Seite: Kennzahlen, Kurven und Aufteilung je Setup aus GET /history/{id}/deals.
  * ANA-09 Statistik-Tab
+ * ANA-12 MFE/MAE in der Trade-Tabelle
  */
 import type { Page } from '@playwright/test';
 import type { Deal } from '../../src/lib/analysis/tradePairing';
@@ -74,6 +75,7 @@ function seed(worker: MockWorker) {
     deal({ position_id: 24, time: day + 15 * H, type: 0, entry: 0, magic: 0 }),
     deal({ position_id: 24, time: day + 16 * H, type: 1, entry: 1, magic: 0, profit: -1 }),
   ];
+  return day;
 }
 
 async function chooseScope(page: Page, label: string) {
@@ -166,5 +168,52 @@ test.describe('ANA-09 Statistik-Tab', () => {
       }));
       expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
     });
+  });
+});
+
+test.describe('ANA-12 MFE/MAE', () => {
+  test('Trade-Tabelle im Statistik-Tab: Setup-Spalte, MFE/MAE erst auf Knopfdruck, Ergebnisse je Trade', { tag: '@ANA-12' }, async ({ page, worker }) => {
+    seed(worker);
+    await page.goto(URL);
+
+    const rows = page.getByTestId('trades-archive').getByTestId('trade-row');
+    await expect(rows).toHaveCount(3);
+    // Neueste zuerst: Grid ohne Setup, Setup 2, Setup 1
+    await expect(rows.nth(0).getByTestId('trade-setup')).toHaveText('–');
+    await expect(rows.nth(1).getByTestId('trade-setup')).toHaveText(msg('analysis.stats.setup', { sid: 2 }));
+    await expect(rows.nth(2).getByTestId('trade-setup')).toHaveText(msg('analysis.stats.setup', { sid: 1 }));
+
+    // Ohne Knopfdruck keine Kerzen
+    await expect(rows.nth(0).getByTestId('trade-mfe')).toHaveText('–');
+    expect(worker.ratesDelivered).toEqual([]);
+
+    const compute = page.getByTestId('mfe-compute');
+    await expect(compute).toHaveText(msg('analysis.trades.mfe.compute', { n: 3 }));
+    await compute.click();
+    await expect(compute).toHaveText(msg('analysis.trades.mfe.compute', { n: 0 }));
+    await expect(compute).toBeDisabled();
+    for (let i = 0; i < 3; i++) await expect(rows.nth(i).getByTestId('trade-mfe')).toContainText(msg('analysis.trades.mfe.unit'));
+    // Ein Symbol → eine M1-Abfrage
+    expect(worker.ratesDelivered).toHaveLength(1);
+
+    // Ganzes Konto: die drei Ergebnisse bleiben, nur der manuelle Trade ist offen
+    await chooseScope(page, msg('analysis.stats.scope.account'));
+    await expect(rows).toHaveCount(4);
+    await expect(compute).toHaveText(msg('analysis.trades.mfe.compute', { n: 1 }));
+    expect(await unhinted(page)).toEqual([]);
+  });
+
+  test('Fehlende M1-Kerzen zwischen Ein- und Ausstieg: „nicht berechenbar“, nie 0', { tag: '@ANA-12' }, async ({ page, worker }) => {
+    const day = seed(worker);
+    // Zwischen Einstieg (11:00) und Ausstieg (12:00) von Setup 2 fehlen Kerzen
+    worker.state.ratesMissing = [{ from: day + 11 * H + 600, to: day + 11 * H + 1200, reason: 'unavailable', checked_at: null }];
+    await page.goto(URL);
+
+    const rows = page.getByTestId('trades-archive').getByTestId('trade-row');
+    await expect(rows).toHaveCount(3);
+    await page.getByTestId('mfe-compute').click();
+    await expect(rows.nth(1).getByTestId('trade-mfe')).toHaveText(msg('analysis.trades.mfe.na'));
+    await expect(rows.nth(0).getByTestId('trade-mfe')).toContainText(msg('analysis.trades.mfe.unit'));
+    await expect(rows.nth(2).getByTestId('trade-mfe')).toContainText(msg('analysis.trades.mfe.unit'));
   });
 });
