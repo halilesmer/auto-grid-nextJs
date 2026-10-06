@@ -1,0 +1,35 @@
+{
+  "output": {
+    "filePath": "repomix-review.xml",
+    "style": "xml",
+    "showLineNumbers": true,
+    "topFilesLength": 10,
+    "headerText": "Grid Robot: algorithmic grid-trading bot for MetaTrader 5 (Next.js frontend in frontend_nextjs/, FastAPI worker in worker_python/). Rules: CLAUDE.md and hooks/RULES.md. Architecture: docs/proje_dosya_krokisi.md. Review only what the question names. Give each finding as: severity | file:line | reason."
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".claude/worktrees/**",
+      "worker_python/configs/**",
+      "worker_python/data/**",
+      "worker_python/logs/**",
+      "**/.env*",
+      "hooks/test-account.local.md",
+      "**/broker_symbols.json",
+      "**/package-lock.json",
+      "worker_python/tests/parity/golden/**",
+      "worker_python/tests/parity/scenarios/**",
+      "docs/features/results.json",
+      "docs/features/FEATURES.md",
+      "frontend_nextjs/public/**",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.ico",
+      "**/*.svg"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}

@@ -107,13 +107,28 @@ All of these are gitignored and may contain credentials.
 - **UI ↔ backend sync is mandatory** (from `.agents/rules/token-saver.md`): a new or changed setting/parameter in the worker (engine, config JSON, Pydantic model) is not done until the matching UI field (zone components in `src/components/zone/`, `SettingsForm`, stores, types) reads and writes it correctly.
 - **UI strings go through i18n** (`frontend_nextjs/src/i18n`, languages tr/en/de, default `tr`): never hard-code user-visible text. Add the key to the matching area file in `src/i18n/messages/` with all three languages side by side (tsc fails on a missing key), then use `useT()` in components or `t()` outside React (toasts in hooks, stores, `apiError`); use `useFormat()` for numbers/times. Values sent to the worker (e.g. the `clear_*`/`exit_condition` strings in zones) and worker messages (`detail`, log lines) are not translated. In e2e tests take texts from `msg('key')` (`e2e/fixtures/i18n.ts`) instead of literals.
 - **Every setting, field and button needs a tooltip** (`hooks/RULES.md` §5): `hint` is a required prop of `InputField`, `Switch`, `Button`, tab items and `ConfirmModal` (tsc fails without it); fields get an (i) icon, buttons a hover/focus tooltip, all via `src/components/ui/tooltip.tsx`. The text is an i18n key `<label-key>.hint` in `src/i18n/messages/hints.ts` (tr/en/de) and says what the control does, its unit/effect and, if it is disabled, why. A plain `<button>`/`<input>` outside `Tooltip`/`InputField` fails the e2e coverage test `UI-07`; no native `title=` for explanations.
-- Code comments, logs, and docs are mostly in Turkish. Match the language of the file you're editing.
+- Code comments, logs, and docs are mostly in Turkish. Match the language of the file you're editing. Exceptions: the project journal and new rules are in English, to ASD-STE100 (`hooks/RULES.md` §6.5).
 - **Library docs:** for questions or code involving Next.js, React, Tailwind, Zustand, lightweight-charts or FastAPI, look up current docs with the Context7 MCP (`.mcp.json`) first. For Next.js also check `frontend_nextjs/node_modules/next/dist/docs/` (see `frontend_nextjs/AGENTS.md`).
+- **Project journal** (`docs/journal/`, `hooks/RULES.md` §7): before you change an area, grep the journal for its feature IDs and file names (`grep -l ENG-21 docs/journal/20*.md`) to see earlier causes and lessons. Write an entry for each change that adds knowledge (fix, defect, diagnosis, decision, plan) with the template in `docs/journal/README.md`. The repo is public: no account numbers, server names, IPs. Claude's memory is private to one Mac; durable knowledge and approved plans go into the journal.
+- **Debugging, reviews, safety:** `hooks/RULES.md` §8 (root cause first, failing test first, evidence before "done") and §9 (review checklist, `/security-review` for auth/access/VPS changes, `localhost:3000` acts on the live worker, external AI reviews).
+- **Code intelligence (LSP):** the Claude Code plugins `typescript-lsp` and `pyright-lsp` (official marketplace) show diagnostics after each edit and give go-to-definition and find-references. Setup on a new machine: `npm i -g typescript-language-server typescript@5 pyright@1.1.414`, then in the desktop app **+ → Plugins → Add plugin** (user scope). Pyright needs `worker_python/.venv` with `requirements-dev.txt` (in a worktree: a symlink to the main checkout's venv). Python uses the root `pyrightconfig.json`: worker only, platform Windows, a `MetaTrader5` stub in `worker_python/typings/`, the noisy `Optional`/argument rules off. The baseline (pyright 1.1.414) has 35 known errors (dynamic legacy module in `bot_runner.py`, the `log` callable signature, test fakes). Fix new diagnostics in the lines you changed; do not fix old ones in an unrelated change.
 
-## Modell-Nutzung
-- Für Codebase-Erkundung, Suche und einfache Recherche: Subagent `explorer` (Haiku).
-- Für Code-Review: Subagent `reviewer` (Sonnet), nach fertigen Änderungen und vor Commit/PR. Er ist nur lesend (kein `git diff`), also Diff bzw. geänderte Dateien und Zweck im Prompt übergeben.
-- Definitionen: `.claude/agents/explorer.md`, `.claude/agents/reviewer.md`.
-- Für Architekturentscheidungen und schwieriges Debugging: mich darauf hinweisen,
-  dass ein Wechsel zu Opus (oder höherer /effort) sinnvoll wäre, statt selbst zu raten.
-- Nicht während einer laufenden Aufgabe das Modell wechseln.
+## Model usage
+
+Claude Code does not change to a cheaper model by itself. Use these levers:
+
+| Work | Who does it | Model |
+|---|---|---|
+| Plan, architecture, difficult debugging | main session in plan mode | Opus (`opusplan` selects it automatically) |
+| Implementation after an approved plan | main session | Sonnet (`opusplan` changes to it automatically) |
+| Routine task (small fix, text, configuration) | main session | Sonnet. On Opus, Claude recommends the change at the start of the task. |
+| Broad search across many files, when only the result is necessary | subagent `explorer` (`.claude/agents/explorer.md`) | Haiku |
+| Review before commit or PR | subagent `reviewer` (`.claude/agents/reviewer.md`) | Sonnet |
+| Small change, or work that needs this conversation | main session | — |
+
+- Delegate only if the subagent saves more than it costs. A subagent starts without context: the main session writes the brief and examines the result.
+- Give the subagent all decisions that it needs (privacy, language, rules). It cannot ask the user.
+- The `reviewer` cannot run `git diff`. Give it the diff or the changed files with line ranges, and the purpose.
+- Examine each subagent result before you use it. A subagent report is not evidence (`hooks/RULES.md` §8.4).
+- Do not change the model during a running task.
+- On Sonnet: for architecture decisions and difficult debugging, tell the user that Opus or a higher `/effort` can help. Do not guess.

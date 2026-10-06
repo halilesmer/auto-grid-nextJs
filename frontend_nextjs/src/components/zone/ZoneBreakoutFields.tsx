@@ -22,6 +22,11 @@ export function ZoneBreakoutFields({
   const byLoss = !!zone.step_by_loss;
   const split = isBoth && !sync;
   const pbCfg = distanceConfig(symbolConfig, byLoss);
+  const pullbackHint = byLoss
+    ? t(split ? 'zone.breakout.buyPullbackLoss.hint' : 'zone.breakout.minPullbackLoss.hint')
+    : t(split ? 'zone.breakout.buyPullback.hint' : 'zone.breakout.minPullback.hint');
+  const sellPullbackHint = byLoss ? t('zone.breakout.sellPullbackLoss.hint') : t('zone.breakout.sellPullback.hint');
+
   return (
     <section className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
       <SectionLabel>{t('zone.breakout.title')}</SectionLabel>
@@ -39,13 +44,7 @@ export function ZoneBreakoutFields({
               : t(split ? 'zone.breakout.buyPullback' : 'zone.breakout.minPullback')}
           </span>
           <InfoHint
-            hint={
-              !zone.is_breakout
-                ? t('zone.breakout.pullback.off.hint')
-                : byLoss
-                  ? t(split ? 'zone.breakout.buyPullbackLoss.hint' : 'zone.breakout.minPullbackLoss.hint')
-                  : t(split ? 'zone.breakout.buyPullback.hint' : 'zone.breakout.minPullback.hint')
-            }
+            hint={zone.is_breakout ? pullbackHint : t('zone.breakout.pullback.off.hint')}
           />
           <NumberInput
             min={0}
@@ -64,13 +63,7 @@ export function ZoneBreakoutFields({
               {byLoss ? t('zone.breakout.sellPullbackLoss') : t('zone.breakout.sellPullback')}
             </span>
             <InfoHint
-              hint={
-                !zone.is_breakout
-                  ? t('zone.breakout.pullback.off.hint')
-                  : byLoss
-                    ? t('zone.breakout.sellPullbackLoss.hint')
-                    : t('zone.breakout.sellPullback.hint')
-              }
+              hint={zone.is_breakout ? sellPullbackHint : t('zone.breakout.pullback.off.hint')}
             />
             <NumberInput
               min={0}

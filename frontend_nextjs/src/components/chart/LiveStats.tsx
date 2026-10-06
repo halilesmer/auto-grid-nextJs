@@ -6,6 +6,12 @@ import { cn } from '@/lib/utils';
 import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { getSymbolConfig } from '@/utils/zoneHelpers';
 
+function profitClass(profit: number) {
+  if (profit > 0) return 'text-success';
+  if (profit < 0) return 'text-danger';
+  return 'text-foreground';
+}
+
 /** Kennzahlen aus dem Live-Stream (Preis, RSI, P/L, Positionen): /formasyon und Chart-Tab der Analyse. */
 export function LiveStats({ digits }: { digits?: number } = {}) {
   const t = useT();
@@ -36,7 +42,7 @@ export function LiveStats({ digits }: { digits?: number } = {}) {
       label: t('chart.stat.pl'),
       hint: t('chart.stat.pl.hint'),
       value: fmt.money(profit),
-      className: profit > 0 ? 'text-success' : profit < 0 ? 'text-danger' : 'text-foreground',
+      className: profitClass(profit),
     },
     {
       id: 'positions',

@@ -32,7 +32,8 @@ export default function ConnectionChip({ variant }: { variant: 'inline' | 'bar' 
   // Vor dem Lesen des Speichers weder „nicht verbunden" noch „VPS verbinden" zeigen (Flackern)
   const shown: ConnectionStatus = hydrated ? status : 'checking';
   const statusText = t(`connection.status.${shown}`);
-  const label = !hydrated ? statusText : baseUrl ? hostOf(baseUrl) : t('connection.chip.connect');
+  const target = baseUrl ? hostOf(baseUrl) : t('connection.chip.connect');
+  const label = hydrated ? target : statusText;
   const bar = variant === 'bar';
 
   return (

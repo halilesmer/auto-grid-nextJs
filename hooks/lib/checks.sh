@@ -192,6 +192,31 @@ check_compat_warnings() {
   return 0
 }
 
+# stdin: itilen yerel commit SHA'ları (satır başına bir tane).
+# Branch'in tamamına bakar (origin/main ile ortak atadan itibaren); böylece aynı branch'in
+# ikinci push'u, kayıt ilk push'ta gelmiş olsa da yanlış uyarı vermez. Sadece pre-push çağırır:
+# stop-check'te her tur uyarırdı (kayıt işin sonunda yazılır). Kural: hooks/RULES.md §7.
+check_journal_entry() {
+  local sha base code journal
+  while read -r sha; do
+    [ -z "$sha" ] && continue
+    # origin/main yoksa (fetch edilmemiş klon) sessizce atla
+    base="$(git -C "$ROOT" merge-base "$sha" origin/main 2>/dev/null)" || continue
+    # Kod: .md, package-lock ve requirements hariç (§7.1: doküman/bağımlılık değişikliği kayıt istemez)
+    code="$(git -C "$ROOT" diff --name-only "$base" "$sha" \
+      | grep -E '^(worker_python|frontend_nextjs|hooks|scripts|\.github)/' \
+      | grep -vE '\.md$|(^|/)package-lock\.json$|(^|/)requirements[^/]*\.txt$' || true)"
+    [ -z "$code" ] && continue
+    # Silinen kayıt sayılmaz: yalnızca eklenen/değişen/yeniden adlandırılan dosyalar
+    journal="$(git -C "$ROOT" diff --name-only --diff-filter=ACMR "$base" "$sha" -- docs/journal/ \
+      | grep -E '^docs/journal/[0-9]{4}-[0-9]{2}-[0-9]{2}-.+\.md$' || true)"
+    [ -n "$journal" ] && continue
+    warn "Journal: ${sha:0:9} kodu değiştiriyor ama branch'te docs/journal/ kaydı yok (hooks/RULES.md §7)."
+    warn "  Bilgi katan her değişiklik (fix, hata, teşhis, karar, plan) için docs/journal/README.md şablonu."
+  done
+  return 0
+}
+
 # Sonuç özeti; hata varsa 1 döner
 finish_checks() {
   if [ "$ERRORS" -gt 0 ]; then

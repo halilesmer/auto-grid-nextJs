@@ -111,28 +111,28 @@
   },
   "ACC-11": {
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 14
     }
   },
   "ANA-01": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
-      "tests": 4
+      "tests": 1
     }
   },
   "ANA-02": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 4
     }
   },
   "ANA-03": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
@@ -146,14 +146,14 @@
   },
   "ANA-05": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 5
     }
   },
   "ANA-06": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     },
@@ -172,9 +172,16 @@
   },
   "ANA-08": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 13
+    }
+  },
+  "ANA-09": {
+    "e2e": {
+      "datum": "2026-10-06",
+      "status": "passed",
+      "tests": 12
     }
   },
   "ANA-10": {
@@ -184,16 +191,23 @@
       "tests": 7
     },
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 8
     }
   },
   "ANA-11": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 11
+    }
+  },
+  "ANA-12": {
+    "e2e": {
+      "datum": "2026-10-06",
+      "status": "passed",
+      "tests": 12
     }
   },
   "ANA-13": {
@@ -456,7 +470,7 @@
   },
   "ENG-25": {
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 4
     }
@@ -814,63 +828,63 @@
   },
   "UI-01": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-02": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-03": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-04": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-05": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 4
     }
   },
   "UI-06": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-07": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 16
     }
   },
   "UI-08": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 13
     }
   },
   "UI-09": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 6
     }
@@ -995,59 +1009,59 @@
   },
   "VPS-01": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 3
     }
   },
   "VPS-02": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-03": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     },
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-04": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     }
   },
   "VPS-05": {
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 14
     }
   },
   "VPS-07": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     },
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 9
     }
   },
   "VPS-08": {
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 5
     }
@@ -1059,19 +1073,19 @@
       "tests": 5
     },
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-10": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 2
     },
     "unit": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 3
     }

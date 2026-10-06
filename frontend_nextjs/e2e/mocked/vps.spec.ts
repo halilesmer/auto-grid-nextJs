@@ -15,9 +15,9 @@ const STATUS = {
   git: { branch: 'main', commit: '6e6011d0', updated_at: '2026-09-30T08:15:00.000Z' },
   worker: { listening: true, reachable: true, error: null },
   worker_watchdog: true,
-  ngrok: { running: true, public_url: 'https://tweet-overlying-monotone.ngrok-free.dev' },
+  ngrok: { running: true, public_url: 'https://example-tunnel-subdomain.ngrok-free.dev' },
   ngrok_watchdog: true,
-  bots: [{ pid: 4711, account: '5039114' }],
+  bots: [{ pid: 4711, account: '12345678' }],
   mt5_terminals: 1,
   session_active: true,
   autologon: true,
@@ -71,9 +71,9 @@ test.describe('VPS Fernsteuerung', () => {
     await expect(page.getByRole('heading', { name: msg('vps.title') })).toBeVisible();
     await expect(page.getByTestId('vps-tile-worker')).toContainText(msg('bot.status.running'));
     await expect(page.getByTestId('vps-tile-worker')).toHaveAttribute('data-tone', 'success');
-    await expect(page.getByTestId('vps-tile-ngrok')).toContainText('tweet-overlying-monotone');
+    await expect(page.getByTestId('vps-tile-ngrok')).toContainText('example-tunnel-subdomain');
     await expect(page.getByTestId('vps-tile-bots')).toContainText(msg('vps.tile.bots.running', { count: 1 }));
-    await expect(page.getByTestId('vps-tile-bots')).toContainText('5039114');
+    await expect(page.getByTestId('vps-tile-bots')).toContainText('12345678');
     await expect(page.getByTestId('vps-tile-version')).toContainText('v0.7.71');
     await expect(page.getByTestId('vps-tile-version')).toContainText('main @ 6e6011d0');
     await expect(page.getByTestId('vps-tile-version')).toContainText(msg('vps.tile.updatedAt', { time: '' }).trim());
@@ -155,14 +155,14 @@ test.describe('VPS Fernsteuerung', () => {
       elevated: [
         { pid: 5068, role: 'worker-loop', account: '' },
         { pid: 424, role: 'worker', account: '' },
-        { pid: 7272, role: 'bot', account: '7942034' },
+        { pid: 7272, role: 'bot', account: '87654321' },
       ],
     };
     await page.getByRole('button', { name: msg('vps.refresh') }).click();
     const warning = page.getByTestId('vps-elevated');
     await expect(warning).toContainText(msg('vps.elevated.title', { count: 3 }));
     await expect(warning).toContainText(`${msg('vps.role.worker-loop')} · PID 5068`);
-    await expect(warning).toContainText('Bot 7942034 · PID 7272');
+    await expect(warning).toContainText('Bot 87654321 · PID 7272');
 
     // Abbrechen löst nichts aus
     await page.getByTestId('vps-action-fix-elevated').click();
