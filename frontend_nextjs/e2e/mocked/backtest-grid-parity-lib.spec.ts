@@ -36,9 +36,9 @@ function kindsInTick(events: SimEvent[], i: number, ev: string): unknown[] {
 }
 
 test.describe('BKT-02 Bot-Nachbau Grid', () => {
-  test('Genau die 16 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
+  test('Genau die 17 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
     // Ein neues Szenario in make_scenarios.py fällt hier auf und braucht eine bewusste Entscheidung
-    expect(GRID_SCENARIOS).toHaveLength(16);
+    expect(GRID_SCENARIOS).toHaveLength(17);
     expect(GRID_SCENARIOS.every((n) => /^(grid_|exit_|instant_)/.test(n))).toBe(true);
   });
 
@@ -72,6 +72,18 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     const k = exitTick(golden);
     expect(kindsInTick(golden, k, 'close')).toEqual(Array(8).fill('SELL'));
     expect(golden.some((e) => e.ev === 'exit' && e.type === 'BUY' && e.i > k)).toBe(true);
+  });
+
+  test('Stops Level: TP der Order verschoben, TP-Abgleich (sltp) nur, wenn er nicht auf der falschen Seite liegt', { tag: '@BKT-02' }, () => {
+    const golden = loadGolden('grid_stops_level');
+    // TP 0,03 → mindestens 50 Points (0,05) Abstand zum Orderpreis
+    expect(golden[0]).toMatchObject({ ev: 'place', type: 'BUY_LIMIT', price: 96.9, tp: 96.95 });
+    expect(golden.filter((e) => e.ev === 'sltp').map((e) => e.type)).toEqual(
+      ['BUY', 'SELL', 'SELL', 'BUY', 'BUY', 'SELL', 'BUY', 'BUY', 'BUY'],
+    );
+    // BUY ab 97,1: der neue TP 97,13 läge zu nah am Kurs, die Position schließt am verschobenen TP 97,15
+    expect(golden.filter((e) => e.ev === 'sltp' && e.open === 97.1)).toEqual([]);
+    expect(golden).toContainEqual(expect.objectContaining({ ev: 'exit', type: 'BUY', open: 97.1, price: 97.16, reason: 'tp' }));
   });
 
   test('Zweimal abgespielt ergibt dieselbe Folge (kein Zustand zwischen Läufen)', { tag: '@BKT-02' }, () => {

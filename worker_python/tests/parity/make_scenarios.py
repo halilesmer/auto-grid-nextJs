@@ -94,6 +94,11 @@ def scenarios() -> dict[str, dict]:
                    sell_pullback_distance=0.3)], walk([97.0, 97.6, 97.2, 96.4, 96.9], seed=8))
     add("grid_step_by_loss", "Abstand wächst mit Verlustpositionen (step_by_loss)",
         [make_zone(id="z1", order_type="BUY", step_by_loss=True)], walk([97.0, 96.3, 96.9], seed=9))
+    add("grid_stops_level", "Stops Level 50 Points, TP 0,03: der Broker-Abstand verschiebt TP der Orders, "
+        "danach TP-Abgleich der Positionen (sltp) erst, wenn der neue TP nicht auf der falschen Seite liegt",
+        [make_zone(id="z1", order_type="BOTH", take_profit=0.03, levels_below=1, levels_above=1)],
+        walk(OSC, step=0.07, seed=23),
+        symbol={"trade_stops_level": 50})
     add("grid_noise", "BOTH-Grid mit verrauschtem Kurs (viele kleine Bewegungen)",
         [make_zone(id="z1", order_type="BOTH")], walk(OSC, step=0.01, seed=10, noise=0.015))
     add("exit_clear_pending", "Kurs verlässt die Zone nach oben: Pending Orders löschen, AUTO_CLEAR",
