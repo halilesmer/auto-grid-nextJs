@@ -125,14 +125,14 @@
   },
   "ANA-02": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 4
     }
   },
   "ANA-03": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     }
@@ -146,14 +146,14 @@
   },
   "ANA-05": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 5
     }
   },
   "ANA-06": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 1
     },
@@ -172,9 +172,16 @@
   },
   "ANA-08": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 13
+    }
+  },
+  "ANA-09": {
+    "e2e": {
+      "datum": "2026-10-06",
+      "status": "passed",
+      "tests": 12
     }
   },
   "ANA-10": {
@@ -184,14 +191,14 @@
       "tests": 7
     },
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 8
     }
   },
   "ANA-11": {
     "e2e": {
-      "datum": "2026-10-02",
+      "datum": "2026-10-06",
       "status": "passed",
       "tests": 11
     }
@@ -858,7 +865,7 @@
     "e2e": {
       "datum": "2026-10-06",
       "status": "passed",
-      "tests": 16
+      "tests": 1
     }
   },
   "UI-08": {
