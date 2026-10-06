@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: decision
 status: open
-pr: []
+pr: [103]
 features: []
 areas: [docs, tooling]
 ---
