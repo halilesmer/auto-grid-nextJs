@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: decision
 status: open
-pr: []
+pr: [105]
 features: []
 areas: [frontend, tooling]
 ---
