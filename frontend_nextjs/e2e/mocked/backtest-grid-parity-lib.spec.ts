@@ -36,9 +36,9 @@ function kindsInTick(events: SimEvent[], i: number, ev: string): unknown[] {
 }
 
 test.describe('BKT-02 Bot-Nachbau Grid', () => {
-  test('Genau die 18 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
+  test('Genau die 22 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
     // Ein neues Szenario in make_scenarios.py fällt hier auf und braucht eine bewusste Entscheidung
-    expect(GRID_SCENARIOS).toHaveLength(18);
+    expect(GRID_SCENARIOS).toHaveLength(22);
     expect(GRID_SCENARIOS.every((n) => /^(grid_|exit_|instant_)/.test(n))).toBe(true);
   });
 
@@ -95,6 +95,28 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     // SELL 0,02 Lot: Abstand 0,5/6 = 0,083, TP 0,4/6 = 0,067, SL 1,5/6 = 0,25
     expect(places[6]).toMatchObject({ type: 'SELL_LIMIT', price: 97.11, volume: 0.02, tp: 97.043, sl: 97.36 });
     expect(places[7]).toMatchObject({ type: 'SELL_LIMIT', price: 97.193 });
+  });
+
+  test('max_positions 0 heißt ohne Grenze: 15 Füllungen statt höchstens 10', { tag: '@BKT-02' }, () => {
+    const fills = loadGolden('grid_max_positions_unlimited').filter((e) => e.ev === 'fill');
+    expect(fills).toHaveLength(15);
+  });
+
+  test('Lot unter volume_min wird angehoben, SELL-Lot rastet auf volume_step', { tag: '@BKT-02' }, () => {
+    const places = loadGolden('grid_lot_below_min').filter((e) => e.i === 0 && e.ev === 'place');
+    expect(places[0]).toMatchObject({ type: 'BUY_LIMIT', volume: 0.1 });
+    expect(places[6]).toMatchObject({ type: 'SELL_LIMIT', price: 97.2, volume: 0.3 });
+  });
+
+  test('Ohne Sync und mit leerem sell_lot_size nimmt SELL das BUY-Lot', { tag: '@BKT-02' }, () => {
+    const places = loadGolden('grid_sell_lot_empty').filter((e) => e.i === 0 && e.ev === 'place');
+    expect(places[6]).toMatchObject({ type: 'SELL_LIMIT', price: 97.2, volume: 0.03, tp: 97.05 });
+  });
+
+  test('Mit Sync gelten für SELL Abstand, Lot, TP und SL der BUY-Seite', { tag: '@BKT-02' }, () => {
+    const places = loadGolden('grid_sync_ignores_sell').filter((e) => e.i === 0 && e.ev === 'place');
+    expect(places[6]).toMatchObject({ type: 'SELL_LIMIT', price: 97.1, volume: 0.01, tp: 97.0, sl: 0 });
+    expect(places[7]).toMatchObject({ type: 'SELL_LIMIT', price: 97.2 });
   });
 
   test('Zweimal abgespielt ergibt dieselbe Folge (kein Zustand zwischen Läufen)', { tag: '@BKT-02' }, () => {

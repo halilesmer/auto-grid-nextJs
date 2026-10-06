@@ -89,6 +89,18 @@ def scenarios() -> dict[str, dict]:
         [make_zone(id="z1", order_type="BUY", stop_loss=0.3)], walk([97.0, 96.2, 96.8], seed=5))
     add("grid_max_positions", "Höchstens 3 Positionen, Kurs fällt weit",
         [make_zone(id="z1", order_type="BUY", max_positions=3)], walk([97.0, 96.0, 96.4], seed=6))
+    add("grid_max_positions_unlimited", "max_positions 0 = ohne Grenze (500): Kurs fällt über 15 Stufen",
+        [make_zone(id="z1", order_type="BUY", max_positions=0)], walk([97.0, 95.4, 95.8], seed=25))
+    add("grid_lot_below_min", "volume_min/volume_step 0,1: BUY-Lot 0,05 wird 0,1, SELL-Lot 0,25 rastet auf die Stufe",
+        [make_zone(id="z1", order_type="BOTH", sync_buy_sell=False, lot_size=0.05, sell_lot_size=0.25,
+                   sell_grid_step=0.15, sell_take_profit=0.15)],
+        walk(OSC, seed=26), symbol={"volume_min": 0.1, "volume_step": 0.1})
+    add("grid_sell_lot_empty", "BOTH ohne Sync, sell_lot_size leer: SELL nimmt das BUY-Lot 0,03",
+        [make_zone(id="z1", order_type="BOTH", sync_buy_sell=False, lot_size=0.03, sell_lot_size="",
+                   sell_grid_step=0.15, sell_take_profit=0.15)], walk(OSC, seed=27))
+    add("grid_sync_ignores_sell", "BOTH mit Sync: alle sell_*-Felder (Abstand, Lot, TP, SL) werden ignoriert",
+        [make_zone(id="z1", order_type="BOTH", sell_grid_step=0.25, sell_lot_size=None, sell_take_profit=0.3,
+                   sell_stop_loss=0.2)], walk(OSC, seed=28))
     add("grid_breakout", "Ausbruchsmodus mit Pullback",
         [make_zone(id="z1", order_type="BOTH", is_breakout=True, pullback_distance=0.3,
                    sell_pullback_distance=0.3)], walk([97.0, 97.6, 97.2, 96.4, 96.9], seed=8))
