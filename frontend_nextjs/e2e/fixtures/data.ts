@@ -69,6 +69,16 @@ function symbol(name: string, digits: number, description: string, volumeMin = 0
     currency_profit: 'USD',
     currency_margin: 'USD',
     description,
+    // Kostenfelder wie mt5_helpers.SYMBOL_COST_FIELDS (BKT-04)
+    trade_calc_mode: 2,
+    trade_tick_value_profit: Number((point * contract).toFixed(8)),
+    trade_tick_value_loss: Number((point * contract).toFixed(8)),
+    swap_mode: 1,
+    swap_long: -5.2,
+    swap_short: 1.3,
+    swap_rollover3days: 3,
+    spread: 20,
+    trade_stops_level: 0,
   };
 }
 

@@ -28,6 +28,23 @@ export interface SymbolDetail {
   trade_tick_value?: number;
   trade_tick_size?: number;
   trade_contract_size?: number;
+  // Kostenwerte für den Backtest (BKT-04, docs/analyse-regeln.md §6). null = MT5 liefert den Wert
+  // nicht; fehlt = älterer Worker oder alter Symbol-Cache (max. 1 h).
+  /** MT5 SYMBOL_CALC_MODE_* (0 Forex, 2 CFD, 3 CFD-Index, 4 CFD mit Hebel, 5 Forex ohne Hebel) */
+  trade_calc_mode?: number | null;
+  /** Wert eines Ticks bei 1 Lot in Kontowährung, für Gewinn bzw. Verlust */
+  trade_tick_value_profit?: number | null;
+  trade_tick_value_loss?: number | null;
+  /** MT5 SYMBOL_SWAP_MODE_* (Einheit von swap_long/swap_short) */
+  swap_mode?: number | null;
+  swap_long?: number | null;
+  swap_short?: number | null;
+  /** Wochentag des dreifachen Swaps (0 = Sonntag … 6 = Samstag) */
+  swap_rollover3days?: number | null;
+  /** Aktueller Spread in Punkten */
+  spread?: number | null;
+  /** Mindestabstand von TP/SL/Pending zum Kurs in Punkten */
+  trade_stops_level?: number | null;
 }
 
 export interface ZoneSettings {

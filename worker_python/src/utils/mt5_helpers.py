@@ -413,6 +413,14 @@ def connect_internal_helper(
     return True, None
 
 
+# Backtest maliyet alanları (BKT-04, docs/analyse-regeln.md §6): sembol listesi ve zaman kontrolü
+# (mt5_market._SYMBOL_FIELDS) aynı listeyi kullanır. MT5 bir alanı vermezse değer None kalır, tahmin edilmez.
+SYMBOL_COST_FIELDS = (
+    "trade_calc_mode", "trade_tick_value_profit", "trade_tick_value_loss", "currency_profit",
+    "swap_mode", "swap_long", "swap_short", "swap_rollover3days", "spread", "trade_stops_level",
+)
+
+
 def build_detailed_symbols(symbols) -> list[dict]:
     """MT5 sembol nesnelerini (veya dict'leri) arayüzün beklediği detaylı listeye çevirir."""
 
@@ -438,6 +446,7 @@ def build_detailed_symbols(symbols) -> list[dict]:
                 "trade_tick_value": _get(s, "trade_tick_value", 0.0),
                 "trade_tick_size": _get(s, "trade_tick_size", 0.0),
                 "trade_contract_size": _get(s, "trade_contract_size", 0.0),
+                **{k: _get(s, k, None) for k in SYMBOL_COST_FIELDS},
             }
         )
     return detailed

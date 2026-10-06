@@ -1464,7 +1464,7 @@ kategorien:
       - id: BKT-04
         titel: Backtest-Rechner mit Kosten (B1 + B4, geplant)
         beschreibung: "Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ immer sichtbar."
-        code: [worker_python/src/utils/mt5_helpers.py, worker_python/src/utils/mt5_market.py]
+        code: [worker_python/src/utils/mt5_helpers.py, worker_python/src/utils/mt5_market.py, frontend_nextjs/src/lib/backtest/commission.ts]
         tiers: [unit, api, e2e]
         pruefung:
           - pytest für die Kostenfelder der Symbolliste ausführen.
