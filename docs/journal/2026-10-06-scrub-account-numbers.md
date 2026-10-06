@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: fix
 status: open
-pr: []
+pr: [104]
 features: [ACC-11, ENG-25]
 areas: [docs, tests, worker]
 ---
