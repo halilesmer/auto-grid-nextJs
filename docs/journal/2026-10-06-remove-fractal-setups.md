@@ -1,8 +1,8 @@
 ---
 date: 2026-10-06
 type: decision
-status: open
-pr: []
+status: done
+pr: [117]
 features: [ENG-29, ENG-21, ZON-15, ZON-16, ENG-26, ANA-09, ANA-12, ZON-19]
 areas: [worker, frontend, tests, docs]
 ---
@@ -98,8 +98,11 @@ Tests that changed, because the removed function was a part of them:
 | `e2e/mocked/analysis-stats.spec.ts` (ANA-09, ANA-12) | A zone opens "by weekday" (1 row, was 3 rows by setup). Removed the setup scope and the setup column. |
 
 ## Open points
-- [ ] Manual check ENG-29 on the VPS: pull, restart the worker, open the dashboard of DEMO account A.
-- [ ] `docs/journal/2026-10-06-backtest-module-plan.md` names `sid` of fractal setups for presets. Remove it when that plan is next updated.
+- [x] Manual check ENG-29 on the VPS: pull, restart the worker, open the dashboard of DEMO account A.
+  - Done (2026-10-07): DEMO account A had no pending orders of old setups. All order comments were `AutoGrid_Z1`, grid orders. The dashboard showed no window, as expected.
+  - Not verifiable live: the delete path with real old orders. No old orders exist, and new ones cannot be made. Unit, api and e2e tests cover it.
+- [x] `docs/journal/2026-10-06-backtest-module-plan.md` names `sid` of fractal setups for presets. Remove it when that plan is next updated.
+  - Done (2026-10-07): the plan has no `sid` any more. Part B3 named fractal "setups"; removed.
 
 ## Lessons
 - A feature that writes its own data into MT5 (order comments, kept orders) needs an exit path when it is removed. Find the data in MT5 and in the settings before you delete the code.
