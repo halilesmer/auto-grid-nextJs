@@ -896,14 +896,14 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 16
+      "tests": 17
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 13
+      "tests": 16
     }
   },
   "UI-09": {
@@ -1172,7 +1172,7 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 4
+      "tests": 5
     },
     "live": {
       "datum": "2026-09-24",
@@ -1263,6 +1263,13 @@
       "datum": "2026-10-07",
       "status": "passed",
       "tests": 4
+    }
+  },
+  "ZON-20": {
+    "e2e": {
+      "datum": "2026-10-07",
+      "status": "passed",
+      "tests": 14
     }
   }
 }

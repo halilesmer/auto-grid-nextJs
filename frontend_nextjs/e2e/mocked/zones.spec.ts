@@ -12,10 +12,10 @@ async function saveAndReload(dashboard: Dashboard) {
 test.describe('ZON Zonen', () => {
   test('Zone hinzufügen', { tag: '@ZON-01' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
-    await expect(page.getByTestId('zone-count')).toHaveText('2');
-    // Neue Zone übernimmt das Symbol der letzten Zone und startet ausgeschaltet
-    await expect(dashboard.zone(1).getByPlaceholder(/Sembol Ara/)).toHaveValue('USOUSD');
+    await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
+    await expect(page.getByTestId('zone-card')).toHaveCount(2);
+    // Neues Setup übernimmt das Symbol seiner Symbolkarte und startet ausgeschaltet
+    await expect(dashboard.symbolInput(1)).toHaveValue('USOUSD');
     await expect(dashboard.zone(1).getByRole('button', { name: msg('zone.header.off') })).toBeVisible();
 
     await saveAndReload(dashboard);
@@ -33,20 +33,21 @@ test.describe('ZON Zonen', () => {
     await dashboard.zone(0).getByRole('button', { name: msg('zone.header.menu') }).click();
     await page.getByRole('button', { name: msg('zone.header.delete') }).click();
     const modal = page.getByRole('dialog');
-    await expect(modal).toContainText(msg('zone.delete.message'));
+    // Einziges Setup von USOUSD: die Rückfrage sagt, dass das Symbol mit verschwindet (ZON-20)
+    await expect(modal).toContainText(msg('zone.delete.last.message', { symbol: 'USOUSD' }));
     await modal.getByRole('button', { name: msg('account.action.delete') }).click();
 
     await expect(page.getByTestId('zone-card')).toHaveCount(1);
     await saveAndReload(dashboard);
     await expect(page.getByTestId('zone-card')).toHaveCount(1);
-    await expect(dashboard.zone().getByPlaceholder(/Sembol Ara/)).toHaveValue('XAUUSD');
+    await expect(dashboard.symbolInput()).toHaveValue('XAUUSD');
     expect(worker.zonesOf(DEMO_ID).map((z) => z.id)).toEqual(['zone-e2e-2']);
   });
 
   test('Basisfelder: Symbol, Emir Tipi, Min/Max Fiyat', { tag: '@ZON-03' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
-    const symbol = zone.getByPlaceholder(/Sembol Ara/);
+    const symbol = dashboard.symbolInput();
     await symbol.fill('XAUUSD');
     await symbol.press('Escape');
     await dashboard.zoneField(msg('zone.field.orderType')).selectOption('SELL');
@@ -126,7 +127,7 @@ test.describe('ZON Zonen', () => {
 
   test('Symbolwechsel auf größeres Minimum hebt den Lot an, Speichern schickt kein 0', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    const symbol = dashboard.zone().getByPlaceholder(/Sembol Ara/);
+    const symbol = dashboard.symbolInput();
     await symbol.fill('EURUSD'); // Broker: volume_min/step 0.1, Zone hat 0.01
     await symbol.press('Escape');
     await expect(dashboard.zoneField(msg('zone.field.lot'))).toHaveValue('0.1');
@@ -138,9 +139,9 @@ test.describe('ZON Zonen', () => {
   test('Neue Zone startet mit dem Minimum-Lot ihres Symbols', { tag: '@ZON-01' }, async ({ page, dashboard, worker }) => {
     worker.setZones(DEMO_ID, [makeZone({ symbol: 'EURUSD', lot_size: 0.1, sell_lot_size: 0.1 })]);
     await dashboard.open(DEMO_ID);
-    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
-    await expect(page.getByTestId('zone-count')).toHaveText('2');
-    await expect(dashboard.zone(1).getByPlaceholder(/Sembol Ara/)).toHaveValue('EURUSD');
+    await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
+    await expect(page.getByTestId('zone-card')).toHaveCount(2);
+    await expect(dashboard.symbolInput(1)).toHaveValue('EURUSD');
     await expect(dashboard.zoneField(msg('zone.field.lot'), 1)).toHaveValue('0.1');
   });
 
@@ -232,25 +233,38 @@ test.describe('ZON Zonen', () => {
     await zone.getByRole('button', { name: msg('zone.header.started') }).click();
     await expect(zone.getByRole('button', { name: msg('zone.header.start'), exact: true })).toBeVisible();
     await expect.poll(() => worker.state.uiState[DEMO_ID]).toEqual({ '0': 'PAUSE' });
-    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ id: ZONE_ID, is_active: false });
+    // Der Befehl geht vor dem Speichern an den Worker (ZON-20): auf das Speichern warten
+    await expect.poll(() => worker.zonesOf(DEMO_ID)[0]).toMatchObject({ id: ZONE_ID, is_active: false });
 
     await zone.getByRole('button', { name: msg('zone.header.start'), exact: true }).click();
     await expect(zone.getByRole('button', { name: msg('zone.header.started') })).toBeVisible();
     await expect.poll(() => worker.state.uiState[DEMO_ID]).toEqual({ '0': 'START' });
   });
 
-  test('Start/Pause: Bot aus, ungespeicherte Zone, ungültiges Symbol', { tag: '@ZON-08' }, async ({ page, worker, dashboard }) => {
+  test('Start/Pause: scheitert das Speichern, geht der Motorzustand zurück', { tag: '@ZON-08' }, async ({ worker, dashboard }) => {
+    worker.setBotRunning(DEMO_ID);
+    await dashboard.open(DEMO_ID);
+    worker.overrides.set(`POST /api/settings/${DEMO_ID}`, { status: 500, body: { detail: 'Disk voll' } });
+    const toggle = () => dashboard.zone().getByRole('button', { name: msg('zone.header.started') }).click();
+    expect(await dashboard.withDialog(toggle)).toBe(msg('zone.alert.toggleFailed'));
+    // Der Befehl ging vor dem Speichern raus (PAUSE); danach wieder START, passend zum unveränderten is_active
+    await expect.poll(() => worker.state.uiState[DEMO_ID]).toEqual({ '0': 'START' });
+    await expect(dashboard.zone().getByRole('button', { name: msg('zone.header.started') })).toBeVisible();
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ id: ZONE_ID, is_active: true });
+  });
+
+  test('Start/Pause: Bot aus, ungespeicherte Zone, ungültiges Symbol', { tag: '@ZON-08' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await expect(dashboard.zone().getByRole('button', { name: msg('zone.header.ready') })).toBeVisible();
 
-    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
+    await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
     const toggleNew = () => dashboard.zone(1).getByRole('button', { name: msg('zone.header.off') }).click();
     expect(await dashboard.withDialog(toggleNew)).toContain('henüz kaydedilmemiş');
     // Zustand wird zurückgesetzt, nichts an den Motor geschickt
     await expect(dashboard.zone(1).getByRole('button', { name: msg('zone.header.off') })).toBeVisible();
     expect(worker.callsTo('POST', `/api/ui-state/${DEMO_ID}`)).toHaveLength(0);
 
-    await dashboard.zone(1).getByPlaceholder(/Sembol Ara/).fill('FOOBAR');
+    await dashboard.symbolInput(1).fill('FOOBAR');
     expect(await dashboard.withDialog(toggleNew)).toContain('Hatalı Sembol');
   });
 
@@ -279,7 +293,7 @@ test.describe('ZON Zonen', () => {
     await expect(zone.getByRole('button', { name: msg('bot.status.stopped') })).toBeDisabled();
   });
 
-  test('„Kaydedilmedi“-Badge', { tag: '@ZON-09' }, async ({ page, dashboard }) => {
+  test('„Kaydedilmedi“-Badge', { tag: '@ZON-09' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
     const badge = dashboard.zone().getByText(msg('zone.header.unsaved'), { exact: true });
     await expect(badge).toBeHidden();
@@ -289,13 +303,13 @@ test.describe('ZON Zonen', () => {
     await dashboard.saveAllSettings();
     await expect(badge).toBeHidden();
 
-    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
+    await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
     await expect(dashboard.zone(1).getByText(msg('zone.header.unsaved'), { exact: true })).toBeVisible();
   });
-  test('Einzelne Zone speichern', { tag: '@ZON-11' }, async ({ page, worker, dashboard }) => {
+  test('Einzelne Zone speichern', { tag: '@ZON-11' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await dashboard.zoneField(msg('zone.field.lot')).fill('0.05');
-    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
+    await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
     const first = dashboard.zone(0);
     const second = dashboard.zone(1);
     const badge = (zone: typeof first) => zone.getByText(msg('zone.header.unsaved'), { exact: true });

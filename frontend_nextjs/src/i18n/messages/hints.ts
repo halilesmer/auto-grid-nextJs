@@ -195,39 +195,46 @@ export default defineArea(
     'vps.log.refresh.hint': 'Logu VPS’ten yeniden çeker (otomatik yenileme de düzenli çalışır).',
 
     // --- Bölge: başlık ve panel ---
-    'zone.panel.count.hint': 'Toplam bölge sayısı.',
-    'zone.panel.add.hint': 'Listenin sonuna yeni bir bölge ekler (son bölgenin sembolüyle). Ayarları girip Kaydet’e basın.',
-    'zone.panel.add.off.hint': 'Bot çalışıyor ama MT5’e bağlı değil; bağlantı kurulana kadar bölge eklenemez.',
-    'zone.delete.confirm.hint': 'Bölgeyi listeden kaldırır. Kalıcı olması için “Tüm Ayarları Kaydet” gerekir.',
-    'zone.header.badge.buy.hint': 'Bu bölge yalnızca BUY (alış) emirleri verir.',
-    'zone.header.badge.sell.hint': 'Bu bölge yalnızca SELL (satış) emirleri verir.',
-    'zone.header.badge.both.hint': 'Bu bölge hem BUY hem SELL emirleri verir.',
+    'zone.panel.count.hint': 'Sembol sayısı. Her sembolün bir veya daha fazla setup’ı vardır.',
+    'zone.panel.add.hint': 'Yeni bir sembol ekler: önce sembolü seçersiniz, ilk setup otomatik oluşur. Ayarları girip Kaydet’e basın.',
+    'zone.panel.add.off.hint': 'Bot çalışıyor ama MT5’e bağlı değil; bağlantı kurulana kadar sembol eklenemez.',
+    'zone.delete.confirm.hint': 'Setup’ı listeden kaldırır. Kalıcı olması için “Tüm Ayarları Kaydet” gerekir.',
+    'zone.delete.last.confirm.hint': 'Son setup’ı ve onunla sembolü listeden kaldırır. Kalıcı olması için “Tüm Ayarları Kaydet” gerekir.',
+    'zone.header.badge.buy.hint': 'Bu setup yalnızca BUY (alış) emirleri verir.',
+    'zone.header.badge.sell.hint': 'Bu setup yalnızca SELL (satış) emirleri verir.',
+    'zone.header.badge.both.hint': 'Bu setup hem BUY hem SELL emirleri verir.',
     'zone.market.hint.open': "Piyasa açık. Genelde {hours} arası (broker sunucu saati).",
-    'zone.market.hint.closed': "Piyasa kapalı. Genelde {hours} arası açık (broker sunucu saati). Kapalıyken bu bölgede yeni emir yerleştirilemez.",
-    'zone.market.hint': "Bu bölgenin sembolü için piyasa açık mı. Her sembolün işlem saati farklıdır; kapalıyken bu bölgede yeni emir yerleştirilemez.",
-    'zone.header.unsaved.hint': 'Bu bölgede henüz kaydedilmemiş değişiklikler var.',
-    'zone.header.price.hint': 'Bu bölgenin sembolünün anlık fiyatı (Bid), sembol basamak sayısıyla. Motor çalışmıyorsa "--".',
+    'zone.market.hint.closed': 'Piyasa kapalı. Genelde {hours} arası açık (broker sunucu saati). Kapalıyken bu sembolde yeni emir yerleştirilemez.',
+    'zone.market.hint': 'Bu sembol için piyasa açık mı. Her sembolün işlem saati farklıdır; kapalıyken yeni emir yerleştirilemez.',
+    'zone.header.unsaved.hint': 'Bu setup’ta henüz kaydedilmemiş değişiklikler var.',
+    'zone.header.price.hint': 'Sembolün anlık fiyatı (Bid), sembol basamak sayısıyla. Motor çalışmıyorsa "--".',
     'zone.header.started.hint':
-      'Bölge etkin ve motor emirleri yönetiyor. Tıklayınca bölgeyi devre dışı bırakır (hemen kaydedilir).',
+      'Setup etkin ve motor emirleri yönetiyor. Tıklayınca setup’ı devre dışı bırakır (hemen kaydedilir).',
     'zone.header.start.hint':
-      'Bölge kapalı. Tıklayınca bölgeyi etkinleştirir (hemen kaydedilir); motor çalışıyorsa emirler konur.',
+      'Setup kapalı. Tıklayınca setup’ı etkinleştirir (hemen kaydedilir); motor çalışıyorsa emirler konur.',
     'zone.header.ready.hint':
-      'Bölge etkin ama motor çalışmıyor; botu başlatınca emirler konur. Tıklayınca bölgeyi kapatır (hemen kaydedilir).',
+      'Setup etkin ama motor çalışmıyor; botu başlatınca emirler konur. Tıklayınca setup’ı kapatır (hemen kaydedilir).',
     'zone.header.off.hint':
-      'Bölge kapalı. Tıklayınca bölgeyi etkinleştirir (hemen kaydedilir); emirler botu başlatınca konur.',
-    'zone.header.save.hint': 'Sadece bu bölgenin değişikliklerini kaydeder; diğer bölgeler etkilenmez.',
-    'zone.header.save.off.hint': 'Bu bölgede kaydedilmemiş değişiklik yok.',
-    'zone.header.test.hint': 'Bu bölge için fiyat grafiğini, bölge sınırlarını ve ayar özetini açar.',
-    'zone.header.menu.hint': 'Bölge menüsü: ek işlemler (bölgeyi sil).',
-    'zone.header.delete.hint': 'Bölgeyi siler (onay ister). Kalıcı olması için Kaydet gerekir.',
+      'Setup kapalı. Tıklayınca setup’ı etkinleştirir (hemen kaydedilir); emirler botu başlatınca konur.',
+    'zone.header.save.hint': 'Sadece bu setup’ın değişikliklerini kaydeder; diğer setup’lar etkilenmez.',
+    'zone.header.save.off.hint': 'Bu setup’ta kaydedilmemiş değişiklik yok.',
+    'zone.header.test.hint': 'Bu setup için fiyat grafiğini, setup sınırlarını ve ayar özetini açar.',
+    'zone.header.menu.hint': 'Setup menüsü: ek işlemler (setup’ı sil).',
+    'zone.header.delete.hint': 'Setup’ı siler (onay ister). Son setup ise sembol de kalkar. Kalıcı olması için Kaydet gerekir.',
     'zone.header.delete.off.hint':
-      'Bot çalışıyor ama MT5’e bağlı değil; bağlantı kurulana kadar bölge silinemez.',
+      'Bot çalışıyor ama MT5’e bağlı değil; bağlantı kurulana kadar setup silinemez.',
+    'zone.symbol.setupCount.hint': 'Bu sembolün setup sayısı. Her setup motorda kendi magic numarasıyla ayrı çalışır.',
+    'zone.symbol.addSetup.hint': 'Bu sembole yeni bir setup ekler; sembol sorulmaz, lot sembolün en küçük lotudur. Ayarları girip Kaydet’e basın.',
+    'zone.symbol.addSetup.off.hint': 'Bot çalışıyor ama MT5’e bağlı değil; bağlantı kurulana kadar setup eklenemez.',
+    'zone.addSymbol.symbol.hint': 'Eklenecek sembol (broker’ın MT5 sembol adı). Yazarak arayın, listeden seçin.',
+    'zone.addSymbol.confirm.hint': 'Sembolü ilk setup’ıyla listeye ekler. Kalıcı olması için Kaydet gerekir.',
+    'zone.addSymbol.confirm.off.hint': 'Önce geçerli bir sembol girin veya listeden seçin.',
     'zone.sync.hint':
       'Açıkken SELL, BUY’ın grid adımı, lot, kâr al ve zarar durdur değerlerini kullanır. Kapatınca SELL için ayrı değerler girebilirsiniz.',
 
     // --- Bölge: temel alanlar ---
     'zone.field.symbol.hint':
-      'İşlem yapılacak enstrüman (broker’ın MT5 sembol adı, ör. USOUSD). Yazarak arayın, listeden seçin. Parantez içi: sembolün fiyat ondalık basamağı.',
+      'İşlem yapılacak enstrüman (broker’ın MT5 sembol adı, ör. USOUSD). Yazarak arayın, listeden seçin. Değişiklik bu sembolün tüm setup’larına uygulanır. Parantez içi: sembolün fiyat ondalık basamağı.',
     'zone.field.orderType.hint':
       'BUY: yalnızca alış emirleri.\nSELL: yalnızca satış emirleri.\nBOTH: her iki yön; BUY ve SELL ayrı ayarlanabilir.',
     'zone.field.minPrice.hint':
@@ -611,39 +618,46 @@ export default defineArea(
     'vps.log.refresh.hint': 'Fetches the log from the VPS again (it also refreshes regularly on its own).',
 
     // --- Zone: header and panel ---
-    'zone.panel.count.hint': 'Total number of zones.',
-    'zone.panel.add.hint': 'Appends a new zone to the list (with the symbol of the last zone). Enter the settings and press Save.',
-    'zone.panel.add.off.hint': 'The bot is running but not connected to MT5; zones cannot be added until it is connected.',
-    'zone.delete.confirm.hint': 'Removes the zone from the list. “Save All Settings” is needed to make it permanent.',
-    'zone.header.badge.buy.hint': 'This zone only places BUY orders.',
-    'zone.header.badge.sell.hint': 'This zone only places SELL orders.',
-    'zone.header.badge.both.hint': 'This zone places both BUY and SELL orders.',
+    'zone.panel.count.hint': 'Number of symbols. Each symbol has one or more setups.',
+    'zone.panel.add.hint': 'Adds a new symbol: you choose the symbol first, then the first setup is created automatically. Enter the settings and press Save.',
+    'zone.panel.add.off.hint': 'The bot is running but not connected to MT5; symbols cannot be added until it is connected.',
+    'zone.delete.confirm.hint': 'Removes the setup from the list. “Save All Settings” is needed to make it permanent.',
+    'zone.delete.last.confirm.hint': 'Removes the last setup and with it the symbol from the list. “Save All Settings” is needed to make it permanent.',
+    'zone.header.badge.buy.hint': 'This setup only places BUY orders.',
+    'zone.header.badge.sell.hint': 'This setup only places SELL orders.',
+    'zone.header.badge.both.hint': 'This setup places both BUY and SELL orders.',
     'zone.market.hint.open': "Market open. Usually {hours} (broker server time).",
-    'zone.market.hint.closed': "Market closed. Usually open {hours} (broker server time). No new orders can be placed in this zone while it is closed.",
-    'zone.market.hint': "Whether the market is open for this zone's symbol. Every symbol has its own trading hours; no new orders can be placed in this zone while it is closed.",
-    'zone.header.unsaved.hint': 'This zone has changes that are not saved yet.',
-    'zone.header.price.hint': 'Live price (bid) of this zone\'s symbol, shown with the symbol\'s digits. "--" while the engine is not running.',
+    'zone.market.hint.closed': 'Market closed. Usually open {hours} (broker server time). No new orders can be placed for this symbol while it is closed.',
+    'zone.market.hint': 'Whether the market is open for this symbol. Every symbol has its own trading hours; no new orders can be placed while it is closed.',
+    'zone.header.unsaved.hint': 'This setup has changes that are not saved yet.',
+    'zone.header.price.hint': 'Live price (bid) of the symbol, shown with the symbol’s digits. "--" while the engine is not running.',
     'zone.header.started.hint':
-      'The zone is active and the engine manages its orders. Click to disable the zone (saved immediately).',
+      'The setup is active and the engine manages its orders. Click to disable the setup (saved immediately).',
     'zone.header.start.hint':
-      'The zone is off. Click to activate it (saved immediately); orders are placed if the engine is running.',
+      'The setup is off. Click to activate it (saved immediately); orders are placed if the engine is running.',
     'zone.header.ready.hint':
-      'The zone is active but the engine is not running; orders are placed once you start the bot. Click to switch the zone off (saved immediately).',
+      'The setup is active but the engine is not running; orders are placed once you start the bot. Click to switch the setup off (saved immediately).',
     'zone.header.off.hint':
-      'The zone is off. Click to activate it (saved immediately); orders are placed once you start the bot.',
-    'zone.header.save.hint': 'Saves only the changes of this zone; other zones are not affected.',
-    'zone.header.save.off.hint': 'There are no unsaved changes in this zone.',
-    'zone.header.test.hint': 'Opens the price chart, the zone limits and a summary of the settings for this zone.',
-    'zone.header.menu.hint': 'Zone menu: further actions (delete zone).',
-    'zone.header.delete.hint': 'Deletes the zone (asks for confirmation). Save is needed to make it permanent.',
+      'The setup is off. Click to activate it (saved immediately); orders are placed once you start the bot.',
+    'zone.header.save.hint': 'Saves only the changes of this setup; other setups are not affected.',
+    'zone.header.save.off.hint': 'There are no unsaved changes in this setup.',
+    'zone.header.test.hint': 'Opens the price chart, the setup limits and a summary of the settings for this setup.',
+    'zone.header.menu.hint': 'Setup menu: further actions (delete setup).',
+    'zone.header.delete.hint': 'Deletes the setup (asks for confirmation). If it is the last setup, the symbol goes too. Save is needed to make it permanent.',
     'zone.header.delete.off.hint':
-      'The bot is running but not connected to MT5; the zone cannot be deleted until it is connected.',
+      'The bot is running but not connected to MT5; the setup cannot be deleted until it is connected.',
+    'zone.symbol.setupCount.hint': 'Number of setups of this symbol. Each setup runs separately in the engine, with its own magic number.',
+    'zone.symbol.addSetup.hint': 'Adds a new setup to this symbol; the symbol is not asked, the lot is the smallest lot of the symbol. Enter the settings and press Save.',
+    'zone.symbol.addSetup.off.hint': 'The bot is running but not connected to MT5; setups cannot be added until it is connected.',
+    'zone.addSymbol.symbol.hint': 'Symbol to add (the broker’s MT5 symbol name). Type to search, pick from the list.',
+    'zone.addSymbol.confirm.hint': 'Adds the symbol with its first setup to the list. Save is needed to make it permanent.',
+    'zone.addSymbol.confirm.off.hint': 'Enter a valid symbol or pick one from the list first.',
     'zone.sync.hint':
       'When on, SELL uses the BUY values for grid step, lot, take profit and stop loss. Turn it off to enter separate values for SELL.',
 
     // --- Zone: basic fields ---
     'zone.field.symbol.hint':
-      'Instrument to trade (the broker’s MT5 symbol name, e.g. USOUSD). Type to search, pick from the list. In brackets: the symbol’s price decimals.',
+      'Instrument to trade (the broker’s MT5 symbol name, e.g. USOUSD). Type to search, pick from the list. The change applies to all setups of this symbol. In brackets: the symbol’s price decimals.',
     'zone.field.orderType.hint':
       'BUY: buy orders only.\nSELL: sell orders only.\nBOTH: both directions; BUY and SELL can be set separately.',
     'zone.field.minPrice.hint':
@@ -1027,39 +1041,46 @@ export default defineArea(
     'vps.log.refresh.hint': 'Holt das Log erneut vom VPS (es aktualisiert sich auch regelmäßig von selbst).',
 
     // --- Zone: Kopf und Panel ---
-    'zone.panel.count.hint': 'Gesamtzahl der Zonen.',
-    'zone.panel.add.hint': 'Hängt eine neue Zone ans Ende der Liste an (mit dem Symbol der letzten Zone). Einstellungen eintragen und Speichern drücken.',
-    'zone.panel.add.off.hint': 'Der Bot läuft, ist aber nicht mit MT5 verbunden; Zonen lassen sich erst nach der Verbindung hinzufügen.',
-    'zone.delete.confirm.hint': 'Entfernt die Zone aus der Liste. Erst „Alle Einstellungen speichern“ macht es dauerhaft.',
-    'zone.header.badge.buy.hint': 'Diese Zone setzt nur BUY-Orders (Kauf).',
-    'zone.header.badge.sell.hint': 'Diese Zone setzt nur SELL-Orders (Verkauf).',
-    'zone.header.badge.both.hint': 'Diese Zone setzt BUY- und SELL-Orders.',
+    'zone.panel.count.hint': 'Anzahl der Symbole. Jedes Symbol hat ein oder mehrere Setups.',
+    'zone.panel.add.hint': 'Fügt ein neues Symbol hinzu: erst das Symbol wählen, dann entsteht das erste Setup automatisch. Einstellungen eintragen und Speichern drücken.',
+    'zone.panel.add.off.hint': 'Der Bot läuft, ist aber nicht mit MT5 verbunden; Symbole lassen sich erst nach der Verbindung hinzufügen.',
+    'zone.delete.confirm.hint': 'Entfernt das Setup aus der Liste. Erst „Alle Einstellungen speichern“ macht es dauerhaft.',
+    'zone.delete.last.confirm.hint': 'Entfernt das letzte Setup und damit das Symbol aus der Liste. Erst „Alle Einstellungen speichern“ macht es dauerhaft.',
+    'zone.header.badge.buy.hint': 'Dieses Setup setzt nur BUY-Orders (Kauf).',
+    'zone.header.badge.sell.hint': 'Dieses Setup setzt nur SELL-Orders (Verkauf).',
+    'zone.header.badge.both.hint': 'Dieses Setup setzt BUY- und SELL-Orders.',
     'zone.market.hint.open': "Markt offen. Zw. {hours} (Serverzeit des Brokers).",
-    'zone.market.hint.closed': "Markt geschlossen. Üblich: Zw. {hours} (Serverzeit des Brokers). Bei geschlossenem Markt können in dieser Zone keine neuen Orders gesetzt werden.",
-    'zone.market.hint': "Ob der Markt für das Symbol dieser Zone geöffnet ist. Jedes Symbol hat eigene Handelszeiten; bei geschlossenem Markt können in dieser Zone keine neuen Orders gesetzt werden.",
-    'zone.header.unsaved.hint': 'Diese Zone hat Änderungen, die noch nicht gespeichert sind.',
-    'zone.header.price.hint': 'Aktueller Preis (Bid) des Zonen-Symbols, mit den Nachkommastellen des Symbols. "--", solange die Engine nicht läuft.',
+    'zone.market.hint.closed': 'Markt geschlossen. Üblich: Zw. {hours} (Serverzeit des Brokers). Bei geschlossenem Markt können für dieses Symbol keine neuen Orders gesetzt werden.',
+    'zone.market.hint': 'Ob der Markt für dieses Symbol geöffnet ist. Jedes Symbol hat eigene Handelszeiten; bei geschlossenem Markt können keine neuen Orders gesetzt werden.',
+    'zone.header.unsaved.hint': 'Dieses Setup hat Änderungen, die noch nicht gespeichert sind.',
+    'zone.header.price.hint': 'Aktueller Preis (Bid) des Symbols, mit den Nachkommastellen des Symbols. "--", solange die Engine nicht läuft.',
     'zone.header.started.hint':
-      'Die Zone ist aktiv und die Engine verwaltet ihre Orders. Klick deaktiviert die Zone (wird sofort gespeichert).',
+      'Das Setup ist aktiv und die Engine verwaltet seine Orders. Klick deaktiviert das Setup (wird sofort gespeichert).',
     'zone.header.start.hint':
-      'Die Zone ist aus. Klick aktiviert sie (wird sofort gespeichert); läuft die Engine, werden Orders gesetzt.',
+      'Das Setup ist aus. Klick aktiviert es (wird sofort gespeichert); läuft die Engine, werden Orders gesetzt.',
     'zone.header.ready.hint':
-      'Die Zone ist aktiv, aber die Engine läuft nicht; Orders werden gesetzt, sobald Sie den Bot starten. Klick schaltet die Zone aus (wird sofort gespeichert).',
+      'Das Setup ist aktiv, aber die Engine läuft nicht; Orders werden gesetzt, sobald Sie den Bot starten. Klick schaltet das Setup aus (wird sofort gespeichert).',
     'zone.header.off.hint':
-      'Die Zone ist aus. Klick aktiviert sie (wird sofort gespeichert); Orders werden gesetzt, sobald Sie den Bot starten.',
-    'zone.header.save.hint': 'Speichert nur die Änderungen dieser Zone; andere Zonen bleiben unberührt.',
-    'zone.header.save.off.hint': 'In dieser Zone gibt es keine ungespeicherten Änderungen.',
-    'zone.header.test.hint': 'Öffnet den Preischart, die Zonengrenzen und eine Übersicht der Einstellungen dieser Zone.',
-    'zone.header.menu.hint': 'Zonenmenü: weitere Aktionen (Zone löschen).',
-    'zone.header.delete.hint': 'Löscht die Zone (mit Rückfrage). Erst Speichern macht es dauerhaft.',
+      'Das Setup ist aus. Klick aktiviert es (wird sofort gespeichert); Orders werden gesetzt, sobald Sie den Bot starten.',
+    'zone.header.save.hint': 'Speichert nur die Änderungen dieses Setups; andere Setups bleiben unberührt.',
+    'zone.header.save.off.hint': 'In diesem Setup gibt es keine ungespeicherten Änderungen.',
+    'zone.header.test.hint': 'Öffnet den Preischart, die Grenzen und eine Übersicht der Einstellungen dieses Setups.',
+    'zone.header.menu.hint': 'Setup-Menü: weitere Aktionen (Setup löschen).',
+    'zone.header.delete.hint': 'Löscht das Setup (mit Rückfrage). Ist es das letzte, verschwindet auch das Symbol. Erst Speichern macht es dauerhaft.',
     'zone.header.delete.off.hint':
-      'Der Bot läuft, ist aber nicht mit MT5 verbunden; die Zone lässt sich erst nach der Verbindung löschen.',
+      'Der Bot läuft, ist aber nicht mit MT5 verbunden; das Setup lässt sich erst nach der Verbindung löschen.',
+    'zone.symbol.setupCount.hint': 'Anzahl der Setups dieses Symbols. Jedes Setup läuft in der Engine getrennt, mit eigener Magic-Nummer.',
+    'zone.symbol.addSetup.hint': 'Fügt diesem Symbol ein neues Setup hinzu; das Symbol wird nicht abgefragt, der Lot ist der kleinste Lot des Symbols. Einstellungen eintragen und Speichern drücken.',
+    'zone.symbol.addSetup.off.hint': 'Der Bot läuft, ist aber nicht mit MT5 verbunden; Setups lassen sich erst nach der Verbindung hinzufügen.',
+    'zone.addSymbol.symbol.hint': 'Hinzuzufügendes Symbol (MT5-Symbolname des Brokers). Zum Suchen tippen, aus der Liste wählen.',
+    'zone.addSymbol.confirm.hint': 'Fügt das Symbol mit seinem ersten Setup der Liste hinzu. Erst Speichern macht es dauerhaft.',
+    'zone.addSymbol.confirm.off.hint': 'Zuerst ein gültiges Symbol eingeben oder aus der Liste wählen.',
     'zone.sync.hint':
       'Eingeschaltet nutzt SELL die BUY-Werte für Grid-Schritt, Lot, Take Profit und Stop Loss. Ausschalten, um für SELL eigene Werte einzugeben.',
 
     // --- Zone: Basisfelder ---
     'zone.field.symbol.hint':
-      'Zu handelndes Instrument (MT5-Symbolname des Brokers, z. B. USOUSD). Zum Suchen tippen, aus der Liste wählen. In Klammern: Preis-Nachkommastellen des Symbols.',
+      'Zu handelndes Instrument (MT5-Symbolname des Brokers, z. B. USOUSD). Zum Suchen tippen, aus der Liste wählen. Die Änderung gilt für alle Setups dieses Symbols. In Klammern: Preis-Nachkommastellen des Symbols.',
     'zone.field.orderType.hint':
       'BUY: nur Kauf-Orders.\nSELL: nur Verkaufs-Orders.\nBOTH: beide Richtungen; BUY und SELL lassen sich getrennt einstellen.',
     'zone.field.minPrice.hint':

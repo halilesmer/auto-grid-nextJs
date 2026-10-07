@@ -109,7 +109,7 @@ test.describe('SET Einstellungen', () => {
 test.describe('SYM Symbole', () => {
   test('Autocomplete zeigt nur passende Symbole', { tag: '@SYM-02' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    const input = dashboard.zone().getByPlaceholder(/Sembol Ara/);
+    const input = dashboard.symbolInput();
     await input.fill('xa');
     const options = page.getByRole('listbox').getByRole('option');
     await expect(options).toHaveCount(1);
@@ -134,7 +134,7 @@ test.describe('SYM Symbole', () => {
     await expect(dashboard.zoneField(msg('zone.field.minPrice'))).toHaveAttribute('step', '0.001');
     await expect(dashboard.zoneField(msg('chart.zone.lot'))).toHaveAttribute('step', '0.01');
 
-    const input = dashboard.zone().getByPlaceholder(/Sembol Ara/);
+    const input = dashboard.symbolInput();
     await input.fill('EURUSD');
     await input.press('Escape');
     // EURUSD: 5 Digits, volume_min/step 0.1 → Lot wird auf 0.1-Raster gebracht
@@ -145,17 +145,17 @@ test.describe('SYM Symbole', () => {
     await expect(dashboard.zoneField(msg('chart.zone.lot'))).toHaveValue('0.1');
 
     await input.fill('FOOBAR');
-    await expect(dashboard.zone().getByText(msg('zone.field.symbolInvalid'))).toBeVisible();
+    await expect(dashboard.symbolOf().getByText(msg('zone.field.symbolInvalid'))).toBeVisible();
   });
 
   test('MT5-Fehler beim Symbolabruf wird unter dem Symbolfeld angezeigt', { tag: '@SYM-04' }, async ({ worker, dashboard }) => {
     const error = '[TIMEOUT] MT5 bağlantısı 15 sn içinde başlatılamadı';
     worker.state.symbolsError = error;
     await dashboard.open(DEMO_ID);
-    await expect(dashboard.zone().getByTestId('symbols-error')).toHaveText(
+    await expect(dashboard.symbolOf().getByTestId('symbols-error')).toHaveText(
       msg('zone.field.symbolsUnavailable', { message: error }),
     );
     // Ohne Symbolliste gilt das gespeicherte Symbol nicht als ungültig
-    await expect(dashboard.zone().getByText(msg('zone.field.symbolInvalid'))).toBeHidden();
+    await expect(dashboard.symbolOf().getByText(msg('zone.field.symbolInvalid'))).toBeHidden();
   });
 });

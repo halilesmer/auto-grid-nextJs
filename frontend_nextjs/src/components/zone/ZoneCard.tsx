@@ -31,6 +31,7 @@ function accentClass(orderType: string) {
 
 export function ZoneCard({
   zone,
+  title,
   modified,
   disableButtons,
   onUpdate,
@@ -46,7 +47,6 @@ export function ZoneCard({
   handleChange,
   handleBlur,
   syncZonePrecision,
-  validateSymbol,
 }: ZoneCardProps) {
   const t = useT();
   const isBoth = zone.order_type === 'BOTH';
@@ -111,7 +111,7 @@ export function ZoneCard({
     <div
       data-testid="zone-card"
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border bg-background/50 transition-colors',
+        'relative overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-colors dark:shadow-black/40',
         'before:absolute before:inset-y-0 before:left-0 before:w-[3px]',
         accent,
         !isActive && 'before:opacity-40',
@@ -121,16 +121,13 @@ export function ZoneCard({
       <div className="border-b border-border px-5 py-4">
         <ZoneHeader
           zone={zone}
+          title={title}
           isActive={isActive}
           isGlobalRunning={isGlobalRunning}
           modified={modified}
           disableButtons={disableButtons}
           engineState={liveData.zone_states?.[String(zoneIndex)]}
           remotePaused={liveData.remote_paused}
-          price={liveData.symbol_prices?.[zone.symbol.toUpperCase()]}
-          priceDigits={symbolConfig.precision}
-          marketOpen={liveData.zone_market_open?.[String(zoneIndex)]}
-          marketHours={liveData.zone_market_hours?.[String(zoneIndex)]}
           onToggleActive={handleToggleActive}
           onRestart={onRestart}
           onDelete={onDelete}
@@ -146,10 +143,8 @@ export function ZoneCard({
             zone={zone}
             update={update}
             symbolConfig={symbolConfig}
-            symbolDetails={symbolDetails}
             handleChange={handleChange}
             handleBlur={handleBlur}
-            validateSymbol={validateSymbol}
           />
         </section>
 

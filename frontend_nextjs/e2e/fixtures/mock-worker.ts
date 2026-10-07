@@ -112,6 +112,27 @@ function settingsZones(settings: Json): Json[] {
   return flattenSymbols(settings.SYMBOLS);
 }
 
+/**
+ * Wie zone_magic.remap_ui_states: sortiert die Zonenbefehle (Schlüssel = Engine-Platz) auf die neue
+ * Reihenfolge um; eine gelöschte Zone fällt weg. Der Worker paart alte und neue Plätze über die Magic,
+ * hier über die id (im Mock trägt jede Zone eine eindeutige id).
+ */
+function remapUiStates(states: Record<string, string>, oldZones: Json[], newZones: Json[]): Record<string, string> {
+  const oldIds = oldZones.map((z) => String(z.id));
+  const newIds = newZones.map((z) => String(z.id));
+  if (oldIds.length === 0 || oldIds.join('|') === newIds.join('|')) return states;
+  const remapped: Record<string, string> = {};
+  for (const [key, value] of Object.entries(states)) {
+    if (!/^\d+$/.test(key)) {
+      remapped[key] = value;
+      continue;
+    }
+    const newIdx = Number(key) < oldIds.length ? newIds.indexOf(oldIds[Number(key)]) : -1;
+    if (newIdx >= 0) remapped[String(newIdx)] = value;
+  }
+  return remapped;
+}
+
 /** Wie symbol_setups.to_flat: Zonen als ZONES (Magic-Vergabe), ZONES gilt vor SYMBOLS. */
 function toFlat(settings: Json): Json {
   const flat: Json = { ...settings };
@@ -529,6 +550,10 @@ export class MockWorker {
         // Wie settings.update_settings: flach zusammenführen, Magic vergeben, gruppiert speichern (ZON-19)
         const merged = { ...previous, ...toFlat(incoming) };
         s.settings[id] = toGrouped(dropFractalSetupFields(assignZoneMagics(previous, merged)));
+        // Wie settings._remap_ui_state_of_stopped_bot: einen laufenden Bot zieht er beim Einlesen selbst um
+        if (!s.botRunning[id] && s.uiState[id]) {
+          s.uiState[id] = remapUiStates(s.uiState[id], settingsZones(previous), settingsZones(s.settings[id]));
+        }
         return ok({ status: 'saved', account_id: id });
       }
     }

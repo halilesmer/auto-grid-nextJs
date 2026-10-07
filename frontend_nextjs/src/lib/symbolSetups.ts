@@ -2,8 +2,10 @@
  * Symbol mit Setups (ZON-19): Einstellungen an der Grenze zum Worker umrechnen.
  *
  * Der Worker liefert und speichert `SYMBOLS: [{symbol, setups}]`. Der Store hält weiter die flache
- * Liste `ZONES` in Engine-Reihenfolge: ui-state-Befehle und `zone_states` zählen Zonen nach ihrem
- * Platz in dieser Liste. Gegenstück im Worker: worker_python/src/utils/symbol_setups.py.
+ * Liste `ZONES`. ui-state-Befehle und `zone_states` zählen Zonen nach ihrem Engine-Platz; den führt
+ * der Store getrennt als `engineOrder` (ids, Stand der letzten Ladung oder Speicherung), damit ein
+ * ungespeichertes Setup die Plätze der anderen nicht verschiebt. Gegenstück im Worker:
+ * worker_python/src/utils/symbol_setups.py.
  */
 import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
@@ -42,4 +44,36 @@ export function settingsToWorker({ ZONES, ...rest }: Partial<GlobalSettings>): W
     groups.set(symbol, group);
   }
   return { ...rest, SYMBOLS: [...groups.values()] };
+}
+
+/**
+ * Zonen nach Symbol gruppiert für die Symbolkarten: gleiche Regel wie settingsToWorker (erstes
+ * Auftreten, exakter Vergleich), damit die Karten die Reihenfolge nach dem Speichern zeigen.
+ */
+export function groupBySymbol(zones: readonly ZoneSettings[]): { symbol: string; zones: ZoneSettings[] }[] {
+  const groups = new Map<string, { symbol: string; zones: ZoneSettings[] }>();
+  for (const zone of zones) {
+    const group = groups.get(zone.symbol) ?? { symbol: zone.symbol, zones: [] };
+    group.zones.push(zone);
+    groups.set(zone.symbol, group);
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Zonen-ids in der Reihenfolge, die der Worker nach dem Speichern dieser Liste führt (Engine-Platz).
+ * Der Worker speichert `SYMBOLS` und liest die Setups Symbol für Symbol (settings_zones).
+ */
+export function engineOrderAfterSave(zones: ZoneSettings[]): string[] {
+  return (settingsToWorker({ ZONES: zones }).SYMBOLS ?? []).flatMap((group) => group.setups.map((setup) => setup.id));
+}
+
+/**
+ * Neues Setup hinter das letzte Setup seines Symbols einfügen; neues Symbol ans Ende.
+ * So bleibt die Liste nach Symbol gruppiert, wie der Worker sie nach dem Speichern führt.
+ */
+export function insertSetup(zones: readonly ZoneSettings[], zone: ZoneSettings): ZoneSettings[] {
+  const last = zones.findLastIndex((z) => z.symbol === zone.symbol);
+  if (last < 0) return [...zones, zone];
+  return [...zones.slice(0, last + 1), zone, ...zones.slice(last + 1)];
 }

@@ -1,11 +1,11 @@
 /**
  * UI-08 · Mobil (375 px): keine Seite läuft horizontal über, und die Buttons des Zonenbereichs liegen
- * vollständig im Fenster. Kopfzeile des Panels („Kaydedildi“ / „Bölge Ekle“) und Zonenkopf (Status, Kaydet,
+ * vollständig im Fenster. Kopfzeile des Panels („Kaydedildi“ / „Sembol Ekle“), Symbolkopf und Setup-Kopf (Status, Kaydet,
  * Test, ⋯) brechen um, statt die Karte zu sprengen. Die Tab-Leisten der Logs (Dashboard, /vps) sind bedienbar:
  * jeder Tab ist erreichbar, auch wenn die Leiste breiter ist als die Karte. Deutsch hat die längsten Beschriftungen.
  */
 import type { Locator, Page, Route } from '@playwright/test';
-import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, test, type AppLocale, type Dashboard } from '../fixtures/test';
+import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type AppLocale, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 test.use({ viewport: { width: 375, height: 812 } });
@@ -30,11 +30,33 @@ async function expectInViewport(page: Page, locator: Locator, name: string) {
   expect(box!.x + box!.width, `${name}: rechts außerhalb`).toBeLessThanOrEqual(width);
 }
 
-/** Alle Buttons des Zonenbereichs: Panel-Kopf („Bölge Ekle“, Speichern) und Zonenkopf. */
+/**
+ * Kein Element einer Setup-Karte ragt rechts über sein Elternelement hinaus. Die Seite selbst kann dabei
+ * schmal genug bleiben (overflow-hidden der Karte schneidet ab), deshalb reicht expectNoPageOverflow nicht.
+ * Absolut positionierte Elemente zählen nicht: sie liegen bewusst außerhalb des Flusses (z. B. der
+ * pulsierende Ring des Statuspunkts).
+ */
+async function expectNothingOverflowsInSetupCards(page: Page) {
+  const overflowing = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="zone-card"] *')].flatMap((el) => {
+      const parent = el.parentElement!;
+      const box = el.getBoundingClientRect();
+      const inFlow = !['absolute', 'fixed'].includes(getComputedStyle(el).position);
+      const visibleOverflow = getComputedStyle(parent).overflow === 'visible';
+      return box.width > 0 && inFlow && visibleOverflow && box.right > parent.getBoundingClientRect().right + 1
+        ? [el.outerHTML.slice(0, 120)]
+        : [];
+    }),
+  );
+  expect(overflowing, 'Elemente ragen über ihren Rahmen in der Setup-Karte').toEqual([]);
+}
+
+/** Alle Buttons des Zonenbereichs: Panel-Kopf („Sembol Ekle“, Speichern), Symbolkopf („Setup Ekle“) und Setup-Kopf. */
 async function expectZoneAreaInViewport(dashboard: Dashboard, lang: AppLocale) {
   const { page } = dashboard;
   const zone = dashboard.zone();
-  await expectInViewport(page, page.getByRole('button', { name: msg('zone.panel.add', undefined, lang) }), 'Bölge Ekle');
+  await expectInViewport(page, page.getByRole('button', { name: msg('zone.panel.add', undefined, lang) }), 'Sembol Ekle');
+  await expectInViewport(page, dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup', undefined, lang) }), 'Setup Ekle');
   await expectInViewport(page, zone.getByTestId('zone-save'), 'Zone speichern');
   await expectInViewport(page, zone.getByRole('link', { name: msg('zone.header.test', undefined, lang) }), 'Test-Link');
   await expectInViewport(page, zone.getByRole('button', { name: msg('zone.header.menu', undefined, lang) }), 'Zonenmenü');
@@ -139,6 +161,36 @@ for (const lang of LOCALES) {
       await expect(zone.getByRole('button', { name: msg('zone.header.restart', undefined, lang) })).toBeVisible();
 
       await expectZoneAreaInViewport(dashboard, lang);
+      await expectNoPageOverflow(page);
+    });
+
+    test('Symbolkarten mit mehreren Setups und der Dialog „Sembol Ekle“ laufen nicht über', { tag: ['@UI-08', '@ZON-20'] }, async ({ page, worker, dashboard }) => {
+      worker.setZones(DEMO_ID, [
+        makeZone(),
+        makeZone({ id: 'zone-e2e-2', order_type: 'BOTH' }),
+        makeZone({ id: 'zone-e2e-3', symbol: 'XAUUSD', min_price: 1800, max_price: 2000 }),
+      ]);
+      worker.setBotRunning(DEMO_ID);
+      await dashboard.open(DEMO_ID);
+      await expect(page.getByTestId('symbol-card')).toHaveCount(2);
+      await expect(dashboard.symbolCard().getByTestId('zone-market')).toBeVisible();
+      for (const index of [0, 1]) {
+        await expectInViewport(page, dashboard.symbolCard(index).getByTestId('setup-count'), `Setup-Zahl ${index}`);
+        await expectInViewport(
+          page,
+          dashboard.symbolCard(index).getByRole('button', { name: msg('zone.symbol.addSetup', undefined, lang) }),
+          `Setup Ekle ${index}`,
+        );
+      }
+      await expectZoneAreaInViewport(dashboard, lang);
+      await expectNothingOverflowsInSetupCards(page);
+      await expectNoPageOverflow(page);
+
+      await page.getByRole('button', { name: msg('zone.panel.add', undefined, lang) }).click();
+      const dialog = page.getByTestId('add-symbol-dialog');
+      await dialog.getByPlaceholder(msg('zone.symbol.placeholder', undefined, lang)).fill('XAUUSD');
+      await expect(dialog).toContainText(msg('zone.addSymbol.exists', { symbol: 'XAUUSD' }, lang));
+      await expectInViewport(page, dialog.getByRole('button', { name: msg('zone.addSymbol.confirm', undefined, lang), exact: true }), 'Ekle');
       await expectNoPageOverflow(page);
     });
   });

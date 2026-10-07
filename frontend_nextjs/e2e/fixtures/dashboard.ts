@@ -20,8 +20,8 @@ export class Dashboard {
     const options = await this.accountOptions();
     await options.filter({ hasText: `(${accountId})` }).click();
     await expect(this.accountSelect).toHaveAttribute('aria-expanded', 'false');
-    // Einstellungen + Symbole geladen → Zonenbereich ist da
-    await expect(this.page.getByText(msg('zone.panel.title', undefined, this.lang))).toBeVisible();
+    // Einstellungen + Symbole geladen → Zonenbereich ist da (Überschrift: der Titel „Semboller“ steht auch im MT5-Symbolfehler)
+    await expect(this.page.getByRole('heading', { name: msg('zone.panel.title', undefined, this.lang) })).toBeVisible();
   }
 
   /** Trigger der Konto-Combobox; zeigt das gewählte Konto als „Name (ID)“ bzw. den Platzhalter. */
@@ -48,8 +48,24 @@ export class Dashboard {
     if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
   }
 
+  /** Setup-Karte (eine Zone) in Anzeigereihenfolge: Symbol für Symbol, darin die Setups. */
   zone(index = 0): Locator {
     return this.page.getByTestId('zone-card').nth(index);
+  }
+
+  /** Symbolkarte in Anzeigereihenfolge (ZON-20). */
+  symbolCard(index = 0): Locator {
+    return this.page.getByTestId('symbol-card').nth(index);
+  }
+
+  /** Symbolkarte, in der die Setup-Karte `zoneIndex` steht. */
+  symbolOf(zoneIndex = 0): Locator {
+    return this.zone(zoneIndex).locator('xpath=ancestor::*[@data-testid="symbol-card"][1]');
+  }
+
+  /** Symbolfeld im Kopf der Symbolkarte der Setup-Karte `zoneIndex`; es gilt für alle Setups des Symbols. */
+  symbolInput(zoneIndex = 0): Locator {
+    return this.symbolOf(zoneIndex).getByPlaceholder(msg('zone.symbol.placeholder', undefined, this.lang));
   }
 
   /**

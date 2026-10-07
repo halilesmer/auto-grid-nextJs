@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { t } from '@/i18n';
 import { apiUrl, getWorkerHeaders } from '@/lib/api';
-import { settingsToWorker } from '@/lib/symbolSetups';
+import { engineOrderAfterSave, settingsToWorker } from '@/lib/symbolSetups';
 import { normalizeZoneLots } from '@/utils/zoneHelpers';
 import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
@@ -9,6 +9,11 @@ interface SettingsState {
   settings: GlobalSettings | null;
   /** Konto, für das `settings` geladen wurde (useAccountSettings); null = keins/unklar. */
   loadedAccount: string | null;
+  /**
+   * Zonen-ids von `loadedAccount` in Engine-Reihenfolge (Stand der letzten Ladung oder Speicherung).
+   * `zone_states`, `zone_market_*` und ui-state-Befehle zählen nach diesem Platz, nicht nach `ZONES`.
+   */
+  engineOrder: string[];
   availableSymbols: string[];
   symbolDetails: Record<string, SymbolDetail>;
   isLoadingSymbols: boolean;
@@ -18,6 +23,8 @@ interface SettingsState {
   setSettings: (settings: GlobalSettings | null) => void;
   /** Vom Worker geladene Einstellungen eines Kontos (setzt auch loadedAccount). */
   setLoadedSettings: (accountId: string, settings: GlobalSettings) => void;
+  /** Nach erfolgreichem Speichern: Engine-Reihenfolge aus den gesendeten Zonen (nur für `loadedAccount`). */
+  applySavedOrder: (accountId: string, zones: ZoneSettings[]) => void;
   setGlobalSettings: (globals: Partial<Pick<GlobalSettings, 'ORDER_TYPE' | 'SYMBOL' | 'LOOP_INTERVAL_SECONDS'>>) => void;
   setZones: (zones: ZoneSettings[] | ((prev: ZoneSettings[]) => ZoneSettings[])) => void;
   /** Speichert alle Einstellungen; liefert den tatsächlich gesendeten Stand (Lots ggf. auf das Symbol-Minimum angehoben). */
@@ -33,6 +40,7 @@ interface SettingsState {
 const initialState = {
   settings: null,
   loadedAccount: null,
+  engineOrder: [],
   availableSymbols: [],
   symbolDetails: {},
   isLoadingSymbols: false,
@@ -61,7 +69,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setSettings: (settings) => {
     if (!settings) {
-      set({ settings: null, loadedAccount: null });
+      set({ settings: null, loadedAccount: null, engineOrder: [] });
       return;
     }
     set({ settings: sanitizeNumbers(settings) as GlobalSettings });
@@ -69,7 +77,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setLoadedSettings: (accountId, settings) => {
     get().setSettings(settings);
-    set({ loadedAccount: accountId });
+    // GET liefert die Zonen sortiert nach Engine-Platz (settingsFromWorker)
+    set({ loadedAccount: accountId, engineOrder: (settings.ZONES ?? []).map((z) => z.id) });
+  },
+
+  applySavedOrder: (accountId, zones) => {
+    if (get().loadedAccount !== accountId) return;
+    set({ engineOrder: engineOrderAfterSave(zones) });
   },
 
   setGlobalSettings: (globals) =>
@@ -122,6 +136,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       body: JSON.stringify({ settings: settingsToWorker(settings) }),
     });
     if (!res.ok) throw new Error(t('settings.saveFailed'));
+    if (settings.ZONES) get().applySavedOrder(selectedAccount, settings.ZONES);
     return settings;
   },
 

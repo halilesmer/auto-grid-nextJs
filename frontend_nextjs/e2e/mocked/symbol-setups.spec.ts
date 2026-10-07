@@ -1,7 +1,7 @@
 /**
  * ZON-19 Symbol mit Setups: Der Worker liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der
- * Engine-Reihenfolge (index). Die Oberfläche zeigt die Zonen in dieser Reihenfolge, weil zone_states
- * und ui-state-Befehle nach dem Platz zählen, und speichert nur SYMBOLS.
+ * Engine-Reihenfolge (index). zone_states und ui-state-Befehle zählen nach diesem Platz; die Oberfläche
+ * zeigt die Setups nach Symbol gruppiert (ZON-20) und speichert nur SYMBOLS.
  */
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, makeZone, test, type MockWorker } from '../fixtures/test';
@@ -20,26 +20,28 @@ function seedLegacyFile(worker: MockWorker) {
 }
 
 test.describe('ZON-19 Symbol mit Setups', () => {
-  test('Alte Datei mit gemischten Symbolen: Karten in Engine-Reihenfolge, Motorzustand an der richtigen Karte', { tag: '@ZON-19' }, async ({ worker, dashboard }) => {
+  test('Alte Datei mit gemischten Symbolen: Motorzustand an der richtigen Karte', { tag: '@ZON-19' }, async ({ worker, dashboard }) => {
     seedLegacyFile(worker);
     worker.setBotRunning(DEMO_ID);
     worker.setMetrics(DEMO_ID, { zone_states: { '1': 'AUTO_CLEAR' } });
     await dashboard.open(DEMO_ID);
 
-    await expect(dashboard.zone(0).getByPlaceholder(/Sembol Ara/)).toHaveValue('USOUSD');
-    await expect(dashboard.zone(1).getByPlaceholder(/Sembol Ara/)).toHaveValue('XAUUSD');
-    await expect(dashboard.zone(2).getByPlaceholder(/Sembol Ara/)).toHaveValue('USOUSD');
-    await expect(dashboard.zoneField(msg('zone.field.minPrice'), 2)).toHaveValue('80');
-    // Engine-Platz 1 ist Zone B (XAUUSD), nicht der zweite Eintrag unter USOUSD
-    await expect(dashboard.zone(1).getByText(msg('zone.stop.autoClear.label'))).toBeVisible();
+    // Anzeige nach Symbol gruppiert (ZON-20): USOUSD mit A und C, dann XAUUSD mit B
+    await expect(dashboard.symbolInput(0)).toHaveValue('USOUSD');
+    await expect(dashboard.symbolInput(1)).toHaveValue('USOUSD');
+    await expect(dashboard.zoneField(msg('zone.field.minPrice'), 1)).toHaveValue('80');
+    await expect(dashboard.symbolInput(2)).toHaveValue('XAUUSD');
+    // Engine-Platz 1 ist Zone B (XAUUSD), nicht das zweite Setup unter USOUSD
+    await expect(dashboard.zone(2).getByText(msg('zone.stop.autoClear.label'))).toBeVisible();
     await expect(dashboard.zone(0).getByText(msg('zone.stop.autoClear.label'))).toBeHidden();
-    await expect(dashboard.zone(2).getByText(msg('zone.stop.autoClear.label'))).toBeHidden();
+    await expect(dashboard.zone(1).getByText(msg('zone.stop.autoClear.label'))).toBeHidden();
   });
 
   test('Speichern schickt nur SYMBOLS; die Datei wird nach Symbol gruppiert, Magics bleiben', { tag: '@ZON-19' }, async ({ worker, dashboard }) => {
     seedLegacyFile(worker);
     await dashboard.open(DEMO_ID);
-    await dashboard.zoneField(msg('zone.field.maxPrice'), 1).fill('2100');
+    // Zone B (XAUUSD) ist die dritte Setup-Karte: erst USOUSD (A, C), dann XAUUSD
+    await dashboard.zoneField(msg('zone.field.maxPrice'), 2).fill('2100');
     await dashboard.saveAllSettings();
 
     const [call] = worker.callsTo('POST', `/api/settings/${DEMO_ID}`);

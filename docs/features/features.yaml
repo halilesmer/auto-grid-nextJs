@@ -414,16 +414,16 @@ kategorien:
     features:
       - id: ZON-01
         titel: Zone hinzufügen
-        beschreibung: „Bölge Ekle“ fügt eine neue Zone mit Standardwerten hinzu; die Anzahl im Badge steigt.
-        code: [frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/hooks/useZoneActions.ts, frontend_nextjs/src/utils/zoneHelpers.ts]
+        beschreibung: „Setup Ekle“ in einer Symbolkarte fügt eine neue Zone (Setup) mit dem Symbol der Karte und Standardwerten hinzu; Start-Lot ist der kleinste Lot des Symbols. Ein neues Symbol kommt über „Sembol Ekle“ (ZON-20).
+        code: [frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/components/zone/SymbolCard.tsx, frontend_nextjs/src/hooks/useZoneActions.ts, frontend_nextjs/src/utils/zoneHelpers.ts]
         tiers: [e2e]
         pruefung:
-          - „Bölge Ekle“ klicken, speichern, neu laden.
+          - „Setup Ekle“ klicken, speichern, neu laden.
         erwartet: Neue Zone bleibt nach dem Neuladen erhalten.
 
       - id: ZON-02
         titel: Zone löschen
-        beschreibung: Menü „…“ → „Bölgeyi Sil“ → Bestätigung „Bölge Sil“.
+        beschreibung: Menü „…“ → „Setup’ı Sil“ → Bestätigung „Setup Sil“; beim letzten Setup eines Symbols „Sembolü Sil“, das Symbol verschwindet mit (ZON-20).
         code: [frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/components/ZoneSettingsPanel.tsx]
         tiers: [e2e]
         pruefung:
@@ -576,7 +576,7 @@ kategorien:
         erwartet: Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
       - id: ZON-19
         titel: Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche
-        beschreibung: Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27). Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der Engine-Reihenfolge (index, nur lesend, beim Speichern verworfen). Die Oberfläche zeigt die Zonen in dieser Reihenfolge, weil zone_states und ui-state-Befehle nach dem Platz zählen, und speichert nur SYMBOLS. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (ein alter Browser-Tab schickt ZONES mit veralteten SYMBOLS; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
+        beschreibung: Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27). Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der Engine-Reihenfolge (index, nur lesend, beim Speichern verworfen). zone_states und ui-state-Befehle zählen nach diesem Platz; die Oberfläche zeigt die Setups nach Symbol gruppiert (ZON-20) und speichert nur SYMBOLS. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (ein alter Browser-Tab schickt ZONES mit veralteten SYMBOLS; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
         code: [worker_python/src/utils/symbol_setups.py, worker_python/src/api/settings.py, worker_python/src/api/models.py, worker_python/src/core/wrappers.py, worker_python/src/api/ws_server.py, worker_python/src/api/market.py, worker_python/src/utils/state_manager.py, frontend_nextjs/src/lib/symbolSetups.ts, frontend_nextjs/src/services/zoneApi.ts, frontend_nextjs/src/hooks/useAccountSettings.ts, frontend_nextjs/src/store/useSettingsStore.ts]
         tiers: [unit, api, e2e]
         pruefung:
@@ -584,6 +584,16 @@ kategorien:
           - Worker auf den neuen Stand bringen, im Dashboard eine Einstellung ändern und speichern.
           - configs/settings_<id>_Auto_Grid.json und configs/backup/ ansehen; MT5-Orders und Bot-Log prüfen.
         erwartet: Die Datei enthält SYMBOLS mit XAUUSD (2 Setups) und EURUSD (1 Setup), alle Magic-Nummern wie vorher; die Kopie der alten Datei liegt in configs/backup/. Der Bot behält alle Orders und Positionen (gleiche Tickets), das Dashboard zeigt alle drei Zonen wie vorher.
+
+      - id: ZON-20
+        titel: Symbolkarten – Setups nach Symbol gruppiert
+        beschreibung: Der Zonenbereich zeigt je Symbol eine Karte. Ihr Kopf hat das Symbolfeld, die Zahl der Setups, den Preis, Markt offen/geschlossen und „Setup Ekle“; darunter steht jedes Setup als eigene Karte mit dem Kopf „Setup n“. Das Symbolfeld gilt für alle Setups des Symbols und übernimmt die Eingabe erst bei Auswahl aus der Liste oder beim Verlassen des Feldes nach einer Eingabe. „Sembol Ekle“ fragt das Symbol ab und legt das erste Setup an (Lot = kleinster Lot des Symbols; hat das Symbol schon eine Karte, kommt das Setup dorthin). „Setup Ekle“ fragt nicht nach dem Symbol und fügt das Setup hinter dem letzten Setup des Symbols ein. Das letzte Setup eines Symbols zu löschen nimmt das Symbol mit (eigene Rückfrage „Sembolü Sil“). zone_states, zone_market_* und ui-state-Befehle zählen nach dem Engine-Platz der zuletzt geladenen oder gespeicherten Reihenfolge (engineOrder, nach id), nicht nach dem Platz in der Karte; ein ungespeichertes Setup verschiebt die Plätze der anderen nicht. Nach jedem Speichern übernimmt die Oberfläche die vom Worker gruppierte Reihenfolge. Start/Pause schickt den Befehl vor dem Speichern an den heutigen Platz (die ui_state-Datei zieht der Worker bei gestopptem Bot, sonst der Bot beim nächsten Einlesen mit um); scheitert das Speichern, geht der alte Zustand zurück.
+        code: [frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/components/zone/SymbolCard.tsx, frontend_nextjs/src/components/zone/AddSymbolDialog.tsx, frontend_nextjs/src/components/zone/ZoneCard.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/hooks/useZoneActions.ts, frontend_nextjs/src/lib/symbolSetups.ts, frontend_nextjs/src/store/useSettingsStore.ts, frontend_nextjs/src/services/zoneApi.ts]
+        tiers: [e2e]
+        pruefung:
+          - DEMO-Konto mit zwei Symbolen; im Dashboard „Setup Ekle“ in einer Symbolkarte, „Sembol Ekle“ mit einem neuen Symbol, dann das einzige Setup eines Symbols löschen; speichern und neu laden.
+          - Bei laufendem Bot prüfen, dass „Otomatik temizlendi“ und das Markt-Badge an der richtigen Karte stehen.
+        erwartet: Je Symbol eine Karte mit „Setup 1…n“; das neue Setup steht in seiner Symbolkarte; das gelöschte Symbol ist weg; nach dem Neuladen dieselben Karten; Motorzustände an den richtigen Setups.
 
   # ---------------------------------------------------------------------------
   - id: BOT

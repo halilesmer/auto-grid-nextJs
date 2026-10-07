@@ -18,8 +18,8 @@ test.describe('ACC Konten', () => {
 
     await dashboard.selectAccount(DEMO_ID);
     await expect(page.getByText(msg('dashboard.empty.title'))).toBeHidden();
-    await expect(page.getByTestId('zone-count')).toHaveText('1');
-    await expect(dashboard.zone().getByPlaceholder(/Sembol Ara/)).toHaveValue('USOUSD');
+    await expect(page.getByTestId('zone-card')).toHaveCount(1);
+    await expect(dashboard.symbolInput()).toHaveValue('USOUSD');
     await expect(page.getByLabel(msg('settings.interval'))).toHaveValue('2');
 
     // Wechsel auf ein Konto ohne Zonen: alte Zonen verschwinden, Intervall des neuen Kontos

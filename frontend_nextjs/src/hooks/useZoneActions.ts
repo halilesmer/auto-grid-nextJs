@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { insertSetup } from '@/lib/symbolSetups';
 import { toast } from '@/components/ui/animated-toast';
 import { defaultZone, getSymbolConfig, normalizeZoneLots } from '@/utils/zoneHelpers';
 import type { ZoneSettings } from '@/store/types';
@@ -14,8 +15,12 @@ export interface UseZoneActionsReturn {
   restartZone: (zoneId: string) => Promise<void>;
   saveZone: (zoneId: string) => Promise<void>;
   savingZoneId: string | null;
-  addZone: () => void;
+  /** Neues Setup für dieses Symbol (hinter dessen letztes Setup; neues Symbol ans Ende). */
+  addSetup: (symbol: string) => void;
+  /** Setup löschen; war es das letzte seines Symbols, verschwindet das Symbol. */
   deleteZone: (zoneId: string) => void;
+  /** Symbol aller Setups dieses Symbols ändern (Symbolkarte). */
+  renameSymbol: (from: string, to: string) => void;
   updateZone: (zoneId: string, field: string, value: unknown) => void;
 }
 
@@ -37,24 +42,26 @@ export function useZoneActions(
     [setZones]
   );
 
-  const addZone = useCallback(() => {
-    const currentZones = settings?.ZONES || [];
-    const lastSymbol = currentZones.length > 0 ? currentZones[currentZones.length - 1].symbol : '';
-
-    // Start-Lot = kleinster Lot des Symbols beim Broker (nicht fest 0.01)
-    const minLot = getSymbolConfig(lastSymbol, symbolDetails).volMin;
-    setZones((prevZones) => [
-      ...prevZones,
-      { ...defaultZone(), symbol: lastSymbol, lot_size: minLot, sell_lot_size: minLot },
-    ]);
-  }, [setZones, settings, symbolDetails]);
+  const addSetup = useCallback(
+    (symbol: string) => {
+      // Start-Lot = kleinster Lot des Symbols beim Broker (nicht fest 0.01)
+      const minLot = getSymbolConfig(symbol, symbolDetails).volMin;
+      const zone = { ...defaultZone(), symbol, lot_size: minLot, sell_lot_size: minLot };
+      setZones((prevZones) => insertSetup(prevZones, zone));
+    },
+    [setZones, symbolDetails]
+  );
 
   const deleteZone = useCallback(
     (zoneId: string) => {
-      setZones((prevZones) => {
-        const filtered = prevZones.filter((z) => z.id !== zoneId);
-        return filtered.length > 0 ? filtered : [defaultZone()];
-      });
+      setZones((prevZones) => prevZones.filter((z) => z.id !== zoneId));
+    },
+    [setZones]
+  );
+
+  const renameSymbol = useCallback(
+    (from: string, to: string) => {
+      setZones((prevZones) => prevZones.map((z) => (z.symbol === from ? { ...z, symbol: to } : z)));
     },
     [setZones]
   );
@@ -160,5 +167,5 @@ export function useZoneActions(
     [selectedAccount]
   );
 
-  return { toggleActive, restartZone, saveZone, savingZoneId, addZone, deleteZone, updateZone };
+  return { toggleActive, restartZone, saveZone, savingZoneId, addSetup, deleteZone, renameSymbol, updateZone };
 }

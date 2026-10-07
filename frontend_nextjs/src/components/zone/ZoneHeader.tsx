@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/status-dot';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useFormat, useT, type MessageKey } from '@/i18n';
+import { useT, type MessageKey } from '@/i18n';
 import { useAccountStore } from '@/store';
 import type { ZoneHeaderProps } from './types';
 
@@ -35,16 +35,13 @@ function engineStopReason({
 
 export function ZoneHeader({
   zone,
+  title,
   isActive,
   isGlobalRunning,
   modified,
   disableButtons,
   engineState,
   remotePaused,
-  price,
-  priceDigits,
-  marketOpen,
-  marketHours,
   onToggleActive,
   onRestart,
   onDelete,
@@ -55,7 +52,6 @@ export function ZoneHeader({
   // Analyse-Seite mit Konto und Zone (Neuladen und geteilte Links zeigen dieselbe Zone)
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const chartHref = `/chart?${new URLSearchParams({ ...(selectedAccount ? { account: selectedAccount } : {}), zone: zone.id })}`;
-  const fmt = useFormat();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -133,28 +129,13 @@ export function ZoneHeader({
         <StatusDot tone={dotTone} pulse={dotTone === 'success'} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate font-mono text-base font-semibold tracking-tight text-foreground">
-              {zone.symbol || '—'}
-            </span>
+            <span className="truncate text-base font-semibold tracking-tight text-foreground">{title}</span>
             <Badge tone={tone} hint={t(ORDER_HINT[zone.order_type as keyof typeof ORDER_HINT] ?? ORDER_HINT.BOTH)}>
               {zone.order_type}
             </Badge>
             {modified && (
               <Badge tone="warning" hint={t('zone.header.unsaved.hint')}>
                 {t('zone.header.unsaved')}
-              </Badge>
-            )}
-            {isGlobalRunning && isActive && marketOpen !== undefined && (
-              <Badge
-                tone={marketOpen ? 'success' : 'danger'}
-                hint={
-                  marketHours
-                    ? t(marketOpen ? 'zone.market.hint.open' : 'zone.market.hint.closed', { hours: marketHours.replace(/-/g, '–') })
-                    : t('zone.market.hint')
-                }
-                data-testid="zone-market"
-              >
-                {marketOpen ? t('zone.market.open') : t('zone.market.closed')}
               </Badge>
             )}
             {engineStop && (
@@ -166,14 +147,6 @@ export function ZoneHeader({
           <p className="mt-0.5 font-mono text-xs text-muted-foreground">
             {zone.min_price} – {zone.max_price}
           </p>
-          <Tooltip content={t('zone.header.price.hint')}>
-            <p className="mt-0.5 font-mono text-xs text-muted-foreground" tabIndex={0}>
-              {t('zone.header.price')}:{' '}
-              <span data-testid="zone-price" className="text-foreground">
-                {typeof price === 'number' && price > 0 ? fmt.price(price, priceDigits) : '--'}
-              </span>
-            </p>
-          </Tooltip>
         </div>
       </div>
 

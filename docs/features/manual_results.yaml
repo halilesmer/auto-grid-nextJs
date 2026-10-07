@@ -130,6 +130,17 @@ ZON-15:
   datum: '2026-09-29'
   notiz: 'VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte
     Order nicht neu gesetzt'
+ZON-19:
+  status: bestanden
+  datum: '2026-10-07'
+  notiz: 'DEMO-Konto A, alte ZONES-Datei mit je einer Zone auf zwei Symbolen, Bot
+    lief. Intervall im Dashboard geändert und gespeichert (14:13): Datei hat SYMBOLS
+    mit beiden Symbolen, gleiche ids und Magics, Setups ohne symbol; Backup in configs/backup
+    ist die alte Datei; 5 Orders und 71 Positionen mit gleichen Tickets (drei Vergleiche
+    bis 14:16); keine Bot-Logzeile nach dem Speichern; Dashboard zeigte beide Zonen
+    in gleicher Reihenfolge; Intervall zurückgesetzt. Nicht live geprüft: zwei Setups
+    auf einem Symbol, Umgruppieren einer alten Datei mit gemischten Symbolen (api-
+    und e2e-Tests decken es ab).'
 BOT-01:
   status: bestanden
   datum: '2026-09-23'
