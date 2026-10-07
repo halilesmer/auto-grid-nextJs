@@ -6,4 +6,5 @@ export { ZoneBreakoutFields } from './ZoneBreakoutFields';
 export { ZoneExitFields } from './ZoneExitFields';
 export { ZoneFractalFields } from './ZoneFractalFields';
 export { ZoneCard } from './ZoneCard';
+export { SymbolCard } from './SymbolCard';
 export * from './types';

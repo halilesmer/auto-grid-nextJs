@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-07 · **127/153** abgehakt · ❌ 1 mit Fehlern · 🐞 1 bekannte Fehler
+**Stand:** 2026-10-07 · **128/154** abgehakt · ❌ 1 mit Fehlern · 🐞 1 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,7 +19,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 15/18 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 16/19 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 26/28 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -215,12 +215,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 ## 6. ZON – Zonen-Konfiguration (UI ↔ Backend)
 
 - [x] **ZON-01** Zone hinzufügen — 🖥️ e2e ✅ 2026-10-07 · 👤 manuell ✅ 2026-09-23
-  - „Bölge Ekle“ fügt eine neue Zone mit Standardwerten hinzu; die Anzahl im Badge steigt.
-  - **Prüfung:** „Bölge Ekle“ klicken, speichern, neu laden.
+  - „Setup Ekle“ in einer Symbolkarte fügt eine neue Zone (Setup) mit dem Symbol der Karte und Standardwerten hinzu; Start-Lot ist der kleinste Lot des Symbols. Ein neues Symbol kommt über „Sembol Ekle“ (ZON-20).
+  - **Prüfung:** „Setup Ekle“ klicken, speichern, neu laden.
   - **Erwartet:** Neue Zone bleibt nach dem Neuladen erhalten.
   - 📝 Claude: 'Bölge Ekle' → Zähler 2, neue Zone inaktiv (is_active false, Symbol der letzten Zone); gespeichert → API 2 Zonen, bleibt nach Neuladen
 - [x] **ZON-02** Zone löschen — 🖥️ e2e ✅ 2026-10-07 · 👤 manuell ✅ 2026-09-23
-  - Menü „…“ → „Bölgeyi Sil“ → Bestätigung „Bölge Sil“.
+  - Menü „…“ → „Setup’ı Sil“ → Bestätigung „Setup Sil“; beim letzten Setup eines Symbols „Sembolü Sil“, das Symbol verschwindet mit (ZON-20).
   - **Prüfung:** Test-Zone löschen und bestätigen, speichern.
   - **Erwartet:** Zone ist weg, auch nach Neuladen.
   - 📝 Claude: Menü '…' → 'Bölgeyi Sil' → Dialog 'Bölge Sil' → Delete → Zähler 1, Leiste 'ungespeichert'; nach 'Tüm Ayarları Kaydet' API = Sicherung
@@ -291,10 +291,15 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
-- [x] **ZON-19** Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche — 🧪 unit ✅ 2026-10-07 · 🔌 api ✅ 2026-10-07 · 🖥️ e2e ✅ 2026-10-07
-  - Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27). Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der Engine-Reihenfolge (index, nur lesend, beim Speichern verworfen). Die Oberfläche zeigt die Zonen in dieser Reihenfolge, weil zone_states und ui-state-Befehle nach dem Platz zählen, und speichert nur SYMBOLS. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (ein alter Browser-Tab schickt ZONES mit veralteten SYMBOLS; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
+- [x] **ZON-19** Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche — 🧪 unit ✅ 2026-10-07 · 🔌 api ✅ 2026-10-07 · 🖥️ e2e ✅ 2026-10-07 · 👤 manuell ✅ 2026-10-07
+  - Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27). Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der Engine-Reihenfolge (index, nur lesend, beim Speichern verworfen). zone_states und ui-state-Befehle zählen nach diesem Platz; die Oberfläche zeigt die Setups nach Symbol gruppiert (ZON-20) und speichert nur SYMBOLS. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (ein alter Browser-Tab schickt ZONES mit veralteten SYMBOLS; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
   - **Prüfung:** DEMO-Konto mit zwei Zonen auf XAUUSD und einer auf EURUSD, alle mit offenen Orders; Bot läuft. → Worker auf den neuen Stand bringen, im Dashboard eine Einstellung ändern und speichern. → configs/settings_<id>_Auto_Grid.json und configs/backup/ ansehen; MT5-Orders und Bot-Log prüfen.
   - **Erwartet:** Die Datei enthält SYMBOLS mit XAUUSD (2 Setups) und EURUSD (1 Setup), alle Magic-Nummern wie vorher; die Kopie der alten Datei liegt in configs/backup/. Der Bot behält alle Orders und Positionen (gleiche Tickets), das Dashboard zeigt alle drei Zonen wie vorher.
+  - 📝 DEMO-Konto A, alte ZONES-Datei mit je einer Zone auf zwei Symbolen, Bot lief. Intervall im Dashboard geändert und gespeichert (14:13): Datei hat SYMBOLS mit beiden Symbolen, gleiche ids und Magics, Setups ohne symbol; Backup in configs/backup ist die alte Datei; 5 Orders und 71 Positionen mit gleichen Tickets (drei Vergleiche bis 14:16); keine Bot-Logzeile nach dem Speichern; Dashboard zeigte beide Zonen in gleicher Reihenfolge; Intervall zurückgesetzt. Nicht live geprüft: zwei Setups auf einem Symbol, Umgruppieren einer alten Datei mit gemischten Symbolen (api- und e2e-Tests decken es ab).
+- [x] **ZON-20** Symbolkarten – Setups nach Symbol gruppiert — 🖥️ e2e ✅ 2026-10-07
+  - Der Zonenbereich zeigt je Symbol eine Karte. Ihr Kopf hat das Symbolfeld, die Zahl der Setups, den Preis, Markt offen/geschlossen und „Setup Ekle“; darunter steht jedes Setup als eigene Karte mit dem Kopf „Setup n“. Das Symbolfeld gilt für alle Setups des Symbols und übernimmt die Eingabe erst bei Auswahl aus der Liste oder beim Verlassen des Feldes nach einer Eingabe. „Sembol Ekle“ fragt das Symbol ab und legt das erste Setup an (Lot = kleinster Lot des Symbols; hat das Symbol schon eine Karte, kommt das Setup dorthin). „Setup Ekle“ fragt nicht nach dem Symbol und fügt das Setup hinter dem letzten Setup des Symbols ein. Das letzte Setup eines Symbols zu löschen nimmt das Symbol mit (eigene Rückfrage „Sembolü Sil“). zone_states, zone_market_* und ui-state-Befehle zählen nach dem Engine-Platz der zuletzt geladenen oder gespeicherten Reihenfolge (engineOrder, nach id), nicht nach dem Platz in der Karte; ein ungespeichertes Setup verschiebt die Plätze der anderen nicht. Nach jedem Speichern übernimmt die Oberfläche die vom Worker gruppierte Reihenfolge. Start/Pause schickt den Befehl vor dem Speichern an den heutigen Platz (die ui_state-Datei zieht der Worker bei gestopptem Bot, sonst der Bot beim nächsten Einlesen mit um); scheitert das Speichern, geht der alte Zustand zurück.
+  - **Prüfung:** DEMO-Konto mit zwei Symbolen; im Dashboard „Setup Ekle“ in einer Symbolkarte, „Sembol Ekle“ mit einem neuen Symbol, dann das einzige Setup eines Symbols löschen; speichern und neu laden. → Bei laufendem Bot prüfen, dass „Otomatik temizlendi“ und das Markt-Badge an der richtigen Karte stehen.
+  - **Erwartet:** Je Symbol eine Karte mit „Setup 1…n“; das neue Setup steht in seiner Symbolkarte; das gelöschte Symbol ist weg; nach dem Neuladen dieselben Karten; Motorzustände an den richtigen Setups.
 
 ## 7. BOT – Bot-Steuerung
 

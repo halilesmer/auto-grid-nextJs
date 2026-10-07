@@ -82,6 +82,30 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     expect(await unhinted(page)).toEqual([]);
   });
 
+  test('Symbolkarten, Dialog „Sembol Ekle“ und Rückfrage zum letzten Setup', { tag: ['@UI-07', '@ZON-20'] }, async ({ page, worker, dashboard }) => {
+    worker.setZones(DEMO_ID, [makeZone(), makeZone({ id: 'zone-e2e-2', symbol: 'XAUUSD', min_price: 1800, max_price: 2000 })]);
+    worker.setBotRunning(DEMO_ID);
+    await dashboard.open(DEMO_ID);
+    await expect(page.getByTestId('symbol-card')).toHaveCount(2);
+    await expect(dashboard.symbolCard().getByTestId('zone-market')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+
+    await page.getByRole('button', { name: msg('zone.panel.add') }).click();
+    const dialog = page.getByTestId('add-symbol-dialog');
+    await dialog.getByPlaceholder(msg('zone.symbol.placeholder')).fill('xau');
+    await expect(page.getByRole('option', { name: /XAUUSD/ })).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+    // Die offene Vorschlagsliste liegt über den Buttons: Klick neben das Feld schließt sie
+    await dialog.getByText(msg('zone.addSymbol.text')).click();
+    await dialog.getByRole('button', { name: msg('common.cancel') }).click();
+    await expect(dialog).toBeHidden();
+
+    await dashboard.zone(1).getByRole('button', { name: msg('zone.header.menu') }).click();
+    await page.getByRole('button', { name: msg('zone.header.delete') }).click();
+    await expect(page.getByRole('dialog')).toContainText(msg('zone.delete.last.title'));
+    expect(await unhinted(page)).toEqual([]);
+  });
+
   test('Konto-Dialog und Rückfragen', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await dashboard.openAccountMenu();

@@ -96,10 +96,12 @@ test.describe('Live (nur lesend)', () => {
     const zones = settings.ZONES ?? [];
     await dashboard.open(account.id);
 
-    await expect(page.getByTestId('zone-count')).toHaveText(String(zones.length));
+    await expect(page.getByTestId('zone-card')).toHaveCount(zones.length);
     await expect(page.getByLabel(msg('settings.interval'))).toHaveValue(String(settings.LOOP_INTERVAL_SECONDS ?? 1));
-    for (const [i, zone] of zones.entries()) {
-      await expect(dashboard.zone(i).getByPlaceholder(/Sembol Ara/)).toHaveValue(zone.symbol);
+    // Karten nach Symbol gruppiert (ZON-20), die Zonen vom Worker in Engine-Reihenfolge
+    const shown = [...new Set(zones.map((z) => z.symbol))].flatMap((symbol) => zones.filter((z) => z.symbol === symbol));
+    for (const [i, zone] of shown.entries()) {
+      await expect(dashboard.symbolInput(i)).toHaveValue(zone.symbol);
       await expect(dashboard.zoneField(msg('zone.field.orderType'), i)).toHaveValue(zone.order_type);
       await expect(dashboard.zoneField(msg('zone.field.minPrice'), i)).toHaveValue(String(zone.min_price));
       await expect(dashboard.zoneField(msg('zone.field.maxPrice'), i)).toHaveValue(String(zone.max_price));

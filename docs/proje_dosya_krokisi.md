@@ -91,7 +91,9 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
 ┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„bölge bilinmiyor“, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), stats/ (StatsTab, StatsKpis, BreakdownTable, CurveChart)
 ┃ ┃ ┃ ┃ ┗ 📂 chart              # Grafik sekmesi: ChartCore (lightweight-charts, mumlar + boşluklar, RSI bölmesi, fiyat çizgileri), primitives.ts (bölge bandı, eksik veri taraması, piyasa arası çizgileri), TimeframeSelect
-┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri
+┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri; arayüzde sembol kartı + setup kartları (ZON-20)
+┃ ┃ ┃   ┣ 📜 SymbolCard.tsx
+┃ ┃ ┃   ┣ 📜 AddSymbolDialog.tsx
 ┃ ┃ ┃   ┣ 📜 ZoneCard.tsx
 ┃ ┃ ┃   ┣ 📜 ZoneHeader.tsx
 ┃ ┃ ┃   ┣ 📜 ZoneBasicFields.tsx
@@ -414,7 +416,7 @@ grid_orchestrator (Ana Orkestratör)
 
 | Bileşen | Sorumluluk | State Kaynağı |
 |---------|------------|---------------|
-| `ZoneSettingsPanel.tsx` | **Dinamik Zone Yönetimi**: Bölge ekle/sil/düzenle, tüm zone alanları (Symbol, Order Type, Grid, Lot, TP/SL, Breakout, Pullback, Levels, Clear on Exit), Kaydet/Update | `useSettingsStore` + REST API |
+| `ZoneSettingsPanel.tsx` | **Semboller ve setup'lar (ZON-20)**: bölgeleri sembole göre gruplar (sembol kartı, içinde her setup için ZoneCard), Sembol Ekle / Setup Ekle / sil, Kaydet | `useSettingsStore` (`engineOrder`) + REST API |
 | `SettingsForm.tsx` | **Global Ayarlar**: ORDER_TYPE, LOOP_INTERVAL_SECONDS | `useSettingsStore` + REST API |
 | `ChartViewer.tsx` | Canlı Mum grafiği + RSI (Lightweight Charts + WebSocket) | `useSystemStore` (metrics) |
 | `BotControls.tsx` | Bot Başlat/Durdur, Temizle, Sembol Seçimi, Canlı Metrik Gösterimi | `useBotRuntimeStore`, `useAccountStore` |
@@ -441,9 +443,11 @@ grid_orchestrator (Ana Orkestratör)
 
 | Bileşen | Sorumluluk |
 |---------|------------|
-| `ZoneCard.tsx` | Tek bölgenin container kartı (genişletilebilir/daraltılabilir) |
-| `ZoneHeader.tsx` | Bölge başlığı, aktif/pasif toggle, silme butonu, sıra değiştirme |
-| `ZoneBasicFields.tsx` | Sembol, Order Type, Magic Number, Açıklama |
+| `SymbolCard.tsx` | Sembol kartı: sembol alanı (tüm setup'lara uygulanır), setup sayısı, fiyat, piyasa durumu, Setup Ekle |
+| `AddSymbolDialog.tsx` | Sembol Ekle penceresi: sembol seçilir, ilk setup otomatik oluşur |
+| `ZoneCard.tsx` | Tek setup'ın (bölgenin) kartı |
+| `ZoneHeader.tsx` | Setup başlığı („Setup n“), aktif/pasif toggle, Kaydet, Test, silme menüsü |
+| `ZoneBasicFields.tsx` | Order Type, Min/Max fiyat (sembol, sembol kartının başında) |
 | `ZoneGridFields.tsx` | Grid Step, Grid Count, Lot Size, Dynamic Grid ayarları |
 | `ZoneSellFields.tsx` | Satış yönü ayarları (ayrı grid, lot, step) |
 | `ZoneBreakoutFields.tsx` | Breakout giriş stratejisi, konfirmasyon, filtreler |

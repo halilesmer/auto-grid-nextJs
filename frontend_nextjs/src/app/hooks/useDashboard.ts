@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { insertSetup } from '@/lib/symbolSetups';
 import { toast } from '@/components/ui/animated-toast';
 import { t } from '@/i18n';
 import { useIsAdmin } from '@/store/useAuthStore';
@@ -194,9 +195,11 @@ export function useDashboard({
       try {
         const obj = JSON.parse(prev);
         const zones: ZoneSettings[] = Array.isArray(obj.ZONES) ? obj.ZONES : [];
+        // Neues Setup an dieselbe Stelle wie im Store (useZoneActions.addSetup), sonst gilt die
+        // reine Reihenfolge als ungespeicherte Änderung
         obj.ZONES = zones.some((z) => z.id === zone.id)
           ? zones.map((z) => (z.id === zone.id ? zone : z))
-          : [...zones, zone];
+          : insertSetup(zones, zone);
         return JSON.stringify(obj);
       } catch {
         return prev;

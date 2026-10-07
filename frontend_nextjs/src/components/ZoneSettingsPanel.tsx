@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useSettingsStore, useBotRuntimeStore } from '@/store';
 import { Plus, Loader2, Layers3 } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
@@ -14,7 +14,9 @@ import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useZoneDirtyTracking } from '@/hooks/useZoneDirtyTracking';
 import { useZoneActions } from '@/hooks/useZoneActions';
 import { useZoneFieldHandlers } from '@/hooks/useZoneFieldHandlers';
-import { ZoneCard } from '@/components/zone';
+import { groupBySymbol } from '@/lib/symbolSetups';
+import { AddSymbolDialog } from '@/components/zone/AddSymbolDialog';
+import { SymbolCard, ZoneCard } from '@/components/zone';
 import type { ZoneSettings } from '@/store/types';
 
 const EMPTY_ZONES: ZoneSettings[] = [];
@@ -24,7 +26,7 @@ interface ZoneSettingsPanelProps {
   isRunning: boolean;
   liveData: ReturnType<typeof useBotRuntimeStore.getState>['liveData'];
   isGlobalDirty?: boolean;
-  /** Steht im Kopf links neben „Bölge Ekle“ (z. B. „Tüm Ayarları Kaydet“). */
+  /** Steht im Kopf links neben „Sembol Ekle“ (z. B. „Tüm Ayarları Kaydet“). */
   saveAction?: ReactNode;
   /** Tek bir bölge kaydedilince çağrılır (global dirty referansını günceller). */
   onZoneSaved?: (zone: ZoneSettings) => void;
@@ -43,12 +45,17 @@ export default function ZoneSettingsPanel({
   const setZones = useSettingsStore((s) => s.setZones);
   const isLoadingSymbols = useSettingsStore((s) => s.isLoadingSymbols);
   const availableSymbols = useSettingsStore((s) => s.availableSymbols);
+  const engineOrder = useSettingsStore((s) => s.engineOrder);
   const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
-  const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
+  // Bleibt nach dem Schließen stehen, damit Titel und Text beim Ausblenden nicht umspringen
+  const [deleteTarget, setDeleteTarget] = useState<{ zoneId: string; symbol: string; isLastSetup: boolean } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [addSymbolOpen, setAddSymbolOpen] = useState(false);
   const [error, setError] = useState('');
 
   // Sabit boş dizi: her render'da yeni [] üretmek dirty-tracking efektini döngüye sokuyordu
   const zones = settings?.ZONES ?? EMPTY_ZONES;
+  const groups = useMemo(() => groupBySymbol(zones), [zones]);
 
   const symbolDetails = useSymbolDetails(selectedAccount);
   const { modified, setOriginalZones } = useZoneDirtyTracking(zones, isGlobalDirty, selectedAccount);
@@ -64,27 +71,31 @@ export default function ZoneSettingsPanel({
     [setOriginalZones, onZoneSaved]
   );
 
-  const { toggleActive, restartZone, saveZone, savingZoneId, addZone, deleteZone, updateZone } = useZoneActions(
+  const { toggleActive, restartZone, saveZone, savingZoneId, addSetup, deleteZone, renameSymbol, updateZone } = useZoneActions(
     selectedAccount,
     setZones,
     handleZoneSaved
   );
   const { handleChange, handleBlur, syncZonePrecision, validateSymbol } = useZoneFieldHandlers(symbolDetails);
 
-  const handleDeleteZone = (zoneId: string) => {
-    setDeleteZoneId(zoneId);
+  // Letztes Setup seines Symbols: Löschen nimmt auch das Symbol aus der Liste
+  const askDelete = (zone: ZoneSettings) => {
+    const isLastSetup = zones.filter((z) => z.symbol === zone.symbol).length === 1;
+    setDeleteTarget({ zoneId: zone.id, symbol: zone.symbol, isLastSetup });
+    setDeleteOpen(true);
   };
 
   const handleRemoveZoneConfirmed = () => {
-    if (!deleteZoneId) return;
-    deleteZone(deleteZoneId);
-    setDeleteZoneId(null);
+    if (!deleteTarget) return;
+    deleteZone(deleteTarget.zoneId);
+    setDeleteOpen(false);
   };
 
   if (!selectedAccount) return null;
 
   const mt5Connected = liveData.mt5_connected;
   const disableActionButtons = isRunning && !mt5Connected;
+  const isGlobalRunning = mt5Connected && isRunning;
 
   // Show loading state while symbols are being fetched
   if (isLoadingSymbols && availableSymbols.length === 0) {
@@ -109,7 +120,7 @@ export default function ZoneSettingsPanel({
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
               {t('zone.panel.title')}
-              <Badge tone="neutral" data-testid="zone-count" hint={t('zone.panel.count.hint')}>{zones.length}</Badge>
+              <Badge tone="neutral" data-testid="symbol-count" hint={t('zone.panel.count.hint')}>{groups.length}</Badge>
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">{t('zone.panel.subtitle')}</p>
           </div>
@@ -119,7 +130,7 @@ export default function ZoneSettingsPanel({
           <Button
             variant="primary"
             size="sm"
-            onClick={addZone}
+            onClick={() => setAddSymbolOpen(true)}
             disabled={disableActionButtons}
             hint={disableActionButtons ? t('zone.panel.add.off.hint') : t('zone.panel.add.hint')}
           >
@@ -151,42 +162,70 @@ export default function ZoneSettingsPanel({
         </div>
       )}
 
-      {zones.map((zone, index) => {
-        const isModified = modified(zone);
+      {groups.map((group) => (
+        <SymbolCard
+          key={group.zones[0].id}
+          symbol={group.symbol}
+          setupCount={group.zones.length}
+          marketIndexes={group.zones
+            .filter((zone) => zone.is_active !== false)
+            .map((zone) => engineOrder.indexOf(zone.id))
+            .filter((index) => index >= 0)}
+          liveData={liveData}
+          isGlobalRunning={isGlobalRunning}
+          symbolDetails={symbolDetails}
+          validateSymbol={validateSymbol}
+          disableAddSetup={disableActionButtons}
+          onAddSetup={() => addSetup(group.symbol)}
+          onRenameSymbol={(symbol) => renameSymbol(group.symbol, symbol)}
+        >
+          {group.zones.map((zone, setupIndex) => (
+            <ZoneCard
+              key={zone.id}
+              zone={zone}
+              title={t('zone.setup.title', { n: setupIndex + 1 })}
+              modified={modified(zone)}
+              disableButtons={disableActionButtons}
+              onUpdate={updateZone}
+              onToggleActive={toggleActive}
+              onRestart={restartZone}
+              onDelete={() => askDelete(zone)}
+              onSave={saveZone}
+              saving={savingZoneId === zone.id}
+              zoneIndex={engineOrder.indexOf(zone.id)}
+              liveData={liveData}
+              isRunning={isRunning}
+              symbolDetails={symbolDetails}
+              handleChange={handleChange}
+              handleBlur={handleBlur}
+              syncZonePrecision={syncZonePrecision}
+            />
+          ))}
+        </SymbolCard>
+      ))}
 
-        return (
-          <ZoneCard
-            key={zone.id}
-            zone={zone}
-            modified={isModified}
-            disableButtons={disableActionButtons}
-            onUpdate={updateZone}
-            onToggleActive={toggleActive}
-            onRestart={restartZone}
-            onDelete={() => handleDeleteZone(zone.id)}
-            onSave={saveZone}
-            saving={savingZoneId === zone.id}
-            zoneIndex={index}
-            liveData={liveData}
-            isRunning={isRunning}
-            symbolDetails={symbolDetails}
-            handleChange={handleChange}
-            handleBlur={handleBlur}
-            syncZonePrecision={syncZonePrecision}
-            validateSymbol={validateSymbol}
-          />
-        );
-      })}
+      <AddSymbolDialog
+        open={addSymbolOpen}
+        onClose={() => setAddSymbolOpen(false)}
+        existingSymbols={groups.map((group) => group.symbol)}
+        symbolDetails={symbolDetails}
+        validateSymbol={validateSymbol}
+        onAdd={addSetup}
+      />
 
       <LegacySetupOrdersDialog accountId={selectedAccount} />
 
       <ConfirmModal
-        open={deleteZoneId !== null}
-        onClose={() => setDeleteZoneId(null)}
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
         onConfirm={handleRemoveZoneConfirmed}
-        title={t('zone.delete.title')}
-        message={t('zone.delete.message')}
-        confirmHint={t('zone.delete.confirm.hint')}
+        title={deleteTarget?.isLastSetup ? t('zone.delete.last.title') : t('zone.delete.title')}
+        message={
+          deleteTarget?.isLastSetup
+            ? t('zone.delete.last.message', { symbol: deleteTarget.symbol || '—' })
+            : t('zone.delete.message')
+        }
+        confirmHint={deleteTarget?.isLastSetup ? t('zone.delete.last.confirm.hint') : t('zone.delete.confirm.hint')}
         variant="danger"
       />
     </div>

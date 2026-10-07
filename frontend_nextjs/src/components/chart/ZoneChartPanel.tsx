@@ -29,7 +29,7 @@ import { findFractals } from '@/lib/analysis/fractals';
 import { belongsToZoneView, pairTrades, type Trade } from '@/lib/analysis/tradePairing';
 import { zoneLevels, type LevelsUnavailable, type ZoneLevels } from '@/lib/analysis/levels';
 import { brokerNow } from '@/lib/serverTime';
-import { useBotRuntimeStore, useWebSocketManager } from '@/store';
+import { useBotRuntimeStore, useSettingsStore, useWebSocketManager } from '@/store';
 import type { AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
 import { useFormat, useT, type MessageKey } from '@/i18n';
@@ -223,6 +223,7 @@ export default function ZoneChartPanel({
   const symbolDetails = useSymbolDetails(zone?.step_by_loss ? accountId : null);
   const metrics = useBotRuntimeStore((s) => s.metrics);
   const liveData = useBotRuntimeStore((s) => s.liveData);
+  const engineOrder = useSettingsStore((s) => s.engineOrder);
 
   const nowSec = useCallback(
     () => (offsetSec !== null ? brokerNow(offsetSec) : Date.now() / 1000),
@@ -440,7 +441,9 @@ export default function ZoneChartPanel({
   }, [isFractalZone, prefs.showFractals, data, history, timeframe, fractalTf]);
 
   const band = zone && prefs.showZoneLines ? { min: zone.min_price, max: zone.max_price } : null;
-  const marketHours = index >= 0 ? liveData.zone_market_hours?.[String(index)] : undefined;
+  // Der Worker zählt nach Engine-Platz (zuletzt gespeicherte Reihenfolge), nicht nach dem Platz in `zones`
+  const engineIndex = zone ? engineOrder.indexOf(zone.id) : -1;
+  const marketHours = engineIndex >= 0 ? liveData.zone_market_hours?.[String(engineIndex)] : undefined;
   const isChartEmpty = Boolean(chart && data && data.bars.length === 0);
 
   return (

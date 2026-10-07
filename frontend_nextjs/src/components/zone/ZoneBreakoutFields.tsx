@@ -37,7 +37,7 @@ export function ZoneBreakoutFields({
           label={t('zone.breakout.trendOnly')}
           hint={t('zone.breakout.trendOnly.hint')}
         />
-        <div data-tooltip-scope className="flex items-center gap-2">
+        <div data-tooltip-scope className="flex flex-wrap items-center gap-2">
           <span className="whitespace-nowrap text-xs text-muted-foreground">
             {byLoss
               ? t(split ? 'zone.breakout.buyPullbackLoss' : 'zone.breakout.minPullbackLoss')
@@ -58,7 +58,7 @@ export function ZoneBreakoutFields({
           />
         </div>
         {isBoth && !sync && (
-          <div data-tooltip-scope className="flex items-center gap-2">
+          <div data-tooltip-scope className="flex flex-wrap items-center gap-2">
             <span className="whitespace-nowrap text-xs text-muted-foreground">
               {byLoss ? t('zone.breakout.sellPullbackLoss') : t('zone.breakout.sellPullback')}
             </span>

@@ -2,8 +2,8 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [116, 118]
-features: [ZON-19, ENG-27, ENG-28, ANA-07, ANA-12]
+pr: [116, 118, 119]
+features: [ZON-19, ZON-20, ENG-27, ENG-28, ANA-07, ANA-12]
 areas: [worker, frontend, tests]
 ---
 
@@ -20,13 +20,14 @@ The user selected a real data model change (symbol → setups), not only a group
 |---|---|---|
 | A | Worker: storage format `SYMBOLS`, read adapter, migration with backup (ZON-19) | done (PR #116) |
 | B1 | Data path: GET without `ZONES`, each setup has its engine index, the UI reads and sends `SYMBOLS`, e2e mock on `SYMBOLS` (ZON-19) | done (PR #118) |
-| B2 | UI symbol card with setup cards, "Add symbol" / "Add setup", i18n and hints (Zone → Symbol/Setup, zone logs → symbol logs) | open |
+| B2a | Frontend: symbol card with setup cards, "Add symbol" / "Add setup", delete of the last setup, engine position by zone id, i18n and hints (ZON-20) | done (PR #119) |
+| B2b | Symbol logs: "Symbol logs" shows the lines of all setups; worker `GET /logs/{id}?zone_id=` takes more than one id | open |
 | C | Compact setup layout (short inputs, switch next to input, 375 px check, UI-08) | open |
 | D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-12) | open |
 
 The plan parts are named A to D. They are not feature IDs: the category `SYM` already exists for the symbol list (SYM-01 to SYM-04). Part A has the ID ZON-19.
 
-On 2026-10-07 part B was divided: B1 is the data path (the user asked for it first), B2 is the new UI.
+On 2026-10-07 part B was divided: B1 is the data path (the user asked for it first), B2 is the new UI. Later on 2026-10-07 part B2 was divided: B2a is the UI without the logs, B2b is the symbol logs.
 
 ## Solution (part A)
 
@@ -63,6 +64,37 @@ GET returns only `SYMBOLS`. Each setup has the field `index`: its position in th
 
 A file without zones now gives `ZONES: []` in the store, not a missing key. The UI code treats both the same.
 
+## Solution (part B2a)
+
+The dashboard shows one card for each symbol. The setups of the symbol are cards in it.
+
+| Item | Behavior |
+|---|---|
+| Symbol card (`SymbolCard`) | Head: symbol field, number of setups, price, market open or closed, "Add setup". The symbol field changes the symbol of all setups of the symbol. It changes the setups only when you select a symbol from the list or leave the field after an edit. The field starts again when the stored symbol changes (for example "Discard"). |
+| Setup card (`ZoneCard`) | The head shows "Setup n" (position in the symbol card). The symbol field, the price and the market badge moved to the symbol card. testid `zone-card` did not change. |
+| "Add symbol" (`AddSymbolDialog`) | Replaces "Add zone". You select the symbol. The first setup has the smallest lot of the symbol. If the symbol has a card, the setup goes into this card. |
+| "Add setup" | Does not ask for the symbol. Inserts the setup after the last setup of its symbol (`insertSetup()`). |
+| Delete | A setup that is not the last one of its symbol: the dialog "Delete setup". The last setup: the dialog "Delete symbol", and the symbol card goes. The last setup of the last symbol gives an empty list. Before, the frontend added an empty zone. |
+| Engine position | The store keeps `engineOrder`: the zone ids in the engine order of the last load or save. `zone_states`, `zone_market_*` and the ui-state commands use the position of the zone id in `engineOrder`. |
+| After a save | `applySavedOrder()` sets `engineOrder` from the sent zones, grouped like the worker (`engineOrderAfterSave()`). |
+| Start/Pause (`toggleZoneActive()`) | Sends the ui-state command first, to the current position (GET order). Then it saves `is_active`. If the save fails, it sends the old state again. |
+| Texts | Zone → symbol or setup in tr, en and de: panel, delete dialogs, setup head, alerts, hints. New hints for all new buttons and fields. |
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/components/zone/SymbolCard.tsx`, `AddSymbolDialog.tsx` | New |
+| `frontend_nextjs/src/components/ZoneSettingsPanel.tsx` | Groups the zones with `groupBySymbol()`, gives each setup card its engine position |
+| `frontend_nextjs/src/components/zone/ZoneCard.tsx`, `ZoneHeader.tsx`, `ZoneBasicFields.tsx`, `types.ts` | "Setup n", symbol field, price and market badge moved out |
+| `frontend_nextjs/src/components/zone/ZoneBreakoutFields.tsx` | The pullback rows wrap. At 375 px, the row was 36 px wider than its box in the setup card. |
+| `frontend_nextjs/src/components/SymbolAutoComplete.tsx` | New prop `onCommit` (list selection, leaving the field) |
+| `frontend_nextjs/src/lib/symbolSetups.ts` | `groupBySymbol()`, `engineOrderAfterSave()`, `insertSetup()` |
+| `frontend_nextjs/src/store/useSettingsStore.ts`, `src/services/zoneApi.ts` | `engineOrder`, `applySavedOrder()`; the toggle command before the save |
+| `frontend_nextjs/e2e/fixtures/mock-worker.ts` | Moves the ui_state commands to the new order on a save when the bot is stopped, like `settings._remap_ui_state_of_stopped_bot` |
+| `frontend_nextjs/src/hooks/useZoneActions.ts` | `addSetup()`, `renameSymbol()`; delete without a replacement zone |
+| `frontend_nextjs/src/app/hooks/useDashboard.ts` | `markZoneSaved()` inserts a new setup at the same position as the store. Else the order alone counted as an unsaved change. |
+| `frontend_nextjs/src/components/chart/ZoneChartPanel.tsx` | Market hours by engine position |
+| `frontend_nextjs/src/i18n/messages/zone.ts`, `hints.ts` | Texts |
+
 ## Why
 
 - Flat list for the engine: the engine maps orders to zones by magic. A setup keeps the magic of its zone, so open orders and positions stay with their setup after the migration.
@@ -78,6 +110,13 @@ A file without zones now gives `ZONES: []` in the store, not a missing key. The 
 - Part B1, `index` on each setup: the engine keeps zone states (ui-state commands, `zone_states`) by list position. The grouped list does not always have the engine order: an old file that is not saved yet can have mixed symbols (XAU, EUR, XAU). The UI sorts by `index`, so the list position in the store is the engine position again. Thus the zone cards and the zone actions did not change.
   - Rejected: the card reads `index` of its zone instead of the list position. More changes, and part B2 changes the cards again.
 - Part B1, the UI sends only `SYMBOLS`. The worker still accepts `ZONES`, for browser tabs that were open before the update.
+- Part B2a, engine position by zone id: the approved plan said "store order = engine order". An unsaved setup in the middle of the list moves the store position of all later setups. Then a state such as "Automatically cleared" shows on the wrong card until the save. The id in `engineOrder` does not move. Thus the frontend does not load the settings again after a save that changes the order. It sets `engineOrder` from the sent zones.
+  - Changed: plan "load the settings again after a save that changes the order" → "set `engineOrder` from the sent zones". The result is the same, and unsaved changes in other setups stay.
+  - The store still inserts a new setup after the last setup of its symbol, as the plan says. The saved reference (`markZoneSaved()`) does the same.
+- Part B2a, Start/Pause sends the command before the save, to the current position. The ui_state file has the order of the last save until the next save. With a stopped bot, the API moves the file during the save. A running bot moves the file at its next settings read, and it reads every key as an old position. Thus a command to the new position after the save goes to a different zone when the running bot moves the file. A command before the save is in the file order in both cases. Found in the review of part B2a.
+  - Changed: plan "`toggleZoneActive()` takes the ui-state index after this save" → "sends the command before the save, to the current position". The plan was correct only for a stopped bot.
+- Part B2a, the symbol field changes the setups only on selection or when you leave the field: with a change on each key, "XAUUSDm" passes through "XAUUSD". At that moment the card joins an existing XAUUSD card, and the field loses the focus.
+- Part B2a, the panel badge counts symbols. Each symbol card shows the number of its setups.
 
 ## Verification
 
@@ -97,20 +136,65 @@ A file without zones now gives `ZONES: []` in the store, not a missing key. The 
   - New e2e tests in `symbol-setups.spec.ts` were red with the sort by `index` removed (wrong card order). The `zonesPayloads` check was red when `saveSettings()` sent the store object without conversion.
   - `scripts/features/run.sh unit`: 414 passed, 1 xfailed. `scripts/features/run.sh api`: 188 passed. `npm run lint`: ok. `npx tsc --noEmit`: ok. `npm run test:e2e`: 273 passed. `update_checklist.py --check`: ok.
   - Not verified: `e2e/live/*` (they need the VPS worker and run only on request, `hooks/RULES.md` §3).
+- Part B2a (2026-10-07):
+  - New e2e tests (`symbol-cards.spec.ts`, tag ZON-20; one each in `tooltips.spec.ts` UI-07, `mobile-layout.spec.ts` UI-08 in tr, en and de, `zones.spec.ts` ZON-08). Red checks with the change undone:
+
+    | Undone part | Red test |
+    |---|---|
+    | Engine position by store index | "Add setup … does not move an engine state" |
+    | `applySavedOrder()` | the same test, after the save |
+    | Toggle: save first, new position | "Old file, bot running" |
+    | Toggle: save first, old position (before part B2a) | "Old file, bot stopped" |
+    | Symbol field: change on each key | "Symbol in the head …" (cards join while typing) |
+    | `SymbolField` without `key` / commit without the case check | "Discard resets the symbol field …" |
+    | `markZoneSaved()` appends | "Save a new setup alone …" |
+    | Toggle without the revert | "Start/Pause: if the save fails …" (ZON-08) |
+    | Pullback rows without `flex-wrap` | UI-08 symbol cards (tr, en, de) |
+
+  - Existing tests with a changed path or wait. The expected values did not change, except where the plan gives a new text:
+
+    | Test | Change | Reason |
+    |---|---|---|
+    | `zones.spec.ts` ZON-01 (2 tests), ZON-08, ZON-09, ZON-11 | "Add zone" → "Add setup" in the symbol card; `zone-count` → number of `zone-card` | The panel button adds a symbol now; the panel badge counts symbols |
+    | `zones.spec.ts` ZON-02 | Expected dialog text `zone.delete.last.message` | The deleted zone is the last setup of its symbol (new text from the plan) |
+    | `zones.spec.ts` ZON-03, ZON-04, ZON-08; `settings.spec.ts` SYM-02, SYM-03, SYM-04; `accounts.spec.ts` ACC-06 | Symbol field and its messages through `symbolInput()` / `symbolOf()` | The symbol field moved to the symbol card head |
+    | `zones.spec.ts` ZON-08 "Start/Pause … bot running" | Waits for the save with `expect.poll` | The command goes before the save now |
+    | `symbol-setups.spec.ts` ZON-19 (2 tests) | Card positions in the grouped order (zone B is the third card) | The cards are grouped by symbol; the engine state mapping and the sent `SYMBOLS` did not change |
+    | `mobile-layout.spec.ts` UI-08 | Also checks "Add setup" | New button |
+    | `e2e/live/readonly.spec.ts` | Count of `zone-card`; compares in the grouped order | Same reasons; live only, not run |
+    | `e2e/fixtures/dashboard.ts` | Waits for the panel heading by role | The title "Semboller" is also in the MT5 symbol error text (strict mode) |
+
+  - Review (subagent `reviewer`): no critical finding. Fixed: a discarded symbol rename came back on the next blur; focus and blur changed the case of a stored symbol; the toggle position with a running bot (see "Why"); the live test order.
+  - `npm run lint`: ok. `npx tsc --noEmit`: ok. `scripts/features/run.sh`: unit 414 passed, 1 xfailed; api 188 passed; e2e 288 passed; `FEATURES.md` 128/154. `update_checklist.py --check`: ok.
+  - Screenshots (temporary Playwright spec, deleted): desktop light and dark, 375 px in German with the "Add symbol" dialog.
+  - Not verified: the live tests and a DEMO check of ZON-20 (open point).
 
 ## Open points
-- [ ] Part A: open the PR. After the merge, do the manual check ZON-19 on the DEMO account.
+- [x] Part A: open the PR. After the merge, do the manual check ZON-19 on the DEMO account.
+  - Done (2026-10-07, manual check by the user, signed as passed):
+    - Start: DEMO account A, one zone on each of two symbols, bot running, file still in the old `ZONES` format.
+    - Step: changed the check interval in the dashboard and saved at 14:13.
+    - The file has `SYMBOLS` with both symbols, the same ids and magics, and setups without `symbol`.
+    - The backup `configs/backup/<name>.before-symbols.json` is the old file.
+    - 5 pending orders and 71 positions kept the same tickets (three comparisons until 14:16).
+    - The bot wrote no log line after the save.
+    - The dashboard showed both zones in the same order. The interval was saved back to the old value.
+    - Not verified live: two setups on one symbol, and the regrouping of an old file with mixed symbols. No account has such a file any more. The api and e2e tests cover both.
 - [x] Part B: the word "setup" is already in the UI for fractal setups (ZON-18, "Add setup" in a fractal zone, "Setup n" in the statistics tab). Decide the new name for one of the two before part B.
   - Done: the fractal setups were removed ([2026-10-06-remove-fractal-setups.md](2026-10-06-remove-fractal-setups.md), ENG-29). "Setup" now means only the setup of a symbol.
 - [x] Part B: the new UI sends only `SYMBOLS`. If it sends `ZONES` too, `ZONES` is used. When part B is merged, remove `ZONES` from the GET response.
   - Done (2026-10-07, part B1): GET has no `ZONES`. The UI sends only `SYMBOLS`.
 - [x] Part B: the e2e mock worker (`frontend_nextjs/e2e/fixtures/mock-worker.ts`) must return `SYMBOLS`.
   - Done (2026-10-07, part B1).
-- [ ] Part B2: after a save that changes the order, the store keeps the old order until the next load. Then `zone_states` can show on the wrong card. Examples: the first save of an old file with mixed symbols; a new setup with the symbol of an earlier group. Also, `toggleZoneActive()` takes the ui-state index before this save. Found 2026-10-07, present since part A. Part B2 shows the setups grouped by symbol, so the store order is the engine order.
+- [x] Part B2: after a save that changes the order, the store keeps the old order until the next load. Then `zone_states` can show on the wrong card. Examples: the first save of an old file with mixed symbols; a new setup with the symbol of an earlier group. Also, `toggleZoneActive()` takes the ui-state index before this save. Found 2026-10-07, present since part A. Part B2 shows the setups grouped by symbol, so the store order is the engine order.
+  - Done (2026-10-07, part B2a): the cards use the engine position of the zone id (`engineOrder`). Each save sets `engineOrder` from the sent zones. `toggleZoneActive()` sends its command before the save, to the current position. See "Why".
 - [ ] `frontend_nextjs/e2e/live/trading.spec.ts` adds a test zone at the end and uses `zones.length` as its ui-state index. If the DEMO account has a zone with the same symbol before other symbols, the save groups the test zone into the middle. Read the settings again after the save and find the index by the test zone id. Found in the review 2026-10-07, present since part A, live test only.
-- [ ] Parts B2, C and D.
+- [ ] Parts B2b, C and D.
+- [ ] Texts that still say "zone" or "Bölge" after part B2a: the field hints (for example min and max price), the zone logs (part B2b) and the Analyse page (part D).
+- [ ] ZON-20: manual check on the DEMO account (`pruefung` in `features.yaml`).
 
 ## Risks
+- A running bot moves the ui_state file only at its next settings read (one loop, `LOOP_INTERVAL_SECONDS`). A zone command in this time can go to a different zone: Start/Pause or Restart right after a save that changed the order (delete, a new setup of an earlier symbol, the first save of an old file). Present since part A. A fix needs commands by magic in the worker.
 - Part B1 update: a browser tab with the UI from before part B1 gets no `ZONES` from GET. It shows no zones. If you add a zone in that tab and save, the save replaces all zones (`ZONES` is used). After the merge, reload all open tabs and pull the local checkout before the worker updates.
 - Part B1 update, other direction: until the worker updates (`AUTO_UPDATE_MINUTES`), the new UI gets setups without `index`. Then it shows the grouped order. This is wrong only for an old file with mixed symbols that was not saved since part A.
 - Rollback: a worker version before ZON-19 reads only `ZONES`. In a migrated file it finds no zones and deletes the pending robot orders as zombies (positions stay). Before a rollback of part A, stop the bots, or put back the backup from `configs/backup/` (it does not have the changes made after the migration).

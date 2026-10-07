@@ -1,5 +1,6 @@
 import { axiosInstance } from '@/lib/api';
 import { settingsFromWorker, settingsToWorker } from '@/lib/symbolSetups';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
 export const zoneApi = {
@@ -10,6 +11,8 @@ export const zoneApi = {
 
   async saveSettings(accountId: string, settings: Partial<GlobalSettings>) {
     const res = await axiosInstance.post(`/settings/${accountId}`, { settings: settingsToWorker(settings) });
+    // Der Worker gruppiert nach Symbol: die Engine-Plätze können sich mit dem Speichern ändern
+    if (settings.ZONES) useSettingsStore.getState().applySavedOrder(accountId, settings.ZONES);
     return res.data;
   },
 
@@ -48,18 +51,27 @@ export const zoneApi = {
       throw new Error('ZONE_NOT_SAVED');
     }
 
+    // Befehl vor dem Speichern, an den heutigen Platz (GET-Reihenfolge = Reihenfolge der ui_state-Datei).
+    // Gruppiert das Speichern eine alte Datei mit gemischten Symbolen um, zieht der Worker (Bot gestoppt)
+    // oder der Bot beim nächsten Einlesen (ENG-27) die Datei mit um. Ein Befehl an den neuen Platz nach
+    // dem Speichern läse der laufende Bot beim Umziehen als alten Platz und schöbe ihn auf eine andere Zone.
+    const zoneIdx = remoteZones.findIndex((z) => z.id === zoneId);
+    const postState = (state: 'START' | 'PAUSE') =>
+      axiosInstance.post(`/ui-state/${accountId}`, { settings: { states: { [zoneIdx]: state } } });
+    await postState(newActive ? 'START' : 'PAUSE');
+
     const updatedZones = remoteZones.map((z) =>
       z.id === zoneId ? { ...z, is_active: newActive } : z
     );
-
     const updatedSettings = { ...remoteSettings, ZONES: updatedZones };
-    await zoneApi.saveSettings(accountId, updatedSettings);
-
-    const zoneIdx = remoteZones.findIndex((z) => z.id === zoneId);
-    if (zoneIdx >= 0) {
-      await axiosInstance.post(`/ui-state/${accountId}`, {
-        settings: { states: { [zoneIdx]: newActive ? 'START' : 'PAUSE' } },
-      });
+    try {
+      await zoneApi.saveSettings(accountId, updatedSettings);
+    } catch (err) {
+      // is_active blieb, wie es war: den Motorzustand wieder dazu passend setzen
+      await postState(newActive ? 'PAUSE' : 'START').catch((revertErr: unknown) =>
+        console.error('Motorzustand nach gescheitertem Speichern nicht zurückgesetzt', revertErr)
+      );
+      throw err;
     }
 
     return updatedSettings;

@@ -10,6 +10,11 @@ import { useT } from "@/i18n";
 interface SymbolAutoCompleteProps {
   value: string;
   onChange: (val: string) => void;
+  /**
+   * Eingabe übernehmen: bei Auswahl aus der Liste und beim Verlassen des Feldes. Für Felder, die
+   * nicht jeden Tastendruck übernehmen dürfen (Symbolkarte: das Symbol gilt für alle Setups).
+   */
+  onCommit?: (val: string) => void;
   symbolDetails: Record<string, SymbolDetail>;
   className?: string;
   hasError?: boolean;
@@ -20,6 +25,7 @@ const MIN_SEARCH_LENGTH = 1;
 export default function SymbolAutoComplete({
   value,
   onChange,
+  onCommit,
   symbolDetails,
   className = "",
   hasError = false,
@@ -53,8 +59,9 @@ export default function SymbolAutoComplete({
       const normalized = sym.name.toUpperCase().trim();
       setSearchTerm(normalized);
       onChange(normalized);
+      onCommit?.(normalized);
     },
-    [onChange],
+    [onChange, onCommit],
   );
 
   return (
@@ -64,6 +71,7 @@ export default function SymbolAutoComplete({
       items={filteredSymbols}
       getKey={(sym) => sym.name}
       onSelect={handleSelectSymbol}
+      onBlur={onCommit && (() => onCommit(searchTerm.toUpperCase().trim()))}
       renderItem={(sym) => (
         <div className="flex flex-col">
           <span className="font-mono font-semibold text-foreground">{sym.name}</span>

@@ -28,6 +28,8 @@ export type SyncZonePrecisionFn = (
 
 export interface ZoneHeaderProps {
   zone: ZoneSettings;
+  /** Kopfzeile der Setup-Karte, z. B. „Setup 2“ (das Symbol steht im Kopf der Symbolkarte) */
+  title: string;
   isActive: boolean;
   isGlobalRunning: boolean;
   modified: boolean;
@@ -35,14 +37,6 @@ export interface ZoneHeaderProps {
   /** Motorun bu bölge için durumu (liveData.zone_states), ör. "AUTO_CLEAR" */
   engineState?: string;
   remotePaused?: boolean;
-  /** Canlı fiyat (Bid) bu bölgenin sembolü için; yoksa "--" */
-  price?: number;
-  /** Symbol-Digits für die Preisanzeige */
-  priceDigits?: number;
-  /** Bu bölgenin sembolü için piyasa açık mı (liveData.zone_market_open); bilinmiyorsa undefined */
-  marketOpen?: boolean;
-  /** Sembolün olağan işlem saati (liveData.zone_market_hours), ör. "02:00-00:00"; bilinmiyorsa undefined */
-  marketHours?: string;
   onToggleActive: (zoneId: string, currentActive: boolean) => void;
   onRestart: (zoneId: string) => void;
   onDelete: () => void;
@@ -54,10 +48,8 @@ export interface ZoneBasicFieldsProps {
   zone: ZoneSettings;
   update: FieldUpdateFn;
   symbolConfig: SymbolConfig;
-  symbolDetails: Record<string, SymbolDetail>;
   handleChange: HandleChangeFn;
   handleBlur: HandleBlurFn;
-  validateSymbol: (symbol: string) => boolean;
 }
 
 export interface ZoneGridFieldsProps {
@@ -105,6 +97,8 @@ export interface ZoneExitFieldsProps {
 
 export interface ZoneCardProps {
   zone: ZoneSettings;
+  /** Kopfzeile, z. B. „Setup 2“ */
+  title: string;
   modified: boolean;
   disableButtons: boolean;
   onUpdate: (zoneId: string, field: string, value: unknown) => void;
@@ -114,7 +108,7 @@ export interface ZoneCardProps {
   /** Sadece bu bölgeyi kaydeder */
   onSave: (zoneId: string) => Promise<void>;
   saving: boolean;
-  /** Bölgenin sırası (motor bölgeleri kayıtlı sıraya göre numaralar) */
+  /** Engine-Platz der Zone (zuletzt gespeicherte Reihenfolge, engineOrder); -1 = noch nicht gespeichert */
   zoneIndex: number;
   liveData: LiveData;
   isRunning: boolean;
@@ -122,5 +116,4 @@ export interface ZoneCardProps {
   handleChange: HandleChangeFn;
   handleBlur: HandleBlurFn;
   syncZonePrecision: SyncZonePrecisionFn;
-  validateSymbol: (symbol: string) => boolean;
 }
