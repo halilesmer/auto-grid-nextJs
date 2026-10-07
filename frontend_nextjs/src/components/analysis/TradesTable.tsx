@@ -42,6 +42,8 @@ interface TradesTableProps {
   missing: DealsMissing[];
   /** Chart-Tab: Sprung zum Trade im Chart; ohne: keine Spalte */
   onFocus?: (trade: Trade) => void;
+  /** Name des Setups (Magic) wie auf den Symbolkarten, „Symbol · Setup n“ */
+  setupLabel: (magic: number) => string;
 }
 
 function netClass(net: number) {
@@ -61,7 +63,7 @@ const REASON_HINTS = {
 
 /**
  * Trade-Archiv (ANA-08): Ausstiege im Zeitraum, neueste zuerst. Teilschließung, Umkehr und
- * Close By sind gekennzeichnet; Trades aus der Zeit vor dem Zonen-Register heißen „Zone unbekannt“.
+ * Close By sind gekennzeichnet; Trades aus der Zeit vor dem Zonen-Register heißen „Setup unbekannt“.
  * Lücken im Archiv (Konto beschäftigt, MT5-Fehler) stehen als Pflicht-Hinweis darüber.
  * MFE/MAE (ANA-12) je Zeile, erst auf Knopfdruck.
  */
@@ -78,6 +80,7 @@ export function TradesTable({
   error,
   missing,
   onFocus,
+  setupLabel,
 }: TradesTableProps) {
   const t = useT();
   const fmt = useFormat();
@@ -265,7 +268,7 @@ export function TradesTable({
                       </td>
                       <td className="px-3 py-1.5 font-sans" data-testid="trade-zone">
                         {tr.zone.kind === 'zone' ? (
-                          <span className="text-foreground">{tr.zone.label ?? `#${tr.zone.magic}`}</span>
+                          <span className="text-foreground">{setupLabel(tr.zone.magic)}</span>
                         ) : (
                           <Badge tone="warning" hint={t('analysis.trades.unknownZone.hint')}>
                             {t('analysis.trades.unknownZone')}

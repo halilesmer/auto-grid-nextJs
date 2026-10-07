@@ -2,8 +2,8 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [116, 118, 119, 120, 121]
-features: [ZON-19, ZON-20, LOG-07, ENG-27, ENG-28, ANA-07, ANA-12]
+pr: [116, 118, 119, 120, 121, 124]
+features: [ZON-19, ZON-20, LOG-07, ENG-27, ENG-28, ANA-07, ANA-08, ANA-09, ANA-12, ANA-14]
 areas: [worker, frontend, tests]
 ---
 
@@ -23,7 +23,7 @@ The user selected a real data model change (symbol → setups), not only a group
 | B2a | Frontend: symbol card with setup cards, "Add symbol" / "Add setup", delete of the last setup, engine position by zone id, i18n and hints (ZON-20) | done (PR #119) |
 | B2b | Symbol logs: "Symbol logs" shows the lines of all setups; worker `GET /logs/{id}?zone_id=` takes more than one id (LOG-07) | done (PR #120) |
 | C | Compact setup layout (short inputs, switch next to input, 375 px check, UI-08) | done (PR #121) |
-| D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-12) | open |
+| D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-14) | done (PR #124) |
 
 The plan parts are named A to D. They are not feature IDs: the category `SYM` already exists for the symbol list (SYM-01 to SYM-04). Part A has the ID ZON-19.
 
@@ -155,6 +155,31 @@ Height of the setup cards in the screenshots (same data, before → after):
 | `frontend_nextjs/src/i18n/messages/zone.ts`, `hints.ts` | `zone.exit.clearOnExit.hint` deleted; "below" → "next to it" in two hints |
 | `docs/proje_dosya_krokisi.md` | Zone components: new files, correct descriptions |
 
+## Solution (part D)
+
+The statistics tab compares the setups of one symbol. The Analyse page says "setup" instead of "zone". There is no worker change: the zone registry already has the symbol of each magic, and each deal has its symbol.
+
+| Item | Behavior |
+|---|---|
+| Scope | "Whole account", then for each symbol "<symbol> · all setups (n)" and its setups "<symbol> · Setup n". Only saved setups (with a magic) are in the list. The address still selects a setup. |
+| Symbol scope | All trades of registered setups (also deleted setups) whose deal symbol is the symbol, without case (as `belongsToZoneView` in the chart tab). "Setup unknown", manual and other trades are not in a symbol. |
+| Breakdown | Account: by symbol (default), by setup, by weekday, by hour. Symbol: by setup (default), by weekday, by hour. Setup: by weekday (default), by hour. Symbols are sorted by name, then unknown, manual, other. |
+| Comparison table | Two new columns for all breakdowns: average trade and max. drawdown (realized curve of the group). The values have a sign and no currency; the net column shows the currency. The values are rounded to 2 digits first, thus 0 and −0.003 show "0,00", not "-0,00". |
+| Setup name | "<symbol> · Setup n" on the whole Analyse page: setup select, scope, breakdown rows, the "Setup" column of the trade archive (before: registry label, for example "Z1") and the settings card in the chart tab (before: "Zone n · <symbol>", n = list position). n is the position in the symbol, as on the symbol cards. A setup that is not in the settings any more shows the symbol and the label from the registry. |
+| Texts | "Zone/Bölge" → "Setup" in the Analyse page texts and hints (tr, en and de): `analysis.*`, `chart.zone.*` (chart tab, also the hints of the settings card), `nav.analysis.hint`. The i18n keys did not change. The field hints of the settings card (`zone.field.*.hint`) are shared with the dashboard and stay (open point). |
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/lib/analysis/groupings.ts` | Scope `symbol`, breakdown `symbol` (key `s:<symbol>`) |
+| `frontend_nextjs/src/lib/symbolSetups.ts` | `setupNumbers()` (setup number for each zone id, from `groupBySymbol()`); `groupBySymbol()` is generic |
+| `frontend_nextjs/src/hooks/useSetupLabel.ts` | New. Setup name from the settings, else from the registry |
+| `frontend_nextjs/src/components/analysis/stats/StatsTab.tsx` | Scope list by symbol, breakdowns for each scope |
+| `frontend_nextjs/src/components/analysis/stats/BreakdownTable.tsx` | Columns average trade and max. drawdown |
+| `frontend_nextjs/src/components/analysis/TradesTable.tsx` | Required prop `setupLabel` for the "Setup" column |
+| `frontend_nextjs/src/components/analysis/ZoneSelect.tsx`, `frontend_nextjs/src/components/chart/ZoneChartPanel.tsx` | Setup number in the symbol |
+| `frontend_nextjs/src/i18n/messages/analysis.ts`, `chart.ts`, `hints.ts` | Texts; new keys `analysis.stats.scope.symbol`, `analysis.stats.by.symbol`, `analysis.stats.col.avg`, `analysis.stats.col.maxDd` |
+| `docs/features/features.yaml` | New ANA-14; ANA-09 description (scope and default breakdown) |
+
 ## Why
 
 - Flat list for the engine: the engine maps orders to zones by magic. A setup keeps the magic of its zone, so open orders and positions stay with their setup after the migration.
@@ -190,6 +215,12 @@ Height of the setup cards in the screenshots (same data, before → after):
   - Cost: when a switch wraps to its own line at a width of 640 px or more, the empty line stays above it.
 - Part C, the TP switch and the TP field are one group: when the row wraps, the switch stays with its field. The SL switch is not in a group: in a group, the switch is alone when "With SL" is off. Then it has no empty line, and it is not at the height of the TP field.
 - Part C, a price input is 128 px wide, not 112 px: a price with 9 characters (for example 105234.55) needs approx. 77 px of text. A 112 px input has approx. 73 px for the text (padding, spin buttons). A cut price can be misread. Thus min and max price are on two lines at 375 px: the field row is 249 px wide, and the two fields need 268 px.
+
+- Part D, a new feature ID ANA-14: the plan said ANA-12, but ANA-12 is MFE/MAE. ANA-09 (statistics tab) has a manual check that passed on DEMO. A new ID gets its own manual check for the comparison.
+  - Changed: plan "ANA-12" → "ANA-14".
+- Part D, the symbol of a trade is the deal symbol, not the current symbol of the setup: a symbol change in the symbol card keeps the magic. Then the old trades stay with the symbol that was traded. The comparison ignores the case: the symbol card can store "XAUUSDM" while MT5 reports "XAUUSDm" in the deal (found in the review).
+- Part D, the internal names stay `zone` (scope kind, breakdown kind `zone`, `Trade.zone`, i18n keys): the store and the engine also say zone. Only the visible text changed. Thus the existing tests of ANA-09 did not change.
+- Part D, only the table, no chart: a few setups with several values each are compared best in a table (precise values, one row for each setup).
 
 ## Verification
 
@@ -275,6 +306,27 @@ Height of the setup cards in the screenshots (same data, before → after):
   - Screenshots (temporary Playwright spec, deleted): 1440 px in dark and light, 820 px in English, 375 px in German; before and after the change.
   - Review (subagent `reviewer`): no critical finding. Fixed: two hints said "below"; no test for the switch that is alone in its row; the switch test permitted any height in the input (now ±4 px from the input center); `FieldSwitch` accepted a `className` that it did not use. Not changed: the width test checks only the upper limit of 128 px.
   - Not verified: the DEMO check of ZON-20 (open point) and the live tests (`hooks/RULES.md` §3).
+- Part D (2026-10-07):
+  - New tests, red before the change:
+
+    | Test | Red with |
+    |---|---|
+    | e2e lib `analysis-stats-lib.spec.ts` ANA-14 (4 tests: symbol scope, by symbol, setup comparison, setup number) | the lib before part D: no scope `symbol`, no `setupNumbers()` |
+    | e2e `analysis-stats.spec.ts` "Setups eines Symbols vergleichen; Konto je Symbol" (ANA-14) | the components before part D (lib and texts of part D): the scope "USOUSD · all setups (2)" is missing |
+
+  - The new e2e test also found a defect during the work: a drawdown of 0 showed "-0,00".
+  - Changed existing tests. The plan gives the new names:
+
+    | Test | Change |
+    |---|---|
+    | `analysis.spec.ts` ANA-01 (1 test), ANA-02 (2 tests); `logs-ui.spec.ts` (setup select) | Expected text "Bölge 1 · USOUSD" (literal) → `msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 })` |
+    | `analysis-trades.spec.ts` ANA-08 | The "Setup" column: "Z1" → `msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 })` |
+    | `analysis-stats.spec.ts` ANA-09 | Only a comment: the account opens "by symbol" |
+
+  - `npm run lint`: ok. `npx tsc --noEmit`: ok. `scripts/features/run.sh`: unit 418 passed, 1 xfailed; api 189 passed; e2e 300 passed; `FEATURES.md` 129/157. `update_checklist.py --check`: ok.
+  - Screenshots (temporary Playwright spec, deleted): statistics tab with the symbol scope at 1280 px in light and dark, 375 px; the scope list.
+  - Review (subagent `reviewer`): no critical finding. Fixed: three hints of the chart tab and the menu hint still said "zone"; the symbol scope compared with case; no test for the name of a deleted setup (now in the e2e test); "-0,00" for a small negative average; literal texts in the changed tests. Not changed: `setupNumbers()` is calculated twice in the statistics tab (small, in `useMemo`).
+  - Not verified: the DEMO check of ANA-14 (open point) and the live tests (`hooks/RULES.md` §3).
 
 ## Open points
 - [x] Part A: open the PR. After the merge, do the manual check ZON-19 on the DEMO account.
@@ -296,12 +348,13 @@ Height of the setup cards in the screenshots (same data, before → after):
 - [x] Part B2: after a save that changes the order, the store keeps the old order until the next load. Then `zone_states` can show on the wrong card. Examples: the first save of an old file with mixed symbols; a new setup with the symbol of an earlier group. Also, `toggleZoneActive()` takes the ui-state index before this save. Found 2026-10-07, present since part A. Part B2 shows the setups grouped by symbol, so the store order is the engine order.
   - Done (2026-10-07, part B2a): the cards use the engine position of the zone id (`engineOrder`). Each save sets `engineOrder` from the sent zones. `toggleZoneActive()` sends its command before the save, to the current position. See "Why".
 - [ ] `frontend_nextjs/e2e/live/trading.spec.ts` adds a test zone at the end and uses `zones.length` as its ui-state index. If the DEMO account has a zone with the same symbol before other symbols, the save groups the test zone into the middle. Read the settings again after the save and find the index by the test zone id. Found in the review 2026-10-07, present since part A, live test only.
-- [ ] Part D. Part C is done (PR #121).
-- [ ] Texts that still say "zone" or "Bölge" after part B2b: the field hints (for example min and max price) and the Analyse page (part D). The log texts of the UI are done (part B2b).
+- [x] Part D (PR #124).
+- [ ] Texts that still say "zone" or "Bölge": the field hints (for example min and max price). The log texts of the UI (part B2b) and the Analyse page (part D) are done.
 - [ ] The worker log messages say "Bölge n" (19 places in `worker_python/src/core`). n is the engine position + 1, not the setup number of the card. Worker messages are not translated, and the change is in engine code (golden test BKT-01). Found 2026-10-07 in part B2b.
 - [ ] `GET /api/logs/{id}` reads the log files directly in the `async def` (a blocking call, `hooks/RULES.md` §9.1). With a zone filter, it reads the full file. Present before part B2b. Part B2b sends fewer requests (one for each symbol). Found 2026-10-07.
 - [ ] ZON-20: manual check on the DEMO account (`pruefung` in `features.yaml`).
 - [ ] LOG-07: manual check on the DEMO account after the merge of part B2b.
+- [ ] ANA-14: manual check on the DEMO account after the merge of part D (needs two setups with trades on one symbol).
 
 ## Risks
 - A running bot moves the ui_state file only at its next settings read (one loop, `LOOP_INTERVAL_SECONDS`). A zone command in this time can go to a different zone: Start/Pause or Restart right after a save that changed the order (delete, a new setup of an earlier symbol, the first save of an old file). Present since part A. A fix needs commands by magic in the worker.

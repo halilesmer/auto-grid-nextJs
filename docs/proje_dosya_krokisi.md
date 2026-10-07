@@ -89,7 +89,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┣ 📜 InputField.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 tooltip.tsx          # Tooltip + InfoHint (i) + FieldLabel (Popover API/top-layer); hint zorunlu, bkz. hooks/RULES.md §5
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
-┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect, AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„bölge bilinmiyor“, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), stats/ (StatsTab, StatsKpis, BreakdownTable, CurveChart)
+┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect (setup seçimi „Sembol · Setup n“), AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„setup bilinmiyor“, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), stats/ (StatsTab: kapsam hesap/sembol/setup, StatsKpis, BreakdownTable: setup karşılaştırması, CurveChart)
 ┃ ┃ ┃ ┃ ┗ 📂 chart              # Grafik sekmesi: ChartCore (lightweight-charts, mumlar + boşluklar, RSI bölmesi, fiyat çizgileri), primitives.ts (bölge bandı, eksik veri taraması, piyasa arası çizgileri), TimeframeSelect
 ┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri; arayüzde sembol kartı + setup kartları (ZON-20)
 ┃ ┃ ┃   ┣ 📜 SymbolCard.tsx
@@ -111,6 +111,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 useExcursions.ts     # MFE/MAE: düğmeyle sembol başına M1 yükler (en fazla 100.000 mum), hesap değişince sonuçlar atılır
 ┃ ┃ ┃ ┣ 📜 useDealsHistory.ts   # GET /history/{id}/deals: deal arşivi + bölge kaydı (eski yanıt atılır, aralık şimdiye uzanıyorsa 2 dk'da bir)
 ┃ ┃ ┃ ┣ 📜 useLiveTrades.ts     # Bot metriklerinden açık pozisyon/emir listesi (5 sn, useBotRuntimeStore.liveData)
+┃ ┃ ┃ ┣ 📜 useSetupLabel.ts     # Analiz sayfasında setup adı „Sembol · Setup n“ (sembol kartlarıyla aynı; silinmiş setup: kayıttaki sembol ve ad)
 ┃ ┃ ┃ ┣ 📜 useAnalysisParams.ts # Analiz sayfasının URL durumu (tab, account, zone, range/from/to)
 ┃ ┃ ┃ ┣ 📜 useBrokerClock.ts    # GET /market/{id}/clock: broker saatinin UTC farkı
 ┃ ┃ ┃ ┣ 📜 useSymbolDetails.ts
@@ -124,7 +125,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 historyApi.ts        # Deal arşivi (/history/{id}/deals)
 ┃ ┃ ┃ ┗ 📜 zoneApi.ts           # Zone API işlemleri
 ┃ ┃ ┣ 📂 lib                    # Kütüphane yardımcıları
-┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı), tradePairing.ts (deal → işlem: position_id, kısmi kapanış, INOUT, bölge kaydı; docs/analyse-regeln.md §2), fractals.ts (find_fractals ile aynı), stats.ts / curves.ts / groupings.ts (istatistik sekmesi), excursions.ts (MFE/MAE, docs/analyse-regeln.md §4); backtest de bunları kullanır (plan: `lib/backtest/` engine/broker/data, BKT-02…13)
+┃ ┃ ┃ ┣ 📂 analysis             # Saf TS: candles.ts (mum/boşluk/piyasa arası, RSI, canlı mum), levels.ts (botun grid kademeleri, levels.py ile aynı), tradePairing.ts (deal → işlem: position_id, kısmi kapanış, INOUT, bölge kaydı; docs/analyse-regeln.md §2), fractals.ts (find_fractals ile aynı), stats.ts / curves.ts / groupings.ts (istatistik sekmesi; sembol ve setup'a göre dağılım), excursions.ts (MFE/MAE, docs/analyse-regeln.md §4); backtest de bunları kullanır (plan: `lib/backtest/` engine/broker/data, BKT-02…13)
 ┃ ┃ ┃ ┣ 📂 backtest             # Tarayıcıda backtest: commission.ts (lot başına komisyon önerisi, BKT-04); engine/ (botun TS kopyası, her Python modülü için bir dosya, başlıkta kaynak: orchestrator, handler, validation, placement, instantEntry, orderManager, zoneSelector, zoneState, orders, config, pyRound …; Python golden dosyalarıyla aynı olay dizisi, BKT-02); broker/simBroker.ts (parite modu: FakeMT5 gibi emir fiyatından dolum)
 ┃ ┃ ┃ ┣ 📜 chartTheme.ts        # Grafik renkleri tema token'larından (çalışma anında okunur)
 ┃ ┃ ┃ ┣ 📜 serverTime.ts        # Zaman modeli: broker günü (MT5 zamanı, UTC aritmetiği), hazır aralıklar, yarı açık aralıklar (docs/analyse-regeln.md §1)

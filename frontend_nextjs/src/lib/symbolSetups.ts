@@ -50,14 +50,21 @@ export function settingsToWorker({ ZONES, ...rest }: Partial<GlobalSettings>): W
  * Zonen nach Symbol gruppiert für die Symbolkarten: gleiche Regel wie settingsToWorker (erstes
  * Auftreten, exakter Vergleich), damit die Karten die Reihenfolge nach dem Speichern zeigen.
  */
-export function groupBySymbol(zones: readonly ZoneSettings[]): { symbol: string; zones: ZoneSettings[] }[] {
-  const groups = new Map<string, { symbol: string; zones: ZoneSettings[] }>();
+export function groupBySymbol<Z extends { symbol: string }>(zones: readonly Z[]): { symbol: string; zones: Z[] }[] {
+  const groups = new Map<string, { symbol: string; zones: Z[] }>();
   for (const zone of zones) {
     const group = groups.get(zone.symbol) ?? { symbol: zone.symbol, zones: [] };
     group.zones.push(zone);
     groups.set(zone.symbol, group);
   }
   return [...groups.values()];
+}
+
+/** Setup-Nummer (1, 2, …) je Zonen-id, wie die Symbolkarten sie zeigen. */
+export function setupNumbers(zones: readonly { id: string; symbol: string }[]): Map<string, number> {
+  const numbers = new Map<string, number>();
+  for (const group of groupBySymbol(zones)) group.zones.forEach((zone, i) => numbers.set(zone.id, i + 1));
+  return numbers;
 }
 
 /**

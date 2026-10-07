@@ -265,7 +265,7 @@ test.describe('UI Oberfläche', () => {
     await dashboard.open(DEMO_ID);
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    await expect(page.getByTestId('zone-select')).toContainText('Bölge 1 · USOUSD');
+    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     await expect(page.getByText('90 – 110')).toBeVisible();
 
     // Stream zeigt ein anderes Symbol → Hinweis, keine Zonenlinien

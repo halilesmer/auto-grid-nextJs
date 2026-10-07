@@ -1397,15 +1397,15 @@ kategorien:
         erwartet: Jeder Ausstieg der Zone steht mit Zeit (Brokerzeit), Preis, Lot und Netto wie in MT5 in der Liste; Teilschließungen sind einzeln und markiert; Trades aus der Zeit vor dem Register heißen „Zone unbekannt“. Pfeile und Punkte liegen im Chart auf Kerze und Preis der Ausführung. In der Fraktal-Zone liegen die Dreiecke dort, wo der MT5-Indikator „Fractals“ seine Pfeile zeigt.
 
       - id: ANA-09
-        titel: Statistik-Tab (Kennzahlen, Kurven, je Zone)
-        beschreibung: "Der Statistik-Tab der Analyse-Seite rechnet aus dem Deal-Archiv (GET /history/{id}/deals, Paarung wie ANA-08) die im Zeitraum geschlossenen Trades (Schließzeit, MT5-Zeit; vor dem Zeitraum eröffnete zählen mit und werden genannt). Umfang wählbar: ganzes Konto oder eine Zone (Vorauswahl: Zone aus der Adresse). Zone nur über das Zonen-Register (\"Zone unbekannt\" zählt zu keiner Zone). Kennzahlen (src/lib/analysis/stats.ts): Netto (Gewinn + Kommission + Swap + Gebühr), Trades/Positionen, Gewinn/Verlust/Null, Trefferquote, Profitfaktor (ohne Verlust „—“), Ø Trade, größter Gewinn/Verlust, Brutto, Grid-Zyklen (TP), max. Drawdown der realisierten Kurve. Kurven (curves.ts): realisierter Gewinn, Drawdown, Kontostand rückwärts vom heutigen Stand – nur wenn das Archiv lückenlos bis jetzt reicht, sonst ausgeblendet mit Grund; Equity nur im Backtest. Aufteilung (groupings.ts) je Zone, je Wochentag, je Stunde; das Konto öffnet „je Zone“, eine Zone „je Wochentag“. Lücken im Archiv als Pflicht-Hinweis. Unten das Trade-Archiv des Umfangs mit MFE/MAE (ANA-12)."
+        titel: Statistik-Tab (Kennzahlen, Kurven, Aufteilung)
+        beschreibung: "Der Statistik-Tab der Analyse-Seite rechnet aus dem Deal-Archiv (GET /history/{id}/deals, Paarung wie ANA-08) die im Zeitraum geschlossenen Trades (Schließzeit, MT5-Zeit; vor dem Zeitraum eröffnete zählen mit und werden genannt). Umfang wählbar: ganzes Konto, ein Symbol oder ein Setup (Vorauswahl: Setup aus der Adresse; Symbol und Vergleich der Setups: ANA-14). Setup (= Zone, Magic) nur über das Zonen-Register (\"Setup unbekannt\" zählt zu keinem Setup). Kennzahlen (src/lib/analysis/stats.ts): Netto (Gewinn + Kommission + Swap + Gebühr), Trades/Positionen, Gewinn/Verlust/Null, Trefferquote, Profitfaktor (ohne Verlust „—“), Ø Trade, größter Gewinn/Verlust, Brutto, Grid-Zyklen (TP), max. Drawdown der realisierten Kurve. Kurven (curves.ts): realisierter Gewinn, Drawdown, Kontostand rückwärts vom heutigen Stand – nur wenn das Archiv lückenlos bis jetzt reicht, sonst ausgeblendet mit Grund; Equity nur im Backtest. Aufteilung (groupings.ts) je Symbol, je Setup, je Wochentag, je Stunde; das Konto öffnet „je Symbol“, ein Setup „je Wochentag“. Lücken im Archiv als Pflicht-Hinweis. Unten das Trade-Archiv des Umfangs mit MFE/MAE (ANA-12)."
         code: [frontend_nextjs/src/lib/analysis/stats.ts, frontend_nextjs/src/lib/analysis/curves.ts, frontend_nextjs/src/lib/analysis/groupings.ts, frontend_nextjs/src/components/analysis/stats/StatsTab.tsx, frontend_nextjs/src/components/analysis/stats/StatsKpis.tsx, frontend_nextjs/src/components/analysis/stats/BreakdownTable.tsx, frontend_nextjs/src/components/analysis/stats/CurveChart.tsx, frontend_nextjs/src/app/chart/page.tsx]
         tiers: [e2e, manuell]
         pruefung:
-          - Analyse → Statistik, DEMO-Konto, eine Zone mit Trades, Zeitraum „Letzte 30 Tage“.
-          - Umfang „Ganzes Konto“, dann die Zone wählen; Aufteilung je Zone/Wochentag/Stunde durchschalten.
+          - Analyse → Statistik, DEMO-Konto, ein Setup mit Trades, Zeitraum „Letzte 30 Tage“.
+          - Umfang „Ganzes Konto“, dann das Setup wählen; Aufteilung je Symbol/Setup/Wochentag/Stunde durchschalten.
           - Netto und Anzahl Trades mit MT5 (Werkzeuge → Historie, gleicher Zeitraum) vergleichen.
-        erwartet: Netto und Anzahl stimmen mit MT5 überein; je Zone stehen die Trades mit der Magic der Zone; Kontostand-Kurve endet beim heutigen Kontostand oder ist mit Grund ausgeblendet.
+        erwartet: Netto und Anzahl stimmen mit MT5 überein; je Setup stehen die Trades mit der Magic des Setups; Kontostand-Kurve endet beim heutigen Kontostand oder ist mit Grund ausgeblendet.
 
       - id: ANA-10
         titel: Kalender in Brokerzeit
@@ -1437,6 +1437,17 @@ kategorien:
           - Analyse → Statistik-Tab, Zone mit Trades der letzten Tage, unten „MFE/MAE berechnen“ drücken.
           - Zwei Trades im MT5-Terminal (M1-Chart) nachsehen; bei einem SELL den Spread der Kerzen beachten.
         erwartet: Jede Zeile zeigt +MFE / −MAE in Punkten und darunter in Kontowährung. Die Werte liegen nicht über dem, was der M1-Chart zwischen Ein- und Ausstieg zeigt (Untergrenze). Ein Trade, dessen Einstieg fehlt oder in dessen Spanne Kerzen fehlen, zeigt „nicht berechenbar“, nie 0.
+
+      - id: ANA-14
+        titel: Statistik je Symbol und Setup (Setups vergleichen)
+        beschreibung: "Teil D von „Zone wird Symbol mit Setups“ (ZON-19). Der Statistik-Tab hat als Umfang zusätzlich jedes Symbol („USOUSD · alle Setups (2)“): alle Trades registrierter Setups (auch gelöschter) mit dem gehandelten Symbol des Deals (ohne Groß-/Kleinschreibung); „Setup unbekannt“, manuelle und fremde Trades zählen zu keinem Symbol. Ein Symbol öffnet die Aufteilung „je Setup“: jede Zeile ein Setup (Magic) mit Positionen, Trades, Trefferquote, Netto, Profitfaktor, Ø Trade und max. Drawdown, so lassen sich die Setups eines Symbols vergleichen. Das Konto öffnet „je Symbol“ (Symbole nach Namen, danach unbekannt, manuell, andere). Setups heißen auf der ganzen Analyse-Seite wie auf den Symbolkarten „Symbol · Setup n“ (n = Platz im Symbol, src/lib/symbolSetups.ts setupNumbers); ein Setup, das nicht mehr in den Einstellungen steht, mit Symbol und Namen aus dem Register. Die Analyse-Seite sagt „Setup“ statt „Zone“."
+        code: [frontend_nextjs/src/lib/analysis/groupings.ts, frontend_nextjs/src/lib/symbolSetups.ts, frontend_nextjs/src/components/analysis/stats/StatsTab.tsx, frontend_nextjs/src/components/analysis/stats/BreakdownTable.tsx, frontend_nextjs/src/components/analysis/TradesTable.tsx, frontend_nextjs/src/hooks/useSetupLabel.ts, frontend_nextjs/src/components/analysis/ZoneSelect.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx]
+        tiers: [e2e, manuell]
+        pruefung:
+          - DEMO-Konto mit einem Symbol, das zwei Setups mit Trades hat; Analyse → Statistik, Zeitraum „Letzte 30 Tage“.
+          - Umfang „<Symbol> · alle Setups“ wählen; Aufteilung „je Setup“ ansehen.
+          - Netto je Setup mit MT5 vergleichen (Werkzeuge → Historie, gleicher Zeitraum, nach Magic-Nummer des Setups).
+        erwartet: Netto des Symbols ist die Summe der Setup-Zeilen; jede Setup-Zeile stimmt mit den Trades ihrer Magic-Nummer in MT5 überein; die Namen „Symbol · Setup n“ stimmen mit den Symbolkarten im Dashboard überein.
 
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)

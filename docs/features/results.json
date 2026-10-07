@@ -120,7 +120,7 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 1
+      "tests": 4
     }
   },
   "ANA-02": {
@@ -225,6 +225,13 @@
       "datum": "2026-10-07",
       "status": "passed",
       "tests": 10
+    }
+  },
+  "ANA-14": {
+    "e2e": {
+      "datum": "2026-10-07",
+      "status": "passed",
+      "tests": 5
     }
   },
   "BKT-01": {
@@ -903,14 +910,14 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 1
+      "tests": 17
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 6
+      "tests": 19
     }
   },
   "UI-09": {

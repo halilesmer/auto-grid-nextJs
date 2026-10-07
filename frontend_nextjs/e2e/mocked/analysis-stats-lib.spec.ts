@@ -3,11 +3,13 @@
  * Wochentag/Stunde, Kurven (realisiert, Drawdown, Kontostand rückwärts).
  * ANA-09 Statistik-Tab
  * ANA-12 MFE/MAE aus M1-Kerzen
+ * ANA-14 Statistik je Symbol und Setup (Setups eines Symbols vergleichen)
  */
 import { expect, test } from '@playwright/test';
 import { balanceCurve, drawdownCurve, realizedCurve } from '../../src/lib/analysis/curves';
 import { breakdown, groupKey, inScope } from '../../src/lib/analysis/groupings';
 import type { Bar } from '../../src/lib/analysis/candles';
+import { setupNumbers } from '../../src/lib/symbolSetups';
 import { excursion, isFinal, m1Spans, type M1Data } from '../../src/lib/analysis/excursions';
 import { computeStats } from '../../src/lib/analysis/stats';
 import { pairTrades, type Deal, type Trade, type ZoneRegistryEntry } from '../../src/lib/analysis/tradePairing';
@@ -165,6 +167,76 @@ test.describe('ANA-09 Statistik-Rechnung', () => {
     expect(balanceCurve(deals, 1100, range, 1, now)).toEqual({ ok: false, reason: 'missing' });
     expect(balanceCurve(deals, 1100, range, 0, range.to + 1)).toEqual({ ok: false, reason: 'notToNow' });
     expect(balanceCurve(deals, null, range, 0, now)).toEqual({ ok: false, reason: 'noBalance' });
+  });
+});
+
+test.describe('ANA-14 Statistik je Symbol und Setup', () => {
+  const SETUPS: ZoneRegistryEntry[] = [
+    { magic: 200001, zone_id: 'a1', symbol: 'USOUSD', label: 'Z1', created_at: T0, deleted_at: null },
+    { magic: 200002, zone_id: 'b1', symbol: 'XAUUSD', label: 'Z2', created_at: T0, deleted_at: null },
+    { magic: 200003, zone_id: 'a2', symbol: 'USOUSD', label: 'Z3', created_at: T0, deleted_at: null },
+  ];
+
+  /** USOUSD Setup 1: +5, −2 · XAUUSD: +7 · USOUSD Setup 2: +4 · USOUSD unbekannt (Magic nicht im Register): +1 · manuell: −1 */
+  function trades() {
+    const pair = (pos: number, h: number, magic: number, symbol: string, profit: number) => [
+      deal({ position_id: pos, time: THU + h * H, type: 0, entry: 0, magic, symbol }),
+      deal({ position_id: pos, time: THU + (h + 1) * H, type: 1, entry: 1, magic, symbol, profit }),
+    ];
+    return pairTrades(
+      [
+        ...pair(11, 1, 200001, 'USOUSD', 5),
+        ...pair(12, 3, 200001, 'USOUSD', -2),
+        ...pair(13, 5, 200002, 'XAUUSD', 7),
+        ...pair(14, 7, 200003, 'USOUSD', 4),
+        ...pair(15, 9, 200009, 'USOUSD', 1),
+        ...pair(16, 11, 0, 'USOUSD', -1),
+      ],
+      SETUPS,
+      OFFSET,
+    ).trades;
+  }
+
+  test('Umfang Symbol: alle Setups des Symbols, ohne „Setup unbekannt“ und manuelle', { tag: '@ANA-14' }, () => {
+    const uso = trades().filter((tr) => inScope(tr, { kind: 'symbol', symbol: 'USOUSD' }));
+    expect(uso.map((tr) => tr.positionId)).toEqual([11, 12, 14]);
+    expect(computeStats(uso).net).toBeCloseTo(7, 6);
+    expect(trades().filter((tr) => inScope(tr, { kind: 'symbol', symbol: 'XAUUSD' }))).toHaveLength(1);
+    // Groß-/Kleinschreibung wie im Chart-Tab (belongsToZoneView): MT5 meldet z. B. „XAUUSDm“, die Karte „XAUUSDM“
+    expect(trades().filter((tr) => inScope(tr, { kind: 'symbol', symbol: 'usousd' }))).toHaveLength(3);
+  });
+
+  test('Je Symbol: Symbole nach Namen, dann unbekannt und manuell', { tag: '@ANA-14' }, () => {
+    expect(breakdown(trades(), 'symbol').map((g) => [g.key, g.stats.trades, Math.round(g.stats.net * 100) / 100])).toEqual([
+      ['s:USOUSD', 3, 7],
+      ['s:XAUUSD', 1, 7],
+      ['unknown', 1, 1],
+      ['manual', 1, -1],
+    ]);
+  });
+
+  test('Setups eines Symbols vergleichen: je Setup mit eigenen Kennzahlen', { tag: '@ANA-14' }, () => {
+    const uso = trades().filter((tr) => inScope(tr, { kind: 'symbol', symbol: 'USOUSD' }));
+    const groups = breakdown(uso, 'zone');
+    expect(groups.map((g) => g.key)).toEqual(['z:200001', 'z:200003']);
+    const [s1, s2] = groups.map((g) => g.stats);
+    expect([s1.trades, s1.net, s1.winRate, s1.maxDrawdown]).toEqual([2, 3, 0.5, 2]);
+    expect([s2.trades, s2.net, s2.winRate, s2.maxDrawdown]).toEqual([1, 4, 1, 0]);
+  });
+
+  test('Setup-Nummer je Symbol in der Reihenfolge der Einstellungen (wie die Symbolkarten)', { tag: '@ANA-14' }, () => {
+    const numbers = setupNumbers([
+      { id: 'a1', symbol: 'USOUSD' },
+      { id: 'b1', symbol: 'XAUUSD' },
+      { id: 'a2', symbol: 'USOUSD' },
+      { id: 'c1', symbol: 'usousd' },
+    ]);
+    expect([...numbers.entries()]).toEqual([
+      ['a1', 1],
+      ['a2', 2],
+      ['b1', 1],
+      ['c1', 1],
+    ]);
   });
 });
 

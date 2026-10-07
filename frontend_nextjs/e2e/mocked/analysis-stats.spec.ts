@@ -2,6 +2,7 @@
  * Statistik-Tab der Analyse-Seite: Kennzahlen, Kurven und Aufteilung aus GET /history/{id}/deals.
  * ANA-09 Statistik-Tab
  * ANA-12 MFE/MAE in der Trade-Tabelle
+ * ANA-14 Statistik je Symbol und Setup
  */
 import type { Page } from '@playwright/test';
 import type { Deal } from '../../src/lib/analysis/tradePairing';
@@ -102,7 +103,7 @@ test.describe('ANA-09 Statistik-Tab', () => {
     const zoneLabel = msg('analysis.stats.scope.zone', { n: 1, symbol: 'USOUSD' });
     await expect(page.getByRole('combobox', { name: msg('analysis.stats.scope') })).toContainText(zoneLabel);
 
-    // Ganzes Konto: inkl. manuell, Aufteilung je Zone
+    // Ganzes Konto: inkl. manuell, Aufteilung je Symbol
     await chooseScope(page, msg('analysis.stats.scope.account'));
     await expect(page.getByTestId('stat-trades-value')).toHaveText('4 / 4');
     await expect(rows).toHaveCount(2);
@@ -141,6 +142,80 @@ test.describe('ANA-09 Statistik-Tab', () => {
       }));
       expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
     });
+  });
+});
+
+test.describe('ANA-14 Statistik je Symbol und Setup', () => {
+  /**
+   * USOUSD Setup 1 (200001): +5, −2 · XAUUSD Setup 1 (200002): +7 · USOUSD Setup 2 (200003): +4 · manuell: −1 ·
+   * gelöschtes USOUSD-Setup „Alt“ (200004, nur noch im Register): +1
+   */
+  function seedSetups(worker: MockWorker) {
+    const now = Date.now() / 1000 + worker.state.brokerOffset;
+    const day = Math.floor(now / DAY) * DAY - 5 * DAY;
+    worker.setZones(DEMO_ID, [
+      makeZone({ magic: 200001 }),
+      makeZone({ id: 'zone-xau', symbol: 'XAUUSD', magic: 200002 }),
+      makeZone({ id: 'zone-uso-2', magic: 200003 }),
+    ]);
+    const created = Math.floor(Date.now() / 1000) - 20 * DAY;
+    worker.state.zoneRegistry[DEMO_ID] = [
+      { magic: 200001, zone_id: ZONE_ID, symbol: 'USOUSD', label: 'Z1', created_at: created, deleted_at: null },
+      { magic: 200002, zone_id: 'zone-xau', symbol: 'XAUUSD', label: 'Z2', created_at: created, deleted_at: null },
+      { magic: 200003, zone_id: 'zone-uso-2', symbol: 'USOUSD', label: 'Z3', created_at: created, deleted_at: null },
+      { magic: 200004, zone_id: 'zone-old', symbol: 'USOUSD', label: 'Alt', created_at: created, deleted_at: created + DAY },
+    ];
+    const pair = (pos: number, h: number, magic: number, symbol: string, profit: number) => [
+      deal({ position_id: pos, time: day + h * H, type: 0, entry: 0, magic, symbol }),
+      deal({ position_id: pos, time: day + (h + 1) * H, type: 1, entry: 1, magic, symbol, profit }),
+    ];
+    worker.state.deals[DEMO_ID] = [
+      ...pair(31, 1, 200001, 'USOUSD', 5),
+      ...pair(32, 3, 200001, 'USOUSD', -2),
+      ...pair(33, 5, 200002, 'XAUUSD', 7),
+      ...pair(34, 7, 200003, 'USOUSD', 4),
+      ...pair(35, 9, 0, 'USOUSD', -1),
+      ...pair(36, 11, 200004, 'USOUSD', 1),
+    ];
+  }
+
+  test('Setups eines Symbols vergleichen; Konto je Symbol', { tag: '@ANA-14' }, async ({ page, worker }) => {
+    seedSetups(worker);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=zone-uso-2&tab=stats`);
+
+    // Vorauswahl aus der Adresse: zweites Setup von USOUSD, benannt wie auf der Symbolkarte
+    const box = page.getByRole('combobox', { name: msg('analysis.stats.scope') });
+    await expect(box).toContainText(msg('analysis.stats.scope.zone', { symbol: 'USOUSD', n: 2 }));
+    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 2 }));
+    await expect(page.getByTestId('stat-net-value')).toContainText('+4,00');
+
+    // Symbol: alle Setups von USOUSD (auch das gelöschte), Aufteilung je Setup mit denselben Kennzahlen
+    await chooseScope(page, msg('analysis.stats.scope.symbol', { symbol: 'USOUSD', n: 2 }));
+    await expect(page.getByTestId('stat-net-value')).toContainText('+8,00');
+    await expect(page.getByRole('tab', { name: msg('analysis.stats.by.zone') })).toHaveAttribute('aria-selected', 'true');
+    const rows = page.getByTestId('breakdown-row');
+    await expect(rows).toHaveCount(3);
+    const deleted = msg('analysis.stats.zone.registry', { symbol: 'USOUSD', label: 'Alt' });
+    await expect(rows.getByTestId('breakdown-label')).toHaveText([
+      msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }),
+      msg('analysis.zone.option', { symbol: 'USOUSD', n: 2 }),
+      deleted,
+    ]);
+    await expect(rows.getByTestId('breakdown-net')).toHaveText(['+3,00 USD', '+4,00 USD', '+1,00 USD']);
+    await expect(rows.getByTestId('breakdown-avg')).toHaveText(['+1,50', '+4,00', '+1,00']);
+    await expect(rows.getByTestId('breakdown-max-dd')).toHaveText(['-2,00', '0,00', '0,00']);
+    // Trade-Archiv nennt das Setup ebenso (neueste zuerst: gelöschtes Setup, dann Setup 2)
+    const trades = page.getByTestId('trades-archive').getByTestId('trade-row');
+    await expect(trades).toHaveCount(4);
+    await expect(trades.nth(0).getByTestId('trade-zone')).toHaveText(deleted);
+    await expect(trades.nth(1).getByTestId('trade-zone')).toHaveText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 2 }));
+    expect(await unhinted(page)).toEqual([]);
+
+    // Ganzes Konto: je Symbol, manuelle Trades getrennt
+    await chooseScope(page, msg('analysis.stats.scope.account'));
+    await expect(rows).toHaveCount(3);
+    expect(await rows.evaluateAll((els) => els.map((el) => el.getAttribute('data-key')))).toEqual(['s:USOUSD', 's:XAUUSD', 'manual']);
+    await expect(rows.getByTestId('breakdown-net')).toHaveText(['+8,00 USD', '+7,00 USD', '-1,00 USD']);
   });
 });
 
