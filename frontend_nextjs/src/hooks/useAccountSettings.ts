@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { t } from '@/i18n';
 import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { settingsFromWorker } from '@/lib/symbolSetups';
 import { useSettingsStore } from '@/store';
 
 /**
@@ -29,7 +30,7 @@ export function useAccountSettings(accountId: string | null, mode: 'always' | 'i
       .get(`/settings/${accountId}`)
       .then((res) => {
         if (stale) return;
-        useSettingsStore.getState().setLoadedSettings(accountId, res.data.settings || res.data);
+        useSettingsStore.getState().setLoadedSettings(accountId, settingsFromWorker(res.data.settings || res.data));
         setFailure(null);
       })
       .catch(async (err) => {

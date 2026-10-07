@@ -41,7 +41,7 @@ async def get_settings(account_id: str, response: Response):
         return {
             "account_id": account_id,
             "file": os.path.basename(path),
-            # SYMBOLS ve aynı bölgelerin düz listesi ZONES (bugünkü arayüz ZONES okur ve gönderir)
+            # Yalnız SYMBOLS; her kurulum motor sırasını (index) taşır
             "settings": symbol_setups.for_client(data),
         }
     except Exception as exc:

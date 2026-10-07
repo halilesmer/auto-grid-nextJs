@@ -51,7 +51,7 @@ function seed(worker: MockWorker) {
   const wed = wednesday(worker);
   const thu = wed + DAY;
   const fri = wed + 2 * DAY;
-  worker.state.settings[DEMO_ID] = { ZONES: [makeZone({ magic: 200001 })] };
+  worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
   worker.state.zoneRegistry[DEMO_ID] = [
     { magic: 200001, zone_id: ZONE_ID, symbol: 'USOUSD', label: 'Z1', created_at: Math.floor(Date.now() / 1000) - 20 * DAY, deleted_at: null },
   ];
@@ -131,7 +131,7 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
   });
 
   test('Fraktal-Zone: Fraktale aus geschlossenen Kerzen, Hinweis auf den Zeitrahmen der Zone', { tag: '@ANA-08' }, async ({ page, worker }) => {
-    worker.state.settings[DEMO_ID] = { ZONES: [makeZone({ magic: 200001, entry_mode: 'fractal', fractal_timeframe: 'H1' })] };
+    worker.setZones(DEMO_ID, [makeZone({ magic: 200001, entry_mode: 'fractal', fractal_timeframe: 'H1' })]);
     await page.goto(URL);
     const chart = page.getByTestId('analysis-chart');
     await expect(chart).toHaveAttribute('data-fractals', /^[1-9]\d*$/);
@@ -150,7 +150,7 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
   });
 
   test('Grid-Zone zeigt keine Fraktale', { tag: '@ANA-08' }, async ({ page, worker }) => {
-    worker.state.settings[DEMO_ID] = { ZONES: [makeZone({ magic: 200001 })] };
+    worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
     await page.goto(URL);
     await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-fractals', '0');
     await expect(page.getByTestId('chart-key')).not.toContainText(msg('analysis.chart.key.fractal'));

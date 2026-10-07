@@ -20,16 +20,14 @@ const LEGACY_ORDER: LiveOrder = {
 
 /** Fraktal-Zone mit den alten Setup-Feldern; der Bot meldet eine Order eines früheren Setups. */
 function seed(worker: MockWorker, orders: LiveOrder[] = [LEGACY_ORDER]) {
-  worker.state.settings[DEMO_ID] = {
-    ZONES: [
-      {
-        ...makeZone({ magic: 200001, entry_mode: 'fractal', order_type: 'BUY', fractal_timeframe: 'H4' }),
-        fractal_setups: [{ sid: 2, id: 's2', fractal_timeframe: 'M15' }],
-        fractal_setup_seq: 2,
-        fractal_kept_sids: [3],
-      },
-    ],
-  };
+  worker.setZones(DEMO_ID, [
+    {
+      ...makeZone({ magic: 200001, entry_mode: 'fractal', order_type: 'BUY', fractal_timeframe: 'H4' }),
+      fractal_setups: [{ sid: 2, id: 's2', fractal_timeframe: 'M15' }],
+      fractal_setup_seq: 2,
+      fractal_kept_sids: [3],
+    },
+  ]);
   worker.setBotRunning(DEMO_ID);
   worker.setMetrics(DEMO_ID, { legacy_setup_orders: orders });
 }

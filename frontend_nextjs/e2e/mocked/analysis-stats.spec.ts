@@ -37,16 +37,14 @@ function deal(p: Partial<Deal> & Pick<Deal, 'position_id' | 'time' | 'type' | 'e
 function seed(worker: MockWorker) {
   const now = Date.now() / 1000 + worker.state.brokerOffset;
   const day = Math.floor(now / DAY) * DAY - 5 * DAY;
-  worker.state.settings[DEMO_ID] = {
-    ZONES: [
-      makeZone({
-        magic: 200001,
-        entry_mode: 'fractal',
-        fractal_timeframe: 'H1',
-        fractal_rr: 2,
-      }),
-    ],
-  };
+  worker.setZones(DEMO_ID, [
+    makeZone({
+      magic: 200001,
+      entry_mode: 'fractal',
+      fractal_timeframe: 'H1',
+      fractal_rr: 2,
+    }),
+  ]);
   worker.state.zoneRegistry[DEMO_ID] = [
     { magic: 200001, zone_id: ZONE_ID, symbol: 'USOUSD', label: 'Z1', created_at: Math.floor(Date.now() / 1000) - 20 * DAY, deleted_at: null },
   ];

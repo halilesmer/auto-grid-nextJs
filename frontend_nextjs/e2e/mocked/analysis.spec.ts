@@ -135,7 +135,7 @@ test.describe('ANA Analyse-Seite', () => {
   });
 
   test('Verspätete Antwort eines anderen Kontos wird verworfen', { tag: '@ANA-02' }, async ({ page, worker }) => {
-    worker.state.settings[LIVE_ID].ZONES = [makeZone({ id: 'zone-live', symbol: 'XAUUSD', min_price: 1900, max_price: 2000 })];
+    worker.setZones(LIVE_ID, [makeZone({ id: 'zone-live', symbol: 'XAUUSD', min_price: 1900, max_price: 2000 })]);
     await page.goto(`/chart?account=${DEMO_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText('USOUSD');
 

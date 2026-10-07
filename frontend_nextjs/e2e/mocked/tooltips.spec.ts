@@ -61,7 +61,7 @@ async function openMenus(dashboard: Dashboard) {
 
 test.describe('UI-07 Hinweise: Abdeckung', () => {
   test('Dashboard (Bot gestoppt): jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [fullZone()];
+    worker.setZones(DEMO_ID, [fullZone()]);
     await dashboard.open(DEMO_ID);
     // Ungespeicherte Änderung: schwebende Leiste und „Kaydet“ der Zone erscheinen
     await dashboard.zoneField(msg('zone.field.minPrice')).fill('91');
@@ -74,7 +74,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
   });
 
   test('Dashboard (Bot läuft): jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [fullZone(), makeZone({ id: 'zone-e2e-2', order_type: 'SELL', is_breakout: true })];
+    worker.setZones(DEMO_ID, [fullZone(), makeZone({ id: 'zone-e2e-2', order_type: 'SELL', is_breakout: true })]);
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
@@ -221,7 +221,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
   });
 
   test('Klick auf (i) verändert das Feld nicht', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [fullZone()];
+    worker.setZones(DEMO_ID, [fullZone()]);
     await dashboard.open(DEMO_ID);
     const sw = dashboard.zoneSwitch(msg('zone.breakout.trendOnly'));
     await expect(sw).toBeChecked();

@@ -50,7 +50,7 @@ test.describe('ACC Konten', () => {
   });
 
   test('Stream-Metriken eines anderen Kontos werden ignoriert', { tag: '@ACC-10' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[LIVE_ID].ZONES = [makeZone()];
+    worker.setZones(LIVE_ID, [makeZone()]);
     await dashboard.open(LIVE_ID);
     // Client-Navigation: das gewählte Konto bleibt im Store
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
@@ -76,7 +76,7 @@ test.describe('ACC Konten', () => {
   });
 
   test('Stream folgt dem gewählten Konto', { tag: '@ACC-10' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[LIVE_ID].ZONES = [makeZone()];
+    worker.setZones(LIVE_ID, [makeZone()]);
     await dashboard.open(DEMO_ID);
     await expect.poll(() => worker.socketAccounts).toEqual([DEMO_ID]);
     expect(new URL(worker.wsUrls.at(-1)!).searchParams.get('api_key')).toBe('e2e-key');

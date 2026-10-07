@@ -8,16 +8,22 @@ Her kurulum eski bir bölgedir: kimliği (`id`) ve kalıcı magic'i (ENG-27) ayn
 `settings_zones` her kurulum için bir bölge üretir (sembol sırası, sembol içinde kurulum sırası).
 
 Eski dosyalar (`ZONES` düz listesi) okunurken olduğu gibi kullanılır; ilk kayıtta gruplu biçime
-geçer (api/settings.py, öncesinde yedek). `ZONES` varsa her yerde o geçerlidir: eski arayüz onu
-gönderir, eski bir worker sürümüne dönülürse dosyaya onu yazar ve `SYMBOLS` eskimiş kalır.
+geçer (api/settings.py, öncesinde yedek). `ZONES` varsa her yerde o geçerlidir: eski bir tarayıcı
+sekmesi onu gönderebilir, eski bir worker sürümüne dönülürse dosyaya onu yazar ve `SYMBOLS` eskimiş
+kalır. GET yalnız `SYMBOLS` verir (for_client).
 Bu modül API ve motor tarafından ortak kullanılır; core'a bağımlı değildir.
 """
 SYMBOLS_KEY = "SYMBOLS"
 ZONES_KEY = "ZONES"
+# GET'te kurulumun motor sırası (for_client); dosyada durmaz
+INDEX_KEY = "index"
 
 
 def flatten_symbols(symbols):
-    """Sembol grupları → düz bölge listesi; her bölge sembolünü gruptan alır."""
+    """Sembol grupları → düz bölge listesi; her bölge sembolünü gruptan alır.
+
+    GET'teki `index` atılır: arayüz aldığı `SYMBOLS`'u geri gönderebilir.
+    """
     zones = []
     for entry in symbols if isinstance(symbols, list) else []:
         if not isinstance(entry, dict):
@@ -25,7 +31,8 @@ def flatten_symbols(symbols):
         setups = entry.get("setups")
         for setup in setups if isinstance(setups, list) else []:
             if isinstance(setup, dict):
-                zones.append({**setup, "symbol": entry.get("symbol", "")})
+                fields = {k: v for k, v in setup.items() if k != INDEX_KEY}
+                zones.append({**fields, "symbol": entry.get("symbol", "")})
     return zones
 
 
@@ -83,16 +90,20 @@ def to_grouped(settings):
 
 
 def for_client(settings):
-    """GET yanıtı: `SYMBOLS` ve aynı bölgelerin motor sırasıyla düz listesi `ZONES`.
+    """GET yanıtı: yalnız `SYMBOLS`; her kurulum motordaki sırasını `index` alanında taşır.
 
-    `ZONES` sırası motorunkiyle aynıdır (ui-state bölge sırası buna göre gönderilir); `SYMBOLS`
-    bu listeden üretilir, ikisi hep tutarlıdır. Bölgesi olmayan dosya olduğu gibi döner.
+    Motor bölge durumlarını (ui-state komutları, zone_states) bu sıraya göre tutar. Gruplu liste
+    o sırayı her zaman vermez: henüz kaydedilmemiş eski dosyada semboller karışık olabilir
+    (XAU, EUR, XAU). `index` yalnız okunur; kayıtta atılır (flatten_symbols). Bölgesi olmayan
+    dosya olduğu gibi döner.
     """
     has_zones = isinstance(settings, dict) and (ZONES_KEY in settings or SYMBOLS_KEY in settings)
     if not has_zones:
         return settings
-    zones = settings_zones(settings)
-    return {**settings, ZONES_KEY: zones, SYMBOLS_KEY: group_zones(zones)}
+    zones = [{**zone, INDEX_KEY: i} for i, zone in enumerate(settings_zones(settings)) if isinstance(zone, dict)]
+    client = {k: v for k, v in settings.items() if k != ZONES_KEY}
+    client[SYMBOLS_KEY] = group_zones(zones)
+    return client
 
 
 def is_legacy(settings):

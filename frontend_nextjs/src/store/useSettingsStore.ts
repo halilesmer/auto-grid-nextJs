@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { t } from '@/i18n';
 import { apiUrl, getWorkerHeaders } from '@/lib/api';
+import { settingsToWorker } from '@/lib/symbolSetups';
 import { normalizeZoneLots } from '@/utils/zoneHelpers';
 import { GlobalSettings, ZoneSettings, SymbolDetail } from './types';
 
@@ -118,7 +119,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         ...getWorkerHeaders(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ settings }),
+      body: JSON.stringify({ settings: settingsToWorker(settings) }),
     });
     if (!res.ok) throw new Error(t('settings.saveFailed'));
     return settings;

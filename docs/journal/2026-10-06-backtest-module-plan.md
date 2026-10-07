@@ -28,7 +28,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #114) |
 | B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
-| B3 | Engine port, fractal (ATR, SAR, setups) | BKT-03 | open |
+| B3 | Engine port, fractal (ATR, SAR) | BKT-03 | open |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
 | B6 | Chart with equity area and replay | BKT-07 | open |

@@ -4,10 +4,8 @@ import { msg } from '../fixtures/i18n';
 
 test.describe('SET Einstellungen', () => {
   test('Einstellungen laden', { tag: '@SET-01' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[DEMO_ID] = {
-      LOOP_INTERVAL_SECONDS: 4.5,
-      ZONES: [makeZone({ min_price: 80, max_price: 95.5, order_type: 'SELL' })],
-    };
+    worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 4.5 };
+    worker.setZones(DEMO_ID, [makeZone({ min_price: 80, max_price: 95.5, order_type: 'SELL' })]);
     await dashboard.open(DEMO_ID);
     await expect(page.getByLabel(msg('settings.interval'))).toHaveValue('4.5');
     await expect(dashboard.zoneField(msg('zone.field.minPrice'))).toHaveValue('80');

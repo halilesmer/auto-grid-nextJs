@@ -2,8 +2,8 @@
 
 Gespeichert wird `SYMBOLS: [{symbol, setups: [...]}]`; jedes Setup ist eine frühere Zone mit
 ihrer Magic. Eine alte Datei (`ZONES`) wird beim ersten Speichern umgestellt, vorher kommt eine
-Kopie nach configs/backup/. GET liefert beide Formen, damit die heutige Oberfläche (liest und
-schickt `ZONES`) weiterläuft.
+Kopie nach configs/backup/. GET liefert nur `SYMBOLS`; jedes Setup trägt seinen Platz in der
+Engine-Reihenfolge (`index`, nur lesend). POST nimmt weiter `ZONES` an (alte Browser-Tabs).
 """
 import json
 
@@ -77,17 +77,17 @@ def test_vor_der_umstellung_liegt_die_alte_datei_als_kopie_in_backup(client, wor
 
 
 @pytest.mark.feature("ZON-19")
-def test_get_auf_alte_datei_liefert_beide_formen_und_schreibt_nichts(client, worker_dir):
+def test_get_auf_alte_datei_liefert_nur_symbols_mit_engine_platz_und_schreibt_nichts(client, worker_dir):
     path = _write(worker_dir, LEGACY)
     before = path.read_text(encoding="utf-8")
 
     settings = client.get(URL).json()["settings"]
 
-    # ZONES in Engine-Reihenfolge (alte Datei: wie gespeichert), SYMBOLS gruppiert
-    assert [z["id"] for z in settings["ZONES"]] == ["a", "b", "c"]
-    assert [(s["symbol"], [x["id"] for x in s["setups"]]) for s in settings["SYMBOLS"]] == [
-        ("XAUUSD", ["a", "c"]),
-        ("EURUSD", ["b"]),
+    assert "ZONES" not in settings
+    # Gruppiert; index = Platz in der Engine-Reihenfolge (alte Datei: wie gespeichert a, b, c)
+    assert [(s["symbol"], [(x["id"], x["index"]) for x in s["setups"]]) for s in settings["SYMBOLS"]] == [
+        ("XAUUSD", [("a", 0), ("c", 2)]),
+        ("EURUSD", [("b", 1)]),
     ]
     assert path.read_text(encoding="utf-8") == before
     assert not (worker_dir / "configs" / "backup").exists()
@@ -107,21 +107,30 @@ def test_neue_oberflaeche_speichert_symbols_neues_setup_bekommt_die_naechste_mag
         ("XAUUSD", [("a", 200001), ("c", 200003)]),
         ("EURUSD", [("b", 200002), ("d", 200004)]),
     ]
-    # GET: ZONES in Engine-Reihenfolge = Symbol für Symbol
-    zones = client.get(URL).json()["settings"]["ZONES"]
-    assert [(z["id"], z["symbol"], z["magic"]) for z in zones] == [
-        ("a", "XAUUSD", 200001),
-        ("c", "XAUUSD", 200003),
-        ("b", "EURUSD", 200002),
-        ("d", "EURUSD", 200004),
+    # GET: Engine-Reihenfolge = Symbol für Symbol
+    symbols = client.get(URL).json()["settings"]["SYMBOLS"]
+    assert [(s["symbol"], [(x["id"], x["index"]) for x in s["setups"]]) for s in symbols] == [
+        ("XAUUSD", [("a", 0), ("c", 1)]),
+        ("EURUSD", [("b", 2), ("d", 3)]),
     ]
+
+
+@pytest.mark.feature("ZON-19")
+def test_index_aus_dem_get_wird_nicht_gespeichert(client, worker_dir):
+    _write(worker_dir, LEGACY)
+
+    client.post(URL, json={"settings": {"SYMBOLS": client.get(URL).json()["settings"]["SYMBOLS"]}})
+
+    setups = [x for s in _saved(worker_dir)["SYMBOLS"] for x in s["setups"]]
+    assert [x["id"] for x in setups] == ["a", "c", "b"]
+    assert [x for x in setups if "index" in x] == []
 
 
 @pytest.mark.feature("ZON-19")
 def test_alte_oberflaeche_schickt_zones_mit_veralteten_symbols_zones_gilt(client, worker_dir):
     _write(worker_dir, LEGACY)
-    settings = client.get(URL).json()["settings"]  # enthält ZONES und SYMBOLS
-    settings["ZONES"] = [z for z in settings["ZONES"] if z["id"] != "a"]  # Zone a gelöscht, nur in ZONES
+    settings = client.get(URL).json()["settings"]  # enthält SYMBOLS mit a, b, c
+    settings["ZONES"] = [z for z in LEGACY["ZONES"] if z["id"] != "a"]  # Zone a gelöscht, nur in ZONES
 
     client.post(URL, json={"settings": settings})
 
@@ -138,7 +147,9 @@ def test_symbol_am_setup_vom_client_wird_vom_symbol_ueberschrieben(client, worke
     setup = make_zone(id="a", symbol="EURUSD")  # falsches Symbol im Setup
     client.post(URL, json={"settings": {"SYMBOLS": [{"symbol": "XAUUSD", "setups": [setup]}]}})
 
-    assert [(z["id"], z["symbol"]) for z in client.get(URL).json()["settings"]["ZONES"]] == [("a", "XAUUSD")]
+    symbols = _saved(worker_dir)["SYMBOLS"]
+    assert [(s["symbol"], [x["id"] for x in s["setups"]]) for s in symbols] == [("XAUUSD", ["a"])]
+    assert "symbol" not in symbols[0]["setups"][0]
 
 
 @pytest.mark.feature("ZON-19")
