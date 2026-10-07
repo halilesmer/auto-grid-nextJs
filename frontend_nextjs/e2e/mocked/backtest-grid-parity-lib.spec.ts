@@ -93,16 +93,16 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     expect(golden.some((e) => e.ev === 'exit' && e.type === 'BUY' && e.i > k)).toBe(true);
   });
 
-  test('Stops Level: TP der Order verschoben, TP-Abgleich (sltp) nur, wenn er nicht auf der falschen Seite liegt', { tag: '@BKT-02' }, () => {
+  test('Stops Level: TP der Order verschoben, die Order bleibt stehen (keine Order-Flut)', { tag: '@BKT-02' }, () => {
     const golden = loadGolden('grid_stops_level');
     // TP 0,03 → mindestens 50 Points (0,05) Abstand zum Orderpreis
     expect(golden[0]).toMatchObject({ ev: 'place', type: 'BUY_LIMIT', price: 96.9, tp: 96.95 });
-    expect(golden.filter((e) => e.ev === 'sltp').map((e) => e.type)).toEqual(
-      ['BUY', 'SELL', 'SELL', 'BUY', 'BUY', 'SELL', 'BUY', 'BUY', 'BUY'],
-    );
-    // BUY ab 97,1: der neue TP 97,13 läge zu nah am Kurs, die Position schließt am verschobenen TP 97,15
-    expect(golden.filter((e) => e.ev === 'sltp' && e.open === 97.1)).toEqual([]);
-    expect(golden).toContainEqual(expect.objectContaining({ ev: 'exit', type: 'BUY', open: 97.1, price: 97.16, reason: 'tp' }));
+    // Die Order mit verschobenem TP wird nicht gelöscht und neu gesetzt, sondern gefüllt
+    const first = golden.filter((e) => e.type === 'BUY_LIMIT' && e.price === 96.9).map((e) => e.ev);
+    expect(first.slice(0, 2)).toEqual(['place', 'fill']);
+    // Vor dem Fix (docs/journal/2026-10-06-stops-level-order-flood.md): 131 Cancels, 19 Füllungen
+    expect(golden.filter((e) => e.ev === 'cancel')).toHaveLength(23);
+    expect(golden.filter((e) => e.ev === 'fill')).toHaveLength(34);
   });
 
   test('step_by_loss rechnet mit Tick-Wert und Lot je Seite (nicht mit der Kontraktgröße)', { tag: '@BKT-02' }, () => {

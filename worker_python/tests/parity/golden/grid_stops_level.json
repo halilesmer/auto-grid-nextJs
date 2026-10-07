@@ -58,38 +58,6 @@
  {
   "i": 1,
   "t": 5,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 1,
-  "t": 5,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 1,
-  "t": 5,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 1,
-  "t": 5,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 1,
-  "t": 5,
   "ev": "place",
   "type": "BUY_LIMIT",
   "price": 96.8,
@@ -138,82 +106,30 @@
  {
   "i": 2,
   "t": 10,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "BUY_LIMIT",
-  "price": 96.8,
+  "price": 96.9,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 2,
   "t": 10,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 2,
-  "t": 10,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 2,
-  "t": 10,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "SELL_STOP",
-  "price": 96.8,
+  "price": 96.9,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 2,
   "t": 10,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.85,
+  "ev": "sltp",
+  "type": "BUY",
+  "open": 96.9,
+  "tp": 96.93,
   "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 2,
-  "t": 10,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 2,
-  "t": 10,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 2,
-  "t": 10,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "magic": 200001
  },
  {
   "i": 3,
@@ -236,17 +152,12 @@
  {
   "i": 3,
   "t": 15,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 3,
-  "t": 15,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.9,
+  "price": 96.8,
+  "reason": "tp",
+  "volume": 0.01,
   "magic": 200001
  },
  {
@@ -257,18 +168,6 @@
   "price": 96.7,
   "volume": 0.01,
   "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 3,
-  "t": 15,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -322,16 +221,8 @@
   "i": 4,
   "t": 20,
   "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 4,
-  "t": 20,
-  "ev": "cancel",
   "type": "BUY_STOP",
-  "price": 96.9,
+  "price": 97.1,
   "magic": 200001
  },
  {
@@ -339,112 +230,72 @@
   "t": 20,
   "ev": "cancel",
   "type": "SELL_LIMIT",
-  "price": 96.9,
+  "price": 97.1,
   "magic": 200001
  },
  {
   "i": 4,
   "t": 20,
-  "ev": "cancel",
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.6,
+  "volume": 0.01,
+  "tp": 96.65,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 4,
+  "t": 20,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.75,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 4,
+  "t": 20,
+  "ev": "place",
+  "type": "SELL_STOP",
+  "price": 96.6,
+  "volume": 0.01,
+  "tp": 96.55,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 5,
+  "t": 25,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.7,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 5,
+  "t": 25,
+  "ev": "fill",
   "type": "SELL_STOP",
   "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 4,
-  "t": 20,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
   "volume": 0.01,
-  "tp": 96.65,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 4,
-  "t": 20,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 4,
-  "t": 20,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.6,
-  "volume": 0.01,
-  "tp": 96.55,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 5,
-  "t": 25,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
   "magic": 200001
  },
  {
   "i": 5,
   "t": 25,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
+  "ev": "sltp",
+  "type": "BUY",
+  "open": 96.7,
+  "tp": 96.73,
+  "sl": 0.0,
   "magic": 200001
- },
- {
-  "i": 5,
-  "t": 25,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.6,
-  "magic": 200001
- },
- {
-  "i": 5,
-  "t": 25,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
-  "volume": 0.01,
-  "tp": 96.65,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 5,
-  "t": 25,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 5,
-  "t": 25,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.6,
-  "volume": 0.01,
-  "tp": 96.55,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
  },
  {
   "i": 6,
@@ -458,9 +309,20 @@
  {
   "i": 6,
   "t": 30,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.7,
+  "price": 96.61,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 6,
+  "t": 30,
   "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
+  "type": "BUY_STOP",
+  "price": 97.0,
   "magic": 200001
  },
  {
@@ -468,7 +330,7 @@
   "t": 30,
   "ev": "cancel",
   "type": "SELL_LIMIT",
-  "price": 96.8,
+  "price": 97.0,
   "magic": 200001
  },
  {
@@ -479,18 +341,6 @@
   "price": 96.5,
   "volume": 0.01,
   "tp": 96.55,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 6,
-  "t": 30,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.75,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -530,100 +380,34 @@
   "magic": 200001
  },
  {
-  "i": 7,
-  "t": 35,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.5,
-  "magic": 200001
- },
- {
-  "i": 7,
-  "t": 35,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 7,
-  "t": 35,
-  "ev": "cancel",
+  "i": 8,
+  "t": 40,
+  "ev": "fill",
   "type": "SELL_LIMIT",
   "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 7,
-  "t": 35,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.5,
-  "magic": 200001
- },
- {
-  "i": 7,
-  "t": 35,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
   "volume": 0.01,
-  "tp": 96.65,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 7,
-  "t": 35,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 8,
-  "t": 40,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
   "magic": 200001
  },
  {
   "i": 8,
   "t": 40,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 96.7,
+  "price": 96.74,
+  "reason": "tp",
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 8,
   "t": 40,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
-  "volume": 0.01,
-  "tp": 96.65,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 96.7,
+  "tp": 96.67,
   "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 8,
-  "t": 40,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "magic": 200001
  },
  {
   "i": 9,
@@ -647,55 +431,11 @@
  {
   "i": 9,
   "t": 45,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
-  "magic": 200001
- },
- {
-  "i": 9,
-  "t": 45,
   "ev": "place",
   "type": "BUY_LIMIT",
   "price": 96.7,
   "volume": 0.01,
   "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 9,
-  "t": 45,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 9,
-  "t": 45,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 9,
-  "t": 45,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.65,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -716,23 +456,7 @@
   "t": 50,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 10,
-  "t": 50,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 10,
-  "t": 50,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 96.9,
+  "price": 96.5,
   "magic": 200001
  },
  {
@@ -740,7 +464,7 @@
   "t": 50,
   "ev": "cancel",
   "type": "SELL_STOP",
-  "price": 96.7,
+  "price": 96.5,
   "magic": 200001
  },
  {
@@ -782,25 +506,39 @@
  {
   "i": 11,
   "t": 55,
+  "ev": "fill",
+  "type": "SELL_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 11,
+  "t": 55,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 96.9,
+  "price": 96.95,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 11,
+  "t": 55,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 96.9,
+  "tp": 96.87,
+  "sl": 0.0,
+  "magic": 200001
+ },
+ {
+  "i": 11,
+  "t": 55,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 96.8,
-  "magic": 200001
- },
- {
-  "i": 11,
-  "t": 55,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 11,
-  "t": 55,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
+  "price": 96.6,
   "magic": 200001
  },
  {
@@ -840,96 +578,32 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 11,
-  "t": 55,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
   "i": 12,
   "t": 60,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 12,
-  "t": 60,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "BUY_STOP",
-  "price": 97.1,
+  "price": 97.0,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 12,
   "t": 60,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "SELL_LIMIT",
-  "price": 97.1,
+  "price": 97.0,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 12,
   "t": 60,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.9,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 97.0,
+  "tp": 96.97,
+  "sl": 0.0,
   "magic": 200001
- },
- {
-  "i": 12,
-  "t": 60,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 12,
-  "t": 60,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 12,
-  "t": 60,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 12,
-  "t": 60,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
  },
  {
   "i": 13,
@@ -943,25 +617,20 @@
  {
   "i": 13,
   "t": 65,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.0,
+  "price": 97.09,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 13,
+  "t": 65,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 13,
-  "t": 65,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 13,
-  "t": 65,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.9,
+  "price": 96.7,
   "magic": 200001
  },
  {
@@ -1001,16 +670,13 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 13,
-  "t": 65,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
+  "i": 14,
+  "t": 70,
+  "ev": "fill",
+  "type": "SELL_LIMIT",
+  "price": 97.1,
   "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "magic": 200001
  },
  {
   "i": 14,
@@ -1026,33 +692,19 @@
  {
   "i": 14,
   "t": 70,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 97.1,
+  "tp": 97.07,
+  "sl": 0.0,
+  "magic": 200001
+ },
+ {
+  "i": 14,
+  "t": 70,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 14,
-  "t": 70,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 14,
-  "t": 70,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 14,
-  "t": 70,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.0,
+  "price": 96.8,
   "magic": 200001
  },
  {
@@ -1092,152 +744,43 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 14,
-  "t": 70,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
   "i": 15,
   "t": 75,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 15,
-  "t": 75,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 15,
-  "t": 75,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 15,
-  "t": 75,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 15,
-  "t": 75,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 15,
-  "t": 75,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.3,
-  "volume": 0.01,
-  "tp": 97.35,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 15,
-  "t": 75,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.3,
-  "volume": 0.01,
-  "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 15,
-  "t": 75,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 16,
-  "t": 80,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 16,
-  "t": 80,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 16,
-  "t": 80,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 16,
-  "t": 80,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 16,
-  "t": 80,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 16,
-  "t": 80,
-  "ev": "place",
+  "ev": "fill",
   "type": "BUY_STOP",
   "price": 97.2,
   "volume": 0.01,
-  "tp": 97.25,
+  "magic": 200001
+ },
+ {
+  "i": 15,
+  "t": 75,
+  "ev": "fill",
+  "type": "SELL_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 16,
+  "t": 80,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 97.2,
+  "price": 97.14,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 16,
+  "t": 80,
+  "ev": "sltp",
+  "type": "BUY",
+  "open": 97.2,
+  "tp": 97.23,
   "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "magic": 200001
  },
  {
   "i": 16,
@@ -1252,96 +795,34 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 16,
-  "t": 80,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
   "i": 17,
   "t": 85,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "BUY_LIMIT",
-  "price": 97.0,
+  "price": 97.1,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 17,
   "t": 85,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.2,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 97.1,
+  "price": 97.07,
+  "reason": "tp",
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 17,
   "t": 85,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
+  "ev": "sltp",
+  "type": "BUY",
+  "open": 97.1,
+  "tp": 97.13,
+  "sl": 0.0,
   "magic": 200001
- },
- {
-  "i": 17,
-  "t": 85,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 17,
-  "t": 85,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 17,
-  "t": 85,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 17,
-  "t": 85,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 17,
-  "t": 85,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
  },
  {
   "i": 18,
@@ -1355,72 +836,11 @@
  {
   "i": 18,
   "t": 90,
-  "ev": "fill",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "magic": 200001
- },
- {
-  "i": 18,
-  "t": 90,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 18,
-  "t": 90,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 18,
-  "t": 90,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 18,
-  "t": 90,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 18,
-  "t": 90,
   "ev": "place",
   "type": "SELL_LIMIT",
   "price": 97.1,
   "volume": 0.01,
   "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 18,
-  "t": 90,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.85,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -1450,16 +870,8 @@
   "i": 19,
   "t": 95,
   "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 19,
-  "t": 95,
-  "ev": "cancel",
   "type": "BUY_STOP",
-  "price": 97.1,
+  "price": 97.3,
   "magic": 200001
  },
  {
@@ -1467,80 +879,62 @@
   "t": 95,
   "ev": "cancel",
   "type": "SELL_LIMIT",
-  "price": 97.1,
+  "price": 97.3,
   "magic": 200001
  },
  {
   "i": 19,
   "t": 95,
-  "ev": "cancel",
-  "type": "SELL_STOP",
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.85,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 19,
+  "t": 95,
+  "ev": "place",
+  "type": "SELL_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 96.95,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 20,
+  "t": 100,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
   "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 19,
-  "t": 95,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.8,
   "volume": 0.01,
-  "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 19,
-  "t": 95,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 20,
-  "t": 100,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.8,
   "magic": 200001
  },
  {
   "i": 20,
   "t": 100,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 96.9,
+  "price": 96.86,
+  "reason": "tp",
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 20,
   "t": 100,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.85,
+  "ev": "sltp",
+  "type": "BUY",
+  "open": 96.9,
+  "tp": 96.93,
   "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 20,
-  "t": 100,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "magic": 200001
  },
  {
   "i": 21,
@@ -1566,7 +960,7 @@
   "t": 105,
   "ev": "cancel",
   "type": "SELL_LIMIT",
-  "price": 97.0,
+  "price": 97.2,
   "magic": 200001
  },
  {
@@ -1585,34 +979,10 @@
   "i": 21,
   "t": 105,
   "ev": "place",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 21,
-  "t": 105,
-  "ev": "place",
   "type": "SELL_LIMIT",
   "price": 96.9,
   "volume": 0.01,
   "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 21,
-  "t": 105,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.65,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -1632,32 +1002,8 @@
   "i": 22,
   "t": 110,
   "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 22,
-  "t": 110,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 22,
-  "t": 110,
-  "ev": "cancel",
   "type": "SELL_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 22,
-  "t": 110,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.7,
+  "price": 97.1,
   "magic": 200001
  },
  {
@@ -1685,108 +1031,13 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 23,
-  "t": 115,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
-  "magic": 200001
- },
- {
-  "i": 23,
-  "t": 115,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
-  "magic": 200001
- },
- {
-  "i": 23,
-  "t": 115,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
-  "volume": 0.01,
-  "tp": 96.65,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 23,
-  "t": 115,
-  "ev": "place",
+  "i": 25,
+  "t": 125,
+  "ev": "fill",
   "type": "SELL_LIMIT",
   "price": 96.8,
   "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 24,
-  "t": 120,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.6,
   "magic": 200001
- },
- {
-  "i": 24,
-  "t": 120,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 96.8,
-  "magic": 200001
- },
- {
-  "i": 24,
-  "t": 120,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 24,
-  "t": 120,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 24,
-  "t": 120,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 24,
-  "t": 120,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.65,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
  },
  {
   "i": 25,
@@ -1802,90 +1053,11 @@
  {
   "i": 25,
   "t": 125,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 25,
-  "t": 125,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 25,
-  "t": 125,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 25,
-  "t": 125,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 25,
-  "t": 125,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.75,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 96.8,
+  "tp": 96.77,
   "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 25,
-  "t": 125,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 25,
-  "t": 125,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 25,
-  "t": 125,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.65,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 26,
-  "t": 130,
-  "ev": "fill",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
   "magic": 200001
  },
  {
@@ -1910,51 +1082,11 @@
  {
   "i": 26,
   "t": 130,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 26,
-  "t": 130,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.7,
-  "magic": 200001
- },
- {
-  "i": 26,
-  "t": 130,
   "ev": "place",
   "type": "BUY_LIMIT",
   "price": 96.8,
   "volume": 0.01,
   "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 26,
-  "t": 130,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 26,
-  "t": 130,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -1975,23 +1107,7 @@
   "t": 135,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 96.8,
-  "magic": 200001
- },
- {
-  "i": 27,
-  "t": 135,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 27,
-  "t": 135,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.8,
+  "price": 96.6,
   "magic": 200001
  },
  {
@@ -2010,18 +1126,6 @@
   "i": 27,
   "t": 135,
   "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 27,
-  "t": 135,
-  "ev": "place",
   "type": "SELL_LIMIT",
   "price": 97.1,
   "volume": 0.01,
@@ -2029,6 +1133,15 @@
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 28,
+  "t": 140,
+  "ev": "fill",
+  "type": "SELL_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "magic": 200001
  },
  {
   "i": 28,
@@ -2044,25 +1157,19 @@
  {
   "i": 28,
   "t": 140,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 97.0,
+  "tp": 96.97,
+  "sl": 0.0,
+  "magic": 200001
+ },
+ {
+  "i": 28,
+  "t": 140,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 28,
-  "t": 140,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 28,
-  "t": 140,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.1,
+  "price": 96.7,
   "magic": 200001
  },
  {
@@ -2081,98 +1188,6 @@
   "i": 28,
   "t": 140,
   "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 28,
-  "t": 140,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 28,
-  "t": 140,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "place",
   "type": "SELL_LIMIT",
   "price": 97.2,
   "volume": 0.01,
@@ -2184,21 +1199,30 @@
  {
   "i": 29,
   "t": 145,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 30,
-  "t": 150,
   "ev": "fill",
-  "type": "BUY_STOP",
-  "price": 97.2,
+  "type": "SELL_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 29,
+  "t": 145,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 97.1,
+  "tp": 97.07,
+  "sl": 0.0,
+  "magic": 200001
+ },
+ {
+  "i": 30,
+  "t": 150,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.1,
+  "price": 97.19,
+  "reason": "tp",
   "volume": 0.01,
   "magic": 200001
  },
@@ -2207,23 +1231,7 @@
   "t": 150,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 30,
-  "t": 150,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 30,
-  "t": 150,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.0,
+  "price": 96.8,
   "magic": 200001
  },
  {
@@ -2263,16 +1271,13 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 30,
-  "t": 150,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.1,
+  "i": 31,
+  "t": 155,
+  "ev": "fill",
+  "type": "SELL_LIMIT",
+  "price": 97.2,
   "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "magic": 200001
  },
  {
   "i": 31,
@@ -2288,33 +1293,19 @@
  {
   "i": 31,
   "t": 155,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 97.2,
+  "tp": 97.17,
+  "sl": 0.0,
+  "magic": 200001
+ },
+ {
+  "i": 31,
+  "t": 155,
   "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 31,
-  "t": 155,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 31,
-  "t": 155,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 31,
-  "t": 155,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.1,
+  "price": 96.9,
   "magic": 200001
  },
  {
@@ -2354,96 +1345,32 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 31,
-  "t": 155,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
   "i": 32,
   "t": 160,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 32,
-  "t": 160,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "BUY_STOP",
-  "price": 97.4,
+  "price": 97.3,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 32,
   "t": 160,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "SELL_LIMIT",
-  "price": 97.4,
+  "price": 97.3,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 32,
   "t": 160,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.2,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 97.3,
+  "tp": 97.27,
+  "sl": 0.0,
   "magic": 200001
- },
- {
-  "i": 32,
-  "t": 160,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 32,
-  "t": 160,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.4,
-  "volume": 0.01,
-  "tp": 97.45,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 32,
-  "t": 160,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.4,
-  "volume": 0.01,
-  "tp": 97.35,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 32,
-  "t": 160,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
  },
  {
   "i": 33,
@@ -2466,66 +1393,37 @@
  {
   "i": 33,
   "t": 165,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.2,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 97.3,
+  "price": 97.4,
+  "reason": "tp",
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 33,
   "t": 165,
   "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.2,
+  "type": "BUY_LIMIT",
+  "price": 97.0,
   "magic": 200001
  },
  {
   "i": 33,
   "t": 165,
-  "ev": "place",
+  "ev": "cancel",
   "type": "BUY_LIMIT",
-  "price": 97.3,
-  "volume": 0.01,
-  "tp": 97.35,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "price": 97.1,
+  "magic": 200001
  },
  {
   "i": 33,
   "t": 165,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.5,
-  "volume": 0.01,
-  "tp": 97.55,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 33,
-  "t": 165,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.5,
-  "volume": 0.01,
-  "tp": 97.45,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 33,
-  "t": 165,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.3,
-  "volume": 0.01,
-  "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
+  "ev": "cancel",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "magic": 200001
  },
  {
   "i": 34,
@@ -2551,38 +1449,6 @@
  {
   "i": 34,
   "t": 170,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 34,
-  "t": 170,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.5,
-  "magic": 200001
- },
- {
-  "i": 34,
-  "t": 170,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.5,
-  "magic": 200001
- },
- {
-  "i": 34,
-  "t": 170,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 34,
-  "t": 170,
   "ev": "place",
   "type": "BUY_LIMIT",
   "price": 97.2,
@@ -2605,83 +1471,13 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 34,
-  "t": 170,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
   "i": 35,
   "t": 175,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 35,
-  "t": 175,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.4,
-  "magic": 200001
- },
- {
-  "i": 35,
-  "t": 175,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.2,
-  "magic": 200001
- },
- {
-  "i": 35,
-  "t": 175,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 35,
-  "t": 175,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.4,
-  "volume": 0.01,
-  "tp": 97.35,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 35,
-  "t": 175,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 36,
-  "t": 180,
-  "ev": "fill",
-  "type": "BUY_LIMIT",
-  "price": 97.2,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 97.3,
+  "price": 97.27,
+  "reason": "tp",
   "volume": 0.01,
   "magic": 200001
  },
@@ -2689,17 +1485,9 @@
   "i": 36,
   "t": 180,
   "ev": "fill",
-  "type": "SELL_STOP",
+  "type": "BUY_LIMIT",
   "price": 97.2,
   "volume": 0.01,
-  "magic": 200001
- },
- {
-  "i": 36,
-  "t": 180,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.4,
   "magic": 200001
  },
  {
@@ -2734,18 +1522,6 @@
   "price": 97.3,
   "volume": 0.01,
   "tp": 97.25,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 36,
-  "t": 180,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.05,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -2774,38 +1550,6 @@
  {
   "i": 37,
   "t": 185,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 37,
-  "t": 185,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 37,
-  "t": 185,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.3,
-  "magic": 200001
- },
- {
-  "i": 37,
-  "t": 185,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 37,
-  "t": 185,
   "ev": "place",
   "type": "BUY_LIMIT",
   "price": 97.0,
@@ -2828,91 +1572,40 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 37,
-  "t": 185,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
   "i": 38,
   "t": 190,
-  "ev": "cancel",
+  "ev": "fill",
   "type": "BUY_LIMIT",
-  "price": 97.0,
+  "price": 97.1,
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 38,
   "t": 190,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
+  "ev": "exit",
+  "type": "SELL",
+  "open": 97.1,
+  "price": 97.06,
+  "reason": "tp",
+  "volume": 0.01,
   "magic": 200001
  },
  {
   "i": 38,
   "t": 190,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 97.0,
+  "ev": "sltp",
+  "type": "BUY",
+  "open": 97.1,
+  "tp": 97.13,
+  "sl": 0.0,
   "magic": 200001
- },
- {
-  "i": 38,
-  "t": 190,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 38,
-  "t": 190,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 38,
-  "t": 190,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
  },
  {
   "i": 39,
   "t": 195,
   "ev": "fill",
   "type": "BUY_LIMIT",
-  "price": 97.0,
-  "volume": 0.01,
-  "magic": 200001
- },
- {
-  "i": 39,
-  "t": 195,
-  "ev": "fill",
-  "type": "SELL_STOP",
   "price": 97.0,
   "volume": 0.01,
   "magic": 200001
@@ -2932,7 +1625,7 @@
   "t": 195,
   "ev": "cancel",
   "type": "SELL_LIMIT",
-  "price": 97.2,
+  "price": 97.4,
   "magic": 200001
  },
  {
@@ -2943,18 +1636,6 @@
   "price": 96.9,
   "volume": 0.01,
   "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 39,
-  "t": 195,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.15,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
@@ -2986,16 +1667,8 @@
   "i": 40,
   "t": 200,
   "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 40,
-  "t": 200,
-  "ev": "cancel",
   "type": "BUY_STOP",
-  "price": 97.1,
+  "price": 97.3,
   "magic": 200001
  },
  {
@@ -3003,7 +1676,7 @@
   "t": 200,
   "ev": "cancel",
   "type": "SELL_LIMIT",
-  "price": 97.1,
+  "price": 97.3,
   "magic": 200001
  },
  {
@@ -3031,136 +1704,13 @@
   "comment": "AutoGrid_Z1"
  },
  {
-  "i": 40,
-  "t": 200,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 41,
-  "t": 205,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.8,
-  "magic": 200001
- },
- {
-  "i": 41,
-  "t": 205,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 41,
-  "t": 205,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.8,
-  "magic": 200001
- },
- {
-  "i": 41,
-  "t": 205,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.85,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 41,
-  "t": 205,
-  "ev": "place",
+  "i": 43,
+  "t": 215,
+  "ev": "fill",
   "type": "SELL_LIMIT",
   "price": 97.0,
   "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 41,
-  "t": 205,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 96.8,
-  "volume": 0.01,
-  "tp": 96.75,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 42,
-  "t": 210,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.8,
   "magic": 200001
- },
- {
-  "i": 42,
-  "t": 210,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.0,
-  "magic": 200001
- },
- {
-  "i": 42,
-  "t": 210,
-  "ev": "cancel",
-  "type": "SELL_STOP",
-  "price": 96.8,
-  "magic": 200001
- },
- {
-  "i": 42,
-  "t": 210,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 42,
-  "t": 210,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 42,
-  "t": 210,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
  },
  {
   "i": 43,
@@ -3176,70 +1726,11 @@
  {
   "i": 43,
   "t": 215,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 43,
-  "t": 215,
-  "ev": "cancel",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 43,
-  "t": 215,
-  "ev": "cancel",
-  "type": "SELL_LIMIT",
-  "price": 97.1,
-  "magic": 200001
- },
- {
-  "i": 43,
-  "t": 215,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 96.95,
+  "ev": "sltp",
+  "type": "SELL",
+  "open": 97.0,
+  "tp": 96.97,
   "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 43,
-  "t": 215,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 43,
-  "t": 215,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 44,
-  "t": 220,
-  "ev": "fill",
-  "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
   "magic": 200001
  },
  {
@@ -3254,43 +1745,11 @@
  {
   "i": 44,
   "t": 220,
-  "ev": "cancel",
-  "type": "BUY_LIMIT",
-  "price": 96.9,
-  "magic": 200001
- },
- {
-  "i": 44,
-  "t": 220,
   "ev": "place",
   "type": "BUY_LIMIT",
   "price": 97.0,
   "volume": 0.01,
   "tp": 97.05,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 44,
-  "t": 220,
-  "ev": "place",
-  "type": "SELL_LIMIT",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.15,
-  "sl": 0.0,
-  "magic": 200001,
-  "comment": "AutoGrid_Z1"
- },
- {
-  "i": 44,
-  "t": 220,
-  "ev": "place",
-  "type": "SELL_STOP",
-  "price": 97.0,
-  "volume": 0.01,
-  "tp": 96.95,
   "sl": 0.0,
   "magic": 200001,
   "comment": "AutoGrid_Z1"
