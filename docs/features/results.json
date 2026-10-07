@@ -272,6 +272,18 @@
       "tests": 4
     }
   },
+  "BKT-05": {
+    "api": {
+      "datum": "2026-10-08",
+      "status": "passed",
+      "tests": 24
+    },
+    "e2e": {
+      "datum": "2026-10-08",
+      "status": "passed",
+      "tests": 5
+    }
+  },
   "BKT-09": {
     "unit": {
       "datum": "2026-10-07",

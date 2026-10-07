@@ -5,17 +5,19 @@
 - /clock (ANA-10): takvimin "bugün/bu hafta" gibi seçimleri için broker saati farkı.
 - /rates, /coverage (ANA-04): mum veritabanı; eksik parçalar MT5'ten ihtiyaç anında çekilir.
 - /history/{id}/deals (ANA-07): hesabın deal arşivi ve bölge kaydı.
+- /market/{id}/imports (BKT-05): CSV'den mum içe aktarma; kaynak `csv:<import_id>`.
 """
 import asyncio
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 from src.api.access import account_access
 from src.api.auth import require_admin
 from src.api.helpers import _find_settings_file, _load_accounts, _load_settings_data
-from src.utils import market_db, market_sync, mt5_market
+from src.utils import csv_import, market_db, market_sync, mt5_market
 from src.utils.bot_watchdog import is_account_busy
 from src.utils.symbol_setups import settings_zones
 
@@ -165,12 +167,23 @@ async def rates(
     timeframe: str = "M1",
     from_: int = Query(..., alias="from", ge=0),
     to: int = Query(..., gt=0),
+    source: Optional[str] = None,
 ):
-    """Mumlar [from, to) MT5 zamanında, sütun sütun. Eksik/alınamayan parçalar `missing`'de."""
+    """Mumlar [from, to) MT5 zamanında, sütun sütun. Eksik/alınamayan parçalar `missing`'de.
+
+    `source=csv:<import_id>`: onaylanmış bir CSV içe aktarmasından (MT5'e hiç bağlanmaz).
+    """
     if timeframe not in market_sync.TIMEFRAMES:
         raise HTTPException(status_code=400, detail=f"Zaman dilimi {timeframe} desteklenmiyor")
     if to <= from_:
         raise HTTPException(status_code=400, detail="'to', 'from'dan büyük olmalı")
+    if source:
+        if not source.startswith(market_db.CSV_SOURCE_PREFIX):
+            raise HTTPException(status_code=400, detail="source must be csv:<import_id>")
+        return await _csv_call(
+            csv_import.get_rates, account_id, source[len(market_db.CSV_SOURCE_PREFIX):], symbol.strip(),
+            timeframe, from_, to,
+        )
     account = _account_or_404(account_id)
     symbol = symbol.strip()
     if not symbol:
@@ -227,3 +240,66 @@ async def deals(
         )
     except market_db.MarketDbUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+
+
+# --------------------------------------------------------------------------- CSV-Import (BKT-05)
+class ImportCreate(BaseModel):
+    symbol: str = Field(..., max_length=32)
+    timeframe: str = Field(..., max_length=4)
+    filename: str = Field("", max_length=255)
+    size: int
+    time_offset_sec: int = 0
+
+
+class ImportCommit(BaseModel):
+    replace: bool = False
+
+
+async def _csv_call(func, *args):
+    """CSV-Import-Funktion in einem Thread; Fehler werden zu HTTP-Antworten."""
+    try:
+        return await asyncio.to_thread(func, *args)
+    except csv_import.ImportFailure as exc:
+        detail = {"detail": exc.detail, "errors": exc.errors} if exc.errors else exc.detail
+        raise HTTPException(status_code=exc.status, detail=detail)
+    except market_db.MarketDbUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@router.get("/market/{account_id}/imports", dependencies=[Depends(account_access)])
+async def list_imports(account_id: str):
+    """CSV-Importe des Kontos (onaylanmış und unfertige); nur `committed` ist wählbar."""
+    _account_or_404(account_id)
+    return {"imports": await _csv_call(csv_import.list_imports, account_id)}
+
+
+@router.post("/market/{account_id}/imports", dependencies=[Depends(account_access)])
+async def create_import(account_id: str, body: ImportCreate):
+    _account_or_404(account_id)
+    return await _csv_call(
+        csv_import.create, account_id, body.symbol, body.timeframe, body.filename, body.size, body.time_offset_sec
+    )
+
+
+@router.put("/market/{account_id}/imports/{import_id}/chunk", dependencies=[Depends(account_access)])
+async def import_chunk(account_id: str, import_id: str, request: Request, index: int = Query(..., ge=0)):
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > csv_import.MAX_CHUNK_BYTES:
+        raise HTTPException(status_code=413, detail="Chunk is too large")
+    data = bytearray()
+    async for part in request.stream():
+        data += part
+        if len(data) > csv_import.MAX_CHUNK_BYTES:  # Content-Length kann fehlen oder lügen
+            raise HTTPException(status_code=413, detail="Chunk is too large")
+    return await _csv_call(csv_import.add_chunk, account_id, import_id, index, bytes(data))
+
+
+@router.post("/market/{account_id}/imports/{import_id}/commit", dependencies=[Depends(account_access)])
+async def commit_import(account_id: str, import_id: str, body: ImportCommit):
+    return await _csv_call(csv_import.commit, account_id, import_id, body.replace)
+
+
+@router.delete("/market/{account_id}/imports/{import_id}", dependencies=[Depends(account_access)])
+async def delete_import(account_id: str, import_id: str):
+    await _csv_call(csv_import.delete, account_id, import_id)
+    return {"deleted": import_id}

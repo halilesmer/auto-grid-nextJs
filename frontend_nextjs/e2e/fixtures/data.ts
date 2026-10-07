@@ -113,6 +113,27 @@ export const RUNNING_METRICS: Partial<LiveData> = {
   remote_paused: false,
 };
 
+/** Eintrag der Mock-CSV-Importe (Form wie csv_import._public, plus `account_id`/`text`). */
+export interface CsvImportRow {
+  import_id: string;
+  account_id: string;
+  symbol: string;
+  timeframe: string;
+  filename: string;
+  status: 'staging' | 'committed';
+  size_bytes: number;
+  received_bytes: number;
+  next_chunk: number;
+  bars: number | null;
+  first_t: number | null;
+  last_t: number | null;
+  gaps: number | null;
+  offset_sec: number;
+  created_at: number;
+  committed_at: number | null;
+  text: string;
+}
+
 export function defaultState() {
   return {
     accounts: [
@@ -171,6 +192,8 @@ export function defaultState() {
     ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],
     /** Antwort von /rates erzwingt einen Fehler (z. B. 503 Datenbank nicht bereit); null = normal */
     ratesError: null as { status: number; detail: string } | null,
+    /** CSV-Importe je Konto (GET/POST /market/{id}/imports, B9); `text` = bisher hochgeladene Teile */
+    csvImports: [] as CsvImportRow[],
     /** Deal-Archiv je Konto (GET /history/{id}/deals), MT5-Zeit; Einstiege vor `from` kommen wie im Worker mit. */
     deals: {} as Record<string, Deal[]>,
     /** Zonen-Register je Konto (created_at = echte Unix-Sekunden) */

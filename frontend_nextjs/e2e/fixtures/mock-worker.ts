@@ -8,7 +8,7 @@
  */
 import type { Page, Route, WebSocketRoute } from '@playwright/test';
 import type { LiveData, Metrics } from '../../src/store/types';
-import { defaultState, groupZones, type MockState, type MockUser, type StoredAccount } from './data';
+import { defaultState, groupZones, type CsvImportRow, type MockState, type MockUser, type StoredAccount } from './data';
 import { E2E_API_KEY, E2E_USER_KEY, MOCK_API } from './env';
 
 type Json = Record<string, unknown>;
@@ -195,6 +195,8 @@ export class MockWorker {
   readonly overrides = new Map<string, Reply>();
   /** Anzahl Kerzen je Antwort von /market/{id}/rates, in Reihenfolge (der Chart darf nicht mehr zeigen). */
   readonly ratesDelivered: number[] = [];
+  /** Rohkörper der laufenden Anfrage (Chunk-Upload des CSV-Imports) */
+  private rawBody = '';
   /** URLs aller WebSocket-Verbindungen (inkl. Reconnects). */
   readonly wsUrls: string[] = [];
   /** Offene Streams und ihr Konto aus ?account_id= (null: ohne Parameter → erstes Konto). */
@@ -311,6 +313,7 @@ export class MockWorker {
     }
     this.calls.push({ method, path: url.pathname, query: url.searchParams, body });
 
+    this.rawBody = request.postDataBuffer()?.toString('utf8') ?? '';
     const headers = await request.allHeaders();
     const principal = this.principalOf(headers['x-api-key']);
     if (!principal) {
@@ -456,6 +459,90 @@ export class MockWorker {
       server_now: this.state.brokerClockReliable ? now + this.state.brokerOffset : null,
       offset_sec: this.state.brokerClockReliable ? this.state.brokerOffset : null,
     };
+  }
+
+  /**
+   * Wie csv_import.py in klein: Anlegen, Teile in Reihenfolge, Commit (422 bei Text „BAD“ oder nicht
+   * steigender Zeit, 409 bei Überlappung ohne `replace`), Löschen. Erste Spalte = Epoche in Sekunden.
+   */
+  private csvImports(method: string, seg: string[], body: Json | null): Reply | null {
+    const s = this.state;
+    const account = seg[1];
+    if (!s.accounts.some((a) => String(a.id) === account)) {
+      return { status: 404, body: { detail: `Account '${account}' not found` } };
+    }
+    const pub = (row: CsvImportRow) => {
+      const copy: Partial<CsvImportRow> = { ...row };
+      delete copy.account_id;
+      delete copy.next_chunk;
+      delete copy.text;
+      return copy;
+    };
+    const mine = () => s.csvImports.filter((i) => i.account_id === account);
+    if (seg.length === 3 && method === 'GET') return { status: 200, body: { imports: mine().map(pub) } };
+    if (seg.length === 3 && method === 'POST') {
+      const b = (body ?? {}) as Record<string, unknown>;
+      const importId = (s.csvImports.length + 1).toString(16).padStart(32, '0');
+      s.csvImports.push({
+        import_id: importId,
+        account_id: account,
+        symbol: String(b.symbol),
+        timeframe: String(b.timeframe),
+        filename: String(b.filename ?? ''),
+        status: 'staging',
+        size_bytes: Number(b.size),
+        received_bytes: 0,
+        next_chunk: 0,
+        bars: null,
+        first_t: null,
+        last_t: null,
+        gaps: null,
+        offset_sec: Number(b.time_offset_sec ?? 0),
+        created_at: Math.floor(Date.now() / 1000),
+        committed_at: null,
+        text: '',
+      });
+      return { status: 200, body: { import_id: importId, chunk_bytes: 4 * 1024 * 1024 } };
+    }
+    const item = mine().find((i) => i.import_id === seg[3]);
+    if (!item) return { status: 404, body: { detail: 'Import not found' } };
+    if (seg.length === 5 && seg[4] === 'chunk' && method === 'PUT') {
+      item.text += this.rawBody;
+      item.received_bytes += Buffer.byteLength(this.rawBody);
+      item.next_chunk += 1;
+      return { status: 200, body: { received_bytes: item.received_bytes, next_chunk: item.next_chunk } };
+    }
+    if (seg.length === 5 && seg[4] === 'commit' && method === 'POST') {
+      const replace = Boolean((body as Record<string, unknown> | null)?.replace);
+      const times = item.text
+        .split('\n')
+        .map((line) => Number(line.split(',')[0]))
+        .filter((t) => Number.isFinite(t) && t > 0);
+      const invalid = item.text.includes('BAD') || times.length === 0 || times.some((t, i) => i > 0 && t <= times[i - 1]);
+      if (invalid) {
+        s.csvImports = s.csvImports.filter((i) => i !== item);
+        const errors = [{ line: 2, message: 'high/low do not contain open and close' }];
+        return { status: 422, body: { detail: { detail: 'The file has errors', errors } } };
+      }
+      const first = times[0];
+      const last = times[times.length - 1];
+      const overlaps = mine().filter(
+        (i) => i !== item && i.status === 'committed' && i.symbol === item.symbol && i.timeframe === item.timeframe &&
+          i.first_t! <= last && i.last_t! >= first,
+      );
+      if (overlaps.length > 0 && !replace) {
+        return { status: 409, body: { detail: { detail: 'Overlaps an existing import', errors: overlaps.map(pub) } } };
+      }
+      s.csvImports = s.csvImports.filter((i) => !overlaps.includes(i));
+      Object.assign(item, { status: 'committed', bars: times.length, first_t: first, last_t: last, gaps: 0,
+        committed_at: Math.floor(Date.now() / 1000), text: '' });
+      return { status: 200, body: pub(item) };
+    }
+    if (seg.length === 4 && method === 'DELETE') {
+      s.csvImports = s.csvImports.filter((i) => i !== item);
+      return { status: 200, body: { deleted: item.import_id } };
+    }
+    return null;
   }
 
   private dispatch(method: string, url: URL, body: Json | null, principal: Principal): Reply | null {
@@ -607,6 +694,11 @@ export class MockWorker {
       }
       if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
       return ok(this.rates(seg[1], url.searchParams));
+    }
+
+    // --------------------------------------------------------------- CSV-Import (market.py, BKT-05)
+    if (seg[0] === 'market' && seg[2] === 'imports') {
+      return this.csvImports(method, seg, body);
     }
 
     if (seg[0] === 'history' && seg[2] === 'deals' && method === 'GET') {

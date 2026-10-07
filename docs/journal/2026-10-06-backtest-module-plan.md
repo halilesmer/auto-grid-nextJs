@@ -34,7 +34,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B6 | Chart with equity area and replay | BKT-07 | open |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | open |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
-| B9 | CSV import (worker process and dialog) | BKT-05 | open |
+| B9 | CSV import (worker process and dialog) | BKT-05 | done (PR open); VPS check open |
 
 Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4. B2.1 comes from the review of PR #114.
 
@@ -404,6 +404,22 @@ Decisions:
 - Not ported: the file `fractal_state_<account>.json` (a run starts without it, as `reset_bot_state` in the runner) and the orders of removed extra setups (`legacy_setup_orders.py`; the backtest makes none). A manual delete or the expiry of a fractal order does not occur in a backtest.
 - The engine writes log codes `fractal.*` with values (`fractal.placed`, `fractal.nextLossWait` …), as in B2. The run log (B4) translates them.
 
+## Result B9 (PR open)
+
+The import is a separate data source. The candles go to `rates` with `source = csv:<import_id>`; the MT5 candles (`source` = server name) are never changed. Files: `worker_python/src/utils/csv_import.py` (all logic), 4 routes and `GET /imports` in `src/api/market.py`, table `csv_imports` (schema version 2) in `market_db.py`, `CsvImportPanel` and `CsvImportDialog` in `frontend_nextjs/src/components/backtest/`.
+
+- Process: `POST /imports` (symbol, timeframe, size, offset) → `PUT /imports/{id}/chunk?index=n` (raw bytes, in order, max. 4 MB each, file max. 150 MB) → `POST /imports/{id}/commit {replace}`. `DELETE` removes staging or a committed import. The id is made by the worker (32 hex characters) and every route checks account and id (`account_access`, then the id must belong to that account: else 404).
+- Checks at commit (first pass, nothing stored): known layout (header names, or MT5 export with date and time apart, or position only), prices positive and finite, high/low contain open and close, time on the timeframe grid, strictly rising time, time between 2000 and now + 1 day, max. 2 million rows. The first 20 errors come back with line numbers (422). A wrong file is deleted at once, so it can never be selected. The second pass writes in one transaction in batches of 50,000 rows.
+- Overlap: a committed import of the same account, symbol and timeframe with an overlapping range gives 409 with the old import. Only `replace: true` deletes the old one (in the same transaction as the new write).
+- Gaps: a break longer than 4 days (`MAX_PAUSE_SEC`) in the file is stored as `unavailable`; `rates?source=csv:` shows every range outside the file as `missing` with the reason `csv_gap` (rule 4 of this plan). Weekends are not gaps.
+- Limits: max. 3 unfinished imports per account; unfinished imports older than 24 hours go away at the next create; the database size limit (`MARKET_DB_MAX_MB`) is checked at create and before the write (507). Deleting an account deletes its imports.
+- Time zone: the file time plus `time_offset_sec` (−14 to +14 hours) is the MT5 server time. The worker cannot know the time zone of a file; the user sets it. This is the main risk (see open points).
+- Assumption: the import has one timeframe (as the file). `rates?source=csv:<id>` refuses another timeframe or symbol (400). The browser builds higher timeframes in B4.
+- The dialog sits in the Backtest tab of `/chart`, because `/backtest` comes with B5. The catalog text says so.
+- Changed test: `test_fehlgeschlagene_migration_laesst_alte_version_und_antwortet_503` had the schema versions 1 and 2 fixed in it. With migration 2 it uses `SCHEMA_VERSION` and `+ 1`. The checks did not change.
+- Review fixes (reviewer, before the commit): the dialog never deletes an import blindly after a network or 5xx error at commit (it asks the list first; a committed import counts as done); symbol, timeframe and offset are locked while "replace" waits; a file that is not UTF-8/UTF-16, a binary file, and a volume of `inf` or above 2^62 give 422 and the staging goes; a repeated chunk cuts the leftover bytes of a failed write; a commit locks the import against a second commit, chunk and delete; the commit needs the file size to equal the announced size; the raw file that cannot be removed after the commit only gives a log warning; deleting imports gives the space back (`reclaim_space`); the delimiter comes from the first line (the sniffer failed on `;` with decimal comma and no header).
+- Evidence: `pytest tests → 674 passed`; mutation check (no overlap check, no grid check, no order check, no size check) turns `test_csv_import_api.py` red; `npm run test:e2e → 331 passed` (before the review fixes; after them `csv-import` + `tooltips` spec → 21 passed); `tsc` and `eslint` clean; `scripts/features/run.sh BKT-05 → api ✅ e2e ✅`. Not checked: real MT5 data and a 1-year file on the VPS.
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
@@ -421,6 +437,12 @@ Decisions:
 - [ ] B6: chart; max. 50,000 drawn candles for 1 year of M1; the replay never shows future data.
 - [ ] B7: more setups; a late run does not overwrite a different setup.
 - [ ] B8: presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive.
-- [ ] B9: CSV import; an aborted or wrong import cannot be selected.
+- [x] B9: CSV import; an aborted or wrong import cannot be selected (see "Result B9").
+- [ ] B9, manual check on the VPS (DEMO): import one real M1 CSV of about 1 year, then read it with `GET /api/market/{id}/rates?source=csv:<id>`, and check the time zone offset against a candle that MT5 also has.
+- [ ] B5: move `CsvImportPanel` from the Backtest tab of `/chart` to `/backtest`, and add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list).
+- [ ] B9 (review, not done): the commit holds the database write lock while it parses and writes (up to 2 million rows); saving settings waits in that time. Use staging tables or write in parts if this shows on the VPS.
+- [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
+- [ ] B5 (review, not done): the answer of `rates?source=csv:` has no `account_id`, `server_now`, `offset_sec`; the reason `csv_gap` has no text in `analysis.data.reason.*`. Add both when a page reads it. An abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list).
+- [ ] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes must come from the candles in the browser.
 - [ ] B5/B7: decide which KPIs of "Items from the first concept" (1–7) `computeStats` gets.
-- [ ] B9: define the accepted CSV formats (item 8 of "Items from the first concept").
+- [x] B9: define the accepted CSV formats (item 8 of "Items from the first concept"): header names or position, MT5 export with date and time apart, separators `,` `;` tab, UTF-8 or UTF-16, epoch seconds/milliseconds or text times (see "Result B9").

@@ -100,6 +100,18 @@ MIGRATIONS: list[list[str]] = [
             PRIMARY KEY (account_id, magic, version)
         )""",
     ],
+    [
+        # B9 / BKT-05: CSV-Importe. Kerzen eines Imports liegen in `rates` mit source = "csv:<import_id>".
+        """CREATE TABLE csv_imports (
+            import_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, symbol TEXT NOT NULL,
+            timeframe INTEGER NOT NULL, filename TEXT, status TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL, received_bytes INTEGER NOT NULL DEFAULT 0,
+            next_chunk INTEGER NOT NULL DEFAULT 0, offset_sec INTEGER NOT NULL DEFAULT 0,
+            bars INTEGER, first_t INTEGER, last_t INTEGER, gaps INTEGER,
+            created_at INTEGER NOT NULL, committed_at INTEGER
+        )""",
+        "CREATE INDEX csv_imports_account ON csv_imports (account_id, symbol, timeframe)",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
@@ -559,16 +571,53 @@ def zone_versions(account_id: str, magic: int) -> list[dict]:
         )]
 
 
+# --------------------------------------------------------------------------- csv içe aktarma
+CSV_SOURCE_PREFIX = "csv:"
+
+
+def csv_source(import_id: str) -> str:
+    return f"{CSV_SOURCE_PREFIX}{import_id}"
+
+
+def imports_dir() -> str:
+    return os.path.join(paths.DATA_DIR, "imports")
+
+
+def staging_file(import_id: str) -> str:
+    return os.path.join(imports_dir(), f"{import_id}.csv")
+
+
+def remove_csv_import(conn, import_id: str):
+    """Kayıt, mumlar ve aralıklar (transaction içinde) ve hazırlık dosyası. Dosya hatası yutulmaz."""
+    src = csv_source(import_id)
+    conn.execute("DELETE FROM rates WHERE source=?", (src,))
+    conn.execute("DELETE FROM rate_coverage WHERE source=?", (src,))
+    conn.execute("DELETE FROM csv_imports WHERE import_id=?", (import_id,))
+    try:
+        os.remove(staging_file(import_id))
+    except FileNotFoundError:
+        pass  # onaylanmış içe aktarmanın dosyası zaten silinmiştir
+
+
 # --------------------------------------------------------------------------- hesap silme
-def delete_account(account_id: str):
-    """Hesabın deal arşivini siler (bölge kaydı ve mumlar kalır; mumlar sunucuya aittir)."""
+def reclaim_space():
+    """Silinen sayfaları dosyadan geri verir (aksi halde boyut küçülmez ve is_full() doğru kalır)."""
     if not os.path.exists(db_path()):
         return
-    with writing() as conn:
-        for table in ("deals", "deal_coverage", "account_meta"):
-            conn.execute(f"DELETE FROM {table} WHERE account_id=?", (account_id,))
     conn = _open(db_path())
     try:
         conn.execute("PRAGMA incremental_vacuum")
     finally:
         conn.close()
+
+
+def delete_account(account_id: str):
+    """Hesabın deal arşivini ve CSV içe aktarmalarını siler (bölge kaydı ve MT5 mumları kalır; mumlar sunucuya aittir)."""
+    if not os.path.exists(db_path()):
+        return
+    with writing() as conn:
+        for table in ("deals", "deal_coverage", "account_meta"):
+            conn.execute(f"DELETE FROM {table} WHERE account_id=?", (account_id,))
+        for row in conn.execute("SELECT import_id FROM csv_imports WHERE account_id=?", (account_id,)).fetchall():
+            remove_csv_import(conn, row["import_id"])
+    reclaim_space()
