@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [116, 118, 119, 120, 121]
+pr: [116, 118, 119, 120, 121, 124]
 features: [ZON-19, ZON-20, LOG-07, ENG-27, ENG-28, ANA-07, ANA-08, ANA-09, ANA-12, ANA-14]
 areas: [worker, frontend, tests]
 ---
@@ -23,7 +23,7 @@ The user selected a real data model change (symbol → setups), not only a group
 | B2a | Frontend: symbol card with setup cards, "Add symbol" / "Add setup", delete of the last setup, engine position by zone id, i18n and hints (ZON-20) | done (PR #119) |
 | B2b | Symbol logs: "Symbol logs" shows the lines of all setups; worker `GET /logs/{id}?zone_id=` takes more than one id (LOG-07) | done (PR #120) |
 | C | Compact setup layout (short inputs, switch next to input, 375 px check, UI-08) | done (PR #121) |
-| D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-14) | done (PR #TBD) |
+| D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-14) | done (PR #124) |
 
 The plan parts are named A to D. They are not feature IDs: the category `SYM` already exists for the symbol list (SYM-01 to SYM-04). Part A has the ID ZON-19.
 
@@ -348,7 +348,7 @@ The statistics tab compares the setups of one symbol. The Analyse page says "set
 - [x] Part B2: after a save that changes the order, the store keeps the old order until the next load. Then `zone_states` can show on the wrong card. Examples: the first save of an old file with mixed symbols; a new setup with the symbol of an earlier group. Also, `toggleZoneActive()` takes the ui-state index before this save. Found 2026-10-07, present since part A. Part B2 shows the setups grouped by symbol, so the store order is the engine order.
   - Done (2026-10-07, part B2a): the cards use the engine position of the zone id (`engineOrder`). Each save sets `engineOrder` from the sent zones. `toggleZoneActive()` sends its command before the save, to the current position. See "Why".
 - [ ] `frontend_nextjs/e2e/live/trading.spec.ts` adds a test zone at the end and uses `zones.length` as its ui-state index. If the DEMO account has a zone with the same symbol before other symbols, the save groups the test zone into the middle. Read the settings again after the save and find the index by the test zone id. Found in the review 2026-10-07, present since part A, live test only.
-- [x] Part D (PR #TBD).
+- [x] Part D (PR #124).
 - [ ] Texts that still say "zone" or "Bölge": the field hints (for example min and max price). The log texts of the UI (part B2b) and the Analyse page (part D) are done.
 - [ ] The worker log messages say "Bölge n" (19 places in `worker_python/src/core`). n is the engine position + 1, not the setup number of the card. Worker messages are not translated, and the change is in engine code (golden test BKT-01). Found 2026-10-07 in part B2b.
 - [ ] `GET /api/logs/{id}` reads the log files directly in the `async def` (a blocking call, `hooks/RULES.md` §9.1). With a zone filter, it reads the full file. Present before part B2b. Part B2b sends fewer requests (one for each symbol). Found 2026-10-07.
