@@ -596,6 +596,16 @@ kategorien:
           - In einem Setup Ordertyp BOTH wählen, „BUY/SELL gleich“ aus, „Nur Trend“ und „Bereinigen“ an; ein zweites Setup auf Fraktal stellen.
         erwartet: Je Symbol eine Karte mit „Setup 1…n“; das neue Setup steht in seiner Symbolkarte; das gelöschte Symbol ist weg; nach dem Neuladen dieselben Karten; Motorzustände an den richtigen Setups. Die Setup-Felder sind kurz, jeder Schalter steht neben seinem Feld.
 
+      - id: ZON-21
+        titel: Fraktal – nächste Order ab Verlust (Betrag/Pip)
+        beschreibung: Im Fraktal-Modus legt „Nächste Order ab Verlust“ (fractal_next_loss, Standard 0 = keine Grenze) fest, ab welchem Verlust der zuletzt eröffneten Position einer Richtung die nächste Fraktal-Order gesetzt wird. Der Switch „Grenze in Pip“ (fractal_next_loss_mode money/pips) wählt die Einheit - Betrag in Kontowährung oder Preisabstand gegen den Einstieg; Feldname und Tooltip (mit Zahlenbeispiel) wechseln mit. Wird mit der Zone gespeichert.
+        code: [frontend_nextjs/src/components/zone/ZoneFractalFields.tsx, frontend_nextjs/src/utils/zoneHelpers.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Fraktal-Zone auf dem DEMO-Konto, BUY, „Nächste Order ab Verlust“ 1, speichern, Bot starten und warten, bis eine Fraktal-Order auslöst.
+          - Pending Orders und Bot-Log beobachten, während die Position ins Minus läuft.
+        erwartet: Solange die letzte BUY-Position weniger als 1 $ im Minus ist, liegt keine BUY-Order und das Log meldet „Sonraki emir … zarara geçince konacak“; ab −1 $ kommen die BUY-Orders auf die jüngsten Fraktale zurück.
+
   # ---------------------------------------------------------------------------
   - id: BOT
     titel: Bot-Steuerung
@@ -926,6 +936,15 @@ kategorien:
           - Dashboard öffnen, Konto wählen; im Fenster „Orders behalten“ wählen, Seite neu laden.
           - In der Einstellungsdatei LEGACY_SETUP_ORDERS auf delete setzen (oder auf einem zweiten Konto im Fenster „Orders löschen“ wählen) und das Bot-Log ansehen.
         erwartet: Das Fenster nennt Konto, Anzahl und Symbol und erscheint nach „Orders behalten“ nicht wieder; die Orders bleiben unverändert in MT5. Nach „Orders löschen“ verschwinden nur die Orders mit Setup-Nummer, je Order steht „Eski fraktal kurgusu emri siliniyor“ im Log; die eigenen Fraktal-Orders der Zone und alle Positionen bleiben.
+
+      - id: ENG-30
+        titel: Fraktal – nächste Order erst ab Verlust der letzten Position
+        beschreibung: "Ist fractal_next_loss > 0, setzt die Fraktal-Engine je Richtung (BUY/SELL getrennt) neue Orders nur, wenn die zuletzt eröffnete Position dieser Richtung mindestens so weit im Minus ist - money: Profit ≤ −X; pips: BUY Einstieg − Bid ≥ X, SELL Ask − Einstieg ≥ X. Ohne Position der Richtung oder bei 0 gilt keine Grenze. Ist die Grenze nicht erreicht, werden liegende Orders dieser Richtung gelöscht (wie bei Max. Positionen), das Log meldet es einmal je Position."
+        code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/config.py]
+        tiers: [unit]
+        pruefung:
+          - Manuell über ZON-21.
+        erwartet: Abgedeckt durch Unit-Tests.
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm

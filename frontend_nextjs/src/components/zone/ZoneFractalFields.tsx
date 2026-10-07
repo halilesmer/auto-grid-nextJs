@@ -36,6 +36,7 @@ export function ZoneFractalFields({
   const slMode = zone.fractal_sl_mode ?? 'atr';
   // Chance/Risiko-TP braucht einen SL: ohne SL nur TP als Betrag
   const tpByMoney = !useSl || !!zone.fractal_tp_by_money;
+  const nextLossByPips = zone.fractal_next_loss_mode === 'pips';
   const countKey = orderCountKey({ split, orderType: zone.order_type });
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
@@ -132,6 +133,32 @@ export function ZoneFractalFields({
             value={zone.max_positions}
             onChange={(e) => update('max_positions', parseInt(e.target.value, 10) || 0)}
             className="input-s w-20"
+          />
+        </InputField>
+        <FieldSwitch
+          id={`fractal-next-loss-pips-${zone.id}`}
+          checked={nextLossByPips}
+          onChange={(checked) => update('fractal_next_loss_mode', checked ? 'pips' : 'money')}
+          label={<span className="text-sm">{t('zone.fractal.nextLossByPips')}</span>}
+          hint={t('zone.fractal.nextLossByPips.hint')}
+        />
+        <InputField
+          label={t(nextLossByPips ? 'zone.fractal.nextLossPips' : 'zone.fractal.nextLossMoney')}
+          hint={t(nextLossByPips ? 'zone.fractal.nextLossPips.hint' : 'zone.fractal.nextLossMoney.hint')}
+        >
+          <NumberInput
+            data-testid="fractal-next-loss"
+            min={0}
+            step={nextLossByPips ? symbolConfig.step : 0.01}
+            maxDecimals={nextLossByPips ? symbolConfig.precision : 2}
+            value={zone.fractal_next_loss ?? 0}
+            onChange={(e) =>
+              handleChange(
+                'fractal_next_loss', e.target.value, zone,
+                { ...symbolConfig, precision: nextLossByPips ? symbolConfig.precision : 2 }, update,
+              )
+            }
+            className={nextLossByPips ? 'input-s w-28' : 'input-s w-24'}
           />
         </InputField>
       </div>

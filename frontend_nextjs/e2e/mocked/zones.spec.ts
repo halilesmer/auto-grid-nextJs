@@ -438,7 +438,7 @@ test.describe('ZON Zonen', () => {
     expect(worker.zonesOf(DEMO_ID)[0].step_by_loss).toBeFalsy();
   });
 
-  test('Einstiegsmodus Fraktal: eigene Felder statt Grid', { tag: '@ZON-15' }, async ({ worker, dashboard }) => {
+  test('Einstiegsmodus Fraktal: eigene Felder statt Grid', { tag: ['@ZON-15', '@ZON-21'] }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
     const mode = zone.getByTestId('entry-mode');
@@ -487,6 +487,14 @@ test.describe('ZON Zonen', () => {
     await saveAndReload(dashboard);
     await expect(dashboard.zoneField(msg('zone.fractal.tpMoney'))).toHaveValue('25');
     expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_tp_by_money: true, fractal_tp_money: 25, fractal_rr: 3 });
+
+    // Nächste Order ab Verlust: Switch wechselt Betrag → Pip, Feldname wechselt mit
+    await expect(dashboard.zoneField(msg('zone.fractal.nextLossMoney'))).toHaveValue('0');
+    await zone.getByRole('switch', { name: msg('zone.fractal.nextLossByPips') }).click();
+    await dashboard.zoneField(msg('zone.fractal.nextLossPips')).fill('2');
+    await saveAndReload(dashboard);
+    await expect(dashboard.zoneField(msg('zone.fractal.nextLossPips'))).toHaveValue('2');
+    expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_next_loss: 2, fractal_next_loss_mode: 'pips' });
 
     // Zurück auf Grid: Grid-Felder wieder da
     await dashboard.zone().getByTestId('entry-mode').selectOption('grid');

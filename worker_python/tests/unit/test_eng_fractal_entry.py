@@ -604,3 +604,48 @@ def test_position_eines_entfernten_setups_zaehlt_fuer_die_zone(fake_mt5):
     pos.comment = f"AutoGrid_Z1_F5U{T0}"  # Setup 5 gibt es nicht mehr
     h.tick()
     assert fake_mt5.orders == []
+
+
+# --------------------------------------------------------------------------- ENG-30
+def _types(fake_mt5):
+    return sorted(o.type for o in fake_mt5.robot_orders(MAGIC_ZONE_1))
+
+
+@pytest.mark.feature("ENG-30")
+def test_verlustschwelle_null_setzt_orders_wie_bisher(fake_mt5):
+    h = setup(fake_mt5, fractal_next_loss=0)
+    fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 97.0, magic=MAGIC_ZONE_1, profit=5.0)
+    h.tick()
+    assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_BUY_STOP, fake_mt5.ORDER_TYPE_SELL_STOP]
+
+
+@pytest.mark.feature("ENG-30")
+def test_betrag_sperrt_nur_die_richtung_der_letzten_position(fake_mt5):
+    h = setup(fake_mt5, fractal_next_loss=1.0, fractal_next_loss_mode="money")
+    fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 97.0, magic=MAGIC_ZONE_1, profit=-5.0)
+    fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 97.0, magic=MAGIC_ZONE_1, profit=-0.5)
+    h.tick()
+    # Letzte BUY-Position nur −0,50 $ → keine BUY-Order; SELL ohne Position frei
+    assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_SELL_STOP]
+
+
+@pytest.mark.feature("ENG-30")
+def test_betrag_erreicht_setzt_order(fake_mt5):
+    h = setup(fake_mt5, fractal_next_loss=1.0, fractal_next_loss_mode="money")
+    pos = fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 97.0, magic=MAGIC_ZONE_1, profit=-0.5)
+    h.tick()
+    assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_SELL_STOP]
+    pos.profit = -1.1
+    h.tick()
+    assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_BUY_STOP, fake_mt5.ORDER_TYPE_SELL_STOP]
+
+
+@pytest.mark.feature("ENG-30")
+def test_pip_abstand_gegen_den_einstieg(fake_mt5):
+    h = setup(fake_mt5, fractal_next_loss=2.0, fractal_next_loss_mode="pips")
+    bid = fake_mt5.ticks["USOUSD"].bid
+    ask = fake_mt5.ticks["USOUSD"].ask
+    fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, bid + 1.0, magic=MAGIC_ZONE_1)  # 1,00 gegen → gesperrt
+    fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_SELL, ask - 2.0, magic=MAGIC_ZONE_1)  # 2,00 gegen → frei
+    h.tick()
+    assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_SELL_STOP]

@@ -48,12 +48,16 @@ class ZoneConfig:
     sell_fractal_order_count: int = 1
     fractal_tp_by_money: bool = False  # True: TP = sabit tutar (hesap para birimi) → fiyat mesafesi
     fractal_tp_money: float = 10.0
+    # Sonraki fraktal emri: yöndeki en son açılan pozisyon en az bu kadar zararda olunca (0 = sınır yok)
+    fractal_next_loss: float = 0.0
+    fractal_next_loss_mode: str = "money"  # money: pozisyon kârı ≤ −X · pips: fiyat girişe karşı ≥ X
 
 
 ENTRY_MODES = ("grid", "fractal")
 FRACTAL_TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
 FRACTAL_ORDER_MODES = ("breakout", "rebound")
 FRACTAL_SL_MODES = ("atr", "sar", "opposite_fractal", "buffer")
+FRACTAL_NEXT_LOSS_MODES = ("money", "pips")
 FRACTAL_MAX_ORDERS = 20
 
 
@@ -277,4 +281,6 @@ def extract_zone_config(
         sell_fractal_order_count=sell_fractal_order_count,
         fractal_tp_by_money=bool(zone_dict.get("fractal_tp_by_money", False)),
         fractal_tp_money=fractal_tp_money,
+        fractal_next_loss=max(0.0, float(zone_dict.get("fractal_next_loss", 0.0) or 0.0)),
+        fractal_next_loss_mode=_choice(zone_dict.get("fractal_next_loss_mode"), FRACTAL_NEXT_LOSS_MODES, "money"),
     )

@@ -120,7 +120,7 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 4
+      "tests": 1
     }
   },
   "ANA-02": {
@@ -535,6 +535,13 @@
       "tests": 6
     }
   },
+  "ENG-30": {
+    "unit": {
+      "datum": "2026-10-07",
+      "status": "passed",
+      "tests": 4
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-10-07",
@@ -896,14 +903,14 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 17
+      "tests": 1
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 19
+      "tests": 6
     }
   },
   "UI-09": {
@@ -1270,6 +1277,13 @@
       "datum": "2026-10-07",
       "status": "passed",
       "tests": 20
+    }
+  },
+  "ZON-21": {
+    "e2e": {
+      "datum": "2026-10-07",
+      "status": "passed",
+      "tests": 1
     }
   }
 }
