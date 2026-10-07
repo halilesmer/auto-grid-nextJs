@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-07 · **131/157** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-08 · **132/157** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/14 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 5/13 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 6/13 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -721,9 +721,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ immer sichtbar.
   - **Prüfung:** pytest für die Kostenfelder der Symbolliste ausführen. → Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen. → Playwright-Logiktest ohne Browserseite (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
   - **Erwartet:** Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.
-- [ ] **BKT-05** CSV-Import von Kursdaten (B9, geplant) — 🔌 api ⏳ · 🖥️ e2e ⏳
-  - Kerzen aus einer CSV-Datei in market.sqlite laden, wenn MT5 nicht genug Historie liefert: POST /market/{id}/imports, PUT …/chunk, POST …/commit, DELETE; Staging, Prüfung (Zeitfolge, OHLC, Zeitzone), source = csv:<import_id>. Überlappung mit vorhandenen Daten nur mit „ersetzen“. Dialog auf /backtest.
-  - **Prüfung:** pytest für den Import-Vorgang (prüfen, abbrechen, ersetzen) ausführen. → Auf /backtest eine CSV importieren und im Dialog als Datenquelle wählen.
+- [x] **BKT-05** CSV-Import von Kursdaten (B9) — 🔌 api ✅ 2026-10-08 · 🖥️ e2e ✅ 2026-10-08
+  - Kerzen aus einer CSV-Datei als eigene Datenquelle laden, wenn MT5 nicht genug Historie liefert: GET/POST /market/{id}/imports, PUT …/chunk (Teile in Reihenfolge, je höchstens 4 MB, Datei höchstens 150 MB), POST …/commit, DELETE. Der Worker prüft am Commit alles (Format, Zeitraster des Zeitrahmens, strikt steigende Zeit, OHLC, Zeitbereich) und schreibt erst dann nach market.sqlite (source = csv:<import_id>, MT5-Kerzen bleiben unberührt); eine fehlerhafte Datei wird sofort verworfen. Überlappung mit einem vorhandenen Import desselben Kontos, Symbols und Zeitrahmens nur mit „ersetzen“. Lesen über GET /market/{id}/rates?source=csv:<id> (nie MT5; Lücken als csv_gap). Unfertige Importe sind nicht wählbar und nach 24 Stunden geräumt. Dialog und Liste im Backtest-Tab von /chart (CsvImportPanel); auf /backtest zieht er mit B5 um.
+  - **Prüfung:** pytest tests/api/test_csv_import_api.py (Import in Teilen, Prüfungen, Überlappung, Abbruch, fremdes Konto) ausführen. → Im Backtest-Tab von /chart (Konto, Setup wählen) eine CSV importieren; der Import steht mit Symbol, Zeitrahmen, Zeitraum und Kerzenzahl in der Liste. → Eine Datei mit falschem Zeitraster oder unsortierter Zeit importieren; die Zeilenfehler erscheinen und nichts steht in der Liste.
   - **Erwartet:** Ein abgebrochener oder fehlerhafter Import ist nicht wählbar; eine Überlappung geht nur mit „ersetzen“.
 - [ ] **BKT-06** Seite /backtest mit Setup-Dialog (B5, geplant) — 🖥️ e2e ⏳
   - Eigene Seite /backtest (Menü „Backtest“), Zustand in der URL (?account=&zone=&setup=). Dialog „Backtest erstellen/bearbeiten“ mit Basis (Konto, Symbol, Zeitraum, Datenauflösung M1/M5/M15/H1, Abdeckung), Kosten, Zone (ZoneFieldsEditor, derselbe Editor wie auf der Zonenseite; Startwert aus Zone, Preset oder leer) und Modell. Ergebnis: StatsKpis + RunSummary, CurveChart (realisiert, Drawdown, Equity), TradesTable mit fertigen MFE/MAE, Laufprotokoll. Der Backtest speichert nie eine Zone (kein POST /settings, kein mergeAndSaveSettings in components/backtest/ und lib/backtest/). Der Backtest-Tab auf /chart entfällt.

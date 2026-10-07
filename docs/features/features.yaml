@@ -1513,13 +1513,14 @@ kategorien:
         erwartet: Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.
 
       - id: BKT-05
-        titel: CSV-Import von Kursdaten (B9, geplant)
-        beschreibung: "Kerzen aus einer CSV-Datei in market.sqlite laden, wenn MT5 nicht genug Historie liefert: POST /market/{id}/imports, PUT …/chunk, POST …/commit, DELETE; Staging, Prüfung (Zeitfolge, OHLC, Zeitzone), source = csv:<import_id>. Überlappung mit vorhandenen Daten nur mit „ersetzen“. Dialog auf /backtest."
-        code: [worker_python/src/api/market.py, worker_python/src/utils/market_db.py]
+        titel: CSV-Import von Kursdaten (B9)
+        beschreibung: "Kerzen aus einer CSV-Datei als eigene Datenquelle laden, wenn MT5 nicht genug Historie liefert: GET/POST /market/{id}/imports, PUT …/chunk (Teile in Reihenfolge, je höchstens 4 MB, Datei höchstens 150 MB), POST …/commit, DELETE. Der Worker prüft am Commit alles (Format, Zeitraster des Zeitrahmens, strikt steigende Zeit, OHLC, Zeitbereich) und schreibt erst dann nach market.sqlite (source = csv:<import_id>, MT5-Kerzen bleiben unberührt); eine fehlerhafte Datei wird sofort verworfen. Überlappung mit einem vorhandenen Import desselben Kontos, Symbols und Zeitrahmens nur mit „ersetzen“. Lesen über GET /market/{id}/rates?source=csv:<id> (nie MT5; Lücken als csv_gap). Unfertige Importe sind nicht wählbar und nach 24 Stunden geräumt. Dialog und Liste im Backtest-Tab von /chart (CsvImportPanel); auf /backtest zieht er mit B5 um."
+        code: [worker_python/src/utils/csv_import.py, worker_python/src/api/market.py, worker_python/src/utils/market_db.py, frontend_nextjs/src/components/backtest/CsvImportDialog.tsx, frontend_nextjs/src/components/backtest/CsvImportPanel.tsx]
         tiers: [api, e2e]
         pruefung:
-          - pytest für den Import-Vorgang (prüfen, abbrechen, ersetzen) ausführen.
-          - Auf /backtest eine CSV importieren und im Dialog als Datenquelle wählen.
+          - pytest tests/api/test_csv_import_api.py (Import in Teilen, Prüfungen, Überlappung, Abbruch, fremdes Konto) ausführen.
+          - Im Backtest-Tab von /chart (Konto, Setup wählen) eine CSV importieren; der Import steht mit Symbol, Zeitrahmen, Zeitraum und Kerzenzahl in der Liste.
+          - Eine Datei mit falschem Zeitraster oder unsortierter Zeit importieren; die Zeilenfehler erscheinen und nichts steht in der Liste.
         erwartet: Ein abgebrochener oder fehlerhafter Import ist nicht wählbar; eine Überlappung geht nur mit „ersetzen“.
 
       - id: BKT-06

@@ -434,6 +434,17 @@ export default defineArea(
     'analysis.stats.by.symbol.hint': 'İşlem gören sembole göre, yalnızca kayıtlı setup’ların işlemleri; bilinmeyen, manuel ve diğer işlemler ayrı.',
     'analysis.stats.by.weekday.hint': 'Kapanış gününe göre (MT5 saati).',
     'analysis.stats.by.hour.hint': 'Kapanış saatine göre (MT5 saati).',
+    // --- CSV-İçe aktarma ---
+    'csv.import.hint': 'Bir CSV dosyasından mumları bu hesabın veri kaynağı olarak yükler. MT5 verisi değişmez.',
+    'csv.file.hint': 'Mum verisi içeren CSV dosyası (en çok 150 MB). Zaman, open, high, low, close sütunları gerekir.',
+    'csv.symbol.hint': 'Dosyadaki mumların sembolü (ör. XAUUSD). Backtest bu sembol için bu kaynağı kullanır.',
+    'csv.timeframe.hint': 'Dosyadaki mumların zaman dilimi. Zamanlar bu dilimin ızgarasına oturmalı, aksi halde dosya reddedilir.',
+    'csv.offset.hint': 'CSV saatine eklenen saat; sonuç MT5 sunucu saati olmalı. Dosya UTC ise broker farkını girin (ör. UTC+3 için 3). −14 ile 14 arası.',
+    'csv.cancel.hint': 'Pencereyi kapatır; yükleme sürüyorsa durdurur ve yarım içe aktarmayı siler.',
+    'csv.submit.hint': 'Dosyayı yükler, kontrol eder ve kaydeder. Hata varsa hiçbir şey kaydedilmez. Dosya seçilmeden kullanılamaz.',
+    'csv.replace.hint': 'Çakışan eski içe aktarmayı siler ve bunu kaydeder. Geri alınamaz.',
+    'csv.item.unfinished.hint': 'Yükleme veya kontrol tamamlanmadı. Bu içe aktarma veri kaynağı olarak seçilemez; silinebilir.',
+    'csv.delete.hint': 'Bu içe aktarmayı ve mumlarını siler. MT5 verisi etkilenmez.',
   },
   {
     // --- Account ---
@@ -864,6 +875,17 @@ export default defineArea(
     'analysis.stats.by.symbol.hint': 'By traded symbol, only trades of registered setups; unknown, manual and other trades separately.',
     'analysis.stats.by.weekday.hint': 'By day of the close (MT5 time).',
     'analysis.stats.by.hour.hint': 'By hour of the close (MT5 time).',
+    // --- CSV-Import ---
+    'csv.import.hint': 'Loads candles from a CSV file as a data source for this account. MT5 data does not change.',
+    'csv.file.hint': 'CSV file with candles (max. 150 MB). It needs time, open, high, low and close columns.',
+    'csv.symbol.hint': 'Symbol of the candles in the file (e.g. XAUUSD). The backtest uses this source for this symbol.',
+    'csv.timeframe.hint': 'Timeframe of the candles in the file. Times must sit on its grid, or the file is rejected.',
+    'csv.offset.hint': 'Hours added to the CSV time; the result must be MT5 server time. For a UTC file enter the broker offset (e.g. 3 for UTC+3). −14 to 14.',
+    'csv.cancel.hint': 'Closes the dialog; if an upload is running it stops and deletes the unfinished import.',
+    'csv.submit.hint': 'Uploads, checks and saves the file. With any error nothing is saved. Disabled until a file is chosen.',
+    'csv.replace.hint': 'Deletes the overlapping old import and saves this one. Cannot be undone.',
+    'csv.item.unfinished.hint': 'Upload or check did not finish. This import cannot be chosen as a data source; it can be deleted.',
+    'csv.delete.hint': 'Deletes this import and its candles. MT5 data is not affected.',
   },
   {
     // --- Konto ---
@@ -1294,5 +1316,16 @@ export default defineArea(
     'analysis.stats.by.symbol.hint': 'Je gehandeltem Symbol, nur Trades registrierter Setups; unbekannte, manuelle und andere Trades getrennt.',
     'analysis.stats.by.weekday.hint': 'Nach Tag der Schließung (MT5-Zeit).',
     'analysis.stats.by.hour.hint': 'Nach Stunde der Schließung (MT5-Zeit).',
+    // --- CSV-Import ---
+    'csv.import.hint': 'Lädt Kerzen aus einer CSV-Datei als Datenquelle für dieses Konto. MT5-Daten ändern sich nicht.',
+    'csv.file.hint': 'CSV-Datei mit Kerzen (höchstens 150 MB). Gebraucht werden Spalten für Zeit, Open, High, Low und Close.',
+    'csv.symbol.hint': 'Symbol der Kerzen in der Datei (z. B. XAUUSD). Der Backtest nutzt diese Quelle für dieses Symbol.',
+    'csv.timeframe.hint': 'Zeitrahmen der Kerzen in der Datei. Die Zeiten müssen auf dessen Raster liegen, sonst wird die Datei abgelehnt.',
+    'csv.offset.hint': 'Stunden, die zur CSV-Zeit addiert werden; das Ergebnis muss MT5-Serverzeit sein. Bei einer UTC-Datei den Broker-Abstand eintragen (z. B. 3 bei UTC+3). −14 bis 14.',
+    'csv.cancel.hint': 'Schließt den Dialog; läuft ein Upload, wird er gestoppt und der unfertige Import gelöscht.',
+    'csv.submit.hint': 'Lädt die Datei hoch, prüft und speichert sie. Bei einem Fehler wird nichts gespeichert. Ohne gewählte Datei gesperrt.',
+    'csv.replace.hint': 'Löscht den überlappenden alten Import und speichert diesen. Nicht rückgängig zu machen.',
+    'csv.item.unfinished.hint': 'Upload oder Prüfung wurde nicht abgeschlossen. Dieser Import ist als Datenquelle nicht wählbar und kann gelöscht werden.',
+    'csv.delete.hint': 'Löscht diesen Import samt Kerzen. MT5-Daten bleiben unberührt.',
   },
 );

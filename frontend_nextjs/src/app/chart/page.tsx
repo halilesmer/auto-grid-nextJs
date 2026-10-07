@@ -8,6 +8,7 @@ import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
 import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
 import { BrokerClockNotice, formatOffset } from '@/components/analysis/BrokerClockNotice';
+import { CsvImportPanel } from '@/components/backtest/CsvImportPanel';
 import { DateRangePicker } from '@/components/analysis/DateRangePicker';
 import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { ZoneSelect } from '@/components/analysis/ZoneSelect';
@@ -170,7 +171,16 @@ function AnalysisView() {
         />
       );
     }
-    return <Placeholder icon={<FlaskConical size={16} />} title={t('analysis.backtest.title')} text={t('analysis.backtest.text')} />;
+    return (
+      <div className="space-y-5">
+        <Placeholder icon={<FlaskConical size={16} />} title={t('analysis.backtest.title')} text={t('analysis.backtest.text')} />
+        <CsvImportPanel
+          key={accountId}
+          accountId={accountId}
+          defaultSymbol={zones?.find((z) => z.id === zoneId)?.symbol ?? ''}
+        />
+      </div>
+    );
   };
 
   return (

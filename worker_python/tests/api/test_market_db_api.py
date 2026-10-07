@@ -335,17 +335,18 @@ def test_backups_werden_auf_sieben_begrenzt(client, broker, worker_dir):
 def test_fehlgeschlagene_migration_laesst_alte_version_und_antwortet_503(client, broker, monkeypatch):
     get_rates(client, MON, MON + 60)
     market_db.reset_cache()
+    old_version = market_db.SCHEMA_VERSION
     monkeypatch.setattr(market_db, "MIGRATIONS", market_db.MIGRATIONS + [["CREATE TABLE rates (x)"]])
-    monkeypatch.setattr(market_db, "SCHEMA_VERSION", 2)
+    monkeypatch.setattr(market_db, "SCHEMA_VERSION", old_version + 1)
 
     res = client.get(URL, params={"symbol": SYMBOL, "timeframe": "M1", "from": MON, "to": MON + 60})
     assert res.status_code == 503 and "göçü" in res.json()["detail"]
     conn = sqlite3.connect(market_db.db_path())
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == old_version
     assert conn.execute("SELECT COUNT(*) FROM rates").fetchone()[0] == 1
     conn.close()
     # Vor der Migration wurde gesichert
-    assert any("pre-v2" in name for name in os.listdir(market_db.backups_dir()))
+    assert any(f"pre-v{old_version + 1}" in name for name in os.listdir(market_db.backups_dir()))
 
 
 @pytest.mark.feature("ANA-04")
