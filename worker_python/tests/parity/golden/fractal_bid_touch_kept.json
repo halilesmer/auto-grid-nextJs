@@ -1,0 +1,42 @@
+[
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 96.6,
+  "sl": 96.45,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1_FD1790550900"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ },
+ {
+  "i": 142,
+  "t": 2840,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 164,
+  "t": 3280,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 96.5,
+  "price": 96.6,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200001
+ }
+]

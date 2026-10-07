@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [110, 111, 114, 115]
+pr: [110, 111, 114, 115, 126]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -28,7 +28,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #114) |
 | B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
-| B3 | Engine port, fractal (ATR, SAR) | BKT-03 | open |
+| B3 | Engine port, fractal (ATR, SAR) | BKT-03 | done (PR #126) |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
 | B6 | Chart with equity area and replay | BKT-07 | open |
@@ -332,6 +332,63 @@ Decisions:
 - G1 uses price steps of 0.07 and 1 level for each side. With steps of 0.02 the defect prevents all fills (no `sltp`), and the golden file had 3,493 events.
 - G4b (two symbols, more zones) and G6 (top-up after a partial fill) are not in B2.1. See "Not simulated".
 
+## Result B3 (PR #126)
+
+Before B3, 4 fractal scenarios had golden files: breakout with buffer SL, rebound with opposite-fractal SL, ATR SL with 2 orders, and SAR SL with a TP as money. B3 adds 10 scenarios for the paths that these 4 do not reach (now 38 scenarios; 14 of them for BKT-03). The 28 old scenario and golden files did not change (byte-equal).
+
+| Scenario | Path |
+|---|---|
+| `fractal_next_loss_pips` | ENG-30, mode "pips": after the fill at 97.45 the bot cancels the BUY STOP 97.8. It sets the order again when the price is 0.3 against the position. At bid 97.15 the difference is 0.2999… as float, so the gate opens only at 97.14. |
+| `fractal_next_loss_money` | ENG-30, mode "money": FakeMT5 gives a profit of 0, so the limit 1.0 is never reached. The BUY STOP 97.8 comes back only after the SL exit. |
+| `fractal_max_positions` | `max_positions` 1: after the fill the bot cancels all fractal orders. After the SL exit it sets them again, without the done fractal. |
+| `fractal_bid_touch_kept` | Rebound BUY LIMIT 96.5: the bid touches the level, the ask does not. The order stays and fills later (fix of PR #97, `2026-10-02-fractal-bid-touch.md`). |
+| `fractal_stops_level` | `trade_stops_level` 100 points, no SL: the BUY STOP waits until the price is far enough. The SELL (lot 0.02, TP 1.5 as money = 0.075) never comes, because the TP is too near the entry. |
+| `fractal_live_m1` | M1 without history: no order until 6 candles exist; then fractals from the ticks. |
+| `fractal_atr_fallback` | ATR period 40 with 30 candles: no ATR, the SL comes from the candle ± buffer. `fractal_rr` 0: no TP. |
+| `fractal_sl_invalid` | Rebound, 2 orders, ATR period 25, buffer 0: the older fractal 96.4 has no ATR and no valid SL (no order, the slot stays empty). The newer fractal 96.6 gets the ATR SL. |
+| `fractal_sell_count_range` | BOTH without sync: 2 BUY orders, 1 SELL order with lot 0.02. The upper fractal 97.8 is above `max_price` 97.7 and gets no order. |
+| `fractal_done_after_fill` | The ask fills the BUY STOP 97.45, the bid stays at 97.44. The candles (bid) do not reach the fractal, but the fill marks it as done. After the SL exit there is no new order. `fractal_rr` 1.5. |
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/lib/backtest/engine/fractalEntry.ts` | New. Port of `fractal_entry.py` (`manage_fractal_orders`): desired orders, match / modify / cancel / place, done list, position limit, ENG-30 gate, SAR trailing. |
+| `frontend_nextjs/src/lib/backtest/engine/fractalSignals.ts` | New. `atr`, `parabolicSar` of `fractal_signals.py`. |
+| `frontend_nextjs/src/lib/analysis/fractals.ts` | The 5-candle rule is now `fractalsOf()` (with index, high and low). The chart (`findFractals`) and the engine use it. The chart result did not change. |
+| `frontend_nextjs/src/lib/backtest/engine/` | `config.ts`: the fractal fields. `state.ts`: `fractalTracked`, `fractalDone`, `fractalLogged`. `orders.ts`: `fractalComment`, `parseFractalComment`, `modifyPendingOrder`. `helpers.ts`: `zoneLogId`. `handler.ts`: a fractal zone goes to `manageFractalOrders` (no error `engine.fractalNotPorted` now). `types.ts` / `simBroker.ts`: `Position.profit` (0 in parity mode, as FakeMT5). |
+| `worker_python/tests/parity/make_scenarios.py` | `FRACTAL_SHAPE_TWO` (two fractals on each side that the price did not reach) and 10 new scenarios. |
+| `frontend_nextjs/e2e/mocked/backtest-fractal-parity-lib.spec.ts` | New. `@BKT-03`: 14 scenarios equal to the golden files, one guard test for each new scenario, a second run gives the same sequence. |
+
+Result: the TS port agrees with all 14 scenarios on the first run.
+
+Decisions:
+
+- Mutation check, because all scenarios were green at once. Procedure as in B2.1: one change in the TS port, then the BKT-03 spec, then restore the file.
+
+  | Change in the TS port | Red scenario |
+  |---|---|
+  | Gate "pips" never opens | `fractal_next_loss_pips` |
+  | Gate "money" always open | `fractal_next_loss_money` |
+  | Position limit ignored | `fractal_max_positions` |
+  | A consumed fractal does not keep its order | `fractal_bid_touch_kept`, `fractal_rebound_opposite`, `fractal_sl_invalid` |
+  | `priceOk` ignores the stops level | `fractal_stops_level` |
+  | `stopsOk` always true | `fractal_stops_level` |
+  | Fallback SL with buffer 0.1 | `fractal_atr_fallback`, `fractal_sl_invalid` |
+  | `fractal_rr` fixed at 2 | `fractal_done_after_fill` |
+  | SELL count = BUY count | `fractal_sell_count_range` |
+  | Range check removed | `fractal_sell_count_range` |
+  | `fractal_use_sl` ignored | `fractal_stops_level` |
+  | SAR trailing off | `fractal_sar_money_tp` |
+  | Done list off | `fractal_done_after_fill` |
+  | Minimum of 6 candles ignored | none: equivalent. With fewer than 6 candles (5 closed) no fractal can exist. |
+
+- Two first scenario versions were quiet at the end. The Python test "later prices do not change earlier decisions" (BKT-09) then failed in its check "the change has an effect". The scenarios got SL exits or a TP at the end; the test did not change.
+- The done list is visible only when a fill does not consume the fractal. A fill normally consumes it, because the candle reaches the level. Only a BUY STOP that the ask fills while the bid stays below the level shows the done list (`fractal_done_after_fill`).
+- The 5-candle rule is in one place (`fractalsOf` in `lib/analysis/fractals.ts`), as `levels.ts` for the grid. ATR and SAR are only in the engine.
+- `sum()` in `atr`: the port adds from left to right, as Python 3.11 (worker venv). From Python 3.12, `sum()` of floats is compensated, and the golden files can change.
+- `Position.profit` is 0 in parity mode, as FakeMT5. Thus the ENG-30 mode "money" opens the gate only when no position of the direction is open. B4 calculates the profit for real runs.
+- Not ported: the file `fractal_state_<account>.json` (a run starts without it, as `reset_bot_state` in the runner) and the orders of removed extra setups (`legacy_setup_orders.py`; the backtest makes none). A manual delete or the expiry of a fractal order does not occur in a backtest.
+- The engine writes log codes `fractal.*` with values (`fractal.placed`, `fractal.nextLossWait` …), as in B2. The run log (B4) translates them.
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
@@ -343,7 +400,7 @@ Decisions:
 - [ ] B4 (from B2.1): `simBroker.symbolInfoOf` uses the FakeMT5 default for a missing symbol field. In a real run, a missing field must block the run or show a warning.
 - [ ] B4 (from B2.1): the run log tells that rejects for the stops level and the freeze level are not simulated.
 - [ ] B4 (from B2.1): set `is_active: true` on the copy of the zone. The UI default is `false`, and an inactive zone gives an empty run.
-- [ ] B3: engine port, fractal; the 5 fractal scenarios are equal to the golden files.
+- [x] B3: engine port, fractal; all 14 fractal scenarios are equal to the golden files (PR #126, see "Result B3"). The plan said 5 scenarios, but before B3 there were 4.
 - [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
 - [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
 - [ ] B6: chart; max. 50,000 drawn candles for 1 year of M1; the replay never shows future data.

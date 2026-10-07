@@ -21,7 +21,7 @@ import {
   scenarioNames,
 } from '../fixtures/parity';
 
-/** Fraktal-Szenarien folgen mit B3 (BKT-03) */
+/** Fraktal-Szenarien: backtest-fractal-parity-lib.spec.ts (BKT-03) */
 const GRID_SCENARIOS = scenarioNames().filter((name) => !isFractalScenario(loadScenario(name)));
 
 /** Tick, in dem die Zone verlassen wird: die aktive Zone wird leer */

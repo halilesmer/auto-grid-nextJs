@@ -4,7 +4,8 @@
 
 Kurswege sind fest (Wegpunkte + Zufall mit festem Startwert), damit die Dateien bei jedem Lauf
 gleich bleiben. Nach einer Änderung hier: Szenarien neu erzeugen und die Musterlösungen mit
-`pytest tests/unit/test_parity_golden.py --update-golden` neu schreiben.
+`pytest tests/unit/test_parity_golden.py --update-golden` neu schreiben, mit Python 3.11 wie der Worker und CI:
+ab 3.12 summiert sum() kompensiert, der ATR (fractal_signals.atr) weicht dann um 1 ulp ab.
 """
 from __future__ import annotations
 
@@ -53,6 +54,10 @@ def history_bars(tf_sec: int, count: int, start=START, base=97.0, seed=7, shape=
 
 
 FRACTAL_SHAPE = [(97.3, 96.9), (97.4, 96.95), (97.6, 96.8), (97.5, 96.7), (97.3, 96.5), (97.2, 96.6), (97.1, 96.7)]
+# Je Seite zwei noch nicht erreichte Fraktale (B3): oben 97,8 und 97,45, unten 96,4 und 96,6. Ein jüngeres
+# Fraktal unter einem älteren oberen (über einem älteren unteren) würde das ältere schon verbrauchen.
+FRACTAL_SHAPE_TWO = [(97.5, 96.9), (97.6, 96.8), (97.8, 96.75), (97.4, 96.4), (97.3, 96.7), (97.45, 96.8),
+                     (97.3, 96.6), (97.2, 96.7), (97.15, 96.75)]
 
 
 def fractal_zone(**overrides):
@@ -165,6 +170,49 @@ def scenarios() -> dict[str, dict]:
     add("fractal_sar_money_tp", "Fraktal mit SAR-SL und TP als Geldbetrag",
         [fractal_zone(id="z1", fractal_sl_mode="sar", fractal_tp_by_money=True, fractal_tp_money=5.0)],
         walk([97.0, 97.65, 97.9, 97.2], step=0.01, seed=18, every=20), hist)
+    hist2 = {"M15": history_bars(900, 30, shape=FRACTAL_SHAPE_TWO)}
+    add("fractal_next_loss_pips", "ENG-30 Abstand: nach der Füllung bei 97,45 wird die BUY STOP 97,8 gelöscht "
+        "und erst neu gesetzt, wenn der Kurs 0,3 gegen die Position läuft; am Ende SL-Ausstiege",
+        [fractal_zone(id="z1", order_type="BUY", fractal_order_count=2, fractal_next_loss=0.3,
+                      fractal_next_loss_mode="pips")],
+        walk([97.0, 97.5, 97.1, 97.9, 96.6], step=0.01, seed=31, every=20), hist2)
+    add("fractal_next_loss_money", "ENG-30 Betrag: FakeMT5 rechnet keinen Gewinn (0), die Grenze 1,0 wird nie "
+        "erreicht: die BUY STOP 97,8 kommt erst nach dem SL-Ausstieg der Position wieder",
+        [fractal_zone(id="z1", order_type="BUY", fractal_order_count=2, fractal_next_loss=1.0)],
+        walk([97.0, 97.5, 96.7, 97.9], step=0.01, seed=32, every=20), hist2)
+    add("fractal_max_positions", "max_positions 1: nach der Füllung alle Fraktal-Orders löschen, nach dem SL-Ausstieg "
+        "wieder setzen (ohne das erledigte Fraktal)",
+        [fractal_zone(id="z1", fractal_order_count=2, max_positions=1)],
+        walk([97.0, 97.5, 96.7, 96.5, 96.9], step=0.01, seed=33, every=20), hist2)
+    add("fractal_bid_touch_kept", "Rebound BUY LIMIT 96,5: der Bid berührt die Stufe, der Ask nicht; die Order "
+        "bleibt stehen und füllt später (Fix PR #97)",
+        [fractal_zone(id="z1", order_type="BUY", fractal_order_mode="rebound")],
+        walk([97.0, 96.6, 96.5, 96.505, 96.6, 96.49, 96.7], step=0.005, seed=34, every=20), hist)
+    add("fractal_stops_level", "Stops Level 100 Points, ohne SL: BUY STOP wartet, bis der Kurs weit genug weg ist; "
+        "SELL (Lot 0,02, TP 1,5 als Betrag = 0,075) nie, weil der TP zu nah am Einstieg liegt",
+        [fractal_zone(id="z1", sync_buy_sell=False, sell_lot_size=0.02, fractal_use_sl=False,
+                      fractal_tp_by_money=True, fractal_tp_money=1.5)],
+        walk([97.4, 97.42, 97.2, 97.6, 97.3], step=0.01, seed=35, every=20), hist2,
+        symbol={"trade_stops_level": 100})
+    add("fractal_live_m1", "M1 ohne Historie: keine Order, bis 6 Kerzen da sind; danach Fraktale aus den Ticks",
+        [fractal_zone(id="z1", fractal_timeframe="M1")], walk(OSC, step=0.01, seed=36))
+    add("fractal_atr_fallback", "ATR-Periode 40 bei 30 Kerzen: kein ATR, SL aus Kerze ± Puffer; rr 0 = kein TP",
+        [fractal_zone(id="z1", fractal_sl_mode="atr", fractal_atr_period=40, fractal_rr=0)],
+        walk([97.0, 97.65, 97.0, 96.45, 96.8], step=0.01, seed=37, every=20), hist)
+    add("fractal_sl_invalid", "Rebound BUY LIMIT, zwei Orders, ATR-Periode 25, Puffer 0: das ältere Fraktal 96,4 hat "
+        "keinen ATR und kein gültiges SL (keine Order), das jüngere 96,6 bekommt den ATR-SL",
+        [fractal_zone(id="z1", order_type="BUY", fractal_order_mode="rebound", fractal_sl_mode="atr",
+                      fractal_atr_period=25, fractal_sl_buffer=0, fractal_order_count=2)],
+        walk([97.0, 96.55, 97.0, 97.8], step=0.01, seed=38, every=20), hist2)
+    add("fractal_sell_count_range", "BOTH ohne Sync: BUY 2 Orders, SELL 1 Order mit Lot 0,02; das obere Fraktal "
+        "97,8 liegt über max_price 97,7 und bekommt keine Order",
+        [fractal_zone(id="z1", sync_buy_sell=False, sell_lot_size=0.02, fractal_order_count=2,
+                      sell_fractal_order_count=1, min_price=96.0, max_price=97.7)],
+        walk([97.0, 96.55, 97.5, 97.0], step=0.01, seed=39, every=20), hist2)
+    add("fractal_done_after_fill", "Der Ask füllt die BUY STOP 97,45, der Bid bleibt bei 97,44: das Fraktal ist laut "
+        "Kerzen nicht erreicht, gilt nach der Füllung aber als erledigt; nach dem SL-Ausstieg keine neue Order; rr 1,5",
+        [fractal_zone(id="z1", order_type="BUY", fractal_rr=1.5)],
+        walk([97.0, 97.44, 96.7, 97.2], step=0.01, seed=40, every=20), hist2)
     return s
 
 

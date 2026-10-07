@@ -1,5 +1,5 @@
 /**
- * Szenario-Treiber für die Paritätstests des Bot-Nachbaus (BKT-02, später BKT-03): spielt ein Szenario
+ * Szenario-Treiber für die Paritätstests des Bot-Nachbaus (BKT-02, BKT-03): spielt ein Szenario
  * aus worker_python/tests/parity/scenarios wie worker_python/tests/parity/runner.py (run) ab und liefert
  * die Ereignisfolge im Format der Golden-Dateien.
  *
@@ -45,7 +45,7 @@ export function loadGolden(name: string): SimEvent[] {
   return readJson<SimEvent[]>(path.join(PARITY_DIR, 'golden', `${name}.json`));
 }
 
-/** Szenario mit Fraktal-Zone (Nachbau kommt mit B3) */
+/** Szenario mit Fraktal-Zone (BKT-03, e2e/mocked/backtest-fractal-parity-lib.spec.ts) */
 export function isFractalScenario(scenario: Scenario): boolean {
   return scenario.zones.some((z) => z.entry_mode === 'fractal');
 }
