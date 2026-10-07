@@ -68,6 +68,27 @@ def test_zonen_filter_liefert_nur_eigene_zeilen(client, account_logs, bot_runnin
     assert client.get(LOGS_URL, params={"log_type": "robot", "zone_id": "yok"}).json()["robot_log"] == []
 
 
+@pytest.mark.feature("LOG-07")
+def test_symbol_filtresi_birden_fazla_setup_satirlarini_dosya_sirasiyla_verir(client, account_logs, bot_running):
+    # Sembol logları: zone_id tekrarlanır (?zone_id=z1&zone_id=z10); `lines` ortak listeye uygulanır
+    log = account_logs / f"err_{TEST_ACCOUNT_ID}.log"
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write("[2026-09-24 08:01:00] [INFO] [Z:z10] eins\n")
+        fh.write("[2026-09-24 08:01:01] [INFO] [Z:z2] fremd\n")
+        fh.write("[2026-09-24 08:01:02] [INFO] [Z:z1] zwei\n")
+        fh.write("[2026-09-24 08:01:03] [INFO] [Z:z10] drei\n")
+    params = [("log_type", "robot"), ("zone_id", "z1"), ("zone_id", "z10")]
+    assert client.get(LOGS_URL, params=params).json()["robot_log"] == [
+        "[2026-09-24 08:01:00] [INFO] [Z:z10] eins",
+        "[2026-09-24 08:01:02] [INFO] [Z:z1] zwei",
+        "[2026-09-24 08:01:03] [INFO] [Z:z10] drei",
+    ]
+    assert client.get(LOGS_URL, params=[*params, ("lines", "2")]).json()["robot_log"] == [
+        "[2026-09-24 08:01:02] [INFO] [Z:z1] zwei",
+        "[2026-09-24 08:01:03] [INFO] [Z:z10] drei",
+    ]
+
+
 # --------------------------------------------------------------------------- LOG-06
 @pytest.mark.feature("LOG-06")
 def test_mt5_tab_liest_neueste_kopie_utf16(client, account_logs, bot_running):

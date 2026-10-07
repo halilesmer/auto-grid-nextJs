@@ -11,10 +11,12 @@ import { useFormat, useT } from '@/i18n';
 import { useSettingsStore } from '@/store';
 import type { LiveData, SymbolDetail } from '@/store/types';
 import { getSymbolConfig } from '@/utils/zoneHelpers';
+import { SymbolLogs } from './SymbolLogs';
 
 interface SymbolCardProps {
   symbol: string;
-  setupCount: number;
+  /** Zonen-ids der Setups in Kartenreihenfolge: die Symbol-Logs fragen sie ab, „Setup n“ ist Platz + 1 */
+  setupIds: string[];
   /** Engine-Plätze der aktiven, gespeicherten Setups: Marktstatus kommt je Zone, gilt aber für das Symbol */
   marketIndexes: number[];
   liveData: LiveData;
@@ -89,10 +91,10 @@ function SymbolField({ symbol, symbolDetails, validateSymbol, onRenameSymbol }: 
   );
 }
 
-/** Symbol mit seinen Setups (ZON-20): Kopf mit Symbol, Zahl der Setups, Preis und Markt; darunter die Setups. */
+/** Symbol mit seinen Setups (ZON-20): Kopf mit Symbol, Zahl der Setups, Preis und Markt; darunter die Setups und die Symbol-Logs (LOG-07). */
 export function SymbolCard({
   symbol,
-  setupCount,
+  setupIds,
   marketIndexes,
   liveData,
   isGlobalRunning,
@@ -130,7 +132,7 @@ export function SymbolCard({
           </div>
           <div className="flex min-h-9 flex-wrap items-center gap-2">
             <Badge tone="neutral" hint={t('zone.symbol.setupCount.hint')} data-testid="setup-count">
-              {t('zone.symbol.setupCount', { count: setupCount })}
+              {t('zone.symbol.setupCount', { count: setupIds.length })}
             </Badge>
             <Tooltip content={t('zone.header.price.hint')}>
               <p className="font-mono text-xs text-muted-foreground" tabIndex={0}>
@@ -159,7 +161,10 @@ export function SymbolCard({
           {t('zone.symbol.addSetup')}
         </Button>
       </div>
-      <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">{children}</div>
+      <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
+        {children}
+        <SymbolLogs setupIds={setupIds} />
+      </div>
     </section>
   );
 }

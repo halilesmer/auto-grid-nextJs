@@ -28,7 +28,10 @@ async def get_logs(
     account_id: str,
     log_type: str = Query("all", description="'robot' | 'mt5' | 'metrics' | 'all'"),
     lines: int = Query(200, ge=1, le=2000, description="Son kaç satır/kayıt döneceği"),
-    zone_id: str | None = Query(None, description="Robot logunu bu bölgenin [Z:<id>] satırlarına süz"),
+    zone_id: list[str] | None = Query(
+        None,
+        description="Robot logunu bu bölgelerin [Z:<id>] satırlarına süz; sembol logları için tekrarlanır (?zone_id=a&zone_id=b)",
+    ),
 ):
     result: dict = {"account_id": account_id, "log_type": log_type}
 
@@ -58,8 +61,8 @@ async def get_logs(
         for c in candidates:
             if zone_id:
                 # Bölge satırları seyrek olabilir: tüm dosyadan süz, sonra son N satırı al
-                tag = f"[Z:{zone_id}] "
-                robot_lines = [ln for ln in _tail(c, 10**9) if tag in ln][-lines:]
+                tags = [f"[Z:{z}] " for z in zone_id]
+                robot_lines = [ln for ln in _tail(c, 10**9) if any(tag in ln for tag in tags)][-lines:]
             else:
                 robot_lines = _tail(c, lines)
             if robot_lines:

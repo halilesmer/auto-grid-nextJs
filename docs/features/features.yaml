@@ -1024,13 +1024,13 @@ kategorien:
         erwartet: Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
 
       - id: LOG-07
-        titel: Zonen-Logs
-        beschreibung: Jede Robot-Log-Zeile, die zu einer Zone gehört, trägt das Tag [Z:<zone_id>]; GET /logs/{id}?zone_id=… filtert darauf, und jede Zonenkarte zeigt ihre eigenen Logs aufklappbar an.
-        code: [worker_python/src/core/grid_helpers.py, worker_python/src/api/logs.py, frontend_nextjs/src/components/zone/ZoneLogs.tsx]
+        titel: Symbol-Logs
+        beschreibung: Jede Robot-Log-Zeile, die zu einer Zone (Setup) gehört, trägt das Tag [Z:<zone_id>]. GET /logs/{id}?zone_id=… filtert darauf; zone_id ist wiederholbar (?zone_id=a&zone_id=b) und liefert die Zeilen aller genannten Setups in Dateireihenfolge, `lines` gilt für die gemeinsame Liste. Eine einzelne zone_id (ältere Oberfläche) wirkt wie bisher. Jede Symbolkarte zeigt unter ihren Setups „Sembol logları“ aufklappbar mit den Zeilen aller Setups des Symbols; bei mehr als einem Setup beginnt jede Zeile mit „Setup n“ (Platz in der Symbolkarte). Im Robot-Log-Tab steht vor jeder Zeile mit Tag das Badge „<Symbol> · Setup n“.
+        code: [worker_python/src/core/grid_helpers.py, worker_python/src/api/logs.py, frontend_nextjs/src/components/zone/SymbolLogs.tsx, frontend_nextjs/src/components/LogViewer.tsx]
         tiers: [unit, api, e2e, manuell]
         pruefung:
-          - Bot mit zwei Zonen laufen lassen, in einer Zonenkarte „Logs“ aufklappen.
-        erwartet: Nur Zeilen dieser Zone erscheinen (ohne Tag); im Robot-Log-Tab steht das Zonen-Badge vor der Zeile.
+          - Bot mit einem Symbol mit zwei Setups und einem zweiten Symbol laufen lassen, in der Symbolkarte „Sembol logları“ aufklappen.
+        erwartet: Zeilen beider Setups des Symbols erscheinen (ohne Tag, mit „Setup 1“/„Setup 2“), keine Zeilen des anderen Symbols; im Robot-Log-Tab steht „<Symbol> · Setup n“ vor der Zeile.
 
   # ---------------------------------------------------------------------------
   - id: UPD
