@@ -115,7 +115,7 @@ All of these are gitignored and may contain credentials.
 
 ## Model usage
 
-Claude Code does not change to a cheaper model by itself. Use these levers:
+Claude Code does not change to a cheaper model by itself. Claude does it at phase boundaries (see below). Use these levers:
 
 | Work | Who does it | Model |
 |---|---|---|
@@ -126,9 +126,18 @@ Claude Code does not change to a cheaper model by itself. Use these levers:
 | Review before commit or PR | subagent `reviewer` (`.claude/agents/reviewer.md`) | Sonnet |
 | Small change, or work that needs this conversation | main session | — |
 
+Claude chooses model and `/effort` level itself. The goal is the best result with the fewest tokens: use the lowest model and level that is sufficient for the phase. Before a task with more than one phase, Claude shows this table, one row per phase. Defaults are below. `Reason` names the risk or the routine work of this task in one sentence. Claude changes model and level with the session tools (`set_session_model`, `set_session_effort`) at the start of a phase, after one line that says what it changes. It does not change them during a running phase. It raises a level (for example to `xhigh`) only with a reason. For a one-phase task, one line is enough.
+
+| Phase | Model | Level (`/effort`) | Reason |
+|---|---|---|---|
+| Plan (plan mode) | Opus | high | Design errors are expensive. Use for architecture, security, hard debugging. |
+| Implementation after approved plan | Sonnet | medium | Routine work that follows existing patterns: routes, UI, i18n, tooltips, tests. |
+| Review before PR (`reviewer`, `/security-review`) | Sonnet | medium | Checklist work. Use `/security-review` for auth, access, VPS changes. |
+
 - Delegate only if the subagent saves more than it costs. A subagent starts without context: the main session writes the brief and examines the result.
 - Give the subagent all decisions that it needs (privacy, language, rules). It cannot ask the user.
 - The `reviewer` cannot run `git diff`. Give it the diff or the changed files with line ranges, and the purpose.
 - Examine each subagent result before you use it. A subagent report is not evidence (`hooks/RULES.md` §8.4).
-- Do not change the model during a running task.
-- On Sonnet: for architecture decisions and difficult debugging, tell the user that Opus or a higher `/effort` can help. Do not guess.
+- Not verified yet: `set_session_model` and `set_session_effort`. At the first use, Claude tells the user in the same reply whether the change worked, then deletes this line.
+- Do not change the model during a running phase. Change it only at a phase boundary.
+- On Sonnet: for architecture decisions and difficult debugging, change to Opus or a higher `/effort` for the plan phase. Do not guess.

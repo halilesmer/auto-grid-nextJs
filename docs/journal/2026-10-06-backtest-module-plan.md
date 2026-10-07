@@ -51,6 +51,21 @@ Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 
 | 7 | A gap fills at the next open | In parity mode, the Python FakeMT5 fills at the order price. | Two models: "parity" (as the golden files) and "gap fill" (default for real runs). |
 | 8 | Result is the net profit only | Open losses at the end of the test are missing. | Always show realized profit, open P/L, end equity and open positions. Always show "margin and stop-out not checked". |
 
+## Items from the first concept
+
+The first concept (a draft from 2026-10-03, not committed) had these items. This plan, `docs/analyse-regeln.md` and the code do not have them yet. They are proposals, not decisions.
+
+| # | Item | Status in the code | Proposal |
+|---|---|---|---|
+| 1 | Estimated total costs (spread + commission + swap) as a KPI | `computeStats` does not add the costs. The plan shows the spread as information only. | One KPI "costs": commission + swap of all trades; "of which spread" as information. |
+| 2 | Recovery factor | Missing | Net ÷ max. drawdown; `null` when the drawdown is 0. |
+| 3 | Max. losses in a row | Missing | Count in the sorted trades of `computeStats`. |
+| 4 | Win rate for long and short | `Trade.side` exists; `breakdown` has no split by side | New `BreakdownKind` `side`, or two KPIs. |
+| 5 | Mean hold time | `Trade.entryTime` exists and can be `null` | Mean of `exitTime − entryTime`; trades without entry do not count, the count shows. |
+| 6 | Grid cycles per day | `cycles` is a sum only | `cycles` ÷ trading days of the period. |
+| 7 | Time in profit and time in loss | Missing; needs the equity curve | Backtest only: part of the time with equity above or below the start capital. |
+| 8 | CSV files from MT4 and MT5 | BKT-05 checks time order, OHLC and time zone, but names no format | B9 defines the accepted formats. |
+
 ## Rules
 
 1. Do not save a real zone from the backtest. `components/backtest/` and `lib/backtest/` do not import `mergeAndSaveSettings` and do not send `POST /settings`. A test checks this.
@@ -429,3 +444,5 @@ The import is a separate data source. The candles go to `rates` with `source = c
 - [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
 - [ ] B5 (review, not done): the answer of `rates?source=csv:` has no `account_id`, `server_now`, `offset_sec`; the reason `csv_gap` has no text in `analysis.data.reason.*`. Add both when a page reads it. An abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list).
 - [ ] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes must come from the candles in the browser.
+- [ ] B5/B7: decide which KPIs of "Items from the first concept" (1–7) `computeStats` gets.
+- [x] B9: define the accepted CSV formats (item 8 of "Items from the first concept"): header names or position, MT5 export with date and time apart, separators `,` `;` tab, UTF-8 or UTF-16, epoch seconds/milliseconds or text times (see "Result B9").
