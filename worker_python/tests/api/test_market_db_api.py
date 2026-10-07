@@ -480,10 +480,10 @@ def test_zonen_register_beim_speichern(client, broker):
     reg = market_db.zone_registry(TEST_ACCOUNT_ID)
     assert [(r["magic"], r["symbol"], r["deleted_at"]) for r in reg] == [(200001, SYMBOL, None), (200002, "EURUSD", None)]
 
-    saved = client.get(url).json()
-    zones = saved.get("ZONES") or saved.get("settings", {}).get("ZONES")
-    zones[1]["take_profit"] = 123
-    client.post(url, json={"settings": {"ZONES": [zones[1]]}})  # Zone 1 gelöscht, Zone 2 geändert
+    symbols = client.get(url).json()["settings"]["SYMBOLS"]
+    assert [s["symbol"] for s in symbols] == [SYMBOL, "EURUSD"]
+    symbols[1]["setups"][0]["take_profit"] = 123
+    client.post(url, json={"settings": {"SYMBOLS": [symbols[1]]}})  # Zone 1 gelöscht, Zone 2 geändert
     reg = {r["magic"]: r for r in market_db.zone_registry(TEST_ACCOUNT_ID)}
     assert reg[200001]["deleted_at"] is not None and reg[200002]["deleted_at"] is None
     versions = market_db.zone_versions(TEST_ACCOUNT_ID, 200002)

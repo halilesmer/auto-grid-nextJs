@@ -45,7 +45,7 @@ def test_neue_zonen_bekommen_fortlaufende_nummern(client, worker_dir):
     assert _magics(worker_dir) == {"a": 200001, "b": 200002}
     assert _saved(worker_dir)["ZONE_MAGIC_MAX"] == 200002
     # GET liefert die Nummer mit (nur lesend im Frontend)
-    assert [z["magic"] for z in client.get(URL).json()["settings"]["ZONES"]] == [200001, 200002]
+    assert [s["magic"] for s in client.get(URL).json()["settings"]["SYMBOLS"][0]["setups"]] == [200001, 200002]
 
 
 @pytest.mark.feature("ENG-27")

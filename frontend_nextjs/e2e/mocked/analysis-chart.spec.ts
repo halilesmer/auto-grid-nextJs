@@ -96,7 +96,7 @@ test.describe('ANA-05 Zonenband und Stufen', () => {
     await expect(key).not.toContainText(msg('analysis.chart.key.levels'));
     await page.keyboard.press('Escape');
 
-    worker.state.settings[DEMO_ID] = { ZONES: [makeZone({ entry_mode: 'fractal' })] };
+    worker.setZones(DEMO_ID, [makeZone({ entry_mode: 'fractal' })]);
     await page.reload();
     await (await openSettings(page)).getByRole('switch', { name: msg('analysis.settings.levels') }).click();
     await expect(page.getByTestId('levels-note')).toHaveText(msg('analysis.chart.levels.fractal'));
@@ -126,7 +126,7 @@ test.describe('ANA-05 Laufende Kerze', () => {
 
 test.describe('ANA-06 Positionen und Orders', () => {
   test('Nur Positionen und Orders dieser Zone, nur bei laufendem Bot', { tag: '@ANA-06' }, async ({ page, worker }) => {
-    worker.state.settings[DEMO_ID] = { ZONES: [makeZone({ magic: 200001 })] };
+    worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
     worker.setBotRunning(DEMO_ID);
     const row = { symbol: 'USOUSD', sl: 0, tp: 0, time: 1, volume: 0.01 };
     worker.setMetrics(DEMO_ID, {

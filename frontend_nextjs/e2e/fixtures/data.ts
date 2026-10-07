@@ -51,6 +51,18 @@ export function makeZone(overrides: Partial<ZoneSettings> = {}): ZoneSettings {
   };
 }
 
+/** Wie symbol_setups.group_zones (ZON-19): Setups unter ihrem Symbol, Symbole in der Reihenfolge des ersten Auftretens. */
+export function groupZones<Z extends { symbol?: unknown }>(zones: Z[]): { symbol: string; setups: Omit<Z, 'symbol'>[] }[] {
+  const groups = new Map<string, { symbol: string; setups: Omit<Z, 'symbol'>[] }>();
+  for (const { symbol, ...setup } of zones) {
+    const key = String(symbol ?? '');
+    const group = groups.get(key) ?? { symbol: key, setups: [] };
+    group.setups.push(setup);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
 function symbol(name: string, digits: number, description: string, volumeMin = 0.01, contract = 1000): SymbolDetail {
   const point = Number((10 ** -digits).toFixed(digits));
   return {
@@ -126,8 +138,8 @@ export function defaultState() {
       },
     ] as StoredAccount[],
     settings: {
-      [DEMO_ID]: { LOOP_INTERVAL_SECONDS: 2, ZONES: [makeZone()] },
-      [LIVE_ID]: { LOOP_INTERVAL_SECONDS: 1, ZONES: [] },
+      [DEMO_ID]: { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone()]) },
+      [LIVE_ID]: { LOOP_INTERVAL_SECONDS: 1, SYMBOLS: [] },
     } as Record<string, Record<string, unknown>>,
     uiState: {} as Record<string, Record<string, string>>,
     robotLog: {

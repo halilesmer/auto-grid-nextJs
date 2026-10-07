@@ -1,19 +1,15 @@
 import { axiosInstance } from '@/lib/api';
-import type { ZoneSettings } from '@/store/types';
-
-export interface RemoteSettings {
-  ZONES?: ZoneSettings[];
-  [key: string]: unknown;
-}
+import { settingsFromWorker, settingsToWorker } from '@/lib/symbolSetups';
+import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
 export const zoneApi = {
-  async getSettings(accountId: string) {
+  async getSettings(accountId: string): Promise<GlobalSettings> {
     const res = await axiosInstance.get(`/settings/${accountId}`);
-    return res.data?.settings || {};
+    return settingsFromWorker(res.data?.settings || {});
   },
 
-  async saveSettings(accountId: string, settings: RemoteSettings) {
-    const res = await axiosInstance.post(`/settings/${accountId}`, { settings });
+  async saveSettings(accountId: string, settings: Partial<GlobalSettings>) {
+    const res = await axiosInstance.post(`/settings/${accountId}`, { settings: settingsToWorker(settings) });
     return res.data;
   },
 
@@ -21,13 +17,13 @@ export const zoneApi = {
    * Tek bir bölgeyi kaydeder: kayıtlı bölge listesinde aynı id'li bölge değiştirilir,
    * yoksa (yeni bölge) sona eklenir. Diğer bölgelere ve ayarlara dokunulmaz.
    */
-  async saveZone(accountId: string, zone: ZoneSettings, remoteSettings: RemoteSettings) {
+  async saveZone(accountId: string, zone: ZoneSettings, remoteSettings: GlobalSettings) {
     const remoteZones: ZoneSettings[] = remoteSettings.ZONES || [];
     const existsRemotely = remoteZones.some((z) => z.id === zone.id);
     const ZONES = existsRemotely
       ? remoteZones.map((z) => (z.id === zone.id ? zone : z))
       : [...remoteZones, zone];
-    await axiosInstance.post(`/settings/${accountId}`, { settings: { ZONES } });
+    await zoneApi.saveSettings(accountId, { ZONES });
   },
 
   /** Semboller + (liste boşsa) worker'ın MT5 hata metni */
@@ -43,8 +39,8 @@ export const zoneApi = {
     accountId: string,
     zoneId: string,
     newActive: boolean,
-    remoteSettings: RemoteSettings
-  ): Promise<RemoteSettings> {
+    remoteSettings: GlobalSettings
+  ): Promise<GlobalSettings> {
     const remoteZones: ZoneSettings[] = remoteSettings.ZONES || [];
     const existsRemotely = remoteZones.some((z) => z.id === zoneId);
 
@@ -57,7 +53,7 @@ export const zoneApi = {
     );
 
     const updatedSettings = { ...remoteSettings, ZONES: updatedZones };
-    await axiosInstance.post(`/settings/${accountId}`, { settings: updatedSettings });
+    await zoneApi.saveSettings(accountId, updatedSettings);
 
     const zoneIdx = remoteZones.findIndex((z) => z.id === zoneId);
     if (zoneIdx >= 0) {
@@ -74,7 +70,7 @@ export const zoneApi = {
    * temizlenen (AUTO_CLEAR) bölgeyi yeniden başlatmak için. Motor kayıtlı sıraya göre çalışır.
    */
   async setZoneState(accountId: string, zoneId: string, state: 'START' | 'PAUSE'): Promise<number> {
-    const remoteSettings: RemoteSettings = await zoneApi.getSettings(accountId);
+    const remoteSettings = await zoneApi.getSettings(accountId);
     const zoneIdx = (remoteSettings.ZONES || []).findIndex((z) => z.id === zoneId);
     if (zoneIdx < 0) {
       throw new Error('ZONE_NOT_SAVED');

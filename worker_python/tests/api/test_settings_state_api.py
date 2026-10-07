@@ -26,7 +26,7 @@ def test_flache_datei_mit_motorname(client, worker_dir):
     _write_settings(worker_dir, {"LOOP_INTERVAL_SECONDS": 1.0, "ZONES": [make_zone()]})
     body = client.get(URL).json()
     assert body["file"] == f"settings_{TEST_ACCOUNT_ID}_Auto_Grid.json"
-    assert body["settings"]["ZONES"][0]["symbol"] == "USOUSD"
+    assert body["settings"]["SYMBOLS"][0]["symbol"] == "USOUSD"
     assert client.get(URL).headers["cache-control"].startswith("no-store")
 
 

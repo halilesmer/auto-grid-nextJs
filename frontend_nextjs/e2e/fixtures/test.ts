@@ -41,6 +41,7 @@ export const test = base.extend<{ worker: MockWorker; dashboard: Dashboard; appL
     // Jede Worker-Anfrage muss den API-Schlüssel senden, und der Mock muss sie kennen
     expect(worker.unauthorized, 'Worker-Aufrufe ohne X-API-Key').toEqual([]);
     expect(worker.unhandled, 'Worker-Endpunkte, die der Mock nicht kennt').toEqual([]);
+    expect(worker.zonesPayloads, 'Einstellungen mit ZONES gespeichert (ZON-19: nur SYMBOLS)').toEqual([]);
   },
   dashboard: async ({ page, worker, appLocale }, provide) => {
     void worker; // stellt sicher, dass der Mock vor dem ersten Seitenaufruf installiert ist

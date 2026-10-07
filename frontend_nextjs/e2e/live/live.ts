@@ -121,8 +121,15 @@ export class LiveWorker {
     return this.get<{ accounts: Json[] }>('/accounts').then((r) => r.accounts);
   }
 
+  /** Einstellungen mit flachen ZONES in Engine-Reihenfolge; der Worker liefert nur SYMBOLS mit index (ZON-19, wie settingsFromWorker). */
   async settings(accountId: string): Promise<{ LOOP_INTERVAL_SECONDS?: number; ZONES?: LiveZone[]; [k: string]: unknown }> {
-    return (await this.get<{ settings: Json }>(`/settings/${accountId}`)).settings;
+    type Symbols = { symbol: string; setups: (LiveZone & { index: number })[] }[];
+    const { SYMBOLS, ...settings } = (await this.get<{ settings: Json & { SYMBOLS?: Symbols } }>(`/settings/${accountId}`)).settings;
+    const zones: LiveZone[] = (SYMBOLS ?? [])
+      .flatMap(({ symbol, setups }) => setups.map(({ index, ...setup }) => ({ index, zone: { ...setup, symbol } })))
+      .sort((a, b) => a.index - b.index)
+      .map(({ zone }) => zone);
+    return { ...settings, ZONES: zones };
   }
 
   async botStatus(accountId: string): Promise<{ metrics: LiveMetrics; bot_running: boolean }> {

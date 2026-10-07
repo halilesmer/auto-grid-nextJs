@@ -8,7 +8,7 @@
  */
 import type { Page, Route, WebSocketRoute } from '@playwright/test';
 import type { LiveData, Metrics } from '../../src/store/types';
-import { defaultState, type MockState, type MockUser, type StoredAccount } from './data';
+import { defaultState, groupZones, type MockState, type MockUser, type StoredAccount } from './data';
 import { E2E_API_KEY, E2E_USER_KEY, MOCK_API } from './env';
 
 type Json = Record<string, unknown>;
@@ -94,6 +94,61 @@ function dropFractalSetupFields(merged: Json): Json {
   return { ...merged, ZONES: zones };
 }
 
+/** Wie symbol_setups.flatten_symbols (ZON-19): Symbol → Setups als flache Zonenliste, `index` aus dem GET fällt weg. */
+function flattenSymbols(symbols: unknown): Json[] {
+  if (!Array.isArray(symbols)) return [];
+  return (symbols as Json[]).flatMap((group) =>
+    ((group.setups as Json[] | undefined) ?? []).map((setup) => {
+      const zone: Json = { ...setup, symbol: group.symbol ?? '' };
+      delete zone.index;
+      return zone;
+    }),
+  );
+}
+
+/** Wie symbol_setups.settings_zones: ZONES (alte Datei) gilt vor SYMBOLS. */
+function settingsZones(settings: Json): Json[] {
+  if ('ZONES' in settings) return (settings.ZONES as Json[] | undefined) ?? [];
+  return flattenSymbols(settings.SYMBOLS);
+}
+
+/** Wie symbol_setups.to_flat: Zonen als ZONES (Magic-Vergabe), ZONES gilt vor SYMBOLS. */
+function toFlat(settings: Json): Json {
+  const flat: Json = { ...settings };
+  delete flat.SYMBOLS;
+  if (!('ZONES' in settings) && 'SYMBOLS' in settings) flat.ZONES = flattenSymbols(settings.SYMBOLS);
+  return flat;
+}
+
+/** Wie symbol_setups.to_grouped: gespeichert wird SYMBOLS. */
+function toGrouped(settings: Json): Json {
+  if (!('ZONES' in settings)) return settings;
+  const grouped: Json = { ...settings };
+  delete grouped.ZONES;
+  grouped.SYMBOLS = groupZones(settings.ZONES as Json[]);
+  return grouped;
+}
+
+/** Wie symbol_setups.for_client: GET liefert nur SYMBOLS, jedes Setup mit seinem Engine-Platz (index). */
+function forClient(settings: Json): Json {
+  if (!('ZONES' in settings) && !('SYMBOLS' in settings)) return settings;
+  const client: Json = { ...settings };
+  delete client.ZONES;
+  client.SYMBOLS = groupZones(settingsZones(settings).map((zone, index): Json => ({ ...zone, index })));
+  return client;
+}
+
+/** Wie settings._check_symbols (models.SymbolSettings: symbol str, setups list[dict]): kaputtes SYMBOLS ohne ZONES gibt 422. */
+function symbolsInvalid(incoming: Json): boolean {
+  if (!('SYMBOLS' in incoming) || 'ZONES' in incoming) return false;
+  const symbols = incoming.SYMBOLS;
+  const isObject = (value: unknown) => typeof value === 'object' && value !== null && !Array.isArray(value);
+  return (
+    !Array.isArray(symbols) ||
+    symbols.some((g) => typeof g?.symbol !== 'string' || !Array.isArray(g?.setups) || !g.setups.every(isObject))
+  );
+}
+
 /** Wie src/api/settings.py: alte verschachtelte Dateien/Nutzlasten ({settings: {settings: …}}) auspacken. */
 function unwrapSettings(value: unknown): Json {
   let current = (value ?? {}) as Json;
@@ -111,6 +166,8 @@ export class MockWorker {
   readonly unauthorized: string[] = [];
   /** Aufrufe, die dieser Mock nicht kennt (neuer Endpunkt → Mock erweitern). */
   readonly unhandled: string[] = [];
+  /** Speichern mit der alten Form ZONES; die Oberfläche schickt seit ZON-19 Teil B nur SYMBOLS. */
+  readonly zonesPayloads: string[] = [];
   /** Worker nicht erreichbar: REST-Anfragen scheitern mit Netzwerkfehler. */
   offline = false;
   /** Erzwungene Antwort je "METHODE /api/pfad" (z. B. Fehler 500 für /system/scan-mt5). */
@@ -157,8 +214,17 @@ export class MockWorker {
     return this.state.settings[accountId] ?? {};
   }
 
+  /** Zonen so, wie die Engine sie liest (flach, mit Symbol). */
   zonesOf(accountId: string): Json[] {
-    return (this.settingsOf(accountId).ZONES as Json[] | undefined) ?? [];
+    return settingsZones(this.settingsOf(accountId));
+  }
+
+  /** Legt Zonen als gespeicherte Datei im heutigen Format an (SYMBOLS, wie nach einem Speichern). */
+  setZones<Z extends { symbol?: unknown }>(accountId: string, zones: Z[]) {
+    const settings: Json = { ...this.settingsOf(accountId) };
+    delete settings.ZONES;
+    settings.SYMBOLS = groupZones(zones);
+    this.state.settings[accountId] = settings;
   }
 
   /** Bot läuft und ist mit MT5 verbunden (Kennzahlen aus RUNNING_METRICS). */
@@ -449,16 +515,20 @@ export class MockWorker {
     if (seg[0] === 'settings' && seg.length === 2) {
       const id = seg[1];
       if (method === 'GET') {
-        return ok({ account_id: id, settings: s.settings[id] ?? {} });
+        return ok({ account_id: id, settings: forClient(s.settings[id] ?? {}) });
       }
       if (method === 'POST') {
-        const previous = s.settings[id] ?? {};
+        const previous = toFlat(s.settings[id] ?? {});
         const incoming = unwrapSettings(body);
+        if ('ZONES' in incoming) this.zonesPayloads.push(`${method} ${path}`);
+        if (symbolsInvalid(incoming)) return { status: 422, body: { detail: 'SYMBOLS' } };
         // Wie settings._check_legacy_mode (ENG-29)
         if ('LEGACY_SETUP_ORDERS' in incoming && !['delete', 'keep'].includes(String(incoming.LEGACY_SETUP_ORDERS))) {
           return { status: 422, body: { detail: 'LEGACY_SETUP_ORDERS: delete | keep' } };
         }
-        s.settings[id] = dropFractalSetupFields(assignZoneMagics(previous, { ...previous, ...incoming }));
+        // Wie settings.update_settings: flach zusammenführen, Magic vergeben, gruppiert speichern (ZON-19)
+        const merged = { ...previous, ...toFlat(incoming) };
+        s.settings[id] = toGrouped(dropFractalSetupFields(assignZoneMagics(previous, merged)));
         return ok({ status: 'saved', account_id: id });
       }
     }

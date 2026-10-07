@@ -25,10 +25,10 @@ test.describe('ZON Zonen', () => {
   });
 
   test('Zone löschen', { tag: '@ZON-02' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [
+    worker.setZones(DEMO_ID, [
       makeZone(),
       makeZone({ id: 'zone-e2e-2', symbol: 'XAUUSD', min_price: 1800, max_price: 2000 }),
-    ];
+    ]);
     await dashboard.open(DEMO_ID);
     await dashboard.zone(0).getByRole('button', { name: msg('zone.header.menu') }).click();
     await page.getByRole('button', { name: msg('zone.header.delete') }).click();
@@ -116,7 +116,7 @@ test.describe('ZON Zonen', () => {
   });
 
   test('Gespeicherter Lot 0 wird beim Laden und Speichern auf das Minimum gebracht', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [makeZone({ lot_size: 0, sell_lot_size: 0 })];
+    worker.setZones(DEMO_ID, [makeZone({ lot_size: 0, sell_lot_size: 0 })]);
     await dashboard.open(DEMO_ID);
     await expect(dashboard.zoneField(msg('zone.field.lot'))).toHaveValue('0.01');
 
@@ -136,7 +136,7 @@ test.describe('ZON Zonen', () => {
   });
 
   test('Neue Zone startet mit dem Minimum-Lot ihres Symbols', { tag: '@ZON-01' }, async ({ page, dashboard, worker }) => {
-    worker.state.settings[DEMO_ID].ZONES = [makeZone({ symbol: 'EURUSD', lot_size: 0.1, sell_lot_size: 0.1 })];
+    worker.setZones(DEMO_ID, [makeZone({ symbol: 'EURUSD', lot_size: 0.1, sell_lot_size: 0.1 })]);
     await dashboard.open(DEMO_ID);
     await page.getByRole('button', { name: msg('zone.panel.add') }).click();
     await expect(page.getByTestId('zone-count')).toHaveText('2');
@@ -334,10 +334,10 @@ test.describe('ZON Zonen', () => {
   });
 
   test('Symbol-Richtwerte in den Hinweisen', { tag: '@ZON-12' }, async ({ page, worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [
+    worker.setZones(DEMO_ID, [
       makeZone({ symbol: 'XAUUSD', min_price: 1800, max_price: 2000 }),
       makeZone({ id: 'zone-e2e-2', symbol: 'FOOBAR', min_price: 1, max_price: 2 }),
-    ];
+    ]);
     await dashboard.open(DEMO_ID);
     const tooltip = page.getByRole('tooltip');
     const hintOf = (zone: number, label: string) =>
@@ -398,9 +398,9 @@ test.describe('ZON Zonen', () => {
   });
 
   test('Abstand nach Verlust ($): EURUSD 0,00100 bei 0,1 Lot = 10 $', { tag: '@ZON-13' }, async ({ worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [
+    worker.setZones(DEMO_ID, [
       makeZone({ symbol: 'EURUSD', min_price: 1.05, max_price: 1.2, grid_step: 0.001, lot_size: 0.1, pullback_distance: 0.0005 }),
-    ];
+    ]);
     await dashboard.open(DEMO_ID);
     await dashboard.zoneSwitch(msg('zone.stepByLoss')).click();
     // Mehr Nachkommastellen (0.001) als ein $-Betrag (2) darf die Umrechnung nicht auf 0.00 kürzen
@@ -481,7 +481,7 @@ test.describe('ZON Zonen', () => {
   });
 
   test('Fraktal: Schalter Mit SL', { tag: '@ZON-17' }, async ({ worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })];
+    worker.setZones(DEMO_ID, [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })]);
     await dashboard.open(DEMO_ID);
     await expect(dashboard.zoneField(msg('zone.fractal.slMode'))).toBeVisible();
     await expect(dashboard.zoneField(msg('zone.fractal.rr'))).toBeVisible();
@@ -497,7 +497,7 @@ test.describe('ZON Zonen', () => {
   });
 
   test('Fraktal: Anzahl Orders je Richtung', { tag: '@ZON-16' }, async ({ worker, dashboard }) => {
-    worker.state.settings[DEMO_ID].ZONES = [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })];
+    worker.setZones(DEMO_ID, [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })]);
     await dashboard.open(DEMO_ID);
     const buy = dashboard.zoneField(msg('zone.fractal.buyOrderCount'));
     const sell = dashboard.zoneField(msg('zone.fractal.sellOrderCount'));
