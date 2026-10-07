@@ -51,6 +51,21 @@ Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 
 | 7 | A gap fills at the next open | In parity mode, the Python FakeMT5 fills at the order price. | Two models: "parity" (as the golden files) and "gap fill" (default for real runs). |
 | 8 | Result is the net profit only | Open losses at the end of the test are missing. | Always show realized profit, open P/L, end equity and open positions. Always show "margin and stop-out not checked". |
 
+## Items from the first concept
+
+The first concept (a draft from 2026-10-03, not committed) had these items. This plan, `docs/analyse-regeln.md` and the code do not have them yet. They are proposals, not decisions.
+
+| # | Item | Status in the code | Proposal |
+|---|---|---|---|
+| 1 | Estimated total costs (spread + commission + swap) as a KPI | `computeStats` does not add the costs. The plan shows the spread as information only. | One KPI "costs": commission + swap of all trades; "of which spread" as information. |
+| 2 | Recovery factor | Missing | Net ÷ max. drawdown; `null` when the drawdown is 0. |
+| 3 | Max. losses in a row | Missing | Count in the sorted trades of `computeStats`. |
+| 4 | Win rate for long and short | `Trade.side` exists; `breakdown` has no split by side | New `BreakdownKind` `side`, or two KPIs. |
+| 5 | Mean hold time | `Trade.entryTime` exists and can be `null` | Mean of `exitTime − entryTime`; trades without entry do not count, the count shows. |
+| 6 | Grid cycles per day | `cycles` is a sum only | `cycles` ÷ trading days of the period. |
+| 7 | Time in profit and time in loss | Missing; needs the equity curve | Backtest only: part of the time with equity above or below the start capital. |
+| 8 | CSV files from MT4 and MT5 | BKT-05 checks time order, OHLC and time zone, but names no format | B9 defines the accepted formats. |
+
 ## Rules
 
 1. Do not save a real zone from the backtest. `components/backtest/` and `lib/backtest/` do not import `mergeAndSaveSettings` and do not send `POST /settings`. A test checks this.
@@ -407,3 +422,5 @@ Decisions:
 - [ ] B7: more setups; a late run does not overwrite a different setup.
 - [ ] B8: presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive.
 - [ ] B9: CSV import; an aborted or wrong import cannot be selected.
+- [ ] B5/B7: decide which KPIs of "Items from the first concept" (1–7) `computeStats` gets.
+- [ ] B9: define the accepted CSV formats (item 8 of "Items from the first concept").
