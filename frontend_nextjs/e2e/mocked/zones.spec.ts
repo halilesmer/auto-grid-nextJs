@@ -176,8 +176,7 @@ test.describe('ZON Zonen', () => {
 
   test('Breakout-Felder', { tag: '@ZON-06' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    const zone = dashboard.zone();
-    const pullback = zone.getByText(msg('zone.breakout.minPullback')).locator('xpath=..').locator('input');
+    const pullback = dashboard.zoneField(msg('zone.breakout.minPullback'));
     await expect(pullback).toBeDisabled();
 
     await dashboard.zoneSwitch(msg('zone.breakout.trendOnly')).click();
@@ -384,7 +383,7 @@ test.describe('ZON Zonen', () => {
     await expect(byLoss).toHaveAttribute('aria-checked', 'true');
     const grid = dashboard.zoneField(msg('zone.field.gridStepLoss'));
     await expect(grid).toHaveValue('5');
-    const pullback = zone.getByText(msg('zone.breakout.minPullbackLoss')).locator('xpath=..').locator('input');
+    const pullback = dashboard.zoneField(msg('zone.breakout.minPullbackLoss'));
     await expect(pullback).toHaveValue('5');
     // TP 0,5 → 5 $ (Gewinn), SL 0 bleibt 0
     const tp = dashboard.zoneField(msg('zone.field.takeProfitLoss'));
@@ -407,7 +406,7 @@ test.describe('ZON Zonen', () => {
     // Zurück auf Preisabstand: 10 $ → 1,0; 3 $ → 0,3
     await dashboard.zoneSwitch(msg('zone.stepByLoss')).click();
     await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toHaveValue('1');
-    await expect(zone.getByText(msg('zone.breakout.minPullback')).locator('xpath=..').locator('input')).toHaveValue('0.3');
+    await expect(dashboard.zoneField(msg('zone.breakout.minPullback'))).toHaveValue('0.3');
     await expect(dashboard.zoneField(msg('zone.field.takeProfit'))).toHaveValue('0.2');
   });
 
@@ -419,7 +418,7 @@ test.describe('ZON Zonen', () => {
     await dashboard.zoneSwitch(msg('zone.stepByLoss')).click();
     // Mehr Nachkommastellen (0.001) als ein $-Betrag (2) darf die Umrechnung nicht auf 0.00 kürzen
     await expect(dashboard.zoneField(msg('zone.field.gridStepLoss'))).toHaveValue('10');
-    const pullback = dashboard.zone().getByText(msg('zone.breakout.minPullbackLoss')).locator('xpath=..').locator('input');
+    const pullback = dashboard.zoneField(msg('zone.breakout.minPullbackLoss'));
     await expect(pullback).toHaveValue('5');
     await expect(dashboard.zone().getByTestId('loss-preview').first()).toBeVisible();
   });

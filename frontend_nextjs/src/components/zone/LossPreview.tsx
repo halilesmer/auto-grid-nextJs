@@ -10,7 +10,8 @@ export function LossPreview({ amount, lot, symbolConfig }: { amount: number; lot
   const distance = lossToPriceDistance(amount, lot, symbolConfig);
   if (distance === null) return null;
   return (
-    <span data-testid="loss-preview" className="text-[11px] text-muted-foreground">
+    // w-0 min-w-full: bricht in der Breite des Feldes um, statt das kurze Feld breiter zu machen
+    <span data-testid="loss-preview" className="w-0 min-w-full text-[11px] text-muted-foreground">
       {t('zone.field.lossPreview', {
         distance: number(distance, { maximumFractionDigits: symbolConfig.precision }),
         lot: number(lot, { maximumFractionDigits: 2 }),

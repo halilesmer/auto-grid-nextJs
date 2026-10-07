@@ -3,9 +3,9 @@
 import type { ZoneFractalFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
-import { Switch } from '@/components/ui/switch';
 import { useT } from '@/i18n';
 import { TIMEFRAMES } from '@/utils/zoneHelpers';
+import { FieldSwitch } from './FieldSwitch';
 import { LossPreview } from './LossPreview';
 
 // Faktoren (ATR, SAR) sind keine Preise: eigene Schrittweite statt Symbol-Digits
@@ -48,7 +48,7 @@ export function ZoneFractalFields({
       maxDecimals={cfg.precision}
       value={zone[field] ?? fallback}
       onChange={(e) => handleChange(field, e.target.value, zone, { ...symbolConfig, precision: cfg.precision }, update)}
-      className="input-s"
+      className="input-s w-24"
     />
   );
 
@@ -61,7 +61,7 @@ export function ZoneFractalFields({
       value={zone[field]}
       onChange={(e) => handleChange(field, e.target.value, zone, symbolConfig, update)}
       onBlur={() => handleBlur(field, zone[field], symbolConfig.volStep, volPrecision, update, symbolConfig)}
-      className="input-s"
+      className="input-s w-24"
     />
   );
 
@@ -74,111 +74,30 @@ export function ZoneFractalFields({
       maxDecimals={0}
       value={zone[field] ?? 1}
       onChange={(e) => update(field, Math.min(MAX_ORDERS, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-      className="input-s"
+      className="input-s w-20"
     />
   );
 
   return (
     <div data-testid="fractal-fields" className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <InputField label={t('zone.fractal.orderMode')} hint={t('zone.fractal.orderMode.hint')}>
           <select
             data-testid="fractal-order-mode"
             value={zone.fractal_order_mode ?? 'breakout'}
             onChange={(e) => update('fractal_order_mode', e.target.value)}
-            className="input-s"
+            className="input-s w-auto"
           >
             <option value="breakout">{t('zone.fractal.orderMode.breakout')}</option>
             <option value="rebound">{t('zone.fractal.orderMode.rebound')}</option>
           </select>
         </InputField>
-        <div className="flex min-w-0 flex-col justify-end pb-2">
-          <Switch
-            id={`fractal-use-sl-${zone.id}`}
-            checked={useSl}
-            onChange={(checked) => update('fractal_use_sl', checked)}
-            label={<span className="text-sm">{t('zone.fractal.useSl')}</span>}
-            hint={t('zone.fractal.useSl.hint')}
-          />
-        </div>
-        <div className="flex min-w-0 flex-col justify-end pb-2">
-          <Switch
-            id={`fractal-tp-by-money-${zone.id}`}
-            checked={tpByMoney}
-            disabled={!useSl}
-            onChange={(checked) => update('fractal_tp_by_money', checked)}
-            label={<span className="text-sm">{t('zone.fractal.tpByMoney')}</span>}
-            hint={t('zone.fractal.tpByMoney.hint')}
-          />
-        </div>
-      </div>
-
-      {useSl && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <InputField label={t('zone.fractal.slMode')} hint={t('zone.fractal.slMode.hint')}>
-            <select
-              data-testid="fractal-sl-mode"
-              value={slMode}
-              onChange={(e) => update('fractal_sl_mode', e.target.value)}
-              className="input-s"
-            >
-              <option value="atr">{t('zone.fractal.slMode.atr')}</option>
-              <option value="sar">{t('zone.fractal.slMode.sar')}</option>
-              <option value="opposite_fractal">{t('zone.fractal.slMode.opposite')}</option>
-              <option value="buffer">{t('zone.fractal.slMode.buffer')}</option>
-            </select>
-          </InputField>
-          {slMode === 'atr' && (
-            <>
-              <InputField label={t('zone.fractal.atrPeriod')} hint={t('zone.fractal.atrPeriod.hint')}>
-                <NumberInput
-                  min={1}
-                  step={1}
-                  maxDecimals={0}
-                  value={zone.fractal_atr_period ?? 14}
-                  onChange={(e) => update('fractal_atr_period', parseInt(e.target.value, 10) || 1)}
-                  className="input-s"
-                />
-              </InputField>
-              <InputField label={t('zone.fractal.atrMultiplier')} hint={t('zone.fractal.atrMultiplier.hint')}>
-                {factorField('fractal_atr_multiplier', FACTOR, 1.5)}
-              </InputField>
-            </>
-          )}
-          {slMode === 'sar' && (
-            <>
-              <InputField label={t('zone.fractal.sarStep')} hint={t('zone.fractal.sarStep.hint')}>
-                {factorField('fractal_sar_step', SAR, 0.02)}
-              </InputField>
-              <InputField label={t('zone.fractal.sarMax')} hint={t('zone.fractal.sarMax.hint')}>
-                {factorField('fractal_sar_max', SAR, 0.2)}
-              </InputField>
-            </>
-          )}
-          {/* Auch bei ATR/SAR sichtbar: Rückfall-SL, wenn der Indikator nicht berechenbar ist */}
-          <InputField label={t('zone.fractal.slBuffer')} hint={t('zone.fractal.slBuffer.hint')}>
-            <NumberInput
-              min={0}
-              step={symbolConfig.step}
-              maxDecimals={symbolConfig.precision}
-              value={zone.fractal_sl_buffer ?? 0.05}
-              onChange={(e) => handleChange('fractal_sl_buffer', e.target.value, zone, symbolConfig, update)}
-              onBlur={() =>
-                handleBlur('fractal_sl_buffer', zone.fractal_sl_buffer, symbolConfig.step, symbolConfig.precision, update)
-              }
-              className="input-s"
-            />
-          </InputField>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <InputField label={t('zone.fractal.timeframe')} hint={t('zone.fractal.timeframe.hint')}>
           <select
             data-testid="fractal-timeframe"
             value={zone.fractal_timeframe ?? 'H4'}
             onChange={(e) => update('fractal_timeframe', e.target.value)}
-            className="input-s"
+            className="input-s w-auto"
           >
             {TIMEFRAMES.map((tf) => (
               <option key={tf} value={tf}>{tf}</option>
@@ -204,39 +123,6 @@ export function ZoneFractalFields({
             {countField('sell_fractal_order_count')}
           </InputField>
         ) : null}
-        {tpByMoney ? (
-          <InputField
-            label={t('zone.fractal.tpMoney')}
-            hint={t('zone.fractal.tpMoney.hint')}
-            error={<LossPreview amount={zone.fractal_tp_money ?? 10} lot={zone.lot_size} symbolConfig={symbolConfig} />}
-          >
-            <NumberInput
-              data-testid="fractal-tp-money"
-              min={0}
-              step={0.01}
-              maxDecimals={2}
-              value={zone.fractal_tp_money ?? 10}
-              onChange={(e) =>
-                handleChange('fractal_tp_money', e.target.value, zone, { ...symbolConfig, precision: 2 }, update)
-              }
-              className="input-s"
-            />
-          </InputField>
-        ) : (
-          <InputField label={t('zone.fractal.rr')} hint={t('zone.fractal.rr.hint')}>
-            <NumberInput
-              data-testid="fractal-rr"
-              min={0}
-              step={FACTOR.step}
-              maxDecimals={FACTOR.precision}
-              value={zone.fractal_rr ?? 2}
-              onChange={(e) =>
-                handleChange('fractal_rr', e.target.value, zone, { ...symbolConfig, precision: FACTOR.precision }, update)
-              }
-              className="input-s"
-            />
-          </InputField>
-        )}
         <InputField label={t('zone.fractal.maxPositions')} hint={t('zone.fractal.maxPositions.hint')}>
           <NumberInput
             data-testid="fractal-max-positions"
@@ -245,9 +131,121 @@ export function ZoneFractalFields({
             maxDecimals={0}
             value={zone.max_positions}
             onChange={(e) => update('max_positions', parseInt(e.target.value, 10) || 0)}
-            className="input-s"
+            className="input-s w-20"
           />
         </InputField>
+      </div>
+
+      <div className="flex flex-wrap items-start gap-3">
+        <FieldSwitch
+          id={`fractal-use-sl-${zone.id}`}
+          checked={useSl}
+          onChange={(checked) => update('fractal_use_sl', checked)}
+          label={<span className="text-sm">{t('zone.fractal.useSl')}</span>}
+          hint={t('zone.fractal.useSl.hint')}
+        />
+        {useSl && (
+          <>
+            <InputField label={t('zone.fractal.slMode')} hint={t('zone.fractal.slMode.hint')}>
+              <select
+                data-testid="fractal-sl-mode"
+                value={slMode}
+                onChange={(e) => update('fractal_sl_mode', e.target.value)}
+                className="input-s w-auto"
+              >
+                <option value="atr">{t('zone.fractal.slMode.atr')}</option>
+                <option value="sar">{t('zone.fractal.slMode.sar')}</option>
+                <option value="opposite_fractal">{t('zone.fractal.slMode.opposite')}</option>
+                <option value="buffer">{t('zone.fractal.slMode.buffer')}</option>
+              </select>
+            </InputField>
+            {slMode === 'atr' && (
+              <>
+                <InputField label={t('zone.fractal.atrPeriod')} hint={t('zone.fractal.atrPeriod.hint')}>
+                  <NumberInput
+                    min={1}
+                    step={1}
+                    maxDecimals={0}
+                    value={zone.fractal_atr_period ?? 14}
+                    onChange={(e) => update('fractal_atr_period', parseInt(e.target.value, 10) || 1)}
+                    className="input-s w-20"
+                  />
+                </InputField>
+                <InputField label={t('zone.fractal.atrMultiplier')} hint={t('zone.fractal.atrMultiplier.hint')}>
+                  {factorField('fractal_atr_multiplier', FACTOR, 1.5)}
+                </InputField>
+              </>
+            )}
+            {slMode === 'sar' && (
+              <>
+                <InputField label={t('zone.fractal.sarStep')} hint={t('zone.fractal.sarStep.hint')}>
+                  {factorField('fractal_sar_step', SAR, 0.02)}
+                </InputField>
+                <InputField label={t('zone.fractal.sarMax')} hint={t('zone.fractal.sarMax.hint')}>
+                  {factorField('fractal_sar_max', SAR, 0.2)}
+                </InputField>
+              </>
+            )}
+            {/* Auch bei ATR/SAR sichtbar: Rückfall-SL, wenn der Indikator nicht berechenbar ist */}
+            <InputField label={t('zone.fractal.slBuffer')} hint={t('zone.fractal.slBuffer.hint')}>
+              <NumberInput
+                min={0}
+                step={symbolConfig.step}
+                maxDecimals={symbolConfig.precision}
+                value={zone.fractal_sl_buffer ?? 0.05}
+                onChange={(e) => handleChange('fractal_sl_buffer', e.target.value, zone, symbolConfig, update)}
+                onBlur={() =>
+                  handleBlur('fractal_sl_buffer', zone.fractal_sl_buffer, symbolConfig.step, symbolConfig.precision, update)
+                }
+                className="input-s w-28"
+              />
+            </InputField>
+          </>
+        )}
+        {/* Eigene Gruppe: beim Umbrechen bleibt der Schalter bei seinem TP-Feld */}
+        <div className="flex flex-wrap items-start gap-3">
+          <FieldSwitch
+            id={`fractal-tp-by-money-${zone.id}`}
+            checked={tpByMoney}
+            disabled={!useSl}
+            onChange={(checked) => update('fractal_tp_by_money', checked)}
+            label={<span className="text-sm">{t('zone.fractal.tpByMoney')}</span>}
+            hint={t('zone.fractal.tpByMoney.hint')}
+          />
+          {tpByMoney ? (
+            <InputField
+              label={t('zone.fractal.tpMoney')}
+              hint={t('zone.fractal.tpMoney.hint')}
+              error={<LossPreview amount={zone.fractal_tp_money ?? 10} lot={zone.lot_size} symbolConfig={symbolConfig} />}
+            >
+              <NumberInput
+                data-testid="fractal-tp-money"
+                min={0}
+                step={0.01}
+                maxDecimals={2}
+                value={zone.fractal_tp_money ?? 10}
+                onChange={(e) =>
+                  handleChange('fractal_tp_money', e.target.value, zone, { ...symbolConfig, precision: 2 }, update)
+                }
+                className="input-s w-24"
+              />
+            </InputField>
+          ) : (
+            <InputField label={t('zone.fractal.rr')} hint={t('zone.fractal.rr.hint')}>
+              <NumberInput
+                data-testid="fractal-rr"
+                min={0}
+                step={FACTOR.step}
+                maxDecimals={FACTOR.precision}
+                value={zone.fractal_rr ?? 2}
+                onChange={(e) =>
+                  handleChange('fractal_rr', e.target.value, zone, { ...symbolConfig, precision: FACTOR.precision }, update)
+                }
+                className="input-s w-24"
+              />
+            </InputField>
+          )}
+        </div>
       </div>
     </div>
   );
