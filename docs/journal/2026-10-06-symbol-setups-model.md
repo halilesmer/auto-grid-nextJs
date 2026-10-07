@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [116, 118, 119, 120]
+pr: [116, 118, 119, 120, 121]
 features: [ZON-19, ZON-20, LOG-07, ENG-27, ENG-28, ANA-07, ANA-12]
 areas: [worker, frontend, tests]
 ---
@@ -22,7 +22,7 @@ The user selected a real data model change (symbol → setups), not only a group
 | B1 | Data path: GET without `ZONES`, each setup has its engine index, the UI reads and sends `SYMBOLS`, e2e mock on `SYMBOLS` (ZON-19) | done (PR #118) |
 | B2a | Frontend: symbol card with setup cards, "Add symbol" / "Add setup", delete of the last setup, engine position by zone id, i18n and hints (ZON-20) | done (PR #119) |
 | B2b | Symbol logs: "Symbol logs" shows the lines of all setups; worker `GET /logs/{id}?zone_id=` takes more than one id (LOG-07) | done (PR #120) |
-| C | Compact setup layout (short inputs, switch next to input, 375 px check, UI-08) | open |
+| C | Compact setup layout (short inputs, switch next to input, 375 px check, UI-08) | done (PR #121) |
 | D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-12) | open |
 
 The plan parts are named A to D. They are not feature IDs: the category `SYM` already exists for the symbol list (SYM-01 to SYM-04). Part A has the ID ZON-19.
@@ -117,6 +117,44 @@ The symbol card shows the logs of all its setups. The robot log tab shows the sy
 | `frontend_nextjs/src/i18n/messages/zone.ts`, `logs.ts`, `hints.ts` | Texts |
 | `frontend_nextjs/e2e/fixtures/mock-worker.ts` | `searchParams.getAll('zone_id')`, like the worker |
 
+## Solution (part C)
+
+The setup card is compact. Each input has a short, fixed width. Each switch is in the row of the field that it controls.
+
+| Item | Behavior |
+|---|---|
+| Field width | A number input has a fixed width: price 128 px (`w-32`), distance 112 px (`w-28`), lot and factor 96 px (`w-24`), whole number 80 px (`w-20`). A select is as wide as its content or its label. Before, each input filled its grid column (296 px at a window width of 1440 px). |
+| Rows | The fields of a group are in one row that wraps (`flex flex-wrap`, gap 12 px). Before, they were in a grid with 3 or 4 columns. |
+| Switch position | "Same settings for BUY and SELL": after the order type (before: in the head of the grid or fractal section). "Step by loss" and "Open first position instantly": after SL (before: in the head of the grid section). "Trend direction only": before the pullback. "Clear when price leaves the zone": before its selects. Fractal: "With SL" before the SL method, "TP as amount" before the TP field. |
+| Switch height (`FieldSwitch`) | A switch in a field row has an empty line above it. The empty line has the height of a field label, thus the switch is at the height of the inputs. There is no empty line when the switch is alone in its row (the exit box when "Clear" is off) or when the window is less than 640 px wide. |
+| Entry mode | In the basic row after the max price. Before, it was in a separate section. |
+| Pullback | A normal field with the label above the input. Before, the label was at the left of the input. |
+| Loss preview | The text below a field ("≈ 0.05 price distance at 0.01 lot") wraps in the width of the field. It does not make the field wider. |
+| Removed | The description line below "Clear when price leaves the zone". The (i) text has the same content and more. The i18n key `zone.exit.clearOnExit.hint` is deleted. The divider lines in the breakout box and in the exit box are also removed. |
+| Hints | The (i) texts of "Clear when price leaves the zone" and "With SL" said "the options below" and "the method below". They say "next to it" now (tr, en and de). |
+| Card | Padding 20 px → 16 px (12 px when the window is less than 640 px wide). Boxes: padding 16 px → 12 px. Shadow `shadow-sm` → `shadow-md`. |
+
+Height of the setup cards in the screenshots (same data, before → after):
+
+| Setup | 1440 px | 820 px (en) | 375 px (de) |
+|---|---|---|---|
+| 1: BUY, breakout and exit on | 860 → 518 | 1000 → 728 | 1846 → 1426 |
+| 2: BOTH without sync, step by loss | 842 → 676 | 1131 → 886 | 1993 → 1736 |
+| 3: BOTH without sync, fractal | 692 → 438 | 942 → 648 | 1674 → 1372 |
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/components/zone/FieldSwitch.tsx` | New. `Switch` with the empty label line |
+| `frontend_nextjs/src/components/zone/ZoneBasicFields.tsx` | Order type, "same for BUY/SELL" (BOTH only), min and max price, entry mode in one row |
+| `frontend_nextjs/src/components/zone/ZoneGridFields.tsx`, `ZoneSellFields.tsx`, `types.ts` | Short fields in one row. The step-by-loss switch and the instant switch are after SL. New prop `onStepByLoss` (the conversion stays in `ZoneCard`). |
+| `frontend_nextjs/src/components/zone/ZoneBreakoutFields.tsx` | One row. The pullback fields are `InputField`s. |
+| `frontend_nextjs/src/components/zone/ZoneExitFields.tsx` | One row, no description line |
+| `frontend_nextjs/src/components/zone/ZoneFractalFields.tsx` | Row 1: order mode, timeframe, lots, order counts, max positions. Row 2: SL switch and SL fields, then the TP switch with its field as one group |
+| `frontend_nextjs/src/components/zone/ZoneCard.tsx` | Switches and entry mode moved out; padding; shadow |
+| `frontend_nextjs/src/components/zone/LossPreview.tsx` | Wraps in the width of the field (`w-0 min-w-full`) |
+| `frontend_nextjs/src/i18n/messages/zone.ts`, `hints.ts` | `zone.exit.clearOnExit.hint` deleted; "below" → "next to it" in two hints |
+| `docs/proje_dosya_krokisi.md` | Zone components: new files, correct descriptions |
+
 ## Why
 
 - Flat list for the engine: the engine maps orders to zones by magic. A setup keeps the magic of its zone, so open orders and positions stay with their setup after the migration.
@@ -145,6 +183,13 @@ The symbol card shows the logs of all its setups. The robot log tab shows the sy
 - Part B2b, the setup badge in the symbol logs: before, each card showed only the lines of its zone. When all setups are in one log, the badge shows which setup wrote the line. With one setup, the badge gives no information. Thus it is not shown.
 - Part B2b, the request starts again only when the ids change: the panel gives a new id array on each render (live data, each key in a field). The worker reads the full log file for each filtered request. Without this check, each key in a setup field sent a new request while the logs were open. The component compares the ids as JSON text.
   - Cost: when the ids change while the logs are open (add or delete a setup), the answer of the old request can come after the new one. Then the old lines show until the next poll (10 s). A line of a deleted setup shows "Setup ?". Found in the review of part B2b.
+
+- Part C, the step-by-loss switch is after SL, not before the grid step: in a BOTH setup without sync, the sell row is below the buy row. With the switches at the end of the buy row, the fields of the two rows start at the same position. The switch is next to SL, one of the fields that it changes.
+- Part C, `FieldSwitch` with an empty label line: the rows use `items-start`, thus all inputs of a row are on one line. With `items-end`, a loss preview below a field moves the inputs of this field up.
+  - Rejected: `items-end` for the rows.
+  - Cost: when a switch wraps to its own line at a width of 640 px or more, the empty line stays above it.
+- Part C, the TP switch and the TP field are one group: when the row wraps, the switch stays with its field. The SL switch is not in a group: in a group, the switch is alone when "With SL" is off. Then it has no empty line, and it is not at the height of the TP field.
+- Part C, a price input is 128 px wide, not 112 px: a price with 9 characters (for example 105234.55) needs approx. 77 px of text. A 112 px input has approx. 73 px for the text (padding, spin buttons). A cut price can be misread. Thus min and max price are on two lines at 375 px: the field row is 249 px wide, and the two fields need 268 px.
 
 ## Verification
 
@@ -210,6 +255,26 @@ The symbol card shows the logs of all its setups. The robot log tab shows the sy
   - Screenshots (temporary Playwright spec, deleted): symbol logs on desktop in dark and light, the robot log tab, 375 px without a horizontal scroll.
   - Review (subagent `reviewer`): no critical finding. Fixed: the request count is also checked before "Refresh". Accepted and written above: an old answer after an id change; an empty `zone_id`.
   - Not verified: the DEMO check of LOG-07 (after the merge, open point).
+  - Live check after the merge (2026-10-07 17:33–17:37, worker v0.7.166, read only, DEMO account A with two symbols and one setup on each symbol):
+    - API: a request with the ids of both setups gives the lines of both ids in the file order. For each symbol, the lines are the same as with a request for one id, and they have only the tags of this setup. A request with one `zone_id` (UI before part B2b) gives the same answer as before.
+    - Browser: "Symbol logs" in the symbol card shows 100 lines, no "[Z:" tag and no setup badge (one setup on the symbol). The request has one `zone_id`. The badges in the robot log tab show "<symbol> · Setup 1".
+    - LOG-07 is not signed: the manual check needs two setups on one symbol.
+- Part C (2026-10-07):
+  - New tests, red before the change:
+
+    | Test | Red with the layout before part C |
+    |---|---|
+    | e2e `setup-layout.spec.ts` "Zahlenfelder sind kurz …" (ZON-20) | number inputs 296 px wide |
+    | e2e `setup-layout.spec.ts` "Jeder Schalter steht neben seinem Feld" (ZON-20) | the "same for BUY/SELL" switch was 108 px below the order type field |
+    | e2e `mobile-layout.spec.ts` "Kompaktes Setup …" (UI-08, ZON-20, tr, en and de) | grid step and lot in different lines (92 px) |
+    | e2e `setup-layout.spec.ts` "Schalter allein in seiner Zeile …" (ZON-20) | `FieldSwitch` without the only-child rule: 35 px above the switch (expected ≤ 16) |
+
+  - Changed existing tests: `zones.spec.ts` ZON-06 "Breakout-Felder" and ZON-13 (two tests) find the pullback field with `dashboard.zoneField()`. The label is above the field now (`InputField`), and the old selector looked for the input next to the label text. The expected values did not change.
+  - `npm run lint`: ok. `npx tsc --noEmit`: ok. `scripts/features/run.sh`: unit 414 passed, 1 xfailed; api 189 passed; e2e 295 passed; `FEATURES.md` 128/154. `update_checklist.py --check`: ok.
+  - The first full run had 13 e2e failures in other areas (settings, system, language, analysis, control bar, other pages at 375 px). In that run, single tests took 16 to 25 minutes, because the computer stopped. Then the 6 files gave 58 passed, and the second full run had no failure.
+  - Screenshots (temporary Playwright spec, deleted): 1440 px in dark and light, 820 px in English, 375 px in German; before and after the change.
+  - Review (subagent `reviewer`): no critical finding. Fixed: two hints said "below"; no test for the switch that is alone in its row; the switch test permitted any height in the input (now ±4 px from the input center); `FieldSwitch` accepted a `className` that it did not use. Not changed: the width test checks only the upper limit of 128 px.
+  - Not verified: the DEMO check of ZON-20 (open point) and the live tests (`hooks/RULES.md` §3).
 
 ## Open points
 - [x] Part A: open the PR. After the merge, do the manual check ZON-19 on the DEMO account.
@@ -231,7 +296,7 @@ The symbol card shows the logs of all its setups. The robot log tab shows the sy
 - [x] Part B2: after a save that changes the order, the store keeps the old order until the next load. Then `zone_states` can show on the wrong card. Examples: the first save of an old file with mixed symbols; a new setup with the symbol of an earlier group. Also, `toggleZoneActive()` takes the ui-state index before this save. Found 2026-10-07, present since part A. Part B2 shows the setups grouped by symbol, so the store order is the engine order.
   - Done (2026-10-07, part B2a): the cards use the engine position of the zone id (`engineOrder`). Each save sets `engineOrder` from the sent zones. `toggleZoneActive()` sends its command before the save, to the current position. See "Why".
 - [ ] `frontend_nextjs/e2e/live/trading.spec.ts` adds a test zone at the end and uses `zones.length` as its ui-state index. If the DEMO account has a zone with the same symbol before other symbols, the save groups the test zone into the middle. Read the settings again after the save and find the index by the test zone id. Found in the review 2026-10-07, present since part A, live test only.
-- [ ] Parts C and D.
+- [ ] Part D. Part C is done (PR #121).
 - [ ] Texts that still say "zone" or "Bölge" after part B2b: the field hints (for example min and max price) and the Analyse page (part D). The log texts of the UI are done (part B2b).
 - [ ] The worker log messages say "Bölge n" (19 places in `worker_python/src/core`). n is the engine position + 1, not the setup number of the card. Worker messages are not translated, and the change is in engine code (golden test BKT-01). Found 2026-10-07 in part B2b.
 - [ ] `GET /api/logs/{id}` reads the log files directly in the `async def` (a blocking call, `hooks/RULES.md` §9.1). With a zone filter, it reads the full file. Present before part B2b. Part B2b sends fewer requests (one for each symbol). Found 2026-10-07.
