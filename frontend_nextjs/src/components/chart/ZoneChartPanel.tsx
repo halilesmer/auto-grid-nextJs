@@ -21,6 +21,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { FieldLabel, InfoHint } from '@/components/ui/tooltip';
 import { LiveStats } from '@/components/chart/LiveStats';
 import { useDealsHistory } from '@/hooks/useDealsHistory';
+import { useSetupLabel } from '@/hooks/useSetupLabel';
 import { useLiveTrades } from '@/hooks/useLiveTrades';
 import { useMarketRates } from '@/hooks/useMarketRates';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
@@ -29,6 +30,7 @@ import { findFractals } from '@/lib/analysis/fractals';
 import { belongsToZoneView, pairTrades, type Trade } from '@/lib/analysis/tradePairing';
 import { zoneLevels, type LevelsUnavailable, type ZoneLevels } from '@/lib/analysis/levels';
 import { brokerNow } from '@/lib/serverTime';
+import { setupNumbers } from '@/lib/symbolSetups';
 import { useBotRuntimeStore, useSettingsStore, useWebSocketManager } from '@/store';
 import type { AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
@@ -91,7 +93,7 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
   return fields;
 }
 
-function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
+function ZoneInfoCard({ zone, setupNo }: { zone: ZoneSettings; setupNo: number }) {
   const t = useT();
   const isFractal = zone.entry_mode === 'fractal';
   const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
@@ -120,7 +122,7 @@ function ZoneInfoCard({ zone, index }: { zone: ZoneSettings; index: number }) {
     <Card>
       <CardHeader
         icon={<Layers size={16} />}
-        title={t('chart.zone.title', { n: index + 1, symbol: zone.symbol || '—' })}
+        title={t('chart.zone.title', { n: setupNo, symbol: zone.symbol || '—' })}
         description={t(zoneKindKey({ isFractal, isBreakout: zone.is_breakout }))}
         actions={
           <div className="flex gap-2">
@@ -253,6 +255,7 @@ export default function ZoneChartPanel({
   }, [accountId, symbol, clockReady, range.from, range.to, tfSec]);
   const dealsLive = range.to > nowSec();
   const deals = useDealsHistory(dealsRequest, dealsLive);
+  const setupLabel = useSetupLabel(zones, deals.data?.zones);
   const pairing = useMemo(
     () => (deals.data ? pairTrades(deals.data.deals, deals.data.zones, offsetSec) : null),
     [deals.data, offsetSec],
@@ -453,7 +456,7 @@ export default function ZoneChartPanel({
           {t('chart.zone.notFound.withAccount')}
         </Alert>
       )}
-      {zone && prefs.showZoneCard && <ZoneInfoCard zone={zone} index={index} />}
+      {zone && zones && prefs.showZoneCard && <ZoneInfoCard zone={zone} setupNo={setupNumbers(zones).get(zone.id) ?? 0} />}
       {zone && (
         <Card data-testid="analysis-chart-card">
           <CardHeader
@@ -585,6 +588,7 @@ export default function ZoneChartPanel({
           loading={deals.loading}
           error={deals.error}
           missing={deals.data?.missing ?? []}
+          setupLabel={setupLabel}
           onFocus={focusTrade}
         />
       )}
