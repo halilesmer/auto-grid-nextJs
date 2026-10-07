@@ -60,6 +60,8 @@ export interface ZoneGridFieldsProps {
   sync: boolean;
   handleChange: HandleChangeFn;
   handleBlur: HandleBlurFn;
+  /** Schalter „Abstand nach Verlust“: rechnet die vorhandenen Abstände in die andere Einheit um (ZoneCard) */
+  onStepByLoss: (on: boolean) => void;
 }
 
 export interface ZoneSellFieldsProps {

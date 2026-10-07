@@ -4,10 +4,9 @@ import type { ZoneBreakoutFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { SectionLabel } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { InfoHint } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 import { distanceConfig } from '@/utils/zoneHelpers';
+import { FieldSwitch } from './FieldSwitch';
 
 export function ZoneBreakoutFields({
   zone,
@@ -28,24 +27,23 @@ export function ZoneBreakoutFields({
   const sellPullbackHint = byLoss ? t('zone.breakout.sellPullbackLoss.hint') : t('zone.breakout.sellPullback.hint');
 
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+    <section className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
       <SectionLabel>{t('zone.breakout.title')}</SectionLabel>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Switch
+      <div className="flex flex-wrap items-start gap-3">
+        <FieldSwitch
           checked={zone.is_breakout}
           onChange={(checked) => update('is_breakout', checked)}
           label={t('zone.breakout.trendOnly')}
           hint={t('zone.breakout.trendOnly.hint')}
         />
-        <div data-tooltip-scope className="flex flex-wrap items-center gap-2">
-          <span className="whitespace-nowrap text-xs text-muted-foreground">
-            {byLoss
+        <InputField
+          label={
+            byLoss
               ? t(split ? 'zone.breakout.buyPullbackLoss' : 'zone.breakout.minPullbackLoss')
-              : t(split ? 'zone.breakout.buyPullback' : 'zone.breakout.minPullback')}
-          </span>
-          <InfoHint
-            hint={zone.is_breakout ? pullbackHint : t('zone.breakout.pullback.off.hint')}
-          />
+              : t(split ? 'zone.breakout.buyPullback' : 'zone.breakout.minPullback')
+          }
+          hint={zone.is_breakout ? pullbackHint : t('zone.breakout.pullback.off.hint')}
+        >
           <NumberInput
             min={0}
             step={pbCfg.step}
@@ -56,15 +54,12 @@ export function ZoneBreakoutFields({
             disabled={!zone.is_breakout}
             className="input-s w-28"
           />
-        </div>
-        {isBoth && !sync && (
-          <div data-tooltip-scope className="flex flex-wrap items-center gap-2">
-            <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {byLoss ? t('zone.breakout.sellPullbackLoss') : t('zone.breakout.sellPullback')}
-            </span>
-            <InfoHint
-              hint={zone.is_breakout ? sellPullbackHint : t('zone.breakout.pullback.off.hint')}
-            />
+        </InputField>
+        {split && (
+          <InputField
+            label={byLoss ? t('zone.breakout.sellPullbackLoss') : t('zone.breakout.sellPullback')}
+            hint={zone.is_breakout ? sellPullbackHint : t('zone.breakout.pullback.off.hint')}
+          >
             <NumberInput
               min={0}
               step={pbCfg.step}
@@ -75,11 +70,8 @@ export function ZoneBreakoutFields({
               disabled={!zone.is_breakout}
               className="input-s w-28"
             />
-          </div>
+          </InputField>
         )}
-      </div>
-      <div className="h-px bg-border" />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <InputField
           label={t('zone.breakout.levelsBelow')}
           hint={
@@ -95,7 +87,7 @@ export function ZoneBreakoutFields({
             value={zone.levels_below}
             onChange={(e) => update('levels_below', parseInt(e.target.value, 10) || 1)}
             disabled={zone.is_breakout && zone.order_type === 'BUY'}
-            className="input-s"
+            className="input-s w-20"
           />
         </InputField>
         <InputField
@@ -113,7 +105,7 @@ export function ZoneBreakoutFields({
             value={zone.levels_above}
             onChange={(e) => update('levels_above', parseInt(e.target.value, 10) || 1)}
             disabled={zone.is_breakout && zone.order_type === 'SELL'}
-            className="input-s"
+            className="input-s w-20"
           />
         </InputField>
         <InputField label={t('zone.breakout.maxPositions')} hint={t('zone.breakout.maxPositions.hint')}>
@@ -123,7 +115,7 @@ export function ZoneBreakoutFields({
             maxDecimals={0}
             value={zone.max_positions}
             onChange={(e) => update('max_positions', parseInt(e.target.value, 10) || 0)}
-            className="input-s"
+            className="input-s w-20"
           />
         </InputField>
       </div>

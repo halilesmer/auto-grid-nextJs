@@ -27,7 +27,7 @@ export function ZoneSellFields({
   return (
     <>
       <SectionLabel className="pt-1 text-danger">{t('zone.section.sellGridShort')}</SectionLabel>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <InputField
           label={byLoss ? t('zone.field.sellGridLoss') : t('zone.field.sellGrid')}
           hint={byLoss ? t('zone.field.sellGridLoss.hint') : guided.step(t('zone.field.sellGrid.hint'))}
@@ -40,7 +40,7 @@ export function ZoneSellFields({
             value={zone.sell_grid_step}
             onChange={(e) => handleChange('sell_grid_step', e.target.value, zone, stepCfg, update)}
             onBlur={() => handleBlur('sell_grid_step', zone.sell_grid_step, stepCfg.step, stepCfg.precision, update)}
-            className="input-s"
+            className="input-s w-28"
           />
         </InputField>
         <InputField label={t('zone.field.sellLot')} hint={t('zone.field.sellLot.hint')}>
@@ -52,7 +52,7 @@ export function ZoneSellFields({
             value={zone.sell_lot_size}
             onChange={(e) => handleChange('sell_lot_size', e.target.value, zone, symbolConfig, update)}
             onBlur={() => handleBlur('sell_lot_size', zone.sell_lot_size, symbolConfig.volStep, volPrecision, update, symbolConfig)}
-            className="input-s"
+            className="input-s w-24"
           />
         </InputField>
         <InputField
@@ -67,7 +67,7 @@ export function ZoneSellFields({
             value={zone.sell_take_profit}
             onChange={(e) => handleChange('sell_take_profit', e.target.value, zone, stepCfg, update)}
             onBlur={() => handleBlur('sell_take_profit', zone.sell_take_profit, stepCfg.step, stepCfg.precision, update)}
-            className="input-s"
+            className="input-s w-28"
           />
         </InputField>
         <InputField
@@ -82,7 +82,7 @@ export function ZoneSellFields({
             value={zone.sell_stop_loss}
             onChange={(e) => handleChange('sell_stop_loss', e.target.value, zone, stepCfg, update)}
             onBlur={() => handleBlur('sell_stop_loss', zone.sell_stop_loss, stepCfg.step, stepCfg.precision, update)}
-            className="input-s"
+            className="input-s w-28"
           />
         </InputField>
       </div>

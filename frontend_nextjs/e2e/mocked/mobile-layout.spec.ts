@@ -193,6 +193,24 @@ for (const lang of LOCALES) {
       await expectInViewport(page, dialog.getByRole('button', { name: msg('zone.addSymbol.confirm', undefined, lang), exact: true }), 'Ekle');
       await expectNoPageOverflow(page);
     });
+
+    test('Kompaktes Setup: alle Schalter an, zwei Felder je Zeile, nichts läuft über', { tag: ['@UI-08', '@ZON-20'] }, async ({ page, worker, dashboard }) => {
+      worker.setZones(DEMO_ID, [
+        makeZone({ order_type: 'BOTH', sync_buy_sell: false, step_by_loss: true, instant_entry: true, is_breakout: true, clear_on_exit: true, exit_condition: 'Mum Kapanışı' }),
+        makeZone({ id: 'zone-e2e-2', order_type: 'BOTH', sync_buy_sell: false, entry_mode: 'fractal', fractal_use_sl: true, fractal_tp_by_money: true }),
+      ]);
+      await dashboard.open(DEMO_ID);
+      await expect(page.getByTestId('zone-card')).toHaveCount(2);
+
+      // Kurze Felder: Grid-Schritt und Lot stehen auch bei 375 px nebeneinander
+      const step = await dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang)).boundingBox();
+      const lot = await dashboard.zoneField(msg('zone.field.buyLot', undefined, lang)).boundingBox();
+      expect(Math.abs(step!.y - lot!.y), 'Grid-Schritt und Lot in verschiedenen Zeilen').toBeLessThanOrEqual(1);
+
+      await expectZoneAreaInViewport(dashboard, lang);
+      await expectNothingOverflowsInSetupCards(page);
+      await expectNoPageOverflow(page);
+    });
   });
 
   test.describe(`Log-Tabs (${lang})`, () => {
