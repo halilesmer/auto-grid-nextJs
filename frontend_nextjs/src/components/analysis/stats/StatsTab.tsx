@@ -9,12 +9,14 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
 import { InfoHint } from '@/components/ui/tooltip';
 import { useDealsHistory } from '@/hooks/useDealsHistory';
+import { useSetupLabel } from '@/hooks/useSetupLabel';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { balanceCurve, drawdownCurve, realizedCurve } from '@/lib/analysis/curves';
 import { breakdown, inScope, type BreakdownKind, type StatsScope } from '@/lib/analysis/groupings';
 import { computeStats } from '@/lib/analysis/stats';
 import { pairTrades } from '@/lib/analysis/tradePairing';
 import { brokerNow } from '@/lib/serverTime';
+import { groupBySymbol, setupNumbers } from '@/lib/symbolSetups';
 import type { ZoneSettings } from '@/store/types';
 import { TradesTable } from '../TradesTable';
 import { BreakdownTable } from './BreakdownTable';
@@ -24,7 +26,7 @@ import { StatsKpis } from './StatsKpis';
 interface StatsTabProps {
   accountId: string;
   zones: ZoneSettings[] | null;
-  /** Zone aus der Adresse: Vorauswahl des Umfangs */
+  /** Setup (Zone) aus der Adresse: Vorauswahl des Umfangs */
   zoneId: string | null;
   /** MT5-Sekunden, halb offen; from null = alles */
   range: { from: number | null; to: number };
@@ -41,17 +43,21 @@ interface ScopeItem {
 type CurveKind = 'realized' | 'balance' | 'drawdown';
 
 function scopeKey(s: StatsScope) {
-  return s.kind === 'account' ? 'account' : `zone:${s.magic}`;
+  if (s.kind === 'account') return 'account';
+  if (s.kind === 'symbol') return `symbol:${s.symbol}`;
+  return `zone:${s.magic}`;
 }
 
-/** Vorauswahl der Aufteilung: Konto je Zone, Zone je Wochentag */
-function defaultBreakdownFor(scope: StatsScope): BreakdownKind {
-  return scope.kind === 'account' ? 'zone' : 'weekday';
-}
+/** Aufteilungen je Umfang; die erste ist die Vorauswahl (Konto je Symbol, Symbol je Setup, Setup je Wochentag) */
+const BREAKDOWNS: Record<StatsScope['kind'], BreakdownKind[]> = {
+  account: ['symbol', 'zone', 'weekday', 'hour'],
+  symbol: ['zone', 'weekday', 'hour'],
+  zone: ['weekday', 'hour'],
+};
 
 /**
- * Statistik-Tab (ANA-09): Kennzahlen, Kurven und Aufteilung der im Zeitraum geschlossenen Trades für das
- * ganze Konto oder eine Zone. Zone über das Register.
+ * Statistik-Tab (ANA-09, ANA-14): Kennzahlen, Kurven und Aufteilung der im Zeitraum geschlossenen Trades für
+ * das ganze Konto, ein Symbol (Vergleich seiner Setups) oder ein Setup. Setup über das Register.
  */
 export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockReady }: StatsTabProps) {
   const t = useT();
@@ -73,29 +79,25 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
   );
   const currency = deals.data?.account?.currency ?? null;
 
-  // Beschriftungen aus den aktuellen Einstellungen
-  const zoneByMagic = useMemo(() => {
-    const m = new Map<number, { zone: ZoneSettings; n: number }>();
-    (zones ?? []).forEach((zone, i) => zone.magic !== undefined && m.set(zone.magic, { zone, n: i + 1 }));
-    return m;
-  }, [zones]);
-  const zoneLabel = (magic: number) => {
-    const z = zoneByMagic.get(magic);
-    if (z) return t('analysis.zone.option', { n: z.n, symbol: z.zone.symbol || '—' });
-    const reg = deals.data?.zones.find((r) => r.magic === magic);
-    return t('analysis.stats.zone.registry', { label: reg?.label ?? `#${magic}` });
-  };
+  const setupNo = useMemo(() => setupNumbers(zones ?? []), [zones]);
+  const zoneLabel = useSetupLabel(zones, deals.data?.zones);
 
   const scopes: ScopeItem[] = useMemo(() => {
     const items: ScopeItem[] = [{ key: 'account', scope: { kind: 'account' }, label: t('analysis.stats.scope.account') }];
-    (zones ?? []).forEach((zone, i) => {
-      if (zone.magic === undefined) return;
-      const base = { n: i + 1, symbol: zone.symbol || '—' };
-      const zs: StatsScope = { kind: 'zone', magic: zone.magic };
-      items.push({ key: scopeKey(zs), scope: zs, label: t('analysis.stats.scope.zone', base) });
-    });
+    for (const group of groupBySymbol(zones ?? [])) {
+      // Nur gespeicherte Setups (mit Magic) haben Trades
+      const saved = group.zones.flatMap((zone) => (zone.magic === undefined ? [] : [{ id: zone.id, magic: zone.magic }]));
+      if (saved.length === 0) continue;
+      const symbol = group.symbol || '—';
+      const ss: StatsScope = { kind: 'symbol', symbol: group.symbol };
+      items.push({ key: scopeKey(ss), scope: ss, label: t('analysis.stats.scope.symbol', { symbol, n: saved.length }) });
+      for (const { id, magic } of saved) {
+        const zs: StatsScope = { kind: 'zone', magic };
+        items.push({ key: scopeKey(zs), scope: zs, label: t('analysis.stats.scope.zone', { n: setupNo.get(id) ?? 0, symbol }) });
+      }
+    }
     return items;
-  }, [zones, t]);
+  }, [zones, setupNo, t]);
 
   const urlZone = zones?.find((z) => z.id === zoneId);
   const defaultKey = urlZone?.magic !== undefined ? `zone:${urlZone.magic}` : 'account';
@@ -105,9 +107,9 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
   const current = scopes.find((s) => s.key === (chosen ?? defaultKey)) ?? scopes[0];
   const scope = current.scope;
 
-  const defaultBreakdown = defaultBreakdownFor(scope);
+  const breakdownKinds = BREAKDOWNS[scope.kind];
   const [breakdownChoice, setBreakdownChoice] = useState<{ scope: string; kind: BreakdownKind } | null>(null);
-  const kind = breakdownChoice?.scope === current.key ? breakdownChoice.kind : defaultBreakdown;
+  const kind = breakdownChoice?.scope === current.key ? breakdownChoice.kind : breakdownKinds[0];
   const [curve, setCurve] = useState<CurveKind>('realized');
 
   const view = useMemo(() => {
@@ -137,12 +139,11 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
     if (key === 'other') return t('analysis.stats.group.other');
     if (kind === 'weekday') return t(`analysis.stats.weekday.${key}` as MessageKey);
     if (kind === 'hour') return `${key.padStart(2, '0')}:00`;
+    if (kind === 'symbol') return key.slice(2) || '—';
     return zoneLabel(Number(key.split(':')[1]));
   };
 
-  const breakdownTabs = (['zone', 'weekday', 'hour'] as const)
-    .filter((k) => scope.kind === 'account' || k !== 'zone')
-    .map((k) => ({ id: k, label: t(`analysis.stats.by.${k}`), hint: t(`analysis.stats.by.${k}.hint`) }));
+  const breakdownTabs = breakdownKinds.map((k) => ({ id: k, label: t(`analysis.stats.by.${k}`), hint: t(`analysis.stats.by.${k}.hint`) }));
   const curveTabs = (['realized', 'balance', 'drawdown'] as const).map((k) => ({
     id: k,
     label: t(`analysis.stats.curve.${k}`),
@@ -267,6 +268,7 @@ export function StatsTab({ accountId, zones, zoneId, range, offsetSec, clockRead
             loading={deals.loading}
             error={null}
             missing={[]}
+            setupLabel={zoneLabel}
           />
         </>
       )}

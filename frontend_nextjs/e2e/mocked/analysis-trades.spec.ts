@@ -99,7 +99,9 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
     await expect(unknown).toHaveCount(2);
     await expect(unknown.first().getByTestId('trade-zone')).toHaveText(msg('analysis.trades.unknownZone'));
     await expect(unknown.first()).toContainText(msg('analysis.trades.openedBefore'));
-    await expect(archive.locator('[data-testid="trade-row"][data-zone="zone"]').first().getByTestId('trade-zone')).toHaveText('Z1');
+    await expect(archive.locator('[data-testid="trade-row"][data-zone="zone"]').first().getByTestId('trade-zone')).toHaveText(
+      msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }),
+    );
     await expect(archive.getByTestId('trades-summary')).toHaveText(msg('analysis.trades.summary', { trades: 6, open: 1, other: 1 }));
 
     // Gleicher Zeitraum wie die Kerzen, nur eigenes Konto

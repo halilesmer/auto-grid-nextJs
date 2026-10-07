@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { Combobox } from '@/components/ui/combobox';
 import { InfoHint } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
+import { setupNumbers } from '@/lib/symbolSetups';
 import type { ZoneSettings } from '@/store/types';
 
 interface ZoneItem {
@@ -17,7 +18,7 @@ function placeholderKey(zones: ZoneSettings[] | null): MessageKey {
   return 'analysis.zone.placeholder';
 }
 
-/** Zonenwahl der Analyse-Seite: nur Zonen des gewählten Kontos (`zones` = null: werden geladen). */
+/** Setup-Wahl der Analyse-Seite („Symbol · Setup n“): nur Setups des gewählten Kontos (`zones` = null: werden geladen). */
 export function ZoneSelect({
   zones,
   value,
@@ -28,7 +29,8 @@ export function ZoneSelect({
   onChange: (zoneId: string) => void;
 }) {
   const t = useT();
-  const items: ZoneItem[] = (zones ?? []).map((zone, i) => ({ zone, n: i + 1 }));
+  const numbers = setupNumbers(zones ?? []);
+  const items: ZoneItem[] = (zones ?? []).map((zone) => ({ zone, n: numbers.get(zone.id) ?? 0 }));
   const label = useCallback(
     (item: ZoneItem) => t('analysis.zone.option', { n: item.n, symbol: item.zone.symbol || '—' }),
     [t],
