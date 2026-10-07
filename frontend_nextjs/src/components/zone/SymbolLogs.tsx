@@ -14,7 +14,7 @@ import { useT } from '@/i18n';
 const POLL_INTERVAL_MS = 10_000;
 const LINES = 100;
 
-function ZoneLogLines({ error, lines }: { error: string | null; lines: string[] | null }) {
+function SymbolLogLines({ error, lines }: { error: string | null; lines: string[] | null }) {
   const t = useT();
   if (error) return <span className="text-danger">{error}</span>;
   if (lines === null) return <span className="text-muted-foreground/60">{t('zone.logs.loading')}</span>;
@@ -32,7 +32,7 @@ function ZoneLogLines({ error, lines }: { error: string | null; lines: string[] 
 }
 
 /** Bölgenin kendi robot logları ("[Z:<id>]" etiketli satırlar); yalnızca açıkken yoklanır. */
-export function ZoneLogs({ zoneId }: { zoneId: string }) {
+export function SymbolLogs({ zoneId }: { zoneId: string }) {
   const t = useT();
   const accountId = useAccountStore((s) => s.selectedAccount);
   const [open, setOpen] = useState(false);
@@ -99,7 +99,7 @@ export function ZoneLogs({ zoneId }: { zoneId: string }) {
           data-testid="zone-log-output"
           className="max-h-56 overflow-auto whitespace-pre-wrap break-all border-t border-border/60 bg-muted/60 p-3 font-mono text-[11.5px] leading-relaxed text-foreground/75 dark:bg-background/50"
         >
-          <ZoneLogLines error={error} lines={lines} />
+          <SymbolLogLines error={error} lines={lines} />
         </pre>
       )}
     </div>
