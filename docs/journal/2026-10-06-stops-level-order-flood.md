@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: defect
 status: open
-pr: [115]
+pr: [115, 123]
 features: [ENG-06, ENG-12, BKT-01]
 areas: [worker]
 ---
