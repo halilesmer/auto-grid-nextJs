@@ -1,7 +1,7 @@
 ---
 date: 2026-10-06
 type: defect
-status: open
+status: done
 pr: [115, 123]
 features: [ENG-06, ENG-12, BKT-01]
 areas: [worker]
@@ -57,12 +57,12 @@ Fixed on 2026-10-07. `validation.py` now compares the TP/SL of a pending order w
 - `pytest tests/unit/test_parity_golden.py --update-golden`: 86 passed. Only `grid_stops_level.json` changed. Scenario result: cancels 131 → 23, fills 19 → 34.
 - `npx playwright test --project=mocked --grep @BKT-02`: 40 passed (TS port gives the same events as the new golden file).
 - `npx tsc --noEmit` and `npm run lint`: no errors.
-- Live MT5: not verified. The worker runs only on the VPS.
+- Live MT5 (2026-10-07, worker v0.7.170, read-only): `GET /api/market/{id}/time-check` for each symbol of the 4 accounts on the VPS (USOUSD, EURUSD, XTIUSD; 2 brokers, all DEMO). `trade_stops_level` is 0 for all symbols. Thus no zone can trigger the defect now. The behavior with a stops level > 0 is verified only with FakeMT5.
 
 ## Open points
 
 - [x] Decide the fix. Then fix `validation.py` and the items in "Solution".
-- [ ] On the VPS, examine the `trade_stops_level` of the symbols in use. `GET /api/market/{id}/time-check` gives it. Compare it with the TP and SL of the zones. If a symbol has a stops level larger than a TP or SL distance, make sure that the bot does not cancel and set the orders again in each loop.
+- [x] On the VPS, examine the `trade_stops_level` of the symbols in use. `GET /api/market/{id}/time-check` gives it. Compare it with the TP and SL of the zones. If a symbol has a stops level larger than a TP or SL distance, make sure that the bot does not cancel and set the orders again in each loop.
 
 ## Lessons
 
