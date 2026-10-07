@@ -2,8 +2,8 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [116, 118, 119]
-features: [ZON-19, ZON-20, ENG-27, ENG-28, ANA-07, ANA-12]
+pr: [116, 118, 119, 120]
+features: [ZON-19, ZON-20, LOG-07, ENG-27, ENG-28, ANA-07, ANA-12]
 areas: [worker, frontend, tests]
 ---
 
@@ -21,7 +21,7 @@ The user selected a real data model change (symbol → setups), not only a group
 | A | Worker: storage format `SYMBOLS`, read adapter, migration with backup (ZON-19) | done (PR #116) |
 | B1 | Data path: GET without `ZONES`, each setup has its engine index, the UI reads and sends `SYMBOLS`, e2e mock on `SYMBOLS` (ZON-19) | done (PR #118) |
 | B2a | Frontend: symbol card with setup cards, "Add symbol" / "Add setup", delete of the last setup, engine position by zone id, i18n and hints (ZON-20) | done (PR #119) |
-| B2b | Symbol logs: "Symbol logs" shows the lines of all setups; worker `GET /logs/{id}?zone_id=` takes more than one id | open |
+| B2b | Symbol logs: "Symbol logs" shows the lines of all setups; worker `GET /logs/{id}?zone_id=` takes more than one id (LOG-07) | done (PR #120) |
 | C | Compact setup layout (short inputs, switch next to input, 375 px check, UI-08) | open |
 | D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-12) | open |
 
@@ -95,6 +95,28 @@ The dashboard shows one card for each symbol. The setups of the symbol are cards
 | `frontend_nextjs/src/components/chart/ZoneChartPanel.tsx` | Market hours by engine position |
 | `frontend_nextjs/src/i18n/messages/zone.ts`, `hints.ts` | Texts |
 
+## Solution (part B2b)
+
+The symbol card shows the logs of all its setups. The robot log tab shows the symbol and the setup number.
+
+| Item | Behavior |
+|---|---|
+| Worker filter | `GET /api/logs/{id}` takes `zone_id` more than one time (`?zone_id=a&zone_id=b`). The answer has the lines of all given setups in the file order. `lines` applies to this common list. One `zone_id` (UI before part B2b) gives the same answer as before. An empty `zone_id=` gives no lines (before: the full log). No client sends it. |
+| "Symbol logs" (`SymbolLogs`) | Replaces "Zone logs" in the setup card. It is below the setup cards in the symbol card. It asks for the ids of all setups of the symbol in one request: one poll for each symbol, not for each setup. |
+| Setup number | If the symbol has more than one setup, each line starts with "Setup n". n is the position in the symbol card, the same as in the card title. |
+| Robot log tab (`LogViewer`) | The badge before a tagged line shows the symbol and the setup number, for example "USOUSD · Setup 2". Before, it showed "Zone n", the position in the flat list. A line of a setup that is not in the settings shows "Setup ?". |
+| Texts | "Zone logs" → "Symbol logs" in tr, en and de: button, hint, empty text, badge. The i18n keys and the testids did not change (`zone.logs.*`, `logs.zoneBadge`, `zone-log-output`, `log-zone-badge`). |
+
+| File | Change |
+|---|---|
+| `worker_python/src/api/logs.py` | `zone_id` is a list. A line passes if it has one of the tags. |
+| `frontend_nextjs/src/components/zone/SymbolLogs.tsx` | Former `ZoneLogs.tsx`, renamed in a separate commit. Takes `setupIds`, shows the setup badge. |
+| `frontend_nextjs/src/components/zone/SymbolCard.tsx`, `ZoneCard.tsx`, `src/components/ZoneSettingsPanel.tsx` | The logs moved from the setup card to the symbol card. `SymbolCard` takes `setupIds` instead of `setupCount`. |
+| `frontend_nextjs/src/services/zoneApi.ts` | `getZoneLogs()` → `getSymbolLogs()`: sends the ids as `URLSearchParams` |
+| `frontend_nextjs/src/components/LogViewer.tsx` | Badge from `groupBySymbol()` |
+| `frontend_nextjs/src/i18n/messages/zone.ts`, `logs.ts`, `hints.ts` | Texts |
+| `frontend_nextjs/e2e/fixtures/mock-worker.ts` | `searchParams.getAll('zone_id')`, like the worker |
+
 ## Why
 
 - Flat list for the engine: the engine maps orders to zones by magic. A setup keeps the magic of its zone, so open orders and positions stay with their setup after the migration.
@@ -117,6 +139,12 @@ The dashboard shows one card for each symbol. The setups of the symbol are cards
   - Changed: plan "`toggleZoneActive()` takes the ui-state index after this save" → "sends the command before the save, to the current position". The plan was correct only for a stopped bot.
 - Part B2a, the symbol field changes the setups only on selection or when you leave the field: with a change on each key, "XAUUSDm" passes through "XAUUSD". At that moment the card joins an existing XAUUSD card, and the field loses the focus.
 - Part B2a, the panel badge counts symbols. Each symbol card shows the number of its setups.
+- Part B2b, a repeated query parameter for `zone_id`: FastAPI reads a repeated parameter into a list. An old client sends one `zone_id`, which becomes a list with one item. A zone id is free text, and hand-made files are possible. A comma in an id breaks a comma list.
+  - Rejected: a comma list (`?zone_id=a,b`). The URL is shorter, but it needs a split rule, and an old id with a comma gets a different meaning.
+  - axios writes an array parameter as `zone_id[]=a`. Thus `getSymbolLogs()` sends `URLSearchParams` (checked with axios 1.19.0).
+- Part B2b, the setup badge in the symbol logs: before, each card showed only the lines of its zone. When all setups are in one log, the badge shows which setup wrote the line. With one setup, the badge gives no information. Thus it is not shown.
+- Part B2b, the request starts again only when the ids change: the panel gives a new id array on each render (live data, each key in a field). The worker reads the full log file for each filtered request. Without this check, each key in a setup field sent a new request while the logs were open. The component compares the ids as JSON text.
+  - Cost: when the ids change while the logs are open (add or delete a setup), the answer of the old request can come after the new one. Then the old lines show until the next poll (10 s). A line of a deleted setup shows "Setup ?". Found in the review of part B2b.
 
 ## Verification
 
@@ -168,6 +196,20 @@ The dashboard shows one card for each symbol. The setups of the symbol are cards
   - `npm run lint`: ok. `npx tsc --noEmit`: ok. `scripts/features/run.sh`: unit 414 passed, 1 xfailed; api 188 passed; e2e 288 passed; `FEATURES.md` 128/154. `update_checklist.py --check`: ok.
   - Screenshots (temporary Playwright spec, deleted): desktop light and dark, 375 px in German with the "Add symbol" dialog.
   - Not verified: the live tests and a DEMO check of ZON-20 (open point).
+- Part B2b (2026-10-07):
+  - New tests, red before the change:
+
+    | Test | Red with |
+    |---|---|
+    | api `test_symbol_filtresi_birden_fazla_setup_satirlarini_dosya_sirasiyla_verir` (LOG-07) | the old filter: only the last `zone_id` was used |
+    | e2e `logs-ui.spec.ts` "Symbol-Logs: ein Symbol mit zwei Setups …" (LOG-07) | the UI before the change: the toggle was in each setup card |
+    | e2e `logs-ui.spec.ts` "Symbol-Logs zeigen nur das eigene Symbol", check "no extra request after an input" | the fetch with the id array directly (3 requests, expected 2) |
+
+  - Changed existing test: `logs-ui.spec.ts` LOG-07 "Zonen-Logs zeigen nur die eigene Zone" → "Symbol-Logs zeigen nur das eigene Symbol". The toggle is in the symbol card, and the badge has the new text from the plan. The expected log lines did not change.
+  - `scripts/features/run.sh`: unit 414 passed, 1 xfailed; api 189 passed; e2e 289 passed; `FEATURES.md` 128/154. `scripts/features/run.sh LOG-07` after the review: unit 2, api 2, e2e 2 passed. `npm run lint`: ok. `npx tsc --noEmit`: ok. pyright on `logs.py`: 0 errors. `update_checklist.py --check`: ok.
+  - Screenshots (temporary Playwright spec, deleted): symbol logs on desktop in dark and light, the robot log tab, 375 px without a horizontal scroll.
+  - Review (subagent `reviewer`): no critical finding. Fixed: the request count is also checked before "Refresh". Accepted and written above: an old answer after an id change; an empty `zone_id`.
+  - Not verified: the DEMO check of LOG-07 (after the merge, open point).
 
 ## Open points
 - [x] Part A: open the PR. After the merge, do the manual check ZON-19 on the DEMO account.
@@ -189,9 +231,12 @@ The dashboard shows one card for each symbol. The setups of the symbol are cards
 - [x] Part B2: after a save that changes the order, the store keeps the old order until the next load. Then `zone_states` can show on the wrong card. Examples: the first save of an old file with mixed symbols; a new setup with the symbol of an earlier group. Also, `toggleZoneActive()` takes the ui-state index before this save. Found 2026-10-07, present since part A. Part B2 shows the setups grouped by symbol, so the store order is the engine order.
   - Done (2026-10-07, part B2a): the cards use the engine position of the zone id (`engineOrder`). Each save sets `engineOrder` from the sent zones. `toggleZoneActive()` sends its command before the save, to the current position. See "Why".
 - [ ] `frontend_nextjs/e2e/live/trading.spec.ts` adds a test zone at the end and uses `zones.length` as its ui-state index. If the DEMO account has a zone with the same symbol before other symbols, the save groups the test zone into the middle. Read the settings again after the save and find the index by the test zone id. Found in the review 2026-10-07, present since part A, live test only.
-- [ ] Parts B2b, C and D.
-- [ ] Texts that still say "zone" or "Bölge" after part B2a: the field hints (for example min and max price), the zone logs (part B2b) and the Analyse page (part D).
+- [ ] Parts C and D.
+- [ ] Texts that still say "zone" or "Bölge" after part B2b: the field hints (for example min and max price) and the Analyse page (part D). The log texts of the UI are done (part B2b).
+- [ ] The worker log messages say "Bölge n" (19 places in `worker_python/src/core`). n is the engine position + 1, not the setup number of the card. Worker messages are not translated, and the change is in engine code (golden test BKT-01). Found 2026-10-07 in part B2b.
+- [ ] `GET /api/logs/{id}` reads the log files directly in the `async def` (a blocking call, `hooks/RULES.md` §9.1). With a zone filter, it reads the full file. Present before part B2b. Part B2b sends fewer requests (one for each symbol). Found 2026-10-07.
 - [ ] ZON-20: manual check on the DEMO account (`pruefung` in `features.yaml`).
+- [ ] LOG-07: manual check on the DEMO account after the merge of part B2b.
 
 ## Risks
 - A running bot moves the ui_state file only at its next settings read (one loop, `LOOP_INTERVAL_SECONDS`). A zone command in this time can go to a different zone: Start/Pause or Restart right after a save that changed the order (delete, a new setup of an earlier symbol, the first save of an old file). Present since part A. A fix needs commands by magic in the worker.

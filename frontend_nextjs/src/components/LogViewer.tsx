@@ -1,12 +1,13 @@
 'use client';
 
 import { Activity, Bot, Download, MonitorCog, RefreshCw, Terminal, Trash2 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { axiosInstance } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { useAccountStore, useLogsStore, useBotRuntimeStore, useSettingsStore } from '@/store';
 import { logLineColor, splitZoneTag } from '@/lib/logLines';
+import { groupBySymbol } from '@/lib/symbolSetups';
 import type { ActivityLevel } from '@/store';
 import { downloadAccountLogs } from '@/lib/downloadLogs';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -52,6 +53,14 @@ export default function LogViewer() {
   const updateLiveData = useBotRuntimeStore((s) => s.updateLiveData);
   const isConnecting = useBotRuntimeStore((s) => s.isConnecting);
   const zones = useSettingsStore((s) => s.settings?.ZONES);
+  // Robot sekmesindeki rozet "USOUSD · Setup 2": sembol kartındaki sıra, kart başlığıyla aynı
+  const setupLabels = useMemo(() => {
+    const labels = new Map<string, { symbol: string; n: number }>();
+    for (const group of groupBySymbol(zones ?? [])) {
+      group.zones.forEach((zone, i) => labels.set(zone.id, { symbol: group.symbol, n: i + 1 }));
+    }
+    return labels;
+  }, [zones]);
 
   const [tab, setTab] = useState<Tab>("activity");
   const [connectingSeconds, setConnectingSeconds] = useState(0);
@@ -252,12 +261,12 @@ export default function LogViewer() {
             ) : (
               activeLines.map((line, i) => {
                 const { zoneId, text } = tab === "robot" ? splitZoneTag(line) : { zoneId: null, text: line };
-                const zoneNo = zoneId ? (zones?.findIndex((z) => z.id === zoneId) ?? -1) + 1 : 0;
+                const setup = zoneId ? setupLabels.get(zoneId) : undefined;
                 return (
                   <span key={i} className={logLineColor(line)}>
                     {zoneId && (
                       <span data-testid="log-zone-badge" className="mr-1.5 rounded bg-primary/15 px-1 py-px text-[10.5px] font-semibold text-primary">
-                        {zoneNo > 0 ? t("logs.zoneBadge", { n: zoneNo }) : t("logs.zoneBadge.unknown")}
+                        {setup ? t("logs.zoneBadge", setup) : t("logs.zoneBadge.unknown")}
                       </span>
                     )}
                     {text}

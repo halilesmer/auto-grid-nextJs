@@ -1,7 +1,7 @@
 /** LOG · Logs und Worker-Status · UI · Navigation, Theme, PWA, Zonen-Test-Link. */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
+import { DEMO_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 test.describe('LOG Logs', () => {
@@ -20,21 +20,83 @@ test.describe('LOG Logs', () => {
     expect(call.query.get('log_type')).toBe('all');
   });
 
-  test('Zonen-Logs zeigen nur die eigene Zone', { tag: '@LOG-07' }, async ({ page, worker, dashboard }) => {
+  test('Symbol-Logs zeigen nur das eigene Symbol', { tag: '@LOG-07' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    const card = page.getByTestId('zone-card').first();
+    const card = dashboard.symbolCard(0);
+    // Der Schalter sitzt einmal in der Symbolkarte, nicht in der Setup-Karte
+    await expect(card.getByRole('button', { name: msg('zone.logs.toggle') })).toHaveCount(1);
+    await expect(card.getByTestId('zone-card').getByRole('button', { name: msg('zone.logs.toggle') })).toHaveCount(0);
     await card.getByRole('button', { name: msg('zone.logs.toggle') }).click();
     const out = card.getByTestId('zone-log-output');
     await expect(out).toContainText('3 emir yerleştirildi');
     await expect(out).not.toContainText('fremde Zone');
     await expect(out).not.toContainText('[Z:');
-    const call = worker.callsTo('GET', `/api/logs/${DEMO_ID}`).find((c) => c.query.get('zone_id'));
-    expect(call?.query.get('zone_id')).toBe(ZONE_ID);
+    // Ein Setup: keine Setup-Nummer vor der Zeile
+    await expect(out.getByTestId('log-setup-badge')).toHaveCount(0);
+    const call = worker.callsTo('GET', `/api/logs/${DEMO_ID}`).find((c) => c.query.has('zone_id'));
+    expect(call?.query.getAll('zone_id')).toEqual([ZONE_ID]);
 
-    // Robot-Tab: Tag als Zonen-Badge statt Rohtext
+    // Eine Eingabe im Setup gibt neue Zonen-Objekte mit denselben ids: keine zusätzliche Abfrage,
+    // nur die von „Aktualisieren“
+    const symbolLogCalls = () => worker.callsTo('GET', `/api/logs/${DEMO_ID}`).filter((c) => c.query.has('zone_id')).length;
+    await dashboard.zoneField(msg('zone.field.lot')).fill('0.05');
+    await expect(card.getByText(msg('zone.header.unsaved'), { exact: true })).toBeVisible();
+    expect(symbolLogCalls()).toBe(1);
+    await card.getByRole('button', { name: msg('logs.refresh') }).click();
+    await expect.poll(symbolLogCalls).toBe(2);
+
+    // Robot-Tab: Tag als Badge „Symbol · Setup n“ statt Rohtext
     await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
-    await expect(dashboard.logOutput.getByTestId('log-zone-badge').first()).toHaveText(msg('logs.zoneBadge', { n: 1 }));
+    await expect(dashboard.logOutput.getByTestId('log-zone-badge').first()).toHaveText(
+      msg('logs.zoneBadge', { symbol: 'USOUSD', n: 1 }),
+    );
     await expect(dashboard.logOutput).not.toContainText('[Z:');
+  });
+
+  test('Symbol-Logs: ein Symbol mit zwei Setups zeigt die Zeilen beider Setups mit Setup-Nummer', { tag: '@LOG-07' }, async ({ page, worker, dashboard }) => {
+    // USOUSD mit Setup 1 (zone-a) und Setup 2 (zone-c), XAUUSD mit einem Setup (zone-b)
+    worker.setZones(DEMO_ID, [
+      makeZone({ id: 'zone-a' }),
+      makeZone({ id: 'zone-c', min_price: 80, max_price: 100 }),
+      makeZone({ id: 'zone-b', symbol: 'XAUUSD', min_price: 1800, max_price: 2000 }),
+    ]);
+    worker.state.robotLog[DEMO_ID] = [
+      '[2026-09-24 08:00:00] [INFO] [Z:zone-c] C eins',
+      '[2026-09-24 08:00:01] [INFO] [Z:zone-b] B fremd',
+      '[2026-09-24 08:00:02] [INFO] [Z:zone-a] A zwei',
+      '[2026-09-24 08:00:03] [INFO] ohne Setup',
+    ];
+    await dashboard.open(DEMO_ID);
+
+    const uso = dashboard.symbolCard(0);
+    await uso.getByRole('button', { name: msg('zone.logs.toggle') }).click();
+    const usoOut = uso.getByTestId('zone-log-output');
+    await expect(usoOut).toContainText('C eins');
+    await expect(usoOut).toContainText('A zwei');
+    await expect(usoOut).not.toContainText('B fremd');
+    await expect(usoOut).not.toContainText('ohne Setup');
+    await expect(usoOut).not.toContainText('[Z:');
+    await expect(usoOut.getByTestId('log-setup-badge')).toHaveText([
+      msg('zone.setup.title', { n: 2 }),
+      msg('zone.setup.title', { n: 1 }),
+    ]);
+    const call = worker.callsTo('GET', `/api/logs/${DEMO_ID}`).find((c) => c.query.has('zone_id'));
+    expect(call?.query.getAll('zone_id')).toEqual(['zone-a', 'zone-c']);
+
+    const xau = dashboard.symbolCard(1);
+    await xau.getByRole('button', { name: msg('zone.logs.toggle') }).click();
+    const xauOut = xau.getByTestId('zone-log-output');
+    await expect(xauOut).toContainText('B fremd');
+    await expect(xauOut).not.toContainText('A zwei');
+    await expect(xauOut.getByTestId('log-setup-badge')).toHaveCount(0);
+
+    // Robot-Tab: Badge mit Symbol und Setup-Nummer der Symbolkarte
+    await page.getByRole('tab', { name: msg('logs.tab.robot') }).click();
+    await expect(dashboard.logOutput.getByTestId('log-zone-badge')).toHaveText([
+      msg('logs.zoneBadge', { symbol: 'USOUSD', n: 2 }),
+      msg('logs.zoneBadge', { symbol: 'XAUUSD', n: 1 }),
+      msg('logs.zoneBadge', { symbol: 'USOUSD', n: 1 }),
+    ]);
   });
 
   test('Logs löschen', { tag: '@LOG-02' }, async ({ page, worker, dashboard }) => {

@@ -505,10 +505,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Tab „MT5 Terminal“ öffnen.
   - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
   - 📝 v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log, UTF-16 korrekt dekodiert
-- [ ] **LOG-07** Zonen-Logs — 🧪 unit ✅ 2026-10-07 · 🔌 api ✅ 2026-10-07 · 🖥️ e2e ✅ 2026-10-07 · 👤 manuell ⏳
-  - Jede Robot-Log-Zeile, die zu einer Zone gehört, trägt das Tag [Z:<zone_id>]; GET /logs/{id}?zone_id=… filtert darauf, und jede Zonenkarte zeigt ihre eigenen Logs aufklappbar an.
-  - **Prüfung:** Bot mit zwei Zonen laufen lassen, in einer Zonenkarte „Logs“ aufklappen.
-  - **Erwartet:** Nur Zeilen dieser Zone erscheinen (ohne Tag); im Robot-Log-Tab steht das Zonen-Badge vor der Zeile.
+- [ ] **LOG-07** Symbol-Logs — 🧪 unit ✅ 2026-10-07 · 🔌 api ✅ 2026-10-07 · 🖥️ e2e ✅ 2026-10-07 · 👤 manuell ⏳
+  - Jede Robot-Log-Zeile, die zu einer Zone (Setup) gehört, trägt das Tag [Z:<zone_id>]. GET /logs/{id}?zone_id=… filtert darauf; zone_id ist wiederholbar (?zone_id=a&zone_id=b) und liefert die Zeilen aller genannten Setups in Dateireihenfolge, `lines` gilt für die gemeinsame Liste. Eine einzelne zone_id (ältere Oberfläche) wirkt wie bisher. Jede Symbolkarte zeigt unter ihren Setups „Sembol logları“ aufklappbar mit den Zeilen aller Setups des Symbols; bei mehr als einem Setup beginnt jede Zeile mit „Setup n“ (Platz in der Symbolkarte). Im Robot-Log-Tab steht vor jeder Zeile mit Tag das Badge „<Symbol> · Setup n“.
+  - **Prüfung:** Bot mit einem Symbol mit zwei Setups und einem zweiten Symbol laufen lassen, in der Symbolkarte „Sembol logları“ aufklappen.
+  - **Erwartet:** Zeilen beider Setups des Symbols erscheinen (ohne Tag, mit „Setup 1“/„Setup 2“), keine Zeilen des anderen Symbols; im Robot-Log-Tab steht „<Symbol> · Setup n“ vor der Zeile.
 
 ## 11. UPD – System & Updates
 

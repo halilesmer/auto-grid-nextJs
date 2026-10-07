@@ -166,7 +166,7 @@ export default function ZoneSettingsPanel({
         <SymbolCard
           key={group.zones[0].id}
           symbol={group.symbol}
-          setupCount={group.zones.length}
+          setupIds={group.zones.map((zone) => zone.id)}
           marketIndexes={group.zones
             .filter((zone) => zone.is_active !== false)
             .map((zone) => engineOrder.indexOf(zone.id))

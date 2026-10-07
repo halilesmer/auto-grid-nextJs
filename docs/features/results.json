@@ -601,12 +601,12 @@
     "api": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     },
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     },
     "unit": {
       "datum": "2026-10-07",
