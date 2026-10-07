@@ -16,10 +16,7 @@ import { ZoneSellFields } from './ZoneSellFields';
 import { ZoneBreakoutFields } from './ZoneBreakoutFields';
 import { ZoneExitFields } from './ZoneExitFields';
 import { ZoneFractalFields } from './ZoneFractalFields';
-import { ZoneLogs } from './ZoneLogs';
-import { InputField } from '@/components/ui/InputField';
 import { SectionLabel } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
 
@@ -111,14 +108,14 @@ export function ZoneCard({
     <div
       data-testid="zone-card"
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-colors dark:shadow-black/40',
+        'relative overflow-hidden rounded-xl border border-border bg-card shadow-md transition-colors dark:shadow-black/40',
         'before:absolute before:inset-y-0 before:left-0 before:w-[3px]',
         accent,
         !isActive && 'before:opacity-40',
         modified && 'border-warning/30',
       )}
     >
-      <div className="border-b border-border px-5 py-4">
+      <div className="border-b border-border px-3 py-3 sm:px-4">
         <ZoneHeader
           zone={zone}
           title={title}
@@ -136,7 +133,7 @@ export function ZoneCard({
         />
       </div>
 
-      <div className="space-y-5 px-5 py-5">
+      <div className="space-y-4 px-3 py-4 sm:px-4">
         <section className="space-y-3">
           <SectionLabel>{t('zone.section.basic')}</SectionLabel>
           <ZoneBasicFields
@@ -148,36 +145,9 @@ export function ZoneCard({
           />
         </section>
 
-        <section className="space-y-3">
-          <div className="w-full sm:w-64">
-            <InputField label={t('zone.entryMode')} hint={t('zone.entryMode.hint')}>
-              <select
-                data-testid="entry-mode"
-                value={isFractal ? 'fractal' : 'grid'}
-                onChange={(e) => update('entry_mode', e.target.value)}
-                className="input-s"
-              >
-                <option value="grid">{t('zone.entryMode.grid')}</option>
-                <option value="fractal">{t('zone.entryMode.fractal')}</option>
-              </select>
-            </InputField>
-          </div>
-        </section>
-
         {isFractal ? (
           <section className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <SectionLabel>{t('zone.section.fractal')}</SectionLabel>
-              {isBoth && (
-                <Switch
-                  id={`sync-${zone.id}`}
-                  checked={zone.sync_buy_sell}
-                  onChange={(checked) => update('sync_buy_sell', checked)}
-                  label={<span className="text-xs text-muted-foreground">{t('zone.sync')}</span>}
-                  hint={t('zone.sync.hint')}
-                />
-              )}
-            </div>
+            <SectionLabel>{t('zone.section.fractal')}</SectionLabel>
             <ZoneFractalFields
               zone={zone}
               update={update}
@@ -191,40 +161,13 @@ export function ZoneCard({
         ) : (
           <>
             <section className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                {showBuyLabel && <SectionLabel className="text-success">{t('zone.section.buyGrid')}</SectionLabel>}
-                {showSellLabel && <SectionLabel className="text-danger">{t('zone.section.sellGrid')}</SectionLabel>}
-                {isBoth && (
-                  <SectionLabel className={zone.sync_buy_sell ? undefined : 'text-success'}>
-                    {zone.sync_buy_sell ? t('zone.section.grid') : t('zone.section.buyGridShort')}
-                  </SectionLabel>
-                )}
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <Switch
-                    id={`step-by-loss-${zone.id}`}
-                    checked={!!zone.step_by_loss}
-                    onChange={handleStepByLoss}
-                    label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
-                    hint={t('zone.stepByLoss.hint')}
-                  />
-                  <Switch
-                    id={`instant-entry-${zone.id}`}
-                    checked={!!zone.instant_entry}
-                    onChange={(checked) => update('instant_entry', checked)}
-                    label={<span className="text-xs text-muted-foreground">{t('zone.instantEntry')}</span>}
-                    hint={t('zone.instantEntry.hint')}
-                  />
-                  {isBoth && (
-                    <Switch
-                      id={`sync-${zone.id}`}
-                      checked={zone.sync_buy_sell}
-                      onChange={(checked) => update('sync_buy_sell', checked)}
-                      label={<span className="text-xs text-muted-foreground">{t('zone.sync')}</span>}
-                      hint={t('zone.sync.hint')}
-                    />
-                  )}
-                </div>
-              </div>
+              {showBuyLabel && <SectionLabel className="text-success">{t('zone.section.buyGrid')}</SectionLabel>}
+              {showSellLabel && <SectionLabel className="text-danger">{t('zone.section.sellGrid')}</SectionLabel>}
+              {isBoth && (
+                <SectionLabel className={zone.sync_buy_sell ? undefined : 'text-success'}>
+                  {zone.sync_buy_sell ? t('zone.section.grid') : t('zone.section.buyGridShort')}
+                </SectionLabel>
+              )}
 
               <ZoneGridFields
                 zone={zone}
@@ -234,6 +177,7 @@ export function ZoneCard({
                 sync={zone.sync_buy_sell}
                 handleChange={handleChange}
                 handleBlur={handleBlur}
+                onStepByLoss={handleStepByLoss}
               />
 
               {isBoth && !zone.sync_buy_sell && (
@@ -263,8 +207,6 @@ export function ZoneCard({
           zone={zone}
           update={update}
         />
-
-        <ZoneLogs zoneId={zone.id} />
       </div>
     </div>
   );

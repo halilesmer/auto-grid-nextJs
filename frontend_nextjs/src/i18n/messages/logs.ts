@@ -28,8 +28,8 @@ export default defineArea(
     'logs.download.preparing': '{account} hesabı için log arşivi hazırlanıyor…',
     'logs.download.done': 'Log arşivi indirildi ({size} KB).',
     'logs.download.failed': 'Log indirme başarısız',
-    'logs.zoneBadge': 'Bölge {n}',
-    'logs.zoneBadge.unknown': 'Bölge ?',
+    'logs.zoneBadge': '{symbol} · Setup {n}',
+    'logs.zoneBadge.unknown': 'Setup ?',
   },
   {
     'logs.tab.activity': 'Activity',
@@ -58,8 +58,8 @@ export default defineArea(
     'logs.download.preparing': 'Preparing log archive for account {account}…',
     'logs.download.done': 'Log archive downloaded ({size} KB).',
     'logs.download.failed': 'Log download failed',
-    'logs.zoneBadge': 'Zone {n}',
-    'logs.zoneBadge.unknown': 'Zone ?',
+    'logs.zoneBadge': '{symbol} · Setup {n}',
+    'logs.zoneBadge.unknown': 'Setup ?',
   },
   {
     'logs.tab.activity': 'Aktivität',
@@ -88,7 +88,7 @@ export default defineArea(
     'logs.download.preparing': 'Log-Archiv für Konto {account} wird vorbereitet…',
     'logs.download.done': 'Log-Archiv heruntergeladen ({size} KB).',
     'logs.download.failed': 'Log-Download fehlgeschlagen',
-    'logs.zoneBadge': 'Zone {n}',
-    'logs.zoneBadge.unknown': 'Zone ?',
+    'logs.zoneBadge': '{symbol} · Setup {n}',
+    'logs.zoneBadge.unknown': 'Setup ?',
   },
 );

@@ -93,11 +93,13 @@ export const zoneApi = {
     return zoneIdx;
   },
 
-  /** Yalnızca bu bölgenin robot log satırları ("[Z:<id>]" etiketli). */
-  async getZoneLogs(accountId: string, zoneId: string, lines = 100): Promise<string[]> {
-    const res = await axiosInstance.get(`/logs/${accountId}`, {
-      params: { log_type: 'robot', lines, zone_id: zoneId },
-    });
+  /** Yalnızca bu setup'ların robot log satırları ("[Z:<id>]" etiketli), dosya sırasıyla. */
+  async getSymbolLogs(accountId: string, zoneIds: string[], lines = 100): Promise<string[]> {
+    // Worker zone_id'yi tekrarlanan parametre olarak okur (?zone_id=a&zone_id=b); axios dizi
+    // parametresini "zone_id[]=" yazacağı için URLSearchParams olduğu gibi gönderilir
+    const params = new URLSearchParams({ log_type: 'robot', lines: String(lines) });
+    for (const zoneId of zoneIds) params.append('zone_id', zoneId);
+    const res = await axiosInstance.get(`/logs/${accountId}`, { params });
     return res.data?.robot_log || [];
   },
 };

@@ -6,6 +6,7 @@ import { NumberInput } from '@/components/ui/NumberInput';
 import { useT } from '@/i18n';
 import { useGuidedHints } from './useGuidedHints';
 import { LossPreview } from './LossPreview';
+import { FieldSwitch } from './FieldSwitch';
 import { distanceConfig } from '@/utils/zoneHelpers';
 
 export function ZoneGridFields({
@@ -16,6 +17,7 @@ export function ZoneGridFields({
   sync,
   handleChange,
   handleBlur,
+  onStepByLoss,
 }: ZoneGridFieldsProps) {
   const t = useT();
   const guided = useGuidedHints(zone.symbol);
@@ -27,7 +29,7 @@ export function ZoneGridFields({
     : 2;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="flex flex-wrap items-start gap-3">
       <InputField
         label={
           byLoss
@@ -48,7 +50,7 @@ export function ZoneGridFields({
           value={zone.grid_step}
           onChange={(e) => handleChange('grid_step', e.target.value, zone, stepCfg, update)}
           onBlur={() => handleBlur('grid_step', zone.grid_step, stepCfg.step, stepCfg.precision, update)}
-          className="input-s"
+          className="input-s w-28"
         />
       </InputField>
       <InputField
@@ -63,7 +65,7 @@ export function ZoneGridFields({
           value={zone.lot_size}
           onChange={(e) => handleChange('lot_size', e.target.value, zone, symbolConfig, update)}
           onBlur={() => handleBlur('lot_size', zone.lot_size, symbolConfig.volStep, volPrecision, update, symbolConfig)}
-          className="input-s"
+          className="input-s w-24"
         />
       </InputField>
       <InputField
@@ -86,7 +88,7 @@ export function ZoneGridFields({
           value={zone.take_profit}
           onChange={(e) => handleChange('take_profit', e.target.value, zone, stepCfg, update)}
           onBlur={() => handleBlur('take_profit', zone.take_profit, stepCfg.step, stepCfg.precision, update)}
-          className="input-s"
+          className="input-s w-28"
         />
       </InputField>
       <InputField
@@ -109,9 +111,23 @@ export function ZoneGridFields({
           value={zone.stop_loss}
           onChange={(e) => handleChange('stop_loss', e.target.value, zone, stepCfg, update)}
           onBlur={() => handleBlur('stop_loss', zone.stop_loss, stepCfg.step, stepCfg.precision, update)}
-          className="input-s"
+          className="input-s w-28"
         />
       </InputField>
+      <FieldSwitch
+        id={`step-by-loss-${zone.id}`}
+        checked={byLoss}
+        onChange={onStepByLoss}
+        label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
+        hint={t('zone.stepByLoss.hint')}
+      />
+      <FieldSwitch
+        id={`instant-entry-${zone.id}`}
+        checked={!!zone.instant_entry}
+        onChange={(checked) => update('instant_entry', checked)}
+        label={<span className="text-xs text-muted-foreground">{t('zone.instantEntry')}</span>}
+        hint={t('zone.instantEntry.hint')}
+      />
     </div>
   );
 }

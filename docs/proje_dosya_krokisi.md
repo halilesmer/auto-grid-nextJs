@@ -101,6 +101,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃   ┣ 📜 ZoneSellFields.tsx
 ┃ ┃ ┃   ┣ 📜 ZoneBreakoutFields.tsx
 ┃ ┃ ┃   ┣ 📜 ZoneExitFields.tsx
+┃ ┃ ┃   ┣ 📜 ZoneFractalFields.tsx
+┃ ┃ ┃   ┣ 📜 FieldSwitch.tsx
 ┃ ┃ ┃   ┣ 📜 index.ts
 ┃ ┃ ┃   ┗ 📜 types.ts
 ┃ ┃ ┣ 📂 hooks                  # Custom React hooks
@@ -447,11 +449,13 @@ grid_orchestrator (Ana Orkestratör)
 | `AddSymbolDialog.tsx` | Sembol Ekle penceresi: sembol seçilir, ilk setup otomatik oluşur |
 | `ZoneCard.tsx` | Tek setup'ın (bölgenin) kartı |
 | `ZoneHeader.tsx` | Setup başlığı („Setup n“), aktif/pasif toggle, Kaydet, Test, silme menüsü |
-| `ZoneBasicFields.tsx` | Order Type, Min/Max fiyat (sembol, sembol kartının başında) |
-| `ZoneGridFields.tsx` | Grid Step, Grid Count, Lot Size, Dynamic Grid ayarları |
-| `ZoneSellFields.tsx` | Satış yönü ayarları (ayrı grid, lot, step) |
-| `ZoneBreakoutFields.tsx` | Breakout giriş stratejisi, konfirmasyon, filtreler |
-| `ZoneExitFields.tsx` | TP/SL, Clear on Exit, Trailing Stop, Time-based exit |
+| `ZoneBasicFields.tsx` | Order Type (BOTH'ta yanında „BUY/SELL aynı“ anahtarı), Min/Max fiyat, giriş modu (sembol, sembol kartının başında) |
+| `ZoneGridFields.tsx` | Grid adımı, lot, TP, SL; yanında „zarara göre aralık“ ve „ilk pozisyonu hemen aç“ anahtarları |
+| `ZoneSellFields.tsx` | Satış yönü ayarları (ayrı grid, lot, TP, SL) |
+| `ZoneBreakoutFields.tsx` | „Sadece trend yönünde“ anahtarı, pullback, alt/üst seviyeler, maks. pozisyon |
+| `ZoneExitFields.tsx` | „Bölgeden çıkınca temizle“ anahtarı ve yanında yön, hedef, kapsam, tetikleyici, zaman dilimi |
+| `ZoneFractalFields.tsx` | Fraktal girişi: emir türü, zaman dilimi, lot, emir sayısı, maks. pozisyon; SL anahtarı + SL yöntemi; „TP tutar olarak“ anahtarı + TP |
+| `FieldSwitch.tsx` | Alan satırındaki anahtar: kontrol ettiği alanın yanında, giriş kutularının hizasında (kompakt setup, ZON-20) |
 
 ### Hook'lar (`hooks/`)
 

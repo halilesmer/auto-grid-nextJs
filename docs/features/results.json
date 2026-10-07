@@ -608,12 +608,12 @@
     "api": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     },
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     },
     "unit": {
       "datum": "2026-10-07",
@@ -903,14 +903,14 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 17
+      "tests": 1
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 16
+      "tests": 6
     }
   },
   "UI-09": {
@@ -1276,7 +1276,7 @@
     "e2e": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 1
+      "tests": 20
     }
   },
   "ZON-21": {

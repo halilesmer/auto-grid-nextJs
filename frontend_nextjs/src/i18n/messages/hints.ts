@@ -98,7 +98,7 @@ export default defineArea(
     'logs.tab.robot.hint': 'Botun (grid motoru) log dosyası: yerleştirilen/silinen emirler, uyarılar, hatalar.',
     'logs.tab.mt5.hint': 'MT5 terminalinin kendi log çıktısı (bağlantı, emir hataları).',
     'logs.refresh.hint': 'Logu hemen yeniden yükler (otomatik yenileme zaten düzenli aralıklarla çalışır).',
-    'zone.logs.toggle.hint': 'Yalnızca bu bölgenin robot loglarını açar/kapatır (açıkken 10 sn’de bir yenilenir). Etiketsiz eski satırlar burada görünmez.',
+    'zone.logs.toggle.hint': 'Bu sembolün tüm setup’larının robot loglarını açar/kapatır (açıkken 10 sn’de bir yenilenir). Birden fazla setup varsa her satır setup numarasıyla başlar. Etiketsiz eski satırlar burada görünmez.',
     'logs.download.hint': 'Seçili hesabın log dosyasını bilgisayarınıza indirir.',
     'logs.clear.activity.hint': 'Yalnızca Activity listesini (bu oturumdaki arayüz olayları) temizler.',
     'logs.clear.all.hint': 'Bu hesaba ait tüm logları worker’da temizler (onay ister). Geri alınamaz.',
@@ -315,7 +315,7 @@ export default defineArea(
 
     // --- Bölge: çıkışta temizleme ---
     'zone.exit.clearOnExit.tip':
-      'Açıkken fiyat bölgenin dışına çıktığında bölge kendini temizler ve durur (“Otomatik temizlendi”); fiyat geri gelse de “Yeniden Başlat” denene kadar emir konmaz. Aşağıdaki seçenekler neyin, ne zaman temizleneceğini belirler. Kapalıyken bölgenin emirlerine dokunulmaz.',
+      'Açıkken fiyat bölgenin dışına çıktığında bölge kendini temizler ve durur (“Otomatik temizlendi”); fiyat geri gelse de “Yeniden Başlat” denene kadar emir konmaz. Yanındaki seçenekler neyin, ne zaman temizleneceğini belirler. Kapalıyken bölgenin emirlerine dokunulmaz.',
     'zone.exit.side.hint':
       'Hangi yönde çıkışta temizlik yapılacağı: herhangi, yalnızca yukarı (üst sınırın üstü) veya yalnızca aşağı (alt sınırın altı). Diğer yönde çıkışta emirlere dokunulmaz, bölge yine de pasife alınır.',
     'zone.exit.target.hint': 'Temizlikte hangi tarafın işlemleri silinsin/kapatılsın: hepsi, yalnızca BUY veya yalnızca SELL.',
@@ -334,7 +334,7 @@ export default defineArea(
     'zone.fractal.slMode.hint':
       'ATR: fraktal mumunun ucu ± çarpan × ATR (tipik mum dalgalanması).\nParabolic SAR: SAR noktası; açık pozisyonda her yeni mumda yalnızca kâr yönünde çekilir.\nKarşı fraktal: BUY için son alt fraktalın, SELL için son üst fraktalın ötesi + tampon.\nFraktal mumu: BUY için fraktal mumunun dibi − tampon, SELL için tepesi + tampon.\nHesaplanamazsa veya yanlış taraftaysa fraktal mumu + tampon kullanılır.',
     'zone.fractal.useSl.hint':
-      'Açık: her fraktal emrine SL konur (aşağıdaki yönteme göre).\nKapalı: emirler SL olmadan açılır; Risk/Ödül TP\'si ve SAR takibi kullanılamaz, TP yalnızca tutar olarak ayarlanabilir. Zarar sınırsız kalabilir.',
+      'Açık: her fraktal emrine SL konur (yanındaki yönteme göre).\nKapalı: emirler SL olmadan açılır; Risk/Ödül TP\'si ve SAR takibi kullanılamaz, TP yalnızca tutar olarak ayarlanabilir. Zarar sınırsız kalabilir.',
     'zone.fractal.slBuffer.hint':
       'SL\'nin fraktal mumunun / karşı fraktalın ne kadar ötesine konacağı (fiyat birimi, ör. 0,05). ATR veya SAR hesaplanamadığında yedek olarak da kullanılır.',
     'zone.fractal.atrPeriod.hint':
@@ -527,7 +527,7 @@ export default defineArea(
     'logs.tab.robot.hint': 'Log file of the bot (grid engine): placed/deleted orders, warnings, errors.',
     'logs.tab.mt5.hint': 'The MT5 terminal’s own log output (connection, order errors).',
     'logs.refresh.hint': 'Reloads the log right now (it also refreshes automatically at regular intervals).',
-    'zone.logs.toggle.hint': 'Shows/hides only this zone’s robot log lines (refreshes every 10 s while open). Older untagged lines don’t appear here.',
+    'zone.logs.toggle.hint': 'Shows/hides the robot log lines of all setups of this symbol (refreshes every 10 s while open). With more than one setup, each line starts with its setup number. Older untagged lines don’t appear here.',
     'logs.download.hint': 'Downloads the log file of the selected account to your computer.',
     'logs.clear.activity.hint': 'Clears only the Activity list (UI events of this session).',
     'logs.clear.all.hint': 'Clears all logs of this account on the worker (asks for confirmation). Cannot be undone.',
@@ -744,7 +744,7 @@ export default defineArea(
 
     // --- Zone: clear on exit ---
     'zone.exit.clearOnExit.tip':
-      'When on and the price leaves the zone, the zone clears itself and stops (“Auto-cleared”); even if the price comes back no orders are placed until you press “Restart”. The options below decide what is cleared and when. When off, the zone’s orders are left alone.',
+      'When on and the price leaves the zone, the zone clears itself and stops (“Auto-cleared”); even if the price comes back no orders are placed until you press “Restart”. The options next to it decide what is cleared and when. When off, the zone’s orders are left alone.',
     'zone.exit.side.hint':
       'In which exit direction to clean up: any, only upwards (above the upper limit) or only downwards (below the lower limit). On an exit in the other direction the orders are left alone, but the zone is still deactivated.',
     'zone.exit.target.hint': 'Which side’s trades are deleted/closed when cleaning up: all, BUY only or SELL only.',
@@ -763,7 +763,7 @@ export default defineArea(
     'zone.fractal.slMode.hint':
       'ATR: tip of the fractal candle ± multiplier × ATR (typical candle range).\nParabolic SAR: the SAR dot; on open positions it is moved on each new candle, only in the profit direction.\nOpposite fractal: beyond the last lower fractal (BUY) or upper fractal (SELL) + buffer.\nFractal candle: low of the fractal candle − buffer (BUY), high + buffer (SELL).\nIf it cannot be calculated or lands on the wrong side, fractal candle + buffer is used.',
     'zone.fractal.useSl.hint':
-      'On: every fractal order gets an SL (by the method below).\nOff: orders are placed without an SL; risk/reward TP and SAR trailing are unavailable, TP can only be set as an amount. Losses may be unlimited.',
+      'On: every fractal order gets an SL (by the method next to it).\nOff: orders are placed without an SL; risk/reward TP and SAR trailing are unavailable, TP can only be set as an amount. Losses may be unlimited.',
     'zone.fractal.slBuffer.hint':
       'How far beyond the fractal candle / opposite fractal the SL is placed (price units, e.g. 0.05). Also the fallback when ATR or SAR cannot be calculated.',
     'zone.fractal.atrPeriod.hint':
@@ -956,7 +956,7 @@ export default defineArea(
     'logs.tab.robot.hint': 'Logdatei des Bots (Grid-Engine): gesetzte/gelöschte Orders, Warnungen, Fehler.',
     'logs.tab.mt5.hint': 'Eigene Log-Ausgabe des MT5-Terminals (Verbindung, Order-Fehler).',
     'logs.refresh.hint': 'Lädt das Log sofort neu (es aktualisiert sich auch automatisch in regelmäßigen Abständen).',
-    'zone.logs.toggle.hint': 'Zeigt/verbirgt nur die Robot-Log-Zeilen dieser Zone (aktualisiert alle 10 s, solange offen). Ältere Zeilen ohne Zonen-Tag erscheinen hier nicht.',
+    'zone.logs.toggle.hint': 'Zeigt/verbirgt die Robot-Log-Zeilen aller Setups dieses Symbols (aktualisiert alle 10 s, solange offen). Bei mehreren Setups beginnt jede Zeile mit der Setup-Nummer. Ältere Zeilen ohne Setup-Tag erscheinen hier nicht.',
     'logs.download.hint': 'Lädt die Logdatei des gewählten Kontos auf Ihren Computer herunter.',
     'logs.clear.activity.hint': 'Leert nur die Activity-Liste (UI-Ereignisse dieser Sitzung).',
     'logs.clear.all.hint': 'Leert alle Logs dieses Kontos auf dem Worker (mit Rückfrage). Nicht rückgängig zu machen.',
@@ -1173,7 +1173,7 @@ export default defineArea(
 
     // --- Zone: Aufräumen beim Verlassen ---
     'zone.exit.clearOnExit.tip':
-      'Eingeschaltet räumt die Zone auf und stoppt (Status „Automatisch bereinigt“), sobald der Preis sie verlässt; auch wenn der Preis zurückkehrt, werden erst nach „Neu starten“ wieder Orders gesetzt. Die Optionen darunter legen fest, was wann aufgeräumt wird. Ausgeschaltet bleiben die Orders der Zone unberührt.',
+      'Eingeschaltet räumt die Zone auf und stoppt (Status „Automatisch bereinigt“), sobald der Preis sie verlässt; auch wenn der Preis zurückkehrt, werden erst nach „Neu starten“ wieder Orders gesetzt. Die Optionen daneben legen fest, was wann aufgeräumt wird. Ausgeschaltet bleiben die Orders der Zone unberührt.',
     'zone.exit.side.hint':
       'Bei welcher Ausbruchsrichtung aufgeräumt wird: beliebig, nur nach oben (über der Obergrenze) oder nur nach unten (unter der Untergrenze). Bei Ausbruch in die andere Richtung bleiben die Orders unberührt, die Zone wird trotzdem deaktiviert.',
     'zone.exit.target.hint': 'Welche Seite beim Aufräumen gelöscht/geschlossen wird: alle, nur BUY oder nur SELL.',
@@ -1192,7 +1192,7 @@ export default defineArea(
     'zone.fractal.slMode.hint':
       'ATR: Spitze der Fraktal-Kerze ± Faktor × ATR (typische Kerzenschwankung).\nParabolic SAR: SAR-Punkt; bei offenen Positionen mit jeder neuen Kerze nachgezogen, nur in Gewinnrichtung.\nGegenfraktal: jenseits des letzten unteren (BUY) bzw. oberen Fraktals (SELL) + Puffer.\nFraktal-Kerze: Tief der Fraktal-Kerze − Puffer (BUY), Hoch + Puffer (SELL).\nLässt er sich nicht berechnen oder liegt er auf der falschen Seite, gilt Fraktal-Kerze + Puffer.',
     'zone.fractal.useSl.hint':
-      'An: jede Fraktal-Order bekommt einen SL (nach der Methode unten).\nAus: Orders werden ohne SL gesetzt; Chance/Risiko-TP und SAR-Nachziehen entfallen, TP nur als Betrag. Verluste können unbegrenzt sein.',
+      'An: jede Fraktal-Order bekommt einen SL (nach der Methode daneben).\nAus: Orders werden ohne SL gesetzt; Chance/Risiko-TP und SAR-Nachziehen entfallen, TP nur als Betrag. Verluste können unbegrenzt sein.',
     'zone.fractal.slBuffer.hint':
       'Wie weit jenseits der Fraktal-Kerze / des Gegenfraktals der SL liegt (Preiseinheiten, z. B. 0,05). Auch Rückfallwert, wenn ATR oder SAR nicht berechenbar sind.',
     'zone.fractal.atrPeriod.hint':
