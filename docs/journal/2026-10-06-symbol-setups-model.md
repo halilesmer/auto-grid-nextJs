@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [116]
+pr: [116, 118]
 features: [ZON-19, ENG-27, ENG-28, ANA-07, ANA-12]
 areas: [worker, frontend, tests]
 ---
@@ -19,7 +19,7 @@ The user selected a real data model change (symbol → setups), not only a group
 | Part | Content | Status |
 |---|---|---|
 | A | Worker: storage format `SYMBOLS`, read adapter, migration with backup (ZON-19) | done (PR #116) |
-| B1 | Data path: GET without `ZONES`, each setup has its engine index, the UI reads and sends `SYMBOLS`, e2e mock on `SYMBOLS` (ZON-19) | done in this branch |
+| B1 | Data path: GET without `ZONES`, each setup has its engine index, the UI reads and sends `SYMBOLS`, e2e mock on `SYMBOLS` (ZON-19) | done (PR #118) |
 | B2 | UI symbol card with setup cards, "Add symbol" / "Add setup", i18n and hints (Zone → Symbol/Setup, zone logs → symbol logs) | open |
 | C | Compact setup layout (short inputs, switch next to input, 375 px check, UI-08) | open |
 | D | Statistics for each setup (by magic), compare the setups of one symbol (ANA-12) | open |
