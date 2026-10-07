@@ -150,22 +150,22 @@ def remaining_lot_at_level(mt5, positions_at_level, symbol, symbol_infos):
     return normalize_volume(remaining, symbol, symbol_infos)
 
 
-# Kurgu 1: AutoGrid_Z{n}_F{U|D}{zaman} (eski biçim), kurgu k ≥ 2: AutoGrid_Z{n}_F{k}{U|D}{zaman}
+# AutoGrid_Z{n}_F{U|D}{zaman}; kaldırılan ek kurgu k ≥ 2 (eski ENG-28): AutoGrid_Z{n}_F{k}{U|D}{zaman}
 FRACTAL_COMMENT_RE = re.compile(r"^AutoGrid_Z\d+_F(\d*)([UD])(\d+)$")
 
 
-def fractal_comment(magic, side, bar_time, sid=1):
-    """Fraktal emrinin yorumu: AutoGrid_Z{n}_F{kurgu}{U|D}{mum zamanı} (MT5 sınırı 31 karakter).
+def fractal_comment(magic, side, bar_time):
+    """Fraktal emrinin yorumu: AutoGrid_Z{n}_F{U|D}{mum zamanı} (MT5 sınırı 31 karakter).
 
     n bölgenin magic'inden gelir; sıradan gelseydi bölge silinince yorumlar kayar ve işlenmiş
-    fraktal yeniden emir alırdı. Kurgu 1'in numarası yazılmaz: eski emirler aynı yorumu taşır.
+    fraktal yeniden emir alırdı.
     """
-    setup = "" if int(sid) == 1 else str(int(sid))
-    return f"AutoGrid_Z{zone_number(magic)}_F{setup}{side}{int(bar_time)}"
+    return f"AutoGrid_Z{zone_number(magic)}_F{side}{int(bar_time)}"
 
 
 def parse_fractal_comment(comment):
-    """(kurgu numarası, taraf, mum zamanı) ya da fraktal emri değilse None."""
+    """(kurgu numarası, taraf, mum zamanı) ya da fraktal emri değilse None. Numarasız yorum 1'dir;
+    ≥ 2 kaldırılan ek kurguların (eski ENG-28) MT5'te kalmış emirleridir (legacy_setup_orders.py)."""
     m = FRACTAL_COMMENT_RE.match(str(comment or ""))
     if not m:
         return None

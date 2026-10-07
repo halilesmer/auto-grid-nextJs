@@ -57,8 +57,8 @@ def _handle_sliding_grid(
 
         if config.entry_mode == "fractal":
             # Izgara yok: anında giriş, seviye üretimi ve ızgara doğrulaması atlanır. Pozisyon sınırı
-            # kurgu başına fractal_entry'de: sınırdaki kurgunun bekleyen emirlerini kendisi siler,
-            # SAR takibi ve "işlenmiş" kaydı sürer.
+            # fractal_entry'de: sınırdaki bölgenin bekleyen emirlerini kendisi siler, SAR takibi ve
+            # "işlenmiş" kaydı sürer.
             return manage_fractal_orders(
                 mt5_module,
                 config,

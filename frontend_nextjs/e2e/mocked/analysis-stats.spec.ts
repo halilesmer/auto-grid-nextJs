@@ -1,5 +1,5 @@
 /**
- * Statistik-Tab der Analyse-Seite: Kennzahlen, Kurven und Aufteilung je Setup aus GET /history/{id}/deals.
+ * Statistik-Tab der Analyse-Seite: Kennzahlen, Kurven und Aufteilung aus GET /history/{id}/deals.
  * ANA-09 Statistik-Tab
  * ANA-12 MFE/MAE in der Trade-Tabelle
  */
@@ -33,7 +33,7 @@ function deal(p: Partial<Deal> & Pick<Deal, 'position_id' | 'time' | 'type' | 'e
   };
 }
 
-/** Fraktal-Zone (Setup 1 H1, Setup 2 H4) mit je einem Trade, einem Grid-Trade ohne Setup und einem manuellen. */
+/** Fraktal-Zone mit einem Fraktal-Trade, einem Trade eines früheren Zusatz-Setups, einem Grid-Trade und einem manuellen. */
 function seed(worker: MockWorker) {
   const now = Date.now() / 1000 + worker.state.brokerOffset;
   const day = Math.floor(now / DAY) * DAY - 5 * DAY;
@@ -44,21 +44,6 @@ function seed(worker: MockWorker) {
         entry_mode: 'fractal',
         fractal_timeframe: 'H1',
         fractal_rr: 2,
-        fractal_setups: [
-          {
-            sid: 2,
-            id: 's2',
-            fractal_timeframe: 'H4',
-            lot_size: 0.02,
-            sell_lot_size: 0.02,
-            fractal_order_count: 1,
-            sell_fractal_order_count: 1,
-            fractal_rr: 3,
-            fractal_tp_money: 0,
-            max_positions: 1,
-          },
-        ],
-        fractal_setup_seq: 2,
       }),
     ],
   };
@@ -105,35 +90,25 @@ async function unhinted(page: Page): Promise<string[]> {
 }
 
 test.describe('ANA-09 Statistik-Tab', () => {
-  test('Zone: Kacheln und Aufteilung je Setup; Setup und ganzes Konto wählbar', { tag: '@ANA-09' }, async ({ page, worker }) => {
-    seed(worker);
+  test('Zone: Kacheln und Aufteilung je Wochentag; ganzes Konto wählbar', { tag: '@ANA-09' }, async ({ page, worker }) => {
+    const day = seed(worker);
     await page.goto(URL);
 
-    // Vorauswahl: Zone aus der Adresse, Fraktal-Zone → je Setup
+    // Vorauswahl: Zone aus der Adresse (alle Trades der Zone, auch der des früheren Zusatz-Setups) → je Wochentag
     await expect(page.getByTestId('stat-net-value')).toContainText('+8,00');
     await expect(page.getByTestId('stat-trades-value')).toHaveText('3 / 3');
     const rows = page.getByTestId('breakdown-row');
-    await expect(rows).toHaveCount(3);
-    await expect(rows.nth(0)).toHaveAttribute('data-key', 's:200001:1');
-    await expect(rows.nth(1).getByTestId('breakdown-label')).toContainText('Setup 2 · H4');
-    await expect(rows.nth(2).getByTestId('breakdown-label')).toHaveText(msg('analysis.stats.setup.none'));
+    await expect(rows).toHaveCount(1);
+    await expect(rows.nth(0)).toHaveAttribute('data-key', String(new Date(day * 1000).getUTCDay()));
     await expect(page.getByTestId('curve-realized')).toHaveAttribute('data-points', '4');
-
-    // Ein Setup
     const zoneLabel = msg('analysis.stats.scope.zone', { n: 1, symbol: 'USOUSD' });
     await expect(page.getByRole('combobox', { name: msg('analysis.stats.scope') })).toContainText(zoneLabel);
-    const setup2 = (await rows.nth(1).getByTestId('breakdown-label').textContent()) ?? '';
-    await chooseScope(page, msg('analysis.stats.scope.setup', { n: 1, symbol: 'USOUSD', setup: setup2 }));
-    await expect(page.getByTestId('stat-trades-value')).toHaveText('1 / 1');
-    await expect(page.getByTestId('stat-net-value')).toContainText('-4,00');
 
     // Ganzes Konto: inkl. manuell, Aufteilung je Zone
     await chooseScope(page, msg('analysis.stats.scope.account'));
     await expect(page.getByTestId('stat-trades-value')).toHaveText('4 / 4');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(1)).toHaveAttribute('data-key', 'manual');
-    await page.getByRole('tab', { name: msg('analysis.stats.by.setup') }).click();
-    await expect(rows).toHaveCount(4);
 
     // Kontostand: Archiv lückenlos bis jetzt → Kurve da
     await page.getByRole('tab', { name: msg('analysis.stats.curve.balance') }).click();
@@ -161,7 +136,7 @@ test.describe('ANA-09 Statistik-Tab', () => {
     test('ohne seitliches Scrollen', { tag: '@ANA-09' }, async ({ page, worker }) => {
       seed(worker);
       await page.goto(URL);
-      await expect(page.getByTestId('breakdown-row')).toHaveCount(3);
+      await expect(page.getByTestId('breakdown-row')).toHaveCount(1);
       const { scrollWidth, clientWidth } = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
@@ -172,16 +147,12 @@ test.describe('ANA-09 Statistik-Tab', () => {
 });
 
 test.describe('ANA-12 MFE/MAE', () => {
-  test('Trade-Tabelle im Statistik-Tab: Setup-Spalte, MFE/MAE erst auf Knopfdruck, Ergebnisse je Trade', { tag: '@ANA-12' }, async ({ page, worker }) => {
+  test('Trade-Tabelle im Statistik-Tab: MFE/MAE erst auf Knopfdruck, Ergebnisse je Trade', { tag: '@ANA-12' }, async ({ page, worker }) => {
     seed(worker);
     await page.goto(URL);
 
     const rows = page.getByTestId('trades-archive').getByTestId('trade-row');
     await expect(rows).toHaveCount(3);
-    // Neueste zuerst: Grid ohne Setup, Setup 2, Setup 1
-    await expect(rows.nth(0).getByTestId('trade-setup')).toHaveText('–');
-    await expect(rows.nth(1).getByTestId('trade-setup')).toHaveText(msg('analysis.stats.setup', { sid: 2 }));
-    await expect(rows.nth(2).getByTestId('trade-setup')).toHaveText(msg('analysis.stats.setup', { sid: 1 }));
 
     // Ohne Knopfdruck keine Kerzen
     await expect(rows.nth(0).getByTestId('trade-mfe')).toHaveText('–');
@@ -205,7 +176,7 @@ test.describe('ANA-12 MFE/MAE', () => {
 
   test('Fehlende M1-Kerzen zwischen Ein- und Ausstieg: „nicht berechenbar“, nie 0', { tag: '@ANA-12' }, async ({ page, worker }) => {
     const day = seed(worker);
-    // Zwischen Einstieg (11:00) und Ausstieg (12:00) von Setup 2 fehlen Kerzen
+    // Zwischen Einstieg (11:00) und Ausstieg (12:00) des Trades von Position 22 fehlen Kerzen
     worker.state.ratesMissing = [{ from: day + 11 * H + 600, to: day + 11 * H + 1200, reason: 'unavailable', checked_at: null }];
     await page.goto(URL);
 

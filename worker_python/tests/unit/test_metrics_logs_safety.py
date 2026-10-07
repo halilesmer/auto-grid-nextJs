@@ -219,3 +219,14 @@ def test_fliesskomma_rauschen_wird_gerundet():
     zone = clean["ZONES"][0]
     assert (zone["lot_size"], zone["grid_step"], zone["take_profit"]) == (0.01, 0.3, 0.105)
     assert zone["symbol"] == "USOUSD" and zone["levels_below"] == 5
+
+
+@pytest.mark.feature("ENG-29")
+def test_orders_entfernter_setups_werden_gemeldet(fake_mt5):
+    legacy = fake_mt5.add_order("USOUSD", fake_mt5.ORDER_TYPE_BUY_STOP, 98.0, magic=200001,
+                                comment="AutoGrid_Z1_F2U1700000000")
+    fake_mt5.add_order("USOUSD", fake_mt5.ORDER_TYPE_BUY_STOP, 97.6, magic=200001, comment="AutoGrid_Z1_FU1700000000")
+    metrics = calculate_live_metrics(fake_mt5, {"USOUSD"}, False, False)
+    assert [o["ticket"] for o in metrics["legacy_setup_orders"]] == [legacy.ticket]
+    assert metrics["legacy_setup_orders"][0]["price_open"] == 98.0
+    assert len(metrics["orders"]) == 2

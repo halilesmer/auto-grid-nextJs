@@ -4,8 +4,7 @@ Ayar dosyası bölgeleri sembole göre gruplu tutar:
 
     "SYMBOLS": [{"symbol": "XAUUSD", "setups": [{...bölge alanları (symbol hariç)..., "magic": 200001}]}]
 
-Her kurulum eski bir bölgedir: kimliği (`id`), kalıcı magic'i (ENG-27) ve fraktal kurguları
-(`fractal_setups`, ENG-28) aynen kalır. Motor ve diğer okuyucular düz bölge listesiyle çalışır:
+Her kurulum eski bir bölgedir: kimliği (`id`) ve kalıcı magic'i (ENG-27) aynen kalır. Motor ve diğer okuyucular düz bölge listesiyle çalışır:
 `settings_zones` her kurulum için bir bölge üretir (sembol sırası, sembol içinde kurulum sırası).
 
 Eski dosyalar (`ZONES` düz listesi) okunurken olduğu gibi kullanılır; ilk kayıtta gruplu biçime
@@ -60,7 +59,7 @@ def settings_zones(settings):
 
 
 def to_flat(settings):
-    """Kopya: bölgeler `ZONES` düz listesinde, `SYMBOLS` yok (magic/kurgu numarası verme biçimi).
+    """Kopya: bölgeler `ZONES` düz listesinde, `SYMBOLS` yok (magic numarası verme biçimi).
 
     İkisi birden varsa `ZONES` geçerlidir: eski arayüz GET'ten aldığı bütün nesneyi, yalnız
     `ZONES`'u değiştirerek geri gönderir; içindeki `SYMBOLS` o zaman eskidir. İkisi de yoksa

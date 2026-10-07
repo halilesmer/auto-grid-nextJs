@@ -1,6 +1,7 @@
 from src.utils.trade_utils import TradeState
 from src.core.grid_helpers import is_market_open
 from src.core import trading_hours
+from src.core.legacy_setup_orders import is_legacy_setup_order
 
 BASE_MAGIC_NUMBER = 200000
 # Analiz grafiği (ANA-06) için pozisyon/emir listesi: metrik dosyası küçük kalsın
@@ -92,6 +93,8 @@ def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, 
     # Robot pozisyonları/emirleri (en fazla MAX_LISTED); liste yoksa "yok", eksik değil
     metrics["positions"] = []
     metrics["orders"] = []
+    # Kaldırılan fraktal ek kurgularının MT5'te kalan emirleri: arayüz silinsin mi diye sorar (ENG-29)
+    metrics["legacy_setup_orders"] = []
     # Bölge başına olağan işlem saati (mum verisinden tahmin, önbellekli): {"0": "02:00-00:00"}
     hours = {i: trading_hours.infer_trading_hours(mt5, sym) for i, sym in zone_symbols.items()}
     metrics["zone_market_hours"] = {i: h for i, h in hours.items() if h}
@@ -116,6 +119,7 @@ def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, 
         ]
         metrics["pending_orders"] = len(robot_orders)
         metrics["orders"] = [_order_row(o) for o in robot_orders[:MAX_LISTED]]
+        metrics["legacy_setup_orders"] = [_order_row(o) for o in robot_orders if is_legacy_setup_order(o)]
 
     if active_symbols:
         for sym in sorted(active_symbols):

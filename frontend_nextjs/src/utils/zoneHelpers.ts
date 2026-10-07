@@ -1,4 +1,4 @@
-import type { FractalSetup, ZoneSettings, SymbolDetail } from '@/store/types';
+import type { ZoneSettings, SymbolDetail } from '@/store/types';
 
 export function defaultZone(): ZoneSettings {
   return {
@@ -47,42 +47,6 @@ export function defaultZone(): ZoneSettings {
     fractal_tp_by_money: false,
     fractal_tp_money: 10,
   };
-}
-
-/** Wie FRACTAL_MAX_EXTRA_SETUPS im Worker (grid_execution/config.py): Setups zusätzlich zu Setup 1 */
-export const MAX_EXTRA_FRACTAL_SETUPS = 10;
-
-/** Neues Fraktal-Setup: startet mit den Werten von Setup 1 (den Zonenfeldern), ohne Nummer. */
-export function newFractalSetup(zone: ZoneSettings): FractalSetup {
-  return {
-    id: crypto.randomUUID(),
-    fractal_timeframe: zone.fractal_timeframe ?? 'H4',
-    lot_size: zone.lot_size,
-    sell_lot_size: zone.sell_lot_size,
-    fractal_order_count: zone.fractal_order_count ?? 1,
-    sell_fractal_order_count: zone.sell_fractal_order_count ?? 1,
-    fractal_rr: zone.fractal_rr ?? 2,
-    fractal_tp_money: zone.fractal_tp_money ?? 10,
-    max_positions: zone.max_positions,
-  };
-}
-
-/**
- * Übernimmt die vom Worker beim Speichern vergebenen Setup-Nummern (über die Setup-`id`) und den
- * Zähler in die lokale Zone; alles andere bleibt, wie es lokal ist. Ohne Änderung dasselbe Objekt.
- */
-export function withServerSetupIds(local: ZoneSettings, server: ZoneSettings | undefined): ZoneSettings {
-  if (!server || !local.fractal_setups?.length) return local;
-  const byId = new Map((server.fractal_setups ?? []).filter((s) => s.id).map((s) => [s.id, s.sid]));
-  let changed = false;
-  const fractal_setups = local.fractal_setups.map((s) => {
-    const sid = s.id ? byId.get(s.id) : undefined;
-    if (sid === undefined || sid === s.sid) return s;
-    changed = true;
-    return { ...s, sid };
-  });
-  if (server.fractal_setup_seq !== local.fractal_setup_seq) changed = true;
-  return changed ? { ...local, fractal_setups, fractal_setup_seq: server.fractal_setup_seq } : local;
 }
 
 /** Zeitrahmen, die der Worker kennt (grid_helpers.get_mt5_timeframe) */

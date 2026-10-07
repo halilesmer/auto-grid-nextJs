@@ -165,11 +165,6 @@ def scenarios() -> dict[str, dict]:
     add("fractal_sar_money_tp", "Fraktal mit SAR-SL und TP als Geldbetrag",
         [fractal_zone(id="z1", fractal_sl_mode="sar", fractal_tp_by_money=True, fractal_tp_money=5.0)],
         walk([97.0, 97.65, 97.9, 97.2], step=0.01, seed=18, every=20), hist)
-    add("fractal_two_setups", "Zwei Fraktal-Setups in einer Zone: eigenes Lot/TP, Setup 2 höchstens 1 Position",
-        [fractal_zone(id="z1", fractal_setups=[
-            {"sid": 2, "fractal_timeframe": "M15", "lot_size": 0.02, "fractal_rr": 1.0, "max_positions": 1},
-        ])],
-        walk([97.0, 97.65, 97.0, 96.45, 96.8], step=0.01, seed=19, every=20), hist)
     return s
 
 

@@ -12,9 +12,7 @@ import { useFormat, useT } from '@/i18n';
 import type { Excursion } from '@/lib/analysis/excursions';
 import type { Trade } from '@/lib/analysis/tradePairing';
 import type { DealsMissing } from '@/services/historyApi';
-import type { ZoneSettings } from '@/store/types';
 import { cn } from '@/lib/utils';
-import { useSetupLabel } from './useSetupLabel';
 
 /** So viele Zeilen werden gezeigt (neueste zuerst), der Rest gezählt */
 const MAX_ROWS = 500;
@@ -28,8 +26,6 @@ const REASON_KEYS = {
 interface TradesTableProps {
   /** Konto der Trades: M1 für MFE/MAE wird dort geladen, ein Wechsel verwirft die Ergebnisse */
   accountId: string;
-  /** Zonen des Kontos (Setup-Beschriftung aus den aktuellen Einstellungen) */
-  zones: ZoneSettings[] | null;
   /** zone: Trades einer Zone (Chart-Tab), scope: Trades des gewählten Umfangs (Statistik-Tab) */
   variant: 'zone' | 'scope';
   trades: Trade[];
@@ -67,11 +63,10 @@ const REASON_HINTS = {
  * Trade-Archiv (ANA-08): Ausstiege im Zeitraum, neueste zuerst. Teilschließung, Umkehr und
  * Close By sind gekennzeichnet; Trades aus der Zeit vor dem Zonen-Register heißen „Zone unbekannt“.
  * Lücken im Archiv (Konto beschäftigt, MT5-Fehler) stehen als Pflicht-Hinweis darüber.
- * Setup und MFE/MAE (ANA-12) je Zeile; MFE/MAE erst auf Knopfdruck.
+ * MFE/MAE (ANA-12) je Zeile, erst auf Knopfdruck.
  */
 export function TradesTable({
   accountId,
-  zones,
   variant,
   trades,
   openEntries,
@@ -86,7 +81,6 @@ export function TradesTable({
 }: TradesTableProps) {
   const t = useT();
   const fmt = useFormat();
-  const setupLabel = useSetupLabel();
   const rows = [...trades].reverse().slice(0, MAX_ROWS);
   const excursions = useExcursions(accountId, rows);
   const money = (v: number) =>
@@ -94,7 +88,6 @@ export function TradesTable({
   const price = (v: number) => fmt.price(v, digits ?? 5);
   // Vorzeichen nur bei einem Ausschlag > 0 (kein „+0“/„−0“)
   const points = (v: number, sign: '+' | '−') => `${v > 0 ? sign : ''}${fmt.number(v, { maximumFractionDigits: 1 })}`;
-  const zoneOf = (magic: number | null) => (magic === null ? undefined : zones?.find((z) => z.magic === magic));
 
   const mfeCell = (r: Excursion | undefined) => {
     if (!r) return <span className="text-muted-foreground">–</span>;
@@ -220,12 +213,6 @@ export function TradesTable({
                     </span>
                   </th>
                   <th scope="col" className="px-3 py-2 font-medium">
-                    <span className="inline-flex items-center gap-1">
-                      {t('analysis.trades.col.setup')}
-                      <InfoHint hint={t('analysis.trades.col.setup.hint')} />
-                    </span>
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-medium">
                     {t('analysis.trades.col.zone')}
                   </th>
                   <th scope="col" className="px-3 py-2 font-medium">
@@ -275,15 +262,6 @@ export function TradesTable({
                       </td>
                       <td className="whitespace-nowrap px-3 py-1.5" data-testid="trade-mfe">
                         {mfeCell(excursions.results.get(tr.id))}
-                      </td>
-                      <td className="px-3 py-1.5 font-sans" data-testid="trade-setup">
-                        {tr.fractal ? (
-                          <Badge hint={setupLabel(zoneOf(tr.magic), tr.fractal.sid)}>
-                            {t('analysis.stats.setup', { sid: tr.fractal.sid })}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">–</span>
-                        )}
                       </td>
                       <td className="px-3 py-1.5 font-sans" data-testid="trade-zone">
                         {tr.zone.kind === 'zone' ? (

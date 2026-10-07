@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: []
+pr: [116]
 features: [ZON-19, ENG-27, ENG-28, ANA-07, ANA-12]
 areas: [worker, frontend, tests]
 ---
@@ -71,7 +71,8 @@ The engine (`grid_orchestrator`, `zone_index_by_magic`, `grid_zone_state`) did n
 
 ## Open points
 - [ ] Part A: open the PR. After the merge, do the manual check ZON-19 on the DEMO account.
-- [ ] Part B: the word "setup" is already in the UI for fractal setups (ZON-18, "Add setup" in a fractal zone, "Setup n" in the statistics tab). Decide the new name for one of the two before part B.
+- [x] Part B: the word "setup" is already in the UI for fractal setups (ZON-18, "Add setup" in a fractal zone, "Setup n" in the statistics tab). Decide the new name for one of the two before part B.
+  - Done: the fractal setups were removed ([2026-10-06-remove-fractal-setups.md](2026-10-06-remove-fractal-setups.md), ENG-29). "Setup" now means only the setup of a symbol.
 - [ ] Part B: the new UI sends only `SYMBOLS`. If it sends `ZONES` too, `ZONES` is used. When part B is merged, remove `ZONES` from the GET response.
 - [ ] Part B: the e2e mock worker (`frontend_nextjs/e2e/fixtures/mock-worker.ts`) must return `SYMBOLS`.
 - [ ] Parts C and D.

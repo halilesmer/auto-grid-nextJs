@@ -1,21 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
 import type { ZoneFractalFieldsProps } from './types';
-import type { FractalSetup } from '@/store/types';
-import ConfirmModal from '@/components/ConfirmModal';
-import { Button } from '@/components/ui/button';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { Switch } from '@/components/ui/switch';
 import { useT } from '@/i18n';
-import { MAX_EXTRA_FRACTAL_SETUPS, newFractalSetup } from '@/utils/zoneHelpers';
-import { ZoneFractalSetupFields } from './ZoneFractalSetupFields';
+import { TIMEFRAMES } from '@/utils/zoneHelpers';
+import { LossPreview } from './LossPreview';
 
 // Faktoren (ATR, SAR) sind keine Preise: eigene Schrittweite statt Symbol-Digits
 const FACTOR = { step: 0.1, precision: 2 };
 const SAR = { step: 0.01, precision: 3 };
+// Wie FRACTAL_MAX_ORDERS im Worker (grid_execution/config.py)
+const MAX_ORDERS = 20;
+
+// Ein Feld gilt für die gewählte Richtung bzw. bei „Buy/Sell gleich“ für beide; getrennt nur bei split
+function orderCountKey({ split, orderType }: { split: boolean; orderType: string }) {
+  if (split || orderType === 'BUY') return 'zone.fractal.buyOrderCount' as const;
+  if (orderType === 'SELL') return 'zone.fractal.sellOrderCount' as const;
+  return 'zone.fractal.orderCount' as const;
+}
 
 export function ZoneFractalFields({
   zone,
@@ -32,29 +36,10 @@ export function ZoneFractalFields({
   const slMode = zone.fractal_sl_mode ?? 'atr';
   // Chance/Risiko-TP braucht einen SL: ohne SL nur TP als Betrag
   const tpByMoney = !useSl || !!zone.fractal_tp_by_money;
-  const setups = zone.fractal_setups ?? [];
-  const multi = setups.length > 0;
-  const canAdd = setups.length < MAX_EXTRA_FRACTAL_SETUPS;
-
-  const addSetup = () => update('fractal_setups', [...setups, newFractalSetup(zone)]);
-  // Gespeichertes Setup (mit Nummer): erst fragen, ob seine Pending Orders gelöscht werden sollen
-  const [confirmIndex, setConfirmIndex] = useState<number | null>(null);
-  const confirmSid = confirmIndex !== null ? setups[confirmIndex]?.sid : undefined;
-  const removeSetup = (index: number, keepOrders = false) => {
-    const sid = setups[index]?.sid;
-    update('fractal_setups', setups.filter((_, i) => i !== index));
-    const kept = zone.fractal_kept_sids ?? [];
-    if (sid === undefined) return;
-    if (keepOrders && !kept.includes(sid)) update('fractal_kept_sids', [...kept, sid]);
-    if (!keepOrders && kept.includes(sid)) update('fractal_kept_sids', kept.filter((k) => k !== sid));
-  };
-  const askRemove = (index: number) => (setups[index]?.sid === undefined ? removeSetup(index) : setConfirmIndex(index));
-  // Schreibt ein Feld eines Zusatz-Setups; die Zone hält die ganze Liste
-  const setupUpdate = (index: number) => (field: string, value: unknown) =>
-    update(
-      'fractal_setups',
-      setups.map((s, i) => (i === index ? ({ ...s, [field]: value } as FractalSetup) : s))
-    );
+  const countKey = orderCountKey({ split, orderType: zone.order_type });
+  const volPrecision = symbolConfig.volStep.toString().includes('.')
+    ? symbolConfig.volStep.toString().split('.')[1].length
+    : 2;
 
   const factorField = (field: 'fractal_atr_multiplier' | 'fractal_sar_step' | 'fractal_sar_max', cfg: typeof FACTOR, fallback: number) => (
     <NumberInput
@@ -67,7 +52,31 @@ export function ZoneFractalFields({
     />
   );
 
-  const setupProps = { zone, symbolConfig, split, tpByMoney, handleChange, handleBlur };
+  const lotField = (field: 'lot_size' | 'sell_lot_size') => (
+    <NumberInput
+      min={symbolConfig.volMin}
+      max={Number.isFinite(symbolConfig.volMax) ? symbolConfig.volMax : undefined}
+      step={symbolConfig.volStep}
+      maxDecimals={volPrecision}
+      value={zone[field]}
+      onChange={(e) => handleChange(field, e.target.value, zone, symbolConfig, update)}
+      onBlur={() => handleBlur(field, zone[field], symbolConfig.volStep, volPrecision, update, symbolConfig)}
+      className="input-s"
+    />
+  );
+
+  const countField = (field: 'fractal_order_count' | 'sell_fractal_order_count') => (
+    <NumberInput
+      data-testid={field === 'fractal_order_count' ? 'fractal-order-count' : 'fractal-sell-order-count'}
+      min={1}
+      max={MAX_ORDERS}
+      step={1}
+      maxDecimals={0}
+      value={zone[field] ?? 1}
+      onChange={(e) => update(field, Math.min(MAX_ORDERS, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+      className="input-s"
+    />
+  );
 
   return (
     <div data-testid="fractal-fields" className="space-y-3">
@@ -163,69 +172,83 @@ export function ZoneFractalFields({
         </div>
       )}
 
-      {/* Setup 1 = Zonenfelder; die Überschrift erscheint erst, wenn es weitere Setups gibt */}
-      <div data-testid="fractal-setup" className={multi ? 'space-y-3 rounded-lg border border-border p-3' : undefined}>
-        {multi && <p className="text-xs font-medium text-muted-foreground">{t('zone.fractal.setup', { n: 1 })}</p>}
-        <ZoneFractalSetupFields {...setupProps} values={zone} update={update} />
-      </div>
-
-      {setups.map((setup, index) => (
-        <div
-          key={setup.id ?? setup.sid ?? `new-${index}`}
-          data-testid="fractal-setup"
-          className="space-y-3 rounded-lg border border-border p-3"
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <InputField label={t('zone.fractal.timeframe')} hint={t('zone.fractal.timeframe.hint')}>
+          <select
+            data-testid="fractal-timeframe"
+            value={zone.fractal_timeframe ?? 'H4'}
+            onChange={(e) => update('fractal_timeframe', e.target.value)}
+            className="input-s"
+          >
+            {TIMEFRAMES.map((tf) => (
+              <option key={tf} value={tf}>{tf}</option>
+            ))}
+          </select>
+        </InputField>
+        <InputField
+          label={split ? t('zone.field.buyLot') : t('zone.field.lot')}
+          hint={split ? t('zone.field.buyLot.hint') : t('zone.field.lot.hint')}
         >
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-xs font-medium text-muted-foreground">
-              {setup.sid ? t('zone.fractal.setup', { n: setup.sid }) : t('zone.fractal.setup.new')}
-            </p>
-            <Button
-              data-testid="fractal-setup-remove"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t('zone.fractal.setup.remove')}
-              hint={t('zone.fractal.setup.remove.hint')}
-              onClick={() => askRemove(index)}
-            >
-              <Trash2 size={14} />
-            </Button>
-          </div>
-          <ZoneFractalSetupFields {...setupProps} values={setup} update={setupUpdate(index)} />
-        </div>
-      ))}
-
-      <Button
-        data-testid="fractal-setup-add"
-        variant="outline"
-        size="sm"
-        disabled={!canAdd}
-        hint={canAdd ? t('zone.fractal.setup.add.hint') : t('zone.fractal.setup.addLimit.hint')}
-        onClick={addSetup}
-      >
-        <Plus size={14} />
-        {t('zone.fractal.setup.add')}
-      </Button>
-
-      <ConfirmModal
-        open={confirmIndex !== null}
-        onClose={() => setConfirmIndex(null)}
-        onConfirm={() => {
-          if (confirmIndex !== null) removeSetup(confirmIndex);
-        }}
-        title={t('zone.fractal.setup.removeConfirm.title', { n: confirmSid ?? '' })}
-        message={t('zone.fractal.setup.removeConfirm.message')}
-        infoText={t('zone.fractal.setup.removeConfirm.info')}
-        confirmLabel={t('zone.fractal.setup.removeConfirm.delete')}
-        confirmHint={t('zone.fractal.setup.removeConfirm.delete.hint')}
-        secondary={{
-          label: t('zone.fractal.setup.removeConfirm.keep'),
-          hint: t('zone.fractal.setup.removeConfirm.keep.hint'),
-          onClick: () => {
-            if (confirmIndex !== null) removeSetup(confirmIndex, true);
-          },
-        }}
-        variant="danger"
-      />
+          {lotField('lot_size')}
+        </InputField>
+        {split ? (
+          <InputField label={t('zone.field.sellLot')} hint={t('zone.field.sellLot.hint')}>
+            {lotField('sell_lot_size')}
+          </InputField>
+        ) : null}
+        <InputField label={t(countKey)} hint={t(`${countKey}.hint`)}>
+          {countField('fractal_order_count')}
+        </InputField>
+        {split ? (
+          <InputField label={t('zone.fractal.sellOrderCount')} hint={t('zone.fractal.sellOrderCount.hint')}>
+            {countField('sell_fractal_order_count')}
+          </InputField>
+        ) : null}
+        {tpByMoney ? (
+          <InputField
+            label={t('zone.fractal.tpMoney')}
+            hint={t('zone.fractal.tpMoney.hint')}
+            error={<LossPreview amount={zone.fractal_tp_money ?? 10} lot={zone.lot_size} symbolConfig={symbolConfig} />}
+          >
+            <NumberInput
+              data-testid="fractal-tp-money"
+              min={0}
+              step={0.01}
+              maxDecimals={2}
+              value={zone.fractal_tp_money ?? 10}
+              onChange={(e) =>
+                handleChange('fractal_tp_money', e.target.value, zone, { ...symbolConfig, precision: 2 }, update)
+              }
+              className="input-s"
+            />
+          </InputField>
+        ) : (
+          <InputField label={t('zone.fractal.rr')} hint={t('zone.fractal.rr.hint')}>
+            <NumberInput
+              data-testid="fractal-rr"
+              min={0}
+              step={FACTOR.step}
+              maxDecimals={FACTOR.precision}
+              value={zone.fractal_rr ?? 2}
+              onChange={(e) =>
+                handleChange('fractal_rr', e.target.value, zone, { ...symbolConfig, precision: FACTOR.precision }, update)
+              }
+              className="input-s"
+            />
+          </InputField>
+        )}
+        <InputField label={t('zone.fractal.maxPositions')} hint={t('zone.fractal.maxPositions.hint')}>
+          <NumberInput
+            data-testid="fractal-max-positions"
+            min={0}
+            step={1}
+            maxDecimals={0}
+            value={zone.max_positions}
+            onChange={(e) => update('max_positions', parseInt(e.target.value, 10) || 0)}
+            className="input-s"
+          />
+        </InputField>
+      </div>
     </div>
   );
 }

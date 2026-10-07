@@ -81,65 +81,17 @@ function assignZoneMagics(previous: Json, merged: Json): Json {
   return result;
 }
 
-/** Wie zone_magic.assign_fractal_setup_ids (ENG-28): Setup-Nummern 2–99 je Zone, nur der Worker vergibt sie, nie wieder. */
-function assignFractalSetupIds(previous: Json, merged: Json): Json {
-  const keyOf = (z: Json, i: number) => (z.id ? `id:${String(z.id)}` : `idx:${i}`);
-  const before = new Map<string, Json>();
-  ((previous.ZONES as Json[] | undefined) ?? []).forEach((z, i) => {
-    if (!before.has(keyOf(z, i))) before.set(keyOf(z, i), z);
-  });
-  const sidsOf = (z: Json | undefined) =>
-    new Set(
-      ((z?.fractal_setups as Json[] | undefined) ?? [])
-        .map((s) => s?.sid)
-        .filter((n): n is number => Number.isInteger(n) && (n as number) >= 2 && (n as number) <= 99),
-    );
-  const zones = ((merged.ZONES as Json[] | undefined) ?? []).map((z, i) => {
-    const prev = before.get(keyOf(z, i));
-    const known = sidsOf(prev);
-    let highest = Math.max(1, Math.min(99, Number(prev?.fractal_setup_seq) || 1), ...known);
+/** Wie settings._drop_fractal_setup_fields (ENG-29): Felder der entfernten Fraktal-Zusatz-Setups fallen beim Speichern weg. */
+function dropFractalSetupFields(merged: Json): Json {
+  if (!Array.isArray(merged.ZONES)) return merged;
+  const zones = (merged.ZONES as Json[]).map((z) => {
     const zone: Json = { ...z };
-    if (!Array.isArray(z.fractal_setups)) {
-      delete zone.fractal_setups;
-    } else {
-      // Ohne bekannte Nummer: die Nummer, die dieselbe Setup-id vorher hatte
-      const byId = new Map<string, number>();
-      for (const old of (prev?.fractal_setups as Json[] | undefined) ?? []) {
-        if (old?.id && known.has(old.sid as number) && !byId.has(String(old.id))) byId.set(String(old.id), old.sid as number);
-      }
-      const taken = new Set<number>();
-      const setups = (z.fractal_setups as unknown[])
-        .filter((s): s is Json => !!s && typeof s === 'object')
-        .map((s) => ({ ...s }));
-      const pending = setups.filter((setup) => {
-        const sid = setup.sid as number;
-        if (known.has(sid) && !taken.has(sid)) {
-          taken.add(sid);
-          return false;
-        }
-        return true;
-      });
-      for (const setup of pending) {
-        const sid = setup.id ? byId.get(String(setup.id)) : undefined;
-        if (sid !== undefined && !taken.has(sid)) setup.sid = sid;
-        else setup.sid = highest += 1;
-        taken.add(setup.sid as number);
-      }
-      zone.fractal_setups = setups;
-      // Wie _clean_kept_sids: nur vergebene, nicht mehr aktive Nummern
-      const kept = Array.from(
-        new Set(((z.fractal_kept_sids as unknown[] | undefined) ?? []).filter(
-          (n): n is number => Number.isInteger(n) && (n as number) >= 2 && (n as number) <= highest && !taken.has(n as number),
-        )),
-      ).sort((a, b) => a - b);
-      if (kept.length) zone.fractal_kept_sids = kept;
-      else delete zone.fractal_kept_sids;
-    }
-    if (highest > 1) zone.fractal_setup_seq = highest;
-    else delete zone.fractal_setup_seq;
+    delete zone.fractal_setups;
+    delete zone.fractal_setup_seq;
+    delete zone.fractal_kept_sids;
     return zone;
   });
-  return merged.ZONES === undefined ? merged : { ...merged, ZONES: zones };
+  return { ...merged, ZONES: zones };
 }
 
 /** Wie src/api/settings.py: alte verschachtelte Dateien/Nutzlasten ({settings: {settings: …}}) auspacken. */
@@ -501,7 +453,12 @@ export class MockWorker {
       }
       if (method === 'POST') {
         const previous = s.settings[id] ?? {};
-        s.settings[id] = assignFractalSetupIds(previous, assignZoneMagics(previous, { ...previous, ...unwrapSettings(body) }));
+        const incoming = unwrapSettings(body);
+        // Wie settings._check_legacy_mode (ENG-29)
+        if ('LEGACY_SETUP_ORDERS' in incoming && !['delete', 'keep'].includes(String(incoming.LEGACY_SETUP_ORDERS))) {
+          return { status: 422, body: { detail: 'LEGACY_SETUP_ORDERS: delete | keep' } };
+        }
+        s.settings[id] = dropFractalSetupFields(assignZoneMagics(previous, { ...previous, ...incoming }));
         return ok({ status: 'saved', account_id: id });
       }
     }

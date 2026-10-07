@@ -229,10 +229,10 @@ test.describe('ANA-08 Fraktale', () => {
     ]);
   });
 
-  test('Fraktal-Kommentar mit Setup-Nummer (Setup 1 ohne Nummer)', { tag: '@ENG-28' }, () => {
-    expect(parseFractalComment('AutoGrid_Z1_FU1790000000')).toEqual({ sid: 1, side: 'U', time: 1790000000 });
-    expect(parseFractalComment('AutoGrid_Z12_F7D5')).toEqual({ sid: 7, side: 'D', time: 5 });
-    expect(parseFractalComment('AutoGrid_Z1_F2X5')).toBeNull();
+  test('Fraktal-Kommentar; Orders früherer Setups (mit Nummer) sind keine Fraktale der Zone', { tag: '@ENG-29' }, () => {
+    expect(parseFractalComment('AutoGrid_Z1_FU1790000000')).toEqual({ side: 'U', time: 1790000000 });
+    expect(parseFractalComment('AutoGrid_Z12_F7D5')).toBeNull();
+    expect(parseFractalComment('AutoGrid_Z1_FX5')).toBeNull();
     expect(parseFractalComment('[tp 97.5]')).toBeNull();
   });
 });

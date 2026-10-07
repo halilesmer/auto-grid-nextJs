@@ -197,20 +197,6 @@ def test_laufender_bot_zieht_ui_state_selbst_um_die_api_nicht(client, worker_dir
 
 
 @pytest.mark.feature("ZON-19")
-def test_fraktal_kurgunummern_bleiben_bei_der_umstellung(client, worker_dir):
-    zone = make_zone(id="a", symbol="XAUUSD", magic=200001, fractal_setup_seq=3,
-                     fractal_setups=[{"id": "s2", "sid": 2}, {"id": "s3", "sid": 3}])
-    _write(worker_dir, {"ZONE_MAGIC_MAX": 200001, "ZONES": [zone]})
-    symbols = client.get(URL).json()["settings"]["SYMBOLS"]
-    symbols[0]["setups"][0]["fractal_setups"].append({"id": "s-new"})
-
-    client.post(URL, json={"settings": {"SYMBOLS": symbols}})
-
-    setup = _saved(worker_dir)["SYMBOLS"][0]["setups"][0]
-    assert [(s["id"], s["sid"]) for s in setup["fractal_setups"]] == [("s2", 2), ("s3", 3), ("s-new", 4)]
-
-
-@pytest.mark.feature("ZON-19")
 def test_zonenregister_fuehrt_setups_mit_symbol_und_umstellung_macht_keine_neue_version(client, worker_dir):
     _write(worker_dir, LEGACY)
     market_db.record_zones(TEST_ACCOUNT_ID, LEGACY["ZONES"])  # Register-Stand vor ZON-19: Version 1 je Zone
