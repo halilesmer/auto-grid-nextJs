@@ -364,8 +364,8 @@
   "ENG-06": {
     "unit": {
       "datum": "2026-10-07",
-      "status": "xfail",
-      "tests": 3
+      "status": "passed",
+      "tests": 6
     }
   },
   "ENG-07": {

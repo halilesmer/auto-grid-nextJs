@@ -731,7 +731,6 @@ kategorien:
         pruefung:
           - Bei laufendem Bot TP der Zone ändern und speichern.
         erwartet: Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
-        bekannter_fehler: "Ist der Stops Level des Symbols größer als der TP- oder SL-Abstand der Zone, verschiebt enforce_stops_level den TP/SL jeder neuen Order; validation.py vergleicht mit dem TP/SL der Zone, hält die Order für falsch und löscht und setzt alle Orders in jeder Runde neu (docs/journal/2026-10-06-stops-level-order-flood.md)."
 
       - id: ENG-07
         titel: Maximale Positionen

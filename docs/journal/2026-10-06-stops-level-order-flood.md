@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: defect
 status: open
-pr: [115]
+pr: [115, 123]
 features: [ENG-06, ENG-12, BKT-01]
 areas: [worker]
 ---
@@ -35,29 +35,37 @@ areas: [worker]
 
 ## Solution
 
-Not fixed. The fix needs a decision. Possible fix:
+Fixed on 2026-10-07. `validation.py` now compares the TP/SL of a pending order with the value that `enforce_stops_level` gives for the order price.
 
-- `validation.py` compares the TP/SL of the order with the value that `enforce_stops_level` gives for the order price.
-- Or `validation.py` accepts a TP/SL that is not nearer to the order price than the stops distance.
+| File | Change |
+|---|---|
+| `worker_python/src/core/grid_execution/validation.py` | New method `OrderValidator._as_sent`: it sends the expected TP/SL through `enforce_stops_level` (same request as placement). BUY and SELL branch use the result. |
+| `frontend_nextjs/src/lib/backtest/engine/validation.ts` | Same change in the TS port (`enforceStopsLevel`). |
+| `worker_python/tests/unit/test_eng_grid_tick.py` | `test_vom_stops_level_verschobener_tp_bleibt_stehen`: `xfail` removed. New: `test_vom_stops_level_verschobener_sl_bleibt_stehen` (BUY, SELL), `test_tp_aenderung_bei_stops_level_setzt_orders_neu`. |
+| `docs/features/features.yaml` | ENG-06: `bekannter_fehler` removed. |
+| `worker_python/tests/parity/golden/grid_stops_level.json` | New golden file (`--update-golden`). No other golden file changed. |
+| `frontend_nextjs/e2e/mocked/backtest-grid-parity-lib.spec.ts` | Guard of `grid_stops_level`: the first order fills and is not cancelled; 23 cancels, 34 fills. |
 
-A fix changes these items in the same PR:
+## Why
 
-- the xfail test `test_vom_stops_level_verschobener_tp_bleibt_stehen` (`tests/unit/test_eng_grid_tick.py`) and `bekannter_fehler` of ENG-06: remove both,
-- the golden file `grid_stops_level.json`,
-- the TS port (`frontend_nextjs/src/lib/backtest/engine/validation.ts`),
-- the guard test of `grid_stops_level` in `frontend_nextjs/e2e/mocked/backtest-grid-parity-lib.spec.ts`.
+- Option A (selected): use the same function as the send path. There is no second copy of the stops rule. A changed TP in the settings or a changed stops level of the broker still makes the order not valid, and the bot sets it again one time.
+- Option B (rejected): accept each TP/SL that is not nearer to the order price than the stops distance. If the user makes the TP larger, the old order stays with the old TP. Also, this needs a second stops rule next to `enforce_stops_level`.
 
 ## Verification
 
-- `tests/unit/test_eng_grid_tick.py::test_vom_stops_level_verschobener_tp_bleibt_stehen` (ENG-06, `xfail(strict=True)`): with `--runxfail` it fails, because all 6 orders have new tickets after the second loop at the same price.
-- `tests/unit/test_parity_golden.py`: the golden file `grid_stops_level.json` records the current behavior. It uses price steps of 0.07, so that some orders fill.
-- Live MT5: not verified. The worker runs only on the VPS. The defect needs a symbol with a stops level larger than the TP or SL distance of a zone.
+- `pytest tests/unit/test_eng_grid_tick.py`: 23 passed. The former xfail test passes. New tests (ENG-06): moved SL stays (BUY and SELL), and a TP change in the settings sets the orders again when a stops level applies. Without the fix in `validation.py`, the 3 "stays" tests fail.
+- `pytest tests/unit/test_parity_golden.py --update-golden`: 86 passed. Only `grid_stops_level.json` changed. Scenario result: cancels 131 → 23, fills 19 → 34.
+- `npx playwright test --project=mocked --grep @BKT-02`: 40 passed (TS port gives the same events as the new golden file).
+- `npx tsc --noEmit` and `npm run lint`: no errors.
+- Live MT5: not verified. The worker runs only on the VPS.
 
 ## Open points
 
-- [ ] Decide the fix. Then fix `validation.py` and the items in "Solution".
-- [ ] On the VPS, examine the `trade_stops_level` of the symbols in use. `GET /api/market/{id}/time-check` gives it. Compare it with the TP and SL of the zones.
+- [x] Decide the fix. Then fix `validation.py` and the items in "Solution".
+- [ ] On the VPS, examine the `trade_stops_level` of the symbols in use. `GET /api/market/{id}/time-check` gives it. Compare it with the TP and SL of the zones. If a symbol has a stops level larger than a TP or SL distance, make sure that the bot does not cancel and set the orders again in each loop.
 
 ## Lessons
 
 A parity scenario records the bot as it is. A strange golden file (thousands of cancels) is a finding, not a scenario error. Examine the cause before you change the scenario.
+
+If the send path changes a value of a request (TP, SL, price, volume), the validation must use the same function to get the expected value. Do not compare with the value from the settings.

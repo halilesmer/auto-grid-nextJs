@@ -2,6 +2,7 @@ from typing import Callable
 
 from src.core.grid_helpers import normalize_price, normalize_volume, log_message as default_log_message
 from src.core.grid_orders import cancel_order, remaining_lot_at_level
+from src.utils.trade_utils import enforce_stops_level
 from .config import ZoneConfig
 from .levels import LevelSets
 from .exceptions import OrderValidationError, MT5ConnectionError
@@ -17,6 +18,19 @@ class OrderValidator:
         self.mt5 = mt5_module
         self.symbol_infos = symbol_infos
         self.log = log_message
+
+    def _as_sent(self, order, order_price: float, symbol: str, tp: float, sl: float) -> tuple[float, float]:
+        # safe_send_order, bekleyen emrin TP/SL'ini enforce_stops_level ile stops mesafesine çeker;
+        # karşılaştırma aynı kaydırılmış değerle yapılmazsa emir her turda silinip yeniden gönderilir.
+        request = enforce_stops_level(self.mt5, {
+            "symbol": symbol,
+            "action": self.mt5.TRADE_ACTION_PENDING,
+            "type": order.type,
+            "price": order_price,
+            "tp": tp,
+            "sl": sl,
+        })
+        return request["tp"], request["sl"]
 
     def validate_and_cleanup(
         self,
@@ -52,6 +66,7 @@ class OrderValidator:
                         if config.stop_loss > 0
                         else 0.0
                     )
+                    expected_tp, expected_sl = self._as_sent(order, order_price, config.symbol, expected_tp, expected_sl)
 
                     positions_at_level = [
                         p
@@ -100,6 +115,7 @@ class OrderValidator:
                         if config.sell_stop_loss > 0
                         else 0.0
                     )
+                    expected_tp, expected_sl = self._as_sent(order, order_price, config.symbol, expected_tp, expected_sl)
 
                     positions_at_level = [
                         p

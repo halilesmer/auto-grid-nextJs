@@ -8,11 +8,13 @@ import { normalizePrice, normalizeVolume, type SymbolInfos } from './helpers';
 import { cancelOrder, remainingLotAtLevel } from './orders';
 import { pyRound } from './pyRound';
 import type { EngineState } from './state';
+import { enforceStopsLevel } from './tradeUtils';
 import {
   BUY_ORDER_TYPES,
   POSITION_TYPE_BUY,
   POSITION_TYPE_SELL,
   SELL_ORDER_TYPES,
+  TRADE_ACTION_PENDING,
   type Broker,
   type Order,
   type Position,
@@ -43,8 +45,18 @@ function isOrderValid(
   const tol = pyRound(side.tolerance, 5);
   if (!side.acceptable.some((al) => Math.abs(pyRound(orderPrice, 5) - pyRound(al, 5)) <= tol)) return false;
 
-  const expectedTp = normalizePrice(orderPrice + side.sign * side.takeProfit, symbol, infos);
-  const expectedSl = side.stopLoss > 0 ? normalizePrice(orderPrice - side.sign * side.stopLoss, symbol, infos) : 0;
+  // safeSendOrder zieht TP/SL der Pending Order auf den Stops-Abstand; verglichen wird mit dem verschobenen Wert,
+  // sonst wird die Order jede Runde gelöscht und neu gesendet
+  const sent = enforceStopsLevel(broker, {
+    symbol,
+    action: TRADE_ACTION_PENDING,
+    type: order.type,
+    price: orderPrice,
+    tp: normalizePrice(orderPrice + side.sign * side.takeProfit, symbol, infos),
+    sl: side.stopLoss > 0 ? normalizePrice(orderPrice - side.sign * side.stopLoss, symbol, infos) : 0,
+  });
+  const expectedTp = sent.tp ?? 0;
+  const expectedSl = sent.sl ?? 0;
   const atLevel = positions.filter(
     (p) =>
       p.magic === config.targetMagic &&
