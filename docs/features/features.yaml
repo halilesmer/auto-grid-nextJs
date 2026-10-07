@@ -1485,7 +1485,7 @@ kategorien:
       # --- Geplant (offen), Plan: docs/journal/2026-10-06-backtest-module-plan.md; Schritt B1–B9 steht im Titel.
       - id: BKT-02
         titel: Bot-Nachbau Grid im Browser (B2)
-        beschreibung: "Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01. Die Engine schreibt Log-Codes statt Texte (Übersetzung mit dem Run-Log, B4); Fraktal-Zonen folgen mit B3."
+        beschreibung: "Die Grid-Logik des Bots (Platzierung, Prüfung, Sofort-Einstieg, Order-Verwaltung, Zonenwahl und -zustand, Orchestrator) als TypeScript in frontend_nextjs/src/lib/backtest/engine/, eine Datei je Python-Modul mit Quelle im Kopf; Grid-Stufen aus src/lib/analysis/levels.ts. Dazu src/lib/backtest/broker/simBroker.ts im Paritätsmodus (Füllung zum Orderpreis wie der FakeMT5). Gemessen an den Musterlösungen aus BKT-01. Die Engine schreibt Log-Codes statt Texte (Übersetzung mit dem Run-Log, B4); Fraktal-Zonen: BKT-03."
         code: [frontend_nextjs/src/lib/backtest/engine/orchestrator.ts, frontend_nextjs/src/lib/backtest/engine/pyRound.ts, frontend_nextjs/src/lib/backtest/broker/simBroker.ts, frontend_nextjs/src/lib/analysis/levels.ts, frontend_nextjs/e2e/fixtures/parity.ts, worker_python/tests/parity/runner.py]
         tiers: [e2e]
         pruefung:
@@ -1493,13 +1493,13 @@ kategorien:
         erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B2.1-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (sltp bei Stops Level, mehr als 10 Füllungen bei max_positions 0 …); pyRound gleicht Pythons round() in allen Grenzfällen.
 
       - id: BKT-03
-        titel: Bot-Nachbau Fraktal im Browser (B3, geplant)
-        beschreibung: "Fraktal-Signale, Fraktal-Einstieg und Indikatoren (ATR, SAR) des Bots als TypeScript in frontend_nextjs/src/lib/backtest/engine/; Fraktale aus src/lib/analysis/fractals.ts."
-        code: [frontend_nextjs/src/lib/analysis/fractals.ts, worker_python/tests/parity/runner.py]
+        titel: Bot-Nachbau Fraktal im Browser (B3)
+        beschreibung: "Fraktal-Einstieg des Bots (ENG-21, ENG-26, ENG-30) als TypeScript in frontend_nextjs/src/lib/backtest/engine/: fractalEntry.ts (manage_fractal_orders: neueste N Fraktale je Seite, verbrauchte Fraktale, Erledigt-Liste, Positionsgrenze, nächste Order ab Verlust, SAR-Nachzug) und fractalSignals.ts (ATR, Parabolic SAR); die 5-Kerzen-Regel ist fractalsOf in src/lib/analysis/fractals.ts, die auch der Chart nutzt. Gemessen an den Musterlösungen aus BKT-01. Ohne fractal_state-Datei (der Lauf startet frisch) und ohne Orders entfernter Zusatz-Setups."
+        code: [frontend_nextjs/src/lib/backtest/engine/fractalEntry.ts, frontend_nextjs/src/lib/backtest/engine/fractalSignals.ts, frontend_nextjs/src/lib/analysis/fractals.ts, frontend_nextjs/e2e/fixtures/parity.ts, worker_python/tests/parity/make_scenarios.py]
         tiers: [e2e]
         pruefung:
-          - Playwright-Logiktest ohne Browserseite (wie BKT-02, e2e/fixtures/parity.ts) mit den 4 Fraktal-Szenarien ausführen.
-        erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios.
+          - Playwright-Logiktest e2e/mocked/backtest-fractal-parity-lib.spec.ts (ohne Browserseite) mit den 14 Fraktal-Szenarien ausführen.
+        erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B3-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (Sperre bis 0,3 Verlust, Order bleibt bei Bid-Berührung, Stops Level, Fraktal über max_price ohne Order …).
 
       - id: BKT-04
         titel: Backtest-Rechner mit Kosten (B1 + B4, geplant)

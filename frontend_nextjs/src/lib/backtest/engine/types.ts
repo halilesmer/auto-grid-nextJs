@@ -93,6 +93,8 @@ export interface Position {
   tp: number;
   sl: number;
   magic: number;
+  /** Im Paritätsmodus immer 0 (FakeMT5 rechnet keinen Gewinn) */
+  profit: number;
   comment: string;
   /** Im Paritätsmodus nicht gesetzt (FakeMT5 kennt es nicht): die jüngste Position ist dann die mit dem höchsten Ticket */
   time_msc?: number;

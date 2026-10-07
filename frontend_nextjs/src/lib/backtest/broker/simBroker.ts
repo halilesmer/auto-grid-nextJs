@@ -210,6 +210,7 @@ export class SimBroker implements Broker {
         tp: o.tp,
         sl: o.sl,
         magic: o.magic,
+        profit: 0,
         comment: o.comment,
       });
       o.volume_current = 0;
@@ -365,6 +366,7 @@ export class SimBroker implements Broker {
           tp: req.tp ?? 0,
           sl: req.sl ?? 0,
           magic: req.magic ?? 0,
+          profit: 0,
           comment: '',
         });
         // Eröffnende Order in der Historie (add_position)

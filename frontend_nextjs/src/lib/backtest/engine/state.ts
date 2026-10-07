@@ -20,6 +20,22 @@ export interface PlacedOrder {
   price: number;
 }
 
+export interface FractalTrack {
+  doneKey: string;
+  side: 'U' | 'D';
+  barTime: number;
+}
+
+export interface FractalLogged {
+  zone: number;
+  /**
+   * Zeit des Fraktals bei Logs zu einem Fraktal einer Seite, sonst null. Python erkennt diese Schlüssel am
+   * Aufbau (zone, seite, …, zeit); fällt das Fraktal aus dem Fenster, löscht der Durchlauf den Eintrag.
+   */
+  fractalTime: number | null;
+  value: unknown;
+}
+
 export class EngineState {
   /** Zone → PAUSE/START/AUTO_CLEAR/CLEAR (active_zones_state) */
   readonly activeZonesState = new Map<number, string>();
@@ -41,6 +57,15 @@ export class EngineState {
   readonly lotRaisedLogged = new Set<string>();
   /** Vom Bot selbst gelöschte Fraktal-Orders */
   readonly fractalOwnCancels = new Set<number>();
+  /** Zone → Ticket → Fraktal der Order (fractal_tracked) */
+  readonly fractalTracked = new Map<number, Map<number, FractalTrack>>();
+  /**
+   * Schlüssel "zone:symbol:tf:seite" → Zeiten erledigter Fraktale (fractal_done). Im Bot liegt das in
+   * fractal_state_<konto>.json; ein Backtest-Lauf beginnt wie ein frischer Bot ohne diese Datei.
+   */
+  readonly fractalDone = new Map<string, Set<number>>();
+  /** Einmal-Logs des Fraktal-Modus: Schlüssel → zuletzt gemeldeter Wert (fractal_logged) */
+  readonly fractalLogged = new Map<string, FractalLogged>();
   /** Inhalt von ui_state_<konto>.json; null = Datei gibt es nicht */
   uiStates: Record<string, string> | null = null;
 

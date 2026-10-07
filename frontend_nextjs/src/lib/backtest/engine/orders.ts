@@ -15,6 +15,7 @@ import {
   ORDER_TYPE_SELL_LIMIT,
   ORDER_TYPE_SELL_STOP,
   POSITION_TYPE_BUY,
+  TRADE_ACTION_MODIFY,
   TRADE_ACTION_PENDING,
   TRADE_ACTION_REMOVE,
   TRADE_ACTION_SLTP,
@@ -100,10 +101,26 @@ export function remainingLotAtLevel(
   return normalizeVolume(remaining, symbol, infos);
 }
 
+// AutoGrid_Z{n}_F{U|D}{zeit}; entfernte Zusatz-Setups k ≥ 2 (früher ENG-28): AutoGrid_Z{n}_F{k}{U|D}{zeit}
 const FRACTAL_COMMENT_RE = /^AutoGrid_Z\d+_F(\d*)([UD])(\d+)$/;
 
+/** Kommentar der Fraktal-Order: AutoGrid_Z{n}_F{U|D}{Kerzenzeit}; n aus der Magic der Zone */
+export function fractalComment(magic: number, side: 'U' | 'D', barTime: number): string {
+  return `AutoGrid_Z${zoneNumber(magic)}_F${side}${Math.trunc(barTime)}`;
+}
+
+/**
+ * [Setup-Nummer, Seite, Kerzenzeit] oder null; ohne Nummer = 1. Anders als parseFractalComment in
+ * lib/analysis/tradePairing.ts (Chart) erkennt diese Fassung wie der Bot auch nummerierte Zusatz-Setups.
+ */
+export function parseFractalComment(comment: string): [number, 'U' | 'D', number] | null {
+  const m = FRACTAL_COMMENT_RE.exec(comment ?? '');
+  if (!m) return null;
+  return [m[1] ? Number(m[1]) : 1, m[2] as 'U' | 'D', Number(m[3])];
+}
+
 export function isFractalComment(comment: string): boolean {
-  return FRACTAL_COMMENT_RE.test(comment ?? '');
+  return parseFractalComment(comment) !== null;
 }
 
 export function cancelOrder(broker: Broker, order: Order, state: EngineState): boolean {
@@ -133,6 +150,31 @@ export function modifyPositionTpSl(
       symbol,
       tp: tpPrice ? normalizePrice(tpPrice, symbol, infos) : 0,
       sl: slPrice !== null && slPrice > 0 ? normalizePrice(slPrice, symbol, infos) : 0,
+    },
+    state,
+  );
+}
+
+/** Nur SL/TP einer Pending Order ändern (Preis, Volumen, Ticket bleiben) */
+export function modifyPendingOrder(
+  broker: Broker,
+  order: Order,
+  slPrice: number,
+  tpPrice: number,
+  infos: SymbolInfos,
+  state: EngineState,
+): boolean {
+  const symbol = order.symbol;
+  return safeSendOrder(
+    broker,
+    {
+      action: TRADE_ACTION_MODIFY,
+      order: order.ticket,
+      symbol,
+      price: order.price_open,
+      sl: slPrice ? normalizePrice(slPrice, symbol, infos) : 0,
+      tp: tpPrice ? normalizePrice(tpPrice, symbol, infos) : 0,
+      type_time: ORDER_TIME_GTC,
     },
     state,
   );

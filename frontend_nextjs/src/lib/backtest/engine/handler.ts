@@ -1,11 +1,11 @@
 /**
  * Ein Durchlauf des gleitenden Grids für die aktive Zone eines Symbols.
  * Quelle: worker_python/src/core/grid_execution/handler.py (handle_sliding_grid).
- * Fraktal-Zonen (fractal_entry.py) kommen mit B3; bis dahin meldet der Durchlauf einen Fehler.
  */
 import { levelSets } from '@/lib/analysis/levels';
 import { extractZoneConfig, InvalidZoneConfigError } from './config';
-import { normalizePrice, type SymbolInfos } from './helpers';
+import { manageFractalOrders } from './fractalEntry';
+import { normalizePrice, zoneLogId, type SymbolInfos } from './helpers';
 import { openInstantPositions } from './instantEntry';
 import { cancelOrder, getExistingLevelsByDirection } from './orders';
 import { placeMissingOrders } from './placement';
@@ -26,8 +26,9 @@ export function handleSlidingGrid(
   try {
     const config = extractZoneConfig(zone, zoneIdx, infos, state);
     if (config.entryMode === 'fractal') {
-      state.log('ERROR', 'engine.fractalNotPorted', { zone: zoneIdx + 1 });
-      return false;
+      // Kein Grid: Sofort-Einstieg, Stufen und Grid-Prüfung entfallen. Die Positionsgrenze prüft
+      // fractalEntry selbst: es löscht die Pending Orders der Zone, Erledigt-Liste und SAR-Nachzug laufen weiter.
+      return manageFractalOrders(broker, config, zoneIdx, zoneLogId(zone, zoneIdx), robotPositions, robotOrders, infos, state);
     }
 
     const open = robotPositions.filter((p) => p.magic === config.targetMagic).length;

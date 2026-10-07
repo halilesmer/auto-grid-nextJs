@@ -64,3 +64,9 @@ export function getCurrentMarketPrice(broker: Broker, symbol: string, direction:
 export function toTimeframe(name: unknown): Timeframe {
   return typeof name === 'string' && name in TF_SECONDS ? (name as Timeframe) : 'M15';
 }
+
+/** Kennung der Zone für Logs und den Erledigt-Schlüssel der Fraktale: id, sonst "idx<n>" (zone_log_id) */
+export function zoneLogId(zone: ZoneDict, idx: number): string {
+  const id = zone.id;
+  return id ? String(id) : `idx${idx}`;
+}

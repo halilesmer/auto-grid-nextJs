@@ -238,7 +238,7 @@
     "unit": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 58
+      "tests": 78
     }
   },
   "BKT-02": {
@@ -246,6 +246,13 @@
       "datum": "2026-10-07",
       "status": "passed",
       "tests": 40
+    }
+  },
+  "BKT-03": {
+    "e2e": {
+      "datum": "2026-10-07",
+      "status": "passed",
+      "tests": 26
     }
   },
   "BKT-04": {
@@ -269,7 +276,7 @@
     "unit": {
       "datum": "2026-10-07",
       "status": "passed",
-      "tests": 28
+      "tests": 38
     }
   },
   "BOT-01": {
@@ -543,6 +550,11 @@
     }
   },
   "ENG-30": {
+    "e2e": {
+      "datum": "2026-10-07",
+      "status": "passed",
+      "tests": 2
+    },
     "unit": {
       "datum": "2026-10-07",
       "status": "passed",
