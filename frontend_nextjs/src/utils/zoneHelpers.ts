@@ -46,6 +46,8 @@ export function defaultZone(): ZoneSettings {
     sell_fractal_order_count: 1,
     fractal_tp_by_money: false,
     fractal_tp_money: 10,
+    fractal_next_loss: 0,
+    fractal_next_loss_mode: 'money',
   };
 }
 

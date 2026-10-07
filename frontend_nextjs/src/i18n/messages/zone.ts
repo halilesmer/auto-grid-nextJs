@@ -146,6 +146,9 @@ export default defineArea(
     'zone.fractal.sellOrderCount': 'SELL Emir Sayısı',
     'zone.fractal.tpByMoney': 'TP tutar olarak ($)',
     'zone.fractal.tpMoney': 'TP tutarı ($)',
+    'zone.fractal.nextLossMoney': 'Sonraki emir zararı ($)',
+    'zone.fractal.nextLossPips': 'Sonraki emir mesafesi (pip)',
+    'zone.fractal.nextLossByPips': 'Sınır pip olarak',
     'zone.fractal.maxPositions': 'Maks Pozisyon',
     'zone.legacyOrders.title': 'Eski fraktal emirleri bulundu',
     'zone.legacyOrders.message':
@@ -301,6 +304,9 @@ export default defineArea(
     'zone.fractal.sellOrderCount': 'SELL order count',
     'zone.fractal.tpByMoney': 'TP as amount ($)',
     'zone.fractal.tpMoney': 'TP amount ($)',
+    'zone.fractal.nextLossMoney': 'Next order at loss ($)',
+    'zone.fractal.nextLossPips': 'Next order at distance (pips)',
+    'zone.fractal.nextLossByPips': 'Limit in pips',
     'zone.fractal.maxPositions': 'Max Positions',
     'zone.legacyOrders.title': 'Old fractal orders found',
     'zone.legacyOrders.message':
@@ -456,6 +462,9 @@ export default defineArea(
     'zone.fractal.sellOrderCount': 'Anzahl SELL-Orders',
     'zone.fractal.tpByMoney': 'TP als Betrag ($)',
     'zone.fractal.tpMoney': 'TP-Betrag ($)',
+    'zone.fractal.nextLossMoney': 'Nächste Order ab Verlust ($)',
+    'zone.fractal.nextLossPips': 'Nächste Order ab Abstand (Pip)',
+    'zone.fractal.nextLossByPips': 'Grenze in Pip',
     'zone.fractal.maxPositions': 'Max. Positionen',
     'zone.legacyOrders.title': 'Alte Fraktal-Orders gefunden',
     'zone.legacyOrders.message':

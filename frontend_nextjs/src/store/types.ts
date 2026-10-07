@@ -103,6 +103,10 @@ export interface ZoneSettings {
   /** true: TP als Geldbetrag (Kontowährung) statt SL × Faktor */
   fractal_tp_by_money?: boolean;
   fractal_tp_money?: number;
+  /** Nächste Fraktal-Order erst, wenn die letzte Position der Richtung ≥ X im Minus ist; 0 = keine Grenze */
+  fractal_next_loss?: number;
+  /** money: Verlust in Kontowährung · pips: Preisabstand gegen den Einstieg */
+  fractal_next_loss_mode?: 'money' | 'pips';
 }
 
 export type EntryMode = 'grid' | 'fractal';

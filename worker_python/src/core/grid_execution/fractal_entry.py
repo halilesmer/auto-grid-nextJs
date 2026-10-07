@@ -406,7 +406,7 @@ def manage_fractal_orders(
 
     allow = allow_new_orders and not _at_limit(zone_idx, config, len(zone_positions), log_message)
     candidates = _manage_orders(
-        mt5, config, zone_idx, zone_key, m, tick, zone_orders, symbol_infos,
+        mt5, config, zone_idx, zone_key, m, tick, zone_orders, zone_positions, symbol_infos,
         consecutive_errors, active_zones_state, log_message, allow,
     )
     if config.fractal_use_sl and config.fractal_sl_mode == "sar":
@@ -442,8 +442,37 @@ def _at_limit(zone_idx: int, config: ZoneConfig, open_positions: int, log_messag
     return True
 
 
+def _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_message) -> bool:
+    """Sonraki fraktal emri serbest mi: yöndeki en son açılan pozisyon en az `fractal_next_loss`
+    zararda olmalı (money: kâr ≤ −X · pips: fiyat girişe karşı ≥ X). 0 veya pozisyon yoksa serbest."""
+    limit = config.fractal_next_loss
+    key = (zone_idx, "next_loss", direction)
+    pos_type = mt5.POSITION_TYPE_BUY if direction == "BUY" else mt5.POSITION_TYPE_SELL
+    same_dir = [p for p in zone_positions if p.type == pos_type]
+    if limit <= 0 or not same_dir:
+        state.fractal_logged.pop(key, None)
+        return True
+    last = max(same_dir, key=lambda p: (getattr(p, "time_msc", 0) or 0, p.ticket))
+    if config.fractal_next_loss_mode == "pips":
+        against = (last.price_open - float(tick.bid)) if direction == "BUY" else (float(tick.ask) - last.price_open)
+        reached = against >= limit
+    else:
+        reached = float(last.profit) <= -limit
+    if reached:
+        state.fractal_logged.pop(key, None)
+        return True
+    unit = "fiyat" if config.fractal_next_loss_mode == "pips" else "tutar"
+    _log_once(
+        key, last.ticket,
+        f"⏸️ Fraktal: Bölge {zone_idx+1} {direction} | Sonraki emir, Bilet {last.ticket} en az "
+        f"{limit} ({unit}) zarara geçince konacak.",
+        "INFO", log_message,
+    )
+    return False
+
+
 def _manage_orders(
-    mt5, config, zone_idx, zone_key, m, tick, zone_orders, symbol_infos,
+    mt5, config, zone_idx, zone_key, m, tick, zone_orders, zone_positions, symbol_infos,
     consecutive_errors, active_zones_state, log_message, allow_new_orders,
 ) -> set[int]:
     """Hedef emirleri kurar, mevcut emirleri eşleştirir/siler, eksikleri koyar.
@@ -456,6 +485,9 @@ def _manage_orders(
     for side, items in (("U", m.ups), ("D", m.downs)):
         direction = _direction_of(config, side)
         if not allow_new_orders or config.order_type not in (direction, "BOTH"):
+            continue
+        # Sınır kapalıysa bu yönün bekleyen emirleri aşağıda eşleşmediği için silinir
+        if not _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_message):
             continue
         count = config.fractal_order_count if direction == "BUY" else config.sell_fractal_order_count
         # Yalnızca en yeni `count` fraktal: geçersiz olanın yeri boş kalır, daha eskiyle doldurulmaz

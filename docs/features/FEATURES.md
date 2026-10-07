@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-07 · **128/154** abgehakt · ❌ 1 mit Fehlern · 🐞 1 bekannte Fehler
+**Stand:** 2026-10-07 · **129/156** abgehakt · ❌ 1 mit Fehlern · 🐞 1 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,9 +19,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 16/19 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 16/20 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 26/28 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 27/29 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
@@ -300,6 +300,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Zonenbereich zeigt je Symbol eine Karte. Ihr Kopf hat das Symbolfeld, die Zahl der Setups, den Preis, Markt offen/geschlossen und „Setup Ekle“; darunter steht jedes Setup als eigene Karte mit dem Kopf „Setup n“. Das Symbolfeld gilt für alle Setups des Symbols und übernimmt die Eingabe erst bei Auswahl aus der Liste oder beim Verlassen des Feldes nach einer Eingabe. „Sembol Ekle“ fragt das Symbol ab und legt das erste Setup an (Lot = kleinster Lot des Symbols; hat das Symbol schon eine Karte, kommt das Setup dorthin). „Setup Ekle“ fragt nicht nach dem Symbol und fügt das Setup hinter dem letzten Setup des Symbols ein. Das letzte Setup eines Symbols zu löschen nimmt das Symbol mit (eigene Rückfrage „Sembolü Sil“). zone_states, zone_market_* und ui-state-Befehle zählen nach dem Engine-Platz der zuletzt geladenen oder gespeicherten Reihenfolge (engineOrder, nach id), nicht nach dem Platz in der Karte; ein ungespeichertes Setup verschiebt die Plätze der anderen nicht. Nach jedem Speichern übernimmt die Oberfläche die vom Worker gruppierte Reihenfolge. Start/Pause schickt den Befehl vor dem Speichern an den heutigen Platz (die ui_state-Datei zieht der Worker bei gestopptem Bot, sonst der Bot beim nächsten Einlesen mit um); scheitert das Speichern, geht der alte Zustand zurück.
   - **Prüfung:** DEMO-Konto mit zwei Symbolen; im Dashboard „Setup Ekle“ in einer Symbolkarte, „Sembol Ekle“ mit einem neuen Symbol, dann das einzige Setup eines Symbols löschen; speichern und neu laden. → Bei laufendem Bot prüfen, dass „Otomatik temizlendi“ und das Markt-Badge an der richtigen Karte stehen.
   - **Erwartet:** Je Symbol eine Karte mit „Setup 1…n“; das neue Setup steht in seiner Symbolkarte; das gelöschte Symbol ist weg; nach dem Neuladen dieselben Karten; Motorzustände an den richtigen Setups.
+- [ ] **ZON-21** Fraktal – nächste Order ab Verlust (Betrag/Pip) — 🖥️ e2e ✅ 2026-10-07 · 👤 manuell ⏳
+  - Im Fraktal-Modus legt „Nächste Order ab Verlust“ (fractal_next_loss, Standard 0 = keine Grenze) fest, ab welchem Verlust der zuletzt eröffneten Position einer Richtung die nächste Fraktal-Order gesetzt wird. Der Switch „Grenze in Pip“ (fractal_next_loss_mode money/pips) wählt die Einheit - Betrag in Kontowährung oder Preisabstand gegen den Einstieg; Feldname und Tooltip (mit Zahlenbeispiel) wechseln mit. Wird mit der Zone gespeichert.
+  - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, BUY, „Nächste Order ab Verlust“ 1, speichern, Bot starten und warten, bis eine Fraktal-Order auslöst. → Pending Orders und Bot-Log beobachten, während die Position ins Minus läuft.
+  - **Erwartet:** Solange die letzte BUY-Position weniger als 1 $ im Minus ist, liegt keine BUY-Order und das Log meldet „Sonraki emir … zarara geçince konacak“; ab −1 $ kommen die BUY-Orders auf die jüngsten Fraktale zurück.
 
 ## 7. BOT – Bot-Steuerung
 
@@ -451,6 +455,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Zusätzliche Fraktal-Setups je Zone (früher ZON-18/ENG-28) gibt es nicht mehr; eine Fraktal-Zone hat wieder genau eine Fraktal-Einstellung und der Order-Kommentar ist AutoGrid_Z{n}_F{U|D}{Kerzenzeit}. Pending Orders früherer Setups (gleiche Magic, Kommentar AutoGrid_Z{n}_F{k}{U|D}{zeit} mit k ≥ 2, src/core/legacy_setup_orders.py) behandelt der Bot nicht als Orders der Zone und löscht sie nicht von selbst. Er meldet sie in den Live-Daten (legacy_setup_orders); das Dashboard fragt einmal je Konto in einem Fenster (Konto, Anzahl, Symbole): „Orders löschen“ oder „Orders behalten“. Die Wahl steht als LEGACY_SETUP_ORDERS (delete/keep, sonst 422) in den Einstellungen: bei delete storniert der Bot diese Orders in jeder Runde und loggt jede, bei keep fasst er sie nicht an und das Fenster kommt nicht wieder; Abbrechen speichert nichts und fragt nach dem Neuladen wieder. Offene Positionen früherer Setups bleiben und zählen zur Positionsgrenze der Zone. Zone deaktivieren, löschen, Zonen-Ausstieg mit Löschen und Bot-Stopp löschen wie bisher alle Robot-Orders. Beim Speichern entfernt der Worker fractal_setups, fractal_setup_seq und fractal_kept_sids aus den Zonen. Das Trade-Archiv zählt Trades früherer Setups zur Zone, aber nicht als Fraktal-Trades des Charts.
   - **Prüfung:** Worker auf dem VPS auf diesen Stand bringen; DEMO-Konto mit einer Fraktal-Zone, die noch Pending Orders eines früheren Setups hat (MT5-Kommentar …_F2U… oder …_F3D…). → Dashboard öffnen, Konto wählen; im Fenster „Orders behalten“ wählen, Seite neu laden. → In der Einstellungsdatei LEGACY_SETUP_ORDERS auf delete setzen (oder auf einem zweiten Konto im Fenster „Orders löschen“ wählen) und das Bot-Log ansehen.
   - **Erwartet:** Das Fenster nennt Konto, Anzahl und Symbol und erscheint nach „Orders behalten“ nicht wieder; die Orders bleiben unverändert in MT5. Nach „Orders löschen“ verschwinden nur die Orders mit Setup-Nummer, je Order steht „Eski fraktal kurgusu emri siliniyor“ im Log; die eigenen Fraktal-Orders der Zone und alle Positionen bleiben.
+- [x] **ENG-30** Fraktal – nächste Order erst ab Verlust der letzten Position — 🧪 unit ✅ 2026-10-07
+  - Ist fractal_next_loss > 0, setzt die Fraktal-Engine je Richtung (BUY/SELL getrennt) neue Orders nur, wenn die zuletzt eröffnete Position dieser Richtung mindestens so weit im Minus ist - money: Profit ≤ −X; pips: BUY Einstieg − Bid ≥ X, SELL Ask − Einstieg ≥ X. Ohne Position der Richtung oder bei 0 gilt keine Grenze. Ist die Grenze nicht erreicht, werden liegende Orders dieser Richtung gelöscht (wie bei Max. Positionen), das Log meldet es einmal je Position.
+  - **Prüfung:** Manuell über ZON-21.
+  - **Erwartet:** Abgedeckt durch Unit-Tests.
 
 ## 9. MET – Live-Daten & Diagramm
 
