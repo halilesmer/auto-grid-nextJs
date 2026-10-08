@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { CandlestickChart, ChartLine, Grid3x3, LayoutDashboard, Server, Users } from 'lucide-react';
+import { CandlestickChart, ChartLine, FlaskConical, Grid3x3, LayoutDashboard, Server, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { VERSION } from '@/app/version';
@@ -23,6 +23,7 @@ const LINKS: {
 }[] = [
   { href: '/', labelKey: 'nav.dashboard', hintKey: 'nav.dashboard.hint', icon: LayoutDashboard },
   { href: '/chart', labelKey: 'nav.analysis', hintKey: 'nav.analysis.hint', icon: ChartLine },
+  { href: '/backtest', labelKey: 'nav.backtest', hintKey: 'nav.backtest.hint', icon: FlaskConical },
   { href: '/formasyon', labelKey: 'nav.formation', hintKey: 'nav.formation.hint', icon: CandlestickChart },
   // /vps läuft auch ohne Worker-Verbindung: erst ausblenden, wenn feststeht, dass es kein Admin ist
   { href: '/vps', labelKey: 'nav.vps', hintKey: 'nav.vps.hint', icon: Server, visible: (me) => !me || me.role === 'admin' },

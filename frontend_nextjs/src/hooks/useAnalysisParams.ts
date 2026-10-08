@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { isDayString, RANGE_PRESETS, type DayRange, type RangePreset } from '@/lib/serverTime';
 import { DEFAULT_TIMEFRAME, isTimeframe, type Timeframe } from '@/lib/analysis/candles';
 
-export const ANALYSIS_TABS = ['chart', 'stats', 'backtest'] as const;
+export const ANALYSIS_TABS = ['chart', 'stats'] as const;
 export type AnalysisTab = (typeof ANALYSIS_TABS)[number];
 
 /** Gewählter Zeitraum: Vorauswahl (relativ zu „heute“, beim Neuladen neu berechnet) oder feste Tage. */

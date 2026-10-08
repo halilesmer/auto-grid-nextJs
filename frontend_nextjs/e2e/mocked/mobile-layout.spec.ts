@@ -256,4 +256,20 @@ test.describe('Weitere Seiten (de)', () => {
     await expect(page.getByRole('navigation')).toBeVisible();
     await expectNoPageOverflow(page);
   });
+
+  // Einstellungen, Ergebnis mit zwei Spalten („Beide“), Hinweise und Protokoll (BKT-06)
+  test('Backtest-Seite mit Ergebnis läuft nicht über', { tag: '@UI-08' }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}&range=last7`);
+    await expect(page.getByTestId('backtest-settings')).toBeVisible();
+    await expectNoPageOverflow(page);
+    await expectInViewport(page, page.getByTestId('bt-run'), 'Test starten');
+
+    await page.getByTestId('bt-path').selectOption('both');
+    await page.getByTestId('bt-run').click();
+    await expect(page.getByTestId('bt-result')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('bt-result-column')).toHaveCount(2);
+    await expectNoPageOverflow(page);
+    await expectInViewport(page, page.getByTestId('bt-notes'), 'Hinweise');
+  });
 });

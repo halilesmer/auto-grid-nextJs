@@ -30,7 +30,8 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
 | B3 | Engine port, fractal (ATR, SAR) | BKT-03 | done (PR #126) |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR #130) |
-| B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
+| B5a | Page `/backtest` with one run; test button of a zone opens it; run log texts; netting refusal | BKT-06, BKT-10, BKT-12 (zone → backtest) | done (PR B5a) |
+| B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | open |
 | B6 | Chart with equity area and replay | BKT-07 | open |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | open |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
@@ -496,6 +497,32 @@ Decisions:
 - Hedging check: the run does not know the account model. The page (B5) must refuse netting accounts (`docs/analyse-regeln.md` §6; `GET /market/{id}/time-check` gives the model).
 - Swap mode numbers: the MQL5 page names the modes, but gives no numbers. 0, 1 and 4 are the first, second and fifth name in that order. Not checked against MT5 (see open points).
 
+## Result B5a (page `/backtest`)
+
+Branch `claude/backtest-b5a-page`. The page runs one test of one setup in the web worker of B4.
+
+**Done**
+
+- Page `/backtest` (menu item "Backtest"), state in the URL (`account`, `zone`, `range`). The setup card (account, setup, range) copies `/chart`. The Backtest tab of `/chart` is gone; `CsvImportPanel` moved to `/backtest` unchanged.
+- Settings card: data resolution, spread, commission (proposal from `proposeCommission` with the deals of the last year), swap, start capital, fill model, SL first, candle path (also "both"), close at end, approximate mode. Start and cancel (`terminate()`), progress bar.
+- Result: end of test (realized, open P/L, end equity, open positions, drawdown, commission, swap, spread), `StatsKpis`, `CurveChart` (equity, drawdown), run log. "Both" shows two columns.
+- Run log and error texts in tr/en/de for every code (`backtest.log.<code>`, `backtest.error.<code>`). A test reads the sources of `lib/backtest` and fails if a code has no text.
+- Notes block (BKT-10) above each result: no close button. It shows the `run.*` lines of the log, a note for resolution M5 or coarser, and "uncertain" when the grid distance is smaller than the mean candle range (`RunResult.avgRange`, new). The check only applies to the grid mode with a fixed distance.
+- Test button of a setup (`ZoneHeader`) writes a copy of the setup, with unsaved changes, to `useBacktestHandoffStore` and opens `/backtest?account=&zone=`.
+- A change of account stops a running test and clears the result (`useBacktestStore.clearUnless`). Messages with an old `runId` are ignored.
+
+**Decisions**
+
+- The handoff is in memory only (changed from the plan, which said sessionStorage). The page reads it once at open and clears it. A reload or a link in a new tab uses the saved setup. The unsaved values of the setup page are lost at a reload too, so a stored handoff would show values that the setup page no longer has.
+- Netting refusal without a worker change: `GET /history/{id}/deals` (any user) has `account.margin_mode`. Hedging (2) runs, netting (0) and exchange (1) block the start with the reason, an unknown mode shows a warning. The plan said to extend `/clock`; that is not needed. The admin-only `time-check` is not used.
+- The web worker builds in Next 16.3.3 (Turbopack). The `@/` aliases resolve inside the worker; the e2e tests run a real worker against the mock.
+- Not in B5a: the zone fields in the page (`ZoneFieldsEditor`, B7), `TradesTable` with exact MFE/MAE and the chart (B6), the data source selection and the `csv_gap` text (B5b).
+
+**Measured**
+
+- `npx playwright test --project=mocked`: 459 passed, 0 failed (after the review fixes).
+- `npm run lint`, `npx tsc --noEmit`: clean.
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
@@ -511,17 +538,17 @@ Decisions:
 - [x] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message (see "Result B4").
 - [ ] B4, manual check on the VPS (DEMO, read only): list the distinct `swap_mode` values of the symbols from `GET /api/symbols` and compare them with the names of the MetaTrader5 constants (`SYMBOL_SWAP_MODE_*`). Only 0, 1 and 4 are accepted; the numbers of `SWAP_MODE_POINTS` and `SWAP_MODE_DEPOSIT` in `broker/costs.ts` must agree.
 - [ ] B4: the engine is slow for a busy grid zone (0.4 ms per candle). A profile after the fast path in `pyRound` is not done. Measure 1 million candles and the memory in the real web worker (B5), before a decision to optimize `getAllRobotOrders`, `orderSend` (copies the order book for the recorder) or the log.
-- [ ] B5: the web worker is not built by Next yet (no page uses `new Worker(new URL('…/backtest.worker.ts', import.meta.url))`). Check the build (Turbopack) and the import of `@/` aliases in the worker.
-- [ ] B5: texts (tr/en/de) for the run log codes and the error codes (`run.*`); refuse netting accounts; show the pair of results of "both paths"; build the request headers with `getWorkerHeaders()` (X-API-Key and ngrok header) and the base address with `apiUrl('')`, because `RunRequest.headers` is a plain record and nothing forces it.
+- [x] B5a: the web worker is not built by Next yet (no page uses `new Worker(new URL('…/backtest.worker.ts', import.meta.url))`). Check the build (Turbopack) and the import of `@/` aliases in the worker.
+- [x] B5a: texts (tr/en/de) for the run log codes and the error codes (`run.*`); refuse netting accounts; show the pair of results of "both paths"; build the request headers with `getWorkerHeaders()` (X-API-Key and ngrok header) and the base address with `apiUrl('')`, because `RunRequest.headers` is a plain record and nothing forces it.
 - [ ] B5/B6: exact MFE/MAE from the simulator, and the message `bars` (candles of one display timeframe) for the chart.
 - [ ] B4 model limits, to show on the page: the bot runs at path points, after each fill or exit and at zone borders, not every second as live. Rules that depend on the wait time between two loops (the 30-s brake) use the simulated clock. Weekend swap only through the triple day. Samples of the equity are at the candle ends, so the max. drawdown inside a candle is not seen.
-- [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
+- [x] B5a: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
 - [ ] B6: chart; max. 50,000 drawn candles for 1 year of M1; the replay never shows future data.
 - [ ] B7: more setups; a late run does not overwrite a different setup.
 - [ ] B8: presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive.
 - [x] B9: CSV import; an aborted or wrong import cannot be selected (see "Result B9").
 - [ ] B9, manual check on the VPS (DEMO): import one real M1 CSV of about 1 year, then read it with `GET /api/market/{id}/rates?source=csv:<id>`, and check the time zone offset against a candle that MT5 also has.
-- [ ] B5: move `CsvImportPanel` from the Backtest tab of `/chart` to `/backtest`, and add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list).
+- [ ] B5a done (moved): `CsvImportPanel` is on `/backtest`. B5b: add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list).
 - [ ] B9 (review, not done): the commit holds the database write lock while it parses and writes (up to 2 million rows); saving settings waits in that time. Use staging tables or write in parts if this shows on the VPS.
 - [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
 - [ ] B5 (review, not done): the answer of `rates?source=csv:` has no `account_id`, `server_now`, `offset_sec`; the reason `csv_gap` has no text in `analysis.data.reason.*`. Add both when a page reads it. An abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list).

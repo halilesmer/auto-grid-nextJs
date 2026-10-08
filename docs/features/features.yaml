@@ -1311,7 +1311,7 @@ kategorien:
     features:
       - id: ANA-01
         titel: Analyse-Seite mit Tabs
-        beschreibung: "Menüpunkt „Analyse“ (/chart) mit den Tabs Chart, Statistik und Backtest (Statistik und Backtest noch Platzhalter). Konto, Zone, Tab und Zeitraum stehen in der URL (?account=&zone=&tab=&range= bzw. &from=&to=); Neuladen und geteilte Links zeigen dieselbe Ansicht, ohne ?account= wird das im Dashboard gewählte Konto übernommen. Der Chart-Tab zeigt die Einstellungen der Zone und ihren Kursverlauf (ANA-05). Ein Info-Symbol zeigt den Lizenzhinweis von TradingView Lightweight Charts™ mit Link zu tradingview.com. Bei 375 px stehen Konto, Zone und Zeitraum untereinander; Panels bleiben im Bildschirm."
+        beschreibung: "Menüpunkt „Analyse“ (/chart) mit den Tabs Chart und Statistik (der Backtest hat seit B5a die eigene Seite /backtest, BKT-06). Konto, Zone, Tab und Zeitraum stehen in der URL (?account=&zone=&tab=&range= bzw. &from=&to=); Neuladen und geteilte Links zeigen dieselbe Ansicht, ohne ?account= wird das im Dashboard gewählte Konto übernommen. Der Chart-Tab zeigt die Einstellungen der Zone und ihren Kursverlauf (ANA-05). Ein Info-Symbol zeigt den Lizenzhinweis von TradingView Lightweight Charts™ mit Link zu tradingview.com. Bei 375 px stehen Konto, Zone und Zeitraum untereinander; Panels bleiben im Bildschirm."
         code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts, frontend_nextjs/src/components/analysis/LicenseInfo.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
@@ -1515,24 +1515,26 @@ kategorien:
 
       - id: BKT-05
         titel: CSV-Import von Kursdaten (B9)
-        beschreibung: "Kerzen aus einer CSV-Datei als eigene Datenquelle laden, wenn MT5 nicht genug Historie liefert: GET/POST /market/{id}/imports, PUT …/chunk (Teile in Reihenfolge, je höchstens 4 MB, Datei höchstens 150 MB), POST …/commit, DELETE. Der Worker prüft am Commit alles (Format, Zeitraster des Zeitrahmens, strikt steigende Zeit, OHLC, Zeitbereich) und schreibt erst dann nach market.sqlite (source = csv:<import_id>, MT5-Kerzen bleiben unberührt); eine fehlerhafte Datei wird sofort verworfen. Überlappung mit einem vorhandenen Import desselben Kontos, Symbols und Zeitrahmens nur mit „ersetzen“. Lesen über GET /market/{id}/rates?source=csv:<id> (nie MT5; Lücken als csv_gap). Unfertige Importe sind nicht wählbar und nach 24 Stunden geräumt. Dialog und Liste im Backtest-Tab von /chart (CsvImportPanel); auf /backtest zieht er mit B5 um."
+        beschreibung: "Kerzen aus einer CSV-Datei als eigene Datenquelle laden, wenn MT5 nicht genug Historie liefert: GET/POST /market/{id}/imports, PUT …/chunk (Teile in Reihenfolge, je höchstens 4 MB, Datei höchstens 150 MB), POST …/commit, DELETE. Der Worker prüft am Commit alles (Format, Zeitraster des Zeitrahmens, strikt steigende Zeit, OHLC, Zeitbereich) und schreibt erst dann nach market.sqlite (source = csv:<import_id>, MT5-Kerzen bleiben unberührt); eine fehlerhafte Datei wird sofort verworfen. Überlappung mit einem vorhandenen Import desselben Kontos, Symbols und Zeitrahmens nur mit „ersetzen“. Lesen über GET /market/{id}/rates?source=csv:<id> (nie MT5; Lücken als csv_gap). Unfertige Importe sind nicht wählbar und nach 24 Stunden geräumt. Dialog und Liste (CsvImportPanel) stehen auf /backtest (seit B5a; vorher im Backtest-Tab von /chart)."
         code: [worker_python/src/utils/csv_import.py, worker_python/src/api/market.py, worker_python/src/utils/market_db.py, frontend_nextjs/src/components/backtest/CsvImportDialog.tsx, frontend_nextjs/src/components/backtest/CsvImportPanel.tsx]
         tiers: [api, e2e]
         pruefung:
           - pytest tests/api/test_csv_import_api.py (Import in Teilen, Prüfungen, Überlappung, Abbruch, fremdes Konto) ausführen.
-          - Im Backtest-Tab von /chart (Konto, Setup wählen) eine CSV importieren; der Import steht mit Symbol, Zeitrahmen, Zeitraum und Kerzenzahl in der Liste.
+          - Auf /backtest (Konto, Setup wählen) eine CSV importieren; der Import steht mit Symbol, Zeitrahmen, Zeitraum und Kerzenzahl in der Liste.
           - Eine Datei mit falschem Zeitraster oder unsortierter Zeit importieren; die Zeilenfehler erscheinen und nichts steht in der Liste.
         erwartet: Ein abgebrochener oder fehlerhafter Import ist nicht wählbar; eine Überlappung geht nur mit „ersetzen“.
 
       - id: BKT-06
-        titel: Seite /backtest mit Setup-Dialog (B5, geplant)
-        beschreibung: "Eigene Seite /backtest (Menü „Backtest“), Zustand in der URL (?account=&zone=&setup=). Dialog „Backtest erstellen/bearbeiten“ mit Basis (Konto, Symbol, Zeitraum, Datenauflösung M1/M5/M15/H1, Abdeckung), Kosten, Zone (ZoneFieldsEditor, derselbe Editor wie auf der Zonenseite; Startwert aus Zone, Preset oder leer) und Modell. Ergebnis: StatsKpis + RunSummary, CurveChart (realisiert, Drawdown, Equity), TradesTable mit fertigen MFE/MAE, Laufprotokoll. Der Backtest speichert nie eine Zone (kein POST /settings, kein mergeAndSaveSettings in components/backtest/ und lib/backtest/). Der Backtest-Tab auf /chart entfällt."
-        code: [frontend_nextjs/src/components/layout/AppNav.tsx, frontend_nextjs/src/components/zone/ZoneCard.tsx]
+        titel: Seite /backtest mit einem Lauf (B5a)
+        beschreibung: "Eigene Seite /backtest (Menü „Backtest“), Zustand in der URL (?account=&zone=&range=). Karte mit den Einstellungen eines Laufs: Zeitraum (Kalender wie auf /chart), Datenauflösung M1/M5/M15/H1, Spread (Kerze/fest/Maximum), Kommission je Lot mit Vorschlag aus dem Deal-Archiv, Swap, Startkapital, Füllmodell, SL zuerst, Kerzenweg (auto/Tief zuerst/Hoch zuerst/beide), am Ende schließen, Näherungsrechnung. Gerechnet wird im Web Worker (lib/backtest/backtest.worker.ts, über useBacktestRun); Fortschritt und Abbrechen (terminate), Nachrichten mit alter runId werden verworfen. Ergebnis: Testende (realisiert, offener G/V, End-Equity, offene Positionen, Drawdown, Kommission, Swap, Spread-Kosten), StatsKpis, CurveChart (Equity, Drawdown), Laufprotokoll mit Texten in tr/en/de für jeden Code; bei „beide“ zwei Spalten. Der Test-Knopf eines Setups (ZoneHeader) übergibt eine Kopie mit ungespeicherten Änderungen (useBacktestHandoffStore, einmal gelesen); Neuladen oder ein Link nimmt das gespeicherte Setup. Netting-/Exchange-Konten (Margin-Modus aus dem Deal-Archiv) sperren den Start mit Grund; ist der Modus unbekannt, steht eine Warnung da. Ein Kontowechsel bricht einen Lauf ab und leert das Ergebnis. Der Backtest speichert nie eine Zone (kein POST /settings, kein mergeAndSaveSettings in components/backtest/ und lib/backtest/). Der Backtest-Tab auf /chart entfällt; der CSV-Import (BKT-05) steht auf /backtest. Noch nicht: Setup-Dialog mit Zonenfeldern und mehrere Setups (B7, BKT-08), Trades-Tabelle mit MFE/MAE und Chart (B6, BKT-07), Datenquelle CSV im Lauf (B5b)."
+        code: [frontend_nextjs/src/app/backtest/page.tsx, frontend_nextjs/src/components/backtest/BacktestView.tsx, frontend_nextjs/src/components/backtest/RunSettings.tsx, frontend_nextjs/src/components/backtest/RunResultView.tsx, frontend_nextjs/src/hooks/useBacktestRun.ts, frontend_nextjs/src/store/useBacktestStore.ts, frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
-          - Menü „Backtest“ öffnen, ein Setup anlegen und testen.
+          - Im Menü „Backtest“ öffnen (oder in einer Zone „Test“ drücken), Zeitraum „letzte 7 Tage“ wählen und „Test starten“.
+          - Bei einem Netting-Konto die Seite öffnen.
+          - Während des Laufs „Abbrechen“ drücken und das Konto wechseln.
           - Fenster auf 375 px verkleinern.
-        erwartet: Der Lauf zeigt KPIs, Kurven, Trades und Laufprotokoll; während des ganzen Ablaufs geht kein POST /settings an den Worker. Bei 375 px ist der Dialog eine Vollbildseite und nichts läuft über.
+        erwartet: Der Lauf zeigt Testende, KPIs, Kurven und Laufprotokoll; während des ganzen Ablaufs geht kein POST /settings an den Worker. Bei Netting ist der Start gesperrt und der Grund steht da. Abbrechen und Kontowechsel hinterlassen kein Ergebnis. Bei 375 px läuft nichts über.
 
       - id: BKT-07
         titel: Backtest-Chart mit Wiedergabe (B6, geplant)
@@ -1552,12 +1554,14 @@ kategorien:
         erwartet: Beide Läufe laufen parallel; ein spät fertiger Lauf überschreibt kein anderes Setup. Nach dem Kontowechsel sind keine alten Ergebnisse sichtbar.
 
       - id: BKT-10
-        titel: Hinweise zu Daten und Modell (B5, geplant)
-        beschreibung: "Auf /backtest und im Laufprotokoll stehen immer, nicht abschaltbar: Datenlücken (missing), Modellgrenzen (nicht simuliert: Margin/Stop-out, Ablehnungen, verschwundene Orders, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich), „Kosten geschätzt“, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand kleiner ist als die mittlere Kerzenspanne der Auflösung."
+        titel: Hinweise zu Daten und Modell (B5a)
+        beschreibung: "Über jedem Ergebnis steht ein Hinweisblock, nicht abschaltbar und ohne Schließen-Knopf: Modellgrenzen (Margin/Stop-out nicht geprüft, Ablehnungen nicht simuliert, Stops Level nicht geprüft), „Kosten geschätzt“, Währung zum heutigen Kurs, Datenlücken (missing), verworfene laufende Kerze, Spread-Ersatz, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand (nur Grid-Modus mit festem Abstand) kleiner ist als die mittlere Kerzenspanne (RunResult.avgRange). Die Hinweise aus dem Rechner sind dieselben Meldungen wie im Laufprotokoll. Noch nicht simuliert und noch nicht im Hinweisblock genannt: verschwundene Orders von außen, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich."
+        code: [frontend_nextjs/src/components/backtest/RunResultView.tsx, frontend_nextjs/src/lib/backtest/runner.ts]
         tiers: [e2e]
         pruefung:
           - Einen Lauf mit Datenlücke und Auflösung M5 starten.
-        erwartet: Lücken-, Modell- und Margin-Hinweis sind sichtbar und lassen sich nicht ausblenden.
+          - Ein Setup mit Grid-Abstand unter der Kerzenspanne testen.
+        erwartet: Modell-, Kosten-, Lücken-, M5- und „unsicher“-Hinweis sind sichtbar und lassen sich nicht ausblenden.
 
       - id: BKT-11
         titel: Backtest-Presets je Benutzer (B8, geplant)
@@ -1570,14 +1574,14 @@ kategorien:
         erwartet: Das Preset ist nach dem Neuladen da; das Preset eines anderen Benutzers liefert 404.
 
       - id: BKT-12
-        titel: Zone ↔ Backtest in beide Richtungen (B5 + B8, geplant)
-        beschreibung: "Zone → Backtest: Der Test-Knopf in ZoneHeader.tsx legt die Zone (auch ungespeichert, mit Vermerk) in useBacktestHandoffStore (sessionStorage) und öffnet /backtest?account=&zone=; ohne Übergabe gelten die gespeicherten Werte. Backtest → Zone: „In Zone übernehmen“ (Setup-Badge, Preset) mit Zielkonto (nur eigene), „Zone X ersetzen“ (behält id, magic, is_active, sid) oder „als neue Zone“ (neue id, ohne magic und sid, is_active = false); Symbol fehlt → gesperrt; Lots über normalizeZoneLots. Die Werte landen über useZoneTransferStore ungespeichert und als geändert markiert im Dashboard, mit Banner; nichts wird automatisch gespeichert."
-        code: [frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/components/ZoneSettingsPanel.tsx]
+        titel: Zone → Backtest, Fehler und Kontowechsel (B5a; Backtest → Zone folgt in B8)
+        beschreibung: "Zone → Backtest: Der Test-Knopf in ZoneHeader.tsx legt eine Kopie der Zone (auch ungespeichert, mit Vermerk) in useBacktestHandoffStore und öffnet /backtest?account=&zone=; die Seite liest die Übergabe einmal beim Öffnen, ohne Übergabe (Neuladen, Link) gelten die gespeicherten Werte. Fehler des Laufs (Netz, HTTP, Daten, Rechner) erscheinen mit Text in tr/en/de statt als Absturz; ein Code ohne Text zeigt sich mit seinen Werten (ein Test prüft, dass jeder Code des Rechners einen Text hat). Ein Kontowechsel leert das Ergebnis. Noch nicht (B8): Backtest → Zone („In Zone übernehmen“, useZoneTransferStore)."
+        code: [frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/store/useBacktestHandoffStore.ts, frontend_nextjs/src/components/backtest/runText.ts]
         tiers: [e2e]
         pruefung:
           - In einer Zone einen Wert ändern (nicht speichern) und den Test-Knopf drücken.
-          - Auf /backtest ein Setup „In Zone übernehmen“ → als neue Zone.
-        erwartet: Der Backtest-Dialog zeigt den ungespeicherten Wert mit Vermerk. Im Dashboard erscheint die neue Zone inaktiv, als geändert markiert, mit Banner; ohne Klick auf „Speichern“ geht kein POST /settings an den Worker.
+          - Auf /backtest den Zeitraum so wählen, dass der Worker einen Fehler liefert (z. B. Worker stoppen) und starten.
+        erwartet: Die Seite nennt den ungespeicherten Wert mit Vermerk und rechnet damit; ohne Klick auf „Speichern“ geht kein POST /settings an den Worker. Ein Fehler erscheint als Text mit Grund.
 
       - id: BKT-13
         titel: Setup-Vergleich (B7, geplant)

@@ -284,6 +284,13 @@
       "tests": 5
     }
   },
+  "BKT-06": {
+    "e2e": {
+      "datum": "2026-10-08",
+      "status": "passed",
+      "tests": 8
+    }
+  },
   "BKT-09": {
     "e2e": {
       "datum": "2026-10-08",
@@ -294,6 +301,20 @@
       "datum": "2026-10-08",
       "status": "passed",
       "tests": 38
+    }
+  },
+  "BKT-10": {
+    "e2e": {
+      "datum": "2026-10-08",
+      "status": "passed",
+      "tests": 2
+    }
+  },
+  "BKT-12": {
+    "e2e": {
+      "datum": "2026-10-08",
+      "status": "passed",
+      "tests": 3
     }
   },
   "BOT-01": {

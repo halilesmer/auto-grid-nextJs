@@ -1,5 +1,5 @@
 /**
- * BKT-05 CSV-Import (B9): Dialog im Backtest-Tab der Analyse-Seite gegen den Mock-Worker.
+ * BKT-05 CSV-Import (B9): Dialog auf der Seite /backtest gegen den Mock-Worker.
  * Zeiten: erste CSV-Spalte = Epoche in Sekunden (MON = 28.09.2026 00:00).
  */
 import type { Page } from '@playwright/test';
@@ -7,7 +7,7 @@ import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
 const MON = 1790553600;
-const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tab=backtest`;
+const URL = `/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const csv = (times: number[]) => 'time,open,high,low,close\n' + times.map((t) => `${t},1,2,0.5,1.5`).join('\n') + '\n';
 const file = (text: string) => ({ name: 'xau.csv', mimeType: 'text/csv', buffer: Buffer.from(text) });
 

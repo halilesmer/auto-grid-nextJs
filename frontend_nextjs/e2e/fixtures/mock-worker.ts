@@ -402,7 +402,7 @@ export class MockWorker {
       from,
       to,
       deals: [...earlier, ...inside],
-      account: { currency: 'USD', balance: 10000, margin_mode: 2, updated_at: Math.floor(Date.now() / 1000) },
+      account: { currency: 'USD', balance: 10000, margin_mode: this.state.marginMode, updated_at: Math.floor(Date.now() / 1000) },
       zones: this.state.zoneRegistry[accountId] ?? [],
       missing: this.state.dealsMissing.filter((m) => m.to > from && m.from < to),
     };
