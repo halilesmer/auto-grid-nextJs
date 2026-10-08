@@ -37,6 +37,7 @@ Copy the template. Delete the sections that do not apply.
 ```markdown
 ---
 date: YYYY-MM-DD
+author: <Codex | Claude | project owner | colleague>
 type: fix
 status: done
 pr: [97]
@@ -73,6 +74,7 @@ Front matter values:
 
 | Key | Values |
 |---|---|
+| `author` | The person or AI that wrote the entry. Use `Codex` for entries written by Codex. |
 | `type` | `feature`, `fix`, `defect`, `diagnosis`, `decision`, `plan`, `ops` |
 | `status` | `done` (nothing remains) or `open` (an item in "Open points" remains) |
 | `pr` | PR numbers, for example `[97, 102]`; empty list `[]` if there is no PR |
