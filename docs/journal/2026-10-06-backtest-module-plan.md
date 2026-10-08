@@ -31,7 +31,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B3 | Engine port, fractal (ATR, SAR) | BKT-03 | done (PR #126) |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR #130) |
 | B5a | Page `/backtest` with one run; test button of a zone opens it; run log texts; netting refusal | BKT-06, BKT-10, BKT-12 (zone → backtest) | done (PR B5a) |
-| B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | open |
+| B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | done (PR B5b) |
 | B6 | Chart with equity area and replay | BKT-07 | open |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | open |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
@@ -532,6 +532,30 @@ Branch `claude/backtest-b5a-page`. The page runs one test of one setup in the we
 - After the fixes of the second round: `backtest-page.spec.ts`, `csv-import.spec.ts`, `tooltips.spec.ts`, `mobile-layout.spec.ts`: 60 passed, 0 failed.
 - `npm run lint`, `npx tsc --noEmit`: clean.
 
+## Result B5b (data source in the run)
+
+Branch `backtest-b5b-data-source`. The settings card has the field "Data source": the MT5 server of the account, or one CSV import.
+
+**Done**
+
+- `useCsvImports` (new hook) loads the import list of the account one time. `CsvImportPanel` and the data source field use the same list, so an import, a replace or a delete in the panel changes the field at once.
+- The field shows only imports with status `committed`, the symbol of the setup (`SymbolDetail.name`) and a timeframe M1, M5, M15 or H1. The worker refuses a different symbol or timeframe (`csv_import.get_rates`, 400), so the page does not offer them.
+- With a CSV import, the data resolution is the timeframe of the import. The resolution field is disabled and its tooltip tells why. The run sends `source=csv:<import_id>` to `GET /market/{id}/rates`; it never reads MT5 then.
+- A change of account or setup symbol sets the field back to "MT5 server", as it resets the commission. When the selected import is deleted, the field shows "MT5 server" and the run uses MT5. When the list cannot be loaded again, the page keeps the last list of the account, so a selected CSV source does not change to MT5 without a sign.
+- Text for the reason `csv_gap` in tr/en/de (`analysis.data.reason.csv_gap`). The run log and the notes block show it for each range without candles in the import ("No candle in the CSV import …"). Nothing is filled.
+- Mock worker: `rates?source=csv:<id>` copies `csv_import.get_rates` (409 if not committed, 400 for another symbol or timeframe, candles only inside `first_t`…`last_t`, the rest is `csv_gap`, no spread, no live candle).
+
+**Decisions**
+
+- The CSV answer of `rates` stays without `account_id`, `server_now` and `offset_sec` (open point of B5). The run does not read them: the range comes from the broker clock of `/clock`, and `loadRates` reads only the candle columns. Add them only when a page shows CSV candles on the chart (B6).
+- The import list is local state of the page, not a Zustand store. Only `/backtest` reads it.
+- The result does not show the data source yet. Add it when B7 compares more runs.
+
+**Measured**
+
+- `npm run test:e2e -- e2e/mocked/backtest-page.spec.ts e2e/mocked/csv-import.spec.ts`: 25 passed, 0 failed. The new CSV test failed with the `source` parameter removed from the run (1 failed), and passed again after the restore.
+- `npx tsc --noEmit`, `npx eslint` on the changed files: clean.
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
@@ -557,10 +581,10 @@ Branch `claude/backtest-b5a-page`. The page runs one test of one setup in the we
 - [ ] B8: presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive.
 - [x] B9: CSV import; an aborted or wrong import cannot be selected (see "Result B9").
 - [ ] B9, manual check on the VPS (DEMO): import one real M1 CSV of about 1 year, then read it with `GET /api/market/{id}/rates?source=csv:<id>`, and check the time zone offset against a candle that MT5 also has.
-- [ ] B5a done (moved): `CsvImportPanel` is on `/backtest`. B5b: add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list).
+- [x] B5a done (moved): `CsvImportPanel` is on `/backtest`. B5b: add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list). Done in B5b.
 - [ ] B9 (review, not done): the commit holds the database write lock while it parses and writes (up to 2 million rows); saving settings waits in that time. Use staging tables or write in parts if this shows on the VPS.
 - [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
-- [ ] B5 (review, not done): the answer of `rates?source=csv:` has no `account_id`, `server_now`, `offset_sec`; the reason `csv_gap` has no text in `analysis.data.reason.*`. Add both when a page reads it. An abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list).
+- [ ] B5 (review, not done): an abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list). The text for `csv_gap` is done (B5b). The missing `account_id`, `server_now`, `offset_sec` in the CSV answer of `rates` are not needed by the run; add them with B6 if the chart shows CSV candles.
 - [x] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes come from the candles in the browser (`TimeframeAggregator`). The test of the job uses `source`.
 - [ ] B5/B7: decide which KPIs of "Items from the first concept" (1–7) `computeStats` gets.
 - [x] B9: define the accepted CSV formats (item 8 of "Items from the first concept"): header names or position, MT5 export with date and time apart, separators `,` `;` tab, UTF-8 or UTF-16, epoch seconds/milliseconds or text times (see "Result B9").

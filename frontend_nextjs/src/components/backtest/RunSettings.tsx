@@ -11,11 +11,15 @@ import { useFormat, useT, type MessageKey } from '@/i18n';
 import type { FillModel } from '@/lib/backtest/broker/pathBroker';
 import type { CommissionProposal } from '@/lib/backtest/commission';
 import type { PathChoice } from '@/lib/backtest/protocol';
+import type { CsvImport } from '@/services/csvImportApi';
 
 export const DATA_TIMEFRAMES = ['M1', 'M5', 'M15', 'H1'] as const;
 export type DataTimeframe = (typeof DATA_TIMEFRAMES)[number];
+export const isDataTimeframe = (tf: string): tf is DataTimeframe => (DATA_TIMEFRAMES as readonly string[]).includes(tf);
 
 export interface RunSettingsValue {
+  /** Datenquelle: Import-ID eines CSV-Imports, null = MT5-Server des Kontos */
+  csvImportId: string | null;
   timeframe: DataTimeframe;
   spreadMode: 'candle' | 'fixed' | 'max';
   spreadPoints: number;
@@ -31,6 +35,7 @@ export interface RunSettingsValue {
 }
 
 export const DEFAULT_RUN_SETTINGS: RunSettingsValue = {
+  csvImportId: null,
   timeframe: 'M1',
   spreadMode: 'candle',
   spreadPoints: 0,
@@ -51,6 +56,10 @@ const PATHS = ['auto', 'lowFirst', 'highFirst', 'both'] as const;
 interface RunSettingsProps {
   value: RunSettingsValue;
   onChange: (value: RunSettingsValue) => void;
+  /** Wählbare CSV-Importe: abgeschlossen, Symbol des Setups, Zeitrahmen aus DATA_TIMEFRAMES */
+  csvImports: CsvImport[];
+  /** Gewählter Import aus `csvImports`; null = MT5-Server (auch wenn die gemerkte ID nicht mehr wählbar ist) */
+  csvImport: CsvImport | null;
   /** Vorschlag für die Kommission aus dem Deal-Archiv; undefined = wird geladen, null = keiner */
   proposal: CommissionProposal | null | undefined;
   /** Kommission, die der Lauf verwendet (Eingabe oder Vorschlag) */
@@ -68,6 +77,8 @@ interface RunSettingsProps {
 export function RunSettings({
   value,
   onChange,
+  csvImports,
+  csvImport,
   proposal,
   commission,
   currency,
@@ -87,11 +98,33 @@ export function RunSettings({
       <CardHeader icon={<FlaskConical size={16} />} title={t('backtest.settings.title')} />
       <div className="space-y-4 px-5 pb-5 pt-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <InputField label={t('backtest.field.timeframe')} hint={t('backtest.field.timeframe.hint')}>
+          <InputField label={t('backtest.field.data')} hint={t('backtest.field.data.hint')}>
             <select
-              value={value.timeframe}
-              onChange={(e) => set('timeframe', e.target.value as DataTimeframe)}
+              value={csvImport?.import_id ?? ''}
+              onChange={(e) => set('csvImportId', e.target.value || null)}
               disabled={running}
+              className="input-s"
+              data-testid="bt-data-source"
+            >
+              <option value="">{t('backtest.data.mt5')}</option>
+              {csvImports.map((item) => (
+                <option key={item.import_id} value={item.import_id}>
+                  {t('backtest.data.csv', {
+                    symbol: item.symbol,
+                    tf: item.timeframe,
+                    from: item.first_t === null ? '—' : fmt.mt5DateTime(item.first_t),
+                    to: item.last_t === null ? '—' : fmt.mt5DateTime(item.last_t),
+                  })}
+                </option>
+              ))}
+            </select>
+          </InputField>
+          <InputField label={t('backtest.field.timeframe')} hint={t(csvImport ? 'backtest.field.timeframe.csv.hint' : 'backtest.field.timeframe.hint')}>
+            {/* Ein CSV-Import hat genau einen Zeitrahmen: er bestimmt die Auflösung */}
+            <select
+              value={csvImport?.timeframe ?? value.timeframe}
+              onChange={(e) => set('timeframe', e.target.value as DataTimeframe)}
+              disabled={running || csvImport !== null}
               className="input-s"
               data-testid="bt-timeframe"
             >

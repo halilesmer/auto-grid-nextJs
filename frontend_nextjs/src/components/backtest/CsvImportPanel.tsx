@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FileUp, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/animated-toast';
 import { Badge } from '@/components/ui/badge';
@@ -8,36 +8,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { useFormat, useT } from '@/i18n';
 import { getApiErrorMessage } from '@/lib/apiError';
-import { deleteCsvImport, listCsvImports, type CsvImport } from '@/services/csvImportApi';
+import { deleteCsvImport, type CsvImport } from '@/services/csvImportApi';
 import { CsvImportDialog } from './CsvImportDialog';
 
+interface CsvImportPanelProps {
+  accountId: string;
+  defaultSymbol: string;
+  /** Liste aus useCsvImports (die Seite teilt sie mit der Auswahl der Datenquelle); null = lädt oder Ladefehler */
+  imports: CsvImport[] | null;
+  reload: () => void;
+}
+
 /**
- * Liste der CSV-Importe des Kontos im Backtest-Tab (BKT-05). Nur abgeschlossene Importe sind als Datenquelle
- * wählbar (Auswahl kommt mit der Backtest-Seite, B5); unfertige sind markiert und nur löschbar.
+ * Liste der CSV-Importe des Kontos auf /backtest (BKT-05). Nur abgeschlossene Importe sind im Lauf als Datenquelle
+ * wählbar (RunSettings, B5b); unfertige sind markiert und nur löschbar.
  */
-export function CsvImportPanel({ accountId, defaultSymbol }: { accountId: string; defaultSymbol: string }) {
+export function CsvImportPanel({ accountId, defaultSymbol, imports, reload }: CsvImportPanelProps) {
   const t = useT();
   const fmt = useFormat();
-  const [imports, setImports] = useState<CsvImport[] | null>(null);
   const [dialogKey, setDialogKey] = useState(0);
   const [open, setOpen] = useState(false);
-
-  const [version, setVersion] = useState(0);
-  const reload = useCallback(() => setVersion((v) => v + 1), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    listCsvImports(accountId)
-      .then((list) => !cancelled && setImports(list))
-      .catch(async (err: unknown) => {
-        if (cancelled) return;
-        setImports(null); // Ladefehler ist nicht „keine Importe“
-        toast.error(await getApiErrorMessage(err, t('csv.failed')));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, version, t]);
 
   const remove = async (item: CsvImport) => {
     try {
