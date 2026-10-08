@@ -44,6 +44,8 @@ interface TradesTableProps {
   onFocus?: (trade: Trade) => void;
   /** Name des Setups (Magic) wie auf den Symbolkarten, „Symbol · Setup n“ */
   setupLabel: (magic: number) => string;
+  /** Backtest paths provide exact excursions from the simulated price path. */
+  readyExcursions?: Record<string, Excursion>;
 }
 
 function netClass(net: number) {
@@ -81,11 +83,13 @@ export function TradesTable({
   missing,
   onFocus,
   setupLabel,
+  readyExcursions,
 }: TradesTableProps) {
   const t = useT();
   const fmt = useFormat();
   const rows = [...trades].reverse().slice(0, MAX_ROWS);
   const excursions = useExcursions(accountId, rows);
+  const excursionResults = readyExcursions ? new Map(Object.entries(readyExcursions)) : excursions.results;
   const money = (v: number) =>
     `${v > 0 ? '+' : ''}${fmt.number(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ''}`;
   const price = (v: number) => fmt.price(v, digits ?? 5);
@@ -152,14 +156,14 @@ export function TradesTable({
           </div>
         )}
 
-        {excursions.error && (
+        {!readyExcursions && excursions.error && (
           <div data-testid="mfe-error">
             <Alert tone="danger" title={t('analysis.trades.mfe.failed')}>
               {excursions.error}
             </Alert>
           </div>
         )}
-        {rows.length > 0 && (
+        {rows.length > 0 && !readyExcursions && (
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
             {excursions.capped && (
               <p className="min-w-0 flex-1 text-xs text-muted-foreground" data-testid="mfe-capped">
@@ -212,7 +216,7 @@ export function TradesTable({
                   <th scope="col" className="px-3 py-2 font-medium">
                     <span className="inline-flex items-center gap-1">
                       {t('analysis.trades.col.mfe')}
-                      <InfoHint hint={t('analysis.trades.col.mfe.hint')} />
+                      <InfoHint hint={t(readyExcursions ? 'backtest.chart.excursions.hint' : 'analysis.trades.col.mfe.hint')} />
                     </span>
                   </th>
                   <th scope="col" className="px-3 py-2 font-medium">
@@ -264,7 +268,7 @@ export function TradesTable({
                         {money(tr.net)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-1.5" data-testid="trade-mfe">
-                        {mfeCell(excursions.results.get(tr.id))}
+                        {mfeCell(excursionResults.get(tr.id))}
                       </td>
                       <td className="px-3 py-1.5 font-sans" data-testid="trade-zone">
                         {tr.zone.kind === 'zone' ? (

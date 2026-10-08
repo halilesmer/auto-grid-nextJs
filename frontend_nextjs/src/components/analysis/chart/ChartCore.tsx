@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AreaSeries,
   CandlestickSeries,
   ColorType,
   createChart,
@@ -89,6 +90,11 @@ interface ChartCoreProps {
   notes?: Map<number, string[]>;
   /** Ansicht auf diese Kerzenzeit setzen; `seq` erzwingt es auch bei gleicher Zeit erneut */
   focus?: { time: number; seq: number } | null;
+  /** Backtest-only realized balance and equity areas in the lower pane. */
+  balance?: { time: number; value: number }[];
+  equity?: { time: number; value: number }[];
+  /** Keep the right edge on the replay cursor while candles are revealed. */
+  followTail?: boolean;
 }
 
 const EMPTY_MARKERS: TradeMarker[] = [];
@@ -135,6 +141,9 @@ export function ChartCore({
   fractals = EMPTY_FRACTALS,
   notes,
   focus,
+  balance,
+  equity,
+  followTail = false,
 }: ChartCoreProps) {
   const t = useT();
   const fmt = useFormat();
@@ -142,6 +151,8 @@ export function ChartCore({
   const chartRef = useRef<IChartApi | null>(null);
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const balanceRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const equityRef = useRef<ISeriesApi<'Area'> | null>(null);
   const primitives = useRef<{
     band: ZoneBandPrimitive;
     missing: MissingDataPrimitive;
@@ -179,6 +190,14 @@ export function ChartCore({
       rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } },
     });
     const candles = chart.addSeries(CandlestickSeries, { borderVisible: false, priceLineVisible: true });
+    const balance = chart.addSeries(AreaSeries, {
+      lineColor: '#8b5cf6', topColor: 'rgba(139,92,246,0.18)', bottomColor: 'rgba(139,92,246,0.01)',
+      lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
+    }, 1);
+    const equity = chart.addSeries(AreaSeries, {
+      lineColor: '#22c55e', topColor: 'rgba(34,197,94,0.22)', bottomColor: 'rgba(34,197,94,0.01)',
+      lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
+    }, 1);
     const band = new ZoneBandPrimitive();
     const missing = new MissingDataPrimitive();
     const pauses = new PauseLinesPrimitive();
@@ -192,6 +211,8 @@ export function ChartCore({
     markersApi.current = createSeriesMarkers(candles, []);
     chartRef.current = chart;
     candlesRef.current = candles;
+    balanceRef.current = balance;
+    equityRef.current = equity;
     primitives.current = { band, missing, pauses, links, fractals: fractalMarks };
 
     const onMove = (param: MouseEventParams<Time>) => {
@@ -209,6 +230,8 @@ export function ChartCore({
       chartRef.current = null;
       candlesRef.current = null;
       rsiRef.current = null;
+      balanceRef.current = null;
+      equityRef.current = null;
       primitives.current = null;
       markersApi.current = null;
       priceLines.current = [];
@@ -243,7 +266,14 @@ export function ChartCore({
       wickDownColor: colors.down,
     });
     rsiRef.current?.applyOptions({ color: colors.info });
+    balanceRef.current?.applyOptions({ lineColor: colors.info, topColor: withAlpha(colors.info, 0.18), bottomColor: withAlpha(colors.info, 0.01) });
+    equityRef.current?.applyOptions({ lineColor: colors.up, topColor: withAlpha(colors.up, 0.2), bottomColor: withAlpha(colors.up, 0.01) });
   }, [colors]);
+
+  useEffect(() => {
+    balanceRef.current?.setData((balance ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp })));
+    equityRef.current?.setData((equity ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp })));
+  }, [balance, equity]);
 
   useEffect(() => {
     if (digits === null || !Number.isFinite(digits)) return;
@@ -258,6 +288,11 @@ export function ChartCore({
     candles.setData(data.points.map((p) => ({ ...p, time: p.time as UTCTimestamp })));
     lastBar.current = data.bars.length > 0 ? data.bars[data.bars.length - 1] : null;
     if (lastBar.current) containerRef.current?.setAttribute('data-last-bar', `${lastBar.current.time}:${lastBar.current.close}`);
+    if (followTail) {
+      const n = data.points.length;
+      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - VISIBLE_BARS), to: n + 3 });
+      return;
+    }
     // Nur bei neuer Auswahl ausrichten; das Nachladen des Endstücks lässt die Ansicht stehen
     if (fittedKey.current === viewKey || data.points.length === 0) return;
     fittedKey.current = viewKey;
@@ -276,7 +311,7 @@ export function ChartCore({
     };
     align();
     return () => cancelAnimationFrame(frame);
-  }, [data, viewKey]);
+  }, [data, viewKey, followTail]);
 
   // Fehlende Bereiche (immer) und Marktpausen (abschaltbar)
   useEffect(() => {

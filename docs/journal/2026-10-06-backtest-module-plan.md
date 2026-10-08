@@ -32,7 +32,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR #130) |
 | B5a | Page `/backtest` with one run; test button of a zone opens it; run log texts; netting refusal | BKT-06, BKT-10, BKT-12 (zone → backtest) | done (PR B5a) |
 | B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | done (PR B5b) |
-| B6 | Chart with equity area and replay | BKT-07 | open |
+| B6 | Chart with equity area and replay | BKT-07 | done |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | open |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
 | B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check open |
@@ -556,6 +556,24 @@ Branch `backtest-b5b-data-source`. The settings card has the field "Data source"
 - `npm run test:e2e -- e2e/mocked/backtest-page.spec.ts e2e/mocked/csv-import.spec.ts`: 25 passed, 0 failed. The new CSV test failed with the `source` parameter removed from the run (1 failed), and passed again after the restore.
 - `npx tsc --noEmit`, `npx eslint` on the changed files: clean.
 
+## Result B6 (chart and replay)
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/lib/backtest/candles/displayBars.ts` | Builds complete display-timeframe candles from the loaded data. It returns no more than 50,000 candles and clips missing ranges to the chart window. |
+| `frontend_nextjs/src/lib/backtest/protocol.ts`, `backtest.worker.ts`, `runJob.ts` | Adds a `bars` request. The worker keeps loaded rates and returns display candles only after their full timeframe ends. |
+| `frontend_nextjs/src/components/backtest/BacktestChart.tsx` | Adds timeframe selection, playback at 1x/5x/10x/Max, price candles, zone and grid levels, trade markers, balance/equity areas, and the trade table. Replay filters candles, curves, markers, and closed trades by its cursor. |
+| `frontend_nextjs/src/components/analysis/chart/ChartCore.tsx` | Adds lower-pane balance and equity areas and keeps the chart at the replay cursor. |
+| `frontend_nextjs/src/lib/backtest/broker/pathBroker.ts`, `runner.ts` | Tracks favourable and adverse prices along the simulated path and returns exact MFE/MAE for each closed trade. |
+| `frontend_nextjs/src/components/analysis/TradesTable.tsx` | Accepts ready excursion values, so the backtest table does not request M1 data. |
+| `frontend_nextjs/src/hooks/useBacktestRun.ts`, `store/useBacktestStore.ts`, `RunResultView.tsx` | Keeps the worker alive for chart requests after the run and stores chart data for the active run. |
+| `frontend_nextjs/src/i18n/messages/backtest.ts`, `hints.ts` | Adds Turkish, English, and German chart and replay text. |
+| `docs/features/features.yaml` | Records BKT-07 as the B6 chart and replay feature. |
+
+The playback cursor is an exclusive end time. Both the worker and chart omit a display candle until its complete timeframe ends. The chart therefore cannot reveal the unfinished candle's future high, low, or close.
+
+Verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. Tests were not added or run at the user's request.
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
@@ -573,10 +591,10 @@ Branch `backtest-b5b-data-source`. The settings card has the field "Data source"
 - [ ] B4: the engine is slow for a busy grid zone (0.4 ms per candle). A profile after the fast path in `pyRound` is not done. Measure 1 million candles and the memory in the real web worker (B5), before a decision to optimize `getAllRobotOrders`, `orderSend` (copies the order book for the recorder) or the log.
 - [x] B5a: the web worker is not built by Next yet (no page uses `new Worker(new URL('…/backtest.worker.ts', import.meta.url))`). Check the build (Turbopack) and the import of `@/` aliases in the worker.
 - [x] B5a: texts (tr/en/de) for the run log codes and the error codes (`run.*`); refuse netting accounts; show the pair of results of "both paths"; build the request headers with `getWorkerHeaders()` (X-API-Key and ngrok header) and the base address with `apiUrl('')`, because `RunRequest.headers` is a plain record and nothing forces it.
-- [ ] B5/B6: exact MFE/MAE from the simulator, and the message `bars` (candles of one display timeframe) for the chart.
+- [x] B5/B6: exact MFE/MAE from the simulator, and the `bars` message for chart display candles.
 - [ ] B4 model limits, to show on the page: the bot runs at path points, after each fill or exit and at zone borders, not every second as live. Rules that depend on the wait time between two loops (the 30-s brake) use the simulated clock. Weekend swap only through the triple day. Samples of the equity are at the candle ends, so the max. drawdown inside a candle is not seen.
 - [x] B5a: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
-- [ ] B6: chart; max. 50,000 drawn candles for 1 year of M1; the replay never shows future data.
+- [x] B6: chart; max. 50,000 displayed candles; replay does not show candles or trade events after its cursor.
 - [ ] B7: more setups; a late run does not overwrite a different setup.
 - [ ] B8: presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive.
 - [x] B9: CSV import; an aborted or wrong import cannot be selected (see "Result B9").

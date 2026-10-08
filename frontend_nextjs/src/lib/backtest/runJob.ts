@@ -13,7 +13,12 @@ import { runBacktest, warmupSeconds } from '@/lib/backtest/runner';
 /** Anteil des Fortschritts, der auf das Laden entfällt; der Rest ist der Lauf */
 const LOAD_SHARE = 0.3;
 
-export async function runJob(request: RunRequest, post: (message: WorkerMessage) => void, fetchJson: FetchJson): Promise<void> {
+export async function runJob(
+  request: RunRequest,
+  post: (message: WorkerMessage) => void,
+  fetchJson: FetchJson,
+  onRates?: (rates: Awaited<ReturnType<typeof loadRates>>) => void,
+): Promise<void> {
   const { runId, params } = request;
   try {
     const snapshot = snapshotSymbol(params.symbol, { swapEnabled: params.swapEnabled, approximate: params.approximate });
@@ -31,6 +36,7 @@ export async function runJob(request: RunRequest, post: (message: WorkerMessage)
       source: params.source,
       onProgress: (fraction) => post({ type: 'progress', runId, phase: 'load', fraction: fraction * LOAD_SHARE }),
     });
+    onRates?.(rates);
     const paths: PathMode[] = params.path === 'both' ? ['lowFirst', 'highFirst'] : [params.path];
     const results = paths.map((path, index) =>
       runBacktest({

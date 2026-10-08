@@ -10,6 +10,7 @@
 import type { MissingRange } from '@/lib/analysis/candles';
 import type { CurvePoint } from '@/lib/analysis/curves';
 import type { Trade } from '@/lib/analysis/tradePairing';
+import type { Excursion } from '@/lib/analysis/excursions';
 import { candleSpreadPoints, cents, type SpreadSetting, type SymbolSnapshot } from '@/lib/backtest/broker/costs';
 import { PathBroker, type FillModel } from '@/lib/backtest/broker/pathBroker';
 import type { LoadedRates } from '@/lib/backtest/candles/loadRates';
@@ -63,6 +64,8 @@ export interface RunInput {
 
 export interface RunResult {
   trades: Trade[];
+  /** Exakte MFE/MAE aus dem Kerzenpfad des Simulators, ohne erneuten M1-Abruf. */
+  excursions: Record<string, Excursion>;
   /** Equity (Startkapital + realisiert + offen) am Ende jeder Kerze, auf höchstens EQUITY_CURVE_POINTS Punkte reduziert */
   equity: CurvePoint[];
   summary: RunSummary;
@@ -277,6 +280,7 @@ export function runBacktest(input: RunInput): RunResult {
   };
   return {
     trades,
+    excursions: broker.excursions,
     equity: downsampleCurve(track.times, track.values, EQUITY_CURVE_POINTS),
     summary,
     log: { lines: log.lines, counts: log.counts, dropped: log.dropped },

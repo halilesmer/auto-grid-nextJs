@@ -70,7 +70,7 @@ export function BacktestView() {
   const settings = useSettingsStore((s) => s.settings);
   const loadedAccount = useSettingsStore((s) => s.loadedAccount);
   const { fetchAccounts } = useAccounts();
-  const { start, cancel } = useBacktestRun();
+  const { start, cancel, requestBars } = useBacktestRun();
 
   const status = useBacktestStore((s) => s.status);
   const progress = useBacktestStore((s) => s.progress);
@@ -302,7 +302,7 @@ export function BacktestView() {
           progress={progress}
         />
         {status === 'error' && runMatches && <RunErrorAlert />}
-        {status === 'done' && results && context && runMatches && <RunResultView results={results} context={context} />}
+        {status === 'done' && results && context && runMatches && <RunResultView results={results} context={context} requestBars={requestBars} />}
         <CsvImportPanel key={accountId} accountId={accountId} defaultSymbol={symbol?.name ?? zone?.symbol ?? ''} imports={csv.imports} reload={csv.reload} />
       </div>
     );
