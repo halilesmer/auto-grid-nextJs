@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { SimEvent } from '../../src/lib/backtest/broker/simBroker';
-import { pyRound } from '../../src/lib/backtest/engine/pyRound';
+import { pyRound, pyRoundExact } from '../../src/lib/backtest/engine/pyRound';
 import { defaultZone } from '../../src/utils/zoneHelpers';
 import {
   firstDifference,
@@ -181,5 +181,34 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     expect(Object.is(pyRound(-0.4), 0)).toBe(true);
     expect(pyRound(2.5)).toBe(2);
     expect(pyRound(3.5)).toBe(4);
+  });
+
+  test('pyRound: der schnelle Weg ist Bit für Bit gleich dem exakten (Preise, Halbwerte, -0, große Werte)', { tag: '@BKT-02' }, () => {
+    // Fester Zufall (LCG): jeder Lauf prüft dieselben Werte
+    let seed = 12345;
+    const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+    const values: [number, number][] = [];
+    for (let i = 0; i < 40_000; i++) {
+      const digits = Math.floor(random() * 16); // der schnelle Weg gilt für 0 bis 15 Stellen
+      const price = (random() - 0.4) * 10 ** Math.floor(random() * 7); // klein bis 1e6, auch negativ
+      values.push([price, digits]);
+      // Gitterpreise ± Gleitkommarauschen und Halbwerte auf der Dezimalstelle (…5 an Stelle digits+1)
+      const tick = Math.round(price * 10 ** digits) / 10 ** digits;
+      values.push([tick + 1e-13 * (random() - 0.5), digits], [tick + 5 / 10 ** (digits + 1), digits], [-(tick + 5 / 10 ** (digits + 1)), digits]);
+    }
+    // Halbwerte großer Zahlen, um einige Gleitkomma-Schritte verschoben: hier entscheidet nur die exakte Rechnung
+    for (let i = 0; i < 20_000; i++) {
+      const digits = Math.floor(random() * 4);
+      const whole = Math.floor(random() * 1e11);
+      const half = (whole + 0.5) / 10 ** digits;
+      for (let ulp = -3; ulp <= 3; ulp++) values.push([half * (1 + ulp * Number.EPSILON), digits]);
+    }
+    values.push([0, 2], [-0, 2], [-0.004, 2], [0.5, 0], [1.5, 0], [2.5, 0], [-2.5, 0], [0.125, 2], [2.675, 2], [1e11 + 0.5, 0], [1e15 + 0.5, 0], [1e300, 3]);
+    for (const [x, digits] of values) {
+      const fast = pyRound(x, digits);
+      const exact = pyRoundExact(x, digits);
+      if (!Object.is(fast, exact)) throw new Error(`round(${x}, ${digits}): schnell ${fast}, exakt ${exact}`);
+    }
+    expect(values.length).toBeGreaterThan(100_000);
   });
 });

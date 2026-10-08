@@ -5,7 +5,8 @@
  * Recorder: Ereignisfolge ohne Ticketnummern).
  *
  * Modus „parity“: Pending Orders füllen zum Orderpreis, TP/SL schließen ohne Kurslücke, wie der
- * FakeMT5 der Musterlösungen (BKT-01). Der Modus „gap“ (Füllung zum Kurs nach einer Lücke) kommt mit B4.
+ * FakeMT5 der Musterlösungen (BKT-01). Der Lauf mit Kerzenpfad, Kosten und Füllung zum Marktpreis nach einer Lücke
+ * steht in pathBroker.ts (PathBroker erbt von dieser Klasse).
  */
 import { pyRound } from '@/lib/backtest/engine/pyRound';
 import {
@@ -40,6 +41,12 @@ import {
 } from '@/lib/backtest/engine/types';
 
 export type FillMode = 'parity';
+
+/** Marktanfragen des Bots, die eine Position eröffnen oder schließen (Preis: Bid bei Kauf, Ask bei Verkauf) */
+export interface SimBrokerHooks {
+  openedByBot(position: Position, price: number): void;
+  closedByBot(position: Position, price: number): void;
+}
 
 /** Symbol wie im Szenario: name, digits, point, spread_points und weitere SymbolInfo-Felder */
 export interface SimSymbol extends Partial<SymbolInfo> {
@@ -102,13 +109,15 @@ export class SimBroker implements Broker {
 
   private readonly spread: number;
   private readonly eventDigits: number;
-  private tick: Tick;
-  private orders: Order[] = [];
-  private positions: Position[] = [];
-  private readonly history = new Map<number, Order>();
+  protected tick: Tick;
+  protected orders: Order[] = [];
+  protected positions: Position[] = [];
+  protected readonly history = new Map<number, Order>();
   private readonly historyBars: Partial<Record<Timeframe, HistoryBar[]>>;
   private readonly seen: [number, number][] = [];
-  private nextTicket = 1000;
+  protected nextTicket = 1000;
+  /** Der Lauf (PathBroker) hängt hier Kosten und Trades ein; im Paritätsmodus bleibt es leer */
+  protected hooks: SimBrokerHooks | null = null;
 
   constructor(options: SimBrokerOptions) {
     this.mode = options.mode ?? 'parity';
@@ -176,11 +185,11 @@ export class SimBroker implements Broker {
     this.events.push({ i: this.index, t: this.dt, ev, ...data });
   }
 
-  private r(x: number | undefined): number {
+  protected r(x: number | undefined): number {
     return pyRound(x || 0, this.eventDigits);
   }
 
-  private makeTick(bid: number, ask: number): Tick {
+  protected makeTick(bid: number, ask: number): Tick {
     const timeMsc = Math.trunc(this.now * 1000);
     return { bid, ask, time_msc: timeMsc, time: Math.floor(timeMsc / 1000) };
   }
@@ -349,14 +358,16 @@ export class SimBroker implements Broker {
       case TRADE_ACTION_DEAL: {
         if (req.position !== undefined) {
           // Position schließen (wie FakeMT5 auch, wenn es sie nicht mehr gibt)
+          const closing = this.positions.find((p) => p.ticket === req.position);
           this.positions = this.positions.filter((p) => p.ticket !== req.position);
+          if (closing) this.hooks?.closedByBot(closing, closing.type === POSITION_TYPE_BUY ? this.tick.bid : this.tick.ask);
           return this.done();
         }
         const ticket = this.nextTicket++;
         const type = req.type === ORDER_TYPE_BUY ? POSITION_TYPE_BUY : POSITION_TYPE_SELL;
         const volume = req.volume ?? 0;
         const price = req.price ?? 0;
-        this.positions.push({
+        const opened: Position = {
           ticket,
           identifier: ticket,
           symbol: req.symbol ?? '',
@@ -368,7 +379,9 @@ export class SimBroker implements Broker {
           magic: req.magic ?? 0,
           profit: 0,
           comment: '',
-        });
+        };
+        this.positions.push(opened);
+        this.hooks?.openedByBot(opened, price);
         // Eröffnende Order in der Historie (add_position)
         this.history.set(ticket, {
           ticket,
@@ -391,7 +404,7 @@ export class SimBroker implements Broker {
   }
 
   /** Recorder._bot_event: Ereignis der erfolgreichen Bot-Anfrage, Preise mit digits + 2 Stellen */
-  private recordBotEvent(req: TradeRequest, orders: Map<number, Order>, positions: Map<number, Position>): void {
+  protected recordBotEvent(req: TradeRequest, orders: Map<number, Order>, positions: Map<number, Position>): void {
     switch (req.action) {
       case TRADE_ACTION_PENDING:
         this.emit('place', {
