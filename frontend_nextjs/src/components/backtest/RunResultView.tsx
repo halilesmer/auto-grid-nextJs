@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { BarChart3, ScrollText } from 'lucide-react';
 
 import { CurveChart } from '@/components/analysis/stats/CurveChart';
@@ -18,6 +18,8 @@ import type { RunResult } from '@/lib/backtest/runner';
 import { cn } from '@/lib/utils';
 import type { RunContext } from '@/store/useBacktestStore';
 import { useRunText } from './runText';
+import { BacktestChart } from './BacktestChart';
+import type { Timeframe } from '@/lib/analysis/candles';
 
 /** Mehr Zeilen je Code zeigt der Hinweisblock nicht; der Rest steht im Protokoll */
 const NOTES_PER_CODE = 5;
@@ -129,7 +131,7 @@ function RunLogView({ result }: { result: RunResult }) {
   );
 }
 
-function RunColumn({ result, context, title }: { result: RunResult; context: RunContext; title: ReactNode }) {
+function RunColumn({ result, context, title, requestBars, replayActive, anotherReplayActive, onReplayCursorChange }: { result: RunResult; context: RunContext; title: ReactNode; requestBars: (timeframe: Timeframe, from: number, to: number) => void; replayActive: boolean; anotherReplayActive: boolean; onReplayCursorChange: (time: number | null) => void }) {
   const t = useT();
   const fmt = useFormat();
   const [curve, setCurve] = useState<CurveKind>('equity');
@@ -144,6 +146,7 @@ function RunColumn({ result, context, title }: { result: RunResult; context: Run
   return (
     <div className="min-w-0 space-y-4" data-testid="bt-result-column" data-path={result.path}>
       {title}
+      {!replayActive && <>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
         <SummaryTile id="realized" label="backtest.summary.realized" value={money(summary.realized, true)} tone={summary.realized} />
         <SummaryTile id="open" label="backtest.summary.open" value={money(summary.openResult, true)} tone={summary.openResult} />
@@ -176,18 +179,31 @@ function RunColumn({ result, context, title }: { result: RunResult; context: Run
           />
         </div>
       </Card>
+      </>}
 
-      <RunLogView result={result} />
+      {anotherReplayActive ? (
+        <p className="rounded-lg border border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">{t('backtest.chart.otherReplay')}</p>
+      ) : (
+        <BacktestChart result={result} context={context} requestBars={requestBars} onReplayCursorChange={onReplayCursorChange} />
+      )}
+      {!replayActive && <RunLogView result={result} />}
     </div>
   );
 }
 
 /** Ergebnis eines Laufs (BKT-06): bei „beide Wege“ zwei Spalten nebeneinander (Spanne), sonst eine */
-export function RunResultView({ results, context }: { results: RunResult[]; context: RunContext }) {
+export function RunResultView({ results, context, requestBars }: { results: RunResult[]; context: RunContext; requestBars: (timeframe: Timeframe, from: number, to: number) => void }) {
   const t = useT();
   const fmt = useFormat();
   const { params } = context;
   const both = results.length > 1;
+  const [activeReplayPath, setActiveReplayPath] = useState<string | null>(null);
+  const onReplayCursorChange = useCallback((path: string, time: number | null) => {
+    setActiveReplayPath((current) => {
+      if (time !== null) return path;
+      return current === path ? null : current;
+    });
+  }, []);
   return (
     <section className="space-y-4" data-testid="bt-result">
       <div>
@@ -220,6 +236,10 @@ export function RunResultView({ results, context }: { results: RunResult[]; cont
                 {t(`backtest.result.path.${result.path}` as MessageKey)}
               </Badge>
             }
+            requestBars={requestBars}
+            replayActive={activeReplayPath !== null}
+            anotherReplayActive={activeReplayPath !== null && activeReplayPath !== result.path}
+            onReplayCursorChange={(time) => onReplayCursorChange(result.path, time)}
           />
         ))}
       </div>

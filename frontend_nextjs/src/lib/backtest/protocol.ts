@@ -1,12 +1,12 @@
 /**
  * Nachrichten zwischen Seite und Web Worker (backtest.worker.ts). Die Seite startet je Lauf einen Worker und bricht
  * ihn mit `terminate()` ab; sie verwirft Nachrichten mit einer alten `runId`. Der Worker lädt die Kerzen selbst
- * (er bekommt Adresse und Schlüssel mit) und schickt nur die Zusammenfassung zurück.
- * Die Nachricht `bars` (Kerzen eines Anzeige-Zeitrahmens für den Chart) kommt mit B6.
+ * (er bekommt Adresse und Schlüssel mit), liefert die Zusammenfassung und auf Anfrage begrenzte Chart-Kerzen.
  */
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import type { Timeframe, ZoneDict } from '@/lib/backtest/engine/types';
 import type { RunModel, RunResult } from '@/lib/backtest/runner';
+import type { MissingRange } from '@/lib/analysis/candles';
 import type { SymbolDetail } from '@/store/types';
 
 /** Weg der Kerzen: ein fester Weg, oder `both` = zwei Läufe (Tief zuerst und Hoch zuerst) für die Spanne */
@@ -47,8 +47,21 @@ export interface RunRequest {
   params: RunParams;
 }
 
+export interface BarsRequest {
+  type: 'bars';
+  runId: number;
+  requestId: number;
+  timeframe: Timeframe;
+  /** Bereich [from, to) in MT5-Sekunden. Es werden nur vollständig geschlossene Anzeige-Kerzen geliefert. */
+  from: number;
+  to: number;
+}
+
+export type WorkerRequest = RunRequest | BarsRequest;
+
 export type WorkerMessage =
   | { type: 'progress'; runId: number; phase: 'load' | 'run'; fraction: number }
   /** Ein Ergebnis je Weg: bei `both` zwei, in der Reihenfolge Tief zuerst, Hoch zuerst */
   | { type: 'result'; runId: number; results: RunResult[] }
+  | { type: 'bars'; runId: number; requestId: number; timeframe: Timeframe; bars: { time: number; open: number; high: number; low: number; close: number }[]; missing: MissingRange[]; clipped: boolean }
   | { type: 'error'; runId: number; code: string; params?: Record<string, unknown>; problems?: { code: string; params?: Record<string, unknown> }[]; message?: string };

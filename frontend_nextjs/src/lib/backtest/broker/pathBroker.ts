@@ -27,6 +27,7 @@ import {
   type Timeframe,
 } from '@/lib/backtest/engine/types';
 import type { Trade } from '@/lib/analysis/tradePairing';
+import type { Excursion } from '@/lib/analysis/excursions';
 import {
   brokerDay,
   cents,
@@ -82,10 +83,13 @@ interface OpenInfo {
   /** Eingangs-Kommission (negativ) */
   commission: number;
   swap: number;
+  favorablePrice: number;
+  adversePrice: number;
 }
 
 export class PathBroker extends SimBroker {
   readonly trades: Trade[] = [];
+  readonly excursions: Record<string, Excursion> = {};
   /** Summe Netto der geschlossenen Trades */
   realized = 0;
   /** Nur zur Anzeige: Summe der Spread-Kosten aller eröffneten Positionen */
@@ -141,6 +145,18 @@ export class PathBroker extends SimBroker {
     this.now = time;
     this.tick = this.makeTick(bid, this.round(bid + this.spreadPrice));
     this.profitStale = true;
+    for (const position of this.positions) {
+      const info = this.opens.get(position.ticket);
+      if (!info) continue;
+      const price = position.type === POSITION_TYPE_BUY ? this.tick.bid : this.tick.ask;
+      if (position.type === POSITION_TYPE_BUY) {
+        info.favorablePrice = Math.max(info.favorablePrice, price);
+        info.adversePrice = Math.min(info.adversePrice, price);
+      } else {
+        info.favorablePrice = Math.min(info.favorablePrice, price);
+        info.adversePrice = Math.max(info.adversePrice, price);
+      }
+    }
     const bar = this.forming;
     if (bar) {
       bar.high = Math.max(bar.high, bid);
@@ -284,7 +300,7 @@ export class PathBroker extends SimBroker {
 
   private register(position: Position, price: number): void {
     const commission = commissionHalf(this.commissionPerLot, position.volume);
-    this.opens.set(position.ticket, { time: this.now, price, commission, swap: 0 });
+    this.opens.set(position.ticket, { time: this.now, price, commission, swap: 0, favorablePrice: price, adversePrice: price });
     this.spreadInfo += spreadCost(this.costs, this.spreadPrice, position.volume);
     position.time_msc = Math.trunc(this.now * 1000);
     this.profitStale = true;
@@ -306,8 +322,27 @@ export class PathBroker extends SimBroker {
     const fractal = parseFractalComment(position.comment);
     this.exitTickets += 1;
     this.realized = cents(this.realized + net);
+    const id = `${position.ticket}-${this.exitTickets}`;
+    if (buy) {
+      info.favorablePrice = Math.max(info.favorablePrice, price);
+      info.adversePrice = Math.min(info.adversePrice, price);
+    } else {
+      info.favorablePrice = Math.min(info.favorablePrice, price);
+      info.adversePrice = Math.max(info.adversePrice, price);
+    }
+    const favorableMove = Math.max(0, buy ? info.favorablePrice - info.price : info.price - info.favorablePrice);
+    const adverseMove = Math.max(0, buy ? info.price - info.adversePrice : info.adversePrice - info.price);
+    this.excursions[id] = {
+      ok: true,
+      mfe: favorableMove,
+      mae: adverseMove,
+      mfePts: favorableMove / this.costs.point,
+      maePts: adverseMove / this.costs.point,
+      mfeMoney: Math.max(0, profitRaw(this.costs, buy, position.volume, info.price, info.favorablePrice)),
+      maeMoney: Math.max(0, -profitRaw(this.costs, buy, position.volume, info.price, info.adversePrice)),
+    };
     this.trades.push({
-      id: `${position.ticket}-${this.exitTickets}`,
+      id,
       positionId: position.identifier,
       symbol: position.symbol,
       side: buy ? 'buy' : 'sell',

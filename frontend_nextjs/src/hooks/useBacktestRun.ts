@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { apiUrl, getWorkerHeaders } from '@/lib/api';
-import type { RunRequest, WorkerMessage } from '@/lib/backtest/protocol';
+import type { BarsRequest, RunRequest, WorkerMessage } from '@/lib/backtest/protocol';
+import type { Timeframe } from '@/lib/analysis/candles';
 import { useBacktestStore, type RunContext } from '@/store/useBacktestStore';
 
 /**
@@ -12,6 +13,7 @@ import { useBacktestStore, type RunContext } from '@/store/useBacktestStore';
  */
 export function useBacktestRun() {
   const workerRef = useRef<Worker | null>(null);
+  const chartRequestId = useRef(0);
 
   const stop = useCallback(() => {
     workerRef.current?.terminate();
@@ -47,7 +49,7 @@ export function useBacktestRun() {
         };
         worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
           useBacktestStore.getState().receive(event.data);
-          if (event.data.type !== 'progress') finish();
+          if (event.data.type === 'error') finish();
         };
         worker.onerror = (event) => {
           useBacktestStore.getState().receive({ type: 'error', runId, code: 'run.unexpected', message: event.message });
@@ -70,7 +72,17 @@ export function useBacktestRun() {
     useBacktestStore.getState().cancel();
   }, [stop]);
 
+  const requestBars = useCallback((timeframe: Timeframe, from: number, to: number) => {
+    const worker = workerRef.current;
+    const state = useBacktestStore.getState();
+    if (!worker || state.status !== 'done') return;
+    const requestId = ++chartRequestId.current;
+    state.expectChartRequest(requestId);
+    const request: BarsRequest = { type: 'bars', runId: state.runId, requestId, timeframe, from, to };
+    worker.postMessage(request);
+  }, []);
+
   useEffect(() => cancel, [cancel]);
 
-  return { start, cancel };
+  return { start, cancel, requestBars };
 }
