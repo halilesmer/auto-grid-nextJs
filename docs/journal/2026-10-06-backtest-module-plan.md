@@ -2,7 +2,7 @@
 date: 2026-10-06
 type: plan
 status: open
-pr: [110, 111, 114, 115, 126]
+pr: [110, 111, 114, 115, 126, 129, 130]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]
 ---
@@ -29,12 +29,12 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #114) |
 | B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
 | B3 | Engine port, fractal (ATR, SAR) | BKT-03 | done (PR #126) |
-| B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR open) |
+| B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR #130) |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
 | B6 | Chart with equity area and replay | BKT-07 | open |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | open |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
-| B9 | CSV import (worker process and dialog) | BKT-05 | done (PR open); VPS check open |
+| B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check open |
 
 Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4. B2.1 comes from the review of PR #114.
 
@@ -404,7 +404,7 @@ Decisions:
 - Not ported: the file `fractal_state_<account>.json` (a run starts without it, as `reset_bot_state` in the runner) and the orders of removed extra setups (`legacy_setup_orders.py`; the backtest makes none). A manual delete or the expiry of a fractal order does not occur in a backtest.
 - The engine writes log codes `fractal.*` with values (`fractal.placed`, `fractal.nextLossWait` …), as in B2. The run log (B4) translates them.
 
-## Result B9 (PR open)
+## Result B9 (PR #129)
 
 The import is a separate data source. The candles go to `rates` with `source = csv:<import_id>`; the MT5 candles (`source` = server name) are never changed. Files: `worker_python/src/utils/csv_import.py` (all logic), 4 routes and `GET /imports` in `src/api/market.py`, table `csv_imports` (schema version 2) in `market_db.py`, `CsvImportPanel` and `CsvImportDialog` in `frontend_nextjs/src/components/backtest/`.
 
@@ -420,7 +420,7 @@ The import is a separate data source. The candles go to `rates` with `source = c
 - Review fixes (reviewer, before the commit): the dialog never deletes an import blindly after a network or 5xx error at commit (it asks the list first; a committed import counts as done); symbol, timeframe and offset are locked while "replace" waits; a file that is not UTF-8/UTF-16, a binary file, and a volume of `inf` or above 2^62 give 422 and the staging goes; a repeated chunk cuts the leftover bytes of a failed write; a commit locks the import against a second commit, chunk and delete; the commit needs the file size to equal the announced size; the raw file that cannot be removed after the commit only gives a log warning; deleting imports gives the space back (`reclaim_space`); the delimiter comes from the first line (the sniffer failed on `;` with decimal comma and no header).
 - Evidence: `pytest tests → 674 passed`; mutation check (no overlap check, no grid check, no order check, no size check) turns `test_csv_import_api.py` red; `npm run test:e2e → 331 passed` (before the review fixes; after them `csv-import` + `tooltips` spec → 21 passed); `tsc` and `eslint` clean; `scripts/features/run.sh BKT-05 → api ✅ e2e ✅`. Not checked: real MT5 data and a 1-year file on the VPS.
 
-## Result B4 (PR open)
+## Result B4 (PR #130)
 
 The runner plays every candle along its price path and calls the bot port (`engine/`) with a broker that triggers orders, TP and SL in price order and books costs. Files (all under `frontend_nextjs/src/lib/backtest/`):
 
