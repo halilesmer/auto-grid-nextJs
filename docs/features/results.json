@@ -236,38 +236,38 @@
   },
   "BKT-01": {
     "unit": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
       "tests": 78
     }
   },
   "BKT-02": {
     "e2e": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
-      "tests": 40
+      "tests": 41
     }
   },
   "BKT-03": {
     "e2e": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
       "tests": 26
     }
   },
   "BKT-04": {
     "api": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
-      "tests": 7
+      "tests": 66
     },
     "unit": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
       "tests": 4
     }
@@ -276,7 +276,7 @@
     "api": {
       "datum": "2026-10-08",
       "status": "passed",
-      "tests": 24
+      "tests": 33
     },
     "e2e": {
       "datum": "2026-10-08",
@@ -285,8 +285,13 @@
     }
   },
   "BKT-09": {
+    "e2e": {
+      "datum": "2026-10-08",
+      "status": "passed",
+      "tests": 52
+    },
     "unit": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
       "tests": 38
     }
@@ -563,7 +568,7 @@
   },
   "ENG-30": {
     "e2e": {
-      "datum": "2026-10-07",
+      "datum": "2026-10-08",
       "status": "passed",
       "tests": 2
     },

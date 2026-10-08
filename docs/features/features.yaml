@@ -1474,13 +1474,14 @@ kategorien:
         erwartet: Alle Szenarien gleichen ihrer Musterlösung; zweimal abgespielt ergibt dieselbe Folge.
 
       - id: BKT-09
-        titel: Zukunftsdaten-Test
-        beschreibung: "Für jedes Szenario werden ab einem Tick k (nach einem und nach zwei Dritteln) alle späteren Kurse verändert. Alle Ereignisse vor k müssen gleich bleiben (docs/analyse-regeln.md §5 „kein Blick in die Zukunft“); danach muss sich etwas ändern, sonst prüft der Test nichts."
-        code: [worker_python/tests/parity/runner.py, worker_python/tests/unit/test_parity_golden.py]
-        tiers: [unit]
+        titel: Zukunftsdaten-Test (Python und TypeScript)
+        beschreibung: "Für jedes Szenario werden ab einem Tick k (nach einem und nach zwei Dritteln) alle späteren Kurse verändert. Alle Ereignisse vor k müssen gleich bleiben (docs/analyse-regeln.md §5 „kein Blick in die Zukunft“); danach muss sich etwas ändern, sonst prüft der Test nichts. TypeScript-Teil (B4, e2e/mocked/backtest-future-lib.spec.ts): dieselbe Prüfung für den Bot-Nachbau an allen Szenarien (eigener fester Zufall; ohne Wirkung ist nur erlaubt, wenn der Bot ab k ohnehin nichts mehr tut) und für den Rechner: Kerzen ab k ändern weder frühere Trades noch frühere Equity (Grid und Fraktal, alle drei Kerzenwege); mitten in der Kerze ändert der zweite Teil des Wegs nichts, was der Bot bis zum ersten Extrem tat."
+        code: [worker_python/tests/parity/runner.py, worker_python/tests/unit/test_parity_golden.py, frontend_nextjs/e2e/mocked/backtest-future-lib.spec.ts, frontend_nextjs/e2e/fixtures/parity.ts, frontend_nextjs/src/lib/backtest/runner.ts]
+        tiers: [unit, e2e]
         pruefung:
           - In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q -k spaetere` ausführen.
-        erwartet: Grün für alle Szenarien.
+          - Playwright-Logiktest e2e/mocked/backtest-future-lib.spec.ts (ohne Browserseite) ausführen.
+        erwartet: Grün für alle Szenarien, in Python und in TypeScript.
 
       # --- Geplant (offen), Plan: docs/journal/2026-10-06-backtest-module-plan.md; Schritt B1–B9 steht im Titel.
       - id: BKT-02
@@ -1489,7 +1490,7 @@ kategorien:
         code: [frontend_nextjs/src/lib/backtest/engine/orchestrator.ts, frontend_nextjs/src/lib/backtest/engine/pyRound.ts, frontend_nextjs/src/lib/backtest/broker/simBroker.ts, frontend_nextjs/src/lib/analysis/levels.ts, frontend_nextjs/e2e/fixtures/parity.ts, worker_python/tests/parity/runner.py]
         tiers: [e2e]
         pruefung:
-          - Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 24 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen.
+          - Playwright-Logiktest e2e/mocked/backtest-grid-parity-lib.spec.ts (ohne Browserseite) mit den 24 Grid-, Exit- und Sofort-Einstieg-Szenarien und pyround.json ausführen; ein Test vergleicht den schnellen Weg von pyRound mit dem exakten (über 100.000 Werte, auch Halbwerte und -0).
         erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B2.1-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (sltp bei Stops Level, mehr als 10 Füllungen bei max_positions 0 …); pyRound gleicht Pythons round() in allen Grenzfällen.
 
       - id: BKT-03
@@ -1502,15 +1503,15 @@ kategorien:
         erwartet: Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B3-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (Sperre bis 0,3 Verlust, Order bleibt bei Bid-Berührung, Stops Level, Fraktal über max_price ohne Order …).
 
       - id: BKT-04
-        titel: Backtest-Rechner mit Kosten (B1 + B4, geplant)
-        beschreibung: "Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ immer sichtbar."
-        code: [worker_python/src/utils/mt5_helpers.py, worker_python/src/utils/mt5_market.py, frontend_nextjs/src/lib/backtest/commission.ts]
+        titel: Backtest-Rechner mit Kosten (B1 + B4)
+        beschreibung: "Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level); fehlt einer, blockiert der Lauf (kein Ersatzwert). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ steht immer im Laufprotokoll. Rechenkern ohne Worker-API: runner.ts (Pfad, Auslösungen in Preis-Reihenfolge, Bot-Durchlauf nach jeder), Auftrag runJob.ts, Broker pathBroker.ts (auf simBroker.ts), Kosten broker/costs.ts, Kerzen candles/ (loadRates, bars, pathModel)."
+        code: [worker_python/src/utils/mt5_helpers.py, worker_python/src/utils/mt5_market.py, frontend_nextjs/src/lib/backtest/commission.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/src/lib/backtest/runJob.ts, frontend_nextjs/src/lib/backtest/backtest.worker.ts, frontend_nextjs/src/lib/backtest/protocol.ts, frontend_nextjs/src/lib/backtest/broker/pathBroker.ts, frontend_nextjs/src/lib/backtest/broker/costs.ts, frontend_nextjs/src/lib/backtest/candles/loadRates.ts, frontend_nextjs/src/lib/backtest/candles/bars.ts, frontend_nextjs/src/lib/backtest/candles/pathModel.ts]
         tiers: [unit, api, e2e]
         pruefung:
           - pytest für die Kostenfelder der Symbolliste ausführen.
           - Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen.
-          - Playwright-Logiktest ohne Browserseite (kommt mit B4) mit den handgerechneten Fällen ausführen (Kauf, Verkauf, Lücke, Swap mit Dreifach-Tag, offener Verlust am Testende).
-        erwartet: Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen.
+          - Playwright-Logiktests e2e/mocked/backtest-data-lib.spec.ts (Kerzen laden, höhere Zeitrahmen, Pfad, Gewinn, Kommission, Swap, Schnappschuss) und e2e/mocked/backtest-runner-lib.spec.ts (Kauf, Verkauf im Broker, Kurslücke, Swap mit Dreifach-Tag, offener Verlust am Testende, Zonengrenze im Wegstück, Auftrag im Worker) ausführen.
+        erwartet: Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen (mehr als 100.000 Ereignisse in einer Kerze brechen den Lauf ab).
 
       - id: BKT-05
         titel: CSV-Import von Kursdaten (B9)

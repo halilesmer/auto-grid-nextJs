@@ -29,7 +29,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #114) |
 | B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
 | B3 | Engine port, fractal (ATR, SAR) | BKT-03 | done (PR #126) |
-| B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | open |
+| B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR open) |
 | B5 | Page `/backtest` with one run; test button of a zone opens it | BKT-06, BKT-07 (part), BKT-10, BKT-12 (zone → backtest) | open |
 | B6 | Chart with equity area and replay | BKT-07 | open |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | open |
@@ -176,8 +176,8 @@ worker (FastAPI)                              browser
 | `src/app/backtest/page.tsx` | The page |
 | `src/lib/backtest/engine/` | One file for each Python module, with the source in the header: `pyRound`, `config`, `validation`, `placement`, `instantEntry`, `vanished`, `orderManager`, `zoneSelector`, `zoneState`, `orchestrator`, `fractalSignals`, `fractalEntry`, `indicators`. Use `lib/analysis/levels.ts` again. |
 | `src/lib/backtest/broker/` | `simBroker.ts` (parity / gap), `costs.ts` (spread info, commission half and half, swap per broker day from `swap_mode` and `swap_rollover3days`, profit from `trade_tick_value_profit/loss`) |
-| `src/lib/backtest/data/` | `loadRates.ts` (pages through `/rates` with `next_from`, collects `missing`), `bars.ts` (higher TFs without future data), `pathModel.ts` |
-| `src/lib/backtest/` | `backtest.worker.ts`, `protocol.ts` (message types), `runContext.ts` (run log), `runSummary.ts` (end of test: open P/L, end equity, open positions) |
+| `src/lib/backtest/candles/` | `loadRates.ts` (pages through `/rates` with `next_from`, collects `missing`), `bars.ts` (higher TFs without future data), `pathModel.ts`. The folder is not called `data/`, because `.gitignore` ignores every `data/` folder. |
+| `src/lib/backtest/` | `backtest.worker.ts`, `protocol.ts` (message types), `runContext.ts` (run log), `runSummary.ts` (end of test: open P/L, end equity, open positions), `runner.ts` (calculation core), `runJob.ts` (one job: load, calculate, report; the worker only calls it) |
 | `src/store/` | `useBacktestStore`, `useBacktestHandoffStore`, `useZoneTransferStore` |
 | `src/components/backtest/` | `BacktestToolbar`, `SetupDialog`, `SetupBadges`, `CompareTable`, `RunSummary`, `BacktestChart` (on `analysis/chart/ChartCore.tsx` and `primitives.ts`), `ReplayControls`, `RunProtocol`, `TransferDialog`, `PresetMenu`, `CsvImportDialog` |
 | `src/components/zone/ZoneFieldsEditor.tsx` | Moved out of `ZoneCard.tsx` |
@@ -420,6 +420,82 @@ The import is a separate data source. The candles go to `rates` with `source = c
 - Review fixes (reviewer, before the commit): the dialog never deletes an import blindly after a network or 5xx error at commit (it asks the list first; a committed import counts as done); symbol, timeframe and offset are locked while "replace" waits; a file that is not UTF-8/UTF-16, a binary file, and a volume of `inf` or above 2^62 give 422 and the staging goes; a repeated chunk cuts the leftover bytes of a failed write; a commit locks the import against a second commit, chunk and delete; the commit needs the file size to equal the announced size; the raw file that cannot be removed after the commit only gives a log warning; deleting imports gives the space back (`reclaim_space`); the delimiter comes from the first line (the sniffer failed on `;` with decimal comma and no header).
 - Evidence: `pytest tests → 674 passed`; mutation check (no overlap check, no grid check, no order check, no size check) turns `test_csv_import_api.py` red; `npm run test:e2e → 331 passed` (before the review fixes; after them `csv-import` + `tooltips` spec → 21 passed); `tsc` and `eslint` clean; `scripts/features/run.sh BKT-05 → api ✅ e2e ✅`. Not checked: real MT5 data and a 1-year file on the VPS.
 
+## Result B4 (PR open)
+
+The runner plays every candle along its price path and calls the bot port (`engine/`) with a broker that triggers orders, TP and SL in price order and books costs. Files (all under `frontend_nextjs/src/lib/backtest/`):
+
+| File | Content |
+|---|---|
+| `candles/loadRates.ts` | Pages through `GET /market/{id}/rates` (`next_from`), `Float64Array` columns, `missing` stays. The live candle (`live_from`) is cut off. Stops with a code above 1 million candles, on a time that does not rise, on a column that is not a list. |
+| `candles/bars.ts` | `TimeframeAggregator`: higher timeframe from closed base candles plus the path of the running candle so far. Keeps the last 1,000 bars. |
+| `candles/pathModel.ts` | Waypoints (rising: O→L→H→C, falling: O→H→L→C; forced paths for "both paths") and the time on the path (by length, last point exactly 1 s before the candle end). |
+| `broker/costs.ts` | Snapshot of the symbol values, profit, commission per half, swap per night, triple day, spread setting. |
+| `broker/pathBroker.ts` | `PathBroker` extends `SimBroker`: `nextTrigger`/`fire`, `rollover` (swap), trades in the `Trade` format, equity, the bars for the bot. |
+| `runner.ts`, `runSummary.ts`, `runContext.ts` | Calculation core, end of test, run log (codes with values). |
+| `runJob.ts`, `backtest.worker.ts`, `protocol.ts` | Job (load, calculate, report; errors as message with code), thin web worker, message types. |
+| `broker/simBroker.ts` | Fields are `protected`; the hook object `hooks` (`openedByBot`, `closedByBot`) lets the subclass book market requests of the bot. Parity mode is not changed. |
+| `engine/pyRound.ts` | `pyRound` has a fast path now (see below); the exact way is `pyRoundExact`. |
+
+Model (all in `runner.ts` and `pathBroker.ts`):
+
+- Per candle: swap for each broker midnight that passed; the jump from the last close to the open (gap); then segment by segment. On a segment the next mark is the first one in travel direction: a pending order, a TP or an SL. After each fill or exit the bot runs. The bot also runs when the mid price crosses a zone border (the bot checks `(bid + ask) / 2`), and at the end of each segment. More than 100,000 events in one candle stop the run with `run.tooManyEvents`.
+- The candles are bid candles. A buy order triggers at `bid = order price − spread`, a sell TP at `bid = TP − spread`. The spread of the candle is the MT5 value (`spread` mode `candle`), a fixed value, or the larger of both. A candle without a value (CSV: `NaN`; MT5: 0, which means "not recorded") uses the current spread of the symbol, with the warning `run.spreadFallback`; without that value the run stops.
+- Fill model `gap` (default): when the price jumped over the mark (gap between two candles, or the bot put the order behind the price), the fill or exit uses the market price (ask for buy, bid for sell). Model `parity`: always the price of the order or the TP/SL.
+- "SL first" decides only at the same trigger price (TP before SL is the default). A price path inside a candle is not known; the option "both paths" (two runs) shows the range. The run needs no other rule, because the segments are monotone.
+- Profit: ticks × `trade_tick_value_profit` (gain) or `_loss` (loss) × lots, to the cent. Commission per lot (round turn) half at entry and half at exit, negative as in MT5. Swap at each broker midnight (Saturday and Sunday cost nothing; the triple day of the symbol costs 3, else 1; so a week costs 7). The spread is in the fill prices; "of which spread" is information only.
+- End of test: realized, open P/L (with entry commission and booked swap), end equity, open positions, max. drawdown (from the start capital, sampled at the candle ends). The curve is reduced to 20,000 points; low and high of each group stay.
+- Run log (codes): `run.marginNotChecked`, `run.rejectsNotSimulated`, `run.stopsLevelNotSimulated`, `run.costsEstimated`, `run.currencyToday`, `run.dataMissing`, `run.liveCandleDropped`, `run.spreadFallback`, and the engine codes (`zone.entered` …). Max. 2,000 lines; the counters go on.
+- Preconditions that stop the run with a code: a missing, non-positive or non-whole symbol value (`run.symbolFieldMissing` with the field names), a calculation type outside the list (`run.calcModeUnsupported`; the approximation mode only warns), a swap mode other than 0, 1, 4 (`run.swapModeUnsupported`), a triple day outside Monday to Friday, a zone symbol other than the symbol (`run.symbolMismatch`), a strategy timeframe finer than the data (`run.timeframeFinerThanData`), no candles in the period.
+- The zone copy gets `is_active: true`. The bot reads at most 301 bars of the strategy timeframe; the lead-in before the start is 301 bars (+ 40 % for weekends, at most 100,000 data candles) for fractal zones.
+
+Tests (hand-calculated, in `frontend_nextjs/e2e/mocked/`):
+
+| Spec | Content |
+|---|---|
+| `backtest-data-lib.spec.ts` (27) | Profit with gain and loss tick value, commission, swap in points and in money, triple day Wednesday/Friday, symbol snapshot (missing, implausible, unsupported), loading with `next_from`, limits, live candle, higher timeframes without future data, path and time on the path, run log. |
+| `backtest-runner-lib.spec.ts` (32) | Fill on the path and open loss (−4.20 = −4.00 − 0.20), TP exits with net 9.60, "close at the end", gap vs. parity (54.00 vs. 48.00), swap with triple day (−1.95 vs. −0.65; two weeks −9.10), zone border in the middle of a segment (49.3633 s), trigger order and spread offset in the broker, close by the bot (sell at the ask, buy at the bid, with commission and swap), the bars of the bot, the equity curve, HTTP errors, preconditions, job and messages. |
+| `backtest-future-lib.spec.ts` (52) | BKT-09 in TypeScript: all 38 scenarios of the golden files; the calculator with grid and fractal zone, three paths, cuts at two candles; the second half of a candle path changes nothing that the bot did before the first extreme. |
+
+Evidence:
+
+- `npx tsc --noEmit` and `npx eslint` clean. `scripts/features/run.sh BKT`: unit 120 passed, api 34 passed, e2e 190 passed (BKT-02/03 golden files unchanged, byte-equal).
+- Mutation checks (one change, run the spec, restore the file). Each change turned only the expected tests red:
+
+  | Change | Red |
+  |---|---|
+  | Loss tick value ignored | profit test |
+  | Triple day fixed to Wednesday | night weights, swap tests |
+  | Gap fill off (`useMarket` false) | gap test, broker test |
+  | Gap flag of the jump off | gap test |
+  | Sell TP without spread offset | broker test |
+  | Swap without booking in `net` | swap tests |
+  | Tie order TP/SL swapped | trigger order test |
+  | Zone border wake-up off | zone border test |
+  | `is_active` not set | inactive zone test |
+  | Peak equity starts at −∞ | first run test (max. drawdown) |
+  | The bot sees the low of the candle at the open | BKT-09 candle tests (grid and fractal) |
+  | The running candle is added to the timeframe at the open | BKT-09 candle test (fractal) |
+  | The bot's close request uses the wrong side of the spread | the two close tests of the bot |
+  | The equity curve drops its last point | curve test (the last value must not be a high or low) |
+  | Swap booked without rounding the sum | the two-week swap test |
+  | No time limit on the HTTP request | HTTP test |
+
+  A first version of the curve test and of the swap test did not turn red for the last two changes (the last value was a high; one addition has no rounding rest). They were changed until they did.
+
+- Measurement before the first speed fix: grid zone, 30,000 M1 candles, 60.6 s (2 ms per candle); fractal zone (M15) 7.3 s. A CPU profile of 4,000 candles: 87 % of the time was in `pyRound` (BigInt). After the fast path in `pyRound`: 12.0 s for the same 30,000 candles (0.4 ms per candle). One year of M1 (about 370,000 candles) is then about 2.5 minutes for a busy grid zone. Not measured: 1 million candles, memory, the real web worker in the browser.
+
+Review fixes (reviewer, before the commits): the equity curve keeps its first and last point; trade times are whole seconds like MT5 deals (the run log keeps fractions); the swap of a position is rounded to cents after each night; the zone-border wake-up rounds a quotient that is just below a whole number (BTC: 1e7 steps); the HTTP request of the worker has a limit of 120 s and gives `run.network` (no net, time-out, no JSON) or `run.http` (status); an unexpected error is also written with `console.error` in the worker; the `pyRound` test covers 0 to 15 digits; candle data and the swap mode check got range checks (see the first review in the commit "Backtest B4 (1/2)").
+
+Decisions:
+
+- `pyRound` fast path: for `0 ≤ ndigits ≤ 15` and `|x| · 10^n < 10^12` the product has an error below 1.2e-4, so a distance of more than 1e-3 from a half value fixes the direction. Then `k / 10^n` is the correctly rounded division of two exact numbers, equal to `Number("k.ddd")`. Near a half value it calls the exact way. The test compares both ways on more than 100,000 values (prices, half values, −0, values near 1e11). The golden file `pyround.json` is unchanged.
+- The structure change in `simBroker.ts` (fields `protected`, hook object) does not change parity mode: all golden files agree.
+- The `candles/` folder replaces `data/` of the plan (`.gitignore` ignores `data/`).
+- The run log has codes only. The texts (tr/en/de) come with the page (B5), together with the UI that shows them. Changed from the B2 note, which said B4.
+- The exact MFE/MAE of the simulator (plan, "Modules that the backtest uses again") is not in B4. It comes with B5/B6, when `TradesTable` takes ready values.
+- Hedging check: the run does not know the account model. The page (B5) must refuse netting accounts (`docs/analyse-regeln.md` §6; `GET /market/{id}/time-check` gives the model).
+- Swap mode numbers: the MQL5 page names the modes, but gives no numbers. 0, 1 and 4 are the first, second and fifth name in that order. Not checked against MT5 (see open points).
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
@@ -427,12 +503,18 @@ The import is a separate data source. The candles go to `rates` with `source = c
 - [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #114).
 - [x] B2 follow-up from the review of PR #114 = B2.1 (PR #115): 11 new scenarios, and the TS port agrees with all 24 (see "Result B2.1"). Two symbols and the top-up after a partial fill stay V2 (see "Not simulated").
 - [ ] Bot defect found in B2.1: with a stops level larger than the TP or SL distance, the bot cancels and sends all orders in each loop (`2026-10-06-stops-level-order-flood.md`). A fix changes `grid_stops_level.json` and the TS port.
-- [ ] B4: `simBroker.bars()` builds all candles again from all ticks at each call. Keep the candles incrementally for runs with up to 1 million candles.
-- [ ] B4 (from B2.1): `simBroker.symbolInfoOf` uses the FakeMT5 default for a missing symbol field. In a real run, a missing field must block the run or show a warning.
-- [ ] B4 (from B2.1): the run log tells that rejects for the stops level and the freeze level are not simulated.
-- [ ] B4 (from B2.1): set `is_active: true` on the copy of the zone. The UI default is `false`, and an inactive zone gives an empty run.
+- [x] B4: `simBroker.bars()` builds all candles again from all ticks at each call. Done differently: a real run uses `TimeframeAggregator` (incremental, last 1,000 bars). `simBroker.bars()` stays for the parity scenarios (a few hundred ticks).
+- [x] B4 (from B2.1): `simBroker.symbolInfoOf` uses the FakeMT5 default for a missing symbol field. In a real run, `snapshotSymbol` blocks the run (`run.symbolFieldMissing`).
+- [x] B4 (from B2.1): the run log tells that rejects for the stops level and the freeze level are not simulated (`run.stopsLevelNotSimulated`, `run.rejectsNotSimulated`).
+- [x] B4 (from B2.1): set `is_active: true` on the copy of the zone.
 - [x] B3: engine port, fractal; all 14 fractal scenarios are equal to the golden files (PR #126, see "Result B3"). The plan said 5 scenarios, but before B3 there were 4.
-- [ ] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message.
+- [x] B4: runner; hand-calculated cases (buy, sell, gap, swap with triple day, open loss at the end) agree; no event is skipped without a message (see "Result B4").
+- [ ] B4, manual check on the VPS (DEMO, read only): list the distinct `swap_mode` values of the symbols from `GET /api/symbols` and compare them with the names of the MetaTrader5 constants (`SYMBOL_SWAP_MODE_*`). Only 0, 1 and 4 are accepted; the numbers of `SWAP_MODE_POINTS` and `SWAP_MODE_DEPOSIT` in `broker/costs.ts` must agree.
+- [ ] B4: the engine is slow for a busy grid zone (0.4 ms per candle). A profile after the fast path in `pyRound` is not done. Measure 1 million candles and the memory in the real web worker (B5), before a decision to optimize `getAllRobotOrders`, `orderSend` (copies the order book for the recorder) or the log.
+- [ ] B5: the web worker is not built by Next yet (no page uses `new Worker(new URL('…/backtest.worker.ts', import.meta.url))`). Check the build (Turbopack) and the import of `@/` aliases in the worker.
+- [ ] B5: texts (tr/en/de) for the run log codes and the error codes (`run.*`); refuse netting accounts; show the pair of results of "both paths"; build the request headers with `getWorkerHeaders()` (X-API-Key and ngrok header) and the base address with `apiUrl('')`, because `RunRequest.headers` is a plain record and nothing forces it.
+- [ ] B5/B6: exact MFE/MAE from the simulator, and the message `bars` (candles of one display timeframe) for the chart.
+- [ ] B4 model limits, to show on the page: the bot runs at path points, after each fill or exit and at zone borders, not every second as live. Rules that depend on the wait time between two loops (the 30-s brake) use the simulated clock. Weekend swap only through the triple day. Samples of the equity are at the candle ends, so the max. drawdown inside a candle is not seen.
 - [ ] B5: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
 - [ ] B6: chart; max. 50,000 drawn candles for 1 year of M1; the replay never shows future data.
 - [ ] B7: more setups; a late run does not overwrite a different setup.
@@ -443,6 +525,6 @@ The import is a separate data source. The candles go to `rates` with `source = c
 - [ ] B9 (review, not done): the commit holds the database write lock while it parses and writes (up to 2 million rows); saving settings waits in that time. Use staging tables or write in parts if this shows on the VPS.
 - [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
 - [ ] B5 (review, not done): the answer of `rates?source=csv:` has no `account_id`, `server_now`, `offset_sec`; the reason `csv_gap` has no text in `analysis.data.reason.*`. Add both when a page reads it. An abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list).
-- [ ] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes must come from the candles in the browser.
+- [x] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes come from the candles in the browser (`TimeframeAggregator`). The test of the job uses `source`.
 - [ ] B5/B7: decide which KPIs of "Items from the first concept" (1–7) `computeStats` gets.
 - [x] B9: define the accepted CSV formats (item 8 of "Items from the first concept"): header names or position, MT5 export with date and time apart, separators `,` `;` tab, UTF-8 or UTF-16, epoch seconds/milliseconds or text times (see "Result B9").
