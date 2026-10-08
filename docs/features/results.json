@@ -288,7 +288,7 @@
     "e2e": {
       "datum": "2026-10-08",
       "status": "passed",
-      "tests": 8
+      "tests": 11
     }
   },
   "BKT-09": {
@@ -314,7 +314,7 @@
     "e2e": {
       "datum": "2026-10-08",
       "status": "passed",
-      "tests": 3
+      "tests": 5
     }
   },
   "BOT-01": {

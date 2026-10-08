@@ -74,6 +74,40 @@ test.describe('BKT Backtest-Seite', () => {
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
   });
 
+  test('neues, noch nicht gespeichertes Setup: Test-Knopf zeigt es mit seiner Nummer', { tag: '@BKT-06' }, async ({ page, worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
+    await expect(page.getByTestId('zone-card')).toHaveCount(2);
+    await dashboard.zone(1).getByRole('link', { name: msg('zone.header.test') }).click();
+
+    await expect(page.getByTestId('bt-source')).toHaveAttribute('data-unsaved', 'true');
+    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 2 }));
+    expect(worker.callsTo('POST', /\/api\/settings/)).toHaveLength(0);
+  });
+
+  test('über das Menü ohne Test-Knopf gilt die gespeicherte Zone, nicht die ungespeicherte Änderung', { tag: '@BKT-06' }, async ({ page, worker, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    await dashboard.zoneField(msg('zone.field.gridStep')).fill('0.05');
+    await expect(dashboard.zone().getByTestId('zone-save')).toBeEnabled();
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.backtest') }).click();
+    await expect(page.getByTestId('bt-source')).toHaveAttribute('data-unsaved', 'false');
+    await chooseRange(page, 'last7');
+
+    await runTest(page);
+
+    // Gespeicherter Grid-Abstand 0,5 liegt über der mittleren Kerzenspanne des Mocks (≈ 0,1): kein Hinweis „unsicher“
+    await expect(page.getByTestId('bt-notes').locator('[data-code="unsure"]')).toHaveCount(0);
+    expect(worker.callsTo('POST', /\/api\/settings/)).toHaveLength(0);
+  });
+
+  test('Zeitraum „Alles“: Start gesperrt, weil der Zeitraum keinen Anfang hat', { tag: '@BKT-06' }, async ({ page, worker }) => {
+    await page.goto(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}&range=all`);
+
+    await expect(page.getByTestId('bt-range-all')).toContainText(msg('backtest.range.all.title'));
+    await expect(page.getByTestId('bt-run')).toBeDisabled();
+    expect(worker.callsTo('GET', `/api/market/${DEMO_ID}/rates`)).toHaveLength(0);
+  });
+
   test('„Beide“ zeigt zwei Ergebnisse mit gegensätzlichem Kerzenweg', { tag: '@BKT-06' }, async ({ page, worker }) => {
     void worker;
     await page.goto(URL);
@@ -172,6 +206,20 @@ test.describe('BKT Backtest-Seite', () => {
 
     await expect(page).toHaveURL(/zone=zone-e2e-2/);
     await expect(page.getByTestId('bt-result')).toHaveCount(0);
+  });
+
+  test('Fehler gehört zum Setup: ein anderes Setup zeigt ihn nicht', { tag: '@BKT-12' }, async ({ page, worker }) => {
+    worker.setZones(DEMO_ID, [makeZone(), makeZone({ id: 'zone-e2e-2' })]);
+    worker.state.ratesError = { status: 503, detail: 'Piyasa veritabanı hazır değil' };
+    await page.goto(URL);
+    await page.getByTestId('bt-run').click();
+    await expect(page.getByTestId('bt-error')).toBeVisible({ timeout: 30_000 });
+
+    await page.getByTestId('zone-select').getByRole('combobox').click();
+    await page.getByRole('option', { name: msg('analysis.zone.option', { symbol: 'USOUSD', n: 2 }) }).click();
+
+    await expect(page).toHaveURL(/zone=zone-e2e-2/);
+    await expect(page.getByTestId('bt-error')).toHaveCount(0);
   });
 
   test('Abbrechen beendet den Lauf ohne Ergebnis', { tag: '@BKT-06' }, async ({ page, worker }) => {

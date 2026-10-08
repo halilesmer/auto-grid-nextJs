@@ -19,7 +19,7 @@ import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import { proposeCommission } from '@/lib/backtest/commission';
 import type { RunParams } from '@/lib/backtest/protocol';
 import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/serverTime';
-import { setupNumbers } from '@/lib/symbolSetups';
+import { insertSetup, setupNumbers } from '@/lib/symbolSetups';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 import { HANDOFF_MAX_AGE_MS, useBacktestHandoffStore } from '@/store/useBacktestHandoffStore';
 import { useBacktestStore } from '@/store/useBacktestStore';
@@ -110,10 +110,14 @@ export function BacktestView() {
     useBacktestStore.getState().clearUnless(accountId);
   }, [accountId, cancel]);
 
-  const settingsError = useAccountSettings(accountKnown ? accountId : null, 'ifMissing');
+  // Immer neu laden: ohne Übergabe gilt die gespeicherte Zone, nie eine ungespeicherte Änderung, die noch im Store liegt
+  // (das Dashboard lädt beim Zurückkehren ohnehin neu, sie ginge dort verloren)
+  const settingsError = useAccountSettings(accountKnown ? accountId : null, 'always');
+  // Der Stand beim Öffnen kann ungespeicherte Änderungen tragen: Zonen erst zeigen, wenn die neue Ladung da ist
+  const [settingsAtOpen] = useState(() => useSettingsStore.getState().settings);
   const zones = useMemo(
-    () => (accountId && loadedAccount === accountId && settings ? (settings.ZONES ?? []) : null),
-    [accountId, loadedAccount, settings],
+    () => (accountId && loadedAccount === accountId && settings && settings !== settingsAtOpen ? (settings.ZONES ?? []) : null),
+    [accountId, loadedAccount, settings, settingsAtOpen],
   );
   useEffect(() => {
     if (!zoneId && zones && zones.length > 0) setZone(zones[0].id);
@@ -124,6 +128,10 @@ export function BacktestView() {
   const zone = handoffApplies && handoff ? handoff.zone : savedZone;
   const unsaved = handoffApplies && Boolean(handoff?.unsaved);
   const zoneMissing = Boolean(zoneId && zones && !savedZone && !handoffApplies);
+  // Ein neues, noch nicht gespeichertes Setup aus der Übergabe steht nicht in der gespeicherten Liste: für Auswahl und
+  // Nummer an seinen Platz einfügen, wie die Symbolkarte es zeigt
+  const newHandoffZone = handoffApplies && handoff && zones && !savedZone ? handoff.zone : null;
+  const shownZones = useMemo(() => (zones && newHandoffZone ? insertSetup(zones, newHandoffZone) : zones), [zones, newHandoffZone]);
 
   const symbolDetails = useSymbolDetails(accountKnown ? accountId : null);
   const symbolsLoading = useSettingsStore((s) => s.isLoadingSymbols);
@@ -135,8 +143,10 @@ export function BacktestView() {
   const bounds = useMemo(() => {
     const days = 'preset' in range ? presetRange(range.preset, today) : range.custom;
     const b = rangeBounds(days);
-    return { from: b.from ?? 0, to: b.to ?? dayStart(today) + DAY_SEC };
+    return { from: b.from, to: b.to ?? dayStart(today) + DAY_SEC };
   }, [range, today]);
+  // „Alles“ hat keinen Anfang: der Worker nimmt keinen Zeitraum ab 0 minus Vorlauf an
+  const rangeOpen = bounds.from === null;
 
   // Deal-Archiv des letzten Jahres: Kommissionsvorschlag, Kontowährung und Margin-Modell des Kontos
   const archive = useMemo(
@@ -162,17 +172,18 @@ export function BacktestView() {
   const marginMode = deals.data?.account?.margin_mode ?? null;
   const netting = marginMode !== null && marginMode !== MARGIN_MODE_HEDGING;
 
-  const numbers = useMemo(() => setupNumbers(zones ?? []), [zones]);
+  const numbers = useMemo(() => setupNumbers(shownZones ?? []), [shownZones]);
   const zoneLabel = zone ? t('analysis.zone.option', { n: numbers.get(zone.id) ?? 0, symbol: zone.symbol || '—' }) : null;
 
   let blockedKey: MessageKey | null = null;
   if (!zone) blockedKey = 'backtest.run.off.noZone.hint';
   else if (netting) blockedKey = 'backtest.run.off.netting.hint';
   else if (!symbol) blockedKey = 'backtest.run.off.symbol.hint';
-  else if (clock.loading || !archiveReady) blockedKey = 'backtest.run.off.loading.hint';
+  else if (rangeOpen) blockedKey = 'backtest.run.off.range.hint';
+  else if (clock.loading || !archiveReady || zones === null) blockedKey = 'backtest.run.off.loading.hint';
 
   const run = () => {
-    if (!accountId || !zone || !symbol || blockedKey) return;
+    if (!accountId || !zone || !symbol || bounds.from === null || blockedKey) return;
     const spread: SpreadSetting = form.spreadMode === 'candle' ? { mode: 'candle' } : { mode: form.spreadMode, points: form.spreadPoints };
     const params: RunParams = {
       accountId,
@@ -194,8 +205,8 @@ export function BacktestView() {
     start(accountId, { params, unsaved, currency });
   };
 
-  // Ein Ergebnis gehört zu Konto und Setup seines Laufs; bei einem anderen Setup zeigt die Seite es nicht
-  const resultMatches = context?.params.accountId === accountId && context?.params.zone.id === zoneId;
+  // Ergebnis und Fehler gehören zu Konto und Setup ihres Laufs; bei einem anderen Setup zeigt die Seite sie nicht
+  const runMatches = context?.params.accountId === accountId && context?.params.zone.id === zoneId;
 
   const renderBody = () => {
     if (!accountId) {
@@ -246,6 +257,11 @@ export function BacktestView() {
             </Alert>
           </div>
         )}
+        {zone && rangeOpen && (
+          <div data-testid="bt-range-all">
+            <Alert tone="warning" title={t('backtest.range.all.title')} />
+          </div>
+        )}
         {archiveReady && marginMode === null && (
           <div data-testid="bt-margin-unknown">
             <Alert tone="warning" title={t('backtest.margin.unknown.title')}>
@@ -265,8 +281,8 @@ export function BacktestView() {
           onCancel={cancel}
           progress={progress}
         />
-        {status === 'error' && <RunErrorAlert />}
-        {status === 'done' && results && context && resultMatches && <RunResultView results={results} context={context} />}
+        {status === 'error' && runMatches && <RunErrorAlert />}
+        {status === 'done' && results && context && runMatches && <RunResultView results={results} context={context} />}
         <CsvImportPanel key={accountId} accountId={accountId} defaultSymbol={zone?.symbol ?? ''} />
       </div>
     );
@@ -292,7 +308,7 @@ export function BacktestView() {
         </div>
         {accountKnown && (
           <div className="w-full sm:w-auto">
-            <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
+            <ZoneSelect zones={shownZones} value={zoneId} onChange={setZone} />
           </div>
         )}
         <DateRangePicker value={range} today={today} onChange={setRange} />

@@ -518,9 +518,18 @@ Branch `claude/backtest-b5a-page`. The page runs one test of one setup in the we
 - The web worker builds in Next 16.3.3 (Turbopack). The `@/` aliases resolve inside the worker; the e2e tests run a real worker against the mock.
 - Not in B5a: the zone fields in the page (`ZoneFieldsEditor`, B7), `TradesTable` with exact MFE/MAE and the chart (B6), the data source selection and the `csv_gap` text (B5b).
 
+**Defects found in the second test round (fixed before merge)**
+
+- The range "All" has no start. The page used 0, and the run subtracts the warm-up time, so `from` became negative and the worker refused the request (422, `ge=0`). Fix: with "All", the start is blocked with a reason. Lesson: a range without a start is not a valid run range; block it on the page.
+- Without the handoff (for example from the menu), the page loaded the settings with `ifMissing`. The store can still hold unsaved changes from the setup page, but the page said "the saved setup is tested". Fix: the page loads the settings again (`always`) and shows the setups only after that load. The setup page loads again at return too, so no unsaved value is lost that would otherwise stay.
+- Because of that fix, a new unsaved setup from the test button was not in the saved list and had no number ("Setup 0"). Fix: the page inserts the setup of the handoff into the list (`insertSetup`), as the symbol card shows it. The start is blocked until the settings are loaded.
+- An error of a run stayed visible after a change to another setup. Fix: the error is bound to the account and the setup of its run, as the result is.
+- Each defect has an e2e test that failed before the fix.
+
 **Measured**
 
-- `npx playwright test --project=mocked`: 459 passed, 0 failed (after the review fixes).
+- `npx playwright test --project=mocked`: 459 passed, 0 failed (after the review fixes). In the second round: 458 passed, 1 failed (`ZON-05`, timeout on the account select under load; it passes alone, no B5a code).
+- After the fixes of the second round: `backtest-page.spec.ts`, `csv-import.spec.ts`, `tooltips.spec.ts`, `mobile-layout.spec.ts`: 60 passed, 0 failed.
 - `npm run lint`, `npx tsc --noEmit`: clean.
 
 ## Open points
