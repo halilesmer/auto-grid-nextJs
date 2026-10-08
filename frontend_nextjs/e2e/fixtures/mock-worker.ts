@@ -462,6 +462,45 @@ export class MockWorker {
   }
 
   /**
+   * Wie csv_import.get_rates: nur ein abgeschlossener Import (sonst 409), nur sein Symbol und Zeitrahmen (sonst 400),
+   * nie MT5. Eine Kerze je Zeitrahmen im Bereich [first_t, last_t] (auch am Wochenende); der Rest ist `csv_gap`
+   * (Lücken innerhalb der Datei bildet der Mock nicht ab).
+   * Kein Spread, keine laufende Kerze, keine Brokeruhr in der Antwort.
+   */
+  private csvRates(accountId: string, importId: string, q: URLSearchParams): Reply {
+    const TF: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600, H4: 14400, D1: 86400 };
+    const item = this.state.csvImports.find((i) => i.account_id === accountId && i.import_id === importId);
+    if (!item) return { status: 404, body: { detail: 'Import not found' } };
+    if (item.status !== 'committed') return { status: 409, body: { detail: 'Import is not committed' } };
+    const timeframe = q.get('timeframe') ?? 'M1';
+    if (q.get('symbol') !== item.symbol || timeframe !== item.timeframe) {
+      return { status: 400, body: { detail: `Import holds ${item.symbol} ${item.timeframe} only` } };
+    }
+    const tf = TF[timeframe];
+    const a = Math.floor(Number(q.get('from')) / tf) * tf;
+    const b = Math.ceil(Number(q.get('to')) / tf) * tf;
+    const end = Math.min(b, a + 50_000 * tf);
+    // committed ⇒ first_t und last_t sind gesetzt (Commit oben)
+    const first = Math.max(a, item.first_t!);
+    const stop = Math.min(end, item.last_t! + tf);
+    const t: number[] = [];
+    for (let time = first; time < stop; time += tf) t.push(time);
+    const missing: { from: number; to: number; reason: string; checked_at: null }[] = [];
+    if (first > a) missing.push({ from: a, to: Math.min(first, end), reason: 'csv_gap', checked_at: null });
+    if (stop < end) missing.push({ from: Math.max(stop, a), to: end, reason: 'csv_gap', checked_at: null });
+    const price = (time: number) => Number((97 + Math.sin(time / 3600)).toFixed(3));
+    return {
+      status: 200,
+      body: {
+        source: `csv:${importId}`, symbol: item.symbol, timeframe, from: a, to: b,
+        t, o: t.map(price), h: t.map((time) => price(time) + 0.05), l: t.map((time) => price(time) - 0.05), c: t.map((time) => price(time + tf)),
+        v: t.map(() => null), s: t.map(() => null), live_from: null, digits: null, point: null,
+        next_from: end < b ? end : null, missing, db_full: false,
+      },
+    };
+  }
+
+  /**
    * Wie csv_import.py in klein: Anlegen, Teile in Reihenfolge, Commit (422 bei Text „BAD“ oder nicht
    * steigender Zeit, 409 bei Überlappung ohne `replace`), Löschen. Erste Spalte = Epoche in Sekunden.
    */
@@ -691,6 +730,11 @@ export class MockWorker {
     if (seg[0] === 'market' && seg[2] === 'rates' && method === 'GET') {
       if (!s.accounts.some((a) => String(a.id) === seg[1])) {
         return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      }
+      const source = url.searchParams.get('source');
+      if (source) {
+        if (!source.startsWith('csv:')) return { status: 400, body: { detail: 'source must be csv:<import_id>' } };
+        return this.csvRates(seg[1], source.slice('csv:'.length), url.searchParams);
       }
       if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
       return ok(this.rates(seg[1], url.searchParams));

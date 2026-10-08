@@ -12,12 +12,14 @@ import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useAnalysisParams } from '@/hooks/useAnalysisParams';
 import { useBacktestRun } from '@/hooks/useBacktestRun';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
+import { useCsvImports } from '@/hooks/useCsvImports';
 import { useDealsHistory } from '@/hooks/useDealsHistory';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useT, type MessageKey } from '@/i18n';
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import { proposeCommission } from '@/lib/backtest/commission';
 import type { RunParams } from '@/lib/backtest/protocol';
+import type { CsvImport } from '@/services/csvImportApi';
 import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/serverTime';
 import { insertSetup, setupNumbers } from '@/lib/symbolSetups';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
@@ -25,7 +27,7 @@ import { HANDOFF_MAX_AGE_MS, useBacktestHandoffStore } from '@/store/useBacktest
 import { useBacktestStore } from '@/store/useBacktestStore';
 import { CsvImportPanel } from './CsvImportPanel';
 import { RunResultView } from './RunResultView';
-import { DEFAULT_RUN_SETTINGS, RunSettings, type RunSettingsValue } from './RunSettings';
+import { DEFAULT_RUN_SETTINGS, isDataTimeframe, RunSettings, type DataTimeframe, type RunSettingsValue } from './RunSettings';
 import { useRunText } from './runText';
 
 /** Archiv für den Kommissionsvorschlag und das Margin-Modell: das letzte Jahr */
@@ -137,6 +139,20 @@ export function BacktestView() {
   const symbolsLoading = useSettingsStore((s) => s.isLoadingSymbols);
   const symbol = zone?.symbol ? (symbolDetails[zone.symbol.toUpperCase()] ?? null) : null;
 
+  // Datenquelle (B5b): wählbar sind nur abgeschlossene Importe mit dem Symbol und einem Zeitrahmen des Laufs; der
+  // Worker liefert für ein anderes Symbol oder einen anderen Zeitrahmen nichts (csv_import.get_rates)
+  const csv = useCsvImports(accountKnown ? accountId : null);
+  const symbolName = symbol?.name ?? null;
+  const csvChoices = useMemo(
+    () =>
+      (csv.imports ?? []).filter(
+        (i): i is CsvImport & { timeframe: DataTimeframe } => i.status === 'committed' && i.symbol === symbolName && isDataTimeframe(i.timeframe),
+      ),
+    [csv.imports, symbolName],
+  );
+  const csvImport = csvChoices.find((i) => i.import_id === form.csvImportId) ?? null;
+  const dataTimeframe = csvImport?.timeframe ?? form.timeframe;
+
   const clock = useBrokerClock(accountKnown ? accountId : null);
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
   const today = brokerToday(offsetSec ?? 0);
@@ -160,12 +176,13 @@ export function BacktestView() {
     if (!archiveReady || !zoneSymbol) return undefined;
     return deals.data ? proposeCommission(deals.data.deals, zoneSymbol) : null;
   }, [archiveReady, deals.data, zoneSymbol]);
-  // Anderes Konto oder Symbol: eine früher eingegebene Kommission gilt nicht mehr, der neue Vorschlag folgt
+  // Anderes Konto oder Symbol: eine früher eingegebene Kommission gilt nicht mehr, der neue Vorschlag folgt; ein
+  // gewählter CSV-Import gehört zum alten Konto oder Symbol, die Quelle ist wieder der MT5-Server
   const commissionKey = `${accountId}|${zoneSymbol}`;
   const [seenCommissionKey, setSeenCommissionKey] = useState(commissionKey);
   if (seenCommissionKey !== commissionKey) {
     setSeenCommissionKey(commissionKey);
-    setForm((f) => ({ ...f, commission: null }));
+    setForm((f) => ({ ...f, commission: null, csvImportId: null }));
   }
   const commission = form.commission ?? proposal?.perLot ?? 0;
   const currency = deals.data?.account?.currency ?? null;
@@ -192,7 +209,8 @@ export function BacktestView() {
       accountCurrency: currency ?? undefined,
       from: bounds.from,
       to: bounds.to,
-      dataTimeframe: form.timeframe,
+      dataTimeframe,
+      source: csvImport ? `csv:${csvImport.import_id}` : undefined,
       spread,
       commissionPerLot: commission,
       swapEnabled: form.swapEnabled,
@@ -272,6 +290,8 @@ export function BacktestView() {
         <RunSettings
           value={form}
           onChange={setForm}
+          csvImports={csvChoices}
+          csvImport={csvImport}
           proposal={proposal}
           commission={commission}
           currency={currency}
@@ -283,7 +303,7 @@ export function BacktestView() {
         />
         {status === 'error' && runMatches && <RunErrorAlert />}
         {status === 'done' && results && context && runMatches && <RunResultView results={results} context={context} />}
-        <CsvImportPanel key={accountId} accountId={accountId} defaultSymbol={zone?.symbol ?? ''} />
+        <CsvImportPanel key={accountId} accountId={accountId} defaultSymbol={symbol?.name ?? zone?.symbol ?? ''} imports={csv.imports} reload={csv.reload} />
       </div>
     );
   };

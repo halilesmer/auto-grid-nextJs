@@ -7,6 +7,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { de, en, tr } from '../../src/i18n/messages';
+import type { CsvImportRow } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
 
@@ -21,6 +22,16 @@ async function chooseRange(page: Page, preset: string) {
   await page.getByTestId('range-trigger').click();
   await page.getByTestId(`range-preset-${preset}`).click();
   await expect(page).toHaveURL(new RegExp(`range=${preset}`));
+}
+
+/** Ein CSV-Import im Mock-Worker (abgeschlossen, USOUSD M1, letzte 3 Tage), mit Abweichungen */
+function csvRow(over: Partial<CsvImportRow>): CsvImportRow {
+  const day = Math.floor(Date.now() / 86_400_000) * 86400;
+  return {
+    import_id: '0'.repeat(32), account_id: DEMO_ID, symbol: 'USOUSD', timeframe: 'M1', filename: 'uso.csv', status: 'committed',
+    size_bytes: 100, received_bytes: 100, next_chunk: 1, bars: 4320, first_t: day - 3 * 86400, last_t: day - 60, gaps: 0,
+    offset_sec: 0, created_at: day, committed_at: day, text: '', ...over,
+  };
 }
 
 async function runTest(page: Page) {
@@ -234,6 +245,53 @@ test.describe('BKT Backtest-Seite', () => {
     await expect(page.getByTestId('bt-result')).toHaveCount(0);
     await page.waitForTimeout(1000);
     await expect(page.getByTestId('bt-result')).toHaveCount(0);
+  });
+
+  test('Datenquelle CSV: nur passende, abgeschlossene Importe; der Lauf liest nur den Import, Lücken heißen csv_gap', { tag: ['@BKT-06', '@BKT-05'] }, async ({ page, worker }) => {
+    const now = Date.now() / 1000 + worker.state.brokerOffset;
+    const first = Math.floor((now - 2 * 86400) / 60) * 60;
+    const last = Math.floor((now - 3600) / 60) * 60;
+    worker.state.csvImports = [
+      csvRow({ import_id: 'a'.repeat(32), first_t: first, last_t: last }),
+      csvRow({ import_id: 'b'.repeat(32), status: 'staging', first_t: null, last_t: null, bars: null }),
+      csvRow({ import_id: 'c'.repeat(32), symbol: 'XAUUSD' }),
+      csvRow({ import_id: 'd'.repeat(32), timeframe: 'H4' }),
+    ];
+    await page.goto(URL);
+
+    const source = page.getByTestId('bt-data-source');
+    await expect(source.locator('option')).toHaveCount(2);
+    await expect(source.locator('option').nth(0)).toHaveText(msg('backtest.data.mt5'));
+    await page.getByTestId('bt-timeframe').selectOption('M5');
+    await source.selectOption('a'.repeat(32));
+    await expect(page.getByTestId('bt-timeframe')).toBeDisabled();
+    await expect(page.getByTestId('bt-timeframe')).toHaveValue('M1');
+
+    await runTest(page);
+
+    const calls = worker.callsTo('GET', `/api/market/${DEMO_ID}/rates`);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.map((c) => [c.query.get('source'), c.query.get('timeframe')])).toEqual(calls.map(() => [`csv:${'a'.repeat(32)}`, 'M1']));
+    // Vor dem Import liegen 5 Tage ohne Kerzen: sie stehen als Lücke mit Text da, nichts wird aufgefüllt
+    await expect(page.getByTestId('bt-notes').locator('[data-code="run.dataMissing"]').first()).toContainText(msg('analysis.data.reason.csv_gap'));
+    expect(worker.callsTo('POST', /\/api\/settings/)).toHaveLength(0);
+  });
+
+  test('gelöschter CSV-Import: die Auswahl fällt auf den MT5-Server zurück', { tag: ['@BKT-06', '@BKT-05'] }, async ({ page, worker }) => {
+    worker.state.csvImports = [csvRow({ import_id: 'a'.repeat(32) })];
+    await page.goto(URL);
+    await page.getByTestId('bt-data-source').selectOption('a'.repeat(32));
+    await expect(page.getByTestId('bt-timeframe')).toBeDisabled();
+
+    await page.getByTestId('csv-item').getByTestId('csv-delete').click();
+
+    await expect(page.getByTestId('csv-item')).toHaveCount(0);
+    await expect(page.getByTestId('bt-data-source')).toHaveValue('');
+    await expect(page.getByTestId('bt-timeframe')).toBeEnabled();
+    await runTest(page);
+    const calls = worker.callsTo('GET', `/api/market/${DEMO_ID}/rates`);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.every((c) => c.query.get('source') === null)).toBe(true);
   });
 
   test('Backtest-Seite ohne Konto: Hinweis, kein Absturz', { tag: '@BKT-06' }, async ({ page, worker }) => {
