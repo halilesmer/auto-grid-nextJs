@@ -198,6 +198,8 @@ export function defaultState() {
     deals: {} as Record<string, Deal[]>,
     /** Zonen-Register je Konto (created_at = echte Unix-Sekunden) */
     zoneRegistry: {} as Record<string, ZoneRegistryEntry[]>,
+    /** Margin-Modus des Kontos im Deal-Archiv (account.margin_mode): 0 Netting, 1 Exchange, 2 Hedging; null = unbekannt */
+    marginMode: 2 as number | null,
     /** Fehlende Teile des Deal-Archivs (busy/error) */
     dealsMissing: [] as { from: number; to: number; reason: string }[],
     /** Benutzer mit persönlichem Schlüssel; leer = Einzelbetrieb wie bisher (nur der Admin-Schlüssel). */

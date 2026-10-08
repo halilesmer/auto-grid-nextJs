@@ -53,7 +53,7 @@ test.describe('ACC Konten', () => {
     worker.setZones(LIVE_ID, [makeZone()]);
     await dashboard.open(LIVE_ID);
     // Client-Navigation: das gewählte Konto bleibt im Store
-    await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
     await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&zone=${ZONE_ID}`);
     await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
     const price = page.getByTestId('chart-stat-price');
@@ -85,7 +85,7 @@ test.describe('ACC Konten', () => {
     await dashboard.selectAccount(LIVE_ID);
     await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
 
-    await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
     await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&zone=${ZONE_ID}`);
     await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
     // Der Worker schickt diesem Stream die Metriken des zweiten Kontos (RSI, Live-Preis)

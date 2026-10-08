@@ -1,14 +1,13 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, type ReactNode } from 'react';
-import { BarChart3, CandlestickChart, FlaskConical } from 'lucide-react';
+import { BarChart3, CandlestickChart } from 'lucide-react';
 
 import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
 import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
 import { BrokerClockNotice, formatOffset } from '@/components/analysis/BrokerClockNotice';
-import { CsvImportPanel } from '@/components/backtest/CsvImportPanel';
 import { DateRangePicker } from '@/components/analysis/DateRangePicker';
 import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { ZoneSelect } from '@/components/analysis/ZoneSelect';
@@ -16,7 +15,6 @@ import { StatsTab } from '@/components/analysis/stats/StatsTab';
 import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader } from '@/components/ui/card';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useAnalysisParams, type AnalysisTab } from '@/hooks/useAnalysisParams';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
@@ -25,18 +23,8 @@ import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
-function Placeholder({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
-  const t = useT();
-  return (
-    <Card>
-      <CardHeader icon={icon} title={title} actions={<Badge hint={t('chart.soon.hint')}>{t('chart.soon')}</Badge>} />
-      <p className="px-5 pb-6 pt-4 text-sm leading-relaxed text-muted-foreground">{text}</p>
-    </Card>
-  );
-}
-
 /**
- * Analyse-Seite (/chart): Tabs Chart, Statistik, Backtest für ein Konto und eine Zone; Zeitraum in
+ * Analyse-Seite (/chart): Tabs Chart und Statistik für ein Konto und eine Zone; Zeitraum in
  * Brokertagen. Der Zustand steht in der URL (useAnalysisParams), Regeln: docs/analyse-regeln.md.
  */
 function AnalysisView() {
@@ -123,7 +111,6 @@ function AnalysisView() {
   const tabs: { id: AnalysisTab; label: string; hint: string; icon: ReactNode }[] = [
     { id: 'chart', label: t('analysis.tab.chart'), hint: t('analysis.tab.chart.hint'), icon: <CandlestickChart size={14} /> },
     { id: 'stats', label: t('analysis.tab.stats'), hint: t('analysis.tab.stats.hint'), icon: <BarChart3 size={14} /> },
-    { id: 'backtest', label: t('analysis.tab.backtest'), hint: t('analysis.tab.backtest.hint'), icon: <FlaskConical size={14} /> },
   ];
 
   const renderTab = () => {
@@ -158,28 +145,16 @@ function AnalysisView() {
         />
       );
     }
-    if (tab === 'stats') {
-      return (
-        <StatsTab
-          key={accountId}
-          accountId={accountId}
-          zones={zones}
-          zoneId={zoneId}
-          range={bounds}
-          offsetSec={offsetSec}
-          clockReady={!clock.loading}
-        />
-      );
-    }
     return (
-      <div className="space-y-5">
-        <Placeholder icon={<FlaskConical size={16} />} title={t('analysis.backtest.title')} text={t('analysis.backtest.text')} />
-        <CsvImportPanel
-          key={accountId}
-          accountId={accountId}
-          defaultSymbol={zones?.find((z) => z.id === zoneId)?.symbol ?? ''}
-        />
-      </div>
+      <StatsTab
+        key={accountId}
+        accountId={accountId}
+        zones={zones}
+        zoneId={zoneId}
+        range={bounds}
+        offsetSec={offsetSec}
+        clockReady={!clock.loading}
+      />
     );
   };
 

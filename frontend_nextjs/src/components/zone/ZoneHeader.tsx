@@ -11,6 +11,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useT, type MessageKey } from '@/i18n';
 import { useAccountStore } from '@/store';
+import { useBacktestHandoffStore } from '@/store/useBacktestHandoffStore';
 import type { ZoneHeaderProps } from './types';
 
 const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
@@ -49,9 +50,9 @@ export function ZoneHeader({
   saving,
 }: ZoneHeaderProps) {
   const t = useT();
-  // Analyse-Seite mit Konto und Zone (Neuladen und geteilte Links zeigen dieselbe Zone)
+  // Backtest-Seite mit Konto und Zone; der Klick übergibt eine Kopie der Zone mit ungespeicherten Änderungen (BKT-06)
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
-  const chartHref = `/chart?${new URLSearchParams({ ...(selectedAccount ? { account: selectedAccount } : {}), zone: zone.id })}`;
+  const backtestHref = `/backtest?${new URLSearchParams({ ...(selectedAccount ? { account: selectedAccount } : {}), zone: zone.id })}`;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -179,7 +180,14 @@ export function ZoneHeader({
         </Button>
         <Tooltip content={t('zone.header.test.hint')}>
           <Link
-            href={chartHref}
+            href={backtestHref}
+            onClick={(event) => {
+              // Nur ein einfacher Klick öffnet die Seite im selben Tab; Strg/Cmd-Klick lässt eine Übergabe liegen
+              const plain = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+              if (plain && selectedAccount) {
+                useBacktestHandoffStore.getState().setHandoff({ accountId: selectedAccount, zoneId: zone.id, zone, unsaved: modified, at: Date.now() });
+              }
+            }}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"
           >
             <FlaskConical size={13} />

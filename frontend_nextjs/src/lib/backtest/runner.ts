@@ -68,6 +68,8 @@ export interface RunResult {
   summary: RunSummary;
   log: { lines: RunLogLine[]; counts: Record<string, number>; dropped: number };
   candles: number;
+  /** Mittlere Spanne (Hoch − Tief) der Kerzen im Zeitraum, in Preis; die Seite warnt, wenn der Grid-Abstand kleiner ist */
+  avgRange: number;
   missing: MissingRange[];
   path: PathMode;
 }
@@ -115,6 +117,12 @@ function nextWake(levels: readonly number[], cur: number, to: number): number | 
     for (let i = levels.length - 1; i >= 0; i--) if (levels[i] < cur && levels[i] >= to) return levels[i];
   }
   return null;
+}
+
+function averageRange(rates: LoadedRates, first: number, end: number): number {
+  let sum = 0;
+  for (let i = first; i < end; i++) sum += rates.h[i] - rates.l[i];
+  return sum / (end - first);
 }
 
 export function runBacktest(input: RunInput): RunResult {
@@ -273,6 +281,7 @@ export function runBacktest(input: RunInput): RunResult {
     summary,
     log: { lines: log.lines, counts: log.counts, dropped: log.dropped },
     candles: total,
+    avgRange: averageRange(rates, first, end),
     missing: rates.missing,
     path: model.path,
   };

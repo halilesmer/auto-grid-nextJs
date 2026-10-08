@@ -5,10 +5,9 @@ export default defineArea(
   {
     'nav.analysis': 'Analiz',
     'analysis.title': 'Analiz',
-    'analysis.subtitle': 'Seçili hesap ve setup için grafik, istatistik ve backtest',
+    'analysis.subtitle': 'Seçili hesap ve setup için grafik ve istatistik',
     'analysis.tab.chart': 'Grafik',
     'analysis.tab.stats': 'İstatistik',
-    'analysis.tab.backtest': 'Backtest',
     'analysis.zone': 'Setup',
     'analysis.zone.placeholder': 'Setup seçin',
     'analysis.zone.search': 'Sembol veya setup ara…',
@@ -97,9 +96,6 @@ export default defineArea(
     'analysis.license': 'Grafik kütüphanesi ve lisans',
     'analysis.license.text':
       'Grafikler TradingView’in açık kaynaklı Lightweight Charts™ kütüphanesiyle çizilir (Apache 2.0). Fiyatlar TradingView’den değil, MT5 hesabınızdan gelir.',
-    'analysis.backtest.title': 'Backtest',
-    'analysis.backtest.text':
-      'Setup’ın bir kopyası geçmiş fiyatlarla tarayıcıda test edilecek (geliştiriliyor). Gerçek setup hiç değişmez.',
     'analysis.settings.history': 'Kapanan işlemler (oklar)',
     'analysis.settings.fractals': 'Fraktallar (fraktal setup’lar)',
     'analysis.chart.key.entry': 'Giriş',
@@ -199,10 +195,9 @@ export default defineArea(
   {
     'nav.analysis': 'Analysis',
     'analysis.title': 'Analysis',
-    'analysis.subtitle': 'Chart, statistics and backtest for the selected account and setup',
+    'analysis.subtitle': 'Chart and statistics for the selected account and setup',
     'analysis.tab.chart': 'Chart',
     'analysis.tab.stats': 'Statistics',
-    'analysis.tab.backtest': 'Backtest',
     'analysis.zone': 'Setup',
     'analysis.zone.placeholder': 'Select a setup',
     'analysis.zone.search': 'Search symbol or setup…',
@@ -291,9 +286,6 @@ export default defineArea(
     'analysis.license': 'Chart library and licence',
     'analysis.license.text':
       'Charts are drawn with TradingView’s open-source Lightweight Charts™ library (Apache 2.0). Prices come from your MT5 account, not from TradingView.',
-    'analysis.backtest.title': 'Backtest',
-    'analysis.backtest.text':
-      'A copy of the setup will be tested against past prices in the browser (in progress). The real setup never changes.',
     'analysis.settings.history': 'Closed trades (arrows)',
     'analysis.settings.fractals': 'Fractals (fractal setups)',
     'analysis.chart.key.entry': 'Entry',
@@ -393,10 +385,9 @@ export default defineArea(
   {
     'nav.analysis': 'Analyse',
     'analysis.title': 'Analyse',
-    'analysis.subtitle': 'Chart, Statistik und Backtest für das gewählte Konto und Setup',
+    'analysis.subtitle': 'Chart und Statistik für das gewählte Konto und Setup',
     'analysis.tab.chart': 'Chart',
     'analysis.tab.stats': 'Statistik',
-    'analysis.tab.backtest': 'Backtest',
     'analysis.zone': 'Setup',
     'analysis.zone.placeholder': 'Setup wählen',
     'analysis.zone.search': 'Symbol oder Setup suchen…',
@@ -485,9 +476,6 @@ export default defineArea(
     'analysis.license': 'Chart-Bibliothek und Lizenz',
     'analysis.license.text':
       'Die Charts zeichnet TradingViews Open-Source-Bibliothek Lightweight Charts™ (Apache 2.0). Die Kurse kommen aus deinem MT5-Konto, nicht von TradingView.',
-    'analysis.backtest.title': 'Backtest',
-    'analysis.backtest.text':
-      'Hier wird eine Kopie des Setups im Browser mit alten Kursen getestet (in Arbeit). Das echte Setup ändert sich dabei nie.',
     'analysis.settings.history': 'Geschlossene Trades (Pfeile)',
     'analysis.settings.fractals': 'Fraktale (Fraktal-Setups)',
     'analysis.chart.key.entry': 'Einstieg',

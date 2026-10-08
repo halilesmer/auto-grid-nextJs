@@ -261,9 +261,12 @@ test.describe('UI Oberfläche', () => {
     });
   });
 
-  test('Zonen-Test-Link öffnet /chart mit Konto und Zone', { tag: '@UI-04' }, async ({ page, worker, dashboard }) => {
+  test('Zonen-Test-Link öffnet /backtest, die Analyse zeigt dieselbe Zone', { tag: '@UI-04' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
+    await expect(page).toHaveURL(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     await expect(page.getByText('90 – 110')).toBeVisible();

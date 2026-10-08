@@ -63,8 +63,6 @@ test.describe('ANA Analyse-Seite', () => {
     await expect(tab(page, 'analysis.tab.stats')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
 
-    await tab(page, 'analysis.tab.backtest').click();
-    await expect(page.getByText(msg('analysis.backtest.text'))).toBeVisible();
     await tab(page, 'analysis.tab.chart').click();
     await expect(page).not.toHaveURL(/tab=/);
   });

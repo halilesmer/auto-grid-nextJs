@@ -188,6 +188,17 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     expect(await unhinted(page)).toEqual([]);
   });
 
+  test('Backtest-Seite mit Ergebnis: jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}&range=last7`);
+    await expect(page.getByTestId('backtest-settings')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+
+    await page.getByTestId('bt-run').click();
+    await expect(page.getByTestId('bt-result')).toBeVisible({ timeout: 60_000 });
+    expect(await unhinted(page)).toEqual([]);
+  });
+
   test('Benutzerseite mit Dialogen: jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker }) => {
     worker.addUser('Anna');
     await page.goto('/users');
@@ -211,6 +222,9 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
 
     await dashboard.open(DEMO_ID);
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
+    await expect(page).toHaveURL(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    expect(await unhinted(page)).toEqual([]);
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByText(msg('chart.zone.priceRange'))).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
