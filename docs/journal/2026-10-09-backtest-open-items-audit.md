@@ -24,7 +24,7 @@ areas: [frontend, worker, tests, docs]
 | 1 | Audit merged work | Complete | Local `main` is clean at `42d8ba4` (`v0.7.187`), after merge commit `6a7c648` for PR #141. The checkout also contains PR #140, #139, #137, #136, #123 and earlier work. |
 | 2 | Verify GitHub checks and deployed versions | Partially verified | `gh pr view 141 ...` could not connect to `api.github.com`, so CI remains unknown. The local read-only VPS status route returned worker version `v0.7.187`, commit `42d8ba4e`, reachable and listening. No deployment or trading state was changed. |
 | 3 | B4 installed swap constants and symbol values | Blocked | The local symbol endpoint returned HTTP 401 with the available local configuration. No symbol values or installed constants were obtained. Retry through an authorized, reliable read-only route; compare installed `SYMBOL_SWAP_MODE_*` values with distinct live `swap_mode` values. |
-| 4 | B9 real annual M1 import and broker-time check | Blocked | No verified real annual CSV was supplied or found in the project/import paths. Local account configuration files exist, but the worker import still requires a verified source file, coverage, time basis, and target DEMO account. Do not replace an existing import. |
+| 4 | B9 real annual M1 import and broker-time check | Complete | Three annual M1 files committed on the VPS. USOUSD API time and OHLC matched the CSV and source terminal. See `2026-10-10-backtest-b9-vps-import.md`. |
 | 5 | ZON-21 manual DEMO trading check | Blocked | The available terminal preflight showed existing trading activity, so test isolation is not satisfied. Do not start or change trading state. Run only on a verified, isolated DEMO account with a stopped bot and no existing positions or orders; restore the test settings and clean only test-created state. |
 | 6 | Final status, catalog, and journal | Waiting | Update the manual result and close this audit only after the external checks above have evidence. Keep synthetic annual tests separate from real broker verification. |
 | 7 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. The annual test uses synthetic and mocked data. |
@@ -64,7 +64,7 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 ## Open points
 
 - [ ] Restore authorized symbol API access and record the installed swap constants and distinct symbol values.
-- [ ] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check.
+- [x] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check. See `2026-10-10-backtest-b9-vps-import.md`.
 - [ ] Find an isolated DEMO account that meets the ZON-21 preconditions; run the test only if no existing trading state can be affected.
-- [ ] Verify PR #141 CI when GitHub access returns; worker deployment is verified at `v0.7.187` / `42d8ba4e`.
+- [x] Verify PR #141 CI: `gh pr view 141 --json state,mergedAt,statusCheckRollup` returned MERGED and successful catalog, worker, frontend and Vercel checks on 2026-10-10. The earlier deployment evidence remains `v0.7.187` / `42d8ba4e`.
 - [ ] Update the catalog and close this plan after all external evidence is recorded.
