@@ -1,4 +1,5 @@
 import { axiosInstance } from '@/lib/api';
+import { t } from '@/i18n';
 import type { Timeframe } from '@/lib/analysis/candles';
 
 /** CSV-Import (worker_python/src/api/market.py, utils/csv_import.py): Teile hochladen, dann prüfen und übernehmen. */
@@ -16,6 +17,7 @@ export interface CsvImport {
   last_t: number | null;
   gaps: number | null;
   offset_sec: number;
+  offset_mode?: 'fixed' | 'row';
   created_at: number;
   committed_at: number | null;
 }
@@ -25,6 +27,7 @@ export interface CsvImportOptions {
   timeframe: Timeframe;
   /** Stunden, die zur CSV-Zeit addiert werden, um MT5-Zeit zu erhalten */
   offsetHours: number;
+  offsetMode?: 'fixed' | 'row';
 }
 
 export interface CsvLineError {
@@ -78,8 +81,8 @@ export async function commitCsvImport(accountId: string, importId: string, repla
 
 /**
  * Legt den Import an und lädt die Datei in Teilen hoch (Größe gibt der Worker vor). Gibt die Import-ID zurück;
- * den Commit macht der Aufrufer (bei Überlappung wiederholbar mit `replace`). Bricht `signal` ab, bleibt ein
- * unfertiger Import auf dem Worker — der Aufrufer löscht ihn.
+ * den Commit macht der Aufrufer (bei Überlappung wiederholbar mit `replace`). Beim Abbruch vor der ersten
+ * ID wird die verspätete Anlage gelöscht; später kennt der Aufrufer die ID und räumt sie auf.
  */
 export async function uploadCsv(
   accountId: string,
@@ -89,7 +92,8 @@ export async function uploadCsv(
   onCreated: (importId: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  const created = await axiosInstance.post<{ import_id: string; chunk_bytes: number }>(
+  signal?.throwIfAborted();
+  const created = await axiosInstance.post<{ import_id: string; chunk_bytes: number; offset_mode?: 'fixed' | 'row' }>(
     base(accountId),
     {
       symbol: options.symbol,
@@ -97,10 +101,22 @@ export async function uploadCsv(
       filename: file.name,
       size: file.size,
       time_offset_sec: Math.round(options.offsetHours * 3600),
+      time_offset_mode: options.offsetMode ?? 'fixed',
     },
-    { signal },
+    // Wie die Preset-API: Anlage ohne Dateiübertragung; verhindert unbegrenztes Warten auf eine verlorene Antwort.
+    { timeout: 30_000 },
   );
   const { import_id: importId, chunk_bytes: chunkBytes } = created.data;
+  // POST muss seine ID noch liefern können, wenn der Dialog während der Anlage schließt.
+  // Ein abgebrochener Request ließe sonst einen unbekannten Staging-Eintrag zurück.
+  if (signal?.aborted) {
+    await deleteCsvImport(accountId, importId);
+    signal.throwIfAborted();
+  }
+  if (options.offsetMode === 'row' && created.data.offset_mode !== 'row') {
+    await deleteCsvImport(accountId, importId);
+    throw new CsvImportError(t('csv.offset.unsupported'), 422);
+  }
   onCreated(importId);
   for (let index = 0, start = 0; start < file.size; index += 1, start += chunkBytes) {
     const part = file.slice(start, start + chunkBytes);

@@ -120,6 +120,10 @@ MIGRATIONS: list[list[str]] = [
         )""",
         "CREATE INDEX backtest_presets_owner ON backtest_presets (owner, created_at)",
     ],
+    [
+        # BKT-05: per-row UTC offsets are supplied by the file, not guessed from today's clock.
+        "ALTER TABLE csv_imports ADD COLUMN offset_mode TEXT NOT NULL DEFAULT 'fixed'",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

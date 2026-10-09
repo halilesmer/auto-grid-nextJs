@@ -129,6 +129,7 @@ export interface CsvImportRow {
   last_t: number | null;
   gaps: number | null;
   offset_sec: number;
+  offset_mode?: 'fixed' | 'row';
   created_at: number;
   committed_at: number | null;
   text: string;

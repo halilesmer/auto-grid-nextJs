@@ -345,6 +345,16 @@ export function BacktestView() {
         <p className="mt-1 text-sm text-muted-foreground">{t('backtest.subtitle')}</p>
       </header>
 
+      <div data-testid="bt-model-limits">
+        <Alert tone="info" title={t('backtest.model.title')}>
+          <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed">
+            {(['events', 'clock', 'swap', 'drawdown'] as const).map((key) => (
+              <li key={key}>{t(`backtest.model.${key}`)}</li>
+            ))}
+          </ul>
+        </Alert>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2" data-testid="backtest-controls">
         <div className="w-full sm:w-auto">
           <AccountDropdown

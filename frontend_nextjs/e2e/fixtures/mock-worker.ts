@@ -539,11 +539,12 @@ export class MockWorker {
         last_t: null,
         gaps: null,
         offset_sec: Number(b.time_offset_sec ?? 0),
+        offset_mode: b.time_offset_mode === 'row' ? 'row' : 'fixed',
         created_at: Math.floor(Date.now() / 1000),
         committed_at: null,
         text: '',
       });
-      return { status: 200, body: { import_id: importId, chunk_bytes: 4 * 1024 * 1024 } };
+      return { status: 200, body: { import_id: importId, chunk_bytes: 4 * 1024 * 1024, offset_mode: b.time_offset_mode === 'row' ? 'row' : 'fixed' } };
     }
     const item = mine().find((i) => i.import_id === seg[3]);
     if (!item) return { status: 404, body: { detail: 'Import not found' } };
@@ -555,14 +556,25 @@ export class MockWorker {
     }
     if (seg.length === 5 && seg[4] === 'commit' && method === 'POST') {
       const replace = Boolean((body as Record<string, unknown> | null)?.replace);
-      const times = item.text
-        .split('\n')
-        .map((line) => Number(line.split(',')[0]))
-        .filter((t) => Number.isFinite(t) && t > 0);
-      const invalid = item.text.includes('BAD') || times.length === 0 || times.some((t, i) => i > 0 && t <= times[i - 1]);
+      const rows = item.text.split('\n').map((line) => line.split(',')).filter((row) => row.some((cell) => cell.trim()));
+      const header = rows[0]?.map((cell) => cell.trim().toLowerCase()) ?? [];
+      const hasHeader = header.includes('time') || header.includes('timestamp') || header.includes('datetime');
+      const timeIndex = hasHeader ? Math.max(header.indexOf('time'), header.indexOf('timestamp'), header.indexOf('datetime')) : 0;
+      const offsetIndex = hasHeader ? header.indexOf('broker_offset_sec') : -1;
+      const dataRows = hasHeader ? rows.slice(1) : rows;
+      const rowMode = offsetIndex >= 0;
+      const offsetModeMatches = rowMode === (item.offset_mode === 'row') && (!rowMode || item.offset_sec === 0);
+      const offsets = dataRows.map((row) => rowMode ? row[offsetIndex]?.trim() ?? '' : String(item.offset_sec));
+      const validOffsets = offsets.every((offset) => /^-?\d+$/.test(offset) && Math.abs(Number(offset)) <= 14 * 3600);
+      const times = dataRows.map((row, index) => {
+        const raw = Number(row[timeIndex]);
+        const utc = raw > 10 ** 11 ? Math.floor(raw / 1000) : raw;
+        return utc + Number(offsets[index]);
+      }).filter((t) => Number.isFinite(t) && t > 0);
+      const invalid = item.text.includes('BAD') || !offsetModeMatches || !validOffsets || times.length === 0 || times.some((t, i) => i > 0 && t <= times[i - 1]);
       if (invalid) {
         s.csvImports = s.csvImports.filter((i) => i !== item);
-        const errors = [{ line: 2, message: 'high/low do not contain open and close' }];
+        const errors = [{ line: 2, message: rowMode && !offsetModeMatches ? 'offset mode does not match the CSV header' : 'high/low do not contain open and close' }];
         return { status: 422, body: { detail: { detail: 'The file has errors', errors } } };
       }
       const first = times[0];
