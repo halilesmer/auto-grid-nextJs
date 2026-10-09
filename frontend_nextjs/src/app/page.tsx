@@ -2,6 +2,8 @@
 
 import { Globe, Monitor, Power, RefreshCw, Server, Settings, UserRound } from 'lucide-react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
+import { useZoneTransfer } from '@/hooks/useZoneTransfer';
+import { Alert } from '@/components/ui/alert';
 import { useDashboard } from '@/app/hooks/useDashboard';
 import AccountSelector from '@/components/account/AccountSelector';
 import BotControls from '@/components/BotControls';
@@ -33,6 +35,7 @@ export default function Home() {
   useWebSocketManager(selectedAccount);
 
   const {
+    savedSettingsStr,
     saveAllLoading,
     shutdownOpen,
     shuttingDown,
@@ -57,9 +60,14 @@ export default function Home() {
     setUpdateInfo,
   });
 
+  const transfer = useZoneTransfer(selectedAccount, savedSettingsStr);
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
       <h1 className="sr-only">{t('dashboard.title')}</h1>
+      {transfer && isDirty && <Alert tone="warning" title={t('backtest.transfer.unsaved')}>
+        {isRunning ? t('backtest.transfer.running') : t('backtest.transfer.notice')}
+      </Alert>}
 
       {/* Kontrol çubuğu: hesap, bot kontrolü, genel ayarlar ve sistem menüsü tek satırda */}
       {/* Sıra (order-*): hesap 1 · sistem menüsü 2 (lg'den itibaren 4, en sağda) · bot + aralık 3

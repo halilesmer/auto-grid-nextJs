@@ -216,6 +216,8 @@ test.describe('BKT Backtest-Seite', () => {
     await page.getByRole('option', { name: msg('analysis.zone.option', { symbol: 'USOUSD', n: 2 }) }).click();
 
     await expect(page).toHaveURL(/zone=zone-e2e-2/);
+    await page.getByRole('button', { name: msg('backtest.setups.add'), exact: true }).click();
+    await expect(page.getByTestId('bt-setup')).toHaveCount(2);
     await expect(page.getByTestId('bt-result')).toHaveCount(0);
   });
 
@@ -230,6 +232,8 @@ test.describe('BKT Backtest-Seite', () => {
     await page.getByRole('option', { name: msg('analysis.zone.option', { symbol: 'USOUSD', n: 2 }) }).click();
 
     await expect(page).toHaveURL(/zone=zone-e2e-2/);
+    await page.getByRole('button', { name: msg('backtest.setups.add'), exact: true }).click();
+    await expect(page.getByTestId('bt-setup')).toHaveCount(2);
     await expect(page.getByTestId('bt-error')).toHaveCount(0);
   });
 

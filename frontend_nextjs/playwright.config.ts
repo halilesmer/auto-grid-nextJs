@@ -34,6 +34,8 @@ const mockedServer = {
     NEXT_DIST_DIR: '.next-e2e',
     NEXT_PUBLIC_API_URL: MOCK_API,
     NEXT_PUBLIC_WORKER_API_KEY: E2E_API_KEY,
+    // Mocked tests must not inherit a developer's real VPS SSH configuration.
+    VPS_SSH_HOST: '',
     NEXT_TELEMETRY_DISABLED: '1',
   },
 };

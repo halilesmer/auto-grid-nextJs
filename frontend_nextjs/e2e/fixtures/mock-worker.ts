@@ -6,6 +6,7 @@
  * Antwortformen, gleiche Fehlercodes (401 ohne API-Schlüssel, 409 bei doppeltem Konto …).
  * Der Zustand liegt in `state` und kann pro Test verändert werden.
  */
+import { parsePresetData, type BacktestPreset } from '../../src/lib/backtest/presets';
 import type { Page, Route, WebSocketRoute } from '@playwright/test';
 import type { LiveData, Metrics } from '../../src/store/types';
 import { defaultState, groupZones, type CsvImportRow, type MockState, type MockUser, type StoredAccount } from './data';
@@ -181,6 +182,7 @@ function unwrapSettings(value: unknown): Json {
 
 export class MockWorker {
   state: MockState = defaultState();
+  private presets: (BacktestPreset & { owner: string })[] = [];
   /** Alle REST-Aufrufe in Reihenfolge (für Assertions auf Methode, Pfad, Query, Body). */
   readonly calls: WorkerCall[] = [];
   /** Aufrufe ohne gültigen X-API-Key; der Test-Fixture prüft, dass die Liste leer bleibt. */
@@ -591,6 +593,54 @@ export class MockWorker {
     const ok = (b: unknown): Reply => ({ status: 200, body: b });
     const admin = principal.role === 'admin';
     const forbidden: Reply = { status: 403, body: { detail: 'Administrator access required' } };
+
+    // BKT-11: Eigentümer kommt nur aus der geprüften Identität, auch für Admin-Presets.
+    if (seg[0] === 'backtest' && seg[1] === 'presets') {
+      const own = this.presets.filter((preset) => preset.owner === principal.id);
+      const publicPreset = (preset: BacktestPreset & { owner: string }) => {
+        const { owner: _owner, ...data } = preset;
+        void _owner;
+        return data;
+      };
+      if (seg.length === 2 && method === 'GET') return ok({ presets: own.map(publicPreset) });
+      const invalid = { status: 422, body: { detail: 'Invalid preset payload' } };
+      const name = typeof body?.name === 'string' ? body.name.trim() : '';
+      if (method === 'POST' || method === 'PUT') {
+        if (!name || name.length > 80) return invalid;
+        const allowed = method === 'POST' ? ['name', 'version', 'zone', 'form', 'range', 'appVersion', 'requestId'] : ['name'];
+        if (Object.keys(body ?? {}).some((key) => !allowed.includes(key))) return invalid;
+      }
+      if (seg.length === 2 && method === 'POST') {
+        try {
+          const zone = body?.zone as Json | undefined;
+          if (!zone || ['id', 'magic', 'sid', 'is_active', 'fractal_setups'].some((key) => key in zone)) return invalid;
+          if (typeof body?.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(body.requestId)) return invalid;
+          const data = parsePresetData(body);
+          const existing = this.presets.find((p) => p.id === body.requestId);
+          if (existing) {
+            if (existing.owner !== principal.id) return { status: 404, body: { detail: 'Preset not found' } };
+            if (existing.name !== name || JSON.stringify(parsePresetData(existing)) !== JSON.stringify(data)) return { status: 409, body: { detail: 'Preset request ID already used' } };
+            return { status: 201, body: { preset: publicPreset(existing) } };
+          }
+          if (own.length >= 100) return { status: 409, body: { detail: 'Preset limit reached (100)' } };
+          const preset = { ...data, id: body.requestId, name, createdAt: Math.floor(Date.now() / 1000), owner: principal.id };
+          this.presets.push(preset);
+          return { status: 201, body: { preset: publicPreset(preset) } };
+        } catch {
+          return invalid;
+        }
+      }
+      const preset = own.find((item) => item.id === seg[2]);
+      if (!preset) return { status: 404, body: { detail: 'Preset not found' } };
+      if (seg.length === 3 && method === 'PUT') {
+        preset.name = name;
+        return ok({ preset: publicPreset(preset) });
+      }
+      if (seg.length === 3 && method === 'DELETE') {
+        this.presets = this.presets.filter((item) => item !== preset);
+        return ok({ deleted: preset.id });
+      }
+    }
 
     // --------------------------------------------------------------- Benutzer (Admin)
     if (path === '/auth/me' && method === 'GET') return ok(principal);

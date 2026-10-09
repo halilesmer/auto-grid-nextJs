@@ -33,8 +33,8 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B5a | Page `/backtest` with one run; test button of a zone opens it; run log texts; netting refusal | BKT-06, BKT-10, BKT-12 (zone → backtest) | done (PR B5a) |
 | B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | done (PR B5b) |
 | B6 | Chart with equity area and replay | BKT-07 | done |
-| B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | open |
-| B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | open |
+| B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | implemented by Codex (2026-10-08) |
+| B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | implemented by Codex (2026-10-08) |
 | B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check open |
 
 Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4. B2.1 comes from the review of PR #114.
@@ -574,6 +574,32 @@ The playback cursor is an exclusive end time. Both the worker and chart omit a d
 
 Verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. Tests were not added or run at the user's request.
 
+## Result B7 (Codex, 2026-10-08)
+
+| Item | Result |
+|---|---|
+| Author | Codex. Detailed implementation and decisions: `2026-10-08-backtest-b7-multiple-setups.md`. |
+| Setups | Up to six local copies; create from a saved setup or defaults, edit, duplicate, select, and remove. |
+| Execution | Up to two concurrent runs, independent workers and progress, session-wide run IDs, stale message guards. |
+| Account change | All workers and results are cleared. Local setup parameters remain; commission and CSV selections reset. |
+| Comparison | Existing KPIs, test-end summaries, source and period snapshots, setup/weekday/hour breakdowns, selected equity overlays. |
+| Aggregation | Same period and known currency, different setups, one candle path per setup. Sum of independent capital amounts. |
+| Validation | TypeScript and ESLint passed. No tests added or run, as requested. Browser and VPS behavior not verified at runtime. |
+| B8 | Implemented next; see the B8 result below. |
+
+## Result B8 (Codex, 2026-10-08)
+
+| Item | Result |
+|---|---|
+| Storage | Migration 3 adds owner-scoped presets to market.sqlite. Authenticated GET/POST and PUT/DELETE routes; foreign IDs return 404, including for admins. |
+| Payload | Version 1, name, whitelisted zone parameters, run form, range, and app version. No zone identities, results, or CSV import references. At most 100 per user; creation retries use a UUID request ID. |
+| UI | Save from setup cards; load as a new local setup, rename, delete, or transfer from the preset library. Turkish, English, and German labels and hints. |
+| Transfer | Select an accessible account and a same-symbol replacement or a new inactive zone. Normalize lots against target symbol details. Preserve identity and activation on replacement. |
+| Dashboard | One-shot sessionStorage handoff bound to worker/user, expiring after five minutes. Load saved settings before applying the draft; show unsaved/running-bot notice. No settings POST or autosave. |
+| Current model | The earlier plan mentioned fractal sid regeneration. Fractal sub-setups have since been removed; the whitelist omits all obsolete fields instead. |
+| Validation | TypeScript, ESLint, Pyright, Python AST, and diff whitespace checks passed. No tests added or run at user request. Browser behavior and real database migration not verified. |
+| Details | `2026-10-08-backtest-b8-presets-transfer.md`. No VPS access or deployment. |
+
 ## Open points
 
 - [x] B1: cost values of the symbol, commission proposal (PR #111).
@@ -595,8 +621,8 @@ Verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. T
 - [ ] B4 model limits, to show on the page: the bot runs at path points, after each fill or exit and at zone borders, not every second as live. Rules that depend on the wait time between two loops (the 30-s brake) use the simulated clock. Weekend swap only through the triple day. Samples of the equity are at the candle ends, so the max. drawdown inside a candle is not seen.
 - [x] B5a: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
 - [x] B6: chart; max. 50,000 displayed candles; replay does not show candles or trade events after its cursor.
-- [ ] B7: more setups; a late run does not overwrite a different setup.
-- [ ] B8: presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive.
+- [x] B7 (Codex): up to six local setups, two concurrent workers, run identity guards, comparison and equity overlay. See `2026-10-08-backtest-b7-multiple-setups.md`.
+- [x] B8 (Codex): user-owned presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive. See `2026-10-08-backtest-b8-presets-transfer.md`.
 - [x] B9: CSV import; an aborted or wrong import cannot be selected (see "Result B9").
 - [ ] B9, manual check on the VPS (DEMO): import one real M1 CSV of about 1 year, then read it with `GET /api/market/{id}/rates?source=csv:<id>`, and check the time zone offset against a candle that MT5 also has.
 - [x] B5a done (moved): `CsvImportPanel` is on `/backtest`. B5b: add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list). Done in B5b.
@@ -604,5 +630,5 @@ Verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. T
 - [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
 - [ ] B5 (review, not done): an abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list). The text for `csv_gap` is done (B5b). The missing `account_id`, `server_now`, `offset_sec` in the CSV answer of `rates` are not needed by the run; add them with B6 if the chart shows CSV candles.
 - [x] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes come from the candles in the browser (`TimeframeAggregator`). The test of the job uses `source`.
-- [ ] B5/B7: decide which KPIs of "Items from the first concept" (1–7) `computeStats` gets.
+- [x] B7 decision (Codex): compare the existing `computeStats` KPIs and the run summaries unchanged. Items 1–7 remain proposals for later work.
 - [x] B9: define the accepted CSV formats (item 8 of "Items from the first concept"): header names or position, MT5 export with date and time apart, separators `,` `;` tab, UTF-8 or UTF-16, epoch seconds/milliseconds or text times (see "Result B9").

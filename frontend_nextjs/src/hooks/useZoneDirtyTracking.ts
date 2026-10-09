@@ -26,11 +26,11 @@ export function useZoneDirtyTracking(
       accountKeyRef.current = accountKey;
       initializedRef.current = false;
     }
-    if (zones.length > 0 && !initializedRef.current) {
+    if ((zones.length > 0 || isGlobalDirty === false) && !initializedRef.current) {
       setOriginalZones(zones.map((z) => ({ ...z })));
       initializedRef.current = true;
     }
-  }, [zones, accountKey]);
+  }, [zones, accountKey, isGlobalDirty]);
 
   useEffect(() => {
     if (isGlobalDirty === false) {
