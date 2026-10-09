@@ -21,26 +21,26 @@ areas: [frontend, worker, tests, docs]
 
 | Order | Task | State | Evidence or next action |
 |---|---|---|---|
-| 1 | Audit and status corrections | Complete | Main is v0.7.186. Git confirms PRs #123, #136, #137, #139 and #140 are merged. |
-| 2 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. |
-| 3 | B4 swap constants | Blocked | The current process has no VPS SSH configuration. Official enum names do not prove installed numeric constants. |
-| 4 | B4 model limits on the page | Locally verified | `scripts/features/run.sh e2e BKT-10`: 9 passed; screenshots inspected at 375px/1280px in both themes. |
-| 5 | B5/B9 abort during import creation | Locally verified | Delayed creation IDs are removed before upload after cancel or SPA unmount. The final BKT-05 e2e run passed 14 tests. |
-| 6 | B9 database lock during import | Locally verified | CSV parsing holds no write lock; unpublished batches remain unreadable. The final API run passed 50 tests. |
-| 7 | B9 changing broker offset | Locally verified | Row mode accepts UTC timestamps and historical broker offsets, with strict converted ordering. API and browser DST vectors pass. |
-| 8 | B9 real annual CSV | Blocked | No verified real annual file is supplied. A concrete VPS import action needs separate authorization. |
-| 9 | B4 million-candle profile | Complete | PR #140 and its raw observations: 260,944 trades; 164.512 seconds simulation after repair. |
-| 10 | ZON-21 manual DEMO trading check | Blocked | It requires settings changes, bot start and orders. No concrete authorization under this continuation. |
-| 11 | B7/B8, B1 history, stops-level flood | Complete | PR #136, recorded history check and PR #123. |
-| 12 | Live timeout | Conditional | PR #137 records a successful live backtest. Capture HTTP and logs only if a timeout returns. |
+| 1 | Audit merged work | Complete | Local `main` is clean at `42d8ba4` (`v0.7.187`), after merge commit `6a7c648` for PR #141. The checkout also contains PR #140, #139, #137, #136, #123 and earlier work. |
+| 2 | Verify GitHub checks and deployed versions | Partially verified | `gh pr view 141 ...` could not connect to `api.github.com`, so CI remains unknown. The local read-only VPS status route returned worker version `v0.7.187`, commit `42d8ba4e`, reachable and listening. No deployment or trading state was changed. |
+| 3 | B4 installed swap constants and symbol values | Blocked | The local symbol endpoint returned HTTP 401 with the available local configuration. No symbol values or installed constants were obtained. Retry through an authorized, reliable read-only route; compare installed `SYMBOL_SWAP_MODE_*` values with distinct live `swap_mode` values. |
+| 4 | B9 real annual M1 import and broker-time check | Blocked | No verified real annual CSV was supplied or found in the project/import paths. Local account configuration files exist, but the worker import still requires a verified source file, coverage, time basis, and target DEMO account. Do not replace an existing import. |
+| 5 | ZON-21 manual DEMO trading check | Blocked | The available terminal preflight showed existing trading activity, so test isolation is not satisfied. Do not start or change trading state. Run only on a verified, isolated DEMO account with a stopped bot and no existing positions or orders; restore the test settings and clean only test-created state. |
+| 6 | Final status, catalog, and journal | Waiting | Update the manual result and close this audit only after the external checks above have evidence. Keep synthetic annual tests separate from real broker verification. |
+| 7 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. The annual test uses synthetic and mocked data. |
+| 8 | B4 page limits and one-million-candle profile | Complete | BKT-10 e2e: 9 passed. PR #140 records 260,944 trades and 164.512 seconds of simulation after repair. |
+| 9 | B5/B9 import cancellation, writes, and seasonal offsets | Complete locally | PR #141 is in local `main`. Its journal records the final BKT-05 API run (50 passed), e2e run (14 passed), and BKT-10 e2e run (9 passed). These are local tests, not a VPS import. |
+| 10 | B7/B8, B1 history, stops-level flood | Complete | PR #136, recorded history check and PR #123. |
+| 11 | Live timeout evidence | Conditional | PR #137 records a successful live backtest. Capture HTTP status and worker logs only if a timeout returns. |
 
 ## Limits
 
 - The automatic approval review rejected combined merge, deployment and VPS trading authorization.
 - The user authorized a normal PR workflow, with merge and pull only when repository rules and automatic approval allow it.
-- No deployment or VPS trading action is authorized.
+- The user authorized the requested external and DEMO actions. Preserve existing trading state and stop if a precondition fails.
 - Synthetic annual data does not prove a real annual import or broker time agreement.
 - Worker tests use temporary databases and FakeMT5. Do not start the Python worker on this Mac.
+- Do not use or print account identifiers from another source. The local DEMO profile and frontend environment files are present, but the symbol endpoint rejects the available key with HTTP 401.
 
 ## Changes and evidence
 
@@ -63,5 +63,8 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 
 ## Open points
 
-- [ ] Inspect CI for PR #141; merge and pull only if automatic approval allows it.
-- [ ] Obtain the external evidence for the real annual CSV, installed swap constants and ZON-21 manual DEMO check.
+- [ ] Restore authorized symbol API access and record the installed swap constants and distinct symbol values.
+- [ ] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check.
+- [ ] Find an isolated DEMO account that meets the ZON-21 preconditions; run the test only if no existing trading state can be affected.
+- [ ] Verify PR #141 CI when GitHub access returns; worker deployment is verified at `v0.7.187` / `42d8ba4e`.
+- [ ] Update the catalog and close this plan after all external evidence is recorded.
