@@ -273,6 +273,10 @@ export function ChartCore({
   useEffect(() => {
     balanceRef.current?.setData((balance ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp })));
     equityRef.current?.setData((equity ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp })));
+    const lastBalance = balance?.at(-1);
+    const lastEquity = equity?.at(-1);
+    containerRef.current?.setAttribute('data-last-balance', lastBalance ? `${lastBalance.time}:${lastBalance.value}` : '');
+    containerRef.current?.setAttribute('data-last-equity', lastEquity ? `${lastEquity.time}:${lastEquity.value}` : '');
   }, [balance, equity]);
 
   useEffect(() => {

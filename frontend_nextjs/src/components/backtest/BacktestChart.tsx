@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Pause, Play, RotateCcw } from 'lucide-react';
+import { Pause, Play, RotateCcw, Square } from 'lucide-react';
 
 import { ChartCore, type OverlayLine, type TradeLinkLine, type TradeMarker } from '@/components/analysis/chart/ChartCore';
 import { TradesTable } from '@/components/analysis/TradesTable';
@@ -33,7 +33,7 @@ function makeBalanceCurve(result: RunResult, cursor: number | null) {
     }
     return { time: point.time, value };
   });
-  return points.filter((point) => cursor === null || point.time <= cursor);
+  return points.filter((point) => cursor === null || point.time < cursor);
 }
 
 export function BacktestChart({
@@ -52,7 +52,7 @@ export function BacktestChart({
   const chartData = useBacktestStore((s) => s.runs[context.setupId]?.chartData);
   const [timeframe, setTimeframe] = useState<Timeframe>(context.params.dataTimeframe);
   const [speed, setSpeed] = useState<ReplaySpeed>('1');
-  const [replayIndex, setReplayIndex] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [focus, setFocus] = useState<{ time: number; seq: number } | null>(null);
 
@@ -65,28 +65,30 @@ export function BacktestChart({
   const bars = activeData?.bars ?? EMPTY_BARS;
   const tfSec = TIMEFRAME_SEC[timeframe];
 
+  // Der Replay-Zeitpunkt bleibt auch beim Laden eines anderen Zeitrahmens erhalten.
+  const visibleCount = cursor === null ? bars.length : bars.filter((bar) => bar.time + tfSec <= cursor).length;
+  const replayIndex = cursor === null ? null : visibleCount - 1;
+
   useEffect(() => {
     if (!playing || bars.length === 0) return;
-    const current = replayIndex ?? 0;
+    const current = visibleCount - 1;
     const next = Math.min(bars.length - 1, current + (speed === 'max' ? 100 : Number(speed)));
     const timer = window.setTimeout(() => {
-      setReplayIndex(next);
+      setCursor(bars[next].time + tfSec);
       onReplayCursorChange(bars[next].time + tfSec);
       if (next >= bars.length - 1) setPlaying(false);
     }, speed === 'max' ? 100 : 1000);
     return () => window.clearTimeout(timer);
-  }, [playing, speed, bars, replayIndex, tfSec, onReplayCursorChange]);
+  }, [playing, speed, bars, visibleCount, tfSec, onReplayCursorChange]);
 
-  const visibleCount = replayIndex === null ? bars.length : Math.min(bars.length, replayIndex + 1);
   const visibleBars = useMemo(() => bars.slice(0, visibleCount), [bars, visibleCount]);
-  const cursor = replayIndex === null || bars.length === 0 ? null : bars[replayIndex]?.time + tfSec;
   const chart = useMemo(
     () => buildChartData(visibleBars, activeData?.missing ?? [], tfSec, cursor ?? context.params.to),
     [visibleBars, activeData?.missing, tfSec, cursor, context.params.to],
   );
 
   const trades = useMemo(
-    () => result.trades.filter((trade) => cursor === null || trade.exitTime <= cursor),
+    () => result.trades.filter((trade) => cursor === null || trade.exitTime < cursor),
     [result.trades, cursor],
   );
   const readyExcursions = useMemo(() => {
@@ -101,7 +103,7 @@ export function BacktestChart({
   const markers = useMemo<TradeMarker[]>(() => {
     const out: TradeMarker[] = [];
     for (const trade of result.trades) {
-      if (cursor !== null && trade.entryTime !== null && trade.entryTime > cursor) continue;
+      if (cursor !== null && trade.entryTime !== null && trade.entryTime >= cursor) continue;
       const entry = trade.entryTime === null ? null : Math.floor(trade.entryTime / tfSec) * tfSec;
       if (entry !== null && trade.entryPrice !== null && visibleTimes.has(entry)) {
         out.push({
@@ -112,7 +114,7 @@ export function BacktestChart({
           tone: trade.side === 'buy' ? 'up' : 'down',
         });
       }
-      if (cursor !== null && trade.exitTime > cursor) continue;
+      if (cursor !== null && trade.exitTime >= cursor) continue;
       const exit = Math.floor(trade.exitTime / tfSec) * tfSec;
       if (visibleTimes.has(exit)) {
         let text: string | undefined;
@@ -165,7 +167,7 @@ export function BacktestChart({
   ], [band, levels, t]);
 
   const balance = useMemo(() => makeBalanceCurve(result, cursor), [result, cursor]);
-  const equity = useMemo(() => result.equity.filter((point) => cursor === null || point.time <= cursor), [result.equity, cursor]);
+  const equity = useMemo(() => result.equity.filter((point) => cursor === null || point.time < cursor), [result.equity, cursor]);
 
   const tfTabs = compatibleTfs.map((tf) => ({ id: tf, label: tf, hint: t('backtest.chart.timeframe.hint', { tf }) }));
   const speedTabs = (['1', '5', '10', 'max'] as const).map((item) => ({
@@ -183,7 +185,7 @@ export function BacktestChart({
         <div className="space-y-4 px-5 pb-5 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="max-w-full overflow-x-auto">
-              <AnimatedTabs tabs={tfTabs} activeTab={timeframe} onChange={(id) => { setTimeframe(id as Timeframe); setReplayIndex(null); setPlaying(false); onReplayCursorChange(null); }} layoutId={`bt-tf-${result.path}`} variant="segment" />
+              <AnimatedTabs tabs={tfTabs} activeTab={timeframe} onChange={(id) => { setTimeframe(id as Timeframe); setPlaying(false); }} layoutId={`bt-tf-${result.path}`} variant="segment" />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -195,8 +197,7 @@ export function BacktestChart({
                 onClick={() => {
                   if (playing) { setPlaying(false); return; }
                   if (ended || replayIndex === null) {
-                    setReplayIndex(0);
-                    if (first) onReplayCursorChange(first.time + tfSec);
+                    if (first) { setCursor(first.time + tfSec); onReplayCursorChange(first.time + tfSec); }
                   }
                   setPlaying(true);
                 }}
@@ -209,9 +210,19 @@ export function BacktestChart({
                 hint={t('backtest.chart.restart.hint')}
                 aria-label={t('backtest.chart.restart')}
                 disabled={!first}
-                onClick={() => { setPlaying(false); setReplayIndex(0); if (first) onReplayCursorChange(first.time + tfSec); }}
+                onClick={() => { setPlaying(false); if (first) { setCursor(first.time + tfSec); onReplayCursorChange(first.time + tfSec); } }}
               >
                 <RotateCcw size={14} />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                hint={t('backtest.chart.finish.hint')}
+                aria-label={t('backtest.chart.finish')}
+                disabled={cursor === null}
+                onClick={() => { setPlaying(false); setCursor(null); onReplayCursorChange(null); }}
+              >
+                <Square size={14} />
               </Button>
               <div className="max-w-[16rem] overflow-x-auto">
                 <AnimatedTabs tabs={speedTabs} activeTab={speed} onChange={(id) => setSpeed(id as ReplaySpeed)} layoutId={`bt-speed-${result.path}`} variant="segment" />

@@ -1540,11 +1540,13 @@ kategorien:
 
       - id: BKT-07
         titel: Backtest-Chart mit Wiedergabe (B6)
-        beschreibung: "Chart auf analysis/chart/ChartCore.tsx: Kerzen, Zonenband, Grid-Stufen, Trade-Pfeile, TP/SL-Marker, Equity-/Balance-Bereich und Trades-Tabelle mit exaktem MFE/MAE. Wiedergabe 1x/5x/10x/Max; Anzeige-Zeitrahmen. Der Rechen-Worker liefert höchstens 50.000 abgeschlossene Anzeige-Kerzen. Während der Wiedergabe bleiben Kerzen, Trades, Kurven, Marker und Tabelle auf den Wiedergabe-Zeitpunkt begrenzt. Lücken sind grau."
+        beschreibung: "Chart auf analysis/chart/ChartCore.tsx: Kerzen, Zonenband, Grid-Stufen, Trade-Pfeile, TP/SL-Marker, Equity-/Balance-Bereich und Trades-Tabelle mit exaktem MFE/MAE. Wiedergabe 1x/5x/10x/Max; Anzeige-Zeitrahmen. Der Rechen-Worker liefert höchstens 50.000 abgeschlossene Anzeige-Kerzen. Während der Wiedergabe bleiben Kerzen, Trades, Kurven, Marker und Tabelle auf den exklusiven Wiedergabe-Zeitpunkt begrenzt, auch beim Zeitrahmenwechsel und während des Nachladens. Wiedergabe beenden zeigt das vollständige Ergebnis wieder. MFE/MAE enthält den Gegenkurs beim Einstieg (Spread). Lücken sind grau."
         code: [frontend_nextjs/src/components/backtest/BacktestChart.tsx, frontend_nextjs/src/components/backtest/RunResultView.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/analysis/TradesTable.tsx, frontend_nextjs/src/lib/backtest/candles/displayBars.ts, frontend_nextjs/src/lib/backtest/protocol.ts, frontend_nextjs/src/lib/backtest/backtest.worker.ts, frontend_nextjs/src/lib/backtest/runJob.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/src/lib/backtest/broker/pathBroker.ts, frontend_nextjs/src/hooks/useBacktestRun.ts, frontend_nextjs/src/store/useBacktestStore.ts, frontend_nextjs/src/i18n/messages/backtest.ts, frontend_nextjs/src/i18n/messages/hints.ts]
         tiers: [e2e]
         pruefung:
-          - Einen Lauf über 1 Jahr M1 öffnen, Anzeige-Zeitrahmen wechseln, Wiedergabe starten.
+          - Automatisiert synthetische Jahresdaten M1 und einen echten Browser-Web-Worker gegen den Mock prüfen; keine VPS-Jahresprüfung.
+          - Anzeige-Zeitrahmen während Replay wechseln; 1x/5x/10x/Max, Pause, Neustart und Wiedergabe beenden prüfen.
+          - Exklusive Zeitgrenze für Trades, Marker, Kurven und Tabelle sowie veraltete Lauf-/Chart-Antworten prüfen.
         erwartet: Höchstens 50.000 abgeschlossene Anzeige-Kerzen; bei jeder Wiedergabe-Position zeigen Chart, Kurven, Marker und Trades-Tabelle keine Daten nach diesem Zeitpunkt. End-KPIs, Statistik, Protokoll und andere Kerzenwege sind während der Wiedergabe ausgeblendet. Fehlende Bereiche sind grau markiert und werden nie mit Kerzen gefüllt.
 
       - id: BKT-08

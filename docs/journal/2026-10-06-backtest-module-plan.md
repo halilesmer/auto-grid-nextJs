@@ -25,16 +25,16 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | Step | Content | Features | State |
 |---|---|---|---|
 | B0 | This plan, catalog entries, architecture map | – | done (PR #110) |
-| B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); the VPS check of "Max. bars" is open |
+| B1 | Cost values of the symbol in the worker, TS type, commission proposal | BKT-04 (part) | done (PR #111); history check recorded below: MT5 gives less than one year |
 | B2 | Engine port, grid, and `simBroker` in parity mode | BKT-02 | done (PR #114) |
 | B2.1 | Parity scenarios for the paths that B2 does not test (gaps G1–G7) | BKT-01, BKT-02 | done (PR #115) |
 | B3 | Engine port, fractal (ATR, SAR) | BKT-03 | done (PR #126) |
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR #130) |
 | B5a | Page `/backtest` with one run; test button of a zone opens it; run log texts; netting refusal | BKT-06, BKT-10, BKT-12 (zone → backtest) | done (PR B5a) |
 | B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | done (PR B5b) |
-| B6 | Chart with equity area and replay | BKT-07 | done |
-| B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | implemented by Codex (2026-10-08) |
-| B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | implemented by Codex (2026-10-08) |
+| B6 | Chart with equity area and replay | BKT-07 | implemented and automated verification passed (PR #139; synthetic/mock annual data; awaiting merge) |
+| B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | done (PR #136; tests and CI passed) |
+| B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | done (PR #136; tests and CI passed) |
 | B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check open |
 
 Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4. B2.1 comes from the review of PR #114.
@@ -547,7 +547,7 @@ Branch `backtest-b5b-data-source`. The settings card has the field "Data source"
 
 **Decisions**
 
-- The CSV answer of `rates` stays without `account_id`, `server_now` and `offset_sec` (open point of B5). The run does not read them: the range comes from the broker clock of `/clock`, and `loadRates` reads only the candle columns. Add them only when a page shows CSV candles on the chart (B6).
+- The CSV answer of `rates` stays without `account_id`, `server_now` and `offset_sec` (open point of B5). The run does not read them: the range comes from the broker clock of `/clock`, and `loadRates` reads only the candle columns. B6 also builds the chart from these columns and the broker-time run range. No extra response fields are needed.
 - The import list is local state of the page, not a Zustand store. Only `/backtest` reads it.
 - The result does not show the data source yet. Add it when B7 compares more runs.
 
@@ -572,7 +572,9 @@ Branch `backtest-b5b-data-source`. The settings card has the field "Data source"
 
 The playback cursor is an exclusive end time. Both the worker and chart omit a display candle until its complete timeframe ends. The chart therefore cannot reveal the unfinished candle's future high, low, or close.
 
-Verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. Tests were not added or run at the user's request.
+Initial verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. Tests were not added or run at the user's request.
+
+Follow-up: tests are now authorized. The BKT-07 verification and repairs are recorded in `2026-10-09-backtest-b6-replay-verification.md`.
 
 ## Result B7 (Codex, 2026-10-08)
 
@@ -606,7 +608,7 @@ Verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. T
 - [x] B1, manual check on the VPS (DEMO, read only; the worker runs only there): in the MT5 terminal, set Tools → Options → Charts → "Max. bars in chart" to "Unlimited" and restart the terminal. Then examine `/chart` or `GET /api/market/{id}/coverage` for 1 year of M1. If MT5 does not give 1 year, do B9 (CSV import) before B4.
 - [x] B2: engine port, grid; the 13 grid, exit and instant scenarios give the same event sequence as the golden files (PR #114).
 - [x] B2 follow-up from the review of PR #114 = B2.1 (PR #115): 11 new scenarios, and the TS port agrees with all 24 (see "Result B2.1"). Two symbols and the top-up after a partial fill stay V2 (see "Not simulated").
-- [ ] Bot defect found in B2.1: with a stops level larger than the TP or SL distance, the bot cancels and sends all orders in each loop (`2026-10-06-stops-level-order-flood.md`). A fix changes `grid_stops_level.json` and the TS port.
+- [x] Bot defect found in B2.1: fixed by PR #123. Pending order validation now uses the adjusted TP/SL values. The golden file and TS port agree. See `2026-10-06-stops-level-order-flood.md`.
 - [x] B4: `simBroker.bars()` builds all candles again from all ticks at each call. Done differently: a real run uses `TimeframeAggregator` (incremental, last 1,000 bars). `simBroker.bars()` stays for the parity scenarios (a few hundred ticks).
 - [x] B4 (from B2.1): `simBroker.symbolInfoOf` uses the FakeMT5 default for a missing symbol field. In a real run, `snapshotSymbol` blocks the run (`run.symbolFieldMissing`).
 - [x] B4 (from B2.1): the run log tells that rejects for the stops level and the freeze level are not simulated (`run.stopsLevelNotSimulated`, `run.rejectsNotSimulated`).
@@ -628,7 +630,7 @@ Verification: `npx tsc --noEmit` passed. `npx eslint` on changed files passed. T
 - [x] B5a done (moved): `CsvImportPanel` is on `/backtest`. B5b: add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list). Done in B5b.
 - [ ] B9 (review, not done): the commit holds the database write lock while it parses and writes (up to 2 million rows); saving settings waits in that time. Use staging tables or write in parts if this shows on the VPS.
 - [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
-- [ ] B5 (review, not done): an abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list). The text for `csv_gap` is done (B5b). The missing `account_id`, `server_now`, `offset_sec` in the CSV answer of `rates` are not needed by the run; add them with B6 if the chart shows CSV candles.
+- [ ] B5 (review, not done): an abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list). The text for `csv_gap` is done (B5b). B6 builds CSV chart candles from the loaded rates and the run's broker-time range. It does not need `account_id`, `server_now`, or `offset_sec` in that answer.
 - [x] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes come from the candles in the browser (`TimeframeAggregator`). The test of the job uses `source`.
 - [x] B7 decision (Codex): compare the existing `computeStats` KPIs and the run summaries unchanged. Items 1–7 remain proposals for later work.
 - [x] B9: define the accepted CSV formats (item 8 of "Items from the first concept"): header names or position, MT5 export with date and time apart, separators `,` `;` tab, UTF-8 or UTF-16, epoch seconds/milliseconds or text times (see "Result B9").
