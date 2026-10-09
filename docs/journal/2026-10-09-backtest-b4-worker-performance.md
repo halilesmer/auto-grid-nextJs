@@ -3,7 +3,7 @@ date: 2026-10-09
 author: Codex
 type: diagnosis
 status: done
-pr: []
+pr: [140]
 features: [BKT-02, BKT-04]
 areas: [frontend, tests, docs]
 ---
