@@ -37,7 +37,7 @@ export default function AppNav() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/75 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-4 sm:gap-6 md:px-8">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 md:px-8">
         <Tooltip content={t('nav.home.hint', { version: VERSION })}>
           <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]">
@@ -50,10 +50,13 @@ export default function AppNav() {
           </Link>
         </Tooltip>
 
-        {/* Handy: ohne Trennstrich, damit alle Menü-Symbole (bis zu 5) in die Zeile passen */}
-        <div className="hidden h-6 w-px shrink-0 bg-border sm:block" />
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+          <ConnectionChip variant="inline" />
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
 
-        <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-1 border-t border-border pt-2">
           {LINKS.filter((link) => !link.visible || link.visible(me)).map(({ href, labelKey, hintKey, icon: Icon }) => {
             const label = t(labelKey);
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -64,30 +67,25 @@ export default function AppNav() {
                   aria-current={active ? 'page' : undefined}
                   aria-label={label}
                   className={cn(
-                    'relative flex items-center gap-2 rounded-md px-1.5 py-1.5 text-sm sm:px-3 font-medium transition-colors',
+                    'relative flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {active && (
                     <motion.span
                       layoutId="app-nav-active"
-                      className="absolute inset-0 rounded-md border border-border bg-accent/70"
+                      className="absolute inset-0 rounded-lg border border-border bg-accent/70"
                       transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
                     />
                   )}
-                  <Icon size={15} className="relative z-10" />
-                  <span className="relative z-10 hidden sm:inline">{label}</span>
+                  <Icon size={15} className="relative z-10 shrink-0" />
+                  <span className="relative z-10">{label}</span>
                 </Link>
               </Tooltip>
             );
           })}
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <ConnectionChip variant="inline" />
-          <LanguageSwitcher />
-          <ThemeToggle />
-        </div>
       </div>
       {/* Handy: kein Platz in der Kopfzeile, der Status steht in einer schmalen Zeile darunter */}
       <ConnectionChip variant="bar" />

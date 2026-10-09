@@ -993,7 +993,7 @@
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 20
+      "tests": 23
     }
   },
   "UI-09": {
@@ -1359,7 +1359,7 @@
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 20
+      "tests": 6
     }
   },
   "ZON-21": {
