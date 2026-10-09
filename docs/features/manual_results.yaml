@@ -296,6 +296,12 @@ ANA-13:
   datum: '2026-10-01'
   notiz: 'VPS 01.10.2026: Deal #231139614 16:34:13 = MT5, UTC+3 verlässlich, Hedging,
     kein Login im Journal'
+BKT-05:
+  status: bestanden
+  datum: '2026-10-10'
+  notiz: 'B9 VPS: drei reale Jahres-M1-Importe committed; USOUSD 2026-10-09 23:58
+    Zeit und OHLC stimmen in CSV, API und MT5 überein. Offset 0 erhält Brokerzeit;
+    historische Spreads nicht übernommen.'
 BKT-06:
   status: bestanden
   datum: '2026-10-09'

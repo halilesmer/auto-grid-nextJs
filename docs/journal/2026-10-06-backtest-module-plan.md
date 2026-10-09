@@ -35,7 +35,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B6 | Chart with equity area and replay | BKT-07 | done (PR #139 merged; synthetic/mock annual verification) |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | done (PR #136; tests and CI passed) |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | done (PR #136; tests and CI passed) |
-| B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check open |
+| B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check complete, see `2026-10-10-backtest-b9-vps-import.md` |
 
 Order (changed 2026-10-06 after the B1 check): B0 → B1 → B2 → B2.1 → B3 → B9 → B4 → B5 → B6 → B7 → B8. MT5 on the VPS does not give 1 year of M1 (see "Result of the history check"). Thus, B9 (CSV import) comes before B4. B2.1 comes from the review of PR #114.
 
@@ -627,7 +627,7 @@ Follow-up: tests are now authorized. The BKT-07 verification and repairs are rec
 - [x] B7 (Codex): up to six local setups, two concurrent workers, run identity guards, comparison and equity overlay. See `2026-10-08-backtest-b7-multiple-setups.md`.
 - [x] B8 (Codex): user-owned presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive. See `2026-10-08-backtest-b8-presets-transfer.md`.
 - [x] B9: CSV import; an aborted or wrong import cannot be selected (see "Result B9").
-- [ ] B9, manual check on the VPS (DEMO): import one verified real M1 CSV of about 1 year, then read it with `GET /api/market/{id}/rates?source=csv:<id>`, and check the time zone offset against a candle that MT5 also has.
+- [x] B9, manual check on the VPS (DEMO): three verified annual M1 imports committed. USOUSD API time and OHLC matched the CSV and MT5 at 2026-10-09 23:58. Fixed offset zero preserves broker wall time; see `2026-10-10-backtest-b9-vps-import.md`.
 - [x] B5a done (moved): `CsvImportPanel` is on `/backtest`. B5b: add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list). Done in B5b.
 - [x] B9 (review): CSV parsing runs outside the write lock. The worker writes uncommitted candles in 50,000-row batches, then publishes the import and removes overlaps atomically. The API test checks another writer during parsing.
 - [x] B9 (review): row mode accepts UTC timestamps and the historical `broker_offset_sec` per row. The worker checks the selected mode, zero global offset, ±14-hour range, strict broker-time order and imported provenance. API and browser tests cover both seasonal transitions and the duplicate autumn hour.
