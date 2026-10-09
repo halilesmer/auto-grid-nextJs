@@ -21,18 +21,17 @@ areas: [frontend, worker, tests, docs]
 
 | Order | Task | State | Evidence or next action |
 |---|---|---|---|
-| 1 | Audit and status corrections | Complete | Main is v0.7.186. Git confirms PRs #123, #136, #137, #139 and #140 are merged. |
-| 2 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. |
-| 3 | B4 swap constants | Blocked | The current process has no VPS SSH configuration. Official enum names do not prove installed numeric constants. |
-| 4 | B4 model limits on the page | Locally verified | `scripts/features/run.sh e2e BKT-10`: 9 passed; screenshots inspected at 375px/1280px in both themes. |
-| 5 | B5/B9 abort during import creation | Locally verified | Delayed creation IDs are removed before upload after cancel or SPA unmount. The final BKT-05 e2e run passed 14 tests. |
-| 6 | B9 database lock during import | Locally verified | CSV parsing holds no write lock; unpublished batches remain unreadable. The final API run passed 50 tests. |
-| 7 | B9 changing broker offset | Locally verified | Row mode accepts UTC timestamps and historical broker offsets, with strict converted ordering. API and browser DST vectors pass. |
-| 8 | B9 real annual CSV | Blocked | No verified real annual file is supplied. A concrete VPS import action needs separate authorization. |
-| 9 | B4 million-candle profile | Complete | PR #140 and its raw observations: 260,944 trades; 164.512 seconds simulation after repair. |
-| 10 | ZON-21 manual DEMO trading check | Blocked | It requires settings changes, bot start and orders. No concrete authorization under this continuation. |
-| 11 | B7/B8, B1 history, stops-level flood | Complete | PR #136, recorded history check and PR #123. |
-| 12 | Live timeout | Conditional | PR #137 records a successful live backtest. Capture HTTP and logs only if a timeout returns. |
+| 1 | Audit merged work | Complete | Local `main` is clean at `42d8ba4` (`v0.7.187`), after merge commit `6a7c648` for PR #141. The checkout also contains PR #140, #139, #137, #136, #123 and earlier work. |
+| 2 | Verify GitHub checks and deployed versions | Blocked | `gh pr view 141 ...` could not connect to `api.github.com`. No VPS SSH configuration, SSH agent identity, `VPS_SSH_HOST`, `VPS_SSH_KEY`, `VPS_REPO_PATH`, or `WORKER_API_KEY` is available in this process. The local frontend environment file is absent. Do not infer VPS deployment from the local version or auto-update design. |
+| 3 | B4 installed swap constants and symbol values | Blocked | No read-only VPS/API path is configured. Compare the installed `SYMBOL_SWAP_MODE_*` values with distinct live `swap_mode` values from `GET /api/symbols`; accepted values remain 0, 1 and 4. |
+| 4 | B9 real annual M1 import and broker-time check | Blocked | No verified real annual CSV was supplied or found among tracked project files. Obtain a file with its source and coverage, select the DEMO account and symbol, then get approval for the specific import. Read the imported rates and compare an overlapping MT5 candle, including seasonal offsets. |
+| 5 | ZON-21 manual DEMO trading check | Blocked | The catalog still marks the manual tier pending. Prepare a suitable isolated DEMO zone and a bounded test that records its original settings and restores them. Get specific approval before saving settings, starting the bot, or allowing pending orders. Preserve existing zones, bots, positions, and orders. |
+| 6 | Final status, catalog, and journal | Waiting | Update the manual result and close this audit only after the external checks above have evidence. Keep synthetic annual tests separate from real broker verification. |
+| 7 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. The annual test uses synthetic and mocked data. |
+| 8 | B4 page limits and one-million-candle profile | Complete | BKT-10 e2e: 9 passed. PR #140 records 260,944 trades and 164.512 seconds of simulation after repair. |
+| 9 | B5/B9 import cancellation, writes, and seasonal offsets | Complete locally | PR #141 is in local `main`. Its journal records the final BKT-05 API run (50 passed), e2e run (14 passed), and BKT-10 e2e run (9 passed). These are local tests, not a VPS import. |
+| 10 | B7/B8, B1 history, stops-level flood | Complete | PR #136, recorded history check and PR #123. |
+| 11 | Live timeout evidence | Conditional | PR #137 records a successful live backtest. Capture HTTP status and worker logs only if a timeout returns. |
 
 ## Limits
 
@@ -41,6 +40,7 @@ areas: [frontend, worker, tests, docs]
 - No deployment or VPS trading action is authorized.
 - Synthetic annual data does not prove a real annual import or broker time agreement.
 - Worker tests use temporary databases and FakeMT5. Do not start the Python worker on this Mac.
+- The current task process has no local DEMO test-account file. Do not use or print account identifiers from another source.
 
 ## Changes and evidence
 
@@ -63,5 +63,8 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 
 ## Open points
 
-- [ ] Inspect CI for PR #141; merge and pull only if automatic approval allows it.
-- [ ] Obtain the external evidence for the real annual CSV, installed swap constants and ZON-21 manual DEMO check.
+- [ ] Restore a read-only VPS path and record the installed swap constants and distinct symbol values.
+- [ ] Obtain and verify the real annual M1 CSV, then approve and perform its scoped DEMO import and overlap check.
+- [ ] Prepare and approve the bounded ZON-21 DEMO order test; record the manual result with the feature runner.
+- [ ] Verify PR #141 CI and deployed versions when GitHub and VPS access return; do not claim deployment from local Git state.
+- [ ] Update the catalog and close this plan after all external evidence is recorded.
