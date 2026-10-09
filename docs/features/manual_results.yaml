@@ -273,10 +273,11 @@ ANA-09:
     und ganzes Konto 1915 Trades +431,43 USD gleich wie rohe /deals; je Setup erkennt
     Z4 Setup 2 (gelöscht)'
 ANA-10:
-  status: fehlgeschlagen
+  status: bestanden
   datum: '2026-10-09'
-  notiz: 'Codex, Live-Prüfung v0.7.182: Broker-Zeit auf /backtest meldet nach DEMO-Kontoauswahl
-    wiederholt Timeout; UI zeigt UTC-Ersatz. Ursache ungeklärt; Journal 2026-10-09-backtest-live-data-timeouts.md.'
+  notiz: 'Live v0.7.182: Broker UTC+3; GET clock HTTP 200 in 148 ms; Letztes Jahr
+    zeigte 01.01.25–31.12.25, eigener Zeitraum blieb nach Neuladen erhalten, 31.02.26
+    wurde abgewiesen.'
 ANA-11:
   status: bestanden
   datum: '2026-10-02'
@@ -296,8 +297,8 @@ ANA-13:
   notiz: 'VPS 01.10.2026: Deal #231139614 16:34:13 = MT5, UTC+3 verlässlich, Hedging,
     kein Login im Journal'
 BKT-06:
-  status: fehlgeschlagen
+  status: bestanden
   datum: '2026-10-09'
-  notiz: 'Codex, Live-Prüfung v0.7.182: Kontoliste nach Neuladen verfügbar; Setup-Einstellungen
-    und Broker-Zeit melden wiederholt Timeouts. Lauf nicht gestartet. Ursache ungeklärt;
-    Journal 2026-10-09-backtest-live-data-timeouts.md.'
+  notiz: 'Live v0.7.182: Settings HTTP 200 (60 ms), Brokeruhr HTTP 200 (148 ms); gespeichertes
+    Setup lief über 30 Tage bis zum Ergebnis. Keine Einstellungen oder Handelszustände
+    geändert.'
