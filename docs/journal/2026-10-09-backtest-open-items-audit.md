@@ -22,10 +22,10 @@ areas: [frontend, worker, tests, docs]
 | Order | Task | State | Evidence or next action |
 |---|---|---|---|
 | 1 | Audit merged work | Complete | Local `main` is clean at `42d8ba4` (`v0.7.187`), after merge commit `6a7c648` for PR #141. The checkout also contains PR #140, #139, #137, #136, #123 and earlier work. |
-| 2 | Verify GitHub checks and deployed versions | Blocked | `gh pr view 141 ...` could not connect to `api.github.com`. Local SSH settings are absent. The local desktop route did not provide reliable remote terminal input. Do not infer VPS deployment from the local version or auto-update design. |
-| 3 | B4 installed swap constants and symbol values | Blocked | The remote console corrupted the read-only query; no constant or symbol result was obtained. Retry through a reliable SSH or local VPS route. Compare installed `SYMBOL_SWAP_MODE_*` values with distinct live `swap_mode` values from `GET /api/symbols`; accepted values remain 0, 1 and 4. |
-| 4 | B9 real annual M1 import and broker-time check | Blocked | No verified real annual CSV was supplied or found among tracked project files. The local DEMO test-account file is also absent. Use the user-authorized import only after the file, source, coverage, time basis, and target DEMO account are verified. Do not replace an existing import. |
-| 5 | ZON-21 manual DEMO trading check | Blocked | The read-only preflight did not meet the test isolation conditions. Do not start or change existing trading state. Run the test only on a verified, isolated DEMO account with a stopped bot and no existing positions or orders; restore the test settings and clean only test-created state. |
+| 2 | Verify GitHub checks and deployed versions | Partially verified | `gh pr view 141 ...` could not connect to `api.github.com`, so CI remains unknown. The local read-only VPS status route returned worker version `v0.7.187`, commit `42d8ba4e`, reachable and listening. No deployment or trading state was changed. |
+| 3 | B4 installed swap constants and symbol values | Blocked | The local symbol endpoint returned HTTP 401 with the available local configuration. No symbol values or installed constants were obtained. Retry through an authorized, reliable read-only route; compare installed `SYMBOL_SWAP_MODE_*` values with distinct live `swap_mode` values. |
+| 4 | B9 real annual M1 import and broker-time check | Blocked | No verified real annual CSV was supplied or found in the project/import paths. Local account configuration files exist, but the worker import still requires a verified source file, coverage, time basis, and target DEMO account. Do not replace an existing import. |
+| 5 | ZON-21 manual DEMO trading check | Blocked | The available terminal preflight showed existing trading activity, so test isolation is not satisfied. Do not start or change trading state. Run only on a verified, isolated DEMO account with a stopped bot and no existing positions or orders; restore the test settings and clean only test-created state. |
 | 6 | Final status, catalog, and journal | Waiting | Update the manual result and close this audit only after the external checks above have evidence. Keep synthetic annual tests separate from real broker verification. |
 | 7 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. The annual test uses synthetic and mocked data. |
 | 8 | B4 page limits and one-million-candle profile | Complete | BKT-10 e2e: 9 passed. PR #140 records 260,944 trades and 164.512 seconds of simulation after repair. |
@@ -40,7 +40,7 @@ areas: [frontend, worker, tests, docs]
 - The user authorized the requested external and DEMO actions. Preserve existing trading state and stop if a precondition fails.
 - Synthetic annual data does not prove a real annual import or broker time agreement.
 - Worker tests use temporary databases and FakeMT5. Do not start the Python worker on this Mac.
-- Do not use or print account identifiers from another source. The current task process has no local DEMO test-account file.
+- Do not use or print account identifiers from another source. The local DEMO profile and frontend environment files are present, but the symbol endpoint rejects the available key with HTTP 401.
 
 ## Changes and evidence
 
@@ -63,8 +63,8 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 
 ## Open points
 
-- [ ] Restore a reliable read-only VPS path and record the installed swap constants and distinct symbol values.
-- [ ] Obtain and verify the real annual M1 CSV and target DEMO account, then perform the authorized import and overlap check.
+- [ ] Restore authorized symbol API access and record the installed swap constants and distinct symbol values.
+- [ ] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check.
 - [ ] Find an isolated DEMO account that meets the ZON-21 preconditions; run the test only if no existing trading state can be affected.
-- [ ] Verify PR #141 CI and deployed versions when GitHub and VPS access return; do not claim deployment from local Git state.
+- [ ] Verify PR #141 CI when GitHub access returns; worker deployment is verified at `v0.7.187` / `42d8ba4e`.
 - [ ] Update the catalog and close this plan after all external evidence is recorded.
