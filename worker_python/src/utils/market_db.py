@@ -112,6 +112,14 @@ MIGRATIONS: list[list[str]] = [
         )""",
         "CREATE INDEX csv_imports_account ON csv_imports (account_id, symbol, timeframe)",
     ],
+    [
+        # B8 / BKT-11: sahibi doğrulanmış kullanıcı; hesaplardan bağımsız parametre kopyaları.
+        """CREATE TABLE backtest_presets (
+            id TEXT PRIMARY KEY, owner TEXT NOT NULL, name TEXT NOT NULL,
+            payload TEXT NOT NULL, created_at INTEGER NOT NULL
+        )""",
+        "CREATE INDEX backtest_presets_owner ON backtest_presets (owner, created_at)",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

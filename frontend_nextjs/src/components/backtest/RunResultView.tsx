@@ -192,7 +192,7 @@ function RunColumn({ result, context, title, requestBars, replayActive, anotherR
 }
 
 /** Ergebnis eines Laufs (BKT-06): bei „beide Wege“ zwei Spalten nebeneinander (Spanne), sonst eine */
-export function RunResultView({ results, context, requestBars }: { results: RunResult[]; context: RunContext; requestBars: (timeframe: Timeframe, from: number, to: number) => void }) {
+export function RunResultView({ results, context, requestBars, comparison }: { results: RunResult[]; context: RunContext; requestBars: (timeframe: Timeframe, from: number, to: number) => void; comparison?: ReactNode }) {
   const t = useT();
   const fmt = useFormat();
   const { params } = context;
@@ -218,6 +218,7 @@ export function RunResultView({ results, context, requestBars }: { results: RunR
           })}
         </p>
       </div>
+      <p className="text-xs text-muted-foreground">{t('backtest.field.data')}: {context.sourceLabel}</p>
       {context.unsaved && (
         <p className="text-xs text-warning" data-testid="bt-result-unsaved">
           {t('backtest.source.unsaved')}
@@ -243,6 +244,7 @@ export function RunResultView({ results, context, requestBars }: { results: RunR
           />
         ))}
       </div>
+      {activeReplayPath === null && comparison}
     </section>
   );
 }

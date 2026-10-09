@@ -49,7 +49,7 @@ export function BacktestChart({
 }) {
   const t = useT();
   const fmt = useFormat();
-  const chartData = useBacktestStore((s) => s.chartData);
+  const chartData = useBacktestStore((s) => s.runs[context.setupId]?.chartData);
   const [timeframe, setTimeframe] = useState<Timeframe>(context.params.dataTimeframe);
   const [speed, setSpeed] = useState<ReplaySpeed>('1');
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
