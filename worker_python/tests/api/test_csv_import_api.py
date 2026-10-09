@@ -5,6 +5,10 @@ Zeiten sind MT5-Zeit. Kein MT5 nötig: der Import berührt MT5 nie.
 import calendar
 import os
 import secrets
+import threading
+import time
+from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -31,10 +35,10 @@ def epoch_csv(times, header=True):
     return "\n".join(rows + [_line(t) for t in times]) + "\n"
 
 
-def upload(client, text, *, raw=None, symbol=SYMBOL, timeframe="M1", offset=0, chunk=None, commit=True, replace=False):
+def upload(client, text, *, raw=None, symbol=SYMBOL, timeframe="M1", offset=0, offset_mode="fixed", chunk=None, commit=True, replace=False):
     data = raw if raw is not None else text.encode("utf-8")
     res = client.post(f"{BASE}/imports", json={"symbol": symbol, "timeframe": timeframe, "filename": "x.csv",
-                                               "size": len(data), "time_offset_sec": offset})
+                                               "size": len(data), "time_offset_sec": offset, "time_offset_mode": offset_mode})
     assert res.status_code == 200, res.text
     import_id = res.json()["import_id"]
     step = chunk or len(data)
@@ -54,6 +58,197 @@ def read(client, import_id, a, b, timeframe="M1"):
 def rows_in_db():
     with market_db.reading() as conn:
         return conn.execute("SELECT COUNT(*) FROM rates").fetchone()[0]
+
+
+@pytest.mark.feature("BKT-05")
+def test_parsing_holds_no_market_database_write_lock(client, monkeypatch):
+    import_id, _ = upload(client, epoch_csv([MON, MON + 60]), commit=False)
+    real_rows = csv_import.iter_rows
+    parsing, resume, written = threading.Event(), threading.Event(), threading.Event()
+    passes = 0
+
+    def paused_rows(*args, **kwargs):
+        nonlocal passes
+        passes += 1
+        for index, row in enumerate(real_rows(*args, **kwargs)):
+            if passes == 2 and index == 1:
+                parsing.set()
+                assert resume.wait(10), "test did not release CSV parsing"
+            yield row
+
+    def other_write():
+        market_db.log_broker_offset("synthetic", MON, 7200)
+        written.set()
+
+    monkeypatch.setattr(csv_import, "iter_rows", paused_rows)
+    monkeypatch.setattr(csv_import, "BATCH_ROWS", 1)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        committing = pool.submit(client.post, f"{BASE}/imports/{import_id}/commit", json={})
+        try:
+            assert parsing.wait(5), "second CSV pass not reached"
+            assert read(client, import_id, MON, MON + 120).status_code == 409
+            writing = pool.submit(other_write)
+            independent = written.wait(2)
+        finally:
+            resume.set()
+        result = committing.result(timeout=10)
+        writing.result(timeout=10)
+    assert independent, "unrelated database writes wait for the CSV parser"
+    assert result.status_code == 200 and result.json()["bars"] == 2
+    assert read(client, import_id, MON, MON + 120).json()["t"] == [MON, MON + 60]
+
+
+@pytest.mark.feature("BKT-05")
+def test_failed_second_pass_removes_prepared_rows_and_preserves_old_import(client, monkeypatch):
+    old_id, _ = upload(client, epoch_csv([MON, MON + 60]))
+    new_id, _ = upload(client, epoch_csv([MON, MON + 60]), commit=False)
+    real_rows = csv_import.iter_rows
+    passes = 0
+
+    def changed_rows(path, tf_sec, offset_sec, errors, **kwargs):
+        nonlocal passes
+        passes += 1
+        for row in real_rows(path, tf_sec, offset_sec, errors, **kwargs):
+            yield row
+            if passes == 2:
+                errors.append({"line": 3, "message": "file changed"})
+                return
+
+    monkeypatch.setattr(csv_import, "iter_rows", changed_rows)
+    monkeypatch.setattr(csv_import, "BATCH_ROWS", 1)
+    response = client.post(f"{BASE}/imports/{new_id}/commit", json={"replace": True})
+    assert response.status_code == 409
+    assert read(client, old_id, MON, MON + 120).json()["t"] == [MON, MON + 60]
+    assert read(client, new_id, MON, MON + 120).status_code == 409
+    assert rows_in_db() == 2
+
+
+@pytest.mark.feature("BKT-05")
+def test_account_removed_between_import_batches_leaves_no_orphan_candles(client, monkeypatch):
+    import_id, _ = upload(client, epoch_csv([MON, MON + 60]), commit=False)
+    real_rows = csv_import.iter_rows
+    passes = 0
+
+    def removed_account_rows(*args, **kwargs):
+        nonlocal passes
+        passes += 1
+        for index, row in enumerate(real_rows(*args, **kwargs)):
+            if passes == 2 and index == 1:
+                market_db.delete_account(TEST_ACCOUNT_ID)
+            yield row
+
+    monkeypatch.setattr(csv_import, "iter_rows", removed_account_rows)
+    monkeypatch.setattr(csv_import, "BATCH_ROWS", 1)
+    response = client.post(f"{BASE}/imports/{import_id}/commit", json={})
+    assert response.status_code == 404
+    assert rows_in_db() == 0
+    assert client.get(f"{BASE}/imports").json()["imports"] == []
+
+
+@pytest.mark.feature("BKT-05")
+def test_large_synthetic_import_publishes_complete_range(client, monkeypatch):
+    import_id, _ = upload(client, epoch_csv(range(1735689600, 1741689660, 60)), commit=False)
+    real_writing = market_db.writing
+    durations = []
+
+    @contextmanager
+    def measured_writing():
+        with real_writing() as conn:
+            started = time.perf_counter()
+            try:
+                yield conn
+            finally:
+                durations.append(time.perf_counter() - started)
+
+    monkeypatch.setattr(market_db, "writing", measured_writing)
+    started = time.perf_counter()
+    response = client.post(f"{BASE}/imports/{import_id}/commit", json={})
+    elapsed = time.perf_counter() - started
+    assert response.status_code == 200
+    assert (response.json()["bars"], response.json()["first_t"], response.json()["last_t"]) == (
+        100001, 1735689600, 1741689600)
+    assert read(client, import_id, 1741689540, 1741689660).json()["t"] == [1741689540, 1741689600]
+    print(f"Synthetic CSV: 100001 candles; commit={elapsed:.3f}s; longest write body={max(durations):.3f}s")
+
+
+@pytest.mark.feature("BKT-05")
+@pytest.mark.parametrize("rows,expected", [
+    ([(1743296340, 7200), (1743296400, 10800)], [1743303540, 1743307200]),
+    ([(1761343140, 10800), (1761516000, 7200)], [1761353940, 1761523200]),
+])
+def test_utc_rows_use_their_historical_broker_offset(client, rows, expected):
+    text = "time,open,high,low,close,broker_offset_sec\n" + "".join(
+        f"{t},1,2,0.5,1.5,{offset}\n" for t, offset in rows)
+    import_id, response = upload(client, text, offset_mode="row")
+    assert response.status_code == 200
+    assert response.json()["offset_mode"] == "row"
+    assert read(client, import_id, expected[0], expected[-1] + 60).json()["t"] == expected
+    assert client.get(f"{BASE}/imports").json()["imports"][0]["offset_mode"] == "row"
+
+
+@pytest.mark.feature("BKT-05")
+@pytest.mark.parametrize("offset", ["", "3600.5", "NaN", "50401", "-50401"])
+def test_bad_row_offset_is_rejected_without_a_selectable_import(client, offset):
+    text = f"time,open,high,low,close,broker_offset_sec\n{MON},1,2,0.5,1.5,{offset}\n"
+    _, response = upload(client, text, offset_mode="row")
+    assert response.status_code == 422
+    assert client.get(f"{BASE}/imports").json()["imports"] == []
+    assert rows_in_db() == 0
+
+
+@pytest.mark.feature("BKT-05")
+def test_row_offset_cannot_be_combined_with_fixed_shift(client):
+    text = f"time,open,high,low,close,broker_offset_sec\n{MON},1,2,0.5,1.5,7200\n"
+    _, response = upload(client, text, offset=3600, offset_mode="row")
+    assert response.status_code == 422
+    assert rows_in_db() == 0
+
+
+@pytest.mark.feature("BKT-05")
+@pytest.mark.parametrize("mode,text", [
+    ("fixed", f"time,open,high,low,close,broker_offset_sec\n{MON},1,2,0.5,1.5,0\n"),
+    ("row", epoch_csv([MON])),
+])
+def test_selected_offset_mode_must_match_csv_columns(client, mode, text):
+    _, response = upload(client, text, offset_mode=mode)
+    assert response.status_code == 422
+    assert client.get(f"{BASE}/imports").json()["imports"] == []
+    assert rows_in_db() == 0
+
+
+@pytest.mark.feature("BKT-05")
+def test_unknown_offset_mode_is_rejected_at_request_boundary(client):
+    response = client.post(f"{BASE}/imports", json={
+        "symbol": SYMBOL, "timeframe": "M1", "filename": "x.csv", "size": 10,
+        "time_offset_mode": "seasonal",
+    })
+    assert response.status_code == 422
+    assert client.get(f"{BASE}/imports").json()["imports"] == []
+
+
+@pytest.mark.feature("BKT-05")
+def test_existing_csv_import_defaults_to_fixed_mode_after_migration(client):
+    import_id, _ = upload(client, epoch_csv([MON]), commit=False)
+    with market_db.writing() as conn:
+        conn.execute("ALTER TABLE csv_imports DROP COLUMN offset_mode")
+        conn.execute(f"PRAGMA user_version={market_db.SCHEMA_VERSION - 1}")
+    market_db.reset_cache()
+
+    listed = client.get(f"{BASE}/imports")
+    assert listed.status_code == 200
+    imported = next(item for item in listed.json()["imports"] if item["import_id"] == import_id)
+    assert imported["offset_mode"] == "fixed"
+
+
+@pytest.mark.feature("BKT-05")
+def test_fall_back_with_duplicate_broker_time_is_rejected(client):
+    text = "time,open,high,low,close,broker_offset_sec\n" \
+           "1761436800,1,2,0.5,1.5,10800\n" \
+           "1761440400,1,2,0.5,1.5,7200\n"
+    _, response = upload(client, text, offset_mode="row")
+    assert response.status_code == 422
+    assert "increasing" in str(response.json()["detail"])
+    assert rows_in_db() == 0
 
 
 @pytest.mark.feature("BKT-05")

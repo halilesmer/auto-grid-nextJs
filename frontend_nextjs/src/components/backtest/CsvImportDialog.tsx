@@ -44,6 +44,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
   const [symbol, setSymbol] = useState(defaultSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>('M1');
   const [offsetHours, setOffsetHours] = useState(0);
+  const [offsetMode, setOffsetMode] = useState<'fixed' | 'row'>('fixed');
   const [phase, setPhase] = useState<Phase>('form');
   const [progress, setProgress] = useState(0);
   const [lineErrors, setLineErrors] = useState<CsvLineError[]>([]);
@@ -98,7 +99,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
         await uploadCsv(
           accountId,
           file,
-          { symbol: symbol.trim(), timeframe, offsetHours },
+          { symbol: symbol.trim(), timeframe, offsetHours, offsetMode },
           setProgress,
           (id) => {
             importId.current = id;
@@ -139,6 +140,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
     <Modal open={open} onClose={close} title={t('csv.dialog.title')} className="max-w-lg" dismissible={!busy}>
       <div className="space-y-4" data-testid="csv-import-dialog">
         <p className="text-xs leading-relaxed text-muted-foreground">{t('csv.format')}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground" data-testid="csv-timezone-notice">{t('csv.timezone')}</p>
         <InputField label={t('csv.file')} hint={t('csv.file.hint')}>
           <input
             type="file"
@@ -156,6 +158,17 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
           />
         </InputField>
         {tooBig && <p className="text-xs text-danger">{t('csv.tooBig', { max: MAX_FILE_MB })}</p>}
+        <InputField label={t('csv.offset.mode')} hint={t('csv.offset.mode.hint')}>
+          <select value={offsetMode} disabled={busy || waitingForReplace} data-testid="csv-offset-mode" className="input-s"
+            onChange={(e) => {
+              const mode = e.target.value as 'fixed' | 'row'; // Optionen unten bilden die geschlossene Menge.
+              setOffsetMode(mode);
+              if (mode === 'row') setOffsetHours(0);
+            }}>
+            <option value="fixed">{t('csv.offset.mode.fixed')}</option>
+            <option value="row">{t('csv.offset.mode.row')}</option>
+          </select>
+        </InputField>
         <div className="grid gap-3 sm:grid-cols-3">
           <InputField label={t('csv.symbol')} hint={t('csv.symbol.hint')}>
             <input
@@ -190,7 +203,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
               max={MAX_OFFSET_HOURS}
               value={offsetHours}
               onChange={(e) => setOffsetHours(e.target.value === '' ? Number.NaN : Number(e.target.value))}
-              disabled={busy || waitingForReplace}
+              disabled={busy || waitingForReplace || offsetMode === 'row'}
               className="input-s"
               data-testid="csv-offset"
             />

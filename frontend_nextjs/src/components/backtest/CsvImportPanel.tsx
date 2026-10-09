@@ -83,6 +83,11 @@ export function CsvImportPanel({ accountId, defaultSymbol, imports, reload }: Cs
                   {t('csv.item.unfinished')}
                 </Badge>
               )}
+              {item.status === 'committed' && item.offset_mode === 'row' && (
+                <Badge tone="info" hint={t('csv.item.rowOffset.hint')} data-testid="csv-row-offset">
+                  {t('csv.item.rowOffset')}
+                </Badge>
+              )}
             </div>
             <Button
               size="icon-sm"

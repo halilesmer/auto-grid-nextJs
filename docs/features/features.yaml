@@ -1516,14 +1516,16 @@ kategorien:
 
       - id: BKT-05
         titel: CSV-Import von Kursdaten (B9)
-        beschreibung: "Kerzen aus einer CSV-Datei als eigene Datenquelle laden, wenn MT5 nicht genug Historie liefert: GET/POST /market/{id}/imports, PUT …/chunk (Teile in Reihenfolge, je höchstens 4 MB, Datei höchstens 150 MB), POST …/commit, DELETE. Der Worker prüft am Commit alles (Format, Zeitraster des Zeitrahmens, strikt steigende Zeit, OHLC, Zeitbereich) und schreibt erst dann nach market.sqlite (source = csv:<import_id>, MT5-Kerzen bleiben unberührt); eine fehlerhafte Datei wird sofort verworfen. Überlappung mit einem vorhandenen Import desselben Kontos, Symbols und Zeitrahmens nur mit „ersetzen“. Lesen über GET /market/{id}/rates?source=csv:<id> (nie MT5; Lücken als csv_gap). Unfertige Importe sind nicht wählbar und nach 24 Stunden geräumt. Dialog und Liste (CsvImportPanel) stehen auf /backtest (seit B5a; vorher im Backtest-Tab von /chart). Im Lauf ist ein Import als Datenquelle wählbar (B5b, BKT-06); Lücken stehen im Laufprotokoll als „Keine Kerze im CSV-Import“ (Grund csv_gap)."
-        code: [worker_python/src/utils/csv_import.py, worker_python/src/api/market.py, worker_python/src/utils/market_db.py, frontend_nextjs/src/components/backtest/CsvImportDialog.tsx, frontend_nextjs/src/components/backtest/CsvImportPanel.tsx, frontend_nextjs/src/hooks/useCsvImports.ts]
+        beschreibung: "Kerzen aus einer CSV-Datei als eigene Datenquelle laden, wenn MT5 nicht genug Historie liefert: GET/POST /market/{id}/imports, PUT …/chunk (Teile in Reihenfolge, je höchstens 4 MB, Datei höchstens 150 MB), POST …/commit, DELETE. Der Worker prüft am Commit alles (Format, Zeitraster des Zeitrahmens, strikt steigende Zeit, OHLC, Zeitbereich) und schreibt erst dann nach market.sqlite (source = csv:<import_id>, MT5-Kerzen bleiben unberührt); eine fehlerhafte Datei wird sofort verworfen. Überlappung mit einem vorhandenen Import desselben Kontos, Symbols und Zeitrahmens nur mit „ersetzen“. Fester Modus addiert einen UTC-Versatz von ±14 Stunden zur CSV-Zeit. Zeilenmodus erwartet UTC-Zeit und die Ganzzahlspalte broker_offset_sec (±14 Stunden) pro Zeile; der globale Versatz bleibt null. Eine doppelte Brokerzeit beim Herbstwechsel wird wegen der strikten Reihenfolge abgelehnt. Der Modus wird gespeichert und in der Liste angezeigt. Lesen über GET /market/{id}/rates?source=csv:<id> (nie MT5; Lücken als csv_gap). Unfertige Importe sind nicht wählbar und nach 24 Stunden geräumt. Die Erstellung bleibt abbrechbar; eine verspätete ID wird vor jedem Teilupload gelöscht. Parsing läuft außerhalb des SQLite-Schreiblocks; Kerzen werden in kurzen Batches vorbereitet und erst atomar sichtbar. Dialog und Liste (CsvImportPanel) stehen auf /backtest. Im Lauf ist ein Import als Datenquelle wählbar (B5b, BKT-06); Lücken stehen im Laufprotokoll als „Keine Kerze im CSV-Import“ (Grund csv_gap)."
+        code: [worker_python/src/utils/csv_import.py, worker_python/src/api/market.py, worker_python/src/utils/market_db.py, worker_python/tests/api/test_csv_import_api.py, frontend_nextjs/src/components/backtest/CsvImportDialog.tsx, frontend_nextjs/src/components/backtest/CsvImportPanel.tsx, frontend_nextjs/src/services/csvImportApi.ts, frontend_nextjs/e2e/fixtures/data.ts, frontend_nextjs/e2e/fixtures/mock-worker.ts, frontend_nextjs/e2e/mocked/csv-import.spec.ts]
         tiers: [api, e2e]
         pruefung:
-          - pytest tests/api/test_csv_import_api.py (Import in Teilen, Prüfungen, Überlappung, Abbruch, fremdes Konto) ausführen.
+          - pytest tests/api/test_csv_import_api.py (Import in Teilen, Offset-Modi und DST, Migration, Prüfungen, Überlappung, Abbruch, fremdes Konto und paralleler Schreibzugriff) ausführen.
           - Auf /backtest (Konto, Setup wählen) eine CSV importieren; der Import steht mit Symbol, Zeitrahmen, Zeitraum und Kerzenzahl in der Liste.
+          - Im Zeilenmodus den gesperrten globalen Versatz und die umgerechnete Brokerzeit nach Frühlings- und Herbstwechsel prüfen; danach die Seite neu laden.
+          - Bei einem Worker ohne offset_mode-Bestätigung prüfen, dass der Staging-Import gelöscht wird, bevor ein Teil oder Commit gesendet wird.
           - Eine Datei mit falschem Zeitraster oder unsortierter Zeit importieren; die Zeilenfehler erscheinen und nichts steht in der Liste.
-        erwartet: Ein abgebrochener oder fehlerhafter Import ist nicht wählbar; eine Überlappung geht nur mit „ersetzen“.
+        erwartet: Ein abgebrochener oder fehlerhafter Import ist nicht wählbar; eine Überlappung geht nur mit „ersetzen“. Nur der gewählte Modus samt passendem Spaltenlayout wird übernommen. Der Zeilenmodus nutzt jeden broker_offset_sec-Wert, verlangt globalen Versatz null und zeigt seine Provenienz nach dem Neuladen. Ein alter Worker ohne Modusbestätigung erhält keine Dateiteile.
 
       - id: BKT-06
         titel: Seite /backtest mit einem Lauf (B5a)
@@ -1562,12 +1564,13 @@ kategorien:
 
       - id: BKT-10
         titel: Hinweise zu Daten und Modell (B5a)
-        beschreibung: "Über jedem Ergebnis steht ein Hinweisblock, nicht abschaltbar und ohne Schließen-Knopf: Modellgrenzen (Margin/Stop-out nicht geprüft, Ablehnungen nicht simuliert, Stops Level nicht geprüft), „Kosten geschätzt“, Währung zum heutigen Kurs, Datenlücken (missing), verworfene laufende Kerze, Spread-Ersatz, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand (nur Grid-Modus mit festem Abstand) kleiner ist als die mittlere Kerzenspanne (RunResult.avgRange). Die Hinweise aus dem Rechner sind dieselben Meldungen wie im Laufprotokoll. Noch nicht simuliert und noch nicht im Hinweisblock genannt: verschwundene Orders von außen, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich."
-        code: [frontend_nextjs/src/components/backtest/RunResultView.tsx, frontend_nextjs/src/lib/backtest/runner.ts]
+        beschreibung: "Vor jedem Lauf zeigt /backtest einen nicht abschaltbaren Hinweis zu den Grenzen von Ereigniszeit, simulierter Uhr, Wochenend-Swap und Drawdown-Abtastung in tr/en/de. Über jedem Ergebnis steht ein Hinweisblock: Modellgrenzen (Margin/Stop-out nicht geprüft, Ablehnungen nicht simuliert, Stops Level nicht geprüft), „Kosten geschätzt“, Währung zum heutigen Kurs, Datenlücken (missing), verworfene laufende Kerze, Spread-Ersatz, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand (nur Grid-Modus mit festem Abstand) kleiner ist als die mittlere Kerzenspanne (RunResult.avgRange). Die Hinweise aus dem Rechner sind dieselben Meldungen wie im Laufprotokoll. Noch nicht simuliert und noch nicht im Hinweisblock genannt: verschwundene Orders von außen, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich."
+        code: [frontend_nextjs/src/components/backtest/BacktestView.tsx, frontend_nextjs/src/components/backtest/RunResultView.tsx, frontend_nextjs/src/lib/backtest/runner.ts]
         tiers: [e2e]
         pruefung:
           - Einen Lauf mit Datenlücke und Auflösung M5 starten.
           - Ein Setup mit Grid-Abstand unter der Kerzenspanne testen.
+          - Vor dem Lauf den Modellhinweis in tr/en/de, 375px/1280px und beiden Themes prüfen.
         erwartet: Modell-, Kosten-, Lücken-, M5- und „unsicher“-Hinweis sind sichtbar und lassen sich nicht ausblenden.
 
       - id: BKT-11

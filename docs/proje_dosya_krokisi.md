@@ -227,8 +227,8 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃   ┣ 📜 mt5_connection.py    # MT5 bağlantı yönetimi (Ana orkestrasyon)
 ┃ ┃   ┣ 📜 mt5_errors.py        # Hata kod ayrıştırma (-10003/-10004 IPC, 10002 login), zombi killer (180 sn'den genç terminale dokunmaz), Python kanalı kontrolü ('Python integration' kapalıysa net hata), LIVE/DEMO güvenlik
 ┃ ┃   ┣ 📜 mt5_helpers.py       # İç bağlantı yöneticisi (retry/timeout, veri sorgusu kipi `data_query`), sembol çekme, MT5 terminal log yedekleme
-┃ ┃   ┣ 📜 market_db.py         # Analiz veritabanı (SQLite data/market.sqlite): mumlar + aralık durumları, deal arşivi, bölge kaydı, yedek/geri yükleme
-┃ ┃   ┣ 📜 csv_import.py        # CSV mum içe aktarma (BKT-05): parça yükleme, doğrulama, commit, csv:<id> kaynağından okuma
+┃ ┃   ┣ 📜 market_db.py         # Analiz veritabanı (SQLite data/market.sqlite): mumlar + aralık durumları, deal arşivi, bölge kaydı, CSV offset modu, yedek/geri yükleme
+┃ ┃   ┣ 📜 csv_import.py        # CSV mum içe aktarma (BKT-05): sabit veya satır başına broker UTC farkı, parça yükleme, doğrulama, kısa yazma partileri, commit, csv:<id> kaynağından okuma
 ┃ ┃   ┣ 📜 market_sync.py       # MT5 → veritabanı: yalnızca eksik mum/deal parçaları, parça parça ve tek tek (canlı botu korur)
 ┃ ┃   ┣ 📜 mt5_market.py        # Analiz için salt-okunur MT5 sorguları (zaman kontrolü: broker saati ↔ UTC, son M1 mumları, son işlem, hedging/netting, sembol kâr hesabı türü)
 ┃ ┃   ┣ 📜 paths.py             # Yol yönetimi

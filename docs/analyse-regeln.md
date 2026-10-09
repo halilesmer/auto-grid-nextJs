@@ -42,8 +42,12 @@ Kurz gesagt:
   Lightweight Charts kennt keine Zeitzonen; die Zeiten gehen deshalb unverändert an den Chart.
 - **Abfragen an MT5** bekommen Zeiten als ganze Sekunden, nie als `datetime` ohne Zeitzone: die
   MetaTrader5-Bibliothek würde ein solches `datetime` mit der Zeitzone des VPS umrechnen.
-- **CSV-Dateien:** Beim Import wird die Zeitbasis der Datei gewählt. Standard ist „wie MT5“,
-  alternativ eine Verschiebung in Stunden.
+- **CSV-Dateien:** Der feste Modus addiert einen Versatz von ±14 Stunden zur CSV-Zeit. Der
+  Zeilenmodus erwartet UTC-Zeit und die Ganzzahlspalte `broker_offset_sec` in jeder Zeile. Dieser
+  Wert gibt den historischen UTC-Versatz des Brokers in Sekunden an (±14 Stunden). Der globale
+  Versatz muss null sein. Der Import leitet alte Sommerzeitwerte nie aus dem heutigen Brokerwert ab.
+  Nach der Umrechnung müssen Brokerzeiten strikt steigen. Eine doppelte Stunde beim Herbstwechsel
+  wird abgelehnt, weil die Datenbank einen Zeitstempel je Brokerminute speichert.
 
 ## 2. Zonen-Identität
 

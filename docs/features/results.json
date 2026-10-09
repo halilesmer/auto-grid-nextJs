@@ -264,7 +264,7 @@
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 68
+      "tests": 7
     },
     "unit": {
       "datum": "2026-10-09",
@@ -276,19 +276,19 @@
     "api": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 33
+      "tests": 50
     },
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 7
+      "tests": 14
     }
   },
   "BKT-06": {
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 13
+      "tests": 2
     }
   },
   "BKT-07": {
@@ -321,7 +321,7 @@
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 2
+      "tests": 9
     }
   },
   "BKT-11": {

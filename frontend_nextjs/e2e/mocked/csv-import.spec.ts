@@ -3,12 +3,14 @@
  * Zeiten: erste CSV-Spalte = Epoche in Sekunden (MON = 28.09.2026 00:00).
  */
 import type { Page } from '@playwright/test';
-import { msg } from '../fixtures/i18n';
+import { fmt, msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
 const MON = 1790553600;
 const URL = `/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const csv = (times: number[]) => 'time,open,high,low,close\n' + times.map((t) => `${t},1,2,0.5,1.5`).join('\n') + '\n';
+const rowOffsetCsv = (rows: readonly (readonly [number, number])[]) => 'time,open,high,low,close,broker_offset_sec\n' +
+  rows.map(([time, offset]) => `${time},1,2,0.5,1.5,${offset}`).join('\n') + '\n';
 const file = (text: string) => ({ name: 'xau.csv', mimeType: 'text/csv', buffer: Buffer.from(text) });
 
 async function openDialog(page: Page) {
@@ -24,6 +26,56 @@ async function importFile(page: Page, text: string) {
 }
 
 test.describe('BKT CSV-Import', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`Zeilenmodus im Dialog bei 375px im ${theme}-Thema`, { tag: '@BKT-05' }, async ({ page, worker }, testInfo) => {
+      void worker;
+      await page.goto(URL);
+      await expect(page.getByTestId('csv-open')).toBeVisible();
+      await page.getByRole('radiogroup', { name: msg('common.theme') })
+        .getByRole('radio', { name: msg(`common.theme.${theme}`) }).click();
+      await page.getByTestId('csv-open').click();
+      await expect(page.getByTestId('csv-import-dialog')).toBeVisible();
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.getByTestId('csv-offset-mode').selectOption('row');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`csv-row-${theme}-375.png`) });
+    });
+  }
+
+  for (const action of ['cancel', 'navigate'] as const) {
+    test(`Abbruch während der Importanlage (${action}) räumt die verspätete ID auf`, { tag: '@BKT-05' }, async ({ page, worker }) => {
+      await openDialog(page);
+      const importId = 'e'.repeat(32);
+      let release!: () => void;
+      const responseGate = new Promise<void>((resolve) => { release = resolve; });
+      let created!: () => void;
+      const createdGate = new Promise<void>((resolve) => { created = resolve; });
+      await page.route(`**/api/market/${DEMO_ID}/imports`, async (route) => {
+        if (route.request().method() !== 'POST') { await route.fallback(); return; }
+        const body = route.request().postDataJSON();
+        worker.state.csvImports.push({ import_id: importId, account_id: DEMO_ID, symbol: body.symbol,
+          timeframe: body.timeframe, filename: body.filename, status: 'staging', size_bytes: body.size,
+          received_bytes: 0, next_chunk: 0, bars: null, first_t: null, last_t: null, gaps: null,
+          offset_sec: 0, created_at: MON, committed_at: null, text: '' });
+        created();
+        await responseGate;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ import_id: importId, chunk_bytes: 4194304 }) });
+      });
+      await importFile(page, csv([MON, MON + 60]));
+      await createdGate;
+      if (action === 'cancel') await page.getByRole('button', { name: msg('csv.cancel'), exact: true }).click();
+      // SPA-Wechsel kann auch von außerhalb des Modals kommen; das Modal überdeckt den Nav-Link.
+      else {
+        await page.getByRole('link', { name: msg('nav.dashboard'), exact: true }).evaluate((link: HTMLAnchorElement) => link.click());
+        await expect(page).toHaveURL('/');
+      }
+      release();
+      await expect.poll(() => worker.state.csvImports).toEqual([]);
+      expect(worker.callsTo('PUT', /\/imports\/[0-9a-f]+\/chunk$/)).toHaveLength(0);
+      expect(worker.callsTo('POST', /\/imports\/[0-9a-f]+\/commit$/)).toHaveLength(0);
+    });
+  }
+
   test('Import wird in Teilen hochgeladen, geprüft und erscheint in der Liste', { tag: '@BKT-05' }, async ({ page, worker }) => {
     await openDialog(page);
     await expect(page.getByTestId('csv-submit')).toBeDisabled(); // ohne Datei
@@ -41,6 +93,55 @@ test.describe('BKT CSV-Import', () => {
     });
     expect(worker.callsTo('PUT', new RegExp(`/imports/[0-9a-f]+/chunk$`)).length).toBe(1);
     expect(worker.state.csvImports.map((i) => i.status)).toEqual(['committed']);
+  });
+
+  for (const [season, rows, expected] of [
+    ['Frühjahrswechsel', [[1743296340, 7200], [1743296400, 10800]], [1743303540, 1743307200]],
+    ['Herbstwechsel', [[1761343140, 10800], [1761516000, 7200]], [1761353940, 1761523200]],
+  ] as const) {
+    test(`${season}: UTC-Zeilenoffsets werden in Brokerzeit umgerechnet und bleiben sichtbar`, { tag: '@BKT-05' }, async ({ page, worker }) => {
+      await openDialog(page);
+      await page.getByTestId('csv-offset-mode').selectOption('row');
+      await expect(page.getByTestId('csv-offset')).toBeDisabled();
+      await expect(page.getByTestId('csv-timezone-notice')).toBeVisible();
+      await importFile(page, rowOffsetCsv(rows));
+
+      await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+      expect(worker.callsTo('POST', `/api/market/${DEMO_ID}/imports`)[0].body).toMatchObject({
+        time_offset_sec: 0, time_offset_mode: 'row',
+      });
+      expect(worker.state.csvImports[0]).toMatchObject({ offset_mode: 'row', first_t: expected[0], last_t: expected[1] });
+      await expect(page.getByTestId('csv-item')).toContainText(msg('csv.item.range', {
+        from: fmt().mt5DateTime(expected[0]),
+        to: fmt().mt5DateTime(expected[1]),
+        bars: fmt().number(rows.length),
+      }));
+      await expect(page.getByTestId('csv-row-offset')).toContainText(msg('csv.item.rowOffset'));
+      await page.reload();
+      await expect(page.getByTestId('csv-row-offset')).toContainText(msg('csv.item.rowOffset'));
+    });
+  }
+
+  test('Worker ohne Modusbestätigung wird vor dem ersten Teil bereinigt', { tag: '@BKT-05' }, async ({ page, worker }) => {
+    await openDialog(page);
+    await page.getByTestId('csv-offset-mode').selectOption('row');
+    const importId = 'f'.repeat(32);
+    await page.route(`**/api/market/${DEMO_ID}/imports`, async (route) => {
+      if (route.request().method() !== 'POST') { await route.fallback(); return; }
+      const body = route.request().postDataJSON();
+      worker.state.csvImports.push({ import_id: importId, account_id: DEMO_ID, symbol: body.symbol,
+        timeframe: body.timeframe, filename: body.filename, status: 'staging', size_bytes: body.size,
+        received_bytes: 0, next_chunk: 0, bars: null, first_t: null, last_t: null, gaps: null,
+        offset_sec: 0, offset_mode: 'row', created_at: MON, committed_at: null, text: '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ import_id: importId, chunk_bytes: 4194304 }) });
+    });
+    await importFile(page, rowOffsetCsv([[1743296340, 7200], [1743296400, 10800]]));
+
+    await expect(page.getByText(msg('csv.offset.unsupported'), { exact: true })).toBeVisible();
+    await expect.poll(() => worker.state.csvImports).toEqual([]);
+    expect(worker.callsTo('PUT', /\/imports\/[0-9a-f]+\/chunk$/)).toHaveLength(0);
+    expect(worker.callsTo('POST', /\/imports\/[0-9a-f]+\/commit$/)).toHaveLength(0);
+    expect(worker.callsTo('DELETE', new RegExp(`/imports/${importId}$`))).toHaveLength(1);
   });
 
   test('Fehlerhafte Datei: Zeilenfehler sichtbar, nichts wird wählbar', { tag: '@BKT-05' }, async ({ page, worker }) => {

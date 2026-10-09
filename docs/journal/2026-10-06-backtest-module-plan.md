@@ -32,7 +32,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR #130) |
 | B5a | Page `/backtest` with one run; test button of a zone opens it; run log texts; netting refusal | BKT-06, BKT-10, BKT-12 (zone → backtest) | done (PR B5a) |
 | B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | done (PR B5b) |
-| B6 | Chart with equity area and replay | BKT-07 | implemented and automated verification passed (PR #139; synthetic/mock annual data; awaiting merge) |
+| B6 | Chart with equity area and replay | BKT-07 | done (PR #139 merged; synthetic/mock annual verification) |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | done (PR #136; tests and CI passed) |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | done (PR #136; tests and CI passed) |
 | B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check open |
@@ -414,7 +414,7 @@ The import is a separate data source. The candles go to `rates` with `source = c
 - Overlap: a committed import of the same account, symbol and timeframe with an overlapping range gives 409 with the old import. Only `replace: true` deletes the old one (in the same transaction as the new write).
 - Gaps: a break longer than 4 days (`MAX_PAUSE_SEC`) in the file is stored as `unavailable`; `rates?source=csv:` shows every range outside the file as `missing` with the reason `csv_gap` (rule 4 of this plan). Weekends are not gaps.
 - Limits: max. 3 unfinished imports per account; unfinished imports older than 24 hours go away at the next create; the database size limit (`MARKET_DB_MAX_MB`) is checked at create and before the write (507). Deleting an account deletes its imports.
-- Time zone: the file time plus `time_offset_sec` (−14 to +14 hours) is the MT5 server time. The worker cannot know the time zone of a file; the user sets it. This is the main risk (see open points).
+- Time zone: fixed mode adds `time_offset_sec` (−14 to +14 hours) to each CSV time. Row mode accepts UTC timestamps with a `broker_offset_sec` integer column (−14 to +14 hours) and a global offset of zero. The worker does not infer historical offsets. Converted broker timestamps must rise strictly; duplicate times in the autumn fold fail.
 - Assumption: the import has one timeframe (as the file). `rates?source=csv:<id>` refuses another timeframe or symbol (400). The browser builds higher timeframes in B4.
 - The dialog sits in the Backtest tab of `/chart`, because `/backtest` comes with B5. The catalog text says so.
 - Changed test: `test_fehlgeschlagene_migration_laesst_alte_version_und_antwortet_503` had the schema versions 1 and 2 fixed in it. With migration 2 it uses `SCHEMA_VERSION` and `+ 1`. The checks did not change.
@@ -620,17 +620,17 @@ Follow-up: tests are now authorized. The BKT-07 verification and repairs are rec
 - [x] B5a: the web worker is not built by Next yet (no page uses `new Worker(new URL('…/backtest.worker.ts', import.meta.url))`). Check the build (Turbopack) and the import of `@/` aliases in the worker.
 - [x] B5a: texts (tr/en/de) for the run log codes and the error codes (`run.*`); refuse netting accounts; show the pair of results of "both paths"; build the request headers with `getWorkerHeaders()` (X-API-Key and ngrok header) and the base address with `apiUrl('')`, because `RunRequest.headers` is a plain record and nothing forces it.
 - [x] B5/B6: exact MFE/MAE from the simulator, and the `bars` message for chart display candles.
-- [ ] B4 model limits, to show on the page: the bot runs at path points, after each fill or exit and at zone borders, not every second as live. Rules that depend on the wait time between two loops (the 30-s brake) use the simulated clock. Weekend swap only through the triple day. Samples of the equity are at the candle ends, so the max. drawdown inside a candle is not seen.
+- [x] B4 model limits on the page: event times, simulated wait time, triple-day weekend swap, and candle-end drawdown samples. Local browser checks and visual review are in `2026-10-09-backtest-open-items-audit.md`; awaiting PR review.
 - [x] B5a: page `/backtest`, test button; no `POST /settings`; an old result never shows under a different account.
 - [x] B6: chart; max. 50,000 displayed candles; replay does not show candles or trade events after its cursor.
 - [x] B7 (Codex): up to six local setups, two concurrent workers, run identity guards, comparison and equity overlay. See `2026-10-08-backtest-b7-multiple-setups.md`.
 - [x] B8 (Codex): user-owned presets and "apply to zone"; the transfer stays unsaved; a new zone is inactive. See `2026-10-08-backtest-b8-presets-transfer.md`.
 - [x] B9: CSV import; an aborted or wrong import cannot be selected (see "Result B9").
-- [ ] B9, manual check on the VPS (DEMO): import one real M1 CSV of about 1 year, then read it with `GET /api/market/{id}/rates?source=csv:<id>`, and check the time zone offset against a candle that MT5 also has.
+- [ ] B9, manual check on the VPS (DEMO): import one verified real M1 CSV of about 1 year, then read it with `GET /api/market/{id}/rates?source=csv:<id>`, and check the time zone offset against a candle that MT5 also has.
 - [x] B5a done (moved): `CsvImportPanel` is on `/backtest`. B5b: add the selection "data source: MT5 server or CSV import" (only `committed` imports are in the list). Done in B5b.
-- [ ] B9 (review, not done): the commit holds the database write lock while it parses and writes (up to 2 million rows); saving settings waits in that time. Use staging tables or write in parts if this shows on the VPS.
-- [ ] B9 (review, not done): a fixed time offset cannot follow the summer time of a broker. A UTC file over several months is 1 hour off in half of the year; the grid check sees whole hours only. Add a plausibility check against the broker clock log, or an offset per range.
-- [ ] B5 (review, not done): an abort during `POST /imports` leaves one unfinished entry (it can be deleted in the list). The text for `csv_gap` is done (B5b). B6 builds CSV chart candles from the loaded rates and the run's broker-time range. It does not need `account_id`, `server_now`, or `offset_sec` in that answer.
+- [x] B9 (review): CSV parsing runs outside the write lock. The worker writes uncommitted candles in 50,000-row batches, then publishes the import and removes overlaps atomically. The API test checks another writer during parsing.
+- [x] B9 (review): row mode accepts UTC timestamps and the historical `broker_offset_sec` per row. The worker checks the selected mode, zero global offset, ±14-hour range, strict broker-time order and imported provenance. API and browser tests cover both seasonal transitions and the duplicate autumn hour.
+- [x] B5 (review): an abort during `POST /imports` deletes a delayed staging ID before any chunk or commit. The text for `csv_gap` is done (B5b). B6 builds CSV chart candles from the loaded rates and the run's broker-time range. It does not need `account_id`, `server_now`, or `offset_sec` in that answer.
 - [x] B4: the runner reads `rates?source=csv:<id>`. It has one timeframe only; higher timeframes come from the candles in the browser (`TimeframeAggregator`). The test of the job uses `source`.
 - [x] B7 decision (Codex): compare the existing `computeStats` KPIs and the run summaries unchanged. Items 1–7 remain proposals for later work.
 - [x] B9: define the accepted CSV formats (item 8 of "Items from the first concept"): header names or position, MT5 export with date and time apart, separators `,` `;` tab, UTF-8 or UTF-16, epoch seconds/milliseconds or text times (see "Result B9").

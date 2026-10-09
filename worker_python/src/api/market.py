@@ -9,7 +9,7 @@
 """
 import asyncio
 import time
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -249,6 +249,7 @@ class ImportCreate(BaseModel):
     filename: str = Field("", max_length=255)
     size: int
     time_offset_sec: int = 0
+    time_offset_mode: Literal['fixed', 'row'] = 'fixed'
 
 
 class ImportCommit(BaseModel):
@@ -277,7 +278,7 @@ async def list_imports(account_id: str):
 async def create_import(account_id: str, body: ImportCreate):
     _account_or_404(account_id)
     return await _csv_call(
-        csv_import.create, account_id, body.symbol, body.timeframe, body.filename, body.size, body.time_offset_sec
+        csv_import.create, account_id, body.symbol, body.timeframe, body.filename, body.size, body.time_offset_sec, body.time_offset_mode
     )
 
 

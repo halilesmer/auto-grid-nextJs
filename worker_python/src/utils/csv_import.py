@@ -3,7 +3,8 @@
 Akış: create (kayıt + ara dosya) → chunk (sıralı parçalar) → commit (doğrula, yaz) / delete.
 Onaylanmış bir içe aktarmanın mumları `csv:<import_id>` kaynağında durur; MT5 mumlarına (kaynak = sunucu adı)
 dokunulmaz. Yalnızca `committed` içe aktarmalar seçilebilir; hatalı dosya commit'te hemen silinir.
-Zaman: CSV zamanı + offset_sec = MT5 zamanı (`rates.t_mt5` gibi, UTC epoch olarak yazılır).
+Zaman: CSV zamanı + offset_sec = MT5 zamanı. UTC dosyasında broker_offset_sec sütunu varsa
+her satır kendi farkını kullanır (mevsimsel geçiş); sabit offset_sec bu durumda sıfır olmalıdır.
 """
 import calendar
 import csv
@@ -64,7 +65,7 @@ def _entry(import_id: str, account_id: str) -> dict:
 
 def _public(row: dict) -> dict:
     keys = ("import_id", "symbol", "filename", "status", "size_bytes", "received_bytes", "bars",
-            "first_t", "last_t", "gaps", "offset_sec", "created_at", "committed_at")
+            "first_t", "last_t", "gaps", "offset_sec", "offset_mode", "created_at", "committed_at")
     return {**{k: row[k] for k in keys}, "timeframe": TF_BY_SEC.get(row["timeframe"], str(row["timeframe"]))}
 
 
@@ -75,7 +76,7 @@ def list_imports(account_id: str) -> list[dict]:
     return [_public(dict(r)) for r in rows]
 
 
-def create(account_id: str, symbol: str, timeframe: str, filename: str, size: int, offset_sec: int) -> dict:
+def create(account_id: str, symbol: str, timeframe: str, filename: str, size: int, offset_sec: int, offset_mode: str = 'fixed') -> dict:
     symbol = symbol.strip()
     if not SYMBOL_RE.match(symbol):
         raise ImportFailure(400, "Symbol is not valid")
@@ -100,12 +101,12 @@ def create(account_id: str, symbol: str, timeframe: str, filename: str, size: in
             raise ImportFailure(409, "Too many unfinished imports; cancel one first")
         conn.execute(
             "INSERT INTO csv_imports (import_id, account_id, symbol, timeframe, filename, status, size_bytes, "
-            "offset_sec, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            "offset_sec, created_at, offset_mode) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (import_id, account_id, symbol, TIMEFRAMES[timeframe][1], os.path.basename(filename or "")[:120],
-             "staging", size, offset_sec, now),
+             "staging", size, offset_sec, now, offset_mode),
         )
     os.makedirs(db.imports_dir(), exist_ok=True)
-    return {"import_id": import_id, "chunk_bytes": MAX_CHUNK_BYTES}
+    return {"import_id": import_id, "chunk_bytes": MAX_CHUNK_BYTES, "offset_mode": offset_mode}
 
 
 def add_chunk(account_id: str, import_id: str, index: int, data: bytes) -> dict:
@@ -150,6 +151,7 @@ _NAMES = {
     "time": ("time", "datetime", "timestamp", "date", "t"),
     "open": ("open", "o"), "high": ("high", "h"), "low": ("low", "l"), "close": ("close", "c"),
     "volume": ("volume", "tickvol", "tick_volume", "vol", "v"),
+    "broker_offset_sec": ("broker_offset_sec",),
 }
 
 
@@ -212,7 +214,7 @@ def _layout(first: list[str]) -> tuple[bool, dict]:
     return False, cols
 
 
-def iter_rows(path: str, tf_sec: int, offset_sec: int, errors: list, now: float | None = None):
+def iter_rows(path: str, tf_sec: int, offset_sec: int, errors: list, now: float | None = None, metadata: dict | None = None):
     """Liefert (t, o, h, l, c, volume) geprüft und sortiert. Fehler → `errors` (höchstens MAX_ERRORS).
 
     Bricht beim MAX_ERRORS-ten Fehler ab. Prüft: Format, Zeit-Raster, strikt steigende Zeit, OHLC,
@@ -238,13 +240,20 @@ def iter_rows(path: str, tf_sec: int, offset_sec: int, errors: list, now: float 
             line = reader.line_num
             if has_header is None:
                 has_header, cols = _layout(row)
+                if "broker_offset_sec" in cols and offset_sec != 0:
+                    raise ImportFailure(422, "Per-row broker offsets cannot be combined with a fixed time offset")
+                if metadata is not None:
+                    metadata["offset_mode"] = "row" if "broker_offset_sec" in cols else "fixed"
                 if has_header:
                     continue
             try:
                 text = row[cols["time"]]
                 if "date" in cols:
                     text = f"{row[cols['date']].strip()} {text.strip()}"
-                t = _parse_time(text) + offset_sec
+                row_offset = int(row[cols["broker_offset_sec"]]) if "broker_offset_sec" in cols else offset_sec
+                if abs(row_offset) > MAX_OFFSET_SEC:
+                    raise ValueError("broker offset must be within ±14 hours")
+                t = _parse_time(text) + row_offset
                 o, h, l, c = (float(row[cols[k]].replace(",", ".") if delimiter != "," else row[cols[k]])
                               for k in ("open", "high", "low", "close"))
                 vol = int(float(row[cols["volume"]])) if "volume" in cols and row[cols["volume"]].strip() else None
@@ -288,8 +297,9 @@ def _scan(path: str, tf_sec: int, offset_sec: int) -> dict:
     errors: list = []
     bars, first, last = 0, None, None
     gaps: list[tuple[int, int]] = []
+    metadata = {"offset_mode": "fixed"}
     try:
-        for t, *_ in iter_rows(path, tf_sec, offset_sec, errors):
+        for t, *_ in iter_rows(path, tf_sec, offset_sec, errors, metadata=metadata):
             if last is not None and t - last - tf_sec > MAX_PAUSE_SEC and len(gaps) < 1000:
                 gaps.append((last + tf_sec, t))
             first = t if first is None else first
@@ -300,7 +310,7 @@ def _scan(path: str, tf_sec: int, offset_sec: int) -> dict:
         raise ImportFailure(422, "The file has errors", errors)
     if bars == 0:
         raise ImportFailure(422, "The file has no candles")
-    return {"bars": bars, "first": first, "last": last, "gaps": gaps}
+    return {"bars": bars, "first": first, "last": last, "gaps": gaps, **metadata}
 
 
 # --------------------------------------------------------------------------- Commit
@@ -324,6 +334,8 @@ def _commit(account_id: str, row: dict, replace: bool) -> dict:
     import_id, path, tf_sec = row["import_id"], db.staging_file(row["import_id"]), row["timeframe"]
     try:
         scan = _scan(path, tf_sec, row["offset_sec"])
+        if scan["offset_mode"] != row["offset_mode"]:
+            raise ImportFailure(422, "Selected time offset mode does not match the CSV header")
     except ImportFailure:
         # Hatalı dosya: ara kayıt hemen silinir, hiç seçilebilir olmaz
         with db.writing() as conn:
@@ -340,33 +352,51 @@ def _commit(account_id: str, row: dict, replace: bool) -> dict:
         pos = b
     segments.append((pos, end, db.STATE_COMPLETE))
     now = int(time.time())
-    with db.writing() as conn:
-        overlaps = [dict(r) for r in conn.execute(
-            "SELECT * FROM csv_imports WHERE account_id=? AND symbol=? AND timeframe=? AND status='committed' "
-            "AND first_t < ? AND last_t >= ?",
-            (account_id, row["symbol"], tf_sec, end, scan["first"]))]
-        if overlaps and not replace:
-            raise ImportFailure(409, "Overlaps an existing import", [_public(o) for o in overlaps])
-        for old in overlaps:
-            db.remove_csv_import(conn, old["import_id"])
+    # Nur committed ist über /rates lesbar. Vorbereitete Batches bleiben bis zum atomaren
+    # Statuswechsel unsichtbar; Parse-Zeit und andere Schreibvorgänge teilen keinen DB-Lock.
+    try:
+        with db.writing() as conn:
+            conn.execute("DELETE FROM rates WHERE source=?", (src,))  # Reste nach Prozessabbruch
         batch = []
         errors: list = []
-        for t, o, h, l, c, vol in iter_rows(path, tf_sec, row["offset_sec"], errors):
+        metadata = {}
+        count, first, last = 0, None, None
+        for t, o, h, l, c, vol in iter_rows(path, tf_sec, row["offset_sec"], errors, metadata=metadata):
+            count += 1
+            first = t if first is None else first
+            last = t
             batch.append((src, row["symbol"], tf_sec, t, o, h, l, c, vol, None))
             if len(batch) >= BATCH_ROWS:
-                conn.executemany("INSERT INTO rates VALUES (?,?,?,?,?,?,?,?,?,?)", batch)
+                _insert_batch(account_id, import_id, batch)
                 batch = []
-        if errors:  # Datei hat sich zwischen den Durchgängen geändert
+        if errors or (count, first, last, metadata.get("offset_mode")) != (
+                scan["bars"], scan["first"], scan["last"], scan["offset_mode"]):
+            # Datei hat sich zwischen den Durchgängen geändert
             raise ImportFailure(409, "File changed during the import")
         if batch:
-            conn.executemany("INSERT INTO rates VALUES (?,?,?,?,?,?,?,?,?,?)", batch)
-        for x, y, state in segments:
-            if y > x:
-                db._insert(conn, "rate_coverage", {"source": src, "symbol": row["symbol"], "timeframe": tf_sec,
-                                                   "from_t": x, "to_t": y, "state": state, "checked_at": now})
-        conn.execute(
-            "UPDATE csv_imports SET status='committed', bars=?, first_t=?, last_t=?, gaps=?, committed_at=? "
-            "WHERE import_id=?", (scan["bars"], scan["first"], scan["last"], len(scan["gaps"]), now, import_id))
+            _insert_batch(account_id, import_id, batch)
+        with db.writing() as conn:
+            _require_staging(conn, account_id, import_id)
+            overlaps = [dict(r) for r in conn.execute(
+                "SELECT * FROM csv_imports WHERE account_id=? AND symbol=? AND timeframe=? AND status='committed' "
+                "AND first_t < ? AND last_t >= ?",
+                (account_id, row["symbol"], tf_sec, end, scan["first"]))]
+            if overlaps and not replace:
+                raise ImportFailure(409, "Overlaps an existing import", [_public(o) for o in overlaps])
+            for old in overlaps:
+                db.remove_csv_import(conn, old["import_id"])
+            for x, y, state in segments:
+                if y > x:
+                    db._insert(conn, "rate_coverage", {"source": src, "symbol": row["symbol"], "timeframe": tf_sec,
+                                                       "from_t": x, "to_t": y, "state": state, "checked_at": now})
+            conn.execute(
+                "UPDATE csv_imports SET status='committed', bars=?, first_t=?, last_t=?, gaps=?, committed_at=?, offset_mode=? "
+                "WHERE import_id=?", (scan["bars"], scan["first"], scan["last"], len(scan["gaps"]), now, scan["offset_mode"], import_id))
+    except BaseException:
+        # Abgebrochene Batches dürfen bei einem erneuten Commit nicht doppelt eingefügt werden.
+        with db.writing() as conn:
+            conn.execute("DELETE FROM rates WHERE source=?", (src,))
+        raise
     if overlaps:
         db.reclaim_space()
     try:
@@ -375,6 +405,22 @@ def _commit(account_id: str, row: dict, replace: bool) -> dict:
         # Commit tamam; dosya (ör. Windows'ta virüs tarayıcı) silinemedi: içe aktarma geçerli, yalnız artık dosya kalır
         log.warning("CSV staging file could not be removed: %s", path, exc_info=True)
     return _public(_entry(import_id, account_id))
+
+
+def _require_staging(conn, account_id: str, import_id: str):
+    # Kontolöschung kann zwischen Batches stattfinden. Dann keine verwaisten Kerzen schreiben.
+    entry = conn.execute("SELECT status FROM csv_imports WHERE import_id=? AND account_id=?",
+                         (import_id, account_id)).fetchone()
+    if entry is None:
+        raise ImportFailure(404, "Import not found")
+    if entry["status"] != "staging":
+        raise ImportFailure(409, "Import is already committed")
+
+
+def _insert_batch(account_id: str, import_id: str, batch: list):
+    with db.writing() as conn:
+        _require_staging(conn, account_id, import_id)
+        conn.executemany("INSERT INTO rates VALUES (?,?,?,?,?,?,?,?,?,?)", batch)
 
 
 # --------------------------------------------------------------------------- Lesen
@@ -406,4 +452,3 @@ def get_rates(account_id: str, import_id: str, symbol: str, timeframe: str, a: i
         "s": [None for _ in rows], "live_from": None, "digits": None, "point": None,
         "next_from": next_from, "missing": missing, "db_full": False,
     }
-
