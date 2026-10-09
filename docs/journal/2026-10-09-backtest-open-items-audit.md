@@ -3,7 +3,7 @@ date: 2026-10-09
 author: Codex
 type: plan
 status: open
-pr: []
+pr: [141]
 features: [BKT-04, BKT-05, BKT-06, BKT-07, BKT-10, ZON-21]
 areas: [frontend, worker, tests, docs]
 ---
@@ -63,5 +63,5 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 
 ## Open points
 
-- [ ] Create and review the PR; inspect CI and merge only if automatic approval allows it.
+- [ ] Inspect CI for PR #141; merge and pull only if automatic approval allows it.
 - [ ] Obtain the external evidence for the real annual CSV, installed swap constants and ZON-21 manual DEMO check.
