@@ -75,6 +75,16 @@ const HALF_WINDOW = 1e-3;
  * korrekt gerundete Division zweier exakter Zahlen (= Number("k.ddd")). Nahe am Halbwert rechnet pyRoundExact.
  */
 export function pyRound(x: number, ndigits?: number): number {
+  if (ndigits === undefined && Number.isFinite(x)) {
+    // Ab 2^52 ist jedes Double ganzzahlig. Für |x| >= 1 ist die Subtraktion exakt (Sterbenz);
+    // darunter ist floor(|x|) = 0, also bleibt der Bruchteil ebenfalls exakt.
+    const absolute = Math.abs(x);
+    const floor = Math.floor(absolute);
+    const fraction = absolute - floor;
+    const integer = fraction > 0.5 || (fraction === 0.5 && floor % 2 !== 0) ? floor + 1 : floor;
+    if (integer === 0) return 0;
+    return x < 0 ? -integer : integer;
+  }
   if (ndigits !== undefined && Number.isInteger(ndigits) && ndigits >= 0 && ndigits <= 15 && Number.isFinite(x)) {
     if (x === 0) return x;
     const scale = POW10[ndigits];
