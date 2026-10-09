@@ -211,4 +211,25 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     }
     expect(values.length).toBeGreaterThan(100_000);
   });
+
+  test('Ganzzahlrundung: gerade Halbwerte, Nachbar-Doubles, Vorzeichen und gesamte Double-Spanne', { tag: '@BKT-02' }, () => {
+    expect(pyRound(2.5)).toBe(2);
+    expect(pyRound(3.5)).toBe(4);
+    expect(pyRound(-2.5)).toBe(-2);
+    expect(pyRound(-3.5)).toBe(-4);
+    expect(Object.is(pyRound(-0.5), 0)).toBe(true);
+    const values = [0, -0, Number.MIN_VALUE, -Number.MIN_VALUE, Number.MAX_VALUE, -Number.MAX_VALUE, Infinity, -Infinity, NaN];
+    for (let exponent = -1074; exponent <= 1023; exponent++) {
+      const value = 2 ** exponent;
+      values.push(value, -value, value * 1.5, -value * 1.5);
+    }
+    for (let integer = 0; integer < 20000; integer++) {
+      const half = integer + 0.5;
+      const ulp = 2 ** (Math.floor(Math.log2(half)) - 52);
+      values.push(half, -half, half - ulp, half + ulp, -half - ulp, -half + ulp);
+    }
+    for (const value of values) {
+      if (!Object.is(pyRound(value), pyRoundExact(value))) throw new Error(`round(${value}): fast path differs from exact reference`);
+    }
+  });
 });

@@ -245,7 +245,7 @@
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 41
+      "tests": 42
     }
   },
   "BKT-03": {
@@ -264,7 +264,7 @@
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 66
+      "tests": 68
     },
     "unit": {
       "datum": "2026-10-09",

@@ -1,0 +1,1346 @@
+{
+  "scope": "Synthetic continuous M1, active BUY/SELL grid; mocked HTTP only. Times include CDP sampling overhead. Heap values are samples, not a true peak or RSS. Grid counters count log messages, not individual orders.",
+  "baseline": {
+    "browser": "153.0.8010.12",
+    "delivered": 1000000,
+    "loadMs": 1977.1000000238419,
+    "simulationMs": 595036.5,
+    "resultSerializationMs": 391,
+    "simulationAndDeliveryMs": 596064.7000000477,
+    "heap": [
+      {
+        "atMs": 0,
+        "usedSize": 483092,
+        "totalSize": 1310720,
+        "embedderHeapUsedSize": 773712,
+        "backingStorageSize": 74709
+      },
+      {
+        "requestedAtMs": 0.8025830000001406,
+        "usedSize": 8999236,
+        "totalSize": 43679744,
+        "embedderHeapUsedSize": 43888,
+        "backingStorageSize": 48219959,
+        "atMs": 2.7558749999998327
+      },
+      {
+        "requestedAtMs": 5010.561583000001,
+        "usedSize": 27030716,
+        "totalSize": 78020608,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48406887,
+        "atMs": 5011.524208000001
+      },
+      {
+        "requestedAtMs": 10017.310708,
+        "usedSize": 12889684,
+        "totalSize": 81477632,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48623087,
+        "atMs": 10058.893
+      },
+      {
+        "requestedAtMs": 15092.075625000001,
+        "usedSize": 38692200,
+        "totalSize": 83820544,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48488463,
+        "atMs": 15094.748708
+      },
+      {
+        "requestedAtMs": 20099.848291,
+        "usedSize": 39526920,
+        "totalSize": 87212032,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48453207,
+        "atMs": 20100.972958
+      },
+      {
+        "requestedAtMs": 25106.458875,
+        "usedSize": 51334184,
+        "totalSize": 90243072,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48574295,
+        "atMs": 25107.505416
+      },
+      {
+        "requestedAtMs": 30111.699083,
+        "usedSize": 38212608,
+        "totalSize": 93323264,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48358207,
+        "atMs": 30113.931416
+      },
+      {
+        "requestedAtMs": 35120.761125,
+        "usedSize": 48470016,
+        "totalSize": 95420416,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48464847,
+        "atMs": 35121.931625
+      },
+      {
+        "requestedAtMs": 40128.519708,
+        "usedSize": 34889864,
+        "totalSize": 98189312,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48697671,
+        "atMs": 40143.69625
+      },
+      {
+        "requestedAtMs": 45163.375583,
+        "usedSize": 59657596,
+        "totalSize": 99762176,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48559183,
+        "atMs": 45166.703
+      },
+      {
+        "requestedAtMs": 50173.528916,
+        "usedSize": 35718200,
+        "totalSize": 104497152,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48625807,
+        "atMs": 50175.628708
+      },
+      {
+        "requestedAtMs": 55181.28325,
+        "usedSize": 40208128,
+        "totalSize": 106479616,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48653127,
+        "atMs": 55182.212208
+      },
+      {
+        "requestedAtMs": 60186.451208,
+        "usedSize": 47356104,
+        "totalSize": 109101056,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48717711,
+        "atMs": 60187.842
+      },
+      {
+        "requestedAtMs": 65199.57475000001,
+        "usedSize": 64130928,
+        "totalSize": 110936064,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48469335,
+        "atMs": 65216.214166
+      },
+      {
+        "requestedAtMs": 70232.684916,
+        "usedSize": 65752892,
+        "totalSize": 115785728,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48428719,
+        "atMs": 70239.92958299999
+      },
+      {
+        "requestedAtMs": 75247.98158299999,
+        "usedSize": 64595092,
+        "totalSize": 119947264,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48355111,
+        "atMs": 75249.04125000001
+      },
+      {
+        "requestedAtMs": 80254.38866600001,
+        "usedSize": 66954132,
+        "totalSize": 122044416,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48358063,
+        "atMs": 80255.901083
+      },
+      {
+        "requestedAtMs": 85273.462291,
+        "usedSize": 81316028,
+        "totalSize": 123879424,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48523383,
+        "atMs": 85278.70637500001
+      },
+      {
+        "requestedAtMs": 90295.08383300001,
+        "usedSize": 42522052,
+        "totalSize": 116932608,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48680801,
+        "atMs": 90316.683208
+      },
+      {
+        "requestedAtMs": 95324.408291,
+        "usedSize": 54886588,
+        "totalSize": 118521856,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48350873,
+        "atMs": 95325.295958
+      },
+      {
+        "requestedAtMs": 100329.97987499999,
+        "usedSize": 50350588,
+        "totalSize": 122650624,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48650105,
+        "atMs": 100335.153666
+      },
+      {
+        "requestedAtMs": 105346.331916,
+        "usedSize": 55497368,
+        "totalSize": 122650624,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48688745,
+        "atMs": 105347.24895800001
+      },
+      {
+        "requestedAtMs": 110354.226291,
+        "usedSize": 74109220,
+        "totalSize": 122961920,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48460889,
+        "atMs": 110370.13370800001
+      },
+      {
+        "requestedAtMs": 115381.26199999999,
+        "usedSize": 80961152,
+        "totalSize": 124010496,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48524425,
+        "atMs": 115382.22562499999
+      },
+      {
+        "requestedAtMs": 120387.246625,
+        "usedSize": 72590344,
+        "totalSize": 125845504,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48386241,
+        "atMs": 120389.54279100001
+      },
+      {
+        "requestedAtMs": 125397.043458,
+        "usedSize": 58860604,
+        "totalSize": 127680512,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48624665,
+        "atMs": 125398.52775000001
+      },
+      {
+        "requestedAtMs": 130405.90129100002,
+        "usedSize": 60469156,
+        "totalSize": 129515520,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48616457,
+        "atMs": 130407.70762500001
+      },
+      {
+        "requestedAtMs": 135414.06437500002,
+        "usedSize": 69907416,
+        "totalSize": 131874816,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48717145,
+        "atMs": 135416.585125
+      },
+      {
+        "requestedAtMs": 140427.765583,
+        "usedSize": 68298568,
+        "totalSize": 133447680,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48671001,
+        "atMs": 140430.23525
+      },
+      {
+        "requestedAtMs": 145440.862083,
+        "usedSize": 83578304,
+        "totalSize": 139755520,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48353297,
+        "atMs": 145443.617291
+      },
+      {
+        "requestedAtMs": 150452.81466600002,
+        "usedSize": 75865412,
+        "totalSize": 135938048,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48393625,
+        "atMs": 150460.382083
+      },
+      {
+        "requestedAtMs": 155468.15720800002,
+        "usedSize": 90240516,
+        "totalSize": 135938048,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48561977,
+        "atMs": 155474.199083
+      },
+      {
+        "requestedAtMs": 160492.49887500002,
+        "usedSize": 92835928,
+        "totalSize": 135938048,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48570857,
+        "atMs": 160499.69270800002
+      },
+      {
+        "requestedAtMs": 165504.350791,
+        "usedSize": 84018412,
+        "totalSize": 135938048,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48424281,
+        "atMs": 165506.567375
+      },
+      {
+        "requestedAtMs": 170512.009666,
+        "usedSize": 100747408,
+        "totalSize": 137707520,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48614825,
+        "atMs": 170512.887583
+      },
+      {
+        "requestedAtMs": 175518.29175,
+        "usedSize": 88599316,
+        "totalSize": 140066816,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48427153,
+        "atMs": 175520.446291
+      },
+      {
+        "requestedAtMs": 180529.974958,
+        "usedSize": 77022552,
+        "totalSize": 142163968,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48692457,
+        "atMs": 180532.794
+      },
+      {
+        "requestedAtMs": 185540.895958,
+        "usedSize": 95901500,
+        "totalSize": 143474688,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48475297,
+        "atMs": 185554.327458
+      },
+      {
+        "requestedAtMs": 190571.182416,
+        "usedSize": 105350808,
+        "totalSize": 145047552,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48581129,
+        "atMs": 190576.57925
+      },
+      {
+        "requestedAtMs": 195590.92954100002,
+        "usedSize": 111412052,
+        "totalSize": 150306816,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48596121,
+        "atMs": 195592.057333
+      },
+      {
+        "requestedAtMs": 200598.30966600002,
+        "usedSize": 114766096,
+        "totalSize": 152141824,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48613873,
+        "atMs": 200599.986916
+      },
+      {
+        "requestedAtMs": 205606.037625,
+        "usedSize": 89564200,
+        "totalSize": 153976832,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48696081,
+        "atMs": 205608.42241600002
+      },
+      {
+        "requestedAtMs": 210613.882416,
+        "usedSize": 96318436,
+        "totalSize": 156073984,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48758233,
+        "atMs": 210615.346083
+      },
+      {
+        "requestedAtMs": 215621.00891600002,
+        "usedSize": 105106280,
+        "totalSize": 158171136,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48404577,
+        "atMs": 215622.09595800002
+      },
+      {
+        "requestedAtMs": 220633.99575,
+        "usedSize": 108015432,
+        "totalSize": 160006144,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48416593,
+        "atMs": 220648.64408300002
+      },
+      {
+        "requestedAtMs": 225667.085083,
+        "usedSize": 102630568,
+        "totalSize": 171147264,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48641913,
+        "atMs": 225674.193333
+      },
+      {
+        "requestedAtMs": 230682.3945,
+        "usedSize": 111190796,
+        "totalSize": 173244416,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48728721,
+        "atMs": 230683.822791
+      },
+      {
+        "requestedAtMs": 235689.374041,
+        "usedSize": 120068968,
+        "totalSize": 175341568,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48375401,
+        "atMs": 235690.61158300002
+      },
+      {
+        "requestedAtMs": 240696.024375,
+        "usedSize": 136598220,
+        "totalSize": 177438720,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48569769,
+        "atMs": 240697.243583
+      },
+      {
+        "requestedAtMs": 245706.07320800002,
+        "usedSize": 139947944,
+        "totalSize": 179535872,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48588801,
+        "atMs": 245709.318291
+      },
+      {
+        "requestedAtMs": 250726.71887500002,
+        "usedSize": 139537804,
+        "totalSize": 181108736,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48559553,
+        "atMs": 250735.209291
+      },
+      {
+        "requestedAtMs": 255765.162208,
+        "usedSize": 133336224,
+        "totalSize": 182681600,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48456081,
+        "atMs": 255771.95283300002
+      },
+      {
+        "requestedAtMs": 260784.910291,
+        "usedSize": 147012344,
+        "totalSize": 184942592,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48602721,
+        "atMs": 260786.463791
+      },
+      {
+        "requestedAtMs": 265792.30808299995,
+        "usedSize": 141667424,
+        "totalSize": 187301888,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48506241,
+        "atMs": 265794.43875
+      },
+      {
+        "requestedAtMs": 270801.176,
+        "usedSize": 149104184,
+        "totalSize": 189136896,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48578689,
+        "atMs": 270802.013208
+      },
+      {
+        "requestedAtMs": 275806.652291,
+        "usedSize": 131693772,
+        "totalSize": 191234048,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48763473,
+        "atMs": 275807.614625
+      },
+      {
+        "requestedAtMs": 280812.777375,
+        "usedSize": 154136464,
+        "totalSize": 193331200,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48591353,
+        "atMs": 280814.698875
+      },
+      {
+        "requestedAtMs": 285820.282875,
+        "usedSize": 135880732,
+        "totalSize": 195690496,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48764561,
+        "atMs": 285822.11162499996
+      },
+      {
+        "requestedAtMs": 290827.3555,
+        "usedSize": 135712172,
+        "totalSize": 197263360,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48735929,
+        "atMs": 290828.762625
+      },
+      {
+        "requestedAtMs": 295834.988708,
+        "usedSize": 137148400,
+        "totalSize": 199622656,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48724993,
+        "atMs": 295836.610625
+      },
+      {
+        "requestedAtMs": 300841.664916,
+        "usedSize": 145476476,
+        "totalSize": 208814080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48712537,
+        "atMs": 300843.360958
+      },
+      {
+        "requestedAtMs": 305849.617375,
+        "usedSize": 164461584,
+        "totalSize": 211173376,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48491673,
+        "atMs": 305850.455875
+      },
+      {
+        "requestedAtMs": 310855.35599999997,
+        "usedSize": 146459656,
+        "totalSize": 213270528,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48669433,
+        "atMs": 310856.56020799995
+      },
+      {
+        "requestedAtMs": 315862.82454099995,
+        "usedSize": 176329312,
+        "totalSize": 215105536,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48598185,
+        "atMs": 315864.493416
+      },
+      {
+        "requestedAtMs": 320873.747583,
+        "usedSize": 163549452,
+        "totalSize": 216416256,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48409273,
+        "atMs": 320880.73570799996
+      },
+      {
+        "requestedAtMs": 325888.30525,
+        "usedSize": 164772196,
+        "totalSize": 217989120,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48402417,
+        "atMs": 325889.252875
+      },
+      {
+        "requestedAtMs": 330896.14970799995,
+        "usedSize": 163773680,
+        "totalSize": 220086272,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48362897,
+        "atMs": 330897.171125
+      },
+      {
+        "requestedAtMs": 335902.31566599995,
+        "usedSize": 185692528,
+        "totalSize": 221659136,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48629033,
+        "atMs": 335903.61587499996
+      },
+      {
+        "requestedAtMs": 340918.846333,
+        "usedSize": 183519516,
+        "totalSize": 223232000,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48582937,
+        "atMs": 340928.485375
+      },
+      {
+        "requestedAtMs": 345947.772458,
+        "usedSize": 184848028,
+        "totalSize": 238469120,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48397809,
+        "atMs": 345974.553041
+      },
+      {
+        "requestedAtMs": 351127.59554099996,
+        "usedSize": 192246896,
+        "totalSize": 240041984,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48475545,
+        "atMs": 351138.523458
+      },
+      {
+        "requestedAtMs": 356156.372208,
+        "usedSize": 184234104,
+        "totalSize": 242139136,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48344569,
+        "atMs": 356157.651166
+      },
+      {
+        "requestedAtMs": 361162.52554099995,
+        "usedSize": 190590388,
+        "totalSize": 243974144,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48401993,
+        "atMs": 361163.325416
+      },
+      {
+        "requestedAtMs": 366168.00170799997,
+        "usedSize": 189082500,
+        "totalSize": 245809152,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48358025,
+        "atMs": 366169.405708
+      },
+      {
+        "requestedAtMs": 371175.009625,
+        "usedSize": 210546608,
+        "totalSize": 247644160,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48614081,
+        "atMs": 371177.658708
+      },
+      {
+        "requestedAtMs": 376183.866,
+        "usedSize": 213369792,
+        "totalSize": 249479168,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48627065,
+        "atMs": 376184.72737499996
+      },
+      {
+        "requestedAtMs": 381190.29524999997,
+        "usedSize": 182574532,
+        "totalSize": 251576320,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48640361,
+        "atMs": 381196.522916
+      },
+      {
+        "requestedAtMs": 386218.75079099997,
+        "usedSize": 214195048,
+        "totalSize": 252624896,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48601353,
+        "atMs": 386279.04016599996
+      },
+      {
+        "requestedAtMs": 391302.047416,
+        "usedSize": 214695788,
+        "totalSize": 253673472,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48589313,
+        "atMs": 391307.549666
+      },
+      {
+        "requestedAtMs": 396329.937291,
+        "usedSize": 193703444,
+        "totalSize": 255508480,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48738089,
+        "atMs": 396342.260458
+      },
+      {
+        "requestedAtMs": 401373.21970799996,
+        "usedSize": 215414168,
+        "totalSize": 257851392,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48544817,
+        "atMs": 401456.630625
+      },
+      {
+        "requestedAtMs": 406472.67549999995,
+        "usedSize": 219462452,
+        "totalSize": 259424256,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48576865,
+        "atMs": 406475.22433299996
+      },
+      {
+        "requestedAtMs": 411479.84637499996,
+        "usedSize": 231558992,
+        "totalSize": 267829248,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48629713,
+        "atMs": 411480.86912499997
+      },
+      {
+        "requestedAtMs": 416485.09395799995,
+        "usedSize": 221474420,
+        "totalSize": 269664256,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48471577,
+        "atMs": 416487.36070799996
+      },
+      {
+        "requestedAtMs": 421492.921666,
+        "usedSize": 221055756,
+        "totalSize": 271499264,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48440217,
+        "atMs": 421494.437666
+      },
+      {
+        "requestedAtMs": 426499.65045799996,
+        "usedSize": 208186932,
+        "totalSize": 273334272,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48688113,
+        "atMs": 426500.598375
+      },
+      {
+        "requestedAtMs": 431506.64424999995,
+        "usedSize": 218099284,
+        "totalSize": 275693568,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48346881,
+        "atMs": 431507.486208
+      },
+      {
+        "requestedAtMs": 436512.091125,
+        "usedSize": 225509948,
+        "totalSize": 277790720,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48418257,
+        "atMs": 436512.978
+      },
+      {
+        "requestedAtMs": 441517.16562499997,
+        "usedSize": 221718184,
+        "totalSize": 279625728,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48341609,
+        "atMs": 441518.274291
+      },
+      {
+        "requestedAtMs": 446523.71737499995,
+        "usedSize": 225574400,
+        "totalSize": 281460736,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48363905,
+        "atMs": 446526.31908299995
+      },
+      {
+        "requestedAtMs": 451532.550083,
+        "usedSize": 220014008,
+        "totalSize": 283557888,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48706409,
+        "atMs": 451534.626208
+      },
+      {
+        "requestedAtMs": 456540.520416,
+        "usedSize": 216800916,
+        "totalSize": 285917184,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48638665,
+        "atMs": 456541.89166599995
+      },
+      {
+        "requestedAtMs": 461546.34475,
+        "usedSize": 236663200,
+        "totalSize": 287752192,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48429017,
+        "atMs": 461547.23320799996
+      },
+      {
+        "requestedAtMs": 466551.97849999997,
+        "usedSize": 243101708,
+        "totalSize": 289849344,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48486313,
+        "atMs": 466553.652625
+      },
+      {
+        "requestedAtMs": 471558.65508299996,
+        "usedSize": 234508188,
+        "totalSize": 291946496,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48345105,
+        "atMs": 471559.488416
+      },
+      {
+        "requestedAtMs": 476564.30899999995,
+        "usedSize": 236698656,
+        "totalSize": 294305792,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48346897,
+        "atMs": 476565.74966599996
+      },
+      {
+        "requestedAtMs": 481571.18791599997,
+        "usedSize": 238879764,
+        "totalSize": 296402944,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48791753,
+        "atMs": 481572.10616599995
+      },
+      {
+        "requestedAtMs": 486577.271166,
+        "usedSize": 231854200,
+        "totalSize": 298237952,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48671729,
+        "atMs": 486584.77029099996
+      },
+      {
+        "requestedAtMs": 491594.700416,
+        "usedSize": 242902948,
+        "totalSize": 300597248,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48345889,
+        "atMs": 491596.200708
+      },
+      {
+        "requestedAtMs": 496601.333458,
+        "usedSize": 257082420,
+        "totalSize": 302432256,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48506617,
+        "atMs": 496602.812208
+      },
+      {
+        "requestedAtMs": 501608.23516599997,
+        "usedSize": 252927652,
+        "totalSize": 304791552,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48427265,
+        "atMs": 501613.88445799996
+      },
+      {
+        "requestedAtMs": 506622.35691599996,
+        "usedSize": 258861228,
+        "totalSize": 306364416,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48478137,
+        "atMs": 506623.597041
+      },
+      {
+        "requestedAtMs": 511628.030291,
+        "usedSize": 241600888,
+        "totalSize": 308461568,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48665417,
+        "atMs": 511628.9015
+      },
+      {
+        "requestedAtMs": 516634.39333299996,
+        "usedSize": 268417348,
+        "totalSize": 310558720,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48551825,
+        "atMs": 516635.839875
+      },
+      {
+        "requestedAtMs": 521640.39858299994,
+        "usedSize": 278256744,
+        "totalSize": 333266944,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48376937,
+        "atMs": 521641.649
+      },
+      {
+        "requestedAtMs": 526646.279,
+        "usedSize": 299325704,
+        "totalSize": 335364096,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48629073,
+        "atMs": 526648.229875
+      },
+      {
+        "requestedAtMs": 531653.342208,
+        "usedSize": 279183888,
+        "totalSize": 337723392,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48779305,
+        "atMs": 531654.795166
+      },
+      {
+        "requestedAtMs": 536659.687,
+        "usedSize": 193136452,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48653697,
+        "atMs": 536660.9081659999
+      },
+      {
+        "requestedAtMs": 541665.749,
+        "usedSize": 200882896,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48284777,
+        "atMs": 541668.171833
+      },
+      {
+        "requestedAtMs": 546674.738958,
+        "usedSize": 216167724,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48459961,
+        "atMs": 546675.9375829999
+      },
+      {
+        "requestedAtMs": 551679.939666,
+        "usedSize": 191932940,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48555761,
+        "atMs": 551681.110625
+      },
+      {
+        "requestedAtMs": 556686.333416,
+        "usedSize": 223583612,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48502073,
+        "atMs": 556687.288125
+      },
+      {
+        "requestedAtMs": 561693.14175,
+        "usedSize": 222038580,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48454649,
+        "atMs": 561694.076625
+      },
+      {
+        "requestedAtMs": 566699.544,
+        "usedSize": 219205004,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48390713,
+        "atMs": 566701.048666
+      },
+      {
+        "requestedAtMs": 571706.994291,
+        "usedSize": 217088164,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48334505,
+        "atMs": 571707.791375
+      },
+      {
+        "requestedAtMs": 576712.7367499999,
+        "usedSize": 213317360,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48257041,
+        "atMs": 576714.140166
+      },
+      {
+        "requestedAtMs": 581718.600833,
+        "usedSize": 213055352,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48672905,
+        "atMs": 581720.291666
+      },
+      {
+        "requestedAtMs": 586725.631958,
+        "usedSize": 214853952,
+        "totalSize": 298926080,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48224113,
+        "atMs": 586727.1854579999
+      },
+      {
+        "requestedAtMs": 591732.597375,
+        "usedSize": 236226656,
+        "totalSize": 300482560,
+        "embedderHeapUsedSize": 152176,
+        "backingStorageSize": 48458561,
+        "atMs": 591733.425625
+      },
+      {
+        "requestedAtMs": 596737.603916,
+        "usedSize": 1388300,
+        "totalSize": 151781376,
+        "embedderHeapUsedSize": 367112,
+        "backingStorageSize": 48186699,
+        "atMs": 596738.457125
+      }
+    ],
+    "measurement": {
+      "started": 412.6999999284744,
+      "runStarted": 2390.1999999284744,
+      "finished": 598454.8999999762,
+      "progress": 1,
+      "heartbeats": 11948,
+      "maxHeartbeatGap": 54.5,
+      "terminated": false,
+      "result": {
+        "candles": 1000000,
+        "trades": 260944,
+        "counts": {
+          "run.marginNotChecked": 1,
+          "run.rejectsNotSimulated": 1,
+          "run.stopsLevelNotSimulated": 1,
+          "run.costsEstimated": 1,
+          "zone.entered": 1,
+          "grid.ordersPlaced": 351488,
+          "grid.ordersOutOfWindow": 162985
+        },
+        "dropped": 512478,
+        "equity": 20002
+      },
+      "error": null
+    }
+  },
+  "optimized": {
+    "browser": "153.0.8010.12",
+    "delivered": 1000000,
+    "loadMs": 2999.2999999523163,
+    "simulationMs": 164511.5,
+    "resultSerializationMs": 307.5,
+    "simulationAndDeliveryMs": 165387.89999997616,
+    "heap": [
+      {
+        "atMs": 0,
+        "usedSize": 483284,
+        "totalSize": 1310720,
+        "embedderHeapUsedSize": 773712,
+        "backingStorageSize": 74837
+      },
+      {
+        "requestedAtMs": 0.3511670000007143,
+        "usedSize": 77739820,
+        "totalSize": 116523008,
+        "embedderHeapUsedSize": 2825264,
+        "backingStorageSize": 59118216,
+        "atMs": 1.2824590000000171
+      },
+      {
+        "requestedAtMs": 5006.320709,
+        "usedSize": 77575052,
+        "totalSize": 123174912,
+        "embedderHeapUsedSize": 2825264,
+        "backingStorageSize": 59092384,
+        "atMs": 5007.174500000001
+      },
+      {
+        "requestedAtMs": 10010.21375,
+        "usedSize": 64077820,
+        "totalSize": 131629056,
+        "embedderHeapUsedSize": 2825264,
+        "backingStorageSize": 59156728,
+        "atMs": 10011.186125
+      },
+      {
+        "requestedAtMs": 15015.273417,
+        "usedSize": 103160776,
+        "totalSize": 140853248,
+        "embedderHeapUsedSize": 2825264,
+        "backingStorageSize": 59136552,
+        "atMs": 15017.058125
+      },
+      {
+        "requestedAtMs": 20021.989917,
+        "usedSize": 106468812,
+        "totalSize": 149110784,
+        "embedderHeapUsedSize": 2825264,
+        "backingStorageSize": 59108968,
+        "atMs": 20022.873792000002
+      },
+      {
+        "requestedAtMs": 25026.9925,
+        "usedSize": 111382248,
+        "totalSize": 156680192,
+        "embedderHeapUsedSize": 2825264,
+        "backingStorageSize": 59094376,
+        "atMs": 25027.868459
+      },
+      {
+        "requestedAtMs": 30031.894125000003,
+        "usedSize": 53351140,
+        "totalSize": 117145600,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48330155,
+        "atMs": 30033.684209000003
+      },
+      {
+        "requestedAtMs": 35039.02995900001,
+        "usedSize": 84285336,
+        "totalSize": 124010496,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48276515,
+        "atMs": 35040.07004200001
+      },
+      {
+        "requestedAtMs": 40044.912834,
+        "usedSize": 73801636,
+        "totalSize": 131088384,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48179083,
+        "atMs": 40045.752250000005
+      },
+      {
+        "requestedAtMs": 45051.282959000004,
+        "usedSize": 90733504,
+        "totalSize": 138035200,
+        "embedderHeapUsedSize": 43384,
+        "backingStorageSize": 48301025,
+        "atMs": 45052.152917
+      },
+      {
+        "requestedAtMs": 50055.175584,
+        "usedSize": 90720992,
+        "totalSize": 139542528,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48262777,
+        "atMs": 50056.050749999995
+      },
+      {
+        "requestedAtMs": 55059.995624999996,
+        "usedSize": 101072172,
+        "totalSize": 146620416,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48281497,
+        "atMs": 55060.954
+      },
+      {
+        "requestedAtMs": 60065.021292000005,
+        "usedSize": 114278648,
+        "totalSize": 156598272,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48301257,
+        "atMs": 60065.898625
+      },
+      {
+        "requestedAtMs": 65071.279125,
+        "usedSize": 126823020,
+        "totalSize": 172457984,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48282105,
+        "atMs": 65072.362542
+      },
+      {
+        "requestedAtMs": 70075.262375,
+        "usedSize": 113081532,
+        "totalSize": 179535872,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48352665,
+        "atMs": 70076.55604200001
+      },
+      {
+        "requestedAtMs": 75081.524292,
+        "usedSize": 138409012,
+        "totalSize": 186515456,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48266745,
+        "atMs": 75082.607959
+      },
+      {
+        "requestedAtMs": 80087.263667,
+        "usedSize": 132228244,
+        "totalSize": 193593344,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48195145,
+        "atMs": 80088.384917
+      },
+      {
+        "requestedAtMs": 85091.43045900001,
+        "usedSize": 147209284,
+        "totalSize": 195526656,
+        "embedderHeapUsedSize": 43384,
+        "backingStorageSize": 48408841,
+        "atMs": 85092.28
+      },
+      {
+        "requestedAtMs": 90097.00812500001,
+        "usedSize": 145933700,
+        "totalSize": 195526656,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48368985,
+        "atMs": 90097.91500000001
+      },
+      {
+        "requestedAtMs": 95100.976959,
+        "usedSize": 161720764,
+        "totalSize": 197361664,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48419689,
+        "atMs": 95101.998084
+      },
+      {
+        "requestedAtMs": 100106.035875,
+        "usedSize": 169301064,
+        "totalSize": 218103808,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48344233,
+        "atMs": 100107.05525
+      },
+      {
+        "requestedAtMs": 105110.64916700001,
+        "usedSize": 159946932,
+        "totalSize": 225705984,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48438273,
+        "atMs": 105111.709292
+      },
+      {
+        "requestedAtMs": 110115.803959,
+        "usedSize": 176808548,
+        "totalSize": 233553920,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48301241,
+        "atMs": 110116.991209
+      },
+      {
+        "requestedAtMs": 115123.05075000001,
+        "usedSize": 186286304,
+        "totalSize": 246939648,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48279153,
+        "atMs": 115123.9955
+      },
+      {
+        "requestedAtMs": 120128.559375,
+        "usedSize": 211706908,
+        "totalSize": 253755392,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48382521,
+        "atMs": 120129.554584
+      },
+      {
+        "requestedAtMs": 125133.623792,
+        "usedSize": 225536516,
+        "totalSize": 261357568,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48420129,
+        "atMs": 125134.439
+      },
+      {
+        "requestedAtMs": 130140.28354199999,
+        "usedSize": 212402904,
+        "totalSize": 267911168,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48307977,
+        "atMs": 130141.14183400001
+      },
+      {
+        "requestedAtMs": 135146.118625,
+        "usedSize": 211838888,
+        "totalSize": 275251200,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48451385,
+        "atMs": 135147.32541700001
+      },
+      {
+        "requestedAtMs": 140151.565834,
+        "usedSize": 216542484,
+        "totalSize": 282591232,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48437353,
+        "atMs": 140152.9365
+      },
+      {
+        "requestedAtMs": 145163.14041700002,
+        "usedSize": 250587208,
+        "totalSize": 310280192,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48284969,
+        "atMs": 145164.164292
+      },
+      {
+        "requestedAtMs": 150168.534209,
+        "usedSize": 256367584,
+        "totalSize": 317358080,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48278153,
+        "atMs": 150169.635959
+      },
+      {
+        "requestedAtMs": 155175.09104200001,
+        "usedSize": 265975376,
+        "totalSize": 324435968,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48292353,
+        "atMs": 155175.925167
+      },
+      {
+        "requestedAtMs": 160181.023167,
+        "usedSize": 293489936,
+        "totalSize": 331513856,
+        "embedderHeapUsedSize": 151784,
+        "backingStorageSize": 48406537,
+        "atMs": 160181.952792
+      },
+      {
+        "requestedAtMs": 165186.65395900002,
+        "usedSize": 271282848,
+        "totalSize": 338575360,
+        "embedderHeapUsedSize": 156056,
+        "backingStorageSize": 48354545,
+        "atMs": 165187.455459
+      }
+    ],
+    "measurement": {
+      "started": 641.6000000238419,
+      "runStarted": 3641.399999976158,
+      "finished": 169029.29999995232,
+      "progress": 1,
+      "heartbeats": 3356,
+      "maxHeartbeatGap": 53.59999990463257,
+      "terminated": false,
+      "result": {
+        "candles": 1000000,
+        "trades": 260944,
+        "counts": {
+          "run.marginNotChecked": 1,
+          "run.rejectsNotSimulated": 1,
+          "run.stopsLevelNotSimulated": 1,
+          "run.costsEstimated": 1,
+          "zone.entered": 1,
+          "grid.ordersPlaced": 351488,
+          "grid.ordersOutOfWindow": 162985
+        },
+        "dropped": 512478,
+        "equity": 20002
+      },
+      "error": null
+    }
+  },
+  "cancellation": {
+    "browser": "153.0.8010.12",
+    "delivered": 1000000,
+    "cancelMs": 29.408167000000503,
+    "measurement": {
+      "started": 641.6000000238419,
+      "runStarted": 3525.100000023842,
+      "finished": null,
+      "progress": 0.3035,
+      "heartbeats": 84,
+      "maxHeartbeatGap": 51.90000009536743,
+      "terminated": true,
+      "result": null,
+      "error": null
+    }
+  },
+  "cpuEvidence": {
+    "baseline30000": {
+      "exactScalingPercentOfAllSamples": 60.59,
+      "integerRoundScalingSeconds": 9.731731,
+      "volumeDecimalsScalingSeconds": 2.41537
+    },
+    "optimizedMillion": {
+      "exactScalingPercentOfAllSamples": 40.98,
+      "volumeDecimalsScalingSeconds": 69.716758
+    }
+  }
+}
