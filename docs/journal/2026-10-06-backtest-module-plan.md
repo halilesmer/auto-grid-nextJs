@@ -32,7 +32,7 @@ This entry continues steps 7–9 of `2026-10-02-analyse-statistics-tab-plan.md`.
 | B4 | Runner: path model, higher timeframes, costs, gap model, web worker | BKT-04, BKT-09 (TS) | done (PR #130) |
 | B5a | Page `/backtest` with one run; test button of a zone opens it; run log texts; netting refusal | BKT-06, BKT-10, BKT-12 (zone → backtest) | done (PR B5a) |
 | B5b | Move `CsvImportPanel` selection: data source MT5 or CSV in the run; `csv_gap` text | BKT-05, BKT-06 | done (PR B5b) |
-| B6 | Chart with equity area and replay | BKT-07 | done; automated verification and repairs (Codex, 2026-10-09; synthetic/mock annual data) |
+| B6 | Chart with equity area and replay | BKT-07 | implemented and automated verification passed (PR #139; synthetic/mock annual data; awaiting merge) |
 | B7 | More setups: badges, duplicate, compare table, equity overlay | BKT-08, BKT-13 | done (PR #136; tests and CI passed) |
 | B8 | Presets (worker and UI) and "apply to zone" | BKT-11, BKT-12 | done (PR #136; tests and CI passed) |
 | B9 | CSV import (worker process and dialog) | BKT-05 | done (PR #129); VPS check open |

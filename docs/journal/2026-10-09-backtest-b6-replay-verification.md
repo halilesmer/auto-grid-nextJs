@@ -2,8 +2,8 @@
 date: 2026-10-09
 author: Codex
 type: fix
-status: open
-pr: []
+status: done
+pr: [139]
 features: [BKT-07]
 areas: [frontend, tests, docs]
 ---
@@ -62,10 +62,6 @@ The initial opposite quote belongs to the held position's path. Otherwise an imm
 | `pyright` | 33 errors in the unchanged Python files. No worker file or Python configuration changed. |
 | Initial test build | Turbopack failed on process/port permissions. A fresh generated cache with approved execution recovered the build. |
 | Test setup correction | Speed tests needed tab selectors and a fixed future pause time. The yearly H1 view includes past candles outside the clipped M1 window. |
-
-## Open points
-
-- [ ] Record the PR number.
 
 ## Limits
 
