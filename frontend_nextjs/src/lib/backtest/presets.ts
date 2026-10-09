@@ -4,7 +4,7 @@ import { DEFAULT_RUN_SETTINGS, type RunSettingsValue } from '@/lib/backtest/runS
 import { type RangeSelection } from '@/hooks/useAnalysisParams';
 import { isDayString, RANGE_PRESETS } from '@/lib/serverTime';
 import type { ZoneSettings } from '@/store/types';
-import type { BacktestSetup } from '@/store/useBacktestStore';
+import type { BacktestSetup } from './setupTypes';
 import { defaultZone } from '@/utils/zoneHelpers';
 
 export type PresetZone = Omit<ZoneSettings, 'id' | 'magic' | 'is_active'>;

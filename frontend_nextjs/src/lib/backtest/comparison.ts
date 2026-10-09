@@ -1,6 +1,6 @@
 import type { CurvePoint } from '@/lib/analysis/curves';
 import type { RunResult } from './runner';
-import type { RunContext } from '@/store/useBacktestStore';
+import type { RunContext } from './setupTypes';
 
 export interface ComparisonRun {
   id: string;

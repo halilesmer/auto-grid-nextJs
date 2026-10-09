@@ -3,7 +3,7 @@ date: 2026-10-08
 author: Codex
 type: feature
 status: done
-pr: []
+pr: [136]
 features: [BKT-11, BKT-12]
 areas: [worker, frontend, docs]
 ---
@@ -75,3 +75,8 @@ The B7 equity colours now use theme tokens, resolved to actual CSS values before
 | Browser, layout, real database migration and live worker | Not verified at runtime. No VPS access or deployment. |
 
 The new preset endpoints require the updated worker and migration; this change does not deploy them.
+
+## Follow-up authorization (2026-10-09)
+
+The user requested tests, merge, and deployment. This supersedes the earlier no-tests instruction.
+Verification and CI fixes are recorded in `2026-10-09-backtest-b7-b8-verification.md`.

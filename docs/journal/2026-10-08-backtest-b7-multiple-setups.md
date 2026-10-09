@@ -3,7 +3,7 @@ date: 2026-10-08
 author: Codex
 type: feature
 status: done
-pr: []
+pr: [136]
 features: [BKT-08, BKT-13]
 areas: [frontend, docs]
 ---
@@ -74,3 +74,8 @@ Monetary overlays also require the same known currency.
 
 A completed worker still owns candle data for replay. Release it when a result becomes invalid, not only during an active run.
 Do not sum two candle paths of the same setup: they describe alternative outcomes of one allocation.
+
+## Follow-up authorization (2026-10-09)
+
+The user requested tests, merge, and deployment. This supersedes the earlier no-tests instruction.
+Verification and CI fixes are recorded in `2026-10-09-backtest-b7-b8-verification.md`.

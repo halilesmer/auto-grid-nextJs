@@ -1,21 +1,9 @@
+import type { BacktestSetup, RunContext } from '@/lib/backtest/setupTypes';
+export type { BacktestSetup, RunContext } from '@/lib/backtest/setupTypes';
 import { create } from 'zustand';
-import type { ZoneSettings } from '@/store/types';
-import type { RangeSelection } from '@/hooks/useAnalysisParams';
-import type { RunSettingsValue } from '@/lib/backtest/runSettings';
-import type { RunParams, WorkerMessage } from '@/lib/backtest/protocol';
+import type { WorkerMessage } from '@/lib/backtest/protocol';
 import type { RunResult } from '@/lib/backtest/runner';
 import type { MissingRange, Timeframe } from '@/lib/analysis/candles';
-
-/** Was die Seite zum Lauf wissen muss, auch nachdem die Eingaben geändert wurden */
-export interface RunContext {
-  setupId: string;
-  sourceLabel?: string;
-  params: RunParams;
-  /** Der Lauf nutzte die Zone mit ungespeicherten Änderungen (Übergabe vom Test-Knopf) */
-  unsaved: boolean;
-  /** Kontowährung für die Anzeige */
-  currency: string | null;
-}
 
 export type RunFailure = Extract<WorkerMessage, { type: 'error' }>;
 
@@ -30,14 +18,6 @@ export interface BacktestChartData {
 
 export const MAX_SETUPS = 6;
 export const MAX_RUNNING = 2;
-
-export interface BacktestSetup {
-  id: string;
-  zone: ZoneSettings;
-  form: RunSettingsValue;
-  range: RangeSelection;
-  unsaved: boolean;
-}
 
 export interface SetupRun {
   runId: number;
