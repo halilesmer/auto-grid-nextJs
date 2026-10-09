@@ -2,8 +2,8 @@
 date: 2026-10-09
 author: Codex
 type: fix
-status: open
-pr: []
+status: done
+pr: [138]
 features: [UI-08]
 areas: [frontend, tests]
 ---
@@ -34,9 +34,6 @@ areas: [frontend, tests]
 | `npm run lint` and `npx tsc --noEmit` | Passed. |
 | Navigation screenshots | Checked at 375 and 1440 px in light and dark themes. |
 | Test before implementation | Not verified. Turbopack failed because its build process could not bind a port. |
-
-## Open points
-- [ ] Open the PR after GitHub authentication is available.
 
 ## Lessons
 Keep navigation labels in their own wrapping row when the header contains variable-width connection controls.
