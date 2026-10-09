@@ -50,6 +50,29 @@ Instructions for coding agents other than Claude Code (for example OpenAI Codex)
 | Claude hooks (`.claude/settings.json`) | Not active in Codex. The git hooks from `hooks/install.sh` still run. |
 | Claude memory | Not shared. Durable knowledge is in `docs/journal/`. |
 
+## Plan format: phases, model, effort
+
+Before a task with more than one phase, show this table in the chat and wait for approval. One row for each phase. For a one-phase task, one line is enough.
+
+| Column | Content |
+|---|---|
+| Phase | Name of the phase. Put the files or areas you read or change in brackets. |
+| Model | The lowest model that is sufficient for the phase. |
+| Effort | The lowest reasoning effort that is sufficient. Use the highest level only with a reason. |
+| Reason | One sentence: the risk of this task, or why the work is routine. |
+
+Default phases:
+
+| Phase | Model | Effort | When |
+|---|---|---|---|
+| Plan: read the code, decide the design | Strongest model | high | Architecture, security, difficult debugging. A design error is expensive. |
+| Implementation after the approved plan | Mid-size model | medium | Routine work that follows existing patterns: routes, UI, i18n, tooltips, tests, catalog, journal. |
+| Review before commit or PR: your diff against `hooks/RULES.md` §9 | Mid-size model | medium | Checklist work. Auth, access or VPS changes also need the manual security review (see the table above). |
+
+- Change model and effort only at a phase boundary, never in a running phase. Say in one line what you change.
+- Use the model names that your Codex configuration offers. Do not invent names.
+- Example row: `Plan (read the runner, the worker, the zone button, the catalog) | strongest | high | The architecture decides how the results bind to the account.`
+
 ## Communication
 
 The owner writes German or Turkish. Answer in the language of the message. Follow `docs/agent-rules/communication-style.md`: result first, one decision per reply, name assumptions.
