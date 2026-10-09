@@ -291,6 +291,13 @@
       "tests": 13
     }
   },
+  "BKT-07": {
+    "e2e": {
+      "datum": "2026-10-09",
+      "status": "passed",
+      "tests": 16
+    }
+  },
   "BKT-08": {
     "e2e": {
       "datum": "2026-10-09",
@@ -1359,7 +1366,7 @@
     "e2e": {
       "datum": "2026-10-09",
       "status": "passed",
-      "tests": 6
+      "tests": 20
     }
   },
   "ZON-21": {

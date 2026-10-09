@@ -300,7 +300,10 @@ export class PathBroker extends SimBroker {
 
   private register(position: Position, price: number): void {
     const commission = commissionHalf(this.commissionPerLot, position.volume);
-    this.opens.set(position.ticket, { time: this.now, price, commission, swap: 0, favorablePrice: price, adversePrice: price });
+    // Die Position kann schon beim Einstieg nur zum Gegenkurs geschlossen werden.
+    // Ohne diesen ersten Kurs fehlt der Spread im MAE, wenn der nächste Tick günstiger ist.
+    const exitPrice = position.type === POSITION_TYPE_BUY ? this.tick.bid : this.tick.ask;
+    this.opens.set(position.ticket, { time: this.now, price, commission, swap: 0, favorablePrice: exitPrice, adversePrice: exitPrice });
     this.spreadInfo += spreadCost(this.costs, this.spreadPrice, position.volume);
     position.time_msc = Math.trunc(this.now * 1000);
     this.profitStale = true;
