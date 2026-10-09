@@ -22,10 +22,10 @@ areas: [frontend, worker, tests, docs]
 | Order | Task | State | Evidence or next action |
 |---|---|---|---|
 | 1 | Audit merged work | Complete | Local `main` is clean at `42d8ba4` (`v0.7.187`), after merge commit `6a7c648` for PR #141. The checkout also contains PR #140, #139, #137, #136, #123 and earlier work. |
-| 2 | Verify GitHub checks and deployed versions | Blocked | `gh pr view 141 ...` could not connect to `api.github.com`. No VPS SSH configuration, SSH agent identity, `VPS_SSH_HOST`, `VPS_SSH_KEY`, `VPS_REPO_PATH`, or `WORKER_API_KEY` is available in this process. The local frontend environment file is absent. Do not infer VPS deployment from the local version or auto-update design. |
-| 3 | B4 installed swap constants and symbol values | Blocked | No read-only VPS/API path is configured. Compare the installed `SYMBOL_SWAP_MODE_*` values with distinct live `swap_mode` values from `GET /api/symbols`; accepted values remain 0, 1 and 4. |
-| 4 | B9 real annual M1 import and broker-time check | Blocked | No verified real annual CSV was supplied or found among tracked project files. Obtain a file with its source and coverage, select the DEMO account and symbol, then get approval for the specific import. Read the imported rates and compare an overlapping MT5 candle, including seasonal offsets. |
-| 5 | ZON-21 manual DEMO trading check | Blocked | The catalog still marks the manual tier pending. Prepare a suitable isolated DEMO zone and a bounded test that records its original settings and restores them. Get specific approval before saving settings, starting the bot, or allowing pending orders. Preserve existing zones, bots, positions, and orders. |
+| 2 | Verify GitHub checks and deployed versions | Blocked | `gh pr view 141 ...` could not connect to `api.github.com`. Local SSH settings are absent. The local desktop route did not provide reliable remote terminal input. Do not infer VPS deployment from the local version or auto-update design. |
+| 3 | B4 installed swap constants and symbol values | Blocked | The remote console corrupted the read-only query; no constant or symbol result was obtained. Retry through a reliable SSH or local VPS route. Compare installed `SYMBOL_SWAP_MODE_*` values with distinct live `swap_mode` values from `GET /api/symbols`; accepted values remain 0, 1 and 4. |
+| 4 | B9 real annual M1 import and broker-time check | Blocked | No verified real annual CSV was supplied or found among tracked project files. The local DEMO test-account file is also absent. Use the user-authorized import only after the file, source, coverage, time basis, and target DEMO account are verified. Do not replace an existing import. |
+| 5 | ZON-21 manual DEMO trading check | Blocked | The read-only preflight did not meet the test isolation conditions. Do not start or change existing trading state. Run the test only on a verified, isolated DEMO account with a stopped bot and no existing positions or orders; restore the test settings and clean only test-created state. |
 | 6 | Final status, catalog, and journal | Waiting | Update the manual result and close this audit only after the external checks above have evidence. Keep synthetic annual tests separate from real broker verification. |
 | 7 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. The annual test uses synthetic and mocked data. |
 | 8 | B4 page limits and one-million-candle profile | Complete | BKT-10 e2e: 9 passed. PR #140 records 260,944 trades and 164.512 seconds of simulation after repair. |
@@ -37,10 +37,10 @@ areas: [frontend, worker, tests, docs]
 
 - The automatic approval review rejected combined merge, deployment and VPS trading authorization.
 - The user authorized a normal PR workflow, with merge and pull only when repository rules and automatic approval allow it.
-- No deployment or VPS trading action is authorized.
+- The user authorized the requested external and DEMO actions. Preserve existing trading state and stop if a precondition fails.
 - Synthetic annual data does not prove a real annual import or broker time agreement.
 - Worker tests use temporary databases and FakeMT5. Do not start the Python worker on this Mac.
-- The current task process has no local DEMO test-account file. Do not use or print account identifiers from another source.
+- Do not use or print account identifiers from another source. The current task process has no local DEMO test-account file.
 
 ## Changes and evidence
 
@@ -63,8 +63,8 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 
 ## Open points
 
-- [ ] Restore a read-only VPS path and record the installed swap constants and distinct symbol values.
-- [ ] Obtain and verify the real annual M1 CSV, then approve and perform its scoped DEMO import and overlap check.
-- [ ] Prepare and approve the bounded ZON-21 DEMO order test; record the manual result with the feature runner.
+- [ ] Restore a reliable read-only VPS path and record the installed swap constants and distinct symbol values.
+- [ ] Obtain and verify the real annual M1 CSV and target DEMO account, then perform the authorized import and overlap check.
+- [ ] Find an isolated DEMO account that meets the ZON-21 preconditions; run the test only if no existing trading state can be affected.
 - [ ] Verify PR #141 CI and deployed versions when GitHub and VPS access return; do not claim deployment from local Git state.
 - [ ] Update the catalog and close this plan after all external evidence is recorded.
