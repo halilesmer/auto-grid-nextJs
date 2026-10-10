@@ -22,11 +22,11 @@ areas: [frontend, worker, tests, docs]
 | Order | Task | State | Evidence or next action |
 |---|---|---|---|
 | 1 | Audit merged work | Complete | Before this documentation branch, the local checkout was clean on `main` at `4fc0f76` (`v0.7.191`). PR #145 merged as `43aec89`; the version-bump commit followed. |
-| 2 | Verify GitHub checks and deployed versions | Partially verified | GitHub Actions run #304 passed the catalog, worker, and frontend jobs on `43aec89`. The read-only local SSH status page reports worker `v0.7.191`, `main` at `4fc0f768`. The local frontend also shows `v0.7.191`, but this does not prove the Production deployment version. The Vercel project requires login; GitHub exposes the PR Preview deployment only. Production remains unverified. |
+| 2 | Verify GitHub checks and deployed versions | Complete | GitHub Actions run #304 passed the catalog, worker, and frontend jobs on `43aec89`. The read-only local SSH status page reports worker `v0.7.191`, `main` at `4fc0f768`. Chrome shows Production frontend `v0.7.191` at the URL recorded in `docs/NGrok/Sistem ve Canlıya Alma.md`. |
 | 3 | B4 installed swap constants and symbol values | Blocked | The read-only VPS status works over local SSH, but the worker symbol request returned HTTP 401 with the available local key. No live symbol values or installed constants were obtained. The frontend code uses modes 0, 1, and 4; compare these with installed `SYMBOL_SWAP_MODE_*` values and distinct live `swap_mode` values after authorized API access returns. |
 | 4 | B9 real annual M1 import and broker-time check | Complete | Three annual M1 files committed on the VPS. USOUSD API time and OHLC matched the CSV and source terminal. See `2026-10-10-backtest-b9-vps-import.md`. |
 | 5 | ZON-21 manual DEMO trading check | Blocked | The 2026-10-10 read-only preflight in Chrome reported rejected API access; the existing VPS window showed a black screen. Current DEMO type, bot status, isolation and market status remain unverified. Earlier terminal evidence showed existing trading activity. See `2026-10-10-zon-21-readonly-preflight.md`. A trading test requires explicit user authorization. |
-| 6 | Final status, catalog, and journal | Waiting | Verify the Production frontend version and the B4 live swap values before closing this audit. Keep synthetic annual tests separate from real broker verification. |
+| 6 | Final status, catalog, and journal | Waiting | Verify the B4 live swap values before closing this audit. Keep synthetic annual tests separate from real broker verification. |
 | 7 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. The annual test uses synthetic and mocked data. |
 | 8 | B4 page limits and one-million-candle profile | Complete | BKT-10 e2e: 9 passed. PR #140 records 260,944 trades and 164.512 seconds of simulation after repair. |
 | 9 | B5/B9 import cancellation, writes, and seasonal offsets | Complete locally | PR #141 is in local `main`. Its journal records the final BKT-05 API run (50 passed), e2e run (14 passed), and BKT-10 e2e run (9 passed). These are local tests, not a VPS import. |
@@ -64,7 +64,7 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 ## Open points
 
 - [ ] Resume ZON-21 on Monday, 2026-10-12, after the selected symbol's market opens. Preserve all access and trading prerequisites.
-- [ ] Verify the Production frontend version from authorized deployment metadata. The Vercel dashboard requires login; the public PR record shows a Preview deployment only.
+- [x] Verify the Production frontend version in Chrome at the URL recorded in `docs/NGrok/Sistem ve Canlıya Alma.md`. It displays `v0.7.191`.
 - [ ] Restore authorized symbol API access and record the installed swap constants and distinct symbol values.
 - [x] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check. See `2026-10-10-backtest-b9-vps-import.md`.
 - [ ] Restore an authorized read-only account view, then verify the ZON-21 preconditions. Run the trading test only after explicit user authorization. See `2026-10-10-zon-21-readonly-preflight.md`.
