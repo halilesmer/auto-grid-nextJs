@@ -5,9 +5,8 @@
  *
  * - Ein fehlender Kostenwert blockiert den Lauf; es gibt keinen Ersatzwert (docs/journal/2026-10-06-backtest-module-plan.md, B1).
  * - Der Spread steckt in den Füllpreisen (Ask = Bid + Spread). Er wird nie als eigene Kostenzeile abgezogen.
- * - Swap: `swap_mode` 0 (aus), 1 (Punkte) und 4 (Geld in Kontowährung) sind unterstützt. Die Nummern stehen nicht
- *   in der MQL5-Dokumentation, nur die Namen in einer Reihenfolge (DISABLED, POINTS, CURRENCY_SYMBOL, CURRENCY_MARGIN,
- *   CURRENCY_DEPOSIT, …): Nummer 0, 1 und 4 sind der erste, zweite und fünfte Name. Nicht gegen MT5 geprüft.
+ * - Swap: `swap_mode` 0 (aus), 1 (Punkte) und 4 (Geld in Kontowährung) sind unterstützt. Die Werte wurden gegen das
+ *   auf dem VPS installierte MetaTrader5-Paket geprüft (docs/journal/2026-10-10-backtest-b4-vps-swap-verification.md).
  *   Alle anderen Modi blockieren den Lauf, wenn Swap an ist.
  * - Der Dreifach-Tag muss ein Wochentag von Montag bis Freitag sein; Samstag und Sonntag kosten keine Nacht.
  */
