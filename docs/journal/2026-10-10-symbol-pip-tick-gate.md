@@ -3,7 +3,7 @@ date: 2026-10-10
 author: Codex
 type: fix
 status: done
-pr: []
+pr: [150]
 features: [ENG-30, ZON-21, BKT-03]
 areas: [worker, frontend, tests]
 ---
@@ -30,7 +30,7 @@ areas: [worker, frontend, tests]
 | `worker_python/src/core/grid_execution/fractal_entry.py` | Compare count × size; use Bid for BUY and Ask for SELL; block unknown units. |
 | `frontend_nextjs/src/lib/symbolDistance.ts` | Share the frontend calculation and explicit-save migration. |
 | `frontend_nextjs/src/components/zone/ZoneFractalFields.tsx` | Show Pips or Ticks, the price distance, examples, and missing-data messages in three languages. |
-| `frontend_nextjs/src/hooks/useZoneActions.ts`, `src/store/useSettingsStore.ts` | Save migrated counts with `fractal_next_loss_unit_version: 1` only on explicit saves. |
+| `frontend_nextjs/src/hooks/useZoneActions.ts`, `frontend_nextjs/src/store/useSettingsStore.ts` | Save migrated counts with `fractal_next_loss_unit_version: 1` only on explicit saves. |
 | `frontend_nextjs/src/lib/backtest/` | Carry symbol metadata into the simulated broker and apply the same loss gate. |
 | `worker_python/src/utils/config.py` | Preserve fractional counts without a second rounding step. |
 
