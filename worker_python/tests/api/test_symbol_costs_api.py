@@ -36,3 +36,15 @@ def test_symbolliste_liefert_kostenfelder(client, broker):
         "currency_profit": "USD", "swap_mode": 1, "swap_long": -35.5, "swap_short": 12.25,
         "swap_rollover3days": 5, "spread": 18, "trade_stops_level": 7,
     }
+
+
+@pytest.mark.feature("ENG-30")
+def test_symbolliste_liefert_pips_und_broker_ticks(client, broker):
+    broker.symbols["XAUUSD"].trade_tick_size = 0.25
+    broker.add_symbol("EURUSD.SUFFIX", 1.1, digits=5, point=0.00001, trade_calc_mode=0)
+    symbols = client.get(f"/api/symbols/{TEST_ACCOUNT_ID}").json()["symbols"]
+    by_name = {s["name"]: s for s in symbols}
+    assert by_name["EURUSD.SUFFIX"]["distance_unit"] == "pips"
+    assert by_name["EURUSD.SUFFIX"]["distance_unit_size"] == 0.0001
+    assert by_name["XAUUSD"]["distance_unit"] == "ticks"
+    assert by_name["XAUUSD"]["distance_unit_size"] == 0.25

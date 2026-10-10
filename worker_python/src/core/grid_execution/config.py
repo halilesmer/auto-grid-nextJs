@@ -50,7 +50,8 @@ class ZoneConfig:
     fractal_tp_money: float = 10.0
     # Sonraki fraktal emri: yöndeki en son açılan pozisyon en az bu kadar zararda olunca (0 = sınır yok)
     fractal_next_loss: float = 0.0
-    fractal_next_loss_mode: str = "money"  # money: pozisyon kârı ≤ −X · pips: fiyat girişe karşı ≥ X
+    fractal_next_loss_unit_version: int = 0  # 0: eski fiyat mesafesi; 1: sembole göre pip/tick
+    fractal_next_loss_mode: str = "money"  # money: pozisyon kârı ≤ −X · pips: sürüm 1 birim sayısı; sürüm 0 fiyat mesafesi
 
 
 ENTRY_MODES = ("grid", "fractal")
@@ -282,5 +283,6 @@ def extract_zone_config(
         fractal_tp_by_money=bool(zone_dict.get("fractal_tp_by_money", False)),
         fractal_tp_money=fractal_tp_money,
         fractal_next_loss=max(0.0, float(zone_dict.get("fractal_next_loss", 0.0) or 0.0)),
+        fractal_next_loss_unit_version=(zone_dict.get("fractal_next_loss_unit_version") if zone_dict.get("fractal_next_loss_unit_version") is not None else 0),
         fractal_next_loss_mode=_choice(zone_dict.get("fractal_next_loss_mode"), FRACTAL_NEXT_LOSS_MODES, "money"),
     )

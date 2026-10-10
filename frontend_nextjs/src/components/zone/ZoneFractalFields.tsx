@@ -3,7 +3,8 @@
 import type { ZoneFractalFieldsProps } from './types';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
-import { useT } from '@/i18n';
+import { migrateFractalDistance } from '@/lib/symbolDistance';
+import { useFormat, useT } from '@/i18n';
 import { TIMEFRAMES } from '@/utils/zoneHelpers';
 import { FieldSwitch } from './FieldSwitch';
 import { LossPreview } from './LossPreview';
@@ -31,12 +32,25 @@ export function ZoneFractalFields({
   handleBlur,
 }: ZoneFractalFieldsProps) {
   const t = useT();
+  const { number } = useFormat();
   const split = isBoth && !sync;
   const useSl = zone.fractal_use_sl ?? true;
   const slMode = zone.fractal_sl_mode ?? 'atr';
   // Chance/Risiko-TP braucht einen SL: ohne SL nur TP als Betrag
   const tpByMoney = !useSl || !!zone.fractal_tp_by_money;
   const nextLossByPips = zone.fractal_next_loss_mode === 'pips';
+  const distanceSize = symbolConfig.distanceUnitSize ?? null;
+  const distanceUnit = symbolConfig.distanceUnit;
+  const displayZone = migrateFractalDistance(zone, distanceSize);
+  const distanceMissing = nextLossByPips && distanceSize === null;
+  const distanceKeys = { pips: 'zone.fractal.nextLossPips', ticks: 'zone.fractal.nextLossTicks' } as const;
+  const distanceKey = distanceUnit ? distanceKeys[distanceUnit] : 'zone.fractal.nextLossDistance';
+  const switchKeys = { pips: 'zone.fractal.nextLossByPips', ticks: 'zone.fractal.nextLossByTicks' } as const;
+  const switchKey = distanceUnit ? switchKeys[distanceUnit] : 'zone.fractal.nextLossByDistance';
+  const distanceHint = distanceSize === null ? t('zone.fractal.distanceMissing.hint') : t('zone.fractal.nextLossDistance.hint', {
+    example: number(10 * distanceSize, { maximumFractionDigits: symbolConfig.precision }),
+    unit: t(distanceUnit === 'ticks' ? 'zone.fractal.unitTicks' : 'zone.fractal.unitPips'),
+  });
   const countKey = orderCountKey({ split, orderType: zone.order_type });
   const volPrecision = symbolConfig.volStep.toString().includes('.')
     ? symbolConfig.volStep.toString().split('.')[1].length
@@ -138,28 +152,46 @@ export function ZoneFractalFields({
         <FieldSwitch
           id={`fractal-next-loss-pips-${zone.id}`}
           checked={nextLossByPips}
-          onChange={(checked) => update('fractal_next_loss_mode', checked ? 'pips' : 'money')}
-          label={<span className="text-sm">{t('zone.fractal.nextLossByPips')}</span>}
-          hint={t('zone.fractal.nextLossByPips.hint')}
+          onChange={(checked) => {
+            update('fractal_next_loss', displayZone.fractal_next_loss ?? 0);
+            if (checked || distanceSize !== null) update('fractal_next_loss_unit_version', 1);
+            update('fractal_next_loss_mode', checked ? 'pips' : 'money');
+          }}
+          disabled={!nextLossByPips && distanceSize === null}
+          label={<span className="text-sm">{t(switchKey)}</span>}
+          hint={distanceSize === null ? t('zone.fractal.distanceMissing.hint') : t('zone.fractal.nextLossByDistance.hint')}
         />
         <InputField
-          label={t(nextLossByPips ? 'zone.fractal.nextLossPips' : 'zone.fractal.nextLossMoney')}
-          hint={t(nextLossByPips ? 'zone.fractal.nextLossPips.hint' : 'zone.fractal.nextLossMoney.hint')}
+          label={t(nextLossByPips ? distanceKey : 'zone.fractal.nextLossMoney')}
+          hint={nextLossByPips ? distanceHint : t('zone.fractal.nextLossMoney.hint')}
         >
           <NumberInput
             data-testid="fractal-next-loss"
             min={0}
-            step={nextLossByPips ? symbolConfig.step : 0.01}
-            maxDecimals={nextLossByPips ? symbolConfig.precision : 2}
-            value={zone.fractal_next_loss ?? 0}
+            step={nextLossByPips ? 1 : 0.01}
+            disabled={distanceMissing}
+            maxDecimals={nextLossByPips ? undefined : 2}
+            value={displayZone.fractal_next_loss ?? 0}
             onChange={(e) =>
               handleChange(
-                'fractal_next_loss', e.target.value, zone,
-                { ...symbolConfig, precision: nextLossByPips ? symbolConfig.precision : 2 }, update,
+                'fractal_next_loss', e.target.value, displayZone,
+                { ...symbolConfig, precision: nextLossByPips ? 12 : 2 }, (field, value) => {
+                  update(field, value);
+                  update('fractal_next_loss_unit_version', 1);
+                },
               )
             }
             className={nextLossByPips ? 'input-s w-28' : 'input-s w-24'}
           />
+          {nextLossByPips && (
+            <span data-testid="fractal-distance-preview" className="w-0 min-w-full text-[11px] text-muted-foreground">
+              {distanceSize === null ? t('zone.fractal.distanceMissing') : t('zone.fractal.distancePreview', {
+                unit: t(distanceUnit === 'ticks' ? 'zone.fractal.unitTicks' : 'zone.fractal.unitPips'),
+                size: number(distanceSize, { maximumFractionDigits: symbolConfig.precision }),
+                distance: number((displayZone.fractal_next_loss ?? 0) * distanceSize, { maximumFractionDigits: symbolConfig.precision }),
+              })}
+            </span>
+          )}
         </InputField>
       </div>
 

@@ -50,6 +50,9 @@ export const TF_SECONDS: Record<Timeframe, number> = {
 };
 
 export interface SymbolInfo {
+  distance_unit?: 'pips' | 'ticks' | null;
+  distance_unit_size?: number | null;
+  trade_calc_mode?: number | null;
   name: string;
   point: number;
   digits: number;

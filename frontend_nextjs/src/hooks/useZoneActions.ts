@@ -1,5 +1,6 @@
 'use client';
 
+import { distanceUnitOf, migrateFractalDistance } from '@/lib/symbolDistance';
 import { useCallback, useState } from 'react';
 import { useBotRuntimeStore, useSettingsStore } from '@/store';
 import { zoneApi } from '@/services/zoneApi';
@@ -91,7 +92,8 @@ export function useZoneActions(
       }
 
       // Nie einen Lot ≤ 0 oder unter dem Symbol-Minimum speichern (auch UI-Stand angleichen)
-      const zone = normalizeZoneLots(stored, useSettingsStore.getState().symbolDetails);
+      const details = useSettingsStore.getState().symbolDetails;
+      const zone = migrateFractalDistance(normalizeZoneLots(stored, details), distanceUnitOf(details[stored.symbol.toUpperCase()]).size);
       if (zone !== stored) setZones((prevZones) => prevZones.map((z) => (z.id === zoneId ? zone : z)));
 
       setSavingZoneId(zoneId);

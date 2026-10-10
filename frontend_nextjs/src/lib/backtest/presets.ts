@@ -33,7 +33,7 @@ export function presetZone(input: unknown): PresetZone {
   const values: Record<string, unknown> = {};
   for (const [key, fallback] of Object.entries(base)) {
     if (key === 'id' || key === 'is_active') continue;
-    const value = source[key] ?? fallback;
+    const value = source[key] ?? (key === 'fractal_next_loss_unit_version' ? 0 : fallback);
     if (typeof value !== typeof fallback || (typeof value === 'number' && !Number.isFinite(value))
       || (typeof value === 'string' && value.length > 100)) throw new Error(t('backtest.presets.invalid'));
     values[key] = value;

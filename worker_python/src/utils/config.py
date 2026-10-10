@@ -76,7 +76,10 @@ def load_settings(engine_name: str = "Auto Grid", raise_on_error: bool = False):
 def sanitize_settings(data):
     """Float değerlerdeki sapmaları ve gereksiz küsuratları temizler."""
     if isinstance(data, dict):
-        return {k: sanitize_settings(v) for k, v in data.items()}
+        # Pip/tick sayısı bölme sonucu olabilir: tekrar yuvarlama eski fiyat mesafesini değiştirir.
+        return {k: v if k == "fractal_next_loss" and data.get("fractal_next_loss_mode") == "pips"
+                and data.get("fractal_next_loss_unit_version") == 1 else sanitize_settings(v)
+                for k, v in data.items()}
     elif isinstance(data, list):
         return [sanitize_settings(item) for item in data]
     elif isinstance(data, float):

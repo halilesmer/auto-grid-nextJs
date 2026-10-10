@@ -223,3 +223,13 @@ def test_zonenregister_fuehrt_setups_mit_symbol_und_umstellung_macht_keine_neue_
     ]
     for magic in (200001, 200002, 200003):
         assert [v["version"] for v in market_db.zone_versions(TEST_ACCOUNT_ID, magic)] == [1]
+
+
+@pytest.mark.feature("ENG-30")
+def test_pip_tick_anzahl_behaelt_praezision_beim_speichern(client, worker_dir):
+    zone = make_zone(fractal_next_loss=10 / 3, fractal_next_loss_mode="pips",
+                     fractal_next_loss_unit_version=1)
+    assert client.post(URL, json={"settings": {"ZONES": [zone]}}).status_code == 200
+    result = client.get(URL).json()["settings"]["SYMBOLS"][0]["setups"][0]
+    assert result["fractal_next_loss"] == 10 / 3
+    assert result["fractal_next_loss_unit_version"] == 1

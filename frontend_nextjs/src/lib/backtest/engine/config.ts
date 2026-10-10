@@ -68,7 +68,8 @@ export interface ZoneConfig {
   fractalTpMoney: number;
   /** Nächste Fraktal-Order erst, wenn die jüngste Position der Richtung so weit im Verlust ist; 0 = keine Grenze */
   fractalNextLoss: number;
-  /** money: Gewinn ≤ −X · pips: Kurs ≥ X gegen den Einstieg */
+  fractalNextLossUnitVersion: number;
+  /** money: Gewinn ≤ −X · pips: Version 1 Pips/Ticks, Version 0 Preisabstand */
   fractalNextLossMode: 'money' | 'pips';
 }
 
@@ -215,6 +216,9 @@ export function extractZoneConfig(zone: ZoneDict, zoneIdx: number, infos: Symbol
     sellSl = conv0(sellSl, sellLot);
   }
 
+  const unitVersion = zone.fractal_next_loss_unit_version;
+  let fractalNextLossUnitVersion = 0;
+  if (unitVersion != null) fractalNextLossUnitVersion = typeof unitVersion === 'number' ? unitVersion : -1;
   return {
     orderType,
     minPrice,
@@ -254,6 +258,7 @@ export function extractZoneConfig(zone: ZoneDict, zoneIdx: number, infos: Symbol
     fractalTpByMoney: Boolean(zget(zone, 'fractal_tp_by_money', false)),
     fractalTpMoney: Math.max(0, pyFloat(zget(zone, 'fractal_tp_money', 10.0))),
     fractalNextLoss: Math.max(0, pyFloat(zget(zone, 'fractal_next_loss', 0) || 0)),
+    fractalNextLossUnitVersion,
     fractalNextLossMode: choice(zone.fractal_next_loss_mode, FRACTAL_NEXT_LOSS_MODES, 'money'),
   };
 }
