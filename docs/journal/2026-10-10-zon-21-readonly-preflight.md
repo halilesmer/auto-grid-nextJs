@@ -3,7 +3,7 @@ date: 2026-10-10
 author: Codex
 type: diagnosis
 status: open
-pr: []
+pr: [145]
 features: [ZON-21]
 areas: [ops, docs]
 ---
@@ -16,6 +16,8 @@ areas: [ops, docs]
 - Verify an isolated DEMO account, a stopped bot, no positions or pending orders, and an open market.
 - Preserve existing trading activity, account logins, credentials and worker processes.
 - Keep B4 open and outside this check.
+- On 2026-10-10, the owner deferred ZON-21 until Monday, 2026-10-12, after the selected symbol's market opens.
+- Continue the next independent open task in a new session. This decision does not schedule an automatic trading run.
 
 ## Cause
 
@@ -46,9 +48,11 @@ areas: [ops, docs]
 
 - [ ] The owner must make an authorized read-only account view available in Chrome, without changing existing trading activity.
 - [ ] Repeat the preflight and verify all five prerequisites with current evidence.
+- [ ] Retry on Monday, 2026-10-12, after verified market opening and restored read-only access in Chrome.
 - [ ] Obtain explicit user authorization for orders and bot start before the ZON-21 trading test.
 
 ## Lessons
 
 A reachable frontend and its version do not prove authenticated worker access or an isolated DEMO account.
 Preserve the earlier isolation warning until current account and trading evidence resolves it.
+Account, bot and order checks can run while the market is closed. The complete trading test requires an open symbol market.

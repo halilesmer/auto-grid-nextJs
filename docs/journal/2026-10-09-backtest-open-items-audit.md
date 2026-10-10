@@ -63,6 +63,8 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 
 ## Open points
 
+- [ ] Resume ZON-21 on Monday, 2026-10-12, after the selected symbol's market opens. Preserve all access and trading prerequisites.
+- [ ] Next session: verify remaining GitHub checks and deployed versions through read-only access. Keep B4 skipped and ZON-21 deferred.
 - [ ] Restore authorized symbol API access and record the installed swap constants and distinct symbol values.
 - [x] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check. See `2026-10-10-backtest-b9-vps-import.md`.
 - [ ] Restore an authorized read-only account view, then verify the ZON-21 preconditions. Run the trading test only after explicit user authorization. See `2026-10-10-zon-21-readonly-preflight.md`.
