@@ -3,7 +3,7 @@ date: 2026-10-10
 author: Codex
 type: diagnosis
 status: open
-pr: [145]
+pr: [145, 148]
 features: [ZON-21]
 areas: [ops, docs]
 ---
