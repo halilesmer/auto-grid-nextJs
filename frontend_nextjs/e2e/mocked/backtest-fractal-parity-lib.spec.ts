@@ -27,9 +27,9 @@ function places(events: SimEvent[]): SimEvent[] {
 }
 
 test.describe('BKT-03 Bot-Nachbau Fraktal', () => {
-  test('Genau die 14 Fraktal-Szenarien', { tag: '@BKT-03' }, () => {
+  test('Genau die 16 Fraktal-Szenarien', { tag: '@BKT-03' }, () => {
     // Ein neues Szenario in make_scenarios.py fällt hier auf und braucht eine bewusste Entscheidung
-    expect(FRACTAL_SCENARIOS).toHaveLength(14);
+    expect(FRACTAL_SCENARIOS).toHaveLength(16);
     expect(FRACTAL_SCENARIOS.every((n) => n.startsWith('fractal_'))).toBe(true);
   });
 
@@ -138,4 +138,18 @@ test.describe('BKT-03 Bot-Nachbau Fraktal', () => {
     const scenario = loadScenario('fractal_max_positions');
     expect(runScenario(scenario)).toEqual(runScenario(scenario));
   });
+});
+
+for (const name of ['fractal_next_loss_forex', 'fractal_next_loss_ticks']) {
+  test(`ENG-30 echte Einheiten öffnen exakt an der Grenze: ${name}`, { tag: ['@ENG-30', '@BKT-03'] }, () => {
+    const events = runScenario(loadScenario(name));
+    expect(events).toEqual(loadGolden(name));
+    expect(events.find((event) => event.ev === 'place' && event.i > 44)).toMatchObject({ i: 85, type: 'BUY_STOP' });
+  });
+}
+
+test('ENG-30 unbekannte Instrumentklasse blockiert neue Abstandseinheiten im Backtest', { tag: '@ENG-30' }, () => {
+  const scenario = loadScenario('fractal_next_loss_ticks');
+  delete scenario.symbol.trade_calc_mode;
+  expect(runScenario(scenario).filter((event) => event.ev === 'place')).toEqual([]);
 });

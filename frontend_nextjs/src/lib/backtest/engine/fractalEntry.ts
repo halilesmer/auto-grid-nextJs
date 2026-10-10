@@ -12,6 +12,7 @@
  * Nicht übernommen: die Datei fractal_state_<konto>.json (der Lauf startet ohne sie) und die Orders
  * entfernter Zusatz-Setups (legacy_setup_orders.py; der Backtest erzeugt keine).
  */
+import { distanceUnitOf } from '@/lib/symbolDistance';
 import { fractalsOf, type BarFractal } from '@/lib/analysis/fractals';
 import { FRACTAL_MAX_ORDERS, moneyToPriceDistance, type ZoneConfig } from './config';
 import { atr, parabolicSar } from './fractalSignals';
@@ -440,13 +441,24 @@ function atLimit(state: EngineState, zoneIdx: number, config: ZoneConfig, openPo
 
 /**
  * ENG-30: nächste Fraktal-Order der Richtung frei? Die jüngste Position der Richtung muss mindestens
- * fractalNextLoss im Verlust sein (money: Gewinn ≤ −X · pips: Kurs ≥ X gegen den Einstieg). 0 oder keine
+ * fractalNextLoss im Verlust sein (money: Gewinn ≤ −X · pips: Einheiten × Symbolgröße gegen den Einstieg; Version 0: direkter Preisabstand). 0 oder keine
  * Position: frei.
  */
 function lossGateOpen(ctx: BuildContext, direction: Direction, zonePositions: Position[]): boolean {
   const { config, zoneIdx, tick, state } = ctx;
   const limit = config.fractalNextLoss;
   const key = `${zoneIdx}|next_loss|${direction}`;
+  let distance = limit;
+  let tolerance = 0;
+  if (limit > 0 && config.fractalNextLossMode === 'pips' && config.fractalNextLossUnitVersion !== 0) {
+    const { size } = distanceUnitOf(ctx.infos[config.symbol]);
+    if (config.fractalNextLossUnitVersion !== 1 || size === null) {
+      logOnce(state, key, { zone: zoneIdx, fractalTime: null, value: 'unit_missing' }, 'WARN', 'fractal.distanceUnitMissing', { zone: zoneIdx + 1, symbol: config.symbol });
+      return false;
+    }
+    distance = limit * size;
+    tolerance = size * 1e-8;
+  }
   const posType = direction === 'BUY' ? POSITION_TYPE_BUY : POSITION_TYPE_SELL;
   const sameDir = zonePositions.filter((p) => p.type === posType);
   if (limit <= 0 || sameDir.length === 0) {
@@ -462,7 +474,7 @@ function lossGateOpen(ctx: BuildContext, direction: Direction, zonePositions: Po
   let reached: boolean;
   if (config.fractalNextLossMode === 'pips') {
     const against = direction === 'BUY' ? last.price_open - tick.bid : tick.ask - last.price_open;
-    reached = against >= limit;
+    reached = against + tolerance >= distance;
   } else {
     reached = last.profit <= -limit;
   }
@@ -475,7 +487,7 @@ function lossGateOpen(ctx: BuildContext, direction: Direction, zonePositions: Po
     direction,
     ticket: last.ticket,
     limit,
-    mode: config.fractalNextLossMode,
+    mode: config.fractalNextLossMode === 'pips' && config.fractalNextLossUnitVersion === 1 ? distanceUnitOf(ctx.infos[config.symbol]).unit : config.fractalNextLossMode,
   });
   return false;
 }

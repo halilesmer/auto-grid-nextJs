@@ -84,6 +84,9 @@ export type SimEvent = { i: number; t: number; ev: string } & Record<string, unk
 function symbolInfoOf(spec: SimSymbol): SymbolInfo {
   return {
     name: spec.name,
+    distance_unit: spec.distance_unit,
+    distance_unit_size: spec.distance_unit_size,
+    trade_calc_mode: spec.trade_calc_mode,
     point: spec.point ?? 0.001,
     digits: spec.digits ?? 3,
     volume_min: spec.volume_min ?? 0.01,

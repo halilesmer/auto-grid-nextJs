@@ -1,3 +1,4 @@
+import { distanceUnitOf } from '@/lib/symbolDistance';
 import type { ZoneSettings, SymbolDetail } from '@/store/types';
 
 export function defaultZone(): ZoneSettings {
@@ -48,6 +49,7 @@ export function defaultZone(): ZoneSettings {
     fractal_tp_money: 10,
     fractal_next_loss: 0,
     fractal_next_loss_mode: 'money',
+    fractal_next_loss_unit_version: 1,
   };
 }
 
@@ -71,6 +73,8 @@ export function parseFloatCustom(value: string, precision: number = 5): number {
 }
 
 export interface SymbolConfig {
+  distanceUnit?: 'pips' | 'ticks' | null;
+  distanceUnitSize?: number | null;
   min: number;
   step: number;
   precision: number;
@@ -127,6 +131,8 @@ export function getSymbolConfig(symbol: string, symbolDetails: Record<string, Sy
   const point = detail.point || 0.00001;
   const digits = detail.digits ?? 5;
   return {
+    distanceUnit: distanceUnitOf(detail).unit,
+    distanceUnitSize: distanceUnitOf(detail).size,
     min: point,
     step: point,
     precision: digits,

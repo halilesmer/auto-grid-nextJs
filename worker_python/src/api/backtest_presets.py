@@ -19,7 +19,7 @@ MAX_PRESETS = 100
 ZONE_NUMBERS = set("""min_price max_price grid_step lot_size take_profit stop_loss sell_grid_step
 sell_lot_size sell_take_profit sell_stop_loss pullback_distance sell_pullback_distance levels_below
 levels_above max_positions fractal_sl_buffer fractal_atr_period fractal_atr_multiplier fractal_sar_step
-fractal_sar_max fractal_rr fractal_order_count sell_fractal_order_count fractal_tp_money fractal_next_loss""".split())
+fractal_sar_max fractal_rr fractal_order_count sell_fractal_order_count fractal_tp_money fractal_next_loss fractal_next_loss_unit_version""".split())
 ZONE_BOOLS = set("""is_breakout step_by_loss instant_entry sync_buy_sell clear_on_exit fractal_use_sl
 fractal_tp_by_money""".split())
 ZONE_STRINGS = set("""symbol order_type clear_exit_side clear_scope clear_target_side exit_condition

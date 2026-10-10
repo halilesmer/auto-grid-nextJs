@@ -13,8 +13,8 @@ import src.utils.mt5_helpers as mh
 from tests.conftest import TEST_ACCOUNT_ID
 
 COSTS = {k: None for k in mh.SYMBOL_COST_FIELDS}
-USO = {"name": "USOUSD", "digits": 3, "point": 0.001, **COSTS}
-XAU = {"name": "XAUUSD", "digits": 2, "point": 0.01, **COSTS}
+USO = {"name": "USOUSD", "digits": 3, "point": 0.001, **COSTS, "distance_unit": None, "distance_unit_size": None}
+XAU = {"name": "XAUUSD", "digits": 2, "point": 0.01, **COSTS, "distance_unit": None, "distance_unit_size": None}
 
 
 @pytest.fixture
@@ -147,3 +147,15 @@ def test_fehlgeschlagene_abfrage_merkt_fehler_und_loggt_ins_konto(symbols_env, m
     monkeypatch.setattr(mh, "fetch_and_cache_symbols", lambda *a: asyncio.sleep(0, result=[USO]))
     assert asyncio.run(_get()) == [USO]
     assert mh.get_symbols_fetch_error(TEST_ACCOUNT_ID) is None
+
+
+@pytest.mark.feature("ENG-30")
+def test_alter_cache_liefert_pip_groesse_ohne_mt5_abfrage(symbols_env):
+    cache, calls, _ = symbols_env
+    old = {"name": "EURUSD", "digits": 5, "point": 0.00001, **COSTS, "trade_calc_mode": 0}
+    cache.write_text(json.dumps({TEST_ACCOUNT_ID: {"EURUSD": old}}))
+    result = asyncio.run(_get())
+    assert result[0]["distance_unit"] == "pips"
+    assert result[0]["distance_unit_size"] == 0.0001
+    assert calls == []
+    assert "distance_unit_size" not in json.loads(cache.read_text())[TEST_ACCOUNT_ID]["EURUSD"]

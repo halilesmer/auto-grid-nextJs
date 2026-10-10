@@ -38,6 +38,7 @@ from src.core.grid_orders import (
     send_pending_order_helper,
 )
 from src.core.state import state
+from src.utils.symbol_distance import distance_unit_of
 from src.utils.paths import get_fractal_state_path
 
 from .config import FRACTAL_MAX_ORDERS, ZoneConfig, money_to_price_distance
@@ -442,11 +443,21 @@ def _at_limit(zone_idx: int, config: ZoneConfig, open_positions: int, log_messag
     return True
 
 
-def _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_message) -> bool:
+def _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_message, symbol_infos) -> bool:
     """Sonraki fraktal emri serbest mi: yöndeki en son açılan pozisyon en az `fractal_next_loss`
-    zararda olmalı (money: kâr ≤ −X · pips: fiyat girişe karşı ≥ X). 0 veya pozisyon yoksa serbest."""
+    zararda olmalı (money: kâr ≤ −X · pips: birim sayısı × sembol boyutu; sürüm 0: doğrudan fiyat mesafesi). 0 veya pozisyon yoksa serbest."""
     limit = config.fractal_next_loss
     key = (zone_idx, "next_loss", direction)
+    distance = limit
+    tolerance = 0.0
+    if limit > 0 and config.fractal_next_loss_mode == "pips" and config.fractal_next_loss_unit_version != 0:
+        _, size = distance_unit_of(symbol_infos.get(config.symbol))
+        if config.fractal_next_loss_unit_version != 1 or size is None:
+            _log_once(key, "unit_missing", f"⚠️ Fraktal: Bölge {zone_idx+1} {direction} | "
+                      "Pip/tick bilgisi geçersiz, yeni emir konmuyor.", "WARN", log_message)
+            return False
+        distance = limit * size
+        tolerance = size * 1e-8
     pos_type = mt5.POSITION_TYPE_BUY if direction == "BUY" else mt5.POSITION_TYPE_SELL
     same_dir = [p for p in zone_positions if p.type == pos_type]
     if limit <= 0 or not same_dir:
@@ -455,13 +466,15 @@ def _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_
     last = max(same_dir, key=lambda p: (getattr(p, "time_msc", 0) or 0, p.ticket))
     if config.fractal_next_loss_mode == "pips":
         against = (last.price_open - float(tick.bid)) if direction == "BUY" else (float(tick.ask) - last.price_open)
-        reached = against >= limit
+        reached = against + tolerance >= distance
     else:
         reached = float(last.profit) <= -limit
     if reached:
         state.fractal_logged.pop(key, None)
         return True
     unit = "fiyat" if config.fractal_next_loss_mode == "pips" else "tutar"
+    if config.fractal_next_loss_mode == "pips" and config.fractal_next_loss_unit_version == 1:
+        unit = distance_unit_of(symbol_infos.get(config.symbol))[0]
     _log_once(
         key, last.ticket,
         f"⏸️ Fraktal: Bölge {zone_idx+1} {direction} | Sonraki emir, Bilet {last.ticket} en az "
@@ -487,7 +500,7 @@ def _manage_orders(
         if not allow_new_orders or config.order_type not in (direction, "BOTH"):
             continue
         # Sınır kapalıysa bu yönün bekleyen emirleri aşağıda eşleşmediği için silinir
-        if not _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_message):
+        if not _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_message, symbol_infos):
             continue
         count = config.fractal_order_count if direction == "BUY" else config.sell_fractal_order_count
         # Yalnızca en yeni `count` fraktal: geçersiz olanın yeri boş kalır, daha eskiyle doldurulmaz
