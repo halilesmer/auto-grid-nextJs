@@ -119,6 +119,8 @@ The symbol card shows the logs of all its setups. The robot log tab shows the sy
 
 ## Solution (part C)
 
+The step-by-loss position below is historical. The [2026-10-11 layout update](2026-10-11-grid-distance-loss-layout.md) places it below the grid step.
+
 The setup card is compact. Each input has a short, fixed width. Each switch is in the row of the field that it controls.
 
 | Item | Behavior |
