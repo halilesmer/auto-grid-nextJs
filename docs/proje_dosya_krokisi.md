@@ -456,7 +456,7 @@ grid_orchestrator (Ana Orkestratör)
 | `ZoneSellFields.tsx` | Satış yönü ayarları (ayrı grid, lot, TP, SL) |
 | `ZoneBreakoutFields.tsx` | „Sadece trend yönünde“ anahtarı, pullback, alt/üst seviyeler, maks. pozisyon |
 | `ZoneExitFields.tsx` | „Bölgeden çıkınca temizle“ anahtarı ve yanında yön, hedef, kapsam, tetikleyici, zaman dilimi |
-| `ZoneFractalFields.tsx` | Fraktal girişi: emir türü, zaman dilimi, lot, emir sayısı, maks. pozisyon; SL anahtarı + SL yöntemi; „TP tutar olarak“ anahtarı + TP |
+| `ZoneFractalFields.tsx` | Fraktal girişi: emir türü, zaman dilimi, lot, emir sayısı, maks. pozisyon; SL anahtarı + SL yöntemi; „TP tutar olarak“ anahtarı + TP; sonraki emir kayıp sınırı (Forex pip / broker tick), fiyat mesafesi önizlemesi |
 | `FieldSwitch.tsx` | Alan satırındaki anahtar: kontrol ettiği alanın yanında, giriş kutularının hizasında (kompakt setup, ZON-20) |
 
 ### Hook'lar (`hooks/`)

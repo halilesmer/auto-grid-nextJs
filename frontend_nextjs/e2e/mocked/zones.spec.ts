@@ -490,10 +490,10 @@ test.describe('ZON Zonen', () => {
 
     // Nächste Order ab Verlust: Switch wechselt Betrag → Pip, Feldname wechselt mit
     await expect(dashboard.zoneField(msg('zone.fractal.nextLossMoney'))).toHaveValue('0');
-    await zone.getByRole('switch', { name: msg('zone.fractal.nextLossByPips') }).click();
-    await dashboard.zoneField(msg('zone.fractal.nextLossPips')).fill('2');
+    await zone.getByRole('switch', { name: msg('zone.fractal.nextLossByTicks') }).click();
+    await dashboard.zoneField(msg('zone.fractal.nextLossTicks')).fill('2');
     await saveAndReload(dashboard);
-    await expect(dashboard.zoneField(msg('zone.fractal.nextLossPips'))).toHaveValue('2');
+    await expect(dashboard.zoneField(msg('zone.fractal.nextLossTicks'))).toHaveValue('2');
     expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_next_loss: 2, fractal_next_loss_mode: 'pips' });
 
     // Zurück auf Grid: Grid-Felder wieder da
@@ -559,4 +559,46 @@ test.describe('ZON Zonen', () => {
     await expect(dashboard.zoneField(msg('zone.fractal.sellOrderCount'))).toHaveValue('4');
     await expect(dashboard.zoneField(msg('zone.fractal.buyOrderCount'))).toHaveCount(0);
   });
+});
+
+// ZON-21: Anzeige migriert lokal; erst eine ausdrückliche Speicherung ändert den Worker.
+test('EURUSD: alter Preisabstand wird zu echten Pips und bleibt beim Speichern erhalten', { tag: '@ZON-21' }, async ({ worker, dashboard }) => {
+  worker.setZones(DEMO_ID, [makeZone({ symbol: 'EURUSD', entry_mode: 'fractal', fractal_next_loss: 0.001, fractal_next_loss_mode: 'pips' })]);
+  await dashboard.open(DEMO_ID);
+  await expect(dashboard.zoneField(msg('zone.fractal.nextLossPips'))).toHaveValue('10');
+  await expect(dashboard.zone().getByTestId('fractal-distance-preview')).toContainText('0,0001');
+  expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_next_loss: 0.001 });
+  expect(worker.zonesOf(DEMO_ID)[0].fractal_next_loss_unit_version).toBeUndefined();
+  await dashboard.zone().getByTestId('fractal-max-positions').fill('6');
+  await saveAndReload(dashboard);
+  expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_next_loss: 10, fractal_next_loss_unit_version: 1 });
+  await expect(dashboard.zoneField(msg('zone.fractal.nextLossPips'))).toHaveValue('10');
+  await dashboard.zoneField(msg('zone.fractal.nextLossPips')).fill('20');
+  await saveAndReload(dashboard);
+  expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_next_loss: 20, fractal_next_loss_unit_version: 1 });
+});
+
+test('Broker-Ticks: Tick-Größe statt Nachkommastellen, Speichern einer Zone', { tag: '@ZON-21' }, async ({ worker, dashboard }) => {
+  const symbol = worker.state.symbols.find((s) => s.name === 'XAUUSD')!;
+  symbol.trade_tick_size = 0.25;
+  symbol.distance_unit_size = 0.25;
+  worker.setZones(DEMO_ID, [makeZone({ symbol: 'XAUUSD', entry_mode: 'fractal', fractal_next_loss: 2.5, fractal_next_loss_mode: 'pips' })]);
+  await dashboard.open(DEMO_ID);
+  await expect(dashboard.zoneField(msg('zone.fractal.nextLossTicks'))).toHaveValue('10');
+  await expect(dashboard.zone().getByTestId('fractal-distance-preview')).toContainText('0,25');
+  await dashboard.zoneField(msg('zone.fractal.nextLossTicks')).fill('12');
+  await dashboard.zone().getByTestId('zone-save').click();
+  await expect.poll(() => worker.zonesOf(DEMO_ID)[0].fractal_next_loss).toBe(12);
+  expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_next_loss_unit_version: 1 });
+});
+
+test('Fehlende Tick-Größe: Abstandseingabe gesperrt und Ursache sichtbar', { tag: '@ZON-21' }, async ({ worker, dashboard }) => {
+  const symbol = worker.state.symbols.find((s) => s.name === 'XAUUSD')!;
+  symbol.trade_tick_size = 0;
+  symbol.distance_unit_size = null;
+  worker.setZones(DEMO_ID, [makeZone({ symbol: 'XAUUSD', entry_mode: 'fractal', fractal_next_loss: 10, fractal_next_loss_mode: 'pips', fractal_next_loss_unit_version: 1 })]);
+  await dashboard.open(DEMO_ID);
+  await expect(dashboard.zoneField(msg('zone.fractal.nextLossTicks'))).toBeDisabled();
+  await expect(dashboard.zone().getByTestId('fractal-distance-preview')).toHaveText(msg('zone.fractal.distanceMissing'));
+  expect(worker.zonesOf(DEMO_ID)[0].fractal_next_loss).toBe(10);
 });
