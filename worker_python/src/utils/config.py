@@ -76,7 +76,8 @@ def load_settings(engine_name: str = "Auto Grid", raise_on_error: bool = False):
 def sanitize_settings(data):
     """Float değerlerdeki sapmaları ve gereksiz küsuratları temizler."""
     if isinstance(data, dict):
-        return {k: sanitize_settings(v) for k, v in data.items()}
+        # Spread fiyat farkı çok küçük olabilir: eski yuvarlama 0,0001'i sıfıra çevirir.
+        return {k: copy.deepcopy(v) if k == "spread_guard" else sanitize_settings(v) for k, v in data.items()}
     elif isinstance(data, list):
         return [sanitize_settings(item) for item in data]
     elif isinstance(data, float):

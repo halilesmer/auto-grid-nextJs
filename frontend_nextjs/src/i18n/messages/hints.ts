@@ -518,6 +518,15 @@ export default defineArea(
     'backtest.result.path.auto.hint': 'Mum yolu, mumun yönüne göre otomatik seçildi.',
     'backtest.result.path.lowFirst.hint': 'Her mumda fiyat önce düşüğe, sonra yükseğe gitti.',
     'backtest.result.path.highFirst.hint': 'Her mumda fiyat önce yükseğe, sonra düşüğe gitti.',
+
+    "spread.enabled.hint": "Bu kurulumun bekleyen bot emirlerini yüksek spread’de siler ve yeni girişleri engeller. Açık pozisyonların TP/SL ve çıkış yönetimi sürer.",
+    "spread.mode.hint": "Sabit Ask−Bid farkı, öğrenilen normal spread’in katı veya etkin grid mesafesinin yüzdesi. Fraktalda grid mesafesi yoktur.",
+    "spread.max_spread.hint": "Pozitif Ask−Bid fiyat farkı girin; point veya hesap para tutarı değildir. Spread bu değeri aşınca koruma devreye girer.",
+    "spread.multiplier.hint": "Pozitif çarpan × normal spread = sınır. Normal spread son 24 saatin en az 60 örneğinin medyanıdır; hesap ve sembol bazında ortaktır.",
+    "spread.grid_percent.hint": "Etkin grid mesafesinin pozitif yüzdesi. İki yön varsa küçük mesafe kullanılır; tutar mesafeleri lota göre fiyat mesafesine çevrilir.",
+    "spread.bootstrap.hint": "Bekle: en az 60 örneğe kadar girişler durur, bekleyen emirler silinir. Elle: referans hemen kullanılır, öğrenme bitince medyana geçilir.",
+    "spread.initial_spread.hint": "İlk öğrenme sırasında kullanılan pozitif normal Ask−Bid fiyat farkı. Öğrenmeye yüksek spread saatinde başlarsanız güvenilir bir referans girin.",
+    "spread.status.hint": "Kaydedilmiş korumanın canlı durumu. Veri 60 sn’den eskiyse gösterilmez. Spread koruması manuel durdurmayı kaldırmaz.",
   },
   {
     "backtest.presets.title.hint": "Load, rename, delete or apply your own presets to a zone.",
@@ -1032,6 +1041,15 @@ export default defineArea(
     'backtest.result.path.auto.hint': 'The candle path was chosen automatically from the direction of the candle.',
     'backtest.result.path.lowFirst.hint': 'In every candle the price went to the low first, then to the high.',
     'backtest.result.path.highFirst.hint': 'In every candle the price went to the high first, then to the low.',
+
+    "spread.enabled.hint": "Cancels this setup’s pending bot orders and blocks new entries at high spread. Open positions keep TP/SL and exit management.",
+    "spread.mode.hint": "Fixed Ask−Bid difference, a multiple of learned normal spread, or a percentage of effective grid distance. Fractals have no grid distance.",
+    "spread.max_spread.hint": "Enter a positive Ask−Bid price difference, not points or account money. Protection starts when spread exceeds this value.",
+    "spread.multiplier.hint": "Positive multiplier × normal spread = limit. Normal spread is the median of at least 60 samples from 24 hours, shared per account and symbol.",
+    "spread.grid_percent.hint": "Positive percentage of effective grid distance. Both directions use the smaller distance; money distances convert to price using lot size.",
+    "spread.bootstrap.hint": "Wait: entries stop and pending orders are cancelled until 60 samples. Manual: use the entered reference until learning supplies a median.",
+    "spread.initial_spread.hint": "Positive normal Ask−Bid difference used during initial learning. Enter a reliable reference when starting during high spread hours.",
+    "spread.status.hint": "Live status of saved protection. Data older than 60 seconds is hidden. Spread recovery never overrides a manual pause.",
   },
   {
     "backtest.presets.title.hint": "Eigene Presets laden, umbenennen, löschen oder in eine Zone übernehmen.",
@@ -1546,5 +1564,14 @@ export default defineArea(
     'backtest.result.path.auto.hint': 'Der Kerzenweg wurde automatisch nach der Richtung der Kerze gewählt.',
     'backtest.result.path.lowFirst.hint': 'In jeder Kerze lief der Kurs zuerst zum Tief, dann zum Hoch.',
     'backtest.result.path.highFirst.hint': 'In jeder Kerze lief der Kurs zuerst zum Hoch, dann zum Tief.',
+
+    "spread.enabled.hint": "Löscht bei hohem Spread die Pending Orders dieses Setups und sperrt neue Einstiege. TP/SL und Ausstiege offener Positionen bleiben aktiv.",
+    "spread.mode.hint": "Fester Ask−Bid-Abstand, ein Vielfaches des gelernten Spreads oder ein Anteil am wirksamen Grid-Abstand. Fraktale haben keinen Grid-Abstand.",
+    "spread.max_spread.hint": "Positiven Ask−Bid-Preisabstand eingeben, keine Punkte oder Kontobeträge. Über diesem Wert greift der Schutz.",
+    "spread.multiplier.hint": "Positiver Faktor × normaler Spread = Grenze. Der Median aus mindestens 60 Messwerten der letzten 24 Stunden gilt pro Konto und Symbol.",
+    "spread.grid_percent.hint": "Positiver Anteil am wirksamen Grid-Abstand. Bei zwei Richtungen gilt der kleinere Abstand; Geldabstände werden mit dem Lot in Preise umgerechnet.",
+    "spread.bootstrap.hint": "Warten: bis 60 Messwerte keine Einstiege, Pending Orders werden gelöscht. Manuell: Startwert verwenden, danach den gelernten Median.",
+    "spread.initial_spread.hint": "Positiver normaler Ask−Bid-Abstand für die erste Lernphase. Bei Lernstart mit hohem Spread einen verlässlichen Startwert eingeben.",
+    "spread.status.hint": "Aktueller Zustand des gespeicherten Schutzes. Daten älter als 60 Sekunden werden ausgeblendet. Eine manuelle Pause bleibt bestehen.",
   },
 );

@@ -48,11 +48,13 @@ def _order_row(o) -> dict:
 
 
 def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, zone_states=None, zones=None):
+    from src.core.state import state
     zone_symbols = {
         str(i): str(z.get("symbol") or "").upper().strip()
         for i, z in enumerate(zones or [])
     }
     metrics = {
+        "spread_guards": {str(k): dict(v) for k, v in state.spread_guard.status.items()},
         # Bölge başına piyasa durumu (her sembolün işlem saati farklı): {"0": True, ...}
         "zone_market_open": {
             i: bool(sym) and is_market_open(mt5, sym) for i, sym in zone_symbols.items()

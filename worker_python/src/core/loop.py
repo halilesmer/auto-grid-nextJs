@@ -10,6 +10,7 @@ from .reconnection import check_connection_health
 from .startup import run_startup_checks
 from src.core.grid_helpers import log_message, is_market_open
 from src.core.grid_orders import get_all_robot_orders, cancel_order
+from src.core.spread_guard import refresh_spread_guard
 
 
 def main_loop(mt5_module, account_id, password, server, mt5_path=None):
@@ -55,6 +56,7 @@ def main_loop(mt5_module, account_id, password, server, mt5_path=None):
             if state.active_symbols and not any(
                 is_market_open(mt5_module, sym) for sym in state.active_symbols
             ):
+                refresh_spread_guard(mt5_module, state.zones, state.symbol_infos)
                 time.sleep(state.MARKET_CLOSED_CHECK_INTERVAL)
                 continue
 

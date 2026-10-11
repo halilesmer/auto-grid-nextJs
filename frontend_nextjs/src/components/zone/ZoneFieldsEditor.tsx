@@ -17,10 +17,12 @@ import { ZoneExitFields } from './ZoneExitFields';
 import { ZoneFractalFields } from './ZoneFractalFields';
 import { SectionLabel } from '@/components/ui/card';
 import { useT } from '@/i18n';
+import { ZoneSpreadFields } from './ZoneSpreadFields';
+import type { SpreadGuardStatus } from '@/lib/spreadGuardSettings';
 
 /** Gemeinsame Felder für gespeicherte Setups und lokale Backtest-Kopien. */
-export function ZoneFieldsEditor({ zone, onUpdate, symbolDetails, handleChange, handleBlur, syncZonePrecision }: Pick<ZoneCardProps,
-  'zone' | 'onUpdate' | 'symbolDetails' | 'handleChange' | 'handleBlur' | 'syncZonePrecision'>) {
+export function ZoneFieldsEditor({ zone, onUpdate, symbolDetails, handleChange, handleBlur, syncZonePrecision, spreadStatus, connected }: Pick<ZoneCardProps,
+  'zone' | 'onUpdate' | 'symbolDetails' | 'handleChange' | 'handleBlur' | 'syncZonePrecision'> & { spreadStatus?: SpreadGuardStatus; connected?: boolean }) {
   const t = useT();
   const isBoth = zone.order_type === 'BOTH';
   const showBuyLabel = zone.order_type === 'BUY';
@@ -29,8 +31,13 @@ export function ZoneFieldsEditor({ zone, onUpdate, symbolDetails, handleChange, 
   const symbolConfig = getSymbolConfig(zone.symbol, symbolDetails);
 
   const update = useCallback(
-    (field: string, value: unknown) => onUpdate(zone.id, field, value),
-    [onUpdate, zone.id]
+    (field: string, value: unknown) => {
+      if (field === 'entry_mode' && value === 'fractal' && zone.spread_guard?.mode === 'grid') {
+        onUpdate(zone.id, 'spread_guard', { ...zone.spread_guard, mode: 'fixed' });
+      }
+      onUpdate(zone.id, field, value);
+    },
+    [onUpdate, zone.id, zone.spread_guard]
   );
 
   // Modus umschalten: vorhandene Abstände mit der Lotgröße umrechnen, damit der effektive
@@ -138,6 +145,8 @@ export function ZoneFieldsEditor({ zone, onUpdate, symbolDetails, handleChange, 
             />
           </>
         )}
+
+        <ZoneSpreadFields zone={zone} update={update} status={spreadStatus} connected={connected} />
 
         <ZoneExitFields
           zone={zone}

@@ -1,0 +1,81 @@
+{
+ "name": "spread_fixed",
+ "description": "ENG-31: Spread \u00fcberschreitet Grenze, Orders l\u00f6schen, 30 s Erholung",
+ "symbol": {
+  "name": "USOUSD",
+  "digits": 3,
+  "point": 0.001,
+  "spread_points": 10,
+  "trade_contract_size": 1000.0
+ },
+ "start": 1790553600,
+ "zones": [
+  {
+   "id": "z1",
+   "is_active": true,
+   "symbol": "USOUSD",
+   "order_type": "BUY",
+   "min_price": 90.0,
+   "max_price": 110.0,
+   "grid_step": 0.1,
+   "lot_size": 0.01,
+   "take_profit": 0.1,
+   "stop_loss": 0.0,
+   "sell_grid_step": 0.1,
+   "sell_lot_size": 0.01,
+   "sell_take_profit": 0.1,
+   "sell_stop_loss": 0.0,
+   "is_breakout": false,
+   "pullback_distance": 0.5,
+   "sell_pullback_distance": 0.5,
+   "sync_buy_sell": true,
+   "levels_below": 3,
+   "levels_above": 3,
+   "max_positions": 10,
+   "clear_on_exit": false,
+   "clear_exit_side": "Farketmez",
+   "clear_scope": "Sadece Bekleyen Emirler",
+   "clear_target_side": "Farketmez (Hepsi)",
+   "exit_condition": "Anl\u0131k Fiyat",
+   "exit_timeframe": "M15",
+   "spread_guard": {
+    "enabled": true,
+    "mode": "fixed",
+    "max_spread": 0.05
+   }
+  }
+ ],
+ "history": {},
+ "ticks": [
+  [
+   0,
+   97.0,
+   10
+  ],
+  [
+   1,
+   97.0,
+   70
+  ],
+  [
+   2,
+   97.0,
+   10
+  ],
+  [
+   31,
+   97.0,
+   10
+  ],
+  [
+   32,
+   97.0,
+   10
+  ],
+  [
+   33,
+   96.8,
+   10
+  ]
+ ]
+}

@@ -204,7 +204,7 @@ def reset_bot_state():
     """Globaler Bot-Zustand und Zustandsdateien wie bei einem frischen Bot-Start."""
     import os
 
-    from src.utils.paths import get_fractal_state_path, get_ui_state_path
+    from src.utils.paths import get_fractal_state_path, get_ui_state_path, get_spread_state_path
     from src.utils.trade_utils import TradeState
 
     state.reset()
@@ -217,7 +217,7 @@ def reset_bot_state():
     TradeState.last_error_message = ""
     TradeState.last_order_ticket = 0
     account = os.environ.get("ACTIVE_ACCOUNT_ID", "")
-    for path in (get_ui_state_path(account), get_fractal_state_path(account)):
+    for path in (get_ui_state_path(account), get_fractal_state_path(account), get_spread_state_path(account)):
         if os.path.exists(path):
             os.remove(path)
 
@@ -234,7 +234,10 @@ def run(scenario: dict) -> list[dict]:
     clock.set_clock(lambda: mt5.now)
     try:
         active = {}
-        for i, (dt, bid) in enumerate(scenario["ticks"]):
+        for i, tick in enumerate(scenario["ticks"]):
+            dt, bid = tick[:2]
+            if len(tick) > 2:
+                mt5.spread = tick[2] * mt5.symbols[mt5.symbol].point
             rec.index, rec.dt = i, dt
             mt5.now = scenario["start"] + dt
             mt5.seen.append((mt5.now, bid))

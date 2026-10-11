@@ -22,7 +22,8 @@ import {
 } from '../fixtures/parity';
 
 /** Fraktal-Szenarien: backtest-fractal-parity-lib.spec.ts (BKT-03) */
-const GRID_SCENARIOS = scenarioNames().filter((name) => !isFractalScenario(loadScenario(name)));
+// Spread-Szenarien prüfen alle Schutzmethoden separat in spread-guard-lib.spec.ts.
+const GRID_SCENARIOS = scenarioNames().filter((name) => !name.startsWith('spread_') && !isFractalScenario(loadScenario(name)));
 
 /** Tick, in dem die Zone verlassen wird: die aktive Zone wird leer */
 function exitTick(events: SimEvent[]): number {

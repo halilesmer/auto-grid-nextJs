@@ -6,6 +6,7 @@
  * Antwortformen, gleiche Fehlercodes (401 ohne API-Schlüssel, 409 bei doppeltem Konto …).
  * Der Zustand liegt in `state` und kann pro Test verändert werden.
  */
+import { spreadGuardError } from '../../src/lib/spreadGuardSettings';
 import { parsePresetData, type BacktestPreset } from '../../src/lib/backtest/presets';
 import type { Page, Route, WebSocketRoute } from '@playwright/test';
 import type { LiveData, Metrics } from '../../src/store/types';
@@ -737,6 +738,10 @@ export class MockWorker {
         }
         // Wie settings.update_settings: flach zusammenführen, Magic vergeben, gruppiert speichern (ZON-19)
         const merged = { ...previous, ...toFlat(incoming) };
+        for (const zone of settingsZones(merged)) {
+          const error = spreadGuardError(zone);
+          if (error) return { status: 422, body: { detail: error } };
+        }
         s.settings[id] = toGrouped(dropFractalSetupFields(assignZoneMagics(previous, merged)));
         // Wie settings._remap_ui_state_of_stopped_bot: einen laufenden Bot zieht er beim Einlesen selbst um
         if (!s.botRunning[id] && s.uiState[id]) {

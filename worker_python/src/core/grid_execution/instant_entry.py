@@ -12,6 +12,7 @@ from src.core.grid_helpers import (
 from src.core.grid_orders import MAX_DEVIATION, zone_number
 from src.core import clock
 from src.core.state import state
+from src.core.spread_guard import entry_allowed
 from src.utils.trade_utils import safe_send_order
 from .config import ZoneConfig
 
@@ -77,10 +78,15 @@ def open_instant_positions(
         if sl > 0:
             request["sl"] = normalize_price(price - sign * sl, config.symbol, symbol_infos)
 
+        if not entry_allowed(mt5, config.target_magic):
+            continue
         state.instant_entry_sent[key] = now()
-        if safe_send_order(mt5, request, log_message):
+        if safe_send_order(mt5, request, log_message, before_send=lambda: entry_allowed(mt5, config.target_magic)):
             opened += 1
             log_message(
-                f"🚀 Anında Giriş: Bölge {zone_idx + 1} | {side} {request['volume']} lot @ {price} açıldı."
+                f"🚀 Anında Giriş: Bölge {zone_idx + 1} | {side} {request['volume']} lot @ {price} açıldı.",
+                "INFO",
             )
+        elif state.spread_guard.status.get(config.target_magic, {}).get("blocked"):
+            state.instant_entry_sent.pop(key, None)
     return opened

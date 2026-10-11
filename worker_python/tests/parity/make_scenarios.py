@@ -213,6 +213,26 @@ def scenarios() -> dict[str, dict]:
         "Kerzen nicht erreicht, gilt nach der Füllung aber als erledigt; nach dem SL-Ausstieg keine neue Order; rr 1,5",
         [fractal_zone(id="z1", order_type="BUY", fractal_rr=1.5)],
         walk([97.0, 97.44, 96.7, 97.2], step=0.01, seed=40, every=20), hist2)
+    spread_ticks = [[0, 97.0, 10], [1, 97.0, 70], [2, 97.0, 10],
+                    [31, 97.0, 10], [32, 97.0, 10], [33, 96.8, 10]]
+    add("spread_fixed", "ENG-31: Spread überschreitet Grenze, Orders löschen, 30 s Erholung",
+        [make_zone(id="z1", spread_guard={"enabled": True, "mode": "fixed", "max_spread": 0.05})], spread_ticks)
+    add("spread_grid", "ENG-31: kleinerer effektiver Grid-Abstand, getrennte Seiten",
+        [make_zone(id="z1", order_type="BOTH", sync_buy_sell=False, sell_grid_step=0.2,
+                   spread_guard={"enabled": True, "mode": "grid", "grid_percent": 50})], spread_ticks)
+    add("spread_relative_manual", "ENG-31: manueller Startwert schützt vor Abschluss der Lernphase",
+        [make_zone(id="z1", instant_entry=True,
+                   spread_guard={"enabled": True, "mode": "relative", "multiplier": 5,
+                                 "bootstrap": "manual", "initial_spread": 0.01})],
+        [[0, 97.0, 10], [1, 97.0, 10], [2, 97.0, 70], [3, 97.0, 10],
+         [32, 97.0, 10], [33, 97.0, 10], [34, 96.8, 10]])
+    learning_ticks = [[i * 60, 97.0, 10] for i in range(60)]
+    learning_ticks += [[3570, 97.0, 10], [3600, 97.0, 100], [3660, 97.0, 10], [3690, 97.0, 10], [3691, 96.8, 10]]
+    add("spread_relative_wait", "ENG-31: 60 Samples, Median, Erholung, hohe Spreads frieren Referenz ein",
+        [make_zone(id="z1", spread_guard={"enabled": True, "mode": "relative", "multiplier": 3, "bootstrap": "wait"})], learning_ticks)
+    add("spread_fractal", "ENG-31: Fraktal-Orders löschen und nach Erholung erneut setzen",
+        [fractal_zone(id="z1", spread_guard={"enabled": True, "mode": "fixed", "max_spread": 0.05})],
+        spread_ticks + [[34, 97.7, 10], [35, 96.4, 10], [36, 97.0, 10]], hist)
     return s
 
 

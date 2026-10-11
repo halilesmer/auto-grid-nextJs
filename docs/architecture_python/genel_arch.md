@@ -34,3 +34,26 @@
 *   **Bağlantı İzleyicisi:** Robot, terminalin kapandığını veya internetin kesildiğini algıladığında metrikler üzerinden arayüze `CONNECTION_LOST` bilgisi gönderir ve bağlantı gelene kadar güvenli bekleme döngüsüne geçer[cite: 3].
 *   **Mac / Linux Mock (Simülasyon) Modu:** `MetaTrader5` kütüphanesi Windows dışı bir sistemde yüklenemezse program çökmez; otomatik olarak `DummyMT5` sınıfı devreye girer ve UI testi/geliştirme yapılabilmesi için sahte fiyatlarla simülasyon (Mock) modu çalışır[cite: 3].
 *   **Hesap Bazlı İzolasyon ve Loglama:** Terminalde hangi hesabın açık olduğuna bakılarak (`ACTIVE_ACCOUNT_ID`), ui state dosyaları, metrikler ve hata logları o hesaba özel ayrılmış dosya ve dizinlere kaydedilir[cite: 3].
+
+## 3.6. Seçilebilir Spread Koruması (ENG-31)
+
+| Alan | Davranış |
+|---|---|
+| Ayar sözleşmesi | Her kurulumun `spread_guard` nesnesi vardır. Eksik, `null` veya kapalı ayar eski davranışı korur. Açık ayarlar kaydetmede doğrulanır. |
+| Yöntemler | `fixed`: fiyat farkı; `relative`: normal spread medyanının katı; `grid`: kullanılan yönlerdeki küçük etkin grid mesafesinin yüzdesi. Fraktal `grid` yöntemini kullanamaz. |
+| Grid mesafesi | `extract_zone_config` mevcut lot, para ve fiyat dönüşümlerini uygular. Hesaplanamayan mesafe girişleri engeller. |
+| Fiyat verisi | Aynı tick içindeki Ask−Bid kullanılır. Eksik, geçersiz, gelecekteki veya 60 saniyeden eski tick girişleri engeller. |
+| Öğrenme | Hesap ve sembol bazında son 24 saat tutulur. Dakikada en fazla bir örnek alınır. En az 60 örneğin medyanı referanstır. |
+| Başlangıç | `wait` öğrenme boyunca emirleri temizler ve girişleri engeller. `manual` öğrenme tamamlanana kadar kullanıcının başlangıç referansını kullanır. |
+| Yüksek spread | Sınırın üstünde yeni girişler engellenir. Yalnızca kurulumun magic ve sembolüne ait bekleyen bot emirleri `cancel_order` ile temizlenir. Başarısız iptaller sonraki turda yeniden denenir. |
+| Kilit ve toparlanma | Koruma manuel PAUSE durumundan ayrıdır. Girişteki sınır korunur. Spread sınırın %80'inin altında kesintisiz 30 saniye kalınca kilit kalkar. |
+| Pozisyonlar | Spread koruması açık pozisyon kapatmaz. TP/SL, fraktal SAR ve mevcut çıkış yönetimi devam eder. |
+| Kontrol noktaları | Kontrol remote PAUSE erken dönüşünden önce çalışır. `safe_send_order` içindeki gönderim kancası broker gönderiminden hemen önce fiyatı tekrar okur. |
+| Kalıcı veri | `get_spread_state_path` gitignored hesap veri alanındaki JSON dosyasını seçer. Örnekler, referanslar ve magic kilitleri atomik yazılır. Yeniden başlatma toparlanma sayacını sıfırlar. |
+| Telemetri | `spread_guards` salt okunur canlı metriklere eklenir. Kart mevcut kaydetme ve metrik akışını kullanır. Yeni işlem endpoint'i yoktur. |
+| Backtest | `engine/spreadGuard.ts` aynı kararları uygular. Öğrenme yalnızca simülasyonda o ana kadar görülen tick verisini kullanır. Python golden senaryoları eşitliği doğrular. |
+
+- İlk 60 örnek her iki başlangıç yönteminde toplanır. Öğrenme tamamlandıktan sonra koruma sırasında örnekler normal referansa katılmaz. Öğrenme süresi dolarsa `wait` yeniden örnek toplar.
+- İptal broker'a ulaşmadan bekleyen emir gerçekleşebilir. Son gönderim kontrolü bu iptal yarışını ortadan kaldırmaz.
+- İlk 60 örnek yüksek spread saatlerinden gelirse medyan bu koşulu normal kabul edebilir. Sabit eşik veya elle referans başlangıcı kontrol eder.
+- Mac üzerinde worker başlatılmaz. Doğrulama FakeMT5, API ve mocked frontend testleriyle yapılır.

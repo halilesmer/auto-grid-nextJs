@@ -404,7 +404,7 @@ export function manageFractalOrders(
   const m = readMarket(broker, config, zoneIdx, tick, state);
   if (!m) return false;
 
-  const allow = !atLimit(state, zoneIdx, config, zonePositions.length);
+  const allow = !state.spreadGuard.status.get(config.targetMagic)?.blocked && !atLimit(state, zoneIdx, config, zonePositions.length);
   const ctx: BuildContext = { config, zoneIdx, zoneKey, m, tick, infos, state };
   const candidates = manageOrders(broker, ctx, zoneOrders, zonePositions, allow);
   if (config.fractalUseSl && config.fractalSlMode === 'sar') {
