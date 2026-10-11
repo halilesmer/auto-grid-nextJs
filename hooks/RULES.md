@@ -113,3 +113,24 @@ Purpose: a colleague, or Claude in a new session, can continue the work without 
    5. Merge the answers into one list. Mark the points where the reviewers do not agree.
    6. Check each finding against the code and the tests before you change code. A majority is not a proof.
    7. Write the result in a journal entry (`type: decision`).
+
+## 10. Small complete changes and evidence-based reviews
+
+Adapted from [Ponytail](https://github.com/DietrichGebert/ponytail), reviewed on 2026-10-11.
+These rules apply to Claude Code and Codex. Project safety rules and required checks remain in force.
+
+| Area | Manual rule [elle] |
+|---|---|
+| Implementation scope | Before editing, identify affected callers, tests, fixtures, configuration and exports. Include each required update in the change. |
+| Reuse order | Use an existing project component or helper first. Then check the standard library, platform features and installed dependencies. |
+| Readability | Choose the smallest complete change that a colleague can read easily. Preserve validation, error handling, security and accessibility. |
+| Review context | Read the diff, affected callers, called functions and tests. Trace the input, stored data and output. |
+| Review priority | Check correctness, security and data loss first. Then check concurrency, missing tests, performance and unnecessary complexity. |
+| Expected load | State the load assumed for a review. Check multiple accounts and separate worker and bot processes where applicable. |
+| Findings | Report a finding only with a concrete trigger and code evidence. Include severity, file and line, consequence and the smallest correction. |
+| Audit scope | Audit the requested area. Map entry points and data flow first. Report findings without changing code unless the user requests changes. |
+| Deletion evidence | Before recommending deletion, check callers, dynamic references, configuration and tests. Apply the existing rules for unknown code purposes. |
+| Verification limits | State relevant paths and checks that you could not examine. Distinguish verified defects from unresolved questions. |
+
+Existing rules already cover speculative code, abstractions, regression tests, UI synchronization, i18n, tooltips and verification evidence.
+Use `docs/agent-rules/` and sections 2, 4, 5, 8 and 9 for those requirements.
