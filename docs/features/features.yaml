@@ -1424,6 +1424,7 @@ kategorien:
         tiers: [e2e, manuell]
         pruefung:
           - Analyse → Chart-Tab, Zeitraum über ein Wochenende (z. B. „Letzte 7 Tage“), Zeitrahmen M15.
+          - "Gemockter M15-Chart mit Datenlücke am 16.09.2026: 07.09.–06.10.2026 zeigt vier Marktpausen; 05.09.–04.10.2026 zeigt drei. Randwochenenden zählen ohne echte Kerzen auf beiden Seiten nicht als Pause."
           - Einen Zeitraum wählen, der vor dem Beginn der MT5-Historie des Symbols liegt (z. B. „Letztes Jahr“ bei M1).
         erwartet: Am Wochenende eine dünne gestrichelte Linie statt Kerzen. Vor dem Beginn der Historie eine grau schraffierte Fläche „Keine Daten“ und ein gelber Hinweis mit Zeitraum und Grund „in MT5 nicht vorhanden“; dort steht keine einzige Kerze.
 
