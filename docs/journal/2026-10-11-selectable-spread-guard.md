@@ -2,7 +2,7 @@
 date: 2026-10-11
 author: Codex
 type: feature
-status: done
+status: open
 pr: [152]
 features: [ENG-31]
 areas: [worker, frontend, tests, docs]
@@ -65,6 +65,13 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | Visual checks | Light and dark screenshots checked at 375 px and desktop width. No horizontal overflow. |
 | `hooks/RULES.md` §9 | Reviewed entry routes, API ownership, status consumers, atomic persistence and simulated time. |
 | Live trading | Not verified. The user did not authorize a live DEMO trading test. No worker ran on the Mac. |
+
+## Open points
+
+- [ ] Run the live DEMO validation when the market is open. The owner requested this follow-up on 2026-10-11.
+- Use the separately authorized DEMO account after the VPS receives the change and the worker restarts.
+- Verify pending order cancellation, blocked entries, unaffected position management and recovery after 30 seconds below 80% of the limit.
+- Record the result here. No live trading test has run yet.
 
 ## Lessons
 
