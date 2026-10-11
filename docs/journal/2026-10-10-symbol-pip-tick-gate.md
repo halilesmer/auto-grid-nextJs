@@ -73,3 +73,14 @@ The version marker preserves old settings before the owner saves them again. Aut
 
 - The broad browser run used four workers. The repeated cases passed with one worker after the other checks completed.
 - The manual review used `hooks/RULES.md` §9. API authentication, remote control, bot state, and time conversion do not change.
+
+## CI screenshot path correction (2026-10-11)
+- PR #150 CI passed 516 frontend tests. The new layout test failed on Linux with `ENOENT`.
+- The test wrote screenshots to `/private/tmp`, a Mac directory that does not exist on the Linux runner.
+- `fractal-distance-layout.spec.ts` now uses `testInfo.outputPath(...)` for all four screenshots.
+- Playwright keeps these files inside each test's output directory, including separate retries.
+- Assertions, viewport sizes, themes, and time limits stay unchanged.
+- `npx playwright test e2e/mocked/fractal-distance-layout.spec.ts --project=mocked --workers=1`: 1 passed in 3.6 seconds.
+- The test generated all four screenshots in `frontend_nextjs/test-results/`.
+- `npm run lint` and `npx tsc --noEmit`: exit 0.
+- The manual review confirms that this change only replaces the artifact path. No production behavior changes.
