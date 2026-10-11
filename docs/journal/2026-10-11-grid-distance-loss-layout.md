@@ -3,7 +3,7 @@ date: 2026-10-11
 author: Codex
 type: fix
 status: done
-pr: []
+pr: [153]
 features: [ZON-13, ZON-20, UI-08]
 areas: [frontend, tests, docs]
 ---
