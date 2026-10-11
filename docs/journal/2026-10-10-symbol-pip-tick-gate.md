@@ -84,3 +84,17 @@ The version marker preserves old settings before the owner saves them again. Aut
 - The test generated all four screenshots in `frontend_nextjs/test-results/`.
 - `npm run lint` and `npx tsc --noEmit`: exit 0.
 - The manual review confirms that this change only replaces the artifact path. No production behavior changes.
+
+## Date-dependent analysis fixture correction (2026-10-11)
+- Linux CI now passes the screenshot test. It fails `ANA-11` with three pauses instead of at least four.
+- The test uses the moving `last30` range, but counts only pauses between delivered weekday candles.
+- The Sunday range starts on Saturday and ends on Sunday. Its two partial boundary weekends do not produce internal pauses.
+- `analysis-chart.spec.ts` now requests January 2025 explicitly and places its missing-data hole on 15 January.
+- This fixed range includes four complete weekends between candles. The original assertion remains `toBeGreaterThanOrEqual(4)`.
+- Production code, assertions, and time limits do not change.
+- The focused `analysis-chart.spec.ts` run passes all six tests in 59.6 seconds.
+- The screenshot test already passes separately and in the Linux CI run.
+- After the fixture correction, `npm run lint` and `npx tsc --noEmit` exit 0.
+- Final checks use an isolated PR checkout to avoid concurrent branch changes in the shared checkout.
+- `npx playwright test e2e/mocked/analysis-chart.spec.ts e2e/mocked/fractal-distance-layout.spec.ts --project=mocked --workers=1`: 7 passed.
+- In that checkout, `npm run lint` and `npx tsc --noEmit` exit 0.
