@@ -11,12 +11,6 @@ import { DEMO_ID, ZONE_ID, expect, makeZone, test, type MockWorker } from '../fi
 const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const DAY = 86400;
 
-/** Mittwoch, 15. Januar 2025, 10:00–14:00 (MT5-Zeit), im festen Testzeitraum. */
-function weekdayHole() {
-  const day = Date.UTC(2025, 0, 15) / 1000;
-  return { from: day + 10 * 3600, to: day + 14 * 3600, reason: 'unavailable', checked_at: Math.floor(Date.now() / 1000) };
-}
-
 function ratesCalls(worker: MockWorker) {
   return worker.calls.filter((c) => c.method === 'GET' && c.path.endsWith('/rates'));
 }
@@ -27,39 +21,50 @@ async function openSettings(page: Page) {
 }
 
 test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
-  test('Fehlender Bereich ist markiert und genannt, gezeichnet werden nur gelieferte Kerzen', { tag: '@ANA-11' }, async ({ page, worker }) => {
-    worker.state.ratesMissing = [weekdayHole()];
-    await page.goto(`${URL}&from=2025-01-01&to=2025-01-31`);
+  for (const period of [
+    { from: '2026-09-07', to: '2026-10-06', pauses: 4, name: 'vier eingeschlossene Wochenenden' },
+    { from: '2026-09-05', to: '2026-10-04', pauses: 3, name: 'Wochenenden an beiden Zeitraumgrenzen' },
+  ]) {
+    test(`Fehlender Bereich ist markiert und genannt, gezeichnet werden nur gelieferte Kerzen: ${period.name}`, { tag: '@ANA-11' }, async ({ page, worker }) => {
+      // Feste 30 Tage und ein Mittwoch darin: unabhängig von Uhrzeit und Wochentag des Testlaufs.
+      worker.state.ratesMissing = [{
+        from: Date.UTC(2026, 8, 16, 10) / 1000,
+        to: Date.UTC(2026, 8, 16, 14) / 1000,
+        reason: 'unavailable',
+        checked_at: Date.UTC(2026, 9, 7) / 1000,
+      }];
+      await page.goto(`${URL}&from=${period.from}&to=${period.to}`);
 
-    const chart = page.getByTestId('analysis-chart');
-    await expect(chart).toBeVisible();
-    // Zone USOUSD, Standard-Zeitrahmen M15, Konto aus der Adresse
-    const call = ratesCalls(worker)[0];
-    expect(call.query.get('symbol')).toBe('USOUSD');
-    expect(call.query.get('timeframe')).toBe('M15');
-    expect(call.path).toBe(`/api/market/${DEMO_ID}/rates`);
+      const chart = page.getByTestId('analysis-chart');
+      await expect(chart).toBeVisible();
+      // Zone USOUSD, Standard-Zeitrahmen M15, Konto aus der Adresse
+      const call = ratesCalls(worker)[0];
+      expect(call.query.get('symbol')).toBe('USOUSD');
+      expect(call.query.get('timeframe')).toBe('M15');
+      expect(call.path).toBe(`/api/market/${DEMO_ID}/rates`);
 
-    // Pflicht-Hinweis mit Grund, ohne Schalter
-    const quality = page.getByTestId('data-quality');
-    await expect(quality).toContainText(msg('analysis.data.missing.title', { n: 1 }));
-    await expect(page.getByTestId('missing-ranges')).toContainText(msg('analysis.data.reason.unavailable'));
-    await expect(chart).toHaveAttribute('data-gap-areas', '1');
-    // Keine erfundenen Kerzen: der Chart hat genau die Kerzen, die der Worker geliefert hat. Ein Abruf:
-    // der Zeitraum steht erst mit der Brokeruhr fest, vorher wird nichts geladen
-    expect(worker.ratesDelivered).toHaveLength(1);
-    expect(worker.ratesDelivered[0]).toBeGreaterThan(0);
-    await expect(chart).toHaveAttribute('data-bars', String(worker.ratesDelivered[0]));
-    // Der feste Januar-Zeitraum enthält vier vollständige Wochenenden zwischen echten Kerzen.
-    expect(Number(await chart.getAttribute('data-pauses'))).toBeGreaterThanOrEqual(4);
-    await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
+      // Pflicht-Hinweis mit Grund, ohne Schalter
+      const quality = page.getByTestId('data-quality');
+      await expect(quality).toContainText(msg('analysis.data.missing.title', { n: 1 }));
+      await expect(page.getByTestId('missing-ranges')).toContainText(msg('analysis.data.reason.unavailable'));
+      await expect(chart).toHaveAttribute('data-gap-areas', '1');
+      // Keine erfundenen Kerzen: der Chart hat genau die Kerzen, die der Worker geliefert hat. Ein Abruf:
+      // der Zeitraum steht erst mit der Brokeruhr fest, vorher wird nichts geladen
+      expect(worker.ratesDelivered).toHaveLength(1);
+      expect(worker.ratesDelivered[0]).toBeGreaterThan(0);
+      await expect(chart).toHaveAttribute('data-bars', String(worker.ratesDelivered[0]));
+      // Nur eingeschlossene Wochenenden: Randwochenenden haben nicht auf beiden Seiten echte Kerzen.
+      await expect(chart).toHaveAttribute('data-pauses', String(period.pauses));
+      await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
 
-    // Pausen-Linien abschaltbar, die Markierung fehlender Daten nicht
-    const panel = await openSettings(page);
-    await panel.getByRole('switch', { name: msg('analysis.settings.pauses') }).click();
-    await expect(page.getByTestId('chart-key')).not.toContainText(msg('analysis.chart.key.pause'));
-    await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
-    await expect(quality).toBeVisible();
-  });
+      // Pausen-Linien abschaltbar, die Markierung fehlender Daten nicht
+      const panel = await openSettings(page);
+      await panel.getByRole('switch', { name: msg('analysis.settings.pauses') }).click();
+      await expect(page.getByTestId('chart-key')).not.toContainText(msg('analysis.chart.key.pause'));
+      await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
+      await expect(quality).toBeVisible();
+    });
+  }
 
   test('Zeitrahmen steht in der Adresse und lädt passende Kerzen', { tag: '@ANA-11' }, async ({ page, worker }) => {
     await page.goto(URL);

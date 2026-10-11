@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-10 · **139/157** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-11 · **139/157** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -680,9 +680,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Auf der Analyse-Seite den Zeitraum öffnen, „Letztes Jahr“ wählen. → Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden. → „31.02.26“ eingeben.
   - **Erwartet:** Neben dem Titel steht „Broker UTC+3“ (je nach Broker). „Letztes Jahr“ zeigt 01.01.–31.12. des Vorjahres; der eigene Zeitraum bleibt nach dem Neuladen; ein ungültiges Datum wird rot gemeldet und „Übernehmen“ ist gesperrt.
   - 📝 Live v0.7.182: Broker UTC+3; GET clock HTTP 200 in 148 ms; Letztes Jahr zeigte 01.01.25–31.12.25, eigener Zeitraum blieb nach Neuladen erhalten, 31.02.26 wurde abgewiesen.
-- [x] **ANA-11** Fehlende Daten und Marktpausen im Chart — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-02
+- [x] **ANA-11** Fehlende Daten und Marktpausen im Chart — 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-02
   - Keine erfundenen Kerzen: Bereiche, die laut /rates fehlen (unavailable, error, busy), werden Leerstellen ohne Preis (nur Zeitstempel, höchstens 120 je Bereich) und grau schraffiert mit „Keine Daten“ gezeichnet; darüber ein Pflicht-Hinweis ohne Schalter mit Zeitraum, Grund und letzter Prüfung (DataQualityBanner). Bis „jetzt“ abgeschnitten, die Zukunft fehlt nie. Marktpausen (Lücke zwischen zwei echten Kerzen, mindestens zwei Kerzen lang und länger als eine Kerze + 15 min: Wochenende, Feiertag, Tagespause) sind dünne gestrichelte Trennlinien, abschaltbar; eine einzelne fehlende Kerze ohne Ticks ist keine Pause. Der RSI läuft nicht über eine Datenlücke. Gekürzter Zeitraum und volle Datenbank werden ebenfalls gemeldet.
-  - **Prüfung:** Analyse → Chart-Tab, Zeitraum über ein Wochenende (z. B. „Letzte 7 Tage“), Zeitrahmen M15. → Einen Zeitraum wählen, der vor dem Beginn der MT5-Historie des Symbols liegt (z. B. „Letztes Jahr“ bei M1).
+  - **Prüfung:** Analyse → Chart-Tab, Zeitraum über ein Wochenende (z. B. „Letzte 7 Tage“), Zeitrahmen M15. → Gemockter M15-Chart mit Datenlücke am 16.09.2026: 07.09.–06.10.2026 zeigt vier Marktpausen; 05.09.–04.10.2026 zeigt drei. Randwochenenden zählen ohne echte Kerzen auf beiden Seiten nicht als Pause. → Einen Zeitraum wählen, der vor dem Beginn der MT5-Historie des Symbols liegt (z. B. „Letztes Jahr“ bei M1).
   - **Erwartet:** Am Wochenende eine dünne gestrichelte Linie statt Kerzen. Vor dem Beginn der Historie eine grau schraffierte Fläche „Keine Daten“ und ein gelber Hinweis mit Zeitraum und Grund „in MT5 nicht vorhanden“; dort steht keine einzige Kerze.
   - 📝 02.10.26 DEMO-Konto A: M1 Jan 2026 = 0 Kerzen, Fläche Keine Daten + Hinweis unavailable; M1 22.-23.06. Historie ab 23.06. 06:55 → links schraffiert, rechts echte Kerzen, RSI ohne Brücke; Tagespausen 00:00-01:00 als Linien
 - [x] **ANA-12** MFE/MAE echter Trades — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-06
