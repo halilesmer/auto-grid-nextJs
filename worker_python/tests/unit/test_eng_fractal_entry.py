@@ -649,3 +649,68 @@ def test_pip_abstand_gegen_den_einstieg(fake_mt5):
     fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_SELL, ask - 2.0, magic=MAGIC_ZONE_1)  # 2,00 gegen → frei
     h.tick()
     assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_SELL_STOP]
+
+
+@pytest.mark.feature("ENG-30")
+@pytest.mark.parametrize("name,digits,point,mode,tick_size,unit_size", [
+    ("EURUSD", 4, 0.0001, 0, 0.0001, 0.0001),
+    ("EURUSD.SUFFIX", 5, 0.00001, 5, 0.00001, 0.0001),
+    ("USDJPY", 2, 0.01, 0, 0.01, 0.01),
+    ("USDJPY.SUFFIX", 3, 0.001, 0, 0.001, 0.01),
+    ("METAL", 2, 0.01, 2, 0.25, 0.25),
+])
+@pytest.mark.parametrize("direction", ["BUY", "SELL"])
+@pytest.mark.parametrize("units,allowed", [(9, False), (10, True), (11, True)])
+def test_symbol_einheiten_sperren_bis_zur_exakten_grenze(
+    fake_mt5, name, digits, point, mode, tick_size, unit_size, direction, units, allowed,
+):
+    center = 1.1 if digits >= 4 else 150.0
+    fake_mt5.add_symbol(name, center, center + point, digits=digits, point=point,
+                        trade_calc_mode=mode, trade_tick_size=tick_size)
+    scaled = [(center + (h - 97) * 10 * unit_size, center + (lo - 97) * 10 * unit_size) for h, lo in FLAT + SHAPE]
+    fake_mt5.set_rates(name, fake_mt5.TIMEFRAME_H4, bars(scaled))
+    h = EngineHarness(fake_mt5, [fractal_zone(
+        symbol=name, min_price=0, max_price=200, order_type=direction, fractal_use_sl=False,
+        fractal_tp_money=0, fractal_next_loss=10, fractal_next_loss_mode="pips",
+        fractal_next_loss_unit_version=1,
+    )])
+    tick = fake_mt5.ticks[name]
+    buy = direction == "BUY"
+    opening = tick.bid + units * unit_size if buy else tick.ask - units * unit_size
+    fake_mt5.add_position(name, 0 if buy else 1, opening, magic=MAGIC_ZONE_1)
+    h.tick()
+    assert bool(fake_mt5.robot_orders(MAGIC_ZONE_1)) is allowed
+
+
+@pytest.mark.feature("ENG-30")
+def test_unbekannte_tick_groesse_sperrt_neue_orders(fake_mt5):
+    h = setup(fake_mt5, fractal_next_loss=10, fractal_next_loss_mode="pips",
+              fractal_next_loss_unit_version=1)
+    fake_mt5.symbols["USOUSD"].trade_calc_mode = 2
+    fake_mt5.symbols["USOUSD"].trade_tick_size = 0
+    fake_mt5.add_position("USOUSD", 0, 100.0, magic=MAGIC_ZONE_1)
+    h.tick()
+    assert _types(fake_mt5) == []
+
+
+@pytest.mark.feature("ENG-30")
+@pytest.mark.parametrize("limit,version", [(0, 1), (2, 0), (2, None)])
+def test_null_und_alte_abstaende_brauchen_keine_tick_groesse(fake_mt5, limit, version):
+    fields = dict(fractal_next_loss=limit, fractal_next_loss_mode="pips")
+    if version is not None:
+        fields["fractal_next_loss_unit_version"] = version
+    h = setup(fake_mt5, **fields)
+    fake_mt5.symbols["USOUSD"].trade_calc_mode = 2
+    fake_mt5.symbols["USOUSD"].trade_tick_size = 0
+    fake_mt5.add_position("USOUSD", 0, 100.0, magic=MAGIC_ZONE_1)
+    h.tick()
+    assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_BUY_STOP, fake_mt5.ORDER_TYPE_SELL_STOP]
+
+
+@pytest.mark.feature("ENG-30")
+def test_position_einer_anderen_zone_sperrt_nicht(fake_mt5):
+    h = setup(fake_mt5, fractal_next_loss=10, fractal_next_loss_mode="pips",
+              fractal_next_loss_unit_version=1)
+    fake_mt5.add_position("USOUSD", 0, 97.0, magic=MAGIC_ZONE_1 + 1)
+    h.tick()
+    assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_BUY_STOP, fake_mt5.ORDER_TYPE_SELL_STOP]

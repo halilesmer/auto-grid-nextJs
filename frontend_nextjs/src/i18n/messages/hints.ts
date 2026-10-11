@@ -387,9 +387,12 @@ export default defineArea(
     'zone.fractal.nextLossMoney.hint':
       'Sonraki fraktal emri, bu yönde en son açılan pozisyon en az bu tutar zarardayken konur. Örn. 1 $: BUY 2650\'de açık → yeni BUY emri ancak −1 $\'da (0.01 lot altında ≈ 2649). Pozisyon yoksa emir hemen konur. 0 = sınır yok.',
     'zone.fractal.nextLossPips.hint':
-      'Sonraki fraktal emri, bu yönde en son açılan pozisyonun fiyatı girişe karşı en az bu kadar gittiğinde konur. Örn. 2.00: BUY 2650\'de → yeni BUY emri ancak Bid ≤ 2648.00; SELL 2700\'de → ancak Ask ≥ 2702.00. 0 = sınır yok.',
+      'Forex pip sayısı. EURUSD: 10 pip = 0,001 fiyat mesafesi. BUY giriş − Bid; SELL Ask − giriş. 0 = sınır yok.',
     'zone.fractal.nextLossByPips.hint':
-      'Açık: sınır fiyat mesafesidir (pip, örn. 2.00 girişe karşı). Kapalı: sınır pozisyonun zararıdır (hesap para birimi, örn. 1 $). BUY ve SELL ayrı değerlendirilir.',
+      'Açık: Forex pip sayısı. Kapalı: hesap para biriminde kayıp. BUY ve SELL ayrı değerlendirilir.',
+    'zone.fractal.nextLossDistance.hint': 'Son açık aynı yön pozisyonu bu mesafe kadar kayıpta olunca yeni emir konur. 10 {unit} = {example} fiyat mesafesi. BUY giriş − Bid; SELL Ask − giriş. 0 = sınır yok.',
+    'zone.fractal.nextLossByDistance.hint': 'Açık: Forex için pip, diğer araçlar için broker tick sayısı. Kapalı: hesap para biriminde kayıp. BUY ve SELL ayrı kontrol edilir.',
+    'zone.fractal.distanceMissing.hint': 'Pip/tick boyutu bilinmiyor. Mesafe girişi kapalıdır; yeni birimle etkin mesafe sınırı yeni emirleri engeller. Broker sembol verilerini yenileyin.',
     'zone.fractal.maxPositions.hint':
       'Bu bölgede aynı anda açık olabilecek en fazla pozisyon. Sınıra ulaşınca bölge yeni emir koymaz ve bekleyen emirlerini siler. 0 = sınırsız (motor en çok 500 ile sınırlar).',
     'zone.legacyOrders.delete.hint':
@@ -901,9 +904,12 @@ export default defineArea(
     'zone.fractal.nextLossMoney.hint':
       'The next fractal order is placed only when the most recently opened position of that direction is at least this amount in loss. Example 1 $: BUY open at 2650 → new BUY order only at −1 $ (≈ 2649 at 0.01 lot gold). No position: order at once. 0 = no limit.',
     'zone.fractal.nextLossPips.hint':
-      'The next fractal order is placed only when price moved at least this distance against the most recently opened position of that direction. Example 2.00: BUY at 2650 → new BUY order only at Bid ≤ 2648.00; SELL at 2700 → only at Ask ≥ 2702.00. 0 = no limit.',
+      'Number of Forex pips. EURUSD: 10 pips = 0.001 price distance. BUY entry − Bid; SELL Ask − entry. 0 = no limit.',
     'zone.fractal.nextLossByPips.hint':
-      'On: the limit is a price distance (pips, e.g. 2.00 against the entry). Off: the limit is the position loss (account currency, e.g. 1 $). BUY and SELL are checked separately.',
+      'On: number of Forex pips. Off: loss in account currency. BUY and SELL are checked separately.',
+    'zone.fractal.nextLossDistance.hint': 'New orders wait until the latest open position of that direction loses this distance. 10 {unit} = {example} price distance. BUY entry − Bid; SELL Ask − entry. 0 = no limit.',
+    'zone.fractal.nextLossByDistance.hint': 'On: pips for Forex, broker ticks for other instruments. Off: loss in account currency. BUY and SELL are checked separately.',
+    'zone.fractal.distanceMissing.hint': 'Pip/tick size is unknown. Distance entry is disabled; an active limit in the new units blocks new orders. Refresh the broker symbol data.',
     'zone.fractal.maxPositions.hint':
       'Maximum number of positions of this zone open at the same time. Once reached, the zone places no new orders and deletes its pending ones. 0 = unlimited (the engine caps it at 500).',
     'zone.legacyOrders.delete.hint':
@@ -1415,9 +1421,12 @@ export default defineArea(
     'zone.fractal.nextLossMoney.hint':
       'Die nächste Fraktal-Order wird erst gesetzt, wenn die zuletzt eröffnete Position dieser Richtung mindestens diesen Betrag im Minus ist. Beispiel 1 $: BUY bei 2650 offen → neue BUY-Order erst bei −1 $ (≈ 2649 bei 0,01 Lot Gold). Ohne Position: Order sofort. 0 = keine Grenze.',
     'zone.fractal.nextLossPips.hint':
-      'Die nächste Fraktal-Order wird erst gesetzt, wenn der Preis mindestens diesen Abstand gegen die zuletzt eröffnete Position dieser Richtung gelaufen ist. Beispiel 2.00: BUY bei 2650 → neue BUY-Order erst bei Bid ≤ 2648.00; SELL bei 2700 → erst bei Ask ≥ 2702.00. 0 = keine Grenze.',
+      'Anzahl Forex-Pips. EURUSD: 10 Pips = 0,001 Preisabstand. BUY Einstieg − Bid; SELL Ask − Einstieg. 0 = keine Grenze.',
     'zone.fractal.nextLossByPips.hint':
-      'An: Grenze ist ein Preisabstand (Pip, z. B. 2.00 gegen den Einstieg). Aus: Grenze ist der Verlust der Position (Kontowährung, z. B. 1 $). BUY und SELL werden getrennt geprüft.',
+      'An: Anzahl Forex-Pips. Aus: Verlust in Kontowährung. BUY und SELL werden getrennt geprüft.',
+    'zone.fractal.nextLossDistance.hint': 'Neue Orders warten, bis die letzte offene Position dieser Richtung diesen Abstand im Verlust ist. 10 {unit} = {example} Preisabstand. BUY Einstieg − Bid; SELL Ask − Einstieg. 0 = keine Grenze.',
+    'zone.fractal.nextLossByDistance.hint': 'An: Pips bei Forex, Broker-Ticks bei anderen Instrumenten. Aus: Verlust in Kontowährung. BUY und SELL werden getrennt geprüft.',
+    'zone.fractal.distanceMissing.hint': 'Die Pip-/Tick-Größe fehlt. Abstandseingabe gesperrt; eine aktive Grenze in neuen Einheiten blockiert neue Orders. Broker-Symboldaten aktualisieren.',
     'zone.fractal.maxPositions.hint':
       'Höchstzahl gleichzeitig offener Positionen dieser Zone. Ist sie erreicht, setzt die Zone keine neuen Orders und löscht ihre Pending Orders. 0 = unbegrenzt (die Engine deckelt bei 500).',
     'zone.legacyOrders.delete.hint':

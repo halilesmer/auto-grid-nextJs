@@ -11,11 +11,9 @@ import { DEMO_ID, ZONE_ID, expect, makeZone, test, type MockWorker } from '../fi
 const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const DAY = 86400;
 
-/** Ein Mittwoch 10:00–14:00 (MT5-Zeit) vor ein bis zwei Wochen: liegt sicher in „letzte 30 Tage“. */
-function weekdayHole(worker: MockWorker) {
-  const now = Date.now() / 1000 + worker.state.brokerOffset;
-  let day = Math.floor(now / DAY) * DAY - 8 * DAY;
-  while (new Date(day * 1000).getUTCDay() !== 3) day -= DAY;
+/** Mittwoch, 15. Januar 2025, 10:00–14:00 (MT5-Zeit), im festen Testzeitraum. */
+function weekdayHole() {
+  const day = Date.UTC(2025, 0, 15) / 1000;
   return { from: day + 10 * 3600, to: day + 14 * 3600, reason: 'unavailable', checked_at: Math.floor(Date.now() / 1000) };
 }
 
@@ -30,8 +28,8 @@ async function openSettings(page: Page) {
 
 test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
   test('Fehlender Bereich ist markiert und genannt, gezeichnet werden nur gelieferte Kerzen', { tag: '@ANA-11' }, async ({ page, worker }) => {
-    worker.state.ratesMissing = [weekdayHole(worker)];
-    await page.goto(URL);
+    worker.state.ratesMissing = [weekdayHole()];
+    await page.goto(`${URL}&from=2025-01-01&to=2025-01-31`);
 
     const chart = page.getByTestId('analysis-chart');
     await expect(chart).toBeVisible();
@@ -51,7 +49,7 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
     expect(worker.ratesDelivered).toHaveLength(1);
     expect(worker.ratesDelivered[0]).toBeGreaterThan(0);
     await expect(chart).toHaveAttribute('data-bars', String(worker.ratesDelivered[0]));
-    // 30 Tage enthalten Wochenenden: Marktpausen zwischen echten Kerzen
+    // Der feste Januar-Zeitraum enthält vier vollständige Wochenenden zwischen echten Kerzen.
     expect(Number(await chart.getAttribute('data-pauses'))).toBeGreaterThanOrEqual(4);
     await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
 

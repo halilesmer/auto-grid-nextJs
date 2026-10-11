@@ -14,6 +14,8 @@ export interface Account {
 
 export interface SymbolDetail {
   name: string;
+  distance_unit?: 'pips' | 'ticks' | null;
+  distance_unit_size?: number | null;
   digits: number;
   point: number;
   volume_min: number;
@@ -105,7 +107,9 @@ export interface ZoneSettings {
   fractal_tp_money?: number;
   /** Nächste Fraktal-Order erst, wenn die letzte Position der Richtung ≥ X im Minus ist; 0 = keine Grenze */
   fractal_next_loss?: number;
-  /** money: Verlust in Kontowährung · pips: Preisabstand gegen den Einstieg */
+  /** 0/fehlend: alter Preisabstand; 1: Anzahl Pips/Ticks */
+  fractal_next_loss_unit_version?: number;
+  /** money: Verlust in Kontowährung · pips: Anzahl Pips/Ticks (Version 1), sonst alter Preisabstand */
   fractal_next_loss_mode?: 'money' | 'pips';
 }
 

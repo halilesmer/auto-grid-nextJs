@@ -597,8 +597,8 @@ kategorien:
         erwartet: Je Symbol eine Karte mit „Setup 1…n“; das neue Setup steht in seiner Symbolkarte; das gelöschte Symbol ist weg; nach dem Neuladen dieselben Karten; Motorzustände an den richtigen Setups. Die Setup-Felder sind kurz, jeder Schalter steht neben seinem Feld.
 
       - id: ZON-21
-        titel: Fraktal – nächste Order ab Verlust (Betrag/Pip)
-        beschreibung: Im Fraktal-Modus legt „Nächste Order ab Verlust“ (fractal_next_loss, Standard 0 = keine Grenze) fest, ab welchem Verlust der zuletzt eröffneten Position einer Richtung die nächste Fraktal-Order gesetzt wird. Der Switch „Grenze in Pip“ (fractal_next_loss_mode money/pips) wählt die Einheit - Betrag in Kontowährung oder Preisabstand gegen den Einstieg; Feldname und Tooltip (mit Zahlenbeispiel) wechseln mit. Wird mit der Zone gespeichert.
+        titel: Fraktal – nächste Order ab Verlust (Betrag/Pips/Ticks)
+        beschreibung: "Fraktal-Verlustgrenze: Geld in Kontowährung oder echte Pips bei Forex (3/5 Stellen: 10 × point, sonst point), Broker-Ticks bei anderen Instrumenten (trade_tick_size). Formular, Tooltip und Preisabstand-Vorschau passen zum Symbol. Alte Preisabstände ohne fractal_next_loss_unit_version werden nur lokal umgerechnet; ausdrückliches Speichern schreibt die Anzahl und Version 1, ohne den Preisabstand zu ändern. Fehlende Einheitsgröße sperrt die Abstandseingabe."
         code: [frontend_nextjs/src/components/zone/ZoneFractalFields.tsx, frontend_nextjs/src/utils/zoneHelpers.ts]
         tiers: [e2e, manuell]
         pruefung:
@@ -938,12 +938,12 @@ kategorien:
 
       - id: ENG-30
         titel: Fraktal – nächste Order erst ab Verlust der letzten Position
-        beschreibung: "Ist fractal_next_loss > 0, setzt die Fraktal-Engine je Richtung (BUY/SELL getrennt) neue Orders nur, wenn die zuletzt eröffnete Position dieser Richtung mindestens so weit im Minus ist - money: Profit ≤ −X; pips: BUY Einstieg − Bid ≥ X, SELL Ask − Einstieg ≥ X. Ohne Position der Richtung oder bei 0 gilt keine Grenze. Ist die Grenze nicht erreicht, werden liegende Orders dieser Richtung gelöscht (wie bei Max. Positionen), das Log meldet es einmal je Position."
+        beschreibung: "Je Zone und Richtung gilt die letzte offene Position: money prüft Profit ≤ −X, pips mit Version 1 prüft Preisabstand ≥ Anzahl × symbolabhängige Pip-/Tick-Größe. BUY verwendet Einstieg − Bid, SELL Ask − Einstieg; kleine Einheitstoleranz verhindert Rundungsfehler am Grenzwert. Version 0/fehlend behält den alten direkten Preisabstand. Bei aktiver neuer Abstandssperre und fehlenden/ungültigen Symbolinformationen entstehen keine neuen Orders; ein Warnlog nennt die Ursache. 0 oder keine Position bei gültigen Symbolinformationen: keine Grenze. Worker und Backtest rechnen gleich."
         code: [worker_python/src/core/grid_execution/fractal_entry.py, worker_python/src/core/grid_execution/config.py]
-        tiers: [unit]
+        tiers: [unit, api, e2e]
         pruefung:
           - Manuell über ZON-21.
-        erwartet: Abgedeckt durch Unit-Tests.
+        erwartet: Unit- und API-Tests sowie Worker-/Backtest-Parität und Formular-Speicherung prüfen die Grenze.
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm
