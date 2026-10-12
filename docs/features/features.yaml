@@ -951,6 +951,8 @@ kategorien:
         tiers: [unit, api, e2e]
         pruefung:
           - Im DEMO-Test nach gesonderter Freigabe Grenze unter den aktuellen Spread setzen; nur Pending Orders dieses Setups verschwinden.
+          - Brokerzeit mit bestätigtem Versatz prüfen; 60 Sekunden alte Ticks bleiben erlaubt, ältere und zukünftige bleiben gesperrt.
+          - Einzelne unveränderte Ticks dürfen keinen Versatz bestätigen; Kontowechsel und Neustart verwerfen die Zeitmessung.
         erwartet: Alle Einstiegswege sind gesperrt, offene Positionen und manuelle Orders bleiben. Nach Erholung laufen nur vorher aktive Setups weiter.
   # ---------------------------------------------------------------------------
   - id: MET

@@ -314,3 +314,129 @@ def test_manueller_start_lernt_trotz_hohem_spread_weiter(fake_mt5, simulated_clo
     assert status["reference"] == 0.01
     assert status["limit"] == 0.003
     assert status["blocked"]
+
+
+def observed_spread(fake_mt5, symbol="USOUSD"):
+    from src.core.spread_guard import refresh_spread_guard
+
+    z = guarded()
+    z["symbol"] = symbol
+    refresh_spread_guard(fake_mt5, [z], {})
+    return state.spread_guard.status[200001]["spread"]
+
+
+@pytest.mark.parametrize("offset", [-18000, 10800, 19800])
+def test_brokerzeit_wird_nach_fortschreitenden_ticks_normalisiert(fake_mt5, simulated_clock, offset):
+    fake_mt5.set_tick_age("USOUSD", -offset)
+    assert observed_spread(fake_mt5) is None
+    simulated_clock[0] += 2
+    fake_mt5.set_tick_age("USOUSD", -offset)
+    assert observed_spread(fake_mt5) == pytest.approx(0.01)
+
+
+@pytest.mark.parametrize("age,expected", [(0, 0.01), (60, 0.01), (61, None), (-1, None), (1800, None)])
+def test_bestaetigte_brokerzeit_behaelt_tick_altersgrenze(fake_mt5, simulated_clock, age, expected):
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    observed_spread(fake_mt5)
+    simulated_clock[0] += 2
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    assert observed_spread(fake_mt5) == pytest.approx(0.01)
+    fake_mt5.set_tick_age("USOUSD", age - 10800)
+    value = observed_spread(fake_mt5)
+    assert value == expected
+
+
+def test_einzelner_alter_tick_bestaetigt_keinen_offset(fake_mt5, simulated_clock):
+    # Ein genau eine Stunde alter Tick kann wie ein anderer Broker-Versatz aussehen.
+    fake_mt5.set_tick_age("USOUSD", -7200)
+    for _ in range(10):
+        assert observed_spread(fake_mt5) is None
+        simulated_clock[0] += 1
+
+
+def test_kontowechsel_verwendet_keinen_fremden_offset(fake_mt5, simulated_clock):
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    observed_spread(fake_mt5)
+    simulated_clock[0] += 2
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    assert observed_spread(fake_mt5) == pytest.approx(0.01)
+    fake_mt5.account.login += 1
+    assert observed_spread(fake_mt5) is None
+
+
+def test_neustart_bestaetigt_brokerzeit_erneut(fake_mt5, simulated_clock):
+    from src.core.spread_guard import SpreadGuard
+
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    observed_spread(fake_mt5)
+    simulated_clock[0] += 2
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    assert observed_spread(fake_mt5) == pytest.approx(0.01)
+    state.spread_guard = SpreadGuard()
+    assert observed_spread(fake_mt5) is None
+
+
+@pytest.mark.parametrize("offset", [-13 * 3600, 15 * 3600])
+def test_unplausible_brokerzeit_bleibt_gesperrt(fake_mt5, simulated_clock, offset):
+    for _ in range(3):
+        fake_mt5.set_tick_age("USOUSD", -offset)
+        assert observed_spread(fake_mt5) is None
+        simulated_clock[0] += 2
+
+
+def test_zeitumstellung_wird_nicht_aus_einem_tick_neu_abgeleitet(fake_mt5, simulated_clock):
+    for _ in range(2):
+        fake_mt5.set_tick_age("USOUSD", -10800)
+        observed_spread(fake_mt5)
+        simulated_clock[0] += 2
+    for _ in range(3):
+        fake_mt5.set_tick_age("USOUSD", -7200)
+        assert observed_spread(fake_mt5) is None
+        simulated_clock[0] += 2
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    assert observed_spread(fake_mt5) == pytest.approx(0.01)
+
+
+def test_zwei_symbole_bestaetigen_nicht_gegenseitig_die_brokerzeit(fake_mt5, simulated_clock):
+    fake_mt5.add_symbol("TEST", bid=10, ask=10.02, digits=3, point=0.001)
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    assert observed_spread(fake_mt5) is None
+    simulated_clock[0] += 2
+    fake_mt5.set_tick_age("TEST", -10800)
+    assert observed_spread(fake_mt5, "TEST") is None
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    assert observed_spread(fake_mt5) == pytest.approx(0.01)
+    # Die bestätigte Kontouhr macht alte Kurse eines anderen Symbols nicht frisch.
+    fake_mt5.set_tick_age("TEST", 61 - 10800)
+    assert observed_spread(fake_mt5, "TEST") is None
+
+
+def test_brokerzeit_sperrt_hohen_spread_und_erlaubt_nach_erholung(fake_mt5, simulated_clock):
+    z = guarded(max_spread=0.005)
+    h = EngineHarness(fake_mt5, [z])
+    h.remote_paused = True
+    own = fake_mt5.add_order("USOUSD", fake_mt5.ORDER_TYPE_BUY_LIMIT, 96, magic=200001)
+    manual = fake_mt5.add_order("USOUSD", fake_mt5.ORDER_TYPE_BUY_LIMIT, 95, magic=0)
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    h.tick()
+    simulated_clock[0] += 2
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    h.tick()
+    assert state.spread_guard.status[200001]["reason"] == "high"
+    assert own not in fake_mt5.orders
+    assert manual in fake_mt5.orders
+    fake_mt5.set_price("USOUSD", 97, 97.003, fill=False)
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    h.tick()
+    simulated_clock[0] += 29
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    h.tick()
+    assert state.spread_guard.status[200001]["blocked"]
+    simulated_clock[0] += 1
+    fake_mt5.set_tick_age("USOUSD", -10800)
+    h.tick()
+    assert not state.spread_guard.status[200001]["blocked"]
+    h.remote_paused = False
+    h.tick()
+    assert any(o.magic == 200001 for o in fake_mt5.orders)
+    assert manual in fake_mt5.orders

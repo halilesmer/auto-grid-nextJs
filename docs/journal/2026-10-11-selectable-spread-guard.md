@@ -64,7 +64,7 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | `git diff --check` | Passed. |
 | Visual checks | Light and dark screenshots checked at 375 px and desktop width. No horizontal overflow. |
 | `hooks/RULES.md` §9 | Reviewed entry routes, API ownership, status consumers, atomic persistence and simulated time. |
-| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The installed VPS revision lacks this feature. No worker ran on the Mac. |
+| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The VPS received the feature later; the broker-time check still blocks the trading validation. No worker ran on the Mac. |
 
 ## Open points
 
@@ -102,3 +102,63 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | Scenario generator comparison | All five spread and both new pip/tick scenarios match their saved fixtures. |
 | `hooks/RULES.md` §9 | Reviewed the merged precision rules, scenario definitions and shared engine changes. |
 | Live trading | Not run. The VPS installation remains a prerequisite. |
+
+
+## Broker-time correction (2026-10-12)
+
+### Cause
+
+- The paused GBPCHF setup reported `invalid_tick` despite changing quotes in the terminal.
+- The analysis page reported a broker clock three hours ahead of UTC.
+- `tick_spread` compared the broker timestamp directly with UTC and rejected the quote as future data.
+- A local reproduction accepted the UTC quote and rejected the same quote with the broker offset.
+
+### Solution
+
+| File | Change |
+|---|---|
+| `worker_python/src/core/spread_guard.py` | Compare quote ages on the broker time basis after the bot confirms an offset. |
+| `worker_python/tests/unit/test_eng_spread_guard.py` | Add broker offsets, age boundaries, account changes, restart, clock changes and order recovery tests. |
+| `docs/features/features.yaml` | Add the broker-time checks to ENG-31. |
+
+- Keep UTC-native quotes and browser parity inputs on their existing time basis.
+- Confirm a nonzero offset with two advancing timestamps from the same symbol, at least one second apart.
+- Require the timestamp progression to match elapsed UTC within two seconds.
+- Require calibration quotes within two seconds of the candidate broker clock.
+- Keep the confirmed offset for that account and broker during the bot session.
+- Do not derive another offset from an old, missing or future quote after confirmation.
+- Do not persist clock evidence in the spread learning file.
+- Clear clock evidence after an account change or bot restart.
+- Preserve the inclusive 60-second quote age limit and the 30-second recovery rule.
+
+### Limits
+
+- Clock calibration assumes the terminal supplies current, advancing quotes rather than a delayed historical stream.
+- A single stationary quote cannot confirm a nonzero offset, including a quote exactly one hour old.
+- A broker clock change during a bot session blocks entries until a bot restart confirms the new clock.
+- Initial clock confirmation can activate the existing invalid-tick lock. Recovery still requires 30 seconds below the threshold.
+- The browser backtest already supplies normalized simulation time. Its spread decisions require no clock calibration.
+- The real DEMO trading run remains unverified. No orders, bot state or worker settings changed during this correction.
+
+### Verification
+
+- Before the correction: `scripts/features/run.sh unit ENG-31` reported 10 failed and 27 passed.
+- After the correction: `scripts/features/run.sh unit` reported 565 passed.
+- `scripts/features/run.sh unit ENG-31` reported 42 passed after the tests used the public refresh adapter.
+- `scripts/features/run.sh api ENG-31` reported 16 passed.
+- `scripts/features/run.sh api` reported 267 passed.
+- `E2E_PORT=3328 scripts/features/run.sh e2e ENG-31` reported 13 passed, including all five parity scenarios.
+- `scripts/features/run.sh check` accepted all 158 features.
+- `pyright --outputjson` reported 31 errors both before and after the correction. The changed Python files have no diagnostics.
+- `git diff --check` passed.
+- The review followed `hooks/RULES.md` §9: clock domains, account scope, final entry checks, recovery and unchanged API consumers.
+- The first mocked browser run failed before test execution because Turbopack rejected an external dependency symlink.
+- Copying the installed dependencies into the isolated worktree removed that build obstacle.
+
+### Required live follow-up
+
+- Review and merge this correction through its PR.
+- Pull the merged version on the VPS and restart the worker and the relevant bot safely.
+- Confirm changing GBPCHF quotes and a valid spread status before the isolated DEMO trading test.
+- Preserve the user's GBPCHF configuration and all existing positions, orders and other setups.
+- Keep the recurring market-opening automation paused. The market is already open.
