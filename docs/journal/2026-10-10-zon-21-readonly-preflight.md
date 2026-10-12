@@ -85,12 +85,29 @@ The Monday trading steps require the owner's explicit authorization. This docume
 | Timeout repair | PR #156 is merged. See `2026-10-12-platform-timeout-recovery.md`. The repair is not verified on the VPS. |
 | Manual result | ZON-21 remains open and unsigned. Complete its current prerequisites and obtain separate explicit trading authorization in later work. |
 
+## Preflight repeat on 2026-10-12 (afternoon)
+
+Author: Claude. Read checks only. The owner did not authorize trading, a bot action, a settings save or an account switch.
+
+| Gate | Check | Result |
+|---|---|---|
+| 1. Worker platform response | `GET /api/vps/status` through the existing local route, 10 probes from `15:11:41Z` to `15:13:04Z` | Passed on the SSH path: all `reachable=true`, 4.72–5.16 seconds, installed checkout `v0.7.204` at `baa25107`. See `2026-10-12-platform-timeout-recovery.md`. |
+| 1. Chrome account view | New tab on the local dashboard in the owner's Chrome profile, about `15:18Z` | Not verified. The page showed `Kein Konto ausgewählt`. The connection badge stayed at `Wird geprüft…` for about 30 seconds. The agent did not debug it. |
+| 2. DEMO identity from the worker | — | Not verified. No account was selected, and the agent selected none. The gitignored test-account file still declares DEMO. |
+| 3. Stopped bot | Same status probe, bot list compared with the test account; only a yes/no result was printed | Failed. A bot process runs for the test account. Two bot processes run in total. This is a process check, not a metrics response. |
+| 3. Zero positions and pending orders | — | Not verified. No account view was available. |
+| 4. Symbol market and current quote | — | Not verified. No account view was available. |
+| Safety | — | No account selection, bot action, settings save, order or restart. The agent closed its own browser tab. |
+
+- The trading test stays blocked by gate 3, as on 2026-10-10. Do not stop the bot or clear its activity to pass the gate.
+- An isolated DEMO account, or a stopped test account without positions and pending orders, is the owner's decision.
+
 ## Open points
 
 - [x] Locate the connected Chrome profile. The owner's visible dashboard reports a connected VPS.
-- [ ] Obtain a successful current worker platform response. The latest SSH health check failed despite a listening worker and running tunnel.
+- [x] Obtain a successful current worker platform response. The SSH status reported `reachable=true` on 2026-10-12 from `15:11Z` with installed `v0.7.204`. The Chrome badge check in a new tab did not complete.
 - [ ] Verify authorized account metrics in that profile after the owner selects an already isolated DEMO account.
-- [ ] Use an isolated DEMO account. The 2026-10-10 test account had a running bot, positions, and pending orders; its current state remains unverified.
+- [ ] Use an isolated DEMO account. On 2026-10-12 at `15:13Z`, a bot process still ran for the test account; positions and pending orders remain unverified.
 - [ ] Repeat the account and order checks immediately before the trading test; earlier evidence cannot certify its prerequisites.
 - [ ] Retry after the account prerequisites and market opening are verified. The connected Chrome profile has no selected account yet.
 - [ ] Obtain explicit user authorization for orders and bot start before the ZON-21 trading test.

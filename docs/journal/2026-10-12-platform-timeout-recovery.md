@@ -104,11 +104,27 @@ The existing recovery already restarted ngrok. Another restart would add disrupt
 | Merge preparation after PR #152 | Regenerated the conflicted checklist from the merged catalog and results, without importing stale local reports. |
 | `worker_python/.venv/bin/python -m pytest worker_python/tests/api/test_logs_system_api.py -q` after merging main | 19 passed in 0.60 seconds. Catalog check passed with 158 features; diff check exit 0. |
 
+## VPS verification (2026-10-12)
+
+The existing auto-updater installed the repair. No agent requested a deployment or a restart. The checks below are read probes through the existing local `/api/vps/*` route. Author of this section: Claude.
+
+| Check | Result |
+|---|---|
+| `git merge-base --is-ancestor 1c52220 fced863` and `… baa2510` | Exit 0 for both. The PR #156 merge is in both installed revisions. |
+| `GET /api/vps/status` at `15:11:41Z` | HTTP 200 in 5.16 seconds. `ok=true`, worker listening and reachable, installed checkout `v0.7.204`, `main` at `baa25107`. This equals `origin/main`. Two bot processes. |
+| `GET /api/vps/logs?log=worker`, filtered before output | `Updating fced863..baa2510`, then a new server process, then `Application startup complete`. No later worker start in the log. The running worker loaded a revision with the repair. |
+| Same worker log, bot lines | After that startup, the worker restarted two bots that ran an old code version. Positions and orders stayed unchanged by that restart. The log lines lack timestamps. The PID-file version of each bot was not read. |
+| Concurrent probes, first run from `15:12:05Z` | One `GET /api/vps/check-update` (worker `/api/system/update/check`) took 2.61 seconds. Four sequential status requests took 4.72–4.90 seconds. All reported `reachable=true`. Only the first status request overlapped the update check. |
+| Concurrent probes, second run `15:12:37Z`–`15:13:04Z` | Ten back-to-back update checks took 2.47–2.95 seconds each; all returned `ok`, local and remote `v0.7.204`. Five status requests in the same interval took 4.82–5.15 seconds. All reported `reachable=true` without error. |
+| Comparison | The status script probes `/api/system/platform` with a 10-second deadline. Status durations stayed at the pre-repair baseline of 4.26–4.59 seconds plus normal variation. |
+| Limit | The live `git fetch` was fast. These probes show no degradation during repeated update checks. They cannot reproduce a slow or hanging fetch. The held-check regression test above remains the proof for that case. |
+| Agent actions | Read probes only. No deployment, worker or VPS restart, bot action, account switch, settings save, or trading action. |
+
 ## Open points
 
 - [x] Capture concurrent public and local probes and filtered events after recurrence. The watchdog also recorded both paths timing out.
 - [x] Establish a reproducible code trigger before correction. A held update check blocks the original platform endpoint.
-- [ ] Verify the repair on the VPS only after separate deployment authorization. The historical live request responsible for the outage remains unverified.
+- [x] Verify the repair on the VPS. The auto-updater installed it; see "VPS verification (2026-10-12)". The historical live request responsible for the outage remains unverified.
 - [ ] If timeouts continue after the repair, capture timestamped request durations and a read-only worker stack during the stall.
 - [ ] ZON-21 remains outside this diagnosis. Recheck all account and market prerequisites and obtain explicit trading authorization separately.
 

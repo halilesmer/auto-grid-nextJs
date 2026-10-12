@@ -64,7 +64,7 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | `git diff --check` | Passed. |
 | Visual checks | Light and dark screenshots checked at 375 px and desktop width. No horizontal overflow. |
 | `hooks/RULES.md` §9 | Reviewed entry routes, API ownership, status consumers, atomic persistence and simulated time. |
-| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The VPS received the feature later; the broker-time check still blocks the trading validation. No worker ran on the Mac. |
+| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The VPS received the feature later. Active setups prevented an isolated test, and the broker-time check blocked the trading validation. The follow-up then stopped at the owner's request. No worker ran on the Mac. |
 
 ## Open points
 
@@ -102,6 +102,25 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | Scenario generator comparison | All five spread and both new pip/tick scenarios match their saved fixtures. |
 | `hooks/RULES.md` §9 | Reviewed the merged precision rules, scenario definitions and shared engine changes. |
 | Live trading | Not run. The VPS installation remains a prerequisite. |
+
+
+## Live preflight (2026-10-12)
+
+| Read-only check | Result |
+|---|---|
+| Chrome access | The owner explicitly authorized the owner's Chrome profile with the existing `localhost:3000` tab. |
+| Installed worker | The VPS page reports v0.7.201, `main @ 39834c70`, and a running worker. |
+| `git cat-file -e 39834c70:worker_python/src/core/spread_guard.py` | Exit 0. The installed revision contains the spread module. |
+| Registered test account | The selected option matches the gitignored test-account file. Its worker-derived account group is DEMO. |
+| Market observations | Both configured symbols show an open market and changing prices. Full same-tick Bid/Ask validation was not reached. |
+| Isolation | Active setups cover the observed current prices of both configured symbols. Existing positions and pending orders are present. |
+| Restoration | Restored the prior selected account. No settings, setup states, bot state, positions or orders changed. |
+| Feature runner | Not run. No isolated controlled ENG-31 test was possible; this is not a passing live test. |
+
+- The current blocker is isolation, rather than installation or browser connection.
+- Do not modify existing setups to make room for the test.
+- Pending cancellation, all entry paths, TP/SL continuity and 30-second recovery remain unverified in controlled live conditions.
+- No trade flags were set. No worker ran on the Mac.
 
 
 ## Broker-time correction (2026-10-12)
@@ -196,3 +215,16 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 - Browser inspection menus closed after the read-only checks.
 - Cancellation scope, blocked entries, continued TP/SL and exit management, and timed recovery remain unverified on the live worker.
 - The earlier required live follow-up above is superseded by this closure. A future live test requires a new explicit request.
+
+
+## Catalog tier (2026-10-12)
+
+Author: Claude.
+
+| Item | Content |
+|---|---|
+| Decision | Add the tier `manuell` to ENG-31 in `docs/features/features.yaml`. |
+| Reason | The checklist showed ENG-31 as checked from the unit, API and mocked e2e tiers only. The real DEMO acceptance is still open, and a new session could miss it. |
+| Changed | ENG-31 `[x]` → `[ ]` with `👤 manuell ⏳`; checklist 140/158 → 139/158. |
+| Verification | `scripts/features/run.sh check`: 158 features valid. `scripts/features/run.sh render`: 139/158 checked. |
+| Not changed | No automated result, test or manual sign-off. The live test still requires a new explicit request. |

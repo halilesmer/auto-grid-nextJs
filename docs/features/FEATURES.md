@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-12 · **140/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-12 · **139/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 16/20 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 29/30 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 28/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
@@ -458,7 +458,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Je Zone und Richtung gilt die letzte offene Position: money prüft Profit ≤ −X, pips mit Version 1 prüft Preisabstand ≥ Anzahl × symbolabhängige Pip-/Tick-Größe. BUY verwendet Einstieg − Bid, SELL Ask − Einstieg; kleine Einheitstoleranz verhindert Rundungsfehler am Grenzwert. Version 0/fehlend behält den alten direkten Preisabstand. Bei aktiver neuer Abstandssperre und fehlenden/ungültigen Symbolinformationen entstehen keine neuen Orders; ein Warnlog nennt die Ursache. 0 oder keine Position bei gültigen Symbolinformationen: keine Grenze. Worker und Backtest rechnen gleich.
   - **Prüfung:** Manuell über ZON-21.
   - **Erwartet:** Unit- und API-Tests sowie Worker-/Backtest-Parität und Formular-Speicherung prüfen die Grenze.
-- [x] **ENG-31** Spread-Schutz je Setup — 🧪 unit ✅ 2026-10-12 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-12
+- [ ] **ENG-31** Spread-Schutz je Setup — 🧪 unit ✅ 2026-10-12 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-12 · 👤 manuell ⏳
   - Optionaler Spread-Schutz je Setup: fester Ask-Bid-Preisabstand, Vielfaches des normalen Spreads oder Anteil am effektiven Grid-Abstand (nur Grid). Lernen pro Konto und Symbol: höchstens ein Messwert je Minute, 24 Stunden, mindestens 60 Werte, Median; Lernstart abwarten oder manuellen Startwert verwenden. Hohe Spreads frieren die Referenz ein. Über der Grenze, bei fehlender Lernreferenz oder ungültigem/veraltetem Tick löscht der Bot nur die Pending Orders des Setups und sperrt alle Einstiege. TP/SL und Ausstiege offener Positionen laufen weiter. Unter 80 Prozent der Grenze für 30 Sekunden erfolgt die Erholung; manuelle Pause bleibt. Lernwerte und Schutzsperre bleiben nach Neustart erhalten, der Erholungstimer startet neu. UI zeigt Spread, Grenze, Lernfortschritt und Grund in tr/en/de. Browser-Backtest nutzt dieselben Regeln ohne Zukunftsdaten. Alte Setups starten ohne Schutz.
   - **Prüfung:** Im DEMO-Test nach gesonderter Freigabe Grenze unter den aktuellen Spread setzen; nur Pending Orders dieses Setups verschwinden. → Brokerzeit mit bestätigtem Versatz prüfen; 60 Sekunden alte Ticks bleiben erlaubt, ältere und zukünftige bleiben gesperrt. → Einzelne unveränderte Ticks dürfen keinen Versatz bestätigen; Kontowechsel und Neustart verwerfen die Zeitmessung.
   - **Erwartet:** Alle Einstiegswege sind gesperrt, offene Positionen und manuelle Orders bleiben. Nach Erholung laufen nur vorher aktive Setups weiter.
