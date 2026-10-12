@@ -3,7 +3,7 @@ date: 2026-10-12
 author: Codex
 type: diagnosis
 status: open
-pr: [155]
+pr: [155, 156]
 features: [SYS-03, SYS-07, VPS-10]
 areas: [ops, worker, tests, docs]
 ---
