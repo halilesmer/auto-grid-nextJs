@@ -31,6 +31,7 @@ areas: [ops, docs]
 | Root cause of blocked isolation on 2026-10-10 | The test account had active trading state. The rejected frontend API key remains unexplained. No credential was inspected or changed. |
 | Chrome follow-up on 2026-10-12, first profile | The local dashboard rejects API access. No current authenticated account view was available in that profile. |
 | Chrome follow-up on 2026-10-12, owner's visible profile | The dashboard reports a connected VPS but no selected account. The prior browser check used a different Chrome profile. |
+| Later account-selection attempt on 2026-10-12 | The owner reported `Timeout 8 s` for `/api/system/platform`. The repeated SSH health check also failed. Its cause remains unverified. |
 
 ## Verification
 
@@ -57,6 +58,7 @@ areas: [ops, docs]
 | Worker and bots | The SSH status reports a listening, reachable worker, two bot processes, and four terminals. These counts do not establish test-account isolation. |
 | Chrome connection | The owner's visible Chrome profile reports `VPS-Verbindung: Verbunden`. A different profile still rejects API access. The agent inspected or changed no credential. |
 | Account and market prerequisites | Not verified: the connected dashboard reports `Kein Konto ausgewählt`. DEMO identity, stopped bot, zero positions, zero pending orders, and open symbol market lack current evidence. |
+| Worker health after the owner's timeout report | The local frontend returned HTTP 200. The repeated SSH status returned worker listening but not reachable, tunnel running, and two bot processes. The earlier successful worker health check no longer establishes current reachability. |
 | Trading test and manual result | Not executed or signed. The owner approved only read checks and documentation. |
 | Safety | No bot action, settings save, order, position change, account switch, deployment, or worker restart occurred. |
 
@@ -76,6 +78,7 @@ The Monday trading steps require the owner's explicit authorization. This docume
 ## Open points
 
 - [x] Locate the connected Chrome profile. The owner's visible dashboard reports a connected VPS.
+- [ ] Obtain a successful current worker platform response. The latest SSH health check failed despite a listening worker and running tunnel.
 - [ ] Verify authorized account metrics in that profile after the owner selects an already isolated DEMO account.
 - [ ] Use an isolated DEMO account. The 2026-10-10 test account had a running bot, positions, and pending orders; its current state remains unverified.
 - [ ] Repeat the account and order checks immediately before the trading test; earlier evidence cannot certify its prerequisites.
