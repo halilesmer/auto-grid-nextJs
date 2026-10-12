@@ -8,7 +8,7 @@ features: [ZON-21]
 areas: [ops, docs]
 ---
 
-# ZON-21 preflight needs an isolated account
+# ZON-21 preflight has unresolved prerequisites
 
 ## Request
 
@@ -32,6 +32,7 @@ areas: [ops, docs]
 | Chrome follow-up on 2026-10-12, first profile | The local dashboard rejects API access. No current authenticated account view was available in that profile. |
 | Chrome follow-up on 2026-10-12, owner's visible profile | The dashboard reports a connected VPS but no selected account. The prior browser check used a different Chrome profile. |
 | Later account-selection attempt on 2026-10-12 | The owner reported `Timeout 8 s` for `/api/system/platform`. The repeated SSH health check also failed. Its cause remains unverified. |
+| Follow-up after PR #155 | The documented recovery succeeded, but a new local SSH platform check on installed checkout `v0.7.199` failed with a timeout again. Chrome reports a connected dashboard without a selected account. |
 
 ## Verification
 
@@ -59,6 +60,7 @@ areas: [ops, docs]
 | Chrome connection | The owner's visible Chrome profile reports `VPS-Verbindung: Verbunden`. A different profile still rejects API access. The agent inspected or changed no credential. |
 | Account and market prerequisites | Not verified: the connected dashboard reports `Kein Konto ausgewählt`. DEMO identity, stopped bot, zero positions, zero pending orders, and open symbol market lack current evidence. |
 | Worker health after the owner's timeout report | The local frontend returned HTTP 200. The repeated SSH status returned worker listening but not reachable, tunnel running, and two bot processes. The earlier successful worker health check no longer establishes current reachability. |
+| Worker health after the recovery journal merged | Installed checkout `v0.7.199`, `main` at `b61a723f`; worker listening but not reachable, tunnel running, two bots, and four terminals. A classified repeat took 14.6 seconds and reported a timeout. No account state or underlying cause was established. |
 | Trading test and manual result | Not executed or signed. The owner approved only read checks and documentation. |
 | Safety | No bot action, settings save, order, position change, account switch, deployment, or worker restart occurred. |
 
