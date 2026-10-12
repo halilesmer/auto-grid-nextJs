@@ -70,7 +70,11 @@ def _handle_sliding_grid(
                 consecutive_errors,
                 active_zones_state,
                 log_message,
+                allow_new_orders=not state.spread_guard.status.get(config.target_magic, {}).get("blocked", False),
             )
+
+        if state.spread_guard.status.get(config.target_magic, {}).get("blocked"):
+            return True
 
         current_open_positions = len(
             [p for p in robot_positions if p.magic == config.target_magic]
@@ -95,7 +99,7 @@ def _handle_sliding_grid(
             )
             if cancelled > 0:
                 log_message(
-                    f"🛡️ Güvenlik Koruması: Sınır aşıldığı için {cancelled} bekleyen emir temizlendi."
+                    f"🛡️ Güvenlik Koruması: Sınır aşıldığı için {cancelled} bekleyen emir temizlendi.", "INFO"
                 )
             return True
 

@@ -1,3 +1,5 @@
+import type { SpreadGuardSettings, SpreadGuardStatus } from '@/lib/spreadGuardSettings';
+
 export interface Account {
   id: string;
   account_name: string;
@@ -52,6 +54,7 @@ export interface SymbolDetail {
 }
 
 export interface ZoneSettings {
+  spread_guard?: SpreadGuardSettings;
   id: string;
   /** Feste Magic-Nummer der Zone (ENG-27): vergibt nur der Worker beim Speichern, nur lesen */
   magic?: number;
@@ -191,6 +194,7 @@ export interface LiveOrder {
 }
 
 export interface LiveData {
+  spread_guards?: Record<string, SpreadGuardStatus>;
   mt5_connected: boolean;
   market_open: boolean;
   current_price: number;

@@ -21,6 +21,7 @@ import {
   type TradeRequest,
 } from './types';
 import { zoneNumber } from './zoneMagic';
+import { entryAllowed } from './spreadGuard';
 
 export const RETRY_SECONDS = 30.0;
 
@@ -74,10 +75,13 @@ export function openInstantPositions(
     };
     if (sl > 0) request.sl = normalizePrice(price - sign * sl, config.symbol, infos);
 
+    if (!entryAllowed(broker, config.targetMagic, state)) continue;
     state.instantEntrySent.set(key, state.now());
-    if (safeSendOrder(broker, request, state)) {
+    if (safeSendOrder(broker, request, state, () => entryAllowed(broker, config.targetMagic, state))) {
       opened += 1;
       state.log('INFO', 'grid.instantEntry', { zone: zoneIdx + 1, side, volume: request.volume, price });
+    } else if (state.spreadGuard.status.get(config.targetMagic)?.blocked) {
+      state.instantEntrySent.delete(key);
     }
   }
   return opened;

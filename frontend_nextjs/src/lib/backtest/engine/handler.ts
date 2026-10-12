@@ -31,6 +31,8 @@ export function handleSlidingGrid(
       return manageFractalOrders(broker, config, zoneIdx, zoneLogId(zone, zoneIdx), robotPositions, robotOrders, infos, state);
     }
 
+    if (state.spreadGuard.status.get(config.targetMagic)?.blocked) return true;
+
     const open = robotPositions.filter((p) => p.magic === config.targetMagic).length;
     const atLimit = open >= config.maxPositions;
     if (atLimit) {
