@@ -162,3 +162,37 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 - Confirm changing GBPCHF quotes and a valid spread status before the isolated DEMO trading test.
 - Preserve the user's GBPCHF configuration and all existing positions, orders and other setups.
 - Keep the recurring market-opening automation paused. The market is already open.
+
+
+## DEMO follow-up stopped (2026-10-12)
+
+### Request
+
+- Continue one controlled GBPCHF DEMO test in the existing authorized Chrome profile.
+- The owner then requested removal of recurring checks and closure of this task after recording its status.
+
+### Verification
+
+| Command or check in this session | Result |
+|---|---|
+| `GET /api/vps/status`, through the existing local route | HTTP 200; installed checkout `v0.7.202`, `main` at `fced8631`; worker reachable and listening. |
+| Chrome extension profile and tab check | Authorized profile and existing local dashboard confirmed. No new browser tab or profile opened. |
+| Dashboard observation | Worker online. GBPCHF setup unstarted; minimum 0.01, maximum 2, lot 0.01, maximum positions 1, spread guard disabled. |
+| Existing `readTestAccount()` helper | Local test account file confirms DEMO. No private account values printed. |
+| Existing `LiveWorker.fetch('/accounts')` helper | HTTP 401. The separate helper could not confirm registered identity or worker DEMO type. The connected Chrome dashboard remained available. |
+| Available browser capabilities | No supported direct API inspection path for the missing account and quote checks. |
+| Automation update and saved-state check | Existing recurring check set to `PAUSED`; saved state confirmed. No second automation created. |
+| Controlled trading test | Not run. Fresh valid GBPCHF Bid/Ask and matching worker DEMO identity not confirmed. |
+| Running bot revision | Not verified. Installed checkout version does not prove which code an existing bot process loaded. |
+
+### Closure
+
+- Stop this follow-up at the owner's request. Do not schedule another check or trading run.
+- Keep ENG-31 live trading unverified. This closure is not a feature pass or a reproduced feature failure.
+- Do not record a manual pass or failure through `scripts/features/run.sh sign`; no controlled test executed.
+- No test orders, positions or setups created. No settings saved and no bot started or stopped.
+- No worker deployed, updated or restarted by this session. No worker started on the Mac.
+- Existing orders, positions, manual pauses and GBPCHF settings unchanged by this session.
+- Browser inspection menus closed after the read-only checks.
+- Cancellation scope, blocked entries, continued TP/SL and exit management, and timed recovery remain unverified on the live worker.
+- The earlier required live follow-up above is superseded by this closure. A future live test requires a new explicit request.
