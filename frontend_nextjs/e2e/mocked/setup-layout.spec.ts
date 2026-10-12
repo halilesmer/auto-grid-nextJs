@@ -1,6 +1,6 @@
 /**
  * ZON-20 Kompaktes Setup (Teil C): Eingabefelder haben eine kurze, feste Breite statt der ganzen Spalte,
- * und jeder Schalter steht in der Zeile des Feldes, das er steuert, direkt daneben.
+ * und zusammengehörige Felder und Schalter bleiben beim Umbruch beieinander.
  */
 import type { Locator } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
@@ -56,13 +56,12 @@ test.describe('ZON-20 Kompaktes Setup', () => {
     expect(widths.filter((w) => w > 128), 'Zahlenfelder breiter als 128 px').toEqual([]);
   });
 
-  test('Jeder Schalter steht neben seinem Feld', { tag: '@ZON-20' }, async ({ worker, dashboard }) => {
+  test('Schalter in Feldzeilen stehen neben ihrem Feld', { tag: '@ZON-20' }, async ({ worker, dashboard }) => {
     seedFullSetups(worker);
     await dashboard.open(DEMO_ID);
 
     // Grid-Setup
     await expectSwitchNextTo(switchOf(dashboard, msg('zone.sync'), 0), dashboard.zoneField(msg('zone.field.orderType'), 0), 'BUY/SELL gleich');
-    await expectSwitchNextTo(switchOf(dashboard, msg('zone.stepByLoss'), 0), dashboard.zoneField(msg('zone.field.buyStopLoss'), 0), 'Abstand nach Verlust');
     await expectSwitchNextTo(
       switchOf(dashboard, msg('zone.breakout.trendOnly'), 0),
       dashboard.zoneField(msg('zone.breakout.buyPullback'), 0),
@@ -87,3 +86,52 @@ test.describe('ZON-20 Kompaktes Setup', () => {
     expect(s.y - box.y, 'Lücke über dem Schalter').toBeLessThanOrEqual(16);
   });
 });
+
+for (const width of [1440, 375]) {
+  for (const theme of ['light', 'dark'] as const) {
+    test.describe(`Grid-Abstand ${width} px ${theme}`, () => {
+      test.use({ viewport: { width, height: 900 }, appLocale: 'de' });
+
+      for (const setup of [
+        { order_type: 'BUY', sync_buy_sell: true },
+        { order_type: 'SELL', sync_buy_sell: true },
+        { order_type: 'BOTH', sync_buy_sell: true },
+        { order_type: 'BOTH', sync_buy_sell: false },
+      ] as const) {
+        test(`Verlust-Schalter bleibt direkt unter Grid-Abstand: ${setup.order_type}, Sync ${setup.sync_buy_sell}`,
+          { tag: ['@ZON-13', '@ZON-20', '@UI-08'] }, async ({ page, worker, dashboard }) => {
+            worker.setZones(DEMO_ID, [makeZone(setup)]);
+            await page.addInitScript((selectedTheme) => {
+              localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: selectedTheme }, version: 0 }));
+            }, theme);
+            await dashboard.open(DEMO_ID);
+            await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*\bdark\b)/);
+            const split = setup.order_type === 'BOTH' && !setup.sync_buy_sell;
+            const sw = switchOf(dashboard, msg('zone.stepByLoss', undefined, 'de'), 0);
+
+            for (const byLoss of [false, true]) {
+              if (byLoss) await dashboard.zoneSwitch(msg('zone.stepByLoss', undefined, 'de')).click();
+              const priceKey = split ? 'zone.field.buyGrid' : 'zone.field.gridStep';
+              const lossKey = split ? 'zone.field.buyGridLoss' : 'zone.field.gridStepLoss';
+              const key = byLoss ? lossKey : priceKey;
+              const field = dashboard.zoneField(msg(key, undefined, 'de'));
+              const f = await boxOf(field.locator('xpath=ancestor::label[1]'), 'Grid-Abstand mit Vorschau');
+              const s = await boxOf(sw, 'Verlust-Schalter');
+              expect(Math.abs(s.x - f.x), 'Linksbündig mit Grid-Abstand').toBeLessThanOrEqual(1);
+              expect(s.y - (f.y + f.height), 'Kein Überlappen').toBeGreaterThanOrEqual(0);
+              expect(s.y - (f.y + f.height), 'Kleiner Abstand unter dem Feld').toBeLessThanOrEqual(12);
+              expect(s.x + s.width, 'Schalter vollständig im Fenster').toBeLessThanOrEqual(width);
+              const sizes = await page.evaluate(() => ({
+                scroll: document.documentElement.scrollWidth,
+                client: document.documentElement.clientWidth,
+              }));
+              expect(sizes.scroll, 'Kein horizontaler Überlauf').toBeLessThanOrEqual(sizes.client);
+            }
+            if (setup.order_type === 'BUY') {
+              await dashboard.zone().screenshot({ path: `test-results/grid-distance-${width}-${theme}.png` });
+            }
+          });
+      }
+    });
+  }
+}

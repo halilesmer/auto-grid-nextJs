@@ -194,7 +194,7 @@ for (const lang of LOCALES) {
       await expectNoPageOverflow(page);
     });
 
-    test('Kompaktes Setup: alle Schalter an, zwei Felder je Zeile, nichts läuft über', { tag: ['@UI-08', '@ZON-20'] }, async ({ page, worker, dashboard }) => {
+    test('Kompaktes Setup: Verlust-Schalter beim Grid, kurze Felder und kein Überlauf', { tag: ['@UI-08', '@ZON-20'] }, async ({ page, worker, dashboard }) => {
       worker.setZones(DEMO_ID, [
         makeZone({ order_type: 'BOTH', sync_buy_sell: false, step_by_loss: true, instant_entry: true, is_breakout: true, clear_on_exit: true, exit_condition: 'Mum Kapanışı' }),
         makeZone({ id: 'zone-e2e-2', order_type: 'BOTH', sync_buy_sell: false, entry_mode: 'fractal', fractal_use_sl: true, fractal_tp_by_money: true }),
@@ -202,10 +202,17 @@ for (const lang of LOCALES) {
       await dashboard.open(DEMO_ID);
       await expect(page.getByTestId('zone-card')).toHaveCount(2);
 
-      // Kurze Felder: Grid-Schritt und Lot stehen auch bei 375 px nebeneinander
-      const step = await dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang)).boundingBox();
+      // Der gemeinsame Grid-Block braucht auf Mobil eine eigene Zeile; die Zahlenfelder bleiben kurz.
+      const step = await dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang)).locator('xpath=ancestor::label[1]').boundingBox();
+      const sw = await dashboard.zoneSwitch(msg('zone.stepByLoss', undefined, lang)).locator('xpath=ancestor::label[1]').boundingBox();
+      expect(Math.abs(step!.x - sw!.x), 'Verlust-Schalter linksbündig beim Grid').toBeLessThanOrEqual(1);
+      expect(sw!.y - (step!.y + step!.height), 'Verlust-Schalter unter der Vorschau').toBeGreaterThanOrEqual(0);
+      expect(sw!.y - (step!.y + step!.height), 'Verlust-Schalter bleibt nah beim Grid').toBeLessThanOrEqual(12);
+      const grid = await dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang)).boundingBox();
       const lot = await dashboard.zoneField(msg('zone.field.buyLot', undefined, lang)).boundingBox();
-      expect(Math.abs(step!.y - lot!.y), 'Grid-Schritt und Lot in verschiedenen Zeilen').toBeLessThanOrEqual(1);
+      expect(grid!.width, 'Grid-Feld bleibt kurz').toBeLessThanOrEqual(128);
+      expect(lot!.width, 'Lot-Feld bleibt kurz').toBeLessThanOrEqual(96);
+      expect(lot!.y, 'Lot folgt unter dem zusammengehörigen Grid-Block').toBeGreaterThanOrEqual(sw!.y + sw!.height);
 
       await expectZoneAreaInViewport(dashboard, lang);
       await expectNothingOverflowsInSetupCards(page);

@@ -454,11 +454,11 @@ grid_orchestrator (Ana Orkestratör)
 | `ZoneCard.tsx` | Tek setup'ın (bölgenin) kartı |
 | `ZoneHeader.tsx` | Setup başlığı („Setup n“), aktif/pasif toggle, Kaydet, Test, silme menüsü |
 | `ZoneBasicFields.tsx` | Order Type (BOTH'ta yanında „BUY/SELL aynı“ anahtarı), Min/Max fiyat, giriş modu (sembol, sembol kartının başında) |
-| `ZoneGridFields.tsx` | Grid adımı, lot, TP, SL; yanında „zarara göre aralık“ ve „ilk pozisyonu hemen aç“ anahtarları |
+| `ZoneGridFields.tsx` | Grid adımı, lot, TP, SL; „zarara göre aralık“ anahtarı grid adımı ve önizlemesinin altında aynı blokta; „ilk pozisyonu hemen aç“ SL yanında |
 | `ZoneSellFields.tsx` | Satış yönü ayarları (ayrı grid, lot, TP, SL) |
 | `ZoneBreakoutFields.tsx` | „Sadece trend yönünde“ anahtarı, pullback, alt/üst seviyeler, maks. pozisyon |
 | `ZoneExitFields.tsx` | „Bölgeden çıkınca temizle“ anahtarı ve yanında yön, hedef, kapsam, tetikleyici, zaman dilimi |
-| `ZoneFractalFields.tsx` | Fraktal girişi: emir türü, zaman dilimi, lot, emir sayısı, maks. pozisyon; SL anahtarı + SL yöntemi; „TP tutar olarak“ anahtarı + TP |
+| `ZoneFractalFields.tsx` | Fraktal girişi: emir türü, zaman dilimi, lot, emir sayısı, maks. pozisyon; SL anahtarı + SL yöntemi; „TP tutar olarak“ anahtarı + TP; sonraki emir kayıp sınırı (Forex pip / broker tick), fiyat mesafesi önizlemesi |
 | `FieldSwitch.tsx` | Alan satırındaki anahtar: kontrol ettiği alanın yanında, giriş kutularının hizasında (kompakt setup, ZON-20) |
 
 ### Hook'lar (`hooks/`)

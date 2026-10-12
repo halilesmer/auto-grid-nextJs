@@ -82,7 +82,9 @@ function symbol(name: string, digits: number, description: string, volumeMin = 0
     currency_margin: 'USD',
     description,
     // Kostenfelder wie mt5_helpers.SYMBOL_COST_FIELDS (BKT-04)
-    trade_calc_mode: 2,
+    trade_calc_mode: contract === 100000 ? 0 : 2,
+    distance_unit: contract === 100000 ? 'pips' : 'ticks',
+    distance_unit_size: contract === 100000 ? point * (digits === 3 || digits === 5 ? 10 : 1) : point,
     trade_tick_value_profit: Number((point * contract).toFixed(8)),
     trade_tick_value_loss: Number((point * contract).toFixed(8)),
     swap_mode: 1,

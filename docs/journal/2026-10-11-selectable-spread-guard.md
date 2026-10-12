@@ -64,7 +64,7 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | `git diff --check` | Passed. |
 | Visual checks | Light and dark screenshots checked at 375 px and desktop width. No horizontal overflow. |
 | `hooks/RULES.md` §9 | Reviewed entry routes, API ownership, status consumers, atomic persistence and simulated time. |
-| Live trading | Not verified. The user did not authorize a live DEMO trading test. No worker ran on the Mac. |
+| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The installed VPS revision lacks this feature. No worker ran on the Mac. |
 
 ## Open points
 
@@ -78,3 +78,27 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 - Keep initial learning separate from the lock that blocks entries. A manual startup reference must not stop initial learning.
 - Expired learning history must not remove a stored entry lock or prevent a new learning round.
 - Test spread changes between broker validation and submission. A check at the start of a loop cannot cover that interval.
+
+
+## Conflict resolution (2026-10-12)
+
+- Merge the current `origin/main` into PR #152 without changing the shared checkout.
+- Preserve exact spread prices and version-1 pip/tick counts in `sanitize_settings`.
+- Keep both sets of parity scenarios and both ENG-30 and ENG-31 catalog entries.
+- Regenerate the feature results and checklist through the feature runner.
+- The combined API regression failed against the previous PR code: `3.3333333333333335` became `3.33333`.
+- The merged implementation preserves both values in the same setup.
+
+| Command or check | Result |
+|---|---|
+| `scripts/features/run.sh unit` | 549 passed. |
+| `scripts/features/run.sh api` | 266 passed, including the combined precision regression. |
+| `E2E_PORT=3312 scripts/features/run.sh e2e 'ENG-31\|@ENG-30\|@ZON-21\|@ZON-20\|@BKT-02'` | 99 passed against the isolated mocked frontend. |
+| `E2E_PORT=3312 scripts/features/run.sh e2e BKT-03` | 30 passed; all existing and new fractal parity cases. |
+| `npm run lint`, `npx tsc --noEmit` | Exit 0. |
+| `npx next build --webpack` | Mocked production build passed. |
+| `pyright --outputjson` | 31 existing diagnostics; none in the conflict-resolution files. |
+| `scripts/features/run.sh check` | 158 catalog entries valid. |
+| Scenario generator comparison | All five spread and both new pip/tick scenarios match their saved fixtures. |
+| `hooks/RULES.md` §9 | Reviewed the merged precision rules, scenario definitions and shared engine changes. |
+| Live trading | Not run. The VPS installation remains a prerequisite. |

@@ -44,3 +44,16 @@ def test_anderes_setting_erhaelt_schutz(client):
     client.post(URL, json={"settings": {"SYMBOLS": [{"symbol": "USOUSD", "setups": [make_zone(spread_guard=cfg)]}]}})
     client.post(URL, json={"settings": {"LOOP_INTERVAL_SECONDS": 2}})
     assert client.get(URL).json()["settings"]["SYMBOLS"][0]["setups"][0]["spread_guard"] == cfg
+
+
+@pytest.mark.feature("ENG-30")
+def test_spread_und_pip_tick_anzahl_behalten_gemeinsam_praezision(client):
+    cfg = {"enabled": True, "mode": "fixed", "max_spread": 0.00012}
+    zone = make_zone(entry_mode="fractal", spread_guard=cfg,
+                     fractal_next_loss=3.3333333333333335, fractal_next_loss_mode="pips",
+                     fractal_next_loss_unit_version=1)
+    assert client.post(URL, json={"settings": {"SYMBOLS": [{"symbol": "USOUSD", "setups": [zone]}]}}).status_code == 200
+    result = client.get(URL).json()["settings"]["SYMBOLS"][0]["setups"][0]
+    assert result["spread_guard"] == cfg
+    assert result["fractal_next_loss"] == 3.3333333333333335
+    assert result["fractal_next_loss_unit_version"] == 1

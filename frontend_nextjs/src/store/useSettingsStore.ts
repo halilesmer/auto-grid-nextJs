@@ -1,3 +1,4 @@
+import { distanceUnitOf, migrateFractalDistance } from '@/lib/symbolDistance';
 import { create } from 'zustand';
 import { t } from '@/i18n';
 import { apiUrl, getWorkerHeaders } from '@/lib/api';
@@ -122,7 +123,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (!selectedAccount || !current) return null;
 
     // Nie einen Lot ≤ 0 oder unter dem Symbol-Minimum speichern (auch UI-Stand angleichen)
-    const zones = current.ZONES?.map((z) => normalizeZoneLots(z, symbolDetails));
+    const zones = current.ZONES?.map((z) => migrateFractalDistance(normalizeZoneLots(z, symbolDetails), distanceUnitOf(symbolDetails[z.symbol.toUpperCase()]).size));
     const fixed = !!zones && zones.some((z, i) => z !== current.ZONES[i]);
     const settings = fixed ? { ...current, ZONES: zones } : current;
     if (fixed) set({ settings });

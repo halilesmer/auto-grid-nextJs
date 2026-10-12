@@ -57,7 +57,35 @@ def test_alter_cache_ohne_kostenfelder_wird_erneuert(tmp_path, monkeypatch):
     monkeypatch.setattr(mh, "CACHE_FILE", str(cache))
 
     symbols, fresh = mh.get_cached_symbols(TEST_ACCOUNT_ID, lambda *a, **k: None)
-    assert symbols == [{"name": "USOUSD", "digits": 3}] and fresh is False
+    assert symbols == [{"name": "USOUSD", "digits": 3, "distance_unit": None, "distance_unit_size": None}] and fresh is False
 
     cache.write_text(json.dumps({TEST_ACCOUNT_ID: {"USOUSD": build_detailed_symbols([SymbolInfo(name="USOUSD")])[0]}}))
     assert mh.get_cached_symbols(TEST_ACCOUNT_ID, lambda *a, **k: None)[1] is True
+
+
+@pytest.mark.feature("ENG-30")
+@pytest.mark.parametrize("mode,digits,point,tick_size,unit,size", [
+    (0, 5, 0.00001, 0.00001, "pips", 0.0001),
+    (5, 3, 0.001, 0.001, "pips", 0.01),
+    (2, 2, 0.01, 0.25, "ticks", 0.25),
+    (2, 2, 0.01, 0, "ticks", None),
+    (None, 5, 0.00001, 0.00001, None, None),
+])
+def test_symbolliste_liefert_echte_abstandseinheit(mode, digits, point, tick_size, unit, size):
+    result = build_detailed_symbols([dict(name="TEST", trade_calc_mode=mode, digits=digits,
+                                           point=point, trade_tick_size=tick_size)])[0]
+    assert result["distance_unit"] == unit
+    assert result["distance_unit_size"] == size
+
+
+@pytest.mark.feature("ENG-30")
+@pytest.mark.parametrize("fields", [
+    dict(trade_calc_mode=-1), dict(trade_calc_mode=0.5), dict(point=0),
+    dict(point=float("nan")), dict(point=float("inf")), dict(digits=-1),
+    dict(digits=2.5), dict(trade_calc_mode=2, trade_tick_size=-0.01),
+    dict(trade_calc_mode=2, trade_tick_size=float("inf")),
+])
+def test_ungueltige_symbolinformationen_liefern_keine_einheitsgroesse(fields):
+    info = dict(name="TEST", trade_calc_mode=0, digits=5, point=0.00001, trade_tick_size=0.01)
+    info.update(fields)
+    assert build_detailed_symbols([info])[0]["distance_unit_size"] is None

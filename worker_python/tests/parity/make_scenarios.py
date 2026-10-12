@@ -10,6 +10,7 @@ ab 3.12 summiert sum() kompensiert, der ATR (fractal_signals.atr) weicht dann um
 from __future__ import annotations
 
 import json
+import copy
 import random
 
 from tests.helpers import make_zone
@@ -233,6 +234,30 @@ def scenarios() -> dict[str, dict]:
     add("spread_fractal", "ENG-31: Fraktal-Orders löschen und nach Erholung erneut setzen",
         [fractal_zone(id="z1", spread_guard={"enabled": True, "mode": "fixed", "max_spread": 0.05})],
         spread_ticks + [[34, 97.7, 10], [35, 96.4, 10], [36, 97.0, 10]], hist)
+    # Neue Einheiten erhalten denselben physischen Abstand wie das alte Szenario.
+    ticks = copy.deepcopy(s["fractal_next_loss_pips"])
+    ticks["name"] = "fractal_next_loss_ticks"
+    ticks["description"] = "ENG-30: 3 Broker-Ticks à 0,1; exakte Grenze öffnet bei Tick 85"
+    ticks["symbol"].update(trade_calc_mode=2, trade_tick_size=0.1)
+    ticks["zones"][0].update(fractal_next_loss=3, fractal_next_loss_unit_version=1)
+    s[ticks["name"]] = ticks
+
+    forex = copy.deepcopy(ticks)
+    forex["name"] = "fractal_next_loss_forex"
+    forex["description"] = "ENG-30: EURUSD 3 echte Pips à 0,0001; exakte Grenze bei Tick 85"
+    forex["symbol"].update(name="EURUSD", digits=5, point=0.00001, spread_points=1,
+                            trade_calc_mode=0, trade_tick_size=0.00001, trade_contract_size=100000.0)
+    price = lambda value: round(1.1 + (value - 97) * 0.001, 5)
+    forex["ticks"] = [[dt, price(bid)] for dt, bid in forex["ticks"]]
+    for history in forex["history"].values():
+        for bar in history:
+            for field in ("open", "high", "low", "close"):
+                bar[field] = price(bar[field])
+    zone = forex["zones"][0]
+    zone["symbol"] = "EURUSD"
+    zone["min_price"], zone["max_price"] = price(zone["min_price"]), price(zone["max_price"])
+    zone["fractal_sl_buffer"] *= 0.001
+    s[forex["name"]] = forex
     return s
 
 

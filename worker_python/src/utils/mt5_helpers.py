@@ -1,3 +1,4 @@
+from src.utils.symbol_distance import distance_unit_of
 import os
 import time
 import shutil
@@ -433,9 +434,12 @@ def build_detailed_symbols(symbols) -> list[dict]:
         name = _get(s, "name", "")
         if not name or not str(name).strip():
             continue
+        unit, unit_size = distance_unit_of(s)
         detailed.append(
             {
                 "name": name,
+                "distance_unit": unit,
+                "distance_unit_size": unit_size,
                 "description": _get(s, "description", "") or name,
                 "digits": _get(s, "digits", 5),
                 "point": _get(s, "point", 0.00001),
@@ -506,7 +510,12 @@ def get_cached_symbols(account_id: str, safe_log_fn) -> tuple[list[dict] | None,
     # Maliyet alanları (BKT-04) eklenmeden önce yazılmış kayıt taze sayılmaz: arka planda yenilenir
     has_cost_fields = all(isinstance(sym, dict) and set(SYMBOL_COST_FIELDS) <= sym.keys() for sym in symbols)
     is_fresh = has_cost_fields and _is_cache_fresh(account_id, cache_data)
-    return symbols, is_fresh
+    # Yeni türetilmiş alanlar eski cache'ten de hesaplanır; MT5 oturumuna gerek yok.
+    detailed = []
+    for sym in symbols:
+        unit, size = distance_unit_of(sym)
+        detailed.append({**sym, "distance_unit": unit, "distance_unit_size": size})
+    return detailed, is_fresh
 
 
 async def fetch_and_cache_symbols(account_id: str, account_config: dict, safe_log_fn) -> list[dict]:

@@ -75,6 +75,9 @@ export function snapshotSymbol(detail: SymbolDetail, options: SnapshotOptions): 
   };
   const info: SymbolInfo = {
     name: detail.name,
+    distance_unit: detail.distance_unit,
+    distance_unit_size: detail.distance_unit_size,
+    trade_calc_mode: detail.trade_calc_mode,
     point: need('point', detail.point, 'positive'),
     digits: need('digits', detail.digits, 'wholeNonNegative'),
     volume_min: need('volume_min', detail.volume_min, 'positive'),

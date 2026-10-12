@@ -7,6 +7,7 @@ import { useT } from '@/i18n';
 import { useGuidedHints } from './useGuidedHints';
 import { LossPreview } from './LossPreview';
 import { FieldSwitch } from './FieldSwitch';
+import { Switch } from '@/components/ui/switch';
 import { distanceConfig } from '@/utils/zoneHelpers';
 
 export function ZoneGridFields({
@@ -30,29 +31,39 @@ export function ZoneGridFields({
 
   return (
     <div className="flex flex-wrap items-start gap-3">
-      <InputField
-        label={
-          byLoss
-            ? t(split ? 'zone.field.buyGridLoss' : 'zone.field.gridStepLoss')
-            : t(split ? 'zone.field.buyGrid' : 'zone.field.gridStep')
-        }
-        hint={
-          byLoss
-            ? t(split ? 'zone.field.buyGridLoss.hint' : 'zone.field.gridStepLoss.hint')
-            : guided.step(t(split ? 'zone.field.buyGrid.hint' : 'zone.field.gridStep.hint'))
-        }
-        error={byLoss && <LossPreview amount={zone.grid_step} lot={zone.lot_size} symbolConfig={symbolConfig} />}
-      >
-        <NumberInput
-          min={stepCfg.min}
-          step={stepCfg.step}
-          maxDecimals={stepCfg.precision}
-          value={zone.grid_step}
-          onChange={(e) => handleChange('grid_step', e.target.value, zone, stepCfg, update)}
-          onBlur={() => handleBlur('grid_step', zone.grid_step, stepCfg.step, stepCfg.precision, update)}
-          className="input-s w-28"
+      <div className="flex min-w-0 flex-col items-start gap-2">
+        <InputField
+          label={
+            byLoss
+              ? t(split ? 'zone.field.buyGridLoss' : 'zone.field.gridStepLoss')
+              : t(split ? 'zone.field.buyGrid' : 'zone.field.gridStep')
+          }
+          hint={
+            byLoss
+              ? t(split ? 'zone.field.buyGridLoss.hint' : 'zone.field.gridStepLoss.hint')
+              : guided.step(t(split ? 'zone.field.buyGrid.hint' : 'zone.field.gridStep.hint'))
+          }
+          error={byLoss && <LossPreview amount={zone.grid_step} lot={zone.lot_size} symbolConfig={symbolConfig} />}
+        >
+          <NumberInput
+            min={stepCfg.min}
+            step={stepCfg.step}
+            maxDecimals={stepCfg.precision}
+            value={zone.grid_step}
+            onChange={(e) => handleChange('grid_step', e.target.value, zone, stepCfg, update)}
+            onBlur={() => handleBlur('grid_step', zone.grid_step, stepCfg.step, stepCfg.precision, update)}
+            className="input-s w-28"
+          />
+        </InputField>
+        <Switch
+          className="min-h-9"
+          id={`step-by-loss-${zone.id}`}
+          checked={byLoss}
+          onChange={onStepByLoss}
+          label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
+          hint={t('zone.stepByLoss.hint')}
         />
-      </InputField>
+      </div>
       <InputField
         label={isBoth && !sync ? t('zone.field.buyLot') : t('zone.field.lot')}
         hint={isBoth && !sync ? t('zone.field.buyLot.hint') : t('zone.field.lot.hint')}
@@ -114,13 +125,6 @@ export function ZoneGridFields({
           className="input-s w-28"
         />
       </InputField>
-      <FieldSwitch
-        id={`step-by-loss-${zone.id}`}
-        checked={byLoss}
-        onChange={onStepByLoss}
-        label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
-        hint={t('zone.stepByLoss.hint')}
-      />
       <FieldSwitch
         id={`instant-entry-${zone.id}`}
         checked={!!zone.instant_entry}
