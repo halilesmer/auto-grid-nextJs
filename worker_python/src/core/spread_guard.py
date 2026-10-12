@@ -62,6 +62,10 @@ class SpreadGuard:
         self.path = None
         self.dirty = False
         self.logged = {}
+        # Broker saat kanıtı bot oturumunda kalır; öğrenme dosyasına yazılmaz.
+        self.tick_account = None
+        self.tick_offset = None
+        self.tick_candidates = {}
 
     def configure(self, zones, infos):
         self.zones = {zone_magic(z, i): (i, z) for i, z in enumerate(zones)}
@@ -251,10 +255,59 @@ class SpreadGuard:
                 self.logged["save"] = str(exc)
 
 
+def _broker_tick_wall(guard, account, symbol, tick, wall):
+    """İlerleyen tick ile broker farkını doğrula; eski tick için farkı değiştirme."""
+    identity = (account.login, getattr(account, "server", None))
+    if guard.tick_account != identity:
+        guard.tick_account = identity
+        guard.tick_offset = None
+        guard.tick_candidates.clear()
+    if guard.tick_offset is not None:
+        return wall + guard.tick_offset
+
+    # UTC tick ve parite girdileri zaten doğru zaman tabanını kullanır.
+    if tick_spread(tick, wall, 8) is not None:
+        guard.tick_offset = 0
+        return wall
+    stamp = (getattr(tick, "time_msc", 0) or 0) / 1000 or getattr(tick, "time", 0)
+    if not isinstance(stamp, (int, float)) or not math.isfinite(stamp) or stamp <= 0:
+        guard.tick_candidates.pop(symbol, None)
+        return None
+    offset = round((stamp - wall) / 1800) * 1800
+    age = wall + offset - stamp
+    # Fark ölçümü 60 saniyelik giriş sınırından daha taze tick ister.
+    if not -12 * 3600 <= offset <= 14 * 3600 or not 0 <= age <= 2 or tick_spread(tick, wall + offset, 8) is None:
+        guard.tick_candidates.pop(symbol, None)
+        return None
+    previous = guard.tick_candidates.get(symbol)
+    if previous is not None:
+        old_stamp, old_wall, old_offset = previous
+        elapsed = wall - old_wall
+        progress = stamp - old_stamp
+        if old_offset == offset and 1 <= elapsed <= 60 and progress >= 1 and abs(progress - elapsed) <= 2:
+            guard.tick_offset = offset
+            guard.tick_candidates.clear()
+            return wall + offset
+        if stamp == old_stamp:
+            return None  # Aynı tick tekrar okununca broker saatinin ilerlediği kanıtlanmaz.
+    guard.tick_candidates[symbol] = (stamp, wall, offset)
+    return None
+
+
 def _read_spread(mt5, symbol, infos):
     info = infos.get(symbol)
     digits = info.get("digits", 8) if isinstance(info, dict) else getattr(info, "digits", 8)
-    return tick_spread(mt5.symbol_info_tick(symbol) if mt5 else None, clock.wall(), digits)
+    from src.core.state import state
+
+    if mt5 is None:
+        return None
+    account = mt5.account_info()
+    tick = mt5.symbol_info_tick(symbol)
+    if account is None or tick is None:
+        state.spread_guard.tick_candidates.pop(symbol, None)
+        return None
+    broker_wall = _broker_tick_wall(state.spread_guard, account, symbol, tick, clock.wall())
+    return tick_spread(tick, broker_wall, digits) if broker_wall is not None else None
 
 
 def _clear_blocked(mt5, guard):

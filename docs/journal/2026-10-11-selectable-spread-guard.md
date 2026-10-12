@@ -3,7 +3,7 @@ date: 2026-10-11
 author: Codex
 type: feature
 status: open
-pr: [152]
+pr: [152, 158]
 features: [ENG-31]
 areas: [worker, frontend, tests, docs]
 ---
@@ -64,7 +64,7 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | `git diff --check` | Passed. |
 | Visual checks | Light and dark screenshots checked at 375 px and desktop width. No horizontal overflow. |
 | `hooks/RULES.md` §9 | Reviewed entry routes, API ownership, status consumers, atomic persistence and simulated time. |
-| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The VPS now contains this feature. Active setups prevent an isolated test. No worker ran on the Mac. |
+| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The VPS received the feature later. Active setups prevented an isolated test, and the broker-time check blocked the trading validation. The follow-up then stopped at the owner's request. No worker ran on the Mac. |
 
 ## Open points
 
@@ -108,7 +108,7 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 
 | Read-only check | Result |
 |---|---|
-| Chrome access | The owner explicitly authorized Emser Holding with the existing `localhost:3000` tab. |
+| Chrome access | The owner explicitly authorized the owner's Chrome profile with the existing `localhost:3000` tab. |
 | Installed worker | The VPS page reports v0.7.201, `main @ 39834c70`, and a running worker. |
 | `git cat-file -e 39834c70:worker_python/src/core/spread_guard.py` | Exit 0. The installed revision contains the spread module. |
 | Registered test account | The selected option matches the gitignored test-account file. Its worker-derived account group is DEMO. |
@@ -121,3 +121,110 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 - Do not modify existing setups to make room for the test.
 - Pending cancellation, all entry paths, TP/SL continuity and 30-second recovery remain unverified in controlled live conditions.
 - No trade flags were set. No worker ran on the Mac.
+
+
+## Broker-time correction (2026-10-12)
+
+### Cause
+
+- The paused GBPCHF setup reported `invalid_tick` despite changing quotes in the terminal.
+- The analysis page reported a broker clock three hours ahead of UTC.
+- `tick_spread` compared the broker timestamp directly with UTC and rejected the quote as future data.
+- A local reproduction accepted the UTC quote and rejected the same quote with the broker offset.
+
+### Solution
+
+| File | Change |
+|---|---|
+| `worker_python/src/core/spread_guard.py` | Compare quote ages on the broker time basis after the bot confirms an offset. |
+| `worker_python/tests/unit/test_eng_spread_guard.py` | Add broker offsets, age boundaries, account changes, restart, clock changes and order recovery tests. |
+| `docs/features/features.yaml` | Add the broker-time checks to ENG-31. |
+
+- Keep UTC-native quotes and browser parity inputs on their existing time basis.
+- Confirm a nonzero offset with two advancing timestamps from the same symbol, at least one second apart.
+- Require the timestamp progression to match elapsed UTC within two seconds.
+- Require calibration quotes within two seconds of the candidate broker clock.
+- Keep the confirmed offset for that account and broker during the bot session.
+- Do not derive another offset from an old, missing or future quote after confirmation.
+- Do not persist clock evidence in the spread learning file.
+- Clear clock evidence after an account change or bot restart.
+- Preserve the inclusive 60-second quote age limit and the 30-second recovery rule.
+
+### Limits
+
+- Clock calibration assumes the terminal supplies current, advancing quotes rather than a delayed historical stream.
+- A single stationary quote cannot confirm a nonzero offset, including a quote exactly one hour old.
+- A broker clock change during a bot session blocks entries until a bot restart confirms the new clock.
+- Initial clock confirmation can activate the existing invalid-tick lock. Recovery still requires 30 seconds below the threshold.
+- The browser backtest already supplies normalized simulation time. Its spread decisions require no clock calibration.
+- The real DEMO trading run remains unverified. No orders, bot state or worker settings changed during this correction.
+
+### Verification
+
+- Before the correction: `scripts/features/run.sh unit ENG-31` reported 10 failed and 27 passed.
+- After the correction: `scripts/features/run.sh unit` reported 565 passed.
+- `scripts/features/run.sh unit ENG-31` reported 42 passed after the tests used the public refresh adapter.
+- `scripts/features/run.sh api ENG-31` reported 16 passed.
+- `scripts/features/run.sh api` reported 267 passed.
+- `E2E_PORT=3328 scripts/features/run.sh e2e ENG-31` reported 13 passed, including all five parity scenarios.
+- `scripts/features/run.sh check` accepted all 158 features.
+- `pyright --outputjson` reported 31 errors both before and after the correction. The changed Python files have no diagnostics.
+- `git diff --check` passed.
+- The review followed `hooks/RULES.md` §9: clock domains, account scope, final entry checks, recovery and unchanged API consumers.
+- The first mocked browser run failed before test execution because Turbopack rejected an external dependency symlink.
+- Copying the installed dependencies into the isolated worktree removed that build obstacle.
+
+### Required live follow-up
+
+- Review and merge this correction through its PR.
+- Pull the merged version on the VPS and restart the worker and the relevant bot safely.
+- Confirm changing GBPCHF quotes and a valid spread status before the isolated DEMO trading test.
+- Preserve the user's GBPCHF configuration and all existing positions, orders and other setups.
+- Keep the recurring market-opening automation paused. The market is already open.
+
+
+## DEMO follow-up stopped (2026-10-12)
+
+### Request
+
+- Continue one controlled GBPCHF DEMO test in the existing authorized Chrome profile.
+- The owner then requested removal of recurring checks and closure of this task after recording its status.
+
+### Verification
+
+| Command or check in this session | Result |
+|---|---|
+| `GET /api/vps/status`, through the existing local route | HTTP 200; installed checkout `v0.7.202`, `main` at `fced8631`; worker reachable and listening. |
+| Chrome extension profile and tab check | Authorized profile and existing local dashboard confirmed. No new browser tab or profile opened. |
+| Dashboard observation | Worker online. GBPCHF setup unstarted; minimum 0.01, maximum 2, lot 0.01, maximum positions 1, spread guard disabled. |
+| Existing `readTestAccount()` helper | Local test account file confirms DEMO. No private account values printed. |
+| Existing `LiveWorker.fetch('/accounts')` helper | HTTP 401. The separate helper could not confirm registered identity or worker DEMO type. The connected Chrome dashboard remained available. |
+| Available browser capabilities | No supported direct API inspection path for the missing account and quote checks. |
+| Automation update and saved-state check | Existing recurring check set to `PAUSED`; saved state confirmed. No second automation created. |
+| Controlled trading test | Not run. Fresh valid GBPCHF Bid/Ask and matching worker DEMO identity not confirmed. |
+| Running bot revision | Not verified. Installed checkout version does not prove which code an existing bot process loaded. |
+
+### Closure
+
+- Stop this follow-up at the owner's request. Do not schedule another check or trading run.
+- Keep ENG-31 live trading unverified. This closure is not a feature pass or a reproduced feature failure.
+- Do not record a manual pass or failure through `scripts/features/run.sh sign`; no controlled test executed.
+- No test orders, positions or setups created. No settings saved and no bot started or stopped.
+- No worker deployed, updated or restarted by this session. No worker started on the Mac.
+- Existing orders, positions, manual pauses and GBPCHF settings unchanged by this session.
+- Browser inspection menus closed after the read-only checks.
+- Cancellation scope, blocked entries, continued TP/SL and exit management, and timed recovery remain unverified on the live worker.
+- The earlier required live follow-up above is superseded by this closure. A future live test requires a new explicit request.
+
+
+## Catalog tier (2026-10-12)
+
+Author: Claude.
+
+| Item | Content |
+|---|---|
+| Decision | Add the tier `manuell` to ENG-31 in `docs/features/features.yaml`. |
+| Reason | The checklist showed ENG-31 as checked from the unit, API and mocked e2e tiers only. The real DEMO acceptance is still open, and a new session could miss it. |
+| Changed | ENG-31 `[x]` → `[ ]` with `👤 manuell ⏳`; checklist 140/158 → 139/158. |
+| Verification | `scripts/features/run.sh check`: 158 features valid. `scripts/features/run.sh render`: 139/158 checked. |
+| Not changed | No automated result, test or manual sign-off. The live test still requires a new explicit request. |

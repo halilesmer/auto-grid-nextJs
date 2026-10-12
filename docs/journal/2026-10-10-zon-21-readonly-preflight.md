@@ -3,12 +3,12 @@ date: 2026-10-10
 author: Codex
 type: diagnosis
 status: open
-pr: [145, 148]
+pr: [145, 148, 154]
 features: [ZON-21]
 areas: [ops, docs]
 ---
 
-# ZON-21 preflight blocked by access
+# ZON-21 preflight has unresolved prerequisites
 
 ## Request
 
@@ -28,7 +28,11 @@ areas: [ops, docs]
 | Existing VPS window, first check | The screenshot showed a black screen. It supplied no terminal or trading evidence. |
 | Existing VPS window, repeat on 2026-10-10 | The selected terminal showed the local test account as DEMO, open positions, and at least four pending orders. |
 | Local read-only SSH status, repeat on 2026-10-10 | The worker was reachable on `main` at `fb63d0e1` (`v0.7.193`). Three bot processes and four terminals ran. The test account matched one bot process. |
-| Root cause of blocked isolation | The test account has active trading state. The rejected frontend API key remains unexplained. No credential was inspected or changed. |
+| Root cause of blocked isolation on 2026-10-10 | The test account had active trading state. The rejected frontend API key remains unexplained. No credential was inspected or changed. |
+| Chrome follow-up on 2026-10-12, first profile | The local dashboard rejects API access. No current authenticated account view was available in that profile. |
+| Chrome follow-up on 2026-10-12, owner's visible profile | The dashboard reports a connected VPS but no selected account. The prior browser check used a different Chrome profile. |
+| Later account-selection attempt on 2026-10-12 | The owner reported `Timeout 8 s` for `/api/system/platform`. The repeated SSH health check also failed. Its cause remains unverified. |
+| Follow-up after PR #155 | The documented recovery succeeded, but a new local SSH platform check on installed checkout `v0.7.199` failed with a timeout again. Chrome reports a connected dashboard without a selected account. |
 
 ## Verification
 
@@ -46,6 +50,20 @@ areas: [ops, docs]
 | Safety | No bot action, order, position, account switch, credential edit or worker restart was performed. |
 | Manual result | No pass or failure was signed. A blocked preflight does not prove a feature defect. |
 
+## Verification on 2026-10-12
+
+| Check | Result |
+|---|---|
+| Local checkout | Clean `main` at `9b9f567`, version `v0.7.198`, before the documentation branch. |
+| Frontend and VPS versions | Production Chrome displays `v0.7.198`. The existing local SSH status route reports installed VPS checkout `v0.7.198` at `9b9f567a`. |
+| Worker and bots | The SSH status reports a listening, reachable worker, two bot processes, and four terminals. These counts do not establish test-account isolation. |
+| Chrome connection | The owner's visible Chrome profile reports `VPS-Verbindung: Verbunden`. A different profile still rejects API access. The agent inspected or changed no credential. |
+| Account and market prerequisites | Not verified: the connected dashboard reports `Kein Konto ausgewählt`. DEMO identity, stopped bot, zero positions, zero pending orders, and open symbol market lack current evidence. |
+| Worker health after the owner's timeout report | The local frontend returned HTTP 200. The repeated SSH status returned worker listening but not reachable, tunnel running, and two bot processes. The earlier successful worker health check no longer establishes current reachability. |
+| Worker health after the recovery journal merged | Installed checkout `v0.7.199`, `main` at `b61a723f`; worker listening but not reachable, tunnel running, two bots, and four terminals. A classified repeat took 14.6 seconds and reported a timeout. No account state or underlying cause was established. |
+| Trading test and manual result | Not executed or signed. The owner approved only read checks and documentation. |
+| Safety | No bot action, settings save, order, position change, account switch, deployment, or worker restart occurred. |
+
 ## Monday check
 
 | Gate | Pass criterion |
@@ -59,12 +77,22 @@ areas: [ops, docs]
 
 The Monday trading steps require the owner's explicit authorization. This document does not authorize a bot action, a settings save, or an order.
 
+## Task handoff on 2026-10-12
+
+| Item | State |
+|---|---|
+| Owner decision | Record the current state and end this task. No further preflight or trading action is requested in this session. |
+| Timeout repair | PR #156 is merged. See `2026-10-12-platform-timeout-recovery.md`. The repair is not verified on the VPS. |
+| Manual result | ZON-21 remains open and unsigned. Complete its current prerequisites and obtain separate explicit trading authorization in later work. |
+
 ## Open points
 
-- [ ] Restore authorized Chrome access for account metrics without changing credentials in this check.
-- [ ] Use an isolated DEMO account. The current test account has a running bot, positions, and pending orders.
-- [ ] Repeat the account and order checks immediately before the trading test; today's evidence cannot certify Monday's state.
-- [ ] Retry on Monday, 2026-10-12, after verified market opening and restored read-only access in Chrome.
+- [x] Locate the connected Chrome profile. The owner's visible dashboard reports a connected VPS.
+- [ ] Obtain a successful current worker platform response. The latest SSH health check failed despite a listening worker and running tunnel.
+- [ ] Verify authorized account metrics in that profile after the owner selects an already isolated DEMO account.
+- [ ] Use an isolated DEMO account. The 2026-10-10 test account had a running bot, positions, and pending orders; its current state remains unverified.
+- [ ] Repeat the account and order checks immediately before the trading test; earlier evidence cannot certify its prerequisites.
+- [ ] Retry after the account prerequisites and market opening are verified. The connected Chrome profile has no selected account yet.
 - [ ] Obtain explicit user authorization for orders and bot start before the ZON-21 trading test.
 
 ## Lessons
@@ -72,3 +100,4 @@ The Monday trading steps require the owner's explicit authorization. This docume
 A reachable frontend and its version do not prove authenticated worker access or an isolated DEMO account.
 Preserve the earlier isolation warning until current account and trading evidence resolves it.
 Account, bot and order checks can run while the market is closed. The complete trading test requires an open symbol market.
+Browser profiles have separate connection state. Verify the visible profile before treating an API rejection in another profile as a shared access blocker.
