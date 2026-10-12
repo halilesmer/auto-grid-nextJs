@@ -359,7 +359,7 @@ grid_orchestrator (Ana Orkestratör)
 | `symbols.py` | `/api/symbols` | Sembol arama, detay, tick bilgisi |
 | `logs.py` | `/api/logs` | Log sorgulama, filtreleme, indirme |
 | `market.py` | `/api/market` | Analiz sayfası verisi: `/market/{id}/time-check` (yalnızca admin, salt-okunur): broker saati, son M1 mumları, son işlem, hesap modeli; `/market/{id}/clock` (kendi hesabı): broker saati farkı, 10 dk önbellek, MT5'e ulaşılamazsa son güvenilir ölçüm; `/market/{id}/rates` ve `/coverage` (mum veritabanı, eksik parçalar MT5'ten), `/history/{id}/deals` (deal arşivi + bölge kaydı), `/market/{id}/imports` (CSV mum içe aktarma, kaynak `csv:<id>`, BKT-05). Kurallar: `docs/analyse-regeln.md` |
-| `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update (yalnızca admin); ayrı bir `/health` yok |
+| `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update (yalnızca admin); update-check Git işlemini thread'de bekler, platform yanıtını engellemez; ayrı bir `/health` yok |
 | `ui_state.py` | `/api/ui-state` | UI state kaydetme/yükleme (panel genişlikleri, vb.) |
 | `models.py` | - | Paylaşılan Pydantic modelleri (Request/Response) |
 | `helpers.py` | - | API ortak yardımcı fonksiyonları (`_public_account`: yanıtlardan şifreyi çıkarır) |
