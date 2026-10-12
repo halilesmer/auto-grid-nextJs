@@ -28,7 +28,8 @@ areas: [ops, docs]
 | Existing VPS window, first check | The screenshot showed a black screen. It supplied no terminal or trading evidence. |
 | Existing VPS window, repeat on 2026-10-10 | The selected terminal showed the local test account as DEMO, open positions, and at least four pending orders. |
 | Local read-only SSH status, repeat on 2026-10-10 | The worker was reachable on `main` at `fb63d0e1` (`v0.7.193`). Three bot processes and four terminals ran. The test account matched one bot process. |
-| Root cause of blocked isolation | The test account has active trading state. The rejected frontend API key remains unexplained. No credential was inspected or changed. |
+| Root cause of blocked isolation on 2026-10-10 | The test account had active trading state. The rejected frontend API key remains unexplained. No credential was inspected or changed. |
+| Chrome follow-up on 2026-10-12 | The local dashboard still rejects API access. No current authenticated account view was available. |
 
 ## Verification
 
@@ -46,6 +47,18 @@ areas: [ops, docs]
 | Safety | No bot action, order, position, account switch, credential edit or worker restart was performed. |
 | Manual result | No pass or failure was signed. A blocked preflight does not prove a feature defect. |
 
+## Verification on 2026-10-12
+
+| Check | Result |
+|---|---|
+| Local checkout | Clean `main` at `9b9f567`, version `v0.7.198`, before the documentation branch. |
+| Frontend and VPS versions | Production Chrome displays `v0.7.198`. The existing local SSH status route reports installed VPS checkout `v0.7.198` at `9b9f567a`. |
+| Worker and bots | The SSH status reports a listening, reachable worker, two bot processes, and four terminals. These counts do not establish test-account isolation. |
+| Authenticated Chrome access | Failed: the local dashboard still reports rejected API access. No credential was inspected or changed. |
+| Account and market prerequisites | Not verified: DEMO identity, stopped bot, zero positions, zero pending orders, and the selected symbol's open market lack current account evidence. |
+| Trading test and manual result | Not executed or signed. The owner approved only read checks and documentation. |
+| Safety | No bot action, settings save, order, position change, account switch, deployment, or worker restart occurred. |
+
 ## Monday check
 
 | Gate | Pass criterion |
@@ -62,9 +75,9 @@ The Monday trading steps require the owner's explicit authorization. This docume
 ## Open points
 
 - [ ] Restore authorized Chrome access for account metrics without changing credentials in this check.
-- [ ] Use an isolated DEMO account. The current test account has a running bot, positions, and pending orders.
-- [ ] Repeat the account and order checks immediately before the trading test; today's evidence cannot certify Monday's state.
-- [ ] Retry on Monday, 2026-10-12, after verified market opening and restored read-only access in Chrome.
+- [ ] Use an isolated DEMO account. The 2026-10-10 test account had a running bot, positions, and pending orders; its current state remains unverified.
+- [ ] Repeat the account and order checks immediately before the trading test; earlier evidence cannot certify its prerequisites.
+- [ ] Retry after verified market opening and restored read-only access in Chrome. The 2026-10-12 check remains blocked by access.
 - [ ] Obtain explicit user authorization for orders and bot start before the ZON-21 trading test.
 
 ## Lessons

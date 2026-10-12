@@ -16,16 +16,17 @@ areas: [frontend, worker, tests, docs]
 - Complete B9 seasonal CSV offsets, then review, document and prepare the PR.
 - Merge and pull only when repository rules and automatic approval allow it.
 - Do not deploy or change VPS trading state.
+- On 2026-10-12, repeat the read-only CI and version checks and record the remaining blockers in a documentation PR.
 
 ## Ordered work
 
 | Order | Task | State | Evidence or next action |
 |---|---|---|---|
-| 1 | Audit merged work | Complete | Before this documentation branch, the local checkout was clean on `main` at `4fc0f76` (`v0.7.191`). PR #145 merged as `43aec89`; the version-bump commit followed. |
-| 2 | Verify GitHub checks and deployed versions | Complete | GitHub Actions run #304 passed the catalog, worker, and frontend jobs on `43aec89`. The read-only local SSH status page reports worker `v0.7.191`, `main` at `4fc0f768`. Chrome shows Production frontend `v0.7.191` at the URL recorded in `docs/NGrok/Sistem ve Canlıya Alma.md`. |
+| 1 | Audit merged work | Complete | On 2026-10-12, the local checkout was clean on `main` at `9b9f567` (`v0.7.198`). `git pull --ff-only` returned `Already up to date.` PR #145 merged as `43aec89`. |
+| 2 | Verify GitHub checks and deployed versions | Complete | On 2026-10-12, main CI run `38205973617` passed all three jobs on `a5f752dd`. Chrome shows Production frontend `v0.7.198`. The SSH status route reports VPS checkout `v0.7.198`, `main` at `9b9f567a`, and a reachable worker. This checks the installed repository version, not the revision loaded by each running bot. |
 | 3 | B4 installed swap constants and symbol values | Complete | The existing Windows VPS session gave read-only access to the installed MetaTrader5 5.0.6180 package and the worker symbol cache. Installed values are DISABLED=0, POINTS=1, CURRENCY_DEPOSIT=4. Cached symbol records have modes 1, 3, 5, and 6. The backtest accepts only 0, 1, and 4. See `2026-10-10-backtest-b4-vps-swap-verification.md`. |
 | 4 | B9 real annual M1 import and broker-time check | Complete | Three annual M1 files committed on the VPS. USOUSD API time and OHLC matched the CSV and source terminal. See `2026-10-10-backtest-b9-vps-import.md`. |
-| 5 | ZON-21 manual DEMO trading check | Blocked | The repeat preflight on 2026-10-10 confirmed the local test account is DEMO. The read-only SSH status matched it to a running bot; the already logged-in terminal showed open positions and at least four pending orders. Isolation failed. Chrome still rejected the API key. See `2026-10-10-zon-21-readonly-preflight.md` for Monday gates. A trading test requires explicit user authorization. |
+| 5 | ZON-21 manual DEMO trading check | Blocked | On 2026-10-12, Chrome still rejected API access. Current account isolation and market status remain unverified. The 2026-10-10 evidence showed a running bot, positions, and pending orders for the test account. Preserve that warning until current evidence resolves it. See `2026-10-10-zon-21-readonly-preflight.md`. A trading test requires explicit user authorization. |
 | 6 | Final status, catalog, and journal | Waiting | Close this audit after the separate ZON-21 check. B4 evidence is recorded; keep the cache measurement distinct from a fresh worker API response. |
 | 7 | B6 chart and replay | Complete | PR #139. The current code preserves an exclusive cursor across timeframe loading. The annual test uses synthetic and mocked data. |
 | 8 | B4 page limits and one-million-candle profile | Complete | BKT-10 e2e: 9 passed. PR #140 records 260,944 trades and 164.512 seconds of simulation after repair. |
@@ -61,12 +62,25 @@ areas: [frontend, worker, tests, docs]
 Cancellation cannot recover an ID if the creation response is lost through network failure or a full browser exit.
 The worker's existing 24-hour staging cleanup remains the recovery for this case. Creation has the preset API's 30-second deadline.
 
+## Verification on 2026-10-12
+
+| Check | Result |
+|---|---|
+| `gh pr view 145 --json number,state,mergedAt,mergeCommit,headRefName,statusCheckRollup` | `MERGED` at `2026-10-10T06:03:39Z`; all five checks returned success. |
+| `gh run view 38205973617 --json status,conclusion,headSha,jobs,url` | `completed`, `success`; catalog, worker, and frontend jobs passed on `a5f752dd`. The subsequent version bump is `9b9f567`. |
+| Production frontend in Chrome | The header displays `v0.7.198`. This browser origin has no VPS connection. |
+| `GET /api/vps/status` through the existing local SSH bridge | `ok=true`, VPS checkout `v0.7.198`, branch `main`, commit `9b9f567a`; worker listening and reachable. Two bot processes and four terminals ran. No account identifiers were output by this status query. |
+| Local dashboard in Chrome | It displays `v0.7.198` and rejects API access. No authorized account metrics were available. |
+| Access limits | Sandbox network requests failed. The same authorized read checks succeeded with normal host network access. No credential was inspected or changed. |
+| Trading and local test suites | Not executed. No feature behavior changed. No deployment, bot action, account switch, settings save, or worker restart occurred. |
+| Documentation validation | `git diff --check` returned exit 0. Review against `hooks/RULES.md` section 9 found no code, API, or trading-state change. |
+
 ## Open points
 
-- [ ] Resume ZON-21 on Monday, 2026-10-12, after the selected symbol's market opens. Preserve all access and trading prerequisites.
-- [x] Verify the Production frontend version in Chrome at the URL recorded in `docs/NGrok/Sistem ve Canlıya Alma.md`. It displays `v0.7.191`.
+- [ ] Resume ZON-21 after authorized access and all current prerequisites pass. The planned Monday date does not authorize a trading run.
+- [x] Verify the Production frontend version in Chrome at the URL recorded in `docs/NGrok/Sistem ve Canlıya Alma.md`. It displays `v0.7.198` on 2026-10-12.
 - [x] Record installed swap constants and distinct cached symbol values through the existing read-only Windows VPS session. See `2026-10-10-backtest-b4-vps-swap-verification.md`. The worker API still returned 401; no credential was read or changed.
 - [x] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check. See `2026-10-10-backtest-b9-vps-import.md`.
-- [ ] Restore an authorized read-only Chrome account view. Use an isolated DEMO account, then recheck bot, positions and pending orders. The current test account fails isolation. Run the trading test only after explicit user authorization. See `2026-10-10-zon-21-readonly-preflight.md`.
-- [x] Verify current GitHub CI and VPS worker version on 2026-10-10. Main run #304 passed all three jobs. The worker reports `v0.7.191` at `4fc0f768` through the local read-only SSH status page. Do not infer the Production frontend version from this local app or worker status.
+- [ ] Restore an authorized read-only Chrome account view. Use an isolated DEMO account, then recheck bot, positions and pending orders. The 2026-10-10 account failed isolation; current state remains unverified. Run the trading test only after explicit user authorization. See `2026-10-10-zon-21-readonly-preflight.md`.
+- [x] Repeat GitHub CI and VPS version checks on 2026-10-12. Main run `38205973617` passed all three jobs. The SSH status reports installed checkout `v0.7.198` at `9b9f567a` and a reachable worker. Production frontend verification is separate.
 - [ ] Update the catalog and close this plan after all external evidence is recorded.
