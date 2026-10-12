@@ -289,8 +289,15 @@ def send_pending_order_helper(
         request["sl"] = normalize_price(sl_price, symbol, symbol_infos)
 
     TradeState.last_order_ticket = 0
-    success = safe_send_order(mt5, request, log_message)
+    from src.core.spread_guard import entry_allowed
+    from src.core.state import state
+
+    if not entry_allowed(mt5, magic):
+        return False
+    success = safe_send_order(mt5, request, log_message, before_send=lambda: entry_allowed(mt5, magic))
     if not success:
+        if state.spread_guard.status.get(magic, {}).get("blocked"):
+            return False
         consecutive_errors[zone_idx] = consecutive_errors.get(zone_idx, 0) + 1
 
         if consecutive_errors[zone_idx] >= 3:

@@ -14,6 +14,7 @@ import type { Broker, ZoneDict } from './types';
 import { checkVanishedOrders } from './vanished';
 import { closedCandleClose, detectZoneEntry, isZoneExited, zoneSymbolOf } from './zoneSelector';
 import { processZoneCommands, STOPPED_ZONE_STATES } from './zoneState';
+import { refreshSpreadGuard } from './spreadGuard';
 
 export type ActiveZones = Record<string, number>;
 
@@ -37,6 +38,7 @@ export function manageDynamicGrid(
 ): [boolean, ActiveZones] {
   processZoneCommands(zones, state);
   const activeZones: ActiveZones = { ...activeZonesIn };
+  refreshSpreadGuard(broker, zones, infos, state);
   if (remotePaused) return [true, activeZones];
 
   // Gelöschte / deaktivierte Zonen und Zonen mit geändertem Symbol vergessen

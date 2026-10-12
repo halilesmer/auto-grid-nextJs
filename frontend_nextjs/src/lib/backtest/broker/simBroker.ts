@@ -110,7 +110,7 @@ export class SimBroker implements Broker {
   index = 0;
   dt = 0;
 
-  private readonly spread: number;
+  private spread: number;
   private readonly eventDigits: number;
   protected tick: Tick;
   protected orders: Order[] = [];
@@ -144,7 +144,8 @@ export class SimBroker implements Broker {
    * Ein Tick: Uhr stellen, Kurs setzen, dann wie der Broker erst Pending Orders füllen, danach TP/SL
    * auslösen (so bleibt auch ein Ausstieg im selben Tick wie die Füllung sichtbar).
    */
-  marketStep(index: number, dt: number, time: number, bid: number): void {
+  marketStep(index: number, dt: number, time: number, bid: number, spreadPoints?: number): void {
+    if (spreadPoints !== undefined) this.spread = spreadPoints * this.info.point;
     this.index = index;
     this.dt = dt;
     this.now = time;

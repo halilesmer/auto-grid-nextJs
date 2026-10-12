@@ -198,6 +198,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal - MT5 $1/$2 Buy Limit + GRID:START/STOP komutları
 ┃ ┃ ┃ ┣ 📜 legacy_setup_orders.py # Kaldırılan fraktal ek kurgularının (ENG-29) MT5'te kalan emirleri: bölge emri sayılmaz; ayardaki LEGACY_SETUP_ORDERS=delete ise iptal
 ┃ ┃ ┃ ┣ 📜 indicator_calc.py    # Teknik indikatörler - RSI/MACD (pandas-ta fallback ile saf pandas)
+┃ ┃ ┃ ┣ 📜 spread_guard.py      # ENG-31: aynı tick spread kontrolü, magic bazında giriş kilidi, hesap/sembol medyan öğrenmesi ve kalıcı veri; TS karşılığı engine/spreadGuard.ts
 ┃ ┃ ┃ ┣ 📜 grid_orchestrator.py # Orkestratör - aktif bölge tespiti, giriş/çıkış, clear_on_exit, dynamic grid koordinasyonu
 ┃ ┃ ┃ ┣ 📜 grid_order_manager.py # Emir yönetimi - zombi emirler, TP/SL senkronu (fiyat geçtiyse bekler), kısmi dolum tamamlama (açan emre göre, max pozisyonda yok), bölge çıkışı
 ┃ ┃ ┃ ┣ 📜 grid_zone_selector.py # Bölge seçimi - en uygun bölge tespiti, filtreleme
@@ -333,6 +334,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 ```
 grid_orchestrator (Ana Orkestratör)
     ├──→ grid_zone_selector → grid_zone_state
+    ├──→ spread_guard → kendi bekleyen emirlerini cancel_order ile temizler (remote PAUSE öncesinde)
     ├──→ grid_order_manager → grid_orders → MT5
     ├──→ grid_execution (paket) → grid_orders → MT5
     ├──→ grid_position_sync → grid_orders → MT5
@@ -357,7 +359,7 @@ grid_orchestrator (Ana Orkestratör)
 | `symbols.py` | `/api/symbols` | Sembol arama, detay, tick bilgisi |
 | `logs.py` | `/api/logs` | Log sorgulama, filtreleme, indirme |
 | `market.py` | `/api/market` | Analiz sayfası verisi: `/market/{id}/time-check` (yalnızca admin, salt-okunur): broker saati, son M1 mumları, son işlem, hesap modeli; `/market/{id}/clock` (kendi hesabı): broker saati farkı, 10 dk önbellek, MT5'e ulaşılamazsa son güvenilir ölçüm; `/market/{id}/rates` ve `/coverage` (mum veritabanı, eksik parçalar MT5'ten), `/history/{id}/deals` (deal arşivi + bölge kaydı), `/market/{id}/imports` (CSV mum içe aktarma, kaynak `csv:<id>`, BKT-05). Kurallar: `docs/analyse-regeln.md` |
-| `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update (yalnızca admin); ayrı bir `/health` yok |
+| `system.py` | `/api/system` | MT5-Terminal-Scanner, platform bilgisi (bağlantı testi için de kullanılır, SYS-07), update-check/update (yalnızca admin); update-check Git işlemini thread'de bekler, platform yanıtını engellemez; ayrı bir `/health` yok |
 | `ui_state.py` | `/api/ui-state` | UI state kaydetme/yükleme (panel genişlikleri, vb.) |
 | `models.py` | - | Paylaşılan Pydantic modelleri (Request/Response) |
 | `helpers.py` | - | API ortak yardımcı fonksiyonları (`_public_account`: yanıtlardan şifreyi çıkarır) |

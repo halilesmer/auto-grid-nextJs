@@ -52,7 +52,7 @@ kategorien:
 
       - id: SYS-03
         titel: Plattform-Erkennung
-        beschreibung: GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok).
+        beschreibung: GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok). Der Health-Check antwortet auch während eine Update-Prüfung auf Git wartet.
         code: [worker_python/src/api/system.py]
         tiers: [api, live]
         pruefung:
@@ -944,6 +944,14 @@ kategorien:
         pruefung:
           - Manuell über ZON-21.
         erwartet: Unit- und API-Tests sowie Worker-/Backtest-Parität und Formular-Speicherung prüfen die Grenze.
+      - id: ENG-31
+        titel: Spread-Schutz je Setup
+        beschreibung: "Optionaler Spread-Schutz je Setup: fester Ask-Bid-Preisabstand, Vielfaches des normalen Spreads oder Anteil am effektiven Grid-Abstand (nur Grid). Lernen pro Konto und Symbol: höchstens ein Messwert je Minute, 24 Stunden, mindestens 60 Werte, Median; Lernstart abwarten oder manuellen Startwert verwenden. Hohe Spreads frieren die Referenz ein. Über der Grenze, bei fehlender Lernreferenz oder ungültigem/veraltetem Tick löscht der Bot nur die Pending Orders des Setups und sperrt alle Einstiege. TP/SL und Ausstiege offener Positionen laufen weiter. Unter 80 Prozent der Grenze für 30 Sekunden erfolgt die Erholung; manuelle Pause bleibt. Lernwerte und Schutzsperre bleiben nach Neustart erhalten, der Erholungstimer startet neu. UI zeigt Spread, Grenze, Lernfortschritt und Grund in tr/en/de. Browser-Backtest nutzt dieselben Regeln ohne Zukunftsdaten. Alte Setups starten ohne Schutz."
+        code: [worker_python/src/core/spread_guard.py, frontend_nextjs/src/components/zone/ZoneSpreadFields.tsx, frontend_nextjs/src/lib/backtest/engine/spreadGuard.ts]
+        tiers: [unit, api, e2e]
+        pruefung:
+          - Im DEMO-Test nach gesonderter Freigabe Grenze unter den aktuellen Spread setzen; nur Pending Orders dieses Setups verschwinden.
+        erwartet: Alle Einstiegswege sind gesperrt, offene Positionen und manuelle Orders bleiben. Nach Erholung laufen nur vorher aktive Setups weiter.
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm
@@ -1057,7 +1065,7 @@ kategorien:
     features:
       - id: UPD-01
         titel: Update-Prüfung
-        beschreibung: „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
+        beschreibung: „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main. Der blockierende Git-Aufruf läuft in einem Thread, damit Plattformabfragen währenddessen antworten können.
         code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py, frontend_nextjs/src/components/dashboard/UpdateModal.tsx]
         tiers: [api, e2e]
         pruefung:

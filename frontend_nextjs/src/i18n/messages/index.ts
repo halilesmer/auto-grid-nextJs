@@ -11,13 +11,14 @@ import errors from './errors';
 import hints from './hints';
 import logs from './logs';
 import settings from './settings';
+import spread from './spread';
 import ui from './ui';
 import users from './users';
 import vps from './vps';
 import zone from './zone';
 
 // Yeni bölüm: dosyayı ekle, buraya import et ve aşağıdaki listeye koy.
-const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, csvimport, vps, connection, users, hints] as const;
+const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, csvimport, vps, connection, users, spread, hints] as const;
 
 type Union2Intersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 

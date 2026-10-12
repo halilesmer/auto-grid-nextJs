@@ -3,12 +3,12 @@ date: 2026-10-12
 author: Codex
 type: diagnosis
 status: open
-pr: [155]
+pr: [155, 156]
 features: [SYS-03, SYS-07, VPS-10]
-areas: [ops, docs]
+areas: [ops, worker, tests, docs]
 ---
 
-# Tunnel timeout recovered through existing watchdog
+# Platform recovery and blocking update checks
 
 ## Request
 
@@ -16,6 +16,7 @@ areas: [ops, docs]
 - Use Chrome and preserve the existing documentation branch and PR #154.
 - Preserve credentials, account sessions, bots, positions, pending orders, and worker processes.
 - The owner approved analysis, a targeted repair, and review on 2026-10-12.
+- After recurrence, continue that plan and establish a reproducible trigger before changing code.
 
 ## Cause
 
@@ -43,7 +44,7 @@ areas: [ops, docs]
 The current connection works. Increasing the browser deadline would not explain the failed public watchdog probe or the earlier local probe.
 The existing recovery already restarted ngrok. Another restart would add disruption without resolving the unknown trigger.
 
-## Verification
+## Initial verification
 
 | Check | Result |
 |---|---|
@@ -61,10 +62,54 @@ The existing recovery already restarted ngrok. Another restart would add disrupt
 | Manual review against `hooks/RULES.md` section 9 | Documentation only. No authentication, ownership, API contract, concurrency, or trading-state change. |
 | Later PR #154 status check | All five checks succeeded. The PR remains open. |
 
+## Recurrence and reproducible defect
+
+| Evidence | Finding |
+|---|---|
+| PR #154 follow-up | The installed checkout was `v0.7.199` at `b61a723f`. A local worker probe timed out while its socket listened. |
+| Tunnel log at `2026-10-12 07:49:17` | Both public and local probes exceeded their deadlines. The watchdog waited and requested no restart. |
+| Tunnel log at `2026-10-12 07:53:36` | The endpoint answered again after one failure. |
+| Concurrent probes starting `2026-10-12T05:53:32Z` | Public GET without a key returned 401 in 0.21 seconds; OPTIONS returned 200 in 0.21 seconds. SSH status succeeded in 4.26 seconds. |
+| Worker log retrieved `2026-10-12T05:54:06Z` | An OPTIONS update check preceded resets. The GET update response appeared between resets, followed by platform responses. Request records lack timestamps and durations. |
+| One existing SSH GET update check at `2026-10-12T05:55:28Z` | Successful in 2.42 seconds including SSH. Concurrent public probes returned 401 in 0.12–0.22 seconds. This short check did not reproduce the outage. |
+| Chrome repeat | The existing local connection dialog returned a successful authenticated `win32` platform response. No connection values were saved. |
+| Source trigger | The admin dashboard requests `/system/update/check` on mount. Its async endpoint called `check_for_updates` synchronously. That helper waits on `git fetch` through `subprocess.run`. |
+| Isolated regression | A held update check prevented a second platform request from completing before the check finished. The original code failed the assertion. |
+| Proven code cause | A slow synchronous update check blocks the worker event loop, including platform requests. A listening socket cannot establish responsiveness. |
+| Historical incident limit | The live logs are consistent with this defect, but cannot prove which request blocked the worker at 07:49. |
+
+## Follow-up solution
+
+| File | Change |
+|---|---|
+| `worker_python/src/api/system.py` | Await `check_for_updates` through `asyncio.to_thread`, as the update endpoint already does for its blocking helper. |
+| `worker_python/tests/api/test_logs_system_api.py` | A concurrent ASGI test holds the external update check and verifies a platform response before releasing it. Tag with UPD-01 and SYS-03. |
+| `docs/features/features.yaml` | Specify responsive platform requests during a pending update check. |
+| `docs/proje_dosya_krokisi.md` | Document the thread boundary. |
+
+## Follow-up verification
+
+| Check | Result |
+|---|---|
+| `.venv/bin/python -m pytest tests/api/test_logs_system_api.py -q -k plattform_antwortet`, original code | 1 failed, 18 deselected in 6.17 seconds. Platform responded only after the blocked update check ended. |
+| Same regression, repaired code | 1 passed, 18 deselected in 0.44 seconds. The platform response completed while the update check remained held. |
+| `scripts/features/run.sh api` | 251 passed in 22.35 seconds. The runner regenerated `results.json` and `FEATURES.md`: 139/157 checked. |
+| `scripts/features/run.sh check` and `git diff --check` | Catalog valid with 157 features; diff check exit 0. |
+| `npm run lint` and `npx tsc --noEmit` | Exit 0 for both. |
+| `pyright worker_python/src/api/system.py worker_python/tests/api/test_logs_system_api.py` | 0 errors, 0 warnings. |
+| API contract and manual security review | Admin dependency, authentication, response fields, error handling, and restart behavior remain unchanged. No endpoint or mock contract changed. |
+| Load reviewed | Multiple admin browsers and the background updater can check Git while separate bot processes run. Pending Git work must not block platform responses. |
+| Installed worker | Not verified with the repair: no deployment or agent-requested restart occurred. The live observations use the original code. |
+| Trading state | No bot action, account/login switch, settings save, position change, or order occurred. Two bot processes remained present in status probes. |
+| Merge preparation after PR #152 | Regenerated the conflicted checklist from the merged catalog and results, without importing stale local reports. |
+| `worker_python/.venv/bin/python -m pytest worker_python/tests/api/test_logs_system_api.py -q` after merging main | 19 passed in 0.60 seconds. Catalog check passed with 158 features; diff check exit 0. |
+
 ## Open points
 
-- [ ] If the timeout returns, capture simultaneous public and local status codes and durations, with timestamped worker and ngrok events.
-- [ ] Establish the trigger before proposing a permanent code correction. Preserve the earlier failed local probe as unresolved evidence.
+- [x] Capture concurrent public and local probes and filtered events after recurrence. The watchdog also recorded both paths timing out.
+- [x] Establish a reproducible code trigger before correction. A held update check blocks the original platform endpoint.
+- [ ] Verify the repair on the VPS only after separate deployment authorization. The historical live request responsible for the outage remains unverified.
+- [ ] If timeouts continue after the repair, capture timestamped request durations and a read-only worker stack during the stall.
 - [ ] ZON-21 remains outside this diagnosis. Recheck all account and market prerequisites and obtain explicit trading authorization separately.
 
 ## Lessons

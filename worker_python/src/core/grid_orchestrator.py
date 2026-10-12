@@ -22,6 +22,7 @@ from .grid_order_manager import (
 from .grid_execution.handler import handle_sliding_grid
 from .grid_execution.vanished import check_vanished_orders
 from .legacy_setup_orders import cancel_legacy_orders, without_legacy_orders
+from .spread_guard import refresh_spread_guard
 
 
 def _is_enabled(zone):
@@ -55,6 +56,8 @@ def manage_dynamic_grid(
     Dönüş: (ok, active_zones)."""
     process_zone_commands(zones, active_zones_state)
     active_zones = dict(active_zones or {})
+
+    refresh_spread_guard(mt5, zones, symbol_infos)
 
     if remote_paused:
         return True, active_zones

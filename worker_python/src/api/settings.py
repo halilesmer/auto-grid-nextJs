@@ -15,6 +15,7 @@ from src.utils.bot_watchdog import account_lock
 from src.utils.mt5_connection import safe_log
 from src.utils.paths import get_ui_state_path
 from src.utils.zone_magic import remap_ui_states, zone_magics
+from src.core.spread_guard import validate_spread_guard
 
 router = APIRouter(tags=["Settings"])
 
@@ -158,6 +159,12 @@ async def update_settings(account_id: str, payload: SettingsPayload):
 
         from src.utils.config import sanitize_settings
         from src.utils.zone_magic import assign_zone_magics
+
+        try:
+            for zone in symbol_setups.settings_zones(data_to_save):
+                validate_spread_guard(zone)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         # Her bölgeye kalıcı magic (ENG-27); bölge silinince sıraya bağlı durumu bot taşır
         # (grid_zone_state.rekey_zone_state, ayarları yeniden okuduğu turda)

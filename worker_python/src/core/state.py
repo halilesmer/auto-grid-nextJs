@@ -1,10 +1,12 @@
 # src/core/state.py
 from dataclasses import dataclass, field
 from typing import Dict, Set, Any
+from src.core.spread_guard import SpreadGuard
 
 
 @dataclass
 class GridState:
+    spread_guard: SpreadGuard = field(default_factory=SpreadGuard)
     zones: list = field(default_factory=list)
     loop_interval_seconds: float = 3.0
     active_symbols: Set[str] = field(default_factory=set)
@@ -60,6 +62,7 @@ class GridState:
     MARKET_CLOSED_CHECK_INTERVAL: int = 60
 
     def reset(self):
+        self.spread_guard = SpreadGuard()
         self.active_zones_state.clear()
         self.consecutive_errors.clear()
         self.opening_volumes.clear()

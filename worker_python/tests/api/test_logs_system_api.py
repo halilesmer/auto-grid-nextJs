@@ -1,9 +1,12 @@
 """LOG-01 … LOG-03 Logs · LOG-06 MT5-Log-Tab · UPD-01 Update-Prüfung · SYS-03 Plattform · SYS-04 MT5-Scanner."""
+import asyncio
 import io
 import json
 import sys
+import threading
 import zipfile
 
+import httpx
 import pytest
 
 from tests.conftest import TEST_ACCOUNT_ID
@@ -121,6 +124,42 @@ def test_zip_download_enthaelt_logs_state_und_settings(client, account_logs):
 
 
 # --------------------------------------------------------------------------- UPD-01
+@pytest.mark.feature("UPD-01")
+@pytest.mark.feature("SYS-03")
+def test_plattform_antwortet_waehrend_update_pruefung_auf_git_wartet(client, monkeypatch):
+    from main import app
+    import src.api.system as system
+
+    started, release, finished = threading.Event(), threading.Event(), threading.Event()
+
+    def waiting_for_git(branch):
+        assert branch == "main"
+        started.set()
+        release.wait(5)
+        finished.set()
+        return True, (False, "v0.7.199", "v0.7.199")
+
+    monkeypatch.setattr(system, "check_for_updates", waiting_for_git)
+
+    async def scenario():
+        # Kein Lifespan: keine MT5-, Watchdog- oder Update-Aufgaben auf dem Mac.
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as requests:
+            update = asyncio.create_task(requests.get("/api/system/update/check?branch=main"))
+            try:
+                assert await asyncio.to_thread(started.wait, 2)
+                platform = await requests.get("/api/system/platform")
+                assert platform.status_code == 200
+                assert platform.json() == {"platform": sys.platform, "is_windows": sys.platform == "win32"}
+                assert not finished.is_set(), "Plattform antwortet erst nach dem blockierenden Git-Aufruf"
+            finally:
+                release.set()
+                response = await update
+            assert response.status_code == 200
+            assert response.json() == {"has_update": False, "local_ver": "v0.7.199", "remote_ver": "v0.7.199"}
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.feature("UPD-01")
 def test_update_pruefung(client, monkeypatch):
     import src.api.system as system
