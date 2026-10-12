@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-11 · **139/157** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-12 · **139/157** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -42,17 +42,17 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-10-11 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
-  - GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok).
+- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-10-12 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+  - GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok). Der Health-Check antwortet auch während eine Update-Prüfung auf Git wartet.
   - **Prüfung:** GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
   - **Erwartet:** Antwort {"platform": "win32", "is_windows": true}.
   - 📝 Claude: /system/platform → 200 {is_windows: true, platform: win32}; 'Mac Test Mode'-Leiste nicht sichtbar
-- [x] **SYS-04** MT5-Terminal-Scanner — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-04** MT5-Terminal-Scanner — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /system/scan-mt5 sucht terminal64.exe auf dem VPS; der Konto-Dialog bietet die Pfade zur Auswahl an (Rescan, eigener Pfad).
   - **Prüfung:** „Neues Konto“ öffnen, Feld MT5-Pfad ansehen, „Rescan“ klicken. → Checkbox „eigener Pfad“ aktivieren.
   - **Erwartet:** Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
   - 📝 Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto); Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, 'Manuel Gir' ersetzt Auswahl durch Textfeld; Dialog ohne Speichern geschlossen
-- [x] **SYS-05** API-Schlüssel (WORKER_API_KEY) — 🔌 api ✅ 2026-10-11 · 🌐 live ✅ 2026-09-24
+- [x] **SYS-05** API-Schlüssel (WORKER_API_KEY) — 🔌 api ✅ 2026-10-12 · 🌐 live ✅ 2026-09-24
   - Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start). WORKER_API_KEY ist der Admin-Schlüssel; Benutzer bekommen eigene Schlüssel (USR-01).
   - **Prüfung:** WORKER_API_KEY auf dem VPS setzen, Worker neu starten. → Dashboard mit passendem Schlüssel verbinden (SYS-07); danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
   - **Erwartet:** Dashboard funktioniert normal; der direkte Aufruf ohne Schlüssel liefert 401.
@@ -75,24 +75,24 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 2. ACC – Konten
 
-- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /accounts liefert alle Konten aus configs/accounts.json; das Dropdown zeigt sie an und schreibt sie in useAccountStore.
   - **Prüfung:** Dashboard öffnen, Dropdown „Select Account“ aufklappen.
   - **Erwartet:** Alle registrierten Konten erscheinen (inkl. DEMO-Testkonto).
   - 📝 Claude: /accounts → 1 Konto (A, DEMO, Demo-Server), Dropdown zeigt genau dieses
-- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09
   - Dialog „New MT5 Account“; Pflichtfelder Name, Login, Passwort, Server, MT5-Pfad; Notizen max. 1000 Zeichen; POST /accounts.
   - **Prüfung:** „Add new account“ klicken, leer absenden. → (Nur mit einem Wegwerf-Konto!) Alle Felder ausfüllen und speichern.
   - **Erwartet:** Leeres Formular zeigt Pflichtfeld-Fehler; gültiges Konto erscheint danach im Dropdown.
-- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09
   - Gleicher Login wie ein bestehendes Konto → Rückfrage „bestehendes Konto bearbeiten?“; der Worker antwortet mit 409 (RFC-7807-Problem).
   - **Prüfung:** Neues Konto mit dem Login eines vorhandenen Kontos anlegen.
   - **Erwartet:** Browser-Rückfrage erscheint; es entsteht kein zweites Konto.
-- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09
   - PUT /accounts/{id}; gesperrt, solange der Bot läuft.
   - **Prüfung:** Konto wählen, „Edit account“, Notiz ändern, speichern.
   - **Erwartet:** Änderung bleibt nach Neuladen erhalten; bei laufendem Bot ist der Button deaktiviert.
-- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09
   - DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft.
   - **Prüfung:** (Nur Wegwerf-Konto!) „Delete account“ → bestätigen.
   - **Erwartet:** Konto verschwindet aus dem Dropdown; bei laufendem Bot ist der Button deaktiviert.
@@ -110,11 +110,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
   - **Prüfung:** Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ACC-09** Passwort nie in API-Antworten — 🔌 api ✅ 2026-10-11
+- [x] **ACC-09** Passwort nie in API-Antworten — 🔌 api ✅ 2026-10-12
   - Der Worker gibt MT5-Passwörter in keiner Antwort zurück (Liste, Anlegen, Bearbeiten, 409-Problem), sondern nur has_password. Leeres Passwort beim Bearbeiten = unverändert.
   - **Prüfung:** DevTools → Network → Antwort von /api/accounts ansehen. → Konto bearbeiten, Passwortfeld leer lassen, speichern.
   - **Erwartet:** Kein Feld „password“ in der Antwort; das Konto verbindet sich danach weiterhin (Passwort unverändert).
-- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos *(teilweise)* — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ⏳
+- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos *(teilweise)* — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ⏳
   - Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. Der WS-Stream folgt dem gewählten Konto (/ws/stream?account_id=, neu verbunden beim Wechsel); der Worker sendet jeder Verbindung nur ihr Konto – aus der MT5-Abfrage des API-Prozesses nur, wenn dessen Terminal an diesem Konto angemeldet ist, sonst aus der Metrikdatei des Bot-Prozesses. WS-Metriken tragen account_id; Metriken eines anderen Kontos (älterer Worker) ignoriert das Frontend.
   - **Prüfung:** Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft. → Zweites Konto mit laufendem Bot wählen, /chart bzw. /formasyon öffnen; DevTools → WS-URL und Nachrichten ansehen.
   - **Erwartet:** Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status. Mit laufendem Bot bekommt das zweite Konto eigene Stream-Metriken (Live-Preis im Chart; die WS-URL enthält account_id=<Konto>, jede METRICS-Nachricht dessen account_id).
@@ -125,27 +125,27 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 3. USR – Benutzer & Zugriff
 
-- [x] **USR-01** Persönliche Schlüssel und Rollen — 🔌 api ✅ 2026-10-11
+- [x] **USR-01** Persönliche Schlüssel und Rollen — 🔌 api ✅ 2026-10-12
   - Der Worker ordnet jeden X-API-Key (bzw. ?api_key= am WebSocket) einer Rolle zu. WORKER_API_KEY = Admin (sieht alles); der persönliche Schlüssel eines Benutzers (configs/users.json, nur als sha256-Hash) = Benutzer (nur eigene Konten). Unbekannt oder fehlend → 401. Ohne WORKER_API_KEY und ohne Benutzer bleibt der Worker offen (wie bisher, alle Admin); gibt es Benutzer (oder eine unlesbare users.json), aber keinen WORKER_API_KEY, wird ein Zugriff ohne Schlüssel abgelehnt. GET /api/auth/me liefert Name und Rolle.
   - **Prüfung:** Mit dem Admin-Schlüssel und mit dem Schlüssel eines Benutzers GET /api/auth/me aufrufen. → Mit einem falschen Schlüssel dasselbe versuchen.
   - **Erwartet:** Admin- und Benutzerschlüssel liefern die jeweilige Rolle, ein falscher Schlüssel 401.
-- [x] **USR-02** Benutzerverwaltung (Admin) — 🔌 api ✅ 2026-10-11
+- [x] **USR-02** Benutzerverwaltung (Admin) — 🔌 api ✅ 2026-10-12
   - GET/POST /api/users, POST /api/users/{id}/key (Schlüssel erneuern), DELETE /api/users/{id} – nur mit Admin-Schlüssel (sonst 403). Der Schlüssel wird nur in der Antwort auf Anlegen/Erneuern angezeigt. Namen sind eindeutig (ohne Groß-/Kleinschreibung), 1–40 Zeichen. Ohne gesetzten WORKER_API_KEY verweigert der Worker das Anlegen (409), denn im offenen Modus ist jeder Admin und der erste Benutzer würde alle aussperren. Beim Löschen bleiben die Konten und ihre Bots erhalten und werden „ohne Besitzer“ (gehören dem Admin).
   - **Prüfung:** Als Admin einen Benutzer anlegen, den Schlüssel notieren, damit verbinden. → Schlüssel erneuern und mit dem alten Schlüssel verbinden.
   - **Erwartet:** Der neue Schlüssel funktioniert sofort, der alte wird nach dem Erneuern mit 401 abgelehnt; Benutzer sehen die Verwaltung nicht.
-- [x] **USR-03** Konto-Besitzer — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09
+- [x] **USR-03** Konto-Besitzer — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09
   - Konten tragen ein Feld owner (Benutzer-ID). Benutzer sehen und legen nur eigene Konten an (Besitzer wird vom Worker gesetzt, der Body wird ignoriert); der Admin sieht alle Konten und kann den Besitzer beim Anlegen/Bearbeiten setzen (Altbestand ohne Besitzer gehört dem Admin). Bearbeiten erhält den Besitzer. Die Konto-ID darf nur aus Ziffern bestehen (Dateinamen); id und login dürfen nicht mit einem anderen Konto kollidieren; ein Duplikat verrät keine Daten fremder Konten (409 ohne existing_account). Benutzer müssen einen mt5_path angeben, der ein von scan-mt5 gefundenes Terminal ist und nicht zu einem Konto eines anderen Besitzers gehört. Bearbeiten und Löschen eines Kontos lehnt der Worker bei laufendem Bot mit 409 ab.
   - **Prüfung:** Als Benutzer ein Konto anlegen und als Admin die Kontoliste öffnen. → Als Benutzer ein Konto mit der Login-Nummer eines fremden Kontos anlegen.
   - **Erwartet:** Das Konto erscheint beim Benutzer und beim Admin (mit Besitzer), aber nicht bei anderen Benutzern; das Duplikat wird ohne Details zum fremden Konto abgelehnt.
-- [x] **USR-04** Isolation aller kontobezogenen Endpunkte — 🔌 api ✅ 2026-10-11
+- [x] **USR-04** Isolation aller kontobezogenen Endpunkte — 🔌 api ✅ 2026-10-12
   - Einstellungen, UI-Zustand, Symbole, Logs (lesen, löschen, herunterladen), Start/Stop, Aktionen sowie Konto bearbeiten/löschen prüfen den Besitzer und antworten für fremde oder unbekannte Konten mit 404. Das schließt auch Glob- und Pfad-Tricks (/settings/*, /logs/download/..) aus. Der Admin behält Zugriff auf alle Konten.
   - **Prüfung:** Mit dem Schlüssel eines Benutzers per curl ein Konto eines anderen Benutzers abrufen (Einstellungen, Logs, Start).
   - **Erwartet:** Immer 404; das eigene Konto und der Admin kommen durch.
-- [x] **USR-05** WebSocket-Isolation — 🔌 api ✅ 2026-10-11
+- [x] **USR-05** WebSocket-Isolation — 🔌 api ✅ 2026-10-12
   - /ws/stream?api_key=…&account_id=… – Benutzer verbinden nur mit eigenen Konten (sonst Schließen mit 1008); ohne account_id kein „erstes Konto“-Fallback. Der Admin verbindet wie bisher. Bei offener Verbindung prüft der Worker die Berechtigung alle 5 s neu und schließt sie (1008), wenn Schlüssel erneuert/Benutzer gelöscht wurde oder das Konto den Besitzer wechselt bzw. gelöscht wird.
   - **Prüfung:** Mit dem Schlüssel eines Benutzers eine WebSocket-Verbindung für ein fremdes Konto öffnen.
   - **Erwartet:** Die Verbindung wird abgelehnt; für das eigene Konto kommen Live-Daten. Erneuert der Admin den Schlüssel, endet die offene Verbindung nach wenigen Sekunden.
-- [x] **USR-06** Systemrouten nur für Admin — 🔌 api ✅ 2026-10-11
+- [x] **USR-06** Systemrouten nur für Admin — 🔌 api ✅ 2026-10-12
   - GET /system/update/check und POST /system/update (git pull + Neustart) verlangen den Admin-Schlüssel (403 für Benutzer). Verbindungstest (/system/platform) und MT5-Suche (/system/scan-mt5) bleiben für alle offen.
   - **Prüfung:** Mit dem Schlüssel eines Benutzers POST /api/system/update aufrufen.
   - **Erwartet:** 403; es wird kein git pull und kein Neustart ausgelöst.
@@ -160,7 +160,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 4. SET – Allgemeine Einstellungen
 
-- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
   - **Prüfung:** Konto wählen.
   - **Erwartet:** Zonen und Kontroll-Intervall entsprechen der Datei auf dem VPS.
@@ -175,12 +175,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“ oder Cmd/Strg+Enter.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
-- [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 👤 manuell ✅ 2026-09-23
   - Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
   - **Prüfung:** Lot 0.0100000001 eingeben und speichern.
   - **Erwartet:** Gespeichert wird 0.01.
   - 📝 Claude: POST LOOP_INTERVAL_SECONDS 1.00000001 → gespeichert als 1.0
-- [x] **SET-05** Einstellungen zusammenführen (Merge) — 🔌 api ✅ 2026-10-11 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-05** Einstellungen zusammenführen (Merge) — 🔌 api ✅ 2026-10-12 · 👤 manuell ✅ 2026-09-23
   - POST /settings/{id} führt die neuen Werte mit der bestehenden Datei zusammen, statt sie zu überschreiben.
   - **Prüfung:** Nur das Intervall speichern.
   - **Erwartet:** Zonen bleiben unverändert.
@@ -207,7 +207,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools). → Ein unbekanntes Symbol eintippen (nicht speichern).
   - **Erwartet:** Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; liegt der Lot unter dem Minimum des Symbols, wird er darauf angehoben (nie 0); unbekanntes Symbol zeigt „Geçersiz Sembol!“.
   - 📝 Claude: USOUSD → Preisfelder step/min 0.001, Lot min/step 0.01; unbekanntes Symbol → 'Geçersiz Sembol!'; nach Neuladen wieder USOUSD, API unverändert
-- [x] **SYM-04** Symbolfehler sichtbar — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09
+- [x] **SYM-04** Symbolfehler sichtbar — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09
   - Kann der Worker die Symbole nicht aus MT5 holen (z. B. Terminal nicht eingeloggt), liefert GET /symbols/{id} neben der leeren Liste ein Feld error mit der MT5-Meldung und schreibt sie ins Robot-Log des Kontos; das Symbolfeld zeigt darunter einen Hinweis statt still leer zu bleiben.
   - **Prüfung:** Konto wählen, dessen MT5-Terminal nicht erreichbar oder nicht eingeloggt ist, und eine Zone öffnen.
   - **Erwartet:** Unter dem Symbolfeld steht „Symbole konnten nicht aus MT5 geladen werden“ mit der MT5-Meldung; dieselbe Meldung steht im Robot-Log.
@@ -249,7 +249,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Schalter an → Auswahlfelder prüfen; Auslöser „Mum Kapanışı“ wählen.
   - **Erwartet:** Die vier Auswahlfelder erscheinen erst mit dem Schalter; Zeitrahmen nur bei Kerzenschluss.
   - 📝 Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da; BUY (Yukarı)/Hepsi/Tüm İşlemler; 'Mum Kapanışı' blendet Zaman Dilimi (M1–D1) ein, H1 gespeichert
-- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-11 · 🌐 live ✅ 2026-09-24
+- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-11 · 🌐 live ✅ 2026-09-24
   - Button im Zonenkopf (Başladı / Başla / Hazır / Kapalı) setzt is_active (POST /settings) und START/PAUSE in ui_state (POST /ui-state); Warnung bei ungültigem Symbol oder ungespeicherter Zone.
   - **Prüfung:** Test-Zone starten und wieder pausieren. → Neue, ungespeicherte Zone starten.
   - **Erwartet:** Label wechselt passend; ungespeicherte Zone zeigt eine Warnung.
@@ -291,7 +291,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
-- [x] **ZON-19** Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-07
+- [x] **ZON-19** Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-07
   - Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27). Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der Engine-Reihenfolge (index, nur lesend, beim Speichern verworfen). zone_states und ui-state-Befehle zählen nach diesem Platz; die Oberfläche zeigt die Setups nach Symbol gruppiert (ZON-20) und speichert nur SYMBOLS. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (ein alter Browser-Tab schickt ZONES mit veralteten SYMBOLS; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
   - **Prüfung:** DEMO-Konto mit zwei Zonen auf XAUUSD und einer auf EURUSD, alle mit offenen Orders; Bot läuft. → Worker auf den neuen Stand bringen, im Dashboard eine Einstellung ändern und speichern. → configs/settings_<id>_Auto_Grid.json und configs/backup/ ansehen; MT5-Orders und Bot-Log prüfen.
   - **Erwartet:** Die Datei enthält SYMBOLS mit XAUUSD (2 Setups) und EURUSD (1 Setup), alle Magic-Nummern wie vorher; die Kopie der alten Datei liegt in configs/backup/. Der Bot behält alle Orders und Positionen (gleiche Tickets), das Dashboard zeigt alle drei Zonen wie vorher.
@@ -446,15 +446,15 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - fractal_order_count (BUY) und sell_fractal_order_count (SELL, nur bei BOTH ohne sync_buy_sell, sonst = BUY-Wert) legen fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (1–20, Standard 1). Betrachtet werden nur die letzten N Fraktale der Seite - ist eines erreicht, ausgelöst, von Hand gelöscht oder außerhalb des Preisbereichs, bleibt sein Platz leer, ältere rücken nicht nach. Nur Pending Orders zählen - „Max. Positionen“ wird wie bisher erst in der nächsten Runde geprüft, lösen mehrere Orders zwischen zwei Runden aus, kann es kurz überschritten werden. Ein neues Fraktal schiebt das Fenster weiter, die Order des ältesten wird gelöscht. „Erledigt“ wird je Fraktal gemerkt, damit eine ausgelöste Order die übrigen nicht löscht; alte Zustandsdateien mit nur einer Kerzenzeit je Seite werden weiter gelesen.
   - **Prüfung:** Nicht manuell testen (siehe ZON-16).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-27** Feste Magic-Nummer je Zone (Löschen verschiebt nichts) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11
+- [x] **ENG-27** Feste Magic-Nummer je Zone (Löschen verschiebt nichts) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12
   - Jede Zone bekommt beim Speichern eine feste Magic-Nummer (200001–200999), die nur der Worker vergibt und nie neu vergibt (ZONE_MAGIC_MAX). Bestehende Zonen behalten ihre bisherige Nummer (200000 + Listenplatz + 1), offene Orders und Positionen bleiben also zugeordnet. Die Engine findet die Zone einer Order/Position über die Magic, nicht mehr über den Listenplatz - wird eine Zone gelöscht, behalten die Zonen dahinter ihre Orders, Positionen, TP/SL und ihren Status; Orders der gelöschten Zone werden als Zombies gelöscht, ihre Positionen bekommen nicht mehr den TP/SL einer anderen Zone. Der laufende Bot erkennt das Löschen beim Neuladen der Einstellungen und trägt seinen nach Listenplatz geführten Zustand (aktive Zone je Symbol, PAUSE/AUTO_CLEAR auch in der ui_state-Datei, Fraktal-Tracking, Ablehnungs- und Verschwunden-Zähler) über die Magic auf den neuen Platz um; war die gelöschte Zone die aktive, gilt nicht plötzlich ihr Nachbar als aktiv (sonst liefe dort der Zonen-Ausstieg). Ist die Einstellungsdatei beim Neuladen kurz unlesbar (wird gerade geschrieben, Windows-Sperre), läuft der Bot mit den zuletzt gelesenen Zonen weiter, statt „keine Zonen“ anzunehmen und alle Robot-Orders als Zombies zu löschen; die API schreibt die Datei atomar. Order-Kommentare (AutoGrid_Z{n}, Fraktal AutoGrid_Z{n}_F…) nehmen n aus der Magic. Anlass - vorher rutschten beim Löschen von Zone 1 alle Magic-Nummern dahinter um eins.
   - **Prüfung:** Demo-Konto mit zwei Zonen auf demselben Symbol, beide mit offenen Orders (und möglichst einer Position). → Zone 1 löschen und speichern. → Zone 2 behält ihre Orders und Positionen (gleiche Tickets, Magic 200002), ihre TP/SL ändern sich nicht; nur die Orders von Zone 1 verschwinden.
   - **Erwartet:** Löschen einer Zone lässt die übrigen Zonen unverändert weiterlaufen.
-- [ ] **ENG-29** Orders entfernter Fraktal-Setups (Rückfrage vor dem Löschen) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [ ] **ENG-29** Orders entfernter Fraktal-Setups (Rückfrage vor dem Löschen) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
   - Zusätzliche Fraktal-Setups je Zone (früher ZON-18/ENG-28) gibt es nicht mehr; eine Fraktal-Zone hat wieder genau eine Fraktal-Einstellung und der Order-Kommentar ist AutoGrid_Z{n}_F{U|D}{Kerzenzeit}. Pending Orders früherer Setups (gleiche Magic, Kommentar AutoGrid_Z{n}_F{k}{U|D}{zeit} mit k ≥ 2, src/core/legacy_setup_orders.py) behandelt der Bot nicht als Orders der Zone und löscht sie nicht von selbst. Er meldet sie in den Live-Daten (legacy_setup_orders); das Dashboard fragt einmal je Konto in einem Fenster (Konto, Anzahl, Symbole): „Orders löschen“ oder „Orders behalten“. Die Wahl steht als LEGACY_SETUP_ORDERS (delete/keep, sonst 422) in den Einstellungen: bei delete storniert der Bot diese Orders in jeder Runde und loggt jede, bei keep fasst er sie nicht an und das Fenster kommt nicht wieder; Abbrechen speichert nichts und fragt nach dem Neuladen wieder. Offene Positionen früherer Setups bleiben und zählen zur Positionsgrenze der Zone. Zone deaktivieren, löschen, Zonen-Ausstieg mit Löschen und Bot-Stopp löschen wie bisher alle Robot-Orders. Beim Speichern entfernt der Worker fractal_setups, fractal_setup_seq und fractal_kept_sids aus den Zonen. Das Trade-Archiv zählt Trades früherer Setups zur Zone, aber nicht als Fraktal-Trades des Charts.
   - **Prüfung:** Worker auf dem VPS auf diesen Stand bringen; DEMO-Konto mit einer Fraktal-Zone, die noch Pending Orders eines früheren Setups hat (MT5-Kommentar …_F2U… oder …_F3D…). → Dashboard öffnen, Konto wählen; im Fenster „Orders behalten“ wählen, Seite neu laden. → In der Einstellungsdatei LEGACY_SETUP_ORDERS auf delete setzen (oder auf einem zweiten Konto im Fenster „Orders löschen“ wählen) und das Bot-Log ansehen.
   - **Erwartet:** Das Fenster nennt Konto, Anzahl und Symbol und erscheint nach „Orders behalten“ nicht wieder; die Orders bleiben unverändert in MT5. Nach „Orders löschen“ verschwinden nur die Orders mit Setup-Nummer, je Order steht „Eski fraktal kurgusu emri siliniyor“ im Log; die eigenen Fraktal-Orders der Zone und alle Positionen bleiben.
-- [x] **ENG-30** Fraktal – nächste Order erst ab Verlust der letzten Position — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-10 · 🖥️ e2e ✅ 2026-10-10
+- [x] **ENG-30** Fraktal – nächste Order erst ab Verlust der letzten Position — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-10
   - Je Zone und Richtung gilt die letzte offene Position: money prüft Profit ≤ −X, pips mit Version 1 prüft Preisabstand ≥ Anzahl × symbolabhängige Pip-/Tick-Größe. BUY verwendet Einstieg − Bid, SELL Ask − Einstieg; kleine Einheitstoleranz verhindert Rundungsfehler am Grenzwert. Version 0/fehlend behält den alten direkten Preisabstand. Bei aktiver neuer Abstandssperre und fehlenden/ungültigen Symbolinformationen entstehen keine neuen Orders; ein Warnlog nennt die Ursache. 0 oder keine Position bei gültigen Symbolinformationen: keine Grenze. Worker und Backtest rechnen gleich.
   - **Prüfung:** Manuell über ZON-21.
   - **Erwartet:** Unit- und API-Tests sowie Worker-/Backtest-Parität und Formular-Speicherung prüfen die Grenze.
@@ -483,16 +483,16 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 10. LOG – Logs
 
-- [x] **LOG-01** Log-Tabs laden — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-01** Log-Tabs laden — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Tabs Activity, Robot Logs, MT5 Terminal; GET /logs/{id}?log_type=all&lines=200; ohne laufenden Bot wird mt5_connected=false erzwungen.
   - **Prüfung:** Alle drei Tabs öffnen, „Refresh“.
   - **Erwartet:** Jeder Tab zeigt seine Logs.
   - 📝 Claude: Activity, Robot Logs (200 Zeilen), MT5 Terminal laden und wechseln korrekt; Inhalt: siehe LOG-05 (Fragmente) und LOG-06 (MT5-Tab leer)
-- [x] **LOG-02** Logs löschen — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09
+- [x] **LOG-02** Logs löschen — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09
   - Activity wird nur lokal geleert; Robot/MT5 nach Rückfrage per DELETE /logs/{id}.
   - **Prüfung:** Im Tab Robot Logs „Clear“ → bestätigen.
   - **Erwartet:** Log ist leer, auch nach Refresh.
-- [x] **LOG-03** Logs als ZIP herunterladen — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-03** Logs als ZIP herunterladen — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-09-23
   - GET /logs/download/{id} liefert ein ZIP mit Logs, State- und Settings-Datei.
   - **Prüfung:** „Download log file“ klicken, ZIP öffnen.
   - **Erwartet:** ZIP enthält Logs, state_<id>.json und settings-Datei.
@@ -507,20 +507,20 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
   - **Erwartet:** Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
   - 📝 v0.7.59 live: seit Bot-Neustart 22:48:40 keine Fragmente, keine doppelten Zeilen (vorher 4 Fragmente in 200 Zeilen)
-- [x] **LOG-06** MT5-Terminal-Log anzeigen — 🔌 api ✅ 2026-10-11 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-06** MT5-Terminal-Log anzeigen — 🔌 api ✅ 2026-10-12 · 👤 manuell ✅ 2026-09-23
   - Der Tab „MT5 Terminal“ zeigt das Tages-Log des MT5-Terminals, das beim Verbinden nach logs/<id>/mt5_terminal/ kopiert wird.
   - **Prüfung:** Tab „MT5 Terminal“ öffnen.
   - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
   - 📝 v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log, UTF-16 korrekt dekodiert
-- [ ] **LOG-07** Symbol-Logs — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [ ] **LOG-07** Symbol-Logs — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
   - Jede Robot-Log-Zeile, die zu einer Zone (Setup) gehört, trägt das Tag [Z:<zone_id>]. GET /logs/{id}?zone_id=… filtert darauf; zone_id ist wiederholbar (?zone_id=a&zone_id=b) und liefert die Zeilen aller genannten Setups in Dateireihenfolge, `lines` gilt für die gemeinsame Liste. Eine einzelne zone_id (ältere Oberfläche) wirkt wie bisher. Jede Symbolkarte zeigt unter ihren Setups „Sembol logları“ aufklappbar mit den Zeilen aller Setups des Symbols; bei mehr als einem Setup beginnt jede Zeile mit „Setup n“ (Platz in der Symbolkarte). Im Robot-Log-Tab steht vor jeder Zeile mit Tag das Badge „<Symbol> · Setup n“.
   - **Prüfung:** Bot mit einem Symbol mit zwei Setups und einem zweiten Symbol laufen lassen, in der Symbolkarte „Sembol logları“ aufklappen.
   - **Erwartet:** Zeilen beider Setups des Symbols erscheinen (ohne Tag, mit „Setup 1“/„Setup 2“), keine Zeilen des anderen Symbols; im Robot-Log-Tab steht „<Symbol> · Setup n“ vor der Zeile.
 
 ## 11. UPD – System & Updates
 
-- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-09-23
-  - „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
+- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-09-23
+  - „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main. Der blockierende Git-Aufruf läuft in einem Thread, damit Plattformabfragen währenddessen antworten können.
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
   - 📝 Claude: 'Check for Updates' → 'You are up to date'; API: local v0.7.58 = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000), nicht des Workers
@@ -533,7 +533,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Power-Button → Bestätigung → /stop, danach window.close().
   - **Prüfung:** Power-Button → bestätigen.
   - **Erwartet:** Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
-- [x] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 👤 manuell ✅ 2026-09-24
+- [x] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 👤 manuell ✅ 2026-09-24
   - Nach einem erfolgreichen POST /system/update beendet sich der Worker nach 1,5 s (schedule_restart); run_uvicorn_watchdog.bat (setzt WORKER_SUPERVISED=1) startet ihn mit dem neuen Code neu. Ohne Watchdog kein Neustart. Das Dashboard wartet 8 s und lädt dann neu; veraltete Bots startet der neue Worker selbst neu (BOT-03).
   - **Prüfung:** Update im Dashboard anwenden (System Info → Check for Updates → Apply Update). → Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
   - **Erwartet:** Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
@@ -581,7 +581,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ein PowerShell-Einzeiler (irm .../bootstrap.ps1 | iex, Administrator-PowerShell) installiert fehlendes Git/Python 3.11/VC++-Redistributable, klont das Repo (nur wenn es fehlt, kein git pull), legt die venv an, installiert requirements.txt, erzeugt bei Bedarf WORKER_API_KEY und richtet ngrok (Authtoken + feste Domain als Benutzer-Variable NGROK_DOMAIN; run_ngrok_watchdog.bat hat keine Vorgabe-Domain, ohne Variable startet ngrok nicht und schreibt „NGROK_DOMAIN fehlt“ in logs/ngrok.log) ein – Repo-Klon/venv/pip/ngrok laufen dafür in einer eigenen geplanten Aufgabe mit RunLevel Limited (bootstrap-user.ps1), nie erhöht. Danach ruft es setup_vps.ps1 auf (jetzt ohne Pflicht-Parameter -PublicKey; ohne ihn entfallen nur OpenSSH/Mac-Schlüssel), startet den Worker über die Aufgabe AutoGrid-Start und gibt zum Schluss über connect-link.ps1 einen Verbindungs-Link (#connect=…, dasselbe Format wie frontend_nextjs/src/lib/connectionCode.ts) aus, den man im Frontend öffnet oder einfügt (SYS-07/SYS-08).
   - **Prüfung:** Auf einem frischen Windows-VPS (oder einem, auf dem Git/Python/Repo noch fehlen), in einer Administrator-PowerShell den Einzeiler ausführen. → ngrok-Authtoken und eine feste Domain eingeben, danach das Windows-Passwort (Auto-Login) oder -SkipAutoLogon verwenden.
   - **Erwartet:** Git/Python/VC++-Redistributable werden installiert (oder als vorhanden erkannt), das Repo liegt unter C:\dev\auto-grid-nextJs, der Worker antwortet auf Port 8000, ngrok zeigt eine öffentliche URL, und am Ende erscheint ein Verbindungs-Link, der im Frontend („VPS verbinden“) sofort einen erfolgreichen Test ergibt. Ein zweiter Lauf des Einzeilers ändert nichts Bestehendes (idempotent).
-- [ ] **VPS-09** Worker online steuern (ohne SSH) — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [ ] **VPS-09** Worker online steuern (ohne SSH) — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
   - Wo die SSH-Route zu ist (öffentliche Vercel-Version), zeigt /vps unter dem Hinweis ein Panel „Worker (online)“, das direkt die Worker-API mit dem Admin-Schlüssel nutzt (alles admin-only) – GET /system/worker/status (Version, Laufzeit, unter Neustart-Schleife?, laufende Bots), GET /system/worker/log (letzte Zeilen von logs/worker_console.log, Farbcodes entfernt) und POST /system/restart (Worker beendet sich, run_uvicorn_watchdog.bat startet ihn in ~3 s neu; ohne Watchdog 409 und deaktivierter Knopf). Update-Prüfung/Update bleiben im Systemmenü des Dashboards. ngrok-/VPS-Neustart geht bewusst nur per SSH, denn ist der Tunnel weg, ist auch die API nicht erreichbar.
   - **Prüfung:** Auf der Vercel-Version mit Admin-Schlüssel verbinden, Seite „VPS“ öffnen. → „Worker neu starten“ → bestätigen.
   - **Erwartet:** Version, Laufzeit und Log erscheinen; nach ~20 s ist der Worker wieder erreichbar und die Laufzeit beginnt von vorn.
@@ -647,7 +647,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Das Zahnrad schaltet Zonenband, Grid-Stufen, Positionen/Orders, Marktpausen, RSI und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das.
   - **Prüfung:** Zahnrad öffnen, „Karte mit Zonen-Einstellungen“ ausschalten, Seite neu laden.
   - **Erwartet:** Die Karte bleibt nach dem Neuladen ausgeblendet; das Panel nennt die nicht abschaltbaren Hinweise.
-- [x] **ANA-04** Kursdatenbank mit Abdeckung — 🔌 api ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-02
+- [x] **ANA-04** Kursdatenbank mit Abdeckung — 🔌 api ✅ 2026-10-12 · 👤 manuell ✅ 2026-10-02
   - SQLite auf dem VPS (worker_python/data/market.sqlite, gitignored). GET /market/{id}/rates?symbol&timeframe=M1…D1&from&to (MT5-Zeit, halb offen, nur eigene Konten) holt nur die Teile, die noch nicht in der Datenbank sind, aus MT5 und liefert spaltenweise (t,o,h,l,c,v,s; höchstens 50.000 Kerzen, Rest über next_from). Jeder Bereich hat einen Zustand: vollständig (zwischen erster und letzter gelieferter Kerze), bestätigte Pause (keine Kerzen, aber davor und danach welche, höchstens 4 Tage: Wochenende, Feiertag) oder nicht verfügbar (vor der ersten Kerze, die MT5 hat; nach 24 h neu versucht). Die neueste MT5-Kerze wird nie gespeichert, nur mitgeliefert (live_from). Fehler werden nicht gespeichert; was fehlt, steht mit Grund in missing (unavailable, error, busy). Schutz des Live-Bots: Abruf in Stücken (höchstens 31 Tage M1), immer nur einer gleichzeitig, 0,5 s Pause, ohne Login und ohne Terminal-Neustart; ist das Konto in /start oder /stop, kommt nur der Datenbank-Bestand. GET /market/{id}/coverage zeigt den Bestand und die Größe. Bei jedem Abruf wird ein verlässlicher Broker-Abstand protokolliert. Ab MARKET_DB_MAX_MB (Standard 5000) werden keine Kerzen mehr gespeichert. Täglich und vor jeder Migration ein Backup (data/backups, 7 Stück); eine fehlgeschlagene Migration lässt die alte Version und die Daten-Endpunkte antworten 503, der Handel läuft weiter.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten. → Im Browser (angemeldet als Admin) /api/market/<Konto>/rates?symbol=<Symbol>&timeframe=M1&from=<Montag 00:00 als Unix-Sekunden>&to=<Montag 01:00> zweimal aufrufen (Header X-API-Key, z. B. mit curl). → Danach /api/market/<Konto>/coverage?symbol=<Symbol> aufrufen. → Im MT5-Journal und im Bot-Log nachsehen, ob während der Abrufe etwas passiert ist.
   - **Erwartet:** Beide Aufrufe liefern dieselben 60 Kerzen, die Zeiten passen zum MT5-Chart (Brokerzeit). Coverage zeigt den Bereich als „complete“. Im Journal keine neue Zeile „authorized on …“, im Bot-Log kein Verbindungsabbruch.
@@ -662,7 +662,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Bot auf dem DEMO-Konto laufen lassen, bis die Zone Orders und mindestens eine Position hat. → Analyse → Chart-Tab mit dieser Zone öffnen und mit der Liste „Handel“ im MT5-Terminal vergleichen. → Bot stoppen und 10 Sekunden warten.
   - **Erwartet:** Jede Position und Order dieser Zone erscheint auf ihrem Preis, Orders anderer Zonen nicht; die Anzahl unter dem Chart stimmt mit MT5 überein. Nach dem Stopp verschwinden die Linien und der Hinweis „Bot läuft nicht“ erscheint.
   - 📝 02.10.26 DEMO-Konto A nach Deploy #94: Telemetrie liefert positions/orders; Chart zeigt USOUSD 64 Pos/3 Orders, EURUSD 3 Pos/20 Orders = Worker-Listen je Magic; Fraktal-Zone 0/0; ab 20 Linien ohne Achsenbeschriftung
-- [x] **ANA-07** Deal-Archiv und Zonen-Register — 🔌 api ✅ 2026-10-11
+- [x] **ANA-07** Deal-Archiv und Zonen-Register — 🔌 api ✅ 2026-10-12
   - GET /history/{id}/deals?from&to (MT5-Zeit, nur eigene Konten) archiviert alle Deals des Kontos in der Datenbank, auch manuelle Trades sowie Ein- und Auszahlungen; gefiltert wird erst bei der Auswertung. Abgeglichene Zeiträume werden einzeln gemerkt (ein Abgleich von „diese Woche“ sagt nichts über „letztes Jahr“); der jüngste Rand (24 h plus Puffer für den Broker-Abstand) wird jedes Mal neu abgeglichen. Liegt der Einstieg einer Position vor dem Zeitraum, wird er nachgeladen und mitgeliefert. Die Antwort enthält Kontowährung, Kontostand, Kontomodell und das Zonen-Register. Das Register (POST /settings) merkt sich je Magic-Nummer Zone, Symbol und Name, auch für gelöschte Zonen (deleted_at), und jede geänderte Fassung der Zonen-Einstellungen mit Zeitstempel. Konto löschen löscht dessen Deal-Archiv.
   - **Prüfung:** /api/history/<Konto>/deals?from=<vor 30 Tagen> aufrufen (X-API-Key).
   - **Erwartet:** Alle Deals der letzten 30 Tage wie in MT5 unter Historie → Deals, auch Ein- und Auszahlungen; „zones“ nennt die Zonen mit ihrer Magic-Nummer.
@@ -675,7 +675,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Analyse → Statistik, DEMO-Konto, ein Setup mit Trades, Zeitraum „Letzte 30 Tage“. → Umfang „Ganzes Konto“, dann das Setup wählen; Aufteilung je Symbol/Setup/Wochentag/Stunde durchschalten. → Netto und Anzahl Trades mit MT5 (Werkzeuge → Historie, gleicher Zeitraum) vergleichen.
   - **Erwartet:** Netto und Anzahl stimmen mit MT5 überein; je Setup stehen die Trades mit der Magic des Setups; Kontostand-Kurve endet beim heutigen Kontostand oder ist mit Grund ausgeblendet.
   - 📝 Live DEMO 2026-10-06, 30 Tage, nur lesend: Zone 1 116 Trades +149,34 USD und ganzes Konto 1915 Trades +431,43 USD gleich wie rohe /deals; je Setup erkennt Z4 Setup 2 (gelöscht)
-- [x] **ANA-10** Kalender in Brokerzeit — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-09
+- [x] **ANA-10** Kalender in Brokerzeit — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-09
   - Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1).
   - **Prüfung:** Auf der Analyse-Seite den Zeitraum öffnen, „Letztes Jahr“ wählen. → Eigenen Zeitraum 01.09.26 bis 15.09.26 eingeben, übernehmen, Seite neu laden. → „31.02.26“ eingeben.
   - **Erwartet:** Neben dem Titel steht „Broker UTC+3“ (je nach Broker). „Letztes Jahr“ zeigt 01.01.–31.12. des Vorjahres; der eigene Zeitraum bleibt nach dem Neuladen; ein ungültiges Datum wird rot gemeldet und „Übernehmen“ ist gesperrt.
@@ -694,7 +694,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Teil D von „Zone wird Symbol mit Setups“ (ZON-19). Der Statistik-Tab hat als Umfang zusätzlich jedes Symbol („USOUSD · alle Setups (2)“): alle Trades registrierter Setups (auch gelöschter) mit dem gehandelten Symbol des Deals (ohne Groß-/Kleinschreibung); „Setup unbekannt“, manuelle und fremde Trades zählen zu keinem Symbol. Ein Symbol öffnet die Aufteilung „je Setup“: jede Zeile ein Setup (Magic) mit Positionen, Trades, Trefferquote, Netto, Profitfaktor, Ø Trade und max. Drawdown, so lassen sich die Setups eines Symbols vergleichen. Das Konto öffnet „je Symbol“ (Symbole nach Namen, danach unbekannt, manuell, andere). Setups heißen auf der ganzen Analyse-Seite wie auf den Symbolkarten „Symbol · Setup n“ (n = Platz im Symbol, src/lib/symbolSetups.ts setupNumbers); ein Setup, das nicht mehr in den Einstellungen steht, mit Symbol und Namen aus dem Register. Die Analyse-Seite sagt „Setup“ statt „Zone“.
   - **Prüfung:** DEMO-Konto mit einem Symbol, das zwei Setups mit Trades hat; Analyse → Statistik, Zeitraum „Letzte 30 Tage“. → Umfang „<Symbol> · alle Setups“ wählen; Aufteilung „je Setup“ ansehen. → Netto je Setup mit MT5 vergleichen (Werkzeuge → Historie, gleicher Zeitraum, nach Magic-Nummer des Setups).
   - **Erwartet:** Netto des Symbols ist die Summe der Setup-Zeilen; jede Setup-Zeile stimmt mit den Trades ihrer Magic-Nummer in MT5 überein; die Namen „Symbol · Setup n“ stimmen mit den Symbolkarten im Dashboard überein.
-- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
+- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
   - **Erwartet:** Ticket und Uhrzeit des letzten Deals stimmen sekundengenau mit MT5 überein, Tick- und Kerzenzeit passen zur Serverzeit in MT5, der Broker-Abstand ist eine glatte Zahl (z. B. UTC+3) und „verlässlich“. Das Kontomodell ist „hedging“. Im MT5-Journal erscheint keine neue Zeile „authorized on …“, der Bot-Log zeigt keinen Verbindungsabbruch.
@@ -718,11 +718,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Fraktal-Einstieg des Bots (ENG-21, ENG-26, ENG-30) als TypeScript in frontend_nextjs/src/lib/backtest/engine/: fractalEntry.ts (manage_fractal_orders: neueste N Fraktale je Seite, verbrauchte Fraktale, Erledigt-Liste, Positionsgrenze, nächste Order ab Verlust, SAR-Nachzug) und fractalSignals.ts (ATR, Parabolic SAR); die 5-Kerzen-Regel ist fractalsOf in src/lib/analysis/fractals.ts, die auch der Chart nutzt. Gemessen an den Musterlösungen aus BKT-01. Ohne fractal_state-Datei (der Lauf startet frisch) und ohne Orders entfernter Zusatz-Setups.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-fractal-parity-lib.spec.ts (ohne Browserseite) mit den 14 Fraktal-Szenarien ausführen.
   - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B3-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (Sperre bis 0,3 Verlust, Order bleibt bei Bid-Berührung, Stops Level, Fraktal über max_price ohne Order …).
-- [x] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-10
+- [x] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-10
   - Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level); fehlt einer, blockiert der Lauf (kein Ersatzwert). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ steht immer im Laufprotokoll. Rechenkern ohne Worker-API: runner.ts (Pfad, Auslösungen in Preis-Reihenfolge, Bot-Durchlauf nach jeder), Auftrag runJob.ts, Broker pathBroker.ts (auf simBroker.ts), Kosten broker/costs.ts, Kerzen candles/ (loadRates, bars, pathModel).
   - **Prüfung:** pytest für die Kostenfelder der Symbolliste ausführen. → Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen. → Playwright-Logiktests e2e/mocked/backtest-data-lib.spec.ts (Kerzen laden, höhere Zeitrahmen, Pfad, Gewinn, Kommission, Swap, Schnappschuss) und e2e/mocked/backtest-runner-lib.spec.ts (Kauf, Verkauf im Broker, Kurslücke, Swap mit Dreifach-Tag, offener Verlust am Testende, Zonengrenze im Wegstück, Auftrag im Worker) ausführen. → e2e/mocked/backtest-performance-worker.spec.ts mit einer aktiven BUY/SELL-Zone ausführen; Ladezeit, Simulationszeit, Trades, CPU-Profil und CDP-Speicherstichproben getrennt erfassen. Standard 10.000 Kerzen; BKT_PROFILE_CANDLES=1000000 misst die Obergrenze. Abbruch erfolgt während der Simulation.
   - **Erwartet:** Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen (mehr als 100.000 Ereignisse in einer Kerze brechen den Lauf ab).
-- [x] **BKT-05** CSV-Import von Kursdaten (B9) — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-10 · 👤 manuell ✅ 2026-10-10
+- [x] **BKT-05** CSV-Import von Kursdaten (B9) — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-10 · 👤 manuell ✅ 2026-10-10
   - Kerzen aus einer CSV-Datei als eigene Datenquelle laden, wenn MT5 nicht genug Historie liefert: GET/POST /market/{id}/imports, PUT …/chunk (Teile in Reihenfolge, je höchstens 4 MB, Datei höchstens 150 MB), POST …/commit, DELETE. Der Worker prüft am Commit alles (Format, Zeitraster des Zeitrahmens, strikt steigende Zeit, OHLC, Zeitbereich) und schreibt erst dann nach market.sqlite (source = csv:<import_id>, MT5-Kerzen bleiben unberührt); eine fehlerhafte Datei wird sofort verworfen. Überlappung mit einem vorhandenen Import desselben Kontos, Symbols und Zeitrahmens nur mit „ersetzen“. Fester Modus addiert einen UTC-Versatz von ±14 Stunden zur CSV-Zeit. Zeilenmodus erwartet UTC-Zeit und die Ganzzahlspalte broker_offset_sec (±14 Stunden) pro Zeile; der globale Versatz bleibt null. Eine doppelte Brokerzeit beim Herbstwechsel wird wegen der strikten Reihenfolge abgelehnt. Der Modus wird gespeichert und in der Liste angezeigt. Lesen über GET /market/{id}/rates?source=csv:<id> (nie MT5; Lücken als csv_gap). Unfertige Importe sind nicht wählbar und nach 24 Stunden geräumt. Die Erstellung bleibt abbrechbar; eine verspätete ID wird vor jedem Teilupload gelöscht. Parsing läuft außerhalb des SQLite-Schreiblocks; Kerzen werden in kurzen Batches vorbereitet und erst atomar sichtbar. Dialog und Liste (CsvImportPanel) stehen auf /backtest. Im Lauf ist ein Import als Datenquelle wählbar (B5b, BKT-06); Lücken stehen im Laufprotokoll als „Keine Kerze im CSV-Import“ (Grund csv_gap).
   - **Prüfung:** pytest tests/api/test_csv_import_api.py (Import in Teilen, Offset-Modi und DST, Migration, Prüfungen, Überlappung, Abbruch, fremdes Konto und paralleler Schreibzugriff) ausführen. → Auf /backtest (Konto, Setup wählen) eine CSV importieren; der Import steht mit Symbol, Zeitrahmen, Zeitraum und Kerzenzahl in der Liste. → Im Zeilenmodus den gesperrten globalen Versatz und die umgerechnete Brokerzeit nach Frühlings- und Herbstwechsel prüfen; danach die Seite neu laden. → Bei einem Worker ohne offset_mode-Bestätigung prüfen, dass der Staging-Import gelöscht wird, bevor ein Teil oder Commit gesendet wird. → Eine Datei mit falschem Zeitraster oder unsortierter Zeit importieren; die Zeilenfehler erscheinen und nichts steht in der Liste.
   - **Erwartet:** Ein abgebrochener oder fehlerhafter Import ist nicht wählbar; eine Überlappung geht nur mit „ersetzen“. Nur der gewählte Modus samt passendem Spaltenlayout wird übernommen. Der Zeilenmodus nutzt jeden broker_offset_sec-Wert, verlangt globalen Versatz null und zeigt seine Provenienz nach dem Neuladen. Ein alter Worker ohne Modusbestätigung erhält keine Dateiteile.
@@ -744,7 +744,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Vor jedem Lauf zeigt /backtest einen nicht abschaltbaren Hinweis zu den Grenzen von Ereigniszeit, simulierter Uhr, Wochenend-Swap und Drawdown-Abtastung in tr/en/de. Über jedem Ergebnis steht ein Hinweisblock: Modellgrenzen (Margin/Stop-out nicht geprüft, Ablehnungen nicht simuliert, Stops Level nicht geprüft), „Kosten geschätzt“, Währung zum heutigen Kurs, Datenlücken (missing), verworfene laufende Kerze, Spread-Ersatz, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand (nur Grid-Modus mit festem Abstand) kleiner ist als die mittlere Kerzenspanne (RunResult.avgRange). Die Hinweise aus dem Rechner sind dieselben Meldungen wie im Laufprotokoll. Noch nicht simuliert und noch nicht im Hinweisblock genannt: verschwundene Orders von außen, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich.
   - **Prüfung:** Einen Lauf mit Datenlücke und Auflösung M5 starten. → Ein Setup mit Grid-Abstand unter der Kerzenspanne testen. → Vor dem Lauf den Modellhinweis in tr/en/de, 375px/1280px und beiden Themes prüfen.
   - **Erwartet:** Modell-, Kosten-, Lücken-, M5- und „unsicher“-Hinweis sind sichtbar und lassen sich nicht ausblenden.
-- [x] **BKT-11** Backtest-Presets je Benutzer (B8, Codex) — 🔌 api ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-10
+- [x] **BKT-11** Backtest-Presets je Benutzer (B8, Codex) — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-10
   - Presets (Name, Zone ohne id/magic/is_active, Kosten, Modell, Auflösung, letzter Zeitraum, Symbol, App-Version; keine Ergebnisse) im Worker: Tabelle backtest_presets in market.sqlite mit owner (Principal aus src/api/auth.py); GET/POST /api/backtest/presets, PUT/DELETE /api/backtest/presets/{pid}. Fremde Presets liefern 404. Menü „Presets“: speichern, laden als neues Setup, umbenennen, löschen, In Zone übernehmen. Höchstens 100 Presets je Benutzer; wiederholtes POST mit derselben requestId und gleichem Inhalt erzeugt kein Duplikat. Auch Admins sehen nur eigene Presets. CSV-Verweise und Ergebnisse werden nicht gespeichert; Feld-Whitelist und Payload-Version 1. Implementiert durch Codex; automatisierte Abdeckung für lokale Kopien und Preset-/Transfer-Verhalten ergänzt.
   - **Prüfung:** pytest für die Preset-Routen mit zwei Benutzern ausführen. → Auf /backtest ein Setup als Preset speichern, Seite neu laden, Preset laden.
   - **Erwartet:** Das Preset ist nach dem Neuladen da; das Preset eines anderen Benutzers liefert 404.

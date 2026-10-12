@@ -61,7 +61,7 @@ async def get_platform_info():
 @router.get("/system/update/check", dependencies=[Depends(require_admin)])
 async def check_update(branch: str = Query("main", description="Git branch")):
     try:
-        success, data = check_for_updates(branch=branch)
+        success, data = await asyncio.to_thread(check_for_updates, branch=branch)
         if not success:
             return {
                 "has_update": False,

@@ -52,7 +52,7 @@ kategorien:
 
       - id: SYS-03
         titel: Plattform-Erkennung
-        beschreibung: GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok).
+        beschreibung: GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok). Der Health-Check antwortet auch während eine Update-Prüfung auf Git wartet.
         code: [worker_python/src/api/system.py]
         tiers: [api, live]
         pruefung:
@@ -1057,7 +1057,7 @@ kategorien:
     features:
       - id: UPD-01
         titel: Update-Prüfung
-        beschreibung: „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main.
+        beschreibung: „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main. Der blockierende Git-Aufruf läuft in einem Thread, damit Plattformabfragen währenddessen antworten können.
         code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py, frontend_nextjs/src/components/dashboard/UpdateModal.tsx]
         tiers: [api, e2e]
         pruefung:
