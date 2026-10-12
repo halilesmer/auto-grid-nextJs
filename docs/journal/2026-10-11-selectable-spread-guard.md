@@ -3,7 +3,7 @@ date: 2026-10-11
 author: Codex
 type: feature
 status: open
-pr: [152]
+pr: [152, 158]
 features: [ENG-31]
 areas: [worker, frontend, tests, docs]
 ---
