@@ -80,6 +80,19 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 | Trading and local test suites | Not executed. No feature behavior changed. No deployment, bot action, account switch, settings save, or worker restart occurred. |
 | Documentation validation | `git diff --check` returned exit 0. Review against `hooks/RULES.md` section 9 found no code, API, or trading-state change. |
 
+## Task closure on 2026-10-12
+
+| Item | Final state and handoff |
+|---|---|
+| Owner decision | Record the current state and end this task. The remaining external checks stay open for separate work. |
+| Completed work | Read-only CI and version evidence is recorded. B4 and B9 remain complete. PR #154 contains this task's documentation. |
+| Proven timeout defect | PR #156 merged as `1c52220b`. The update-check endpoint now awaits the blocking Git helper through `asyncio.to_thread`. See `2026-10-12-platform-timeout-recovery.md` for the regression and limits. |
+| Remote main snapshot at closure | `origin/main` is at `fced863`, version `v0.7.202`. No new VPS deployment or runtime verification occurred in this task. |
+| VPS follow-up | The repaired code remains unverified on the VPS. Deployment or restart requires separate authorization. Historical attribution of every timeout remains unresolved. |
+| ZON-21 follow-up | Current DEMO identity, stopped bot, zero positions, zero pending orders, and open symbol market remain unverified. A trading test requires new explicit authorization. |
+| Documentation review | PR #154 remains open. All five checks succeeded at the final status check before this closure update. The new push requires its own CI result. |
+| Session outcome | This task ends with the owner-requested handoff. Do not close the overall audit or sign ZON-21 from this session. |
+
 ## Open points
 
 - [ ] Resume ZON-21 after authorized access and all current prerequisites pass. The planned Monday date does not authorize a trading run.

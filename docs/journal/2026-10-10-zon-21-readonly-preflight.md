@@ -77,6 +77,14 @@ areas: [ops, docs]
 
 The Monday trading steps require the owner's explicit authorization. This document does not authorize a bot action, a settings save, or an order.
 
+## Task handoff on 2026-10-12
+
+| Item | State |
+|---|---|
+| Owner decision | Record the current state and end this task. No further preflight or trading action is requested in this session. |
+| Timeout repair | PR #156 is merged. See `2026-10-12-platform-timeout-recovery.md`. The repair is not verified on the VPS. |
+| Manual result | ZON-21 remains open and unsigned. Complete its current prerequisites and obtain separate explicit trading authorization in later work. |
+
 ## Open points
 
 - [x] Locate the connected Chrome profile. The owner's visible dashboard reports a connected VPS.
