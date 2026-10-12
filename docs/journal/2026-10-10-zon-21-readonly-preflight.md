@@ -8,7 +8,7 @@ features: [ZON-21]
 areas: [ops, docs]
 ---
 
-# ZON-21 preflight blocked by access
+# ZON-21 preflight needs an isolated account
 
 ## Request
 
@@ -29,7 +29,8 @@ areas: [ops, docs]
 | Existing VPS window, repeat on 2026-10-10 | The selected terminal showed the local test account as DEMO, open positions, and at least four pending orders. |
 | Local read-only SSH status, repeat on 2026-10-10 | The worker was reachable on `main` at `fb63d0e1` (`v0.7.193`). Three bot processes and four terminals ran. The test account matched one bot process. |
 | Root cause of blocked isolation on 2026-10-10 | The test account had active trading state. The rejected frontend API key remains unexplained. No credential was inspected or changed. |
-| Chrome follow-up on 2026-10-12 | The local dashboard still rejects API access. No current authenticated account view was available. |
+| Chrome follow-up on 2026-10-12, first profile | The local dashboard rejects API access. No current authenticated account view was available in that profile. |
+| Chrome follow-up on 2026-10-12, owner's visible profile | The dashboard reports a connected VPS but no selected account. The prior browser check used a different Chrome profile. |
 
 ## Verification
 
@@ -54,8 +55,8 @@ areas: [ops, docs]
 | Local checkout | Clean `main` at `9b9f567`, version `v0.7.198`, before the documentation branch. |
 | Frontend and VPS versions | Production Chrome displays `v0.7.198`. The existing local SSH status route reports installed VPS checkout `v0.7.198` at `9b9f567a`. |
 | Worker and bots | The SSH status reports a listening, reachable worker, two bot processes, and four terminals. These counts do not establish test-account isolation. |
-| Authenticated Chrome access | Failed: the local dashboard still reports rejected API access. No credential was inspected or changed. |
-| Account and market prerequisites | Not verified: DEMO identity, stopped bot, zero positions, zero pending orders, and the selected symbol's open market lack current account evidence. |
+| Chrome connection | The owner's visible Chrome profile reports `VPS-Verbindung: Verbunden`. A different profile still rejects API access. The agent inspected or changed no credential. |
+| Account and market prerequisites | Not verified: the connected dashboard reports `Kein Konto ausgewählt`. DEMO identity, stopped bot, zero positions, zero pending orders, and open symbol market lack current evidence. |
 | Trading test and manual result | Not executed or signed. The owner approved only read checks and documentation. |
 | Safety | No bot action, settings save, order, position change, account switch, deployment, or worker restart occurred. |
 
@@ -74,10 +75,11 @@ The Monday trading steps require the owner's explicit authorization. This docume
 
 ## Open points
 
-- [ ] Restore authorized Chrome access for account metrics without changing credentials in this check.
+- [x] Locate the connected Chrome profile. The owner's visible dashboard reports a connected VPS.
+- [ ] Verify authorized account metrics in that profile after the owner selects an already isolated DEMO account.
 - [ ] Use an isolated DEMO account. The 2026-10-10 test account had a running bot, positions, and pending orders; its current state remains unverified.
 - [ ] Repeat the account and order checks immediately before the trading test; earlier evidence cannot certify its prerequisites.
-- [ ] Retry after verified market opening and restored read-only access in Chrome. The 2026-10-12 check remains blocked by access.
+- [ ] Retry after the account prerequisites and market opening are verified. The connected Chrome profile has no selected account yet.
 - [ ] Obtain explicit user authorization for orders and bot start before the ZON-21 trading test.
 
 ## Lessons
@@ -85,3 +87,4 @@ The Monday trading steps require the owner's explicit authorization. This docume
 A reachable frontend and its version do not prove authenticated worker access or an isolated DEMO account.
 Preserve the earlier isolation warning until current account and trading evidence resolves it.
 Account, bot and order checks can run while the market is closed. The complete trading test requires an open symbol market.
+Browser profiles have separate connection state. Verify the visible profile before treating an API rejection in another profile as a shared access blocker.
