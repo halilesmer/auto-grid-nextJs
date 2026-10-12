@@ -64,7 +64,7 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | `git diff --check` | Passed. |
 | Visual checks | Light and dark screenshots checked at 375 px and desktop width. No horizontal overflow. |
 | `hooks/RULES.md` §9 | Reviewed entry routes, API ownership, status consumers, atomic persistence and simulated time. |
-| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The installed VPS revision lacks this feature. No worker ran on the Mac. |
+| Live trading | Not verified. The user authorized the controlled DEMO test on 2026-10-12. The VPS now contains this feature. Active setups prevent an isolated test. No worker ran on the Mac. |
 
 ## Open points
 
@@ -102,3 +102,22 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 | Scenario generator comparison | All five spread and both new pip/tick scenarios match their saved fixtures. |
 | `hooks/RULES.md` §9 | Reviewed the merged precision rules, scenario definitions and shared engine changes. |
 | Live trading | Not run. The VPS installation remains a prerequisite. |
+
+
+## Live preflight (2026-10-12)
+
+| Read-only check | Result |
+|---|---|
+| Chrome access | The owner explicitly authorized Emser Holding with the existing `localhost:3000` tab. |
+| Installed worker | The VPS page reports v0.7.201, `main @ 39834c70`, and a running worker. |
+| `git cat-file -e 39834c70:worker_python/src/core/spread_guard.py` | Exit 0. The installed revision contains the spread module. |
+| Registered test account | The selected option matches the gitignored test-account file. Its worker-derived account group is DEMO. |
+| Market observations | Both configured symbols show an open market and changing prices. Full same-tick Bid/Ask validation was not reached. |
+| Isolation | Active setups cover the observed current prices of both configured symbols. Existing positions and pending orders are present. |
+| Restoration | Restored the prior selected account. No settings, setup states, bot state, positions or orders changed. |
+| Feature runner | Not run. No isolated controlled ENG-31 test was possible; this is not a passing live test. |
+
+- The current blocker is isolation, rather than installation or browser connection.
+- Do not modify existing setups to make room for the test.
+- Pending cancellation, all entry paths, TP/SL continuity and 30-second recovery remain unverified in controlled live conditions.
+- No trade flags were set. No worker ran on the Mac.
