@@ -152,7 +152,7 @@ def enforce_stops_level(mt5_module, request: dict) -> dict:
     return request
 
 
-def safe_send_order(mt5_module, request, log_func=None):
+def safe_send_order(mt5_module, request, log_func=None, *, before_send=None):
     """
     Merkezi Emir Gönderici ve Hata Yakalayıcı.
     """
@@ -185,6 +185,8 @@ def safe_send_order(mt5_module, request, log_func=None):
                 return False
 
         # Asıl Emri Gönder
+        if before_send is not None and not before_send():
+            return False
         result = mt5_module.order_send(request)
 
         if result is None:

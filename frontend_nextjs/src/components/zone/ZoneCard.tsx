@@ -74,6 +74,8 @@ export function ZoneCard({
       </div>
 
       <ZoneFieldsEditor zone={zone} onUpdate={onUpdate} symbolDetails={symbolDetails}
+        spreadStatus={zone.magic === undefined ? undefined : liveData.spread_guards?.[String(zone.magic)]}
+        connected={isGlobalRunning}
         handleChange={handleChange} handleBlur={handleBlur} syncZonePrecision={syncZonePrecision} />
     </div>
   );

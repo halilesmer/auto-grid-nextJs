@@ -15,7 +15,7 @@ import {
   scenarioNames,
 } from '../fixtures/parity';
 
-const FRACTAL_SCENARIOS = scenarioNames().filter((name) => isFractalScenario(loadScenario(name)));
+const FRACTAL_SCENARIOS = scenarioNames().filter((name) => !name.startsWith('spread_') && isFractalScenario(loadScenario(name)));
 
 /** Bot- und Broker-Ereignisse eines Ticks als "ev TYPE preis", in der Reihenfolge der Folge */
 function inTick(events: SimEvent[], i: number): string[] {

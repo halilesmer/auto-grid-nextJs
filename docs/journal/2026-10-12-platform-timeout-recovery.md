@@ -101,6 +101,8 @@ The existing recovery already restarted ngrok. Another restart would add disrupt
 | Load reviewed | Multiple admin browsers and the background updater can check Git while separate bot processes run. Pending Git work must not block platform responses. |
 | Installed worker | Not verified with the repair: no deployment or agent-requested restart occurred. The live observations use the original code. |
 | Trading state | No bot action, account/login switch, settings save, position change, or order occurred. Two bot processes remained present in status probes. |
+| Merge preparation after PR #152 | Regenerated the conflicted checklist from the merged catalog and results, without importing stale local reports. |
+| `worker_python/.venv/bin/python -m pytest worker_python/tests/api/test_logs_system_api.py -q` after merging main | 19 passed in 0.60 seconds. Catalog check passed with 158 features; diff check exit 0. |
 
 ## Open points
 

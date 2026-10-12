@@ -6,6 +6,8 @@
  * Logs: statt der türkischen Texte des Bots ein Code mit Werten; der Run-Log (B4) übersetzt sie.
  */
 
+import { SpreadGuard } from './spreadGuard';
+
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
 
 export interface EngineLogEntry {
@@ -37,6 +39,7 @@ export interface FractalLogged {
 }
 
 export class EngineState {
+  readonly spreadGuard = new SpreadGuard();
   /** Zone → PAUSE/START/AUTO_CLEAR/CLEAR (active_zones_state) */
   readonly activeZonesState = new Map<number, string>();
   /** Zone → abgelehnte Orders in Folge (consecutive_errors) */

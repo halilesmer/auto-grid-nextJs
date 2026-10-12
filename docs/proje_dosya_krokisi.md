@@ -198,6 +198,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 grid_remote.py       # Uzaktan mobil sinyal - MT5 $1/$2 Buy Limit + GRID:START/STOP komutları
 ┃ ┃ ┃ ┣ 📜 legacy_setup_orders.py # Kaldırılan fraktal ek kurgularının (ENG-29) MT5'te kalan emirleri: bölge emri sayılmaz; ayardaki LEGACY_SETUP_ORDERS=delete ise iptal
 ┃ ┃ ┃ ┣ 📜 indicator_calc.py    # Teknik indikatörler - RSI/MACD (pandas-ta fallback ile saf pandas)
+┃ ┃ ┃ ┣ 📜 spread_guard.py      # ENG-31: aynı tick spread kontrolü, magic bazında giriş kilidi, hesap/sembol medyan öğrenmesi ve kalıcı veri; TS karşılığı engine/spreadGuard.ts
 ┃ ┃ ┃ ┣ 📜 grid_orchestrator.py # Orkestratör - aktif bölge tespiti, giriş/çıkış, clear_on_exit, dynamic grid koordinasyonu
 ┃ ┃ ┃ ┣ 📜 grid_order_manager.py # Emir yönetimi - zombi emirler, TP/SL senkronu (fiyat geçtiyse bekler), kısmi dolum tamamlama (açan emre göre, max pozisyonda yok), bölge çıkışı
 ┃ ┃ ┃ ┣ 📜 grid_zone_selector.py # Bölge seçimi - en uygun bölge tespiti, filtreleme
@@ -333,6 +334,7 @@ Eski mimarideki JSON dosya köprüleri (logs/met_*, logs/ui_*) **WebSocket** ile
 ```
 grid_orchestrator (Ana Orkestratör)
     ├──→ grid_zone_selector → grid_zone_state
+    ├──→ spread_guard → kendi bekleyen emirlerini cancel_order ile temizler (remote PAUSE öncesinde)
     ├──→ grid_order_manager → grid_orders → MT5
     ├──→ grid_execution (paket) → grid_orders → MT5
     ├──→ grid_position_sync → grid_orders → MT5

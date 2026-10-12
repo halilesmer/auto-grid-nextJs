@@ -24,6 +24,7 @@ import {
   type Position,
 } from './types';
 import { BASE_MAGIC_NUMBER, isRobotMagic, zoneNumber } from './zoneMagic';
+import { entryAllowed } from './spreadGuard';
 
 export const MAX_DEVIATION = 20;
 
@@ -229,7 +230,9 @@ export function sendPendingOrderHelper(
   };
 
   state.lastOrderTicket = 0;
-  if (!safeSendOrder(broker, request, state)) {
+  if (!entryAllowed(broker, magic, state)) return false;
+  if (!safeSendOrder(broker, request, state, () => entryAllowed(broker, magic, state))) {
+    if (state.spreadGuard.status.get(magic)?.blocked) return false;
     const errors = (state.consecutiveErrors.get(zoneIdx) ?? 0) + 1;
     state.consecutiveErrors.set(zoneIdx, errors);
     if (errors >= 3) {

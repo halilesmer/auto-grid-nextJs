@@ -22,7 +22,7 @@ export interface Scenario {
   start: number;
   zones: ZoneDict[];
   history: Partial<Record<Timeframe, HistoryBar[]>>;
-  ticks: [number, number][];
+  ticks: [number, number, number?][];
 }
 
 function readJson<T>(file: string): T {
@@ -68,8 +68,8 @@ export function runScenario(input: Scenario): SimEvent[] {
   const infos = broker.symbolInfos();
   let active: ActiveZones = {};
   let shown: ActiveZones = {};
-  scenario.ticks.forEach(([dt, bid], i) => {
-    broker.marketStep(i, dt, scenario.start + dt, bid);
+  scenario.ticks.forEach(([dt, bid, spreadPoints], i) => {
+    broker.marketStep(i, dt, scenario.start + dt, bid, spreadPoints);
     [, active] = manageDynamicGrid(broker, scenario.zones, active, infos, state);
     if (!sameZones(active, shown)) {
       shown = { ...active };
