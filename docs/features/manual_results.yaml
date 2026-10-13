@@ -229,6 +229,11 @@ VPS-01:
   status: bestanden
   datum: '2026-10-13'
   notiz: 'lesend 2026-10-13: /api/vps/status ok, alle Kacheln grün, v0.7.206'
+VPS-02:
+  status: bestanden
+  datum: '2026-10-13'
+  notiz: Worker-Neustart, Update per Button (v0.7.212→v0.7.213, Auto-Updater aus)
+    und Aufgabe AutoGrid-Update direkt geprüft
 VPS-10:
   status: bestanden
   datum: '2026-10-01'

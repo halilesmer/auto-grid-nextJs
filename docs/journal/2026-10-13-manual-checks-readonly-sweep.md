@@ -48,7 +48,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | 12 | BOT-07 | Open, needs the owner | Not read-only. |
 | 13 | UPD-07 | Open, needs the owner | Not read-only. |
 | 14 | VPS-01 | Passed, signed | `GET /api/vps/status` (local route) returned `HTTP 200`, worker reachable, ngrok running, 2 bots. The page `/vps` showed all 6 tiles green. The check step is only "open the page". The "Gestoppt" result applies only to a stopped worker; the e2e test covers it. The owner approved this evidence and the sign-off on 2026-10-13. |
-| 15 | VPS-02 | Open, needs the owner | Not read-only. |
+| 15 | VPS-02 | Passed, signed later on 2026-10-13 | Not read-only. The owner did the steps. See `2026-10-13-eng-29-and-update-task-running.md`. |
 | 16 | VPS-06 | Open, needs the owner | Not read-only. |
 | 17 | VPS-07 | Open, partial evidence | See "Partial evidence". |
 | 18 | VPS-08 | Open, needs the owner | Not read-only. |
