@@ -3,7 +3,7 @@ date: 2026-10-13
 author: Claude
 type: fix
 status: open
-pr: [162, 163, 164, 165]
+pr: [162, 163, 164, 165, 166]
 features: [ENG-29, VPS-02]
 areas: [docs, ops, tests]
 ---
@@ -58,6 +58,8 @@ areas: [docs, ops, tests]
 | VPS-02, "Worker neu starten" on `/vps` (owner) | `GET /api/vps/status`: `tasks.start.last_run: 2026-10-13T10:05:33`, `last_result: 0`, `worker.reachable: true`, `elevated: []`, 2 bots run. |
 | VPS-02, "Update & Neustart" on `/vps` with a stopped worker | Not verified. The button starts the task only when the worker does not run (`Invoke-Update`, `vps.ps1`). The page `/vps` has no action to stop the worker, and the uvicorn watchdog starts it again after 3 s. Thus the owner started the task directly. |
 | VPS-02, "Update & Neustart" on `/vps` after the merge of #165 (owner) | Partial. `GET /api/vps/status`: `version: v0.7.211`, `worker.reachable: true`, 2 bots run. `GET /api/vps/logs?log=worker&lines=200`: the auto-updater pull `67691ea..c8680a0` and restart come before `POST /api/system/update?branch=main` → `200 OK`. The log has no time stamps, so the order of the lines is the evidence. The button did not cause the version change. |
+| VPS-02, "Update & Neustart" on `/vps` after the merge of #166 (owner) | Partial again. `GET /api/vps/status` 1 min after the bump commit: `v0.7.211`. 20 s later the auto-updater pulled `c8680a0..8845b87` (`git.updated_at` 10:45:04 VPS local time). The worker log shows the auto-updater pull, then `GET /api/system/update/check` → 200, then `POST /api/system/update` → 200. |
+| Auto-updater off for the check (owner: `setx AUTO_UPDATE_MINUTES 0`, then "Worker neu starten") | Before the change, `GET /api/vps/status` showed `auto_update_minutes: null` (default 5 min). After it: `auto_update_minutes: "0"`, `tasks.start.last_run: 2026-10-13T10:51:28`, `last_result: 0`, `worker.reachable: true`, 2 bots run. Worker log after the new `Started server process`: `Application startup complete.`, and no line `[AUTO-UPDATE] Açık`. The worker runs under the watchdog (`AutoGrid-Start`), and before the change each start wrote this line. |
 
 ## Why
 
@@ -75,10 +77,12 @@ For `AutoGrid-Update`, a fix in `vps.ps1` is better than a manual stop. A stop d
 VPS-02 check steps, owner decision on 2026-10-13:
 
 - Step 3 changes from "Update & Neustart with a stopped worker" to "start the task `AutoGrid-Update` directly". The page `/vps` has no action to stop the worker, and the uvicorn watchdog starts it again after 3 s. A live check of the old step needs a manual stop of the uvicorn watchdog on the VPS while bots run (not verified).
-- Do step 2 as soon as possible after the merge and the bump commit. The auto-updater examines `origin/main` each `AUTO_UPDATE_MINUTES` (default 5), counted from the worker start, not from the merge. If it pulls first, the button finds nothing to pull. On 2026-10-13 this occurred: the log shows the auto-updater pull before `POST /api/system/update`. Before the click, "Update prüfen" must show an update. After the click, the button answer must show the pull, not `Already up to date.`.
+- Do step 2 as soon as possible after the merge and the bump commit (replaced by the last item of this list). The auto-updater examines `origin/main` each `AUTO_UPDATE_MINUTES` (default 5), counted from the worker start, not from the merge. If it pulls first, the button finds nothing to pull. On 2026-10-13 this occurred: the log shows the auto-updater pull before `POST /api/system/update`. Before the click, "Nach Updates suchen" must show an update. After the click, the button answer must show the pull, not `Already up to date.`.
 - Partial evidence does not sign a check (`2026-10-13-manual-checks-readonly-sweep.md`). Thus VPS-02 stays open until step 2 has clean evidence.
 - Cost: the line `Start-Task $UpdateTask` in `Invoke-Update` (`vps.ps1`) has no live check. It runs only when the worker does not run, and it starts the same task that passed the live check.
 - The owner rejected two options: sign now, because this breaks the partial-evidence rule, and keep step 3, because it is not practical to do.
+- After the second attempt without clean evidence (#166), the owner selected to switch off the auto-updater for step 2. The button does not pull first in a reliable way. Step 2 in `features.yaml` now says: switch the auto-updater off before the merge, and switch it on again after the check. The owner rejected a new attempt at each merge, because it passes only by chance.
+- Cost: while the auto-updater is off, the VPS does not pull other merges. If nobody switches it on again, the VPS stays on old code. The last open point prevents this.
 
 ## Open points
 
@@ -88,7 +92,8 @@ VPS-02 check steps, owner decision on 2026-10-13:
 - [x] Clear the hung task (see "Steps for the owner"). Do this before the live check: with `IgnoreNew`, a new start of the task does nothing while the old run shows `Running`.
 - [x] Live check after the pull on the VPS: start the update through the task. `tasks.update.state` must change back to `Ready`, and the log must contain `Worker neu gestartet.`. The worker code does not change, so the effect is only on the next run of the task.
 - [x] VPS-02, step 3: changed to a direct start of the task (see "Why").
-- [ ] VPS-02, step 2: "Update & Neustart" on `/vps` as soon as possible after a merge on `main` (path through the running worker). Sign VPS-02 only after this step and the owner's approval.
+- [ ] VPS-02, step 2: "Update & Neustart" on `/vps` after a merge on `main`, with the auto-updater off (path through the running worker). Sign VPS-02 only after this step and the owner's approval.
+- [ ] Switch the auto-updater on again after step 2. The value before was `null`, so delete the variable. In a normal PowerShell on the VPS, run `[Environment]::SetEnvironmentVariable('AUTO_UPDATE_MINUTES', $null, 'User')`. Then select "Worker neu starten" on `/vps`. After that, `GET /api/vps/status` must show `auto_update_minutes: null`, and the worker log must show `[AUTO-UPDATE] Açık`.
 
 ## Steps for the owner
 
