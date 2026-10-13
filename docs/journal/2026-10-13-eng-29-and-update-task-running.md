@@ -3,7 +3,7 @@ date: 2026-10-13
 author: Claude
 type: fix
 status: open
-pr: [162, 163, 164]
+pr: [162, 163, 164, 165]
 features: [ENG-29, VPS-02]
 areas: [docs, ops, tests]
 ---
@@ -57,6 +57,7 @@ areas: [docs, ops, tests]
 | Live check, task path (owner, `Start-ScheduledTask -TaskName 'AutoGrid-Update'` in a normal PowerShell) | `GET /api/vps/status`: `tasks.update.state: Ready`, `last_run: 2026-10-13T10:03:15`, `last_result: 0`, `worker.reachable: true`, 2 bots run. `GET /api/vps/logs?log=update&lines=40`: the new run ends with `Already up to date.` and `Worker neu gestartet.`. |
 | VPS-02, "Worker neu starten" on `/vps` (owner) | `GET /api/vps/status`: `tasks.start.last_run: 2026-10-13T10:05:33`, `last_result: 0`, `worker.reachable: true`, `elevated: []`, 2 bots run. |
 | VPS-02, "Update & Neustart" on `/vps` with a stopped worker | Not verified. The button starts the task only when the worker does not run (`Invoke-Update`, `vps.ps1`). The page `/vps` has no action to stop the worker, and the uvicorn watchdog starts it again after 3 s. Thus the owner started the task directly. |
+| VPS-02, "Update & Neustart" on `/vps` after the merge of #165 (owner) | Partial. `GET /api/vps/status`: `version: v0.7.211`, `worker.reachable: true`, 2 bots run. `GET /api/vps/logs?log=worker&lines=200`: the auto-updater pull `67691ea..c8680a0` and restart come before `POST /api/system/update?branch=main` → `200 OK`. The log has no time stamps, so the order of the lines is the evidence. The button did not cause the version change. |
 
 ## Why
 
@@ -71,6 +72,14 @@ Options that the owner did not select:
 
 For `AutoGrid-Update`, a fix in `vps.ps1` is better than a manual stop. A stop does not prevent the next hang.
 
+VPS-02 check steps, owner decision on 2026-10-13:
+
+- Step 3 changes from "Update & Neustart with a stopped worker" to "start the task `AutoGrid-Update` directly". The page `/vps` has no action to stop the worker, and the uvicorn watchdog starts it again after 3 s. A live check of the old step needs a manual stop of the uvicorn watchdog on the VPS while bots run (not verified).
+- Do step 2 as soon as possible after the merge and the bump commit. The auto-updater examines `origin/main` each `AUTO_UPDATE_MINUTES` (default 5), counted from the worker start, not from the merge. If it pulls first, the button finds nothing to pull. On 2026-10-13 this occurred: the log shows the auto-updater pull before `POST /api/system/update`. Before the click, "Update prüfen" must show an update. After the click, the button answer must show the pull, not `Already up to date.`.
+- Partial evidence does not sign a check (`2026-10-13-manual-checks-readonly-sweep.md`). Thus VPS-02 stays open until step 2 has clean evidence.
+- Cost: the line `Start-Task $UpdateTask` in `Invoke-Update` (`vps.ps1`) has no live check. It runs only when the worker does not run, and it starts the same task that passed the live check.
+- The owner rejected two options: sign now, because this breaks the partial-evidence rule, and keep step 3, because it is not practical to do.
+
 ## Open points
 
 - [x] ENG-29: the owner selected to remove the manual tier. `features.yaml` and `FEATURES.md` are updated.
@@ -78,7 +87,8 @@ For `AutoGrid-Update`, a fix in `vps.ps1` is better than a manual stop. A stop d
 - [x] `bekannter_fehler` for VPS-02: not necessary, because the fix and its test are in the same PR.
 - [x] Clear the hung task (see "Steps for the owner"). Do this before the live check: with `IgnoreNew`, a new start of the task does nothing while the old run shows `Running`.
 - [x] Live check after the pull on the VPS: start the update through the task. `tasks.update.state` must change back to `Ready`, and the log must contain `Worker neu gestartet.`. The worker code does not change, so the effect is only on the next run of the task.
-- [ ] VPS-02, last manual step: "Update & Neustart" on `/vps` after a merge on `main` (path through the running worker). Sign VPS-02 only after this step and the owner's approval.
+- [x] VPS-02, step 3: changed to a direct start of the task (see "Why").
+- [ ] VPS-02, step 2: "Update & Neustart" on `/vps` as soon as possible after a merge on `main` (path through the running worker). Sign VPS-02 only after this step and the owner's approval.
 
 ## Steps for the owner
 
