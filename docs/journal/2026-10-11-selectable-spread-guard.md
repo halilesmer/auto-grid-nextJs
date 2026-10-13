@@ -72,6 +72,7 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 - Use the separately authorized DEMO account after the VPS receives the change and the worker restarts.
 - Verify pending order cancellation, blocked entries, unaffected position management and recovery after 30 seconds below 80% of the limit.
 - Record the result here. No live trading test has run yet.
+- Update 2026-10-13: a live DEMO check ran, and ENG-31 is signed with partial live evidence. See "ENG-31 live check" in `2026-10-13-manual-checks-readonly-sweep.md`.
 
 ## Lessons
 
