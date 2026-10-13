@@ -3,7 +3,7 @@ date: 2026-10-13
 author: Claude
 type: diagnosis
 status: open
-pr: [162]
+pr: [162, 163]
 features: [ENG-29, VPS-02]
 areas: [docs, ops]
 ---
