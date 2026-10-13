@@ -3,7 +3,7 @@ date: 2026-10-13
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [171]
 features: [ENG-05, ENG-18, ZON-14, ZON-19, BKT-01, BKT-02]
 areas: [worker, frontend, tests, docs]
 ---
