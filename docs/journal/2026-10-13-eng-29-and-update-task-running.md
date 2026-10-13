@@ -3,7 +3,7 @@ date: 2026-10-13
 author: Claude
 type: fix
 status: open
-pr: [162, 163]
+pr: [162, 163, 164]
 features: [ENG-29, VPS-02]
 areas: [docs, ops, tests]
 ---
