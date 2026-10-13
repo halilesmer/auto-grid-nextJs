@@ -37,7 +37,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | 1 | ZON-21 | Passed, signed later on 2026-10-13 | Not read-only. The owner isolated the DEMO account (see "DEMO isolation"). The owner added an EURUSD M1 rebound BUY setup with lot 0.05 and a limit of 1 $. Then the owner started the bot. After the fill at -0.45 $, the setup had no BUY order. The log showed `Sonraki emir, Bilet <n> en az 1.0 (tutar) zarara geçince konacak.` At -0.65 $ and -0.90 $, the setup had no BUY order. At -1.20 $, the bot placed a BUY LIMIT on the latest fractal again. The owner approved the evidence and the sign-off. `run.sh sign ZON-21 bestanden …` returned `ZON-21: manuell bestanden`, and the checklist shows 143/158. After the check, the bot runs, the setup is active, and the position and the BUY LIMIT stay open. |
 | 2 | ENG-31 | Passed, signed later on 2026-10-13, with partial live evidence | Not read-only. See "ENG-31 live check". The owner approved the sign-off with the gaps in that section. This is an exception to "Partial evidence does not sign a check". `run.sh sign ENG-31 bestanden …` returned `ENG-31: manuell bestanden`. The checklist shows 144/158. |
 | 3 | ZON-13 | Open, partial evidence | See "Partial evidence". |
-| 4 | ZON-14 | Open, needs the owner | No grid setup with `instant_entry` runs. The check adds a zone and waits for a TP. |
+| 4 | ZON-14 | Passed, signed later on 2026-10-13, with one known deviation | Not read-only. See "ZON-14 live check". The first BUY STOP was two grid steps away. The cause is the level check across setups, not the instant entry. The owner approved the sign-off. `run.sh sign ZON-14 bestanden …` returned `ZON-14: manuell bestanden`. The checklist shows 145/158. |
 | 5 | ZON-16 | Open, partial evidence | See "Partial evidence". |
 | 6 | ENG-29 | Closed: no manual tier (`2026-10-13-eng-29-and-update-task-running.md`) | All 4 accounts: `legacy_setup_orders` is `[]` or `null`. No log line `Eski fraktal kurgusu`. No legacy setup orders remain. |
 | 7 | LOG-07 | Open, partial evidence | See "Partial evidence". |
@@ -92,9 +92,24 @@ The owner used the ZON-21 EURUSD setup. The account had 0 positions and no manua
 | Old, future and single unchanged ticks, account switch, restart | Unit tests only. |
 | Manual order and open position stay | Not examined. The account had none. |
 | Only the orders of this setup disappear | Not examined. The account had only one active setup. |
-| Recovery after 30 seconds below 80% of the limit | Not examined. A change of the guard settings clears the lock (`spread_guard.py`, the latch signature). Thus the release step does not test the recovery timer. |
+| Recovery after 30 seconds below 80% of the limit | Not examined in this check. A change of the guard settings clears the lock (`spread_guard.py`, the latch signature). Thus the release step does not test the recovery timer. Later seen after a bot restart, see below. |
 
 After the check, the guard stays on with the limit 0.001 (`GET /api/settings/{id}`).
+
+Later live evidence for the recovery timer: at 16:15 (UTC+2) the auto-updater restarted the bot. The log showed `invalid_tick` at 16:15:31, `recovering` at 16:15:33 with a spread of 0.00011 and the limit 0.001, and `ready` at 16:16:04. The spread was below 80% of the limit. The guard settings did not change. Thus the recovery took 31 seconds after a restart.
+
+## ZON-14 live check
+
+The owner added a second EURUSD setup: grid, `BOTH`, range 1.10 to 1.14, grid step 0.0010, TP 0.0003, lot 0.01, `instant_entry` on.
+
+| Step | Owner action | Evidence |
+|---|---|---|
+| No entry | Started setup 2 while setup 1 (fractal, range 1 to 3) was active. | Setup 2 opened nothing. The engine runs only one setup for each symbol: the first active setup with the price in its range (`grid_orchestrator.py`, ENG-01). |
+| Start | Stopped setup 1 and started setup 2 again. | Log at 16:41:56: `Anında Giriş … BUY 0.01 lot @ 1.11889` and `… SELL 0.01 lot @ 1.11879`. Deal reason 3 (expert), comment `AutoGrid_Z7_Start`. |
+| Grid | — | 19 pending orders. The nearest BUY LIMIT, SELL LIMIT and SELL STOP were one grid step from the positions. The first BUY STOP was two grid steps away (1.12089). |
+| TP and re-entry | — | The BUY position closed at 1.11920 with deal reason 5 (TP), +0.31 $. 1 second later, the bot opened a new BUY at 1.11931. The nearest BUY LIMIT (1.11831) and BUY STOP (1.12031) were one grid step away. |
+
+Cause of the missing BUY STOP at 1.11989: a BUY position of setup 1 at 1.11952 was within 0.45 × grid step of the level. The existing-level set included the positions of all setups on the symbol. A FakeMT5 reproduction with the live prices gave the same gap. PR #171 removes the orders and positions of other setups from this set. See `2026-10-13-levels-own-setup-only.md`. The check ran at 16:41 (UTC+2), before PR #171 merged at 15:19 UTC. Thus the worker ran the old code. The live check of PR #171 is an open point in that entry.
 
 ## Open points
 
