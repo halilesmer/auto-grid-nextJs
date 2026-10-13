@@ -51,8 +51,12 @@ areas: [docs, ops, tests]
 | `GET /api/vps/logs?log=update&lines=60` | The file has 2 lines: `=== 2026-10-10T00:11:05 Update (Aufgabe AutoGrid-Update) ===` and `Already up to date.` `Worker neu gestartet.` and `Update fehlgeschlagen` are missing. The script stopped at the `start.bat` line. No earlier run exists to compare. |
 | New test without the fix (`vps.ps1` set back) | `pytest tests/unit/test_vps_automation.py -k ohne_pipe` → `1 failed`. |
 | Tests with the fix | `scripts/features/run.sh unit VPS` → `33 passed`. |
-| Fix on Windows | Not verified. PowerShell does not run on the Mac. The live check is an open point. |
 | Process list on the VPS | Not verified. The worker and ngrok windows probably started from this task on 2026-10-10 00:11. |
+| Fix on Windows | Verified for the task path (`Invoke-UpdateLocal`) on 2026-10-13, see the next rows. |
+| Clear the hung task (owner, `Stop-Process` on the hung `update-local` process) | `GET /api/vps/status`: `tasks.update.state: Ready`, `last_result: 4294967295`. This is -1, probably the exit code from `Stop-Process`. `worker.reachable: true`, ngrok runs, 2 bots run. The VPS is at `v0.7.210`, so the fix is on the VPS. |
+| Live check, task path (owner, `Start-ScheduledTask -TaskName 'AutoGrid-Update'` in a normal PowerShell) | `GET /api/vps/status`: `tasks.update.state: Ready`, `last_run: 2026-10-13T10:03:15`, `last_result: 0`, `worker.reachable: true`, 2 bots run. `GET /api/vps/logs?log=update&lines=40`: the new run ends with `Already up to date.` and `Worker neu gestartet.`. |
+| VPS-02, "Worker neu starten" on `/vps` (owner) | `GET /api/vps/status`: `tasks.start.last_run: 2026-10-13T10:05:33`, `last_result: 0`, `worker.reachable: true`, `elevated: []`, 2 bots run. |
+| VPS-02, "Update & Neustart" on `/vps` with a stopped worker | Not verified. The button starts the task only when the worker does not run (`Invoke-Update`, `vps.ps1`). The page `/vps` has no action to stop the worker, and the uvicorn watchdog starts it again after 3 s. Thus the owner started the task directly. |
 
 ## Why
 
@@ -72,12 +76,15 @@ For `AutoGrid-Update`, a fix in `vps.ps1` is better than a manual stop. A stop d
 - [x] ENG-29: the owner selected to remove the manual tier. `features.yaml` and `FEATURES.md` are updated.
 - [x] Fix `Invoke-UpdateLocal` (see "Solution").
 - [x] `bekannter_fehler` for VPS-02: not necessary, because the fix and its test are in the same PR.
-- [ ] Clear the hung task (see "Steps for the owner"). Do this before the live check: with `IgnoreNew`, a new start of the task does nothing while the old run shows `Running`.
-- [ ] Live check after the pull on the VPS: start the update through the task. `tasks.update.state` must change back to `Ready`, and the log must contain `Worker neu gestartet.`. The worker code does not change, so the effect is only on the next run of the task.
+- [x] Clear the hung task (see "Steps for the owner"). Do this before the live check: with `IgnoreNew`, a new start of the task does nothing while the old run shows `Running`.
+- [x] Live check after the pull on the VPS: start the update through the task. `tasks.update.state` must change back to `Ready`, and the log must contain `Worker neu gestartet.`. The worker code does not change, so the effect is only on the next run of the task.
+- [ ] VPS-02, last manual step: "Update & Neustart" on `/vps` after a merge on `main` (path through the running worker). Sign VPS-02 only after this step and the owner's approval.
 
 ## Steps for the owner
 
-These steps are not verified. Stop of the task process can also stop the worker and ngrok windows, if the Task Scheduler ends the whole process group.
+Before 2026-10-13 these steps were not verified. Stop of the task process can also stop the worker and ngrok windows, if the Task Scheduler ends the whole process group.
+
+On 2026-10-13 the owner did step 3 and Claude did step 4. The worker answered and ngrok ran. The stop did not end the worker and ngrok windows. The output of steps 1 and 2 is not recorded.
 
 1. In PowerShell as the normal user, find the hung process: `Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*update-local*' -and $_.ProcessId -ne $PID } | Select-Object ProcessId, CreationDate`.
 2. Make sure that 1 process from 2026-10-10 00:11 shows.
@@ -88,5 +95,7 @@ These steps are not verified. Stop of the task process can also stop the worker 
 ## Lessons
 
 Do not send the output of a command that opens long-lived windows into a pipe. The child processes keep the pipe open, and the caller waits with no limit.
+
+To clear a hung `AutoGrid-Update` task, stop only its `powershell.exe` process. On 2026-10-13 this did not stop the worker or ngrok.
 
 A manual check for a one-time migration path needs a date. After the migration, the check cannot run any more. Remove the manual tier only with the owner's decision and a journal entry.
