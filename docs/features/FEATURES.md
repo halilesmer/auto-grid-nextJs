@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-13 · **141/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-13 · **142/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -25,7 +25,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
-| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 5/10 |
+| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 6/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/14 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/13 |
@@ -558,10 +558,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Lokal npm run dev:frontend, Seite „VPS“ öffnen.
   - **Erwartet:** Alle Kacheln grün; ist der Worker gestoppt, steht „Gestoppt“.
   - 📝 lesend 2026-10-13: /api/vps/status ok, alle Kacheln grün, v0.7.206
-- [ ] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [x] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-13
   - Update-Prüfung über den Worker; „Update & Neustart“ läuft über den Worker (POST /system/update) oder, wenn er nicht läuft, über die Aufgabe AutoGrid-Update; „Worker neu starten“ über die Aufgabe AutoGrid-Start (start.bat); „ngrok neu starten“ beendet ngrok, run_ngrok_watchdog.bat startet ihn neu; „VPS neu starten“ per shutdown /r. Jede Aktion mit Bestätigung. git läuft nie per SSH als Administrator.
   - **Prüfung:** „Worker neu starten“ → bestätigen. → Vor dem Merge auto_update_minutes im VPS-Status notieren und den Auto-Updater abschalten (VPS, normale PowerShell: setx AUTO_UPDATE_MINUTES 0, dann „Worker neu starten“); sonst zieht er meist vor dem Button. Nach dem Merge (und dem Bump-Commit) muss „Nach Updates suchen“ ein Update melden, dann „Update & Neustart“. Danach den notierten Wert zurückschreiben (war er leer: [Environment]::SetEnvironmentVariable('AUTO_UPDATE_MINUTES', $null, 'User')), dann „Worker neu starten“. → Aufgabe AutoGrid-Update direkt starten (VPS, normale PowerShell: Start-ScheduledTask -TaskName 'AutoGrid-Update'): danach Status der Aufgabe und Update-Log ansehen. Den Button bei gestopptem Worker nicht live prüfen: /vps kann den Worker nicht stoppen, der Watchdog startet ihn nach 3 s neu.
   - **Erwartet:** Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt; beim Update zeigt die Antwort des Buttons den git-Pull (nicht „Already up to date.“), und im Worker-Log steht vor dem Neustart keine Zeile „[AUTO-UPDATE] Güncellendi“. Über die Aufgabe steht AutoGrid-Update danach wieder auf Ready, und das Update-Log endet mit „Worker neu gestartet.“.
+  - 📝 Worker-Neustart, Update per Button (v0.7.212→v0.7.213, Auto-Updater aus) und Aufgabe AutoGrid-Update direkt geprüft
 - [x] **VPS-03** Logs vom VPS — 🖥️ e2e ✅ 2026-10-09
   - Tabs Worker (logs/worker_console.log), ngrok (logs/ngrok.log) und Update (logs/vps_update.log), jeweils die letzten 300 Zeilen per SSH. Das Log lädt mit dem Status-Poll neu, Farbcodes von uvicorn werden entfernt; fehlt die Neustart-Schleife (dann gibt es kein Log), erklärt ein Hinweis den Klick auf „Worker neu starten“.
   - **Prüfung:** Tabs wechseln. → Seite offen lassen, nachdem der VPS aktualisiert oder neu gestartet wurde.
