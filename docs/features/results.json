@@ -1162,6 +1162,11 @@
       "datum": "2026-10-09",
       "status": "passed",
       "tests": 1
+    },
+    "unit": {
+      "datum": "2026-10-13",
+      "status": "passed",
+      "tests": 1
     }
   },
   "VPS-03": {
@@ -1171,7 +1176,7 @@
       "tests": 2
     },
     "unit": {
-      "datum": "2026-10-12",
+      "datum": "2026-10-13",
       "status": "passed",
       "tests": 1
     }
@@ -1185,7 +1190,7 @@
   },
   "VPS-05": {
     "unit": {
-      "datum": "2026-10-12",
+      "datum": "2026-10-13",
       "status": "passed",
       "tests": 14
     }
@@ -1197,14 +1202,14 @@
       "tests": 1
     },
     "unit": {
-      "datum": "2026-10-12",
+      "datum": "2026-10-13",
       "status": "passed",
       "tests": 9
     }
   },
   "VPS-08": {
     "unit": {
-      "datum": "2026-10-12",
+      "datum": "2026-10-13",
       "status": "passed",
       "tests": 5
     }
@@ -1228,7 +1233,7 @@
       "tests": 2
     },
     "unit": {
-      "datum": "2026-10-12",
+      "datum": "2026-10-13",
       "status": "passed",
       "tests": 3
     }

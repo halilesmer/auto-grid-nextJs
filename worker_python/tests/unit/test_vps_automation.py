@@ -304,6 +304,23 @@ def test_vps_skript_zaehlt_mit_array_klammern():
     assert "$botPids -notcontains $_.ParentProcessId" in vps
 
 
+@pytest.mark.feature("VPS-02")
+def test_update_local_startet_start_bat_ohne_pipe():
+    """start.bat öffnet Fenster mit `start ... cmd /k`; sie erben eine Pipe des Aufrufers und halten
+    sie offen. `& cmd.exe /c start.bat | Out-File` endete daher nie, die Aufgabe AutoGrid-Update
+    blieb auf Running (2026-10-10). Start-Process -Wait wartet laut PowerShell-Doku auf den ganzen
+    Prozessbaum, also ebenfalls auf die Fenster; nur WaitForExit wartet allein auf cmd.exe."""
+    import re
+
+    vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
+    body = vps[vps.index("function Invoke-UpdateLocal"):vps.index("function Invoke-RestartNgrok")]
+    code = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
+    start_lines = [line for line in code.splitlines() if "$WorkerDir\\start.bat" in line]
+    assert start_lines and all("|" not in line for line in start_lines)
+    assert "Start-Process" in code and "-PassThru" in code and ".WaitForExit(" in code
+    assert re.search(r"-Wait\b", code) is None
+
+
 @pytest.mark.feature("VPS-03")
 def test_vps_logs_als_reine_strings():
     """Get-Content-Zeilen tragen PSPath/PSProvider mit; ConvertTo-Json machte aus 3 Zeilen ~6,7 MB
