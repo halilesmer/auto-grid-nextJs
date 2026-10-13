@@ -69,7 +69,10 @@ check_worker < <(echo "$ALL_FILES" | grep -E '^worker_python/.*\.py$' | sort -u)
 # 5) Uyumluluk uyarıları (engellemez)
 check_compat_warnings <<< "$ALL_FILES"
 
-# 6) Proje günlüğü: kod değişen branch'te docs/journal kaydı var mı (engellemez)
+# 6) Agent kuralları kopyası güncel mi (engellemez)
+check_agent_rules_copy
+
+# 7) Proje günlüğü: kod değişen branch'te docs/journal kaydı var mı (engellemez)
 check_journal_entry < <(printf '%s\n' "${LOCAL_SHAS[@]}")
 
 finish_checks
