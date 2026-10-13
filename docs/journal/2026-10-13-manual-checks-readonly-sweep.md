@@ -39,7 +39,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | 3 | ZON-13 | Open, partial evidence | See "Partial evidence". |
 | 4 | ZON-14 | Open, needs the owner | No grid setup with `instant_entry` runs. The check adds a zone and waits for a TP. |
 | 5 | ZON-16 | Open, partial evidence | See "Partial evidence". |
-| 6 | ENG-29 | Open, prerequisite missing | All 4 accounts: `legacy_setup_orders` is `[]` or `null`. No log line `Eski fraktal kurgusu`. No legacy setup orders remain. |
+| 6 | ENG-29 | Closed: no manual tier (`2026-10-13-eng-29-and-update-task-running.md`) | All 4 accounts: `legacy_setup_orders` is `[]` or `null`. No log line `Eski fraktal kurgusu`. No legacy setup orders remain. |
 | 7 | LOG-07 | Open, partial evidence | See "Partial evidence". |
 | 8 | ANA-08 | Open, needs the owner | The check compares with the deal history in the MT5 terminal. `GET /api/history/{id}/deals` returned 4433 deals for 30 days, `missing: 0`. |
 | 9 | ANA-14 | Open, prerequisite missing | No symbol has 2 registered setups with trades. The zone register shows EURUSD magic 200003 with `deleted_at` 25 s after `created_at` (2026-10-02, before this sweep). It has 0 trades. |
@@ -71,7 +71,7 @@ Safety: no trade, bot action, settings save, order, position change or worker re
 - [ ] Run the steps that remain for ZON-13, ZON-16, LOG-07, VPS-07 and VPS-09.
 - [ ] Run the checks that need the owner (table "Verification").
 - [ ] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14.
-- [ ] Prepare pending orders of a legacy setup for ENG-29, or close ENG-29 as not testable any more. See `2026-10-13-eng-29-and-update-task-running.md`.
+- [x] Prepare pending orders of a legacy setup for ENG-29, or close ENG-29 as not testable any more. ENG-29 has no manual tier now. See `2026-10-13-eng-29-and-update-task-running.md`.
 - [x] Find why `AutoGrid-Update` shows `Running` since 2026-10-10. See `2026-10-13-eng-29-and-update-task-running.md`.
 
 ## Lessons
