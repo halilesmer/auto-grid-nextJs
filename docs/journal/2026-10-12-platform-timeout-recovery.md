@@ -126,7 +126,7 @@ The existing auto-updater installed the repair. No agent requested a deployment 
 - [x] Establish a reproducible code trigger before correction. A held update check blocks the original platform endpoint.
 - [x] Verify the repair on the VPS. The auto-updater installed it; see "VPS verification (2026-10-12)". The historical live request responsible for the outage remains unverified.
 - [ ] If timeouts continue after the repair, capture timestamped request durations and a read-only worker stack during the stall.
-- [ ] ZON-21 remains outside this diagnosis. Recheck all account and market prerequisites and obtain explicit trading authorization separately.
+- [x] ZON-21 remains outside this diagnosis. Recheck all account and market prerequisites and obtain explicit trading authorization separately. ZON-21 passed on 2026-10-13. See `2026-10-13-manual-checks-readonly-sweep.md`.
 
 ## Lessons
 

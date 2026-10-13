@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-13 · **142/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-13 · **143/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,7 +19,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 16/20 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 17/20 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 29/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -300,10 +300,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Zonenbereich zeigt je Symbol eine Karte. Ihr Kopf hat das Symbolfeld, die Zahl der Setups, den Preis, Markt offen/geschlossen und „Setup Ekle“; darunter steht jedes Setup als eigene Karte mit dem Kopf „Setup n“. Das Symbolfeld gilt für alle Setups des Symbols und übernimmt die Eingabe erst bei Auswahl aus der Liste oder beim Verlassen des Feldes nach einer Eingabe. „Sembol Ekle“ fragt das Symbol ab und legt das erste Setup an (Lot = kleinster Lot des Symbols; hat das Symbol schon eine Karte, kommt das Setup dorthin). „Setup Ekle“ fragt nicht nach dem Symbol und fügt das Setup hinter dem letzten Setup des Symbols ein. Das letzte Setup eines Symbols zu löschen nimmt das Symbol mit (eigene Rückfrage „Sembolü Sil“). zone_states, zone_market_* und ui-state-Befehle zählen nach dem Engine-Platz der zuletzt geladenen oder gespeicherten Reihenfolge (engineOrder, nach id), nicht nach dem Platz in der Karte; ein ungespeichertes Setup verschiebt die Plätze der anderen nicht. Nach jedem Speichern übernimmt die Oberfläche die vom Worker gruppierte Reihenfolge. Start/Pause schickt den Befehl vor dem Speichern an den heutigen Platz (die ui_state-Datei zieht der Worker bei gestopptem Bot, sonst der Bot beim nächsten Einlesen mit um); scheitert das Speichern, geht der alte Zustand zurück. Das Setup ist kompakt. Zahlenfelder haben eine kurze, feste Breite (Preis 128 px, Abstand 112 px, Lot und Faktor 96 px, Ganzzahl 80 px), Auswahlfelder sind so breit wie Inhalt oder Beschriftung, und die Felder stehen in umbrechenden Zeilen. Zusammengehörige Felder und Schalter bleiben beieinander. „Abstand nach Verlust“ steht direkt unter dem Grid-Abstand und dessen Vorschau in einem gemeinsamen Block; die übrigen Schalter stehen in Feldzeilen daneben, „BUY/SELL gleich“ neben dem Ordertyp, „Erste Position sofort“ hinter dem SL, „Nur Trend“ vor dem Pullback, „Bereinigen“ vor seinen Auswahlfeldern, im Fraktal-Modus „SL“ vor der SL-Methode und „TP als Betrag“ vor dem TP-Feld.
   - **Prüfung:** DEMO-Konto mit zwei Symbolen; im Dashboard „Setup Ekle“ in einer Symbolkarte, „Sembol Ekle“ mit einem neuen Symbol, dann das einzige Setup eines Symbols löschen; speichern und neu laden. → Bei laufendem Bot prüfen, dass „Otomatik temizlendi“ und das Markt-Badge an der richtigen Karte stehen. → In einem Setup Ordertyp BOTH wählen, „BUY/SELL gleich“ aus, „Nur Trend“ und „Bereinigen“ an; ein zweites Setup auf Fraktal stellen.
   - **Erwartet:** Je Symbol eine Karte mit „Setup 1…n“; das neue Setup steht in seiner Symbolkarte; das gelöschte Symbol ist weg; nach dem Neuladen dieselben Karten; Motorzustände an den richtigen Setups. Die Setup-Felder sind kurz. „Abstand nach Verlust“ bleibt direkt unter dem Grid-Abstand; die übrigen Schalter bleiben neben ihrem Feld.
-- [ ] **ZON-21** Fraktal – nächste Order ab Verlust (Betrag/Pips/Ticks) — 🖥️ e2e ✅ 2026-10-12 · 👤 manuell ⏳
+- [x] **ZON-21** Fraktal – nächste Order ab Verlust (Betrag/Pips/Ticks) — 🖥️ e2e ✅ 2026-10-12 · 👤 manuell ✅ 2026-10-13
   - Fraktal-Verlustgrenze: Geld in Kontowährung oder echte Pips bei Forex (3/5 Stellen: 10 × point, sonst point), Broker-Ticks bei anderen Instrumenten (trade_tick_size). Formular, Tooltip und Preisabstand-Vorschau passen zum Symbol. Alte Preisabstände ohne fractal_next_loss_unit_version werden nur lokal umgerechnet; ausdrückliches Speichern schreibt die Anzahl und Version 1, ohne den Preisabstand zu ändern. Fehlende Einheitsgröße sperrt die Abstandseingabe.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, BUY, „Nächste Order ab Verlust“ 1, speichern, Bot starten und warten, bis eine Fraktal-Order auslöst. → Pending Orders und Bot-Log beobachten, während die Position ins Minus läuft.
   - **Erwartet:** Solange die letzte BUY-Position weniger als 1 $ im Minus ist, liegt keine BUY-Order und das Log meldet „Sonraki emir … zarara geçince konacak“; ab −1 $ kommen die BUY-Orders auf die jüngsten Fraktale zurück.
+  - 📝 DEMO, EURUSD M1 Abpraller BUY, Grenze 1 $: nach Fill bei −0,45 $ keine BUY-Order, Log ‚1.0 (tutar)‘; ab −1,2 $ BUY LIMIT auf jüngstes Fraktal zurück
 
 ## 7. BOT – Bot-Steuerung
 

@@ -2,7 +2,7 @@
 date: 2026-10-10
 author: Codex
 type: diagnosis
-status: open
+status: done
 pr: [145, 148, 154]
 features: [ZON-21]
 areas: [ops, docs]
@@ -106,11 +106,11 @@ Author: Claude. Read checks only. The owner did not authorize trading, a bot act
 
 - [x] Locate the connected Chrome profile. The owner's visible dashboard reports a connected VPS.
 - [x] Obtain a successful current worker platform response. The SSH status reported `reachable=true` on 2026-10-12 from `15:11Z` with installed `v0.7.204`. The Chrome badge check in a new tab did not complete.
-- [ ] Verify authorized account metrics in that profile after the owner selects an already isolated DEMO account.
-- [ ] Use an isolated DEMO account. On 2026-10-12 at `15:13Z`, a bot process still ran for the test account; positions and pending orders remain unverified.
-- [ ] Repeat the account and order checks immediately before the trading test; earlier evidence cannot certify its prerequisites.
-- [ ] Retry after the account prerequisites and market opening are verified. The connected Chrome profile has no selected account yet.
-- [ ] Obtain explicit user authorization for orders and bot start before the ZON-21 trading test.
+- [x] Verify authorized account metrics in that profile after the owner selects an already isolated DEMO account. Done on 2026-10-13 with the seed key. See `2026-10-13-manual-checks-readonly-sweep.md`.
+- [x] Use an isolated DEMO account. The owner isolated the test account on 2026-10-13. See "DEMO isolation" in `2026-10-13-manual-checks-readonly-sweep.md`.
+- [x] Repeat the account and order checks immediately before the trading test; earlier evidence cannot certify its prerequisites. Done on 2026-10-13 before the owner added the ZON-21 setup.
+- [x] Retry after the account prerequisites and market opening are verified. ZON-21 passed on 2026-10-13.
+- [x] Obtain explicit user authorization for orders and bot start before the ZON-21 trading test. The owner saved the setup and started the bot.
 
 ## Lessons
 

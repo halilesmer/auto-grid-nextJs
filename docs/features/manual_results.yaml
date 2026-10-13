@@ -141,6 +141,11 @@ ZON-19:
     in gleicher Reihenfolge; Intervall zurückgesetzt. Nicht live geprüft: zwei Setups
     auf einem Symbol, Umgruppieren einer alten Datei mit gemischten Symbolen (api-
     und e2e-Tests decken es ab).'
+ZON-21:
+  status: bestanden
+  datum: '2026-10-13'
+  notiz: 'DEMO, EURUSD M1 Abpraller BUY, Grenze 1 $: nach Fill bei −0,45 $ keine BUY-Order,
+    Log ‚1.0 (tutar)‘; ab −1,2 $ BUY LIMIT auf jüngstes Fraktal zurück'
 BOT-01:
   status: bestanden
   datum: '2026-09-23'
