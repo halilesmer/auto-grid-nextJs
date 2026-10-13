@@ -192,6 +192,25 @@ check_compat_warnings() {
   return 0
 }
 
+# Agent kuralları kopyası (engellemez): docs/agent-rules/ kaynak ~/.claude/rules ile aynı mı.
+# Kaynak yalnızca sahibinin Mac'inde var; yoksa sessizce atlanır. Yenileme: docs/agent-rules/README.md.
+check_agent_rules_copy() {
+  local src="$HOME/.claude/rules" f name drift=""
+  [ -d "$src" ] || return 0
+  for f in "$src"/*.md; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    cmp -s "$f" "$ROOT/docs/agent-rules/$name" || drift+=" $name"
+  done
+  if [ -n "$drift" ]; then
+    warn "docs/agent-rules/ kaynaktan sapmış ($src):$drift"
+    warn "  Yenilemek için docs/agent-rules/README.md'deki cp komutunu çalıştırın."
+  else
+    ok "Agent kuralları kopyası kaynakla aynı"
+  fi
+  return 0
+}
+
 # stdin: itilen yerel commit SHA'ları (satır başına bir tane).
 # Branch'in tamamına bakar (origin/main ile ortak atadan itibaren); böylece aynı branch'in
 # ikinci push'u, kayıt ilk push'ta gelmiş olsa da yanlış uyarı vermez. Sadece pre-push çağırır:
