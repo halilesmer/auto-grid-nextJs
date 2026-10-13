@@ -3,7 +3,7 @@ date: 2026-10-09
 author: Claude
 type: decision
 status: done
-pr: []
+pr: [160]
 features: []
 areas: [tooling]
 ---
@@ -39,4 +39,5 @@ Limit: the check cannot see whether Codex actually follows the rules. Only the g
 | 2026-10-13, four cases with a temporary `HOME` copy of the real rules | Identical: `✓`, exit 0, 0 warnings. Changed `test.md`: warning names `test.md`, exit 0. New source file `neu.md`: warning names `neu.md`, exit 0. No source folder: no output, exit 0. |
 | 2026-10-13, real source against `main` | All 8 rule files identical. |
 | `bash -n` on `checks.sh` and `pre-push` | No syntax errors. |
+| 2026-10-13, full new `hooks/pre-push` with a simulated new-branch push line | `✓ Agent kuralları kopyası kaynakla aynı`, exit 0. The worktree's `core.hooksPath` points to the main checkout, so the real push ran the old hooks. |
 | Warning count | One drift adds 2 to the warning count (message and hint line). Lines 184 and 234 of `checks.sh` use the same pattern. Not changed. |
