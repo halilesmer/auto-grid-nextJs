@@ -1140,7 +1140,7 @@ kategorien:
         tiers: [unit, e2e, manuell]
         pruefung:
           - „Worker neu starten“ → bestätigen.
-          - „Update & Neustart“ so früh wie möglich nach einem Merge auf main (und dem Bump-Commit). Der Auto-Updater prüft alle AUTO_UPDATE_MINUTES (Standard 5), gezählt ab Worker-Start; zieht er zuerst, gilt der Schritt nicht. Vorher muss „Update prüfen“ ein Update melden.
+          - "Vor dem Merge auto_update_minutes im VPS-Status notieren und den Auto-Updater abschalten (VPS, normale PowerShell: setx AUTO_UPDATE_MINUTES 0, dann „Worker neu starten“); sonst zieht er meist vor dem Button. Nach dem Merge (und dem Bump-Commit) muss „Nach Updates suchen“ ein Update melden, dann „Update & Neustart“. Danach den notierten Wert zurückschreiben (war er leer: [Environment]::SetEnvironmentVariable('AUTO_UPDATE_MINUTES', $null, 'User')), dann „Worker neu starten“."
           - "Aufgabe AutoGrid-Update direkt starten (VPS, normale PowerShell: Start-ScheduledTask -TaskName 'AutoGrid-Update'): danach Status der Aufgabe und Update-Log ansehen. Den Button bei gestopptem Worker nicht live prüfen: /vps kann den Worker nicht stoppen, der Watchdog startet ihn nach 3 s neu."
         erwartet: Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt; beim Update zeigt die Antwort des Buttons den git-Pull (nicht „Already up to date.“), und im Worker-Log steht vor dem Neustart keine Zeile „[AUTO-UPDATE] Güncellendi“. Über die Aufgabe steht AutoGrid-Update danach wieder auf Ready, und das Update-Log endet mit „Worker neu gestartet.“.
 
