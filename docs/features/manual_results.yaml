@@ -125,6 +125,13 @@ ZON-09:
   datum: '2026-09-23'
   notiz: 'Claude: Badge ''Kaydedilmedi'' nur an der geänderten Zone, verschwindet
     nach Speichern (auch bei SET-03 gesehen)'
+ZON-14:
+  status: bestanden
+  datum: '2026-10-13'
+  notiz: 'DEMO, EURUSD Grid BOTH, Grid 0.0010, TP 0.0003, 0.01 Lot: Start sofort BUY
+    1.11889 und SELL 1.11879, Orders einen Grid-Abstand entfernt; erste BUY STOP fehlte,
+    weil eine Position von Setup 1 die Stufe blockierte (behoben mit PR #171, live nicht geprüft); BUY-TP 1.11920,
+    1 s später neue BUY 1.11931'
 ZON-15:
   status: bestanden
   datum: '2026-09-29'
