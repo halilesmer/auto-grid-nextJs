@@ -423,8 +423,16 @@ function Invoke-UpdateLocal {
         if ($code -ne 0) {
             "Update fehlgeschlagen (Exit $code) - Worker wird trotzdem neu gestartet (alter Stand)." | Out-File $log -Append -Encoding utf8
         }
-        & cmd.exe /c "`"$WorkerDir\start.bat`"" | Out-File $log -Append -Encoding utf8
-        "Worker neu gestartet." | Out-File $log -Append -Encoding utf8
+        # Ohne Pipe: die Fenster aus start.bat (start ... cmd /k) erben sonst die Pipe, halten sie
+        # offen, und die Aufgabe bleibt fuer immer auf Running. Start-Process -Wait wartet laut
+        # PowerShell-Doku auf den ganzen Prozessbaum, also auch auf diese Fenster; WaitForExit nur
+        # auf cmd.exe. Die Ausgabe von start.bat/cleanup steht deshalb nicht mehr in diesem Log.
+        $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList "/c `"$WorkerDir\start.bat`"" -WorkingDirectory $WorkerDir -PassThru
+        if ($proc.WaitForExit(60000)) {
+            "Worker neu gestartet." | Out-File $log -Append -Encoding utf8
+        } else {
+            "start.bat nach 60 s nicht beendet - Worker-Status auf der VPS-Seite pruefen." | Out-File $log -Append -Encoding utf8
+        }
     } finally {
         Pop-Location
     }

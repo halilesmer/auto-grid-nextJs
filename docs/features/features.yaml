@@ -1137,11 +1137,12 @@ kategorien:
         titel: Aktionen (Update, Neustart, Reboot)
         beschreibung: Update-Prüfung über den Worker; „Update & Neustart“ läuft über den Worker (POST /system/update) oder, wenn er nicht läuft, über die Aufgabe AutoGrid-Update; „Worker neu starten“ über die Aufgabe AutoGrid-Start (start.bat); „ngrok neu starten“ beendet ngrok, run_ngrok_watchdog.bat startet ihn neu; „VPS neu starten“ per shutdown /r. Jede Aktion mit Bestätigung. git läuft nie per SSH als Administrator.
         code: [frontend_nextjs/src/components/vps/VpsActions.tsx, "frontend_nextjs/src/app/api/vps/[action]/route.ts", frontend_nextjs/src/lib/server/vpsSsh.ts, worker_python/ops/windows/vps.ps1]
-        tiers: [e2e, manuell]
+        tiers: [unit, e2e, manuell]
         pruefung:
           - „Worker neu starten“ → bestätigen.
           - „Update & Neustart“ nach einem Merge auf main.
-        erwartet: Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt.
+          - "„Update & Neustart“ bei gestopptem Worker (Weg über die Aufgabe AutoGrid-Update): danach Status der Aufgabe und Update-Log ansehen."
+        erwartet: Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt. Über die Aufgabe steht AutoGrid-Update danach wieder auf Ready, und das Update-Log endet mit „Worker neu gestartet.“.
 
       - id: VPS-03
         titel: Logs vom VPS
