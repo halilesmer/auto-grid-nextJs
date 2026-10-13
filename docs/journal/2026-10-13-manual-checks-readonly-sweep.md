@@ -35,7 +35,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | # | ID | Result | Evidence |
 |---|---|---|---|
 | 1 | ZON-21 | Passed, signed later on 2026-10-13 | Not read-only. The owner isolated the DEMO account (see "DEMO isolation"). The owner added an EURUSD M1 rebound BUY setup with lot 0.05 and a limit of 1 $. Then the owner started the bot. After the fill at -0.45 $, the setup had no BUY order. The log showed `Sonraki emir, Bilet <n> en az 1.0 (tutar) zarara geçince konacak.` At -0.65 $ and -0.90 $, the setup had no BUY order. At -1.20 $, the bot placed a BUY LIMIT on the latest fractal again. The owner approved the evidence and the sign-off. `run.sh sign ZON-21 bestanden …` returned `ZON-21: manuell bestanden`, and the checklist shows 143/158. After the check, the bot runs, the setup is active, and the position and the BUY LIMIT stay open. |
-| 2 | ENG-31 | Open, needs the owner | The settings show no setup with `spread_guard.enabled: true`, and `metrics.spread_guards` is `{}`. The check sets a limit below the current spread. |
+| 2 | ENG-31 | Passed, signed later on 2026-10-13, with partial live evidence | Not read-only. See "ENG-31 live check". The owner approved the sign-off with the gaps in that section. This is an exception to "Partial evidence does not sign a check". `run.sh sign ENG-31 bestanden …` returned `ENG-31: manuell bestanden`. The checklist shows 144/158. |
 | 3 | ZON-13 | Open, partial evidence | See "Partial evidence". |
 | 4 | ZON-14 | Open, needs the owner | No grid setup with `instant_entry` runs. The check adds a zone and waits for a TP. |
 | 5 | ZON-16 | Open, partial evidence | See "Partial evidence". |
@@ -76,11 +76,32 @@ Later on 2026-10-13, the owner did these steps before the trading checks:
 
 When the bot is stopped, `GET /api/logs/{id}` returns the last metrics file of the bot. The values do not show the current MT5 state. The WebSocket stream sent `LIVE_DATA` with `mt5_connected: False`. The API process was not connected to the terminal of this account, and the stopped bot wrote no metrics. Thus the owner confirmed step 2 in the MT5 terminal.
 
+## ENG-31 live check
+
+The owner used the ZON-21 EURUSD setup. The account had 0 positions and no manual order.
+
+| Step | Owner action | Evidence |
+|---|---|---|
+| Block | Set the fixed spread limit to 0.000001 and saved. | `metrics.spread_guards` showed `blocked: true` and `reason: high` at a spread of 0.0001. The bot pending orders went from 3 BUY LIMIT orders to 0. The bot placed no new order while the guard blocked. |
+| Release | Set the limit to 0.001 and saved. | The `Spread koruması` log line showed `ready` with the limit 0.001. Then the bot placed 3 BUY LIMIT orders again. |
+| Unit tests | — | `run.sh unit ENG-31` returned 42 passed. |
+
+| Part of the check | Evidence |
+|---|---|
+| Valid tick with a confirmed broker time offset | Live: the guard read a spread and showed `high`, not `invalid_tick`. |
+| Old, future and single unchanged ticks, account switch, restart | Unit tests only. |
+| Manual order and open position stay | Not examined. The account had none. |
+| Only the orders of this setup disappear | Not examined. The account had only one active setup. |
+| Recovery after 30 seconds below 80% of the limit | Not examined. A change of the guard settings clears the lock (`spread_guard.py`, the latch signature). Thus the release step does not test the recovery timer. |
+
+After the check, the guard stays on with the limit 0.001 (`GET /api/settings/{id}`).
+
 ## Open points
 
 - [ ] Run the steps that remain for ZON-13, ZON-16, LOG-07, VPS-07 and VPS-09.
 - [ ] Run the checks that need the owner (table "Verification").
 - [ ] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14.
+- [ ] Show the worker `detail` when "save all" fails (`mergeAndSaveSettings` in `useSettingsStore.ts`).
 - [x] Prepare pending orders of a legacy setup for ENG-29, or close ENG-29 as not testable any more. ENG-29 has no manual tier now. See `2026-10-13-eng-29-and-update-task-running.md`.
 - [x] Find why `AutoGrid-Update` shows `Running` since 2026-10-10. See `2026-10-13-eng-29-and-update-task-running.md`.
 
@@ -89,3 +110,7 @@ When the bot is stopped, `GET /api/logs/{id}` returns the last metrics file of t
 Isolate the DEMO test account before a trading check. A running bot on that account blocks most manual checks. The worker can reject the seed key in `.env.local`, because the browser stores the current key.
 
 The fractal distance switch (`zone.fractal.nextLossByPips`, "Grenze in Pip" on Forex symbols) keeps the number when it changes the unit. On a Forex symbol with the switch on, 1 is 1 pip. With the switch off, 1 is 1 $. After you save a fractal setup, read `fractal_next_loss_mode` in the settings. In the ZON-21 check, the first save had `pips` instead of `money`. A new setup starts with `money` (`zoneHelpers.ts`), and only the switch sets `pips`. Thus the switch was on before the first save.
+
+In the ENG-31 check, "save all" failed 5 times with the same generic message. At the first failure, a `GET` request returned `HTTP 502` when the auto-updater restarted the worker. The worker log has no record of that save. The next 4 failures were `HTTP 422` in the worker log. On "save all", `mergeAndSaveSettings` (`useSettingsStore.ts`) throws the generic text and drops the worker `detail`. The save of a single setup shows the `detail`. The save passed after the owner typed the limit again with a decimal point. A comma in the number field could send no `max_spread`. Then the worker returns `spread_guard: max_spread must be positive and finite`. This cause is not verified. If a save fails, read the status of `POST /api/settings/{id}` in the worker log. For `HTTP 422`, read the `detail` in the browser network tab.
+
+To test the 30-second recovery, do not change the guard settings. A change clears the lock at once.
