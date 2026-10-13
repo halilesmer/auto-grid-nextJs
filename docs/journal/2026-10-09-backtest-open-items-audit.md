@@ -95,10 +95,10 @@ The worker's existing 24-hour staging cleanup remains the recovery for this case
 
 ## Open points
 
-- [ ] Resume ZON-21 after authorized access and all current prerequisites pass. The planned Monday date does not authorize a trading run.
+- [x] Resume ZON-21 after authorized access and all current prerequisites pass. The planned Monday date does not authorize a trading run. ZON-21 passed on 2026-10-13. See `2026-10-13-manual-checks-readonly-sweep.md`.
 - [x] Verify the Production frontend version in Chrome at the URL recorded in `docs/NGrok/Sistem ve Canlıya Alma.md`. It displays `v0.7.198` on 2026-10-12.
 - [x] Record installed swap constants and distinct cached symbol values through the existing read-only Windows VPS session. See `2026-10-10-backtest-b4-vps-swap-verification.md`. The worker API still returned 401; no credential was read or changed.
 - [x] Obtain and verify the real annual M1 CSV, its source and time basis, then perform the authorized import and overlap check. See `2026-10-10-backtest-b9-vps-import.md`.
-- [ ] Obtain a successful worker platform response, then use the owner's Chrome profile and an already isolated DEMO account. Recheck bot, positions, pending orders, and market status. The 2026-10-10 account failed isolation; current state remains unverified. Run the trading test only after explicit user authorization. See `2026-10-10-zon-21-readonly-preflight.md`.
+- [x] Obtain a successful worker platform response, then use the owner's Chrome profile and an already isolated DEMO account. Recheck bot, positions, pending orders, and market status. The 2026-10-10 account failed isolation; current state remains unverified. Run the trading test only after explicit user authorization. See `2026-10-10-zon-21-readonly-preflight.md`. The owner isolated the account on 2026-10-13. See `2026-10-13-manual-checks-readonly-sweep.md`.
 - [x] Repeat GitHub CI and VPS version checks on 2026-10-12. Main run `38205973617` passed all three jobs. The SSH status reports installed checkout `v0.7.198` at `9b9f567a` and a reachable worker. Production frontend verification is separate.
 - [ ] Update the catalog and close this plan after all external evidence is recorded.

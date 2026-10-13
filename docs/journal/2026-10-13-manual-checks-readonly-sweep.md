@@ -34,7 +34,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 
 | # | ID | Result | Evidence |
 |---|---|---|---|
-| 1 | ZON-21 | Open, needs the owner | The check adds a fractal zone, starts the bot and waits for a fill. |
+| 1 | ZON-21 | Passed, signed later on 2026-10-13 | Not read-only. The owner isolated the DEMO account (see "DEMO isolation"). The owner added an EURUSD M1 rebound BUY setup with lot 0.05 and a limit of 1 $. Then the owner started the bot. After the fill at -0.45 $, the setup had no BUY order. The log showed `Sonraki emir, Bilet <n> en az 1.0 (tutar) zarara geçince konacak.` At -0.65 $ and -0.90 $, the setup had no BUY order. At -1.20 $, the bot placed a BUY LIMIT on the latest fractal again. The owner approved the evidence and the sign-off. `run.sh sign ZON-21 bestanden …` returned `ZON-21: manuell bestanden`, and the checklist shows 143/158. After the check, the bot runs, the setup is active, and the position and the BUY LIMIT stay open. |
 | 2 | ENG-31 | Open, needs the owner | The settings show no setup with `spread_guard.enabled: true`, and `metrics.spread_guards` is `{}`. The check sets a limit below the current spread. |
 | 3 | ZON-13 | Open, partial evidence | See "Partial evidence". |
 | 4 | ZON-14 | Open, needs the owner | No grid setup with `instant_entry` runs. The check adds a zone and waits for a TP. |
@@ -64,7 +64,17 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | VPS-07 | Step 1: `elevated: []` and no admin warning on `/vps`. | Step 2: start `start.bat` as administrator, then "Admin-Prozesse beenden". |
 | VPS-09 | `GET /api/system/worker/status` and `GET /api/system/worker/log` returned `HTTP 200`. The worker sends ANSI color codes; `VpsOnlinePanel.tsx` removes them with `stripAnsi`. | The Vercel version and "Worker neu starten". |
 
-Safety: no trade, bot action, settings save, order, position change or worker restart occurred. The sweep sent `/rates`, `/deals` and `/symbols` only for the account with a running bot, so no terminal changed its account. These routes write to the cache `data/market.sqlite` (ANA-04, ANA-07).
+Safety of the read-only sweep: no trade, bot action, settings save, order, position change or worker restart occurred. The sweep sent `/rates`, `/deals` and `/symbols` only for the account with a running bot, so no terminal changed its account. These routes write to the cache `data/market.sqlite` (ANA-04, ANA-07).
+
+## DEMO isolation
+
+Later on 2026-10-13, the owner did these steps before the trading checks:
+
+1. Stopped the bot. The log showed `[STOP] Bot süreci durduruldu.`, and `GET /api/vps/status` listed only the bot of the other account.
+2. Closed all positions and deleted all pending orders in the MT5 terminal of the account. The owner confirmed 0 positions, 0 orders, and equity equal to balance.
+3. Deactivated or deleted the old setups. Before the owner added the ZON-21 setup, `GET /api/settings/{id}` showed one inactive setup.
+
+When the bot is stopped, `GET /api/logs/{id}` returns the last metrics file of the bot. The values do not show the current MT5 state. The WebSocket stream sent `LIVE_DATA` with `mt5_connected: False`. The API process was not connected to the terminal of this account, and the stopped bot wrote no metrics. Thus the owner confirmed step 2 in the MT5 terminal.
 
 ## Open points
 
@@ -77,3 +87,5 @@ Safety: no trade, bot action, settings save, order, position change or worker re
 ## Lessons
 
 Isolate the DEMO test account before a trading check. A running bot on that account blocks most manual checks. The worker can reject the seed key in `.env.local`, because the browser stores the current key.
+
+The fractal distance switch (`zone.fractal.nextLossByPips`, "Grenze in Pip" on Forex symbols) keeps the number when it changes the unit. On a Forex symbol with the switch on, 1 is 1 pip. With the switch off, 1 is 1 $. After you save a fractal setup, read `fractal_next_loss_mode` in the settings. In the ZON-21 check, the first save had `pips` instead of `money`. A new setup starts with `money` (`zoneHelpers.ts`), and only the switch sets `pips`. Thus the switch was on before the first save.
