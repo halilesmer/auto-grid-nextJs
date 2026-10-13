@@ -118,6 +118,7 @@ def _handle_sliding_grid(
 
         exist_buy_levels, exist_sell_levels = get_existing_levels_by_direction(
             mt5_module, config.grid_step, config.sell_grid_step, config.symbol, symbol_infos,
+            magic=config.target_magic,
             snap=not is_position_anchored(config),
         )
 

@@ -77,6 +77,29 @@ def test_manuelle_position_belegt_ein_level(fake_mt5):
 
 
 @pytest.mark.feature("ENG-05")
+def test_position_eines_anderen_setups_belegt_kein_level(fake_mt5):
+    # 13.10. DEMO: offene BUY-Position von Setup 1 (pausiert) nahm Setup 2 eine BUY-STOP-Stufe weg
+    m = fake_mt5
+    other = make_zone(id="setup-1", magic=200006, is_active=False)
+    own = make_zone(id="setup-2", magic=200007, order_type="BUY")
+    m.add_position("USOUSD", m.POSITION_TYPE_BUY, 97.12, magic=200006)
+    EngineHarness(m, [other, own]).tick()
+    assert prices(m.robot_orders(200007)) == [96.7, 96.8, 96.9, 97.1, 97.2, 97.3]
+
+
+@pytest.mark.feature("ENG-05")
+def test_order_eines_anderen_setups_belegt_kein_level(fake_mt5):
+    # Setup 1 ist aktiv, aber der Kurs liegt außerhalb: seine Order bleibt stehen (kein clear_on_exit)
+    m = fake_mt5
+    other = make_zone(id="setup-1", magic=200006, min_price=97.5, max_price=99.0)
+    own = make_zone(id="setup-2", magic=200007, order_type="BUY")
+    m.add_order("USOUSD", m.ORDER_TYPE_BUY_STOP, 97.1, magic=200006)
+    EngineHarness(m, [other, own]).tick()
+    assert prices(m.robot_orders(200006)) == [97.1]
+    assert prices(m.robot_orders(200007)) == [96.7, 96.8, 96.9, 97.1, 97.2, 97.3]
+
+
+@pytest.mark.feature("ENG-05")
 def test_inaktive_zone_setzt_keine_orders(fake_mt5):
     EngineHarness(fake_mt5, [make_zone(is_active=False)]).tick()
     assert fake_mt5.robot_orders() == []

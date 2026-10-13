@@ -81,6 +81,7 @@ export function handleSlidingGrid(
       config.sellGridStep,
       config.symbol,
       infos,
+      config.targetMagic,
       !anchored,
     );
     placeMissingOrders(broker, config, levels, existing, zoneIdx, infos, state);

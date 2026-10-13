@@ -50,9 +50,9 @@ function kindsInTick(events: SimEvent[], i: number, ev: string): unknown[] {
 }
 
 test.describe('BKT-02 Bot-Nachbau Grid', () => {
-  test('Genau die 24 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
+  test('Genau die 25 Grid-, Ausstiegs- und Sofort-Einstieg-Szenarien', { tag: '@BKT-02' }, () => {
     // Ein neues Szenario in make_scenarios.py fällt hier auf und braucht eine bewusste Entscheidung
-    expect(GRID_SCENARIOS).toHaveLength(24);
+    expect(GRID_SCENARIOS).toHaveLength(25);
     expect(GRID_SCENARIOS.every((n) => /^(grid_|exit_|instant_)/.test(n))).toBe(true);
   });
 

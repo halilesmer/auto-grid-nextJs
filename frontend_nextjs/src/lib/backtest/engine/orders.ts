@@ -44,7 +44,8 @@ function getAllManualPositions(broker: Broker): Position[] | null {
 }
 
 /**
- * Belegte Stufen je Richtung (Orders, Bot- und Hand-Positionen).
+ * Belegte Stufen je Richtung: Orders und Positionen dieser Zone (magic) plus Hand-Positionen.
+ * Orders und Positionen anderer Zonen (Setups) belegen keine Stufe.
  * snap=false: nicht aufs feste Raster runden (Raster ab der letzten Position, levels.ts).
  */
 export function getExistingLevelsByDirection(
@@ -53,6 +54,7 @@ export function getExistingLevelsByDirection(
   sellGridStep: number,
   symbol: string,
   infos: SymbolInfos,
+  magic: number,
   snap = true,
 ): { buy: number[]; sell: number[] } {
   const buy: number[] = [];
@@ -63,8 +65,10 @@ export function getExistingLevelsByDirection(
     const snapped = snap ? pyRound(price / step) * step : price;
     (isBuy ? buy : sell).push(normalizePrice(snapped, symbol, infos));
   };
-  for (const o of getAllRobotOrders(broker) ?? []) add(o.price_open, BUY_ORDER_TYPES.includes(o.type), o.symbol);
-  for (const p of getAllRobotPositions(broker) ?? []) add(p.price_open, p.type === POSITION_TYPE_BUY, p.symbol);
+  const ownOrders = (getAllRobotOrders(broker) ?? []).filter((o) => o.magic === magic);
+  const ownPositions = (getAllRobotPositions(broker) ?? []).filter((p) => p.magic === magic);
+  for (const o of ownOrders) add(o.price_open, BUY_ORDER_TYPES.includes(o.type), o.symbol);
+  for (const p of ownPositions) add(p.price_open, p.type === POSITION_TYPE_BUY, p.symbol);
   for (const p of getAllManualPositions(broker) ?? []) add(p.price_open, p.type === POSITION_TYPE_BUY, p.symbol);
   return { buy, sell };
 }

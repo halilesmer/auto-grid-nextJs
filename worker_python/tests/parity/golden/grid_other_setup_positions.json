@@ -1,0 +1,251 @@
+[
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 98.3,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 98.2,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 98.1,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 0
+  }
+ },
+ {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 98.0,
+  "sl": 0.0,
+  "magic": 200001,
+  "comment": "AutoGrid_Z1"
+ },
+ {
+  "i": 6,
+  "t": 30,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 11,
+  "t": 55,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 16,
+  "t": 80,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 21,
+  "t": 105,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "magic": 200001
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.9,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.7,
+  "volume": 0.01,
+  "tp": 96.8,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.6,
+  "volume": 0.01,
+  "tp": 96.7,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 97.1,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 97.2,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 97.3,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 23,
+  "t": 115,
+  "ev": "active",
+  "zones": {
+   "USOUSD": 1
+  }
+ },
+ {
+  "i": 29,
+  "t": 145,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.5,
+  "volume": 0.01,
+  "tp": 96.6,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 29,
+  "t": 145,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 97.0,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 31,
+  "t": 155,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "magic": 200002
+ },
+ {
+  "i": 34,
+  "t": 170,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.4,
+  "volume": 0.01,
+  "tp": 96.5,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 46,
+  "t": 230,
+  "ev": "fill",
+  "type": "BUY_STOP",
+  "price": 96.9,
+  "volume": 0.01,
+  "magic": 200002
+ },
+ {
+  "i": 46,
+  "t": 230,
+  "ev": "exit",
+  "type": "BUY",
+  "open": 96.8,
+  "price": 96.9,
+  "reason": "tp",
+  "volume": 0.01,
+  "magic": 200002
+ },
+ {
+  "i": 46,
+  "t": 230,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.9,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ }
+]
