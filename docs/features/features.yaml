@@ -1140,9 +1140,9 @@ kategorien:
         tiers: [unit, e2e, manuell]
         pruefung:
           - „Worker neu starten“ → bestätigen.
-          - „Update & Neustart“ nach einem Merge auf main.
-          - "„Update & Neustart“ bei gestopptem Worker (Weg über die Aufgabe AutoGrid-Update): danach Status der Aufgabe und Update-Log ansehen."
-        erwartet: Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt. Über die Aufgabe steht AutoGrid-Update danach wieder auf Ready, und das Update-Log endet mit „Worker neu gestartet.“.
+          - „Update & Neustart“ so früh wie möglich nach einem Merge auf main (und dem Bump-Commit). Der Auto-Updater prüft alle AUTO_UPDATE_MINUTES (Standard 5), gezählt ab Worker-Start; zieht er zuerst, gilt der Schritt nicht. Vorher muss „Update prüfen“ ein Update melden.
+          - "Aufgabe AutoGrid-Update direkt starten (VPS, normale PowerShell: Start-ScheduledTask -TaskName 'AutoGrid-Update'): danach Status der Aufgabe und Update-Log ansehen. Den Button bei gestopptem Worker nicht live prüfen: /vps kann den Worker nicht stoppen, der Watchdog startet ihn nach 3 s neu."
+        erwartet: Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt; beim Update zeigt die Antwort des Buttons den git-Pull (nicht „Already up to date.“), und im Worker-Log steht vor dem Neustart keine Zeile „[AUTO-UPDATE] Güncellendi“. Über die Aufgabe steht AutoGrid-Update danach wieder auf Ready, und das Update-Log endet mit „Worker neu gestartet.“.
 
       - id: VPS-03
         titel: Logs vom VPS
