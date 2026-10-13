@@ -1,0 +1,263 @@
+{
+ "name": "grid_other_setup_positions",
+ "description": "Zwei Setups auf einem Symbol: Setup 1 f\u00fcllt BUY-Positionen (TP 1,0) und wird nach unten verlassen; Setup 2 setzt seine BUY STOPs auch neben diesen Positionen, weil nur eigene Orders/Positionen und Hand-Positionen eine Stufe belegen (ENG-05)",
+ "symbol": {
+  "name": "USOUSD",
+  "digits": 3,
+  "point": 0.001,
+  "spread_points": 10,
+  "trade_contract_size": 1000.0
+ },
+ "start": 1790553600,
+ "zones": [
+  {
+   "id": "z1",
+   "is_active": true,
+   "symbol": "USOUSD",
+   "order_type": "BUY",
+   "min_price": 96.95,
+   "max_price": 98.0,
+   "grid_step": 0.1,
+   "lot_size": 0.01,
+   "take_profit": 1.0,
+   "stop_loss": 0.0,
+   "sell_grid_step": 0.1,
+   "sell_lot_size": 0.01,
+   "sell_take_profit": 0.1,
+   "sell_stop_loss": 0.0,
+   "is_breakout": false,
+   "pullback_distance": 0.5,
+   "sell_pullback_distance": 0.5,
+   "sync_buy_sell": true,
+   "levels_below": 3,
+   "levels_above": 0,
+   "max_positions": 10,
+   "clear_on_exit": false,
+   "clear_exit_side": "Farketmez",
+   "clear_scope": "Sadece Bekleyen Emirler",
+   "clear_target_side": "Farketmez (Hepsi)",
+   "exit_condition": "Anl\u0131k Fiyat",
+   "exit_timeframe": "M15"
+  },
+  {
+   "id": "z2",
+   "is_active": true,
+   "symbol": "USOUSD",
+   "order_type": "BUY",
+   "min_price": 96.0,
+   "max_price": 97.5,
+   "grid_step": 0.1,
+   "lot_size": 0.01,
+   "take_profit": 0.1,
+   "stop_loss": 0.0,
+   "sell_grid_step": 0.1,
+   "sell_lot_size": 0.01,
+   "sell_take_profit": 0.1,
+   "sell_stop_loss": 0.0,
+   "is_breakout": false,
+   "pullback_distance": 0.5,
+   "sell_pullback_distance": 0.5,
+   "sync_buy_sell": true,
+   "levels_below": 3,
+   "levels_above": 3,
+   "max_positions": 10,
+   "clear_on_exit": false,
+   "clear_exit_side": "Farketmez",
+   "clear_scope": "Sadece Bekleyen Emirler",
+   "clear_target_side": "Farketmez (Hepsi)",
+   "exit_condition": "Anl\u0131k Fiyat",
+   "exit_timeframe": "M15"
+  }
+ ],
+ "history": {},
+ "ticks": [
+  [
+   0,
+   97.4
+  ],
+  [
+   5,
+   97.38
+  ],
+  [
+   10,
+   97.36
+  ],
+  [
+   15,
+   97.34
+  ],
+  [
+   20,
+   97.32
+  ],
+  [
+   25,
+   97.3
+  ],
+  [
+   30,
+   97.28
+  ],
+  [
+   35,
+   97.26
+  ],
+  [
+   40,
+   97.24
+  ],
+  [
+   45,
+   97.22
+  ],
+  [
+   50,
+   97.2
+  ],
+  [
+   55,
+   97.18
+  ],
+  [
+   60,
+   97.16
+  ],
+  [
+   65,
+   97.14
+  ],
+  [
+   70,
+   97.12
+  ],
+  [
+   75,
+   97.1
+  ],
+  [
+   80,
+   97.08
+  ],
+  [
+   85,
+   97.06
+  ],
+  [
+   90,
+   97.04
+  ],
+  [
+   95,
+   97.02
+  ],
+  [
+   100,
+   97.0
+  ],
+  [
+   105,
+   96.98
+  ],
+  [
+   110,
+   96.96
+  ],
+  [
+   115,
+   96.94
+  ],
+  [
+   120,
+   96.92
+  ],
+  [
+   125,
+   96.9
+  ],
+  [
+   130,
+   96.88
+  ],
+  [
+   135,
+   96.86
+  ],
+  [
+   140,
+   96.85
+  ],
+  [
+   145,
+   96.83
+  ],
+  [
+   150,
+   96.81
+  ],
+  [
+   155,
+   96.79
+  ],
+  [
+   160,
+   96.77
+  ],
+  [
+   165,
+   96.75
+  ],
+  [
+   170,
+   96.73
+  ],
+  [
+   175,
+   96.71
+  ],
+  [
+   180,
+   96.7
+  ],
+  [
+   185,
+   96.72
+  ],
+  [
+   190,
+   96.74
+  ],
+  [
+   195,
+   96.76
+  ],
+  [
+   200,
+   96.78
+  ],
+  [
+   205,
+   96.8
+  ],
+  [
+   210,
+   96.82
+  ],
+  [
+   215,
+   96.84
+  ],
+  [
+   220,
+   96.86
+  ],
+  [
+   225,
+   96.88
+  ],
+  [
+   230,
+   96.9
+  ]
+ ]
+}

@@ -156,6 +156,12 @@ def scenarios() -> dict[str, dict]:
     add("exit_stored_magic", "Zone mit gespeicherter magic 200007: Orders, Ausstieg und Aufräumen über diese magic",
         [make_zone(id="z1", magic=200007, order_type="BUY", min_price=96.0, max_price=97.5, clear_on_exit=True)],
         walk([97.0, 96.7, 97.8, 97.3], seed=29))
+    add("grid_other_setup_positions", "Zwei Setups auf einem Symbol: Setup 1 füllt BUY-Positionen (TP 1,0) und "
+        "wird nach unten verlassen; Setup 2 setzt seine BUY STOPs auch neben diesen Positionen, weil nur eigene "
+        "Orders/Positionen und Hand-Positionen eine Stufe belegen (ENG-05)",
+        [make_zone(id="z1", order_type="BUY", min_price=96.95, max_price=98.0, take_profit=1.0, levels_above=0),
+         make_zone(id="z2", order_type="BUY", min_price=96.0, max_price=97.5)],
+        walk([97.4, 97.0, 96.85, 96.7, 96.9], seed=41))
     add("instant_entry", "Sofort-Einstieg mit 30-s-Bremse, TP schließt, neuer Einstieg",
         [make_zone(id="z1", order_type="BUY", instant_entry=True, take_profit=0.05)],
         walk([97.0, 97.1, 96.9, 97.2, 96.95], step=0.01, seed=14))

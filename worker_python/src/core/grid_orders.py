@@ -72,13 +72,15 @@ def get_all_manual_positions(mt5=None):
 
 
 def get_existing_levels_by_direction(
-    mt5, buy_grid_step, sell_grid_step, symbol, symbol_infos, snap=True
+    mt5, buy_grid_step, sell_grid_step, symbol, symbol_infos, magic, snap=True
 ):
-    """snap=False: fiyatlar sabit ızgaraya yuvarlanmaz (pozisyona göre kayan ızgara, levels.py);
+    """Dolu seviyeler: bu bölgenin (magic) emir ve pozisyonları + manuel pozisyonlar.
+    Başka bölgenin (setup) robot emri/pozisyonu seviye kapatmaz; her setup kendi ızgarasını kurar.
+    snap=False: fiyatlar sabit ızgaraya yuvarlanmaz (pozisyona göre kayan ızgara, levels.py);
     yuvarlama yarım adıma kadar kaydırıp mevcut emri tanınmaz yapar → her döngü yeni emir."""
     buy_levels, sell_levels = set(), set()
-    orders = get_all_robot_orders(mt5)
-    r_pos = get_all_robot_positions(mt5)
+    orders = [o for o in get_all_robot_orders(mt5) or [] if o.magic == magic]
+    r_pos = [p for p in get_all_robot_positions(mt5) or [] if p.magic == magic]
     m_pos = get_all_manual_positions(mt5)
 
     def add_to_set(price, is_buy, item_symbol):
