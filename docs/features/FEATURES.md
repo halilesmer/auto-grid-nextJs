@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-12 · **139/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-13 · **140/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -25,7 +25,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
-| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 4/10 |
+| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 5/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/14 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/13 |
@@ -553,10 +553,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 12. VPS – VPS-Fernsteuerung vom Mac
 
-- [ ] **VPS-01** VPS-Status — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [x] **VPS-01** VPS-Status — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-13
   - Die Seite /vps zeigt per SSH (Route /api/vps/status → ops/windows/vps.ps1 status) Worker, ngrok samt öffentlicher URL, laufende Bots, Version/Branch samt Zeitpunkt der letzten Aktualisierung (Reflog .git/logs/HEAD), Autostart und Uptime. Ohne VPS_SSH_HOST (z. B. Vercel) erscheint nur ein Hinweis.
   - **Prüfung:** Lokal npm run dev:frontend, Seite „VPS“ öffnen.
   - **Erwartet:** Alle Kacheln grün; ist der Worker gestoppt, steht „Gestoppt“.
+  - 📝 lesend 2026-10-13: /api/vps/status ok, alle Kacheln grün, v0.7.206
 - [ ] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
   - Update-Prüfung über den Worker; „Update & Neustart“ läuft über den Worker (POST /system/update) oder, wenn er nicht läuft, über die Aufgabe AutoGrid-Update; „Worker neu starten“ über die Aufgabe AutoGrid-Start (start.bat); „ngrok neu starten“ beendet ngrok, run_ngrok_watchdog.bat startet ihn neu; „VPS neu starten“ per shutdown /r. Jede Aktion mit Bestätigung. git läuft nie per SSH als Administrator.
   - **Prüfung:** „Worker neu starten“ → bestätigen. → „Update & Neustart“ nach einem Merge auf main.
