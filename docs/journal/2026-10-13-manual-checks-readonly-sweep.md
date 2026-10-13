@@ -71,8 +71,8 @@ Safety: no trade, bot action, settings save, order, position change or worker re
 - [ ] Run the steps that remain for ZON-13, ZON-16, LOG-07, VPS-07 and VPS-09.
 - [ ] Run the checks that need the owner (table "Verification").
 - [ ] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14.
-- [ ] Prepare pending orders of a legacy setup for ENG-29, or close ENG-29 as not testable any more.
-- [ ] Find why `AutoGrid-Update` shows `Running` since 2026-10-10.
+- [ ] Prepare pending orders of a legacy setup for ENG-29, or close ENG-29 as not testable any more. See `2026-10-13-eng-29-and-update-task-running.md`.
+- [x] Find why `AutoGrid-Update` shows `Running` since 2026-10-10. See `2026-10-13-eng-29-and-update-task-running.md`.
 
 ## Lessons
 
