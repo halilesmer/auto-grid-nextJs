@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-15 · **152/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-15 · **153/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -24,7 +24,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 30/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 7/7 |
-| 11 | **UPD** – System & Updates | 5/6 |
+| 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/14 |
@@ -552,10 +552,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ändert ein Pull worker_python/requirements.txt, führt execute_git_pull danach pip install -r mit dem Python des Workers (.venv) aus. Schlägt pip fehl, meldet das Update einen Fehler und der Worker startet nicht neu (neuer Code würde ohne Paket abstürzen).
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
+- [x] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-15 · 👤 manuell ✅ 2026-10-15
   - Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers.
   - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten.
   - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
+  - 📝 Auto-Updater zog v0.7.223→224 und 224→225 ohne Update-Klick ([AUTO-UPDATE]-Logzeilen), VPS 2 min nach Bump auf v0.7.225; kein POST /api/system/update, nur 2 Neustarts durch den Owner
 
 ## 12. VPS – VPS-Fernsteuerung vom Mac
 
