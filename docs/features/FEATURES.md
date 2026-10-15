@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-15 · **144/158** abgehakt · ❌ 1 mit Fehlern · 🐞 2 bekannte Fehler
+**Stand:** 2026-10-15 · **145/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 18/20 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 29/30 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 30/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 6/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
@@ -274,7 +274,6 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Schalter „Abstand nach Verlust ($)“ in der Zonenkarte. Wenn an, sind Grid-Abstand (BUY/SELL), Min./BUY-/SELL-Pullback, Take Profit und Stop Loss $-Beträge statt Preisabstände; beim Umschalten werden vorhandene Werte mit Lotgröße und Tick-Wert umgerechnet, unter dem Feld steht der entsprechende Preisabstand. Wird mit der Zone gespeichert (step_by_loss). Der Schalter steht direkt unter dem Grid-Abstand und dessen Preisabstand-Vorschau; der gemeinsame Block bleibt beim Zeilenumbruch zusammen, auch im Backtest-Editor.
   - **Prüfung:** Zone mit EURUSD, 0,10 Lot anlegen, „Abstand nach Verlust ($)“ einschalten, Grid-Abstand 10 und Take Profit 5 eingeben. → Speichern, Bot auf dem DEMO-Konto laufen lassen und die Pending Orders in MT5 ansehen.
   - **Erwartet:** Unter dem Feld steht „≈ 0,001 Preisabstand bei 0,1 Lot“; die Orders liegen 0,00100 auseinander (ab der zuletzt eröffneten Position), jede neue Position öffnet, wenn die vorige 10 $ im Minus ist; der TP liegt 0,00050 vom Einstieg.
-  - 🐞 **Bekannter Fehler:** Alte Orders vom früheren Anker können bis 0,4 Schritt neben dem Raster stehen bleiben, die Abstände sind dann nicht überall 0,00100 (siehe ENG-18, Journal 2026-10-15-stale-orders-after-anchor-move).
 - [x] **ZON-14** Sofort erste Position — 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-13
   - Schalter „Sofort erste Position“ in der Zonenkarte (instant_entry), unabhängig von „Abstand nach Verlust“. Wird mit der Zone gespeichert.
   - **Prüfung:** Zone (BUY und SELL) auf dem DEMO-Konto anlegen, Preis innerhalb des Bereichs, „Sofort erste Position“ einschalten, speichern, Bot starten. → Warten, bis eine Seite per Take Profit schließt.
@@ -413,11 +412,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Bei step_by_loss rechnet extract_zone_config grid_step, sell_grid_step, die Pullbacks sowie TP/SL (auch beim Nachziehen offener Positionen) als $-Betrag mit Lotgröße und trade_tick_value/trade_tick_size (Fallback Kontraktgröße) in Preisabstände um, gerundet auf den Point; die neue Position öffnet, wenn die vorige diesen Betrag im Minus ist. Ohne Symbolinfo wird die Zone abgelehnt.
   - **Prüfung:** Nicht manuell testen (siehe ZON-13).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit 🐞 2026-10-15
+- [x] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit ✅ 2026-10-15
   - Bei instant_entry öffnet die Engine je Seite (BUY/SELL, bei BOTH beide) sofort eine Markt-Position, wenn die Zone dort keine offene Position hat und der Preis im Zonenbereich liegt – beim Start und nach dem Schließen (z. B. TP). Abgelehnte Orders werden erst nach 30 s wiederholt. Bei instant_entry/step_by_loss richtet sich das Raster an der zuletzt eröffneten Position der Seite aus (nicht am festen Preisraster).
   - **Prüfung:** Nicht manuell testen (siehe ZON-14).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-  - 🐞 **Bekannter Fehler:** Nach TP und Neueinstieg bleiben Orders vom alten Anker stehen, wenn sie höchstens 0,4 Schritt von einem Level des neuen Rasters liegen (validation.py). Eine solche Order füllt dann vor dem Abstand von einem Schritt (Journal 2026-10-15-stale-orders-after-anchor-move).
 - [x] **ENG-19** Fraktal-Erkennung, ATR und Parabolic SAR — 🧪 unit ✅ 2026-10-15
   - Bill-Williams-Fraktale aus 5 geschlossenen Kerzen wie MT5 Fractals.mq5 (Mitte > beide rechten, >= beide linken Nachbarn; erst gültig, wenn die zwei rechten Kerzen geschlossen sind). ATR als einfacher Durchschnitt der True Range wie MT5 ATR.mq5, Parabolic SAR nach Wilder inkl. Wert der laufenden Kerze.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).

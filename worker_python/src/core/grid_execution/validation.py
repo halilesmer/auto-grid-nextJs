@@ -4,7 +4,7 @@ from src.core.grid_helpers import normalize_price, normalize_volume, log_message
 from src.core.grid_orders import cancel_order, remaining_lot_at_level
 from src.utils.trade_utils import enforce_stops_level
 from .config import ZoneConfig
-from .levels import LevelSets
+from .levels import LevelSets, level_tolerance
 from .exceptions import OrderValidationError, MT5ConnectionError
 
 
@@ -43,8 +43,8 @@ class OrderValidator:
         if self.mt5 is None:
             raise MT5ConnectionError("MT5 module not available")
 
-        buy_tolerance = config.grid_step * 0.4
-        sell_tolerance = config.sell_grid_step * 0.4
+        buy_tolerance = level_tolerance(config, config.grid_step, self.symbol_infos)
+        sell_tolerance = level_tolerance(config, config.sell_grid_step, self.symbol_infos)
         cancelled_count = 0
 
         for order in robot_orders:

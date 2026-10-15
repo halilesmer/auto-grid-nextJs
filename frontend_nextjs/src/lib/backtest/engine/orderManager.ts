@@ -4,6 +4,7 @@
  * process_partial_fills_and_tpsl, handle_zone_exit).
  */
 import { extractZoneConfig, InvalidZoneConfigError, isFractalZone, maxPositionsOf } from './config';
+import { levelTolerance } from './validation';
 import { isEnabled, normalizePrice, pyFloat, zget, type SymbolInfos } from './helpers';
 import {
   cancelOrder,
@@ -123,7 +124,7 @@ export function processPartialFillsAndTpsl(
       }
     }
 
-    const tol = pyRound((direction === 'BUY' ? cfg.gridStep : cfg.sellGridStep) * 0.4, 5);
+    const tol = pyRound(levelTolerance(cfg, direction === 'BUY' ? cfg.gridStep : cfg.sellGridStep, infos), 5);
     const near = (a: number, b: number) => Math.abs(pyRound(a, 5) - pyRound(b, 5)) <= tol;
     if (processed.some((p) => p.direction === direction && near(pos.price_open, p.price))) continue;
     processed.push({ direction, price: pos.price_open });

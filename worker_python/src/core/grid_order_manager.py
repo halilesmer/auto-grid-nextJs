@@ -5,6 +5,7 @@ from src.core.grid_helpers import (
 )
 from src.core.grid_execution.config import extract_zone_config, is_fractal_zone, max_positions_of
 from src.core.grid_execution.exceptions import InvalidZoneConfigError
+from src.core.grid_execution.levels import level_tolerance
 from src.core.grid_orders import (
     MAX_DEVIATION,
     cancel_order,
@@ -156,7 +157,9 @@ def process_partial_fills_and_tpsl(
                 )
                 modify_position_tp_sl(mt5, pos, expected_tp, expected_sl, symbol_infos)
 
-        tolerance_step = (cfg.grid_step if direction == "BUY" else cfg.sell_grid_step) * 0.4
+        tolerance_step = level_tolerance(
+            cfg, cfg.grid_step if direction == "BUY" else cfg.sell_grid_step, symbol_infos
+        )
 
         is_processed = any(
             direction == p_dir

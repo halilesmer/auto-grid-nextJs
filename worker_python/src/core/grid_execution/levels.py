@@ -20,6 +20,19 @@ def is_position_anchored(config: ZoneConfig) -> bool:
     return config.step_by_loss or config.instant_entry
 
 
+def level_tolerance(config: ZoneConfig, step: float, symbol_infos: dict) -> float:
+    """Bir fiyatın bir seviyeye ait sayıldığı en büyük uzaklık. Sabit ızgarada 0,4 adım (yuvarlama
+    payı). Pozisyona bağlı ızgarada seviyeler tam `pozisyon fiyatı + k·adım` olduğundan pay yalnızca
+    fiyat yuvarlamasını karşılar; geniş pay, eski çıpadan kalan emri yeni ızgaranın yanında tutar
+    ve adımdan önce doldurur. Doğrulama ve kısmi dolum tamamlama aynı payı kullanır."""
+    wide = step * 0.4
+    if not is_position_anchored(config):
+        return wide
+    info = symbol_infos.get(config.symbol)
+    point = float(info.point) if info is not None else 0.0
+    return min(wide, max(step * 0.05, point))
+
+
 def _anchor(config: ZoneConfig, price: float, robot_positions: list, pos_type: int, step: float) -> float:
     if is_position_anchored(config):
         side = [p for p in robot_positions if p.magic == config.target_magic and p.type == pos_type]

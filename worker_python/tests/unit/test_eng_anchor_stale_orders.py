@@ -3,13 +3,6 @@ import pytest
 
 from tests.helpers import MAGIC_ZONE_1, EngineHarness, make_zone, prices
 
-KNOWN_DEFECT = pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Known defect: orders of the old anchor stay inside the 0.4 step tolerance "
-    "(see docs/journal/2026-10-15-stale-orders-after-anchor-move.md)",
-)
-
 
 def _harness(fake_mt5, order_type, bid):
     # EURUSD: 0,10 Lot, Grid 10 $ = 0,00100, TP 5 $ = 0,00050, Sofort-Einstieg
@@ -49,7 +42,6 @@ def test_buy_ausgangslage_grid_und_neueinstieg_nach_tp(fake_mt5):
 
 
 @pytest.mark.feature("ENG-18")
-@KNOWN_DEFECT
 def test_buy_orders_folgen_dem_neuen_anker(fake_mt5):
     h = _harness(fake_mt5, "BUY", 1.12299)
     _move_anchor(fake_mt5, h, 1.12362)
@@ -59,10 +51,40 @@ def test_buy_orders_folgen_dem_neuen_anker(fake_mt5):
 
 
 @pytest.mark.feature("ENG-18")
-@KNOWN_DEFECT
 def test_sell_orders_folgen_dem_neuen_anker(fake_mt5):
     h = _harness(fake_mt5, "SELL", 1.12299)
     assert _orders(fake_mt5) == [1.12399, 1.12499, 1.12599, 1.12699, 1.12799]
     _move_anchor(fake_mt5, h, 1.12236)  # TP 1.12249 erreicht
     assert _positions(fake_mt5) == [1.12236]
     assert _orders(fake_mt5) == [1.12336, 1.12436, 1.12536, 1.12636, 1.12736]
+
+
+@pytest.mark.feature("ENG-18")
+def test_buy_nach_neuem_anker_senden_weitere_ticks_nichts(fake_mt5):
+    h = _harness(fake_mt5, "BUY", 1.12299)
+    _move_anchor(fake_mt5, h, 1.12362)
+    sent = len(fake_mt5.sent)
+    for _ in range(3):
+        h.tick()
+    assert len(fake_mt5.sent) == sent  # kein Löschen/Neusetzen im Dauerlauf
+
+
+@pytest.mark.feature("ENG-18")
+def test_toleranz_positionsgebunden_eng_sonst_0_4_schritt(fake_mt5):
+    from src.core.grid_execution.config import extract_zone_config
+    from src.core.grid_execution.levels import level_tolerance
+
+    fake_mt5.add_symbol("EURUSD", bid=1.12, ask=1.12, digits=5, point=0.00001,
+                        trade_tick_size=0.00001, trade_tick_value=1.0, trade_contract_size=100000)
+    infos = dict(fake_mt5.symbols)
+
+    def tol(step_money, **zone):
+        cfg = extract_zone_config(
+            make_zone(symbol="EURUSD", step_by_loss=True, grid_step=step_money, lot_size=0.10,
+                      take_profit=0, pullback_distance=0, **zone), 0, symbol_infos=infos)
+        return level_tolerance(cfg, cfg.grid_step, infos)
+
+    assert tol(10, instant_entry=True) == pytest.approx(0.00005)   # 5 % von 0,00100
+    assert tol(1) == pytest.approx(0.00001)                        # Schritt 0,00010: Untergrenze 1 Point
+    fixed = extract_zone_config(make_zone(symbol="EURUSD", grid_step=0.001), 0, symbol_infos=infos)
+    assert level_tolerance(fixed, fixed.grid_step, infos) == pytest.approx(0.0004)
