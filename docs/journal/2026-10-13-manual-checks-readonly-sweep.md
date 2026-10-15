@@ -40,9 +40,9 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | 4 | ZON-14 | Passed, signed later on 2026-10-13, with one known deviation | Not read-only. See "ZON-14 live check". The first BUY STOP was two grid steps away. The cause is the level check across setups, not the instant entry. The owner approved the sign-off. `run.sh sign ZON-14 bestanden …` returned `ZON-14: manuell bestanden`. The checklist shows 145/158. |
 | 5 | ZON-16 | Passed, signed on 2026-10-15, with partial live evidence | Not read-only. See "ZON-16 live check". The owner left the decision to Claude ("entscheide für bessere Ergebnisse du"). The comparison with the MT5 indicator "Fractals" was not done (see the gaps in that section). `run.sh sign ZON-16 bestanden …` returned `ZON-16: manuell bestanden`; the checklist is at 146/158. |
 | 6 | ENG-29 | Closed: no manual tier (`2026-10-13-eng-29-and-update-task-running.md`) | All 4 accounts: `legacy_setup_orders` is `[]` or `null`. No log line `Eski fraktal kurgusu`. No legacy setup orders remain. |
-| 7 | LOG-07 | Open, partial evidence | See "Partial evidence". |
+| 7 | LOG-07 | Passed, signed on 2026-10-15 | Not read-only. See "LOG-07 live check". The owner approved the sign-off. `run.sh sign LOG-07 bestanden …` returned `LOG-07: manuell bestanden`; the checklist is at 148/158. |
 | 8 | ANA-08 | Open, needs the owner | The check compares with the deal history in the MT5 terminal. `GET /api/history/{id}/deals` returned 4433 deals for 30 days, `missing: 0`. |
-| 9 | ANA-14 | Open, prerequisite missing | No symbol has 2 registered setups with trades. The zone register shows EURUSD magic 200003 with `deleted_at` 25 s after `created_at` (2026-10-02, before this sweep). It has 0 trades. |
+| 9 | ANA-14 | Passed, signed on 2026-10-15, with partial evidence | Read-only. See "ANA-14 check". On 2026-10-13, no symbol had 2 registered setups with trades. On 2026-10-15, EURUSD had 3 current setups and 1 deleted setup with trades. The owner approved the sign-off with the gap in that section. `run.sh sign ANA-14 bestanden …` returned `ANA-14: manuell bestanden`; the checklist is at 149/158. |
 | 10 | SYS-06 | Open, needs the owner | The check reboots the VPS and toggles the MT5 Python integration. |
 | 11 | ACC-11 | Open, needs the owner | Not read-only. |
 | 12 | BOT-07 | Open, needs the owner | Not read-only. |
@@ -58,7 +58,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 
 | ID | Confirmed (read-only) | Steps that remain |
 |---|---|---|
-| LOG-07 | `?zone_id=a` returned 300 lines with 0 other tags. `?zone_id=a&zone_id=b` kept the file order and equals the last 300 tagged lines of both setups. On 2026-10-15, the bot ran EURUSD and GBPCHF. EURUSD has 3 setups, and only setup 3 is active. GBPCHF has 1 setup. The EURUSD card "Sembol logları" showed 100 lines. Each line had the prefix "Setup 3" and no `[Z:` tag. No line was from GBPCHF. The lines were in time order. The "Robot Logları" tab showed the badges "EURUSD · Setup 3" (121 lines) and "GBPCHF · Setup 1" (13 lines), with no `[Z:` tag. | The lines of 2 setups of one symbol in the same card. EURUSD setups 1 and 2 are inactive, and their last lines (2026-10-13) are older than the 100 lines that the card shows. |
+| LOG-07 | `?zone_id=a` returned 300 lines with 0 other tags. `?zone_id=a&zone_id=b` kept the file order and equals the last 300 tagged lines of both setups. On 2026-10-15, the bot ran EURUSD and GBPCHF. EURUSD has 3 setups, and only setup 3 is active. GBPCHF has 1 setup. The EURUSD card "Sembol logları" showed 100 lines. Each line had the prefix "Setup 3" and no `[Z:` tag. No line was from GBPCHF. The lines were in time order. The "Robot Logları" tab showed the badges "EURUSD · Setup 3" (121 lines) and "GBPCHF · Setup 1" (13 lines), with no `[Z:` tag. | None. The "LOG-07 live check" closed the gap on 2026-10-15. |
 | VPS-07 | Step 1: `elevated: []` and no admin warning on `/vps`. | Step 2: start `start.bat` as administrator, then "Admin-Prozesse beenden". |
 | VPS-09 | `GET /api/system/worker/status` and `GET /api/system/worker/log` returned `HTTP 200`. The worker sends ANSI color codes; `VpsOnlinePanel.tsx` removes them with `stripAnsi`. | The Vercel version and "Worker neu starten". |
 
@@ -138,11 +138,46 @@ Date: 2026-10-15. Not read-only. The owner saved and started the setup before th
 - Preview text: the dashboard (language `tr`) showed `≈ 0,001 fiyat mesafesi (0,1 lot)` below the grid step and `≈ 0,0005 fiyat mesafesi (0,1 lot)` below the TP of this setup. This agrees with `/api/symbols/{id}` (EURUSD `trade_tick_value` 1.0, `trade_tick_size` 0.00001) and `lossToPriceDistance` in `zoneHelpers.ts`.
 - Earlier evidence on 2026-10-13: a USOUSD breakout setup with `step_by_loss: true` (tick value 0.1 per 0.001). BUY 0.02 lot with grid 0.16 $ gave position steps of `+0.080` and a TP distance of `0.8`. SELL 0.01 lot with grid 0.6 $ gave SELL STOP orders at 91.804 / 92.404 / 93.004 and a TP distance of 0.400.
 
+## LOG-07 live check
+
+Date: 2026-10-15. Not read-only. The owner clicked "Stoppen" on EURUSD setup 3 and "Starten" on EURUSD setup 2. The bot did not stop. Claude read the worker API and the dashboard on `localhost:3000`. All times are UTC+2.
+
+- The first try did not change the settings. The cause is not known. Claude first told the owner to use an "active" switch and "Speichern". In the setup card, the "Starten"/"Stoppen" button sets `is_active` and saves at once.
+- Settings after the second try: EURUSD setup 2 (magic 200007) active, setup 3 (magic 200008) inactive, GBPCHF setup 1 active.
+- Setup 3 deleted its pending orders (`Mutlak Temizlik`). Its 3 positions stay open. Setup 2 opened BUY and SELL 0.01 lot at 16:14 (instant entry) and placed 20 orders.
+- `GET /api/logs/{id}?zone_id=<setup 2>&zone_id=<setup 3>&lines=100`: 96 lines of setup 3 and 4 lines of setup 2, in file order, 0 GBPCHF lines.
+- EURUSD card "Sembol logları": 100 lines. 96 lines start with "Setup 3" and 4 lines with "Setup 2". No `[Z:` tag, no GBPCHF line.
+- Tab "Robot Logları": badges "EURUSD · Setup 2" (4), "EURUSD · Setup 3" (114), "GBPCHF · Setup 1" (17). No `[Z:` tag.
+
+After the check, setup 2 runs with its positions and orders. The owner decides about setup 3.
+
+## ANA-14 check
+
+Date: 2026-10-15. Read-only. Claude read the Analyse page on `localhost:3000` (tab "İstatistik", "Son 30 gün", 16.09.26 to 15.10.26) and `GET /api/history/{id}/deals`.
+
+Scope "EURUSD · tüm setup’lar (3)": net +115.30 USD, 138 trades. Breakdown "Setup’a göre":
+
+| Row | Magic | Trades | Net (page) | Net (deal API) |
+|---|---|---|---|---|
+| EURUSD · Z2 (deleted, name from the register) | 200002 | 86 | -113.04 | 86 positions, -113.04 |
+| EURUSD · Setup 1 | 200006 | 4 | +20.05 | +20.05 |
+| EURUSD · Setup 2 | 200007 | 6 | +2.18 | +2.18 |
+| EURUSD · Setup 3 | 200008 | 42 | +206.11 | +206.11 |
+
+- The sum of the rows is +115.30, equal to the net of the symbol.
+- The names "EURUSD · Setup n" agree with the symbol card and the badges in the tab "Robot Logları".
+- Comparison rule, the same as `tradePairing.ts`: a position belongs to the magic of its opening deal. It belongs to the setup only if it opened after `created_at` of the setup in the register (broker time UTC+3). Magic 200002 also has XAUUSD deals and EURUSD positions from before the register entry. These count as "Setup unbekannt". All deals of setups 1 to 3 are in the 30 days.
+
+Gap: the owner did not compare in the MT5 terminal (Tools → History). Claude compared with the deal API, which reads the MT5 deal history.
+
+Side finding (not part of ANA-14): the scope "GBPCHF · Setup 1" (magic 200001) shows 356 trades, net +499.48 USD. The deal API shows 354 positions with the same net. All are USOUSD positions, opened after `created_at` of the register entry (symbol GBPCHF). The page labels them "GBPCHF · Setup 1". Probable cause, not examined: the symbol of the setup changed from USOUSD to GBPCHF, and the magic number stayed the same.
+
 ## Open points
 
-- [ ] Run the steps that remain for LOG-07, VPS-07 and VPS-09.
+- [ ] Run the steps that remain for VPS-07 and VPS-09.
 - [ ] Run the checks that need the owner (table "Verification").
-- [ ] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14.
+- [ ] Examine the side finding in "ANA-14 check": USOUSD trades of magic 200001 have the label "GBPCHF · Setup 1".
+- [x] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14. Done on 2026-10-15.
 - [ ] Show the worker `detail` when "save all" fails (`mergeAndSaveSettings` in `useSettingsStore.ts`).
 - [x] Prepare pending orders of a legacy setup for ENG-29, or close ENG-29 as not testable any more. ENG-29 has no manual tier now. See `2026-10-13-eng-29-and-update-task-running.md`.
 - [x] Find why `AutoGrid-Update` shows `Running` since 2026-10-10. See `2026-10-13-eng-29-and-update-task-running.md`.

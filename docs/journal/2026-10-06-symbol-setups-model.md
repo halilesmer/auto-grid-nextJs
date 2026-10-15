@@ -355,8 +355,8 @@ The statistics tab compares the setups of one symbol. The Analyse page says "set
 - [ ] The worker log messages say "Bölge n" (19 places in `worker_python/src/core`). n is the engine position + 1, not the setup number of the card. Worker messages are not translated, and the change is in engine code (golden test BKT-01). Found 2026-10-07 in part B2b.
 - [ ] `GET /api/logs/{id}` reads the log files directly in the `async def` (a blocking call, `hooks/RULES.md` §9.1). With a zone filter, it reads the full file. Present before part B2b. Part B2b sends fewer requests (one for each symbol). Found 2026-10-07.
 - [ ] ZON-20: manual check on the DEMO account (`pruefung` in `features.yaml`).
-- [ ] LOG-07: manual check on the DEMO account after the merge of part B2b.
-- [ ] ANA-14: manual check on the DEMO account after the merge of part D (needs two setups with trades on one symbol).
+- [x] LOG-07: manual check on the DEMO account after the merge of part B2b. Passed on 2026-10-15, see `2026-10-13-manual-checks-readonly-sweep.md`.
+- [x] ANA-14: manual check on the DEMO account after the merge of part D (needs two setups with trades on one symbol). Passed on 2026-10-15, see `2026-10-13-manual-checks-readonly-sweep.md`.
 
 ## Risks
 - A running bot moves the ui_state file only at its next settings read (one loop, `LOOP_INTERVAL_SECONDS`). A zone command in this time can go to a different zone: Start/Pause or Restart right after a save that changed the order (delete, a new setup of an earlier symbol, the first save of an old file). Present since part A. A fix needs commands by magic in the worker.
