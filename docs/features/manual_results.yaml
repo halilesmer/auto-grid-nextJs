@@ -280,6 +280,12 @@ VPS-07:
   notiz: Admin-Start erkannt (Worker-/ngrok-Neustart-Schleife mit PID); nach Admin-Prozesse
     beenden Warnung weg, Worker ohne Adminrechte neu gestartet, keine neue Admin-Warnung
     im Log, Bots liefen ununterbrochen weiter.
+VPS-09:
+  status: bestanden
+  datum: '2026-10-15'
+  notiz: 'Vercel-Version, Admin-Schlüssel: Panel zeigt Version/Laufzeit/Log; Worker
+    neu starten → nach ~20 s wieder erreichbar, Laufzeit 1 min → 0 min, 2 Bots (4 Konten)
+    liefen weiter'
 VPS-10:
   status: bestanden
   datum: '2026-10-01'

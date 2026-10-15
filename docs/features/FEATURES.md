@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-15 · **150/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-15 · **152/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -25,7 +25,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
-| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 7/10 |
+| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/14 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/13 |
@@ -594,10 +594,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ein PowerShell-Einzeiler (irm .../bootstrap.ps1 | iex, Administrator-PowerShell) installiert fehlendes Git/Python 3.11/VC++-Redistributable, klont das Repo (nur wenn es fehlt, kein git pull), legt die venv an, installiert requirements.txt, erzeugt bei Bedarf WORKER_API_KEY und richtet ngrok (Authtoken + feste Domain als Benutzer-Variable NGROK_DOMAIN; run_ngrok_watchdog.bat hat keine Vorgabe-Domain, ohne Variable startet ngrok nicht und schreibt „NGROK_DOMAIN fehlt“ in logs/ngrok.log) ein – Repo-Klon/venv/pip/ngrok laufen dafür in einer eigenen geplanten Aufgabe mit RunLevel Limited (bootstrap-user.ps1), nie erhöht. Danach ruft es setup_vps.ps1 auf (jetzt ohne Pflicht-Parameter -PublicKey; ohne ihn entfallen nur OpenSSH/Mac-Schlüssel), startet den Worker über die Aufgabe AutoGrid-Start und gibt zum Schluss über connect-link.ps1 einen Verbindungs-Link (#connect=…, dasselbe Format wie frontend_nextjs/src/lib/connectionCode.ts) aus, den man im Frontend öffnet oder einfügt (SYS-07/SYS-08).
   - **Prüfung:** Auf einem frischen Windows-VPS (oder einem, auf dem Git/Python/Repo noch fehlen), in einer Administrator-PowerShell den Einzeiler ausführen. → ngrok-Authtoken und eine feste Domain eingeben, danach das Windows-Passwort (Auto-Login) oder -SkipAutoLogon verwenden.
   - **Erwartet:** Git/Python/VC++-Redistributable werden installiert (oder als vorhanden erkannt), das Repo liegt unter C:\dev\auto-grid-nextJs, der Worker antwortet auf Port 8000, ngrok zeigt eine öffentliche URL, und am Ende erscheint ein Verbindungs-Link, der im Frontend („VPS verbinden“) sofort einen erfolgreichen Test ergibt. Ein zweiter Lauf des Einzeilers ändert nichts Bestehendes (idempotent).
-- [ ] **VPS-09** Worker online steuern (ohne SSH) — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [x] **VPS-09** Worker online steuern (ohne SSH) — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-15
   - Wo die SSH-Route zu ist (öffentliche Vercel-Version), zeigt /vps unter dem Hinweis ein Panel „Worker (online)“, das direkt die Worker-API mit dem Admin-Schlüssel nutzt (alles admin-only) – GET /system/worker/status (Version, Laufzeit, unter Neustart-Schleife?, laufende Bots), GET /system/worker/log (letzte Zeilen von logs/worker_console.log, Farbcodes entfernt) und POST /system/restart (Worker beendet sich, run_uvicorn_watchdog.bat startet ihn in ~3 s neu; ohne Watchdog 409 und deaktivierter Knopf). Update-Prüfung/Update bleiben im Systemmenü des Dashboards. ngrok-/VPS-Neustart geht bewusst nur per SSH, denn ist der Tunnel weg, ist auch die API nicht erreichbar.
   - **Prüfung:** Auf der Vercel-Version mit Admin-Schlüssel verbinden, Seite „VPS“ öffnen. → „Worker neu starten“ → bestätigen.
   - **Erwartet:** Version, Laufzeit und Log erscheinen; nach ~20 s ist der Worker wieder erreichbar und die Laufzeit beginnt von vorn.
+  - 📝 Vercel-Version, Admin-Schlüssel: Panel zeigt Version/Laufzeit/Log; Worker neu starten → nach ~20 s wieder erreichbar, Laufzeit 1 min → 0 min, 2 Bots (4 Konten) liefen weiter
 - [x] **VPS-10** Selbstheilung (Tunnel-Watchdog) — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-01
   - Die geplante Aufgabe AutoGrid-Tunnel (setup_vps.ps1, alle 5 min) führt ops/windows/tunnel_watchdog.ps1 aus und prüft, ob die öffentliche ngrok-URL (NGROK_DOMAIN) /api/system/platform beantwortet (401/403 zählt als erreichbar). Wenn nicht und der Worker lokal antwortet, beendet sie ngrok (run_ngrok_watchdog.bat startet ihn neu); antwortet auch der Worker nicht, erst abwarten (Neustart-Schleife), dann Worker + ngrok über AutoGrid-Start. Nach 3 Fehlschlägen in Folge Reboot per shutdown /r – höchstens einmal pro Stunde und 3-mal in 24 h, nicht ohne Internet und nicht bei ERR_NGROK_334 (Domain woanders online); nichts in den ersten 10 min nach dem Start und während eines Updates. Der Fehlschlag wird vor der Aktion gespeichert (Zeiten in UTC, Datei atomar ersetzt). Kein Fernzugriff nötig; die Aufgabe hat höchste Rechte nur für den Reboot, ruft nie git auf und startet Worker/ngrok nie selbst. Zustand in data/tunnel_watchdog.json, Log logs/tunnel_watchdog.log; die Seite „VPS“ zeigt „Selbstheilung“ in der ngrok-Kachel (Warnung bei Tunnel-Fehlschlägen, „keine Prüfung seit n min“ wenn die Aufgabe nicht mehr läuft, letzter Auto-Reboot) und den Log-Tab „Tunnel“.
   - **Prüfung:** Auf dem VPS in einer Administrator-PowerShell setup_vps.ps1 -SkipAutoLogon -SkipRepoOwnership erneut ausführen, dann tunnel_watchdog.ps1 -DryRun. → Nur mit Absprache: ngrok.exe im Task-Manager beenden und das ngrok-Fenster schließen (keine Neustart-Schleife mehr), ~5-10 min warten.
