@@ -40,12 +40,12 @@ The engine cancels and places about 6 orders after each position change. An off-
 | Golden `instant_entry` | Changed on purpose, other golden files unchanged (`--update-golden` rewrote only that file). |
 | `npx tsc --noEmit` | No error. |
 | `playwright test backtest-grid-parity-lib backtest-runner-lib --project=mocked` | 75 passed. The browser engine gives the new golden. |
-| DEMO or VPS | Not verified. Needs the worker update on the VPS. |
+| DEMO or VPS | Verified on 2026-10-15 with worker `v0.7.220`: two fills at about -10 $ from the position above, and the BUY LIMIT orders 0.00100 apart from the last position. See "ZON-13 live check" in `2026-10-13-manual-checks-readonly-sweep.md`. |
 
 Live evidence of the defect before the fix: the position at 1.12097 opened 0.00065 below the previous one (1.12162), at about −6.5 $.
 
 ## Open points
-- [ ] After the VPS has the fix, watch that no order sits closer than one step to the last position, then run the ZON-13 DEMO check again.
+- [x] After the VPS has the fix, watch that no order sits closer than one step to the last position, then run the ZON-13 DEMO check again. Done on 2026-10-15, see "ZON-13 live check" in `2026-10-13-manual-checks-readonly-sweep.md`.
 - [ ] Watch the cancel and place churn per position change on the DEMO account. The ENG-25 brake does not count own cancels (`grid_orders.py`, `vanished.py`). A test shows that further ticks send nothing.
 
 ## Lessons

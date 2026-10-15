@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-15 · **146/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-15 · **147/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,7 +19,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 19/20 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 20/20 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 30/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -270,10 +270,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der (i)-Hinweis von Grid-Abstand und Take Profit (Buy/Sell) nennt für gängige Symbole (Gold, Silber, Forex, BTC/ETH, US-Indizes, Öl) einen Richtwert; bei unbekanntem Symbol bleibt der Text unverändert. Nur Anzeige, keine Validierung.
   - **Prüfung:** Symbol auf XAUUSD stellen, mit der Maus über das (i) von Grid-Abstand und Take Profit fahren. → Symbol auf ein unbekanntes Symbol stellen.
   - **Erwartet:** Bei XAUUSD steht „1–5“ als Richtwert im Hinweis; bei unbekanntem Symbol nur der Standardtext.
-- [ ] **ZON-13** Abstand nach Verlust ($) — 🖥️ e2e ✅ 2026-10-12 · 👤 manuell ⏳
+- [x] **ZON-13** Abstand nach Verlust ($) — 🖥️ e2e ✅ 2026-10-12 · 👤 manuell ✅ 2026-10-15
   - Schalter „Abstand nach Verlust ($)“ in der Zonenkarte. Wenn an, sind Grid-Abstand (BUY/SELL), Min./BUY-/SELL-Pullback, Take Profit und Stop Loss $-Beträge statt Preisabstände; beim Umschalten werden vorhandene Werte mit Lotgröße und Tick-Wert umgerechnet, unter dem Feld steht der entsprechende Preisabstand. Wird mit der Zone gespeichert (step_by_loss). Der Schalter steht direkt unter dem Grid-Abstand und dessen Preisabstand-Vorschau; der gemeinsame Block bleibt beim Zeilenumbruch zusammen, auch im Backtest-Editor.
   - **Prüfung:** Zone mit EURUSD, 0,10 Lot anlegen, „Abstand nach Verlust ($)“ einschalten, Grid-Abstand 10 und Take Profit 5 eingeben. → Speichern, Bot auf dem DEMO-Konto laufen lassen und die Pending Orders in MT5 ansehen.
   - **Erwartet:** Unter dem Feld steht „≈ 0,001 Preisabstand bei 0,1 Lot“; die Orders liegen 0,00100 auseinander (ab der zuletzt eröffneten Position), jede neue Position öffnet, wenn die vorige 10 $ im Minus ist; der TP liegt 0,00050 vom Einstieg.
+  - 📝 Claude: DEMO EURUSD BUY, 0,10 Lot, Grid 10 $, TP 5 $, Worker v0.7.220 mit ENG-18-Fix: Fills bei 1,12059 und 1,12061 unter der Position 1,12162 (etwa -10 $), BUY LIMITs 0,00100 auseinander, TP 0,0005 vom Level bzw. Einstieg. Lücke: Vorschautext nicht im Browser gelesen, 0,001 aus Live-Symboldaten berechnet
 - [x] **ZON-14** Sofort erste Position — 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-13
   - Schalter „Sofort erste Position“ in der Zonenkarte (instant_entry), unabhängig von „Abstand nach Verlust“. Wird mit der Zone gespeichert.
   - **Prüfung:** Zone (BUY und SELL) auf dem DEMO-Konto anlegen, Preis innerhalb des Bereichs, „Sofort erste Position“ einschalten, speichern, Bot starten. → Warten, bis eine Seite per Take Profit schließt.
