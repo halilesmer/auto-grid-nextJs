@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-13 · **145/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-15 · **145/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -68,7 +68,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ein Chip in der Kopfzeile (ab sm) bzw. eine Zeile darunter (Handy) zeigt Host und Status (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden) und prüft alle 30 s sowie bei Fenster-Fokus erneut über SYS-07.
   - **Prüfung:** Bei laufendem Worker das Dashboard öffnen, dann den API-Key auf dem VPS ändern. → Zurück ins Browserfenster wechseln (Fokus).
   - **Erwartet:** Der Chip zeigt zunächst „Verbunden“, nach dem Fokuswechsel „API-Key abgelehnt“.
-- [ ] **SYS-06** MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration) — 🧪 unit ✅ 2026-10-13 · 👤 manuell ⏳
+- [ ] **SYS-06** MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration) — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
   - Worker (/start, Symbolabfrage) und bot_runner verbinden sich über connect_to_mt5_with_timeout. Das Timeout ist ein Gesamtbudget (Warten auf die MT5-Sperre, initialize-Versuche, Neustart eines hängenden Terminals); danach wird nicht weiter versucht, /start antwortet also nach rund 120 s (+ Login). Bei IPC-Fehlern wird nur ein terminal64.exe desselben Pfads beendet, das älter als 180 s ist; ein startendes Terminal wird abgewartet. Die kurze Symbolabfrage (15 s) beendet nie ein Terminal. -10004 bei initialize heißt „keine IPC-Verbindung“, nicht „falsches Passwort“. Vor initialize wird der Python-Kanal des Terminals geprüft (named pipe MT5.Terminal.<SHA-256 des Pfads>). Ist das Terminal älter als 30 s und hat keinen Kanal, ist in MT5 unter Optionen → Community „Python integration“ abgewählt; dann kommt sofort eine klare Meldung statt 60 s Warten pro Versuch, und kein Terminal wird beendet. Ist der Kanal eines anderen Terminals offen, wird wie bisher verbunden.
   - **Prüfung:** Auf der Seite „VPS“ den VPS neu starten, MT5 nicht von Hand öffnen. → Sobald der Worker erreichbar ist, Konto wählen, eine Zone öffnen (Symbolliste) und sofort „Start Bot“ klicken. → Nur DEMO, Bot vorher stoppen: Per RDP in MT5 Extras → Optionen → Community „Python-Integration“ abwählen, MT5 beenden und neu starten, „Start Bot“ klicken. Danach den Haken wieder setzen und MT5 neu starten.
   - **Erwartet:** /start antwortet nach spätestens ~2–3 min (Erfolg oder klare Fehlermeldung). Das Worker-Log zeigt „henüz açılıyor, öldürülmüyor“ statt „Öldürülüyor“ für ein Terminal, das jünger als 180 s ist. Scheitert der erste Start am langsamen Kaltstart, verbindet ein zweiter Start mit demselben Terminal. Ohne Python-Integration scheitert „Start Bot“ nach wenigen Sekunden mit der Meldung „… 'Python integration' kutusunu işaretleyin …“; mit Haken verbindet er in Sekunden.
@@ -106,7 +106,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** DEMO-Konto wählen.
   - **Erwartet:** Badge zeigt TEST/DEMO, nicht LIVE.
   - 📝 Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis: ohne Kontoauswahl zeigt der Header ebenfalls TEST
-- [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-10-13
+- [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-10-15
   - Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
   - **Prüfung:** Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -118,7 +118,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. Der WS-Stream folgt dem gewählten Konto (/ws/stream?account_id=, neu verbunden beim Wechsel); der Worker sendet jeder Verbindung nur ihr Konto – aus der MT5-Abfrage des API-Prozesses nur, wenn dessen Terminal an diesem Konto angemeldet ist, sonst aus der Metrikdatei des Bot-Prozesses. WS-Metriken tragen account_id; Metriken eines anderen Kontos (älterer Worker) ignoriert das Frontend.
   - **Prüfung:** Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft. → Zweites Konto mit laufendem Bot wählen, /chart bzw. /formasyon öffnen; DevTools → WS-URL und Nachrichten ansehen.
   - **Erwartet:** Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status. Mit laufendem Bot bekommt das zweite Konto eigene Stream-Metriken (Live-Preis im Chart; die WS-URL enthält account_id=<Konto>, jede METRICS-Nachricht dessen account_id).
-- [ ] **ACC-11** Kein Login im MT5-Terminal eines anderen Kontos — 🧪 unit ✅ 2026-10-13 · 👤 manuell ⏳
+- [ ] **ACC-11** Kein Login im MT5-Terminal eines anderen Kontos — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
   - mt5.login() stellt das verbundene Terminal auf ein anderes Konto um. Ist mt5_path eingetragen, aber nicht vorhanden, verbinden Worker (/start, Symbolabfrage) und Bot-Reconnect nicht mehr ohne Pfad mit irgendeinem laufenden Terminal, sondern melden „[CONFIG] MT5 terminal yolu bulunamadı“. Vor jedem Login wird terminal_info().path mit den mt5_path-Einträgen in accounts.json verglichen; gehört das Terminal einem anderen Konto (und nicht auch diesem), wird nicht eingeloggt („[TERMINAL] … hesabına ait“). Ein Konto ohne mt5_path kann sich daher nicht im Terminal eines Kontos mit eingetragenem Pfad anmelden. Der Bot prüft in jeder Runde vor Fernbefehlen und Handel account_info().login; ist sein Terminal auf ein fremdes Konto umgestellt, handelt er nicht („MT5 terminali başka bir hesaba … geçmiş“) und meldet sich wieder am eigenen Konto an; wird der Login abgelehnt, trennt er sich vom Terminal. Anlass 29.09.2026, 20:41 – T34 (DEMO-Konto A) wurde kurz auf DEMO-Konto B angemeldet.
   - **Prüfung:** Nur DEMO. Zwei Konten mit je eigenem Terminal, Bot von Konto 1 läuft. → Bei Konto 2 im Bearbeiten-Dialog einen nicht existierenden MT5-Pfad eintragen, speichern und für Konto 2 eine Zone öffnen (Symbolliste) bzw. „Bot starten“ klicken. → Danach den richtigen Pfad wieder eintragen.
   - **Erwartet:** Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
@@ -175,7 +175,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Ein Zonenfeld ändern → Leiste prüfen → „Kaydet“ oder Cmd/Strg+Enter.
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
-- [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 👤 manuell ✅ 2026-09-23
   - Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
   - **Prüfung:** Lot 0.0100000001 eingeben und speichern.
   - **Erwartet:** Gespeichert wird 0.01.
@@ -185,14 +185,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur das Intervall speichern.
   - **Erwartet:** Zonen bleiben unverändert.
   - 📝 Claude: POST nur mit LOOP_INTERVAL_SECONDS → ZONES unverändert; Gesamteinstellungen danach identisch mit Sicherung
-- [x] **SET-06** Standardwerte (neue Datei, fehlende Zonenfelder) — 🧪 unit ✅ 2026-10-13
+- [x] **SET-06** Standardwerte (neue Datei, fehlende Zonenfelder) — 🧪 unit ✅ 2026-10-15
   - Eine neue Einstellungsdatei enthält nur LOOP_INTERVAL_SECONDS und ZONES. Fehlt einer Zone ein Feld, nimmt die Engine dieselben Standardwerte wie eine neue Zone im UI (defaultZone). Die früheren GLOBAL_*-Schlüssel wurden nie gelesen und sind entfernt.
   - **Prüfung:** Nicht manuell testbar.
   - **Erwartet:** Engine- und UI-Standardwerte stimmen überein; keine ungenutzten Schlüssel in neuen Dateien.
 
 ## 5. SYM – Symbole
 
-- [x] **SYM-01** Symbolliste + Cache *(teilweise)* — 🧪 unit ✅ 2026-10-13 · 🔌 api ⏳ · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYM-01** Symbolliste + Cache *(teilweise)* — 🧪 unit ✅ 2026-10-15 · 🔌 api ⏳ · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /symbols/{id} liefert Broker-Symbole aus broker_symbols.json; 1-h-Cache, bei Ablauf wird die alte Liste geliefert und im Hintergrund aktualisiert (doppelte Anfragen werden zusammengelegt). Solange /start oder /stop für das Konto läuft, verbindet sich die Abfrage nicht selbst mit MT5 (alte Liste bzw. leer); /start füllt den Cache.
   - **Prüfung:** Zone öffnen, ins Symbolfeld klicken.
   - **Erwartet:** Symbolliste des Brokers erscheint schnell (auch bei wiederholtem Öffnen).
@@ -207,7 +207,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Symbol wählen, Schrittweite der Preis- und Lotfelder prüfen (Pfeiltasten / DevTools). → Ein unbekanntes Symbol eintippen (nicht speichern).
   - **Erwartet:** Preisfelder in Schritten von point (z. B. 0,001 bei 3 Digits), Lot mit volume_min/volume_step; liegt der Lot unter dem Minimum des Symbols, wird er darauf angehoben (nie 0); unbekanntes Symbol zeigt „Geçersiz Sembol!“.
   - 📝 Claude: USOUSD → Preisfelder step/min 0.001, Lot min/step 0.01; unbekanntes Symbol → 'Geçersiz Sembol!'; nach Neuladen wieder USOUSD, API unverändert
-- [x] **SYM-04** Symbolfehler sichtbar — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
+- [x] **SYM-04** Symbolfehler sichtbar — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
   - Kann der Worker die Symbole nicht aus MT5 holen (z. B. Terminal nicht eingeloggt), liefert GET /symbols/{id} neben der leeren Liste ein Feld error mit der MT5-Meldung und schreibt sie ins Robot-Log des Kontos; das Symbolfeld zeigt darunter einen Hinweis statt still leer zu bleiben.
   - **Prüfung:** Konto wählen, dessen MT5-Terminal nicht erreichbar oder nicht eingeloggt ist, und eine Zone öffnen.
   - **Erwartet:** Unter dem Symbolfeld steht „Symbole konnten nicht aus MT5 geladen werden“ mit der MT5-Meldung; dieselbe Meldung steht im Robot-Log.
@@ -292,7 +292,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
-- [x] **ZON-19** Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-07
+- [x] **ZON-19** Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-07
   - Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27). Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der Engine-Reihenfolge (index, nur lesend, beim Speichern verworfen). zone_states und ui-state-Befehle zählen nach diesem Platz; die Oberfläche zeigt die Setups nach Symbol gruppiert (ZON-20) und speichert nur SYMBOLS. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (ein alter Browser-Tab schickt ZONES mit veralteten SYMBOLS; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
   - **Prüfung:** DEMO-Konto mit zwei Zonen auf XAUUSD und einer auf EURUSD, alle mit offenen Orders; Bot läuft. → Worker auf den neuen Stand bringen, im Dashboard eine Einstellung ändern und speichern. → configs/settings_<id>_Auto_Grid.json und configs/backup/ ansehen; MT5-Orders und Bot-Log prüfen.
   - **Erwartet:** Die Datei enthält SYMBOLS mit XAUUSD (2 Setups) und EURUSD (1 Setup), alle Magic-Nummern wie vorher; die Kopie der alten Datei liegt in configs/backup/. Der Bot behält alle Orders und Positionen (gleiche Tickets), das Dashboard zeigt alle drei Zonen wie vorher.
@@ -319,7 +319,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** „Stop Bot“ → bestätigen; in MT5 die offenen Positionen prüfen.
   - **Erwartet:** Status „Stopped“; Positionen sind noch da.
   - 📝 Claude (DEMO-Konto A): 'Stop Bot' → Dialog 'Disconnect MT5' → Stopped nach ~5 s, bot_running=false, Zone 'Hazır (Motor Bekleniyor)'; Log: 'Açık pozisyon/emirlere dokunulmuyor'. Nach Neustart MT5-Sync: weiterhin 14 Positionen / 5 Pending Orders (vorher 14/5)
-- [x] **BOT-03** Neustart veralteter/hängender Bot — 🧪 unit ✅ 2026-10-13 · 👤 manuell ✅ 2026-09-23
+- [x] **BOT-03** Neustart veralteter/hängender Bot — 🧪 unit ✅ 2026-10-15 · 👤 manuell ✅ 2026-09-23
   - Läuft ein Bot mit alter VERSION oder ohne frische Metriken (> 180 s), startet /start ihn neu; beim Worker-Start übernimmt startup_maintenance laufende Bots.
   - **Prüfung:** Nach einem Update „Restart Bot“ klicken.
   - **Erwartet:** Bot läuft danach mit der neuen Version (PID-Datei enthält neue VERSION).
@@ -328,139 +328,139 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Anzeige Connecting / Running / „process without MT5“ / Stopped, Marktstatus, Kontoname/Server; Alarme für API-Fehler, MT5-Verbindung, abgelehnte Order, Algo Trading aus.
   - **Prüfung:** In MT5 „Algo Trading“ ausschalten, während der Bot läuft.
   - **Erwartet:** Alarm „Algo Trading off“ erscheint; nach Einschalten verschwindet er.
-- [x] **BOT-05** Watchdog-Neustart — 🧪 unit ✅ 2026-10-13
+- [x] **BOT-05** Watchdog-Neustart — 🧪 unit ✅ 2026-10-15
   - Alle 15 s Prüfung; abgestürzter oder hängender Bot (600 s ohne Metriken) wird mit Backoff 15/30/60/120/240 s neu gestartet.
   - **Prüfung:** Auf dem VPS den bot_runner-Prozess im Task-Manager beenden.
   - **Erwartet:** Nach ≤ 30 s läuft der Bot wieder (Robot-Log zeigt Neustart).
-- [x] **BOT-06** Watchdog gibt auf — 🧪 unit ✅ 2026-10-13
+- [x] **BOT-06** Watchdog gibt auf — 🧪 unit ✅ 2026-10-15
   - Nach 5 Neustarts in 30 min hört der Watchdog auf; gelöschte Konten werden nicht mehr beobachtet.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **BOT-07** Bots nach Worker-/VPS-Neustart fortsetzen — 🧪 unit ✅ 2026-10-13 · 👤 manuell ⏳
+- [ ] **BOT-07** Bots nach Worker-/VPS-Neustart fortsetzen — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
   - Die Watchdog-Liste (Start ohne Stop) steht zusätzlich in data/watched_bots.json. Beim Worker-Start liest main.py sie ein; startup_maintenance startet jeden dort eingetragenen, nicht laufenden Bot neu (auch LIVE) und stellt ihn unter Watchdog, auch wenn der erste Start scheitert. Gestoppte Bots, gelöschte Konten und Bots, bei denen der Watchdog aufgegeben hat, fehlen in der Liste.
   - **Prüfung:** DEMO-Bot starten, dann auf der Seite „VPS“ → „VPS neu starten“.
   - **Erwartet:** Nach dem Reboot läuft der Bot wieder; das Robot-Log zeigt „[AUTO] Bot … devam ettirildi“.
 
 ## 8. ENG – Grid-Engine (Handelslogik)
 
-- [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-01** Zonenwahl — 🧪 unit ✅ 2026-10-15
   - Pro Symbol ist höchstens eine Zone aktiv – die erste aktive Zone dieses Symbols, deren Mittelkurs (oder Schlusskurs der letzten Kerze bei „Mum Kapanışı“, Zeitrahmen exit_timeframe) in [min_price, max_price] liegt. Zonen mit verschiedenen Symbolen (z. B. USOUSD + XAUUSD) laufen gleichzeitig.
   - **Prüfung:** Zwei Zonen mit verschiedenen Bereichen anlegen, Bot laufen lassen. → Eine zweite Zone mit anderem Symbol anlegen und starten.
   - **Erwartet:** Beim gleichen Symbol entstehen Orders nur in der Zone, in der der Preis liegt; eine Zone mit anderem Symbol bekommt zusätzlich eigene Orders.
-- [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-02** Sliding-Grid-Level — 🧪 unit ✅ 2026-10-15
   - Level werden an round(mid/step)*step verankert, levels_below/levels_above Stufen, auf die Zone begrenzt; acceptable-Sets mit ±2 Stufen Puffer.
   - **Prüfung:** Bot laufen lassen, Pending Orders in MT5 ansehen.
   - **Erwartet:** Orders liegen im Gridabstand um den Preis, nie außerhalb der Zone.
-- [x] **ENG-03** Breakout / Pullback — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-03** Breakout / Pullback — 🧪 unit ✅ 2026-10-15
   - Im Breakout-Modus nur Orders in Trendrichtung, mit pullback_distance / sell_pullback_distance.
   - **Prüfung:** Breakout-Zone aktivieren, Orders ansehen.
   - **Erwartet:** Orders nur in Trendrichtung und im Pullback-Abstand.
-- [x] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-04** Zonen-Config lesen + Lot begrenzen — 🧪 unit ✅ 2026-10-15
   - extract_zone_config liest order_type, grid_step, lot_size und sell_lot_size (nie 0 - mindestens volume_min des Symbols beim Broker und auf dessen Lot-Schritt gerundet, nach oben auf 5,0 begrenzt; ohne Symbolinfos gilt 0,01 als Minimum), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-10-13 · 🌐 live ⏭️ 2026-09-24
+- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-10-15 · 🌐 live ⏭️ 2026-09-24
   - Fehlende Level bekommen Pending Orders mit TP/SL; LIMIT oder STOP je nach Seite des Marktes; Toleranz 0,45 × Gridabstand; als belegt zählen nur Orders und Positionen dieser Zone (eigene magic) und manuelle Positionen – Orders und Positionen anderer Zonen/Setups desselben Symbols belegen kein Level.
   - **Prüfung:** Test-Zone (0,01 Lot) um den aktuellen Preis starten.
   - **Erwartet:** BUY LIMIT unter / BUY STOP über dem Preis (bzw. SELL umgekehrt), jeweils mit TP/SL.
-- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-10-13
-  - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen).
+- [x] **ENG-06** Validierung + Bereinigung — 🧪 unit ✅ 2026-10-15
+  - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen). Die Toleranz zur Stufe beträgt 0,4 Schritt im festen Raster und im positionsgebundenen Modus (step_by_loss/instant_entry) nur den Rundungsspielraum, damit Orders des alten Ankers nicht stehen bleiben.
   - **Prüfung:** Bei laufendem Bot TP der Zone ändern und speichern.
   - **Erwartet:** Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
-- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-10-13 · 🌐 live ⏳
+- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-10-15 · 🌐 live ⏳
   - Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht; die Warnung erscheint einmal (erneut nur, wenn sich die Zahl ändert), nicht bei jedem Tick. Auch der Restlot-Nachschub (ENG-08) setzt dann nichts.
   - **Prüfung:** Maks Pozisyon = 1 setzen und eine Position füllen lassen.
   - **Erwartet:** Danach keine Pending Orders mehr in dieser Zone.
-- [x] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-08** Teilausführung + TP/SL-Resync — 🧪 unit ✅ 2026-10-15
   - Geänderte TP/SL-Werte werden auf offene Positionen übertragen; liegt der neue TP/SL schon auf der falschen Seite des Kurses (MT5 würde mit 10016 ablehnen), wartet der Bot mit einer einmaligen Meldung und setzt ihn, sobald der Kurs es zulässt. Bei Teilausführung wird das Restlot neu gesendet, gemessen am Volumen der eröffnenden Order (history_orders_get), nicht am Lot in den Einstellungen; ein später erhöhtes Lot löst also keinen Nachschub aus. Am Positionslimit (ENG-07) kein Nachschub.
   - **Prüfung:** Bei offener Position den TP der Zone ändern und speichern. → Nur DEMO: bei offenen 0,01-Positionen das Lot der Zone auf 0,02 erhöhen und speichern.
   - **Erwartet:** TP der offenen Position wird angepasst (liegt er schon hinter dem Kurs, steht einmal „TP/SL Bekliyor“ im Log). Nach der Lot-Erhöhung keine „Kısmi Dolum“-Meldungen und keine Orders auf den Leveln der offenen Positionen; neue Grid-Orders haben 0,02.
-- [x] **ENG-09** Zombie-Orders entfernen — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-09** Zombie-Orders entfernen — 🧪 unit ✅ 2026-10-15
   - Orders pausierter, bereinigter, inaktiver Zonen oder mit falschem Symbol werden gelöscht.
   - **Prüfung:** Zone mit offenen Orders pausieren.
   - **Erwartet:** Ihre Pending Orders verschwinden.
-- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-10-13 · 🌐 live ⏭️ 2026-09-24
+- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-10-15 · 🌐 live ⏭️ 2026-09-24
   - Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart).
   - **Prüfung:** Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt. → Warten, bis der Preis zurückkommt; dann „Yeniden Başlat“ in der Zone klicken.
   - **Erwartet:** Orders (bei „Tüm İşlemler“ auch Positionen) werden entfernt; die Zone zeigt „Otomatik temizlendi“ und setzt keine Orders mehr, bis „Yeniden Başlat“ geklickt wird.
-- [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-11** Auto-Pause nach 3 Ablehnungen — 🧪 unit ✅ 2026-10-15
   - Nach 3 abgelehnten Orders in Folge wird die Zone pausiert (ui_state PAUSE) und order_rejected_alarm gesetzt.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-12** Order-Sicherheit (Stops-Level, order_check, 10027) — 🧪 unit ✅ 2026-10-15
   - safe_send_order normalisiert Volumen (nie unter volume_min - auch 0 wird zum Minimum -, nie über volume_max, Schritt ab volume_min), hält den Broker-Stops-Level ein (vermeidet 10016), prüft vorab mit order_check, erkennt 10027 (Algo Trading aus) und prüft, ob die Order wirklich existiert.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-10-13 · 👤 manuell ✅ 2026-09-24
+- [x] **ENG-13** Fernsteuerung per MT5-Handy-App — 🧪 unit ✅ 2026-10-15 · 👤 manuell ✅ 2026-09-24
   - Manuelle BUY LIMIT 0,01 Lot bei 1 $ = STOP, bei 2 $ = START; alternativ Kommentar GRID:STOP / GRID:START. STOP löscht alle Robot-Orders; die Signal-Order wird danach entfernt.
   - **Prüfung:** In der MT5-App eine BUY LIMIT 0,01 bei Preis 1 setzen. → Danach BUY LIMIT 0,01 bei Preis 2 setzen.
   - **Erwartet:** Erst werden alle Robot-Orders gelöscht (remote_paused), dann läuft der Bot weiter; die Signal-Orders verschwinden.
   - 📝 Nutzer per MT5-App: $1 Buy Limit → STOP (Robot-Orders gelöscht, Signal-Order entfernt), $2 Buy Limit → START; Robot-Log 15:14/15:18 bestätigt, danach remote_paused false, Bot läuft
-- [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-14** Zustand beim Start wiederherstellen — 🧪 unit ✅ 2026-10-15
   - Beim Bot-Start sind alle Zonen PAUSE; active_zones_state wird aus den Magic-Numbers der vorhandenen Orders/Positionen aufgebaut (data/state_<id>.json), alte ui_state-Datei gelöscht.
   - **Prüfung:** Bot mit offenen Orders stoppen und neu starten.
   - **Erwartet:** Vorhandene Orders werden übernommen, nicht doppelt gesetzt.
-- [x] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-15** Markt geschlossen + Reconnect — 🧪 unit ✅ 2026-10-15
   - Bei geschlossenem Markt (trade_mode ≠ 4 oder Tick älter als 180 s) wartet die Schleife 60 s; Verbindungsverlust → Reconnect mit exponentiellem Backoff; nur „Algo Trading aus“ → warten statt neu einloggen.
   - **Prüfung:** Am Wochenende Dashboard ansehen.
   - **Erwartet:** Markt wird als geschlossen angezeigt, keine neuen Orders.
-- [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-16** Aufräumen beim Beenden der Schleife — 🧪 unit ✅ 2026-10-15
   - Beim Verlassen der Hauptschleife werden alle Pending Orders des Robots gelöscht.
   - **Prüfung:** Nicht manuell testen (/stop beendet den Prozess hart).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-17** Grid-Abstand nach Verlust ($) umrechnen — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-17** Grid-Abstand nach Verlust ($) umrechnen — 🧪 unit ✅ 2026-10-15
   - Bei step_by_loss rechnet extract_zone_config grid_step, sell_grid_step, die Pullbacks sowie TP/SL (auch beim Nachziehen offener Positionen) als $-Betrag mit Lotgröße und trade_tick_value/trade_tick_size (Fallback Kontraktgröße) in Preisabstände um, gerundet auf den Point; die neue Position öffnet, wenn die vorige diesen Betrag im Minus ist. Ohne Symbolinfo wird die Zone abgelehnt.
   - **Prüfung:** Nicht manuell testen (siehe ZON-13).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-18** Sofort erste Position (Markt-Order) — 🧪 unit ✅ 2026-10-15
   - Bei instant_entry öffnet die Engine je Seite (BUY/SELL, bei BOTH beide) sofort eine Markt-Position, wenn die Zone dort keine offene Position hat und der Preis im Zonenbereich liegt – beim Start und nach dem Schließen (z. B. TP). Abgelehnte Orders werden erst nach 30 s wiederholt. Bei instant_entry/step_by_loss richtet sich das Raster an der zuletzt eröffneten Position der Seite aus (nicht am festen Preisraster).
   - **Prüfung:** Nicht manuell testen (siehe ZON-14).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-19** Fraktal-Erkennung, ATR und Parabolic SAR — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-19** Fraktal-Erkennung, ATR und Parabolic SAR — 🧪 unit ✅ 2026-10-15
   - Bill-Williams-Fraktale aus 5 geschlossenen Kerzen wie MT5 Fractals.mq5 (Mitte > beide rechten, >= beide linken Nachbarn; erst gültig, wenn die zwei rechten Kerzen geschlossen sind). ATR als einfacher Durchschnitt der True Range wie MT5 ATR.mq5, Parabolic SAR nach Wilder inkl. Wert der laufenden Kerze.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-20** Fraktal-Orders (Ausbruch / Abpraller) — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-20** Fraktal-Orders (Ausbruch / Abpraller) — 🧪 unit ✅ 2026-10-15
   - Bei entry_mode „fractal“ setzt die Engine statt des Grids je Seite eine Pending Order auf das jüngste bestätigte Fraktal des gewählten Zeitrahmens (bzw. auf die letzten N, siehe ENG-26) – Ausbruch oberes → Buy Stop, unteres → Sell Stop; Abpraller oberes → Sell Limit, unteres → Buy Limit. order_type (BUY/SELL/BOTH) und der Preisbereich der Zone filtern; liegt der Kurs näher als stops_level, wird gewartet. Kommentar AutoGrid_Z{n}_F{U|D}{Kerzenzeit} (Orders früherer Setups mit Nummer, siehe ENG-29). Liegt die laufende Kerze mehr als zwei Perioden vor dem letzten Tick (MT5 lädt die Geschichte eines Symbols beim ersten Abruf noch nach), wartet die Engine und setzt keine Order auf ein veraltetes Fraktal.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-21** Fraktal-Order verschieben / löschen — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-21** Fraktal-Order verschieben / löschen — 🧪 unit ✅ 2026-10-15
   - Entsteht ein neueres Fraktal derselben Seite, wird die alte Pending Order gelöscht und auf das neue gesetzt (mit Anzahl 1 immer höchstens eine je Seite, sonst wandert das Fenster der letzten N, siehe ENG-26). Hat eine spätere Kerze oder der aktuelle Kurs das Fraktal-Niveau erreicht, bevor eine Order steht, gilt es als verbraucht – es wird keine Order gesetzt. Eine bereits gesetzte Order bleibt dagegen stehen, ob sie füllt, entscheidet MT5 (Kerzen sind Bid, eine BUY LIMIT füllt erst, wenn der Ask das Niveau erreicht). Beim Umschalten von Grid auf Fraktal verschwinden die Grid-Orders der Zone.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-22** Fraktal-SL-Methoden und TP nach Chance/Risiko — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-22** Fraktal-SL-Methoden und TP nach Chance/Risiko — 🧪 unit ✅ 2026-10-15
   - SL je nach fractal_sl_mode – ATR (Fraktal-Kerze ± Faktor × ATR der Fraktal-Kerze), Parabolic SAR (Wert der laufenden Kerze), Gegenfraktal (letztes Fraktal der Gegenseite ± Puffer) oder Fraktal-Kerze ± Puffer. Nicht berechenbar oder auf der falschen Seite → Fraktal-Kerze ± Puffer; ist auch das ungültig, keine Order. TP = Einstieg ± fractal_rr × SL-Abstand, 0 = kein TP; mit fractal_use_sl=false (Schalter „Mit SL“ aus) kommt die Order ohne SL, dann ist nur TP als Betrag möglich (kein Chance/Risiko-TP, kein SAR-Nachziehen); mit fractal_tp_by_money stattdessen TP = Einstieg ± Preisabstand, der fractal_tp_money (Kontowährung) beim Lot der Seite entspricht (0 oder kein Tick-Wert = kein TP).
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-23** Fraktal-Positionen – kein TP/SL-Abgleich, SAR nachziehen — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-23** Fraktal-Positionen – kein TP/SL-Abgleich, SAR nachziehen — 🧪 unit ✅ 2026-10-15
   - Für Positionen einer Fraktal-Zone entfallen der TP/SL-Abgleich mit den Grid-Werten und die Teilfüllungs-Nachorder, auch von Hand geänderte SL/TP bleiben stehen. Im SAR-Modus wird der SL offener Positionen mit jeder Kerze auf den neuen SAR gezogen, nur in Gewinnrichtung und außerhalb von stops_level.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-24** Manuelle Eingriffe in MT5 respektieren — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-24** Manuelle Eingriffe in MT5 respektieren — 🧪 unit ✅ 2026-10-15
   - Verschwindet eine Fraktal-Order, ohne dass der Bot sie gelöscht hat (gefüllt, in MT5 von Hand gelöscht, abgelaufen), oder gibt es eine Position dieses Fraktals, gilt das Fraktal als erledigt – auch nach dem Schließen der Position wird dafür keine neue Order gesetzt. Der Merker (Zone + Seite → Kerzenzeiten der erledigten Fraktale) steht in data/fractal_state_<Konto>.json und übersteht Neustarts; ein neueres Fraktal öffnet wieder eine Order. Vom Bot selbst gelöschte Orders (Zone pausiert, Max. Positionen, Verschieben) zählen nicht.
   - **Prüfung:** Nicht manuell testen (siehe ZON-15).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-25** Von außen gelöschte Orders erkennen + Order-Flut-Bremse — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-25** Von außen gelöschte Orders erkennen + Order-Flut-Bremse — 🧪 unit ✅ 2026-10-15
   - Der Bot merkt sich jede Pending Order, die er setzt. Verschwindet sie, ohne dass er sie gelöscht hat und ohne Füllung (keine Position, Historie nicht FILLED), schreibt er eine Warnung mit dem Status aus der MT5-Historie (CANCELED/EXPIRED/REJECTED …), Ticket, Preis und Lebensdauer. Werden in einer Zone 10 Orders innerhalb von 60 s so entfernt, pausiert die Zone (wie ENG-11) mit Alarm, statt die Level endlos neu zu setzen; Positionen bleiben unberührt. Auch wer selbst 10 Orders in 60 s in MT5 löscht, pausiert so die Zone (Neustart über die Oberfläche). Anlass - am 29.09. verschwanden auf DEMO-Konto B alle Orders 2–5 s nach dem Setzen, ohne Löschung im Journal des eigenen Terminals, und der Bot setzte rund 200 Orders pro Minute.
   - **Prüfung:** Nicht manuell testen (Order-Löschung von außen lässt sich nur mit einem zweiten Terminal nachstellen). → Im Ernstfall - Robot-Log nach „MT5'te kayboldu“ bzw. „Emir seli durduruldu“ durchsuchen; der Historien-Status zeigt, wer löscht.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-26** Fraktal – mehrere Orders je Richtung — 🧪 unit ✅ 2026-10-13
+- [x] **ENG-26** Fraktal – mehrere Orders je Richtung — 🧪 unit ✅ 2026-10-15
   - fractal_order_count (BUY) und sell_fractal_order_count (SELL, nur bei BOTH ohne sync_buy_sell, sonst = BUY-Wert) legen fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (1–20, Standard 1). Betrachtet werden nur die letzten N Fraktale der Seite - ist eines erreicht, ausgelöst, von Hand gelöscht oder außerhalb des Preisbereichs, bleibt sein Platz leer, ältere rücken nicht nach. Nur Pending Orders zählen - „Max. Positionen“ wird wie bisher erst in der nächsten Runde geprüft, lösen mehrere Orders zwischen zwei Runden aus, kann es kurz überschritten werden. Ein neues Fraktal schiebt das Fenster weiter, die Order des ältesten wird gelöscht. „Erledigt“ wird je Fraktal gemerkt, damit eine ausgelöste Order die übrigen nicht löscht; alte Zustandsdateien mit nur einer Kerzenzeit je Seite werden weiter gelesen.
   - **Prüfung:** Nicht manuell testen (siehe ZON-16).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-27** Feste Magic-Nummer je Zone (Löschen verschiebt nichts) — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13
+- [x] **ENG-27** Feste Magic-Nummer je Zone (Löschen verschiebt nichts) — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13
   - Jede Zone bekommt beim Speichern eine feste Magic-Nummer (200001–200999), die nur der Worker vergibt und nie neu vergibt (ZONE_MAGIC_MAX). Bestehende Zonen behalten ihre bisherige Nummer (200000 + Listenplatz + 1), offene Orders und Positionen bleiben also zugeordnet. Die Engine findet die Zone einer Order/Position über die Magic, nicht mehr über den Listenplatz - wird eine Zone gelöscht, behalten die Zonen dahinter ihre Orders, Positionen, TP/SL und ihren Status; Orders der gelöschten Zone werden als Zombies gelöscht, ihre Positionen bekommen nicht mehr den TP/SL einer anderen Zone. Der laufende Bot erkennt das Löschen beim Neuladen der Einstellungen und trägt seinen nach Listenplatz geführten Zustand (aktive Zone je Symbol, PAUSE/AUTO_CLEAR auch in der ui_state-Datei, Fraktal-Tracking, Ablehnungs- und Verschwunden-Zähler) über die Magic auf den neuen Platz um; war die gelöschte Zone die aktive, gilt nicht plötzlich ihr Nachbar als aktiv (sonst liefe dort der Zonen-Ausstieg). Ist die Einstellungsdatei beim Neuladen kurz unlesbar (wird gerade geschrieben, Windows-Sperre), läuft der Bot mit den zuletzt gelesenen Zonen weiter, statt „keine Zonen“ anzunehmen und alle Robot-Orders als Zombies zu löschen; die API schreibt die Datei atomar. Order-Kommentare (AutoGrid_Z{n}, Fraktal AutoGrid_Z{n}_F…) nehmen n aus der Magic. Anlass - vorher rutschten beim Löschen von Zone 1 alle Magic-Nummern dahinter um eins.
   - **Prüfung:** Demo-Konto mit zwei Zonen auf demselben Symbol, beide mit offenen Orders (und möglichst einer Position). → Zone 1 löschen und speichern. → Zone 2 behält ihre Orders und Positionen (gleiche Tickets, Magic 200002), ihre TP/SL ändern sich nicht; nur die Orders von Zone 1 verschwinden.
   - **Erwartet:** Löschen einer Zone lässt die übrigen Zonen unverändert weiterlaufen.
-- [x] **ENG-29** Orders entfernter Fraktal-Setups (Rückfrage vor dem Löschen) — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ENG-29** Orders entfernter Fraktal-Setups (Rückfrage vor dem Löschen) — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
   - Zusätzliche Fraktal-Setups je Zone (früher ZON-18/ENG-28) gibt es nicht mehr; eine Fraktal-Zone hat wieder genau eine Fraktal-Einstellung und der Order-Kommentar ist AutoGrid_Z{n}_F{U|D}{Kerzenzeit}. Pending Orders früherer Setups (gleiche Magic, Kommentar AutoGrid_Z{n}_F{k}{U|D}{zeit} mit k ≥ 2, src/core/legacy_setup_orders.py) behandelt der Bot nicht als Orders der Zone und löscht sie nicht von selbst. Er meldet sie in den Live-Daten (legacy_setup_orders); das Dashboard fragt einmal je Konto in einem Fenster (Konto, Anzahl, Symbole): „Orders löschen“ oder „Orders behalten“. Die Wahl steht als LEGACY_SETUP_ORDERS (delete/keep, sonst 422) in den Einstellungen: bei delete storniert der Bot diese Orders in jeder Runde und loggt jede, bei keep fasst er sie nicht an und das Fenster kommt nicht wieder; Abbrechen speichert nichts und fragt nach dem Neuladen wieder. Offene Positionen früherer Setups bleiben und zählen zur Positionsgrenze der Zone. Zone deaktivieren, löschen, Zonen-Ausstieg mit Löschen und Bot-Stopp löschen wie bisher alle Robot-Orders. Beim Speichern entfernt der Worker fractal_setups, fractal_setup_seq und fractal_kept_sids aus den Zonen. Das Trade-Archiv zählt Trades früherer Setups zur Zone, aber nicht als Fraktal-Trades des Charts.
   - **Prüfung:** Keine manuelle Prüfung (2026-10-13, docs/journal/2026-10-13-eng-29-and-update-task-running.md): bei der Prüfung meldete kein laufender Bot Orders früherer Setups (legacy_setup_orders = []), und neue entstehen nicht mehr. Unit-, API- und e2e-Tests decken die Logik ab; das Löschen gegen ein echtes MT5-Terminal ist nicht geprüft. → Meldet ein Bot doch solche Orders (legacy_setup_orders nicht leer, Fenster im Dashboard; MT5-Kommentar …_F2U… oder …_F3D…): Dashboard öffnen, Konto wählen; im Fenster „Orders behalten“ wählen, Seite neu laden. → Danach LEGACY_SETUP_ORDERS auf delete setzen (oder auf einem zweiten Konto im Fenster „Orders löschen“ wählen), das Bot-Log ansehen und das Ergebnis ins Journal schreiben.
   - **Erwartet:** Das Fenster nennt Konto, Anzahl und Symbol und erscheint nach „Orders behalten“ nicht wieder; die Orders bleiben unverändert in MT5. Nach „Orders löschen“ verschwinden nur die Orders mit Setup-Nummer, je Order steht „Eski fraktal kurgusu emri siliniyor“ im Log; die eigenen Fraktal-Orders der Zone und alle Positionen bleiben.
-- [x] **ENG-30** Fraktal – nächste Order erst ab Verlust der letzten Position — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-12
+- [x] **ENG-30** Fraktal – nächste Order erst ab Verlust der letzten Position — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-12
   - Je Zone und Richtung gilt die letzte offene Position: money prüft Profit ≤ −X, pips mit Version 1 prüft Preisabstand ≥ Anzahl × symbolabhängige Pip-/Tick-Größe. BUY verwendet Einstieg − Bid, SELL Ask − Einstieg; kleine Einheitstoleranz verhindert Rundungsfehler am Grenzwert. Version 0/fehlend behält den alten direkten Preisabstand. Bei aktiver neuer Abstandssperre und fehlenden/ungültigen Symbolinformationen entstehen keine neuen Orders; ein Warnlog nennt die Ursache. 0 oder keine Position bei gültigen Symbolinformationen: keine Grenze. Worker und Backtest rechnen gleich.
   - **Prüfung:** Manuell über ZON-21.
   - **Erwartet:** Unit- und API-Tests sowie Worker-/Backtest-Parität und Formular-Speicherung prüfen die Grenze.
-- [x] **ENG-31** Spread-Schutz je Setup — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-12 · 👤 manuell ✅ 2026-10-13
+- [x] **ENG-31** Spread-Schutz je Setup — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-12 · 👤 manuell ✅ 2026-10-13
   - Optionaler Spread-Schutz je Setup: fester Ask-Bid-Preisabstand, Vielfaches des normalen Spreads oder Anteil am effektiven Grid-Abstand (nur Grid). Lernen pro Konto und Symbol: höchstens ein Messwert je Minute, 24 Stunden, mindestens 60 Werte, Median; Lernstart abwarten oder manuellen Startwert verwenden. Hohe Spreads frieren die Referenz ein. Über der Grenze, bei fehlender Lernreferenz oder ungültigem/veraltetem Tick löscht der Bot nur die Pending Orders des Setups und sperrt alle Einstiege. TP/SL und Ausstiege offener Positionen laufen weiter. Unter 80 Prozent der Grenze für 30 Sekunden erfolgt die Erholung; manuelle Pause bleibt. Lernwerte und Schutzsperre bleiben nach Neustart erhalten, der Erholungstimer startet neu. UI zeigt Spread, Grenze, Lernfortschritt und Grund in tr/en/de. Browser-Backtest nutzt dieselben Regeln ohne Zukunftsdaten. Alte Setups starten ohne Schutz.
   - **Prüfung:** Im DEMO-Test nach gesonderter Freigabe Grenze unter den aktuellen Spread setzen; nur Pending Orders dieses Setups verschwinden. → Brokerzeit mit bestätigtem Versatz prüfen; 60 Sekunden alte Ticks bleiben erlaubt, ältere und zukünftige bleiben gesperrt. → Einzelne unveränderte Ticks dürfen keinen Versatz bestätigen; Kontowechsel und Neustart verwerfen die Zeitmessung.
   - **Erwartet:** Alle Einstiegswege sind gesperrt, offene Positionen und manuelle Orders bleiben. Nach Erholung laufen nur vorher aktive Setups weiter.
@@ -478,12 +478,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** /formasyon öffnen und 1 Minute warten.
   - **Erwartet:** Kerzen und RSI-Linie entstehen.
   - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
-- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-10-13 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-10-15 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jeder Verbindung jede Sekunde Preis, RSI, MACD, P/L, Positionen für ihr Konto (?account_id=, ohne Parameter das erste Konto) und dessen Zone 0; jede METRICS-Nachricht trägt account_id (siehe ACC-10). RSI/MACD gibt es nur, wenn das MT5-Terminal des API-Prozesses an diesem Konto angemeldet ist; sonst Preis/P/L aus der Metrikdatei des Bots.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
   - 📝 v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders). Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus der Bot-Metrik → RSI fehlt dann
-- [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-10-13
+- [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-10-15
   - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open, den Marktstatus je Zone-Symbol (zone_market_open) samt aus M5-Kerzen abgeleiteter Handelszeit (zone_market_hours) und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -509,7 +509,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Worker auf dem VPS stoppen.
   - **Erwartet:** Status wechselt nach ≤ 10 s auf offline.
   - 📝 Claude: 'Worker online · updated' aktualisiert exakt alle 10 s (22:19:02/12/22/32)
-- [x] **LOG-05** Robot-Log schreiben — 🧪 unit ✅ 2026-10-13 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-05** Robot-Log schreiben — 🧪 unit ✅ 2026-10-15 · 👤 manuell ✅ 2026-09-23
   - Der Bot-Prozess schreibt seine Meldungen (log_message) nach logs/<id>/err_<id>.log.
   - **Prüfung:** Tab „Robot Logs“ öffnen und die letzten Zeilen ansehen.
   - **Erwartet:** Jede Meldung genau einmal, keine abgeschnittenen Zeilen.
@@ -519,7 +519,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Tab „MT5 Terminal“ öffnen.
   - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
   - 📝 v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log, UTF-16 korrekt dekodiert
-- [ ] **LOG-07** Symbol-Logs — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [ ] **LOG-07** Symbol-Logs — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
   - Jede Robot-Log-Zeile, die zu einer Zone (Setup) gehört, trägt das Tag [Z:<zone_id>]. GET /logs/{id}?zone_id=… filtert darauf; zone_id ist wiederholbar (?zone_id=a&zone_id=b) und liefert die Zeilen aller genannten Setups in Dateireihenfolge, `lines` gilt für die gemeinsame Liste. Eine einzelne zone_id (ältere Oberfläche) wirkt wie bisher. Jede Symbolkarte zeigt unter ihren Setups „Sembol logları“ aufklappbar mit den Zeilen aller Setups des Symbols; bei mehr als einem Setup beginnt jede Zeile mit „Setup n“ (Platz in der Symbolkarte). Im Robot-Log-Tab steht vor jeder Zeile mit Tag das Badge „<Symbol> · Setup n“.
   - **Prüfung:** Bot mit einem Symbol mit zwei Setups und einem zweiten Symbol laufen lassen, in der Symbolkarte „Sembol logları“ aufklappen.
   - **Erwartet:** Zeilen beider Setups des Symbols erscheinen (ohne Tag, mit „Setup 1“/„Setup 2“), keine Zeilen des anderen Symbols; im Robot-Log-Tab steht „<Symbol> · Setup n“ vor der Zeile.
@@ -531,7 +531,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
   - 📝 Claude: 'Check for Updates' → 'You are up to date'; API: local v0.7.58 = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000), nicht des Workers
-- [x] **UPD-02** Update anwenden — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-09-24
+- [x] **UPD-02** Update anwenden — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-09-24
   - „Apply Update (git pull)“ → POST /system/update (stash nur bei lokalen Änderungen, pull, stash pop), danach Seiten-Reload. Scheitert der Pull (z. B. Datei gesperrt oder ohne Schreibrecht), wird der Stand davor wiederhergestellt – keine halb aktualisierten Dateien, der Stash wird zurückgespielt.
   - **Prüfung:** Nach einem Merge auf main das Update im Dashboard anwenden (Zahnrad → Check for Updates → Apply Update).
   - **Erwartet:** VERSION auf dem VPS entspricht main; nach einem Fehler zeigt git status keine geänderten Dateien und git stash list keinen neuen Eintrag.
@@ -540,16 +540,16 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Power-Button → Bestätigung → /stop, danach window.close().
   - **Prüfung:** Power-Button → bestätigen.
   - **Erwartet:** Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
-- [x] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 👤 manuell ✅ 2026-09-24
+- [x] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 👤 manuell ✅ 2026-09-24
   - Nach einem erfolgreichen POST /system/update beendet sich der Worker nach 1,5 s (schedule_restart); run_uvicorn_watchdog.bat (setzt WORKER_SUPERVISED=1) startet ihn mit dem neuen Code neu. Ohne Watchdog kein Neustart. Das Dashboard wartet 8 s und lädt dann neu; veraltete Bots startet der neue Worker selbst neu (BOT-03).
   - **Prüfung:** Update im Dashboard anwenden (System Info → Check for Updates → Apply Update). → Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
   - **Erwartet:** Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
   - 📝 Apply Update v0.7.70→v0.7.71 im Dashboard: Worker beendet sich, Watchdog startet neu, meldet v0.7.71; laufender Bot mit neuem Code neu gestartet
-- [x] **UPD-06** Abhängigkeiten nach Update installieren — 🧪 unit ✅ 2026-10-13
+- [x] **UPD-06** Abhängigkeiten nach Update installieren — 🧪 unit ✅ 2026-10-15
   - Ändert ein Pull worker_python/requirements.txt, führt execute_git_pull danach pip install -r mit dem Python des Workers (.venv) aus. Schlägt pip fehl, meldet das Update einen Fehler und der Worker startet nicht neu (neuer Code würde ohne Paket abstürzen).
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-13 · 👤 manuell ⏳
+- [ ] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
   - Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers.
   - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten.
   - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
@@ -561,7 +561,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Lokal npm run dev:frontend, Seite „VPS“ öffnen.
   - **Erwartet:** Alle Kacheln grün; ist der Worker gestoppt, steht „Gestoppt“.
   - 📝 lesend 2026-10-13: /api/vps/status ok, alle Kacheln grün, v0.7.206
-- [x] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-13
+- [x] **VPS-02** Aktionen (Update, Neustart, Reboot) — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-13
   - Update-Prüfung über den Worker; „Update & Neustart“ läuft über den Worker (POST /system/update) oder, wenn er nicht läuft, über die Aufgabe AutoGrid-Update; „Worker neu starten“ über die Aufgabe AutoGrid-Start (start.bat); „ngrok neu starten“ beendet ngrok, run_ngrok_watchdog.bat startet ihn neu; „VPS neu starten“ per shutdown /r. Jede Aktion mit Bestätigung. git läuft nie per SSH als Administrator.
   - **Prüfung:** „Worker neu starten“ → bestätigen. → Vor dem Merge auto_update_minutes im VPS-Status notieren und den Auto-Updater abschalten (VPS, normale PowerShell: setx AUTO_UPDATE_MINUTES 0, dann „Worker neu starten“); sonst zieht er meist vor dem Button. Nach dem Merge (und dem Bump-Commit) muss „Nach Updates suchen“ ein Update melden, dann „Update & Neustart“. Danach den notierten Wert zurückschreiben (war er leer: [Environment]::SetEnvironmentVariable('AUTO_UPDATE_MINUTES', $null, 'User')), dann „Worker neu starten“. → Aufgabe AutoGrid-Update direkt starten (VPS, normale PowerShell: Start-ScheduledTask -TaskName 'AutoGrid-Update'): danach Status der Aufgabe und Update-Log ansehen. Den Button bei gestopptem Worker nicht live prüfen: /vps kann den Worker nicht stoppen, der Watchdog startet ihn nach 3 s neu.
   - **Erwartet:** Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt; beim Update zeigt die Antwort des Buttons den git-Pull (nicht „Already up to date.“), und im Worker-Log steht vor dem Neustart keine Zeile „[AUTO-UPDATE] Güncellendi“. Über die Aufgabe steht AutoGrid-Update danach wieder auf Ready, und das Update-Log endet mit „Worker neu gestartet.“.
@@ -574,7 +574,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - /api/vps/* antwortet nur auf localhost; POST nur mit eigener Origin; ohne VPS_SSH_HOST 404. Nur geprüfte Aktionen/Argumente gelangen in den SSH-Befehl, SSH-Daten stehen nur server-seitig in .env.local (kein NEXT_PUBLIC_). Auf der öffentlichen (Vercel-)Version antwortet ein fremder Host mit 403 localOnly; die Seite /vps zeigt dafür einen Hinweis statt eines roten Fehlerpanels und bleibt ohne Worker-Verbindung nutzbar (ConnectionGate lässt /vps offen).
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch e2e-Tests.
-- [x] **VPS-05** Konsolen-Log und ngrok-Watchdog — 🧪 unit ✅ 2026-10-13
+- [x] **VPS-05** Konsolen-Log und ngrok-Watchdog — 🧪 unit ✅ 2026-10-15
   - Unter dem Watchdog schreibt der Worker seine Konsolenausgabe zusätzlich nach logs/worker_console.log (rotiert ab 5 MB). run_ngrok_watchdog.bat startet ngrok bei Absturz neu und loggt nach logs/ngrok.log; start.bat und cleanup_old_instances.ps1 kennen ihn. Die PowerShell-Skripte sind reines ASCII (PowerShell 5.1).
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -582,11 +582,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - ops/windows/setup_vps.ps1 (einmal als Administrator) installiert OpenSSH (nur Schlüssel), trägt den Mac-Schlüssel ein, setzt den Besitzer des Repos auf den normalen Benutzer, richtet Auto-Login ein (Passwort als LSA-Secret), entfernt bei MT5-Terminals den Haken „Als Administrator ausführen“ (RUNASADMIN, samt Leeren des Kompatibilitäts-Caches) und legt die Aufgaben AutoGrid-Start (bei Anmeldung) und AutoGrid-Update an, beide ohne höchste Rechte.
   - **Prüfung:** Einrichtung nach docs/windows_start_guide.md, danach VPS über die Seite „VPS“ neu starten.
   - **Erwartet:** Nach dem Reboot sind Auto-Login, Worker, ngrok und die vorher laufenden Bots von selbst wieder da.
-- [ ] **VPS-07** Prozesse mit Adminrechten erkennen und beenden — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [ ] **VPS-07** Prozesse mit Adminrechten erkennen und beenden — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
   - Laufen Neustart-Schleife, Worker, Bots, ngrok oder MT5 mit Adminrechten (alte Aufgabe mit höchsten Rechten, start.bat „Als Administrator“), kann der normale Worker sie weder sehen noch beenden. vps.ps1 status meldet sie (höhere Integritätsstufe als explorer.exe), die Seite „VPS“ zeigt eine rote Warnung mit „Admin-Prozesse beenden“ (fix-elevated, danach Neustart ohne Adminrechte, der Worker setzt die Bots fort); „Worker neu starten“ beendet Admin-Schleifen/-Worker/-ngrok vorher selbst. cleanup_old_instances.ps1 schreibt nicht beendbare Reste ins Worker-Log. Ein Worker mit Adminrechten warnt beim Start und macht kein git pull.
   - **Prüfung:** Seite „VPS“ öffnen, wenn nichts mit Adminrechten läuft. → Nur mit Absprache: auf dem VPS start.bat per Rechtsklick „Als Administrator ausführen“, danach Seite „VPS“ neu laden und „Admin-Prozesse beenden“.
   - **Erwartet:** Ohne Admin-Prozesse keine Warnung. Mit Admin-Start nennt die Warnung Neustart-Schleifen und Worker mit PID; nach „Admin-Prozesse beenden“ verschwindet sie, Worker und ngrok laufen wieder ohne Adminrechte und das Worker-Log zeigt keine neue Admin-Warnung.
-- [ ] **VPS-08** Bootstrap eines frischen VPS — 🧪 unit ✅ 2026-10-13 · 👤 manuell ⏳
+- [ ] **VPS-08** Bootstrap eines frischen VPS — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
   - Ein PowerShell-Einzeiler (irm .../bootstrap.ps1 | iex, Administrator-PowerShell) installiert fehlendes Git/Python 3.11/VC++-Redistributable, klont das Repo (nur wenn es fehlt, kein git pull), legt die venv an, installiert requirements.txt, erzeugt bei Bedarf WORKER_API_KEY und richtet ngrok (Authtoken + feste Domain als Benutzer-Variable NGROK_DOMAIN; run_ngrok_watchdog.bat hat keine Vorgabe-Domain, ohne Variable startet ngrok nicht und schreibt „NGROK_DOMAIN fehlt“ in logs/ngrok.log) ein – Repo-Klon/venv/pip/ngrok laufen dafür in einer eigenen geplanten Aufgabe mit RunLevel Limited (bootstrap-user.ps1), nie erhöht. Danach ruft es setup_vps.ps1 auf (jetzt ohne Pflicht-Parameter -PublicKey; ohne ihn entfallen nur OpenSSH/Mac-Schlüssel), startet den Worker über die Aufgabe AutoGrid-Start und gibt zum Schluss über connect-link.ps1 einen Verbindungs-Link (#connect=…, dasselbe Format wie frontend_nextjs/src/lib/connectionCode.ts) aus, den man im Frontend öffnet oder einfügt (SYS-07/SYS-08).
   - **Prüfung:** Auf einem frischen Windows-VPS (oder einem, auf dem Git/Python/Repo noch fehlen), in einer Administrator-PowerShell den Einzeiler ausführen. → ngrok-Authtoken und eine feste Domain eingeben, danach das Windows-Passwort (Auto-Login) oder -SkipAutoLogon verwenden.
   - **Erwartet:** Git/Python/VC++-Redistributable werden installiert (oder als vorhanden erkannt), das Repo liegt unter C:\dev\auto-grid-nextJs, der Worker antwortet auf Port 8000, ngrok zeigt eine öffentliche URL, und am Ende erscheint ein Verbindungs-Link, der im Frontend („VPS verbinden“) sofort einen erfolgreichen Test ergibt. Ein zweiter Lauf des Einzeilers ändert nichts Bestehendes (idempotent).
@@ -594,7 +594,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Wo die SSH-Route zu ist (öffentliche Vercel-Version), zeigt /vps unter dem Hinweis ein Panel „Worker (online)“, das direkt die Worker-API mit dem Admin-Schlüssel nutzt (alles admin-only) – GET /system/worker/status (Version, Laufzeit, unter Neustart-Schleife?, laufende Bots), GET /system/worker/log (letzte Zeilen von logs/worker_console.log, Farbcodes entfernt) und POST /system/restart (Worker beendet sich, run_uvicorn_watchdog.bat startet ihn in ~3 s neu; ohne Watchdog 409 und deaktivierter Knopf). Update-Prüfung/Update bleiben im Systemmenü des Dashboards. ngrok-/VPS-Neustart geht bewusst nur per SSH, denn ist der Tunnel weg, ist auch die API nicht erreichbar.
   - **Prüfung:** Auf der Vercel-Version mit Admin-Schlüssel verbinden, Seite „VPS“ öffnen. → „Worker neu starten“ → bestätigen.
   - **Erwartet:** Version, Laufzeit und Log erscheinen; nach ~20 s ist der Worker wieder erreichbar und die Laufzeit beginnt von vorn.
-- [x] **VPS-10** Selbstheilung (Tunnel-Watchdog) — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-01
+- [x] **VPS-10** Selbstheilung (Tunnel-Watchdog) — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-01
   - Die geplante Aufgabe AutoGrid-Tunnel (setup_vps.ps1, alle 5 min) führt ops/windows/tunnel_watchdog.ps1 aus und prüft, ob die öffentliche ngrok-URL (NGROK_DOMAIN) /api/system/platform beantwortet (401/403 zählt als erreichbar). Wenn nicht und der Worker lokal antwortet, beendet sie ngrok (run_ngrok_watchdog.bat startet ihn neu); antwortet auch der Worker nicht, erst abwarten (Neustart-Schleife), dann Worker + ngrok über AutoGrid-Start. Nach 3 Fehlschlägen in Folge Reboot per shutdown /r – höchstens einmal pro Stunde und 3-mal in 24 h, nicht ohne Internet und nicht bei ERR_NGROK_334 (Domain woanders online); nichts in den ersten 10 min nach dem Start und während eines Updates. Der Fehlschlag wird vor der Aktion gespeichert (Zeiten in UTC, Datei atomar ersetzt). Kein Fernzugriff nötig; die Aufgabe hat höchste Rechte nur für den Reboot, ruft nie git auf und startet Worker/ngrok nie selbst. Zustand in data/tunnel_watchdog.json, Log logs/tunnel_watchdog.log; die Seite „VPS“ zeigt „Selbstheilung“ in der ngrok-Kachel (Warnung bei Tunnel-Fehlschlägen, „keine Prüfung seit n min“ wenn die Aufgabe nicht mehr läuft, letzter Auto-Reboot) und den Log-Tab „Tunnel“.
   - **Prüfung:** Auf dem VPS in einer Administrator-PowerShell setup_vps.ps1 -SkipAutoLogon -SkipRepoOwnership erneut ausführen, dann tunnel_watchdog.ps1 -DryRun. → Nur mit Absprache: ngrok.exe im Task-Manager beenden und das ngrok-Fenster schließen (keine Neustart-Schleife mehr), ~5-10 min warten.
   - **Erwartet:** DryRun meldet keinen Fehler bzw. „AKTION: ngrok neu starten.“, wenn der Tunnel weg ist. Nach dem Schließen startet der Watchdog Worker + ngrok über AutoGrid-Start, die URL antwortet wieder, und die Seite „VPS“ zeigt „Selbstheilung: URL erreichbar“ sowie die Einträge im Log-Tab „Tunnel“.
@@ -666,7 +666,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Analyse öffnen, ein DEMO-Konto mit laufendem Bot und eine Grid-Zone wählen, Zeitraum „Letzte 7 Tage“. → Zeitrahmen M15, dann H1 wählen und die Seite neu laden. → Im MT5-Terminal denselben Chart (Symbol, H1) daneben öffnen.
   - **Erwartet:** Die Kerzen stimmen in Zeit und Preis mit dem MT5-Chart überein (Brokerzeit). Nach dem Neuladen ist H1 noch gewählt. Das Zonenband liegt auf min/max der Zone; die Stufen liegen dort, wo der Bot seine Orders setzt.
   - 📝 02.10.26 DEMO-Konto A live: Kerzen = rohe MT5-Kerzen; M15 7 Tage, D1 alles (3491 ab 2013, Hinweis gekürzt); tf in URL; Stufen USOUSD/EURUSD per levels.ts gegen echte Bot-Orders geprüft (Raster identisch, freie Stufen durch Positionen belegt); Live-Kerze folgt Stream-Preis, neue Kerze zum Minutenwechsel
-- [x] **ANA-06** Offene Positionen und Orders im Chart — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-02
+- [x] **ANA-06** Offene Positionen und Orders im Chart — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-02
   - Die Bot-Telemetrie (grid_metrics.calculate_live_metrics) liefert zusätzlich positions[] und orders[] der Robot-Magics (Ticket, Magic, Typ, Volumen, Einstiegspreis, SL, TP, Gewinn, MT5-Zeit; höchstens 500). Der Chart-Tab liest sie alle 5 s über GET /logs/{id}?log_type=metrics und zeigt nur die der gewählten Zone (feste Magic-Nummer und Symbol): Positionen als durchgezogene Linie mit Beschriftung (BUY/SELL + Lot), TP/SL gepunktet, Pending-Orders gestrichelt (BUY LIMIT …); ab mehr als 20 Linien ohne Beschriftung an der Preisachse (überdecken sich sonst). Ohne laufenden Bot oder ohne Magic (Zone nie gespeichert) keine Linien, dafür ein Hinweis. Die geschätzte Handelszeit der Zone steht als „geschätzt“ daneben. Abschaltbar im Zahnrad.
   - **Prüfung:** Bot auf dem DEMO-Konto laufen lassen, bis die Zone Orders und mindestens eine Position hat. → Analyse → Chart-Tab mit dieser Zone öffnen und mit der Liste „Handel“ im MT5-Terminal vergleichen. → Bot stoppen und 10 Sekunden warten.
   - **Erwartet:** Jede Position und Order dieser Zone erscheint auf ihrem Preis, Orders anderer Zonen nicht; die Anzahl unter dem Chart stimmt mit MT5 überein. Nach dem Stopp verschwinden die Linien und der Hinweis „Bot läuft nicht“ erscheint.
@@ -703,7 +703,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Teil D von „Zone wird Symbol mit Setups“ (ZON-19). Der Statistik-Tab hat als Umfang zusätzlich jedes Symbol („USOUSD · alle Setups (2)“): alle Trades registrierter Setups (auch gelöschter) mit dem gehandelten Symbol des Deals (ohne Groß-/Kleinschreibung); „Setup unbekannt“, manuelle und fremde Trades zählen zu keinem Symbol. Ein Symbol öffnet die Aufteilung „je Setup“: jede Zeile ein Setup (Magic) mit Positionen, Trades, Trefferquote, Netto, Profitfaktor, Ø Trade und max. Drawdown, so lassen sich die Setups eines Symbols vergleichen. Das Konto öffnet „je Symbol“ (Symbole nach Namen, danach unbekannt, manuell, andere). Setups heißen auf der ganzen Analyse-Seite wie auf den Symbolkarten „Symbol · Setup n“ (n = Platz im Symbol, src/lib/symbolSetups.ts setupNumbers); ein Setup, das nicht mehr in den Einstellungen steht, mit Symbol und Namen aus dem Register. Die Analyse-Seite sagt „Setup“ statt „Zone“.
   - **Prüfung:** DEMO-Konto mit einem Symbol, das zwei Setups mit Trades hat; Analyse → Statistik, Zeitraum „Letzte 30 Tage“. → Umfang „<Symbol> · alle Setups“ wählen; Aufteilung „je Setup“ ansehen. → Netto je Setup mit MT5 vergleichen (Werkzeuge → Historie, gleicher Zeitraum, nach Magic-Nummer des Setups).
   - **Erwartet:** Netto des Symbols ist die Summe der Setup-Zeilen; jede Setup-Zeile stimmt mit den Trades ihrer Magic-Nummer in MT5 überein; die Namen „Symbol · Setup n“ stimmen mit den Symbolkarten im Dashboard überein.
-- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
+- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
   - **Erwartet:** Ticket und Uhrzeit des letzten Deals stimmen sekundengenau mit MT5 überein, Tick- und Kerzenzeit passen zur Serverzeit in MT5, der Broker-Abstand ist eine glatte Zahl (z. B. UTC+3) und „verlässlich“. Das Kontomodell ist „hedging“. Im MT5-Journal erscheint keine neue Zeile „authorized on …“, der Bot-Log zeigt keinen Verbindungsabbruch.
@@ -711,11 +711,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 15. BKT – Backtest (Musterlösungen, Nachbau, Rechner)
 
-- [x] **BKT-01** Musterlösungen des Python-Bots — 🧪 unit ✅ 2026-10-13
+- [x] **BKT-01** Musterlösungen des Python-Bots — 🧪 unit ✅ 2026-10-15
   - 46 Szenarien (worker_python/tests/parity/scenarios, erzeugt von make_scenarios.py: Grid BUY/SELL/BOTH, eigener SELL-Abstand, SL, Höchstzahl Positionen und max_positions 0, Ausbruch, step_by_loss mit Kontraktgröße und mit Tick-Wert, Rauschen, Stops Level > 0, Lot unter volume_min, leeres sell_lot_size ohne Sync, Sync ignoriert sell_*, Start außerhalb der Zone ohne clear_on_exit, Zonen-Ausstieg mit Löschen/Schließen/Mum Kapanışı, mit dem UI-Standard (nur BUY, Seite passt nicht), nur SELL schließen und gespeicherter magic, zwei Setups auf einem Symbol (Positionen des anderen Setups belegen kein Level), Sofort-Einstieg mit 30-s-Bremse, Fraktal-Ausbruch/-Dönüş mit Puffer-, Gegenfraktal-, ATR- und SAR-SL, zwei Orders je Richtung, TP als Geldbetrag) werden mit dem echten Bot (manage_dynamic_grid) gegen einen FakeMT5 mit simulierter Uhr abgespielt: je Tick erst der Markt (Füllungen, TP/SL), dann ein Bot-Durchlauf. Die Ereignisfolge (place, market, cancel, modify, sltp, close, fill, exit, active; ohne Ticketnummern) ist als Musterlösung gespeichert (tests/parity/golden) und muss gleich bleiben; der Bot-Nachbau im Browser (Schritt 7) wird daran gemessen. Kerzen jedes Zeitrahmens entstehen nur aus Historie und bisherigen Ticks. Die Uhr des Bots (30-s-Bremse, Tick-Frische, Order-Zeitpunkte) läuft über src/core/clock.py, live unverändert die echte Uhr. pyround.json hält Pythons round() für Grenzfälle fest. Bewusste Änderung der Bot-Logik: pytest tests/unit/test_parity_golden.py --update-golden (hooks/RULES.md §4.7).
   - **Prüfung:** In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q` ausführen.
   - **Erwartet:** Alle Szenarien gleichen ihrer Musterlösung; zweimal abgespielt ergibt dieselbe Folge.
-- [x] **BKT-09** Zukunftsdaten-Test (Python und TypeScript) — 🧪 unit ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-10
+- [x] **BKT-09** Zukunftsdaten-Test (Python und TypeScript) — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-10
   - Für jedes Szenario werden ab einem Tick k (nach einem und nach zwei Dritteln) alle späteren Kurse verändert. Alle Ereignisse vor k müssen gleich bleiben (docs/analyse-regeln.md §5 „kein Blick in die Zukunft“); danach muss sich etwas ändern, sonst prüft der Test nichts. TypeScript-Teil (B4, e2e/mocked/backtest-future-lib.spec.ts): dieselbe Prüfung für den Bot-Nachbau an allen Szenarien (eigener fester Zufall; ohne Wirkung ist nur erlaubt, wenn der Bot ab k ohnehin nichts mehr tut) und für den Rechner: Kerzen ab k ändern weder frühere Trades noch frühere Equity (Grid und Fraktal, alle drei Kerzenwege); mitten in der Kerze ändert der zweite Teil des Wegs nichts, was der Bot bis zum ersten Extrem tat.
   - **Prüfung:** In worker_python `.venv/bin/python -m pytest tests/unit/test_parity_golden.py -q -k spaetere` ausführen. → Playwright-Logiktest e2e/mocked/backtest-future-lib.spec.ts (ohne Browserseite) ausführen.
   - **Erwartet:** Grün für alle Szenarien, in Python und in TypeScript.
@@ -727,7 +727,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Fraktal-Einstieg des Bots (ENG-21, ENG-26, ENG-30) als TypeScript in frontend_nextjs/src/lib/backtest/engine/: fractalEntry.ts (manage_fractal_orders: neueste N Fraktale je Seite, verbrauchte Fraktale, Erledigt-Liste, Positionsgrenze, nächste Order ab Verlust, SAR-Nachzug) und fractalSignals.ts (ATR, Parabolic SAR); die 5-Kerzen-Regel ist fractalsOf in src/lib/analysis/fractals.ts, die auch der Chart nutzt. Gemessen an den Musterlösungen aus BKT-01. Ohne fractal_state-Datei (der Lauf startet frisch) und ohne Orders entfernter Zusatz-Setups.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-fractal-parity-lib.spec.ts (ohne Browserseite) mit den 14 Fraktal-Szenarien ausführen.
   - **Erwartet:** Jede Ereignisfolge ist gleich der Golden-Datei des Szenarios; je B3-Szenario bestätigt ein Wächter, dass es seinen Pfad erreicht (Sperre bis 0,3 Verlust, Order bleibt bei Bid-Berührung, Stops Level, Fraktal über max_price ohne Order …).
-- [x] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4) — 🧪 unit ✅ 2026-10-13 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-10
+- [x] **BKT-04** Backtest-Rechner mit Kosten (B1 + B4) — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-10
   - Web Worker (src/lib/backtest/backtest.worker.ts) lädt die Kerzen selbst über /rates (next_from, missing), baut höhere Zeitrahmen ohne Zukunftsdaten, spielt jede Kerze über ein Pfadmodell (O→L→H→C / O→H→L→C, optional „SL zuerst“, optional beide Wege) ab und rechnet Kosten: Spread je Kerze (steckt in den Füllpreisen, nur Info), Kommission je Lot (Vorschlag aus /history/deals), Swap an jedem Brokertag-Wechsel nach swap_mode und swap_rollover3days, Gewinn über trade_tick_value_profit/loss. Ausführung „Gap-Ausführung“ (Standard) oder „Parität“. Preise in Float64Array. Fortschritt, Abbruch, veraltete runId wird verworfen; über 1 Mio. Kerzen oder 100.000 Ereignisse je Kerze Abbruch mit Meldung. Der Worker liefert dazu in /symbols die Kostenfelder (trade_calc_mode, trade_tick_value_profit/loss, currency_profit, swap_mode, swap_long, swap_short, swap_rollover3days, spread, trade_stops_level); fehlt einer, blockiert der Lauf (kein Ersatzwert). Testende: realisierter Gewinn, offener G/V, End-Equity, offene Positionen; Hinweis „Margin/Stop-out nicht geprüft“ steht immer im Laufprotokoll. Rechenkern ohne Worker-API: runner.ts (Pfad, Auslösungen in Preis-Reihenfolge, Bot-Durchlauf nach jeder), Auftrag runJob.ts, Broker pathBroker.ts (auf simBroker.ts), Kosten broker/costs.ts, Kerzen candles/ (loadRates, bars, pathModel).
   - **Prüfung:** pytest für die Kostenfelder der Symbolliste ausführen. → Playwright-Logiktest e2e/mocked/backtest-costs-lib.spec.ts (Kommissions-Vorschlag je Lot, handgerechnet) ausführen. → Playwright-Logiktests e2e/mocked/backtest-data-lib.spec.ts (Kerzen laden, höhere Zeitrahmen, Pfad, Gewinn, Kommission, Swap, Schnappschuss) und e2e/mocked/backtest-runner-lib.spec.ts (Kauf, Verkauf im Broker, Kurslücke, Swap mit Dreifach-Tag, offener Verlust am Testende, Zonengrenze im Wegstück, Auftrag im Worker) ausführen. → e2e/mocked/backtest-performance-worker.spec.ts mit einer aktiven BUY/SELL-Zone ausführen; Ladezeit, Simulationszeit, Trades, CPU-Profil und CDP-Speicherstichproben getrennt erfassen. Standard 10.000 Kerzen; BKT_PROFILE_CANDLES=1000000 misst die Obergrenze. Abbruch erfolgt während der Simulation.
   - **Erwartet:** Alle Kostenfelder sind da (auch im Mock-Worker). Die handgerechneten Fälle stimmen; kein Ereignis wird ohne Meldung übersprungen (mehr als 100.000 Ereignisse in einer Kerze brechen den Lauf ab).

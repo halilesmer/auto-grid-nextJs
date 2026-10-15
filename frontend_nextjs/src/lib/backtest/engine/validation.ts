@@ -74,6 +74,18 @@ function isOrderValid(
   );
 }
 
+/**
+ * Größter Abstand, in dem ein Preis zu einer Stufe gehört (levels.level_tolerance). Festes Raster: 0,4 Schritt
+ * (Rundungsspielraum). Positionsgebunden liegen die Stufen exakt bei Positionspreis + k·Schritt; der enge
+ * Spielraum hält keine Orders des alten Ankers. Validierung und Teilfüllung nutzen dieselbe Toleranz.
+ */
+export function levelTolerance(config: ZoneConfig, step: number, infos: SymbolInfos): number {
+  const wide = step * 0.4;
+  if (!(config.stepByLoss || config.instantEntry)) return wide;
+  const point = infos[config.symbol]?.point ?? 0;
+  return Math.min(wide, Math.max(step * 0.05, point));
+}
+
 export function validateAndCleanup(
   broker: Broker,
   robotOrders: Order[],
@@ -84,7 +96,7 @@ export function validateAndCleanup(
   state: EngineState,
 ): number {
   const buy: Side = {
-    tolerance: config.gridStep * 0.4,
+    tolerance: levelTolerance(config, config.gridStep, infos),
     acceptable: levels.acceptableBuy,
     takeProfit: config.takeProfit,
     stopLoss: config.stopLoss,
@@ -93,7 +105,7 @@ export function validateAndCleanup(
     sign: 1,
   };
   const sell: Side = {
-    tolerance: config.sellGridStep * 0.4,
+    tolerance: levelTolerance(config, config.sellGridStep, infos),
     acceptable: levels.acceptableSell,
     takeProfit: config.sellTakeProfit,
     stopLoss: config.sellStopLoss,

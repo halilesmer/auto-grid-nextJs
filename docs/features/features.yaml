@@ -725,7 +725,7 @@ kategorien:
 
       - id: ENG-06
         titel: Validierung + Bereinigung
-        beschreibung: Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen).
+        beschreibung: Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen). Die Toleranz zur Stufe beträgt 0,4 Schritt im festen Raster und im positionsgebundenen Modus (step_by_loss/instant_entry) nur den Rundungsspielraum, damit Orders des alten Ankers nicht stehen bleiben.
         code: [worker_python/src/core/grid_execution/validation.py]
         tiers: [unit]
         pruefung:
@@ -836,7 +836,7 @@ kategorien:
       - id: ENG-18
         titel: Sofort erste Position (Markt-Order)
         beschreibung: Bei instant_entry öffnet die Engine je Seite (BUY/SELL, bei BOTH beide) sofort eine Markt-Position, wenn die Zone dort keine offene Position hat und der Preis im Zonenbereich liegt – beim Start und nach dem Schließen (z. B. TP). Abgelehnte Orders werden erst nach 30 s wiederholt. Bei instant_entry/step_by_loss richtet sich das Raster an der zuletzt eröffneten Position der Seite aus (nicht am festen Preisraster).
-        code: [worker_python/src/core/grid_execution/instant_entry.py, worker_python/src/core/grid_execution/levels.py, worker_python/src/core/grid_execution/handler.py, worker_python/src/core/grid_orders.py]
+        code: [worker_python/src/core/grid_execution/instant_entry.py, worker_python/src/core/grid_execution/levels.py, worker_python/src/core/grid_execution/handler.py, worker_python/src/core/grid_execution/validation.py, worker_python/src/core/grid_orders.py]
         tiers: [unit]
         pruefung:
           - Nicht manuell testen (siehe ZON-14).
