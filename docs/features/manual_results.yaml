@@ -130,8 +130,8 @@ ZON-13:
   datum: '2026-10-15'
   notiz: 'Claude: DEMO EURUSD BUY, 0,10 Lot, Grid 10 $, TP 5 $, Worker v0.7.220 mit
     ENG-18-Fix: Fills bei 1,12059 und 1,12061 unter der Position 1,12162 (etwa -10
-    $), BUY LIMITs 0,00100 auseinander, TP 0,0005 vom Level bzw. Einstieg. Lücke:
-    Vorschautext nicht im Browser gelesen, 0,001 aus Live-Symboldaten berechnet'
+    $), BUY LIMITs 0,00100 auseinander, TP 0,0005 vom Level bzw. Einstieg; Vorschau
+    (tr) zeigt ≈ 0,001 bzw. ≈ 0,0005 fiyat mesafesi (0,1 lot)'
 ZON-14:
   status: bestanden
   datum: '2026-10-13'

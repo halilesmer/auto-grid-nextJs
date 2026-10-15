@@ -36,7 +36,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 |---|---|---|---|
 | 1 | ZON-21 | Passed, signed later on 2026-10-13 | Not read-only. The owner isolated the DEMO account (see "DEMO isolation"). The owner added an EURUSD M1 rebound BUY setup with lot 0.05 and a limit of 1 $. Then the owner started the bot. After the fill at -0.45 $, the setup had no BUY order. The log showed `Sonraki emir, Bilet <n> en az 1.0 (tutar) zarara geçince konacak.` At -0.65 $ and -0.90 $, the setup had no BUY order. At -1.20 $, the bot placed a BUY LIMIT on the latest fractal again. The owner approved the evidence and the sign-off. `run.sh sign ZON-21 bestanden …` returned `ZON-21: manuell bestanden`, and the checklist shows 143/158. After the check, the bot runs, the setup is active, and the position and the BUY LIMIT stay open. |
 | 2 | ENG-31 | Passed, signed later on 2026-10-13, with partial live evidence | Not read-only. See "ENG-31 live check". The owner approved the sign-off with the gaps in that section. This is an exception to "Partial evidence does not sign a check". `run.sh sign ENG-31 bestanden …` returned `ENG-31: manuell bestanden`. The checklist shows 144/158. |
-| 3 | ZON-13 | Passed, signed on 2026-10-15, with partial live evidence | Not read-only. See "ZON-13 live check". The owner left the sign-off decision to Claude ("entscheide du für beste Auswahl"). `run.sh sign ZON-13 bestanden …` returned `ZON-13: manuell bestanden`; the checklist is at 147/158. |
+| 3 | ZON-13 | Passed, signed on 2026-10-15 | Not read-only. See "ZON-13 live check". The owner left the sign-off decision to Claude ("entscheide du für beste Auswahl"). `run.sh sign ZON-13 bestanden …` returned `ZON-13: manuell bestanden`; the checklist is at 147/158. |
 | 4 | ZON-14 | Passed, signed later on 2026-10-13, with one known deviation | Not read-only. See "ZON-14 live check". The first BUY STOP was two grid steps away. The cause is the level check across setups, not the instant entry. The owner approved the sign-off. `run.sh sign ZON-14 bestanden …` returned `ZON-14: manuell bestanden`. The checklist shows 145/158. |
 | 5 | ZON-16 | Passed, signed on 2026-10-15, with partial live evidence | Not read-only. See "ZON-16 live check". The owner left the decision to Claude ("entscheide für bessere Ergebnisse du"). The comparison with the MT5 indicator "Fractals" was not done (see the gaps in that section). `run.sh sign ZON-16 bestanden …` returned `ZON-16: manuell bestanden`; the checklist is at 146/158. |
 | 6 | ENG-29 | Closed: no manual tier (`2026-10-13-eng-29-and-update-task-running.md`) | All 4 accounts: `legacy_setup_orders` is `[]` or `null`. No log line `Eski fraktal kurgusu`. No legacy setup orders remain. |
@@ -58,7 +58,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 
 | ID | Confirmed (read-only) | Steps that remain |
 |---|---|---|
-| LOG-07 | `?zone_id=a` returned 300 lines with 0 other tags. `?zone_id=a&zone_id=b` kept the file order and equals the last 300 tagged lines of both setups. | A symbol with 2 setups, the symbol card "Sembol logları", and the badge in the "Robot-Log" tab. |
+| LOG-07 | `?zone_id=a` returned 300 lines with 0 other tags. `?zone_id=a&zone_id=b` kept the file order and equals the last 300 tagged lines of both setups. On 2026-10-15, the bot ran EURUSD and GBPCHF. EURUSD has 3 setups, and only setup 3 is active. GBPCHF has 1 setup. The EURUSD card "Sembol logları" showed 100 lines. Each line had the prefix "Setup 3" and no `[Z:` tag. No line was from GBPCHF. The lines were in time order. The "Robot Logları" tab showed the badges "EURUSD · Setup 3" (121 lines) and "GBPCHF · Setup 1" (13 lines), with no `[Z:` tag. | The lines of 2 setups of one symbol in the same card. EURUSD setups 1 and 2 are inactive, and their last lines (2026-10-13) are older than the 100 lines that the card shows. |
 | VPS-07 | Step 1: `elevated: []` and no admin warning on `/vps`. | Step 2: start `start.bat` as administrator, then "Admin-Prozesse beenden". |
 | VPS-09 | `GET /api/system/worker/status` and `GET /api/system/worker/log` returned `HTTP 200`. The worker sends ANSI color codes; `VpsOnlinePanel.tsx` removes them with `stripAnsi`. | The Vercel version and "Worker neu starten". |
 
@@ -126,20 +126,17 @@ Gaps:
 
 ## ZON-13 live check
 
-Date: 2026-10-15. Not read-only. The owner saved and started the setup before this check. Claude read only the worker API (`GET /api/settings/{id}`, `/api/logs/{id}`, `/api/history/{id}/deals`, `/api/symbols/{id}`). All times are UTC+2. The deal history shows broker time, which is UTC+3.
+Date: 2026-10-15. Not read-only. The owner saved and started the setup before this check. Claude read the worker API (`GET /api/settings/{id}`, `/api/logs/{id}`, `/api/history/{id}/deals`, `/api/symbols/{id}`) and the dashboard on `localhost:3000`. All times are UTC+2. The deal history shows broker time, which is UTC+3.
 
 - Setup: EURUSD, BUY, grid, `step_by_loss: true`, grid step 10 $, TP 5 $, lot 0.10, range 1.10 to 1.14.
 - Code: worker `v0.7.220` (`/api/system/update/check`), which includes the ENG-18 fix (PR #173). The auto-updater restarted the bot with the new code at 14:32:49. The log showed `[AUTO] Bot eski bir kod sürümüyle çalışıyor; yeni sürümle yeniden başlatılıyor`.
 - First fill after the restart: BUY 0.10 at 1.12059 at 14:46:59. This is 3 points below the level 1.12062. The bot then set the TP from the entry (log `Açık Pozisyon Güncellemesi … yeni TP/SL ayarlanıyor` at 14:47:00). The position closed by TP at 1.12109 at 14:57:58 with +5.0 $.
-- Second fill: BUY 0.10 at 1.12061 at 15:04:44, with TP 1.12112. This is 1 point below the level, and the TP is 0.0005 above the level.
+- Second fill: BUY 0.10 at 1.12061 at 15:04:44, with TP 1.12112. This is 1 point below the level, and the TP is 0.0005 above the level. The bot did not change this TP. The TP sync in `grid_order_manager.py` (`expected_tp = price_open + take_profit`) has a tolerance of about 1 point (`> 0.00001`).
 - Both times the position above was at 1.12162. The distance is 0.00101 to 0.00103, which is about -10 $ at 0.10 lot.
-- Pending orders after the second fill: BUY LIMIT at 1.11962, 1.11862, 1.11762, 1.11662, 1.11562 and 1.11462, which is 0.00100 apart. The next BUY LIMIT is at 1.11962, not 1.11961, because of the 1 point of slippage. This is within the level tolerance.
-- TP of the other open positions (1.12362, 1.12262, 1.12162): exactly 0.0005 above the entry, which is 5 $ at 0.10 lot.
+- Pending orders after the second fill: BUY LIMIT at 1.11962, 1.11862, 1.11762, 1.11662, 1.11562 and 1.11462. The orders are 0.00100 apart. The next BUY LIMIT is at 1.11962, not 1.11961, because of the 1 point of slippage. This is within the level tolerance.
+- Other open positions at 1.12362, 1.12262 and 1.12162: TP exactly 0.0005 above the entry, which is 5 $ at 0.10 lot.
+- Preview text: the dashboard (language `tr`) showed `≈ 0,001 fiyat mesafesi (0,1 lot)` below the grid step and `≈ 0,0005 fiyat mesafesi (0,1 lot)` below the TP of this setup. This agrees with `/api/symbols/{id}` (EURUSD `trade_tick_value` 1.0, `trade_tick_size` 0.00001) and `lossToPriceDistance` in `zoneHelpers.ts`.
 - Earlier evidence on 2026-10-13: a USOUSD breakout setup with `step_by_loss: true` (tick value 0.1 per 0.001). BUY 0.02 lot with grid 0.16 $ gave position steps of `+0.080` and a TP distance of `0.8`. SELL 0.01 lot with grid 0.6 $ gave SELL STOP orders at 91.804 / 92.404 / 93.004 and a TP distance of 0.400.
-
-Gap: nobody read the preview text in the browser. `/api/symbols/{id}` gave EURUSD `trade_tick_value` 1.0 and `trade_tick_size` 0.00001. With these values, `lossToPriceDistance` in `zoneHelpers.ts` gives 0.001 for 10 $ and 0.0005 for 5 $ at 0.10 lot. `LossPreview.tsx` calls this function. The e2e test of ZON-13 checks the preview text only for USOUSD (`≈ 1`), not the EURUSD text.
-
-The owner left the sign-off decision to Claude. Claude signed with this gap, as for ENG-31 and ZON-16.
 
 ## Open points
 
