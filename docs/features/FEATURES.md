@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-15 · **153/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-15 · **154/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -20,7 +20,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 20/20 |
-| 7 | **BOT** – Bot-Steuerung | 6/7 |
+| 7 | **BOT** – Bot-Steuerung | 7/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 30/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 7/7 |
@@ -338,10 +338,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Nach 5 Neustarts in 30 min hört der Watchdog auf; gelöschte Konten werden nicht mehr beobachtet.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [ ] **BOT-07** Bots nach Worker-/VPS-Neustart fortsetzen — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
+- [x] **BOT-07** Bots nach Worker-/VPS-Neustart fortsetzen — 🧪 unit ✅ 2026-10-15 · 👤 manuell ✅ 2026-10-15
   - Die Watchdog-Liste (Start ohne Stop) steht zusätzlich in data/watched_bots.json. Beim Worker-Start liest main.py sie ein; startup_maintenance startet jeden dort eingetragenen, nicht laufenden Bot neu (auch LIVE) und stellt ihn unter Watchdog, auch wenn der erste Start scheitert. Gestoppte Bots, gelöschte Konten und Bots, bei denen der Watchdog aufgegeben hat, fehlen in der Liste.
   - **Prüfung:** DEMO-Bot starten, dann auf der Seite „VPS“ → „VPS neu starten“.
   - **Erwartet:** Nach dem Reboot läuft der Bot wieder; das Robot-Log zeigt „[AUTO] Bot … devam ettirildi“.
+  - 📝 VPS-Reboot über /vps: DEMO-Bot lief danach ohne /start wieder (bot_running=true), Robot-Log: [AUTO] Bot worker/VPS yeniden başladıktan sonra devam ettirildi.
 
 ## 8. ENG – Grid-Engine (Handelslogik)
 
