@@ -188,6 +188,11 @@ BOT-03:
   notiz: 'Live: nach Worker-Neustart meldet der Worker ''[AUTO] Bot eski bir kod sürümüyle
     çalışıyor; yeni sürümle yeniden başlatılıyor'' und startet ihn neu (21:24 und
     22:48, Positionen unverändert)'
+BOT-07:
+  status: bestanden
+  datum: '2026-10-15'
+  notiz: 'VPS-Reboot über /vps: DEMO-Bot lief danach ohne /start wieder (bot_running=true),
+    Robot-Log: [AUTO] Bot worker/VPS yeniden başladıktan sonra devam ettirildi.'
 ENG-13:
   status: bestanden
   datum: '2026-09-24'
