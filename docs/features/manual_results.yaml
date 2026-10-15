@@ -274,6 +274,12 @@ VPS-02:
   datum: '2026-10-13'
   notiz: Worker-Neustart, Update per Button (v0.7.212→v0.7.213, Auto-Updater aus)
     und Aufgabe AutoGrid-Update direkt geprüft
+VPS-07:
+  status: bestanden
+  datum: '2026-10-15'
+  notiz: Admin-Start erkannt (Worker-/ngrok-Neustart-Schleife mit PID); nach Admin-Prozesse
+    beenden Warnung weg, Worker ohne Adminrechte neu gestartet, keine neue Admin-Warnung
+    im Log, Bots liefen ununterbrochen weiter.
 VPS-10:
   status: bestanden
   datum: '2026-10-01'

@@ -50,7 +50,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | 14 | VPS-01 | Passed, signed | `GET /api/vps/status` (local route) returned `HTTP 200`, worker reachable, ngrok running, 2 bots. The page `/vps` showed all 6 tiles green. The check step is only "open the page". The "Gestoppt" result applies only to a stopped worker; the e2e test covers it. The owner approved this evidence and the sign-off on 2026-10-13. |
 | 15 | VPS-02 | Passed, signed later on 2026-10-13 | Not read-only. The owner did the steps. See `2026-10-13-eng-29-and-update-task-running.md`. |
 | 16 | VPS-06 | Open, needs the owner | Not read-only. |
-| 17 | VPS-07 | Open, partial evidence | See "Partial evidence". |
+| 17 | VPS-07 | Passed, signed on 2026-10-15 | Not read-only. The owner did step 2. `run.sh sign` returned `VPS-07: manuell bestanden`, and the checklist is at 150/158. See "Partial evidence". |
 | 18 | VPS-08 | Open, needs the owner | Not read-only. |
 | 19 | VPS-09 | Open, partial evidence | See "Partial evidence". |
 
@@ -59,7 +59,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | ID | Confirmed (read-only) | Steps that remain |
 |---|---|---|
 | LOG-07 | `?zone_id=a` returned 300 lines with 0 other tags. `?zone_id=a&zone_id=b` kept the file order and equals the last 300 tagged lines of both setups. On 2026-10-15, the bot ran EURUSD and GBPCHF. EURUSD has 3 setups, and only setup 3 is active. GBPCHF has 1 setup. The EURUSD card "Sembol logları" showed 100 lines. Each line had the prefix "Setup 3" and no `[Z:` tag. No line was from GBPCHF. The lines were in time order. The "Robot Logları" tab showed the badges "EURUSD · Setup 3" (121 lines) and "GBPCHF · Setup 1" (13 lines), with no `[Z:` tag. | None. The "LOG-07 live check" closed the gap on 2026-10-15. |
-| VPS-07 | Step 1: `elevated: []` and no admin warning on `/vps`. | Step 2: start `start.bat` as administrator, then "Admin-Prozesse beenden". |
+| VPS-07 | Step 1: `elevated: []` and no admin warning on `/vps`. On 2026-10-15, the owner started `start.bat` as administrator. The warning listed the worker loop and the ngrok loop with their PIDs. After "Admin-Prozesse beenden", the warning was gone, and a new worker process started without administrator rights. The ngrok card showed "Online" with an active restart loop. The worker log showed no new admin warning. The bots kept their PIDs, because they did not run elevated. The warning does not list the worker or ngrok: `Get-ElevatedSummary` (`vps.ps1`) hides a process when its parent is in the list. The expected text in `features.yaml` now says this. | None. Signed as passed on 2026-10-15. |
 | VPS-09 | `GET /api/system/worker/status` and `GET /api/system/worker/log` returned `HTTP 200`. The worker sends ANSI color codes; `VpsOnlinePanel.tsx` removes them with `stripAnsi`. | The Vercel version and "Worker neu starten". |
 
 Safety of the read-only sweep: no trade, bot action, settings save, order, position change or worker restart occurred. The sweep sent `/rates`, `/deals` and `/symbols` only for the account with a running bot, so no terminal changed its account. These routes write to the cache `data/market.sqlite` (ANA-04, ANA-07).
@@ -174,7 +174,9 @@ Side finding (not part of ANA-14): the scope "GBPCHF · Setup 1" (magic 200001) 
 
 ## Open points
 
-- [ ] Run the steps that remain for VPS-07 and VPS-09.
+- [x] Run the steps that remain for VPS-07. Done on 2026-10-15.
+- [ ] Run the steps that remain for VPS-09.
+- [ ] Examine the VPS-07 side finding: under an elevated worker, the bots are children of the worker, so `Get-ElevatedSummary` hides them. The warning then shows `infoNoBots` (`VpsElevatedWarning.tsx`), but `fix-elevated` also stops elevated bots and MT5. Not seen in the check, because the bots did not run elevated.
 - [ ] Run the checks that need the owner (table "Verification").
 - [ ] Examine the side finding in "ANA-14 check": USOUSD trades of magic 200001 have the label "GBPCHF · Setup 1".
 - [x] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14. Done on 2026-10-15.

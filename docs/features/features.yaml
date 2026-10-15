@@ -1189,7 +1189,7 @@ kategorien:
         pruefung:
           - Seite „VPS“ öffnen, wenn nichts mit Adminrechten läuft.
           - "Nur mit Absprache: auf dem VPS start.bat per Rechtsklick „Als Administrator ausführen“, danach Seite „VPS“ neu laden und „Admin-Prozesse beenden“."
-        erwartet: Ohne Admin-Prozesse keine Warnung. Mit Admin-Start nennt die Warnung Neustart-Schleifen und Worker mit PID; nach „Admin-Prozesse beenden“ verschwindet sie, Worker und ngrok laufen wieder ohne Adminrechte und das Worker-Log zeigt keine neue Admin-Warnung.
+        erwartet: Ohne Admin-Prozesse keine Warnung. Mit Admin-Start nennt die Warnung die Neustart-Schleifen mit PID (Worker und ngrok sind deren Kindprozesse und erscheinen nicht extra); nach „Admin-Prozesse beenden“ verschwindet sie, Worker und ngrok laufen wieder ohne Adminrechte und das Worker-Log zeigt keine neue Admin-Warnung.
 
       - id: VPS-08
         titel: Bootstrap eines frischen VPS

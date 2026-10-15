@@ -25,7 +25,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
-| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 6/10 |
+| 12 | **VPS** – VPS-Fernsteuerung vom Mac | 7/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/14 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/13 |
@@ -585,10 +585,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - ops/windows/setup_vps.ps1 (einmal als Administrator) installiert OpenSSH (nur Schlüssel), trägt den Mac-Schlüssel ein, setzt den Besitzer des Repos auf den normalen Benutzer, richtet Auto-Login ein (Passwort als LSA-Secret), entfernt bei MT5-Terminals den Haken „Als Administrator ausführen“ (RUNASADMIN, samt Leeren des Kompatibilitäts-Caches) und legt die Aufgaben AutoGrid-Start (bei Anmeldung) und AutoGrid-Update an, beide ohne höchste Rechte.
   - **Prüfung:** Einrichtung nach docs/windows_start_guide.md, danach VPS über die Seite „VPS“ neu starten.
   - **Erwartet:** Nach dem Reboot sind Auto-Login, Worker, ngrok und die vorher laufenden Bots von selbst wieder da.
-- [ ] **VPS-07** Prozesse mit Adminrechten erkennen und beenden — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [x] **VPS-07** Prozesse mit Adminrechten erkennen und beenden — 🧪 unit ✅ 2026-10-15 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-15
   - Laufen Neustart-Schleife, Worker, Bots, ngrok oder MT5 mit Adminrechten (alte Aufgabe mit höchsten Rechten, start.bat „Als Administrator“), kann der normale Worker sie weder sehen noch beenden. vps.ps1 status meldet sie (höhere Integritätsstufe als explorer.exe), die Seite „VPS“ zeigt eine rote Warnung mit „Admin-Prozesse beenden“ (fix-elevated, danach Neustart ohne Adminrechte, der Worker setzt die Bots fort); „Worker neu starten“ beendet Admin-Schleifen/-Worker/-ngrok vorher selbst. cleanup_old_instances.ps1 schreibt nicht beendbare Reste ins Worker-Log. Ein Worker mit Adminrechten warnt beim Start und macht kein git pull.
   - **Prüfung:** Seite „VPS“ öffnen, wenn nichts mit Adminrechten läuft. → Nur mit Absprache: auf dem VPS start.bat per Rechtsklick „Als Administrator ausführen“, danach Seite „VPS“ neu laden und „Admin-Prozesse beenden“.
-  - **Erwartet:** Ohne Admin-Prozesse keine Warnung. Mit Admin-Start nennt die Warnung Neustart-Schleifen und Worker mit PID; nach „Admin-Prozesse beenden“ verschwindet sie, Worker und ngrok laufen wieder ohne Adminrechte und das Worker-Log zeigt keine neue Admin-Warnung.
+  - **Erwartet:** Ohne Admin-Prozesse keine Warnung. Mit Admin-Start nennt die Warnung die Neustart-Schleifen mit PID (Worker und ngrok sind deren Kindprozesse und erscheinen nicht extra); nach „Admin-Prozesse beenden“ verschwindet sie, Worker und ngrok laufen wieder ohne Adminrechte und das Worker-Log zeigt keine neue Admin-Warnung.
+  - 📝 Admin-Start erkannt (Worker-/ngrok-Neustart-Schleife mit PID); nach Admin-Prozesse beenden Warnung weg, Worker ohne Adminrechte neu gestartet, keine neue Admin-Warnung im Log, Bots liefen ununterbrochen weiter.
 - [ ] **VPS-08** Bootstrap eines frischen VPS — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
   - Ein PowerShell-Einzeiler (irm .../bootstrap.ps1 | iex, Administrator-PowerShell) installiert fehlendes Git/Python 3.11/VC++-Redistributable, klont das Repo (nur wenn es fehlt, kein git pull), legt die venv an, installiert requirements.txt, erzeugt bei Bedarf WORKER_API_KEY und richtet ngrok (Authtoken + feste Domain als Benutzer-Variable NGROK_DOMAIN; run_ngrok_watchdog.bat hat keine Vorgabe-Domain, ohne Variable startet ngrok nicht und schreibt „NGROK_DOMAIN fehlt“ in logs/ngrok.log) ein – Repo-Klon/venv/pip/ngrok laufen dafür in einer eigenen geplanten Aufgabe mit RunLevel Limited (bootstrap-user.ps1), nie erhöht. Danach ruft es setup_vps.ps1 auf (jetzt ohne Pflicht-Parameter -PublicKey; ohne ihn entfallen nur OpenSSH/Mac-Schlüssel), startet den Worker über die Aufgabe AutoGrid-Start und gibt zum Schluss über connect-link.ps1 einen Verbindungs-Link (#connect=…, dasselbe Format wie frontend_nextjs/src/lib/connectionCode.ts) aus, den man im Frontend öffnet oder einfügt (SYS-07/SYS-08).
   - **Prüfung:** Auf einem frischen Windows-VPS (oder einem, auf dem Git/Python/Repo noch fehlen), in einer Administrator-PowerShell den Einzeiler ausführen. → ngrok-Authtoken und eine feste Domain eingeben, danach das Windows-Passwort (Auto-Login) oder -SkipAutoLogon verwenden.
