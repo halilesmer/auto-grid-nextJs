@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-15 · **145/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-15 · **146/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -19,7 +19,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
-| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 18/20 |
+| 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 19/20 |
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 30/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
@@ -288,10 +288,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Fraktal-Modus blendet der Schalter „Mit SL (Stop Loss)“ (fractal_use_sl, Standard an) die SL-Felder (Methode, ATR, SAR, Puffer) aus; Orders kommen dann ohne SL. Ohne SL ist „TP als Betrag“ fest aktiv (Chance/Risiko braucht einen SL). Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, „Mit SL“ ausschalten, speichern, Bot starten.
   - **Erwartet:** Pending Orders ohne SL in MT5; TP nur als Betrag.
-- [ ] **ZON-16** Fraktal – Anzahl Orders je Richtung — 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ⏳
+- [x] **ZON-16** Fraktal – Anzahl Orders je Richtung — 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-15
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
+  - 📝 DEMO GBPCHF, Fraktal BUY, Anzahl 3, Breakout. H1: zwei Buy Stops auf zwei der letzten drei oberen Fraktale, der dritte vom Kurs erreicht und ohne Order; eine Order von Hand gelöscht, nicht ersetzt, die andere blieb. H4: eine Order, gelöschte nicht ersetzt. Lücken: kein Vergleich mit dem MT5-Indikator, nie drei Orders gleichzeitig, siehe Journal 2026-10-13.
 - [x] **ZON-19** Symbol mit Setups – Speicherformat, Migration und Austausch mit der Oberfläche — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-07
   - Die Einstellungsdatei speichert die Zonen nach Symbol gruppiert, SYMBOLS = [{symbol, setups}]. Jedes Setup ist eine frühere Zone mit ihren Feldern (ohne symbol), ihrer id und ihrer festen Magic (ENG-27). Bot, Stream, MT5-Sync, Zonenregister und Zeitprüfung lesen eine flache Liste mit einer Zone je Setup (Symbol für Symbol, im Symbol die Setups). Eine alte Datei (ZONES) wird beim ersten Speichern umgestellt; vorher legt der Worker eine Kopie unter configs/backup/<Dateiname>.before-symbols.json an. Lesen (GET, Bot) schreibt nie. GET liefert nur SYMBOLS; jedes Setup trägt seinen Platz in der Engine-Reihenfolge (index, nur lesend, beim Speichern verworfen). zone_states und ui-state-Befehle zählen nach diesem Platz; die Oberfläche zeigt die Setups nach Symbol gruppiert (ZON-20) und speichert nur SYMBOLS. Steht ZONES in der Anfrage oder in der Datei, gilt ZONES (ein alter Browser-Tab schickt ZONES mit veralteten SYMBOLS; eine ältere Worker-Version schreibt nur ZONES), sonst SYMBOLS. Ein kaputtes SYMBOLS ohne ZONES (keine Liste, Eintrag ohne symbol oder ohne setups-Liste) gibt 422, die Datei bleibt. Ändert das Gruppieren oder Löschen die Reihenfolge und läuft der Bot nicht, zieht die API die Zonenbefehle in der ui_state-Datei (PAUSE/AUTO_CLEAR je Listenplatz) über die Magic auf die neuen Plätze um; ein laufender Bot macht das selbst (ENG-27).
   - **Prüfung:** DEMO-Konto mit zwei Zonen auf XAUUSD und einer auf EURUSD, alle mit offenen Orders; Bot läuft. → Worker auf den neuen Stand bringen, im Dashboard eine Einstellung ändern und speichern. → configs/settings_<id>_Auto_Grid.json und configs/backup/ ansehen; MT5-Orders und Bot-Log prüfen.

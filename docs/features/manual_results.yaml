@@ -130,13 +130,21 @@ ZON-14:
   datum: '2026-10-13'
   notiz: 'DEMO, EURUSD Grid BOTH, Grid 0.0010, TP 0.0003, 0.01 Lot: Start sofort BUY
     1.11889 und SELL 1.11879, Orders einen Grid-Abstand entfernt; erste BUY STOP fehlte,
-    weil eine Position von Setup 1 die Stufe blockierte (behoben mit PR #171, live nicht geprüft); BUY-TP 1.11920,
-    1 s später neue BUY 1.11931'
+    weil eine Position von Setup 1 die Stufe blockierte (behoben mit PR #171, live
+    nicht geprüft); BUY-TP 1.11920, 1 s später neue BUY 1.11931'
 ZON-15:
   status: bestanden
   datum: '2026-09-29'
   notiz: 'VPS DEMO: Fraktal-Zone, Orders passen zu MT5 Fractals/ATR, manuell gelöschte
     Order nicht neu gesetzt'
+ZON-16:
+  status: bestanden
+  datum: '2026-10-15'
+  notiz: 'DEMO GBPCHF, Fraktal BUY, Anzahl 3, Breakout. H1: zwei Buy Stops auf zwei
+    der letzten drei oberen Fraktale, der dritte vom Kurs erreicht und ohne Order;
+    eine Order von Hand gelöscht, nicht ersetzt, die andere blieb. H4: eine Order,
+    gelöschte nicht ersetzt. Lücken: kein Vergleich mit dem MT5-Indikator, nie drei
+    Orders gleichzeitig, siehe Journal 2026-10-13.'
 ZON-19:
   status: bestanden
   datum: '2026-10-07'
