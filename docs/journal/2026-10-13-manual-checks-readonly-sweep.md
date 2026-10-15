@@ -3,7 +3,7 @@ date: 2026-10-13
 author: Claude
 type: diagnosis
 status: open
-pr: [169, 170, 172]
+pr: [169, 170, 172, 174]
 features: [ZON-21, ENG-31, ZON-13, ZON-14, ZON-16, ENG-29, LOG-07, ANA-08, ANA-14, SYS-06, ACC-11, BOT-07, UPD-07, VPS-01, VPS-02, VPS-06, VPS-07, VPS-08, VPS-09]
 areas: [docs, ops]
 ---
@@ -38,7 +38,7 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | 2 | ENG-31 | Passed, signed later on 2026-10-13, with partial live evidence | Not read-only. See "ENG-31 live check". The owner approved the sign-off with the gaps in that section. This is an exception to "Partial evidence does not sign a check". `run.sh sign ENG-31 bestanden …` returned `ENG-31: manuell bestanden`. The checklist shows 144/158. |
 | 3 | ZON-13 | Open, partial evidence | See "Partial evidence". |
 | 4 | ZON-14 | Passed, signed later on 2026-10-13, with one known deviation | Not read-only. See "ZON-14 live check". The first BUY STOP was two grid steps away. The cause is the level check across setups, not the instant entry. The owner approved the sign-off. `run.sh sign ZON-14 bestanden …` returned `ZON-14: manuell bestanden`. The checklist shows 145/158. |
-| 5 | ZON-16 | Open, partial evidence | See "Partial evidence". |
+| 5 | ZON-16 | Passed, signed on 2026-10-15, with partial live evidence | Not read-only. See "ZON-16 live check". The owner left the decision to Claude ("entscheide für bessere Ergebnisse du"). The comparison with the MT5 indicator "Fractals" was not done (see the gaps in that section). `run.sh sign ZON-16 bestanden …` returned `ZON-16: manuell bestanden`; the checklist is at 146/158. |
 | 6 | ENG-29 | Closed: no manual tier (`2026-10-13-eng-29-and-update-task-running.md`) | All 4 accounts: `legacy_setup_orders` is `[]` or `null`. No log line `Eski fraktal kurgusu`. No legacy setup orders remain. |
 | 7 | LOG-07 | Open, partial evidence | See "Partial evidence". |
 | 8 | ANA-08 | Open, needs the owner | The check compares with the deal history in the MT5 terminal. `GET /api/history/{id}/deals` returned 4433 deals for 30 days, `missing: 0`. |
@@ -59,7 +59,6 @@ Partial evidence does not sign a check. The check stays open, and this entry rec
 | ID | Confirmed (read-only) | Steps that remain |
 |---|---|---|
 | ZON-13 | USOUSD setup, `step_by_loss: true`, tick value 0.1 per 0.001. BUY 0.02 lot: grid 0.16 $ gave position steps of `+0.080` and TP distance `0.8`. SELL 0.01 lot: grid 0.6 $ gave SELL STOP at 91.804 / 92.404 / 93.004 and TP distance 0.400. | The exact protocol (EURUSD, 0.10 lot, 10 / 5), the preview text in the frontend, and the rule "next position at −10 $". The USOUSD setup is a breakout setup. |
-| ZON-16 | EURUSD fractal setup, M1, rebound, `fractal_order_count: 5`. M1 candles from `/api/market/{id}/rates`, fractals from `find_fractals`. The 2 unreached lower fractals had a BUY LIMIT each. Older fractals had no order. The filled upper fractal got no new order. Max. 5 orders for each side. | Direction BUY with count 3, the comparison with the MT5 indicator "Fractals", and a manual delete in MT5. |
 | LOG-07 | `?zone_id=a` returned 300 lines with 0 other tags. `?zone_id=a&zone_id=b` kept the file order and equals the last 300 tagged lines of both setups. | A symbol with 2 setups, the symbol card "Sembol logları", and the badge in the "Robot-Log" tab. |
 | VPS-07 | Step 1: `elevated: []` and no admin warning on `/vps`. | Step 2: start `start.bat` as administrator, then "Admin-Prozesse beenden". |
 | VPS-09 | `GET /api/system/worker/status` and `GET /api/system/worker/log` returned `HTTP 200`. The worker sends ANSI color codes; `VpsOnlinePanel.tsx` removes them with `stripAnsi`. | The Vercel version and "Worker neu starten". |
@@ -111,9 +110,24 @@ The owner added a second EURUSD setup: grid, `BOTH`, range 1.10 to 1.14, grid st
 
 Cause of the missing BUY STOP at 1.11989: a BUY position of setup 1 at 1.11952 was within 0.45 × grid step of the level. The existing-level set included the positions of all setups on the symbol. A FakeMT5 reproduction with the live prices gave the same gap. PR #171 removes the orders and positions of other setups from this set. See `2026-10-13-levels-own-setup-only.md`. The check ran at 16:41 (UTC+2), before PR #171 merged at 15:19 UTC. Thus the worker ran the old code. The live check of PR #171 is an open point in that entry.
 
+## ZON-16 live check
+
+Date: 2026-10-15. Not read-only. The owner clicked "Starten" and deleted the orders by hand in MT5. Claude read the worker API only.
+
+- Setup: GBPCHF, BUY, fractal entry, breakout, `fractal_order_count` 3, lot 0.01. The owner changed the inactive setup of this symbol, so EURUSD did not need to stop. The EURUSD setup kept 8 orders in every read.
+- Source of the fractals: candles from `/api/market/{id}/rates` and the same 5-candle rule as `find_fractals` (closed candles only). Claude computed the last three upper fractals before it read the orders.
+- H4 run: one Buy Stop on the latest upper fractal. The log said for the two other fractals `fiyatça geçildi, emir yok`: the price had reached them. The owner deleted the order by hand. The bot logged `Bu fraktala yeni emir konmayacak.` and placed no new order (3 reads over 90 s).
+- H1 run: two Buy Stops on two of the last three upper fractals. The log said `fiyatça geçildi, emir yok` for the third. The owner deleted one order by hand. The other order stayed. The bot placed no new order (3 reads over 90 s).
+
+Gaps:
+
+- The owner did not compare the orders with the MT5 indicator "Fractals". The comparison uses the worker candles.
+- Both runs had fewer than three orders. The limit of three was not reached.
+- All older upper fractals were reached by the price. Therefore the run shows "no order on an older fractal" only through the log line.
+
 ## Open points
 
-- [ ] Run the steps that remain for ZON-13, ZON-16, LOG-07, VPS-07 and VPS-09.
+- [ ] Run the steps that remain for ZON-13, LOG-07, VPS-07 and VPS-09.
 - [ ] Run the checks that need the owner (table "Verification").
 - [ ] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14.
 - [ ] Show the worker `detail` when "save all" fails (`mergeAndSaveSettings` in `useSettingsStore.ts`).
