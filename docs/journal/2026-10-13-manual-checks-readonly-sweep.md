@@ -3,7 +3,7 @@ date: 2026-10-13
 author: Claude
 type: diagnosis
 status: open
-pr: [169, 170, 172]
+pr: [169, 170, 172, 174]
 features: [ZON-21, ENG-31, ZON-13, ZON-14, ZON-16, ENG-29, LOG-07, ANA-08, ANA-14, SYS-06, ACC-11, BOT-07, UPD-07, VPS-01, VPS-02, VPS-06, VPS-07, VPS-08, VPS-09]
 areas: [docs, ops]
 ---
