@@ -315,6 +315,12 @@ ANA-06:
   notiz: '02.10.26 DEMO-Konto A nach Deploy #94: Telemetrie liefert positions/orders;
     Chart zeigt USOUSD 64 Pos/3 Orders, EURUSD 3 Pos/20 Orders = Worker-Listen je
     Magic; Fraktal-Zone 0/0; ab 20 Linien ohne Achsenbeschriftung'
+ANA-08:
+  status: bestanden
+  datum: '2026-10-15'
+  notiz: 'DEMO 2026-10-15, EURUSD Setup 1: Trades, Marker (Kerze) und Fraktale (M15,
+    13.10.) gegen MT5-Bericht und Fractals-Indikator verglichen; Hover, absoluter
+    Marker-Preis, orange Fraktale und Zeitrahmen-Hinweis nicht geprüft.'
 ANA-09:
   status: bestanden
   datum: '2026-10-06'
