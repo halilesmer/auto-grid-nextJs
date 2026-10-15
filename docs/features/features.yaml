@@ -725,7 +725,7 @@ kategorien:
 
       - id: ENG-06
         titel: Validierung + Bereinigung
-        beschreibung: Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen). Toleranz zur Stufe: 0,4 Schritt im festen Raster, im positionsgebundenen Modus (step_by_loss/instant_entry) nur Rundungsspielraum, damit Orders des alten Ankers nicht stehen bleiben.
+        beschreibung: Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen). Die Toleranz zur Stufe beträgt 0,4 Schritt im festen Raster und im positionsgebundenen Modus (step_by_loss/instant_entry) nur den Rundungsspielraum, damit Orders des alten Ankers nicht stehen bleiben.
         code: [worker_python/src/core/grid_execution/validation.py]
         tiers: [unit]
         pruefung:
