@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-15 · **147/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-15 · **149/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -23,11 +23,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 7 | **BOT** – Bot-Steuerung | 6/7 |
 | 8 | **ENG** – Grid-Engine (Handelslogik) | 30/30 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
-| 10 | **LOG** – Logs | 6/7 |
+| 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 5/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 6/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 12/14 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 13/14 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/13 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -521,10 +521,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Tab „MT5 Terminal“ öffnen.
   - **Erwartet:** Zeilen aus MT5_Terminal_<Datum>.log erscheinen.
   - 📝 v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log, UTF-16 korrekt dekodiert
-- [ ] **LOG-07** Symbol-Logs — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [x] **LOG-07** Symbol-Logs — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-15
   - Jede Robot-Log-Zeile, die zu einer Zone (Setup) gehört, trägt das Tag [Z:<zone_id>]. GET /logs/{id}?zone_id=… filtert darauf; zone_id ist wiederholbar (?zone_id=a&zone_id=b) und liefert die Zeilen aller genannten Setups in Dateireihenfolge, `lines` gilt für die gemeinsame Liste. Eine einzelne zone_id (ältere Oberfläche) wirkt wie bisher. Jede Symbolkarte zeigt unter ihren Setups „Sembol logları“ aufklappbar mit den Zeilen aller Setups des Symbols; bei mehr als einem Setup beginnt jede Zeile mit „Setup n“ (Platz in der Symbolkarte). Im Robot-Log-Tab steht vor jeder Zeile mit Tag das Badge „<Symbol> · Setup n“.
   - **Prüfung:** Bot mit einem Symbol mit zwei Setups und einem zweiten Symbol laufen lassen, in der Symbolkarte „Sembol logları“ aufklappen.
   - **Erwartet:** Zeilen beider Setups des Symbols erscheinen (ohne Tag, mit „Setup 1“/„Setup 2“), keine Zeilen des anderen Symbols; im Robot-Log-Tab steht „<Symbol> · Setup n“ vor der Zeile.
+  - 📝 DEMO 2026-10-15: EURUSD Setup 2+3, GBPCHF Setup 1. ?zone_id=S2&zone_id=S3: 96+4 Zeilen, Dateireihenfolge, 0 GBPCHF. Karte „Sembol logları“: 100 Zeilen mit „Setup 2“/„Setup 3“, kein [Z:, kein GBPCHF. Robot-Log: Badges „EURUSD · Setup 2/3“, „GBPCHF · Setup 1“.
 
 ## 11. UPD – System & Updates
 
@@ -701,10 +702,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Analyse → Statistik-Tab, Zone mit Trades der letzten Tage, unten „MFE/MAE berechnen“ drücken. → Zwei Trades im MT5-Terminal (M1-Chart) nachsehen; bei einem SELL den Spread der Kerzen beachten.
   - **Erwartet:** Jede Zeile zeigt +MFE / −MAE in Punkten und darunter in Kontowährung. Die Werte liegen nicht über dem, was der M1-Chart zwischen Ein- und Ausstieg zeigt (Untergrenze). Ein Trade, dessen Einstieg fehlt oder in dessen Spanne Kerzen fehlen, zeigt „nicht berechenbar“, nie 0.
   - 📝 Live DEMO 2026-10-06, nur lesend: Zone 1 USOUSD, 7 Tage, 122 Trades alle berechnet (0 nicht berechenbar). Gegenrechnung aus rohem /deals + /rates M1: BUY 808/532 Pkt, SELL 408/372 Pkt (mit Spread), Geld 1,62/1,07 bzw. 0,41/0,37 – identisch mit der Tabelle.
-- [ ] **ANA-14** Statistik je Symbol und Setup (Setups vergleichen) — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ⏳
+- [x] **ANA-14** Statistik je Symbol und Setup (Setups vergleichen) — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-10-15
   - Teil D von „Zone wird Symbol mit Setups“ (ZON-19). Der Statistik-Tab hat als Umfang zusätzlich jedes Symbol („USOUSD · alle Setups (2)“): alle Trades registrierter Setups (auch gelöschter) mit dem gehandelten Symbol des Deals (ohne Groß-/Kleinschreibung); „Setup unbekannt“, manuelle und fremde Trades zählen zu keinem Symbol. Ein Symbol öffnet die Aufteilung „je Setup“: jede Zeile ein Setup (Magic) mit Positionen, Trades, Trefferquote, Netto, Profitfaktor, Ø Trade und max. Drawdown, so lassen sich die Setups eines Symbols vergleichen. Das Konto öffnet „je Symbol“ (Symbole nach Namen, danach unbekannt, manuell, andere). Setups heißen auf der ganzen Analyse-Seite wie auf den Symbolkarten „Symbol · Setup n“ (n = Platz im Symbol, src/lib/symbolSetups.ts setupNumbers); ein Setup, das nicht mehr in den Einstellungen steht, mit Symbol und Namen aus dem Register. Die Analyse-Seite sagt „Setup“ statt „Zone“.
   - **Prüfung:** DEMO-Konto mit einem Symbol, das zwei Setups mit Trades hat; Analyse → Statistik, Zeitraum „Letzte 30 Tage“. → Umfang „<Symbol> · alle Setups“ wählen; Aufteilung „je Setup“ ansehen. → Netto je Setup mit MT5 vergleichen (Werkzeuge → Historie, gleicher Zeitraum, nach Magic-Nummer des Setups).
   - **Erwartet:** Netto des Symbols ist die Summe der Setup-Zeilen; jede Setup-Zeile stimmt mit den Trades ihrer Magic-Nummer in MT5 überein; die Namen „Symbol · Setup n“ stimmen mit den Symbolkarten im Dashboard überein.
+  - 📝 DEMO 2026-10-15, Letzte 30 Tage, Umfang „EURUSD · alle Setups (3)“: Netto +115,30 = Summe der Zeilen (Z2 gelöscht −113,04, Setup 1 +20,05, Setup 2 +2,18, Setup 3 +206,11). Jede Zeile stimmt mit den MT5-Deals ihrer Magic (Worker-Deal-API, Einstieg nach Register-created_at) überein; Namen wie Symbolkarten. Lücke: Vergleich über die Worker-Deal-API, nicht im MT5-Terminal.
 - [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-15 · 🔌 api ✅ 2026-10-13 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.

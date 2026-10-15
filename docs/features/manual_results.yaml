@@ -241,6 +241,13 @@ LOG-06:
   datum: '2026-09-23'
   notiz: 'v0.7.59 live: MT5-Tab liefert 400 Zeilen aus mt5_terminal/MT5_Terminal_<Datum>.log,
     UTF-16 korrekt dekodiert'
+LOG-07:
+  status: bestanden
+  datum: '2026-10-15'
+  notiz: 'DEMO 2026-10-15: EURUSD Setup 2+3, GBPCHF Setup 1. ?zone_id=S2&zone_id=S3:
+    96+4 Zeilen, Dateireihenfolge, 0 GBPCHF. Karte „Sembol logları“: 100 Zeilen mit
+    „Setup 2“/„Setup 3“, kein [Z:, kein GBPCHF. Robot-Log: Badges „EURUSD · Setup
+    2/3“, „GBPCHF · Setup 1“.'
 UPD-01:
   status: bestanden
   datum: '2026-09-23'
@@ -333,6 +340,14 @@ ANA-12:
     berechnet (0 nicht berechenbar). Gegenrechnung aus rohem /deals + /rates M1: BUY
     808/532 Pkt, SELL 408/372 Pkt (mit Spread), Geld 1,62/1,07 bzw. 0,41/0,37 – identisch
     mit der Tabelle.'
+ANA-14:
+  status: bestanden
+  datum: '2026-10-15'
+  notiz: 'DEMO 2026-10-15, Letzte 30 Tage, Umfang „EURUSD · alle Setups (3)“: Netto
+    +115,30 = Summe der Zeilen (Z2 gelöscht −113,04, Setup 1 +20,05, Setup 2 +2,18,
+    Setup 3 +206,11). Jede Zeile stimmt mit den MT5-Deals ihrer Magic (Worker-Deal-API,
+    Einstieg nach Register-created_at) überein; Namen wie Symbolkarten. Lücke: Vergleich
+    über die Worker-Deal-API, nicht im MT5-Terminal.'
 ANA-13:
   status: bestanden
   datum: '2026-10-01'
