@@ -834,6 +834,11 @@
     }
   },
   "SYM-01": {
+    "api": {
+      "datum": "2026-10-16",
+      "status": "passed",
+      "tests": 4
+    },
     "live": {
       "datum": "2026-09-24",
       "status": "passed",
