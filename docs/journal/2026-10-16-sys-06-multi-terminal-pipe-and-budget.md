@@ -3,7 +3,7 @@ date: 2026-10-16
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [182]
 features: [SYS-06]
 areas: [worker, tests]
 ---
@@ -50,11 +50,21 @@ areas: [worker, tests]
 - New tests were red before the fix: 5 failed in `test_mt5_connect.py`, 1 failed in `test_ws_stream.py`.
 - The reviewer found a missing time buffer before the restart. The test with 2 s overhead failed with `_RESTART_BUFFER_SEC = 0` and passed with 5.
 - Not verified: the GIL cause of deviation 3. The `MetaTrader5` library runs only on Windows.
-- Not verified on the VPS: the manual check SYS-06 must run again.
+- Manual check SYS-06 again on 2026-10-16, worker v0.7.228, VPS with 4 terminals, DEMO account A. A bot of account B ran on a different terminal.
+
+| # | Before the fix | After the fix |
+|---|---|---|
+| 1 | `-10004` after 205 s | Clear message `'Python integration' kutusunu işaretleyin` after 14.0 s |
+| 2 | Budget of 120 s exceeded by approx. 85 s | Budget kept (14 s) |
+| 3 | No answer for approx. 3 min | 12 of 12 requests to `GET /api/system/worker/status` during the connect answered, max. 0.22 s |
+
+- With Python integration on, `POST /api/start` connected in 1.7 s.
+- Not done again: the cold start after a VPS reboot. It was not part of the 3 deviations. Fix #182 changed the attempt gate (`_attempt_fits`), which the cold start also uses; the unit tests cover it, the VPS did not.
+- Deviation 3 did not occur again. The cause stays not verified, because the fix also shortened the connect.
 
 ## Open points
 
-- [ ] Run the manual check SYS-06 again on the VPS, DEMO account only.
+- [x] Run the manual check SYS-06 again on the VPS, DEMO account only (passed 2026-10-16).
 - [ ] If the worker again does not answer during a connect, run the MT5 connect in a subprocess.
 
 ## Lessons
