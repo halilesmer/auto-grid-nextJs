@@ -110,6 +110,51 @@ test.describe('Live (nur lesend)', () => {
     await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
   });
 
+  test('Kontowechsel: Stream und Status folgen dem gewählten Konto', { tag: '@ACC-10' }, async ({ page, api, account, dashboard }) => {
+    // Zweites Konto nur, wenn es auch DEMO ist: beim Ansehen wird kein LIVE-Konto berührt (RULES.md §3)
+    const other = (await api.accounts()).find((a) => String(a.id) !== account.id && a.env_type === 'DEMO');
+    test.skip(!other, 'Kein zweites DEMO-Konto im Worker registriert');
+    const otherId = String(other!.id);
+
+    // Pro /ws/stream-Verbindung: account_id aus der URL und aus jeder Kontonachricht. Ohne MT5-Daten und
+    // ohne frische Bot-Metriken sendet der Worker LIVE_DATA statt METRICS; beide tragen account_id.
+    const streams: Array<{ urlAccount: string | null; messageAccounts: string[] }> = [];
+    page.on('websocket', (ws) => {
+      const url = new URL(ws.url());
+      if (!url.pathname.endsWith('/ws/stream')) return; // HMR-Socket des Dev-Servers
+      const stream = { urlAccount: url.searchParams.get('account_id'), messageAccounts: [] as string[] };
+      streams.push(stream);
+      ws.on('framereceived', ({ payload }) => {
+        try {
+          const m = JSON.parse(String(payload));
+          if (m.type === 'METRICS' || m.type === 'LIVE_DATA') stream.messageAccounts.push(String(m.payload?.account_id));
+        } catch {
+          /* keine JSON-Nachricht */
+        }
+      });
+    });
+
+    // open() wählt schon das Testkonto; danach wird zweimal gewechselt
+    await dashboard.open(account.id);
+    for (const [step, id] of [account.id, otherId, account.id].entries()) {
+      if (step > 0) await dashboard.selectAccount(id);
+      await expect.poll(() => streams.at(-1)?.urlAccount).toBe(id);
+      const stream = streams.at(-1)!;
+      await expect.poll(() => stream.messageAccounts.length).toBeGreaterThanOrEqual(2);
+      expect(stream.messageAccounts.filter((a) => a !== id), `Stream nur von Konto ${id}`).toEqual([]);
+
+      // Bot-Status nach der Worker-Antwort für genau dieses Konto (selectAccount setzt ihn vorher auf „Gestoppt“)
+      const { bot_running } = await api.botStatus(id);
+      await Promise.all([
+        page.waitForResponse((r) => r.url().includes(`/api/logs/${id}`) && r.ok()),
+        dashboard.refreshLogs(),
+      ]);
+      await expect(dashboard.botStatus).toBeVisible();
+      if (bot_running) await expect(dashboard.botStatus).not.toHaveText(msg('bot.status.stopped'));
+      else await expect(dashboard.botStatus).toHaveText(msg('bot.status.stopped'));
+    }
+  });
+
   test('Symbolliste kommt aus dem Cache', { tag: '@SYM-01' }, async ({ api, account }) => {
     const settings = await api.settings(account.id);
     const first = await api.get<{ symbols: Array<{ name: string }> }>(`/symbols/${account.id}`);
