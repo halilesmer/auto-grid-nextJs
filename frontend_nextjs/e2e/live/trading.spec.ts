@@ -5,24 +5,31 @@
  *   1. E2E_LIVE_DEMO=1 (bewusst gesetzt)
  *   2. hooks/test-account.local.md: Tür DEMO, und der Worker meldet env_type DEMO (Fixture `account`)
  *   3. Markt offen, Bot läuft und ist mit MT5 verbunden
- *   4. Keine bestehende aktive Zone deckt den aktuellen Preis ab (sonst würde die Engine sie
- *      statt der Testzone bedienen – bestehende Zonen werden nie verändert)
+ *   4. Die Testzone bekommt ein Symbol, für das keine Zone existiert (TEST_SYMBOLS); die Engine
+ *      bedient je Symbol die erste aktive Zone am Preis, bestehende Zonen bleiben so unberührt
  *
  * Ablauf: Einstellungen + ui-state sichern → Testzone ANHÄNGEN (0,01 Lot, je 1 Level, max. 1
- * Position) → Orders (ENG-05) → Pause/Start über die Oberfläche (ZON-08) → Zone vom Preis
+ * Position) → Orders (ENG-05) → Füllung und Positionslimit (ENG-07) → Pause/Start über die Oberfläche (ZON-08) → Zone vom Preis
  * wegschieben (ENG-10, „Otomatik temizlendi“) → Einstellungen wiederherstellen.
  * Die Testzone wird nur angehängt: seit ENG-27 hat jede Zone eine feste Magic-Number, die
  * Zonen-Status (ui-state) hängen aber weiter am Listenplatz.
  *
+ * ENG-07 lässt eine Order füllen (eine 0,01-Lot-DEMO-Position); ENG-10 schließt sie beim Verlassen
+ * der Zone („Tüm İşlemler“), sonst schließt sie ihr TP.
+ *
  * BOT-01/02 (Stop + Start) unterbrechen den laufenden Bot kurz; nur mit zusätzlich
  * E2E_LIVE_BOT_RESTART=1.
  */
-import { LiveWorker, expect, test, type LiveZone } from './live';
+import { LiveWorker, expect, test, type LiveMetrics, type LiveZone } from './live';
 import { msg } from '../fixtures/i18n';
 
 const DEMO_ENABLED = process.env.E2E_LIVE_DEMO === '1';
 const RESTART_ENABLED = process.env.E2E_LIVE_BOT_RESTART === '1';
 const TEST_ZONE_ID = 'e2e-live-test-zone';
+/** Liquide Paare mit kleinem Spread, in dieser Reihenfolge; das erste ohne Zone wird genommen. */
+const TEST_SYMBOLS = ['GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'NZDUSD', 'EURGBP', 'EURUSD'];
+/** Level- und TP-Abstand der Testzone in Punkten des Symbols (5-stellig: 30 Punkte = 3 Pips). */
+const TEST_STEP_POINTS = 30;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -31,6 +38,19 @@ interface Snapshot {
   settings: Record<string, unknown>;
   zones: LiveZone[];
   uiStates: Record<string, string>;
+  symbol: string;
+  point: number;
+}
+
+/**
+ * Offene Positionen und Pending Orders der Testzone, über ihre Magic (ENG-27). Nicht über das
+ * Symbol: Positionen früherer Läufe auf demselben Symbol bleiben offen, bis ihr TP trifft.
+ */
+function ofMagic(metrics: LiveMetrics | null | undefined, magic: number) {
+  return {
+    positions: (metrics?.positions ?? []).filter((p) => p.magic === magic).length,
+    orders: (metrics?.orders ?? []).filter((o) => o.magic === magic).length,
+  };
 }
 
 async function waitFor<T>(fn: () => Promise<T>, ok: (v: T) => boolean, timeoutMs: number, what: string): Promise<T> {
@@ -65,6 +85,7 @@ test.describe('Live-Handel (DEMO)', () => {
 
   let snapshot: Snapshot | null = null;
   let testIdx = -1;
+  let testMagic = -1;
   let accountId = '';
 
   test('Sicherheitsprüfungen', async ({ api, account }) => {
@@ -75,20 +96,14 @@ test.describe('Live-Handel (DEMO)', () => {
 
     const settings = await api.settings(account.id);
     const zones = settings.ZONES ?? [];
-    const price = Number(status.metrics.current_price);
-    expect(price).toBeGreaterThan(0);
-    const covering = zones.findIndex(
-      (z) => z.is_active !== false && z.min_price <= price && price <= z.max_price && z.id !== TEST_ZONE_ID,
-    );
-    test.skip(
-      covering >= 0,
-      `Zone ${covering + 1} (${zones[covering]?.symbol} ${zones[covering]?.min_price}–${zones[covering]?.max_price}) ` +
-        `deckt den Preis ${price} ab; die Testzone würde nie aktiv. Eigenes DEMO-Testkonto verwenden ` +
-        `oder die Zone so einschränken, dass ein freier Preisbereich bleibt.`,
-    );
     expect(zones.some((z) => z.id === TEST_ZONE_ID), 'Testzone von einem abgebrochenen Lauf vorhanden').toBe(false);
+    const used = new Set(zones.map((z) => z.symbol.toUpperCase()));
+    const { symbols } = await api.get<{ symbols: Array<{ name: string; point: number }> }>(`/symbols/${account.id}`);
+    const free = TEST_SYMBOLS.map((name) => symbols.find((s) => s.name === name)).find((s) => s && !used.has(s.name));
+    test.skip(!free, `Jedes Testsymbol (${TEST_SYMBOLS.join(', ')}) hat schon eine Zone oder fehlt beim Broker`);
 
-    snapshot = { settings, zones, uiStates: await api.uiStates(account.id) };
+    // free ist hier gesetzt (test.skip oben bricht sonst ab; TS verengt nach test.skip nicht)
+    snapshot = { settings, zones, uiStates: await api.uiStates(account.id), symbol: free!.name, point: free!.point };
     accountId = account.id;
   });
 
@@ -113,25 +128,29 @@ test.describe('Live-Handel (DEMO)', () => {
 
   test('Testzone setzt Orders mit TP (Platzierung)', { tag: '@ENG-05' }, async ({ api, account, dashboard }) => {
     test.skip(!snapshot, 'Sicherheitsprüfungen nicht bestanden');
-    const { zones } = snapshot!;
-    const base = await api.botStatus(account.id);
-    const price = Number(base.metrics.current_price);
-    const symbol = zones[0]?.symbol ?? 'USOUSD';
+    const { zones, symbol, point } = snapshot!;
+    const step = Number((TEST_STEP_POINTS * point).toFixed(10));
     testIdx = zones.length;
 
     // Zuerst ui-state vollständig schreiben, dann die Zone anhängen
     await writeFullUiState(api, account.id, zones, { [String(testIdx)]: 'START' });
+    // Feste Basis statt Kopie einer Zone: deren Spread-Wächter, Sofort-Einstieg und Abstände gehören zu einem anderen Symbol
     const testZone: LiveZone = {
-      ...(zones[0] ?? {}),
       id: TEST_ZONE_ID,
       is_active: true,
       symbol,
+      entry_mode: 'grid',
+      step_by_loss: false,
       order_type: 'BUY',
-      min_price: Number((price - 1).toFixed(3)),
-      max_price: Number((price + 1).toFixed(3)),
-      grid_step: 0.3,
+      // Preis des freien Symbols ist vorher unbekannt (nicht in den Bot-Metriken): Bereich deckt jeden Preis
+      min_price: 0,
+      max_price: 1_000_000,
+      grid_step: step,
       lot_size: 0.01,
-      take_profit: 0.3,
+      // TP größer als der Level-Abstand: die gefüllte Position schließt nicht während der ENG-07-Prüfung
+      take_profit: 3 * step,
+      instant_entry: false,
+      spread_guard: { enabled: false },
       stop_loss: 0,
       sync_buy_sell: true,
       is_breakout: false,
@@ -145,11 +164,20 @@ test.describe('Live-Handel (DEMO)', () => {
       exit_condition: 'Anlık Fiyat',
     };
     await api.post(`/settings/${account.id}`, { settings: { ZONES: [...zones, testZone] } });
+    // Der Worker vergibt die Magic beim Speichern (zone_magic.py)
+    testMagic = Number((await api.settings(account.id)).ZONES?.find((z) => z.id === TEST_ZONE_ID)?.magic);
+    expect(testMagic).toBeGreaterThan(0);
 
-    const basePending = Number(base.metrics.pending_orders ?? 0);
+    const zoneOpen = await waitFor(
+      () => api.botStatus(account.id),
+      (s) => s.metrics?.zone_market_open?.[String(testIdx)] !== undefined,
+      60_000,
+      'Marktstatus der Testzone',
+    );
+    test.skip(zoneOpen.metrics.zone_market_open?.[String(testIdx)] === false, `Markt für ${symbol} geschlossen`);
     await waitFor(
       () => api.botStatus(account.id),
-      (s) => Number(s.metrics.pending_orders ?? 0) > basePending,
+      (s) => ofMagic(s.metrics, testMagic).orders > 0,
       60_000,
       'neue Pending Orders der Testzone',
     );
@@ -158,6 +186,35 @@ test.describe('Live-Handel (DEMO)', () => {
 
     await dashboard.open(account.id);
     await expect(dashboard.zone(testIdx).getByRole('button', { name: msg('zone.header.started') })).toBeVisible();
+  });
+
+  test('Positionslimit erreicht: Pending Orders der Zone gelöscht', { tag: '@ENG-07' }, async ({ api, account }) => {
+    test.skip(!snapshot || testIdx < 0, 'Testzone fehlt');
+    test.setTimeout(480_000);
+    const warning = `Bölge ${testIdx + 1} Maksimum pozisyon sınırına ulaştı (1/1)`;
+    // Das Log ist dauerhaft: Zeilen früherer Läufe zählen nicht mit
+    const countWarnings = async () => (await api.logs(account.id)).robot_log.filter((line) => line.includes(warning)).length;
+    const warningsBefore = await countWarnings();
+
+    // Eine Order der Testzone (0,01 Lot, TEST_STEP_POINTS vom Preis) muss sich füllen; ohne Kursbewegung kein Test
+    const filled = await waitFor(
+      () => api.botStatus(account.id),
+      (s) => ofMagic(s.metrics, testMagic).positions > 0,
+      300_000,
+      'Füllung einer Order der Testzone',
+    ).catch((e: Error) => {
+      if (e.message.startsWith('Zeitüberschreitung')) return null;
+      throw e;
+    });
+    test.skip(!filled, 'Keine Order der Testzone in 5 min gefüllt');
+
+    // max_positions = 1: keine Pending Orders der Testzone mehr, Warnung genau einmal
+    await waitFor(() => api.botStatus(account.id), (s) => ofMagic(s.metrics, testMagic).orders === 0, 60_000, 'Pending Orders der Testzone gelöscht');
+    await waitFor(countWarnings, (n) => n > warningsBefore, 60_000, 'Limit-Warnung der Testzone');
+    // Einige weitere Bot-Runden: die Warnung kommt nicht bei jedem Tick erneut
+    await new Promise((r) => setTimeout(r, 10_000));
+    expect(await countWarnings()).toBe(warningsBefore + 1);
+    expect(ofMagic((await api.botStatus(account.id)).metrics, testMagic).orders).toBe(0);
   });
 
   test('Pause/Start der Testzone über die Oberfläche', { tag: '@ZON-08' }, async ({ api, account, dashboard }) => {
@@ -179,10 +236,14 @@ test.describe('Live-Handel (DEMO)', () => {
   test('Zone verlassen: Orders gelöscht, „Otomatik temizlendi“', { tag: '@ENG-10' }, async ({ api, account, dashboard }) => {
     test.skip(!snapshot || testIdx < 0, 'Testzone fehlt');
     const now = await api.botStatus(account.id);
-    const price = Number(now.metrics.current_price);
+    const price = Number(now.metrics.symbol_prices?.[snapshot!.symbol]);
+    expect(price).toBeGreaterThan(0);
     const settings = await api.settings(account.id);
     const zones = (settings.ZONES ?? []).map((z) =>
-      z.id === TEST_ZONE_ID ? { ...z, min_price: Number((price + 5).toFixed(3)), max_price: Number((price + 6).toFixed(3)) } : z,
+      // „Tüm İşlemler“: auch die Position aus ENG-07 wird beim Verlassen geschlossen
+      z.id === TEST_ZONE_ID
+        ? { ...z, min_price: Number((price * 1.5).toFixed(5)), max_price: Number((price * 1.6).toFixed(5)), clear_scope: 'Tüm İşlemler' }
+        : z,
     );
     await api.post(`/settings/${account.id}`, { settings: { ZONES: zones } });
 
@@ -194,9 +255,9 @@ test.describe('Live-Handel (DEMO)', () => {
     );
     await dashboard.open(account.id);
     await expect(dashboard.zone(testIdx).getByText(msg('zone.stop.autoClear.label'))).toBeVisible();
-    // Die bestehenden Zonen laufen weiter
+    // Die bestehenden Zonen behalten ihren Zustand (vom Nutzer pausierte bleiben pausiert)
     const after = await api.botStatus(account.id);
-    snapshot!.zones.forEach((_, i) => expect(after.metrics.zone_states?.[String(i)]).not.toMatch(/CLEAR|PAUSE/));
+    snapshot!.zones.forEach((_, i) => expect(after.metrics.zone_states?.[String(i)]).toBe(now.metrics.zone_states?.[String(i)]));
   });
 });
 

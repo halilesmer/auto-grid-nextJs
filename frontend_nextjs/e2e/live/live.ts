@@ -51,6 +51,9 @@ export interface LiveMetrics {
   zone_market_open?: Record<string, boolean>;
   zone_market_hours?: Record<string, string>;
   remote_paused?: boolean;
+  symbol_prices?: Record<string, number>;
+  positions?: Array<{ symbol: string; magic: number }>;
+  orders?: Array<{ symbol: string; magic: number }>;
   [key: string]: unknown;
 }
 
