@@ -372,7 +372,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen). Die Toleranz zur Stufe beträgt 0,4 Schritt im festen Raster und im positionsgebundenen Modus (step_by_loss/instant_entry) nur den Rundungsspielraum, damit Orders des alten Ankers nicht stehen bleiben.
   - **Prüfung:** Bei laufendem Bot TP der Zone ändern und speichern.
   - **Erwartet:** Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
-- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-10-15 · 🌐 live ⏳
+- [x] **ENG-07** Maximale Positionen — 🧪 unit ✅ 2026-10-15 · 🌐 live ✅ 2026-10-16
   - Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht; die Warnung erscheint einmal (erneut nur, wenn sich die Zahl ändert), nicht bei jedem Tick. Auch der Restlot-Nachschub (ENG-08) setzt dann nichts.
   - **Prüfung:** Maks Pozisyon = 1 setzen und eine Position füllen lassen.
   - **Erwartet:** Danach keine Pending Orders mehr in dieser Zone.
