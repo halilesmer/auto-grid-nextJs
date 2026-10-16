@@ -714,3 +714,28 @@ def test_position_einer_anderen_zone_sperrt_nicht(fake_mt5):
     fake_mt5.add_position("USOUSD", 0, 97.0, magic=MAGIC_ZONE_1 + 1)
     h.tick()
     assert _types(fake_mt5) == [fake_mt5.ORDER_TYPE_BUY_STOP, fake_mt5.ORDER_TYPE_SELL_STOP]
+
+
+# --------------------------------------------------------------------------- ZON-17
+@pytest.mark.feature("ZON-17")
+def test_mit_sl_schalter_wird_aus_zone_gelesen_standard_an():
+    assert extract_zone_config(fractal_zone(), 0).fractal_use_sl is True
+    assert extract_zone_config(fractal_zone(fractal_use_sl=False), 0).fractal_use_sl is False
+
+
+@pytest.mark.feature("ZON-17")
+def test_ohne_sl_ignoriert_sl_methode_und_rr(fake_mt5):
+    # Schalter aus: SL-Methode (SAR) und Chance/Risiko werden nicht genutzt
+    setup(fake_mt5, fractal_use_sl=False, fractal_sl_mode="sar", fractal_rr=3.0).tick()
+    buy = order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_STOP)
+    sell = order_of(fake_mt5, fake_mt5.ORDER_TYPE_SELL_STOP)
+    assert (buy.sl, buy.tp, sell.sl, sell.tp) == (0.0, 0.0, 0.0, 0.0)
+
+
+@pytest.mark.feature("ZON-17")
+def test_ohne_sl_zieht_sar_keinen_sl_an_position(fake_mt5):
+    rising = [(95.5 + 0.05 * i, 95.3 + 0.05 * i) for i in range(30)]
+    h = setup(fake_mt5, rising, order_type="BUY", fractal_use_sl=False, fractal_sl_mode="sar")
+    pos = fake_mt5.add_position("USOUSD", fake_mt5.POSITION_TYPE_BUY, 96.0, sl=0.0, magic=MAGIC_ZONE_1)
+    h.tick()
+    assert pos.sl == 0.0
