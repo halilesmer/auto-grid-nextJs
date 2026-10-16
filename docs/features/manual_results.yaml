@@ -48,6 +48,13 @@ ACC-07:
   datum: '2026-09-23'
   notiz: 'Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis:
     ohne Kontoauswahl zeigt der Header ebenfalls TEST'
+ACC-11:
+  status: bestanden
+  datum: '2026-10-16'
+  notiz: 'v0.7.229, VPS mit 4 Terminals, DEMO: Konto 2 mit nicht vorhandenem mt5_path
+    → /start sofort [CONFIG] MT5 terminal yolu bulunamadı; Journal von Terminal 1
+    ohne fremden Login; Bot von Konto 1 lief weiter (BAĞLANTISI KOPTU: 0). Symbolliste
+    kein Prüfweg (Cache 1 h).'
 SET-01:
   status: bestanden
   datum: '2026-09-23'

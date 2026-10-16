@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-16 · **155/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-16 · **156/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -15,7 +15,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | # | Kategorie | Stand |
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 9/9 |
-| 2 | **ACC** – Konten | 10/11 |
+| 2 | **ACC** – Konten | 11/11 |
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
@@ -119,10 +119,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. Der WS-Stream folgt dem gewählten Konto (/ws/stream?account_id=, neu verbunden beim Wechsel); der Worker sendet jeder Verbindung nur ihr Konto – aus der MT5-Abfrage des API-Prozesses nur, wenn dessen Terminal an diesem Konto angemeldet ist, sonst aus der Metrikdatei des Bot-Prozesses. WS-Metriken tragen account_id; Metriken eines anderen Kontos (älterer Worker) ignoriert das Frontend.
   - **Prüfung:** Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft. → Zweites Konto mit laufendem Bot wählen, /chart bzw. /formasyon öffnen; DevTools → WS-URL und Nachrichten ansehen.
   - **Erwartet:** Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status. Mit laufendem Bot bekommt das zweite Konto eigene Stream-Metriken (Live-Preis im Chart; die WS-URL enthält account_id=<Konto>, jede METRICS-Nachricht dessen account_id).
-- [ ] **ACC-11** Kein Login im MT5-Terminal eines anderen Kontos — 🧪 unit ✅ 2026-10-15 · 👤 manuell ⏳
+- [x] **ACC-11** Kein Login im MT5-Terminal eines anderen Kontos — 🧪 unit ✅ 2026-10-15 · 👤 manuell ✅ 2026-10-16
   - mt5.login() stellt das verbundene Terminal auf ein anderes Konto um. Ist mt5_path eingetragen, aber nicht vorhanden, verbinden Worker (/start, Symbolabfrage) und Bot-Reconnect nicht mehr ohne Pfad mit irgendeinem laufenden Terminal, sondern melden „[CONFIG] MT5 terminal yolu bulunamadı“. Vor jedem Login wird terminal_info().path mit den mt5_path-Einträgen in accounts.json verglichen; gehört das Terminal einem anderen Konto (und nicht auch diesem), wird nicht eingeloggt („[TERMINAL] … hesabına ait“). Ein Konto ohne mt5_path kann sich daher nicht im Terminal eines Kontos mit eingetragenem Pfad anmelden. Der Bot prüft in jeder Runde vor Fernbefehlen und Handel account_info().login; ist sein Terminal auf ein fremdes Konto umgestellt, handelt er nicht („MT5 terminali başka bir hesaba … geçmiş“) und meldet sich wieder am eigenen Konto an; wird der Login abgelehnt, trennt er sich vom Terminal. Anlass 29.09.2026, 20:41 – T34 (DEMO-Konto A) wurde kurz auf DEMO-Konto B angemeldet.
   - **Prüfung:** Nur DEMO. Zwei Konten mit je eigenem Terminal, Bot von Konto 1 läuft. → Bei Konto 2 im Bearbeiten-Dialog einen nicht existierenden MT5-Pfad eintragen, speichern und für Konto 2 eine Zone öffnen (Symbolliste) bzw. „Bot starten“ klicken. → Danach den richtigen Pfad wieder eintragen.
   - **Erwartet:** Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
+  - 📝 v0.7.229, VPS mit 4 Terminals, DEMO: Konto 2 mit nicht vorhandenem mt5_path → /start sofort [CONFIG] MT5 terminal yolu bulunamadı; Journal von Terminal 1 ohne fremden Login; Bot von Konto 1 lief weiter (BAĞLANTISI KOPTU: 0). Symbolliste kein Prüfweg (Cache 1 h).
 
 ## 3. USR – Benutzer & Zugriff
 
