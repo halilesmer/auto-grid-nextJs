@@ -11,6 +11,7 @@ from src.api.access import can_access_account
 from src.api.auth import API_KEY_HEADER, API_KEY_QUERY_PARAM, authenticate
 from src.core.indicator_calc import get_latest_indicators
 from src.utils.bot_manager import is_bot_running, log_step
+import src.utils.mt5_connection as mt5_connection
 from src.utils.paths import get_metrics_path
 from src.utils.symbol_setups import settings_zones
 
@@ -110,7 +111,18 @@ def fetch_mt5_data(symbols_by_login: dict[int, str]):
     """
     if not MT5_AVAILABLE or not symbols_by_login:
         return None
+    # Bir MT5 bağlantısı (/start, sembol sorgusu) sürüyorsa bekleme: initialize dakikalarca
+    # sürebilir ve araya giren çağrılar worker'ı kilitledi (SYS-06 testi 2026-10-16).
+    # O tur bot metriklerine düşer.
+    if not mt5_connection._MT5_LOCK.acquire(blocking=False):
+        return None
+    try:
+        return _fetch_mt5_data_locked(symbols_by_login)
+    finally:
+        mt5_connection._MT5_LOCK.release()
 
+
+def _fetch_mt5_data_locked(symbols_by_login: dict[int, str]):
     term_info = mt5.terminal_info()
     if term_info is None or not getattr(term_info, "connected", False):
         return None

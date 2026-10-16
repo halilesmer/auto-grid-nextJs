@@ -80,9 +80,17 @@ _IPC_ERROR_CODES = (-10001, -10002, -10003, -10004, -10005)
 
 # Süre bütçesinde bundan az kaldıysa yeni initialize denemesi yapılmaz
 _MIN_ATTEMPT_SEC = 5
-# Asılı terminal ancak yeniden açılmasına bu kadar süre kaldıysa öldürülür;
-# yoksa terminal öldürülüp açılmadan bırakılırdı
-_RESTART_MIN_SEC = 30
+# Python kanalı yoksa initialize, `timeout` ne olursa olsun sabit 60 sn bekler
+# ("Pipe server didn't answer in 60 sec"; SYS-06 testi 2026-10-16: 120 sn bütçe 205 sn sürdü)
+_INIT_NO_PIPE_BLOCK_SEC = 60
+# Terminal öldürüldükten sonra yeniden initialize'dan önce beklenen süre
+_KILL_SETTLE_SEC = 3
+# Asılı terminal ancak yeniden açılmasına bu kadar süre kaldıysa öldürülür (bekleme + kanalsız
+# initialize'ın sabit beklemesi + 1 sn pay); yoksa terminal öldürülüp açılmadan bırakılırdı
+_RESTART_MIN_SEC = _KILL_SETTLE_SEC + _INIT_NO_PIPE_BLOCK_SEC + 1
+# İlk denemenin bitişi ile yeniden başlatma kararı arasındaki gerçek süre (initialize dönüşü,
+# kanal kontrolü) için ilk denemeden ayrıca bırakılan pay
+_RESTART_BUFFER_SEC = 5
 # Açılan terminalin Python kanalı bu aralıkla yoklanır
 _PIPE_POLL_SEC = 0.5
 
@@ -119,6 +127,19 @@ def _python_integration_missing(mt5, init_kwargs):
     )
 
 
+def _attempt_fits(init_kwargs, deadline):
+    """Yeni bir initialize denemesi bütçeye sığar mı?
+
+    Kanal açıksa initialize `timeout`'a uyar; değilse sabit _INIT_NO_PIPE_BLOCK_SEC bekleyebilir.
+    """
+    remaining = _remaining(deadline)
+    if remaining < _MIN_ATTEMPT_SEC:
+        return False
+    if remaining >= _INIT_NO_PIPE_BLOCK_SEC:
+        return True
+    return "path" in init_kwargs and python_pipe_state(init_kwargs["path"]) == "ready"
+
+
 def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2, deadline=None):
     """Exponential backoff retry for mt5.initialize() on IPC timeout/connection loss.
 
@@ -130,7 +151,7 @@ def _retry_initialize(mt5, init_kwargs, max_retries=3, base_delay=2, deadline=No
         kwargs = init_kwargs
         if deadline is not None:
             remaining = _remaining(deadline)
-            if attempt > 0 and remaining < _MIN_ATTEMPT_SEC:
+            if attempt > 0 and not _attempt_fits(init_kwargs, deadline):
                 break
             if "timeout" in init_kwargs:
                 capped_ms = int(max(remaining, _MIN_ATTEMPT_SEC) * 1000)
@@ -307,9 +328,11 @@ def connect_internal_helper(
 
         can_restart = allow_restart and "path" in init_kwargs
         if can_restart:
-            # İlk denemeye bütçenin yarısı: terminal asılıysa yeniden başlatmaya süre kalsın
+            # İlk deneme yeniden başlatmanın payını (_RESTART_MIN_SEC + _RESTART_BUFFER_SEC) bırakır:
+            # terminal asılıysa öldürülüp yeniden açılması bütçeye sığsın
             now = time.monotonic()
-            first_deadline = now + max((deadline - now) / 2, _MIN_ATTEMPT_SEC)
+            reserve = _RESTART_MIN_SEC + _RESTART_BUFFER_SEC
+            first_deadline = now + max(deadline - now - reserve, _MIN_ATTEMPT_SEC)
             init_success = _retry_initialize(mt5, init_kwargs, max_retries=1, deadline=first_deadline)
         else:
             init_success = _retry_initialize(mt5, init_kwargs, deadline=deadline)
@@ -333,13 +356,19 @@ def connect_internal_helper(
                         f"MT5 terminali yanıt vermiyor ({err_code}) ama yeniden başlatmaya süre kalmadı; terminal kapatılmıyor.",
                         type="warning",
                     )
-                elif kill_zombie_mt5(init_kwargs["path"], safe_log_fn):
+                    killed = False
+                else:
+                    killed = kill_zombie_mt5(init_kwargs["path"], safe_log_fn) > 0
+                if killed:
                     safe_log_fn(
                         f"MT5 terminali IPC hatası ({err_code}) nedeniyle yeniden başlatılıyor...",
                         type="warning",
                     )
-                    time.sleep(3)
-                if _remaining(deadline) >= _MIN_ATTEMPT_SEC:
+                    time.sleep(_KILL_SETTLE_SEC)
+                # Öldürülen terminal ancak initialize ile yeniden açılır: o durumda yalnız asgari süre aranır
+                if (killed and _remaining(deadline) >= _MIN_ATTEMPT_SEC) or (
+                    not killed and _attempt_fits(init_kwargs, deadline)
+                ):
                     init_success = _retry_initialize(mt5, init_kwargs, deadline=deadline)
 
     if not init_success:

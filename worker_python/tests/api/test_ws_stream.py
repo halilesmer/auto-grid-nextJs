@@ -356,3 +356,36 @@ def test_websocket_account_id_aus_query(worker_dir, monkeypatch):
             with client.websocket_connect(f"/ws/stream?account_id={bad}") as conn:
                 conn.receive_text()
         assert closed.value.code == 1008
+
+
+@pytest.mark.feature("SYS-06")
+def test_mt5_abfrage_wartet_nicht_auf_eine_laufende_mt5_verbindung(fake_mt5, monkeypatch):
+    """SYS-06-Test 2026-10-16: Während /start minutenlang initialize versuchte, antwortete der Worker
+    ~3 min nicht (Ursache nicht bestätigt, vermutlich hält initialize den GIL). Maßnahme: Der Stream
+    ruft MT5 nicht mehr parallel zur Verbindung auf; er nimmt die MT5-Sperre ohne Warten und fällt
+    sonst auf die Bot-Metriken zurück."""
+    import src.api.ws_server as ws
+    import src.utils.mt5_connection as mc
+
+    calls = []
+    monkeypatch.setattr(ws, "mt5", fake_mt5, raising=False)
+    monkeypatch.setattr(ws, "MT5_AVAILABLE", True)
+    monkeypatch.setattr(fake_mt5, "terminal_info", lambda: calls.append("terminal_info"))
+    holding, release = threading.Event(), threading.Event()
+
+    def hold_lock():
+        with mc._MT5_LOCK:
+            holding.set()
+            release.wait(5)
+
+    t = threading.Thread(target=hold_lock)
+    t.start()
+    try:
+        holding.wait(2)
+        t0 = time.monotonic()
+        assert ws.fetch_mt5_data({int(TEST_ACCOUNT_ID): "USOUSD"}) is None
+        assert time.monotonic() - t0 < 0.5
+    finally:
+        release.set()
+        t.join()
+    assert calls == []
