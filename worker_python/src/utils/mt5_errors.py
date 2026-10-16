@@ -67,10 +67,13 @@ def python_pipe_state(path) -> str:
     - "no_terminal": bu yolda çalışan terminal yok (initialize onu kendisi başlatır)
     - "ready": terminalin kanalı açık
     - "starting": kanal henüz yok ama terminal MT5_PIPE_STARTUP_SEC'ten genç
-    - "missing": terminal açık, hiçbir MT5 kanalı yok → "Python integration" kapalı
+    - "missing": terminal açık, kendi kanalı yok ve açık terminal kanalı sayısı
+      MT5_PIPE_STARTUP_SEC'ten eski terminal sayısından az → "Python integration" kapalı
     - "unknown": karar verilemedi (kanallar okunamıyor, terminalin yaşı bilinmiyor veya
-      başka bir terminalin kanalı açık). Temkinli: bu durumda eskisi gibi bağlanılır;
-      ad hesabı bir kenar durumda tutmazsa bağlantı yanlışlıkla engellenmesin.
+      her eski terminalin bir kanalı var). Temkinli: bu durumda eskisi gibi bağlanılır.
+      Çok terminalli VPS'te başka terminallerin kanalı her zaman açıktır; bu yüzden yalnız
+      "başka kanal var" diye vazgeçilmez (SYS-06 testi 2026-10-16). Ad hesabı bir kenar
+      durumda (ör. junction) tutmazsa her terminalin kanalı sayılır ve sonuç "unknown" kalır.
     """
     ages = [age for _, age in _matching_terminals(path)]
     if not ages:
@@ -86,10 +89,27 @@ def python_pipe_state(path) -> str:
         return "unknown"
     if min(known_ages) < MT5_PIPE_STARTUP_SEC:
         return "starting"
-    other_terminals = any(
-        p.startswith(_PIPE_PREFIX) and not p.startswith(_DEBUGGER_PIPE_PREFIX) for p in pipes
+    terminal_pipes = sum(
+        1 for p in pipes if p.startswith(_PIPE_PREFIX) and not p.startswith(_DEBUGGER_PIPE_PREFIX)
     )
-    return "unknown" if other_terminals else "missing"
+    exe_names = {"terminal64.exe", os.path.basename(path).lower()}
+    return "missing" if terminal_pipes < _old_terminal_count(exe_names) else "unknown"
+
+
+def _old_terminal_count(exe_names) -> int:
+    """MT5_PIPE_STARTUP_SEC'ten eski tüm terminal süreçleri (her yol). Yaşı okunamayan sayılmaz."""
+    count = 0
+    now = time.time()
+    for proc in psutil.process_iter(["name", "create_time"]):
+        try:
+            if (proc.info.get("name") or "").lower() not in exe_names:
+                continue
+            created = proc.info.get("create_time")
+            if created and now - created >= MT5_PIPE_STARTUP_SEC:
+                count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return count
 
 
 def python_integration_error(safe_log_fn):

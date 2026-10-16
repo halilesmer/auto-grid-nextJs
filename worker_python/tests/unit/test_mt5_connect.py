@@ -73,6 +73,11 @@ class BootingMT5(FakeMT5):
         self.init_timeouts: list[float] = []
         self.ipc = False
         self._pids = itertools.count(2508)
+        # Die echte Bibliothek wartet ohne Python-Kanal fest 60 s („Pipe server didn't answer
+        # in 60 sec“), auch wenn `timeout` kleiner ist (SYS-06-Test vom 2026-10-16: 205 s statt 120 s).
+        self.no_pipe_block_sec = 60.0
+        self.foreign: list[tuple[str, float, bool]] = []
+        self.init_overhead_sec = 0.0  # echte Zeit nach dem Rückkehr von initialize (Reviewer-Befund)  # andere Terminals: (exe, Alter, hat Kanal)
 
     def start_terminal(self, age=0.0, boot_sec=None, hung=False, python_integration=None, pipe_sec=3.0) -> SimTerminal:
         term = SimTerminal(
@@ -100,7 +105,9 @@ class BootingMT5(FakeMT5):
             self.ipc = True
             self._last_error = (1, "Success")
             return True
-        self.clock.sleep(wait)
+        # Kommt der Kanal nie (Python integration aus), wartet die Bibliothek fest 60 s
+        self.clock.sleep(wait if term.python_integration else max(wait, self.no_pipe_block_sec))
+        self.clock.sleep(self.init_overhead_sec)
         if term.has_pipe(self.clock.now):
             self._last_error = (-10005, "IPC timeout")
         else:
@@ -125,11 +132,13 @@ class BootingMT5(FakeMT5):
 
     # ------------------------------------------------------------------ psutil-/Pipe-Ersatz
     def process_iter(self, attrs=None):
-        return [_FakeProc(self, t) for t in list(self.procs)]
+        own = [_FakeProc(self, t) for t in list(self.procs)]
+        return own + [_ForeignProc(exe, self.clock.now - age) for exe, age, _ in self.foreign]
 
     def pipes(self):
         name = me.mt5_pipe_name(os.path.realpath(self.exe))
-        return [name] if any(t.has_pipe(self.clock.now) for t in self.procs) else []
+        own = [name] if any(t.has_pipe(self.clock.now) for t in self.procs) else []
+        return own + [me.mt5_pipe_name(exe) for exe, _, has_pipe in self.foreign if has_pipe]
 
 
 class _FakeProc:
@@ -148,6 +157,13 @@ class _FakeProc:
 
     def wait(self, timeout=None):
         return 0
+
+
+class _ForeignProc:
+    """terminal64.exe eines anderen Kontos (anderer Pfad)."""
+
+    def __init__(self, exe, created):
+        self.info = {"pid": 9000, "name": "terminal64.exe", "exe": exe, "create_time": created}
 
 
 @pytest.fixture
@@ -337,8 +353,10 @@ def test_datenabruf_wechselt_nie_das_konto_eines_laufenden_bots(mt5_env, monkeyp
 
 # --------------------------------------------------------------------------- Zeitbudget
 @pytest.mark.feature("SYS-06")
-def test_haengendes_altes_terminal_wird_innerhalb_des_budgets_neu_gestartet(mt5_env):
+@pytest.mark.parametrize("overhead", [0.0, 2.0])  # Zeit zwischen Ende des ersten Versuchs und Neustart-Entscheidung
+def test_haengendes_altes_terminal_wird_innerhalb_des_budgets_neu_gestartet(mt5_env, overhead):
     sim, clock, account, logs = mt5_env
+    sim.init_overhead_sec = overhead
     sim.boot_sec = 30  # das neu gestartete Terminal bootet in 30 s
     hung = sim.start_terminal(age=600, hung=True)
 
@@ -346,7 +364,8 @@ def test_haengendes_altes_terminal_wird_innerhalb_des_budgets_neu_gestartet(mt5_
 
     assert ok, detail
     assert sim.killed == [hung.pid]
-    assert sim.init_timeouts[0] == pytest.approx(60, abs=0.5)  # erster Versuch: halbes Budget, Rest für den Neustart
+    # erster Versuch: Budget minus Reserve für den Neustart (3 s + 60 s, die initialize ohne Kanal fest wartet)
+    assert sim.init_timeouts[0] == pytest.approx(120 - mh._RESTART_MIN_SEC - mh._RESTART_BUFFER_SEC, abs=0.5)
     assert elapsed <= 120.5
     assert any("yeniden başlatılıyor" in m for m in logs)
 
@@ -445,7 +464,7 @@ def test_kaltstart_ohne_python_integration_meldet_nach_erstem_versuch(mt5_env):
     assert PYTHON_INTEGRATION_HINT in detail
     assert sim.initialize_calls == 1
     assert sim.killed == []
-    assert elapsed <= 60.5  # erster Versuch = halbes Budget; vorher 120 s und -10003
+    assert elapsed <= 60.5  # ohne Kanal wartet der erste Versuch fest 60 s; vorher 120 s und -10003
 
 
 @pytest.mark.feature("SYS-06")
@@ -468,18 +487,68 @@ def test_startendes_terminal_wird_auf_python_kanal_abgewartet(mt5_env, python_in
     assert sim.killed == []
 
 
+FOREIGN_EXE = r"C:\Program Files\MT5_OTHER\terminal64.exe"
+
+
 @pytest.mark.feature("SYS-06")
-def test_kanal_eines_anderen_terminals_blockiert_nicht(mt5_env, monkeypatch):
-    """Zweites Konto mit eigenem Terminal: ohne Gewissheit keine Sperre, sondern normaler Versuch."""
+@pytest.mark.parametrize("timeout, allow_restart", [(120, True), (15, False)])
+def test_mehrere_terminals_eigener_kanal_fehlt_sofort_klare_meldung(mt5_env, timeout, allow_restart):
+    """SYS-06-Test 2026-10-16 (VPS mit 4 Terminals): Der Kanal eines anderen Terminals war offen,
+    deshalb „unknown“ und alter initialize-Ablauf; /start meldete nach 205 s -10004 statt der Klartextmeldung."""
     sim, clock, account, _ = mt5_env
     sim.start_terminal(age=600, python_integration=False)
-    monkeypatch.setattr(me, "_list_pipes", lambda: ["MT5.Terminal.0123ABCD", "MT5.Terminal.Debugger.0123ABCD"])
+    sim.foreign = [(FOREIGN_EXE, 600, True)]
 
+    ok, is_timeout, detail, elapsed = _connect(account, clock, timeout, allow_restart=allow_restart)
+
+    assert not ok and not is_timeout
+    assert PYTHON_INTEGRATION_HINT in detail
+    assert sim.initialize_calls == 0
+    assert sim.killed == []
+    assert elapsed < 1
+
+
+@pytest.mark.feature("SYS-06")
+def test_jedes_terminal_hat_einen_kanal_kein_falsches_missing(mt5_env, monkeypatch):
+    """Absicherung der Namensberechnung: Hat jedes laufende Terminal einen Kanal, aber keiner trägt den
+    berechneten Namen (z. B. anderer Pfad durch Junction), wird nicht gesperrt, sondern normal verbunden."""
+    sim, clock, account, _ = mt5_env
+    sim.start_terminal(age=600, python_integration=False)
+    sim.foreign = [(FOREIGN_EXE, 600, True)]
+    monkeypatch.setattr(me, "_list_pipes", lambda: ["MT5.Terminal.0123ABCD", "MT5.Terminal.4567EF01", "MT5.Terminal.Debugger.0123ABCD"])
+
+    assert me.python_pipe_state(account["mt5_path"]) == "unknown"
     ok, _, detail, _ = _connect(account, clock, 15, allow_restart=False)
-
     assert not ok
     assert sim.initialize_calls >= 1
     assert PYTHON_INTEGRATION_HINT not in detail
+
+
+@pytest.mark.feature("SYS-06")
+def test_junges_fremdes_terminal_ohne_kanal_zaehlt_nicht(mt5_env, monkeypatch):
+    """Ein anderes Terminal, das noch startet (< 30 s, noch kein Kanal), macht aus „unknown“ kein „missing“."""
+    sim, _, account, _ = mt5_env
+    sim.start_terminal(age=600, python_integration=False)
+    sim.foreign = [(FOREIGN_EXE, 5, False)]
+    monkeypatch.setattr(me, "_list_pipes", lambda: ["MT5.Terminal.0123ABCD"])
+
+    assert me.python_pipe_state(account["mt5_path"]) == "unknown"
+
+
+@pytest.mark.feature("SYS-06")
+@pytest.mark.parametrize("hung", [False, True])
+def test_gesamtbudget_auch_wenn_initialize_ohne_kanal_fest_60_s_wartet(mt5_env, monkeypatch, hung):
+    """SYS-06-Test 2026-10-16: 120-s-Budget um ~85 s überschritten. Ohne Python-Kanal wartet initialize
+    fest 60 s, egal welches timeout; Neustart + zweiter Versuch passten nicht mehr ins Budget."""
+    sim, clock, account, _ = mt5_env
+    sim.python_integration = False
+    sim.start_terminal(age=600, hung=hung, python_integration=False)
+    monkeypatch.setattr(me, "_list_pipes", lambda: None)  # Kanalzustand unbekannt → initialize-Ablauf
+
+    ok, _, _, elapsed = _connect(account, clock, 120)
+
+    assert not ok
+    assert elapsed <= 120 + 0.5
 
 
 @pytest.mark.feature("SYS-06")
