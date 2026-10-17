@@ -3,8 +3,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 /**
  * Anzeige-Schalter der Analyse-Seite (Zahnrad). Gerätebezogene Vorliebe: nur im localStorage dieses
- * Browsers, nie an den Worker. Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst
- * keinen Schalter (docs/analyse-regeln.md §7).
+ * Browsers, nie an den Worker. Zahnrad und Chart-Legende schalten dieselben Werte. Datenqualitäts-Hinweise,
+ * Datenquelle und Modellgrenzen haben bewusst keinen Schalter (docs/analyse-regeln.md §7).
  */
 export interface AnalysisPrefs {
   /** Zonenband: untere/obere Preisgrenze als Linien und Fläche im Chart */
@@ -13,8 +13,10 @@ export interface AnalysisPrefs {
   showZoneCard: boolean;
   /** Berechnete Grid-Stufen der Zone (Kauf/Verkauf) */
   showLevels: boolean;
-  /** Offene Positionen und Pending-Orders der Zone (laufender Bot) */
+  /** Offene Positionen der Zone mit TP/SL (laufender Bot); Schlüssel aus der Zeit, als er auch die Orders schaltete */
   showTrades: boolean;
+  /** Pending-Orders der Zone (laufender Bot) */
+  showOrders: boolean;
   /** Marktpausen als Trennlinien */
   showPauses: boolean;
   /** RSI(14) im eigenen Bereich unter den Kerzen */
@@ -23,6 +25,8 @@ export interface AnalysisPrefs {
   showHistory: boolean;
   /** Fraktale (nur Fraktal-Zonen) */
   showFractals: boolean;
+  /** Schraffur fehlender Daten im Chart; der Hinweis über dem Chart bleibt immer */
+  showGaps: boolean;
 }
 
 interface AnalysisPrefsState extends AnalysisPrefs {
@@ -35,10 +39,12 @@ const DEFAULTS: AnalysisPrefs = {
   showZoneCard: true,
   showLevels: true,
   showTrades: true,
+  showOrders: true,
   showPauses: true,
   showRsi: true,
   showHistory: true,
   showFractals: true,
+  showGaps: true,
 };
 
 export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(

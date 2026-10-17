@@ -121,6 +121,7 @@ Kurz gesagt:
   nicht verfügbar, Fehler, Konto beschäftigt) wird zu Leerstellen **ohne Preis** (nur Zeitstempel,
   höchstens 120 je Bereich) und grau schraffiert; darüber steht ein Hinweis ohne Schalter mit
   Zeitraum, Grund und letzter Prüfung. Er endet „jetzt“ auf der Brokeruhr: die Zukunft fehlt nie.
+  Die Schraffur im Chart ist abschaltbar (Legende/Zahnrad, ANA-03), der Hinweis darüber nie.
 - **Marktpause** im Chart: Lücke zwischen zwei echten Kerzen, mindestens zwei Kerzen lang und
   länger als eine Kerze + 15 min (Wochenende, Feiertag, Tagespause). Eine einzelne Kerze ohne Ticks
   ist keine Pause. Pausen sind dünne gestrichelte Linien und abschaltbar.
@@ -204,7 +205,8 @@ rechnet der Broker-Teil des Nachbaus und wird mit eigenen, von Hand gerechneten 
   Laufprotokoll vermerkt das dann.
 - Kontowechsel: alte Ergebnisse verschwinden. Verspätete Antworten werden über eine Anfrage- bzw.
   Lauf-Nummer verworfen.
-- Nicht abschaltbar: Datenqualitäts-Warnungen, die aktive Datenquelle, die Modellgrenzen.
+- Nicht abschaltbar: Datenqualitäts-Warnungen (Hinweis-Kasten; die Schraffur im Chart schon), die
+  aktive Datenquelle, die Modellgrenzen.
 
 ## 8. Schutz des Live-Bots
 
