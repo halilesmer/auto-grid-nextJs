@@ -120,7 +120,7 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
     const panel = await openSettings(page);
     await panel.getByRole('switch', { name: msg('analysis.settings.history') }).click();
     await expect(chart).toHaveAttribute('data-markers', '0');
-    await expect(page.getByTestId('chart-key')).not.toContainText(msg('analysis.chart.key.entry'));
+    await expect(page.getByTestId('chart-key-showHistory')).toHaveAttribute('aria-pressed', 'false');
     await expect(rows).toHaveCount(6);
   });
 

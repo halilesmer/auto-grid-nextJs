@@ -1347,12 +1347,13 @@ kategorien:
 
       - id: ANA-03
         titel: Anzeige-Schalter (Zahnrad)
-        beschreibung: "Das Zahnrad schaltet Zonenband, Grid-Stufen, Positionen/Orders, Marktpausen, RSI und die Karte mit den Zonen-Einstellungen ein und aus; die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Warnungen, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das."
-        code: [frontend_nextjs/src/components/analysis/AnalysisSettingsPanel.tsx, frontend_nextjs/src/store/useAnalysisPrefsStore.ts]
+        beschreibung: "Das Zahnrad schaltet Zonenband, Grid-Stufen, offene Positionen, Pending-Orders, Trades aus dem Archiv, Fraktale, Marktpausen, die Schraffur fehlender Daten, RSI und die Karte mit den Zonen-Einstellungen ein und aus. Jeder Eintrag der Chart-Legende ist derselbe Schalter (Knopf mit aria-pressed; aus = blass und durchgestrichen, bleibt in der Legende); Einstieg, Ausstieg und „Setup unbekannt“ sind ein Schalter. Die Wahl bleibt in diesem Browser gespeichert (localStorage grid-robot-analysis-prefs). Datenqualitäts-Hinweise über dem Chart, Datenquelle und Modellgrenzen haben bewusst keinen Schalter; das Panel sagt das."
+        code: [frontend_nextjs/src/components/analysis/AnalysisSettingsPanel.tsx, frontend_nextjs/src/store/useAnalysisPrefsStore.ts, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx]
         tiers: [e2e]
         pruefung:
           - Zahnrad öffnen, „Karte mit Zonen-Einstellungen“ ausschalten, Seite neu laden.
-        erwartet: Die Karte bleibt nach dem Neuladen ausgeblendet; das Panel nennt die nicht abschaltbaren Hinweise.
+          - In der Chart-Legende auf „Pending-Order“ klicken, Seite neu laden.
+        erwartet: Die Karte bleibt nach dem Neuladen ausgeblendet; das Panel nennt die nicht abschaltbaren Hinweise. Die Order-Linien verschwinden, Positionen bleiben; der Legendeneintrag ist blass und durchgestrichen, der Zahnrad-Schalter „Pending-Orders“ steht aus, auch nach dem Neuladen.
 
       - id: ANA-04
         titel: Kursdatenbank mit Abdeckung
