@@ -254,6 +254,9 @@ export default defineArea(
     'zone.header.delete.off.hint':
       'Bot çalışıyor ama MT5’e bağlı değil; bağlantı kurulana kadar setup silinemez.',
     'zone.symbol.setupCount.hint': 'Bu sembolün setup sayısı. Her setup motorda kendi magic numarasıyla ayrı çalışır.',
+    'zone.symbol.toggle.hint': 'Kartı açar veya kapatır. Kapalıyken yalnız başlık satırı görünür; durum bu tarayıcıda sembol başına saklanır.',
+    'zone.symbol.pnl.hint': 'Bu sembolde robotun açık pozisyonlarının anlık kâr/zararı (hesap para birimi).',
+    'zone.symbol.status.hint': 'Sembolün setup’larının motor durumu: çalışıyor, duraklatıldı veya durdu.',
     'zone.symbol.addSetup.hint': 'Bu sembole yeni bir setup ekler; sembol sorulmaz, lot sembolün en küçük lotudur. Ayarları girip Kaydet’e basın.',
     'zone.symbol.addSetup.off.hint': 'Bot çalışıyor ama MT5’e bağlı değil; bağlantı kurulana kadar setup eklenemez.',
     'zone.addSymbol.symbol.hint': 'Eklenecek sembol (broker’ın MT5 sembol adı). Yazarak arayın, listeden seçin.',
@@ -782,6 +785,9 @@ export default defineArea(
     'zone.header.delete.off.hint':
       'The bot is running but not connected to MT5; the setup cannot be deleted until it is connected.',
     'zone.symbol.setupCount.hint': 'Number of setups of this symbol. Each setup runs separately in the engine, with its own magic number.',
+    'zone.symbol.toggle.hint': 'Opens or closes the card. When closed, only the header row shows; the state is kept per symbol in this browser.',
+    'zone.symbol.pnl.hint': 'Current profit/loss of the robot’s open positions on this symbol (account currency).',
+    'zone.symbol.status.hint': 'Engine state of this symbol’s setups: running, paused or stopped.',
     'zone.symbol.addSetup.hint': 'Adds a new setup to this symbol; the symbol is not asked, the lot is the smallest lot of the symbol. Enter the settings and press Save.',
     'zone.symbol.addSetup.off.hint': 'The bot is running but not connected to MT5; setups cannot be added until it is connected.',
     'zone.addSymbol.symbol.hint': 'Symbol to add (the broker’s MT5 symbol name). Type to search, pick from the list.',
@@ -1310,6 +1316,9 @@ export default defineArea(
     'zone.header.delete.off.hint':
       'Der Bot läuft, ist aber nicht mit MT5 verbunden; das Setup lässt sich erst nach der Verbindung löschen.',
     'zone.symbol.setupCount.hint': 'Anzahl der Setups dieses Symbols. Jedes Setup läuft in der Engine getrennt, mit eigener Magic-Nummer.',
+    'zone.symbol.toggle.hint': 'Öffnet oder schließt die Karte. Geschlossen ist nur die Kopfzeile sichtbar; der Zustand gilt je Symbol in diesem Browser.',
+    'zone.symbol.pnl.hint': 'Aktueller Gewinn/Verlust der offenen Robot-Positionen auf diesem Symbol (Kontowährung).',
+    'zone.symbol.status.hint': 'Engine-Zustand der Setups dieses Symbols: läuft, pausiert oder gestoppt.',
     'zone.symbol.addSetup.hint': 'Fügt diesem Symbol ein neues Setup hinzu; das Symbol wird nicht abgefragt, der Lot ist der kleinste Lot des Symbols. Einstellungen eintragen und Speichern drücken.',
     'zone.symbol.addSetup.off.hint': 'Der Bot läuft, ist aber nicht mit MT5 verbunden; Setups lassen sich erst nach der Verbindung hinzufügen.',
     'zone.addSymbol.symbol.hint': 'Hinzuzufügendes Symbol (MT5-Symbolname des Brokers). Zum Suchen tippen, aus der Liste wählen.',

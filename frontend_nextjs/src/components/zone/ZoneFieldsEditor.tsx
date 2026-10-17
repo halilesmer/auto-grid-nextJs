@@ -76,7 +76,9 @@ export function ZoneFieldsEditor({ zone, onUpdate, symbolDetails, handleChange, 
   }, [zone.symbol, volMin, volStep, volMax, update]);
 
   return (
-      <div className="space-y-3 px-2.5 py-3 sm:space-y-4 sm:px-4 sm:py-4">
+      // Ab lg zwei Spalten (W8): links Einstieg (Grund, Grid/Fraktal, Breakout), rechts Schutz/Ausstieg
+      <div className="px-2.5 py-3 sm:px-4 sm:py-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
+        <div data-testid="zone-entry-column" className="min-w-0 space-y-3 sm:space-y-4">
         <section className="space-y-3">
           <SectionLabel>{t('zone.section.basic')}</SectionLabel>
           <ZoneBasicFields
@@ -145,13 +147,16 @@ export function ZoneFieldsEditor({ zone, onUpdate, symbolDetails, handleChange, 
             />
           </>
         )}
+        </div>
 
+        <div data-testid="zone-exit-column" className="mt-3 min-w-0 space-y-3 sm:mt-4 sm:space-y-4 lg:mt-0">
         <ZoneSpreadFields zone={zone} update={update} status={spreadStatus} connected={connected} />
 
         <ZoneExitFields
           zone={zone}
           update={update}
         />
+        </div>
       </div>
   );
 }

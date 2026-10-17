@@ -267,3 +267,30 @@ test.describe('ZON-20 Symbolkarten', () => {
     ]);
   });
 });
+
+test.describe('ZON-20 Symbolkarte einklappbar (V1)', () => {
+  test('Kopfzeile klappt die Karte zu, Zustand gilt je Symbol und bleibt nach Neuladen', { tag: ['@ZON-20', '@UI-08'] }, async ({ worker, dashboard }) => {
+    seedTwoSymbols(worker);
+    await dashboard.open(DEMO_ID);
+
+    const uso = dashboard.symbolCard(0);
+    const xau = dashboard.symbolCard(1);
+    const toggle = uso.getByTestId('symbol-card-toggle');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(uso.getByTestId('symbol-status')).toBeVisible();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(uso.getByTestId('zone-card').first()).toBeHidden();
+    await expect(uso.getByPlaceholder(msg('zone.symbol.placeholder'))).toBeVisible();
+    await expect(xau.getByTestId('zone-card')).toBeVisible();
+
+    await dashboard.open(DEMO_ID);
+    await expect(dashboard.symbolCard(0).getByTestId('symbol-card-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(dashboard.symbolCard(1).getByTestId('zone-card')).toBeVisible();
+
+    // Klick auf freie Fläche der Kopfzeile klappt wieder auf
+    await dashboard.symbolCard(0).getByTestId('symbol-card-header').click({ position: { x: 4, y: 4 } });
+    await expect(dashboard.symbolCard(0).getByTestId('zone-card').first()).toBeVisible();
+  });
+});
