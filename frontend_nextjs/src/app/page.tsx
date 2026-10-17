@@ -52,8 +52,14 @@ export default function Home() {
   const transfer = useZoneTransfer(selectedAccount, savedSettingsStr);
   const [metricsPinned, setMetricsPinned] = usePinnedMetrics();
   const [addSymbolOpen, setAddSymbolOpen] = useState(false);
-  const addSymbolBlocked = isRunning && !liveData.mt5_connected;
-  const addSymbolHint = t(addSymbolBlocked ? 'zone.panel.add.off.hint' : 'zone.panel.add.hint');
+  const symbolsLoading = useSettingsStore((s) => s.isLoadingSymbols && s.availableSymbols.length === 0);
+  const mt5Missing = isRunning && !liveData.mt5_connected;
+  // Beim Laden zeigt das Panel den Dialog nicht; ein offener Zustand würde später von selbst aufspringen
+  const addSymbolBlocked = mt5Missing || symbolsLoading;
+  let addSymbolHintKey = 'zone.panel.add.hint';
+  if (symbolsLoading) addSymbolHintKey = 'zone.panel.add.loading.hint';
+  if (mt5Missing) addSymbolHintKey = 'zone.panel.add.off.hint';
+  const addSymbolHint = t(addSymbolHintKey as 'zone.panel.add.hint');
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-3 px-2 py-3 sm:space-y-5 sm:px-4 sm:py-6 md:px-8 md:py-8">
@@ -86,7 +92,6 @@ export default function Home() {
                     icon={<Plus size={14} />}
                     onSelect={() => setAddSymbolOpen(true)}
                     disabled={addSymbolBlocked}
-                    data-testid="add-symbol-menu"
                     hint={addSymbolHint}
                   >
                     {t('zone.panel.add')}

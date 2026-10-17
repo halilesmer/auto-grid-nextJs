@@ -1,6 +1,6 @@
 /**
  * UI-08 · Mobil (375 px): keine Seite läuft horizontal über, und die Buttons des Zonenbereichs liegen
- * vollständig im Fenster. Kopfzeile des Panels („Kaydedildi“ / „Sembol Ekle“), Symbolkopf und Setup-Kopf (Status, Kaydet,
+ * vollständig im Fenster. Kopfzeile des Panels („Kaydedildi“; „Sembol Ekle“ liegt im ⋯-Menü der Steuerleiste), Symbolkopf und Setup-Kopf (Status, Kaydet,
  * Test, ⋯) brechen um, statt die Karte zu sprengen. Die Tab-Leisten der Logs (Dashboard, /vps) sind bedienbar:
  * jeder Tab ist erreichbar, auch wenn die Leiste breiter ist als die Karte. Deutsch hat die längsten Beschriftungen.
  */

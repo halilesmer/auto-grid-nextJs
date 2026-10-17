@@ -119,6 +119,8 @@ Solution: only spacing and sizes, no card structure (that is S6). Base classes a
 
 Solution: the state `addSymbolOpen` moved from `ZoneSettingsPanel.tsx` to `page.tsx`; the panel gets `addSymbolOpen` and `onAddSymbolClose` and keeps the dialog (it needs the symbol list and `addSetup`). The button sits in the bar next to ⋯ from `sm` up. Below `sm` it is an item in the ⋯ menu (`menuExtra`). The lock (`isRunning && !mt5_connected`) and the hints `zone.panel.add(.off).hint` are unchanged. No new store.
 
+Review fix: the button is also disabled while the symbols load (new hint `zone.panel.add.loading.hint`). The panel returns early in that state and has no dialog, so an open state would pop up later. Not done: no test for the locked state; no test for 640–768 px in German (the review estimates the bar is nearly full there).
+
 Test change (agreed with the project owner): `mobile-layout.spec.ts` (UI-08) no longer expects the button in the zone area at 375 px. The dialog test opens it from the ⋯ menu.
 
 ## Why
