@@ -206,3 +206,4 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 - [x] Mobile compaction (in PR).
 - [x] S4: W7 (in PR)
 - [ ] S6: W8 + V1
+- [x] S7: W9 (in PR). The unsaved hint in the control bar has a "Discard" button (UI-09). It opens a confirm dialog and then calls the existing `handleDiscard`. The floating bar button is unchanged, because `symbol-cards.spec.ts` (ZON-20) clicks it without a dialog. Not done: screenshots at 1440 and 375 px.

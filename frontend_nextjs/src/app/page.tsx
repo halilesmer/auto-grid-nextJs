@@ -1,6 +1,6 @@
 'use client';
 
-import { Pin, PinOff, Plus, Save, UserRound } from 'lucide-react';
+import { Pin, PinOff, Plus, Save, Undo2, UserRound } from 'lucide-react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
 import { useState } from 'react';
 import { useZoneTransfer } from '@/hooks/useZoneTransfer';
@@ -17,6 +17,7 @@ import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import ConfirmModal from '@/components/ConfirmModal';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/i18n';
 
@@ -52,6 +53,7 @@ export default function Home() {
   const transfer = useZoneTransfer(selectedAccount, savedSettingsStr);
   const [metricsPinned, setMetricsPinned] = usePinnedMetrics();
   const [addSymbolOpen, setAddSymbolOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const symbolsLoading = useSettingsStore((s) => s.isLoadingSymbols && s.availableSymbols.length === 0);
   const mt5Missing = isRunning && !liveData.mt5_connected;
   // Beim Laden zeigt das Panel den Dialog nicht; ein offener Zustand würde später von selbst aufspringen
@@ -136,6 +138,10 @@ export default function Home() {
                   <span className="size-2 rounded-full bg-warning" />
                   {t('saveBar.unsaved.short')}
                 </span>
+                <Button variant="ghost" size="sm" onClick={() => setDiscardOpen(true)} disabled={saveAllLoading} hint={t(saveAllLoading ? 'saveBar.discard.saving.hint' : 'saveBar.discard.hint')}>
+                  <Undo2 size={14} />
+                  {t('saveBar.discard')}
+                </Button>
                 <Button variant="primary" size="sm" onClick={handleSaveAll} loading={saveAllLoading} hint={t('saveBar.saveAll.hint')}>
                   {!saveAllLoading && <Save size={14} />}
                   {t('common.save')}
@@ -160,6 +166,20 @@ export default function Home() {
       </Card>
       {selectedAccount && metricsPinned && <MetricsStrip />}
       </div>
+      <ConfirmModal
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        onConfirm={() => {
+          // Während des Speicherns würde das Verwerfen den Referenzstand verfälschen
+          if (!saveAllLoading) handleDiscard();
+        }}
+        title={t('saveBar.discardConfirm.title')}
+        message={t('saveBar.discardConfirm.message')}
+        confirmLabel={t('saveBar.discardConfirm.confirm')}
+        confirmHint={t('saveBar.discardConfirm.confirm.hint')}
+        cancelLabel={t('saveBar.discardConfirm.cancel')}
+        variant="warning"
+      />
 
       {selectedAccount ? (
         <>
