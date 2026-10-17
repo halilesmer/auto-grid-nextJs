@@ -17,11 +17,11 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const SIZES: Record<Size, string> = {
-  sm: 'h-8 px-3 text-xs gap-1.5',
-  md: 'h-9 px-4 text-sm gap-2',
-  lg: 'h-11 px-6 text-sm gap-2',
-  icon: 'size-9',
-  'icon-sm': 'size-8',
+  sm: 'h-7 px-2.5 text-xs gap-1.5 sm:h-8 sm:px-3',
+  md: 'h-8 px-3 text-xs gap-1.5 sm:h-9 sm:px-4 sm:text-sm sm:gap-2',
+  lg: 'h-10 px-5 text-sm gap-2 sm:h-11 sm:px-6',
+  icon: 'size-8 sm:size-9',
+  'icon-sm': 'size-7 sm:size-8',
 };
 
 // `title` fehlt absichtlich: Erklärungen laufen über `hint` (hooks/RULES.md §5), nie über native Titel.

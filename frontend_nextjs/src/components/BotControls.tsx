@@ -148,7 +148,7 @@ export default function BotControls() {
           content={activeAccount ? `${status.hint}\n${activeAccount.account_name} · ${activeAccount.server}` : status.hint}
           className="min-w-0 shrink-0"
         >
-          <div className={cn("flex h-9 w-full min-w-0 items-center gap-2 rounded-md border px-2.5 sm:px-3", status.box)}>
+          <div className={cn("flex h-8 w-full min-w-0 items-center gap-2 rounded-md border px-2.5 sm:h-9 sm:px-3", status.box)}>
             <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
             <span data-testid="bot-status" className="truncate text-sm font-semibold max-sm:sr-only">{status.label}</span>
           </div>

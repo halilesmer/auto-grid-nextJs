@@ -76,7 +76,7 @@ export function ZoneFieldsEditor({ zone, onUpdate, symbolDetails, handleChange, 
   }, [zone.symbol, volMin, volStep, volMax, update]);
 
   return (
-      <div className="space-y-4 px-3 py-4 sm:px-4">
+      <div className="space-y-3 px-2.5 py-3 sm:space-y-4 sm:px-4 sm:py-4">
         <section className="space-y-3">
           <SectionLabel>{t('zone.section.basic')}</SectionLabel>
           <ZoneBasicFields

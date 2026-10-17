@@ -119,7 +119,7 @@ export function SymbolCard({
   return (
     <section data-testid="symbol-card" className="rounded-xl border border-border bg-muted/40">
       {/* Dar ekranda (375 px) buton alt satıra iner */}
-      <div className="flex flex-wrap items-end justify-between gap-3 px-4 pb-3 pt-4">
+      <div className="flex flex-wrap items-end justify-between gap-2 px-2.5 pb-2 pt-3 sm:gap-3 sm:px-4 sm:pb-3 sm:pt-4">
         <div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-2">
           <div className="w-full sm:w-56">
             <SymbolField
@@ -161,7 +161,7 @@ export function SymbolCard({
           {t('zone.symbol.addSetup')}
         </Button>
       </div>
-      <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
+      <div className="space-y-2 px-1.5 pb-1.5 sm:space-y-3 sm:px-4 sm:pb-4">
         {children}
         <SymbolLogs setupIds={setupIds} />
       </div>

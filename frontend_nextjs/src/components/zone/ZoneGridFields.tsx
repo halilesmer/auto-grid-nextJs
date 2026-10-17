@@ -31,7 +31,8 @@ export function ZoneGridFields({
 
   return (
     <div className="flex flex-wrap items-start gap-3">
-      <div className="flex min-w-0 flex-col items-start gap-2">
+      {/* Mobil: Grid-Block mit Verlust-Vorschau in eigener Zeile (UI-08), unabhängig von der Kartenbreite */}
+      <div className="flex min-w-0 flex-col items-start gap-2 max-sm:basis-full">
         <InputField
           label={
             byLoss
