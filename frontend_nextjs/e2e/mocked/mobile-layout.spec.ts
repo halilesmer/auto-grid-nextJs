@@ -7,6 +7,7 @@
 import type { Locator, Page, Route } from '@playwright/test';
 import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type AppLocale, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { openPageMenu } from '../fixtures/header';
 
 test.use({ viewport: { width: 375, height: 812 } });
 
@@ -249,13 +250,12 @@ test.describe('Weitere Seiten (de)', () => {
 
     // Über die Navigation, damit das gewählte Konto erhalten bleibt
     await dashboard.open(DEMO_ID);
-    const nav = page.getByRole('navigation');
-
-    await nav.getByRole('link', { name: msg('nav.formation', undefined, 'de') }).click();
+    // Bei 375 px stehen die Seitenlinks im ☰-Menü (UI-01)
+    await (await openPageMenu(page)).getByRole('link', { name: msg('nav.formation', undefined, 'de') }).click();
     await expect(page).toHaveURL(/\/formasyon$/);
     await expectNoPageOverflow(page);
 
-    await nav.getByRole('link', { name: msg('nav.vps', undefined, 'de') }).click();
+    await (await openPageMenu(page)).getByRole('link', { name: msg('nav.vps', undefined, 'de') }).click();
     await expect(page.getByTestId('vps-elevated')).toBeVisible();
     await expectNoPageOverflow(page);
 

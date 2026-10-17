@@ -59,7 +59,6 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 SymbolAutoComplete.tsx # Sembol otomatik tamamlama
 ┃ ┃ ┃ ┣ 📜 ZoneSettingsPanel.tsx # Bölge Ayarları Paneli (Dinamik Zone Yönetimi)
 ┃ ┃ ┃ ┣ 📂 connection            # Worker bağlantısı (tarayıcıda girilen adres + API key)
-┃ ┃ ┃ ┃ ┣ 📜 ConnectionChip.tsx  # Header'daki durum göstergesi (bağlı/bağlı değil/…), tıklayınca dialog açar
 ┃ ┃ ┃ ┃ ┣ 📜 ConnectionDialog.tsx # Adres+key formu, bağlantı-linki alanı, test/bağlan/bağlantıyı kes
 ┃ ┃ ┃ ┃ ┗ 📜 ConnectionGate.tsx  # Bağlantı yokken /vps hariç tüm sayfaların yerine rehber kart gösterir
 ┃ ┃ ┃ ┣ 📂 account              # Hesap yönetimi bileşenleri

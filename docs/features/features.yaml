@@ -86,7 +86,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Im Browser localStorage den Eintrag grid-robot-connection löschen und neu laden.
-          - Über den Knopf „VPS verbinden“ Adresse und Schlüssel eingeben, testen, verbinden; danach trennen.
+          - Über den Knopf „VPS verbinden“ Adresse und Schlüssel eingeben, testen, verbinden; danach im Kopf-Menü „Verbindung ändern“ öffnen und trennen.
         erwartet: Ohne Verbindung erscheint die Anleitung statt des Dashboards; „Verbinden“ ist erst nach erfolgreichem Test klickbar und lädt danach das Dashboard; „Trennen“ führt zur Anleitung zurück.
 
       - id: SYS-08
@@ -101,13 +101,13 @@ kategorien:
 
       - id: SYS-09
         titel: Verbindungsstatus im Header
-        beschreibung: Ein Chip in der Kopfzeile (ab sm) bzw. eine Zeile darunter (Handy) zeigt Host und Status (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden) und prüft alle 30 s sowie bei Fenster-Fokus erneut über SYS-07.
-        code: [frontend_nextjs/src/components/connection/ConnectionChip.tsx, frontend_nextjs/src/components/layout/ConnectionSync.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
+        beschreibung: Der Auslöser des Kopf-Menüs (UI-01) zeigt bei jeder Breite, auch bei 375 px, den Verbindungspunkt (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden). Bei einer Störung steht der Status zusätzlich als Text daneben (ohne Adresse „VPS verbinden“), verbunden ab 1280 px der Host. Im Menü stehen Host und Status; „Verbindung ändern“ öffnet den Verbindungsdialog. Der Status wird alle 30 s sowie bei Fenster-Fokus erneut über SYS-07 geprüft.
+        code: [frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/ConnectionSync.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
           - Bei laufendem Worker das Dashboard öffnen, dann den API-Key auf dem VPS ändern.
           - Zurück ins Browserfenster wechseln (Fokus).
-        erwartet: Der Chip zeigt zunächst „Verbunden“, nach dem Fokuswechsel „API-Key abgelehnt“.
+        erwartet: Der Punkt ist zunächst grün (Host daneben ab 1280 px), nach dem Fokuswechsel steht „API-Key abgelehnt“ als Text im Auslöser.
 
       - id: SYS-06
         titel: MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration)
@@ -1067,8 +1067,8 @@ kategorien:
     features:
       - id: UPD-01
         titel: Update-Prüfung
-        beschreibung: „System Info“ → „Check for Updates“; GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main. Der blockierende Git-Aufruf läuft in einem Thread, damit Plattformabfragen währenddessen antworten können.
-        code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py, frontend_nextjs/src/components/dashboard/UpdateModal.tsx]
+        beschreibung: Kopf-Menü → System → „Check for Updates“ (nur Admin, auf jeder Seite); GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main. Der blockierende Git-Aufruf läuft in einem Thread, damit Plattformabfragen währenddessen antworten können.
+        code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py, frontend_nextjs/src/components/dashboard/UpdateModal.tsx, frontend_nextjs/src/hooks/useSystemActions.ts]
         tiers: [api, e2e]
         pruefung:
           - „Check for Updates“ klicken.
@@ -1080,22 +1080,22 @@ kategorien:
         code: [worker_python/src/api/system.py, worker_python/src/utils/self_updater.py]
         tiers: [unit, e2e, manuell]
         pruefung:
-          - Nach einem Merge auf main das Update im Dashboard anwenden (Zahnrad → Check for Updates → Apply Update).
+          - Nach einem Merge auf main das Update anwenden (Kopf-Menü → System → Check for Updates → Apply Update).
         erwartet: VERSION auf dem VPS entspricht main; nach einem Fehler zeigt git status keine geänderten Dateien und git stash list keinen neuen Eintrag.
 
       - id: UPD-03
         titel: System herunterfahren
-        beschreibung: Power-Button → Bestätigung → /stop, danach window.close().
-        code: [frontend_nextjs/src/app/hooks/useDashboard.ts, frontend_nextjs/src/components/ConfirmModal.tsx]
+        beschreibung: Kopf-Menü → System → „Herunterfahren“ (auf jeder Seite, jede Rolle) → Bestätigung mit Kontoname und LIVE/DEMO → /stop für das gewählte Konto, danach window.close(). Ohne gewähltes Konto ist der Eintrag deaktiviert; der Hinweis nennt den Grund.
+        code: [frontend_nextjs/src/hooks/useSystemActions.ts, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/ConfirmModal.tsx]
         tiers: [e2e]
         pruefung:
-          - Power-Button → bestätigen.
+          - Kopf-Menü → System → Herunterfahren → bestätigen.
         erwartet: Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
 
       - id: UPD-05
         titel: Server-Neustart nach Update
         beschreibung: Nach einem erfolgreichen POST /system/update beendet sich der Worker nach 1,5 s (schedule_restart); run_uvicorn_watchdog.bat (setzt WORKER_SUPERVISED=1) startet ihn mit dem neuen Code neu. Ohne Watchdog kein Neustart. Das Dashboard wartet 8 s und lädt dann neu; veraltete Bots startet der neue Worker selbst neu (BOT-03).
-        code: [worker_python/src/utils/self_updater.py, worker_python/src/api/system.py, worker_python/run_uvicorn_watchdog.bat, frontend_nextjs/src/app/hooks/useDashboard.ts]
+        code: [worker_python/src/utils/self_updater.py, worker_python/src/api/system.py, worker_python/run_uvicorn_watchdog.bat, frontend_nextjs/src/hooks/useSystemActions.ts]
         tiers: [unit, api, manuell]
         pruefung:
           - Update im Dashboard anwenden (System Info → Check for Updates → Apply Update).
@@ -1226,22 +1226,24 @@ kategorien:
     titel: Oberfläche
     features:
       - id: UI-01
-        titel: Navigation
-        beschreibung: Logo, Version, Links Dashboard, Formasyon und VPS mit animierter Markierung. Auf Mobil (375px) kompakter, ohne horizontales Scrollen.
-        code: [frontend_nextjs/src/components/layout/AppNav.tsx]
+        titel: Navigation und Kopf-Menü
+        beschreibung: Die Kopfzeile ist bei jeder Breite einzeilig und 56 px hoch (CSS-Variable --nav-height in globals.css; die fixierte Steuerleiste nutzt sie als Abstand nach oben). Logo mit Version, ab lg (1024 px) die Seitenlinks mit animierter Markierung, rechts das Kopf-Menü; unter lg öffnet ☰ die Seitenlinks als Overlay-Panel. Das Kopf-Menü bündelt Verbindung (SYS-09), Sprache (UI-05), Design (UI-02) und System (Systeminfo, „Check for Updates“ nur für Admin, Herunterfahren; UPD-01/03). Das Panel liegt über Steuerleiste und Inhalt und verschiebt nichts; Auswahl von Sprache oder Design lässt es offen, Escape schließt es. Update- und Herunterfahren-Dialog funktionieren auf jeder Seite.
+        code: [frontend_nextjs/src/components/layout/AppNav.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/hooks/useSystemActions.ts, frontend_nextjs/src/components/ui/dropdown-menu.tsx, frontend_nextjs/src/app/globals.css]
         tiers: [e2e]
         pruefung:
           - Zwischen Dashboard und Formasyon wechseln.
-          - Bei 375px Breite öffnen.
-        erwartet: Aktiver Link ist markiert, Version entspricht VERSION. Bei 375px kein horizontales Scrollen, „Grid Robot“ bricht nicht um.
+          - Rechts in der Kopfzeile das Menü öffnen, Sprache und Design wählen, Escape drücken.
+          - Auf /chart im Menü „Check for Updates“ wählen.
+          - Bei 375px Breite öffnen und ☰ antippen.
+        erwartet: Aktiver Link ist markiert, Version entspricht VERSION. Die Kopfzeile bleibt einzeilig; das Menü liegt über dem Inhalt, ohne ihn zu verschieben, und zeigt Verbindung, Sprache, Design und System. Bei 375px kein horizontales Scrollen, „Grid Robot“ bricht nicht um, ☰ zeigt alle Seitenlinks.
 
       - id: UI-02
         titel: Theme hell / dunkel / System
-        beschreibung: Umschalter „Açık / Koyu / Sistem“ (auf Mobil ein einzelner Button, der der Reihe nach durchschaltet), gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
-        code: [frontend_nextjs/src/components/layout/ThemeToggle.tsx, frontend_nextjs/src/components/layout/ThemeSync.tsx, frontend_nextjs/src/app/layout.tsx]
+        beschreibung: Umschalter „Açık / Koyu / Sistem“ (Symbol und Name) im Kopf-Menü (UI-01), auf jeder Breite gleich, gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
+        code: [frontend_nextjs/src/components/layout/ThemeToggle.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/ThemeSync.tsx, frontend_nextjs/src/app/layout.tsx]
         tiers: [e2e]
         pruefung:
-          - Alle drei Varianten wählen und die Seite neu laden.
+          - Im Kopf-Menü alle drei Varianten wählen und die Seite neu laden.
         erwartet: Theme bleibt erhalten, kein helles Aufblitzen im Dunkelmodus.
 
       - id: UI-03
@@ -1264,11 +1266,11 @@ kategorien:
 
       - id: UI-05
         titel: Sprache Türkisch / Englisch / Deutsch
-        beschreibung: Umschalter TR · EN · DE in der Navigation (auf Mobil ein einzelner Button, der durchschaltet). Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
-        code: [frontend_nextjs/src/i18n/index.ts, frontend_nextjs/src/i18n/messages/index.ts, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/components/layout/LanguageSwitcher.tsx, frontend_nextjs/src/components/layout/LocaleSync.tsx]
+        beschreibung: Umschalter TR · EN · DE im Kopf-Menü (UI-01), auf jeder Breite gleich. Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
+        code: [frontend_nextjs/src/i18n/index.ts, frontend_nextjs/src/i18n/messages/index.ts, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/components/layout/LanguageSwitcher.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/LocaleSync.tsx]
         tiers: [e2e]
         pruefung:
-          - Im Umschalter EN, dann DE, dann TR wählen und dabei Dashboard, /vps und /chart ansehen.
+          - Im Kopf-Menü EN, dann DE, dann TR wählen und dabei Dashboard, /vps und /chart ansehen.
           - Seite neu laden.
         erwartet: Alle Texte wechseln sofort, die Sprache bleibt nach dem Reload erhalten, <html lang> stimmt. Keine hartcodierten Reste, keine überlaufenden Buttons (Deutsch ist am längsten).
 
@@ -1295,7 +1297,7 @@ kategorien:
 
       - id: UI-08
         titel: Mobil (375 px) ohne horizontalen Überlauf
-        beschreibung: Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Die Hauptnavigation steht in einer eigenen Zeile mit sichtbaren Beschriftungen und bricht bei Platzmangel um. Navigation und Kopfzeilen-Bedienelemente überlappen bei 375, 640, 810, 1024 und 1440 px in tr/en/de nicht. Die Felder eines Setups sind auch bei 375 px kurz und brechen um; Grid-Schritt und Lot stehen nebeneinander, auch mit allen Schaltern an, getrenntem BUY/SELL und Fraktal-Setup, ohne dass etwas über die Setup-Karte hinausragt.
+        beschreibung: Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Die Kopfzeile ist einzeilig; unter lg stehen die Seitenlinks mit sichtbaren Beschriftungen im ☰-Menü, ab lg in der Kopfzeile, und das Kopf-Menü liegt bei 375 px ganz im Fenster. Navigation und Kopfzeilen-Bedienelemente überlappen bei 375, 640, 810, 1024 und 1440 px in tr/en/de nicht. Die Felder eines Setups sind auch bei 375 px kurz und brechen um; Grid-Schritt und Lot stehen nebeneinander, auch mit allen Schaltern an, getrenntem BUY/SELL und Fraktal-Setup, ohne dass etwas über die Setup-Karte hinausragt.
         code: [frontend_nextjs/src/components/layout/AppNav.tsx, frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/components/zone/ZoneCard.tsx, frontend_nextjs/src/components/zone/FieldSwitch.tsx, frontend_nextjs/src/components/LogViewer.tsx, frontend_nextjs/src/components/ui/animated-tabs.tsx]
         tiers: [e2e]
         pruefung:
@@ -1307,7 +1309,7 @@ kategorien:
 
       - id: UI-09
         titel: Kompakte Steuerleiste (Konto, Bot, Intervall)
-        beschreibung: Über den Kennzahlen liegt eine einzige Leiste mit LIVE/DEMO-Badge, Kontoauswahl, Kontomenü (⋯ mit Bot-Log herunterladen, Bearbeiten, Löschen, Neues Konto), Bot-Status mit Start/Neustart/Stopp, Prüfintervall mit Speichern und Systemmenü (Zahnrad mit Systeminfo, Update-Prüfung, Herunterfahren). Ab etwa 1280 px ist das eine Zeile; schmaler brechen die Gruppen um, bei 375 px ohne horizontalen Überlauf. Alarme der Bot-Steuerung erscheinen in voller Breite unter der Leiste. Zonen und Log nutzen darunter die volle Breite.
+        beschreibung: Über den Kennzahlen liegt eine einzige Leiste mit LIVE/DEMO-Badge, Kontoauswahl, Kontomenü (⋯ mit Bot-Log herunterladen, Bearbeiten, Löschen, Neues Konto), Bot-Status mit Start/Neustart/Stopp und Prüfintervall mit Speichern. Das Systemmenü liegt im Kopf-Menü (UI-01), nicht in der Leiste. Ab lg bleibt die Leiste beim Scrollen direkt unter der Kopfzeile (top = --nav-height). Ab etwa 1280 px ist das eine Zeile; schmaler brechen die Gruppen um, bei 375 px ohne horizontalen Überlauf. Alarme der Bot-Steuerung erscheinen in voller Breite unter der Leiste. Zonen und Log nutzen darunter die volle Breite.
         code: [frontend_nextjs/src/app/page.tsx, frontend_nextjs/src/components/BotControls.tsx, frontend_nextjs/src/components/SettingsForm.tsx, frontend_nextjs/src/components/account/components/AccountActions.tsx, frontend_nextjs/src/components/ui/dropdown-menu.tsx]
         tiers: [e2e]
         pruefung:

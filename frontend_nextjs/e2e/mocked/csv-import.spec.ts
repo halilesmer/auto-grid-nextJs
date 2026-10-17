@@ -5,6 +5,7 @@
 import type { Page } from '@playwright/test';
 import { fmt, msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
+import { openHeaderMenu } from '../fixtures/header';
 
 const MON = 1790553600;
 const URL = `/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`;
@@ -31,8 +32,9 @@ test.describe('BKT CSV-Import', () => {
       void worker;
       await page.goto(URL);
       await expect(page.getByTestId('csv-open')).toBeVisible();
-      await page.getByRole('radiogroup', { name: msg('common.theme') })
+      await (await openHeaderMenu(page)).getByRole('radiogroup', { name: msg('common.theme') })
         .getByRole('radio', { name: msg(`common.theme.${theme}`) }).click();
+      await page.keyboard.press('Escape');
       await page.getByTestId('csv-open').click();
       await expect(page.getByTestId('csv-import-dialog')).toBeVisible();
       await page.setViewportSize({ width: 375, height: 812 });

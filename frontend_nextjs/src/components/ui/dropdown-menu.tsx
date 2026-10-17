@@ -20,6 +20,9 @@ interface DropdownMenuProps {
   className?: string;
   /** Klassen des aufgeklappten Panels (z. B. Breite). */
   panelClassName?: string;
+  /** Zusätzliche Attribute des Auslöser-Buttons (z. B. data-testid, Klassen). */
+  triggerProps?: Omit<ButtonProps, 'hint' | 'variant' | 'size' | 'onClick' | 'aria-label' | 'aria-expanded' | 'children'> &
+    Record<`data-${string}`, string>;
   children: ReactNode;
 }
 
@@ -36,6 +39,7 @@ export function DropdownMenu({
   align = 'right',
   className,
   panelClassName,
+  triggerProps,
   children,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
@@ -78,6 +82,7 @@ export function DropdownMenu({
   return (
     <div className={cn('relative shrink-0', className)} ref={ref}>
       <Button
+        {...triggerProps}
         variant={variant}
         size={size}
         onClick={() => setOpen(!open)}
@@ -128,6 +133,7 @@ interface DropdownMenuItemProps {
   disabled?: boolean;
   tone?: 'default' | 'danger';
   'aria-label'?: string;
+  'data-testid'?: string;
 }
 
 export function DropdownMenuItem({
@@ -138,6 +144,7 @@ export function DropdownMenuItem({
   disabled = false,
   tone = 'default',
   'aria-label': ariaLabel,
+  'data-testid': testId,
 }: DropdownMenuItemProps) {
   const close = useContext(CloseContext);
   return (
@@ -150,6 +157,7 @@ export function DropdownMenuItem({
         }}
         disabled={disabled}
         aria-label={ariaLabel}
+        data-testid={testId}
         className={cn(
           'flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-40',
           tone === 'danger'

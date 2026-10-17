@@ -43,6 +43,8 @@
   --chart-5: #9a9a9a;
 
   --radius: 0.75rem;
+  /* Kopfzeile (AppNav) hat bei jeder Breite diese Höhe; fixierte Leisten darunter nutzen sie als top */
+  --nav-height: 3.5rem;
   color-scheme: light;
 }
 

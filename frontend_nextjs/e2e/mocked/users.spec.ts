@@ -3,6 +3,7 @@ import { connectWithKey } from '../fixtures/connection';
 import { E2E_USER_KEY, MOCK_API } from '../fixtures/env';
 import { DEMO_ID, LIVE_ID, MT5_PATH, expect, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { openConnectionDialog, openHeaderMenu } from '../fixtures/header';
 import { decodeConnectionCode } from '../../src/lib/connectionCode';
 
 const NAV = (page: import('@playwright/test').Page, name: string) => page.getByRole('link', { name, exact: true });
@@ -124,7 +125,7 @@ test.describe('USR Ansicht eines Benutzers', () => {
     await expect(options.filter({ hasText: LIVE_ID })).toHaveCount(0);
     await dashboard.closeAccountList();
 
-    await page.getByTestId('connection-chip').click();
+    await openConnectionDialog(page);
     await expect(page.getByTestId('connection-identity')).toHaveText(
       msg('auth.identity', { name: 'Anna', role: msg('auth.role.user') }),
     );
@@ -137,7 +138,7 @@ test.describe('USR Ansicht eines Benutzers', () => {
     await expect(NAV(page, msg('nav.users'))).toHaveCount(0);
     await expect(NAV(page, msg('nav.vps'))).toHaveCount(0);
 
-    await page.getByRole('button', { name: msg('dashboard.sysinfo.title') }).click();
+    await openHeaderMenu(page);
     // Die Einträge des Menüs sind normale Buttons (dropdown-menu.tsx)
     await expect(page.getByRole('button', { name: msg('dashboard.shutdown') })).toBeVisible();
     await expect(page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') })).toHaveCount(0);

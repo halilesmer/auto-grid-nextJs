@@ -1,28 +1,23 @@
 'use client';
 
-import { Globe, Monitor, Power, RefreshCw, Server, Settings, UserRound } from 'lucide-react';
+import { UserRound } from 'lucide-react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
 import { useZoneTransfer } from '@/hooks/useZoneTransfer';
 import { Alert } from '@/components/ui/alert';
 import { useDashboard } from '@/app/hooks/useDashboard';
 import AccountSelector from '@/components/account/AccountSelector';
 import BotControls from '@/components/BotControls';
-import ConfirmModal from '@/components/ConfirmModal';
 import LogViewer from '@/components/LogViewer';
 import SettingsForm from '@/components/SettingsForm';
 import MetricsStrip from '@/components/dashboard/MetricsStrip';
 import SaveSettingsBar from '@/components/dashboard/SaveSettingsBar';
-import UpdateModal from '@/components/dashboard/UpdateModal';
 import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/i18n';
-import { useIsAdmin } from '@/store/useAuthStore';
 
 export default function Home() {
   const t = useT();
-  const isAdmin = useIsAdmin();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const activeAccount = useAccountStore((s) => s.activeAccount);
   const setUpdateInfo = useSystemStore((s) => s.setUpdateInfo);
@@ -37,21 +32,11 @@ export default function Home() {
   const {
     savedSettingsStr,
     saveAllLoading,
-    shutdownOpen,
-    shuttingDown,
-    updateOpen,
-    updateResult,
     isDirty,
     isLive,
     handleSaveAll,
     handleDiscard,
     markZoneSaved,
-    handleShutdown,
-    handleCheckUpdates,
-    handleApplyUpdate,
-    setShutdownOpen,
-    setUpdateOpen,
-    setUpdateResult,
   } = useDashboard({
     selectedAccount,
     activeAccount,
@@ -69,10 +54,9 @@ export default function Home() {
         {isRunning ? t('backtest.transfer.running') : t('backtest.transfer.notice')}
       </Alert>}
 
-      {/* Kontrol çubuğu: hesap, bot kontrolü, genel ayarlar ve sistem menüsü tek satırda */}
-      {/* Sıra (order-*): hesap 1 · sistem menüsü 2 (lg'den itibaren 4, en sağda) · bot + aralık 3
-          (BotControls/SettingsForm içinde) · alarmlar order-last, tam genişlik */}
-      <Card data-testid="control-bar" className="relative z-20 flex flex-wrap bg-card/95 lg:sticky lg:top-16 items-center gap-x-4 gap-y-3 p-3">
+      {/* Kontrol çubuğu: hesap, bot kontrolü ve genel ayarlar tek satırda; sistem menüsü üst menüde (HeaderMenu) */}
+      {/* Sıra (order-*): hesap 1 · bot + aralık 3 (BotControls/SettingsForm içinde) · alarmlar order-last, tam genişlik */}
+      <Card data-testid="control-bar" className="relative z-20 flex flex-wrap bg-card/95 lg:sticky lg:top-(--nav-height) items-center gap-x-4 gap-y-3 p-3">
         <div className="order-1 flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
           {activeAccount && (
             <Badge
@@ -89,52 +73,6 @@ export default function Home() {
 
         <BotControls />
         <SettingsForm />
-
-        <DropdownMenu
-          label={t('dashboard.sysinfo.title')}
-          hint={t('dashboard.sysinfo.hint')}
-          icon={<Settings size={16} />}
-          className="order-2 lg:order-4 lg:ml-auto"
-          panelClassName="w-72"
-        >
-          <div className="space-y-2.5 p-4">
-            <p className="text-xs font-medium text-muted-foreground">{t('dashboard.sysinfo.title')}</p>
-            {[
-              { icon: Monitor, labelKey: 'dashboard.sysinfo.host' as const, value: typeof window !== 'undefined' ? window.location.hostname : 'N/A' },
-              { icon: Server, labelKey: 'dashboard.sysinfo.port' as const, value: typeof window !== 'undefined' ? window.location.port || '3000' : '3000' },
-              { icon: Globe, labelKey: 'dashboard.sysinfo.url' as const, value: typeof window !== 'undefined' ? window.location.origin : '' },
-            ].map(({ icon: Icon, labelKey, value }) => (
-              <div key={labelKey} className="flex items-start gap-2.5 text-sm">
-                <Icon size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
-                <span className="w-10 shrink-0 text-muted-foreground">{t(labelKey)}</span>
-                <span className="min-w-0 break-all font-mono text-xs leading-5 text-foreground">{value}</span>
-              </div>
-            ))}
-          </div>
-          <DropdownMenuGroup>
-            {/* Worker-Update (git pull + Neustart) ist Admin-Sache: der Worker antwortet Benutzern mit 403 */}
-            {isAdmin && (
-              <DropdownMenuItem
-                icon={<RefreshCw size={14} />}
-                hint={t('dashboard.sysinfo.checkUpdates.hint')}
-                onSelect={() => {
-                  setUpdateOpen(true);
-                  handleCheckUpdates();
-                }}
-              >
-                {t('dashboard.sysinfo.checkUpdates')}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              icon={<Power size={14} />}
-              tone="danger"
-              hint={t('dashboard.shutdown.hint')}
-              onSelect={() => setShutdownOpen(true)}
-            >
-              {t('dashboard.shutdown')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenu>
       </Card>
 
       {selectedAccount ? (
@@ -172,28 +110,6 @@ export default function Home() {
           </p>
         </Card>
       )}
-
-      <UpdateModal
-        isOpen={updateOpen}
-        onClose={() => {
-          setUpdateOpen(false);
-          setUpdateResult(null);
-        }}
-        updateResult={updateResult}
-        onApplyUpdate={handleApplyUpdate}
-      />
-
-      <ConfirmModal
-        open={shutdownOpen}
-        onClose={() => setShutdownOpen(false)}
-        onConfirm={handleShutdown}
-        title={t('dashboard.shutdown')}
-        message={t('dashboard.shutdown.message')}
-        confirmLabel={t('dashboard.shutdown.confirm')}
-        confirmHint={t('dashboard.shutdown.confirm.hint')}
-        variant="danger"
-        loading={shuttingDown}
-      />
     </div>
   );
 }

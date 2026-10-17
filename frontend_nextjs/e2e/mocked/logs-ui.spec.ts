@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DEMO_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { openHeaderMenu, openPageMenu } from '../fixtures/header';
 
 test.describe('LOG Logs', () => {
   test('Tabs zeigen Robot- und MT5-Log', { tag: '@LOG-01' }, async ({ page, worker, dashboard }) => {
@@ -186,11 +187,13 @@ test.describe('UI Oberfläche', () => {
 
     await page.goto('/');
     await expect(html).toHaveClass(/\bdark\b/); // Standard: dunkel
+    await openHeaderMenu(page);
     await theme.getByRole('radio', { name: msg('common.theme.light') }).click();
     await expect(html).not.toHaveClass(/\bdark\b/);
 
     await page.reload();
     expect(await darkAtLoad()).toBe(false);
+    await openHeaderMenu(page);
     await expect(theme.getByRole('radio', { name: msg('common.theme.light') })).toHaveAttribute('aria-checked', 'true');
 
     await theme.getByRole('radio', { name: msg('common.theme.dark') }).click();
@@ -199,6 +202,7 @@ test.describe('UI Oberfläche', () => {
 
     // System folgt dem Betriebssystem, auch bei Wechsel zur Laufzeit
     await page.emulateMedia({ colorScheme: 'light' });
+    await openHeaderMenu(page);
     await theme.getByRole('radio', { name: msg('common.theme.system') }).click();
     await expect(html).not.toHaveClass(/\bdark\b/);
     await page.emulateMedia({ colorScheme: 'dark' });
@@ -211,7 +215,7 @@ test.describe('UI Oberfläche', () => {
     test('Header scrollt nicht horizontal', { tag: '@UI-01' }, async ({ page }) => {
       await page.goto('/');
       const nav = page.getByRole('navigation');
-      await expect(nav.getByRole('link', { name: msg('nav.vps') })).toBeVisible();
+      await expect((await openPageMenu(page)).getByRole('link', { name: msg('nav.vps') })).toBeVisible();
       const { scrollWidth, clientWidth } = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
@@ -222,20 +226,20 @@ test.describe('UI Oberfläche', () => {
       expect(logo!.height).toBeLessThan(24);
     });
 
-    test('Theme-Zyklus-Button statt Radiogroup', { tag: '@UI-02' }, async ({ page }) => {
+    test('Theme-Wahl im Kopf-Menü liegt im Fenster und bleibt erhalten', { tag: '@UI-02' }, async ({ page }) => {
       await page.goto('/');
       const html = page.locator('html');
-      await expect(page.getByRole('radiogroup', { name: msg('common.theme') })).toBeHidden();
-      const cycle = page.getByRole('button', { name: /^Tema: / });
+      const theme = (await openHeaderMenu(page)).getByRole('radiogroup', { name: msg('common.theme') });
+      await expect(theme.getByRole('radio', { name: msg('common.theme.dark') })).toHaveAttribute('aria-checked', 'true');
+      const box = await theme.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 
-      await expect(cycle).toHaveAccessibleName(/^Tema: Koyu/);
-      await cycle.click();
-      await expect(cycle).toHaveAccessibleName(/^Tema: Sistem/);
-      await cycle.click();
-      await expect(cycle).toHaveAccessibleName(/^Tema: Açık/);
+      await theme.getByRole('radio', { name: msg('common.theme.light') }).click();
       await expect(html).not.toHaveClass(/\bdark\b/);
       await page.reload();
-      await expect(cycle).toHaveAccessibleName(/^Tema: Açık/);
+      await openHeaderMenu(page);
+      await expect(theme.getByRole('radio', { name: msg('common.theme.light') })).toHaveAttribute('aria-checked', 'true');
     });
   });
 
