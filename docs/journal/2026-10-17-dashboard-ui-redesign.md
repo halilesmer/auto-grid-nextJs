@@ -3,7 +3,7 @@ date: 2026-10-17
 author: Claude
 type: plan
 status: open
-pr: [189]
+pr: [189, 190]
 features: [UI-01, UI-02, UI-05, UI-08, UI-09, SYS-09, UPD-01, UPD-03, ACC-07, USR-03, MET-01, ZON-13, ZON-20]
 areas: [frontend, tests]
 ---
@@ -138,7 +138,7 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 | Session | Status | PR |
 |---|---|---|
 | S1 | done | #189 |
-| S2 | in PR | |
+| S2 | in PR | #190 |
 | S5 | open | |
 | S3 | open | |
 | S4 | open | |
@@ -146,7 +146,7 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 
 ## Open points
 
-- [x] S2: W4 + W5 + V4 (in PR)
+- [x] S2: W4 + W5 + V4 (in PR #190)
 - [ ] S5: W6
 - [ ] S3: W3 + V2 + V3
 - [ ] S4: W7
