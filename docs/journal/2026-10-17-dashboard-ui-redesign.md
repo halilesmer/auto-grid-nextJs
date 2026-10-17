@@ -3,8 +3,8 @@ date: 2026-10-17
 author: Claude
 type: plan
 status: open
-pr: []
-features: [UI-01, UI-08, UI-09, ACC-07, USR-03, MET-01, ZON-13, ZON-20]
+pr: [189]
+features: [UI-01, UI-02, UI-05, UI-08, UI-09, SYS-09, UPD-01, UPD-03, ACC-07, USR-03, MET-01, ZON-13, ZON-20]
 areas: [frontend, tests]
 ---
 
@@ -61,6 +61,30 @@ Notes for W8:
 | V3 | "Save all" in the fixed bar | The hint "n unsaved · Save" shows only when `isDirty`. It uses `handleSaveAll` and `isDirty` from `useDashboard`. `SaveSettingsBar` in the zone header stays or goes. Decide in S3. | S3 (W3) |
 | V4 | System menu in the header menu | A "System" part in the header menu: system info, check for updates (admin only), shut down. `UpdateModal`, the shutdown `ConfirmModal` and the handlers from `useDashboard` move with it. They then work on every page. The ⚙ in the control bar goes. | S2 (W5) |
 
+**S2 result (W4, W5, V4)**
+
+| Item | Result |
+|---|---|
+| Mobile variant | B. Below `lg` the header shows the logo, the header menu and a ☰ button. ☰ opens the page links as an overlay panel. The project owner chose B from three drafts (A: icons only, C: links in a second row). |
+| Navigation height | 56 px at every width. The CSS variable `--nav-height: 3.5rem` is in `globals.css` (`:root`). `AppNav` uses `h-(--nav-height)`. The control bar uses `lg:top-(--nav-height)`. S3 uses the same variable for `top-…` at every width. |
+| Header menu | New `layout/HeaderMenu.tsx`. The trigger keeps the test ID `connection-chip` and `data-status`. It always shows the connection dot. On a fault it also shows the status as text. When connected, it shows the host from `xl`. The panel has four parts: connection, language, theme, system. |
+| System part (V4) | System info, "check for updates" (admin only, as before) and shut down. The update and shutdown state and handlers moved from `useDashboard` to the new hook `hooks/useSystemActions.ts`. `UpdateModal` and the shutdown `ConfirmModal` are in `HeaderMenu`, so they work on every page. Shut down stops the bot of the selected account (`POST /stop`) and calls `window.close()`. Every role can do this, as before. The worker checks the account access. Because the menu is now on every page, the review found two gaps: the texts said "all bots", and on a page without a selected account the action only closed the window. Now the texts name the selected account, the confirmation shows the account name and LIVE or DEMO (ui-design §6), and without a selected account the item is disabled with the reason in its hint. The automatic update check on the dashboard (`setUpdateInfo`) stays in `useDashboard`. |
+| Removed | `connection/ConnectionChip.tsx`, the mobile status row, the language and theme cycle buttons, the ⚙ menu in the control bar. Unused i18n keys were removed. |
+
+**S2: test expectations that changed because of the new layout**
+
+| Test | Before | Now |
+|---|---|---|
+| `navigation-layout.spec.ts` (UI-08) | All link labels visible in the header at 375–1440 px | Below 1024 px the labels are visible in the ☰ panel |
+| `logs-ui.spec.ts` "Header scrollt nicht horizontal" (UI-01) | VPS link visible in the header at 375 px | VPS link visible in the ☰ panel |
+| `logs-ui.spec.ts` theme tests (UI-02) | Radio group in the header; at 375 px one cycle button | Radio group in the header menu at every width |
+| `language.spec.ts` (UI-05) | Switcher in the header; at 375 px one cycle button | Radio group in the header menu at every width |
+| `connection.spec.ts` (SYS-07, SYS-09) | A click on the chip opens the dialog; at 375 px a status row below the header | The trigger opens the menu, "change connection" opens the dialog; at 375 px the status is in the trigger, the host is in the menu |
+| `control-bar.spec.ts` (UI-09) | ⚙ system menu in the bar | No ⚙ in the bar; the header menu trigger is in the viewport at 375 px |
+| `system.spec.ts`, `users.spec.ts`, `tooltips.spec.ts`, `mobile-layout.spec.ts`, `csv-import.spec.ts` | Open the ⚙ menu, the chip or the header links | Open the header menu or the ☰ panel first (`e2e/fixtures/header.ts`) |
+
+New: `header-menu.spec.ts` (UI-01): one row of 56 px, ☰ below `lg`, menu content, the menu stays open after a choice, Escape, the panel covers the bar and does not move it, the panel fits at 375 px, update check and shut down on `/chart`, shut down disabled without an account, the longest fault text at 1024 px does not overlap the links. `tooltips.spec.ts` (UI-07) also checks the ☰ panel and the header menu at 375 px. `control-bar.spec.ts` (UI-09) now checks that the bar starts at the lower edge of the navigation (before: a range of 56–80 px).
+
 ## Why
 
 | Decision | Reason |
@@ -101,6 +125,11 @@ Run the sessions in this order: S1, S2, S5, S3, S4, S6. The column "In parallel"
 | S1: `npm run lint`, `npx tsc --noEmit` | green |
 | S1: `scripts/features/run.sh e2e` for `ACC`, `USR`, `UI-09` | 11, 10 and 6 tests passed |
 | S1: screenshot in German | bar shows "DEMO", account list shows "Admin" |
+| S2: `header-menu.spec.ts` before the change | 7 failed (no header menu, no ☰) |
+| S2: new review test "shut down disabled without an account" before the fix | 1 failed |
+| S2: `npm run lint`, `npx tsc --noEmit` | green |
+| S2: `scripts/features/run.sh e2e` (all mocked tests) | 564 passed, 0 failed |
+| S2: screenshots in German, 1440 and 375 px, light and dark, menu open and closed, `/`, `/vps`, `/chart` | one header row, the panel covers the content, no overflow |
 
 After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then look at `localhost:3000` against the live worker (read only): scroll, the bar stays visible, the header menu shows the connection status.
 
@@ -108,8 +137,8 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 
 | Session | Status | PR |
 |---|---|---|
-| S1 | in PR | this PR |
-| S2 | open | |
+| S1 | done | #189 |
+| S2 | in PR | |
 | S5 | open | |
 | S3 | open | |
 | S4 | open | |
@@ -117,7 +146,7 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 
 ## Open points
 
-- [ ] S2: W4 + W5 + V4
+- [x] S2: W4 + W5 + V4 (in PR)
 - [ ] S5: W6
 - [ ] S3: W3 + V2 + V3
 - [ ] S4: W7

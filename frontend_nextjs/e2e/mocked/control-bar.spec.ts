@@ -1,6 +1,7 @@
 /**
- * UI-09 · Kompakte Steuerleiste: Kontoauswahl, Kontomenü, Bot-Steuerung, Prüfintervall und Systemmenü
- * liegen in einer Leiste über den Kennzahlen (Desktop: eine Zeile), bei 375 px brechen die Gruppen um.
+ * UI-09 · Kompakte Steuerleiste: Kontoauswahl, Kontomenü, Bot-Steuerung und Prüfintervall liegen in einer
+ * Leiste über den Kennzahlen (Desktop: eine Zeile), bei 375 px brechen die Gruppen um. Das Systemmenü
+ * liegt im Kopf-Menü (UI-01), nicht mehr in der Leiste.
  */
 import type { Locator, Page } from '@playwright/test';
 import { DEMO_ID, expect, test, type AppLocale } from '../fixtures/test';
@@ -24,7 +25,8 @@ test.describe('UI-09 Steuerleiste (Desktop)', () => {
     await expect(bar.getByTestId('bot-status')).toHaveText(msg('bot.status.stopped'));
     await expect(bar.getByRole('button', { name: msg('bot.start') })).toBeVisible();
     await expect(bar.getByLabel(msg('settings.interval'))).toHaveValue('2');
-    await expect(bar.getByRole('button', { name: msg('dashboard.sysinfo.title') })).toBeVisible();
+    // Kein ⚙-Systemmenü mehr in der Leiste (liegt im Kopf-Menü, UI-01)
+    await expect(bar.locator('svg.lucide-settings')).toHaveCount(0);
     // Eine Zeile: 36 px Bedienelemente + Innenabstand
     expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(72);
   });
@@ -56,9 +58,9 @@ test.describe('UI-09 Steuerleiste (Desktop)', () => {
     expect(await page.evaluate(() => window.scrollY), 'Seite muss scrollbar sein').toBeGreaterThan(100);
     await expect(bar).toBeInViewport();
     const box = await bar.boundingBox();
-    // Direkt unter der Navigation (64 px), nicht weggescrollt
-    expect(box!.y).toBeGreaterThanOrEqual(56);
-    expect(box!.y).toBeLessThanOrEqual(80);
+    // Direkt unter der Navigation (56 px, --nav-height), nicht weggescrollt
+    const nav = await page.getByRole('navigation').boundingBox();
+    expect(box!.y).toBeCloseTo(nav!.y + nav!.height, 0);
     await expect(bar.getByRole('button', { name: msg('bot.start') })).toBeInViewport();
   });
 });
@@ -77,7 +79,7 @@ test.describe('UI-09 Steuerleiste (375 px)', () => {
         await dashboard.open(DEMO_ID);
         const bar = page.getByTestId('control-bar');
         await expectInViewport(page, bar.getByRole('button', { name: msg('account.action.menu', undefined, lang) }), 'Kontomenü');
-        await expectInViewport(page, bar.getByRole('button', { name: msg('dashboard.sysinfo.title', undefined, lang) }), 'Systemmenü');
+        await expectInViewport(page, page.getByTestId('connection-chip'), 'Kopf-Menü');
         await expectInViewport(page, bar.getByRole('button', { name: msg('bot.restart', undefined, lang) }), 'Neustart');
         await expectInViewport(page, bar.getByRole('button', { name: msg('bot.stop', undefined, lang) }), 'Stopp');
         await expectInViewport(page, bar.getByRole('button', { name: msg('common.save', undefined, lang) }), 'Intervall speichern');

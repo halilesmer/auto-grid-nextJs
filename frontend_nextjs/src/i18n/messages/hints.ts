@@ -100,14 +100,13 @@ export default defineArea(
     'common.theme.light.hint': 'Açık temayı kullanır.',
     'common.theme.dark.hint': 'Koyu temayı kullanır.',
     'common.theme.system.hint': 'Cihazın açık/koyu ayarını takip eder.',
-    'common.theme.cycle.hint': 'Tema: {current}. Tıklayınca “{next}” temasına geçer.',
 
     // --- Dashboard ---
-    'dashboard.sysinfo.hint': 'Sistem menüsü: adres ve port bilgisi, güncelleme denetimi ve sistemi kapatma.',
     'dashboard.sysinfo.checkUpdates.hint': 'GitHub’daki (origin/main) sürümle karşılaştırır, yeni sürüm varsa sunar.',
-    'dashboard.shutdown.hint': 'Sistemi kapatma penceresini açar. Tüm botlar durdurulur; onay ister.',
+    'dashboard.shutdown.hint': 'Sistemi kapatma penceresini açar. Seçili hesabın botu durdurulur; onay ister.',
+    'dashboard.shutdown.noAccount.hint': 'Hesap seçilmedi. Kapatma seçili hesabın botunu durdurur; önce Dashboard’da bir hesap seç.',
     'dashboard.shutdown.confirm.hint':
-      'Tüm botları durdurur ve arayüzü kapatır. Açık pozisyonlar broker’da kalır.',
+      'Seçili hesabın botunu durdurur ve arayüzü kapatır. Açık pozisyonlar broker’da kalır.',
     'saveBar.saveAll.hint': 'Tüm bölgelerdeki kaydedilmemiş değişiklikleri kaydeder. Kısayol: Cmd+Enter (Mac) / Ctrl+Enter (Windows).',
     'saveBar.discard.hint': 'Kaydedilmemiş tüm değişiklikleri atar ve son kaydedilen duruma döner.',
     'saveBar.saved.hint': 'Tüm değişiklikler kayıtlı.',
@@ -139,7 +138,9 @@ export default defineArea(
     'nav.formation.hint': 'Fiyat grafiği ve formasyonlar.',
     'nav.vps.hint': 'VPS yönetimi: worker durumu, güncelleme, yeniden başlatma ve loglar.',
     'nav.users.hint': 'Kullanıcı yönetimi (yalnızca yönetici): kullanıcı ekle, anahtarlarını yenile, sil.',
-    'nav.language.cycle.hint': 'Dil: {current}. Tıklayınca {next} diline geçer.',
+    'nav.menu.hint': 'Sayfa listesini açar: Dashboard, Analiz, Backtest, Formasyon ve (yöneticiye) VPS ve Kullanıcılar.',
+    'header.menu.hint': 'VPS bağlantısı: {status}. Bağlantı, dil, tema ve sistem (bilgi, güncelleme, kapatma) menüsünü açar.',
+    'header.connection.change.hint': 'Bağlantı penceresini açar: worker adresi ve API anahtarı, test et, bağlan veya bağlantıyı kes.',
     'nav.language.option.hint': 'Arayüz dilini {language} yapar.',
 
     // --- Kullanıcılar ---
@@ -159,7 +160,6 @@ export default defineArea(
     'users.owner.label.hint': 'Hesabın sahibi. Kullanıcı yalnızca kendi hesaplarını görür ve yönetir; “Yönetici” seçiliyse hesabı yalnızca yönetici anahtarı görür.',
 
     // --- VPS-Verbindung ---
-    'connection.chip.hint': 'Worker (VPS) bağlantısı: {status}. Tıklayınca bağlantı penceresini açar.',
     'connection.field.link.hint':
       'VPS kurulumunun verdiği bağlantı linkini veya kodunu buraya yapıştır; adres ve anahtar kendiliğinden dolar.',
     'connection.field.url.hint':
@@ -626,14 +626,13 @@ export default defineArea(
     'common.theme.light.hint': 'Uses the light theme.',
     'common.theme.dark.hint': 'Uses the dark theme.',
     'common.theme.system.hint': 'Follows the light/dark setting of your device.',
-    'common.theme.cycle.hint': 'Theme: {current}. Click to switch to “{next}”.',
 
     // --- Dashboard ---
-    'dashboard.sysinfo.hint': 'System menu: address and port info, update check and system shutdown.',
     'dashboard.sysinfo.checkUpdates.hint': 'Compares with the version on GitHub (origin/main) and offers a new version if there is one.',
-    'dashboard.shutdown.hint': 'Opens the shutdown dialog. All bots are stopped; asks for confirmation.',
+    'dashboard.shutdown.hint': 'Opens the shutdown dialog. The bot of the selected account is stopped; asks for confirmation.',
+    'dashboard.shutdown.noAccount.hint': 'No account selected. Shutdown stops the bot of the selected account; select an account on the dashboard first.',
     'dashboard.shutdown.confirm.hint':
-      'Stops all bots and closes the interface. Open positions stay at the broker.',
+      'Stops the bot of the selected account and closes the interface. Open positions stay at the broker.',
     'saveBar.saveAll.hint': 'Saves all unsaved changes in all zones. Shortcut: Cmd+Enter (Mac) / Ctrl+Enter (Windows).',
     'saveBar.discard.hint': 'Discards all unsaved changes and restores the last saved state.',
     'saveBar.saved.hint': 'All changes are saved.',
@@ -665,7 +664,9 @@ export default defineArea(
     'nav.formation.hint': 'Price chart and formations.',
     'nav.vps.hint': 'VPS management: worker status, update, restart and logs.',
     'nav.users.hint': 'User management (administrator only): add users, renew their keys, delete them.',
-    'nav.language.cycle.hint': 'Language: {current}. Click to switch to {next}.',
+    'nav.menu.hint': 'Opens the page list: Dashboard, Analysis, Backtest, Formation and (for the admin) VPS and Users.',
+    'header.menu.hint': 'VPS connection: {status}. Opens the menu for connection, language, theme and system (info, updates, shutdown).',
+    'header.connection.change.hint': 'Opens the connection dialog: worker address and API key, test, connect or disconnect.',
     'nav.language.option.hint': 'Sets the interface language to {language}.',
 
     // --- Users ---
@@ -685,7 +686,6 @@ export default defineArea(
     'users.owner.label.hint': 'Owner of the account. A user only sees and manages their own accounts; with “Admin” selected only the administrator key sees the account.',
 
     // --- VPS connection ---
-    'connection.chip.hint': 'Worker (VPS) connection: {status}. Click to open the connection dialog.',
     'connection.field.link.hint':
       'Paste the connection link or code your VPS setup printed; address and key fill in by themselves.',
     'connection.field.url.hint':
@@ -1152,14 +1152,13 @@ export default defineArea(
     'common.theme.light.hint': 'Nutzt das helle Design.',
     'common.theme.dark.hint': 'Nutzt das dunkle Design.',
     'common.theme.system.hint': 'Folgt der Hell/Dunkel-Einstellung Ihres Geräts.',
-    'common.theme.cycle.hint': 'Design: {current}. Klick wechselt zu „{next}“.',
 
     // --- Dashboard ---
-    'dashboard.sysinfo.hint': 'Systemmenü: Adress- und Port-Info, Update-Prüfung und System herunterfahren.',
     'dashboard.sysinfo.checkUpdates.hint': 'Vergleicht mit der Version auf GitHub (origin/main) und bietet eine neue Version an.',
-    'dashboard.shutdown.hint': 'Öffnet den Dialog zum Herunterfahren. Alle Bots werden gestoppt; mit Rückfrage.',
+    'dashboard.shutdown.hint': 'Öffnet den Dialog zum Herunterfahren. Der Bot des gewählten Kontos wird gestoppt; mit Rückfrage.',
+    'dashboard.shutdown.noAccount.hint': 'Kein Konto gewählt. Herunterfahren stoppt den Bot des gewählten Kontos; wähle zuerst im Dashboard ein Konto.',
     'dashboard.shutdown.confirm.hint':
-      'Stoppt alle Bots und schließt die Oberfläche. Offene Positionen bleiben beim Broker.',
+      'Stoppt den Bot des gewählten Kontos und schließt die Oberfläche. Offene Positionen bleiben beim Broker.',
     'saveBar.saveAll.hint': 'Speichert alle ungespeicherten Änderungen in allen Zonen. Tastenkürzel: Cmd+Enter (Mac) / Strg+Enter (Windows).',
     'saveBar.discard.hint': 'Verwirft alle ungespeicherten Änderungen und stellt den zuletzt gespeicherten Stand wieder her.',
     'saveBar.saved.hint': 'Alle Änderungen sind gespeichert.',
@@ -1191,7 +1190,9 @@ export default defineArea(
     'nav.formation.hint': 'Preischart und Formationen.',
     'nav.vps.hint': 'VPS-Verwaltung: Worker-Status, Update, Neustart und Logs.',
     'nav.users.hint': 'Benutzerverwaltung (nur Administrator): Benutzer anlegen, Schlüssel erneuern, löschen.',
-    'nav.language.cycle.hint': 'Sprache: {current}. Klick wechselt zu {next}.',
+    'nav.menu.hint': 'Öffnet die Seitenliste: Dashboard, Analyse, Backtest, Formation und (für den Admin) VPS und Benutzer.',
+    'header.menu.hint': 'VPS-Verbindung: {status}. Öffnet das Menü für Verbindung, Sprache, Design und System (Info, Updates, Herunterfahren).',
+    'header.connection.change.hint': 'Öffnet den Verbindungsdialog: Worker-Adresse und API-Key, testen, verbinden oder trennen.',
     'nav.language.option.hint': 'Stellt die Oberflächensprache auf {language}.',
 
     // --- Benutzer ---
@@ -1211,7 +1212,6 @@ export default defineArea(
     'users.owner.label.hint': 'Besitzer des Kontos. Ein Benutzer sieht und verwaltet nur seine eigenen Konten; bei „Admin“ sieht das Konto nur der Administrator-Schlüssel.',
 
     // --- VPS-Verbindung ---
-    'connection.chip.hint': 'Worker-(VPS-)Verbindung: {status}. Klick öffnet den Verbindungsdialog.',
     'connection.field.link.hint':
       'Füge den Verbindungs-Link oder -Code aus der VPS-Einrichtung ein; Adresse und Key füllen sich von selbst.',
     'connection.field.url.hint':

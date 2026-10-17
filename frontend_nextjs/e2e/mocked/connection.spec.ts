@@ -9,6 +9,7 @@ import { startDisconnected, storedConnection as stored } from '../fixtures/conne
 import { E2E_API_KEY, MOCK_API } from '../fixtures/env';
 import { expect, test, type AppLocale } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { openConnectionDialog, openHeaderMenu } from '../fixtures/header';
 import {
   decodeConnectionCode,
   encodeConnectionCode,
@@ -129,7 +130,7 @@ test.describe('SYS-07 Verbindung im Browser', () => {
     const chip = page.getByTestId('connection-chip');
     await expect(chip).toHaveAttribute('data-status', 'connected');
 
-    await chip.click();
+    await openConnectionDialog(page);
     await page.getByTestId('connection-disconnect').click();
     await page
       .getByRole('dialog')
@@ -270,7 +271,11 @@ test.describe('SYS-09 Verbindungsstatus im Header', () => {
     await page.goto('/');
     const chip = page.getByTestId('connection-chip');
     await expect(chip).toHaveAttribute('data-status', 'connected');
-    await expect(chip).toContainText(MOCK_HOST);
+    // Host sichtbar ab xl (1280 px), darunter nur der Punkt
+    await expect(chip.getByText(MOCK_HOST)).toBeVisible();
+    await page.setViewportSize({ width: 1024, height: 720 });
+    await expect(chip.getByText(MOCK_HOST)).toBeHidden();
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     // Der Status wird beim Fokus des Fensters (und alle 30 s) neu geprüft
     const recheck = () => page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -278,36 +283,52 @@ test.describe('SYS-09 Verbindungsstatus im Header', () => {
     worker.overrides.set('GET /api/system/platform', { status: 401, body: { detail: 'Invalid or missing API key' } });
     await recheck();
     await expect(chip).toHaveAttribute('data-status', 'unauthorized');
+
+    // Störung: zusätzlich sichtbarer Text, nicht nur die Farbe des Punkts
+    await expect(chip).toContainText(msg('connection.status.unauthorized'));
     worker.overrides.delete('GET /api/system/platform');
 
     worker.offline = true;
     await recheck();
     await expect(chip).toHaveAttribute('data-status', 'unreachable');
+    await expect(chip).toContainText(msg('connection.status.unreachable'));
     worker.offline = false;
 
     await recheck();
     await expect(chip).toHaveAttribute('data-status', 'connected');
+    await expect(chip).not.toContainText(msg('connection.status.unreachable'));
   });
 
   for (const lang of LOCALES) {
     test.describe(`Handy 375 px (${lang})`, () => {
       test.use({ viewport: { width: 375, height: 812 }, appLocale: lang });
 
-      test('verbunden: Status steht in der Zeile unter der Kopfzeile', { tag: '@SYS-09' }, async ({ page, worker }) => {
-        void worker;
+      test('Status bleibt im Auslöser des Kopf-Menüs sichtbar, Host im Menü', { tag: '@SYS-09' }, async ({ page, worker }) => {
         await page.goto('/');
-        const bar = page.getByTestId('connection-chip-bar');
-        await expect(bar).toHaveAttribute('data-status', 'connected');
-        await expect(bar).toContainText(MOCK_HOST);
-        await expect(page.getByTestId('connection-chip')).toBeHidden();
+        const chip = page.getByTestId('connection-chip');
+        await expect(chip).toHaveAttribute('data-status', 'connected');
+        const box = await chip.boundingBox();
+        expect(box!.x + box!.width).toBeLessThanOrEqual(375);
         await expectNoPageOverflow(page);
+
+        const panel = await openHeaderMenu(page);
+        await expect(panel.getByTestId('header-menu-connection')).toContainText(MOCK_HOST);
+        await page.keyboard.press('Escape');
+
+        // Störung: Text im Auslöser, ohne Überlauf
+        worker.offline = true;
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(chip).toHaveAttribute('data-status', 'unreachable');
+        await expect(chip).toContainText(msg('connection.status.unreachable', undefined, lang));
+        await expectNoPageOverflow(page);
+        worker.offline = false;
       });
 
       test('getrennt: Anleitung und Dialog passen ins Fenster', { tag: '@SYS-09' }, async ({ page, worker }) => {
         void worker;
         await startDisconnected(page);
         await page.goto('/');
-        await expect(page.getByTestId('connection-chip-bar')).toContainText(msg('connection.chip.connect', undefined, lang));
+        await expect(page.getByTestId('connection-chip')).toContainText(msg('connection.chip.connect', undefined, lang));
         await expect(page.getByTestId('connection-gate')).toBeVisible();
         await expectNoPageOverflow(page);
 

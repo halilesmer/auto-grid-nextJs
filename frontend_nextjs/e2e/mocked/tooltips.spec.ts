@@ -8,6 +8,7 @@ import { startDisconnected } from '../fixtures/connection';
 import { E2E_API_KEY, MOCK_API } from '../fixtures/env';
 import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { openConnectionDialog, openHeaderMenu, openPageMenu } from '../fixtures/header';
 
 const CONTROLS =
   'button, a[href], input, select, textarea, [role="switch"], [role="tab"], [role="radio"], [role="combobox"]';
@@ -56,7 +57,7 @@ function fieldHint(zone: Locator, label: string): Locator {
 async function openMenus(dashboard: Dashboard) {
   const { page } = dashboard;
   await dashboard.zone().getByRole('button', { name: msg('zone.header.menu') }).click();
-  await page.getByRole('button', { name: msg('dashboard.sysinfo.title') }).click();
+  await openHeaderMenu(page);
 }
 
 test.describe('UI-07 Hinweise: Abdeckung', () => {
@@ -143,11 +144,22 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     await page.getByTestId('connection-test').click();
     await page.getByTestId('connection-connect').click();
     await expect(page.getByTestId('connection-chip')).toHaveAttribute('data-status', 'connected');
-    await page.getByTestId('connection-chip').click();
+    await openConnectionDialog(page);
     await expect(page.getByTestId('connection-disconnect')).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
     await page.getByTestId('connection-disconnect').click();
     await expect(page.getByRole('dialog').filter({ hasText: msg('connection.disconnect.title') })).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+  });
+
+  test('Kopfzeile bei 375 px: ☰-Menü und Kopf-Menü erklären sich', { tag: '@UI-07' }, async ({ page, dashboard }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await dashboard.open(DEMO_ID);
+    expect(await unhinted(page)).toEqual([]);
+    await openPageMenu(page);
+    expect(await unhinted(page)).toEqual([]);
+    await page.keyboard.press('Escape');
+    await openHeaderMenu(page);
     expect(await unhinted(page)).toEqual([]);
   });
 

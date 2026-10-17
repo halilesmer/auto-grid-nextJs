@@ -14,69 +14,47 @@ const OPTIONS: { value: ThemePreference; labelKey: MessageKey; hintKey: MessageK
   { value: 'system', labelKey: 'common.theme.system', hintKey: 'common.theme.system.hint', icon: Monitor },
 ];
 
+/** Tema seçimi (Açık · Koyu · Sistem); üst menüde (HeaderMenu) simge ve adıyla tam genişlikte durur. */
 export default function ThemeToggle() {
   const t = useT();
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
 
-  // Mobilde tek buton: tıklayınca sıradaki temaya geçer (Açık → Koyu → Sistem)
-  const currentIndex = Math.max(0, OPTIONS.findIndex((o) => o.value === theme));
-  const current = OPTIONS[currentIndex];
-  const next = OPTIONS[(currentIndex + 1) % OPTIONS.length];
-  const CurrentIcon = current.icon;
-  const currentLabel = t(current.labelKey);
-  const nextLabel = t(next.labelKey);
-
   return (
-    <>
-      <Tooltip
-        content={t('common.theme.cycle.hint', { current: currentLabel, next: nextLabel })}
-        className="sm:hidden"
-      >
-        <button
-          type="button"
-          aria-label={t('common.theme.aria', { current: currentLabel, next: nextLabel })}
-          onClick={() => setTheme(next.value)}
-          className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-muted/50 text-foreground transition-colors hover:bg-muted"
-        >
-          <CurrentIcon size={14} />
-        </button>
-      </Tooltip>
-
-      <div
-        role="radiogroup"
-        aria-label={t('common.theme')}
-        className="hidden items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5 sm:flex"
-      >
-        {OPTIONS.map(({ value, labelKey, hintKey, icon: Icon }) => {
-          const active = theme === value;
-          const label = t(labelKey);
-          return (
-            <Tooltip key={value} content={t(hintKey)} role="presentation">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={active}
-                aria-label={label}
-                onClick={() => setTheme(value)}
-                className={cn(
-                  'relative flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors',
-                  active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="theme-toggle-active"
-                    className="absolute inset-0 rounded-md border border-border bg-card shadow-sm"
-                    transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
-                  />
-                )}
-                <Icon size={14} className="relative z-10" />
-              </button>
-            </Tooltip>
-          );
-        })}
-      </div>
-    </>
+    <div
+      role="radiogroup"
+      aria-label={t('common.theme')}
+      className="flex w-full items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5"
+    >
+      {OPTIONS.map(({ value, labelKey, hintKey, icon: Icon }) => {
+        const active = theme === value;
+        const label = t(labelKey);
+        return (
+          <Tooltip key={value} content={t(hintKey)} role="presentation" className="min-w-0 flex-1">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={label}
+              onClick={() => setTheme(value)}
+              className={cn(
+                'relative flex h-8 w-full min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-md px-1.5 text-xs transition-colors',
+                active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {active && (
+                <motion.span
+                  layoutId="theme-toggle-active"
+                  className="absolute inset-0 rounded-md border border-border bg-card shadow-sm"
+                  transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
+                />
+              )}
+              <Icon size={14} className="relative z-10 shrink-0" />
+              <span className="relative z-10 truncate">{label}</span>
+            </button>
+          </Tooltip>
+        );
+      })}
+    </div>
   );
 }

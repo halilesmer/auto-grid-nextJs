@@ -1,5 +1,6 @@
 import { test, expect, type AppLocale } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { openPageMenu } from '../fixtures/header';
 
 for (const appLocale of ['tr', 'en', 'de'] as AppLocale[]) {
   test.describe(appLocale, () => {
@@ -7,13 +8,16 @@ for (const appLocale of ['tr', 'en', 'de'] as AppLocale[]) {
     test('Navigation bleibt beschriftet und überlappt keine Bedienelemente', { tag: '@UI-08' }, async ({ page, dashboard }) => {
       await dashboard.open(null);
       const nav = page.locator('nav').first();
-      await expect(nav.getByRole('link', { name: msg('nav.users', undefined, appLocale), exact: true })).toBeVisible();
       for (const width of [375, 640, 810, 1024, 1440]) {
         await page.setViewportSize({ width, height: 900 });
-        const links = nav.locator('a');
-        for (const link of await links.all()) {
+        // Unter lg stehen die Seitenlinks im ☰-Menü (UI-01), ab lg in der Kopfzeile
+        const narrow = width < 1024;
+        const linkArea = narrow ? await openPageMenu(page) : nav;
+        await expect(linkArea.getByRole('link', { name: msg('nav.users', undefined, appLocale), exact: true })).toBeVisible();
+        for (const link of await linkArea.locator('a').all()) {
           await expect(link.locator('span').last()).toBeVisible();
         }
+        // Bei offenem ☰-Panel zählen dessen Links mit (das Panel liegt im nav-DOM)
         const problems = await nav.evaluate((element) => {
           const boxes = [...element.querySelectorAll('a, button')]
             .map((control) => control.getBoundingClientRect())
@@ -28,6 +32,10 @@ for (const appLocale of ['tr', 'en', 'de'] as AppLocale[]) {
           });
         });
         expect(problems, `${appLocale}, ${width}px`).toEqual([]);
+        if (narrow) {
+          await page.keyboard.press('Escape');
+          await expect(linkArea).toBeHidden();
+        }
         if (appLocale === 'de' && (width === 375 || width === 1440)) {
           for (const dark of [false, true]) {
             await page.evaluate((enabled) => document.documentElement.classList.toggle('dark', enabled), dark);

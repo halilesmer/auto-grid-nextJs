@@ -10,16 +10,6 @@ import { useIsAdmin } from '@/store/useAuthStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import type { GlobalSettings, ZoneSettings } from '@/store/types';
 
-// Worker güncellemeden sonra ~1,5 sn içinde kapanır, .bat 3 sn sonra yeniden başlatır
-const WORKER_RESTART_WAIT_MS = 8_000;
-
-interface UpdateResult {
-  hasUpdate: boolean;
-  localVer: string;
-  remoteVer: string;
-  loading: boolean;
-}
-
 interface UseDashboardConfig {
   selectedAccount: string | null;
   activeAccount: { env_type: string } | null;
@@ -32,23 +22,13 @@ interface UseDashboardReturn {
   saveAllLoading: boolean;
   saveAllError: string;
   savedSettingsStr: string | null;
-  shutdownOpen: boolean;
-  shuttingDown: boolean;
-  updateOpen: boolean;
-  updateResult: UpdateResult | null;
   isDirty: boolean;
   isLive: boolean;
   currentSettingsStr: string;
   handleSaveAll: () => Promise<void>;
   handleDiscard: () => void;
   markZoneSaved: (zone: ZoneSettings) => void;
-  handleShutdown: () => Promise<void>;
-  handleCheckUpdates: () => Promise<void>;
-  handleApplyUpdate: () => Promise<void>;
   setSaveAllError: (error: string) => void;
-  setShutdownOpen: (open: boolean) => void;
-  setUpdateOpen: (open: boolean) => void;
-  setUpdateResult: (result: UpdateResult | null) => void;
   sanitizeForCompare: (jsonStr: string | null) => string | null;
 }
 
@@ -63,10 +43,6 @@ export function useDashboard({
   const [saveAllLoading, setSaveAllLoading] = useState(false);
   const [saveAllError, setSaveAllError] = useState('');
   const [savedSettingsStr, setSavedSettingsStr] = useState<string | null>(null);
-  const [shutdownOpen, setShutdownOpen] = useState(false);
-  const [shuttingDown, setShuttingDown] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
-  const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
 
   const prevAccountRef = useRef(selectedAccount);
   const initializedRef = useRef(false);
@@ -133,60 +109,6 @@ export function useDashboard({
       .catch(() => {});
   }, [setUpdateInfo, isAdmin]);
 
-  const handleShutdown = useCallback(async () => {
-    setShuttingDown(true);
-    try {
-      if (selectedAccount) {
-        await axiosInstance.post(`/stop?account_id=${selectedAccount}`);
-      }
-    } catch {
-      // best-effort stop
-    }
-    window.close();
-  }, [selectedAccount]);
-
-  const handleCheckUpdates = useCallback(async () => {
-    setUpdateResult({
-      hasUpdate: false,
-      localVer: '...',
-      remoteVer: '...',
-      loading: true,
-    });
-    try {
-      const res = await axiosInstance.get(`/system/update/check?branch=main`);
-      // Worker snake_case döner (local_ver/remote_ver); modal localVer/remoteVer okur
-      setUpdateResult({
-        hasUpdate: Boolean(res.data.has_update),
-        localVer: res.data.local_ver ?? '',
-        remoteVer: res.data.remote_ver ?? '',
-        loading: false,
-      });
-    } catch (err: unknown) {
-      setUpdateResult(null);
-      // Worker nicht erreichbar: Neustart/Update geht dann nur noch per SSH über die VPS-Seite
-      const reason = await getApiErrorMessage(err, t('update.checkFailed'));
-      toast.error(t('update.checkFailed.hint', { reason }), {
-        title: t('update.title'),
-      });
-    }
-  }, []);
-
-  const handleApplyUpdate = useCallback(async () => {
-    if (!updateResult) return;
-    setUpdateResult({ ...updateResult, loading: true });
-    try {
-      const res = await axiosInstance.post(`/system/update?branch=main`);
-      // Worker yeni kodla yeniden başlıyor (run_uvicorn_watchdog.bat): tekrar ayağa kalkmasını bekle
-      if (res.data?.restarting) {
-        await new Promise((resolve) => setTimeout(resolve, WORKER_RESTART_WAIT_MS));
-      }
-      window.location.reload();
-    } catch (err: unknown) {
-      alert(await getApiErrorMessage(err, t('update.applyFailed')));
-      setUpdateResult(null);
-    }
-  }, [updateResult]);
-
   // Tek bölge kaydedilince "kaydedilmiş" referansı sadece o bölge için güncellenir;
   // böylece global isDirty diğer bölgelerin/ayarların kaydedilmemiş değişikliklerini korur.
   const markZoneSaved = useCallback((zone: ZoneSettings) => {
@@ -252,42 +174,25 @@ export function useDashboard({
       saveAllLoading,
       saveAllError,
       savedSettingsStr,
-      shutdownOpen,
-      shuttingDown,
-      updateOpen,
-      updateResult,
       isDirty,
       isLive,
       currentSettingsStr,
       handleSaveAll,
       handleDiscard,
       markZoneSaved,
-      handleShutdown,
-      handleCheckUpdates,
-      handleApplyUpdate,
       setSaveAllError,
-      setShutdownOpen,
-      setUpdateOpen,
-      setUpdateResult,
       sanitizeForCompare,
     }),
     [
       saveAllLoading,
       saveAllError,
       savedSettingsStr,
-      shutdownOpen,
-      shuttingDown,
-      updateOpen,
-      updateResult,
       isDirty,
       isLive,
       currentSettingsStr,
       handleSaveAll,
       handleDiscard,
       markZoneSaved,
-      handleShutdown,
-      handleCheckUpdates,
-      handleApplyUpdate,
       sanitizeForCompare,
     ]
   );

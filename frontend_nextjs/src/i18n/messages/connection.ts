@@ -1,11 +1,10 @@
 import { defineArea } from './define';
 
-// Worker-Verbindung (Adresse + API-Key im Browser): Header-Chip, Dialog und Leerzustand.
+// Worker-Verbindung (Adresse + API-Key im Browser): Kopf-Menü (HeaderMenu), Dialog und Leerzustand.
 // Hinweistexte (Tooltips) stehen wie überall in hints.ts. Statustexte, die der Worker/ngrok liefert, werden nicht übersetzt.
 export default defineArea(
   {
     'connection.chip.connect': 'VPS bağla',
-    'connection.chip.aria': 'VPS bağlantısı: {status}',
     'connection.status.unconfigured': 'Bağlı değil',
     'connection.status.checking': 'Kontrol ediliyor…',
     'connection.status.connected': 'Bağlı',
@@ -74,7 +73,6 @@ export default defineArea(
   },
   {
     'connection.chip.connect': 'Connect VPS',
-    'connection.chip.aria': 'VPS connection: {status}',
     'connection.status.unconfigured': 'Not connected',
     'connection.status.checking': 'Checking…',
     'connection.status.connected': 'Connected',
@@ -143,7 +141,6 @@ export default defineArea(
   },
   {
     'connection.chip.connect': 'VPS verbinden',
-    'connection.chip.aria': 'VPS-Verbindung: {status}',
     'connection.status.unconfigured': 'Nicht verbunden',
     'connection.status.checking': 'Wird geprüft…',
     'connection.status.connected': 'Verbunden',
