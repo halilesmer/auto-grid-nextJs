@@ -50,6 +50,21 @@ test.describe('UI-09 Steuerleiste (Desktop)', () => {
     await expect(bar.getByRole('button', { name: msg('account.action.editTitle') })).toBeHidden();
   });
 
+  test('„Sembol Ekle“ steht in der Leiste neben ⋯ und öffnet den Dialog', { tag: ['@UI-09', '@ZON-20'] }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const bar = page.getByTestId('control-bar');
+    const add = bar.getByRole('button', { name: msg('zone.panel.add') });
+    await expect(add).toBeVisible();
+    const menu = await bar.getByRole('button', { name: msg('account.action.menu') }).boundingBox();
+    const box = await add.boundingBox();
+    expect(box!.x, 'Button rechts vom ⋯-Menü').toBeGreaterThan(menu!.x + menu!.width - 1);
+    expect(Math.abs(box!.y + box!.height / 2 - (menu!.y + menu!.height / 2)), 'gleiche Höhe wie ⋯').toBeLessThan(8);
+    // Genau ein Button auf der Seite, nicht mehr in der Zonenüberschrift
+    await expect(page.getByRole('button', { name: msg('zone.panel.add') })).toHaveCount(1);
+    await add.click();
+    await expect(page.getByTestId('add-symbol-dialog')).toBeVisible();
+  });
+
   test('Leiste bleibt beim Scrollen oben fixiert', { tag: '@UI-09' }, async ({ page, dashboard }) => {
     await page.setViewportSize({ width: 1440, height: 600 });
     await dashboard.open(DEMO_ID);
@@ -91,6 +106,8 @@ test.describe('UI-09 Steuerleiste (375 px)', () => {
         // Aufgeklapptes Kontomenü liegt ganz im Fenster
         await dashboard.openAccountMenu();
         await expectInViewport(page, bar.getByRole('button', { name: msg('account.action.add', undefined, lang) }), 'Neues Konto');
+        // „Sembol Ekle“ liegt unter sm ebenfalls im ⋯-Menü, nicht in der Leiste
+        await expectInViewport(page, bar.getByRole('button', { name: msg('zone.panel.add', undefined, lang) }), 'Sembol Ekle im Menü');
         // Das Prüfintervall liegt unter sm im ⋯-Menü (Platz fehlt in der Leiste)
         await expect(bar.getByTestId('general-settings')).toBeHidden();
         const menuSettings = bar.getByTestId('general-settings-menu');

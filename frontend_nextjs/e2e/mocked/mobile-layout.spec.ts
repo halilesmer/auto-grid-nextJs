@@ -52,11 +52,10 @@ async function expectNothingOverflowsInSetupCards(page: Page) {
   expect(overflowing, 'Elemente ragen über ihren Rahmen in der Setup-Karte').toEqual([]);
 }
 
-/** Alle Buttons des Zonenbereichs: Panel-Kopf („Sembol Ekle“, Speichern), Symbolkopf („Setup Ekle“) und Setup-Kopf. */
+/** Alle Buttons des Zonenbereichs: Symbolkopf („Setup Ekle“) und Setup-Kopf. „Sembol Ekle“ liegt bei 375 px im ⋯-Menü der Steuerleiste (UI-09). */
 async function expectZoneAreaInViewport(dashboard: Dashboard, lang: AppLocale) {
   const { page } = dashboard;
   const zone = dashboard.zone();
-  await expectInViewport(page, page.getByRole('button', { name: msg('zone.panel.add', undefined, lang) }), 'Sembol Ekle');
   await expectInViewport(page, dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup', undefined, lang) }), 'Setup Ekle');
   await expectInViewport(page, zone.getByTestId('zone-save'), 'Zone speichern');
   await expectInViewport(page, zone.getByRole('link', { name: msg('zone.header.test', undefined, lang) }), 'Test-Link');
@@ -187,6 +186,7 @@ for (const lang of LOCALES) {
       await expectNothingOverflowsInSetupCards(page);
       await expectNoPageOverflow(page);
 
+      await dashboard.openAccountMenu();
       await page.getByRole('button', { name: msg('zone.panel.add', undefined, lang) }).click();
       const dialog = page.getByTestId('add-symbol-dialog');
       await dialog.getByPlaceholder(msg('zone.symbol.placeholder', undefined, lang)).fill('XAUUSD');

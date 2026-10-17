@@ -115,6 +115,12 @@ Solution: only spacing and sizes, no card structure (that is S6). Base classes a
 - Account group: `min-w-44` below `sm`, so the bar wraps before the selector loses its name.
 - Grid block in `ZoneGridFields`: `max-sm:basis-full`. Before, it had its own row only because the card was narrow; with the wider card, Lot moved up next to it (test UI-08 "Kompaktes Setup" failed in tr and en).
 
+### S4: "Add symbol" in the control bar (W7)
+
+Solution: the state `addSymbolOpen` moved from `ZoneSettingsPanel.tsx` to `page.tsx`; the panel gets `addSymbolOpen` and `onAddSymbolClose` and keeps the dialog (it needs the symbol list and `addSetup`). The button sits in the bar next to ⋯ from `sm` up. Below `sm` it is an item in the ⋯ menu (`menuExtra`). The lock (`isRunning && !mt5_connected`) and the hints `zone.panel.add(.off).hint` are unchanged. No new store.
+
+Test change (agreed with the project owner): `mobile-layout.spec.ts` (UI-08) no longer expects the button in the zone area at 375 px. The dialog test opens it from the ⋯ menu.
+
 ## Why
 
 | Decision | Reason |
@@ -171,6 +177,11 @@ Note: the test `tooltips.spec.ts` "Der Hinweis folgt der gewählten Sprache" (UI
 | Mobile: `scripts/features/run.sh e2e 'UI\|MET\|ACC\|ZON'` | first 2 failed (grid block, see above), after the fix 188 passed |
 | Mobile: screenshots in German, 375 and 1440 px, light and dark, before and after | account name visible, `scrollWidth` 375, 1440 px unchanged |
 
+| S4: `control-bar.spec.ts` new tests before the change | 2 failed (button not in the bar, not in the ⋯ menu) |
+| S4: `npm run lint`, `npx tsc --noEmit` | green |
+| S4: `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` | first 12 failed (UI-08 expectation, see above), after the agreed change 189 passed |
+| S4: screenshots in Turkish, 1440 and 375 px, light and dark, ⋯ menu open at 375 px | button next to ⋯, in the menu at 375 px, no overflow |
+
 After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then look at `localhost:3000` against the live worker (read only): scroll, the bar stays visible, the header menu shows the connection status.
 
 ## Status
@@ -182,7 +193,7 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 | S5 | in PR | see PR |
 | S3 | in PR | see PR |
 | Mobile | in PR | see PR |
-| S4 | open | |
+| S4 | in PR | see PR |
 | S6 | open | |
 
 ## Open points
@@ -191,5 +202,5 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 - [x] S5: W6 (in PR). Tiles are one row. The engine status stays next to the label of the P/L tile. The static footers moved into the hints.
 - [x] S3: W3 + V2 + V3 (in PR). Follow-ups: `scroll-padding-top` for focus, row jump of the unsaved hint at 375 px.
 - [x] Mobile compaction (in PR).
-- [ ] S4: W7
+- [x] S4: W7 (in PR)
 - [ ] S6: W8 + V1
