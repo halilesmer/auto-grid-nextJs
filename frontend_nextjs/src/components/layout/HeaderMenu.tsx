@@ -92,7 +92,8 @@ export default function HeaderMenu() {
         triggerProps={{
           'data-testid': 'connection-chip',
           'data-status': shown,
-          className: 'max-w-[9rem] px-2.5 sm:max-w-[16rem]',
+          // lg–xl: Links stehen daneben, langer Störungstext wird gekürzt (voller Text im aria-label und im Menü)
+          className: 'max-w-[9rem] px-2.5 sm:max-w-[16rem] lg:max-w-[9rem] xl:max-w-[16rem]',
         }}
         icon={
           <>
