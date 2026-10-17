@@ -82,7 +82,6 @@ test.describe('UI-09 Steuerleiste (375 px)', () => {
         await expectInViewport(page, page.getByTestId('connection-chip'), 'Kopf-Menü');
         await expectInViewport(page, bar.getByRole('button', { name: msg('bot.restart', undefined, lang) }), 'Neustart');
         await expectInViewport(page, bar.getByRole('button', { name: msg('bot.stop', undefined, lang) }), 'Stopp');
-        await expectInViewport(page, bar.getByRole('button', { name: msg('common.save', undefined, lang) }), 'Intervall speichern');
         const { scrollWidth, clientWidth } = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,
           clientWidth: document.documentElement.clientWidth,
@@ -92,7 +91,126 @@ test.describe('UI-09 Steuerleiste (375 px)', () => {
         // Aufgeklapptes Kontomenü liegt ganz im Fenster
         await dashboard.openAccountMenu();
         await expectInViewport(page, bar.getByRole('button', { name: msg('account.action.add', undefined, lang) }), 'Neues Konto');
+        // Das Prüfintervall liegt unter sm im ⋯-Menü (Platz fehlt in der Leiste)
+        await expect(bar.getByTestId('general-settings')).toBeHidden();
+        const menuSettings = bar.getByTestId('general-settings-menu');
+        await expectInViewport(page, menuSettings, 'Intervall im Menü');
+        await expectInViewport(page, menuSettings.getByRole('button', { name: msg('common.save', undefined, lang) }), 'Intervall speichern');
       });
     });
   }
 });
+
+async function scrollToEnd(page: Page) {
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  expect(await page.evaluate(() => window.scrollY), 'Seite muss scrollbar sein').toBeGreaterThan(100);
+}
+
+async function barTop(page: Page) {
+  const nav = await page.getByRole('navigation').boundingBox();
+  const bar = await page.getByTestId('control-bar').boundingBox();
+  return { nav, bar };
+}
+
+for (const size of [{ width: 1440, height: 600 }, { width: 375, height: 600 }]) {
+  test.describe(`UI-09 fixierte Leiste ${size.width} px`, () => {
+    test.use({ viewport: size });
+
+    test('Leiste und Kennzahlen kleben unter der Navigation', { tag: '@UI-09' }, async ({ page, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      await scrollToEnd(page);
+      const { nav, bar } = await barTop(page);
+      expect(bar!.y).toBeCloseTo(nav!.y + nav!.height, 0);
+      // Eine Zeile: DEMO, Konto, Status und Start in 56 px; sonst höchstens die 3-Zeilen-Höhe der Zonen
+      if (size.width === 375) expect(bar!.height, 'Leiste einzeilig').toBeLessThanOrEqual(64);
+      // Standard: Kennzahlen angeheftet, direkt unter der Leiste
+      const metrics = page.getByTestId('metric-profit');
+      await expect(metrics).toBeInViewport();
+      const m = await metrics.boundingBox();
+      expect(m!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height - 1);
+      expect(m!.y).toBeLessThan(bar!.y + bar!.height + 40);
+    });
+
+    test('jedes Dropdown überdeckt die Leiste und verschiebt sie nicht', { tag: '@UI-09' }, async ({ page, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      await scrollToEnd(page);
+      const before = (await barTop(page)).bar!;
+      const sameBar = async (name: string) => {
+        const now = (await barTop(page)).bar!;
+        expect(now.y, `${name}: Leiste y`).toBeCloseTo(before.y, 0);
+        expect(now.height, `${name}: Leiste Höhe`).toBeCloseTo(before.height, 0);
+      };
+      const onTop = async (panel: Locator, name: string) => {
+        await expect(panel, name).toBeVisible();
+        const hit = await panel.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const top = document.elementFromPoint(r.x + r.width / 2, r.y + Math.min(r.height / 2, 20));
+          const low = document.elementFromPoint(r.x + r.width / 2, r.bottom - 2);
+          return !!top && el.contains(top) && !!low && el.contains(low);
+        });
+        expect(hit, `${name}: Panel liegt oben`).toBe(true);
+      };
+
+      // Kontoliste
+      await dashboard.accountSelect.click();
+      const list = page.locator(`[id="${await dashboard.accountSelect.getAttribute('aria-controls')}"]`);
+      await onTop(list, 'Kontoliste');
+      const lb = await list.boundingBox();
+      expect(lb!.width, 'Kontoliste lesbar breit').toBeGreaterThanOrEqual(200);
+      expect(lb!.x + lb!.width, 'Kontoliste im Fenster').toBeLessThanOrEqual(size.width);
+      await sameBar('Kontoliste');
+      await dashboard.closeAccountList();
+
+      // ⋯-Menü
+      await dashboard.openAccountMenu();
+      await onTop(page.getByTestId('control-bar').getByRole('button', { name: msg('account.action.add') }), 'Kontomenü');
+      await sameBar('Kontomenü');
+      await page.keyboard.press('Escape');
+
+      // Kopf-Menü
+      await page.getByTestId('connection-chip').click();
+      await onTop(page.getByTestId('header-menu-panel'), 'Kopf-Menü');
+      await sameBar('Kopf-Menü');
+    });
+
+    test('Anheften-Knopf schaltet die Kennzahlen um, Wahl bleibt gespeichert', { tag: '@UI-09' }, async ({ page, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      // Unter sm liegt der Knopf im ⋯-Menü
+      const togglePin = async () => {
+        if (size.width < 640) {
+          await dashboard.openAccountMenu();
+          await page.getByTestId('metrics-pin-menu').click();
+        } else {
+          await page.getByTestId('metrics-pin').click();
+        }
+      };
+      const pinned = async () => (await page.getByTestId('metrics-pin').getAttribute('data-pinned')) === 'true';
+      expect(await pinned()).toBe(true);
+      await togglePin();
+      await expect.poll(pinned).toBe(false);
+      await scrollToEnd(page);
+      await expect(page.getByTestId('metric-profit')).not.toBeInViewport();
+      await expect(page.getByTestId('control-bar')).toBeInViewport();
+
+      await page.reload();
+      await dashboard.selectAccount(DEMO_ID);
+      await expect.poll(pinned).toBe(false);
+      await togglePin();
+      await scrollToEnd(page);
+      await expect(page.getByTestId('metric-profit')).toBeInViewport();
+    });
+
+    test('Speichern-Hinweis erscheint nur bei Änderungen', { tag: '@UI-09' }, async ({ page, worker, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      const hint = page.getByTestId('bar-unsaved');
+      await expect(hint).toBeHidden();
+      await dashboard.zoneField(msg('zone.field.maxPrice')).fill('135');
+      await scrollToEnd(page);
+      await expect(hint).toBeInViewport();
+      await expect(page.getByTestId('control-bar')).toContainText(msg('saveBar.unsaved.short'));
+      await hint.getByRole('button', { name: msg('common.save') }).click();
+      await expect(hint).toBeHidden();
+      expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ max_price: 135 });
+    });
+  });
+}

@@ -17,7 +17,8 @@ const MIN_INTERVAL = 1;
 const MAX_INTERVAL = 60;
 const STEP_INTERVAL = 0.1;
 
-export default function SettingsForm() {
+/** `bar`: in der Steuerleiste (ab `sm`); `menu`: im ⋯-Menü der Leiste (unter `sm`, wo der Platz fehlt). */
+export default function SettingsForm({ variant = 'bar' }: { variant?: 'bar' | 'menu' } = {}) {
   const t = useT();
   const fmt = useFormat();
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
@@ -90,9 +91,13 @@ export default function SettingsForm() {
 
   return (
     <div
-      data-testid="general-settings"
+      data-testid={variant === 'bar' ? 'general-settings' : 'general-settings-menu'}
       data-tooltip-scope
-      className="order-3 flex min-w-0 flex-wrap items-center gap-2 xl:border-l xl:border-border xl:pl-4"
+      className={
+        variant === 'bar'
+          ? 'order-3 flex min-w-0 flex-wrap items-center gap-2 max-sm:hidden xl:border-l xl:border-border xl:pl-4'
+          : 'flex flex-wrap items-center gap-2 p-1.5'
+      }
     >
       <FieldLabel
         label={t('settings.interval')}

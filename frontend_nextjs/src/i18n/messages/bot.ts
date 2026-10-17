@@ -43,6 +43,8 @@ export default defineArea(
     'metrics.engineStopped': 'Motor durdu',
     'metrics.positions': 'Açık Pozisyonlar',
     'metrics.pending': 'Bekleyen Emirler',
+    'metrics.pin': 'Göstergeleri sabitle',
+    'metrics.unpin': 'Göstergelerin sabitlemesini kaldır',
   },
   {
     'bot.status.connecting': 'Connecting…',
@@ -86,6 +88,8 @@ export default defineArea(
     'metrics.engineStopped': 'Engine stopped',
     'metrics.positions': 'Open Positions',
     'metrics.pending': 'Pending Orders',
+    'metrics.pin': 'Pin metrics',
+    'metrics.unpin': 'Unpin metrics',
   },
   {
     'bot.status.connecting': 'Verbindung wird aufgebaut…',
@@ -129,5 +133,7 @@ export default defineArea(
     'metrics.engineStopped': 'Engine gestoppt',
     'metrics.positions': 'Offene Positionen',
     'metrics.pending': 'Pending Orders',
+    'metrics.pin': 'Kennzahlen anheften',
+    'metrics.unpin': 'Kennzahlen lösen',
   },
 );

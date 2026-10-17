@@ -1044,7 +1044,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 6
+      "tests": 14
     }
   },
   "UPD-01": {

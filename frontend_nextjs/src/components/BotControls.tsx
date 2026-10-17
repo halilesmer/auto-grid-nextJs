@@ -142,15 +142,15 @@ export default function BotControls() {
   return (
     // `contents`: durum/butonlar ve alarm satırı kontrol çubuğunun (page.tsx) kendi flex öğeleri olur
     <div data-testid="bot-controls" className="contents">
-      <div className="order-3 flex min-w-0 basis-full items-center gap-2 sm:basis-auto xl:border-l xl:border-border xl:pl-4">
+      <div className="order-2 flex min-w-0 items-center gap-2 xl:border-l xl:border-border xl:pl-4">
         {/* Durum */}
         <Tooltip
           content={activeAccount ? `${status.hint}\n${activeAccount.account_name} · ${activeAccount.server}` : status.hint}
-          className="min-w-0 flex-1 sm:flex-none"
+          className="min-w-0 shrink-0"
         >
-          <div className={cn("flex h-9 w-full min-w-0 items-center gap-2 rounded-md border px-3", status.box)}>
+          <div className={cn("flex h-9 w-full min-w-0 items-center gap-2 rounded-md border px-2.5 sm:px-3", status.box)}>
             <StatusDot tone={status.tone} pulse={status.tone !== "neutral"} />
-            <span data-testid="bot-status" className="truncate text-sm font-semibold">{status.label}</span>
+            <span data-testid="bot-status" className="truncate text-sm font-semibold max-sm:sr-only">{status.label}</span>
           </div>
         </Tooltip>
 
@@ -163,7 +163,7 @@ export default function BotControls() {
             hint={busy ? t("bot.connecting.hint") : startHint}
           >
             {!busy && (processWithoutMt5 ? <RotateCcw size={15} /> : <Play size={15} fill="currentColor" />)}
-            {busy ? t("bot.connecting") : startLabel}
+            <span className="max-sm:sr-only">{busy ? t("bot.connecting") : startLabel}</span>
           </Button>
         )}
         {(liveData.mt5_connected || processWithoutMt5) && (
@@ -174,7 +174,7 @@ export default function BotControls() {
             hint={t("bot.stop.hint")}
           >
             {!loading && <Pause size={15} fill="currentColor" />}
-            {t("bot.stop")}
+            <span className="max-sm:sr-only">{t("bot.stop")}</span>
           </Button>
         )}
       </div>
