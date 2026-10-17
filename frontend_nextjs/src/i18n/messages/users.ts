@@ -63,7 +63,7 @@ export default defineArea(
     'auth.adminOnly.body':
       'This page needs the administrator key. With your personal key you only see and manage your own accounts.',
     'auth.identity': 'Connected as {name} ({role}).',
-    'auth.role.admin': 'Administrator',
+    'auth.role.admin': 'Admin',
     'auth.role.user': 'User',
 
     'users.eyebrow': 'Administration',
@@ -109,7 +109,7 @@ export default defineArea(
     'users.delete.failed': 'Could not delete the user',
 
     'users.owner.label': 'Owner',
-    'users.owner.none': 'Administrator (no owner)',
+    'users.owner.none': 'Admin (no owner)',
   },
   {
     'auth.checking': 'Zugriff wird geprüft …',
@@ -117,7 +117,7 @@ export default defineArea(
     'auth.adminOnly.body':
       'Diese Seite braucht den Administrator-Schlüssel. Mit deinem persönlichen Schlüssel siehst und verwaltest du nur deine eigenen Konten.',
     'auth.identity': 'Verbunden als {name} ({role}).',
-    'auth.role.admin': 'Administrator',
+    'auth.role.admin': 'Admin',
     'auth.role.user': 'Benutzer',
 
     'users.eyebrow': 'Verwaltung',
@@ -163,6 +163,6 @@ export default defineArea(
     'users.delete.failed': 'Benutzer konnte nicht gelöscht werden',
 
     'users.owner.label': 'Besitzer',
-    'users.owner.none': 'Administrator (ohne Besitzer)',
+    'users.owner.none': 'Admin (ohne Besitzer)',
   },
 );

@@ -1,4 +1,4 @@
-/** ACC · Konten: Liste, Anlegen, Duplikat, Bearbeiten, Löschen, Auswahl, Kontowechsel, LIVE/TEST-Kennzeichnung. */
+/** ACC · Konten: Liste, Anlegen, Duplikat, Bearbeiten, Löschen, Auswahl, Kontowechsel, LIVE/DEMO-Kennzeichnung. */
 import { DEMO_ID, LIVE_ID, MT5_PATH, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
 import { fmt, msg } from '../fixtures/i18n';
 
@@ -96,9 +96,9 @@ test.describe('ACC Konten', () => {
     );
   });
 
-  test('LIVE/TEST-Kennzeichnung', { tag: '@ACC-07' }, async ({ page, dashboard }) => {
+  test('LIVE/DEMO-Kennzeichnung', { tag: '@ACC-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.test'));
+    await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.demo'));
 
     await dashboard.selectAccount(LIVE_ID);
     await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.live'));

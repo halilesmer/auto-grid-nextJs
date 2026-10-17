@@ -682,7 +682,7 @@ export default defineArea(
     'users.key.done.hint': 'Closes the window. The key will not be shown again.',
     'users.rotate.confirm.hint': 'Generates the new key and invalidates the old one immediately.',
     'users.delete.confirm.hint': 'Permanently deletes the user and their key; their accounts become unassigned.',
-    'users.owner.label.hint': 'Owner of the account. A user only sees and manages their own accounts; with “Administrator” selected only the administrator key sees the account.',
+    'users.owner.label.hint': 'Owner of the account. A user only sees and manages their own accounts; with “Admin” selected only the administrator key sees the account.',
 
     // --- VPS connection ---
     'connection.chip.hint': 'Worker (VPS) connection: {status}. Click to open the connection dialog.',
@@ -1208,7 +1208,7 @@ export default defineArea(
     'users.key.done.hint': 'Schließt das Fenster. Der Schlüssel wird danach nicht mehr angezeigt.',
     'users.rotate.confirm.hint': 'Erzeugt den neuen Schlüssel und macht den alten sofort ungültig.',
     'users.delete.confirm.hint': 'Löscht den Benutzer samt Schlüssel endgültig; seine Konten sind danach ohne Besitzer.',
-    'users.owner.label.hint': 'Besitzer des Kontos. Ein Benutzer sieht und verwaltet nur seine eigenen Konten; bei „Administrator“ sieht das Konto nur der Administrator-Schlüssel.',
+    'users.owner.label.hint': 'Besitzer des Kontos. Ein Benutzer sieht und verwaltet nur seine eigenen Konten; bei „Admin“ sieht das Konto nur der Administrator-Schlüssel.',
 
     // --- VPS-Verbindung ---
     'connection.chip.hint': 'Worker-(VPS-)Verbindung: {status}. Klick öffnet den Verbindungsdialog.',

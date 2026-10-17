@@ -49,7 +49,7 @@ Eine Login-Nummer kann nur **einem** Besitzer gehören. Legt jemand ein Konto mi
 
 - **Bestehende Konten** haben keinen Besitzer und gehören damit dem Administrator. Zum Übergeben: Konto bearbeiten → Feld **Besitzer** → Benutzer wählen → Speichern. (Das Feld erscheint, sobald mindestens ein Benutzer existiert; bei laufendem Bot ist Bearbeiten wie bisher gesperrt.)
 - **Neues Konto für einen Benutzer:** beim Anlegen den Besitzer auswählen.
-- In der Kontoauswahl steht bei jedem Konto der **Besitzername** (nur für den Administrator, nur wenn es Benutzer gibt). „Administrator“ = ohne Besitzer.
+- In der Kontoauswahl steht bei jedem Konto der **Besitzername** (nur für den Administrator, nur wenn es Benutzer gibt). „Admin“ (tr „Yönetici“) = ohne Besitzer.
 - Die Spalte **Konten** auf der Benutzerseite zeigt, wie viele Konten ein Benutzer hat.
 
 ## 5. Schlüssel erneuern oder Benutzer sperren

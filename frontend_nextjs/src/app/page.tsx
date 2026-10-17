@@ -81,7 +81,7 @@ export default function Home() {
               hint={isLive ? t('account.env.live.hint') : t('account.env.demo.hint')}
             >
               <span className={`size-1.5 rounded-full ${isLive ? 'bg-danger' : 'bg-info'}`} />
-              {isLive ? t('dashboard.env.live') : t('dashboard.env.test')}
+              {isLive ? t('dashboard.env.live') : t('dashboard.env.demo')}
             </Badge>
           )}
           <AccountSelector />

@@ -3,7 +3,7 @@ import { defineArea } from './define';
 export default defineArea(
   {
     'dashboard.env.live': 'LIVE',
-    'dashboard.env.test': 'TEST',
+    'dashboard.env.demo': 'DEMO',
     'dashboard.title': 'Trading Dashboard',
     'dashboard.sysinfo.title': 'Sistem Bilgisi',
     'dashboard.sysinfo.host': 'Host',
@@ -32,7 +32,7 @@ export default defineArea(
   },
   {
     'dashboard.env.live': 'LIVE',
-    'dashboard.env.test': 'TEST',
+    'dashboard.env.demo': 'DEMO',
     'dashboard.title': 'Trading Dashboard',
     'dashboard.sysinfo.title': 'System Info',
     'dashboard.sysinfo.host': 'Host',
@@ -61,7 +61,7 @@ export default defineArea(
   },
   {
     'dashboard.env.live': 'LIVE',
-    'dashboard.env.test': 'TEST',
+    'dashboard.env.demo': 'DEMO',
     'dashboard.title': 'Trading Dashboard',
     'dashboard.sysinfo.title': 'Systeminfo',
     'dashboard.sysinfo.host': 'Host',
