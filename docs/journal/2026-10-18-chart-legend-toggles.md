@@ -3,7 +3,7 @@ date: 2026-10-18
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [198]
 features: [ANA-03, ANA-11]
 areas: [frontend]
 ---
@@ -33,6 +33,8 @@ Each legend item is now a button (`aria-pressed`). Off = faded and struck throug
 - New e2e test `@ANA-03` (legend hides only pending orders, gear follows, choice stays after reload): red against the old code (legend button missing), green after the change.
 - `npx tsc --noEmit` → 0 errors; `npm run lint` → 0 problems.
 - e2e analysis, trades, backtest and UI-07 tooltip specs → 293 passed.
+- CI found an overflow at 375 px in German (UI-08: page 418 px wide). Cause: the `Tooltip` anchor is `shrink-0`, so the grouped history button could not wrap. Fix: `max-w-full` on the anchor, `min-w-0` on the button. Full mocked suite → 578 passed.
 
 ## Lessons
 - A legend that removes switched-off items cannot be a switch: the item must stay visible in its off state.
+- Run the full mocked suite before the push, not only the specs of the area: UI-08 checks the chart page in German at 375 px.

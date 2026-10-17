@@ -205,14 +205,15 @@ function LegendToggle({
   testId: string;
 }) {
   return (
-    <Tooltip content={hint}>
+    // max-w-full: der Anker ist sonst shrink-0, und der Sammelknopf (Einstieg/Ausstieg/unbekannt) könnte bei 375 px nicht umbrechen
+    <Tooltip content={hint} className="max-w-full">
       <button
         type="button"
         aria-pressed={active}
         onClick={onToggle}
         data-testid={testId}
         className={cn(
-          'inline-flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'inline-flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           !active && 'opacity-50 line-through',
         )}
       >
