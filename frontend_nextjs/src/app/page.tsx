@@ -52,7 +52,7 @@ export default function Home() {
   const [metricsPinned, setMetricsPinned] = usePinnedMetrics();
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
+    <div className="mx-auto max-w-[1400px] space-y-3 px-2 py-3 sm:space-y-5 sm:px-4 sm:py-6 md:px-8 md:py-8">
       <h1 className="sr-only">{t('dashboard.title')}</h1>
       {transfer && isDirty && <Alert tone="warning" title={t('backtest.transfer.unsaved')}>
         {isRunning ? t('backtest.transfer.running') : t('backtest.transfer.notice')}
@@ -61,9 +61,9 @@ export default function Home() {
       {/* Kontrol çubuğu: hesap, bot kontrolü ve genel ayarlar tek satırda; sistem menüsü üst menüde (HeaderMenu) */}
       {/* Sıra (order-*): hesap 1 · bot + aralık 3 (BotControls/SettingsForm içinde) · alarmlar order-last, tam genişlik */}
       {/* Fixierter Bereich (UI-09): bei jeder Breite direkt unter der Navigation. Stapel: Navigation z-50 · Bereich z-20 · Dropdown-Panels absolut im Bereich (z-30, Kontoliste z-50). Bei kleiner Höhe (Querformat) scrollt der Bereich mit, sonst bliebe kein Platz für die Seite. */}
-      <div data-testid="sticky-area" className="sticky top-(--nav-height) z-20 [@media(max-height:32rem)]:static -mx-4 space-y-2 bg-background/95 px-4 pb-2 backdrop-blur md:-mx-8 md:px-8">
-      <Card data-testid="control-bar" className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 bg-card p-2 sm:gap-y-3 sm:p-3">
-        <div className="order-1 flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+      <div data-testid="sticky-area" className="sticky top-(--nav-height) z-20 [@media(max-height:32rem)]:static -mx-2 space-y-2 bg-background/95 px-2 pb-2 sm:-mx-4 sm:px-4 backdrop-blur md:-mx-8 md:px-8">
+      <Card data-testid="control-bar" className="relative z-10 flex flex-wrap items-center gap-x-2 gap-y-2 bg-card p-1.5 sm:gap-x-4 sm:gap-y-3 sm:p-3">
+        <div className="order-1 flex min-w-44 flex-1 items-center gap-2 sm:min-w-0 sm:flex-none">
           {activeAccount && (
             <Badge
               tone={isLive ? 'danger' : 'info'}
@@ -134,7 +134,7 @@ export default function Home() {
         <>
           {!metricsPinned && <MetricsStrip />}
 
-          <Card className="p-5">
+          <Card className="p-2 sm:p-5">
             <ZoneSettingsPanel
               selectedAccount={selectedAccount}
               isRunning={isRunning}

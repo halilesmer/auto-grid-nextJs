@@ -55,7 +55,7 @@ export function ZoneCard({
         modified && 'border-warning/30',
       )}
     >
-      <div className="border-b border-border px-3 py-3 sm:px-4">
+      <div className="border-b border-border px-2.5 py-2 sm:px-4 sm:py-3">
         <ZoneHeader
           zone={zone}
           title={title}

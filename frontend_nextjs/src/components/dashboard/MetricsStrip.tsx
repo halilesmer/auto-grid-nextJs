@@ -29,7 +29,7 @@ function Metric({ label, hint, icon, value, valueClassName, status, accent, test
       // Zielwert für Tests: die Ziffern-Animation zeigt während des Wechsels alte + neue Zeichen
       data-value={value}
       className={cn(
-        'group relative flex h-10 items-center gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3 backdrop-blur-sm transition-colors hover:border-foreground/15',
+        'group relative flex h-9 min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-border bg-card/80 px-2.5 sm:h-10 sm:gap-2 sm:rounded-xl sm:px-3 backdrop-blur-sm transition-colors hover:border-foreground/15',
         className,
       )}
     >
@@ -40,8 +40,8 @@ function Metric({ label, hint, icon, value, valueClassName, status, accent, test
         )}
       />
       <span className="hidden shrink-0 text-muted-foreground opacity-70 sm:inline-flex">{icon}</span>
-      <span data-slot="metric-label" className="flex shrink-0 items-center text-muted-foreground">
-        <FieldLabel label={label} hint={hint} className="text-xs font-medium" />
+      <span data-slot="metric-label" className="flex min-w-0 items-center text-muted-foreground">
+        <FieldLabel label={label} hint={hint} className="min-w-0 text-xs font-medium [&>span:first-child]:truncate" />
       </span>
       {status && (
         <span data-testid={`${testId}-status`} className="min-w-0 truncate text-xs text-muted-foreground">
@@ -52,7 +52,7 @@ function Metric({ label, hint, icon, value, valueClassName, status, accent, test
         <AnimateDigits
         value={value}
         gap={0}
-        className={cn('font-mono text-lg font-semibold tracking-tight text-foreground', valueClassName)}
+        className={cn('font-mono text-base font-semibold sm:text-lg tracking-tight text-foreground', valueClassName)}
         enterBlur={6}
         enterY={14}
         animationDelay={40}
@@ -78,7 +78,7 @@ export default function MetricsStrip() {
   const profitNegative = liveData.profit < 0;
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
       <Metric
         label={t('metrics.profit')}
         hint={t('metrics.profit.hint')}

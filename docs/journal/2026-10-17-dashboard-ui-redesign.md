@@ -99,6 +99,22 @@ New: `header-menu.spec.ts` (UI-01): one row of 56 px, ☰ below `lg`, menu conte
 | Review fixes | Hint texts of the pin keys describe the action of the label. `usePinnedMetrics` keeps the choice in memory when `localStorage` is blocked. `aria-pressed` was replaced by `data-pinned`, because the label already changes with the state. Below 32 rem of height the fixed area is `static` (landscape phones). Tests check the lower edge of each panel and the width of the account list. |
 | Not done | `scroll-padding-top` for keyboard focus below the fixed area (WCAG 2.4.11). The area has no fixed height, so a safe value needs a measured height. The unsaved hint adds a row below `sm` and moves the page by one row while it shows. Both are follow-ups. |
 
+### Mobile compaction (between S3 and S4)
+
+Request: on 375 and 393 px the page must go almost to the screen edge, and text and controls must be a little smaller. The account selector in the bar showed an empty narrow box, and the metric row overflowed on the right ("Pending Orders 1…").
+
+Cause: the account group (`order-1` in `page.tsx`) had `min-w-0`, so the bar could shrink it to the chevron only. The metric label had `shrink-0`, so a long German label pushed the value out of the tile.
+
+Solution: only spacing and sizes, no card structure (that is S6). Base classes are for mobile, `sm:` restores the old value, so `sm` and larger stay as before.
+
+- Page: `px-2 py-3 space-y-3`, sticky area `-mx-2 px-2`, control bar `p-1.5 gap-x-2`, zone panel card `p-2`.
+- Symbol card, setup card and setup body: smaller padding below `sm`.
+- `Button` sizes and the bot status box: one step smaller below `sm` (`md` 32 px, `icon` 32 px).
+- `.input-s`: 32 px high and 13 px text below `40rem` (`globals.css`).
+- Metric tiles: 36 px, label truncates, value `text-base`.
+- Account group: `min-w-44` below `sm`, so the bar wraps before the selector loses its name.
+- Grid block in `ZoneGridFields`: `max-sm:basis-full`. Before, it had its own row only because the card was narrow; with the wider card, Lot moved up next to it (test UI-08 "Kompaktes Setup" failed in tr and en).
+
 ## Why
 
 | Decision | Reason |
@@ -151,6 +167,9 @@ Run the sessions in this order: S1, S2, S5, S3, S4, S6. The column "In parallel"
 | S3: screenshots in Turkish, 1440 and 375 px, light and dark, list open, unsaved hint visible | bar below the navigation, list covers the bar and the metrics, no overflow |
 
 Note: the test `tooltips.spec.ts` "Der Hinweis folgt der gewählten Sprache" (UI-07) failed in two full runs and on the unchanged base. It passed in other runs. It is not caused by S3.
+| Mobile: `npm run lint`, `npx tsc --noEmit` | green |
+| Mobile: `scripts/features/run.sh e2e 'UI\|MET\|ACC\|ZON'` | first 2 failed (grid block, see above), after the fix 188 passed |
+| Mobile: screenshots in German, 375 and 1440 px, light and dark, before and after | account name visible, `scrollWidth` 375, 1440 px unchanged |
 
 After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then look at `localhost:3000` against the live worker (read only): scroll, the bar stays visible, the header menu shows the connection status.
 
@@ -162,6 +181,7 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 | S2 | in PR | #190 |
 | S5 | in PR | see PR |
 | S3 | in PR | see PR |
+| Mobile | in PR | see PR |
 | S4 | open | |
 | S6 | open | |
 
@@ -170,5 +190,6 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 - [x] S2: W4 + W5 + V4 (in PR #190)
 - [x] S5: W6 (in PR). Tiles are one row. The engine status stays next to the label of the P/L tile. The static footers moved into the hints.
 - [x] S3: W3 + V2 + V3 (in PR). Follow-ups: `scroll-padding-top` for focus, row jump of the unsaved hint at 375 px.
+- [x] Mobile compaction (in PR).
 - [ ] S4: W7
 - [ ] S6: W8 + V1

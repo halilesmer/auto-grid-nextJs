@@ -189,6 +189,15 @@
     transition: border-color 150ms, box-shadow 150ms, background-color 150ms;
   }
 
+  /* Mobil (< sm): etwas kleinere Felder, damit Karten bis an den Rand dichter werden; ab sm unverändert */
+  @media (width < 40rem) {
+    .input-s {
+      height: 2rem;
+      padding: 0 0.625rem;
+      font-size: 0.8125rem;
+    }
+  }
+
   .input-s:hover:not(:disabled) {
     border-color: color-mix(in oklab, var(--foreground) 22%, transparent);
   }
