@@ -2,8 +2,8 @@
 date: 2026-10-17
 author: Claude
 type: plan
-status: open
-pr: [189, 190, 191]
+status: done
+pr: [189, 190, 191, 192, 193, 194, 195, 196]
 features: [UI-01, UI-02, UI-05, UI-08, UI-09, SYS-09, UPD-01, UPD-03, ACC-07, USR-03, MET-01, ZON-13, ZON-20]
 areas: [frontend, tests]
 ---
@@ -191,19 +191,22 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 | Session | Status | PR |
 |---|---|---|
 | S1 | done | #189 |
-| S2 | in PR | #190 |
-| S5 | in PR | see PR |
-| S3 | in PR | see PR |
-| Mobile | in PR | see PR |
-| S4 | in PR | see PR |
-| S6 | open | |
+| S2 | done | #190 |
+| S5 | done | #191 |
+| S3 | done | #192 |
+| Mobile | done | #193 |
+| S6 | done | #194 |
+| S4 | done | #195 |
+| S7 | done | #196 |
+
+Live check 2026-10-18 on `localhost:3000` (DEMO account, read only): the bar stays at the top while the user scrolls. "Add symbol" is in the bar. A changed field shows "unsaved" with "Discard". "Discard" opens the confirm dialog. After confirmation the value goes back to the saved value and the hint goes away. Nothing was saved.
 
 ## Open points
 
-- [x] S2: W4 + W5 + V4 (in PR #190)
+- [x] S2: W4 + W5 + V4 (#190)
 - [x] S5: W6 (in PR). Tiles are one row. The engine status stays next to the label of the P/L tile. The static footers moved into the hints.
 - [x] S3: W3 + V2 + V3 (in PR). Follow-ups: `scroll-padding-top` for focus, row jump of the unsaved hint at 375 px.
 - [x] Mobile compaction (in PR).
 - [x] S4: W7 (in PR)
-- [ ] S6: W8 + V1
+- [x] S6: W8 + V1 (#194). Not done: label/value rows of draft A, because they change `setup-layout.spec.ts`.
 - [x] S7: W9 (in PR). The unsaved hint in the control bar has a "Discard" button (UI-09). It opens a confirm dialog and then calls the existing `handleDiscard`. The floating bar button is unchanged, because `symbol-cards.spec.ts` (ZON-20) clicks it without a dialog. Not done: screenshots at 1440 and 375 px.
