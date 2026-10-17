@@ -229,5 +229,26 @@ for (const size of [{ width: 1440, height: 600 }, { width: 375, height: 600 }]) 
       await expect(hint).toBeHidden();
       expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ max_price: 135 });
     });
+
+    test('Verwerfen in der Leiste fragt nach und stellt den gespeicherten Stand wieder her', { tag: '@UI-09' }, async ({ page, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      const hint = page.getByTestId('bar-unsaved');
+      const field = dashboard.zoneField(msg('zone.field.maxPrice'));
+      const before = await field.inputValue();
+      await field.fill('135');
+      const discard = hint.getByRole('button', { name: msg('saveBar.discard') });
+      await discard.click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByRole('button', { name: msg('saveBar.discardConfirm.cancel') }).click();
+      await expect(dialog).toBeHidden();
+      await expect(field).toHaveValue('135');
+      await expect(hint).toBeVisible();
+
+      await discard.click();
+      await dialog.getByRole('button', { name: msg('saveBar.discardConfirm.confirm') }).click();
+      await expect(field).toHaveValue(before);
+      await expect(hint).toBeHidden();
+      await expect(page.getByTestId('control-bar')).not.toContainText(msg('saveBar.unsaved.short'));
+    });
   });
 }
