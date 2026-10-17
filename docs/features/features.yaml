@@ -960,7 +960,7 @@ kategorien:
     features:
       - id: MET-01
         titel: Kennzahlenleiste
-        beschreibung: Vier Kacheln Preis, Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern.
+        beschreibung: Drei einzeilige Kacheln (Icon, Label mit Hinweis, Wert rechts) für Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern; der Motorstatus steht neben dem Label der P/L-Kachel, statische Erklärungen im Hinweis.
         code: [frontend_nextjs/src/components/dashboard/MetricsStrip.tsx]
         tiers: [e2e, live]
         pruefung:

@@ -140,7 +140,7 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 |---|---|---|
 | S1 | done | #189 |
 | S2 | in PR | #190 |
-| S5 | open | |
+| S5 | in PR | see PR |
 | S3 | open | |
 | S4 | open | |
 | S6 | open | |
@@ -148,7 +148,7 @@ After S4, run `scripts/features/run.sh e2e 'UI|ZON|MET|ACC'` once in full. Then 
 ## Open points
 
 - [x] S2: W4 + W5 + V4 (in PR #190)
-- [ ] S5: W6
+- [x] S5: W6 (in PR). Tiles are one row. The engine status stays next to the label of the P/L tile. The static footers moved into the hints.
 - [ ] S3: W3 + V2 + V3
 - [ ] S4: W7
 - [ ] S6: W8 + V1

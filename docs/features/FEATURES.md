@@ -474,7 +474,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 ## 9. MET – Live-Daten & Diagramm
 
 - [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-10-17 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
-  - Vier Kacheln Preis, Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern.
+  - Drei einzeilige Kacheln (Icon, Label mit Hinweis, Wert rechts) für Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern; der Motorstatus steht neben dem Label der P/L-Kachel, statische Erklärungen im Hinweis.
   - **Prüfung:** Bot laufen lassen, Werte mit MT5 vergleichen.
   - **Erwartet:** Werte stimmen mit MT5 überein und aktualisieren sich.
   - 📝 Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen, 5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen

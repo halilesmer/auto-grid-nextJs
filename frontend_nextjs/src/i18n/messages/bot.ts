@@ -42,9 +42,7 @@ export default defineArea(
     'metrics.live': 'MT5’ten canlı',
     'metrics.engineStopped': 'Motor durdu',
     'metrics.positions': 'Açık Pozisyonlar',
-    'metrics.positions.footer': 'Dolan grid seviyeleri',
     'metrics.pending': 'Bekleyen Emirler',
-    'metrics.pending.footer': 'Brokerda bekliyor',
   },
   {
     'bot.status.connecting': 'Connecting…',
@@ -87,9 +85,7 @@ export default defineArea(
     'metrics.live': 'Live from MT5',
     'metrics.engineStopped': 'Engine stopped',
     'metrics.positions': 'Open Positions',
-    'metrics.positions.footer': 'Filled grid levels',
     'metrics.pending': 'Pending Orders',
-    'metrics.pending.footer': 'Waiting at broker',
   },
   {
     'bot.status.connecting': 'Verbindung wird aufgebaut…',
@@ -132,8 +128,6 @@ export default defineArea(
     'metrics.live': 'Live von MT5',
     'metrics.engineStopped': 'Engine gestoppt',
     'metrics.positions': 'Offene Positionen',
-    'metrics.positions.footer': 'Gefüllte Grid-Level',
     'metrics.pending': 'Pending Orders',
-    'metrics.pending.footer': 'Warten beim Broker',
   },
 );
