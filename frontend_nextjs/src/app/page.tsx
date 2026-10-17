@@ -138,7 +138,7 @@ export default function Home() {
                   <span className="size-2 rounded-full bg-warning" />
                   {t('saveBar.unsaved.short')}
                 </span>
-                <Button variant="ghost" size="sm" onClick={() => setDiscardOpen(true)} disabled={saveAllLoading} hint={t('saveBar.discard.hint')}>
+                <Button variant="ghost" size="sm" onClick={() => setDiscardOpen(true)} disabled={saveAllLoading} hint={t(saveAllLoading ? 'saveBar.discard.saving.hint' : 'saveBar.discard.hint')}>
                   <Undo2 size={14} />
                   {t('saveBar.discard')}
                 </Button>
@@ -170,8 +170,8 @@ export default function Home() {
         open={discardOpen}
         onClose={() => setDiscardOpen(false)}
         onConfirm={() => {
-          handleDiscard();
-          setDiscardOpen(false);
+          // Während des Speicherns würde das Verwerfen den Referenzstand verfälschen
+          if (!saveAllLoading) handleDiscard();
         }}
         title={t('saveBar.discardConfirm.title')}
         message={t('saveBar.discardConfirm.message')}

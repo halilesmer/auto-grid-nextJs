@@ -237,6 +237,7 @@ for (const size of [{ width: 1440, height: 600 }, { width: 375, height: 600 }]) 
       const before = await field.inputValue();
       await field.fill('135');
       const discard = hint.getByRole('button', { name: msg('saveBar.discard') });
+      await expectInViewport(page, discard, 'Verwerfen');
       await discard.click();
       const dialog = page.getByRole('dialog');
       await dialog.getByRole('button', { name: msg('saveBar.discardConfirm.cancel') }).click();
