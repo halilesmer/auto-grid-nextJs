@@ -747,7 +747,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     },
     "live": {
       "datum": "2026-09-24",

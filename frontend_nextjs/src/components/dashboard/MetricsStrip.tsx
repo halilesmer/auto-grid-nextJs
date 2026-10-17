@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Clock, Layers, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { Clock, Layers, TrendingDown, TrendingUp } from 'lucide-react';
 import { AnimateDigits } from '@/components/ui/animate-digits';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -15,18 +15,23 @@ interface MetricProps {
   icon: ReactNode;
   value: string;
   valueClassName?: string;
-  footer?: ReactNode;
+  /** Dynamischer Zustand (z. B. Motor gestoppt); statische Erklärungen stehen im Hinweis. */
+  status?: ReactNode;
   accent?: string;
   testId: string;
+  className?: string;
 }
 
-function Metric({ label, hint, icon, value, valueClassName, footer, accent, testId }: MetricProps) {
+function Metric({ label, hint, icon, value, valueClassName, status, accent, testId, className }: MetricProps) {
   return (
     <div
       data-testid={testId}
       // Zielwert für Tests: die Ziffern-Animation zeigt während des Wechsels alte + neue Zeichen
       data-value={value}
-      className="group relative overflow-hidden rounded-xl border border-border bg-card/80 p-4 backdrop-blur-sm transition-colors hover:border-foreground/15"
+      className={cn(
+        'group relative flex h-10 items-center gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3 backdrop-blur-sm transition-colors hover:border-foreground/15',
+        className,
+      )}
     >
       <div
         className={cn(
@@ -34,24 +39,30 @@ function Metric({ label, hint, icon, value, valueClassName, footer, accent, test
           accent ?? 'bg-primary/20',
         )}
       />
-      <div className="flex items-center justify-between text-muted-foreground">
+      <span className="hidden shrink-0 text-muted-foreground opacity-70 sm:inline-flex">{icon}</span>
+      <span data-slot="metric-label" className="flex shrink-0 items-center text-muted-foreground">
         <FieldLabel label={label} hint={hint} className="text-xs font-medium" />
-        <span className="opacity-70">{icon}</span>
-      </div>
-      <AnimateDigits
+      </span>
+      {status && (
+        <span data-testid={`${testId}-status`} className="min-w-0 truncate text-xs text-muted-foreground">
+          {status}
+        </span>
+      )}
+      <span data-slot="metric-value" className="ml-auto shrink-0">
+        <AnimateDigits
         value={value}
         gap={0}
-        className={cn('mt-2 font-mono text-2xl font-semibold tracking-tight text-foreground', valueClassName)}
+        className={cn('font-mono text-lg font-semibold tracking-tight text-foreground', valueClassName)}
         enterBlur={6}
         enterY={14}
         animationDelay={40}
       />
-      {footer && <div className="mt-1.5 text-xs text-muted-foreground">{footer}</div>}
+      </span>
     </div>
   );
 }
 
-function engineFooterKey({ isConnecting, mt5Connected }: { isConnecting: boolean; mt5Connected: boolean }): MessageKey {
+function engineStatusKey({ isConnecting, mt5Connected }: { isConnecting: boolean; mt5Connected: boolean }): MessageKey {
   if (isConnecting) return 'metrics.connecting';
   if (mt5Connected) return 'metrics.live';
   return 'metrics.engineStopped';
@@ -76,7 +87,8 @@ export default function MetricsStrip() {
         value={formatMoney(liveData.profit, true)}
         valueClassName={cn(profitPositive && 'text-success', profitNegative && 'text-danger')}
         accent={profitNegative ? 'bg-danger/20' : 'bg-success/20'}
-        footer={t(engineFooterKey({ isConnecting, mt5Connected: Boolean(liveData.mt5_connected) }))}
+        className="col-span-2 lg:col-span-1"
+        status={t(engineStatusKey({ isConnecting, mt5Connected: Boolean(liveData.mt5_connected) }))}
       />
       <Metric
         label={t('metrics.positions')}
@@ -85,7 +97,6 @@ export default function MetricsStrip() {
         icon={<Layers size={14} />}
         value={String(liveData.open_positions)}
         accent="bg-info/20"
-        footer={t('metrics.positions.footer')}
       />
       <Metric
         label={t('metrics.pending')}
@@ -94,11 +105,6 @@ export default function MetricsStrip() {
         icon={<Clock size={14} />}
         value={String(liveData.pending_orders)}
         accent="bg-secondary/25"
-        footer={
-          <span className="flex items-center gap-1.5">
-            <Wallet size={12} /> {t('metrics.pending.footer')}
-          </span>
-        }
       />
     </div>
   );

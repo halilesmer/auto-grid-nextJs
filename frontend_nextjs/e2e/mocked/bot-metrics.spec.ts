@@ -97,6 +97,30 @@ test.describe('MET Live-Daten', () => {
     await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.engineStopped'));
   });
 
+  test('Kennzahl-Kacheln sind einzeilig: Label links, Wert rechts, ohne Überlauf', { tag: '@MET-01' }, async ({ page, worker, dashboard }) => {
+    worker.setBotRunning(DEMO_ID);
+    for (const width of [1440, 375]) {
+      await page.setViewportSize({ width, height: 900 });
+      await dashboard.open(DEMO_ID);
+      for (const id of ['metric-profit', 'metric-positions', 'metric-pending']) {
+        const tile = page.getByTestId(id);
+        const box = await tile.boundingBox();
+        expect(box!.height, `${id} @${width}`).toBeLessThanOrEqual(48);
+        // Wert steht rechts, auf gleicher Höhe wie das Label
+        const label = await tile.locator('[data-slot="metric-label"]').boundingBox();
+        const value = await tile.locator('[data-slot="metric-value"]').boundingBox();
+        expect(Math.abs(label!.y + label!.height / 2 - (value!.y + value!.height / 2)), id).toBeLessThanOrEqual(4);
+        expect(value!.x, id).toBeGreaterThan(label!.x);
+        // (i)-Hinweis liegt vollständig in der Kachel (nicht abgeschnitten)
+        const hint = await tile.getByTestId('field-hint').boundingBox();
+        expect(hint!.x + hint!.width, `${id} hint @${width}`).toBeLessThanOrEqual(box!.x + box!.width);
+        expect(hint!.x + hint!.width, `${id} hint vs value`).toBeLessThanOrEqual(value!.x + 1);
+        expect(value!.x + value!.width, id).toBeLessThanOrEqual(box!.x + box!.width);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+  });
+
   test('Chart zeigt Preis, RSI, P/L und Positionen aus dem Stream', { tag: '@MET-02' }, async ({ page, worker }) => {
     await page.goto('/formasyon');
     await expect.poll(() => worker.openSockets).toBe(1);

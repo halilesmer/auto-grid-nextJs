@@ -91,7 +91,7 @@ export default defineArea(
     'chart.stat.rsi.hint':
       'RSI (Relative Strength Index): 0–100 arası momentum göstergesi. 70 üstü genelde aşırı alım, 30 altı aşırı satım sayılır. Grafikte ayrı bir çizgi olarak gösterilir.',
     'chart.stat.pl.hint': 'Açık pozisyonların toplam kâr/zararı (yüzen K/Z, henüz gerçekleşmemiş).',
-    'chart.stat.positions.hint': 'Şu anda açık olan pozisyonların sayısı.',
+    'chart.stat.positions.hint': 'Şu anda açık olan pozisyonların sayısı (dolan grid seviyeleri).',
 
     // --- Ortak ---
     'common.cancel.hint': 'İşlemi iptal eder, hiçbir şey değişmez.',
@@ -113,7 +113,7 @@ export default defineArea(
     'saveBar.saving.hint': 'Kaydediliyor…',
     'metrics.price.hint': 'Bölge sembolünün anlık fiyatı.',
     'metrics.profit.hint': 'Açık pozisyonların toplam kâr/zararı (yüzen K/Z, henüz gerçekleşmemiş).',
-    'metrics.positions.hint': 'Şu anda açık olan pozisyonların sayısı.',
+    'metrics.positions.hint': 'Şu anda açık olan pozisyonların sayısı (dolan grid seviyeleri).',
     'metrics.pending.hint': 'Broker’da bekleyen, henüz dolmamış grid emirlerinin sayısı.',
     'update.apply.hint':
       'Yeni sürümü GitHub’dan çeker (git pull) ve worker’ı yeniden başlatır; çalışan botlar sonra kendiliğinden devam eder.',
@@ -617,7 +617,7 @@ export default defineArea(
     'chart.stat.rsi.hint':
       'RSI (Relative Strength Index): a 0–100 momentum indicator. Above 70 is usually considered overbought, below 30 oversold. Drawn as a separate line in the chart.',
     'chart.stat.pl.hint': 'Total profit/loss of the open positions (floating P/L, not yet realised).',
-    'chart.stat.positions.hint': 'Number of currently open positions.',
+    'chart.stat.positions.hint': 'Number of currently open positions (filled grid levels).',
 
     // --- Common ---
     'common.cancel.hint': 'Cancels the action; nothing changes.',
@@ -639,7 +639,7 @@ export default defineArea(
     'saveBar.saving.hint': 'Saving…',
     'metrics.price.hint': 'Current price of the zone symbol.',
     'metrics.profit.hint': 'Total profit/loss of the open positions (floating P/L, not yet realised).',
-    'metrics.positions.hint': 'Number of currently open positions.',
+    'metrics.positions.hint': 'Number of currently open positions (filled grid levels).',
     'metrics.pending.hint': 'Number of grid orders waiting at the broker that are not filled yet.',
     'update.apply.hint':
       'Pulls the new version from GitHub (git pull) and restarts the worker; running bots resume on their own afterwards.',
@@ -1143,7 +1143,7 @@ export default defineArea(
     'chart.stat.rsi.hint':
       'RSI (Relative Strength Index): Momentum-Indikator von 0 bis 100. Über 70 gilt meist als überkauft, unter 30 als überverkauft. Wird im Chart als eigene Linie gezeichnet.',
     'chart.stat.pl.hint': 'Gesamtgewinn/-verlust der offenen Positionen (schwebender G/V, noch nicht realisiert).',
-    'chart.stat.positions.hint': 'Anzahl der aktuell offenen Positionen.',
+    'chart.stat.positions.hint': 'Anzahl der aktuell offenen Positionen (gefüllte Grid-Level).',
 
     // --- Allgemein ---
     'common.cancel.hint': 'Bricht die Aktion ab; nichts ändert sich.',
@@ -1165,7 +1165,7 @@ export default defineArea(
     'saveBar.saving.hint': 'Wird gespeichert…',
     'metrics.price.hint': 'Aktueller Preis des Zonen-Symbols.',
     'metrics.profit.hint': 'Gesamtgewinn/-verlust der offenen Positionen (schwebender G/V, noch nicht realisiert).',
-    'metrics.positions.hint': 'Anzahl der aktuell offenen Positionen.',
+    'metrics.positions.hint': 'Anzahl der aktuell offenen Positionen (gefüllte Grid-Level).',
     'metrics.pending.hint': 'Anzahl der beim Broker wartenden, noch nicht ausgeführten Grid-Orders.',
     'update.apply.hint':
       'Holt die neue Version von GitHub (git pull) und startet den Worker neu; laufende Bots setzen danach von selbst fort.',
