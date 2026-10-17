@@ -125,14 +125,14 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 4
+      "tests": 2
     }
   },
   "ANA-02": {
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 4
+      "tests": 2
     }
   },
   "ANA-03": {
@@ -153,7 +153,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 5
+      "tests": 1
     }
   },
   "ANA-06": {
@@ -179,14 +179,14 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 13
+      "tests": 6
     }
   },
   "ANA-09": {
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 12
+      "tests": 3
     }
   },
   "ANA-10": {
@@ -198,7 +198,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 8
+      "tests": 1
     }
   },
   "ANA-11": {
@@ -250,7 +250,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 43
+      "tests": 3
     }
   },
   "BKT-03": {
@@ -269,7 +269,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 75
+      "tests": 5
     },
     "unit": {
       "datum": "2026-10-15",
@@ -293,7 +293,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 13
+      "tests": 4
     }
   },
   "BKT-07": {
@@ -345,7 +345,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 6
+      "tests": 1
     }
   },
   "BKT-13": {
@@ -622,7 +622,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 5
+      "tests": 1
     },
     "unit": {
       "datum": "2026-10-15",
@@ -656,7 +656,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 13
+      "tests": 2
     },
     "unit": {
       "datum": "2026-10-15",
@@ -1044,7 +1044,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 14
+      "tests": 15
     }
   },
   "UPD-01": {
@@ -1056,7 +1056,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 2
+      "tests": 1
     }
   },
   "UPD-02": {
@@ -1075,7 +1075,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 3
+      "tests": 2
     }
   },
   "UPD-05": {
@@ -1413,7 +1413,7 @@
     "e2e": {
       "datum": "2026-10-17",
       "status": "passed",
-      "tests": 36
+      "tests": 37
     }
   },
   "ZON-21": {

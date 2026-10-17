@@ -1,7 +1,8 @@
 'use client';
 
-import { Pin, PinOff, Save, UserRound } from 'lucide-react';
+import { Pin, PinOff, Plus, Save, UserRound } from 'lucide-react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
+import { useState } from 'react';
 import { useZoneTransfer } from '@/hooks/useZoneTransfer';
 import { usePinnedMetrics } from '@/hooks/usePinnedMetrics';
 import { Alert } from '@/components/ui/alert';
@@ -50,6 +51,15 @@ export default function Home() {
 
   const transfer = useZoneTransfer(selectedAccount, savedSettingsStr);
   const [metricsPinned, setMetricsPinned] = usePinnedMetrics();
+  const [addSymbolOpen, setAddSymbolOpen] = useState(false);
+  const symbolsLoading = useSettingsStore((s) => s.isLoadingSymbols && s.availableSymbols.length === 0);
+  const mt5Missing = isRunning && !liveData.mt5_connected;
+  // Beim Laden zeigt das Panel den Dialog nicht; ein offener Zustand würde später von selbst aufspringen
+  const addSymbolBlocked = mt5Missing || symbolsLoading;
+  let addSymbolHintKey = 'zone.panel.add.hint';
+  if (symbolsLoading) addSymbolHintKey = 'zone.panel.add.loading.hint';
+  if (mt5Missing) addSymbolHintKey = 'zone.panel.add.off.hint';
+  const addSymbolHint = t(addSymbolHintKey as 'zone.panel.add.hint');
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-3 px-2 py-3 sm:space-y-5 sm:px-4 sm:py-6 md:px-8 md:py-8">
@@ -78,6 +88,14 @@ export default function Home() {
             menuExtra={
               selectedAccount && (
                 <>
+                  <DropdownMenuItem
+                    icon={<Plus size={14} />}
+                    onSelect={() => setAddSymbolOpen(true)}
+                    disabled={addSymbolBlocked}
+                    hint={addSymbolHint}
+                  >
+                    {t('zone.panel.add')}
+                  </DropdownMenuItem>
                   <SettingsForm variant="menu" />
                   <DropdownMenuItem
                     icon={metricsPinned ? <PinOff size={14} /> : <Pin size={14} />}
@@ -91,6 +109,19 @@ export default function Home() {
               )
             }
           />
+          {selectedAccount && (
+            <Button
+              variant="primary"
+              size="sm"
+              wrapperClassName="max-sm:hidden"
+              onClick={() => setAddSymbolOpen(true)}
+              disabled={addSymbolBlocked}
+              hint={addSymbolHint}
+            >
+              <Plus size={14} />
+              {t('zone.panel.add')}
+            </Button>
+          )}
         </div>
 
         <BotControls />
@@ -141,6 +172,8 @@ export default function Home() {
               liveData={liveData}
               isGlobalDirty={isDirty}
               onZoneSaved={markZoneSaved}
+              addSymbolOpen={addSymbolOpen}
+              onAddSymbolClose={() => setAddSymbolOpen(false)}
               saveAction={
                 <SaveSettingsBar
                   isDirty={isDirty}

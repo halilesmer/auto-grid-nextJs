@@ -2,10 +2,9 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useSettingsStore, useBotRuntimeStore } from '@/store';
-import { Plus, Loader2, Layers3 } from 'lucide-react';
+import { Loader2, Layers3 } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import ConfirmModal from '@/components/ConfirmModal';
 import { LegacySetupOrdersDialog } from '@/components/LegacySetupOrdersDialog';
 import { useT } from '@/i18n';
@@ -26,8 +25,11 @@ interface ZoneSettingsPanelProps {
   isRunning: boolean;
   liveData: ReturnType<typeof useBotRuntimeStore.getState>['liveData'];
   isGlobalDirty?: boolean;
-  /** Steht im Kopf links neben „Sembol Ekle“ (z. B. „Tüm Ayarları Kaydet“). */
+  /** Steht im Kopf (z. B. „Tüm Ayarları Kaydet“). */
   saveAction?: ReactNode;
+  /** „Sembol Ekle“-Dialog: Zustand und Auslöser liegen in der Steuerleiste (UI-09), der Dialog hier. */
+  addSymbolOpen: boolean;
+  onAddSymbolClose: () => void;
   /** Tek bir bölge kaydedilince çağrılır (global dirty referansını günceller). */
   onZoneSaved?: (zone: ZoneSettings) => void;
 }
@@ -38,6 +40,8 @@ export default function ZoneSettingsPanel({
   liveData,
   isGlobalDirty,
   saveAction,
+  addSymbolOpen,
+  onAddSymbolClose,
   onZoneSaved,
 }: ZoneSettingsPanelProps) {
   const t = useT();
@@ -50,7 +54,6 @@ export default function ZoneSettingsPanel({
   // Bleibt nach dem Schließen stehen, damit Titel und Text beim Ausblenden nicht umspringen
   const [deleteTarget, setDeleteTarget] = useState<{ zoneId: string; symbol: string; isLastSetup: boolean } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [addSymbolOpen, setAddSymbolOpen] = useState(false);
   const [error, setError] = useState('');
 
   // Sabit boş dizi: her render'da yeni [] üretmek dirty-tracking efektini döngüye sokuyordu
@@ -127,16 +130,6 @@ export default function ZoneSettingsPanel({
         </div>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {saveAction}
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setAddSymbolOpen(true)}
-            disabled={disableActionButtons}
-            hint={disableActionButtons ? t('zone.panel.add.off.hint') : t('zone.panel.add.hint')}
-          >
-            <Plus size={14} />
-            {t('zone.panel.add')}
-          </Button>
         </div>
       </div>
 
@@ -206,7 +199,7 @@ export default function ZoneSettingsPanel({
 
       <AddSymbolDialog
         open={addSymbolOpen}
-        onClose={() => setAddSymbolOpen(false)}
+        onClose={onAddSymbolClose}
         existingSymbols={groups.map((group) => group.symbol)}
         symbolDetails={symbolDetails}
         validateSymbol={validateSymbol}
