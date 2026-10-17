@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export interface Account {
   id: string;
   account_name: string;
@@ -136,6 +138,8 @@ export interface AccountActionsProps {
   onDownloadLog: () => void;
   onAdd: () => void;
   disabled?: boolean;
+  /** Gruppe am Ende des Menüs; nur unter `sm` sichtbar (Platz in der Steuerleiste). */
+  menuExtra?: ReactNode;
 }
 
 export interface AccountFormDialogProps {

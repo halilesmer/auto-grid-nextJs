@@ -14,6 +14,7 @@ export function AccountActions({
   onDownloadLog,
   onAdd,
   disabled = false,
+  menuExtra,
 }: AccountActionsProps) {
   const t = useT();
   return (
@@ -63,6 +64,7 @@ export function AccountActions({
           {t('account.action.new')}
         </DropdownMenuItem>
       </DropdownMenuGroup>
+      {menuExtra && <DropdownMenuGroup className="sm:hidden">{menuExtra}</DropdownMenuGroup>}
     </DropdownMenu>
   );
 }

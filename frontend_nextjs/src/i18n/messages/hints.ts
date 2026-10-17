@@ -115,6 +115,8 @@ export default defineArea(
     'metrics.profit.hint': 'Açık pozisyonların toplam kâr/zararı (yüzen K/Z, henüz gerçekleşmemiş).',
     'metrics.positions.hint': 'Şu anda açık olan pozisyonların sayısı (dolan grid seviyeleri).',
     'metrics.pending.hint': 'Broker’da bekleyen, henüz dolmamış grid emirlerinin sayısı.',
+    'metrics.pin.hint': 'Göstergeleri kontrol çubuğunun altına sabitler: kaydırırken görünür kalırlar. Seçim bu tarayıcıda saklanır.',
+    'metrics.unpin.hint': 'Göstergelerin sabitlemesini kaldırır: sayfayla birlikte kayarlar. Seçim bu tarayıcıda saklanır.',
     'update.apply.hint':
       'Yeni sürümü GitHub’dan çeker (git pull) ve worker’ı yeniden başlatır; çalışan botlar sonra kendiliğinden devam eder.',
     'update.vpsLink.hint':
@@ -641,6 +643,8 @@ export default defineArea(
     'metrics.profit.hint': 'Total profit/loss of the open positions (floating P/L, not yet realised).',
     'metrics.positions.hint': 'Number of currently open positions (filled grid levels).',
     'metrics.pending.hint': 'Number of grid orders waiting at the broker that are not filled yet.',
+    'metrics.pin.hint': 'Pins the metrics below the control bar so they stay visible while you scroll. The choice is kept in this browser.',
+    'metrics.unpin.hint': 'Unpins the metrics so they scroll with the page. The choice is kept in this browser.',
     'update.apply.hint':
       'Pulls the new version from GitHub (git pull) and restarts the worker; running bots resume on their own afterwards.',
     'update.vpsLink.hint':
@@ -1167,6 +1171,8 @@ export default defineArea(
     'metrics.profit.hint': 'Gesamtgewinn/-verlust der offenen Positionen (schwebender G/V, noch nicht realisiert).',
     'metrics.positions.hint': 'Anzahl der aktuell offenen Positionen (gefüllte Grid-Level).',
     'metrics.pending.hint': 'Anzahl der beim Broker wartenden, noch nicht ausgeführten Grid-Orders.',
+    'metrics.pin.hint': 'Heftet die Kennzahlen unter die Steuerleiste: Sie bleiben beim Scrollen sichtbar. Die Wahl bleibt in diesem Browser gespeichert.',
+    'metrics.unpin.hint': 'Löst die Kennzahlen von der Leiste: Sie scrollen mit der Seite. Die Wahl bleibt in diesem Browser gespeichert.',
     'update.apply.hint':
       'Holt die neue Version von GitHub (git pull) und startet den Worker neu; laufende Bots setzen danach von selbst fort.',
     'update.vpsLink.hint':

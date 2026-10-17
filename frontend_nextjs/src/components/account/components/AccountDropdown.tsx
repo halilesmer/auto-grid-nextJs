@@ -63,6 +63,7 @@ export function AccountDropdown({
           emptyMessage={t('account.select.empty')}
           disabled={disabled}
           className="font-medium"
+          popupClassName="max-sm:min-w-60"
           aria-label={t('account.select.aria')}
         />
       </div>

@@ -170,6 +170,8 @@ interface ComboboxProps<T> {
   emptyMessage?: ReactNode;
   disabled?: boolean;
   className?: string;
+  /** Zusatzklassen des aufgeklappten Panels (z. B. Mindestbreite, wenn der Auslöser schmal ist). */
+  popupClassName?: string;
   'aria-label'?: string;
 }
 
@@ -186,6 +188,7 @@ export function Combobox<T>({
   emptyMessage,
   disabled = false,
   className,
+  popupClassName,
   'aria-label': ariaLabel,
 }: ComboboxProps<T>) {
   const t = useT();
@@ -312,7 +315,7 @@ export function Combobox<T>({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.12 }}
-            className={popupClass}
+            className={cn(popupClass, popupClassName)}
           >
             {/* shugar/combobox: ComboboxInput prefix arama ikonu */}
             <div

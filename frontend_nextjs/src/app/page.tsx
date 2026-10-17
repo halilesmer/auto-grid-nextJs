@@ -1,8 +1,9 @@
 'use client';
 
-import { UserRound } from 'lucide-react';
+import { Pin, PinOff, Save, UserRound } from 'lucide-react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
 import { useZoneTransfer } from '@/hooks/useZoneTransfer';
+import { usePinnedMetrics } from '@/hooks/usePinnedMetrics';
 import { Alert } from '@/components/ui/alert';
 import { useDashboard } from '@/app/hooks/useDashboard';
 import AccountSelector from '@/components/account/AccountSelector';
@@ -13,7 +14,9 @@ import MetricsStrip from '@/components/dashboard/MetricsStrip';
 import SaveSettingsBar from '@/components/dashboard/SaveSettingsBar';
 import ZoneSettingsPanel from '@/components/ZoneSettingsPanel';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/i18n';
 
 export default function Home() {
@@ -46,6 +49,7 @@ export default function Home() {
   });
 
   const transfer = useZoneTransfer(selectedAccount, savedSettingsStr);
+  const [metricsPinned, setMetricsPinned] = usePinnedMetrics();
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:px-8 md:py-8">
@@ -56,7 +60,9 @@ export default function Home() {
 
       {/* Kontrol çubuğu: hesap, bot kontrolü ve genel ayarlar tek satırda; sistem menüsü üst menüde (HeaderMenu) */}
       {/* Sıra (order-*): hesap 1 · bot + aralık 3 (BotControls/SettingsForm içinde) · alarmlar order-last, tam genişlik */}
-      <Card data-testid="control-bar" className="relative z-20 flex flex-wrap bg-card/95 lg:sticky lg:top-(--nav-height) items-center gap-x-4 gap-y-3 p-3">
+      {/* Fixierter Bereich (UI-09): bei jeder Breite direkt unter der Navigation. Stapel: Navigation z-50 · Bereich z-20 · Dropdown-Panels absolut im Bereich (z-30, Kontoliste z-50). Bei kleiner Höhe (Querformat) scrollt der Bereich mit, sonst bliebe kein Platz für die Seite. */}
+      <div data-testid="sticky-area" className="sticky top-(--nav-height) z-20 [@media(max-height:32rem)]:static -mx-4 space-y-2 bg-background/95 px-4 pb-2 backdrop-blur md:-mx-8 md:px-8">
+      <Card data-testid="control-bar" className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 bg-card p-2 sm:gap-y-3 sm:p-3">
         <div className="order-1 flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
           {activeAccount && (
             <Badge
@@ -68,16 +74,65 @@ export default function Home() {
               {isLive ? t('dashboard.env.live') : t('dashboard.env.demo')}
             </Badge>
           )}
-          <AccountSelector />
+          <AccountSelector
+            menuExtra={
+              selectedAccount && (
+                <>
+                  <SettingsForm variant="menu" />
+                  <DropdownMenuItem
+                    icon={metricsPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                    onSelect={() => setMetricsPinned(!metricsPinned)}
+                    data-testid="metrics-pin-menu"
+                    hint={t(metricsPinned ? 'metrics.unpin.hint' : 'metrics.pin.hint')}
+                  >
+                    {t(metricsPinned ? 'metrics.unpin' : 'metrics.pin')}
+                  </DropdownMenuItem>
+                </>
+              )
+            }
+          />
         </div>
 
         <BotControls />
         <SettingsForm />
+
+        {selectedAccount && (
+          <div className="order-3 ml-auto flex items-center gap-2">
+            {/* V3: Speichern-Hinweis nur bei ungespeicherten Änderungen; die Schaltfläche in der Zonenüberschrift bleibt */}
+            {isDirty && !!settings && (
+              <div data-testid="bar-unsaved" className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="size-2 rounded-full bg-warning" />
+                  {t('saveBar.unsaved.short')}
+                </span>
+                <Button variant="primary" size="sm" onClick={handleSaveAll} loading={saveAllLoading} hint={t('saveBar.saveAll.hint')}>
+                  {!saveAllLoading && <Save size={14} />}
+                  {t('common.save')}
+                </Button>
+              </div>
+            )}
+            {/* V2: Kennzahlen unter der Leiste anheften */}
+            <Button
+              variant="outline"
+              size="icon"
+              data-testid="metrics-pin"
+              wrapperClassName="max-sm:hidden"
+              data-pinned={metricsPinned}
+              aria-label={t(metricsPinned ? 'metrics.unpin' : 'metrics.pin')}
+              hint={t(metricsPinned ? 'metrics.unpin.hint' : 'metrics.pin.hint')}
+              onClick={() => setMetricsPinned(!metricsPinned)}
+            >
+              {metricsPinned ? <Pin size={15} /> : <PinOff size={15} />}
+            </Button>
+          </div>
+        )}
       </Card>
+      {selectedAccount && metricsPinned && <MetricsStrip />}
+      </div>
 
       {selectedAccount ? (
         <>
-          <MetricsStrip />
+          {!metricsPinned && <MetricsStrip />}
 
           <Card className="p-5">
             <ZoneSettingsPanel

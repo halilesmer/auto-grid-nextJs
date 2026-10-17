@@ -14,7 +14,7 @@ import {
 } from './hooks';
 import { selectAccount as selectAccountInStore, useAccountStore, useBotRuntimeStore } from '@/store';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 import type { Account } from './types';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -24,7 +24,7 @@ import { useIsAdmin } from '@/store/useAuthStore';
 import { isDuplicateAccountError } from './types';
 
 /** Konto-Dropdown + Aktionsmenü als Fragment: die Steuerleiste (page.tsx) legt beide nebeneinander. */
-export default function AccountSelector() {
+export default function AccountSelector({ menuExtra }: { menuExtra?: ReactNode } = {}) {
   const t = useT();
   const storeAccounts = useAccountStore((s) => s.accounts);
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
@@ -174,6 +174,7 @@ export default function AccountSelector() {
         onDelete={() => setDeleteOpen(true)}
         onDownloadLog={handleDownloadLog}
         onAdd={openAdd}
+        menuExtra={menuExtra}
       />
 
       <AccountFormDialog
