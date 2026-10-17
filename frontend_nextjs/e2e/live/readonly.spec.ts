@@ -57,7 +57,7 @@ test.describe('Live (nur lesend)', () => {
     await expect((await dashboard.accountOptions()).filter({ hasText: `(${account.id})` })).toHaveCount(1);
     await dashboard.selectAccount(account.id);
     await expect(page.getByTestId('worker-status')).toContainText(msg('logs.status.online'));
-    await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.test'));
+    await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.demo'));
   });
 
   test('API-Schlüssel wird verlangt (REST und WebSocket)', { tag: '@SYS-05' }, async ({ page, api, account }) => {

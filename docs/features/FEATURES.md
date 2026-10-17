@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-16 · **156/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-17 · **156/158** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -68,7 +68,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ein Chip in der Kopfzeile (ab sm) bzw. eine Zeile darunter (Handy) zeigt Host und Status (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden) und prüft alle 30 s sowie bei Fenster-Fokus erneut über SYS-07.
   - **Prüfung:** Bei laufendem Worker das Dashboard öffnen, dann den API-Key auf dem VPS ändern. → Zurück ins Browserfenster wechseln (Fokus).
   - **Erwartet:** Der Chip zeigt zunächst „Verbunden“, nach dem Fokuswechsel „API-Key abgelehnt“.
-- [x] **SYS-06** MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration) — 🧪 unit ✅ 2026-10-16 · 🔌 api ✅ 2026-10-16 · 👤 manuell ✅ 2026-10-16
+- [x] **SYS-06** MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration) *(teilweise)* — 🧪 unit ✅ 2026-10-15 · 🔌 api ⏳ · 👤 manuell ✅ 2026-10-16
   - Worker (/start, Symbolabfrage) und bot_runner verbinden sich über connect_to_mt5_with_timeout. Das Timeout ist ein Gesamtbudget (Warten auf die MT5-Sperre, initialize-Versuche, Neustart eines hängenden Terminals); danach wird nicht weiter versucht, /start antwortet also nach rund 120 s (+ Login). Bei IPC-Fehlern wird nur ein terminal64.exe desselben Pfads beendet, das älter als 180 s ist; ein startendes Terminal wird abgewartet. Die kurze Symbolabfrage (15 s) beendet nie ein Terminal. -10004 bei initialize heißt „keine IPC-Verbindung“, nicht „falsches Passwort“. Vor initialize wird der Python-Kanal des Terminals geprüft (named pipe MT5.Terminal.<SHA-256 des Pfads>). Ist das Terminal älter als 30 s und hat keinen Kanal, ist in MT5 unter Optionen → Community „Python integration“ abgewählt; dann kommt sofort eine klare Meldung statt 60 s Warten pro Versuch, und kein Terminal wird beendet. Auf einem VPS mit mehreren Terminals zählt der Worker die Kanäle. Fehlt der eigene Kanal und gibt es weniger Terminal-Kanäle als Terminals, die älter als 30 s sind, kommt dieselbe Meldung; hat jedes alte Terminal einen Kanal (Namensberechnung passt nicht), wird wie bisher verbunden. Ohne Python-Kanal wartet initialize fest 60 s, egal welches Timeout; ein weiterer Versuch oder ein Terminal-Neustart startet deshalb nur, wenn noch so viel Budget übrig ist. Der WebSocket-Stream ruft MT5 nicht auf, solange eine Verbindung die MT5-Sperre hält, und zeigt dann die Bot-Metriken.
   - **Prüfung:** Auf der Seite „VPS“ den VPS neu starten, MT5 nicht von Hand öffnen. → Sobald der Worker erreichbar ist, Konto wählen, eine Zone öffnen (Symbolliste) und sofort „Start Bot“ klicken. → Nur DEMO, Bot vorher stoppen: Per RDP in MT5 Extras → Optionen → Community „Python-Integration“ abwählen, MT5 beenden und neu starten, „Start Bot“ klicken. Weitere Terminals anderer Konten laufen dabei weiter (Fehler trat nur mit mehreren Terminals auf). Danach den Haken wieder setzen und MT5 neu starten.
   - **Erwartet:** /start antwortet nach spätestens ~2–3 min (Erfolg oder klare Fehlermeldung). Das Worker-Log zeigt „henüz açılıyor, öldürülmüyor“ statt „Öldürülüyor“ für ein Terminal, das jünger als 180 s ist. Scheitert der erste Start am langsamen Kaltstart, verbindet ein zweiter Start mit demselben Terminal. Ohne Python-Integration scheitert „Start Bot“ nach wenigen Sekunden mit der Meldung „… 'Python integration' kutusunu işaretleyin …“, auch wenn weitere Terminals laufen; der Worker beantwortet währenddessen andere Anfragen. Mit Haken verbindet er in Sekunden.
@@ -76,36 +76,36 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 2. ACC – Konten
 
-- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-17 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /accounts liefert alle Konten aus configs/accounts.json; das Dropdown zeigt sie an und schreibt sie in useAccountStore.
   - **Prüfung:** Dashboard öffnen, Dropdown „Select Account“ aufklappen.
   - **Erwartet:** Alle registrierten Konten erscheinen (inkl. DEMO-Testkonto).
   - 📝 Claude: /accounts → 1 Konto (A, DEMO, Demo-Server), Dropdown zeigt genau dieses
-- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-17
   - Dialog „New MT5 Account“; Pflichtfelder Name, Login, Passwort, Server, MT5-Pfad; Notizen max. 1000 Zeichen; POST /accounts.
   - **Prüfung:** „Add new account“ klicken, leer absenden. → (Nur mit einem Wegwerf-Konto!) Alle Felder ausfüllen und speichern.
   - **Erwartet:** Leeres Formular zeigt Pflichtfeld-Fehler; gültiges Konto erscheint danach im Dropdown.
-- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-17
   - Gleicher Login wie ein bestehendes Konto → Rückfrage „bestehendes Konto bearbeiten?“; der Worker antwortet mit 409 (RFC-7807-Problem).
   - **Prüfung:** Neues Konto mit dem Login eines vorhandenen Kontos anlegen.
   - **Erwartet:** Browser-Rückfrage erscheint; es entsteht kein zweites Konto.
-- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-17
   - PUT /accounts/{id}; gesperrt, solange der Bot läuft.
   - **Prüfung:** Konto wählen, „Edit account“, Notiz ändern, speichern.
   - **Erwartet:** Änderung bleibt nach Neuladen erhalten; bei laufendem Bot ist der Button deaktiviert.
-- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
+- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-17
   - DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft.
   - **Prüfung:** (Nur Wegwerf-Konto!) „Delete account“ → bestätigen.
   - **Erwartet:** Konto verschwindet aus dem Dropdown; bei laufendem Bot ist der Button deaktiviert.
-- [x] **ACC-06** Kontoauswahl lädt Einstellungen — 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-06** Kontoauswahl lädt Einstellungen — 🖥️ e2e ✅ 2026-10-17 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Auswahl im Dropdown lädt GET /settings/{id} in useSettingsStore; ohne Konto erscheint der Leerzustand „No account selected“.
   - **Prüfung:** Seite ohne Auswahl öffnen, dann das DEMO-Konto wählen.
   - **Erwartet:** Zuerst Leerzustand, danach erscheinen Zonen und allgemeine Einstellungen des Kontos.
   - 📝 Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/{id} geladen, UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall 1 s)
-- [x] **ACC-07** LIVE/TEST-Kennzeichnung — 🖥️ e2e ✅ 2026-10-09 · 👤 manuell ✅ 2026-09-23
-  - Badge (TEST/LIVE) am Anfang der Steuerleiste und Kennzeichnung DEMO/LIVE je Eintrag der Kontoliste, beides aus env_type des Kontos.
+- [x] **ACC-07** LIVE/DEMO-Kennzeichnung — 🖥️ e2e ✅ 2026-10-17 · 👤 manuell ✅ 2026-09-23
+  - Badge (DEMO/LIVE) am Anfang der Steuerleiste und Kennzeichnung DEMO/LIVE je Eintrag der Kontoliste, beides aus env_type des Kontos.
   - **Prüfung:** DEMO-Konto wählen.
-  - **Erwartet:** Badge zeigt TEST/DEMO, nicht LIVE.
+  - **Erwartet:** Badge zeigt DEMO, nicht LIVE.
   - 📝 Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis: ohne Kontoauswahl zeigt der Header ebenfalls TEST
 - [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-10-15
   - Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
@@ -115,7 +115,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Worker gibt MT5-Passwörter in keiner Antwort zurück (Liste, Anlegen, Bearbeiten, 409-Problem), sondern nur has_password. Leeres Passwort beim Bearbeiten = unverändert.
   - **Prüfung:** DevTools → Network → Antwort von /api/accounts ansehen. → Konto bearbeiten, Passwortfeld leer lassen, speichern.
   - **Erwartet:** Kein Feld „password“ in der Antwort; das Konto verbindet sich danach weiterhin (Passwort unverändert).
-- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09 · 🌐 live ✅ 2026-10-16
+- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-17 · 🌐 live ✅ 2026-10-16
   - Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. Der WS-Stream folgt dem gewählten Konto (/ws/stream?account_id=, neu verbunden beim Wechsel); der Worker sendet jeder Verbindung nur ihr Konto – aus der MT5-Abfrage des API-Prozesses nur, wenn dessen Terminal an diesem Konto angemeldet ist, sonst aus der Metrikdatei des Bot-Prozesses. WS-Metriken tragen account_id; Metriken eines anderen Kontos (älterer Worker) ignoriert das Frontend.
   - **Prüfung:** Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft. → Zweites Konto mit laufendem Bot wählen, /chart bzw. /formasyon öffnen; DevTools → WS-URL und Nachrichten ansehen.
   - **Erwartet:** Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status. Mit laufendem Bot bekommt das zweite Konto eigene Stream-Metriken (Live-Preis im Chart; die WS-URL enthält account_id=<Konto>, jede METRICS-Nachricht dessen account_id).
@@ -135,7 +135,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - GET/POST /api/users, POST /api/users/{id}/key (Schlüssel erneuern), DELETE /api/users/{id} – nur mit Admin-Schlüssel (sonst 403). Der Schlüssel wird nur in der Antwort auf Anlegen/Erneuern angezeigt. Namen sind eindeutig (ohne Groß-/Kleinschreibung), 1–40 Zeichen. Ohne gesetzten WORKER_API_KEY verweigert der Worker das Anlegen (409), denn im offenen Modus ist jeder Admin und der erste Benutzer würde alle aussperren. Beim Löschen bleiben die Konten und ihre Bots erhalten und werden „ohne Besitzer“ (gehören dem Admin).
   - **Prüfung:** Als Admin einen Benutzer anlegen, den Schlüssel notieren, damit verbinden. → Schlüssel erneuern und mit dem alten Schlüssel verbinden.
   - **Erwartet:** Der neue Schlüssel funktioniert sofort, der alte wird nach dem Erneuern mit 401 abgelehnt; Benutzer sehen die Verwaltung nicht.
-- [x] **USR-03** Konto-Besitzer — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-09
+- [x] **USR-03** Konto-Besitzer — 🔌 api ✅ 2026-10-13 · 🖥️ e2e ✅ 2026-10-17
   - Konten tragen ein Feld owner (Benutzer-ID). Benutzer sehen und legen nur eigene Konten an (Besitzer wird vom Worker gesetzt, der Body wird ignoriert); der Admin sieht alle Konten und kann den Besitzer beim Anlegen/Bearbeiten setzen (Altbestand ohne Besitzer gehört dem Admin). Bearbeiten erhält den Besitzer. Die Konto-ID darf nur aus Ziffern bestehen (Dateinamen); id und login dürfen nicht mit einem anderen Konto kollidieren; ein Duplikat verrät keine Daten fremder Konten (409 ohne existing_account). Benutzer müssen einen mt5_path angeben, der ein von scan-mt5 gefundenes Terminal ist und nicht zu einem Konto eines anderen Besitzers gehört. Bearbeiten und Löschen eines Kontos lehnt der Worker bei laufendem Bot mit 409 ab.
   - **Prüfung:** Als Benutzer ein Konto anlegen und als Admin die Kontoliste öffnen. → Als Benutzer ein Konto mit der Login-Nummer eines fremden Kontos anlegen.
   - **Erwartet:** Das Konto erscheint beim Benutzer und beim Admin (mit Besitzer), aber nicht bei anderen Benutzern; das Duplikat wird ohne Details zum fremden Konto abgelehnt.
@@ -151,11 +151,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - GET /system/update/check und POST /system/update (git pull + Neustart) verlangen den Admin-Schlüssel (403 für Benutzer). Verbindungstest (/system/platform) und MT5-Suche (/system/scan-mt5) bleiben für alle offen.
   - **Prüfung:** Mit dem Schlüssel eines Benutzers POST /api/system/update aufrufen.
   - **Erwartet:** 403; es wird kein git pull und kein Neustart ausgelöst.
-- [x] **USR-07** Benutzerseite (Admin) — 🖥️ e2e ✅ 2026-10-09
+- [x] **USR-07** Benutzerseite (Admin) — 🖥️ e2e ✅ 2026-10-17
   - Die Seite /users (Nav-Eintrag „Benutzer“, nur mit Admin-Schlüssel) listet die Benutzer mit Anzahl ihrer Konten. „Benutzer anlegen“ zeigt den persönlichen Schlüssel und einen fertigen Verbindungs-Link (Worker-Adresse + Schlüssel) genau einmal; „Neuer Schlüssel“ und „Löschen“ fragen vorher nach. Konten eines gelöschten Benutzers bleiben und gehören danach dem Administrator. Doppelte Namen meldet der Worker.
   - **Prüfung:** Mit dem Admin-Schlüssel „Benutzer“ öffnen, einen Benutzer anlegen, Schlüssel/Link kopieren, das Fenster schließen. → Schlüssel erneuern und den Benutzer danach löschen.
   - **Erwartet:** Der Schlüssel erscheint nur im Fenster direkt nach dem Anlegen bzw. Erneuern; die Liste zeigt Name, Konten und Erstellzeit; nach dem Löschen ist der Benutzer weg und seine Konten sind noch da.
-- [x] **USR-08** Ansicht eines Benutzers — 🖥️ e2e ✅ 2026-10-09
+- [x] **USR-08** Ansicht eines Benutzers — 🖥️ e2e ✅ 2026-10-17
   - Mit einem persönlichen Schlüssel zeigen Kontoliste und Verbindungsdialog nur die eigenen Konten und die Rolle („Verbunden als …“). Die Navigation hat keine Einträge „VPS“ und „Benutzer“, die Seiten selbst zeigen „Nur für Administratoren“, das Dashboard-Menü hat keine Update-Prüfung und es wird keine Update-Anfrage gestellt. Ein neues Konto bekommt der Benutzer als Besitzer vom Worker (das Formular hat keine Besitzer-Auswahl). Chart-Seiten öffnen ohne gewähltes Konto keinen Stream.
   - **Prüfung:** Im Browser (privates Fenster) mit dem Verbindungs-Link eines Benutzers verbinden. → Kontoliste, Navigation, Einstellungsmenü im Dashboard und die Seiten /users und /vps ansehen.
   - **Erwartet:** Nur die eigenen Konten erscheinen; „VPS“ und „Benutzer“ fehlen in der Navigation, ihre Seiten zeigen den Administrator-Hinweis; die Update-Prüfung fehlt im Menü.
@@ -646,8 +646,8 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Die Hauptnavigation steht in einer eigenen Zeile mit sichtbaren Beschriftungen und bricht bei Platzmangel um. Navigation und Kopfzeilen-Bedienelemente überlappen bei 375, 640, 810, 1024 und 1440 px in tr/en/de nicht. Die Felder eines Setups sind auch bei 375 px kurz und brechen um; Grid-Schritt und Lot stehen nebeneinander, auch mit allen Schaltern an, getrenntem BUY/SELL und Fraktal-Setup, ohne dass etwas über die Setup-Karte hinausragt.
   - **Prüfung:** Dashboard bei 375 px Breite öffnen (Entwicklertools, Geräteleiste) und ein Konto mit Zone wählen. → Sprache auf DE stellen und in der Zone einen Wert ändern. → /formasyon, /vps und /chart bei 375 px ansehen. → Im Log-Viewer unter dem Zonenbereich die Tab-Leiste nach links wischen und den dritten Tab („MT5 Terminal“) antippen.
   - **Erwartet:** Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile. Die Tab-Leiste des Log-Viewers lässt sich wischen, jeder Tab ist erreichbar und nach dem Antippen ganz sichtbar.
-- [x] **UI-09** Kompakte Steuerleiste (Konto, Bot, Intervall) — 🖥️ e2e ✅ 2026-10-09
-  - Über den Kennzahlen liegt eine einzige Leiste mit LIVE/TEST-Badge, Kontoauswahl, Kontomenü (⋯ mit Bot-Log herunterladen, Bearbeiten, Löschen, Neues Konto), Bot-Status mit Start/Neustart/Stopp, Prüfintervall mit Speichern und Systemmenü (Zahnrad mit Systeminfo, Update-Prüfung, Herunterfahren). Ab etwa 1280 px ist das eine Zeile; schmaler brechen die Gruppen um, bei 375 px ohne horizontalen Überlauf. Alarme der Bot-Steuerung erscheinen in voller Breite unter der Leiste. Zonen und Log nutzen darunter die volle Breite.
+- [x] **UI-09** Kompakte Steuerleiste (Konto, Bot, Intervall) — 🖥️ e2e ✅ 2026-10-17
+  - Über den Kennzahlen liegt eine einzige Leiste mit LIVE/DEMO-Badge, Kontoauswahl, Kontomenü (⋯ mit Bot-Log herunterladen, Bearbeiten, Löschen, Neues Konto), Bot-Status mit Start/Neustart/Stopp, Prüfintervall mit Speichern und Systemmenü (Zahnrad mit Systeminfo, Update-Prüfung, Herunterfahren). Ab etwa 1280 px ist das eine Zeile; schmaler brechen die Gruppen um, bei 375 px ohne horizontalen Überlauf. Alarme der Bot-Steuerung erscheinen in voller Breite unter der Leiste. Zonen und Log nutzen darunter die volle Breite.
   - **Prüfung:** Dashboard auf dem Desktop öffnen und ein Konto wählen. → Auf ⋯ neben der Kontoauswahl klicken, dann Escape drücken. → Fenster auf 375 px Breite verkleinern.
   - **Erwartet:** Konto, Bot-Steuerung und Prüfintervall stehen in einer Zeile. Das ⋯-Menü zeigt Log, Bearbeiten, Löschen und Neues Konto und schließt mit Escape. Bei 375 px stehen die Gruppen untereinander, nichts läuft über.
 
