@@ -247,6 +247,7 @@ export function BacktestChart({
                 band={band}
                 lines={lines}
                 showPauses={true}
+                showGaps={true}
                 showRsi={false}
                 live={null}
                 markers={markers}

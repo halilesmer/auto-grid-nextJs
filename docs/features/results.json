@@ -137,9 +137,9 @@
   },
   "ANA-03": {
     "e2e": {
-      "datum": "2026-10-17",
+      "datum": "2026-10-18",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     }
   },
   "ANA-04": {

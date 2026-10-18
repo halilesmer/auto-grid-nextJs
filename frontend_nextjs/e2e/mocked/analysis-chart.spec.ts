@@ -2,7 +2,7 @@
  * Chart-Tab der Analyse-Seite (Schritt 3 des Plans): Kerzen aus GET /market/{id}/rates, Zeitrahmen,
  * fehlende Daten, Marktpausen, Zonenband/Stufen, Positionen und Orders des laufenden Bots.
  * Abnahme: fehlende Datenbereiche sind sichtbar markiert, es werden keine erfundenen Kerzen gezeichnet.
- * ANA-05 Band/Stufen · ANA-06 Positionen/Orders · ANA-11 Marktpausen/fehlende Daten
+ * ANA-03 Legende als Schalter · ANA-05 Band/Stufen · ANA-06 Positionen/Orders · ANA-11 Marktpausen/fehlende Daten
  */
 import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
@@ -57,11 +57,15 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
       await expect(chart).toHaveAttribute('data-pauses', String(period.pauses));
       await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
 
-      // Pausen-Linien abschaltbar, die Markierung fehlender Daten nicht
+      // Pausen-Linien und Schraffur abschaltbar, der Hinweis über dem Chart nicht
+      await expect(chart).toHaveAttribute('data-gaps-shown', 'true');
       const panel = await openSettings(page);
       await panel.getByRole('switch', { name: msg('analysis.settings.pauses') }).click();
-      await expect(page.getByTestId('chart-key')).not.toContainText(msg('analysis.chart.key.pause'));
-      await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
+      await expect(page.getByTestId('chart-key-showPauses')).toHaveAttribute('aria-pressed', 'false');
+      await page.keyboard.press('Escape');
+      await page.getByTestId('chart-key-showGaps').click();
+      await expect(chart).toHaveAttribute('data-gaps-shown', 'false');
+      await expect(chart).toHaveAttribute('data-gap-areas', '1');
       await expect(quality).toBeVisible();
     });
   }
@@ -95,8 +99,8 @@ test.describe('ANA-05 Zonenband und Stufen', () => {
     const panel = await openSettings(page);
     await panel.getByRole('switch', { name: msg('analysis.settings.zoneLines') }).click();
     await panel.getByRole('switch', { name: msg('analysis.settings.levels') }).click();
-    await expect(key).not.toContainText(msg('analysis.chart.key.band'));
-    await expect(key).not.toContainText(msg('analysis.chart.key.levels'));
+    await expect(page.getByTestId('chart-key-showZoneLines')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId('chart-key-showLevels')).toHaveAttribute('aria-pressed', 'false');
     await page.keyboard.press('Escape');
 
     worker.setZones(DEMO_ID, [makeZone({ entry_mode: 'fractal' })]);
@@ -151,5 +155,44 @@ test.describe('ANA-06 Positionen und Orders', () => {
     // Bot gestoppt: alte Metrikdatei liefert keine Live-Positionen mehr
     worker.setBotRunning(DEMO_ID, false);
     await expect(note).toHaveText(msg('analysis.chart.trades.botStopped'), { timeout: 10_000 });
+  });
+});
+
+test.describe('ANA-03 Legende als Schalter', () => {
+  test('Klick in der Legende blendet nur Pending-Orders aus; Zahnrad folgt, bleibt nach Neuladen', { tag: '@ANA-03' }, async ({ page, worker }) => {
+    worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
+    worker.setBotRunning(DEMO_ID);
+    const row = { symbol: 'USOUSD', sl: 0, tp: 0, time: 1, volume: 0.01 };
+    worker.setMetrics(DEMO_ID, {
+      positions: [{ ...row, ticket: 1, magic: 200001, type: 0, price_open: 96.5, tp: 97, profit: 1.2 }],
+      orders: [
+        { ...row, ticket: 3, magic: 200001, type: 2, price_open: 96 },
+        { ...row, ticket: 4, magic: 200001, type: 2, price_open: 95.5 },
+      ],
+    });
+    await page.goto(URL);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(page.getByTestId('trades-note')).toHaveText(msg('analysis.chart.trades.count', { positions: 1, orders: 2 }));
+
+    // Band und Stufen aus: übrig sind Position, ihr TP und zwei Orders
+    await page.getByTestId('chart-key-showZoneLines').click();
+    await page.getByTestId('chart-key-showLevels').click();
+    await expect(chart).toHaveAttribute('data-lines', '4');
+
+    const orders = page.getByTestId('chart-key-showOrders');
+    await expect(orders).toHaveAttribute('aria-pressed', 'true');
+    await orders.click();
+    await expect(orders).toHaveAttribute('aria-pressed', 'false');
+    await expect(chart).toHaveAttribute('data-lines', '2');
+    await expect(page.getByTestId('chart-key-showTrades')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.orders'));
+
+    const panel = await openSettings(page);
+    await expect(panel.getByRole('switch', { name: msg('analysis.settings.orders') })).toHaveAttribute('aria-checked', 'false');
+    await expect(panel.getByRole('switch', { name: msg('analysis.settings.trades') })).toHaveAttribute('aria-checked', 'true');
+
+    await page.reload();
+    await expect(page.getByTestId('chart-key-showOrders')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-lines', '2');
   });
 });

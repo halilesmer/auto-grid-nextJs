@@ -79,6 +79,8 @@ interface ChartCoreProps {
   band: { min: number; max: number } | null;
   lines: OverlayLine[];
   showPauses: boolean;
+  /** Schraffur der fehlenden Bereiche; die Leerstellen selbst bleiben (es wird keine Kerze erfunden) */
+  showGaps: boolean;
   showRsi: boolean;
   /** Live-Preis des Streams für die laufende Kerze; null = keine Live-Kerze (anderes Symbol, Uhr unsicher) */
   live: { price: number; nowSec: number } | null;
@@ -134,6 +136,7 @@ export function ChartCore({
   band,
   lines,
   showPauses,
+  showGaps,
   showRsi,
   live,
   markers = EMPTY_MARKERS,
@@ -317,17 +320,17 @@ export function ChartCore({
     return () => cancelAnimationFrame(frame);
   }, [data, viewKey, followTail]);
 
-  // Fehlende Bereiche (immer) und Marktpausen (abschaltbar)
+  // Fehlende Bereiche und Marktpausen (beide abschaltbar)
   useEffect(() => {
     if (!colors || !primitives.current) return;
-    primitives.current.missing.set(data.missing, {
+    primitives.current.missing.set(showGaps ? data.missing : [], {
       fill: withAlpha(colors.muted, 0.1),
       stripe: withAlpha(colors.muted, 0.28),
       text: colors.muted,
       label: t('analysis.chart.noData'),
     });
     primitives.current.pauses.set(showPauses ? data.pauses : [], withAlpha(colors.muted, 0.55));
-  }, [data, colors, showPauses, t]);
+  }, [data, colors, showPauses, showGaps, t]);
 
   useEffect(() => {
     if (!colors || !primitives.current) return;
@@ -504,6 +507,8 @@ export function ChartCore({
         data-testid="analysis-chart"
         data-bars={data.bars.length}
         data-gap-areas={data.missing.length}
+        data-gaps-shown={showGaps}
+        data-lines={lines.length}
         data-pauses={data.pauses.length}
         className="h-[max(360px,calc(100dvh-22rem))] w-full [:fullscreen_&]:h-dvh"
       />

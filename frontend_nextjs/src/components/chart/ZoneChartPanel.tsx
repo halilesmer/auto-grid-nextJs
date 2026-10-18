@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
-import { FieldLabel, InfoHint } from '@/components/ui/tooltip';
+import { FieldLabel, InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { LiveStats } from '@/components/chart/LiveStats';
 import { useDealsHistory } from '@/hooks/useDealsHistory';
 import { useSetupLabel } from '@/hooks/useSetupLabel';
@@ -33,9 +33,10 @@ import { findFractals } from '@/lib/analysis/fractals';
 import { belongsToZoneView, pairTrades, type Trade } from '@/lib/analysis/tradePairing';
 import { zoneLevels, type LevelsUnavailable, type ZoneLevels } from '@/lib/analysis/levels';
 import { brokerNow } from '@/lib/serverTime';
+import { cn } from '@/lib/utils';
 import { setupNumbers } from '@/lib/symbolSetups';
 import { useBotRuntimeStore, useSettingsStore, useWebSocketManager } from '@/store';
-import type { AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
+import { useAnalysisPrefsStore, type AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 
@@ -235,13 +236,42 @@ function ChartFrame({ offsetSec, children }: { offsetSec: number | null; childre
     </div>
   );
 }
-
-function LegendItem({ swatch, label }: { swatch: string; label: string }) {
+/** Legendeneintrag als Schalter: blendet sein Element im Chart ein/aus (dieselben Werte wie das Zahnrad) */
+function LegendToggle({
+  items,
+  hint,
+  active,
+  onToggle,
+  testId,
+}: {
+  /** Ein Schalter kann mehrere Symbole tragen (Einstieg, Ausstieg, unbekannt sind eine Trade-Zeichnung) */
+  items: { swatch: string; label: string }[];
+  hint: string;
+  active: boolean;
+  onToggle: () => void;
+  testId: string;
+}) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={swatch} aria-hidden />
-      {label}
-    </span>
+    // max-w-full: der Anker ist sonst shrink-0, und der Sammelknopf (Einstieg/Ausstieg/unbekannt) könnte bei 375 px nicht umbrechen
+    <Tooltip content={hint} className="max-w-full">
+      <button
+        type="button"
+        aria-pressed={active}
+        onClick={onToggle}
+        data-testid={testId}
+        className={cn(
+          'inline-flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          !active && 'opacity-50 line-through',
+        )}
+      >
+        {items.map((item) => (
+          <span key={item.label} className="inline-flex items-center gap-1.5">
+            <span className={item.swatch} aria-hidden />
+            {item.label}
+          </span>
+        ))}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -385,9 +415,10 @@ export default function ZoneChartPanel({
       levels.buy.forEach((p, i) => out.push({ key: `lvl-b-${i}`, price: p, title: '', tone: 'up', style: 'dotted' }));
       levels.sell.forEach((p, i) => out.push({ key: `lvl-s-${i}`, price: p, title: '', tone: 'down', style: 'dotted' }));
     }
+    // Viele Positionen: Beschriftungen an der Preisachse würden sich überdecken, die Linien bleiben
+    const shownTrades = (prefs.showTrades ? positions.length : 0) + (prefs.showOrders ? orders.length : 0);
+    const labels = shownTrades <= MAX_LABELED_TRADES;
     if (prefs.showTrades) {
-      // Viele Positionen: Beschriftungen an der Preisachse würden sich überdecken, die Linien bleiben
-      const labels = positions.length + orders.length <= MAX_LABELED_TRADES;
       for (const p of positions) {
         if (p.price_open === null) continue;
         const buy = p.type === 0;
@@ -396,6 +427,8 @@ export default function ZoneChartPanel({
         if (p.tp > 0) out.push({ key: `pos-tp-${p.ticket}`, price: p.tp, title: 'TP', tone: 'up', style: 'dotted' });
         if (p.sl > 0) out.push({ key: `pos-sl-${p.ticket}`, price: p.sl, title: 'SL', tone: 'down', style: 'dotted' });
       }
+    }
+    if (prefs.showOrders) {
       for (const o of orders) {
         if (o.price_open === null) continue;
         const name = ORDER_TYPES[o.type] ?? String(o.type);
@@ -403,7 +436,7 @@ export default function ZoneChartPanel({
       }
     }
     return out;
-  }, [zone, levels, positions, orders, prefs.showZoneLines, prefs.showLevels, prefs.showTrades, t]);
+  }, [zone, levels, positions, orders, prefs.showZoneLines, prefs.showLevels, prefs.showTrades, prefs.showOrders, t]);
   // Positionen/Orders kommen alle 5 s als neue Liste: nur bei echter Änderung neu zeichnen
   const linesJson = JSON.stringify(rawLines);
   const lines = useMemo(() => JSON.parse(linesJson) as OverlayLine[], [linesJson]);
@@ -497,6 +530,69 @@ export default function ZoneChartPanel({
   const marketHours = engineIndex >= 0 ? liveData.zone_market_hours?.[String(engineIndex)] : undefined;
   const isChartEmpty = Boolean(chart && data && data.bars.length === 0);
 
+  const setPref = useAnalysisPrefsStore((s) => s.setPref);
+  const legend: { pref: keyof AnalysisPrefs; hint: MessageKey; items: { swatch: string; label: string }[] }[] = [
+    {
+      pref: 'showGaps',
+      hint: 'analysis.settings.gaps.hint',
+      items: [
+        {
+          swatch:
+            'inline-block h-3 w-4 rounded-sm border border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_3px,var(--muted-foreground)_3px_4px)] opacity-60',
+          label: t('analysis.chart.key.noData'),
+        },
+      ],
+    },
+    {
+      pref: 'showPauses',
+      hint: 'analysis.settings.pauses.hint',
+      items: [{ swatch: 'inline-block h-3 border-l border-dashed border-muted-foreground', label: t('analysis.chart.key.pause') }],
+    },
+    {
+      pref: 'showZoneLines',
+      hint: 'analysis.settings.zoneLines.hint',
+      items: [{ swatch: 'inline-block h-3 w-4 rounded-sm border-y border-dashed border-primary bg-primary/10', label: t('analysis.chart.key.band') }],
+    },
+    {
+      pref: 'showLevels',
+      hint: 'analysis.settings.levels.hint',
+      items: [{ swatch: 'inline-block w-4 border-t border-dotted border-success', label: t('analysis.chart.key.levels') }],
+    },
+    {
+      pref: 'showTrades',
+      hint: 'analysis.settings.trades.hint',
+      items: [{ swatch: 'inline-block w-4 border-t-2 border-success', label: t('analysis.chart.key.positions') }],
+    },
+    {
+      pref: 'showOrders',
+      hint: 'analysis.settings.orders.hint',
+      items: [{ swatch: 'inline-block w-4 border-t border-dashed border-danger', label: t('analysis.chart.key.orders') }],
+    },
+    {
+      pref: 'showHistory',
+      hint: 'analysis.settings.history.hint',
+      items: [
+        { swatch: 'inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent border-b-success', label: t('analysis.chart.key.entry') },
+        { swatch: 'inline-block size-2 rounded-full bg-danger', label: t('analysis.chart.key.exit') },
+        { swatch: 'inline-block size-2 rounded-full bg-muted-foreground', label: t('analysis.chart.key.unknown') },
+      ],
+    },
+    ...(isFractalZone
+      ? [
+          {
+            pref: 'showFractals' as const,
+            hint: 'analysis.settings.fractals.hint' as const,
+            items: [{ swatch: 'inline-block size-0 border-x-[4px] border-b-[6px] border-x-transparent border-b-primary', label: t('analysis.chart.key.fractal') }],
+          },
+        ]
+      : []),
+    {
+      pref: 'showRsi',
+      hint: 'analysis.settings.rsi.hint',
+      items: [{ swatch: 'inline-block w-4 border-t-2 border-info', label: t('analysis.chart.key.rsi') }],
+    },
+  ];
+
   return (
     <div className="space-y-5">
       {zoneId && zones && !zone && (
@@ -568,6 +664,7 @@ export default function ZoneChartPanel({
                 band={band}
                 lines={lines}
                 showPauses={prefs.showPauses}
+                showGaps={prefs.showGaps}
                 showRsi={prefs.showRsi}
                 live={live}
                 markers={overlays.markers}
@@ -583,20 +680,16 @@ export default function ZoneChartPanel({
             </ChartFrame>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground" data-testid="chart-key">
-              <LegendItem swatch="inline-block h-3 w-4 rounded-sm border border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_3px,var(--muted-foreground)_3px_4px)] opacity-60" label={t('analysis.chart.key.noData')} />
-              {prefs.showPauses && <LegendItem swatch="inline-block h-3 border-l border-dashed border-muted-foreground" label={t('analysis.chart.key.pause')} />}
-              {prefs.showZoneLines && <LegendItem swatch="inline-block h-3 w-4 rounded-sm border-y border-dashed border-primary bg-primary/10" label={t('analysis.chart.key.band')} />}
-              {prefs.showLevels && <LegendItem swatch="inline-block w-4 border-t border-dotted border-success" label={t('analysis.chart.key.levels')} />}
-              {prefs.showTrades && <LegendItem swatch="inline-block w-4 border-t-2 border-success" label={t('analysis.chart.key.positions')} />}
-              {prefs.showTrades && <LegendItem swatch="inline-block w-4 border-t border-dashed border-danger" label={t('analysis.chart.key.orders')} />}
-              {prefs.showHistory && (
-                <LegendItem swatch="inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent border-b-success" label={t('analysis.chart.key.entry')} />
-              )}
-              {prefs.showHistory && <LegendItem swatch="inline-block size-2 rounded-full bg-danger" label={t('analysis.chart.key.exit')} />}
-              {prefs.showHistory && <LegendItem swatch="inline-block size-2 rounded-full bg-muted-foreground" label={t('analysis.chart.key.unknown')} />}
-              {isFractalZone && prefs.showFractals && (
-                <LegendItem swatch="inline-block size-0 border-x-[4px] border-b-[6px] border-x-transparent border-b-primary" label={t('analysis.chart.key.fractal')} />
-              )}
+              {legend.map((entry) => (
+                <LegendToggle
+                  key={entry.pref}
+                  items={entry.items}
+                  hint={t(entry.hint)}
+                  active={prefs[entry.pref]}
+                  onToggle={() => setPref(entry.pref, !prefs[entry.pref])}
+                  testId={`chart-key-${entry.pref}`}
+                />
+              ))}
               <InfoHint hint={t('analysis.chart.key.hint')} />
             </div>
 
@@ -613,7 +706,7 @@ export default function ZoneChartPanel({
                 </Button>
               </div>
             )}
-            {prefs.showTrades && (
+            {(prefs.showTrades || prefs.showOrders) && (
               <p className="text-xs text-muted-foreground" data-testid="trades-note">
                 {!botRunning && t('analysis.chart.trades.botStopped')}
                 {botRunning && zone.magic === undefined && t('analysis.chart.trades.noMagic')}
