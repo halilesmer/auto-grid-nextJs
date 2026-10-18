@@ -510,7 +510,7 @@ export function ChartCore({
         data-gaps-shown={showGaps}
         data-lines={lines.length}
         data-pauses={data.pauses.length}
-        className="h-[max(360px,calc(100dvh-22rem))] w-full"
+        className="h-[max(360px,calc(100dvh-22rem))] w-full [:fullscreen_&]:h-dvh"
       />
     </div>
   );

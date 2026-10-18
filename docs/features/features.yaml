@@ -1464,6 +1464,16 @@ kategorien:
           - Netto je Setup mit MT5 vergleichen (Werkzeuge → Historie, gleicher Zeitraum, nach Magic-Nummer des Setups).
         erwartet: Netto des Symbols ist die Summe der Setup-Zeilen; jede Setup-Zeile stimmt mit den Trades ihrer Magic-Nummer in MT5 überein; die Namen „Symbol · Setup n“ stimmen mit den Symbolkarten im Dashboard überein.
 
+      - id: ANA-15
+        titel: Chart-Werkzeugleiste und Vollbild
+        beschreibung: "Broker-Uhr („Broker UTC+3“), Lizenzhinweis (i), Zahnrad „Anzeige-Einstellungen“ und ein Vollbild-Knopf liegen oben rechts direkt auf dem Chart statt im Seitenkopf. Ein Klick auf den Vollbild-Knopf zeigt den Chart samt Werkzeugleiste auf dem ganzen Bildschirm (Browser-Vollbild); derselbe Knopf oder Esc beendet es. Im Vollbild bleiben die Anzeige-Schalter bedienbar."
+        code: [frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/app/chart/page.tsx]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Analyse-Seite mit einem Setup öffnen; oben rechts auf dem Chart Uhr, (i), Zahnrad und Vollbild-Knopf ansehen.
+          - Vollbild-Knopf klicken, im Vollbild das Zahnrad öffnen und einen Schalter umlegen, dann Esc drücken.
+        erwartet: Der Chart füllt den Bildschirm, die Schalter wirken sofort, Esc und der Knopf kehren zur Seite zurück.
+
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)
         beschreibung: "GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft."
