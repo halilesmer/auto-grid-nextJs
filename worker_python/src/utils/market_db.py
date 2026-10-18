@@ -124,6 +124,15 @@ MIGRATIONS: list[list[str]] = [
         # BKT-05: per-row UTC offsets are supplied by the file, not guessed from today's clock.
         "ALTER TABLE csv_imports ADD COLUMN offset_mode TEXT NOT NULL DEFAULT 'fixed'",
     ],
+    [
+        # BKT-14: gespeicherte Live-Backtest-Vergleiche; `payload` ist das vollständige, geprüfte JSON.
+        """CREATE TABLE backtest_reports (
+            id TEXT PRIMARY KEY, owner TEXT NOT NULL, name TEXT NOT NULL, note TEXT NOT NULL,
+            account_id TEXT NOT NULL, period_from INTEGER NOT NULL, period_to INTEGER NOT NULL,
+            worker_version TEXT NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL
+        )""",
+        "CREATE INDEX backtest_reports_owner ON backtest_reports (owner, created_at)",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
