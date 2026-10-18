@@ -6,15 +6,12 @@ import { BarChart3, CandlestickChart } from 'lucide-react';
 import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
-import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
-import { BrokerClockNotice, formatOffset } from '@/components/analysis/BrokerClockNotice';
+import { BrokerClockNotice } from '@/components/analysis/BrokerClockNotice';
 import { DateRangePicker } from '@/components/analysis/DateRangePicker';
-import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { ZoneSelect } from '@/components/analysis/ZoneSelect';
 import { StatsTab } from '@/components/analysis/stats/StatsTab';
 import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Alert } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useAnalysisParams, type AnalysisTab } from '@/hooks/useAnalysisParams';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
@@ -164,15 +161,6 @@ function AnalysisView() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{t('analysis.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('analysis.subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {clock.clock?.reliable && (
-            <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">
-              {t('analysis.clock.badge', { offset: formatOffset(clock.clock.offset_sec) })}
-            </Badge>
-          )}
-          <LicenseInfo />
-          <AnalysisSettingsPanel />
         </div>
       </header>
 

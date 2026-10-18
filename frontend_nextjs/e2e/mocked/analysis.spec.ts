@@ -92,6 +92,22 @@ test.describe('ANA Analyse-Seite', () => {
     expect(await unhinted(page)).toEqual([]);
   });
 
+  test('Werkzeugleiste liegt auf dem Chart, Vollbild an und aus', { tag: '@ANA-15' }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    const toolbar = page.getByTestId('analysis-chart-frame').getByTestId('chart-toolbar');
+    await expect(toolbar.getByRole('button', { name: msg('analysis.settings') })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
+
+    await toolbar.getByRole('button', { name: msg('analysis.chart.fullscreen') }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('analysis-chart-frame');
+    await toolbar.getByRole('button', { name: msg('analysis.settings') }).click();
+    await expect(page.getByTestId('analysis-settings')).toBeVisible();
+
+    await toolbar.getByRole('button', { name: msg('analysis.chart.fullscreen.exit') }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+  });
+
   test('Kontowechsel zeigt nie Zonen des alten Kontos', { tag: '@ANA-02' }, async ({ page, worker }) => {
     await page.goto(`/chart?account=${DEMO_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));

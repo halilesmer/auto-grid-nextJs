@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { CandlestickChart, Layers, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { CandlestickChart, Layers, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 
 import {
   ChartCore,
@@ -12,6 +12,9 @@ import {
   type TradeMarker,
 } from '@/components/analysis/chart/ChartCore';
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
+import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
+import { formatOffset } from '@/components/analysis/BrokerClockNotice';
+import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { DataQualityBanner } from '@/components/analysis/DataQualityBanner';
 import { TradesTable } from '@/components/analysis/TradesTable';
 import { Button } from '@/components/ui/button';
@@ -187,6 +190,51 @@ const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
   noSymbolInfo: 'analysis.chart.levels.noSymbolInfo',
   noPrice: 'analysis.chart.levels.noPrice',
 };
+
+/**
+ * Chart-Rahmen: Broker-Uhr, Lizenz, Anzeige-Einstellungen und Vollbild oben rechts auf dem Chart.
+ * Vollbild über die Browser-API; Esc beendet es, `fullscreenchange` hält den Knopf synchron.
+ */
+function ChartFrame({ offsetSec, children }: { offsetSec: number | null; children: ReactNode }) {
+  const t = useT();
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setIsFullscreen(document.fullscreenElement === frameRef.current);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
+  const toggle = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void frameRef.current?.requestFullscreen();
+  };
+
+  return (
+    <div ref={frameRef} className="relative bg-card [&:fullscreen]:bg-background [&:fullscreen]:p-2" data-testid="analysis-chart-frame">
+      {children}
+      <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5" data-testid="chart-toolbar">
+        {offsetSec !== null && (
+          <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">
+            {t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}
+          </Badge>
+        )}
+        <LicenseInfo />
+        <AnalysisSettingsPanel />
+        <Button
+          size="icon-sm"
+          onClick={toggle}
+          aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')}
+          hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')}
+          data-testid="chart-fullscreen"
+        >
+          {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function LegendItem({ swatch, label }: { swatch: string; label: string }) {
   return (
@@ -500,12 +548,13 @@ export default function ZoneChartPanel({
               </Alert>
             )}
 
+            <ChartFrame offsetSec={offsetSec}>
             {isChartEmpty && (
               // Keine einzige Kerze: lightweight-charts kann reine Leerstellen nicht verteilen. Eine Fläche
               // statt eines leeren Charts; der Grund steht im Hinweis darüber
               <div
                 data-testid="analysis-chart-empty"
-                className="flex h-[max(360px,calc(100dvh-22rem))] items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_9px,color-mix(in_oklab,var(--muted-foreground)_22%,transparent)_9px_10px)] text-sm font-medium text-muted-foreground"
+                className="flex h-[max(360px,calc(100dvh-22rem))] items-center [:fullscreen_&]:h-dvh justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_9px,color-mix(in_oklab,var(--muted-foreground)_22%,transparent)_9px_10px)] text-sm font-medium text-muted-foreground"
               >
                 {t('analysis.chart.noData')}
               </div>
@@ -529,8 +578,9 @@ export default function ZoneChartPanel({
               />
             )}
             {!chart && (
-              <div className="h-[max(360px,calc(100dvh-22rem))] animate-pulse rounded-lg bg-muted/40" data-testid="analysis-chart-loading" />
+              <div className="h-[max(360px,calc(100dvh-22rem))] animate-pulse [:fullscreen_&]:h-dvh rounded-lg bg-muted/40" data-testid="analysis-chart-loading" />
             )}
+            </ChartFrame>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground" data-testid="chart-key">
               <LegendItem swatch="inline-block h-3 w-4 rounded-sm border border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_3px,var(--muted-foreground)_3px_4px)] opacity-60" label={t('analysis.chart.key.noData')} />
