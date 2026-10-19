@@ -3,7 +3,7 @@ date: 2026-10-18
 author: Claude
 type: plan
 status: open
-pr: []
+pr: [200, 201]
 features: [BKT-14, BKT-12, BKT-13, ANA-04, ANA-07]
 areas: [ops, frontend, worker, docs]
 ---
@@ -40,11 +40,11 @@ The app must keep the comparison results, so that the project owner can open the
 | 4 Data | Stop the bot. Export the deals (`GET /api/history/{id}/deals`). Make sure that the M1 coverage is `complete` for each symbol. Restore the zones and the auto update. |
 | 5 Backtest | Use the snapshot settings. Max. 6 setups in one run, so do two runs (6 + 2). Spread mode `candle`, `closeAtEnd` off. |
 | 6 Compare | Pair the trades by `magic`, order and time. Give a cause for each difference. Each logic difference becomes a fix with its own PR. |
-| 7 BKT-14 | Develop the report store (API, SQLite table `backtest_reports`, page area "Live-Vergleich"). Merge only after phase 4. |
+| 7 BKT-14 | Develop the report store (API, SQLite table `backtest_reports`, page area "Live-Vergleich"). Done: PR #201, merged on 2026-10-19 before the test week. |
 
 ## Why
 
-A merge to `main` makes the worker update itself and restart the bot (BOT-03). A restart rebuilds the state and changes the trades. Thus the auto update stays off for the test week, and the BKT-14 PR waits until the bot stops.
+A merge to `main` makes the worker update itself and restart the bot (BOT-03). A restart rebuilds the state and changes the trades. Thus the auto update stays off for the test week. BKT-14 (PR #201) merged before the start, so no merge is necessary during the test week.
 
 The tunnel watchdog (VPS-10) and the bot watchdog can also restart the bot. Claude does not disable them, because the self-healing is more important. The daily check finds each restart, and the comparison shows it as the cause "restart".
 
@@ -54,4 +54,4 @@ The tunnel watchdog (VPS-10) and the bot watchdog can also restart the bot. Clau
 - [ ] Phase 1: approve the value table.
 - [ ] Phase 2: start the bot on Monday 2026-10-19.
 - [ ] Phase 3–6: run the test week, the backtest and the comparison.
-- [ ] Phase 7: merge BKT-14 after phase 4 and save the report of this week.
+- [ ] Phase 7: save the report of this week with BKT-14 (merged in PR #201).
