@@ -62,6 +62,8 @@ export interface SymbolRow {
   symbol: string;
   magics: number[];
   spreadPrice: number;
+  /** Kommission je Lot, mit der der Lauf rechnete; fehlt in Berichten vor diesem Feld */
+  commissionPerLot?: number | null;
   live: Metrics;
   backtest: Metrics;
   pairs: Pair[];
@@ -85,6 +87,8 @@ export interface CollectedRun {
   openPositions: number;
   /** Spread in Preis (Spread-Punkte × Punktgröße zum Start des Laufs) */
   spreadPrice: number;
+  /** Kommission je Lot, mit der der Lauf rechnete (Eingabe oder Vorschlag aus dem Archiv) */
+  commissionPerLot: number;
   form: RunSettingsValue;
   from: number;
   to: number;
@@ -185,6 +189,7 @@ export function buildSymbolRows(runs: readonly CollectedRun[], live: LiveData, t
     const own = runs.filter((run) => run.symbol === symbol);
     const magics = [...new Set(own.map((run) => run.magic))].sort((a, b) => a - b);
     const spreadPrice = Math.max(...own.map((run) => run.spreadPrice));
+    const commissionPerLot = Math.max(...own.map((run) => run.commissionPerLot));
     const liveTrades = live.trades.filter((trade) => trade.magic !== null && magics.includes(trade.magic)).map(toLite);
     const backtestTrades = own.flatMap((run) => run.trades.map(toLite));
     const livePositions = live.entries.filter((entry) => entry.magic !== null && magics.includes(entry.magic) && !entry.closed).length;
@@ -208,7 +213,7 @@ export function buildSymbolRows(runs: readonly CollectedRun[], live: LiveData, t
     const priceOk = pairs.every((pair) => !pair.deviations.includes('entryPrice') && !pair.deviations.includes('exitPrice'));
     const profitOk = profitWithin(liveMetrics.net, backtestMetrics.net, tolerance.profitPercent);
     return {
-      symbol, magics, spreadPrice, live: liveMetrics, backtest: backtestMetrics, pairs, unmatchedLive, unmatchedBacktest,
+      symbol, magics, spreadPrice, commissionPerLot, live: liveMetrics, backtest: backtestMetrics, pairs, unmatchedLive, unmatchedBacktest,
       profitDeltaPercent: percentDelta(liveMetrics.net, backtestMetrics.net),
       countOk, entryOk, priceOk, profitOk, passed: countOk && entryOk && priceOk && profitOk,
     };
@@ -227,6 +232,13 @@ export function flatZone(zone: Record<string, unknown>): Record<string, string |
 }
 
 /** Was der Worker je Bericht speichert (Spiegel von worker_python/src/api/backtest_reports.py: ReportCreate) */
+/** Fehlender Bereich des Deal-Archivs beim Erstellen des Berichts (MT5-Sekunden) */
+export interface ArchiveGap {
+  start: number;
+  end: number;
+  reason: string;
+}
+
 export interface ReportContent {
   appVersion: string;
   /** Kontowährung der Gewinne; null = unbekannt */
@@ -235,6 +247,8 @@ export interface ReportContent {
   run: RunSettingsValue;
   zones: Record<string, string | number | boolean | null>[];
   symbols: SymbolRow[];
+  /** Fehlt in Berichten vor diesem Feld */
+  archiveGaps?: ArchiveGap[];
 }
 
 export interface ReportSummary {

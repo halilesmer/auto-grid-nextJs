@@ -43,6 +43,7 @@ function collectable(accountId: string) {
     found.push({
       magic, symbol: params.symbol.name.toUpperCase().trim(), zone: { ...params.zone }, trades: run.results[0].trades,
       openPositions: run.results[0].summary.openPositions, spreadPrice: spread * params.symbol.point,
+      commissionPerLot: params.commissionPerLot,
       form: setup.form, from: params.from, to: params.to, currency: run.context.currency,
     });
   }
@@ -157,6 +158,9 @@ function OpenedReport({ report, onClose }: { report: Report; onClose: () => void
           spread: fmt.number(report.tolerance.priceSpreadFactor), profit: fmt.number(report.tolerance.profitPercent),
         })} · {t('backtest.live.opened.zones', { count: report.zones.length })}
       </p>
+      {(report.archiveGaps?.length ?? 0) > 0 && (
+        <div data-testid="lc-opened-gaps"><Alert tone="warning" title={t('backtest.live.missing', { count: report.archiveGaps?.length ?? 0 })} /></div>
+      )}
       <ReportTable rows={report.symbols} currency={report.currency} />
     </div>
   );
@@ -213,6 +217,7 @@ export function LiveCompareSection({ accountId, offsetSec }: { accountId: string
     const content = {
       appVersion: APP_VERSION, currency, tolerance, run: { ...collected[0].form, csvImportId: null },
       zones: collected.map((run) => flatZone(run.zone)), symbols: rows,
+      archiveGaps: (deals.data?.missing ?? []).map((gap) => ({ start: gap.from, end: gap.to, reason: gap.reason.slice(0, 40) })),
     };
     const fingerprint = JSON.stringify({ accountId, name: name.trim(), note, period, content });
     if (creation.current?.fingerprint !== fingerprint) creation.current = { fingerprint, requestId: crypto.randomUUID() };

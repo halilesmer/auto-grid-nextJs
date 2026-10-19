@@ -172,3 +172,28 @@ def test_list_does_not_read_payloads_and_account_delete_removes_reports(client, 
     assert [item['symbolCount'] for item in client.get(URL, headers=owner).json()['reports']] == [1, 1]
     market_db.delete_account('demo-a')
     assert [item['accountId'] for item in client.get(URL, headers=owner).json()['reports']] == ['demo-b']
+
+
+def test_commission_and_archive_gaps_are_stored(client, identities):
+    owner = identities[0]
+    body = payload(archiveGaps=[{'start': 1_760_100_000, 'end': 1_760_103_600, 'reason': 'error'}])
+    body['symbols'][0]['commissionPerLot'] = 7.0
+    report = client.post(URL, json=body, headers=owner).json()['report']
+    full = client.get(f"{URL}/{report['id']}", headers=owner).json()['report']
+    assert full['symbols'][0]['commissionPerLot'] == 7.0
+    assert full['archiveGaps'] == [{'start': 1_760_100_000, 'end': 1_760_103_600, 'reason': 'error'}]
+
+
+@pytest.mark.parametrize('gap', [
+    {'start': 10, 'end': 5, 'reason': 'error'},
+    {'start': 0, 'end': 5, 'reason': 'x' * 41},
+    {'start': 0, 'end': 5, 'reason': 'error', 'detail': 'extra'},
+])
+def test_invalid_archive_gap_is_422(client, identities, gap):
+    assert client.post(URL, json=payload(archiveGaps=[gap]), headers=identities[0]).status_code == 422
+
+
+def test_negative_commission_is_422(client, identities):
+    body = payload()
+    body['symbols'][0]['commissionPerLot'] = -1
+    assert client.post(URL, json=body, headers=identities[0]).status_code == 422

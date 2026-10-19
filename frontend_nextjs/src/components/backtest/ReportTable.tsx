@@ -34,7 +34,9 @@ function Detail({ row, currency }: { row: SymbolRow; currency: string | null }) 
   return (
     <div className="space-y-3 border-t border-border p-3" data-testid="lc-detail">
       <p className="text-xs text-muted-foreground">
-        {t('backtest.live.detail.spread', { value: fmt.number(row.spreadPrice, { maximumFractionDigits: 8 }) })} · {t('backtest.live.detail.magics', { list: row.magics.join(', ') })}
+        {t('backtest.live.detail.spread', { value: fmt.number(row.spreadPrice, { maximumFractionDigits: 8 }) })}
+        {row.commissionPerLot != null && <> · {t('backtest.live.detail.commission', { value: fmt.number(row.commissionPerLot, { maximumFractionDigits: 2 }) })}</>}
+        {' · '}{t('backtest.live.detail.magics', { list: row.magics.join(', ') })}
       </p>
       {row.pairs.length > 0 && (
         <div className="overflow-x-auto">
