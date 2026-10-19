@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { defaultZone } from '@/utils/zoneHelpers';
 import type { Timeframe } from '@/lib/analysis/candles';
 import { PresetPanel } from './PresetPanel';
+import { LiveCompareSection } from './LiveCompareSection';
 import { useZoneTransferStore } from '@/store/useZoneTransferStore';
 import { TransferDialog } from './TransferDialog';
 import type { BacktestSetup } from '@/store/useBacktestStore';
@@ -96,6 +97,7 @@ export function BacktestView() {
   const range = draft?.range ?? urlRange;
   const setForm = (form: RunSettingsValue) => { if (activeId) useBacktestStore.getState().edit(activeId, { form }); };
   const [editing, setEditing] = useState<string | null>(null);
+  const [liveOpen, setLiveOpen] = useState(false);
   const [presets, setPresets] = useState<{ setup: BacktestSetup | null } | null>(null);
   const [transferZone, setTransferZone] = useState<ZoneSettings | null>(null);
   const initialized = useRef(false);
@@ -333,6 +335,7 @@ export function BacktestView() {
         {status === 'error' && runMatches && <RunErrorAlert setupId={activeId!} />}
         {status === 'done' && results && context && runMatches && <RunResultView key={`${activeId}-${runState.runId}`} results={results} context={context} requestBars={selectedBars} comparison={comparison} />}
         {!hasResult && comparison}
+        {liveOpen && <LiveCompareSection key={accountId} accountId={accountId} offsetSec={offsetSec} />}
         <CsvImportPanel key={accountId} accountId={accountId} defaultSymbol={symbol?.name ?? zone?.symbol ?? ''} imports={csv.imports} reload={csv.reload} />
       </div>
     );
@@ -381,6 +384,7 @@ export function BacktestView() {
       {accountKnown && <>
         <div className="flex flex-wrap gap-2">
           <Button hint={t('backtest.presets.title.hint')} onClick={() => setPresets({ setup: null })}>{t('backtest.presets.title')}</Button>
+          <Button hint={t('backtest.live.toggle.hint')} aria-pressed={liveOpen} data-testid="bt-live-toggle" onClick={() => setLiveOpen((open) => !open)}>{t('backtest.live.toggle')}</Button>
           <Button disabled={!sourceZone || !zones || setups.length >= MAX_SETUPS} hint={t('backtest.setups.add.hint')}
             onClick={() => { if (sourceZone) useBacktestStore.getState().add({ zone: sourceZone, form: DEFAULT_RUN_SETTINGS, range: urlRange, unsaved: handoffApplies && Boolean(handoff?.unsaved) }); }}>
             {t('backtest.setups.add')}

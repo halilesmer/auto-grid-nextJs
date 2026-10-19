@@ -124,6 +124,16 @@ MIGRATIONS: list[list[str]] = [
         # BKT-05: per-row UTC offsets are supplied by the file, not guessed from today's clock.
         "ALTER TABLE csv_imports ADD COLUMN offset_mode TEXT NOT NULL DEFAULT 'fixed'",
     ],
+    [
+        # BKT-14: gespeicherte Live-Backtest-Vergleiche; `payload` ist das vollständige, geprüfte JSON.
+        """CREATE TABLE backtest_reports (
+            id TEXT PRIMARY KEY, owner TEXT NOT NULL, name TEXT NOT NULL, note TEXT NOT NULL,
+            account_id TEXT NOT NULL, period_from INTEGER NOT NULL, period_to INTEGER NOT NULL,
+            worker_version TEXT NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL,
+            symbol_count INTEGER NOT NULL, passed_count INTEGER NOT NULL
+        )""",
+        "CREATE INDEX backtest_reports_owner ON backtest_reports (owner, created_at)",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
@@ -624,11 +634,11 @@ def reclaim_space():
 
 
 def delete_account(account_id: str):
-    """Hesabın deal arşivini ve CSV içe aktarmalarını siler (bölge kaydı ve MT5 mumları kalır; mumlar sunucuya aittir)."""
+    """Hesabın deal arşivini, CSV içe aktarmalarını ve backtest raporlarını (BKT-14) siler (bölge kaydı ve MT5 mumları kalır; mumlar sunucuya aittir)."""
     if not os.path.exists(db_path()):
         return
     with writing() as conn:
-        for table in ("deals", "deal_coverage", "account_meta"):
+        for table in ("deals", "deal_coverage", "account_meta", "backtest_reports"):
             conn.execute(f"DELETE FROM {table} WHERE account_id=?", (account_id,))
         for row in conn.execute("SELECT import_id FROM csv_imports WHERE account_id=?", (account_id,)).fetchall():
             remove_csv_import(conn, row["import_id"])
