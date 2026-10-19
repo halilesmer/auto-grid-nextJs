@@ -342,7 +342,7 @@ kategorien:
 
       - id: SET-04
         titel: Werte bereinigen (Sanitizing)
-        beschreibung: Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
+        beschreibung: Der Worker rundet Gleitkommazahlen beim Speichern auf 7 Stellen (sanitize_settings); das entfernt nur Rauschen, 5-stellige Forex-Werte (take_profit 0.0008, Preis 1.12299) bleiben unverändert.
         code: [worker_python/src/utils/config.py, worker_python/src/api/settings.py]
         tiers: [unit, api]
         pruefung:

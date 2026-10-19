@@ -64,6 +64,16 @@ def test_speichern_rundet_fliesskomma(client, worker_dir):
     assert saved["LOOP_INTERVAL_SECONDS"] == 1.0 and saved["SYMBOLS"][0]["setups"][0]["lot_size"] == 0.01
 
 
+@pytest.mark.feature("SET-04")
+def test_speichern_behaelt_fuenfstellige_forex_werte(client, worker_dir):
+    path = _write_settings(worker_dir, {})
+    zone = make_zone(symbol="EURCHF", take_profit=0.0008, grid_step=0.0011, min_price=1.12299, max_price=1.10005)
+    assert client.post(URL, json={"settings": {"ZONES": [zone]}}).json()["status"] == "saved"
+    saved = json.loads(path.read_text(encoding="utf-8"))["SYMBOLS"][0]["setups"][0]
+    assert (saved["take_profit"], saved["grid_step"], saved["min_price"], saved["max_price"]) == (
+        0.0008, 0.0011, 1.12299, 1.10005)
+
+
 # --------------------------------------------------------------------------- ZON-08
 @pytest.mark.feature("ZON-08")
 def test_zonen_befehle_werden_gespeichert_und_gelesen(client, ui_state_file):

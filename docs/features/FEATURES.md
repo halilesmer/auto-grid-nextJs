@@ -178,7 +178,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Leiste erscheint, Button zeigt „Kaydediliyor…“ → „Kaydedildi“, Leiste verschwindet.
   - 📝 Claude: Max Fiyat 200 → 201 → schwebende Leiste + Badge 'Kaydedilmedi'; 'Kaydet' in der Leiste → API 201, Leiste weg; zurück auf 200 über 'Tüm Ayarları Kaydet' → API 200, 'Kaydedildi'
 - [x] **SET-04** Werte bereinigen (Sanitizing) — 🧪 unit ✅ 2026-10-19 · 🔌 api ✅ 2026-10-19 · 👤 manuell ✅ 2026-09-23
-  - Der Worker rundet Gleitkommazahlen beim Speichern (sanitize_settings).
+  - Der Worker rundet Gleitkommazahlen beim Speichern auf 7 Stellen (sanitize_settings); das entfernt nur Rauschen, 5-stellige Forex-Werte (take_profit 0.0008, Preis 1.12299) bleiben unverändert.
   - **Prüfung:** Lot 0.0100000001 eingeben und speichern.
   - **Erwartet:** Gespeichert wird 0.01.
   - 📝 Claude: POST LOOP_INTERVAL_SECONDS 1.00000001 → gespeichert als 1.0
