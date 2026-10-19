@@ -335,8 +335,8 @@ export function BacktestView() {
         {status === 'error' && runMatches && <RunErrorAlert setupId={activeId!} />}
         {status === 'done' && results && context && runMatches && <RunResultView key={`${activeId}-${runState.runId}`} results={results} context={context} requestBars={selectedBars} comparison={comparison} />}
         {!hasResult && comparison}
-        {liveOpen && <LiveCompareSection key={accountId} accountId={accountId} offsetSec={offsetSec} />}
-        <CsvImportPanel key={accountId} accountId={accountId} defaultSymbol={symbol?.name ?? zone?.symbol ?? ''} imports={csv.imports} reload={csv.reload} />
+        {liveOpen && <LiveCompareSection key={`live-${accountId}`} accountId={accountId} offsetSec={offsetSec} />}
+        <CsvImportPanel key={`csv-${accountId}`} accountId={accountId} defaultSymbol={symbol?.name ?? zone?.symbol ?? ''} imports={csv.imports} reload={csv.reload} />
       </div>
     );
   };
