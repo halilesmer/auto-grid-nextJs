@@ -3,7 +3,7 @@ date: 2026-10-19
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [204]
 features: [SET-04]
 areas: [worker, tests]
 ---
