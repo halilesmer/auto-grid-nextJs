@@ -116,3 +116,22 @@ test('Gleiche requestId mit anderem Inhalt liefert 409 wie der echte Worker', { 
   expect(await send(first)).toBe(201);
   expect(await send({ ...first, name: 'Anderer Name' })).toBe(409);
 });
+
+test('Ohne Spread-Angabe des Symbols warnt der Vergleich, dass die Preisprüfung streng rechnet', { tag: '@BKT-14' }, async ({ page, worker }) => {
+  worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
+  const info = worker.state.symbols.find((item) => item.name === 'USOUSD') as { spread?: number } | undefined;
+  delete info?.spread;
+  await page.goto(URL);
+  await runAndCollect(page);
+  await expect(page.getByTestId('lc-row')).toHaveCount(1);
+  await expect(page.getByTestId('lc-no-spread')).toBeVisible();
+  await expect(page.getByTestId('lc-no-spread')).toContainText('USOUSD');
+});
+
+test('Mit Spread-Angabe des Symbols gibt es keine Warnung', { tag: '@BKT-14' }, async ({ page, worker }) => {
+  worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
+  await page.goto(URL);
+  await runAndCollect(page);
+  await expect(page.getByTestId('lc-row')).toHaveCount(1);
+  await expect(page.getByTestId('lc-no-spread')).toHaveCount(0);
+});

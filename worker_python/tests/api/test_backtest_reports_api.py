@@ -10,12 +10,16 @@ pytestmark = pytest.mark.feature('BKT-14')
 
 
 @pytest.fixture
-def identities(client, monkeypatch):
+def identities(client, monkeypatch, seed_accounts):
     from src.api import auth, users_store
+    from tests.api.conftest import account
     admin = secrets.token_urlsafe(24)
     monkeypatch.setattr(auth, 'WORKER_API_KEY', admin)
-    _, first = users_store.create_user('First')
-    _, second = users_store.create_user('Second')
+    first_user, first = users_store.create_user('First')
+    second_user, second = users_store.create_user('Second')
+    # demo-a und demo-b gehören dem ersten Benutzer, demo-c dem zweiten
+    seed_accounts(account('1', id='demo-a', owner=first_user['id']), account('2', id='demo-b', owner=first_user['id']),
+                  account('3', id='demo-c', owner=second_user['id']))
     return [{'X-API-Key': key} for key in (first, second, admin)]
 
 
@@ -76,7 +80,7 @@ def test_foreign_owner_gets_404_and_admin_sees_all(client, identities):
     assert client.get(URL, headers=other).json() == {'reports': []}
     assert client.get(target, headers=other).status_code == 404
     assert client.delete(target, headers=other).status_code == 404
-    assert client.post(URL, json=payload(requestId=report['id']), headers=other).status_code == 404
+    assert client.post(URL, json=payload(requestId=report['id'], accountId='demo-c'), headers=other).status_code == 404
     assert [item['id'] for item in client.get(URL, headers=admin).json()['reports']] == [report['id']]
     assert client.get(target, headers=admin).status_code == 200
     assert client.get(URL).status_code == 401
@@ -153,7 +157,7 @@ def test_limit_is_per_owner_and_retry_at_limit_still_succeeds(client, identities
         assert client.post(URL, json=last, headers=identities[0]).status_code == 201
     assert client.post(URL, json=last, headers=identities[0]).status_code == 201
     assert client.post(URL, json=payload(), headers=identities[0]).status_code == 409
-    assert client.post(URL, json=payload(), headers=identities[1]).status_code == 201
+    assert client.post(URL, json=payload(accountId='demo-c'), headers=identities[1]).status_code == 201
 
 
 def test_huge_body_is_stopped_before_parsing(client, identities, monkeypatch):
@@ -193,7 +197,17 @@ def test_invalid_archive_gap_is_422(client, identities, gap):
     assert client.post(URL, json=payload(archiveGaps=[gap]), headers=identities[0]).status_code == 422
 
 
-def test_negative_commission_is_422(client, identities):
+def test_negative_commission_is_stored(client, identities):
+    """Ein Rabatt im Deal-Archiv ergibt eine negative Kommission je Lot; der Bericht muss sich trotzdem speichern lassen."""
     body = payload()
-    body['symbols'][0]['commissionPerLot'] = -1
-    assert client.post(URL, json=body, headers=identities[0]).status_code == 422
+    body['symbols'][0]['commissionPerLot'] = -1.5
+    report = client.post(URL, json=body, headers=identities[0]).json()['report']
+    assert client.get(f"{URL}/{report['id']}", headers=identities[0]).json()['report']['symbols'][0]['commissionPerLot'] == -1.5
+
+
+def test_report_for_foreign_or_unknown_account_is_404(client, identities):
+    owner, other, admin = identities
+    assert client.post(URL, json=payload(accountId='demo-c'), headers=owner).status_code == 404
+    assert client.post(URL, json=payload(accountId='unknown'), headers=other).status_code == 404
+    assert client.get(URL, headers=owner).json() == {'reports': []}
+    assert client.post(URL, json=payload(accountId='demo-c'), headers=admin).status_code == 201

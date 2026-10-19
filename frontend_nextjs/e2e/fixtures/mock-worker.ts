@@ -676,6 +676,9 @@ export class MockWorker {
           || !Array.isArray(body.symbols) || !Array.isArray(body.zones) || !body.tolerance || !body.run) {
           return { status: 422, body: { detail: 'Invalid report payload' } };
         }
+        // Wie der echte Worker: ein Benutzer speichert nur für eigene Konten (Admin für jedes)
+        const own = this.state.accounts.some((a) => String(a.id) === body.accountId && a.owner === principal.id);
+        if (principal.role !== 'admin' && !own) return { status: 404, body: { detail: 'Account not found' } };
         const existing = this.reports.find((r) => r.id === body.requestId);
         if (existing) {
           if (existing.owner !== principal.id) return notFound;
