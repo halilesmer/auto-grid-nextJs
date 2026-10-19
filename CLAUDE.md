@@ -140,3 +140,14 @@ Claude chooses model and `/effort` level itself. The goal is the best result wit
 - Examine each subagent result before you use it. A subagent report is not evidence (`hooks/RULES.md` §8.4).
 - Do not change the model during a running phase. Change it only at a phase boundary.
 - On Sonnet: for architecture decisions and difficult debugging, change to Opus or a higher `/effort` for the plan phase. Do not guess.
+
+Sessions for plan phases (`start_session`):
+
+- Always set `model` and `effort` from the phase table. Without them, the new session inherits the model and level of the parent session.
+- `model` must be the same family or a cheaper model. `effort` must not be higher than the level of the parent session.
+- A phase that needs a different model starts as `fresh`. Fork and cloud sessions do not accept `model` and `effort`.
+- When one session runs more than one phase, the parent session changes it at each phase boundary with `set_session_model` and `set_session_effort`. The changes apply from the next turn of the child session.
+  - The child session writes `PHASENWECHSEL → N` at the start of its recap. Do not change this signal.
+  - Before a phase on a more expensive model, the child session waits for the message „Modell umgestellt“ from the parent session.
+- The parent session stays open until the last phase switch is done.
+- A scheduled task (`create_scheduled_task`) has no `model` parameter. If Claude cannot set the plan model (scheduled task, fork, cloud session, limit error), it tells the user at once.
