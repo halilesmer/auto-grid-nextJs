@@ -2,6 +2,7 @@
  * BKT-14: Live-Vergleich speichern. Ein Lauf im Web Worker gegen den Mock-Worker, dann Übernehmen, Vergleichen,
  * Speichern, Neuladen, Öffnen und Löschen. Die Rechnung des Vergleichs prüft backtest-live-compare-lib.spec.ts.
  */
+import { E2E_API_KEY, MOCK_API } from '../fixtures/env';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
 
@@ -87,4 +88,31 @@ test('Bei 375 px Breite scrollt die Seite nicht seitwärts, die Tabelle scrollt 
   await expect(page.getByTestId('lc-detail')).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('Die Detailzeile überspannt alle Spalten der Tabelle', { tag: '@BKT-14' }, async ({ page, worker }) => {
+  worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
+  await page.goto(URL);
+  await runAndCollect(page);
+  await page.getByTestId('lc-row').getByRole('button').click();
+  await expect(page.getByTestId('lc-detail')).toBeVisible();
+  const columns = await page.getByTestId('lc-table').locator('thead th').count();
+  const span = await page.getByTestId('lc-detail').locator('xpath=ancestor::td').getAttribute('colspan');
+  expect(Number(span)).toBe(columns);
+});
+
+test('Gleiche requestId mit anderem Inhalt liefert 409 wie der echte Worker', { tag: '@BKT-14' }, async ({ page, worker }) => {
+  worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
+  await page.goto(URL);
+  await runAndCollect(page);
+  await page.getByTestId('lc-save').locator('input').fill('Woche 43');
+  await page.getByTestId('lc-save-button').click();
+  await expect(page.getByTestId('lc-saved-item')).toHaveCount(1);
+  const first = worker.callsTo('POST', '/api/backtest/reports')[0].body as Record<string, unknown>;
+  const send = (body: unknown) => page.evaluate(async ([url, key, payload]) => {
+    const res = await fetch(`${url}/api/backtest/reports`, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json', 'X-API-Key': key as string } });
+    return res.status;
+  }, [MOCK_API, E2E_API_KEY, body]);
+  expect(await send(first)).toBe(201);
+  expect(await send({ ...first, name: 'Anderer Name' })).toBe(409);
 });

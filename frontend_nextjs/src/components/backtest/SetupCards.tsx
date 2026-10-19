@@ -39,7 +39,7 @@ export function SetupCards({ setups, runs, activeId, onEdit, onPreset, onTransfe
               <Badge hint={t(zone.fractal_tp_by_money ? 'zone.fractal.tpMoney.hint' : 'zone.fractal.rr.hint')}>
                 {t(zone.fractal_tp_by_money ? 'zone.fractal.tpMoney' : 'zone.fractal.rr')}: {fmt.number(zone.fractal_tp_by_money ? zone.fractal_tp_money ?? 0 : zone.fractal_rr ?? 2)}
               </Badge>
-              <Badge hint={t('zone.field.lot.hint')}>{t('zone.field.lot')}: {fmt.number(zone.lot_size, { maximumFractionDigits: 8 })}</Badge>
+              <Badge hint={t('zone.field.lot.hint')}>{t('zone.field.lot')}: {fmt.number(zone.lot_size, FULL_DECIMALS)}</Badge>
             </>
           ) : (
             <>

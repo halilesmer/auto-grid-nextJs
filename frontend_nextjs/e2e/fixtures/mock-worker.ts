@@ -677,7 +677,14 @@ export class MockWorker {
           return { status: 422, body: { detail: 'Invalid report payload' } };
         }
         const existing = this.reports.find((r) => r.id === body.requestId);
-        if (existing) return existing.owner === principal.id ? { status: 201, body: { report: existing } } : notFound;
+        if (existing) {
+          if (existing.owner !== principal.id) return notFound;
+          // Wie der echte Worker: dieselbe requestId mit anderem Inhalt ist ein Konflikt
+          const { requestId: _id, ...sent } = body;
+          void _id;
+          const same = Object.entries(sent).every(([key, value]) => JSON.stringify(existing[key]) === JSON.stringify(value));
+          return same ? { status: 201, body: { report: existing } } : { status: 409, body: { detail: 'Report request ID already used' } };
+        }
         if (this.reports.filter((r) => r.owner === principal.id).length >= 50) return { status: 409, body: { detail: 'Report limit reached (50)' } };
         const { requestId, ...rest } = body;
         const report = { ...rest, name, id: String(requestId), owner: principal.id, workerVersion: '0.0.0-mock', createdAt: Math.floor(Date.now() / 1000) };

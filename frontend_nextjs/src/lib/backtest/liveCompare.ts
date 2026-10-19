@@ -139,10 +139,54 @@ function profitWithin(base: number, value: number, percent: number): boolean {
   return delta !== null && Math.abs(delta) <= percent;
 }
 
+/** Obergrenze für die Größe der Zuordnungstabelle (Live × Backtest je Zone und Seite); darüber paart die Reihenfolge gierig */
+const MAX_ALIGN_CELLS = 4_000_000;
+/** Ein Paar zählt mehr als jede mögliche Summe von Zeitabständen (höchstens MATCH_WINDOW_SEC je Paar) */
+const PAIR_WEIGHT = 1e9;
+
+/** Reihenfolge-treue Zuordnung: zuerst möglichst viele Paare, dann die kleinste Summe der Zeitabstände */
+function alignByTime(a: readonly TradeLite[], b: readonly TradeLite[]): [number, number][] {
+  const width = b.length + 1;
+  const best = new Float64Array((a.length + 1) * width);
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      const gap = Math.abs(sortKey(a[i]) - sortKey(b[j]));
+      const skip = Math.max(best[(i + 1) * width + j], best[i * width + j + 1]);
+      best[i * width + j] = gap <= MATCH_WINDOW_SEC ? Math.max(skip, PAIR_WEIGHT - gap + best[(i + 1) * width + j + 1]) : skip;
+    }
+  }
+  const matched: [number, number][] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    const gap = Math.abs(sortKey(a[i]) - sortKey(b[j]));
+    if (gap <= MATCH_WINDOW_SEC && best[i * width + j] === PAIR_WEIGHT - gap + best[(i + 1) * width + j + 1]) {
+      matched.push([i++, j++]);
+    } else if (best[(i + 1) * width + j] >= best[i * width + j + 1]) i++;
+    else j++;
+  }
+  return matched;
+}
+
+/** Gierige Paarung für sehr große Listen: der n-te Live-Trade zum n-ten Backtest-Trade, solange sie im Fenster liegen */
+function alignGreedy(a: readonly TradeLite[], b: readonly TradeLite[]): [number, number][] {
+  const matched: [number, number][] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    const gap = sortKey(a[i]) - sortKey(b[j]);
+    if (Math.abs(gap) <= MATCH_WINDOW_SEC) matched.push([i++, j++]);
+    else if (gap < 0) i++;
+    else j++;
+  }
+  return matched;
+}
+
 /**
- * Paart Live- und Backtest-Trades einer Zone: je Seite nach Einstiegszeit geordnet, der n-te Live-Trade gehört zum
- * n-ten Backtest-Trade, solange beide höchstens MATCH_WINDOW_SEC auseinander liegen; sonst bleibt der frühere
- * Trade ohne Paar. Gleiche Zahl von Trades mit versetzten Zeiten ergibt also Paare, ein fehlender Trade nur eine Lücke.
+ * Paart Live- und Backtest-Trades einer Zone: je Seite nach Einstiegszeit geordnet, die Reihenfolge bleibt erhalten,
+ * zwei Trades bilden ein Paar nur, wenn sie höchstens MATCH_WINDOW_SEC auseinander liegen. Gewählt wird die Zuordnung
+ * mit den meisten Paaren und dann der kleinsten Summe der Zeitabstände: gleiche Zahl von Trades mit versetzten Zeiten
+ * ergibt Paare, ein fehlender Trade nur eine Lücke und verschiebt die übrigen Paare nicht.
  */
 export function pairByOrder(live: readonly TradeLite[], backtest: readonly TradeLite[]) {
   const pairs: { live: TradeLite; backtest: TradeLite }[] = [];
@@ -151,16 +195,12 @@ export function pairByOrder(live: readonly TradeLite[], backtest: readonly Trade
   for (const side of ['buy', 'sell'] as const) {
     const a = live.filter((trade) => trade.side === side).sort(byTime);
     const b = backtest.filter((trade) => trade.side === side).sort(byTime);
-    let i = 0;
-    let j = 0;
-    while (i < a.length && j < b.length) {
-      const gap = sortKey(a[i]) - sortKey(b[j]);
-      if (Math.abs(gap) <= MATCH_WINDOW_SEC) pairs.push({ live: a[i++], backtest: b[j++] });
-      else if (gap < 0) unmatchedLive.push(a[i++]);
-      else unmatchedBacktest.push(b[j++]);
-    }
-    unmatchedLive.push(...a.slice(i));
-    unmatchedBacktest.push(...b.slice(j));
+    const matched = (a.length + 1) * (b.length + 1) <= MAX_ALIGN_CELLS ? alignByTime(a, b) : alignGreedy(a, b);
+    const usedLive = new Set(matched.map(([i]) => i));
+    const usedBacktest = new Set(matched.map(([, j]) => j));
+    for (const [i, j] of matched) pairs.push({ live: a[i], backtest: b[j] });
+    unmatchedLive.push(...a.filter((_, i) => !usedLive.has(i)));
+    unmatchedBacktest.push(...b.filter((_, j) => !usedBacktest.has(j)));
   }
   return { pairs, unmatchedLive, unmatchedBacktest };
 }
@@ -231,7 +271,6 @@ export function flatZone(zone: Record<string, unknown>): Record<string, string |
   return out;
 }
 
-/** Was der Worker je Bericht speichert (Spiegel von worker_python/src/api/backtest_reports.py: ReportCreate) */
 /** Fehlender Bereich des Deal-Archivs beim Erstellen des Berichts (MT5-Sekunden) */
 export interface ArchiveGap {
   start: number;
@@ -239,6 +278,7 @@ export interface ArchiveGap {
   reason: string;
 }
 
+/** Was der Worker je Bericht speichert (Spiegel von worker_python/src/api/backtest_reports.py: ReportCreate) */
 export interface ReportContent {
   appVersion: string;
   /** Kontowährung der Gewinne; null = unbekannt */
