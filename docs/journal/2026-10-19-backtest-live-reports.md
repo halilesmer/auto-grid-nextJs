@@ -66,9 +66,18 @@ The owner wants to compare both trade by trade and to open the comparison later.
 
 The migration test for `offset_mode` assumed that it was the last migration. It now removes the newer table first.
 
+## Follow-up: commission and archive gaps
+
+| File | Change |
+|---|---|
+| `worker_python/src/api/backtest_reports.py` | Optional `commissionPerLot` per symbol and `archiveGaps` (start, end, reason; at most 500) per report. |
+| `frontend_nextjs/src/lib/backtest/liveCompare.ts`, `LiveCompareSection.tsx`, `ReportTable.tsx` | Send both fields. The opened report shows the gap warning; the symbol detail shows the commission. |
+
+Reason: the run form stores `commission: null` when the run uses the archive proposal, so the used value was lost.
+A profit deviation then had no visible cause. A gap in the deal archive showed only when the report was made, so a failed symbol in an old report looked like a bot difference.
+Both fields are optional: reports saved before this change stay valid.
+
 ## Open points
 
 - A live trade without a known entry (position older than the archive) never matches the entry-candle check.
-- Missing ranges of the deal archive show only as a warning when the report is made, not in the stored report.
-- The commission per lot used (proposal from the archive) is not stored.
 - A partial close is one trade on both sides. The pairing does not merge partial closes.

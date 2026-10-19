@@ -20,6 +20,8 @@ async function runAndCollect(page: import('@playwright/test').Page) {
 
 test('Vergleich speichern, neu laden, öffnen (nur lesen) und löschen', { tag: '@BKT-14' }, async ({ page, worker }) => {
   worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
+  const now = Math.floor(Date.now() / 1000);
+  worker.state.dealsMissing = [{ from: now - 7200, to: now - 3600, reason: 'busy' }];
   await page.goto(URL);
   await runAndCollect(page);
 
@@ -43,6 +45,8 @@ test('Vergleich speichern, neu laden, öffnen (nur lesen) und löschen', { tag: 
   expect(body.zones[0].magic).toBe(200001);
   expect(body.run.csvImportId).toBeNull();
   expect(body.symbols[0].magics).toEqual([200001]);
+  expect(typeof body.symbols[0].commissionPerLot).toBe('number');
+  expect(body.archiveGaps).toEqual([{ start: now - 7200, end: now - 3600, reason: 'busy' }]);
 
   // Neu laden: der Bericht kommt aus dem Worker, nicht aus dem Browser
   await page.reload();
@@ -54,6 +58,7 @@ test('Vergleich speichern, neu laden, öffnen (nur lesen) und löschen', { tag: 
   await expect(opened).toContainText('Erste Live-Woche');
   await expect(opened.getByTestId('lc-opened-tolerance')).toContainText('0,5');
   await expect(opened.getByTestId('lc-row')).toHaveCount(1);
+  await expect(opened.getByTestId('lc-opened-gaps')).toBeVisible();
   expect(worker.callsTo('POST', '/api/backtest/reports')).toHaveLength(1);
 
   // Löschen mit Bestätigung

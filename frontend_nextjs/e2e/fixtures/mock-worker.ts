@@ -669,7 +669,7 @@ export class MockWorker {
       const notFound = { status: 404, body: { detail: 'Report not found' } };
       if (seg.length === 2 && method === 'GET') return ok({ reports: this.reports.filter(visible).map(summary) });
       if (seg.length === 2 && method === 'POST') {
-        const allowed = ['requestId', 'name', 'note', 'accountId', 'periodFrom', 'periodTo', 'appVersion', 'currency', 'tolerance', 'run', 'zones', 'symbols'];
+        const allowed = ['requestId', 'name', 'note', 'accountId', 'periodFrom', 'periodTo', 'appVersion', 'currency', 'tolerance', 'run', 'zones', 'symbols', 'archiveGaps'];
         const name = typeof body?.name === 'string' ? body.name.trim() : '';
         if (!body || Object.keys(body).some((key) => !allowed.includes(key)) || !name || name.length > 80
           || typeof body.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(body.requestId)

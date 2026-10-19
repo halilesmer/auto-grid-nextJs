@@ -13,7 +13,7 @@ function trade(over: Partial<Trade> = {}): Trade {
   };
 }
 const run = (trades: Trade[], over: Partial<CollectedRun> = {}): CollectedRun => ({
-  magic: 200001, symbol: 'EURUSD', zone: { magic: 200001 }, trades, openPositions: 0, spreadPrice: 0.0002, form: DEFAULT_RUN_SETTINGS,
+  magic: 200001, symbol: 'EURUSD', zone: { magic: 200001 }, trades, openPositions: 0, spreadPrice: 0.0002, commissionPerLot: 0, form: DEFAULT_RUN_SETTINGS,
   from: T0 - 1000, to: T0 + 100_000, currency: 'USD', ...over,
 });
 const lite = (over: Partial<TradeLite> = {}): TradeLite => ({ side: 'buy', magic: 1, volume: 0.01, entryTime: T0, entryPrice: 1, exitTime: T0 + 10, exitPrice: 1, exitReason: null, net: 1, ...over });

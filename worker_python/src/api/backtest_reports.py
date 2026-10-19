@@ -26,6 +26,7 @@ MAX_SYMBOLS = 50
 MAX_TRADES_PER_LIST = 5000
 MAX_ZONES = 100
 MAX_ZONE_KEYS = 200
+MAX_ARCHIVE_GAPS = 500
 # Zeitstempel in Sekunden; SQLite speichert 64 Bit, alles darüber wäre ein 500 statt 422
 MAX_TIME = 2**40
 
@@ -75,6 +76,8 @@ class SymbolRow(StrictModel):
     symbol: str = Field(min_length=1, max_length=40)
     magics: list[int] = Field(max_length=MAX_ZONES)
     spreadPrice: float = Field(ge=0)
+    # Kommission je Lot, mit der der Lauf rechnete (Eingabe oder Vorschlag aus dem Archiv); fehlt in älteren Berichten
+    commissionPerLot: float | None = Field(default=None, ge=0)
     live: Metrics
     backtest: Metrics
     pairs: list[Pair] = Field(max_length=MAX_TRADES_PER_LIST)
@@ -86,6 +89,19 @@ class SymbolRow(StrictModel):
     priceOk: bool
     profitOk: bool
     passed: bool
+
+
+class ArchiveGap(StrictModel):
+    """Fehlender Bereich des Deal-Archivs beim Erstellen: die Live-Zahlen darin können fehlen."""
+    start: int = Field(ge=0, le=MAX_TIME)
+    end: int = Field(ge=0, le=MAX_TIME)
+    reason: str = Field(max_length=40)
+
+    @model_validator(mode="after")
+    def ordered(self):
+        if self.start >= self.end:
+            raise ValueError("start must be before end")
+        return self
 
 
 Scalar = str | int | float | bool | None
@@ -105,6 +121,7 @@ class ReportCreate(StrictModel):
     # Zonen wie im Dashboard gespeichert (mit id und magic); nur flache Werte
     zones: list[dict[str, Scalar]] = Field(max_length=MAX_ZONES)
     symbols: list[SymbolRow] = Field(max_length=MAX_SYMBOLS)
+    archiveGaps: list[ArchiveGap] = Field(default_factory=list, max_length=MAX_ARCHIVE_GAPS)
 
     @field_validator("name")
     @classmethod
