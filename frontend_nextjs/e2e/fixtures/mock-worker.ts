@@ -184,6 +184,8 @@ function unwrapSettings(value: unknown): Json {
 export class MockWorker {
   state: MockState = defaultState();
   private presets: (BacktestPreset & { owner: string })[] = [];
+  /** BKT-14: gespeicherte Live-Vergleiche (Spiegel von worker_python/src/api/backtest_reports.py) */
+  private reports: (Json & { id: string; owner: string })[] = [];
   /** Alle REST-Aufrufe in Reihenfolge (für Assertions auf Methode, Pfad, Query, Body). */
   readonly calls: WorkerCall[] = [];
   /** Aufrufe ohne gültigen X-API-Key; der Test-Fixture prüft, dass die Liste leer bleibt. */
@@ -652,6 +654,43 @@ export class MockWorker {
       if (seg.length === 3 && method === 'DELETE') {
         this.presets = this.presets.filter((item) => item !== preset);
         return ok({ deleted: preset.id });
+      }
+    }
+
+    // BKT-14: Berichte; Admin sieht alle, Benutzer nur eigene, fremde Berichte liefern 404.
+    if (seg[0] === 'backtest' && seg[1] === 'reports') {
+      const visible = (report: { owner: string }) => admin || report.owner === principal.id;
+      const summary = (report: Json & { owner: string }) => {
+        const symbols = report.symbols as { passed: boolean }[];
+        const { symbols: _symbols, zones: _zones, tolerance: _tolerance, run: _run, ...rest } = report;
+        void [_symbols, _zones, _tolerance, _run];
+        return { ...rest, symbolCount: symbols.length, passedCount: symbols.filter((item) => item.passed).length };
+      };
+      const notFound = { status: 404, body: { detail: 'Report not found' } };
+      if (seg.length === 2 && method === 'GET') return ok({ reports: this.reports.filter(visible).map(summary) });
+      if (seg.length === 2 && method === 'POST') {
+        const allowed = ['requestId', 'name', 'note', 'accountId', 'periodFrom', 'periodTo', 'appVersion', 'currency', 'tolerance', 'run', 'zones', 'symbols'];
+        const name = typeof body?.name === 'string' ? body.name.trim() : '';
+        if (!body || Object.keys(body).some((key) => !allowed.includes(key)) || !name || name.length > 80
+          || typeof body.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(body.requestId)
+          || !Array.isArray(body.symbols) || !Array.isArray(body.zones) || !body.tolerance || !body.run) {
+          return { status: 422, body: { detail: 'Invalid report payload' } };
+        }
+        const existing = this.reports.find((r) => r.id === body.requestId);
+        if (existing) return existing.owner === principal.id ? { status: 201, body: { report: existing } } : notFound;
+        if (this.reports.filter((r) => r.owner === principal.id).length >= 50) return { status: 409, body: { detail: 'Report limit reached (50)' } };
+        const { requestId, ...rest } = body;
+        const report = { ...rest, name, id: String(requestId), owner: principal.id, workerVersion: '0.0.0-mock', createdAt: Math.floor(Date.now() / 1000) };
+        const row = { ...report, ...summary(report) };
+        this.reports.push(row);
+        return { status: 201, body: { report: row } };
+      }
+      const report = this.reports.find((item) => item.id === seg[2]);
+      if (!report || !visible(report)) return notFound;
+      if (seg.length === 3 && method === 'GET') return ok({ report: { ...report, ...summary(report) } });
+      if (seg.length === 3 && method === 'DELETE') {
+        this.reports = this.reports.filter((item) => item !== report);
+        return ok({ deleted: report.id });
       }
     }
 
