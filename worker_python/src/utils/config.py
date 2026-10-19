@@ -74,7 +74,7 @@ def load_settings(engine_name: str = "Auto Grid", raise_on_error: bool = False):
 
 
 def sanitize_settings(data):
-    """Float değerlerdeki sapmaları ve gereksiz küsuratları temizler."""
+    """Float değerlerdeki yuvarlama gürültüsünü temizler; gerçek değeri değiştirmez."""
     if isinstance(data, dict):
         # Spread fiyat farkları ve yeni pip/tick sayıları tam hassasiyetini korur.
         return {
@@ -87,14 +87,10 @@ def sanitize_settings(data):
     elif isinstance(data, list):
         return [sanitize_settings(item) for item in data]
     elif isinstance(data, float):
-        r5 = round(data, 5)
-        r2 = round(r5, 2)
-        if abs(r5 - r2) < 0.0002:
-            return r2
-        r3 = round(r5, 3)
-        if abs(r5 - r3) < 0.0002:
-            return r3
-        return r5
+        # Yalnız gürültüyü (0.30000000000000004, 0.0100000001) siler. Daha kaba bir ızgaraya
+        # yuvarlamak 5 haneli forex değerlerini bozar (0.0008 → 0.001, 1.12299 → 1.123).
+        # 7 hane: testler 1e-8 sapmanın silinmesini bekler (1.00000001 → 1.0); 8+ bunu bozar.
+        return round(data, 7)
     return data
 
 
