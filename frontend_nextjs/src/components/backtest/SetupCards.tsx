@@ -6,6 +6,9 @@ import { useFormat, useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { EMPTY_RUN, MAX_SETUPS, useBacktestStore, type BacktestSetup, type SetupRun } from '@/store/useBacktestStore';
 
+/** Abstand, TP und Lot ohne Kürzung auf 3 Stellen: fünfstellige Forex-Werte (0,0004) bleiben sichtbar */
+const FULL_DECIMALS = { maximumFractionDigits: 8 };
+
 export const SETUP_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--info)'];
 
 export function SetupCards({ setups, runs, activeId, onEdit, onPreset, onTransfer }: {
@@ -41,10 +44,10 @@ export function SetupCards({ setups, runs, activeId, onEdit, onPreset, onTransfe
           ) : (
             <>
               <Badge hint={t(zone.step_by_loss ? 'zone.field.gridStepLoss.hint' : 'zone.field.gridStep.hint')}>
-                {t('backtest.setups.parameters', { step: fmt.number(zone.grid_step), tp: fmt.number(zone.take_profit), lot: fmt.number(zone.lot_size, { maximumFractionDigits: 8 }) })}
+                {t('backtest.setups.parameters', { step: fmt.number(zone.grid_step, FULL_DECIMALS), tp: fmt.number(zone.take_profit, FULL_DECIMALS), lot: fmt.number(zone.lot_size, FULL_DECIMALS) })}
               </Badge>
               {zone.order_type === 'BOTH' && !zone.sync_buy_sell && <Badge hint={t('backtest.setups.badge.hint')}>
-                {t('zone.section.sellGrid')} · {t('backtest.setups.parameters', { step: fmt.number(zone.sell_grid_step), tp: fmt.number(zone.sell_take_profit), lot: fmt.number(zone.sell_lot_size, { maximumFractionDigits: 8 }) })}
+                {t('zone.section.sellGrid')} · {t('backtest.setups.parameters', { step: fmt.number(zone.sell_grid_step, FULL_DECIMALS), tp: fmt.number(zone.sell_take_profit, FULL_DECIMALS), lot: fmt.number(zone.sell_lot_size, FULL_DECIMALS) })}
               </Badge>}
             </>
           )}
