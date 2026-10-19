@@ -10,6 +10,8 @@ import type { Deviation, SymbolRow, TradeLite } from '@/lib/backtest/liveCompare
 /** Mehr Zeilen zeigt die Detailansicht je Liste nicht; Zähler und Summen stehen oben */
 const DETAIL_LIMIT = 500;
 const CHECKS = ['count', 'entry', 'price', 'profit'] as const;
+/** Spalten der Tabelle: Symbol, Trades, Netto, Abweichung, Drawdown, offen, die Prüfungen, Ergebnis, Details */
+const COLUMN_COUNT = 7 + CHECKS.length + 1;
 const CHECK_OK = { count: 'countOk', entry: 'entryOk', price: 'priceOk', profit: 'profitOk' } as const;
 
 function TradeList({ trades, testId }: { trades: TradeLite[]; testId: string }) {
@@ -170,7 +172,7 @@ function FragmentRow({ row, shown, onToggle, money, pct, pair, currency }: {
       </tr>
       {shown && (
         <tr>
-          <td colSpan={11} className="p-0"><Detail row={row} currency={currency} /></td>
+          <td colSpan={COLUMN_COUNT} className="p-0"><Detail row={row} currency={currency} /></td>
         </tr>
       )}
     </>

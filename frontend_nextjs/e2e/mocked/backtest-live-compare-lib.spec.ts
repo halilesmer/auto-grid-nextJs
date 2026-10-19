@@ -83,3 +83,20 @@ test('Paarung nach Reihenfolge innerhalb des Zeitfensters, getrennt nach Seite',
 test('Zonen im Bericht enthalten nur flache Werte', { tag: '@BKT-14' }, () => {
   expect(flatZone({ a: 1, b: 'x', c: true, d: null, e: [1], f: { g: 1 }, h: Number.NaN })).toEqual({ a: 1, b: 'x', c: true, d: null });
 });
+
+test('Fehlt der erste Live-Trade im Backtest, bleibt er allein ohne Paar und die übrigen Paare verschieben sich nicht', { tag: '@BKT-14' }, () => {
+  const live = [lite({ entryTime: T0, net: 1 }), lite({ entryTime: T0 + 2000, net: 2 })];
+  const backtest = [lite({ entryTime: T0 + 2000, net: 3 })];
+  const result = pairByOrder(live, backtest);
+  expect(result.pairs.map((p) => [p.live.net, p.backtest.net])).toEqual([[2, 3]]);
+  expect(result.unmatchedLive.map((trade) => trade.net)).toEqual([1]);
+  expect(result.unmatchedBacktest).toHaveLength(0);
+});
+
+test('Fehlt ein Trade in der Mitte, werden die Trades davor und danach richtig gepaart', { tag: '@BKT-14' }, () => {
+  const live = [lite({ entryTime: T0, net: 1 }), lite({ entryTime: T0 + 1500, net: 2 }), lite({ entryTime: T0 + 3000, net: 3 })];
+  const backtest = [lite({ entryTime: T0 + 10, net: 4 }), lite({ entryTime: T0 + 3010, net: 5 })];
+  const result = pairByOrder(live, backtest);
+  expect(result.pairs.map((p) => [p.live.net, p.backtest.net])).toEqual([[1, 4], [3, 5]]);
+  expect(result.unmatchedLive.map((trade) => trade.net)).toEqual([2]);
+});

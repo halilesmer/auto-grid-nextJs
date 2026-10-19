@@ -14,6 +14,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from src.api.access import can_access_account
 from src.api.auth import Principal, get_principal
 from src.api.backtest_presets import RunForm
 from src.utils import market_db
@@ -76,8 +77,9 @@ class SymbolRow(StrictModel):
     symbol: str = Field(min_length=1, max_length=40)
     magics: list[int] = Field(max_length=MAX_ZONES)
     spreadPrice: float = Field(ge=0)
-    # Kommission je Lot, mit der der Lauf rechnete (Eingabe oder Vorschlag aus dem Archiv); fehlt in älteren Berichten
-    commissionPerLot: float | None = Field(default=None, ge=0)
+    # Kommission je Lot, mit der der Lauf rechnete (Eingabe oder Vorschlag aus dem Archiv); negativ bei einem Rabatt;
+    # fehlt in älteren Berichten
+    commissionPerLot: float | None = None
     live: Metrics
     backtest: Metrics
     pairs: list[Pair] = Field(max_length=MAX_TRADES_PER_LIST)
@@ -215,6 +217,8 @@ async def create_report(request: Request, principal: Principal = Depends(get_pri
 
 
 def _store_report(payload: ReportCreate, principal: Principal):
+    if not can_access_account(principal, payload.accountId):
+        raise HTTPException(status_code=404, detail="Account not found")  # wie account_access: fremd und unbekannt sehen gleich aus
     report_id = str(payload.requestId)
     data = payload.model_dump(exclude={"requestId", "name", "note", "accountId", "periodFrom", "periodTo"})
     text = json.dumps(data, allow_nan=False, separators=(",", ":"))

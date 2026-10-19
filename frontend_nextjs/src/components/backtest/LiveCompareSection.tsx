@@ -26,6 +26,7 @@ import { ReportTable } from './ReportTable';
 function collectable(accountId: string) {
   const { setups, runs } = useBacktestStore.getState();
   const found: CollectedRun[] = [];
+  const noSpread: string[] = [];
   let skipped = 0;
   for (const setup of setups) {
     const run = runs[setup.id];
@@ -40,14 +41,16 @@ function collectable(accountId: string) {
       continue;
     }
     const spread = typeof params.symbol.spread === 'number' ? params.symbol.spread : 0;
+    const symbolName = params.symbol.name.toUpperCase().trim();
+    if (typeof params.symbol.spread !== 'number' && !noSpread.includes(symbolName)) noSpread.push(symbolName);
     found.push({
-      magic, symbol: params.symbol.name.toUpperCase().trim(), zone: { ...params.zone }, trades: run.results[0].trades,
+      magic, symbol: symbolName, zone: { ...params.zone }, trades: run.results[0].trades,
       openPositions: run.results[0].summary.openPositions, spreadPrice: spread * params.symbol.point,
       commissionPerLot: params.commissionPerLot,
       form: setup.form, from: params.from, to: params.to, currency: run.context.currency,
     });
   }
-  return { found, skipped };
+  return { found, skipped, noSpread };
 }
 
 function SavedReports({ accountId, reload, onOpen, onDeleted }: {
@@ -178,6 +181,7 @@ export function LiveCompareSection({ accountId, offsetSec }: { accountId: string
   const collectedMap = useLiveCompareStore((s) => s.runs);
   const [tolerance, setTolerance] = useState<Tolerance>(DEFAULT_TOLERANCE);
   const [skipped, setSkipped] = useState(0);
+  const [noSpread, setNoSpread] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -206,9 +210,10 @@ export function LiveCompareSection({ accountId, offsetSec }: { accountId: string
   const canSave = Boolean(rows && period && name.trim() && name.trim().length <= 80 && !mixedPeriod && !mixedForm);
 
   const collect = () => {
-    const { found, skipped: ignored } = collectable(accountId);
+    const { found, skipped: ignored, noSpread: unknown } = collectable(accountId);
     useLiveCompareStore.getState().collect(accountId, found);
     setSkipped(ignored);
+    setNoSpread(unknown);
     setSaved(false);
   };
 
@@ -269,6 +274,7 @@ export function LiveCompareSection({ accountId, offsetSec }: { accountId: string
         )}
       </div>
       {skipped > 0 && <Alert tone="warning" title={t('backtest.live.skipped', { count: skipped })} />}
+      {noSpread.length > 0 && <div data-testid="lc-no-spread"><Alert tone="warning" title={t('backtest.live.noSpread', { symbols: noSpread.join(', ') })} /></div>}
       {collected.length === 0 && <p className="text-sm text-muted-foreground" data-testid="lc-none">{t('backtest.live.none')}</p>}
       {collected.length > 0 && (
         <ul className="flex flex-wrap gap-2" data-testid="lc-collected">
