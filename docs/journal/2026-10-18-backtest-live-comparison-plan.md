@@ -28,7 +28,7 @@ The app must keep the comparison results, so that the project owner can open the
 | Lot size | From the balance at the start. Max. 2 % of the balance as worst-case loss for each symbol (the sum of its 3 setups). |
 | Tolerance | Strict: the same number of trades for each symbol, the entry in the same M1 candle, the price within ±0.5 spread, the profit within ±5 %. |
 | Daily check | Automatic, read-only, one time each day. The check does not start or stop the bot. |
-| Period | Monday 2026-10-26 market open to Friday 2026-10-30 market close (broker time). The owner moved the start from 2026-10-19 to 2026-10-26 on 2026-10-19. |
+| Period | Wednesday 2026-10-21 (bot start after the owner's approval) to Wednesday 2026-10-28 (broker time). The owner moved the start from 2026-10-19 to 2026-10-26 on 2026-10-19, and to 2026-10-21 on 2026-10-20. The end date 2026-10-28 is an assumption: one week. The owner can change it. |
 
 ## Plan
 
@@ -66,17 +66,19 @@ The owner approved these values for the balance of 10 863 USD. The lot sizes are
 
 A merge to `main` makes the worker update itself and restart the bot (BOT-03). A restart rebuilds the state and changes the trades. Thus the auto update stays off for the test week. BKT-14 (PR #201, #202) merged before the start, so no merge is necessary during the test week.
 
-Merge freeze: do not merge any PR from Monday 2026-10-26 to Friday 2026-10-30. Each merge to `main` restarts the VPS worker and the bot. Merge this PR before Sunday 2026-10-25.
+Merge freeze: do not merge any PR from Wednesday 2026-10-21 (bot start) to Wednesday 2026-10-28. Auto update is off, so a merge does not reach the VPS by itself. But a manual update or a restart would change the trades. Merge this PR before the bot start.
 
 The tunnel watchdog (VPS-10) and the bot watchdog can also restart the bot. Claude does not disable them, because the self-healing is more important. The daily check finds each restart, and the comparison shows it as the cause "restart".
 
 ## Open points
 
 - [x] Phase 0: zones backed up, account cleared (bot stopped, settings emptied, positions and orders closed by the owner).
-- [ ] Phase 0: set the auto update to 0 on Sunday 2026-10-25 (`setx AUTO_UPDATE_MINUTES 0` on the VPS, then restart the worker).
+- [x] Phase 0: auto update is 0 (`setx AUTO_UPDATE_MINUTES 0` on the VPS, worker restarted, checked on 2026-10-19). The VPS stays on v0.7.251 for the test week. After the test week: `setx AUTO_UPDATE_MINUTES 5` and a worker restart.
 - [x] Phase 1: value table approved (2026-10-19). The 24 setups are saved on the account. The bot is off.
-- [ ] Phase 1: dry run of the values in the backtest on the week before the start. Calculate the lots again on the start day.
-- [ ] Defect found on 2026-10-19: `sanitize_settings` (worker) rounds saved values, for example take-profit 0.0008 became 0.001. The setups use other values. Fix in its own PR, merged before 2026-10-25 or after 2026-10-30.
-- [ ] Phase 2: start the bot on Monday 2026-10-26.
-- [ ] Phase 3–6: run the test week, the backtest and the comparison.
+- [x] Phase 1: dry run of the values in the backtest on the week before the start (2026-10-19). Calculate the lots again on the start day.
+- [x] Defect found on 2026-10-19: `sanitize_settings` (worker) rounds saved values, for example take-profit 0.0008 became 0.001. Fixed in PR #204. The VPS runs v0.7.251, so it has the fix.
+- [ ] Phase 2: start the bot on Wednesday 2026-10-21, after the owner's approval.
+- [ ] Phase 3: daily read-only check from 2026-10-21 to 2026-10-28.
+- [ ] Phase 4: stop the bot after 2026-10-28, export the deals, restore the zones and the auto update.
+- [ ] Phase 5–6: run the backtest and the comparison.
 - [ ] Phase 7: save the report of this week with BKT-14 (merged in PR #201 and #202).
