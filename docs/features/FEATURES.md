@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-27 · **159/163** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **160/164** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 3/3 |
+| 16 | **FRM** – Formationserkennung | 4/4 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -800,3 +800,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Erkennung des Trends (TRD) als reine Funktionen über geschlossene Kerzen: Wendepunkte aus fertigen Fraktalen (nur das äußerste Extrem je Seite), Trendzug mit Filter für Korrekturen (ab 75 % der kleinsten gezeichneten Korrektur seit dem Wechsel), Impuls und Korrektur, Trend je Zeiteinheit mit Wechsel durch zwei aufeinanderfolgende Schlüsse jenseits der Bezugszone, gesunder Trend, ähnliche und kürzer werdende Korrekturen, Trend der höheren und tieferen Zeiteinheit, Mit-/Gegentrend mit Zahl der Gründe, Unterstützungs- bzw. Widerstandslinie mit Spike-Ersatz, Berührungen und Schluss jenseits, Phase, Abgleich mit der Wave und Seitwärtsphase (trd.ts, trdChecks.ts, Zahlen in params.ts). analyzeTrd führt den Trendzug jeder geladenen Zeiteinheit, checkTrdCandidate prüft ein beliebiges Fraktal als Wendepunkt; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar sowie die Zeichnungen Z-TRD-01 bis Z-TRD-08 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. TRD-25 und TRD-29 sind nicht messbar; TRD-14 und TRD-26 sind Anzeige ohne Prüfung.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-trd-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall, Ablauf ohne Blick in die Zukunft, Zeichnungen und zwei echte Kerzenreihen).
   - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; ein Aufwärtstrend und sein Spiegelbild haben dieselben Zustände; bei den echten Reihen wechseln die Wendepunkte Hoch und Tief ab, und die Reihe mit steigenden Tiefs ergibt einen Aufwärtstrend mit Linie.
+- [x] **FRM-04** Fibonacci und Signale — 🖥️ e2e ✅ 2026-10-27
+  - Erkennung von Fibonacci (FIB) und Signalen (SIG) als reine Funktionen über geschlossene Kerzen. FIB: Impulse des Trends mit Nachrücken des Endes bei Korrektur unter 0.382, vorläufige und fertige Messung, Levelpreise, Korrekturtiefe, Korrekturzone, Schale, Ende der Messung durch zwei Schlüsse jenseits des Starts, Ausdehnung über das Ende (−0.272 bis −0.618), Konfluenz mit Fraktal- und Engulf-Zonen, zwei Zeiteinheiten, Gegentrend-Voraussetzungen (fib.ts, fibChecks.ts). SIG: RSI-Extrem, Divergenz im Wave zwischen den Rekord-Extrempunkten, Engulf mit Engulf-Zone, Testere, volumenstarke und volumenarme Kerzen, Kerzen zusammenfassen und die Gründe G1 bis G11 mit Mindestzahl (sig.ts, reasons.ts, sigChecks.ts). Die Zahlen stehen in params.ts (FIB_PARAMS, SIG_PARAMS); die Level 0.382 und 0.272 für den gesunden Trend (TRD-21) kommen jetzt aus FIB_PARAMS. analyzeFib und analyzeSig prüfen jede geladene Zeiteinheit, checkFibCandidate prüft eine Messung mit eigenen Ankern, checkSigDivergence zwei beliebige Punkte; alle liefern je Bedingungs-ID ☑, ☐ oder nicht messbar sowie die Zeichnungen Z-FIB-01 bis Z-FIB-08 und Z-SIG-01 bis Z-SIG-05 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. SIG-08, SIG-29 und SIG-39 sind nicht messbar; FIB-31 und SIG-42 sind Anzeige ohne Prüfung.
+  - **Prüfung:** Playwright-Logiktests e2e/mocked/formation-fib-lib.spec.ts und formation-sig-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
+  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; ein Aufwärtsimpuls und sein Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Levelpreise, RSI-Extrem, Divergenz und Gründe mit den erwarteten Zuständen überein.

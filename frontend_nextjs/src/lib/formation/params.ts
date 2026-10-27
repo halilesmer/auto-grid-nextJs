@@ -51,6 +51,38 @@ export const FRZ_PARAMS = {
   fresh: { maxRetests: 1, maxBars: 30 },
 } as const;
 
+/** Fibonacci (FIB). Level in Notation Start = 1, Ende = 0; Ausdehnungen als Anteil des Impulses jenseits des Endes (−0.272 = 0.272). */
+export const FIB_PARAMS = {
+  /** FIB-10: Level der Korrekturzone */
+  retrace: [0.382, 0.5, 0.618],
+  /** FIB-09 (Z-FIB-04, Z-FIB-05): voller Satz inklusive 0.236, 0.786, 0.886 */
+  levels: [0.236, 0.382, 0.5, 0.618, 0.786, 0.886],
+  /** FIB-18: Ausdehnungen (−0.272, −0.414, −0.618) */
+  extensions: [0.272, 0.414, 0.618],
+  /** FIB-13: Schale = Wende ab diesem Level, ohne 0.382 zu berühren */
+  bowl: 0.236,
+  /** FIB-16 (Annahme): Wende vor diesem Level gilt als stark */
+  strongTurn: 0.5,
+  /** FIB-17 (Annahme): Wenden ab diesem Level gehören nicht zur Korrekturzone */
+  farLevel: 0.786,
+  /** FIB-28: größtes Level des Satzes; tiefer ist „alle Level überschritten“ */
+  lastLevel: 0.886,
+  /** FIB-15: aufeinanderfolgende Schlüsse jenseits des Starts beenden die Messung */
+  endCloses: 2,
+  /** FIB-25 (Annahme): „zusammenfallen“ = Abstand Level–Zonenkante ≤ dieser Anteil der Zonenhöhe */
+  nearZone: 0.5,
+} as const;
+
+/** Signale (SIG). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const SIG_PARAMS = {
+  /** SIG-35 (Annahme): volumenarm = Spanne ≤ factor × Mittel der letzten `lookback` Kerzen, „viele“ = `run` Kerzen in Folge */
+  narrow: { factor: 0.5, lookback: 20, run: 3 },
+  /** SIG-44 (Annahme): Gegendocht der Testere-Kerze höchstens dieser Anteil ihrer Spanne */
+  sawWick: 0.1,
+  /** SIG-46: Kerzen je Zusammenfassung (M15 → H1, H1 → H4) */
+  mergeBars: 4,
+} as const;
+
 /** Trend (TRD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
 export const TRD_PARAMS = {
   /** TRD-07: eigene Welle ab diesem Anteil der Referenzkorrektur */
@@ -67,8 +99,8 @@ export const TRD_PARAMS = {
   sidewaysBars: 50,
   /** TRD-38 (Annahme): „fast gleich“ = Abweichung am rechten Rand unter diesem Anteil der letzten Korrekturlänge */
   lineKeep: 0.1,
-  /** TRD-21: Mindestkorrektur und Mindestausdehnung als Anteil des Impulses (kommt mit FIB aus dessen Tabelle) */
-  healthy: { minCorrection: 0.382, minExtension: 0.272 },
+  /** TRD-21: Mindestkorrektur und Mindestausdehnung als Anteil des Impulses (Zahlen aus FIB_PARAMS) */
+  healthy: { minCorrection: FIB_PARAMS.retrace[0], minExtension: FIB_PARAMS.extensions[0] },
   /** TRD-32, TRD-33: Mindestzahl Gründe gegen bzw. mit dem Trend */
   reasons: { counter: 3, with: 2 },
   /** TRD-48: Kerzen der tieferen Zeiteinheit, ab denen die Struktur auch in der höheren zählt, bzw. nicht mehr */
