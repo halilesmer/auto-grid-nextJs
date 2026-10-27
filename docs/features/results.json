@@ -715,7 +715,14 @@
     "e2e": {
       "datum": "2026-10-27",
       "status": "passed",
-      "tests": 55
+      "tests": 57
+    }
+  },
+  "FRM-06": {
+    "e2e": {
+      "datum": "2026-10-27",
+      "status": "passed",
+      "tests": 43
     }
   },
   "LOG-01": {

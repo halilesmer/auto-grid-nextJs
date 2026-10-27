@@ -132,3 +132,19 @@ export const ABCD_PARAMS = {
   /** Z-ABCD-05: Ziele und 1:1-Stop der Ziel-Fib (Level in Notation Start = 1, Ende = 0) */
   targets: { tp1: 0.382, tp2: 0.618, stop: 0.382, divergence: 0.786 },
 } as const;
+
+/** Doppeltop / Doppelboden (CDT). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const CDT_PARAMS = {
+  /** CDT-04: Mindesttiefe der Korrektur H1 → N als Anteil der Fib Impulsbeginn → H1 (Zahl aus FIB_PARAMS) */
+  minCorrection: FIB_PARAMS.retrace[0],
+  /** CDT-15: ein Schluss jenseits von H1 verletzt nur mit einer volumenstarken Kerze oder dieser Ausdehnung der Fib Impulsbeginn → H1 (FIB-21) */
+  violationExtension: FIB_PARAMS.extensions[0],
+  /** Auswahl der Punkte (Annahme): N wird unter den letzten so vielen Wendepunkten gesucht, H1 ist der Wendepunkt davor */
+  lookbackPivots: 6,
+  /** CDT-08 (Annahme): mittlere Spanne der letzten `bars` Kerzen vor H2 höchstens `ratio` × die vor H1 */
+  approach: { bars: 5, ratio: 0.8 },
+  /** CDT-10: „nahe“ = Abstand zur Zone höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
+  nearAtr: ABCD_PARAMS.nearAtr,
+  /** CDT-11: Zeiteinheiten der Formation */
+  timeframes: ['H1', 'H4', 'D1'] as readonly string[],
+} as const;

@@ -132,6 +132,9 @@ const WIDE2 = [...rise24, [100, 106, 99.9, 105.5] as Row, [105.5, 111.6, 105.4, 
 const WIDE1 = [...rise24, [100, 106, 99.9, 105.5] as Row, plain(105.5, 106.5)];
 const WIDE_AT = { a: 20, b: 22, c: 23, d: 25 };
 /** D 138 am Ende, danach eine Abwärtskerze, die unter dem Tief der Vorkerze schließt (Engulf nach dem D) */
+/** A 100, B 130, C 112, D 129,85 = Doppeltop: D berührt die Zone von B (128,875 bis 130), kein Schluss über B, RSI(7) an B über 80 */
+const S_DOUBLE_TOP = zig([120, 100, 130, 112, 129.85], 8, 3);
+const DT = { a: 10, b: 18, c: 26, d: 34 };
 const S_ENGULF = [...zig([100, 130, 114, 138], 8, 0), [137.7, 137.8, 133, 133.5] as Row];
 
 // ---- Fälle -----------------------------------------------------------------------------------------------------
@@ -307,6 +310,16 @@ const CASES: Case[] = [
     expect: { 'ABCD-14': M, 'ABCD-19': N, 'ABCD-21': N },
   },
   {
+    name: 'ABCD-24: D berührt die Zone von B ohne Schluss darüber, RSI an B im Extrem, Trend steigt: Doppeltop',
+    candidate: () => run({ H4: S_DOUBLE_TOP }, DT),
+    expect: { 'ABCD-24': M },
+  },
+  {
+    name: 'ABCD-24: D schließt weit über B, kein Doppeltop',
+    candidate: () => run({ H4: S1 }, ABC),
+    expect: { 'ABCD-24': N },
+  },
+  {
     name: 'Zwei volumenstarke Kerzen in Richtung D schließen aus',
     candidate: () => run({ H4: WIDE2 }, WIDE_AT),
     expect: { 'ABCD-23': M },
@@ -341,9 +354,9 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
     expect(missing).toEqual([]);
   });
 
-  frm('ABCD-16 und ABCD-24 sind immer nicht messbar', () => {
+  frm('ABCD-16 ist immer nicht messbar', () => {
     const c = run({ H4: S1 }, ABC);
-    expect(ABCD_UNMEASURABLE_IDS.map((id) => state(c, id))).toEqual([U, U]);
+    expect(ABCD_UNMEASURABLE_IDS.map((id) => state(c, id))).toEqual([U]);
   });
 
   frm('ABCD-25: M1 und M5 sind ausgeschlossen, die Zeiteinheiten des Kontexts nicht', () => {
@@ -397,12 +410,14 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
     expect([
       run({ H4: S_CONFLUENCE }, ABC).verdict,
       run({ H4: S_CONFLUENCE_NEAR }, ABC).verdict,
+      // DIV_BEAR: D 138 liegt nur 3 über B 135 (0,13 von AB, unter 0,272, keine volumenstarke Kerze) bei RSI 88,5 an B: Doppeltop (ABCD-24 ☑)
       run({ H4: DIV_BEAR }, DIV).verdict,
       run({ H4: S_FORMING }, ABC).verdict,
       run({ H4: S_DEEP }, ABC).verdict,
       run({ H4: Z_THROUGH }, ZABC).verdict,
       run({ H4: WIDE2 }, WIDE_AT).verdict,
-    ]).toEqual(['valid', 'valid', 'forming', 'forming', 'invalid', 'invalid', 'invalid']);
+      run({ H4: S_DOUBLE_TOP }, DT).verdict,
+    ]).toEqual(['valid', 'valid', 'invalid', 'forming', 'invalid', 'invalid', 'invalid', 'invalid']);
   });
 
   frm('Automatische Auswahl: Verkaufs-Formation und ihr Spiegel liefern A, B, C aus den Wendepunkten', () => {

@@ -3,7 +3,7 @@
  * `analyzeAbcd` sucht je geladener Zeiteinheit die letzten Punkte A, B, C aus den Wendepunkten und misst D;
  * `checkAbcdCandidate` prüft eigene Punkte, auch wenn sie keine Formation ergeben (Zeichnung und ☐ gibt es trotzdem).
  *
- * Lesart der Zustände: bei Ereignis-Bedingungen (ABCD-03, ABCD-07, ABCD-08, ABCD-21 bis ABCD-23, ABCD-25) heißt ☑
+ * Lesart der Zustände: bei Ereignis-Bedingungen (ABCD-03, ABCD-07, ABCD-08, ABCD-21 bis ABCD-25) heißt ☑
  * „liegt vor“, bei Ausschlüssen also „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“.
  * Die Art von ABCD-19 und ABCD-20 hängt von anderen Bedingungen ab und steht im Feld `kind` des Ergebnisses.
  */
@@ -24,6 +24,7 @@ import {
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
 import { ABCD_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, type ContextTimeframe } from './params';
+import { abcdIsCdt } from './cdt';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { divergenceOf, engulfAt, engulfZones, rsiExtreme, zoneSideOf } from './sig';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
@@ -60,8 +61,8 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
 
 /** Bedingungen mit Prüfung, in der Reihenfolge des Regelwerks */
 export const ABCD_CHECK_IDS: readonly string[] = Object.keys(RULES);
-/** Immer „nicht messbar“: harmonisches D (GAR und BAT folgen später, ABCD-16), Abgrenzung zum Doppeltop (CDT folgt, ABCD-24) */
-export const ABCD_UNMEASURABLE_IDS: readonly string[] = ['ABCD-16', 'ABCD-24'];
+/** Immer „nicht messbar“: harmonisches D (GAR und BAT folgen später, ABCD-16) */
+export const ABCD_UNMEASURABLE_IDS: readonly string[] = ['ABCD-16'];
 
 export interface AbcdPointsInput {
   tf: ContextTimeframe;
@@ -254,7 +255,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
     }
     add('ABCD-23', flags.every((w) => w === null) ? U : flag(strong >= ABCD_PARAMS.wideBars), strong);
   }
-  add('ABCD-24', U);
+  add('ABCD-24', abcdIsCdt(env, tf, es, s.b, s.d));
   add('ABCD-25', flag(timeframeExcluded(tf)));
 
   const drawings = drawingsOf(env, s, reached, divState === 'met', secondLevels.find(isNear));
