@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-19 · **156/160** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **157/161** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,6 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
+| 16 | **FRM** – Formationserkennung | 1/1 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -781,6 +782,13 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Drei Setups laufen lassen und die Vergleichstabelle öffnen.
   - **Erwartet:** Jede Spalte stimmt mit den KPIs des einzeln gewählten Setups überein.
 - [x] **BKT-14** Backtest-Live-Vergleich speichern — 🔌 api ✅ 2026-10-19 · 🖥️ e2e ✅ 2026-10-19
-  - Bereich „Live-Vergleich“ auf /backtest: Fertige Setup-Läufe (gespeicherte Zone mit Magic, MT5-Kerzen) werden übernommen (auch in zwei Durchgängen für mehr als sechs Zonen), die Live-Deals des Zeitraums kommen aus dem Deal-Archiv (GET /api/history/{id}/deals) und werden über Magic, Seite und Einstiegsreihenfolge (Fenster 1 h) mit den Backtest-Trades gepaart. Tabelle je Symbol: Trades, Netto, Abweichung, Drawdown, offene Positionen, Prüfungen (gleiche Anzahl, Einstieg in derselben M1-Kerze, Preis ±0,5 Spread, Gewinn ±5 %; die Toleranz ist einstellbar und wird im Bericht gespeichert), Paare mit Abweichungsgrund, Trades ohne Paar. Speichern im Worker: Tabelle backtest_reports in market.sqlite, GET/POST /api/backtest/reports, GET/DELETE /api/backtest/reports/{id}; strenge Pydantic-Modelle (extra=forbid, keine NaN/Inf), höchstens 4 MB je Bericht und 50 Berichte je Benutzer; der Bericht speichert die genutzte Kommission je Symbol und die Lücken im Deal-Archiv (Warnung beim Öffnen), wiederholtes POST mit derselben requestId erzeugt kein Duplikat. Ein Benutzer sieht nur eigene Berichte (fremde: 404), der Admin sieht und löscht alle. Gespeicherte Berichte lassen sich öffnen (nur lesen) und löschen. Der Bereich steht auch nach mehreren hinzugefügten Setups genau einmal auf der Seite.
+  - Bereich „Live-Vergleich“ auf /backtest: Fertige Setup-Läufe (gespeicherte Zone mit Magic, MT5-Kerzen) werden übernommen (auch in zwei Durchgängen für mehr als sechs Zonen), die Live-Deals des Zeitraums kommen aus dem Deal-Archiv (GET /api/history/{id}/deals) und werden über Magic, Seite und Einstiegsreihenfolge (Fenster 1 h) mit den Backtest-Trades gepaart. Tabelle je Symbol: Trades, Netto, Abweichung, Drawdown, offene Positionen, Prüfungen (gleiche Anzahl, Einstieg in derselben M1-Kerze, Preis ±0,5 Spread, Gewinn ±5 %; die Toleranz ist einstellbar und wird im Bericht gespeichert), Paare mit Abweichungsgrund, Trades ohne Paar. Speichern im Worker: Tabelle backtest_reports in market.sqlite, GET/POST /api/backtest/reports, GET/DELETE /api/backtest/reports/{id}; strenge Pydantic-Modelle (extra=forbid, keine NaN/Inf), höchstens 4 MB je Bericht und 50 Berichte je Benutzer; der Bericht speichert die genutzte Kommission je Symbol und die Lücken im Deal-Archiv (Warnung beim Öffnen), wiederholtes POST mit derselben requestId erzeugt kein Duplikat. Ein Benutzer speichert nur für eigene Konten (sonst 404) und sieht nur eigene Berichte (fremde: 404), der Admin sieht und löscht alle; eine negative Kommission (Rabatt) ist gültig; fehlt dem Symbol der Spread, warnt der Vergleich. Gespeicherte Berichte lassen sich öffnen (nur lesen) und löschen. Der Bereich steht auch nach mehreren hinzugefügten Setups genau einmal auf der Seite.
   - **Prüfung:** pytest für die Berichts-Routen mit zwei Benutzern und dem Admin ausführen. → Auf /backtest ein Setup rechnen, „Live-Vergleich“ öffnen, „Läufe übernehmen“, einen Namen eingeben und speichern; Seite neu laden und den Bericht öffnen.
   - **Erwartet:** Der Bericht ist nach dem Neuladen da und zeigt dieselben Zahlen und die gespeicherte Toleranz; der Bericht eines anderen Benutzers liefert 404, der Admin sieht ihn.
+
+## 16. FRM – Formationserkennung
+
+- [x] **FRM-01** Grundgerüst und Indikatoren — 🖥️ e2e ✅ 2026-10-27
+  - Reine TypeScript-Bibliothek src/lib/formation/ (ohne React, ohne Netzwerk) als Grundlage der Formationserkennung: Typen für Bedingung, Zeichnung und Kandidat (types.ts), alle Zahlen mit ihrer Bedingungs-ID an einer Stelle (params.ts: RSI 7 mit 80/20, Wave 5/35, volumenstarke Kerze 1,5 × Mittel der letzten 20 Spannen, Zeiteinheiten D1/H4/H1/M15), Indikatoren RSI, Wave (SMA-Differenz des Medianpreises), ATR und volumenstarke Kerze (indicators.ts) und ein Kontext mehrerer Zeiteinheiten (context.ts), der Indikatoren je Zeiteinheit einmal rechnet und zu einem Zeitpunkt t nur geschlossene Kerzen freigibt (kein Blick in die Zukunft). fixture.ts prüft Kerzen-Fixtures; scripts/formation-fixture.mjs holt Kerzen über /rates und schreibt sie nach e2e/fixtures/formation/.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-base-lib.spec.ts ausführen (von Hand gerechnete Fälle für RSI, Wave, ATR, volumenstarke Kerze, Kontext und Fixture-Prüfung).
+  - **Erwartet:** Alle Fälle stimmen mit der Handrechnung überein; eine Kerze zählt erst, wenn ihre Zeiteinheit vorbei ist; Indikatoren auf dem Teilstück sind gleich den Werten des Kontexts.

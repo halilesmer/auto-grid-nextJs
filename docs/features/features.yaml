@@ -1637,3 +1637,16 @@ kategorien:
           - pytest für die Berichts-Routen mit zwei Benutzern und dem Admin ausführen.
           - Auf /backtest ein Setup rechnen, „Live-Vergleich“ öffnen, „Läufe übernehmen“, einen Namen eingeben und speichern; Seite neu laden und den Bericht öffnen.
         erwartet: Der Bericht ist nach dem Neuladen da und zeigt dieselben Zahlen und die gespeicherte Toleranz; der Bericht eines anderen Benutzers liefert 404, der Admin sieht ihn.
+
+  # ---------------------------------------------------------------------------
+  - id: FRM
+    titel: Formationserkennung
+    features:
+      - id: FRM-01
+        titel: Grundgerüst und Indikatoren
+        beschreibung: "Reine TypeScript-Bibliothek src/lib/formation/ (ohne React, ohne Netzwerk) als Grundlage der Formationserkennung: Typen für Bedingung, Zeichnung und Kandidat (types.ts), alle Zahlen mit ihrer Bedingungs-ID an einer Stelle (params.ts: RSI 7 mit 80/20, Wave 5/35, volumenstarke Kerze 1,5 × Mittel der letzten 20 Spannen, Zeiteinheiten D1/H4/H1/M15), Indikatoren RSI, Wave (SMA-Differenz des Medianpreises), ATR und volumenstarke Kerze (indicators.ts) und ein Kontext mehrerer Zeiteinheiten (context.ts), der Indikatoren je Zeiteinheit einmal rechnet und zu einem Zeitpunkt t nur geschlossene Kerzen freigibt (kein Blick in die Zukunft). fixture.ts prüft Kerzen-Fixtures; scripts/formation-fixture.mjs holt Kerzen über /rates und schreibt sie nach e2e/fixtures/formation/."
+        code: [frontend_nextjs/src/lib/formation/types.ts, frontend_nextjs/src/lib/formation/params.ts, frontend_nextjs/src/lib/formation/indicators.ts, frontend_nextjs/src/lib/formation/context.ts, frontend_nextjs/src/lib/formation/fixture.ts, frontend_nextjs/scripts/formation-fixture.mjs]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Logiktest e2e/mocked/formation-base-lib.spec.ts ausführen (von Hand gerechnete Fälle für RSI, Wave, ATR, volumenstarke Kerze, Kontext und Fixture-Prüfung).
+        erwartet: Alle Fälle stimmen mit der Handrechnung überein; eine Kerze zählt erst, wenn ihre Zeiteinheit vorbei ist; Indikatoren auf dem Teilstück sind gleich den Werten des Kontexts.
