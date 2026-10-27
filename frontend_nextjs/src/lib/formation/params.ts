@@ -224,3 +224,36 @@ export const F2618_PARAMS = {
   /** Auswahl der Punkte: höchstens so viele Impulsenden I je Paar (das Paar H1/N wählt `CDT_PARAMS.lookbackPivots`) */
   maxEnds: 6,
 } as const;
+
+/** Libra (LIB). Level als Anteil der Fib P2 → P3, Notation Start = 1, Ende = 0. Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const LIB_PARAMS = {
+  /** LIB-12, Z-LIB-02: Einstiegslevel (Zahl aus FIB_PARAMS.levels) */
+  entryLevel: FIB_PARAMS.levels[4],
+  /** Z-LIB-03: Mindestkorrektur und Ziel 2 (Zahlen aus FIB_PARAMS) */
+  minCorrection: FIB_PARAMS.retrace[0],
+  targetExtension: FIB_PARAMS.extensions[0],
+  /** LIB-08, LIB-09: „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
+  nearAtr: ABCD_PARAMS.nearAtr,
+  /** LIB-11: Mindest-CRV bis TP1 */
+  minCrv: 2,
+  /** Einstiegswahl (Annahme): am gewählten Einstieg muss das CRV bis TP1 mindestens so groß sein */
+  floorCrv: 1,
+  /** LIB-06: Zeiteinheiten mit Verstärkung */
+  timeframes: ['H4', 'D1'] as readonly string[],
+  /** LIB-07 (nur Nebenquelle): Zeiteinheiten, die die H4-Trendrichtung brauchen */
+  needsHigherTrend: ['M15'] as readonly string[],
+  /** LIB-16: Zeiteinheiten unter H1 */
+  belowH1: ['M15'] as readonly string[],
+  /** LIB-14 (Annahme): Berührung später als so viele Kerzen nach P3 schließt aus */
+  maxBarsToTouch: 30,
+  /** LIB-15 (Annahme): mehr als so viele Fraktale zwischen P3 und Berührung schließen aus */
+  maxFractals: 2,
+  /** LIB-10: Ziele der Harmonik (Zahlen aus ABCD_PARAMS.targets) */
+  harmonicTargets: [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2],
+  /** Auswahl der Punkte (Annahme): P2 unter den letzten so vielen Fraktalen, je P2 so viele frühere Fraktale als P1 */
+  maxPeaks: 5,
+  maxP2: 3,
+  maxP1: 2,
+  /** Auswahl der Punkte: höchstens so viele P3-Kandidaten je Paar */
+  maxEnds: 6,
+} as const;
