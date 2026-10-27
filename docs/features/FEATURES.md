@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-27 · **160/164** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **161/165** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 4/4 |
+| 16 | **FRM** – Formationserkennung | 5/5 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -804,3 +804,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Erkennung von Fibonacci (FIB) und Signalen (SIG) als reine Funktionen über geschlossene Kerzen. FIB: Impulse des Trends mit Nachrücken des Endes bei Korrektur unter 0.382, vorläufige und fertige Messung, Levelpreise, Korrekturtiefe, Korrekturzone, Schale, Ende der Messung durch zwei Schlüsse jenseits des Starts, Ausdehnung über das Ende (−0.272 bis −0.618), Konfluenz mit Fraktal- und Engulf-Zonen, zwei Zeiteinheiten, Gegentrend-Voraussetzungen (fib.ts, fibChecks.ts). SIG: RSI-Extrem, Divergenz im Wave zwischen den Rekord-Extrempunkten, Engulf mit Engulf-Zone, Testere, volumenstarke und volumenarme Kerzen, Kerzen zusammenfassen und die Gründe G1 bis G11 mit Mindestzahl (sig.ts, reasons.ts, sigChecks.ts). Die Zahlen stehen in params.ts (FIB_PARAMS, SIG_PARAMS); die Level 0.382 und 0.272 für den gesunden Trend (TRD-21) kommen jetzt aus FIB_PARAMS. analyzeFib und analyzeSig prüfen jede geladene Zeiteinheit, checkFibCandidate prüft eine Messung mit eigenen Ankern, checkSigDivergence zwei beliebige Punkte; alle liefern je Bedingungs-ID ☑, ☐ oder nicht messbar sowie die Zeichnungen Z-FIB-01 bis Z-FIB-08 und Z-SIG-01 bis Z-SIG-05 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. SIG-08, SIG-29 und SIG-39 sind nicht messbar; FIB-31 und SIG-42 sind Anzeige ohne Prüfung.
   - **Prüfung:** Playwright-Logiktests e2e/mocked/formation-fib-lib.spec.ts und formation-sig-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
   - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; ein Aufwärtsimpuls und sein Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Levelpreise, RSI-Extrem, Divergenz und Gründe mit den erwarteten Zuständen überein.
+- [x] **FRM-05** AB=CD — 🖥️ e2e ✅ 2026-10-27
+  - Erkennung von AB=CD (ABCD) als reine Funktion über geschlossene Kerzen. A, B und C kommen aus den Wendepunkten des Trendzugs (jüngstes C, dessen Korrekturtiefe 0.382 bis 0.728 von AB beträgt), D ist der äußerste Docht seit C (abcd.ts). Geprüft werden Form (Dochtspitzen, fertige Fraktale, Schluss jenseits von B, Korrekturtiefe, Mindest-Extension −0.272, Level 1 mit Toleranz 5 %), Ort (Fraktal- und Engulf-Zonen, Konfluenz, doppeltes AB=CD, höhere Zeiteinheit, erster Test, Trend der höheren Zeiteinheit), Signale am D (RSI(7) im Extrem und kurz davor, Wave-Divergenz, Umkehrkerze) und Ausschlüsse (Gegentrend ohne Divergenz, Schluss jenseits der Zone, volumenstarkes D-Bein, Zeiteinheit M1/M5). Die Art von ABCD-19 und ABCD-20 wird mit berechnet (Pflicht gegen den Trend bzw. ohne RSI-Extrem). Die Zahlen stehen in params.ts (ABCD_PARAMS). analyzeAbcd prüft jede geladene Zeiteinheit, checkAbcdCandidate eigene Punkte; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-ABCD-01 bis Z-ABCD-06 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. ABCD-16 (harmonisches D) und ABCD-24 (Abgrenzung zum Doppeltop) sind bis zu den Schritten GAR/BAT und CDT nicht messbar.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-abcd-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall, bedingte Art, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
+  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; eine Verkaufs-Formation und ihr Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Korrekturtiefe, RSI-Extrem, Divergenz und Urteil mit den gemessenen Zuständen überein, auch die Negativfälle.
