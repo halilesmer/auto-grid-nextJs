@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-27 · **164/168** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **165/169** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 8/8 |
+| 16 | **FRM** – Formationserkennung | 9/9 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -820,3 +820,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Erkennung der Formation 2618 (Rücklauf an 0.618 nach Doppeltop/-boden) als reine Funktion über geschlossene Kerzen. Das Doppeltop-Paar H1/N kommt aus cdt.ts (jüngstes Paar mit den wenigsten verletzten Bedingungen), H2 ist das erste fertige Fraktal nach N, das die Zone von H1 erreicht, I das jüngste Impulsende (fertiges Fraktal, laufendes Extrem seit H2), der Fib-Beginn H2 oder das Hoch, an dem der trendwendende Impuls beginnt (f2618.ts). Geprüft werden Form (Doppeltop nach CDT-01 bis CDT-06, Schluss jenseits von N, Fraktal an I, Fib Beginn → I mit I jenseits von N, Berührung von 0.618 ohne Toleranz), Trend der Formations-Zeiteinheit in Trade-Richtung, Verstärkungen (0.618 nahe einem Level 0.382/0.5/0.618 einer größeren Bewegung, Zeiteinheit H4) und Ausschlüsse (Schluss jenseits der Stop-Zone vor der Berührung, volumenstarke Kerze gegen die Richtung an der Berührung). Das Signal am Einstieg hat keine Zeile (ohne RSI, Wave, Umkehrkerze). Die Zahlen stehen in params.ts (F2618_PARAMS). analyze2618 prüft jede geladene Zeiteinheit, check2618Candidate eigene Punkte; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-2618-01 bis Z-2618-05 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. Ohne Berührung bleibt die Formation im Aufbau.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-2618-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Verkauf/Kauf, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
   - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; ein Doppeltop mit Verkauf und sein Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Berührung von 0.618, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen.
+- [x] **FRM-09** Libra — 🖥️ e2e ✅ 2026-10-27
+  - Erkennung der Formation Libra (Wendebewegung nach zwei Impulsen in alter Trendrichtung, Rücklauf in die Zone oder an Level 0.786) als reine Funktion über geschlossene Kerzen. P1 und P2 sind fertige Fraktale (P2 jenseits P1) mit einem Korrektur-Fraktal C dazwischen, P3 ist das Ende der Wendebewegung (lib.ts); je Seite gilt das Paar mit den wenigsten verletzten Bedingungen. Geprüft werden Form (Schluss jenseits von C und gedrehter Trend, volumenstarke Wendebewegung, Fraktal an P3, Berührung der zuerst erreichten Kante von Zone oder Level 0.786), Verstärkungen (Zeiteinheit H4/D1, 0.786 am D eines inneren AB=CD, Dreierkette mit Gartley/Bat und Divergenz, CRV bis TP1 von mindestens 2 als Anzeige), die H4-Richtung für M15 und die Ausschlüsse (Schluss jenseits der Docht-Spitze von P2, Berührung später als 30 Kerzen, mehr als 2 Schwungpunkte vor der Berührung, Zeiteinheit unter H1). Die Zahlen stehen in params.ts (LIB_PARAMS). analyzeLib prüft jede geladene Zeiteinheit, checkLibCandidate eigene Punkte; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar (LIB-09 ist es immer, solange es keine Cypher-Erkennung gibt), das Urteil und die Zeichnungen Z-LIB-01 bis Z-LIB-07. Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. Ohne Berührung bleibt die Formation im Aufbau.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-lib-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Verkauf/Kauf, Abgrenzung Doppeltop/-boden, Urteil, Wechsel gültig → ungültig, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
+  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; eine Libra nach Hochs und ihr Spiegelbild nach Tiefs haben dieselben Zustände; bei den echten Reihen stimmen Punkte P2 und P3, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen.
