@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-27 · **158/162** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **157/161** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 2/2 |
+| 16 | **FRM** – Formationserkennung | 1/1 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -792,7 +792,3 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Reine TypeScript-Bibliothek src/lib/formation/ (ohne React, ohne Netzwerk) als Grundlage der Formationserkennung: Typen für Bedingung, Zeichnung und Kandidat (types.ts), alle Zahlen mit ihrer Bedingungs-ID an einer Stelle (params.ts: RSI 7 mit 80/20, Wave 5/35, volumenstarke Kerze 1,5 × Mittel der letzten 20 Spannen, Zeiteinheiten D1/H4/H1/M15), Indikatoren RSI, Wave (SMA-Differenz des Medianpreises), ATR und volumenstarke Kerze (indicators.ts) und ein Kontext mehrerer Zeiteinheiten (context.ts), der Indikatoren je Zeiteinheit einmal rechnet und zu einem Zeitpunkt t nur geschlossene Kerzen freigibt (kein Blick in die Zukunft). fixture.ts prüft Kerzen-Fixtures; scripts/formation-fixture.mjs holt Kerzen über /rates und schreibt sie nach e2e/fixtures/formation/.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-base-lib.spec.ts ausführen (von Hand gerechnete Fälle für RSI, Wave, ATR, volumenstarke Kerze, Kontext und Fixture-Prüfung).
   - **Erwartet:** Alle Fälle stimmen mit der Handrechnung überein; eine Kerze zählt erst, wenn ihre Zeiteinheit vorbei ist; Indikatoren auf dem Teilstück sind gleich den Werten des Kontexts.
-- [x] **FRM-02** Fraktal-Zone — 🖥️ e2e ✅ 2026-10-27
-  - Erkennung der Fraktal-Zone (FRZ) als reine Funktionen über geschlossene Kerzen: Fraktal mit je 2 geschlossenen Nachbarn (Schluss entscheidet), Zonenbreite (Dochtende bis Körperkante, dünne Zone, Zone ohne Docht, Manipulationsdocht in H4), Verletzung durch Schluss, Suchweg nach links, Anzahl je Seite, Zusammenlegen, Tests, Stärke (stark, sehr stark), Rollenwechsel mit volumenstarkem Bruch, Rücktest und Frische (frz.ts, frzChecks.ts, Zahlen in params.ts). analyzeFrz wählt die Zonen aller geladenen Zeiteinheiten, checkFrzCandidate prüft eine beliebige Kerze und liefert je Bedingungs-ID ☑, ☐ oder nicht messbar sowie die Zeichnungen Z-FRZ-01 bis Z-FRZ-06 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. FRZ-18 ist ohne Wirtschaftskalender nicht messbar; FRZ-12 und FRZ-28 sind Anzeige ohne Prüfung.
-  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-frz-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Zeichnungen, Spiegelfall, Ablauf ohne Blick in die Zukunft und eine echte Kerzenreihe).
-  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; die Zonen eines Widerstands und seines Spiegelbilds (Unterstützung) haben dieselben Zustände; bei der echten Reihe besteht jede gewählte Zone FRZ-01 bis FRZ-04 und FRZ-07.

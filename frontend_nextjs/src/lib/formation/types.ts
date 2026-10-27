@@ -1,5 +1,5 @@
 /**
- * Datenform der Formationserkennung . Reine Typen, kein React, kein Netzwerk.
+ * Datenform der Formationserkennung. Reine Typen, kein React, kein Netzwerk.
  * Eine Bedingung hat eine feste ID (z. B. `ABCD-04`); die Prüfung gibt je ID einen Zustand zurück.
  */
 import type { Timeframe } from '@/lib/analysis/candles';
