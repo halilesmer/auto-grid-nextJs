@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-27 · **163/167** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **164/168** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 7/7 |
+| 16 | **FRM** – Formationserkennung | 8/8 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -816,3 +816,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Erkennung von Gartley (GAR) und Bat (BAT) als reine Funktionen über geschlossene Kerzen, mit einem gemeinsamen XABCD-Kern (xabcd.ts). X, A, B, C sind vier aufeinanderfolgende Wendepunkte des Trendzugs (jüngstes C zuerst, das Kandidaten-Paar mit den wenigsten verletzten Form-Bedingungen gilt), D ist der äußerste Docht seit C. Das AB=CD im Inneren kommt aus abcd.ts (Korrekturtiefe von C und Level 1). Gartley: B an 0.618 der Fib X → A, C an 0.618 der Fib A → B, D an −0.272 der Fib A → B, dazu AB=CD nahe am Gartley-D, Ausschlüsse (B an 0.786, C an 0.886 oder in der Zone von A, H4-Schluss jenseits von X, höhere Zeiteinheit gegen den Trade, Zeiteinheit M15). Bat: B an 0.5, C mindestens an 0.382, D an 0.886 der Fib X → A, dazu BAT-02 als Ersatz für BAT-01 (volumenstarke Kerzen), Ausschlüsse (B an 0.618, C in der Zone von A, M15, H4-Schluss jenseits von X). Pflicht-Level gelten bis 1 Pip davor als berührt, die Verbots-Level ohne Toleranz. Die Zahlen stehen in params.ts (HARMONIC_PARAMS, GAR_PARAMS, BAT_PARAMS). analyzeGar und analyzeBat prüfen jede geladene Zeiteinheit, checkGarCandidate und checkBatCandidate eigene Punkte; alle liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-GAR-01 bis Z-GAR-06 bzw. Z-BAT-01 bis Z-BAT-06 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. Die Art von BAT-02 hängt von BAT-01 ab. GAR-19 braucht Wochenkerzen und ist deshalb ohne ☑ (☐ oder nicht messbar).
   - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-gar-bat-lib.spec.ts ausführen (je Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Kauf/Verkauf, Abgrenzung Gartley ↔ Bat, bedingte Art von BAT-02, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
   - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; eine Kauf-Formation und ihr Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Berührung der Level, Urteil und der Wechsel von gültig zu ungültig nach einem H4-Schluss jenseits von X, auch bei den Negativfällen.
+- [x] **FRM-08** 2618 — 🖥️ e2e ✅ 2026-10-27
+  - Erkennung der Formation 2618 (Rücklauf an 0.618 nach Doppeltop/-boden) als reine Funktion über geschlossene Kerzen. Das Doppeltop-Paar H1/N kommt aus cdt.ts (jüngstes Paar mit den wenigsten verletzten Bedingungen), H2 ist das erste fertige Fraktal nach N, das die Zone von H1 erreicht, I das jüngste Impulsende (fertiges Fraktal, laufendes Extrem seit H2), der Fib-Beginn H2 oder das Hoch, an dem der trendwendende Impuls beginnt (f2618.ts). Geprüft werden Form (Doppeltop nach CDT-01 bis CDT-06, Schluss jenseits von N, Fraktal an I, Fib Beginn → I mit I jenseits von N, Berührung von 0.618 ohne Toleranz), Trend der Formations-Zeiteinheit in Trade-Richtung, Verstärkungen (0.618 nahe einem Level 0.382/0.5/0.618 einer größeren Bewegung, Zeiteinheit H4) und Ausschlüsse (Schluss jenseits der Stop-Zone vor der Berührung, volumenstarke Kerze gegen die Richtung an der Berührung). Das Signal am Einstieg hat keine Zeile (ohne RSI, Wave, Umkehrkerze). Die Zahlen stehen in params.ts (F2618_PARAMS). analyze2618 prüft jede geladene Zeiteinheit, check2618Candidate eigene Punkte; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-2618-01 bis Z-2618-05 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. Ohne Berührung bleibt die Formation im Aufbau.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-2618-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Verkauf/Kauf, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
+  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; ein Doppeltop mit Verkauf und sein Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Berührung von 0.618, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen.

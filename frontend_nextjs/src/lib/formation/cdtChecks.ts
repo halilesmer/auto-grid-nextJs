@@ -171,6 +171,9 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
   return { code: 'CDT', side, tf, points, checks: withDrawings, drawings, verdict };
 }
 
+/** Prüfung einer fertigen Form für andere Formationen (2618 baut auf dem Doppeltop); dieselbe Messung wie `analyzeCdt` */
+export const evaluateCdt = (env: Env, tf: ContextTimeframe, shape: CdtShape): Candidate => evaluate(env, tf, shape);
+
 function drawingsOf(env: Env, tf: ContextTimeframe, s: CdtShape, rsiH1: number | null): Drawing[] {
   const view = env.views.get(tf)!;
   const { bars } = view;

@@ -206,3 +206,21 @@ export const BAT_PARAMS = {
   /** BAT-14: B berührt dieses Level der Fib X → A (Ausschluss, keine Toleranz; dann Gartley) */
   bExclude: FIB_PARAMS.retrace[2],
 } as const;
+
+/** 2618 (Doppeltop/-boden, dann Rücklauf an 0.618). Level als Anteil des Impulses, Notation Start = 1, Ende = 0. */
+export const F2618_PARAMS = {
+  /** 2618-05: Level, das die Korrektur berühren muss (keine Toleranz, FIB-09; Zahl aus FIB_PARAMS) */
+  entryLevel: FIB_PARAMS.retrace[2],
+  /** Z-2618-02: obere Grenze der Einstiegszone (Zahl aus FIB_PARAMS) */
+  zoneLevel: FIB_PARAMS.retrace[1],
+  /** Z-2618-03: Ziel 2 an der Ausdehnung −0.272 (Zahl aus FIB_PARAMS) */
+  targetExtension: FIB_PARAMS.extensions[0],
+  /** 2618-07: Level der größeren Bewegung (Zahlen aus FIB_PARAMS) */
+  confluenceLevels: FIB_PARAMS.retrace,
+  /** 2618-07 (Annahme): „liegt an“ = Abstand höchstens dieses Vielfache der ATR(14) (wie CDT-10) */
+  nearAtr: CDT_PARAMS.nearAtr,
+  /** 2618-08: Zeiteinheiten mit Verstärkung */
+  timeframes: ['H4'] as readonly string[],
+  /** Auswahl der Punkte: höchstens so viele Impulsenden I je Paar (das Paar H1/N wählt `CDT_PARAMS.lookbackPivots`) */
+  maxEnds: 6,
+} as const;
