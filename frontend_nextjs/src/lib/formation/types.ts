@@ -40,6 +40,8 @@ export interface Drawing {
   rules: string[];
   /** Zeiteinheiten, in denen die Zeichnung sichtbar ist (FRZ-28); fehlt das Feld, gilt jede */
   timeframes?: Timeframe[];
+  /** Trendrichtung der Zeichnung (TRD-14): buy = Aufwärtstrend (grün), sell = Abwärtstrend (rot) */
+  side?: Side;
 }
 
 export interface Check {
