@@ -6,6 +6,7 @@
  * Level der Fib X → A und der Fib A → B stehen in der Notation Start = 1, Ende = 0 (Ausdehnungen negativ).
  */
 import { shapeOf, gapToRect, type AbcdShape } from './abcd';
+import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import { HARMONIC_PARAMS, FRZ_PARAMS, type ContextTimeframe } from './params';
@@ -97,7 +98,7 @@ export const levelAB = (s: XabcdShape, level: number): number => s.b.price + lev
 /** Länge A → B */
 export const lenAB = (s: XabcdShape): number => Math.abs(s.a.price - s.b.price);
 
-/** Berührung eines Pflicht-Levels: der Anteil `value` erreicht `level`, bis `pips` Pips davor gilt noch als Berührung */
+/** Berührung eines Pflicht-Levels: der Anteil `value` erreicht `level`, bis zur Toleranz (`touchPips` Pips) davor gilt noch als Berührung */
 export const reaches = (value: number | null, level: number, len: number, pip: number): boolean =>
   value !== null && len > 0 && value >= level - (HARMONIC_PARAMS.touchPips * pip) / len;
 
@@ -137,7 +138,9 @@ export function closedBeyondX(env: Env, tf: ContextTimeframe, s: XabcdShape): bo
   const close = HARMONIC_PARAMS.closeTimeframe as ContextTimeframe;
   const view = env.views.get(env.views.has(close) ? close : tf)!;
   const xTime = env.views.get(tf)!.bars[s.x.idx].time;
-  return view.bars.some((b) => b.time > xTime && closesBeyond(b, s.x.price, s.es));
+  const dur = TIMEFRAME_SEC[view.tf];
+  // die Kerze, die X enthält, zählt mit: sie schließt nach X
+  return view.bars.some((b) => b.time + dur > xTime && closesBeyond(b, s.x.price, s.es));
 }
 
 /** Zonen (Fraktal- und Engulf-Zonen) nahe `price`, die nicht erst das D selbst bildet */
