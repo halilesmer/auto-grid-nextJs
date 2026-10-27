@@ -146,6 +146,8 @@ const BAT_B_DEEP = zig([100, 130, 110.5, 118.3, 103.42], LEGS, 3);
 /** B an 0.4 (118): 0.5 nicht erreicht */
 const BAT_B_SHALLOW = zig([100, 130, 118, 122, 103.42], LEGS, 3);
 /** C an 0.2 von A → B (118) */
+/** C an 120.725: 0.3817 von A → B, 0.005 vor 0.382 (Toleranz 0.01) */
+const BAT_C_TOL = zig([100, 130, 115, 120.725, 103.42], LEGS, 3);
 const BAT_C_SHALLOW = zig([100, 130, 115, 118, 103.42], LEGS, 3);
 /** C an 0.8 von A → B (127) */
 const BAT_C_DEEP = zig([100, 130, 115, 127, 103.42], LEGS, 3);
@@ -330,6 +332,12 @@ const CASES: Case[] = [
     code: 'BAT',
     candidate: () => run('BAT', { H4: BAT_B_SHALLOW }),
     expect: { 'BAT-05': N },
+  },
+  {
+    name: 'BAT 06/BAT 08: C 0.005 vor 0.382 gilt noch als Berührung',
+    code: 'BAT',
+    candidate: () => run('BAT', { H4: BAT_C_TOL }),
+    expect: { 'BAT-06': M, 'BAT-08': M },
   },
   {
     name: 'BAT 06/BAT 08: C nur an 0.2 von A → B',

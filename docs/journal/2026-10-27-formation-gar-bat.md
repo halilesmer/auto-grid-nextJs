@@ -32,7 +32,7 @@ The AB=CD inside the pattern comes from `shapeOf` in `abcd.ts`. FRZ, TRD, FIB, S
 - GAR-05 has no upper limit for D. A close beyond X (GAR-18, BAT-17) ends the pattern for new entries.
 - GAR-08 and BAT-08 use the correction depth of C (0.382 to 0.728, as in ABCD-04 and ABCD-06). GAR-09 and BAT-09 measure the distance between the AB=CD level and the pattern level in ATR(14).
 - BAT-02 replaces BAT-01 when X to A is not yet an impulse. Its kind is required then, else a bonus.
-- Verdict: invalid when an exclusion is met or a required rule other than D is unmet. Forming when only D is missing. Unmeasurable never blocks.
+- Verdict: invalid when an exclusion is met or a required rule other than D is unmet. Forming when only D is missing. Unmeasurable never blocks, except BAT-01 unmet with BAT-02 unmeasurable: that stays invalid.
 
 ## Choices without a rule source
 - One pip is 0.0001 for pairs, 0.01 for JPY pairs and silver, 0.1 for gold, 0.01 for other symbols.

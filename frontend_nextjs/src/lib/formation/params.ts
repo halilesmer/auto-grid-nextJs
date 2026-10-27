@@ -152,7 +152,7 @@ export const CDT_PARAMS = {
 /** XABCD-Formationen (GAR, BAT). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
 export const HARMONIC_PARAMS = {
   /** Auswahl der Punkte (Annahme): C wird unter den letzten so vielen Wendepunkten gesucht, X, A, B sind die drei davor */
-  lookbackPivots: 6,
+  lookbackPivots: ABCD_PARAMS.lookbackPivots,
   /** Berührung der Pflicht-Level: bis so viele Pips davor gilt als Berührung */
   touchPips: 1,
   /** Größe eines Pips je Symbolart (Annahme für Gold, Silber und die übrigen Symbole) */

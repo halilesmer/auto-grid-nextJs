@@ -105,7 +105,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   add('BAT-07', flag(d !== null && outward(es, d.price) > outward(es, b.price) && reaches(rD, B.dLevel, len, pip)), rD ?? undefined);
 
   // Ort und Kontext
-  add('BAT-08', flag(rC !== null && rC >= ABCD_PARAMS.minCorrection && rC <= ABCD_PARAMS.maxCorrection), rC ?? undefined);
+  add('BAT-08', flag(reaches(rC, ABCD_PARAMS.minCorrection, abLen, pip) && rC !== null && rC <= ABCD_PARAMS.maxCorrection), rC ?? undefined);
   const atr = view.atr[d ? d.idx : last] ?? null;
   const dist = atrDistance(abcd.level1, dLevel, atr);
   add('BAT-09', dist === null ? U : flag(dist <= HARMONIC_PARAMS.nearAtr), dist ?? undefined);
@@ -197,8 +197,13 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: numbe
 
 const empty = (tf: ContextTimeframe): Candidate => unmeasurable('BAT', tf, BAT_CHECK_IDS, RULES);
 
-const misses = (cand: Candidate): number =>
-  cand.checks.filter((k) => (FORM_IDS.includes(k.id) && k.state === 'unmet') || (POINT_EXCLUSIONS.includes(k.id) && k.state === 'met')).length;
+/** BAT-01 ☐ zählt nicht, wenn BAT-02 es ersetzt */
+const misses = (cand: Candidate): number => {
+  const replaced = cand.checks.find((k) => k.id === 'BAT-02')?.state === 'met';
+  return cand.checks.filter(
+    (k) => (FORM_IDS.includes(k.id) && k.state === 'unmet' && !(replaced && k.id === 'BAT-01')) || (POINT_EXCLUSIONS.includes(k.id) && k.state === 'met'),
+  ).length;
+};
 
 /** Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte X, A, B, C und misst D */
 export const analyzeBat = (ctx: FormationContext, t: number): BatAnalysis[] => analyzeXabcd(ctx, t, evaluate, misses, empty);
