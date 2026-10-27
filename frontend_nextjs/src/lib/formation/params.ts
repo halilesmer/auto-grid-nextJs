@@ -106,3 +106,29 @@ export const TRD_PARAMS = {
   /** TRD-48: Kerzen der tieferen Zeiteinheit, ab denen die Struktur auch in der höheren zählt, bzw. nicht mehr */
   lowerTfBars: { counts: 8, notCounts: 3 },
 } as const;
+
+/** AB=CD (ABCD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. Ausdehnungen als Anteil von AB. */
+export const ABCD_PARAMS = {
+  /** ABCD-04: Mindestkorrektur B → C (Zahl aus FIB_PARAMS) */
+  minCorrection: FIB_PARAMS.retrace[0],
+  /** ABCD-06: Mindest-Extension der Fib A → B (Zahl aus FIB_PARAMS); Level 1 muss mindestens dort liegen */
+  minExtension: FIB_PARAMS.extensions[0],
+  /** ABCD-06: größte Korrekturtiefe, bei der Level 1 noch die Mindest-Extension erreicht (1 − 0.272) */
+  maxCorrection: 1 - FIB_PARAMS.extensions[0],
+  /** Auswahl der Punkte (Annahme): C wird unter den letzten so vielen Wendepunkten gesucht */
+  lookbackPivots: 6,
+  /** ABCD-08 (Annahme): D gilt als erreicht, wenn der Kurs höchstens diesen Anteil von AB vor Level 1 endet */
+  tolerance: 0.05,
+  /** ABCD-11 (Annahme): „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) der Formations-Zeiteinheit */
+  nearAtr: 0.5,
+  /** ABCD-18 (Annahme): RSI(7) kurz vor dem Extrem */
+  rsiNear: { sell: 75, buy: 25 },
+  /** ABCD-23 (Annahme): so viele volumenstarke Kerzen in Richtung C → D schließen aus */
+  wideBars: 2,
+  /** ABCD-25: Zeiteinheiten, in denen AB=CD nicht gilt */
+  excludedTimeframes: ['M1', 'M5'] as readonly string[],
+  /** ABCD-15: Retracement-Level der größeren Gegenbewegung, das als zweites Level zählt */
+  confluenceLevel: 0.618,
+  /** Z-ABCD-05: Ziele und 1:1-Stop der Ziel-Fib (Level in Notation Start = 1, Ende = 0) */
+  targets: { tp1: 0.382, tp2: 0.618, stop: 0.382, divergence: 0.786 },
+} as const;
