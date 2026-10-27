@@ -50,3 +50,27 @@ export const FRZ_PARAMS = {
   /** FRZ-39 (Annahme): frische Umkehrzone = höchstens so viele Rücktests, Bruch höchstens so viele Kerzen zurück */
   fresh: { maxRetests: 1, maxBars: 30 },
 } as const;
+
+/** Trend (TRD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const TRD_PARAMS = {
+  /** TRD-07: eigene Welle ab diesem Anteil der Referenzkorrektur */
+  ownWave: 0.75,
+  /** TRD-08 (Annahme): Zwischenbereich beginnt bei diesem Anteil */
+  gapLow: 0.5,
+  /** TRD-17 (Annahme): aufeinanderfolgende Schlüsse jenseits der Bezugszone für den Wechsel */
+  changeCloses: 2,
+  /** TRD-22 (Annahme): „ähnlich“ = Anteil der vorigen Korrektur von … bis … */
+  regular: { min: 0.75, max: 1.333 },
+  /** TRD-23, TRD-24 (Annahme): so viele Korrekturen bzw. Impulse in Folge, jede kürzer als die vorige */
+  shrinkCount: 2,
+  /** TRD-30 (Annahme): Kerzen ohne neuen Impuls und ohne Wechsel */
+  sidewaysBars: 50,
+  /** TRD-38 (Annahme): „fast gleich“ = Abweichung am rechten Rand unter diesem Anteil der letzten Korrekturlänge */
+  lineKeep: 0.1,
+  /** TRD-21: Mindestkorrektur und Mindestausdehnung als Anteil des Impulses (kommt mit FIB aus dessen Tabelle) */
+  healthy: { minCorrection: 0.382, minExtension: 0.272 },
+  /** TRD-32, TRD-33: Mindestzahl Gründe gegen bzw. mit dem Trend */
+  reasons: { counter: 3, with: 2 },
+  /** TRD-48: Kerzen der tieferen Zeiteinheit, ab denen die Struktur auch in der höheren zählt, bzw. nicht mehr */
+  lowerTfBars: { counts: 8, notCounts: 3 },
+} as const;

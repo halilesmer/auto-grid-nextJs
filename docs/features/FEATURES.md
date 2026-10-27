@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-27 · **158/162** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **159/163** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 2/2 |
+| 16 | **FRM** – Formationserkennung | 3/3 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -796,3 +796,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Erkennung der Fraktal-Zone (FRZ) als reine Funktionen über geschlossene Kerzen: Fraktal mit je 2 geschlossenen Nachbarn (Schluss entscheidet), Zonenbreite (Dochtende bis Körperkante, dünne Zone, Zone ohne Docht, Manipulationsdocht in H4), Verletzung durch Schluss, Suchweg nach links, Anzahl je Seite, Zusammenlegen, Tests, Stärke (stark, sehr stark), Rollenwechsel mit volumenstarkem Bruch, Rücktest und Frische (frz.ts, frzChecks.ts, Zahlen in params.ts). analyzeFrz wählt die Zonen aller geladenen Zeiteinheiten, checkFrzCandidate prüft eine beliebige Kerze und liefert je Bedingungs-ID ☑, ☐ oder nicht messbar sowie die Zeichnungen Z-FRZ-01 bis Z-FRZ-06 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. FRZ-18 ist ohne Wirtschaftskalender nicht messbar; FRZ-12 und FRZ-28 sind Anzeige ohne Prüfung.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-frz-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Zeichnungen, Spiegelfall, Ablauf ohne Blick in die Zukunft und eine echte Kerzenreihe).
   - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; die Zonen eines Widerstands und seines Spiegelbilds (Unterstützung) haben dieselben Zustände; bei der echten Reihe besteht jede gewählte Zone FRZ-01 bis FRZ-04 und FRZ-07.
+- [x] **FRM-03** Trend — 🖥️ e2e ✅ 2026-10-27
+  - Erkennung des Trends (TRD) als reine Funktionen über geschlossene Kerzen: Wendepunkte aus fertigen Fraktalen (nur das äußerste Extrem je Seite), Trendzug mit Filter für Korrekturen (ab 75 % der kleinsten gezeichneten Korrektur seit dem Wechsel), Impuls und Korrektur, Trend je Zeiteinheit mit Wechsel durch zwei aufeinanderfolgende Schlüsse jenseits der Bezugszone, gesunder Trend, ähnliche und kürzer werdende Korrekturen, Trend der höheren und tieferen Zeiteinheit, Mit-/Gegentrend mit Zahl der Gründe, Unterstützungs- bzw. Widerstandslinie mit Spike-Ersatz, Berührungen und Schluss jenseits, Phase, Abgleich mit der Wave und Seitwärtsphase (trd.ts, trdChecks.ts, Zahlen in params.ts). analyzeTrd führt den Trendzug jeder geladenen Zeiteinheit, checkTrdCandidate prüft ein beliebiges Fraktal als Wendepunkt; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar sowie die Zeichnungen Z-TRD-01 bis Z-TRD-08 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. TRD-25 und TRD-29 sind nicht messbar; TRD-14 und TRD-26 sind Anzeige ohne Prüfung.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-trd-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall, Ablauf ohne Blick in die Zukunft, Zeichnungen und zwei echte Kerzenreihen).
+  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; ein Aufwärtstrend und sein Spiegelbild haben dieselben Zustände; bei den echten Reihen wechseln die Wendepunkte Hoch und Tief ab, und die Reihe mit steigenden Tiefs ergibt einen Aufwärtstrend mit Linie.
