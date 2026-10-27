@@ -38,6 +38,8 @@ export interface Drawing {
   levels?: number[];
   /** IDs der Bedingungen, die diese Zeichnung zeigt */
   rules: string[];
+  /** Zeiteinheiten, in denen die Zeichnung sichtbar ist (FRZ-28); fehlt das Feld, gilt jede */
+  timeframes?: Timeframe[];
 }
 
 export interface Check {

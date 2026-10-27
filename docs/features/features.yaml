@@ -1650,3 +1650,11 @@ kategorien:
         pruefung:
           - Playwright-Logiktest e2e/mocked/formation-base-lib.spec.ts ausführen (von Hand gerechnete Fälle für RSI, Wave, ATR, volumenstarke Kerze, Kontext und Fixture-Prüfung).
         erwartet: Alle Fälle stimmen mit der Handrechnung überein; eine Kerze zählt erst, wenn ihre Zeiteinheit vorbei ist; Indikatoren auf dem Teilstück sind gleich den Werten des Kontexts.
+      - id: FRM-02
+        titel: Fraktal-Zone
+        beschreibung: "Erkennung der Fraktal-Zone (FRZ) als reine Funktionen über geschlossene Kerzen: Fraktal mit je 2 geschlossenen Nachbarn (Schluss entscheidet), Zonenbreite (Dochtende bis Körperkante, dünne Zone, Zone ohne Docht, Manipulationsdocht in H4), Verletzung durch Schluss, Suchweg nach links, Anzahl je Seite, Zusammenlegen, Tests, Stärke (stark, sehr stark), Rollenwechsel mit volumenstarkem Bruch, Rücktest und Frische (frz.ts, frzChecks.ts, Zahlen in params.ts). analyzeFrz wählt die Zonen aller geladenen Zeiteinheiten, checkFrzCandidate prüft eine beliebige Kerze und liefert je Bedingungs-ID ☑, ☐ oder nicht messbar sowie die Zeichnungen Z-FRZ-01 bis Z-FRZ-06 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. FRZ-18 ist ohne Wirtschaftskalender nicht messbar; FRZ-12 und FRZ-28 sind Anzeige ohne Prüfung."
+        code: [frontend_nextjs/src/lib/formation/frz.ts, frontend_nextjs/src/lib/formation/frzChecks.ts, frontend_nextjs/src/lib/formation/params.ts, frontend_nextjs/src/lib/formation/types.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Logiktest e2e/mocked/formation-frz-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Zeichnungen, Spiegelfall, Ablauf ohne Blick in die Zukunft und eine echte Kerzenreihe).
+        erwartet: Jeder Fall stimmt mit der Handrechnung überein; die Zonen eines Widerstands und seines Spiegelbilds (Unterstützung) haben dieselben Zustände; bei der echten Reihe besteht jede gewählte Zone FRZ-01 bis FRZ-04 und FRZ-07.

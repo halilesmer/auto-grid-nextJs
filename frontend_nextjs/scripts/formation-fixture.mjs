@@ -52,7 +52,8 @@ async function main() {
   if (!/^[a-z0-9-]+$/.test(args.name)) throw new Error('--name: nur a-z, 0-9 und Bindestrich');
 
   const env = { ...readEnvFile(path.join(ROOT, '.env.local')), ...process.env };
-  const base = env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
+  // NEXT_PUBLIC_API_URL endet auf /api; der Pfad unten bringt /api selbst mit
+  const base = env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '').replace(/\/api$/, '');
   const key = env.NEXT_PUBLIC_WORKER_API_KEY;
   if (!base) throw new Error('NEXT_PUBLIC_API_URL fehlt (.env.local)');
 
