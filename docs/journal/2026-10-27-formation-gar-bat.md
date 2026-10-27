@@ -49,6 +49,6 @@ The AB=CD inside the pattern comes from `shapeOf` in `abcd.ts`. FRZ, TRD, FIB, S
 - ABCD-16 (harmonic D) stays unmeasurable in this step.
 
 ## Verification
-- `scripts/features/run.sh FRM-07`: 57 tests passed.
-- `scripts/features/run.sh FRM`: 435 tests passed.
+- `scripts/features/run.sh FRM-07`: 58 tests passed.
+- `scripts/features/run.sh FRM`: 436 tests passed.
 - `npm run lint` and `npx tsc --noEmit`: no output.
