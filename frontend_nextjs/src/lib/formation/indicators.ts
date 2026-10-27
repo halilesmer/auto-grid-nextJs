@@ -4,7 +4,7 @@
  */
 import { wilderRsi } from '@/lib/analysis/candles';
 import { atr } from '@/lib/backtest/engine/fractalSignals';
-import { ATR_PERIOD, RSI_PARAMS, WAVE_PARAMS, WIDE_RANGE_PARAMS } from './params';
+import { ATR_PERIOD, RSI_PARAMS, SIG_PARAMS, WAVE_PARAMS, WIDE_RANGE_PARAMS } from './params';
 import type { FormationBar } from './types';
 
 export type Series = (number | null)[];
@@ -66,6 +66,28 @@ export function wideRange(
     if (i >= lookback) {
       // eine Kerze ohne Spanne ist nie volumenstark, auch nicht nach lauter flachen Kerzen
       out[i] = spans[i] > 0 && spans[i] >= factor * (sum / lookback);
+      sum -= spans[i - lookback];
+    }
+    sum += spans[i];
+  }
+  return out;
+}
+
+/**
+ * Volumenarme Kerze (SIG-35): Spanne ≤ factor × Mittel der Spannen der `lookback` Kerzen davor.
+ * null, solange weniger als `lookback` Kerzen davor liegen.
+ */
+export function narrowRange(
+  bars: readonly FormationBar[],
+  factor: number = SIG_PARAMS.narrow.factor,
+  lookback: number = SIG_PARAMS.narrow.lookback,
+): (boolean | null)[] {
+  const spans = bars.map((b) => b.high - b.low);
+  const out: (boolean | null)[] = new Array(bars.length).fill(null);
+  let sum = 0;
+  for (let i = 0; i < bars.length; i++) {
+    if (i >= lookback) {
+      out[i] = spans[i] <= factor * (sum / lookback);
       sum -= spans[i - lookback];
     }
     sum += spans[i];

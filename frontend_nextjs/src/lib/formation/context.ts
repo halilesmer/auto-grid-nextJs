@@ -5,7 +5,7 @@
  * (docs/analyse-regeln.md, BKT-09). So taugt dieselbe Erkennung später für Backtest und Alarm.
  */
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
-import { atrSeries, rsi, wave, wideRange, type Series } from './indicators';
+import { atrSeries, narrowRange, rsi, wave, wideRange, type Series } from './indicators';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
 import type { FormationBar } from './types';
 
@@ -16,6 +16,7 @@ export interface TimeframeView {
   wave: Series;
   atr: Series;
   wide: (boolean | null)[];
+  narrow: (boolean | null)[];
 }
 
 export type ContextInput = Partial<Record<ContextTimeframe, readonly FormationBar[]>>;
@@ -47,6 +48,7 @@ export class FormationContext {
         wave: wave(bars),
         atr: atrSeries(bars),
         wide: wideRange(bars),
+        narrow: narrowRange(bars),
       });
     }
   }
@@ -83,6 +85,7 @@ export class FormationContext {
       wave: view.wave.slice(0, n),
       atr: view.atr.slice(0, n),
       wide: view.wide.slice(0, n),
+      narrow: view.narrow.slice(0, n),
     };
   }
 }
