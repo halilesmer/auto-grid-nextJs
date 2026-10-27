@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-27 · **162/166** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-27 · **163/167** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 6/6 |
+| 16 | **FRM** – Formationserkennung | 7/7 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -812,3 +812,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Erkennung von Doppeltop und Doppelboden (CDT) als reine Funktion über geschlossene Kerzen. H1 und N kommen aus den Wendepunkten des Trendzugs (das Paar mit den wenigsten verletzten Form-Bedingungen, bei Gleichstand das jüngste), H2 ist der äußerste Docht seit N (cdt.ts). Geprüft werden Form (H1 und N als fertige Fraktale, H1 schließt über dem vorigen Hoch, Korrekturtiefe 0.382, Berührung der Zone von H1 ohne Toleranz, Trend beim Anlauf), Ort (Trend der höheren Zeiteinheit, schwächerer Anlauf, Divergenz, Fibonacci-Level nahe der Zone, Zeiteinheit H1/H4/D1), Signale (RSI(7) an H1 im Extrem, ersatzweise Umkehrkerze, RSI an H2) und der Ausschluss durch einen Schluss jenseits von H1 mit der Ausnahme für kleine, nicht volumenstarke Schlüsse. Die Art von CDT-13 hängt von CDT-12 ab. Die Zahlen stehen in params.ts (CDT_PARAMS). analyzeCdt prüft jede geladene Zeiteinheit, checkCdtCandidate eigene Punkte; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-CDT-01 bis Z-CDT-06. Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. Ohne RSI-Extrem und ohne Umkehrkerze bleibt die Formation im Aufbau. Dazu macht die Messung ABCD-24 messbar.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-cdt-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall, bedingte Art, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen) und die ABCD-24-Fälle in formation-abcd-lib.spec.ts.
   - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; ein Doppeltop und sein Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Korrekturtiefe, RSI-Extrem, Berührung und Urteil mit den gemessenen Zuständen überein, auch die Negativfälle.
+- [x] **FRM-07** Gartley und Bat — 🖥️ e2e ✅ 2026-10-27
+  - Erkennung von Gartley (GAR) und Bat (BAT) als reine Funktionen über geschlossene Kerzen, mit einem gemeinsamen XABCD-Kern (xabcd.ts). X, A, B, C sind vier aufeinanderfolgende Wendepunkte des Trendzugs (jüngstes C zuerst, das Kandidaten-Paar mit den wenigsten verletzten Form-Bedingungen gilt), D ist der äußerste Docht seit C. Das AB=CD im Inneren kommt aus abcd.ts (Korrekturtiefe von C und Level 1). Gartley: B an 0.618 der Fib X → A, C an 0.618 der Fib A → B, D an −0.272 der Fib A → B, dazu AB=CD nahe am Gartley-D, Ausschlüsse (B an 0.786, C an 0.886 oder in der Zone von A, H4-Schluss jenseits von X, höhere Zeiteinheit gegen den Trade, Zeiteinheit M15). Bat: B an 0.5, C mindestens an 0.382, D an 0.886 der Fib X → A, dazu BAT-02 als Ersatz für BAT-01 (volumenstarke Kerzen), Ausschlüsse (B an 0.618, C in der Zone von A, M15, H4-Schluss jenseits von X). Pflicht-Level gelten bis 1 Pip davor als berührt, die Verbots-Level ohne Toleranz. Die Zahlen stehen in params.ts (HARMONIC_PARAMS, GAR_PARAMS, BAT_PARAMS). analyzeGar und analyzeBat prüfen jede geladene Zeiteinheit, checkGarCandidate und checkBatCandidate eigene Punkte; alle liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-GAR-01 bis Z-GAR-06 bzw. Z-BAT-01 bis Z-BAT-06 (auch bei ☐). Bei Ereignis-Bedingungen heißt ☑ „liegt vor“. Die Art von BAT-02 hängt von BAT-01 ab. GAR-19 braucht Wochenkerzen und ist deshalb ohne ☑ (☐ oder nicht messbar).
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-gar-bat-lib.spec.ts ausführen (je Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Kauf/Verkauf, Abgrenzung Gartley ↔ Bat, bedingte Art von BAT-02, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
+  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; eine Kauf-Formation und ihr Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Berührung der Level, Urteil und der Wechsel von gültig zu ungültig nach einem H4-Schluss jenseits von X, auch bei den Negativfällen.

@@ -148,3 +148,61 @@ export const CDT_PARAMS = {
   /** CDT-11: Zeiteinheiten der Formation */
   timeframes: ['H1', 'H4', 'D1'] as readonly string[],
 } as const;
+
+/** XABCD-Formationen (GAR, BAT). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const HARMONIC_PARAMS = {
+  /** Auswahl der Punkte (Annahme): C wird unter den letzten so vielen Wendepunkten gesucht, X, A, B sind die drei davor */
+  lookbackPivots: 6,
+  /** Berührung der Pflicht-Level: bis so viele Pips davor gilt als Berührung */
+  touchPips: 1,
+  /** Größe eines Pips je Symbolart (Annahme für Gold, Silber und die übrigen Symbole) */
+  pip: { default: 0.0001, jpy: 0.01, gold: 0.1, silver: 0.01, other: 0.01 },
+  /** GAR-09, BAT-09 (Annahme): Abstand AB=CD-D ↔ Harmonik-D höchstens dieses Vielfache der ATR(14) */
+  nearAtr: 1,
+  /** GAR-10, BAT-11 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
+  zoneAtr: ABCD_PARAMS.nearAtr,
+  /** GAR-11, BAT-10 (Annahme): Dauer X → D in Kerzen und Höhe X → A als Vielfaches der ATR(14) */
+  space: { bars: 30, atr: 4 },
+  /** GAR-12, BAT-12: Zeiteinheiten ab H4 */
+  highTimeframes: ['H4', 'D1'] as readonly string[],
+  /** GAR-20, BAT-16: Zeiteinheiten, in denen die Harmonik nicht gilt */
+  excludedTimeframes: ['M15'] as readonly string[],
+  /** GAR-18, BAT-17: Zeiteinheit des Schlusses jenseits von X */
+  closeTimeframe: 'H4',
+  /** GAR-19 (Annahme): „lange im Extrem“ = so viele H4-Schlüsse in Folge */
+  longRun: 6,
+  /** BAT-02 (Annahme): Anteil volumenstarker Kerzen von X → A */
+  wideShare: 0.5,
+  /** Z-GAR-06, Z-BAT-06: Ziele und 1:1-Stop der Ziel-Fib A → D (Zahlen aus ABCD_PARAMS) */
+  targets: ABCD_PARAMS.targets,
+} as const;
+
+/** Gartley (GAR). Level als Anteil der Strecke, Notation Start = 1, Ende = 0. */
+export const GAR_PARAMS = {
+  /** GAR-03: B berührt dieses Level der Fib X → A (Zahl aus FIB_PARAMS) */
+  bLevel: FIB_PARAMS.retrace[2],
+  /** GAR-04: C berührt dieses Level der Fib A → B */
+  cLevel: FIB_PARAMS.retrace[2],
+  /** GAR-05: Ausdehnung der Fib A → B, an der D fertig ist (Zahl aus FIB_PARAMS) */
+  dExtension: FIB_PARAMS.extensions[0],
+  /** GAR-06: sauberste Form, wenn C dieses Level der Fib A → B nicht berührt (Zahl aus FIB_PARAMS) */
+  cClean: FIB_PARAMS.farLevel,
+  /** GAR-07: D liegt an diesem Level der Fib X → A; Abstand höchstens dieser Anteil von X → A (Annahme) */
+  dAtX: { level: FIB_PARAMS.farLevel, tolerance: 0.05 },
+  /** GAR-15: B berührt dieses Level der Fib X → A (Ausschluss, keine Toleranz) */
+  bExclude: FIB_PARAMS.farLevel,
+  /** GAR-16: C berührt dieses Level der Fib A → B (Ausschluss, keine Toleranz; Zahl aus FIB_PARAMS) */
+  cExclude: FIB_PARAMS.lastLevel,
+} as const;
+
+/** Bat (BAT). Level als Anteil der Strecke, Notation Start = 1, Ende = 0. */
+export const BAT_PARAMS = {
+  /** BAT-05: B berührt dieses Level der Fib X → A (Zahl aus FIB_PARAMS) */
+  bLevel: FIB_PARAMS.retrace[1],
+  /** BAT-06: C berührt mindestens dieses Level der Fib A → B (Zahl aus FIB_PARAMS) */
+  cMin: FIB_PARAMS.retrace[0],
+  /** BAT-07: D berührt dieses Level der Fib X → A (Zahl aus FIB_PARAMS) */
+  dLevel: FIB_PARAMS.lastLevel,
+  /** BAT-14: B berührt dieses Level der Fib X → A (Ausschluss, keine Toleranz; dann Gartley) */
+  bExclude: FIB_PARAMS.retrace[2],
+} as const;
