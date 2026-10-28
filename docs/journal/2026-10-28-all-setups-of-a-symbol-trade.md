@@ -3,7 +3,7 @@ date: 2026-10-28
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [222]
 features: [ENG-01, ENG-05, ENG-27, BKT-01]
 areas: [worker, frontend, tests]
 ---
@@ -66,12 +66,15 @@ Changed tests (behavior change, not a relaxed check):
 | `test_order_eines_anderen_setups_belegt_kein_level` (ENG-05) | Setup 1 now manages its own grid, so its order can move. The test still checks that setup 2 gets all levels. |
 | `test_geloeschte_aktive_zone_loest_keinen_ausstieg_beim_nachbarn_aus` (ENG-27) | Zone b had its range outside the price. Now zone b trades by itself, and its `clear_on_exit` clears it in the second round (same as the backtest with zone b alone). The range of b now contains the price, so the test still checks that the delete of zone a does not change zone b. |
 
+## Known behavior (decision 2026-10-28)
+
+A setup with `clear_on_exit` whose range does not contain the price at the start gets AUTO_CLEAR in the second round. It stays stopped until a restart. This was true before for the first setup of a symbol, and the backtest does the same. Decision: keep it, because the backtest is the reference.
+
 ## Open points
 
 - [ ] Repeat the test week after D1 and D2 (Hedging DEMO account, 3 setups on one symbol).
 - [ ] Watch the margin: each symbol can now have up to 3 times more orders and positions.
 - [ ] Rollout: the auto-updater pulls `main` on the VPS, and `watched_bots.json` restarts the bots. On a Hedging account, setups that were idle start to place orders at once. On a netting account with 2 active setups for one symbol, the bot does not start, and open positions stay without management. Check each account before the merge reaches the VPS.
-- [ ] Known behavior, now for every setup: a setup with `clear_on_exit` whose range does not contain the price at the start gets AUTO_CLEAR in the second round. This was true before for the first setup of a symbol, and the backtest does the same. Decide if this is correct.
 
 ## Lessons
 
