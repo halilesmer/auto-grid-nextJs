@@ -5,8 +5,8 @@
  *   1. E2E_LIVE_DEMO=1 (bewusst gesetzt)
  *   2. hooks/test-account.local.md: Tür DEMO, und der Worker meldet env_type DEMO (Fixture `account`)
  *   3. Markt offen, Bot läuft und ist mit MT5 verbunden
- *   4. Die Testzone bekommt ein Symbol, für das keine Zone existiert (TEST_SYMBOLS); die Engine
- *      bedient je Symbol die erste aktive Zone am Preis, bestehende Zonen bleiben so unberührt
+ *   4. Die Testzone bekommt ein Symbol, für das keine Zone existiert (TEST_SYMBOLS); jede Zone
+ *      handelt für sich (ENG-01), ein eigenes Symbol hält die Testzone trotzdem von fremden fern
  *
  * Ablauf: Einstellungen + ui-state sichern → Testzone ANHÄNGEN (0,01 Lot, je 1 Level, max. 1
  * Position) → Orders (ENG-05) → Füllung und Positionslimit (ENG-07) → Pause/Start über die Oberfläche (ZON-08) → Zone vom Preis

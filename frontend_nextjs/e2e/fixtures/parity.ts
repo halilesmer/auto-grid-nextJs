@@ -51,8 +51,8 @@ export function isFractalScenario(scenario: Scenario): boolean {
 }
 
 function sameZones(a: ActiveZones, b: ActiveZones): boolean {
-  const ka = Object.keys(a);
-  return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
+  const ea = Object.entries(a);
+  return ea.length === Object.keys(b).length && ea.every(([k, sym]) => b[Number(k)] === sym);
 }
 
 /** Spielt das Szenario mit frischem Bot-Zustand ab; Rückgabe: Ereignisfolge */
@@ -73,7 +73,7 @@ export function runScenario(input: Scenario): SimEvent[] {
     [, active] = manageDynamicGrid(broker, scenario.zones, active, infos, state);
     if (!sameZones(active, shown)) {
       shown = { ...active };
-      const zones = Object.fromEntries(Object.keys(shown).sort().map((k) => [k, shown[k]]));
+      const zones = Object.fromEntries(Object.entries(shown).sort(([a], [b]) => Number(a) - Number(b)));
       broker.emit('active', { zones });
     }
   });

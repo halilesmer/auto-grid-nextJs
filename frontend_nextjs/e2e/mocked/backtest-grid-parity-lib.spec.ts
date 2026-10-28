@@ -146,7 +146,7 @@ test.describe('BKT-02 Bot-Nachbau Grid', () => {
     // Bid 97,84 liegt über max_price 97,5, trotzdem setzt der Bot die oberste Stufe der Zone
     expect(loadScenario(name).ticks[3]).toEqual([15, 97.84]);
     expect(golden.find((e) => e.ev === 'place')).toMatchObject({ i: 3, type: 'BUY_LIMIT', price: 97.5 });
-    expect(golden.filter((e) => e.ev === 'active')).toEqual([{ i: 0, t: 0, ev: 'active', zones: { USOUSD: 0 } }]);
+    expect(golden.filter((e) => e.ev === 'active')).toEqual([{ i: 0, t: 0, ev: 'active', zones: { 0: 'USOUSD' } }]);
   });
 
   test('Gespeicherte magic 200007 gilt für Orders, Kommentar und Aufräumen', { tag: '@BKT-02' }, () => {

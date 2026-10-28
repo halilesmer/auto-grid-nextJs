@@ -28,7 +28,7 @@
   "t": 0,
   "ev": "active",
   "zones": {
-   "EURUSD": 0
+   "0": "EURUSD"
   }
  },
  {

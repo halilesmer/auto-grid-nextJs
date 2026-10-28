@@ -76,7 +76,7 @@
   "t": 0,
   "ev": "active",
   "zones": {
-   "USOUSD": 0
+   "0": "USOUSD"
   }
  },
  {
@@ -494,7 +494,7 @@
   "t": 430,
   "ev": "active",
   "zones": {
-   "USOUSD": 0
+   "0": "USOUSD"
   }
  }
 ]

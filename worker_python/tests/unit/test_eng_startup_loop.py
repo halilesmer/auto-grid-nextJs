@@ -65,6 +65,74 @@ def test_ohne_terminalverbindung_kein_start(fake_mt5):
     assert fake_mt5.shutdown_called
 
 
+# --------------------------------------------------------------------------- ENG-01
+@pytest.mark.feature("ENG-01")
+def test_netting_konto_mit_zwei_setups_eines_symbols_startet_nicht(fake_mt5):
+    """Auf Netting verrechnet MT5 die Positionen eines Symbols zu einer; die Setups würden
+    sich gegenseitig Positionen schließen. Start mit klarer Meldung abbrechen."""
+    from tests.helpers import make_zone
+
+    m = fake_mt5
+    metrics = get_metrics_path(TEST_ACCOUNT_ID)
+    with open(metrics, "w", encoding="utf-8") as f:
+        json.dump({"mt5_connected": True}, f)
+    m.account.margin_mode = 0  # ACCOUNT_MARGIN_MODE_RETAIL_NETTING
+    state.zones = [make_zone(id="a"), make_zone(id="b"), make_zone(id="c", is_active=False)]
+    _prepare_state(m)
+
+    assert run_startup_checks(m) is False
+    assert m.shutdown_called
+    with open(metrics, encoding="utf-8") as f:
+        error = json.load(f)["startup_error"]
+    assert "USOUSD" in error and "Hedging" in error
+
+
+@pytest.mark.feature("ENG-01")
+def test_netting_konto_mit_einem_setup_je_symbol_startet(fake_mt5):
+    from tests.helpers import make_zone
+
+    m = fake_mt5
+    m.account.margin_mode = 0
+    state.zones = [make_zone(id="a"), make_zone(id="b", is_active=False)]
+    _prepare_state(m)
+    assert run_startup_checks(m) is True
+
+
+@pytest.mark.feature("ENG-01")
+def test_zweites_setup_im_laufenden_netting_bot_setzt_keine_orders(fake_mt5, monkeypatch):
+    """Das zweite Setup kommt per Einstellungen dazu, während der Bot läuft: kein Grid-Durchlauf,
+    eine Fehlermeldung, kein Spam in jeder Runde."""
+    import src.core.loop as loop
+    from tests.helpers import make_zone
+
+    m = fake_mt5
+    state.account_margin_mode = 0  # beim Start gelesen (run_startup_checks ist hier ersetzt)
+    m.account = None  # der Loop fragt MT5 nicht erneut
+    state.zones = [make_zone(id="a"), make_zone(id="b")]
+    grid_calls, rounds = [], []
+    monkeypatch.setattr(loop, "load_dynamic_settings", lambda: None)
+    monkeypatch.setattr(loop, "run_startup_checks", lambda mt5: True)
+    monkeypatch.setattr(loop, "_cleanup", lambda mt5: None)
+    monkeypatch.setattr(loop, "check_remote_commands_wrapper", lambda: None)
+    monkeypatch.setattr(loop, "manage_dynamic_grid", lambda: grid_calls.append(1))
+    monkeypatch.setattr(loop.time, "sleep", lambda s: None)
+    logged = []
+    monkeypatch.setattr(loop, "log_message", lambda msg, level="INFO", **k: logged.append((level, msg)))
+
+    def healthy(*a, **k):
+        rounds.append(1)
+        if len(rounds) > 3:
+            state.is_running = False
+            return False, 0
+        return True, 0
+
+    monkeypatch.setattr(loop, "check_connection_health", healthy)
+    loop.main_loop(m, 1001, "pw", "srv")
+
+    assert grid_calls == []
+    assert len([msg for level, msg in logged if level == "ERROR" and "Hedging" in msg]) == 1
+
+
 # --------------------------------------------------------------------------- ENG-15
 @pytest.mark.feature("ENG-15")
 def test_markt_offen_nur_mit_handelsmodus_und_frischem_tick(fake_mt5):
