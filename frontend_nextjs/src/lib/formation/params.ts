@@ -241,7 +241,7 @@ export const BUT_PARAMS = {
   dExtension: FIB_PARAMS.extensions[0],
   /** BUT-08: C berührt mindestens dieses Level der Fib A → B (Zahl aus FIB_PARAMS) */
   cStrong: FIB_PARAMS.retrace[2],
-  /** BUT-09: Rückprojektion der Strecke B → C um dieses Vielfache jenseits von C (Inversion 2) */
+  /** BUT-09: Rückprojektion der Strecke B → C um dieses Vielfache jenseits von B (Inversion 2) */
   bcInversion: 2,
   /** BUT-10: AB-Ausdehnung 1.618 = Level −0.618 der Fib A → B (Zahl aus FIB_PARAMS) */
   abExtension: FIB_PARAMS.extensions[2],

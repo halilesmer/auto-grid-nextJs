@@ -289,6 +289,8 @@ export function lowerReversal(env: Env, tf: ContextTimeframe, s: XabcdShape): Ch
   const view = lower ? env.views.get(lower) : undefined;
   if (!s.d || !view) return 'unmeasurable';
   const from = env.views.get(tf)!.bars[s.d.idx].time;
+  // die tiefere Zeiteinheit reicht nicht bis zur Kerze von D zurück: nichts zu vergleichen
+  if (view.bars.length === 0 || view.bars[0].time > from) return 'unmeasurable';
   for (let k = 0; k < view.bars.length; k++) {
     if (view.bars[k].time >= from && engulfAt(view.bars, view.wide, k, s.side) !== null) return 'met';
   }

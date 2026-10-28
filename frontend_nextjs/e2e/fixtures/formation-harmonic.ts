@@ -127,5 +127,4 @@ export function lowerRows(at: At, price: number, engulf: boolean): Row[] {
   return rows;
 }
 
-export const loadAt = (iso: string): number => Date.parse(`${iso}:00Z`) / 1000;
 export { END, H4 };

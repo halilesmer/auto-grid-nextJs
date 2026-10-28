@@ -25,7 +25,7 @@ export function zonesNearOutsideX(env: Env, tf: ContextTimeframe, s: XabcdShape,
   const out: Rect[] = [];
   for (const z of [...env.frz.zones, ...env.frz.reversed]) {
     const formedByD = z.fractalTimes.every((ft) => ft >= dTime);
-    const isXZone = z.fractalTimes.includes(xTime);
+    const isXZone = z.tf === tf && z.fractalTimes.includes(xTime);
     if (z.side === tradeZone && !formedByD && !isXZone && gapToRect(z.rect, price) <= near) out.push(z.rect);
   }
   for (const z of engulfZones(view.bars, view.wide)) {

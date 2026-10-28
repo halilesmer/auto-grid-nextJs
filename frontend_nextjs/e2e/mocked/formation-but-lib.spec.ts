@@ -67,7 +67,7 @@ const D_TOL = harmonic([100, 130, 106, 120.16, 91.845]);
 const D_FAR = harmonic([100, 130, 106, 120.16, 91.86]);
 /** Nur der Docht von D reicht unter B, kein Schluss zwischen C und D unter 106 */
 const NO_CLOSE = wickOnlyD(BASE, AT, 112);
-/** Lange Züge A → B und C → D gleich: keine Divergenz zwischen B und D */
+/** Kurzer Zug A → B (10 Kerzen): die Wave am B ist nicht stärker als am D, keine Divergenz */
 const FLAT_LEGS = [10, 10, 6, 6];
 const NO_DIVERGENCE = harmonic([100, 130, 106, 120.16, 91.8], FLAT_LEGS);
 /** Lauter Anlauf zu D: RSI(7) am Tief bleibt über 20 */
@@ -150,7 +150,7 @@ test.describe('BUT: Abgrenzung, Urteil und Zeichnungen', () => {
     expect(pick(analyzeBat, BASE)).toBe('invalid');
     expect(pick(analyzeCyp, BASE)).toBe('invalid');
     for (const rows of [GAR_FORM, BAT_FORM, CYP_FORM]) {
-      const asBut = run({ H4: rows }, AT, { price: {} });
+      const asBut = run({ H4: rows }, AT);
       expect(asBut.verdict).toBe('invalid');
       expect(state(asBut, 'BUT-02')).toBe(N);
     }
@@ -159,9 +159,9 @@ test.describe('BUT: Abgrenzung, Urteil und Zeichnungen', () => {
   frm('Abgrenzung Butterfly ↔ Crab: D bei 1.272 ist Butterfly, D bei 1.618 mit tieferem B ist Crab', () => {
     const crab = runCrab({ H4: BASE });
     expect([state(crab, 'CRB-04'), state(crab, 'CRB-07'), crab.verdict]).toEqual([N, M, 'invalid']);
-    const asBut = run({ H4: CRAB_FORM }, AT, { price: {} });
+    const asBut = run({ H4: CRAB_FORM }, AT);
     expect([state(asBut, 'BUT-02'), asBut.verdict]).toEqual([N, 'invalid']);
-    const deep = run({ H4: DEEP_CRAB_FORM }, AT, { price: {} });
+    const deep = run({ H4: DEEP_CRAB_FORM }, AT);
     expect([state(deep, 'BUT-03'), deep.verdict]).toEqual([M, 'invalid']);
   });
 
@@ -261,6 +261,8 @@ test.describe('BUT: echte Kerzen', () => {
     expect(times(c)).toEqual(['2026-01-09T00:00', '2026-01-09T16:00', '2026-01-12T00:00', '2026-01-12T12:00', '2026-01-13T00:00']);
     expect(states(c, CORE)).toEqual([M, M, N, M, N, M, M]);
     expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13', 'BUT-14'])).toEqual([M, M, M, M, N, N, N]);
+    expect(find(c, 'BUT-02').value!).toBeCloseTo((0.93254 - 0.93014) / (0.93254 - 0.92981), 3);
+    expect(find(c, 'BUT-07').value!).toBeCloseTo((0.93254 - 0.9288) / (0.93254 - 0.92981), 3);
     expect(c.verdict).toBe('valid');
   });
 

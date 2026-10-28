@@ -41,10 +41,10 @@ Gartley, Bat, Cypher, ABCD and the other patterns keep their behaviour. No UI.
 - **BU-4** The target D is the level itself (1.272 or 1.618), not the measured D. All "near D" rules (BUT-09 to BUT-12, CRB-10 to CRB-12) measure the distance to this level, so they work before D is reached.
 - **BU-5** BUT-07 and CRB-04 have no upper limit. A D far beyond the level stays met.
 - **BU-6** CRB-12 skips the zone that X forms. The rule book says the broken X zone alone does not count. BUT-12 uses the plain zone function of Gartley and Bat.
-- **BU-7** BUT-09 uses the projection of B to C at 2 beyond C (price = C + 2 × (B − C)). CRB-10 and CRB-11 pass when at least one of their two levels is near the target D.
+- **BU-7** BUT-09 uses the projection of B to C at 2 beyond C (price = C + 2 × (B − C), beyond B). CRB-10 and CRB-11 pass when at least one of their two levels is near the target D.
 - **BU-8** BUT-15 and BUT-16 use the next loaded time frame (higher or lower). Without it they are "not measurable". CRB-15 is only the time frame H4. BUT-14 and CRB-14 use the tie variant of the divergence (equal or weaker wave) as Gartley does.
 - **BU-9** The verdict "invalid" for the Crab needs a failed variant pair. A B between 0.786 and 0.886 fits neither variant and gives "invalid". A B at or beyond X excludes both.
-- **BU-10** In a valid Deep Crab the rule CRB-07 (the Crab exclusion) is met. This means "the Crab variant is excluded", not a problem. The verdict ignores the pair that does not fit.
+- **BU-10** In a valid Deep Crab the rule CRB-07 (the Crab exclusion) is met. This means "the Crab variant is excluded", not a problem. In the same way CRB-08 (required) is unmet in a valid Crab. A reader must not count every unmet required rule as an error. The verdict ignores the pair that does not fit.
 
 ## Test cases
 - Hand-calculated series with the points X 100, A 130; one series for the Butterfly (B 0.8, D 1.2733), one for the Crab (B 0.6, D 1.62) and one for the Deep Crab (B 0.9). Each rule has a met and an unmet case. Level checks have a case 0.005 inside and a case 0.02 outside the tolerance of 1 pip (0.01).

@@ -71,7 +71,7 @@ const D_FAR = harmonic([100, 130, 112, 123.68, 81.48]);
 const NO_CLOSE = wickOnlyD(BASE, AT, 118);
 /** C an 126: die BC-Rückprojektionen 2.618 und 3.618 liegen bei 89.35 und 75.35, weit vom Ziel-D */
 const C_HIGH = harmonic([100, 130, 112, 126, 81.4]);
-/** Gleich lange Züge A → B und C → D: keine Divergenz */
+/** Kurzer Zug A → B (10 Kerzen): die Wave am B ist nicht stärker als am D, keine Divergenz */
 const FLAT_LEGS = [10, 10, 6, 6];
 const NO_DIVERGENCE = harmonic([100, 130, 112, 123.68, 81.4], FLAT_LEGS);
 /** Langer Zug C → D (12 Kerzen) mit lautem Anlauf: RSI(7) am Tief bleibt über 20 */
@@ -156,7 +156,7 @@ test.describe('CRB: Abgrenzung, Urteil und Zeichnungen', () => {
     expect(run({ H4: BASE }).verdict).toBe('valid');
     expect(analyzeGar(ctxOf({ H4: BASE }), END).find((a) => a.tf === 'H4')!.candidate.verdict).toBe('invalid');
     for (const rows of [GAR_FORM, BAT_FORM, CYP_FORM]) {
-      const asCrab = run({ H4: rows }, AT, { price: {} });
+      const asCrab = run({ H4: rows }, AT);
       expect(asCrab.verdict).not.toBe('valid');
       expect(state(asCrab, 'CRB-04')).toBe(N);
     }
@@ -165,9 +165,9 @@ test.describe('CRB: Abgrenzung, Urteil und Zeichnungen', () => {
   frm('Abgrenzung Crab ↔ Butterfly: gleiche X und A, B an 0.8 und D bei 1.272 sind Butterfly, B an 0.6 und D bei 1.618 sind Crab', () => {
     const but = runBut({ H4: BUT_FORM });
     expect(but.verdict).toBe('valid');
-    const asCrab = run({ H4: BUT_FORM }, AT, { price: {} });
+    const asCrab = run({ H4: BUT_FORM }, AT);
     expect([state(asCrab, 'CRB-04'), state(asCrab, 'CRB-07'), asCrab.verdict]).toEqual([N, M, 'invalid']);
-    const crabAsBut = runBut({ H4: BASE }, AT, { price: {} });
+    const crabAsBut = runBut({ H4: BASE }, AT);
     expect([state(crabAsBut, 'BUT-02'), crabAsBut.verdict]).toEqual([N, 'invalid']);
   });
 
@@ -177,7 +177,7 @@ test.describe('CRB: Abgrenzung, Urteil und Zeichnungen', () => {
     expect([crab.verdict, deep.verdict]).toEqual(['valid', 'valid']);
     expect([state(crab, 'CRB-08'), state(deep, 'CRB-08')]).toEqual([N, M]);
     expect([state(crab, 'CRB-10'), state(crab, 'CRB-11'), state(deep, 'CRB-10'), state(deep, 'CRB-11')]).toEqual([M, N, N, M]);
-    const asBut = runBut({ H4: DEEP }, AT, { price: {} });
+    const asBut = runBut({ H4: DEEP }, AT);
     expect([state(asBut, 'BUT-03'), asBut.verdict]).toEqual([M, 'invalid']);
   });
 
@@ -283,6 +283,8 @@ test.describe('CRB: echte Kerzen', () => {
     expect(states(c, CORE)).toEqual([M, M, N, M, M]);
     expect(states(c, VARIANT)).toEqual([M, N, N, N]);
     expect(states(c, ['CRB-10', 'CRB-11', 'CRB-12', 'CRB-13', 'CRB-14', 'CRB-15'])).toEqual([M, N, M, N, N, M]);
+    expect(find(c, 'CRB-06').value!).toBeCloseTo((1.16556 - 1.16085) / (1.16556 - 1.15785), 3);
+    expect(find(c, 'CRB-04').value!).toBeCloseTo((1.16556 - 1.15256) / (1.16556 - 1.15785), 3);
     expect(c.verdict).toBe('valid');
   });
 
