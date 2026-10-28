@@ -7,7 +7,7 @@ from .wrappers import (
     manage_dynamic_grid,
 )
 from .reconnection import check_connection_health
-from .startup import run_startup_checks
+from .startup import netting_conflict, run_startup_checks
 from src.core.grid_helpers import log_message, is_market_open
 from src.core.grid_orders import get_all_robot_orders, cancel_order
 from src.core.spread_guard import refresh_spread_guard
@@ -65,6 +65,21 @@ def main_loop(mt5_module, account_id, password, server, mt5_path=None):
                     "✅ Başlangıç emir koruması aktif. Eski bekleyen emirler silinmedi."
                 )
                 state.initial_cleanup_done = True
+
+            # Kurgu ayarlarda çalışırken eklenebilir: Netting hesapta turu atla (ENG-01). Bilerek tüm
+            # tur: birleşmiş pozisyonda magic'e göre TP/SL ve çıkış başka kurgunun ayarını uygulardı.
+            conflict = netting_conflict(state.account_margin_mode, state.zones)
+            if conflict:
+                if conflict != state.netting_conflict_logged:
+                    log_message(
+                        f"🚨 {conflict} Robot bu hesapta emir koymuyor ve emir/pozisyon yönetmiyor "
+                        "(TP/SL, çıkış) — ayar düzelene kadar.",
+                        "ERROR",
+                    )
+                    state.netting_conflict_logged = conflict
+                time.sleep(state.loop_interval_seconds)
+                continue
+            state.netting_conflict_logged = None
 
             try:
                 manage_dynamic_grid()

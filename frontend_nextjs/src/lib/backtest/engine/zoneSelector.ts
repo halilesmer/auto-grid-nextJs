@@ -1,9 +1,9 @@
 /**
  * Welche Zone ist aktiv, hat der Kurs sie verlassen?
  * Quelle: worker_python/src/core/grid_zone_selector.py (is_zone_exited, zone_symbol_of,
- * get_active_zone, detect_zone_entry).
+ * zone_contains_price, detect_zone_entry).
  */
-import { getCurrentMarketPrice, isEnabled, pyFloat, toTimeframe, zget } from './helpers';
+import { getCurrentMarketPrice, pyFloat, toTimeframe, zget } from './helpers';
 import { pyRound } from './pyRound';
 import type { EngineState } from './state';
 import type { Broker, ZoneDict } from './types';
@@ -30,36 +30,21 @@ export function isZoneExited(broker: Broker, zone: ZoneDict, currentAvgPrice: nu
   return !inRange(zone, closedCandleClose(broker, zone, symbol, currentAvgPrice));
 }
 
-/** Erste aktive Zone (des Symbols), die den Kurs enthält; Index bezogen auf die ganze Liste */
-export function getActiveZone(broker: Broker, zones: readonly ZoneDict[], symbol: string | null): [ZoneDict, number] | null {
-  for (let i = 0; i < zones.length; i++) {
-    const zone = zones[i];
-    if (!isEnabled(zone)) continue;
-    const sym = zoneSymbolOf(zone);
-    if (!sym || (symbol !== null && sym !== symbol)) continue;
-    const bid = getCurrentMarketPrice(broker, sym, 'SELL');
-    const ask = getCurrentMarketPrice(broker, sym, 'BUY');
-    if (bid === null || ask === null) continue;
-    const tickPrice = (bid + ask) / 2.0;
-    const price = zget(zone, 'exit_condition', 'Anlık Fiyat') === 'Anlık Fiyat' ? tickPrice : closedCandleClose(broker, zone, sym, tickPrice);
-    if (inRange(zone, price)) return [zone, i];
-  }
-  return null;
+/** Liegt der Kurs der Zone (Mittelkurs bzw. Schlusskurs der Ausstiegskerze) in ihrem Bereich? Ohne Tick: false */
+export function zoneContainsPrice(broker: Broker, zone: ZoneDict): boolean {
+  const sym = zoneSymbolOf(zone);
+  const bid = getCurrentMarketPrice(broker, sym, 'SELL');
+  const ask = getCurrentMarketPrice(broker, sym, 'BUY');
+  if (bid === null || ask === null) return false;
+  const tickPrice = (bid + ask) / 2.0;
+  const price = zget(zone, 'exit_condition', 'Anlık Fiyat') === 'Anlık Fiyat' ? tickPrice : closedCandleClose(broker, zone, sym, tickPrice);
+  return inRange(zone, price);
 }
 
-export function detectZoneEntry(
-  broker: Broker,
-  zones: readonly ZoneDict[],
-  activeZone: ZoneDict | null,
-  activeIdx: number | null,
-  symbol: string | null,
-  state: EngineState,
-): [ZoneDict | null, number | null] {
-  if (activeZone !== null) return [activeZone, activeIdx];
-  const found = getActiveZone(broker, zones, symbol);
-  if (found) {
-    state.log('INFO', 'zone.entered', { zone: found[1] + 1, symbol: zoneSymbolOf(found[0]) });
-    return found;
-  }
-  return [null, null];
+/** Einstieg einer Zone: schon eingetreten → true; sonst tritt sie ein, wenn sie den Kurs enthält (mit Log) */
+export function detectZoneEntry(broker: Broker, zone: ZoneDict, idx: number, entered: boolean, state: EngineState): boolean {
+  if (entered) return true;
+  if (!zoneContainsPrice(broker, zone)) return false;
+  state.log('INFO', 'zone.entered', { zone: idx + 1, symbol: zoneSymbolOf(zone) });
+  return true;
 }

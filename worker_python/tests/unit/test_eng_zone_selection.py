@@ -74,7 +74,7 @@ def test_zonen_verschiedener_symbole_laufen_gleichzeitig(fake_mt5):
     engine = EngineHarness(m, zones)
     engine.tick()
 
-    assert engine.active_zones == {"USOUSD": 0, "XAUUSD": 1}
+    assert engine.active_zones == {0: "USOUSD", 1: "XAUUSD"}
     assert m.robot_orders(MAGIC_ZONE_1)
     xau = m.robot_orders(MAGIC_ZONE_1 + 1)
     assert xau and all(o.symbol == "XAUUSD" for o in xau)
@@ -82,10 +82,37 @@ def test_zonen_verschiedener_symbole_laufen_gleichzeitig(fake_mt5):
 
 
 @pytest.mark.feature("ENG-01")
-def test_gleiches_symbol_weiter_nur_eine_zone(fake_mt5):
+def test_zwei_setups_eines_symbols_platzieren_gleichzeitig_orders(fake_mt5):
+    """D1 (Testwoche 2026-10): früher bekam nur das erste Setup Orders, B und C blieben leer."""
     m = fake_mt5
     zones = [make_zone(min_price=90, max_price=100), make_zone(min_price=95, max_price=105)]
     engine = EngineHarness(m, zones)
     engine.tick()
-    assert engine.active_zones == {"USOUSD": 0}
-    assert m.robot_orders(MAGIC_ZONE_1) and not m.robot_orders(MAGIC_ZONE_1 + 1)
+    assert engine.active_zones == {0: "USOUSD", 1: "USOUSD"}
+    assert m.robot_orders(MAGIC_ZONE_1) and m.robot_orders(MAGIC_ZONE_1 + 1)
+
+
+@pytest.mark.feature("ENG-01")
+def test_pausiertes_setup_stoppt_nur_sich_selbst(fake_mt5):
+    m = fake_mt5
+    zones = [make_zone(), make_zone()]
+    engine = EngineHarness(m, zones)
+    engine.active_zones_state[0] = "PAUSE"
+    engine.tick()
+    assert not m.robot_orders(MAGIC_ZONE_1) and m.robot_orders(MAGIC_ZONE_1 + 1)
+
+
+@pytest.mark.feature("ENG-01")
+def test_austritt_eines_setups_raeumt_nur_seine_orders(fake_mt5, ui_state_file):
+    m = fake_mt5
+    zones = [
+        make_zone(min_price=90, max_price=97, clear_on_exit=True, clear_scope="Sadece Bekleyen Emirler"),
+        make_zone(min_price=90, max_price=120),
+    ]
+    engine = EngineHarness(m, zones)
+    engine.tick()
+    assert m.robot_orders(MAGIC_ZONE_1) and m.robot_orders(MAGIC_ZONE_1 + 1)
+    m.set_price("USOUSD", 100.0, fill=False)  # über dem Bereich von Setup 1, innerhalb von Setup 2
+    engine.tick()
+    assert not m.robot_orders(MAGIC_ZONE_1) and m.robot_orders(MAGIC_ZONE_1 + 1)
+    assert engine.active_zones == {1: "USOUSD"}

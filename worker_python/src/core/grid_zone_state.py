@@ -100,7 +100,7 @@ def rekey_zone_state(st, old_zones, new_zones, log=None):
             rekeyed = {moved(k): v for k, v in table.items() if moved(k) is not None}
             table.clear()
             table.update(rekeyed)
-        active = {sym: moved(i) for sym, i in st.active_zones.items() if moved(i) is not None}
+        active = {moved(i): sym for i, sym in st.active_zones.items() if moved(i) is not None}
         st.active_zones.clear()
         st.active_zones.update(active)
         # (bölge, ...) anahtarlı tablolar: anında giriş freni, tek seferlik fraktal logları

@@ -38,9 +38,58 @@
  {
   "i": 0,
   "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "tp": 97.4,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "tp": 97.3,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "tp": 97.2,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 0,
+  "t": 0,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.5,
+  "volume": 0.01,
+  "tp": 97.6,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 0,
+  "t": 0,
   "ev": "active",
   "zones": {
-   "USOUSD": 0
+   "0": "USOUSD",
+   "1": "USOUSD"
   }
  },
  {
@@ -56,6 +105,30 @@
   "comment": "AutoGrid_Z1"
  },
  {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 97.0,
+  "volume": 0.01,
+  "tp": 97.1,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
+  "i": 3,
+  "t": 15,
+  "ev": "place",
+  "type": "BUY_STOP",
+  "price": 97.4,
+  "volume": 0.01,
+  "tp": 97.5,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
   "i": 6,
   "t": 30,
   "ev": "fill",
@@ -63,6 +136,27 @@
   "price": 97.3,
   "volume": 0.01,
   "magic": 200001
+ },
+ {
+  "i": 6,
+  "t": 30,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.3,
+  "volume": 0.01,
+  "magic": 200002
+ },
+ {
+  "i": 8,
+  "t": 40,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
+  "volume": 0.01,
+  "tp": 97.0,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
  },
  {
   "i": 11,
@@ -74,6 +168,27 @@
   "magic": 200001
  },
  {
+  "i": 11,
+  "t": 55,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.2,
+  "volume": 0.01,
+  "magic": 200002
+ },
+ {
+  "i": 13,
+  "t": 65,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.8,
+  "volume": 0.01,
+  "tp": 96.9,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
+ },
+ {
   "i": 16,
   "t": 80,
   "ev": "fill",
@@ -81,6 +196,27 @@
   "price": 97.1,
   "volume": 0.01,
   "magic": 200001
+ },
+ {
+  "i": 16,
+  "t": 80,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 97.1,
+  "volume": 0.01,
+  "magic": 200002
+ },
+ {
+  "i": 18,
+  "t": 90,
+  "ev": "place",
+  "type": "BUY_LIMIT",
+  "price": 96.7,
+  "volume": 0.01,
+  "tp": 96.8,
+  "sl": 0.0,
+  "magic": 200002,
+  "comment": "AutoGrid_Z2"
  },
  {
   "i": 21,
@@ -92,28 +228,21 @@
   "magic": 200001
  },
  {
-  "i": 23,
-  "t": 115,
-  "ev": "place",
+  "i": 21,
+  "t": 105,
+  "ev": "fill",
   "type": "BUY_LIMIT",
-  "price": 96.8,
+  "price": 97.0,
   "volume": 0.01,
-  "tp": 96.9,
-  "sl": 0.0,
-  "magic": 200002,
-  "comment": "AutoGrid_Z2"
+  "magic": 200002
  },
  {
   "i": 23,
   "t": 115,
-  "ev": "place",
-  "type": "BUY_LIMIT",
-  "price": 96.7,
-  "volume": 0.01,
-  "tp": 96.8,
-  "sl": 0.0,
-  "magic": 200002,
-  "comment": "AutoGrid_Z2"
+  "ev": "cancel",
+  "type": "BUY_STOP",
+  "price": 97.5,
+  "magic": 200002
  },
  {
   "i": 23,
@@ -128,48 +257,21 @@
   "comment": "AutoGrid_Z2"
  },
  {
-  "i": 23,
-  "t": 115,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.0,
+  "i": 26,
+  "t": 130,
+  "ev": "fill",
+  "type": "BUY_LIMIT",
+  "price": 96.9,
   "volume": 0.01,
-  "tp": 97.1,
-  "sl": 0.0,
-  "magic": 200002,
-  "comment": "AutoGrid_Z2"
+  "magic": 200002
  },
  {
-  "i": 23,
-  "t": 115,
-  "ev": "place",
+  "i": 29,
+  "t": 145,
+  "ev": "cancel",
   "type": "BUY_STOP",
-  "price": 97.1,
-  "volume": 0.01,
-  "tp": 97.2,
-  "sl": 0.0,
-  "magic": 200002,
-  "comment": "AutoGrid_Z2"
- },
- {
-  "i": 23,
-  "t": 115,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 97.2,
-  "volume": 0.01,
-  "tp": 97.3,
-  "sl": 0.0,
-  "magic": 200002,
-  "comment": "AutoGrid_Z2"
- },
- {
-  "i": 23,
-  "t": 115,
-  "ev": "active",
-  "zones": {
-   "USOUSD": 1
-  }
+  "price": 97.4,
+  "magic": 200002
  },
  {
   "i": 29,
@@ -179,18 +281,6 @@
   "price": 96.5,
   "volume": 0.01,
   "tp": 96.6,
-  "sl": 0.0,
-  "magic": 200002,
-  "comment": "AutoGrid_Z2"
- },
- {
-  "i": 29,
-  "t": 145,
-  "ev": "place",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "tp": 97.0,
   "sl": 0.0,
   "magic": 200002,
   "comment": "AutoGrid_Z2"
@@ -215,15 +305,6 @@
   "sl": 0.0,
   "magic": 200002,
   "comment": "AutoGrid_Z2"
- },
- {
-  "i": 46,
-  "t": 230,
-  "ev": "fill",
-  "type": "BUY_STOP",
-  "price": 96.9,
-  "volume": 0.01,
-  "magic": 200002
  },
  {
   "i": 46,

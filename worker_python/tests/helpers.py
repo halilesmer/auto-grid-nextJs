@@ -10,7 +10,7 @@ class EngineHarness:
     def __init__(self, mt5, zones):
         self.mt5 = mt5
         self.zones = zones
-        self.active_zones: dict = {}  # Sembol → aktif bölge indeksi
+        self.active_zones: dict = {}  # bölge indeksi → sembol (grid'i yönetilen bölgeler)
         self.remote_paused = False
         self.symbol_infos = dict(mt5.symbols)
         self.consecutive_errors: dict = {}

@@ -13,6 +13,8 @@ from src.core.grid_orders import (
     zone_index_by_magic,
 )
 from src.utils.mt5_terminal_guard import foreign_terminal_error, missing_path_error
+from src.utils.mt5_market import MARGIN_MODE_HEDGING
+from src.core.grid_zone_selector import zone_symbol_of
 
 
 def _write_startup_error(account_id, message):
@@ -29,6 +31,27 @@ def _write_startup_error(account_id, message):
             os.replace(tmp_metrics_file, metrics_file)
     except Exception:
         pass
+
+
+def netting_conflict(margin_mode, zones):
+    """Aynı sembolün kurguları aynı anda işlem görür (ENG-01). Netting hesapta MT5 bir sembolün
+    pozisyonlarını tek pozisyonda birleştirir; kurgular birbirinin pozisyonunu kapatırdı.
+    margin_mode: başlangıçta okunan hesap türü (None: bilinmiyor).
+    Dönüş: hata mesajı ya da None (Hedging hesap, hesap türü bilinmiyor veya sembol başına tek kurgu)."""
+    if margin_mode is None or margin_mode == MARGIN_MODE_HEDGING:
+        return None
+    counts = {}
+    for zone in zones:
+        sym = zone_symbol_of(zone)
+        if sym and str(zone.get("is_active", True)).lower() != "false":
+            counts[sym] = counts.get(sym, 0) + 1
+    shared_symbols = sorted(sym for sym, n in counts.items() if n > 1)
+    if not shared_symbols:
+        return None
+    return (
+        f"Hesap Hedging değil: {', '.join(shared_symbols)} için birden çok kurgu aynı anda "
+        "çalışamaz. Hedging hesap kullanın ya da sembol başına tek kurgu bırakın."
+    )
 
 
 def run_startup_checks(mt5_module) -> bool:
@@ -55,6 +78,15 @@ def run_startup_checks(mt5_module) -> bool:
             "⚠️ Hesap bilgisi alınamadı ama terminal bağlı. Devam ediliyor...",
             "WARN",
         )
+
+    # Döngü her turda MT5'e sormaz: hesap türü oturum boyunca değişmez
+    state.account_margin_mode = account_info.margin_mode if account_info is not None else None
+    message = netting_conflict(state.account_margin_mode, state.zones)
+    if message:
+        log_message(f"🚨 {message}", "ERROR")
+        _write_startup_error(account_id, message)
+        mt5_module.shutdown()
+        return False
 
     try:
         if mt5_module and hasattr(mt5_module, "symbols_get"):

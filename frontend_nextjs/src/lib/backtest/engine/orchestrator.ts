@@ -1,9 +1,11 @@
 /**
  * Ein Durchlauf des Bots über alle Zonen (ein Aufruf = ein Tick des Live-Loops).
- * Quelle: worker_python/src/core/grid_orchestrator.py (manage_dynamic_grid, _manage_symbol).
+ * Quelle: worker_python/src/core/grid_orchestrator.py (manage_dynamic_grid, _manage_zone).
  *
- * Je Symbol ist höchstens EINE Zone aktiv (activeZones: Symbol → Index). Zonen mit verschiedenen
- * Symbolen laufen gleichzeitig; unter den Zonen eines Symbols gilt die erste, die den Kurs enthält.
+ * Jede aktive Zone (Setup) läuft für sich mit eigener Magic und eigenem Zustand, auch mehrere Zonen
+ * eines Symbols gleichzeitig (ENG-01). activeZones: Index → Symbol der Zonen, deren Grid im letzten
+ * Durchlauf lief; für sie prüft der nächste Durchlauf den Ausstieg. Der Backtest-Runner übergibt
+ * genau eine Zone.
  */
 import { handleSlidingGrid } from './handler';
 import { getCurrentMarketPrice, isEnabled, zget, type SymbolInfos } from './helpers';
@@ -16,7 +18,7 @@ import { closedCandleClose, detectZoneEntry, isZoneExited, zoneSymbolOf } from '
 import { processZoneCommands, STOPPED_ZONE_STATES } from './zoneState';
 import { refreshSpreadGuard } from './spreadGuard';
 
-export type ActiveZones = Record<string, number>;
+export type ActiveZones = Record<number, string>;
 
 /** Symbole der Zonen in der Reihenfolge des ersten Auftretens (leere übersprungen) */
 function zoneSymbols(zones: readonly ZoneDict[]): string[] {
@@ -42,9 +44,10 @@ export function manageDynamicGrid(
   if (remotePaused) return [true, activeZones];
 
   // Gelöschte / deaktivierte Zonen und Zonen mit geändertem Symbol vergessen
-  for (const [sym, idx] of Object.entries(activeZones)) {
+  for (const [key, sym] of Object.entries(activeZones)) {
+    const idx = Number(key);
     if (!(idx >= 0 && idx < zones.length) || !isEnabled(zones[idx]) || zoneSymbolOf(zones[idx]) !== sym) {
-      delete activeZones[sym];
+      delete activeZones[idx];
     }
   }
 
@@ -72,65 +75,64 @@ export function manageDynamicGrid(
   processPartialFillsAndTpsl(broker, robotPositions, robotOrders, zones, infos, state);
 
   let ok = prices.size === symbols.length;
-  for (const sym of symbols) {
+  zones.forEach((zone, idx) => {
+    const sym = zoneSymbolOf(zone);
     const price = prices.get(sym);
-    if (price === undefined) continue;
-    const [symOk, idx] = manageSymbol(broker, zones, sym, activeZones[sym] ?? null, price, infos, state);
-    ok = ok && symOk;
-    if (idx === null) delete activeZones[sym];
-    else activeZones[sym] = idx;
-  }
+    if (price === undefined || !isEnabled(zone)) return;
+    const [zoneOk, keep] = manageZone(broker, zone, idx, idx in activeZones, price, infos, state);
+    ok = ok && zoneOk;
+    if (keep) activeZones[idx] = sym;
+    else delete activeZones[idx];
+  });
   return [ok, activeZones];
 }
 
-/** Ein Symbol: Ausstieg prüfen, Einstieg erkennen, gleitendes Grid. Rückgabe: (ok, aktive Zone) */
-function manageSymbol(
+/**
+ * Eine Zone: Ausstieg prüfen, Einstieg erkennen, gleitendes Grid. Auch außerhalb ihres Bereichs
+ * führt die Zone ihr Grid. Rückgabe: (ok, bleibt die Zone in activeZones)
+ */
+function manageZone(
   broker: Broker,
-  zones: readonly ZoneDict[],
-  symbol: string,
-  activeIdxIn: number | null,
+  zone: ZoneDict,
+  idx: number,
+  enteredIn: boolean,
   currentAvgPrice: number,
   infos: SymbolInfos,
   state: EngineState,
-): [boolean, number | null] {
-  let activeIdx = activeIdxIn;
-  let activeZone: ZoneDict | null = activeIdx !== null ? zones[activeIdx] : null;
+): [boolean, boolean] {
+  const symbol = zoneSymbolOf(zone);
+  let entered = enteredIn;
 
   let robotOrders = getAllRobotOrders(broker);
   let robotPositions = getAllRobotPositions(broker);
-  if (robotOrders === null || robotPositions === null) return [false, activeIdx];
+  if (robotOrders === null || robotPositions === null) return [false, entered];
 
-  if (activeZone !== null && activeIdx !== null) {
-    const exitCond = zget(activeZone, 'exit_condition', 'Anlık Fiyat');
-    const closePrice = exitCond !== 'Anlık Fiyat' ? closedCandleClose(broker, activeZone, symbol, currentAvgPrice) : currentAvgPrice;
-    if (isZoneExited(broker, activeZone, currentAvgPrice, symbol)) {
-      const markCleared = handleZoneExit(broker, activeZone, activeIdx, robotOrders, robotPositions, currentAvgPrice, closePrice, exitCond, state);
+  if (entered) {
+    const exitCond = zget(zone, 'exit_condition', 'Anlık Fiyat');
+    const closePrice = exitCond !== 'Anlık Fiyat' ? closedCandleClose(broker, zone, symbol, currentAvgPrice) : currentAvgPrice;
+    if (isZoneExited(broker, zone, currentAvgPrice, symbol)) {
+      const markCleared = handleZoneExit(broker, zone, idx, robotOrders, robotPositions, currentAvgPrice, closePrice, exitCond, state);
       // „Gestoppt“ nur mit clear_on_exit; sonst bleiben die Pending Orders der Zone stehen
       if (markCleared) {
         // Sofort auch im Speicher: im selben Durchlauf keine neuen Orders an der Grenze
-        state.activeZonesState.set(activeIdx, 'AUTO_CLEAR');
-        state.writeUiState(activeIdx, 'AUTO_CLEAR');
+        state.activeZonesState.set(idx, 'AUTO_CLEAR');
+        state.writeUiState(idx, 'AUTO_CLEAR');
       }
-      activeZone = null;
-      activeIdx = null;
+      entered = false;
     }
   }
 
-  [activeZone, activeIdx] = detectZoneEntry(broker, zones, activeZone, activeIdx, symbol, state);
-
-  // Kurs in keiner Zone: erste Zone des Symbols
-  const targetIdx = activeIdx !== null ? activeIdx : zones.findIndex((z) => zoneSymbolOf(z) === symbol);
-  const targetZone = zones[targetIdx];
+  entered = detectZoneEntry(broker, zone, idx, entered, state);
 
   // Nicht nur PAUSE: auch AUTO_CLEAR/CLEAR setzen keine Orders (sonst löscht die Zombie-Bereinigung sie jeden Durchlauf)
-  let zoneActive = isEnabled(targetZone);
-  if (STOPPED_ZONE_STATES.includes(state.activeZonesState.get(targetIdx) ?? '')) zoneActive = false;
-  if (!zoneActive) return [true, activeIdx];
+  let zoneActive = isEnabled(zone);
+  if (STOPPED_ZONE_STATES.includes(state.activeZonesState.get(idx) ?? '')) zoneActive = false;
+  if (!zoneActive) return [true, entered];
 
   robotOrders = getAllRobotOrders(broker);
   robotPositions = getAllRobotPositions(broker);
-  if (robotOrders === null || robotPositions === null) return [false, targetIdx];
+  if (robotOrders === null || robotPositions === null) return [false, true];
 
-  handleSlidingGrid(broker, targetZone, targetIdx, robotPositions, robotOrders, infos, state, currentAvgPrice);
-  return [true, targetIdx];
+  handleSlidingGrid(broker, zone, idx, robotPositions, robotOrders, infos, state, currentAvgPrice);
+  return [true, true];
 }
