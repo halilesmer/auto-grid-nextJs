@@ -14,7 +14,7 @@ import {
 import { useFormat, useT } from '@/i18n';
 import { readChartColors, type ChartColors } from '@/lib/chartTheme';
 import type { FormationContext } from '@/lib/formation/context';
-import { layoutDrawings, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
+import { drawingPriceRange, layoutDrawings, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
 import { RSI_PARAMS } from '@/lib/formation/params';
 import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
 import { useThemeStore } from '@/store';
@@ -103,7 +103,7 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
   const boxRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const [colors, setColors] = useState<ChartColors | null>(null);
-  const [overlay, setOverlay] = useState<{ width: number; height: number; groups: DrawingGroup[] }>({ width: 0, height: 0, groups: [] });
+  const [overlay, setOverlay] = useState<{ width: number; height: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, priceHeight: 0, groups: [] });
   const chartRef = useRef<{ chart: IChartApi; candles: ISeriesApi<'Candlestick'>; rsi: ISeriesApi<'Line'> } | null>(null);
 
   const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
@@ -124,7 +124,16 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
       timeScale: { timeVisible: true, secondsVisible: false },
       crosshair: { mode: 0 },
     });
-    const candles = chart.addSeries(CandlestickSeries, { borderVisible: false });
+    const extra = drawingPriceRange(hit.candidate);
+    const candles = chart.addSeries(CandlestickSeries, {
+      borderVisible: false,
+      // Zonen und Level können außerhalb der Kerzen liegen: die Preisachse reicht bis zu ihnen
+      autoscaleInfoProvider: (original: () => { priceRange: { minValue: number; maxValue: number } | null; margins?: { above: number; below: number } } | null) => {
+        const base = original();
+        if (!base?.priceRange || !extra) return base;
+        return { ...base, priceRange: { minValue: Math.min(base.priceRange.minValue, extra.min), maxValue: Math.max(base.priceRange.maxValue, extra.max) } };
+      },
+    });
     const rsi = chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, 1);
     const precision = digits ?? 5;
     candles.applyOptions({ priceFormat: { type: 'price', precision, minMove: 10 ** -precision } });
@@ -164,7 +173,7 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
         text: (key, params) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params }),
         fmt: (n) => number(n, { maximumFractionDigits: 3 }),
       });
-      setOverlay({ width, height: top + rsiHeight, groups });
+      setOverlay({ width, height: top + rsiHeight, priceHeight: top, groups });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
@@ -210,9 +219,16 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
         style={{ pointerEvents: 'none' }}
         aria-hidden="true"
       >
+        <defs>
+          {/* Zeichnungen im Kerzen-Pane enden an dessen Rand: ein Preis außerhalb der Ansicht läuft nicht in den RSI-Pane */}
+          <clipPath id="formation-price-clip">
+            <rect x={0} y={0} width={overlay.width} height={overlay.priceHeight} />
+          </clipPath>
+        </defs>
         {overlay.groups.map((g) => (
           <g
             key={g.id}
+            clipPath={g.pane === 'price' ? 'url(#formation-price-clip)' : undefined}
             data-drawing={g.id}
             data-active={activeSet?.has(g.id) ? 'true' : 'false'}
             opacity={activeSet && !activeSet.has(g.id) ? 0.2 : 1}

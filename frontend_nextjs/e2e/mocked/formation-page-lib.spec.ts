@@ -51,6 +51,27 @@ test.describe('Zeichnungen einer Formation im Aufbau', () => {
     expect(zig.prims.filter((p) => p.kind === 'text').map((p) => p.kind === 'text' && p.text).sort()).toEqual(['A', 'B', 'C', 'D?']);
   });
 
+  frm('FRM-20', 'D vorhanden, aber nicht erreicht: der Weg läuft gestrichelt zum Punkt D, der als offener Kreis steht', () => {
+    const open: Candidate = { ...forming, points: { ...forming.points, D: point(3, 24) } };
+    const zig = layout(open).find((g) => g.id === 'Z-1')!;
+    expect(zig.prims.find((p) => p.kind === 'circle' && p.open)).toMatchObject({ x: 150, y: 60 });
+    expect(zig.prims.some((p) => p.kind === 'text' && p.text === 'D?')).toBe(true);
+  });
+
+  frm('FRM-20', 'gleiche Beschriftung auf gleicher Höhe nur einmal, nahe Beschriftungen mindestens 12 px auseinander', () => {
+    const twice: Candidate = {
+      ...forming,
+      drawings: [
+        { id: 'Z-3', tool: 'fib', anchors: [point(0, 10), point(1, 20)], levels: [0.5, 0.52], rules: [], side: 'sell' },
+        { id: 'Z-4', tool: 'fib', anchors: [point(0, 10), point(1, 20)], levels: [0.5], rules: [], side: 'sell' },
+      ],
+    };
+    const labels = layout(twice).flatMap((g) => g.prims.filter((p) => p.kind === 'text'));
+    expect(labels.map((p) => p.kind === 'text' && p.text)).toEqual(['AB 0.5', 'AB 0.52']);
+    const ys = labels.map((p) => (p.kind === 'text' ? p.y : 0)).sort((a, b) => a - b);
+    expect(ys[1] - ys[0]).toBeGreaterThanOrEqual(12);
+  });
+
   frm('FRM-20', 'Zone heißt „mögliche Zone“, solange D fehlt', () => {
     const zone = layout(forming).find((g) => g.id === 'Z-2')!;
     expect(zone.prims.some((p) => p.kind === 'text' && p.text === 'formation.draw.zonePossible')).toBe(true);
@@ -64,14 +85,14 @@ test.describe('Zeichnungen einer Formation im Aufbau', () => {
     // Start 10, Ende 20: Level 0,5 → 15 (y 150), Level −0,272 → 22,72 (y 72.8)
     expect(ys[0]).toBeCloseTo(150, 5);
     expect(ys[1]).toBeCloseTo(72.8, 5);
-    expect(fib.prims.filter((p) => p.kind === 'text').map((p) => p.kind === 'text' && p.text)).toEqual(['0.5', '-0.272']);
+    expect(fib.prims.filter((p) => p.kind === 'text').map((p) => p.kind === 'text' && p.text)).toEqual(['AB 0.5', 'AB -0.272']);
   });
 
   frm('FRM-20', 'jede Gruppe trägt die Bedingungs-IDs für den Hover', () => {
-    expect(layout(forming).map((g) => [g.id, g.rules])).toEqual([
-      ['Z-1', ['ABCD-01']],
-      ['Z-2', ['ABCD-09']],
-      ['Z-3', ['ABCD-04']],
+    expect(layout(forming).map((g) => [g.id, g.rules, g.pane])).toEqual([
+      ['Z-1', ['ABCD-01'], 'price'],
+      ['Z-2', ['ABCD-09'], 'price'],
+      ['Z-3', ['ABCD-04'], 'price'],
     ]);
   });
 });

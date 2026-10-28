@@ -17,6 +17,8 @@ export type Prim =
 export interface DrawingGroup {
   id: string;
   rules: string[];
+  /** price: Kerzen-Pane (außerhalb des Preisbereichs abgeschnitten), rsi: RSI-Pane */
+  pane: 'price' | 'rsi';
   prims: Prim[];
 }
 
@@ -43,14 +45,37 @@ const pointName = (c: Candidate, time: number, price: number): string | null =>
 
 export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
   const { candidate, form, width, lastBar, x, y, yRsi, text, fmt } = input;
-  const forming = candidate.verdict === 'forming' && candidate.points[FINAL_POINT[form]] === undefined;
+  const final = candidate.points[FINAL_POINT[form]];
+  // „Im Aufbau“ mit offenem Endpunkt: der Endpunkt fehlt oder ist noch nicht Teil des Zickzacks (Ziel nicht erreicht)
+  const zigzag = candidate.drawings.find((d) => d.tool === 'zigzag');
+  const reached = final !== undefined && zigzag !== undefined && zigzag.anchors.some((a) => a.time === final.time && a.price === final.price);
+  const forming = candidate.verdict === 'forming' && !reached;
   const out: DrawingGroup[] = [];
 
   for (const d of candidate.drawings) {
     const prims = primsOf(d);
-    if (prims.length > 0) out.push({ id: d.id, rules: d.rules, prims });
+    if (prims.length > 0) out.push({ id: d.id, rules: d.rules, pane: d.tool === 'rsi' || RSI_ZONES.has(d.id) ? 'rsi' : 'price', prims });
   }
-  return out;
+  return separateLabels(mergeLabels(out));
+
+  /** Beschriftung der Zone: erste Stelle (links/rechts, innen/außen), an der sie keinen Formationspunkt verdeckt */
+  function zoneLabelSpot(label: string, z: { x1: number; x2: number; top: number; bottom: number }) {
+    const w = label.length * 6;
+    const dots = Object.values(candidate.points).flatMap((a) => {
+      const px = x(a.time);
+      const py = y(a.price);
+      return px === null || py === null ? [] : [{ px, py }];
+    });
+    const covers = (left: number, baseline: number) => dots.some((p) => p.px > left - 8 && p.px < left + w + 8 && p.py > baseline - 22 && p.py < baseline + 10);
+    const spots = [
+      { x: z.x1 + 6, y: z.top + 12, anchor: 'start' as const },
+      { x: z.x2 - 6, y: z.top + 12, anchor: 'end' as const },
+      { x: z.x1 + 6, y: z.top - 4, anchor: 'start' as const },
+      { x: z.x2 - 6, y: z.bottom + 14, anchor: 'end' as const },
+      { x: z.x1 + 6, y: z.bottom + 14, anchor: 'start' as const },
+    ];
+    return spots.find((sp) => !covers(sp.anchor === 'start' ? sp.x : sp.x - w, sp.y)) ?? spots[0];
+  }
 
   function primsOf(d: Drawing): Prim[] {
     const pts = d.anchors.map((a) => ({ a, px: x(a.time), py: y(a.price) }));
@@ -67,9 +92,10 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
           if (name) prims.push({ kind: 'text', x: p.px - 4, y: p.py + (high(i) ? -9 : 17), text: name, tone: 'text', bold: true });
         });
         const last = ok[ok.length - 1];
-        const ly = y(lastBar.close);
+        // Ziel des offenen Weges: der noch nicht erreichte Endpunkt, sonst die letzte Kerze
+        const lx = final ? x(final.time) : x(lastBar.time);
+        const ly = final ? y(final.price) : y(lastBar.close);
         if (forming && last && ly !== null) {
-          const lx = x(lastBar.time);
           if (lx !== null) {
             prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: lx, y2: ly, tone: 'side', dashed: true, width: 2 });
             prims.push({ kind: 'circle', x: lx, y: ly, r: 5, tone: 'side', open: true });
@@ -82,13 +108,15 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
       case 'fibExt': {
         const [start, end] = pts;
         if (!start || !end || end.px === null || !d.levels) return prims;
+        const leg = [pointName(candidate, start.a.time, start.a.price), pointName(candidate, end.a.time, end.a.price)];
+        const legName = leg[0] && leg[1] ? `${leg[0]}${leg[1]} ` : '';
         for (const level of d.levels) {
           const price = end.a.price + level * (start.a.price - end.a.price);
           const py = y(price);
           if (py === null) continue;
           const tone: Tone = d.rules.length === 0 ? 'target' : 'ratio';
           prims.push({ kind: 'line', x1: right(Math.min(end.px, start.px ?? end.px)), y1: py, x2: width - 6, y2: py, tone, dotted: true });
-          prims.push({ kind: 'text', x: width - 6, y: py - 4, text: fmt(level), tone, anchor: 'end' });
+          prims.push({ kind: 'text', x: width - 6, y: py - 4, text: `${legName}${fmt(level)}`, tone, anchor: 'end' });
         }
         return prims;
       }
@@ -109,7 +137,11 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         const x2 = p1.px === null || p1.a.time >= lastBar.time ? width : p1.px;
         const x1 = Math.max(0, p0.px);
         prims.push({ kind: 'rect', x: x1, y: Math.min(ya, yb), w: Math.max(0, x2 - x1), h: Math.max(2, Math.abs(ya - yb)), tone: rsi ? 'mark' : 'zone', dashed: true });
-        if (!rsi) prims.push({ kind: 'text', x: x1 + 6, y: Math.min(ya, yb) + 12, text: text(forming ? 'formation.draw.zonePossible' : 'formation.draw.zone'), tone: 'zone' });
+        if (!rsi) {
+          const label = text(forming ? 'formation.draw.zonePossible' : 'formation.draw.zone');
+          const place = zoneLabelSpot(label, { x1, x2, top: Math.min(ya, yb), bottom: Math.max(ya, yb) });
+          prims.push({ kind: 'text', x: place.x, y: place.y, text: label, tone: 'zone', anchor: place.anchor });
+        }
         return prims;
       }
       case 'trendline': {
@@ -146,4 +178,46 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         return prims;
     }
   }
+}
+
+/** Gleiche Beschriftung auf gleicher Höhe (zwei Zeichnungen, ein Level) nur einmal; die Linien bleiben */
+function mergeLabels(groups: DrawingGroup[]): DrawingGroup[] {
+  const seen = new Set<string>();
+  return groups.map((g) => ({
+    ...g,
+    prims: g.prims.filter((p) => {
+      if (p.kind !== 'text' || p.anchor !== 'end') return true;
+      const key = `${p.text}|${Math.round(p.y / 3)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  }));
+}
+
+const LABEL_GAP = 12;
+
+/** Rechts ausgerichtete Beschriftungen, die näher als LABEL_GAP beieinander liegen, werden senkrecht auseinandergeschoben (von oben nach unten) */
+function separateLabels(groups: DrawingGroup[]): DrawingGroup[] {
+  const labels = groups.flatMap((g) => g.prims.filter((p): p is Extract<Prim, { kind: 'text' }> => p.kind === 'text' && p.anchor === 'end'));
+  labels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) {
+    if (labels[i].y - labels[i - 1].y < LABEL_GAP) labels[i].y = labels[i - 1].y + LABEL_GAP;
+  }
+  return groups;
+}
+
+/** Preisspanne aller Zeichnungen im Kerzen-Pane (Zonen, Linien, Verhältnis-Level); der Chart weitet seine Preisachse darauf aus */
+export function drawingPriceRange(candidate: Candidate): { min: number; max: number } | null {
+  const prices: number[] = [];
+  for (const d of candidate.drawings) {
+    if (d.tool === 'rsi' || RSI_ZONES.has(d.id) || d.tool === 'wave') continue;
+    if (d.tool === 'fib' || d.tool === 'fibExt') {
+      const [start, end] = d.anchors;
+      if (start && end) for (const level of d.levels ?? []) prices.push(end.price + level * (start.price - end.price));
+    } else {
+      prices.push(...d.anchors.map((a) => a.price));
+    }
+  }
+  return prices.length === 0 ? null : { min: Math.min(...prices), max: Math.max(...prices) };
 }

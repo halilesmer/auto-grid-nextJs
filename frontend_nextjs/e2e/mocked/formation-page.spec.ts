@@ -13,18 +13,21 @@ import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/tes
 const URL = `/formasyon?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 
-const h4Rows = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8')))
-  .bars.filter((b) => b.time + 14400 <= NOW)
-  .map((b) => [b.time, b.open, b.high, b.low, b.close]);
+const fixtureBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
+/** Kerzen der Fixture, die zum Zeitpunkt `now` geschlossen sind */
+const rowsUntil = (now: number) => fixtureBars.filter((b) => b.time + 14400 <= now).map((b) => [b.time, b.open, b.high, b.low, b.close]);
+/** Mit diesem Zeitpunkt steht in der Fixture ein ABCD im Aufbau: C ist da, das Ziel von D noch nicht erreicht */
+const FORMING_NOW = 1761192000;
 
 /** H4 aus der Fixture, M15 mit einer Kerze (legt den Suchzeitpunkt fest), die übrigen Zeiteinheiten leer */
-function serveFixture(worker: MockWorker) {
-  const last = h4Rows[h4Rows.length - 1];
-  worker.state.ratesSeries = { D1: [], H4: h4Rows, H1: [], M15: [[NOW - 900, last[4], last[4], last[4], last[4]]] };
+function serveFixture(worker: MockWorker, now: number) {
+  const rows = rowsUntil(now);
+  const last = rows[rows.length - 1];
+  worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[now - 900, last[4], last[4], last[4], last[4]]] };
 }
 
-async function openPage(page: Page, worker: MockWorker, url = URL) {
-  serveFixture(worker);
+async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW) {
+  serveFixture(worker, now);
   await page.goto(url);
   await expect(page.getByTestId('formation-toolbar')).toBeVisible();
   // Die Suche ist fertig, wenn ihre Rechenzeit am Seitenelement steht
@@ -71,6 +74,9 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     // Zustand nie nur als Farbe: jede Zeile trägt ein Symbol mit Beschriftung
     const rows = list.getByTestId('check-row');
     expect(await rows.count()).toBeGreaterThan(10);
+    // Ausschluss: ✓ heißt „nicht ausgelöst“; der Hinweis steht am Gruppenkopf und in der Legende
+    await expect(list.getByTestId('exclusion-note')).toHaveText(msg('formation.group.exclusion.note'));
+    await expect(list).toContainText(msg('formation.legend.clear'));
     for (const state of ['met', 'unmet', 'clear']) {
       await expect(rows.and(page.locator(`[data-state="${state}"]`)).first().getByRole('img')).toHaveAttribute('aria-label', msg(`formation.state.${state}` as MessageKey));
     }
@@ -93,6 +99,17 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
 });
 
 test.describe('FRM-20 Chart-Overlay und Hover', () => {
+  test('ABCD im Aufbau: gestrichelter Weg, offener Kreis mit „?“, mögliche Zone, keine Umkehrkerzen-Marke', { tag: '@FRM-20' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=ABCD`, FORMING_NOW);
+    await expect(page.getByTestId('candidate-item').getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'forming');
+    const overlay = page.getByTestId('formation-overlay');
+    await expect(overlay.locator('line[stroke-dasharray="6 5"]')).toHaveCount(1);
+    await expect(overlay.locator('circle[fill="none"]')).toHaveCount(1);
+    await expect(overlay.locator('text', { hasText: 'D?' })).toHaveCount(1);
+    await expect(overlay.locator('text', { hasText: msg('formation.draw.zonePossible', { tf: 'H4', up: 'D1' }) })).toHaveCount(1);
+    await expect(overlay.locator('[data-drawing] rect[rx="3"]')).toHaveCount(0);
+  });
+
   test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: '@FRM-20' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const overlay = page.getByTestId('formation-overlay');

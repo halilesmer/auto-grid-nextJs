@@ -102,7 +102,10 @@ export function FormationChecklist({
         if (rows.length === 0) return null;
         return (
           <section key={kind} className="border-t border-border" data-testid={`group-${kind}`}>
-            <h3 className="px-3 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t(`formation.group.${kind}` as MessageKey)}</h3>
+            <h3 className="flex flex-wrap items-baseline gap-x-2 px-3 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t(`formation.group.${kind}` as MessageKey)}
+              {kind === 'exclusion' && <span className="text-[11px] font-normal normal-case tracking-normal" data-testid="exclusion-note">{t('formation.group.exclusion.note')}</span>}
+            </h3>
             {rows.map((c) => {
               const state = rowState(c);
               const highlighted = activeSet !== null && c.drawings.some((d) => activeSet.has(d));
@@ -143,6 +146,7 @@ export function FormationChecklist({
         <span>{t('formation.legend.secondary')}</span>
         <span>{t('formation.legend.assumption')}</span>
         <span>{t('formation.legend.unmeasurable')}</span>
+        <span>{t('formation.legend.clear')}</span>
       </div>
     </div>
   );
