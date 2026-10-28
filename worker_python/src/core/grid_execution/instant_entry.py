@@ -33,7 +33,7 @@ def open_instant_positions(
     if not config.instant_entry or mt5 is None:
         return 0
     now = now or clock.monotonic
-    # Fiyat bölge dışındaysa (sembolün ilk bölgesine düşülmüş) pozisyon açma
+    # Fiyat bölge dışındaysa (bölge yine de grid'ini yönetiyor) pozisyon açma
     if not (config.min_price <= current_avg_price <= config.max_price):
         return 0
 

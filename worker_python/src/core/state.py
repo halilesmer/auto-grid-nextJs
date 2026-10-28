@@ -13,8 +13,8 @@ class GridState:
     symbol_infos: Dict[str, Any] = field(default_factory=dict)
 
     filling_mode: Dict[str, Any] = field(default_factory=dict)
-    # Sembol → o sembolün aktif bölge indeksi (farklı sembollü bölgeler aynı anda çalışır)
-    active_zones: Dict[str, int] = field(default_factory=dict)
+    # Bölge indeksi → sembol (girilmiş bölgeler; aynı sembolün bölgeleri aynı anda çalışır)
+    active_zones: Dict[int, str] = field(default_factory=dict)
     active_zones_state: Dict[int, str] = field(default_factory=dict)
     consecutive_errors: Dict[str, int] = field(default_factory=dict)
     # Pozisyon ID → açan emrin ilk hacmi (history_orders_get önbelleği, bkz. grid_orders)
@@ -47,6 +47,10 @@ class GridState:
     # Bölge silindi ama ui_state dosyası yeni sıraya taşınamadı: eski bölge listesi (taşınana kadar
     # dosya okunmaz, her ayar okumasında yeniden denenir; grid_zone_state.rekey_zone_state)
     ui_remap_pending: Any = None
+    # Netting hesapta bir sembolün birden çok kurgusu: loglanan son mesaj (her tur tekrar loglanmaz)
+    netting_conflict_logged: Any = None
+    # Başlangıçta okunan hesap türü (account_info.margin_mode; None: bilinmiyor)
+    account_margin_mode: Any = None
 
     is_running: bool = False
     initial_cleanup_done: bool = False
@@ -77,6 +81,8 @@ class GridState:
         self.placed_orders.clear()
         self.vanished_times.clear()
         self.ui_remap_pending = None
+        self.netting_conflict_logged = None
+        self.account_margin_mode = None
         self.is_running = False
         self.initial_cleanup_done = False
         self.connection_lost = False

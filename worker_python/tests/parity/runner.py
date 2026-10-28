@@ -245,7 +245,8 @@ def run(scenario: dict) -> list[dict]:
             engine.tick()
             if engine.active_zones != active:
                 active = dict(engine.active_zones)
-                rec.emit("active", zones={k: v for k, v in sorted(active.items())})
+                # JSON-Schlüssel sind Text: Index → Symbol wie in der Backtest-Engine
+                rec.emit("active", zones={str(idx): sym for idx, sym in sorted(active.items())})
     finally:
         clock.set_clock(None)
     return rec.events

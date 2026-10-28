@@ -50,9 +50,10 @@ def manage_dynamic_grid(
     filling_mode,
     legacy_orders_mode="",
 ):
-    """Bir motor turu. Her sembol için en fazla BİR aktif bölge vardır (active_zones:
-    sembol → bölge indeksi). Farklı sembollü bölgeler aynı anda işlem görür; aynı
-    sembolün bölgeleri arasında eskisi gibi fiyatı içeren ilk bölge seçilir (ENG-01).
+    """Bir motor turu. Her etkin bölge (kurgu) kendi magic'i ve durumuyla bağımsız işlem görür;
+    aynı sembolün birden çok bölgesi aynı anda çalışır (ENG-01, backtest ile aynı).
+    active_zones: bölge indeksi → sembol; bu turda grid'i yönetilen bölgeler (fiyat bölge
+    dışındaysa da). Bir sonraki turda bu bölgeler için çıkış kontrolü yapılır (eski davranış).
     Dönüş: (ok, active_zones)."""
     process_zone_commands(zones, active_zones_state)
     active_zones = dict(active_zones or {})
@@ -63,9 +64,9 @@ def manage_dynamic_grid(
         return True, active_zones
 
     # Silinen / pasifleştirilen / sembolü değişen bölgeleri unut
-    for sym, idx in list(active_zones.items()):
+    for idx, sym in list(active_zones.items()):
         if not (0 <= idx < len(zones)) or not _is_enabled(zones[idx]) or zone_symbol_of(zones[idx]) != sym:
-            del active_zones[sym]
+            del active_zones[idx]
 
     robot_positions = get_all_robot_positions(mt5)
     robot_orders = get_all_robot_orders(mt5)
@@ -107,55 +108,57 @@ def manage_dynamic_grid(
     )
 
     ok = len(prices) == len(symbols)
-    for sym in symbols:
-        if sym not in prices:
+    for idx, zone in enumerate(zones):
+        sym = zone_symbol_of(zone)
+        if sym not in prices or not _is_enabled(zone):
             continue
-        sym_ok, idx = _manage_symbol(
+        zone_ok, entered = _manage_zone(
             mt5,
-            zones,
-            sym,
-            active_zones.get(sym),
+            zone,
+            idx,
+            idx in active_zones,
             prices[sym],
             symbol_infos,
             consecutive_errors,
             active_zones_state,
             filling_mode,
         )
-        ok = ok and sym_ok
-        if idx is None:
-            active_zones.pop(sym, None)
+        ok = ok and zone_ok
+        if entered:
+            active_zones[idx] = sym
         else:
-            active_zones[sym] = idx
+            active_zones.pop(idx, None)
 
     return ok, active_zones
 
 
-def _manage_symbol(
+def _manage_zone(
     mt5,
-    zones,
-    zone_symbol,
-    active_zone_idx,
+    zone,
+    zone_idx,
+    entered,
     current_avg_price,
     symbol_infos,
     consecutive_errors,
     active_zones_state,
     filling_mode,
 ):
-    """Tek sembolün bölgesi: çıkış kontrolü, giriş tespiti ve kayan grid.
-    Dönüş: (ok, aktif bölge indeksi veya None)."""
-    active_zone = zones[active_zone_idx] if active_zone_idx is not None else None
+    """Tek bölge: çıkış kontrolü, giriş tespiti ve kayan grid. Fiyat bölgede değilse de
+    (giriş yok) bölge kendi grid'ini yönetir; backtest tek bölgeyle aynı davranır.
+    Dönüş: (ok, bölge active_zones'ta kalır mı: grid yönetildiyse ya da girildiyse)."""
+    zone_symbol = zone_symbol_of(zone)
 
     robot_orders = get_all_robot_orders(mt5)
     robot_positions = get_all_robot_positions(mt5)
     if robot_orders is None or robot_positions is None:
-        return False, active_zone_idx
+        return False, entered
 
-    if active_zone is not None:
-        exit_cond = active_zone.get("exit_condition", "Anlık Fiyat")
+    if entered:
+        exit_cond = zone.get("exit_condition", "Anlık Fiyat")
 
         close_price = current_avg_price
         if exit_cond != "Anlık Fiyat":
-            tf_str = active_zone.get("exit_timeframe", "M15")
+            tf_str = zone.get("exit_timeframe", "M15")
             tf = get_mt5_timeframe(mt5, tf_str)
             rates = mt5.copy_rates_from_pos(zone_symbol, tf, 1, 1) if mt5 else None
             if rates is not None and len(rates) > 0:
@@ -173,13 +176,13 @@ def _manage_symbol(
                     )
                 )
 
-        is_exited = is_zone_exited(mt5, active_zone, current_avg_price, zone_symbol)
+        is_exited = is_zone_exited(mt5, zone, current_avg_price, zone_symbol)
 
         if is_exited:
             should_mark_cleared = handle_zone_exit(
                 mt5,
-                active_zone,
-                active_zone_idx,
+                zone,
+                zone_idx,
                 robot_orders,
                 robot_positions,
                 filling_mode,
@@ -191,9 +194,9 @@ def _manage_symbol(
             # Arayüze "DURDURULDU" bilgisini yalnızca clear_on_exit açıksa ilet
             # (eski davranış). Kapalıysa bölgenin bekleyen emirleri korunur.
             if should_mark_cleared:
-                # Hafızada da hemen işaretle: aynı turda sembolün ilk bölgesine düşülüp
-                # sınırda tekrar emir konmasın (dosya ancak sonraki turda okunur).
-                active_zones_state[active_zone_idx] = "AUTO_CLEAR"
+                # Hafızada da hemen işaretle: aynı turda bölge sınırda tekrar emir
+                # koymasın (dosya ancak sonraki turda okunur).
+                active_zones_state[zone_idx] = "AUTO_CLEAR"
                 account_id = os.environ.get("ACTIVE_ACCOUNT_ID", "default")
                 states_file = get_ui_state_path(account_id)
                 try:
@@ -201,7 +204,7 @@ def _manage_symbol(
                     if os.path.exists(states_file):
                         with open(states_file, "r", encoding="utf-8") as f:
                             bg_states = json.load(f)
-                    bg_states[str(active_zone_idx)] = "AUTO_CLEAR"
+                    bg_states[str(zone_idx)] = "AUTO_CLEAR"
                     tmp_file = states_file + ".tmp"
                     with open(tmp_file, "w", encoding="utf-8") as f:
                         json.dump(bg_states, f)
@@ -209,39 +212,28 @@ def _manage_symbol(
                 except Exception:
                     pass
 
-            active_zone = None
-            active_zone_idx = None
+            entered = False
 
-    active_zone, active_zone_idx = detect_zone_entry(
-        mt5, zones, active_zone, active_zone_idx, symbol=zone_symbol
-    )
+    entered = detect_zone_entry(mt5, zone, zone_idx, entered)
 
-    # Fiyat hiçbir bölgede değilse sembolün ilk bölgesi (eskiden tek sembolde zones[0])
-    target_idx = (
-        active_zone_idx
-        if active_zone_idx is not None
-        else next(i for i, z in enumerate(zones) if zone_symbol_of(z) == zone_symbol)
-    )
-    target_zone = zones[target_idx]
-
-    is_zone_active = _is_enabled(target_zone)
+    is_zone_active = _is_enabled(zone)
     # Sadece PAUSE değil: AUTO_CLEAR/CLEAR bölgesi de emir koymamalı. Aksi halde
     # clean_zombie_orders her tur siliyor, burada her tur yeniden konuyordu.
-    if active_zones_state.get(target_idx) in STOPPED_ZONE_STATES:
+    if active_zones_state.get(zone_idx) in STOPPED_ZONE_STATES:
         is_zone_active = False
     if not is_zone_active:
-        return True, active_zone_idx
+        return True, entered
 
     # Kaldırılan ek kurguların emirleri bölgenin emri sayılmaz: fraktal/ızgara onları silmez (ENG-29)
     robot_orders = without_legacy_orders(get_all_robot_orders(mt5))
     robot_positions = get_all_robot_positions(mt5)
     if robot_orders is None or robot_positions is None:
-        return False, target_idx
+        return False, True
 
     handle_sliding_grid(
         mt5,
-        target_zone,
-        target_idx,
+        zone,
+        zone_idx,
         robot_positions,
         robot_orders,
         symbol_infos,
@@ -250,4 +242,4 @@ def _manage_symbol(
         current_avg_price,
     )
 
-    return True, target_idx
+    return True, True

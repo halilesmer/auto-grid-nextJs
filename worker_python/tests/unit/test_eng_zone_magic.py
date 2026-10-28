@@ -143,7 +143,7 @@ def test_neuladen_nach_loeschen_traegt_den_zustand_ueber_die_magic_um(ui_state_f
 
     old = [make_zone(**A), make_zone(**B), make_zone(**C)]
     new = [make_zone(**B), make_zone(**C)]  # Zone a gelöscht
-    state.active_zones.update({"USOUSD": 0})
+    state.active_zones.update({0: "USOUSD"})
     state.active_zones_state.update({0: "AUTO_CLEAR", 1: "PAUSE", 2: "START"})
     state.fractal_tracked.update({1: {77: ("k", "U", 5)}})
     state.instant_entry_sent.update({(0, "SELL"): 2.0, (1, "BUY"): 1.0})
@@ -182,15 +182,15 @@ def test_neuladen_ohne_aenderung_oder_beim_ersten_laden_laesst_alles_stehen(ui_s
 
 @pytest.mark.feature("ENG-27")
 def test_geloeschte_aktive_zone_loest_keinen_ausstieg_beim_nachbarn_aus(fake_mt5, monkeypatch, ui_state_file):
-    """Echter Loop-Pfad (wrappers): Zone a ist aktiv und wird gelöscht. Früher galt danach
-    Zone b (jetzt Platz 0) als aktiv; da der Kurs außerhalb ihres Bereichs liegt, lief ihr
-    Zonen-Ausstieg: Positionen geschlossen, AUTO_CLEAR bis zum manuellen Neustart."""
+    """Echter Loop-Pfad (wrappers): Zone a und b laufen, a wird gelöscht. Früher erbte b
+    (jetzt Platz 0) den Zustand von a; mit dessen Bereich lief ihr Zonen-Ausstieg: Positionen
+    geschlossen, AUTO_CLEAR bis zum manuellen Neustart."""
     import src.core.wrappers as wrappers
 
     m = fake_mt5
     monkeypatch.setattr(wrappers, "mt5", m)
     zone_a = make_zone(**A, order_type="BUY", min_price=90, max_price=100)
-    zone_b = make_zone(**B, order_type="BUY", min_price=100, max_price=110, clear_on_exit=True,
+    zone_b = make_zone(**B, order_type="BUY", min_price=95, max_price=110, clear_on_exit=True,
                        clear_scope="Tüm İşlemler")
     pos_b = m.add_position("USOUSD", m.POSITION_TYPE_BUY, 101.0, tp=101.1, magic=MAGIC_ZONE_2)
 
@@ -198,11 +198,11 @@ def test_geloeschte_aktive_zone_loest_keinen_ausstieg_beim_nachbarn_aus(fake_mt5
     wrappers.load_dynamic_settings()
     state.symbol_infos["USOUSD"] = m.symbols["USOUSD"]
     assert wrappers.manage_dynamic_grid() is True
-    assert state.active_zones == {"USOUSD": 0}  # Kurs 97 liegt in Zone a
+    assert state.active_zones == {0: "USOUSD", 1: "USOUSD"}  # beide Setups laufen (ENG-01)
 
     _write_settings([zone_b])  # Zone a gelöscht (Magic von b bleibt 200002)
     wrappers.load_dynamic_settings()
-    assert state.active_zones == {}
+    assert state.active_zones == {0: "USOUSD"}  # b auf Platz 0 nachgerückt, a verworfen
     assert wrappers.manage_dynamic_grid() is True
 
     assert pos_b in m.positions  # nicht geschlossen
