@@ -10,8 +10,8 @@ import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import { HARMONIC_PARAMS, FRZ_PARAMS, type ContextTimeframe } from './params';
-import { buildEnv, envFor, type Env } from './reasons';
-import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
+import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
+import { engulfAt, engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
 import type { Pivot } from './trd';
 import type { Anchor, Candidate, Check, CheckState, FormationBar, Side } from './types';
 
@@ -267,3 +267,32 @@ export const zigOf = (bars: Bars, s: XabcdShape, withD: boolean): Anchor[] => {
   if (withD && s.d) out.push(anchorAt(bars, s.d.idx, s.d.price));
   return out;
 };
+
+/** Eine Kerze nach C schließt jenseits von B (ABCD-03): erst dann wird D gesucht; zählt bis zur Kerze von D, ohne D bis zur letzten Kerze */
+export function closedBeyondB(bars: Bars, s: XabcdShape): boolean {
+  const to = s.d ? s.d.idx : bars.length - 1;
+  for (let k = s.c.idx + 1; k <= to; k++) if (closesBeyond(bars[k], s.b.price, s.es)) return true;
+  return false;
+}
+
+/** Trend der nächsthöheren geladenen Zeiteinheit in Trade-Richtung; ohne höhere Zeiteinheit nicht messbar */
+export function higherWith(env: Env, tf: ContextTimeframe, side: Side): CheckState {
+  const higher = neighborTf(env, tf, -1);
+  const dir = higher ? env.trends.get(higher)?.dir : null;
+  if (!dir) return 'unmeasurable';
+  return dirSide(dir) === side ? 'met' : 'unmet';
+}
+
+/** Umkehrkerze in Trade-Richtung (Engulf, SIG-23 bis SIG-26) in der nächsttieferen geladenen Zeiteinheit ab der Kerze von D; ohne D oder tiefere Zeiteinheit nicht messbar */
+export function lowerReversal(env: Env, tf: ContextTimeframe, s: XabcdShape): CheckState {
+  const lower = neighborTf(env, tf, 1);
+  const view = lower ? env.views.get(lower) : undefined;
+  if (!s.d || !view) return 'unmeasurable';
+  const from = env.views.get(tf)!.bars[s.d.idx].time;
+  // die tiefere Zeiteinheit reicht nicht bis zur Kerze von D zurück: nichts zu vergleichen
+  if (view.bars.length === 0 || view.bars[0].time > from) return 'unmeasurable';
+  for (let k = 0; k < view.bars.length; k++) {
+    if (view.bars[k].time >= from && engulfAt(view.bars, view.wide, k, s.side) !== null) return 'met';
+  }
+  return 'unmet';
+}
