@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-28 · **166/170** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-28 · **167/171** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 13/14 |
-| 16 | **FRM** – Formationserkennung | 10/10 |
+| 16 | **FRM** – Formationserkennung | 11/11 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -828,3 +828,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Erkennung der Formation Kopf-Schulter (OBO nach Hochs, TOBO nach Tiefs) als reine Funktion über geschlossene Kerzen. LS, K und RS sind fertige Fraktale einer Seite, N1 und N2 die tiefsten fertigen Fraktale der Gegenseite dazwischen; die Nackenlinie läuft durch N1 und N2 (obo.ts). Geprüft werden Form (Vortrend, Fraktale, Kopf über LS, RS unter K, kein Trendwechsel vor dem Nackenbruch), Verstärkungen (Schultern ähnlich groß oder konsolidiert, Wave-Divergenz zwischen LS und K, Zeiteinheit H4/D1, Kopfhöhen-Ziel am D eines AB=CD ab RS), das Signal (Körperschluss unter der Nackenlinie mit volumenstarker Kerze) und die Ausschlüsse (Schluss über dem Hoch von RS, Zeiteinheit unter H1). Die Zahlen stehen in params.ts (OBO_PARAMS). analyzeObo prüft jede geladene Zeiteinheit, checkOboCandidate eigene Punkte; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-OBO-01 bis Z-OBO-08. Bei den Ausschlüssen heißt ☑ „liegt vor“. Ohne fertige rechte Schulter oder ohne Nackenbruch bleibt die Formation im Aufbau.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-obo-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Verkauf/Kauf, Abgrenzung Doppeltop/-boden und Libra, Urteil, Wechsel gültig → ungültig, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
   - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; eine Kopf-Schulter nach Hochs und ihr Spiegelbild nach Tiefs haben dieselben Zustände; bei den echten Reihen stimmen Punkte K, RS und Bruchkerze, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen.
+- [x] **FRM-11** Trendfortsetzung — 🖥️ e2e ✅ 2026-10-28
+  - Erkennung der Trendfortsetzungsformationen als reine Funktion über geschlossene Kerzen, in beiden Richtungen: Flagge, steigendes (fallendes) Dreieck, Schale mit Henkel und Konsolidierung (Box). H1 ist ein fertiges Fraktal in Trendrichtung, der Mast reicht vom äußersten Fraktal der Gegenseite davor bis H1; die Pause danach wird aktiv mit dem Körperschluss jenseits ihrer Kante (tdf.ts, tdfForms.ts). Geprüft werden der Vortrend, die Pause aus kleinen Kerzen, die volumenstarke Bruchkerze, die Ausschlüsse (Trendwechsel in der Pause, Pause tiefer als 0.618 gehört zur Harmonik, Zeiteinheit unter H1, Schluss gegen den Trend) und je Unterform ihre Form (zwei Wellen mit fallender Linie und Kopie, zweiter Anlauf an die Zone von H1 mit steigenden Tiefs, Wende zwischen 0.236 und 0.382 mit Henkel, je zwei Berührungen oben und unten, abwechselnd gezählt). TDF-19 und TDF-26 sind Einstiegsregeln und bleiben nicht messbar. Die Zahlen stehen in params.ts (TDF_PARAMS). analyzeTdf prüft jede geladene Zeiteinheit und gibt den besten Kandidaten je Unterform aus, checkTdfCandidate eigene Punkte; beide liefern je Bedingungs-ID ☑, ☐ oder nicht messbar, das Urteil und die Zeichnungen Z-TDF-01a bis Z-TDF-10. Bei den Ausschlüssen heißt ☑ „liegt vor“. Ohne Bruch bleibt die Formation im Aufbau.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/formation-tdf-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Kauf/Verkauf, Abgrenzung der Unterformen untereinander und zu Harmonik, Doppeltop und Kopf-Schulter, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
+  - **Erwartet:** Jeder Fall stimmt mit der Handrechnung überein; eine Trendfortsetzung nach Hochs und ihr Spiegelbild nach Tiefs haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Urteil und der Befund ohne die späteren Kerzen, auch beim Negativfall.

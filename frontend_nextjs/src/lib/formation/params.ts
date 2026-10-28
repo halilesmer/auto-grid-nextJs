@@ -276,3 +276,28 @@ export const OBO_PARAMS = {
   maxLeft: 2,
   maxRight: 2,
 } as const;
+
+/** Trendfortsetzung (TDF: Flagge, steigendes Dreieck, Schale, Konsolidierung). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const TDF_PARAMS = {
+  /** TDF-07 (Annahme): die Pause läuft nicht tiefer als dieses Level der Fib auf den Impuls (Zahl aus FIB_PARAMS); tiefer gehört zur Harmonik (FIB-17) */
+  maxDepth: FIB_PARAMS.retrace[2],
+  /** TDF-12 (Annahme): die Kopie der oberen Linie liegt höchstens dieses Vielfache der ATR(14) vom zweiten Tief (Zahl aus ABCD-11) */
+  parallelAtr: ABCD_PARAMS.nearAtr,
+  /** TDF-14: das Ende der Flagge liegt zwischen diesen Leveln der Fib auf den Mast (Zahlen aus FIB_PARAMS) */
+  flagDepth: { min: FIB_PARAMS.retrace[0], max: FIB_PARAMS.retrace[1] },
+  /** TDF-18 (Annahme): „ungefähr gleicher Charakter“ = Tiefe der Korrektur nach H1 als Anteil der vorigen Korrektur (Zahlen aus OBO-06) */
+  similar: OBO_PARAMS.shoulderRatio,
+  /** TDF-21: die Schale dreht an diesem Level, ohne das zweite zu berühren (Zahlen aus FIB_PARAMS) */
+  bowl: { reach: FIB_PARAMS.bowl, spare: FIB_PARAMS.retrace[0] },
+  /** TDF-23: der Henkel bleibt über diesem Level der Fib vom Impulsende zum Tief der Schale (Zahl aus FIB_PARAMS) */
+  handleLevel: FIB_PARAMS.retrace[1],
+  /** TDF-24, TDF-28, TDF-29: Mindestzahl Berührungen oben und unten */
+  touches: { top: 2, bottom: 2 },
+  /** TDF-08: Zeiteinheiten unter H1 (wie LIB-16) */
+  belowH1: LIB_PARAMS.belowH1,
+  /** Z-TDF-07: Level der umgekehrten Fib (Zwischenziel, Strukturziel) */
+  inversion: [1.618, 2],
+  /** Auswahl der Punkte (Annahme): H1 unter den letzten so vielen Fraktalen, so viele Wellen (Tiefs, Hochs) nach H1 */
+  maxImpulses: 5,
+  maxWaves: 2,
+} as const;
