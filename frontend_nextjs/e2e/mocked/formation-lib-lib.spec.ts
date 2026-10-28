@@ -257,7 +257,7 @@ frm('Messung ohne eigenes P3 findet das Ende der Wendebewegung selbst', () => {
   expect(c.verdict).toBe('valid');
 });
 
-frm('Abdeckung: jede messbare Bedingung hat einen ☑- und einen ☐-Fall, Regel 09 bleibt nicht messbar', () => {
+frm('Abdeckung: jede messbare Bedingung hat einen ☑- und einen ☐-Fall, Regel 09 kommt in FRM-12 mit ☑ dazu', () => {
   const seen: Record<string, Set<CheckState>> = {};
   const all = [
     run({ H4: BASE }),
@@ -283,7 +283,7 @@ frm('Abdeckung: jede messbare Bedingung hat einen ☑- und einen ☐-Fall, Regel
     expect(seen[id]?.has(M), `${id} ☑`).toBe(true);
     expect(seen[id]?.has(N), `${id} ☐`).toBe(true);
   }
-  expect([...seen['LIB-09']]).toEqual([U]);
+  expect(seen["LIB-09"].has(M)).toBe(false);
   expect(seen['LIB-07'].has(U)).toBe(true);
 });
 

@@ -4,13 +4,15 @@
  * Berührung der zuerst erreichten Kante (Zone oder Level 0.786); `checkLibCandidate` prüft eigene Punkte.
  *
  * Lesart der Zustände: bei Ereignis-Bedingungen (LIB-02, LIB-03, LIB-12 bis LIB-15) heißt ☑ „liegt vor“, bei den Ausschlüssen
- * LIB-13 bis LIB-16 also „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“; LIB-09 ist es immer, solange
- * es keine Cypher-Erkennung gibt. LIB-07 gilt nur in M15 (Pflicht); in den anderen Zeiteinheiten steht ☑ als Verstärkung.
+ * LIB-13 bis LIB-16 also „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“; LIB-09 ist es, solange
+ * kein Cypher (gültig oder im Aufbau) derselben Richtung in der Zeiteinheit liegt. LIB-07 gilt nur in M15 (Pflicht); in den anderen Zeiteinheiten steht ☑ als Verstärkung.
  * LIB-11 ist eine Anzeige: der Wert ist das CRV bis TP1 am gewählten Einstieg. Verkauf nach Hochs P1/P2, Kauf nach Tiefs.
  * LIB-15 zählt Schwungpunkte (benachbarte Fraktale einer Seite zählen einmal), LIB-08 baut den inneren AB=CD aus diesen Punkten.
  */
 import { analyzeBat } from './batChecks';
 import type { FormationContext } from './context';
+import { entryOfCypher } from './cyp';
+import { analyzeCyp } from './cypChecks';
 import { trendDirUpTo } from './f2618';
 import { analyzeGar } from './garChecks';
 import { outward, wickEnd, zoneGeometry, type ZoneSide } from './frz';
@@ -33,7 +35,7 @@ import {
 import { FRZ_PARAMS, LIB_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
 import { divergenceOf, tradeSideOf } from './sig';
-import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Verdict } from './types';
+import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Side, Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -78,6 +80,9 @@ export interface LibAnalysis {
 /** Ergebnisse von Gartley und Bat für LIB-10; werden nur bei Bedarf gerechnet */
 type Harmonics = () => readonly Candidate[];
 
+/** Ergebnisse der Cypher für LIB-09; null in `analyzeLib` mit `withCypher: false` (die Cypher ruft die Libra für CYP-10 selbst auf) */
+type Cyphers = (() => readonly Candidate[]) | null;
+
 const U: CheckState = 'unmeasurable';
 const flag = (cond: boolean): CheckState => (cond ? 'met' : 'unmet');
 const tri = (v: boolean | null): CheckState => (v === null ? U : flag(v));
@@ -117,7 +122,17 @@ function threeChain(env: Env, tf: ContextTimeframe, s: LibShape, harmonics: Harm
   });
 }
 
-function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p3: LibPoint | null, harmonics: Harmonics, trendAt: (idx: number) => 'up' | 'down' | null): Candidate {
+/**
+ * LIB-09: ein Cypher derselben Richtung (gültig oder im Aufbau) hat seinen Einstieg (Level 0.786 der Fib X → C) höchstens `near` vom Libra-Einstieg.
+ * Gibt es keinen solchen Cypher in der Zeiteinheit, ist die Bedingung nicht messbar statt ☐: es gibt nichts zu vergleichen.
+ */
+function cypherAtEntry(cyphers: readonly Candidate[], tf: ContextTimeframe, side: Side, price: number, near: number): CheckState {
+  const live = cyphers.filter((k) => k.tf === tf && k.side === side && k.verdict !== 'invalid' && k.points.X !== undefined && k.points.C !== undefined);
+  if (live.length === 0) return U;
+  return flag(live.some((k) => Math.abs(entryOfCypher(k.points.X, k.points.C) - price) <= near));
+}
+
+function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p3: LibPoint | null, harmonics: Harmonics, cyphers: Cyphers, trendAt: (idx: number) => 'up' | 'down' | null): Candidate {
   const view = env.views.get(tf)!;
   const { bars } = view;
   const cs: ZoneSide = es === 'resistance' ? 'support' : 'resistance';
@@ -154,11 +169,11 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
   const swings = s && upTo !== null ? swingsAfter(bars, s.p3, cs, upTo) : [];
   const inner = s ? innerLevels(swings, s.p3, es, cs) : [];
   add('LIB-08', s && near !== null ? flag(inner.some((level) => Math.abs(level - s.level786) <= near)) : U);
-  add('LIB-09', U);
-  add('LIB-10', s ? flag(threeChain(env, tf, s, harmonics)) : U);
-
   const target = s ? targetEdge(cs, zoneGeometry(bars, s.p3.idx, cs, tf)) : null;
   const entry = s && target !== null ? chooseEntry(s, target) : null;
+  add('LIB-09', cyphers && s && entry && near !== null ? cypherAtEntry(cyphers(), tf, tradeSideOf(es), entry.price, near) : U);
+  add('LIB-10', s ? flag(threeChain(env, tf, s, harmonics)) : U);
+
   add('LIB-11', entry && entry.crv !== null ? flag(entry.crv >= LIB_PARAMS.minCrv) : U, entry?.crv ?? undefined);
   add('LIB-12', s ? flag(s.touch !== null) : U);
 
@@ -187,6 +202,8 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
   if (s) {
     points.P3 = anchorAt(bars, s.p3.idx, s.p3.price);
     if (s.touch) points.K = anchorAt(bars, s.touch.idx, s.touch.level);
+    // gewählter Einstieg (LIB-09 und CYP-10 vergleichen ihn mit dem Cypher-Einstieg)
+    if (entry) points.E = anchorAt(bars, s.touch ? s.touch.idx : last, entry.price);
   }
   return { code: 'LIB', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict };
 }
@@ -233,12 +250,24 @@ const harmonicsOf = (ctx: FormationContext, t: number): Harmonics => {
   return () => (cache ??= [...analyzeGar(ctx, t), ...analyzeBat(ctx, t)].map((a) => a.candidate));
 };
 
+/** Cypher aller geladenen Zeiteinheiten; eine Rechnung je Aufruf von `analyzeLib` */
+const cyphersOf = (ctx: FormationContext, t: number): (() => readonly Candidate[]) => {
+  let cache: readonly Candidate[] | null = null;
+  return () => (cache ??= analyzeCyp(ctx, t).map((a) => a.candidate));
+};
+
+export interface LibOptions {
+  /** false: LIB-09 bleibt nicht messbar (die Cypher rechnet die Libra für CYP-10 ohne Rückweg); Vorgabe true */
+  withCypher?: boolean;
+}
+
 /** Sucht je geladener Zeiteinheit (hoch → tief) und Seite Paar P1/P2 und P3; es gilt der Kandidat mit den wenigsten verletzten Form-Bedingungen, bei Gleichstand der jüngste */
-export function analyzeLib(ctx: FormationContext, t: number): LibAnalysis[] {
+export function analyzeLib(ctx: FormationContext, t: number, options: LibOptions = {}): LibAnalysis[] {
   const tfs = ctx.timeframes();
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
   const harmonics = harmonicsOf(ctx, t);
+  const cyphers = options.withCypher === false ? null : cyphersOf(ctx, t);
   return tfs.map((tf) => {
     const env = envFor(base, ctx, t, tf);
     const bars = env.views.get(tf)!.bars;
@@ -253,7 +282,7 @@ export function analyzeLib(ctx: FormationContext, t: number): LibAnalysis[] {
       for (const pair of pairsOf(bars, es)) {
         const ends: (LibPoint | null)[] = endsOf(bars, pair.p2, cs, (p) => fractalDone(bars, p, cs)).reverse();
         for (const p3 of ends.length > 0 ? ends : [null]) {
-          const candidate = evaluate(env, tf, es, pair, p3, harmonics, trendAt);
+          const candidate = evaluate(env, tf, es, pair, p3, harmonics, cyphers, trendAt);
           const unmet = misses(candidate);
           const recent = p3 ? p3.idx : pair.p2.idx;
           if (best === null || unmet < best.unmet || (unmet === best.unmet && recent > best.recent)) best = { candidate, unmet, recent };
@@ -266,9 +295,9 @@ export function analyzeLib(ctx: FormationContext, t: number): LibAnalysis[] {
 
 /**
  * Prüft eigene Punkte; ist eine Kerze nicht geschlossen oder nicht geladen oder stimmt die Reihenfolge nicht, sind die Prüfungen
- * nicht messbar. `harmonics` ersetzt die gemessenen Ergebnisse von Gartley und Bat (LIB-10).
+ * nicht messbar. `harmonics` ersetzt die gemessenen Ergebnisse von Gartley und Bat (LIB-10), `cyphers` die der Cypher (LIB-09).
  */
-export function checkLibCandidate(ctx: FormationContext, t: number, input: LibPointsInput, harmonics?: readonly Candidate[]): Candidate {
+export function checkLibCandidate(ctx: FormationContext, t: number, input: LibPointsInput, harmonics?: readonly Candidate[], cyphers?: readonly Candidate[]): Candidate {
   const env = buildEnv(ctx, t, input.tf);
   const bars = env?.views.get(input.tf)?.bars;
   if (!env || !bars) return empty(input.tf);
@@ -281,5 +310,5 @@ export function checkLibCandidate(ctx: FormationContext, t: number, input: LibPo
   const pair: LibBase = { p1: { idx: i1, price: input.p1.price }, p2: { idx: i2, price: input.p2.price } };
   const p3: LibPoint | null = input.p3 && i3 !== undefined ? { idx: i3, price: input.p3.price } : (endsOf(bars, pair.p2, cs, (p) => fractalDone(bars, p, cs)).pop() ?? null);
   const trendAt = (idx: number) => trendDirUpTo(env, input.tf, idx);
-  return evaluate(env, input.tf, es, pair, p3, harmonics ? () => harmonics : harmonicsOf(ctx, t), trendAt);
+  return evaluate(env, input.tf, es, pair, p3, harmonics ? () => harmonics : harmonicsOf(ctx, t), cyphers ? () => cyphers : cyphersOf(ctx, t), trendAt);
 }
