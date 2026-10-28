@@ -11,6 +11,7 @@
 export const DAY_SEC = 86400;
 
 export type DayString = string; // YYYY-MM-DD (Brokertag)
+export type TimeString = string; // HH:MM:SS (Brokerzeit)
 
 export const RANGE_PRESETS = [
   'today',
@@ -31,6 +32,10 @@ export type RangePreset = (typeof RANGE_PRESETS)[number];
 export interface DayRange {
   from: DayString | null;
   to: DayString | null;
+  /** Sekundengenauer Start am ersten Tag (HH:MM:SS, Brokerzeit); fehlt = Tagesbeginn */
+  fromTime?: TimeString;
+  /** Sekundengenaues Ende (exklusiv) am letzten Tag; fehlt = Tagesende */
+  toTime?: TimeString;
 }
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -116,11 +121,24 @@ export function presetRange(preset: RangePreset, today: DayString): DayRange {
   }
 }
 
-/** Zeitraum in MT5-Sekunden, halb offen: [from, to). null = offen. */
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
+
+export function isTimeString(value: string | null | undefined): value is TimeString {
+  return value != null && TIME_RE.test(value);
+}
+
+/** HH:MM:SS → Sekunden seit Tagesbeginn. */
+export function timeToSec(time: TimeString): number {
+  const [h, m, s] = time.split(':').map(Number);
+  return h * 3600 + m * 60 + s;
+}
+
+/** Zeitraum in MT5-Sekunden, halb offen: [from, to). null = offen. Ein Ende von 00:00:00 zählt als Tagesende. */
 export function rangeBounds(range: DayRange): { from: number | null; to: number | null } {
+  const endSec = range.toTime ? timeToSec(range.toTime) : 0;
   return {
-    from: range.from ? dayStart(range.from) : null,
-    to: range.to ? dayStart(range.to) + DAY_SEC : null,
+    from: range.from ? dayStart(range.from) + (range.fromTime ? timeToSec(range.fromTime) : 0) : null,
+    to: range.to ? dayStart(range.to) + (endSec > 0 ? endSec : DAY_SEC) : null,
   };
 }
 

@@ -15,6 +15,8 @@ import {
   RANGE_PRESETS,
   dayToPickerDate,
   formatDayInput,
+  isTimeString,
+  rangeBounds,
   parseDayInput,
   pickerDateToDay,
   presetRange,
@@ -46,7 +48,10 @@ export function resolveRange(selection: RangeSelection, today: DayString): DayRa
 }
 
 function rangeText(range: DayRange, allLabel: string) {
-  return range.from && range.to ? `${formatDayInput(range.from)} – ${formatDayInput(range.to)}` : allLabel;
+  if (!range.from || !range.to) return allLabel;
+  const start = range.fromTime ? `${formatDayInput(range.from)} ${range.fromTime}` : formatDayInput(range.from);
+  const end = range.toTime ? `${formatDayInput(range.to)} ${range.toTime}` : formatDayInput(range.to);
+  return `${start} – ${end}`;
 }
 
 interface DateRangePickerProps {
@@ -104,12 +109,21 @@ function RangePanel({
   const [fromText, setFromText] = useState(range.from ? formatDayInput(range.from) : '');
   const [toText, setToText] = useState(range.to ? formatDayInput(range.to) : '');
 
+  const [fromTimeText, setFromTimeText] = useState(range.fromTime ?? '');
+  const [toTimeText, setToTimeText] = useState(range.toTime ?? '');
+
   const from = parseDayInput(fromText);
   const to = parseDayInput(toText);
+  // leer = ganzer Tag; sonst muss die Eingabe HH:MM:SS sein
+  const fromTime = isTimeString(fromTimeText) ? fromTimeText : null;
+  const toTime = isTimeString(toTimeText) ? toTimeText : null;
+  const fromTimeError = fromTimeText && !fromTime ? t('analysis.range.time.invalid') : null;
+  const toTimeError = toTimeText && !toTime ? t('analysis.range.time.invalid') : null;
   const fromError = fromText && !from ? t('analysis.range.invalid') : null;
   const toError = toText && !to ? t('analysis.range.invalid') : null;
-  const orderError = from && to && from > to ? t('analysis.range.order') : null;
-  const canApply = Boolean(from && to && !orderError);
+  const bounds = from && to ? rangeBounds({ from, to, ...(fromTime && { fromTime }), ...(toTime && { toTime }) }) : null;
+  const orderError = bounds && bounds.from !== null && bounds.to !== null && bounds.from >= bounds.to ? t('analysis.range.order') : null;
+  const canApply = Boolean(from && to && !orderError && !fromTimeError && !toTimeError);
 
   const selected = useMemo<DateRange | undefined>(
     () => (from ? { from: dayToPickerDate(from), to: to ? dayToPickerDate(to) : undefined } : undefined),
@@ -205,6 +219,39 @@ function RangePanel({
           </InputField>
         </div>
 
+        <div className="grid grid-cols-2 gap-2">
+          <InputField
+            label={t('analysis.range.timeFrom')}
+            hint={t('analysis.range.timeFrom.hint')}
+            error={fromTimeError && <span className="text-xs text-danger" role="alert">{fromTimeError}</span>}
+          >
+            <input
+              className={cn('input-s', fromTimeError && 'border-danger')}
+              aria-invalid={Boolean(fromTimeError)}
+              value={fromTimeText}
+              onChange={(e) => setFromTimeText(e.target.value)}
+              placeholder="00:00:00"
+              inputMode="numeric"
+              data-testid="bt-time-from"
+            />
+          </InputField>
+          <InputField
+            label={t('analysis.range.timeTo')}
+            hint={t('analysis.range.timeTo.hint')}
+            error={toTimeError && <span className="text-xs text-danger" role="alert">{toTimeError}</span>}
+          >
+            <input
+              className={cn('input-s', toTimeError && 'border-danger')}
+              aria-invalid={Boolean(toTimeError)}
+              value={toTimeText}
+              onChange={(e) => setToTimeText(e.target.value)}
+              placeholder="00:00:00"
+              inputMode="numeric"
+              data-testid="bt-time-to"
+            />
+          </InputField>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">{t('analysis.range.brokerTime')}</span>
           <Button
@@ -213,7 +260,7 @@ function RangePanel({
             disabled={!canApply}
             hint={canApply ? t('analysis.range.apply.hint') : t('analysis.range.apply.off.hint')}
             data-testid="range-apply"
-            onClick={() => from && to && choose({ custom: { from, to } })}
+            onClick={() => from && to && choose({ custom: { from, to, ...(fromTime && { fromTime }), ...(toTime && { toTime }) } })}
           >
             {t('analysis.range.apply')}
           </Button>

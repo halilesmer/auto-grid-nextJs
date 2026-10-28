@@ -2,7 +2,7 @@ import { t } from '@/i18n';
 import { APP_VERSION } from '@/app/version';
 import { DEFAULT_RUN_SETTINGS, type RunSettingsValue } from '@/lib/backtest/runSettings';
 import { type RangeSelection } from '@/hooks/useAnalysisParams';
-import { isDayString, RANGE_PRESETS } from '@/lib/serverTime';
+import { isDayString, isTimeString, RANGE_PRESETS } from '@/lib/serverTime';
 import type { ZoneSettings } from '@/store/types';
 import type { BacktestSetup } from './setupTypes';
 import { defaultZone } from '@/utils/zoneHelpers';
@@ -75,7 +75,10 @@ export function parsePresetData(input: unknown): PresetData {
   } else {
     const custom = record(range.custom);
     if (typeof custom.from !== 'string' || typeof custom.to !== 'string' || !isDayString(custom.from) || !isDayString(custom.to) || custom.from > custom.to) throw new Error(t('backtest.presets.invalid'));
-    selection = { custom: { from: custom.from, to: custom.to } };
+    const times = { fromTime: custom.fromTime, toTime: custom.toTime };
+    for (const time of Object.values(times)) if (time !== undefined && (typeof time !== 'string' || !isTimeString(time))) throw new Error(t('backtest.presets.invalid'));
+    const exact = Object.fromEntries(Object.entries(times).filter(([, time]) => time !== undefined));
+    selection = { custom: { from: custom.from, to: custom.to, ...exact } };
   }
   // Die Formfelder sind oben vollständig typ- und enumgeprüft.
   return { version: 1, zone: presetZone(data.zone), form: checked as unknown as RunSettingsValue, range: selection, appVersion: data.appVersion };

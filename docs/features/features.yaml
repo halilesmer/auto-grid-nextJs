@@ -1646,6 +1646,15 @@ kategorien:
           - Auf /backtest ein Setup rechnen, „Live-Vergleich“ öffnen, „Läufe übernehmen“, einen Namen eingeben und speichern; Seite neu laden und den Bericht öffnen.
         erwartet: Der Bericht ist nach dem Neuladen da und zeigt dieselben Zahlen und die gespeicherte Toleranz; der Bericht eines anderen Benutzers liefert 404, der Admin sieht ihn.
 
+      - id: BKT-15
+        titel: Backtest-Zeitraum sekundengenau
+        beschreibung: "Im Zeitraum-Panel (Eigener Zeitraum) gibt es zwei optionale Felder „Startzeit“ und „Endzeit“ (HH:MM:SS, Brokerzeit). Leer oder Ende 00:00:00 heißt ganzer Tag, wie bisher. rangeBounds addiert die Zeiten zu den Tagesgrenzen; die Grenzen [Start, Ende) in MT5-Sekunden gehen unverändert an den Lauf. Die Adresse trägt sie als ft= und tt=, gespeicherte Voreinstellungen behalten sie. Ungültige Uhrzeit oder Ende vor Start sperrt „Übernehmen“."
+        code: [frontend_nextjs/src/lib/serverTime.ts, frontend_nextjs/src/components/analysis/DateRangePicker.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts, frontend_nextjs/src/lib/backtest/presets.ts]
+        tiers: [e2e]
+        pruefung:
+          - Auf /backtest „Eigener Zeitraum“ öffnen, Tage und Uhrzeiten eintragen und übernehmen; Seite neu laden.
+        erwartet: Die Adresse trägt ft= und tt=, nach dem Neuladen stehen dieselben Zeiten im Panel; der Lauf nimmt genau diese Grenzen.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung

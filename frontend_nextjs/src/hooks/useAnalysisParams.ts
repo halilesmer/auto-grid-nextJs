@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { isDayString, RANGE_PRESETS, type DayRange, type RangePreset } from '@/lib/serverTime';
+import { isDayString, isTimeString, RANGE_PRESETS, type DayRange, type RangePreset } from '@/lib/serverTime';
 import { DEFAULT_TIMEFRAME, isTimeframe, type Timeframe } from '@/lib/analysis/candles';
 
 export const ANALYSIS_TABS = ['chart', 'stats'] as const;
@@ -32,16 +32,21 @@ export function useAnalysisParams() {
   const rangeParam = params.get('range');
   const fromParam = params.get('from');
   const toParam = params.get('to');
+  const fromTimeParam = params.get('ft');
+  const toTimeParam = params.get('tt');
   const tfParam = params.get('tf');
   const timeframe: Timeframe = isTimeframe(tfParam) ? tfParam : DEFAULT_TIMEFRAME;
 
   const range = useMemo<RangeSelection>(() => {
     if (isDayString(fromParam) && isDayString(toParam) && fromParam <= toParam) {
-      return { custom: { from: fromParam, to: toParam } };
+      const custom: DayRange = { from: fromParam, to: toParam };
+      if (isTimeString(fromTimeParam)) custom.fromTime = fromTimeParam;
+      if (isTimeString(toTimeParam)) custom.toTime = toTimeParam;
+      return { custom };
     }
     if ((RANGE_PRESETS as readonly string[]).includes(rangeParam ?? '')) return { preset: rangeParam as RangePreset };
     return DEFAULT_RANGE;
-  }, [rangeParam, fromParam, toParam]);
+  }, [rangeParam, fromParam, toParam, fromTimeParam, toTimeParam]);
 
   // router.replace wirkt erst mit dem nächsten Render: mehrere Änderungen im selben Durchlauf (z. B.
   // Konto übernehmen + erste Zone wählen) bauen auf der zuletzt gesendeten Adresse auf, nicht auf der alten
@@ -80,8 +85,8 @@ export function useAnalysisParams() {
     (value: RangeSelection) =>
       update(
         'preset' in value
-          ? { range: value.preset, from: null, to: null }
-          : { range: null, from: value.custom.from, to: value.custom.to },
+          ? { range: value.preset, from: null, to: null, ft: null, tt: null }
+          : { range: null, from: value.custom.from, to: value.custom.to, ft: value.custom.fromTime ?? null, tt: value.custom.toTime ?? null },
       ),
     [update],
   );
