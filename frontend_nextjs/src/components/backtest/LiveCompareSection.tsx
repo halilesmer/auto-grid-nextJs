@@ -110,7 +110,7 @@ function SavedReports({ accountId, reload, onOpen, onDeleted }: {
           <li key={item.id} className="space-y-2 rounded-lg border border-border p-3" data-testid="lc-saved-item">
             <p className="break-words font-medium">{item.name}</p>
             <p className="text-xs text-muted-foreground">
-              {fmt.mt5DateTime(item.periodFrom)} – {fmt.mt5DateTime(item.periodTo)} · {t('backtest.live.saved.passed', { passed: item.passedCount, total: item.symbolCount })} · v{item.workerVersion}
+              {fmt.mt5DateTime(item.periodFrom)} – {fmt.mt5DateTime(item.periodTo)} · {t('backtest.live.saved.passed', { passed: item.passedCount, total: item.symbolCount })} · {item.workerVersion}
               {item.accountId !== accountId ? ` · ${item.accountId}` : ''}
             </p>
             {item.note && <p className="break-words text-xs">{item.note}</p>}
