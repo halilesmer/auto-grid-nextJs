@@ -1,5 +1,5 @@
 /** BOT-04 Statusanzeige + Alarme · MET · Kennzahlenleiste und Chart. */
-import { DEMO_ID, expect, test } from '../fixtures/test';
+import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 import { fmt, msg } from '../fixtures/i18n';
 
 test.describe('BOT Status und Alarme', () => {
@@ -122,7 +122,7 @@ test.describe('MET Live-Daten', () => {
   });
 
   test('Chart zeigt Preis, RSI, P/L und Positionen aus dem Stream', { tag: '@MET-02' }, async ({ page, worker }) => {
-    await page.goto('/formasyon');
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect.poll(() => worker.openSockets).toBe(1);
     await expect(page.getByTestId('chart-stat-rsi')).toContainText('--');
 

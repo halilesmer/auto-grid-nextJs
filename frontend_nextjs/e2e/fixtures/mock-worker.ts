@@ -431,7 +431,18 @@ export class MockWorker {
       .map((m) => ({ ...m, from: Math.max(m.from, a), to: Math.min(m.to, end) }));
     const cols = { t: [] as number[], o: [] as number[], h: [] as number[], l: [] as number[], c: [] as number[] };
     const mid = (t: number) => 97 + 2 * Math.sin(t / 43200) + 0.3 * Math.sin(t / 2700);
-    for (let t = a; t < end && t <= latest; t += tf) {
+    const series = this.state.ratesSeries?.[timeframe];
+    if (series) {
+      // Feste Kerzen: der Zeitraum der Anfrage zählt nicht, die Reihe endet, wo der Test es will
+      for (const [t, o, h, l, c] of series) {
+        cols.t.push(t);
+        cols.o.push(o);
+        cols.h.push(h);
+        cols.l.push(l);
+        cols.c.push(c);
+      }
+    }
+    for (let t = a; !series && t < end && t <= latest; t += tf) {
       const weekday = new Date(t * 1000).getUTCDay();
       if (tf < 86400 && (weekday === 0 || weekday === 6)) continue;
       if (missing.some((m) => t >= m.from && t < m.to)) continue;
@@ -455,7 +466,7 @@ export class MockWorker {
       ...cols,
       v: cols.t.map(() => 10),
       s: cols.t.map(() => 3),
-      live_from: cols.t.length && cols.t[cols.t.length - 1] === latest ? latest : null,
+      live_from: !series && cols.t.length && cols.t[cols.t.length - 1] === latest ? latest : null,
       digits: 3,
       point: 0.001,
       next_from: end < b ? end : null,
