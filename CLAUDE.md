@@ -126,7 +126,7 @@ Claude Code does not change to a cheaper model by itself. Claude does it at phas
 | Review before commit or PR | subagent `reviewer` (`.claude/agents/reviewer.md`) | Sonnet |
 | Small change, or work that needs this conversation | main session | — |
 
-Claude chooses model and `/effort` level itself. The goal is the best result with the fewest tokens: use the lowest model and level that is sufficient for the phase. Before a task with more than one phase, Claude shows this table, one row per phase. Defaults are below. `Reason` names the risk or the routine work of this task in one sentence. At the start of a phase, Claude writes one line that says which model and level the phase needs. The session tools `set_session_model` and `set_session_effort` change only other sessions and refuse the own session (checked 2026-10-17). For the own session, the user selects the model and level in the app. It does not change them during a running phase. It raises a level (for example to `xhigh`) only with a reason. For a one-phase task, one line is enough.
+Claude chooses model and `/effort` level itself. The goal is the best result with the fewest tokens: use the lowest model and level that is sufficient for the phase. Before a task with more than one phase, Claude shows this table, one row per phase. Defaults are below. `Reason` names the risk or the routine work of this task in one sentence. At the start of a phase, Claude writes one line that says which model and level the phase needs. The first reply of every session and of every new task starts with this line before any other work. If the session runs on Opus and the phase is not planning, the line is a warning: `**Dikkat:** Opus läuft, diese Phase braucht nur Sonnet/medium — bitte in der App wechseln.` Claude reads its own model from the system prompt. The session tools `set_session_model` and `set_session_effort` change only other sessions and refuse the own session (checked 2026-10-17). For the own session, the user selects the model and level in the app. It does not change them during a running phase. It raises a level (for example to `xhigh`) only with a reason. For a one-phase task, one line is enough.
 
 | Phase | Model | Level (`/effort`) | Reason |
 |---|---|---|---|
@@ -151,3 +151,10 @@ Sessions for plan phases (`start_session`):
   - Before a phase on a more expensive model, the child session waits for the message „Modell umgestellt“ from the parent session.
 - The parent session stays open until the last phase switch is done.
 - A scheduled task (`create_scheduled_task`) has no `model` parameter. If Claude cannot set the plan model (scheduled task, fork, cloud session, limit error), it tells the user at once.
+## Session discipline
+
+Every tool call re-reads the whole session history, so cost grows with session length and with the number of sessions that run at once (measured 2026-10-21: the largest sessions had 350–750 model calls and read 70–150 M cached tokens each).
+
+- A step is one planned item that ends in a merged PR or a written result. When a step is finished, Claude does not start the next step in the same session. It writes the state into the journal or the pending list, starts the next step with `start_session` (`initiation: "user_asked"`, `fresh`, brief with files and done criterion), and ends its turn. Auto-fix events and review fixes for the PR of this session stay in this session.
+- At most 2 sessions that write files run at the same time. Before `start_session`, Claude calls `list_sessions` and counts the rows with `isRunning: true` that write. If there are 2, Claude does not start the session; it puts the step in the pending list and says so in one line.
+- Read-only sessions (search, review) share the checkout and do not count towards the limit.
