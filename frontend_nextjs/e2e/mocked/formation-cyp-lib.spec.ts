@@ -140,6 +140,10 @@ const C_UNDER_A = cyp([100, 130, 115, 125, 108.35]);
 const C_WICK = patched(BASE, AT.c, [BASE[AT.c][0], 144, BASE[AT.c][2], BASE[AT.c][3]]);
 /** C an 144: die Schlüsse des zweiten Impulses liegen über 1.414 */
 const C_CLOSE = cyp([100, 130, 115, 144, 108.35]);
+/** Docht am B bis 110 (unter 0.618 = 111.46), alle Schlüsse bleiben darüber */
+const B_WICK = patched(BASE, AT.b, [BASE[AT.b][0], BASE[AT.b][1], 110, BASE[AT.b][3]]);
+/** B an 110: die Schlüsse der Korrektur liegen unter 0.618 */
+const B_CLOSE = cyp([100, 130, 110, 139, 108.35]);
 /** D an 109.2: nur 0.766 von X → C */
 const D_SHORT = cyp([100, 130, 115, 139, 109.2]);
 /** D an 108.355: 0.009 vor dem Level 108.346 (1 Pip = 0.01 bei TEST) */
@@ -172,7 +176,7 @@ interface Case {
 
 const BASE_EXPECT: Record<string, CheckState> = {
   'CYP-01': M, 'CYP-02': U, 'CYP-03': M, 'CYP-04': M, 'CYP-05': M, 'CYP-06': M, 'CYP-07': M, 'CYP-08': M,
-  'CYP-11': N, 'CYP-12': M, 'CYP-13': M, 'CYP-14': N,
+  'CYP-11': N, 'CYP-12': M, 'CYP-13': M, 'CYP-14': N, 'CYP-15': N,
 };
 
 const CASES: Case[] = [
@@ -198,6 +202,9 @@ const CASES: Case[] = [
   { name: 'CYP 08: lauter Anlauf zu D, RSI(7) am Tief über 20', candidate: () => run({ H4: CHOP_D }), expect: { 'CYP-08': N } },
   { name: 'CYP 11: Docht am C über 1.414, aber kein Schluss darüber', candidate: () => run({ H4: C_WICK }), expect: { 'CYP-11': N } },
   { name: 'CYP 11: Schlüsse des zweiten Impulses über 1.414', candidate: () => run({ H4: C_CLOSE }), expect: { 'CYP-11': M } },
+  { name: 'CYP 15: Docht am B unter 0.618, aber kein Schluss darunter', candidate: () => run({ H4: B_WICK }), expect: { 'CYP-15': N } },
+  { name: 'CYP 15: Schlüsse der Korrektur unter 0.618 der Fib X → A', candidate: () => run({ H4: B_CLOSE }), expect: { 'CYP-15': M } },
+  { name: 'CYP 15: Spiegel, Schlüsse der Korrektur über 0.618 beim Verkauf', candidate: () => run({ H4: mirror(B_CLOSE) }, AT, { buy: false }), expect: { 'CYP-15': M } },
   { name: 'CYP 12: B an 125, die Rückprojektion liegt weit vom D', candidate: () => run({ H4: B_HIGH }), expect: { 'CYP-12': N } },
   { name: 'CYP 13/CYP 14: Formation in M15', candidate: () => run({ M15: BASE }, AT, { tf: 'M15' }), expect: { 'CYP-13': N, 'CYP-14': M } },
   { name: 'CYP 13: Formation in D1', candidate: () => run({ D1: BASE }, AT, { tf: 'D1' }), expect: { 'CYP-13': M, 'CYP-14': N } },
@@ -243,6 +250,7 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
     expect(run({ H4: BASE }).verdict).toBe('valid');
     expect(run({ H4: D_SHORT }).verdict).toBe('forming');
     expect(run({ H4: C_CLOSE }).verdict).toBe('invalid');
+    expect(run({ H4: B_CLOSE }).verdict).toBe('invalid');
     expect(run({ H4: CHOP_C }).verdict).toBe('invalid');
     expect(run({ H4: NO_DIVERGENCE }, atOf(NO_DIVERGENCE_LEGS)).verdict).toBe('invalid');
     expect(run({ H4: B_SHALLOW }).verdict).toBe('invalid');
@@ -264,9 +272,9 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
     expect(ok.drawings.every((d) => d.side === 'buy')).toBe(true);
   });
 
-  frm('Pflicht und Verstärkung: CYP 05 und CYP 06 sind Pflicht, CYP 08 Verstärkung, CYP 11 Ausschluss (Annahme)', () => {
+  frm('Pflicht und Verstärkung: CYP 05 und CYP 06 sind Pflicht, CYP 08 Verstärkung, CYP 11 und CYP 15 Ausschluss (Annahme)', () => {
     const c = run({ H4: BASE });
-    expect([find(c, 'CYP-05').kind, find(c, 'CYP-06').kind, find(c, 'CYP-08').kind, find(c, 'CYP-11').kind, find(c, 'CYP-11').status]).toEqual(['required', 'required', 'bonus', 'exclusion', 'assumption']);
+    expect([find(c, 'CYP-05').kind, find(c, 'CYP-06').kind, find(c, 'CYP-08').kind, find(c, 'CYP-11').kind, find(c, 'CYP-11').status, find(c, 'CYP-15').kind, find(c, 'CYP-15').status]).toEqual(['required', 'required', 'bonus', 'exclusion', 'assumption', 'exclusion', 'assumption']);
   });
 
   frm('Automatische Auswahl: Cypher und Spiegelbild liefern X, A, B, C, D aus den Wendepunkten', () => {

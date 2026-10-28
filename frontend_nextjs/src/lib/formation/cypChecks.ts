@@ -3,13 +3,13 @@
  * `analyzeCyp` sucht je geladener Zeiteinheit die letzten Punkte X, A, B, C aus den Wendepunkten und misst D;
  * `checkCypCandidate` prüft eigene Punkte, auch wenn sie keine Formation ergeben (Zeichnung und ☐ gibt es trotzdem).
  *
- * Lesart der Zustände: bei Ereignis-Bedingungen (CYP-07, CYP-11, CYP-14) heißt ☑ „liegt vor“, bei Ausschlüssen also
+ * Lesart der Zustände: bei Ereignis-Bedingungen (CYP-07, CYP-11, CYP-14, CYP-15) heißt ☑ „liegt vor“, bei Ausschlüssen also
  * „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“ (CYP-02 ohne höhere Zeiteinheit im Kontext).
- * Pflicht-Level (CYP-03, CYP-04, CYP-07) gelten bis 1 Pip davor als berührt, das Ausschluss-Level (CYP-11) ohne Toleranz.
+ * Pflicht-Level (CYP-03, CYP-04, CYP-07) gelten bis 1 Pip davor als berührt, die Ausschluss-Level (CYP-11, CYP-15) ohne Toleranz.
  * Die Divergenz (CYP-05) und der RSI (CYP-06) am C sind Pflicht, der RSI am D (CYP-08) nur Verstärkung.
  */
 import type { FormationContext } from './context';
-import { closedBeyondCLimit, extensionOfC, levelBC, levelXC, lenXC, retraceXC } from './cyp';
+import { closedBeyondBLimit, closedBeyondCLimit, extensionOfC, levelBC, levelXC, lenXC, retraceXC } from './cyp';
 import { analyzeLib } from './libChecks';
 import { CYP_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
 import { dirSide, neighborTf, type Env } from './reasons';
@@ -48,6 +48,7 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'CYP-12': ['bonus', 'secondary'],
   'CYP-13': ['bonus', 'confirmed'],
   'CYP-14': ['exclusion', 'confirmed'],
+  'CYP-15': ['exclusion', 'assumption'],
 };
 
 /** Bedingungen mit Prüfung, in der Reihenfolge des Regelwerks */
@@ -55,7 +56,7 @@ export const CYP_CHECK_IDS: readonly string[] = Object.keys(RULES);
 
 /** Bedingungen, an denen die Auswahl der Punkte misst: Form, Vorlauf (Divergenz, RSI) und der Ausschluss der Punkte */
 const FORM_IDS = ['CYP-01', 'CYP-03', 'CYP-04', 'CYP-05', 'CYP-06'];
-const POINT_EXCLUSIONS = ['CYP-11'];
+const POINT_EXCLUSIONS = ['CYP-11', 'CYP-15'];
 
 export type CypPointsInput = XabcdInput;
 export type CypAnalysis = XabcdAnalysis;
@@ -132,6 +133,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   add('CYP-12', prz === null ? U : flag(prz <= P.nearAtr), prz ?? undefined);
   add('CYP-13', flag(HARMONIC_PARAMS.highTimeframes.includes(tf)));
   add('CYP-14', flag(HARMONIC_PARAMS.excludedTimeframes.includes(tf)));
+  add('CYP-15', flag(closedBeyondBLimit(bars, s)));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
   const reached = stateOf('CYP-07') === 'met';
@@ -143,7 +145,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
 
   // D (CYP-07) fehlt nur noch: im Aufbau
   let verdict: Verdict = 'valid';
-  if (['CYP-11', 'CYP-14'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
+  if (['CYP-11', 'CYP-14', 'CYP-15'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
   else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && k.id !== 'CYP-07')) verdict = 'invalid';
   else if (!reached) verdict = 'forming';
 
@@ -162,7 +164,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: bool
   const lastTime = bars[bars.length - 1].time;
   const { x, a, b, c, d, side } = s;
   const out: Drawing[] = [
-    { id: 'Z-CYP-01', tool: 'fib', anchors: [anchorAt(bars, x.idx, x.price), anchorAt(bars, a.idx, a.price)], levels: [P.bLevel, -P.cExtension, -P.cExclude], rules: ids('CYP', [3, 4, 11]), side },
+    { id: 'Z-CYP-01', tool: 'fib', anchors: [anchorAt(bars, x.idx, x.price), anchorAt(bars, a.idx, a.price)], levels: [P.bLevel, -P.cExtension, -P.cExclude], rules: ids('CYP', [3, 4, 11, 15]), side },
     { id: 'Z-CYP-02', tool: 'fib', anchors: [anchorAt(bars, x.idx, x.price), anchorAt(bars, c.idx, c.price)], levels: [P.dLevel], rules: ids('CYP', [7]), side },
     { id: 'Z-CYP-04', tool: 'fib', anchors: [anchorAt(bars, b.idx, b.price), anchorAt(bars, c.idx, c.price)], levels: [P.bcInversion], rules: ids('CYP', [12]), side },
     { id: 'Z-CYP-05', tool: 'zigzag', anchors: zigOf(bars, s, reached), rules: ids('CYP', [1, 3, 4, 7]), side },

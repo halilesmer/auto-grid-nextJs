@@ -215,6 +215,8 @@ export const CYP_PARAMS = {
   cExtension: FIB_PARAMS.extensions[0],
   /** CYP-11: C schließt nicht jenseits dieser Ausdehnung der Fib X → A (1.414, Zahl aus FIB_PARAMS) */
   cExclude: FIB_PARAMS.extensions[1],
+  /** CYP-15 (Annahme): B schließt nicht jenseits dieses Levels der Fib X → A (0.618, Zahl aus FIB_PARAMS) */
+  bExclude: FIB_PARAMS.retrace[2],
   /** CYP-07: D berührt dieses Level der Fib X → C (Zahl aus FIB_PARAMS) */
   dLevel: FIB_PARAMS.levels[4],
   /** CYP-12: D liegt an dieser Ausdehnung der Fib B → C zurück jenseits von B (1.272, Zahl aus FIB_PARAMS) */
