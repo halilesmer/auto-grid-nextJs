@@ -258,6 +258,16 @@ const CASES: Case[] = [
     expect: { 'FIB-27': N },
   },
   {
+    name: 'Bänder von H4 und D1 überlappen, H1 nicht: erfüllt',
+    candidate: () => run({ H4: HEALTHY, H1: zig([120, 135, 128, 133]), D1: zig([110, 125, 116, 122]) }),
+    expect: { 'FIB-27': M },
+  },
+  {
+    name: 'Bänder von H4 überlappen weder mit H1 noch mit D1: nicht erfüllt',
+    candidate: () => run({ H4: HEALTHY, H1: zig([120, 135, 128, 133]), D1: zig([120, 135, 128, 133]) }),
+    expect: { 'FIB-27': N },
+  },
+  {
     name: 'Kauf gegen den Abwärtstrend der höheren Zeiteinheit nach tiefer Korrektur (0,93): ausgeschlossen',
     candidate: () => run({ D1: mirror(HEALTHY), H4: zig([100, 130, 102, 128]) }, 'H4', { side: 'buy' }),
     expect: { 'FIB-28': M },
