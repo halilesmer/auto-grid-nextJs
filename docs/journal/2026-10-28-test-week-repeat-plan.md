@@ -19,7 +19,7 @@ Repeat the test week of `2026-10-18-backtest-live-comparison-plan.md` after the 
 | Item | Finding | Action before start |
 |---|---|---|
 | Worker version | v0.7.251 (`/api/system/worker/status`); latest on `main` is v0.7.273. Auto update is off (`AUTO_UPDATE_MINUTES=0` since the first week). | Set `AUTO_UPDATE_MINUTES` back to 5 or update by hand (`POST /api/system/update`, admin), restart the worker, check that the version is v0.7.273 or later. |
-| Account | DEMO account 7942034 (EightCap demo server). Registered, password stored. | None. |
+| Account | the EightCap DEMO account (see `hooks/test-account.local.md`). Registered, password stored. | None. |
 | Account type | Not readable through the API. The worker reads `margin_mode` at bot start. | Netting account with 2 or more setups on one symbol: the start check (ENG-01, `netting_conflict`) refuses the start. Read the bot log after the start. A refusal ends the test; the account must be a Hedging account. |
 | Settings | The account holds 4 setups (GBPCHF 1, EURUSD 3), not the 24 of the first week. The 24 setups exist in the snapshot of 2026-10-20 and the backup of 2026-10-19 (session notes). | Re-enter the 24 setups from the snapshot (same values, new lots from the balance on the start day), save, compare each field with the snapshot. |
 | Open positions | 4 positions stayed open after the first week. | Close them or record them, so that they do not enter the compare. |
@@ -28,7 +28,7 @@ Repeat the test week of `2026-10-18-backtest-live-comparison-plan.md` after the 
 
 | Item | Value |
 |---|---|
-| Account | Only DEMO account 7942034. No second account. |
+| Account | Only the EightCap DEMO account (see `hooks/test-account.local.md`). No second account. |
 | Symbols and setups | Same as the first week: XAUUSD, EURCHF, USDJPY, USOUSD (grid) and EURUSD, GBPUSD, NDX100, GER40 (fractal), 3 setups each, 24 in total. Values from the approved table in the plan of 2026-10-18. |
 | Period | Start: the second of the bot start after approval. End: one week later, set by the project owner. Both as broker time (UTC+3), to the second. |
 | Merge freeze | No restart of the worker during the week. Auto update stays off after the update to v0.7.273 or later. |
