@@ -227,6 +227,62 @@ export const CYP_PARAMS = {
   targets: ABCD_PARAMS.targets,
 } as const;
 
+/** Butterfly (BUT). Level als Anteil der Strecke, Notation Start = 1, Ende = 0; Ausdehnungen als Anteil von X → A jenseits von X. */
+export const BUT_PARAMS = {
+  /** BUT-02: B berührt mindestens dieses Level der Fib X → A (Zahl aus FIB_PARAMS) */
+  bLevel: FIB_PARAMS.levels[4],
+  /** BUT-03: B berührt dieses Level der Fib X → A (Ausschluss, keine Toleranz; Zahl aus FIB_PARAMS) */
+  bExclude: FIB_PARAMS.lastLevel,
+  /** BUT-04: C berührt mindestens dieses Level der Fib A → B (Zahl aus FIB_PARAMS) */
+  cMin: FIB_PARAMS.retrace[0],
+  /** BUT-05: C berührt dieses Level der Fib A → B (Ausschluss, keine Toleranz; Zahl aus FIB_PARAMS) */
+  cExclude: FIB_PARAMS.lastLevel,
+  /** BUT-07: D berührt diese Ausdehnung der Fib X → A jenseits von X (1.272, Zahl aus FIB_PARAMS) */
+  dExtension: FIB_PARAMS.extensions[0],
+  /** BUT-08: C berührt mindestens dieses Level der Fib A → B (Zahl aus FIB_PARAMS) */
+  cStrong: FIB_PARAMS.retrace[2],
+  /** BUT-09: Rückprojektion der Strecke B → C um dieses Vielfache jenseits von C (Inversion 2) */
+  bcInversion: 2,
+  /** BUT-10: AB-Ausdehnung 1.618 = Level −0.618 der Fib A → B (Zahl aus FIB_PARAMS) */
+  abExtension: FIB_PARAMS.extensions[2],
+  /** BUT-09, BUT-10: „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
+  nearAtr: ABCD_PARAMS.nearAtr,
+  /** BUT-12 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
+  zoneAtr: ABCD_PARAMS.nearAtr,
+  /** Z-BUT-05: Ziele und 1:1-Stop der Ziel-Fib A → D (Zahlen aus ABCD_PARAMS) */
+  targets: ABCD_PARAMS.targets,
+} as const;
+
+/** Crab (CRB) mit Variante Deep Crab. Level wie bei BUT; Ausdehnungen als Anteil von X → A jenseits von X. */
+export const CRB_PARAMS = {
+  /** CRB-02: C berührt mindestens dieses Level der Fib A → B (Zahl aus FIB_PARAMS) */
+  cMin: FIB_PARAMS.retrace[0],
+  /** CRB-03: C berührt dieses Level der Fib A → B (Ausschluss, keine Toleranz; Zahl aus FIB_PARAMS) */
+  cExclude: FIB_PARAMS.lastLevel,
+  /** CRB-04: D berührt diese Ausdehnung der Fib X → A jenseits von X (1.618, Zahl aus FIB_PARAMS) */
+  dExtension: FIB_PARAMS.extensions[2],
+  /** CRB-06: Crab, B berührt mindestens dieses Level der Fib X → A (Zahl aus FIB_PARAMS) */
+  crabBMin: FIB_PARAMS.retrace[0],
+  /** CRB-07: Crab, B berührt dieses Level der Fib X → A (Ausschluss, keine Toleranz; dann Butterfly; Zahl aus FIB_PARAMS) */
+  crabBExclude: FIB_PARAMS.levels[4],
+  /** CRB-08: Deep Crab, B berührt mindestens dieses Level der Fib X → A (Zahl aus FIB_PARAMS) */
+  deepBMin: FIB_PARAMS.lastLevel,
+  /** CRB-09: Deep Crab, B berührt dieses Level der Fib X → A (= X, Ausschluss, keine Toleranz) */
+  deepBExclude: 1,
+  /** CRB-10: Crab, BC-Rückprojektionen 2.618 und 3.618 */
+  crabInversions: [2.618, 3.618] as readonly number[],
+  /** CRB-11: Deep Crab, BC-Rückprojektionen 2 und 2.618 */
+  deepInversions: [2, 2.618] as readonly number[],
+  /** CRB-10, CRB-11: „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
+  nearAtr: ABCD_PARAMS.nearAtr,
+  /** CRB-12 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
+  zoneAtr: ABCD_PARAMS.nearAtr,
+  /** CRB-15: Zeiteinheit, in der die Crab bevorzugt wird */
+  preferredTimeframe: 'H4',
+  /** Z-CRB-04: Ziele und 1:1-Stop der Ziel-Fib A → D (Zahlen aus ABCD_PARAMS) */
+  targets: ABCD_PARAMS.targets,
+} as const;
+
 /** 2618 (Doppeltop/-boden, dann Rücklauf an 0.618). Level als Anteil des Impulses, Notation Start = 1, Ende = 0. */
 export const F2618_PARAMS = {
   /** 2618-05: Level, das die Korrektur berühren muss (keine Toleranz, FIB-09; Zahl aus FIB_PARAMS) */
