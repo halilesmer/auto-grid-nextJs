@@ -377,3 +377,49 @@ export const TDF_PARAMS = {
   maxImpulses: 5,
   maxWaves: 2,
 } as const;
+
+/** Trend-618 (T618). Level als Anteil der Fib P → I, Notation Start = 1, Ende = 0. Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const T618_PARAMS = {
+  /** T618-01: so viele Impulse in Folge, jeder kürzer als der vorige (Zahl aus TRD_PARAMS, TRD-24) */
+  shrinkCount: TRD_PARAMS.shrinkCount,
+  /** T618-03: Berührungen der Linie, die 2 Anker zählen mit */
+  touches: 2,
+  /** T618-07: Level, das die Korrektur berühren muss (keine Toleranz; Zahl aus F2618_PARAMS) */
+  entryLevel: F2618_PARAMS.entryLevel,
+  /** Z-T618-02: obere Grenze der Einstiegszone (Zahl aus F2618_PARAMS) */
+  zoneLevel: F2618_PARAMS.zoneLevel,
+  /** Z-T618-02: Ziel-Level −0.272 und −0.618 der Fib P → I (Zahlen aus FIB_PARAMS) */
+  targetExtensions: [FIB_PARAMS.extensions[0], FIB_PARAMS.extensions[2]] as readonly number[],
+  /** Z-T618-04: Level 1 (AB=CD) und 1.618 der ABC-Expansion */
+  expansion: [1, 1 + FIB_PARAMS.extensions[2]] as readonly number[],
+  /** Auswahl der Punkte (Annahme): P unter den letzten so vielen Extremen der Seite, I unter den letzten `F2618_PARAMS.maxEnds` Impulsenden */
+  maxPeaks: 4,
+} as const;
+
+/** Gemeinsame Zahlen der Linienformationen ENC und KEI. Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const LINE_CHANNEL_PARAMS = {
+  /** ENC-04, KEI-05: Mindestzahl Berührungen oben und unten, abwechselnd gezählt (Zahlen aus TDF_PARAMS, TDF-28) */
+  touches: TDF_PARAMS.touches,
+  /** ENC-02, KEI-02: so viele Impulse in Folge, jeder kürzer als der vorige (Zahl aus TRD_PARAMS, TRD-24) */
+  shrinkCount: TRD_PARAMS.shrinkCount,
+  /** ENC-07: „regelmäßig“ = Anteil der vorigen Korrektur von … bis … (Zahlen aus TRD_PARAMS, TRD-22) */
+  regular: TRD_PARAMS.regular,
+  /** Auswahl der Punkte (Annahme): Beginn der Zählung unter den letzten so vielen Wendepunkten des Trendzugs */
+  maxStarts: 6,
+} as const;
+
+/** Ending Channel (ENC) */
+export const ENC_PARAMS = {
+  /** ENC-04 (Annahme): Berührung der Kopie der Linie = Docht bis höchstens dieses Vielfache der ATR(14) davor (Zahl aus TDF-12) */
+  copyAtr: TDF_PARAMS.parallelAtr,
+  /** Z-ENC-03: Ziel 2 = Kanalhöhe H, so oft in Trade-Richtung ab der Linie */
+  heightTarget: 1,
+} as const;
+
+/** Wendekeil (KEI) */
+export const KEI_PARAMS = {
+  /** KEI-07: erneuter Test der Gegenlinie = so viele Berührungen oben nach dem 2-und-2 (Mindestzahl oben + 1) */
+  retestTops: TDF_PARAMS.touches.top + 1,
+  /** Z-KEI-02: Level der Fib auf die große Bewegung (Zahlen aus FIB_PARAMS) */
+  targetLevels: [FIB_PARAMS.retrace[0], FIB_PARAMS.retrace[2]] as readonly number[],
+} as const;
