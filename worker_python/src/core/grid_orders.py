@@ -22,6 +22,9 @@ from src.utils.zone_magic import (
 MAX_DEVIATION = 20
 
 
+MARKET_CLOSED_RETCODE = 10018
+
+
 def _get_mt5_instance(provided_mt5):
     if provided_mt5 is not None:
         return provided_mt5
@@ -294,11 +297,21 @@ def send_pending_order_helper(
     from src.core.spread_guard import entry_allowed
     from src.core.state import state
 
+    if state.market_closed_until.get(symbol, 0) > clock.monotonic():
+        return False
     if not entry_allowed(mt5, magic):
         return False
     success = safe_send_order(mt5, request, log_message, before_send=lambda: entry_allowed(mt5, magic))
     if not success:
         if state.spread_guard.status.get(magic, {}).get("blocked"):
+            return False
+        # 10018 = seans kapalı: emir hatası sayılmaz, bölge kilitlenmez; süre dolunca tekrar denenir
+        if TradeState.last_retcode == MARKET_CLOSED_RETCODE:
+            state.market_closed_until[symbol] = clock.monotonic() + state.MARKET_CLOSED_CHECK_INTERVAL
+            log_message(
+                f"⏸️ {symbol}: piyasa kapalı (10018). {state.MARKET_CLOSED_CHECK_INTERVAL} sn sonra tekrar denenecek.",
+                "WARNING",
+            )
             return False
         consecutive_errors[zone_idx] = consecutive_errors.get(zone_idx, 0) + 1
 

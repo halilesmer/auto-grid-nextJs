@@ -954,6 +954,14 @@ kategorien:
           - Brokerzeit mit bestätigtem Versatz prüfen; 60 Sekunden alte Ticks bleiben erlaubt, ältere und zukünftige bleiben gesperrt.
           - Einzelne unveränderte Ticks dürfen keinen Versatz bestätigen; Kontowechsel und Neustart verwerfen die Zeitmessung.
         erwartet: Alle Einstiegswege sind gesperrt, offene Positionen und manuelle Orders bleiben. Nach Erholung laufen nur vorher aktive Setups weiter.
+      - id: ENG-32
+        titel: Markt geschlossen (10018) sperrt die Zone nicht
+        beschreibung: "Lehnt MT5 eine Pending Order mit Retcode 10018 „Market closed“ ab (order_check oder order_send), zählt das nicht als fehlgeschlagene Order (ENG-11). Der Bot sendet für dieses Symbol 60 Sekunden (MARKET_CLOSED_CHECK_INTERVAL) keine Orders und versucht es danach erneut. Die Zone wird nicht pausiert."
+        code: [worker_python/src/core/grid_orders.py, worker_python/src/utils/trade_utils.py, worker_python/src/core/state.py]
+        tiers: [unit, manuell]
+        pruefung:
+          - Im DEMO-Lauf über einen Sessionstart (z. B. Montag 00:00 Brokerzeit) prüfen, dass kein „Bölge güvenliğe alınıyor“ erscheint und die Orders nach Marktöffnung stehen.
+        erwartet: Nach 10018 keine Zonensperre; Orders erscheinen nach Marktöffnung.
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm

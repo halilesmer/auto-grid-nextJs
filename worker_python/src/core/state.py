@@ -39,6 +39,8 @@ class GridState:
     # Bot silerse kayıt düşer; bot silmeden ve dolmadan kaybolan emir "dışarıdan silindi" sayılır
     # (grid_execution/vanished.py, emir seli freni).
     placed_orders: Dict[int, tuple] = field(default_factory=dict)
+    # Sembol → monotonic bitiş: 10018 "Market closed" sonrası emir gönderilmez (ENG-32)
+    market_closed_until: Dict[str, float] = field(default_factory=dict)
     # Bölge → dışarıdan silinen emirlerin zamanları (monotonic, kayan pencere)
     vanished_times: Dict[int, list] = field(default_factory=dict)
     # Kaldırılan fraktal ek kurgularının emirleri için kullanıcı kararı: "delete" / "keep" / "" (bekliyor)
@@ -79,6 +81,7 @@ class GridState:
         self.fractal_done_loaded = False
         self.fractal_logged.clear()
         self.placed_orders.clear()
+        self.market_closed_until.clear()
         self.vanished_times.clear()
         self.ui_remap_pending = None
         self.netting_conflict_logged = None
