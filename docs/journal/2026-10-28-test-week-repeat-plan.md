@@ -49,9 +49,26 @@ Repeat the test week of `2026-10-18-backtest-live-comparison-plan.md` after the 
 - Known causes that stay (D3 spread, D4 candle order, D5 rollover spread, D6 stop slippage) are not defects. Count only differences without a known cause.
 - Because up to 3 setups now trade at one time, the margin use is higher than in the first week. Record the lowest margin level.
 
+## Start (2026-10-28)
+
+| Item | Value |
+|---|---|
+| Worker | v0.7.278 at the start (checked before) |
+| Settings | 24 setups entered 1:1 from the snapshot of 2026-10-20 (all fields equal, only `magic` is new: 200041–200064). The 4 earlier setups are saved in the session notes. |
+| Bot start | `POST /api/start` sent 2026-10-28 21:47:21 UTC, answer 21:47:23 UTC (about 2026-10-29 00:47:22 broker time, UTC+3). The project owner approved the start. |
+| Old magics | 3 open positions and 1 pending order of the first week keep the old magics 200022 and 200031. The new setups do not manage them. |
+
+First 3 minutes after the start (bot log):
+
+- No `netting_conflict`. The account passed the start check.
+- The market was closed for some symbols. Orders got retcode 10018. Each reject was followed by "piyasa kapalı (10018). 60 sn sonra tekrar denenecek" and no zone lock ("Bölge güvenliğe alınıyor" did not appear). This is the first live proof of D2.
+- Defect found: the cleanup "Mutlak Temizlik" tries every 2 s to cancel the old pending order of magic 200022 (USOUSD) as a zone without a setup. While the market is closed, each try gets 10018. It floods the log until the market opens. The 3 old positions are not touched.
+
 ## Open points
 
-- [ ] Update the worker to v0.7.273 or later and check the version.
+- [x] Update the worker to v0.7.273 or later and check the version (v0.7.278).
 - [ ] Check the account type (Hedging needed).
-- [ ] Enter the 24 setups and calculate the lots from the balance on the start day.
-- [ ] Approval of the bot start by the project owner (`hooks/RULES.md` §3).
+- [x] Enter the 24 setups (values of 2026-10-20, lots unchanged by decision of the project owner).
+- [x] Approval of the bot start by the project owner (`hooks/RULES.md` §3).
+- [ ] Cleanup of old-magic orders retries every 2 s on retcode 10018. Decide if it needs a fix.
+- [ ] Set `AUTO_UPDATE_MINUTES` to 0 on the VPS for the week.
