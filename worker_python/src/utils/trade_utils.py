@@ -9,6 +9,8 @@ class TradeState:
     last_error_message = ""
     # Son başarılı bekleyen emrin bileti (dışarıdan silinen emir takibi, grid_execution/vanished.py)
     last_order_ticket = 0
+    # Retcode der letzten Ablehnung (10018 = Markt geschlossen, ENG-32); 0 = kein Retcode
+    last_retcode = 0
 
 
 def _info_value(info, names, default):
@@ -156,6 +158,7 @@ def safe_send_order(mt5_module, request, log_func=None, *, before_send=None):
     """
     Merkezi Emir Gönderici ve Hata Yakalayıcı.
     """
+    TradeState.last_retcode = 0
     try:
         # 1. KORUMA: Lot değerini temizle
         if "volume" in request and "symbol" in request:
@@ -174,6 +177,7 @@ def safe_send_order(mt5_module, request, log_func=None, *, before_send=None):
             check = mt5_module.order_check(request)
             if check is None or check.retcode != 0:
                 retcode = check.retcode if check else -1
+                TradeState.last_retcode = retcode
                 if retcode == 10027:
                     TradeState.algo_trading_disabled = True
                     TradeState.last_error_message = "Algo Trading kapalı!"
@@ -200,6 +204,7 @@ def safe_send_order(mt5_module, request, log_func=None, *, before_send=None):
         if result.retcode != 10009:
             err_code = result.retcode
             err_comment = getattr(result, "comment", "Terminal Yanıt Vermedi")
+            TradeState.last_retcode = err_code
 
             if result.retcode == 10027:
                 TradeState.algo_trading_disabled = True

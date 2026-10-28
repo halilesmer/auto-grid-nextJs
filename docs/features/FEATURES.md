@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-28 · **174/177** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-28 · **174/178** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 20/20 |
 | 7 | **BOT** – Bot-Steuerung | 7/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 30/30 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 30/31 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
@@ -471,6 +471,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Im DEMO-Test nach gesonderter Freigabe Grenze unter den aktuellen Spread setzen; nur Pending Orders dieses Setups verschwinden. → Brokerzeit mit bestätigtem Versatz prüfen; 60 Sekunden alte Ticks bleiben erlaubt, ältere und zukünftige bleiben gesperrt. → Einzelne unveränderte Ticks dürfen keinen Versatz bestätigen; Kontowechsel und Neustart verwerfen die Zeitmessung.
   - **Erwartet:** Alle Einstiegswege sind gesperrt, offene Positionen und manuelle Orders bleiben. Nach Erholung laufen nur vorher aktive Setups weiter.
   - 📝 DEMO, EURUSD-Fraktal-Setup: Grenze 0.000001 sperrt (high), 3 BUY LIMIT gelöscht; bei Grenze 0.001 ready und 3 BUY LIMIT neu; Brokerzeit, Kontowechsel und Neustart nur per Unit-Test (42 grün); manuelle Order/Position und 30 s nicht live geprüft
+- [ ] **ENG-32** Markt geschlossen (10018) sperrt die Zone nicht — 🧪 unit ✅ 2026-10-28 · 👤 manuell ⏳
+  - Lehnt MT5 eine Pending Order mit Retcode 10018 „Market closed“ ab (order_check oder order_send), zählt das nicht als fehlgeschlagene Order (ENG-11). Der Bot sendet für dieses Symbol 60 Sekunden (MARKET_CLOSED_CHECK_INTERVAL) keine Orders und versucht es danach erneut. Die Zone wird nicht pausiert.
+  - **Prüfung:** Im DEMO-Lauf über einen Sessionstart (z. B. Montag 00:00 Brokerzeit) prüfen, dass kein „Bölge güvenliğe alınıyor“ erscheint und die Orders nach Marktöffnung stehen.
+  - **Erwartet:** Nach 10018 keine Zonensperre; Orders erscheinen nach Marktöffnung.
 
 ## 9. MET – Live-Daten & Diagramm
 

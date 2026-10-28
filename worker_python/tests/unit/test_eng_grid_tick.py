@@ -354,3 +354,34 @@ def test_erfolg_setzt_fehlerzaehler_zurueck(fake_mt5):
     assert engine.active_zones_state.get(0) != "PAUSE"
     assert engine.consecutive_errors.get(0) == 0
     assert len(fake_mt5.robot_orders()) == 4  # 2 abgelehnt, 4 gesetzt
+
+
+# --------------------------------------------------------------------------- ENG-32
+@pytest.mark.feature("ENG-32")
+def test_market_closed_10018_pausiert_die_zone_nicht(fake_mt5, ui_state_file):
+    m = fake_mt5
+    m.reject(10018, times=100)  # Sessionstart: Broker meldet „Market closed“
+    engine = EngineHarness(m, [make_zone(order_type="BUY")])
+    engine.tick()
+    engine.tick()
+
+    assert engine.active_zones_state.get(0) != "PAUSE"
+    assert engine.consecutive_errors.get(0, 0) == 0
+    assert len(m.checked) == 1  # nach dem ersten 10018 keine weiteren Versuche für das Symbol
+
+
+@pytest.mark.feature("ENG-32")
+def test_nach_marktoeffnung_setzt_der_bot_die_orders(fake_mt5, monkeypatch):
+    from src.core import clock
+
+    now = [1000.0]
+    monkeypatch.setattr(clock, "monotonic", lambda: now[0])
+    m = fake_mt5
+    m.reject(10018, times=1)
+    engine = EngineHarness(m, [make_zone(order_type="BUY")])
+    engine.tick()
+    assert m.robot_orders() == []
+
+    now[0] += 61  # Wartezeit vorbei, Markt offen
+    engine.tick()
+    assert len(m.robot_orders()) == 6
