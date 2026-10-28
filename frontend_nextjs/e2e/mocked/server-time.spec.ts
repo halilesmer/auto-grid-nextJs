@@ -47,6 +47,13 @@ test.describe('ANA-10 Zeitmodell', () => {
     expect(rangeBounds({ from: null, to: null })).toEqual({ from: null, to: null });
   });
 
+  test('Uhrzeit setzt Start und Ende sekundengenau, Ende 00:00:00 bleibt Tagesende', { tag: '@BKT-15' }, () => {
+    const exact = rangeBounds({ from: '2026-10-22', to: '2026-10-28', fromTime: '09:30:00', toTime: '17:45:30' });
+    expect(exact.from).toBe(Date.UTC(2026, 9, 22, 9, 30, 0) / 1000); // 1792661400
+    expect(exact.to).toBe(Date.UTC(2026, 9, 28, 17, 45, 30) / 1000); // 1793209530
+    expect(rangeBounds({ from: '2026-10-22', to: '2026-10-28', toTime: '00:00:00' }).to).toBe(Date.UTC(2026, 9, 29) / 1000);
+  });
+
   test('Eingabe TT.MM.JJ', { tag: '@ANA-10' }, () => {
     expect(parseDayInput('01.09.26')).toBe('2026-09-01');
     expect(parseDayInput(' 1.9.2026 ')).toBe('2026-09-01');

@@ -62,8 +62,8 @@ Each logic difference is a separate fix task. They are listed here and not fixed
 - [ ] Fix D1: decide if more than one setup of a symbol can be active at the same time. Then change the bot (`grid_zone_selector.py`, `grid_orchestrator.py`) or make the backtest model "first matching setup only".
 - [x] Fix D2 (ENG-32, `2026-10-28-market-closed-10018.md`): do not count retcode 10018 "Market closed" as a failed order; do not send orders while the session is closed; do not lock the zone for the rest of the run.
 - [ ] Repeat the test week after D1 and D2.
-- [ ] Small UI defect: the saved report list shows the worker version as "vv0.7.251".
-- [ ] The page accepts only whole days for the period. A live comparison needs the exact start and end second.
+- [x] Small UI defect (`2026-10-28-backtest-version-and-exact-range.md`): the saved report list shows the worker version as "vv0.7.251".
+- [x] The page accepts only whole days (`2026-10-28-backtest-version-and-exact-range.md`) for the period. A live comparison needs the exact start and end second.
 
 ## Lessons
 

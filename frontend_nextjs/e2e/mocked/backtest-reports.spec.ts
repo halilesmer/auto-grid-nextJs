@@ -37,6 +37,8 @@ test('Vergleich speichern, neu laden, öffnen (nur lesen) und löschen', { tag: 
   await page.getByTestId('lc-save-button').click();
   await expect(page.getByTestId('lc-saved-item')).toHaveCount(1);
   await expect(page.getByTestId('lc-saved-item')).toContainText('Woche 43');
+  await expect(page.getByTestId('lc-saved-item')).toContainText(' · v0.0.0-mock');
+  await expect(page.getByTestId('lc-saved-item')).not.toContainText('vv');
 
   const posts = worker.callsTo('POST', '/api/backtest/reports');
   expect(posts).toHaveLength(1);

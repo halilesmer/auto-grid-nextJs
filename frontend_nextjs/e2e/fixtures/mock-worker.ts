@@ -690,7 +690,7 @@ export class MockWorker {
         }
         if (this.reports.filter((r) => r.owner === principal.id).length >= 50) return { status: 409, body: { detail: 'Report limit reached (50)' } };
         const { requestId, ...rest } = body;
-        const report = { ...rest, name, id: String(requestId), owner: principal.id, workerVersion: '0.0.0-mock', createdAt: Math.floor(Date.now() / 1000) };
+        const report = { ...rest, name, id: String(requestId), owner: principal.id, workerVersion: 'v0.0.0-mock', createdAt: Math.floor(Date.now() / 1000) };
         const row = { ...report, ...summary(report) };
         this.reports.push(row);
         return { status: 201, body: { report: row } };

@@ -20,7 +20,7 @@ export function SetupCards({ setups, runs, activeId, onEdit, onPreset, onTransfe
     {setups.map((setup, index) => {
       const run = runs[setup.id] ?? EMPTY_RUN;
       const { zone, form } = setup;
-      const draftRange = 'custom' in setup.range ? `${setup.range.custom.from} – ${setup.range.custom.to}` : t(`analysis.range.preset.${setup.range.preset}`);
+      const draftRange = 'custom' in setup.range ? `${setup.range.custom.from} ${setup.range.custom.fromTime ?? ''} – ${setup.range.custom.to} ${setup.range.custom.toTime ?? ''}`.replace(/ {2,}/g, ' ') : t(`analysis.range.preset.${setup.range.preset}`);
       const range = run.context ? `${fmt.mt5DateTime(run.context.params.from)} – ${fmt.mt5DateTime(run.context.params.to)}`
         : draftRange;
       const tone = { idle: 'info', running: 'info', error: 'danger', done: 'success' } as const;
