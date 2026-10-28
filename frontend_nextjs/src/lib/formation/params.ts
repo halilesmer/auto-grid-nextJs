@@ -257,3 +257,22 @@ export const LIB_PARAMS = {
   /** Auswahl der Punkte: höchstens so viele P3-Kandidaten je Paar */
   maxEnds: 6,
 } as const;
+
+/** Kopf-Schulter (OBO). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
+export const OBO_PARAMS = {
+  /** OBO-06 (Annahme): Schultern ähnlich groß = Verhältnis der Bewegungen innerhalb dieser Grenzen */
+  shoulderRatio: { min: 0.8, max: 1.25 },
+  /** OBO-07 (Annahme): rechte Schulter dauert so viele Male die Kerzen der Bewegung Kopf → N2 */
+  consolidation: 1.5,
+  /** OBO-10: „zusammenfallen“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
+  nearAtr: ABCD_PARAMS.nearAtr,
+  /** OBO-09: Zeiteinheiten mit Verstärkung */
+  timeframes: ['H4', 'D1'] as readonly string[],
+  /** OBO-14: Zeiteinheiten unter H1 */
+  belowH1: ['M15'] as readonly string[],
+  /** Auswahl der Punkte (Annahme): Kopf unter den letzten so vielen Fraktalen, je Kopf so viele linke Schultern, so viele rechte Schultern */
+  maxPeaks: 6,
+  maxHeads: 3,
+  maxLeft: 2,
+  maxRight: 2,
+} as const;
