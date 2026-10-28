@@ -207,6 +207,26 @@ export const BAT_PARAMS = {
   bExclude: FIB_PARAMS.retrace[2],
 } as const;
 
+/** Cypher (CYP). Level als Anteil der Strecke, Notation Start = 1, Ende = 0; Ausdehnungen als Anteil von X → A jenseits von A. */
+export const CYP_PARAMS = {
+  /** CYP-03: B berührt mindestens dieses Level der Fib X → A (Zahl aus FIB_PARAMS) */
+  bLevel: FIB_PARAMS.retrace[0],
+  /** CYP-04: C berührt mindestens diese Ausdehnung der Fib X → A (1.272, Zahl aus FIB_PARAMS) */
+  cExtension: FIB_PARAMS.extensions[0],
+  /** CYP-11: C schließt nicht jenseits dieser Ausdehnung der Fib X → A (1.414, Zahl aus FIB_PARAMS) */
+  cExclude: FIB_PARAMS.extensions[1],
+  /** CYP-07: D berührt dieses Level der Fib X → C (Zahl aus FIB_PARAMS) */
+  dLevel: FIB_PARAMS.levels[4],
+  /** CYP-12: D liegt an dieser Ausdehnung der Fib B → C zurück jenseits von B (1.272, Zahl aus FIB_PARAMS) */
+  bcInversion: 1 + FIB_PARAMS.extensions[0],
+  /** CYP-10, CYP-12: „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
+  nearAtr: ABCD_PARAMS.nearAtr,
+  /** CYP-09 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
+  zoneAtr: ABCD_PARAMS.nearAtr,
+  /** Z-CYP-03: Ziele und 1:1-Stop der Ziel-Fib C → D (Zahlen aus ABCD_PARAMS) */
+  targets: ABCD_PARAMS.targets,
+} as const;
+
 /** 2618 (Doppeltop/-boden, dann Rücklauf an 0.618). Level als Anteil des Impulses, Notation Start = 1, Ende = 0. */
 export const F2618_PARAMS = {
   /** 2618-05: Level, das die Korrektur berühren muss (keine Toleranz, FIB-09; Zahl aus FIB_PARAMS) */
