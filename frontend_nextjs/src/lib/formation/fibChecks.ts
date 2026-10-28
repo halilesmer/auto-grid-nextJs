@@ -269,11 +269,15 @@ function evaluate(env: Env, fib: FibModel, input: FibLegInput | null, options: F
   // zwei Zeiteinheiten
   const lowerTf = neighborTf(env, tf, 1);
   const higherTf = neighborTf(env, tf, -1);
-  const otherTf = lowerTf ?? higherTf;
-  const other = otherTf ? env.fibs.get(otherTf)?.state : undefined;
+  const neighbors = [lowerTf, higherTf].flatMap((n) => {
+    const nState = n ? env.fibs.get(n)?.state : undefined;
+    return nState ? [nState] : [];
+  });
   const bandA = fixedLeg ? bandOf(fixedLeg) : undefined;
-  const bandB = other ? bandOf(other.leg) : undefined;
-  add('FIB-27', !bandA || !bandB || !other ? U : flag(other.leg.dir === fixedLeg!.dir && rectGap(bandA, bandB) === 0));
+  const overlapping = bandA ? neighbors.find((n) => n.leg.dir === fixedLeg!.dir && rectGap(bandA, bandOf(n.leg)) === 0) : undefined;
+  // Z-FIB-07 zeigt den überlappenden Nachbarn, sonst die tiefere ZE zuerst
+  const other = overlapping ?? neighbors[0];
+  add('FIB-27', !bandA || !other ? U : flag(!!overlapping));
   const higherDir = higherTf ? env.fibs.get(higherTf)?.dir : null;
   add(
     'FIB-28',
