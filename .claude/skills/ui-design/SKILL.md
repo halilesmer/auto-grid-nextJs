@@ -5,6 +5,8 @@ description: Design and UI rules for the Auto Grid frontend (frontend_nextjs). U
 
 # Auto Grid UI design
 
+**Step 0 — design first:** before any UI code change, propose the design as an Artifact and finish it with the user; edit code only after they approve it (`CLAUDE.md`, Conventions).
+
 A dense, calm trading dashboard: the user watches bots, zones and P/L and must never misread a
 number or trigger a trade by accident. Consistency and legibility beat decoration. Talk to the
 user in German.
