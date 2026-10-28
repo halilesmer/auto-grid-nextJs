@@ -767,6 +767,20 @@
       "tests": 51
     }
   },
+  "FRM-13": {
+    "e2e": {
+      "datum": "2026-10-28",
+      "status": "passed",
+      "tests": 50
+    }
+  },
+  "FRM-14": {
+    "e2e": {
+      "datum": "2026-10-28",
+      "status": "passed",
+      "tests": 56
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-10-28",
