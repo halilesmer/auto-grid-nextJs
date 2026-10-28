@@ -192,6 +192,8 @@ export function defaultState() {
     brokerOffset: 3 * 3600,
     brokerClockReliable: true,
     /** Fehlende Kerzen-Bereiche (GET /market/{id}/rates → missing), MT5-Zeit; dort liefert der Mock keine Kerzen. */
+    /** Feste Kerzen je Zeitrahmen als Zeilen [Zeit, Open, High, Low, Close] (Formationserkennung); null = erzeugte Sinuskurve */
+    ratesSeries: null as Record<string, number[][]> | null,
     ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],
     /** Antwort von /rates erzwingt einen Fehler (z. B. 503 Datenbank nicht bereit); null = normal */
     ratesError: null as { status: number; detail: string } | null,

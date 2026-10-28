@@ -1803,3 +1803,48 @@ kategorien:
         pruefung:
           - Playwright-Logiktest e2e/mocked/formation-kei-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Kauf/Verkauf, Abgrenzung zum Kanal und zum Dreieck mit flacher Gegenlinie, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
         erwartet: Jeder Fall stimmt mit der Handrechnung überein; ein steigender Keil im Aufwärtstrend und sein Spiegelbild haben dieselben Zustände; auseinanderlaufende Linien oder eine flache Gegenlinie machen die Formation ungültig; bei den echten Reihen stimmen Punkte, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen und beim Fall im Aufbau.
+
+      - id: FRM-18
+        titel: "Seite Formasyon: Zeiteinheit- und Formationsleiste"
+        beschreibung: "Die Seite /formasyon (formasyon/page.tsx) wählt Konto und Setup wie /chart (Adresse ?account=&zone=&tf=&form=, selectAccount, ZoneSelect); das Symbol ist das des Setups. Oben stehen die Zeiteinheiten D1/H4/H1/M15 und die Formationen ABCD, Gartley, Bat, Butterfly, Crab, Cypher, Doppeltop als Schaltflächen mit Treffer-Badge: die Zahl der Treffer, die gültig oder im Aufbau sind (ungültige zählen nicht), bei der Zeiteinheit über alle Formationen, bei der Formation über alle Zeiteinheiten. Klick auf eine Formation springt zur Zeiteinheit ihres Treffers; hat die gewählte Zeiteinheit einen Treffer, bleibt sie (scan.ts, FormationToolbar.tsx). Ohne Treffer auf der gewählten Zeiteinheit steht „Keine Formation gefunden“ statt Chart und Checkliste."
+        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/formation/FormationToolbar.tsx, frontend_nextjs/src/hooks/useFormationParams.ts, frontend_nextjs/src/lib/formation/scan.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-18) ausführen (Badge-Zahlen auf einer echten H4-Reihe, Sprung zur Zeiteinheit des Treffers, Leerzustand auf M15).
+        erwartet: Die Badges zeigen die Treffer der Fixture (Gartley gültig, Bat im Aufbau); ein Klick auf Gartley bei gewählter M15 wechselt auf H4; auf M15 steht der Leerzustand ohne Checkliste.
+
+      - id: FRM-19
+        titel: "Seite Formasyon: Kandidaten-Liste und Checkliste"
+        beschreibung: "Rechts neben dem Chart (unter 900 px darunter) steht oben die Kandidaten-Liste (Name, Zeiteinheit, Urteil gültig/ungültig/im Aufbau) und darunter die Checkliste des gewählten Kandidaten: Kopf mit Titel und Urteil, Pflicht x/y (n nicht messbar), Verstärkungen x/y, Balken; die Gruppen Pflicht, Verstärkung und Ausschluss; je Zeile ein Symbol mit Beschriftung für erfüllt, nicht erfüllt, Ausschluss ausgelöst/nicht eingetreten und nicht messbar (nie nur Farbe), Marken für die Status secondary und assumption, gemessener Wert, Legende. Bei einer Formation im Aufbau nennt ein Hinweis den fehlenden Punkt, bei einer ungültigen die Bedingungen, die sie ungültig machen. Die Kurztexte je Bedingungs-ID stehen in ruleTexts.ts (tr/en/de)."
+        code: [frontend_nextjs/src/components/formation/CandidateList.tsx, frontend_nextjs/src/components/formation/FormationChecklist.tsx, frontend_nextjs/src/lib/formation/ruleTexts.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (Gartley gültig mit drei Gruppen und allen Zeilenzuständen, Bat im Aufbau mit Hinweis auf D).
+        erwartet: Die Liste zeigt das Urteil der Bibliothek, die Zähler stehen als x/y, jede Zeile trägt ein beschriftetes Symbol, die Formation im Aufbau nennt D und der Chart führt D als offen.
+
+      - id: FRM-20
+        titel: "Seite Formasyon: Chart mit Zeichnungen"
+        beschreibung: "Der Chart (lightweight-charts) zeigt die Kerzen der gewählten Zeiteinheit und RSI(7) in eigenem Pane mit den Linien 80 und 20. Die Zeichnungen der Erkennung (Zickzack mit Punktnamen, Verhältnis-Linien mit Beschriftung, Zielpunkt, Zone, Umkehrkerzen-Marke) liegen als SVG-Overlay über den Canvases in einem eigenen Stapelkontext; das Overlay endet vor der Preisachse und folgt Zoom, Verschieben und Größenänderung. Kauf ist grün, Verkauf rot (Farben aus den Theme-Tokens). Eine Formation im Aufbau zeigt die bestätigten Punkte fest, den Weg zum fehlenden Endpunkt gestrichelt, den Endpunkt als offenen Kreis mit Fragezeichen und die Zone als „mögliche Zone“. Hover auf eine Checklisten-Zeile hebt die Zeichnungen ihrer Bedingung hervor, der Rest wird blass; Hover auf eine Zeichnung hebt die zugehörigen Zeilen hervor (drawingLayout.ts, FormationChart.tsx)."
+        code: [frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/lib/formation/drawingLayout.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-20) ausführen (Zeichnungen vorhanden, Hover auf eine Zeile hebt hervor, Overlay-Breite endet vor der Preisachse).
+        erwartet: Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben.
+
+      - id: FRM-21
+        titel: "Seite Formasyon: Hintergrundsuche"
+        beschreibung: "Die Seite lädt D1, H4, H1 und M15 des Setup-Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die letzte geschlossene M15-Kerze ändert; zwischen zwei M15-Kerzen ändert sich keine geschlossene Kerze. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung."
+        code: [frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/lib/formation/scan.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem Symbol des Setups geladen, data-scan-ms ist gesetzt).
+        erwartet: Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das Symbol des Setups.
+
+      - id: FRM-22
+        titel: "Seite Formasyon: schmale Ansicht, Sprachen und Hinweise"
+        beschreibung: "Bei 375 px steht die Spalte mit Liste und Checkliste unter dem Chart, die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts)."
+        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/i18n/messages/formation.ts, frontend_nextjs/src/i18n/messages/hints.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-22) ausführen; der Abdeckungstest UI-07 prüft die Tooltips.
+        erwartet: Bei 375 px liegt die Checkliste unter dem Chart und scrollWidth ist nicht größer als clientWidth.
