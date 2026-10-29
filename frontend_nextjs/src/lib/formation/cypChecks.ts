@@ -5,10 +5,11 @@
  *
  * Lesart der Zustände: bei Ereignis-Bedingungen (CYP-07, CYP-11, CYP-14, CYP-15) heißt ☑ „liegt vor“, bei Ausschlüssen also
  * „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“ (CYP-02 ohne höhere Zeiteinheit im Kontext).
- * Pflicht-Level (CYP-03, CYP-04, CYP-07) gelten bis 1 Pip davor als berührt, die Ausschluss-Level (CYP-11, CYP-15) ohne Toleranz.
+ * Nur CYP-07 nutzt 1 Pip Toleranz; CYP-03, CYP-04 und die Ausschluss-Level werden ohne Pip-Toleranz geprüft.
  * Die Divergenz (CYP-05) und der RSI (CYP-06) am C sind Pflicht, der RSI am D (CYP-08) nur Verstärkung.
  */
 import type { FormationContext } from './context';
+import { outward } from './frz';
 import { closedBeyondBLimit, closedBeyondCLimit, extensionOfC, levelBC, levelXC, lenXC, retraceXC } from './cyp';
 import { analyzeLib } from './libChecks';
 import { CYP_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
@@ -24,6 +25,7 @@ import {
   ids,
   reaches,
   retraceXA,
+  levelXA,
   unmeasurable,
   zigOf,
   zonesNear,
@@ -83,7 +85,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   const trend = env.trends.get(tf)!;
   const { bars } = view;
   const last = bars.length - 1;
-  const { x, a, b, c, d, es, cs, side, len } = s;
+  const { x, a, b, c, d, es, cs, side } = s;
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
 
@@ -107,8 +109,8 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
 
   // Vorlauf: Korrektur, zweiter Impuls, Divergenz und RSI am C
   const rB = retraceXA(s, b.price);
-  add('CYP-03', flag(reaches(rB, P.bLevel, len, pip)), rB ?? undefined);
-  add('CYP-04', flag(reaches(extC, P.cExtension, len, pip)), extC ?? undefined);
+  add('CYP-03', flag(outward(es, b.price) >= outward(es, levelXA(s, P.bLevel))), rB ?? undefined);
+  add('CYP-04', flag(outward(cs, c.price) >= outward(cs, levelXA(s, -P.cExtension))), extC ?? undefined);
   const div = divergenceOf(trend, cs, a.idx, c.idx);
   add('CYP-05', div === null || div.a.wave === null || div.b.wave === null ? U : flag(div.strict));
   const rsiC = view.rsi[c.idx] ?? null;
@@ -123,8 +125,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   const atr = view.atr[d ? d.idx : last] ?? null;
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('CYP-08', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
-  const near = atr === null ? null : P.zoneAtr * atr;
-  add('CYP-09', near === null ? U : flag(zonesNear(env, tf, s, entry, near).length > 0));
+  add('CYP-09', flag(zonesNear(env, tf, s, entry, 0).length > 0));
   add('CYP-10', atr === null ? U : flag(libraAtEntry(libras(), tf, side, entry, P.nearAtr * atr)));
 
   // Ausschluss und PRZ

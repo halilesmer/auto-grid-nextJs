@@ -5,7 +5,7 @@
  * Basis (Verkauf): Wendepunkte 100, 150, 130, 179, 160, 195, 150 mit 8 Kerzen je Zug; der k-te liegt auf Index 42 + 8k.
  * Trendlinie durch die Tiefs 100 (Index 42) und 130 (Index 58): 1,875 je Kerze; bei Index 74 liegt sie bei 160 (das zweite Tief berührt sie),
  * bei Index 50 bei 115 und bei Index 66 bei 145. Kopie am äußersten Extrem: Abstand der Hochs 150 (35) und 179 (34): Kopie bei +35,
- * das zweite Hoch verfehlt sie um 1 (innerhalb von 0,5 × ATR). Impulse 50, 49, 35 (jeder kürzer), Korrekturen 20 und 19 (Anteil 0,95).
+ * das zweite Hoch verfehlt sie um 1 und zählt nicht als Berührung. Impulse 50, 49, 35 (jeder kürzer), Korrekturen 20 und 19 (Anteil 0,95).
  * Die Linie liegt bei Index 82 bei 175, bei Index 90 bei 190: der Fall auf 150 schließt unter ihr.
  * FRM-16 Formationserkennung: Ending Channel
  */
@@ -63,6 +63,17 @@ const IRREGULAR = lineRows([100, 150, 130, 188, 160, 195, 150]);
 const PARALLEL = lineRows([100, 150, 130, 181, 160, 200, 150]);
 /** Ein Keil: das zweite Hoch 176 liegt weit unter der Kopie (Abstand 31 statt 35) */
 const WEDGE = lineRows([100, 150, 130, 176, 160, 202, 150]);
+/** Exakte Kopie: beide Hochs haben Abstand 35 zur Trendlinie. */
+const EXACT_CHANNEL = lineRows([100, 150, 130, 180, 160, 195, 150]);
+
+for (const buy of [false, true]) {
+  for (const edge of [{ high: 180, want: M }, { high: 179.999, want: N }, { high: 179.99999, want: N }]) {
+    frm(`ENC-04: ${buy ? 'Kauf' : 'Verkauf'}, zweites Extrem ${edge.high}`, () => {
+      const candidate = run(lineRows([100, 150, 130, edge.high, 160, 195, 150]), { buy });
+      expect(state(candidate, 'ENC-04')).toBe(edge.want);
+    });
+  }
+}
 
 // ---- Fälle -----------------------------------------------------------------------------------------------------
 
@@ -75,13 +86,14 @@ interface Case {
 }
 
 const CASES: Case[] = [
-  { name: 'Kanal mit Kraftverlust, 2-und-2, Schluss unter der Linie, Trendwechsel: alles erfüllt', rows: BASE, expect: { '01': U, '02': M, '03': M, '04': M, '05': M, '06': M, '07': M } },
+  { name: 'Exakte Kopie: zwei Berührungen auf jeder Seite', rows: EXACT_CHANNEL, expect: { '04': M } },
+  { name: 'Kanal mit Kraftverlust und Bruch: zweites Hoch verfehlt die Kopie', rows: BASE, expect: { '01': U, '02': M, '03': M, '04': N, '05': M, '06': M, '07': M } },
   { name: 'ENC 01 ☑: Trend in H4 und in der tieferen Zeiteinheit H1 zeigt nach oben', rows: BASE, options: { H1: trendH1(true) }, expect: { '01': M } },
   { name: 'ENC 01 ☐: Trend in H1 zeigt nach unten (Gegenbewegung in der tieferen Zeiteinheit, keine Flagge im Trend)', rows: BASE, options: { H1: trendH1(false) }, expect: { '01': N } },
   { name: 'ENC 02 ☐: der letzte Impuls ist länger als der vorige', rows: STRONG_LAST, expect: { '02': N, '03': M } },
   { name: 'ENC 03 ☐: die Trendlinie fällt', rows: FALLING_LINE, expect: { '03': N } },
   { name: 'ENC 04 ☐: das zweite Tief liegt über der Linie', rows: NO_SECOND_LOW, expect: { '04': N, '03': M, '05': M } },
-  { name: 'ENC 05 ☐: kein Schluss unter der Linie', rows: NO_ACTIVATION, expect: { '05': N, '04': M, '06': N } },
+  { name: 'ENC 05 ☐: kein Schluss unter der Linie', rows: NO_ACTIVATION, expect: { '05': N, '04': N, '06': N } },
   { name: 'ENC 06 ☐: Schluss unter der Linie, aber nie unter dem Tief 160', rows: NO_CHANGE, expect: { '05': M, '06': N } },
   { name: 'ENC 07 ☐: die Korrekturen sind nicht regelmäßig (Anteil 1,4)', rows: IRREGULAR, expect: { '07': N, '02': M } },
 ];
@@ -94,9 +106,11 @@ for (const c of CASES) {
 }
 
 frm('Urteil: gültig bei allen Pflichten, im Aufbau ohne Aktivierung, ungültig bei verletzter Form', () => {
-  expect(run(BASE).verdict).toBe('valid');
-  expect(run(BASE, { H1: trendH1(true) }).verdict).toBe('valid');
-  expect(run(NO_CHANGE).verdict).toBe('valid');
+  expect(run(EXACT_CHANNEL).verdict).toBe('valid');
+  expect(run(EXACT_CHANNEL, { H1: trendH1(true) }).verdict).toBe('valid');
+  expect(run(BASE).verdict).toBe('invalid');
+  expect(run(BASE, { H1: trendH1(true) }).verdict).toBe('invalid');
+  expect(run(NO_CHANGE).verdict).toBe('invalid');
   expect(run(NO_ACTIVATION).verdict).toBe('forming');
   expect(run(STRONG_LAST).verdict).toBe('invalid');
   expect(run(FALLING_LINE).verdict).toBe('invalid');
@@ -115,10 +129,10 @@ frm('Spiegelfall: Kauf nach Abwärtstrend hat dieselben Zustände wie der Verkau
   }
 });
 
-frm('Abgrenzung zum Keil: der parallele Kanal ist ENC, nicht KEI; die zulaufenden Linien sind KEI, nicht ENC', () => {
+frm('Abgrenzung zum Keil: parallele Linien ohne Berührung und zulaufende Linien', () => {
   const channel = run(PARALLEL);
   expect(state(channel, 'ENC-03')).toBe(M);
-  expect(state(channel, 'ENC-04')).toBe(M);
+  expect(state(channel, 'ENC-04')).toBe(N);
   expect(state(run(PARALLEL, {}, checkKeiCandidate), 'KEI-04')).toBe(N);
   const wedge = run(WEDGE);
   expect(state(wedge, 'ENC-04')).toBe(N);
@@ -170,7 +184,7 @@ frm('Analyse findet den Kanal selbst und liefert alle Bedingungen', () => {
   expect(res.map((r) => r.tf)).toEqual(['H4']);
   const c = res[0].candidate;
   expect(c.checks.map((x) => x.id)).toEqual([...ENC_CHECK_IDS]);
-  expect(c.verdict).toBe('valid');
+  expect(c.verdict).toBe('invalid');
   expect(c.side).toBe('sell');
   expect(c.points.H1.time).toBe(at(1) * H4);
   expect(c.points.L2.time).toBe(at(4) * H4);
@@ -204,15 +218,15 @@ interface Real {
 }
 
 const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
-const FORM = { '01': U, '02': M, '03': M, '04': M, '05': M } as const;
+const FORM = { '01': U, '02': M, '03': M, '04': N, '05': M } as const;
 const REAL: Real[] = [
-  // Verkauf; Kanal und Schluss unter der Linie, kein Trendwechsel, Korrekturen unregelmäßig
-  { file: 'enc-sell-h4-01', t: 1761840000, side: 'sell', verdict: 'valid', expect: { ...FORM, '06': N, '07': N } },
-  // Verkauf; Korrekturen regelmäßig
-  { file: 'enc-sell-h4-02', t: 1764763200, side: 'sell', verdict: 'valid', expect: { ...FORM, '06': N, '07': M } },
-  // Kauf (Spiegelfall)
-  { file: 'enc-buy-h4-01', t: 1766145600, side: 'buy', verdict: 'valid', expect: { ...FORM, '06': N, '07': M } },
-  { file: 'enc-buy-h4-02', t: 1764561600, side: 'buy', verdict: 'valid', expect: { ...FORM, '06': N, '07': M } },
+  // Verkauf; Schluss unter der Linie, aber keine zweite exakte Berührung beider Seiten
+  { file: 'enc-sell-h4-01', t: 1761840000, side: 'sell', verdict: 'invalid', expect: { ...FORM, '06': N, '07': N } },
+  // Verkauf; Korrekturen regelmäßig, Berührungen unzureichend
+  { file: 'enc-sell-h4-02', t: 1764763200, side: 'sell', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
+  // Kauf; Berührungen unzureichend
+  { file: 'enc-buy-h4-01', t: 1766145600, side: 'buy', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
+  { file: 'enc-buy-h4-02', t: 1764561600, side: 'buy', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
   // Negativfall: die Trendlinie zeigt nicht mit dem Trend (ENC-03 ☐)
   { file: 'enc-bad-h4-01', t: 1765497600, side: 'sell', verdict: 'invalid', expect: { '02': M, '03': N, '04': N, '05': N } },
   // Negativfall: das zweite Hoch verfehlt die Kopie (ENC-04 ☐), sonst Form erfüllt

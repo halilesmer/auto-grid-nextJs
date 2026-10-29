@@ -5,7 +5,6 @@
  * geschlossene Kerzen bis t. Preise laufen über `outward(Seite, Preis)`: Verkauf (Aufwärtstrend) und Kauf (Abwärtstrend) sind derselbe Code.
  */
 import { closesBeyond, otherSide, outward, wickEnd, type ZoneSide } from './frz';
-import type { Series } from './indicators';
 import { alternatingCount, lineAt, type Touch } from './tdf';
 import type { Pivot, TrendModel } from './trd';
 import type { FormationBar, Side } from './types';
@@ -15,7 +14,7 @@ type Bars = readonly FormationBar[];
 /** Seite der Zone des Extrems in Trendrichtung → Handelsrichtung der Wende (Aufwärtstrend: Verkauf) */
 export const reversalSide = (es: ZoneSide): Side => (es === 'resistance' ? 'sell' : 'buy');
 
-/** Rundungsspielraum für Preise, die genau auf einer Linie liegen */
+/** Rundungsspielraum für Preise, die genau auf einer Linie liegen (weit unter einem Kurspunkt, keine Toleranz nach TRD-40) */
 const EPS = 1e-9;
 
 /** Die letzten `count` Längen werden jeweils kürzer (TRD-24); null bei zu wenigen Längen */
@@ -87,9 +86,9 @@ export const widthAt = (c: Channel, k: number): number => Math.abs(c.extremeAt(k
 
 /**
  * Misst Linien, Aktivierung und die abwechselnd gezählten Berührungen ab hs (TDF-28, TRD-40). Berührung: der Docht erreicht die Linie,
- * der Schluss liegt nicht jenseits. Die Kopie des Kanals darf bis `copyAtr` × ATR(14) verfehlt werden.
+ * der Schluss liegt nicht jenseits. Beide Linien haben keine Pip- oder ATR-Toleranz.
  */
-export function measureChannel(bars: Bars, atr: Series, base: ChannelBase, kind: ChannelKind, copyAtr: number): Channel {
+export function measureChannel(bars: Bars, base: ChannelBase, kind: ChannelKind): Channel {
   const { es, l0, hs, la, h2 } = base;
   const cs = otherSide(es);
   const counterAt = (k: number) => lineAtBar(bars, l0, la, k);
@@ -107,9 +106,8 @@ export function measureChannel(bars: Bars, atr: Series, base: ChannelBase, kind:
     const b = bars[k];
     const up = extremeAt(k);
     const lo = counterAt(k);
-    const tol = kind === 'parallel' ? copyAtr * (atr[k] ?? 0) : 0;
     const slack = EPS * Math.max(1, Math.abs(up));
-    if (outward(es, wickEnd(b, es)) >= outward(es, up) - tol - slack && !closesBeyond(b, up, es)) touches.push({ idx: k, top: true });
+    if (outward(es, wickEnd(b, es)) >= outward(es, up) - slack && !closesBeyond(b, up, es)) touches.push({ idx: k, top: true });
     if (outward(cs, wickEnd(b, cs)) >= outward(cs, lo) - slack && !closesBeyond(b, lo, cs)) touches.push({ idx: k, top: false });
   }
   const count = alternatingCount(touches);

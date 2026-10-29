@@ -6,7 +6,7 @@
  * Basis: X 100, A 130 (Länge 30). B an 115 = 0.5 von X → A. C an 139 = 0.3 jenseits von A (Level 1.3). X → C = 39,
  * D an 0.786 von X → C → 139 − 0.786 × 39 = 108.35. BC-Rückprojektion 1.272: 139 − 1.272 × 24 = 108.47 (0.12 vom D).
  * Der erste Zug X → A ist steil (10 Kerzen), der zweite Impuls B → C flach (14 Kerzen): Wave am C schwächer als am A (Divergenz).
- * Das Symbol TEST hat 1 Pip = 0.01 (Toleranz der Pflicht-Level in Preisen).
+ * Das Symbol TEST hat 1 Pip = 0.01 (Toleranz nur für CYP-07).
  * FRM-12 Formationserkennung: Cypher
  */
 import { readFileSync } from 'node:fs';
@@ -124,9 +124,9 @@ function chop(rows: Row[], first: number, last: number): Row[] {
 
 // ---- Reihen ----------------------------------------------------------------------------------------------------
 
-/** B an 118.545: 0.0003 vor 0.382 (Toleranz 0.01 bei TEST) */
+/** B an 118.545: 0.005 vor dem Preis des Levels 0.382; keine Pip-Toleranz */
 const B_TOL = cyp([100, 130, 118.545, 139, 108.35]);
-/** B an 118.56: 0.0007 vor 0.382, außerhalb der Toleranz */
+/** B an 118.56: 0.02 vor dem Preis des Levels 0.382; keine Pip-Toleranz */
 const B_FAR = cyp([100, 130, 118.56, 139, 108.35]);
 /** B an 122: Korrektur nur 0.267 */
 const B_SHALLOW = cyp([100, 130, 122, 139, 108.35]);
@@ -188,10 +188,10 @@ const CASES: Case[] = [
   { name: 'CYP 02: D1 steigt, Kauf in Trend-Richtung', candidate: () => run({ H4: BASE, D1: D1_UP }), expect: { 'CYP-02': M } },
   { name: 'CYP 02: D1 fällt, Kauf gegen die höhere Zeiteinheit', candidate: () => run({ H4: BASE, D1: D1_DOWN }), expect: { 'CYP-02': N } },
   { name: 'CYP 02: ohne höhere Zeiteinheit nicht messbar', candidate: () => run({ H4: BASE }), expect: { 'CYP-02': U } },
-  { name: 'CYP 03: B 0.0003 vor 0.382 gilt als Berührung (1 Pip = 0.01)', candidate: () => run({ H4: B_TOL }), expect: { 'CYP-03': M } },
+  { name: 'CYP 03: B 0.005 vor dem Preis des Levels 0.382 berührt nicht', candidate: () => run({ H4: B_TOL }), expect: { 'CYP-03': N } },
   { name: 'CYP 03: B 0.0007 vor 0.382 berührt nicht', candidate: () => run({ H4: B_FAR }), expect: { 'CYP-03': N } },
   { name: 'CYP 03: B nur an 0.267', candidate: () => run({ H4: B_SHALLOW }), expect: { 'CYP-03': N } },
-  { name: 'CYP 04: C 0.0003 vor 1.272 gilt als Berührung', candidate: () => run({ H4: C_TOL }), expect: { 'CYP-04': M } },
+  { name: 'CYP 04: C 0.005 vor dem Preis des Levels 1.272 berührt nicht', candidate: () => run({ H4: C_TOL }), expect: { 'CYP-04': N } },
   { name: 'CYP 04: C nur 0.267 jenseits von A', candidate: () => run({ H4: C_SHORT }), expect: { 'CYP-04': N } },
   { name: 'CYP 05: C an 150 in 4 Kerzen: Wave am C stärker als am A, keine Divergenz', candidate: () => run({ H4: NO_DIVERGENCE }, atOf(NO_DIVERGENCE_LEGS)), expect: { 'CYP-05': N } },
   { name: 'CYP 06: lauter Anlauf zu C, RSI(7) am Hoch unter 80', candidate: () => run({ H4: CHOP_C }), expect: { 'CYP-06': N } },
@@ -423,7 +423,7 @@ test.describe('CYP: echte Kerzen', () => {
 
   frm('cyp-bad-h4-01: Negativ – ohne Divergenz zwischen A und C (CYP 05 ☐) ist die Cypher ungültig', () => {
     const c = analyzeAt('cyp-bad-h4-01', '2025-12-11T16:00');
-    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-08', 'CYP-09', 'CYP-12'])).toEqual([N, M, M, M, M, M]);
+    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-08', 'CYP-09', 'CYP-12'])).toEqual([N, M, M, M, N, M]);
     expect(c.verdict).toBe('invalid');
   });
 
@@ -445,7 +445,7 @@ test.describe('CYP: echte Kerzen', () => {
   frm('cyp-lib-h4-01: Verkauf-Cypher mit einem Libra-Einstieg am D (CYP 10 ☑); ohne RSI am C ungültig, darum LIB 09 nicht messbar', () => {
     const c = analyzeAt('cyp-lib-h4-01', '2025-12-30T20:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, N, M, M, M]);
+    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, N, M, N, M]);
     expect(c.verdict).toBe('invalid');
     const fixture = loadFixture('cyp-lib-h4-01');
     const lib = analyzeLib(new FormationContext(fixture.symbol, { H4: fixture.bars }), at('2025-12-30T20:00')).find((a) => a.tf === 'H4')!.candidate;

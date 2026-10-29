@@ -5,10 +5,11 @@
  *
  * Lesart der Zustände: bei Ereignis-Bedingungen (BUT-03, BUT-05, BUT-06, BUT-07) heißt ☑ „liegt vor“, bei Ausschlüssen
  * also „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“ (BUT-15 und BUT-16 ohne höhere bzw. tiefere
- * Zeiteinheit im Kontext). Pflicht-Level (BUT-02, BUT-04, BUT-07) gelten bis 1 Pip davor als berührt, die Ausschluss-Level
- * (BUT-03, BUT-05) ohne Toleranz. Der Formkern ist Pflicht/Ausschluss, die Filter (BUT-08 bis BUT-16) sind Verstärkung.
+ * Zeiteinheit im Kontext). Pflicht-Level und Ausschluss-Level werden ohne Pip-Toleranz geprüft.
+ * Der Formkern ist Pflicht/Ausschluss, die Filter (BUT-08 bis BUT-16) sind Verstärkung.
  */
 import type { FormationContext } from './context';
+import { outward } from './frz';
 import { abExtensionPrice, dTargetOfButterfly } from './but';
 import { levelBC } from './cyp';
 import { BUT_PARAMS, FIB_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
@@ -24,10 +25,10 @@ import {
   fractalDone,
   higherWith,
   ids,
-  lenAB,
+  levelAB,
   lowerReversal,
-  reaches,
   retraceXA,
+  levelXA,
   unmeasurable,
   zigOf,
   zonesNear,
@@ -76,13 +77,12 @@ const mk = (id: string, state: CheckState, value?: number): Check => {
   return { id, kind, status, state, ...(value === undefined ? {} : { value }), drawings: [] };
 };
 
-function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): Candidate {
+function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
   const { bars } = view;
   const last = bars.length - 1;
-  const { x, a, b, c, d, es, cs, side, len, abcd } = s;
-  const abLen = lenAB(s);
+  const { x, a, b, c, d, es, cs, side, abcd } = s;
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
 
@@ -90,17 +90,17 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const impulse = trend.pivots.some((p) => p.idx === a.idx && p.side === cs && p.kind === 'impulse');
   add('BUT-01', flag(fractalDone(bars, x, es) && fractalDone(bars, a, cs) && impulse && alternates(s)));
   const rB = retraceXA(s, b.price);
-  add('BUT-02', flag(reaches(rB, P.bLevel, len, pip)), rB ?? undefined);
+  add('BUT-02', flag(outward(es, b.price) >= outward(es, levelXA(s, P.bLevel))), rB ?? undefined);
   add('BUT-03', rB === null ? U : flag(rB >= P.bExclude), rB ?? undefined);
   const rC = abcd.depth;
-  add('BUT-04', flag(reaches(rC, P.cMin, abLen, pip)), rC ?? undefined);
+  add('BUT-04', flag(rC !== null && outward(cs, c.price) >= outward(cs, levelAB(s, P.cMin))), rC ?? undefined);
   add('BUT-05', rC === null ? U : flag(rC >= P.cExclude), rC ?? undefined);
   add('BUT-06', flag(closedBeyondB(bars, s)));
   const rD = d ? retraceXA(s, d.price) : null;
-  add('BUT-07', flag(d !== null && reaches(rD, 1 + P.dExtension, len, pip)), rD ?? undefined);
+  add('BUT-07', flag(d !== null && outward(es, d.price) >= outward(es, levelXA(s, 1 + P.dExtension))), rD ?? undefined);
 
   // Filter: C tief, PRZ-Level am D, Zone, Signal am D, höhere und tiefere Zeiteinheit
-  add('BUT-08', rC === null ? U : flag(reaches(rC, P.cStrong, abLen, pip)), rC ?? undefined);
+  add('BUT-08', rC === null ? U : flag(outward(cs, c.price) >= outward(cs, levelAB(s, P.cStrong))), rC ?? undefined);
   const dTarget = dTargetOfButterfly(s);
   const atr = view.atr[d ? d.idx : last] ?? null;
   const prz = atrDistance(levelBC(s, P.bcInversion), dTarget, atr);
@@ -109,8 +109,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   add('BUT-10', ext === null ? U : flag(ext <= P.nearAtr), ext ?? undefined);
   const inner = atrDistance(abcd.level1, dTarget, atr);
   add('BUT-11', inner === null ? U : flag(inner <= HARMONIC_PARAMS.nearAtr), inner ?? undefined);
-  const near = atr === null ? null : P.zoneAtr * atr;
-  add('BUT-12', near === null ? U : flag(zonesNear(env, tf, s, dTarget, near).length > 0));
+  add('BUT-12', flag(zonesNear(env, tf, s, dTarget, 0).length > 0));
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('BUT-13', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
   const div = d ? divergenceOf(trend, es, b.idx, d.idx) : null;
