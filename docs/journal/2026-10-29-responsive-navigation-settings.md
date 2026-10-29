@@ -36,8 +36,11 @@ areas: [frontend, tests]
 | Production build with mocked connection | Passed with webpack. |
 | Lint and TypeScript | Passed. |
 | Screenshots | Checked mobile navigation and the desktop workspace in light and dark themes. |
-| Browser checks | Navigation checks passed. Two existing tooltip hover checks failed in parallel runs; serial verification is pending. |
+| `E2E_PORT=3329 npx playwright test --project=mocked --grep "@UI-01|@UI-07|@UI-08|@SYS-09|@FRM-2[0234]" --workers=1 --reporter=list,json` | 94 passed, two UI-07 hover checks failed. Navigation, connection status, breakpoint transitions, tooltips coverage and card dragging passed. |
+| Previous build comparison | Existing UI-07 hover failures also occur on the unchanged previous build at a separate test port. No tooltip source or assertion was changed. |
+| `bash scripts/features/run.sh check` | Passed: 186 features. |
+| `npm run lint` and `npx tsc --noEmit` after integration | Passed. |
+| Review | Checked layout, roles, accessible names, translated text, tooltips and callers against hooks/RULES.md section 9. No API or access-control changes. |
 
 ## Open points
-- [ ] Verify the combined change with the draggable conditions panel.
-- [ ] Complete browser checks and CI.
+- [ ] Check the PR CI result. Local UI-07 hover failures also occur before this change; their cause is not verified.
