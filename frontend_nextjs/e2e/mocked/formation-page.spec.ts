@@ -145,12 +145,72 @@ test.describe('FRM-21 Hintergrundsuche', () => {
 
 test.describe('FRM-22 schmale Ansicht', () => {
   test.use({ viewport: { width: 375, height: 812 } });
-  test('Bei 375 px steht die Spalte unter dem Chart und die Seite scrollt nicht seitwärts', { tag: '@FRM-22' }, async ({ page, worker }) => {
+  test('Bei 375 px liegen die Bedingungen im Chart und lassen sich einklappen', { tag: '@FRM-22' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = await page.getByTestId('formation-chart').boundingBox();
-    const checklist = await page.getByTestId('formation-checklist').boundingBox();
-    expect(checklist!.y).toBeGreaterThan(chart!.y + chart!.height - 1);
+    const details = page.getByTestId('formation-details');
+    const panel = await details.boundingBox();
+    expect(chart!.x).toBe(0);
+    expect(chart!.y).toBe(0);
+    expect(chart!.height).toBe(812);
+    expect(panel!.x).toBeGreaterThan(chart!.x);
+    expect(panel!.y + panel!.height).toBeLessThan(chart!.height * 0.83);
+    const toggle = page.getByTestId('formation-details-toggle');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('formation-checklist')).toBeHidden();
+    await toggle.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('formation-checklist')).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: test.info().outputPath('formation-mobile-dark.png') });
   });
+});
+
+test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
+  for (const theme of ['dark', 'light']) {
+    test(`Chart und Bedienelemente bleiben innerhalb der Seite (${theme})`, { tag: '@FRM-23' }, async ({ page, worker }) => {
+      await page.addInitScript((value) => localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 })), theme);
+      await openPage(page, worker, `${URL}&form=GAR`);
+      if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
+      else await expect(page.locator('html')).not.toHaveClass(/dark/);
+      const chart = await page.getByTestId('formation-chart').boundingBox();
+      expect(chart).toEqual({ x: 0, y: 0, width: 1440, height: 900 });
+      for (const id of ['app-nav', 'formation-selectors', 'formation-toolbar', 'formation-details', 'formation-legend']) {
+        const box = await page.getByTestId(id).boundingBox();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.width);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(chart!.height);
+      }
+      const toolbar = await page.getByTestId('formation-toolbar').boundingBox();
+      const pointA = await page.getByTestId('formation-overlay').getByText('A', { exact: true }).boundingBox();
+      expect(pointA!.y).toBeGreaterThan(toolbar!.y + toolbar!.height);
+      // Die Checkliste scrollt unabhängig, das Chart-Canvas bleibt dabei an derselben Stelle.
+      await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
+      await expect(page.getByTestId('group-exclusion')).toBeInViewport();
+      expect(await page.getByTestId('formation-chart').boundingBox()).toEqual(chart);
+      await page.locator('#formation-details-content').evaluate((el) => { el.scrollTop = 0; });
+      await page.screenshot({ path: test.info().outputPath(`formation-desktop-${theme}.png`) });
+      const line = page.getByTestId('formation-overlay').locator('line').first();
+      const xBefore = await line.getAttribute('x1');
+      // Links vor dem ersten Formationspunkt liegt freie Chart-Fläche ohne interaktive SVG-Linien.
+      await page.mouse.move(200, 450);
+      await page.mouse.wheel(0, -250);
+      await expect.poll(() => line.getAttribute('x1')).not.toBe(xBefore);
+      if (theme === 'light') {
+        await page.setViewportSize({ width: 375, height: 812 });
+        await expect(page.getByTestId('formation-details')).toBeInViewport();
+        await page.screenshot({ path: test.info().outputPath('formation-mobile-light.png') });
+        await page.setViewportSize({ width: 1440, height: 900 });
+      }
+      // Navigation ist auch auf dem Desktop im Menü erreichbar, kein Minimieren nötig.
+      await page.getByTestId('nav-menu').click();
+      await page.getByTestId('nav-menu-panel').getByRole('link', { name: msg('nav.analysis', {}, 'de'), exact: true }).click();
+      await expect(page).toHaveURL(/\/chart/);
+      await expect(page.getByTestId('formation-page')).toHaveCount(0);
+    });
+  }
 });

@@ -4,6 +4,7 @@ import { defineArea } from './define';
 // je ID stehen in src/lib/formation/ruleTexts.ts (dynamische Schlüssel, deshalb außerhalb der geprüften Schlüsselmenge).
 export default defineArea(
   {
+    'formation.details': 'Koşullar',
     'formation.tf.label': 'Zaman dilimi',
     'formation.form.label': 'Formasyon',
     'formation.form.ABCD': 'ABCD',
@@ -57,6 +58,7 @@ export default defineArea(
     'formation.draw.target': 'Hedef',
   },
   {
+    'formation.details': 'Conditions',
     'formation.tf.label': 'Timeframe',
     'formation.form.label': 'Formation',
     'formation.form.ABCD': 'ABCD',
@@ -110,6 +112,7 @@ export default defineArea(
     'formation.draw.target': 'Target',
   },
   {
+    'formation.details': 'Bedingungen',
     'formation.tf.label': 'Zeiteinheit',
     'formation.form.label': 'Formation',
     'formation.form.ABCD': 'ABCD',

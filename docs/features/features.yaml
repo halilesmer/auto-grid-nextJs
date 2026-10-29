@@ -1815,7 +1815,7 @@ kategorien:
 
       - id: FRM-19
         titel: "Seite Formasyon: Kandidaten-Liste und Checkliste"
-        beschreibung: "Rechts neben dem Chart (unter 900 px darunter) steht oben die Kandidaten-Liste (Name, Zeiteinheit, Urteil gültig/ungültig/im Aufbau) und darunter die Checkliste des gewählten Kandidaten: Kopf mit Titel und Urteil, Pflicht x/y (n nicht messbar), Verstärkungen x/y, Balken; die Gruppen Pflicht, Verstärkung und Ausschluss; je Zeile ein Symbol mit Beschriftung für erfüllt, nicht erfüllt, Ausschluss ausgelöst/nicht eingetreten und nicht messbar (nie nur Farbe), Marken für die Status secondary und assumption, gemessener Wert, Legende. Bei einer Formation im Aufbau nennt ein Hinweis den fehlenden Punkt, bei einer ungültigen die Bedingungen, die sie ungültig machen. Die Kurztexte je Bedingungs-ID stehen in ruleTexts.ts (tr/en/de)."
+        beschreibung: "Im einklappbaren Fenster innerhalb des Charts steht oben die Kandidaten-Liste (Name, Zeiteinheit, Urteil gültig/ungültig/im Aufbau) und darunter die Checkliste des gewählten Kandidaten: Kopf mit Titel und Urteil, Pflicht x/y (n nicht messbar), Verstärkungen x/y, Balken; die Gruppen Pflicht, Verstärkung und Ausschluss; je Zeile ein Symbol mit Beschriftung für erfüllt, nicht erfüllt, Ausschluss ausgelöst/nicht eingetreten und nicht messbar (nie nur Farbe), Marken für die Status secondary und assumption, gemessener Wert, Legende. Bei einer Formation im Aufbau nennt ein Hinweis den fehlenden Punkt, bei einer ungültigen die Bedingungen, die sie ungültig machen. Die Kurztexte je Bedingungs-ID stehen in ruleTexts.ts (tr/en/de)."
         code: [frontend_nextjs/src/components/formation/CandidateList.tsx, frontend_nextjs/src/components/formation/FormationChecklist.tsx, frontend_nextjs/src/lib/formation/ruleTexts.ts]
         tiers: [e2e]
         pruefung:
@@ -1842,9 +1842,18 @@ kategorien:
 
       - id: FRM-22
         titel: "Seite Formasyon: schmale Ansicht, Sprachen und Hinweise"
-        beschreibung: "Bei 375 px steht die Spalte mit Liste und Checkliste unter dem Chart, die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts)."
+        beschreibung: "Bei 375 px liegt das einklappbare Fenster mit Liste und Checkliste unten innerhalb des seitenfüllenden Charts. Es scrollt unabhängig; die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts)."
         code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/i18n/messages/formation.ts, frontend_nextjs/src/i18n/messages/hints.ts]
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-22) ausführen; der Abdeckungstest UI-07 prüft die Tooltips.
-        erwartet: Bei 375 px liegt die Checkliste unter dem Chart und scrollWidth ist nicht größer als clientWidth.
+        erwartet: Bei 375 px bleibt das Fenster innerhalb des Charts, lässt sich per Maus und Tastatur einklappen, und scrollWidth ist nicht größer als clientWidth.
+
+      - id: FRM-23
+        titel: "Seite Formasyon: seitenfüllender Chart mit Bedienelementen"
+        beschreibung: "Der Chart füllt dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Navigation, Konto- und Setup-Auswahl, Filter und Legende schweben innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt im Menü erreichbar, Preisachse und Attribution bleiben frei."
+        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-23) ausführen (Viewport-Abmessungen, Position der Bedienelemente, internes Scrollen, Navigation, helles und dunkles Design).
+        erwartet: Der Chart ist so groß wie der Viewport; alle Bedienelemente liegen innerhalb der Fläche; Scrollen der Bedingungen verschiebt den Chart nicht; Navigation bleibt erreichbar.

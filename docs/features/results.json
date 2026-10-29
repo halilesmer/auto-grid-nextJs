@@ -123,9 +123,9 @@
   },
   "ANA-01": {
     "e2e": {
-      "datum": "2026-10-28",
+      "datum": "2026-10-29",
       "status": "passed",
-      "tests": 4
+      "tests": 1
     }
   },
   "ANA-02": {
@@ -809,6 +809,48 @@
       "tests": 26
     }
   },
+  "FRM-18": {
+    "e2e": {
+      "datum": "2026-10-29",
+      "status": "passed",
+      "tests": 5
+    }
+  },
+  "FRM-19": {
+    "e2e": {
+      "datum": "2026-10-29",
+      "status": "passed",
+      "tests": 3
+    }
+  },
+  "FRM-20": {
+    "e2e": {
+      "datum": "2026-10-29",
+      "status": "passed",
+      "tests": 9
+    }
+  },
+  "FRM-21": {
+    "e2e": {
+      "datum": "2026-10-29",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "FRM-22": {
+    "e2e": {
+      "datum": "2026-10-29",
+      "status": "passed",
+      "tests": 1
+    }
+  },
+  "FRM-23": {
+    "e2e": {
+      "datum": "2026-10-29",
+      "status": "passed",
+      "tests": 2
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-10-28",
@@ -1136,9 +1178,9 @@
   },
   "UI-01": {
     "e2e": {
-      "datum": "2026-10-28",
+      "datum": "2026-10-29",
       "status": "passed",
-      "tests": 11
+      "tests": 2
     }
   },
   "UI-02": {
@@ -1178,16 +1220,16 @@
   },
   "UI-07": {
     "e2e": {
-      "datum": "2026-10-28",
+      "datum": "2026-10-29",
       "status": "passed",
-      "tests": 19
+      "tests": 1
     }
   },
   "UI-08": {
     "e2e": {
-      "datum": "2026-10-28",
+      "datum": "2026-10-29",
       "status": "passed",
-      "tests": 43
+      "tests": 6
     }
   },
   "UI-09": {
@@ -1504,9 +1546,9 @@
   },
   "ZON-13": {
     "e2e": {
-      "datum": "2026-10-28",
+      "datum": "2026-10-29",
       "status": "passed",
-      "tests": 18
+      "tests": 16
     }
   },
   "ZON-14": {
@@ -1561,16 +1603,16 @@
   },
   "ZON-20": {
     "e2e": {
-      "datum": "2026-10-28",
+      "datum": "2026-10-29",
       "status": "passed",
-      "tests": 38
+      "tests": 2
     }
   },
   "ZON-21": {
     "e2e": {
-      "datum": "2026-10-28",
+      "datum": "2026-10-29",
       "status": "passed",
-      "tests": 5
+      "tests": 1
     }
   }
 }

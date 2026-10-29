@@ -134,6 +134,10 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
         return { ...base, priceRange: { minValue: Math.min(base.priceRange.minValue, extra.min), maxValue: Math.max(base.priceRange.maxValue, extra.max) } };
       },
     });
+    const reserveControls = () => candles.priceScale().applyOptions({
+      scaleMargins: { top: box.clientWidth < 640 ? 0.4 : 0.3, bottom: 0.12 },
+    });
+    reserveControls();
     const rsi = chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, 1);
     const precision = digits ?? 5;
     candles.applyOptions({ priceFormat: { type: 'price', precision, minMove: 10 ** -precision } });
@@ -141,13 +145,20 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
     rsi.setData(view.bars.flatMap((b, i) => (view.rsi[i] === null ? [] : [{ time: b.time as UTCTimestamp, value: view.rsi[i] as number }])));
     rsi.createPriceLine({ price: RSI_PARAMS.overbought, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
     rsi.createPriceLine({ price: RSI_PARAMS.oversold, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
-    chart.panes()[0]?.setStretchFactor(3);
+    chart.panes()[0]?.setStretchFactor(5);
     chart.panes()[1]?.setStretchFactor(1);
     chartRef.current = { chart, candles, rsi };
 
     const indexOf = new Map(view.bars.map((b, i) => [b.time, i]));
     const first = Math.min(...Object.values(hit.candidate.points).map((p) => indexOf.get(p.time) ?? view.bars.length - 1));
-    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, first - 12), to: view.bars.length - 1 + 6 });
+    const from = Math.max(0, first - 12);
+    // Platz rechts für das schwebende Bedingungsfenster; auf Mobilgeräten liegt es unten.
+    let wide = box.clientWidth >= 900;
+    const frameCandidate = () => {
+      const future = wide ? Math.max(6, Math.ceil((view.bars.length - from) * 0.5)) : 6;
+      chart.timeScale().setVisibleLogicalRange({ from, to: view.bars.length - 1 + future });
+    };
+    frameCandidate();
 
     const lastBar = view.bars[view.bars.length - 1];
     const redraw = () => {
@@ -177,7 +188,14 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
-    const observer = new ResizeObserver(redraw);
+    const observer = new ResizeObserver(() => {
+      reserveControls();
+      if (wide !== (box.clientWidth >= 900)) {
+        wide = box.clientWidth >= 900;
+        frameCandidate();
+      }
+      redraw();
+    });
     observer.observe(box);
     const frame = requestAnimationFrame(() => requestAnimationFrame(redraw));
     return () => {
@@ -208,7 +226,7 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
       ref={boxRef}
       data-testid="formation-chart"
       data-final-point={hit.candidate.points[finalName] ? 'done' : 'open'}
-      className="relative isolate h-[460px] overflow-hidden rounded-lg bg-card"
+      className="absolute inset-0 isolate overflow-hidden bg-card"
     >
       <div ref={hostRef} className="absolute inset-0" />
       <svg
