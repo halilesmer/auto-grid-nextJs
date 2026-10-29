@@ -2,7 +2,7 @@
 date: 2026-10-29
 author: Codex
 type: fix
-status: open
+status: done
 pr: [240]
 features: [UI-01, UI-07, UI-08, SYS-09, FRM-23]
 areas: [frontend, tests]
@@ -36,11 +36,12 @@ areas: [frontend, tests]
 | Production build with mocked connection | Passed with webpack. |
 | Lint and TypeScript | Passed. |
 | Screenshots | Checked mobile navigation and the desktop workspace in light and dark themes. |
-| `E2E_PORT=3329 npx playwright test --project=mocked --grep "@UI-01|@UI-07|@UI-08|@SYS-09|@FRM-2[0234]" --workers=1 --reporter=list,json` | 94 passed, two UI-07 hover checks failed. Navigation, connection status, breakpoint transitions, tooltips coverage and card dragging passed. |
-| Previous build comparison | Existing UI-07 hover failures also occur on the unchanged previous build at a separate test port. No tooltip source or assertion was changed. |
+| `npx playwright test` with UI, SYS-09 and FRM filters, one worker and JSON report | 94 passed, two UI-07 hover checks failed. Navigation, connection status, breakpoint transitions, tooltips coverage and card dragging passed. |
+| Previous build comparison | Six repeated UI-07 hover checks on the unchanged previous build: one passed, five failed at a separate test port. No tooltip source or assertion was changed. |
 | `bash scripts/features/run.sh check` | Passed: 186 features. |
 | `npm run lint` and `npx tsc --noEmit` after integration | Passed. |
 | Review | Checked layout, roles, accessible names, translated text, tooltips and callers against hooks/RULES.md section 9. No API or access-control changes. |
 
-## Open points
-- [ ] Check the PR CI result. Local UI-07 hover failures also occur before this change; their cause is not verified.
+## Verification limits
+- Local UI-07 hover failures also occur before this change; their cause is not verified.
+- PR checks must pass before merge. Production deployment is not part of the local verification.
