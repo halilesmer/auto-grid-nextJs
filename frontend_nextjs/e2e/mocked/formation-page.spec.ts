@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
+import { groupZones, makeZone } from '../fixtures/data';
 import { msg, type MessageKey } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
@@ -21,6 +22,8 @@ const FORMING_NOW = 1761192000;
 
 /** H4 aus der Fixture, M15 mit einer Kerze (legt den Suchzeitpunkt fest), die übrigen Zeiteinheiten leer */
 function serveFixture(worker: MockWorker, now: number) {
+  // Symbol der Zone = Symbol der Fixture, sonst passt die Pip-Größe (GAR-03) nicht zu den Kerzen
+  worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
   const rows = rowsUntil(now);
   const last = rows[rows.length - 1];
   worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[now - 900, last[4], last[4], last[4], last[4]]] };
@@ -138,7 +141,7 @@ test.describe('FRM-21 Hintergrundsuche', () => {
     await openPage(page, worker);
     const calls = worker.calls.filter((c) => c.method === 'GET' && c.path.endsWith('/rates'));
     for (const tf of ['D1', 'H4', 'H1', 'M15']) {
-      expect(calls.some((c) => c.query.get('timeframe') === tf && c.query.get('symbol') === 'USOUSD')).toBe(true);
+      expect(calls.some((c) => c.query.get('timeframe') === tf && c.query.get('symbol') === 'EURUSD')).toBe(true);
     }
   });
 });

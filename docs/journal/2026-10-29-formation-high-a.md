@@ -40,6 +40,7 @@ areas: [frontend, tests]
 | `formation-boundaries-lib.spec.ts` | Test the zone edges, symbol classes, exact levels and the retained CYP-07 allowance. |
 | `formation-base-lib.spec.ts`, `formation-trd-lib.spec.ts`, `formation-enc-lib.spec.ts` | Test zero, ratio and line boundaries. |
 | `formation-but-lib.spec.ts`, `formation-crb-lib.spec.ts`, `formation-cyp-lib.spec.ts`, `formation-enc-lib.spec.ts` | Correct expectations that accepted a missed level or line. Keep the candle data unchanged. |
+| `formation-page.spec.ts` | Give the mocked zone the symbol of the candle fixture (EURUSD). The default zone symbol is an oil symbol. With the new pip rule, its pip size did not fit the EURUSD candles, and the Bat became valid. |
 
 ## Why
 
