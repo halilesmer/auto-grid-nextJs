@@ -5,7 +5,7 @@
  */
 import { outward, wickEnd, type Rect, type ZoneSide } from './frz';
 import { RSI_PARAMS, SIG_PARAMS } from './params';
-import type { TrendModel } from './trd';
+import type { Pivot, TrendModel } from './trd';
 import type { FormationBar, Side } from './types';
 
 type Bars = readonly FormationBar[];
@@ -65,7 +65,11 @@ export function divergenceOf(trend: TrendModel, side: ZoneSide, idxA?: number, i
   let b = idxB;
   if (a === undefined || b === undefined) {
     // Impuls-Extrempunkte sind die Rekorde: jeder liegt weiter außen als alle Wendepunkte dieser Seite davor
-    const own = trend.pivots.filter((p, i, list) => p.side === side && list.slice(0, i).every((q) => q.side !== side || outward(side, p.price) > outward(side, q.price)));
+    const records = (list: readonly Pivot[]) =>
+      list.filter((p, i) => p.side === side && list.slice(0, i).every((q) => q.side !== side || outward(side, p.price) > outward(side, q.price)));
+    let own = records(trend.pivots);
+    // Verdeckt ein alter Rekord vor dem Trendwechsel die neuen Enden (weniger als zwei Rekorde), zählt die laufende Struktur ab dem Ursprung
+    if (own.length < 2) own = records(trend.pivots.slice(trend.originPos));
     if (own.length < 2) return null;
     a = own[own.length - 2].idx;
     b = own[own.length - 1].idx;

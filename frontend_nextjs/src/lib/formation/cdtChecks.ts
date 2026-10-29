@@ -25,7 +25,8 @@ import {
 import { levelPrice } from './fib';
 import { CDT_PARAMS, FIB_PARAMS, FRZ_PARAMS, RSI_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
-import { divergenceOf, engulfAt, rsiExtreme } from './sig';
+import { reversalAt } from './reversal';
+import { divergenceOf, rsiExtreme } from './sig';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
@@ -81,7 +82,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
   const trend = env.trends.get(tf)!;
   const fib = env.fibs.get(tf)!;
   const { bars } = view;
-  const last = bars.length - 1;
   const { es, cs, side, h1, n, h2, zone } = s;
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number, kind?: RuleKind) => checks.push(mk(id, state, value, kind));
@@ -127,20 +127,9 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
 
   // Signal
   add('CDT-12', core.c12, view.rsi[h1.idx] ?? undefined);
-  let reversal: boolean | null = null;
-  if (h2) {
-    reversal = false;
-    for (let k = h2.idx; k <= last && !reversal; k++) reversal = engulfAt(bars, view.wide, k, side) !== null;
-    const lowerTf = neighborTf(env, tf, 1);
-    const lower = lowerTf ? env.views.get(lowerTf) : undefined;
-    if (!reversal && lower) {
-      const from = bars[h2.idx].time;
-      for (let k = 0; k < lower.bars.length && !reversal; k++) {
-        if (lower.bars[k].time >= from) reversal = engulfAt(lower.bars, lower.wide, k, side) !== null;
-      }
-    }
-  }
-  add('CDT-13', tri(reversal), undefined, core.c12 === 'unmet' ? 'required' : 'bonus');
+  const lowerTf = neighborTf(env, tf, 1);
+  const reversal: CheckState = h2 ? reversalAt(env, tf, side, h2, lowerTf ? [tf, lowerTf] : [tf]) : U;
+  add('CDT-13', reversal, undefined, core.c12 === 'unmet' ? 'required' : 'bonus');
   const rsiH2 = h2 ? (view.rsi[h2.idx] ?? null) : null;
   add('CDT-14', rsiH2 === null ? U : tri(rsiExtreme(rsiH2, side)), rsiH2 ?? undefined);
 

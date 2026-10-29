@@ -19,7 +19,7 @@ import {
   checkSigDivergence,
   type SigOptions,
 } from '../../src/lib/formation/sigChecks';
-import type { TrendModel } from '../../src/lib/formation/trd';
+import { buildTrend, type TrendModel } from '../../src/lib/formation/trd';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H1, H4, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
 
@@ -633,3 +633,55 @@ test.describe('SIG: echte Kerzen', () => {
     expect([state(c, 'SIG-13'), state(c, 'SIG-17')]).toEqual([M, M]);
   });
 });
+
+test.describe('SIG-05: ein früheres RSI-Extrem öffnet den Direkteinstieg (SIG-04)', () => {
+  frm('SIG 05 ☑ Verkauf: RSI am vorigen Hoch 95, aktuell kein Extrem → Direkteinstieg', () => {
+    const c = run({ H4: HI_RSI }, { side: 'sell' });
+    expect(state(c, 'SIG-02')).toBe(N);
+    expect(state(c, 'SIG-04')).toBe(M);
+    expect(state(c, 'SIG-05')).toBe(M);
+  });
+  frm('SIG 05 ☑ Kauf (Spiegel): RSI am vorigen Tief, aktuell kein Extrem → Direkteinstieg', () => {
+    const c = run({ H4: mirror(HI_RSI) }, { side: 'buy' });
+    expect(state(c, 'SIG-02')).toBe(N);
+    expect(state(c, 'SIG-04')).toBe(M);
+    expect(state(c, 'SIG-05')).toBe(M);
+  });
+  frm('SIG 05 ☐ Verkauf: RSI am vorigen Hoch nur 69,9, kein Engulf, zu wenige Gründe', () => {
+    const c = run({ H4: HI_STAIRS, H1: rise(24) }, { side: 'sell' });
+    expect(state(c, 'SIG-04')).toBe(N);
+    expect(state(c, 'SIG-05')).toBe(N);
+  });
+  frm('SIG 05 ☐ Kauf (Spiegel): RSI am vorigen Tief nur 30,1, kein Engulf, zu wenige Gründe', () => {
+    const c = run({ H4: mirror(HI_STAIRS), H1: mirror(rise(24)) }, { side: 'buy' });
+    expect(state(c, 'SIG-04')).toBe(N);
+    expect(state(c, 'SIG-05')).toBe(N);
+  });
+});
+
+test.describe('SIG-12: nur die Trendenden der aktuellen Struktur werden verglichen', () => {
+  // Altes Hoch 160 liegt vor dem Wechsel zum Aufwärtstrend (Ursprung bei Tief 100); danach Hochs 125, 130, 135, 138
+  const OLD_RECORD = zig([140, 160, 100, 125, 108, 130, 115, 135, 120, 138], 12);
+  frm('SIG 12 ☑ Verkauf: ein alter Rekord vor dem Wechsel verdeckt die Hochs 135 und 138 nicht', () => {
+    const div = divergenceOf(buildTrendOf(OLD_RECORD), 'resistance');
+    expect(div?.a.idx).toBe(86);
+    expect(div?.b.idx).toBe(110);
+    expect(state(run({ H4: OLD_RECORD }, { side: 'sell' }), 'SIG-12')).toBe(M);
+  });
+  frm('SIG 12 ☑ Kauf (Spiegel): ein altes Tief vor dem Wechsel verdeckt die Tiefs nicht', () => {
+    const rows = mirror(OLD_RECORD);
+    const div = divergenceOf(buildTrendOf(rows), 'support');
+    expect(div?.a.idx).toBe(86);
+    expect(div?.b.idx).toBe(110);
+    expect(state(run({ H4: rows }, { side: 'buy' }), 'SIG-12')).toBe(M);
+  });
+  frm('SIG 12 ☐: Hoch mitten in der Bewegung (Index 36) bleibt kein Trendende, auch mit altem Rekord davor', () => {
+    const c = checkSigDivergence(ctxOf({ H4: OLD_RECORD }), END, { tf: 'H4', side: 'resistance', timeA: 36 * H4, timeB: 110 * H4 });
+    expect(state(c, 'SIG-12')).toBe(N);
+  });
+});
+
+function buildTrendOf(rows: Row[]): TrendModel {
+  const view = ctxOf({ H4: rows }).view('H4', END)!;
+  return buildTrend('H4', view.bars, view.wave);
+}

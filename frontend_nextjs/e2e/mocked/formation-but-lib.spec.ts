@@ -18,7 +18,7 @@ import { analyzeGar } from '../../src/lib/formation/garChecks';
 import { analyzeBat } from '../../src/lib/formation/batChecks';
 import { analyzeCyp } from '../../src/lib/formation/cypChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
-import { END, H4, mirror, zig, type Row } from '../fixtures/formation-rows';
+import { END, H1, H4, mirror, zig, type Row } from '../fixtures/formation-rows';
 import { AT, M, N, U, atOf, chop, ctxOf, find, harmonic, lowerRows, makeRun, state, wick, wickOnlyD } from '../fixtures/formation-harmonic';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-13' }, fn);
@@ -340,3 +340,42 @@ test.describe('BUT: Abdeckung', () => {
     expect(miss).toEqual([]);
   });
 });
+
+/**
+ * H1-Reihe für die vollständige Umkehrprüfung (SIG-23 bis SIG-26): Vorlauf mit Spanne 2 (volumenstark ab Spanne 3),
+ * dann ab der Kerze von D die Kerzen `tail` (Index `start + 1` an).
+ */
+function lowerWith(tail: Row[], price = 91.8): Row[] {
+  const start = AT.d! * (H4 / H1);
+  const rows: Row[] = Array.from({ length: start + 1 }, () => [price + 1, price + 2, price, price + 1.5] as Row);
+  return [...rows, ...tail, [price + 2, price + 2.5, price + 1.5, price + 2] as Row];
+}
+/** Umschlossene Kerze groß (Spanne 3,5) und nah an D; Engulf schließt mit 95,5 über ihrem Hoch 95 */
+const PREV_WIDE: Row = [94.8, 95, 91.5, 91.8];
+const ENGULF_WIDE: Row = [91.8, 96, 91.7, 95.5];
+const PREV_SMALL: Row = [92.3, 92.4, 91.7, 91.8];
+const ENGULF_HALF: Row = [91.8, 92.5, 91.7, 92.4];
+
+describe_reversal();
+
+function describe_reversal() {
+  const buyRun = (lower: Row[]) => state(run({ H4: BASE, H1: lower }), 'BUT-16');
+  const sellRun = (lower: Row[]) => state(run({ H4: mirror(BASE), H1: mirror(lower) }, AT, { buy: false }), 'BUT-16');
+  for (const [label, go] of [['Kauf', buyRun], ['Verkauf', sellRun]] as const) {
+    frm(`BUT 16 ☑ ${label}: Engulf mit großer umschlossener Kerze an D in H1`, () => {
+      expect(go(lowerWith([PREV_WIDE, ENGULF_WIDE]))).toBe(M);
+    });
+    frm(`BUT 16 ☑ ${label}: Engulf aus zwei großen Kerzen an D (SIG-25)`, () => {
+      expect(go(lowerWith([PREV_WIDE, [91.8, 95, 91.7, 94.9], [94.9, 98.2, 94.8, 98]]))).toBe(M);
+    });
+    frm(`BUT 16 ☐ ${label}: Engulf weit weg von D (SIG-26)`, () => {
+      expect(go(lowerWith([PREV_WIDE, ENGULF_WIDE].map(([o, h, l, c]) => [o + 30, h + 30, l + 30, c + 30] as Row)))).toBe(N);
+    });
+    frm(`BUT 16 ☐ ${label}: umschlossene Kerze ist klein (SIG-24)`, () => {
+      expect(go(lowerWith([PREV_SMALL, ENGULF_WIDE]))).toBe(N);
+    });
+    frm(`BUT 16 ☐ ${label}: Engulf aus zwei Kerzen, eine davon klein (SIG-25)`, () => {
+      expect(go(lowerWith([PREV_WIDE, ENGULF_HALF, [92.4, 96, 92.3, 95.5]]))).toBe(N);
+    });
+  }
+}

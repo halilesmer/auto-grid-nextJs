@@ -3,7 +3,7 @@
  * Ein Grund ist wahr, falsch oder (null) nicht messbar; nur wahre Gründe werden gezählt, jeder höchstens einmal.
  */
 import type { FormationContext, TimeframeView } from './context';
-import { buildFib, breakoutOf, bandOf, type FibModel } from './fib';
+import { buildFib, breakoutOf, bandOf, levelPrice, type FibModel } from './fib';
 import { analyzeFrz, type FrzAnalysis, type FrzOptions } from './frzChecks';
 import type { Rect } from './frz';
 import { CONTEXT_TIMEFRAMES, FIB_PARAMS, type ContextTimeframe } from './params';
@@ -20,6 +20,17 @@ export interface Env {
   frz: FrzAnalysis;
 }
 
+/** Fibonacci-Ziele für FRZ-24: Ränder der Korrekturzone (0.382 und 0.618, FIB-10) und Ausdehnungen (FIB-18) aller Impulse des laufenden Trends jeder geladenen Zeiteinheit (wie CDT-10) */
+export function fibTargetsOf(fibs: ReadonlyMap<ContextTimeframe, FibModel>): number[] {
+  const out: number[] = [];
+  for (const model of fibs.values()) {
+    for (const leg of model.legs) {
+      for (const level of [FIB_PARAMS.retrace[0], FIB_PARAMS.retrace[2], ...FIB_PARAMS.extensions.map((e) => -e)]) out.push(levelPrice(leg, level));
+    }
+  }
+  return out;
+}
+
 /** Umgebung zum Zeitpunkt t; null, wenn die Zeiteinheit nicht geladen ist */
 export function buildEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions = {}): Env | null {
   if (!ctx.timeframes().includes(tf)) return null;
@@ -34,7 +45,7 @@ export function buildEnv(ctx: FormationContext, t: number, tf: ContextTimeframe,
     trends.set(x, trend);
     fibs.set(x, buildFib(trend));
   }
-  return { t, tf, views, trends, fibs, frz: analyzeFrz(ctx, t, { entryTf: tf, ...frzOptions }) };
+  return { t, tf, views, trends, fibs, frz: analyzeFrz(ctx, t, { entryTf: tf, fibTargets: fibTargetsOf(fibs), ...frzOptions }) };
 }
 
 /** Umgebung für eine andere Einstiegs-Zeiteinheit: nur M15-Zonen hängen davon ab (FRZ-27), sonst wird die Rechnung geteilt */

@@ -137,6 +137,7 @@ const CASES: Case[] = [
   { name: 'CRB 15: Formation in H1', candidate: () => run({ H1: BASE }, AT, { tf: 'H1' }), expect: { 'CRB-15': N } },
   { name: 'CRB 16: Engulf in H1 ab der Kerze von D', candidate: () => run({ H4: BASE, H1: lowerRows(AT, 81.4, true) }), expect: { 'CRB-16': M } },
   { name: 'CRB 16: H1 ohne Umkehrkerze', candidate: () => run({ H4: BASE, H1: lowerRows(AT, 81.4, false) }), expect: { 'CRB-16': N } },
+  { name: 'CRB 16: Engulf in H1 weit weg von D (SIG-26)', candidate: () => run({ H4: BASE, H1: lowerRows(AT, 120, true) }), expect: { 'CRB-16': N } },
   { name: 'CRB 16: ohne tiefere Zeiteinheit nicht messbar', candidate: () => run({ H4: BASE }), expect: { 'CRB-16': U } },
 ];
 
