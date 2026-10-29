@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
@@ -11,7 +11,7 @@ import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationChecklist } from '@/components/formation/FormationChecklist';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { FormationDetailsPanel } from '@/components/formation/FormationDetailsPanel';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useFormationParams } from '@/hooks/useFormationParams';
@@ -153,44 +153,27 @@ function FormationView() {
           </div>
         )}
       </div>
-      <aside
-        className="absolute bottom-[calc(17%+2rem)] left-3 right-16 z-20 overflow-hidden rounded-xl border border-border bg-background/95 shadow-lg backdrop-blur-md min-[900px]:bottom-auto min-[900px]:left-auto min-[900px]:right-20 min-[900px]:top-52 min-[900px]:w-80"
-        data-testid="formation-details"
-        aria-label={t('formation.details')}
+      <FormationDetailsPanel
+        title={`${formName} · ${tf}`}
+        open={detailsOpen}
+        onToggle={() => {
+          setActive(null);
+          setDetailsOpen(!detailsOpen);
+        }}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-          <strong className="truncate text-xs">{formName} · {tf}</strong>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            hint={t('formation.details.toggle.hint')}
-            aria-label={t('formation.details')}
-            aria-expanded={detailsOpen}
-            aria-controls="formation-details-content"
-            data-testid="formation-details-toggle"
-            onClick={() => {
-              setActive(null);
-              setDetailsOpen(!detailsOpen);
-            }}
-          >
-            {detailsOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          </Button>
-        </div>
-        <div id="formation-details-content" hidden={!detailsOpen} className="max-h-[26dvh] overflow-y-auto overscroll-contain min-[900px]:max-h-[min(52dvh,calc(100dvh-17rem))]">
-          {list.length > 0 ? (
-            <CandidateList hits={list} selected={hit} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} />
-          ) : (
-            <p className="px-3 py-2 text-xs text-muted-foreground" data-testid="candidate-empty">
-              {scan.loading ? t('formation.scan.loading') : t('formation.empty.list', { tf })}
-            </p>
-          )}
-          {hit ? (
-            <FormationChecklist hit={hit} active={active} onActive={setActive} />
-          ) : !scan.loading && (
-            <p className="p-3 text-xs text-muted-foreground">{t('formation.empty.text', { tf })}</p>
-          )}
-        </div>
-      </aside>
+        {list.length > 0 ? (
+          <CandidateList hits={list} selected={hit} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} />
+        ) : (
+          <p className="px-3 py-2 text-xs text-muted-foreground" data-testid="candidate-empty">
+            {scan.loading ? t('formation.scan.loading') : t('formation.empty.list', { tf })}
+          </p>
+        )}
+        {hit ? (
+          <FormationChecklist hit={hit} active={active} onActive={setActive} />
+        ) : !scan.loading && (
+          <p className="p-3 text-xs text-muted-foreground">{t('formation.empty.text', { tf })}</p>
+        )}
+      </FormationDetailsPanel>
       {hit && (
         <ul className="pointer-events-none absolute bottom-[20%] left-3 right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex" data-testid="formation-legend">
           <li>{t('formation.legend.zigzag', { points: Object.keys(hit.candidate.points).join('–') })}</li>

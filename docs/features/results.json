@@ -851,6 +851,13 @@
       "tests": 2
     }
   },
+  "FRM-24": {
+    "e2e": {
+      "datum": "2026-10-29",
+      "status": "passed",
+      "tests": 2
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-10-28",
@@ -1180,7 +1187,7 @@
     "e2e": {
       "datum": "2026-10-29",
       "status": "passed",
-      "tests": 2
+      "tests": 1
     }
   },
   "UI-02": {
@@ -1229,7 +1236,7 @@
     "e2e": {
       "datum": "2026-10-29",
       "status": "passed",
-      "tests": 6
+      "tests": 3
     }
   },
   "UI-09": {

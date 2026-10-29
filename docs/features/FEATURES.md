@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-29 · **180/185** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-29 · **181/186** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 14/15 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 14/15 |
-| 16 | **FRM** – Formationserkennung | 23/23 |
+| 16 | **FRM** – Formationserkennung | 24/24 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -888,3 +888,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Chart füllt dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Navigation, Konto- und Setup-Auswahl, Filter und Legende schweben innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt im Menü erreichbar, Preisachse und Attribution bleiben frei.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-23) ausführen (Viewport-Abmessungen, Position der Bedienelemente, internes Scrollen, Navigation, helles und dunkles Design).
   - **Erwartet:** Der Chart ist so groß wie der Viewport; alle Bedienelemente liegen innerhalb der Fläche; Scrollen der Bedingungen verschiebt den Chart nicht; Navigation bleibt erreichbar.
+- [x] **FRM-24** Seite Formasyon: Bedingungen verschieben — 🖥️ e2e ✅ 2026-10-29
+  - Die Kopfzeile der Bedingungskarte ist ein Griff für Maus und Touch. Die Karte lässt sich frei innerhalb der sichtbaren Chart-Fläche verschieben; Navigation, Preisachse und Attribution bleiben erreichbar. Pfeiltasten verschieben um 10 Pixel, Umschalt mit Pfeil um 50 Pixel. Scrollen und Einklappen bleiben getrennt vom Ziehen. Aufklappen und Größenänderungen halten die Karte innerhalb der Grenzen. Die Position gilt bis zum Verlassen oder Neuladen der Seite.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-24) ausführen (Maus, Touch, Tastatur, Grenzen, Scrollen, Aufklappen am unteren Rand und Wechsel zur Mobilbreite).
+  - **Erwartet:** Der Kopfgriff verschiebt die Karte; der Inhalt bleibt scrollbar und die gesamte Karte bleibt erreichbar.

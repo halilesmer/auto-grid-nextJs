@@ -165,6 +165,7 @@ test.describe('UI Oberfläche', () => {
     await nav.getByRole('link', { name: msg('nav.formation') }).click();
     await expect(page).toHaveURL(/\/formasyon$/);
     await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
+    await expect(page.getByTestId('nav-menu')).toBeHidden();
     await expect(nav.getByRole('link', { name: msg('nav.formation') })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).not.toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.vps') })).toHaveAttribute('href', '/vps');

@@ -215,3 +215,67 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
     });
   }
 });
+
+
+test.describe('FRM-24 bewegliche Bedingungen', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  test('Kopfgriff verschiebt die Karte; Grenzen, Tastatur, Aufklappen und Resize halten sie erreichbar', { tag: '@FRM-24' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const panel = page.getByTestId('formation-details');
+    const handle = page.getByTestId('formation-details-drag');
+    const before = await panel.boundingBox();
+    const dragTo = async (x: number, y: number) => {
+      const grip = await handle.boundingBox();
+      await page.mouse.move(grip!.x + 20, grip!.y + grip!.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(x, y, { steps: 12 });
+      await page.mouse.up();
+    };
+    await expect(handle).toBeVisible();
+    await dragTo(before!.x - 350, before!.y + 70);
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBeLessThan(before!.x - 200);
+    await expect(panel.getByTestId('formation-checklist')).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath('formation-details-dragged.png') });
+    await dragTo(-1000, -1000);
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBeGreaterThanOrEqual(7);
+    await expect.poll(async () => (await panel.boundingBox())!.y).toBeGreaterThanOrEqual(127);
+    const left = (await panel.boundingBox())!.x;
+    await handle.focus();
+    await handle.press('ArrowRight');
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBeCloseTo(left + 10, 0);
+    const top = (await panel.boundingBox())!.y;
+    await handle.press('Shift+ArrowDown');
+    await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top + 50, 0);
+    await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('group-exclusion')).toBeInViewport();
+    await dragTo(2400, 1600);
+    await page.getByTestId('formation-details-toggle').click();
+    await dragTo(2400, 1600);
+    await page.getByTestId('formation-details-toggle').click();
+    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(837);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.x + box.width; }).toBeLessThanOrEqual(312);
+    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(749);
+    await expect(handle).toBeInViewport();
+  });
+
+  test('Touch zieht nur am Kopfgriff, der Inhalt bleibt separat scrollbar', { tag: '@FRM-24' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const panel = page.getByTestId('formation-details');
+    const grip = await page.getByTestId('formation-details-drag').boundingBox();
+    expect(grip).not.toBeNull();
+    const before = (await panel.boundingBox())!;
+    const session = await page.context().newCDPSession(page);
+    const x = grip!.x + 35;
+    const y = grip!.y + grip!.height / 2;
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 30 }] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 110 }] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(async () => (await panel.boundingBox())!.y).toBeLessThan(before.y - 70);
+    const position = (await panel.boundingBox())!.y;
+    await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
+    expect((await panel.boundingBox())!.y).toBeCloseTo(position, 0);
+  });
+});

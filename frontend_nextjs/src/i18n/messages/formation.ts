@@ -5,6 +5,7 @@ import { defineArea } from './define';
 export default defineArea(
   {
     'formation.details': 'Koşullar',
+    'formation.details.move': 'Koşulları taşı',
     'formation.tf.label': 'Zaman dilimi',
     'formation.form.label': 'Formasyon',
     'formation.form.ABCD': 'ABCD',
@@ -59,6 +60,7 @@ export default defineArea(
   },
   {
     'formation.details': 'Conditions',
+    'formation.details.move': 'Move conditions',
     'formation.tf.label': 'Timeframe',
     'formation.form.label': 'Formation',
     'formation.form.ABCD': 'ABCD',
@@ -113,6 +115,7 @@ export default defineArea(
   },
   {
     'formation.details': 'Bedingungen',
+    'formation.details.move': 'Bedingungen verschieben',
     'formation.tf.label': 'Zeiteinheit',
     'formation.form.label': 'Formation',
     'formation.form.ABCD': 'ABCD',
