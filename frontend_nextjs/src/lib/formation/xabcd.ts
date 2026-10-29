@@ -81,8 +81,12 @@ export function pipOf(symbol: string): number {
   const s = symbol.toUpperCase();
   if (s.startsWith('XAU')) return p.gold;
   if (s.startsWith('XAG')) return p.silver;
-  if (!/^[A-Z]{6}/.test(s)) return p.other;
-  return s.includes('JPY') ? p.jpy : p.default;
+  // Ohne Instrumentdaten zählen nur bekannte Währungscodes als Forex; ein Suffix bleibt möglich.
+  const currencies = new Set(['AUD', 'CAD', 'CHF', 'CNH', 'CNY', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'JPY', 'MXN', 'NOK', 'NZD', 'PLN', 'SEK', 'SGD', 'TRY', 'USD', 'ZAR']);
+  const base = s.slice(0, 3);
+  const quote = s.slice(3, 6);
+  if (base === quote || !currencies.has(base) || !currencies.has(quote)) return p.other;
+  return base === 'JPY' || quote === 'JPY' ? p.jpy : p.default;
 }
 
 /** Anteil der Strecke X → A, den ein Preis von A aus Richtung X zurückläuft (A = 0, X = 1); null bei Länge 0 */

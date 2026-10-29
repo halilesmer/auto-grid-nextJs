@@ -29,9 +29,9 @@ const BASE = harmonic([100, 130, 106, 120.16, 91.8]);
 
 // ---- Reihen ----------------------------------------------------------------------------------------------------
 
-/** B an 106.425: 0.005 über dem Level 0.786 (106.42), innerhalb der Toleranz von 1 Pip (0.01) */
+/** B an 106.425: 0.005 über dem Level 0.786 (106.42), verfehlt das Level um weniger als 1 Pip */
 const B_TOL = harmonic([100, 130, 106.425, 120.16, 91.8]);
-/** B an 106.44: 0.02 über dem Level, außerhalb der Toleranz */
+/** B an 106.44: 0.02 über dem Level, verfehlt das Level um mehr als 1 Pip */
 const B_FAR = harmonic([100, 130, 106.44, 120.16, 91.8]);
 /** B an 109: nur 0.7 */
 const B_SHALLOW = harmonic([100, 130, 109, 120.16, 91.8]);
@@ -39,7 +39,7 @@ const B_SHALLOW = harmonic([100, 130, 109, 120.16, 91.8]);
 const B_DEEP = harmonic([100, 130, 103, 120.16, 91.8]);
 /** B an 103.6: 0.88, unter 0.886 */
 const B_EDGE = harmonic([100, 130, 103.6, 120.16, 91.8]);
-/** C an 115.163: 0.005 unter dem Level 0.382 von A → B (115.168), innerhalb der Toleranz */
+/** C an 115.163: 0.005 unter dem Level 0.382 von A → B (115.168), verfehlt das Level um weniger als 1 Pip */
 const C_TOL = harmonic([100, 130, 106, 115.163, 91.8]);
 /** C an 115.15: 0.018 unter dem Level, außerhalb */
 const C_FAR = harmonic([100, 130, 106, 115.15, 91.8]);
@@ -49,7 +49,7 @@ const C_SHALLOW = harmonic([100, 130, 106, 113.2, 91.8]);
 const C_DEEP = harmonic([100, 130, 106, 127.6, 91.8]);
 /** C an 127.12: 0.88, unter 0.886 */
 const C_EDGE = harmonic([100, 130, 106, 127.12, 91.8]);
-/** C an 120.825: 0.007 unter dem Level 0.618 (120.832), innerhalb der Toleranz */
+/** C an 120.825: 0.007 unter dem Level 0.618 (120.832), verfehlt das Level um weniger als 1 Pip */
 const C_STRONG_TOL = harmonic([100, 130, 106, 120.825, 91.8]);
 /** C an 120.81: 0.022 unter dem Level, außerhalb */
 const C_STRONG_FAR = harmonic([100, 130, 106, 120.81, 91.8]);
@@ -61,7 +61,7 @@ const C_INNER = harmonic([100, 130, 106, 115.84, 91.8]);
 const B_EXT = harmonic([100, 130, 104.5, 120.16, 91.8]);
 /** D an 92.4: nur 1.2533 */
 const D_SHORT = harmonic([100, 130, 106, 120.16, 92.4]);
-/** D an 91.845: 0.005 über dem Level 1.272 (91.84), innerhalb der Toleranz */
+/** D an 91.845: 0.005 über dem Level 1.272 (91.84), verfehlt das Level um weniger als 1 Pip */
 const D_TOL = harmonic([100, 130, 106, 120.16, 91.845]);
 /** D an 91.86: 0.02 über dem Level, außerhalb */
 const D_FAR = harmonic([100, 130, 106, 120.16, 91.86]);
@@ -100,12 +100,12 @@ const CASES: Case[] = [
   { name: 'Spiegel: Verkauf-Butterfly hat dieselben Zustände', candidate: () => run({ H4: mirror(BASE) }, AT, { buy: false }), expect: BASE_EXPECT },
   { name: 'BUT 01: A nicht an der Dochtspitze', candidate: () => run({ H4: BASE }, AT, { price: { a: 129.5 } }), expect: { 'BUT-01': N } },
   { name: 'BUT 01: B oberhalb von A, die Punkte wechseln nicht die Seite', candidate: () => run({ H4: BASE }, AT, { price: { b: 135 } }), expect: { 'BUT-01': N } },
-  { name: 'BUT 02: B 0.005 über dem Level 0.786 gilt als Berührung (1 Pip = 0.01)', candidate: () => run({ H4: B_TOL }), expect: { 'BUT-02': M } },
+  { name: 'BUT 02: B 0.005 über dem Level 0.786 berührt nicht', candidate: () => run({ H4: B_TOL }), expect: { 'BUT-02': N } },
   { name: 'BUT 02: B 0.02 über dem Level 0.786 berührt nicht', candidate: () => run({ H4: B_FAR }), expect: { 'BUT-02': N } },
   { name: 'BUT 02: B nur an 0.7', candidate: () => run({ H4: B_SHALLOW }), expect: { 'BUT-02': N } },
   { name: 'BUT 03: B an 0.9 berührt 0.886', candidate: () => run({ H4: B_DEEP }), expect: { 'BUT-02': M, 'BUT-03': M } },
   { name: 'BUT 03: B an 0.88 berührt 0.886 nicht', candidate: () => run({ H4: B_EDGE }), expect: { 'BUT-03': N } },
-  { name: 'BUT 04: C 0.005 unter dem Level 0.382 gilt als Berührung', candidate: () => run({ H4: C_TOL }), expect: { 'BUT-04': M } },
+  { name: 'BUT 04: C 0.005 unter dem Level 0.382 berührt nicht', candidate: () => run({ H4: C_TOL }), expect: { 'BUT-04': N } },
   { name: 'BUT 04: C 0.018 unter dem Level 0.382 berührt nicht', candidate: () => run({ H4: C_FAR }), expect: { 'BUT-04': N } },
   { name: 'BUT 04: C nur an 0.3', candidate: () => run({ H4: C_SHALLOW }), expect: { 'BUT-04': N } },
   { name: 'BUT 05: C an 0.9 berührt 0.886', candidate: () => run({ H4: C_DEEP }), expect: { 'BUT-05': M } },
@@ -113,10 +113,10 @@ const CASES: Case[] = [
   { name: 'BUT 06: ein Schluss zwischen C und D unter B (Basis)', candidate: () => run({ H4: BASE }), expect: { 'BUT-06': M } },
   { name: 'BUT 06: nur der Docht von D reicht unter B, kein Schluss darunter', candidate: () => run({ H4: NO_CLOSE }), expect: { 'BUT-06': N, 'BUT-07': M } },
   { name: 'BUT 07: D an 1.2533 statt 1.272', candidate: () => run({ H4: D_SHORT }), expect: { 'BUT-07': N } },
-  { name: 'BUT 07: D 0.005 über dem Level 1.272 gilt als Berührung', candidate: () => run({ H4: D_TOL }), expect: { 'BUT-07': M } },
+  { name: 'BUT 07: D 0.005 über dem Level 1.272 berührt nicht', candidate: () => run({ H4: D_TOL }), expect: { 'BUT-07': N } },
   { name: 'BUT 07: D 0.02 über dem Level 1.272 berührt nicht', candidate: () => run({ H4: D_FAR }), expect: { 'BUT-07': N } },
   { name: 'BUT 07: ohne Kerze nach C ist D nicht erreicht', candidate: () => run({ H4: BASE.slice(0, AT.c + 1) }, { x: AT.x, a: AT.a, b: AT.b, c: AT.c }), expect: { 'BUT-06': N, 'BUT-07': N, 'BUT-13': U } },
-  { name: 'BUT 08: C 0.007 unter dem Level 0.618 gilt als Berührung', candidate: () => run({ H4: C_STRONG_TOL }), expect: { 'BUT-08': M } },
+  { name: 'BUT 08: C 0.007 unter dem Level 0.618 berührt nicht', candidate: () => run({ H4: C_STRONG_TOL }), expect: { 'BUT-08': N } },
   { name: 'BUT 08: C 0.022 unter dem Level 0.618 berührt nicht', candidate: () => run({ H4: C_STRONG_FAR }), expect: { 'BUT-08': N } },
   { name: 'BUT 09: C an 125, die BC-Rückprojektion 2 liegt weit vom Ziel-D', candidate: () => run({ H4: C_HIGH }), expect: { 'BUT-09': N } },
   { name: 'BUT 10: B an 104.5, die AB-Ausdehnung 1.618 liegt weit vom Ziel-D', candidate: () => run({ H4: B_EXT }), expect: { 'BUT-10': N } },
@@ -266,12 +266,12 @@ test.describe('BUT: echte Kerzen', () => {
     expect(c.verdict).toBe('valid');
   });
 
-  frm('but-sell-h4-01: Verkauf-Butterfly mit RSI(7) 85 am D und einer Zone am Ziel-D ist gültig', () => {
+  frm('but-sell-h4-01: Verkauf-Butterfly mit RSI(7) 85 am D, Ziel-D außerhalb der Zone, ist gültig', () => {
     const c = analyzeAt('but-sell-h4-01', '2026-02-19T08:00');
     expect(c.side).toBe('sell');
     expect(times(c)).toEqual(['2026-02-12T12:00', '2026-02-12T16:00', '2026-02-13T08:00', '2026-02-16T00:00', '2026-02-19T04:00']);
     expect(states(c, CORE)).toEqual([M, M, N, M, N, M, M]);
-    expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13'])).toEqual([M, N, M, M, M, M]);
+    expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13'])).toEqual([M, N, M, M, N, M]);
     expect(c.verdict).toBe('valid');
   });
 

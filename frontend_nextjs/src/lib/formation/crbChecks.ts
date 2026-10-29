@@ -5,11 +5,12 @@
  *
  * Lesart der Zustände: bei Ereignis-Bedingungen (CRB-03, CRB-05, CRB-07, CRB-09) heißt ☑ „liegt vor“, bei Ausschlüssen
  * also „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“ (CRB-16 ohne tiefere Zeiteinheit im Kontext).
- * Pflicht-Level (CRB-02, CRB-04, CRB-06, CRB-08) gelten bis 1 Pip davor als berührt, die Ausschluss-Level ohne Toleranz.
+ * Pflicht-Level und Ausschluss-Level werden ohne Pip-Toleranz geprüft.
  * Die Bedingungen beider Varianten (CRB-06 bis CRB-09, CRB-10, CRB-11) werden immer gemessen; die Crab gilt bei CRB-06 ☑ und
  * CRB-07 ☐, die Deep Crab bei CRB-08 ☑ und CRB-09 ☐, und für eine gültige Formation genügt eine der beiden Varianten.
  */
 import type { FormationContext } from './context';
+import { outward } from './frz';
 import { levelBC } from './cyp';
 import { dTargetOfCrab, zonesNearOutsideX } from './crb';
 import { CRB_PARAMS, FIB_PARAMS, type ContextTimeframe } from './params';
@@ -24,10 +25,10 @@ import {
   closedBeyondB,
   fractalDone,
   ids,
-  lenAB,
+  levelAB,
   lowerReversal,
-  reaches,
   retraceXA,
+  levelXA,
   unmeasurable,
   zigOf,
   type XabcdAnalysis,
@@ -85,13 +86,12 @@ const nearestInversion = (s: XabcdShape, ratios: readonly number[], dTarget: num
   return dists.includes(null) ? null : Math.min(...(dists as number[]));
 };
 
-function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): Candidate {
+function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
   const { bars } = view;
   const last = bars.length - 1;
-  const { x, a, b, c, d, es, cs, side, len, abcd } = s;
-  const abLen = lenAB(s);
+  const { x, a, b, c, d, es, cs, side, abcd } = s;
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
 
@@ -99,17 +99,17 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const impulse = trend.pivots.some((p) => p.idx === a.idx && p.side === cs && p.kind === 'impulse');
   add('CRB-01', flag(fractalDone(bars, x, es) && fractalDone(bars, a, cs) && impulse && alternates(s)));
   const rC = abcd.depth;
-  add('CRB-02', flag(reaches(rC, P.cMin, abLen, pip)), rC ?? undefined);
+  add('CRB-02', flag(rC !== null && outward(cs, c.price) >= outward(cs, levelAB(s, P.cMin))), rC ?? undefined);
   add('CRB-03', rC === null ? U : flag(rC >= P.cExclude), rC ?? undefined);
   const rD = d ? retraceXA(s, d.price) : null;
-  add('CRB-04', flag(d !== null && reaches(rD, 1 + P.dExtension, len, pip)), rD ?? undefined);
+  add('CRB-04', flag(d !== null && outward(es, d.price) >= outward(es, levelXA(s, 1 + P.dExtension))), rD ?? undefined);
   add('CRB-05', flag(closedBeyondB(bars, s)));
 
   // Varianten: B der Crab 0.382 bis unter 0.786, B der Deep Crab 0.886 bis unter 1.0
   const rB = retraceXA(s, b.price);
-  add('CRB-06', flag(reaches(rB, P.crabBMin, len, pip)), rB ?? undefined);
+  add('CRB-06', flag(outward(es, b.price) >= outward(es, levelXA(s, P.crabBMin))), rB ?? undefined);
   add('CRB-07', rB === null ? U : flag(rB >= P.crabBExclude), rB ?? undefined);
-  add('CRB-08', flag(reaches(rB, P.deepBMin, len, pip)), rB ?? undefined);
+  add('CRB-08', flag(outward(es, b.price) >= outward(es, levelXA(s, P.deepBMin))), rB ?? undefined);
   add('CRB-09', rB === null ? U : flag(rB >= P.deepBExclude), rB ?? undefined);
 
   // Filter: PRZ-Level am D, Zone, Signal am D, Zeiteinheit
@@ -119,8 +119,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   add('CRB-10', crabPrz === null ? U : flag(crabPrz <= P.nearAtr), crabPrz ?? undefined);
   const deepPrz = nearestInversion(s, P.deepInversions, dTarget, atr);
   add('CRB-11', deepPrz === null ? U : flag(deepPrz <= P.nearAtr), deepPrz ?? undefined);
-  const near = atr === null ? null : P.zoneAtr * atr;
-  add('CRB-12', near === null ? U : flag(zonesNearOutsideX(env, tf, s, dTarget, near).length > 0));
+  add('CRB-12', flag(zonesNearOutsideX(env, tf, s, dTarget, 0).length > 0));
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('CRB-13', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
   const div = d ? divergenceOf(trend, es, b.idx, d.idx) : null;

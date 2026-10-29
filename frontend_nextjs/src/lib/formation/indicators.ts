@@ -64,8 +64,7 @@ export function wideRange(
   let sum = 0;
   for (let i = 0; i < bars.length; i++) {
     if (i >= lookback) {
-      // eine Kerze ohne Spanne ist nie volumenstark, auch nicht nach lauter flachen Kerzen
-      out[i] = spans[i] > 0 && spans[i] >= factor * (sum / lookback);
+      out[i] = spans[i] >= factor * (sum / lookback);
       sum -= spans[i - lookback];
     }
     sum += spans[i];

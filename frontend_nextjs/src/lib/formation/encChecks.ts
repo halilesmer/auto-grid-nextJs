@@ -61,7 +61,7 @@ function sameTrend(env: Env, tf: ContextTimeframe, c: Channel): boolean | null {
 function evaluate(env: Env, tf: ContextTimeframe, base: ChannelBase): Candidate {
   const view = env.views.get(tf)!;
   const { bars } = view;
-  const c = measureChannel(bars, view.atr, base, 'parallel', ENC_PARAMS.copyAtr);
+  const c = measureChannel(bars, base, 'parallel');
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
 

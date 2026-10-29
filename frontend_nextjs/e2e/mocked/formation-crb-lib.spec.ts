@@ -33,9 +33,9 @@ const DEEP = harmonic([100, 130, 103, 124.54, 81.4]);
 
 // ---- Reihen ----------------------------------------------------------------------------------------------------
 
-/** B an 118.545: 0.005 unter dem Level 0.382 (118.54), innerhalb der Toleranz von 1 Pip (0.01) */
+/** B an 118.545: 0.005 unter dem Level 0.382 (118.54), verfehlt das Level um weniger als 1 Pip */
 const B_TOL = harmonic([100, 130, 118.545, 123.68, 81.4]);
-/** B an 118.56: 0.02 unter dem Level, außerhalb der Toleranz */
+/** B an 118.56: 0.02 unter dem Level, verfehlt das Level um mehr als 1 Pip */
 const B_FAR = harmonic([100, 130, 118.56, 123.68, 81.4]);
 /** B an 121 (0.3), C an 126 */
 const B_SHALLOW = harmonic([100, 130, 121, 126, 81.4]);
@@ -51,7 +51,7 @@ const DEEP_FAR = harmonic([100, 130, 103.44, 124.54, 81.4]);
 const B_BEYOND_X = harmonic([100, 130, 99, 124.54, 81.4]);
 /** Deep: B an 100.5 (0.983), knapp vor X */
 const B_AT_X = harmonic([100, 130, 100.5, 124.54, 81.4]);
-/** C an 118.871: 0.005 unter dem Level 0.382 von A → B (118.876), innerhalb der Toleranz */
+/** C an 118.871: 0.005 unter dem Level 0.382 von A → B (118.876), verfehlt das Level um weniger als 1 Pip */
 const C_TOL = harmonic([100, 130, 112, 118.871, 81.4]);
 /** C an 118.86: 0.016 unter dem Level, außerhalb */
 const C_FAR = harmonic([100, 130, 112, 118.86, 81.4]);
@@ -63,7 +63,7 @@ const C_DEEP = harmonic([100, 130, 112, 128.2, 81.4]);
 const C_EDGE = harmonic([100, 130, 112, 127.84, 81.4]);
 /** D an 85: nur 1.5 */
 const D_SHORT = harmonic([100, 130, 112, 123.68, 85]);
-/** D an 81.465: 0.005 über dem Level 1.618 (81.46), innerhalb der Toleranz */
+/** D an 81.465: 0.005 über dem Level 1.618 (81.46), verfehlt das Level um weniger als 1 Pip */
 const D_TOL = harmonic([100, 130, 112, 123.68, 81.465]);
 /** D an 81.48: 0.02 über dem Level, außerhalb */
 const D_FAR = harmonic([100, 130, 112, 123.68, 81.48]);
@@ -109,23 +109,23 @@ const CASES: Case[] = [
   { name: 'Spiegel: Verkauf-Deep-Crab hat dieselben Zustände', candidate: () => run({ H4: mirror(DEEP) }, AT, { buy: false }), expect: DEEP_EXPECT },
   { name: 'CRB 01: A nicht an der Dochtspitze', candidate: () => run({ H4: BASE }, AT, { price: { a: 129.5 } }), expect: { 'CRB-01': N } },
   { name: 'CRB 01: B oberhalb von A, die Punkte wechseln nicht die Seite', candidate: () => run({ H4: BASE }, AT, { price: { b: 135 } }), expect: { 'CRB-01': N } },
-  { name: 'CRB 02: C 0.005 unter dem Level 0.382 gilt als Berührung (1 Pip = 0.01)', candidate: () => run({ H4: C_TOL }), expect: { 'CRB-02': M } },
+  { name: 'CRB 02: C 0.005 unter dem Level 0.382 berührt nicht', candidate: () => run({ H4: C_TOL }), expect: { 'CRB-02': N } },
   { name: 'CRB 02: C 0.016 unter dem Level 0.382 berührt nicht', candidate: () => run({ H4: C_FAR }), expect: { 'CRB-02': N } },
   { name: 'CRB 02: C nur an 0.167', candidate: () => run({ H4: C_SHALLOW }), expect: { 'CRB-02': N } },
   { name: 'CRB 03: C an 0.9 berührt 0.886', candidate: () => run({ H4: C_DEEP }), expect: { 'CRB-03': M } },
   { name: 'CRB 03: C an 0.88 berührt 0.886 nicht', candidate: () => run({ H4: C_EDGE }), expect: { 'CRB-03': N } },
   { name: 'CRB 04: D an 1.5 statt 1.618', candidate: () => run({ H4: D_SHORT }), expect: { 'CRB-04': N } },
-  { name: 'CRB 04: D 0.005 über dem Level 1.618 gilt als Berührung', candidate: () => run({ H4: D_TOL }), expect: { 'CRB-04': M } },
+  { name: 'CRB 04: D 0.005 über dem Level 1.618 berührt nicht', candidate: () => run({ H4: D_TOL }), expect: { 'CRB-04': N } },
   { name: 'CRB 04: D 0.02 über dem Level 1.618 berührt nicht', candidate: () => run({ H4: D_FAR }), expect: { 'CRB-04': N } },
   { name: 'CRB 04: ohne Kerze nach C ist D nicht erreicht', candidate: () => run({ H4: BASE.slice(0, AT.c + 1) }, { x: AT.x, a: AT.a, b: AT.b, c: AT.c }), expect: { 'CRB-04': N, 'CRB-05': N, 'CRB-13': U } },
   { name: 'CRB 05: ein Schluss zwischen C und D unter B (Basis)', candidate: () => run({ H4: BASE }), expect: { 'CRB-05': M } },
   { name: 'CRB 05: nur der Docht von D reicht unter B, kein Schluss darunter', candidate: () => run({ H4: NO_CLOSE }), expect: { 'CRB-05': N, 'CRB-04': M } },
-  { name: 'CRB 06: B 0.005 unter dem Level 0.382 gilt als Berührung', candidate: () => run({ H4: B_TOL }), expect: { 'CRB-06': M } },
+  { name: 'CRB 06: B 0.005 unter dem Level 0.382 berührt nicht', candidate: () => run({ H4: B_TOL }), expect: { 'CRB-06': N } },
   { name: 'CRB 06: B 0.02 unter dem Level 0.382 berührt nicht', candidate: () => run({ H4: B_FAR }), expect: { 'CRB-06': N } },
   { name: 'CRB 06: B nur an 0.3', candidate: () => run({ H4: B_SHALLOW }), expect: { 'CRB-06': N } },
   { name: 'CRB 07: B an 0.8 berührt 0.786, stattdessen Butterfly', candidate: () => run({ H4: B_BUT }), expect: { 'CRB-06': M, 'CRB-07': M, 'CRB-08': N } },
   { name: 'CRB 07: B an 0.78 berührt 0.786 nicht', candidate: () => run({ H4: B_EDGE }), expect: { 'CRB-07': N } },
-  { name: 'CRB 08: B 0.005 über dem Level 0.886 gilt als Berührung', candidate: () => run({ H4: DEEP_TOL }), expect: { 'CRB-08': M } },
+  { name: 'CRB 08: B 0.005 über dem Level 0.886 berührt nicht', candidate: () => run({ H4: DEEP_TOL }), expect: { 'CRB-08': N } },
   { name: 'CRB 08: B 0.02 über dem Level 0.886 berührt nicht', candidate: () => run({ H4: DEEP_FAR }), expect: { 'CRB-08': N } },
   { name: 'CRB 09: B unter X (1.033) berührt X', candidate: () => run({ H4: B_BEYOND_X }), expect: { 'CRB-08': M, 'CRB-09': M } },
   { name: 'CRB 09: B an 0.983 berührt X nicht', candidate: () => run({ H4: B_AT_X }), expect: { 'CRB-09': N } },
@@ -299,14 +299,14 @@ test.describe('CRB: echte Kerzen', () => {
     expect(c.verdict).toBe('valid');
   });
 
-  frm('crb-deep-h4-01: Kauf-Deep-Crab, B bei 0.9, BC-Rückprojektion 2 und eine Zone am Ziel-D ist gültig', () => {
+  frm('crb-deep-h4-01: Kauf-Deep-Crab, B bei 0.9, BC-Rückprojektion 2 und eine Zone am Ziel-D, D noch nicht erreicht', () => {
     const c = analyzeAt('crb-deep-h4-01', '2026-03-25T20:00');
     expect(c.side).toBe('buy');
     expect(times(c)).toEqual(['2026-03-20T12:00', '2026-03-20T16:00', '2026-03-20T20:00', '2026-03-23T08:00', '2026-03-23T16:00']);
-    expect(states(c, CORE)).toEqual([M, M, N, M, M]);
+    expect(states(c, CORE)).toEqual([M, M, N, N, M]);
     expect(states(c, VARIANT)).toEqual([M, M, M, N]);
     expect(states(c, ['CRB-10', 'CRB-11', 'CRB-12'])).toEqual([N, M, M]);
-    expect(c.verdict).toBe('valid');
+    expect(c.verdict).toBe('forming');
   });
 
   frm('crb-deep-h4-02: Verkauf-Deep-Crab, B bei 0.967 ist gültig', () => {

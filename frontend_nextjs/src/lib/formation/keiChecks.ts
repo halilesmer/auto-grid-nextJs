@@ -54,7 +54,7 @@ const empty = (tf: ContextTimeframe): Candidate => unmeasurable('KEI', tf, KEI_C
 function evaluate(env: Env, tf: ContextTimeframe, base: ChannelBase): Candidate {
   const view = env.views.get(tf)!;
   const { bars } = view;
-  const c = measureChannel(bars, view.atr, base, 'wedge', 0);
+  const c = measureChannel(bars, base, 'wedge');
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
 

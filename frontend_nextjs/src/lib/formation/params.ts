@@ -92,7 +92,7 @@ export const TRD_PARAMS = {
   /** TRD-17 (Annahme): aufeinanderfolgende Schlüsse jenseits der Bezugszone für den Wechsel */
   changeCloses: 2,
   /** TRD-22 (Annahme): „ähnlich“ = Anteil der vorigen Korrektur von … bis … */
-  regular: { min: 0.75, max: 1.333 },
+  regular: { min: 0.75, max: 1.33 },
   /** TRD-23, TRD-24 (Annahme): so viele Korrekturen bzw. Impulse in Folge, jede kürzer als die vorige */
   shrinkCount: 2,
   /** TRD-30 (Annahme): Kerzen ohne neuen Impuls und ohne Wechsel */
@@ -223,8 +223,6 @@ export const CYP_PARAMS = {
   bcInversion: 1 + FIB_PARAMS.extensions[0],
   /** CYP-10, CYP-12: „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
   nearAtr: ABCD_PARAMS.nearAtr,
-  /** CYP-09 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
-  zoneAtr: ABCD_PARAMS.nearAtr,
   /** Z-CYP-03: Ziele und 1:1-Stop der Ziel-Fib C → D (Zahlen aus ABCD_PARAMS) */
   targets: ABCD_PARAMS.targets,
 } as const;
@@ -249,8 +247,6 @@ export const BUT_PARAMS = {
   abExtension: FIB_PARAMS.extensions[2],
   /** BUT-09, BUT-10: „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
   nearAtr: ABCD_PARAMS.nearAtr,
-  /** BUT-12 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
-  zoneAtr: ABCD_PARAMS.nearAtr,
   /** Z-BUT-05: Ziele und 1:1-Stop der Ziel-Fib A → D (Zahlen aus ABCD_PARAMS) */
   targets: ABCD_PARAMS.targets,
 } as const;
@@ -277,8 +273,6 @@ export const CRB_PARAMS = {
   deepInversions: [2, 2.618] as readonly number[],
   /** CRB-10, CRB-11: „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) (ABCD-11) */
   nearAtr: ABCD_PARAMS.nearAtr,
-  /** CRB-12 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
-  zoneAtr: ABCD_PARAMS.nearAtr,
   /** CRB-15: Zeiteinheit, in der die Crab bevorzugt wird */
   preferredTimeframe: 'H4',
   /** Z-CRB-04: Ziele und 1:1-Stop der Ziel-Fib A → D (Zahlen aus ABCD_PARAMS) */
@@ -412,8 +406,6 @@ export const LINE_CHANNEL_PARAMS = {
 
 /** Ending Channel (ENC) */
 export const ENC_PARAMS = {
-  /** ENC-04 (Annahme): Berührung der Kopie der Linie = Docht bis höchstens dieses Vielfache der ATR(14) davor (Zahl aus TDF-12) */
-  copyAtr: TDF_PARAMS.parallelAtr,
   /** Z-ENC-03: Ziel 2 = Kanalhöhe H, so oft in Trade-Richtung ab der Linie */
   heightTarget: 1,
 } as const;

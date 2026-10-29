@@ -93,12 +93,19 @@ test.describe('Formation: volumenstarke Kerze (SIG-34)', () => {
     expect(w[20]).toBe(false);
   });
 
-  test('lauter flache Kerzen: eine Kerze ohne Spanne ist nicht volumenstark, eine mit Spanne schon', { tag: '@FRM-01' }, () => {
+  test('SIG-34: flache Kerze nach 20 flachen Kerzen erfüllt die Nullgrenze', { tag: '@FRM-01' }, () => {
     const flatBars = Array.from({ length: 20 }, (_, i) => bar(i * 3600, 100, 100, 100));
     const w = wideRange([...flatBars, bar(20 * 3600, 100, 100, 100), bar(21 * 3600, 100.1, 100, 100)]);
-    expect(w[20]).toBe(false);
+    expect(w[20]).toBe(true);
     expect(w[21]).toBe(true);
   });
+
+  for (const candle of [{ open: 102, close: 100 }, { open: 100, close: 102 }]) {
+    test(`SIG-34: Grenze 3 und knapp darunter, Schluss ${candle.close}`, { tag: '@FRM-01' }, () => {
+      expect(wideRange([...flat(20), bar(20 * 3600, 103, 100, candle.close, candle.open)])[20]).toBe(true);
+      expect(wideRange([...flat(20), bar(20 * 3600, 102.999999, 100, candle.close, candle.open)])[20]).toBe(false);
+    });
+  }
 
   test('leere Reihe und Reihe kürzer als die Periode → keine Werte', { tag: '@FRM-01' }, () => {
     expect(rsi([])).toEqual([]);

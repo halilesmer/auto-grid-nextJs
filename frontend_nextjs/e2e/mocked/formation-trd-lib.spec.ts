@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { buildTrend } from '../../src/lib/formation/trd';
+import { regularCorrections } from '../../src/lib/formation/enc';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { TRD_CHECK_IDS, TRD_UNMEASURABLE_IDS, analyzeTrd, checkTrdCandidate, type TrdOptions } from '../../src/lib/formation/trdChecks';
 import type { Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
@@ -84,6 +85,23 @@ const find = (c: Candidate, id: string) => {
   return hit;
 };
 const state = (c: Candidate, id: string): CheckState => find(c, id).state;
+
+for (const buy of [false, true]) {
+  for (const edge of [{ low: 117, want: 'met' }, { low: 116.99, want: 'unmet' }] as const) {
+    test(`TRD-22/39: ${buy ? 'Kauf' : 'Verkauf'}, Korrektur bis ${edge.low}`, { tag: '@FRM-03' }, () => {
+      // Korrekturen 100 und 133 bzw. 133.01: Grenze 1.33.
+      const rows = zig([0, 200, 100, 250, edge.low, 400]);
+      const candidate = run(buy ? mirror(rows) : rows);
+      expect(state(candidate, 'TRD-22')).toBe(edge.want);
+      expect(state(candidate, 'TRD-39')).toBe(edge.want);
+    });
+  }
+}
+
+test('ENC-07: geteilte Korrekturgrenze 1.33', { tag: '@FRM-16' }, () => {
+  expect(regularCorrections([100, 133])).toBe(true);
+  expect(regularCorrections([100, 133.01])).toBe(false);
+});
 
 // ---- Reihen ---------------------------------------------------------------------------------------------------
 
