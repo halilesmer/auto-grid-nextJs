@@ -1857,3 +1857,12 @@ kategorien:
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-23) ausführen (Viewport-Abmessungen, Position der Bedienelemente, internes Scrollen, Navigation, helles und dunkles Design).
         erwartet: Der Chart ist so groß wie der Viewport; alle Bedienelemente liegen innerhalb der Fläche; Scrollen der Bedingungen verschiebt den Chart nicht; Navigation bleibt erreichbar.
+
+      - id: FRM-24
+        titel: "Seite Formasyon: Bedingungen verschieben"
+        beschreibung: "Die Kopfzeile der Bedingungskarte ist ein Griff für Maus und Touch. Die Karte lässt sich frei innerhalb der sichtbaren Chart-Fläche verschieben; Navigation, Preisachse und Attribution bleiben erreichbar. Pfeiltasten verschieben um 10 Pixel, Umschalt mit Pfeil um 50 Pixel. Scrollen und Einklappen bleiben getrennt vom Ziehen. Aufklappen und Größenänderungen halten die Karte innerhalb der Grenzen. Die Position gilt bis zum Verlassen oder Neuladen der Seite."
+        code: [frontend_nextjs/src/components/formation/FormationDetailsPanel.tsx, frontend_nextjs/src/app/formasyon/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-24) ausführen (Maus, Touch, Tastatur, Grenzen, Scrollen, Aufklappen am unteren Rand und Wechsel zur Mobilbreite).
+        erwartet: Der Kopfgriff verschiebt die Karte; der Inhalt bleibt scrollbar und die gesamte Karte bleibt erreichbar.

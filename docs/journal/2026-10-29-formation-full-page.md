@@ -3,8 +3,8 @@ date: 2026-10-29
 author: Codex
 type: feature
 status: done
-pr: []
-features: [FRM-18, FRM-19, FRM-20, FRM-22, FRM-23]
+pr: [240]
+features: [FRM-18, FRM-19, FRM-20, FRM-22, FRM-23, FRM-24]
 areas: [frontend, tests]
 ---
 
@@ -49,3 +49,19 @@ The mobile panel ends above the RSI pane and the attribution.
 - Checked screenshots at 1440 × 900 and 375 × 812, in light and dark themes.
 - The zoom test uses free chart space. Interactive SVG drawing strokes can capture mouse events.
 - The production deployment is not part of this local verification.
+
+
+## Movable conditions panel
+| Item | Decision |
+|---|---|
+| Request | Drag the conditions card freely inside the chart. |
+| Handle | A grip button in the header starts mouse and touch drags. The content remains scrollable. |
+| Bounds | Keep the card below navigation and clear of the price axis and bottom attribution strip. |
+| Keyboard | Arrow keys move 10 pixels; Shift with an arrow moves 50 pixels. |
+| Resize | Clamp the card after a viewport change or expansion. |
+| Persistence | Keep the position for the current page session only. |
+| Library | Use the installed Motion library, with no new dependency and no momentum or elastic overflow. |
+| Regression evidence | Both new drag tests failed on the previous fixed-card build. |
+| CI follow-up | The prior run passed 1,588 tests. One navigation test still expected the old link row. |
+| Navigation test | Open the approved page menu before checking the same active links and destinations. |
+| Verification | Production build, lint and TypeScript passed. All 28 targeted browser tests passed, including mouse, touch and keyboard movement. |
