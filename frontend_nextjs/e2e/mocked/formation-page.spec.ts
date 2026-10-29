@@ -177,13 +177,14 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
-      expect(chart).toEqual({ x: 0, y: 0, width: 1440, height: 900 });
-      for (const id of ['app-nav', 'formation-selectors', 'formation-toolbar', 'formation-details', 'formation-legend']) {
+      expect(chart).toEqual({ x: 0, y: 56, width: 1440, height: 844 });
+      expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });
+      for (const id of ['formation-selectors', 'formation-toolbar', 'formation-details', 'formation-legend']) {
         const box = await page.getByTestId(id).boundingBox();
         expect(box!.x).toBeGreaterThanOrEqual(0);
-        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(box!.y).toBeGreaterThanOrEqual(56);
         expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.width);
-        expect(box!.y + box!.height).toBeLessThanOrEqual(chart!.height);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(900);
       }
       const toolbar = await page.getByTestId('formation-toolbar').boundingBox();
       const pointA = await page.getByTestId('formation-overlay').getByText('A', { exact: true }).boundingBox();
@@ -206,9 +207,9 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
         await page.screenshot({ path: test.info().outputPath('formation-mobile-light.png') });
         await page.setViewportSize({ width: 1440, height: 900 });
       }
-      // Navigation ist auch auf dem Desktop im Menü erreichbar, kein Minimieren nötig.
-      await page.getByTestId('nav-menu').click();
-      await page.getByTestId('nav-menu-panel').getByRole('link', { name: msg('nav.analysis', {}, 'de'), exact: true }).click();
+      // Desktoplinks sind direkt in der Kopfzeile erreichbar.
+      await expect(page.getByTestId('nav-menu')).toBeHidden();
+      await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.analysis', {}, 'de'), exact: true }).click();
       await expect(page).toHaveURL(/\/chart/);
       await expect(page.getByTestId('formation-page')).toHaveCount(0);
     });

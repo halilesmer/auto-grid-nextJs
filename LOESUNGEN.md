@@ -16,3 +16,12 @@
 - **Ursache:** Der standardmäßige Git-Zugang kann ein anderes gespeichertes Konto als die aktive `gh`-Anmeldung verwenden.
 - **Lösung:** Nach Prüfung der aktiven Anmeldung den Zugang nur für diesen Aufruf über `gh` beziehen: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push`. Die globale Git-Konfiguration bleibt unverändert; es wird kein Token ausgegeben.
 - **Prüfstatus:** Der Branch dieses Umbaus wurde damit erfolgreich übertragen; die Commit- und Push-Prüfungen bestanden.
+
+## Responsive Navigation und Einstellungszahnrad
+
+- **Problem:** Auf der Formationsseite wurde auch am Desktop das kompakte Mobilmenü erzwungen; der Einstellungs-Auslöser zeigte eine breite Verbindungsadresse.
+- **Ursache:** Die Routenausnahme in `AppNav` galt unabhängig von der Bildschirmbreite.
+- **Lösung:** Unter 1024 px bleibt die Formationsnavigation schwebend; ab 1024 px wird die normale 56 px hohe Desktopleiste verwendet. Die Chartfläche beginnt dann darunter. Einstellungen öffnen bei jeder Breite über ein Zahnrad.
+- **Bedienung:** Host und Verbindungsstatus bleiben im geöffneten Menü sichtbar; Tooltip und zugänglicher Name nennen den Status.
+- **Prüfstatus:** Siehe [Projektjournal](docs/journal/2026-10-29-responsive-navigation-settings.md).
+- **Grenzen:** Die verfügbare Browserbreite entscheidet über die Ansicht, nicht die Geräteerkennung.

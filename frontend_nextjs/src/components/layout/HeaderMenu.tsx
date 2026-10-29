@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ChevronDown, Globe, Monitor, Plug, Power, RefreshCw, Server } from 'lucide-react';
+import { Globe, Monitor, Plug, Power, RefreshCw, Server, Settings } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 import UpdateModal from '@/components/dashboard/UpdateModal';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -57,8 +57,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /**
- * Kopf-Menü rechts in der Kopfzeile: Verbindung, Sprache, Design und System. Der Auslöser zeigt immer den
- * Verbindungspunkt; bei einer Störung zusätzlich den Status als Text (nie nur über die Farbe). Das Panel
+ * Kopf-Menü rechts in der Kopfzeile: Verbindung, Sprache, Design und System. Der Zahnrad-Auslöser nennt den
+ * Verbindungsstatus im zugänglichen Namen und Tooltip; Host und Status stehen im Panel. Das Panel
  * liegt als Overlay über dem Inhalt. Update- und Herunterfahren-Dialog hängen hier, damit sie auf jeder
  * Seite funktionieren.
  */
@@ -72,38 +72,24 @@ export default function HeaderMenu() {
   const system = useSystemActions();
   const activeAccount = useAccountStore((s) => s.activeAccount);
 
-  // Vor dem Lesen des Speichers weder „nicht verbunden" noch „VPS verbinden" zeigen (Flackern)
+  // Bis zur Hydrierung keinen falschen Verbindungsstatus melden.
   const shown: ConnectionStatus = hydrated ? status : 'checking';
   const statusText = t(`connection.status.${shown}`);
   const host = baseUrl ? hostOf(baseUrl) : '';
-  const faulty = shown !== 'connected' && shown !== 'checking';
-  // Ohne gespeicherte Adresse ist „VPS verbinden" die nützlichere Aufschrift als „Nicht verbunden"
-  const faultText = shown === 'unconfigured' ? t('connection.chip.connect') : statusText;
 
   return (
     <>
       <DropdownMenu
-        // Name enthält den sichtbaren Text des Auslösers (WCAG 2.5.3)
-        label={t('header.menu.aria', { status: faulty ? faultText : statusText })}
+        label={t('header.menu.aria', { status: statusText })}
         hint={t('header.menu.hint', { status: statusText })}
-        size="sm"
+        size="icon-sm"
         variant="outline"
         panelClassName="w-72 max-h-[calc(100dvh-var(--nav-height)-1rem)] overflow-y-auto"
         triggerProps={{
           'data-testid': 'connection-chip',
           'data-status': shown,
-          // lg–xl: Links stehen daneben, langer Störungstext wird gekürzt (voller Text im aria-label und im Menü)
-          className: 'max-w-[9rem] px-2.5 sm:max-w-[16rem] lg:max-w-[9rem] xl:max-w-[16rem]',
         }}
-        icon={
-          <>
-            <StatusDot tone={TONES[shown]} pulse={shown === 'checking'} />
-            {faulty && <span className="truncate">{faultText}</span>}
-            {/* Verbunden: Host erst ab xl, darunter reicht der Punkt (Host steht im Menü) */}
-            {shown === 'connected' && host && <span className="hidden truncate xl:inline">{host}</span>}
-            <ChevronDown size={14} className="shrink-0 text-muted-foreground" />
-          </>
-        }
+        icon={<Settings size={16} />}
       >
         <div data-testid="header-menu-panel">
           <Section title={t('header.menu.connection')}>

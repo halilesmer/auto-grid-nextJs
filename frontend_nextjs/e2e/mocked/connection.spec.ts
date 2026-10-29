@@ -267,15 +267,14 @@ test.describe('SYS-08 Verbindungs-Link', () => {
 });
 
 test.describe('SYS-09 Verbindungsstatus im Header', () => {
-  test('Chip zeigt Host und Status und folgt dem Worker', { tag: '@SYS-09' }, async ({ page, worker }) => {
+  test('Zahnrad nennt den Status und zeigt den Host im Menü', { tag: '@SYS-09' }, async ({ page, worker }) => {
     await page.goto('/');
     const chip = page.getByTestId('connection-chip');
     await expect(chip).toHaveAttribute('data-status', 'connected');
-    // Host sichtbar ab xl (1280 px), darunter nur der Punkt
-    await expect(chip.getByText(MOCK_HOST)).toBeVisible();
-    await page.setViewportSize({ width: 1024, height: 720 });
-    await expect(chip.getByText(MOCK_HOST)).toBeHidden();
-    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(chip).toHaveText('');
+    const panel = await openHeaderMenu(page);
+    await expect(panel.getByTestId('header-menu-connection')).toContainText(MOCK_HOST);
+    await page.keyboard.press('Escape');
 
     // Der Status wird beim Fokus des Fensters (und alle 30 s) neu geprüft
     const recheck = () => page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -284,26 +283,26 @@ test.describe('SYS-09 Verbindungsstatus im Header', () => {
     await recheck();
     await expect(chip).toHaveAttribute('data-status', 'unauthorized');
 
-    // Störung: zusätzlich sichtbarer Text, nicht nur die Farbe des Punkts
-    await expect(chip).toContainText(msg('connection.status.unauthorized'));
+    // Störung: zugänglicher Name und Tooltip nennen den Status.
+    await expect(chip).toHaveAccessibleName(msg('header.menu.aria', { status: msg('connection.status.unauthorized') }));
     worker.overrides.delete('GET /api/system/platform');
 
     worker.offline = true;
     await recheck();
     await expect(chip).toHaveAttribute('data-status', 'unreachable');
-    await expect(chip).toContainText(msg('connection.status.unreachable'));
+    await expect(chip).toHaveAccessibleName(msg('header.menu.aria', { status: msg('connection.status.unreachable') }));
     worker.offline = false;
 
     await recheck();
     await expect(chip).toHaveAttribute('data-status', 'connected');
-    await expect(chip).not.toContainText(msg('connection.status.unreachable'));
+    await expect(chip).toHaveAccessibleName(msg('header.menu.aria', { status: msg('connection.status.connected') }));
   });
 
   for (const lang of LOCALES) {
     test.describe(`Handy 375 px (${lang})`, () => {
       test.use({ viewport: { width: 375, height: 812 }, appLocale: lang });
 
-      test('Status bleibt im Auslöser des Kopf-Menüs sichtbar, Host im Menü', { tag: '@SYS-09' }, async ({ page, worker }) => {
+      test('Zahnrad nennt den Status, Host bleibt im Menü', { tag: '@SYS-09' }, async ({ page, worker }) => {
         await page.goto('/');
         const chip = page.getByTestId('connection-chip');
         await expect(chip).toHaveAttribute('data-status', 'connected');
@@ -315,11 +314,11 @@ test.describe('SYS-09 Verbindungsstatus im Header', () => {
         await expect(panel.getByTestId('header-menu-connection')).toContainText(MOCK_HOST);
         await page.keyboard.press('Escape');
 
-        // Störung: Text im Auslöser, ohne Überlauf
+        // Störung: Status im zugänglichen Namen, ohne Überlauf
         worker.offline = true;
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
         await expect(chip).toHaveAttribute('data-status', 'unreachable');
-        await expect(chip).toContainText(msg('connection.status.unreachable', undefined, lang));
+        await expect(chip).toHaveAccessibleName(msg('header.menu.aria', { status: msg('connection.status.unreachable', undefined, lang) }, lang));
         await expectNoPageOverflow(page);
         worker.offline = false;
       });
@@ -328,7 +327,7 @@ test.describe('SYS-09 Verbindungsstatus im Header', () => {
         void worker;
         await startDisconnected(page);
         await page.goto('/');
-        await expect(page.getByTestId('connection-chip')).toContainText(msg('connection.chip.connect', undefined, lang));
+        await expect(page.getByTestId('connection-chip')).toHaveAccessibleName(msg('header.menu.aria', { status: msg('connection.status.unconfigured', undefined, lang) }, lang));
         await expect(page.getByTestId('connection-gate')).toBeVisible();
         await expectNoPageOverflow(page);
 

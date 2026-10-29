@@ -73,19 +73,17 @@ function NavLinks({ layout }: { layout: 'row' | 'panel' }) {
   });
 }
 
-/** Auf /formasyon schwebt die kompakte Navigation im Chart; sonst bleibt die einzeilige Kopfzeile. */
+/** Auf /formasyon schwebt die Navigation nur unter lg; ab lg gilt überall die Desktop-Kopfzeile. */
 export default function AppNav() {
   const t = useT();
   const chartWorkspace = usePathname() === '/formasyon';
 
   return (
     <nav data-testid="app-nav" className={cn(
-      'z-50 backdrop-blur-xl',
-      chartWorkspace
-        ? 'fixed left-3 right-3 top-3 h-12 bg-background/90 rounded-xl border border-border shadow-lg sm:left-1/2 sm:right-auto sm:w-max sm:max-w-[calc(100%-6rem)] sm:-translate-x-1/2'
-        : 'sticky top-0 h-(--nav-height) border-b border-border bg-background/75',
+      'sticky top-0 z-50 h-(--nav-height) border-b border-border bg-background/75 backdrop-blur-xl',
+      chartWorkspace && 'max-lg:fixed max-lg:left-3 max-lg:right-3 max-lg:top-3 max-lg:h-12 max-lg:rounded-xl max-lg:border max-lg:bg-background/90 max-lg:shadow-lg sm:max-lg:left-1/2 sm:max-lg:right-auto sm:max-lg:w-max sm:max-lg:max-w-[calc(100%-6rem)] sm:max-lg:-translate-x-1/2',
     )}>
-      <div className={cn('mx-auto flex h-full max-w-[1400px] items-center gap-4', chartWorkspace ? 'px-3' : 'px-4 md:px-8')}>
+      <div className={cn('mx-auto flex h-full max-w-[1400px] items-center gap-4', chartWorkspace ? 'px-3 lg:px-8' : 'px-4 md:px-8')}>
         <Tooltip content={t('nav.home.hint', { version: VERSION })}>
           <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]">
@@ -98,8 +96,8 @@ export default function AppNav() {
           </Link>
         </Tooltip>
 
-        {chartWorkspace && <span className="hidden text-sm font-medium sm:block">{t('nav.formation')}</span>}
-        <div className={cn('min-w-0 items-center gap-1', chartWorkspace ? 'hidden' : 'hidden lg:flex')}>
+        {chartWorkspace && <span className="hidden text-sm font-medium sm:block lg:hidden">{t('nav.formation')}</span>}
+        <div className="hidden min-w-0 items-center gap-1 lg:flex">
           <NavLinks layout="row" />
         </div>
 
@@ -110,7 +108,7 @@ export default function AppNav() {
             hint={t('nav.menu.hint')}
             icon={<Menu size={16} />}
             size="icon-sm"
-            className={chartWorkspace ? undefined : 'lg:hidden'}
+            className="lg:hidden"
             panelClassName="w-60"
             triggerProps={{ 'data-testid': 'nav-menu' }}
           >

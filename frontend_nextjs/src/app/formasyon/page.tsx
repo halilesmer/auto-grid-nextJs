@@ -110,12 +110,12 @@ function FormationView() {
   };
 
   return (
-    <div className="fixed inset-0 z-20 overflow-hidden bg-card" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''}>
+    <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''}>
       <h1 className="sr-only">{t('formation.title')}</h1>
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
-      <div className="pointer-events-none absolute left-3 right-3 top-20 z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20">
+      <div className="pointer-events-none absolute left-3 right-3 top-20 z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-3">
         <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 p-2 shadow-lg backdrop-blur-md" data-testid="formation-selectors">
           <AccountDropdown
             accounts={accounts}
