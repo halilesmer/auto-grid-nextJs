@@ -132,6 +132,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'CYP-12': PRZ,
   'CYP-13': HIGH_TF,
   'CYP-14': ['Zaman dilimi M15', 'Timeframe is M15', 'Zeiteinheit M15'],
+  'CYP-15': ['Kapanış B sınırının ötesinde', 'A close beyond the B limit', 'Schluss jenseits der B-Grenze'],
 
   'CDT-01': ['H1 tamamlanmış fraktal, fitil ucunda', 'H1 is a finished fractal on a wick end', 'H1 ist ein fertiges Fraktal an der Dochtspitze'],
   'CDT-02': ['H1 önceki tepenin üstünde kapandı', 'H1 closed beyond the previous high', 'H1 schloss jenseits des vorigen Hochs'],

@@ -30,6 +30,13 @@ export const entryOfCypher = (x: Anchor, c: Anchor): number => c.price + CYP_PAR
 /** Preis der Rückprojektion der Strecke B → C um `ratio` jenseits von B (CYP-12: 1.272) */
 export const levelBC = (s: XabcdShape, ratio: number): number => s.c.price + ratio * (s.b.price - s.c.price);
 
+/** CYP-15: eine Kerze zwischen A und B schließt jenseits des Levels 0.618 der Fib X → A, von A aus gegen X gemessen (Docht darüber ist erlaubt) */
+export function closedBeyondBLimit(bars: readonly FormationBar[], s: XabcdShape): boolean {
+  const limit = levelXA(s, CYP_PARAMS.bExclude);
+  for (let k = s.a.idx + 1; k <= s.b.idx; k++) if (closesBeyond(bars[k], limit, s.es)) return true;
+  return false;
+}
+
 /** CYP-11: eine Kerze zwischen B und C schließt jenseits der Ausdehnung 1.414 der Fib X → A (Docht darüber ist erlaubt) */
 export function closedBeyondCLimit(bars: readonly FormationBar[], s: XabcdShape): boolean {
   const limit = levelXA(s, -CYP_PARAMS.cExclude);
