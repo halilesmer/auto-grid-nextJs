@@ -100,9 +100,9 @@ const CHOP_H2 = chop(BASE, 27, 33);
 const DOWN = zig([150, 120, 140, 118, 139.85], 8, 3);
 /** N 104: der Anlauf zu H2 ist steiler als der zu H1 */
 const STEEP = zig([120, 100, 130, 104, 129.85], 8, 3);
-/** Umkehrkerze nach H2: bärische Kerze schließt unter dem Tief der Vorkerze */
-const WITH_ENGULF = [...zig([120, 100, 130, 112, 129.85], 8, 0), [129.6, 129.7, 124, 124.5] as Row];
-const CHOP_ENGULF = [...chop(zig([120, 100, 130, 112, 129.85], 8, 0), 11, 17), [129.6, 129.7, 124, 124.5] as Row];
+/** Umkehrkerze nach H2: große Aufwärtskerze (Spanne 4,8), danach schließt eine bärische Kerze unter ihrem Tief (SIG-24) */
+const WITH_ENGULF = [...zig([120, 100, 130, 112, 129.85], 8, 0), [126.5, 129.8, 125, 129.7] as Row, [129.6, 129.7, 124, 124.5] as Row];
+const CHOP_ENGULF = [...chop(zig([120, 100, 130, 112, 129.85], 8, 0), 11, 17), [121, 129.8, 120, 129.7] as Row, [129.6, 129.7, 118, 118.5] as Row];
 /** Vorherige große Bewegung 100 → 150: ihr Level 0.382 liegt bei 130,9, nahe der Zone von H1 (130) */
 const WITH_FIB = zig([100, 150, 115, 130, 120, 129.85], 8, 3);
 const FIB_AT: At = { h1: 26, n: 34, h2: 42 };
@@ -378,12 +378,12 @@ const analyzeAt = (names: Partial<Record<'H4' | 'D1', string>>, iso: string): Ca
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 
 test.describe('CDT: echte Kerzen', () => {
-  frm('cdt-top-h4-01: Doppeltop mit Umkehrkerze statt RSI-Extrem ist gültig', () => {
+  frm('cdt-top-h4-01: Doppeltop ohne RSI-Extrem, der Engulf umschließt nur kleine Kerzen (SIG-24, SIG-25): CDT-13 ☐', () => {
     const c = analyzeAt({ H4: 'cdt-top-h4-01' }, '2025-10-28T04:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['CDT-01', 'CDT-02', 'CDT-03', 'CDT-04', 'CDT-05', 'CDT-06', 'CDT-12', 'CDT-13', 'CDT-15'])).toEqual([M, M, M, M, M, M, N, M, N]);
+    expect(states(c, ['CDT-01', 'CDT-02', 'CDT-03', 'CDT-04', 'CDT-05', 'CDT-06', 'CDT-12', 'CDT-13', 'CDT-15'])).toEqual([M, M, M, M, M, M, N, N, N]);
     expect(find(c, 'CDT-13').kind).toBe('required');
-    expect(c.verdict).toBe('valid');
+    expect(c.verdict).toBe('forming');
   });
 
   frm('cdt-top-h4-02: Doppeltop mit zweitem Hoch knapp unter dem ersten, ohne RSI-Extrem und ohne Engulf, bleibt im Aufbau', () => {

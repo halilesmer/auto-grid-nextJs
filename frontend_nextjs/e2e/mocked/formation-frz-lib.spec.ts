@@ -9,6 +9,7 @@ import { FormationContext, type ContextInput } from '../../src/lib/formation/con
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { FRZ_CHECK_IDS, analyzeFrz, checkFrzCandidate, type FrzCandidateInput, type FrzOptions } from '../../src/lib/formation/frzChecks';
 import type { Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
+import { buildEnv } from '../../src/lib/formation/reasons';
 
 type Row = [number, number, number, number];
 
@@ -642,5 +643,27 @@ test.describe('FRZ: echte Kerzen (Fixture)', () => {
     const times = analyzeFrz(ctx, half).zones.flatMap((z) => z.fractalTimes);
     expect(times.length).toBeGreaterThan(0);
     expect(times.every((t) => t <= fixture.bars[33].time - 2 * H4)).toBe(true);
+  });
+});
+
+test.describe('FRZ 24 im Produktionsweg (buildEnv speist die Fibonacci-Ziele)', () => {
+  const zonesOf = (rows: Row[]) => buildEnv(new FormationContext('TEST', { H4: barsOf(rows) }), END, 'H4')!.frz.zones;
+  // Ziele der Fib 110 → 95,8 (0,618 bei 104,5756) liegen in der Zwischenzone [102,7; 104,7]
+  const WITH_TARGET = patched(patched(TESTED2, 22, [100, 104.7, 99, 104.4]), 14, [100, 104.7, 99, 104.4]);
+  frm('FRZ 24 ☑ (Ausnahme): Fibonacci-Ziel in der Zwischenzone, sie bleibt in der Auswahl', () => {
+    const zones = zonesOf(WITH_TARGET);
+    expect(zones.some((z) => z.rect.top === 104.7 && z.rect.bottom === 102.7)).toBe(true);
+  });
+  frm('FRZ 24 ☐ (Ausschluss): kein Ziel in der Zwischenzone [102,5; 104,5], sie entfällt', () => {
+    const zones = zonesOf(TESTED2);
+    expect(zones.map((z) => z.rect)).toEqual([
+      { top: 110, bottom: 107 },
+      { top: 97.05, bottom: 95 },
+    ]);
+  });
+  frm('FRZ 24 ☑ (Ausnahme), Spiegel (Kauf): Fibonacci-Ziel in der Zwischenzone an der Unterstützung', () => {
+    const mirrored = WITH_TARGET.map(([o, h, l, c]): Row => [200 - o, 200 - l, 200 - h, 200 - c]);
+    const zones = zonesOf(mirrored);
+    expect(zones.some((z) => z.side === 'support' && z.rect.top === 97.3 && z.rect.bottom === 95.3)).toBe(true);
   });
 });

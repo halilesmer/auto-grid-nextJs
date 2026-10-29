@@ -11,7 +11,8 @@ import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import { HARMONIC_PARAMS, FRZ_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
-import { engulfAt, engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
+import { reversalAt } from './reversal';
+import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
 import type { Pivot } from './trd';
 import type { Anchor, Candidate, Check, CheckState, FormationBar, Side } from './types';
 
@@ -283,7 +284,7 @@ export function higherWith(env: Env, tf: ContextTimeframe, side: Side): CheckSta
   return dirSide(dir) === side ? 'met' : 'unmet';
 }
 
-/** Umkehrkerze in Trade-Richtung (Engulf, SIG-23 bis SIG-26) in der nächsttieferen geladenen Zeiteinheit ab der Kerze von D; ohne D oder tiefere Zeiteinheit nicht messbar */
+/** Umkehrkerze in Trade-Richtung (Engulf, SIG-23 bis SIG-26, `reversalAt`) in der nächsttieferen geladenen Zeiteinheit ab der Kerze von D; ohne D oder tiefere Zeiteinheit nicht messbar */
 export function lowerReversal(env: Env, tf: ContextTimeframe, s: XabcdShape): CheckState {
   const lower = neighborTf(env, tf, 1);
   const view = lower ? env.views.get(lower) : undefined;
@@ -291,8 +292,5 @@ export function lowerReversal(env: Env, tf: ContextTimeframe, s: XabcdShape): Ch
   const from = env.views.get(tf)!.bars[s.d.idx].time;
   // die tiefere Zeiteinheit reicht nicht bis zur Kerze von D zurück: nichts zu vergleichen
   if (view.bars.length === 0 || view.bars[0].time > from) return 'unmeasurable';
-  for (let k = 0; k < view.bars.length; k++) {
-    if (view.bars[k].time >= from && engulfAt(view.bars, view.wide, k, s.side) !== null) return 'met';
-  }
-  return 'unmet';
+  return reversalAt(env, tf, s.side, s.d, [lower!]);
 }

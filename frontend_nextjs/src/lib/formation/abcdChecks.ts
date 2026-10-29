@@ -26,7 +26,8 @@ import { levelPrice, legLength, type FibLeg } from './fib';
 import { ABCD_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, type ContextTimeframe } from './params';
 import { abcdIsCdt } from './cdt';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
-import { divergenceOf, engulfAt, engulfZones, rsiExtreme, zoneSideOf } from './sig';
+import { reversalAt } from './reversal';
+import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
@@ -206,20 +207,9 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
   const divState: CheckState = !div || div.a.wave === null || div.b.wave === null ? U : flag(div.tie);
   const counter = withTrend === null ? null : !withTrend;
   add('ABCD-19', divState, undefined, counter === true ? 'required' : 'bonus');
-  let reversal: boolean | null = null;
-  if (d) {
-    reversal = false;
-    for (let k = d.idx; k <= last && !reversal; k++) reversal = engulfAt(bars, view.wide, k, side) !== null;
-    const lower = lowerTf ? env.views.get(lowerTf) : undefined;
-    if (!reversal && lower) {
-      const from = bars[d.idx].time;
-      for (let k = 0; k < lower.bars.length && !reversal; k++) {
-        if (lower.bars[k].time >= from) reversal = engulfAt(lower.bars, lower.wide, k, side) !== null;
-      }
-    }
-  }
+  const reversal: CheckState = d ? reversalAt(env, tf, side, d, lowerTf ? [tf, lowerTf] : [tf]) : U;
   const noRsi = checks.find((c) => c.id === 'ABCD-17')!.state === 'unmet' && checks.find((c) => c.id === 'ABCD-18')!.state === 'unmet';
-  add('ABCD-20', tri(reversal), undefined, noRsi ? 'required' : 'bonus');
+  add('ABCD-20', reversal, undefined, noRsi ? 'required' : 'bonus');
 
   // Ausschluss
   if (counter === null) add('ABCD-21', U);

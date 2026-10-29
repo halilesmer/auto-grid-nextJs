@@ -195,8 +195,10 @@ function evaluate(env: Env, explicit: SigPointsInput | null, options: SigOptions
   let minReasons: number | null = null;
   if (trend.dir && side) minReasons = dirSide(trend.dir) === side ? TRD_PARAMS.reasons.with : TRD_PARAMS.reasons.counter;
   const enoughReasons = minReasons !== null && bar ? nReasons >= minReasons : null;
+  // SIG-04: ein Extrem am vorigen Extrem derselben Struktur öffnet den Direkteinstieg wie das aktuelle (nur wenn es ein vorheriges gibt)
+  const prevExtreme = side && previous && prevRsi !== null ? rsiExtreme(prevRsi, side) : null;
   if (!side) add('SIG-05', U);
-  else if (extreme === true || lowerEngulf === true || enoughReasons === true) add('SIG-05', 'met');
+  else if (extreme === true || prevExtreme === true || lowerEngulf === true || enoughReasons === true) add('SIG-05', 'met');
   else add('SIG-05', extreme === null || lowerEngulf === null || enoughReasons === null ? U : 'unmet');
   const daily = env.views.get('D1');
   const dailyRsi = daily && daily.rsi.length > 0 ? daily.rsi[daily.rsi.length - 1] : null;

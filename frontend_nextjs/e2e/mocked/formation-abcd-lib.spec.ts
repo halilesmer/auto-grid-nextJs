@@ -135,7 +135,7 @@ const WIDE_AT = { a: 20, b: 22, c: 23, d: 25 };
 /** A 100, B 130, C 112, D 129,85 = Doppeltop: D berührt die Zone von B (128,875 bis 130), kein Schluss über B, RSI(7) an B über 80 */
 const S_DOUBLE_TOP = zig([120, 100, 130, 112, 129.85], 8, 3);
 const DT = { a: 10, b: 18, c: 26, d: 34 };
-const S_ENGULF = [...zig([100, 130, 114, 138], 8, 0), [137.7, 137.8, 133, 133.5] as Row];
+const S_ENGULF = [...zig([100, 130, 114, 138], 8, 0), [131, 137.9, 130, 137.7] as Row, [137.7, 137.8, 127, 127.5] as Row];
 
 // ---- Fälle -----------------------------------------------------------------------------------------------------
 
@@ -506,11 +506,11 @@ test.describe('ABCD: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  frm('sig-diverg-h4-01: Verkauf am D mit Wave-Divergenz und Umkehrkerze ist gültig', () => {
+  frm('sig-diverg-h4-01: Verkauf am D mit Wave-Divergenz, der Engulf umschließt nur eine kleine Kerze (SIG-24): ABCD-20 ☐', () => {
     const c = analyzeAt('sig-diverg-h4-01', '2025-11-25T08:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-19', 'ABCD-20'])).toEqual([M, N, M, M]);
-    expect(c.verdict).toBe('valid');
+    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-19', 'ABCD-20'])).toEqual([M, N, M, N]);
+    expect(c.verdict).toBe('invalid');
   });
 
   frm('abcd-double-h4-01: Verkauf am D mit RSI(7) über 80 ohne Umkehrkerze ist gültig', () => {
@@ -522,10 +522,10 @@ test.describe('ABCD: echte Kerzen', () => {
     expect(c.verdict).toBe('valid');
   });
 
-  frm('sig-diverg-h4-01: Kauf am D ohne RSI-Extrem, Umkehrkerze vorhanden, aber Zone durchbrochen', () => {
+  frm('sig-diverg-h4-01: Kauf am D ohne RSI-Extrem, der Engulf umschließt nur eine kleine Kerze (SIG-24), Zone durchbrochen', () => {
     const c = analyzeAt('sig-diverg-h4-01', '2025-12-02T12:00');
     expect(c.side).toBe('buy');
-    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-18', 'ABCD-20', 'ABCD-22'])).toEqual([M, N, N, M, M]);
+    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-18', 'ABCD-20', 'ABCD-22'])).toEqual([M, N, N, N, M]);
     expect(find(c, 'ABCD-20').kind).toBe('required');
     // der Kurs hat die Zone nahe Level 1 schon durchbrochen (Schluss jenseits): ausgeschlossen
     expect(c.verdict).toBe('invalid');
