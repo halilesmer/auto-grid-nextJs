@@ -16,7 +16,7 @@ interface DropdownMenuProps {
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
   align?: 'left' | 'right';
-  side?: 'bottom' | 'right';
+  side?: 'bottom' | 'top' | 'right';
   /** Klassen des Auslöser-Wrappers (z. B. Reihenfolge/Abstand in einer Leiste). */
   className?: string;
   /** Klassen des aufgeklappten Panels (z. B. Breite). */
@@ -79,7 +79,8 @@ export function DropdownMenu({
       if (ref.current && !ref.current.contains(e.target as Node) && !panelRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) && (ref.current?.contains(document.activeElement) || panelRef.current?.contains(document.activeElement))) {
+      // Im Textfeld des Panels bleiben Pos1/Ende und Pfeile beim Cursor
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) && !(e.target instanceof HTMLInputElement) && (ref.current?.contains(document.activeElement) || panelRef.current?.contains(document.activeElement))) {
         const buttons = Array.from(panelRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
         const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
         let next = (current + (e.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;
@@ -109,7 +110,7 @@ export function DropdownMenu({
   const panel = <AnimatePresence>
         {open && (
           <motion.div ref={panelRef} popover={side === 'right' ? 'manual' : undefined} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className={cn('absolute top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl', align === 'right' ? 'right-0' : 'left-0', panelClassName)}>
+            className={cn('absolute z-50 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl', side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2', align === 'right' ? 'right-0' : 'left-0', panelClassName)}>
             <CloseContext.Provider value={() => setOpen(false)}>{children}</CloseContext.Provider>
           </motion.div>
         )}

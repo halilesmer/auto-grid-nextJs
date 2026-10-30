@@ -18,6 +18,28 @@ export const OPTIONS: Partial<Record<SettingKey, string[]>> = {
   magnet: ['off', 'weak', 'strong'],
   scale: ['linear', 'log', 'percent'], side: ['right', 'left'], priceStyle: ['solid', 'dashed', 'dotted'], crosshairStyle: ['solid', 'dashed', 'dotted'],
 };
+export type SettingRow = { key: SettingKey; extras?: readonly SettingKey[]; nested?: boolean };
+export type SettingGroup = { id: 'candles' | 'data' | 'symbol' | 'indicators' | 'priceScale' | 'priceLines' | 'style' | 'axes' | 'margins' | 'drawing'; rows: readonly SettingRow[] };
+export const SETTINGS_LAYOUT: Record<Exclude<Section, 'overlays'>, readonly SettingGroup[]> = {
+  symbol: [
+    { id: 'candles', rows: [{ key: 'previous' }, { key: 'body', extras: ['up', 'down'] }, { key: 'border', extras: ['borderUp', 'borderDown'] }, { key: 'wick', extras: ['wickUp', 'wickDown'] }] },
+    { id: 'data', rows: [{ key: 'precision' }] },
+  ],
+  status: [
+    { id: 'symbol', rows: [{ key: 'title' }, { key: 'timeframe' }, { key: 'ohlc' }, { key: 'change' }] },
+    { id: 'indicators', rows: [{ key: 'names' }, { key: 'params', nested: true }, { key: 'values' }, { key: 'statusBackground', extras: ['statusColor', 'opacity'] }] },
+  ],
+  scales: [
+    { id: 'priceScale', rows: [{ key: 'scale' }, { key: 'side' }, { key: 'autoScale' }, { key: 'invert' }, { key: 'align' }] },
+    { id: 'priceLines', rows: [{ key: 'priceLine', extras: ['priceColor', 'priceStyle'] }, { key: 'priceLabel' }, { key: 'countdown' }, { key: 'indicatorLabels' }] },
+  ],
+  canvas: [
+    { id: 'style', rows: [{ key: 'background' }, { key: 'gridV', extras: ['gridColor'] }, { key: 'gridH' }, { key: 'separator' }, { key: 'crosshair', extras: ['crosshairColor', 'crosshairStyle'] }, { key: 'watermark', extras: ['watermarkColor'] }] },
+    { id: 'axes', rows: [{ key: 'textColor', extras: ['fontSize'] }, { key: 'axisColor' }] },
+    { id: 'margins', rows: [{ key: 'marginTop' }, { key: 'marginBottom' }] },
+    { id: 'drawing', rows: [{ key: 'hideDrawings' }, { key: 'magnet' }, { key: 'keepDrawing' }, { key: 'navigation' }] },
+  ],
+};
 export function parseAppearance(value: unknown): Appearance {
   const out = { ...DEFAULT_APPEARANCE };
   if (!value || typeof value !== 'object') return out;
