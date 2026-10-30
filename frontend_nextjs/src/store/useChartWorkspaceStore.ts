@@ -4,7 +4,8 @@ import { create } from 'zustand';
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
 import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 
-export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean> }
+export interface ChartViewport { from: number; to: number }
+export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean>; appearance?: Appearance; viewport?: ChartViewport }
 const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overlays: {} };
 export const WORKSPACE_STORAGE_KEY = 'grid-robot-chart-workspaces-v1';
 export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {} });
@@ -81,7 +82,9 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
               if (typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value) && value.length < 2_800_000) images[name] = value;
             }
             const overlays = Object.fromEntries(Object.entries(d.overlays ?? {}).filter(([, v]) => typeof v === 'boolean'));
-            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: parseIndicators(d.indicators), images, overlays };
+            const viewport = d.viewport && typeof d.viewport === 'object' ? d.viewport as Partial<ChartViewport> : null;
+            const validViewport = viewport && typeof viewport.from === 'number' && Number.isFinite(viewport.from) && typeof viewport.to === 'number' && Number.isFinite(viewport.to) && viewport.from < viewport.to ? { from: viewport.from, to: viewport.to } : undefined;
+            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: parseIndicators(d.indicators), images, overlays, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(validViewport ? { viewport: validViewport } : {}) };
           }
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }

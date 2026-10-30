@@ -12,6 +12,7 @@ areas: [frontend, tests, docs]
 
 ## Request
 - Implement the approved chart workspace design.
+- Save the reset appearance and view for each chart product on `/chart`.
 - Add free broker symbol selection without a setup or running bot.
 - Add drawing tools, configurable standard indicators, RSI and EWO.
 - Keep broker time, data warnings and existing trading behavior.
@@ -26,6 +27,7 @@ areas: [frontend, tests, docs]
 | `useAnalysisPrefsStore.ts` | Keep overlay previews out of persisted preferences until Apply. |
 | `docs/chart-workspace.md` | Complete setting-to-effect mapping and supported indicator behavior. |
 | `useChartWorkspaceStore.ts` | Versioned browser preferences, templates and context-specific documents. Image bytes use separate local storage entries. |
+| `ChartCore.tsx`, `ChartWorkspace.tsx`, `SettingsDialog.tsx` | Save appearance and visible bar range per chart context. Restore the range when a product returns. |
 | `ChartCore.tsx`, `BacktestChart.tsx`, `FormationChart.tsx` | Adapters keep existing zones, trades and the system RSI independent. |
 
 ## Why
@@ -33,6 +35,7 @@ The built-in TradingView RSI uses Wilder averages. A plain SMA of gains and loss
 EWO uses SMA(5) minus SMA(35). Its percentage mode divides the result by the closing price.
 The drawing extension is a third-party package. It does not provide TradingView Advanced Charts or Pine execution.
 Each document key includes source, view, mode, account and actual symbol. Backtests also include their result context.
+The chart reset view can include the full data range. Restore it with `fitContent()` so the chart does not clamp the first bars.
 Replay hides future drawing anchors without changing saved user visibility flags.
 Confirmed higher timeframe values appear at their last constituent candle, after the higher candle closes.
 
@@ -47,6 +50,7 @@ Confirmed higher timeframe values appear at their last constituent candle, after
 | Formation layout regression | Fixed the root positioning and preserved the existing main-pane stretch factor. The focused run passed all 31 tests. |
 | Full mocked browser run | 1,534 passed. One tooltip assertion matched the new translated tool options as well as the intended field. Its locator now uses exact text. |
 | Final affected browser run | `E2E_PORT=3325 scripts/features/run.sh e2e 'ANA\|@UI-07\|@BKT-07\|@FRM-2'`: 147 passed in 1.6 minutes on the final production build. Includes the added formation switching and image checks. |
+| Per-product appearance and view | `E2E_PORT=3361 scripts/features/run.sh e2e ANA-19`: 8 passed. The test resets appearance, fits the chart, switches symbols, returns, and reloads. |
 | Feature catalog | `scripts/features/run.sh check`: 190 features valid. Generated report: 186/190 checked, no failed feature. Remaining checks require separate live/manual verification. |
 | GitHub verification | The complete worker, catalog and frontend jobs are recorded per revision in [PR #241 checks](https://github.com/halilesmer/auto-grid-nextJs/pull/241/checks). This is the publication check record. |
 | Hosted preview | Vercel reports a successful deployment. An independent HTTPS request reaches Vercel authentication; public page-content verification is blocked by preview protection. No protection setting was changed. |

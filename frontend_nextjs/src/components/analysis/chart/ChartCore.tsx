@@ -8,6 +8,7 @@ import {
   createChart,
   createSeriesMarkers,
   LineStyle,
+  type LogicalRange,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
@@ -23,7 +24,7 @@ import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
 import { type ChartBinding, createChartBinding, appearanceColors } from '@/components/chart-workspace/runtime';
-import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { emptyChartDocument, useChartWorkspaceStore, type ChartViewport } from '@/store/useChartWorkspaceStore';
 import {
   FractalsPrimitive,
   MissingDataPrimitive,
@@ -161,7 +162,7 @@ export function ChartCore({
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const [binding, setBinding] = useState<ChartBinding | null>(null);
   const [workspaceTail, setWorkspaceTail] = useState<{ key: string; bar: Bar } | null>(null);
-  const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
+  const appearance = useChartWorkspaceStore(s => s.preview ?? ((workspace?.view === 'analysis' || workspace?.view === 'free') ? s.documents[workspace.key]?.appearance ?? s.appearance : s.appearance));
   const effectiveBars = useMemo(() => {
     if (!workspaceTail || workspaceTail.key !== viewKey || workspaceTail.bar.time < (data.bars.at(-1)?.time ?? Infinity)) return data.bars;
     const out = [...data.bars];
@@ -181,6 +182,12 @@ export function ChartCore({
   const priceLines = useRef<IPriceLine[]>([]);
   const lastBar = useRef<Bar | null>(null);
   const fittedKey = useRef<string | null>(null);
+  const workspaceKey = workspace?.key;
+  const workspaceView = workspace?.view;
+  const viewportContext = useRef({ key: '', viewKey, enabled: false });
+  useEffect(() => {
+    viewportContext.current = { key: workspaceKey ?? '', viewKey, enabled: workspaceView === 'analysis' || workspaceView === 'free' };
+  }, [workspaceKey, workspaceView, viewKey]);
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const [colors, setColors] = useState<ChartColors | null>(null);
   const [hover, setHover] = useState<{ bar: Bar | null; time: number } | null>(null);
@@ -244,10 +251,36 @@ export function ChartCore({
       setHover({ bar: barByTimeRef.current.get(time) ?? null, time });
     };
     chart.subscribeCrosshairMove(onMove);
+    let pendingViewport: { key: string; range: ChartViewport } | null = null;
+    let viewportTimer: ReturnType<typeof setTimeout> | null = null;
+    const flushViewport = () => {
+      if (viewportTimer) clearTimeout(viewportTimer);
+      viewportTimer = null;
+      const pending = pendingViewport;
+      pendingViewport = null;
+      if (!pending) return;
+      const store = useChartWorkspaceStore.getState();
+      const doc = store.documents[pending.key] ?? emptyChartDocument();
+      const current = doc.viewport;
+      if (current?.from === pending.range.from && current.to === pending.range.to) return;
+      store.setDocument(pending.key, { ...doc, viewport: pending.range });
+    };
+    const onVisibleRangeChange = (range: LogicalRange | null) => {
+      const current = viewportContext.current;
+      if (!current.enabled || !current.key || fittedKey.current !== current.viewKey || !range || typeof range.from !== 'number' || typeof range.to !== 'number') return;
+      const savedRange = { from: range.from, to: range.to };
+      el.setAttribute('data-visible-range', `${savedRange.from},${savedRange.to}`);
+      pendingViewport = { key: current.key, range: savedRange };
+      if (viewportTimer) clearTimeout(viewportTimer);
+      viewportTimer = setTimeout(flushViewport, 180);
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange);
     return () => {
+      flushViewport();
       cancelAnimationFrame(readyFrame);
       attached.dispose?.();
       chart.unsubscribeCrosshairMove(onMove);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onVisibleRangeChange);
       chart.remove();
       chartRef.current = null;
       candlesRef.current = null;
@@ -315,11 +348,21 @@ export function ChartCore({
         frame = requestAnimationFrame(align);
         return;
       }
+      const savedRange = workspaceKey && (workspaceView === 'analysis' || workspaceView === 'free')
+        ? useChartWorkspaceStore.getState().documents[workspaceKey]?.viewport
+        : undefined;
+      if (savedRange && Number.isFinite(savedRange.from) && Number.isFinite(savedRange.to) && savedRange.from < savedRange.to) {
+        if (savedRange.from <= 0 && savedRange.to >= n) chart.timeScale().fitContent();
+        else chart.timeScale().setVisibleLogicalRange(savedRange);
+        return;
+      }
       chart.timeScale().setVisibleLogicalRange({ from, to: n + 3 });
     };
-    align();
+    // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
+    // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
+    frame = requestAnimationFrame(align);
     return () => cancelAnimationFrame(frame);
-  }, [data, appearance, viewKey, followTail]);
+  }, [data, appearance, viewKey, followTail, workspaceKey, workspaceView]);
 
   // Fehlende Bereiche und Marktpausen (beide abschaltbar)
   useEffect(() => {

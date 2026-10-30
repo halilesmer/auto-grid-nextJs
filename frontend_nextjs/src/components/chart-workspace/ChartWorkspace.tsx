@@ -16,6 +16,7 @@ import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
+import type { Appearance } from '@/lib/chart-workspace/settings';
 import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding } from './runtime';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
 import { IndicatorDialog } from './IndicatorDialog';
@@ -76,14 +77,15 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   const [elapsed, setElapsed] = useState(0);
   const imageInput = useRef<HTMLInputElement>(null);
   const state = useChartWorkspaceStore(), theme = useThemeStore(s => s.resolvedTheme);
-  const appearance = state.preview ?? state.appearance;
-  const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;
+  const perProduct = context.view === 'analysis' || context.view === 'free';
   const defaults = useMemo(() => {
     const indicators = context.systemRsi ? [newIndicator('EWO')] : [newIndicator('RSI'), newIndicator('EWO')];
     indicators.forEach(v => { v.id = `initial-${v.kind}`; });
     return { ...emptyChartDocument(), indicators };
   }, [context.systemRsi]);
   const doc = state.documents[context.key] ?? defaults;
+  const appearance = state.preview ?? (perProduct ? doc.appearance ?? state.appearance : state.appearance);
+  const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;
   const effectiveIndicators = useMemo(() => doc.indicators.filter(v => v.id !== 'initial-RSI' || showRsi), [doc.indicators, showRsi]);
 
   useEffect(() => {
@@ -103,6 +105,12 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   }, []);
   useEffect(() => { live.current = { drawingBars, until, timeframeSec }; documentRef.current = doc; });
   const saveDocument = useCallback((next: ChartDocument) => { documentRef.current = next; useChartWorkspaceStore.getState().setDocument(context.key, next); }, [context.key]);
+  const saveAppearance = useCallback((next: Appearance) => {
+    if (perProduct) {
+      const current = useChartWorkspaceStore.getState().documents[context.key] ?? documentRef.current;
+      saveDocument({ ...current, appearance: next });
+    } else useChartWorkspaceStore.getState().setAppearance(next);
+  }, [context.key, perProduct, saveDocument]);
   const rollbackOverlays = useCallback(() => {
     useChartWorkspaceStore.getState().finishOverlayPreview(false);
     useAnalysisPrefsStore.getState().finishPreview(false);
@@ -138,9 +146,10 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
     if (!binding || binding.isDisposed() || !state.hydrated) return;
     const m = new DrawingManager(binding.chart, binding.candles, { bars: () => live.current.drawingBars, magnet: 'weak', timeInfo: () => ({ timeZone: 'UTC', intraday: live.current.timeframeSec < 86400 }) });
     manager.current = m;
-    const stored = useChartWorkspaceStore.getState().documents[context.key] ?? defaults;
+    const storeState = useChartWorkspaceStore.getState();
+    const stored = storeState.documents[context.key] ?? { ...defaults, ...(perProduct ? { appearance: storeState.appearance } : {}) };
     documentRef.current = stored;
-    if (!useChartWorkspaceStore.getState().documents[context.key]) useChartWorkspaceStore.getState().setDocument(context.key, stored);
+    if (!storeState.documents[context.key] || (perProduct && stored.appearance === undefined)) useChartWorkspaceStore.getState().setDocument(context.key, stored);
     replay.current.clear();
     try { m.importJSON(stored.drawings); }
     catch { queueMicrotask(() => setError('cw.drawingError')); }
@@ -159,7 +168,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
     const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, context.key, state.hydrated, defaults, checkpoint]);
+  }, [binding, context.key, state.hydrated, defaults, checkpoint, perProduct]);
 
   useEffect(() => { manager.current?.setMagnet(magnet); manager.current?.setStayInDrawingMode(keepDrawing); }, [magnet, keepDrawing, binding, state.hydrated]);
   useEffect(() => {
@@ -219,7 +228,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
         <Button size="icon-sm" variant="ghost" hint={t(historySize.undo ? 'cw.undo.hint' : 'cw.undoEmpty.hint')} aria-label={t('cw.undo')} disabled={!historySize.undo} onClick={() => history(true)}><Undo2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t(historySize.redo ? 'cw.redo.hint' : 'cw.redoEmpty.hint')} aria-label={t('cw.redo')} disabled={!historySize.redo} onClick={() => history(false)}><Redo2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>
-        <Button size="icon-sm" variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...state.appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
+        <Button size="icon-sm" variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
       </div>
     </div>
@@ -229,13 +238,13 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
         <Button className={overlayLayout ? '' : 'sm:hidden'} size="icon-sm" aria-label={t('cw.tools')} variant="ghost" hint={t('cw.tools.hint')} aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)}><Pencil size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t('cw.selection.hint')} aria-label={t('cw.selection')} aria-pressed={!tool} onClick={() => arm(null)}><MousePointer2 size={15} /></Button>
         {state.favorites.filter(k => TOOLS.includes(k as DrawingKind)).slice(0, 8).map(k => <Button key={k} size="icon-sm" variant="ghost" hint={t('cw.placeTool.hint', { tool: t(toolKey(k as DrawingKind)), n: OVERLAY_SPECS[k as DrawingKind].pointCount })} aria-label={t(toolKey(k as DrawingKind))} aria-pressed={tool === k} onClick={() => arm(k as DrawingKind)}><Star size={13} /></Button>)}
-        <Button size="icon-sm" variant="ghost" hint={t('cw.hideDrawings.hint')} aria-label={t('cw.hideDrawings')} aria-pressed={appearance.hideDrawings} onClick={() => state.setAppearance({ ...appearance, hideDrawings: !appearance.hideDrawings })}><Eye size={15} /></Button>
+        <Button size="icon-sm" variant="ghost" hint={t('cw.hideDrawings.hint')} aria-label={t('cw.hideDrawings')} aria-pressed={appearance.hideDrawings} onClick={() => saveAppearance({ ...appearance, hideDrawings: !appearance.hideDrawings })}><Eye size={15} /></Button>
       </aside>
       <div className={overlayLayout ? 'contents' : 'relative min-w-0 flex-1'}>
         <div className={`${toolVisibility} ${overlayLayout ? 'absolute bottom-32 left-12 right-20 z-30 max-h-[50dvh] overflow-y-auto rounded-lg' : ''} min-w-0 flex-wrap items-end gap-2 border-b border-border bg-card p-2`}>
           <InputField label={t('cw.tools')} hint={t('cw.tools.hint')} className="w-44 max-w-full"><select className={fieldClass} value={tool ?? ''} onChange={e => arm((e.target.value || null) as DrawingKind | null)}><option value="">{t('cw.selection')}</option>{TOOL_GROUPS.map(group => <optgroup key={group} label={t(`cw.group.${group}`)}>{TOOLS.filter(k => toolGroup(k) === group).map(k => <option key={k} value={k}>{t(toolKey(k))}</option>)}</optgroup>)}</select></InputField>
-          <Choice name="cw.magnet" value={magnet} options={['off', 'weak', 'strong']} onChange={v => state.setAppearance({ ...appearance, magnet: v })} />
-          <Toggle name="cw.keepDrawing" checked={keepDrawing} onChange={v => state.setAppearance({ ...appearance, keepDrawing: v })} />
+          <Choice name="cw.magnet" value={magnet} options={['off', 'weak', 'strong']} onChange={v => saveAppearance({ ...appearance, magnet: v })} />
+          <Toggle name="cw.keepDrawing" checked={keepDrawing} onChange={v => saveAppearance({ ...appearance, keepDrawing: v })} />
           {tool && <Button size="icon-sm" hint={t('cw.favorite.hint')} aria-label={t('cw.favorite')} aria-pressed={state.favorites.includes(tool)} onClick={() => state.setFavorites(state.favorites.includes(tool) ? state.favorites.filter(v => v !== tool) : [...state.favorites, tool])}><Star size={14} /></Button>}
         </div>
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-12 z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
@@ -245,7 +254,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
       </div>
     </div>
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
-    {settingsOpen && <SettingsDialog defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
+    {settingsOpen && <SettingsDialog initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
     {indicatorsOpen && <IndicatorDialog values={doc.indicators} timeframeSec={timeframeSec} onClose={() => setIndicatorsOpen(false)} onChange={indicators => saveDocument({ ...doc, indicators })} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
       <div className="flex flex-wrap gap-2">{drawings.map(d => <Button key={d.id} size="sm" aria-pressed={selected.includes(d.id)} hint={t('cw.selection.hint')} onClick={() => { manager.current?.select([d.id]); }}>{d.name || t(toolKey(d.kind))}</Button>)}</div>
