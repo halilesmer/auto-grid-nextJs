@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-30 · **186/190** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-30 · **187/191** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 9/9 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 18/19 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 19/20 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
 | 16 | **FRM** – Formationserkennung | 24/24 |
 
@@ -739,6 +739,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar. Auf /chart werden zurückgesetzte Darstellung und sichtbarer Balkenbereich je Chart-Kontext gespeichert und wiederhergestellt.
   - **Prüfung:** Vorschau abbrechen; Darstellung zurücksetzen und anwenden; Zeitbereich zurücksetzen; Symbol wechseln und zurückkehren; nach Neuladen prüfen.
   - **Erwartet:** Abbrechen stellt den Ausgangszustand wieder her; Darstellung und Zeitbereich bleiben pro Chart-Kontext nach Wechsel und Neuladen gespeichert.
+- [x] **ANA-20** Oszillatorbereiche und Indikatormenüs — 🖥️ e2e ✅ 2026-10-30
+  - RSI, EWO, MACD und ATR haben Bereichsaktionen (verschieben, einklappen, vorübergehend vergrößern, entfernen) und ein Menü je Indikator (Sichtbarkeit, Einstellungen, Skala, Bereichswechsel, Alarm, Favorit, Kopie, Info, Formel, Entfernen). Favoriten stehen in der Indikatorauswahl, die Objektliste führt Indikatoren und Zeichnungen. Alles außer Favoriten und Vergrößern liegt im lokalen Chart-Dokument, je Chart-Kontext getrennt und rückwärtskompatibel.
+  - **Prüfung:** Bereiche sortieren und einklappen; Indikator favorisieren und aus der Auswahl hinzufügen; Zeitrahmen-Sichtbarkeit ändern; Alarm-Schwellenübertritt auslösen; neu laden → zweiten Chart-Kontext und 375 px prüfen.
+  - **Erwartet:** Bereichs- und Indikatoreinstellungen bleiben im passenden Chart; Vergrößern verschwindet beim Neuladen; ein lokaler Alarm meldet einen Live-Übertritt einmal im geöffneten Chart, ein Zeitrahmenwechsel löst ihn nicht aus.
 - [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.

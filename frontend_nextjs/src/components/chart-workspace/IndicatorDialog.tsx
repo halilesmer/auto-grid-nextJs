@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { useT } from '@/i18n';
@@ -6,12 +7,16 @@ import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-works
 import { readChartColors } from '@/lib/chartTheme';
 import { Choice, ColorField, Numeric, Toggle } from './SettingsDialog';
 
-export function IndicatorDialog({ values, onChange, onClose, timeframeSec }: { values: Indicator[]; onChange: (v: Indicator[]) => void; onClose: () => void; timeframeSec: number }) {
+export function IndicatorDialog({ values, favorites, focusId = null, onChange, onClose, timeframeSec }: { values: Indicator[]; favorites: Indicator['kind'][]; focusId?: string | null; onChange: (v: Indicator[]) => void; onClose: () => void; timeframeSec: number }) {
   const t = useT(), colors = readChartColors();
   const update = (id: string, change: Partial<Indicator>) => onChange(values.map(v => v.id === id ? { ...v, ...change } : v));
+  const add = (kind: Indicator['kind']) => { if (values.length < 20) onChange([...values, newIndicator(kind)]); };
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (focusId) list.current?.querySelector(`[data-indicator-id="${focusId}"]`)?.scrollIntoView({ block: 'start' }); }, [focusId]);
   return <Modal open onClose={onClose} title={t('cw.indicators')} className="max-h-[90dvh] max-w-4xl overflow-y-auto">
-    <div className="flex flex-wrap gap-2">{INDICATOR_KINDS.map(kind => <Button key={kind} size="sm" hint={t(values.length >= 20 ? 'cw.indicatorLimit.hint' : 'cw.add.hint')} disabled={values.length >= 20} onClick={() => onChange([...values, newIndicator(kind)])}>+ {kind}</Button>)}</div>
-    <div className="mt-4 space-y-4" data-testid="indicator-instances">{values.map(v => <section key={v.id} className="space-y-3 rounded-lg border border-border p-3" data-indicator={v.kind}>
+    {favorites.length > 0 && <div className="mb-3"><p className="mb-2 text-sm font-medium">{t('cw.favoriteIndicators')}</p><div className="flex flex-wrap gap-2">{favorites.map(kind => <Button key={kind} size="sm" hint={t(values.length >= 20 ? 'cw.indicatorLimit.hint' : 'cw.add.hint')} disabled={values.length >= 20} onClick={() => add(kind)}><span aria-hidden="true">★ </span>{kind}</Button>)}</div></div>}
+    <div className="flex flex-wrap gap-2">{INDICATOR_KINDS.map(kind => <Button key={kind} size="sm" hint={t(values.length >= 20 ? 'cw.indicatorLimit.hint' : 'cw.add.hint')} disabled={values.length >= 20} onClick={() => add(kind)}>+ {kind}</Button>)}</div>
+    <div ref={list} className="mt-4 space-y-4" data-testid="indicator-instances">{values.map(v => <section key={v.id} className="space-y-3 rounded-lg border border-border p-3" data-indicator={v.kind} data-indicator-id={v.id}>
       <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">{v.kind}</strong><div className="flex items-center gap-3"><Toggle name="cw.visible" checked={v.visible} onChange={visible => update(v.id, { visible })} /><Button size="sm" variant="ghost" hint={t('cw.remove.hint')} onClick={() => onChange(values.filter(i => i.id !== v.id))}>{t('cw.remove')}</Button></div></div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Numeric name="cw.period" value={v.period} min={1} onChange={period => update(v.id, { period })} />

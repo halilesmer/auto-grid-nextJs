@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
@@ -301,4 +302,211 @@ test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgäng
   await workspace.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.image'), exact: true })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+const CHART_URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+type StoredIndicator = { id: string; kind: string; paneId: string; paneCollapsed: boolean; visible: boolean; scaleSide: string; maxTimeframe: number };
+type StoredAlarm = { armed: boolean; value: number };
+
+async function openOscillatorChart(page: Page) {
+  await page.goto(CHART_URL);
+  const controls = page.getByTestId('oscillator-controls');
+  await expect(controls).toBeVisible();
+  const context = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
+  return { controls, context };
+}
+const storedDocument = (page: Page, key: string) => page.evaluate(k => {
+  const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
+  return state.documents[k] as { indicators: StoredIndicator[]; alarms: StoredAlarm[] };
+}, key);
+/** Height of each chart pane in pixels, price pane first. Lightweight Charts draws one table row per pane. */
+const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator('table').first().evaluate(table =>
+  [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1));
+const rsiValue = async (page: Page) => Number((await page.locator('[data-indicator-value="RSI"]').innerText()).replace(/^.*\)\s*/, '').replace(',', '.'));
+
+test('Bereiche lassen sich verschieben, einklappen, vergrößern und entfernen; nur das Vergrößern ist vorübergehend', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  test.slow();
+  void worker;
+  await page.setViewportSize({ width: 375, height: 812 });
+  const { controls, context } = await openOscillatorChart(page);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  await expect.poll(async () => (await paneHeights(page)).length).toBe(3);
+
+  await controls.getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) }).click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators.map(item => item.kind)).toEqual(['EWO', 'RSI']);
+  await expect(controls.getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) })).toBeDisabled();
+
+  await controls.getByRole('button', { name: msg('cw.paneCollapse', { indicator: 'RSI' }) }).click();
+  await expect.poll(async () => (await paneHeights(page))[2]).toBeLessThanOrEqual(34);
+  await expect(controls.getByRole('button', { name: msg('cw.paneExpand', { indicator: 'RSI' }) })).toHaveAttribute('aria-expanded', 'false');
+
+  const before = await paneHeights(page);
+  await controls.getByRole('button', { name: msg('cw.paneMaximize', { indicator: 'EWO' }) }).click();
+  await expect.poll(async () => (await paneHeights(page))[1]).toBeGreaterThan(before[1] * 2);
+  await controls.getByRole('button', { name: msg('cw.paneRestore', { indicator: 'EWO' }) }).click();
+  await expect.poll(async () => (await paneHeights(page))[1]).toBe(before[1]);
+
+  await controls.getByRole('button', { name: msg('cw.paneMaximize', { indicator: 'EWO' }) }).click();
+  await expect(controls.getByRole('button', { name: msg('cw.paneRestore', { indicator: 'EWO' }) })).toBeVisible();
+  await page.reload();
+  await expect(controls.getByRole('button', { name: msg('cw.paneMaximize', { indicator: 'EWO' }) })).toBeVisible();
+  await expect(controls.getByRole('button', { name: msg('cw.paneExpand', { indicator: 'RSI' }) })).toBeVisible();
+  await expect.poll(async () => (await paneHeights(page))[2]).toBeLessThanOrEqual(34);
+
+  await controls.getByRole('button', { name: msg('cw.paneRemoveNamed', { indicator: 'RSI' }) }).click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators.map(item => item.kind)).toEqual(['EWO']);
+  await expect.poll(async () => (await paneHeights(page)).length).toBe(2);
+});
+
+test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, Formel und Favorit', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  test.slow();
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const { controls, context } = await openOscillatorChart(page);
+  // A closed menu fades out first. Open the next one only after the old items are gone, or both match.
+  const menu = async (indicator: string) => {
+    await expect(page.getByRole('button', { name: msg('cw.indicatorCopy'), exact: true })).toHaveCount(0);
+    await controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator }) }).click();
+  };
+  const values = page.getByTestId('workspace-indicator-values');
+
+  await menu('RSI');
+  await page.getByRole('button', { name: msg('cw.indicatorHide', { indicator: 'RSI' }) }).click();
+  await expect(values).not.toContainText('RSI');
+  await menu('RSI');
+  await page.getByRole('button', { name: msg('cw.indicatorShow', { indicator: 'RSI' }) }).click();
+  await expect(values).toContainText('RSI');
+
+  await menu('RSI');
+  await page.getByRole('button', { name: msg('cw.indicatorSettings') }).click();
+  await page.locator('[data-indicator="RSI"]').getByRole('spinbutton', { name: msg('cw.maxTimeframe') }).fill('3600');
+  await page.keyboard.press('Escape');
+  await expect(values).toContainText('RSI');
+  await page.getByRole('radio', { name: 'H4', exact: true }).click();
+  await expect(values).toContainText('EWO');
+  await expect(values).not.toContainText('RSI');
+  await page.getByRole('radio', { name: 'H1', exact: true }).click();
+  await expect(values).toContainText('RSI');
+
+  await menu('RSI');
+  await page.getByRole('button', { name: msg('cw.indicatorScale', { side: msg('cw.option.left') }) }).click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators.find(item => item.kind === 'RSI')?.scaleSide).toBe('left');
+
+  await menu('RSI');
+  await page.getByRole('button', { name: msg('cw.indicatorMovePane', { pane: 'EWO' }) }).click();
+  await expect(controls.locator('[data-oscillator-pane="EWO + RSI"], [data-oscillator-pane="RSI + EWO"]')).toBeVisible();
+  await expect.poll(async () => (await paneHeights(page)).length).toBe(2);
+  await menu('RSI');
+  await page.getByRole('button', { name: msg('cw.indicatorNewPane') }).click();
+  await expect.poll(async () => (await paneHeights(page)).length).toBe(3);
+
+  await menu('RSI');
+  await page.getByRole('button', { name: msg('cw.indicatorCopy') }).click();
+  await expect(controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: 'RSI 2' }) })).toBeVisible();
+  await expect.poll(async () => (await paneHeights(page)).length).toBe(4);
+
+  await menu('RSI 1');
+  await page.getByRole('button', { name: msg('cw.indicatorSource') }).click();
+  await expect(page.getByTestId('indicator-formula')).toContainText('RMA(gain, 14)');
+  await expect(page.getByRole('dialog').getByRole('textbox')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await menu('EWO');
+  await page.getByRole('button', { name: msg('cw.indicatorSource') }).click();
+  await expect(page.getByTestId('indicator-formula')).toContainText('SMA(close, 5) - SMA(close, 35)');
+  await page.keyboard.press('Escape');
+  await menu('EWO');
+  await page.getByRole('button', { name: msg('cw.indicatorInfo') }).click();
+  await expect(page.getByTestId('indicator-info')).toContainText('35');
+  await page.keyboard.press('Escape');
+
+  await menu('RSI 1');
+  await page.getByRole('button', { name: msg('cw.indicatorFavorite') }).click();
+  await controls.getByRole('button', { name: `+ ${msg('cw.addIndicator')}` }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText(msg('cw.favoriteIndicators'));
+  await dialog.getByRole('button', { name: 'RSI', exact: true }).click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators.filter(item => item.kind === 'RSI').length).toBe(3);
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: msg('cw.objects') }).click();
+  const objects = page.getByTestId('object-indicators');
+  await expect(objects).toContainText('RSI 3');
+  await expect(objects).toContainText('EWO');
+  await objects.getByRole('button', { name: `+ ${msg('cw.addIndicator')}` }).click();
+  await expect(page.getByTestId('indicator-instances')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.reload();
+  await expect(controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: 'RSI 3' }) })).toBeVisible();
+  await menu('RSI 1');
+  await expect(page.getByRole('button', { name: msg('cw.indicatorUnfavorite') })).toBeVisible();
+});
+
+test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn einmal aus', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  test.slow();
+  const latestH1 = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
+  const latestH4 = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 14400) * 14400;
+  // Fallend H1 (RSI 0), steigend H4 (RSI 100): nur der Wechsel selbst springt über die Schwelle.
+  worker.state.ratesSeries = {
+    H1: Array.from({ length: 32 }, (_, index) => { const close = 2 - index * 0.01; return [latestH1 - (31 - index) * 3600, close + 0.005, close + 0.01, close - 0.01, close]; }),
+    H4: Array.from({ length: 32 }, (_, index) => { const close = 1 + index * 0.01; return [latestH4 - (31 - index) * 14400, close - 0.005, close + 0.01, close - 0.01, close]; }),
+  };
+  const { controls, context } = await openOscillatorChart(page);
+  const toasts = page.getByRole('status').filter({ hasText: msg('cw.alarmTriggered', { indicator: 'RSI', value: '55' }) });
+  await controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: 'RSI' }) }).click();
+  await page.getByRole('button', { name: msg('cw.indicatorAlarm') }).click();
+  await page.getByRole('spinbutton', { name: msg('cw.alarmValue') }).fill('55');
+  await page.getByRole('button', { name: msg('cw.alarmSave') }).click();
+  await expect.poll(async () => (await storedDocument(page, context)).alarms.length).toBe(1);
+
+  await expect.poll(() => rsiValue(page)).toBeLessThan(55);
+  await page.getByRole('radio', { name: 'H4', exact: true }).click();
+  await expect.poll(() => rsiValue(page)).toBeGreaterThan(55);
+  await expect(toasts).toHaveCount(0);
+  expect((await storedDocument(page, context)).alarms[0].armed).toBe(true);
+
+  // Ohne feste Reihe liefert der Mock eine laufende Kerze, in die Live-Preise einfließen.
+  worker.state.ratesSeries = null;
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=USOUSD&tf=H1&range=7d`);
+  await page.goto(CHART_URL);
+  await expect(page.getByTestId('chart-workspace')).toHaveAttribute('data-context', context);
+  await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
+  await expect.poll(() => rsiValue(page).then(Number.isFinite)).toBe(true);
+  const push = (price: number) => worker.pushMetrics({ account_id: DEMO_ID, symbol: 'EURUSD', price, market_open: true });
+  await expect.poll(async () => { push(80); return rsiValue(page); }).toBeLessThan(55);
+  expect((await storedDocument(page, context)).alarms[0].armed).toBe(true);
+  await expect.poll(async () => { push(115); return rsiValue(page); }).toBeGreaterThan(55);
+  await expect(toasts).toHaveCount(1);
+  await expect.poll(async () => (await storedDocument(page, context)).alarms[0].armed).toBe(false);
+
+  // Einmalig: erneutes Über- und Unterschreiten meldet nichts mehr, der Alarm bleibt gespeichert.
+  push(80); await expect.poll(() => rsiValue(page)).toBeLessThan(55);
+  push(115); await expect.poll(() => rsiValue(page)).toBeGreaterThan(55);
+  await expect(toasts).toHaveCount(1);
+  await page.reload();
+  await expect.poll(async () => (await storedDocument(page, context)).alarms).toHaveLength(1);
+});
+
+test('Bereichseinstellungen und Alarme bleiben im Chart-Kontext; alte Dokumente laden unverändert', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  test.slow();
+  void worker;
+  const { controls, context } = await openOscillatorChart(page);
+  await controls.getByRole('button', { name: msg('cw.paneCollapse', { indicator: 'RSI' }) }).click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators.find(item => item.kind === 'RSI')?.paneCollapsed).toBe(true);
+
+  await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=7d`);
+  await expect(controls.getByRole('button', { name: msg('cw.paneCollapse', { indicator: 'RSI' }) })).toBeVisible();
+
+  // Stand vor ANA-20: keine Bereichsfelder, keine Alarme.
+  await page.evaluate(key => {
+    const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1')!);
+    const legacy = { id: 'legacy-macd', kind: 'MACD', visible: true, period: 12, slow: 26, signal: 9 };
+    state.documents[key] = { drawings: '[]', indicators: [legacy], images: {}, overlays: {} };
+    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(state));
+  }, context);
+  await page.goto(CHART_URL);
+  await expect(controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: 'MACD' }) })).toBeVisible();
+  await controls.getByRole('button', { name: msg('cw.paneCollapse', { indicator: 'MACD' }) }).click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators[0]).toMatchObject({ id: 'legacy-macd', paneId: 'legacy-macd', paneCollapsed: true, scaleSide: 'auto' });
+  expect((await storedDocument(page, context)).alarms).toEqual([]);
 });

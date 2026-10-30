@@ -61,6 +61,19 @@ async function openMenus(dashboard: Dashboard) {
 }
 
 test.describe('UI-07 Hinweise: Abdeckung', () => {
+  test('Chart: Oszillatorleiste und Indikatormenü erklären sich', { tag: ['@UI-07', '@ANA-20'] }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+    const controls = page.getByTestId('oscillator-controls');
+    await expect(controls).toBeVisible();
+    await controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: 'RSI' }) }).click();
+    await expect(page.getByRole('button', { name: msg('cw.indicatorCopy') })).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+    await page.getByRole('button', { name: msg('cw.indicatorAlarm') }).click();
+    await expect(page.getByRole('button', { name: msg('cw.alarmSave') })).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+  });
+
   test('Dashboard (Bot gestoppt): jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     worker.setZones(DEMO_ID, [fullZone()]);
     await dashboard.open(DEMO_ID);

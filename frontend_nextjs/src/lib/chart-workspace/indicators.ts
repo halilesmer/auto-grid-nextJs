@@ -2,11 +2,18 @@ import type { Bar, MissingRange } from '@/lib/analysis/candles';
 
 export const INDICATOR_KINDS = ['SMA', 'EMA', 'RSI', 'EWO', 'MACD', 'BB', 'ATR'] as const;
 export type IndicatorKind = typeof INDICATOR_KINDS[number];
+const OSCILLATOR_KINDS: readonly IndicatorKind[] = ['RSI', 'EWO', 'MACD', 'ATR'];
+export const isOscillator = (indicator: Pick<Indicator, 'kind'>) => OSCILLATOR_KINDS.includes(indicator.kind);
 export type Source = 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4';
 export type Smoothing = 'none' | 'SMA' | 'EMA' | 'RMA' | 'WMA' | 'BB';
 export interface Indicator {
   id: string;
   kind: IndicatorKind;
+  /** Stable chart-local pane group. Overlay indicators always use the price pane. */
+  paneId: string;
+  paneCollapsed: boolean;
+  /** auto follows the chart axis, so documents saved before this field keep their axis. */
+  scaleSide: 'auto' | 'left' | 'right';
   visible: boolean;
   period: number;
   slow: number;
@@ -41,8 +48,9 @@ export interface IndicatorResult { main: Value[]; extra: Value[][]; divergences:
 export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
   let period = 20;
   if (kind === 'EWO') period = 5; else if (kind === 'MACD') period = 12; else if (kind === 'RSI' || kind === 'ATR') period = 14;
+  const id = crypto.randomUUID();
   return {
-    id: crypto.randomUUID(), kind, visible: true,
+    id, kind, paneId: id, paneCollapsed: false, scaleSide: 'auto', visible: true,
     period,
     slow: kind === 'MACD' ? 26 : 35, signal: 9, source: 'close', color, negative: '', maColor: '', width: 1,
     upper: 70, middle: 50, lower: 30, bands: true, background: true, gradients: true,
@@ -50,6 +58,15 @@ export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
     percent: true, divergence: false, labels: true, values: true, timeframe: 0, waitClose: true,
     minTimeframe: 0, maxTimeframe: 86400,
   };
+}
+
+/** Readable text of the built-in calculation. It is shown only and never evaluated. */
+export function indicatorFormula(c: Indicator): string {
+  if (c.kind === 'EWO') { const difference = `SMA(${c.source}, ${c.period}) - SMA(${c.source}, ${c.slow})`; return c.percent ? `EWO = (${difference}) / close * 100` : `EWO = ${difference}`; }
+  if (c.kind === 'MACD') return `MACD = EMA(${c.source}, ${c.period}) - EMA(${c.source}, ${c.slow})\nSignal = EMA(MACD, ${c.signal})\nHistogram = MACD - Signal`;
+  if (c.kind === 'ATR') return `TR = max(high - low, abs(high - close[1]), abs(low - close[1]))\nATR = RMA(TR, ${c.period})`;
+  const rsi = `change = ${c.source} - ${c.source}[1]\ngain = max(change, 0)\nloss = max(-change, 0)\nRSI = 100 - 100 / (1 + RMA(gain, ${c.period}) / RMA(loss, ${c.period}))`;
+  return c.smoothing === 'none' ? rsi : `${rsi}\nMA = ${c.smoothing === 'BB' ? 'SMA' : c.smoothing}(RSI, ${c.smoothingPeriod})`;
 }
 
 export function sourceValue(b: Bar, source: Source): number {
