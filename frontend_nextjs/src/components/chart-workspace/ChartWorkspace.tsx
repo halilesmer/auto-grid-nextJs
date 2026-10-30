@@ -147,9 +147,10 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
     const m = new DrawingManager(binding.chart, binding.candles, { bars: () => live.current.drawingBars, magnet: 'weak', timeInfo: () => ({ timeZone: 'UTC', intraday: live.current.timeframeSec < 86400 }) });
     manager.current = m;
     const storeState = useChartWorkspaceStore.getState();
-    const stored = storeState.documents[context.key] ?? { ...defaults, ...(perProduct ? { appearance: storeState.appearance } : {}) };
+    const existing = storeState.documents[context.key] ?? defaults;
+    const stored = perProduct && existing.appearance === undefined ? { ...existing, appearance: storeState.appearance } : existing;
     documentRef.current = stored;
-    if (!storeState.documents[context.key] || (perProduct && stored.appearance === undefined)) useChartWorkspaceStore.getState().setDocument(context.key, stored);
+    if (!storeState.documents[context.key] || stored !== existing) useChartWorkspaceStore.getState().setDocument(context.key, stored);
     replay.current.clear();
     try { m.importJSON(stored.drawings); }
     catch { queueMicrotask(() => setError('cw.drawingError')); }

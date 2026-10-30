@@ -336,21 +336,29 @@ export function ChartCore({
     }
     // Nur bei neuer Auswahl ausrichten; das Nachladen des Endstücks lässt die Ansicht stehen
     if (fittedKey.current === viewKey || data.points.length === 0) return;
-    fittedKey.current = viewKey;
     const n = data.points.length;
     const from = n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS;
     // autoSize setzt die Breite erst nach dem ersten ResizeObserver-Lauf; vorher bliebe die Ansicht
     // beim Standard-Kerzenabstand stehen
     let frame = 0;
     let tries = 0;
+    let previousWidth = -1;
+    let stableFrames = 0;
     const align = () => {
-      if (chart.timeScale().width() === 0 && tries++ < 60) {
+      const width = chart.timeScale().width();
+      stableFrames = width > 0 && width === previousWidth ? stableFrames + 1 : 0;
+      previousWidth = width;
+      // Indikatorachsen können die verfügbare Breite nach dem ersten Layout noch ändern.
+      if (stableFrames < 2 && tries++ < 60) {
         frame = requestAnimationFrame(align);
         return;
       }
       const savedRange = workspaceKey && (workspaceView === 'analysis' || workspaceView === 'free')
         ? useChartWorkspaceStore.getState().documents[workspaceKey]?.viewport
         : undefined;
+      // Erst eine tatsächlich ausgeführte Ausrichtung gilt als fertig. Ein neuer Render
+      // kann den geplanten Frame vorher abbrechen und muss ihn dann erneut planen.
+      fittedKey.current = viewKey;
       if (savedRange && Number.isFinite(savedRange.from) && Number.isFinite(savedRange.to) && savedRange.from < savedRange.to) {
         if (savedRange.from <= 0 && savedRange.to >= n) chart.timeScale().fitContent();
         else chart.timeScale().setVisibleLogicalRange(savedRange);

@@ -36,6 +36,8 @@ EWO uses SMA(5) minus SMA(35). Its percentage mode divides the result by the clo
 The drawing extension is a third-party package. It does not provide TradingView Advanced Charts or Pine execution.
 Each document key includes source, view, mode, account and actual symbol. Backtests also include their result context.
 The chart reset view can include the full data range. Restore it with `fitContent()` so the chart does not clamp the first bars.
+Mark alignment complete only when its animation frame runs. Earlier renders can cancel a scheduled frame.
+Wait for a stable time-scale width before restoration. Indicator axes can change this width during startup.
 Replay hides future drawing anchors without changing saved user visibility flags.
 Confirmed higher timeframe values appear at their last constituent candle, after the higher candle closes.
 
@@ -51,6 +53,8 @@ Confirmed higher timeframe values appear at their last constituent candle, after
 | Full mocked browser run | 1,534 passed. One tooltip assertion matched the new translated tool options as well as the intended field. Its locator now uses exact text. |
 | Final affected browser run | `E2E_PORT=3325 scripts/features/run.sh e2e 'ANA\|@UI-07\|@BKT-07\|@FRM-2'`: 147 passed in 1.6 minutes on the final production build. Includes the added formation switching and image checks. |
 | Per-product appearance and view | `E2E_PORT=3361 scripts/features/run.sh e2e ANA-19`: 8 passed. The test resets appearance, fits the chart, switches symbols, returns, and reloads. |
+| Per-product CI follow-up | Run 550 passed 1,616 checks but failed the new view test. Startup cancelled an already marked alignment frame. Indicator axes also changed the width after alignment. The frame now marks completion when it runs and waits for stable width. |
+| Per-product correction | `E2E_PORT=3361 npx playwright test --project=mocked --grep '@ANA-19' --workers=2`: 9 passed. Includes migration of older documents. Lint and TypeScript also passed. |
 | Feature catalog | `scripts/features/run.sh check`: 190 features valid. Generated report: 186/190 checked, no failed feature. Remaining checks require separate live/manual verification. |
 | GitHub verification | The complete worker, catalog and frontend jobs are recorded per revision in [PR #241 checks](https://github.com/halilesmer/auto-grid-nextJs/pull/241/checks). This is the publication check record. |
 | Hosted preview | Vercel reports a successful deployment. An independent HTTPS request reaches Vercel authentication; public page-content verification is blocked by preview protection. No protection setting was changed. |

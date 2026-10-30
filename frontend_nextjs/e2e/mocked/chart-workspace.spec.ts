@@ -33,6 +33,29 @@ test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, asy
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
 });
 
+test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  const chart = page.getByTestId('chart-workspace');
+  await expect(chart).toBeVisible();
+  const key = await chart.getAttribute('data-context');
+  await expect.poll(() => page.evaluate(contextKey => {
+    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
+    return saved.documents?.[contextKey!]?.appearance ?? null;
+  }, key)).not.toBeNull();
+  await page.evaluate(contextKey => {
+    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1')!);
+    delete saved.documents[contextKey!].appearance;
+    saved.appearance.background = '#123456';
+    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(saved));
+  }, key);
+  await page.reload();
+  await expect.poll(() => page.evaluate(contextKey => {
+    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
+    return saved.documents?.[contextKey!]?.appearance?.background;
+  }, key)).toBe('#123456');
+});
+
 test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
   const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=7d`;

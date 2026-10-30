@@ -271,7 +271,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 8
+      "tests": 9
     }
   },
   "BKT-01": {
