@@ -38,7 +38,7 @@ export function FormationDetailsPanel({ title, open, onToggle, children }: {
 
   return (
     <>
-      <div ref={bounds} className="pointer-events-none absolute bottom-16 left-2 right-16 top-18" aria-hidden="true" />
+      <div ref={bounds} className="pointer-events-none absolute bottom-16 left-[60px] right-16 top-18" aria-hidden="true" />
       <motion.aside
         ref={panel}
         drag
@@ -48,7 +48,7 @@ export function FormationDetailsPanel({ title, open, onToggle, children }: {
         dragElastic={0}
         dragMomentum={false}
         style={{ x, y }}
-        className="absolute bottom-[calc(17%+2rem)] left-3 right-16 z-40 overflow-hidden rounded-xl border border-border bg-background/95 shadow-lg backdrop-blur-md min-[900px]:bottom-auto min-[900px]:left-auto min-[900px]:right-20 min-[900px]:top-52 min-[900px]:w-80"
+        className="absolute bottom-[calc(17%+2rem)] left-[64px] right-16 z-40 overflow-hidden rounded-xl border border-border bg-background/95 shadow-lg backdrop-blur-md min-[900px]:bottom-auto min-[900px]:left-auto min-[900px]:right-20 min-[900px]:top-52 min-[900px]:w-80"
         data-testid="formation-details"
         aria-label={t('formation.details')}
       >

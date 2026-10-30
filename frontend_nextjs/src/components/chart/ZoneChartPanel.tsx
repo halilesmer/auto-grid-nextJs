@@ -661,7 +661,7 @@ export default function ZoneChartPanel({
             {chart && !isChartEmpty && (
               <ChartCore
                 key={`${accountId}|${symbol}`}
-                workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'setup', account: accountId, symbol: symbol ?? '' }), symbol: symbol ?? '', view: 'analysis' }}
+                workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'setup', account: accountId, symbol: symbol ?? '' }), symbol: symbol ?? '', view: 'analysis', syncIdentity: { source, account: accountId, symbol: symbol ?? '' } }}
                 workspaceOverlays={<AnalysisSettingsPanel inline />}
                 clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
                 data={chart}

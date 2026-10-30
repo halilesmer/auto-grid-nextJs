@@ -1,6 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
+import { defaultToolbar, parseToolbar, type ToolbarPreferences } from '@/lib/chart-workspace/toolbar';
+import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-workspace/linkedDrawings';
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
 import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 
@@ -9,6 +11,11 @@ const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overl
 export const WORKSPACE_STORAGE_KEY = 'grid-robot-chart-workspaces-v1';
 export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {} });
 interface State {
+  links: Record<string, string>;
+  toolbar: Record<string, ToolbarPreferences>;
+  setToolbar: (key: string, patch: Partial<ToolbarPreferences>) => void;
+  setLinked: (key: string, sharedKey: string | null) => void;
+  receiveStorage: () => void;
   appearance: Appearance;
   preview: Appearance | null;
   overlayPreview: { key: string; original: Record<string, boolean> } | null;
@@ -48,24 +55,56 @@ function parseIndicators(input: unknown): Indicator[] {
   });
 }
 export const useChartWorkspaceStore = create<State>((set, get) => {
-  const persist = () => {
+  let lastDocuments: Record<string, ChartDocument> = {};
+  let lastToolbar: Record<string, ToolbarPreferences> = {};
+  let lastLinks: Record<string, string> = {};
+  let pendingWrites = 0, receivePending = false;
+  const readDocument = (d: ChartDocument): ChartDocument => ({ ...d, images: Object.fromEntries(Object.entries(d.images ?? {}).flatMap(([name, ref]) => {
+    const bytes = typeof ref === 'string' ? ref : localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${name}`);
+    return typeof bytes === 'string' ? [[name, bytes]] : [];
+  })) });
+  const write = () => {
     const s = get();
     if (!s.hydrated) return;
     try {
-      const documents = Object.fromEntries(Object.entries(s.documents).map(([key, d]) => {
+      const remote = JSON.parse(localStorage.getItem(WORKSPACE_STORAGE_KEY) || '{}');
+      const combined: Record<string, ChartDocument> = Object.fromEntries(Object.entries(remote.documents ?? {}).map(([key, value]) => [key, readDocument(value as ChartDocument)]));
+      for (const [key, doc] of Object.entries(s.documents)) {
+        if (doc === lastDocuments[key] && combined[key]) continue;
+        const latest = combined[key];
+        combined[key] = key.startsWith('@linked:') && latest ? { ...doc, drawings: rebaseDrawings(lastDocuments[key]?.drawings ?? '[]', doc.drawings, latest.drawings), images: { ...latest.images, ...doc.images } } : doc;
+      }
+      const toolbar = { ...remote.toolbar }, links = { ...remote.links };
+      for (const [key, value] of Object.entries(s.toolbar)) if (value !== lastToolbar[key]) toolbar[key] = value;
+      for (const key of new Set([...Object.keys(lastLinks), ...Object.keys(s.links)])) {
+        if (s.links[key] === lastLinks[key]) continue;
+        if (s.links[key]) links[key] = s.links[key]; else delete links[key];
+      }
+      const documents = Object.fromEntries(Object.entries(combined).map(([key, d]) => {
         for (const [id, data] of Object.entries(d.images)) if (localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`) !== data) localStorage.setItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`, data);
         return [key, { ...d, overlays: s.overlayPreview?.key === key ? s.overlayPreview.original : d.overlays, images: Object.fromEntries(Object.keys(d.images).map(id => [id, true])) }];
       }));
-      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 1, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites }));
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 1, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, links, toolbar }));
       // Delete orphan image bytes only after the replacement metadata is safely written.
-      const prefix = `${WORKSPACE_STORAGE_KEY}-image-`, usedImages = new Set(Object.values(s.documents).flatMap(d => Object.keys(d.images)));
+      const prefix = `${WORKSPACE_STORAGE_KEY}-image-`, usedImages = new Set(Object.values(combined).flatMap(d => Object.keys(d.images)));
       for (let i = localStorage.length - 1; i >= 0; i--) { const key = localStorage.key(i); if (key?.startsWith(prefix) && !usedImages.has(key.slice(prefix.length))) localStorage.removeItem(key); }
-      set({ storageError: false });
+      lastDocuments = combined; lastToolbar = s.toolbar; lastLinks = s.links;
+      set({ documents: combined, storageError: false });
     }
     catch { set({ storageError: true }); } // Quota/private mode: keep the current session and show a visible warning.
   };
+  const persist = () => {
+    // The browser lock serializes read/merge/write across tabs; no remote service is involved.
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      pendingWrites++;
+      void navigator.locks.request('chart-workspace-storage', write).catch(() => set({ storageError: true })).finally(() => {
+        pendingWrites--;
+        if (!pendingWrites && receivePending) { receivePending = false; get().receiveStorage(); }
+      });
+    } else write();
+  };
   return {
-    appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
+    links: {}, toolbar: {}, appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
     hydrate: () => {
       if (get().hydrated) return;
       try {
@@ -85,8 +124,25 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
           }
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }
-        set({ hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
+        lastDocuments = documents;
+        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
+        lastToolbar = get().toolbar; lastLinks = get().links;
       } catch { set({ hydrated: true, storageError: true }); }
+    },
+    receiveStorage: () => { if (pendingWrites) { receivePending = true; return; } set({ hydrated: false }); get().hydrate(); },
+    setToolbar: (key, patch) => { set(s => ({ toolbar: { ...s.toolbar, [key]: { ...(s.toolbar[key] ?? defaultToolbar()), ...patch } } })); persist(); },
+    setLinked: (key, sharedKey) => {
+      if (!sharedKey) { set(s => { const links = { ...s.links }; delete links[key]; return { links }; }); persist(); return; }
+      const own = get().documents[key] ?? emptyChartDocument();
+      const shared = get().documents[sharedKey] ?? emptyChartDocument();
+      const images = { ...own.images }, ownDrawings = parseDrawings(own.drawings);
+      for (const [name, bytes] of Object.entries(own.images)) {
+        if (!shared.images[name] || shared.images[name] === bytes) continue;
+        const alias = crypto.randomUUID(); images[alias] = bytes; delete images[name];
+        for (const drawing of ownDrawings) if (drawing.image?.name === name) drawing.image = { ...drawing.image, name: alias };
+      }
+      const drawings = mergeDrawings(shared.drawings, JSON.stringify(ownDrawings));
+      set(s => ({ links: { ...s.links, [key]: sharedKey }, documents: { ...s.documents, [sharedKey]: { ...shared, drawings, images: { ...shared.images, ...images } } } })); persist();
     },
     beginOverlayPreview: key => set({ overlayPreview: { key, original: { ...get().documents[key]?.overlays } } }),
     finishOverlayPreview: commit => {
@@ -97,7 +153,9 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     },
     setAppearance: appearance => { set({ appearance: parseAppearance(appearance), preview: null }); persist(); },
     setPreview: preview => set({ preview }),
-    setDocument: (key, document) => { set(s => ({ documents: { ...s.documents, [key]: document } })); persist(); },
+    setDocument: (key, document) => {
+      set(s => ({ documents: { ...s.documents, [key]: document } })); persist();
+    },
     saveTemplate: (name, appearance) => { if (!name.trim()) return; set(s => ({ templates: { ...s.templates, [name.trim()]: parseAppearance(appearance) } })); persist(); },
     setFavorites: favorites => { set({ favorites }); persist(); },
   };

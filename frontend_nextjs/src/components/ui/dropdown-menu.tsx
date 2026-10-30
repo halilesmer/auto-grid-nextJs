@@ -16,6 +16,7 @@ interface DropdownMenuProps {
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
   align?: 'left' | 'right';
+  side?: 'bottom' | 'right';
   /** Klassen des Auslöser-Wrappers (z. B. Reihenfolge/Abstand in einer Leiste). */
   className?: string;
   /** Klassen des aufgeklappten Panels (z. B. Breite). */
@@ -37,12 +38,14 @@ export function DropdownMenu({
   variant = 'outline',
   size = 'icon',
   align = 'right',
+  side = 'bottom',
   className,
   panelClassName,
   triggerProps,
   children,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
+  const [placementRevision, setPlacementRevision] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -52,33 +55,65 @@ export function DropdownMenu({
     const panel = panelRef.current;
     if (!open || !panel) return;
     panel.style.translate = '';
+    if (side === 'right') {
+      const trigger = ref.current?.getBoundingClientRect();
+      if (!trigger) return;
+      if (!panel.matches(':popover-open')) panel.showPopover();
+      panel.style.position = 'fixed'; panel.style.margin = '0'; panel.style.right = 'auto'; panel.style.bottom = 'auto';
+      panel.style.maxHeight = `${window.innerHeight - 16}px`; panel.style.overflowY = 'auto';
+      panel.style.width = `${Math.min(288, window.innerWidth - trigger.right - 12)}px`;
+      panel.style.left = `${trigger.right + 4}px`;
+      panel.style.top = `${Math.max(8, Math.min(trigger.top, window.innerHeight - panel.offsetHeight - 8))}px`;
+    }
     const { left, right } = panel.getBoundingClientRect();
     const margin = 8;
     let dx = 0;
     if (right > window.innerWidth - margin) dx = window.innerWidth - margin - right;
     if (left + dx < margin) dx = margin - left;
     if (dx) panel.style.translate = `${Math.round(dx)}px 0`;
-  }, [open]);
+  }, [open, side, placementRevision]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node) && !panelRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) && (ref.current?.contains(document.activeElement) || panelRef.current?.contains(document.activeElement))) {
+        const buttons = Array.from(panelRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+        const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        let next = (current + (e.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;
+        if (e.key === 'Home') next = 0;
+        if (e.key === 'End') next = buttons.length - 1;
+        e.preventDefault(); buttons[next]?.focus(); return;
+      }
       if (e.key !== 'Escape') return;
+      e.preventDefault(); e.stopPropagation();
       setOpen(false);
       // Fokus zurück auf den Auslöser, sonst verliert die Tastatur ihre Position
       ref.current?.querySelector('button')?.focus();
     };
+    const onScroll = (event: Event) => { if (side === 'right' && !panelRef.current?.contains(event.target as Node)) setPlacementRevision(n => n + 1); };
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
     document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
       document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
     };
-  }, [open]);
+  }, [open, side]);
 
+  const panel = <AnimatePresence>
+        {open && (
+          <motion.div ref={panelRef} popover={side === 'right' ? 'manual' : undefined} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className={cn('absolute top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl', align === 'right' ? 'right-0' : 'left-0', panelClassName)}>
+            <CloseContext.Provider value={() => setOpen(false)}>{children}</CloseContext.Provider>
+          </motion.div>
+        )}
+      </AnimatePresence>;
   return (
     <div className={cn('relative shrink-0', className)} ref={ref}>
       <Button
@@ -92,24 +127,7 @@ export function DropdownMenu({
       >
         {icon}
       </Button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            ref={panelRef}
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className={cn(
-              'absolute top-full z-30 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl shadow-black/15 dark:shadow-black/60',
-              align === 'right' ? 'right-0' : 'left-0',
-              panelClassName,
-            )}
-          >
-            <CloseContext.Provider value={() => setOpen(false)}>{children}</CloseContext.Provider>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {panel}
     </div>
   );
 }
