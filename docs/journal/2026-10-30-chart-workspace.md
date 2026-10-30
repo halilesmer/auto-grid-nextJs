@@ -3,7 +3,7 @@ date: 2026-10-30
 author: Codex
 type: feature
 status: open
-pr: []
+pr: [241]
 features: [ANA-16, ANA-17, ANA-18, ANA-19]
 areas: [frontend, tests, docs]
 ---
@@ -81,7 +81,8 @@ Confirmed higher timeframe values appear at their last constituent candle, after
 ## Open points
 - [x] Run the full mocked suite and repair the identified regressions.
 - [x] Review responsive screenshots, persistence boundaries and the final diff against `hooks/RULES.md` section 9.
-- [ ] Open the PR and record its checks.
+- [x] Open PR #241 to `main`.
+- [ ] Record the final GitHub checks and preview verification.
 
 ## Lessons
 Keep chart cleanup explicit. The parent can remove its chart before child effects release series and drawing subscriptions.
