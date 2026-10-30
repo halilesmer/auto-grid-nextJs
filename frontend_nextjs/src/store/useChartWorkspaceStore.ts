@@ -6,10 +6,11 @@ import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-worksp
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
 import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 
-export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean> }
-const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overlays: {} };
+export interface ChartAlarm { id: string; indicatorId: string; direction: 'above' | 'below'; value: number; armed: boolean }
+export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean>; alarms: ChartAlarm[] }
+const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overlays: {}, alarms: [] };
 export const WORKSPACE_STORAGE_KEY = 'grid-robot-chart-workspaces-v1';
-export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {} });
+export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {}, alarms: [] });
 interface State {
   links: Record<string, string>;
   toolbar: Record<string, ToolbarPreferences>;
@@ -38,10 +39,12 @@ function parseIndicators(input: unknown): Indicator[] {
   return input.slice(0, 20).flatMap(v => {
     if (!v || typeof v !== 'object' || !INDICATOR_KINDS.includes(v.kind) || typeof v.id !== 'string') return [];
     const defaults = newIndicator(v.kind);
-    const out = { ...defaults, id: v.id };
+    const out = { ...defaults, id: v.id, paneId: v.id };
     for (const k of Object.keys(defaults) as (keyof Indicator)[]) {
       const value = v[k];
       if (typeof defaults[k] === 'boolean' && typeof value === 'boolean') Object.assign(out, { [k]: value });
+      if (k === 'paneId' && typeof value === 'string' && value && value.length <= 80) Object.assign(out, { paneId: value });
+      if (k === 'scaleSide' && (value === 'auto' || value === 'left' || value === 'right')) Object.assign(out, { scaleSide: value });
       if (typeof defaults[k] === 'number' && typeof value === 'number' && Number.isFinite(value)) Object.assign(out, { [k]: Math.max(0, Math.min(86400, value)) });
     }
     out.period = Math.max(1, Math.min(5000, Math.round(out.period))); out.slow = Math.max(1, Math.min(5000, Math.round(out.slow)));
@@ -120,7 +123,8 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
               if (typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value) && value.length < 2_800_000) images[name] = value;
             }
             const overlays = Object.fromEntries(Object.entries(d.overlays ?? {}).filter(([, v]) => typeof v === 'boolean'));
-            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: parseIndicators(d.indicators), images, overlays };
+            const alarms = Array.isArray(d.alarms) ? d.alarms.flatMap(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.indicatorId === 'string' && (item.direction === 'above' || item.direction === 'below') && typeof item.value === 'number' && Number.isFinite(item.value) ? [{ id: item.id, indicatorId: item.indicatorId, direction: item.direction, value: item.value, armed: item.armed !== false }] : []).slice(0, 50) : [];
+            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: parseIndicators(d.indicators), images, overlays, alarms };
           }
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }

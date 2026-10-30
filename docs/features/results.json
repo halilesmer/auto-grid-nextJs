@@ -274,6 +274,13 @@
       "tests": 7
     }
   },
+  "ANA-20": {
+    "e2e": {
+      "datum": "2026-10-30",
+      "status": "passed",
+      "tests": 5
+    }
+  },
   "BKT-01": {
     "unit": {
       "datum": "2026-10-11",
@@ -729,7 +736,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 20
+      "tests": 22
     }
   },
   "FRM-02": {
@@ -743,7 +750,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 52
+      "tests": 56
     }
   },
   "FRM-04": {
@@ -771,7 +778,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 58
+      "tests": 63
     }
   },
   "FRM-08": {
@@ -806,21 +813,21 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 54
+      "tests": 70
     }
   },
   "FRM-13": {
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 60
+      "tests": 82
     }
   },
   "FRM-14": {
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 57
+      "tests": 77
     }
   },
   "FRM-15": {
@@ -834,7 +841,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 25
+      "tests": 33
     }
   },
   "FRM-17": {
@@ -862,7 +869,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 10
     }
   },
   "FRM-21": {
@@ -1222,7 +1229,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 2
+      "tests": 12
     }
   },
   "UI-02": {
@@ -1264,14 +1271,14 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 4
+      "tests": 30
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 4
+      "tests": 50
     }
   },
   "UI-09": {
@@ -1590,7 +1597,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 16
+      "tests": 18
     }
   },
   "ZON-14": {
@@ -1647,14 +1654,14 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 24
+      "tests": 38
     }
   },
   "ZON-21": {
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 5
     }
   }
 }
