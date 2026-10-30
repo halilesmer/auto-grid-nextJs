@@ -73,13 +73,17 @@ function NavLinks({ layout }: { layout: 'row' | 'panel' }) {
   });
 }
 
-/** Einzeilige Kopfzeile mit fester Höhe (--nav-height): Logo · Seitenlinks (ab lg) · Kopf-Menü · ☰ (unter lg). */
+/** Auf /formasyon schwebt die Navigation nur unter lg; ab lg gilt überall die Desktop-Kopfzeile. */
 export default function AppNav() {
   const t = useT();
+  const chartWorkspace = usePathname() === '/formasyon';
 
   return (
-    <nav className="sticky top-0 z-50 h-(--nav-height) border-b border-border bg-background/75 backdrop-blur-xl">
-      <div className="mx-auto flex h-full max-w-[1400px] items-center gap-4 px-4 md:px-8">
+    <nav data-testid="app-nav" className={cn(
+      'sticky top-0 z-50 h-(--nav-height) border-b border-border bg-background/75 backdrop-blur-xl',
+      chartWorkspace && 'max-lg:fixed max-lg:left-3 max-lg:right-3 max-lg:top-3 max-lg:h-12 max-lg:rounded-xl max-lg:border max-lg:bg-background/90 max-lg:shadow-lg sm:max-lg:left-1/2 sm:max-lg:right-auto sm:max-lg:w-max sm:max-lg:max-w-[calc(100%-6rem)] sm:max-lg:-translate-x-1/2',
+    )}>
+      <div className={cn('mx-auto flex h-full max-w-[1400px] items-center gap-4', chartWorkspace ? 'px-3 lg:px-8' : 'px-4 md:px-8')}>
         <Tooltip content={t('nav.home.hint', { version: VERSION })}>
           <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]">
@@ -92,6 +96,7 @@ export default function AppNav() {
           </Link>
         </Tooltip>
 
+        {chartWorkspace && <span className="hidden text-sm font-medium sm:block lg:hidden">{t('nav.formation')}</span>}
         <div className="hidden min-w-0 items-center gap-1 lg:flex">
           <NavLinks layout="row" />
         </div>

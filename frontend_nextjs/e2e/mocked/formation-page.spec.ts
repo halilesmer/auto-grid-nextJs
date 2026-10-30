@@ -37,6 +37,21 @@ async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW) {
   await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
+test('Chart-Werkzeuge bleiben nach Formationswechsel ohne veraltete Chart-Zugriffe bedienbar', { tag: ['@ANA-17', '@FRM-20'] }, async ({ page, worker }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await openPage(page, worker, `${URL}&form=GAR`);
+  for (const form of ['BAT', 'ABCD', 'GAR']) {
+    await page.getByTestId(`formation-form-${form}`).click();
+    // ABCD is the default and is therefore omitted from the URL.
+    await expect(page.getByTestId(`formation-form-${form}`)).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('workspace-settings').click();
+    await expect(page.getByTestId('chart-workspace-settings')).toBeVisible();
+    await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
+  }
+  expect(errors).toEqual([]);
+});
+
 test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   test('Badges zählen gültige und im Aufbau stehende Treffer, ungültige zählen nicht', { tag: '@FRM-18' }, async ({ page, worker }) => {
     await openPage(page, worker);
@@ -148,12 +163,137 @@ test.describe('FRM-21 Hintergrundsuche', () => {
 
 test.describe('FRM-22 schmale Ansicht', () => {
   test.use({ viewport: { width: 375, height: 812 } });
-  test('Bei 375 px steht die Spalte unter dem Chart und die Seite scrollt nicht seitwärts', { tag: '@FRM-22' }, async ({ page, worker }) => {
+  test('Bei 375 px liegen die Bedingungen im Chart und lassen sich einklappen', { tag: '@FRM-22' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = await page.getByTestId('formation-chart').boundingBox();
-    const checklist = await page.getByTestId('formation-checklist').boundingBox();
-    expect(checklist!.y).toBeGreaterThan(chart!.y + chart!.height - 1);
+    const details = page.getByTestId('formation-details');
+    const panel = await details.boundingBox();
+    expect(chart!.x).toBe(0);
+    expect(chart!.y).toBe(0);
+    expect(chart!.height).toBe(812);
+    expect(panel!.x).toBeGreaterThan(chart!.x);
+    expect(panel!.y + panel!.height).toBeLessThan(chart!.height * 0.83);
+    const toggle = page.getByTestId('formation-details-toggle');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('formation-checklist')).toBeHidden();
+    await toggle.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('formation-checklist')).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: test.info().outputPath('formation-mobile-dark.png') });
+  });
+});
+
+test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
+  for (const theme of ['dark', 'light']) {
+    test(`Chart und Bedienelemente bleiben innerhalb der Seite (${theme})`, { tag: '@FRM-23' }, async ({ page, worker }) => {
+      await page.addInitScript((value) => localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 })), theme);
+      await openPage(page, worker, `${URL}&form=GAR`);
+      if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
+      else await expect(page.locator('html')).not.toHaveClass(/dark/);
+      const chart = await page.getByTestId('formation-chart').boundingBox();
+      expect(chart).toEqual({ x: 0, y: 56, width: 1440, height: 844 });
+      expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });
+      for (const id of ['formation-selectors', 'formation-toolbar', 'formation-details', 'formation-legend']) {
+        const box = await page.getByTestId(id).boundingBox();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.y).toBeGreaterThanOrEqual(56);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.width);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(900);
+      }
+      const toolbar = await page.getByTestId('formation-toolbar').boundingBox();
+      const pointA = await page.getByTestId('formation-overlay').getByText('A', { exact: true }).boundingBox();
+      expect(pointA!.y).toBeGreaterThan(toolbar!.y + toolbar!.height);
+      // Die Checkliste scrollt unabhängig, das Chart-Canvas bleibt dabei an derselben Stelle.
+      await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
+      await expect(page.getByTestId('group-exclusion')).toBeInViewport();
+      expect(await page.getByTestId('formation-chart').boundingBox()).toEqual(chart);
+      await page.locator('#formation-details-content').evaluate((el) => { el.scrollTop = 0; });
+      await page.screenshot({ path: test.info().outputPath(`formation-desktop-${theme}.png`) });
+      const line = page.getByTestId('formation-overlay').locator('line').first();
+      const xBefore = await line.getAttribute('x1');
+      // Links vor dem ersten Formationspunkt liegt freie Chart-Fläche ohne interaktive SVG-Linien.
+      await page.mouse.move(200, 450);
+      await page.mouse.wheel(0, -250);
+      await expect.poll(() => line.getAttribute('x1')).not.toBe(xBefore);
+      if (theme === 'light') {
+        await page.setViewportSize({ width: 375, height: 812 });
+        await expect(page.getByTestId('formation-details')).toBeInViewport();
+        await page.screenshot({ path: test.info().outputPath('formation-mobile-light.png') });
+        await page.setViewportSize({ width: 1440, height: 900 });
+      }
+      // Desktoplinks sind direkt in der Kopfzeile erreichbar.
+      await expect(page.getByTestId('nav-menu')).toBeHidden();
+      await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.analysis', {}, 'de'), exact: true }).click();
+      await expect(page).toHaveURL(/\/chart/);
+      await expect(page.getByTestId('formation-page')).toHaveCount(0);
+    });
+  }
+});
+
+
+test.describe('FRM-24 bewegliche Bedingungen', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  test('Kopfgriff verschiebt die Karte; Grenzen, Tastatur, Aufklappen und Resize halten sie erreichbar', { tag: '@FRM-24' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const panel = page.getByTestId('formation-details');
+    const handle = page.getByTestId('formation-details-drag');
+    const before = await panel.boundingBox();
+    const dragTo = async (x: number, y: number) => {
+      const grip = await handle.boundingBox();
+      await page.mouse.move(grip!.x + 20, grip!.y + grip!.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(x, y, { steps: 12 });
+      await page.mouse.up();
+    };
+    await expect(handle).toBeVisible();
+    await dragTo(before!.x - 350, before!.y + 70);
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBeLessThan(before!.x - 200);
+    await expect(panel.getByTestId('formation-checklist')).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath('formation-details-dragged.png') });
+    await dragTo(-1000, -1000);
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBeGreaterThanOrEqual(7);
+    await expect.poll(async () => (await panel.boundingBox())!.y).toBeGreaterThanOrEqual(127);
+    const left = (await panel.boundingBox())!.x;
+    await handle.focus();
+    await handle.press('ArrowRight');
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBeCloseTo(left + 10, 0);
+    const top = (await panel.boundingBox())!.y;
+    await handle.press('Shift+ArrowDown');
+    await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top + 50, 0);
+    await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('group-exclusion')).toBeInViewport();
+    await dragTo(2400, 1600);
+    await page.getByTestId('formation-details-toggle').click();
+    await dragTo(2400, 1600);
+    await page.getByTestId('formation-details-toggle').click();
+    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(837);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.x + box.width; }).toBeLessThanOrEqual(312);
+    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(749);
+    await expect(handle).toBeInViewport();
+  });
+
+  test('Touch zieht nur am Kopfgriff, der Inhalt bleibt separat scrollbar', { tag: '@FRM-24' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const panel = page.getByTestId('formation-details');
+    const grip = await page.getByTestId('formation-details-drag').boundingBox();
+    expect(grip).not.toBeNull();
+    const before = (await panel.boundingBox())!;
+    const session = await page.context().newCDPSession(page);
+    const x = grip!.x + 35;
+    const y = grip!.y + grip!.height / 2;
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 30 }] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 110 }] });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(async () => (await panel.boundingBox())!.y).toBeLessThan(before.y - 70);
+    const position = (await panel.boundingBox())!.y;
+    await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
+    expect((await panel.boundingBox())!.y).toBeCloseTo(position, 0);
   });
 });

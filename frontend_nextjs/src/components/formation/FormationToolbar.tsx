@@ -23,7 +23,7 @@ function CountBadge({ count, active }: { count: number; active: boolean }) {
 
 const segment = (active: boolean) =>
   cn(
-    'inline-flex h-8 cursor-pointer items-center px-3 text-[13px] transition-colors',
+    'inline-flex h-8 cursor-pointer items-center px-2.5 text-xs transition-colors',
     active ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground',
   );
 
@@ -43,7 +43,7 @@ export function FormationToolbar({
 }) {
   const t = useT();
   return (
-    <div className="flex flex-wrap items-center gap-2.5" data-testid="formation-toolbar">
+    <div className="flex min-w-0 flex-wrap items-center gap-2" data-testid="formation-toolbar">
       <div role="group" aria-label={t('formation.tf.label')} className="inline-flex overflow-hidden rounded-[10px] border border-border bg-card divide-x divide-border">
         {CONTEXT_TIMEFRAMES.map((x) => {
           const count = hitsCount(hits, { tf: x });
@@ -57,7 +57,7 @@ export function FormationToolbar({
           );
         })}
       </div>
-      <div role="group" aria-label={t('formation.form.label')} className="flex max-w-full flex-wrap overflow-hidden rounded-[10px] border border-border bg-card">
+      <div role="group" aria-label={t('formation.form.label')} className="flex max-w-full overflow-x-auto rounded-lg border border-border bg-card">
         {SCAN_FORMATIONS.map((x) => {
           const count = hitsCount(hits, { form: x });
           const name = t(`formation.form.${x}` as MessageKey);

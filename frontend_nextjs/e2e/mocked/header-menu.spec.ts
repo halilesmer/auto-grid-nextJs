@@ -51,6 +51,24 @@ test.describe('UI-01 Kopfzeile', () => {
 });
 
 test.describe('UI-01 Kopf-Menü', () => {
+  test('Einstellungen öffnen über ein kompaktes Zahnrad bei jeder Breite', { tag: ['@UI-01', '@SYS-09'] }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const trigger = headerMenuTrigger(page);
+    for (const { width, size } of [{ width: 375, size: 28 }, { width: 1024, size: 32 }, { width: 1440, size: 32 }]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(trigger.locator('svg.lucide-settings')).toBeVisible();
+      await expect(trigger).toHaveText('');
+      await expect(trigger).toHaveCSS('width', `${size}px`);
+      await expect(trigger).toHaveCSS('height', `${size}px`);
+      await trigger.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.getByTestId('header-menu-panel')).toBeVisible();
+      await expect(page.getByTestId('header-menu-connection')).toContainText(hostOf(MOCK_API));
+      await page.keyboard.press('Escape');
+      await expect(trigger).toBeFocused();
+    }
+  });
+
   test('bündelt Verbindung, Sprache, Design und System; Auswahl schließt es nicht', { tag: '@UI-01' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const panel = await openHeaderMenu(page);
@@ -106,14 +124,14 @@ test.describe('UI-01 Kopf-Menü', () => {
     expect(worker.callsTo('POST', '/api/stop')).toHaveLength(0);
   });
 
-  test('Störungstext im Auslöser überlappt bei 1024 px keinen Link (tr, längster Text)', { tag: ['@UI-01', '@UI-08'] }, async ({ page, worker, dashboard }) => {
+  test('Zahnrad mit Störungsstatus überlappt bei 1024 px keinen Link', { tag: ['@UI-01', '@UI-08'] }, async ({ page, worker, dashboard }) => {
     await page.setViewportSize({ width: 1024, height: 800 });
     await dashboard.open(DEMO_ID);
     worker.overrides.set('GET /api/system/platform', { status: 401, body: { detail: 'Invalid or missing API key' } });
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     const trigger = headerMenuTrigger(page);
     await expect(trigger).toHaveAttribute('data-status', 'unauthorized');
-    await expect(trigger).toContainText(msg('connection.status.unauthorized'));
+    await expect(trigger).toHaveAccessibleName(msg('header.menu.aria', { status: msg('connection.status.unauthorized') }));
     const triggerBox = (await trigger.boundingBox())!;
     const lastLink = page.getByRole('navigation').getByRole('link', { name: msg('nav.users'), exact: true });
     const linkBox = (await lastLink.boundingBox())!;

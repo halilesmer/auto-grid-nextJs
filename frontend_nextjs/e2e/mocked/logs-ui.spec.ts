@@ -165,6 +165,7 @@ test.describe('UI Oberfläche', () => {
     await nav.getByRole('link', { name: msg('nav.formation') }).click();
     await expect(page).toHaveURL(/\/formasyon$/);
     await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
+    await expect(page.getByTestId('nav-menu')).toBeHidden();
     await expect(nav.getByRole('link', { name: msg('nav.formation') })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).not.toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.vps') })).toHaveAttribute('href', '/vps');
@@ -271,7 +272,10 @@ test.describe('UI Oberfläche', () => {
     await expect(page).toHaveURL(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
-    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
+    await expect(page.getByTestId('free-chart-panel')).toBeVisible();
+    await page.getByRole('combobox', { name: msg('cw.mode'), exact: true }).selectOption('setup');
+    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     await expect(page.getByText('90 – 110')).toBeVisible();
 

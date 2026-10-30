@@ -54,7 +54,10 @@ test.describe('ACC Konten', () => {
     await dashboard.open(LIVE_ID);
     // Client-Navigation: das gewählte Konto bleibt im Store
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
-    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&zone=${ZONE_ID}`);
+    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}`);
+    await expect(page.getByTestId('free-chart-panel')).toBeVisible();
+    await page.getByRole('combobox', { name: msg('cw.mode'), exact: true }).selectOption('setup');
+    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&mode=setup&zone=${ZONE_ID}`);
     await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
     const price = page.getByTestId('chart-stat-price');
 
@@ -86,7 +89,10 @@ test.describe('ACC Konten', () => {
     await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
 
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
-    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&zone=${ZONE_ID}`);
+    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}`);
+    await expect(page.getByTestId('free-chart-panel')).toBeVisible();
+    await page.getByRole('combobox', { name: msg('cw.mode'), exact: true }).selectOption('setup');
+    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&mode=setup&zone=${ZONE_ID}`);
     await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
     // Der Worker schickt diesem Stream die Metriken des zweiten Kontos (RSI, Live-Preis)
     worker.pushMetrics({ account_id: LIVE_ID, price: 98.5, rsi: 55.123 });

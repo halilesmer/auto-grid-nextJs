@@ -1,10 +1,11 @@
 import { defineArea } from './define';
+import workspaceHints from './workspaceHints';
 
 // Erklärende Hinweise (Tooltips / (i)-Icons) zu jeder Einstellung, jedem Feld und jedem Button.
 // Regel (hooks/RULES.md §5): Schlüssel `<label-key>.hint`; Text sagt wozu, Einheit/Wirkung und bei
 // deaktivierten Elementen warum. `\n` bricht die Zeile um. Die Fakten stammen aus dem Worker
 // (grid_execution/levels.py, config.py, placement.py, grid_order_manager.py).
-export default defineArea(
+const existingHints = defineArea(
   {
     "backtest.presets.title.hint": "Kendi şablonlarınızı yükleyin, adlandırın, silin veya zone’a aktarın.",
     "backtest.presets.name.hint": "1–80 karakter; aynı adlı şablonlara izin verilir.",
@@ -411,6 +412,8 @@ export default defineArea(
     // --- Analiz ---
     'nav.analysis.hint': 'Analiz sayfası: seçili hesap ve setup için grafik ve istatistik.',
     'analysis.tab.chart.hint': 'MT5 fiyat grafiği; setup sınırları ve setup ayarlarıyla.',
+    'formation.details.move.hint': 'Başlığı sürükleyerek pencereyi grafik içinde taşıyın. Ok tuşları: 10 piksel; Shift + ok: 50 piksel.',
+    'formation.details.toggle.hint': 'Koşul penceresini kapatır veya açar. Grafik tam sayfa olarak kalır.',
     'formation.tf.option.hint': '{tf} mumları üzerinde denetler. Rozet: bu zaman diliminde geçerli veya oluşan {count} formasyon.',
     'formation.form.option.hint': '{form} formasyonunu gösterir. Rozet: tüm zaman dilimlerinde geçerli veya oluşan {count} sonuç; tıklayınca sonucun zaman dilimine geçer.',
     'formation.cand.item.hint': '{title} ({tf}) adayını grafikte ve kontrol listesinde gösterir.',
@@ -956,6 +959,8 @@ export default defineArea(
     // --- Analysis ---
     'nav.analysis.hint': 'Analysis page: chart and statistics for the selected account and setup.',
     'analysis.tab.chart.hint': 'MT5 price chart with the setup limits and the setup settings.',
+    'formation.details.move.hint': 'Drag the header to move the panel inside the chart. Arrow keys: 10 pixels; Shift + arrow: 50 pixels.',
+    'formation.details.toggle.hint': 'Collapse or expand the conditions panel. The chart stays full-page.',
     'formation.tf.option.hint': 'Checks on {tf} candles. Badge: {count} valid or forming patterns on this timeframe.',
     'formation.form.option.hint': 'Shows the {form} formation. Badge: {count} valid or forming matches over all timeframes; a click jumps to the timeframe of the match.',
     'formation.cand.item.hint': 'Shows the candidate {title} ({tf}) in the chart and the checklist.',
@@ -1501,6 +1506,8 @@ export default defineArea(
     // --- Analyse ---
     'nav.analysis.hint': 'Analyse-Seite: Chart und Statistik für das gewählte Konto und Setup.',
     'analysis.tab.chart.hint': 'MT5-Kurschart mit den Setup-Grenzen und den Setup-Einstellungen.',
+    'formation.details.move.hint': 'Kopfzeile ziehen, um das Fenster im Chart zu verschieben. Pfeiltasten: 10 Pixel; Umschalt + Pfeil: 50 Pixel.',
+    'formation.details.toggle.hint': 'Bedingungsfenster ein- oder ausklappen. Der Chart bleibt seitenfüllend.',
     'formation.tf.option.hint': 'Prüft auf {tf}-Kerzen. Badge: {count} gültige oder im Aufbau stehende Treffer auf dieser Zeiteinheit.',
     'formation.form.option.hint': 'Zeigt die Formation {form}. Badge: {count} gültige oder im Aufbau stehende Treffer über alle Zeiteinheiten; ein Klick springt zur Zeiteinheit des Treffers.',
     'formation.cand.item.hint': 'Zeigt den Kandidaten {title} ({tf}) im Chart und in der Checkliste.',
@@ -1641,3 +1648,6 @@ export default defineArea(
     "spread.status.hint": "Aktueller Zustand des gespeicherten Schutzes. Daten älter als 60 Sekunden werden ausgeblendet. Eine manuelle Pause bleibt bestehen.",
   },
 );
+
+const hints = { tr: { ...existingHints.tr, ...workspaceHints.tr }, en: { ...existingHints.en, ...workspaceHints.en }, de: { ...existingHints.de, ...workspaceHints.de } };
+export default hints;

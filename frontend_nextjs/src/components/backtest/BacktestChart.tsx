@@ -14,6 +14,9 @@ import { buildChartData, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/ca
 import type { Excursion } from '@/lib/analysis/excursions';
 import type { RunResult } from '@/lib/backtest/runner';
 import type { RunContext } from '@/store/useBacktestStore';
+import { useConnectionStore } from '@/store/useConnectionStore';
+import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
+import { chartResultIdentity, workspaceKey } from '@/lib/chart-workspace/settings';
 import { useBacktestStore } from '@/store/useBacktestStore';
 import type { ZoneSettings } from '@/store/types';
 import { zoneLevels } from '@/lib/analysis/levels';
@@ -47,6 +50,10 @@ export function BacktestChart({
   requestBars: (timeframe: Timeframe, from: number, to: number) => void;
   onReplayCursorChange: (time: number | null) => void;
 }) {
+  const source = useConnectionStore(s => s.baseUrl);
+  const resultIdentity = useMemo(() => chartResultIdentity(context.params, result), [context.params, result]);
+  const contextKey = workspaceKey({ source, view: 'backtest', account: context.params.accountId, symbol: context.params.symbol.name, run: resultIdentity });
+  const overlays = useChartOverlays(contextKey, { zones: true, levels: true, history: true, pauses: true, gaps: true, balance: true, equity: true });
   const t = useT();
   const fmt = useFormat();
   const chartData = useBacktestStore((s) => s.runs[context.setupId]?.chartData);
@@ -236,25 +243,37 @@ export function BacktestChart({
           {activeData && visibleBars.length > 0 && (
             <>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label={t('backtest.chart.curves.hint')}>
-                <span className="text-success">● {t('backtest.chart.equity')}</span>
-                <span className="text-info">● {t('backtest.chart.balance')}</span>
+                {overlays.equity && <span className="text-success">● {t('backtest.chart.equity')}</span>}
+                {overlays.balance && <span className="text-info">● {t('backtest.chart.balance')}</span>}
               </div>
               <ChartCore
+                key={contextKey}
+                workspace={{ key: contextKey, symbol: context.params.symbol.name, view: 'backtest' }}
+                workspaceOverlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
+                  { key: 'zones', label: 'analysis.settings.zoneLines', hint: 'analysis.settings.zoneLines.hint' },
+                  { key: 'levels', label: 'analysis.settings.levels', hint: 'analysis.settings.levels.hint' },
+                  { key: 'history', label: 'analysis.settings.history', hint: 'analysis.settings.history.hint' },
+                  { key: 'pauses', label: 'analysis.settings.pauses', hint: 'analysis.settings.pauses.hint' },
+                  { key: 'gaps', label: 'analysis.settings.gaps', hint: 'analysis.settings.gaps.hint' },
+                  { key: 'balance', label: 'backtest.chart.balance', hint: 'backtest.chart.curves.hint' },
+                  { key: 'equity', label: 'backtest.chart.equity', hint: 'backtest.chart.curves.hint' },
+                ]} />}
+                clockNow={null}
                 data={chart}
                 timeframeSec={tfSec}
                 digits={context.params.symbol.digits}
                 viewKey={`${result.path}-${timeframe}-${context.params.from}-${context.params.to}`}
-                band={band}
-                lines={lines}
-                showPauses={true}
-                showGaps={true}
+                band={overlays.zones ? band : null}
+                lines={lines.filter(l => l.key.startsWith('zone-') ? overlays.zones : overlays.levels)}
+                showPauses={overlays.pauses}
+                showGaps={overlays.gaps}
                 showRsi={false}
                 live={null}
-                markers={markers}
-                links={links}
+                markers={overlays.history ? markers : []}
+                links={overlays.history ? links : []}
                 focus={focus}
-                equity={equity}
-                balance={balance}
+                equity={overlays.equity ? equity : []}
+                balance={overlays.balance ? balance : []}
                 followTail={cursor !== null}
               />
             </>

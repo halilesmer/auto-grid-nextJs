@@ -29,6 +29,9 @@ export function useAnalysisParams() {
     : 'chart';
   const accountId = params.get('account') || null;
   const zoneId = params.get('zone') || null;
+  const symbol = params.get('symbol')?.trim() || null;
+  let mode: 'free' | 'setup' = 'free';
+  if (params.get('mode') !== 'free' && (params.get('mode') === 'setup' || zoneId)) mode = 'setup';
   const rangeParam = params.get('range');
   const fromParam = params.get('from');
   const toParam = params.get('to');
@@ -72,10 +75,12 @@ export function useAnalysisParams() {
   );
 
   const setTab = useCallback((value: AnalysisTab) => update({ tab: value === 'chart' ? null : value }), [update]);
-  // Neues Konto: die Zone gehörte zum alten Konto und fällt weg
-  const setAccount = useCallback((value: string) => update({ account: value, zone: null }), [update]);
+  // Neues Konto: die alte Zone fällt weg; ein durch einen alten zone=-Link gewählter Setup-Modus bleibt.
+  const setAccount = useCallback((value: string) => update({ account: value, zone: null, ...(mode === 'setup' ? { mode: 'setup' } : {}) }), [update, mode]);
   // Konto aus dem Store in die URL schreiben (Seite ohne ?account= geöffnet): Zone bleibt
   const adoptAccount = useCallback((value: string) => update({ account: value }), [update]);
+  const setMode = useCallback((value: 'free' | 'setup') => update({ mode: value, zone: value === 'free' ? null : zoneId }), [update, zoneId]);
+  const setSymbol = useCallback((value: string | null) => update({ symbol: value, mode: 'free', zone: null }), [update]);
   const setZone = useCallback((value: string | null) => update({ zone: value }), [update]);
   const setTimeframe = useCallback(
     (value: Timeframe) => update({ tf: value === DEFAULT_TIMEFRAME ? null : value }),
@@ -91,5 +96,5 @@ export function useAnalysisParams() {
     [update],
   );
 
-  return { tab, accountId, zoneId, range, timeframe, setTab, setAccount, adoptAccount, setZone, setRange, setTimeframe };
+  return { tab, accountId, zoneId, symbol, mode, setMode, setSymbol, range, timeframe, setTab, setAccount, adoptAccount, setZone, setRange, setTimeframe };
 }

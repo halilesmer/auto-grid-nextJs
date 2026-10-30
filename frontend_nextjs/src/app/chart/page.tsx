@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { BarChart3, CandlestickChart } from 'lucide-react';
 
+import { FreeChartPanel } from '@/components/chart-workspace/FreeChartPanel';
+import { Choice } from '@/components/chart-workspace/SettingsDialog';
 import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
@@ -27,7 +29,7 @@ import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 function AnalysisView() {
   const t = useT();
   const {
-    tab,
+    tab, symbol, mode, setMode, setSymbol,
     accountId: urlAccount,
     zoneId,
     range,
@@ -85,7 +87,7 @@ function AnalysisView() {
   }, [urlAccount, selected, accountKnown, adoptAccount]);
 
   // Ungespeicherte Zonen-Änderungen bleiben: nur laden, wenn noch nicht die Zonen dieses Kontos da sind
-  const settingsError = useAccountSettings(accountKnown ? accountId : null, 'ifMissing');
+  const settingsError = useAccountSettings(accountKnown && (mode === 'setup' || tab === 'stats') ? accountId : null, 'ifMissing');
   const zones = useMemo(
     () => (accountId && loadedAccount === accountId && settings ? (settings.ZONES ?? []) : null),
     [accountId, loadedAccount, settings],
@@ -93,8 +95,8 @@ function AnalysisView() {
 
   // Ohne ?zone= die erste Zone des Kontos
   useEffect(() => {
-    if (!zoneId && zones && zones.length > 0) setZone(zones[0].id);
-  }, [zoneId, zones, setZone]);
+    if ((mode === 'setup' || tab === 'stats') && !zoneId && zones && zones.length > 0) setZone(zones[0].id);
+  }, [mode, tab, zoneId, zones, setZone]);
 
   const clock = useBrokerClock(accountKnown ? accountId : null);
   // Ohne sichere Messung in UTC (docs/analyse-regeln.md §1); der Hinweis darüber sagt es
@@ -130,6 +132,7 @@ function AnalysisView() {
       );
     }
     if (tab === 'chart') {
+      if (mode === 'free') return <FreeChartPanel key={accountId} accountId={accountId} symbol={symbol} onSymbol={setSymbol} timeframe={timeframe} onTimeframe={setTimeframe} range={bounds} offsetSec={offsetSec} clockReady={!clock.loading} />;
       return (
         <ZoneChartPanel
           accountId={accountId}
@@ -178,7 +181,8 @@ function AnalysisView() {
             }}
           />
         </div>
-        {accountKnown && (
+        {accountKnown && tab === 'chart' && <Choice name="cw.mode" value={mode} options={['free', 'setup']} onChange={value => setMode(value as 'free' | 'setup')} />}
+        {accountKnown && (mode === 'setup' || tab === 'stats') && (
           <div className="w-full sm:w-auto">
             <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
           </div>

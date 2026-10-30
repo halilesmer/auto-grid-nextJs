@@ -18,9 +18,10 @@ import ui from './ui';
 import users from './users';
 import vps from './vps';
 import zone from './zone';
+import workspace from './workspace';
 
 // Yeni bölüm: dosyayı ekle, buraya import et ve aşağıdaki listeye koy.
-const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, hints] as const;
+const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, workspace, hints] as const;
 
 type Union2Intersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 

@@ -31,7 +31,8 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
 
   // Portal: sonst wird `fixed` relativ zu transformierten Vorfahren (Zonenkarten) positioniert.
   // Steckt das Modal in einem nativen <dialog> (showModal, Top Layer), muss es dort hinein – sonst liegt es dahinter.
-  const container = anchor ? (anchor.closest('dialog') ?? document.body) : null;
+  const fullscreen = typeof document !== 'undefined' ? document.fullscreenElement : null;
+  const container = anchor ? (anchor.closest('dialog') ?? (fullscreen?.contains(anchor) ? fullscreen : document.body)) : null;
 
   return (
     <>

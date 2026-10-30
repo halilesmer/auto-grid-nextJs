@@ -6,7 +6,7 @@ import { openHeaderMenu } from '../fixtures/header';
 test.describe('SYS Verbindung', () => {
   test('WebSocket verbindet mit API-Schlüssel und nach Abbruch neu', { tag: '@SYS-02' }, async ({ page, worker }) => {
     // Die Analyse-Seite zeigt den Live-Chart erst mit gewähltem Konto; der Stream gehört diesem Konto
-    await page.goto(`/chart?account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}&mode=setup`);
     await expect.poll(() => worker.socketAccounts).toEqual([DEMO_ID]);
     expect(new URL(worker.wsUrls.at(-1)!).searchParams.get('api_key')).toBe('e2e-key');
     const connects = worker.wsUrls.length;

@@ -20,18 +20,11 @@ const SWITCHES: { key: keyof AnalysisPrefs; label: MessageKey; hint: MessageKey;
 ];
 
 /** Zahnrad: Anzeige-Schalter (gespeichert in diesem Browser), dieselben wie die Chart-Legende. Pflicht-Hinweise haben keinen Schalter. */
-export function AnalysisSettingsPanel() {
+export function AnalysisSettingsPanel({ inline = false }: { inline?: boolean }) {
   const t = useT();
   const prefs = useAnalysisPrefsStore();
 
-  return (
-    <DropdownMenu
-      label={t('analysis.settings')}
-      hint={t('analysis.settings.hint')}
-      icon={<Settings2 size={15} />}
-      size="icon-sm"
-      panelClassName="w-72"
-    >
+  const content = (
       <div className="space-y-3 p-3" data-testid="analysis-settings">
         <p className="text-xs font-semibold text-foreground">{t('analysis.settings')}</p>
         {SWITCHES.map((s) => (
@@ -48,6 +41,18 @@ export function AnalysisSettingsPanel() {
           {t('analysis.settings.fixed')}
         </p>
       </div>
+  );
+  if (inline) return content;
+
+  return (
+    <DropdownMenu
+      label={t('analysis.settings')}
+      hint={t('analysis.settings.hint')}
+      icon={<Settings2 size={15} />}
+      size="icon-sm"
+      panelClassName="w-72"
+    >
+      {content}
     </DropdownMenu>
   );
 }

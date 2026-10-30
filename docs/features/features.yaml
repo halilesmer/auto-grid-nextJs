@@ -101,13 +101,13 @@ kategorien:
 
       - id: SYS-09
         titel: Verbindungsstatus im Header
-        beschreibung: Der Auslöser des Kopf-Menüs (UI-01) zeigt bei jeder Breite, auch bei 375 px, den Verbindungspunkt (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden). Bei einer Störung steht der Status zusätzlich als Text daneben (ohne Adresse „VPS verbinden“), verbunden ab 1280 px der Host. Im Menü stehen Host und Status; „Verbindung ändern“ öffnet den Verbindungsdialog. Der Status wird alle 30 s sowie bei Fenster-Fokus erneut über SYS-07 geprüft.
+        beschreibung: Das Kopf-Menü (UI-01) öffnet bei jeder Breite über ein kompaktes Zahnrad. Der zugängliche Name und der Tooltip nennen den aktuellen Verbindungsstatus (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden). Im Menü stehen Host und Status; „Verbindung ändern“ öffnet den Verbindungsdialog. Der Status wird alle 30 s sowie bei Fenster-Fokus erneut über SYS-07 geprüft.
         code: [frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/ConnectionSync.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
           - Bei laufendem Worker das Dashboard öffnen, dann den API-Key auf dem VPS ändern.
           - Zurück ins Browserfenster wechseln (Fokus).
-        erwartet: Der Punkt ist zunächst grün (Host daneben ab 1280 px), nach dem Fokuswechsel steht „API-Key abgelehnt“ als Text im Auslöser.
+        erwartet: Das Zahnrad öffnet das Menü mit Host und Status; nach dem Fokuswechsel nennen zugänglicher Name, Tooltip und Menü den aktualisierten Status.
 
       - id: SYS-06
         titel: MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration)
@@ -1235,7 +1235,7 @@ kategorien:
     features:
       - id: UI-01
         titel: Navigation und Kopf-Menü
-        beschreibung: Die Kopfzeile ist bei jeder Breite einzeilig und 56 px hoch (CSS-Variable --nav-height in globals.css; die fixierte Steuerleiste nutzt sie als Abstand nach oben). Logo mit Version, ab lg (1024 px) die Seitenlinks mit animierter Markierung, rechts das Kopf-Menü; unter lg öffnet ☰ die Seitenlinks als Overlay-Panel. Das Kopf-Menü bündelt Verbindung (SYS-09), Sprache (UI-05), Design (UI-02) und System (Systeminfo, „Check for Updates“ nur für Admin, Herunterfahren; UPD-01/03). Das Panel liegt über Steuerleiste und Inhalt und verschiebt nichts; Auswahl von Sprache oder Design lässt es offen, Escape schließt es. Update- und Herunterfahren-Dialog funktionieren auf jeder Seite.
+        beschreibung: Die normale Kopfzeile ist bei jeder Breite einzeilig und 56 px hoch (CSS-Variable --nav-height in globals.css; die fixierte Steuerleiste nutzt sie als Abstand nach oben). Logo mit Version, ab lg (1024 px) die Seitenlinks mit animierter Markierung, rechts das Zahnrad für das Kopf-Menü; unter lg öffnet ☰ die Seitenlinks als Overlay-Panel. Das Kopf-Menü bündelt Verbindung (SYS-09), Sprache (UI-05), Design (UI-02) und System (Systeminfo, „Check for Updates“ nur für Admin, Herunterfahren; UPD-01/03). Das Panel liegt über Steuerleiste und Inhalt und verschiebt nichts; Auswahl von Sprache oder Design lässt es offen, Escape schließt es. Update- und Herunterfahren-Dialog funktionieren auf jeder Seite. Auf Formasyon bleibt die schwebende Kopfzeile unter 1024 px 48 px hoch; ab 1024 px gilt auch dort die normale Desktopleiste.
         code: [frontend_nextjs/src/components/layout/AppNav.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/hooks/useSystemActions.ts, frontend_nextjs/src/components/ui/dropdown-menu.tsx, frontend_nextjs/src/app/globals.css]
         tiers: [e2e]
         pruefung:
@@ -1305,7 +1305,7 @@ kategorien:
 
       - id: UI-08
         titel: Mobil (375 px) ohne horizontalen Überlauf
-        beschreibung: Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Die Kopfzeile ist einzeilig; unter lg stehen die Seitenlinks mit sichtbaren Beschriftungen im ☰-Menü, ab lg in der Kopfzeile, und das Kopf-Menü liegt bei 375 px ganz im Fenster. Navigation und Kopfzeilen-Bedienelemente überlappen bei 375, 640, 810, 1024 und 1440 px in tr/en/de nicht. Die Felder eines Setups sind auch bei 375 px kurz und brechen um; Grid-Schritt und Lot stehen nebeneinander, auch mit allen Schaltern an, getrenntem BUY/SELL und Fraktal-Setup, ohne dass etwas über die Setup-Karte hinausragt.
+        beschreibung: Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Die Kopfzeile ist einzeilig; unter lg stehen die Seitenlinks mit sichtbaren Beschriftungen im ☰-Menü, ab lg in der Kopfzeile, und das Kopf-Menü liegt bei 375 px ganz im Fenster. Navigation und Kopfzeilen-Bedienelemente überlappen bei 375, 640, 810, 1024 und 1440 px in tr/en/de nicht; die Formationsseite prüft zusätzlich 1023 px und den Wechsel zur Desktopleiste. Die Felder eines Setups sind auch bei 375 px kurz und brechen um; Grid-Schritt und Lot stehen nebeneinander, auch mit allen Schaltern an, getrenntem BUY/SELL und Fraktal-Setup, ohne dass etwas über die Setup-Karte hinausragt.
         code: [frontend_nextjs/src/components/layout/AppNav.tsx, frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/components/zone/ZoneCard.tsx, frontend_nextjs/src/components/zone/FieldSwitch.tsx, frontend_nextjs/src/components/LogViewer.tsx, frontend_nextjs/src/components/ui/animated-tabs.tsx]
         tiers: [e2e]
         pruefung:
@@ -1481,6 +1481,38 @@ kategorien:
           - Analyse-Seite mit einem Setup öffnen; oben rechts auf dem Chart Uhr, (i), Zahnrad und Vollbild-Knopf ansehen.
           - Vollbild-Knopf klicken, im Vollbild das Zahnrad öffnen und einen Schalter umlegen, dann Esc drücken.
         erwartet: Der Chart füllt den Bildschirm, die Schalter wirken sofort, Esc und der Knopf kehren zur Seite zurück.
+
+      - id: ANA-16
+        titel: Freie Broker-Symbolwahl ohne Setup
+        beschreibung: "Analyse öffnet ohne Setup-Bezug im freien Modus. Broker-Symbole bleiben in originaler Schreibweise. Konto, Symbol und Zeitrahmen stehen in der URL. Kein Bot oder Setup ist erforderlich."
+        code: [frontend_nextjs/src/components/chart-workspace/FreeChartPanel.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts]
+        tiers: [e2e]
+        pruefung: [Freien Chart mit EURUSD öffnen und neu laden; ohne Setup-Einstellungsabruf prüfen.]
+        erwartet: Der Chart lädt authentifizierte Kursdaten und stellt denselben Symbolkontext wieder her.
+
+      - id: ANA-17
+        titel: Gemeinsame Zeichenwerkzeuge und Objektbearbeitung
+        beschreibung: "Lightweight Charts v5 und lightweight-charts-drawing 0.6.2 verwenden Preis- und Brokerzeitanker. Zeichnungen, Eigenschaften und Verlauf bleiben vom jeweiligen Symbolkontext getrennt. Volumenwerkzeuge sind ausgeschlossen."
+        code: [frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/lib/chart-workspace/replayDrawings.ts]
+        tiers: [e2e]
+        pruefung: [Linie zeichnen; rückgängig machen; wiederholen; Breite ändern; neu laden.]
+        erwartet: Zeichenaktionen und Objektbearbeitung funktionieren und werden lokal gespeichert.
+
+      - id: ANA-18
+        titel: Standardindikatoren einschließlich RSI und EWO
+        beschreibung: "SMA, EMA, RSI mit Wilder-Glättung, EWO 5/35, MACD, Bollinger und ATR laufen getrennt von Handelslogik und Formationserkennung. Datenlücken starten die Anlaufphase neu; Replay veröffentlicht keine Zukunftswerte."
+        code: [frontend_nextjs/src/lib/chart-workspace/indicators.ts, frontend_nextjs/src/components/chart-workspace/IndicatorDialog.tsx]
+        tiers: [e2e]
+        pruefung: [Referenzwerte und Datenlücken prüfen; mehrere Instanzen anlegen; Parameter nach Neuladen prüfen.]
+        erwartet: Berechnungen stimmen mit unabhängigen Referenzen überein; Instanzen bleiben je Konto und Symbol getrennt.
+
+      - id: ANA-19
+        titel: Gemeinsame Chart-Einstellungen mit Vorschau und Vorlagen
+        beschreibung: "Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar. Vorschau, Abbrechen, Anwenden und lokale Vorlagen verwenden denselben Zustand."
+        code: [frontend_nextjs/src/components/chart-workspace/SettingsDialog.tsx, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        tiers: [e2e]
+        pruefung: [Vorschau abbrechen; erneut ändern und anwenden; nach Neuladen prüfen.]
+        erwartet: Abbrechen stellt den Ausgangszustand wieder her; Anwenden speichert validierte Einstellungen.
 
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)
@@ -1815,7 +1847,7 @@ kategorien:
 
       - id: FRM-19
         titel: "Seite Formasyon: Kandidaten-Liste und Checkliste"
-        beschreibung: "Rechts neben dem Chart (unter 900 px darunter) steht oben die Kandidaten-Liste (Name, Zeiteinheit, Urteil gültig/ungültig/im Aufbau) und darunter die Checkliste des gewählten Kandidaten: Kopf mit Titel und Urteil, Pflicht x/y (n nicht messbar), Verstärkungen x/y, Balken; die Gruppen Pflicht, Verstärkung und Ausschluss; je Zeile ein Symbol mit Beschriftung für erfüllt, nicht erfüllt, Ausschluss ausgelöst/nicht eingetreten und nicht messbar (nie nur Farbe), Marken für die Status secondary und assumption, gemessener Wert, Legende. Bei einer Formation im Aufbau nennt ein Hinweis den fehlenden Punkt, bei einer ungültigen die Bedingungen, die sie ungültig machen. Die Kurztexte je Bedingungs-ID stehen in ruleTexts.ts (tr/en/de)."
+        beschreibung: "Im einklappbaren Fenster innerhalb des Charts steht oben die Kandidaten-Liste (Name, Zeiteinheit, Urteil gültig/ungültig/im Aufbau) und darunter die Checkliste des gewählten Kandidaten: Kopf mit Titel und Urteil, Pflicht x/y (n nicht messbar), Verstärkungen x/y, Balken; die Gruppen Pflicht, Verstärkung und Ausschluss; je Zeile ein Symbol mit Beschriftung für erfüllt, nicht erfüllt, Ausschluss ausgelöst/nicht eingetreten und nicht messbar (nie nur Farbe), Marken für die Status secondary und assumption, gemessener Wert, Legende. Bei einer Formation im Aufbau nennt ein Hinweis den fehlenden Punkt, bei einer ungültigen die Bedingungen, die sie ungültig machen. Die Kurztexte je Bedingungs-ID stehen in ruleTexts.ts (tr/en/de)."
         code: [frontend_nextjs/src/components/formation/CandidateList.tsx, frontend_nextjs/src/components/formation/FormationChecklist.tsx, frontend_nextjs/src/lib/formation/ruleTexts.ts]
         tiers: [e2e]
         pruefung:
@@ -1842,9 +1874,27 @@ kategorien:
 
       - id: FRM-22
         titel: "Seite Formasyon: schmale Ansicht, Sprachen und Hinweise"
-        beschreibung: "Bei 375 px steht die Spalte mit Liste und Checkliste unter dem Chart, die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts)."
+        beschreibung: "Bei 375 px liegt das einklappbare Fenster mit Liste und Checkliste unten innerhalb des seitenfüllenden Charts. Es scrollt unabhängig; die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts)."
         code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/i18n/messages/formation.ts, frontend_nextjs/src/i18n/messages/hints.ts]
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-22) ausführen; der Abdeckungstest UI-07 prüft die Tooltips.
-        erwartet: Bei 375 px liegt die Checkliste unter dem Chart und scrollWidth ist nicht größer als clientWidth.
+        erwartet: Bei 375 px bleibt das Fenster innerhalb des Charts, lässt sich per Maus und Tastatur einklappen, und scrollWidth ist nicht größer als clientWidth.
+
+      - id: FRM-23
+        titel: "Seite Formasyon: seitenfüllender Chart mit Bedienelementen"
+        beschreibung: "Der Chart füllt dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Unter 1024 px schwebt die kompakte Navigation im Chart; ab 1024 px stehen die vollständigen Seitenlinks in der normalen 56 px hohen Kopfzeile und der Chart füllt den Bereich darunter. Konto- und Setup-Auswahl, Filter und Legende schweben innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt mobil im Menü und am Desktop direkt erreichbar, Preisachse und Attribution bleiben frei."
+        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-23) ausführen (Viewport-Abmessungen, Position der Bedienelemente, internes Scrollen, Navigation, helles und dunkles Design).
+        erwartet: Der Chart füllt mobil den Viewport und ab 1024 px den Bereich unter der Kopfzeile; alle Bedienelemente liegen innerhalb der Fläche; Scrollen der Bedingungen verschiebt den Chart nicht; Navigation bleibt erreichbar.
+
+      - id: FRM-24
+        titel: "Seite Formasyon: Bedingungen verschieben"
+        beschreibung: "Die Kopfzeile der Bedingungskarte ist ein Griff für Maus und Touch. Die Karte lässt sich frei innerhalb der sichtbaren Chart-Fläche verschieben; Navigation, Preisachse und Attribution bleiben erreichbar. Pfeiltasten verschieben um 10 Pixel, Umschalt mit Pfeil um 50 Pixel. Scrollen und Einklappen bleiben getrennt vom Ziehen. Aufklappen und Größenänderungen halten die Karte innerhalb der Grenzen. Die Position gilt bis zum Verlassen oder Neuladen der Seite."
+        code: [frontend_nextjs/src/components/formation/FormationDetailsPanel.tsx, frontend_nextjs/src/app/formasyon/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-24) ausführen (Maus, Touch, Tastatur, Grenzen, Scrollen, Aufklappen am unteren Rand und Wechsel zur Mobilbreite).
+        erwartet: Der Kopfgriff verschiebt die Karte; der Inhalt bleibt scrollbar und die gesamte Karte bleibt erreichbar.

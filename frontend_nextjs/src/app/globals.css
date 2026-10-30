@@ -10,6 +10,8 @@
  * Açık temada vurgu renkleri beyaz zeminde okunabilsin diye bir ton koyulaştırıldı.
  */
 :root {
+  --chart-classic-bg: #2d2d2d;
+  --chart-classic-fg: #ededed;
   --background: #f6f6f7;
   --foreground: #1b1a1d;
   --card: #ffffff;
@@ -49,6 +51,8 @@
 }
 
 .dark {
+  --chart-classic-bg: #2d2d2d;
+  --chart-classic-fg: #ededed;
   --background: #1b1a1d;
   --foreground: #e4e4e6;
   --card: #232226;
