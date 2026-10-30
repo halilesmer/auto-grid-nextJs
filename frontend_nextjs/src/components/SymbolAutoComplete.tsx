@@ -19,6 +19,8 @@ interface SymbolAutoCompleteProps {
   className?: string;
   hasError?: boolean;
   preserveCase?: boolean;
+  /** Für Felder ohne sichtbares Label (InputField) */
+  "aria-label"?: string;
 }
 
 const MIN_SEARCH_LENGTH = 1;
@@ -31,6 +33,7 @@ export default function SymbolAutoComplete({
   className = "",
   hasError = false,
   preserveCase = false,
+  "aria-label": ariaLabel,
 }: SymbolAutoCompleteProps) {
   const t = useT();
   const [searchTerm, setSearchTerm] = useState(value);
@@ -85,6 +88,7 @@ export default function SymbolAutoComplete({
       showEmpty={shouldFilter && symbols.length > 0}
       emptyMessage={t("zone.symbol.empty")}
       placeholder={t("zone.symbol.placeholder")}
+      aria-label={ariaLabel}
       className={cn(
         "font-mono font-semibold placeholder:font-sans placeholder:font-normal",
         hasError && "border-danger! text-danger",

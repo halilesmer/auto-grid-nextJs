@@ -3,12 +3,11 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
-import { ZoneSelect } from '@/components/analysis/ZoneSelect';
 import { CandidateList } from '@/components/formation/CandidateList';
 import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationChecklist } from '@/components/formation/FormationChecklist';
+import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
 import { FormationDetailsPanel } from '@/components/formation/FormationDetailsPanel';
@@ -21,17 +20,17 @@ import { FINAL_POINT, timeframeForForm } from '@/lib/formation/scan';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 
 /**
- * Formationserkennung (/formasyon): Konto und Setup bestimmen das Symbol; im Hintergrund läuft die Suche über alle
+ * Formationserkennung (/formasyon): Das Symbol ist frei wählbar, ohne Wahl gilt das erste Setup des Kontos; im Hintergrund läuft die Suche über alle
  * Formationen und Zeiteinheiten (useFormationScan). Chart, Kandidaten-Liste und Checkliste zeigen den gewählten Kandidaten.
  */
 function FormationView() {
   const t = useT();
-  const { accountId: urlAccount, zoneId: urlZone, tf, form, setAccount, setZone, setView } = useFormationParams();
+  const { accountId: urlAccount, zoneId: urlZone, symbol: urlSymbol, tf, form, setAccount, setSymbol, setView } = useFormationParams();
   const accounts = useAccountStore((s) => s.accounts);
   const selected = useAccountStore((s) => s.selectedAccount);
-  const activeAccount = useAccountStore((s) => s.activeAccount);
   const settings = useSettingsStore((s) => s.settings);
   const loadedAccount = useSettingsStore((s) => s.loadedAccount);
+  const symbolsError = useSettingsStore((s) => s.symbolsError);
   const { fetchAccounts } = useAccounts();
 
   const accountId = urlAccount ?? selected;
@@ -51,11 +50,10 @@ function FormationView() {
     () => (accountId && loadedAccount === accountId && settings ? (settings.ZONES ?? []) : null),
     [accountId, loadedAccount, settings],
   );
-  // Ohne ?zone= gilt die erste Zone des Kontos
+  // Ohne ?symbol= gilt das Setup aus ?zone= (alte Links), sonst das erste Setup des Kontos
   const zoneId = urlZone ?? zones?.[0]?.id ?? null;
-
   const zone = zones?.find((z) => z.id === zoneId) ?? null;
-  const symbol = zone?.symbol?.toUpperCase().trim() || null;
+  const symbol = urlSymbol ?? (zone?.symbol?.toUpperCase().trim() || null);
 
   const clock = useBrokerClock(accountKnown ? accountId : null);
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
@@ -66,6 +64,11 @@ function FormationView() {
   const hit = list.find((h) => `${h.form}-${h.tf}` === pickedTf) ?? list[0] ?? null;
   const [active, setActive] = useState<string[] | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  // Kandidat und Markierung gehören zum alten Produkt
+  const clearSelection = () => {
+    setActive(null);
+    setPicked(null);
+  };
 
   const formName = t(`formation.form.${form}` as MessageKey);
 
@@ -115,37 +118,51 @@ function FormationView() {
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
-      <div className="pointer-events-none absolute left-[64px] right-3 top-20 z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-3">
-        <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 p-2 shadow-lg backdrop-blur-md" data-testid="formation-selectors">
-          <AccountDropdown
+      <div className="absolute left-[52px] right-0 top-18 z-30 min-w-0 lg:top-0">
+        <FormationToolbar
+          hits={scan.hits}
+          tf={tf}
+          form={form}
+          onTimeframe={(next) => {
+            setActive(null);
+            setView({ tf: next });
+          }}
+          onForm={(next) => {
+            setActive(null);
+            setView({ form: next, tf: timeframeForForm(scan.hits, next, tf) });
+          }}
+        >
+          {accountKnown && (
+            <FormationSymbolSelect
+              accountId={accountId}
+              value={symbol}
+              onChange={(next) => {
+                clearSelection();
+                setSymbol(next);
+              }}
+            />
+          )}
+          <FormationAccountSelect
             accounts={accounts}
-            selectedAccount={accountId}
-            activeAccount={activeAccount}
-            onSelect={(id) => {
-              if (id !== accountId) setAccount(id);
+            value={accountId}
+            onChange={(id) => {
+              if (id === accountId) return;
+              clearSelection();
+              setAccount(id);
             }}
           />
-          {accountKnown && <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />}
-        </div>
-        <div className="pointer-events-auto max-w-full">
-          <FormationToolbar
-            hits={scan.hits}
-            tf={tf}
-            form={form}
-            onTimeframe={(next) => {
-              setActive(null);
-              setView({ tf: next });
-            }}
-            onForm={(next) => {
-              setActive(null);
-              setView({ form: next, tf: timeframeForForm(scan.hits, next, tf) });
-            }}
-          />
-        </div>
+        </FormationToolbar>
+      </div>
+      <div className="pointer-events-none absolute left-[64px] right-3 top-[184px] z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-[136px]">
         {scan.loading && (
           <p className="flex items-center gap-2 rounded-lg bg-background/95 p-2 text-xs text-muted-foreground" role="status" data-testid="formation-loading">
             <Loader2 size={14} className="animate-spin" /> {t('formation.scan.loading')}
           </p>
+        )}
+        {accountKnown && symbolsError && (
+          <div className="pointer-events-auto max-w-md" data-testid="formation-symbols-error">
+            <Alert tone="warning" title={t('formation.symbols.failed')}>{symbolsError}</Alert>
+          </div>
         )}
         {accountKnown && settingsError && (
           <div className="pointer-events-auto max-w-md">

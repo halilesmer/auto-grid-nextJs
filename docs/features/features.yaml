@@ -1873,12 +1873,12 @@ kategorien:
 
       - id: FRM-21
         titel: "Seite Formasyon: Hintergrundsuche"
-        beschreibung: "Die Seite lädt D1, H4, H1 und M15 des Setup-Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die letzte geschlossene M15-Kerze ändert; zwischen zwei M15-Kerzen ändert sich keine geschlossene Kerze. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung."
+        beschreibung: "Die Seite lädt D1, H4, H1 und M15 des gewählten Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die letzte geschlossene M15-Kerze ändert; zwischen zwei M15-Kerzen ändert sich keine geschlossene Kerze. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung."
         code: [frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/lib/formation/scan.ts]
         tiers: [e2e]
         pruefung:
-          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem Symbol des Setups geladen, data-scan-ms ist gesetzt).
-        erwartet: Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das Symbol des Setups.
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem gewählten Symbol geladen, data-scan-ms ist gesetzt).
+        erwartet: Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das gewählte Symbol.
 
       - id: FRM-22
         titel: "Seite Formasyon: schmale Ansicht, Sprachen und Hinweise"
@@ -1891,8 +1891,8 @@ kategorien:
 
       - id: FRM-23
         titel: "Seite Formasyon: seitenfüllender Chart mit Bedienelementen"
-        beschreibung: "Chart und linke 52 px breite Werkzeugleiste füllen dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Unter 1024 px schwebt die kompakte Navigation im Chart; ab 1024 px stehen die vollständigen Seitenlinks in der normalen 56 px hohen Kopfzeile und der Chart füllt den Bereich darunter. Konto- und Setup-Auswahl, Filter und Legende schweben innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt mobil im Menü und am Desktop direkt erreichbar, Preisachse und Attribution bleiben frei."
-        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
+        beschreibung: "Chart und linke 52 px breite Werkzeugleiste füllen dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Unter 1024 px schwebt die kompakte Navigation im Chart; ab 1024 px stehen die vollständigen Seitenlinks in der normalen 56 px hohen Kopfzeile und der Chart füllt den Bereich darunter. Oben im Chart liegt ab 1024 px eine durchgehende, 38 px hohe Leiste im TradingView-Stil mit Produktsuche, Konto samt LIVE/DEMO, Zeiteinheiten und rechts den Chart-Werkzeugen; direkt darunter eine 30 px hohe Zeile mit den Formationen. Unter 1024 px stehen diese Zeilen untereinander, die Chart-Werkzeuge bleiben unten. Die Legende schwebt innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt mobil im Menü und am Desktop direkt erreichbar, Preisachse und Attribution bleiben frei."
+        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/formation/FormationToolbar.tsx, frontend_nextjs/src/components/formation/FormationSelectors.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-23) ausführen (Viewport-Abmessungen, Position der Bedienelemente, internes Scrollen, Navigation, helles und dunkles Design).
@@ -1906,3 +1906,12 @@ kategorien:
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-24) ausführen (Maus, Touch, Tastatur, Grenzen, Scrollen, Aufklappen am unteren Rand und Wechsel zur Mobilbreite).
         erwartet: Der Kopfgriff verschiebt die Karte; der Inhalt bleibt scrollbar und die gesamte Karte bleibt erreichbar.
+
+      - id: FRM-25
+        titel: "Seite Formasyon: freie Produktwahl"
+        beschreibung: "Die Kopfleiste zeigt statt der Setup-Auswahl eine Produktsuche über alle Symbole des Kontos (GET /symbols/{id}), nach Name oder Beschreibung. Übernommen wird nur ein Eintrag der Liste; Text ohne Auswahl stellt das bisherige Produkt wieder her. Die Wahl steht als ?symbol= in der Adresse und startet die Suche FRM-21 neu. Ohne ?symbol= gilt das Setup aus ?zone=, sonst das erste Setup des Kontos; ein Konto ohne Setup zeigt einen Hinweis. Ein Kontowechsel löscht das Produkt, weil Symbolnamen je Broker abweichen. Liefert MT5 keine Symbole, erscheint der Fehler als Meldung."
+        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/formation/FormationSelectors.tsx, frontend_nextjs/src/hooks/useFormationParams.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-25) ausführen (Produkt per Name und Beschreibung wählen, zweiter Wechsel, Konto ohne Setup, Kontowechsel, Abbruch, Fehler der Symbolliste).
+        erwartet: Jede Wahl lädt D1, H4, H1 und M15 des neuen Produkts und die Suche läuft ohne Setup bis zum Ende.

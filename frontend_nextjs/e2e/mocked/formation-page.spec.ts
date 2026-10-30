@@ -2,14 +2,14 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
 import { msg, type MessageKey } from '../fixtures/i18n';
-import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
+import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
 const URL = `/formasyon?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
@@ -161,6 +161,91 @@ test.describe('FRM-21 Hintergrundsuche', () => {
   });
 });
 
+test.describe('FRM-25 freie Produktwahl', () => {
+  const symbolInput = (page: Page) => page.getByTestId('formation-symbol').getByRole('combobox');
+  const ratesFor = (worker: MockWorker, symbol: string) =>
+    worker.calls.filter((c) => c.method === 'GET' && c.path.endsWith('/rates') && c.query.get('symbol') === symbol).map((c) => c.query.get('timeframe'));
+
+  async function pick(page: Page, search: string, option: string) {
+    await symbolInput(page).fill(search);
+    await page.getByRole('option', { name: new RegExp(option) }).click();
+  }
+
+  test('Jedes gewählte Produkt wird auf allen vier Zeiteinheiten neu gesucht', { tag: '@FRM-25' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await expect(symbolInput(page)).toHaveValue('EURUSD');
+    await expect(page.getByTestId('zone-select')).toHaveCount(0);
+
+    await pick(page, 'gold', 'XAUUSD');
+    await expect(page).toHaveURL(/symbol=XAUUSD/);
+    await expect(page).not.toHaveURL(/zone=/);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    expect(ratesFor(worker, 'XAUUSD').sort()).toEqual(expect.arrayContaining(['D1', 'H1', 'H4', 'M15']));
+
+    await pick(page, 'crude', 'USOUSD');
+    await expect(page).toHaveURL(/symbol=USOUSD/);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    expect(ratesFor(worker, 'USOUSD').sort()).toEqual(expect.arrayContaining(['D1', 'H1', 'H4', 'M15']));
+  });
+
+  test('Beim Tippen liegt kein Hinweis über der Produktliste', { tag: '@FRM-25' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await symbolInput(page).click();
+    await symbolInput(page).fill('gold');
+    await expect(page.getByRole('option', { name: /XAUUSD/ })).toBeVisible();
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+  });
+
+  test('Ein Konto ohne Setup kann ein Produkt wählen', { tag: '@FRM-25' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    await page.goto(`/formasyon?account=${LIVE_ID}`);
+    await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
+    await pick(page, 'euro', 'EURUSD');
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByText(msg('formation.noSymbol.text'))).toHaveCount(0);
+  });
+
+  test('Ein Kontowechsel löscht das gewählte Produkt', { tag: '@FRM-25' }, async ({ page, worker }) => {
+    await openPage(page, worker, `/formasyon?account=${DEMO_ID}&symbol=XAUUSD`);
+    await expect(symbolInput(page)).toHaveValue('XAUUSD');
+    await page.getByRole('combobox', { name: msg('account.select.aria') }).click();
+    await page.getByRole('option', { name: /LIVE/ }).click();
+    await expect(page).toHaveURL(new RegExp(`account=${LIVE_ID}`));
+    await expect(page).not.toHaveURL(/symbol=/);
+    await expect(symbolInput(page)).toHaveValue('');
+  });
+
+  test('Text ohne Auswahl ändert das Produkt nicht', { tag: '@FRM-25' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await symbolInput(page).fill('gold');
+    await symbolInput(page).blur();
+    await expect(symbolInput(page)).toHaveValue('EURUSD');
+    await expect(page).not.toHaveURL(/symbol=/);
+  });
+
+  test('Fokus und Verlassen starten bei Brokernamen in Kleinschreibung keine neue Suche', { tag: '@FRM-25' }, async ({ page, worker }) => {
+    worker.state.symbols = worker.state.symbols.map((s) => (s.name === 'EURUSD' ? { ...s, name: 'EURUSDm' } : s));
+    serveFixture(worker, NOW);
+    worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSDm' })]) };
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(symbolInput(page)).toHaveValue('EURUSDM');
+    // Der Listeneintrag zeigt: Die Symbole sind geladen, das Verlassen des Feldes vergleicht wirklich
+    await symbolInput(page).click();
+    await expect(page.getByRole('option', { name: /EURUSDm/ })).toBeVisible();
+    await symbolInput(page).blur();
+    // Eine ungewollte Übernahme käme erst mit dem nächsten Render, deshalb kurz warten statt sofort zu prüfen
+    await page.waitForTimeout(300);
+    await expect(page).not.toHaveURL(/symbol=/);
+  });
+
+  test('Die Liste zeigt, wenn MT5 keine Produkte liefert', { tag: '@FRM-25' }, async ({ page, worker }) => {
+    worker.state.symbolsError = 'MT5 nicht erreichbar';
+    await openPage(page, worker);
+    await expect(page.getByTestId('formation-symbols-error')).toContainText('MT5 nicht erreichbar');
+  });
+});
+
 test.describe('FRM-22 schmale Ansicht', () => {
   test.use({ viewport: { width: 375, height: 812 } });
   test('Bei 375 px liegen die Bedingungen im Chart und lassen sich einklappen', { tag: '@FRM-22' }, async ({ page, worker }) => {
@@ -191,6 +276,29 @@ test.describe('FRM-22 schmale Ansicht', () => {
 
 test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
+  test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
+    expect(bar).toEqual({ x: 52, y: 56, width: 1388, height: 38 });
+    const forms = (await page.getByTestId('formation-forms').boundingBox())!;
+    expect(forms).toEqual({ x: 52, y: 94, width: 1388, height: 30 });
+    const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+    expect(tools.y).toBeGreaterThanOrEqual(56);
+    expect(tools.y + tools.height).toBeLessThanOrEqual(94);
+    expect(tools.x + tools.width).toBeLessThanOrEqual(1440);
+    await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
+    const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const found = new Set<number>();
+      while (walker.nextNode()) {
+        const parent = walker.currentNode.parentElement;
+        if (parent && walker.currentNode.textContent?.trim()) found.add(parseFloat(getComputedStyle(parent).fontSize));
+      }
+      return [...found];
+    });
+    expect(sizes.filter((size) => size > 12)).toEqual([]);
+  });
+
   for (const theme of ['dark', 'light']) {
     test(`Chart und Bedienelemente bleiben innerhalb der Seite (${theme})`, { tag: '@FRM-23' }, async ({ page, worker }) => {
       await page.addInitScript((value) => localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 })), theme);

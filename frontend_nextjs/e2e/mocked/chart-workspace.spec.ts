@@ -44,7 +44,8 @@ test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '
     const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
     return saved.documents?.[contextKey!]?.appearance ?? null;
   }, key)).not.toBeNull();
-  await page.evaluate(contextKey => {
+  // Vor dem App-Code schreiben: Die laufende Seite speichert den Ausschnitt verzögert und würde Altdaten überschreiben.
+  await page.addInitScript(contextKey => {
     const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1')!);
     delete saved.documents[contextKey!].appearance;
     saved.appearance.background = '#123456';
