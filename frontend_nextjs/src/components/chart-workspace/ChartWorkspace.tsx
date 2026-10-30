@@ -64,7 +64,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   const [gesture, setGesture] = useState<ChartGesture>(null);
   const zoomActive = useRef(false);
   const [zoomSnapshot, setZoomSnapshot] = useState<ZoomSnapshot | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<'selected' | 'drawings' | 'indicators' | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<{ target: 'selected' | 'drawings' | 'indicators'; ids: string[] } | null>(null);
   const originalLocks = useRef(new Map<string, boolean | undefined>());
   const [activeObject, setActiveObject] = useState<string | null>(null);
   const [drawingSnapshot, setDrawingSnapshot] = useState<Drawing[]>([]);
@@ -261,9 +261,9 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
       const name = crypto.randomUUID(); cacheImage(name, img); saveDocument({ ...documentRef.current, images: { ...documentRef.current.images, [name]: url } }); manager.current?.addImage({ name, width: img.width, height: img.height }); checkpoint();
     } catch { setError('cw.imageError'); }
   };
-  const removeDrawings = (all: boolean) => {
+  const removeDrawings = (all: boolean, ids = selected) => {
     const m = manager.current; if (!m || locked) return;
-    for (const d of replay.current.snapshot(m)) if (!d.locked && (all || selected.includes(d.id))) m.remove(d.id);
+    for (const d of replay.current.snapshot(m)) if (!d.locked && (all || ids.includes(d.id))) m.remove(d.id);
     checkpoint();
   };
   const setPreferences = (patch: Partial<typeof preferences>) => state.setToolbar(context.key, patch);
@@ -300,7 +300,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
           arm={arm} setGesture={setGesture} setPreferences={setPreferences} setFavorites={state.setFavorites}
           setMagnet={value => state.setAppearance({ ...appearance, magnet: value })} setKeepDrawing={() => state.setAppearance({ ...appearance, keepDrawing: !keepDrawing })}
           setVisibility={setVisibility} setLinked={() => { if (context.syncIdentity) { try { state.setLinked(context.key, drawingKey !== context.key ? null : linkedDrawingKey(context.syncIdentity)); } catch { setError('cw.drawingError'); } } }}
-          remove={target => { if (target === 'selected' && selected.length <= 1) removeDrawings(false); else setConfirmRemove(target); }}
+          remove={target => { if (target === 'selected' && selected.length <= 1) removeDrawings(false); else setConfirmRemove({ target, ids: [...selected] }); }}
           resetZoom={() => { if (!binding || !zoomSnapshot) return; binding.chart.timeScale().setVisibleLogicalRange(zoomSnapshot.logical); const scale = binding.candles.priceScale(); scale.setAutoScale(zoomSnapshot.autoScale); if (!zoomSnapshot.autoScale && zoomSnapshot.price) scale.setVisibleRange(zoomSnapshot.price); zoomActive.current = false; setZoomSnapshot(null); }} />
       </div>
       <div className={overlayLayout ? 'contents' : 'relative min-w-0 flex-1'}>
@@ -311,7 +311,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
       </div>
     </div>
     {binding && !binding.isDisposed() && gesture && <ChartGestureLayer key={`${context.key}-${gesture}`} binding={binding} mode={gesture} digits={digits} cancel={() => setGesture(null)} finishZoom={previous => { zoomActive.current = true; setZoomSnapshot(previous); setGesture(null); arm(null); }} />}
-    {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove].title)} message={t(removalLabels[confirmRemove].message)} confirmHint={t(removalLabels[confirmRemove].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove === 'indicators') saveDocument({ ...doc, indicators: [] }); else removeDrawings(confirmRemove === 'drawings'); }} />}
+    {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: [] }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
     {settingsOpen && <SettingsDialog defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
     {indicatorsOpen && <IndicatorDialog values={doc.indicators} timeframeSec={timeframeSec} onClose={() => setIndicatorsOpen(false)} onChange={indicators => saveDocument({ ...doc, indicators })} />}

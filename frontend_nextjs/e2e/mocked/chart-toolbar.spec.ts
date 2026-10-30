@@ -186,3 +186,26 @@ test('Einzelne Objektsperren überleben die globale Sperre; ausgewählte Löschu
   await page.getByRole('button', { name: msg('confirm.delete'), exact: true }).click();
   expect(await storedDrawings(page)).toHaveLength(1);
 });
+
+test('Mehrere ausgewählte Zeichnungen bleiben bis zur Löschbestätigung vorgemerkt', { tag: '@ANA-17' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(URL);
+  await page.getByRole('button', { name: msg('cw.magnet'), exact: true }).click();
+  await drawLine(page, 60);
+  await drawLine(page, 110);
+  await expect.poll(() => storedDrawings(page)).toHaveLength(2);
+  await page.getByRole('button', { name: msg('cw.selection'), exact: true }).click();
+  const box = await page.getByTestId('analysis-chart').boundingBox();
+  if (!box) throw new Error('Chart missing');
+  await page.mouse.click(box.x + box.width * .45, box.y + 110);
+  await page.keyboard.down('Control');
+  await page.mouse.click(box.x + box.width * .45, box.y + 60);
+  await page.keyboard.up('Control');
+  await page.getByRole('button', { name: msg('cw.rail.trash'), exact: true }).click();
+  await page.getByRole('button', { name: msg('cw.rail.removeSelected'), exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText(msg('cw.rail.confirmSelected'));
+  await page.getByRole('button', { name: msg('confirm.delete'), exact: true }).click();
+  await expect.poll(() => storedDrawings(page)).toHaveLength(0);
+  await page.getByRole('button', { name: msg('cw.undo'), exact: true }).click();
+  await expect.poll(() => storedDrawings(page)).toHaveLength(2);
+});
