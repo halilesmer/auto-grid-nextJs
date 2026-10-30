@@ -44,7 +44,8 @@ test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '
     const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
     return saved.documents?.[contextKey!]?.appearance ?? null;
   }, key)).not.toBeNull();
-  await page.evaluate(contextKey => {
+  // Vor dem App-Code schreiben: Die laufende Seite speichert den Ausschnitt verzögert und würde Altdaten überschreiben.
+  await page.addInitScript(contextKey => {
     const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1')!);
     delete saved.documents[contextKey!].appearance;
     saved.appearance.background = '#123456';
@@ -489,8 +490,10 @@ test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn 
   await expect(toasts).toHaveCount(0);
   expect((await storedDocument(page, context)).alarms[0].armed).toBe(true);
 
-  // Ohne feste Reihe liefert der Mock eine laufende Kerze, in die Live-Preise einfließen.
+  // Ohne feste Reihe liefert der Mock eine laufende Kerze, in die Live-Preise einfließen. Am Wochenende (Brokerzeit,
+  // also ab Freitag 21:00 UTC) gäbe es sie ohne ratesAllDays nicht.
   worker.state.ratesSeries = null;
+  worker.state.ratesAllDays = true;
   await page.goto(`/chart?account=${DEMO_ID}&symbol=USOUSD&tf=H1&range=7d`);
   await page.goto(CHART_URL);
   await expect(page.getByTestId('chart-workspace')).toHaveAttribute('data-context', context);

@@ -40,7 +40,7 @@ export function CandidateList({ hits, selected, onSelect }: { hits: readonly Sca
                 hit === selected && 'border-border bg-muted',
               )}
             >
-              <span className="min-w-0 flex-1 text-sm">
+              <span className="min-w-0 flex-1 text-xs">
                 {title}
                 <small className="block text-xs text-muted-foreground">{hit.tf}</small>
               </span>

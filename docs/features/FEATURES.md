@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-30 · **187/191** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-30 · **188/192** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 19/20 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 24/24 |
+| 16 | **FRM** – Formationserkennung | 25/25 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -897,18 +897,22 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-20) ausführen (Zeichnungen vorhanden, Hover auf eine Zeile hebt hervor, Overlay-Breite endet vor der Preisachse).
   - **Erwartet:** Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben.
 - [x] **FRM-21** Seite Formasyon: Hintergrundsuche — 🖥️ e2e ✅ 2026-10-30
-  - Die Seite lädt D1, H4, H1 und M15 des Setup-Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die letzte geschlossene M15-Kerze ändert; zwischen zwei M15-Kerzen ändert sich keine geschlossene Kerze. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung.
-  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem Symbol des Setups geladen, data-scan-ms ist gesetzt).
-  - **Erwartet:** Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das Symbol des Setups.
+  - Die Seite lädt D1, H4, H1 und M15 des gewählten Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die letzte geschlossene M15-Kerze ändert; zwischen zwei M15-Kerzen ändert sich keine geschlossene Kerze. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem gewählten Symbol geladen, data-scan-ms ist gesetzt).
+  - **Erwartet:** Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das gewählte Symbol.
 - [x] **FRM-22** Seite Formasyon: schmale Ansicht, Sprachen und Hinweise — 🖥️ e2e ✅ 2026-10-30
   - Bei 375 px liegt das einklappbare Fenster mit Liste und Checkliste unten innerhalb des seitenfüllenden Charts rechts neben der 52 px breiten Werkzeugleiste. Es scrollt unabhängig; die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts).
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-22) ausführen; der Abdeckungstest UI-07 prüft die Tooltips.
   - **Erwartet:** Bei 375 px bleibt das Fenster innerhalb des Charts, lässt sich per Maus und Tastatur einklappen, und scrollWidth ist nicht größer als clientWidth.
 - [x] **FRM-23** Seite Formasyon: seitenfüllender Chart mit Bedienelementen — 🖥️ e2e ✅ 2026-10-30
-  - Chart und linke 52 px breite Werkzeugleiste füllen dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Unter 1024 px schwebt die kompakte Navigation im Chart; ab 1024 px stehen die vollständigen Seitenlinks in der normalen 56 px hohen Kopfzeile und der Chart füllt den Bereich darunter. Konto- und Setup-Auswahl, Filter und Legende schweben innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt mobil im Menü und am Desktop direkt erreichbar, Preisachse und Attribution bleiben frei.
+  - Chart und linke 52 px breite Werkzeugleiste füllen dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Unter 1024 px schwebt die kompakte Navigation im Chart; ab 1024 px stehen die vollständigen Seitenlinks in der normalen 56 px hohen Kopfzeile und der Chart füllt den Bereich darunter. Oben im Chart liegt ab 1024 px eine durchgehende, 38 px hohe Leiste im TradingView-Stil mit Produktsuche, Konto samt LIVE/DEMO, Zeiteinheiten und rechts den Chart-Werkzeugen; direkt darunter eine 30 px hohe Zeile mit den Formationen. Unter 1024 px stehen diese Zeilen untereinander, die Chart-Werkzeuge bleiben unten. Die Legende schwebt innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt mobil im Menü und am Desktop direkt erreichbar, Preisachse und Attribution bleiben frei.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-23) ausführen (Viewport-Abmessungen, Position der Bedienelemente, internes Scrollen, Navigation, helles und dunkles Design).
   - **Erwartet:** Der Chart füllt mobil den Viewport und ab 1024 px den Bereich unter der Kopfzeile; alle Bedienelemente liegen innerhalb der Fläche; Scrollen der Bedingungen verschiebt den Chart nicht; Navigation bleibt erreichbar.
 - [x] **FRM-24** Seite Formasyon: Bedingungen verschieben — 🖥️ e2e ✅ 2026-10-30
   - Die Kopfzeile der Bedingungskarte ist ein Griff für Maus und Touch. Die Karte lässt sich frei innerhalb der sichtbaren Chart-Fläche verschieben; Navigation, linke Werkzeugleiste, Preisachse und Attribution bleiben erreichbar. Pfeiltasten verschieben um 10 Pixel, Umschalt mit Pfeil um 50 Pixel. Scrollen und Einklappen bleiben getrennt vom Ziehen. Aufklappen und Größenänderungen halten die Karte innerhalb der Grenzen. Die Position gilt bis zum Verlassen oder Neuladen der Seite.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-24) ausführen (Maus, Touch, Tastatur, Grenzen, Scrollen, Aufklappen am unteren Rand und Wechsel zur Mobilbreite).
   - **Erwartet:** Der Kopfgriff verschiebt die Karte; der Inhalt bleibt scrollbar und die gesamte Karte bleibt erreichbar.
+- [x] **FRM-25** Seite Formasyon: freie Produktwahl — 🖥️ e2e ✅ 2026-10-30
+  - Die Kopfleiste zeigt statt der Setup-Auswahl eine Produktsuche über alle Symbole des Kontos (GET /symbols/{id}), nach Name oder Beschreibung. Übernommen wird nur ein Eintrag der Liste; Text ohne Auswahl stellt das bisherige Produkt wieder her. Die Wahl steht als ?symbol= in der Adresse und startet die Suche FRM-21 neu. Ohne ?symbol= gilt das Setup aus ?zone=, sonst das erste Setup des Kontos; ein Konto ohne Setup zeigt einen Hinweis. Ein Kontowechsel löscht das Produkt, weil Symbolnamen je Broker abweichen. Liefert MT5 keine Symbole, erscheint der Fehler als Meldung.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-25) ausführen (Produkt per Name und Beschreibung wählen, zweiter Wechsel, Konto ohne Setup, Kontowechsel, Abbruch, Fehler der Symbolliste).
+  - **Erwartet:** Jede Wahl lädt D1, H4, H1 und M15 des neuen Produkts und die Suche läuft ohne Setup bis zum Ende.

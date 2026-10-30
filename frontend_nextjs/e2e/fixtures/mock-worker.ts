@@ -444,7 +444,7 @@ export class MockWorker {
     }
     for (let t = a; !series && t < end && t <= latest; t += tf) {
       const weekday = new Date(t * 1000).getUTCDay();
-      if (tf < 86400 && (weekday === 0 || weekday === 6)) continue;
+      if (tf < 86400 && !this.state.ratesAllDays && (weekday === 0 || weekday === 6)) continue;
       if (missing.some((m) => t >= m.from && t < m.to)) continue;
       const open = mid(t);
       const close = mid(t + tf);

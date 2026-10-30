@@ -354,8 +354,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); history(!e.shiftKey); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); history(false); }
   }}>
-    <div className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-20 rounded-lg shadow-lg' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
-      <span className="min-w-0 truncate text-xs font-medium">{context.symbol}</span>
+    <div className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-20 rounded-lg shadow-lg lg:bottom-auto lg:left-auto lg:right-1 lg:top-px lg:z-40 lg:h-9 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
+      <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? 'lg:hidden' : ''}`}>{context.symbol}</span>
       <div className="flex flex-wrap items-center gap-1">
         {overlayLayout && appearance.navigation && <Button size="sm" variant="ghost" hint={t('cw.fit.hint')} onClick={() => binding?.chart.timeScale().fitContent()}>{t('cw.fit')}</Button>}
         <Button size="sm" variant="ghost" hint={t('cw.indicators.hint')} onClick={() => setIndicatorsOpen(true)}>{t('cw.indicators')}</Button>
