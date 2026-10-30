@@ -28,7 +28,9 @@ test('Gruppen merken das Werkzeug, Favoriten zeigen echte Symbole und bleiben ge
   await page.getByTestId('tool-ray').click();
   await page.getByRole('button', { name: msg('cw.selection'), exact: true }).click();
   await page.getByRole('button', { name: msg('cw.rail.lines'), exact: true }).click();
-  await expect(page.locator('[data-tool-group=lines] [aria-pressed=true]')).toBeVisible();
+  const groupButton = page.getByRole('button', { name: msg('cw.rail.lines'), exact: true });
+  await expect(groupButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(groupButton.locator('[data-tool-icon=ray]')).toBeVisible();
   await page.getByRole('button', { name: msg('cw.rail.favorites'), exact: true }).click();
   await expect(page.getByTestId('drawing-favorites').locator('[data-tool-icon=ray]')).toBeVisible();
   await page.keyboard.press('Escape');
