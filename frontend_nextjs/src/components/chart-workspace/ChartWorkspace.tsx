@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { InputField } from '@/components/ui/InputField';
 import { Modal } from '@/components/ui/modal';
+import { toast } from '@/components/ui/animated-toast';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
-import { newIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { INDICATOR_KINDS, indicatorFormula, isOscillator, newIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -19,6 +20,7 @@ import { withAlpha } from '@/lib/chartTheme';
 import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding } from './runtime';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
 import { IndicatorDialog } from './IndicatorDialog';
+import { indicatorNames, OscillatorControls, type OscillatorActions } from './OscillatorControls';
 
 const TIMEFRAME_LABEL = Object.fromEntries(Object.entries(TIMEFRAME_SEC).map(([name, seconds]) => [seconds, name]));
 const EXCLUDED = new Set(['anchored-vwap', 'fixed-range-volume-profile', 'anchored-volume-profile']);
@@ -72,8 +74,17 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   const [revision, setRevision] = useState(0), [selected, setSelected] = useState<string[]>([]), [tool, setTool] = useState<DrawingKind | null>(null);
   const [objectsOpen, setObjectsOpen] = useState(false), [settingsOpen, setSettingsOpen] = useState(false), [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null), [editor, setEditor] = useState<{ drawing: Drawing; cell?: TableCellRef; text: string } | null>(null);
-  const [lastValues, setLastValues] = useState<{ config: Indicator; value: Value }[]>([]);
+  const [sample, setSample] = useState<{ scope: string; values: { config: Indicator; value: Value }[] }>({ scope: '', values: [] });
+  const lastValues = sample.values;
   const [elapsed, setElapsed] = useState(0);
+  const [settingsFocus, setSettingsFocus] = useState<string | null>(null);
+  const [indicatorInfo, setIndicatorInfo] = useState<{ indicator: Indicator; formula: boolean } | null>(null);
+  const [alarmTarget, setAlarmTarget] = useState<Indicator | null>(null);
+  const [alarmValue, setAlarmValue] = useState('');
+  const [alarmDirection, setAlarmDirection] = useState<'above' | 'below'>('above');
+  // Maximizing is temporary: it applies to one chart and timeframe and is never saved.
+  const [maximized, setMaximized] = useState<{ scope: string; paneId: string } | null>(null);
+  const previousSample = useRef<{ scope: string; values: Record<string, Value> }>({ scope: '', values: {} });
   const imageInput = useRef<HTMLInputElement>(null);
   const state = useChartWorkspaceStore(), theme = useThemeStore(s => s.resolvedTheme);
   const appearance = state.preview ?? state.appearance;
@@ -85,6 +96,11 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   }, [context.systemRsi]);
   const doc = state.documents[context.key] ?? defaults;
   const effectiveIndicators = useMemo(() => doc.indicators.filter(v => v.id !== 'initial-RSI' || showRsi), [doc.indicators, showRsi]);
+  const chartScope = `${context.key}|${timeframeSec}`;
+  const maximizedPaneId = maximized?.scope === chartScope ? maximized.paneId : null;
+  // Backtest and formation charts show history, so their values never cross a level live.
+  const alarmsAvailable = context.view === 'analysis' || context.view === 'free';
+  const names = useMemo(() => indicatorNames(doc.indicators), [doc.indicators]);
 
   useEffect(() => {
     // The library may paint before our preload finishes. Its default reader rejects
@@ -165,15 +181,29 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
     applyAppearance(binding, appearance, digits);
-    const values = renderer.current?.update(effectiveIndicators, bars, missing, timeframeSec, appearance, context.symbol, until) ?? [];
-    const frame = requestAnimationFrame(() => setLastValues(values));
+    const values = renderer.current?.update(effectiveIndicators, bars, missing, timeframeSec, appearance, context.symbol, until, maximizedPaneId) ?? [];
+    const frame = requestAnimationFrame(() => setSample({ scope: chartScope, values }));
     manager.current?.setDrawingsVisible(appearance.hideDrawings);
     manager.current?.setInterval(timeframeSec >= 86400 ? '1D' : String(timeframeSec / 60));
     if (manager.current) replay.current.sync(manager.current, until);
     manager.current?.redraw();
     return () => cancelAnimationFrame(frame);
-  }, [binding, appearance, digits, effectiveIndicators, bars, missing, timeframeSec, context.symbol, until, theme, revision]);
+  }, [binding, appearance, digits, effectiveIndicators, bars, missing, timeframeSec, context.symbol, until, theme, revision, maximizedPaneId, chartScope]);
 
+  useEffect(() => {
+    if (!alarmsAvailable || sample.scope !== chartScope) return;
+    const previous = previousSample.current.scope === sample.scope ? previousSample.current.values : {};
+    const current = Object.fromEntries(sample.values.map(item => [item.config.id, item.value]));
+    previousSample.current = { scope: sample.scope, values: current };
+    const crossed = documentRef.current.alarms.filter(alarm => {
+      const before = previous[alarm.indicatorId], now = current[alarm.indicatorId];
+      if (!alarm.armed || before == null || now == null) return false;
+      return alarm.direction === 'above' ? before < alarm.value && now >= alarm.value : before > alarm.value && now <= alarm.value;
+    });
+    if (!crossed.length) return;
+    for (const alarm of crossed) toast.info(t('cw.alarmTriggered', { indicator: names.get(alarm.indicatorId) ?? '', value: fmt.number(alarm.value) }));
+    saveDocument({ ...documentRef.current, alarms: documentRef.current.alarms.map(alarm => crossed.includes(alarm) ? { ...alarm, armed: false } : alarm) });
+  }, [sample, chartScope, alarmsAvailable, names, fmt, t, saveDocument]);
   useEffect(() => {
     if (!appearance.countdown || countdownNow == null) return;
     const started = Date.now();
@@ -191,6 +221,36 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   const updateDrawing = (next: Drawing) => { manager.current?.update(next); checkpoint(); };
   const drawings = drawingSnapshot.filter(d => d.points.every(p => typeof p.time !== 'number' || p.time <= until));
   const remaining = countdownNow == null ? null : Math.max(0, timeframeSec - ((countdownNow + elapsed) % timeframeSec));
+  const oscillatorIndicators = effectiveIndicators.filter(isOscillator);
+  const patchIndicators = (change: (indicators: Indicator[]) => Indicator[]) => saveDocument({ ...documentRef.current, indicators: change(documentRef.current.indicators) });
+  const removeIndicators = (ids: Set<string>) => saveDocument({ ...documentRef.current, indicators: documentRef.current.indicators.filter(item => !ids.has(item.id)), alarms: documentRef.current.alarms.filter(alarm => !ids.has(alarm.indicatorId)) });
+  const changeIndicator = (id: string, change: Partial<Indicator>) => patchIndicators(indicators => indicators.map(item => item.id === id ? { ...item, ...change } : item));
+  const sideOf = (indicator: Indicator) => indicator.scaleSide === 'auto' ? appearance.side as 'left' | 'right' : indicator.scaleSide;
+  const oscillatorActions: OscillatorActions = {
+    add: () => setIndicatorsOpen(true),
+    movePane: (paneId, offset) => patchIndicators(indicators => {
+      const oscillators = indicators.filter(isOscillator), panes = [...new Set(oscillators.map(item => item.paneId))], index = panes.indexOf(paneId), target = index + offset;
+      if (target < 0 || target >= panes.length) return indicators;
+      [panes[index], panes[target]] = [panes[target], panes[index]];
+      return [...indicators.filter(item => !isOscillator(item)), ...panes.flatMap(id => oscillators.filter(item => item.paneId === id))];
+    }),
+    toggleCollapsed: paneId => patchIndicators(indicators => {
+      const collapsed = !indicators.find(item => item.paneId === paneId)?.paneCollapsed;
+      return indicators.map(item => item.paneId === paneId ? { ...item, paneCollapsed: collapsed } : item);
+    }),
+    toggleMaximized: paneId => setMaximized(maximizedPaneId === paneId ? null : { scope: chartScope, paneId }),
+    removePane: paneId => removeIndicators(new Set(documentRef.current.indicators.filter(item => item.paneId === paneId).map(item => item.id))),
+    toggleVisible: indicator => changeIndicator(indicator.id, { visible: !indicator.visible }),
+    openSettings: indicator => { setSettingsFocus(indicator.id); setIndicatorsOpen(true); },
+    switchScale: indicator => changeIndicator(indicator.id, { scaleSide: sideOf(indicator) === 'left' ? 'right' : 'left' }),
+    moveToPane: (indicator, paneId) => changeIndicator(indicator.id, { paneId: paneId ?? crypto.randomUUID(), paneCollapsed: paneId ? doc.indicators.some(item => item.paneId === paneId && item.paneCollapsed) : false }),
+    openAlarm: indicator => { setAlarmTarget(indicator); setAlarmValue(''); },
+    toggleFavorite: indicator => state.setFavorites(state.favorites.includes(indicator.kind) ? state.favorites.filter(kind => kind !== indicator.kind) : [...state.favorites, indicator.kind]),
+    copy: indicator => { const id = crypto.randomUUID(); patchIndicators(indicators => [...indicators, { ...indicator, id, paneId: id, paneCollapsed: false }]); },
+    openInfo: (indicator, formula) => setIndicatorInfo({ indicator, formula }),
+    remove: indicator => removeIndicators(new Set([indicator.id])),
+  };
+  const addAlarm = () => { if (!alarmTarget || !Number.isFinite(Number(alarmValue))) return; saveDocument({ ...documentRef.current, alarms: [...documentRef.current.alarms, { id: crypto.randomUUID(), indicatorId: alarmTarget.id, direction: alarmDirection, value: Number(alarmValue), armed: true }].slice(-50) }); setAlarmTarget(null); };
   const changeImage = async (file: File | undefined) => {
     const targetManager = manager.current;
     if (!file || !targetManager) return;
@@ -239,6 +299,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
           {tool && <Button size="icon-sm" hint={t('cw.favorite.hint')} aria-label={t('cw.favorite')} aria-pressed={state.favorites.includes(tool)} onClick={() => state.setFavorites(state.favorites.includes(tool) ? state.favorites.filter(v => v !== tool) : [...state.favorites, tool])}><Star size={14} /></Button>}
         </div>
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-12 z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
+        {oscillatorIndicators.length > 0 && <OscillatorControls indicators={oscillatorIndicators} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} actions={oscillatorActions} />}
         {children}
         {(appearance.names || appearance.params || appearance.values) && <div className={`${overlayLayout ? 'absolute right-20 bottom-2 z-10 max-w-[50%] rounded bg-card' : ''} flex flex-wrap gap-x-4 gap-y-1 px-2 py-1 font-mono text-[11px] text-muted-foreground`} style={statusStyle} data-testid="workspace-indicator-values">{lastValues.map(({ config: c, value }) => <span key={c.id} data-indicator-value={c.kind}>{appearance.names ? c.kind : ''}{appearance.params ? ` (${c.period}${c.kind === 'EWO' || c.kind === 'MACD' ? `/${c.slow}` : ''})` : ''}{appearance.values && c.values ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: 5 })}` : ''}</span>)}</div>}
         {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) scale.fitContent(); else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
@@ -246,8 +307,9 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
     </div>
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
     {settingsOpen && <SettingsDialog defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
-    {indicatorsOpen && <IndicatorDialog values={doc.indicators} timeframeSec={timeframeSec} onClose={() => setIndicatorsOpen(false)} onChange={indicators => saveDocument({ ...doc, indicators })} />}
+    {indicatorsOpen && <IndicatorDialog values={doc.indicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={indicators => saveDocument({ ...documentRef.current, indicators, alarms: documentRef.current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) })} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
+      <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id)} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>
       <div className="flex flex-wrap gap-2">{drawings.map(d => <Button key={d.id} size="sm" aria-pressed={selected.includes(d.id)} hint={t('cw.selection.hint')} onClick={() => { manager.current?.select([d.id]); }}>{d.name || t(toolKey(d.kind))}</Button>)}</div>
       {active && <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <InputField label={t('cw.objectName')} hint={t('cw.objectName.hint')}><input className={fieldClass} value={active.name ?? ''} onChange={e => updateDrawing({ ...active, name: e.target.value })} /></InputField>
@@ -263,6 +325,18 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
         <div className="flex flex-wrap gap-2 sm:col-span-2"><Button size="sm" hint={t('cw.duplicate.hint')} onClick={() => { manager.current?.add({ ...active, id: crypto.randomUUID() }); checkpoint(); }}>{t('cw.duplicate')}</Button><Button size="sm" hint={t('cw.front.hint')} onClick={() => { manager.current?.bringToFront(active.id); checkpoint(); }}>{t('cw.front')}</Button><Button size="sm" hint={t('cw.back.hint')} onClick={() => { manager.current?.sendToBack(active.id); checkpoint(); }}>{t('cw.back')}</Button><Button size="sm" variant="danger" hint={t(active.locked ? 'cw.lockedRemove.hint' : 'cw.remove.hint')} disabled={active.locked} onClick={() => { manager.current?.remove(active.id); checkpoint(); }}>{t('cw.remove')}</Button>
         {active.kind === 'table' && <><Button size="sm" hint={t('cw.tableRow.hint')} onClick={() => { manager.current?.tableOp(active.id, 'insert-row'); checkpoint(); }}>{t('cw.tableRow')}</Button><Button size="sm" hint={t('cw.tableColumn.hint')} onClick={() => { manager.current?.tableOp(active.id, 'insert-column'); checkpoint(); }}>{t('cw.tableColumn')}</Button></>}</div>
       </div>}
+    </Modal>}
+    {alarmTarget && <Modal open onClose={() => setAlarmTarget(null)} title={t('cw.indicatorAlarm')}><div className="grid gap-3 sm:grid-cols-2"><InputField label={t('cw.alarmDirection')} hint={t('cw.alarmDirection.hint')}><select className={fieldClass} value={alarmDirection} onChange={event => setAlarmDirection(event.target.value as 'above' | 'below')}><option value="above">{t('cw.alarmAbove')}</option><option value="below">{t('cw.alarmBelow')}</option></select></InputField><InputField label={t('cw.alarmValue')} hint={t('cw.alarmValue.hint')}><input className={fieldClass} type="number" value={alarmValue} onChange={event => setAlarmValue(event.target.value)} /></InputField></div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="primary" hint={t('cw.alarmSave.hint')} disabled={!alarmValue || !Number.isFinite(Number(alarmValue))} onClick={addAlarm}>{t('cw.alarmSave')}</Button>{doc.alarms.filter(alarm => alarm.indicatorId === alarmTarget.id).map(alarm => <Button key={alarm.id} size="sm" variant="ghost" hint={t('cw.alarmDelete.hint')} onClick={() => saveDocument({ ...documentRef.current, alarms: documentRef.current.alarms.filter(item => item.id !== alarm.id) })}>{alarm.direction === 'above' ? '≥' : '≤'} {fmt.number(alarm.value)}{alarm.armed ? '' : ` · ${t('cw.alarmFired')}`} · {t('cw.alarmDelete')}</Button>)}</div></Modal>}
+    {indicatorInfo && <Modal open onClose={() => setIndicatorInfo(null)} title={`${names.get(indicatorInfo.indicator.id) ?? indicatorInfo.indicator.kind} · ${t(indicatorInfo.formula ? 'cw.indicatorSource' : 'cw.indicatorInfo')}`}>
+      <p className="mb-2 text-sm text-muted-foreground">{t(indicatorInfo.formula ? 'cw.indicatorSourceReadOnly' : 'cw.indicatorInfoText')}</p>
+      {indicatorInfo.formula
+        ? <pre className="max-h-[50dvh] overflow-auto rounded-lg bg-muted p-3 text-xs" data-testid="indicator-formula">{indicatorFormula(indicatorInfo.indicator)}</pre>
+        : <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm" data-testid="indicator-info">
+          <dt className="text-muted-foreground">{t('cw.period')}</dt><dd>{fmt.number(indicatorInfo.indicator.period)}</dd>
+          {['EWO', 'MACD'].includes(indicatorInfo.indicator.kind) && <><dt className="text-muted-foreground">{t('cw.slow')}</dt><dd>{fmt.number(indicatorInfo.indicator.slow)}</dd></>}
+          {indicatorInfo.indicator.kind === 'MACD' && <><dt className="text-muted-foreground">{t('cw.signal')}</dt><dd>{fmt.number(indicatorInfo.indicator.signal)}</dd></>}
+          {indicatorInfo.indicator.kind !== 'ATR' && <><dt className="text-muted-foreground">{t('cw.source')}</dt><dd>{indicatorInfo.indicator.source}</dd></>}
+        </dl>}
     </Modal>}
     {editor && <Modal open onClose={() => { if (editor.cell) manager.current?.endTableEdit(); setEditor(null); }} title={t(editor.cell ? 'cw.cell' : 'cw.text')}><InputField label={t('cw.text')} hint={t('cw.text.hint')}><textarea className={fieldClass} value={editor.text} onChange={e => setEditor({ ...editor, text: e.target.value })} /></InputField><Button className="mt-3" variant="primary" hint={t('cw.apply.hint')} onClick={() => { if (editor.cell) { manager.current?.setTableCellText(editor.drawing.id, editor.cell, editor.text); manager.current?.endTableEdit(); } else manager.current?.update({ ...editor.drawing, text: editor.text }); checkpoint(); setEditor(null); }}>{t('cw.apply')}</Button></Modal>}
   </div>;
