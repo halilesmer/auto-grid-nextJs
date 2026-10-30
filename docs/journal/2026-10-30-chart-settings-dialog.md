@@ -2,7 +2,7 @@
 date: 2026-10-30
 author: Claude
 type: feature
-status: open
+status: done
 pr: []
 features: [ANA-19, UI-07, UI-08]
 areas: [frontend, tests, docs]
@@ -33,12 +33,12 @@ areas: [frontend, tests, docs]
 |---|---|
 | `npx tsc --noEmit`, `eslint` on changed files | No errors. |
 | Layout test | Failed before `SETTINGS_LAYOUT` existed, passes now. |
-| Mocked e2e, tags ANA-17, ANA-19, ANA-20, UI-07, UI-08, two workers | 100 passed, 1 failed. The failed test is the ANA-20 alarm test. It also fails on the base commit. |
+| Mocked e2e, tags ANA-17, ANA-19, ANA-20, UI-07, UI-08, two workers | 100 passed, 1 failed. The failed test was the ANA-20 alarm test. It depended on the weekday. Commit `3ecb729` on `main` fixes it. After the merge of `main` it passes. |
 | Template test | Failed when `saveTemplate` was removed, passes now. |
 | Screenshots at 1440 px and 375 px, light and dark | Checked. |
 
 ## Open points
-- The ANA-20 alarm test (`Alarm: ein Zeitrahmenwechsel ...`) fails on this Mac with and without this change. The cause is not known.
+None.
 
 ## Lessons
 - The production build shortens CSS colors (`#ffffff` to `#fff`). `input[type=color]` accepts only the long form. Expand the value before you give it to the input.
