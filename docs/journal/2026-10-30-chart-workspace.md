@@ -3,7 +3,7 @@ date: 2026-10-30
 author: Codex
 type: feature
 status: done
-pr: [241]
+pr: [241, 242]
 features: [ANA-16, ANA-17, ANA-18, ANA-19]
 areas: [frontend, tests, docs]
 ---
