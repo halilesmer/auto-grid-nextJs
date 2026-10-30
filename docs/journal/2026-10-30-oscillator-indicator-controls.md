@@ -51,6 +51,10 @@ areas: [frontend, tests, docs]
 | `E2E_PORT=3341 scripts/features/run.sh e2e ANA` | 105 passed. |
 | Screenshots (mock worker, desktop, 375 px, formation page) | Checked. The formation page showed the bar behind the chart overlay, so it moved to the bottom-left. The menu opens upward there. |
 | After the last placement change: `scripts/features/run.sh e2e FRM` and `e2e UI` | 992 and 109 passed. |
+| Merge of `main` (PR #243, left drawing toolbar) | Six conflicts in `ChartWorkspace.tsx`, resolved by keeping the new toolbar and adding the bar, alerts and dialogs. `results.json` was regenerated. |
+| After the merge | `ANA-03` failed 5 of 5. The chart pane resize handles (`z-index: 50`, 9 px, full width) lay over the settings menu. The bar moved the chart 47 px, so a handle covered the switch. `isolate` on the workspace root keeps the handles inside the chart. `ANA-03` then passed 3 of 3. |
+| After the merge | The menu test failed: main's menu fades out, so two menus matched for a moment. The test now waits until the old items are gone. |
+| `E2E_PORT=3341 scripts/features/run.sh e2e` after the merge | 1635 passed, 0 failed. `tsc --noEmit` and `npm run lint` clean. |
 | Live worker | Not used. No worker code changed. |
 
 ## Review (`hooks/RULES.md` §9)

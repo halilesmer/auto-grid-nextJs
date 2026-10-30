@@ -125,7 +125,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 4
     }
   },
   "ANA-02": {
@@ -257,7 +257,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 19
     }
   },
   "ANA-18": {
@@ -271,7 +271,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 2
+      "tests": 7
     }
   },
   "ANA-20": {
@@ -1222,7 +1222,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 8
     }
   },
   "UI-01": {
@@ -1271,14 +1271,14 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 26
+      "tests": 30
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 46
+      "tests": 50
     }
   },
   "UI-09": {
@@ -1297,7 +1297,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     }
   },
   "UPD-02": {
@@ -1316,7 +1316,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 2
+      "tests": 3
     }
   },
   "UPD-05": {
@@ -1597,7 +1597,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 16
+      "tests": 18
     }
   },
   "ZON-14": {
@@ -1654,14 +1654,14 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 25
+      "tests": 38
     }
   },
   "ZON-21": {
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 5
     }
   }
 }

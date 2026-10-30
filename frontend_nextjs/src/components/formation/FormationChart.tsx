@@ -253,7 +253,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
   const activeSet = active ? new Set(active) : null;
   const finalName = FINAL_POINT[hit.form];
   return (
-    <ChartWorkspace context={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true }} overlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
+    <ChartWorkspace context={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true, syncIdentity: { source, account: accountId, symbol: context.symbol } }} overlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
       { key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' },
       { key: 'rsi', label: 'formation.legend.rsi', hint: 'cw.systemRsi.hint' },
     ]} />} binding={binding} bars={view?.bars ?? []} missing={[]} timeframeSec={({ D1: 86400, H4: 14400, H1: 3600, M15: 900 }[hit.tf])} digits={digits} until={scanAt} overlayLayout className="absolute inset-0">
@@ -261,7 +261,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
       ref={boxRef}
       data-testid="formation-chart"
       data-final-point={hit.candidate.points[finalName] ? 'done' : 'open'}
-      className="absolute inset-0 isolate overflow-hidden bg-card"
+      className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card"
     >
       <div ref={hostRef} tabIndex={0} aria-label={t('cw.canvas')} className="absolute inset-0" />
       <svg
