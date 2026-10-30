@@ -3,7 +3,7 @@ date: 2026-10-30
 author: Codex
 type: feature
 status: done
-pr: []
+pr: [243]
 features: [ANA-17, FRM-22, FRM-23, FRM-24, UI-07, UI-08]
 areas: [frontend, tests, docs]
 ---
@@ -59,7 +59,7 @@ Web Locks protect read/merge/write across tabs. An incoming storage event waits 
 
 ## Open points
 - [x] Complete the affected browser regression run and inspect the final screenshots.
-- [ ] Publish the branch as a pull request and inspect its checks.
+- [x] Publish the branch as [PR #243](https://github.com/halilesmer/auto-grid-nextJs/pull/243). GitHub checks and preview status are tracked on the PR.
 
 ## Lessons
 Keep menu panels in the workspace DOM tree. Use the browser top layer to escape clipping without losing selection boundaries.
