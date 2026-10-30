@@ -12,14 +12,14 @@ interface ZoneItem {
   n: number;
 }
 
-export function zonePlaceholderKey(zones: ZoneSettings[] | null): MessageKey {
+function zonePlaceholderKey(zones: ZoneSettings[] | null): MessageKey {
   if (zones === null) return 'analysis.zone.loading';
   if (zones.length === 0) return 'analysis.zone.empty';
   return 'analysis.zone.placeholder';
 }
 
 /** Auswahlzeilen und Beschriftung („Symbol · Setup n“) der Setups eines Kontos. */
-export function useZoneOptions(zones: ZoneSettings[] | null) {
+function useZoneOptions(zones: ZoneSettings[] | null) {
   const t = useT();
   const numbers = setupNumbers(zones ?? []);
   const items: ZoneItem[] = (zones ?? []).map((zone) => ({ zone, n: numbers.get(zone.id) ?? 0 }));

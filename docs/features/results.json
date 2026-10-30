@@ -257,7 +257,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 19
+      "tests": 1
     }
   },
   "ANA-18": {
@@ -890,7 +890,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 2
+      "tests": 3
     }
   },
   "FRM-24": {
@@ -898,6 +898,13 @@
       "datum": "2026-10-30",
       "status": "passed",
       "tests": 2
+    }
+  },
+  "FRM-25": {
+    "e2e": {
+      "datum": "2026-10-30",
+      "status": "passed",
+      "tests": 7
     }
   },
   "LOG-01": {
