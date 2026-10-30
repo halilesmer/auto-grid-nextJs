@@ -17,6 +17,7 @@ import type { FormationContext } from '@/lib/formation/context';
 import { drawingPriceRange, layoutDrawings, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
 import { RSI_PARAMS } from '@/lib/formation/params';
 import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
+import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace } from '@/components/chart-workspace/ChartWorkspace';
 import { type ChartBinding, createChartBinding, appearanceColors } from '@/components/chart-workspace/runtime';
@@ -97,13 +98,15 @@ interface Props {
   /** Hervorgehobene Zeichnungen (Hover auf Zeile oder Zeichnung); null: alle gleich */
   active: readonly string[] | null;
   onActive: (ids: string[] | null) => void;
+  /** Meldet die Aufnahme des gezeigten Charts (Kerzen samt Zeichnungen) oder null, wenn der Chart abgebaut wird */
+  onCapture: (capture: (() => Promise<ChartPicture>) | null) => void;
 }
 
 /**
  * Kerzen und RSI(7) des gewählten Kandidaten mit den Zeichnungen der Erkennung als SVG-Overlay. Der Container
  * bildet einen eigenen Stapelkontext (die Canvases des Charts tragen z-index), das Overlay endet vor der Preisachse.
  */
-export function FormationChart({ accountId, hit, context, scanAt, digits, active, onActive }: Props) {
+export function FormationChart({ accountId, hit, context, scanAt, digits, active, onActive, onCapture }: Props) {
   const t = useT();
   const source = useConnectionStore(s => s.baseUrl);
   const [binding, setBinding] = useState<ChartBinding | null>(null);
@@ -111,6 +114,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const boxRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<SVGSVGElement>(null);
   const [colors, setColors] = useState<ChartColors | null>(null);
   const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [] });
   const chartRef = useRef<{ chart: IChartApi; candles: ISeriesApi<'Candlestick'>; rsi: ISeriesApi<'Line'> } | null>(null);
@@ -162,6 +166,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
     const attached = createChartBinding(chart, candles, host, () => ({ top: box.clientWidth < 640 ? .4 : .3, bottom: .12 }));
     const readyFrame = requestAnimationFrame(() => setBinding(attached));
     chartRef.current = { chart, candles, rsi };
+    onCapture(() => captureChart({ chart, host, overlay: overlayRef.current }));
 
     const indexOf = new Map(view.bars.map((b, i) => [b.time, i]));
     const first = Math.min(...Object.values(hit.candidate.points).map((p) => indexOf.get(p.time) ?? view.bars.length - 1));
@@ -226,11 +231,12 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
       cancelAnimationFrame(redrawFrame);
       observer.disconnect();
       cancelAnimationFrame(readyFrame);
+      onCapture(null);
       attached.dispose?.();
       chart.remove();
       chartRef.current = null;
     };
-  }, [view, hit, digits, t, number]);
+  }, [view, hit, digits, t, number, onCapture]);
 
   useEffect(() => {
     if (!colors || !chartRef.current) return;
@@ -265,6 +271,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
     >
       <div ref={hostRef} tabIndex={0} aria-label={t('cw.canvas')} className="absolute inset-0" />
       <svg
+        ref={overlayRef}
         data-testid="formation-overlay"
         className="absolute left-0 top-0 z-10 overflow-hidden"
         width={overlay.width}

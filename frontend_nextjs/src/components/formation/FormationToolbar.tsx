@@ -36,6 +36,7 @@ export function FormationToolbar({
   form,
   onTimeframe,
   onForm,
+  actions,
   children,
 }: {
   hits: readonly ScanHit[];
@@ -43,6 +44,8 @@ export function FormationToolbar({
   form: ScanFormation;
   onTimeframe: (tf: ContextTimeframe) => void;
   onForm: (form: ScanFormation) => void;
+  /** Knöpfe hinter den Zeiteinheiten (z. B. Bild der Formation) */
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const t = useT();
@@ -53,18 +56,26 @@ export function FormationToolbar({
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
-        <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:w-full lg:h-auto">
-          {CONTEXT_TIMEFRAMES.map((x) => {
-            const count = hitsCount(hits, { tf: x });
-            return (
-              <Tooltip key={x} content={t('formation.tf.option.hint', { tf: x, count })} role="presentation">
-                <button type="button" aria-pressed={x === tf} data-testid={`formation-tf-${x}`} onClick={() => onTimeframe(x)} className={cn(segment, x === tf ? 'bg-accent text-foreground' : idle)}>
-                  {x}
-                  <CountBadge count={count} active={false} />
-                </button>
-              </Tooltip>
-            );
-          })}
+        <div className="flex min-w-0 items-center gap-1 max-lg:w-full">
+          <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 lg:h-auto">
+            {CONTEXT_TIMEFRAMES.map((x) => {
+              const count = hitsCount(hits, { tf: x });
+              return (
+                <Tooltip key={x} content={t('formation.tf.option.hint', { tf: x, count })} role="presentation">
+                  <button type="button" aria-pressed={x === tf} data-testid={`formation-tf-${x}`} onClick={() => onTimeframe(x)} className={cn(segment, x === tf ? 'bg-accent text-foreground' : idle)}>
+                    {x}
+                    <CountBadge count={count} active={false} />
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+          {actions && (
+            <>
+              <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
+              {actions}
+            </>
+          )}
         </div>
       </div>
       <div role="group" aria-label={t('formation.form.label')} className="flex h-[30px] items-center gap-0.5 overflow-x-auto border-b border-border px-2" data-testid="formation-forms">

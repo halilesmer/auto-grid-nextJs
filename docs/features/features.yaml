@@ -1915,3 +1915,12 @@ kategorien:
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-25) ausführen (Produkt per Name und Beschreibung wählen, zweiter Wechsel, Konto ohne Setup, Kontowechsel, Abbruch, Fehler der Symbolliste).
         erwartet: Jede Wahl lädt D1, H4, H1 und M15 des neuen Produkts und die Suche läuft ohne Setup bis zum Ende.
+
+      - id: FRM-26
+        titel: "Seite Formasyon: Formation als Bild festhalten"
+        beschreibung: "In der Kopfleiste steht hinter den Zeiteinheiten ein Kamera-Knopf mit Menü: als PNG herunterladen oder in die Zwischenablage kopieren. Das Bild entsteht im Browser (nichts wird gesendet), ist 1200 CSS-Pixel breit bei doppelter Auflösung und zeigt Kopf (Formation, Symbol, Zeiteinheit, Urteil, Scan-Zeitpunkt), den Chart samt Formationszeichnungen und alle Bedingungen mit Symbol, Wort und Messwert. Kerzen und Achsen kommen aus takeScreenshot(), die Zeichnungen sind ein SVG-Overlay und werden mit aufgelösten Theme-Farben darübergelegt. Ab 640 px Chart-Breite stehen die Bedingungen unter dem Chart, schmaler rechts daneben. Hell oder dunkel folgt dem App-Thema. Kein Kontoname, keine Kontonummer, kein LIVE/DEMO im Bild oder im Dateinamen. Ohne gewählten Kandidaten oder während der Suche ist der Knopf deaktiviert; Kopieren ist deaktiviert, wenn der Browser keine Bilder in die Zwischenablage legen kann."
+        code: [frontend_nextjs/src/components/formation/FormationShotMenu.tsx, frontend_nextjs/src/lib/formation/shotImage.ts, frontend_nextjs/src/lib/formation/shotData.ts, frontend_nextjs/src/components/formation/FormationToolbar.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/app/formasyon/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-26) ausführen (PNG mit Zeichnungen und Dateiname, deaktivierter Knopf, Kopieren, 375 px).
+        erwartet: Das PNG enthält die Zielzeichnung des Overlays, trägt Formation, Symbol, Zeiteinheit und Zeitpunkt im Dateinamen und nichts vom Konto; bei 375 px bleibt der Knopf sichtbar und die Seite scrollt nicht quer.

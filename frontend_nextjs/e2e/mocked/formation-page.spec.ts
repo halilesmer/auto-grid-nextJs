@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -423,5 +423,66 @@ test.describe('FRM-24 bewegliche Bedingungen', () => {
     const position = (await panel.boundingBox())!.y;
     await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
     expect((await panel.boundingBox())!.y).toBeCloseTo(position, 0);
+  });
+});
+
+test.describe('FRM-26 Formation als Bild festhalten', () => {
+  test('PNG enthält Chart samt Formationszeichnungen, ohne Konto im Dateinamen', { tag: '@FRM-26' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await page.getByTestId('formation-shot').click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('formation-shot-download').click()]);
+    const name = download.suggestedFilename();
+    expect(name).toMatch(/^formation-GAR-EURUSD-H4-\d{4}-\d{2}-\d{2}_\d{4}\.png$/);
+    const base64 = readFileSync((await download.path())!).toString('base64');
+    // Die Warnfarbe malt nur die Zielzeichnung des SVG-Overlays; takeScreenshot() allein enthält sie nicht.
+    const result = await page.evaluate(async (b64) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${b64}`;
+      await img.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const probe = document.createElement('canvas').getContext('2d')!;
+      probe.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
+      probe.fillRect(0, 0, 1, 1);
+      const [wr, wg, wb] = probe.getImageData(0, 0, 1, 1).data;
+      // Kopf (112 px) und Fußzeile (72 px) enthalten keine Zeichnungen: 56 und 36 CSS-Pixel bei doppelter Auflösung (shotImage.ts)
+      const data = ctx.getImageData(0, 112, img.width, img.height - 112 - 72).data;
+      let warning = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (Math.abs(data[i] - wr) < 14 && Math.abs(data[i + 1] - wg) < 14 && Math.abs(data[i + 2] - wb) < 14) warning++;
+      }
+      return { width: img.width, height: img.height, warning };
+    }, base64);
+    expect(result.width).toBe(2400);
+    expect(result.height).toBeGreaterThan(1200);
+    expect(result.warning).toBeGreaterThan(30);
+  });
+
+  test('Ohne Kandidat ist der Knopf deaktiviert', { tag: '@FRM-26' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&tf=M15`);
+    await expect(page.getByTestId('formation-shot')).toBeDisabled();
+  });
+
+  test('Kopieren legt ein PNG in die Zwischenablage und meldet es', { tag: '@FRM-26' }, async ({ page, worker }) => {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await page.getByTestId('formation-shot').click();
+    await page.getByTestId('formation-shot-copy').click();
+    await expect(page.getByText(msg('formation.shot.copied'))).toBeVisible();
+    const types = await page.evaluate(async () => (await navigator.clipboard.read()).flatMap((item) => item.types));
+    expect(types).toContain('image/png');
+  });
+
+  test('Bei 375 px bleibt der Knopf sichtbar, die Seite scrollt nicht quer', { tag: '@FRM-26' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const box = await page.getByTestId('formation-shot').boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });
