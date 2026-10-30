@@ -130,6 +130,17 @@ test.describe('ANA Analyse-Seite', () => {
     await expect(accountSelect(page)).toContainText(`(${LIVE_ID})`);
   });
 
+  test('Alter Setup-Link behält seinen Chartmodus beim Kontowechsel', { tag: ['@ANA-02', '@ANA-16'] }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await expect(page.getByRole('combobox', { name: msg('cw.mode'), exact: true })).toHaveValue('setup');
+    await chooseAccount(page, LIVE_ID);
+    await expect(page).toHaveURL(new RegExp(`account=${LIVE_ID}`));
+    await expect(page.getByRole('combobox', { name: msg('cw.mode'), exact: true })).toHaveValue('setup');
+    await expect(page.getByTestId('free-chart-panel')).toHaveCount(0);
+    await expect(page.getByTestId('zone-select').getByRole('combobox')).toBeDisabled();
+  });
+
   test('Direkt aufgerufenes Konto: Dashboard kennt LIVE/DEMO, unbekanntes Konto wird nicht gewählt', { tag: '@ANA-02' }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${LIVE_ID}&mode=setup`);

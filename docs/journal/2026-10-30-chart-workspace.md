@@ -57,6 +57,7 @@ Confirmed higher timeframe values appear at their last constituent candle, after
 | Image cold-cache race | The first GitHub run passed 1,614 browser checks and retried the image check once. A local repeat reproduced four failures in 20 runs; delayed decoding reproduced it directly. The drawing library's default image reader rejects uncached names and removes their drawings before the host preload finishes. Register `setImageReader` against validated local image bytes before importing drawings. The regression now delays native image decoding by 500 ms. |
 | Image correction evidence | Fresh production build, TypeScript and ESLint passed. The delayed image test then passed all 20 repetitions without retries (`--repeat-each=20 --workers=4`, 27.6 seconds). |
 | RSI axis switching | A separate pixel check keeps the overbought fill within the upper portion of the 0..100 RSI pane after moving the axis left. Passed; no further chart change was needed. |
+| Old setup links | A regression test reproduced a switch to free mode after changing accounts from a legacy `zone=` URL. Account changes now preserve the resolved setup mode while discarding the old account's zone. Fresh build, TypeScript, ESLint and all 15 affected account/link/stream checks passed. |
 | Live worker and trading | Not run. No live trade tests are authorized. |
 
 ## Performance comparison
