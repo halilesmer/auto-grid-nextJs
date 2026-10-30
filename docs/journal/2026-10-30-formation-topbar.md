@@ -35,6 +35,7 @@ Below `lg` the workspace tools stay at the chart bottom, because the bar has no 
 - New bar test: failed before the change (element not found), passes now.
 - Related e2e tests (`FRM-`, `UI-0`, `ANA-`, account): 1224 passed, 1 failed. `tsc` and `eslint`: no errors.
 - Failed test: `chart-workspace.spec.ts:445` (alarm, ANA-20). It fails in the same way with the unchanged code on `main` (70.3, expected below 55). Cause: the mock skips weekend candles in broker time, so from Friday 21:00 UTC there was no running candle. The mock switch `ratesAllDays` removes this dependency; the test passes now.
+- `chart-workspace.spec.ts:37` (ANA-19) failed in CI at 49c5a50 and locally in 3 of 10 runs. It is not related to this change. Cause: the test changed the stored data while the page was running, and the delayed save of the visible range in `ChartCore.tsx` then replaced that data. The test now writes the data in an init script, before the app code runs. The expected value did not change. After the fix: 15 of 15 runs passed.
 - Desktop dark and 375 px dark: examined in the test screenshots. Manual check against the live worker: not verified.
 
 ## Open points
