@@ -34,12 +34,13 @@ Below `lg` the workspace tools stay at the chart bottom, because the bar has no 
 ## Verification
 - New bar test: failed before the change (element not found), passes now.
 - Related e2e tests (`FRM-`, `UI-0`, `ANA-`, account): 1224 passed, 1 failed. `tsc` and `eslint`: no errors.
-- Failed test: `chart-workspace.spec.ts:445` (alarm, ANA-20). It fails in the same way with the unchanged code on `main` (70.3, expected below 55).
+- Failed test: `chart-workspace.spec.ts:445` (alarm, ANA-20). It fails in the same way with the unchanged code on `main` (70.3, expected below 55). Cause: the mock skips weekend candles in broker time, so from Friday 21:00 UTC there was no running candle. The mock switch `ratesAllDays` removes this dependency; the test passes now.
 - Desktop dark and 375 px dark: examined in the test screenshots. Manual check against the live worker: not verified.
 
 ## Open points
 - [ ] Decide which of the six missing tools the page must get.
-- [ ] Find the cause of the failing alarm test.
 
 ## Lessons
 Compare a design with the real functions of the page before approval. A mock-up can show tools that do not exist.
+
+A test that uses the current time must not depend on the weekday. Set the data so that the weekday has no effect.
