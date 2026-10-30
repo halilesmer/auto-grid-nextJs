@@ -79,7 +79,12 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
   await expect.poll(async () => (await readDocument(eurKey!))?.appearance?.background).toBe('');
 
+  const beforeZoom = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  await eurChart.getByRole('button', { name: '+', exact: true }).click();
+  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).not.toBe(beforeZoom);
+  const zoomedRange = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
   await eurChart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
+  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).not.toBe(zoomedRange);
   const eurRange = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
   expect(eurRange).toBeTruthy();
   await expect.poll(async () => {
@@ -155,7 +160,8 @@ test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: '@AN
   const workspace = page.getByTestId('chart-workspace');
   const chart = page.getByTestId('analysis-chart');
   await expect(chart).toBeVisible();
-  await workspace.getByRole('combobox', { name: msg('cw.tools') }).selectOption('horizontal-line');
+  await workspace.getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
+  await page.getByTestId('tool-horizontal-line').click();
   const box = await chart.boundingBox(); if (!box) throw new Error('Chart missing');
   await page.mouse.click(box.x + box.width * .45, box.y + 60);
   const undo = workspace.getByRole('button', { name: msg('cw.undo'), exact: true });
@@ -281,6 +287,7 @@ test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgäng
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.remove'), exact: true }).click();
   await page.keyboard.press('Escape');
   await workspace.getByRole('button', { name: msg('cw.undo'), exact: true }).click();
+  await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some(d => JSON.parse((d as { drawings: string }).drawings).some((drawing: { kind: string }) => drawing.kind === 'image')))).toBe(true);
   const images = await page.evaluate(() => {
     const key = 'grid-robot-chart-workspaces-v1';
     const data = JSON.parse(localStorage.getItem(key) || '{}');

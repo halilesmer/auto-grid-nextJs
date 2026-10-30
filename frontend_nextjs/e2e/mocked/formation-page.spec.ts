@@ -168,7 +168,10 @@ test.describe('FRM-22 schmale Ansicht', () => {
     const chart = await page.getByTestId('formation-chart').boundingBox();
     const details = page.getByTestId('formation-details');
     const panel = await details.boundingBox();
-    expect(chart!.x).toBe(0);
+    expect(chart!.x).toBe(52);
+    const rail = await page.getByTestId('drawing-toolbar').boundingBox();
+    expect(rail!.x).toBe(0);
+    expect(rail!.width).toBe(52);
     expect(chart!.y).toBe(0);
     expect(chart!.height).toBe(812);
     expect(panel!.x).toBeGreaterThan(chart!.x);
@@ -195,13 +198,15 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
-      expect(chart).toEqual({ x: 0, y: 56, width: 1440, height: 844 });
+      expect(chart).toEqual({ x: 52, y: 56, width: 1388, height: 844 });
+      const rail = await page.getByTestId('drawing-toolbar').boundingBox();
+      expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });
       for (const id of ['formation-selectors', 'formation-toolbar', 'formation-details', 'formation-legend']) {
         const box = await page.getByTestId(id).boundingBox();
-        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x).toBeGreaterThanOrEqual(chart!.x);
         expect(box!.y).toBeGreaterThanOrEqual(56);
-        expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.width);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.x + chart!.width);
         expect(box!.y + box!.height).toBeLessThanOrEqual(900);
       }
       const toolbar = await page.getByTestId('formation-toolbar').boundingBox();
@@ -255,7 +260,7 @@ test.describe('FRM-24 bewegliche Bedingungen', () => {
     await expect(panel.getByTestId('formation-checklist')).toBeVisible();
     await page.screenshot({ path: test.info().outputPath('formation-details-dragged.png') });
     await dragTo(-1000, -1000);
-    await expect.poll(async () => (await panel.boundingBox())!.x).toBeGreaterThanOrEqual(7);
+    await expect.poll(async () => (await panel.boundingBox())!.x).toBeGreaterThanOrEqual(59);
     await expect.poll(async () => (await panel.boundingBox())!.y).toBeGreaterThanOrEqual(127);
     const left = (await panel.boundingBox())!.x;
     await handle.focus();

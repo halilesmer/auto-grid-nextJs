@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   AreaSeries,
   CandlestickSeries,
@@ -161,8 +162,9 @@ export function ChartCore({
   const chartRef = useRef<IChartApi | null>(null);
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const [binding, setBinding] = useState<ChartBinding | null>(null);
+  const [alignedView, setAlignedView] = useState<string | null>(null);
   const [workspaceTail, setWorkspaceTail] = useState<{ key: string; bar: Bar } | null>(null);
-  const appearance = useChartWorkspaceStore(s => s.preview ?? ((workspace?.view === 'analysis' || workspace?.view === 'free') ? s.documents[workspace.key]?.appearance ?? s.appearance : s.appearance));
+  const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? ((workspace?.view === 'analysis' || workspace?.view === 'free') ? s.documents[workspace.key]?.appearance ?? s.appearance : s.appearance)));
   const effectiveBars = useMemo(() => {
     if (!workspaceTail || workspaceTail.key !== viewKey || workspaceTail.bar.time < (data.bars.at(-1)?.time ?? Infinity)) return data.bars;
     const out = [...data.bars];
@@ -359,6 +361,7 @@ export function ChartCore({
       // Erst eine tatsächlich ausgeführte Ausrichtung gilt als fertig. Ein neuer Render
       // kann den geplanten Frame vorher abbrechen und muss ihn dann erneut planen.
       fittedKey.current = viewKey;
+      setAlignedView(viewKey);
       if (savedRange && Number.isFinite(savedRange.from) && Number.isFinite(savedRange.to) && savedRange.from < savedRange.to) {
         if (savedRange.from <= 0 && savedRange.to >= n) chart.timeScale().fitContent();
         else chart.timeScale().setVisibleLogicalRange(savedRange);
@@ -502,7 +505,7 @@ export function ChartCore({
       ? [...allNotes.slice(0, MAX_HOVER_NOTES), t('analysis.chart.notes.more', { n: allNotes.length - MAX_HOVER_NOTES })]
       : allNotes;
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi}>
     <div className="relative">
       <div
         className="pointer-events-none absolute left-2 top-1 z-10 flex flex-wrap gap-x-3 font-mono text-[11px] tabular-nums text-muted-foreground"
