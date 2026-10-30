@@ -736,9 +736,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Referenzwerte und Datenlücken prüfen; mehrere Instanzen anlegen; Parameter nach Neuladen prüfen.
   - **Erwartet:** Berechnungen stimmen mit unabhängigen Referenzen überein; Instanzen bleiben je Konto und Symbol getrennt.
 - [x] **ANA-19** Gemeinsame Chart-Einstellungen mit Vorschau und Vorlagen — 🖥️ e2e ✅ 2026-10-30
-  - Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar. Vorschau, Abbrechen, Anwenden und lokale Vorlagen verwenden denselben Zustand.
-  - **Prüfung:** Vorschau abbrechen; erneut ändern und anwenden; nach Neuladen prüfen.
-  - **Erwartet:** Abbrechen stellt den Ausgangszustand wieder her; Anwenden speichert validierte Einstellungen.
+  - Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar. Auf /chart werden zurückgesetzte Darstellung und sichtbarer Balkenbereich je Chart-Kontext gespeichert und wiederhergestellt.
+  - **Prüfung:** Vorschau abbrechen; Darstellung zurücksetzen und anwenden; Zeitbereich zurücksetzen; Symbol wechseln und zurückkehren; nach Neuladen prüfen.
+  - **Erwartet:** Abbrechen stellt den Ausgangszustand wieder her; Darstellung und Zeitbereich bleiben pro Chart-Kontext nach Wechsel und Neuladen gespeichert.
 - [x] **ANA-20** Oszillatorbereiche und Indikatormenüs — 🖥️ e2e ✅ 2026-10-30
   - RSI, EWO, MACD und ATR haben Bereichsaktionen (verschieben, einklappen, vorübergehend vergrößern, entfernen) und ein Menü je Indikator (Sichtbarkeit, Einstellungen, Skala, Bereichswechsel, Alarm, Favorit, Kopie, Info, Formel, Entfernen). Favoriten stehen in der Indikatorauswahl, die Objektliste führt Indikatoren und Zeichnungen. Alles außer Favoriten und Vergrößern liegt im lokalen Chart-Dokument, je Chart-Kontext getrennt und rückwärtskompatibel.
   - **Prüfung:** Bereiche sortieren und einklappen; Indikator favorisieren und aus der Auswahl hinzufügen; Zeitrahmen-Sichtbarkeit ändern; Alarm-Schwellenübertritt auslösen; neu laden → zweiten Chart-Kontext und 375 px prüfen.

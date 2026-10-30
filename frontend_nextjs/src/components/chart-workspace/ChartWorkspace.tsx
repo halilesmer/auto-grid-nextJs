@@ -17,6 +17,8 @@ import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
+import type { Appearance } from '@/lib/chart-workspace/settings';
+import { useShallow } from 'zustand/react/shallow';
 import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding } from './runtime';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
 import { IndicatorDialog } from './IndicatorDialog';
@@ -40,6 +42,7 @@ export interface WorkspaceContext { key: string; symbol: string; view: 'analysis
 interface Props {
   context: WorkspaceContext;
   binding: ChartBinding | null;
+  interactionReady?: boolean;
   bars: readonly Bar[];
   missing: readonly MissingRange[];
   timeframeSec: number;
@@ -54,7 +57,7 @@ interface Props {
   overlayLayout?: boolean;
 }
 
-export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, showRsi = true, className = '', overlayLayout = false }: Props) {
+export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, showRsi = true, className = '', overlayLayout = false }: Props) {
   const t = useT(), fmt = useFormat();
   const root = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);
@@ -87,18 +90,19 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   const previousSample = useRef<{ scope: string; values: Record<string, Value> }>({ scope: '', values: {} });
   const imageInput = useRef<HTMLInputElement>(null);
   const state = useChartWorkspaceStore(), theme = useThemeStore(s => s.resolvedTheme);
-  const appearance = state.preview ?? state.appearance;
+  const perProduct = context.view === 'analysis' || context.view === 'free';
   const toolbarDefaults = useMemo(() => defaultToolbar(), []);
   const preferences = state.toolbar[context.key] ?? toolbarDefaults;
   const drawingKey = state.links[context.key] ?? context.key;
   const locked = preferences.locked;
-  const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;
   const defaults = useMemo(() => {
     const indicators = context.systemRsi ? [newIndicator('EWO')] : [newIndicator('RSI'), newIndicator('EWO')];
     indicators.forEach(v => { v.id = `initial-${v.kind}`; });
     return { ...emptyChartDocument(), indicators };
   }, [context.systemRsi]);
   const ownDocument = state.documents[context.key] ?? defaults;
+  const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? (perProduct ? s.documents[context.key]?.appearance ?? s.appearance : s.appearance)));
+  const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;
   const sharedDocument = state.documents[drawingKey];
   const doc = useMemo(() => drawingKey === context.key || !sharedDocument ? ownDocument : { ...ownDocument, drawings: sharedDocument.drawings, images: sharedDocument.images }, [drawingKey, context.key, sharedDocument, ownDocument]);
   const effectiveIndicators = useMemo(() => preferences.indicatorsHidden ? [] : doc.indicators.filter(v => v.id !== 'initial-RSI' || showRsi), [doc.indicators, showRsi, preferences.indicatorsHidden]);
@@ -142,6 +146,14 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
       store.setDocument(drawingKey, { ...emptyChartDocument(), drawings: next.drawings, images: next.images });
     }
   }, [context.key, drawingKey, defaults]);
+  const saveAppearance = useCallback((next: Appearance) => {
+    const store = useChartWorkspaceStore.getState();
+    if (perProduct) {
+      const own = store.documents[context.key] ?? defaults;
+      documentRef.current = { ...documentRef.current, appearance: next };
+      store.setDocument(context.key, { ...own, appearance: next });
+    } else store.setAppearance(next);
+  }, [context.key, perProduct, defaults]);
   const rollbackOverlays = useCallback(() => {
     useChartWorkspaceStore.getState().finishOverlayPreview(false);
     useAnalysisPrefsStore.getState().finishPreview(false);
@@ -178,18 +190,20 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
     if (!binding || binding.isDisposed() || !state.hydrated) return;
     const m = new DrawingManager(binding.chart, binding.candles, { bars: () => live.current.drawingBars, magnet: 'weak', timeInfo: () => ({ timeZone: 'UTC', intraday: live.current.timeframeSec < 86400 }) });
     manager.current = m;
-    const privateDoc = useChartWorkspaceStore.getState().documents[context.key] ?? defaults;
-    const shared = useChartWorkspaceStore.getState().documents[drawingKey];
+    const storeState = useChartWorkspaceStore.getState();
+    const existing = storeState.documents[context.key] ?? defaults;
+    const privateDoc = perProduct && existing.appearance === undefined ? { ...existing, appearance: storeState.appearance } : existing;
+    const shared = storeState.documents[drawingKey];
     const stored = shared && drawingKey !== context.key ? { ...privateDoc, drawings: shared.drawings, images: shared.images } : privateDoc;
     documentRef.current = stored;
-    if (!useChartWorkspaceStore.getState().documents[context.key]) useChartWorkspaceStore.getState().setDocument(context.key, privateDoc);
+    if (!storeState.documents[context.key] || privateDoc !== existing) storeState.setDocument(context.key, privateDoc);
     replay.current.clear(); originalLocks.current.clear();
     try { m.importJSON(stored.drawings); }
     catch { queueMicrotask(() => setError('cw.drawingError')); }
     // Restore image bytes before drawing; no remote image URLs are accepted.
     for (const [name, url] of Object.entries(stored.images)) void decodeImage(url).then(img => { if (!disposed) { cacheImage(name, img); m.redraw(); } }).catch(() => { if (!disposed) setError('cw.imageError'); });
     current.current = m.exportJSON(); replay.current.sync(m, live.current.until); undo.current = []; redo.current = [];
-    const off = [m.on('selection', ids => { setSelected([...ids]); if (ids[0]) setActiveObject(ids[0]); }), m.on('tool', setTool), m.on('visibility', visible => { const a = useChartWorkspaceStore.getState().appearance; if (a.hideDrawings !== visible) useChartWorkspaceStore.getState().setAppearance({ ...a, hideDrawings: visible }); }), m.on('gestureEnd', checkpoint), m.on('remove', () => queueMicrotask(() => { if (manager.current === m) checkpoint(); })), m.on('textEdit', drawing => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, text: drawing.text ?? '' }); }), m.on('tableEdit', (drawing, cell) => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, cell, text: drawing.style.tableCells?.[cell[0]]?.[cell[1]] ?? '' }); })];
+    const off = [m.on('selection', ids => { setSelected([...ids]); if (ids[0]) setActiveObject(ids[0]); }), m.on('tool', setTool), m.on('visibility', visible => { const store = useChartWorkspaceStore.getState(); const a = perProduct ? store.documents[context.key]?.appearance ?? store.appearance : store.appearance; if (a.hideDrawings !== visible) saveAppearance({ ...a, hideDrawings: visible }); }), m.on('gestureEnd', checkpoint), m.on('remove', () => queueMicrotask(() => { if (manager.current === m) checkpoint(); })), m.on('textEdit', drawing => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, text: drawing.text ?? '' }); }), m.on('tableEdit', (drawing, cell) => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, cell, text: drawing.style.tableCells?.[cell[0]]?.[cell[1]] ?? '' }); })];
     const deactivate = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) { m.setTool(null); m.select([]); } };
     const focusOut = (e: FocusEvent) => { if (e.relatedTarget && !root.current?.contains(e.relatedTarget as Node)) { m.setTool(null); m.select([]); } };
     const inputFocus = (e: FocusEvent) => { if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) { m.setTool(null); m.select([]); } };
@@ -201,7 +215,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
     const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint]);
+  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance]);
 
   useEffect(() => {
     const m = manager.current;
@@ -330,12 +344,12 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   const setVisibility = (target: 'drawings' | 'indicators' | 'all') => {
     if (target === 'all') {
       const visible = !appearance.hideDrawings || preferences.indicatorsHidden;
-      state.setAppearance({ ...appearance, hideDrawings: visible }); setPreferences({ indicatorsHidden: !visible });
-    } else if (target === 'drawings') state.setAppearance({ ...appearance, hideDrawings: !appearance.hideDrawings });
+      saveAppearance({ ...appearance, hideDrawings: visible }); setPreferences({ indicatorsHidden: !visible });
+    } else if (target === 'drawings') saveAppearance({ ...appearance, hideDrawings: !appearance.hideDrawings });
     else setPreferences({ indicatorsHidden: !preferences.indicatorsHidden });
   };
   const statusStyle = appearance.statusBackground && typeof document !== 'undefined' ? { backgroundColor: withAlpha(appearance.statusColor || appearanceColors(appearance).background, appearance.opacity / 100) } : undefined;
-  return <div ref={root} data-testid="chart-workspace" data-context={context.key} className={`${overlayLayout ? 'absolute inset-0' : 'relative isolate'} min-w-0 [&:fullscreen]:overflow-y-auto [&:fullscreen]:bg-card ${className}`} onKeyDown={e => {
+  return <div ref={root} inert={!interactionReady} data-testid="chart-workspace" data-context={context.key} className={`${overlayLayout ? 'absolute inset-0' : 'relative isolate'} min-w-0 [&:fullscreen]:overflow-y-auto [&:fullscreen]:bg-card ${className}`} onKeyDown={e => {
     if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); history(!e.shiftKey); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); history(false); }
@@ -348,7 +362,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
         <Button size="icon-sm" variant="ghost" hint={t(historySize.undo ? 'cw.undo.hint' : 'cw.undoEmpty.hint')} aria-label={t('cw.undo')} disabled={locked || !historySize.undo} onClick={() => history(true)}><Undo2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t(historySize.redo ? 'cw.redo.hint' : 'cw.redoEmpty.hint')} aria-label={t('cw.redo')} disabled={locked || !historySize.redo} onClick={() => history(false)}><Redo2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>
-        <Button size="icon-sm" variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...state.appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
+        <Button size="icon-sm" variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
       </div>
     </div>
@@ -358,7 +372,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
         <DrawingToolbar tool={tool} gesture={gesture} preferences={preferences} magnet={magnet} keepDrawing={keepDrawing} drawingsVisible={appearance.hideDrawings}
           favorites={state.favorites} linked={drawingKey !== context.key} linkAvailable={Boolean(context.syncIdentity)} selected={selected.length > 0} canResetZoom={zoomSnapshot !== null}
           arm={arm} setGesture={setGesture} setPreferences={setPreferences} setFavorites={state.setFavorites}
-          setMagnet={value => state.setAppearance({ ...appearance, magnet: value })} setKeepDrawing={() => state.setAppearance({ ...appearance, keepDrawing: !keepDrawing })}
+          setMagnet={value => saveAppearance({ ...appearance, magnet: value })} setKeepDrawing={() => saveAppearance({ ...appearance, keepDrawing: !keepDrawing })}
           setVisibility={setVisibility} setLinked={() => { if (context.syncIdentity) { try { state.setLinked(context.key, drawingKey !== context.key ? null : linkedDrawingKey(context.syncIdentity)); } catch { setError('cw.drawingError'); } } }}
           remove={target => { if (target === 'selected' && selected.length <= 1) removeDrawings(false); else setConfirmRemove({ target, ids: [...selected] }); }}
           resetZoom={() => { if (!binding || !zoomSnapshot) return; binding.chart.timeScale().setVisibleLogicalRange(zoomSnapshot.logical); const scale = binding.candles.priceScale(); scale.setAutoScale(zoomSnapshot.autoScale); if (!zoomSnapshot.autoScale && zoomSnapshot.price) scale.setVisibleRange(zoomSnapshot.price); zoomActive.current = false; setZoomSnapshot(null); }} />
@@ -374,7 +388,7 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
     {binding && !binding.isDisposed() && gesture && <ChartGestureLayer key={`${context.key}-${gesture}`} binding={binding} mode={gesture} digits={digits} cancel={() => setGesture(null)} finishZoom={previous => { zoomActive.current = true; setZoomSnapshot(previous); setGesture(null); arm(null); }} />}
     {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: [] }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
-    {settingsOpen && <SettingsDialog defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
+    {settingsOpen && <SettingsDialog initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
     {indicatorsOpen && <IndicatorDialog values={doc.indicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={indicators => saveDocument({ ...documentRef.current, indicators, alarms: documentRef.current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) })} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
       <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id)} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>

@@ -34,6 +34,81 @@ test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, asy
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
 });
 
+test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  const chart = page.getByTestId('chart-workspace');
+  await expect(chart).toBeVisible();
+  const key = await chart.getAttribute('data-context');
+  await expect.poll(() => page.evaluate(contextKey => {
+    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
+    return saved.documents?.[contextKey!]?.appearance ?? null;
+  }, key)).not.toBeNull();
+  await page.evaluate(contextKey => {
+    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1')!);
+    delete saved.documents[contextKey!].appearance;
+    saved.appearance.background = '#123456';
+    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(saved));
+  }, key);
+  await page.reload();
+  await expect.poll(() => page.evaluate(contextKey => {
+    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
+    return saved.documents?.[contextKey!]?.appearance?.background;
+  }, key)).toBe('#123456');
+});
+
+test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  void worker;
+  const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=7d`;
+  const readDocument = (key: string) => page.evaluate(contextKey => {
+    const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
+    return state.documents?.[contextKey] ?? null;
+  }, key);
+  await page.goto(url('EURUSD'));
+  const eurChart = page.getByTestId('chart-workspace');
+  await expect(eurChart).toBeVisible();
+  const eurKey = await eurChart.getAttribute('data-context');
+  expect(eurKey).toBeTruthy();
+
+  await page.getByTestId('workspace-settings').click();
+  const settings = page.getByTestId('chart-workspace-settings');
+  await settings.getByRole('button', { name: msg('cw.canvas'), exact: true }).click();
+  await page.getByLabel(msg('cw.background'), { exact: true }).fill('#123456');
+  await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
+  await page.getByTestId('workspace-settings').click();
+  await page.getByRole('dialog').getByRole('button', { name: msg('cw.reset'), exact: true }).click();
+  await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
+  await expect.poll(async () => (await readDocument(eurKey!))?.appearance?.background).toBe('');
+
+  const beforeZoom = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  await eurChart.getByRole('button', { name: '+', exact: true }).click();
+  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).not.toBe(beforeZoom);
+  const zoomedRange = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  await eurChart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
+  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).not.toBe(zoomedRange);
+  const eurRange = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  expect(eurRange).toBeTruthy();
+  await expect.poll(async () => {
+    const viewport = (await readDocument(eurKey!))?.viewport;
+    return viewport ? `${viewport.from},${viewport.to}` : null;
+  }).toBe(eurRange);
+
+  await page.goto(url('XAUUSD'));
+  const goldChart = page.getByTestId('chart-workspace');
+  await expect(goldChart).toBeVisible();
+  const goldKey = await goldChart.getAttribute('data-context');
+  expect(goldKey).not.toBe(eurKey);
+  await expect.poll(async () => (await readDocument(goldKey!))?.appearance?.background).toBe('');
+
+  await page.goto(url('EURUSD'));
+  await expect(page.getByTestId('chart-workspace')).toBeVisible();
+  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).toBe(eurRange);
+  expect((await readDocument(eurKey!)).appearance.background).toBe('');
+  await page.reload();
+  await expect(page.getByTestId('chart-workspace')).toBeVisible();
+  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).toBe(eurRange);
+});
+
 test('Indikatorinstanzen und Parameter bleiben je Symbol getrennt', { tag: '@ANA-18' }, async ({ page, worker }) => {
   void worker;
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);

@@ -6,8 +6,9 @@ import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-worksp
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
 import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 
+export interface ChartViewport { from: number; to: number }
 export interface ChartAlarm { id: string; indicatorId: string; direction: 'above' | 'below'; value: number; armed: boolean }
-export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean>; alarms: ChartAlarm[] }
+export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean>; alarms: ChartAlarm[]; appearance?: Appearance; viewport?: ChartViewport }
 const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overlays: {}, alarms: [] };
 export const WORKSPACE_STORAGE_KEY = 'grid-robot-chart-workspaces-v1';
 export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {}, alarms: [] });
@@ -123,8 +124,10 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
               if (typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value) && value.length < 2_800_000) images[name] = value;
             }
             const overlays = Object.fromEntries(Object.entries(d.overlays ?? {}).filter(([, v]) => typeof v === 'boolean'));
+            const viewport = d.viewport && typeof d.viewport === 'object' ? d.viewport as Partial<ChartViewport> : null;
+            const validViewport = viewport && typeof viewport.from === 'number' && Number.isFinite(viewport.from) && typeof viewport.to === 'number' && Number.isFinite(viewport.to) && viewport.from < viewport.to ? { from: viewport.from, to: viewport.to } : undefined;
             const alarms = Array.isArray(d.alarms) ? d.alarms.flatMap(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.indicatorId === 'string' && (item.direction === 'above' || item.direction === 'below') && typeof item.value === 'number' && Number.isFinite(item.value) ? [{ id: item.id, indicatorId: item.indicatorId, direction: item.direction, value: item.value, armed: item.armed !== false }] : []).slice(0, 50) : [];
-            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: parseIndicators(d.indicators), images, overlays, alarms };
+            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: parseIndicators(d.indicators), images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(validViewport ? { viewport: validViewport } : {}) };
           }
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }

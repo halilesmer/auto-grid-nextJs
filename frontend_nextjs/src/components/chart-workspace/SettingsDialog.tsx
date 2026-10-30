@@ -6,7 +6,7 @@ import { InputField } from '@/components/ui/InputField';
 import { Modal } from '@/components/ui/modal';
 import { Switch } from '@/components/ui/switch';
 import { useT, type MessageKey } from '@/i18n';
-import { COLOR_KEYS, DEFAULT_APPEARANCE, OPTIONS, SETTINGS, type Section, type SettingKey } from '@/lib/chart-workspace/settings';
+import { COLOR_KEYS, DEFAULT_APPEARANCE, OPTIONS, SETTINGS, type Appearance, type Section, type SettingKey } from '@/lib/chart-workspace/settings';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { appearanceColors } from './runtime';
 
@@ -31,9 +31,9 @@ export function Toggle({ name, checked, onChange }: { name: MessageKey; checked:
   return <Switch id={`${name.replaceAll('.', '-')}-${id}`} label={t(name)} hint={t(`${name}.hint` as MessageKey)} checked={checked} onChange={onChange} />;
 }
 
-export function SettingsDialog({ onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, ohlcAvailable, defaultMargins }: { onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
+export function SettingsDialog({ initialAppearance, onApply, onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, ohlcAvailable, defaultMargins }: { initialAppearance: Appearance; onApply: (appearance: Appearance) => void; onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
   const t = useT(), s = useChartWorkspaceStore();
-  const saved = s.preview ?? s.appearance;
+  const saved = s.preview ?? initialAppearance;
   const a = !saved.marginsSet && defaultMargins ? { ...saved, marginTop: defaultMargins.top * 100, marginBottom: defaultMargins.bottom * 100 } : saved;
   const [section, setSection] = useState<Section>('symbol');
   const [template, setTemplate] = useState('auto');
@@ -68,6 +68,6 @@ export function SettingsDialog({ onClose, overlayContent, rollbackOverlays, comm
       <Choice name="cw.template" value={template} options={['auto', 'classic', ...Object.keys(s.templates)]} onChange={v => { setTemplate(v); s.setPreview(s.templates[v] ?? { ...DEFAULT_APPEARANCE, border: v === 'classic', preset: v === 'classic' ? 'classic' : 'auto' }); }} />
       <div className="flex min-w-0 items-end gap-2"><InputField label={t('cw.templateName')} hint={t('cw.templateName.hint')} className="min-w-0 flex-1"><input className={fieldClass} value={name} maxLength={80} onChange={e => setName(e.target.value)} /></InputField><Button size="sm" hint={t('cw.saveTemplate.hint')} disabled={!name.trim()} onClick={() => { s.saveTemplate(name, saved); setTemplate(name.trim()); }}>{t('cw.saveTemplate')}</Button></div>
     </div>
-    <div className="mt-4 flex flex-wrap justify-end gap-2"><Button variant="ghost" hint={t('cw.reset.hint')} onClick={() => s.setPreview({ ...DEFAULT_APPEARANCE })}>{t('cw.reset')}</Button><Button variant="outline" hint={t('cw.cancel.hint')} onClick={cancel}>{t('cw.cancel')}</Button><Button variant="primary" hint={t('cw.apply.hint')} onClick={() => { s.setAppearance(saved); commitOverlays(); onClose(); }}>{t('cw.apply')}</Button></div>
+    <div className="mt-4 flex flex-wrap justify-end gap-2"><Button variant="ghost" hint={t('cw.reset.hint')} onClick={() => s.setPreview({ ...DEFAULT_APPEARANCE })}>{t('cw.reset')}</Button><Button variant="outline" hint={t('cw.cancel.hint')} onClick={cancel}>{t('cw.cancel')}</Button><Button variant="primary" hint={t('cw.apply.hint')} onClick={() => { onApply(saved); s.setPreview(null); commitOverlays(); onClose(); }}>{t('cw.apply')}</Button></div>
   </Modal>;
 }
