@@ -271,7 +271,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 9
+      "tests": 7
     }
   },
   "ANA-20": {
@@ -869,7 +869,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 10
     }
   },
   "FRM-21": {
@@ -1278,7 +1278,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 4
+      "tests": 50
     }
   },
   "UI-09": {
@@ -1654,7 +1654,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 1
+      "tests": 38
     }
   },
   "ZON-21": {

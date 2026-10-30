@@ -3,12 +3,11 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
-import { ZoneSelect } from '@/components/analysis/ZoneSelect';
 import { CandidateList } from '@/components/formation/CandidateList';
 import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationChecklist } from '@/components/formation/FormationChecklist';
+import { FormationAccountSelect, FormationZoneSelect } from '@/components/formation/FormationSelectors';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
 import { FormationDetailsPanel } from '@/components/formation/FormationDetailsPanel';
@@ -29,7 +28,6 @@ function FormationView() {
   const { accountId: urlAccount, zoneId: urlZone, tf, form, setAccount, setZone, setView } = useFormationParams();
   const accounts = useAccountStore((s) => s.accounts);
   const selected = useAccountStore((s) => s.selectedAccount);
-  const activeAccount = useAccountStore((s) => s.activeAccount);
   const settings = useSettingsStore((s) => s.settings);
   const loadedAccount = useSettingsStore((s) => s.loadedAccount);
   const { fetchAccounts } = useAccounts();
@@ -115,33 +113,31 @@ function FormationView() {
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
-      <div className="pointer-events-none absolute left-[64px] right-3 top-20 z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-3">
-        <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 p-2 shadow-lg backdrop-blur-md" data-testid="formation-selectors">
-          <AccountDropdown
+      <div className="absolute left-[52px] right-0 top-18 z-30 min-w-0 lg:top-0">
+        <FormationToolbar
+          hits={scan.hits}
+          tf={tf}
+          form={form}
+          onTimeframe={(next) => {
+            setActive(null);
+            setView({ tf: next });
+          }}
+          onForm={(next) => {
+            setActive(null);
+            setView({ form: next, tf: timeframeForForm(scan.hits, next, tf) });
+          }}
+        >
+          {accountKnown && <FormationZoneSelect zones={zones} value={zoneId} onChange={setZone} />}
+          <FormationAccountSelect
             accounts={accounts}
-            selectedAccount={accountId}
-            activeAccount={activeAccount}
-            onSelect={(id) => {
+            value={accountId}
+            onChange={(id) => {
               if (id !== accountId) setAccount(id);
             }}
           />
-          {accountKnown && <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />}
-        </div>
-        <div className="pointer-events-auto max-w-full">
-          <FormationToolbar
-            hits={scan.hits}
-            tf={tf}
-            form={form}
-            onTimeframe={(next) => {
-              setActive(null);
-              setView({ tf: next });
-            }}
-            onForm={(next) => {
-              setActive(null);
-              setView({ form: next, tf: timeframeForForm(scan.hits, next, tf) });
-            }}
-          />
-        </div>
+        </FormationToolbar>
+      </div>
+      <div className="pointer-events-none absolute left-[64px] right-3 top-[184px] z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-[136px]">
         {scan.loading && (
           <p className="flex items-center gap-2 rounded-lg bg-background/95 p-2 text-xs text-muted-foreground" role="status" data-testid="formation-loading">
             <Loader2 size={14} className="animate-spin" /> {t('formation.scan.loading')}

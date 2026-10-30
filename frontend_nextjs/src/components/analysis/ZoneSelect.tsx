@@ -12,10 +12,22 @@ interface ZoneItem {
   n: number;
 }
 
-function placeholderKey(zones: ZoneSettings[] | null): MessageKey {
+export function zonePlaceholderKey(zones: ZoneSettings[] | null): MessageKey {
   if (zones === null) return 'analysis.zone.loading';
   if (zones.length === 0) return 'analysis.zone.empty';
   return 'analysis.zone.placeholder';
+}
+
+/** Auswahlzeilen und Beschriftung („Symbol · Setup n“) der Setups eines Kontos. */
+export function useZoneOptions(zones: ZoneSettings[] | null) {
+  const t = useT();
+  const numbers = setupNumbers(zones ?? []);
+  const items: ZoneItem[] = (zones ?? []).map((zone) => ({ zone, n: numbers.get(zone.id) ?? 0 }));
+  const label = useCallback(
+    (item: ZoneItem) => t('analysis.zone.option', { n: item.n, symbol: item.zone.symbol || '—' }),
+    [t],
+  );
+  return { items, label };
 }
 
 /** Setup-Wahl der Analyse-Seite („Symbol · Setup n“): nur Setups des gewählten Kontos (`zones` = null: werden geladen). */
@@ -29,12 +41,7 @@ export function ZoneSelect({
   onChange: (zoneId: string) => void;
 }) {
   const t = useT();
-  const numbers = setupNumbers(zones ?? []);
-  const items: ZoneItem[] = (zones ?? []).map((zone) => ({ zone, n: numbers.get(zone.id) ?? 0 }));
-  const label = useCallback(
-    (item: ZoneItem) => t('analysis.zone.option', { n: item.n, symbol: item.zone.symbol || '—' }),
-    [t],
-  );
+  const { items, label } = useZoneOptions(zones);
   return (
     <div data-tooltip-scope className="flex min-w-0 flex-1 items-center gap-1.5 sm:w-56 sm:flex-none" data-testid="zone-select">
       <div className="min-w-0 flex-1">
@@ -45,7 +52,7 @@ export function ZoneSelect({
           getKey={(item) => item.zone.id}
           getLabel={label}
           filter={(item, q) => label(item).toLowerCase().includes(q)}
-          placeholder={t(placeholderKey(zones))}
+          placeholder={t(zonePlaceholderKey(zones))}
           searchPlaceholder={t('analysis.zone.search')}
           emptyMessage={t('analysis.zone.empty')}
           disabled={zones === null || zones.length === 0}

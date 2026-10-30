@@ -191,6 +191,29 @@ test.describe('FRM-22 schmale Ansicht', () => {
 
 test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
+  test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
+    expect(bar).toEqual({ x: 52, y: 56, width: 1388, height: 38 });
+    const forms = (await page.getByTestId('formation-forms').boundingBox())!;
+    expect(forms).toEqual({ x: 52, y: 94, width: 1388, height: 30 });
+    const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+    expect(tools.y).toBeGreaterThanOrEqual(56);
+    expect(tools.y + tools.height).toBeLessThanOrEqual(94);
+    expect(tools.x + tools.width).toBeLessThanOrEqual(1440);
+    await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
+    const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const found = new Set<number>();
+      while (walker.nextNode()) {
+        const parent = walker.currentNode.parentElement;
+        if (parent && walker.currentNode.textContent?.trim()) found.add(parseFloat(getComputedStyle(parent).fontSize));
+      }
+      return [...found];
+    });
+    expect(sizes.filter((size) => size > 12)).toEqual([]);
+  });
+
   for (const theme of ['dark', 'light']) {
     test(`Chart und Bedienelemente bleiben innerhalb der Seite (${theme})`, { tag: '@FRM-23' }, async ({ page, worker }) => {
       await page.addInitScript((value) => localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 })), theme);
