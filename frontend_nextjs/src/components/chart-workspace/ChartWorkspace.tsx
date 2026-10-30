@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, type Drawing, type DrawingKind, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
+import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, setImageReader, type Drawing, type DrawingKind, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
 import { type UTCTimestamp } from 'lightweight-charts';
 import { Eye, Pencil, ListTree, Maximize2, Minimize2, MousePointer2, Redo2, Settings2, Star, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -86,7 +86,16 @@ export function ChartWorkspace({ context, binding, bars, missing, timeframeSec, 
   const doc = state.documents[context.key] ?? defaults;
   const effectiveIndicators = useMemo(() => doc.indicators.filter(v => v.id !== 'initial-RSI' || showRsi), [doc.indicators, showRsi]);
 
-  useEffect(() => { useChartWorkspaceStore.getState().hydrate(); }, []);
+  useEffect(() => {
+    // The library may paint before our preload finishes. Its default reader rejects
+    // uncached images and deletes their drawings, so register the local asset source first.
+    setImageReader(async name => {
+      const data = Object.values(useChartWorkspaceStore.getState().documents).find(d => d.images[name])?.images[name];
+      if (!data || !/^data:image\/(png|jpeg|webp);base64,/.test(data)) throw new Error('Local chart image missing');
+      return (await fetch(data)).blob();
+    });
+    useChartWorkspaceStore.getState().hydrate();
+  }, []);
   useEffect(() => {
     const sync = () => setIsFullscreen(Boolean(root.current && document.fullscreenElement?.contains(root.current)));
     document.addEventListener('fullscreenchange', sync);

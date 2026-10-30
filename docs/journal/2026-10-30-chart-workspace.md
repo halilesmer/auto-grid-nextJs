@@ -54,6 +54,8 @@ Confirmed higher timeframe values appear at their last constituent candle, after
 | Preview persistence | Appearance and overlay transactions keep their previous persisted state until Apply. Focused reload check added. |
 | Formation switching | A new regression test reproduced `Value is null` after the parent removed the previous chart. Bindings now expose disposal state, effects reject obsolete bindings, and both scheduled redraw frames are cancelled. The final 14 drawing/formation checks passed. |
 | Local image storage | Import places the image immediately at the pane centre. The test now checks the actual placement contract, metadata separation, delete/undo and restored objects after chart readiness. Passed. |
+| Image cold-cache race | The first GitHub run passed 1,614 browser checks and retried the image check once. A local repeat reproduced four failures in 20 runs; delayed decoding reproduced it directly. The drawing library's default image reader rejects uncached names and removes their drawings before the host preload finishes. Register `setImageReader` against validated local image bytes before importing drawings. The regression now delays native image decoding by 500 ms. |
+| Image correction evidence | Fresh production build, TypeScript and ESLint passed. The delayed image test then passed all 20 repetitions without retries (`--repeat-each=20 --workers=4`, 27.6 seconds). |
 | RSI axis switching | A separate pixel check keeps the overbought fill within the upper portion of the 0..100 RSI pane after moving the axis left. Passed; no further chart change was needed. |
 | Live worker and trading | Not run. No live trade tests are authorized. |
 

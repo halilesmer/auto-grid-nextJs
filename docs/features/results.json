@@ -862,7 +862,7 @@
     "e2e": {
       "datum": "2026-10-30",
       "status": "passed",
-      "tests": 10
+      "tests": 1
     }
   },
   "FRM-21": {

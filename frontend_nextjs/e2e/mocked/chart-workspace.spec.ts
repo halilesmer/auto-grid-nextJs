@@ -195,6 +195,11 @@ test('Anzeige-Schalter speichern erst beim Anwenden, auch nach hartem Neuladen',
 test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgängig und Neuladen', { tag: '@ANA-17' }, async ({ page, worker }) => {
   void worker;
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  // A slow decode must not let the drawing library treat an uncached local image as missing.
+  await page.addInitScript(() => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')!;
+    Object.defineProperty(HTMLImageElement.prototype, 'src', { ...descriptor, set(value: string) { window.setTimeout(() => descriptor.set!.call(this, value), 500); } });
+  });
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1`);
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('EWO');
   await page.locator('input[type=file][accept="image/png,image/jpeg,image/webp"]').setInputFiles({ name: 'local-test.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8X8AAAAASUVORK5CYII=', 'base64') });
