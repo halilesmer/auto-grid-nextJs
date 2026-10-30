@@ -48,6 +48,36 @@ test('Indikatorinstanzen und Parameter bleiben je Symbol getrennt', { tag: '@ANA
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('SMA');
 });
 
+test('RSI-Füllung verwendet nach Wechsel auf die linke Achse weiter die RSI-Skala', { tag: ['@ANA-18', '@ANA-19'] }, async ({ page, worker }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
+  worker.state.ratesSeries = { H1: Array.from({ length: 200 }, (_, i) => [latest - (200 - i) * 3600, 1 + i * .001, 1.002 + i * .001, .999 + i * .001, 1.001 + i * .001]) };
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1`);
+  await expect(page.getByTestId('workspace-indicator-values')).toContainText('EWO');
+  await page.getByTestId('workspace-settings').click();
+  await page.getByTestId('chart-workspace-settings').getByRole('button', { name: msg('cw.scales'), exact: true }).click();
+  await page.getByRole('combobox', { name: msg('cw.side'), exact: true }).selectOption('left');
+  await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
+  // RSI=100: the green fill belongs above 70, in the top part of the 0..100 pane.
+  // An independent auto-scaled axis would fill almost the entire pane instead.
+  const fillBottom = () => page.getByTestId('analysis-chart').evaluate(host => {
+    const canvases = [...host.querySelectorAll('canvas')].filter(c => c.getBoundingClientRect().width > 200 && c.getBoundingClientRect().height > 40);
+    const rows = [...new Set(canvases.map(c => c.getBoundingClientRect().top))].sort((a, b) => a - b);
+    let bottom = -1;
+    for (const c of canvases.filter(c => c.getBoundingClientRect().top === rows[1])) {
+      const context = c.getContext('2d'); if (!context) continue;
+      const pixels = context.getImageData(0, 0, c.width, c.height).data;
+      for (let y = 0; y < c.height; y++) for (let x = 20; x < c.width - 20; x += 8) {
+        const p = (y * c.width + x) * 4;
+        if (pixels[p + 1] > pixels[p] * 1.3 && pixels[p + 1] > pixels[p + 2] * 1.02 && pixels[p + 1] > 35 && pixels[p + 3] > 0) bottom = Math.max(bottom, y / c.height);
+      }
+    }
+    return bottom;
+  });
+  await expect.poll(fillBottom).toBeGreaterThan(0);
+  expect(await fillBottom()).toBeLessThan(.5);
+});
+
 test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: '@ANA-17' }, async ({ page, worker }) => {
   void worker;
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
