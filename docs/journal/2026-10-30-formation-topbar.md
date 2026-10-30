@@ -3,7 +3,7 @@ date: 2026-10-30
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [246]
 features: [FRM-23]
 areas: [frontend, tests]
 ---
