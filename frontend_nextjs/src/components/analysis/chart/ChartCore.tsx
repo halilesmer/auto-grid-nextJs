@@ -7,7 +7,6 @@ import {
   ColorType,
   createChart,
   createSeriesMarkers,
-  LineSeries,
   LineStyle,
   type IChartApi,
   type IPriceLine,
@@ -19,9 +18,12 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { useFormat, useT } from '@/i18n';
-import { isBar, liveBar, wilderRsi, type Bar, type ChartData } from '@/lib/analysis/candles';
+import { isBar, liveBar, type Bar, type ChartData } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
+import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
+import { type ChartBinding, createChartBinding, appearanceColors } from '@/components/chart-workspace/runtime';
+import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import {
   FractalsPrimitive,
   MissingDataPrimitive,
@@ -71,6 +73,9 @@ export interface FractalPoint {
 }
 
 interface ChartCoreProps {
+  workspace?: WorkspaceContext;
+  workspaceOverlays?: React.ReactNode;
+  clockNow?: number | null;
   data: ChartData;
   timeframeSec: number;
   digits: number | null;
@@ -109,11 +114,11 @@ const MAX_HOVER_NOTES = 4;
 /** Beim Springen zu einem Trade: so viele Kerzen links und rechts davon */
 const FOCUS_BARS = 60;
 
-const RSI_PERIOD = 14;
 /** Bis zu so vielen Punkten passt die Ansicht den ganzen Zeitraum ein, sonst die letzten VISIBLE_BARS */
 const FIT_MAX_POINTS = 2000;
 const VISIBLE_BARS = 300;
 
+function previousColor(up: boolean, body: boolean, positive: string, negative: string) { if (!body) return 'transparent'; return up ? positive : negative; }
 const LINE_STYLE = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted } as const;
 
 function toneColor(c: ChartColors, tone: LineTone) {
@@ -129,6 +134,7 @@ function toneColor(c: ChartColors, tone: LineTone) {
  * grauer Schraffur, nie erfundene Kerzen.
  */
 export function ChartCore({
+  workspace, workspaceOverlays, clockNow,
   data,
   timeframeSec,
   digits,
@@ -153,7 +159,15 @@ export function ChartCore({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const [binding, setBinding] = useState<ChartBinding | null>(null);
+  const [workspaceTail, setWorkspaceTail] = useState<{ key: string; bar: Bar } | null>(null);
+  const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
+  const effectiveBars = useMemo(() => {
+    if (!workspaceTail || workspaceTail.key !== viewKey || workspaceTail.bar.time < (data.bars.at(-1)?.time ?? Infinity)) return data.bars;
+    const out = [...data.bars];
+    if (out.at(-1)?.time === workspaceTail.bar.time) out[out.length - 1] = workspaceTail.bar; else out.push(workspaceTail.bar);
+    return out;
+  }, [data.bars, workspaceTail, viewKey]);
   const balanceRef = useRef<ISeriesApi<'Area'> | null>(null);
   const equityRef = useRef<ISeriesApi<'Area'> | null>(null);
   const primitives = useRef<{
@@ -177,6 +191,7 @@ export function ChartCore({
     barByTimeRef.current = barByTime;
   }, [barByTime]);
 
+  const hasCurves = !!(balance || equity);
   // Chart einmal anlegen
   useEffect(() => {
     const el = containerRef.current;
@@ -193,14 +208,14 @@ export function ChartCore({
       rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } },
     });
     const candles = chart.addSeries(CandlestickSeries, { borderVisible: false, priceLineVisible: true });
-    const balance = chart.addSeries(AreaSeries, {
+    const balanceSeries = hasCurves ? chart.addSeries(AreaSeries, {
       lineColor: '#8b5cf6', topColor: 'rgba(139,92,246,0.18)', bottomColor: 'rgba(139,92,246,0.01)',
       lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
-    }, 1);
-    const equity = chart.addSeries(AreaSeries, {
+    }, 1) : null;
+    const equitySeries = hasCurves ? chart.addSeries(AreaSeries, {
       lineColor: '#22c55e', topColor: 'rgba(34,197,94,0.22)', bottomColor: 'rgba(34,197,94,0.01)',
       lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
-    }, 1);
+    }, 1) : null;
     const band = new ZoneBandPrimitive();
     const missing = new MissingDataPrimitive();
     const pauses = new PauseLinesPrimitive();
@@ -212,10 +227,12 @@ export function ChartCore({
     candles.attachPrimitive(links);
     candles.attachPrimitive(fractalMarks);
     markersApi.current = createSeriesMarkers(candles, []);
+    const attached = createChartBinding(chart, candles, el);
+    const readyFrame = requestAnimationFrame(() => setBinding(attached));
     chartRef.current = chart;
     candlesRef.current = candles;
-    balanceRef.current = balance;
-    equityRef.current = equity;
+    balanceRef.current = balanceSeries;
+    equityRef.current = equitySeries;
     primitives.current = { band, missing, pauses, links, fractals: fractalMarks };
 
     const onMove = (param: MouseEventParams<Time>) => {
@@ -228,11 +245,12 @@ export function ChartCore({
     };
     chart.subscribeCrosshairMove(onMove);
     return () => {
+      cancelAnimationFrame(readyFrame);
+      attached.dispose?.();
       chart.unsubscribeCrosshairMove(onMove);
       chart.remove();
       chartRef.current = null;
       candlesRef.current = null;
-      rsiRef.current = null;
       balanceRef.current = null;
       equityRef.current = null;
       primitives.current = null;
@@ -242,7 +260,7 @@ export function ChartCore({
       fittedKey.current = null;
       lastBar.current = null;
     };
-  }, []);
+  }, [hasCurves]);
 
   // Theme-Farben: nach dem Klassenwechsel am <html> lesen
   useEffect(() => {
@@ -252,23 +270,6 @@ export function ChartCore({
 
   useEffect(() => {
     if (!colors) return;
-    chartRef.current?.applyOptions({
-      layout: { textColor: colors.text },
-      grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
-      crosshair: {
-        vertLine: { color: colors.crosshair, labelBackgroundColor: colors.crosshairLabel },
-        horzLine: { color: colors.crosshair, labelBackgroundColor: colors.crosshairLabel },
-      },
-      rightPriceScale: { borderColor: colors.border },
-      timeScale: { borderColor: colors.border },
-    });
-    candlesRef.current?.applyOptions({
-      upColor: colors.up,
-      downColor: colors.down,
-      wickUpColor: colors.up,
-      wickDownColor: colors.down,
-    });
-    rsiRef.current?.applyOptions({ color: colors.info });
     balanceRef.current?.applyOptions({ lineColor: colors.info, topColor: withAlpha(colors.info, 0.18), bottomColor: withAlpha(colors.info, 0.01) });
     equityRef.current?.applyOptions({ lineColor: colors.up, topColor: withAlpha(colors.up, 0.2), bottomColor: withAlpha(colors.up, 0.01) });
   }, [colors]);
@@ -282,17 +283,17 @@ export function ChartCore({
     containerRef.current?.setAttribute('data-last-equity', lastEquity ? `${lastEquity.time}:${lastEquity.value}` : '');
   }, [balance, equity]);
 
-  useEffect(() => {
-    if (digits === null || !Number.isFinite(digits)) return;
-    candlesRef.current?.applyOptions({ priceFormat: { type: 'price', precision: digits, minMove: 10 ** -digits } });
-  }, [digits]);
-
   // Kerzen + Leerstellen
   useEffect(() => {
     const chart = chartRef.current;
     const candles = candlesRef.current;
     if (!chart || !candles) return;
-    candles.setData(data.points.map((p) => ({ ...p, time: p.time as UTCTimestamp })));
+    const c = appearanceColors(appearance);
+    candles.setData(data.points.map((p, i) => {
+      const prev = data.points[i - 1];
+      const override = appearance.previous && isBar(p) && prev && isBar(prev) ? { color: previousColor(p.close >= prev.close, appearance.body, c.up, c.down), borderColor: p.close >= prev.close ? c.borderUp : c.borderDown, wickColor: p.close >= prev.close ? c.wickUp : c.wickDown } : {};
+      return { ...p, ...override, time: p.time as UTCTimestamp };
+    }));
     lastBar.current = data.bars.length > 0 ? data.bars[data.bars.length - 1] : null;
     if (lastBar.current) containerRef.current?.setAttribute('data-last-bar', `${lastBar.current.time}:${lastBar.current.close}`);
     if (followTail) {
@@ -318,7 +319,7 @@ export function ChartCore({
     };
     align();
     return () => cancelAnimationFrame(frame);
-  }, [data, viewKey, followTail]);
+  }, [data, appearance, viewKey, followTail]);
 
   // Fehlende Bereiche und Marktpausen (beide abschaltbar)
   useEffect(() => {
@@ -423,43 +424,6 @@ export function ChartCore({
     chart.timeScale().setVisibleLogicalRange({ from: lo - FOCUS_BARS, to: lo + FOCUS_BARS });
   }, [focus]);
 
-  // RSI im eigenen Bereich, aus den angezeigten Kerzen
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    if (!showRsi) {
-      if (rsiRef.current) chart.removeSeries(rsiRef.current);
-      rsiRef.current = null;
-      return;
-    }
-    if (!rsiRef.current) {
-      rsiRef.current = chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, 1);
-      rsiRef.current.createPriceLine({ price: 70, color: 'rgba(128,128,128,0.45)', lineStyle: LineStyle.Dotted, lineWidth: 1, axisLabelVisible: false, title: '' });
-      rsiRef.current.createPriceLine({ price: 30, color: 'rgba(128,128,128,0.45)', lineStyle: LineStyle.Dotted, lineWidth: 1, axisLabelVisible: false, title: '' });
-      chart.panes()[1]?.setStretchFactor(0.25);
-      chart.panes()[0]?.setStretchFactor(0.75);
-    }
-    if (colors) rsiRef.current.applyOptions({ color: colors.info });
-    // Über die echten Kerzen gerechnet: eine Lücke bricht die Kette nicht künstlich auf
-    const rsi = wilderRsi(data.bars.map((b) => b.close), RSI_PERIOD);
-    const byTime = new Map(data.bars.map((b, i) => [b.time, rsi[i]]));
-    // Über einen fehlenden Bereich zieht lightweight-charts die Linie durch. Die Farbe eines Punktes gilt
-    // für das Stück ab ihm: der letzte Wert vor der Lücke wird unsichtbar, die Lücke bleibt leer
-    const points: ({ time: UTCTimestamp; value?: number; color?: string })[] = [];
-    let lastValued = -1;
-    for (const p of data.points) {
-      const v = isBar(p) ? byTime.get(p.time) : null;
-      if (v === null || v === undefined) {
-        if (!isBar(p) && lastValued >= 0) points[lastValued].color = 'transparent';
-        points.push({ time: p.time as UTCTimestamp });
-      } else {
-        lastValued = points.length;
-        points.push({ time: p.time as UTCTimestamp, value: v });
-      }
-    }
-    rsiRef.current.setData(points);
-  }, [showRsi, data, colors]);
-
   // Laufende Kerze aus dem Live-Preis (nur die aktuelle oder die direkt folgende Zeitspanne)
   useEffect(() => {
     if (!live || !candlesRef.current) return;
@@ -467,11 +431,16 @@ export function ChartCore({
     // Nie vor dem letzten Punkt (z. B. eine Leerstelle nach der letzten Kerze): update() würde werfen
     const lastPoint = data.points[data.points.length - 1];
     if (!bar || (lastPoint && bar.time < lastPoint.time)) return;
-    candlesRef.current.update({ ...bar, time: bar.time as UTCTimestamp });
+    const last = data.bars.at(-1), previous = last?.time === bar.time ? data.bars.at(-2) : last;
+    const c = appearanceColors(appearance);
+    const override = appearance.previous && previous ? { color: previousColor(bar.close >= previous.close, appearance.body, c.up, c.down), borderColor: bar.close >= previous.close ? c.borderUp : c.borderDown, wickColor: bar.close >= previous.close ? c.wickUp : c.wickDown } : {};
+    candlesRef.current.update({ ...bar, ...override, time: bar.time as UTCTimestamp });
     lastBar.current = bar;
+    const frame = requestAnimationFrame(() => setWorkspaceTail({ key: viewKey, bar }));
     // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
     containerRef.current?.setAttribute('data-last-bar', `${bar.time}:${bar.close}`);
-  }, [live, timeframeSec, data.points]);
+    return () => cancelAnimationFrame(frame);
+  }, [live, timeframeSec, data.points, data.bars, viewKey, appearance]);
 
   // Nur unter dem Fadenkreuz: ohne Maus würde die Legende die geladene statt der laufenden Kerze zeigen
   const shown = hover?.bar ?? null;
@@ -482,13 +451,14 @@ export function ChartCore({
       ? [...allNotes.slice(0, MAX_HOVER_NOTES), t('analysis.chart.notes.more', { n: allNotes.length - MAX_HOVER_NOTES })]
       : allNotes;
   return (
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi}>
     <div className="relative">
       <div
         className="pointer-events-none absolute left-2 top-1 z-10 flex flex-wrap gap-x-3 font-mono text-[11px] tabular-nums text-muted-foreground"
         data-testid="chart-legend"
       >
         {hover && !hover.bar && <span className="text-warning">{t('analysis.chart.noData')}</span>}
-        {shown &&
+        {shown && appearance.ohlc &&
           (['open', 'high', 'low', 'close'] as const).map((k) => (
             <span key={k}>
               {t(`analysis.chart.ohlc.${k}`)} <span className="text-foreground">{fmt.price(shown[k], digits ?? undefined)}</span>
@@ -499,10 +469,13 @@ export function ChartCore({
             {n}
           </span>
         ))}
+        {shown && appearance.change && <span>{fmt.number(shown.close - shown.open, { maximumFractionDigits: digits ?? 5 })}</span>}
       </div>
       {/* Die TradingView-Namensnennung (Link) erzeugt lightweight-charts selbst */}
       <div
         ref={containerRef}
+        tabIndex={0}
+        aria-label={t('cw.canvas')}
         data-tooltip-exempt
         data-testid="analysis-chart"
         data-bars={data.bars.length}
@@ -510,8 +483,9 @@ export function ChartCore({
         data-gaps-shown={showGaps}
         data-lines={lines.length}
         data-pauses={data.pauses.length}
-        className="h-[max(360px,calc(100dvh-22rem))] w-full [:fullscreen_&]:h-dvh"
+        className="h-[max(360px,calc(100dvh-22rem))] w-full [:fullscreen_&]:h-[calc(100dvh-12rem)]"
       />
     </div>
+    </ChartWorkspace>
   );
 }

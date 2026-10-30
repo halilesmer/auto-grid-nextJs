@@ -18,6 +18,7 @@ interface SymbolAutoCompleteProps {
   symbolDetails: Record<string, SymbolDetail>;
   className?: string;
   hasError?: boolean;
+  preserveCase?: boolean;
 }
 
 const MIN_SEARCH_LENGTH = 1;
@@ -29,6 +30,7 @@ export default function SymbolAutoComplete({
   symbolDetails,
   className = "",
   hasError = false,
+  preserveCase = false,
 }: SymbolAutoCompleteProps) {
   const t = useT();
   const [searchTerm, setSearchTerm] = useState(value);
@@ -49,19 +51,19 @@ export default function SymbolAutoComplete({
   const handleInputChange = useCallback(
     (val: string) => {
       setSearchTerm(val);
-      onChange(val.toUpperCase().trim());
+      onChange(preserveCase ? val.trim() : val.toUpperCase().trim());
     },
-    [onChange],
+    [onChange, preserveCase],
   );
 
   const handleSelectSymbol = useCallback(
     (sym: SymbolDetail) => {
-      const normalized = sym.name.toUpperCase().trim();
+      const normalized = preserveCase ? sym.name.trim() : sym.name.toUpperCase().trim();
       setSearchTerm(normalized);
       onChange(normalized);
       onCommit?.(normalized);
     },
-    [onChange, onCommit],
+    [onChange, onCommit, preserveCase],
   );
 
   return (
@@ -71,7 +73,7 @@ export default function SymbolAutoComplete({
       items={filteredSymbols}
       getKey={(sym) => sym.name}
       onSelect={handleSelectSymbol}
-      onBlur={onCommit && (() => onCommit(searchTerm.toUpperCase().trim()))}
+      onBlur={onCommit && (() => onCommit(preserveCase ? searchTerm.trim() : searchTerm.toUpperCase().trim()))}
       renderItem={(sym) => (
         <div className="flex flex-col">
           <span className="font-mono font-semibold text-foreground">{sym.name}</span>

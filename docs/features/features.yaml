@@ -1482,6 +1482,38 @@ kategorien:
           - Vollbild-Knopf klicken, im Vollbild das Zahnrad öffnen und einen Schalter umlegen, dann Esc drücken.
         erwartet: Der Chart füllt den Bildschirm, die Schalter wirken sofort, Esc und der Knopf kehren zur Seite zurück.
 
+      - id: ANA-16
+        titel: Freie Broker-Symbolwahl ohne Setup
+        beschreibung: "Analyse öffnet ohne Setup-Bezug im freien Modus. Broker-Symbole bleiben in originaler Schreibweise. Konto, Symbol und Zeitrahmen stehen in der URL. Kein Bot oder Setup ist erforderlich."
+        code: [frontend_nextjs/src/components/chart-workspace/FreeChartPanel.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts]
+        tiers: [e2e]
+        pruefung: [Freien Chart mit EURUSD öffnen und neu laden; ohne Setup-Einstellungsabruf prüfen.]
+        erwartet: Der Chart lädt authentifizierte Kursdaten und stellt denselben Symbolkontext wieder her.
+
+      - id: ANA-17
+        titel: Gemeinsame Zeichenwerkzeuge und Objektbearbeitung
+        beschreibung: "Lightweight Charts v5 und lightweight-charts-drawing 0.6.2 verwenden Preis- und Brokerzeitanker. Zeichnungen, Eigenschaften und Verlauf bleiben vom jeweiligen Symbolkontext getrennt. Volumenwerkzeuge sind ausgeschlossen."
+        code: [frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/lib/chart-workspace/replayDrawings.ts]
+        tiers: [e2e]
+        pruefung: [Linie zeichnen; rückgängig machen; wiederholen; Breite ändern; neu laden.]
+        erwartet: Zeichenaktionen und Objektbearbeitung funktionieren und werden lokal gespeichert.
+
+      - id: ANA-18
+        titel: Standardindikatoren einschließlich RSI und EWO
+        beschreibung: "SMA, EMA, RSI mit Wilder-Glättung, EWO 5/35, MACD, Bollinger und ATR laufen getrennt von Handelslogik und Formationserkennung. Datenlücken starten die Anlaufphase neu; Replay veröffentlicht keine Zukunftswerte."
+        code: [frontend_nextjs/src/lib/chart-workspace/indicators.ts, frontend_nextjs/src/components/chart-workspace/IndicatorDialog.tsx]
+        tiers: [e2e]
+        pruefung: [Referenzwerte und Datenlücken prüfen; mehrere Instanzen anlegen; Parameter nach Neuladen prüfen.]
+        erwartet: Berechnungen stimmen mit unabhängigen Referenzen überein; Instanzen bleiben je Konto und Symbol getrennt.
+
+      - id: ANA-19
+        titel: Gemeinsame Chart-Einstellungen mit Vorschau und Vorlagen
+        beschreibung: "Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar. Vorschau, Abbrechen, Anwenden und lokale Vorlagen verwenden denselben Zustand."
+        code: [frontend_nextjs/src/components/chart-workspace/SettingsDialog.tsx, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        tiers: [e2e]
+        pruefung: [Vorschau abbrechen; erneut ändern und anwenden; nach Neuladen prüfen.]
+        erwartet: Abbrechen stellt den Ausgangszustand wieder her; Anwenden speichert validierte Einstellungen.
+
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)
         beschreibung: "GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft."

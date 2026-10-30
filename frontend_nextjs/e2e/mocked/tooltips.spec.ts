@@ -237,8 +237,11 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     await expect(page).toHaveURL(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`);
     expect(await unhinted(page)).toEqual([]);
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
-    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    await expect(page.getByText(msg('chart.zone.priceRange'))).toBeVisible();
+    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
+    expect(await unhinted(page)).toEqual([]);
+    await page.getByRole('combobox', { name: msg('cw.mode'), exact: true }).selectOption('setup');
+    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
+    await expect(page.getByText(msg('chart.zone.priceRange'), { exact: true })).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
   });
 });

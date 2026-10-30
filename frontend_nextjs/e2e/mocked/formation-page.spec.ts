@@ -34,6 +34,21 @@ async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW) {
   await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
+test('Chart-Werkzeuge bleiben nach Formationswechsel ohne veraltete Chart-Zugriffe bedienbar', { tag: ['@ANA-17', '@FRM-20'] }, async ({ page, worker }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await openPage(page, worker, `${URL}&form=GAR`);
+  for (const form of ['BAT', 'ABCD', 'GAR']) {
+    await page.getByTestId(`formation-form-${form}`).click();
+    // ABCD is the default and is therefore omitted from the URL.
+    await expect(page.getByTestId(`formation-form-${form}`)).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('workspace-settings').click();
+    await expect(page.getByTestId('chart-workspace-settings')).toBeVisible();
+    await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
+  }
+  expect(errors).toEqual([]);
+});
+
 test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   test('Badges zählen gültige und im Aufbau stehende Treffer, ungültige zählen nicht', { tag: '@FRM-18' }, async ({ page, worker }) => {
     await openPage(page, worker);

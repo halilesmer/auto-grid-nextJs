@@ -479,3 +479,11 @@ grid_orchestrator (Ana Orkestratör)
 **Mevcut Sürüm: v0.7.39**
 
 Bu dokümantasyon projenin **tam dosya yapısını** ve **mimari bileşenlerini** yansıtmaktadır. Tüm dosya yolları mevcut repo yapısıyla senkronize edilmiştir.
+
+## Ortak grafik çalışma alanı (2026-10-30)
+
+- `src/components/chart-workspace/`: analiz, backtest ve formasyon grafikleri için çizim araçları, gösterge penceresi ve görünüm ayarları.
+- `src/lib/chart-workspace/`: tipli ayarlar, RSI/EWO dahil gösterge hesapları ve replay çizim görünürlüğü.
+- `src/store/useChartWorkspaceStore.ts`: tarayıcı genelindeki görünüm/şablonlar; kaynak, hesap, sembol ve bağlama göre ayrılmış grafik belgeleri.
+- Analiz adresinde setup yoksa serbest grafik açılır. `mode=setup` ve eski `zone=` bağlantıları setup bağlamını korur.
+- Broker zamanı, mevcut market API kimlik doğrulaması ve veri kalitesi uyarıları korunur. Worker ve işlem mantığı değişmez.

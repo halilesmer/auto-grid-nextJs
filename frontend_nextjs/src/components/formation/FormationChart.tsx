@@ -18,6 +18,12 @@ import { drawingPriceRange, layoutDrawings, type DrawingGroup, type Prim, type T
 import { RSI_PARAMS } from '@/lib/formation/params';
 import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
 import { useThemeStore } from '@/store';
+import { ChartWorkspace } from '@/components/chart-workspace/ChartWorkspace';
+import { type ChartBinding, createChartBinding, appearanceColors } from '@/components/chart-workspace/runtime';
+import { useConnectionStore } from '@/store/useConnectionStore';
+import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
+import { workspaceKey } from '@/lib/chart-workspace/settings';
 
 const TONE_COLOR: Record<Exclude<Tone, 'side'>, string> = {
   ratio: 'var(--secondary)',
@@ -83,6 +89,7 @@ function PrimView({ prim, side }: { prim: Prim; side: 'buy' | 'sell' }) {
 }
 
 interface Props {
+  accountId: string;
   hit: ScanHit;
   context: FormationContext;
   scanAt: number;
@@ -96,16 +103,21 @@ interface Props {
  * Kerzen und RSI(7) des gewählten Kandidaten mit den Zeichnungen der Erkennung als SVG-Overlay. Der Container
  * bildet einen eigenen Stapelkontext (die Canvases des Charts tragen z-index), das Overlay endet vor der Preisachse.
  */
-export function FormationChart({ hit, context, scanAt, digits, active, onActive }: Props) {
+export function FormationChart({ accountId, hit, context, scanAt, digits, active, onActive }: Props) {
   const t = useT();
+  const source = useConnectionStore(s => s.baseUrl);
+  const [binding, setBinding] = useState<ChartBinding | null>(null);
   const { number } = useFormat();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const boxRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const [colors, setColors] = useState<ChartColors | null>(null);
-  const [overlay, setOverlay] = useState<{ width: number; height: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, priceHeight: 0, groups: [] });
+  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [] });
   const chartRef = useRef<{ chart: IChartApi; candles: ISeriesApi<'Candlestick'>; rsi: ISeriesApi<'Line'> } | null>(null);
 
+  const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
+  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
+  const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
   const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
 
   useEffect(() => {
@@ -147,6 +159,8 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
     rsi.createPriceLine({ price: RSI_PARAMS.oversold, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
     chart.panes()[0]?.setStretchFactor(5);
     chart.panes()[1]?.setStretchFactor(1);
+    const attached = createChartBinding(chart, candles, host, () => ({ top: box.clientWidth < 640 ? .4 : .3, bottom: .12 }));
+    const readyFrame = requestAnimationFrame(() => setBinding(attached));
     chartRef.current = { chart, candles, rsi };
 
     const indexOf = new Map(view.bars.map((b, i) => [b.time, i]));
@@ -162,7 +176,8 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
 
     const lastBar = view.bars[view.bars.length - 1];
     const redraw = () => {
-      const width = box.clientWidth - chart.priceScale('right').width();
+      const left = chart.priceScale('left').width();
+      const width = box.clientWidth - left - chart.priceScale('right').width();
       const panes = chart.panes();
       const top = panes[0]?.getHeight() ?? 0;
       const rsiHeight = panes[1]?.getHeight() ?? 0;
@@ -184,12 +199,17 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
         text: (key, params) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params }),
         fmt: (n) => number(n, { maximumFractionDigits: 3 }),
       });
-      setOverlay({ width, height: top + rsiHeight, priceHeight: top, groups });
+      setOverlay({ width, left, height: top + rsiHeight, priceHeight: top, groups });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
+    let lastWidth = box.clientWidth;
     const observer = new ResizeObserver(() => {
-      reserveControls();
+      if (lastWidth !== box.clientWidth) {
+        lastWidth = box.clientWidth;
+        const settings = useChartWorkspaceStore.getState();
+        if (!(settings.preview ?? settings.appearance).marginsSet) reserveControls();
+      }
       if (wide !== (box.clientWidth >= 900)) {
         wide = box.clientWidth >= 900;
         frameCandidate();
@@ -197,10 +217,16 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
       redraw();
     });
     observer.observe(box);
-    const frame = requestAnimationFrame(() => requestAnimationFrame(redraw));
+    const pricePane = chart.panes()[0]?.getHTMLElement();
+    if (pricePane) observer.observe(pricePane);
+    let redrawFrame = 0;
+    const frame = requestAnimationFrame(() => { redrawFrame = requestAnimationFrame(redraw); });
     return () => {
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(redrawFrame);
       observer.disconnect();
+      cancelAnimationFrame(readyFrame);
+      attached.dispose?.();
       chart.remove();
       chartRef.current = null;
     };
@@ -208,33 +234,42 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
 
   useEffect(() => {
     if (!colors || !chartRef.current) return;
-    const { chart, candles, rsi } = chartRef.current;
-    chart.applyOptions({
-      layout: { textColor: colors.text },
-      grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
-      rightPriceScale: { borderColor: colors.border },
-      timeScale: { borderColor: colors.border },
-    });
-    candles.applyOptions({ upColor: colors.up, downColor: colors.down, wickUpColor: colors.up, wickDownColor: colors.down });
+    const { rsi } = chartRef.current;
     rsi.applyOptions({ color: colors.primary });
   }, [colors, view, hit]);
+
+  useEffect(() => {
+    if (!binding || binding.isDisposed() || !view) return;
+    const c = appearanceColors(appearance);
+    binding.candles.setData(view.bars.map((b, i) => {
+      if (!appearance.previous || !i) return { ...b, time: b.time as UTCTimestamp };
+      const up = b.close >= view.bars[i - 1].close;
+      let color = up ? c.up : c.down; if (!appearance.body) color = 'transparent';
+      return { ...b, time: b.time as UTCTimestamp, color, borderColor: up ? c.borderUp : c.borderDown, wickColor: up ? c.wickUp : c.wickDown };
+    }));
+    chartRef.current?.rsi.applyOptions({ visible: overlays.rsi });
+  }, [binding, view, appearance, overlays.rsi]);
 
   const activeSet = active ? new Set(active) : null;
   const finalName = FINAL_POINT[hit.form];
   return (
+    <ChartWorkspace context={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true }} overlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
+      { key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' },
+      { key: 'rsi', label: 'formation.legend.rsi', hint: 'cw.systemRsi.hint' },
+    ]} />} binding={binding} bars={view?.bars ?? []} missing={[]} timeframeSec={({ D1: 86400, H4: 14400, H1: 3600, M15: 900 }[hit.tf])} digits={digits} until={scanAt} overlayLayout className="absolute inset-0">
     <div
       ref={boxRef}
       data-testid="formation-chart"
       data-final-point={hit.candidate.points[finalName] ? 'done' : 'open'}
       className="absolute inset-0 isolate overflow-hidden bg-card"
     >
-      <div ref={hostRef} className="absolute inset-0" />
+      <div ref={hostRef} tabIndex={0} aria-label={t('cw.canvas')} className="absolute inset-0" />
       <svg
         data-testid="formation-overlay"
         className="absolute left-0 top-0 z-10 overflow-hidden"
         width={overlay.width}
         height={overlay.height}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: 'none', left: overlay.left, display: overlays.formations ? undefined : 'none' }}
         aria-hidden="true"
       >
         <defs>
@@ -261,5 +296,6 @@ export function FormationChart({ hit, context, scanAt, digits, active, onActive 
         ))}
       </svg>
     </div>
+    </ChartWorkspace>
   );
 }

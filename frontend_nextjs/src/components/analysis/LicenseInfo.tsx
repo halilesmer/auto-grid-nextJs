@@ -26,6 +26,8 @@ export function LicenseInfo() {
         <p className="whitespace-pre-line rounded-md border border-border bg-muted/50 p-2 font-mono text-[11px] text-foreground">
           {TRADINGVIEW_NOTICE}
         </p>
+        <p>{t('cw.drawingLicense')}</p>
+        <Tooltip content={t('cw.drawingLicenseLink.hint')}><a href="/licenses/lightweight-charts-drawing.txt" target="_blank" rel="noopener noreferrer" className="text-primary underline">{t('cw.drawingLicenseLink')}</a></Tooltip>
         <Tooltip content={t('analysis.license.link.hint')}>
           <a
             href="https://www.tradingview.com/"

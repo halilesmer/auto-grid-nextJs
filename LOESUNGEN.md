@@ -25,3 +25,14 @@
 - **Bedienung:** Host und Verbindungsstatus bleiben im geöffneten Menü sichtbar; Tooltip und zugänglicher Name nennen den Status.
 - **Prüfstatus:** Siehe [Projektjournal](docs/journal/2026-10-29-responsive-navigation-settings.md).
 - **Grenzen:** Die verfügbare Browserbreite entscheidet über die Ansicht, nicht die Geräteerkennung.
+
+## Gemeinsame Kurscharts und freie Symbolwahl
+
+- **Problem:** Die Analyse war an ein Setup gebunden; Zeichnen, Indikatoren und Darstellung hatten keinen gemeinsamen Zustand.
+- **Lösung:** `chart-workspace` verbindet die drei Kursansichten mit Lightweight Charts v5 und dem Drittanbieter `lightweight-charts-drawing` 0.6.2. Ohne Setup-Link öffnet die Analyse den freien Modus. Broker-Symbole werden über die vorhandene authentifizierte Symbolliste ausgewählt.
+- **Speicherung:** Darstellung und Vorlagen gelten browserweit. Zeichnungen und Indikatoren sind nach Datenquelle, Ansicht, Modus, Konto und Symbol getrennt; Backtests zusätzlich nach Ergebnis. Lokale Bilddaten liegen getrennt von den Dokument-Metadaten.
+- **Berechnung:** RSI verwendet Wilder-Glättung. EWO ist SMA(5) minus SMA(35), optional als Prozent des Schlusskurses. Datenlücken starten die Anlaufphase neu; bestätigte Marktpausen nicht. Höhere Zeitrahmen veröffentlichen bestätigte Werte erst am Ende ihrer Kerze.
+- **Replay:** Zukünftige Zeichnungsanker werden nur vorübergehend ausgeblendet. Die gespeicherte Sichtbarkeit bleibt erhalten.
+- **Lebensdauer:** Zeichnungsmanager und Indikatorserien werden vor `chart.remove()` über die gemeinsame Chart-Bindung freigegeben. Beim Formationswechsel lehnen nachlaufende Effekte bereits freigegebene Bindungen ab; geplante Neuzeichnungen werden abgebrochen. Kerzendaten für Zeichenwerkzeuge werden außerhalb der Mausereignisse vorbereitet.
+- **Grenzen:** Keine Pine-Ausführung, neuen Handelsaktionen, Alarmdienste oder Nachrichten. Volumenwerkzeuge fehlen mangels belastbarer Kerzenvolumina. Die Bibliothek ist kein offizielles TradingView Advanced Charts.
+- **Prüfstatus:** Typprüfung, ESLint und Produktionsbuild bestanden. Referenzberechnungen, freier Chart, Vorschau, Speicherung, Bildimport, Rückgängig und Formationswechsel wurden mit gemockten Brokerdaten geprüft. Laufprotokolle und Grenzen stehen im [Projektjournal](docs/journal/2026-10-30-chart-workspace.md).

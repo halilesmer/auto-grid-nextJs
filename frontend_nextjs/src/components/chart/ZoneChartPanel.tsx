@@ -36,6 +36,8 @@ import { brokerNow } from '@/lib/serverTime';
 import { cn } from '@/lib/utils';
 import { setupNumbers } from '@/lib/symbolSetups';
 import { useBotRuntimeStore, useSettingsStore, useWebSocketManager } from '@/store';
+import { useConnectionStore } from '@/store/useConnectionStore';
+import { workspaceKey } from '@/lib/chart-workspace/settings';
 import { useAnalysisPrefsStore, type AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
 import { useFormat, useT, type MessageKey } from '@/i18n';
@@ -214,8 +216,7 @@ function ChartFrame({ offsetSec, children }: { offsetSec: number | null; childre
 
   return (
     <div ref={frameRef} className="relative bg-card [&:fullscreen]:bg-background [&:fullscreen]:p-2" data-testid="analysis-chart-frame">
-      {children}
-      <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5" data-testid="chart-toolbar">
+      <div className="relative z-20 justify-end bg-card p-1 flex items-center gap-1.5" data-testid="chart-toolbar">
         {offsetSec !== null && (
           <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">
             {t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}
@@ -233,6 +234,7 @@ function ChartFrame({ offsetSec, children }: { offsetSec: number | null; childre
           {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
         </Button>
       </div>
+      {children}
     </div>
   );
 }
@@ -292,6 +294,7 @@ export default function ZoneChartPanel({
   prefs,
 }: ZoneChartPanelProps) {
   const t = useT();
+  const source = useConnectionStore(s => s.baseUrl);
   const index = zoneId && zones ? zones.findIndex((z) => z.id === zoneId) : -1;
   const zone = index >= 0 && zones ? zones[index] : null;
   const symbol = zone?.symbol?.toUpperCase().trim() || null;
@@ -657,6 +660,10 @@ export default function ZoneChartPanel({
             )}
             {chart && !isChartEmpty && (
               <ChartCore
+                key={`${accountId}|${symbol}`}
+                workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'setup', account: accountId, symbol: symbol ?? '' }), symbol: symbol ?? '', view: 'analysis' }}
+                workspaceOverlays={<AnalysisSettingsPanel inline />}
+                clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
                 data={chart}
                 timeframeSec={tfSec}
                 digits={data?.digits ?? null}

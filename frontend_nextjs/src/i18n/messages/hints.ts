@@ -1,10 +1,11 @@
 import { defineArea } from './define';
+import workspaceHints from './workspaceHints';
 
 // Erklärende Hinweise (Tooltips / (i)-Icons) zu jeder Einstellung, jedem Feld und jedem Button.
 // Regel (hooks/RULES.md §5): Schlüssel `<label-key>.hint`; Text sagt wozu, Einheit/Wirkung und bei
 // deaktivierten Elementen warum. `\n` bricht die Zeile um. Die Fakten stammen aus dem Worker
 // (grid_execution/levels.py, config.py, placement.py, grid_order_manager.py).
-export default defineArea(
+const existingHints = defineArea(
   {
     "backtest.presets.title.hint": "Kendi şablonlarınızı yükleyin, adlandırın, silin veya zone’a aktarın.",
     "backtest.presets.name.hint": "1–80 karakter; aynı adlı şablonlara izin verilir.",
@@ -1647,3 +1648,6 @@ export default defineArea(
     "spread.status.hint": "Aktueller Zustand des gespeicherten Schutzes. Daten älter als 60 Sekunden werden ausgeblendet. Eine manuelle Pause bleibt bestehen.",
   },
 );
+
+const hints = { tr: { ...existingHints.tr, ...workspaceHints.tr }, en: { ...existingHints.en, ...workspaceHints.en }, de: { ...existingHints.de, ...workspaceHints.de } };
+export default hints;

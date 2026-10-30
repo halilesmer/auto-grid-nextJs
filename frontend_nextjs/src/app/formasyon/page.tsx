@@ -101,7 +101,7 @@ function FormationView() {
       );
     }
     return hit && scan.context && scan.scanAt !== null ? (
-      <FormationChart hit={hit} context={scan.context} scanAt={scan.scanAt} digits={scan.digits} active={active} onActive={setActive} />
+      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} digits={scan.digits} active={active} onActive={setActive} />
     ) : (
       <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted-foreground" data-testid="formation-empty">
         {!scan.loading && t('formation.empty.chart', { form: formName, tf })}
