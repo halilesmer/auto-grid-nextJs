@@ -9,7 +9,7 @@ export const DEFAULT_FORMATION_TF: ContextTimeframe = 'H4';
 export const DEFAULT_FORMATION: ScanFormation = 'ABCD';
 
 /**
- * Zustand der Seite /formasyon in der URL (?account=&zone=&tf=&form=): Neuladen und geteilte Links zeigen
+ * Zustand der Seite /formasyon in der URL (?account=&symbol=&zone=&tf=&form=): Neuladen und geteilte Links zeigen
  * dieselbe Ansicht. Änderungen ersetzen den Verlaufseintrag (wie useAnalysisParams).
  */
 export function useFormationParams() {
@@ -19,6 +19,7 @@ export function useFormationParams() {
 
   const accountId = params.get('account') || null;
   const zoneId = params.get('zone') || null;
+  const symbol = params.get('symbol')?.trim() || null;
   const tfParam = params.get('tf');
   const formParam = params.get('form');
   const tf = (CONTEXT_TIMEFRAMES as readonly string[]).includes(tfParam ?? '') ? (tfParam as ContextTimeframe) : DEFAULT_FORMATION_TF;
@@ -46,8 +47,9 @@ export function useFormationParams() {
     [current, pathname, router],
   );
 
-  const setAccount = useCallback((value: string) => update({ account: value, zone: null }), [update]);
-  const setZone = useCallback((value: string | null) => update({ zone: value }), [update]);
+  // Symbolnamen gelten je Broker (XAUUSD, XAUUSD.m): ein neues Konto beginnt wieder mit seinem ersten Setup
+  const setAccount = useCallback((value: string) => update({ account: value, zone: null, symbol: null }), [update]);
+  const setSymbol = useCallback((value: string) => update({ symbol: value, zone: null }), [update]);
   const setView = useCallback(
     (next: { tf?: ContextTimeframe; form?: ScanFormation }) =>
       update({
@@ -57,5 +59,5 @@ export function useFormationParams() {
     [update],
   );
 
-  return { accountId, zoneId, tf, form, setAccount, setZone, setView };
+  return { accountId, zoneId, symbol, tf, form, setAccount, setSymbol, setView };
 }

@@ -1,46 +1,63 @@
 'use client';
 
+import { useState } from 'react';
+
 import { AccountOption, filterAccount, getAccountKey } from '@/components/account/components';
 import type { Account } from '@/components/account/types';
-import { useZoneOptions, zonePlaceholderKey } from '@/components/analysis/ZoneSelect';
+import SymbolAutoComplete from '@/components/SymbolAutoComplete';
 import { Combobox } from '@/components/ui/combobox';
-import { Tooltip } from '@/components/ui/tooltip';
+import { InfoHint, Tooltip } from '@/components/ui/tooltip';
+import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
-import type { ZoneSettings } from '@/store/types';
 
 // Das Eingabefeld-Aussehen von .input-s wird für die flachen Leisten-Knöpfe bewusst überschrieben.
 const flatTrigger = 'h-[30px]! min-h-0! border-0! bg-transparent! px-2! text-xs! shadow-none! hover:bg-accent!';
 const popup = 'min-w-60 [&_input]:text-xs [&_li]:text-xs';
 
-/** Symbol und Setup als Pille in der Kopfleiste. */
-export function FormationZoneSelect({ zones, value, onChange }: {
-  zones: ZoneSettings[] | null;
+/** Freie Produktsuche als Pille in der Kopfleiste: Name oder Beschreibung, unabhängig von den Setups des Kontos. */
+export function FormationSymbolSelect({ accountId, value, onChange }: {
+  accountId: string | null;
   value: string | null;
-  onChange: (zoneId: string) => void;
+  onChange: (symbol: string) => void;
 }) {
   const t = useT();
-  const { items, label } = useZoneOptions(zones);
+  const details = useSymbolDetails(accountId);
+  // SymbolAutoComplete hält den Text selbst: ein neuer Key stellt nach abgebrochener Eingabe das Produkt wieder her
+  const [revision, setRevision] = useState(0);
+
+  const commit = (text: string) => {
+    const found = details[text.toUpperCase()];
+    // Setup-Symbole sind großgeschrieben, die Liste nennt den Brokernamen (EURUSDm): gleiches Produkt, keine neue Suche
+    const isNewProduct = found && found.name.toUpperCase() !== value?.toUpperCase();
+    if (isNewProduct) onChange(found.name);
+    else setRevision((n) => n + 1);
+  };
+
   return (
-    <Tooltip content={t('analysis.zone.hint')} className="min-w-0 flex-1 lg:w-44 lg:flex-none">
-      <div className="min-w-0 w-full" data-testid="zone-select">
-        <Combobox
-          items={items}
-          value={value}
-          onChange={onChange}
-          getKey={(item) => item.zone.id}
-          getLabel={label}
-          filter={(item, q) => label(item).toLowerCase().includes(q)}
-          placeholder={t(zonePlaceholderKey(zones))}
-          searchPlaceholder={t('analysis.zone.search')}
-          emptyMessage={t('analysis.zone.empty')}
-          disabled={zones === null || zones.length === 0}
-          className={cn(flatTrigger, 'rounded-full! bg-accent! px-3! font-semibold')}
-          popupClassName={popup}
-          aria-label={t('analysis.zone')}
+    <div className="flex min-w-0 flex-1 items-center gap-1 lg:w-44 lg:flex-none">
+      {/* Der Hinweis sitzt am (i): ein Tooltip am Eingabefeld läge beim Tippen über der Liste */}
+      <div
+        className="min-w-0 flex-1 [&_[data-slot=autocomplete-content]]:right-auto [&_[data-slot=autocomplete-content]]:min-w-60 [&_li]:text-xs"
+        data-tooltip-exempt
+        data-testid="formation-symbol"
+        // Tippen ersetzt das Produkt, statt an den alten Namen anzuhängen
+        onFocus={(e) => e.target instanceof HTMLInputElement && e.target.select()}
+      >
+        <SymbolAutoComplete
+          key={`${value}:${revision}`}
+          value={value ?? ''}
+          // Übernommen wird nur ein Name aus der Liste (commit), nicht jeder Tastendruck
+          onChange={() => {}}
+          onCommit={commit}
+          symbolDetails={details}
+          preserveCase
+          className={cn(flatTrigger, 'rounded-full! bg-accent! px-3!')}
+          aria-label={t('formation.symbol')}
         />
       </div>
-    </Tooltip>
+      <InfoHint hint={t('formation.symbol.hint')} />
+    </div>
   );
 }
 
