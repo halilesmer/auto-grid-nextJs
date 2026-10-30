@@ -736,7 +736,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Referenzwerte und Datenlücken prüfen; mehrere Instanzen anlegen; Parameter nach Neuladen prüfen.
   - **Erwartet:** Berechnungen stimmen mit unabhängigen Referenzen überein; Instanzen bleiben je Konto und Symbol getrennt.
 - [x] **ANA-19** Gemeinsame Chart-Einstellungen mit Vorschau und Vorlagen — 🖥️ e2e ✅ 2026-10-30
-  - Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar. Auf /chart werden zurückgesetzte Darstellung und sichtbarer Balkenbereich je Chart-Kontext gespeichert und wiederhergestellt.
+  - Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar: links Bereiche, rechts gruppierte Zeilen mit Häkchen, Farbfeldern und Auswahl, unten das Vorlagenmenü mit Speichern und Zurücksetzen. Auf /chart werden zurückgesetzte Darstellung und sichtbarer Balkenbereich je Chart-Kontext gespeichert und wiederhergestellt.
   - **Prüfung:** Vorschau abbrechen; Darstellung zurücksetzen und anwenden; Zeitbereich zurücksetzen; Symbol wechseln und zurückkehren; nach Neuladen prüfen.
   - **Erwartet:** Abbrechen stellt den Ausgangszustand wieder her; Darstellung und Zeitbereich bleiben pro Chart-Kontext nach Wechsel und Neuladen gespeichert.
 - [x] **ANA-20** Oszillatorbereiche und Indikatormenüs — 🖥️ e2e ✅ 2026-10-30

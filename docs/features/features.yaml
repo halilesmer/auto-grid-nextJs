@@ -1508,8 +1508,8 @@ kategorien:
 
       - id: ANA-19
         titel: Gemeinsame Chart-Einstellungen mit Vorschau und Vorlagen
-        beschreibung: "Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar. Auf /chart werden zurückgesetzte Darstellung und sichtbarer Balkenbereich je Chart-Kontext gespeichert und wiederhergestellt."
-        code: [frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/SettingsDialog.tsx, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        beschreibung: "Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar: links Bereiche, rechts gruppierte Zeilen mit Häkchen, Farbfeldern und Auswahl, unten das Vorlagenmenü mit Speichern und Zurücksetzen. Auf /chart werden zurückgesetzte Darstellung und sichtbarer Balkenbereich je Chart-Kontext gespeichert und wiederhergestellt."
+        code: [frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/SettingsDialog.tsx, frontend_nextjs/src/components/ui/checkbox.tsx, frontend_nextjs/src/lib/chart-workspace/settings.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
         tiers: [e2e]
         pruefung: [Vorschau abbrechen; Darstellung zurücksetzen und anwenden; Zeitbereich zurücksetzen; Symbol wechseln und zurückkehren; nach Neuladen prüfen.]
         erwartet: Abbrechen stellt den Ausgangszustand wieder her; Darstellung und Zeitbereich bleiben pro Chart-Kontext nach Wechsel und Neuladen gespeichert.

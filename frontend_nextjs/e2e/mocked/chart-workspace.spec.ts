@@ -21,14 +21,14 @@ test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, asy
   await page.getByTestId('workspace-settings').click();
   const modal = page.getByTestId('chart-workspace-settings');
   await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
-  const toggle = modal.getByRole('switch', { name: msg('cw.names') });
+  const toggle = modal.getByRole('checkbox', { name: msg('cw.names') });
   await toggle.click();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
   await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('EWO');
   await page.getByTestId('workspace-settings').click();
   await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
-  await modal.getByRole('switch', { name: msg('cw.names') }).click();
+  await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
@@ -58,6 +58,29 @@ test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '
   }, key)).toBe('#123456');
 });
 
+test('Vorlagenmenü speichert eine Vorlage, setzt zurück und lädt sie wieder', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.getByTestId('workspace-settings').click();
+  const modal = page.getByTestId('chart-workspace-settings');
+  await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
+  const names = modal.getByRole('checkbox', { name: msg('cw.names') });
+  const menu = modal.getByRole('button', { name: msg('cw.template'), exact: true });
+  await names.click();
+  await expect(names).not.toBeChecked();
+  await menu.click();
+  const templateName = modal.getByRole('textbox', { name: msg('cw.templateName') });
+  await templateName.fill('Ohne Namen');
+  await templateName.press('Home');
+  await expect(templateName).toBeFocused();
+  await modal.getByRole('button', { name: msg('cw.saveTemplate'), exact: true }).click();
+  await modal.getByRole('button', { name: msg('cw.reset'), exact: true }).click();
+  await expect(names).toBeChecked();
+  await menu.click();
+  await modal.getByRole('button', { name: 'Ohne Namen', exact: true }).click();
+  await expect(names).not.toBeChecked();
+});
+
 test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
   const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=7d`;
@@ -77,6 +100,7 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   await page.getByLabel(msg('cw.background'), { exact: true }).fill('#123456');
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
   await page.getByTestId('workspace-settings').click();
+  await page.getByRole('dialog').getByRole('button', { name: msg('cw.template'), exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.reset'), exact: true }).click();
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
   await expect.poll(async () => (await readDocument(eurKey!))?.appearance?.background).toBe('');
