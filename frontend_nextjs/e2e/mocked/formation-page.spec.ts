@@ -369,7 +369,7 @@ test.describe('FRM-24 bewegliche Bedingungen', () => {
     await page.screenshot({ path: test.info().outputPath('formation-details-dragged.png') });
     await dragTo(-1000, -1000);
     await expect.poll(async () => (await panel.boundingBox())!.x).toBeGreaterThanOrEqual(59);
-    await expect.poll(async () => (await panel.boundingBox())!.y).toBeGreaterThanOrEqual(127);
+    await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(56, 0);
     const left = (await panel.boundingBox())!.x;
     await handle.focus();
     await handle.press('ArrowRight');
@@ -388,6 +388,21 @@ test.describe('FRM-24 bewegliche Bedingungen', () => {
     await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.x + box.width; }).toBeLessThanOrEqual(312);
     await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(749);
     await expect(handle).toBeInViewport();
+  });
+
+  test('Kopfgriff-Karte: kein Text ist größer als 12 px', { tag: '@FRM-24' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect(page.getByTestId('formation-checklist')).toBeVisible();
+    const sizes = await page.getByTestId('formation-details').evaluate((card) => {
+      const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+      const found = new Set<number>();
+      while (walker.nextNode()) {
+        const parent = walker.currentNode.parentElement;
+        if (parent && walker.currentNode.textContent?.trim()) found.add(parseFloat(getComputedStyle(parent).fontSize));
+      }
+      return [...found];
+    });
+    expect(sizes.filter((size) => size > 12)).toEqual([]);
   });
 
   test('Touch zieht nur am Kopfgriff, der Inhalt bleibt separat scrollbar', { tag: '@FRM-24' }, async ({ page, worker }) => {

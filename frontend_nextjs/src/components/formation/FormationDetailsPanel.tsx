@@ -38,7 +38,7 @@ export function FormationDetailsPanel({ title, open, onToggle, children }: {
 
   return (
     <>
-      <div ref={bounds} className="pointer-events-none absolute bottom-16 left-[60px] right-16 top-18" aria-hidden="true" />
+      <div ref={bounds} className="pointer-events-none absolute bottom-16 left-[60px] right-16 top-18 lg:top-0" aria-hidden="true" />
       <motion.aside
         ref={panel}
         drag

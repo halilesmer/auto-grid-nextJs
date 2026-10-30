@@ -78,10 +78,10 @@ export function FormationChecklist({
     <div data-testid="formation-checklist">
       <div className="flex flex-col gap-2 px-3 pb-2 pt-3">
         <div className="flex flex-wrap items-center gap-2">
-          <strong className="text-[15px]">{title}</strong>
+          <strong className="text-xs">{title}</strong>
           <VerdictPill verdict={candidate.verdict} />
         </div>
-        <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[13px]">
+        <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-xs">
           <span data-testid="score-required">
             {t('formation.score.required')} <b className="tabular-nums">{requiredMet}/{required.length}</b>
             {requiredUnmeasurable > 0 && <span className="text-muted-foreground"> ({t('formation.score.unmeasurable', { n: requiredUnmeasurable })})</span>}
@@ -125,7 +125,7 @@ export function FormationChecklist({
                 >
                   <StateIcon state={state} />
                   <span className="min-w-0">
-                    <span className={cn('block text-sm', state === 'unmeasurable' && 'text-muted-foreground')}>
+                    <span className={cn('block text-xs', state === 'unmeasurable' && 'text-muted-foreground')}>
                       {ruleText(locale, c.id) ?? c.id}
                       {c.status !== 'confirmed' && (
                         <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
