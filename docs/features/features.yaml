@@ -1491,11 +1491,11 @@ kategorien:
         erwartet: Der Chart lädt authentifizierte Kursdaten und stellt denselben Symbolkontext wieder her.
 
       - id: ANA-17
-        titel: Gemeinsame Zeichenwerkzeuge und Objektbearbeitung
-        beschreibung: "Lightweight Charts v5 und lightweight-charts-drawing 0.6.2 verwenden Preis- und Brokerzeitanker. Zeichnungen, Eigenschaften und Verlauf bleiben vom jeweiligen Symbolkontext getrennt. Volumenwerkzeuge sind ausgeschlossen."
-        code: [frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/lib/chart-workspace/replayDrawings.ts]
+        titel: Senkrechte Zeichenwerkzeuge und verknüpfte Charts
+        beschreibung: "Lightweight Charts v5 und lightweight-charts-drawing 0.6.2 verwenden Preis- und Brokerzeitanker. Die 52-px-Leiste bietet Werkzeuggruppen, Favoriten, Cursor, Messung, Bereichszoom, Magnet, Sperre, Sichtbarkeit und bestätigtes Löschen. Verknüpfung teilt Zeichnungen und lokale Bilder nur bei gleicher Quelle, gleichem Konto und exaktem Symbol; private Bestände bleiben erhalten. Volumenwerkzeuge sind ausgeschlossen."
+        code: [frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/DrawingToolbar.tsx, frontend_nextjs/src/components/chart-workspace/ChartGestureLayer.tsx, frontend_nextjs/src/lib/chart-workspace/linkedDrawings.ts, frontend_nextjs/src/lib/chart-workspace/replayDrawings.ts]
         tiers: [e2e]
-        pruefung: [Linie zeichnen; rückgängig machen; wiederholen; Breite ändern; neu laden.]
+        pruefung: [Gruppenauswahl und Favoriten; Messung und Zoom; Magnet und Sperren; Sichtbarkeit; bestätigtes Löschen und Rückgängig; Zusammenführen und Trennen in Ansichten und Tabs; Bilder und Neuladen; Desktop und 375px in beiden Designs und Vollbild.]
         erwartet: Zeichenaktionen und Objektbearbeitung funktionieren und werden lokal gespeichert.
 
       - id: ANA-18
@@ -1874,7 +1874,7 @@ kategorien:
 
       - id: FRM-22
         titel: "Seite Formasyon: schmale Ansicht, Sprachen und Hinweise"
-        beschreibung: "Bei 375 px liegt das einklappbare Fenster mit Liste und Checkliste unten innerhalb des seitenfüllenden Charts. Es scrollt unabhängig; die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts)."
+        beschreibung: "Bei 375 px liegt das einklappbare Fenster mit Liste und Checkliste unten innerhalb des seitenfüllenden Charts rechts neben der 52 px breiten Werkzeugleiste. Es scrollt unabhängig; die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts)."
         code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/i18n/messages/formation.ts, frontend_nextjs/src/i18n/messages/hints.ts]
         tiers: [e2e]
         pruefung:
@@ -1883,7 +1883,7 @@ kategorien:
 
       - id: FRM-23
         titel: "Seite Formasyon: seitenfüllender Chart mit Bedienelementen"
-        beschreibung: "Der Chart füllt dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Unter 1024 px schwebt die kompakte Navigation im Chart; ab 1024 px stehen die vollständigen Seitenlinks in der normalen 56 px hohen Kopfzeile und der Chart füllt den Bereich darunter. Konto- und Setup-Auswahl, Filter und Legende schweben innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt mobil im Menü und am Desktop direkt erreichbar, Preisachse und Attribution bleiben frei."
+        beschreibung: "Chart und linke 52 px breite Werkzeugleiste füllen dauerhaft den sichtbaren Seitenbereich ohne Minimieren-Funktion. Unter 1024 px schwebt die kompakte Navigation im Chart; ab 1024 px stehen die vollständigen Seitenlinks in der normalen 56 px hohen Kopfzeile und der Chart füllt den Bereich darunter. Konto- und Setup-Auswahl, Filter und Legende schweben innerhalb der Chart-Fläche. Kandidaten und unveränderte Bedingungen stehen rechts in einem einklappbaren Fenster mit eigener Scrollfläche; unter 900 px steht es unten. Die Navigation bleibt mobil im Menü und am Desktop direkt erreichbar, Preisachse und Attribution bleiben frei."
         code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/layout/AppNav.tsx]
         tiers: [e2e]
         pruefung:
@@ -1892,7 +1892,7 @@ kategorien:
 
       - id: FRM-24
         titel: "Seite Formasyon: Bedingungen verschieben"
-        beschreibung: "Die Kopfzeile der Bedingungskarte ist ein Griff für Maus und Touch. Die Karte lässt sich frei innerhalb der sichtbaren Chart-Fläche verschieben; Navigation, Preisachse und Attribution bleiben erreichbar. Pfeiltasten verschieben um 10 Pixel, Umschalt mit Pfeil um 50 Pixel. Scrollen und Einklappen bleiben getrennt vom Ziehen. Aufklappen und Größenänderungen halten die Karte innerhalb der Grenzen. Die Position gilt bis zum Verlassen oder Neuladen der Seite."
+        beschreibung: "Die Kopfzeile der Bedingungskarte ist ein Griff für Maus und Touch. Die Karte lässt sich frei innerhalb der sichtbaren Chart-Fläche verschieben; Navigation, linke Werkzeugleiste, Preisachse und Attribution bleiben erreichbar. Pfeiltasten verschieben um 10 Pixel, Umschalt mit Pfeil um 50 Pixel. Scrollen und Einklappen bleiben getrennt vom Ziehen. Aufklappen und Größenänderungen halten die Karte innerhalb der Grenzen. Die Position gilt bis zum Verlassen oder Neuladen der Seite."
         code: [frontend_nextjs/src/components/formation/FormationDetailsPanel.tsx, frontend_nextjs/src/app/formasyon/page.tsx]
         tiers: [e2e]
         pruefung:

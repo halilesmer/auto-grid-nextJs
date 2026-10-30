@@ -55,7 +55,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     {symbol && ready && !isLoading && !accepted && <Alert tone="warning" title={t('cw.invalidSymbol')} />}
     {rates.error && <Alert tone="danger" title={rates.error} />}
     {rates.data && data && <DataQualityBanner missing={data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} />}
-    {data && accepted && <ChartCore key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free' }}
+    {data && accepted && <ChartCore key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
       workspaceOverlays={<div className="space-y-3"><Switch label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={prefs.showPauses} onChange={v => prefs.setPref('showPauses', v)} /><Switch label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={prefs.showGaps} onChange={v => prefs.setPref('showGaps', v)} /></div>}
       data={data} timeframeSec={TIMEFRAME_SEC[timeframe]} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
       band={null} lines={[]} markers={[]} showPauses={prefs.showPauses} showGaps={prefs.showGaps} showRsi live={live} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()} />}

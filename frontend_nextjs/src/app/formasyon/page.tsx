@@ -115,7 +115,7 @@ function FormationView() {
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
-      <div className="pointer-events-none absolute left-3 right-3 top-20 z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-3">
+      <div className="pointer-events-none absolute left-[64px] right-3 top-20 z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-3">
         <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 p-2 shadow-lg backdrop-blur-md" data-testid="formation-selectors">
           <AccountDropdown
             accounts={accounts}
@@ -175,7 +175,7 @@ function FormationView() {
         )}
       </FormationDetailsPanel>
       {hit && (
-        <ul className="pointer-events-none absolute bottom-[20%] left-3 right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex" data-testid="formation-legend">
+        <ul className="pointer-events-none absolute bottom-[20%] left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex" data-testid="formation-legend">
           <li>{t('formation.legend.zigzag', { points: Object.keys(hit.candidate.points).join('–') })}</li>
           <li>{t('formation.legend.ratio')}</li>
           <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>

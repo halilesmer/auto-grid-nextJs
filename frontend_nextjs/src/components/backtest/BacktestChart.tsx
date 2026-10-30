@@ -248,7 +248,7 @@ export function BacktestChart({
               </div>
               <ChartCore
                 key={contextKey}
-                workspace={{ key: contextKey, symbol: context.params.symbol.name, view: 'backtest' }}
+                workspace={{ key: contextKey, symbol: context.params.symbol.name, view: 'backtest', syncIdentity: { source: context.params.source ?? source, account: context.params.accountId, symbol: context.params.symbol.name } }}
                 workspaceOverlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
                   { key: 'zones', label: 'analysis.settings.zoneLines', hint: 'analysis.settings.zoneLines.hint' },
                   { key: 'levels', label: 'analysis.settings.levels', hint: 'analysis.settings.levels.hint' },

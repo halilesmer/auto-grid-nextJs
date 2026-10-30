@@ -72,7 +72,7 @@ OHLC und Kerzenänderung werden in der Formationsansicht nicht angeboten, solang
 
 ## Speicherung und Bedienung
 
-Darstellung, Werkzeugpräferenzen und Vorlagen gelten browserweit. Zeichnungen und Indikatorinstanzen sind nach Datenquelle, Ansicht, Modus, Konto und tatsächlichem Symbol getrennt. Backtests verwenden zusätzlich eine stabile Identität ihrer Eingaben und Ergebnisse. Zeitrahmenwechsel erhalten Preis- und Brokerzeitanker. Replay blendet spätere Anker vorübergehend aus, ohne gespeicherte Sichtbarkeitsflags zu überschreiben.
+Darstellung, Favoriten und Vorlagen gelten browserweit. Gruppenauswahl, Cursor, letzte Magnetstärke, globale Sperre und Indikatorsichtbarkeit werden je Chartkontext gespeichert. Zeichnungen und Indikatorinstanzen sind nach Datenquelle, Ansicht, Modus, Konto und tatsächlichem Symbol getrennt. Backtests verwenden zusätzlich eine stabile Identität ihrer Eingaben und Ergebnisse. Zeitrahmenwechsel erhalten Preis- und Brokerzeitanker. Replay blendet spätere Anker vorübergehend aus, ohne gespeicherte Sichtbarkeitsflags zu überschreiben.
 
 „Abbrechen“ stellt Darstellung und Anzeige-Schalter wieder her. „Übernehmen“ speichert die Vorschau. Während einer Vorschau schreibt die Speicherung weiterhin den vorherigen Stand der Anzeige-Schalter. Ein hartes Neuladen übernimmt keine unbestätigten Schalter. Speicherfehler werden angezeigt; die laufende Sitzung bleibt bedienbar. Bilddaten liegen lokal getrennt von den Dokument-Metadaten.
 
@@ -81,3 +81,31 @@ Die Vorlagen **Auto Grid** und **Klassisch dunkel** können verändert und unter
 Zeichnungen lassen sich auswählen, ziehen, bearbeiten, benennen, duplizieren, sperren, ausblenden und löschen. Objektliste und Verlauf gehören zum jeweiligen Chart. Strg/Cmd+Z und Strg/Cmd+Umschalt+Z gelten im fokussierten Chart; Eingabefelder sind ausgenommen. Text, Tabellenzellen und lokale PNG/JPEG/WebP-Bilder haben eigene Eingaben. Der Bildimport ist auf 2 MB und 2000 Pixel je Seite begrenzt.
 
 Keine neuen Handelsaktionen, Alarmdienste, Nachrichten, Wirtschaftstermine oder Pine-Ausführung. Volumenwerkzeuge bleiben ausgeschlossen. Brokerzeit, Datenqualitätswarnungen und Lizenzhinweise sind verbindlich.
+
+
+## Senkrechte Werkzeugleiste
+
+Die gemeinsame Leiste bleibt links am Chart, auch auf schmalen Bildschirmen. Sie ist 52 px breit und verwendet 40 px große Hauptschaltflächen. Bei geringer Höhe scrollt der Werkzeugbereich; der Favoritenstern bleibt unten erreichbar. Seitliche Menüs liegen im obersten Browser-Layer. Tab, Enter, Pfeiltasten und Escape bedienen die Menüs.
+
+| Bereich | Bedienung |
+|---|---|
+| Cursor | Fadenkreuz, Punkt oder Pfeil; die Zeichnungsauswahl bleibt möglich. |
+| Werkzeuggruppen | Hauptsymbol aktiviert das zuletzt verwendete Werkzeug; der kleine Pfeil öffnet alle vorhandenen Werkzeuge. |
+| Favoriten | Sterne in den Werkzeuglisten verwalten die kompakte Leiste mit Werkzeugsymbolen. |
+| Messen | Im Hauptchart ziehen; Preisänderung, Prozentänderung und Kerzenabstand erscheinen vorübergehend. Escape entfernt die Messung. |
+| Bereichszoom | Rechteck im Hauptchart ziehen; anschließend wieder Auswahl. Das Menü stellt den vorherigen Zeit- und Preisbereich wieder her. |
+| Magnet | Hauptschalter wechselt zwischen Aus und zuletzt gewählter Stärke. Das Menü wählt Aus, Schwach oder Stark. |
+| Weiterzeichnen | Das Werkzeug bleibt nach einer fertigen Zeichnung aktiv. |
+| Globale Sperre | Verhindert Verschieben, Bearbeiten, Zeichnungslöschen und Verlaufänderungen. Ursprüngliche Objektsperren bleiben beim Entsperren erhalten. |
+| Sichtbarkeit | Zeichnungen und eigene Indikatoren einzeln oder gemeinsam zeigen und verbergen. Systemindikatoren bleiben unabhängig. |
+| Papierkorb | Eine ausgewählte ungesperrte Zeichnung direkt löschen; mehrere ausgewählte Zeichnungen, alle ungesperrten Zeichnungen oder eigene Indikatoren nach Bestätigung entfernen. Zeichnungslöschungen sind rückgängig machbar. |
+
+## Zeichnungen in diesem Browser verknüpfen
+
+Die Kette ist standardmäßig aus und wird je Chartkontext gespeichert. Analyse, Formationen und Backtest verwenden beim Verknüpfen dieselbe Identität aus Datenquelle, Konto und exaktem Symbolnamen. CSV-Importe haben eine eigene Datenquelle.
+
+Beim Aktivieren werden die privaten Zeichnungen zum gemeinsamen Bestand hinzugefügt. Identische Objekt-IDs mit identischem Inhalt erscheinen einmal. Unterschiedliche Inhalte mit gleicher ID bleiben als getrennte Objekte erhalten. Lokale Bilddaten gehören zum gemeinsamen Bestand und werden vor dem Import über den lokalen Bildleser bereitgestellt.
+
+Der private Ausgangsbestand bleibt gespeichert. Beim Trennen erscheint dieser private Bestand wieder. Änderungen im gemeinsamen Bestand werden beim Trennen nicht in den privaten Bestand kopiert. Indikatoren, Handelsmarkierungen und Chartdarstellung gehören nicht zur Verknüpfung. Replay blendet zukünftige Zeichnungen weiterhin nur vorübergehend aus.
+
+Änderungen erreichen andere Tabs über Browser-Speicherereignisse. Die Web Locks API serialisiert das Zusammenführen und Speichern. Fremde Ergänzungen bleiben bei lokalen Zeichenaktionen erhalten. Ohne Web Locks funktioniert die lokale Speicherung weiterhin; gleichzeitige Schreibaktionen mehrerer Tabs sind dann nicht vollständig serialisiert. Es gibt keine Geräte- oder Backend-Synchronisierung.
