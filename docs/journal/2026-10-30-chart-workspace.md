@@ -2,7 +2,7 @@
 date: 2026-10-30
 author: Codex
 type: feature
-status: open
+status: done
 pr: [241]
 features: [ANA-16, ANA-17, ANA-18, ANA-19]
 areas: [frontend, tests, docs]
@@ -48,6 +48,8 @@ Confirmed higher timeframe values appear at their last constituent candle, after
 | Full mocked browser run | 1,534 passed. One tooltip assertion matched the new translated tool options as well as the intended field. Its locator now uses exact text. |
 | Final affected browser run | `E2E_PORT=3325 scripts/features/run.sh e2e 'ANA\|@UI-07\|@BKT-07\|@FRM-2'`: 147 passed in 1.6 minutes on the final production build. Includes the added formation switching and image checks. |
 | Feature catalog | `scripts/features/run.sh check`: 190 features valid. Generated report: 186/190 checked, no failed feature. Remaining checks require separate live/manual verification. |
+| GitHub verification | The complete worker, catalog and frontend jobs are recorded per revision in [PR #241 checks](https://github.com/halilesmer/auto-grid-nextJs/pull/241/checks). This is the publication check record. |
+| Hosted preview | Vercel reports a successful deployment. An independent HTTPS request reaches Vercel authentication; public page-content verification is blocked by preview protection. No protection setting was changed. |
 | Test server isolation | One early manual server start inherited the local SSH setting. Later starts explicitly cleared `VPS_SSH_HOST`; no trading test ran. |
 | Preview persistence | Appearance and overlay transactions keep their previous persisted state until Apply. Focused reload check added. |
 | Formation switching | A new regression test reproduced `Value is null` after the parent removed the previous chart. Bindings now expose disposal state, effects reject obsolete bindings, and both scheduled redraw frames are cancelled. The final 14 drawing/formation checks passed. |
@@ -83,7 +85,7 @@ Confirmed higher timeframe values appear at their last constituent candle, after
 - [x] Run the full mocked suite and repair the identified regressions.
 - [x] Review responsive screenshots, persistence boundaries and the final diff against `hooks/RULES.md` section 9.
 - [x] Open PR #241 to `main`.
-- [ ] Record the final GitHub checks and preview verification.
+- [x] Link the per-revision GitHub checks and record the protected preview verification boundary.
 
 ## Lessons
 Keep chart cleanup explicit. The parent can remove its chart before child effects release series and drawing subscriptions.
