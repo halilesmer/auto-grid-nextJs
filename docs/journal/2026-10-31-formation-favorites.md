@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [254]
 features: [FRM-28]
 areas: [worker, frontend, tests]
 ---
@@ -37,4 +37,8 @@ areas: [worker, frontend, tests]
 
 ## Checks
 - Visual check of the pill, the product search and the flag at 1280 px and 375 px, in the dark and the light theme. A set flag is filled in `primary`, an unset flag is a thin grey outline; both are readable in both themes. No defect found.
-- Open: Tab out of the flag does not restore the product and leaves the list open. An admin can write favorites for an account id that does not exist.
+- DEMO account on the real worker (v0.7.301): set and remove a flag, 10 favorites stay after a reload. Passed.
+
+## Open points
+- [ ] Tab out of the flag does not restore the product and leaves the list open.
+- [ ] An admin can write favorites for an account id that does not exist.

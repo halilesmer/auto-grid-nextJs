@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [257]
 features: [FRM-29]
 areas: [worker, frontend, tests]
 ---
@@ -37,10 +37,21 @@ areas: [worker, frontend, tests]
 ## Checks
 - Playwright mocked: 10 tests `@FRM-29` in `formation-page.spec.ts`, 5 in `formation-favorites-lib.spec.ts`. API: 7 tests in `test_quotes_api.py`.
 - Visual check of the mocked page at 1280 px and 375 px, side bar open and closed.
-- Not verified: the worker route on a real terminal (runs after the VPS pulls and restarts). Open on DEMO: run time with about 10 favorites, formations against the chart, old `valid` patterns without recency, whether weekend gaps make every product incomplete, quotes and previous close.
+- DEMO account on the real worker (v0.7.301), Saturday, 10 favorites. All points passed:
+  - The side bar opens and closes. Timeframes and formations exist once, camera and bell stay in the top bar.
+  - A timeframe click sends no new candle request (63 API calls before and after). A formation click filters the table. A row click opens product, formation and timeframe.
+  - 4 of 4 sampled hits agree with the chart and sit at the right edge. Recency was checked by eye, not against candle times.
+  - One run takes about 4 s for 40 candle requests. `data-favorites-scan-ms` shows 2026. The page stays usable (observed, not measured).
+  - `quotes` runs every 60 s in 61 to 171 ms and overlapped no candle request. Runs with more than 10 favorites are not measured.
+  - No product is incomplete at the weekend. `missing` is empty for all 10.
+  - `Zuletzt`, `Änd` and the previous close of 2 products agree with the D1 candles.
 - Known limit: a second tab shows results only after the searching tab has sent them. A new tab asks for a snapshot when it opens.
 - Review findings fixed in the same PR, each with a test that was red first:
   - The favorites list is loaded again every 10 s after a failed first request. The message shows once.
   - The side bar pushes the chart only from 1280 px. Below, it lies under the top bar, so the chart tools stay free. At 1024 px the tools sat under the side bar before.
   - The "prices failed" note belongs to the account. It vanishes when the account changes.
-- Measuring point for the DEMO test, not a defect: `quotes` asks up to 200 symbols under the MT5 lock. Measure the run time with about 10 and with more favorites. If it blocks candle requests, ask in blocks.
+- `quotes` asks up to 200 symbols under the MT5 lock. If a longer list blocks candle requests, ask in blocks.
+
+## Open points
+- [ ] After a reload the account selector can show no account although `?account=` is in the address. Seen once in the DEMO test, not examined.
+- [ ] The worker stayed on v0.7.289 for about 12 h, because the auto update pulled nothing. The manual update worked. A separate session examines the cause.
