@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: decision
 status: done
-pr: [256]
+pr: [256, 258]
 features: []
 areas: [tooling]
 ---
@@ -30,6 +30,20 @@ The command uses `--auto`, because the ruleset "main: CI muss grün sein" holds 
 The `deny` entry is necessary, because the ruleset lets admins bypass it (`bypass_mode: always`). Without `--auto`, a merge with `--admin` can go past a failed check.
 
 Rejected: a global rule in `~/.claude/rules/`. Other repositories can have no required checks. There, `--auto` gives no protection.
+
+## Follow-up: no "weiter" after the merge command
+The owner does not want to write "weiter" so that a session examines the PR. `--auto` already makes GitHub do the readiness check. The missing part was the way back to the session.
+
+| Case | Who acts |
+|---|---|
+| Required checks pass | GitHub merges. The app gives no event, so the DEMO test points go in the same turn as the merge command. The next turn or session updates `main`. |
+| A check fails, a conflict occurs, or a review comment arrives | The CI monitor of the app wakes the session. The session removes the cause and pushes. |
+
+Rejected: polling with `gh pr checks --watch`, `ScheduleWakeup` or cron. The instructions of the app forbid it, and the monitor does the same work with no model calls.
+
+The app turned on `auto_fix` by itself when `gh pr create` opened PR #258. `get_status` showed `auto_fix: true`, and no `set_monitor` call occurred. The rule keeps `set_monitor` only for the case that `auto_fix` is false.
+
+Accepted cost: the app setting `auto_archive_on_pr_close` is on, so a merge archives the session. Thus no session is left to update `main` after a green merge.
 
 ## Verification
 | Check | Result |
