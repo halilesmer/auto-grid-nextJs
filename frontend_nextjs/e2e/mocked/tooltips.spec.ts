@@ -336,6 +336,21 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
     await expect(dialog).toBeHidden();
   });
 
+  test('Der Hinweis öffnet auch, wenn Chromium pointerover ohne pointerout sendet', { tag: '@UI-07' }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const zone = dashboard.zone();
+    const hint = fieldHint(zone, msg('zone.field.gridStep'));
+    // Nach dem Schließen der Kontoliste meldet Chromium mitunter nur pointerover (relatedTarget liegt im
+    // React-Baum), aber kein pointerout. React leitet onPointerEnter dann nicht weiter.
+    await hint.evaluate((el, related) => {
+      const from = el.closest<HTMLElement>(related)!;
+      el.dispatchEvent(
+        new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse', relatedTarget: from }),
+      );
+    }, '[data-testid="zone-card"]');
+    await expect(page.getByRole('tooltip')).toContainText(msg('zone.field.gridStep.hint'));
+  });
+
   test('Nicht abgeschnitten in der Zonenkarte (overflow-hidden)', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
