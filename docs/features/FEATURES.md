@@ -560,10 +560,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ändert ein Pull worker_python/requirements.txt, führt execute_git_pull danach pip install -r mit dem Python des Workers (.venv) aus. Schlägt pip fehl, meldet das Update einen Fehler und der Worker startet nicht neu (neuer Code würde ohne Paket abstürzen).
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-31 · 👤 manuell ✅ 2026-10-15
-  - Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers. Der Wert kommt unter Windows bei jedem Lauf aus der Registry, setx wirkt also ohne Neustart. Abgeschaltet schreibt der Worker eine Log-Zeile, und GET /api/system/worker/status meldet in auto_update den Grund des letzten Laufs.
-  - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten.
-  - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
+- [x] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-31 · 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-10-15
+  - Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers. Der Wert kommt unter Windows bei jedem Lauf aus der Registry, setx wirkt also ohne Neustart. Abgeschaltet schreibt der Worker eine Log-Zeile, und GET /api/system/worker/status meldet in auto_update den Grund des letzten Laufs. Die Seite /vps zeigt diesen echten Zustand in einer eigenen Zeile, in der SSH-Ansicht und im Panel „Worker (online)“. Sie nennt, ob es läuft, das Ergebnis des letzten Laufs und wann er war. Ist der letzte Lauf älter als drei Intervalle (mindestens 15 Minuten), steht dort „überfällig“; liefert der Worker keinen Zustand, „unbekannt“, in der SSH-Ansicht mit dem Registry-Wert.
+  - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten. → Seite „VPS“ öffnen und die Zeile „Auto-Update“ ansehen.
+  - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde; die Zeile „Auto-Update“ steht auf „Aktuell“ und der letzte Lauf ist höchstens ein Intervall alt.
   - 📝 Auto-Updater zog v0.7.223→224 und 224→225 ohne Update-Klick ([AUTO-UPDATE]-Logzeilen), VPS 2 min nach Bump auf v0.7.225; kein POST /api/system/update, nur 2 Neustarts durch den Owner
 
 ## 12. VPS – VPS-Fernsteuerung vom Mac
