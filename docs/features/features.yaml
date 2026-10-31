@@ -1966,3 +1966,14 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Meldung während /chart offen ist, Systemmeldung mit tag und url, Anzeigen führt zu Produkt, Formation und Zeiteinheit, Glocken-Produkt ohne Einfluss auf Favoriten-Zahlen, unvollständiges Produkt, zwei Tabs eine Suche, Sammelmeldung beim Öffnen, Menü bei 375 px).
           - "Im echten Browser auf dem DEMO-Konto mit rund 10 Favoriten prüfen: Systemmeldung erscheint, Klick darauf öffnet Produkt und Formation, verstecktes Tab meldet weiter, Dauer eines Durchlaufs und ob die Rechnung die Seite spürbar blockiert; auf dem iPhone nur mit installierter App."
         erwartet: Eine neue Formation eines Favoriten oder Alarm-Produkts wird auf jeder Seite als Karte und Systemmeldung gemeldet, ein Klick öffnet sie auf /formasyon, Verpasstes kommt einmal als Sammelmeldung, nichts kommt doppelt, und ein unvollständiges Produkt meldet nichts.
+
+      - id: FRM-31
+        titel: "Laufende Kerze auf dem Formasyon-Chart"
+        beschreibung: "Der Chart auf /formasyon zeigt rechts zusätzlich die laufende Kerze in der normalen Kerzenfarbe. Der Preis ist der Schluss der laufenden M15-Kerze (Nachladen alle 60 s), darum zeigen alle Zeitintervalle denselben aktuellen Preis. Suche, Alarm, RSI und Zeichnungen enden weiter an der letzten geschlossenen Kerze (kein Blick in die Zukunft); die laufende Kerze wird nie vor oder auf der letzten geschlossenen Kerze geschrieben. Der Bild-Export zeigt sie mit."
+        code: [frontend_nextjs/src/lib/analysis/candles.ts, frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/app/formasyon/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-31) ausführen (runningBar mit Preis in der Kerze, über High, unter Low, ohne laufende Kerze oder Preis).
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-31) ausführen (Chart endet auf dem M15-Preis, Trefferzahlen unverändert).
+          - "Im echten Browser auf dem DEMO-Konto prüfen (nur lesen): 15m und D zeigen denselben aktuellen Preis."
+        erwartet: Alle Zeitintervalle zeigen denselben aktuellen Preis, die laufende Kerze steht rechts, und die Trefferliste ändert sich dadurch nicht.
