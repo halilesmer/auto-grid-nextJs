@@ -65,12 +65,12 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
         ...current,
         favoritesEnabled: on ? [...current.favoritesEnabled.filter((x) => x !== accountId), accountId] : current.favoritesEnabled.filter((x) => x !== accountId),
       }));
+      if (on) toast.info(t('formation.alarm.favorites.enabled'), { duration: 6000 });
       // Beim Einschalten fragt der Browser nach der Erlaubnis; wird sie erteilt, geht die Systemmeldung an
       if (on && notificationPermission() === 'default') {
         await Notification.requestPermission();
         if (notificationPermission() === 'granted') update((current) => ({ ...current, prefs: { ...current.prefs, system: true } }));
       }
-      if (on) toast.info(t('formation.alarm.favorites.enabled'), { duration: 6000 });
     },
     [accountId, update],
   );
