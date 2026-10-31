@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: feature
 status: done
-pr: [257, PRNR]
+pr: [257, 264]
 features: [FRM-29]
 areas: [worker, frontend, tests]
 ---
