@@ -48,6 +48,7 @@ export function Tooltip({ content, side = 'top', touchToggle = false, className,
   const tipRef = useRef<HTMLSpanElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerTypeRef = useRef('mouse');
+  const pointerInsideRef = useRef(false);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -111,9 +112,16 @@ export function Tooltip({ content, side = 'top', touchToggle = false, className,
     };
   }, [open, hide]);
 
-  const onPointerEnter = (e: ReactPointerEvent<HTMLSpanElement>) => {
-    rest.onPointerEnter?.(e);
+  // onPointerOver statt onPointerEnter: React leitet Enter nur aus pointerout weiter und ignoriert ein
+  // pointerover, dessen relatedTarget im React-Baum liegt. Sendet Chromium nach dem Schließen einer Liste
+  // pointerover ohne pointerout, bliebe der Hinweis sonst ohne Timer.
+  const onPointerOver = (e: ReactPointerEvent<HTMLSpanElement>) => {
+    rest.onPointerOver?.(e);
     if (e.pointerType === 'touch') return;
+    // pointerover bubbelt von Kindern und kommt bei Layoutwechseln erneut: nur das erste nach dem Betreten zählt,
+    // sonst öffnet ein Hinweis nach Klick oder Escape wieder, obwohl der Zeiger die Fläche nie verlassen hat
+    if (pointerInsideRef.current) return;
+    pointerInsideRef.current = true;
     clearTimer();
     timerRef.current = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
   };
@@ -131,9 +139,10 @@ export function Tooltip({ content, side = 'top', touchToggle = false, className,
       ref={anchorRef}
       data-tooltip-trigger
       className={cn('inline-flex shrink-0', className)}
-      onPointerEnter={onPointerEnter}
+      onPointerOver={onPointerOver}
       onPointerLeave={(e) => {
         rest.onPointerLeave?.(e);
+        pointerInsideRef.current = false;
         if (pointerTypeRef.current !== 'touch') hide();
       }}
       onPointerDown={(e) => {
