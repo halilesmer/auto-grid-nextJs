@@ -969,6 +969,13 @@ export class MockWorker {
         supervised: true,
         bots_running: 1,
         bots_total: s.accounts.length,
+        auto_update: {
+          enabled: true,
+          interval_minutes: 5,
+          result: 'up_to_date',
+          detail: s.update.local_ver,
+          checked_at: 1793491200,
+        },
       });
     }
     if (path === '/system/worker/log' && method === 'GET') {

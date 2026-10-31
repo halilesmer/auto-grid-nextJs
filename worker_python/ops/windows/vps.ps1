@@ -268,6 +268,13 @@ function Get-TunnelWatchdogState {
     }
 }
 
+function Get-AutoUpdateMinutes {
+    # Wie der Worker (auto_updater.py): der Benutzerwert schlaegt den Maschinenwert
+    $value = [Environment]::GetEnvironmentVariable('AUTO_UPDATE_MINUTES', 'User')
+    if ($null -eq $value) { $value = [Environment]::GetEnvironmentVariable('AUTO_UPDATE_MINUTES', 'Machine') }
+    return $value
+}
+
 function Get-Status {
     $worker = @{ listening = (Test-WorkerListening); reachable = $false; error = $null }
     if ($worker.listening) {
@@ -318,7 +325,7 @@ function Get-Status {
         mt5_terminals = @(Get-Process terminal64 -ErrorAction SilentlyContinue).Count
         session_active = (@(Get-Process explorer -ErrorAction SilentlyContinue).Count -gt 0)
         autologon = ($winlogon -and "$($winlogon.AutoAdminLogon)" -eq '1')
-        auto_update_minutes = [Environment]::GetEnvironmentVariable('AUTO_UPDATE_MINUTES', 'User')
+        auto_update_minutes = Get-AutoUpdateMinutes
         tasks = @{ start = Get-TaskInfo $StartTask; update = Get-TaskInfo $UpdateTask; tunnel = Get-TaskInfo $TunnelTask }
         tunnel_watchdog = Get-TunnelWatchdogState
         boot_time = $os.LastBootUpTime.ToString('s')

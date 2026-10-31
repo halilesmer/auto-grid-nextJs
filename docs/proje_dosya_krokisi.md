@@ -218,7 +218,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 state.py             # Core state yönetimi
 ┃ ┃ ┃ ┗ 📜 wrappers.py          # Wrapper fonksiyonları
 ┃ ┃ ┗ 📂 utils                  # Yardımcı modüller
-┃ ┃   ┣ 📜 auto_updater.py      # origin/main'i AUTO_UPDATE_MINUTES'ta bir kontrol eder, güncelleyip yeniden başlatır
+┃ ┃   ┣ 📜 auto_updater.py      # origin/main'i AUTO_UPDATE_MINUTES'ta bir kontrol eder (değer her turda kayıt defterinden), güncelleyip yeniden başlatır
 ┃ ┃   ┣ 📜 bot_manager.py       # Süreç yönetimi
 ┃ ┃   ┣ 📜 bot_watchdog.py      # Çöken/asılı botu otomatik yeniden başlatan bekçi; liste data/watched_bots.json (reboot sonrası devam)
 ┃ ┃   ┣ 📜 console_tee.py       # Worker konsolunu logs/worker_console.log'a da yazar (VPS sayfası okur)
