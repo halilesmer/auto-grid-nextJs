@@ -82,15 +82,15 @@ function lines(accountId: string, notices: AlarmNotice[], sinceOpening: boolean)
   const overview = formationUrl(accountId);
   if (sinceOpening) {
     const count = notices.length;
-    return [{ title: t('formation.alarm.notice.since', { count }), body: summarySymbols(notices), tag: 'formation-alarm-since', url: overview, kind: 'info', action: { label: t('formation.alarm.openFavorites'), hint: t('formation.alarm.openFavorites.hint') } }];
+    return [{ title: t('formation.alarm.notice.since', { count }), body: summarySymbols(notices), tag: `formation-alarm-since-${accountId}`, url: overview, kind: 'info', action: { label: t('formation.alarm.openFavorites'), hint: t('formation.alarm.openFavorites.hint') } }];
   }
   if (notices.length > MAX_SINGLE_NOTICES) {
-    return [{ title: t('formation.alarm.notice.many', { count: notices.length }), body: summarySymbols(notices), tag: 'formation-alarm-many', url: overview, kind: 'success', action: null }];
+    return [{ title: t('formation.alarm.notice.many', { count: notices.length }), body: summarySymbols(notices), tag: `formation-alarm-many-${accountId}`, url: overview, kind: 'success', action: null }];
   }
   return notices.map((notice) => ({
     title: t(eventKey(notice, 'notice'), describe(notice)),
     body: t('formation.alarm.system.detail', describe(notice)),
-    tag: notice.key,
+    tag: `${accountId}|${notice.key}`,
     url: formationUrl(accountId, notice),
     kind: notice.events.includes('valid') ? 'success' : 'warning',
     action: { label: t('formation.alarm.show'), hint: t('formation.alarm.show.hint') },

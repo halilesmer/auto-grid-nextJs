@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadAll } from '@/hooks/useMarketRates';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
@@ -45,6 +45,9 @@ const sleep = (ms: number, signal: AbortSignal) =>
 /** Konten, deren erster Durchlauf nach dem Öffnen der App schon gemeldet hat: danach gibt es keine Sammelmeldung „seit dem letzten Öffnen“ mehr */
 const reportedSinceOpening = new Set<string>();
 
+/** Alarm-Produkte, die dieser Tab schon verglichen hat. Ein Tab, der den Lock mitten im Durchlauf übernimmt, vergleicht sie einmal neu, auch wenn `doneAt` sie schon als gesucht führt. */
+const comparedHere = new Set<string>();
+
 /** Alarm-Auswertung für ein Produkt: Stand vergleichen und merken. Ohne gemerkten Stand (Produkt neu im Alarm) merkt sie still. */
 function compareAlarm(accountId: string, symbol: string, hits: readonly ScanHit[], pending: Record<string, AlarmMemory>): AlarmNotice[] {
   const scope = `${accountId}|${symbol}`;
@@ -53,6 +56,7 @@ function compareAlarm(accountId: string, symbol: string, hits: readonly ScanHit[
   const result = evaluateAlarm(symbol, hits, known ?? {}, current.prefs, known === undefined);
   // Der Stand wird erst mit der Meldung gespeichert (flushAlarm): schließt der Tab mitten im Durchlauf, wird nichts als gesehen gemerkt, das nie gemeldet wurde
   pending[scope] = result.memory;
+  comparedHere.add(scope);
   return result.notices;
 }
 
@@ -85,6 +89,8 @@ async function scanSymbol(accountId: string, symbol: string, to: number, signal:
 interface AlarmRun {
   /** Produkte dieses Durchlaufs, für die der Alarm gilt (Favoriten bei „Alle Favoriten“ plus Glocken-Produkte) */
   symbols: ReadonlySet<string>;
+  /** Die Produkte, für die der Alarm jetzt gilt (kann sich mitten im Durchlauf ändern, z. B. Glocke aus) */
+  currentSymbols: () => ReadonlySet<string>;
   navigate: (url: string) => void;
 }
 
@@ -93,7 +99,12 @@ interface AlarmRun {
  * Ein abgebrochener Durchlauf (Kontowechsel, neue Uhr) zählt nicht als erster: sonst kämen die Treffer des nächsten einzeln.
  */
 function flushAlarm(accountId: string, run: { notices: AlarmNotice[]; memory: Record<string, AlarmMemory>; completed: boolean }, alarm: AlarmRun, post: (m: Message) => void) {
-  const { notices, memory, completed } = run;
+  const { completed } = run;
+  // Ein Produkt, dessen Glocke seit dem Vergleich ausgeschaltet wurde, meldet nichts und behält keinen Stand
+  const live = alarm.currentSymbols();
+  const inAlarm = (symbol: string) => live.has(symbol);
+  const notices = run.notices.filter((notice) => inAlarm(notice.symbol));
+  const memory = Object.fromEntries(Object.entries(run.memory).filter(([scope]) => inAlarm(scope.slice(accountId.length + 1))));
   if (Object.keys(memory).length > 0) {
     const current = snapshot();
     save({ ...current, memory: { ...current.memory, ...memory } });
@@ -111,9 +122,12 @@ async function scanLoop(accountId: string, symbols: string[], offsetSec: number 
     const nowSec = offsetSec !== null ? brokerNow(offsetSec) : Date.now() / 1000;
     const slot = Math.floor(nowSec / SLOT_SEC) * SLOT_SEC;
     const to = dayStart(brokerToday(offsetSec ?? 0)) + DAY_SEC;
-    // Ein Alarm-Produkt ohne gemerkten Stand (gerade eingeschaltet) wird gleich verglichen, nicht erst mit der nächsten Kerze
-    const needsBaseline = (s: string) => alarm.symbols.has(s) && snapshot().memory[`${accountId}|${s}`] === undefined && !store.getState().gaps[s];
-    const todo = symbols.filter((s) => store.getState().doneAt[s] !== slot || needsBaseline(s));
+    // Ein Alarm-Produkt ohne gemerkten Stand (gerade eingeschaltet) oder von diesem Tab noch nie verglichen (Lock übernommen) wird gleich verglichen, nicht erst mit der nächsten Kerze
+    const needsCompare = (s: string) => {
+      const scope = `${accountId}|${s}`;
+      return alarm.symbols.has(s) && !store.getState().gaps[s] && (snapshot().memory[scope] === undefined || !comparedHere.has(scope));
+    };
+    const todo = symbols.filter((s) => store.getState().doneAt[s] !== slot || needsCompare(s));
     if (todo.length === 0) {
       // Ein abgebrochener Durchgang kann eine Anzeige hinterlassen haben
       store.getState().setProgress(accountId, null);
@@ -188,6 +202,11 @@ export default function FormationScanRunner() {
     return { symbols: [...new Set([...favorite, ...bells])], alarmSymbols: [...new Set([...(favoritesAlarm ? favorite : []), ...bells])] };
   }, [favoritesKey, bellKey, favoritesAlarm]);
   const alarmKey = alarmSymbols.join('|');
+  // Der Durchlauf liest die aktuellen Alarm-Produkte über diese Referenz, nicht die beim Start
+  const alarmKeyRef = useRef(alarmKey);
+  useEffect(() => {
+    alarmKeyRef.current = alarmKey;
+  }, [alarmKey]);
   const active = accountId !== null && favorites.ready && !clock.loading;
 
   useEffect(() => {
@@ -240,14 +259,20 @@ export default function FormationScanRunner() {
       };
       post({ type: 'hello', accountId });
     }
-    const alarm: AlarmRun = { symbols: new Set(alarmKey ? alarmKey.split('|') : []), navigate: (url) => router.push(url) };
-    const run = async () => {
-      holding = true;
-      try {
-        await scanLoop(accountId, symbols, offsetSec, controller.signal, post, alarm);
-      } finally {
-        holding = false;
-      }
+    const asSet = (key: string) => new Set(key ? key.split('|') : []);
+    const alarm: AlarmRun = { symbols: asSet(alarmKey), currentSymbols: () => asSet(alarmKeyRef.current), navigate: (url) => router.push(url) };
+    // Der Kanal bleibt offen, bis auch ein abgebrochener Durchlauf seine Meldungen verschickt hat (flushAlarm)
+    let finished: Promise<void> = Promise.resolve();
+    const run = () => {
+      finished = (async () => {
+        holding = true;
+        try {
+          await scanLoop(accountId, symbols, offsetSec, controller.signal, post, alarm);
+        } finally {
+          holding = false;
+        }
+      })();
+      return finished;
     };
     if (typeof navigator !== 'undefined' && navigator.locks) {
       // Wartet, bis der Tab mit dem Lock schließt; Abbrechen während des Wartens wirft AbortError
@@ -259,7 +284,7 @@ export default function FormationScanRunner() {
     }
     return () => {
       controller.abort();
-      channel?.close();
+      void finished.finally(() => channel?.close());
     };
   }, [active, accountId, symbols, alarmKey, offsetSec, router]);
 

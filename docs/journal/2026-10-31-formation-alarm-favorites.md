@@ -37,6 +37,8 @@ areas: [frontend, tests]
 - Changed FRM-27 behaviour: the notice no longer comes from the search of the open page. It comes from the app-wide pass (every M15 candle). The first pass after opening is no longer silent for a product that has a remembered state.
 - The system notification uses `registration.showNotification` because `new Notification` does not work on Android.
 
+- Codex scan (read only, one round) found four points, all confirmed and fixed: (1) a tab that takes over the Web Lock in the middle of a pass compares the alarm products once again (`comparedHere`), (2) the `BroadcastChannel` closes only after an aborted pass has sent its notices, (3) the final save and the notices of a pass are limited to the products that are still in the alarm, (4) system notification tags carry the account id.
+
 ## Verification
 - Red first: `symbol` in the notice was `undefined` before the change (direct call of `evaluateAlarm`). With the comparison switched off in the runner, 4 of the 7 `@FRM-30` tests were red (card not found), the others still green by design (menu, incomplete product, two tabs).
 - `scripts/features/run.sh FRM` → 1055 passed. `npm run lint`, `npx tsc --noEmit`, `npm run build` → green. Menu checked at 1280 px light and dark and at 375 px.
@@ -46,7 +48,7 @@ areas: [frontend, tests]
 
 ## Open points
 - [ ] In the real browser with the DEMO account and about 10 favorites: the system notification appears, a click on it opens the product and the formation, a hidden tab keeps reporting, and how long one pass takes and whether it blocks the page. A web worker only if this measurement needs one.
-- [ ] Known and accepted: `save` in `alarmStore.ts` writes the whole cache, so a tab that was frozen for a long time could overwrite newer state and repeat a notice. Every tab prunes the remembered state with its own favorites list. If the favorites route fails for good (old worker), products with the bell on are not searched either. The abort path (`completed=false`) and the click path of the service worker have no test.
+- [ ] Known and accepted: `save` in `alarmStore.ts` writes the whole cache, so a tab that was frozen for a long time could overwrite newer state and repeat a notice. Every tab prunes the remembered state with its own favorites list. If the favorites route fails for good (old worker), products with the bell on are not searched either. The abort path (`completed=false`), the Lock takeover, the account id in the tags and the click path of the service worker have no test.
 - [ ] iPhone: system notifications work only when the app is installed on the home screen.
 - [ ] Telegram (later, not built). The search would run on the VPS with the same TypeScript code, because a Python copy of about 9,750 lines would drift from it. This needs Node.js on the VPS, a bundled script from `scan.ts` and `alarm.ts`, a background task in the worker like `run_watchdog`, the alarm list and the remembered state on the worker, and the bot token only in the VPS environment. Vercel is no place for it, because the worker address and key never lie there. There is no pending list in this repository, so this point stays here.
 - [ ] The alarm of one browser is independent of the alarm of another device: each open device reports on its own.
