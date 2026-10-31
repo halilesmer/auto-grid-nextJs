@@ -30,7 +30,7 @@ areas: [worker, frontend, tests]
 - The search runs in the layout, so the later alarm can use the same results. A product counts once per formation, also with more than one candidate.
 - The worker fetches MT5 candles one after the other (`_FETCH_SLOT`). Thus the runner loads one product at a time and frees the UI between products.
 - `useFavorites` reset the store on mount (PR A). With three users (pill, side bar, runner) this would clear a loaded list. Now one loader sets it.
-- A product with missing candles or a failed request is marked, and the other products stay correct. An error keeps the old result and is tried again at the next M15 candle or when the favorites change.
+- A product with missing candles or a failed request is marked, and the other products stay correct. An error keeps the old result and is tried again at the next check (30 s).
 - Previous close is the second last D1 candle. At the weekend, the change refers to the last session before the last one.
 - The strip and side bar sit outside a wrapper that pushes the chart. The details card and the alerts are in the wrapper, so they stay inside the smaller chart area.
 
@@ -39,3 +39,4 @@ areas: [worker, frontend, tests]
 - Visual check of the mocked page at 1280 px and 375 px, side bar open and closed.
 - Not verified: the worker route on a real terminal (runs after the VPS pulls and restarts). Open on DEMO: run time with about 10 favorites, formations against the chart, old `valid` patterns without recency, whether weekend gaps make every product incomplete, quotes and previous close.
 - Known limit: a second tab shows results only after the searching tab has sent them. A new tab asks for a snapshot when it opens.
+- Review findings left open (not defects of this change, or too small): the favorites list is not loaded again after a failed first request; the top bar keeps its 320 px reserve when the side bar is open (cramped at 1024 px, still usable); the quotes route asks up to 200 symbols under the MT5 lock; the "quotes failed" note does not belong to an account.

@@ -70,7 +70,10 @@ async function scanLoop(accountId: string, symbols: string[], offsetSec: number 
     const slot = Math.floor(nowSec / SLOT_SEC) * SLOT_SEC;
     const to = dayStart(brokerToday(offsetSec ?? 0)) + DAY_SEC;
     const todo = symbols.filter((s) => store.getState().doneAt[s] !== slot);
-    if (todo.length > 0) {
+    if (todo.length === 0) {
+      // Ein abgebrochener Durchgang kann eine Anzeige hinterlassen haben
+      store.getState().setProgress(accountId, null);
+    } else {
       const spent = { ms: 0 };
       store.getState().setProgress(accountId, { done: 0, total: todo.length });
       for (const [i, symbol] of todo.entries()) {
@@ -87,8 +90,10 @@ async function scanLoop(accountId: string, symbols: string[], offsetSec: number 
         }
         // Bis hierher kann der Durchgang abgebrochen worden sein (Kontowechsel): dann nichts mehr schreiben
         if (signal.aborted) return;
-        store.getState().put(accountId, symbol, formed, slot, gap);
-        post({ type: 'put', accountId, symbol, formed, at: slot, gap });
+        // Nach einem Fehler gilt der Takt nicht als erledigt: der nächste Prüfschritt (30 s) versucht es erneut
+        const at = gap === 'error' ? (store.getState().doneAt[symbol] ?? 0) : slot;
+        store.getState().put(accountId, symbol, formed, at, gap);
+        post({ type: 'put', accountId, symbol, formed, at, gap });
         store.getState().setProgress(accountId, { done: i + 1, total: todo.length });
         // Oberfläche zwischen zwei Produkten freigeben
         await sleep(0, signal);
@@ -154,7 +159,7 @@ export default function FormationScanRunner() {
     };
     if (typeof navigator !== 'undefined' && navigator.locks) {
       // Wartet, bis der Tab mit dem Lock schließt; Abbrechen während des Wartens wirft AbortError
-      navigator.locks.request(LOCK_NAME, { signal: controller.signal }, run).catch((err) => {
+      navigator.locks.request(`${LOCK_NAME}:${accountId}`, { signal: controller.signal }, run).catch((err) => {
         if (!isAbortError(err)) console.error('Favorites scan lock failed', err);
       });
     } else {

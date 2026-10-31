@@ -806,6 +806,15 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
     await expect(page.getByTestId('favorites-gaps')).toHaveText(msg('formation.fav.gaps', { count: 1 }));
   });
 
+  test('Ein Fehler wird im nächsten Prüfschritt erneut versucht, nicht erst mit der nächsten Kerze', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    test.setTimeout(90_000);
+    worker.state.ratesErrorSymbols = ['GBPUSD'];
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]').getByTestId('favorites-row-gap')).toBeVisible();
+    worker.state.ratesErrorSymbols = [];
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]').getByTestId('favorites-row-gap')).toHaveCount(0, { timeout: 45_000 });
+  });
+
   test('Preise und Änderung kommen vom Worker, fehlt ein Preis steht ein Strich', { tag: '@FRM-29' }, async ({ page, worker }) => {
     worker.state.quotes = { EURUSD: { last: 1.1, prev_close: 1.0, digits: 5 }, GBPUSD: null };
     await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
