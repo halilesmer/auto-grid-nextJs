@@ -19,6 +19,8 @@ export interface ToastItemData {
   message: string;
   type: ToastType;
   duration: number; // ms; 0 = otomatik kapanmaz
+  /** Optionaler Knopf unter dem Text; ein Klick führt `onClick` aus und schließt die Meldung. `hint` ist Pflicht (hooks/RULES.md §5). */
+  action?: { label: string; hint: string; onClick: () => void };
 }
 
 type ToastInput = Omit<ToastItemData, 'id' | 'type' | 'duration'> & {
@@ -100,7 +102,7 @@ const progressColors: Record<ToastType, string> = {
 function ToastItem({ toast: t, index }: { toast: ToastItemData; index: number }) {
   const translate = useT();
   const remove = useToastStore((s) => s.remove);
-  const { id, type, title, message, duration } = t;
+  const { id, type, title, message, duration, action } = t;
 
   useEffect(() => {
     if (duration <= 0) return;
@@ -132,6 +134,20 @@ function ToastItem({ toast: t, index }: { toast: ToastItemData; index: number })
           <p className={cn('break-words text-sm text-muted-foreground', title && 'mt-0.5')}>
             {message}
           </p>
+          {action && (
+            <Tooltip content={action.hint}>
+              <button
+                type="button"
+                onClick={() => {
+                  action.onClick();
+                  remove(id);
+                }}
+                className="mt-2 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                {action.label}
+              </button>
+            </Tooltip>
+          )}
         </div>
         <Tooltip content={translate('ui.dismiss.hint')}>
           <button

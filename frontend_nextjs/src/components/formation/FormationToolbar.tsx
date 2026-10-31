@@ -28,7 +28,7 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground';
 /**
  * Kopfleiste im TradingView-Stil: `children` (Symbol und Konto) und Zeiteinheiten in der Leiste, Formationen in der
  * Zeile darunter. Die Badges zählen Treffer (gültig oder im Aufbau) über alle Zeiteinheiten bzw. Formationen.
- * Rechts bleibt ab lg Platz für die Werkzeuge des ChartWorkspace, die dort über der Leiste liegen.
+ * Rechts bleibt ab lg Platz für die Werkzeuge des ChartWorkspace, die dort über der Leiste liegen; die Leiste reicht Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie), damit ihre Menüs über der Bedingungskarte liegen können, ohne die Werkzeuge zu verdecken.
  */
 export function FormationToolbar({
   hits,
@@ -50,13 +50,13 @@ export function FormationToolbar({
 }) {
   const t = useT();
   return (
-    <div className="bg-background" data-testid="formation-toolbar">
+    <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
       <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap lg:pr-80" data-testid="formation-topbar">
-        <div className="flex h-[38px] min-w-0 items-center gap-1 max-lg:w-full lg:h-auto" data-testid="formation-selectors">
+        <div className="pointer-events-auto flex h-[38px] min-w-0 items-center gap-1 max-lg:w-full lg:h-auto" data-testid="formation-selectors">
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
-        <div className="flex min-w-0 items-center gap-1 max-lg:w-full">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full">
           <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 lg:h-auto">
             {CONTEXT_TIMEFRAMES.map((x) => {
               const count = hitsCount(hits, { tf: x });
@@ -78,7 +78,7 @@ export function FormationToolbar({
           )}
         </div>
       </div>
-      <div role="group" aria-label={t('formation.form.label')} className="flex h-[30px] items-center gap-0.5 overflow-x-auto border-b border-border px-2" data-testid="formation-forms">
+      <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] items-center gap-0.5 overflow-x-auto border-b border-border px-2" data-testid="formation-forms">
         {SCAN_FORMATIONS.map((x) => {
           const count = hitsCount(hits, { form: x });
           const name = t(`formation.form.${x}` as MessageKey);

@@ -2,7 +2,7 @@
 date: 2026-10-30
 author: Claude
 type: feature
-status: open
+status: done
 pr: [246]
 features: [FRM-23]
 areas: [frontend, tests]
@@ -39,7 +39,16 @@ Below `lg` the workspace tools stay at the chart bottom, because the bar has no 
 - Desktop dark and 375 px dark: examined in the test screenshots. Manual check against the live worker: not verified.
 
 ## Open points
-- [ ] Decide which of the six missing tools the page must get.
+- [x] Decide which of the six missing tools the page must get. Decided 2026-10-31, see Decision.
+
+## Decision
+Decision: Of the six tools, the page gets two: screenshot and alert.
+- Screenshot: built (FRM-26, PR 249).
+- Alert: built as an alarm that runs only while the page is open (FRM-27, see `2026-10-31-formation-alarm.md`). The alert of the bar is not the indicator alert of the chart workspace.
+- Replay: assessed, not built. It is about one PR and makes sense after the alert.
+- Chart type and layout name: not built.
+- Trade: does not come to this page.
+Reason: A tool is built only when it has a function on this page. Trade has no function here and a dead Trade button is a safety risk.
 
 ## Lessons
 Compare a design with the real functions of the page before approval. A mock-up can show tools that do not exist.
