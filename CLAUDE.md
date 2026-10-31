@@ -101,7 +101,7 @@ All of these are gitignored and may contain credentials.
 - Kurallar (GitHub'a yükleme, uyumluluk, test protokolü): `hooks/RULES.md`. Hook hata verirse `--no-verify` ile geçme, hatayı düzelt.
 - **"Test et" denince:** önce `hooks/test-account.local.md` dosyasını oku (gitignore'lu demo hesap; şifre içermez), worker'da kayıtlı o hesabı seç, mevcut datayı kullan. Şifre forma yazılmaz. Protokol: `hooks/RULES.md` §3.
 - **Branch-Aufräumen:** ein Branch, der über einen gemergten PR (oder direkt) in `main` aufgegangen ist, wird gelöscht (lokal + remote) — nicht als offene Nachfrage stehen lassen. Vor dem Löschen mit `git merge-base --is-ancestor <branch> main` verifizieren, dass er wirklich gemergt ist. Nicht gemergte Branches nur melden, nicht löschen.
-- **Merge ohne Rückfrage:** jeder fertige PR wird ohne Frage an Halil mit `gh pr merge <n> --auto --squash --delete-branch` gemergt, nie mit `--admin`. Stopp-Bedingungen: `hooks/RULES.md` §1.8.
+- **Merge ohne Rückfrage:** jeder fertige PR wird ohne Frage an Halil mit `gh pr merge <n> --auto --squash --delete-branch` gemergt, nie mit `--admin`. GitHub prüft die Merge-Bereitschaft selbst, die Sitzung schaltet beim PR-Öffnen den CI-Monitor der App ein und wartet nicht auf „weiter“. Stopp-Bedingungen und Ablauf: `hooks/RULES.md` §1.8.
 
 ## Conventions
 

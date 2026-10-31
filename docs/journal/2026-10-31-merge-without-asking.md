@@ -31,6 +31,18 @@ The `deny` entry is necessary, because the ruleset lets admins bypass it (`bypas
 
 Rejected: a global rule in `~/.claude/rules/`. Other repositories can have no required checks. There, `--auto` gives no protection.
 
+## Follow-up: no "weiter" after the merge command
+The owner does not want to write "weiter" so that a session examines the PR. `--auto` already makes GitHub do the readiness check. The missing part was the way back to the session.
+
+| Case | Who acts |
+|---|---|
+| Required checks pass | GitHub merges. The app gives no event, so the DEMO test points go in the same turn as the merge command. The next turn or session updates `main`. |
+| A check fails, a conflict occurs, or a review comment arrives | The CI monitor of the app (`set_monitor`, `auto_fix: true`) wakes the session. The session removes the cause and pushes. |
+
+Rejected: polling with `gh pr checks --watch`, `ScheduleWakeup` or cron. The instructions of the app forbid it, and the monitor does the same work with no model calls.
+
+Accepted cost: `set_monitor` can show an approval card for each PR. The app setting `auto_archive_on_pr_close` is on, so a merge archives the session. Thus no session is left to update `main` after a green merge.
+
 ## Verification
 | Check | Result |
 |---|---|
