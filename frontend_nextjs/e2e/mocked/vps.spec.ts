@@ -354,8 +354,9 @@ test.describe('Auto-Update-Zustand', () => {
       status: 200,
       body: { version: 'v0.7.304', uptime_sec: 60, supervised: true, bots_running: 0, bots_total: 1, ...(autoUpdate && { auto_update: autoUpdate }) },
     });
-    await mockVps(page);
+    const mock = await mockVps(page);
     await page.goto('/vps');
+    return mock;
   }
 
   test('zeigt Ergebnis, Alter und Intervall des letzten Laufs', { tag: '@UPD-07' }, async ({ page, worker }) => {
@@ -443,6 +444,26 @@ test.describe('Auto-Update-Zustand', () => {
     worker.offline = true;
     await page.reload();
     await expect(row(page)).toHaveAttribute('data-state', 'unknown');
+  });
+
+  test('fällt SSH aus, liest die Zeile den Worker weiter', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    const mock = await openWith(page, worker, RUNNING);
+    await expect(row(page)).toHaveAttribute('data-state', 'current');
+
+    mock.status = { ok: false, error: 'SSH-Zeitüberschreitung' };
+    mock.statusCode = 500;
+    worker.overrides.set('GET /api/system/worker/status', {
+      status: 200,
+      body: { auto_update: { ...RUNNING, result: 'pull_failed', detail: 'Permission denied' } },
+    });
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
+    await expect(row(page)).toHaveAttribute('data-state', 'pullFailed');
+  });
+
+  test('ein unbekanntes Ergebnis eines neueren Workers zeigt „unbekannt“', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, { ...RUNNING, result: 'neuer_wert' });
+    await expect(row(page)).toHaveAttribute('data-state', 'unknown');
+    await expect(row(page)).toContainText(msg('vps.autoUpdate.state.unknown'));
   });
 
   test('das Online-Panel zeigt dieselbe Zeile', { tag: '@UPD-07' }, async ({ page, worker }) => {

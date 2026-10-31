@@ -147,7 +147,9 @@ export function autoUpdateState(status: AutoUpdateStatus | null, readAtMs: numbe
   if (!status.enabled) return status.interval_minutes > 0 ? 'offUnsupervised' : 'offInterval';
   const age = autoUpdateAgeMinutes(status, readAtMs);
   if (age != null && age > Math.max(OVERDUE_MIN_MINUTES, OVERDUE_INTERVALS * status.interval_minutes)) return 'overdue';
-  return status.result ? AUTO_UPDATE_RESULT_STATE[status.result] : 'pending';
+  if (!status.result) return 'pending';
+  // Frontend und Worker aktualisieren getrennt: ein neuerer Worker kann weitere Werte liefern
+  return AUTO_UPDATE_RESULT_STATE[status.result] ?? 'unknown';
 }
 
 export interface VpsUpdateCheck {

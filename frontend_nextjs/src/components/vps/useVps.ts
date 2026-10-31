@@ -93,10 +93,11 @@ export function useVps() {
         return;
       }
       setDisabled(null);
+      // Unabhängig vom SSH-Ergebnis: der Worker kann auch bei SSH-Ausfall antworten
+      void refreshAutoUpdate();
       if (data.ok) {
         setStatus(data as VpsStatus);
         setStatusError(null);
-        void refreshAutoUpdate();
       } else {
         setStatusError(errorOf(data, t('vps.status.unreachable')));
       }
