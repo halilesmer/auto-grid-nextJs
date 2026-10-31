@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-31 · **188/193** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-31 · **188/194** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 19/20 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 25/26 |
+| 16 | **FRM** – Formationserkennung | 25/27 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -920,3 +920,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - In der Kopfleiste steht hinter den Zeiteinheiten ein Kamera-Knopf mit Menü: als PNG herunterladen oder in die Zwischenablage kopieren. Das Bild entsteht im Browser (nichts wird gesendet), ist 1200 CSS-Pixel breit bei doppelter Auflösung und zeigt Kopf (Formation, Symbol, Zeiteinheit, Urteil, Scan-Zeitpunkt), den Chart samt Formationszeichnungen und alle Bedingungen mit Symbol, Wort und Messwert. Kerzen und Achsen kommen aus takeScreenshot(), die Zeichnungen sind ein SVG-Overlay und werden mit aufgelösten Theme-Farben darübergelegt. Ab 640 px Chart-Breite stehen die Bedingungen unter dem Chart, schmaler rechts daneben. Hell oder dunkel folgt dem App-Thema. Kein Kontoname, keine Kontonummer, kein LIVE/DEMO im Bild oder im Dateinamen. Ohne gewählten Kandidaten oder während der Suche ist der Knopf deaktiviert; Kopieren ist deaktiviert, wenn der Browser keine Bilder in die Zwischenablage legen kann.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-26) ausführen (PNG mit Zeichnungen und Dateiname, deaktivierter Knopf, Kopieren, 375 px).
   - **Erwartet:** Das PNG enthält die Zielzeichnung des Overlays, trägt Formation, Symbol, Zeiteinheit und Zeitpunkt im Dateinamen und nichts vom Konto; bei 375 px bleibt der Knopf sichtbar und die Seite scrollt nicht quer.
+- [ ] **FRM-27** Seite Formasyon: Alarm bei gültiger Formation und Zielpunkt — 🖥️ e2e ⏳
+  - Hinter dem Kamera-Knopf steht eine Glocke mit Menü. Der Schalter gilt je Konto und Symbol und meldet, wenn eine Formation des Symbols gültig wird oder ihren Zielpunkt (D, bei CDT H2) erreicht; Ereignisse und Formationen sind wählbar, Meldung im Fenster ist Standard, Systemmeldung und Ton sind optional. Der Alarm läuft nur, solange die Seite offen ist (Banner im Menü); es gibt keine Worker-Änderung und keine Order. Gemeldet wird nur der Übergang zwischen zwei Suchläufen. Der erste Lauf nach Einschalten, Öffnen oder Symbolwechsel merkt den Stand still, der gemerkte Stand liegt im Browser (höchstens 200 Treffer je Symbol), so kommt nach dem Neuladen nichts doppelt. Mehr als drei Meldungen in einem Lauf werden zu einer Sammelmeldung.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-alarm-lib.spec.ts (@FRM-27) ausführen (Übergänge, stille Grundlinie, Schlüssel, abgewählte Ereignisse, Speichergrenze). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-27) ausführen (Banner, Meldung nach neuem Suchlauf, keine Doppelmeldung nach Neuladen, Sammelmeldung, Alarm aus, 375 px).
+  - **Erwartet:** Nach dem Einschalten erscheint zu einer Formation, die danach gültig wird oder ihren Zielpunkt erreicht, genau eine Meldung; derselbe Stand meldet nicht erneut, auch nicht nach dem Neuladen; ohne Alarm kommt nichts.

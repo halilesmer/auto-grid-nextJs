@@ -8,12 +8,14 @@ import { CandidateList } from '@/components/formation/CandidateList';
 import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationChecklist } from '@/components/formation/FormationChecklist';
 import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
+import { FormationAlarmMenu } from '@/components/formation/FormationAlarmMenu';
 import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
 import { FormationDetailsPanel } from '@/components/formation/FormationDetailsPanel';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
+import { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormationParams } from '@/hooks/useFormationParams';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
@@ -63,6 +65,8 @@ function FormationView() {
   const clock = useBrokerClock(accountKnown ? accountId : null);
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
   const scan = useFormationScan(accountKnown ? accountId : null, symbol, offsetSec, !clock.loading);
+
+  const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol, scan);
 
   const list = useMemo(() => scan.hits.filter((h) => h.form === form && h.tf === tf), [scan.hits, form, tf]);
   const [pickedTf, setPicked] = useState<string | null>(null);
@@ -135,7 +139,7 @@ function FormationView() {
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
-      <div className="absolute left-[52px] right-0 top-18 z-30 min-w-0 lg:top-0">
+      <div className="pointer-events-none absolute left-[52px] right-0 top-18 z-50 min-w-0 lg:top-0">
         <FormationToolbar
           hits={scan.hits}
           tf={tf}
@@ -148,7 +152,12 @@ function FormationView() {
             setActive(null);
             setView({ form: next, tf: timeframeForForm(scan.hits, next, tf) });
           }}
-          actions={<FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />}
+          actions={
+            <>
+              <FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />
+              <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} />
+            </>
+          }
         >
           {accountKnown && (
             <FormationSymbolSelect

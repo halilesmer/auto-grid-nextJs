@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -494,6 +494,89 @@ test.describe('FRM-26 Formation als Bild festhalten', () => {
     expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+});
+
+test.describe('FRM-27 Formationsalarm', () => {
+  const openAlarm = async (page: Page) => {
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByTestId('formation-alarm-panel')).toBeVisible();
+  };
+  /** `only`: Formationen, die gemeldet werden; die übrigen werden abgewählt */
+  const enable = async (page: Page, only: string[] = []) => {
+    await openAlarm(page);
+    await page.getByRole('switch', { name: msg('formation.alarm.enable', { symbol: 'EURUSD' }) }).click();
+    for (const form of only.length > 0 ? ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT'].filter((x) => !only.includes(x)) : []) {
+      await page.getByTestId(`formation-alarm-form-${form}`).click();
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('formation-alarm')).toHaveAttribute('data-enabled', 'true');
+  };
+  const gartley = () => msg('formation.alarm.notice.both', { form: msg('formation.form.GAR'), side: msg('formation.side.buy'), symbol: 'EURUSD', tf: 'H4', point: 'D' });
+  /** Neue Kerzen liefern und das 60-s-Nachladen der Seite auslösen */
+  const advance = async (page: Page, worker: MockWorker, now: number) => {
+    serveFixture(worker, now);
+    await page.clock.runFor(60_000);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  };
+
+  test('Das Menü sagt, dass der Alarm nur bei offener Seite läuft', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect(page.getByTestId('formation-alarm')).toHaveAttribute('data-enabled', 'false');
+    await openAlarm(page);
+    await expect(page.getByTestId('formation-alarm-banner')).toHaveText(msg('formation.alarm.pageOnly'));
+  });
+
+  test('Eine Formation, die nach dem Einschalten gültig wird, wird einmal gemeldet, nicht nach dem Neuladen', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    await page.clock.install();
+    await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
+    await enable(page, ['GAR']);
+    // Einschalten merkt den Stand still: noch keine Meldung zu einer Formation
+    await expect(page.getByText(gartley())).toHaveCount(0);
+
+    await advance(page, worker, NOW);
+    await expect(page.getByText(gartley())).toBeVisible();
+
+    // Nächster Lauf mit demselben Stand: die Meldung steht nicht doppelt da
+    await advance(page, worker, NOW);
+    await expect(page.getByText(gartley())).toHaveCount(1);
+
+    // Nach dem Neuladen gilt der Stand als bekannt
+    serveFixture(worker, NOW);
+    await page.reload();
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('formation-alarm')).toHaveAttribute('data-enabled', 'true');
+    await expect(page.getByText(gartley())).toHaveCount(0);
+  });
+
+  test('Mehr als drei neue Treffer in einem Lauf kommen als eine Sammelmeldung', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    await page.clock.install();
+    await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
+    await enable(page);
+    await advance(page, worker, NOW);
+    // Die Fixture liefert beim Übergang von FORMING_NOW zu NOW fünf neue gültige oder bis zum Zielpunkt gelaufene Treffer
+    await expect(page.getByText(msg('formation.alarm.notice.many', { symbol: 'EURUSD', count: 5 }))).toBeVisible();
+    await expect(page.getByText(gartley())).toHaveCount(0);
+  });
+
+  test('Ohne Alarm meldet die Seite nichts', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    await page.clock.install();
+    await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
+    await advance(page, worker, NOW);
+    await expect(page.getByText(gartley())).toHaveCount(0);
+  });
+
+  test('Bei 375 px bleibt die Glocke sichtbar, die Seite scrollt nicht quer', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await openAlarm(page);
+    for (const id of ['formation-alarm', 'formation-alarm-panel']) {
+      const box = await page.getByTestId(id).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });

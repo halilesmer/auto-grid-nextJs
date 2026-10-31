@@ -1924,3 +1924,13 @@ kategorien:
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-26) ausführen (PNG mit Zeichnungen und Dateiname, deaktivierter Knopf, Kopieren, 375 px).
         erwartet: Das PNG enthält die Zielzeichnung des Overlays, trägt Formation, Symbol, Zeiteinheit und Zeitpunkt im Dateinamen und nichts vom Konto; bei 375 px bleibt der Knopf sichtbar und die Seite scrollt nicht quer.
+
+      - id: FRM-27
+        titel: "Seite Formasyon: Alarm bei gültiger Formation und Zielpunkt"
+        beschreibung: "Hinter dem Kamera-Knopf steht eine Glocke mit Menü. Der Schalter gilt je Konto und Symbol und meldet, wenn eine Formation des Symbols gültig wird oder ihren Zielpunkt (D, bei CDT H2) erreicht; Ereignisse und Formationen sind wählbar, Meldung im Fenster ist Standard, Systemmeldung und Ton sind optional. Der Alarm läuft nur, solange die Seite offen ist (Banner im Menü); es gibt keine Worker-Änderung und keine Order. Gemeldet wird nur der Übergang zwischen zwei Suchläufen. Der erste Lauf nach Einschalten, Öffnen oder Symbolwechsel merkt den Stand still, der gemerkte Stand liegt im Browser (höchstens 200 Treffer je Symbol), so kommt nach dem Neuladen nichts doppelt. Mehr als drei Meldungen in einem Lauf werden zu einer Sammelmeldung."
+        code: [frontend_nextjs/src/lib/formation/alarm.ts, frontend_nextjs/src/hooks/useFormationAlarm.ts, frontend_nextjs/src/components/formation/FormationAlarmMenu.tsx, frontend_nextjs/src/app/formasyon/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-alarm-lib.spec.ts (@FRM-27) ausführen (Übergänge, stille Grundlinie, Schlüssel, abgewählte Ereignisse, Speichergrenze).
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-27) ausführen (Banner, Meldung nach neuem Suchlauf, keine Doppelmeldung nach Neuladen, Sammelmeldung, Alarm aus, 375 px).
+        erwartet: Nach dem Einschalten erscheint zu einer Formation, die danach gültig wird oder ihren Zielpunkt erreicht, genau eine Meldung; derselbe Stand meldet nicht erneut, auch nicht nach dem Neuladen; ohne Alarm kommt nichts.
