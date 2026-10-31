@@ -429,15 +429,16 @@ test.describe('FRM-24 bewegliche Bedingungen', () => {
 test.describe('FRM-26 Formation als Bild festhalten', () => {
   test('PNG enthält Chart samt Formationszeichnungen, ohne Konto im Dateinamen', { tag: '@FRM-26' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
-    await page.getByTestId('formation-shot').click();
-    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('formation-shot-download').click()]);
-    const name = download.suggestedFilename();
-    expect(name).toMatch(/^formation-GAR-EURUSD-H4-\d{4}-\d{2}-\d{2}_\d{4}\.png$/);
-    const base64 = readFileSync((await download.path())!).toString('base64');
-    // Die Warnfarbe malt nur die Zielzeichnung des SVG-Overlays; takeScreenshot() allein enthält sie nicht.
-    const result = await page.evaluate(async (b64) => {
+    const saveImage = async () => {
+      await page.getByTestId('formation-shot').click();
+      const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('formation-shot-download').click()]);
+      return { name: download.suggestedFilename(), base64: readFileSync((await download.path())!).toString('base64') };
+    };
+    // Pixel in den Farben der Zeichnungen (Ziel, Zone, Verhältnisse) unterhalb des Kopfes und oberhalb der Fußzeile.
+    // takeScreenshot() allein enthält sie nicht: sie stammen aus dem SVG-Overlay.
+    const drawingPixels = (b64: string) => page.evaluate(async (data) => {
       const img = new Image();
-      img.src = `data:image/png;base64,${b64}`;
+      img.src = `data:image/png;base64,${data}`;
       await img.decode();
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
@@ -445,20 +446,30 @@ test.describe('FRM-26 Formation als Bild festhalten', () => {
       const ctx = canvas.getContext('2d')!;
       ctx.drawImage(img, 0, 0);
       const probe = document.createElement('canvas').getContext('2d')!;
-      probe.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
-      probe.fillRect(0, 0, 1, 1);
-      const [wr, wg, wb] = probe.getImageData(0, 0, 1, 1).data;
+      const tokens = ['--warning', '--info', '--secondary'].map((token) => {
+        probe.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+        probe.fillRect(0, 0, 1, 1);
+        return Array.from(probe.getImageData(0, 0, 1, 1).data);
+      });
       // Kopf (112 px) und Fußzeile (72 px) enthalten keine Zeichnungen: 56 und 36 CSS-Pixel bei doppelter Auflösung (shotImage.ts)
-      const data = ctx.getImageData(0, 112, img.width, img.height - 112 - 72).data;
-      let warning = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        if (Math.abs(data[i] - wr) < 14 && Math.abs(data[i + 1] - wg) < 14 && Math.abs(data[i + 2] - wb) < 14) warning++;
+      const pixels = ctx.getImageData(0, 112, img.width, img.height - 112 - 72).data;
+      let count = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (tokens.some((c) => Math.abs(pixels[i] - c[0]) < 14 && Math.abs(pixels[i + 1] - c[1]) < 14 && Math.abs(pixels[i + 2] - c[2]) < 14)) count++;
       }
-      return { width: img.width, height: img.height, warning };
-    }, base64);
-    expect(result.width).toBe(2400);
-    expect(result.height).toBeGreaterThan(1200);
-    expect(result.warning).toBeGreaterThan(30);
+      return { width: img.width, height: img.height, count };
+    }, b64);
+
+    const withDrawings = await saveImage();
+    expect(withDrawings.name).toMatch(/^formation-GAR-EURUSD-H4-\d{4}-\d{2}-\d{2}_\d{4}\.png$/);
+    const full = await drawingPixels(withDrawings.base64);
+    expect(full.width).toBe(2400);
+    expect(full.height).toBeGreaterThan(1200);
+
+    // Gleiche Seite ohne Overlay: der Unterschied sind die Zeichnungen
+    await page.getByTestId('formation-overlay').evaluate((el) => { el.style.display = 'none'; });
+    const bare = await drawingPixels((await saveImage()).base64);
+    expect(full.count - bare.count).toBeGreaterThan(40);
   });
 
   test('Ohne Kandidat ist der Knopf deaktiviert', { tag: '@FRM-26' }, async ({ page, worker }) => {
