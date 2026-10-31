@@ -54,8 +54,8 @@ jobs:
           path: .feature-results/worker.xml
           retention-days: 14
 
-  frontend:
-    name: Frontend (lint + e2e gemockt)
+  frontend-static:
+    name: Frontend (lint + tsc)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -70,15 +70,52 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
+
+  # Ein Runner schafft nur 2 Playwright-Worker; 4 Teile laufen deshalb auf eigenen Runnern
+  frontend-e2e:
+    name: Frontend e2e (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      # Ein roter Teil bricht die anderen nicht ab, damit ein Lauf alle Fehler zeigt
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: frontend_nextjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend_nextjs/package-lock.json
+      - run: npm ci
       - name: Playwright-Browser installieren
         run: npx playwright install --with-deps chromium
       - name: Playwright (mocked)
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             frontend_nextjs/playwright-report/
             frontend_nextjs/test-results/
           retention-days: 14
+
+  # Pflicht-Check der Ruleset-Regel für main: Name nicht ändern.
+  # always(), weil ein übersprungener Job als grün zählen würde.
+  frontend:
+    name: Frontend (lint + e2e gemockt)
+    if: always()
+    needs: [frontend-static, frontend-e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Alle Teile grün?
+        env:
+          STATIC_RESULT: ${{ needs.frontend-static.result }}
+          E2E_RESULT: ${{ needs.frontend-e2e.result }}
+        run: |
+          echo "lint + tsc: $STATIC_RESULT, e2e: $E2E_RESULT"
+          test "$STATIC_RESULT" = success && test "$E2E_RESULT" = success
