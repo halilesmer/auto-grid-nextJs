@@ -835,6 +835,7 @@ export class MockWorker {
         if (!Array.isArray(list) || !list.every((x) => typeof x === 'string' && x.length >= 1 && x.length <= 40)) {
           return { status: 422, body: { detail: 'invalid favorites' } };
         }
+        if (!s.accounts.some((a) => String(a.id) === id)) return { status: 404, body: { detail: `Account '${id}' not found` } };
         s.favorites[id] = [...new Set(list as string[])];
       }
       return ok({ status: 'success', account_id: id, symbols: s.favorites[id] ?? [] });

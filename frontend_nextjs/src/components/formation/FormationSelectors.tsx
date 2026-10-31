@@ -70,8 +70,6 @@ function SymbolSearch({ value, details, favorites, onChange, onRestore }: {
     if (found && found.name.toUpperCase() !== value.toUpperCase()) onChange(found.name);
     else onRestore();
   };
-  const current = details[value.toUpperCase()]?.name ?? value;
-
   return (
     <>
       <ComboboxAutocomplete
@@ -104,11 +102,6 @@ function SymbolSearch({ value, details, favorites, onChange, onRestore }: {
         aria-label={t('formation.symbol')}
         className={cn(flatTrigger, 'rounded-full! bg-accent! pl-3! pr-7! font-mono font-semibold placeholder:font-sans placeholder:font-normal')}
       />
-      {value && details[value.toUpperCase()] && (
-        <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
-          <FavoriteFlag symbol={current} active={favorites.isFavorite(current)} onToggle={() => favorites.toggle(current)} />
-        </span>
-      )}
     </>
   );
 }
@@ -124,6 +117,7 @@ export function FormationSymbolSelect({ accountId, value, onChange }: {
   const favorites = useFavorites(accountId);
   // Ein neuer Key stellt nach abgebrochener Eingabe das Produkt wieder her
   const [revision, setRevision] = useState(0);
+  const current = details[(value ?? '').toUpperCase()]?.name ?? value ?? '';
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1 lg:w-48 lg:flex-none">
@@ -134,6 +128,12 @@ export function FormationSymbolSelect({ accountId, value, onChange }: {
         data-testid="formation-symbol"
         // Tippen ersetzt das Produkt, statt an den alten Namen anzuhängen
         onFocus={(e) => e.target instanceof HTMLInputElement && e.target.select()}
+        // Tab aus einer Fahne der Liste heraus: die Liste schließt und das bisherige Produkt steht wieder da (wie beim Abbrechen)
+        onBlur={(e) => {
+          const search = e.currentTarget.querySelector('[data-slot=autocomplete]');
+          const leftSearch = search?.contains(e.target as Node) && !(e.relatedTarget instanceof Node && search.contains(e.relatedTarget));
+          if (leftSearch) setRevision((n) => n + 1);
+        }}
       >
         <SymbolSearch
           key={`${value}:${revision}`}
@@ -143,6 +143,11 @@ export function FormationSymbolSelect({ accountId, value, onChange }: {
           onChange={onChange}
           onRestore={() => setRevision((n) => n + 1)}
         />
+        {value && details[value.toUpperCase()] && (
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+            <FavoriteFlag symbol={current} active={favorites.isFavorite(current)} onToggle={() => favorites.toggle(current)} />
+          </span>
+        )}
       </div>
       <InfoHint hint={t('formation.symbol.hint')} />
     </div>

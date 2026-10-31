@@ -2,8 +2,8 @@
 date: 2026-10-31
 author: Claude
 type: feature
-status: open
-pr: [254]
+status: done
+pr: [254, 264]
 features: [FRM-28]
 areas: [worker, frontend, tests]
 ---
@@ -40,5 +40,5 @@ areas: [worker, frontend, tests]
 - DEMO account on the real worker (v0.7.301): set and remove a flag, 10 favorites stay after a reload. Passed.
 
 ## Open points
-- [ ] Tab out of the flag does not restore the product and leaves the list open.
-- [ ] An admin can write favorites for an account id that does not exist.
+- [x] Tab out of the flag did not restore the product and left the list open. Cause: the search closes only on a click outside, and the blur handler of the input ignores a move to a flag in the list. Fix: a blur from the search to a place outside of it restores the product (`FormationSymbolSelect`). Test: `@FRM-28` "Tab aus der Fahne". The default of `combobox` is unchanged.
+- [x] An admin could write favorites for an account id that does not exist. Cause: `account_access` lets the admin pass for each id on purpose, because other routes (for example settings) also work for ids without an account entry. Fix: only `PUT /favorites/{id}` now returns 404 for an unknown id and writes no file. `access.py` is unchanged, so no other route changes. Test: `test_admin_put_for_unknown_account_is_404_and_writes_no_file`. The mock worker does the same.
