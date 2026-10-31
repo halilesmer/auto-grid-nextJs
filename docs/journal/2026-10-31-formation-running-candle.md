@@ -36,4 +36,4 @@ See `scripts/features/run.sh e2e FRM`. The e2e test checks the H4 chart (the fix
 ## Open points
 - [ ] Browser check on the DEMO account: 15m and D show the same price.
 - The image export shows the running candle, although its time stamp names `scanAt`.
-- If the running candle disappears (market closed), the old one stays until the chart data is set again.
+- The two cases found by the Codex scan (running candle withdrawn, high/low kept for the same candle) are fixed in the chart effect. No test covers these state changes.
