@@ -66,8 +66,6 @@ function FormationView() {
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
   const scan = useFormationScan(accountKnown ? accountId : null, symbol, offsetSec, !clock.loading);
 
-  const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol, scan);
-
   const list = useMemo(() => scan.hits.filter((h) => h.form === form && h.tf === tf), [scan.hits, form, tf]);
   const [pickedTf, setPicked] = useState<string | null>(null);
   const hit = list.find((h) => `${h.form}-${h.tf}` === pickedTf) ?? list[0] ?? null;
@@ -80,6 +78,13 @@ function FormationView() {
   };
 
   const formName = t(`formation.form.${form}` as MessageKey);
+
+  // „Anzeigen“ der Alarm-Meldung: Formation und Zeiteinheit in die Adresse, Kandidat gewählt (wie ein Klick in der Liste)
+  const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol, scan, (notice) => {
+    setActive(null);
+    setPicked(`${notice.form}-${notice.tf}`);
+    setView({ form: notice.form, tf: notice.tf });
+  });
 
   const captureRef = useRef<(() => Promise<ChartPicture>) | null>(null);
   const registerCapture = useCallback((capture: (() => Promise<ChartPicture>) | null) => {

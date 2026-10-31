@@ -550,6 +550,31 @@ test.describe('FRM-27 Formationsalarm', () => {
     await expect(page.getByText(gartley())).toHaveCount(0);
   });
 
+  test('„Anzeigen“ in der Meldung wählt Formation, Zeiteinheit und Kandidat im Chart', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    await page.clock.install();
+    await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
+    await enable(page, ['GAR']);
+    // Auf eine andere Formation und Zeiteinheit wechseln, damit der Sprung sichtbar wird
+    await page.getByTestId('formation-form-BAT').click();
+    await page.getByTestId('formation-tf-H1').click();
+    await advance(page, worker, NOW);
+    await expect(page.getByText(gartley())).toBeVisible();
+
+    await page.getByRole('button', { name: msg('formation.alarm.show'), exact: true }).click();
+    await expect(page.getByTestId('formation-form-GAR')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('candidate-item').first()).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('Die Sammelmeldung hat keinen Anzeigen-Knopf', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    await page.clock.install();
+    await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
+    await enable(page);
+    await advance(page, worker, NOW);
+    await expect(page.getByText(msg('formation.alarm.notice.many', { symbol: 'EURUSD', count: 5 }))).toBeVisible();
+    await expect(page.getByRole('button', { name: msg('formation.alarm.show'), exact: true })).toHaveCount(0);
+  });
+
   test('Mehr als drei neue Treffer in einem Lauf kommen als eine Sammelmeldung', { tag: '@FRM-27' }, async ({ page, worker }) => {
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);

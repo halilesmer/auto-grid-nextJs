@@ -117,12 +117,14 @@ function beep() {
   }
 }
 
-function announce(notices: AlarmNotice[], symbol: string, prefs: AlarmPrefs) {
+function announce(notices: AlarmNotice[], symbol: string, prefs: AlarmPrefs, show: (notice: AlarmNotice) => void) {
+  // Die Sammelmeldung gehört zu keinem einzelnen Treffer und hat deshalb keinen Anzeigen-Knopf
   const lines = notices.length > MAX_SINGLE_NOTICES
-    ? [{ title: t('formation.alarm.notice.many', { symbol, count: notices.length }), kind: 'success' as const }]
-    : notices.map((notice) => noticeText(notice, symbol));
-  for (const { title, kind } of lines) {
-    toast[kind](title, { duration: 10_000 });
+    ? [{ title: t('formation.alarm.notice.many', { symbol, count: notices.length }), kind: 'success' as const, notice: null }]
+    : notices.map((notice) => ({ ...noticeText(notice, symbol), notice }));
+  for (const { title, kind, notice } of lines) {
+    const action = notice && { label: t('formation.alarm.show'), hint: t('formation.alarm.show.hint'), onClick: () => show(notice) };
+    toast[kind](title, { duration: 10_000, action: action ?? undefined });
     if (prefs.system && notificationPermission() === 'granted') new Notification(title, { tag: `formation-alarm-${title}` });
   }
   if (prefs.sound) beep();
@@ -132,11 +134,17 @@ function announce(notices: AlarmNotice[], symbol: string, prefs: AlarmPrefs) {
  * Formationsalarm der Seite /formasyon: vergleicht jeden fertigen Suchlauf mit dem gemerkten Stand (alarm.ts) und meldet.
  * Läuft nur, solange die Seite offen ist. Der erste Lauf nach Einschalten, Öffnen oder Symbolwechsel merkt den Stand still.
  */
-export function useFormationAlarm(accountId: string | null, symbol: string | null, scan: FormationScan) {
+export function useFormationAlarm(accountId: string | null, symbol: string | null, scan: FormationScan, onShow: (notice: AlarmNotice) => void) {
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const permission = useSyncExternalStore(noSubscription, notificationPermission, () => 'unsupported' as const);
   const scope = accountId && symbol ? `${accountId}|${symbol}` : null;
   const enabled = scope !== null && stored.enabled.includes(scope);
+
+  // Die Meldung bleibt 10 s stehen: der Klick ruft den jeweils neuesten Stand der Seite auf, nicht den beim Anzeigen
+  const show = useRef(onShow);
+  useEffect(() => {
+    show.current = onShow;
+  });
 
   const lastScope = useRef<string | null>(null);
   const processed = useRef<string | null>(null);
@@ -154,7 +162,7 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
     const current = snapshot();
     const result = evaluateAlarm(symbol, scan.hits, current.memory[scope] ?? {}, current.prefs, baseline);
     save({ ...current, memory: { ...current.memory, [scope]: result.memory } });
-    if (result.notices.length > 0) announce(result.notices, symbol, current.prefs);
+    if (result.notices.length > 0) announce(result.notices, symbol, current.prefs, (notice) => show.current(notice));
   }, [enabled, scope, symbol, scan.loading, scan.error, scan.scanAt, scan.hits]);
 
   const update = useCallback((change: (current: Stored) => Stored) => save(change(snapshot())), []);
