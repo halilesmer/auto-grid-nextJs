@@ -73,13 +73,15 @@ def ensure_git_repo(branch, project_root):
         _git(["init"], project_root, check=True)
         _git(["remote", "add", "origin", repo_url], project_root, check=True)
         _git(["fetch", "origin"], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
-        _git(["reset", "--hard", f"origin/{branch}"], project_root, check=True)
+        # İlk checkout tüm dosyaları yazar: yerel komut sınırı buna göre değil
+        _git(["reset", "--hard", f"origin/{branch}"], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
         _git(["branch", "-M", branch], project_root, check=True)
         return True, "Git deposu başarıyla onarıldı ve eşitlendi."
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
         return False, f"Sıfırdan kurulum hatası: {error_msg}"
     except GitTimeout as e:
+        _remove_stale_index_lock(project_root)
         return False, f"Sıfırdan kurulum hatası: {e}"
     except Exception as e:
         return False, f"Beklenmeyen onarım hatası: {str(e)}"
@@ -96,7 +98,7 @@ def _kill_process_tree(process):
         members = [*root.children(recursive=True), root]
     except psutil.NoSuchProcess:  # süre dolarken kendiliğinden bitti
         members = []
-    except psutil.Error as e:  # ağaç okunamadıysa en azından git'in kendisi öldürülür
+    except (psutil.Error, OSError) as e:  # ağaç okunamadıysa en azından git'in kendisi öldürülür
         print(f"⚠️ [UPDATE] git süreç ağacı okunamadı: {e!r}")
         members = []
         process.kill()
@@ -142,6 +144,10 @@ def _remove_stale_index_lock(project_root):
         print(f"⚠️ [UPDATE] index.lock silinemedi: {e!r}")
 
 
+def _newest_stash(project_root):
+    return _git(["rev-parse", "-q", "--verify", "refs/stash"], project_root).stdout.strip()
+
+
 def _rollback_failed_pull(project_root, old_head, restorable, stashed):
     """Yarım kalan pull'u geri alır ve stash'lenen yerel değişiklikleri geri yükler.
 
@@ -151,20 +157,22 @@ def _rollback_failed_pull(project_root, old_head, restorable, stashed):
     güvenle pull öncesine döndürülür (ignore edilen configs/, logs/, .venv/ vb. dokunulmaz).
     HEAD değil old_head: süresi dolan pull ref'i taşımış olabilir.
 
-    Döner: hata mesajına eklenecek metin ("" = geri alındı veya dokunulmadı).
+    Döner: hata mesajına eklenecek metin ("" = geri alındı veya dokunulmadı). Geri alma düşerse
+    stash uygulanmaz (yarım çalışma alanında çakışırdı), mesajda anılır.
     """
     if not restorable:
         return ""
+    kept_stash = " Yerel değişiklikler stash'te kaldı: auto-stash-before-pull." if stashed else ""
     try:
         _git(["reset", "--hard", old_head or "HEAD"], project_root, check=True)
         _git(["clean", "-fd"], project_root, check=True)
         if stashed:
             _git(["stash", "pop"], project_root)
     except subprocess.CalledProcessError as e:
-        return f"\nGeri alma tamamlanamadı: {(e.stderr or e.stdout).strip()}"
+        return f"\nGeri alma tamamlanamadı: {(e.stderr or e.stdout).strip()}{kept_stash}"
     except GitTimeout as e:
         _remove_stale_index_lock(project_root)
-        return f"\nGeri alma tamamlanamadı: {e}"
+        return f"\nGeri alma tamamlanamadı: {e}{kept_stash}"
     return ""
 
 
@@ -227,7 +235,14 @@ def execute_git_pull(branch="main"):
         clean_before = status.returncode == 0 and not status.stdout.strip()
         if not clean_before:
             # Yerel değişiklikleri stash'le (kaybetme)
-            stash_res = _git(["stash", "push", "-u", "-m", "auto-stash-before-pull"], project_root)
+            stash_before = _newest_stash(project_root)
+            try:
+                stash_res = _git(["stash", "push", "-u", "-m", "auto-stash-before-pull"], project_root)
+            except GitTimeout:
+                # Stash kaydedildikten sonra kesildiyse değişiklik yalnız stash'tedir, geri alınmalı
+                stashed = _newest_stash(project_root) != stash_before
+                restorable = stashed
+                raise
             stashed = stash_res.returncode == 0 and "No local changes" not in (stash_res.stdout or "")
         # Stash başarısızsa yerel değişiklikler hâlâ çalışma alanında: dokunma
         restorable = clean_before or stashed

@@ -25,14 +25,15 @@ No git call in `self_updater.py` had a time limit. `run_auto_updater` waits for 
 | `worker_python/src/utils/self_updater.py` | All git calls go through `_git`, which has a limit: 120 s for `fetch` and `pull`, 60 s for local commands. At the limit it kills the process tree and raises `GitTimeout`. `check_for_updates`, `ensure_git_repo` and `execute_git_pull` change this into a return value. |
 | `worker_python/src/utils/self_updater.py` | The rollback goes to `old_head`, not `HEAD`. After a timeout it removes `.git/index.lock`. If the rollback fails, the error text says so. |
 | `worker_python/src/utils/auto_updater.py` | No logic change. `tick()` records `check_failed` or `pull_failed`. A timeout in `current_branch` or `_is_behind_origin` goes to the `except` of the loop, which records `check_failed`. |
-| `worker_python/tests/unit/test_self_updater_timeout.py` | 11 tests with a real hung process tree. |
+| `worker_python/tests/unit/test_self_updater_timeout.py` | 12 tests with a real hung process tree. |
 
-Measurement for the limit (2026-10-31, Mac to GitHub): `git fetch` without changes 0.6 s, a clone of the full history (5.6 MB) 1.5 s. The limit of 120 s is 80 times the full history. It gives a margin for a slow VPS network and for antivirus during checkout, and it stays below the interval of 5 minutes. The local limit of 60 s has no measurement on the VPS.
+Measurement for the limit (2026-10-31, Mac to GitHub): `git fetch` without changes 0.6 s, a clone of the full history (5.6 MB) 1.5 s. The limit of 120 s is 80 times the full history. It gives a margin for a slow VPS network and for antivirus during checkout, and it stays below the interval of 5 minutes. The local limit of 60 s has no measurement on the VPS. The `reset --hard` of a new repository in `ensure_git_repo` writes all files, so it has the limit of 120 s.
 
 ## Why
 
 - `subprocess.run(timeout=...)` was rejected. On Windows it calls `communicate()` without a limit after the kill. `git-remote-https` inherits the pipes and lives on after `git` dies, so the call hangs at the same place. The CPython source of `subprocess.run` shows this path. Thus `_git` uses `Popen`, kills the tree with `psutil`, and has a limit of 5 s for the second `communicate()`.
 - `GitTimeout` is a separate exception. The text of `TimeoutExpired` has the full command, and `git remote set-url` has the token from `github_token.txt` as argument. That text would go to the log and to the status route. `GitTimeout` has only the subcommand, and `from None` removes the cause for the same reason.
+- `_rollback_failed_pull` does not apply the stash if `reset` or `clean` failed. The tree is then half restored, and a pop would mix the two states. The error text names the stash. The old code applied the stash in all cases.
 - `_git` raises and does not return a failed result. A failed result in `current_branch` would read as `other_branch`, and in `_is_behind_origin` as `local_commits`. Both give a false reason.
 - A killed git cannot remove `index.lock`. Without the removal, each later reset and pull fails until a person acts. The removal runs only after a timeout in `execute_git_pull`, not in `check_for_updates`, because a `fetch` of the check must not remove the lock of a pull that runs at the same time.
 - Deliberate exception to "restore the state": if `stash pop` times out, the code does not reset. The pop can be complete, then the stash is gone and a reset would delete the local changes for all time. The pull stays, the error text tells it, and the worker does not restart. Local changes have priority over the old state.
@@ -42,12 +43,15 @@ Measurement for the limit (2026-10-31, Mac to GitHub): `git fetch` without chang
 - 10 tests were red on the old code (`assert True is False`): the fake git hung for 8 s and then gave success. The eleventh test (`index.lock` cannot be removed) came with its `OSError` branch. Its red state was not seen.
 - Mutation checks, each one made the tests red: kill only `git` and not the tree; rollback to `HEAD`; no removal of `index.lock`; no reset guard for `stash pop`. The last mutation did not show at first, because the test hung at the start of the pop. The test now hangs after the pop.
 - The first full run had 2 red tests, and a different 2 in the second run. The cause was the test limit of 0.5 s: under load a normal `git rev-parse` was slower. The test limit is now 3 s.
-- `pytest tests` → 946 passed, 3 runs in a row.
+- The `reviewer` agent found 4 defects to fix: the limit for the first checkout, a stash that stays after a killed `stash push` (red before the fix), a rollback error that does not name the stash (red before the fix), and an `OSError` from `psutil`. Two more findings are in the open points.
+- `pytest tests` → 947 passed.
 - `pyright` on `self_updater.py` and `auto_updater.py` → 0 errors.
 - Not verified: the kill on Windows. The hung process in the tests is an `sh` script, so the path of `communicate()` on Windows and `psutil` with `git-remote-https` did not run. CI runs on Linux, and the worker does not run on the Mac.
 
 ## Open points
 
+- [ ] If `stash pop` or the `diff` after it times out with local changes, the pull stays. There is no pip and no restart, and the next run gives `up_to_date`. Nothing tries again: the worker keeps the old code in memory, and a change to `requirements.txt` from this pull is not installed. This needs local changes on the VPS and a hung local git. Check `auto_update` after such an error and restart by hand.
+- [ ] If the root `git` has ended and only a helper holds the pipes at the limit, `children()` raises `NoSuchProcess`, and the helper stays. The limit still holds: `GitTimeout` comes after 5 s more.
 - [ ] `_pip_install` in `self_updater.py` has no time limit. A hung `pip install` stops `tick()` in the same way. It was outside this task.
 - [ ] `/system/update`, the auto-updater and the task `AutoGrid-Update` have no common lock. A second pull can run at the same time. The removal of `index.lock` makes this race a little worse. The timeout must occur at the same time, so the risk is small.
 - [ ] A check that hangs at a credential prompt now fails after 120 s each run. `GIT_TERMINAL_PROMPT=0` would fail at once. There is no evidence that this occurs on the VPS.

@@ -199,7 +199,8 @@ def test_haengender_diff_nach_dem_pull_stellt_den_stand_davor_wieder_her(vps, mo
 
 
 @pytest.mark.feature("UPD-07")
-def test_haengendes_zuruecksetzen_steht_im_fehlertext(vps, monkeypatch):
+def test_haengendes_zuruecksetzen_nennt_den_liegen_gebliebenen_stash(vps, monkeypatch):
+    (vps / "notes.txt").write_text("lokal geändert\n")
     monkeypatch.setenv("HANG_ON", "fetch reset")
 
     ok, message = updater.execute_git_pull("main")
@@ -207,6 +208,23 @@ def test_haengendes_zuruecksetzen_steht_im_fehlertext(vps, monkeypatch):
     assert ok is False
     assert "git fetch" in message
     assert "git reset" in message
+    assert "auto-stash-before-pull" in message
+    assert "auto-stash-before-pull" in git(vps, "stash", "list")
+
+
+@pytest.mark.feature("UPD-07")
+def test_nach_gespeichertem_stash_beendetes_git_spielt_die_aenderung_zurueck(vps, monkeypatch):
+    # stash push ist fertig, git hängt danach: die Änderung liegt nur noch im Stash
+    (vps / "notes.txt").write_text("lokal geändert\n")
+    monkeypatch.setenv("HANG_ON", "stash:push")
+    monkeypatch.setenv("HANG_AFTER_WORK", "1")
+
+    ok, message = updater.execute_git_pull("main")
+
+    assert ok is False
+    assert "git stash" in message
+    assert (vps / "notes.txt").read_text() == "lokal geändert\n"
+    assert git(vps, "stash", "list") == ""
 
 
 @pytest.mark.feature("UPD-07")
