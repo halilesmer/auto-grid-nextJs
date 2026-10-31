@@ -13,6 +13,7 @@ Kural eklemek için §6'daki prosedüre bak.
 5. **[otomatik]** Push öncesi frontend değiştiyse `tsc --noEmit` + `eslint .` temiz olmalı; worker `.py` dosyalarında sözdizimi hatası olmamalı.
 6. **[elle]** Commit mesajı: `feat|fix|chore|docs|refactor(kapsam): kısa açıklama`.
 7. **[elle]** `--no-verify` / `SKIP_HOOKS=1` yalnızca acil durumda; kullanıldıysa PR açıklamasına yaz.
+8. **[elle]** Merge without a question to the owner (approval for all PRs, 2026-10-31). When the work and its checks are done, the session that owns the PR runs `gh pr merge <n> --auto --squash --delete-branch`. GitHub merges when the required checks pass. Do not use `--admin`. Do not merge when a required check failed, a conflict exists, a review or Codex finding is open, the PR is a draft, the owner said to hold it, or the brief of a child session says "NICHT MERGEN" (then the coordinator merges). After the merge, update `main` and delete the local branch.
 
 ## 2. Uyumluluk
 
@@ -68,7 +69,7 @@ Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını ke
 3. Fonksiyonu `pre-push` (ve gerekirse `pre-commit`, `claude/stop-check.sh`) içinden çağır.
 4. Hata yolunu bilerek tetikleyip test et.
 5. Yeni kurallar İngilizce ve ASD-STE100 yazım kurallarına göre yazılır (özet: `docs/journal/README.md`); düz metin yerine tablo/liste.
-6. Kural dosyalarındaki değişiklikler (`CLAUDE.md`, `hooks/`, `.claude/` içindeki skill, agent ve ayarlar) yalnızca proje sahibinin PR'da açık onayıyla merge edilir.
+6. Kural dosyaları (`CLAUDE.md`, `hooks/`, `.claude/` içindeki skill, agent ve ayarlar) yalnızca proje sahibi istediğinde değiştirilir; bu PR'lar da §1.8'e göre merge edilir.
 7. **[otomatik-uyarı]** `docs/agent-rules/` is a copy of the owner's global rules in `~/.claude/rules/`. After a change to a global rule, refresh the copy with the command in `docs/agent-rules/README.md`. pre-push gives a warning when a source file is different or missing in the copy. The check runs only where the source folder exists (the owner's Mac). It does not block the push.
 
 ## 7. Project journal

@@ -1,7 +1,11 @@
 {
   "permissions": {
-    "ask": [
+    "allow": [
       "Bash(gh pr merge:*)"
+    ],
+    "deny": [
+      "Bash(gh pr merge * --admin*)",
+      "Bash(gh pr merge --admin*)"
     ]
   },
   "hooks": {
