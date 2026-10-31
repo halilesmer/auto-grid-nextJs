@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: decision
 status: done
-pr: []
+pr: [253]
 features: []
 areas: [tests]
 ---
