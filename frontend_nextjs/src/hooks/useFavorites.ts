@@ -7,6 +7,9 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { favoritesApi } from '@/services/favoritesApi';
 import { useFavoritesStore } from '@/store/useFavoritesStore';
 
+/** Neuer Versuch nach einem fehlgeschlagenen Laden der Liste */
+const RETRY_MS = 10_000;
+
 // PUTs laufen nacheinander: vertauscht ankommende Schreibvorgänge ließen den Worker einen älteren Stand halten
 let saveQueue: Promise<unknown> = Promise.resolve();
 
@@ -20,17 +23,24 @@ export function useFavoritesLoader(accountId: string | null) {
     // Toggles warten auf die frische Antwort: eine ältere Liste (Wiederöffnen, zweites Gerät) würde sonst überschrieben
     useFavoritesStore.getState().setFavorites(null, []);
     let stale = false;
-    favoritesApi
-      .get(accountId)
-      .then((list) => {
-        if (!stale) useFavoritesStore.getState().setFavorites(accountId, list);
-      })
-      .catch(async (err) => {
-        console.error('Failed to fetch favorites', err);
-        if (!stale) toast.error(await getApiErrorMessage(err, t('formation.favorite.failed')));
-      });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = (first: boolean) =>
+      favoritesApi
+        .get(accountId)
+        .then((list) => {
+          if (!stale) useFavoritesStore.getState().setFavorites(accountId, list);
+        })
+        .catch(async (err) => {
+          console.error('Failed to fetch favorites', err);
+          if (stale) return;
+          // Meldung nur beim ersten Fehlschlag; der Worker kann gerade neu starten (Update), dann klappt der nächste Versuch
+          if (first) toast.error(await getApiErrorMessage(err, t('formation.favorite.failed')));
+          if (!stale) timer = setTimeout(() => void load(false), RETRY_MS);
+        });
+    void load(true);
     return () => {
       stale = true;
+      clearTimeout(timer);
     };
   }, [accountId]);
 }

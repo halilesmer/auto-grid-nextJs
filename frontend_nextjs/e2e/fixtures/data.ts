@@ -203,6 +203,8 @@ export function defaultState() {
     /** Produkte, deren Kerzen mit 500 scheitern (Fehler je Produkt, FRM-29) */
     ratesErrorSymbols: [] as string[],
     /** Kurse für /market/{id}/quotes; fehlt ein Produkt, liefert der Mock einen festen Standardkurs */
+    /** Verzögerung der Antwort von /market/{id}/quotes in Millisekunden */
+    quotesDelayMs: 0,
     quotes: {} as Record<string, { last: number; prev_close: number; digits: number } | null>,
     /** CSV-Importe je Konto (GET/POST /market/{id}/imports, B9); `text` = bisher hochgeladene Teile */
     csvImports: [] as CsvImportRow[],

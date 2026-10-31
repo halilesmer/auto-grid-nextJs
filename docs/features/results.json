@@ -942,7 +942,7 @@
     "e2e": {
       "datum": "2026-10-31",
       "status": "passed",
-      "tests": 16
+      "tests": 19
     }
   },
   "LOG-01": {

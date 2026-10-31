@@ -25,6 +25,8 @@ export interface WorkerCall {
 interface Reply {
   status: number;
   body: unknown;
+  /** Antwort erst nach so vielen Millisekunden */
+  delayMs?: number;
 }
 
 /** Wer die Anfrage stellt: Admin (E2E_API_KEY) oder ein Benutzer mit persönlichem Schlüssel. */
@@ -356,7 +358,8 @@ export class MockWorker {
     return this.reply(route, reply);
   }
 
-  private reply(route: Route, { status, body }: Reply) {
+  private async reply(route: Route, { status, body, delayMs }: Reply) {
+    if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     return route.fulfill({
       status,
       headers: CORS_HEADERS,
@@ -888,7 +891,7 @@ export class MockWorker {
       const names = (url.searchParams.get('symbols') ?? '').split(',').filter(Boolean);
       if (names.length === 0) return { status: 400, body: { detail: 'Sembol listesi boş' } };
       const quotes = Object.fromEntries(names.map((n) => [n, n in s.quotes ? s.quotes[n] : { last: 1.1, prev_close: 1.0, digits: 5 }]));
-      return ok({ account_id: seg[1], quotes });
+      return { ...ok({ account_id: seg[1], quotes }), delayMs: s.quotesDelayMs };
     }
 
     // --------------------------------------------------------------- CSV-Import (market.py, BKT-05)

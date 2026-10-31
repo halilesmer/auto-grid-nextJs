@@ -815,6 +815,35 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
     await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]').getByTestId('favorites-row-gap')).toHaveCount(0, { timeout: 45_000 });
   });
 
+  test('Der Hinweis zu den Preisen gehört zum Konto und verschwindet beim Kontowechsel', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    worker.overrides.set(`GET /api/market/${DEMO_ID}/quotes`, { status: 500, body: { detail: 'down' } });
+    worker.state.favorites[LIVE_ID] = ['EURUSD'];
+    await openWithFavorites(page, worker, ['EURUSD']);
+    await expect(page.getByTestId('favorites-quotes-failed')).toBeVisible();
+    // Die Preise des anderen Kontos kommen erst später: bis dahin darf der Hinweis des alten Kontos nicht stehen
+    worker.state.quotesDelayMs = 4000;
+    await page.getByRole('combobox', { name: msg('account.select.aria') }).click();
+    await page.getByRole('option', { name: /LIVE/ }).click();
+    await expect(page).toHaveURL(new RegExp(`account=${LIVE_ID}`));
+    // Kürzer als die Verzögerung: der Hinweis muss schon vorher weg sein, nicht erst mit den neuen Preisen
+    await expect(page.getByTestId('favorites-quotes-failed')).toHaveCount(0, { timeout: 1500 });
+  });
+
+  test('Schlägt das erste Laden der Favoriten fehl, wird im Takt neu geladen und die Meldung erscheint nur einmal', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    test.setTimeout(90_000);
+    worker.overrides.set(`GET /api/favorites/${DEMO_ID}`, { status: 500, body: { detail: 'down' } });
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await page.goto(URL);
+    await expect(page.getByText('down')).toHaveCount(1);
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('favorites-empty')).toBeVisible();
+    worker.overrides.delete(`GET /api/favorites/${DEMO_ID}`);
+    await expect(page.getByTestId('favorites-row')).toHaveCount(1, { timeout: 30_000 });
+    expect(worker.callsTo('GET', `/api/favorites/${DEMO_ID}`).length).toBeGreaterThanOrEqual(2);
+    await expect(page.getByText('down')).toHaveCount(0);
+  });
+
   test('Preise und Änderung kommen vom Worker, fehlt ein Preis steht ein Strich', { tag: '@FRM-29' }, async ({ page, worker }) => {
     worker.state.quotes = { EURUSD: { last: 1.1, prev_close: 1.0, digits: 5 }, GBPUSD: null };
     await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
@@ -838,6 +867,21 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
     expect(worker.callsTo('GET', /\/quotes$/)).toHaveLength(0);
     await page.getByTestId('favorites-toggle').click();
     await expect.poll(() => worker.callsTo('GET', /\/quotes$/).length).toBe(1);
+  });
+
+  test('Die offene Seitenleiste überdeckt die Werkzeuge des Charts nicht: unter 1280 px liegt sie unter der Kopfleiste, ab 1280 px schiebt sie den Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1024, height: 700 });
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    const toolButtons = page.locator('[data-testid="workspace-toolbar"] button:visible');
+    expect(await toolButtons.count()).toBeGreaterThan(0);
+    const rects = () => toolButtons.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ right: r.right, bottom: r.bottom })));
+    const narrow = (await page.getByTestId('favorites-panel').boundingBox())!;
+    for (const r of await rects()) expect(r.bottom).toBeLessThanOrEqual(narrow.y);
+    await expect(page.getByTestId('favorites-toggle')).toBeVisible();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const wide = (await page.getByTestId('favorites-panel').boundingBox())!;
+    for (const r of await rects()) expect(r.right).toBeLessThanOrEqual(wide.x);
   });
 
   test('Bei 375 px liegt die Seitenleiste über dem Chart, nichts scrollt quer', { tag: '@FRM-29' }, async ({ page, worker }) => {

@@ -39,4 +39,8 @@ areas: [worker, frontend, tests]
 - Visual check of the mocked page at 1280 px and 375 px, side bar open and closed.
 - Not verified: the worker route on a real terminal (runs after the VPS pulls and restarts). Open on DEMO: run time with about 10 favorites, formations against the chart, old `valid` patterns without recency, whether weekend gaps make every product incomplete, quotes and previous close.
 - Known limit: a second tab shows results only after the searching tab has sent them. A new tab asks for a snapshot when it opens.
-- Review findings left open (not defects of this change, or too small): the favorites list is not loaded again after a failed first request; the top bar keeps its 320 px reserve when the side bar is open (cramped at 1024 px, still usable); the quotes route asks up to 200 symbols under the MT5 lock; the "quotes failed" note does not belong to an account.
+- Review findings fixed in the same PR, each with a test that was red first:
+  - The favorites list is loaded again every 10 s after a failed first request. The message shows once.
+  - The side bar pushes the chart only from 1280 px. Below, it lies under the top bar, so the chart tools stay free. At 1024 px the tools sat under the side bar before.
+  - The "prices failed" note belongs to the account. It vanishes when the account changes.
+- Measuring point for the DEMO test, not a defect: `quotes` asks up to 200 symbols under the MT5 lock. Measure the run time with about 10 and with more favorites. If it blocks candle requests, ask in blocks.

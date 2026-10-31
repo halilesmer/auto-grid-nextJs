@@ -193,8 +193,8 @@ function FormationView() {
   return (
     <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''} data-favorites-scan-ms={favoritesScanMs ?? ''}>
       <h1 className="sr-only">{t('formation.title')}</h1>
-      {/* Die Seitenleiste schiebt den Chart (ab 900 px); die Leiste ganz rechts bleibt immer frei */}
-      <div className={cn('absolute inset-y-0 left-0 right-10', sidebarOpen && 'min-[900px]:right-[328px]')} data-testid="formation-main">
+      {/* Die Seitenleiste schiebt den Chart ab 1280 px; darunter liegt sie unter der Kopfleiste über dem Chart, damit die Werkzeuge in der Kopfleiste frei bleiben. Die Leiste ganz rechts bleibt immer frei */}
+      <div className={cn('absolute inset-y-0 left-0 right-10', sidebarOpen && 'min-[1280px]:right-[328px]')} data-testid="formation-main">
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
@@ -306,7 +306,7 @@ function FormationView() {
             </Tooltip>
           </div>
           {sidebarOpen && (
-            <div className="absolute inset-y-0 right-10 z-[60] w-72 border-l border-border bg-background pt-18 lg:pt-0" data-testid="favorites-panel">
+            <div className="absolute inset-y-0 right-10 z-[60] w-72 border-l border-border bg-background pt-18 lg:top-[38px] lg:pt-0 min-[1280px]:top-0" data-testid="favorites-panel">
               <FavoritesSidebar
                 accountId={accountId}
                 favorites={favorites.symbols}
