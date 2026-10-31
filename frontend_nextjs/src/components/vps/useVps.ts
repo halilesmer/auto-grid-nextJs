@@ -65,17 +65,21 @@ export function useVps() {
   const fastUntil = useRef(0);
   // Der Poll liest den gerade gewählten Tab; späte Antworten eines alten Tabs werden verworfen
   const logNameRef = useRef<VpsLog>('worker');
+  // Nur die neueste Anfrage zählt: eine späte alte Antwort würde einen neueren Fehler wieder grün machen
+  const autoUpdateRequest = useRef(0);
 
   const refreshAutoUpdate = useCallback(async () => {
+    const request = ++autoUpdateRequest.current;
+    let next: AutoUpdateStatus | null = null;
     try {
       const { data } = await axiosInstance.get<{ auto_update?: AutoUpdateStatus }>('/system/worker/status', {
         timeout: WORKER_STATUS_TIMEOUT_MS,
       });
-      setAutoUpdate({ status: data.auto_update ?? null, readAt: Date.now() });
+      next = data.auto_update ?? null;
     } catch {
       // Worker weg oder nicht verbunden: die Zeile zeigt „unbekannt“, die Ursache die Worker-Kachel
-      setAutoUpdate({ status: null, readAt: Date.now() });
     }
+    if (request === autoUpdateRequest.current) setAutoUpdate({ status: next, readAt: Date.now() });
   }, []);
 
   const refreshStatus = useCallback(async () => {

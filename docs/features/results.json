@@ -1392,7 +1392,7 @@
     "e2e": {
       "datum": "2026-10-31",
       "status": "passed",
-      "tests": 11
+      "tests": 14
     },
     "unit": {
       "datum": "2026-10-31",

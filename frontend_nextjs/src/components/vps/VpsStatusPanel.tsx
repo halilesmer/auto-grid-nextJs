@@ -91,13 +91,16 @@ export default function VpsStatusPanel({
   const fmt = useFormat();
   if (!status) {
     return (
-      <Card className="p-4" data-testid="vps-status">
-        <div className="flex items-center gap-2 text-sm">
-          <StatusDot tone="danger" />
-          <span className="font-medium text-foreground">{t('vps.status.unreachable')}</span>
-        </div>
-        {sshError && <p className="mt-2 font-mono text-xs text-muted-foreground">{sshError}</p>}
-      </Card>
+      <div className="space-y-3">
+        <Card className="p-4" data-testid="vps-status">
+          <div className="flex items-center gap-2 text-sm">
+            <StatusDot tone="danger" />
+            <span className="font-medium text-foreground">{t('vps.status.unreachable')}</span>
+          </div>
+          {sshError && <p className="mt-2 font-mono text-xs text-muted-foreground">{sshError}</p>}
+        </Card>
+        {autoUpdate && <AutoUpdateRow status={autoUpdate.status} readAt={autoUpdate.readAt} />}
+      </div>
     );
   }
 

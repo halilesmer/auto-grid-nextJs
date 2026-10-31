@@ -48,8 +48,9 @@ The text for `unknown` says "no status from the worker", not the approved "worke
 ## Verification
 
 - `npx tsc --noEmit` → no errors. `npm run lint` → no errors.
-- `E2E_PORT=3177 npx playwright test e2e/mocked/vps.spec.ts e2e/mocked/tooltips.spec.ts e2e/mocked/mobile-layout.spec.ts` → 65 passed.
+- `E2E_PORT=3177 npx playwright test e2e/mocked/vps.spec.ts e2e/mocked/tooltips.spec.ts e2e/mocked/mobile-layout.spec.ts` → 68 passed.
 - Red check: with the row hidden, 9 of 9 `@UPD-07` tests failed. With the limit changed to 1500 minutes, 3 of 9 failed. The 2 tests from the review (SSH failure, unknown `result`) failed before their fixes.
+- Codex scan (read-only, `gpt-6.1-sol`): 3 findings, all confirmed in the code and fixed: no row when SSH fails on the first load, an old state in the online panel after a worker failure, and a late old response over a newer state. Their 3 tests failed before the fixes. The test for the late response failed with the guard removed: expected `pullFailed`, received `current`.
 - Screenshots: light, dark, and 375 px. At 375 px the page has no horizontal scroll.
 - Not verified on the VPS: the worker there must first have PR #260.
 
@@ -60,3 +61,5 @@ The text for `unknown` says "no status from the worker", not the approved "worke
 ## Lessons
 
 `reuseExistingServer` in `playwright.config.ts` accepts any process on port 3100. A different program on this port gave a false red: all tests failed with an HTTP 404 page that did not come from Next. If all tests fail, read the page snapshot first. Use `E2E_PORT` to select a free port.
+
+A test for "nothing changes" can pass without proof. The first versions of the late-response test passed also with the guard removed, because the test changed the mock before the mock read the first request. Always remove the fix once and see the test fail.

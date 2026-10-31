@@ -466,6 +466,62 @@ test.describe('Auto-Update-Zustand', () => {
     await expect(row(page)).toContainText(msg('vps.autoUpdate.state.unknown'));
   });
 
+  test('ohne SSH von Anfang an zeigt die Seite die Zeile trotzdem', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await page.clock.setFixedTime(NOW);
+    worker.overrides.set('GET /api/system/worker/status', {
+      status: 200,
+      body: { auto_update: { ...RUNNING, result: 'pull_failed', detail: 'Permission denied' } },
+    });
+    await mockVps(page, { status: { ok: false, error: 'SSH-Zeitüberschreitung' }, statusCode: 502 });
+    await page.goto('/vps');
+    await expect(row(page)).toHaveAttribute('data-state', 'pullFailed');
+  });
+
+  test('eine späte alte Antwort überschreibt keinen neueren Zustand', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await page.clock.setFixedTime(NOW);
+    worker.overrides.set('GET /api/system/worker/status', { status: 200, body: { auto_update: RUNNING }, delayMs: 1500 });
+    await mockVps(page);
+    const isWorkerStatus = (url: string) => url.endsWith('/api/system/worker/status');
+    let finished = 0;
+    page.on('requestfinished', (req) => {
+      if (req.method() === 'GET' && isWorkerStatus(req.url())) finished += 1;
+    });
+    await page.goto('/vps');
+    // Erst wenn der Mock die erste Anfrage hat: sie muss die verzögerte Antwort bekommen
+    await expect.poll(() => worker.callsTo('GET', '/api/system/worker/status').length).toBe(1);
+
+    worker.overrides.set('GET /api/system/worker/status', {
+      status: 200,
+      body: { auto_update: { ...RUNNING, result: 'pull_failed', detail: 'Permission denied' } },
+    });
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
+    await expect(row(page)).toHaveAttribute('data-state', 'pullFailed');
+
+    await expect.poll(() => finished).toBe(2);
+    // Nichts Sichtbares zeigt, dass die Antwort verworfen wurde: kurzes Fenster, damit React sie verarbeitet hätte
+    await page.waitForTimeout(300);
+    await expect(row(page)).toHaveAttribute('data-state', 'pullFailed');
+  });
+
+  test('das Online-Panel meldet „unbekannt“, wenn der Worker wegbricht', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await page.clock.setFixedTime(NOW);
+    worker.overrides.set('GET /api/system/worker/status', {
+      status: 200,
+      body: { version: 'v0.7.304', uptime_sec: 60, supervised: true, bots_running: 0, bots_total: 1, auto_update: RUNNING },
+    });
+    await page.route('**/api/vps/**', (route) =>
+      route.fulfill({ status: 403, json: { ok: false, error: 'lokal', code: 'localOnly' } }),
+    );
+    await page.goto('/vps');
+    const panelRow = page.getByTestId('vps-online').getByTestId('vps-auto-update');
+    await expect(panelRow).toHaveAttribute('data-state', 'current');
+
+    worker.offline = true;
+    await page.getByTestId('vps-online').getByRole('button', { name: msg('vps.refresh') }).click();
+    await expect(page.getByTestId('vps-online-error')).toBeVisible();
+    await expect(panelRow).toHaveAttribute('data-state', 'unknown');
+  });
+
   test('das Online-Panel zeigt dieselbe Zeile', { tag: '@UPD-07' }, async ({ page, worker }) => {
     await page.clock.setFixedTime(NOW);
     worker.overrides.set('GET /api/system/worker/status', {

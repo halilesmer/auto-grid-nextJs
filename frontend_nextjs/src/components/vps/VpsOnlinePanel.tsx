@@ -136,7 +136,8 @@ export default function VpsOnlinePanel() {
                   testId="vps-online-bots"
                 />
               </div>
-              <AutoUpdateRow status={status.auto_update ?? null} readAt={readAt} />
+              {/* Bei einem Fehler bleibt status stehen; „Aktuell“ wäre dann eine alte Aussage */}
+              <AutoUpdateRow status={error ? null : (status.auto_update ?? null)} readAt={readAt} />
               {!status.supervised && (
                 <p className="text-xs text-warning" data-testid="vps-online-unsupervised">
                   {t('vps.online.unsupervised')}
