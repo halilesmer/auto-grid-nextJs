@@ -25,6 +25,7 @@ import {
 import { FRZ_PARAMS, OBO_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
 import { divergenceOf, tradeSideOf } from './sig';
+import { formationCloses } from './trdFormation';
 import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 
@@ -107,7 +108,7 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: OboBase): 
   if (n1 && n2) {
     const zone = zoneGeometry(bars, n1.idx, cs, tf);
     const edge = cs === 'support' ? zone.bottom : zone.top;
-    add('OBO-05', flag(!closesInRowBeyond(bars, cs, edge, n1.idx + 1, n2.idx)));
+    add('OBO-05', flag(!closesInRowBeyond(bars, cs, edge, { from: n1.idx + 1, to: n2.idx, closes: formationCloses(view.zug) })));
   } else add('OBO-05', U);
   const small = n1 && n2 && rs ? (outward(es, rs.price) - outward(es, n2.price)) / (outward(es, ls.price) - outward(es, n1.price)) : null;
   const ratioOk = small !== null && Number.isFinite(small) ? small >= OBO_PARAMS.shoulderRatio.min && small <= OBO_PARAMS.shoulderRatio.max : null;

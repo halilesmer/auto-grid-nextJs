@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { DEFAULT_TREND_SETTINGS, type TrendSettings } from '@/lib/formation/params';
+import { sanitizeTrendSettings } from '@/lib/formation/trdPath';
 
 /**
  * Anzeige-Schalter der Analyse-Seite (Zahnrad). Gerätebezogene Vorliebe: nur im localStorage dieses
@@ -30,6 +32,12 @@ export interface AnalysisPrefs {
 }
 
 interface AnalysisPrefsState extends AnalysisPrefs {
+  /** Trendzug im Chart (ANA-21), nicht Teil der Vorschau des Einstellungsdialogs */
+  showTrend: boolean;
+  trend: TrendSettings;
+  setShowTrend: (value: boolean) => void;
+  setTrend: (patch: Partial<TrendSettings>) => void;
+  resetTrend: () => void;
   previewBackup: AnalysisPrefs | null;
   beginPreview: () => void;
   finishPreview: (commit: boolean) => void;
@@ -54,6 +62,11 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
   persist(
     (set, get) => ({
       ...DEFAULTS,
+      showTrend: false,
+      trend: DEFAULT_TREND_SETTINGS,
+      setShowTrend: value => set({ showTrend: value }),
+      setTrend: patch => set({ trend: sanitizeTrendSettings({ ...get().trend, ...patch }) }),
+      resetTrend: () => set({ trend: DEFAULT_TREND_SETTINGS }),
       previewBackup: null,
       beginPreview: () => {
         const state = get(), backup = { ...DEFAULTS };
@@ -72,17 +85,19 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
     {
       name: ANALYSIS_PREFS_KEY,
       storage: createJSONStorage(() => localStorage),
-      partialize: (s): AnalysisPrefs => {
+      partialize: (s) => {
         const out = { ...DEFAULTS };
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) out[key] = (s.previewBackup ?? s)[key];
-        return out;
+        return { ...out, showTrend: s.showTrend, trend: s.trend };
       },
       // Wie ThemeSync: erst nach der Hydration lesen (rehydrate() in app/chart/page.tsx), sonst SSR-Abweichung
       skipHydration: true,
       // Nur bekannte boolesche Felder übernehmen (alter/kaputter Speicherstand)
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<Record<keyof AnalysisPrefs, unknown>>;
+        const p = (persisted ?? {}) as Partial<Record<keyof AnalysisPrefs | 'showTrend' | 'trend', unknown>>;
         const next = { ...current };
+        if (typeof p.showTrend === 'boolean') next.showTrend = p.showTrend;
+        next.trend = sanitizeTrendSettings(p.trend);
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) {
           if (typeof p[key] === 'boolean') next[key] = p[key] as boolean;
         }

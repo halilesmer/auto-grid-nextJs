@@ -51,13 +51,15 @@ interface Props {
   countdownNow?: number | null;
   children: ReactNode;
   overlays?: ReactNode;
+  /** Schalter, die rechts neben den Indikatoren in der Kopfleiste stehen (z. B. Trendzug) */
+  toolbarActions?: ReactNode;
   /** Preserve the old RSI preference without modifying the formation detector. */
   showRsi?: boolean;
   className?: string;
   overlayLayout?: boolean;
 }
 
-export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, showRsi = true, className = '', overlayLayout = false }: Props) {
+export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, showRsi = true, className = '', overlayLayout = false }: Props) {
   const t = useT(), fmt = useFormat();
   const root = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);
@@ -359,6 +361,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       <div className="flex flex-wrap items-center gap-1">
         {overlayLayout && appearance.navigation && <Button size="sm" variant="ghost" hint={t('cw.fit.hint')} onClick={() => binding?.chart.timeScale().fitContent()}>{t('cw.fit')}</Button>}
         <Button size="sm" variant="ghost" hint={t('cw.indicators.hint')} onClick={() => setIndicatorsOpen(true)}>{t('cw.indicators')}</Button>
+        {toolbarActions}
         <Button size="icon-sm" variant="ghost" hint={t(historySize.undo ? 'cw.undo.hint' : 'cw.undoEmpty.hint')} aria-label={t('cw.undo')} disabled={locked || !historySize.undo} onClick={() => history(true)}><Undo2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t(historySize.redo ? 'cw.redo.hint' : 'cw.redoEmpty.hint')} aria-label={t('cw.redo')} disabled={locked || !historySize.redo} onClick={() => history(false)}><Redo2 size={15} /></Button>
         <Button size="icon-sm" variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>

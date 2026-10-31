@@ -3,6 +3,7 @@
  * - ZoneBandPrimitive: Preisband der Zone (min–max), abschaltbar
  * - MissingDataPrimitive: fehlende Datenbereiche grau schraffiert, nie abschaltbar (Datenqualität)
  * - PauseLinesPrimitive: Marktpausen als dünne gestrichelte Trennlinien, abschaltbar
+ * - TrendPathPrimitive: Trendzug (ANA-21), per Schalter in der Kopfleiste
  */
 import type {
   IChartApiBase,
@@ -293,6 +294,60 @@ export class FractalsPrimitive extends BasePrimitive {
         context.fillStyle = m.color;
         context.fill();
       }
+    });
+  };
+}
+
+/** Ein Schenkel des Trendzugs in Zeit und Preis (Zeiten = Öffnungszeit der Kerze). */
+export interface TrendPathLine {
+  from: { time: number; price: number };
+  to: { time: number; price: number };
+  color: string;
+}
+
+/** Trendzug (ANA-21): 2 px, darunter ein Saum von 1 px in der Panelfarbe, damit die Linie auf gleichfarbigen Kerzen nicht untergeht. */
+export class TrendPathPrimitive extends BasePrimitive {
+  private lines: TrendPathLine[] = [];
+  private halo: string | null = null;
+
+  constructor() {
+    super('top');
+  }
+
+  set(lines: TrendPathLine[], halo: string | null) {
+    this.lines = lines;
+    this.halo = halo;
+    this.update();
+  }
+
+  protected draw: Draw = (target) => {
+    if (this.lines.length === 0 || !this.series) return;
+    const series = this.series;
+    const segs = this.lines.flatMap((l) => {
+      const x1 = this.x(l.from.time);
+      const x2 = this.x(l.to.time);
+      const y1 = series.priceToCoordinate(l.from.price);
+      const y2 = series.priceToCoordinate(l.to.price);
+      return x1 === null || x2 === null || y1 === null || y2 === null ? [] : [{ x1, x2, y1: Number(y1), y2: Number(y2), color: l.color }];
+    });
+    const halo = this.halo;
+    target.useBitmapCoordinateSpace(({ context, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
+      context.save();
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      const stroke = (width: number, color: (s: (typeof segs)[number]) => string) => {
+        context.lineWidth = width * hr;
+        for (const s of segs) {
+          context.strokeStyle = color(s);
+          context.beginPath();
+          context.moveTo(s.x1 * hr, s.y1 * vr);
+          context.lineTo(s.x2 * hr, s.y2 * vr);
+          context.stroke();
+        }
+      };
+      if (halo) stroke(4, () => halo);
+      stroke(2, (s) => s.color);
+      context.restore();
     });
   };
 }

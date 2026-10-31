@@ -1,11 +1,13 @@
 /**
  * Trend (TRD): Bausteine als reine Funktionen über geschlossene Kerzen einer Zeiteinheit.
  * `buildTrend` läuft einmal von links nach rechts über die Kerzen. Bei Kerze k fließen nur Kerzen bis k ein
- * (Fraktale werden erst nach N geschlossenen Kerzen rechts fertig, Wechsel brauchen geschlossene Kerzen),
+ * (ein Punkt entscheidet sich an der Kerze, mit der sein Fraktal fertig wird, Wechsel brauchen geschlossene Kerzen),
  * so gibt es keinen Blick in die Zukunft.
  */
 import { closesBeyond, fractalIndices, outward, wickEnd, zoneGeometry, type ZoneSide } from './frz';
-import { FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe } from './params';
+import { wilderAtr } from './indicators';
+import { FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe, type TrendOptions } from './params';
+import { zugRule, type ZugEdit, type ZugPoint } from './trdZug';
 import type { FormationBar } from './types';
 
 export type TrendDir = 'up' | 'down';
@@ -14,7 +16,7 @@ type Bars = readonly FormationBar[];
 const N = FRZ_PARAMS.neighbors;
 
 /** Richtung eines Zugs, der an einem Punkt dieser Seite endet (Hoch → aufwärts) */
-const legDir = (side: ZoneSide): TrendDir => (side === 'resistance' ? 'up' : 'down');
+export const legDir = (side: ZoneSide): TrendDir => (side === 'resistance' ? 'up' : 'down');
 /** Seite des Extrems in Trendrichtung (Aufwärtstrend: Hochs) */
 export const extremeSide = (dir: TrendDir): ZoneSide => (dir === 'up' ? 'resistance' : 'support');
 export const counterSide = (dir: TrendDir): ZoneSide => (dir === 'up' ? 'support' : 'resistance');
@@ -30,9 +32,9 @@ export interface TrdCand {
   drawn: boolean;
   /** Korrektur gegen den Trend zum Zeitpunkt des Kandidaten; null, solange es keinen Trend gab */
   isCorrection: boolean | null;
-  /** Länge / Referenzkorrektur (TRD-07); null bei der ersten Korrektur nach einem Wechsel */
+  /** Länge / Maß des Zugs (TRD-07, TRD-09); null, wenn es kein Maß gibt */
   ratio: number | null;
-  /** Korrektur wurde gezeichnet (≥ 75 %) oder war die erste nach einem Wechsel */
+  /** Punkt wurde gezeichnet */
   accepted: boolean;
 }
 
@@ -73,6 +75,7 @@ export interface TrendModel {
   unconfirmedBreaks: number;
   /** laufende Reihe Schlüsse jenseits der Bezugszone am Ende der Kerzen */
   pendingRun: number;
+  /** Maß der jüngsten Korrektur (TRD-09); null ohne Korrektur oder Maß */
   refCorrection: number | null;
   /** Kerzen mit Schluss jenseits des vorigen Extrems in Trendrichtung (TRD-12, TRD-30), Kerzenindizes */
   impulseBars: number[];
@@ -80,11 +83,8 @@ export interface TrendModel {
 
 export const lastOf = <T>(list: readonly T[]): T | undefined => list[list.length - 1];
 
-export function buildTrend(
-  tf: ContextTimeframe,
-  bars: Bars,
-  wave: (number | null)[],
-): TrendModel {
+/** Fraktale je Kerze, mit der sie fertig werden (TRD-03) */
+export function fractalsByDone(bars: Bars): Map<number, { idx: number; side: ZoneSide }[]> {
   const byDone = new Map<number, { idx: number; side: ZoneSide }[]>();
   for (const side of ['resistance', 'support'] as const) {
     for (const idx of fractalIndices(bars, side)) {
@@ -93,30 +93,82 @@ export function buildTrend(
       byDone.set(idx + N, list);
     }
   }
+  return byDone;
+}
 
-  const m: TrendModel = {
-    tf,
-    bars,
-    wave,
-    cands: [],
-    pivots: [],
-    dir: null,
-    originPos: 0,
-    changes: [],
-    unconfirmedBreaks: 0,
-    pendingRun: 0,
-    refCorrection: null,
-    impulseBars: [],
-  };
+export const emptyTrend = (tf: ContextTimeframe, bars: Bars, wave: (number | null)[]): TrendModel => ({
+  tf,
+  bars,
+  wave,
+  cands: [],
+  pivots: [],
+  dir: null,
+  originPos: 0,
+  changes: [],
+  unconfirmedBreaks: 0,
+  pendingRun: 0,
+  refCorrection: null,
+  impulseBars: [],
+});
+
+/** Neuer Impuls: erster Schluss jenseits des vorigen Extrems in Trendrichtung (TRD-12) */
+export function noteImpulse(m: TrendModel, k: number): void {
+  if (!m.dir) return;
+  const ext = [...m.pivots].reverse().find((p) => p.side === extremeSide(m.dir!));
+  if (ext && closesBeyond(m.bars[k], ext.price, extremeSide(m.dir))) m.impulseBars.push(k);
+}
+
+/** Bezugspunkt des Wechsels (TRD-15, TRD-16): der Gegenpunkt, an dem der laufende Impuls begann */
+export function changeRef(m: TrendModel): Pivot | undefined {
+  if (!m.dir) return undefined;
+  const side = extremeSide(m.dir);
+  const pos = m.pivots.map((p) => p.side).lastIndexOf(side);
+  return pos > 0 ? m.pivots[pos - 1] : undefined;
+}
+
+function setDrawn(m: TrendModel, p: ZugPoint, drawn: boolean): void {
+  const cand = m.cands.find((c) => c.idx === p.idx && c.side === p.side);
+  if (cand) cand.drawn = drawn;
+}
+
+function appendPivot(m: TrendModel, f: ZugPoint): void {
+  const prev = lastOf(m.pivots);
+  if (prev && !m.dir) m.dir = legDir(f.side);
+  let kind: Pivot['kind'] = 'start';
+  if (prev) kind = legDir(f.side) === m.dir ? 'impulse' : 'correction';
+  m.pivots.push({ ...f, kind, len: prev ? Math.abs(f.price - prev.price) : 0 });
+  setDrawn(m, f, true);
+}
+
+function applyEdit(m: TrendModel, edit: ZugEdit): void {
+  for (const gone of m.pivots.splice(m.pivots.length - edit.cut)) setDrawn(m, gone, false);
+  for (const f of edit.add) appendPivot(m, f);
+  // die Regel `filter` kann den Punkt streichen, an dem der laufende Trend beginnt
+  m.originPos = Math.min(m.originPos, m.pivots.length - 1);
+}
+
+export function buildTrend(
+  tf: ContextTimeframe,
+  bars: Bars,
+  wave: (number | null)[],
+  options: Partial<TrendOptions> = {},
+): TrendModel {
+  const opt: TrendOptions = { ...TRD_PARAMS.trend, changeCloses: TRD_PARAMS.changeCloses, ...options };
+  const byDone = fractalsByDone(bars);
+  const atr = wilderAtr(bars, opt.atrPeriod);
+  const minLeg = (idx: number) => opt.minSize * atr[idx];
+  const nextEdit = zugRule(opt, bars, minLeg);
+
+  const m = emptyTrend(tf, bars, wave);
 
   for (let k = 0; k < bars.length; k++) {
-    // 1. Trendwechsel: Schlüsse jenseits des letzten Gegenpunkts (TRD-15 bis TRD-17)
+    // 1. Trendwechsel: Schlüsse jenseits des Gegenpunkts, an dem der Impuls begann (TRD-15 bis TRD-17)
     if (m.dir) {
-      const ref = [...m.pivots].reverse().find((p) => p.side === counterSide(m.dir!));
+      const ref = changeRef(m);
       if (ref) {
-        if (closesBeyond(bars[k], ref.price, counterSide(m.dir))) {
+        if (closesBeyond(bars[k], ref.price, ref.side)) {
           m.pendingRun++;
-          if (m.pendingRun >= TRD_PARAMS.changeCloses) {
+          if (m.pendingRun >= opt.changeCloses) {
             const to: TrendDir = m.dir === 'up' ? 'down' : 'up';
             const refIdx = m.pivots.indexOf(ref);
             m.changes.push({ k, to, refPrice: ref.price, refIdx, refBar: ref.idx });
@@ -125,7 +177,6 @@ export function buildTrend(
             m.pendingRun = 0;
             // die Züge seit der Bezugszone gehören zum neuen Trend: Impuls und Korrektur tauschen
             for (const p of m.pivots.slice(refIdx)) p.kind = legDir(p.side) === to ? 'impulse' : 'correction';
-            refreshReference(m);
           }
         } else if (m.pendingRun > 0) {
           m.unconfirmedBreaks++;
@@ -136,10 +187,11 @@ export function buildTrend(
 
     // 2. Fraktale, die mit Kerze k fertig werden (TRD-03)
     let batch = byDone.get(k) ?? [];
-    // Außenkerze: Hoch- und Tief-Fraktal in einer Kerze; nur die Seite, die zum letzten Punkt wechselt, wird ein Wendepunkt
-    if (batch.length === 2 && batch[0].idx === batch[1].idx) {
+    // Außenkerze: Hoch- und Tief-Fraktal in einer Kerze; höchstens eine Seite wird ein Wendepunkt, zuerst die, die zum letzten Punkt wechselt
+    const outerBar = batch.length === 2 && batch[0].idx === batch[1].idx;
+    if (outerBar) {
       const prev = lastOf(m.pivots);
-      batch = prev ? batch.filter((c) => c.side !== prev.side) : batch.slice(0, 1);
+      batch = prev ? [...batch].sort((a) => (a.side === prev.side ? 1 : -1)) : batch.slice(0, 1);
     }
     for (const c of batch) {
       const price = wickEnd(bars[c.idx], c.side);
@@ -153,77 +205,31 @@ export function buildTrend(
         ratio: null,
         accepted: false,
       };
-      m.cands.push(cand);
       const last = lastOf(m.pivots);
-      if (!last) {
-        m.pivots.push({ idx: c.idx, doneAt: k, side: c.side, price, kind: 'start', len: 0 });
-        cand.drawn = true;
-        continue;
-      }
-      if (last.side === c.side) {
-        // TRD-05, TRD-06: nur das äußerste Extrem einer Seite bleibt
-        if (outward(c.side, price) > outward(c.side, last.price)) {
-          const before = m.pivots[m.pivots.length - 2];
-          const old = m.cands.find((x) => x.drawn && x.idx === last.idx && x.side === last.side);
-          if (old) old.drawn = false;
-          last.idx = c.idx;
-          last.doneAt = k;
-          last.price = price;
-          last.len = before ? Math.abs(price - before.price) : 0;
-          cand.drawn = true;
-          cand.isCorrection = last.kind === 'correction';
-          cand.accepted = true;
-          if (last.kind === 'correction') {
-            // Verhältnis zur Referenz ohne diesen Punkt, dann die Referenz neu
-            const others = m.pivots.slice(m.originPos, -1).filter((p) => p.kind === 'correction').map((p) => p.len);
-            cand.ratio = others.length === 0 ? null : last.len / Math.min(...others);
-            refreshReference(m);
-          }
-        }
-        continue;
-      }
-      const segDir = legDir(c.side);
-      const len = Math.abs(price - last.price);
-      if (!m.dir) {
-        m.dir = segDir;
-        m.originPos = 0;
-        m.pivots.push({ idx: c.idx, doneAt: k, side: c.side, price, kind: 'impulse', len });
-        cand.drawn = true;
-        continue;
-      }
-      if (segDir === m.dir) {
-        m.pivots.push({ idx: c.idx, doneAt: k, side: c.side, price, kind: 'impulse', len });
-        cand.drawn = true;
-        continue;
-      }
+      const legStart = last?.side === c.side ? m.pivots[m.pivots.length - 2] : last;
+      const movesLeg = last?.side !== c.side || outward(c.side, price) > outward(c.side, last.price);
       // ein zweites, schwächeres Fraktal derselben Seite hinter einer verworfenen Korrektur zählt nicht als eigene Korrektur
-      const folded = m.cands.find((x) => x !== cand && x.isCorrection && !x.accepted && x.side === c.side && x.idx > last.idx);
-      if (folded && outward(c.side, price) <= outward(c.side, folded.price)) continue;
-      cand.isCorrection = true;
-      cand.ratio = m.refCorrection === null ? null : len / m.refCorrection;
-      if (cand.ratio === null || cand.ratio >= TRD_PARAMS.ownWave) {
+      const folded = last && m.cands.find((x) => x.isCorrection && !x.accepted && x.side === c.side && x.idx > last.idx);
+      const weaker = folded && outward(c.side, price) <= outward(c.side, folded.price);
+      if (legStart && m.dir && legDir(c.side) !== m.dir && movesLeg && !weaker) {
+        cand.isCorrection = true;
+        if (opt.rule !== 'welle') {
+          cand.ratio = Math.abs(price - legStart.price) / minLeg(c.idx);
+          m.refCorrection = minLeg(c.idx);
+        }
+      }
+      m.cands.push(cand);
+      const edit = nextEdit(m.pivots, { idx: c.idx, doneAt: k, side: c.side, price });
+      if (edit) {
         cand.accepted = true;
-        cand.drawn = true;
-        m.pivots.push({ idx: c.idx, doneAt: k, side: c.side, price, kind: 'correction', len });
-        refreshReference(m);
+        applyEdit(m, edit);
+        if (outerBar) break;
       }
     }
 
-    // 3. Neuer Impuls: erster Schluss jenseits des vorigen Extrems in Trendrichtung (TRD-12)
-    if (m.dir) {
-      const ext = [...m.pivots].reverse().find((p) => p.side === extremeSide(m.dir!));
-      if (ext) {
-        if (closesBeyond(bars[k], ext.price, extremeSide(m.dir))) m.impulseBars.push(k);
-      }
-    }
+    noteImpulse(m, k);
   }
   return m;
-}
-
-/** Referenzkorrektur = kleinste gezeichnete Korrektur seit dem letzten Wechsel (TRD-09) */
-function refreshReference(m: TrendModel): void {
-  const lens = m.pivots.slice(m.originPos).filter((p) => p.kind === 'correction').map((p) => p.len);
-  m.refCorrection = lens.length === 0 ? null : Math.min(...lens);
 }
 
 /** Längen der Züge einer Art im laufenden Trend, alt → neu */

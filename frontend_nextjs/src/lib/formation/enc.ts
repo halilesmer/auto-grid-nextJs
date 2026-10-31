@@ -9,7 +9,8 @@ import { otherSide, type ZoneSide } from './frz';
 import { channelBases, legLens, widthAt, type Channel, type ChannelBase } from './lineChannel';
 import { LINE_CHANNEL_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, neighborTf, type Env } from './reasons';
-import { buildTrend, type TrendDir } from './trd';
+import type { TrendDir } from './trd';
+import { formationTrend } from './trdFormation';
 import type { Anchor, Candidate } from './types';
 
 /** Richtung des Trends, dessen Ende die Formation anzeigt (Extrem Hochs: Aufwärtstrend) */
@@ -17,7 +18,7 @@ export const trendOf = (es: ZoneSide): TrendDir => (es === 'resistance' ? 'up' :
 
 /** Trend der Zeiteinheit nach den Kerzen bis einschließlich `idx` */
 export function trendDirAt(view: TimeframeView, idx: number): TrendDir | null {
-  return buildTrend(view.tf, view.bars.slice(0, idx + 1), view.wave.slice(0, idx + 1)).dir;
+  return formationTrend(view, idx).dir;
 }
 
 /** Trend der nächsttieferen geladenen Zeiteinheit zum Schluss der Kerze `idx` der Formations-Zeiteinheit; undefined ohne tiefere Zeiteinheit */

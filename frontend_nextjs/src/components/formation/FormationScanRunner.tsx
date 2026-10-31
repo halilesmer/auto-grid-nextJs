@@ -16,6 +16,7 @@ import { formationRequests } from '@/lib/formation/requests';
 import { formedHits, scanFormations, scanTime, type FormedHit, type ScanHit } from '@/lib/formation/scan';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useAccountStore } from '@/store/useAccountStore';
+import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { useFavoritesScanStore, type ScanGap } from '@/store/useFavoritesScanStore';
 
 const LOCK_NAME = 'grid-favorites-scan';
@@ -81,7 +82,7 @@ async function scanSymbol(accountId: string, symbol: string, to: number, signal:
   const last: Bar | undefined = m15?.bars[m15.bars.length - 1];
   if (!m15 || !last) return { formed: [], hits: [], gap: 'missing' };
   const at = scanTime(last.time, m15.liveFrom === last.time);
-  const hits = scanFormations(new FormationContext(symbol, input), at);
+  const hits = scanFormations(new FormationContext(symbol, input, { zug: useAnalysisPrefsStore.getState().trend.formationZug }), at);
   spent.ms += performance.now() - started;
   return { formed: formedHits(hits), hits, gap };
 }
@@ -188,6 +189,8 @@ export default function FormationScanRunner() {
   const router = useRouter();
   const accountId = useAccountStore((s) => s.selectedAccount);
   useFavoritesLoader(accountId);
+  // Die Grundlage der Formationen (Trend-Einstellungen) liegt im Browser-Speicher; die Seite /chart liest sie sonst allein
+  useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);
   const favorites = useFavorites(accountId);
   const clock = useBrokerClock(accountId);
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot);

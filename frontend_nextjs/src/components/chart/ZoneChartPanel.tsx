@@ -27,6 +27,8 @@ import { useDealsHistory } from '@/hooks/useDealsHistory';
 import { useSetupLabel } from '@/hooks/useSetupLabel';
 import { useLiveTrades } from '@/hooks/useLiveTrades';
 import { useMarketRates } from '@/hooks/useMarketRates';
+import { useTrendPath } from '@/hooks/useTrendPath';
+import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { buildChartData, isTimeframe, ratesWindow, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
 import { findFractals } from '@/lib/analysis/fractals';
@@ -320,6 +322,9 @@ export default function ZoneChartPanel({
   const viewKey = request ? `${request.accountId}|${request.symbol}|${request.timeframe}|${request.from}|${request.to}` : '';
   const rates = useMarketRates(request, nowSec);
   const data = rates.data;
+  const showTrend = useAnalysisPrefsStore((st) => st.showTrend);
+  const trendSettings = useAnalysisPrefsStore((st) => st.trend);
+  const trend = useTrendPath({ accountId, symbol, timeframe, offsetSec, clockReady }, showTrend, trendSettings, nowSec);
 
   // Fehlende Bereiche enden jetzt (Brokeruhr); ohne sichere Uhr bei UTC jetzt: die Zukunft fehlt nie
   const chart = useMemo(() => {
@@ -638,6 +643,11 @@ export default function ZoneChartPanel({
                 {rates.error}
               </Alert>
             )}
+            {trend.error && (
+              <Alert tone="danger" title={t('analysis.chart.loadFailed')}>
+                {trend.error}
+              </Alert>
+            )}
             {data && chart && (
               <DataQualityBanner missing={chart.missing} clipped={data.clipped} dbFull={data.dbFull} loadedFrom={data.from} />
             )}
@@ -677,6 +687,8 @@ export default function ZoneChartPanel({
                 markers={overlays.markers}
                 links={overlays.links}
                 fractals={fractals}
+                trendPath={trend}
+                toolbarActions={<TrendToggle timeframe={timeframe} />}
                 notes={overlays.notes}
                 focus={focus && focus.view === viewKey ? focus : null}
               />
