@@ -1934,3 +1934,13 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-alarm-lib.spec.ts (@FRM-27) ausführen (Übergänge, stille Grundlinie, Schlüssel, abgewählte Ereignisse, Speichergrenze).
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-27) ausführen (Banner, Meldung nach neuem Suchlauf, keine Doppelmeldung nach Neuladen, Sammelmeldung, Alarm aus, 375 px).
         erwartet: Nach dem Einschalten erscheint zu einer Formation, die danach gültig wird oder ihren Zielpunkt erreicht, genau eine Meldung; derselbe Stand meldet nicht erneut, auch nicht nach dem Neuladen; ohne Alarm kommt nichts.
+
+      - id: FRM-28
+        titel: "Seite Formasyon: Produkte als Favoriten markieren"
+        beschreibung: "Neben dem gewählten Produkt in der Pille und neben jedem Produktnamen in der Produktsuche steht eine kleine Fahne. Ein Klick setzt den Favoriten (gefüllt), ein zweiter entfernt ihn (nur Umrandung). Der Klick wählt das Produkt nicht und schließt die Liste nicht; Tab erreicht die Fahne, Enter wählt das Produkt. Die Liste liegt je Konto auf dem VPS (GET/PUT /favorites/{id}, configs/favorites_<id>.json, atomar geschrieben, wird mit dem Konto gelöscht), damit jedes Gerät dieselbe Liste sieht. Ein Benutzer erreicht nur die Favoriten eigener Konten (sonst 404), ungültiger Inhalt gibt 422. Das Umschalten wirkt sofort; bei einem Speicherfehler wird die Fahne zurückgesetzt und eine Meldung gezeigt. Die Seitenleiste und die Suche über Favoriten folgen mit FRM-29."
+        code: [worker_python/src/api/favorites.py, worker_python/src/api/models.py, worker_python/src/utils/paths.py, worker_python/src/api/accounts.py, frontend_nextjs/src/components/ui/combobox.tsx, frontend_nextjs/src/hooks/useFavorites.ts, frontend_nextjs/src/store/useFavoritesStore.ts, frontend_nextjs/src/services/favoritesApi.ts, frontend_nextjs/src/components/formation/FormationSelectors.tsx]
+        tiers: [api, e2e]
+        pruefung:
+          - pytest worker_python/tests/api/test_favorites_api.py (@FRM-28) ausführen (lesen, schreiben, fremdes Konto 404, ungültiger Inhalt 422, Datei weg beim Löschen des Kontos).
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-28) ausführen (Fahne in Pille und Liste, Tab und Enter, Fehler, 375 px).
+        erwartet: Die Fahne setzt und entfernt den Favoriten, die Liste bleibt nach dem Neuladen und auf jedem Gerät gleich, und kein Klick auf die Fahne wählt ein Produkt.

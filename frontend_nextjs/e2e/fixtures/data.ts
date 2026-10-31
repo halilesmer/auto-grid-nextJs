@@ -166,6 +166,7 @@ export function defaultState() {
       [LIVE_ID]: { LOOP_INTERVAL_SECONDS: 1, SYMBOLS: [] },
     } as Record<string, Record<string, unknown>>,
     uiState: {} as Record<string, Record<string, string>>,
+    favorites: {} as Record<string, string[]>,
     robotLog: {
       [DEMO_ID]: [
         '[2026-09-24 08:00:00] [INFO] [START] Bot gestartet',

@@ -47,6 +47,11 @@ def get_settings_path(account_id: str, engine_name: str = "Auto Grid") -> str:
     return os.path.join(_ensure_configs_dir(), f"settings_{safe}_{safe_engine}.json")
 
 
+def get_favorites_path(account_id: str) -> str:
+    """Örn: configs/favorites_<account_id>.json (/formasyon favori ürünleri)"""
+    return os.path.join(_ensure_configs_dir(), f"favorites_{safe_account_id(account_id)}.json")
+
+
 # ══════════════════════════════════════════════════════════
 # 2. SİSTEM DURUMU / HAFIZA (data/) — Kaynağı MT5, adı Account ID
 # ══════════════════════════════════════════════════════════

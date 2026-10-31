@@ -55,3 +55,19 @@ class ActionRequest(BaseModel):
     account_id: str
     action: str
     payload: dict = {}
+
+
+class FavoritesModel(BaseModel):
+    """FRM-28: /formasyon favori ürünleri; sıra korunur, tekrarlar atılır."""
+    symbols: list[str] = Field(max_length=200)
+
+    @field_validator("symbols")
+    @classmethod
+    def _clean_symbols(cls, value: list[str]) -> list[str]:
+        seen: list[str] = []
+        for item in value:
+            if not 1 <= len(item) <= 40 or item != item.strip():
+                raise ValueError("symbol must be 1-40 characters without outer spaces")
+            if item not in seen:
+                seen.append(item)
+        return seen

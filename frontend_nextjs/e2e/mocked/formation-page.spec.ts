@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -661,5 +661,70 @@ test.describe('FRM-27 Formationsalarm', () => {
       expect(box!.x + box!.width).toBeLessThanOrEqual(375);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+});
+
+test.describe('FRM-28 Favoriten-Fahne', () => {
+  const symbolInput = (page: Page) => page.getByTestId('formation-symbol').getByRole('combobox');
+  const addName = (symbol: string) => msg('formation.favorite.add', { symbol });
+  const removeName = (symbol: string) => msg('formation.favorite.remove', { symbol });
+  const putCalls = (worker: MockWorker) => worker.calls.filter((c) => c.method === 'PUT' && c.path === `/api/favorites/${DEMO_ID}`);
+
+  test('Die Fahne in der Pille setzt und entfernt den Favoriten und bleibt nach dem Neuladen', { tag: '@FRM-28' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await page.getByRole('button', { name: addName('EURUSD') }).click();
+    await expect(page.getByRole('button', { name: removeName('EURUSD') })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => worker.state.favorites[DEMO_ID]).toEqual(['EURUSD']);
+
+    await page.reload();
+    await expect(page.getByRole('button', { name: removeName('EURUSD') })).toBeVisible();
+
+    await page.getByRole('button', { name: removeName('EURUSD') }).click();
+    await expect(page.getByRole('button', { name: addName('EURUSD') })).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => worker.state.favorites[DEMO_ID]).toEqual([]);
+  });
+
+  test('Die Fahne in der Produktsuche wählt das Produkt nicht und lässt die Liste offen', { tag: '@FRM-28' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await symbolInput(page).fill('gold');
+    await page.getByRole('button', { name: addName('XAUUSD') }).click();
+    await expect(page.getByRole('option', { name: /XAUUSD/ })).toBeVisible();
+    await expect(page).not.toHaveURL(/symbol=/);
+    await expect(symbolInput(page)).toHaveValue('gold');
+    await expect.poll(() => worker.state.favorites[DEMO_ID]).toEqual(['XAUUSD']);
+    await expect(page.getByRole('button', { name: removeName('XAUUSD') })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('Tab erreicht die Fahne, Enter wählt das Produkt', { tag: '@FRM-28' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await symbolInput(page).fill('gold');
+    await symbolInput(page).press('Tab');
+    const flag = page.getByRole('button', { name: addName('XAUUSD') });
+    await expect(flag).toBeFocused();
+    await flag.press('Enter');
+    await expect.poll(() => worker.state.favorites[DEMO_ID]).toEqual(['XAUUSD']);
+    await expect(page).not.toHaveURL(/symbol=/);
+
+    await symbolInput(page).focus();
+    await symbolInput(page).press('ArrowDown');
+    await symbolInput(page).press('Enter');
+    await expect(page).toHaveURL(/symbol=XAUUSD/);
+  });
+
+  test('Ein Speicherfehler setzt die Fahne zurück und zeigt eine Meldung', { tag: '@FRM-28' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    worker.overrides.set(`PUT /api/favorites/${DEMO_ID}`, { status: 500, body: { detail: 'disk full' } });
+    await page.getByRole('button', { name: addName('EURUSD') }).click();
+    await expect(page.getByText('disk full')).toBeVisible();
+    await expect(page.getByRole('button', { name: addName('EURUSD') })).toHaveAttribute('aria-pressed', 'false');
+    expect(putCalls(worker)).toHaveLength(1);
+  });
+
+  test('Bei 375 px bleibt die Fahne sichtbar und die Seite scrollt nicht quer', { tag: '@FRM-28' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await openPage(page, worker);
+    await expect(page.getByRole('button', { name: addName('EURUSD') })).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 });
