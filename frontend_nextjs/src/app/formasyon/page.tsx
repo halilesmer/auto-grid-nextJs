@@ -131,12 +131,7 @@ function FormationView() {
     return sidebarOpen ? null : node;
   };
 
-  // „Anzeigen“ der Alarm-Meldung: Formation und Zeiteinheit in die Adresse, Kandidat gewählt (wie ein Klick in der Liste)
-  const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol, scan, (notice) => {
-    setActive(null);
-    setPicked(`${notice.form}-${notice.tf}`);
-    setView({ form: notice.form, tf: notice.tf });
-  });
+  const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol);
 
   const captureRef = useRef<(() => Promise<ChartPicture>) | null>(null);
   const registerCapture = useCallback((capture: (() => Promise<ChartPicture>) | null) => {
@@ -216,7 +211,7 @@ function FormationView() {
           actions={
             <>
               <FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />
-              <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} />
+              <FormationAlarmMenu symbol={accountKnown ? symbol : null} accountKnown={accountKnown} alarm={alarm} />
             </>
           }
         >

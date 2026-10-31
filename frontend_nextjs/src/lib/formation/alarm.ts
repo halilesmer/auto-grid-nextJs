@@ -1,5 +1,5 @@
 /**
- * Formationsalarm der Seite /formasyon: vergleicht den Suchlauf mit dem gemerkten Stand und liefert Meldungen.
+ * Formationsalarm: vergleicht den Suchlauf mit dem gemerkten Stand und liefert Meldungen.
  * Reine Funktion (kein React, kein Speicher). Gemeldet wird nur der Übergang „wird gültig“ und „Zielpunkt erreicht“,
  * nie ein Zustand, der weiter besteht. Ein Treffer ist durch Symbol, Formation, Zeiteinheit, Richtung und die
  * Zeiten seiner Punkte ohne den Zielpunkt bestimmt; der Zielpunkt gehört nicht zum Schlüssel, weil er erst später erscheint.
@@ -24,6 +24,7 @@ export type AlarmMemory = Record<string, Seen>;
 
 export interface AlarmNotice {
   key: string;
+  symbol: string;
   form: ScanFormation;
   tf: ScanHit['tf'];
   side: Side;
@@ -42,7 +43,7 @@ export function hitKey(symbol: string, hit: ScanHit): string {
 }
 
 /**
- * `baseline` true (erster Lauf nach Einschalten, Öffnen oder Symbolwechsel) merkt den Stand still.
+ * `baseline` true (Produkt ohne gemerkten Stand, z. B. gerade eingeschaltet) merkt den Stand still.
  * Abgewählte Ereignisse und Formationen werden ebenfalls gemerkt, damit späteres Einschalten nichts nachmeldet.
  * Ungültige Treffer lösen nichts aus; ein Treffer, der verschwindet, bleibt im Speicher (ein Flackern meldet nicht erneut).
  */
@@ -68,7 +69,7 @@ export function evaluateAlarm(
     const events: AlarmEvent[] = [];
     if (now.valid && !before.valid && settings.events.valid) events.push('valid');
     if (now.target && !before.target && settings.events.target) events.push('target');
-    if (events.length > 0) notices.push({ key, form: hit.form, tf: hit.tf, side: hit.candidate.side, events });
+    if (events.length > 0) notices.push({ key, symbol, form: hit.form, tf: hit.tf, side: hit.candidate.side, events });
   }
   // Berührte Schlüssel wandern ans Ende, so bleiben beim Kürzen die jüngsten
   const merged: AlarmMemory = { ...memory };

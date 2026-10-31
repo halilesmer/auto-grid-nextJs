@@ -1,94 +1,46 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { toast } from '@/components/ui/animated-toast';
-import { t, type MessageKey } from '@/i18n';
-import { evaluateAlarm, type AlarmEvent, type AlarmNotice } from '@/lib/formation/alarm';
-import { save, serverSnapshot, snapshot, subscribe, type AlarmPrefs, type Stored } from '@/lib/formation/alarmStore';
-import { FINAL_POINT, SCAN_FORMATIONS, type ScanFormation } from '@/lib/formation/scan';
-import type { FormationScan } from '@/hooks/useFormationScan';
+import { useFavorites } from '@/hooks/useFavorites';
+import { t } from '@/i18n';
+import type { AlarmEvent } from '@/lib/formation/alarm';
+import { notificationPermission } from '@/lib/formation/alarmNotify';
+import { save, serverSnapshot, snapshot, subscribe, type Stored } from '@/lib/formation/alarmStore';
+import { SCAN_FORMATIONS, type ScanFormation } from '@/lib/formation/scan';
+import { useFavoritesScanStore } from '@/store/useFavoritesScanStore';
 
-/** Ab so vielen Meldungen in einem Lauf kommt eine Sammelmeldung statt einer Karte je Treffer */
-const MAX_SINGLE_NOTICES = 3;
-
-const notificationPermission = (): NotificationPermission | 'unsupported' => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
 const noSubscription = () => () => {};
 
-function noticeText(notice: AlarmNotice, symbol: string): { title: string; kind: 'success' | 'warning' } {
-  const both = notice.events.length === 2;
-  const key = (both ? 'formation.alarm.notice.both' : `formation.alarm.notice.${notice.events[0]}`) as MessageKey;
-  const title = t(key, {
-    form: t(`formation.form.${notice.form}` as MessageKey),
-    side: t(`formation.side.${notice.side}` as MessageKey),
-    symbol,
-    tf: notice.tf,
-    point: FINAL_POINT[notice.form],
-  });
-  return { title, kind: notice.events.includes('valid') ? 'success' : 'warning' };
-}
-
-function beep() {
-  try {
-    const context = new AudioContext();
-    const tone = context.createOscillator();
-    tone.connect(context.destination);
-    tone.frequency.value = 880;
-    tone.start();
-    tone.stop(context.currentTime + 0.25);
-    tone.onended = () => void context.close();
-  } catch (error) {
-    // Ohne Nutzergeste oder Audio-Unterstützung bleibt der Ton aus; die Meldung selbst erscheint trotzdem
-    console.warn('formation alarm: sound not played', error);
-  }
-}
-
-function announce(notices: AlarmNotice[], symbol: string, prefs: AlarmPrefs, show: (notice: AlarmNotice) => void) {
-  // Die Sammelmeldung gehört zu keinem einzelnen Treffer und hat deshalb keinen Anzeigen-Knopf
-  const lines = notices.length > MAX_SINGLE_NOTICES
-    ? [{ title: t('formation.alarm.notice.many', { symbol, count: notices.length }), kind: 'success' as const, notice: null }]
-    : notices.map((notice) => ({ ...noticeText(notice, symbol), notice }));
-  for (const { title, kind, notice } of lines) {
-    const action = notice && { label: t('formation.alarm.show'), hint: t('formation.alarm.show.hint'), onClick: () => show(notice) };
-    toast[kind](title, { duration: 10_000, action: action ?? undefined });
-    if (prefs.system && notificationPermission() === 'granted') new Notification(title, { tag: `formation-alarm-${title}` });
-  }
-  if (prefs.sound) beep();
-}
-
 /**
- * Formationsalarm der Seite /formasyon: vergleicht jeden fertigen Suchlauf mit dem gemerkten Stand (alarm.ts) und meldet.
- * Läuft nur, solange die Seite offen ist. Der erste Lauf nach Einschalten, Öffnen oder Symbolwechsel merkt den Stand still.
+ * Einstellungen und Stand des Formationsalarms fürs Glocken-Menü. Die Suche und die Meldungen laufen app-weit im
+ * FormationScanRunner; dieser Hook ändert nur die gespeicherten Einstellungen und liest den Stand der Suche.
+ * `symbol` ist das auf /formasyon gewählte Produkt (Schalter „Alarm für …“), null ohne Konto oder Produkt.
  */
-export function useFormationAlarm(accountId: string | null, symbol: string | null, scan: FormationScan, onShow: (notice: AlarmNotice) => void) {
+export function useFormationAlarm(accountId: string | null, symbol: string | null) {
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const permission = useSyncExternalStore(noSubscription, notificationPermission, () => 'unsupported' as const);
+  const favorites = useFavorites(accountId);
+  const gaps = useFavoritesScanStore((s) => s.gaps);
+  const doneAt = useFavoritesScanStore((s) => s.doneAt);
+  const lastRunAt = useFavoritesScanStore((s) => s.lastRunAt);
+
   const scope = accountId && symbol ? `${accountId}|${symbol}` : null;
   const enabled = scope !== null && stored.enabled.includes(scope);
+  const favoritesEnabled = accountId !== null && stored.favoritesEnabled.includes(accountId);
 
-  // Die Meldung bleibt 10 s stehen: der Klick ruft den jeweils neuesten Stand der Seite auf, nicht den beim Anzeigen
-  const show = useRef(onShow);
-  useEffect(() => {
-    show.current = onShow;
-  });
-
-  const lastScope = useRef<string | null>(null);
-  const processed = useRef<string | null>(null);
-  useEffect(() => {
-    if (!enabled || scope === null || !symbol) {
-      lastScope.current = null;
-      return;
-    }
-    if (scan.loading || scan.error || scan.scanAt === null) return;
-    const run = `${scope}|${scan.scanAt}`;
-    if (processed.current === run) return;
-    processed.current = run;
-    const baseline = lastScope.current !== scope;
-    lastScope.current = scope;
-    const current = snapshot();
-    const result = evaluateAlarm(symbol, scan.hits, current.memory[scope] ?? {}, current.prefs, baseline);
-    save({ ...current, memory: { ...current.memory, [scope]: result.memory } });
-    if (result.notices.length > 0) announce(result.notices, symbol, current.prefs, (notice) => show.current(notice));
-  }, [enabled, scope, symbol, scan.loading, scan.error, scan.scanAt, scan.hits]);
+  const bells = useMemo(() => (accountId ? stored.enabled.filter((x) => x.startsWith(`${accountId}|`)).map((x) => x.slice(accountId.length + 1)) : []), [accountId, stored.enabled]);
+  // Weitere Alarm-Produkte: Glocken-Produkte ohne das gewählte Produkt, dessen Schalter oben steht
+  const extras = bells.filter((x) => x !== symbol);
+  const status = useMemo(() => {
+    const products = [...new Set([...(favoritesEnabled ? favorites.symbols : []), ...bells])];
+    return {
+      total: products.length,
+      ready: products.filter((x) => doneAt[x] !== undefined && !gaps[x]).length,
+      incomplete: products.filter((x) => gaps[x]),
+      lastRunAt,
+    };
+  }, [favoritesEnabled, favorites.symbols, bells, doneAt, gaps, lastRunAt]);
 
   const update = useCallback((change: (current: Stored) => Stored) => save(change(snapshot())), []);
   const setEnabled = useCallback(
@@ -98,6 +50,28 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
       if (on && symbol) toast.info(t('formation.alarm.enabled', { symbol }), { duration: 6000 });
     },
     [scope, symbol, update],
+  );
+  const removeExtra = useCallback(
+    (extra: string) => {
+      if (accountId) update((current) => ({ ...current, enabled: current.enabled.filter((x) => x !== `${accountId}|${extra}`) }));
+    },
+    [accountId, update],
+  );
+  const setFavorites = useCallback(
+    async (on: boolean) => {
+      if (accountId === null) return;
+      // Beim Einschalten fragt der Browser nach der Erlaubnis; wird sie erteilt, geht die Systemmeldung an
+      const asked = on && notificationPermission() === 'default';
+      if (asked) await Notification.requestPermission();
+      const granted = asked && notificationPermission() === 'granted';
+      update((current) => ({
+        ...current,
+        favoritesEnabled: on ? [...current.favoritesEnabled.filter((x) => x !== accountId), accountId] : current.favoritesEnabled.filter((x) => x !== accountId),
+        prefs: granted ? { ...current.prefs, system: true } : current.prefs,
+      }));
+      if (on) toast.info(t('formation.alarm.favorites.enabled'), { duration: 6000 });
+    },
+    [accountId, update],
   );
   const setEvent = useCallback((event: AlarmEvent, on: boolean) => update((current) => ({ ...current, prefs: { ...current.prefs, events: { ...current.prefs.events, [event]: on } } })), [update]);
   const setForm = useCallback(
@@ -114,5 +88,5 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
     [update],
   );
 
-  return { prefs: stored.prefs, enabled, permission, setEnabled, setEvent, setForm, setSound, setSystem };
+  return { prefs: stored.prefs, enabled, favoritesEnabled, favoriteCount: favorites.symbols.length, extras, status, permission, setEnabled, setFavorites, removeExtra, setEvent, setForm, setSound, setSystem };
 }

@@ -571,15 +571,18 @@ test.describe('FRM-27 Formationsalarm', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('formation-alarm')).toHaveAttribute('data-enabled', 'true');
   };
+  const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
   const gartley = () => msg('formation.alarm.notice.both', { form: msg('formation.form.GAR'), side: msg('formation.side.buy'), symbol: 'EURUSD', tf: 'H4', point: 'D' });
-  /** Neue Kerzen liefern und das 60-s-Nachladen der Seite auslösen */
+  /** Der Alarm hat den Stand des Produkts gemerkt (der erste Durchlauf nach dem Einschalten ist fertig) */
+  const remembered = (page: Page, symbol: string) =>
+    page.waitForFunction(([key, scope]) => Boolean(JSON.parse(localStorage.getItem(key) ?? '{}').memory?.[scope]), ['grid-robot-formation-alarm', `${DEMO_ID}|${symbol}`] as const);
+  /** Neue Kerzen liefern und zur nächsten M15-Kerze springen: der app-weite Lauf prüft das Produkt neu */
   const advance = async (page: Page, worker: MockWorker, now: number) => {
     serveFixture(worker, now);
-    await page.clock.runFor(60_000);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.clock.runFor(15 * 60_000);
   };
 
-  test('Das Menü sagt, dass der Alarm nur bei offener Seite läuft', { tag: '@FRM-27' }, async ({ page, worker }) => {
+  test('Das Menü sagt, dass der Alarm auf jeder Seite läuft, solange die App offen ist', { tag: '@FRM-27' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     await expect(page.getByTestId('formation-alarm')).toHaveAttribute('data-enabled', 'false');
     await openAlarm(page);
@@ -590,6 +593,7 @@ test.describe('FRM-27 Formationsalarm', () => {
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
     await enable(page, ['GAR']);
+    await remembered(page, 'EURUSD');
     // Einschalten merkt den Stand still: noch keine Meldung zu einer Formation
     await expect(page.getByText(gartley())).toHaveCount(0);
 
@@ -597,7 +601,9 @@ test.describe('FRM-27 Formationsalarm', () => {
     await expect(page.getByText(gartley())).toBeVisible();
 
     // Nächster Lauf mit demselben Stand: die Meldung steht nicht doppelt da
+    const calls = ratesCalls(worker);
     await advance(page, worker, NOW);
+    await expect.poll(() => ratesCalls(worker)).toBeGreaterThan(calls + 3);
     await expect(page.getByText(gartley())).toHaveCount(1);
 
     // Nach dem Neuladen gilt der Stand als bekannt
@@ -605,6 +611,7 @@ test.describe('FRM-27 Formationsalarm', () => {
     await page.reload();
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByTestId('formation-alarm')).toHaveAttribute('data-enabled', 'true');
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await expect(page.getByText(gartley())).toHaveCount(0);
   });
 
@@ -612,6 +619,7 @@ test.describe('FRM-27 Formationsalarm', () => {
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
     await enable(page, ['GAR']);
+    await remembered(page, 'EURUSD');
     // Auf eine andere Formation und Zeiteinheit wechseln, damit der Sprung sichtbar wird
     await page.getByTestId('formation-form-BAT').click();
     await page.getByTestId('formation-tf-H1').click();
@@ -628,8 +636,9 @@ test.describe('FRM-27 Formationsalarm', () => {
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
     await enable(page);
+    await remembered(page, 'EURUSD');
     await advance(page, worker, NOW);
-    await expect(page.getByText(msg('formation.alarm.notice.many', { symbol: 'EURUSD', count: 5 }))).toBeVisible();
+    await expect(page.getByText(msg('formation.alarm.notice.many', { count: 5 }))).toBeVisible();
     await expect(page.getByRole('button', { name: msg('formation.alarm.show'), exact: true })).toHaveCount(0);
   });
 
@@ -637,16 +646,18 @@ test.describe('FRM-27 Formationsalarm', () => {
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
     await enable(page);
+    await remembered(page, 'EURUSD');
     await advance(page, worker, NOW);
     // Die Fixture liefert beim Übergang von FORMING_NOW zu NOW fünf neue gültige oder bis zum Zielpunkt gelaufene Treffer
-    await expect(page.getByText(msg('formation.alarm.notice.many', { symbol: 'EURUSD', count: 5 }))).toBeVisible();
+    await expect(page.getByText(msg('formation.alarm.notice.many', { count: 5 }))).toBeVisible();
     await expect(page.getByText(gartley())).toHaveCount(0);
   });
 
-  test('Ohne Alarm meldet die Seite nichts', { tag: '@FRM-27' }, async ({ page, worker }) => {
+  test('Ohne Alarm meldet die App nichts', { tag: '@FRM-27' }, async ({ page, worker }) => {
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
     await advance(page, worker, NOW);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByText(gartley())).toHaveCount(0);
   });
 
@@ -893,5 +904,171 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
     expect(overflow).toBeLessThanOrEqual(0);
     await page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"] button').nth(1).click();
     await expect(page.getByTestId('favorites-panel')).toHaveCount(0);
+  });
+});
+
+test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', () => {
+  const KEY = 'grid-robot-formation-alarm';
+  const ALARM_URL = `/chart?account=${DEMO_ID}`;
+  const gartley = (symbol: string) => msg('formation.alarm.notice.both', { form: msg('formation.form.GAR'), side: msg('formation.side.buy'), symbol, tf: 'H4', point: 'D' });
+  const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
+
+  /** Gespeicherter Alarm im Browser vor dem ersten Laden; `memory` = gemerkter Stand je `${Konto}|${Symbol}` */
+  async function seed(page: Page, stored: { favoritesEnabled?: string[]; enabled?: string[]; memory?: Record<string, unknown>; forms?: string[] }) {
+    // Nur Gartley, damit jede Meldung einzeln kommt; `forms` wählt andere Formationen
+    const { forms = ['GAR'], ...rest } = stored;
+    const value = JSON.stringify({ prefs: { events: { valid: true, target: true }, forms, system: true }, enabled: [], memory: {}, favoritesEnabled: [], ...rest });
+    await page.addInitScript(([key, json]) => {
+      if (!localStorage.getItem(key)) localStorage.setItem(key, json);
+      // Der Service Worker ist in den Tests blockiert: Erlaubnis und Registrierung sind Attrappen, die Meldungen nur aufzeichnen
+      const shown: unknown[] = [];
+      (window as unknown as { __shown: unknown[] }).__shown = shown;
+      Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
+      navigator.serviceWorker.getRegistration = () =>
+        Promise.resolve({
+          showNotification: (title: string, options?: NotificationOptions) => {
+            shown.push({ title, body: options?.body, tag: options?.tag, url: (options?.data as { url?: string } | undefined)?.url });
+            return Promise.resolve();
+          },
+        } as unknown as ServiceWorkerRegistration);
+    }, [KEY, value] as const);
+  }
+  const shown = (page: Page) => page.evaluate(() => (window as unknown as { __shown: { title: string; body: string; tag: string; url: string }[] }).__shown);
+  /** Ein Durchlauf ist fertig, wenn alle vier Zeiteinheiten der Produkte abgerufen sind */
+  const waitForPass = (worker: MockWorker, products: number, passes = 1) => expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(4 * products * passes);
+  const remembered = (page: Page, symbol: string) =>
+    page.waitForFunction(([key, scope]) => Boolean(JSON.parse(localStorage.getItem(key) ?? '{}').memory?.[scope]), [KEY, `${DEMO_ID}|${symbol}`] as const);
+  /** Zur nächsten M15-Kerze mit neuen H4-Kerzen */
+  const nextSlot = async (page: Page, worker: MockWorker) => {
+    serveFixture(worker, NOW);
+    await page.clock.runFor(15 * 60_000);
+  };
+
+  test('Eine neue Formation eines Favoriten wird gemeldet, während /chart offen ist, als Karte und als Systemmeldung', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, FORMING_NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    await page.clock.install();
+    await page.goto(ALARM_URL);
+    await remembered(page, 'EURUSD');
+    // Der erste Durchlauf eines Produkts ohne gemerkten Stand merkt still
+    await expect(page.getByText(gartley('EURUSD'))).toHaveCount(0);
+
+    await nextSlot(page, worker);
+    await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
+    const [note] = await shown(page);
+    expect(note.title).toBe(msg('formation.alarm.system.both', { symbol: 'EURUSD' }));
+    expect(note.body).toBe(msg('formation.alarm.system.detail', { form: msg('formation.form.GAR'), side: msg('formation.side.buy'), tf: 'H4' }));
+    expect(note.tag).toContain('EURUSD');
+    expect(note.url).toBe(`/formasyon?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`);
+  });
+
+  test('„Anzeigen“ führt von /chart zu Produkt, Formation und Zeiteinheit auf /formasyon', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, FORMING_NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    await page.clock.install();
+    await page.goto(ALARM_URL);
+    await remembered(page, 'EURUSD');
+    await nextSlot(page, worker);
+    await page.getByRole('button', { name: msg('formation.alarm.show'), exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/formasyon\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    // Mit Favoriten stehen die Formationen in der Favoriten-Zeile: die Liste zeigt die Gartley der Zeiteinheit H4
+    await expect(page.getByTestId('candidate-item').first()).toBeVisible();
+    await expect(page.getByTestId('formation-symbol').getByRole('combobox')).toHaveValue('EURUSD');
+  });
+
+  test('Ein Alarm-Produkt, das kein Favorit ist, wird gemeldet und verändert die Zahlen der Favoriten nicht', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, FORMING_NOW);
+    await seed(page, { enabled: [`${DEMO_ID}|GBPUSD`] });
+    await page.clock.install();
+    await page.goto(ALARM_URL);
+    await remembered(page, 'GBPUSD');
+    await nextSlot(page, worker);
+    await expect(page.getByText(gartley('GBPUSD'))).toBeVisible();
+    // Der Favorit EURUSD hat keinen Alarm: keine Meldung für ihn
+    await expect(page.getByText(gartley('EURUSD'))).toHaveCount(0);
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('fav-form-GAR').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.getByTestId('favorites-row')).toHaveCount(1);
+  });
+
+  test('Ein unvollständiges Produkt meldet nichts und steht im Menü', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD', 'GBPUSD'];
+    worker.state.ratesErrorSymbols = ['GBPUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|GBPUSD`]: {} } });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByTestId('formation-alarm-incomplete')).toContainText('GBPUSD');
+    await expect(page.getByTestId('formation-alarm-incomplete')).not.toContainText('EURUSD');
+    // GBPUSD hatte einen gemerkten Stand, wurde aber nicht verglichen: keine Meldung für dieses Produkt
+    await expect(page.getByText(gartley('GBPUSD'))).toHaveCount(0);
+  });
+
+  test('Zwei Tabs lösen nur eine Suche aus', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    await page.goto(ALARM_URL);
+    await waitForPass(worker, 1);
+    const second = await page.context().newPage();
+    await worker.install(second);
+    await second.goto(ALARM_URL);
+    await second.waitForTimeout(2000);
+    expect(ratesCalls(worker)).toBe(4);
+  });
+
+  test('Die Karte erscheint auch im zweiten Tab, der nicht sucht', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, FORMING_NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    await page.clock.install();
+    await page.goto(ALARM_URL);
+    await remembered(page, 'EURUSD');
+    // Der zweite Tab öffnet danach und bekommt den Lock nicht
+    const second = await page.context().newPage();
+    await worker.install(second);
+    await second.goto(ALARM_URL);
+    await second.waitForTimeout(1500);
+    await nextSlot(page, worker);
+    await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
+    await expect(second.getByText(gartley('EURUSD'))).toBeVisible();
+  });
+
+  test('Was bei geschlossener App entstand, kommt beim Öffnen als eine Sammelmeldung', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    // Gemerkt ist ein leerer Stand: alles, was die Suche jetzt findet (die fünf Formationen der Fixture zum Zeitpunkt NOW), ist neu seit dem letzten Öffnen
+    await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, forms: ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT'] });
+    await page.goto(ALARM_URL);
+    await expect(page.getByText(msg('formation.alarm.notice.since', { count: 5 }))).toBeVisible();
+    await expect(page.getByRole('button', { name: msg('formation.alarm.show'), exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: msg('formation.alarm.openFavorites'), exact: true })).toBeVisible();
+    const [note] = await shown(page);
+    expect(note.url).toBe(`/formasyon?account=${DEMO_ID}`);
+  });
+
+  test('Das Menü zeigt „Alle Favoriten“, den Stand und die Alarm-Produkte, bei 375 px ohne Querscroll', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    worker.state.favorites[DEMO_ID] = ['EURUSD', 'GBPUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], enabled: [`${DEMO_ID}|XAUUSD`] });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByRole('switch', { name: msg('formation.alarm.favorites') })).toBeChecked();
+    await expect(page.getByTestId('formation-alarm-status')).toContainText('3/3');
+    await expect(page.getByTestId('formation-alarm-extra-XAUUSD')).toBeVisible();
+    await expect(page.getByTestId('formation-alarm-banner')).toHaveText(msg('formation.alarm.pageOnly'));
+    const box = await page.getByTestId('formation-alarm-panel').boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });

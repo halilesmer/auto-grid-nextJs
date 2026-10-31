@@ -918,7 +918,7 @@
     "e2e": {
       "datum": "2026-10-31",
       "status": "passed",
-      "tests": 15
+      "tests": 16
     }
   },
   "FRM-28": {
@@ -943,6 +943,13 @@
       "datum": "2026-10-31",
       "status": "passed",
       "tests": 19
+    }
+  },
+  "FRM-30": {
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 8
     }
   },
   "LOG-01": {

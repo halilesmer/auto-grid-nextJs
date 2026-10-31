@@ -17,12 +17,15 @@ export interface Stored {
   prefs: AlarmPrefs;
   /** Schalter je Konto und Symbol: `${konto}|${symbol}` */
   enabled: string[];
+  /** Konten, für die alle Favoriten gemeldet werden */
+  favoritesEnabled: string[];
   memory: Record<string, AlarmMemory>;
 }
 
 export const DEFAULTS: Stored = {
   prefs: { events: { valid: true, target: true }, forms: SCAN_FORMATIONS, system: false, sound: false },
   enabled: [],
+  favoritesEnabled: [],
   memory: {},
 };
 
@@ -47,6 +50,7 @@ function parse(raw: string | null): Stored {
       sound: prefs.sound === true,
     },
     enabled: Array.isArray(data.enabled) ? data.enabled.filter((x): x is string => typeof x === 'string') : [],
+    favoritesEnabled: Array.isArray(data.favoritesEnabled) ? data.favoritesEnabled.filter((x): x is string => typeof x === 'string') : [],
     memory,
   };
 }
@@ -80,4 +84,13 @@ export const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => void listeners.delete(listener);
 };
+/** Ein anderer Tab hat gespeichert: der Arbeitsspeicher wird neu gelesen, damit dieser Tab ihn nicht überschreibt */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY) return;
+    cache = null;
+    listeners.forEach((listener) => listener());
+  });
+}
+
 export const serverSnapshot = () => DEFAULTS;
