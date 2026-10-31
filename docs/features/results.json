@@ -933,6 +933,18 @@
       "tests": 5
     }
   },
+  "FRM-29": {
+    "api": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 7
+    },
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 15
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-10-12",

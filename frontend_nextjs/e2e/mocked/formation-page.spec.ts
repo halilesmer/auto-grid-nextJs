@@ -337,13 +337,13 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
-    expect(bar).toEqual({ x: 52, y: 56, width: 1388, height: 38 });
+    expect(bar).toEqual({ x: 52, y: 56, width: 1348, height: 38 });
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
-    expect(forms).toEqual({ x: 52, y: 94, width: 1388, height: 30 });
+    expect(forms).toEqual({ x: 52, y: 94, width: 1348, height: 30 });
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
     expect(tools.y).toBeGreaterThanOrEqual(56);
     expect(tools.y + tools.height).toBeLessThanOrEqual(94);
-    expect(tools.x + tools.width).toBeLessThanOrEqual(1440);
+    expect(tools.x + tools.width).toBeLessThanOrEqual(1400);
     await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
     const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -364,7 +364,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
-      expect(chart).toEqual({ x: 52, y: 56, width: 1388, height: 844 });
+      expect(chart).toEqual({ x: 52, y: 56, width: 1348, height: 844 });
       const rail = await page.getByTestId('drawing-toolbar').boundingBox();
       expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });

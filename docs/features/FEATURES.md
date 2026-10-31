@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-31 · **191/195** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-31 · **192/196** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 19/20 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 28/28 |
+| 16 | **FRM** – Formationserkennung | 29/29 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -928,3 +928,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Neben dem gewählten Produkt in der Pille und neben jedem Produktnamen in der Produktsuche steht eine kleine Fahne. Ein Klick setzt den Favoriten (gefüllt), ein zweiter entfernt ihn (nur Umrandung). Der Klick wählt das Produkt nicht und schließt die Liste nicht; Tab erreicht die Fahne, Enter wählt das Produkt. Die Liste liegt je Konto auf dem VPS (GET/PUT /favorites/{id}, configs/favorites_<id>.json, atomar geschrieben, wird mit dem Konto gelöscht), damit jedes Gerät dieselbe Liste sieht. Ein Benutzer erreicht nur die Favoriten eigener Konten (sonst 404), ungültiger Inhalt gibt 422. Das Umschalten wirkt sofort; bei einem Speicherfehler wird die Fahne zurückgesetzt und eine Meldung gezeigt. Die Seitenleiste und die Suche über Favoriten folgen mit FRM-29.
   - **Prüfung:** pytest worker_python/tests/api/test_favorites_api.py (@FRM-28) ausführen (lesen, schreiben, fremdes Konto 404, ungültiger Inhalt 422, Datei weg beim Löschen des Kontos). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-28) ausführen (Fahne in Pille und Liste, Tab und Enter, Fehler, 375 px).
   - **Erwartet:** Die Fahne setzt und entfernt den Favoriten, die Liste bleibt nach dem Neuladen und auf jedem Gerät gleich, und kein Klick auf die Fahne wählt ein Produkt.
+- [x] **FRM-29** Seite Formasyon: Favoriten-Seitenleiste und Suche über Favoriten — 🔌 api ✅ 2026-10-31 · 🖥️ e2e ✅ 2026-10-31
+  - Rechts ganz außen steht eine schmale Leiste mit dem Favoriten-Knopf; er öffnet und schließt die Seitenleiste, die den Chart ab 900 px schiebt (darunter liegt sie über dem Chart). Oben stehen Zeitraum (15m, 1h, 4h, D), darunter die Formationen, darunter die Tabelle (Symbol mit Beschreibung, Zuletzt, Änderung in Prozent und Betrag). Die Suche läuft app-weit im Layout (FormationScanRunner): Favorit für Favorit nacheinander, D1/H4/H1/M15, nur ein Tab sucht (Web Lock), die anderen erhalten die Ergebnisse per BroadcastChannel; sie läuft bei jeder neuen M15-Kerze neu, bricht beim Kontowechsel ab und ruht ohne Konto oder Favoriten. Gebildet heißt Urteil gültig; im Aufbau und ungültig zählen nicht. Die Formations-Zeile zeigt nur Formationen, die im Zeitraum in mindestens einem Favoriten gebildet sind, die Zahl ist die Zahl der Produkte; ein Zeitraum-Klick filtert ohne neue Anfragen, ein Klick auf eine Formation filtert die Tabelle, ein zweiter hebt auf. Ein Klick auf die Zeile öffnet Produkt, Formation und Zeitraum im Chart. Bei geschlossener Seitenleiste stehen beide Zeilen über dem Chart, nie doppelt; Kamera und Glocke bleiben in der Kopfleiste. Fehlen Kerzen oder scheitert der Abruf eines Produkts, wird nur dieses als unvollständig markiert. Preise liefert GET /market/{id}/quotes (nur lesend, data_query, letzter Preis, Vortagsschluss, Stellen; fremdes Konto 404, kein Terminal-Zugriff 503, nicht lesbares Produkt null) im 60-s-Takt, nur bei offener Seitenleiste. Ohne Favoriten bleibt die Leiste wie bisher.
+  - **Prüfung:** pytest worker_python/tests/api/test_quotes_api.py (@FRM-29) ausführen (Preis, Vortagsschluss, Stellen, nicht lesbares Produkt null, fremdes Terminal 503, ungültige Liste 400, fremdes Konto 404). → Playwright-Test e2e/mocked/formation-favorites-lib.spec.ts (@FRM-29) ausführen (isFormed, Filter je Zeitraum, ein Produkt je Formation einmal). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-29) ausführen (nur gebildete Formationen, Zeitraum-Klick ohne neue Anfragen, Formations-Filter, Klick auf die Zeile, Fehler je Produkt, Preise, nie doppelt, 375 px). → Auf dem DEMO-Konto mit ca. 10 Favoriten die Dauer eines Durchlaufs (data-favorites-scan-ms und Netzdauer) messen, gezeigte Formationen mit dem Chart vergleichen, auf alte gültige Muster ohne Aktualität achten und prüfen, ob Kurse und Vortagsschluss stimmen.
+  - **Erwartet:** Die Seitenleiste zeigt je Zeitraum nur gebildete Formationen der Favoriten mit der Zahl der Produkte, der Filter und der Zeilenklick öffnen das richtige Produkt im Chart, und der Fehler eines Produkts verfälscht die anderen nicht.
