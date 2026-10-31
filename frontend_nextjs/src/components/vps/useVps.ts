@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from '@/components/ui/animated-toast';
 import { t, type MessageKey } from '@/i18n';
+import { axiosInstance } from '@/lib/api';
 import {
   isVpsErrorCode,
   stripAnsi,
+  type AutoUpdateStatus,
   type VpsAction,
   type VpsActionResult,
   type VpsLog,
@@ -15,12 +17,15 @@ import {
 } from '@/lib/vps';
 
 // Bewusst nur lokaler State (wie useMT5Scanner): die VPS-Daten braucht keine andere Komponente.
-// Kein Worker-Aufruf – /api/vps/* ist die Next.js-Route auf dem Mac, die per SSH arbeitet.
+// /api/vps/* ist die Next.js-Route auf dem Mac, die per SSH arbeitet. Einziger Worker-Aufruf ist der
+// Auto-Update-Zustand: er steht nur im laufenden Prozess, SSH sieht bloß den Registry-Wert (UPD-07).
 
 const POLL_MS = 15_000;
 // Nach Neustart/Update öfter nachsehen, bis der Worker wieder da ist
 const FAST_POLL_MS = 4_000;
 const FAST_POLL_DURATION_MS = 90_000;
+// Hängt der Tunnel, soll die Anfrage nicht unbegrenzt offen bleiben; die Seite kommt per SSH weiter
+const WORKER_STATUS_TIMEOUT_MS = 10_000;
 
 type PostAction = Extract<VpsAction, 'update' | 'restart' | 'fix-elevated' | 'restart-ngrok' | 'reboot'>;
 
@@ -49,6 +54,8 @@ export function useVps() {
   const [localOnly, setLocalOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  // undefined: noch nicht gelesen, status null: Worker liefert keinen Zustand
+  const [autoUpdate, setAutoUpdate] = useState<{ status: AutoUpdateStatus | null; readAt: number }>();
   const [busy, setBusy] = useState<PostAction | 'check-update' | null>(null);
   const [updateCheck, setUpdateCheck] = useState<VpsUpdateCheck | null>(null);
   const [logName, setLogName] = useState<VpsLog>('worker');
@@ -58,6 +65,22 @@ export function useVps() {
   const fastUntil = useRef(0);
   // Der Poll liest den gerade gewählten Tab; späte Antworten eines alten Tabs werden verworfen
   const logNameRef = useRef<VpsLog>('worker');
+  // Nur die neueste Anfrage zählt: eine späte alte Antwort würde einen neueren Fehler wieder grün machen
+  const autoUpdateRequest = useRef(0);
+
+  const refreshAutoUpdate = useCallback(async () => {
+    const request = ++autoUpdateRequest.current;
+    let next: AutoUpdateStatus | null = null;
+    try {
+      const { data } = await axiosInstance.get<{ auto_update?: AutoUpdateStatus }>('/system/worker/status', {
+        timeout: WORKER_STATUS_TIMEOUT_MS,
+      });
+      next = data.auto_update ?? null;
+    } catch {
+      // Worker weg oder nicht verbunden: die Zeile zeigt „unbekannt“, die Ursache die Worker-Kachel
+    }
+    if (request === autoUpdateRequest.current) setAutoUpdate({ status: next, readAt: Date.now() });
+  }, []);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -74,6 +97,8 @@ export function useVps() {
         return;
       }
       setDisabled(null);
+      // Unabhängig vom SSH-Ergebnis: der Worker kann auch bei SSH-Ausfall antworten
+      void refreshAutoUpdate();
       if (data.ok) {
         setStatus(data as VpsStatus);
         setStatusError(null);
@@ -86,7 +111,7 @@ export function useVps() {
       setLoading(false);
       setRefreshedAt(new Date());
     }
-  }, []);
+  }, [refreshAutoUpdate]);
 
   // Setzt State erst nach dem ersten await (darf so auch direkt im Effect laufen).
   // background: Aufruf aus dem Status-Poll – scheitert er, bleiben die zuletzt gelesenen
@@ -192,6 +217,7 @@ export function useVps() {
 
   return {
     status,
+    autoUpdate,
     statusError,
     disabled,
     localOnly,

@@ -43,7 +43,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-10-12 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-10-31 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok). Der Health-Check antwortet auch während eine Update-Prüfung auf Git wartet.
   - **Prüfung:** GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
   - **Erwartet:** Antwort {"platform": "win32", "is_windows": true}.
@@ -537,33 +537,33 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 11. UPD – System & Updates
 
-- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-30 · 👤 manuell ✅ 2026-09-23
+- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-10-31 · 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-23
   - Kopf-Menü → System → „Check for Updates“ (nur Admin, auf jeder Seite); GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main. Der blockierende Git-Aufruf läuft in einem Thread, damit Plattformabfragen währenddessen antworten können.
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
   - 📝 Claude: 'Check for Updates' → 'You are up to date'; API: local v0.7.58 = remote v0.7.58. Hinweis: System Info zeigt Host/Port des Frontends (localhost:3000), nicht des Workers
-- [x] **UPD-02** Update anwenden — 🧪 unit ✅ 2026-10-11 · 🖥️ e2e ✅ 2026-10-30 · 👤 manuell ✅ 2026-09-24
+- [x] **UPD-02** Update anwenden — 🧪 unit ✅ 2026-10-31 · 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-24
   - „Apply Update (git pull)“ → POST /system/update (stash nur bei lokalen Änderungen, pull, stash pop), danach Seiten-Reload. Scheitert der Pull (z. B. Datei gesperrt oder ohne Schreibrecht), wird der Stand davor wiederhergestellt – keine halb aktualisierten Dateien, der Stash wird zurückgespielt.
   - **Prüfung:** Nach einem Merge auf main das Update anwenden (Kopf-Menü → System → Check for Updates → Apply Update).
   - **Erwartet:** VERSION auf dem VPS entspricht main; nach einem Fehler zeigt git status keine geänderten Dateien und git stash list keinen neuen Eintrag.
   - 📝 VPS per Dashboard-Update von v0.7.69 auf v0.7.70 (Worker meldet local_ver = remote_ver = v0.7.70). Erster Versuch scheiterte an Datei-Rechten in docs/features; nach takeown/icacls auf das Repo ok.
-- [x] **UPD-03** System herunterfahren — 🖥️ e2e ✅ 2026-10-30
+- [x] **UPD-03** System herunterfahren — 🖥️ e2e ✅ 2026-10-31
   - Kopf-Menü → System → „Herunterfahren“ (auf jeder Seite, jede Rolle) → Bestätigung mit Kontoname und LIVE/DEMO → /stop für das gewählte Konto, danach window.close(). Ohne gewähltes Konto ist der Eintrag deaktiviert; der Hinweis nennt den Grund.
   - **Prüfung:** Kopf-Menü → System → Herunterfahren → bestätigen.
   - **Erwartet:** Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
-- [x] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-10-11 · 🔌 api ✅ 2026-10-12 · 👤 manuell ✅ 2026-09-24
+- [x] **UPD-05** Server-Neustart nach Update — 🧪 unit ✅ 2026-10-31 · 🔌 api ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-24
   - Nach einem erfolgreichen POST /system/update beendet sich der Worker nach 1,5 s (schedule_restart); run_uvicorn_watchdog.bat (setzt WORKER_SUPERVISED=1) startet ihn mit dem neuen Code neu. Ohne Watchdog kein Neustart. Das Dashboard wartet 8 s und lädt dann neu; veraltete Bots startet der neue Worker selbst neu (BOT-03).
   - **Prüfung:** Update im Dashboard anwenden (System Info → Check for Updates → Apply Update). → Im Fenster „Uvicorn API“ auf dem VPS den Neustart beobachten.
   - **Erwartet:** Worker startet nach wenigen Sekunden mit der neuen Version; das Dashboard lädt neu und ist wieder online.
   - 📝 Apply Update v0.7.70→v0.7.71 im Dashboard: Worker beendet sich, Watchdog startet neu, meldet v0.7.71; laufender Bot mit neuem Code neu gestartet
-- [x] **UPD-06** Abhängigkeiten nach Update installieren — 🧪 unit ✅ 2026-10-11
+- [x] **UPD-06** Abhängigkeiten nach Update installieren — 🧪 unit ✅ 2026-10-31
   - Ändert ein Pull worker_python/requirements.txt, führt execute_git_pull danach pip install -r mit dem Python des Workers (.venv) aus. Schlägt pip fehl, meldet das Update einen Fehler und der Worker startet nicht neu (neuer Code würde ohne Paket abstürzen).
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-11 · 👤 manuell ✅ 2026-10-15
-  - Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers. Der Wert kommt unter Windows bei jedem Lauf aus der Registry, setx wirkt also ohne Neustart. Abgeschaltet schreibt der Worker eine Log-Zeile, und GET /api/system/worker/status meldet in auto_update den Grund des letzten Laufs. Jeder git-Aufruf des Updaters hat ein Zeitlimit (fetch/pull 120 s, lokale Befehle 60 s). Bei Ablauf beendet der Worker git samt Kindprozessen; die Prüfung meldet einen Fehlertext, ein Pull stellt den Stand davor wieder her.
-  - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten.
-  - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
+- [x] **UPD-07** Automatisches Update — 🧪 unit ✅ 2026-10-31 · 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-10-15
+  - Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers. Der Wert kommt unter Windows bei jedem Lauf aus der Registry, setx wirkt also ohne Neustart. Abgeschaltet schreibt der Worker eine Log-Zeile, und GET /api/system/worker/status meldet in auto_update den Grund des letzten Laufs. Jeder git-Aufruf des Updaters hat ein Zeitlimit (fetch/pull 120 s, lokale Befehle 60 s). Bei Ablauf beendet der Worker git samt Kindprozessen; die Prüfung meldet einen Fehlertext, ein Pull stellt den Stand davor wieder her. Die Seite /vps zeigt diesen echten Zustand in einer eigenen Zeile, in der SSH-Ansicht und im Panel „Worker (online)“. Sie nennt, ob es läuft, das Ergebnis des letzten Laufs und wann er war. Ist der letzte Lauf älter als drei Intervalle (mindestens 15 Minuten), steht dort „überfällig“; liefert der Worker keinen Zustand, „unbekannt“, in der SSH-Ansicht mit dem Registry-Wert.
+  - **Prüfung:** Einen PR nach main mergen und 5–10 Minuten warten. → Seite „VPS“ öffnen und die Zeile „Auto-Update“ ansehen.
+  - **Erwartet:** Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde; die Zeile „Auto-Update“ steht auf „Aktuell“ und der letzte Lauf ist höchstens ein Intervall alt. Bei AUTO_UPDATE_MINUTES=0 steht dort gelb „Aus“.
   - 📝 Auto-Updater zog v0.7.223→224 und 224→225 ohne Update-Klick ([AUTO-UPDATE]-Logzeilen), VPS 2 min nach Bump auf v0.7.225; kein POST /api/system/update, nur 2 Neustarts durch den Owner
 
 ## 12. VPS – VPS-Fernsteuerung vom Mac
@@ -616,7 +616,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 13. UI – Oberfläche
 
-- [x] **UI-01** Navigation und Kopf-Menü — 🖥️ e2e ✅ 2026-10-30 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-01** Navigation und Kopf-Menü — 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-23
   - Die normale Kopfzeile ist bei jeder Breite einzeilig und 56 px hoch (CSS-Variable --nav-height in globals.css; die fixierte Steuerleiste nutzt sie als Abstand nach oben). Logo mit Version, ab lg (1024 px) die Seitenlinks mit animierter Markierung, rechts das Zahnrad für das Kopf-Menü; unter lg öffnet ☰ die Seitenlinks als Overlay-Panel. Das Kopf-Menü bündelt Verbindung (SYS-09), Sprache (UI-05), Design (UI-02) und System (Systeminfo, „Check for Updates“ nur für Admin, Herunterfahren; UPD-01/03). Das Panel liegt über Steuerleiste und Inhalt und verschiebt nichts; Auswahl von Sprache oder Design lässt es offen, Escape schließt es. Update- und Herunterfahren-Dialog funktionieren auf jeder Seite. Auf Formasyon bleibt die schwebende Kopfzeile unter 1024 px 48 px hoch; ab 1024 px gilt auch dort die normale Desktopleiste.
   - **Prüfung:** Zwischen Dashboard und Formasyon wechseln. → Rechts in der Kopfzeile das Menü öffnen, Sprache und Design wählen, Escape drücken. → Auf /chart im Menü „Check for Updates“ wählen. → Bei 375px Breite öffnen und ☰ antippen.
   - **Erwartet:** Aktiver Link ist markiert, Version entspricht VERSION. Die Kopfzeile bleibt einzeilig; das Menü liegt über dem Inhalt, ohne ihn zu verschieben, und zeigt Verbindung, Sprache, Design und System. Bei 375px kein horizontales Scrollen, „Grid Robot“ bricht nicht um, ☰ zeigt alle Seitenlinks.

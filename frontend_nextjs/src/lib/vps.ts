@@ -98,6 +98,60 @@ export interface VpsStatus {
   uptime_minutes: number;
 }
 
+/** auto_update in GET /system/worker/status (worker_python/src/utils/auto_updater.py, status()) */
+export interface AutoUpdateStatus {
+  enabled: boolean;
+  interval_minutes: number;
+  result: 'on' | 'off' | 'other_branch' | 'up_to_date' | 'local_commits' | 'check_failed' | 'pull_failed' | null;
+  detail: string;
+  /** Unix-Sekunden des letzten Laufs */
+  checked_at: number | null;
+}
+
+export type AutoUpdateState =
+  | 'current'
+  | 'pending'
+  | 'offInterval'
+  | 'offUnsupervised'
+  | 'otherBranch'
+  | 'localCommits'
+  | 'checkFailed'
+  | 'pullFailed'
+  | 'overdue'
+  | 'unknown';
+
+const AUTO_UPDATE_RESULT_STATE: Record<NonNullable<AutoUpdateStatus['result']>, AutoUpdateState> = {
+  on: 'pending',
+  // enabled gerade erst wieder an: der Worker hat seit „Aus“ noch nicht geprüft
+  off: 'pending',
+  other_branch: 'otherBranch',
+  up_to_date: 'current',
+  local_commits: 'localCommits',
+  check_failed: 'checkFailed',
+  pull_failed: 'pullFailed',
+};
+
+// Wie SELF_HEAL_STALE_MINUTES: ein ausgefallener Lauf ist normal, drei in Folge nicht
+const OVERDUE_INTERVALS = 3;
+const OVERDUE_MIN_MINUTES = 15;
+
+/** Minuten seit dem letzten Lauf; `readAtMs` ist der Zeitpunkt, zu dem der Status gelesen wurde. */
+export function autoUpdateAgeMinutes(status: AutoUpdateStatus, readAtMs: number): number | null {
+  if (status.checked_at == null) return null;
+  return Math.max(0, Math.floor((readAtMs / 1000 - status.checked_at) / 60));
+}
+
+export function autoUpdateState(status: AutoUpdateStatus | null, readAtMs: number): AutoUpdateState {
+  if (!status) return 'unknown';
+  // Vor „überfällig“: ohne Neustart-Schleife läuft die Schleife nicht, der alte Stempel ist kein Fehler
+  if (!status.enabled) return status.interval_minutes > 0 ? 'offUnsupervised' : 'offInterval';
+  const age = autoUpdateAgeMinutes(status, readAtMs);
+  if (age != null && age > Math.max(OVERDUE_MIN_MINUTES, OVERDUE_INTERVALS * status.interval_minutes)) return 'overdue';
+  if (!status.result) return 'pending';
+  // Frontend und Worker aktualisieren getrennt: ein neuerer Worker kann weitere Werte liefern
+  return AUTO_UPDATE_RESULT_STATE[status.result] ?? 'unknown';
+}
+
 export interface VpsUpdateCheck {
   ok: boolean;
   has_update: boolean;

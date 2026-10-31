@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useT } from '@/i18n';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { axiosInstance } from '@/lib/api';
-import { stripAnsi } from '@/lib/vps';
+import { stripAnsi, type AutoUpdateStatus } from '@/lib/vps';
+import AutoUpdateRow from './AutoUpdateRow';
 import { uptime } from './VpsStatusPanel';
 
 // Öffentliche Version (Vercel): die SSH-Route ist aus, der Worker-Admin-Zugang (API-Key im Browser)
@@ -22,6 +23,8 @@ interface WorkerStatus {
   supervised: boolean;
   bots_running: number;
   bots_total: number;
+  /** fehlt bei Workern vor PR #260 */
+  auto_update?: AutoUpdateStatus;
 }
 
 const POLL_MS = 15_000;
@@ -42,6 +45,7 @@ function Tile({ label, value, testId }: { label: string; value: string; testId: 
 export default function VpsOnlinePanel() {
   const t = useT();
   const [status, setStatus] = useState<WorkerStatus | null>(null);
+  const [readAt, setReadAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -58,6 +62,7 @@ export default function VpsOnlinePanel() {
         axiosInstance.get<{ lines: string[] }>('/system/worker/log', { params: { lines: 300 } }),
       ]);
       setStatus(st.data);
+      setReadAt(Date.now());
       setLines((log.data.lines ?? []).map(stripAnsi));
       setError(null);
       if (restartedAt.current && (sawDown.current || Date.now() - restartedAt.current > FAST_POLL_DURATION_MS)) {
@@ -131,6 +136,8 @@ export default function VpsOnlinePanel() {
                   testId="vps-online-bots"
                 />
               </div>
+              {/* Bei einem Fehler bleibt status stehen; „Aktuell“ wäre dann eine alte Aussage */}
+              <AutoUpdateRow status={error ? null : (status.auto_update ?? null)} readAt={readAt} />
               {!status.supervised && (
                 <p className="text-xs text-warning" data-testid="vps-online-unsupervised">
                   {t('vps.online.unsupervised')}

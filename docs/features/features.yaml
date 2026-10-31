@@ -1121,12 +1121,13 @@ kategorien:
 
       - id: UPD-07
         titel: Automatisches Update
-        beschreibung: Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers. Der Wert kommt unter Windows bei jedem Lauf aus der Registry, setx wirkt also ohne Neustart. Abgeschaltet schreibt der Worker eine Log-Zeile, und GET /api/system/worker/status meldet in auto_update den Grund des letzten Laufs. Jeder git-Aufruf des Updaters hat ein Zeitlimit (fetch/pull 120 s, lokale Befehle 60 s). Bei Ablauf beendet der Worker git samt Kindprozessen; die Prüfung meldet einen Fehlertext, ein Pull stellt den Stand davor wieder her.
-        code: [worker_python/src/utils/auto_updater.py, worker_python/src/utils/self_updater.py, worker_python/src/api/system.py, worker_python/ops/windows/vps.ps1, worker_python/main.py]
-        tiers: [unit, manuell]
+        beschreibung: Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers. Der Wert kommt unter Windows bei jedem Lauf aus der Registry, setx wirkt also ohne Neustart. Abgeschaltet schreibt der Worker eine Log-Zeile, und GET /api/system/worker/status meldet in auto_update den Grund des letzten Laufs. Jeder git-Aufruf des Updaters hat ein Zeitlimit (fetch/pull 120 s, lokale Befehle 60 s). Bei Ablauf beendet der Worker git samt Kindprozessen; die Prüfung meldet einen Fehlertext, ein Pull stellt den Stand davor wieder her. Die Seite /vps zeigt diesen echten Zustand in einer eigenen Zeile, in der SSH-Ansicht und im Panel „Worker (online)“. Sie nennt, ob es läuft, das Ergebnis des letzten Laufs und wann er war. Ist der letzte Lauf älter als drei Intervalle (mindestens 15 Minuten), steht dort „überfällig“; liefert der Worker keinen Zustand, „unbekannt“, in der SSH-Ansicht mit dem Registry-Wert.
+        code: [worker_python/src/utils/auto_updater.py, worker_python/src/utils/self_updater.py, worker_python/src/api/system.py, worker_python/ops/windows/vps.ps1, worker_python/main.py, frontend_nextjs/src/components/vps/AutoUpdateRow.tsx, frontend_nextjs/src/components/vps/useVps.ts, frontend_nextjs/src/components/vps/VpsStatusPanel.tsx, frontend_nextjs/src/components/vps/VpsOnlinePanel.tsx, frontend_nextjs/src/lib/vps.ts]
+        tiers: [unit, e2e, manuell]
         pruefung:
           - Einen PR nach main mergen und 5–10 Minuten warten.
-        erwartet: Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde.
+          - Seite „VPS“ öffnen und die Zeile „Auto-Update“ ansehen.
+        erwartet: Die VPS-Seite zeigt die neue Version, ohne dass etwas geklickt wurde; die Zeile „Auto-Update“ steht auf „Aktuell“ und der letzte Lauf ist höchstens ein Intervall alt. Bei AUTO_UPDATE_MINUTES=0 steht dort gelb „Aus“.
 
   # ---------------------------------------------------------------------------
   - id: VPS
