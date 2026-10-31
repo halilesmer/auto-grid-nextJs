@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import { useAccounts } from '@/components/account/hooks';
@@ -8,6 +8,7 @@ import { CandidateList } from '@/components/formation/CandidateList';
 import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationChecklist } from '@/components/formation/FormationChecklist';
 import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
+import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
 import { FormationDetailsPanel } from '@/components/formation/FormationDetailsPanel';
@@ -15,8 +16,10 @@ import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useFormationParams } from '@/hooks/useFormationParams';
 import { useFormationScan } from '@/hooks/useFormationScan';
-import { useT, type MessageKey } from '@/i18n';
+import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
 import { FINAL_POINT, timeframeForForm } from '@/lib/formation/scan';
+import { buildShotData, shotFileName } from '@/lib/formation/shotData';
+import { composeShot, shotBlob, type ChartPicture } from '@/lib/formation/shotImage';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 
 /**
@@ -25,6 +28,8 @@ import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
  */
 function FormationView() {
   const t = useT();
+  const locale = useLocale();
+  const format = useFormat();
   const { accountId: urlAccount, zoneId: urlZone, symbol: urlSymbol, tf, form, setAccount, setSymbol, setView } = useFormationParams();
   const accounts = useAccountStore((s) => s.accounts);
   const selected = useAccountStore((s) => s.selectedAccount);
@@ -72,6 +77,18 @@ function FormationView() {
 
   const formName = t(`formation.form.${form}` as MessageKey);
 
+  const captureRef = useRef<(() => Promise<ChartPicture>) | null>(null);
+  const registerCapture = useCallback((capture: (() => Promise<ChartPicture>) | null) => {
+    captureRef.current = capture;
+  }, []);
+  const shot = hit && symbol && scan.scanAt !== null && !scan.loading ? { hit, symbol, scanAt: scan.scanAt } : null;
+  const makeShotImage = async () => {
+    const capture = captureRef.current;
+    if (!shot || !capture) throw new Error('chart is not ready');
+    const data = buildShotData({ hit: shot.hit, symbol: shot.symbol, stamp: format.mt5DateTime(shot.scanAt), locale, t, number: format.number });
+    return shotBlob(composeShot({ picture: await capture(), data }));
+  };
+
   const body = () => {
     if (!accountId) {
       return (
@@ -104,7 +121,7 @@ function FormationView() {
       );
     }
     return hit && scan.context && scan.scanAt !== null ? (
-      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} digits={scan.digits} active={active} onActive={setActive} />
+      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} />
     ) : (
       <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted-foreground" data-testid="formation-empty">
         {!scan.loading && t('formation.empty.chart', { form: formName, tf })}
@@ -131,6 +148,7 @@ function FormationView() {
             setActive(null);
             setView({ form: next, tf: timeframeForForm(scan.hits, next, tf) });
           }}
+          actions={<FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />}
         >
           {accountKnown && (
             <FormationSymbolSelect

@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-30 · **188/192** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-10-31 · **188/193** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 19/20 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 25/25 |
+| 16 | **FRM** – Formationserkennung | 25/26 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -916,3 +916,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Die Kopfleiste zeigt statt der Setup-Auswahl eine Produktsuche über alle Symbole des Kontos (GET /symbols/{id}), nach Name oder Beschreibung. Übernommen wird nur ein Eintrag der Liste; Text ohne Auswahl stellt das bisherige Produkt wieder her. Die Wahl steht als ?symbol= in der Adresse und startet die Suche FRM-21 neu. Ohne ?symbol= gilt das Setup aus ?zone=, sonst das erste Setup des Kontos; ein Konto ohne Setup zeigt einen Hinweis. Ein Kontowechsel löscht das Produkt, weil Symbolnamen je Broker abweichen. Liefert MT5 keine Symbole, erscheint der Fehler als Meldung.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-25) ausführen (Produkt per Name und Beschreibung wählen, zweiter Wechsel, Konto ohne Setup, Kontowechsel, Abbruch, Fehler der Symbolliste).
   - **Erwartet:** Jede Wahl lädt D1, H4, H1 und M15 des neuen Produkts und die Suche läuft ohne Setup bis zum Ende.
+- [ ] **FRM-26** Seite Formasyon: Formation als Bild festhalten — 🖥️ e2e ⏳
+  - In der Kopfleiste steht hinter den Zeiteinheiten ein Kamera-Knopf mit Menü: als PNG herunterladen oder in die Zwischenablage kopieren. Das Bild entsteht im Browser (nichts wird gesendet), ist 1200 CSS-Pixel breit bei doppelter Auflösung und zeigt Kopf (Formation, Symbol, Zeiteinheit, Urteil, Scan-Zeitpunkt), den Chart samt Formationszeichnungen und alle Bedingungen mit Symbol, Wort und Messwert. Kerzen und Achsen kommen aus takeScreenshot(), die Zeichnungen sind ein SVG-Overlay und werden mit aufgelösten Theme-Farben darübergelegt. Ab 640 px Chart-Breite stehen die Bedingungen unter dem Chart, schmaler rechts daneben. Hell oder dunkel folgt dem App-Thema. Kein Kontoname, keine Kontonummer, kein LIVE/DEMO im Bild oder im Dateinamen. Ohne gewählten Kandidaten oder während der Suche ist der Knopf deaktiviert; Kopieren ist deaktiviert, wenn der Browser keine Bilder in die Zwischenablage legen kann.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-26) ausführen (PNG mit Zeichnungen und Dateiname, deaktivierter Knopf, Kopieren, 375 px).
+  - **Erwartet:** Das PNG enthält die Zielzeichnung des Overlays, trägt Formation, Symbol, Zeiteinheit und Zeitpunkt im Dateinamen und nichts vom Konto; bei 375 px bleibt der Knopf sichtbar und die Seite scrollt nicht quer.
