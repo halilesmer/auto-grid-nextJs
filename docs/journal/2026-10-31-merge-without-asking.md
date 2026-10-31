@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: decision
 status: done
-pr: [256]
+pr: [256, 258]
 features: []
 areas: [tooling]
 ---
