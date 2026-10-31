@@ -5,7 +5,7 @@
  * kein SSH. Nur der Routen-Schutz (VPS-04) spricht den echten Testserver an.
  */
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from '../fixtures/test';
+import { expect, test, type MockWorker } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 const STATUS = {
@@ -337,5 +337,126 @@ test.describe('VPS Routen-Schutz', () => {
     const foreignOrigin = await request.post('/api/vps/reboot', { headers: { Origin: 'https://evil.example' } });
     expect(foreignOrigin.status()).toBe(403);
     expect(await foreignOrigin.json()).toMatchObject({ ok: false, error: 'Ungültige Origin', code: 'badOrigin' });
+  });
+});
+
+// Echter Zustand des Auto-Updates statt des Registry-Werts (Vorfall 2026-10-31: Kachel „alle 5 min“, Worker zog nichts)
+test.describe('Auto-Update-Zustand', () => {
+  const NOW = new Date('2026-11-01T00:00:00Z');
+  const NOW_SEC = 1793491200;
+  const RUNNING = { enabled: true, interval_minutes: 5, result: 'up_to_date', detail: '0.7.304', checked_at: NOW_SEC - 180 };
+
+  const row = (page: Page) => page.getByTestId('vps-auto-update');
+
+  async function openWith(page: Page, worker: MockWorker, autoUpdate: Record<string, unknown> | null) {
+    await page.clock.setFixedTime(NOW);
+    worker.overrides.set('GET /api/system/worker/status', {
+      status: 200,
+      body: { version: 'v0.7.304', uptime_sec: 60, supervised: true, bots_running: 0, bots_total: 1, ...(autoUpdate && { auto_update: autoUpdate }) },
+    });
+    await mockVps(page);
+    await page.goto('/vps');
+  }
+
+  test('zeigt Ergebnis, Alter und Intervall des letzten Laufs', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, RUNNING);
+    await expect(row(page)).toHaveAttribute('data-tone', 'success');
+    await expect(row(page)).toContainText(msg('vps.autoUpdate.state.current'));
+    await expect(page.getByTestId('vps-auto-update-when')).toHaveText(
+      `${msg('vps.autoUpdate.lastRun', { age: msg('vps.autoUpdate.ago.min', { n: 3 }) })} · ${msg('vps.tile.autoUpdate.every', { minutes: 5 })}`,
+    );
+    await expect(page.getByTestId('vps-auto-update-detail')).toBeHidden();
+    // Die Kachel widerspricht nicht mehr: der Registry-Wert steht dort nicht länger
+    await expect(page.getByTestId('vps-tile-version')).not.toContainText(msg('vps.tile.autoUpdate.every', { minutes: 5 }));
+  });
+
+  test('ein alter Lauf fällt auf, 15 Minuten gelten noch als pünktlich', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, { ...RUNNING, checked_at: NOW_SEC - 15 * 60 });
+    await expect(row(page)).toHaveAttribute('data-state', 'current');
+
+    await openWith(page, worker, { ...RUNNING, checked_at: NOW_SEC - 16 * 60 });
+    await expect(row(page)).toHaveAttribute('data-state', 'overdue');
+    await expect(row(page)).toHaveAttribute('data-tone', 'danger');
+    await expect(row(page)).toContainText(msg('vps.autoUpdate.state.overdue'));
+  });
+
+  test('die Grenze wächst mit dem Intervall', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, { ...RUNNING, interval_minutes: 60, checked_at: NOW_SEC - 179 * 60 });
+    await expect(row(page)).toHaveAttribute('data-state', 'current');
+
+    await openWith(page, worker, { ...RUNNING, interval_minutes: 60, checked_at: NOW_SEC - 181 * 60 });
+    await expect(row(page)).toHaveAttribute('data-state', 'overdue');
+  });
+
+  test('überfällig nennt das Alter in Tagen und das Datum', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, { ...RUNNING, checked_at: NOW_SEC - 3 * 86_400 });
+    const when = page.getByTestId('vps-auto-update-when');
+    await expect(when).toContainText(msg('vps.autoUpdate.ago.days', { n: 3 }));
+    await expect(when).toContainText('2026');
+  });
+
+  test('„Aus“ nennt den Grund und schlägt „überfällig“', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, { ...RUNNING, enabled: false, interval_minutes: 0, result: 'off', checked_at: NOW_SEC - 86_400 });
+    await expect(row(page)).toHaveAttribute('data-state', 'offInterval');
+    await expect(row(page)).toHaveAttribute('data-tone', 'warning');
+
+    // Ohne Neustart-Schleife läuft die Schleife gar nicht: der Stempel vom Start ist kein Fehler
+    await openWith(page, worker, { ...RUNNING, enabled: false, result: 'off', checked_at: NOW_SEC - 86_400 });
+    await expect(row(page)).toHaveAttribute('data-state', 'offUnsupervised');
+    await expect(page.getByTestId('vps-auto-update-when')).toBeHidden();
+  });
+
+  test('vor dem ersten Lauf: eingeschaltet, kein „Letzter Lauf“', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, { ...RUNNING, result: 'on', detail: '', checked_at: NOW_SEC });
+    await expect(row(page)).toHaveAttribute('data-state', 'pending');
+    await expect(page.getByTestId('vps-auto-update-when')).toHaveText(msg('vps.tile.autoUpdate.every', { minutes: 5 }));
+  });
+
+  test('Pause und Fehler zeigen den Text des Workers', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, { ...RUNNING, result: 'local_commits', detail: '0.7.300 → 0.7.304' });
+    await expect(row(page)).toHaveAttribute('data-tone', 'warning');
+    await expect(row(page)).toContainText(msg('vps.autoUpdate.state.localCommits'));
+    await expect(page.getByTestId('vps-auto-update-detail')).toHaveText('0.7.300 → 0.7.304');
+
+    await openWith(page, worker, { ...RUNNING, result: 'other_branch', detail: 'feature/test' });
+    await expect(row(page)).toHaveAttribute('data-state', 'otherBranch');
+    await expect(row(page)).toHaveAttribute('data-tone', 'warning');
+
+    await openWith(page, worker, { ...RUNNING, result: 'check_failed', detail: 'git fetch hatası' });
+    await expect(row(page)).toHaveAttribute('data-state', 'checkFailed');
+    await expect(row(page)).toHaveAttribute('data-tone', 'danger');
+
+    await openWith(page, worker, { ...RUNNING, result: 'pull_failed', detail: 'Permission denied' });
+    await expect(row(page)).toHaveAttribute('data-state', 'pullFailed');
+    await expect(page.getByTestId('vps-auto-update-detail')).toHaveText('Permission denied');
+  });
+
+  test('ohne Antwort des Workers: unbekannt, mit dem eingestellten Wert aus SSH', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await openWith(page, worker, null);
+    await expect(row(page)).toHaveAttribute('data-state', 'unknown');
+    await expect(row(page)).toHaveAttribute('data-tone', 'neutral');
+    await expect(page.getByTestId('vps-auto-update-when')).toHaveText(
+      msg('vps.autoUpdate.configured', { state: msg('vps.tile.autoUpdate.every', { minutes: 5 }) }),
+    );
+
+    worker.overrides.delete('GET /api/system/worker/status');
+    worker.offline = true;
+    await page.reload();
+    await expect(row(page)).toHaveAttribute('data-state', 'unknown');
+  });
+
+  test('das Online-Panel zeigt dieselbe Zeile', { tag: '@UPD-07' }, async ({ page, worker }) => {
+    await page.clock.setFixedTime(NOW);
+    worker.overrides.set('GET /api/system/worker/status', {
+      status: 200,
+      body: { version: 'v0.7.304', uptime_sec: 60, supervised: true, bots_running: 0, bots_total: 1, auto_update: { ...RUNNING, result: 'pull_failed', detail: 'Permission denied' } },
+    });
+    await page.route('**/api/vps/**', (route) =>
+      route.fulfill({ status: 403, json: { ok: false, error: 'lokal', code: 'localOnly' } }),
+    );
+    await page.goto('/vps');
+    const panelRow = page.getByTestId('vps-online').getByTestId('vps-auto-update');
+    await expect(panelRow).toHaveAttribute('data-state', 'pullFailed');
+    await expect(panelRow).toContainText(msg('vps.autoUpdate.state.pullFailed'));
   });
 });

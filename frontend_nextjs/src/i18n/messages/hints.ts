@@ -207,6 +207,8 @@ const existingHints = defineArea(
     'vps.tile.bots.hint': 'VPS’te çalışan bot süreçleri (hesap başına bir tane) ve açık MT5 terminali sayısı.',
     'vps.tile.version.hint':
       'VPS’teki kurulu sürüm ile git dalı/commit’i ve son güncelleme zamanı. Dal “main” değilse uyarı gösterilir; otomatik güncelleme main’den çeker.',
+    'vps.autoUpdate.hint':
+      'Worker’ın otomatik güncellemesinin gerçek durumu: açık mı, son çalışmanın sonucu ve zamanı. Son çalışma aralığın üç katından (en az 15 dk) eskiyse “gecikti” gösterilir. Yeşil = çalışıyor, sarı = VPS şu an güncelleme almıyor, kırmızı = hata.',
     'vps.tile.autostart.hint':
       'VPS açılışta kendiliğinden çalışıyor mu: otomatik oturum açma + AutoGrid-Start görevi. “Eksik” ise yeniden başlatma sonrası worker gelmez.',
     'vps.tile.system.hint': 'VPS’in bilgisayar adı ve ne zamandır açık olduğu.',
@@ -778,6 +780,8 @@ const existingHints = defineArea(
     'vps.tile.bots.hint': 'Bot processes running on the VPS (one per account) and the number of open MT5 terminals.',
     'vps.tile.version.hint':
       'Installed version on the VPS with its git branch/commit and when it was last updated. A warning shows if the branch is not “main”; auto-update pulls from main.',
+    'vps.autoUpdate.hint':
+      'The real state of the worker’s auto-update: whether it is on, plus the result and time of the last run. A last run older than three intervals (at least 15 min) shows as “overdue”. Green = working, yellow = the VPS gets no updates right now, red = error.',
     'vps.tile.autostart.hint':
       'Whether the VPS starts everything on boot: automatic logon + the AutoGrid-Start task. If “Incomplete” the worker will not come back after a reboot.',
     'vps.tile.system.hint': 'Computer name of the VPS and how long it has been up.',
@@ -1349,6 +1353,8 @@ const existingHints = defineArea(
     'vps.tile.bots.hint': 'Auf dem VPS laufende Bot-Prozesse (einer pro Konto) und Anzahl der offenen MT5-Terminals.',
     'vps.tile.version.hint':
       'Installierte Version auf dem VPS mit Git-Branch/Commit und dem Zeitpunkt der letzten Aktualisierung. Ist der Branch nicht „main“, erscheint eine Warnung; das Auto-Update holt von main.',
+    'vps.autoUpdate.hint':
+      'Echter Zustand des Auto-Updates im Worker: ob es läuft, Ergebnis und Zeit des letzten Laufs. Ist der letzte Lauf älter als drei Intervalle (mindestens 15 min), steht „überfällig“ da. Grün = läuft, gelb = der VPS bekommt gerade keine Updates, rot = Fehler.',
     'vps.tile.autostart.hint':
       'Ob der VPS beim Hochfahren alles selbst startet: automatische Anmeldung + Aufgabe AutoGrid-Start. Bei „Unvollständig“ kommt der Worker nach einem Neustart nicht zurück.',
     'vps.tile.system.hint': 'Rechnername des VPS und wie lange er schon läuft.',

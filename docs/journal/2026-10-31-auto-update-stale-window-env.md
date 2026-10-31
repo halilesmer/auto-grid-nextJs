@@ -85,7 +85,7 @@ The log line only on a change keeps the 300-line log window usable. `checked_at`
 - [ ] Next test week: switch off with `setx AUTO_UPDATE_MINUTES 0`, without `/M`. A machine value does not win over a user value of 5, so `setx /M` has no effect if the user value exists. No restart is necessary. Check `enabled: false`.
 - [ ] UPD-07 manual check on the VPS: merge a PR, and wait 5–10 minutes.
 - [ ] `subprocess.run` in `self_updater.py` has no timeout. A hung `git fetch` stops the loop without a log line. A stale `checked_at` now shows it. This was not the cause here.
-- [ ] Show `auto_update` on the page `/vps`. This is a visible change, so it needs a design first.
+- [x] Show `auto_update` on the page `/vps`: see `2026-10-31-auto-update-status-row.md`.
 
 ## Lessons
 

@@ -5,8 +5,9 @@ import { Bot, Cpu, GitBranch, Globe, Power, Server } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { StatusDot } from '@/components/ui/status-dot';
 import { FieldLabel } from '@/components/ui/tooltip';
-import type { VpsStatus } from '@/lib/vps';
+import type { AutoUpdateStatus, VpsStatus } from '@/lib/vps';
 import { useFormat, useT, type MessageKey } from '@/i18n';
+import AutoUpdateRow from './AutoUpdateRow';
 
 type Tone = 'success' | 'danger' | 'warning' | 'neutral';
 
@@ -77,7 +78,15 @@ function workerState(worker: VpsStatus['worker']): WorkerState {
   return 'stopped';
 }
 
-export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus | null; sshError: string | null }) {
+export default function VpsStatusPanel({
+  status,
+  sshError,
+  autoUpdate,
+}: {
+  status: VpsStatus | null;
+  sshError: string | null;
+  autoUpdate?: { status: AutoUpdateStatus | null; readAt: number };
+}) {
   const t = useT();
   const fmt = useFormat();
   if (!status) {
@@ -100,7 +109,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
   const tunnelFailing = !!status.tunnel_watchdog?.failures && status.tunnel_watchdog.last_result === 'tunnel-down';
   const tunnelTone: Tone = tunnelFailing ? 'warning' : 'success';
   const ngrokTone: Tone = status.ngrok.running ? tunnelTone : 'danger';
-  const autoUpdate =
+  const configuredAutoUpdate =
     status.auto_update_minutes === '0'
       ? t('vps.tile.autoUpdate.off')
       : t('vps.tile.autoUpdate.every', { minutes: status.auto_update_minutes || 5 });
@@ -169,7 +178,6 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
             {status.git.branch || '?'} @ {status.git.commit || '?'}
           </p>
           {status.git.updated_at && <p>{t('vps.tile.updatedAt', { time: fmt.dateTime(status.git.updated_at) })}</p>}
-          <p>{t('vps.tile.autoUpdate', { state: autoUpdate })}</p>
         </Tile>
 
         <Tile
@@ -195,6 +203,7 @@ export default function VpsStatusPanel({ status, sshError }: { status: VpsStatus
           <p>{t('vps.tile.uptime', { time: uptime(status.uptime_minutes, t) })}</p>
         </Tile>
       </div>
+      {autoUpdate && <AutoUpdateRow status={autoUpdate.status} readAt={autoUpdate.readAt} configured={configuredAutoUpdate} />}
     </div>
   );
 }
