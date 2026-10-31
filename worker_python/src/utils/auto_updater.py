@@ -9,6 +9,8 @@ varsa çeker (gerekirse pip install) ve kendini yeniden başlatır (run_uvicorn_
 - AUTO_UPDATE_MINUTES (varsayılan 5, 0 = kapalı). Windows'ta her turda kayıt defterinden okunur,
   setx yeniden başlatma istemez. Döngü kapalıyken de çalışır.
 - Her turun sonucu GET /system/worker/status içinde durur; logda yalnız değişince satır çıkar.
+- Her git çağrısının süre sınırı vardır (self_updater.GitTimeout): takılan git turu check_failed
+  ya da pull_failed olarak bitirir, döngü sürer.
 - Git bu süreçte, yani yönetici OLMAYAN worker haklarıyla çalışır; dosya sahipliği bozulmaz.
   Worker yine de yönetici haklarıyla açıldıysa execute_git_pull hiç çekmez (elevation.py).
 - Botlar ayrı süreçtir; yeni worker eski sürümle çalışan botları yeniden başlatır (BOT-03).

@@ -3,7 +3,26 @@ import os
 import sys
 import threading
 
+import psutil
+
 from src.utils.elevation import ELEVATED_HINT, is_elevated
+
+# Ölçüm 2026-10-31 (Mac → GitHub): değişiklik yokken fetch 0,6 sn, tüm geçmiş (5,6 MB) 1,5 sn.
+# 120 sn bunun 80 katı: yavaş VPS ağına ve checkout'u yavaşlatan antivirüse pay bırakır,
+# 5 dakikalık AUTO_UPDATE_MINUTES aralığının da altında kalır.
+GIT_NETWORK_TIMEOUT_SEC = 120
+# Ağsız komutlar (rev-parse, status, stash, reset, diff) burada milisaniye sürer; VPS'te ölçülmedi.
+GIT_LOCAL_TIMEOUT_SEC = 60
+# Öldürülen ağacın pipe'larının kapanması için üst sınır
+GIT_KILL_WAIT_SEC = 5
+
+
+class GitTimeout(Exception):
+    """Mesaj yalnız alt komutu taşır: `remote set-url` argümanı github_token.txt'teki token'dır,
+    TimeoutExpired metni ise bunu log'a ve /system/worker/status'a taşırdı."""
+
+    def __init__(self, subcommand, seconds):
+        super().__init__(f"git {subcommand}: {seconds:g} sn içinde bitmedi, durduruldu")
 
 
 def get_project_root():
@@ -37,19 +56,9 @@ def ensure_git_repo(branch, project_root):
     if os.path.isdir(git_dir):
         if repo_url:
             # Önce set-url yapmayı dene, eğer origin yoksa add yap
-            res = subprocess.run(
-                ["git", "remote", "set-url", "origin", repo_url],
-                cwd=project_root,
-                capture_output=True,
-                text=True,
-            )
+            res = _git(["remote", "set-url", "origin", repo_url], project_root)
             if res.returncode != 0:
-                subprocess.run(
-                    ["git", "remote", "add", "origin", repo_url],
-                    cwd=project_root,
-                    capture_output=True,
-                    text=True,
-                )
+                _git(["remote", "add", "origin", repo_url], project_root)
         return True, ""
 
     # 2. Eğer klasörde .git YOKSA ve Token da yoksa
@@ -61,69 +70,110 @@ def ensure_git_repo(branch, project_root):
 
     # 3. .git yok ama Token varsa, SIFIRDAN İNŞA ET
     try:
-        subprocess.run(
-            ["git", "init"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        subprocess.run(
-            ["git", "remote", "add", "origin", repo_url],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        subprocess.run(
-            ["git", "fetch", "origin"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        subprocess.run(
-            ["git", "reset", "--hard", f"origin/{branch}"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        subprocess.run(
-            ["git", "branch", "-M", branch],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        _git(["init"], project_root, check=True)
+        _git(["remote", "add", "origin", repo_url], project_root, check=True)
+        _git(["fetch", "origin"], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
+        # İlk checkout tüm dosyaları yazar: yerel komut sınırı buna göre değil
+        _git(["reset", "--hard", f"origin/{branch}"], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
+        _git(["branch", "-M", branch], project_root, check=True)
         return True, "Git deposu başarıyla onarıldı ve eşitlendi."
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
         return False, f"Sıfırdan kurulum hatası: {error_msg}"
+    except GitTimeout as e:
+        _remove_stale_index_lock(project_root)
+        return False, f"Sıfırdan kurulum hatası: {e}"
     except Exception as e:
         return False, f"Beklenmeyen onarım hatası: {str(e)}"
 
 
-def _git(args, project_root, check=False):
-    return subprocess.run(
-        ["git", *args], cwd=project_root, check=check, capture_output=True, text=True
+def _kill_process_tree(process):
+    """git'i ve alt süreçlerini (git-remote-https) öldürür, pipe'ların kapanmasını sınırlı bekler.
+
+    subprocess.run(timeout=...) burada yetmez: Windows'ta kill'den sonra süresiz communicate()
+    çağırır ve pipe'ları tutan git-remote-https yaşadıkça aynı yerde asılı kalır.
+    """
+    try:
+        root = psutil.Process(process.pid)
+        members = [*root.children(recursive=True), root]
+    except psutil.NoSuchProcess:  # süre dolarken kendiliğinden bitti
+        members = []
+    except (psutil.Error, OSError) as e:  # ağaç okunamadıysa en azından git'in kendisi öldürülür
+        print(f"⚠️ [UPDATE] git süreç ağacı okunamadı: {e!r}")
+        members = []
+        process.kill()
+    for member in members:
+        try:
+            member.kill()
+        except psutil.NoSuchProcess:  # kardeşi ölünce kendiliğinden kapandı
+            pass
+        except psutil.Error as e:  # kapanmayan süreç updater'ı durdurmamalı, aşağıda sınırlı beklenir
+            print(f"⚠️ [UPDATE] git süreci öldürülemedi: {e!r}")
+    try:
+        process.communicate(timeout=GIT_KILL_WAIT_SEC)
+    except subprocess.TimeoutExpired:
+        # Windows'ta okuma iş parçacıkları arka planda kalır, updater devam eder
+        print(f"⚠️ [UPDATE] git süreci (pid {process.pid}) {GIT_KILL_WAIT_SEC} sn içinde kapanmadı")
+
+
+def _git(args, project_root, check=False, timeout=None):
+    """git çalıştırır. Süre dolarsa süreç ağacını öldürür ve GitTimeout fırlatır.
+    timeout verilmezse GIT_LOCAL_TIMEOUT_SEC geçerlidir; ağa çıkan komutlar kendi sınırını verir."""
+    limit = GIT_LOCAL_TIMEOUT_SEC if timeout is None else timeout
+    command = ["git", *args]
+    process = subprocess.Popen(
+        command, cwd=project_root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
+    try:
+        stdout, stderr = process.communicate(timeout=limit)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(process)
+        raise GitTimeout(args[0], limit) from None  # cause komutu, yani token'ı taşır
+    if check and process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, command, stdout, stderr)
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
-def _rollback_failed_pull(project_root, restorable, stashed):
+def _remove_stale_index_lock(project_root):
+    """Öldürülen git kilidini silemez; kilit kalırsa sonraki her reset ve pull düşer."""
+    try:
+        os.remove(os.path.join(project_root, ".git", "index.lock"))
+    except FileNotFoundError:  # git indekse dokunmadan durduruldu
+        pass
+    except OSError as e:  # çağıran zaten hata döner; reset de düşerse mesajda görünür
+        print(f"⚠️ [UPDATE] index.lock silinemedi: {e!r}")
+
+
+def _newest_stash(project_root):
+    return _git(["rev-parse", "-q", "--verify", "refs/stash"], project_root).stdout.strip()
+
+
+def _rollback_failed_pull(project_root, old_head, restorable, stashed):
     """Yarım kalan pull'u geri alır ve stash'lenen yerel değişiklikleri geri yükler.
 
     Windows'ta bir dosya kilitli/yetkisizse git pull ortada durur: bazı dosyalar yeni
     sürümdedir (ör. VERSION), HEAD eskidedir. Eskiden bu yarım hal ve 'auto-stash-before-pull'
     stash'i öylece kalıyordu. Yerel değişiklik yoksa veya stash'e alındıysa çalışma alanı
-    güvenle HEAD'e döndürülür (ignore edilen configs/, logs/, .venv/ vb. dokunulmaz).
+    güvenle pull öncesine döndürülür (ignore edilen configs/, logs/, .venv/ vb. dokunulmaz).
+    HEAD değil old_head: süresi dolan pull ref'i taşımış olabilir.
+
+    Döner: hata mesajına eklenecek metin ("" = geri alındı veya dokunulmadı). Geri alma düşerse
+    stash uygulanmaz (yarım çalışma alanında çakışırdı), mesajda anılır.
     """
     if not restorable:
-        return
-    _git(["reset", "--hard", "HEAD"], project_root)
-    _git(["clean", "-fd"], project_root)
-    if stashed:
-        _git(["stash", "pop"], project_root)
+        return ""
+    kept_stash = " Yerel değişiklikler stash'te kaldı: auto-stash-before-pull." if stashed else ""
+    try:
+        _git(["reset", "--hard", old_head or "HEAD"], project_root, check=True)
+        _git(["clean", "-fd"], project_root, check=True)
+        if stashed:
+            _git(["stash", "pop"], project_root)
+    except subprocess.CalledProcessError as e:
+        return f"\nGeri alma tamamlanamadı: {(e.stderr or e.stdout).strip()}{kept_stash}"
+    except GitTimeout as e:
+        _remove_stale_index_lock(project_root)
+        return f"\nGeri alma tamamlanamadı: {e}{kept_stash}"
+    return ""
 
 
 REQUIREMENTS_REL = "worker_python/requirements.txt"
@@ -169,36 +219,53 @@ def execute_git_pull(branch="main"):
         return False, f"Güncelleme yapılmadı: {ELEVATED_HINT}"
 
     project_root = get_project_root()
-
-    is_git_ok, error_message = ensure_git_repo(branch, project_root)
-    if not is_git_ok:
-        return False, error_message
-
-    head = _git(["rev-parse", "HEAD"], project_root)
-    old_head = head.stdout.strip() if head.returncode == 0 else ""
-
-    status = _git(["status", "--porcelain"], project_root)
-    clean_before = status.returncode == 0 and not status.stdout.strip()
+    old_head = ""
     stashed = False
-    if not clean_before:
-        # Yerel değişiklikleri stash'le (kaybetme)
-        stash_res = _git(["stash", "push", "-u", "-m", "auto-stash-before-pull"], project_root)
-        stashed = stash_res.returncode == 0 and "No local changes" not in (stash_res.stdout or "")
+    restorable = False  # stash netleşmeden çalışma alanına dokunulmaz
 
     try:
-        _git(["fetch", "origin", branch], project_root, check=True)
-        result = _git(["pull", "origin", branch], project_root, check=True)
+        is_git_ok, error_message = ensure_git_repo(branch, project_root)
+        if not is_git_ok:
+            return False, error_message
+
+        head = _git(["rev-parse", "HEAD"], project_root)
+        old_head = head.stdout.strip() if head.returncode == 0 else ""
+
+        status = _git(["status", "--porcelain"], project_root)
+        clean_before = status.returncode == 0 and not status.stdout.strip()
+        if not clean_before:
+            # Yerel değişiklikleri stash'le (kaybetme)
+            stash_before = _newest_stash(project_root)
+            try:
+                stash_res = _git(["stash", "push", "-u", "-m", "auto-stash-before-pull"], project_root)
+            except GitTimeout:
+                # Stash kaydedildikten sonra kesildiyse değişiklik yalnız stash'tedir, geri alınmalı
+                stashed = _newest_stash(project_root) != stash_before
+                restorable = stashed
+                raise
+            stashed = stash_res.returncode == 0 and "No local changes" not in (stash_res.stdout or "")
+        # Stash başarısızsa yerel değişiklikler hâlâ çalışma alanında: dokunma
+        restorable = clean_before or stashed
+
+        _git(["fetch", "origin", branch], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
+        result = _git(["pull", "origin", branch], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
+
+        if stashed:
+            # Yerel değişiklikleri geri yükle; çakışırsa stash korunur, akış bozulmaz.
+            # Pop yarıda kesilirse değişikliğin nerede olduğu belli değil: reset onu silebilirdi
+            restorable = False
+            _git(["stash", "pop"], project_root)
+
+        pip_ok, pip_message = _install_requirements_if_changed(project_root, old_head)
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
-        # Stash başarısızsa yerel değişiklikler hâlâ çalışma alanında: dokunma
-        _rollback_failed_pull(project_root, restorable=clean_before or stashed, stashed=stashed)
-        return False, f"Git Çekme Hatası: {error_msg}"
+        rollback_note = _rollback_failed_pull(project_root, old_head, restorable, stashed)
+        return False, f"Git Çekme Hatası: {error_msg}{rollback_note}"
+    except GitTimeout as e:
+        _remove_stale_index_lock(project_root)
+        rollback_note = _rollback_failed_pull(project_root, old_head, restorable, stashed)
+        return False, f"Git Çekme Hatası: {e}{rollback_note}"
 
-    if stashed:
-        # Yerel değişiklikleri geri yükle; çakışırsa stash korunur, akış bozulmaz
-        _git(["stash", "pop"], project_root)
-
-    pip_ok, pip_message = _install_requirements_if_changed(project_root, old_head)
     message = "\n".join(m for m in (result.stdout.strip(), pip_message) if m)
     return pip_ok, message
 
@@ -234,33 +301,15 @@ def check_for_updates(branch="main"):
     """
     project_root = get_project_root()
 
-    is_git_ok, error_message = ensure_git_repo(branch, project_root)
-    if not is_git_ok:
-        return False, error_message
-
     try:
-        subprocess.run(
-            ["git", "fetch", "origin", branch],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        is_git_ok, error_message = ensure_git_repo(branch, project_root)
+        if not is_git_ok:
+            return False, error_message
 
-        local_hash = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        remote_hash = subprocess.run(
-            ["git", "rev-parse", f"origin/{branch}"],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
+        _git(["fetch", "origin", branch], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
+
+        local_hash = _git(["rev-parse", "HEAD"], project_root, check=True).stdout.strip()
+        remote_hash = _git(["rev-parse", f"origin/{branch}"], project_root, check=True).stdout.strip()
 
         has_update = local_hash != remote_hash
 
@@ -272,13 +321,9 @@ def check_for_updates(branch="main"):
             local_ver = "v1.0.0"
 
         try:
-            remote_ver = subprocess.run(
-                ["git", "show", f"origin/{branch}:VERSION"],
-                cwd=project_root,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
+            remote_ver = _git(["show", f"origin/{branch}:VERSION"], project_root, check=True).stdout.strip()
+        except GitTimeout:
+            raise
         except Exception:
             remote_ver = "Bilinmiyor"
 
@@ -287,6 +332,8 @@ def check_for_updates(branch="main"):
         # GERÇEK HATAYI BURADA YAKALIYORUZ!
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
         return False, f"Bağlantı Hatası: {error_msg}"
+    except GitTimeout as e:
+        return False, f"Bağlantı Hatası: {e}"
     except Exception as e:
         return False, f"Sistem Hatası: {str(e)}"
 
