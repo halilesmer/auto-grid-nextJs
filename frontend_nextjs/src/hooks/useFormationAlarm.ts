@@ -60,15 +60,16 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
   const setFavorites = useCallback(
     async (on: boolean) => {
       if (accountId === null) return;
-      // Beim Einschalten fragt der Browser nach der Erlaubnis; wird sie erteilt, geht die Systemmeldung an
-      const asked = on && notificationPermission() === 'default';
-      if (asked) await Notification.requestPermission();
-      const granted = asked && notificationPermission() === 'granted';
+      // Der Schalter speichert sofort; die Abfrage des Browsers kann offen bleiben (Chrome unterdrückt sie still oder niemand antwortet)
       update((current) => ({
         ...current,
         favoritesEnabled: on ? [...current.favoritesEnabled.filter((x) => x !== accountId), accountId] : current.favoritesEnabled.filter((x) => x !== accountId),
-        prefs: granted ? { ...current.prefs, system: true } : current.prefs,
       }));
+      // Beim Einschalten fragt der Browser nach der Erlaubnis; wird sie erteilt, geht die Systemmeldung an
+      if (on && notificationPermission() === 'default') {
+        await Notification.requestPermission();
+        if (notificationPermission() === 'granted') update((current) => ({ ...current, prefs: { ...current.prefs, system: true } }));
+      }
       if (on) toast.info(t('formation.alarm.favorites.enabled'), { duration: 6000 });
     },
     [accountId, update],
@@ -82,8 +83,9 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
   const setSound = useCallback((on: boolean) => update((current) => ({ ...current, prefs: { ...current.prefs, sound: on } })), [update]);
   const setSystem = useCallback(
     async (on: boolean) => {
-      if (on && notificationPermission() === 'default') await Notification.requestPermission();
+      // Der Schalter speichert sofort; eine offene Abfrage des Browsers hält ihn nicht auf
       update((current) => ({ ...current, prefs: { ...current.prefs, system: on } }));
+      if (on && notificationPermission() === 'default') await Notification.requestPermission();
     },
     [update],
   );

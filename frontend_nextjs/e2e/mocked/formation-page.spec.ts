@@ -1077,6 +1077,25 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect(note.url).toBe(`/formasyon?account=${DEMO_ID}`);
   });
 
+  test('Die Schalter „Alle Favoriten“ und „Systemmeldung“ speichern sofort, auch wenn die Browser-Abfrage nie beantwortet wird', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await page.addInitScript(() => {
+      // Die Abfrage bleibt offen (Chrome zeigt sie nicht oder niemand antwortet)
+      Object.defineProperty(Notification, 'permission', { get: () => 'default' });
+      Notification.requestPermission = () => new Promise(() => {});
+    });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.getByTestId('formation-alarm').click();
+    const stored = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}'), KEY);
+    await page.getByRole('switch', { name: msg('formation.alarm.favorites') }).click();
+    await expect(page.getByRole('switch', { name: msg('formation.alarm.favorites') })).toBeChecked();
+    expect((await stored()).favoritesEnabled).toContain(DEMO_ID);
+    await page.getByRole('switch', { name: msg('formation.alarm.channel.system') }).click();
+    await expect(page.getByRole('switch', { name: msg('formation.alarm.channel.system') })).toBeChecked();
+    expect((await stored()).prefs.system).toBe(true);
+  });
+
   test('Das Menü zeigt „Alle Favoriten“, den Stand und die Alarm-Produkte, bei 375 px ohne Querscroll', { tag: '@FRM-30' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     worker.state.favorites[DEMO_ID] = ['EURUSD', 'GBPUSD'];

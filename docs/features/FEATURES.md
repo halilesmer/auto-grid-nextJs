@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-10-31 · **195/199** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-01 · **194/199** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 20/21 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 31/31 |
+| 16 | **FRM** – Formationserkennung | 30/31 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -938,9 +938,9 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** pytest worker_python/tests/api/test_quotes_api.py (@FRM-29) ausführen (Preis, Vortagsschluss, Stellen, nicht lesbares Produkt null, fremdes Terminal 503, ungültige Liste 400, fremdes Konto 404). → Playwright-Test e2e/mocked/formation-favorites-lib.spec.ts (@FRM-29) ausführen (isFormed, Filter je Zeitraum, ein Produkt je Formation einmal). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-29) ausführen (nur gebildete Formationen, Zeitraum-Klick ohne neue Anfragen, Formations-Filter, Klick auf die Zeile, Fehler je Produkt und Wiederholung, Preise und Konto-Hinweis, Neuladen der Favoriten und der Konten, Werkzeuge frei, nie doppelt, 375 px). → Auf dem DEMO-Konto mit ca. 10 Favoriten die Dauer eines Durchlaufs (data-favorites-scan-ms und Netzdauer) messen, gezeigte Formationen mit dem Chart vergleichen, auf alte gültige Muster ohne Aktualität achten und prüfen, ob Kurse und Vortagsschluss stimmen.
   - **Erwartet:** Die Seitenleiste zeigt je Zeitraum nur gebildete Formationen der Favoriten mit der Zahl der Produkte, der Filter und der Zeilenklick öffnen das richtige Produkt im Chart, und der Fehler eines Produkts verfälscht die anderen nicht.
   - 📝 DEMO, echter Worker v0.7.301: 10 Favoriten, Filter, Stichprobe 4/4, Preise, Wochenende
-- [x] **FRM-30** Alarm für alle Favoriten und Alarm-Produkte auf jeder Seite — 🖥️ e2e ✅ 2026-10-31
+- [ ] **FRM-30** Alarm für alle Favoriten und Alarm-Produkte auf jeder Seite — 🖥️ e2e ❌ 2026-11-01
   - Solange die App auf einer beliebigen Seite offen ist, meldet der app-weite FormationScanRunner neue Formationen (wird gültig, Zielpunkt erreicht; FRM-27) für alle Favoriten des gewählten Kontos, sobald „Alle Favoriten“ im Glocken-Menü an ist, und für jedes Produkt mit eingeschalteter Glocke. Die Meldung kommt als Karte in der App und, wenn die Systemmeldung an ist, über registration.showNotification (tag = Trefferschlüssel, data.url = Adresse); „Anzeigen“ und der Klick auf die Systemmeldung (notificationclick im Service Worker) öffnen Produkt, Formation und Zeiteinheit auf /formasyon. Es meldet nur der Tab mit dem Web Lock. Der erste vollständige Durchlauf nach dem Öffnen fasst Verpasstes zu einer Sammelmeldung „Seit dem letzten Öffnen: N Formationen“ zusammen; ein Produkt ohne gemerkten Stand merkt still. Ein Produkt mit fehlenden Kerzen oder Fehler wird nicht verglichen (sein Stand bleibt) und steht im Menü unter „Unvollständig“. Glocken-Produkte, die keine Favoriten sind, ändern die Zahlen der Favoriten nicht. Das Menü zeigt Stand (letzter Durchlauf, x/y Produkte), „Alle Favoriten“, weitere Alarm-Produkte und das Banner (läuft nur bei offener App). Telegram ist nicht Teil dieser Funktion.
-  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Meldung während /chart offen ist, Systemmeldung mit tag und url, Anzeigen führt zu Produkt, Formation und Zeiteinheit, Glocken-Produkt ohne Einfluss auf Favoriten-Zahlen, unvollständiges Produkt, zwei Tabs eine Suche, Sammelmeldung beim Öffnen, Menü bei 375 px). → Im echten Browser auf dem DEMO-Konto mit rund 10 Favoriten prüfen: Systemmeldung erscheint, Klick darauf öffnet Produkt und Formation, verstecktes Tab meldet weiter, Dauer eines Durchlaufs und ob die Rechnung die Seite spürbar blockiert; auf dem iPhone nur mit installierter App.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Meldung während /chart offen ist, Systemmeldung mit tag und url, Anzeigen führt zu Produkt, Formation und Zeiteinheit, Glocken-Produkt ohne Einfluss auf Favoriten-Zahlen, unvollständiges Produkt, zwei Tabs eine Suche, Sammelmeldung beim Öffnen, Menü bei 375 px, Schalter speichern sofort bei offener Browser-Abfrage). → Im echten Browser auf dem DEMO-Konto mit rund 10 Favoriten prüfen: Systemmeldung erscheint, Klick darauf öffnet Produkt und Formation, verstecktes Tab meldet weiter, Dauer eines Durchlaufs und ob die Rechnung die Seite spürbar blockiert; auf dem iPhone nur mit installierter App.
   - **Erwartet:** Eine neue Formation eines Favoriten oder Alarm-Produkts wird auf jeder Seite als Karte und Systemmeldung gemeldet, ein Klick öffnet sie auf /formasyon, Verpasstes kommt einmal als Sammelmeldung, nichts kommt doppelt, und ein unvollständiges Produkt meldet nichts.
 - [x] **FRM-31** Laufende Kerze auf dem Formasyon-Chart — 🖥️ e2e ✅ 2026-10-31
   - Der Chart auf /formasyon zeigt rechts zusätzlich die laufende Kerze in der normalen Kerzenfarbe. Der Preis ist der Schluss der laufenden M15-Kerze (Nachladen alle 60 s), darum zeigen alle Zeitintervalle denselben aktuellen Preis. Suche, Alarm, RSI und Zeichnungen enden weiter an der letzten geschlossenen Kerze (kein Blick in die Zukunft); die laufende Kerze wird nie vor oder auf der letzten geschlossenen Kerze geschrieben. Der Bild-Export zeigt sie mit.

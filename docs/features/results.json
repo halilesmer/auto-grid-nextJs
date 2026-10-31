@@ -954,9 +954,9 @@
   },
   "FRM-30": {
     "e2e": {
-      "datum": "2026-10-31",
-      "status": "passed",
-      "tests": 8
+      "datum": "2026-11-01",
+      "status": "failed",
+      "tests": 9
     }
   },
   "FRM-31": {
