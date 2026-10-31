@@ -3,88 +3,13 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { toast } from '@/components/ui/animated-toast';
 import { t, type MessageKey } from '@/i18n';
-import { evaluateAlarm, type AlarmEvent, type AlarmMemory, type AlarmNotice, type AlarmSettings } from '@/lib/formation/alarm';
+import { evaluateAlarm, type AlarmEvent, type AlarmNotice } from '@/lib/formation/alarm';
+import { save, serverSnapshot, snapshot, subscribe, type AlarmPrefs, type Stored } from '@/lib/formation/alarmStore';
 import { FINAL_POINT, SCAN_FORMATIONS, type ScanFormation } from '@/lib/formation/scan';
 import type { FormationScan } from '@/hooks/useFormationScan';
 
-const STORAGE_KEY = 'grid-robot-formation-alarm';
 /** Ab so vielen Meldungen in einem Lauf kommt eine Sammelmeldung statt einer Karte je Treffer */
 const MAX_SINGLE_NOTICES = 3;
-
-export interface AlarmPrefs extends AlarmSettings {
-  /** Browser-Meldung zusätzlich zur Karte im Fenster */
-  system: boolean;
-  sound: boolean;
-}
-
-interface Stored {
-  prefs: AlarmPrefs;
-  /** Schalter je Konto und Symbol: `${konto}|${symbol}` */
-  enabled: string[];
-  memory: Record<string, AlarmMemory>;
-}
-
-const DEFAULTS: Stored = {
-  prefs: { events: { valid: true, target: true }, forms: SCAN_FORMATIONS, system: false, sound: false },
-  enabled: [],
-  memory: {},
-};
-
-const isSeen = (value: unknown): value is { valid: boolean; target: boolean } =>
-  typeof value === 'object' && value !== null && typeof (value as { valid?: unknown }).valid === 'boolean' && typeof (value as { target?: unknown }).target === 'boolean';
-
-/** Gespeicherte Daten stammen aus dem Browser und können fehlen oder veraltet sein: alles wird geprüft, Fehlendes nimmt den Standard */
-function parse(raw: string | null): Stored {
-  if (!raw) return DEFAULTS;
-  const data: Partial<Record<keyof Stored, unknown>> = JSON.parse(raw) ?? {};
-  const prefs = (data.prefs ?? {}) as Partial<Record<keyof AlarmPrefs, unknown>>;
-  const events = (prefs.events ?? {}) as Partial<Record<AlarmEvent, unknown>>;
-  const memory: Stored['memory'] = {};
-  for (const [scope, entries] of Object.entries((data.memory ?? {}) as Record<string, Record<string, unknown>>)) {
-    memory[scope] = Object.fromEntries(Object.entries(entries).filter(([, seen]) => isSeen(seen))) as AlarmMemory;
-  }
-  return {
-    prefs: {
-      events: { valid: events.valid !== false, target: events.target !== false },
-      forms: Array.isArray(prefs.forms) ? SCAN_FORMATIONS.filter((form) => (prefs.forms as unknown[]).includes(form)) : SCAN_FORMATIONS,
-      system: prefs.system === true,
-      sound: prefs.sound === true,
-    },
-    enabled: Array.isArray(data.enabled) ? data.enabled.filter((x): x is string => typeof x === 'string') : [],
-    memory,
-  };
-}
-
-let cache: Stored | null = null;
-const listeners = new Set<() => void>();
-
-function snapshot(): Stored {
-  if (cache) return cache;
-  try {
-    cache = parse(localStorage.getItem(STORAGE_KEY));
-  } catch (error) {
-    // Speicher gesperrt oder Inhalt kaputt: der Alarm läuft mit Standardwerten im Arbeitsspeicher weiter
-    console.warn('formation alarm: stored settings unreadable', error);
-    cache = DEFAULTS;
-  }
-  return cache;
-}
-
-function save(next: Stored) {
-  cache = next;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch (error) {
-    console.warn('formation alarm: settings not stored', error);
-  }
-  listeners.forEach((listener) => listener());
-}
-
-const subscribe = (listener: () => void) => {
-  listeners.add(listener);
-  return () => void listeners.delete(listener);
-};
-const serverSnapshot = () => DEFAULTS;
 
 const notificationPermission = (): NotificationPermission | 'unsupported' => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
 const noSubscription = () => () => {};
