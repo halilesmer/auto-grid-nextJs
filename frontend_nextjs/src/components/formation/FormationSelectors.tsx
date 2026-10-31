@@ -18,7 +18,7 @@ const flatTrigger = 'h-[30px]! min-h-0! border-0! bg-transparent! px-2! text-xs!
 const popup = 'min-w-60 [&_input]:text-xs [&_li]:text-xs';
 
 /** Fahne wie bei TradingView: Klick setzt oder entfernt den Favoriten, ohne das Produkt zu wählen oder die Liste zu schließen. */
-function FavoriteFlag({ symbol, active, onToggle }: { symbol: string; active: boolean; onToggle: () => void }) {
+export function FavoriteFlag({ symbol, active, onToggle }: { symbol: string; active: boolean; onToggle: () => void }) {
   const t = useT();
   return (
     <Tooltip content={t(active ? 'formation.favorite.remove.hint' : 'formation.favorite.add.hint')} className="shrink-0">

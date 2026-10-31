@@ -7,7 +7,7 @@ import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from '@/lib/formation/param
 import { hitsCount, SCAN_FORMATIONS, type ScanFormation, type ScanHit } from '@/lib/formation/scan';
 import { cn } from '@/lib/utils';
 
-function CountBadge({ count, active }: { count: number; active: boolean }) {
+export function CountBadge({ count, active }: { count: number; active: boolean }) {
   if (count === 0) return null;
   return (
     <span
@@ -22,8 +22,8 @@ function CountBadge({ count, active }: { count: number; active: boolean }) {
   );
 }
 
-const segment = 'inline-flex h-7 shrink-0 cursor-pointer items-center rounded-[5px] px-1.5 text-xs transition-colors';
-const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground';
+export const segment = 'inline-flex h-7 shrink-0 cursor-pointer items-center rounded-[5px] px-1.5 text-xs transition-colors';
+export const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground';
 
 /**
  * Kopfleiste im TradingView-Stil: `children` (Symbol und Konto) und Zeiteinheiten in der Leiste, Formationen in der
@@ -37,6 +37,8 @@ export function FormationToolbar({
   onTimeframe,
   onForm,
   actions,
+  timeframes,
+  forms,
   children,
 }: {
   hits: readonly ScanHit[];
@@ -44,6 +46,9 @@ export function FormationToolbar({
   form: ScanFormation;
   onTimeframe: (tf: ContextTimeframe) => void;
   onForm: (form: ScanFormation) => void;
+  /** Eigener Inhalt statt der Zeiteinheiten bzw. der Formationszeile (Favoriten, FRM-29); null = nicht zeigen, undefined = Standard */
+  timeframes?: ReactNode;
+  forms?: ReactNode;
   /** Knöpfe hinter den Zeiteinheiten (z. B. Bild der Formation) */
   actions?: ReactNode;
   children: ReactNode;
@@ -57,6 +62,7 @@ export function FormationToolbar({
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
         <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full">
+          {timeframes !== undefined ? timeframes : (
           <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 lg:h-auto">
             {CONTEXT_TIMEFRAMES.map((x) => {
               const count = hitsCount(hits, { tf: x });
@@ -70,6 +76,7 @@ export function FormationToolbar({
               );
             })}
           </div>
+          )}
           {actions && (
             <>
               <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
@@ -78,6 +85,9 @@ export function FormationToolbar({
           )}
         </div>
       </div>
+      {forms !== undefined ? (
+        forms && <div className="pointer-events-auto border-b border-border">{forms}</div>
+      ) : (
       <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] items-center gap-0.5 overflow-x-auto border-b border-border px-2" data-testid="formation-forms">
         {SCAN_FORMATIONS.map((x) => {
           const count = hitsCount(hits, { form: x });
@@ -92,6 +102,7 @@ export function FormationToolbar({
           );
         })}
       </div>
+      )}
     </div>
   );
 }

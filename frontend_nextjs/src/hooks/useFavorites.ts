@@ -11,13 +11,10 @@ import { useFavoritesStore } from '@/store/useFavoritesStore';
 let saveQueue: Promise<unknown> = Promise.resolve();
 
 /**
- * Favoriten-Produkte des Kontos (FRM-28): laden je Konto, Umschalten wirkt sofort und wird bei einem
- * Fehler zurückgesetzt. Liegt auf dem Worker, damit jedes Gerät dieselbe Liste sieht.
+ * Lädt die Favoriten des Kontos in den Store. Genau ein Aufrufer (FormationScanRunner im Layout): Jeder weitere würde den Store
+ * beim Einhängen leeren und neu laden, während Pille und Seitenleiste schon eine Liste zeigen.
  */
-export function useFavorites(accountId: string | null) {
-  const symbols = useFavoritesStore((s) => s.symbols);
-  const loadedAccount = useFavoritesStore((s) => s.loadedAccount);
-
+export function useFavoritesLoader(accountId: string | null) {
   useEffect(() => {
     if (!accountId) return;
     // Toggles warten auf die frische Antwort: eine ältere Liste (Wiederöffnen, zweites Gerät) würde sonst überschrieben
@@ -36,6 +33,15 @@ export function useFavorites(accountId: string | null) {
       stale = true;
     };
   }, [accountId]);
+}
+
+/**
+ * Favoriten-Produkte des Kontos (FRM-28): Umschalten wirkt sofort und wird bei einem Fehler zurückgesetzt.
+ * Liegt auf dem Worker, damit jedes Gerät dieselbe Liste sieht. Geladen wird in useFavoritesLoader.
+ */
+export function useFavorites(accountId: string | null) {
+  const symbols = useFavoritesStore((s) => s.symbols);
+  const loadedAccount = useFavoritesStore((s) => s.loadedAccount);
 
   // Die Liste eines anderen Kontos wird nie gezeigt
   const current = useMemo(() => (accountId && loadedAccount === accountId ? symbols : []), [accountId, loadedAccount, symbols]);
@@ -71,5 +77,5 @@ export function useFavorites(accountId: string | null) {
     [accountId],
   );
 
-  return { isFavorite, toggle, ready: accountId !== null && loadedAccount === accountId };
+  return { symbols: current, isFavorite, toggle, ready: accountId !== null && loadedAccount === accountId };
 }

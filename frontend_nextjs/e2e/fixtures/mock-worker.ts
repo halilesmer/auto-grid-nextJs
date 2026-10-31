@@ -876,7 +876,19 @@ export class MockWorker {
         return this.csvRates(seg[1], source.slice('csv:'.length), url.searchParams);
       }
       if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
+      if (s.ratesErrorSymbols.includes(url.searchParams.get('symbol') ?? '')) return { status: 500, body: { detail: 'MT5 error' } };
       return ok(this.rates(seg[1], url.searchParams));
+    }
+
+    // Wie market.py quotes: je Symbol letzter Preis, Vortagsschluss und Stellen; null = unbekannt
+    if (seg[0] === 'market' && seg[2] === 'quotes' && method === 'GET') {
+      if (!s.accounts.some((a) => String(a.id) === seg[1])) {
+        return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      }
+      const names = (url.searchParams.get('symbols') ?? '').split(',').filter(Boolean);
+      if (names.length === 0) return { status: 400, body: { detail: 'Sembol listesi boş' } };
+      const quotes = Object.fromEntries(names.map((n) => [n, n in s.quotes ? s.quotes[n] : { last: 1.1, prev_close: 1.0, digits: 5 }]));
+      return ok({ account_id: seg[1], quotes });
     }
 
     // --------------------------------------------------------------- CSV-Import (market.py, BKT-05)

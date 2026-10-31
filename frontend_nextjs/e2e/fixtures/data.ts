@@ -200,6 +200,10 @@ export function defaultState() {
     ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],
     /** Antwort von /rates erzwingt einen Fehler (z. B. 503 Datenbank nicht bereit); null = normal */
     ratesError: null as { status: number; detail: string } | null,
+    /** Produkte, deren Kerzen mit 500 scheitern (Fehler je Produkt, FRM-29) */
+    ratesErrorSymbols: [] as string[],
+    /** Kurse für /market/{id}/quotes; fehlt ein Produkt, liefert der Mock einen festen Standardkurs */
+    quotes: {} as Record<string, { last: number; prev_close: number; digits: number } | null>,
     /** CSV-Importe je Konto (GET/POST /market/{id}/imports, B9); `text` = bisher hochgeladene Teile */
     csvImports: [] as CsvImportRow[],
     /** Deal-Archiv je Konto (GET /history/{id}/deals), MT5-Zeit; Einstiege vor `from` kommen wie im Worker mit. */

@@ -1,28 +1,34 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Bookmark, Loader2 } from 'lucide-react';
 
 import { useAccounts } from '@/components/account/hooks';
+import { FavoritesSidebar } from '@/components/formation/FavoritesSidebar';
 import { CandidateList } from '@/components/formation/CandidateList';
 import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationChecklist } from '@/components/formation/FormationChecklist';
 import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
 import { FormationAlarmMenu } from '@/components/formation/FormationAlarmMenu';
 import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
+import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/FormationFavoritesBar';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
+import { Tooltip } from '@/components/ui/tooltip';
 import { FormationDetailsPanel } from '@/components/formation/FormationDetailsPanel';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
+import { useFavorites } from '@/hooks/useFavorites';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormationParams } from '@/hooks/useFormationParams';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
-import { FINAL_POINT, timeframeForForm } from '@/lib/formation/scan';
+import { favoriteSymbols, FINAL_POINT, formedSummary, timeframeForForm, type ScanFormation } from '@/lib/formation/scan';
 import { buildShotData, shotFileName } from '@/lib/formation/shotData';
 import { composeShot, shotBlob, type ChartPicture } from '@/lib/formation/shotImage';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
+import { useFavoritesScanStore } from '@/store/useFavoritesScanStore';
+import { cn } from '@/lib/utils';
 
 /**
  * Formationserkennung (/formasyon): Das Symbol ist frei wählbar, ohne Wahl gilt das erste Setup des Kontos; im Hintergrund läuft die Suche über alle
@@ -78,6 +84,52 @@ function FormationView() {
   };
 
   const formName = t(`formation.form.${form}` as MessageKey);
+
+  // Favoriten (FRM-29): die Suche läuft im Layout (FormationScanRunner), die Seite liest nur den Store
+  const favorites = useFavorites(accountKnown ? accountId : null);
+  const found = useFavoritesScanStore((s) => s.results);
+  const favoritesScanMs = useFavoritesScanStore((s) => s.scanMs);
+  const hasFavorites = favorites.ready && favorites.symbols.length > 0;
+  const results = useMemo(
+    () => Object.fromEntries(favorites.symbols.filter((s) => found[s]).map((s) => [s, found[s]])),
+    [favorites.symbols, found],
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [formFilter, setFormFilter] = useState<ScanFormation | null>(null);
+  // Ein Filter, den der gewählte Zeitraum nicht hat, gilt nicht mehr
+  const filter = formFilter && formedSummary(results, tf).some((x) => x.form === formFilter) ? formFilter : null;
+  const rows = useMemo(() => favoriteSymbols(favorites.symbols, results, tf, filter), [favorites.symbols, results, tf, filter]);
+  const pickTimeframe = (next: typeof tf) => {
+    setActive(null);
+    setView({ tf: next });
+  };
+  const pickFavoriteForm = (next: ScanFormation) => {
+    if (filter === next) {
+      setFormFilter(null);
+      return;
+    }
+    setFormFilter(next);
+    setActive(null);
+    setView({ form: next });
+  };
+  const openFavorite = (next: string) => {
+    clearSelection();
+    setSymbol(next);
+    setView({ form: filter ?? results[next]?.find((h) => h.tf === tf)?.form, tf });
+    // Unter 900 px liegt die Leiste über dem Chart
+    if (window.innerWidth < 900) setSidebarOpen(false);
+  };
+  const favoriteViews = hasFavorites
+    ? {
+        timeframes: <FavoritesTimeframes results={results} tf={tf} onTimeframe={pickTimeframe} />,
+        forms: <FavoritesForms results={results} tf={tf} filter={filter} onForm={pickFavoriteForm} />,
+      }
+    : null;
+  // Ohne Favoriten gilt die Leiste wie bisher (undefined); mit offener Seitenleiste stehen die Zeilen dort (null), sonst über dem Chart
+  const toolbarSlot = (node: ReactNode) => {
+    if (!favoriteViews) return undefined;
+    return sidebarOpen ? null : node;
+  };
 
   // „Anzeigen“ der Alarm-Meldung: Formation und Zeiteinheit in die Adresse, Kandidat gewählt (wie ein Klick in der Liste)
   const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol, scan, (notice) => {
@@ -139,8 +191,10 @@ function FormationView() {
   };
 
   return (
-    <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''}>
+    <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''} data-favorites-scan-ms={favoritesScanMs ?? ''}>
       <h1 className="sr-only">{t('formation.title')}</h1>
+      {/* Die Seitenleiste schiebt den Chart (ab 900 px); die Leiste ganz rechts bleibt immer frei */}
+      <div className={cn('absolute inset-y-0 left-0 right-10', sidebarOpen && 'min-[900px]:right-[328px]')} data-testid="formation-main">
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
@@ -149,6 +203,8 @@ function FormationView() {
           hits={scan.hits}
           tf={tf}
           form={form}
+          timeframes={toolbarSlot(favoriteViews?.timeframes)}
+          forms={toolbarSlot(favoriteViews?.forms)}
           onTimeframe={(next) => {
             setActive(null);
             setView({ tf: next });
@@ -231,6 +287,40 @@ function FormationView() {
           <li>{t('formation.legend.zone')}</li>
           <li>{t('formation.legend.rsi')}</li>
         </ul>
+      )}
+      </div>
+      {accountKnown && accountId && (
+        <>
+          <div className="absolute inset-y-0 right-0 z-[60] flex w-10 flex-col items-center border-l border-border bg-background pt-18 lg:pt-0" data-testid="favorites-strip">
+            <Tooltip content={t('formation.fav.toggle.hint')} role="presentation" className="mt-0.5">
+              <button
+                type="button"
+                aria-pressed={sidebarOpen}
+                aria-label={t('formation.fav.toggle')}
+                data-testid="favorites-toggle"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className={cn('inline-flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', sidebarOpen ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <Bookmark size={16} aria-hidden="true" className={cn(sidebarOpen && 'fill-primary')} />
+              </button>
+            </Tooltip>
+          </div>
+          {sidebarOpen && (
+            <div className="absolute inset-y-0 right-10 z-[60] w-72 border-l border-border bg-background pt-18 lg:pt-0" data-testid="favorites-panel">
+              <FavoritesSidebar
+                accountId={accountId}
+                favorites={favorites.symbols}
+                rows={rows}
+                activeSymbol={symbol}
+                timeframes={favoriteViews?.timeframes}
+                forms={favoriteViews?.forms}
+                onPick={openFavorite}
+                onToggle={favorites.toggle}
+                onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

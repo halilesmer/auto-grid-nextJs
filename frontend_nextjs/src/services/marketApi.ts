@@ -65,3 +65,18 @@ export async function fetchRates(accountId: string, query: RatesQuery, signal?: 
   });
   return res.data;
 }
+
+/** Ein Eintrag von GET /market/{id}/quotes; null = das Terminal kennt das Produkt nicht oder hat keinen Preis */
+export interface Quote {
+  last: number;
+  prev_close: number;
+  digits: number;
+}
+
+export async function fetchQuotes(accountId: string, symbols: readonly string[], signal?: AbortSignal): Promise<Record<string, Quote | null>> {
+  const res = await axiosInstance.get<{ quotes: Record<string, Quote | null> }>(`/market/${encodeURIComponent(accountId)}/quotes`, {
+    params: { symbols: symbols.join(',') },
+    signal,
+  });
+  return res.data.quotes;
+}
