@@ -196,6 +196,31 @@ def measure_clock(account_config: dict, symbol: str | None) -> dict:
     return _connected(account_config, collect)
 
 
+def collect_quotes(mt5, account_config: dict, symbols: list[str]) -> dict:
+    """Son fiyat, önceki gün kapanışı ve hane sayısı (FRM-29 favori tablosu); okunamayan sembol None.
+
+    Son fiyat: tick.last, yoksa (FX/CFD'de last=0) bid. Önceki gün kapanışı: D1'in bir önceki mumu.
+    """
+    _check_account(mt5, account_config)
+    out: dict = {}
+    for name in symbols:
+        info = mt5.symbol_info(name)
+        tick = mt5.symbol_info_tick(name)
+        bars = mt5.copy_rates_from_pos(name, mt5.TIMEFRAME_D1, 0, 2)
+        if info is None or tick is None or bars is None or len(bars) < 2:
+            out[name] = None
+            continue
+        last = _plain(getattr(tick, "last", 0)) or _plain(getattr(tick, "bid", 0))
+        prev_close = _plain(bars[-2]["close"])
+        out[name] = {"last": last, "prev_close": prev_close, "digits": _plain(info.digits)} if last else None
+    return out
+
+
+def quotes(account_config: dict, symbols: list[str]) -> dict:
+    """Bağlanır (veri sorgusu kipinde) ve fiyatları tek kilit altında toplar."""
+    return _connected(account_config, lambda mt5: collect_quotes(mt5, account_config, symbols))
+
+
 def _check_account(mt5, account_config: dict):
     """Terminal bu hesapta mı? Değilse sorgu yapılmaz (başka hesabın verisi dönmesin)."""
     try:

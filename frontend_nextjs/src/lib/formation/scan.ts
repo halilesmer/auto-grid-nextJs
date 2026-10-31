@@ -67,3 +67,43 @@ export function timeframeForForm(hits: readonly ScanHit[], form: ScanFormation, 
 
 /** Zeitpunkt der Suche: Anfang der laufenden M15-Kerze (alles davor ist geschlossen) */
 export const scanTime = (lastM15Time: number, live: boolean): number => (live ? lastM15Time : lastM15Time + 900);
+
+/** Gebildet = gültig (FRM-29); „im Aufbau“ und ungültig zählen für Favoriten nicht (countsAsHit gilt für die Einzelansicht) */
+export const isFormed = (hit: ScanHit): boolean => hit.candidate.verdict === 'valid';
+
+/** Was die Favoriten-Suche je Produkt behält: Formation und Zeitraum eines gebildeten Treffers, je Paar einmal */
+export interface FormedHit {
+  form: ScanFormation;
+  tf: ContextTimeframe;
+}
+
+export function formedHits(hits: readonly ScanHit[]): FormedHit[] {
+  const seen = new Set<string>();
+  const out: FormedHit[] = [];
+  for (const h of hits) {
+    const key = `${h.form}|${h.tf}`;
+    if (!isFormed(h) || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ form: h.form, tf: h.tf });
+  }
+  return out;
+}
+
+/** Ergebnisse der Favoriten-Suche je Produkt (Schlüssel = Produktname) */
+export type FormedBySymbol = Readonly<Record<string, readonly FormedHit[]>>;
+
+/** Formationen mit mindestens einem gebildeten Treffer im Zeitraum, mit ihren Produkten (ein Produkt je Formation einmal) */
+export function formedSummary(results: FormedBySymbol, tf: ContextTimeframe): { form: ScanFormation; symbols: string[] }[] {
+  return SCAN_FORMATIONS.map((form) => ({
+    form,
+    symbols: Object.keys(results).filter((symbol) => results[symbol].some((h) => h.form === form && h.tf === tf)),
+  })).filter((x) => x.symbols.length > 0);
+}
+
+/** Zahl der Produkte mit mindestens einer gebildeten Formation im Zeitraum */
+export const timeframeCount = (results: FormedBySymbol, tf: ContextTimeframe): number =>
+  Object.keys(results).filter((symbol) => results[symbol].some((h) => h.tf === tf)).length;
+
+/** Favoriten der Tabelle: im Zeitraum mit der Formation gebildet; ohne Formation alle Favoriten */
+export const favoriteSymbols = (favorites: readonly string[], results: FormedBySymbol, tf: ContextTimeframe, form: ScanFormation | null): string[] =>
+  form === null ? [...favorites] : favorites.filter((s) => results[s]?.some((h) => h.form === form && h.tf === tf));

@@ -200,6 +200,31 @@ async def rates(
     return {"account_id": account_id, **result, "server_now": server_now, "offset_sec": offset}
 
 
+QUOTES_MAX_SYMBOLS = 200  # wie FavoritesModel
+
+
+@router.get("/market/{account_id}/quotes", dependencies=[Depends(account_access)])
+async def quotes(account_id: str, symbols: str = Query(..., max_length=QUOTES_MAX_SYMBOLS * 41)):
+    """FRM-29: virgülle ayrılmış semboller için son fiyat, önceki gün kapanışı ve hane sayısı.
+
+    Salt-okunur, veri sorgusu kipinde (çalışan botun oturumu değişmez). Terminal başka hesapta,
+    sembol bilinmiyor ya da tick yok: o sembol `null`; terminale hiç ulaşılamazsa 503.
+    """
+    names = list(dict.fromkeys(s.strip() for s in symbols.split(",") if s.strip()))
+    if not names:
+        raise HTTPException(status_code=400, detail="Sembol listesi boş")
+    if len(names) > QUOTES_MAX_SYMBOLS or any(len(n) > 40 for n in names):
+        raise HTTPException(status_code=400, detail="Çok fazla ya da çok uzun sembol")
+    account = _account_or_404(account_id)
+    if is_account_busy(account_id):
+        raise HTTPException(status_code=409, detail="Hesap şu an başlatılıyor/durduruluyor.")
+    try:
+        found = await asyncio.to_thread(mt5_market.quotes, account, names)
+    except mt5_market.MarketDataError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    return {"account_id": account_id, "quotes": found}
+
+
 @router.get("/market/{account_id}/coverage", dependencies=[Depends(account_access)])
 async def coverage(account_id: str, symbol: str):
     """Bu sembol için veritabanındaki durum: zaman dilimi ve durum başına aralık, veritabanı boyutu."""
