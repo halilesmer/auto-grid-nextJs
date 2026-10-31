@@ -8,7 +8,8 @@ import { analyzeFrz, type FrzAnalysis, type FrzOptions } from './frzChecks';
 import type { Rect } from './frz';
 import { CONTEXT_TIMEFRAMES, FIB_PARAMS, type ContextTimeframe } from './params';
 import { divergenceOf, engulfAt, engulfZones, rsiExtreme, zoneSideOf } from './sig';
-import { buildTrend, type TrendDir, type TrendModel } from './trd';
+import type { TrendDir, TrendModel } from './trd';
+import { formationTrend } from './trdFormation';
 import type { FormationBar, Side } from './types';
 
 export interface Env {
@@ -41,7 +42,7 @@ export function buildEnv(ctx: FormationContext, t: number, tf: ContextTimeframe,
     const view = ctx.view(x, t);
     if (!view) continue;
     views.set(x, view);
-    const trend = buildTrend(x, view.bars, view.wave);
+    const trend = formationTrend(view);
     trends.set(x, trend);
     fibs.set(x, buildFib(trend));
   }

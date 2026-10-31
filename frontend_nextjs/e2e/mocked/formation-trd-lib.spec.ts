@@ -9,7 +9,13 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { buildTrend } from '../../src/lib/formation/trd';
-import { regularCorrections } from '../../src/lib/formation/enc';
+import { wave } from '../../src/lib/formation/indicators';
+import { TRD_PARAMS, type FormationZug, type TrendOptions } from '../../src/lib/formation/params';
+import { analyzeCrb } from '../../src/lib/formation/crbChecks';
+import { closesInRowBeyond } from '../../src/lib/formation/obo';
+import { buildEnv } from '../../src/lib/formation/reasons';
+import { formationCloses } from '../../src/lib/formation/trdFormation';
+import { regularCorrections, trendDirAt } from '../../src/lib/formation/enc';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { TRD_CHECK_IDS, TRD_UNMEASURABLE_IDS, analyzeTrd, checkTrdCandidate, type TrdOptions } from '../../src/lib/formation/trdChecks';
 import type { Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
@@ -109,9 +115,9 @@ test('ENC-07: geteilte Korrekturgrenze 1.33', { tag: '@FRM-16' }, () => {
 const UP3 = zig([100, 120, 110, 135, 124, 150]);
 /** Erste Korrektur nach dem Start */
 const FIRST_CORR = zig([100, 120, 110]);
-/** Korrektur 4 von Referenz 10: Verhältnis 0,4 → keine eigene Welle (letztes Fraktal 131 wird nicht gezeichnet) */
-const FOLD_SMALL = zig([100, 120, 110, 135, 131]);
-/** Korrektur 6 von Referenz 10: Verhältnis 0,6 liegt im Zwischenbereich */
+/** Korrektur 3: unter der Hälfte der Mindestgröße → keine eigene Welle (letztes Fraktal 132 wird nicht gezeichnet) */
+const FOLD_SMALL = zig([100, 120, 110, 135, 132]);
+/** Korrektur 6: zwischen der Hälfte und der ganzen Mindestgröße */
 const FOLD_GAP = zig([100, 120, 110, 135, 129]);
 /** Welle 20 nach Korrektur 25 */
 const SHORT_WAVE = zig([100, 130, 105, 125]);
@@ -121,15 +127,15 @@ const SHRINK = zig([100, 130, 105, 135, 115, 140]);
 const WIDE_CORR = zig([100, 120, 110, 135, 121, 150]);
 /** Gleich lange Züge: die neue Linie fällt mit der alten zusammen */
 const EVEN = zig([100, 125, 110, 135, 120, 145]);
-/** Aufwärtstrend, dann zwei Schlüsse unter 122 (Tief der letzten Korrektur) → Wechsel nach unten */
+/** Aufwärtstrend, dann Schlüsse unter 122 (dort begann der letzte Impuls) → Wechsel nach unten */
 const FLIP_DOWN = zig([100, 120, 110, 135, 122, 133, 105]);
 /** Nach dem Wechsel Rücklauf auf 123 (über 122), danach tieferes Tief 100 */
 const FLIP_LOWER_LOW = zig([100, 120, 110, 135, 122, 133, 105, 123, 100]);
 /** Wie oben, das zweite Tief 108 liegt über 105 */
 const FLIP_HIGHER_LOW = zig([100, 120, 110, 135, 122, 133, 105, 123, 108]);
 /**
- * Aufwärtstrend, dann zwei Schlüsse unter 122 (118, 113) ohne Gegen-Fraktal: das Tief 105 ersetzt den Punkt 122.
- * Danach Rücklauf auf 112 (erste Korrektur, 7 lang, ohne Referenz) und tieferes Tief 100.
+ * Aufwärtstrend, dann Schlüsse unter 110 (dort begann der letzte Impuls) ohne Gegen-Fraktal: das Tief 105 ersetzt den Punkt 122.
+ * Danach Rücklauf auf 112 (erste Korrektur, 7 lang, unter der Mindestgröße) und tieferes Tief 100.
  */
 const FLIP_DIRECT = [
   ...zig([100, 120, 110, 135, 122], 4, 0),
@@ -155,10 +161,10 @@ const DEEPER_WICK = [
   [126.5, 127.3, 126.4, 127.2] as Row,
   [127.2, 127.5, 127, 127.4] as Row,
 ];
-/** Docht unter 125 (Tief der letzten Korrektur), Schluss darüber */
-const WICK_ONLY = [...zig([100, 120, 110, 135, 125]), [126, 127, 124, 126] as Row];
-/** Ein Schluss unter 125, dann wieder darüber: keine Bestätigung */
-const SINGLE_CLOSE = [...zig([100, 120, 110, 135, 125]), [126, 126.5, 123, 123.5] as Row, [124, 127, 123.8, 126.5] as Row];
+/** Docht unter 110 (dort begann der letzte Impuls), Schluss darüber */
+const WICK_ONLY = [...zig([100, 120, 110, 135, 125]), [126, 127, 109, 126] as Row];
+/** Ein Schluss unter 110, dann wieder darüber: Wechsel nur, wenn ein Schluss genügt */
+const SINGLE_CLOSE = [...zig([100, 120, 110, 135, 125]), [126, 126.5, 108, 108.5] as Row, [108.5, 127, 108.3, 126.5] as Row];
 /** Kleine Korrektur 131 (nicht gezeichnet), danach Schlüsse unter 131, aber über dem gezeichneten Tief 110 */
 const INNER_BREAK = [
   ...zig([100, 120, 110, 135, 131]),
@@ -258,13 +264,13 @@ const CASES: Case[] = [
     expect: UP3_EXPECT,
   },
   {
-    name: 'Erste Korrektur nach dem Start wird ohne Referenz gezeichnet; Linie fehlt, weil der zweite Impuls fehlt',
+    name: 'Auch die erste Korrektur nach dem Start misst sich an der Mindestgröße; Linie fehlt, weil der zweite Impuls fehlt',
     run: () => run(FIRST_CORR),
     expect: {
       'TRD-01': 'met',
       'TRD-07': 'met',
-      'TRD-08': U,
-      'TRD-09': 'unmet',
+      'TRD-08': 'unmet',
+      'TRD-09': 'met',
       'TRD-10': U,
       'TRD-11': 'unmet',
       'TRD-12': 'unmet',
@@ -277,7 +283,7 @@ const CASES: Case[] = [
     },
   },
   {
-    name: 'Korrektur mit Verhältnis 0,4 wird nicht gezeichnet und gehört zur tieferen Zeiteinheit',
+    name: 'Korrektur unter der Hälfte der Mindestgröße wird nicht gezeichnet und gehört zur tieferen Zeiteinheit',
     run: () => run(FOLD_SMALL),
     expect: {
       'TRD-01': 'met',
@@ -292,7 +298,7 @@ const CASES: Case[] = [
     },
   },
   {
-    name: 'Verhältnis 0,6 liegt im Zwischenbereich und zählt nicht als eigene Welle',
+    name: 'Korrektur zwischen der Hälfte und der ganzen Mindestgröße liegt im Zwischenbereich und zählt nicht als eigene Welle',
     run: () => run(FOLD_GAP),
     expect: { 'TRD-06': 'unmet', 'TRD-07': 'unmet', 'TRD-08': 'met', 'TRD-09': 'met' },
   },
@@ -322,17 +328,17 @@ const CASES: Case[] = [
     expect: { 'TRD-37': 'unmet', 'TRD-38': 'met' },
   },
   {
-    name: 'Zwei Schlüsse unter dem Tief 122: Wechsel nach unten, Bestätigung durch die zweite Kerze',
+    name: 'Schluss unter dem Tief 122, an dem der letzte Impuls begann: Wechsel nach unten',
     run: () => run(FLIP_DOWN),
     expect: { 'TRD-11': 'met', 'TRD-15': 'unmet', 'TRD-16': 'met', 'TRD-17': 'met', 'TRD-20': 'unmet', 'TRD-47': U },
   },
   {
-    name: 'Nach einem Wechsel ohne Gegen-Fraktal bleibt die erste Korrektur ohne Referenz, der Punkt zählt als Impuls',
+    name: 'Nach einem Wechsel ohne Gegen-Fraktal misst sich auch die erste Korrektur an der Mindestgröße: 7 ist zu klein',
     run: () => run(FLIP_DIRECT),
-    expect: { 'TRD-07': 'met', 'TRD-09': 'unmet', 'TRD-10': 'met', 'TRD-11': 'met', 'TRD-16': 'met', 'TRD-47': 'met' },
+    expect: { 'TRD-07': 'unmet', 'TRD-09': 'met', 'TRD-10': 'met', 'TRD-11': 'met', 'TRD-16': 'met', 'TRD-47': U },
   },
   {
-    name: 'Ein weiter außen liegendes Tief ersetzt das Tief und das Verhältnis zur Referenz bleibt messbar',
+    name: 'Ein weiter außen liegendes Tief ersetzt das Tief und das Verhältnis zur Mindestgröße bleibt messbar',
     run: () => run(DEEPER_WICK),
     expect: { 'TRD-07': 'met', 'TRD-08': 'unmet', 'TRD-09': 'met' },
   },
@@ -352,14 +358,24 @@ const CASES: Case[] = [
     expect: { 'TRD-47': 'unmet' },
   },
   {
-    name: 'Docht unter dem Tief ohne Schluss ändert den Trend nicht',
+    name: 'Docht unter der Bezugszone ohne Schluss ändert den Trend nicht',
     run: () => run(WICK_ONLY),
     expect: { 'TRD-17': U, 'TRD-18': 'met', 'TRD-15': U, 'TRD-16': U },
   },
   {
-    name: 'Ein einzelner Schluss unter dem Tief reicht nicht für den Wechsel',
+    name: 'Ein einzelner Schluss unter der Bezugszone genügt für den Wechsel',
     run: () => run(SINGLE_CLOSE),
+    expect: { 'TRD-17': 'met', 'TRD-16': 'met' },
+  },
+  {
+    name: 'Mit der Einstellung 2 Schlüsse reicht ein einzelner Schluss nicht für den Wechsel',
+    run: () => run(SINGLE_CLOSE, { trend: { changeCloses: 2 } }),
     expect: { 'TRD-17': 'unmet', 'TRD-16': U },
+  },
+  {
+    name: 'Regel welle kennt keine Mindestgröße: die Korrektur ist nicht messbar gegen ein Maß',
+    run: () => run(zig([120, 100, 140, 120, 150], [36, 12, 12, 12]), { trend: { rule: 'welle' } }),
+    expect: { 'TRD-09': 'unmet' },
   },
   {
     name: 'Schluss unter einer inneren Zone ohne Wechsel ist nur eine Annäherung',
@@ -625,5 +641,249 @@ test.describe('TRD: echte Kerzen', () => {
       'TRD-34': 'met',
       'TRD-35': 'met',
     });
+  });
+});
+
+// ---- Trendzug ----------------------------------------------------------------------------------------------
+
+/** Punkte aus Referenzcharts (Datum der Kerze), getroffen = gleiche Kerze ±1. `hit` und `drawn` stammen aus der getrennten Messung des Referenzsatzes. */
+interface RefChart {
+  fixture: string;
+  points: string[];
+  hit: number;
+  /** Zug-Punkte im Zeitfenster seiner Punkte */
+  drawn: number;
+}
+
+const REF_CHARTS: RefChart[] = [
+  { fixture: 'trd-up-d1-01', points: ['2025-07-28', '2025-07-31', '2025-08-22', '2025-09-02', '2025-09-17', '2025-09-19'], hit: 4, drawn: 4 },
+  { fixture: 'trd-ref-d1-eurjpy', points: ['2025-07-28', '2025-07-31', '2025-09-08'], hit: 2, drawn: 2 },
+  { fixture: 'trd-ref-d1-eurusd', points: ['2025-06-12', '2025-07-01', '2025-08-01', '2025-09-17'], hit: 3, drawn: 5 },
+  {
+    fixture: 'trd-ref-h4-audnzd',
+    points: ['2025-10-08 04', '2025-10-09 00', '2025-10-09 16', '2025-10-10 20', '2025-10-14 00', '2025-10-14 12', '2025-10-15 08', '2025-10-16 04', '2025-10-16 12', '2025-10-17 08', '2025-10-20 00'],
+    hit: 8,
+    drawn: 9,
+  },
+  {
+    fixture: 'trd-ref-d1-gbpcad',
+    points: ['2025-01-13', '2025-02-03', '2025-02-11', '2025-03-11', '2025-04-09', '2025-05-21', '2025-06-17', '2025-06-26', '2025-08-01', '2025-08-20', '2025-09-03', '2025-09-17'],
+    hit: 12,
+    drawn: 12,
+  },
+  {
+    fixture: 'trd-ref-d1-gbpusd',
+    points: ['2025-04-07', '2025-04-29', '2025-05-12', '2025-06-13', '2025-06-23', '2025-07-01', '2025-07-16', '2025-07-24', '2025-08-01', '2025-08-14', '2025-09-03', '2025-09-17'],
+    hit: 12,
+    drawn: 12,
+  },
+  {
+    fixture: 'trd-ref-d1-usdjpy',
+    points: ['2024-11-15', '2024-12-03', '2025-01-10', '2025-03-11', '2025-03-28', '2025-04-22', '2025-05-12', '2025-05-27', '2025-06-23', '2025-07-01', '2025-08-01', '2025-09-17'],
+    hit: 12,
+    drawn: 14,
+  },
+  {
+    fixture: 'trd-ref-h4-ger40',
+    points: ['2025-10-09 12', '2025-10-17 08', '2025-10-21 16', '2025-11-07 16', '2025-11-13 00', '2025-11-20 20'],
+    hit: 5,
+    drawn: 20,
+  },
+];
+
+const fixtureBars = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const stamp = (time: number, hourly: boolean) => new Date(time * 1000).toISOString().slice(0, hourly ? 13 : 10).replace('T', ' ');
+
+function refMatch(chart: RefChart, options: Partial<TrendOptions> = {}) {
+  const { bars, timeframe } = fixtureBars(chart.fixture);
+  const hourly = timeframe !== 'D1';
+  const model = buildTrend('H4', bars, [], options);
+  const at = chart.points.map((p) => bars.findIndex((b) => stamp(b.time, hourly) === p));
+  return {
+    hit: at.filter((i) => model.pivots.some((p) => Math.abs(p.idx - i) <= 1)).length,
+    drawn: model.pivots.filter((p) => at[0] - 1 <= p.idx && p.idx <= at[at.length - 1] + 1).length,
+    model,
+    bars,
+    hourly,
+  };
+}
+
+const refChart = (fixture: string) => REF_CHARTS.find((c) => c.fixture === fixture)!;
+
+test.describe('TRD: Trendzug', () => {
+  for (const chart of REF_CHARTS) {
+    frm(`${chart.fixture}: der Zug trifft ${chart.hit} von ${chart.points.length} Punkten aus Referenzchart`, () => {
+      const { hit, drawn } = refMatch(chart);
+      expect({ hit, drawn }).toEqual({ hit: chart.hit, drawn: chart.drawn });
+    });
+  }
+
+  frm('Über alle Charts trifft der Zug 58 von 66 Punkten, mindestens 80 %', () => {
+    const hits = REF_CHARTS.map((c) => refMatch(c).hit).reduce((a, b) => a + b, 0);
+    expect(REF_CHARTS.flatMap((c) => c.points)).toHaveLength(66);
+    expect(hits).toBe(58);
+  });
+
+  frm('GBPCAD D1: im Zeitfenster stehen genau die 12 Referenzpunkte', () => {
+    const { model, bars, hourly } = refMatch(refChart('trd-ref-d1-gbpcad'));
+    const dates = model.pivots.map((p) => stamp(bars[p.idx].time, hourly)).filter((d) => d >= '2025-01-13' && d <= '2025-09-17');
+    expect(dates).toEqual(refChart('trd-ref-d1-gbpcad').points);
+  });
+
+  /** Wechsel im Zeitfenster als [Richtung, liegt im Schenkel bis …]: Referenzfarben je Schenkel */
+  const changesIn = (fixture: string, from: string, to: string, options: Partial<TrendOptions> = {}) => {
+    const { model, bars, hourly } = refMatch(refChart(fixture), options);
+    return model.changes.map((c) => ({ to: c.to, at: stamp(bars[c.k].time, hourly) })).filter((c) => c.at > from && c.at <= to);
+  };
+
+  frm('Farben GBPCAD: grün bis 26.06., rot im Schenkel zum 01.08., grün im Schenkel zum 17.09.', () => {
+    const got = changesIn('trd-ref-d1-gbpcad', '2025-01-13', '2025-09-17');
+    expect(got.map((c) => c.to)).toEqual(['down', 'up']);
+    expect(got[0].at > '2025-06-26' && got[0].at <= '2025-08-01').toBe(true);
+    expect(got[1].at > '2025-09-03' && got[1].at <= '2025-09-17').toBe(true);
+  });
+
+  frm('Farben GBPUSD: rot im Schenkel zum 01.08., grün im Schenkel zum 17.09.', () => {
+    const got = changesIn('trd-ref-d1-gbpusd', '2025-04-07', '2025-09-17');
+    expect(got.map((c) => c.to)).toEqual(['down', 'up']);
+    expect(got[0].at > '2025-07-24' && got[0].at <= '2025-08-01').toBe(true);
+    expect(got[1].at > '2025-09-03' && got[1].at <= '2025-09-17').toBe(true);
+  });
+
+  frm('Farben USDJPY: rot im Schenkel zum 11.03., grün im Schenkel zum 01.08.', () => {
+    const got = changesIn('trd-ref-d1-usdjpy', '2024-11-15', '2025-09-17');
+    expect(got.map((c) => c.to)).toEqual(['down', 'up']);
+    expect(got[0].at > '2025-01-10' && got[0].at <= '2025-03-11').toBe(true);
+    expect(got[1].at > '2025-07-01' && got[1].at <= '2025-08-01').toBe(true);
+  });
+
+  frm('AUDNZD H4: mit Mindestgröße 1,75 trifft der Zug 10 von 11 Punkten', () => {
+    expect(refMatch(refChart('trd-ref-h4-audnzd'), { minSize: 1.75 }).hit).toBe(10);
+  });
+
+  frm('Kein Blick in die Zukunft: auf echten Kerzen bleibt jeder Punkt außer dem letzten mit späteren Kerzen gleich', () => {
+    for (const rule of ['groesse', 'welle', 'geruest'] as const) {
+      for (const fixture of ['trd-ref-d1-gbpcad', 'trd-ref-h4-audnzd']) {
+        const { bars } = fixtureBars(fixture);
+        const full = buildTrend('H4', bars, [], { rule }).pivots.map((p) => [p.idx, p.side]);
+        for (let p = 60; p < bars.length; p += 20) {
+          const known = buildTrend('H4', bars.slice(0, p), [], { rule }).pivots.slice(0, -1).map((x) => [x.idx, x.side]);
+          expect(known).toEqual(full.slice(0, known.length));
+        }
+      }
+    }
+  });
+
+  frm('Kein Blick in die Zukunft: Wechsel bis zur Kerze p sind mit und ohne spätere Kerzen gleich', () => {
+    const { bars } = fixtureBars('trd-ref-d1-gbpcad');
+    const full = buildTrend('H4', bars, []).changes;
+    for (const p of [120, 180, 240]) {
+      const prefix = buildTrend('H4', bars.slice(0, p), []).changes;
+      expect(prefix.map((c) => [c.k, c.to])).toEqual(full.filter((c) => c.k < p).map((c) => [c.k, c.to]));
+    }
+  });
+
+  frm('Regel welle: in jeder EWO-Welle steht höchstens ein Punkt, im GBPCAD-Chart 10 von 12 Referenzpunkten', () => {
+    const chart = refChart('trd-ref-d1-gbpcad');
+    const { model, bars } = refMatch(chart, { rule: 'welle' });
+    const ewo = wave(bars);
+    const phaseOf = (i: number) => {
+      let k = i;
+      while (k > 0 && ewo[k - 1] !== null && ewo[k - 1]! > 0 === ewo[i]! > 0) k--;
+      return k;
+    };
+    const phases = model.pivots.map((p) => phaseOf(p.idx));
+    expect(new Set(phases).size).toBe(phases.length);
+    expect(refMatch(chart, { rule: 'welle' }).hit).toBe(10);
+  });
+
+  frm('Regel welle: ein Hoch liegt in einer grünen, ein Tief in einer roten Phase', () => {
+    const { bars } = fixtureBars('trd-ref-d1-gbpusd');
+    const ewo = wave(bars);
+    const { pivots } = buildTrend('H4', bars, [], { rule: 'welle' });
+    expect(pivots).toHaveLength(5);
+    expect(pivots.every((p) => (p.side === 'resistance' ? ewo[p.idx]! > 0 : ewo[p.idx]! < 0))).toBe(true);
+  });
+
+  frm('Regel geruest: AUDNZD H4 mit Mindestgröße 1,75 trifft die Punkte der getrennten Messung', () => {
+    expect(refMatch(refChart('trd-ref-h4-audnzd'), { rule: 'geruest', minSize: 1.75 }).hit).toBe(7);
+    expect(refMatch(refChart('trd-ref-d1-gbpcad'), { rule: 'geruest', minSize: 1.75 }).hit).toBe(12);
+  });
+
+  frm('Regel filter: AUDNZD H4 mit Mindestgröße 1,75 trifft die Punkte der getrennten Messung', () => {
+    expect(refMatch(refChart('trd-ref-h4-audnzd'), { rule: 'filter', minSize: 1.75 }).hit).toBe(10);
+  });
+
+  frm('ATR-Länge und EWO-Längen wirken sich aus', () => {
+    const chart = refChart('trd-ref-h4-audnzd');
+    expect(refMatch(chart, { atrPeriod: 5 }).model.pivots.map((p) => p.idx)).not.toEqual(refMatch(chart).model.pivots.map((p) => p.idx));
+    const welle = (o: Partial<TrendOptions>) => refMatch(chart, { rule: 'welle', ...o }).model.pivots.map((p) => p.idx);
+    expect(welle({ ewoFast: 3, ewoSlow: 20 })).not.toEqual(welle({}));
+  });
+});
+
+// ---- Zug der Formationen: Einstellung formationZug --------------------------------------------------------------
+
+test.describe('TRD: Zug der Formationen', () => {
+  const contextOf = (name: string, zug?: FormationZug) => {
+    const fx = fixtureBars(name);
+    const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { zug });
+    return { ctx, fx, t: fx.bars[fx.bars.length - 1].time + (fx.timeframe === 'D1' ? D1 : H4) };
+  };
+  const envPivots = (name: string, zug?: FormationZug) => {
+    const { ctx, fx, t } = contextOf(name, zug);
+    const tf = fx.timeframe as 'H4';
+    return buildEnv(ctx, t, tf)!.trends.get(tf)!.pivots.map((p) => p.idx);
+  };
+
+  frm('Standard ist der feine Zug: EURCAD D1 hat dort die bisherigen 7 Punkte', () => {
+    expect(TRD_PARAMS.formationZug).toBe('fein');
+    expect(envPivots('trd-up-d1-01')).toEqual(envPivots('trd-up-d1-01', 'fein'));
+    expect(envPivots('trd-up-d1-01')).toHaveLength(7);
+  });
+
+  frm('Mit Trendzug rechnen die Formationen auf den Punkten des Trendzugs', () => {
+    const { fx } = contextOf('trd-ref-d1-gbpcad');
+    expect(envPivots('trd-ref-d1-gbpcad', 'trend')).toEqual(buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx));
+    // getrennte Messung: dieselben Punkte, sie beginnt zusätzlich am Tief der ersten Außenkerze
+    expect(envPivots('trd-up-d1-01', 'trend')).toEqual([14, 29, 84, 87, 103, 110, 133]);
+  });
+
+  frm('Mit Trendzug stammen X, A, B und C einer Crab aus dem Trendzug', () => {
+    const { ctx, fx, t } = contextOf('crb-buy-h4-01', 'trend');
+    const times = buildTrend('H4', fx.bars, []).pivots.map((p) => fx.bars[p.idx].time);
+    const found = analyzeCrb(ctx, t).filter((a) => a.candidate.points.X);
+    expect(found.length).toBeGreaterThan(0);
+    for (const a of found) {
+      const { X, A, B, C } = a.candidate.points;
+      expect([X, A, B, C].every((p) => times.includes(p.time))).toBe(true);
+    }
+  });
+
+  frm('Die Trendrichtung zum Zeitpunkt einer Kerze folgt der Einstellung', () => {
+    const { ctx, fx, t } = contextOf('trd-ref-h4-audnzd', 'trend');
+    const trendPath = ctx.view('H4', t)!;
+    const fein = contextOf('trd-ref-h4-audnzd', 'fein').ctx.view('H4', t)!;
+    const at = [150, 200, 250, 300, 350];
+    expect(at.map((k) => trendDirAt(trendPath, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), []).dir));
+    expect(at.map((k) => trendDirAt(trendPath, k))).not.toEqual(at.map((k) => trendDirAt(fein, k)));
+  });
+
+  frm('Zeichnung und TRD-Prüfung nutzen immer Trendzug, unabhängig von der Einstellung', () => {
+    const pivotsWith = (zug: FormationZug) => {
+      const { ctx, t } = contextOf('trd-up-d1-01', zug);
+      return analyzeTrd(ctx, t)[0].model.pivots.map((p) => p.idx);
+    };
+    const { fx } = contextOf('trd-up-d1-01');
+    const trendPath = buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx);
+    expect(pivotsWith('fein')).toEqual(trendPath);
+    expect(pivotsWith('trend')).toEqual(trendPath);
+  });
+
+  frm('Schlüsse für den Wechsel: feiner Zug 2, Trendzug 1', () => {
+    const rows = barsOf([plain(100, 100), plain(100, 98), plain(98, 101), plain(101, 102)]);
+    expect([formationCloses('fein'), formationCloses('trend')]).toEqual([2, 1]);
+    expect(closesInRowBeyond(rows, 'support', 99, { from: 0, to: 3, closes: 1 })).toBe(true);
+    expect(closesInRowBeyond(rows, 'support', 99, { from: 0, to: 3, closes: 2 })).toBe(false);
   });
 });

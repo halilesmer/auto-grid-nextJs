@@ -83,14 +83,53 @@ export const SIG_PARAMS = {
   mergeBars: 4,
 } as const;
 
+export const TREND_RULES = ['groesse', 'welle', 'geruest', 'filter'] as const;
+export type TrendRule = (typeof TREND_RULES)[number];
+/** Worauf die Formationen rechnen: feiner Zug oder Trendzug */
+export const FORMATION_ZUEGE = ['fein', 'trend'] as const;
+export type FormationZug = (typeof FORMATION_ZUEGE)[number];
+
+/** Einstellungen des Trendzugs (`buildTrend`); Standard in TRD_PARAMS */
+export interface TrendOptions {
+  rule: TrendRule;
+  minSize: number;
+  atrPeriod: number;
+  ewoFast: number;
+  ewoSlow: number;
+  ewoRetreat: number;
+  changeCloses: number;
+}
+
+/** Tage Verlauf je Zeiteinheit: genug Wendepunkte für die Suche, wenig genug für eine schnelle Antwort (Annahme) */
+export const HISTORY_DAYS = { D1: 400, H4: 120, H1: 40, M15: 10 } as const satisfies Record<ContextTimeframe, number>;
+
 /** Trend (TRD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
 export const TRD_PARAMS = {
-  /** TRD-07: eigene Welle ab diesem Anteil der Referenzkorrektur */
-  ownWave: 0.75,
-  /** TRD-08 (Annahme): Zwischenbereich beginnt bei diesem Anteil */
+  /**
+   * Trendzug (Halil 2026-10-31, gemessen an Referenzcharts). Annahmen: Die ATR steht nicht im Referenzmaterial,
+   * EWO 5/35 ist nicht belegt. `rule`: reine Mindestgröße, ein Punkt je EWO-Welle, EWO-Gerüst oder Mindestgröße mit EWO-Filter.
+   */
+  trend: {
+    rule: 'groesse' as TrendRule,
+    /** ein Schenkel gilt ab diesem Vielfachen der ATR an seiner Endkerze */
+    minSize: 2.5,
+    atrPeriod: ATR_PERIOD,
+    ewoFast: WAVE_PARAMS.fast,
+    ewoSlow: WAVE_PARAMS.slow,
+    /** Regel `filter`: Eine Korrektur fällt weg, wenn der EWO in ihr weniger als diesen Anteil zurückkam */
+    ewoRetreat: 0.2,
+  },
+  /**
+   * Grundlage der Formationen, einstellbar (Halil 2026-10-31). Der Standard `fein` ist eine Annahme: Auf Trendzug fallen viele
+   * geprüfte Formationen weg. Zeichnung und TRD-Prüfung nutzen immer Trendzug.
+   */
+  formationZug: 'fein' as FormationZug,
+  /** Feiner Zug: eigene Welle ab diesem Anteil der kleinsten Korrektur seit dem Wechsel, Wechsel nach so vielen Schlüssen */
+  fine: { ownWave: 0.75, changeCloses: 2 },
+  /** TRD-08 (Annahme): Zwischenbereich beginnt bei diesem Anteil der Mindestgröße */
   gapLow: 0.5,
-  /** TRD-17 (Annahme): aufeinanderfolgende Schlüsse jenseits der Bezugszone für den Wechsel */
-  changeCloses: 2,
+  /** TRD-17 (Halil 2026-10-31): aufeinanderfolgende Schlüsse jenseits der Bezugszone für den Wechsel */
+  changeCloses: 1,
   /** TRD-22 (Annahme): „ähnlich“ = Anteil der vorigen Korrektur von … bis … */
   regular: { min: 0.75, max: 1.33 },
   /** TRD-23, TRD-24 (Annahme): so viele Korrekturen bzw. Impulse in Folge, jede kürzer als die vorige */
@@ -105,6 +144,26 @@ export const TRD_PARAMS = {
   reasons: { counter: 3, with: 2 },
   /** TRD-48: Kerzen der tieferen Zeiteinheit, ab denen die Struktur auch in der höheren zählt, bzw. nicht mehr */
   lowerTfBars: { counts: 8, notCounts: 3 },
+} as const;
+
+/** Einstellungen des Trendzugs im Chart (ANA-21) und die Grundlage der Formationen; im Browser gespeichert */
+export interface TrendSettings extends TrendOptions {
+  formationZug: FormationZug;
+}
+
+export const DEFAULT_TREND_SETTINGS: TrendSettings = {
+  ...TRD_PARAMS.trend,
+  changeCloses: TRD_PARAMS.changeCloses,
+  formationZug: TRD_PARAMS.formationZug,
+};
+
+/** Grenzen der Regler im Chart (Annahme, gewählt damit die Rechnung stabil bleibt) */
+export const TREND_LIMITS = {
+  minSize: { min: 0.5, max: 3.5, step: 0.25 },
+  ewoRetreat: { min: 0.1, max: 0.8, step: 0.1 },
+  ewoFast: { min: 2, max: 50 },
+  ewoSlow: { min: 3, max: 200 },
+  atrPeriod: { min: 2, max: 100 },
 } as const;
 
 /** AB=CD (ABCD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. Ausdehnungen als Anteil von AB. */

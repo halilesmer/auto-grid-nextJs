@@ -6,7 +6,8 @@
  * `cdtCore` misst die vier Bedingungen, die auch ABCD-24 braucht (CDT-05, CDT-06, CDT-12, CDT-15).
  */
 import { wickEnd, zoneGeometry, closesBeyond, outward, otherSide, type Rect, type ZoneGeometry, type ZoneSide } from './frz';
-import { buildTrend, type Pivot } from './trd';
+import type { Pivot } from './trd';
+import { formationTrend } from './trdFormation';
 import { CDT_PARAMS } from './params';
 import { rsiExtreme, tradeSideOf } from './sig';
 import type { Env } from './reasons';
@@ -114,8 +115,7 @@ function violated(env: Env, tf: Env['tf'], es: ZoneSide, h1: CdtPoint): boolean 
 
 /** Trendrichtung der Formations-ZE beim Anlauf zu H2: nur Kerzen bis H2 (CDT-06) */
 function trendDirAt(env: Env, tf: Env['tf'], idx: number): 'up' | 'down' | null {
-  const view = env.views.get(tf)!;
-  return buildTrend(tf, view.bars.slice(0, idx + 1), view.wave.slice(0, idx + 1)).dir;
+  return formationTrend(env.views.get(tf)!, idx).dir;
 }
 
 export const flag = (cond: boolean): CheckState => (cond ? 'met' : 'unmet');

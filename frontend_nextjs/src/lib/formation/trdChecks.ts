@@ -9,9 +9,10 @@
  */
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { closesBeyond, outward, probeFractal, wickEnd, type ZoneSide } from './frz';
-import { CONTEXT_TIMEFRAMES, FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe, type TrendOptions } from './params';
 import {
   buildTrend,
+  changeRef,
   counterSide,
   extremeSide,
   lastOf,
@@ -89,6 +90,8 @@ export interface TrdOptions {
   side?: Side;
   /** Zahl der Gründe außer TRD-27 (TRD-32, TRD-33); die Zählung selbst liefert SIG */
   reasons?: number;
+  /** Abweichende Einstellungen des Trendzugs; Standard in TRD_PARAMS */
+  trend?: Partial<TrendOptions>;
 }
 
 export interface TrdPointInput {
@@ -111,11 +114,11 @@ const U: CheckState = 'unmeasurable';
 
 type Models = Map<ContextTimeframe, TrendModel>;
 
-function buildModels(ctx: FormationContext, t: number): Models {
+function buildModels(ctx: FormationContext, t: number, trend?: Partial<TrendOptions>): Models {
   const models: Models = new Map();
   for (const tf of ctx.timeframes()) {
     const view = ctx.view(tf, t);
-    if (view) models.set(tf, buildTrend(tf, view.bars, view.wave));
+    if (view) models.set(tf, buildTrend(tf, view.bars, view.wave, trend));
   }
   return models;
 }
@@ -210,7 +213,7 @@ function evaluate(models: Models, m: TrendModel, options: TrdOptions, p: TrdCand
   else if (!explicit) corr = [...m.cands].reverse().find((c) => c.isCorrection);
   const ratio = corr?.ratio ?? undefined;
   add('TRD-07', corr ? flag(corr.accepted) : U, ratio);
-  add('TRD-08', !corr || corr.ratio === null ? U : flag(corr.ratio >= TRD_PARAMS.gapLow && corr.ratio < TRD_PARAMS.ownWave), ratio);
+  add('TRD-08', !corr || corr.ratio === null ? U : flag(corr.ratio >= TRD_PARAMS.gapLow && corr.ratio < 1), ratio);
   add('TRD-09', corr ? flag(corr.ratio !== null) : U, m.refCorrection ?? undefined);
 
   // TRD-10: die Welle nach einer Korrektur ist mindestens so lang wie diese
@@ -245,7 +248,7 @@ function evaluate(models: Models, m: TrendModel, options: TrdOptions, p: TrdCand
   if (lastChange) confirmed = 'met';
   else if (trying) confirmed = 'unmet';
   add('TRD-17', confirmed, m.changes.length);
-  const ref = dir ? [...pivots].reverse().find((x) => x.side === counterSide(dir)) : undefined;
+  const ref = changeRef(m);
   if (!dir || !ref) {
     add('TRD-18', U);
     add('TRD-19', U);
@@ -519,7 +522,7 @@ const latestPoint = (m: TrendModel): TrdCand | null =>
 
 /** Trendzug und Prüfung je geladener Zeiteinheit (hoch → tief); Punkt-Bedingungen gelten für das jüngste Fraktal */
 export function analyzeTrd(ctx: FormationContext, t: number, options: TrdOptions = {}): TrdAnalysis[] {
-  const models = buildModels(ctx, t);
+  const models = buildModels(ctx, t, options.trend);
   return [...models.values()].map((m) => ({
     tf: m.tf,
     dir: m.dir,
@@ -535,7 +538,7 @@ export function checkTrdCandidate(
   input: TrdPointInput,
   options: TrdOptions = {},
 ): Candidate {
-  const models = buildModels(ctx, t);
+  const models = buildModels(ctx, t, options.trend);
   const m = models.get(input.tf);
   const idx = m ? m.bars.findIndex((b) => b.time === input.time) : -1;
   if (!m || idx < 0) {

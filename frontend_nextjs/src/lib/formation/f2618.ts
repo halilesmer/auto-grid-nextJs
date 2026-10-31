@@ -9,7 +9,7 @@ import { closesBeyond, outward, wickEnd, zoneGeometry, type ZoneSide } from './f
 import { legDirOf, levelPrice, type FibLeg } from './fib';
 import { F2618_PARAMS } from './params';
 import type { Env } from './reasons';
-import { buildTrend } from './trd';
+import { formationTrend } from './trdFormation';
 import { fractalDone } from './xabcd';
 import type { FormationBar } from './types';
 
@@ -129,8 +129,7 @@ export function closedBeyondStop(bars: Bars, s: F2618Shape, edge: number): boole
 
 /** Trend der Formations-Zeiteinheit nach den Kerzen bis `idx` (2618-06); null ohne Trend */
 export function trendDirUpTo(env: Env, tf: Env['tf'], idx: number): 'up' | 'down' | null {
-  const view = env.views.get(tf)!;
-  return buildTrend(tf, view.bars.slice(0, idx + 1), view.wave.slice(0, idx + 1)).dir;
+  return formationTrend(env.views.get(tf)!, idx).dir;
 }
 
 /**

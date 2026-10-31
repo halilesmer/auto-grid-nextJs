@@ -25,11 +25,13 @@ import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
 import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
 import {
   FractalsPrimitive,
   MissingDataPrimitive,
   PauseLinesPrimitive,
   TradeLinksPrimitive,
+  TrendPathPrimitive,
   ZoneBandPrimitive,
   type FractalMark,
 } from './primitives';
@@ -94,6 +96,10 @@ interface ChartCoreProps {
   markers?: TradeMarker[];
   links?: TradeLinkLine[];
   fractals?: FractalPoint[];
+  /** Trendzug (ANA-21); was außerhalb der Kerzen liegt, schneidet der Chart ab */
+  trendPath?: { segments: TrendSegment[]; axis: number[] };
+  /** Schalter in der Kopfleiste des Charts, rechts neben den Indikatoren */
+  toolbarActions?: React.ReactNode;
   /** Zusatzzeilen unter dem Fadenkreuz je Kerzenzeit (z. B. Trades dieser Kerze) */
   notes?: Map<number, string[]>;
   /** Ansicht auf diese Kerzenzeit setzen; `seq` erzwingt es auch bei gleicher Zeit erneut */
@@ -108,6 +114,7 @@ interface ChartCoreProps {
 const EMPTY_MARKERS: TradeMarker[] = [];
 const EMPTY_LINKS: TradeLinkLine[] = [];
 const EMPTY_FRACTALS: FractalPoint[] = [];
+const EMPTY_TREND = { segments: [] as TrendSegment[], axis: [] as number[] };
 /** Ab so vielen Trade-Markern werden Pfeile kleiner und Verbindungen blasser (sonst verdecken sie die Kerzen) */
 const DENSE_MARKERS = 200;
 /** Höchstens so viele Trade-Zeilen unter dem Fadenkreuz */
@@ -149,6 +156,8 @@ export function ChartCore({
   markers = EMPTY_MARKERS,
   links = EMPTY_LINKS,
   fractals = EMPTY_FRACTALS,
+  trendPath = EMPTY_TREND,
+  toolbarActions,
   notes,
   focus,
   balance,
@@ -178,6 +187,7 @@ export function ChartCore({
     pauses: PauseLinesPrimitive;
     links: TradeLinksPrimitive;
     fractals: FractalsPrimitive;
+    trend: TrendPathPrimitive;
   } | null>(null);
   const markersApi = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const priceLines = useRef<IPriceLine[]>([]);
@@ -227,11 +237,13 @@ export function ChartCore({
     const pauses = new PauseLinesPrimitive();
     const links = new TradeLinksPrimitive();
     const fractalMarks = new FractalsPrimitive();
+    const trend = new TrendPathPrimitive();
     candles.attachPrimitive(band);
     candles.attachPrimitive(missing);
     candles.attachPrimitive(pauses);
     candles.attachPrimitive(links);
     candles.attachPrimitive(fractalMarks);
+    candles.attachPrimitive(trend);
     markersApi.current = createSeriesMarkers(candles, []);
     const attached = createChartBinding(chart, candles, el);
     const readyFrame = requestAnimationFrame(() => setBinding(attached));
@@ -239,7 +251,7 @@ export function ChartCore({
     candlesRef.current = candles;
     balanceRef.current = balanceSeries;
     equityRef.current = equitySeries;
-    primitives.current = { band, missing, pauses, links, fractals: fractalMarks };
+    primitives.current = { band, missing, pauses, links, fractals: fractalMarks, trend };
 
     const onMove = (param: MouseEventParams<Time>) => {
       if (param.time === undefined) {
@@ -434,6 +446,19 @@ export function ChartCore({
     containerRef.current?.setAttribute('data-fractals', String(marks.length));
   }, [fractals, colors, data]);
 
+  // Trendzug: Farben der Kerzen, Saum in der Panelfarbe; außerhalb der geladenen Kerzen abgeschnitten
+  useEffect(() => {
+    if (!colors || !primitives.current) return;
+    const first = data.bars[0]?.time, last = data.bars.at(-1)?.time;
+    const c = appearanceColors(appearance);
+    const tones = { up: c.up === c.background ? c.borderUp : c.up, down: c.down === c.background ? c.borderDown : c.down };
+    // Preset „classic“: beide Kerzenfarben fallen zusammen, dann tragen die Themefarben die Richtung
+    if (tones.up === tones.down) { tones.up = colors.up; tones.down = colors.down; }
+    const drawn = first === undefined || last === undefined ? [] : clipSegments(trendPath.segments, first, last, trendPath.axis).map((s) => ({ from: s.from, to: s.to, color: tones[s.tone] }));
+    primitives.current.trend.set(drawn, c.background);
+    containerRef.current?.setAttribute('data-trend', String(drawn.length));
+  }, [trendPath, colors, data, appearance]);
+
   // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
   useEffect(() => {
     pointsRef.current = data.points;
@@ -479,7 +504,7 @@ export function ChartCore({
       ? [...allNotes.slice(0, MAX_HOVER_NOTES), t('analysis.chart.notes.more', { n: allNotes.length - MAX_HOVER_NOTES })]
       : allNotes;
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions}>
     <div className="relative">
       <div
         className="pointer-events-none absolute left-2 top-1 z-10 flex flex-wrap gap-x-3 font-mono text-[11px] tabular-nums text-muted-foreground"

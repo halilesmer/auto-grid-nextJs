@@ -6,11 +6,13 @@
  */
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { atrSeries, narrowRange, rsi, wave, wideRange, type Series } from './indicators';
-import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, TRD_PARAMS, type ContextTimeframe, type FormationZug } from './params';
 import type { FormationBar } from './types';
 
 export interface TimeframeView {
   tf: ContextTimeframe;
+  /** Zug, auf dem die Formationen rechnen */
+  zug: FormationZug;
   bars: FormationBar[];
   rsi: Series;
   wave: Series;
@@ -25,8 +27,9 @@ export class FormationContext {
   readonly symbol: string;
   private readonly full = new Map<ContextTimeframe, TimeframeView>();
 
-  constructor(symbol: string, input: ContextInput) {
+  constructor(symbol: string, input: ContextInput, options: { zug?: FormationZug } = {}) {
     this.symbol = symbol;
+    const zug = options.zug ?? TRD_PARAMS.formationZug;
     for (const tf of CONTEXT_TIMEFRAMES) {
       const bars = input[tf];
       if (!bars) continue;
@@ -43,6 +46,7 @@ export class FormationContext {
       }
       this.full.set(tf, {
         tf,
+        zug,
         bars: [...bars],
         rsi: rsi(bars),
         wave: wave(bars),
@@ -80,6 +84,7 @@ export class FormationContext {
     const n = this.closedCount(tf, t);
     return {
       tf,
+      zug: view.zug,
       bars: view.bars.slice(0, n),
       rsi: view.rsi.slice(0, n),
       wave: view.wave.slice(0, n),

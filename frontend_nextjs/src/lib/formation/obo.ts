@@ -5,7 +5,7 @@
  * Liste ein, also nur geschlossene Kerzen bis t. Preise laufen über `outward(Seite, Preis)`; OBO (es = Widerstand) und TOBO sind derselbe Code.
  */
 import { closesBeyond, fractalIndices, outward, wickEnd, type ZoneSide } from './frz';
-import { FRZ_PARAMS, OBO_PARAMS, TRD_PARAMS } from './params';
+import { FRZ_PARAMS, OBO_PARAMS } from './params';
 import type { FormationBar } from './types';
 
 type Bars = readonly FormationBar[];
@@ -89,12 +89,12 @@ export function neckBreak(bars: Bars, cs: ZoneSide, n1: ObPoint, n2: ObPoint, fr
   return null;
 }
 
-/** Aufeinanderfolgende Schlüsse jenseits von `edge` (cs-Seite) in den Kerzen `from`…`to` (TRD-17) */
-export function closesInRowBeyond(bars: Bars, cs: ZoneSide, edge: number, from: number, to: number): boolean {
+/** `closes` aufeinanderfolgende Schlüsse jenseits von `edge` (cs-Seite) in den Kerzen `from`…`to` (TRD-17) */
+export function closesInRowBeyond(bars: Bars, cs: ZoneSide, edge: number, span: { from: number; to: number; closes: number }): boolean {
   let run = 0;
-  for (let k = from; k <= to; k++) {
+  for (let k = span.from; k <= span.to; k++) {
     run = closesBeyond(bars[k], edge, cs) ? run + 1 : 0;
-    if (run >= TRD_PARAMS.changeCloses) return true;
+    if (run >= span.closes) return true;
   }
   return false;
 }

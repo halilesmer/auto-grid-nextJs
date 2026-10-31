@@ -47,7 +47,7 @@ Add the trend (TRD) to the formation library: one check per measurable rule ID, 
 
 ## Open points
 - The broker has no H4 candles for the H4 test case of the plan (EURUSD, 16 September to 2 October 2025). The query returned 18 candles from 3 October. That fixture is not part of this step.
-- On real D1 candles the path has finer swings than the drawings in the test list. The EURCAD D1 case matches the six expected states, but the lines anchor on the later lows of 19 and 26 September, not on the lows of 31 July and 2 September. Reason: the reference is the smallest drawn correction, and small early corrections let small swings pass.
+- On real D1 candles the path has finer swings than the drawings in the test list. The EURCAD D1 case matches the six expected states, but the lines anchor on the later lows of 19 and 26 September, not on the lows of 31 July and 2 September. Reason: the reference is the smallest drawn correction, and small early corrections let small swings pass. Closed on 2026-10-31: the path was too fine and now follows the trend path, see `2026-10-31-trend-path.md`.
 - The USDCHF D1 case does not match the expectation of the test list (TRD-35 and TRD-42 met). With the broker data, the last low is lower than the earlier lows, so the lows do not rise. The test list is not confirmed. The case checks only the shape of the path.
 - Without a test: the lower-timeframe side of the close time in TRD-28. A change of the own side turns a test red.
 

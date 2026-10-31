@@ -79,8 +79,8 @@ export function DropdownMenu({
       if (ref.current && !ref.current.contains(e.target as Node) && !panelRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      // Im Textfeld des Panels bleiben Pos1/Ende und Pfeile beim Cursor
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) && !(e.target instanceof HTMLInputElement) && (ref.current?.contains(document.activeElement) || panelRef.current?.contains(document.activeElement))) {
+      // Im Textfeld und in der Auswahlliste des Panels bleiben Pos1/Ende und Pfeile beim Cursor
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) && (ref.current?.contains(document.activeElement) || panelRef.current?.contains(document.activeElement))) {
         const buttons = Array.from(panelRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
         const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
         let next = (current + (e.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;

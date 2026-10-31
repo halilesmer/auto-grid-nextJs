@@ -12,6 +12,8 @@ import { Alert } from '@/components/ui/alert';
 import { InputField } from '@/components/ui/InputField';
 import { Switch } from '@/components/ui/switch';
 import { useMarketRates } from '@/hooks/useMarketRates';
+import { useTrendPath } from '@/hooks/useTrendPath';
+import { TrendToggle } from './TrendToggle';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useT } from '@/i18n';
 import { buildChartData, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
@@ -47,6 +49,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     return { price: metrics.price, nowSec: brokerNow(offsetSec) };
   }, [isConnected, offsetSec, accepted, metrics.symbol, metrics.price, metrics.market_open, rates.data]);
   const prefs = useAnalysisPrefsStore();
+  const trend = useTrendPath({ accountId, symbol: accepted, timeframe, offsetSec, clockReady }, prefs.showTrend, prefs.trend, now);
   useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);
   return <div className="min-w-0 space-y-4" data-testid="free-chart-panel">
     <div className="flex flex-wrap items-end gap-3">{offsetSec !== null && <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">{t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}</Badge>}<LicenseInfo /><InputField label={t('cw.symbol')} hint={t('cw.chooseSymbol.hint')} className="w-full sm:w-80"><SymbolAutoComplete key={`${accountId}:${symbol}`} value={input} onChange={setInput} preserveCase symbolDetails={ready ? details : {}} onCommit={value => { const found = details[value.toUpperCase()]; if (found) { setInput(found.name); onSymbol(found.name); } }} /></InputField><TimeframeSelect value={timeframe} onChange={onTimeframe} /></div>
@@ -54,11 +57,12 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     {symbolsError && <Alert tone="warning" title={symbolsError} />}
     {symbol && ready && !isLoading && !accepted && <Alert tone="warning" title={t('cw.invalidSymbol')} />}
     {rates.error && <Alert tone="danger" title={rates.error} />}
+    {trend.error && <Alert tone="danger" title={trend.error} />}
     {rates.data && data && <DataQualityBanner missing={data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} />}
     {data && accepted && <ChartCore key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
       workspaceOverlays={<div className="space-y-3"><Switch label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={prefs.showPauses} onChange={v => prefs.setPref('showPauses', v)} /><Switch label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={prefs.showGaps} onChange={v => prefs.setPref('showGaps', v)} /></div>}
       data={data} timeframeSec={TIMEFRAME_SEC[timeframe]} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
-      band={null} lines={[]} markers={[]} showPauses={prefs.showPauses} showGaps={prefs.showGaps} showRsi live={live} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()} />}
+      band={null} lines={[]} markers={[]} showPauses={prefs.showPauses} showGaps={prefs.showGaps} showRsi live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()} />}
     {rates.loading && <p className="text-sm text-muted-foreground">{t('analysis.chart.loading')}</p>}
   </div>;
 }

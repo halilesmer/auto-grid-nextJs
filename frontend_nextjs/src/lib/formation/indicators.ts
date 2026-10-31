@@ -50,6 +50,18 @@ export function atrSeries(bars: readonly FormationBar[], period: number = ATR_PE
   return atr(bars, period);
 }
 
+/** ATR nach Wilder ab der ersten Kerze, ohne Vorlauf-null: Maß der Mindestgröße im Trendzug (TRD-09) */
+export function wilderAtr(bars: readonly FormationBar[], period: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < bars.length; i++) {
+    const { high, low } = bars[i];
+    const prev = i > 0 ? bars[i - 1].close : null;
+    const tr = prev === null ? high - low : Math.max(high, prev) - Math.min(low, prev);
+    out.push(i === 0 ? tr : (out[i - 1] * (period - 1) + tr) / period);
+  }
+  return out;
+}
+
 /**
  * Volumenstarke Kerze (SIG-34): Spanne (High − Low) ≥ factor × Mittel der Spannen der
  * `lookback` Kerzen davor (ohne die Kerze selbst). null, solange weniger als `lookback` Kerzen davor liegen.
