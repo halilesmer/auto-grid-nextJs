@@ -56,7 +56,7 @@ The text for `unknown` says "no status from the worker", not the approved "worke
 
 ## Open points
 
-- [ ] On the VPS, after the worker has PR #260: open `/vps`. Expected: the row shows "up to date", and the last run is at most one interval old.
+- [ ] On the VPS, after the worker has PR #260: open `/vps`. Expected while `AUTO_UPDATE_MINUTES` is 0: a yellow row with the reason. Expected after a change to 5: the row shows "up to date", and the last run is at most one interval old.
 
 ## Lessons
 

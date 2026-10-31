@@ -221,3 +221,14 @@ export function liveBar(last: Bar | null, price: number, nowSec: number, tfSec: 
   if (time === last.time + tfSec) return { time, open: price, high: price, low: price, close: price };
   return null;
 }
+
+/**
+ * Laufende Kerze zur Anzeige: die Kerze bei `liveFrom` mit dem Preis als Schluss, High und Low erweitert.
+ * Nur für die Darstellung; Suche und Indikatoren bleiben bei den geschlossenen Kerzen.
+ */
+export function runningBar(rates: { bars: Bar[]; liveFrom: number | null } | null | undefined, price: number | null): Bar | null {
+  if (!rates || rates.liveFrom === null || price === null || !Number.isFinite(price) || price <= 0) return null;
+  const bar = rates.bars.at(-1);
+  if (!bar || bar.time !== rates.liveFrom) return null;
+  return { ...bar, high: Math.max(bar.high, price), low: Math.min(bar.low, price), close: price };
+}

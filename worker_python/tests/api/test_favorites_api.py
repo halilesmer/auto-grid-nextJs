@@ -49,3 +49,9 @@ def test_deleting_account_removes_file(client, multi, worker_dir):
     assert path.exists()
     assert client.delete("/api/accounts/1002", headers=multi["admin"]).status_code == 200
     assert not path.exists()
+
+
+def test_admin_put_for_unknown_account_is_404_and_writes_no_file(client, multi, worker_dir):
+    res = client.put("/api/favorites/9999", json={"symbols": ["XAUUSD"]}, headers=multi["admin"])
+    assert res.status_code == 404
+    assert not (worker_dir / "configs" / "favorites_9999.json").exists()

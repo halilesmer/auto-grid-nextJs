@@ -30,6 +30,9 @@ import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 import { useFavoritesScanStore } from '@/store/useFavoritesScanStore';
 import { cn } from '@/lib/utils';
 
+/** Neuer Versuch nach einem fehlgeschlagenen Laden der Konten */
+const ACCOUNTS_RETRY_MS = 10_000;
+
 /**
  * Formationserkennung (/formasyon): Das Symbol ist frei wählbar, ohne Wahl gilt das erste Setup des Kontos; im Hintergrund läuft die Suche über alle
  * Formationen und Zeiteinheiten (useFormationScan). Chart, Kandidaten-Liste und Checkliste zeigen den gewählten Kandidaten.
@@ -49,9 +52,23 @@ function FormationView() {
   const accountId = urlAccount ?? selected;
   const accountKnown = accounts.some((a) => String(a.id) === accountId);
 
+  // Schlägt das erste Laden fehl (der Worker startet gerade neu), bliebe die Auswahl sonst leer: neuer Versuch im Takt
+  const accountsLoaded = accounts.length > 0;
   useEffect(() => {
-    if (useAccountStore.getState().accounts.length === 0) fetchAccounts();
-  }, [fetchAccounts]);
+    if (accountsLoaded) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    // Der nächste Versuch wird erst nach dem Ende des vorigen geplant: eine hängende Anfrage stapelt keine weiteren
+    const load = async () => {
+      await fetchAccounts();
+      if (!stopped) timer = setTimeout(load, ACCOUNTS_RETRY_MS);
+    };
+    void load();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [accountsLoaded, fetchAccounts]);
 
   // Ein Konto aus der Adresse wird global gewählt (wie auf /chart); ohne ?account= gilt das gewählte Konto, die Adresse bleibt sauber
   useEffect(() => {
@@ -131,12 +148,7 @@ function FormationView() {
     return sidebarOpen ? null : node;
   };
 
-  // „Anzeigen“ der Alarm-Meldung: Formation und Zeiteinheit in die Adresse, Kandidat gewählt (wie ein Klick in der Liste)
-  const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol, scan, (notice) => {
-    setActive(null);
-    setPicked(`${notice.form}-${notice.tf}`);
-    setView({ form: notice.form, tf: notice.tf });
-  });
+  const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol);
 
   const captureRef = useRef<(() => Promise<ChartPicture>) | null>(null);
   const registerCapture = useCallback((capture: (() => Promise<ChartPicture>) | null) => {
@@ -182,7 +194,7 @@ function FormationView() {
       );
     }
     return hit && scan.context && scan.scanAt !== null ? (
-      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} />
+      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} running={scan.running[hit.tf]} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} />
     ) : (
       <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted-foreground" data-testid="formation-empty">
         {!scan.loading && t('formation.empty.chart', { form: formName, tf })}
@@ -216,7 +228,7 @@ function FormationView() {
           actions={
             <>
               <FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />
-              <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} />
+              <FormationAlarmMenu symbol={accountKnown ? symbol : null} accountKnown={accountKnown} alarm={alarm} />
             </>
           }
         >

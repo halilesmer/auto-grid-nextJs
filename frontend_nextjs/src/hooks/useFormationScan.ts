@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@/i18n';
-import type { Bar } from '@/lib/analysis/candles';
+import { runningBar, type Bar } from '@/lib/analysis/candles';
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
+import type { ContextTimeframe } from '@/lib/formation/params';
 import { formationRequests } from '@/lib/formation/requests';
 import { scanFormations, scanTime, type ScanHit } from '@/lib/formation/scan';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
@@ -19,6 +20,8 @@ export interface FormationScan {
   /** Rechenzeit der letzten Suche in Millisekunden */
   scanMs: number | null;
   digits: number | null;
+  /** Laufende Kerze je Zeiteinheit mit dem gemeinsamen Preis, nur zur Anzeige (null: keine) */
+  running: Record<ContextTimeframe, Bar | null>;
 }
 
 interface Settled {
@@ -80,6 +83,15 @@ export function useFormationScan(accountId: string | null, symbol: string | null
     return () => clearTimeout(timer);
   }, [key, at, symbol]);
 
+  // Gemeinsamer Preis: Schluss der laufenden M15-Kerze, so zeigen alle Zeiteinheiten denselben aktuellen Preis
+  const price = lastM15 && lastM15.time === m15.data?.liveFrom ? lastM15.close : null;
+  const running = useMemo<Record<ContextTimeframe, Bar | null>>(() => ({
+    D1: runningBar(d1.data, price),
+    H4: runningBar(h4.data, price),
+    H1: runningBar(h1.data, price),
+    M15: runningBar(m15.data, price),
+  }), [d1.data, h4.data, h1.data, m15.data, price]);
+
   const current = settled && settled.key === key ? settled : null;
   return {
     loading: ready && !loadError && !current,
@@ -89,5 +101,6 @@ export function useFormationScan(accountId: string | null, symbol: string | null
     scanAt: current?.scanAt ?? null,
     scanMs: current?.scanMs ?? null,
     digits: m15.data?.digits ?? null,
+    running,
   };
 }

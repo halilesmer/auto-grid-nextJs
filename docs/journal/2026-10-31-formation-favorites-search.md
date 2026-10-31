@@ -2,8 +2,8 @@
 date: 2026-10-31
 author: Claude
 type: feature
-status: open
-pr: [257]
+status: done
+pr: [257, 264]
 features: [FRM-29]
 areas: [worker, frontend, tests]
 ---
@@ -53,5 +53,5 @@ areas: [worker, frontend, tests]
 - `quotes` asks up to 200 symbols under the MT5 lock. If a longer list blocks candle requests, ask in blocks.
 
 ## Open points
-- [ ] After a reload the account selector can show no account although `?account=` is in the address. Seen once in the DEMO test, not examined.
-- [ ] The worker stayed on v0.7.289 for about 12 h, because the auto update pulled nothing. The manual update worked. A separate session examines the cause.
+- [x] After a reload the account selector showed no account although `?account=` was in the address. Cause: `/formasyon` loaded the account list once. When this first request failed (for example the worker restarts or the tunnel is slow), nothing asked again, and the selector kept its placeholder. Shown with the mock worker: the first `GET /accounts` aborts, no second request follows. A plain reload with a working worker did not show the defect (4 reloads checked). Fix: the page asks again every 10 s until accounts exist. Test: `@FRM-29` "Scheitert das erste Laden der Konten". This is the most likely cause of the single DEMO observation; the DEMO case itself was not seen again and not checked on the real worker.
+- [x] The worker stayed on v0.7.289 for about 12 h. Another entry holds the cause: [auto-update-stale-window-env](2026-10-31-auto-update-stale-window-env.md).

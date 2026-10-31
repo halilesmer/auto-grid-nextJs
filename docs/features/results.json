@@ -918,19 +918,19 @@
     "e2e": {
       "datum": "2026-10-31",
       "status": "passed",
-      "tests": 15
+      "tests": 16
     }
   },
   "FRM-28": {
     "api": {
       "datum": "2026-10-31",
       "status": "passed",
-      "tests": 9
+      "tests": 10
     },
     "e2e": {
       "datum": "2026-10-31",
       "status": "passed",
-      "tests": 5
+      "tests": 6
     }
   },
   "FRM-29": {
@@ -942,7 +942,21 @@
     "e2e": {
       "datum": "2026-10-31",
       "status": "passed",
-      "tests": 19
+      "tests": 20
+    }
+  },
+  "FRM-30": {
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 8
+    }
+  },
+  "FRM-31": {
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 4
     }
   },
   "LOG-01": {

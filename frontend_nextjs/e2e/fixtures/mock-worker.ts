@@ -416,6 +416,11 @@ export class MockWorker {
     };
   }
 
+  /** `live_from` ohne feste Kerzen: die letzte Kerze ist die laufende, wenn sie die aktuelle Zeitspanne trägt */
+  private liveFrom(times: number[], latest: number) {
+    return times.length && times[times.length - 1] === latest ? latest : null;
+  }
+
   /**
    * Wie market_sync.get_rates: Kerzen [from, to) in MT5-Zeit, spaltenweise, höchstens 50.000 (Rest über
    * next_from). Wochenende = keine Kerzen (Pause), `ratesMissing` = keine Kerzen + Eintrag in `missing`.
@@ -469,7 +474,7 @@ export class MockWorker {
       ...cols,
       v: cols.t.map(() => 10),
       s: cols.t.map(() => 3),
-      live_from: !series && cols.t.length && cols.t[cols.t.length - 1] === latest ? latest : null,
+      live_from: series ? (this.state.ratesLive?.[timeframe] ?? null) : this.liveFrom(cols.t, latest),
       digits: 3,
       point: 0.001,
       next_from: end < b ? end : null,
@@ -835,6 +840,7 @@ export class MockWorker {
         if (!Array.isArray(list) || !list.every((x) => typeof x === 'string' && x.length >= 1 && x.length <= 40)) {
           return { status: 422, body: { detail: 'invalid favorites' } };
         }
+        if (!s.accounts.some((a) => String(a.id) === id)) return { status: 404, body: { detail: `Account '${id}' not found` } };
         s.favorites[id] = [...new Set(list as string[])];
       }
       return ok({ status: 'success', account_id: id, symbols: s.favorites[id] ?? [] });

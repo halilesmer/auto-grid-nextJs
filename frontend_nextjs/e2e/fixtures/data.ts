@@ -195,6 +195,8 @@ export function defaultState() {
     /** Fehlende Kerzen-Bereiche (GET /market/{id}/rates → missing), MT5-Zeit; dort liefert der Mock keine Kerzen. */
     /** Feste Kerzen je Zeitrahmen als Zeilen [Zeit, Open, High, Low, Close] (Formationserkennung); null = erzeugte Sinuskurve */
     ratesSeries: null as Record<string, number[][]> | null,
+    /** Zeit der laufenden Kerze je Zeitrahmen (live_from) bei festen Kerzen; fehlt der Zeitrahmen: keine laufende Kerze */
+    ratesLive: null as Record<string, number> | null,
     /** Kerzen auch für Samstag und Sonntag liefern: für Tests, die unabhängig vom Wochentag eine laufende Kerze brauchen. */
     ratesAllDays: false,
     ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],

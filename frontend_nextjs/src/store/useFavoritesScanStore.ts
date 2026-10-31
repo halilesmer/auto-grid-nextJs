@@ -7,7 +7,7 @@ export type ScanGap = 'missing' | 'error';
 interface FavoritesScanState {
   /** Konto, zu dem die Ergebnisse gehören; null = keins */
   accountId: string | null;
-  /** Gebildete Treffer je Produkt (Brokername) */
+  /** Gebildete Treffer je Produkt (Brokername). Enthält auch Alarm-Produkte, die keine Favoriten sind; die Favoriten-Ansichten filtern nach der Favoritenliste. */
   results: Record<string, FormedHit[]>;
   /** Produkte, deren Zahlen unvollständig sein können */
   gaps: Record<string, ScanGap>;
@@ -17,16 +17,18 @@ interface FavoritesScanState {
   progress: { done: number; total: number } | null;
   /** Rechenzeit des letzten Durchgangs in Millisekunden */
   scanMs: number | null;
+  /** Wann zuletzt ein Produkt fertig gesucht wurde (Date.now), fürs Alarm-Menü */
+  lastRunAt: number | null;
   reset: (accountId: string | null) => void;
-  /** Ergebnisse von Produkten, die keine Favoriten mehr sind, fallen weg */
+  /** Ergebnisse von Produkten, die weder Favorit noch Alarm-Produkt sind, fallen weg */
   prune: (symbols: readonly string[]) => void;
   put: (accountId: string, symbol: string, formed: FormedHit[], at: number, gap: ScanGap | null) => void;
   setProgress: (accountId: string, progress: { done: number; total: number } | null) => void;
   addMs: (accountId: string, ms: number, restart?: boolean) => void;
-  applySnapshot: (accountId: string, snapshot: Pick<FavoritesScanState, 'results' | 'gaps' | 'doneAt'>) => void;
+  applySnapshot: (accountId: string, snapshot: Pick<FavoritesScanState, 'results' | 'gaps' | 'doneAt' | 'lastRunAt'>) => void;
 }
 
-const empty = { results: {}, gaps: {}, doneAt: {}, progress: null, scanMs: null };
+const empty = { results: {}, gaps: {}, doneAt: {}, progress: null, scanMs: null, lastRunAt: null };
 
 // Aktionen für ein anderes Konto als das aktuelle werden verworfen: ein abgebrochener Durchgang darf nichts mehr schreiben
 export const useFavoritesScanStore = create<FavoritesScanState>((set, get) => ({
@@ -45,7 +47,7 @@ export const useFavoritesScanStore = create<FavoritesScanState>((set, get) => ({
       const gaps = { ...s.gaps };
       if (gap) gaps[symbol] = gap;
       else delete gaps[symbol];
-      return { results: { ...s.results, [symbol]: formed }, gaps, doneAt: { ...s.doneAt, [symbol]: at } };
+      return { results: { ...s.results, [symbol]: formed }, gaps, doneAt: { ...s.doneAt, [symbol]: at }, lastRunAt: Date.now() };
     }),
   setProgress: (accountId, progress) => set((s) => (s.accountId === accountId ? { progress } : s)),
   addMs: (accountId, ms, restart = false) => set((s) => (s.accountId === accountId ? { scanMs: (restart ? 0 : (s.scanMs ?? 0)) + ms } : s)),

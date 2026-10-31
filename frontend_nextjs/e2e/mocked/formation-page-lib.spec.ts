@@ -4,6 +4,7 @@
  * FRM-20 Zeichnungen einer Formation im Aufbau · FRM-18 Zählung und Sprung
  */
 import { test, expect } from '@playwright/test';
+import { runningBar, type Bar } from '../../src/lib/analysis/candles';
 import { layoutDrawings } from '../../src/lib/formation/drawingLayout';
 import { hitsCount, timeframeForForm, type ScanHit } from '../../src/lib/formation/scan';
 import type { Candidate } from '../../src/lib/formation/types';
@@ -117,5 +118,27 @@ test.describe('Treffer zählen und Zeiteinheit wählen', () => {
     expect(timeframeForForm(hits, 'GAR', 'M15')).toBe('H4');
     expect(timeframeForForm(hits, 'BAT', 'D1')).toBe('M15');
     expect(timeframeForForm(hits, 'CRB', 'H4')).toBe('H4');
+  });
+});
+
+test.describe('Laufende Kerze nur zur Anzeige', () => {
+  const bar = (time: number, open: number, high: number, low: number, close: number): Bar => ({ time, open, high, low, close });
+  const rates = { bars: [bar(0, 10, 12, 9, 11), bar(100, 11, 13, 10, 12)], liveFrom: 100 };
+
+  frm('FRM-31', 'Preis innerhalb der Kerze setzt nur den Schluss', () => {
+    expect(runningBar(rates, 12.5)).toEqual(bar(100, 11, 13, 10, 12.5));
+  });
+
+  frm('FRM-31', 'Preis über dem High oder unter dem Low erweitert die Kerze', () => {
+    expect(runningBar(rates, 14)).toEqual(bar(100, 11, 14, 10, 14));
+    expect(runningBar(rates, 8)).toEqual(bar(100, 11, 13, 8, 8));
+  });
+
+  frm('FRM-31', 'ohne laufende Kerze oder ohne Preis: null', () => {
+    expect(runningBar({ ...rates, liveFrom: null }, 12)).toBeNull();
+    expect(runningBar({ ...rates, liveFrom: 50 }, 12)).toBeNull();
+    expect(runningBar(rates, null)).toBeNull();
+    expect(runningBar(rates, 0)).toBeNull();
+    expect(runningBar(null, 12)).toBeNull();
   });
 });
