@@ -675,6 +675,16 @@ test.describe('FRM-27 Formationsalarm', () => {
   });
 });
 
+test('Scheitert das erste Laden der Konten beim Neuladen, wird im Takt neu geladen und die Auswahl zeigt das Konto', { tag: '@FRM-29' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  let calls = 0;
+  await page.route('**/api/accounts', (route) => (calls++ === 0 ? route.abort('failed') : route.fallback()));
+  await page.reload();
+  await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: msg('account.select.aria') })).toHaveText('E2E Demo', { timeout: 15_000 });
+  expect(calls).toBe(2);
+});
+
 test.describe('FRM-28 Favoriten-Fahne', () => {
   const symbolInput = (page: Page) => page.getByTestId('formation-symbol').getByRole('combobox');
   const addName = (symbol: string) => msg('formation.favorite.add', { symbol });
@@ -720,6 +730,19 @@ test.describe('FRM-28 Favoriten-Fahne', () => {
     await symbolInput(page).press('ArrowDown');
     await symbolInput(page).press('Enter');
     await expect(page).toHaveURL(/symbol=XAUUSD/);
+  });
+
+  test('Tab aus der Fahne schließt die Liste und stellt das Produkt wieder her', { tag: '@FRM-28' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await symbolInput(page).fill('gold');
+    await symbolInput(page).press('Tab');
+    const flag = page.getByRole('button', { name: addName('XAUUSD') });
+    await expect(flag).toBeFocused();
+    await flag.press('Tab');
+    await expect(page.getByRole('button', { name: addName('EURUSD') })).toBeFocused();
+    await expect(page.getByRole('option', { name: /XAUUSD/ })).toHaveCount(0);
+    await expect(symbolInput(page)).toHaveValue('EURUSD');
+    await expect(page).not.toHaveURL(/symbol=/);
   });
 
   test('Ein Speicherfehler setzt die Fahne zurück und zeigt eine Meldung', { tag: '@FRM-28' }, async ({ page, worker }) => {
