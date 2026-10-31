@@ -2,6 +2,15 @@
 
 Instructions for coding agents other than Claude Code (for example OpenAI Codex). Claude Code reads `CLAUDE.md`. This file makes other agents work with the same rules.
 
+## Role of Codex in this project
+
+Claude plans and writes all code. Codex does only the final bug hunt on a finished branch, in a read-only sandbox.
+
+- Do not change, create or delete files. Do not commit.
+- Examine the diff, the affected callers, the called functions and the tests. Use the checklist in `hooks/RULES.md` §9 and the review rules in §10.
+- Report each finding with severity, `file:line`, the concrete trigger, the consequence and the smallest correction. Claude examines each finding and makes the correction.
+- The sections below apply when an owner explicitly gives implementation work to another agent.
+
 ## Read first, in this order
 
 1. `CLAUDE.md`: project, dev setup (Mac frontend, Windows VPS worker), commands, tests, versioning, architecture, conventions. All of it applies to you. The "Model usage" section is Claude-specific; skip it.
