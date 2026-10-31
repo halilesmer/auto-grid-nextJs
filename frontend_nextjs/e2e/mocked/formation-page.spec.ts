@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -337,13 +337,13 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
-    expect(bar).toEqual({ x: 52, y: 56, width: 1388, height: 38 });
+    expect(bar).toEqual({ x: 52, y: 56, width: 1348, height: 38 });
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
-    expect(forms).toEqual({ x: 52, y: 94, width: 1388, height: 30 });
+    expect(forms).toEqual({ x: 52, y: 94, width: 1348, height: 30 });
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
     expect(tools.y).toBeGreaterThanOrEqual(56);
     expect(tools.y + tools.height).toBeLessThanOrEqual(94);
-    expect(tools.x + tools.width).toBeLessThanOrEqual(1440);
+    expect(tools.x + tools.width).toBeLessThanOrEqual(1400);
     await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
     const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -364,7 +364,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
-      expect(chart).toEqual({ x: 52, y: 56, width: 1388, height: 844 });
+      expect(chart).toEqual({ x: 52, y: 56, width: 1348, height: 844 });
       const rail = await page.getByTestId('drawing-toolbar').boundingBox();
       expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });
@@ -726,5 +726,172 @@ test.describe('FRM-28 Favoriten-Fahne', () => {
     await expect(page.getByRole('button', { name: addName('EURUSD') })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
+
+test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
+  /** Die Mock-Kerzen gelten für jedes Produkt: jeder Favorit (hier 4-stellige Paare wie die Fixture) hat auf H4 eine gültige Gartley und eine Bat im Aufbau */
+  async function openWithFavorites(page: Page, worker: MockWorker, favorites: string[], open = true) {
+    worker.state.favorites[DEMO_ID] = favorites;
+    await openPage(page, worker);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    if (open) await page.getByTestId('favorites-toggle').click();
+  }
+  const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
+  const rowSymbols = (page: Page) => page.getByTestId('favorites-row').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-symbol')));
+
+  test('Nur gebildete Formationen stehen in der Formations-Zeile, die Zahl ist die Zahl der Produkte', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    // Gartley ist gültig, Bat nur im Aufbau, ABCD fehlt
+    await expect(page.getByTestId('fav-form-GAR').getByTestId('hit-badge')).toHaveText('2');
+    await expect(page.getByTestId('fav-form-BAT')).toHaveCount(0);
+    await expect(page.getByTestId('fav-form-ABCD')).toHaveCount(0);
+    await expect(page.getByTestId('fav-tf-H4').getByTestId('hit-badge')).toHaveText('2');
+    await expect(page.getByTestId('fav-tf-D1').getByTestId('hit-badge')).toHaveCount(0);
+  });
+
+  test('Klick auf einen Zeitraum filtert ohne neue Anfragen', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    const before = ratesCalls(worker);
+    await page.getByTestId('fav-tf-D1').click();
+    await expect(page.getByTestId('favorites-forms-empty')).toHaveText(msg('formation.fav.noForms'));
+    await expect(page).toHaveURL(/tf=D1/);
+    await page.getByTestId('fav-tf-H4').click();
+    await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+    expect(ratesCalls(worker)).toBe(before);
+  });
+
+  test('Die Zeilen stehen sichtbar nie doppelt: offen in der Seitenleiste, geschlossen über dem Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await openWithFavorites(page, worker, ['EURUSD'], false);
+    await expect(page.getByTestId('fav-form-GAR')).toHaveCount(1);
+    await expect(page.getByTestId('favorites-panel')).toHaveCount(0);
+    await expect(page.getByTestId('formation-form-GAR')).toHaveCount(0);
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('favorites-panel').getByTestId('fav-form-GAR')).toBeVisible();
+    await expect(page.getByTestId('fav-form-GAR')).toHaveCount(1);
+    await expect(page.getByTestId('formation-toolbar').getByTestId('fav-tf-H4')).toHaveCount(0);
+    // Kamera und Glocke bleiben in der Kopfleiste
+    await expect(page.getByTestId('formation-topbar').getByTestId('formation-shot')).toBeVisible();
+  });
+
+  test('Klick auf eine Formation filtert die Tabelle, ein zweiter Klick hebt den Filter auf', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    worker.state.ratesErrorSymbols = ['GBPUSD'];
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    expect(await rowSymbols(page)).toEqual(['EURUSD', 'GBPUSD']);
+    await page.getByTestId('fav-form-GAR').click();
+    await expect(page.getByTestId('fav-form-GAR')).toHaveAttribute('aria-pressed', 'true');
+    expect(await rowSymbols(page)).toEqual(['EURUSD']);
+    await page.getByTestId('fav-form-GAR').click();
+    await expect(page.getByTestId('fav-form-GAR')).toHaveAttribute('aria-pressed', 'false');
+    expect(await rowSymbols(page)).toEqual(['EURUSD', 'GBPUSD']);
+  });
+
+  test('Klick auf die Zeile öffnet Produkt, Formation und Zeitraum im Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    await page.getByTestId('fav-tf-H1').click();
+    await page.getByTestId('fav-tf-H4').click();
+    await page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"] button').nth(1).click();
+    await expect(page).toHaveURL(/symbol=GBPUSD/);
+    await expect(page).toHaveURL(/form=GAR/);
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]')).toHaveAttribute('data-active', 'true');
+    await expect(page.getByTestId('formation-chart')).toBeVisible();
+  });
+
+  test('Ein Fehler bei einem Produkt stoppt die anderen nicht und die Zeile gilt als unvollständig', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    worker.state.ratesErrorSymbols = ['GBPUSD'];
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    await expect(page.getByTestId('fav-form-GAR').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]').getByTestId('favorites-row-gap')).toHaveAttribute('data-gap', 'error');
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="EURUSD"]').getByTestId('favorites-row-gap')).toHaveCount(0);
+    await expect(page.getByTestId('favorites-gaps')).toHaveText(msg('formation.fav.gaps', { count: 1 }));
+  });
+
+  test('Ein Fehler wird im nächsten Prüfschritt erneut versucht, nicht erst mit der nächsten Kerze', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    test.setTimeout(90_000);
+    worker.state.ratesErrorSymbols = ['GBPUSD'];
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]').getByTestId('favorites-row-gap')).toBeVisible();
+    worker.state.ratesErrorSymbols = [];
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]').getByTestId('favorites-row-gap')).toHaveCount(0, { timeout: 45_000 });
+  });
+
+  test('Der Hinweis zu den Preisen gehört zum Konto und verschwindet beim Kontowechsel', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    worker.overrides.set(`GET /api/market/${DEMO_ID}/quotes`, { status: 500, body: { detail: 'down' } });
+    worker.state.favorites[LIVE_ID] = ['EURUSD'];
+    await openWithFavorites(page, worker, ['EURUSD']);
+    await expect(page.getByTestId('favorites-quotes-failed')).toBeVisible();
+    // Die Preise des anderen Kontos kommen erst später: bis dahin darf der Hinweis des alten Kontos nicht stehen
+    worker.state.quotesDelayMs = 4000;
+    await page.getByRole('combobox', { name: msg('account.select.aria') }).click();
+    await page.getByRole('option', { name: /LIVE/ }).click();
+    await expect(page).toHaveURL(new RegExp(`account=${LIVE_ID}`));
+    // Kürzer als die Verzögerung: der Hinweis muss schon vorher weg sein, nicht erst mit den neuen Preisen
+    await expect(page.getByTestId('favorites-quotes-failed')).toHaveCount(0, { timeout: 1500 });
+  });
+
+  test('Schlägt das erste Laden der Favoriten fehl, wird im Takt neu geladen und die Meldung erscheint nur einmal', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    test.setTimeout(90_000);
+    worker.overrides.set(`GET /api/favorites/${DEMO_ID}`, { status: 500, body: { detail: 'down' } });
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await page.goto(URL);
+    await expect(page.getByText('down')).toHaveCount(1);
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('favorites-empty')).toBeVisible();
+    worker.overrides.delete(`GET /api/favorites/${DEMO_ID}`);
+    await expect(page.getByTestId('favorites-row')).toHaveCount(1, { timeout: 30_000 });
+    expect(worker.callsTo('GET', `/api/favorites/${DEMO_ID}`).length).toBeGreaterThanOrEqual(2);
+    await expect(page.getByText('down')).toHaveCount(0);
+  });
+
+  test('Preise und Änderung kommen vom Worker, fehlt ein Preis steht ein Strich', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    worker.state.quotes = { EURUSD: { last: 1.1, prev_close: 1.0, digits: 5 }, GBPUSD: null };
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    const eur = page.locator('[data-testid="favorites-row"][data-symbol="EURUSD"]');
+    await expect(eur).toContainText(/1[.,]10000/);
+    await expect(eur).toContainText(/\+10[.,]00%/);
+    await expect(page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"]')).toContainText('—');
+  });
+
+  test('Ohne Favoriten bleibt die Leiste wie bisher und die Seitenleiste verweist auf die Fahne', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await openPage(page, worker);
+    await expect(page.getByTestId('formation-form-GAR')).toBeVisible();
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('favorites-empty')).toHaveText(msg('formation.fav.empty'));
+    await expect(page.getByTestId('formation-form-GAR')).toBeVisible();
+    expect(worker.callsTo('GET', /\/quotes$/)).toHaveLength(0);
+  });
+
+  test('Die Preise werden nur bei offener Seitenleiste abgefragt', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await openWithFavorites(page, worker, ['EURUSD'], false);
+    expect(worker.callsTo('GET', /\/quotes$/)).toHaveLength(0);
+    await page.getByTestId('favorites-toggle').click();
+    await expect.poll(() => worker.callsTo('GET', /\/quotes$/).length).toBe(1);
+  });
+
+  test('Die offene Seitenleiste überdeckt die Werkzeuge des Charts nicht: unter 1280 px liegt sie unter der Kopfleiste, ab 1280 px schiebt sie den Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1024, height: 700 });
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    const toolButtons = page.locator('[data-testid="workspace-toolbar"] button:visible');
+    expect(await toolButtons.count()).toBeGreaterThan(0);
+    const rects = () => toolButtons.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ right: r.right, bottom: r.bottom })));
+    const narrow = (await page.getByTestId('favorites-panel').boundingBox())!;
+    for (const r of await rects()) expect(r.bottom).toBeLessThanOrEqual(narrow.y);
+    await expect(page.getByTestId('favorites-toggle')).toBeVisible();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const wide = (await page.getByTestId('favorites-panel').boundingBox())!;
+    for (const r of await rects()) expect(r.right).toBeLessThanOrEqual(wide.x);
+  });
+
+  test('Bei 375 px liegt die Seitenleiste über dem Chart, nichts scrollt quer', { tag: '@FRM-29' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
+    await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.locator('[data-testid="favorites-row"][data-symbol="GBPUSD"] button').nth(1).click();
+    await expect(page.getByTestId('favorites-panel')).toHaveCount(0);
   });
 });

@@ -7,35 +7,51 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { favoritesApi } from '@/services/favoritesApi';
 import { useFavoritesStore } from '@/store/useFavoritesStore';
 
+/** Neuer Versuch nach einem fehlgeschlagenen Laden der Liste */
+const RETRY_MS = 10_000;
+
 // PUTs laufen nacheinander: vertauscht ankommende Schreibvorgänge ließen den Worker einen älteren Stand halten
 let saveQueue: Promise<unknown> = Promise.resolve();
 
 /**
- * Favoriten-Produkte des Kontos (FRM-28): laden je Konto, Umschalten wirkt sofort und wird bei einem
- * Fehler zurückgesetzt. Liegt auf dem Worker, damit jedes Gerät dieselbe Liste sieht.
+ * Lädt die Favoriten des Kontos in den Store. Genau ein Aufrufer (FormationScanRunner im Layout): Jeder weitere würde den Store
+ * beim Einhängen leeren und neu laden, während Pille und Seitenleiste schon eine Liste zeigen.
  */
-export function useFavorites(accountId: string | null) {
-  const symbols = useFavoritesStore((s) => s.symbols);
-  const loadedAccount = useFavoritesStore((s) => s.loadedAccount);
-
+export function useFavoritesLoader(accountId: string | null) {
   useEffect(() => {
     if (!accountId) return;
     // Toggles warten auf die frische Antwort: eine ältere Liste (Wiederöffnen, zweites Gerät) würde sonst überschrieben
     useFavoritesStore.getState().setFavorites(null, []);
     let stale = false;
-    favoritesApi
-      .get(accountId)
-      .then((list) => {
-        if (!stale) useFavoritesStore.getState().setFavorites(accountId, list);
-      })
-      .catch(async (err) => {
-        console.error('Failed to fetch favorites', err);
-        if (!stale) toast.error(await getApiErrorMessage(err, t('formation.favorite.failed')));
-      });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = (first: boolean) =>
+      favoritesApi
+        .get(accountId)
+        .then((list) => {
+          if (!stale) useFavoritesStore.getState().setFavorites(accountId, list);
+        })
+        .catch(async (err) => {
+          console.error('Failed to fetch favorites', err);
+          if (stale) return;
+          // Meldung nur beim ersten Fehlschlag; der Worker kann gerade neu starten (Update), dann klappt der nächste Versuch
+          if (first) toast.error(await getApiErrorMessage(err, t('formation.favorite.failed')));
+          if (!stale) timer = setTimeout(() => void load(false), RETRY_MS);
+        });
+    void load(true);
     return () => {
       stale = true;
+      clearTimeout(timer);
     };
   }, [accountId]);
+}
+
+/**
+ * Favoriten-Produkte des Kontos (FRM-28): Umschalten wirkt sofort und wird bei einem Fehler zurückgesetzt.
+ * Liegt auf dem Worker, damit jedes Gerät dieselbe Liste sieht. Geladen wird in useFavoritesLoader.
+ */
+export function useFavorites(accountId: string | null) {
+  const symbols = useFavoritesStore((s) => s.symbols);
+  const loadedAccount = useFavoritesStore((s) => s.loadedAccount);
 
   // Die Liste eines anderen Kontos wird nie gezeigt
   const current = useMemo(() => (accountId && loadedAccount === accountId ? symbols : []), [accountId, loadedAccount, symbols]);
@@ -71,5 +87,5 @@ export function useFavorites(accountId: string | null) {
     [accountId],
   );
 
-  return { isFavorite, toggle, ready: accountId !== null && loadedAccount === accountId };
+  return { symbols: current, isFavorite, toggle, ready: accountId !== null && loadedAccount === accountId };
 }
