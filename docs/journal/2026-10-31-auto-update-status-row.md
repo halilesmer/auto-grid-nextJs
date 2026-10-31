@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [266]
 features: [UPD-07]
 areas: [frontend]
 ---
