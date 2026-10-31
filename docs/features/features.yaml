@@ -1121,8 +1121,8 @@ kategorien:
 
       - id: UPD-07
         titel: Automatisches Update
-        beschreibung: Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers.
-        code: [worker_python/src/utils/auto_updater.py, worker_python/main.py]
+        beschreibung: Unter dem Watchdog (WORKER_SUPERVISED=1) prüft der Worker alle AUTO_UPDATE_MINUTES (Standard 5, 0 = aus) origin/main. Liegt der lokale Stand auf Branch main nur zurück, zieht er das Update (inkl. pip) und startet neu. Ein anderer Branch oder lokale Commits werden nicht angefasst. git läuft dabei mit den normalen Rechten des Workers. Der Wert kommt unter Windows bei jedem Lauf aus der Registry, setx wirkt also ohne Neustart. Abgeschaltet schreibt der Worker eine Log-Zeile, und GET /api/system/worker/status meldet in auto_update den Grund des letzten Laufs.
+        code: [worker_python/src/utils/auto_updater.py, worker_python/src/api/system.py, worker_python/ops/windows/vps.ps1, worker_python/main.py]
         tiers: [unit, manuell]
         pruefung:
           - Einen PR nach main mergen und 5–10 Minuten warten.

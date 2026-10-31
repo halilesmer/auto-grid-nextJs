@@ -7,6 +7,7 @@ import asyncio
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -107,6 +108,9 @@ def auto(monkeypatch):
     monkeypatch.setattr(auto_updater, "_is_behind_origin", lambda: state.behind)
     monkeypatch.setattr(auto_updater, "execute_git_pull", fake_pull)
     monkeypatch.setattr(auto_updater, "schedule_restart", fake_restart)
+    monkeypatch.setattr(auto_updater, "_last_run", {"result": None, "detail": "", "checked_at": None})
+    monkeypatch.setenv(updater.SUPERVISED_ENV, "1")
+    monkeypatch.delenv("AUTO_UPDATE_MINUTES", raising=False)
     return state
 
 
@@ -144,6 +148,220 @@ def test_auto_update_nur_unter_watchdog(monkeypatch):
     assert auto_updater.interval_minutes() == 5
     monkeypatch.setenv("AUTO_UPDATE_MINUTES", "0")
     assert auto_updater.is_enabled() is False
+
+
+class _FakeKey:
+    def __init__(self, values):
+        self.values = values
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+@pytest.fixture
+def registry(monkeypatch):
+    """Windows-Registry im Speicher. setx schreibt dorthin, das offene Watchdog-Fenster behält
+    aber seine alte Umgebung: AUTO_UPDATE_MINUTES=0 vom 2026-10-19 steckte so im Prozess, obwohl
+    der Wert später auf 5 stand (/system/update und /system/restart bleiben im selben Fenster)."""
+    hives = {"HKCU": {}, "HKLM": {}}
+    subkeys = {"HKCU": "Environment", "HKLM": r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"}
+
+    def open_key(hive, subkey):
+        if subkey != subkeys[hive]:
+            raise FileNotFoundError(subkey)
+        return _FakeKey(hives[hive])
+
+    def query(key, name):
+        if name not in key.values:
+            raise FileNotFoundError(name)
+        return key.values[name], 1
+
+    fake = SimpleNamespace(
+        HKEY_CURRENT_USER="HKCU", HKEY_LOCAL_MACHINE="HKLM", OpenKey=open_key, QueryValueEx=query,
+    )
+    monkeypatch.setitem(sys.modules, "winreg", fake)
+    monkeypatch.setenv(updater.SUPERVISED_ENV, "1")
+    monkeypatch.setenv("AUTO_UPDATE_MINUTES", "0")  # Umgebung des alten Fensters
+    return hives
+
+
+@pytest.mark.feature("UPD-07")
+def test_setx_gilt_auch_im_alten_watchdog_fenster(registry):
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "5"
+    assert auto_updater.is_enabled() is True
+    assert auto_updater.interval_minutes() == 5
+
+
+@pytest.mark.feature("UPD-07")
+def test_geloeschte_variable_bedeutet_standardwert(registry):
+    assert auto_updater.is_enabled() is True
+    assert auto_updater.interval_minutes() == 5
+
+
+@pytest.mark.feature("UPD-07")
+@pytest.mark.parametrize(
+    "user, machine, enabled",
+    [
+        ("0", None, False),   # setx AUTO_UPDATE_MINUTES 0
+        (None, "0", False),   # setx /M AUTO_UPDATE_MINUTES 0
+        ("5", "0", True),     # wie Windows: Benutzerwert schlägt Maschinenwert
+    ],
+)
+def test_registry_entscheidet_wie_windows(registry, user, machine, enabled):
+    if user is not None:
+        registry["HKCU"]["AUTO_UPDATE_MINUTES"] = user
+    if machine is not None:
+        registry["HKLM"]["AUTO_UPDATE_MINUTES"] = machine
+    assert auto_updater.is_enabled() is enabled
+
+
+@pytest.mark.feature("UPD-07")
+@pytest.mark.parametrize("value", ["nan", "inf", "kaputt", ""])
+def test_unsinniger_wert_bedeutet_standardwert(registry, value):
+    """nan im JSON ließe GET /system/worker/status scheitern, inf schliefe für immer."""
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = value
+    assert auto_updater.interval_minutes() == 5
+
+
+class _StopLoop(Exception):
+    pass
+
+
+def _run_loop(monkeypatch, on_sleep):
+    """run_auto_updater ohne Wartezeit; on_sleep(n) läuft bei der n-ten Pause, _StopLoop beendet."""
+    calls = []
+
+    async def fake_sleep(seconds):
+        calls.append(seconds)
+        on_sleep(len(calls))
+
+    monkeypatch.setattr(auto_updater.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(auto_updater, "_last_run", {"result": None, "detail": "", "checked_at": None})
+    try:
+        asyncio.run(auto_updater.run_auto_updater())
+    except _StopLoop:
+        pass
+    return calls
+
+
+@pytest.mark.feature("UPD-07")
+def test_abgeschaltetes_update_steht_im_log_und_im_status(registry, monkeypatch, capsys):
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "0"
+
+    def stop(call):
+        if call == 2:
+            raise _StopLoop
+
+    _run_loop(monkeypatch, stop)
+    assert "[AUTO-UPDATE] Kapalı: AUTO_UPDATE_MINUTES=0" in capsys.readouterr().out
+    assert auto_updater.status()["enabled"] is False
+    assert auto_updater.status()["result"] == "off"
+
+
+@pytest.mark.feature("UPD-07")
+def test_setx_wirkt_ohne_worker_neustart(registry, auto, monkeypatch, capsys):
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "0"
+
+    def enable_after_first_pause(call):
+        if call == 2:
+            registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "5"
+
+    _run_loop(monkeypatch, enable_after_first_pause)  # tick() plant den Neustart, die Schleife endet
+    assert (auto.pulled, auto.restarts) == (1, 1)
+    assert "[AUTO-UPDATE] Açık: origin/main her 5 dakikada" in capsys.readouterr().out
+
+
+@pytest.mark.feature("UPD-07")
+def test_aktive_schleife_meldet_ihren_start_einmal(registry, auto, monkeypatch, capsys):
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "5"
+    auto.check = (True, (False, "v2", "v2"))
+
+    def stop(call):
+        if call == 3:
+            raise _StopLoop
+
+    _run_loop(monkeypatch, stop)
+    assert capsys.readouterr().out.count("[AUTO-UPDATE] Açık") == 1
+
+
+@pytest.mark.feature("UPD-07")
+def test_ausgeschaltet_laeuft_kein_git(registry, auto, monkeypatch):
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "0"
+
+    def stop(call):
+        if call == 3:
+            raise _StopLoop
+
+    calls = _run_loop(monkeypatch, stop)
+    assert auto.pulled == 0
+    assert calls == [60, 300, 300]  # keine Schleife ohne Pause bei Intervall 0
+
+
+@pytest.mark.feature("UPD-07")
+@pytest.mark.parametrize(
+    "change, result, text",
+    [
+        ({"branch": "feat/test"}, "other_branch", "feat/test"),
+        ({"check": (True, (False, "v2", "v2"))}, "up_to_date", "v2"),
+        ({"check": (False, "Bağlantı Hatası")}, "check_failed", "Bağlantı Hatası"),
+        ({"behind": False}, "local_commits", "v1 → v2"),
+        ({"pull": (False, "Git Çekme Hatası")}, "pull_failed", "Git Çekme Hatası"),
+    ],
+)
+def test_lauf_ohne_update_nennt_grund_einmal(auto, capsys, change, result, text):
+    for key, value in change.items():
+        setattr(auto, key, value)
+    asyncio.run(auto_updater.tick())
+    asyncio.run(auto_updater.tick())
+    assert auto_updater.status()["result"] == result
+    assert auto_updater.status()["checked_at"] is not None
+    assert capsys.readouterr().out.count(text) == 1  # alle 5 Minuten eine Zeile fräße das Log
+
+
+@pytest.mark.feature("UPD-07")
+def test_abschalten_waehrend_der_pruefung_verhindert_den_pull(registry, auto, monkeypatch):
+    """git fetch dauert Sekunden; ein setx 0 für die Testwoche muss vor dem Pull noch greifen."""
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "5"
+
+    def check_while_switching_off(branch):
+        registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "0"
+        return auto.check
+
+    monkeypatch.setattr(auto_updater, "check_for_updates", check_while_switching_off)
+    assert asyncio.run(auto_updater.tick()) is False
+    assert (auto.pulled, auto.restarts) == (0, 0)
+    assert auto_updater.status()["result"] == "off"
+
+
+@pytest.mark.feature("UPD-07")
+def test_unerwarteter_fehler_ersetzt_den_alten_erfolg(registry, auto, monkeypatch):
+    registry["HKCU"]["AUTO_UPDATE_MINUTES"] = "5"
+    auto.check = (True, (False, "v2", "v2"))
+
+    def git_missing():
+        raise FileNotFoundError("git")
+
+    def break_git_after_first_run(call):
+        if call == 2:
+            monkeypatch.setattr(auto_updater, "current_branch", git_missing)
+        if call == 3:
+            raise _StopLoop
+
+    _run_loop(monkeypatch, break_git_after_first_run)
+    assert auto_updater.status()["result"] == "check_failed"
+    assert "FileNotFoundError" in auto_updater.status()["detail"]
+
+
+@pytest.mark.feature("UPD-07")
+def test_vps_status_meldet_denselben_wert_wie_der_worker():
+    """Die Kachel auf /vps las nur den Benutzerwert; setx /M blieb dort unsichtbar."""
+    vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
+    body = vps[vps.index("function Get-AutoUpdateMinutes"):vps.index("function Get-Status")]
+    assert body.index("'User'") < body.index("'Machine'")
+    assert "auto_update_minutes = Get-AutoUpdateMinutes" in vps
 
 
 # --------------------------------------------------------------------------- BOT-07

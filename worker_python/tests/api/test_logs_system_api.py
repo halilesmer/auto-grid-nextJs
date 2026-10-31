@@ -243,6 +243,24 @@ def test_worker_status_liefert_version_und_bots(client, monkeypatch):
     assert body["uptime_sec"] >= 0
 
 
+@pytest.mark.feature("UPD-07")
+def test_worker_status_nennt_auto_update_und_letzten_lauf(client, monkeypatch):
+    from src.utils import auto_updater
+
+    monkeypatch.setenv("WORKER_SUPERVISED", "1")
+    monkeypatch.setenv("AUTO_UPDATE_MINUTES", "0")
+    last_run = {"result": "off", "detail": "AUTO_UPDATE_MINUTES=0", "checked_at": 1793491200}
+    monkeypatch.setattr(auto_updater, "_last_run", last_run)
+    body = client.get("/api/system/worker/status").json()
+    assert body["auto_update"] == {
+        "enabled": False,
+        "interval_minutes": 0,
+        "result": "off",
+        "detail": "AUTO_UPDATE_MINUTES=0",
+        "checked_at": 1793491200,
+    }
+
+
 @pytest.mark.feature("VPS-09")
 @pytest.mark.parametrize("supervised", [True, False])
 def test_worker_neustart_nur_unter_watchdog(client, monkeypatch, supervised):

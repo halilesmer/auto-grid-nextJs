@@ -7,6 +7,7 @@ import time
 from collections import deque
 import psutil
 from src.api.helpers import _load_accounts
+from src.utils import auto_updater
 from src.utils.bot_manager import _current_version, is_bot_running
 from src.utils.paths import get_worker_console_log_path
 from src.utils.self_updater import (
@@ -91,7 +92,7 @@ async def run_update(branch: str = Query("main", description="Git branch")):
 
 @router.get("/system/worker/status", dependencies=[Depends(require_admin)])
 async def worker_status():
-    """VPS-Seite (online): Sürüm, çalışma süresi, watchdog altında mı, çalışan bot sayısı."""
+    """VPS-Seite (online): Sürüm, çalışma süresi, watchdog altında mı, çalışan bot sayısı, otomatik güncelleme."""
     uptime = None
     try:
         uptime = int(time.time() - psutil.Process().create_time())
@@ -105,6 +106,7 @@ async def worker_status():
         "supervised": os.environ.get(SUPERVISED_ENV) == "1",
         "bots_running": running,
         "bots_total": len(accounts),
+        "auto_update": auto_updater.status(),
     }
 
 
