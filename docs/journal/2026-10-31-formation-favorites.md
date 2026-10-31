@@ -34,3 +34,7 @@ areas: [worker, frontend, tests]
 - A toggle is ignored until the list of the account has loaded. A write before that would replace the saved favorites with one symbol.
 - Last write wins when two devices write at once. For a personal list this is enough.
 - The worker runs the new route only after the VPS pulls and restarts.
+
+## Checks
+- Visual check of the pill, the product search and the flag at 1280 px and 375 px, in the dark and the light theme. A set flag is filled in `primary`, an unset flag is a thin grey outline; both are readable in both themes. No defect found.
+- Open: Tab out of the flag does not restore the product and leaves the list open. An admin can write favorites for an account id that does not exist.
