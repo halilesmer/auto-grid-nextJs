@@ -123,6 +123,16 @@ def test_fehlertext_des_zeitlimits_enthaelt_keinen_token(vps, monkeypatch):
 
 
 @pytest.mark.feature("UPD-07")
+def test_haengendes_git_show_ist_ein_fehler_und_kein_erfolg(vps, monkeypatch):
+    monkeypatch.setenv("HANG_ON", "show")
+
+    ok, text = updater.check_for_updates("main")
+
+    assert ok is False
+    assert "git show" in text
+
+
+@pytest.mark.feature("UPD-07")
 def test_haengendes_fetch_stellt_lokale_aenderungen_wieder_her(vps, monkeypatch):
     (vps / "notes.txt").write_text("lokal geändert\n")
     monkeypatch.setenv("HANG_ON", "fetch")

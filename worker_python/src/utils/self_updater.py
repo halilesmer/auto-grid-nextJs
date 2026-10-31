@@ -322,6 +322,8 @@ def check_for_updates(branch="main"):
 
         try:
             remote_ver = _git(["show", f"origin/{branch}:VERSION"], project_root, check=True).stdout.strip()
+        except GitTimeout:
+            raise
         except Exception:
             remote_ver = "Bilinmiyor"
 
