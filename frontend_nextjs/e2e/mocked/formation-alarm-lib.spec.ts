@@ -78,3 +78,10 @@ frm('Der Speicher hält höchstens MEMORY_LIMIT Schlüssel und behält die jüng
   expect(Object.keys(memory)).toHaveLength(MEMORY_LIMIT);
   expect(Object.keys(memory)).toContain(hitKey('EURUSD', hit({ verdict: 'valid', target: true, shift: MEMORY_LIMIT + 19 })));
 });
+
+frm('Jede Meldung trägt das Symbol ihres Produkts', () => {
+  const base = run([hit({ verdict: 'forming', target: false })], {}, true);
+  const next = evaluateAlarm('GBPUSD', [hit({ verdict: 'valid', target: true })], {}, settings, false);
+  expect(next.notices[0].symbol).toBe('GBPUSD');
+  expect(run([hit({ verdict: 'valid', target: true })], base.memory).notices[0].symbol).toBe('EURUSD');
+});
