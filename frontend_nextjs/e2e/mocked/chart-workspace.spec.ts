@@ -105,18 +105,23 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
   await expect.poll(async () => (await readDocument(eurKey!))?.appearance?.background).toBe('');
 
-  const beforeZoom = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  const rangeOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  const savedZoom = async () => { const zoom = (await readDocument(eurKey!))?.visibleTime; return zoom ? `${zoom.from},${zoom.to}` : null; };
+  // Ohne eigenen Zoom zeigt der Chart alle Kerzen wie nach dem Zurücksetzen und speichert nichts
+  await expect.poll(rangeOf).toBeTruthy();
+  const fitRange = await rangeOf();
+  await page.waitForTimeout(500);
+  expect(await savedZoom()).toBeNull();
   await eurChart.getByRole('button', { name: '+', exact: true }).click();
-  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).not.toBe(beforeZoom);
-  const zoomedRange = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  await expect.poll(rangeOf).not.toBe(fitRange);
+  const eurRange = await rangeOf();
+  await expect.poll(savedZoom).toBe(eurRange);
   await eurChart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
-  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).not.toBe(zoomedRange);
-  const eurRange = await page.getByTestId('analysis-chart').getAttribute('data-visible-range');
-  expect(eurRange).toBeTruthy();
-  await expect.poll(async () => {
-    const viewport = (await readDocument(eurKey!))?.viewport;
-    return viewport ? `${viewport.from},${viewport.to}` : null;
-  }).toBe(eurRange);
+  await expect.poll(rangeOf).toBe(fitRange);
+  await expect.poll(savedZoom).toBeNull();
+  await eurChart.getByRole('button', { name: '+', exact: true }).click();
+  await expect.poll(rangeOf).toBe(eurRange);
+  await expect.poll(savedZoom).toBe(eurRange);
 
   await page.goto(url('XAUUSD'));
   const goldChart = page.getByTestId('chart-workspace');
@@ -125,13 +130,46 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   expect(goldKey).not.toBe(eurKey);
   await expect.poll(async () => (await readDocument(goldKey!))?.appearance?.background).toBe('');
 
+  // Der Chart rundet beim Wiederherstellen um höchstens eine Kerze (3600 s)
+  const nearEurRange = async () => { const shown = await rangeOf(); if (!shown) return false; const [from, to] = shown.split(',').map(Number), [wantFrom, wantTo] = eurRange!.split(',').map(Number); return Math.max(Math.abs(from - wantFrom), Math.abs(to - wantTo)) <= 3600; };
   await page.goto(url('EURUSD'));
   await expect(page.getByTestId('chart-workspace')).toBeVisible();
-  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).toBe(eurRange);
+  await expect.poll(nearEurRange).toBe(true);
   expect((await readDocument(eurKey!)).appearance.background).toBe('');
+  await page.waitForTimeout(500);
+  await expect.poll(savedZoom).toBe(eurRange);
   await page.reload();
   await expect(page.getByTestId('chart-workspace')).toBeVisible();
-  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).toBe(eurRange);
+  await expect.poll(nearEurRange).toBe(true);
+});
+
+test('Mit mehr als 2000 Kerzen zeigt der Chart alle Kerzen', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // Der Chart lässt höchstens 0,5 px je Kerze zu: 2100 Kerzen passen nur in eine breite Ansicht
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
+  const series = Array.from({ length: 2100 }, (_, i) => [latest - (2100 - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
+  worker.state.ratesSeries = { H1: series };
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-visible-range', `${series[0][0]},${series[2099][0]}`);
+});
+
+test('Neue Kerze und Größenänderung speichern keinen Zoom, ein eigener Zoom überlebt den Zeitrahmenwechsel', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  const chart = page.getByTestId('chart-workspace');
+  await expect(chart).toBeVisible();
+  const key = (await chart.getAttribute('data-context'))!;
+  const zoom = () => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey]?.visibleTime ?? null, key);
+  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).toBeTruthy();
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await page.waitForTimeout(600);
+  expect(await zoom()).toBeNull();
+  await chart.getByRole('button', { name: '+', exact: true }).click();
+  await expect.poll(zoom).not.toBeNull();
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H4&range=30d`);
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-visible-range', /^\d+,\d+$/);
+  expect(await zoom()).not.toBeNull();
 });
 
 test('Indikatorinstanzen und Parameter bleiben je Symbol getrennt', { tag: '@ANA-18' }, async ({ page, worker }) => {

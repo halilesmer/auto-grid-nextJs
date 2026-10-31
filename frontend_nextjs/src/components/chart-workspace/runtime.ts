@@ -1,9 +1,10 @@
 import {
   BaselineSeries, ColorType, CrosshairMode, createTextWatermark, HistogramSeries, LineSeries, LineStyle, PriceScaleMode,
-  type IChartApi, type ISeriesApi, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
+  type IChartApi, type ISeriesApi, type LogicalRange, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
+import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
 import { aggregateIndicatorBars, calculateIndicator, isOscillator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 
@@ -16,6 +17,66 @@ export function createChartBinding(chart: IChartApi, candles: ISeriesApi<'Candle
     dispose() { if (disposed) return; disposed = true; for (const callback of callbacks) callback(); callbacks.clear(); },
   };
 }
+/** Wartezeit, bis ein Zoom gespeichert wird; so oft ändert sich der Bereich beim Ziehen */
+const VIEW_SAVE_DELAY_MS = 180;
+/** Der Chart übernimmt eine gesetzte Ansicht erst im nächsten Bild und rundet sie dabei auf Kerzen; diese Meldungen sind kein Zoom */
+const VIEW_SETTLE_MS = 150;
+
+/** Zeigt den gespeicherten Zeitbereich, wenn er die geladenen Kerzen überlappt, sonst alle Kerzen (wie „Ansicht zurücksetzen“). */
+export function restoreChartView(chart: IChartApi, times: readonly number[], saved: VisibleTime | undefined) {
+  const first = times[0], last = times[times.length - 1];
+  const overlaps = saved && first !== undefined && saved.to >= first && saved.from <= last;
+  if (overlaps) chart.timeScale().setVisibleRange({ from: saved.from as UTCTimestamp, to: saved.to as UTCTimestamp });
+  else chart.timeScale().fitContent();
+}
+
+/**
+ * Speichert den Zoom des Nutzers in dem Chart-Dokument `contextKey`; ein Bereich, der alle Kerzen zeigt, löscht ihn.
+ * Änderungen durch neue Kerzen (`pointCount`) oder eine andere Breite sind kein Zoom und bleiben unbeachtet.
+ * Setzt `data-visible-range` (von,bis in Kerzenzeit) am Element; gibt die Abmeldung zurück, die Ausstehendes schreibt.
+ */
+export function rememberChartView(chart: IChartApi, host: HTMLElement, contextKey: string, pointCount: () => number): () => void {
+  const scale = chart.timeScale();
+  let count = pointCount(), width = scale.width();
+  const asText = (r: { from: unknown; to: unknown }) => `${r.from},${r.to}`;
+  const settledAt = performance.now() + VIEW_SETTLE_MS;
+  let pending: { zoom: VisibleTime | undefined } | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const flush = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (!pending) return;
+    const { zoom } = pending;
+    pending = null;
+    const store = useChartWorkspaceStore.getState();
+    const doc = store.documents[contextKey] ?? emptyChartDocument();
+    if (doc.visibleTime?.from === zoom?.from && doc.visibleTime?.to === zoom?.to) return;
+    const { visibleTime, ...rest } = doc;
+    void visibleTime;
+    store.setDocument(contextKey, zoom ? { ...rest, visibleTime: zoom } : rest);
+  };
+  const onChange = (logical: LogicalRange | null) => {
+    const range = scale.getVisibleRange();
+    if (!logical || !range) return;
+    host.setAttribute('data-visible-range', asText(range));
+    if (pointCount() !== count || scale.width() !== width || performance.now() < settledAt) {
+      count = pointCount();
+      width = scale.width();
+      return;
+    }
+    // fitContent() liegt bis auf einen halben Kerzenabstand an den Rändern
+    const showsAll = logical.from <= 1 && logical.to >= count - 2;
+    pending = { zoom: showsAll ? undefined : { from: Number(range.from), to: Number(range.to) } };
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(flush, VIEW_SAVE_DELAY_MS);
+  };
+  scale.subscribeVisibleLogicalRangeChange(onChange);
+  return () => {
+    scale.unsubscribeVisibleLogicalRangeChange(onChange);
+    flush();
+  };
+}
+
 export function lineStyle(v: string) { if (v === 'dashed') return LineStyle.Dashed; if (v === 'dotted') return LineStyle.Dotted; return LineStyle.Solid; }
 function scaleMode(v: string) { if (v === 'log') return PriceScaleMode.Logarithmic; if (v === 'percent') return PriceScaleMode.Percentage; return PriceScaleMode.Normal; }
 export function appearanceColors(a: Appearance) {

@@ -9,7 +9,6 @@ import {
   createChart,
   createSeriesMarkers,
   LineStyle,
-  type LogicalRange,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
@@ -24,8 +23,8 @@ import { isBar, liveBar, type Bar, type ChartData } from '@/lib/analysis/candles
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
-import { type ChartBinding, createChartBinding, appearanceColors } from '@/components/chart-workspace/runtime';
-import { emptyChartDocument, useChartWorkspaceStore, type ChartViewport } from '@/store/useChartWorkspaceStore';
+import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView } from '@/components/chart-workspace/runtime';
+import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import {
   FractalsPrimitive,
   MissingDataPrimitive,
@@ -116,7 +115,7 @@ const MAX_HOVER_NOTES = 4;
 /** Beim Springen zu einem Trade: so viele Kerzen links und rechts davon */
 const FOCUS_BARS = 60;
 
-/** Bis zu so vielen Punkten passt die Ansicht den ganzen Zeitraum ein, sonst die letzten VISIBLE_BARS */
+/** Bis zu so vielen Punkten passt der Backtest den ganzen Zeitraum ein, sonst die letzten VISIBLE_BARS */
 const FIT_MAX_POINTS = 2000;
 const VISIBLE_BARS = 300;
 
@@ -186,10 +185,8 @@ export function ChartCore({
   const fittedKey = useRef<string | null>(null);
   const workspaceKey = workspace?.key;
   const workspaceView = workspace?.view;
-  const viewportContext = useRef({ key: '', viewKey, enabled: false });
-  useEffect(() => {
-    viewportContext.current = { key: workspaceKey ?? '', viewKey, enabled: workspaceView === 'analysis' || workspaceView === 'free' };
-  }, [workspaceKey, workspaceView, viewKey]);
+  const forgetView = useRef<(() => void) | null>(null);
+  const pointsRef = useRef(data.points);
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const [colors, setColors] = useState<ChartColors | null>(null);
   const [hover, setHover] = useState<{ bar: Bar | null; time: number } | null>(null);
@@ -253,36 +250,12 @@ export function ChartCore({
       setHover({ bar: barByTimeRef.current.get(time) ?? null, time });
     };
     chart.subscribeCrosshairMove(onMove);
-    let pendingViewport: { key: string; range: ChartViewport } | null = null;
-    let viewportTimer: ReturnType<typeof setTimeout> | null = null;
-    const flushViewport = () => {
-      if (viewportTimer) clearTimeout(viewportTimer);
-      viewportTimer = null;
-      const pending = pendingViewport;
-      pendingViewport = null;
-      if (!pending) return;
-      const store = useChartWorkspaceStore.getState();
-      const doc = store.documents[pending.key] ?? emptyChartDocument();
-      const current = doc.viewport;
-      if (current?.from === pending.range.from && current.to === pending.range.to) return;
-      store.setDocument(pending.key, { ...doc, viewport: pending.range });
-    };
-    const onVisibleRangeChange = (range: LogicalRange | null) => {
-      const current = viewportContext.current;
-      if (!current.enabled || !current.key || fittedKey.current !== current.viewKey || !range || typeof range.from !== 'number' || typeof range.to !== 'number') return;
-      const savedRange = { from: range.from, to: range.to };
-      el.setAttribute('data-visible-range', `${savedRange.from},${savedRange.to}`);
-      pendingViewport = { key: current.key, range: savedRange };
-      if (viewportTimer) clearTimeout(viewportTimer);
-      viewportTimer = setTimeout(flushViewport, 180);
-    };
-    chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange);
     return () => {
-      flushViewport();
+      forgetView.current?.();
+      forgetView.current = null;
       cancelAnimationFrame(readyFrame);
       attached.dispose?.();
       chart.unsubscribeCrosshairMove(onMove);
-      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onVisibleRangeChange);
       chart.remove();
       chartRef.current = null;
       candlesRef.current = null;
@@ -322,7 +295,10 @@ export function ChartCore({
   useEffect(() => {
     const chart = chartRef.current;
     const candles = candlesRef.current;
-    if (!chart || !candles) return;
+    const el = containerRef.current;
+    if (!chart || !candles || !el) return;
+    // Vor setData, damit rememberChartView die neue Punktzahl kennt, wenn der Chart den Bereich meldet
+    pointsRef.current = data.points;
     const c = appearanceColors(appearance);
     candles.setData(data.points.map((p, i) => {
       const prev = data.points[i - 1];
@@ -339,7 +315,6 @@ export function ChartCore({
     // Nur bei neuer Auswahl ausrichten; das Nachladen des Endstücks lässt die Ansicht stehen
     if (fittedKey.current === viewKey || data.points.length === 0) return;
     const n = data.points.length;
-    const from = n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS;
     // autoSize setzt die Breite erst nach dem ersten ResizeObserver-Lauf; vorher bliebe die Ansicht
     // beim Standard-Kerzenabstand stehen
     let frame = 0;
@@ -355,19 +330,19 @@ export function ChartCore({
         frame = requestAnimationFrame(align);
         return;
       }
-      const savedRange = workspaceKey && (workspaceView === 'analysis' || workspaceView === 'free')
-        ? useChartWorkspaceStore.getState().documents[workspaceKey]?.viewport
-        : undefined;
       // Erst eine tatsächlich ausgeführte Ausrichtung gilt als fertig. Ein neuer Render
       // kann den geplanten Frame vorher abbrechen und muss ihn dann erneut planen.
       fittedKey.current = viewKey;
       setAlignedView(viewKey);
-      if (savedRange && Number.isFinite(savedRange.from) && Number.isFinite(savedRange.to) && savedRange.from < savedRange.to) {
-        if (savedRange.from <= 0 && savedRange.to >= n) chart.timeScale().fitContent();
-        else chart.timeScale().setVisibleLogicalRange(savedRange);
+      forgetView.current?.();
+      forgetView.current = null;
+      // Analyse und freier Chart zeigen alle Kerzen oder den gespeicherten Zoom; der Backtest die letzten VISIBLE_BARS
+      if (!workspaceKey || (workspaceView !== 'analysis' && workspaceView !== 'free')) {
+        chart.timeScale().setVisibleLogicalRange({ from: n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS, to: n + 3 });
         return;
       }
-      chart.timeScale().setVisibleLogicalRange({ from, to: n + 3 });
+      restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
+      forgetView.current = rememberChartView(chart, el, workspaceKey, () => pointsRef.current.length);
     };
     // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
     // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
@@ -460,7 +435,6 @@ export function ChartCore({
   }, [fractals, colors, data]);
 
   // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
-  const pointsRef = useRef(data.points);
   useEffect(() => {
     pointsRef.current = data.points;
   }, [data.points]);
