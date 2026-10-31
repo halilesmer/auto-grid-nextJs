@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [252]
 features: [UI-07]
 areas: [frontend, tests]
 ---
@@ -26,8 +26,8 @@ areas: [frontend, tests]
 ## Solution
 | File | Change |
 |---|---|
-| `src/components/ui/tooltip.tsx` | Start the open timer on `onPointerOver` instead of `onPointerEnter`. Do nothing if the tooltip is open or the timer runs. |
-| `e2e/mocked/tooltips.spec.ts` | New test sends `pointerover` with a `relatedTarget` inside the React tree, without `pointerout`. |
+| `src/components/ui/tooltip.tsx` | Start the open timer on `onPointerOver` instead of `onPointerEnter`. Only the first `pointerover` after the pointer enters starts the timer. `onPointerLeave` resets this. |
+| `e2e/mocked/tooltips.spec.ts` | Two tests check that a new `pointerover` does not reopen a tooltip that a click or Escape closed. A third test sends `pointerover` with a `relatedTarget` inside the React tree, without `pointerout`. |
 
 ## Why
 The product code is wrong, not the test. A real mouse can also jump from an element that closes. `pointerover` always reaches React, so the tooltip opens.
@@ -35,10 +35,11 @@ The expected value of the old test stays the same. We added no wait and no `skip
 The new test is deterministic. It failed 3 of 3 runs before the fix.
 
 ## Verification
-- New test before the fix: 3 of 3 red.
-- New test and the old test after the fix: 15 of 15 green each (30 of 30).
+- Review found that a new `pointerover` reopened a tooltip after click or Escape. Both new tests were red first.
+- `pointerover` tests and the old test after the fix: 60 of 60 green (15 runs each).
 - `tsc --noEmit` and `eslint` on the changed files: no errors.
 - Full mocked suite: see the PR description.
 
 ## Lessons
 - `onPointerEnter` in React depends on `pointerout`. Use `onPointerOver` with a guard when an element can disappear under the pointer.
+- The guard depends on `pointerleave`. React derives it from `pointerout`. If the browser sends no `pointerleave`, the tooltip stays closed on the next entry.

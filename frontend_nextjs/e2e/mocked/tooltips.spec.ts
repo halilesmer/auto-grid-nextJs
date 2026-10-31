@@ -351,6 +351,24 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
     await expect(page.getByRole('tooltip')).toContainText(msg('zone.field.gridStep.hint'));
   });
 
+  for (const closeBy of ['Klick', 'Escape'] as const) {
+    test(`Ein weiteres pointerover öffnet den geschlossenen Hinweis nicht neu (${closeBy})`, { tag: '@UI-07' }, async ({ page, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      const hint = fieldHint(dashboard.zone(), msg('zone.field.gridStep'));
+      const tooltip = page.getByRole('tooltip');
+      await hint.hover();
+      await expect(tooltip).toBeVisible();
+      if (closeBy === 'Klick') await page.mouse.down();
+      else await page.keyboard.press('Escape');
+      await expect(tooltip).toHaveCount(0);
+      // Der Zeiger bleibt auf dem Icon; pointerover kommt erneut (Kind-Element, Layoutwechsel)
+      await hint.evaluate((el) => el.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })));
+      await page.waitForTimeout(600);
+      await expect(tooltip).toHaveCount(0);
+      await page.mouse.up();
+    });
+  }
+
   test('Nicht abgeschnitten in der Zonenkarte (overflow-hidden)', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
