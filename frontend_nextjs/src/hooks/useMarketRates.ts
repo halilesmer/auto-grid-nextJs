@@ -61,7 +61,7 @@ function columns(page: RatesResponse, tfSec: number) {
   return { bars, missing: [...page.missing, ...invalid] };
 }
 
-async function loadAll(
+export async function loadAll(
   accountId: string,
   q: { symbol: string; timeframe: Timeframe; from: number; to: number },
   signal: AbortSignal,

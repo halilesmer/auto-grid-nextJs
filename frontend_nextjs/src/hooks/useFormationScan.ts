@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@/i18n';
-import type { Bar, Timeframe } from '@/lib/analysis/candles';
+import type { Bar } from '@/lib/analysis/candles';
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
+import { formationRequests } from '@/lib/formation/requests';
 import { scanFormations, scanTime, type ScanHit } from '@/lib/formation/scan';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useMarketRates } from '@/hooks/useMarketRates';
-
-/** Tage Verlauf je Zeiteinheit: genug Wendepunkte für die Suche, wenig genug für eine schnelle Antwort (Annahme) */
-const HISTORY_DAYS = { D1: 400, H4: 120, H1: 40, M15: 10 } as const;
 
 export interface FormationScan {
   loading: boolean;
@@ -42,8 +40,7 @@ export function useFormationScan(accountId: string | null, symbol: string | null
   const to = dayStart(brokerToday(offsetSec ?? 0)) + DAY_SEC;
   const requests = useMemo(() => {
     if (!accountId || !symbol || !clockReady) return null;
-    const one = (timeframe: Timeframe) => ({ accountId, symbol, timeframe, from: to - HISTORY_DAYS[timeframe as keyof typeof HISTORY_DAYS] * DAY_SEC, to });
-    return { D1: one('D1'), H4: one('H4'), H1: one('H1'), M15: one('M15') };
+    return formationRequests(accountId, symbol, to);
   }, [accountId, symbol, clockReady, to]);
   const d1 = useMarketRates(requests?.D1 ?? null, nowSec);
   const h4 = useMarketRates(requests?.H4 ?? null, nowSec);
