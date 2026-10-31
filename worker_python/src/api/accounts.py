@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +11,7 @@ from src.api.errors import DuplicateAccountProblem
 from src.api.helpers import _load_accounts, _public_account, _save_accounts
 from src.api.system import find_mt5_terminals
 from src.utils.bot_manager import is_bot_running
+from src.utils.paths import get_favorites_path
 
 router = APIRouter(tags=["Accounts"])
 
@@ -198,6 +200,12 @@ async def delete_account(account_id: str):
             await asyncio.to_thread(market_db.delete_account, str(account_id))
         except Exception as exc:  # noqa: BLE001  (arşiv silinemese de hesap silinmiş olur)
             print(f"⚠️ [MARKET-DB] Hesabın deal arşivi silinemedi: {exc}")
+        try:
+            os.remove(get_favorites_path(account_id))
+        except FileNotFoundError:
+            pass  # Hesabın favorisi yoktu
+        except OSError as exc:  # hesap zaten silindi; artık dosya yetim kalır ama istek başarısız sayılmaz
+            print(f"⚠️ [FAVORITES] Favori dosyası silinemedi: {exc}")
         return {"status": "deleted", "account_id": account_id}
     except HTTPException:
         raise

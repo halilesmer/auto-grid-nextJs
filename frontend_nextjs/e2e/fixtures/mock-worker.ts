@@ -375,7 +375,7 @@ export class MockWorker {
   private scopedAccountId(method: string, url: URL): string | null {
     const seg = url.pathname.replace(/^\/api/, '').split('/').filter(Boolean);
     if (seg[0] === 'logs' && seg[1] === 'download') return seg[2] ?? null;
-    if (['settings', 'ui-state', 'symbols', 'logs'].includes(seg[0]) && seg.length === 2) return seg[1];
+    if (['settings', 'ui-state', 'symbols', 'logs', 'favorites'].includes(seg[0]) && seg.length === 2) return seg[1];
     if (seg[0] === 'market' && seg.length === 3) return seg[1];
     if (seg[0] === 'history' && seg.length === 3) return seg[1];
     if (seg[0] === 'accounts' && seg.length === 2 && method !== 'GET') return seg[1];
@@ -823,6 +823,18 @@ export class MockWorker {
         return ok({ status: 'saved', account_id: id, states });
       }
       if (method === 'GET') return ok({ account_id: id, states: s.uiState[id] ?? {} });
+    }
+    if (seg[0] === 'favorites') {
+      // Wie favorites.py: GET liefert die Liste, PUT ersetzt sie (Tippfehler im Inhalt = 422)
+      const id = seg[1];
+      if (method === 'PUT') {
+        const list = (body as Json | null)?.symbols;
+        if (!Array.isArray(list) || !list.every((x) => typeof x === 'string' && x.length >= 1 && x.length <= 40)) {
+          return { status: 422, body: { detail: 'invalid favorites' } };
+        }
+        s.favorites[id] = [...new Set(list as string[])];
+      }
+      return ok({ status: 'success', account_id: id, symbols: s.favorites[id] ?? [] });
     }
     if (seg[0] === 'symbols' && method === 'GET') {
       // Wie symbols.py: leere Liste + „error“, wenn MT5 die Symbole nicht liefern konnte

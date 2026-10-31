@@ -255,7 +255,7 @@
   },
   "ANA-17": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 1
     }
@@ -269,9 +269,9 @@
   },
   "ANA-19": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
-      "tests": 7
+      "tests": 3
     }
   },
   "ANA-20": {
@@ -734,177 +734,203 @@
   },
   "FRM-01": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 22
     }
   },
   "FRM-02": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 99
     }
   },
   "FRM-03": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 56
     }
   },
   "FRM-04": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 119
     }
   },
   "FRM-05": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 57
     }
   },
   "FRM-06": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 43
     }
   },
   "FRM-07": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 63
     }
   },
   "FRM-08": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 25
     }
   },
   "FRM-09": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 48
     }
   },
   "FRM-10": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 47
     }
   },
   "FRM-11": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 74
     }
   },
   "FRM-12": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 70
     }
   },
   "FRM-13": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 82
     }
   },
   "FRM-14": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 77
     }
   },
   "FRM-15": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 28
     }
   },
   "FRM-16": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 33
     }
   },
   "FRM-17": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 26
     }
   },
   "FRM-18": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 5
     }
   },
   "FRM-19": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 3
     }
   },
   "FRM-20": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
-      "tests": 10
+      "tests": 13
     }
   },
   "FRM-21": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 1
     }
   },
   "FRM-22": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 1
     }
   },
   "FRM-23": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 3
     }
   },
   "FRM-24": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
-      "tests": 2
+      "tests": 3
     }
   },
   "FRM-25": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-10-31",
       "status": "passed",
       "tests": 7
+    }
+  },
+  "FRM-26": {
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 4
+    }
+  },
+  "FRM-27": {
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 15
+    }
+  },
+  "FRM-28": {
+    "api": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 9
+    },
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 5
     }
   },
   "LOG-01": {

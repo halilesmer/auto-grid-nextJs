@@ -8,6 +8,7 @@ from src.api.bot_control import router as bot_control_router
 from src.api.symbols import router as symbols_router
 from src.api.system import router as system_router
 from src.api.users import router as users_router
+from src.api.favorites import router as favorites_router
 
 from src.api.backtest_presets import router as backtest_presets_router
 from src.api.backtest_reports import router as backtest_reports_router
@@ -23,6 +24,7 @@ api_router.include_router(bot_control_router)
 api_router.include_router(symbols_router)
 api_router.include_router(system_router)
 api_router.include_router(users_router)
+api_router.include_router(favorites_router)
 api_router.include_router(backtest_presets_router)
 api_router.include_router(backtest_reports_router)
 

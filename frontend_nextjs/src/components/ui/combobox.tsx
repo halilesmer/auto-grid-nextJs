@@ -379,6 +379,8 @@ interface ComboboxAutocompleteProps<T>
   /** Liste boşken "bulunamadı" mesajı gösterilsin mi */
   showEmpty?: boolean;
   emptyMessage?: ReactNode;
+  /** Tab übernimmt den vorgemerkten Eintrag (Standard); aus: Tab wandert zu den Knöpfen in den Zeilen. */
+  tabSelects?: boolean;
 }
 
 export function ComboboxAutocomplete<T>({
@@ -390,6 +392,7 @@ export function ComboboxAutocomplete<T>({
   onSelect,
   showEmpty = false,
   emptyMessage,
+  tabSelects = true,
   className,
   onFocus,
   ...inputProps
@@ -450,7 +453,7 @@ export function ComboboxAutocomplete<T>({
         break;
       case 'Tab':
         // Tab vurgulanan öneriyi alır
-        if (highlightedIndex >= 0 && highlightedIndex < items.length) {
+        if (tabSelects && highlightedIndex >= 0 && highlightedIndex < items.length) {
           e.preventDefault();
           select(items[highlightedIndex]);
         }
