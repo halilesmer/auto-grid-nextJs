@@ -53,3 +53,6 @@ repomix-output.*
 frontend_nextjs/test-results/
 frontend_nextjs/playwright-report/
 frontend_nextjs/blob-report/
+
+# Codex hata taraması: prompt ve rapor dosyaları
+docs/codex/

@@ -9,6 +9,7 @@ Bir sonuç iddiası, dayandığı kanıtla birlikte yazılır.
 - "Bitti", "geçiyor", "düzeldi" cümlesi, bu turda çalıştırılan komutun çıktısı okunduktan sonra yazılır. Yanına komut ve sonucu eklenir: `test → yeşil`, `test → 42 geçti, 0 kırmızı`.
 - Kanıt, iş sırasında zaten çalıştırılan denetimin çıktısıdır; yalnız rapor için ek denetim adımı eklenmez.
 - Hata düzeltmesi, düzeltmeden önce kırmızı olan test ya da yeniden üretme komutu yeşile dönünce "düzeldi" sayılır.
+- Claude'un kullanıcının yardımı olmadan çalıştırabildiği test kullanıcıya bırakılmaz; Claude onu kendisi çalıştırır. Projenin onay isteyen test kuralı (ör. canlı işlem testi) bunun önündedir.
 - Çalıştırılmayan veya çalıştırılamayan denetim "doğrulanmadı" diye yazılır; nedeni tek cümledir.
 - İş kısmen bittiyse biten ve kalan parça ayrı yazılır.
 - Alt ajanın ya da betiğin "başarılı" demesi kanıt sayılmaz; çıktısı veya değişen dosya okunur.

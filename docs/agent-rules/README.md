@@ -6,7 +6,7 @@ Copy of the owner's global rules for coding agents (source: `~/.claude/rules/` o
 |---|---|---|
 | `calisma-disiplini.md` | Evidence, no weakened checks, surgical changes, secrets | all work |
 | `communication-style.md` | Reply structure, focus line, backlog, decision log | all replies |
-| `ajan-kullanimi.md` | Subagents: cost estimate first, max. 5 agents | multi-agent work |
+| `ajan-kullanimi.md` | Subagents: cost estimate first, max. 5 agents; Codex: final read-only bug hunt only | multi-agent work, final check |
 | `dogruluk.md` | Types, error handling | code files |
 | `mimari.md` | Dependency direction, boundary checks | code files |
 | `okunabilirlik.md` | Call sites, comments, names, flow | code files |

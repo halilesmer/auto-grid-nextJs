@@ -66,3 +66,47 @@ Gerekçe: Bir ajanın her araç çağrısında o ana kadar biriken bağlamın ta
 - Ajan sayısını ve düzenini Claude belirler; bu kararın sahibi açıkça söylenir. Bir sınır ya da rehber aşıldıysa bu, sonradan değil, başlamadan önce söylenir.
 
 Gerekçe: Kullanıcı ancak gördüğü maliyeti ve kararı yönetebilir; aşılan bir sınırın sonradan öğrenilmesi güveni zedeler (3 Ekim 2026'da varsayılan 10 ajan rehberi aşıldı ve bu açıkça söylenmedi).
+
+## 6. Yeni oturumlar
+
+- Claude'un yeni oturum gerektiğine karar verdiği iş, `start_session` ile `initiation: "user_asked"` olarak doğrudan başlatılır; "offer" kartıyla onay sorulmaz. Başlatmadan önce bold başlık ve tek cümleyle ne yapacağı yazılır.
+- Yeni oturumlar Remote Control'e bağlı açılır (uygulama ayarı `connect_new_sessions_to_remote_control` açık). Ayar kapalı bulunursa Claude onu `set_setting` ile açar ya da oturumda `set_remote_control` kullanır.
+
+- Claude, alt oturumu başlatırken brife şu kuralı yazar: alt oturum, görevi bilen koordinatöre `SendMessage` ile sorar; kullanıcıya sormaz. Koordinatöre giden: başlatma ve uygulama onayı, maliyet-süre tablosu, göreve ilişkin geri sorular. Koordinatör yalnız kullanıcının önceden onayladığı kapsam içinde yanıtlar.
+- Kullanıcıya giden: kaynağın ya da kararın sessiz kaldığı sorular, yeni kimlik/ad/kural onayı, mimari/güvenlik/canlı işlem, arşivleme ve onaylı kapsamın dışındaki her şey.
+
+Gerekçe: Kullanıcı yeni oturum için onay kartını gereksiz ara adım sayıyor ve oturumları telefondan izlemek istiyor (kullanıcı talebi, 2026-10-17). Bir alt oturum, görevi bilen koordinatör yerine onayı kullanıcıya sordu (kullanıcı talebi, 2026-10-22).
+
+## 7. Codex: son hata taraması
+
+Planı ve kodu Claude yazar. Codex yalnız iş bitince hata arar; kod yazmaz, düzeltmez, commit atmaz.
+
+- Zaman: kod bitip Claude'un kendi denetimleri (test, lint, tip, `reviewer`) yeşil olunca, PR açılmadan önce bir kez çalışır. Yalnız metin, belge ya da ayar değişikliğinde çalışmaz; atlandığı yanıtta yazılır.
+- Kapsam: branch'in base'e göre tüm farkı, etkilenen çağıranlar, çağrılan fonksiyonlar ve testler.
+- Başlatma otomatiktir; kullanıcıdan onay istenmez. Claude promptu `docs/codex/<konu>-prompt.md` dosyasına yazar ve Codex'i arka planda başlatır: `codex exec -C <worktree> -s read-only -m gpt-6.1-sol -c model_reasoning_effort=xhigh -o <worktree>/docs/codex/<konu>-rapor.md - < <prompt dosyası>` (`run_in_background`). Rapor `-o` ile oluşur, çünkü Codex `read-only` modunda dosya yazamaz. Sürüm `codex-cli 0.162.0` ile doğrulandı.
+- Model her zaman `gpt-6.1-sol`, effort `xhigh`'dır. `gpt-6-astra` hiçbir durumda seçilmez.
+- Başlatırken Claude kullanıcıya tek satırla bildirir: hangi branch, prompt dosyasının yolu. Bitince sonucu tek satırla bildirir: bulgu sayısı, rapor dosyasının yolu.
+- Tarama sürerken Claude o branch'i değiştirmez.
+- Prompt şu alanları taşır:
+  - Amaç: tek cümle.
+  - Kapsam: base branch ve fark komutu.
+  - Bağlam: okunacak kural dosyaları.
+  - Aranan, bu sırayla: doğruluk, güvenlik, veri kaybı, eşzamanlılık, eksik test.
+  - Bulgu biçimi: önem, `dosya:satır`, tetikleyen durum, sonuç, en küçük düzeltme.
+  - Sınır: hiçbir dosya değiştirilmez; somut tetik ve kod kanıtı olmayan bulgu yazılmaz; incelenemeyen yol yazılır.
+- Prompt'ta sır, kimlik bilgisi, hesap numarası ve IP yazılmaz.
+- Claude her bulguyu koda karşı kendisi sınar; Codex'in sözü kanıt sayılmaz (calisma-disiplini §1). Doğrulanan bulguyu Claude düzeltir, önce kırmızı test yazar. Reddedilen bulgu tek cümlelik gerekçeyle yanıtta yazılır. Kalıcı bilgi projenin kayıt yerine yazılır.
+- Tarama bir turdur. Düzeltme tasarımı değiştirmediyse yeniden çalıştırılmaz.
+- Claude başlatmadan önce `bash ~/.claude/scripts/codex-limit.sh` çalıştırır. Betik en yeni `~/.codex/sessions` kaydından okur; `unknown` verirse kesin sinyal kota hatasıdır. `weekly_left` 5 ya da altındaysa ya da `codex exec` kota veya oturum hatası verirse tarama atlanır, PR sürer ve `Dikkat:` satırına "Codex taraması çalışmadı" yazılır. Codex'in dönmesi beklenmez.
+
+Gerekçe: Planı ve kodu tek elde tutmak bağlam kaybını önler; kodu yazmayan ikinci bir model yazarın kör noktalarını bulur (kullanıcı talebi, 2026-10-31). Ajan beyanı kanıt değildir (kullanıcı talebi, 2026-10-21). Model yasağı: kullanıcı talimatı, 2026-10-22.
+
+## 8. Haftalık limit
+
+- Claude her görevin başında ve yeni bir adımdan ya da alt oturumdan önce `get_usage` ile `Weekly · all models` yüzdesini okur.
+- Kalan pay (100 − kullanılan) %5'e düştüğünde Claude yeni iş başlatmaz; çalışan alt oturumları `stop_session` ile durdurur.
+- Başlatmadan önce Claude işin maliyetini ölçülmüş benzer işlerden tahmin eder ve kalan payla karşılaştırır; maliyet, kalan payın %5 rezervi düşülmüş hâlini aşıyorsa iş başlatılmaz, §2 tablosu ve tahmin kullanıcıya gösterilir. Yüzdeye çevrilemeyen tahmin "bilinmiyor" yazılır. İş bitince gerçekleşen maliyet tahminin yanına yazılır.
+- Limit dolarken Claude her açık işin durumunu projenin kayıt yerine yazar: branch, commit edilmemiş dosyalar, son test çıktısı (yeşil ya da kırmızı). Commit edilmemiş değişiklik commit edilmez, yalnız listelenir.
+- Limit yenilenince Claude işi bu kayıttan kendisi sürdürür.
+
+Gerekçe: Limit dolunca iş yarım kalmamalıdır; durum kaydı ve önceden maliyet tahmini hem kesintiyi hem limit aşımını önler (kullanıcı talebi, 2026-10-28). İş Codex'e devredilmez, kodu Claude yazar (kullanıcı talebi, 2026-10-31).
