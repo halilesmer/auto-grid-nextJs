@@ -308,8 +308,8 @@ VPS-09:
   status: bestanden
   datum: '2026-10-15'
   notiz: 'Vercel-Version, Admin-Schlüssel: Panel zeigt Version/Laufzeit/Log; Worker
-    neu starten → nach ~20 s wieder erreichbar, Laufzeit 1 min → 0 min, 2 Bots (4 Konten)
-    liefen weiter'
+    neu starten → nach ~20 s wieder erreichbar, Laufzeit 1 min → 0 min, 2 Bots (4
+    Konten) liefen weiter'
 VPS-10:
   status: bestanden
   datum: '2026-10-01'
@@ -407,3 +407,12 @@ BKT-06:
   notiz: 'Live v0.7.182: Settings HTTP 200 (60 ms), Brokeruhr HTTP 200 (148 ms); gespeichertes
     Setup lief über 30 Tage bis zum Ergebnis. Keine Einstellungen oder Handelszustände
     geändert.'
+FRM-28:
+  status: bestanden
+  datum: '2026-10-31'
+  notiz: 'DEMO, echter Worker v0.7.301: Fahne setzen/entfernen, Liste nach Neuladen'
+FRM-29:
+  status: bestanden
+  datum: '2026-10-31'
+  notiz: 'DEMO, echter Worker v0.7.301: 10 Favoriten, Filter, Stichprobe 4/4, Preise,
+    Wochenende'
