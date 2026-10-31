@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Bar } from '@/lib/analysis/candles';
 import {
   CandlestickSeries,
   ColorType,
@@ -94,6 +95,8 @@ interface Props {
   hit: ScanHit;
   context: FormationContext;
   scanAt: number;
+  /** Laufende Kerze mit dem aktuellen Preis, nur zur Anzeige: Suche, RSI und Zeichnungen enden an der letzten geschlossenen Kerze */
+  running: Bar | null;
   digits: number | null;
   /** Hervorgehobene Zeichnungen (Hover auf Zeile oder Zeichnung); null: alle gleich */
   active: readonly string[] | null;
@@ -106,10 +109,14 @@ interface Props {
  * Kerzen und RSI(7) des gewählten Kandidaten mit den Zeichnungen der Erkennung als SVG-Overlay. Der Container
  * bildet einen eigenen Stapelkontext (die Canvases des Charts tragen z-index), das Overlay endet vor der Preisachse.
  */
-export function FormationChart({ accountId, hit, context, scanAt, digits, active, onActive, onCapture }: Props) {
+export function FormationChart({ accountId, hit, context, scanAt, running, digits, active, onActive, onCapture }: Props) {
   const t = useT();
   const source = useConnectionStore(s => s.baseUrl);
   const [binding, setBinding] = useState<ChartBinding | null>(null);
+  // Für rememberChartView: die laufende Kerze zählt mit, sonst gälte ihr Erscheinen als Zoom des Nutzers
+  const runningCount = useRef(0);
+  const shown = useRef<Bar | null>(null);
+  const redrawRef = useRef<(() => void) | null>(null);
   const { number } = useFormat();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -171,7 +178,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
     const indexOf = new Map(view.bars.map((b, i) => [b.time, i]));
     // Die Ansicht hängt nicht vom Kandidaten ab: alle Kerzen oder der gespeicherte Zoom dieses Produkts
     restoreChartView(chart, view.bars.map((b) => b.time), useChartWorkspaceStore.getState().documents[contextKey]?.visibleTime);
-    const forgetView = rememberChartView(chart, box, contextKey, () => view.bars.length);
+    const forgetView = rememberChartView(chart, box, contextKey, () => view.bars.length + runningCount.current);
 
     const lastBar = view.bars[view.bars.length - 1];
     const redraw = () => {
@@ -202,6 +209,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
+    redrawRef.current = redraw;
     let lastWidth = box.clientWidth;
     const observer = new ResizeObserver(() => {
       if (lastWidth !== box.clientWidth) {
@@ -217,6 +225,7 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
     let redrawFrame = 0;
     const frame = requestAnimationFrame(() => { redrawFrame = requestAnimationFrame(redraw); });
     return () => {
+      redrawRef.current = null;
       cancelAnimationFrame(frame);
       cancelAnimationFrame(redrawFrame);
       observer.disconnect();
@@ -235,17 +244,51 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
     rsi.applyOptions({ color: colors.primary });
   }, [colors, view, hit]);
 
-  useEffect(() => {
-    if (!binding || binding.isDisposed() || !view) return;
+  const closedData = useMemo(() => {
+    if (!view) return [];
     const c = appearanceColors(appearance);
-    binding.candles.setData(view.bars.map((b, i) => {
+    return view.bars.map((b, i) => {
       if (!appearance.previous || !i) return { ...b, time: b.time as UTCTimestamp };
       const up = b.close >= view.bars[i - 1].close;
       let color = up ? c.up : c.down; if (!appearance.body) color = 'transparent';
       return { ...b, time: b.time as UTCTimestamp, color, borderColor: up ? c.borderUp : c.borderDown, wickColor: up ? c.wickUp : c.wickDown };
-    }));
+    });
+  }, [view, appearance]);
+
+  useEffect(() => {
+    if (!binding || binding.isDisposed() || !view) return;
+    binding.candles.setData(closedData);
     chartRef.current?.rsi.applyOptions({ visible: overlays.rsi });
-  }, [binding, view, appearance, overlays.rsi]);
+  }, [binding, view, closedData, overlays.rsi]);
+
+  const lastClosed = view?.bars[view.bars.length - 1];
+  useEffect(() => {
+    // Nie vor oder auf der letzten geschlossenen Kerze schreiben: update() würde die Kerze ersetzen oder werfen
+    if (!binding || binding.isDisposed() || !view || !lastClosed || !running || running.time <= lastClosed.time) {
+      // Eine zuvor gezeigte laufende Kerze zurücknehmen: die Serie wieder nur mit geschlossenen Kerzen füllen
+      if (runningCount.current && binding && !binding.isDisposed()) binding.candles.setData(closedData);
+      runningCount.current = 0;
+      shown.current = null;
+      boxRef.current?.removeAttribute('data-last-price');
+      return;
+    }
+    runningCount.current = 1;
+    // Schon gezeigte Extremwerte bleiben, solange es dieselbe Kerze ist (der Preis kann wieder zurückgehen)
+    const prev = shown.current?.time === running.time ? shown.current : null;
+    const bar = prev ? { ...running, high: Math.max(running.high, prev.high), low: Math.min(running.low, prev.low) } : running;
+    shown.current = bar;
+    const c = appearanceColors(appearance);
+    const up = bar.close >= lastClosed.close;
+    const bodyColor = up ? c.up : c.down;
+    const style = appearance.previous ? { color: appearance.body ? bodyColor : 'transparent', borderColor: up ? c.borderUp : c.borderDown, wickColor: up ? c.wickUp : c.wickDown } : {};
+    binding.candles.update({ ...bar, ...style, time: bar.time as UTCTimestamp });
+    // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
+    boxRef.current?.setAttribute('data-last-price', `${running.time}:${running.close}`);
+    // Die Preisachse kann sich ändern: Zeichnungen folgen im nächsten Frame
+    const frame = requestAnimationFrame(() => redrawRef.current?.());
+    return () => cancelAnimationFrame(frame);
+    // overlays.rsi: der setData-Effekt oben setzt die Serie neu und löscht dabei die laufende Kerze
+  }, [binding, view, closedData, lastClosed, appearance, running, overlays.rsi]);
 
   const activeSet = active ? new Set(active) : null;
   const finalName = FINAL_POINT[hit.form];

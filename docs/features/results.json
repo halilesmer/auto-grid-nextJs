@@ -952,6 +952,13 @@
       "tests": 8
     }
   },
+  "FRM-31": {
+    "e2e": {
+      "datum": "2026-10-31",
+      "status": "passed",
+      "tests": 4
+    }
+  },
   "LOG-01": {
     "api": {
       "datum": "2026-10-12",

@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -1093,5 +1093,22 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(375);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+});
+
+test.describe('FRM-31 laufende Kerze', () => {
+  test('Der Chart endet auf dem Preis der laufenden M15-Kerze, die Suche bleibt gleich', { tag: '@FRM-31' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    const series = worker.state.ratesSeries as Record<string, number[][]>;
+    const price = 1.2222;
+    // H4 hat eine eigene laufende Kerze mit anderem Schluss; der Chart muss trotzdem den M15-Preis zeigen
+    series.H4 = [...series.H4, [NOW, 1.2, 1.2, 1.2, 1.2345]];
+    series.M15 = [[NOW - 900, 1.2, 1.2, 1.2, 1.2], [NOW, price, price, price, price]];
+    worker.state.ratesLive = { H4: NOW, M15: NOW };
+    await page.goto(URL);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('formation-form-GAR').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.getByTestId('formation-form-BAT').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-last-price', `${NOW}:${price}`);
   });
 });

@@ -173,6 +173,9 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
   Schluss 1 s vor Kerzenende (wichtig für die 30-s-Bremse und den Swap um Mitternacht).
 - **Kein Blick in die Zukunft:** Zum Zeitpunkt t sieht der Bot nur abgeschlossene Kerzen, die
   laufende Kerze bis zum bisher gelaufenen Weg und den aktuellen Preis.
+- **Laufende Kerze auf /formasyon:** Der Chart zeigt zusätzlich die laufende Kerze mit dem gemeinsamen Preis
+  (Schluss der laufenden M15-Kerze). Das ist nur Anzeige: Suche, RSI und Zeichnungen enden an der letzten
+  geschlossenen Kerze (FRM-31).
 - **Optionen:** „Konservative Ausführungsregel“ (TP und SL im selben Wegstück: SL zuerst),
   „Sensitivität: beide Kerzenwege“ (zwei Läufe, Spanne anzeigen; eine Prüfung, keine Garantie),
   „Modell mit Gap-Ausführung“ (bei Kurslücken Füllung zum Marktpreis).
