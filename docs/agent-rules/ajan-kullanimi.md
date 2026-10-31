@@ -110,3 +110,29 @@ Gerekçe: Planı ve kodu tek elde tutmak bağlam kaybını önler; kodu yazmayan
 - Limit yenilenince Claude işi bu kayıttan kendisi sürdürür.
 
 Gerekçe: Limit dolunca iş yarım kalmamalıdır; durum kaydı ve önceden maliyet tahmini hem kesintiyi hem limit aşımını önler (kullanıcı talebi, 2026-10-28). İş Codex'e devredilmez, kodu Claude yazar (kullanıcı talebi, 2026-10-31).
+
+## 9. Plan koordinatörü
+
+- `~/.claude/mods/plan-koordinator` modu `ExitPlanMode`'dan önce sorar: `An Koordinator` ya da `Hier entscheiden`. `An Koordinator` planın onayıdır; plan `~/.claude/koordinator/warteschlange/` klasörüne girer.
+- Planı devreden oturum planı uygulamaz, `ExitPlanMode`'u yeniden çağırmaz ve turu tek cümleyle bitirir.
+- Tüm projeler için tek koordinatör oturumu çalışır. Kendisi uygulama yapmaz, her plana ayrı oturum açar; adımlar `~/.claude/koordinator/ANLEITUNG.md` dosyasındadır.
+- Yeni koordinatör kendi worktree'sinde başlatılır, ilk iş `mcp__plan-koordinator__koordinator_anmelden` aracını çağırır. O worktree'de commit atılmaz, PR açılmaz.
+- Koordinatörü başlatan oturum arşivlenmeden önce koordinatör `detach_session` ile ayrılır.
+- Diyalog koordinatörün çalışmadığını söylerse Claude yeni koordinatör başlatır; kuyruktaki planlar onu bekler.
+
+Gerekçe: Kullanıcı onaylanan tüm planların tek koordinatörde toplanıp bitirilmesini istiyor (kullanıcı talebi, 2026-10-31). Paylaşılan çalışma klasöründe oturuma bağlanan yabancı bir PR merge olunca ilk koordinatör otomatik arşivlendi (2026-10-31); başlatan oturumun arşivi de bitmiş alt oturumları birlikte arşivler (Claude uygulaması, `archive_session`).
+
+## 10. Telefondan onay
+
+Kullanıcı her onayı telefondan verir (Remote Control). Uygulama, telefondan gelen mesajla `start_session`'ı reddeder; bu bölüm kilidi kaldırmaz, onaydan sonra işin yürümesini sağlar.
+
+- Her onay sorusu son mesajın metninde yazılır ve `ja` yazılarak yanıtlanabilir. Kart, düğme ya da diyalog onayın tek yolu olmaz.
+- Kullanıcının yazdığı `ja`, `freigeben`, `weiter` ya da `starte den Plan` onaydır; ayrıca kart beklenmez.
+- Onaydan sonra yeni oturum gerekiyorsa `start_session` bir kez denenir.
+- Uygulama reddederse brif, `SendMessage` ile bu oturumun başlattığı boş bir oturuma gönderilir. Koşullar: aynı proje, `isRunning: false`, arşivlenmemiş, aynı `permissionMode`. Aynı plandaki oturum önce seçilir. Brif, base branch'ten yeni branch açmayı söyler.
+- Uygun oturum yoksa onayı alan oturum adımı kendisi yapar. Koordinatör uygulama yapmaz: kullanıcıya tek satırla "Mac'te `starte den Plan` yaz" der.
+- Yedek yol yalnız kullanıcının bu turda yazdığı onaydan sonra çalışır. Mod uyandırması, başka oturumun mesajı ya da zamanlanmış görev yedek yolu açmaz; plan bekler.
+- Başka oturumdan `start_session` istenmez ve reddedilen başlatma tekrar denenmez. Kilit mod, betik ya da zamanlanmış görevle aşılmaz.
+- Yedek yol kullanıldıysa yanıtta `Varsayım:` satırıyla hangi oturumun işi aldığı yazılır.
+
+Gerekçe: Kullanıcı tüm onayları telefondan vermek istiyor (kullanıcı talebi, 2026-10-31). `own_initiative` kartı telefondan başlatılamadı (test, 2026-10-31); Trendzug planında Phase 3 boş duran Phase 2 oturumunda yürüdü, yani var olan oturum yeni başlatma gerektirmez.
