@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [251]
 features: [ANA-19, FRM-20]
 areas: [frontend, tests]
 ---
@@ -34,14 +34,14 @@ areas: [frontend, tests]
 - A time range fits after a change of timeframe or period. An index range does not.
 - Rejected: save the view for each timeframe. Halil wants one zoom for each product.
 - Consequence: the conditions card on `/formasyon` covers the last candles. After a zoom, the selected formation can be outside the view.
-- The chart cannot show more than about 2200 candles in 1100 px (minimum bar spacing 0.5 px). Then "all candles" is the widest view the chart allows.
+- The chart cannot show more than about 2200 candles in 1100 px (minimum bar spacing 0.5 px). Then "all candles" is the widest view the chart allows. The widest view that reaches the last candle counts as "all candles", so the reset button deletes the saved zoom there too. A review found this case; a test with 1500 candles at 600 px covers it.
 
 ## Verification
 - New tests were red before the change: 3 in `formation-page.spec.ts`, 3 in `chart-workspace.spec.ts`.
 - `npx tsc --noEmit` and `npx eslint src e2e`: no errors.
-- `npm run test:e2e -- e2e/mocked/chart-workspace.spec.ts e2e/mocked/formation-page.spec.ts`: 59 passed.
+- `npm run test:e2e -- e2e/mocked/chart-workspace.spec.ts e2e/mocked/formation-page.spec.ts`: 60 passed (after the review fix).
 - Full mocked suite: 1672 passed, 1 failed. The failure was a test that did not wait for the debounce. It is fixed and the test passed 70 times in a repeat run.
-- Not verified: the pages in a browser against the real worker.
+- Not verified: the pages in a browser against the real worker. The worktree has no `.env.local`, so it has no worker address. The mocked e2e tests cover the view.
 
 ## Lessons
 - A zoom within 150 ms after the chart build is not saved. A test must wait before it zooms.

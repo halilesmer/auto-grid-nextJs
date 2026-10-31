@@ -153,6 +153,31 @@ test('Mit mehr als 2000 Kerzen zeigt der Chart alle Kerzen', { tag: '@ANA-19' },
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-visible-range', `${series[0][0]},${series[2099][0]}`);
 });
 
+test('Mit mehr Kerzen, als die Breite fasst, löscht „Ansicht zurücksetzen“ den Zoom', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // 1500 Kerzen passen bei 600 px nicht in die Breite (höchstens 0,5 px je Kerze): die breiteste Ansicht ist die Standardansicht
+  await page.setViewportSize({ width: 600, height: 900 });
+  const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
+  const series = Array.from({ length: 1500 }, (_, i) => [latest - (1500 - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
+  worker.state.ratesSeries = { H1: series };
+  const lastTime = series[1499][0];
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  const chart = page.getByTestId('chart-workspace');
+  await expect(chart).toBeVisible();
+  const key = (await chart.getAttribute('data-context'))!;
+  const zoom = () => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey]?.visibleTime ?? null, key);
+  const rangeOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  await expect.poll(rangeOf).toMatch(new RegExp(`,${lastTime}$`));
+  await page.waitForTimeout(500);
+  await chart.getByRole('button', { name: '+', exact: true }).click();
+  await expect.poll(zoom).not.toBeNull();
+  await chart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
+  await expect.poll(zoom).toBeNull();
+  await page.reload();
+  await expect(chart).toBeVisible();
+  await expect.poll(rangeOf).toMatch(new RegExp(`,${lastTime}$`));
+  expect(await zoom()).toBeNull();
+});
+
 test('Neue Kerze und Größenänderung speichern keinen Zoom, ein eigener Zoom überlebt den Zeitrahmenwechsel', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);

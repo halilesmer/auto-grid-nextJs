@@ -21,6 +21,8 @@ export function createChartBinding(chart: IChartApi, candles: ISeriesApi<'Candle
 const VIEW_SAVE_DELAY_MS = 180;
 /** Der Chart übernimmt eine gesetzte Ansicht erst im nächsten Bild und rundet sie dabei auf Kerzen; diese Meldungen sind kein Zoom */
 const VIEW_SETTLE_MS = 150;
+/** Kleinster Kerzenabstand in px, den lightweight-charts zulässt (Standard von `minBarSpacing`) */
+const MIN_BAR_SPACING_PX = 0.5;
 
 /** Zeigt den gespeicherten Zeitbereich, wenn er die geladenen Kerzen überlappt, sonst alle Kerzen (wie „Ansicht zurücksetzen“). */
 export function restoreChartView(chart: IChartApi, times: readonly number[], saved: VisibleTime | undefined) {
@@ -64,8 +66,11 @@ export function rememberChartView(chart: IChartApi, host: HTMLElement, contextKe
       width = scale.width();
       return;
     }
-    // fitContent() liegt bis auf einen halben Kerzenabstand an den Rändern
-    const showsAll = logical.from <= 1 && logical.to >= count - 2;
+    // fitContent() liegt bis auf einen halben Kerzenabstand an den Rändern. Passen mehr Kerzen in die Breite, als der
+    // kleinste Kerzenabstand zulässt, ist die breiteste Ansicht bis zur letzten Kerze die Standardansicht.
+    const reachesEnd = logical.to >= count - 2;
+    const widest = logical.to - logical.from + 2 >= scale.width() / MIN_BAR_SPACING_PX;
+    const showsAll = reachesEnd && (logical.from <= 1 || widest);
     pending = { zoom: showsAll ? undefined : { from: Number(range.from), to: Number(range.to) } };
     if (timer) clearTimeout(timer);
     timer = setTimeout(flush, VIEW_SAVE_DELAY_MS);
