@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: fix
 status: open
-pr: [260]
+pr: [260, 261]
 features: [UPD-07]
 areas: [worker, ops]
 ---
@@ -29,6 +29,7 @@ Timeline (UTC):
 | 2026-10-30 21:29 | The same log has 0 `[AUTO-UPDATE]` lines, also in the 243 lines after the start. | Worker log |
 | 2026-10-31 09:31:37 | v0.7.289, `uptime_sec: 44404`, `GET /api/system/update/check` → `has_update: true` | Status response |
 | 2026-10-31 09:35:22 | Worker start on v0.7.301 after a manual update | Status response |
+| 2026-10-31 10:14 | `auto_update_minutes: "0"`, `tasks.start.last_run: 2026-10-19T16:33:47` (VPS local time), worker on v0.7.301. The last 2000 log lines have 0 `[AUTO-UPDATE]` lines. | `GET /api/vps/status` and `GET /api/vps/logs`, read with the approval of the owner |
 
 Why this shows the value in the process:
 
@@ -44,7 +45,12 @@ Two defects hid the state for 3 days:
 - `run_auto_updater` returned without a log line, and `tick()` had 3 more silent paths (other branch, up to date, local commits).
 - The `/vps` tile shows the registry value, not the value of the process. No read route showed the process value.
 
-Not verified: the value in the registry of the VPS. If it is 5, the stale window is the complete cause. If it is still 0, the `setx` did not reach the registry. `GET /api/vps/status` shows it (`auto_update_minutes`). This session did not read it, because a read on the VPS needs the owner's approval. The fix below covers both cases.
+Result of the read on the VPS. 2 facts stop the updater, and each fact alone is sufficient:
+
+- The watchdog window dates from 2026-10-19. The task `AutoGrid-Start` did not run after that date, so all later restarts stayed in this window with the value 0.
+- The user value in the registry is `0`. Thus a new window also gets 0. The `setx AUTO_UPDATE_MINUTES 5` of 2026-10-28 is not in the user value of the account that `vps.ps1` reads. The reason is not known, because the registry has no history. Possible reasons: a different account, `setx /M`, or a later change back to 0.
+
+Thus the worker with this fix also stays off until the value changes. The fix makes this visible, and it makes a new value work without a restart.
 
 Correction for test week 2: the note "the merge stop did not hold, auto-update is probable" is wrong. The restart at 2026-10-30 21:11 was a manual update from the browser. The premise "each merge restarts the worker" was also wrong for this week.
 
@@ -81,8 +87,9 @@ The log line only on a change keeps the 300-line log window usable. `checked_at`
 ## Open points
 
 - [ ] Owner: update the worker once by hand ("Update"). The old code in the running process cannot pull this fix while its value is 0.
-- [ ] After that, read `auto_update` in `GET /api/system/worker/status`. Expected: `enabled: true`, `result: up_to_date`. If `result` is `off`, run `setx AUTO_UPDATE_MINUTES 5` on the VPS. No restart is necessary.
-- [ ] Next test week: switch off with `setx AUTO_UPDATE_MINUTES 0`, without `/M`. A machine value does not win over a user value of 5, so `setx /M` has no effect if the user value exists. No restart is necessary. Check `enabled: false`.
+- [ ] After that, read `auto_update` in `GET /api/system/worker/status`. Expected while the value is 0: `enabled: false`, `result: off`, and the log line `[AUTO-UPDATE] Kapalı: AUTO_UPDATE_MINUTES=0`.
+- [ ] Owner, when the auto-update must run: `setx AUTO_UPDATE_MINUTES 5` in a normal PowerShell of the worker account, without `/M`. No restart is necessary. Expected within 5 minutes: `enabled: true`, then `result: up_to_date`, or a pull. Also check `auto_update_minutes: "5"` on `/vps`.
+- [ ] Next test week: the value is 0 today, so no step is necessary if it stays 0. After a change to 5, switch off with `setx AUTO_UPDATE_MINUTES 0`, without `/M`. A machine value does not win over a user value. Check `enabled: false`.
 - [ ] UPD-07 manual check on the VPS: merge a PR, and wait 5–10 minutes.
 - [ ] `subprocess.run` in `self_updater.py` has no timeout. A hung `git fetch` stops the loop without a log line. A stale `checked_at` now shows it. This was not the cause here.
 - [ ] Show `auto_update` on the page `/vps`. This is a visible change, so it needs a design first.
@@ -91,4 +98,6 @@ The log line only on a change keeps the 300-line log window usable. `checked_at`
 
 - Do not state that the auto-updater is on from a setting or from a report. The evidence is the log line `[AUTO-UPDATE] Açık` or `auto_update.enabled` of the running process.
 - `setx` does not reach an open window. Code that runs for weeks in one window must read such a value from the registry.
+- After a `setx`, read the value back (`auto_update_minutes` on `/vps`). "Done" in a chat is not evidence. Here 2 sessions built on a value of 5 that the registry did not have.
+- A hypothesis about a value on the VPS stays a hypothesis until it is read. The first version of this entry named the stale window as the probable complete cause. The read showed the second fact.
 - A version jump is not evidence for the auto-updater. Read the worker log: a manual update shows `POST /api/system/update`, an automatic update shows `[AUTO-UPDATE] Yeni sürüm bulundu`.
