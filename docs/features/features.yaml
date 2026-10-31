@@ -1508,11 +1508,11 @@ kategorien:
 
       - id: ANA-19
         titel: Gemeinsame Chart-Einstellungen mit Vorschau und Vorlagen
-        beschreibung: "Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar: links Bereiche, rechts gruppierte Zeilen mit Häkchen, Farbfeldern und Auswahl, unten das Vorlagenmenü mit Speichern und Zurücksetzen. Auf /chart werden zurückgesetzte Darstellung und sichtbarer Balkenbereich je Chart-Kontext gespeichert und wiederhergestellt."
-        code: [frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/SettingsDialog.tsx, frontend_nextjs/src/components/ui/checkbox.tsx, frontend_nextjs/src/lib/chart-workspace/settings.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        beschreibung: "Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar: links Bereiche, rechts gruppierte Zeilen mit Häkchen, Farbfeldern und Auswahl, unten das Vorlagenmenü mit Speichern und Zurücksetzen. Auf /chart werden zurückgesetzte Darstellung und der Zoom (sichtbarer Zeitbereich) je Chart-Kontext gespeichert und wiederhergestellt; ohne eigenen Zoom zeigt der Chart alle Kerzen wie nach „Ansicht zurücksetzen“, auch bei mehr als 2000 Kerzen. Neue Kerzen und Größenänderungen speichern keinen Zoom."
+        code: [frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/components/chart-workspace/SettingsDialog.tsx, frontend_nextjs/src/components/ui/checkbox.tsx, frontend_nextjs/src/lib/chart-workspace/settings.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
         tiers: [e2e]
-        pruefung: [Vorschau abbrechen; Darstellung zurücksetzen und anwenden; Zeitbereich zurücksetzen; Symbol wechseln und zurückkehren; nach Neuladen prüfen.]
-        erwartet: Abbrechen stellt den Ausgangszustand wieder her; Darstellung und Zeitbereich bleiben pro Chart-Kontext nach Wechsel und Neuladen gespeichert.
+        pruefung: [Vorschau abbrechen; Darstellung zurücksetzen und anwenden; Chart ohne Zoom zeigt alle Kerzen; zoomen, Symbol wechseln und zurückkehren, neu laden; Ansicht zurücksetzen; mehr als 2000 Kerzen.]
+        erwartet: Abbrechen stellt den Ausgangszustand wieder her; Ohne Zoom sind alle Kerzen sichtbar und nichts gespeichert; ein Zoom bleibt pro Chart-Kontext nach Wechsel und Neuladen gespeichert, „Ansicht zurücksetzen“ löscht ihn.
 
       - id: ANA-20
         titel: Oszillatorbereiche und Indikatormenüs
@@ -1864,12 +1864,12 @@ kategorien:
 
       - id: FRM-20
         titel: "Seite Formasyon: Chart mit Zeichnungen"
-        beschreibung: "Der Chart (lightweight-charts) zeigt die Kerzen der gewählten Zeiteinheit und RSI(7) in eigenem Pane mit den Linien 80 und 20. Die Zeichnungen der Erkennung (Zickzack mit Punktnamen, Verhältnis-Linien mit Beschriftung, Zielpunkt, Zone, Umkehrkerzen-Marke) liegen als SVG-Overlay über den Canvases in einem eigenen Stapelkontext; das Overlay endet vor der Preisachse und folgt Zoom, Verschieben und Größenänderung. Kauf ist grün, Verkauf rot (Farben aus den Theme-Tokens). Eine Formation im Aufbau zeigt die bestätigten Punkte fest, den Weg zum fehlenden Endpunkt gestrichelt, den Endpunkt als offenen Kreis mit Fragezeichen und die Zone als „mögliche Zone“. Hover auf eine Checklisten-Zeile hebt die Zeichnungen ihrer Bedingung hervor, der Rest wird blass; Hover auf eine Zeichnung hebt die zugehörigen Zeilen hervor (drawingLayout.ts, FormationChart.tsx)."
-        code: [frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/lib/formation/drawingLayout.ts]
+        beschreibung: "Der Chart (lightweight-charts) zeigt die Kerzen der gewählten Zeiteinheit und RSI(7) in eigenem Pane mit den Linien 80 und 20. Die Zeichnungen der Erkennung (Zickzack mit Punktnamen, Verhältnis-Linien mit Beschriftung, Zielpunkt, Zone, Umkehrkerzen-Marke) liegen als SVG-Overlay über den Canvases in einem eigenen Stapelkontext; das Overlay endet vor der Preisachse und folgt Zoom, Verschieben und Größenänderung. Kauf ist grün, Verkauf rot (Farben aus den Theme-Tokens). Eine Formation im Aufbau zeigt die bestätigten Punkte fest, den Weg zum fehlenden Endpunkt gestrichelt, den Endpunkt als offenen Kreis mit Fragezeichen und die Zone als „mögliche Zone“. Hover auf eine Checklisten-Zeile hebt die Zeichnungen ihrer Bedingung hervor, der Rest wird blass; Hover auf eine Zeichnung hebt die zugehörigen Zeilen hervor (drawingLayout.ts, FormationChart.tsx). Der Chart lädt mit allen Kerzen wie nach „Ansicht zurücksetzen“; ein Klick auf eine Formation ändert die Ansicht nicht, ein eigener Zoom bleibt je Produkt gespeichert, bis er zurückgesetzt wird (runtime.ts)."
+        code: [frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/lib/formation/drawingLayout.ts]
         tiers: [e2e]
         pruefung:
-          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-20) ausführen (Zeichnungen vorhanden, Hover auf eine Zeile hebt hervor, Overlay-Breite endet vor der Preisachse).
-        erwartet: Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben.
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-20) ausführen (Zeichnungen vorhanden, Hover auf eine Zeile hebt hervor, Overlay-Breite endet vor der Preisachse, alle Kerzen beim Laden, Formationsklick lässt die Ansicht, Zoom bleibt nach Neuladen, Zurücksetzen).
+        erwartet: Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben. Der Chart zeigt alle Kerzen; ein Formationsklick im selben Zeitrahmen ändert den sichtbaren Zeitbereich nicht.
 
       - id: FRM-21
         titel: "Seite Formasyon: Hintergrundsuche"

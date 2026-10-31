@@ -20,7 +20,7 @@ import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan
 import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace } from '@/components/chart-workspace/ChartWorkspace';
-import { type ChartBinding, createChartBinding, appearanceColors } from '@/components/chart-workspace/runtime';
+import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView } from '@/components/chart-workspace/runtime';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
@@ -169,15 +169,9 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
     onCapture(() => captureChart({ chart, host, overlay: overlayRef.current }));
 
     const indexOf = new Map(view.bars.map((b, i) => [b.time, i]));
-    const first = Math.min(...Object.values(hit.candidate.points).map((p) => indexOf.get(p.time) ?? view.bars.length - 1));
-    const from = Math.max(0, first - 12);
-    // Platz rechts für das schwebende Bedingungsfenster; auf Mobilgeräten liegt es unten.
-    let wide = box.clientWidth >= 900;
-    const frameCandidate = () => {
-      const future = wide ? Math.max(6, Math.ceil((view.bars.length - from) * 0.5)) : 6;
-      chart.timeScale().setVisibleLogicalRange({ from, to: view.bars.length - 1 + future });
-    };
-    frameCandidate();
+    // Die Ansicht hängt nicht vom Kandidaten ab: alle Kerzen oder der gespeicherte Zoom dieses Produkts
+    restoreChartView(chart, view.bars.map((b) => b.time), useChartWorkspaceStore.getState().documents[contextKey]?.visibleTime);
+    const forgetView = rememberChartView(chart, box, contextKey, () => view.bars.length);
 
     const lastBar = view.bars[view.bars.length - 1];
     const redraw = () => {
@@ -215,10 +209,6 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
         const settings = useChartWorkspaceStore.getState();
         if (!(settings.preview ?? settings.appearance).marginsSet) reserveControls();
       }
-      if (wide !== (box.clientWidth >= 900)) {
-        wide = box.clientWidth >= 900;
-        frameCandidate();
-      }
       redraw();
     });
     observer.observe(box);
@@ -231,12 +221,13 @@ export function FormationChart({ accountId, hit, context, scanAt, digits, active
       cancelAnimationFrame(redrawFrame);
       observer.disconnect();
       cancelAnimationFrame(readyFrame);
+      forgetView();
       onCapture(null);
       attached.dispose?.();
       chart.remove();
       chartRef.current = null;
     };
-  }, [view, hit, digits, t, number, onCapture]);
+  }, [view, hit, digits, t, number, onCapture, contextKey]);
 
   useEffect(() => {
     if (!colors || !chartRef.current) return;

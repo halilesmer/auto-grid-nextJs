@@ -151,6 +151,64 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
   });
 });
 
+test.describe('FRM-20 Ansicht des Formations-Charts', () => {
+  const range = (page: Page) => page.getByTestId('formation-chart').getAttribute('data-visible-range');
+  const allCandles = () => { const rows = rowsUntil(NOW); return `${rows[0][0]},${rows[rows.length - 1][0]}`; };
+  /** Der Chart rundet eine wiederhergestellte Ansicht um höchstens eine Kerze (14400 s) */
+  const sameView = async (page: Page, expected: string | null) => {
+    const [from, to] = (await range(page) ?? '0,0').split(',').map(Number), [wantFrom, wantTo] = (expected ?? '0,0').split(',').map(Number);
+    return Math.max(Math.abs(from - wantFrom), Math.abs(to - wantTo)) <= 14400;
+  };
+  const zoomIn = async (page: Page) => {
+    // Die ersten 150 ms nach dem Aufbau gelten dem Wiederherstellen der Ansicht, nicht dem Nutzer
+    await page.waitForTimeout(400);
+    const box = (await page.getByTestId('formation-chart').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, -600);
+  };
+
+  test('Der Chart lädt mit allen Kerzen wie nach „Ansicht zurücksetzen“', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect.poll(() => range(page)).toBe(allCandles());
+  });
+
+  test('Ein Klick auf eine andere Formation ändert die Ansicht nicht, auch mit Zoom', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect.poll(() => range(page)).toBe(allCandles());
+    await page.getByTestId('formation-form-BAT').click();
+    await expect(page.getByTestId('formation-form-BAT')).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => range(page)).toBe(allCandles());
+    await zoomIn(page);
+    await expect.poll(() => range(page)).not.toBe(allCandles());
+    const zoomed = await range(page);
+    await page.getByTestId('formation-form-GAR').click();
+    await expect(page.getByTestId('formation-form-GAR')).toHaveAttribute('aria-pressed', 'true');
+    await page.waitForTimeout(400);
+    await expect.poll(() => sameView(page, zoomed)).toBe(true);
+  });
+
+  test('Der Zoom bleibt nach dem Neuladen, „Ansicht zurücksetzen“ zeigt wieder alle Kerzen', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect.poll(() => range(page)).toBe(allCandles());
+    await zoomIn(page);
+    await expect.poll(() => range(page)).not.toBe(allCandles());
+    // Der Zoom wird entprellt gespeichert
+    await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some((d) => !!(d as { visibleTime?: unknown }).visibleTime))).toBe(true);
+    const zoomed = await range(page);
+    await page.reload();
+    await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+    await expect.poll(() => sameView(page, zoomed)).toBe(true);
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
+    await expect.poll(() => range(page)).toBe(allCandles());
+    // Das Zurücksetzen wird entprellt gespeichert
+    await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some((d) => !!(d as { visibleTime?: unknown }).visibleTime))).toBe(false);
+    await page.reload();
+    await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+    await expect.poll(() => range(page)).toBe(allCandles());
+  });
+});
+
 test.describe('FRM-21 Hintergrundsuche', () => {
   test('Die Suche lädt alle vier Zeiteinheiten des Setup-Symbols', { tag: '@FRM-21' }, async ({ page, worker }) => {
     await openPage(page, worker);
