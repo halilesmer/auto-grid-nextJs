@@ -380,21 +380,21 @@
   },
   "BKT-11": {
     "api": {
-      "datum": "2026-10-12",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 9
+      "tests": 7
     },
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 2
     }
   },
   "BKT-12": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 6
+      "tests": 7
     }
   },
   "BKT-13": {
@@ -417,10 +417,15 @@
     }
   },
   "BKT-15": {
-    "e2e": {
-      "datum": "2026-10-30",
+    "api": {
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 3
+      "tests": 7
+    },
+    "e2e": {
+      "datum": "2026-11-01",
+      "status": "passed",
+      "tests": 5
     }
   },
   "BOT-01": {

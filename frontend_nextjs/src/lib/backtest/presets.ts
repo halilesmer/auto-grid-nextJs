@@ -2,6 +2,7 @@ import { t } from '@/i18n';
 import { APP_VERSION } from '@/app/version';
 import { DEFAULT_RUN_SETTINGS, type RunSettingsValue } from '@/lib/backtest/runSettings';
 import { type RangeSelection } from '@/hooks/useAnalysisParams';
+import { spreadGuardError } from '@/lib/spreadGuardSettings';
 import { isDayString, isTimeString, RANGE_PRESETS } from '@/lib/serverTime';
 import type { ZoneSettings } from '@/store/types';
 import type { BacktestSetup } from './setupTypes';
@@ -21,6 +22,8 @@ export interface BacktestPreset extends PresetData {
   createdAt: number;
 }
 
+const SPREAD_GUARD_KEYS = ['enabled', 'mode', 'max_spread', 'multiplier', 'grid_percent', 'bootstrap', 'initial_spread'];
+
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(t('backtest.presets.invalid'));
   return value as Record<string, unknown>;
@@ -37,6 +40,17 @@ export function presetZone(input: unknown): PresetZone {
     if (typeof value !== typeof fallback || (typeof value === 'number' && !Number.isFinite(value))
       || (typeof value === 'string' && value.length > 100)) throw new Error(t('backtest.presets.invalid'));
     values[key] = value;
+  }
+  // spread_guard steht nicht in defaultZone (neue Zonen laufen ohne Schutz); ein altes Preset ohne das Feld bleibt gültig.
+  if (source.spread_guard !== undefined) {
+    const guard = source.spread_guard;
+    if (!guard || typeof guard !== 'object' || Array.isArray(guard)
+      || Object.keys(guard).some((key) => !SPREAD_GUARD_KEYS.includes(key))) throw new Error(t('backtest.presets.invalid'));
+    if (spreadGuardError({ spread_guard: guard, entry_mode: values.entry_mode })) throw new Error(t('backtest.presets.invalid'));
+    for (const item of Object.values(guard)) {
+      if (typeof item === 'number' && (!Number.isFinite(item) || Math.abs(item) > 1e100)) throw new Error(t('backtest.presets.invalid'));
+    }
+    values.spread_guard = { ...(guard as Record<string, unknown>) };
   }
   const choices: Record<string, readonly string[]> = {
     order_type: ['BUY', 'SELL', 'BOTH'], entry_mode: ['grid', 'fractal'], fractal_order_mode: ['breakout', 'rebound'],

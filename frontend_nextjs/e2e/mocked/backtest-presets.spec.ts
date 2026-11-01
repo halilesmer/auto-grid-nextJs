@@ -54,3 +54,14 @@ test('Übernahme erzeugt genau eine neue inaktive ungespeicherte Zone', { tag: '
   await dashboard.selectAccount(DEMO_ID);
   await expect(page.getByTestId('zone-card')).toHaveCount(1);
 });
+
+test('Preset mit Uhrzeiten wird vom Worker-Vertrag angenommen', { tag: ['@BKT-11', '@BKT-15'] }, async ({ page, worker }) => {
+  await page.goto(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}&from=2026-10-22&to=2026-10-28&ft=09%3A30%3A00&tt=17%3A45%3A30`);
+  await page.getByTestId('bt-setup').getByRole('button', { name: msg('backtest.presets.save'), exact: true }).click();
+  const panel = page.getByTestId('bt-presets');
+  await panel.locator('input').fill('Timed preset');
+  await panel.getByRole('button', { name: msg('backtest.presets.save'), exact: true }).click();
+  await expect(panel.getByTestId('bt-preset')).toContainText('Timed preset');
+  const [call] = worker.callsTo('POST', '/api/backtest/presets');
+  expect((call.body as { range: unknown }).range).toEqual({ custom: { from: '2026-10-22', to: '2026-10-28', fromTime: '09:30:00', toTime: '17:45:30' } });
+});
