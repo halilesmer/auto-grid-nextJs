@@ -1986,3 +1986,14 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-31) ausführen (Chart endet auf dem M15-Preis, Trefferzahlen unverändert).
           - "Im echten Browser auf dem DEMO-Konto prüfen (nur lesen): 15m und D zeigen denselben aktuellen Preis."
         erwartet: Alle Zeitintervalle zeigen denselben aktuellen Preis, die laufende Kerze steht rechts, und die Trefferliste ändert sich dadurch nicht.
+
+      - id: FRM-32
+        titel: "Meldungsverlauf des Formationsalarms im Glocken-Menü"
+        beschreibung: "Das Glocken-Menü hat zwei Reiter: Einstellungen und Verlauf. Der Verlauf hält jeden Treffer fest, den der Alarm meldet (neueste zuerst): Zeit, Produkt, Formation, Zeiteinheit, Seite und Ereignis (gültig, Zielpunkt oder beides). Eine Sammelmeldung (mehr als drei Treffer in einem Durchlauf oder „Seit dem letzten Öffnen“) steht als einzelne Treffer unter einem Gruppenkopf. Ein Eintrag entsteht auch bei ausgeschalteter Systemmeldung und ohne Ton; er entsteht nur im Tab mit dem Web Lock, die anderen Tabs lesen ihn über das storage-Ereignis. Ein Klick auf einen Eintrag öffnet Produkt, Formation und Zeiteinheit auf /formasyon. Der Verlauf liegt je Konto im Browser (grid-robot-formation-alarm, Feld history, höchstens 100 Einträge, die ältesten fallen heraus); ältere Speicherstände ohne dieses Feld bleiben lesbar. „Verlauf löschen“ leert nur die Liste des Kontos, der gemerkte Stand (memory) bleibt, so kommt nichts doppelt. Die Glocke steht nur auf /formasyon; der Verlauf ist darum nur dort sichtbar. Keine Worker-Änderung, keine Order."
+        code: [frontend_nextjs/src/lib/formation/alarmHistory.ts, frontend_nextjs/src/lib/formation/alarmStore.ts, frontend_nextjs/src/lib/formation/alarmNotify.ts, frontend_nextjs/src/components/formation/FormationScanRunner.tsx, frontend_nextjs/src/hooks/useFormationAlarm.ts, frontend_nextjs/src/components/formation/FormationAlarmMenu.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-alarm-history-lib.spec.ts (@FRM-32) ausführen (ein Eintrag je Treffer, Obergrenze, alte Speicherstände, ungültige Einträge, Löschen lässt den Stand).
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-32) ausführen (Eintrag ohne Systemmeldung und Ton, Sammelmeldung als einzelne Treffer, Löschen, zweiter Tab, Klick auf Eintrag, leerer Verlauf, 375 px).
+          - "Im echten Browser prüfen: nach einer echten Meldung steht sie im Verlauf; zweiter Tab zeigt sie; Verlauf löschen und Neuladen meldet nichts doppelt."
+        erwartet: Jede gemeldete Formation steht im Verlauf des Kontos mit Zeit, Produkt, Formation, Zeiteinheit, Seite und Ereignis; Sammelmeldungen zeigen jeden Treffer; Löschen meldet nichts erneut.

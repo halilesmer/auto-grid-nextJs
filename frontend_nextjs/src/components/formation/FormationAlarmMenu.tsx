@@ -1,15 +1,88 @@
 'use client';
 
-import { Bell, BellOff, X } from 'lucide-react';
-import { DropdownMenu } from '@/components/ui/dropdown-menu';
+import { useState } from 'react';
+import { Bell, BellOff, TrendingDown, TrendingUp, X } from 'lucide-react';
+import AnimatedTabs from '@/components/ui/animated-tabs';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, useDropdownClose } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip } from '@/components/ui/tooltip';
 import type { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormat, useT, type MessageKey } from '@/i18n';
+import { HISTORY_LIMIT, type HistoryEntry } from '@/lib/formation/alarmHistory';
 import { SCAN_FORMATIONS } from '@/lib/formation/scan';
 import { cn } from '@/lib/utils';
 
 type Alarm = ReturnType<typeof useFormationAlarm>;
+
+/** Gruppenkopf über den Einträgen einer Sammelmeldung: erscheint beim ersten Eintrag eines Durchlaufs */
+const startsGroup = (list: readonly HistoryEntry[], i: number) => list[i].batch !== 'single' && (i === 0 || list[i - 1].at !== list[i].at || list[i - 1].batch !== list[i].batch);
+
+function HistoryList({ alarm }: { alarm: Alarm }) {
+  const t = useT();
+  const fmt = useFormat();
+  const close = useDropdownClose();
+  const { history } = alarm;
+  const today = new Date().toDateString();
+  const when = (at: number) => (new Date(at).toDateString() === today ? fmt.time(at) : fmt.dateTime(at));
+  if (history.length === 0) {
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground" data-testid="formation-alarm-history-empty">
+        <span className="block font-medium text-foreground">{t('formation.alarm.history.empty')}</span>
+        {t('formation.alarm.history.empty.note')}
+      </p>
+    );
+  }
+  return (
+    <ul aria-label={t('formation.alarm.history.list')} className="-mx-3 flex max-h-80 flex-col overflow-y-auto border-y border-border" data-testid="formation-alarm-history">
+      {history.map((entry, i) => {
+        const form = t(`formation.form.${entry.form}` as MessageKey);
+        const buy = entry.side === 'buy';
+        const SideIcon = buy ? TrendingUp : TrendingDown;
+        const both = entry.events.length === 2;
+        const event = both ? 'both' : entry.events[0];
+        return (
+          <li key={entry.id} className="border-b border-border last:border-b-0">
+            {startsGroup(history, i) && (
+              // Die Größe der Gruppe zählt die Einträge, die noch in der Liste stehen
+              <div className="flex justify-between gap-2 bg-muted px-3 py-1 text-xs text-muted-foreground tabular-nums" data-testid="formation-alarm-history-group">
+                <span className="min-w-0 truncate">{t(entry.batch === 'since' ? 'formation.alarm.history.group.since' : 'formation.alarm.history.group.many', { count: history.filter((x) => x.at === entry.at && x.batch === entry.batch).length })}</span>
+                <span className="shrink-0">{when(entry.at)}</span>
+              </div>
+            )}
+            <Tooltip content={t('formation.alarm.history.item.hint', { symbol: entry.symbol, form })} role="presentation" className="w-full min-w-0">
+              <button
+                type="button"
+                data-testid="formation-alarm-history-item"
+                data-symbol={entry.symbol}
+                onClick={() => {
+                  close();
+                  alarm.openEntry(entry);
+                }}
+                className="grid w-full cursor-pointer grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 px-3 py-2 text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+              >
+                <span className="min-w-0 truncate text-sm font-semibold">
+                  {entry.symbol} <span className="font-normal text-muted-foreground">· {form}</span>
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">{when(entry.at)}</span>
+                <span className="col-span-2 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className={cn('inline-flex h-[18px] items-center rounded-[5px] border px-1.5', entry.events.includes('valid') ? 'border-success/40 bg-success/10 text-success' : 'border-warning/40 bg-warning/10 text-warning')}>
+                    {t(`formation.alarm.history.event.${event}` as MessageKey)}
+                  </span>
+                  <span className={cn('inline-flex items-center gap-0.5', buy ? 'text-success' : 'text-danger')}>
+                    <SideIcon size={12} aria-hidden="true" />
+                    {t(`formation.side.${entry.side}` as MessageKey)}
+                  </span>
+                  <span className="text-muted-foreground">· {entry.tf}</span>
+                </span>
+              </button>
+            </Tooltip>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /**
  * Glocke in der Kopfleiste neben dem Bild-Knopf: Menü mit Stand des Alarms, den Schaltern „Alle Favoriten“ und „Alarm für
@@ -19,7 +92,8 @@ type Alarm = ReturnType<typeof useFormationAlarm>;
 export function FormationAlarmMenu({ symbol, accountKnown, alarm }: { symbol: string | null; accountKnown: boolean; alarm: Alarm }) {
   const t = useT();
   const fmt = useFormat();
-  const { prefs, enabled, favoritesEnabled, extras, status, permission } = alarm;
+  const [tab, setTab] = useState<'settings' | 'history'>('settings');
+  const { prefs, enabled, favoritesEnabled, extras, status, permission, history } = alarm;
   const active = status.total > 0;
   const incomplete = status.incomplete.length > 0;
   const activeDot = incomplete ? 'bg-warning' : 'bg-success';
@@ -54,6 +128,28 @@ export function FormationAlarmMenu({ symbol, accountKnown, alarm }: { symbol: st
             {statusText}
           </span>
         </div>
+        <AnimatedTabs
+          variant="segment"
+          layoutId="formation-alarm-tabs"
+          activeTab={tab}
+          onChange={(id) => setTab(id as 'settings' | 'history')}
+          tabs={[
+            { id: 'settings', label: t('formation.alarm.tab.settings'), hint: t('formation.alarm.tab.settings.hint') },
+            { id: 'history', label: history.length > 0 ? `${t('formation.alarm.tab.history')} (${history.length})` : t('formation.alarm.tab.history'), hint: t('formation.alarm.tab.history.hint') },
+          ]}
+        />
+        {tab === 'history' ? (
+          <>
+            <HistoryList alarm={alarm} />
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>{t('formation.alarm.history.limit', { count: HISTORY_LIMIT })}</span>
+              <Button variant="ghost" size="sm" disabled={history.length === 0} onClick={alarm.clearHistory} hint={t(history.length === 0 ? 'formation.alarm.history.clear.empty.hint' : 'formation.alarm.history.clear.hint')} data-testid="formation-alarm-history-clear">
+                {t('formation.alarm.history.clear')}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
         <div className="flex flex-col gap-2">
           <Switch
             id="formation-alarm-favorites"
@@ -141,6 +237,8 @@ export function FormationAlarmMenu({ symbol, accountKnown, alarm }: { symbol: st
           {blocked && <p className="text-xs text-muted-foreground" data-testid="formation-alarm-blocked">{t('formation.alarm.system.blocked')}</p>}
           <Switch id="formation-alarm-sound" checked={prefs.sound} onChange={alarm.setSound} label={t('formation.alarm.channel.sound')} hint={t('formation.alarm.channel.sound.hint')} />
         </fieldset>
+          </>
+        )}
       </div>
     </DropdownMenu>
   );

@@ -1,16 +1,19 @@
 'use client';
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from '@/components/ui/animated-toast';
 import { useFavorites } from '@/hooks/useFavorites';
 import { t } from '@/i18n';
 import type { AlarmEvent } from '@/lib/formation/alarm';
-import { notificationPermission } from '@/lib/formation/alarmNotify';
+import { withoutHistory, type HistoryEntry } from '@/lib/formation/alarmHistory';
+import { formationUrl, notificationPermission } from '@/lib/formation/alarmNotify';
 import { save, serverSnapshot, snapshot, subscribe, type Stored } from '@/lib/formation/alarmStore';
 import { SCAN_FORMATIONS, type ScanFormation } from '@/lib/formation/scan';
 import { useFavoritesScanStore } from '@/store/useFavoritesScanStore';
 
 const noSubscription = () => () => {};
+const NO_HISTORY: HistoryEntry[] = [];
 
 /**
  * Einstellungen und Stand des Formationsalarms fürs Glocken-Menü. Die Suche und die Meldungen laufen app-weit im
@@ -18,6 +21,7 @@ const noSubscription = () => () => {};
  * `symbol` ist das auf /formasyon gewählte Produkt (Schalter „Alarm für …“), null ohne Konto oder Produkt.
  */
 export function useFormationAlarm(accountId: string | null, symbol: string | null) {
+  const router = useRouter();
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const permission = useSyncExternalStore(noSubscription, notificationPermission, () => 'unsupported' as const);
   const favorites = useFavorites(accountId);
@@ -43,6 +47,17 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
   }, [favoritesEnabled, favorites.symbols, bells, doneAt, gaps, lastRunAt]);
 
   const update = useCallback((change: (current: Stored) => Stored) => save(change(snapshot())), []);
+  const history = (accountId && stored.history[accountId]) || NO_HISTORY;
+  const clearHistory = useCallback(() => {
+    if (accountId) update((current) => withoutHistory(current, accountId));
+  }, [accountId, update]);
+  const openEntry = useCallback(
+    (entry: HistoryEntry) => {
+      if (accountId) router.push(formationUrl(accountId, entry));
+    },
+    [accountId, router],
+  );
+
   const setEnabled = useCallback(
     (on: boolean) => {
       if (scope === null) return;
@@ -90,5 +105,5 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
     [update],
   );
 
-  return { prefs: stored.prefs, enabled, favoritesEnabled, favoriteCount: favorites.symbols.length, extras, status, permission, setEnabled, setFavorites, removeExtra, setEvent, setForm, setSound, setSystem };
+  return { prefs: stored.prefs, enabled, favoritesEnabled, favoriteCount: favorites.symbols.length, extras, status, permission, history, clearHistory, openEntry, setEnabled, setFavorites, removeExtra, setEvent, setForm, setSound, setSystem };
 }

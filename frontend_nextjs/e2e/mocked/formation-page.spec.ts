@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -937,10 +937,10 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
 
   /** Gespeicherter Alarm im Browser vor dem ersten Laden; `memory` = gemerkter Stand je `${Konto}|${Symbol}` */
-  async function seed(page: Page, stored: { favoritesEnabled?: string[]; enabled?: string[]; memory?: Record<string, unknown>; forms?: string[] }) {
+  async function seed(page: Page, stored: { favoritesEnabled?: string[]; enabled?: string[]; memory?: Record<string, unknown>; forms?: string[]; system?: boolean; history?: Record<string, unknown[]> }) {
     // Nur Gartley, damit jede Meldung einzeln kommt; `forms` wählt andere Formationen
-    const { forms = ['GAR'], ...rest } = stored;
-    const value = JSON.stringify({ prefs: { events: { valid: true, target: true }, forms, system: true }, enabled: [], memory: {}, favoritesEnabled: [], ...rest });
+    const { forms = ['GAR'], system = true, ...rest } = stored;
+    const value = JSON.stringify({ prefs: { events: { valid: true, target: true }, forms, system }, enabled: [], memory: {}, favoritesEnabled: [], ...rest });
     await page.addInitScript(([key, json]) => {
       if (!localStorage.getItem(key)) localStorage.setItem(key, json);
       // Der Service Worker ist in den Tests blockiert: Erlaubnis und Registrierung sind Attrappen, die Meldungen nur aufzeichnen
@@ -1111,6 +1111,114 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     const box = await page.getByTestId('formation-alarm-panel').boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+
+  const history = () => ({ id: 'h1', at: Date.UTC(2025, 10, 16, 9, 30), key: 'k1', symbol: 'EURUSD', form: 'GAR', tf: 'H4', side: 'buy', events: ['valid'], batch: 'single' });
+  const openHistory = async (page: Page) => {
+    await page.getByTestId('formation-alarm').click();
+    await page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.history')}`) }).click();
+  };
+  const historyItems = (page: Page) => page.getByTestId('formation-alarm-history-item');
+
+  test('Der Verlauf hält eine Meldung fest, auch wenn Systemmeldung und Ton aus sind', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, FORMING_NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], system: false });
+    await page.clock.install();
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await remembered(page, 'EURUSD');
+    await nextSlot(page, worker);
+    await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
+    expect(await shown(page)).toEqual([]);
+    await openHistory(page);
+    await expect(historyItems(page)).toHaveCount(1);
+    await expect(historyItems(page).first()).toContainText('EURUSD');
+    await expect(historyItems(page).first()).toContainText(msg('formation.form.GAR'));
+    await expect(historyItems(page).first()).toContainText('H4');
+    await expect(historyItems(page).first()).toContainText(msg('formation.alarm.history.event.both'));
+  });
+
+  test('Eine Sammelmeldung steht im Verlauf als einzelne Treffer unter einem Gruppenkopf', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, forms: ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT'] });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await expect(page.getByText(msg('formation.alarm.notice.since', { count: 5 }))).toBeVisible();
+    await openHistory(page);
+    await expect(historyItems(page)).toHaveCount(5);
+    await expect(page.getByTestId('formation-alarm-history-group')).toHaveText(new RegExp(msg('formation.alarm.history.group.since', { count: 5 })));
+  });
+
+  test('Verlauf löschen leert die Liste und lässt den gemerkten Stand stehen', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    const memory = { [`${DEMO_ID}|EURUSD`]: { 'EURUSD|GAR|H4|buy|1': { valid: true, target: true } } };
+    await seed(page, { favoritesEnabled: [DEMO_ID], memory, history: { [DEMO_ID]: [history()] }, forms: [] });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await openHistory(page);
+    await expect(historyItems(page)).toHaveCount(1);
+    await page.getByTestId('formation-alarm-history-clear').click();
+    await expect(page.getByTestId('formation-alarm-history-empty')).toBeVisible();
+    const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}'), KEY);
+    expect(stored.history?.[DEMO_ID] ?? []).toEqual([]);
+    expect(stored.memory[`${DEMO_ID}|EURUSD`]).toHaveProperty('EURUSD|GAR|H4|buy|1');
+  });
+
+  test('Der zweite Tab, der nicht sucht, zeigt den neuen Eintrag im Verlauf', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, FORMING_NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    await page.clock.install();
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await remembered(page, 'EURUSD');
+    const second = await page.context().newPage();
+    await worker.install(second);
+    await second.goto(`/formasyon?account=${DEMO_ID}`);
+    await second.waitForTimeout(1500);
+    await nextSlot(page, worker);
+    await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
+    await openHistory(second);
+    await expect(historyItems(second)).toHaveCount(1);
+  });
+
+  test('Ein Klick auf einen Eintrag öffnet Produkt, Formation und Zeiteinheit', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, history: { [DEMO_ID]: [history()] }, forms: [] });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await openHistory(page);
+    await historyItems(page).first().click();
+    await expect(page).toHaveURL(new RegExp(`/formasyon\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    // Das Menü schließt, damit der gewählte Chart frei liegt
+    await expect(page.getByTestId('formation-alarm-panel')).toHaveCount(0);
+  });
+
+  test('Ohne Meldung sagt der Verlauf, dass noch nichts gemeldet wurde, und „Verlauf löschen“ ist aus', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], forms: [] });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await openHistory(page);
+    await expect(page.getByTestId('formation-alarm-history-empty')).toHaveText(new RegExp(msg('formation.alarm.history.empty')));
+    await expect(page.getByTestId('formation-alarm-history-clear')).toBeDisabled();
+  });
+
+  test('Der Verlauf passt bei 375 px ohne Querscroll', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    const many = Array.from({ length: 8 }, (_, i) => ({ ...history(), id: `h${i}`, key: `k${i}`, at: Date.UTC(2025, 10, 16, 9, i) }));
+    await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: many }, forms: [] });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    // Wie im Menü-Test oben: erst wenn die Leiste fertig ist, sitzt die Glocke an ihrem Platz; das Menü richtet sich beim Öffnen daran aus
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await openHistory(page);
+    await expect(historyItems(page)).toHaveCount(8);
+    // Das Menü öffnet mit einer kurzen Bewegung: die Breite wird erst danach gemessen
+    const right = async () => { const box = await page.getByTestId('formation-alarm-panel').boundingBox(); return box!.x + box!.width; };
+    await expect.poll(right).toBeLessThanOrEqual(375);
+    expect((await page.getByTestId('formation-alarm-panel').boundingBox())!.x).toBeGreaterThanOrEqual(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });
