@@ -13,7 +13,9 @@ const SPACE: Text = ['X→D yeterince uzun ve yüksek', 'X→D is long and high 
 const HIGH_TF: Text = ['Zaman dilimi H4 veya D1', 'Timeframe is H4 or D1', 'Zeiteinheit ist H4 oder D1'];
 const RSI_D: Text = ['D noktasında RSI(7) uç bölgede', 'RSI(7) at D is in the extreme zone', 'RSI(7) bei D im Extrem'];
 const DIV_D: Text = ['D noktasında Wave sapması', 'Wave divergence at D', 'Wave-Divergenz bei D'];
+/** GAR-10 und BAT-11 messen noch mit `zoneAtr × ATR` Abstand zur Zone; ihr Text wechselt zu ZONE_D_IN, sobald die Messung „in“ prüft */
 const ZONE_D: Text = ['D bir bölgeye yakın', 'D is near a zone', 'D liegt nahe einer Zone'];
+const ZONE_D_IN: Text = ['D bir bölgenin içinde', 'D lies inside a zone', 'D liegt in einer Zone'];
 const PRZ: Text = ['PRZ seviyesi D’ye yakın', 'The PRZ level is near D', 'PRZ-Level liegt nahe D'];
 const CLOSE_X: Text = ['H4 kapanışı X’in ötesinde', 'An H4 close beyond X', 'H4-Schluss jenseits von X'];
 
@@ -47,7 +49,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'GAR-01': FRACTAL_AB,
   'GAR-02': ALT,
   'GAR-03': ['B, XA’nın 0,618’ine ulaşır', 'B reaches 0.618 of XA', 'B erreicht 0,618 von XA'],
-  'GAR-04': ['C, AB’nin 0,382 düzeltmesine ulaşır', 'C reaches the 0.382 correction of AB', 'C erreicht 0,382 Korrektur von AB'],
+  'GAR-04': ['C, AB’nin 0,618 düzeltmesine ulaşır', 'C reaches the 0.618 correction of AB', 'C erreicht 0,618 Korrektur von AB'],
   'GAR-05': ['D, AB’nin uzantı hedefine ulaşır', 'D reaches the extension target of AB', 'D erreicht das Verlängerungsziel von AB'],
   'GAR-06': ['C temiz: düzeltme sınırın altında', 'C is clean: the correction stays below the limit', 'C ist sauber: Korrektur bleibt unter der Grenze'],
   'GAR-07': ['D, XA’nın 0,786’sında', 'D sits at 0.786 of XA', 'D liegt bei 0,786 von XA'],
@@ -70,7 +72,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'BAT-02': ['X→A’da güçlü mumların payı yüksek', 'A high share of strong candles on X→A', 'Hoher Anteil volumenstarker Kerzen auf X→A'],
   'BAT-03': ['X→A tek hareket', 'X→A is a single move', 'X→A ist eine einzige Bewegung'],
   'BAT-04': ALT,
-  'BAT-05': ['B, XA’nın 0,45’ine ulaşır', 'B reaches 0.45 of XA', 'B erreicht 0,45 von XA'],
+  'BAT-05': ['B, XA’nın 0,5’ine ulaşır', 'B reaches 0.5 of XA', 'B erreicht 0,5 von XA'],
   'BAT-06': ['C, AB’nin en az düzeltmesine ulaşır', 'C reaches the minimum correction of AB', 'C erreicht die Mindestkorrektur von AB'],
   'BAT-07': ['D, XA’nın 0,886’sında ve B’nin ötesinde', 'D sits at 0.886 of XA, beyond B', 'D liegt bei 0,886 von XA, jenseits von B'],
   'BAT-08': ['C düzeltme derinliği 0,382 – 0,728', 'The correction depth of C is 0.382 to 0.728', 'Korrekturtiefe von C zwischen 0,382 und 0,728'],
@@ -95,7 +97,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'BUT-09': ['PRZ seviyesi D’ye yakın', 'The PRZ level is near D', 'PRZ-Level liegt nahe D'],
   'BUT-10': ['Uzantı seviyesi D’ye yakın', 'The extension level is near D', 'Verlängerungs-Level liegt nahe D'],
   'BUT-11': ['İç AB=CD seviyesi D’ye yakın', 'The inner AB=CD level is near D', 'Inneres AB=CD-Level liegt nahe D'],
-  'BUT-12': ZONE_D,
+  'BUT-12': ZONE_D_IN,
   'BUT-13': RSI_D,
   'BUT-14': DIV_D,
   'BUT-15': ['Üst zaman diliminin trendi işlem yönünde', 'The higher timeframe trend runs with the trade', 'Trend der höheren Zeiteinheit läuft in Trade-Richtung'],
@@ -112,7 +114,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'CRB-09': ['Deep Crab: B fazla derin', 'Deep Crab: B is too deep', 'Deep Crab: B zu tief'],
   'CRB-10': ['Crab PRZ seviyesi D’ye yakın', 'The Crab PRZ level is near D', 'Crab-PRZ-Level liegt nahe D'],
   'CRB-11': ['Deep Crab PRZ seviyesi D’ye yakın', 'The Deep Crab PRZ level is near D', 'Deep-Crab-PRZ-Level liegt nahe D'],
-  'CRB-12': ZONE_D,
+  'CRB-12': ZONE_D_IN,
   'CRB-13': RSI_D,
   'CRB-14': DIV_D,
   'CRB-15': ['Tercih edilen zaman dilimi', 'Preferred timeframe', 'Bevorzugte Zeiteinheit'],
@@ -126,7 +128,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'CYP-06': ['C’de RSI(7) karşı uçta', 'RSI(7) at C is in the opposite extreme', 'RSI(7) bei C im Gegen-Extrem'],
   'CYP-07': ['D, XC’nin 0,786’sında', 'D sits at 0.786 of XC', 'D liegt bei 0,786 von XC'],
   'CYP-08': RSI_D,
-  'CYP-09': ['Giriş bir bölgeye yakın', 'The entry is near a zone', 'Einstieg liegt nahe einer Zone'],
+  'CYP-09': ['Giriş bir bölgenin içinde', 'The entry lies inside a zone', 'Einstieg liegt in einer Zone'],
   'CYP-10': ['Giriş bir Libra girişiyle çakışır', 'The entry coincides with a Libra entry', 'Einstieg fällt mit einem Libra-Einstieg zusammen'],
   'CYP-11': ['Kapanış C sınırının ötesinde', 'A close beyond the C limit', 'Schluss jenseits der C-Grenze'],
   'CYP-12': PRZ,
@@ -139,7 +141,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'CDT-03': ['N tamamlanmış fraktal, fitil ucunda', 'N is a finished fractal on a wick end', 'N ist ein fertiges Fraktal an der Dochtspitze'],
   'CDT-04': ['Düzeltme derinliği en az 0,382', 'Correction depth is at least 0.382', 'Korrekturtiefe mindestens 0,382'],
   'CDT-05': ['H2, H1’in bölgesine dokunur', 'H2 touches the zone of H1', 'H2 berührt die Zone von H1'],
-  'CDT-06': ['H1 ve N arasında sırayla', 'H1 and N follow in order', 'H1 und N folgen der Reihe nach'],
+  'CDT-06': ['H2’ye yaklaşırken trend bölgeye doğru', 'The trend on the approach to H2 runs toward the zone', 'Trend beim Anlauf zu H2 läuft zur Zone hin'],
   'CDT-07': ['Üst zaman diliminin trendi işlem yönünde', 'The higher timeframe trend runs with the trade', 'Trend der höheren Zeiteinheit läuft in Trade-Richtung'],
   'CDT-08': ['Yaklaşım H1’e göre daha zayıf', 'The approach is weaker than the one to H1', 'Anlauf schwächer als der zu H1'],
   'CDT-09': ['H1 ve H2 arasında Wave sapması', 'Wave divergence between H1 and H2', 'Wave-Divergenz zwischen H1 und H2'],
