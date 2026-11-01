@@ -3,7 +3,7 @@ date: 2026-11-01
 author: Claude
 type: plan
 status: open
-pr: [275]
+pr: [275, 276]
 features: [MET-02, UI-06, FRM-20, ANA-21, UI-10]
 areas: [frontend, docs]
 ---
@@ -47,7 +47,7 @@ Each step is one PR. The steps run in sequence because they change the same file
 |---|---|---|
 | S0 | Design | Approved on 2026-11-01 |
 | S1 | Remove `ChartViewer.tsx` and the code that only it used | Done, PR 275 |
-| S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Done, see "S2 result" |
+| S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Done, PR 276 |
 | S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Open |
 | S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Open |
 | S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
