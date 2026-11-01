@@ -7,6 +7,7 @@ import { FormationContext, type ContextInput } from '@/lib/formation/context';
 import type { ContextTimeframe } from '@/lib/formation/params';
 import { formationRequests } from '@/lib/formation/requests';
 import { scanFormations, scanTime, type ScanHit } from '@/lib/formation/scan';
+import { scanSignature } from '@/lib/formation/scanKey';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useMarketRates } from '@/hooks/useMarketRates';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -34,10 +35,13 @@ interface Settled {
   scanMs: number;
 }
 
+const tfData = (data: { bars: Bar[]; liveFrom: number | null } | null) => ({ bars: data?.bars ?? [], liveFrom: data?.liveFrom ?? null });
+
 /**
  * Lädt D1/H4/H1/M15 des Symbols (jeweils mit dem 60-s-Nachladen von useMarketRates) und sucht alle Formationen
- * auf allen Zeiteinheiten. Die Suche läuft neu, sobald sich die letzte geschlossene M15-Kerze ändert, und bei
- * Wechsel von Konto oder Symbol; zwischen zwei M15-Kerzen ändert sich keine geschlossene Kerze.
+ * auf allen Zeiteinheiten. Die Suche läuft neu, sobald sich die geschlossenen Daten einer Zeiteinheit ändern
+ * (scanSignature; jede Zeiteinheit lädt mit eigenem Takt, eine höhere kann nach M15 kommen), und bei Wechsel
+ * von Konto oder Symbol; zwischen zwei Kerzen ändert sich nichts Geschlossenes.
  */
 export function useFormationScan(accountId: string | null, symbol: string | null, offsetSec: number | null, clockReady: boolean): FormationScan {
   const nowSec = useCallback(() => (offsetSec !== null ? brokerNow(offsetSec) : Date.now() / 1000), [offsetSec]);
@@ -60,7 +64,10 @@ export function useFormationScan(accountId: string | null, symbol: string | null
 
   const lastM15 = m15.data?.bars[m15.data.bars.length - 1];
   const at = lastM15 && m15.data ? scanTime(lastM15.time, m15.data.liveFrom === lastM15.time) : null;
-  const key = allLoaded && at !== null ? `${accountId}|${symbol}|${at}|${zug}` : null;
+  const signature = allLoaded && at !== null
+    ? scanSignature({ D1: tfData(d1.data), H4: tfData(h4.data), H1: tfData(h1.data), M15: tfData(m15.data) }, at)
+    : null;
+  const key = signature !== null ? `${accountId}|${symbol}|${at}|${zug}|${signature}` : null;
 
   // Neuester Stand der Kerzen für die Suche, ohne sie bei jedem Nachladen neu zu starten
   const latest = useRef<ContextInput>({});
