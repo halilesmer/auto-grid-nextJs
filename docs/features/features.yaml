@@ -1885,11 +1885,12 @@ kategorien:
 
       - id: FRM-21
         titel: "Seite Formasyon: Hintergrundsuche"
-        beschreibung: "Die Seite lädt D1, H4, H1 und M15 des gewählten Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die letzte geschlossene M15-Kerze ändert; zwischen zwei M15-Kerzen ändert sich keine geschlossene Kerze. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung."
-        code: [frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/lib/formation/scan.ts]
+        beschreibung: "Die Seite lädt D1, H4, H1 und M15 des gewählten Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die geschlossenen Daten einer Zeiteinheit ändern (Signatur je Zeiteinheit aus Anzahl und letzter Zeit der geschlossenen Kerzen und Zahl der Lücken, scanKey.ts); so kommt eine höhere Zeiteinheit, die nach M15 nachlädt, in die Suche. Zwischen zwei Kerzen ändert sich nichts Geschlossenes, es gibt keinen Neustart im 60-s-Takt. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung."
+        code: [frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/lib/formation/scan.ts, frontend_nextjs/src/lib/formation/scanKey.ts]
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem gewählten Symbol geladen, data-scan-ms ist gesetzt).
+          - Playwright-Test e2e/mocked/formation-scankey-lib.spec.ts (@FRM-21) ausführen (Signatur mit neuer H1-Kerze, laufende Kerze zählt nicht, Lücken, feste Reihenfolge).
         erwartet: Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das gewählte Symbol.
 
       - id: FRM-22
