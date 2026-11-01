@@ -30,7 +30,10 @@ export interface RunLogLine {
   time?: number;
 }
 
-/** Mehr Zeilen behält das Protokoll nicht; die Zähler zählen weiter */
+/**
+ * Mehr Zeilen behält das Protokoll nicht; die Zähler zählen weiter. Ausnahme: `run.*` sind Pflichthinweise des Laufs
+ * (wenige, nicht aus dem Motor) und bleiben immer erhalten, auch wenn Motor-Meldungen das Protokoll gefüllt haben.
+ */
 export const RUN_LOG_MAX_LINES = 2000;
 
 export class RunLog {
@@ -42,7 +45,7 @@ export class RunLog {
 
   add(level: LogLevel, code: string, params?: Record<string, unknown>, time?: number): void {
     this.counts[code] = (this.counts[code] ?? 0) + 1;
-    if (this.lines.length >= RUN_LOG_MAX_LINES) {
+    if (this.lines.length >= RUN_LOG_MAX_LINES && !code.startsWith('run.')) {
       this.dropped += 1;
       return;
     }

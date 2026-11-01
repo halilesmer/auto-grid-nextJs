@@ -210,6 +210,12 @@ rechnet der Broker-Teil des Nachbaus und wird mit eigenen, von Hand gerechneten 
 - Jedes Backtest-Ergebnis gehört zu einem festen Kontext: Konto, Zone, Einstellungs-Kopie,
   Symbolwerte, Datenquelle mit Datenstand, Zeitraum, Modell-Optionen, Kosten, App-Version. Er steht
   als Laufprotokoll über dem Ergebnis.
+- Pflichthinweise (`run.*`) bleiben im Protokoll, auch wenn Motor-Meldungen die 2000 Zeilen füllen.
+- Relativer Spread-Schutz: live eine Lernhistorie je Symbol für alle Zonen, im Lauf nur das getestete Setup.
+  Hat ein weiteres Setup der Seite oder eine gespeicherte Zone (auch inaktiv, der Worker lernt mit allen) desselben Symbols ebenfalls relativen
+  Schutz, steht der Hinweis `run.spreadHistoryShared` im Ergebnis.
+- Die Drawdown-Grafik beginnt beim Startkapital, wie die Kennzahl „Max. Drawdown“.
+- Live-Vergleich: nur Live-Trades mit Ausstieg in [Von, Bis) zählen; die Paarung läuft vorher über das ganze Archiv.
 - Die Einstellungs-Kopie kommt aus der Zone, auch mit ungespeicherten Änderungen. Das
   Laufprotokoll vermerkt das dann.
 - Kontowechsel: alte Ergebnisse verschwinden. Verspätete Antworten werden über eine Anfrage- bzw.

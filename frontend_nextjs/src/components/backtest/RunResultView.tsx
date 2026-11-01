@@ -136,7 +136,7 @@ function RunColumn({ result, context, title, requestBars, replayActive, anotherR
   const fmt = useFormat();
   const [curve, setCurve] = useState<CurveKind>('equity');
   const stats = useMemo(() => computeStats(result.trades), [result.trades]);
-  const drawdown = useMemo(() => drawdownCurve(result.equity), [result.equity]);
+  const drawdown = useMemo(() => drawdownCurve(result.equity, result.summary.startCapital), [result.equity, result.summary.startCapital]);
   const { summary } = result;
   const currency = context.currency;
   const money = (v: number, signed = false) =>

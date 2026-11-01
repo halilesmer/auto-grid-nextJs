@@ -35,6 +35,8 @@ export interface RunParams {
   path: PathChoice;
   startCapital?: number;
   zoneLabel?: string | null;
+  /** Zusätzliche Hinweise der Seite (z. B. gemeinsame Spread-Lernhistorie), landen als Warnung im Protokoll */
+  notes?: { code: string; params?: Record<string, unknown> }[];
 }
 
 export interface RunRequest {

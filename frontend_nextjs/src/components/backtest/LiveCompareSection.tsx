@@ -13,7 +13,7 @@ import { APP_VERSION } from '@/app/version';
 import { getApiErrorMessage, isAbortError } from '@/lib/apiError';
 import { pairTrades } from '@/lib/analysis/tradePairing';
 import {
-  buildSymbolRows, DEFAULT_TOLERANCE, flatZone, type CollectedRun, type Report, type ReportSummary, type Tolerance,
+  buildSymbolRows, DEFAULT_TOLERANCE, pairLive, flatZone, type CollectedRun, type Report, type ReportSummary, type Tolerance,
 } from '@/lib/backtest/liveCompare';
 import * as api from '@/services/backtestReportApi';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -197,7 +197,7 @@ export function LiveCompareSection({ accountId, offsetSec }: { accountId: string
   const mixedPeriod = periods.size > 1;
   // Der Bericht hält eine Lauf-Einstellung: unterschiedliche Formulare ließen sich nicht richtig dokumentieren
   const mixedForm = new Set(collected.map((run) => JSON.stringify(run.form))).size > 1;
-  const period = collected.length > 0 && !mixedPeriod ? { from: collected[0].from, to: collected[0].to } : null;
+  const period = useMemo(() => (collected.length > 0 && !mixedPeriod ? { from: collected[0].from, to: collected[0].to } : null), [collected, mixedPeriod]);
   const deals = useDealsHistory(period ? { accountId, ...period } : null, false);
 
   const live = useMemo(() => {
@@ -205,7 +205,11 @@ export function LiveCompareSection({ accountId, offsetSec }: { accountId: string
     const result = pairTrades(deals.data.deals, deals.data.zones, offsetSec);
     return { trades: result.trades, entries: result.entries };
   }, [deals.data, offsetSec]);
-  const rows = useMemo(() => (live ? buildSymbolRows(collected, live, tolerance) : null), [live, collected, tolerance]);
+  // Das Archiv liefert die Vorgeschichte offener Positionen: erst gepaart, dann auf Ausstiege im Zeitraum begrenzt
+  const rows = useMemo(() => {
+    if (!live) return null;
+    return buildSymbolRows(collected, period ? pairLive(live, period.from, period.to) : live, tolerance);
+  }, [live, period, collected, tolerance]);
   const currency = collected[0]?.currency ?? null;
   const canSave = Boolean(rows && period && name.trim() && name.trim().length <= 80 && !mixedPeriod && !mixedForm);
 

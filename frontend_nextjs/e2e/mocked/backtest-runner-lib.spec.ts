@@ -18,7 +18,9 @@ import {
   ORDER_TYPE_SELL,
 } from '../../src/lib/backtest/engine/types';
 import type { RunRequest, WorkerMessage } from '../../src/lib/backtest/protocol';
-import { RunError } from '../../src/lib/backtest/runContext';
+import { RunError, RunLog, RUN_LOG_MAX_LINES } from '../../src/lib/backtest/runContext';
+import { spreadHistoryNote } from '../../src/lib/backtest/spreadHistoryNote';
+import { drawdownCurve } from '../../src/lib/analysis/curves';
 import { FETCH_TIMEOUT_MS, httpFetchJson, runJob } from '../../src/lib/backtest/runJob';
 import { downsampleCurve, EquityTrack } from '../../src/lib/backtest/runSummary';
 import { runBacktest, strategyTimeframes, warmupSeconds, type RunInput, type RunModel } from '../../src/lib/backtest/runner';
@@ -802,5 +804,43 @@ test.describe('Auftrag im Web Worker', () => {
       throw new TypeError('kaputt');
     });
     expect(odd).toEqual([{ type: 'error', runId: 7, code: 'run.unexpected', message: 'kaputt' }]);
+  });
+});
+
+test.describe('Pflichthinweise, Spread-Lernhistorie, Drawdown-Start', () => {
+  test('Pflichthinweis (run.*) bleibt im Protokoll, auch wenn Motor-Meldungen die 2000 Zeilen füllen', { tag: '@BKT-04' }, () => {
+    const log = new RunLog();
+    for (let i = 0; i < RUN_LOG_MAX_LINES + 50; i++) log.add('INFO', 'engine.order', { i }, i);
+    log.add('WARN', 'run.spreadFallback', { candles: 3, points: 20 });
+    expect(log.counts['run.spreadFallback']).toBe(1);
+    expect(log.lines.filter((l) => l.code === 'run.spreadFallback')).toEqual([{ level: 'WARN', code: 'run.spreadFallback', params: { candles: 3, points: 20 }, time: undefined }]);
+    // Motor-Meldungen über dem Limit zählen weiter als verworfen
+    expect(log.dropped).toBe(50);
+  });
+
+  const guarded = (id: string, symbol = 'XAUUSD', mode = 'relative', enabled = true) => ({ id, symbol, is_active: true, spread_guard: { enabled, mode } });
+
+  test('Spread-Lernhistorie: Hinweis nur bei relativem Schutz im getesteten und in einem weiteren Setup desselben Symbols', { tag: '@BKT-04' }, () => {
+    const tested = guarded('a');
+    expect(spreadHistoryNote(tested, [guarded('b')])).toEqual({ code: 'run.spreadHistoryShared', params: { count: 1 } });
+    expect(spreadHistoryNote(tested, [guarded('b'), guarded('c')])).toEqual({ code: 'run.spreadHistoryShared', params: { count: 2 } });
+    expect(spreadHistoryNote(tested, [guarded('a')])).toBeNull(); // gleiche Zone, kein anderes Setup
+    expect(spreadHistoryNote(tested, [guarded('b', 'EURUSD')])).toBeNull();
+    expect(spreadHistoryNote(tested, [guarded('b', 'XAUUSD', 'fixed')])).toBeNull();
+    expect(spreadHistoryNote(tested, [guarded('b', 'XAUUSD', 'relative', false)])).toBeNull();
+    // Der Worker gibt dem Schutz auch inaktive Zonen: sie teilen die Historie
+    expect(spreadHistoryNote(tested, [{ ...guarded('b'), is_active: false }])).toEqual({ code: 'run.spreadHistoryShared', params: { count: 1 } });
+    expect(spreadHistoryNote(guarded('a', 'XAUUSD', 'fixed'), [guarded('b')])).toBeNull();
+  });
+
+  test('Drawdown-Grafik beginnt beim Startkapital: 1000 → 900, 900 ergibt −100, −100', { tag: '@BKT-04' }, () => {
+    const track = new EquityTrack(1000);
+    track.add(1, 900);
+    track.add(2, 900);
+    expect(track.maxDrawdown).toBe(100);
+    const points = track.times.map((time, i) => ({ time, value: track.values[i] }));
+    expect(drawdownCurve(points, 1000).map((p) => p.value)).toEqual([-100, -100]);
+    // Ohne Startwert (Statistik-Reiter) bleibt das Verhalten
+    expect(drawdownCurve(points).map((p) => p.value)).toEqual([0, 0]);
   });
 });

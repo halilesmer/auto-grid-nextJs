@@ -39,9 +39,9 @@ export function realizedCurve(trades: Trade[], from: number): CurvePoint[] {
   return points;
 }
 
-/** Abstand zum bisherigen Höchststand der Kurve (≤ 0) */
-export function drawdownCurve(points: CurvePoint[]): CurvePoint[] {
-  let peak = -Infinity;
+/** Abstand zum bisherigen Höchststand der Kurve (≤ 0); `startPeak`: Höchststand vor dem ersten Punkt (Backtest: Startkapital) */
+export function drawdownCurve(points: CurvePoint[], startPeak = -Infinity): CurvePoint[] {
+  let peak = startPeak;
   return points.map((p) => {
     peak = Math.max(peak, p.value);
     return { time: p.time, value: p.value - peak };

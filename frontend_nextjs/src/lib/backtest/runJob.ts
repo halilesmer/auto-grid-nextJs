@@ -52,7 +52,7 @@ export async function runJob(
         startCapital: params.startCapital,
         accountCurrency: params.accountCurrency,
         zoneLabel: params.zoneLabel,
-        notes: snapshot.warnings,
+        notes: [...snapshot.warnings, ...(params.notes ?? [])],
         onProgress: (fraction) =>
           post({ type: 'progress', runId, phase: 'run', fraction: LOAD_SHARE + ((index + fraction) / paths.length) * (1 - LOAD_SHARE) }),
       }),
