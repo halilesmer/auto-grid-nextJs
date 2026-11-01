@@ -113,6 +113,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('CRB-03', rC === null ? U : flag(rC >= P.cExclude), rC ?? undefined);
   const rD = d ? retraceXA(s, d.price) : null;
   add('CRB-04', flag(d !== null && outward(es, d.price) >= outward(es, levelXA(s, 1 + P.dExtension))), rD ?? undefined);
+  const reached = checks.find((k) => k.id === 'CRB-04')!.state === 'met';
   add('CRB-05', flag(closedBeyondB(bars, s)));
 
   // Varianten: B der Crab 0.382 bis unter 0.786, B der Deep Crab 0.886 bis unter 1.0
@@ -129,7 +130,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('CRB-10', crabPrz === null ? U : flag(crabPrz <= P.nearAtr), crabPrz ?? undefined);
   const deepPrz = nearestInversion(s, P.deepInversions, dTarget, atr);
   add('CRB-11', deepPrz === null ? U : flag(deepPrz <= P.nearAtr), deepPrz ?? undefined);
-  add('CRB-12', flag(zonesNearOutsideX(env, tf, s, dTarget, 0).length > 0));
+  add('CRB-12', flag(zonesNearOutsideX(env, tf, s, d && reached ? d.price : dTarget, 0).length > 0));
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('CRB-13', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
   const div = d ? divergenceOf(trend, es, b.idx, d.idx) : null;
@@ -138,7 +139,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('CRB-16', lowerReversal(env, tf, s));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
-  const reached = stateOf('CRB-04') === 'met';
   const drawings = drawingsOf(env, tf, s, reached);
   const inactiveIds = otherVariantIds(stateOf);
   const withDrawings: Check[] = checks.map((k) => ({

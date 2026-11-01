@@ -45,6 +45,41 @@ for (const spec of ZONE_SPECS) {
   }
 }
 
+// Gemessen wird beim echten D (erreicht); ist D nicht erreicht oder fehlt es, beim Ziel-Preis. Ein Zwischenextrem ist kein D. Die Zeilen sind Bonus; dass das Urteil gleich bleibt, zeigen die Echtkerzen-Tests (Urteil als Literal).
+for (const spec of ZONE_SPECS) {
+  const overshoot = spec.target - 50;
+  const run = (zoneAt: number, dAt: number | null) => {
+    // ohne D endet die Reihe bei C: kein Docht danach, an dem ein D gemessen werden könnte
+    const length = dAt === null ? 43 : 50;
+    const h4 = Array.from({ length }, (_, i) => bar(i * H4, 2999, 3001, 3000));
+    const d1 = Array.from({ length: 5 }, (_, i) => i === 2 ? bar(i * D1, zoneAt, zoneAt + 3, zoneAt + 1) : bar(i * D1, zoneAt + 2, zoneAt + 4, zoneAt + 3));
+    const ctx = new FormationContext('TEST', { H4: h4, D1: d1 });
+    const anchor = (idx: number, price: number) => ({ time: idx * H4, price });
+    return spec.check(ctx, length * H4, {
+      tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c),
+      ...(dAt === null ? {} : { d: anchor(44, dAt) }),
+    });
+  };
+  const stateOf = (cand: ReturnType<typeof run>) => cand.checks.find((x) => x.id === spec.id)?.state;
+
+  test(`${spec.id}: D über das Ziel hinaus, Zone nur am Ziel → unmet`, { tag: spec.tag }, () => {
+    expect(stateOf(run(spec.target, overshoot))).toBe('unmet');
+  });
+  test(`${spec.id}: D über das Ziel hinaus, Zone am echten D → met`, { tag: spec.tag }, () => {
+    expect(stateOf(run(overshoot, overshoot))).toBe('met');
+  });
+  test(`${spec.id}: D nicht erreicht, Zone nur am Zwischenextrem → unmet`, { tag: spec.tag }, () => {
+    expect(stateOf(run(spec.target + 50, spec.target + 50))).toBe('unmet');
+  });
+  test(`${spec.id}: D nicht erreicht, Zone am Ziel → met`, { tag: spec.tag }, () => {
+    expect(stateOf(run(spec.target, spec.target + 50))).toBe('met');
+  });
+  test(`${spec.id}: ohne D wird am Ziel gemessen`, { tag: spec.tag }, () => {
+    expect(stateOf(run(spec.target, null))).toBe('met');
+    expect(stateOf(run(overshoot, null))).toBe('unmet');
+  });
+}
+
 // Zonen zählen nur aus der Formations-Zeiteinheit oder einer höheren (Regelbuch: „der Formations- oder einer höheren ZE“)
 type Tf = keyof typeof DUR;
 for (const spec of ZONE_SPECS) {

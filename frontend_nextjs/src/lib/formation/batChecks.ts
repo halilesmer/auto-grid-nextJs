@@ -103,6 +103,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const dLevel = levelXA(s, B.dLevel);
   const rD = d ? retraceXA(s, d.price) : null;
   add('BAT-07', flag(d !== null && outward(es, d.price) > outward(es, b.price) && reaches(rD, B.dLevel, len, pip)), rD ?? undefined);
+  const reached = checks.find((k) => k.id === 'BAT-07')!.state === 'met';
 
   // Ort und Kontext
   add('BAT-08', flag(reaches(rC, ABCD_PARAMS.minCorrection, abLen, pip) && rC !== null && rC <= ABCD_PARAMS.maxCorrection), rC ?? undefined);
@@ -110,7 +111,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const dist = atrDistance(abcd.level1, dLevel, atr);
   add('BAT-09', dist === null ? U : flag(dist <= HARMONIC_PARAMS.nearAtr), dist ?? undefined);
   add('BAT-10', tri(enoughSpace(s, last, atr)));
-  add('BAT-11', flag(zonesNear(env, tf, s, dLevel, 0).length > 0));
+  add('BAT-11', flag(zonesNear(env, tf, s, d && reached ? d.price : dLevel, 0).length > 0));
   add('BAT-12', flag(HARMONIC_PARAMS.highTimeframes.includes(tf)));
 
   // Signal am Einstieg (die Divergenz am D ist egal und hat keine Zeile)
@@ -124,7 +125,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   add('BAT-16', flag(HARMONIC_PARAMS.excludedTimeframes.includes(tf)));
   add('BAT-17', flag(closedBeyondX(env, tf, s)));
 
-  const reached = checks.find((k) => k.id === 'BAT-07')!.state === 'met';
   const drawings = drawingsOf(env, tf, s, dLevel, reached);
   const withDrawings = checks.map((k) => ({
     ...k,

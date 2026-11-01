@@ -119,13 +119,14 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   // Vollendung an 0.786 der Fib X → C
   const rD = d ? retraceXC(s, d.price) : null;
   add('CYP-07', flag(d !== null && reaches(rD, P.dLevel, lenXC(s), pip)), rD ?? undefined);
+  const reached = checks.find((k) => k.id === 'CYP-07')!.state === 'met';
 
   // Signal und Ort am D
   const entry = levelXC(s, P.dLevel);
   const atr = view.atr[d ? d.idx : last] ?? null;
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('CYP-08', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
-  add('CYP-09', flag(zonesNear(env, tf, s, entry, 0).length > 0));
+  add('CYP-09', flag(zonesNear(env, tf, s, d && reached ? d.price : entry, 0).length > 0));
   add('CYP-10', atr === null ? U : flag(libraAtEntry(libras(), tf, side, entry, P.nearAtr * atr)));
 
   // Ausschluss und PRZ
@@ -137,7 +138,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   add('CYP-15', flag(closedBeyondBLimit(bars, s)));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
-  const reached = stateOf('CYP-07') === 'met';
   const drawings = drawingsOf(env, tf, s, reached);
   const withDrawings = checks.map((k) => ({
     ...k,
