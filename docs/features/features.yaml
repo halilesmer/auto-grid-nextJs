@@ -1647,7 +1647,7 @@ kategorien:
 
       - id: BKT-10
         titel: Hinweise zu Daten und Modell (B5a)
-        beschreibung: "Vor jedem Lauf zeigt /backtest einen nicht abschaltbaren Hinweis zu den Grenzen von Ereigniszeit, simulierter Uhr, Wochenend-Swap und Drawdown-Abtastung in tr/en/de. Über jedem Ergebnis steht ein Hinweisblock: Modellgrenzen (Margin/Stop-out nicht geprüft, Ablehnungen nicht simuliert, Stops Level nicht geprüft), „Kosten geschätzt“, Währung zum heutigen Kurs, Datenlücken (missing), verworfene laufende Kerze, Spread-Ersatz, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand (nur Grid-Modus mit festem Abstand) kleiner ist als die mittlere Kerzenspanne (RunResult.avgRange). Die Hinweise aus dem Rechner sind dieselben Meldungen wie im Laufprotokoll. Noch nicht simuliert und noch nicht im Hinweisblock genannt: verschwundene Orders von außen, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich."
+        beschreibung: "Vor jedem Lauf zeigt /backtest einen nicht abschaltbaren Hinweis zu den Grenzen von Ereigniszeit, simulierter Uhr, Wochenend-Swap und Drawdown-Abtastung in tr/en/de. Über jedem Ergebnis steht ein Hinweisblock: Modellgrenzen (Margin/Stop-out nicht geprüft, Ablehnungen nicht simuliert, Stops Level nicht geprüft), „Kosten geschätzt“, Währung zum heutigen Kurs, Datenlücken (missing), verworfene laufende Kerze, Zeitraum auf ganze Kerzen gerundet (run.rangeRounded), Spread-Ersatz, Hinweis ab Datenauflösung M5 und „unsicher“, wenn der Grid-Abstand (nur Grid-Modus mit festem Abstand) kleiner ist als die mittlere Kerzenspanne (RunResult.avgRange). Die Hinweise aus dem Rechner sind dieselben Meldungen wie im Laufprotokoll. Noch nicht simuliert und noch nicht im Hinweisblock genannt: verschwundene Orders von außen, Auto-Pause, Teilfüllungen, Remote-Befehle, mehrere Zonen zugleich."
         code: [frontend_nextjs/src/components/backtest/BacktestView.tsx, frontend_nextjs/src/components/backtest/RunResultView.tsx, frontend_nextjs/src/lib/backtest/runner.ts]
         tiers: [e2e]
         pruefung:
@@ -1697,12 +1697,12 @@ kategorien:
 
       - id: BKT-15
         titel: Backtest-Zeitraum sekundengenau
-        beschreibung: "Im Zeitraum-Panel (Eigener Zeitraum) gibt es zwei optionale Felder „Startzeit“ und „Endzeit“ (HH:MM:SS, Brokerzeit). Leer oder Ende 00:00:00 heißt ganzer Tag, wie bisher. rangeBounds addiert die Zeiten zu den Tagesgrenzen; die Grenzen [Start, Ende) in MT5-Sekunden gehen unverändert an den Lauf. Die Adresse trägt sie als ft= und tt=, gespeicherte Voreinstellungen behalten sie. Ungültige Uhrzeit oder Ende vor Start sperrt „Übernehmen“."
-        code: [frontend_nextjs/src/lib/serverTime.ts, frontend_nextjs/src/components/analysis/DateRangePicker.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts, frontend_nextjs/src/lib/backtest/presets.ts]
+        beschreibung: "Im Zeitraum-Panel (Eigener Zeitraum) gibt es zwei optionale Felder „Startzeit“ und „Endzeit“ (HH:MM:SS, Brokerzeit). Leer oder Ende 00:00:00 heißt ganzer Tag, wie bisher. rangeBounds addiert die Zeiten zu den Tagesgrenzen; die Grenzen [Start, Ende) in MT5-Sekunden gehen unverändert an den Lauf. Die Adresse trägt sie als ft= und tt=, gespeicherte Voreinstellungen behalten sie. Ungültige Uhrzeit oder Ende vor Start sperrt „Übernehmen“. Der Lauf rechnet nur Kerzen, die ganz in [Start, Ende) liegen (t ≥ Start und t + Datenauflösung ≤ Ende); liegt eine Grenze innerhalb einer Kerze, meldet er run.rangeRounded mit dem wirklich gerechneten Zeitraum, ohne ganze Kerze run.noCandles."
+        code: [frontend_nextjs/src/lib/serverTime.ts, frontend_nextjs/src/components/analysis/DateRangePicker.tsx, frontend_nextjs/src/hooks/useAnalysisParams.ts, frontend_nextjs/src/lib/backtest/presets.ts, frontend_nextjs/src/lib/backtest/runner.ts]
         tiers: [e2e]
         pruefung:
           - Auf /backtest „Eigener Zeitraum“ öffnen, Tage und Uhrzeiten eintragen und übernehmen; Seite neu laden.
-        erwartet: Die Adresse trägt ft= und tt=, nach dem Neuladen stehen dieselben Zeiten im Panel; der Lauf nimmt genau diese Grenzen.
+        erwartet: Die Adresse trägt ft= und tt=, nach dem Neuladen stehen dieselben Zeiten im Panel; der Lauf rechnet die Kerzen ganz in diesen Grenzen und meldet eine Grenze innerhalb einer Kerze als Hinweis.
 
   # ---------------------------------------------------------------------------
   - id: FRM

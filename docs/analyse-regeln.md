@@ -171,6 +171,12 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
   der Bot dran. Nichts wird übersprungen. Mehr als 100.000 Ereignisse in einer Kerze: Abbruch mit Meldung.
 - **Zeit in der Kerze:** nach Weglänge auf die Wegstücke verteilt; Eröffnung am Kerzenanfang,
   Schluss 1 s vor Kerzenende (wichtig für die 30-s-Bremse und den Swap um Mitternacht).
+- **Kurslücke zwischen Kerzen:** Eine Marke (Order, TP, SL) löst in der Lücke nur aus, wenn ihre Bedingung am
+  neuen Bid/Ask der folgenden Kerze gilt (neuer Spread eingerechnet). Jede im Gap überquerte Marke erfüllt das;
+  die Reihenfolge entlang der Lücke bleibt die Preis-Reihenfolge.
+- **Zeitraum:** Es laufen nur Kerzen, die ganz in [von, bis) liegen (`t ≥ von` und `t + Datenauflösung ≤ bis`).
+  Liegt eine Grenze innerhalb einer Kerze, rechnet der Lauf diese Kerze nicht (es gibt keine echten Preisdaten
+  innerhalb einer Kerze) und nennt den wirklich gerechneten Zeitraum im Hinweis. Ganze Tage bleiben unverändert.
 - **Kein Blick in die Zukunft:** Zum Zeitpunkt t sieht der Bot nur abgeschlossene Kerzen, die
   laufende Kerze bis zum bisher gelaufenen Weg und den aktuellen Preis.
 - **Laufende Kerze auf /formasyon:** Der Chart zeigt zusätzlich die laufende Kerze mit dem gemeinsamen Preis

@@ -2,13 +2,17 @@
  * Backtest-Rechner (B4), ohne Browserseite: Auslösungen im Kerzenpfad, Kurslücke, Kosten, Swap mit Dreifach-Tag,
  * Testende, Zeitrahmen des Bots, Abbruchgründe. Die Zahlen sind von Hand gerechnet (Rechnung im Kommentar).
  * BKT-04 Backtest-Rechner mit Kosten
+ * BKT-15 Backtest-Zeitraum sekundengenau (Kerzen ganz im Zeitraum)
  */
 import { expect, test } from '@playwright/test';
 import { snapshotSymbol, type SymbolSnapshot } from '../../src/lib/backtest/broker/costs';
 import { PathBroker } from '../../src/lib/backtest/broker/pathBroker';
 import type { LoadedRates } from '../../src/lib/backtest/candles/loadRates';
 import {
+  ORDER_TYPE_BUY_LIMIT,
   ORDER_TYPE_BUY_STOP,
+  ORDER_TYPE_SELL_LIMIT,
+  ORDER_TYPE_SELL_STOP,
   TRADE_ACTION_DEAL,
   TRADE_ACTION_PENDING,
   ORDER_TYPE_SELL,
@@ -381,6 +385,61 @@ test.describe('Broker im Kerzenpfad', () => {
     }
   });
 
+  test('Kurslücke: Pending Orders lösen nur aus, wenn die Bedingung am neuen Quote gilt (Spread 0,20)', { tag: '@BKT-04' }, () => {
+    // Marken (Bid): BUY_LIMIT/BUY_STOP 2651 → 2650,80 (Ask = Bid + 0,20); SELL_LIMIT/SELL_STOP 2651 → 2651,00
+    const buyLimit = broker();
+    buyLimit.orderSend(pending(ORDER_TYPE_BUY_LIMIT, 2651));
+    expect(buyLimit.nextGapTrigger(2650, 2652)).toBeNull(); // Ask 2652,20 > 2651: nie erreicht
+    expect(buyLimit.nextGapTrigger(2653, 2650)).toEqual({ kind: 'fill', ticket: 1000, bid: 2650.8, immediate: false });
+
+    const buyStop = broker();
+    buyStop.orderSend(pending(ORDER_TYPE_BUY_STOP, 2651));
+    expect(buyStop.nextGapTrigger(2652, 2650)).toBeNull(); // Ask 2650,20 < 2651
+    expect(buyStop.nextGapTrigger(2650, 2653)).toEqual({ kind: 'fill', ticket: 1000, bid: 2650.8, immediate: false });
+
+    const sellLimit = broker();
+    sellLimit.orderSend(pending(ORDER_TYPE_SELL_LIMIT, 2651));
+    expect(sellLimit.nextGapTrigger(2652, 2650)).toBeNull(); // Bid 2650 < 2651
+    expect(sellLimit.nextGapTrigger(2649, 2652)).toEqual({ kind: 'fill', ticket: 1000, bid: 2651, immediate: false });
+
+    const sellStop = broker();
+    sellStop.orderSend(pending(ORDER_TYPE_SELL_STOP, 2651));
+    expect(sellStop.nextGapTrigger(2650, 2652)).toBeNull(); // Bid 2652 > 2651
+    expect(sellStop.nextGapTrigger(2652, 2650)).toEqual({ kind: 'fill', ticket: 1000, bid: 2651, immediate: false });
+  });
+
+  test('Kurslücke: TP und SL beider Richtungen lösen nur aus, wenn die Bedingung am neuen Quote gilt', { tag: '@BKT-04' }, () => {
+    // Kauf (schließt zum Bid): TP 2652 → Bid ≥ 2652; SL 2650 → Bid ≤ 2650
+    const buy = broker();
+    buy.orderSend({ action: TRADE_ACTION_DEAL, symbol: 'XAUUSD', volume: 0.1, type: 0, price: 2650.2, tp: 2652, sl: 2650, magic: 200001 });
+    expect(buy.nextGapTrigger(2650.5, 2651)).toBeNull();
+    expect(buy.nextGapTrigger(2649, 2651)).toBeNull(); // SL-Bedingung am alten Kurs, nicht am neuen
+    expect(buy.nextGapTrigger(2651, 2653)).toMatchObject({ kind: 'tp', bid: 2652, immediate: false });
+    expect(buy.nextGapTrigger(2651, 2649)).toMatchObject({ kind: 'sl', bid: 2650, immediate: false });
+    // Verkauf (schließt zum Ask): TP 2649 → Bid ≤ 2648,80; SL 2651 → Bid ≥ 2650,80
+    const sell = broker();
+    sell.orderSend({ action: TRADE_ACTION_DEAL, symbol: 'XAUUSD', volume: 0.1, type: ORDER_TYPE_SELL, price: 2650, tp: 2649, sl: 2651, magic: 200001 });
+    expect(sell.nextGapTrigger(2650, 2649.5)).toBeNull();
+    expect(sell.nextGapTrigger(2650, 2649.8)).toBeNull(); // Bid 2649,80 < 2650,80: SL (Ask 2650,00) nie erreicht
+    expect(sell.nextGapTrigger(2650, 2652)).toMatchObject({ kind: 'sl', bid: 2650.8, immediate: false });
+    expect(sell.nextGapTrigger(2650, 2648)).toMatchObject({ kind: 'tp', bid: 2648.8, immediate: false });
+  });
+
+  test('Kurslücke: Reihenfolge entlang der Lücke bleibt; Spreadwechsel ohne Kursänderung löst aus, wenn es am neuen Quote gilt', { tag: '@BKT-04' }, () => {
+    const b = broker();
+    b.orderSend(pending(ORDER_TYPE_BUY_STOP, 2652)); // Ticket 1000, Bid 2651,80
+    b.orderSend(pending(ORDER_TYPE_BUY_STOP, 2651)); // Ticket 1001, Bid 2650,80: liegt zuerst auf dem Weg
+    expect(b.nextGapTrigger(2650, 2655)).toMatchObject({ ticket: 1001, bid: 2650.8 });
+    // Beide gelten am neuen Quote (Bid 2655): die Reihenfolge folgt dem Weg, nicht dem Ticket
+    b.fire(b.nextGapTrigger(2650, 2655)!, true);
+    expect(b.nextGapTrigger(2650.8, 2655)).toMatchObject({ ticket: 1000, bid: 2651.8 });
+    // Kurs bleibt bei 2651 und der Spread (0,20) macht die Marke 2650,80 wahr: sofort
+    const same = broker();
+    same.orderSend(pending(ORDER_TYPE_BUY_STOP, 2651));
+    expect(same.nextGapTrigger(2651, 2651)).toEqual({ kind: 'fill', ticket: 1000, bid: 2651, immediate: true });
+    expect(same.nextGapTrigger(2650.5, 2650.5)).toBeNull();
+  });
+
   test('Kerzen des Bots: Zeitrahmen mit laufender Kerze, nicht registrierter Zeitrahmen bricht ab', { tag: '@BKT-04' }, () => {
     const b = broker();
     b.warm({ time: WED - 300, open: 2640, high: 2645, low: 2639, close: 2644 });
@@ -567,6 +626,91 @@ test.describe('Vorbedingungen und Abbruch', () => {
     // Eine Position (0,10 Lot) bei Spread 20 Punkte kostet 2,00 (Test oben); fest 30 Punkte: 30 Ticks × 1,00 × 0,10 = 3,00
     const result = run(candles([C1]), { spread: { mode: 'fixed', points: 30 } });
     expect(result.summary.spreadInfo).toBe(3);
+  });
+});
+
+test.describe('Kurslücke mit Spreadwechsel im Lauf', () => {
+  /** Ein Kauf-Limit bei 2651 (Raster 1,00; ein Level unter dem Mittelkurs), kein Level darüber */
+  const BUY_ZONE = { ...ZONE, levels_below: 1, levels_above: 0 };
+  /** Sofort-Verkauf am Markt mit SL 1,00 über dem Einstieg und fernem TP */
+  const SELL_ZONE = { ...ZONE, order_type: 'SELL', instant_entry: true, sync_buy_sell: false, sell_stop_loss: 1, sell_take_profit: 50, levels_below: 0, levels_above: 0 };
+
+  test('Spread wird enger: ein Kauf-Limit füllt nicht, wenn der Ask 2651 nie erreicht', { tag: '@BKT-04' }, () => {
+    /**
+     * Kerze 1: Bid 2650, Spread 400 Punkte (4,00), Mittelkurs 2652 → der Bot setzt BUY_LIMIT 2651.
+     * Kerze 2: Bid 2652, Spread 20 Punkte → Ask 2652,20 liegt über 2651: keine Füllung, in keinem Modell.
+     */
+    const rows = [[T1, 2650, 2650, 2650, 2650, 400], [T1 + 60, 2652, 2652, 2652, 2652, 20]];
+    for (const fill of ['gap', 'parity'] as const) {
+      const result = run(candles(rows), { zone: BUY_ZONE, commissionPerLot: 0, model: { ...MODEL, fill, closeAtEnd: true } });
+      expect(result.trades).toEqual([]);
+      expect(result.summary.openPositions).toBe(0);
+    }
+  });
+
+  test('Spread wird weiter: ein Verkaufs-SL 2651 löst nicht aus, wenn der Ask 2651 nie erreicht', { tag: '@BKT-04' }, () => {
+    /**
+     * Kerze 1: Bid 2650, Spread 10 (Ask 2650,10) → Verkauf bei 2650,00, SL 2651.
+     * Kerze 2: Bid 2649,80, Spread 110 (Ask 2650,90) bleibt unter 2651: kein Stop (früher −9,00 zum Ask 2650,90).
+     */
+    const rows = [[T1, 2650, 2650, 2650, 2650, 10], [T1 + 60, 2649.8, 2649.8, 2649.8, 2649.8, 110]];
+    const result = run(candles(rows), { zone: SELL_ZONE, commissionPerLot: 0 });
+    expect(result.trades).toEqual([]);
+    expect(result.summary.openPositions).toBe(1);
+  });
+
+  test('echte Kurslücke füllt weiter zum Marktpreis (Gap) und zum Orderpreis (Parität)', { tag: '@BKT-04' }, () => {
+    /**
+     * Kerze 1: Bid 2652, Spread 20, Mittelkurs 2652,10 → BUY_LIMIT 2651 (füllt bei Ask ≤ 2651).
+     * Kerze 2 beginnt bei Bid 2650, Spread 20 → Ask 2650,20 ≤ 2651: die Lücke hat die Marke überquert.
+     * Gap: Einstieg zum Ask 2650,20; Parität: zum Orderpreis 2651,00. Testende (Bid 2650,00) schließt:
+     * Gap (2650,00 − 2650,20) × 100 × 0,10 = −2,00; Parität (2650,00 − 2651,00) × 10 = −10,00.
+     */
+    const rows = [[T1, 2652, 2652, 2652, 2652, 20], [T1 + 60, 2650, 2650, 2650, 2650, 20]];
+    const gap = run(candles(rows), { zone: BUY_ZONE, commissionPerLot: 0, model: { ...MODEL, fill: 'gap', closeAtEnd: true } });
+    expect(gap.trades.map((x) => [x.entryPrice, x.exitPrice, x.net])).toEqual([[2650.2, 2650, -2]]);
+    const parity = run(candles(rows), { zone: BUY_ZONE, commissionPerLot: 0, model: { ...MODEL, fill: 'parity', closeAtEnd: true } });
+    expect(parity.trades.map((x) => [x.entryPrice, x.exitPrice, x.net])).toEqual([[2651, 2650, -10]]);
+  });
+});
+
+test.describe('Sekundengenaue Grenzen im Lauf', () => {
+  /** Drei volle M1-Kerzen: 10:00, 10:01, 10:02 */
+  const rows = [
+    [T1, 2650, 2652, 2650, 2652, 20],
+    [T1 + 60, 2652, 2654, 2652, 2654, 20],
+    [T1 + 120, 2654, 2656, 2654, 2656, 20],
+  ];
+  const codes = (result: ReturnType<typeof run>) => result.log.lines.map((l) => l.code);
+
+  test('ganze Minuten: alle Kerzen laufen, kein Hinweis', { tag: '@BKT-15' }, () => {
+    const result = run(candles(rows), { from: T1, to: T1 + 180 });
+    expect(result.candles).toBe(3);
+    expect(codes(result)).not.toContain('run.rangeRounded');
+  });
+
+  test('Start in einer Kerze: die angebrochene Kerze entfällt, der Hinweis nennt den gerechneten Zeitraum', { tag: '@BKT-15' }, () => {
+    const result = run(candles(rows), { from: T1 + 15, to: T1 + 180 });
+    expect(result.candles).toBe(2);
+    const line = result.log.lines.find((l) => l.code === 'run.rangeRounded');
+    expect(line?.params).toEqual({ from: T1 + 60, to: T1 + 180 });
+  });
+
+  test('Ende in einer Kerze: die Kerze, die über das Ende läuft, entfällt; keine Position danach', { tag: '@BKT-15' }, () => {
+    const result = run(candles(rows), { from: T1, to: T1 + 150, model: { ...MODEL, closeAtEnd: true } });
+    expect(result.candles).toBe(2);
+    expect(result.log.lines.find((l) => l.code === 'run.rangeRounded')?.params).toEqual({ from: T1, to: T1 + 120 });
+    for (const trade of result.trades) expect(trade.exitTime).toBeLessThan(T1 + 120);
+  });
+
+  test('Grenzen beide in Kerzen: nur die ganze mittlere Kerze läuft', { tag: '@BKT-15' }, () => {
+    const result = run(candles(rows), { from: T1 + 15, to: T1 + 150 });
+    expect(result.candles).toBe(1);
+    expect(result.log.lines.find((l) => l.code === 'run.rangeRounded')?.params).toEqual({ from: T1 + 60, to: T1 + 120 });
+  });
+
+  test('Zeitraum [T, T+15) enthält keine ganze Kerze: Abbruch mit run.noCandles', { tag: '@BKT-15' }, () => {
+    expect(() => run(candles(rows), { from: T1, to: T1 + 15 })).toThrow(expect.objectContaining({ code: 'run.noCandles' }));
   });
 });
 

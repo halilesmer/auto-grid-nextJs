@@ -45,7 +45,7 @@ export interface RunInput {
   /** Kerzen der Datenauflösung inklusive Vorlauf vor `from` */
   rates: LoadedRates;
   dataTimeframe: Timeframe;
-  /** Zeitraum [from, to), MT5-Sekunden; Kerzen davor sind nur Vorlauf für die Zeitrahmen des Bots */
+  /** Zeitraum [from, to), MT5-Sekunden; Kerzen davor sind nur Vorlauf für die Zeitrahmen des Bots, es laufen nur Kerzen ganz im Zeitraum */
   from: number;
   to: number;
   spread: SpreadSetting;
@@ -146,9 +146,12 @@ export function runBacktest(input: RunInput): RunResult {
   const n = rates.t.length;
   let first = 0;
   while (first < n && rates.t[first] < input.from) first++;
+  // Nur ganze Kerzen im Zeitraum: für eine Grenze innerhalb einer Kerze gibt es keine echten Preisdaten
   let end = first;
-  while (end < n && rates.t[end] < input.to) end++;
+  while (end < n && rates.t[end] + dataSec <= input.to) end++;
   if (end === first) throw new RunError('run.noCandles', { from: input.from, to: input.to });
+  const startsInCandle = first > 0 && rates.t[first - 1] + dataSec > input.from;
+  const endsInCandle = end < n && rates.t[end] < input.to;
 
   const log = new RunLog();
   log.add('INFO', 'run.marginNotChecked');
@@ -159,6 +162,12 @@ export function runBacktest(input: RunInput): RunResult {
     log.add('INFO', 'run.currencyToday', { profit: snapshot.currencyProfit, account: input.accountCurrency });
   }
   for (const note of input.notes ?? []) log.add('WARN', note.code, note.params);
+  if (startsInCandle || endsInCandle) {
+    log.add('WARN', 'run.rangeRounded', {
+      from: startsInCandle ? rates.t[first] : input.from,
+      to: endsInCandle ? rates.t[end - 1] + dataSec : input.to,
+    });
+  }
   if (rates.liveFrom !== null) log.add('WARN', 'run.liveCandleDropped', { time: rates.liveFrom });
   for (const gap of rates.missing) log.add('WARN', 'run.dataMissing', { from: gap.from, to: gap.to, reason: gap.reason });
 
@@ -226,7 +235,7 @@ export function runBacktest(input: RunInput): RunResult {
       let cur = a;
       if (jump) broker.setMarket(b, ta);
       for (;;) {
-        const trigger = broker.nextTrigger(cur, b);
+        const trigger = jump ? broker.nextGapTrigger(cur, b) : broker.nextTrigger(cur, b);
         const wake = jump ? null : nextWake(wakes, cur, b);
         const triggerFirst = trigger !== null && (wake === null || (b > cur ? trigger.bid <= wake : trigger.bid >= wake));
         if (trigger !== null && triggerFirst) {

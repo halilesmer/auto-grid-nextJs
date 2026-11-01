@@ -297,31 +297,31 @@
   },
   "BKT-02": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 43
     }
   },
   "BKT-03": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 30
     }
   },
   "BKT-04": {
     "api": {
-      "datum": "2026-10-12",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 75
+      "tests": 81
     },
     "unit": {
-      "datum": "2026-10-11",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 4
     }
@@ -361,21 +361,21 @@
   },
   "BKT-09": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 60
     },
     "unit": {
-      "datum": "2026-10-11",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 43
+      "tests": 46
     }
   },
   "BKT-10": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 9
+      "tests": 7
     }
   },
   "BKT-11": {
@@ -418,9 +418,9 @@
   },
   "BKT-15": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 3
+      "tests": 8
     }
   },
   "BOT-01": {
@@ -705,9 +705,9 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 5
+      "tests": 4
     },
     "unit": {
       "datum": "2026-10-11",
