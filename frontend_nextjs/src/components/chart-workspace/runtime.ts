@@ -42,6 +42,9 @@ export function rememberChartView(chart: IChartApi, host: HTMLElement, contextKe
   let count = pointCount(), width = scale.width();
   const asText = (r: { from: unknown; to: unknown }) => `${r.from},${r.to}`;
   const settledAt = performance.now() + VIEW_SETTLE_MS;
+  // Steht die Ansicht beim Anmelden schon, meldet der Chart danach keine Änderung mehr
+  const shown = scale.getVisibleRange();
+  if (shown) host.setAttribute('data-visible-range', asText(shown));
   let pending: { zoom: VisibleTime | undefined } | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const flush = () => {

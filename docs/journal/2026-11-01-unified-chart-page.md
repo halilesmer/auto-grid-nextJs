@@ -70,7 +70,7 @@ Keep these two points when the other pages move to the overlay layout:
 - Set the margins of the price scale before you add the RSI series. The RSI pane copies these margins when the chart creates it.
 - The overlay layout does not set the mono font and the `0.08` margins. When `overlayLayout` goes in S5, remove these options, so that all pages look like `/formasyon`.
 
-The chart of `/formasyon` now stays alive when the candidate or the timeframe changes. Before, the chart was removed and created again. This change had four effects:
+The chart of `/formasyon` now stays alive when the candidate or the timeframe changes. Before, the chart was removed and created again. The chart also waits for a stable width before it restores the view. This change had five effects:
 
 | Effect | Solution | Test |
 |---|---|---|
@@ -78,6 +78,7 @@ The chart of `/formasyon` now stays alive when the candidate or the timeframe ch
 | A timeframe change overwrites the saved zoom when both timeframes have the same number of candles. | A layout effect stops `rememberChartView` when `viewKey` changes. `ChartWorkspace` sets the indicators in its own effect. A child effect runs before each `useEffect` of `ChartCore`. | New, FRM-20 |
 | The running candle keeps the high and the low of the old timeframe. | `shownRunning` stores `viewKey`. | New, FRM-31 |
 | The drawings keep their position when a setting changes the price scale. | `FormationOverlay` draws again when the appearance changes. | New, FRM-20 |
+| On CI, `data-visible-range` stayed empty. The chart was complete, but no change event came after `rememberChartView` subscribed. | `rememberChartView` writes the attribute when it subscribes. | Failed on CI only, not reproduced on the Mac, also not with 8 workers or a slow CPU |
 
 `surfaceProps` and `renderOverlay` apply only with `overlayLayout`. `overlayLayout` is a temporary flag in shared code. S5 removes it.
 
