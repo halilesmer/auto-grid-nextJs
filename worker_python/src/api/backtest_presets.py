@@ -1,6 +1,7 @@
 """BKT-11: kullanıcıya ait backtest şablonları; gerçek hesap ayarlarına yazmaz."""
 import json
 import math
+import re
 import time
 from uuid import UUID
 from datetime import date
@@ -10,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.api.auth import Principal, get_principal
+from src.core.spread_guard import validate_spread_guard
 from src.utils import market_db
 
 router = APIRouter(prefix="/backtest/presets", tags=["Backtest presets"])
@@ -24,6 +26,9 @@ ZONE_BOOLS = set("""is_breakout step_by_loss instant_entry sync_buy_sell clear_o
 fractal_tp_by_money""".split())
 ZONE_STRINGS = set("""symbol order_type clear_exit_side clear_scope clear_target_side exit_condition
 exit_timeframe entry_mode fractal_timeframe fractal_order_mode fractal_sl_mode fractal_next_loss_mode""".split())
+ZONE_OBJECTS = {"spread_guard"}
+SPREAD_GUARD_KEYS = {"enabled", "mode", "max_spread", "multiplier", "grid_percent", "bootstrap", "initial_spread"}
+TIME_RE = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])")
 
 
 class StrictModel(BaseModel):
@@ -55,8 +60,11 @@ class CustomRange(StrictModel):
     @field_validator("custom")
     @classmethod
     def valid_days(cls, value: dict[str, str]) -> dict[str, str]:
-        if set(value) != {"from", "to"}:
-            raise ValueError("custom range requires from and to")
+        if not {"from", "to"} <= set(value) or set(value) - {"from", "to", "fromTime", "toTime"}:
+            raise ValueError("custom range requires from and to, optional fromTime and toTime")
+        for key in ("fromTime", "toTime"):
+            if key in value and not TIME_RE.fullmatch(value[key]):
+                raise ValueError(f"{key} must be HH:MM:SS")
         start, end = date.fromisoformat(value["from"]), date.fromisoformat(value["to"])
         if start > end or start.isoformat() != value["from"] or end.isoformat() != value["to"]:
             raise ValueError("invalid date range")
@@ -85,7 +93,7 @@ class PresetCreate(PresetName):
     @field_validator("zone")
     @classmethod
     def zone_fields(cls, value: dict) -> dict:
-        if set(value) - (ZONE_NUMBERS | ZONE_BOOLS | ZONE_STRINGS):
+        if set(value) - (ZONE_NUMBERS | ZONE_BOOLS | ZONE_STRINGS | ZONE_OBJECTS):
             raise ValueError("unsupported zone field or identity")
         for key, item in value.items():
             if key in ZONE_NUMBERS and (type(item) not in (int, float) or abs(item) > 1e100 or not math.isfinite(item)):
@@ -94,6 +102,19 @@ class PresetCreate(PresetName):
                 raise ValueError(f"{key} must be boolean")
             if key in ZONE_STRINGS and (not isinstance(item, str) or len(item) > 100):
                 raise ValueError(f"{key} must be a short string")
+        if "spread_guard" in value:
+            guard = value["spread_guard"]
+            if not isinstance(guard, dict) or set(guard) - SPREAD_GUARD_KEYS:
+                raise ValueError("spread_guard must be an object with supported fields")
+            for name, item in guard.items():
+                numeric = name not in ("enabled", "mode", "bootstrap")
+                if numeric and (type(item) not in (int, float) or abs(item) > 1e100 or not math.isfinite(item)):
+                    raise ValueError(f"spread_guard.{name} must be finite")
+                if name == "enabled" and type(item) is not bool:
+                    raise ValueError("spread_guard.enabled must be boolean")
+                if name in ("mode", "bootstrap") and not isinstance(item, str):
+                    raise ValueError(f"spread_guard.{name} must be a string")
+            validate_spread_guard(value)  # ENG-31: ayarlar kaydedilirken uygulanan sınırın aynısı
         if not isinstance(value.get("symbol"), str) or not value["symbol"].strip():
             raise ValueError("symbol is required")
         return value

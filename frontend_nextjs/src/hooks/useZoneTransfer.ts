@@ -6,6 +6,7 @@ import { useAccountStore, useSettingsStore } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { useZoneTransferStore } from '@/store/useZoneTransferStore';
+import { transferZone } from '@/lib/backtest/transferZone';
 import { normalizeZoneLots } from '@/utils/zoneHelpers';
 import { toast } from '@/components/ui/animated-toast';
 import { t } from '@/i18n';
@@ -48,8 +49,8 @@ export function useZoneTransfer(accountId: string | null, savedSettingsStr: stri
       toast.error(t('backtest.transfer.targetMissing'));
       return;
     }
-    const zone = normalizeZoneLots({ ...pending.zone, symbol: previous?.symbol ?? pending.zone.symbol, id: previous?.id ?? crypto.randomUUID(),
-      ...(previous?.magic !== undefined ? { magic: previous.magic } : {}), is_active: previous ? previous.is_active : false }, details);
+    const zone = normalizeZoneLots(transferZone({ ...pending.zone, symbol: previous?.symbol ?? pending.zone.symbol, id: previous?.id ?? crypto.randomUUID(),
+      ...(previous?.magic !== undefined ? { magic: previous.magic } : {}), is_active: previous ? previous.is_active : false }, previous), details);
     // Vor dem Schreiben konsumieren: Strict Mode und weitere Store-Updates wenden die Kopie nicht zweimal an.
     useZoneTransferStore.getState().complete({ accountId: pending.accountId, zoneId: zone.id });
     useSettingsStore.getState().setZones(previous

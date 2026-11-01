@@ -7,6 +7,7 @@
  * Der Zustand liegt in `state` und kann pro Test verändert werden.
  */
 import { spreadGuardError } from '../../src/lib/spreadGuardSettings';
+import { defaultZone } from '../../src/utils/zoneHelpers';
 import { parsePresetData, type BacktestPreset } from '../../src/lib/backtest/presets';
 import type { Page, Route, WebSocketRoute } from '@playwright/test';
 import type { LiveData, Metrics } from '../../src/store/types';
@@ -648,6 +649,11 @@ export class MockWorker {
         try {
           const zone = body?.zone as Json | undefined;
           if (!zone || ['id', 'magic', 'sid', 'is_active', 'fractal_setups'].some((key) => key in zone)) return invalid;
+          // Gleicher Vertrag wie worker_python/src/api/backtest_presets.py: unbekannte Felder werden abgelehnt, nicht verworfen.
+          const zoneKeys = new Set([...Object.keys(defaultZone()).filter((key) => key !== 'id' && key !== 'is_active'), 'spread_guard']);
+          if (Object.keys(zone).some((key) => !zoneKeys.has(key))) return invalid;
+          const customRange = (body?.range as { custom?: Json } | undefined)?.custom;
+          if (customRange && Object.keys(customRange).some((key) => !['from', 'to', 'fromTime', 'toTime'].includes(key))) return invalid;
           if (typeof body?.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(body.requestId)) return invalid;
           const data = parsePresetData(body);
           const existing = this.presets.find((p) => p.id === body.requestId);
