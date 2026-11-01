@@ -76,7 +76,7 @@ const mk = (id: string, state: CheckState, value?: number): Check => {
   return { id, kind, status, state, ...(value === undefined ? {} : { value }), drawings: [] };
 };
 
-/** CYP-10: ein Libra-Einstieg (LIB-12) derselben Richtung liegt höchstens `near` vom Cypher-Einstieg; E gilt erst mit Stopp-Punkt K */
+/** CYP-10: ein Libra-Einstieg (LIB-12) derselben Richtung liegt höchstens `near` vom Cypher-Einstieg; E gilt erst mit der Berührung K (LIB-12) */
 const libraAtEntry = (libras: readonly Candidate[], tf: ContextTimeframe, side: Side, entry: number, near: number): boolean =>
   libras.some((l) => l.tf === tf && l.side === side && l.verdict !== 'invalid' && l.points.E !== undefined && l.points.K !== undefined && Math.abs(l.points.E.price - entry) <= near);
 

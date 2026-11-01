@@ -162,10 +162,10 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
     }
   });
 
-  frm('FRM-19', 'CYP-10 nennt den bestätigten Libra-Einstieg (mit Stopp-Punkt)', () => {
-    expect(ruleText('de', 'CYP-10')).toBe('Einstieg fällt mit einem bestätigten Libra-Einstieg (mit Stopp-Punkt) zusammen');
-    expect(ruleText('en', 'CYP-10')).toBe('The entry coincides with a confirmed Libra entry (with stop point)');
-    expect(ruleText('tr', 'CYP-10')).toBe('Giriş, onaylı bir Libra girişiyle (durdurma noktalı) çakışır');
+  frm('FRM-19', 'CYP-10 nennt den bereits berührten Libra-Einstieg', () => {
+    expect(ruleText('de', 'CYP-10')).toBe('Einstieg fällt mit einem bereits berührten Libra-Einstieg zusammen');
+    expect(ruleText('en', 'CYP-10')).toBe('The entry coincides with a Libra entry that price has touched');
+    expect(ruleText('tr', 'CYP-10')).toBe('Giriş, fiyatın dokunduğu bir Libra girişiyle çakışır');
   });
 });
 

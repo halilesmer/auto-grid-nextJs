@@ -318,7 +318,7 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
 
 // ---- CYP 10 und LIB 09: Libra und Cypher fallen zusammen ----------------------------------------------------
 
-/** Libra-Kandidat mit gewähltem Einstieg `price` und Stopp-Punkt K (LIB-12: E gilt erst mit K) */
+/** Libra-Kandidat mit gewähltem Einstieg `price` und Berührung K (LIB-12: E gilt erst mit K) */
 const libraAt = (price: number, over: Partial<Candidate> = {}): Candidate => ({
   code: 'LIB',
   side: 'buy',
@@ -359,7 +359,7 @@ test.describe('CYP 10 und LIB 09: Libra-Einstieg fällt mit dem Cypher-Einstieg 
     expect(state(run({ H4: BASE }, AT, { libras: [] }), 'CYP-10')).toBe(N);
   });
 
-  frm('CYP 10: Libra mit Einstieg E, aber ohne Stopp-Punkt K ist kein Einstieg: ☐, mit K ☑', () => {
+  frm('CYP 10: Libra mit Einstieg E, aber ohne Berührung K zählt nicht: ☐, mit K ☑', () => {
     const noK = libraAt(108.4);
     delete noK.points.K;
     expect(state(run({ H4: BASE }, AT, { libras: [noK] }), 'CYP-10')).toBe(N);
