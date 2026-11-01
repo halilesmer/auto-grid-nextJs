@@ -4,7 +4,7 @@ author: Claude
 type: plan
 status: open
 pr: [275]
-features: [MET-02, UI-06, ANA-21, UI-10]
+features: [MET-02, UI-06, FRM-20, ANA-21, UI-10]
 areas: [frontend, docs]
 ---
 
@@ -46,8 +46,8 @@ Each step is one PR. The steps run in sequence because they change the same file
 | Step | Content | Status |
 |---|---|---|
 | S0 | Design | Approved on 2026-11-01 |
-| S1 | Remove `ChartViewer.tsx` and the code that only it used | This entry |
-| S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Open |
+| S1 | Remove `ChartViewer.tsx` and the code that only it used | Done, PR 275 |
+| S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Done, see "S2 result" |
 | S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Open |
 | S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Open |
 | S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
@@ -57,6 +57,20 @@ Each step is one PR. The steps run in sequence because they change the same file
 - `FormationChart` and `ChartCore` repeat the chart lifecycle. Two engines drift apart, and each new chart feature needs two implementations.
 - `overlayLayout` stays until S5. A single switch of all pages in one PR is too large to review and to revert.
 - Slots keep `ChartCore` free of formation logic. A flag for each caller makes the shared code worse with each caller.
+
+## S2 result
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/components/analysis/chart/ChartCore.tsx` | New slots: `systemRsi`, `runningBar`, `priceRange`, `marginsFor`, `until`, `overlayLayout`, `surfaceProps`, `renderOverlay`. |
+| `frontend_nextjs/src/components/formation/FormationChart.tsx` | Adapter on `ChartCore`. `FormationOverlay` holds the SVG drawings. |
+| `frontend_nextjs/eslint.config.mjs` | `createChart` is permitted only in `ChartCore.tsx` and in the two line charts `CurveChart.tsx` and `EquityOverlay.tsx`. |
+
+Keep these two points when the other pages move to the overlay layout:
+- Set the margins of the price scale before you add the RSI series. The RSI pane copies these margins when the chart creates it.
+- The overlay layout does not set the mono font and the `0.08` margins. When `overlayLayout` goes in S5, remove these options, so that all pages look like `/formasyon`.
+
+The chart of `/formasyon` now stays alive when the candidate or the timeframe changes. Before, the chart was removed and created again. `priceRange` therefore sets a new autoscale provider, because the chart recalculates the price scale only then.
 
 ## S1 result
 
