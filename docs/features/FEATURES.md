@@ -116,7 +116,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Worker gibt MT5-Passwörter in keiner Antwort zurück (Liste, Anlegen, Bearbeiten, 409-Problem), sondern nur has_password. Leeres Passwort beim Bearbeiten = unverändert.
   - **Prüfung:** DevTools → Network → Antwort von /api/accounts ansehen. → Konto bearbeiten, Passwortfeld leer lassen, speichern.
   - **Erwartet:** Kein Feld „password“ in der Antwort; das Konto verbindet sich danach weiterhin (Passwort unverändert).
-- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos — 🔌 api ✅ 2026-10-12 · 🖥️ e2e ✅ 2026-10-30 · 🌐 live ✅ 2026-10-16
+- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos — 🔌 api ✅ 2026-11-01 · 🖥️ e2e ✅ 2026-10-30 · 🌐 live ✅ 2026-10-16
   - Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. Der WS-Stream folgt dem gewählten Konto (/ws/stream?account_id=, neu verbunden beim Wechsel); der Worker sendet jeder Verbindung nur ihr Konto – aus der MT5-Abfrage des API-Prozesses nur, wenn dessen Terminal an diesem Konto angemeldet ist, sonst aus der Metrikdatei des Bot-Prozesses. WS-Metriken tragen account_id; Metriken eines anderen Kontos (älterer Worker) ignoriert das Frontend.
   - **Prüfung:** Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft. → Zweites Konto mit laufendem Bot wählen, /chart bzw. /formasyon öffnen; DevTools → WS-URL und Nachrichten ansehen.
   - **Erwartet:** Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status. Mit laufendem Bot bekommt das zweite Konto eigene Stream-Metriken (Live-Preis im Chart; die WS-URL enthält account_id=<Konto>, jede METRICS-Nachricht dessen account_id).
@@ -478,22 +478,22 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 9. MET – Live-Daten & Diagramm
 
-- [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-10-30 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-11-01 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - Drei einzeilige Kacheln (Icon, Label mit Hinweis, Wert rechts) für Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern; der Motorstatus steht neben dem Label der P/L-Kachel, statische Erklärungen im Hinweis.
   - **Prüfung:** Bot laufen lassen, Werte mit MT5 vergleichen.
   - **Erwartet:** Werte stimmen mit MT5 überein und aktualisieren sich.
   - 📝 Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen, 5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen
-- [x] **MET-02** Chart (10-s-Kerzen + RSI) — 🖥️ e2e ✅ 2026-10-30 · 👤 manuell ✅ 2026-09-23
-  - lightweight-charts baut 10-s-Kerzen aus WebSocket-METRICS, RSI auf eigener Skala; Farben folgen dem Theme.
-  - **Prüfung:** /formasyon öffnen und 1 Minute warten.
-  - **Erwartet:** Kerzen und RSI-Linie entstehen.
+- [x] **MET-02** Live-Werte am Chart (Preis, RSI, P/L, Positionen) — 🖥️ e2e ✅ 2026-11-01 · 👤 manuell ✅ 2026-09-23
+  - Die Analyse-Seite zeigt im Setup-Modus Preis, RSI, P/L und Positionen aus den WebSocket-METRICS neben dem Chart. Fehlt der RSI in den Metriken (Bot-Datei), bleibt die Anzeige stabil.
+  - **Prüfung:** /chart im Setup-Modus öffnen, während der Bot läuft.
+  - **Erwartet:** Die Werte erscheinen und aktualisieren sich aus dem Stream.
   - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
-- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-10-11 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-11-01 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jeder Verbindung jede Sekunde Preis, RSI, MACD, P/L, Positionen für ihr Konto (?account_id=, ohne Parameter das erste Konto) und dessen Zone 0; jede METRICS-Nachricht trägt account_id (siehe ACC-10). RSI/MACD gibt es nur, wenn das MT5-Terminal des API-Prozesses an diesem Konto angemeldet ist; sonst Preis/P/L aus der Metrikdatei des Bots.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
   - 📝 v0.7.59 live: WS sendet METRICS 1/s (symbol USOUSD, Preis, 14 Pos., 6 Orders). Ohne MT5-Verbindung im API-Prozess (nach Worker-Neustart) kommt der Fallback aus der Bot-Metrik → RSI fehlt dann
-- [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-10-11
+- [x] **MET-04** Bot-Telemetrie — 🧪 unit ✅ 2026-11-01
   - calculate_live_metrics exportiert P/L, Positions-/Orderzahl, Preis, Alarme (algo_trading_error, order_rejected_alarm, last_error, remote_paused, connection_lost), market_open, den Marktstatus je Zone-Symbol (zone_market_open) samt aus M5-Kerzen abgeleiteter Handelszeit (zone_market_hours) und die Zonen-Zustände der Engine (zone_states) nach met_<id>.json.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
@@ -639,7 +639,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Umschalter TR · EN · DE im Kopf-Menü (UI-01), auf jeder Breite gleich. Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
   - **Prüfung:** Im Kopf-Menü EN, dann DE, dann TR wählen und dabei Dashboard, /vps und /chart ansehen. → Seite neu laden.
   - **Erwartet:** Alle Texte wechseln sofort, die Sprache bleibt nach dem Reload erhalten, <html lang> stimmt. Keine hartcodierten Reste, keine überlaufenden Buttons (Deutsch ist am längsten).
-- [x] **UI-06** Zahlen- und Zeitformat folgt der Sprache — 🖥️ e2e ✅ 2026-10-31
+- [x] **UI-06** Zahlen- und Zeitformat folgt der Sprache — 🖥️ e2e ✅ 2026-11-01
   - Preise und Gewinne ($97,25 in tr/de, $97.25 in en), Uhrzeiten in Logs und VPS-Seite sowie das Dezimalmuster im Symbol-Label („Sembol (0,00)“) richten sich nach der gewählten Sprache.
   - **Prüfung:** Bot mit MT5 verbinden, dann die Sprache zwischen EN und DE wechseln.
   - **Erwartet:** Der Preis in der Kennzahlenleiste wechselt zwischen Punkt und Komma als Dezimaltrenner.

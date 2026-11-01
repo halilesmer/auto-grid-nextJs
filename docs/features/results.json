@@ -99,9 +99,9 @@
   },
   "ACC-10": {
     "api": {
-      "datum": "2026-10-12",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 6
+      "tests": 2
     },
     "e2e": {
       "datum": "2026-10-30",
@@ -1054,7 +1054,7 @@
   },
   "MET-01": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 2
     },
@@ -1066,14 +1066,14 @@
   },
   "MET-02": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 1
     }
   },
   "MET-03": {
     "api": {
-      "datum": "2026-10-12",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 7
     },
@@ -1083,14 +1083,14 @@
       "tests": 1
     },
     "unit": {
-      "datum": "2026-10-11",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 7
     }
   },
   "MET-04": {
     "unit": {
-      "datum": "2026-10-11",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 11
     }
@@ -1335,7 +1335,7 @@
   },
   "UI-06": {
     "e2e": {
-      "datum": "2026-10-31",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 1
     }

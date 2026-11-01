@@ -2,8 +2,6 @@ import { defineArea } from './define';
 
 export default defineArea(
   {
-    'chart.viewer.title': 'Canlı Fiyat ve İndikatörler',
-    'chart.viewer.subtitle': '{seconds} sn mumlar · RSI katmanı',
     'chart.stat.price': 'Fiyat',
     'chart.stat.rsi': 'RSI',
     'chart.stat.pl': 'K/Z',
@@ -39,8 +37,6 @@ export default defineArea(
     'ws.failed': 'WebSocket bağlantısı birçok denemeden sonra başarısız oldu. Lütfen elle bağlanın.',
   },
   {
-    'chart.viewer.title': 'Live Price & Indicators',
-    'chart.viewer.subtitle': '{seconds}s candles · RSI overlay',
     'chart.stat.price': 'Price',
     'chart.stat.rsi': 'RSI',
     'chart.stat.pl': 'P/L',
@@ -76,8 +72,6 @@ export default defineArea(
     'ws.failed': 'WebSocket connection failed after multiple attempts. Please connect manually.',
   },
   {
-    'chart.viewer.title': 'Live-Preis & Indikatoren',
-    'chart.viewer.subtitle': '{seconds}-s-Kerzen · RSI-Overlay',
     'chart.stat.price': 'Preis',
     'chart.stat.rsi': 'RSI',
     'chart.stat.pl': 'G/V',

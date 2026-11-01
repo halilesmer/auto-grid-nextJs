@@ -52,7 +52,6 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃   ┗ 📜 page.tsx
 ┃ ┃ ┣ 📂 components             # React bileşenleri
 ┃ ┃ ┃ ┣ 📜 BotControls.tsx      # Başlat/Durdur kontrolleri
-┃ ┃ ┃ ┣ 📜 ChartViewer.tsx      # Grafik görselleştirme (Lightweight Charts)
 ┃ ┃ ┃ ┣ 📜 ConfirmModal.tsx     # Onay modalları
 ┃ ┃ ┃ ┣ 📜 LogViewer.tsx        # Log görüntüleyici
 ┃ ┃ ┃ ┣ 📜 SettingsForm.tsx     # Global Ayarlar (ORDER_TYPE, LOOP_INTERVAL)
@@ -423,7 +422,6 @@ grid_orchestrator (Ana Orkestratör)
 |---------|------------|---------------|
 | `ZoneSettingsPanel.tsx` | **Semboller ve setup'lar (ZON-20)**: bölgeleri sembole göre gruplar (sembol kartı, içinde her setup için ZoneCard), Sembol Ekle / Setup Ekle / sil, Kaydet | `useSettingsStore` (`engineOrder`) + REST API |
 | `SettingsForm.tsx` | **Global Ayarlar**: ORDER_TYPE, LOOP_INTERVAL_SECONDS | `useSettingsStore` + REST API |
-| `ChartViewer.tsx` | Canlı Mum grafiği + RSI (Lightweight Charts + WebSocket) | `useSystemStore` (metrics) |
 | `BotControls.tsx` | Bot Başlat/Durdur, Temizle, Sembol Seçimi, Canlı Metrik Gösterimi | `useBotRuntimeStore`, `useAccountStore` |
 | `AccountSelector.tsx` | Hesap seçimi, yeni hesap ekleme, bağlantı testi | `useAccountStore` |
 | `SymbolAutoComplete.tsx` | Sembol arama, otomatik tamamlama, klavye navigasyonu | `useSymbolDetails` hook |

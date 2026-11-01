@@ -976,13 +976,13 @@ kategorien:
         erwartet: Werte stimmen mit MT5 überein und aktualisieren sich.
 
       - id: MET-02
-        titel: Chart (10-s-Kerzen + RSI)
-        beschreibung: lightweight-charts baut 10-s-Kerzen aus WebSocket-METRICS, RSI auf eigener Skala; Farben folgen dem Theme.
-        code: [frontend_nextjs/src/components/ChartViewer.tsx]
+        titel: Live-Werte am Chart (Preis, RSI, P/L, Positionen)
+        beschreibung: Die Analyse-Seite zeigt im Setup-Modus Preis, RSI, P/L und Positionen aus den WebSocket-METRICS neben dem Chart. Fehlt der RSI in den Metriken (Bot-Datei), bleibt die Anzeige stabil.
+        code: [frontend_nextjs/src/components/chart/LiveStats.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx]
         tiers: [e2e]
         pruefung:
-          - /formasyon öffnen und 1 Minute warten.
-        erwartet: Kerzen und RSI-Linie entstehen.
+          - /chart im Setup-Modus öffnen, während der Bot läuft.
+        erwartet: Die Werte erscheinen und aktualisieren sich aus dem Stream.
 
       - id: MET-03
         titel: WebSocket-Metriken des Workers
@@ -1286,7 +1286,7 @@ kategorien:
       - id: UI-06
         titel: Zahlen- und Zeitformat folgt der Sprache
         beschreibung: Preise und Gewinne ($97,25 in tr/de, $97.25 in en), Uhrzeiten in Logs und VPS-Seite sowie das Dezimalmuster im Symbol-Label („Sembol (0,00)“) richten sich nach der gewählten Sprache.
-        code: [frontend_nextjs/src/i18n/format.ts, frontend_nextjs/src/components/dashboard/MetricsStrip.tsx, frontend_nextjs/src/components/ChartViewer.tsx, frontend_nextjs/src/components/zone/ZoneBasicFields.tsx]
+        code: [frontend_nextjs/src/i18n/format.ts, frontend_nextjs/src/components/dashboard/MetricsStrip.tsx, frontend_nextjs/src/components/chart/LiveStats.tsx, frontend_nextjs/src/components/zone/ZoneBasicFields.tsx]
         tiers: [e2e]
         pruefung:
           - Bot mit MT5 verbinden, dann die Sprache zwischen EN und DE wechseln.
