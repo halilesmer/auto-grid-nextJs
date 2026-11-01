@@ -1632,6 +1632,7 @@ kategorien:
         pruefung:
           - Automatisiert synthetische Jahresdaten M1 und einen echten Browser-Web-Worker gegen den Mock prüfen; keine VPS-Jahresprüfung.
           - Anzeige-Zeitrahmen während Replay wechseln; 1x/5x/10x/Max, Pause, Neustart und Wiedergabe beenden prüfen.
+          - Bei „beide Kerzenwege“ ein Chart auf einen anderen Zeitrahmen stellen; das andere Chart behält seine Kerzen.
           - Exklusive Zeitgrenze für Trades, Marker, Kurven und Tabelle sowie veraltete Lauf-/Chart-Antworten prüfen.
         erwartet: Höchstens 50.000 abgeschlossene Anzeige-Kerzen; bei jeder Wiedergabe-Position zeigen Chart, Kurven, Marker und Trades-Tabelle keine Daten nach diesem Zeitpunkt. End-KPIs, Statistik, Protokoll und andere Kerzenwege sind während der Wiedergabe ausgeblendet. Fehlende Bereiche sind grau markiert und werden nie mit Kerzen gefüllt.
 

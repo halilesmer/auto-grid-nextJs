@@ -84,15 +84,24 @@ test('Chart-Antworten gehören zu Lauf, Setup und neuester Anfrage; nach Kontowe
     model: { fill: 'gap', slFirst: false, closeAtEnd: false }, path: 'auto',
   } })!;
   store().receive(id, { type: 'result', runId, results: [] });
-  store().expectChartRequest(id, 2);
+  store().expectChartRequest(id, 'M1', 2);
   const message = { type: 'bars' as const, runId, requestId: 2, timeframe: 'M1' as const,
     bars: [{ time: 0, open: 1, high: 2, low: 0, close: 1 }], missing: [], clipped: false };
   store().receive(id, { ...message, runId: runId - 1 });
   store().receive(id, { ...message, requestId: 1 });
   store().receive('other-setup', message);
-  expect(store().runs[id].chartData).toBeNull();
+  expect(store().runs[id].charts.M1?.data).toBeNull();
   store().receive(id, message);
-  expect(store().runs[id].chartData?.bars).toEqual([{ time: 0, open: 1, high: 2, low: 0, close: 1 }]);
+  expect(store().runs[id].charts.M1?.data?.bars).toEqual([{ time: 0, open: 1, high: 2, low: 0, close: 1 }]);
+  // eine Anfrage für einen anderen Zeitrahmen lässt die Kerzen des ersten stehen
+  store().expectChartRequest(id, 'M5', 3);
+  expect(store().runs[id].charts.M1?.data?.bars).toHaveLength(1);
+  expect(store().runs[id].charts.M5?.data).toBeNull();
+  // neue Anfrage im selben Zeitrahmen: die Kerzen bleiben bis zur Antwort; eine Antwort mit fremder Kennung fällt weg
+  store().expectChartRequest(id, 'M1', 4);
+  expect(store().runs[id].charts.M1?.data?.bars).toHaveLength(1);
+  store().receive(id, { ...message, timeframe: 'M5', requestId: 4 });
+  expect(store().runs[id].charts.M5?.data).toBeNull();
   store().clearUnless('other-account');
   store().receive(id, message);
   expect(store().runs).toEqual({});

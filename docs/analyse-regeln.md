@@ -176,7 +176,7 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
 - **Laufende Kerze auf /formasyon:** Der Chart zeigt zusätzlich die laufende Kerze mit dem gemeinsamen Preis
   (Schluss der laufenden M15-Kerze). Das ist nur Anzeige: Suche, RSI und Zeichnungen enden an der letzten
   geschlossenen Kerze (FRM-31).
-- **Optionen:** „Konservative Ausführungsregel“ (TP und SL im selben Wegstück: SL zuerst),
+- **Optionen:** „Konservative Ausführungsregel“ (TP und SL mit demselben Auslösepreis: SL zuerst; sonst gilt die Preis-Reihenfolge im Wegstück),
   „Sensitivität: beide Kerzenwege“ (zwei Läufe, Spanne anzeigen; eine Prüfung, keine Garantie),
   „Modell mit Gap-Ausführung“ (bei Kurslücken Füllung zum Marktpreis).
 

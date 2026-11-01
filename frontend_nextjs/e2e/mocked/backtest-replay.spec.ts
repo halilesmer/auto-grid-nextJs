@@ -147,3 +147,20 @@ for (const theme of ['light', 'dark'] as const) {
     });
   }
 }
+
+test('Bei „beide Kerzenwege“ behält jedes Chart seine Kerzen, wenn das andere den Zeitrahmen wechselt', { tag: '@BKT-07' }, async ({ page, worker }) => {
+  void worker;
+  await openResult(page);
+  const charts = page.getByTestId('bt-chart');
+  await expect(charts).toHaveCount(2);
+  await expect(charts.nth(1)).toHaveAttribute('data-bars', '200');
+  await charts.nth(0).getByRole('tab', { name: 'M5', exact: true }).click();
+  await expect(charts.nth(0)).toHaveAttribute('data-timeframe', 'M5');
+  await expect(charts.nth(0)).toHaveAttribute('data-bars', '40');
+  await expect(charts.nth(1)).toHaveAttribute('data-timeframe', 'M1');
+  await expect(charts.nth(1)).toHaveAttribute('data-bars', '200');
+  // das zweite Chart wechselt danach ebenfalls; das erste bleibt auf M5
+  await charts.nth(1).getByRole('tab', { name: 'M15', exact: true }).click();
+  await expect(charts.nth(1)).toHaveAttribute('data-bars', '13');
+  await expect(charts.nth(0)).toHaveAttribute('data-bars', '40');
+});

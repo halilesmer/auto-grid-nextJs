@@ -56,8 +56,8 @@ export function BacktestChart({
   const overlays = useChartOverlays(contextKey, { zones: true, levels: true, history: true, pauses: true, gaps: true, balance: true, equity: true });
   const t = useT();
   const fmt = useFormat();
-  const chartData = useBacktestStore((s) => s.runs[context.setupId]?.chartData);
   const [timeframe, setTimeframe] = useState<Timeframe>(context.params.dataTimeframe);
+  const activeData = useBacktestStore((s) => s.runs[context.setupId]?.charts[timeframe]?.data) ?? null;
   const [speed, setSpeed] = useState<ReplaySpeed>('1');
   const [cursor, setCursor] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -68,7 +68,6 @@ export function BacktestChart({
   }, [timeframe, context.params.from, context.params.to, requestBars]);
 
   const compatibleTfs = DISPLAY_TFS.filter((tf) => TIMEFRAME_SEC[tf] >= TIMEFRAME_SEC[context.params.dataTimeframe]);
-  const activeData = chartData?.timeframe === timeframe ? chartData : null;
   const bars = activeData?.bars ?? EMPTY_BARS;
   const tfSec = TIMEFRAME_SEC[timeframe];
 

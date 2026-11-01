@@ -16,6 +16,11 @@ export interface BacktestChartData {
   clipped: boolean;
 }
 
+export interface ChartBuffer {
+  requestId: number;
+  data: BacktestChartData | null;
+}
+
 export const MAX_SETUPS = 6;
 export const MAX_RUNNING = 2;
 
@@ -26,10 +31,10 @@ export interface SetupRun {
   results: RunResult[] | null;
   error: RunFailure | null;
   context: RunContext | null;
-  chartRequestId: number;
-  chartData: BacktestChartData | null;
+  /** Je Zeitrahmen eine Anfrage und ihre Kerzen; höchstens ein Eintrag je Zeitrahmen, ein Lauf-Wechsel leert alle. */
+  charts: Partial<Record<Timeframe, ChartBuffer>>;
 }
-export const EMPTY_RUN: SetupRun = { runId: 0, status: 'idle', progress: null, results: null, error: null, context: null, chartRequestId: 0, chartData: null };
+export const EMPTY_RUN: SetupRun = { runId: 0, status: 'idle', progress: null, results: null, error: null, context: null, charts: {} };
 
 interface BacktestState {
   accountId: string | null;
@@ -45,7 +50,7 @@ interface BacktestState {
   receive: (setupId: string, message: WorkerMessage) => void;
   cancel: (setupId: string) => void;
   clearUnless: (accountId: string | null) => void;
-  expectChartRequest: (setupId: string, requestId: number) => void;
+  expectChartRequest: (setupId: string, timeframe: Timeframe, requestId: number) => void;
 }
 
 export const useBacktestStore = create<BacktestState>()((set, get) => ({
@@ -86,8 +91,11 @@ export const useBacktestStore = create<BacktestState>()((set, get) => ({
     if (!run || message.runId !== run.runId) return;
     let change: Partial<SetupRun>;
     if (message.type === 'bars') {
-      if (run.status !== 'done' || message.requestId !== run.chartRequestId) return;
-      change = { chartData: { timeframe: message.timeframe, bars: message.bars, missing: message.missing, clipped: message.clipped } };
+      if (run.status !== 'done' || message.requestId !== run.charts[message.timeframe]?.requestId) return;
+      change = { charts: { ...run.charts, [message.timeframe]: {
+        requestId: message.requestId,
+        data: { timeframe: message.timeframe, bars: message.bars, missing: message.missing, clipped: message.clipped },
+      } } };
     } else {
       if (run.status !== 'running') return;
       if (message.type === 'progress') change = { progress: { phase: message.phase, fraction: message.fraction } };
@@ -96,9 +104,12 @@ export const useBacktestStore = create<BacktestState>()((set, get) => ({
     }
     set((s) => ({ runs: { ...s.runs, [setupId]: { ...run, ...change } } }));
   },
-  expectChartRequest: (id, chartRequestId) => set((s) => {
+  // Andere Zeitrahmen bleiben unberührt; vorhandene Kerzen bleiben bis zur neuen Antwort stehen.
+  expectChartRequest: (id, timeframe, requestId) => set((s) => {
     const run = s.runs[id];
-    return run ? { runs: { ...s.runs, [id]: { ...run, chartRequestId, chartData: null } } } : {};
+    if (!run) return {};
+    const data = run.charts[timeframe]?.data ?? null;
+    return { runs: { ...s.runs, [id]: { ...run, charts: { ...run.charts, [timeframe]: { requestId, data } } } } };
   }),
   cancel: (id) => set((s) => ({ runs: { ...s.runs, [id]: EMPTY_RUN } })),
   clearUnless: (accountId) => {

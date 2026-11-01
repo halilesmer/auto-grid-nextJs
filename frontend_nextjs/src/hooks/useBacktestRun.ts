@@ -53,7 +53,7 @@ export function useBacktestRun() {
     const run = state.runs[id];
     if (!worker || run?.status !== 'done') return;
     const requestId = ++chartRequestId.current;
-    state.expectChartRequest(id, requestId);
+    state.expectChartRequest(id, timeframe, requestId);
     const request: BarsRequest = { type: 'bars', runId: run.runId, requestId, timeframe, from, to };
     worker.postMessage(request);
   }, []);
