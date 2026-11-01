@@ -1152,6 +1152,35 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
   });
 
+  test('Ein Alarm-Produkt bleibt nach dem Neuladen ohne Konto auf der Seite im Menü entfernbar', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    await seed(page, { account: DEMO_ID, enabled: [`${DEMO_ID}|EURUSD`] });
+    await page.goto('/formasyon?symbol=EURUSD');
+    await page.getByTestId('formation-alarm').click();
+    await page.getByTestId('formation-alarm-extra-EURUSD').click();
+    await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key) ?? '{}').enabled.length === 0, KEY);
+  });
+
+  test('Ein von einem anderen Tab neu gemerktes Konto wird gegen eine frische Kontoliste geprüft', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    const accounts = worker.state.accounts;
+    // Die Liste ist nicht leer (sonst lädt auch die Seite nach), enthält aber das spätere Konto noch nicht
+    worker.state.accounts = accounts.filter((a) => String(a.id) !== DEMO_ID);
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], account: '999999' });
+    await page.goto('/formasyon');
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
+    // Das Konto entsteht, ein anderer Tab merkt es: dieser Tab bekommt nur das storage-Ereignis
+    worker.state.accounts = accounts;
+    await page.evaluate(([key, id]) => {
+      const stored = JSON.parse(localStorage.getItem(key) ?? '{}');
+      localStorage.setItem(key, JSON.stringify({ ...stored, account: id }));
+      window.dispatchEvent(new StorageEvent('storage', { key }));
+    }, [KEY, DEMO_ID] as const);
+    await waitForPass(worker, 1);
+  });
+
   test('Das gewählte Konto geht dem gemerkten vor', { tag: '@FRM-30' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);

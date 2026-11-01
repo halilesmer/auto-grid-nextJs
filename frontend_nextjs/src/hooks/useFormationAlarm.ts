@@ -21,11 +21,13 @@ const NO_HISTORY: HistoryEntry[] = [];
  * FormationScanRunner; dieser Hook ändert nur die gespeicherten Einstellungen und liest den Stand der Suche.
  * `symbol` ist das auf /formasyon gewählte Produkt (Schalter „Alarm für …“), null ohne Konto oder Produkt.
  */
-export function useFormationAlarm(pageAccount: string | null, symbol: string | null) {
+export function useFormationAlarm(pageAccount: string | null, pageSymbol: string | null) {
   const router = useRouter();
   // Ohne Konto auf der Seite gilt das Konto, mit dem der Alarm sucht (zuletzt gewählt); ruht er, bleibt es null
   const alarmAccount = useAlarmAccount();
   const accountId = pageAccount ?? (alarmAccount.state === 'ok' ? alarmAccount.accountId : null);
+  // Das Produkt der Seite gehört nur zum Konto der Seite; ohne sie stehen alle Alarm-Produkte unter „Weitere“ und lassen sich entfernen
+  const symbol = pageAccount ? pageSymbol : null;
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const permission = useSyncExternalStore(noSubscription, notificationPermission, () => 'unsupported' as const);
   const favorites = useFavorites(accountId);

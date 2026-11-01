@@ -2,7 +2,7 @@
 date: 2026-11-01
 author: Claude
 type: fix
-status: open
+status: done
 pr: []
 features: [FRM-30]
 areas: [frontend, tests]
@@ -26,8 +26,9 @@ areas: [frontend, tests]
 
 ## Verification
 - Review found that an empty list stayed in "checking" for ever. Fixed with `accountsLoaded` in `useAccountStore`; two more tests (empty list, selected before remembered).
+- Codex scan (one round, read only) found two points, both confirmed and fixed: (1) after a reload without an account on the page, an alarm product named in the URL could not be removed in the menu (the page symbol is now used only with the page account), (2) an account that another tab had just created and remembered showed as "gone" against an old account list (the runner now loads the list once per missing account). Each has a test, red before the fix.
 - Red first: 5 new `@FRM-30` tests were red (reload without `?account=`, account remembered, dashboard without preselection, no account, account gone).
-- `@FRM-30` and `@FRM-32` in `e2e/mocked/formation-page.spec.ts` → 21 passed.
+- `scripts/features/run.sh FRM` → all passed; `npm run lint`, `npx tsc --noEmit`, `npm run build` → no errors.
 
 ## Open points
 - Shared retry loop: the runner and `/formasyon` both reload the account list every 10 s while it is empty. A shared hook would merge them (not done here).

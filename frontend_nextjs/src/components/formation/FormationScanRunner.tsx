@@ -224,6 +224,11 @@ export default function FormationScanRunner() {
       clearTimeout(timer);
     };
   }, [needsList, fetchAccounts]);
+  // Ein anderer Tab kann das Konto gerade angelegt und gemerkt haben: fehlt es in der Liste, wird sie einmal je Konto neu geladen
+  const missingId = resolved.state === 'gone' ? resolved.accountId : null;
+  useEffect(() => {
+    if (missingId) void fetchAccounts();
+  }, [missingId, fetchAccounts]);
   useFavoritesLoader(accountId);
   // Die Grundlage der Formationen (Trend-Einstellungen) liegt im Browser-Speicher; die Seite /chart liest sie sonst allein
   useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);
