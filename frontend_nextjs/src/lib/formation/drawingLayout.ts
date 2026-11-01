@@ -115,7 +115,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         if (!start || !end || end.px === null || !d.levels) return prims;
         const leg = [pointName(candidate, start.a.time, start.a.price), pointName(candidate, end.a.time, end.a.price)];
         const legName = leg[0] && leg[1] ? `${leg[0]}${leg[1]} ` : '';
-        // Mit drittem Anker C beginnt die Linie bei C, sonst an der Strecke
+        // Mit drittem Anker C beginnt die Linie bei C (fehlt dessen Pixelwert, bei B), sonst an der Strecke
         const lineStart = from ? (from.px ?? end.px) : Math.min(end.px, start.px ?? end.px);
         for (const level of d.levels) {
           const price = fibLevelPrice([start.a, end.a, from?.a], level);

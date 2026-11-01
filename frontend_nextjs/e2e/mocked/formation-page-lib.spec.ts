@@ -29,13 +29,13 @@ const forming: Candidate = {
   ],
 };
 
-const layout = (candidate: Candidate) =>
+const layout = (candidate: Candidate, x: (time: number) => number | null = (time) => (time - 1000) / 2) =>
   layoutDrawings({
     candidate,
     form: 'ABCD',
     width: 500,
     lastBar: { time: 1500, close: 22 },
-    x: (time) => (time - 1000) / 2,
+    x,
     y: (price) => 300 - price * 10,
     yRsi: (value) => 400 - value,
     text: (key) => key,
@@ -101,10 +101,10 @@ test.describe('Zeichnungen einer Formation im Aufbau', () => {
 
 test.describe('Trendbasierte Fib-Extension (fibExt)', () => {
   /** A 10, B 20, C 15: Level 1 = C + (B − A) = 25, Level 1,618 = 15 + 16,18 = 31,18 */
-  const abc = (levels: number[], anchors = [point(0, 10), point(1, 20), point(2, 15)]): Candidate => ({
+  const abc = (levels: number[], anchors = [point(0, 10), point(1, 20), point(2, 15)], tool: 'fib' | 'fibExt' = 'fibExt'): Candidate => ({
     ...forming,
     points: { A: point(0, 10), B: point(1, 20), C: point(2, 15) },
-    drawings: [{ id: 'Z-E', tool: 'fibExt', anchors, levels, rules: ['ABCD-04'], side: 'sell' }],
+    drawings: [{ id: 'Z-E', tool, anchors, levels, rules: ['ABCD-04'], side: 'sell' }],
   });
 
   frm('FRM-20', 'drei Anker: Level 1 liegt bei C + (B − A) und die Linie beginnt bei C', () => {
@@ -117,6 +117,18 @@ test.describe('Trendbasierte Fib-Extension (fibExt)', () => {
     const range = drawingPriceRange(abc([1, 1.618]));
     expect(range?.min).toBeCloseTo(25, 5);
     expect(range?.max).toBeCloseTo(31.18, 5);
+  });
+
+  frm('FRM-20', 'fehlt der Pixelwert von C, beginnt die Linie bei B und der Preis bleibt 25', () => {
+    const line = layout(abc([1]), (time) => (time === 1200 ? null : (time - 1000) / 2)).flatMap((g) => g.prims.filter((p) => p.kind === 'line'));
+    expect(line.map((p) => (p.kind === 'line' ? [p.x1, p.y1] : null))).toEqual([[50, expect.closeTo(50, 5)]]);
+  });
+
+  frm('FRM-20', 'ein einfaches fib mit drei Ankern ignoriert C: Level 1 liegt bei A (10)', () => {
+    const fib = abc([1], [point(0, 10), point(1, 20), point(2, 15)], 'fib');
+    const line = layout(fib).flatMap((g) => g.prims.filter((p) => p.kind === 'line'));
+    expect(line.map((p) => (p.kind === 'line' ? p.y1 : null))).toEqual([expect.closeTo(200, 5)]);
+    expect(drawingPriceRange(fib)).toEqual({ min: 10, max: 10 });
   });
 
   frm('FRM-20', 'zwei Anker rechnen weiter Ende + Level × (Start − Ende): Level −0,272 → 22,72', () => {

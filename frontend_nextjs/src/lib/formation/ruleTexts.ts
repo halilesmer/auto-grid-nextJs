@@ -13,7 +13,7 @@ const SPACE: Text = ['X→D yeterince uzun ve yüksek', 'X→D is long and high 
 const HIGH_TF: Text = ['Zaman dilimi H4 veya D1', 'Timeframe is H4 or D1', 'Zeiteinheit ist H4 oder D1'];
 const RSI_D: Text = ['D noktasında RSI(7) uç bölgede', 'RSI(7) at D is in the extreme zone', 'RSI(7) bei D im Extrem'];
 const DIV_D: Text = ['D noktasında Wave sapması', 'Wave divergence at D', 'Wave-Divergenz bei D'];
-/** GAR-10 und BAT-11 messen noch mit Abstand zur Zone (Befund N1); ihr Text wechselt zu ZONE_D_IN, sobald die Messung „in“ prüft */
+/** GAR-10 und BAT-11 messen noch mit `zoneAtr × ATR` Abstand zur Zone; ihr Text wechselt zu ZONE_D_IN, sobald die Messung „in“ prüft */
 const ZONE_D: Text = ['D bir bölgeye yakın', 'D is near a zone', 'D liegt nahe einer Zone'];
 const ZONE_D_IN: Text = ['D bir bölgenin içinde', 'D lies inside a zone', 'D liegt in einer Zone'];
 const PRZ: Text = ['PRZ seviyesi D’ye yakın', 'The PRZ level is near D', 'PRZ-Level liegt nahe D'];
