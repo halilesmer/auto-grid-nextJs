@@ -104,6 +104,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const dTarget = levelAB(s, -G.dExtension);
   const extension = d && abLen > 0 ? (outward(es, d.price) - outward(es, b.price)) / abLen : undefined;
   add('GAR-05', flag(d !== null && outward(es, d.price) >= outward(es, dTarget) - tol), extension);
+  const reached = checks.find((k) => k.id === 'GAR-05')!.state === 'met';
   add('GAR-06', rC === null ? U : flag(rC < G.cClean), rC ?? undefined);
   const rD = d ? retraceXA(s, d.price) : null;
   add('GAR-07', rD === null ? U : flag(Math.abs(rD - G.dAtX.level) <= G.dAtX.tolerance), rD ?? undefined);
@@ -113,7 +114,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const atr = view.atr[d ? d.idx : last] ?? null;
   const dist = atrDistance(abcd.level1, dTarget, atr);
   add('GAR-09', dist === null ? U : flag(dist <= HARMONIC_PARAMS.nearAtr), dist ?? undefined);
-  add('GAR-10', flag(zonesNear(env, tf, s, dTarget, 0).length > 0));
+  add('GAR-10', flag(zonesNear(env, tf, s, d && reached ? d.price : dTarget, 0).length > 0));
   add('GAR-11', tri(enoughSpace(s, last, atr)));
   add('GAR-12', flag(HARMONIC_PARAMS.highTimeframes.includes(tf)));
 
@@ -135,7 +136,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const oneStep = xPos >= 0 && trend.pivots[xPos + 1]?.idx === a.idx;
   add('GAR-21', flag(fractals && impulse && oneStep));
 
-  const reached = checks.find((k) => k.id === 'GAR-05')!.state === 'met';
   const drawings = drawingsOf(env, tf, s, dTarget, reached);
   const withDrawings = checks.map((k) => ({
     ...k,

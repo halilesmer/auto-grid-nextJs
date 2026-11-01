@@ -154,15 +154,12 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
     expect(ruleText('tr', 'CDT-06')).toBe('H2’ye yaklaşırken trend bölgeye doğru');
   });
 
-  frm('FRM-19', 'GAR-10, BAT-11, BUT-12, CRB-12 und CYP-09 messen „in einer Zone“ und sagen es', () => {
-    for (const id of ['GAR-10', 'BAT-11', 'BUT-12', 'CRB-12']) {
+  frm('FRM-19', 'GAR-10, BAT-11, BUT-12, CRB-12 und CYP-09 messen „D in einer Zone“ und sagen es', () => {
+    for (const id of ['GAR-10', 'BAT-11', 'BUT-12', 'CRB-12', 'CYP-09']) {
       expect(ruleText('de', id)).toBe('D liegt in einer Zone');
       expect(ruleText('en', id)).toBe('D lies inside a zone');
       expect(ruleText('tr', id)).toBe('D bir bölgenin içinde');
     }
-    expect(ruleText('de', 'CYP-09')).toBe('Einstieg liegt in einer Zone');
-    expect(ruleText('en', 'CYP-09')).toBe('The entry lies inside a zone');
-    expect(ruleText('tr', 'CYP-09')).toBe('Giriş bir bölgenin içinde');
   });
 });
 

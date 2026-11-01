@@ -53,7 +53,7 @@ areas: [frontend, tests]
 
 ## Open points
 - [ ] `Z-TDF-07` (inverse Fibonacci, levels 1.618 and 2.0, anchors impulse start, H1, pullback low) now uses the projection from the pullback low. The rule book does not say that this is the intended formula. The old drawing gave prices below H1, which cannot be a target. The page does not show TDF, so nothing visible changed. Check the formula before TDF goes on the page.
-- [ ] The zone checks `GAR-10`, `BAT-11`, `BUT-12`, `CRB-12` measure at the target price of D, not at the real D. `CYP-09` measures at the entry level. The rule book says "D lies in a zone". For a D that overshoots the target, the text can be wrong. The earlier entry `2026-10-28-formation-but-crb.md` (BU-4) names the same point. The user decides: measure at the real D, or name the target price in the text.
+- [x] The zone checks `GAR-10`, `BAT-11`, `BUT-12`, `CRB-12` measure at the target price of D, not at the real D. `CYP-09` measures at the entry level. The rule book says "D lies in a zone". For a D that overshoots the target, the text can be wrong. The earlier entry `2026-10-28-formation-but-crb.md` (BU-4) names the same point. The user decides: measure at the real D, or name the target price in the text. Done in Package C-2: the owner decided on the real D (no setting). Without D the target price stays.
 - [x] `GAR-10` and `BAT-11` measure with `zoneAtr × ATR` distance, the rule book says "inside". When this changes, switch their text to `ZONE_D_IN`. Done in Package C, PR C-1: distance 0, text `ZONE_D_IN`, `zoneAtr` removed.
 
 ## Package C-1: zone timeframe and zone distance
@@ -62,9 +62,27 @@ areas: [frontend, tests]
 - Tests in `formation-boundaries-lib.spec.ts`: edge cases (distance 0 and 0.001, buy and sell) for `GAR-10` and `BAT-11`, and five timeframe cases for each of the five checks. Nine of them failed before the change (four edge cases, five "zone only in H1"). `formation-page-lib.spec.ts` checks the `GAR-10` and `BAT-11` texts.
 - Test data note: bars with equal open and close make a manipulation zone on H4 (`FRZ-16`), and a rising series makes a fractal of every bar. The new tests use a falling base series and a dip bar with a real body.
 
-- [ ] `formedByD` in `zonesNear` compares the open time of a higher-timeframe fractal with the time of D. A D that lies in a D1 candle, which later becomes a fractal itself, can still count its own zone. The code was like this before C-1. Check it before Package C-2.
+- [ ] `formedByD` in `zonesNear` compares the open time of a higher-timeframe fractal with the time of D. A D that lies in a D1 candle, which later becomes a fractal itself, can still count its own zone. The code was like this before C-1. Not changed in C-2; still open.
+
+## Package C-2: measuring point of the zone checks
+- `GAR-10`, `BAT-11`, `BUT-12`, `CRB-12` and `CYP-09` measure at the real D (`d.price`) when D is reached. When D is not reached, they measure at the target price; `CYP-09` at the entry level. "Reached" is the state of the row that already checks it (`GAR-05`, `BAT-07`, `BUT-07`, `CRB-04`, `CYP-07`). The variable `reached` moved up to this row without a change of meaning. There is no setting; the owner decided this on 2026-11-01.
+- Değişen: the plan said "if D is missing, measure at the target". In the code, `d` is only `null` when no candle follows C. `extremeAfter` (`abcd.ts`) gives the farthest wick since C otherwise. That wick is not drawn as D before the target is reached. So the fallback is "D not reached", not "D missing". The coordinator confirmed this change.
+- Değişen: the text of `CYP-09` changed from "The entry lies inside a zone" to `ZONE_D_IN` ("D lies inside a zone"), because the row now measures at D. The rule book says "D lies in a zone". The text test (tr, en, de) covers it.
+- All five rows are `bonus`. The verdict code reads only `required` rows and exclusions, so the verdict does not change. The real-candle tests check the verdict with literals.
+- A D that overshoots the target (`GAR-05` and `BUT-07` allow it) can now give `unmet` where it gave `met` before. This is the fixed error.
+- Three real-candle tests changed, each recalculated by hand from the fixture:
+
+| Test | Row | Old | New | D price | Zone limits |
+|---|---|---|---|---|---|
+| `but-sell-h4-01` (sell) | `BUT-12` | `unmet` | `met` | high 183.139 | resistance zone 183.035 to 183.222 |
+| `cyp-buy-h4-01` (buy) | `CYP-09` | `met` | `unmet` | low 1.17346 | nearest support zone 1.17191 to 1.1734 (0.00006 below D) |
+| `cyp-bad-h4-01` (buy) | `CYP-09` | `unmet` | `met` | low 0.93251 | support zone 0.92965 to 0.93286 |
+
+  The verdicts stay `valid`, `valid` and `invalid`.
+- New tests (two per check, buy): D reached with a zone only at the target gives `unmet`; D reached with a zone at D gives `met`; D not reached with a zone only at the intermediate extreme gives `unmet`; D not reached with a zone at the target gives `met`; no D gives the target. Before the change, ten cases failed for "reached" and ten for "not reached", and the `CYP-09` text test failed.
 
 ## Lessons
 - A change of a measurement needs a change of the matching text in the same PR. PR #239 changed the zone distance and left "near" in `ruleTexts.ts`.
 - A check that measures two variants needs a display state for the variant that does not apply. A correct verdict does not make the checklist correct.
 - The ATR-less case needs its own test. The zone checks no longer depend on the ATR, and only a series with fewer than 15 candles shows that.
+- A plan that says "if D is missing" needs a check of when the code has no D. Here a provisional wick takes the place of D almost always.

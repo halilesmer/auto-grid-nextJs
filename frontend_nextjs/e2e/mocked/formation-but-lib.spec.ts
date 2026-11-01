@@ -266,12 +266,13 @@ test.describe('BUT: echte Kerzen', () => {
     expect(c.verdict).toBe('valid');
   });
 
-  frm('but-sell-h4-01: Verkauf-Butterfly mit RSI(7) 85 am D, Ziel-D außerhalb der Zone, ist gültig', () => {
+  frm('but-sell-h4-01: Verkauf-Butterfly mit RSI(7) 85 am D, das echte D liegt in einer Zone, ist gültig', () => {
     const c = analyzeAt('but-sell-h4-01', '2026-02-19T08:00');
     expect(c.side).toBe('sell');
     expect(times(c)).toEqual(['2026-02-12T12:00', '2026-02-12T16:00', '2026-02-13T08:00', '2026-02-16T00:00', '2026-02-19T04:00']);
     expect(states(c, CORE)).toEqual([M, M, N, M, N, M, M]);
-    expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13'])).toEqual([M, N, M, M, N, M]);
+    // BUT-12 misst am echten D: Hoch 183.139 liegt in der Widerstandszone 183.035 bis 183.222 (Fraktalkerze 2026-01-29 20:00)
+    expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13'])).toEqual([M, N, M, M, M, M]);
     expect(c.verdict).toBe('valid');
   });
 

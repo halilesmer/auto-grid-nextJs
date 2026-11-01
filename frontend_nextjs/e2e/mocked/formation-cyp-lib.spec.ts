@@ -409,7 +409,8 @@ test.describe('CYP: echte Kerzen', () => {
     expect(c.side).toBe('buy');
     expect(times(c)).toEqual(['2025-12-15T08:00', '2025-12-15T16:00', '2025-12-15T20:00', '2025-12-16T12:00', '2025-12-16T20:00']);
     expect(states(c, CORE)).toEqual([M, M, M, M, M, M]);
-    expect(states(c, ['CYP-08', 'CYP-09', 'CYP-10', 'CYP-11', 'CYP-14'])).toEqual([N, M, N, N, N]);
+    // CYP-09 misst am echten D: Tief 1.17346 liegt 0.00006 über der Oberkante 1.1734 der nächsten Unterstützungszone
+    expect(states(c, ['CYP-08', 'CYP-09', 'CYP-10', 'CYP-11', 'CYP-14'])).toEqual([N, N, N, N, N]);
     expect(c.verdict).toBe('valid');
   });
 
@@ -423,7 +424,8 @@ test.describe('CYP: echte Kerzen', () => {
 
   frm('cyp-bad-h4-01: Negativ – ohne Divergenz zwischen A und C (CYP 05 ☐) ist die Cypher ungültig', () => {
     const c = analyzeAt('cyp-bad-h4-01', '2025-12-11T16:00');
-    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-08', 'CYP-09', 'CYP-12'])).toEqual([N, M, M, M, N, M]);
+    // CYP-09 misst am echten D: Tief 0.93251 liegt in der Unterstützungszone 0.92965 bis 0.93286
+    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-08', 'CYP-09', 'CYP-12'])).toEqual([N, M, M, M, M, M]);
     expect(c.verdict).toBe('invalid');
   });
 
