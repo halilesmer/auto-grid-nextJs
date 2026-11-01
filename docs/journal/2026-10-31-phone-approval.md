@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: decision
 status: open
-pr: [267]
+pr: [267, 274]
 features: []
 areas: [tooling]
 ---
