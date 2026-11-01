@@ -347,9 +347,9 @@
   },
   "BKT-07": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 16
+      "tests": 17
     }
   },
   "BKT-08": {
