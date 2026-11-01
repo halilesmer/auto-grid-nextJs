@@ -4,7 +4,8 @@
  * deshalb gibt `view(tf, t)` nur geschlossene Kerzen bis t frei: kein Blick in die Zukunft
  * (docs/analyse-regeln.md, BKT-09). So taugt dieselbe Erkennung später für Backtest und Alarm.
  */
-import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
+import { TIMEFRAME_SEC, type MissingRange } from '@/lib/analysis/candles';
+import { gapBetween } from '@/lib/analysis/fractals';
 import { atrSeries, narrowRange, rsi, wave, wideRange, type Series } from './indicators';
 import { CONTEXT_TIMEFRAMES, TRD_PARAMS, type ContextTimeframe, type FormationZug } from './params';
 import type { FormationBar } from './types';
@@ -21,7 +22,18 @@ export interface TimeframeView {
   narrow: (boolean | null)[];
 }
 
-export type ContextInput = Partial<Record<ContextTimeframe, readonly FormationBar[]>>;
+type GapRange = Pick<MissingRange, 'from' | 'to'>;
+
+/** Kerzen einer Zeiteinheit, optional mit den fehlenden Datenbereichen (wie im Chart: sie trennen Fraktal-Nachbarn) */
+export type TimeframeInput = readonly FormationBar[] | { bars: readonly FormationBar[]; missing: readonly GapRange[] };
+
+export type ContextInput = Partial<Record<ContextTimeframe, TimeframeInput>>;
+
+/** Kopie der Kerzen; wo ein fehlender Bereich zwischen zwei Kerzen liegt, trägt die spätere `gapBefore` */
+function markGaps(bars: readonly FormationBar[], missing: readonly GapRange[]): FormationBar[] {
+  if (missing.length === 0) return [...bars];
+  return bars.map((b, i) => (i > 0 && gapBetween(missing, bars[i - 1].time, b.time) ? { ...b, gapBefore: true } : b));
+}
 
 export class FormationContext {
   readonly symbol: string;
@@ -31,8 +43,10 @@ export class FormationContext {
     this.symbol = symbol;
     const zug = options.zug ?? TRD_PARAMS.formationZug;
     for (const tf of CONTEXT_TIMEFRAMES) {
-      const bars = input[tf];
-      if (!bars) continue;
+      const given = input[tf];
+      if (!given) continue;
+      const missing = 'bars' in given ? given.missing : [];
+      const bars = 'bars' in given ? given.bars : given;
       for (let i = 0; i < bars.length; i++) {
         const b = bars[i];
         if (![b.time, b.open, b.high, b.low, b.close].every(Number.isFinite)) {
@@ -47,7 +61,7 @@ export class FormationContext {
       this.full.set(tf, {
         tf,
         zug,
-        bars: [...bars],
+        bars: markGaps(bars, missing),
         rsi: rsi(bars),
         wave: wave(bars),
         atr: atrSeries(bars),

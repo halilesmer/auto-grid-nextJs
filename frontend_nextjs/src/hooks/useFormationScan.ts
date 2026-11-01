@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@/i18n';
-import { runningBar, type Bar } from '@/lib/analysis/candles';
+import { runningBar, type Bar, type MissingRange } from '@/lib/analysis/candles';
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
 import type { ContextTimeframe } from '@/lib/formation/params';
 import { formationRequests } from '@/lib/formation/requests';
@@ -67,13 +67,15 @@ export function useFormationScan(accountId: string | null, symbol: string | null
   const signature = allLoaded && at !== null
     ? scanSignature({ D1: tfData(d1.data), H4: tfData(h4.data), H1: tfData(h1.data), M15: tfData(m15.data) }, at)
     : null;
-  const key = signature !== null ? `${accountId}|${symbol}|${at}|${zug}|${signature}` : null;
+  // Ein neuer fehlender Bereich trennt Fraktal-Nachbarn: auch ohne neue Kerze neu suchen
+  const gaps = [d1, h4, h1, m15].map((r) => r.data?.missing.map((m) => `${m.from}-${m.to}`).join(';') ?? '').join(',');
+  const key = signature !== null ? `${accountId}|${symbol}|${at}|${zug}|${signature}|${gaps}` : null;
 
   // Neuester Stand der Kerzen für die Suche, ohne sie bei jedem Nachladen neu zu starten
   const latest = useRef<ContextInput>({});
   useEffect(() => {
-    const bars = (b: Bar[] | undefined) => b ?? [];
-    latest.current = { D1: bars(d1.data?.bars), H4: bars(h4.data?.bars), H1: bars(h1.data?.bars), M15: bars(m15.data?.bars) };
+    const input = (d: { bars: Bar[]; missing: MissingRange[] } | null) => ({ bars: d?.bars ?? [], missing: d?.missing ?? [] });
+    latest.current = { D1: input(d1.data), H4: input(h4.data), H1: input(h1.data), M15: input(m15.data) };
   });
 
   const [settled, setSettled] = useState<Settled | null>(null);

@@ -2002,3 +2002,12 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-32) ausführen (Eintrag ohne Systemmeldung und Ton, Sammelmeldung als einzelne Treffer, Löschen, zweiter Tab, Klick auf Eintrag, leerer Verlauf, 375 px).
           - "Im echten Browser prüfen: nach einer echten Meldung steht sie im Verlauf; zweiter Tab zeigt sie; Verlauf löschen und Neuladen meldet nichts doppelt."
         erwartet: Jede gemeldete Formation steht im Verlauf des Kontos mit Zeit, Produkt, Formation, Zeiteinheit, Seite und Ereignis; Sammelmeldungen zeigen jeden Treffer; Löschen meldet nichts erneut.
+
+      - id: FRM-33
+        titel: "Fraktal zählt seine Nachbarn nicht über eine Datenlücke"
+        beschreibung: "Ein Fraktal braucht zwei Nachbarkerzen links und zwei rechts. Liegt zwischen zwei dieser fünf Kerzen ein fehlender Datenbereich (MissingRange der Marktdatenbank), zählen die Nachbarn nicht darüber hinweg: es ist kein Fraktal. Das gilt wie im Chart (findFractals) für jeden fehlenden Bereich; Handelspausen sind keine MissingRange. Eine Lücke außerhalb der fünf Kerzen ändert nichts. Folge: Formationen, die ein fertiges Fraktal verlangen (zum Beispiel ABCD-02), sind dann nicht erfüllt. Die Suche (Seite und Alarm) reicht die fehlenden Bereiche je Zeiteinheit an FormationContext durch; die Kerze nach der Lücke trägt gapBefore. RSI, ATR und Wave rechnen weiter über die Lücke. Keine Worker-Änderung, keine Order."
+        code: [frontend_nextjs/src/lib/formation/frz.ts, frontend_nextjs/src/lib/formation/context.ts, frontend_nextjs/src/lib/analysis/fractals.ts, frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/components/formation/FormationScanRunner.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-gap-lib.spec.ts (@FRM-33) ausführen (Lücke zwischen den fünf Kerzen, rechts der Fraktalkerze, ohne Lücke, Lücke außerhalb, ABCD-02).
+        erwartet: Zwischen den fünf Kerzen eines Fraktals liegt keine fehlende Datenstrecke; sonst ist es kein Fraktal und ABCD-02 ist nicht erfüllt.
