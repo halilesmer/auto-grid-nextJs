@@ -4,7 +4,7 @@ author: Claude
 type: fix
 status: open
 pr: [277, 278]
-features: [FRM-19, FRM-20]
+features: [FRM-07, FRM-12, FRM-13, FRM-14, FRM-19, FRM-20]
 areas: [frontend, tests]
 ---
 
@@ -35,7 +35,7 @@ areas: [frontend, tests]
 | `e2e/mocked/formation-crb-lib.spec.ts`, `formation-page.spec.ts` (PR 2) | Five new lib tests and three new page tests (FRM-19). |
 
 ## Why
-- `ZONE_D` stays for `GAR-10` and `BAT-11`. These two still measure with a distance of `zoneAtr × ATR`. The rule book says "inside". Their text changes to `ZONE_D_IN` when the measurement changes.
+- `ZONE_D` stayed for `GAR-10` and `BAT-11` in PR 1 and PR 2, because they still measured with a distance. Package C-1 changed the measurement and the text together, and `ZONE_D` is gone.
 - Only `fibExt` takes the third anchor. A plain `fib` with three anchors keeps the old formula.
 - The rule book gives the formula for `Z-BUT-04` ("A → B, from C") and for `Z-T618-04` (same projection). It does not give a formula for `Z-TDF-07`.
 - `inactive` is a new field and not a new `CheckState`. Existing tests require `met` for `CRB-07` on a Deep Crab, and the verdict reads the states. The field changes the display only.
@@ -62,6 +62,9 @@ areas: [frontend, tests]
 - Tests in `formation-boundaries-lib.spec.ts`: edge cases (distance 0 and 0.001, buy and sell) for `GAR-10` and `BAT-11`, and five timeframe cases for each of the five checks. Nine of them failed before the change (four edge cases, five "zone only in H1"). `formation-page-lib.spec.ts` checks the `GAR-10` and `BAT-11` texts.
 - Test data note: bars with equal open and close make a manipulation zone on H4 (`FRZ-16`), and a rising series makes a fractal of every bar. The new tests use a falling base series and a dip bar with a real body.
 
+- [ ] `formedByD` in `zonesNear` compares the open time of a higher-timeframe fractal with the time of D. A D that lies in a D1 candle, which later becomes a fractal itself, can still count its own zone. The code was like this before C-1. Check it before Package C-2.
+
 ## Lessons
 - A change of a measurement needs a change of the matching text in the same PR. PR #239 changed the zone distance and left "near" in `ruleTexts.ts`.
 - A check that measures two variants needs a display state for the variant that does not apply. A correct verdict does not make the checklist correct.
+- The ATR-less case needs its own test. The zone checks no longer depend on the ATR, and only a series with fewer than 15 candles shows that.

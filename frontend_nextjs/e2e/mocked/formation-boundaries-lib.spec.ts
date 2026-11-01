@@ -52,6 +52,8 @@ for (const spec of ZONE_SPECS) {
     { form: 'H4', zone: 'H1', want: 'unmet' },
     { form: 'H4', zone: 'H4', want: 'met' },
     { form: 'H4', zone: 'D1', want: 'met' },
+    { form: 'D1', zone: 'H4', want: 'unmet' },
+    { form: 'H1', zone: 'M15', want: 'unmet' },
     { form: 'M15', zone: 'H1', want: 'met' },
     { form: 'M15', zone: 'M15', want: 'met' },
   ] as const) {
@@ -150,4 +152,19 @@ for (const buy of [true, false]) {
       expect(candidate.checks.find((c) => c.id === 'CYP-07')?.state).toBe(edge.want);
     });
   }
+}
+
+for (const spec of [
+  { id: 'GAR-10', check: checkGarCandidate, b: 500 },
+  { id: 'BAT-11', check: checkBatCandidate, b: 200 },
+]) {
+  test(`${spec.id}: ohne ATR (zu wenige Kerzen) ist die Zeile ☐ und nicht messbar`, { tag: '@FRM-07' }, () => {
+    const bars = Array.from({ length: 12 }, (_, i) => bar(i * H4, 0, 1000, 500));
+    const anchor = (idx: number, price: number) => ({ time: idx * H4, price });
+    const candidate = spec.check(new FormationContext('TEST', { H4: bars }), 12 * H4, {
+      tf: 'H4', x: anchor(2, 0), a: anchor(4, 1000), b: anchor(6, spec.b), c: anchor(8, 800), d: anchor(10, 300),
+    });
+    expect(candidate.checks.find((c) => c.id === spec.id.replace(/-\d+$/, '-09'))?.state).toBe('unmeasurable');
+    expect(candidate.checks.find((c) => c.id === spec.id)?.state).toBe('unmet');
+  });
 }
