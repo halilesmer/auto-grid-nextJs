@@ -47,8 +47,28 @@ areas: [frontend, tests]
 - Not tested: a real system notification and the click on it, the behaviour of a hidden tab, a real account with about 10 favorites. See the open points.
 
 ## Open points
-- [ ] In the real browser with the DEMO account and about 10 favorites: the system notification appears, a click on it opens the product and the formation, a hidden tab keeps reporting, and how long one pass takes and whether it blocks the page. A web worker only if this measurement needs one.
+- [ ] Real browser, DEMO account, 10 favorites (checked on 2026-10-31, built-in browser plus Chrome). The tests ran on Saturday with no new candles. The notice was caused by setting one remembered hit in `localStorage` (`grid-robot-formation-alarm`, `memory`) to "not valid yet", not by a new candle. See "Real browser check" below. Still open: point 2 and the visible system notice. Halil tests them on 2026-11-01. FRM-30 is not signed.
 - [ ] Known and accepted: `save` in `alarmStore.ts` writes the whole cache, so a tab that was frozen for a long time could overwrite newer state and repeat a notice. Every tab prunes the remembered state with its own favorites list. If the favorites route fails for good (old worker), products with the bell on are not searched either. The abort path (`completed=false`), the Lock takeover, the account id in the tags and the click path of the service worker have no test.
 - [ ] iPhone: system notifications work only when the app is installed on the home screen.
 - [ ] Telegram (later, not built). The search would run on the VPS with the same TypeScript code, because a Python copy of about 9,750 lines would drift from it. This needs Node.js on the VPS, a bundled script from `scan.ts` and `alarm.ts`, a background task in the worker like `run_watchdog`, the alarm list and the remembered state on the worker, and the bot token only in the VPS environment. Vercel is no place for it, because the worker address and key never lie there. There is no pending list in this repository, so this point stays here.
 - [ ] The alarm of one browser is independent of the alarm of another device: each open device reports on its own.
+
+## Real browser check
+Date 2026-10-31, DEMO account, worker on the VPS. The favorites list had 3 products. It was set to 10 for the test. The 10 stay in place because Halil needs them on 2026-11-01. The 3 earlier ones were ASX200, UK100, XAUUSD.
+
+| Point | Result | Evidence |
+| --- | --- | --- |
+| 1a. Card on another page than `/formasyon` | Passed | Built-in browser on `/chart`: the card "Butterfly Satış · USDJPY · H4 …" appeared at 23:00:14 UTC. Chrome on `/chart`: the card appeared at 23:15:17 UTC. |
+| 1b. System notice | Triggered, not seen | In Chrome (permission granted) the service worker held the notice in `getNotifications()` (title, body, tag with account and hit key). Whether it showed on the screen is not checked. |
+| 2. Click on the notice (open window and no window) | Not checked | Reason: Halil moved the click test to the next day. |
+| 3. Hidden tab keeps reporting | Passed, built-in browser only | `document.hidden` was true when the card appeared (23:00:14 UTC). Not tried with a minimized Chrome window. |
+| 4. Duration and blocking | Passed | Value: 40 candle requests from 23:00:04 to 23:00:14 UTC, about 10 s (network time, 10 favorites). Observation: a `longtask` observer (50 ms threshold) saw no task during the pass. The pure compute time `data-favorites-scan-ms` was not read on `/chart`. FRM-29 measured about 2 s on 10 favorites. |
+| 5. Same hit not reported twice | Passed, built-in browser only | After the 23:00 notice, the pass at 23:15 UTC showed no second card. |
+
+How the notice was caused: the remembered hit USDJPY BUT H4 sell was set to `{valid:false,target:false}`, then a `storage` event was sent to the tab. The next pass reported it. The pass started at about 23:00:04 UTC, not at 23:00:30, because the check runs every 30 s and the new slot was found earlier.
+
+## Defect found: switches wait for the browser prompt
+- Symptom: in Chrome, a click on "All favorites" or "System notice" changed nothing, and `localStorage` stayed empty, while `Notification.permission` was `default`.
+- Cause: `setFavorites` and `setSystem` in `useFormationAlarm.ts` called `await Notification.requestPermission()` before they saved. While the prompt is open (or Chrome hides it), the switch gives no answer.
+- Fix: the switch saves first. The permission prompt follows. If it is granted, `system` is set as before. Test `@FRM-30` "speichern sofort": red before (switch stayed off), green after. `@FRM-30` suite: 9 passed. Lint: clean.
+- Test setup note: `e2e` uses port 3100 by default. If another process holds it, set `E2E_PORT`.
