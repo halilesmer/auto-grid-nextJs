@@ -72,3 +72,4 @@ areas: [frontend, tests, docs]
 ## Lessons
 The first Codex version had one test that only read local storage. It did not measure pane heights and could not show a false alarm on a timeframe switch.
 A test that passes with its guard removed shows what the guard does not prove. Name that in the entry.
+Defect 2026-11-01: the test "Alarm: ein Zeitrahmenwechsel …" failed in CI on `main` and on PR #270, at some times of day only. Cause: the test sent the live price 115. `FreeChartPanel` rejects a live price 20 % or more from the last close, and the mock closes move with the clock from 94.7 to 99.3. At a close of 95.8 or lower, 115 was rejected, so the RSI did not change (`Received: 4.51188`). Fix: the test sends 112, which passes at every mock close. Red before with 115, green after, both on the same hour. A mock value that depends on the clock must fit all of its range.
