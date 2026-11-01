@@ -13,8 +13,6 @@ const SPACE: Text = ['X→D yeterince uzun ve yüksek', 'X→D is long and high 
 const HIGH_TF: Text = ['Zaman dilimi H4 veya D1', 'Timeframe is H4 or D1', 'Zeiteinheit ist H4 oder D1'];
 const RSI_D: Text = ['D noktasında RSI(7) uç bölgede', 'RSI(7) at D is in the extreme zone', 'RSI(7) bei D im Extrem'];
 const DIV_D: Text = ['D noktasında Wave sapması', 'Wave divergence at D', 'Wave-Divergenz bei D'];
-/** GAR-10 und BAT-11 messen noch mit `zoneAtr × ATR` Abstand zur Zone; ihr Text wechselt zu ZONE_D_IN, sobald die Messung „in“ prüft */
-const ZONE_D: Text = ['D bir bölgeye yakın', 'D is near a zone', 'D liegt nahe einer Zone'];
 const ZONE_D_IN: Text = ['D bir bölgenin içinde', 'D lies inside a zone', 'D liegt in einer Zone'];
 const PRZ: Text = ['PRZ seviyesi D’ye yakın', 'The PRZ level is near D', 'PRZ-Level liegt nahe D'];
 const CLOSE_X: Text = ['H4 kapanışı X’in ötesinde', 'An H4 close beyond X', 'H4-Schluss jenseits von X'];
@@ -55,7 +53,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'GAR-07': ['D, XA’nın 0,786’sında', 'D sits at 0.786 of XA', 'D liegt bei 0,786 von XA'],
   'GAR-08': ['C düzeltme derinliği 0,382 – 0,728', 'The correction depth of C is 0.382 to 0.728', 'Korrekturtiefe von C zwischen 0,382 und 0,728'],
   'GAR-09': ['AB=CD D’si ile Gartley D’si yakın (ATR)', 'The AB=CD D and the Gartley D are close (ATR)', 'AB=CD-D und Gartley-D liegen nah (ATR)'],
-  'GAR-10': ZONE_D,
+  'GAR-10': ZONE_D_IN,
   'GAR-11': SPACE,
   'GAR-12': HIGH_TF,
   'GAR-13': RSI_D,
@@ -78,7 +76,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'BAT-08': ['C düzeltme derinliği 0,382 – 0,728', 'The correction depth of C is 0.382 to 0.728', 'Korrekturtiefe von C zwischen 0,382 und 0,728'],
   'BAT-09': ['AB=CD D’si ile Bat D’si yakın (ATR)', 'The AB=CD D and the Bat D are close (ATR)', 'AB=CD-D und Bat-D liegen nah (ATR)'],
   'BAT-10': SPACE,
-  'BAT-11': ZONE_D,
+  'BAT-11': ZONE_D_IN,
   'BAT-12': HIGH_TF,
   'BAT-13': RSI_D,
   'BAT-14': ['B fazla derin (Gartley’e geçer)', 'B is too deep (turns into a Gartley)', 'B zu tief (wird zur Gartley)'],

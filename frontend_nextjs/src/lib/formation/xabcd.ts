@@ -9,7 +9,7 @@ import { shapeOf, gapToRect, type AbcdShape } from './abcd';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
-import { HARMONIC_PARAMS, FRZ_PARAMS, type ContextTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
@@ -148,6 +148,10 @@ export function closedBeyondX(env: Env, tf: ContextTimeframe, s: XabcdShape): bo
   return view.bars.some((b) => b.time + dur > xTime && closesBeyond(b, s.x.price, s.es));
 }
 
+/** Fraktalzonen zählen aus der Formations-Zeiteinheit und aus höheren, nicht aus tieferen (Regelbuch: „der Formations- oder einer höheren ZE“) */
+export const zoneTfCounts = (zoneTf: ContextTimeframe, tf: ContextTimeframe): boolean =>
+  CONTEXT_TIMEFRAMES.indexOf(zoneTf) <= CONTEXT_TIMEFRAMES.indexOf(tf);
+
 /** Zonen (Fraktal- und Engulf-Zonen) nahe `price`, die nicht erst das D selbst bildet */
 export function zonesNear(env: Env, tf: ContextTimeframe, s: XabcdShape, price: number, near: number): Rect[] {
   const view = env.views.get(tf)!;
@@ -156,7 +160,7 @@ export function zonesNear(env: Env, tf: ContextTimeframe, s: XabcdShape, price: 
   const out: Rect[] = [];
   for (const z of [...env.frz.zones, ...env.frz.reversed]) {
     const formedByD = z.fractalTimes.every((ft) => ft >= dTime);
-    if (z.side === tradeZone && !formedByD && gapToRect(z.rect, price) <= near) out.push(z.rect);
+    if (z.side === tradeZone && zoneTfCounts(z.tf, tf) && !formedByD && gapToRect(z.rect, price) <= near) out.push(z.rect);
   }
   for (const z of engulfZones(view.bars, view.wide)) {
     const formedByD = s.d !== null && z.idx >= s.d.idx;

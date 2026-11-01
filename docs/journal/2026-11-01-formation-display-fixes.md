@@ -4,7 +4,7 @@ author: Claude
 type: fix
 status: open
 pr: [277, 278]
-features: [FRM-19, FRM-20]
+features: [FRM-07, FRM-12, FRM-13, FRM-14, FRM-19, FRM-20]
 areas: [frontend, tests]
 ---
 
@@ -35,7 +35,7 @@ areas: [frontend, tests]
 | `e2e/mocked/formation-crb-lib.spec.ts`, `formation-page.spec.ts` (PR 2) | Five new lib tests and three new page tests (FRM-19). |
 
 ## Why
-- `ZONE_D` stays for `GAR-10` and `BAT-11`. These two still measure with a distance of `zoneAtr × ATR`. The rule book says "inside". Their text changes to `ZONE_D_IN` when the measurement changes.
+- `ZONE_D` stayed for `GAR-10` and `BAT-11` in PR 1 and PR 2, because they still measured with a distance. Package C-1 changed the measurement and the text together, and `ZONE_D` is gone.
 - Only `fibExt` takes the third anchor. A plain `fib` with three anchors keeps the old formula.
 - The rule book gives the formula for `Z-BUT-04` ("A → B, from C") and for `Z-T618-04` (same projection). It does not give a formula for `Z-TDF-07`.
 - `inactive` is a new field and not a new `CheckState`. Existing tests require `met` for `CRB-07` on a Deep Crab, and the verdict reads the states. The field changes the display only.
@@ -54,8 +54,17 @@ areas: [frontend, tests]
 ## Open points
 - [ ] `Z-TDF-07` (inverse Fibonacci, levels 1.618 and 2.0, anchors impulse start, H1, pullback low) now uses the projection from the pullback low. The rule book does not say that this is the intended formula. The old drawing gave prices below H1, which cannot be a target. The page does not show TDF, so nothing visible changed. Check the formula before TDF goes on the page.
 - [ ] The zone checks `GAR-10`, `BAT-11`, `BUT-12`, `CRB-12` measure at the target price of D, not at the real D. `CYP-09` measures at the entry level. The rule book says "D lies in a zone". For a D that overshoots the target, the text can be wrong. The earlier entry `2026-10-28-formation-but-crb.md` (BU-4) names the same point. The user decides: measure at the real D, or name the target price in the text.
-- [ ] `GAR-10` and `BAT-11` measure with `zoneAtr × ATR` distance, the rule book says "inside". When this changes, switch their text to `ZONE_D_IN`.
+- [x] `GAR-10` and `BAT-11` measure with `zoneAtr × ATR` distance, the rule book says "inside". When this changes, switch their text to `ZONE_D_IN`. Done in Package C, PR C-1: distance 0, text `ZONE_D_IN`, `zoneAtr` removed.
+
+## Package C-1: zone timeframe and zone distance
+- The zone checks `GAR-10`, `BAT-11`, `BUT-12`, `CRB-12` and `CYP-09` counted fractal zones of every timeframe. The rule book says "the formation timeframe or a higher one". New helper `zoneTfCounts` in `xabcd.ts` keeps a zone only if its timeframe is the formation timeframe or higher. `zonesNear` and `zonesNearOutsideX` use it.
+- `GAR-10` and `BAT-11` measure with distance 0, like the other three. They are no longer `unmeasurable` when the ATR is missing. `HARMONIC_PARAMS.zoneAtr` and the text `ZONE_D` had no user left and were deleted.
+- Tests in `formation-boundaries-lib.spec.ts`: edge cases (distance 0 and 0.001, buy and sell) for `GAR-10` and `BAT-11`, and five timeframe cases for each of the five checks. Nine of them failed before the change (four edge cases, five "zone only in H1"). `formation-page-lib.spec.ts` checks the `GAR-10` and `BAT-11` texts.
+- Test data note: bars with equal open and close make a manipulation zone on H4 (`FRZ-16`), and a rising series makes a fractal of every bar. The new tests use a falling base series and a dip bar with a real body.
+
+- [ ] `formedByD` in `zonesNear` compares the open time of a higher-timeframe fractal with the time of D. A D that lies in a D1 candle, which later becomes a fractal itself, can still count its own zone. The code was like this before C-1. Check it before Package C-2.
 
 ## Lessons
 - A change of a measurement needs a change of the matching text in the same PR. PR #239 changed the zone distance and left "near" in `ruleTexts.ts`.
 - A check that measures two variants needs a display state for the variant that does not apply. A correct verdict does not make the checklist correct.
+- The ATR-less case needs its own test. The zone checks no longer depend on the ATR, and only a series with fewer than 15 candles shows that.
