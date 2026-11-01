@@ -228,7 +228,7 @@ function FormationView() {
           actions={
             <>
               <FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />
-              <FormationAlarmMenu symbol={accountKnown ? symbol : null} accountKnown={accountKnown} alarm={alarm} />
+              <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} />
             </>
           }
         >

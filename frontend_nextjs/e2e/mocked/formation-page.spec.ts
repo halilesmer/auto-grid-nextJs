@@ -937,7 +937,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
 
   /** Gespeicherter Alarm im Browser vor dem ersten Laden; `memory` = gemerkter Stand je `${Konto}|${Symbol}` */
-  async function seed(page: Page, stored: { favoritesEnabled?: string[]; enabled?: string[]; memory?: Record<string, unknown>; forms?: string[]; system?: boolean; history?: Record<string, unknown[]> }) {
+  async function seed(page: Page, stored: { favoritesEnabled?: string[]; enabled?: string[]; memory?: Record<string, unknown>; forms?: string[]; system?: boolean; history?: Record<string, unknown[]>; account?: string }) {
     // Nur Gartley, damit jede Meldung einzeln kommt; `forms` wählt andere Formationen
     const { forms = ['GAR'], system = true, ...rest } = stored;
     const value = JSON.stringify({ prefs: { events: { valid: true, target: true }, forms, system }, enabled: [], memory: {}, favoritesEnabled: [], ...rest });
@@ -1094,6 +1094,71 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await page.getByRole('switch', { name: msg('formation.alarm.channel.system') }).click();
     await expect(page.getByRole('switch', { name: msg('formation.alarm.channel.system') })).toBeChecked();
     expect((await stored()).prefs.system).toBe(true);
+  });
+
+  test('Nach dem Neuladen ohne ?account= sucht der Alarm mit dem gemerkten Konto und meldet', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, FORMING_NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], account: DEMO_ID });
+    await page.clock.install();
+    await page.goto('/chart');
+    await remembered(page, 'EURUSD');
+    await nextSlot(page, worker);
+    await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
+  });
+
+  test('Eine Kontowahl wird für den Alarm gemerkt', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    await seed(page, {});
+    await page.goto(ALARM_URL);
+    await page.waitForFunction(([key, id]) => JSON.parse(localStorage.getItem(key) ?? '{}').account === id, [KEY, DEMO_ID] as const);
+  });
+
+  test('Das Dashboard wählt nach dem Neuladen kein Konto vor, auch wenn der Alarm eins gemerkt hat', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], account: DEMO_ID });
+    await page.goto('/');
+    await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThan(0);
+    await expect(page.getByRole('combobox', { name: msg('account.select.aria'), exact: true })).toContainText(msg('account.select.placeholder'));
+  });
+
+  test('Ohne gewähltes und ohne gemerktes Konto ruht der Alarm und das Menü sagt es', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    await seed(page, {});
+    await page.goto('/formasyon');
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.none'));
+    await expect(page.getByTestId('formation-alarm-rest-note')).toBeVisible();
+    expect(ratesCalls(worker)).toBe(0);
+  });
+
+  test('Ein gemerktes Konto, das es nicht mehr gibt, lässt den Alarm ruhen und das Menü sagt es', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    await seed(page, { account: '999999' });
+    await page.goto('/formasyon');
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
+    expect(ratesCalls(worker)).toBe(0);
+    expect(worker.callsTo('GET', /\/favorites\//).length).toBe(0);
+  });
+
+  test('Eine geladene leere Kontoliste lässt ein gemerktes Konto ruhen, statt ewig zu prüfen', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.accounts = [];
+    serveFixture(worker, NOW);
+    await seed(page, { account: DEMO_ID });
+    await page.goto('/formasyon');
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
+  });
+
+  test('Das gewählte Konto geht dem gemerkten vor', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], account: '999999' });
+    await page.goto(ALARM_URL);
+    await page.waitForFunction(([key, id]) => JSON.parse(localStorage.getItem(key) ?? '{}').account === id, [KEY, DEMO_ID] as const);
+    await waitForPass(worker, 1);
   });
 
   test('Das Menü zeigt „Alle Favoriten“, den Stand und die Alarm-Produkte, bei 375 px ohne Querscroll', { tag: '@FRM-30' }, async ({ page, worker }) => {
