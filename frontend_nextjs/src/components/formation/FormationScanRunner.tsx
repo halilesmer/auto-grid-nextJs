@@ -8,7 +8,8 @@ import { useFavorites, useFavoritesLoader } from '@/hooks/useFavorites';
 import { isAbortError } from '@/lib/apiError';
 import { ratesWindow, TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { evaluateAlarm, type AlarmMemory, type AlarmNotice } from '@/lib/formation/alarm';
-import { announce } from '@/lib/formation/alarmNotify';
+import { appendHistory, historyEntries } from '@/lib/formation/alarmHistory';
+import { announce, batchOf } from '@/lib/formation/alarmNotify';
 import { save, serverSnapshot, snapshot, subscribe } from '@/lib/formation/alarmStore';
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
 import { CONTEXT_TIMEFRAMES } from '@/lib/formation/params';
@@ -106,12 +107,19 @@ function flushAlarm(accountId: string, run: { notices: AlarmNotice[]; memory: Re
   const inAlarm = (symbol: string) => live.has(symbol);
   const notices = run.notices.filter((notice) => inAlarm(notice.symbol));
   const memory = Object.fromEntries(Object.entries(run.memory).filter(([scope]) => inAlarm(scope.slice(accountId.length + 1))));
-  if (Object.keys(memory).length > 0) {
-    const current = snapshot();
-    save({ ...current, memory: { ...current.memory, ...memory } });
-  }
   const sinceOpening = !reportedSinceOpening.has(accountId);
   if (completed) reportedSinceOpening.add(accountId);
+  // Der Verlauf hält fest, was der Alarm meldet, unabhängig von Systemmeldung und Ton; ein Eintrag je Treffer, auch bei einer Sammelmeldung
+  const entries = historyEntries(notices, Date.now(), batchOf(notices.length, sinceOpening));
+  const remembers = Object.keys(memory).length > 0;
+  if (remembers || entries.length > 0) {
+    const current = snapshot();
+    save({
+      ...current,
+      memory: remembers ? { ...current.memory, ...memory } : current.memory,
+      history: entries.length > 0 ? { ...current.history, [accountId]: appendHistory(current.history[accountId] ?? [], entries) } : current.history,
+    });
+  }
   announce(accountId, notices, { sinceOpening, prefs: snapshot().prefs, navigate: alarm.navigate });
   // Die anderen Tabs zeigen die Karte; Systemmeldung und Ton löst nur dieser Tab aus
   if (notices.length > 0) post({ type: 'notices', accountId, notices, sinceOpening });

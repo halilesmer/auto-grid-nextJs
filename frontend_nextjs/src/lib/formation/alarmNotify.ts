@@ -6,11 +6,18 @@
 import { toast } from '@/components/ui/animated-toast';
 import { t, type MessageKey } from '@/i18n';
 import type { AlarmNotice } from './alarm';
+import type { HistoryBatch } from './alarmHistory';
 import type { AlarmPrefs } from './alarmStore';
 import { FINAL_POINT } from './scan';
 
 /** Ab so vielen Meldungen in einem Durchlauf kommt eine Sammelmeldung statt einer Karte je Treffer */
 export const MAX_SINGLE_NOTICES = 3;
+/** Wie die Meldungen eines Durchlaufs gezeigt werden: Karte je Treffer, Sammelmeldung oder „Seit dem letzten Öffnen“ */
+export function batchOf(count: number, sinceOpening: boolean): HistoryBatch {
+  if (sinceOpening) return 'since';
+  return count > MAX_SINGLE_NOTICES ? 'many' : 'single';
+}
+
 /** Wie viele Produktnamen die Sammelmeldung nennt */
 const NAMED_SYMBOLS = 3;
 
@@ -111,7 +118,7 @@ function systemTitle(notice: AlarmNotice | undefined, line: Line): string {
 export function announce(accountId: string, notices: AlarmNotice[], options: { sinceOpening: boolean; prefs: AlarmPrefs; navigate: (url: string) => void }) {
   if (notices.length === 0) return;
   const { sinceOpening, prefs, navigate } = options;
-  const single = !sinceOpening && notices.length <= MAX_SINGLE_NOTICES;
+  const single = batchOf(notices.length, sinceOpening) === 'single';
   const system = prefs.system && notificationPermission() === 'granted';
   for (const [i, line] of lines(accountId, notices, sinceOpening).entries()) {
     toast[line.kind](line.title, { duration: 10_000, action: line.action ? { ...line.action, onClick: () => navigate(line.url) } : undefined });

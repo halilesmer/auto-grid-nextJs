@@ -4,6 +4,7 @@
  */
 import { SCAN_FORMATIONS } from './scan';
 import type { AlarmEvent, AlarmMemory, AlarmSettings } from './alarm';
+import { parseHistory, type HistoryEntry } from './alarmHistory';
 
 const STORAGE_KEY = 'grid-robot-formation-alarm';
 
@@ -20,6 +21,8 @@ export interface Stored {
   /** Konten, für die alle Favoriten gemeldet werden */
   favoritesEnabled: string[];
   memory: Record<string, AlarmMemory>;
+  /** Meldungsverlauf je Konto, neueste zuerst; getrennt von `memory`. Fehlt in älteren Speicherständen. */
+  history: Record<string, HistoryEntry[]>;
 }
 
 export const DEFAULTS: Stored = {
@@ -27,13 +30,14 @@ export const DEFAULTS: Stored = {
   enabled: [],
   favoritesEnabled: [],
   memory: {},
+  history: {},
 };
 
 const isSeen = (value: unknown): value is { valid: boolean; target: boolean } =>
   typeof value === 'object' && value !== null && typeof (value as { valid?: unknown }).valid === 'boolean' && typeof (value as { target?: unknown }).target === 'boolean';
 
 /** Gespeicherte Daten stammen aus dem Browser und können fehlen oder veraltet sein: alles wird geprüft, Fehlendes nimmt den Standard */
-function parse(raw: string | null): Stored {
+export function parseStored(raw: string | null): Stored {
   if (!raw) return DEFAULTS;
   const data: Partial<Record<keyof Stored, unknown>> = JSON.parse(raw) ?? {};
   const prefs = (data.prefs ?? {}) as Partial<Record<keyof AlarmPrefs, unknown>>;
@@ -41,6 +45,11 @@ function parse(raw: string | null): Stored {
   const memory: Stored['memory'] = {};
   for (const [scope, entries] of Object.entries((data.memory ?? {}) as Record<string, Record<string, unknown>>)) {
     memory[scope] = Object.fromEntries(Object.entries(entries).filter(([, seen]) => isSeen(seen))) as AlarmMemory;
+  }
+  const history: Stored['history'] = {};
+  for (const [accountId, entries] of Object.entries((data.history ?? {}) as Record<string, unknown>)) {
+    const valid = parseHistory(entries);
+    if (valid.length > 0) history[accountId] = valid;
   }
   return {
     prefs: {
@@ -52,6 +61,7 @@ function parse(raw: string | null): Stored {
     enabled: Array.isArray(data.enabled) ? data.enabled.filter((x): x is string => typeof x === 'string') : [],
     favoritesEnabled: Array.isArray(data.favoritesEnabled) ? data.favoritesEnabled.filter((x): x is string => typeof x === 'string') : [],
     memory,
+    history,
   };
 }
 
@@ -61,7 +71,7 @@ const listeners = new Set<() => void>();
 export function snapshot(): Stored {
   if (cache) return cache;
   try {
-    cache = parse(localStorage.getItem(STORAGE_KEY));
+    cache = parseStored(localStorage.getItem(STORAGE_KEY));
   } catch (error) {
     // Speicher gesperrt oder Inhalt kaputt: der Alarm läuft mit Standardwerten im Arbeitsspeicher weiter
     console.warn('formation alarm: stored settings unreadable', error);
