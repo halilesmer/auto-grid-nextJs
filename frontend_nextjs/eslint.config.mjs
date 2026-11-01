@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
       "no-else-return": ["error", { allowElseIf: false }],
     },
   },
-  // Es gibt einen Kerzenchart; CurveChart und EquityOverlay zeigen nur Linien. Regel: docs/journal/2026-11-01-unified-chart-page.md
+  // Tek mum grafiği vardır; CurveChart ve EquityOverlay yalnız çizgi gösterir. Kural: docs/journal/2026-11-01-unified-chart-page.md
   {
     files: ["src/**"],
     ignores: ["src/components/analysis/chart/ChartCore.tsx", "src/components/analysis/stats/CurveChart.tsx", "src/components/backtest/EquityOverlay.tsx"],

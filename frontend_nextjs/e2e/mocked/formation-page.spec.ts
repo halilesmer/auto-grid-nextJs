@@ -149,6 +149,18 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     expect(svg!.width).toBeGreaterThan(100);
     expect(svg!.width).toBeLessThan(box!.width - 20);
   });
+
+  test('Das Umkehren der Preisachse zieht die Zeichnungen sofort mit', { tag: '@FRM-20' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const line = page.getByTestId('formation-overlay').locator('line').first();
+    await expect(line).toBeAttached();
+    const before = await line.getAttribute('y1');
+    await page.getByTestId('workspace-settings').click();
+    const modal = page.getByTestId('chart-workspace-settings');
+    await modal.getByRole('button', { name: msg('cw.scales'), exact: true }).click();
+    await modal.getByRole('checkbox', { name: msg('cw.invert') }).click();
+    await expect.poll(() => line.getAttribute('y1')).not.toBe(before);
+  });
 });
 
 test.describe('FRM-20 Ansicht des Formations-Charts', () => {
@@ -170,6 +182,29 @@ test.describe('FRM-20 Ansicht des Formations-Charts', () => {
   test('Der Chart lädt mit allen Kerzen wie nach „Ansicht zurücksetzen“', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     await expect.poll(() => range(page)).toBe(allCandles());
+  });
+
+  test('Der Wechsel der Zeiteinheit überschreibt den gespeicherten Zoom nicht, auch bei gleicher Kerzenzahl', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    const series = worker.state.ratesSeries as Record<string, number[][]>;
+    // Gleiche Kerzen im Stundenabstand: gleich viele Punkte, aber eine andere Zeitachse
+    const lastTime = series.H4[series.H4.length - 1][0];
+    series.H1 = series.H4.map(([, ...prices], i) => [lastTime - (series.H4.length - 1 - i) * 3600, ...prices]);
+    await page.goto(`${URL}&form=GAR`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect.poll(() => range(page)).toBe(allCandles());
+    await zoomIn(page);
+    await expect.poll(() => range(page)).not.toBe(allCandles());
+    // Der Zoom wird verzögert gespeichert
+    await page.waitForTimeout(400);
+    const zoomed = await range(page);
+
+    await page.getByTestId('formation-tf-H1').click();
+    await expect(page.getByTestId('formation-chart')).toBeVisible();
+    await page.waitForTimeout(400);
+    await page.getByTestId('formation-tf-H4').click();
+    await expect(page.getByTestId('formation-chart')).toBeVisible();
+    await expect.poll(() => sameView(page, zoomed)).toBe(true);
   });
 
   test('Ein Klick auf eine andere Formation ändert die Ansicht nicht, auch mit Zoom', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
@@ -1331,5 +1366,22 @@ test.describe('FRM-31 laufende Kerze', () => {
     await expect(page.getByTestId('formation-form-GAR').getByTestId('hit-badge')).toHaveText('1');
     await expect(page.getByTestId('formation-form-BAT').getByTestId('hit-badge')).toHaveText('1');
     await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-last-price', `${NOW}:${price}`);
+  });
+
+  test('Die laufende Kerze übernimmt beim Wechsel der Zeiteinheit nicht Hoch und Tief der vorigen', { tag: '@FRM-31' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    const series = worker.state.ratesSeries as Record<string, number[][]>;
+    const closed = series.H4;
+    // Beide Kerzen haben dieselbe Öffnungszeit, wie in der ersten Stunde einer H4-Kerze
+    series.H4 = [...closed, [NOW, 1.2, 1.5, 0.9, 1.2]];
+    series.H1 = [...closed, [NOW, 1.2, 1.21, 1.19, 1.2]];
+    series.M15 = [[NOW - 900, 1.2, 1.2, 1.2, 1.2], [NOW, 1.2, 1.2, 1.2, 1.2]];
+    worker.state.ratesLive = { H4: NOW, H1: NOW, M15: NOW };
+    await page.goto(`${URL}&form=GAR`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    const chart = page.getByTestId('formation-chart');
+    await expect(chart).toHaveAttribute('data-last-range', '0.9:1.5');
+    await page.getByTestId('formation-tf-H1').click();
+    await expect(chart).toHaveAttribute('data-last-range', '1.19:1.21');
   });
 });

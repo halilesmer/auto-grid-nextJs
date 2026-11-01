@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import {
   AreaSeries,
@@ -224,7 +224,7 @@ export function ChartCore({
   const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
   const [scene, setScene] = useState<ChartScene | null>(null);
   const binding = scene?.binding ?? null;
-  const shownRunning = useRef<Bar | null>(null);
+  const shownRunning = useRef<{ view: string; bar: Bar } | null>(null);
   // Für rememberChartView: die laufende Kerze zählt mit, sonst gälte ihr Erscheinen als Zoom des Nutzers
   const runningCount = useRef(0);
   const [alignedView, setAlignedView] = useState<string | null>(null);
@@ -333,7 +333,8 @@ export function ChartCore({
       const time = Number(param.time);
       setHover({ bar: barByTimeRef.current.get(time) ?? null, time });
     };
-    chart.subscribeCrosshairMove(onMove);
+    // Die Legende unter dem Fadenkreuz gibt es nur im Layout mit Karte
+    if (!overlayLayout) chart.subscribeCrosshairMove(onMove);
     return () => {
       forgetView.current?.();
       forgetView.current = null;
@@ -427,6 +428,13 @@ export function ChartCore({
     containerRef.current?.setAttribute('data-last-balance', lastBalance ? `${lastBalance.time}:${lastBalance.value}` : '');
     containerRef.current?.setAttribute('data-last-equity', lastEquity ? `${lastEquity.time}:${lastEquity.value}` : '');
   }, [balance, equity]);
+
+  // Eine neue Auswahl ändert die Zeitachse, das ist kein Zoom der alten. Layout-Effekt: ChartWorkspace setzt die
+  // Indikatoren als Kindkomponente in seinem Effekt, also vor jedem useEffect hier
+  useLayoutEffect(() => {
+    forgetView.current?.();
+    forgetView.current = null;
+  }, [viewKey]);
 
   // Kerzen + Leerstellen
   useEffect(() => {
@@ -627,15 +635,18 @@ export function ChartCore({
       return;
     }
     runningCount.current = 1;
-    // Schon gezeigte Extremwerte bleiben, solange es dieselbe Kerze ist (der Preis kann wieder zurückgehen)
-    const prev = shownRunning.current?.time === runningBar.time ? shownRunning.current : null;
+    // Schon gezeigte Extremwerte bleiben, solange es dieselbe Kerze ist (der Preis kann wieder zurückgehen);
+    // die Kerze einer anderen Zeiteinheit kann dieselbe Öffnungszeit haben
+    const shown = shownRunning.current;
+    const prev = shown?.view === viewKey && shown.bar.time === runningBar.time ? shown.bar : null;
     const bar = prev ? { ...runningBar, high: Math.max(runningBar.high, prev.high), low: Math.min(runningBar.low, prev.low) } : runningBar;
-    shownRunning.current = bar;
+    shownRunning.current = { view: viewKey, bar };
     const style = appearance.previous ? previousStyle(bar.close >= closed.close, appearance.body, appearanceColors(appearance)) : {};
     candles.update({ ...bar, ...style, time: bar.time as UTCTimestamp });
     // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
     surfaceRef.current?.setAttribute('data-last-price', `${runningBar.time}:${runningBar.close}`);
-  }, [runningBar, data, appearance]);
+    surfaceRef.current?.setAttribute('data-last-range', `${bar.low}:${bar.high}`);
+  }, [runningBar, data, appearance, viewKey]);
 
   // Nur unter dem Fadenkreuz: ohne Maus würde die Legende die geladene statt der laufenden Kerze zeigen
   const shown = hover?.bar ?? null;

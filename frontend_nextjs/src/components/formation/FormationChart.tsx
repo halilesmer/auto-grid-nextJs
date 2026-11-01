@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Bar } from '@/lib/analysis/candles';
+import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { useFormat, useT } from '@/i18n';
 import type { FormationContext } from '@/lib/formation/context';
 import { drawingPriceRange, layoutDrawings, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
@@ -9,6 +9,7 @@ import { RSI_PARAMS } from '@/lib/formation/params';
 import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
 import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
 import { ChartCore, type ChartScene, type OverlayLine } from '@/components/analysis/chart/ChartCore';
+import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
@@ -103,6 +104,7 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
   const t = useT();
   const { number } = useFormat();
   const { binding, rsi } = scene;
+  const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
   const overlayRef = useRef<SVGSVGElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [] });
@@ -169,11 +171,11 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
     return () => { unregister(); dispose(); };
   }, [binding, rsi, bars, hit, t, number]);
 
-  // Die Preisachse kann sich mit der laufenden Kerze ändern: Zeichnungen folgen im nächsten Frame
+  // Die Preisachse kann sich mit der laufenden Kerze oder den Einstellungen ändern: Zeichnungen folgen im nächsten Frame
   useEffect(() => {
     const frame = requestAnimationFrame(() => redrawRef.current?.());
     return () => cancelAnimationFrame(frame);
-  }, [running]);
+  }, [running, appearance]);
 
   const activeSet = active ? new Set(active) : null;
   return (
@@ -235,7 +237,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
         { key: 'rsi', label: 'formation.legend.rsi', hint: 'cw.systemRsi.hint' },
       ]} />}
       data={data}
-      timeframeSec={({ D1: 86400, H4: 14400, H1: 3600, M15: 900 }[hit.tf])}
+      timeframeSec={TIMEFRAME_SEC[hit.tf]}
       digits={digits}
       viewKey={`${contextKey}|${hit.tf}`}
       band={null}
