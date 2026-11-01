@@ -1869,7 +1869,8 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (Gartley gültig mit drei Gruppen und allen Zeilenzuständen, Bat im Aufbau mit Hinweis auf D).
-        erwartet: Die Liste zeigt das Urteil der Bibliothek, die Zähler stehen als x/y, jede Zeile trägt ein beschriftetes Symbol, die Formation im Aufbau nennt D und der Chart führt D als offen.
+          - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-19) ausführen (Kurztexte stimmen mit der Messung überein).
+        erwartet: Die Liste zeigt das Urteil der Bibliothek, die Zähler stehen als x/y, jede Zeile trägt ein beschriftetes Symbol, die Formation im Aufbau nennt D und der Chart führt D als offen. GAR-04 nennt 0,618, BAT-05 nennt 0,5, CDT-06 den Trend beim Anlauf zu H2; BUT-12, CRB-12 und CYP-09 sagen „in einer Zone“.
 
       - id: FRM-20
         titel: "Seite Formasyon: Chart mit Zeichnungen"
@@ -1878,7 +1879,8 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-20) ausführen (Zeichnungen vorhanden, Hover auf eine Zeile hebt hervor, Overlay-Breite endet vor der Preisachse, alle Kerzen beim Laden, Formationsklick lässt die Ansicht, Zoom bleibt nach Neuladen, Zurücksetzen).
-        erwartet: Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben. Der Chart zeigt alle Kerzen; ein Formationsklick im selben Zeitrahmen ändert den sichtbaren Zeitbereich nicht.
+          - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-20) ausführen (Zeichnungen im Aufbau, Fib-Extension mit drei Ankern).
+        erwartet: Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben. Der Chart zeigt alle Kerzen; ein Formationsklick im selben Zeitrahmen ändert den sichtbaren Zeitbereich nicht. Eine Fib-Extension mit drei Ankern A, B, C legt Level 1 bei C + (B − A) und beginnt bei C; die Preisachse weitet sich auf dieselben Preise aus.
 
       - id: FRM-21
         titel: "Seite Formasyon: Hintergrundsuche"

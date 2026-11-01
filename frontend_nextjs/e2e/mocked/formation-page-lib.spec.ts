@@ -1,11 +1,12 @@
 /**
  * Logik der Seite /formasyon ohne Browser: Zeichnungen → SVG-Bausteine (drawingLayout.ts) und Auswahl der Zeiteinheit
  * (scan.ts). Die Kandidaten sind von Hand gebaut; erwartet werden die Regeln des freigegebenen Entwurfs.
- * FRM-20 Zeichnungen einer Formation im Aufbau · FRM-18 Zählung und Sprung
+ * FRM-20 Zeichnungen einer Formation im Aufbau · FRM-18 Zählung und Sprung · FRM-19 Texte der Checkliste
  */
 import { test, expect } from '@playwright/test';
 import { runningBar, type Bar } from '../../src/lib/analysis/candles';
-import { layoutDrawings } from '../../src/lib/formation/drawingLayout';
+import { drawingPriceRange, layoutDrawings } from '../../src/lib/formation/drawingLayout';
+import { ruleText } from '../../src/lib/formation/ruleTexts';
 import { hitsCount, timeframeForForm, type ScanHit } from '../../src/lib/formation/scan';
 import type { Candidate } from '../../src/lib/formation/types';
 
@@ -95,6 +96,61 @@ test.describe('Zeichnungen einer Formation im Aufbau', () => {
       ['Z-2', ['ABCD-09'], 'price'],
       ['Z-3', ['ABCD-04'], 'price'],
     ]);
+  });
+});
+
+test.describe('Trendbasierte Fib-Extension (fibExt)', () => {
+  /** A 10, B 20, C 15: Level 1 = C + (B − A) = 25, Level 1,618 = 15 + 16,18 = 31,18 */
+  const abc = (levels: number[], anchors = [point(0, 10), point(1, 20), point(2, 15)]): Candidate => ({
+    ...forming,
+    points: { A: point(0, 10), B: point(1, 20), C: point(2, 15) },
+    drawings: [{ id: 'Z-E', tool: 'fibExt', anchors, levels, rules: ['ABCD-04'], side: 'sell' }],
+  });
+
+  frm('FRM-20', 'drei Anker: Level 1 liegt bei C + (B − A) und die Linie beginnt bei C', () => {
+    const line = layout(abc([1, 1.618])).flatMap((g) => g.prims.filter((p) => p.kind === 'line'));
+    expect(line.map((p) => (p.kind === 'line' ? p.y1 : null))).toEqual([expect.closeTo(50, 5), expect.closeTo(-11.8, 5)]);
+    expect(line.map((p) => (p.kind === 'line' ? p.x1 : null))).toEqual([100, 100]);
+  });
+
+  frm('FRM-20', 'die Preisachse weitet sich auf dieselben Preise aus', () => {
+    const range = drawingPriceRange(abc([1, 1.618]));
+    expect(range?.min).toBeCloseTo(25, 5);
+    expect(range?.max).toBeCloseTo(31.18, 5);
+  });
+
+  frm('FRM-20', 'zwei Anker rechnen weiter Ende + Level × (Start − Ende): Level −0,272 → 22,72', () => {
+    const line = layout(abc([-0.272], [point(0, 10), point(1, 20)])).flatMap((g) => g.prims.filter((p) => p.kind === 'line'));
+    expect(line.map((p) => (p.kind === 'line' ? p.y1 : null))).toEqual([expect.closeTo(72.8, 5)]);
+    expect(drawingPriceRange(abc([-0.272], [point(0, 10), point(1, 20)]))?.min).toBeCloseTo(22.72, 5);
+  });
+});
+
+test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
+  frm('FRM-19', 'GAR-04 nennt 0,618 (nicht 0,382), BAT-05 nennt 0,5 (nicht 0,45)', () => {
+    expect(ruleText('de', 'GAR-04')).toBe('C erreicht 0,618 Korrektur von AB');
+    expect(ruleText('en', 'GAR-04')).toBe('C reaches the 0.618 correction of AB');
+    expect(ruleText('tr', 'GAR-04')).toBe('C, AB’nin 0,618 düzeltmesine ulaşır');
+    expect(ruleText('de', 'BAT-05')).toBe('B erreicht 0,5 von XA');
+    expect(ruleText('en', 'BAT-05')).toBe('B reaches 0.5 of XA');
+    expect(ruleText('tr', 'BAT-05')).toBe('B, XA’nın 0,5’ine ulaşır');
+  });
+
+  frm('FRM-19', 'CDT-06 nennt den Trend beim Anlauf zu H2, nicht die Reihenfolge der Punkte', () => {
+    expect(ruleText('de', 'CDT-06')).toBe('Trend beim Anlauf zu H2 läuft zur Zone hin');
+    expect(ruleText('en', 'CDT-06')).toBe('The trend on the approach to H2 runs toward the zone');
+    expect(ruleText('tr', 'CDT-06')).toBe('H2’ye yaklaşırken trend bölgeye doğru');
+  });
+
+  frm('FRM-19', 'BUT-12, CRB-12 und CYP-09 messen „in einer Zone“ und sagen es', () => {
+    for (const id of ['BUT-12', 'CRB-12']) {
+      expect(ruleText('de', id)).toBe('D liegt in einer Zone');
+      expect(ruleText('en', id)).toBe('D lies inside a zone');
+      expect(ruleText('tr', id)).toBe('D bir bölgenin içinde');
+    }
+    expect(ruleText('de', 'CYP-09')).toBe('Einstieg liegt in einer Zone');
+    expect(ruleText('en', 'CYP-09')).toBe('The entry lies inside a zone');
+    expect(ruleText('tr', 'CYP-09')).toBe('Giriş bir bölgenin içinde');
   });
 });
 

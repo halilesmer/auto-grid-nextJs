@@ -4,7 +4,7 @@
  * Jede Gruppe trägt die Zeichnungs-ID und die Bedingungs-IDs, damit der Hover Zeile ↔ Zeichnung koppeln kann.
  */
 import { FINAL_POINT, type ScanFormation } from './scan';
-import type { Candidate, Drawing } from './types';
+import type { Anchor, Candidate, Drawing } from './types';
 
 export type Tone = 'side' | 'ratio' | 'target' | 'zone' | 'mark' | 'text';
 
@@ -39,6 +39,10 @@ export interface LayoutInput {
 
 /** Zonen im RSI-Pane: ihre „Preise“ sind RSI-Werte */
 const RSI_ZONES = new Set(['Z-CDT-04']);
+
+/** Preis eines Fib-Levels: zwei Anker → Ende + Level × (Start − Ende); mit drittem Anker C (fibExt) → C + Level × (B − A) */
+const fibLevelPrice = ([start, end, from]: [Anchor, Anchor, Anchor?], level: number): number =>
+  from ? from.price + level * (end.price - start.price) : end.price + level * (start.price - end.price);
 
 const pointName = (c: Candidate, time: number, price: number): string | null =>
   Object.entries(c.points).find(([, a]) => a.time === time && a.price === price)?.[0] ?? null;
@@ -107,15 +111,18 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
       case 'fib':
       case 'fibExt': {
         const [start, end] = pts;
+        const from = d.tool === 'fibExt' ? pts[2] : undefined;
         if (!start || !end || end.px === null || !d.levels) return prims;
         const leg = [pointName(candidate, start.a.time, start.a.price), pointName(candidate, end.a.time, end.a.price)];
         const legName = leg[0] && leg[1] ? `${leg[0]}${leg[1]} ` : '';
+        // Mit drittem Anker C beginnt die Linie bei C, sonst an der Strecke
+        const lineStart = from ? (from.px ?? end.px) : Math.min(end.px, start.px ?? end.px);
         for (const level of d.levels) {
-          const price = end.a.price + level * (start.a.price - end.a.price);
+          const price = fibLevelPrice([start.a, end.a, from?.a], level);
           const py = y(price);
           if (py === null) continue;
           const tone: Tone = d.rules.length === 0 ? 'target' : 'ratio';
-          prims.push({ kind: 'line', x1: right(Math.min(end.px, start.px ?? end.px)), y1: py, x2: width - 6, y2: py, tone, dotted: true });
+          prims.push({ kind: 'line', x1: right(lineStart), y1: py, x2: width - 6, y2: py, tone, dotted: true });
           prims.push({ kind: 'text', x: width - 6, y: py - 4, text: `${legName}${fmt(level)}`, tone, anchor: 'end' });
         }
         return prims;
@@ -214,7 +221,8 @@ export function drawingPriceRange(candidate: Candidate): { min: number; max: num
     if (d.tool === 'rsi' || RSI_ZONES.has(d.id) || d.tool === 'wave') continue;
     if (d.tool === 'fib' || d.tool === 'fibExt') {
       const [start, end] = d.anchors;
-      if (start && end) for (const level of d.levels ?? []) prices.push(end.price + level * (start.price - end.price));
+      const from = d.tool === 'fibExt' ? d.anchors[2] : undefined;
+      if (start && end) for (const level of d.levels ?? []) prices.push(fibLevelPrice([start, end, from], level));
     } else {
       prices.push(...d.anchors.map((a) => a.price));
     }
