@@ -3,7 +3,7 @@
  * Signatur einer Zeiteinheit ändert; so kommt eine neue D1/H4/H1-Kerze auch dann in die Suche, wenn M15 zuerst
  * nachgeladen hat. Die Live-Kerze (`liveFrom`) zählt nicht: ihre Werte sind vorläufig, auch wenn Zeit + Dauer
  * schon ≤ at ist. Erst das Nachladen macht sie zur geschlossenen Kerze und ändert damit die Signatur.
- * Lücken (`missing`) stehen nicht darin: die Suche liest nur Kerzen. Geht ein Lückenwert in die Suche ein, muss er hierher.
+ * Lücken (`missing`) stehen nicht darin: sie trennen Fraktal-Nachbarn (FRM-33), darum hängt useFormationScan sie selbst an den Suchschlüssel.
  */
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';

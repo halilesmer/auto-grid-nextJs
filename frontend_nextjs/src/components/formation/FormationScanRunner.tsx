@@ -80,7 +80,7 @@ async function scanSymbol(accountId: string, symbol: string, to: number, signal:
   const input: ContextInput = {};
   let gap: ScanGap | null = null;
   for (const [tf, res] of loaded) {
-    input[tf] = res.bars;
+    input[tf] = { bars: res.bars, missing: res.missing };
     if (res.missing.length > 0) gap = 'missing';
   }
   const m15 = loaded.find(([tf]) => tf === 'M15')?.[1];

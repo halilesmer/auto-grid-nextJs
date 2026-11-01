@@ -38,6 +38,11 @@ export function fractalsOf(bars: readonly Pick<Bar, 'time' | 'high' | 'low'>[]):
   return [ups, downs];
 }
 
+/** Liegt zwischen zwei Kerzen (Zeit `prev` < `next`) ein fehlender Datenbereich? Gilt für Chart und Formationen gleich. */
+export function gapBetween(missing: readonly Pick<MissingRange, 'from' | 'to'>[], prev: number, next: number): boolean {
+  return missing.some((m) => m.from < next && m.to > prev);
+}
+
 /**
  * Fraktale für den Chart (fractalsOf): nur geschlossene Kerzen (`liveFrom` = laufende Kerze zählt nicht),
  * und nie über einen fehlenden Datenbereich hinweg: dort wären die Nachbarn keine echten Nachbarn.
@@ -51,7 +56,7 @@ export function findFractals(bars: Bar[], missing: MissingRange[], liveFrom: num
   let seg: Bar[] = [];
   for (const b of closed) {
     const prev = seg[seg.length - 1];
-    if (prev && missing.some((m) => m.from < b.time && m.to > prev.time)) {
+    if (prev && gapBetween(missing, prev.time, b.time)) {
       segments.push(seg);
       seg = [];
     }

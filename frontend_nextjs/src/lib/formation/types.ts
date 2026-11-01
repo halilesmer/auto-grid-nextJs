@@ -73,4 +73,6 @@ export interface FormationBar {
   high: number;
   low: number;
   close: number;
+  /** Zwischen dieser und der vorigen Kerze fehlt ein Datenbereich (MissingRange): Fraktal-Nachbarn zählen nicht darüber hinweg */
+  gapBefore?: boolean;
 }

@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-01 · **196/200** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-01 · **197/201** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 20/21 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 32/32 |
+| 16 | **FRM** – Formationserkennung | 33/33 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -950,3 +950,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Das Glocken-Menü hat zwei Reiter: Einstellungen und Verlauf. Der Verlauf hält jeden Treffer fest, den der Alarm meldet (neueste zuerst): Zeit, Produkt, Formation, Zeiteinheit, Seite und Ereignis (gültig, Zielpunkt oder beides). Eine Sammelmeldung (mehr als drei Treffer in einem Durchlauf oder „Seit dem letzten Öffnen“) steht als einzelne Treffer unter einem Gruppenkopf. Ein Eintrag entsteht auch bei ausgeschalteter Systemmeldung und ohne Ton; er entsteht nur im Tab mit dem Web Lock, die anderen Tabs lesen ihn über das storage-Ereignis. Ein Klick auf einen Eintrag öffnet Produkt, Formation und Zeiteinheit auf /formasyon. Der Verlauf liegt je Konto im Browser (grid-robot-formation-alarm, Feld history, höchstens 100 Einträge, die ältesten fallen heraus); ältere Speicherstände ohne dieses Feld bleiben lesbar. „Verlauf löschen“ leert nur die Liste des Kontos, der gemerkte Stand (memory) bleibt, so kommt nichts doppelt. Die Glocke steht nur auf /formasyon; der Verlauf ist darum nur dort sichtbar. Keine Worker-Änderung, keine Order.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-alarm-history-lib.spec.ts (@FRM-32) ausführen (ein Eintrag je Treffer, Obergrenze, alte Speicherstände, ungültige Einträge, Löschen lässt den Stand). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-32) ausführen (Eintrag ohne Systemmeldung und Ton, Sammelmeldung als einzelne Treffer, Löschen, zweiter Tab, Klick auf Eintrag, leerer Verlauf, 375 px). → Im echten Browser prüfen: nach einer echten Meldung steht sie im Verlauf; zweiter Tab zeigt sie; Verlauf löschen und Neuladen meldet nichts doppelt.
   - **Erwartet:** Jede gemeldete Formation steht im Verlauf des Kontos mit Zeit, Produkt, Formation, Zeiteinheit, Seite und Ereignis; Sammelmeldungen zeigen jeden Treffer; Löschen meldet nichts erneut.
+- [x] **FRM-33** Fraktal zählt seine Nachbarn nicht über eine Datenlücke — 🖥️ e2e ✅ 2026-11-01
+  - Ein Fraktal braucht zwei Nachbarkerzen links und zwei rechts. Liegt zwischen zwei dieser fünf Kerzen ein fehlender Datenbereich (MissingRange der Marktdatenbank), zählen die Nachbarn nicht darüber hinweg: es ist kein Fraktal. Das gilt wie im Chart (findFractals) für jeden fehlenden Bereich; Handelspausen sind keine MissingRange. Eine Lücke außerhalb der fünf Kerzen ändert nichts. Folge: Formationen, die ein fertiges Fraktal verlangen (zum Beispiel ABCD-02), sind dann nicht erfüllt. Die Suche (Seite und Alarm) reicht die fehlenden Bereiche je Zeiteinheit an FormationContext durch; die Kerze nach der Lücke trägt gapBefore. RSI, ATR und Wave rechnen weiter über die Lücke. Keine Worker-Änderung, keine Order.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-gap-lib.spec.ts (@FRM-33) ausführen (Lücke zwischen den fünf Kerzen, rechts der Fraktalkerze, ohne Lücke, Lücke außerhalb, ABCD-02).
+  - **Erwartet:** Zwischen den fünf Kerzen eines Fraktals liegt keine fehlende Datenstrecke; sonst ist es kein Fraktal und ABCD-02 ist nicht erfüllt.

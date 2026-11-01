@@ -37,10 +37,13 @@ interface FractalProbe {
   beyond: number;
 }
 
+/** Nachbarn zählen nur bis zur nächsten Datenlücke (`gapBefore`), wie im Chart (findFractals) */
 export function probeFractal(bars: Bars, i: number, side: ZoneSide): FractalProbe {
   const level = wickEnd(bars[i], side);
-  const leftBars = Math.min(N, i);
-  const rightBars = Math.min(N, bars.length - 1 - i);
+  let leftBars = 0;
+  while (leftBars < N && i - leftBars > 0 && !bars[i - leftBars].gapBefore) leftBars++;
+  let rightBars = 0;
+  while (rightBars < N && i + rightBars + 1 < bars.length && !bars[i + rightBars + 1].gapBefore) rightBars++;
   let beyond = 0;
   for (let k = i - leftBars; k <= i + rightBars; k++) {
     if (k !== i && closesBeyond(bars[k], level, side)) beyond++;
