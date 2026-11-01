@@ -48,7 +48,7 @@ areas: [frontend, tests]
 
 ## Open points
 - [x] Real browser, DEMO account, 10 favorites (checked on 2026-10-31 and 2026-11-01, built-in browser plus Chrome). Both days had no new candles. The notices were caused by setting remembered hits in `localStorage` (`grid-robot-formation-alarm`, `memory`) to "not valid yet", not by a new candle. See "Real browser check" below. FRM-30 is signed. A notice from a real new candle is not checked.
-- [ ] After a reload on `/chart` no account is selected, so the scan rests and the alarm is silent, while the menu says that the alarm runs on every page. Cause: `useAccountStore.selectedAccount` is not persisted, and `FormationScanRunner.tsx` needs it. Needs a fix or a visible state.
+- [x] After a reload on `/chart` no account was selected, so the scan rested and the alarm was silent, while the menu said that the alarm runs on every page. Fixed on 2026-11-01, see `2026-11-01-formation-alarm-account.md`.
 - [ ] The `Broker UTC-31:30` badge is wrong while the market is closed (the toast says that the broker time is not certain). The offset is divisible by 15 minutes, so the M15 slot does not change.
 - [ ] Known and accepted: `save` in `alarmStore.ts` writes the whole cache, so a tab that was frozen for a long time could overwrite newer state and repeat a notice. Every tab prunes the remembered state with its own favorites list. If the favorites route fails for good (old worker), products with the bell on are not searched either. The abort path (`completed=false`), the Lock takeover, the account id in the tags and the click path of the service worker have no test.
 - [ ] iPhone: system notifications work only when the app is installed on the home screen.

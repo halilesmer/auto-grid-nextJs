@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAccounts } from '@/components/account/hooks/useAccounts';
+import { useAlarmAccount } from '@/hooks/useAlarmAccount';
 import { loadAll } from '@/hooks/useMarketRates';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useFavorites, useFavoritesLoader } from '@/hooks/useFavorites';
@@ -25,6 +27,8 @@ const CHANNEL_NAME = 'grid-favorites-scan';
 /** Wie oft geprüft wird, ob eine neue M15-Kerze begonnen hat */
 const CHECK_MS = 30_000;
 const SLOT_SEC = TIMEFRAME_SEC.M15;
+/** Neuer Versuch, wenn die Kontoliste nicht kam */
+const ACCOUNTS_RETRY_MS = 10_000;
 
 type Message =
   | { type: 'put'; accountId: string; symbol: string; formed: FormedHit[]; at: number; gap: ScanGap | null }
@@ -195,7 +199,36 @@ const symbolsOf = (accountId: string, scopes: readonly string[]) => scopes.filte
  */
 export default function FormationScanRunner() {
   const router = useRouter();
-  const accountId = useAccountStore((s) => s.selectedAccount);
+  const selected = useAccountStore((s) => s.selectedAccount);
+  // Ohne gewähltes Konto gilt das zuletzt gewählte (nur für den Alarm; die Kontowahl der Seiten bleibt leer)
+  const resolved = useAlarmAccount();
+  const accountId = resolved.state === 'ok' ? resolved.accountId : null;
+  const { fetchAccounts } = useAccounts();
+  useEffect(() => {
+    const current = snapshot();
+    if (selected && current.account !== selected) save({ ...current, account: selected });
+  }, [selected]);
+  // Ein gemerktes Konto wird erst gesucht, wenn es in der Kontoliste steht (gelöscht oder fremd: der Worker liefert dann 404)
+  const needsList = resolved.state === 'checking';
+  useEffect(() => {
+    if (!needsList) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      await fetchAccounts();
+      if (!stopped) timer = setTimeout(load, ACCOUNTS_RETRY_MS);
+    };
+    void load();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [needsList, fetchAccounts]);
+  // Ein anderer Tab kann das Konto gerade angelegt und gemerkt haben: fehlt es in der Liste, wird sie einmal je Konto neu geladen
+  const missingId = resolved.state === 'gone' ? resolved.accountId : null;
+  useEffect(() => {
+    if (missingId) void fetchAccounts();
+  }, [missingId, fetchAccounts]);
   useFavoritesLoader(accountId);
   // Die Grundlage der Formationen (Trend-Einstellungen) liegt im Browser-Speicher; die Seite /chart liest sie sonst allein
   useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);

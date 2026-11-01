@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/ui/animated-toast';
+import { useAlarmAccount } from '@/hooks/useAlarmAccount';
 import { useFavorites } from '@/hooks/useFavorites';
 import { t } from '@/i18n';
 import type { AlarmEvent } from '@/lib/formation/alarm';
@@ -20,8 +21,13 @@ const NO_HISTORY: HistoryEntry[] = [];
  * FormationScanRunner; dieser Hook ändert nur die gespeicherten Einstellungen und liest den Stand der Suche.
  * `symbol` ist das auf /formasyon gewählte Produkt (Schalter „Alarm für …“), null ohne Konto oder Produkt.
  */
-export function useFormationAlarm(accountId: string | null, symbol: string | null) {
+export function useFormationAlarm(pageAccount: string | null, pageSymbol: string | null) {
   const router = useRouter();
+  // Ohne Konto auf der Seite gilt das Konto, mit dem der Alarm sucht (zuletzt gewählt); ruht er, bleibt es null
+  const alarmAccount = useAlarmAccount();
+  const accountId = pageAccount ?? (alarmAccount.state === 'ok' ? alarmAccount.accountId : null);
+  // Das Produkt der Seite gehört nur zum Konto der Seite; ohne sie stehen alle Alarm-Produkte unter „Weitere“ und lassen sich entfernen
+  const symbol = pageAccount ? pageSymbol : null;
   const stored = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const permission = useSyncExternalStore(noSubscription, notificationPermission, () => 'unsupported' as const);
   const favorites = useFavorites(accountId);
@@ -105,5 +111,5 @@ export function useFormationAlarm(accountId: string | null, symbol: string | nul
     [update],
   );
 
-  return { prefs: stored.prefs, enabled, favoritesEnabled, favoriteCount: favorites.symbols.length, extras, status, permission, history, clearHistory, openEntry, setEnabled, setFavorites, removeExtra, setEvent, setForm, setSound, setSystem };
+  return { account: alarmAccount, pageAccount: pageAccount !== null, prefs: stored.prefs, enabled, favoritesEnabled, favoriteCount: favorites.symbols.length, extras, status, permission, history, clearHistory, openEntry, setEnabled, setFavorites, removeExtra, setEvent, setForm, setSound, setSystem };
 }

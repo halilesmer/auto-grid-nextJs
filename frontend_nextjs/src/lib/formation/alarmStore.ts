@@ -23,6 +23,8 @@ export interface Stored {
   memory: Record<string, AlarmMemory>;
   /** Meldungsverlauf je Konto, neueste zuerst; getrennt von `memory`. Fehlt in älteren Speicherständen. */
   history: Record<string, HistoryEntry[]>;
+  /** Zuletzt gewähltes Konto: der Alarm sucht damit weiter, wenn nach dem Neuladen keins gewählt ist. Die Kontowahl der Seiten ändert es nie. */
+  account: string | null;
 }
 
 export const DEFAULTS: Stored = {
@@ -31,6 +33,7 @@ export const DEFAULTS: Stored = {
   favoritesEnabled: [],
   memory: {},
   history: {},
+  account: null,
 };
 
 const isSeen = (value: unknown): value is { valid: boolean; target: boolean } =>
@@ -62,6 +65,7 @@ export function parseStored(raw: string | null): Stored {
     favoritesEnabled: Array.isArray(data.favoritesEnabled) ? data.favoritesEnabled.filter((x): x is string => typeof x === 'string') : [],
     memory,
     history,
+    account: typeof data.account === 'string' && data.account !== '' ? data.account : null,
   };
 }
 

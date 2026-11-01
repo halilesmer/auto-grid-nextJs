@@ -3,6 +3,8 @@ import { Account } from './types';
 
 interface AccountState {
   accounts: Account[];
+  /** Die Kontoliste kam mindestens einmal vom Worker (auch leer) */
+  accountsLoaded: boolean;
   selectedAccount: string | null;
   activeAccount: Account | null;
 
@@ -14,6 +16,7 @@ interface AccountState {
 
 const initialState = {
   accounts: [],
+  accountsLoaded: false,
   selectedAccount: null,
   activeAccount: null as Account | null,
 };
@@ -26,6 +29,7 @@ export const useAccountStore = create<AccountState>((set) => ({
   setAccounts: (accounts) =>
     set((state) => ({
       accounts,
+      accountsLoaded: true,
       activeAccount: state.selectedAccount
         ? (accounts.find((a) => String(a.id) === String(state.selectedAccount)) ?? null)
         : state.activeAccount,
