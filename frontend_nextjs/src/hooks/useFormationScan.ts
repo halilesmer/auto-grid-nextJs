@@ -35,7 +35,7 @@ interface Settled {
   scanMs: number;
 }
 
-const tfData = (data: { bars: Bar[]; missing: unknown[] } | null) => ({ bars: data?.bars ?? [], missing: data?.missing.length ?? 0 });
+const tfData = (data: { bars: Bar[]; liveFrom: number | null } | null) => ({ bars: data?.bars ?? [], liveFrom: data?.liveFrom ?? null });
 
 /**
  * Lädt D1/H4/H1/M15 des Symbols (jeweils mit dem 60-s-Nachladen von useMarketRates) und sucht alle Formationen

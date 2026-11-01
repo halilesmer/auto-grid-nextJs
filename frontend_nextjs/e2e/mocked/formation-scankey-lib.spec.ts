@@ -9,40 +9,39 @@ const bar = (time: number) => ({ time, open: 1, high: 2, low: 0.5, close: 1.5 })
 const H1 = 3600;
 
 test.describe('FRM-21 scanKey', () => {
-  test('Zähler und Zeit der letzten geschlossenen Kerze stehen in der Signatur', { tag: '@FRM-21' }, () => {
-    // at = 7200: Kerze 0 (0..3600) ist zu, Kerze 1 (3600..7200) schließt genau um at
+  test('Anzahl und Zeit der letzten geschlossenen Kerze stehen in der Signatur', { tag: '@FRM-21' }, () => {
+    // Kerze 1 (3600..7200) schließt genau um at = 7200
     const bars = [bar(0), bar(H1), bar(2 * H1)];
-    expect(closedSignature('H1', bars, 0, 2 * H1)).toBe('H1:2:3600:0');
-    expect(closedSignature('H1', bars, 0, H1)).toBe('H1:1:0:0');
+    expect(closedSignature('H1', bars, null, 2 * H1)).toBe('H1:2:3600');
+    expect(closedSignature('H1', bars, null, H1)).toBe('H1:1:0');
   });
 
   test('Neue H1-Kerze, die um at schließt, ändert die Signatur', { tag: '@FRM-21' }, () => {
     const at = 3 * H1;
-    const old = [bar(0), bar(H1)];
-    const fresh = [bar(0), bar(H1), bar(2 * H1)];
-    expect(closedSignature('H1', old, 0, at)).toBe('H1:2:3600:0');
-    expect(closedSignature('H1', fresh, 0, at)).toBe('H1:3:7200:0');
+    expect(closedSignature('H1', [bar(0), bar(H1)], 2 * H1, at)).toBe('H1:2:3600');
+    expect(closedSignature('H1', [bar(0), bar(H1), bar(2 * H1)], 3 * H1, at)).toBe('H1:3:7200');
   });
 
-  test('Die laufende Kerze und Kerzen nach at zählen nicht', { tag: '@FRM-21' }, () => {
-    const at = 2 * H1;
-    const a = closedSignature('H1', [bar(0), bar(H1)], 0, at);
-    const b = closedSignature('H1', [bar(0), bar(H1), bar(2 * H1)], 0, at);
-    expect(a).toBe('H1:2:3600:0');
-    expect(b).toBe(a);
+  test('Die Live-Kerze zählt nicht, auch wenn sie nach Zeit schon geschlossen wäre', { tag: '@FRM-21' }, () => {
+    // M15 hat über die Stundengrenze geladen (at = 10800), H1 hält noch die vorläufige Kerze 7200..10800 als Live-Kerze
+    const stale = closedSignature('H1', [bar(0), bar(H1), bar(2 * H1)], 2 * H1, 3 * H1);
+    // Nachladen: dieselbe Kerze hat Endwerte, die neue Live-Kerze beginnt bei 10800
+    const fresh = closedSignature('H1', [bar(0), bar(H1), bar(2 * H1), bar(3 * H1)], 3 * H1, 3 * H1);
+    expect(stale).toBe('H1:2:3600');
+    expect(fresh).toBe('H1:3:7200');
   });
 
-  test('Eine Lücke mehr ändert die Signatur; ohne Kerzen steht n=0', { tag: '@FRM-21' }, () => {
-    expect(closedSignature('D1', [], 0, 1000)).toBe('D1:0:-:0');
-    expect(closedSignature('D1', [], 2, 1000)).toBe('D1:0:-:2');
+  test('Kerzen nach at zählen nicht; ohne Kerzen steht n=0', { tag: '@FRM-21' }, () => {
+    expect(closedSignature('H1', [bar(0), bar(H1)], null, H1)).toBe('H1:1:0');
+    expect(closedSignature('H1', [bar(5 * H1)], null, H1)).toBe('H1:0:-');
+    expect(closedSignature('D1', [], null, 1000)).toBe('D1:0:-');
   });
 
   test('scanSignature fügt die Zeiteinheiten in fester Reihenfolge zusammen', { tag: '@FRM-21' }, () => {
-    const at = 2 * H1;
     const sig = scanSignature(
-      { D1: { bars: [], missing: 0 }, H4: { bars: [], missing: 1 }, H1: { bars: [bar(0), bar(H1)], missing: 0 }, M15: { bars: [], missing: 0 } },
-      at,
+      { D1: { bars: [], liveFrom: null }, H4: { bars: [], liveFrom: null }, H1: { bars: [bar(0), bar(H1)], liveFrom: null }, M15: { bars: [], liveFrom: null } },
+      2 * H1,
     );
-    expect(sig).toBe('D1:0:-:0,H4:0:-:1,H1:2:3600:0,M15:0:-:0');
+    expect(sig).toBe('D1:0:-,H4:0:-,H1:2:3600,M15:0:-');
   });
 });
