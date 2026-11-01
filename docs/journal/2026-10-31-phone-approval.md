@@ -3,7 +3,7 @@ date: 2026-10-31
 author: Claude
 type: decision
 status: open
-pr: [267]
+pr: [267, 274]
 features: []
 areas: [tooling]
 ---
@@ -39,12 +39,47 @@ The fallback applies only after an approval that the owner typed in this turn. A
 
 Cost: a step in an existing session reads a longer history than a fresh session.
 
+## Research 2026-11-01
+Remote Control is the official way, also for the Code tab of the desktop app. The [Remote Control documentation](https://code.claude.com/docs/en/remote-control) says that permission prompts and `AskUserQuestion` stay open until the user answers. It does not mention plan approval.
+
+These bugs were open on 2026-11-01. No Anthropic staff member had replied in them:
+
+| Issue | Symptom |
+|---|---|
+| [#100478](https://github.com/anthropics/claude-code/issues/100478) | Desktop Code tab, Android: the question shows only on the desktop. |
+| [#102055](https://github.com/anthropics/claude-code/issues/102055) | iOS: the card is missing. Typing can cancel the card. |
+| [#105055](https://github.com/anthropics/claude-code/issues/105055) | The question shows, but the answer does not get to the session. |
+| [#101334](https://github.com/anthropics/claude-code/issues/101334) | iOS: an approved plan card stays on the phone. |
+
+The [changelog](https://code.claude.com/docs/en/changelog) up to v2.1.316 has no fix for these bugs. The two push settings were already on, so they are not the cause.
+
+## Change 2026-11-01
+
+| File | Change |
+|---|---|
+| `~/.claude/scripts/ask-as-text.sh` | New. It refuses `AskUserQuestion` and tells Claude to ask in plain text. |
+| `~/.claude/settings.json` | New `PreToolUse` hook with the matcher `AskUserQuestion`. It applies to all projects, in new sessions. |
+| `~/.claude/rules/ajan-kullanimi.md` §10, `docs/agent-rules/ajan-kullanimi.md` | One rule line and the reason. |
+
+Cost: on the Mac, questions are also plain text. The click cards do not appear.
+
+Rejected:
+- Channels (Telegram, Discord). They are a research preview, the documentation describes them for the terminal, and the relay covers only tool approvals.
+- `ntfy` hooks from third parties. A third-party server could approve commands on the Mac, and the Mac has access to the worker and the VPS.
+
+Owner's decision, not changed by Claude: auto mode as the default. It is a security setting.
+
 ## Verification
-Not verified on the phone. Only the owner has the phone. The next approval on the phone is the first real test.
+The hook is verified on the Mac. A new desktop session called `AskUserQuestion`, got the refusal text, and then asked in plain text.
+
+The owner tested the plain-text question on an iPhone on 2026-11-01. The question showed in the session, and the typed answer `Ja` got to the session. Android is not verified.
 
 ## Open points
 - [ ] Do the first approval on the phone with the fallback, and record the result.
 - [ ] Check if the plan card and the "An Koordinator" dialog work on the phone. No test exists.
+- [x] Check if a plain-text question and a typed answer work on the phone. Passed on an iPhone, 2026-11-01.
+- [ ] Check if the owner can change the mode from Plan to Auto on the phone, and if a typed `ja` then continues the work.
+- [ ] Test `claude remote-control --spawn worktree --permission-mode auto` for a new session from the phone. Check if the session shows in the desktop app and if the coordinator mod loads.
 
 ## Lessons
 Do not write "the plan waits" from a note. Read `list_sessions` first, because a note can be old.
