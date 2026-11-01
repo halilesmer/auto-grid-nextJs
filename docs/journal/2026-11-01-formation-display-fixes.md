@@ -81,6 +81,13 @@ areas: [frontend, tests]
   The verdicts stay `valid`, `valid` and `invalid`.
 - New tests (two per check, buy): D reached with a zone only at the target gives `unmet`; D reached with a zone at D gives `met`; D not reached with a zone only at the intermediate extreme gives `unmet`; D not reached with a zone at the target gives `met`; no D gives the target. Before the change, ten cases failed for "reached" and ten for "not reached", and the `CYP-09` text test failed.
 
+## Package C-3: CYP-10 and the Libra stop point
+- `CYP-10` counts a Libra entry only when the Libra has the stop point `K` as well as the entry `E`. Before, `E` alone was enough. The rule book (LIB-12) defines the entry together with `K`.
+- Değişen: the test helper `libraAt` (`formation-cyp-lib.spec.ts`) now sets `K` by default, so the existing `CYP-10` cases keep their meaning. New test: a Libra with `E` and without `K` gives `unmet`; with `K` it gives `met`. It was red before the change.
+- Değişen: the text of `CYP-10` now says "confirmed Libra entry (with stop point)" (tr, en, de), because the row measures a Libra with `K`. The `FRM-19` text test covers it.
+- Değişen: `cyp-lib-h4-02` (2025-12-11T08:00, H4, buy) expected `CYP-10` ☑, now ☐. The only Libra there has the verdict `forming`, entry E 1.16386, no K, `LIB-12` unmet. The old ☑ came from an unconfirmed Libra. The plan says "E without K gives unmet". The case stays in the real-candle list as the counter case; `cyp-lib-h4-01` still gives ☑.
+- The Codex scan did not run (Codex weekly limit).
+
 ## Lessons
 - A change of a measurement needs a change of the matching text in the same PR. PR #239 changed the zone distance and left "near" in `ruleTexts.ts`.
 - A check that measures two variants needs a display state for the variant that does not apply. A correct verdict does not make the checklist correct.

@@ -318,12 +318,12 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
 
 // ---- CYP 10 und LIB 09: Libra und Cypher fallen zusammen ----------------------------------------------------
 
-/** Libra-Kandidat mit gewähltem Einstieg `price` */
+/** Libra-Kandidat mit gewähltem Einstieg `price` und Stopp-Punkt K (LIB-12: E gilt erst mit K) */
 const libraAt = (price: number, over: Partial<Candidate> = {}): Candidate => ({
   code: 'LIB',
   side: 'buy',
   tf: 'H4',
-  points: { E: { time: 0, price } },
+  points: { E: { time: 0, price }, K: { time: 0, price: price + 5 } },
   checks: [],
   drawings: [],
   verdict: 'valid',
@@ -357,6 +357,13 @@ test.describe('CYP 10 und LIB 09: Libra-Einstieg fällt mit dem Cypher-Einstieg 
     expect(state(run({ H4: BASE }, AT, { libras: [libraAt(108.4, { side: 'sell' })] }), 'CYP-10')).toBe(N);
     expect(state(run({ H4: BASE }, AT, { libras: [libraAt(108.4, { verdict: 'invalid' })] }), 'CYP-10')).toBe(N);
     expect(state(run({ H4: BASE }, AT, { libras: [] }), 'CYP-10')).toBe(N);
+  });
+
+  frm('CYP 10: Libra mit Einstieg E, aber ohne Stopp-Punkt K ist kein Einstieg: ☐, mit K ☑', () => {
+    const noK = libraAt(108.4);
+    delete noK.points.K;
+    expect(state(run({ H4: BASE }, AT, { libras: [noK] }), 'CYP-10')).toBe(N);
+    expect(state(run({ H4: BASE }, AT, { libras: [libraAt(108.4)] }), 'CYP-10')).toBe(M);
   });
 
   frm('LIB 09: der Libra-Einstieg 129.8 und ein Cypher-Einstieg 130.0 fallen zusammen: ☑', () => {
@@ -454,10 +461,11 @@ test.describe('CYP: echte Kerzen', () => {
     expect(state(lib, 'LIB-09')).toBe(U);
   });
 
-  frm('cyp-lib-h4-02: Kauf-Cypher mit einem Libra-Einstieg am D (CYP 10 ☑)', () => {
+  frm('cyp-lib-h4-02: Kauf-Cypher, Libra-Einstieg am D noch nicht berührt (ohne K): CYP 10 ☐', () => {
     const c = analyzeAt('cyp-lib-h4-02', '2025-12-11T08:00');
     expect(c.side).toBe('buy');
-    expect(states(c, ['CYP-05', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, M, M, M]);
+    // die Libra ist `forming` (E 1.16386, kein K, LIB-12 ☐): ihr Einstieg zählt noch nicht
+    expect(states(c, ['CYP-05', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, M, M, N]);
   });
 });
 

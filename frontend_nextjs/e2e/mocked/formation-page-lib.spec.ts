@@ -161,6 +161,12 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
       expect(ruleText('tr', id)).toBe('D bir bölgenin içinde');
     }
   });
+
+  frm('FRM-19', 'CYP-10 nennt den bestätigten Libra-Einstieg (mit Stopp-Punkt)', () => {
+    expect(ruleText('de', 'CYP-10')).toBe('Einstieg fällt mit einem bestätigten Libra-Einstieg (mit Stopp-Punkt) zusammen');
+    expect(ruleText('en', 'CYP-10')).toBe('The entry coincides with a confirmed Libra entry (with stop point)');
+    expect(ruleText('tr', 'CYP-10')).toBe('Giriş, onaylı bir Libra girişiyle (durdurma noktalı) çakışır');
+  });
 });
 
 const hit = (form: ScanHit['form'], tf: ScanHit['tf'], verdict: Candidate['verdict']): ScanHit => ({

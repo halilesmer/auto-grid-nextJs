@@ -127,7 +127,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'CYP-07': ['D, XC’nin 0,786’sında', 'D sits at 0.786 of XC', 'D liegt bei 0,786 von XC'],
   'CYP-08': RSI_D,
   'CYP-09': ZONE_D_IN,
-  'CYP-10': ['Giriş bir Libra girişiyle çakışır', 'The entry coincides with a Libra entry', 'Einstieg fällt mit einem Libra-Einstieg zusammen'],
+  'CYP-10': ['Giriş, onaylı bir Libra girişiyle (durdurma noktalı) çakışır', 'The entry coincides with a confirmed Libra entry (with stop point)', 'Einstieg fällt mit einem bestätigten Libra-Einstieg (mit Stopp-Punkt) zusammen'],
   'CYP-11': ['Kapanış C sınırının ötesinde', 'A close beyond the C limit', 'Schluss jenseits der C-Grenze'],
   'CYP-12': PRZ,
   'CYP-13': HIGH_TF,
