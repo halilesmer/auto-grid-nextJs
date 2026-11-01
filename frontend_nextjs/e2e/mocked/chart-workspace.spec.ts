@@ -563,15 +563,17 @@ test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn 
   await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
   await expect.poll(() => rsiValue(page).then(Number.isFinite)).toBe(true);
   const push = (price: number) => worker.pushMetrics({ account_id: DEMO_ID, symbol: 'EURUSD', price, market_open: true });
+  // FreeChartPanel verwirft Live-Kurse ab 20 % Abstand zum letzten Schluss. Die Mock-Kerzen schließen je nach Uhrzeit
+  // zwischen 94,7 und 99,3, darum müssen beide Kurse zwischen 79,5 und 113,6 liegen.
   await expect.poll(async () => { push(80); return rsiValue(page); }).toBeLessThan(55);
   expect((await storedDocument(page, context)).alarms[0].armed).toBe(true);
-  await expect.poll(async () => { push(115); return rsiValue(page); }).toBeGreaterThan(55);
+  await expect.poll(async () => { push(112); return rsiValue(page); }).toBeGreaterThan(55);
   await expect(toasts).toHaveCount(1);
   await expect.poll(async () => (await storedDocument(page, context)).alarms[0].armed).toBe(false);
 
   // Einmalig: erneutes Über- und Unterschreiten meldet nichts mehr, der Alarm bleibt gespeichert.
   push(80); await expect.poll(() => rsiValue(page)).toBeLessThan(55);
-  push(115); await expect.poll(() => rsiValue(page)).toBeGreaterThan(55);
+  push(112); await expect.poll(() => rsiValue(page)).toBeGreaterThan(55);
   await expect(toasts).toHaveCount(1);
   await page.reload();
   await expect.poll(async () => (await storedDocument(page, context)).alarms).toHaveLength(1);

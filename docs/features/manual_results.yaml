@@ -416,3 +416,10 @@ FRM-29:
   datum: '2026-10-31'
   notiz: 'DEMO, echter Worker v0.7.301: 10 Favoriten, Filter, Stichprobe 4/4, Preise,
     Wochenende'
+FRM-30:
+  status: bestanden
+  datum: '2026-11-01'
+  notiz: 'DEMO, Chrome, v0.7.313: Karte, Ton, sichtbare macOS-Meldung, Klick bei offenem
+    und geschlossenem Fenster, keine Doppelmeldung, 37 Abrufe in 5,2 s. Ausgeloest
+    ueber gemerkten Stand, keine neue Kerze (Wochenende). Verstecktes Tab nur im eingebauten
+    Browser, iPhone nicht geprueft.'
