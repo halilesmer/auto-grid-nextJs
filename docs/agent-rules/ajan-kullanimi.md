@@ -127,6 +127,7 @@ Gerekçe: Kullanıcı onaylanan tüm planların tek koordinatörde toplanıp bit
 Kullanıcı her onayı telefondan verir (Remote Control). Uygulama, telefondan gelen mesajla `start_session`'ı reddeder; bu bölüm kilidi kaldırmaz, onaydan sonra işin yürümesini sağlar.
 
 - Her onay sorusu son mesajın metninde yazılır ve `ja` yazılarak yanıtlanabilir. Kart, düğme ya da diyalog onayın tek yolu olmaz.
+- `AskUserQuestion`'ı PreToolUse hook'u reddeder (`~/.claude/scripts/ask-as-text.sh`). Claude aynı soruyu seçenekleriyle metin olarak yazar ve turu bitirir.
 - Kullanıcının yazdığı `ja`, `freigeben`, `weiter` ya da `starte den Plan` onaydır; ayrıca kart beklenmez.
 - Onaydan sonra yeni oturum gerekiyorsa `start_session` bir kez denenir.
 - Uygulama reddederse brif, `SendMessage` ile bu oturumun başlattığı boş bir oturuma gönderilir. Koşullar: aynı proje, `isRunning: false`, arşivlenmemiş, aynı `permissionMode`. Aynı plandaki oturum önce seçilir. Brif, base branch'ten yeni branch açmayı söyler.
@@ -135,4 +136,4 @@ Kullanıcı her onayı telefondan verir (Remote Control). Uygulama, telefondan g
 - Başka oturumdan `start_session` istenmez ve reddedilen başlatma tekrar denenmez. Kilit mod, betik ya da zamanlanmış görevle aşılmaz.
 - Yedek yol kullanıldıysa yanıtta `Varsayım:` satırıyla hangi oturumun işi aldığı yazılır.
 
-Gerekçe: Kullanıcı tüm onayları telefondan vermek istiyor (kullanıcı talebi, 2026-10-31). `own_initiative` kartı telefondan başlatılamadı (test, 2026-10-31); Trendzug planında Phase 3 boş duran Phase 2 oturumunda yürüdü, yani var olan oturum yeni başlatma gerektirmez.
+Gerekçe: Kullanıcı tüm onayları telefondan vermek istiyor (kullanıcı talebi, 2026-10-31). `own_initiative` kartı telefondan başlatılamadı (test, 2026-10-31); Trendzug planında Phase 3 boş duran Phase 2 oturumunda yürüdü, yani var olan oturum yeni başlatma gerektirmez. Soru kartı telefonda güvenilir değil ve düzeltmesi yok (anthropics/claude-code #100478, #102055, #105055; 2026-11-01'de açık).
