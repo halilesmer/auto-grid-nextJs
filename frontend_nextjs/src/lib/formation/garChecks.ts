@@ -113,8 +113,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const atr = view.atr[d ? d.idx : last] ?? null;
   const dist = atrDistance(abcd.level1, dTarget, atr);
   add('GAR-09', dist === null ? U : flag(dist <= HARMONIC_PARAMS.nearAtr), dist ?? undefined);
-  const near = atr === null ? null : HARMONIC_PARAMS.zoneAtr * atr;
-  add('GAR-10', near === null ? U : flag(zonesNear(env, tf, s, dTarget, near).length > 0));
+  add('GAR-10', flag(zonesNear(env, tf, s, dTarget, 0).length > 0));
   add('GAR-11', tri(enoughSpace(s, last, atr)));
   add('GAR-12', flag(HARMONIC_PARAMS.highTimeframes.includes(tf)));
 

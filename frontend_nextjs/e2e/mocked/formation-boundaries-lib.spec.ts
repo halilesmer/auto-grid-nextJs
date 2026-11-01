@@ -4,20 +4,28 @@ import { FormationContext } from '../../src/lib/formation/context';
 import { checkButCandidate } from '../../src/lib/formation/butChecks';
 import { checkCrbCandidate } from '../../src/lib/formation/crbChecks';
 import { checkCypCandidate } from '../../src/lib/formation/cypChecks';
+import { checkBatCandidate } from '../../src/lib/formation/batChecks';
 import { checkGarCandidate } from '../../src/lib/formation/garChecks';
 import { pipOf } from '../../src/lib/formation/xabcd';
 import type { FormationBar } from '../../src/lib/formation/types';
 
+const M15 = 900;
+const H1 = 3600;
 const H4 = 14400;
 const D1 = 86400;
+const DUR = { M15, H1, H4, D1 } as const;
 const bar = (time: number, low: number, high: number, body: number): FormationBar => ({ time, low, high, open: body, close: body });
 const reflect = (b: FormationBar): FormationBar => ({ time: b.time, low: -b.high, high: -b.low, open: -b.open, close: -b.close });
 
-for (const spec of [
+const ZONE_SPECS = [
+  { id: 'GAR-10', tag: '@FRM-07', check: checkGarCandidate, b: 500, c: 800, target: 364 },
+  { id: 'BAT-11', tag: '@FRM-07', check: checkBatCandidate, b: 200, c: 800, target: 114 },
   { id: 'BUT-12', tag: '@FRM-13', check: checkButCandidate, c: 800, target: -272 },
   { id: 'CRB-12', tag: '@FRM-14', check: checkCrbCandidate, c: 800, target: -618 },
   { id: 'CYP-09', tag: '@FRM-12', check: checkCypCandidate, c: 2000, target: 428 },
-]) {
+] as const;
+
+for (const spec of ZONE_SPECS) {
   for (const buy of [true, false]) {
     for (const edge of [{ gap: 0, want: 'met' }, { gap: 0.001, want: 'unmet' }] as const) {
       test(`${spec.id}: ${buy ? 'Kauf' : 'Verkauf'}, Zonenkante mit Abstand ${edge.gap}`, { tag: spec.tag }, () => {
@@ -28,12 +36,43 @@ for (const spec of [
         const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) });
         const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
         const candidate = spec.check(ctx, 50 * H4, {
-          tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 200), c: anchor(42, spec.c), d: anchor(44, spec.target),
+          tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(44, spec.target),
         });
         expect(candidate.side).toBe(buy ? 'buy' : 'sell');
         expect(candidate.checks.find((c) => c.id === spec.id)?.state).toBe(edge.want);
       });
     }
+  }
+}
+
+// Zonen zählen nur aus der Formations-Zeiteinheit oder einer höheren (Regelbuch: „der Formations- oder einer höheren ZE“)
+type Tf = keyof typeof DUR;
+for (const spec of ZONE_SPECS) {
+  for (const c of [
+    { form: 'H4', zone: 'H1', want: 'unmet' },
+    { form: 'H4', zone: 'H4', want: 'met' },
+    { form: 'H4', zone: 'D1', want: 'met' },
+    { form: 'M15', zone: 'H1', want: 'met' },
+    { form: 'M15', zone: 'M15', want: 'met' },
+  ] as const) {
+    test(`${spec.id}: Formation ${c.form}, Zone nur in ${c.zone} → ${c.want}`, { tag: spec.tag }, () => {
+      const dur = DUR[c.form as Tf];
+      // Grundreihe fällt so steil, dass jede Kerze unter dem Tief ihrer Vorgängerin schließt: sie hat kein Fraktal
+      const falling = Array.from({ length: 50 }, (_, i) => bar(i * dur, 2999 - 10 * i, 3001 - 10 * i, 3000 - 10 * i));
+      // Fraktal-Tief am Ziel (Zonenbreite 1): in der Grundreihe selbst oder als eigene 5-Kerzen-Reihe der Zonen-Zeiteinheit
+      const dip = (time: number): FormationBar => ({ time, low: spec.target, high: spec.target + 4, open: spec.target + 1, close: spec.target + 3 }); // Docht 1 < 2 × Körper 2: keine Manipulationszone
+      const own = c.zone === c.form;
+      const base = own ? falling.map((b, i) => (i === 24 ? dip(b.time) : b)) : falling;
+      const start = 10 * dur;
+      const zoneBars = Array.from({ length: 5 }, (_, i) => (i === 2 ? dip(start + i * DUR[c.zone as Tf]) : bar(start + i * DUR[c.zone as Tf], spec.target + 2, spec.target + 4, spec.target + 3)));
+      const extra = own ? null : zoneBars;
+      const ctx = new FormationContext('TEST', { [c.form]: base, ...(extra ? { [c.zone]: extra } : {}) });
+      const anchor = (idx: number, price: number) => ({ time: idx * dur, price });
+      const candidate = spec.check(ctx, 50 * dur, {
+        tf: c.form, x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(44, spec.target),
+      });
+      expect(candidate.checks.find((x) => x.id === spec.id)?.state).toBe(c.want);
+    });
   }
 }
 

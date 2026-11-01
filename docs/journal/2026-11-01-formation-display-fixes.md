@@ -54,7 +54,13 @@ areas: [frontend, tests]
 ## Open points
 - [ ] `Z-TDF-07` (inverse Fibonacci, levels 1.618 and 2.0, anchors impulse start, H1, pullback low) now uses the projection from the pullback low. The rule book does not say that this is the intended formula. The old drawing gave prices below H1, which cannot be a target. The page does not show TDF, so nothing visible changed. Check the formula before TDF goes on the page.
 - [ ] The zone checks `GAR-10`, `BAT-11`, `BUT-12`, `CRB-12` measure at the target price of D, not at the real D. `CYP-09` measures at the entry level. The rule book says "D lies in a zone". For a D that overshoots the target, the text can be wrong. The earlier entry `2026-10-28-formation-but-crb.md` (BU-4) names the same point. The user decides: measure at the real D, or name the target price in the text.
-- [ ] `GAR-10` and `BAT-11` measure with `zoneAtr × ATR` distance, the rule book says "inside". When this changes, switch their text to `ZONE_D_IN`.
+- [x] `GAR-10` and `BAT-11` measure with `zoneAtr × ATR` distance, the rule book says "inside". When this changes, switch their text to `ZONE_D_IN`. Done in Package C, PR C-1: distance 0, text `ZONE_D_IN`, `zoneAtr` removed.
+
+## Package C-1: zone timeframe and zone distance
+- The zone checks `GAR-10`, `BAT-11`, `BUT-12`, `CRB-12` and `CYP-09` counted fractal zones of every timeframe. The rule book says "the formation timeframe or a higher one". New helper `zoneTfCounts` in `xabcd.ts` keeps a zone only if its timeframe is the formation timeframe or higher. `zonesNear` and `zonesNearOutsideX` use it.
+- `GAR-10` and `BAT-11` measure with distance 0, like the other three. They are no longer `unmeasurable` when the ATR is missing. `HARMONIC_PARAMS.zoneAtr` and the text `ZONE_D` had no user left and were deleted.
+- Tests in `formation-boundaries-lib.spec.ts`: edge cases (distance 0 and 0.001, buy and sell) for `GAR-10` and `BAT-11`, and five timeframe cases for each of the five checks. Nine of them failed before the change (four edge cases, five "zone only in H1"). `formation-page-lib.spec.ts` checks the `GAR-10` and `BAT-11` texts.
+- Test data note: bars with equal open and close make a manipulation zone on H4 (`FRZ-16`), and a rising series makes a fractal of every bar. The new tests use a falling base series and a dip bar with a real body.
 
 ## Lessons
 - A change of a measurement needs a change of the matching text in the same PR. PR #239 changed the zone distance and left "near" in `ruleTexts.ts`.

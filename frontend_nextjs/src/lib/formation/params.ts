@@ -218,8 +218,6 @@ export const HARMONIC_PARAMS = {
   pip: { default: 0.0001, jpy: 0.01, gold: 0.1, silver: 0.01, other: 0.01 },
   /** GAR-09, BAT-09 (Annahme): Abstand AB=CD-D ↔ Harmonik-D höchstens dieses Vielfache der ATR(14) */
   nearAtr: 1,
-  /** GAR-10, BAT-11 (Annahme): „nahe“ an einer Zone = Abstand höchstens dieses Vielfache der ATR(14) (wie ABCD-11) */
-  zoneAtr: ABCD_PARAMS.nearAtr,
   /** GAR-11, BAT-10 (Annahme): Dauer X → D in Kerzen und Höhe X → A als Vielfaches der ATR(14) */
   space: { bars: 30, atr: 4 },
   /** GAR-12, BAT-12: Zeiteinheiten ab H4 */

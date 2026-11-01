@@ -7,7 +7,7 @@ import { gapToRect } from './abcd';
 import { CRB_PARAMS, type ContextTimeframe } from './params';
 import type { Env } from './reasons';
 import { engulfZones, zoneSideOf } from './sig';
-import { levelXA, type XabcdShape } from './xabcd';
+import { levelXA, zoneTfCounts, type XabcdShape } from './xabcd';
 import type { Rect } from './frz';
 
 /** Preis der Ausdehnung 1.618 der Fib X → A jenseits von X: hier ist die Crab vollendet (CRB-04) */
@@ -26,7 +26,7 @@ export function zonesNearOutsideX(env: Env, tf: ContextTimeframe, s: XabcdShape,
   for (const z of [...env.frz.zones, ...env.frz.reversed]) {
     const formedByD = z.fractalTimes.every((ft) => ft >= dTime);
     const isXZone = z.tf === tf && z.fractalTimes.includes(xTime);
-    if (z.side === tradeZone && !formedByD && !isXZone && gapToRect(z.rect, price) <= near) out.push(z.rect);
+    if (z.side === tradeZone && zoneTfCounts(z.tf, tf) && !formedByD && !isXZone && gapToRect(z.rect, price) <= near) out.push(z.rect);
   }
   for (const z of engulfZones(view.bars, view.wide)) {
     const formedByD = s.d !== null && z.idx >= s.d.idx;
