@@ -1,29 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Bar } from '@/lib/analysis/candles';
-import {
-  CandlestickSeries,
-  ColorType,
-  createChart,
-  LineSeries,
-  LineStyle,
-  type IChartApi,
-  type ISeriesApi,
-  type UTCTimestamp,
-} from 'lightweight-charts';
+import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { useFormat, useT } from '@/i18n';
-import { readChartColors, type ChartColors } from '@/lib/chartTheme';
 import type { FormationContext } from '@/lib/formation/context';
 import { drawingPriceRange, layoutDrawings, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
 import { RSI_PARAMS } from '@/lib/formation/params';
 import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
 import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
-import { useThemeStore } from '@/store';
-import { ChartWorkspace } from '@/components/chart-workspace/ChartWorkspace';
-import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView } from '@/components/chart-workspace/runtime';
-import { useConnectionStore } from '@/store/useConnectionStore';
+import { ChartCore, type ChartScene, type OverlayLine } from '@/components/analysis/chart/ChartCore';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { useConnectionStore } from '@/store/useConnectionStore';
 import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
 
@@ -105,85 +92,37 @@ interface Props {
   onCapture: (capture: (() => Promise<ChartPicture>) | null) => void;
 }
 
-/**
- * Kerzen und RSI(7) des gewählten Kandidaten mit den Zeichnungen der Erkennung als SVG-Overlay. Der Container
- * bildet einen eigenen Stapelkontext (die Canvases des Charts tragen z-index), das Overlay endet vor der Preisachse.
- */
-export function FormationChart({ accountId, hit, context, scanAt, running, digits, active, onActive, onCapture }: Props) {
+const NO_LINES: OverlayLine[] = [];
+const NO_BARS: Bar[] = [];
+const NO_MISSING: never[] = [];
+const RSI_LEVELS = [RSI_PARAMS.overbought, RSI_PARAMS.oversold];
+/** Die Bedienung liegt oben auf dem Chart: die Kerzen beginnen darunter */
+const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
+
+/** Zeichnungen der Erkennung als SVG über dem Chart; das Overlay endet vor der Preisachse. */
+function FormationOverlay({ scene, hit, bars, running, active, onActive, onCapture, visible }: Pick<Props, 'hit' | 'running' | 'active' | 'onActive' | 'onCapture'> & { scene: ChartScene; bars: readonly Bar[]; visible: boolean }) {
   const t = useT();
-  const source = useConnectionStore(s => s.baseUrl);
-  const [binding, setBinding] = useState<ChartBinding | null>(null);
-  // Für rememberChartView: die laufende Kerze zählt mit, sonst gälte ihr Erscheinen als Zoom des Nutzers
-  const runningCount = useRef(0);
-  const shown = useRef<Bar | null>(null);
-  const redrawRef = useRef<(() => void) | null>(null);
   const { number } = useFormat();
-  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
-  const boxRef = useRef<HTMLDivElement>(null);
-  const hostRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<SVGSVGElement>(null);
-  const [colors, setColors] = useState<ChartColors | null>(null);
-  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [] });
-  const chartRef = useRef<{ chart: IChartApi; candles: ISeriesApi<'Candlestick'>; rsi: ISeriesApi<'Line'> } | null>(null);
-
-  const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
-  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
+  const { binding, rsi } = scene;
   const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
-  const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
+  const overlayRef = useRef<SVGSVGElement>(null);
+  const redrawRef = useRef<(() => void) | null>(null);
+  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [] });
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setColors(readChartColors()));
-    return () => cancelAnimationFrame(frame);
-  }, [resolvedTheme]);
-
-  // Chart und Overlay neu aufbauen, wenn Kandidat oder Kerzen wechseln
-  useEffect(() => {
-    const host = hostRef.current;
-    const box = boxRef.current;
-    if (!host || !box || !view || view.bars.length === 0) return;
-    const chart = createChart(host, {
-      autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: 'transparent' }, fontSize: 11, panes: { separatorColor: 'transparent' } },
-      timeScale: { timeVisible: true, secondsVisible: false },
-      crosshair: { mode: 0 },
-    });
-    const extra = drawingPriceRange(hit.candidate);
-    const candles = chart.addSeries(CandlestickSeries, {
-      borderVisible: false,
-      // Zonen und Level können außerhalb der Kerzen liegen: die Preisachse reicht bis zu ihnen
-      autoscaleInfoProvider: (original: () => { priceRange: { minValue: number; maxValue: number } | null; margins?: { above: number; below: number } } | null) => {
-        const base = original();
-        if (!base?.priceRange || !extra) return base;
-        return { ...base, priceRange: { minValue: Math.min(base.priceRange.minValue, extra.min), maxValue: Math.max(base.priceRange.maxValue, extra.max) } };
-      },
-    });
-    const reserveControls = () => candles.priceScale().applyOptions({
-      scaleMargins: { top: box.clientWidth < 640 ? 0.4 : 0.3, bottom: 0.12 },
-    });
-    reserveControls();
-    const rsi = chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, 1);
-    const precision = digits ?? 5;
-    candles.applyOptions({ priceFormat: { type: 'price', precision, minMove: 10 ** -precision } });
-    candles.setData(view.bars.map((b) => ({ ...b, time: b.time as UTCTimestamp })));
-    rsi.setData(view.bars.flatMap((b, i) => (view.rsi[i] === null ? [] : [{ time: b.time as UTCTimestamp, value: view.rsi[i] as number }])));
-    rsi.createPriceLine({ price: RSI_PARAMS.overbought, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
-    rsi.createPriceLine({ price: RSI_PARAMS.oversold, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
-    chart.panes()[0]?.setStretchFactor(5);
-    chart.panes()[1]?.setStretchFactor(1);
-    const attached = createChartBinding(chart, candles, host, () => ({ top: box.clientWidth < 640 ? .4 : .3, bottom: .12 }));
-    const readyFrame = requestAnimationFrame(() => setBinding(attached));
-    chartRef.current = { chart, candles, rsi };
+    const { chart, host } = binding;
     onCapture(() => captureChart({ chart, host, overlay: overlayRef.current }));
+    return () => onCapture(null);
+  }, [binding, onCapture]);
 
-    const indexOf = new Map(view.bars.map((b, i) => [b.time, i]));
-    // Die Ansicht hängt nicht vom Kandidaten ab: alle Kerzen oder der gespeicherte Zoom dieses Produkts
-    restoreChartView(chart, view.bars.map((b) => b.time), useChartWorkspaceStore.getState().documents[contextKey]?.visibleTime);
-    const forgetView = rememberChartView(chart, box, contextKey, () => view.bars.length + runningCount.current);
-
-    const lastBar = view.bars[view.bars.length - 1];
+  useEffect(() => {
+    const { chart, candles, host } = binding;
+    const lastBar = bars[bars.length - 1];
+    if (!lastBar) return;
+    const indexOf = new Map(bars.map((b, i) => [b.time, i]));
     const redraw = () => {
       const left = chart.priceScale('left').width();
-      const width = box.clientWidth - left - chart.priceScale('right').width();
+      const width = host.clientWidth - left - chart.priceScale('right').width();
       const panes = chart.panes();
       const top = panes[0]?.getHeight() ?? 0;
       const rsiHeight = panes[1]?.getHeight() ?? 0;
@@ -199,7 +138,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
         },
         y: (price) => candles.priceToCoordinate(price),
         yRsi: (value) => {
-          const y = rsi.priceToCoordinate(value);
+          const y = rsi?.priceToCoordinate(value) ?? null;
           return y === null ? null : top + y;
         },
         text: (key, params) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params }),
@@ -210,133 +149,111 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
     redrawRef.current = redraw;
-    let lastWidth = box.clientWidth;
-    const observer = new ResizeObserver(() => {
-      if (lastWidth !== box.clientWidth) {
-        lastWidth = box.clientWidth;
-        const settings = useChartWorkspaceStore.getState();
-        if (!(settings.preview ?? settings.appearance).marginsSet) reserveControls();
-      }
-      redraw();
-    });
-    observer.observe(box);
+    const observer = new ResizeObserver(redraw);
+    observer.observe(host);
     const pricePane = chart.panes()[0]?.getHTMLElement();
     if (pricePane) observer.observe(pricePane);
     let redrawFrame = 0;
     const frame = requestAnimationFrame(() => { redrawFrame = requestAnimationFrame(redraw); });
-    return () => {
+    let disposed = false;
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
       redrawRef.current = null;
       cancelAnimationFrame(frame);
       cancelAnimationFrame(redrawFrame);
       observer.disconnect();
-      cancelAnimationFrame(readyFrame);
-      forgetView();
-      onCapture(null);
-      attached.dispose?.();
-      chart.remove();
-      chartRef.current = null;
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(redraw);
+      chart.timeScale().unsubscribeSizeChange(redraw);
     };
-  }, [view, hit, digits, t, number, onCapture, contextKey]);
+    // ChartCore baut den Chart beim Unmount vor diesem Effekt ab
+    const unregister = binding.onDispose(dispose);
+    return () => { unregister(); dispose(); };
+  }, [binding, rsi, bars, hit, t, number]);
 
+  // Die Preisachse kann sich mit der laufenden Kerze oder den Einstellungen ändern: Zeichnungen folgen im nächsten Frame
   useEffect(() => {
-    if (!colors || !chartRef.current) return;
-    const { rsi } = chartRef.current;
-    rsi.applyOptions({ color: colors.primary });
-  }, [colors, view, hit]);
-
-  const closedData = useMemo(() => {
-    if (!view) return [];
-    const c = appearanceColors(appearance);
-    return view.bars.map((b, i) => {
-      if (!appearance.previous || !i) return { ...b, time: b.time as UTCTimestamp };
-      const up = b.close >= view.bars[i - 1].close;
-      let color = up ? c.up : c.down; if (!appearance.body) color = 'transparent';
-      return { ...b, time: b.time as UTCTimestamp, color, borderColor: up ? c.borderUp : c.borderDown, wickColor: up ? c.wickUp : c.wickDown };
-    });
-  }, [view, appearance]);
-
-  useEffect(() => {
-    if (!binding || binding.isDisposed() || !view) return;
-    binding.candles.setData(closedData);
-    chartRef.current?.rsi.applyOptions({ visible: overlays.rsi });
-  }, [binding, view, closedData, overlays.rsi]);
-
-  const lastClosed = view?.bars[view.bars.length - 1];
-  useEffect(() => {
-    // Nie vor oder auf der letzten geschlossenen Kerze schreiben: update() würde die Kerze ersetzen oder werfen
-    if (!binding || binding.isDisposed() || !view || !lastClosed || !running || running.time <= lastClosed.time) {
-      // Eine zuvor gezeigte laufende Kerze zurücknehmen: die Serie wieder nur mit geschlossenen Kerzen füllen
-      if (runningCount.current && binding && !binding.isDisposed()) binding.candles.setData(closedData);
-      runningCount.current = 0;
-      shown.current = null;
-      boxRef.current?.removeAttribute('data-last-price');
-      return;
-    }
-    runningCount.current = 1;
-    // Schon gezeigte Extremwerte bleiben, solange es dieselbe Kerze ist (der Preis kann wieder zurückgehen)
-    const prev = shown.current?.time === running.time ? shown.current : null;
-    const bar = prev ? { ...running, high: Math.max(running.high, prev.high), low: Math.min(running.low, prev.low) } : running;
-    shown.current = bar;
-    const c = appearanceColors(appearance);
-    const up = bar.close >= lastClosed.close;
-    const bodyColor = up ? c.up : c.down;
-    const style = appearance.previous ? { color: appearance.body ? bodyColor : 'transparent', borderColor: up ? c.borderUp : c.borderDown, wickColor: up ? c.wickUp : c.wickDown } : {};
-    binding.candles.update({ ...bar, ...style, time: bar.time as UTCTimestamp });
-    // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
-    boxRef.current?.setAttribute('data-last-price', `${running.time}:${running.close}`);
-    // Die Preisachse kann sich ändern: Zeichnungen folgen im nächsten Frame
     const frame = requestAnimationFrame(() => redrawRef.current?.());
     return () => cancelAnimationFrame(frame);
-    // overlays.rsi: der setData-Effekt oben setzt die Serie neu und löscht dabei die laufende Kerze
-  }, [binding, view, closedData, lastClosed, appearance, running, overlays.rsi]);
+  }, [running, appearance]);
 
   const activeSet = active ? new Set(active) : null;
+  return (
+    <svg
+      ref={overlayRef}
+      data-testid="formation-overlay"
+      className="absolute left-0 top-0 z-10 overflow-hidden"
+      width={overlay.width}
+      height={overlay.height}
+      style={{ pointerEvents: 'none', left: overlay.left, display: visible ? undefined : 'none' }}
+      aria-hidden="true"
+    >
+      <defs>
+        {/* Zeichnungen im Kerzen-Pane enden an dessen Rand: ein Preis außerhalb der Ansicht läuft nicht in den RSI-Pane */}
+        <clipPath id="formation-price-clip">
+          <rect x={0} y={0} width={overlay.width} height={overlay.priceHeight} />
+        </clipPath>
+      </defs>
+      {overlay.groups.map((g) => (
+        <g
+          key={g.id}
+          clipPath={g.pane === 'price' ? 'url(#formation-price-clip)' : undefined}
+          data-drawing={g.id}
+          data-active={activeSet?.has(g.id) ? 'true' : 'false'}
+          opacity={activeSet && !activeSet.has(g.id) ? 0.2 : 1}
+          style={{ transition: 'opacity .15s' }}
+          onMouseEnter={() => onActive([g.id])}
+          onMouseLeave={() => onActive(null)}
+        >
+          {g.prims.map((p, i) => (
+            <PrimView key={i} prim={p} side={hit.candidate.side} />
+          ))}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/** Kerzen und RSI(7) des gewählten Kandidaten mit den Zeichnungen der Erkennung. */
+export function FormationChart({ accountId, hit, context, scanAt, running, digits, active, onActive, onCapture }: Props) {
+  const source = useConnectionStore(s => s.baseUrl);
+  const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
+  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
+  const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
+  const bars = view?.bars ?? NO_BARS;
+  const data = useMemo(() => ({ points: bars, bars, missing: NO_MISSING, pauses: NO_MISSING }), [bars]);
+  const rsiPoints = useMemo(() => bars.flatMap((b, i) => {
+    const value = view?.rsi[i];
+    return value == null ? [] : [{ time: b.time, value }];
+  }), [bars, view]);
+  const priceRange = useMemo(() => drawingPriceRange(hit.candidate), [hit.candidate]);
   const finalName = FINAL_POINT[hit.form];
   return (
-    <ChartWorkspace context={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true, syncIdentity: { source, account: accountId, symbol: context.symbol } }} overlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
-      { key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' },
-      { key: 'rsi', label: 'formation.legend.rsi', hint: 'cw.systemRsi.hint' },
-    ]} />} binding={binding} bars={view?.bars ?? []} missing={[]} timeframeSec={({ D1: 86400, H4: 14400, H1: 3600, M15: 900 }[hit.tf])} digits={digits} until={scanAt} overlayLayout className="absolute inset-0">
-    <div
-      ref={boxRef}
-      data-testid="formation-chart"
-      data-final-point={hit.candidate.points[finalName] ? 'done' : 'open'}
-      className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card"
-    >
-      <div ref={hostRef} tabIndex={0} aria-label={t('cw.canvas')} className="absolute inset-0" />
-      <svg
-        ref={overlayRef}
-        data-testid="formation-overlay"
-        className="absolute left-0 top-0 z-10 overflow-hidden"
-        width={overlay.width}
-        height={overlay.height}
-        style={{ pointerEvents: 'none', left: overlay.left, display: overlays.formations ? undefined : 'none' }}
-        aria-hidden="true"
-      >
-        <defs>
-          {/* Zeichnungen im Kerzen-Pane enden an dessen Rand: ein Preis außerhalb der Ansicht läuft nicht in den RSI-Pane */}
-          <clipPath id="formation-price-clip">
-            <rect x={0} y={0} width={overlay.width} height={overlay.priceHeight} />
-          </clipPath>
-        </defs>
-        {overlay.groups.map((g) => (
-          <g
-            key={g.id}
-            clipPath={g.pane === 'price' ? 'url(#formation-price-clip)' : undefined}
-            data-drawing={g.id}
-            data-active={activeSet?.has(g.id) ? 'true' : 'false'}
-            opacity={activeSet && !activeSet.has(g.id) ? 0.2 : 1}
-            style={{ transition: 'opacity .15s' }}
-            onMouseEnter={() => onActive([g.id])}
-            onMouseLeave={() => onActive(null)}
-          >
-            {g.prims.map((p, i) => (
-              <PrimView key={i} prim={p} side={hit.candidate.side} />
-            ))}
-          </g>
-        ))}
-      </svg>
-    </div>
-    </ChartWorkspace>
+    <ChartCore
+      key={contextKey}
+      workspace={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true, syncIdentity: { source, account: accountId, symbol: context.symbol } }}
+      workspaceOverlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
+        { key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' },
+        { key: 'rsi', label: 'formation.legend.rsi', hint: 'cw.systemRsi.hint' },
+      ]} />}
+      data={data}
+      timeframeSec={TIMEFRAME_SEC[hit.tf]}
+      digits={digits}
+      viewKey={`${contextKey}|${hit.tf}`}
+      band={null}
+      lines={NO_LINES}
+      showPauses={false}
+      showGaps={false}
+      showRsi
+      live={null}
+      until={scanAt}
+      systemRsi={{ points: rsiPoints, levels: RSI_LEVELS, visible: overlays.rsi }}
+      runningBar={running}
+      priceRange={priceRange}
+      marginsFor={controlMargins}
+      overlayLayout
+      surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
+      renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} running={running} active={active} onActive={onActive} onCapture={onCapture} visible={overlays.formations} />}
+    />
   );
 }

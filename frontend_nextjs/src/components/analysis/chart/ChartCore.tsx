@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import {
   AreaSeries,
@@ -8,7 +8,9 @@ import {
   ColorType,
   createChart,
   createSeriesMarkers,
+  LineSeries,
   LineStyle,
+  type AutoscaleInfo,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
@@ -19,7 +21,8 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { useFormat, useT } from '@/i18n';
-import { isBar, liveBar, type Bar, type ChartData } from '@/lib/analysis/candles';
+import { isBar, liveBar, type Bar, type ChartData, type ChartPoint } from '@/lib/analysis/candles';
+import type { Appearance } from '@/lib/chart-workspace/settings';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
@@ -75,6 +78,20 @@ export interface FractalPoint {
   traded: boolean;
 }
 
+/** RSI im eigenen Bereich unter den Kerzen, unabhängig von den Indikatoren des Nutzers */
+export interface SystemRsi {
+  points: { time: number; value: number }[];
+  /** Gestrichelte Linien, z. B. überkauft und überverkauft */
+  levels: readonly number[];
+  visible: boolean;
+}
+
+/** Was eine Zeichenfläche über dem Chart braucht, um Zeit und Preis in Koordinaten umzurechnen */
+export interface ChartScene {
+  binding: ChartBinding;
+  rsi: ISeriesApi<'Line'> | null;
+}
+
 interface ChartCoreProps {
   workspace?: WorkspaceContext;
   workspaceOverlays?: React.ReactNode;
@@ -109,6 +126,20 @@ interface ChartCoreProps {
   equity?: { time: number; value: number }[];
   /** Keep the right edge on the replay cursor while candles are revealed. */
   followTail?: boolean;
+  systemRsi?: SystemRsi;
+  /** Laufende Kerze nach der letzten geschlossenen, nur zur Anzeige: Indikatoren und Zeichnungen enden davor */
+  runningBar?: Bar | null;
+  /** Preise außerhalb der Kerzen, bis zu denen die Preisachse reicht */
+  priceRange?: { min: number; max: number } | null;
+  /** Ränder der Preisachse je Chartbreite, solange der Nutzer keine eigenen gesetzt hat */
+  marginsFor?: (width: number) => { top: number; bottom: number };
+  /** Letzter Zeitpunkt für Zeichnungen und Indikatoren; ohne Angabe die Uhr bzw. das Ende der letzten Kerze */
+  until?: number;
+  /** Chart füllt die ganze Fläche, die Bedienung liegt darauf (bis alle Seiten so aussehen: Journal 2026-11-01) */
+  overlayLayout?: boolean;
+  surfaceProps?: HTMLAttributes<HTMLDivElement> & Record<`data-${string}`, string>;
+  /** Zeichenfläche über dem Chart; nur mit overlayLayout */
+  renderOverlay?: (scene: ChartScene) => ReactNode;
 }
 
 const EMPTY_MARKERS: TradeMarker[] = [];
@@ -127,6 +158,18 @@ const FIT_MAX_POINTS = 2000;
 const VISIBLE_BARS = 300;
 
 function previousColor(up: boolean, body: boolean, positive: string, negative: string) { if (!body) return 'transparent'; return up ? positive : negative; }
+/** Farben einer Kerze, wenn sie sich nach dem Schluss der vorigen Kerze richten (Einstellung „previous“) */
+function previousStyle(up: boolean, body: boolean, c: ReturnType<typeof appearanceColors>) {
+  return { color: previousColor(up, body, c.up, c.down), borderColor: up ? c.borderUp : c.borderDown, wickColor: up ? c.wickUp : c.wickDown };
+}
+function seriesPoints(points: readonly ChartPoint[], appearance: Appearance) {
+  const c = appearanceColors(appearance);
+  return points.map((p, i) => {
+    const prev = points[i - 1];
+    const override = appearance.previous && isBar(p) && prev && isBar(prev) ? previousStyle(p.close >= prev.close, appearance.body, c) : {};
+    return { ...p, ...override, time: p.time as UTCTimestamp };
+  });
+}
 const LINE_STYLE = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted } as const;
 
 function toneColor(c: ChartColors, tone: LineTone) {
@@ -163,13 +206,27 @@ export function ChartCore({
   balance,
   equity,
   followTail = false,
+  systemRsi,
+  runningBar = null,
+  priceRange,
+  marginsFor,
+  until,
+  overlayLayout = false,
+  surfaceProps,
+  renderOverlay,
 }: ChartCoreProps) {
   const t = useT();
   const fmt = useFormat();
   const containerRef = useRef<HTMLDivElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const [binding, setBinding] = useState<ChartBinding | null>(null);
+  const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const [scene, setScene] = useState<ChartScene | null>(null);
+  const binding = scene?.binding ?? null;
+  const shownRunning = useRef<{ view: string; bar: Bar } | null>(null);
+  // Für rememberChartView: die laufende Kerze zählt mit, sonst gälte ihr Erscheinen als Zoom des Nutzers
+  const runningCount = useRef(0);
   const [alignedView, setAlignedView] = useState<string | null>(null);
   const [workspaceTail, setWorkspaceTail] = useState<{ key: string; bar: Bar } | null>(null);
   const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? ((workspace?.view === 'analysis' || workspace?.view === 'free') ? s.documents[workspace.key]?.appearance ?? s.appearance : s.appearance)));
@@ -208,6 +265,11 @@ export function ChartCore({
   }, [barByTime]);
 
   const hasCurves = !!(balance || equity);
+  const hasRsi = !!systemRsi;
+  const marginsForRef = useRef(marginsFor);
+  useEffect(() => {
+    marginsForRef.current = marginsFor;
+  }, [marginsFor]);
   // Chart einmal anlegen
   useEffect(() => {
     const el = containerRef.current;
@@ -216,12 +278,13 @@ export function ChartCore({
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
+        // Das Layout von /formasyon ist die Vorlage: es behält die Schrift und die Ränder des Charts
+        ...(overlayLayout ? {} : { fontFamily: 'var(--font-geist-mono), ui-monospace, monospace' }),
         fontSize: 11,
         panes: { separatorColor: 'transparent' },
       },
       timeScale: { timeVisible: true, secondsVisible: false },
-      rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } },
+      ...(overlayLayout ? {} : { rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } } }),
     });
     const candles = chart.addSeries(CandlestickSeries, { borderVisible: false, priceLineVisible: true });
     const balanceSeries = hasCurves ? chart.addSeries(AreaSeries, {
@@ -232,6 +295,14 @@ export function ChartCore({
       lineColor: '#22c55e', topColor: 'rgba(34,197,94,0.22)', bottomColor: 'rgba(34,197,94,0.01)',
       lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
     }, 1) : null;
+    const margins = marginsForRef.current;
+    // Vor dem RSI setzen: sein Bereich übernimmt die Ränder der Preisachse beim Anlegen
+    if (margins) candles.priceScale().applyOptions({ scaleMargins: margins(el.clientWidth) });
+    const rsiSeries = hasRsi ? chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, 1) : null;
+    if (rsiSeries) {
+      chart.panes()[0]?.setStretchFactor(5);
+      chart.panes()[1]?.setStretchFactor(1);
+    }
     const band = new ZoneBandPrimitive();
     const missing = new MissingDataPrimitive();
     const pauses = new PauseLinesPrimitive();
@@ -245,10 +316,11 @@ export function ChartCore({
     candles.attachPrimitive(fractalMarks);
     candles.attachPrimitive(trend);
     markersApi.current = createSeriesMarkers(candles, []);
-    const attached = createChartBinding(chart, candles, el);
-    const readyFrame = requestAnimationFrame(() => setBinding(attached));
+    const attached = createChartBinding(chart, candles, el, margins ? () => margins(el.clientWidth) : undefined);
+    const readyFrame = requestAnimationFrame(() => setScene({ binding: attached, rsi: rsiSeries }));
     chartRef.current = chart;
     candlesRef.current = candles;
+    rsiRef.current = rsiSeries;
     balanceRef.current = balanceSeries;
     equityRef.current = equitySeries;
     primitives.current = { band, missing, pauses, links, fractals: fractalMarks, trend };
@@ -261,7 +333,8 @@ export function ChartCore({
       const time = Number(param.time);
       setHover({ bar: barByTimeRef.current.get(time) ?? null, time });
     };
-    chart.subscribeCrosshairMove(onMove);
+    // Die Legende unter dem Fadenkreuz gibt es nur im Layout mit Karte
+    if (!overlayLayout) chart.subscribeCrosshairMove(onMove);
     return () => {
       forgetView.current?.();
       forgetView.current = null;
@@ -271,6 +344,7 @@ export function ChartCore({
       chart.remove();
       chartRef.current = null;
       candlesRef.current = null;
+      rsiRef.current = null;
       balanceRef.current = null;
       equityRef.current = null;
       primitives.current = null;
@@ -279,8 +353,59 @@ export function ChartCore({
       // Ein neu angelegter Chart (z. B. StrictMode im Dev-Modus) muss wieder ausgerichtet werden
       fittedKey.current = null;
       lastBar.current = null;
+      shownRunning.current = null;
+      runningCount.current = 0;
     };
-  }, [hasCurves]);
+  }, [hasCurves, hasRsi, overlayLayout]);
+
+  // Der Abstand für die Bedienung auf dem Chart hängt von der Breite ab
+  useEffect(() => {
+    if (!binding || !marginsFor) return;
+    const { host, candles } = binding;
+    let lastWidth = host.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (lastWidth === host.clientWidth) return;
+      lastWidth = host.clientWidth;
+      const settings = useChartWorkspaceStore.getState();
+      if (!(settings.preview ?? settings.appearance).marginsSet) candles.priceScale().applyOptions({ scaleMargins: marginsFor(lastWidth) });
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [binding, marginsFor]);
+
+  // Zonen und Level können außerhalb der Kerzen liegen: die Preisachse reicht bis zu ihnen
+  useEffect(() => {
+    if (priceRange === undefined) return;
+    candlesRef.current?.applyOptions({
+      autoscaleInfoProvider: (original: () => AutoscaleInfo | null) => {
+        const base = original();
+        if (!base?.priceRange || !priceRange) return base;
+        return { ...base, priceRange: { minValue: Math.min(base.priceRange.minValue, priceRange.min), maxValue: Math.max(base.priceRange.maxValue, priceRange.max) } };
+      },
+    });
+  }, [priceRange]);
+
+  const rsiLevels = systemRsi?.levels;
+  useEffect(() => {
+    const rsi = rsiRef.current;
+    if (!rsi || !rsiLevels) return;
+    const lines = rsiLevels.map((price) => rsi.createPriceLine({ price, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false }));
+    return () => {
+      try {
+        lines.forEach((line) => rsi.removePriceLine(line));
+      } catch {
+        /* Chart schon entfernt */
+      }
+    };
+  }, [rsiLevels, hasRsi]);
+
+  const rsiPoints = systemRsi?.points, rsiVisible = systemRsi?.visible;
+  useEffect(() => {
+    rsiRef.current?.setData((rsiPoints ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp })));
+  }, [rsiPoints, hasRsi]);
+  useEffect(() => {
+    rsiRef.current?.applyOptions({ visible: rsiVisible });
+  }, [rsiVisible, hasRsi]);
 
   // Theme-Farben: nach dem Klassenwechsel am <html> lesen
   useEffect(() => {
@@ -292,7 +417,8 @@ export function ChartCore({
     if (!colors) return;
     balanceRef.current?.applyOptions({ lineColor: colors.info, topColor: withAlpha(colors.info, 0.18), bottomColor: withAlpha(colors.info, 0.01) });
     equityRef.current?.applyOptions({ lineColor: colors.up, topColor: withAlpha(colors.up, 0.2), bottomColor: withAlpha(colors.up, 0.01) });
-  }, [colors]);
+    rsiRef.current?.applyOptions({ color: colors.primary });
+  }, [colors, hasRsi]);
 
   useEffect(() => {
     balanceRef.current?.setData((balance ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp })));
@@ -303,6 +429,13 @@ export function ChartCore({
     containerRef.current?.setAttribute('data-last-equity', lastEquity ? `${lastEquity.time}:${lastEquity.value}` : '');
   }, [balance, equity]);
 
+  // Eine neue Auswahl ändert die Zeitachse, das ist kein Zoom der alten. Layout-Effekt: ChartWorkspace setzt die
+  // Indikatoren als Kindkomponente in seinem Effekt, also vor jedem useEffect hier
+  useLayoutEffect(() => {
+    forgetView.current?.();
+    forgetView.current = null;
+  }, [viewKey]);
+
   // Kerzen + Leerstellen
   useEffect(() => {
     const chart = chartRef.current;
@@ -311,12 +444,7 @@ export function ChartCore({
     if (!chart || !candles || !el) return;
     // Vor setData, damit rememberChartView die neue Punktzahl kennt, wenn der Chart den Bereich meldet
     pointsRef.current = data.points;
-    const c = appearanceColors(appearance);
-    candles.setData(data.points.map((p, i) => {
-      const prev = data.points[i - 1];
-      const override = appearance.previous && isBar(p) && prev && isBar(prev) ? { color: previousColor(p.close >= prev.close, appearance.body, c.up, c.down), borderColor: p.close >= prev.close ? c.borderUp : c.borderDown, wickColor: p.close >= prev.close ? c.wickUp : c.wickDown } : {};
-      return { ...p, ...override, time: p.time as UTCTimestamp };
-    }));
+    candles.setData(seriesPoints(data.points, appearance));
     lastBar.current = data.bars.length > 0 ? data.bars[data.bars.length - 1] : null;
     if (lastBar.current) containerRef.current?.setAttribute('data-last-bar', `${lastBar.current.time}:${lastBar.current.close}`);
     if (followTail) {
@@ -348,13 +476,13 @@ export function ChartCore({
       setAlignedView(viewKey);
       forgetView.current?.();
       forgetView.current = null;
-      // Analyse und freier Chart zeigen alle Kerzen oder den gespeicherten Zoom; der Backtest die letzten VISIBLE_BARS
-      if (!workspaceKey || (workspaceView !== 'analysis' && workspaceView !== 'free')) {
+      // Der Backtest zeigt die letzten VISIBLE_BARS, alle anderen alle Kerzen oder den gespeicherten Zoom
+      if (!workspaceKey || workspaceView === 'backtest') {
         chart.timeScale().setVisibleLogicalRange({ from: n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS, to: n + 3 });
         return;
       }
       restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
-      forgetView.current = rememberChartView(chart, el, workspaceKey, () => pointsRef.current.length);
+      forgetView.current = rememberChartView(chart, surfaceRef.current ?? el, workspaceKey, () => pointsRef.current.length + runningCount.current);
     };
     // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
     // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
@@ -485,8 +613,7 @@ export function ChartCore({
     const lastPoint = data.points[data.points.length - 1];
     if (!bar || (lastPoint && bar.time < lastPoint.time)) return;
     const last = data.bars.at(-1), previous = last?.time === bar.time ? data.bars.at(-2) : last;
-    const c = appearanceColors(appearance);
-    const override = appearance.previous && previous ? { color: previousColor(bar.close >= previous.close, appearance.body, c.up, c.down), borderColor: bar.close >= previous.close ? c.borderUp : c.borderDown, wickColor: bar.close >= previous.close ? c.wickUp : c.wickDown } : {};
+    const override = appearance.previous && previous ? previousStyle(bar.close >= previous.close, appearance.body, appearanceColors(appearance)) : {};
     candlesRef.current.update({ ...bar, ...override, time: bar.time as UTCTimestamp });
     lastBar.current = bar;
     const frame = requestAnimationFrame(() => setWorkspaceTail({ key: viewKey, bar }));
@@ -494,6 +621,32 @@ export function ChartCore({
     containerRef.current?.setAttribute('data-last-bar', `${bar.time}:${bar.close}`);
     return () => cancelAnimationFrame(frame);
   }, [live, timeframeSec, data.points, data.bars, viewKey, appearance]);
+
+  useEffect(() => {
+    const candles = candlesRef.current;
+    if (!candles) return;
+    const closed = data.bars.at(-1);
+    // Nie vor oder auf der letzten geschlossenen Kerze schreiben: update() würde die Kerze ersetzen oder werfen
+    if (!closed || !runningBar || runningBar.time <= closed.time) {
+      if (runningCount.current) candles.setData(seriesPoints(data.points, appearance));
+      runningCount.current = 0;
+      shownRunning.current = null;
+      surfaceRef.current?.removeAttribute('data-last-price');
+      return;
+    }
+    runningCount.current = 1;
+    // Schon gezeigte Extremwerte bleiben, solange es dieselbe Kerze ist (der Preis kann wieder zurückgehen);
+    // die Kerze einer anderen Zeiteinheit kann dieselbe Öffnungszeit haben
+    const shown = shownRunning.current;
+    const prev = shown?.view === viewKey && shown.bar.time === runningBar.time ? shown.bar : null;
+    const bar = prev ? { ...runningBar, high: Math.max(runningBar.high, prev.high), low: Math.min(runningBar.low, prev.low) } : runningBar;
+    shownRunning.current = { view: viewKey, bar };
+    const style = appearance.previous ? previousStyle(bar.close >= closed.close, appearance.body, appearanceColors(appearance)) : {};
+    candles.update({ ...bar, ...style, time: bar.time as UTCTimestamp });
+    // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
+    surfaceRef.current?.setAttribute('data-last-price', `${runningBar.time}:${runningBar.close}`);
+    surfaceRef.current?.setAttribute('data-last-range', `${bar.low}:${bar.high}`);
+  }, [runningBar, data, appearance, viewKey]);
 
   // Nur unter dem Fadenkreuz: ohne Maus würde die Legende die geladene statt der laufenden Kerze zeigen
   const shown = hover?.bar ?? null;
@@ -503,8 +656,27 @@ export function ChartCore({
     allNotes.length > MAX_HOVER_NOTES
       ? [...allNotes.slice(0, MAX_HOVER_NOTES), t('analysis.chart.notes.more', { n: allNotes.length - MAX_HOVER_NOTES })]
       : allNotes;
+  const hostAttributes = {
+    ref: containerRef,
+    tabIndex: 0,
+    'aria-label': t('cw.canvas'),
+    'data-tooltip-exempt': true,
+    'data-testid': 'analysis-chart',
+    'data-bars': data.bars.length,
+    'data-gap-areas': data.missing.length,
+    'data-gaps-shown': showGaps,
+    'data-lines': lines.length,
+    'data-pauses': data.pauses.length,
+  };
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout}>
+    {overlayLayout ? (
+      // Eigener Stapelkontext: die Canvases des Charts tragen z-index
+      <div ref={surfaceRef} {...surfaceProps} className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card">
+        <div {...hostAttributes} className="absolute inset-0" />
+        {scene && !scene.binding.isDisposed() && renderOverlay?.(scene)}
+      </div>
+    ) : (
     <div className="relative">
       <div
         className="pointer-events-none absolute left-2 top-1 z-10 flex flex-wrap gap-x-3 font-mono text-[11px] tabular-nums text-muted-foreground"
@@ -525,20 +697,9 @@ export function ChartCore({
         {shown && appearance.change && <span>{fmt.number(shown.close - shown.open, { maximumFractionDigits: digits ?? 5 })}</span>}
       </div>
       {/* Die TradingView-Namensnennung (Link) erzeugt lightweight-charts selbst */}
-      <div
-        ref={containerRef}
-        tabIndex={0}
-        aria-label={t('cw.canvas')}
-        data-tooltip-exempt
-        data-testid="analysis-chart"
-        data-bars={data.bars.length}
-        data-gap-areas={data.missing.length}
-        data-gaps-shown={showGaps}
-        data-lines={lines.length}
-        data-pauses={data.pauses.length}
-        className="h-[max(360px,calc(100dvh-22rem))] w-full [:fullscreen_&]:h-[calc(100dvh-12rem)]"
-      />
+      <div {...hostAttributes} className="h-[max(360px,calc(100dvh-22rem))] w-full [:fullscreen_&]:h-[calc(100dvh-12rem)]" />
     </div>
+    )}
     </ChartWorkspace>
   );
 }
