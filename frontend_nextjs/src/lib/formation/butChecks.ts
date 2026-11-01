@@ -98,6 +98,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('BUT-06', flag(closedBeyondB(bars, s)));
   const rD = d ? retraceXA(s, d.price) : null;
   add('BUT-07', flag(d !== null && outward(es, d.price) >= outward(es, levelXA(s, 1 + P.dExtension))), rD ?? undefined);
+  const reached = checks.find((k) => k.id === 'BUT-07')!.state === 'met';
 
   // Filter: C tief, PRZ-Level am D, Zone, Signal am D, höhere und tiefere Zeiteinheit
   add('BUT-08', rC === null ? U : flag(outward(cs, c.price) >= outward(cs, levelAB(s, P.cStrong))), rC ?? undefined);
@@ -109,7 +110,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('BUT-10', ext === null ? U : flag(ext <= P.nearAtr), ext ?? undefined);
   const inner = atrDistance(abcd.level1, dTarget, atr);
   add('BUT-11', inner === null ? U : flag(inner <= HARMONIC_PARAMS.nearAtr), inner ?? undefined);
-  add('BUT-12', flag(zonesNear(env, tf, s, dTarget, 0).length > 0));
+  add('BUT-12', flag(zonesNear(env, tf, s, d && reached ? d.price : dTarget, 0).length > 0));
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('BUT-13', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
   const div = d ? divergenceOf(trend, es, b.idx, d.idx) : null;
@@ -118,7 +119,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('BUT-16', lowerReversal(env, tf, s));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
-  const reached = stateOf('BUT-07') === 'met';
   const drawings = drawingsOf(env, tf, s, reached);
   const withDrawings = checks.map((k) => ({
     ...k,

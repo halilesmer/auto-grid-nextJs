@@ -297,31 +297,31 @@
   },
   "BKT-02": {
     "e2e": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-30",
       "status": "passed",
       "tests": 43
     }
   },
   "BKT-03": {
     "e2e": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-30",
       "status": "passed",
       "tests": 30
     }
   },
   "BKT-04": {
     "api": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-12",
       "status": "passed",
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-30",
       "status": "passed",
-      "tests": 81
+      "tests": 75
     },
     "unit": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-11",
       "status": "passed",
       "tests": 4
     }
@@ -361,40 +361,40 @@
   },
   "BKT-09": {
     "e2e": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-30",
       "status": "passed",
       "tests": 60
     },
     "unit": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-11",
       "status": "passed",
-      "tests": 46
+      "tests": 43
     }
   },
   "BKT-10": {
     "e2e": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-30",
       "status": "passed",
-      "tests": 7
+      "tests": 9
     }
   },
   "BKT-11": {
     "api": {
-      "datum": "2026-10-12",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 9
+      "tests": 7
     },
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
       "tests": 2
     }
   },
   "BKT-12": {
     "e2e": {
-      "datum": "2026-10-30",
+      "datum": "2026-11-01",
       "status": "passed",
-      "tests": 6
+      "tests": 7
     }
   },
   "BKT-13": {
@@ -417,10 +417,15 @@
     }
   },
   "BKT-15": {
+    "api": {
+      "datum": "2026-11-01",
+      "status": "passed",
+      "tests": 7
+    },
     "e2e": {
       "datum": "2026-11-01",
       "status": "passed",
-      "tests": 8
+      "tests": 10
     }
   },
   "BOT-01": {
@@ -705,9 +710,9 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-01",
+      "datum": "2026-10-30",
       "status": "passed",
-      "tests": 4
+      "tests": 5
     },
     "unit": {
       "datum": "2026-10-11",
@@ -785,7 +790,7 @@
     "e2e": {
       "datum": "2026-11-01",
       "status": "passed",
-      "tests": 81
+      "tests": 97
     }
   },
   "FRM-08": {
@@ -820,21 +825,21 @@
     "e2e": {
       "datum": "2026-11-01",
       "status": "passed",
-      "tests": 75
+      "tests": 82
     }
   },
   "FRM-13": {
     "e2e": {
       "datum": "2026-11-01",
       "status": "passed",
-      "tests": 87
+      "tests": 94
     }
   },
   "FRM-14": {
     "e2e": {
       "datum": "2026-11-01",
       "status": "passed",
-      "tests": 82
+      "tests": 89
     }
   },
   "FRM-15": {

@@ -86,3 +86,71 @@ def test_limit_is_per_owner_and_retry_at_limit_still_succeeds(client, identities
     assert client.post(URL, json=last, headers=identities[0]).status_code == 201
     assert client.post(URL, json=payload(), headers=identities[0]).status_code == 409
     assert client.post(URL, json=payload(), headers=identities[1]).status_code == 201
+
+
+GUARD = {'enabled': True, 'mode': 'relative', 'multiplier': 3, 'bootstrap': 'manual', 'initial_spread': 0.01}
+
+
+def test_spread_guard_is_saved_and_loaded_unchanged(client, identities):
+    body = payload()
+    body['zone']['spread_guard'] = GUARD
+    created = client.post(URL, json=body, headers=identities[0])
+    assert created.status_code == 201
+    assert client.get(URL, headers=identities[0]).json()['presets'][0]['zone']['spread_guard'] == {
+        'enabled': True, 'mode': 'relative', 'multiplier': 3, 'bootstrap': 'manual', 'initial_spread': 0.01}
+
+
+@pytest.mark.parametrize('guard', [
+    {'enabled': True, 'mode': 'fixed'},
+    {'enabled': True, 'mode': 'fixed', 'max_spread': -1},
+    {'enabled': True, 'mode': 'weird', 'max_spread': 1},
+    {'enabled': True, 'mode': 'relative', 'multiplier': 3},
+    {'enabled': 'yes'},
+    'on',
+    None,
+    {'enabled': False, 'foo': 1},
+    {'enabled': True, 'mode': 'fixed', 'max_spread': 10 ** 400},
+])
+def test_invalid_spread_guard_is_rejected(client, identities, guard):
+    body = payload()
+    body['zone']['spread_guard'] = guard
+    assert client.post(URL, json=body, headers=identities[0]).status_code == 422
+
+
+def test_grid_spread_guard_with_fractal_entry_is_rejected(client, identities):
+    body = payload()
+    body['zone'].update({'entry_mode': 'fractal', 'spread_guard': {'enabled': True, 'mode': 'grid', 'grid_percent': 10}})
+    assert client.post(URL, json=body, headers=identities[0]).status_code == 422
+
+
+def test_disabled_spread_guard_and_missing_field_are_accepted(client, identities):
+    body = payload()
+    body['zone']['spread_guard'] = {'enabled': False}
+    assert client.post(URL, json=body, headers=identities[0]).status_code == 201
+    assert client.post(URL, json=payload(), headers=identities[0]).status_code == 201
+
+
+@pytest.mark.feature('BKT-15')
+def test_custom_range_with_times_is_saved(client, identities):
+    body = payload()
+    body['range'] = {'custom': {'from': '2026-10-01', 'to': '2026-10-07', 'fromTime': '08:30:00', 'toTime': '17:00:15'}}
+    created = client.post(URL, json=body, headers=identities[0])
+    assert created.status_code == 201
+    assert created.json()['preset']['range']['custom'] == {
+        'from': '2026-10-01', 'to': '2026-10-07', 'fromTime': '08:30:00', 'toTime': '17:00:15'}
+
+
+@pytest.mark.feature('BKT-15')
+@pytest.mark.parametrize('custom', [
+    {'from': '2026-10-01', 'to': '2026-10-07', 'fromTime': '8:30'},
+    {'from': '2026-10-01', 'to': '2026-10-07', 'toTime': '25:00:00'},
+    {'from': '2026-10-01', 'to': '2026-10-07', 'fromTime': '08:30:60'},
+    {'from': '2026-10-01', 'to': '2026-10-07', 'toTime': '08:30:00\n'},
+    {'from': '2026-10-01', 'to': '2026-10-07', 'toTime': '08:30:0\u0660'},
+    {'from': '2026-10-01', 'to': '2026-10-07', 'extra': '08:30:00'},
+])
+def test_custom_range_with_bad_time_or_unknown_key_is_rejected(client, identities, custom):
+    body = payload()
+    body['range'] = {'custom': custom}
+    assert client.post(URL, json=body, headers=identities[0]).status_code == 422
+
