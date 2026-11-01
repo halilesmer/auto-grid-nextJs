@@ -14,6 +14,18 @@ const eslintConfig = defineConfig([
       "no-else-return": ["error", { allowElseIf: false }],
     },
   },
+  // Es gibt einen Kerzenchart. Regel: docs/journal/2026-11-01-unified-chart-page.md
+  {
+    files: ["src/**"],
+    ignores: ["src/components/analysis/chart/ChartCore.tsx", "src/components/analysis/stats/CurveChart.tsx"],
+    rules: {
+      "no-restricted-imports": ["error", { paths: [{
+        name: "lightweight-charts",
+        importNames: ["createChart"],
+        message: "Kerzencharts laufen über ChartCore. Regel: docs/journal/2026-11-01-unified-chart-page.md",
+      }] }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
