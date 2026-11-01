@@ -100,6 +100,14 @@ export interface LiveData {
   entries: TradeEntry[];
 }
 
+/**
+ * Live-Trades des Zeitraums [from, to): erst vollständig gepaart (das Archiv liefert die Vorgeschichte offener
+ * Positionen), dann nur Trades, deren Ausstieg im Zeitraum liegt. Die Einstiege (offene Positionen) bleiben.
+ */
+export function pairLive(pairing: LiveData, from: number, to: number): LiveData {
+  return { trades: pairing.trades.filter((trade) => trade.exitTime >= from && trade.exitTime < to), entries: pairing.entries };
+}
+
 export function toLite(trade: Trade): TradeLite {
   return {
     side: trade.side, magic: trade.magic, volume: trade.volume, entryTime: trade.entryTime, entryPrice: trade.entryPrice,

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import type { Trade } from '../../src/lib/analysis/tradePairing';
-import { buildSymbolRows, DEFAULT_TOLERANCE, flatZone, maxDrawdownOf, pairByOrder, type CollectedRun, type TradeLite } from '../../src/lib/backtest/liveCompare';
+import { pairTrades, type Deal, type Trade } from '../../src/lib/analysis/tradePairing';
+import { buildSymbolRows, pairLive, DEFAULT_TOLERANCE, flatZone, maxDrawdownOf, pairByOrder, type CollectedRun, type TradeLite } from '../../src/lib/backtest/liveCompare';
 import { DEFAULT_RUN_SETTINGS } from '../../src/lib/backtest/runSettings';
 
 const T0 = 1_760_000_040; // volle Minute
@@ -99,4 +99,23 @@ test('Fehlt ein Trade in der Mitte, werden die Trades davor und danach richtig g
   const result = pairByOrder(live, backtest);
   expect(result.pairs.map((p) => [p.live.net, p.backtest.net])).toEqual([[1, 4], [3, 5]]);
   expect(result.unmatchedLive.map((trade) => trade.net)).toEqual([2]);
+});
+
+test('Live-Trades mit Ausstieg vor dem Zeitraum zählen nicht: Archiv-Deals → Paarung → Zeitraum → Kennzahl', { tag: '@BKT-14' }, () => {
+  const t = 1_760_000_040;
+  const deal = (ticket: number, time: number, type: number, entry: number, volume: number, profit: number): Deal => ({
+    ticket, order: ticket, position_id: 1, time, time_msc: time * 1000, type, entry, magic: 200001, symbol: 'EURUSD', volume, price: 1.1,
+    profit, commission: 0, swap: 0, fee: 0, comment: '', reason: 5,
+  });
+  // Eine Position, zwei Teilausstiege je 5: bei t+60 (vor dem Zeitraum) und bei t+180 (im Zeitraum [t+120, t+240))
+  const deals = [deal(1, t, 0, 0, 1, 0), deal(2, t + 60, 1, 1, 0.5, 5), deal(3, t + 180, 1, 1, 0.5, 5)];
+  const all = pairTrades(deals, [], null);
+  expect(all.trades).toHaveLength(2);
+  const live = pairLive(all, t + 120, t + 240);
+  expect(live.trades.map((x) => x.exitTime - t)).toEqual([180]);
+  expect(live.entries).toBe(all.entries);
+  const [row] = buildSymbolRows([run([], { from: t + 120, to: t + 240 })], live, DEFAULT_TOLERANCE);
+  expect(row.live).toMatchObject({ trades: 1, net: 5 });
+  // Obergrenze ausgeschlossen
+  expect(pairLive(all, t + 120, t + 180).trades).toHaveLength(0);
 });

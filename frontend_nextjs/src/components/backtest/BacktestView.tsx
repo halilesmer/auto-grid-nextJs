@@ -19,6 +19,7 @@ import { useFormat, useT, type MessageKey } from '@/i18n';
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import { proposeCommission } from '@/lib/backtest/commission';
 import type { RunParams } from '@/lib/backtest/protocol';
+import { spreadHistoryNote } from '@/lib/backtest/spreadHistoryNote';
 import type { CsvImport } from '@/services/csvImportApi';
 import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/serverTime';
 import { insertSetup } from '@/lib/symbolSetups';
@@ -230,6 +231,8 @@ export function BacktestView() {
   const run = () => {
     if (!activeId || !accountId || !zone || !symbol || bounds.from === null || blockedKey) return;
     const spread: SpreadSetting = form.spreadMode === 'candle' ? { mode: 'candle' } : { mode: form.spreadMode, points: form.spreadPoints };
+    // Live lernt der relative Spread-Schutz je Symbol gemeinsam; der Lauf rechnet dieses Setup allein
+    const spreadNote = spreadHistoryNote(zone, [...setups.filter((s) => s.id !== activeId).map((s) => s.zone), ...(zones ?? [])]);
     const params: RunParams = {
       accountId,
       zone: { ...zone },
@@ -247,6 +250,7 @@ export function BacktestView() {
       path: form.path,
       startCapital: form.startCapital,
       zoneLabel,
+      notes: spreadNote ? [spreadNote] : undefined,
     };
     start(accountId, { setupId: activeId, params, unsaved, currency, sourceLabel: csvImport ? t('backtest.data.csv', { symbol: csvImport.symbol, tf: csvImport.timeframe, from: csvImport.first_t === null ? '—' : fmt.mt5DateTime(csvImport.first_t), to: csvImport.last_t === null ? '—' : fmt.mt5DateTime(csvImport.last_t) }) : t('backtest.data.mt5') });
   };
