@@ -278,12 +278,13 @@ export function ChartCore({
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        fontFamily: 'var(--font-geist-mono), ui-monospace, monospace',
+        // Das Layout von /formasyon ist die Vorlage: es behält die Schrift und die Ränder des Charts
+        ...(overlayLayout ? {} : { fontFamily: 'var(--font-geist-mono), ui-monospace, monospace' }),
         fontSize: 11,
         panes: { separatorColor: 'transparent' },
       },
       timeScale: { timeVisible: true, secondsVisible: false },
-      rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } },
+      ...(overlayLayout ? {} : { rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } } }),
     });
     const candles = chart.addSeries(CandlestickSeries, { borderVisible: false, priceLineVisible: true });
     const balanceSeries = hasCurves ? chart.addSeries(AreaSeries, {
@@ -294,6 +295,9 @@ export function ChartCore({
       lineColor: '#22c55e', topColor: 'rgba(34,197,94,0.22)', bottomColor: 'rgba(34,197,94,0.01)',
       lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
     }, 1) : null;
+    const margins = marginsForRef.current;
+    // Vor dem RSI setzen: sein Bereich übernimmt die Ränder der Preisachse beim Anlegen
+    if (margins) candles.priceScale().applyOptions({ scaleMargins: margins(el.clientWidth) });
     const rsiSeries = hasRsi ? chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, 1) : null;
     if (rsiSeries) {
       chart.panes()[0]?.setStretchFactor(5);
@@ -312,7 +316,6 @@ export function ChartCore({
     candles.attachPrimitive(fractalMarks);
     candles.attachPrimitive(trend);
     markersApi.current = createSeriesMarkers(candles, []);
-    const margins = marginsForRef.current;
     const attached = createChartBinding(chart, candles, el, margins ? () => margins(el.clientWidth) : undefined);
     const readyFrame = requestAnimationFrame(() => setScene({ binding: attached, rsi: rsiSeries }));
     chartRef.current = chart;
@@ -352,7 +355,7 @@ export function ChartCore({
       shownRunning.current = null;
       runningCount.current = 0;
     };
-  }, [hasCurves, hasRsi]);
+  }, [hasCurves, hasRsi, overlayLayout]);
 
   // Der Abstand für die Bedienung auf dem Chart hängt von der Breite ab
   useEffect(() => {
