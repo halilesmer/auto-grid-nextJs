@@ -65,3 +65,4 @@ Measurement for the limit (2026-10-31, Mac to GitHub): `git fetch` without chang
 - Exception text of `subprocess` has the full command. Do not put it in a log or a response if an argument can have a secret.
 - After a kill, look for what the process could not clean up: lock files, a moved `HEAD`, a half-done stash.
 - A test limit near the normal run time gives a flaky test. Find the cause before a rerun.
+- Defect 2026-11-01: `wait_until_gone` in `test_self_updater_timeout.py` failed in CI on PR #271 with `psutil.NoSuchProcess`. Cause: the process stopped between `psutil.pid_exists` and `psutil.Process`. The test helper had the race, not the updater. `_kill_process_tree` already catches this error. Fix: the helper asks `psutil.Process` once and treats `NoSuchProcess` as "gone". With `pid_exists` forced to true and a stopped process, the old helper raised this error.

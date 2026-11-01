@@ -90,7 +90,10 @@ def vps(tmp_path, monkeypatch):
 def wait_until_gone(pid):
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline:
-        if not psutil.pid_exists(pid) or psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+        try:
+            if psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+                return True
+        except psutil.NoSuchProcess:
             return True
         time.sleep(0.05)
     return False
