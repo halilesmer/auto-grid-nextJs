@@ -7,7 +7,6 @@ import { useAccountStore } from './useAccountStore';
 import { Metrics, LiveData } from './types';
 import { toWsUrl } from '@/lib/connectionCode';
 import { getConnection } from './useConnectionStore';
-import { useIsAdmin } from './useAuthStore';
 import { t } from '@/i18n';
 
 const MAX_RETRIES = 10;
@@ -28,12 +27,9 @@ function buildWsUrl(accountId: string | null): string | null {
 
 /**
  * `selectedAccount`: akışın hesabı; değişince soket yeniden açılır.
- * `always`: hesap seçilmeden de bağlan (/chart, /formasyon) → worker ilk hesabı gönderir
- * (yalnızca yönetici; kullanıcı hesap seçmeden bağlanamaz, worker 1008 ile kapatır).
  */
 export function useWebSocketManager(
   selectedAccount: string | null,
-  { always = false }: { always?: boolean } = {},
 ): {
   isConnected: boolean;
   connect: () => void;
@@ -45,8 +41,7 @@ export function useWebSocketManager(
   const isMountedRef = useRef(true);
   const connectRef = useRef<() => void>(() => {});
   const [isConnected, setIsConnected] = useState(false);
-  const isAdmin = useIsAdmin();
-  const wantsStream = Boolean(selectedAccount) || (always && isAdmin);
+  const wantsStream = Boolean(selectedAccount);
 
   // Stable refs to store actions (avoid selector reference changes)
   const updateMetricsRef = useRef(useBotRuntimeStore.getState().updateMetrics);
