@@ -70,12 +70,14 @@ Rejected:
 Owner's decision, not changed by Claude: auto mode as the default. It is a security setting.
 
 ## Verification
-The hook is verified on the Mac. A new desktop session called `AskUserQuestion`, got the refusal text, and then asked in plain text. The phone is not verified. Only the owner has the phone.
+The hook is verified on the Mac. A new desktop session called `AskUserQuestion`, got the refusal text, and then asked in plain text.
+
+The owner tested the plain-text question on an iPhone on 2026-11-01. The question showed in the session, and the typed answer `Ja` got to the session. Android is not verified.
 
 ## Open points
 - [ ] Do the first approval on the phone with the fallback, and record the result.
 - [ ] Check if the plan card and the "An Koordinator" dialog work on the phone. No test exists.
-- [ ] Check if a plain-text question and a typed answer work on the phone.
+- [x] Check if a plain-text question and a typed answer work on the phone. Passed on an iPhone, 2026-11-01.
 - [ ] Check if the owner can change the mode from Plan to Auto on the phone, and if a typed `ja` then continues the work.
 - [ ] Test `claude remote-control --spawn worktree --permission-mode auto` for a new session from the phone. Check if the session shows in the desktop app and if the coordinator mod loads.
 
