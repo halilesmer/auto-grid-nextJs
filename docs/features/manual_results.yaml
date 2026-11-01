@@ -223,11 +223,6 @@ MET-01:
   datum: '2026-09-23'
   notiz: 'Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen,
     5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen'
-MET-02:
-  status: bestanden
-  datum: '2026-09-23'
-  notiz: 'v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen;
-    RSI ''--'' im Fallback-Modus'
 MET-03:
   status: bestanden
   datum: '2026-09-23'

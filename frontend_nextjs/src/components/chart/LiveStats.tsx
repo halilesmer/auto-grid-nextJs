@@ -12,8 +12,8 @@ function profitClass(profit: number) {
   return 'text-foreground';
 }
 
-/** Kennzahlen aus dem Live-Stream (Preis, RSI, P/L, Positionen): /formasyon und Chart-Tab der Analyse. */
-export function LiveStats({ digits }: { digits?: number } = {}) {
+/** Kennzahlen aus dem Live-Stream (Preis, RSI, P/L, Positionen) im Chart-Tab der Analyse. */
+export function LiveStats({ digits }: { digits?: number }) {
   const t = useT();
   const fmt = useFormat();
   const metrics = useBotRuntimeStore((s) => s.metrics);
