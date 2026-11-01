@@ -185,11 +185,27 @@ export class PathBroker extends SimBroker {
    * Position. Eine Marke, deren Bedingung am Ausgangskurs schon gilt, löst sofort aus (immediate).
    */
   nextTrigger(from: number, to: number): Trigger | null {
+    return this.scan(from, to, null);
+  }
+
+  /**
+   * Wie nextTrigger, aber für eine Kurslücke von `from` (letzter Bid) nach `to` (neuer Bid, Spread der neuen Kerze
+   * schon gesetzt): eine Marke zählt nur, wenn ihre Bedingung am neuen Quote gilt. Der alte Bid kennt den neuen
+   * Spread nicht; ohne diese Prüfung gälte eine Marke an einem Quote, den es nie gab. Die Reihenfolge entlang der
+   * Lücke bleibt die von nextTrigger.
+   */
+  nextGapTrigger(from: number, to: number): Trigger | null {
+    return this.scan(from, to, to);
+  }
+
+  /** `holdsAt`: nur Marken, deren Bedingung bei diesem Bid gilt; null = keine Einschränkung */
+  private scan(from: number, to: number, holdsAt: number | null): Trigger | null {
     const up = to > from;
     const down = to < from;
     const order = this.slFirst ? { sl: 0, tp: 1, fill: 2 } : { tp: 0, sl: 1, fill: 2 };
     const pick: { best: Trigger | null } = { best: null };
     const consider = (kind: Trigger['kind'], ticket: number, atOrAbove: boolean, mark: number) => {
+      if (holdsAt !== null && !(atOrAbove ? holdsAt >= mark : holdsAt <= mark)) return;
       let bid: number;
       let immediate = false;
       if (atOrAbove ? from >= mark : from <= mark) {
