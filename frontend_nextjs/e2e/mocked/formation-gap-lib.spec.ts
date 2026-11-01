@@ -65,7 +65,7 @@ frm('Wie der Worker: Bereich ersetzt einen ganzen fehlenden Kerzenplatz', () => 
 
 frm('Bereich, der nur an die Nachbarkerzen grenzt, ist keine Lücke', () => {
   // from == Zeit der späteren, to == Zeit der früheren Kerze: halb offen, trennt nichts
-  const bars = viewBars(PEAK, [{ from: 3 * H4, to: 4 * H4 }, { from: 0, to: H4 }]);
+  const bars = viewBars(PEAK, [{ from: 4 * H4, to: 5 * H4 }, { from: -H4, to: 0 }]);
   expect(fractalIndices(bars, 'resistance')).toEqual([2]);
 });
 
