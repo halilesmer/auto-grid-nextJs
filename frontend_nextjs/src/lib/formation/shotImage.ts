@@ -43,7 +43,7 @@ function readColors(): Colors {
 
 const stateColor = (state: ShotState, colors: Colors): string => {
   if (state === 'met' || state === 'clear') return colors.success;
-  if (state === 'unmeasurable') return colors.muted;
+  if (state === 'unmeasurable' || state === 'inactive') return colors.muted;
   return colors.danger;
 };
 
@@ -135,6 +135,9 @@ function drawStateIcon(g: Ctx, input: { state: ShotState; x: number; y: number; 
   } else if (state === 'unmet') {
     g.lineWidth = 1.5;
     g.roundRect(x + 4.5, y + 4.5, 7, 7, 1.5);
+  } else if (state === 'inactive') {
+    g.moveTo(x + 11, y + 5);
+    g.lineTo(x + 5, y + 11);
   } else {
     g.moveTo(x + 4.5, y + 8);
     g.lineTo(x + 11.5, y + 8);

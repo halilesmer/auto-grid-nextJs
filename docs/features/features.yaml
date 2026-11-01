@@ -1870,7 +1870,8 @@ kategorien:
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (Gartley gültig mit drei Gruppen und allen Zeilenzuständen, Bat im Aufbau mit Hinweis auf D).
           - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-19) ausführen (Kurztexte stimmen mit der Messung überein).
-        erwartet: Die Liste zeigt das Urteil der Bibliothek, die Zähler stehen als x/y, jede Zeile trägt ein beschriftetes Symbol, die Formation im Aufbau nennt D und der Chart führt D als offen. GAR-04 nennt 0,618, BAT-05 nennt 0,5, CDT-06 den Trend beim Anlauf zu H2; BUT-12, CRB-12 und CYP-09 sagen „in einer Zone“.
+          - Playwright-Test e2e/mocked/formation-crb-lib.spec.ts (@FRM-19) ausführen (Bedingungen der anderen Crab-Variante, Zählung im Bild).
+        erwartet: Die Liste zeigt das Urteil der Bibliothek, die Zähler stehen als x/y, jede Zeile trägt ein beschriftetes Symbol, die Formation im Aufbau nennt D und der Chart führt D als offen. GAR-04 nennt 0,618, BAT-05 nennt 0,5, CDT-06 den Trend beim Anlauf zu H2; BUT-12, CRB-12 und CYP-09 sagen „in einer Zone“. Bei einer Crab oder Deep Crab tragen die Bedingungen der anderen Variante das Symbol / und „gilt nicht“, bleiben an ihrem Platz, zählen weder in Pflicht noch in Verstärkung noch im Hinweis auf eine ungültige Formation, tragen einen Tooltip und erscheinen in der Legende; eine gültige Deep Crab zeigt bei CRB-07 kein rotes Kreuz und Pflicht 5/5.
 
       - id: FRM-20
         titel: "Seite Formasyon: Chart mit Zeichnungen"

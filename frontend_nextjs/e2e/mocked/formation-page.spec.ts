@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
+import { harmonic } from '../fixtures/formation-harmonic';
+import { H4, barsOf } from '../fixtures/formation-rows';
 import { msg, type MessageKey } from '../fixtures/i18n';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
@@ -16,21 +18,24 @@ const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 
 const fixtureBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
 /** Kerzen der Fixture, die zum Zeitpunkt `now` geschlossen sind */
-const rowsUntil = (now: number) => fixtureBars.filter((b) => b.time + 14400 <= now).map((b) => [b.time, b.open, b.high, b.low, b.close]);
+const rowsUntil = (now: number, bars = fixtureBars) => bars.filter((b) => b.time + 14400 <= now).map((b) => [b.time, b.open, b.high, b.low, b.close]);
 /** Mit diesem Zeitpunkt steht in der Fixture ein ABCD im Aufbau: C ist da, das Ziel von D noch nicht erreicht */
 const FORMING_NOW = 1761192000;
+/** Verkauf-Deep-Crab mit B bei 0.967, gültig zum Zeitpunkt DEEP_CRAB_NOW (FRM-14) */
+const deepCrabBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/crb-deep-h4-02.json', 'utf-8'))).bars;
+const DEEP_CRAB_NOW = Date.UTC(2025, 10, 26, 8) / 1000;
 
 /** H4 aus der Fixture, M15 mit einer Kerze (legt den Suchzeitpunkt fest), die übrigen Zeiteinheiten leer */
-function serveFixture(worker: MockWorker, now: number) {
+function serveFixture(worker: MockWorker, now: number, bars = fixtureBars) {
   // Symbol der Zone = Symbol der Fixture, sonst passt die Pip-Größe (GAR-03) nicht zu den Kerzen
   worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
-  const rows = rowsUntil(now);
+  const rows = rowsUntil(now, bars);
   const last = rows[rows.length - 1];
   worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[now - 900, last[4], last[4], last[4], last[4]]] };
 }
 
-async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW) {
-  serveFixture(worker, now);
+async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW, bars = fixtureBars) {
+  serveFixture(worker, now, bars);
   await page.goto(url);
   await expect(page.getByTestId('formation-toolbar')).toBeVisible();
   // Die Suche ist fertig, wenn ihre Rechenzeit am Seitenelement steht
@@ -113,6 +118,41 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     const row = page.locator('[data-testid="check-row"][data-rule-id="ABCD-16"]');
     await expect(row).toHaveAttribute('data-state', 'unmeasurable');
     await expect(row.getByRole('img')).toHaveAttribute('aria-label', msg('formation.state.unmeasurable'));
+  });
+
+  test('Gültige Deep Crab: Crab-Bedingungen sind grau mit „gilt nicht“, kein rotes Kreuz, Pflicht zählt ohne sie', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=CRB`, DEEP_CRAB_NOW, deepCrabBars);
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
+    const list = page.getByTestId('formation-checklist');
+    for (const id of ['CRB-06', 'CRB-07', 'CRB-10']) {
+      const row = list.locator(`[data-testid="check-row"][data-rule-id="${id}"]`);
+      await expect(row).toHaveAttribute('data-state', 'inactive');
+      await expect(row.getByRole('img')).toHaveAttribute('aria-label', msg('formation.state.inactive'));
+      await expect(row).toContainText(msg('formation.mark.inactive'));
+    }
+    await expect(list.locator('[data-rule-id="CRB-08"]')).toHaveAttribute('data-state', 'met');
+    await expect(list.locator('[data-state="excluded"]')).toHaveCount(0);
+    await expect(list.getByTestId('score-required')).toContainText('5/5');
+    await expect(list.getByTestId('score-bonus')).toContainText('/6');
+    await expect(list).toContainText(msg('formation.legend.inactive'));
+    await list.locator('[data-rule-id="CRB-07"]').getByText(msg('formation.mark.inactive')).hover();
+    await expect(page.getByText(msg('formation.mark.inactive.hint'))).toBeVisible();
+  });
+
+  test('Ungültige Crab mit fester Variante: der Hinweis nennt nur die verfehlte Pflicht, nicht die Bedingungen der anderen Variante', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    // Crab mit B an 0.6, aber C nur an 0.167 von A → B: CRB-02 fehlt, die inaktive Pflicht CRB-08 ist ebenfalls ☐
+    const bars = barsOf(harmonic([100, 130, 112, 115, 81.4], [10, 40, 6, 3]), H4, 118_000 * H4);
+    await openPage(page, worker, `${URL}&form=CRB`, bars[bars.length - 1].time + H4, bars);
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'invalid');
+    const list = page.getByTestId('formation-checklist');
+    await expect(list.locator('[data-rule-id="CRB-08"]')).toHaveAttribute('data-state', 'inactive');
+    await expect(list.getByText(msg('formation.note.invalid', { ids: 'CRB-02' }), { exact: true })).toBeVisible();
+  });
+
+  test('Ohne inaktive Zeile fehlt die Legendenzeile dazu', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect(page.getByTestId('formation-checklist')).toContainText(msg('formation.legend.clear'));
+    await expect(page.getByTestId('formation-checklist')).not.toContainText(msg('formation.legend.inactive'));
   });
 });
 

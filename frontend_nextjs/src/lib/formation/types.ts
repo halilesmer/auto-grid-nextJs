@@ -52,6 +52,8 @@ export interface Check {
   /** gemessener Wert, wenn die Bedingung eine Zahl vergleicht */
   value?: number;
   drawings: string[];
+  /** Nur Anzeige: die Bedingung gehört zu einer anderen Variante der Formation. Der Zustand bleibt gemessen, die Zeile zählt nicht mit */
+  inactive?: true;
 }
 
 export interface Candidate {

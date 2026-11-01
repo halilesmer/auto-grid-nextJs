@@ -3,7 +3,7 @@ import { ruleText } from './ruleTexts';
 import type { ScanHit } from './scan';
 import type { Check, RuleKind, Verdict } from './types';
 
-export type ShotState = 'met' | 'unmet' | 'excluded' | 'clear' | 'unmeasurable';
+export type ShotState = 'met' | 'unmet' | 'excluded' | 'clear' | 'unmeasurable' | 'inactive';
 
 export interface ShotRow {
   state: ShotState;
@@ -33,6 +33,7 @@ const GROUPS: RuleKind[] = ['required', 'bonus', 'exclusion'];
 
 /** Wie in der Checkliste: Ausschlüsse sind Ereignisse, „erfüllt“ heißt, das Ereignis liegt vor. */
 const rowState = (c: Check): ShotState => {
+  if (c.inactive) return 'inactive';
   if (c.state === 'unmeasurable') return 'unmeasurable';
   if (c.kind === 'exclusion') return c.state === 'met' ? 'excluded' : 'clear';
   return c.state;
@@ -50,11 +51,14 @@ export function buildShotData(input: {
 }): ShotData {
   const { hit, symbol, stamp, locale, t, number } = input;
   const { candidate } = hit;
-  const required = candidate.checks.filter((c) => c.kind === 'required');
-  const bonus = candidate.checks.filter((c) => c.kind === 'bonus');
+  const counted = candidate.checks.filter((c) => !c.inactive);
+  const required = counted.filter((c) => c.kind === 'required');
+  const bonus = counted.filter((c) => c.kind === 'bonus');
   const unmeasurable = required.filter((c) => c.state === 'unmeasurable').length;
   const form = t(`formation.form.${hit.form}` as MessageKey);
   const requiredScore = `${t('formation.score.required')} ${required.filter((c) => c.state === 'met').length}/${required.length}`;
+  const hasInactive = counted.length < candidate.checks.length;
+  const legendStates: ShotState[] = ['met', 'unmet', 'unmeasurable', 'excluded', ...(hasInactive ? ['inactive' as const] : [])];
   return {
     title: `${form} ${t(`formation.side.${candidate.side}` as MessageKey)} · ${symbol} · ${hit.tf}`,
     verdict: candidate.verdict,
@@ -79,7 +83,7 @@ export function buildShotData(input: {
       return rows.length === 0 ? [] : [{ title: t(`formation.group.${kind}` as MessageKey), rows }];
     }),
     footer: `Grid Robot · ${t('formation.title')}`,
-    legend: (['met', 'unmet', 'unmeasurable', 'excluded'] as const).map((state) => ({ state, label: t(`formation.state.${state}` as MessageKey) })),
+    legend: legendStates.map((state) => ({ state, label: t(`formation.state.${state}` as MessageKey) })),
   };
 }
 

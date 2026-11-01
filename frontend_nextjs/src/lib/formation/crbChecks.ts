@@ -8,6 +8,7 @@
  * Pflicht-Level und Ausschluss-Level werden ohne Pip-Toleranz geprüft.
  * Die Bedingungen beider Varianten (CRB-06 bis CRB-09, CRB-10, CRB-11) werden immer gemessen; die Crab gilt bei CRB-06 ☑ und
  * CRB-07 ☐, die Deep Crab bei CRB-08 ☑ und CRB-09 ☐, und für eine gültige Formation genügt eine der beiden Varianten.
+ * Steht die Variante fest, tragen die Bedingungen der anderen `inactive`: sie gelten nicht und zählen in der Anzeige nicht mit.
  */
 import type { FormationContext } from './context';
 import { outward } from './frz';
@@ -76,9 +77,18 @@ const mk = (id: string, state: CheckState, value?: number): Check => {
   return { id, kind, status, state, ...(value === undefined ? {} : { value }), drawings: [] };
 };
 
-/** Die Crab (CRB-06 ☑, CRB-07 ☐) oder die Deep Crab (CRB-08 ☑, CRB-09 ☐) liegt vor */
-const variantOk = (stateOf: (id: string) => CheckState): boolean =>
-  (stateOf('CRB-06') === 'met' && stateOf('CRB-07') === 'unmet') || (stateOf('CRB-08') === 'met' && stateOf('CRB-09') === 'unmet');
+type StateOf = (id: string) => CheckState;
+
+const isCrab = (stateOf: StateOf): boolean => stateOf('CRB-06') === 'met' && stateOf('CRB-07') === 'unmet';
+const isDeepCrab = (stateOf: StateOf): boolean => stateOf('CRB-08') === 'met' && stateOf('CRB-09') === 'unmet';
+const variantOk = (stateOf: StateOf): boolean => isCrab(stateOf) || isDeepCrab(stateOf);
+
+/** Bedingungen, die nur für die jeweils andere Variante gelten; ohne Variante gilt jede */
+const otherVariantIds = (stateOf: StateOf): string[] => {
+  if (isCrab(stateOf)) return ['CRB-08', 'CRB-09', 'CRB-11'];
+  if (isDeepCrab(stateOf)) return ['CRB-06', 'CRB-07', 'CRB-10'];
+  return [];
+};
 
 /** Kleinster Abstand (in ATR) zwischen dem Ziel-D und den Rückprojektionen der Strecke B → C; null ohne ATR */
 const nearestInversion = (s: XabcdShape, ratios: readonly number[], dTarget: number, atr: number | null): number | null => {
@@ -130,9 +140,11 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
   const reached = stateOf('CRB-04') === 'met';
   const drawings = drawingsOf(env, tf, s, reached);
-  const withDrawings = checks.map((k) => ({
+  const inactiveIds = otherVariantIds(stateOf);
+  const withDrawings: Check[] = checks.map((k) => ({
     ...k,
     drawings: [...new Set(drawings.filter((z) => z.rules.includes(k.id)).map((z) => z.id))],
+    ...(inactiveIds.includes(k.id) ? { inactive: true } : {}),
   }));
 
   // Bruch von B (CRB-05) und D (CRB-04) fehlen nur noch: im Aufbau

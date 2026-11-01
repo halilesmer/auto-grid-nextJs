@@ -6,7 +6,7 @@
  * D an 1.618 von X → A jenseits von X: 130 − 1.618 × 30 = 81.46; das Tief von D liegt bei 81.4 (1.62).
  * BC-Rückprojektion 3.618: 123.68 − 3.618 × 11.68 = 81.42 (0.04 vom Ziel-D); 2 und 2.618 liegen bei 100.32 und 93.10.
  * Deep Crab: B an 103 = 0.9, C an 124.54; die BC-Rückprojektion 2 liegt bei 2 × 103 − 124.54 = 81.46 = Ziel-D.
- * FRM-14 Formationserkennung: Crab
+ * FRM-14 Formationserkennung: Crab · FRM-19 Bedingungen der anderen Variante gelten nicht
  */
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
@@ -15,6 +15,8 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeCrb, checkCrbCandidate, CRB_CHECK_IDS } from '../../src/lib/formation/crbChecks';
 import { checkButCandidate } from '../../src/lib/formation/butChecks';
 import { analyzeGar } from '../../src/lib/formation/garChecks';
+import type { ScanHit } from '../../src/lib/formation/scan';
+import { buildShotData } from '../../src/lib/formation/shotData';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { END, H4, mirror, zig, type Row } from '../fixtures/formation-rows';
 import { M, N, U, atOf, chop, ctxOf, find, harmonic as harmonicWith, lowerRows, makeRun, state, wick, wickOnlyD } from '../fixtures/formation-harmonic';
@@ -362,6 +364,49 @@ test.describe('CRB: echte Kerzen', () => {
     for (const [name, iso] of [['gar-buy-h4-01', '2025-11-17T12:00'], ['gar-sell-h4-01', '2026-01-09T08:00'], ['bat-buy-h4-01', '2025-12-16T16:00'], ['cyp-buy-h4-01', '2025-12-17T00:00'], ['cyp-sell-h4-01', '2025-11-10T08:00']]) {
       expect(analyzeAt(name, iso).verdict).not.toBe('valid');
     }
+  });
+});
+
+// ---- Andere Variante -------------------------------------------------------------------------------------------
+
+const inactiveIds = (c: Candidate) => c.checks.filter((k) => k.inactive).map((k) => k.id);
+const shotOf = (candidate: Candidate) =>
+  buildShotData({ hit: { form: 'CRB', tf: 'H4', candidate } as ScanHit, symbol: 'EURUSD', stamp: '', locale: 'de', t: (key) => key, number: (v) => String(v) });
+
+test.describe('CRB: Bedingungen der anderen Variante gelten nicht', () => {
+  test('gültige Crab: Deep-Crab-Bedingungen sind inaktiv, ihre Zustände bleiben', { tag: '@FRM-19' }, () => {
+    const c = run({ H4: BASE });
+    expect(inactiveIds(c)).toEqual(['CRB-08', 'CRB-09', 'CRB-11']);
+    expect(states(c, ['CRB-08', 'CRB-09', 'CRB-11'])).toEqual([N, N, N]);
+  });
+
+  test('gültige Deep Crab: Crab-Bedingungen sind inaktiv, CRB-07 bleibt erfüllt', { tag: '@FRM-19' }, () => {
+    const c = run({ H4: DEEP });
+    expect(inactiveIds(c)).toEqual(['CRB-06', 'CRB-07', 'CRB-10']);
+    expect(states(c, ['CRB-06', 'CRB-07', 'CRB-10'])).toEqual([M, M, N]);
+  });
+
+  test('Deep Crab im Aufbau: die Variante steht fest, Crab-Bedingungen sind inaktiv', { tag: '@FRM-19' }, () => {
+    const c = analyzeAt('crb-deep-h4-01', '2026-03-25T20:00');
+    expect(c.verdict).toBe('forming');
+    expect(inactiveIds(c)).toEqual(['CRB-06', 'CRB-07', 'CRB-10']);
+  });
+
+  test('ohne gültige Variante ist keine Bedingung inaktiv', { tag: '@FRM-19' }, () => {
+    expect(inactiveIds(run({ H4: B_BUT }))).toEqual([]);
+    expect(inactiveIds(run({ H4: B_SHALLOW }))).toEqual([]);
+    expect(inactiveIds(run({ H4: B_BEYOND_X }))).toEqual([]);
+  });
+
+  test('Bild: inaktive Zeilen zählen nicht, tragen ihren Zustand und stehen in der Legende', { tag: '@FRM-19' }, () => {
+    // Pflicht ohne CRB-06: 01, 02, 04, 05, 08. Verstärkung ohne CRB-10: 11, 13, 14, 15 von 11 bis 16
+    const deep = shotOf(run({ H4: DEEP }));
+    expect(deep.scores).toEqual(['formation.score.required 5/5', 'formation.score.bonus 4/6']);
+    expect(deep.groups.flatMap((g) => g.rows).filter((r) => r.state === 'inactive')).toHaveLength(3);
+    expect(deep.legend.map((item) => item.state)).toEqual(['met', 'unmet', 'unmeasurable', 'excluded', 'inactive']);
+    // Pflicht ohne CRB-08: 01, 02, 04, 05, 06. Verstärkung ohne CRB-11: 10, 13, 14, 15 von 10, 12 bis 16
+    expect(shotOf(run({ H4: BASE })).scores).toEqual(['formation.score.required 5/5', 'formation.score.bonus 4/6']);
+    expect(shotOf(run({ H4: B_BUT })).legend.map((item) => item.state)).toEqual(['met', 'unmet', 'unmeasurable', 'excluded']);
   });
 });
 

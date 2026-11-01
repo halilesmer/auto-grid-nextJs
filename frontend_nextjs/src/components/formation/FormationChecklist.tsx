@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Check as CheckIcon, Minus, X } from 'lucide-react';
+import { Check as CheckIcon, Minus, Slash, X } from 'lucide-react';
 import { VerdictPill } from '@/components/formation/CandidateList';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
@@ -12,10 +12,11 @@ import { cn } from '@/lib/utils';
 
 const GROUPS: RuleKind[] = ['required', 'bonus', 'exclusion'];
 
-type RowState = 'met' | 'unmet' | 'excluded' | 'clear' | 'unmeasurable';
+type RowState = 'met' | 'unmet' | 'excluded' | 'clear' | 'unmeasurable' | 'inactive';
 
 /** Ausschlüsse sind Ereignisse: „erfüllt“ heißt, das Ereignis liegt vor (ausgelöst) */
 const rowState = (c: Check): RowState => {
+  if (c.inactive) return 'inactive';
   if (c.state === 'unmeasurable') return 'unmeasurable';
   if (c.kind === 'exclusion') return c.state === 'met' ? 'excluded' : 'clear';
   return c.state;
@@ -27,6 +28,7 @@ const ICON_STYLE: Record<RowState, string> = {
   unmet: 'border-danger bg-danger/10 text-danger',
   excluded: 'border-danger bg-danger/20 text-danger',
   unmeasurable: 'border-dashed border-muted-foreground text-muted-foreground',
+  inactive: 'border-border bg-muted text-muted-foreground',
 };
 
 const GLYPH: Record<RowState, ReactNode> = {
@@ -35,6 +37,7 @@ const GLYPH: Record<RowState, ReactNode> = {
   unmet: <span className="block h-2.5 w-2.5 rounded-[2px] border-[1.5px] border-current" />,
   excluded: <X size={13} strokeWidth={3} />,
   unmeasurable: <Minus size={13} strokeWidth={3} />,
+  inactive: <Slash size={13} strokeWidth={3} />,
 };
 
 function StateIcon({ state }: { state: RowState }) {
@@ -60,15 +63,17 @@ export function FormationChecklist({
   const locale = useLocale();
   const { number } = useFormat();
   const { candidate } = hit;
-  const required = candidate.checks.filter((c) => c.kind === 'required');
-  const bonus = candidate.checks.filter((c) => c.kind === 'bonus');
+  const counted = candidate.checks.filter((c) => !c.inactive);
+  const hasInactive = counted.length < candidate.checks.length;
+  const required = counted.filter((c) => c.kind === 'required');
+  const bonus = counted.filter((c) => c.kind === 'bonus');
   const requiredMet = required.filter((c) => c.state === 'met').length;
   const requiredUnmeasurable = required.filter((c) => c.state === 'unmeasurable').length;
   const bonusMet = bonus.filter((c) => c.state === 'met').length;
   const share = (n: number) => (required.length === 0 ? 0 : (n / required.length) * 100);
   const title = `${t(`formation.form.${hit.form}` as MessageKey)} ${t(`formation.side.${candidate.side}` as MessageKey)}`;
   const open = candidate.points[FINAL_POINT[hit.form]] === undefined;
-  const blockers = candidate.checks.filter((c) => (c.kind === 'exclusion' ? c.state === 'met' : c.kind === 'required' && c.state === 'unmet')).map((c) => c.id);
+  const blockers = counted.filter((c) => (c.kind === 'exclusion' ? c.state === 'met' : c.kind === 'required' && c.state === 'unmet')).map((c) => c.id);
   let note: string | null = null;
   if (candidate.verdict === 'forming' && open) note = t('formation.note.forming', { point: FINAL_POINT[hit.form] });
   else if (candidate.verdict === 'invalid' && blockers.length > 0) note = t('formation.note.invalid', { ids: blockers.join(', ') });
@@ -125,11 +130,16 @@ export function FormationChecklist({
                 >
                   <StateIcon state={state} />
                   <span className="min-w-0">
-                    <span className={cn('block text-xs', state === 'unmeasurable' && 'text-muted-foreground')}>
+                    <span className={cn('block text-xs', (state === 'unmeasurable' || state === 'inactive') && 'text-muted-foreground')}>
                       {ruleText(locale, c.id) ?? c.id}
                       {c.status !== 'confirmed' && (
                         <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
                           <span className="ml-1 cursor-help rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
+                        </Tooltip>
+                      )}
+                      {state === 'inactive' && (
+                        <Tooltip content={t('formation.mark.inactive.hint')} role="presentation">
+                          <span className="ml-1 cursor-help whitespace-nowrap rounded-[5px] bg-muted px-1 text-[10px] text-muted-foreground">{t('formation.mark.inactive')}</span>
                         </Tooltip>
                       )}
                     </span>
@@ -147,6 +157,7 @@ export function FormationChecklist({
         <span>{t('formation.legend.assumption')}</span>
         <span>{t('formation.legend.unmeasurable')}</span>
         <span>{t('formation.legend.clear')}</span>
+        {hasInactive && <span>{t('formation.legend.inactive')}</span>}
       </div>
     </div>
   );
