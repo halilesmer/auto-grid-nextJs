@@ -483,11 +483,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Bot laufen lassen, Werte mit MT5 vergleichen.
   - **Erwartet:** Werte stimmen mit MT5 überein und aktualisieren sich.
   - 📝 Claude: Kacheln = Bot-Metriken (97,199 → $97.20, P/L −25,68, 14 Positionen, 5 Orders, Market open). Hinweis: Preis mit 2 statt 3 Nachkommastellen
-- [x] **MET-02** Live-Werte am Chart (Preis, RSI, P/L, Positionen) — 🖥️ e2e ✅ 2026-11-01 · 👤 manuell ✅ 2026-09-23
-  - Die Analyse-Seite zeigt im Setup-Modus Preis, RSI, P/L und Positionen aus den WebSocket-METRICS neben dem Chart. Fehlt der RSI in den Metriken (Bot-Datei), bleibt die Anzeige stabil.
+- [x] **MET-02** Live-Werte am Chart (Preis, RSI, P/L, Positionen) — 🖥️ e2e ✅ 2026-11-01
+  - Die Analyse-Seite zeigt im Setup-Modus Preis, RSI, P/L und Positionen aus den WebSocket-METRICS über dem Chart.
   - **Prüfung:** /chart im Setup-Modus öffnen, während der Bot läuft.
   - **Erwartet:** Die Werte erscheinen und aktualisieren sich aus dem Stream.
-  - 📝 v0.7.59 live: /formasyon zeichnet Kerzen, Preis 97,109, P/L −25,16, 14 Positionen; RSI '--' im Fallback-Modus
 - [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-11-01 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jeder Verbindung jede Sekunde Preis, RSI, MACD, P/L, Positionen für ihr Konto (?account_id=, ohne Parameter das erste Konto) und dessen Zone 0; jede METRICS-Nachricht trägt account_id (siehe ACC-10). RSI/MACD gibt es nur, wenn das MT5-Terminal des API-Prozesses an diesem Konto angemeldet ist; sonst Preis/P/L aus der Metrikdatei des Bots.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.

@@ -37,7 +37,7 @@ The `Trend` button is missing on `/formasyon` and `/backtest`. Only the two `/ch
 | Backtest | Input and report stay a normal page. The chart opens as a full page. A switch selects the run for "both paths". |
 | System RSI | The RSI(7) of the formations stays, because the detection reads it. |
 
-Approved design: https://claude.ai/artifact/4mXjBGcm6mby1MNghnMT4x
+Approved design (the owner must give access): https://claude.ai/artifact/4mXjBGcm6mby1MNghnMT4x. The table above records its content.
 
 ## Steps
 
@@ -66,12 +66,14 @@ Each step is one PR. The steps run in sequence because they change the same file
 | `frontend_nextjs/src/store/useWebSocketManager.ts` | Removed the `always` option. `ChartViewer` was its only caller. |
 | `frontend_nextjs/src/i18n/messages/chart.ts` | Removed the `chart.viewer.*` keys. |
 | `frontend_nextjs/src/components/chart/LiveStats.tsx` | Removed the default parameter. Corrected the comment. |
-| `docs/features/features.yaml` | MET-02 and UI-06 point to `LiveStats.tsx`. MET-02 describes what its test checks. |
+| `docs/features/features.yaml` | MET-02 points to `LiveStats.tsx` and describes what its test checks. UI-06 no longer names a chart file, because its test reads the dashboard only. |
+| `docs/features/manual_results.yaml` | Removed the manual pass of MET-02. It applied to the old check on `/formasyon`. |
 
 The MET-02 test opens `/chart` and reads the live values. It did not touch `ChartViewer`, so the test stays unchanged.
 
 ## Open points
 - [ ] S2 to S6.
+- [ ] Do the manual test of MET-02 after S4, because S4 moves the live values into the floating card.
 - [ ] Trap for S6: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
 - [ ] Add the feature `UI-10` and its e2e test before S4.
 - [ ] `.claude/skills/ui-design/SKILL.md` §8 still names `ChartViewer.tsx`. Rule files change only on request of the project owner (`hooks/RULES.md` §6.6). Ask the owner.
@@ -84,6 +86,8 @@ The MET-02 test opens `/chart` and reads the live values. It did not touch `Char
 | `npx eslint` on the changed source files | Exit 0 |
 | `scripts/features/run.sh MET` with `E2E_PORT=3150` | 3 e2e tests passed |
 | `scripts/features/run.sh UI-06` with `E2E_PORT=3150` | 1 e2e test passed |
+| Reviewer | No critical finding. The catalog corrections above came from this review. |
+| Codex scan | No finding. Browser reconnect paths: not verified, the scan ran read-only. |
 
 The first run on port 3100 failed. An unrelated Python process held this port, so Playwright reused it and no WebSocket opened.
 
