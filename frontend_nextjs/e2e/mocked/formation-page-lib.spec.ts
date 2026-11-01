@@ -161,6 +161,12 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
       expect(ruleText('tr', id)).toBe('D bir bölgenin içinde');
     }
   });
+
+  frm('FRM-19', 'CYP-10 nennt den bereits berührten Libra-Einstieg', () => {
+    expect(ruleText('de', 'CYP-10')).toBe('Einstieg fällt mit einem bereits berührten Libra-Einstieg zusammen');
+    expect(ruleText('en', 'CYP-10')).toBe('The entry coincides with a Libra entry that price has touched');
+    expect(ruleText('tr', 'CYP-10')).toBe('Giriş, fiyatın dokunduğu bir Libra girişiyle çakışır');
+  });
 });
 
 const hit = (form: ScanHit['form'], tf: ScanHit['tf'], verdict: Candidate['verdict']): ScanHit => ({
