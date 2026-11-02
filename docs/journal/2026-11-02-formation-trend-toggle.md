@@ -3,7 +3,7 @@ date: 2026-11-02
 author: Claude
 type: feature
 status: done
-pr: [S6A_PR]
+pr: [307]
 features: [ANA-21, FRM-23]
 areas: [frontend]
 ---

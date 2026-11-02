@@ -3,7 +3,7 @@ date: 2026-11-01
 author: Claude
 type: plan
 status: open
-pr: [275, 276]
+pr: [275, 276, 307]
 features: [MET-02, UI-06, FRM-20, ANA-21, UI-10]
 areas: [frontend, docs]
 ---
@@ -51,7 +51,7 @@ Each step is one PR. The steps run in sequence because they change the same file
 | S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Open |
 | S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Open |
 | S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
-| S6a | `/formasyon` gets the `Trend` button and the trend line (decision of the owner on 2026-11-02: before S3 to S5). Entry: `2026-11-02-formation-trend-toggle.md`. | Done, PR S6A_PR |
+| S6a | `/formasyon` gets the `Trend` button and the trend line (decision of the owner on 2026-11-02: before S3 to S5). Entry: `2026-11-02-formation-trend-toggle.md`. | Done, PR 307 |
 | S6b | `/backtest` gets the `Trend` button. `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. On `/backtest`, the line must stop at the replay cursor. | Open |
 
 ## Why
