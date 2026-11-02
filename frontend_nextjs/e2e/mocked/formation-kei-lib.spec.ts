@@ -14,7 +14,7 @@ import { FormationContext } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeKei, checkKeiCandidate, KEI_CHECK_IDS } from '../../src/lib/formation/keiChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
-import { END, H4, mirror, type Row } from '../fixtures/formation-rows';
+import { D1, END, H4, barsOf, mirror, zig, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip } from '../fixtures/formation-lines';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-17' }, fn);
@@ -130,9 +130,9 @@ frm('Kein Blick in die Zukunft: Kerzen nach t ändern nichts', () => {
   expect(state(run(BASE, { t: (at(6) - 2) * H4 }), 'KEI-08')).toBe(N);
 });
 
-frm('Zeichnungen: zwei zulaufende Linien, Fib auf die große Bewegung und Zonen kommen auch bei ☐', () => {
+frm('Zeichnungen: zwei zulaufende Linien und Zonen kommen auch bei ☐; ohne höhere Zeiteinheit keine Ziel-Fib', () => {
   const full = run(BASE);
-  expect(full.drawings.map((d) => d.id)).toEqual(['Z-KEI-01', 'Z-KEI-01b', 'Z-KEI-02', 'Z-KEI-03', 'Z-KEI-03b']);
+  expect(full.drawings.map((d) => d.id)).toEqual(['Z-KEI-01', 'Z-KEI-01b', 'Z-KEI-03', 'Z-KEI-03b']);
   const lower = full.drawings.find((d) => d.id === 'Z-KEI-01')!;
   const upper = full.drawings.find((d) => d.id === 'Z-KEI-01b')!;
   expect(lower.tool).toBe('trendline');
@@ -141,10 +141,20 @@ frm('Zeichnungen: zwei zulaufende Linien, Fib auf die große Bewegung und Zonen 
   const start = upper.anchors[0].price - (100 + 1.875 * (at(1) - at(0)));
   const end = upper.anchors[1].price - lower.anchors[1].price;
   expect(end).toBeLessThan(start);
-  const fib = full.drawings.find((d) => d.id === 'Z-KEI-02')!;
-  expect(fib.tool).toBe('fib');
-  expect(fib.levels).toEqual([0.382, 0.618]);
   expect(run(NO_ACTIVATION).drawings.map((d) => d.id)).toContain('Z-KEI-01b');
+});
+
+/** D1 im Aufwärtstrend: Wendepunkte 80, 120, 100, 140, 125 auf Index 2, 6, 10, 14, 18; 120 → 100 ist 0,5 tief (Korrektur), der aktuelle Impuls ist 100 → 140 */
+const D1_UP = zig([80, 120, 100, 140, 125], 4, 3);
+
+frm('Z-KEI-02: Ziel-Fib auf den aktuellen Impuls der höheren Zeiteinheit (D1), nicht auf die Bewegung der Formations-ZE', () => {
+  const ctx = new FormationContext('TEST', { H4: barsOf(BASE, H4), D1: barsOf(D1_UP, D1) });
+  const pick = (n: number) => tip(BASE, at(n), n % 2 === 1, false);
+  const c = checkKeiCandidate(ctx, END, { tf: 'H4', l0: pick(0), hs: pick(1), la: pick(2), h2: pick(3), lb: pick(4) });
+  const fib = c.drawings.find((d) => d.id === 'Z-KEI-02')!;
+  expect(fib.tool).toBe('fib');
+  expect(fib.anchors).toEqual([{ time: 10 * D1, price: 100 }, { time: 14 * D1, price: 140 }]);
+  expect(fib.levels).toEqual([0.382, 0.618]);
 });
 
 frm('Analyse findet den Keil selbst und liefert alle Bedingungen', () => {

@@ -12,8 +12,8 @@ import { analyzeChannels, changedAfter, checkChannel, impulseLens, measureBar, n
 import { zoneGeometry } from './frz';
 import { measureChannel, reversalSide, shrinks, slopesWithTrend, type Channel, type ChannelBase } from './lineChannel';
 import { KEI_PARAMS, LINE_CHANNEL_PARAMS, type ContextTimeframe } from './params';
-import type { Env } from './reasons';
-import type { Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Verdict } from './types';
+import { neighborTf, type Env } from './reasons';
+import type { Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
 import { anchorAt, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -70,7 +70,7 @@ function evaluate(env: Env, tf: ContextTimeframe, base: ChannelBase): Candidate 
   add('KEI-08', flag(changedAfter(env, tf, c)));
   add('KEI-09', c.act === null || view.wide[c.act] === null ? U : flag(view.wide[c.act] === true));
 
-  const drawings = drawingsOf(bars, tf, c);
+  const drawings = drawingsOf(env, tf, c);
   const withDrawings = checks.map((k) => ({
     ...k,
     drawings: [...new Set(drawings.filter((z) => z.rules.includes(k.id)).map((z) => z.id))],
@@ -92,7 +92,8 @@ function evaluate(env: Env, tf: ContextTimeframe, base: ChannelBase): Candidate 
   return { code: 'KEI', side: reversalSide(base.es), tf, points, checks: withDrawings, drawings, verdict };
 }
 
-function drawingsOf(bars: readonly FormationBar[], tf: ContextTimeframe, c: Channel): Drawing[] {
+function drawingsOf(env: Env, tf: ContextTimeframe, c: Channel): Drawing[] {
+  const { bars } = env.views.get(tf)!;
   const last = bars.length - 1;
   const lastTime = bars[last].time;
   const { l0, hs, la, h2, es } = c.base;
@@ -102,16 +103,21 @@ function drawingsOf(bars: readonly FormationBar[], tf: ContextTimeframe, c: Chan
     { id: 'Z-KEI-01', tool: 'trendline', anchors: [anchorAt(bars, l0.idx, l0.price), { time: lastTime, price: c.counterAt(last) }], rules, side },
     { id: 'Z-KEI-01b', tool: 'trendline', anchors: [anchorAt(bars, hs.idx, hs.price), { time: lastTime, price: c.extremeAt(last) }], rules, side },
   ];
-  // Fib auf die letzte große Bewegung: vom Wendepunkt der Gegenseite vor hs zum äußersten Extrem von hs und h2 (Anfangspunkt im Regelwerk nicht genannt)
-  const top = Math.abs(h2.price - l0.price) > Math.abs(hs.price - l0.price) ? h2 : hs;
-  out.push({
-    id: 'Z-KEI-02',
-    tool: 'fib',
-    anchors: [anchorAt(bars, l0.idx, l0.price), anchorAt(bars, top.idx, top.price)],
-    levels: [...KEI_PARAMS.targetLevels],
-    rules: [],
-    side,
-  });
+  // Ziel-Fib auf den aktuellen Impuls der höheren ZE in Trendrichtung des Keils (Anfangspunkt im Regelwerk nicht genannt); ohne höhere ZE keine Zeichnung
+  const higherTf = neighborTf(env, tf, -1);
+  const higherLegs = higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [];
+  const impulse = [...higherLegs].reverse().find((leg) => leg.dir === trendOf(es));
+  if (higherTf && impulse) {
+    const higherBars = env.views.get(higherTf)!.bars;
+    out.push({
+      id: 'Z-KEI-02',
+      tool: 'fib',
+      anchors: [anchorAt(higherBars, impulse.start.idx, impulse.start.price), anchorAt(higherBars, impulse.end.idx, impulse.end.price)],
+      levels: [...KEI_PARAMS.targetLevels],
+      rules: [],
+      side,
+    });
+  }
   const stopZone = zoneGeometry(bars, h2.idx, es, tf);
   const startZone = zoneGeometry(bars, la.idx, la.side, tf);
   out.push(
