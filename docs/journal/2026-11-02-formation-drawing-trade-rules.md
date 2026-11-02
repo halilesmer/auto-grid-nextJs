@@ -33,7 +33,8 @@ areas: [frontend, tests]
 
 ## Verification
 - New test was red before the change: 20 places with `rules: []`, and 674 drawing occurrences on real series without IDs. T618 separately: 3 places and 3 drawings. After the change: 2 passed.
-- `scripts/features/run.sh FRM`, `npx tsc --noEmit`, `npm run lint`: see the PR.
+- After the merge of `origin/main`: `scripts/features/run.sh FRM` → 17 pytest passed, 1348 Playwright tests passed, 0 failed. `npx tsc --noEmit` → exit 0. `npm run lint` → exit 0.
+- Review by the `reviewer` agent: no critical finding. Codex scan not done (weekly limit too low).
 
 ## Open points
 - [ ] ENC and KEI (Z-ENC-02, Z-KEI-02, Z-KEI-03, Z-KEI-03b): another package changes these files now. After its merge, change them to `TRADE_RULES` and remove the `PENDING` list in the coverage test.
