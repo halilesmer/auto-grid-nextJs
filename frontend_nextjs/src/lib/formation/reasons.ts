@@ -32,8 +32,36 @@ export function fibTargetsOf(fibs: ReadonlyMap<ContextTimeframe, FibModel>): num
   return out;
 }
 
+/** Bereich von `shareEnv`: die schon gebauten Umgebungen eines Kontexts, je Zeitpunkt und Zeiteinheit */
+let shared: { ctx: FormationContext; envs: Map<string, Env | null> } | null = null;
+
+/**
+ * Führt `fn` so aus, dass `buildEnv` für diesen Kontext je Zeitpunkt und Zeiteinheit nur einmal rechnet (Befund 49):
+ * die Suche ruft elf Analyzer, jeder baute sonst Trends, Fibs und Zonen neu. Gilt nur ohne `frzOptions`.
+ * Ein geteiltes Env darf niemand verändern. Ein innerer Bereich für denselben Kontext nutzt den äußeren weiter.
+ * Nur für synchrones `fn`: nach dem ersten `await` ist der Bereich schon zu (Ergebnis gleich, aber ohne Teilung).
+ */
+export function shareEnv<T>(ctx: FormationContext, fn: () => T): T {
+  if (shared?.ctx === ctx) return fn();
+  const outer = shared;
+  shared = { ctx, envs: new Map() };
+  try {
+    return fn();
+  } finally {
+    shared = outer;
+  }
+}
+
 /** Umgebung zum Zeitpunkt t; null, wenn die Zeiteinheit nicht geladen ist */
 export function buildEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions = {}): Env | null {
+  const scope = shared?.ctx === ctx && Object.keys(frzOptions).length === 0 ? shared : null;
+  if (!scope) return computeEnv(ctx, t, tf, frzOptions);
+  const key = `${t}|${tf}`;
+  if (!scope.envs.has(key)) scope.envs.set(key, computeEnv(ctx, t, tf, frzOptions));
+  return scope.envs.get(key) ?? null;
+}
+
+function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions): Env | null {
   if (!ctx.timeframes().includes(tf)) return null;
   const views = new Map<TrendTimeframe, TimeframeView>();
   const trends = new Map<TrendTimeframe, TrendModel>();
