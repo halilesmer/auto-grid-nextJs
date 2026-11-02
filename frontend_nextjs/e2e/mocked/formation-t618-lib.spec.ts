@@ -226,8 +226,9 @@ const REAL: Real[] = [
   { file: 't618-sell-h4-01', t: 1763481600, side: 'sell', verdict: 'valid', expect: { ...ALL, '08': M, '09': M }, with2618: false },
   // Verkauf; Berührung nach 5 Tagen; keine Divergenz, volumenstarke Kerze an der Berührung
   { file: 't618-sell-h4-02', t: 1762257600, side: 'sell', verdict: 'valid', expect: { ...ALL, '08': N, '09': N }, with2618: false },
-  // Kauf (Spiegelfall), alle Bedingungen erfüllt
-  { file: 't618-buy-h4-01', t: 1766404800, side: 'buy', verdict: 'valid', expect: { ...ALL, '08': M, '09': M }, with2618: false },
+  // Kauf (Spiegelfall), im Aufbau: der Trendwechsel (2025-12-22 08:00) kommt erst nach der Berührung von 0.618 (2025-12-19 20:00);
+  // T618-05 verlangt ihn bis zum Einstieg, also T618-05 ☐ (Befund 30)
+  { file: 't618-buy-h4-01', t: 1766404800, side: 'buy', verdict: 'forming', expect: { ...ALL, '05': N, '08': M, '09': M }, with2618: false },
   // Kauf ohne Divergenz; hier gilt zugleich ein Doppelboden (2618 gültig): beide Formationen können am selben Ort liegen
   { file: 't618-buy-h4-02', t: 1764072000, side: 'buy', verdict: 'valid', expect: { ...ALL, '08': N, '09': M }, with2618: true },
   // Negativfall: keine Kraftverlust-Folge (T618-01 ☐); ein Doppeltop mit Rücklauf gibt es dort trotzdem (2618 gültig)

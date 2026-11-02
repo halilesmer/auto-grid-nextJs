@@ -38,7 +38,7 @@ areas: [frontend, tests]
 - 22: The rule exempts a close only when it is not wide. An unknown width cannot prove the exemption.
 - 35: ABCD-11 defines the word "near". Without ATR the distance is unknown, not too large. The verdict does not change: without ATR, ABCD-10 (required) is already `unmeasurable` and holds "valid". The note now also names ABCD-11.
 - 29: The rule book names the impulse of the higher time frame. The start point is not named. The current leg of the higher time frame is the nearest reading.
-- 30: The rule order T618-04 → T618-07 puts the trend change before the entry at 0.618.
+- 30: The rule order T618-04 → T618-07 puts the trend change before the entry at 0.618. T618-06 and T618-07 need the change first.
 - 30: Without a touch, T618-05 counts up to the last bar. 2618-06 stops at the end of its measurement window. T618 does not use that window, because the analysis takes the newest impulse end as I.
 - Older entries are replaced in part: `2026-10-27-formation-abcd.md` (ABCD-11) and `2026-10-28-formation-t618-enc-kei.md` (T6-6, LN-8).
 
@@ -51,6 +51,7 @@ areas: [frontend, tests]
   - `formation-cdt-lib.spec.ts`: a sure violation after an unknown close gives ☑.
 - A mutation of each new branch turns its new test red.
   - `formation-fib-lib.spec.ts`: band 115.73 to 118.54 on overlap; no band for separate bands.
+- Changed real-series test (approved by the project owner): `echte Reihe t618-buy-h4-01` expects "forming" and T618-05 ☐.
 - Changed artificial tests:
   - The ABCD coverage test does not ask for an ABCD-11 ☐ case.
   - The KEI drawing test expects no Z-KEI-02 without a higher time frame.
@@ -61,11 +62,10 @@ areas: [frontend, tests]
 |---|---|
 | 22, 35 | CDT and ABCD: no change of verdict, badge, CDT-15, ABCD-11 or ABCD-24. |
 | 29 | Z-KEI-02 is not drawn on 102 KEI hits (each fixture loads one time frame). States and verdicts do not change. |
-| 30 | See "Open points". |
+| 30 | `t618-buy-h4-01`: the touch of 0.618 came at 2025-12-19 20:00, the trend change up at 2025-12-22 08:00. T618-05 ☑ → ☐, verdict "valid" → "forming". The project owner approved the new expected values. `tdf-flag-h4-02` shows the same case. Two other fixtures choose a different candidate; their verdict stays "invalid". |
 | 34, 36 | No change. |
 
 ## Open points
-- [ ] Finding 30 changes the real series `t618-buy-h4-01`: the touch of 0.618 came at 2025-12-19 20:00, the trend change up at 2025-12-22 08:00. T618-05 changes from ☑ to ☐, the verdict from "valid" to "forming". The test `echte Reihe t618-buy-h4-01` stays red until the project owner decides about the expected values. The fixture `tdf-flag-h4-02` shows the same case (T618 "valid" → "forming"). Two other fixtures choose a different candidate; their verdict stays "invalid".
 - [ ] When the touch of 0.618 came before the trend change, T618 stays "forming" for all time. The state cannot change after the entry. Examine whether "invalid" is correct. This PR does not change it.
 
 ## Lessons
