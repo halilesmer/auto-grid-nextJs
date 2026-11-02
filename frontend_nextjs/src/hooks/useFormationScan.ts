@@ -31,7 +31,7 @@ interface Settled {
   key: string;
   hits: ScanHit[];
   context: FormationContext | null;
-  error: string | null;
+  failed: boolean;
   scanAt: number;
   scanMs: number;
 }
@@ -89,12 +89,12 @@ export function useFormationScan(accountId: string | null, symbol: string | null
       try {
         const context = new FormationContext(symbol as string, latest.current, { zug });
         const hits = scanFormations(context, at);
-        setSettled({ key, hits, context, error: null, scanAt: at, scanMs: Math.round(performance.now() - started) });
+        setSettled({ key, hits, context, failed: false, scanAt: at, scanMs: Math.round(performance.now() - started) });
       } catch (err) {
-        // Ungültige Kerzen vom Worker (Reihenfolge, NaN): übersetzte Meldung statt die Seite zu stören;
-        // die technische Meldung der Bibliothek ist deutsch und nur für Entwickler, daher nur in der Konsole
+        // Ungültige Kerzen vom Worker (Reihenfolge, NaN): Meldung statt die Seite zu stören; die technische
+        // Meldung der Bibliothek ist deutsch und nur für Entwickler, daher nur in der Konsole
         console.error('Formation scan failed', err);
-        setSettled({ key, hits: [], context: null, error: t('formation.scan.badData'), scanAt: at, scanMs: Math.round(performance.now() - started) });
+        setSettled({ key, hits: [], context: null, failed: true, scanAt: at, scanMs: Math.round(performance.now() - started) });
       }
     }, 0);
     return () => clearTimeout(timer);
@@ -110,9 +110,11 @@ export function useFormationScan(accountId: string | null, symbol: string | null
   }), [d1.data, h4.data, h1.data, m15.data, price]);
 
   const current = settled && settled.key === key ? settled : null;
+  // Bei jedem Render übersetzt, damit ein Sprachwechsel die stehende Meldung mitnimmt
+  const scanError = current?.failed ? t('formation.scan.badData') : null;
   return {
     loading: ready && !loadError && !current,
-    error: loadError ?? current?.error ?? null,
+    error: loadError ?? scanError,
     hits: current?.hits ?? [],
     context: current?.context ?? null,
     scanAt: current?.scanAt ?? null,

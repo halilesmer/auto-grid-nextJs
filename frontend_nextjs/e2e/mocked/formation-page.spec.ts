@@ -12,6 +12,7 @@ import { groupZones, makeZone } from '../fixtures/data';
 import { harmonic } from '../fixtures/formation-harmonic';
 import { H4, barsOf } from '../fixtures/formation-rows';
 import { msg, type MessageKey } from '../fixtures/i18n';
+import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
 const URL = `/formasyon?account=${DEMO_ID}&zone=${ZONE_ID}`;
@@ -424,10 +425,23 @@ test.describe('FRM-21 Hintergrundsuche', () => {
         await page.goto(URL);
         const alert = page.getByRole('alert').filter({ hasText: msg('formation.scan.failed', {}, lang) });
         await expect(alert).toContainText(msg('formation.scan.badData', {}, lang));
-        await expect(alert).not.toContainText('Kerzen');
+        await expect(alert).not.toContainText(/Index \d+/);
       });
     });
   }
+
+  test('Ein Sprachwechsel übersetzt die stehende Fehlermeldung sofort', { tag: '@FRM-21' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    const series = worker.state.ratesSeries as Record<string, number[][]>;
+    const rows = [...series.H4];
+    [rows[10], rows[11]] = [rows[11], rows[10]];
+    series.H4 = rows;
+    await page.goto(URL);
+    await expect(page.getByRole('alert').filter({ hasText: msg('formation.scan.failed') })).toContainText(msg('formation.scan.badData'));
+    await openHeaderMenu(page);
+    await page.getByTestId('language-en').click();
+    await expect(page.getByRole('alert').filter({ hasText: msg('formation.scan.failed', {}, 'en') })).toContainText(msg('formation.scan.badData', {}, 'en'));
+  });
 });
 
 test.describe('FRM-25 freie Produktwahl', () => {

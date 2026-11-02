@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-02 · **199/203** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-02 · **198/203** abgehakt · ❌ 1 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 20/21 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 35/35 |
+| 16 | **FRM** – Formationserkennung | 34/35 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -899,10 +899,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Chart (lightweight-charts) zeigt die Kerzen der gewählten Zeiteinheit und RSI(7) in eigenem Pane mit den Linien 80 und 20. Die Zeichnungen der Erkennung (Zickzack mit Punktnamen, Verhältnis-Linien mit Beschriftung, Zielpunkt, Zone, Umkehrkerzen-Marke) liegen als SVG-Overlay über den Canvases in einem eigenen Stapelkontext; das Overlay endet vor der Preisachse und folgt Zoom, Verschieben und Größenänderung. Kauf ist grün, Verkauf rot (Farben aus den Theme-Tokens). Eine Formation im Aufbau zeigt die bestätigten Punkte fest, den Weg zum fehlenden Endpunkt gestrichelt, den Endpunkt als offenen Kreis mit Fragezeichen und die Zone als „mögliche Zone“. Hover auf eine Checklisten-Zeile hebt die Zeichnungen ihrer Bedingung hervor, der Rest wird blass; Hover auf eine Zeichnung hebt die zugehörigen Zeilen hervor (drawingLayout.ts, FormationChart.tsx). Der Chart lädt mit allen Kerzen wie nach „Ansicht zurücksetzen“; ein Klick auf eine Formation ändert die Ansicht nicht, ein eigener Zoom bleibt je Produkt gespeichert, bis er zurückgesetzt wird (runtime.ts).
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-20) ausführen (Zeichnungen vorhanden, Hover auf eine Zeile hebt hervor, Overlay-Breite endet vor der Preisachse, alle Kerzen beim Laden, Formationsklick lässt die Ansicht, Zoom bleibt nach Neuladen, Zurücksetzen). → Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-20) ausführen (Zeichnungen im Aufbau, Fib-Extension mit drei Ankern).
   - **Erwartet:** Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben. Der Chart zeigt alle Kerzen; ein Formationsklick im selben Zeitrahmen ändert den sichtbaren Zeitbereich nicht. Eine Fib-Extension mit drei Ankern A, B, C legt Level 1 bei C + (B − A) und beginnt bei C; die Preisachse weitet sich auf dieselben Preise aus.
-- [x] **FRM-21** Seite Formasyon: Hintergrundsuche — 🖥️ e2e ✅ 2026-11-02
+- [ ] **FRM-21** Seite Formasyon: Hintergrundsuche — 🖥️ e2e ❌ 2026-11-02
   - Die Seite lädt D1, H4, H1 und M15 des gewählten Symbols über GET /market/{id}/rates (je Zeiteinheit mit dem 60-s-Nachladen des Endstücks) und sucht damit alle sieben Formationen auf allen vier Zeiteinheiten (useFormationScan.ts, scan.ts). Die Suche läuft nach dem Laden, bei Wechsel von Konto oder Symbol und sobald sich die geschlossenen Daten einer Zeiteinheit ändern (Signatur je Zeiteinheit aus Anzahl und letzter Zeit der geschlossenen Kerzen ohne die Live-Kerze, scanKey.ts); so kommt eine höhere Zeiteinheit, die nach M15 nachlädt, in die Suche. Zwischen zwei Kerzen ändert sich nichts Geschlossenes, es gibt keinen Neustart im 60-s-Takt. Sie rechnet nach dem nächsten Anstrich; die Rechenzeit steht als data-scan-ms am Seitenelement. Fehler der Kerzen oder der Rechnung erscheinen als Meldung in der gewählten Sprache (formation.scan.badData); die technische Meldung steht nur in der Konsole.
-  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem gewählten Symbol geladen, data-scan-ms ist gesetzt). → Playwright-Test e2e/mocked/formation-scankey-lib.spec.ts (@FRM-21) ausführen (Signatur mit neuer H1-Kerze, Live-Kerze zählt nicht, feste Reihenfolge). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (zwei vertauschte H4-Kerzen, die Meldung steht in tr und en übersetzt, ohne technische Meldung).
-  - **Erwartet:** Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das gewählte Symbol.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem gewählten Symbol geladen, data-scan-ms ist gesetzt). → Playwright-Test e2e/mocked/formation-scankey-lib.spec.ts (@FRM-21) ausführen (Signatur mit neuer H1-Kerze, Live-Kerze zählt nicht, feste Reihenfolge). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (zwei vertauschte H4-Kerzen, die Meldung steht in tr und en übersetzt, ohne technische Meldung, und folgt einem Sprachwechsel).
+  - **Erwartet:** Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das gewählte Symbol. Bei ungültigen Kerzen steht die Meldung in der gewählten Sprache und wechselt mit der Sprache.
 - [x] **FRM-22** Seite Formasyon: schmale Ansicht, Sprachen und Hinweise — 🖥️ e2e ✅ 2026-11-02
   - Bei 375 px liegt das einklappbare Fenster mit Liste und Checkliste unten innerhalb des seitenfüllenden Charts rechts neben der 52 px breiten Werkzeugleiste. Es scrollt unabhängig; die Seite hat keinen waagerechten Rand-Überlauf. Alle Texte laufen über i18n (tr/en/de), jede Schaltfläche der Zeiteinheit- und Formationsleiste und jeder Kandidat trägt einen Hinweis-Tooltip (hints.ts).
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-22) ausführen; der Abdeckungstest UI-07 prüft die Tooltips.

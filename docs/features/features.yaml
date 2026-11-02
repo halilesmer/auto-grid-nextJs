@@ -1898,8 +1898,8 @@ kategorien:
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (vier Zeiteinheiten werden mit dem gewählten Symbol geladen, data-scan-ms ist gesetzt).
           - Playwright-Test e2e/mocked/formation-scankey-lib.spec.ts (@FRM-21) ausführen (Signatur mit neuer H1-Kerze, Live-Kerze zählt nicht, feste Reihenfolge).
-          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (zwei vertauschte H4-Kerzen, die Meldung steht in tr und en übersetzt, ohne technische Meldung).
-        erwartet: Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das gewählte Symbol.
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-21) ausführen (zwei vertauschte H4-Kerzen, die Meldung steht in tr und en übersetzt, ohne technische Meldung, und folgt einem Sprachwechsel).
+        erwartet: Der Mock-Worker sieht je Zeiteinheit D1, H4, H1 und M15 eine Kerzen-Anfrage für das gewählte Symbol. Bei ungültigen Kerzen steht die Meldung in der gewählten Sprache und wechselt mit der Sprache.
 
       - id: FRM-22
         titel: "Seite Formasyon: schmale Ansicht, Sprachen und Hinweise"
