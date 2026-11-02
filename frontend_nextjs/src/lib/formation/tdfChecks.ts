@@ -33,7 +33,7 @@ import {
   type Touch,
 } from './tdf';
 import { basesFor, recentPeaks, type TdfBase, type TdfForm } from './tdfForms';
-import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -382,20 +382,20 @@ function drawingsOf(d: DrawInput): Drawing[] {
     const levels = base.form === 'bowl' ? [TDF_PARAMS.bowl.reach, TDF_PARAMS.bowl.spare] : [TDF_PARAMS.flagDepth.min, TDF_PARAMS.flagDepth.max, TDF_PARAMS.maxDepth];
     out.push({ id: 'Z-TDF-06', tool: 'fib', anchors: [at(imp.s), at(h1)], levels, rules: n2([7, ...FIB_RULE[base.form]]), side });
   }
-  if (base.form === 'bowl' && imp.s && pl) out.push({ id: 'Z-TDF-07', tool: 'fibExt', anchors: [at(imp.s), at(h1), at(pl)], levels: [...TDF_PARAMS.inversion], rules: [], side });
+  if (base.form === 'bowl' && imp.s && pl) out.push({ id: 'Z-TDF-07', tool: 'fibExt', anchors: [at(imp.s), at(h1), at(pl)], levels: [...TDF_PARAMS.inversion], rules: TRADE_RULES, side });
   if (base.form === 'box' && floor) {
     const near = nearEdge(es, zoneH);
     const lower = nearEdge(otherSide(es), floor);
     out.push({ id: 'Z-TDF-08', tool: 'zone', anchors: [{ time: bars[h1.idx].time, price: Math.min(near, lower) }, { time: lastTime, price: Math.max(near, lower) }], rules: n2([24, 29]), side });
   }
   if (imp.s && pl && imp.mast > 0) {
-    out.push({ id: 'Z-TDF-03', tool: 'zigzag', anchors: [at(imp.s), at(h1), at(pl), { time: bars[pl.idx].time, price: pl.price + signOf(es) * imp.mast }], rules: [], side });
+    out.push({ id: 'Z-TDF-03', tool: 'zigzag', anchors: [at(imp.s), at(h1), at(pl), { time: bars[pl.idx].time, price: pl.price + signOf(es) * imp.mast }], rules: TRADE_RULES, side });
   }
   if (brk !== null && target !== null) {
     if (base.form === 'triangle' || base.form === 'box') {
-      out.push({ id: 'Z-TDF-10', tool: 'zone', anchors: [{ time: bars[brk].time, price: Math.min(edge, target) }, { time: bars[brk].time, price: Math.max(edge, target) }], rules: [], side });
+      out.push({ id: 'Z-TDF-10', tool: 'zone', anchors: [{ time: bars[brk].time, price: Math.min(edge, target) }, { time: bars[brk].time, price: Math.max(edge, target) }], rules: TRADE_RULES, side });
     }
-    out.push({ id: 'Z-TDF-09', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side, label: 'target' });
+    out.push({ id: 'Z-TDF-09', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: TRADE_RULES, side, label: 'target' });
   }
   return out;
 }
