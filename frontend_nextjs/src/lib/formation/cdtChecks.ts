@@ -28,7 +28,7 @@ import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
-import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
 
@@ -203,7 +203,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: CdtShape, rsiH1: number |
       id: 'Z-CDT-05',
       tool: 'label',
       anchors: [{ time: lastTime, price: stopEdge }, { time: lastTime, price: targetEdge }],
-      rules: [],
+      rules: TRADE_RULES,
       side,
     },
     { id: 'Z-CDT-06', tool: 'hline', anchors: [at(n.idx, n.price)], rules: ids([3]), side },

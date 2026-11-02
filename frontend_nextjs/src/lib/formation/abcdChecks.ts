@@ -32,7 +32,7 @@ import { reversalAt } from './reversal';
 import { exemptFor, settle } from './settle';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
-import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
 
@@ -336,7 +336,7 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
   if (s.d && reached) {
     const from = divergence || harmonic ? s.a : s.c;
     const levels = [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2, ...(divergence ? [ABCD_PARAMS.targets.divergence] : []), -ABCD_PARAMS.targets.stop];
-    out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, s.d.price)], levels, rules: [], side });
+    out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, s.d.price)], levels, rules: TRADE_RULES, side });
   }
   return out;
 }

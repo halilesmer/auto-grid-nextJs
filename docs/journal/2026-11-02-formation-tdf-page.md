@@ -28,7 +28,7 @@ areas: [frontend, tests]
 - **Inactive rows:** a rule of another sub-form was "not measurable" with the kind `required`. With `settle` it would block every candidate. The field `inactive` already exists, and `exemptFor` already lets such rows pass. The checklist does not count them (required 6/6 on the real triangle) and shows the mark "not valid". So the user sees the sub-form from the checklist; no new element was needed.
 - **`TDF-19`:** "buy only after a close above the top edge of the zone of H1". For the triangle this is the same measurement as `TDF-04` (edge of the pause = top edge of the zone). `TDF-19` takes the state of `TDF-04`.
 - **`TDF-26` (assumption):** "no entry inside the box" is a rule for the entry, not a property of the candles. The entry point `B` lies outside the box by definition. After the close outside the box the rule is "not present" (☐), before it is "not measurable". It is an exclusion, so `settle` does not wait for it. It can never be "present".
-- **`Z-TDF-03`, `Z-TDF-07`, `Z-TDF-10`:** `rules: []` is correct. The rule book names no condition for them, only the trade (target, extension, height).
+- **`Z-TDF-03`, `Z-TDF-07`, `Z-TDF-10`:** `rules: []` is correct. The rule book names no condition for them, only the trade (target, extension, height). Replaced on 2026-11-02: these drawings use `TRADE_RULES`, see `2026-11-02-formation-drawing-trade-rules.md`.
 - **Point `B`:** same reason as for OBO. The alarm fires on the final point, so `B` must not exist while the verdict is `forming`.
 
 ## Measurement

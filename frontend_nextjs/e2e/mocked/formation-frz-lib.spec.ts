@@ -10,6 +10,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { FRZ_CHECK_IDS, analyzeFrz, checkFrzCandidate, type FrzCandidateInput, type FrzOptions } from '../../src/lib/formation/frzChecks';
 import type { Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
 import { buildEnv } from '../../src/lib/formation/reasons';
+import { atrSeries } from '../../src/lib/formation/indicators';
 
 type Row = [number, number, number, number];
 
@@ -643,6 +644,68 @@ test.describe('FRZ: echte Kerzen (Fixture)', () => {
     const times = analyzeFrz(ctx, half).zones.flatMap((z) => z.fractalTimes);
     expect(times.length).toBeGreaterThan(0);
     expect(times.every((t) => t <= fixture.bars[33].time - 2 * H4)).toBe(true);
+  });
+});
+
+test.describe('FRZ: Abnahmefälle der Testliste (echte Kerzen)', () => {
+  const load = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+  const utc = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
+  const states = (c: Candidate, ids: string[]) => Object.fromEntries(ids.map((id) => [id, state(c, id)]));
+  /** Fraktal-Kerze der Liste: äußerster Docht der Seite im Ablesefenster [from, to) */
+  const fractalBar = (bars: FormationBar[], side: 'resistance' | 'support', from: string, to: string) =>
+    bars
+      .filter((b) => b.time >= utc(from) && b.time < utc(to))
+      .reduce((x, y) => {
+        const further = side === 'resistance' ? y.high > x.high : y.low < x.low;
+        return further ? y : x;
+      });
+  /** Toleranz der abgelesenen Preise: 0,5 × ATR(14) an der Kerze; die Fraktale liegen weit hinter den ersten 14 Kerzen, die ATR ist dort gesetzt */
+  const tolerance = (bars: FormationBar[], time: number) => 0.5 * atrSeries(bars)[bars.findIndex((b) => b.time === time)]!;
+
+  frm('frz-resist-h4-01: die drei Widerstands-Fraktale der Liste liegen am 02.10. in gültigen Zonen, keine durch einen Schluss verletzt', () => {
+    const fx = load('frz-resist-h4-01');
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
+    const zones = [
+      { from: '2025-09-16T00:00', to: '2025-09-19T00:00', top: 1.19188, outer: '2025-09-17T20:00' },
+      // gehört zur zusammengelegten Zone von Fraktal 1 (FRZ 22, nächster Test): geprüft wird deren äußeres Fraktal
+      { from: '2025-09-22T00:00', to: '2025-09-26T00:00', top: 1.18201, outer: '2025-09-17T20:00' },
+      { from: '2025-09-30T00:00', to: '2025-10-03T00:00', top: 1.17788, outer: '2025-10-01T08:00' },
+    ];
+    for (const z of zones) {
+      const bar = fractalBar(fx.bars, 'resistance', z.from, z.to);
+      expect(Math.abs(bar.high - z.top), `Zone ${z.from}`).toBeLessThanOrEqual(tolerance(fx.bars, bar.time));
+      const c = checkFrzCandidate(ctx, utc('2025-10-03T00:00'), { tf: 'H4', time: bar.time, side: 'resistance' });
+      expect(c.points.F?.time, `Zone ${z.from}`).toBe(utc(z.outer));
+      expect(states(c, ['FRZ-01', 'FRZ-02', 'FRZ-03', 'FRZ-04', 'FRZ-06', 'FRZ-07', 'FRZ-11']), `Zone ${z.from}`).toEqual({
+        'FRZ-01': 'met',
+        'FRZ-02': 'met',
+        'FRZ-03': 'met',
+        'FRZ-04': 'met',
+        'FRZ-06': 'unmet',
+        'FRZ-07': 'met',
+        'FRZ-11': 'met',
+      });
+      expect(c.verdict, `Zone ${z.from}`).toBe('valid');
+    }
+  });
+
+  // Gemessene Auswahl, keine Vorgabe der Liste (die Liste zeichnet drei Zonen); FRZ 22 ist eine Annahme (FRZ_PARAMS.mergeGap)
+  frm('frz-resist-h4-01: FRZ 22 legt die Listenzonen 1 und 2 über das Fraktal vom 18.09. 12:00 zusammen, Zone 3 bleibt eigene Zone', () => {
+    const fx = load('frz-resist-h4-01');
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
+    const first = fractalBar(fx.bars, 'resistance', '2025-09-16T00:00', '2025-09-19T00:00').time;
+    const second = fractalBar(fx.bars, 'resistance', '2025-09-22T00:00', '2025-09-26T00:00').time;
+    const third = fractalBar(fx.bars, 'resistance', '2025-09-30T00:00', '2025-10-03T00:00').time;
+    const resist = analyzeFrz(ctx, utc('2025-10-03T00:00')).zones.filter((z) => z.side === 'resistance');
+    expect(resist).toHaveLength(2);
+    const merged = resist.find((z) => z.fractalTimes.includes(first));
+    const other = resist.find((z) => z !== merged);
+    expect(merged).toBeDefined();
+    // die direkte Lücke zwischen Zone 1 und 2 ist größer als die kleinere Zonenhöhe; das Fraktal dazwischen verbindet sie
+    expect(merged!.fractalTimes).toEqual(expect.arrayContaining([first, utc('2025-09-18T12:00'), second]));
+    expect(merged!.fractalTimes).not.toContain(third);
+    expect(state(merged!.candidate, 'FRZ-22')).toBe('met');
+    expect(other?.fractalTimes).toContain(third);
   });
 });
 

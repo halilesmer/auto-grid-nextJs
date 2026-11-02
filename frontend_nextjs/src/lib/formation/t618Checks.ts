@@ -19,7 +19,7 @@ import { divergenceOf } from './sig';
 import { impulseEnds, wideAgainst } from './f2618';
 import { lineTouches, returnTouch } from './t618';
 import type { TrendModel } from './trd';
-import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Side, Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Side, type Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -145,7 +145,7 @@ function drawingsOfLine(bars: readonly FormationBar[], l1: ObPoint, l2: ObPoint,
       rules: ids('T618', [2, 3, 4]),
       side,
     },
-    { id: 'Z-T618-03', tool: 'zone', anchors: [anchorAt(bars, p.idx, pZone.bottom), { time: bars[last].time, price: pZone.top }], rules: [], side },
+    { id: 'Z-T618-03', tool: 'zone', anchors: [anchorAt(bars, p.idx, pZone.bottom), { time: bars[last].time, price: pZone.top }], rules: TRADE_RULES, side },
   ];
 }
 
@@ -171,7 +171,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: num
       side,
     },
     pZoneDrawing,
-    { id: 'Z-T618-03b', tool: 'zone', anchors: [anchorAt(bars, i.idx, iZone.bottom), { time: lastTime, price: iZone.top }], rules: [], side },
+    { id: 'Z-T618-03b', tool: 'zone', anchors: [anchorAt(bars, i.idx, iZone.bottom), { time: lastTime, price: iZone.top }], rules: TRADE_RULES, side },
   ];
   if (s.touch) {
     out.push({
@@ -179,7 +179,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: num
       tool: 'fibExt',
       anchors: [anchorAt(bars, p.idx, p.price), anchorAt(bars, i.idx, i.price), anchorAt(bars, s.touch.idx, entry)],
       levels: [...T618_PARAMS.expansion],
-      rules: [],
+      rules: TRADE_RULES,
       side,
     });
   }

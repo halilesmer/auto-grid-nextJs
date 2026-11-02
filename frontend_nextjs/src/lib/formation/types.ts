@@ -1,5 +1,5 @@
 /**
- * Datenform der Formationserkennung. Reine Typen, kein React, kein Netzwerk.
+ * Datenform der Formationserkennung. Typen und die Kennung `TRADE_RULES`, kein React, kein Netzwerk.
  * Eine Bedingung hat eine feste ID (z. B. `ABCD-04`); die Prüfung gibt je ID einen Zustand zurück.
  */
 import type { Timeframe } from '@/lib/analysis/candles';
@@ -45,6 +45,12 @@ export interface Drawing {
   /** Beschriftung eines Labels mit einem Anker; fehlt das Feld, heißt es „Level 1“ (mit zwei Ankern: Stop und Ziel) */
   label?: 'stop' | 'target';
 }
+
+/**
+ * `rules` einer Zeichnung, die nur zum Handel gehört (Einstieg, Stop, Ziel, erreichtes Ziel) und keine Bedingung zeigt.
+ * Immer diese eine leere Liste statt `[]`: der Abdeckungstest erkennt sie an der Identität, die Anzeige bleibt wie bei `[]`.
+ */
+export const TRADE_RULES: string[] = [];
 
 export interface Check {
   id: string;

@@ -36,7 +36,7 @@ import {
   type XabcdInput,
   type XabcdShape,
 } from './xabcd';
-import type { Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'GAR-01': ['required', 'confirmed'],
@@ -206,7 +206,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dTarget: numb
       tool: 'fib',
       anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, d.price)],
       levels: [t.tp1, t.tp2, -t.stop],
-      rules: [],
+      rules: TRADE_RULES,
       side,
     });
   }
