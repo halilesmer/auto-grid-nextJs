@@ -1,5 +1,5 @@
 /**
- * Suche für die Seite /formasyon: alle neun Formationen auf allen vier Zeiteinheiten über einem Kontext.
+ * Suche für die Seite /formasyon: alle zehn Formationen auf allen vier Zeiteinheiten über einem Kontext.
  * Reine Funktion (kein React, kein Netzwerk). Ein Treffer ist ein Kandidat mit Punkten; ohne Punkte ist nichts gefunden.
  */
 import { analyzeAbcd } from './abcdChecks';
@@ -11,33 +11,37 @@ import { analyzeCyp } from './cypChecks';
 import { analyzeGar } from './garChecks';
 import { analyzeLib } from './libChecks';
 import { analyzeObo } from './oboChecks';
+import { analyzeTdf } from './tdfChecks';
 import type { FormationContext } from './context';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
 import type { Candidate, CheckState } from './types';
 
-export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB', 'OBO'] as const;
+export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB', 'OBO', 'TDF'] as const;
 export type ScanFormation = (typeof SCAN_FORMATIONS)[number];
 
 /** Höhere Zeiteinheit für die Zone (Entwurf): H1→H4, H4→D1, D1→W1, M15→H1 */
 export const UPPER_TIMEFRAME: Record<ContextTimeframe, string> = { D1: 'W1', H4: 'D1', H1: 'H4', M15: 'H1' };
 
-/** Name des letzten Punktes einer Formation: fehlt er, ist die Formation im Aufbau (Libra: K = Berührung der Einstiegskante; Kopf-Schulter: B = Nackenbruch) */
-export const FINAL_POINT: Record<ScanFormation, string> = { ABCD: 'D', GAR: 'D', BAT: 'D', BUT: 'D', CRB: 'D', CYP: 'D', CDT: 'H2', LIB: 'K', OBO: 'B' };
+/** Name des letzten Punktes einer Formation: fehlt er, ist die Formation im Aufbau (Libra: K = Berührung der Einstiegskante; Kopf-Schulter und Trendfortsetzung: B = Ausbruch) */
+export const FINAL_POINT: Record<ScanFormation, string> = { ABCD: 'D', GAR: 'D', BAT: 'D', BUT: 'D', CRB: 'D', CYP: 'D', CDT: 'H2', LIB: 'K', OBO: 'B', TDF: 'B' };
 
 /**
- * Vorletzter Punkt: ein Treffer im Aufbau zählt erst, wenn er da ist (FRM-18).
+ * Vorletzter Punkt: ein Treffer im Aufbau zählt erst, wenn er da ist (FRM-18). Hat die Formation Unterformen mit eigenem vorletztem Punkt
+ * (Trendfortsetzung), steht jeder in der Liste; ein Kandidat trägt nur die Punkte seiner Unterform, es genügt einer.
  * Libra und Kopf-Schulter setzen ihn auch vor dem fertigen Fraktal; dort zeigt der Zustand einer Bedingung (`unfinished`), dass er noch kein fertiges Fraktal ist.
  */
-export const PENULTIMATE_POINT: Record<ScanFormation, { point: string; unfinished?: { id: string; state: CheckState } }> = {
-  ABCD: { point: 'C' },
-  GAR: { point: 'C' },
-  BAT: { point: 'C' },
-  BUT: { point: 'C' },
-  CRB: { point: 'C' },
-  CYP: { point: 'C' },
-  CDT: { point: 'N' },
-  LIB: { point: 'P3', unfinished: { id: 'LIB-04', state: 'unmet' } },
-  OBO: { point: 'RS', unfinished: { id: 'OBO-02', state: 'unmeasurable' } },
+export const PENULTIMATE_POINT: Record<ScanFormation, { points: readonly string[]; unfinished?: { id: string; state: CheckState } }> = {
+  ABCD: { points: ['C'] },
+  GAR: { points: ['C'] },
+  BAT: { points: ['C'] },
+  BUT: { points: ['C'] },
+  CRB: { points: ['C'] },
+  CYP: { points: ['C'] },
+  CDT: { points: ['N'] },
+  LIB: { points: ['P3'], unfinished: { id: 'LIB-04', state: 'unmet' } },
+  OBO: { points: ['RS'], unfinished: { id: 'OBO-02', state: 'unmeasurable' } },
+  // Alle Punkte sind fertige Fraktale; Flagge C2, Dreieck H2, Schale LOW, Rechteck FLOOR
+  TDF: { points: ['C2', 'H2', 'LOW', 'FLOOR'] },
 };
 
 export interface ScanHit {
@@ -61,6 +65,7 @@ const ANALYZERS: Record<ScanFormation, (ctx: FormationContext, t: number, result
   CYP: analyzeCyp,
   CDT: analyzeCdt,
   OBO: analyzeObo,
+  TDF: analyzeTdf,
   // Libra misst LIB-10 an Gartley/Bat und LIB-09 an der Cypher und nimmt deren Ergebnisse aus diesem Suchlauf, statt sie neu zu rechnen
   LIB: (ctx, t, results) => analyzeLib(ctx, t, { harmonics: candidatesOf(results, 'GAR', 'BAT'), cyphers: candidatesOf(results, 'CYP') }),
 };
@@ -88,8 +93,8 @@ export function scanFormations(ctx: FormationContext, t: number): ScanHit[] {
 export function countsAsHit({ form, candidate }: ScanHit): boolean {
   if (candidate.verdict === 'valid') return true;
   if (candidate.verdict === 'invalid') return false;
-  const { point, unfinished } = PENULTIMATE_POINT[form];
-  if (!(point in candidate.points)) return false;
+  const { points, unfinished } = PENULTIMATE_POINT[form];
+  if (!points.some((point) => point in candidate.points)) return false;
   if (unfinished === undefined) return true;
   return !candidate.checks.some((c) => c.id === unfinished.id && c.state === unfinished.state);
 }

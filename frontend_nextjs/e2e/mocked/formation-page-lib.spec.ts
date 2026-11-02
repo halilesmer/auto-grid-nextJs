@@ -8,6 +8,7 @@ import { runningBar, type Bar } from '../../src/lib/analysis/candles';
 import { drawingPriceRange, layoutDrawings } from '../../src/lib/formation/drawingLayout';
 import { LIB_CHECK_IDS } from '../../src/lib/formation/libChecks';
 import { OBO_CHECK_IDS } from '../../src/lib/formation/oboChecks';
+import { TDF_CHECK_IDS } from '../../src/lib/formation/tdfChecks';
 import { ruleText } from '../../src/lib/formation/ruleTexts';
 import { hitsCount, timeframeForForm, type ScanHit } from '../../src/lib/formation/scan';
 import type { Candidate } from '../../src/lib/formation/types';
@@ -167,6 +168,11 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
 
   frm('FRM-19', 'Jede Kopf-Schulter-Bedingung hat einen Kurztext in tr, en und de', () => {
     const missing = OBO_CHECK_IDS.flatMap((id) => (['tr', 'en', 'de'] as const).filter((locale) => ruleText(locale, id) === null).map((locale) => `${id} ${locale}`));
+    expect(missing).toEqual([]);
+  });
+
+  frm('FRM-19', 'Jede Trendfortsetzungs-Bedingung hat einen Kurztext in tr, en und de', () => {
+    const missing = TDF_CHECK_IDS.flatMap((id) => (['tr', 'en', 'de'] as const).filter((locale) => ruleText(locale, id) === null).map((locale) => `${id} ${locale}`));
     expect(missing).toEqual([]);
   });
 
