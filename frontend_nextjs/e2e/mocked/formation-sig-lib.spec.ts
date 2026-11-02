@@ -14,6 +14,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { divergenceOf } from '../../src/lib/formation/sig';
 import {
   SIG_CHECK_IDS,
+  SIG_NO_UNMET_IDS,
   SIG_UNMEASURABLE_IDS,
   analyzeSig,
   checkSigDivergence,
@@ -236,9 +237,9 @@ const CASES: Case[] = [
     expect: { 'SIG-02': N, 'SIG-03': U },
   },
   {
-    name: 'zu wenig Kerzen für RSI und Wave',
+    name: 'zu wenig Kerzen für RSI und Wave: Einstellung nicht messbar',
     candidate: () => run({ H4: rise(5) }),
-    expect: { 'SIG-01': N, 'SIG-10': N },
+    expect: { 'SIG-01': U, 'SIG-10': U },
   },
   {
     name: 'genug Kerzen für RSI und Wave',
@@ -269,6 +270,56 @@ const CASES: Case[] = [
     name: 'Kein Weg: weder RSI-Extrem noch Engulf noch genug Gründe',
     candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { side: 'buy' }),
     expect: { 'SIG-05': N, 'SIG-28': N, 'SIG-30': N, 'SIG-40': N },
+  },
+  {
+    name: 'Stop 1, Ziel 2 vom Einstieg (CRV 2): Direkteinstieg ohne Umkehrkerze erlaubt',
+    candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { side: 'buy', trade: { entry: 100, stop: 99, tp1: 102 } }),
+    expect: { 'SIG-29': M, 'SIG-28': N },
+  },
+  {
+    name: 'CRV 2 ohne tiefere Zeiteinheit: keine Umkehrkerze nötig',
+    candidate: () => run({ H4: HEALTHY }, { side: 'buy', trade: { entry: 100, stop: 99, tp1: 102 } }),
+    expect: { 'SIG-29': M },
+  },
+  {
+    name: 'Dezimalpreise genau 1:1 (Einstieg 0,3, Stop 0,1, Ziel 0,5) zählen als höchstens 1:1',
+    candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { side: 'buy', trade: { entry: 0.3, stop: 0.1, tp1: 0.5 } }),
+    expect: { 'SIG-29': N },
+  },
+  {
+    name: 'Kauf mit Ziel unter dem Einstieg: Verhältnis nicht messbar',
+    candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { side: 'buy', trade: { entry: 100, stop: 99, tp1: 98 } }),
+    expect: { 'SIG-29': U },
+  },
+  {
+    name: 'Stop gleich Einstieg (Risiko 0): Verhältnis nicht messbar',
+    candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { side: 'buy', trade: { entry: 100, stop: 100, tp1: 102 } }),
+    expect: { 'SIG-29': U },
+  },
+  {
+    name: 'Trade ohne Seite: Verhältnis nicht messbar',
+    candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { trade: { entry: 100, stop: 99, tp1: 102 } }),
+    expect: { 'SIG-29': U },
+  },
+  {
+    name: 'Stop so groß wie das Ziel (CRV 1), Umkehrkerze in der tieferen Zeiteinheit da',
+    candidate: () => run({ H4: chop(30), H1: ENG_BUY }, { side: 'buy', trade: { entry: 100, stop: 99, tp1: 101 } }),
+    expect: { 'SIG-29': M, 'SIG-28': M },
+  },
+  {
+    name: 'Stop so groß wie das Ziel (CRV 1), keine Umkehrkerze in der tieferen Zeiteinheit',
+    candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { side: 'buy', trade: { entry: 100, stop: 99, tp1: 101 } }),
+    expect: { 'SIG-29': N, 'SIG-28': N },
+  },
+  {
+    name: 'CRV 1 ohne tiefere Zeiteinheit: Umkehrkerze nicht prüfbar',
+    candidate: () => run({ H4: HEALTHY }, { side: 'buy', trade: { entry: 100, stop: 99, tp1: 101 } }),
+    expect: { 'SIG-29': U },
+  },
+  {
+    name: 'ohne Einstieg, Stop und Ziel ist das Verhältnis nicht messbar',
+    candidate: () => run({ H4: HEALTHY, H1: rise(24) }, { side: 'buy' }),
+    expect: { 'SIG-29': U },
   },
   {
     name: 'Tages-RSI überkauft beim Verkauf',
@@ -316,7 +367,7 @@ const CASES: Case[] = [
   {
     name: 'Zu wenig Kerzen für den Wave: Divergenz im Wave nicht messbar',
     candidate: () => run({ H4: DIV_SHORT }, { side: 'sell' }),
-    expect: { 'SIG-09': N },
+    expect: { 'SIG-09': U },
   },
   {
     name: 'Docht über dem zweiten Hoch ohne fertiges Fraktal',
@@ -507,14 +558,30 @@ test.describe('SIG: Abdeckung und Eigenschaften', () => {
       if (SIG_UNMEASURABLE_IDS.includes(id)) continue;
       const states = new Set(CASES.map((c) => c.expect[id]).filter((s) => s !== undefined));
       if (!states.has(M)) missing.push(`${id} ☑`);
-      if (!states.has(N)) missing.push(`${id} ☐`);
+      // Einstellungen (SIG-01, SIG-09, SIG-10) haben kein ☐: ohne Vorlauf sind sie nicht messbar
+      const noUnmet = SIG_NO_UNMET_IDS.includes(id);
+      if (noUnmet && !states.has(U)) missing.push(`${id} nicht messbar`);
+      if (!noUnmet && !states.has(N)) missing.push(`${id} ☐`);
     }
     expect(missing).toEqual([]);
   });
 
-  frm('SIG 08, 29 und 39 sind immer nicht messbar', () => {
+  frm('SIG 08 und 39 sind immer nicht messbar', () => {
     const c = run({ H4: SAW }, { side: 'buy' });
-    expect(SIG_UNMEASURABLE_IDS.map((id) => state(c, id))).toEqual([U, U, U]);
+    expect(SIG_UNMEASURABLE_IDS).toEqual(['SIG-08', 'SIG-39']);
+    expect(SIG_UNMEASURABLE_IDS.map((id) => state(c, id))).toEqual([U, U]);
+  });
+
+  frm('SIG 29: der Wert ist das CRV bis TP1 (Ziel 3 vom Einstieg, Stop 1,5)', () => {
+    const c = run({ H4: HEALTHY, H1: rise(24) }, { side: 'sell', trade: { entry: 100, stop: 101.5, tp1: 97 } });
+    expect(find(c, 'SIG-29').value).toBe(2);
+    expect(state(c, 'SIG-29')).toBe(M);
+  });
+
+  frm('SIG 29: CRV 0,5 (Ziel 1, Stop 2) mit Umkehrkerze der tieferen Zeiteinheit trägt den Wert 0,5', () => {
+    const c = run({ H4: chop(30), H1: ENG_BUY }, { side: 'buy', trade: { entry: 100, stop: 98, tp1: 101 } });
+    expect(find(c, 'SIG-29').value).toBe(0.5);
+    expect(state(c, 'SIG-29')).toBe(M);
   });
 
   frm('Gleichstand der Wave-Spitzen zählt als Divergenz, strikt gilt er nicht', () => {
