@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, type HintContent } from './tooltip';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'success' | 'danger' | 'warning';
-type Size = 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm';
+type Size = 'xs' | 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm' | 'icon-xs';
 
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_0_1px_rgba(0,0,0,0.2),0_6px_20px_-8px_var(--primary)]',
@@ -16,12 +16,15 @@ const VARIANTS: Record<Variant, string> = {
   warning: 'bg-warning text-warning-foreground hover:bg-warning/90',
 };
 
+// xs/icon-xs: Pille wie die Zeitrahmen-Knöpfe der Kopfleiste von /formasyon (FormationFavoritesBar), für die Chart-Werkzeuge dort
 const SIZES: Record<Size, string> = {
+  xs: 'h-6 rounded-full px-2.5 text-[11px] font-normal gap-1',
   sm: 'h-7 px-2.5 text-xs gap-1.5 sm:h-8 sm:px-3',
   md: 'h-8 px-3 text-xs gap-1.5 sm:h-9 sm:px-4 sm:text-sm sm:gap-2',
   lg: 'h-10 px-5 text-sm gap-2 sm:h-11 sm:px-6',
   icon: 'size-8 sm:size-9',
   'icon-sm': 'size-7 sm:size-8',
+  'icon-xs': 'size-6 rounded-full',
 };
 
 // `title` fehlt absichtlich: Erklärungen laufen über `hint` (hooks/RULES.md §5), nie über native Titel.
