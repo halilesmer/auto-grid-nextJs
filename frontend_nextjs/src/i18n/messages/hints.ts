@@ -1528,7 +1528,7 @@ const existingHints = defineArea(
 
     // --- Zone: Aufräumen beim Verlassen ---
     'zone.exit.clearOnExit.tip':
-      'Eingeschaltet räumt das Setup auf und stoppt (Status „Automatisch bereinigt“), sobald der Preis sie verlässt; auch wenn der Preis zurückkehrt, werden erst nach „Neu starten“ wieder Orders gesetzt. Die Optionen daneben legen fest, was wann aufgeräumt wird. Ausgeschaltet bleiben die Orders des Setups unberührt.',
+      'Eingeschaltet räumt das Setup auf und stoppt (Status „Automatisch bereinigt“), sobald der Preis es verlässt; auch wenn der Preis zurückkehrt, werden erst nach „Neu starten“ wieder Orders gesetzt. Die Optionen daneben legen fest, was wann aufgeräumt wird. Ausgeschaltet bleiben die Orders des Setups unberührt.',
     'zone.exit.side.hint':
       'Bei welcher Ausbruchsrichtung aufgeräumt wird: beliebig, nur nach oben (über der Obergrenze) oder nur nach unten (unter der Untergrenze). Bei Ausbruch in die andere Richtung bleiben die Orders unberührt, das Setup wird trotzdem deaktiviert.',
     'zone.exit.target.hint': 'Welche Seite beim Aufräumen gelöscht/geschlossen wird: alle, nur BUY oder nur SELL.',

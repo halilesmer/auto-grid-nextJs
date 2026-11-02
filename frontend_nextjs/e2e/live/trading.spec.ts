@@ -171,11 +171,9 @@ test.describe('Live-Handel (DEMO)', () => {
     expect(foundIdx).toBeGreaterThanOrEqual(0);
     testMagic = Number(saved[foundIdx].magic);
     expect(testMagic).toBeGreaterThan(0);
-    if (foundIdx !== testIdx) {
-      // Zustand der Testzone am tatsächlichen Platz nachtragen (der vorab geschriebene Eintrag am alten Platz bleibt ungenutzt)
-      await writeFullUiState(api, account.id, saved, { [String(foundIdx)]: 'START' });
-      testIdx = foundIdx;
-    }
+    // Zustand der Testzone an ihrem tatsächlichen Platz (nach dem Gruppieren) eintragen
+    await writeFullUiState(api, account.id, saved, { [String(foundIdx)]: 'START' });
+    testIdx = foundIdx;
 
     const zoneOpen = await waitFor(
       () => api.botStatus(account.id),
