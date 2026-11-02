@@ -237,8 +237,8 @@ interface Real {
 const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
 const FORM = { '01': M, '02': M, '03': M, '04': M, '05': M, '06': M } as const;
 const REAL: Real[] = [
-  // Verkauf (steigender Keil im Aufwärtstrend); erneuter Test der Gegenlinie, kein Trendwechsel, Bruchkerze ohne große Spanne
-  { file: 'kei-sell-h4-01', t: 1765252800, side: 'sell', verdict: 'valid', expect: { ...FORM, '07': M, '08': N, '09': N } },
+  // Verkauf (steigender Keil im Aufwärtstrend); an der Linie mit Spike-Ersatz kein erneuter Test der Gegenlinie, kein Trendwechsel, Bruchkerze ohne große Spanne
+  { file: 'kei-sell-h4-01', t: 1765252800, side: 'sell', verdict: 'valid', expect: { ...FORM, '07': N, '08': N, '09': N } },
   { file: 'kei-sell-h4-02', t: 1761537600, side: 'sell', verdict: 'valid', expect: { ...FORM, '07': N, '08': N, '09': N } },
   // Kauf (fallender Keil im Abwärtstrend, Spiegelfall)
   { file: 'kei-buy-h4-01', t: 1763956800, side: 'buy', verdict: 'valid', expect: { ...FORM, '07': N, '08': N, '09': N } },
@@ -247,8 +247,8 @@ const REAL: Real[] = [
   { file: 'kei-bad-h4-01', t: 1762430400, side: 'buy', verdict: 'invalid', expect: { '01': M, '02': M, '03': M, '04': N, '05': M, '06': M } },
   // Negativfall: die Linien zeigen nicht mit dem Trend (KEI-03 ☐)
   { file: 'kei-bad-h4-02', t: 1763424000, side: 'sell', verdict: 'invalid', expect: { '01': M, '02': M, '03': N, '04': M } },
-  // Negativfall: Schluss jenseits der Linie vor dem zweiten Test unten (KEI-05 ☐)
-  { file: 'kei-bad-h4-03', t: 1762876800, side: 'sell', verdict: 'invalid', expect: { '03': M, '04': M, '05': N, '06': M } },
+  // Negativfall: Schluss jenseits der Linie vor dem zweiten Test unten (KEI-05 ☐); nach den Tiefs kein Schluss über dem Impulsende, die Linie gilt nicht (KEI-03 ☐)
+  { file: 'kei-bad-h4-03', t: 1762876800, side: 'sell', verdict: 'invalid', expect: { '03': N, '04': M, '05': N, '06': M } },
   // im Aufbau: noch kein Schluss jenseits der Linie
   { file: 'kei-form-h4-01', t: 1766160000, side: 'sell', verdict: 'forming', expect: { '01': M, '02': M, '03': M, '04': M, '05': M, '06': N, '09': U } },
 ];

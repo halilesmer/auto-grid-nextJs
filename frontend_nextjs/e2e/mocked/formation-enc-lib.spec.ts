@@ -250,15 +250,16 @@ const REAL: Real[] = [
   { file: 'enc-sell-h4-02', t: 1764763200, side: 'sell', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
   // Kauf; Berührungen unzureichend
   { file: 'enc-buy-h4-01', t: 1766145600, side: 'buy', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
-  { file: 'enc-buy-h4-02', t: 1764561600, side: 'buy', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
+  // im Aufbau: mit der Linie nach TRD-34 bis TRD-36 gilt ein früherer Kanal, unter dessen Linie seit der Freigabe noch kein Schluss liegt
+  { file: 'enc-buy-h4-02', t: 1764561600, side: 'buy', verdict: 'forming', expect: { ...FORM, '05': N, '06': N, '07': M } },
   // Negativfall: die Trendlinie zeigt nicht mit dem Trend (ENC-03 ☐)
   { file: 'enc-bad-h4-01', t: 1765497600, side: 'sell', verdict: 'invalid', expect: { '02': M, '03': N, '04': N, '05': N } },
   // Negativfall: das zweite Hoch verfehlt die Kopie (ENC-04 ☐), sonst Form erfüllt
   { file: 'enc-bad-h4-02', t: 1762430400, side: 'buy', verdict: 'invalid', expect: { '02': M, '03': M, '04': N, '05': M } },
   // Negativfall: kein Kraftverlust (ENC-02 ☐)
   { file: 'enc-bad-h4-03', t: 1762401600, side: 'buy', verdict: 'invalid', expect: { '02': N, '03': M } },
-  // im Aufbau: noch kein Schluss jenseits der Linie
-  { file: 'enc-form-h4-01', t: 1763452800, side: 'buy', verdict: 'forming', expect: { ...FORM, '05': N } },
+  // im Aufbau: 2-und-2 erfüllt, seit der Freigabe noch kein Schluss jenseits der Linie
+  { file: 'enc-form-h4-01', t: 1763452800, side: 'buy', verdict: 'forming', expect: { ...FORM, '04': M, '05': N } },
 ];
 
 for (const r of REAL) {
