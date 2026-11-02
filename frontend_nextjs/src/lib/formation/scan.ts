@@ -1,5 +1,5 @@
 /**
- * Suche für die Seite /formasyon: alle zehn Formationen auf allen vier Zeiteinheiten über einem Kontext.
+ * Suche für die Seite /formasyon: alle elf Formationen auf allen vier Zeiteinheiten über einem Kontext.
  * Reine Funktion (kein React, kein Netzwerk). Ein Treffer ist ein Kandidat mit Punkten; ohne Punkte ist nichts gefunden.
  */
 import { analyzeAbcd } from './abcdChecks';
@@ -8,6 +8,7 @@ import { analyzeBut } from './butChecks';
 import { analyzeCdt } from './cdtChecks';
 import { analyzeCrb } from './crbChecks';
 import { analyzeCyp } from './cypChecks';
+import { analyze2618 } from './f2618Checks';
 import { analyzeGar } from './garChecks';
 import { analyzeLib } from './libChecks';
 import { analyzeObo } from './oboChecks';
@@ -16,14 +17,14 @@ import type { FormationContext } from './context';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
 import type { Candidate, CheckState } from './types';
 
-export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB', 'OBO', 'TDF'] as const;
+export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB', 'OBO', 'TDF', '2618'] as const;
 export type ScanFormation = (typeof SCAN_FORMATIONS)[number];
 
 /** Höhere Zeiteinheit für die Zone (Entwurf): H1→H4, H4→D1, D1→W1, M15→H1 */
 export const UPPER_TIMEFRAME: Record<ContextTimeframe, string> = { D1: 'W1', H4: 'D1', H1: 'H4', M15: 'H1' };
 
-/** Name des letzten Punktes einer Formation: fehlt er, ist die Formation im Aufbau (Libra: K = Berührung der Einstiegskante; Kopf-Schulter und Trendfortsetzung: B = Ausbruch) */
-export const FINAL_POINT: Record<ScanFormation, string> = { ABCD: 'D', GAR: 'D', BAT: 'D', BUT: 'D', CRB: 'D', CYP: 'D', CDT: 'H2', LIB: 'K', OBO: 'B', TDF: 'B' };
+/** Name des letzten Punktes einer Formation: fehlt er, ist die Formation im Aufbau (Libra: K = Berührung der Einstiegskante; Kopf-Schulter und Trendfortsetzung: B = Ausbruch; 2618: K = Berührung von 0.618) */
+export const FINAL_POINT: Record<ScanFormation, string> = { ABCD: 'D', GAR: 'D', BAT: 'D', BUT: 'D', CRB: 'D', CYP: 'D', CDT: 'H2', LIB: 'K', OBO: 'B', TDF: 'B', '2618': 'K' };
 
 /**
  * Vorletzter Punkt: ein Treffer im Aufbau zählt erst, wenn er da ist (FRM-18). Hat die Formation Unterformen mit eigenem vorletztem Punkt
@@ -42,6 +43,8 @@ export const PENULTIMATE_POINT: Record<ScanFormation, { points: readonly string[
   OBO: { points: ['RS'], unfinished: { id: 'OBO-02', state: 'unmeasurable' } },
   // Alle Punkte sind fertige Fraktale; Flagge C2, Dreieck H2, Schale LOW, Rechteck FLOOR
   TDF: { points: ['C2', 'H2', 'LOW', 'FLOOR'] },
+  // I (Impulsende) wird auch vor dem fertigen Fraktal gesetzt; dann ist 2618-03 ☐
+  '2618': { points: ['I'], unfinished: { id: '2618-03', state: 'unmet' } },
 };
 
 export interface ScanHit {
@@ -66,6 +69,7 @@ const ANALYZERS: Record<ScanFormation, (ctx: FormationContext, t: number, result
   CDT: analyzeCdt,
   OBO: analyzeObo,
   TDF: analyzeTdf,
+  '2618': analyze2618,
   // Libra misst LIB-10 an Gartley/Bat und LIB-09 an der Cypher und nimmt deren Ergebnisse aus diesem Suchlauf, statt sie neu zu rechnen
   LIB: (ctx, t, results) => analyzeLib(ctx, t, { harmonics: candidatesOf(results, 'GAR', 'BAT'), cyphers: candidatesOf(results, 'CYP') }),
 };
