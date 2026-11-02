@@ -277,9 +277,9 @@ const existingHints = defineArea(
     'zone.field.orderType.hint':
       'BUY: yalnızca alış emirleri.\nSELL: yalnızca satış emirleri.\nBOTH: her iki yön; BUY ve SELL ayrı ayarlanabilir.',
     'zone.field.minPrice.hint':
-      'Bölgenin alt sınırı. Emirler yalnızca Min–Max aralığına konur; fiyat bunun altına inerse bölge çıkışı sayılır.',
+      'Setup’ın alt sınırı. Emirler yalnızca Min–Max aralığına konur; fiyat bunun altına inerse setup çıkışı sayılır.',
     'zone.field.maxPrice.hint':
-      'Bölgenin üst sınırı. Emirler yalnızca Min–Max aralığına konur; fiyat bunun üstüne çıkarsa bölge çıkışı sayılır.',
+      'Setup’ın üst sınırı. Emirler yalnızca Min–Max aralığına konur; fiyat bunun üstüne çıkarsa setup çıkışı sayılır.',
 
     // --- Bölge: grid alanları ---
     'zone.field.gridStep.hint':
@@ -341,7 +341,7 @@ const existingHints = defineArea(
     'zone.field.sellStopLossLoss.hint':
       'SELL pozisyonu bu kadar zarara ($) ulaşınca kapanır; SELL lotu ile çevrilir. 0 = zarar durdur yok.',
     'zone.instantEntry.hint':
-      'Açıkken bot, bir yönde (BUY/SELL) açık pozisyon yoksa beklemeden güncel fiyattan piyasa emriyle bir pozisyon açar: başlatınca ve o yönün tüm pozisyonları kapandıktan sonra (ör. kâr al). BUY ve SELL bölgesinde ikisi de açılır. Sonraki seviyeler bu pozisyondan itibaren grid adımı kadar uzağa konur. Yalnızca fiyat bölge aralığındayken.',
+      'Açıkken bot, bir yönde (BUY/SELL) açık pozisyon yoksa beklemeden güncel fiyattan piyasa emriyle bir pozisyon açar: başlatınca ve o yönün tüm pozisyonları kapandıktan sonra (ör. kâr al). BUY ve SELL setup’ında ikisi de açılır. Sonraki seviyeler bu pozisyondan itibaren grid adımı kadar uzağa konur. Yalnızca fiyat setup aralığındayken.',
     'zone.breakout.pullback.off.hint': 'Yalnızca “Sadece trend yönünde” (breakout) açıkken kullanılır.',
     'zone.breakout.levelsBelow.hint':
       'Referans fiyatın altında kaç grid seviyesi (emir) kurulacağı; her seviye Grid Adımı kadar uzaktadır.',
@@ -350,26 +350,26 @@ const existingHints = defineArea(
       'Referans fiyatın üstünde kaç grid seviyesi (emir) kurulacağı; her seviye Grid Adımı kadar uzaktadır.',
     'zone.breakout.levelsAbove.off.hint': 'Breakout + SELL modunda kullanılmaz: SELL yalnızca fiyatın altına kurulur.',
     'zone.breakout.maxPositions.hint':
-      'Bu bölgede aynı anda açık olabilecek en fazla pozisyon. Sınıra ulaşınca yeni emir konmaz. 0 = sınırsız (motor en çok 500 ile sınırlar).',
+      'Bu setup’ta aynı anda açık olabilecek en fazla pozisyon. Sınıra ulaşınca yeni emir konmaz. 0 = sınırsız (motor en çok 500 ile sınırlar).',
 
     // --- Bölge: çıkışta temizleme ---
     'zone.exit.clearOnExit.tip':
-      'Açıkken fiyat bölgenin dışına çıktığında bölge kendini temizler ve durur (“Otomatik temizlendi”); fiyat geri gelse de “Yeniden Başlat” denene kadar emir konmaz. Yanındaki seçenekler neyin, ne zaman temizleneceğini belirler. Kapalıyken bölgenin emirlerine dokunulmaz.',
+      'Açıkken fiyat setup’ın dışına çıktığında setup kendini temizler ve durur (“Otomatik temizlendi”); fiyat geri gelse de “Yeniden Başlat” denene kadar emir konmaz. Yanındaki seçenekler neyin, ne zaman temizleneceğini belirler. Kapalıyken setup’ın emirlerine dokunulmaz.',
     'zone.exit.side.hint':
-      'Hangi yönde çıkışta temizlik yapılacağı: herhangi, yalnızca yukarı (üst sınırın üstü) veya yalnızca aşağı (alt sınırın altı). Diğer yönde çıkışta emirlere dokunulmaz, bölge yine de pasife alınır.',
+      'Hangi yönde çıkışta temizlik yapılacağı: herhangi, yalnızca yukarı (üst sınırın üstü) veya yalnızca aşağı (alt sınırın altı). Diğer yönde çıkışta emirlere dokunulmaz, setup yine de pasife alınır.',
     'zone.exit.target.hint': 'Temizlikte hangi tarafın işlemleri silinsin/kapatılsın: hepsi, yalnızca BUY veya yalnızca SELL.',
     'zone.exit.scope.hint':
       'Sadece Bekleyen Emirler: yalnızca henüz dolmamış emirler silinir.\nTüm İşlemler: açık pozisyonlar da kapatılır (zarar gerçekleşebilir).',
     'zone.exit.trigger.hint':
-      'Anlık Fiyat: fiyat sınırı geçer geçmez tetiklenir.\nMum Kapanışı: yalnızca seçilen periyottaki mum bölgenin dışında kapanırsa tetiklenir (kısa iğne hareketlerine karşı daha güvenli).',
+      'Anlık Fiyat: fiyat sınırı geçer geçmez tetiklenir.\nMum Kapanışı: yalnızca seçilen periyottaki mum setup’ın dışında kapanırsa tetiklenir (kısa iğne hareketlerine karşı daha güvenli).',
     'zone.exit.timeframe.hint':
-      'Mum kapanışının hangi periyotta kontrol edileceği (M1 = 1 dakika … D1 = 1 gün). Son kapanan mum bölgenin dışında kapanırsa çıkış sayılır.',
+      'Mum kapanışının hangi periyotta kontrol edileceği (M1 = 1 dakika … D1 = 1 gün). Son kapanan mum setup’ın dışında kapanırsa çıkış sayılır.',
     'zone.entryMode.hint':
       'Grid: fiyat aralığında kayan ızgara emirleri.\nFraktal: yalnızca seçilen zaman dilimindeki en yeni fraktalların seviyesinde bekleyen emir (yön başına „Emir Sayısı“ kadar, varsayılan 1). Yeni fraktal oluşunca emirler kayar; fiyat seviyeyi geçtiyse emir konmaz. MT5\'te elle silinen emir veya kapatılan pozisyon için aynı fraktala tekrar emir konmaz.',
     'zone.fractal.timeframe.hint':
       'Fraktalların arandığı mum periyodu (M1 = 1 dakika … D1 = 1 gün). Fraktal 5 mumdan oluşur ve ancak sağdaki iki mum kapandıktan sonra geçerlidir; ATR ve SAR da bu periyotta hesaplanır.',
     'zone.fractal.orderMode.hint':
-      'Kırılım: üst fraktal → Buy Stop, alt fraktal → Sell Stop (seviyenin kırılmasına oynar).\nDönüş: üst fraktal → Sell Limit, alt fraktal → Buy Limit (seviyeden geri dönüşe oynar).\nYön (BUY/SELL/Her İkisi) hangi tarafların açılacağını sınırlar; fraktal bölgenin fiyat aralığı içinde olmalı.',
+      'Kırılım: üst fraktal → Buy Stop, alt fraktal → Sell Stop (seviyenin kırılmasına oynar).\nDönüş: üst fraktal → Sell Limit, alt fraktal → Buy Limit (seviyeden geri dönüşe oynar).\nYön (BUY/SELL/Her İkisi) hangi tarafların açılacağını sınırlar; fraktal setup’ın fiyat aralığı içinde olmalı.',
     'zone.fractal.slMode.hint':
       'ATR: fraktal mumunun ucu ± çarpan × ATR (tipik mum dalgalanması).\nParabolic SAR: SAR noktası; açık pozisyonda her yeni mumda yalnızca kâr yönünde çekilir.\nKarşı fraktal: BUY için son alt fraktalın, SELL için son üst fraktalın ötesi + tampon.\nFraktal mumu: BUY için fraktal mumunun dibi − tampon, SELL için tepesi + tampon.\nHesaplanamazsa veya yanlış taraftaysa fraktal mumu + tampon kullanılır.',
     'zone.fractal.useSl.hint':
@@ -405,7 +405,7 @@ const existingHints = defineArea(
     'zone.fractal.nextLossByDistance.hint': 'Açık: Forex için pip, diğer araçlar için broker tick sayısı. Kapalı: hesap para biriminde kayıp. BUY ve SELL ayrı kontrol edilir.',
     'zone.fractal.distanceMissing.hint': 'Pip/tick boyutu bilinmiyor. Mesafe girişi kapalıdır; yeni birimle etkin mesafe sınırı yeni emirleri engeller. Broker sembol verilerini yenileyin.',
     'zone.fractal.maxPositions.hint':
-      'Bu bölgede aynı anda açık olabilecek en fazla pozisyon. Sınıra ulaşınca bölge yeni emir koymaz ve bekleyen emirlerini siler. 0 = sınırsız (motor en çok 500 ile sınırlar).',
+      'Bu setup’ta aynı anda açık olabilecek en fazla pozisyon. Sınıra ulaşınca setup yeni emir koymaz ve bekleyen emirlerini siler. 0 = sınırsız (motor en çok 500 ile sınırlar).',
     'zone.legacyOrders.delete.hint':
       'Kararı kaydeder; bot bir sonraki turda bu emirleri MT5\'te siler. Açık pozisyonlar kalır.',
     'zone.legacyOrders.keep.hint':
@@ -864,9 +864,9 @@ const existingHints = defineArea(
     'zone.field.orderType.hint':
       'BUY: buy orders only.\nSELL: sell orders only.\nBOTH: both directions; BUY and SELL can be set separately.',
     'zone.field.minPrice.hint':
-      'Lower limit of the zone. Orders are only placed within Min–Max; if the price falls below it, that counts as leaving the zone.',
+      'Lower limit of the setup. Orders are only placed within Min–Max; if the price falls below it, that counts as leaving the setup.',
     'zone.field.maxPrice.hint':
-      'Upper limit of the zone. Orders are only placed within Min–Max; if the price rises above it, that counts as leaving the zone.',
+      'Upper limit of the setup. Orders are only placed within Min–Max; if the price rises above it, that counts as leaving the setup.',
 
     // --- Zone: grid fields ---
     'zone.field.gridStep.hint':
@@ -928,7 +928,7 @@ const existingHints = defineArea(
     'zone.field.sellStopLossLoss.hint':
       'A SELL position closes once it is this much ($) in loss; converted with the SELL lot. 0 = no stop loss.',
     'zone.instantEntry.hint':
-      'When on, the bot opens a market position at the current price right away whenever a side (BUY/SELL) has no open position: on start and after all positions of that side have closed (e.g. take profit). A BUY and SELL zone opens both. The next levels are placed one grid step away from this position. Only while the price is inside the zone range.',
+      'When on, the bot opens a market position at the current price right away whenever a side (BUY/SELL) has no open position: on start and after all positions of that side have closed (e.g. take profit). A BUY and SELL setup opens both. The next levels are placed one grid step away from this position. Only while the price is inside the setup range.',
     'zone.breakout.pullback.off.hint': 'Only used while “Trend direction only” (breakout) is on.',
     'zone.breakout.levelsBelow.hint':
       'How many grid levels (orders) are built below the reference price; each level is one grid step apart.',
@@ -937,26 +937,26 @@ const existingHints = defineArea(
       'How many grid levels (orders) are built above the reference price; each level is one grid step apart.',
     'zone.breakout.levelsAbove.off.hint': 'Not used in breakout + SELL mode: SELL is only built below the price.',
     'zone.breakout.maxPositions.hint':
-      'Maximum number of positions open at the same time in this zone. Once reached, no new orders are placed. 0 = unlimited (the engine caps it at 500).',
+      'Maximum number of positions open at the same time in this setup. Once reached, no new orders are placed. 0 = unlimited (the engine caps it at 500).',
 
     // --- Zone: clear on exit ---
     'zone.exit.clearOnExit.tip':
-      'When on and the price leaves the zone, the zone clears itself and stops (“Auto-cleared”); even if the price comes back no orders are placed until you press “Restart”. The options next to it decide what is cleared and when. When off, the zone’s orders are left alone.',
+      'When on and the price leaves the setup, the setup clears itself and stops (“Auto-cleared”); even if the price comes back no orders are placed until you press “Restart”. The options next to it decide what is cleared and when. When off, the setup’s orders are left alone.',
     'zone.exit.side.hint':
-      'In which exit direction to clean up: any, only upwards (above the upper limit) or only downwards (below the lower limit). On an exit in the other direction the orders are left alone, but the zone is still deactivated.',
+      'In which exit direction to clean up: any, only upwards (above the upper limit) or only downwards (below the lower limit). On an exit in the other direction the orders are left alone, but the setup is still deactivated.',
     'zone.exit.target.hint': 'Which side’s trades are deleted/closed when cleaning up: all, BUY only or SELL only.',
     'zone.exit.scope.hint':
       'Pending Orders Only: only orders that are not filled yet are deleted.\nAll Trades: open positions are closed as well (a loss may be realised).',
     'zone.exit.trigger.hint':
-      'Current Price: triggers as soon as the price crosses the limit.\nCandle Close: triggers only if the candle of the chosen timeframe closes outside the zone (safer against short wicks).',
+      'Current Price: triggers as soon as the price crosses the limit.\nCandle Close: triggers only if the candle of the chosen timeframe closes outside the setup (safer against short wicks).',
     'zone.exit.timeframe.hint':
-      'Timeframe of the candle close check (M1 = 1 minute … D1 = 1 day). If the last closed candle closes outside the zone, that counts as an exit.',
+      'Timeframe of the candle close check (M1 = 1 minute … D1 = 1 day). If the last closed candle closes outside the setup, that counts as an exit.',
     'zone.entryMode.hint':
       'Grid: sliding grid orders across the price range.\nFractal: pending orders only at the levels of the latest fractals on the chosen timeframe (as many per direction as “order count”, default 1). A new fractal shifts the orders; if price has already passed the level, no order is placed. If you delete the order or close the position in MT5, the same fractal is not traded again.',
     'zone.fractal.timeframe.hint':
       'Candle period in which fractals are detected (M1 = 1 minute … D1 = 1 day). A fractal spans 5 candles and is only valid once the two candles to its right have closed; ATR and SAR use this period too.',
     'zone.fractal.orderMode.hint':
-      'Breakout: upper fractal → Buy Stop, lower fractal → Sell Stop (trades a break of the level).\nRebound: upper fractal → Sell Limit, lower fractal → Buy Limit (trades a bounce off the level).\nDirection (BUY/SELL/Both) limits which sides are traded; the fractal must lie within the zone\'s price range.',
+      'Breakout: upper fractal → Buy Stop, lower fractal → Sell Stop (trades a break of the level).\nRebound: upper fractal → Sell Limit, lower fractal → Buy Limit (trades a bounce off the level).\nDirection (BUY/SELL/Both) limits which sides are traded; the fractal must lie within the setup\'s price range.',
     'zone.fractal.slMode.hint':
       'ATR: tip of the fractal candle ± multiplier × ATR (typical candle range).\nParabolic SAR: the SAR dot; on open positions it is moved on each new candle, only in the profit direction.\nOpposite fractal: beyond the last lower fractal (BUY) or upper fractal (SELL) + buffer.\nFractal candle: low of the fractal candle − buffer (BUY), high + buffer (SELL).\nIf it cannot be calculated or lands on the wrong side, fractal candle + buffer is used.',
     'zone.fractal.useSl.hint':
@@ -992,7 +992,7 @@ const existingHints = defineArea(
     'zone.fractal.nextLossByDistance.hint': 'On: pips for Forex, broker ticks for other instruments. Off: loss in account currency. BUY and SELL are checked separately.',
     'zone.fractal.distanceMissing.hint': 'Pip/tick size is unknown. Distance entry is disabled; an active limit in the new units blocks new orders. Refresh the broker symbol data.',
     'zone.fractal.maxPositions.hint':
-      'Maximum number of positions of this zone open at the same time. Once reached, the zone places no new orders and deletes its pending ones. 0 = unlimited (the engine caps it at 500).',
+      'Maximum number of positions of this setup open at the same time. Once reached, the setup places no new orders and deletes its pending ones. 0 = unlimited (the engine caps it at 500).',
     'zone.legacyOrders.delete.hint':
       'Saves the decision; on its next round the bot deletes these orders in MT5. Open positions stay.',
     'zone.legacyOrders.keep.hint':
@@ -1451,9 +1451,9 @@ const existingHints = defineArea(
     'zone.field.orderType.hint':
       'BUY: nur Kauf-Orders.\nSELL: nur Verkaufs-Orders.\nBOTH: beide Richtungen; BUY und SELL lassen sich getrennt einstellen.',
     'zone.field.minPrice.hint':
-      'Untergrenze der Zone. Orders werden nur zwischen Min und Max gesetzt; fällt der Preis darunter, gilt das als Verlassen der Zone.',
+      'Untergrenze des Setups. Orders werden nur zwischen Min und Max gesetzt; fällt der Preis darunter, gilt das als Verlassen des Setups.',
     'zone.field.maxPrice.hint':
-      'Obergrenze der Zone. Orders werden nur zwischen Min und Max gesetzt; steigt der Preis darüber, gilt das als Verlassen der Zone.',
+      'Obergrenze des Setups. Orders werden nur zwischen Min und Max gesetzt; steigt der Preis darüber, gilt das als Verlassen des Setups.',
 
     // --- Zone: Grid-Felder ---
     'zone.field.gridStep.hint':
@@ -1515,7 +1515,7 @@ const existingHints = defineArea(
     'zone.field.sellStopLossLoss.hint':
       'Eine SELL-Position wird geschlossen, sobald sie diesen Betrag ($) im Minus ist; umgerechnet mit dem SELL-Lot. 0 = kein Stop Loss.',
     'zone.instantEntry.hint':
-      'Wenn an, eröffnet der Bot sofort eine Position zum aktuellen Preis, sobald auf einer Seite (BUY/SELL) keine Position offen ist: beim Start und nachdem alle Positionen dieser Seite geschlossen wurden (z. B. Take Profit). Bei einer BUY-und-SELL-Zone werden beide eröffnet. Die nächsten Level liegen einen Grid-Abstand von dieser Position entfernt. Nur solange der Preis im Zonenbereich liegt.',
+      'Wenn an, eröffnet der Bot sofort eine Position zum aktuellen Preis, sobald auf einer Seite (BUY/SELL) keine Position offen ist: beim Start und nachdem alle Positionen dieser Seite geschlossen wurden (z. B. Take Profit). Bei einem BUY-und-SELL-Setup werden beide eröffnet. Die nächsten Level liegen einen Grid-Abstand von dieser Position entfernt. Nur solange der Preis im Preisbereich des Setups liegt.',
     'zone.breakout.pullback.off.hint': 'Wird nur genutzt, solange „Nur in Trendrichtung“ (Breakout) eingeschaltet ist.',
     'zone.breakout.levelsBelow.hint':
       'Wie viele Grid-Level (Orders) unter dem Referenzpreis aufgebaut werden; jedes Level liegt einen Grid-Schritt entfernt.',
@@ -1524,26 +1524,26 @@ const existingHints = defineArea(
       'Wie viele Grid-Level (Orders) über dem Referenzpreis aufgebaut werden; jedes Level liegt einen Grid-Schritt entfernt.',
     'zone.breakout.levelsAbove.off.hint': 'Im Breakout-Modus mit SELL ohne Wirkung: SELL wird nur unter dem Preis aufgebaut.',
     'zone.breakout.maxPositions.hint':
-      'Höchstzahl gleichzeitig offener Positionen in dieser Zone. Ist sie erreicht, werden keine neuen Orders gesetzt. 0 = unbegrenzt (die Engine deckelt bei 500).',
+      'Höchstzahl gleichzeitig offener Positionen in diesem Setup. Ist sie erreicht, werden keine neuen Orders gesetzt. 0 = unbegrenzt (die Engine deckelt bei 500).',
 
     // --- Zone: Aufräumen beim Verlassen ---
     'zone.exit.clearOnExit.tip':
-      'Eingeschaltet räumt die Zone auf und stoppt (Status „Automatisch bereinigt“), sobald der Preis sie verlässt; auch wenn der Preis zurückkehrt, werden erst nach „Neu starten“ wieder Orders gesetzt. Die Optionen daneben legen fest, was wann aufgeräumt wird. Ausgeschaltet bleiben die Orders der Zone unberührt.',
+      'Eingeschaltet räumt das Setup auf und stoppt (Status „Automatisch bereinigt“), sobald der Preis sie verlässt; auch wenn der Preis zurückkehrt, werden erst nach „Neu starten“ wieder Orders gesetzt. Die Optionen daneben legen fest, was wann aufgeräumt wird. Ausgeschaltet bleiben die Orders des Setups unberührt.',
     'zone.exit.side.hint':
-      'Bei welcher Ausbruchsrichtung aufgeräumt wird: beliebig, nur nach oben (über der Obergrenze) oder nur nach unten (unter der Untergrenze). Bei Ausbruch in die andere Richtung bleiben die Orders unberührt, die Zone wird trotzdem deaktiviert.',
+      'Bei welcher Ausbruchsrichtung aufgeräumt wird: beliebig, nur nach oben (über der Obergrenze) oder nur nach unten (unter der Untergrenze). Bei Ausbruch in die andere Richtung bleiben die Orders unberührt, das Setup wird trotzdem deaktiviert.',
     'zone.exit.target.hint': 'Welche Seite beim Aufräumen gelöscht/geschlossen wird: alle, nur BUY oder nur SELL.',
     'zone.exit.scope.hint':
       'Nur Pending Orders: nur noch nicht ausgeführte Orders werden gelöscht.\nAlle Trades: auch offene Positionen werden geschlossen (ein Verlust kann realisiert werden).',
     'zone.exit.trigger.hint':
-      'Aktueller Preis: löst aus, sobald der Preis die Grenze überschreitet.\nKerzenschluss: löst nur aus, wenn die Kerze des gewählten Zeitrahmens außerhalb der Zone schließt (sicherer gegen kurze Dochte).',
+      'Aktueller Preis: löst aus, sobald der Preis die Grenze überschreitet.\nKerzenschluss: löst nur aus, wenn die Kerze des gewählten Zeitrahmens außerhalb des Setups schließt (sicherer gegen kurze Dochte).',
     'zone.exit.timeframe.hint':
-      'Zeitrahmen der Kerzenschluss-Prüfung (M1 = 1 Minute … D1 = 1 Tag). Schließt die letzte abgeschlossene Kerze außerhalb der Zone, gilt das als Ausbruch.',
+      'Zeitrahmen der Kerzenschluss-Prüfung (M1 = 1 Minute … D1 = 1 Tag). Schließt die letzte abgeschlossene Kerze außerhalb des Setups, gilt das als Ausbruch.',
     'zone.entryMode.hint':
       'Grid: gleitende Raster-Orders im Preisbereich.\nFraktal: Pending-Orders nur auf Höhe der jüngsten Fraktale im gewählten Zeitrahmen (je Richtung so viele wie „Anzahl Orders“, Standard 1). Ein neues Fraktal verschiebt die Orders; hat der Kurs das Niveau schon erreicht, wird keine gesetzt. Löschst du die Order oder schließt die Position in MT5, wird dasselbe Fraktal nicht erneut gehandelt.',
     'zone.fractal.timeframe.hint':
       'Kerzenperiode, in der Fraktale gesucht werden (M1 = 1 Minute … D1 = 1 Tag). Ein Fraktal besteht aus 5 Kerzen und gilt erst, wenn die zwei Kerzen rechts davon geschlossen sind; ATR und SAR nutzen dieselbe Periode.',
     'zone.fractal.orderMode.hint':
-      'Ausbruch: oberes Fraktal → Buy Stop, unteres Fraktal → Sell Stop (setzt auf den Bruch des Niveaus).\nAbpraller: oberes Fraktal → Sell Limit, unteres Fraktal → Buy Limit (setzt auf die Umkehr am Niveau).\nDie Richtung (BUY/SELL/Beide) begrenzt die Seiten; das Fraktal muss im Preisbereich der Zone liegen.',
+      'Ausbruch: oberes Fraktal → Buy Stop, unteres Fraktal → Sell Stop (setzt auf den Bruch des Niveaus).\nAbpraller: oberes Fraktal → Sell Limit, unteres Fraktal → Buy Limit (setzt auf die Umkehr am Niveau).\nDie Richtung (BUY/SELL/Beide) begrenzt die Seiten; das Fraktal muss im Preisbereich des Setups liegen.',
     'zone.fractal.slMode.hint':
       'ATR: Spitze der Fraktal-Kerze ± Faktor × ATR (typische Kerzenschwankung).\nParabolic SAR: SAR-Punkt; bei offenen Positionen mit jeder neuen Kerze nachgezogen, nur in Gewinnrichtung.\nGegenfraktal: jenseits des letzten unteren (BUY) bzw. oberen Fraktals (SELL) + Puffer.\nFraktal-Kerze: Tief der Fraktal-Kerze − Puffer (BUY), Hoch + Puffer (SELL).\nLässt er sich nicht berechnen oder liegt er auf der falschen Seite, gilt Fraktal-Kerze + Puffer.',
     'zone.fractal.useSl.hint':
@@ -1579,7 +1579,7 @@ const existingHints = defineArea(
     'zone.fractal.nextLossByDistance.hint': 'An: Pips bei Forex, Broker-Ticks bei anderen Instrumenten. Aus: Verlust in Kontowährung. BUY und SELL werden getrennt geprüft.',
     'zone.fractal.distanceMissing.hint': 'Die Pip-/Tick-Größe fehlt. Abstandseingabe gesperrt; eine aktive Grenze in neuen Einheiten blockiert neue Orders. Broker-Symboldaten aktualisieren.',
     'zone.fractal.maxPositions.hint':
-      'Höchstzahl gleichzeitig offener Positionen dieser Zone. Ist sie erreicht, setzt die Zone keine neuen Orders und löscht ihre Pending Orders. 0 = unbegrenzt (die Engine deckelt bei 500).',
+      'Höchstzahl gleichzeitig offener Positionen dieses Setups. Ist sie erreicht, setzt das Setup keine neuen Orders und löscht seine Pending Orders. 0 = unbegrenzt (die Engine deckelt bei 500).',
     'zone.legacyOrders.delete.hint':
       'Speichert die Entscheidung; der Bot löscht diese Orders in seiner nächsten Runde in MT5. Offene Positionen bleiben.',
     'zone.legacyOrders.keep.hint':

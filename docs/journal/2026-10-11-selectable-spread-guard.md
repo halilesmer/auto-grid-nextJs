@@ -2,7 +2,7 @@
 date: 2026-10-11
 author: Codex
 type: feature
-status: open
+status: done
 pr: [152, 158]
 features: [ENG-31]
 areas: [worker, frontend, tests, docs]
@@ -68,7 +68,8 @@ Learning only during wide spreads can establish a wide normal reference. A fixed
 
 ## Open points
 
-- [ ] Run the live DEMO validation when the market is open. The owner requested this follow-up on 2026-10-11.
+- [x] Run the live DEMO validation when the market is open. The owner requested this follow-up on 2026-10-11.
+  - Done (2026-11-02 check): `FEATURES.md` shows ENG-31 manual ✅ 2026-10-13, with partial live evidence. See "ENG-31 live check" in `2026-10-13-manual-checks-readonly-sweep.md`. The parts that stay unverified are listed there.
 - Use the separately authorized DEMO account after the VPS receives the change and the worker restarts.
 - Verify pending order cancellation, blocked entries, unaffected position management and recovery after 30 seconds below 80% of the limit.
 - Record the result here. No live trading test has run yet.

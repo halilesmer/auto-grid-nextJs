@@ -136,7 +136,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       },
       body: JSON.stringify({ settings: settingsToWorker(settings) }),
     });
-    if (!res.ok) throw new Error(t('settings.saveFailed'));
+    if (!res.ok) {
+      // Worker-Meldung (detail) durchreichen; ohne lesbaren Body bleibt die allgemeine Meldung
+      const body = await res.json().catch(() => null);
+      const detail = (body as { detail?: unknown } | null)?.detail;
+      throw new Error(typeof detail === 'string' && detail ? detail : t('settings.saveFailed'));
+    }
     if (settings.ZONES) get().applySavedOrder(selectedAccount, settings.ZONES);
     return settings;
   },

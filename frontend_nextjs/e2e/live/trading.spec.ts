@@ -165,8 +165,17 @@ test.describe('Live-Handel (DEMO)', () => {
     };
     await api.post(`/settings/${account.id}`, { settings: { ZONES: [...zones, testZone] } });
     // Der Worker vergibt die Magic beim Speichern (zone_magic.py)
-    testMagic = Number((await api.settings(account.id)).ZONES?.find((z) => z.id === TEST_ZONE_ID)?.magic);
+    // Der Worker gruppiert beim Speichern nach Symbol: der Listenplatz der Testzone steht erst jetzt fest
+    const saved = (await api.settings(account.id)).ZONES ?? [];
+    const foundIdx = saved.findIndex((z) => z.id === TEST_ZONE_ID);
+    expect(foundIdx).toBeGreaterThanOrEqual(0);
+    testMagic = Number(saved[foundIdx].magic);
     expect(testMagic).toBeGreaterThan(0);
+    if (foundIdx !== testIdx) {
+      // Zustand der Testzone am tatsächlichen Platz nachtragen (der vorab geschriebene Eintrag am alten Platz bleibt ungenutzt)
+      await writeFullUiState(api, account.id, saved, { [String(foundIdx)]: 'START' });
+      testIdx = foundIdx;
+    }
 
     const zoneOpen = await waitFor(
       () => api.botStatus(account.id),
