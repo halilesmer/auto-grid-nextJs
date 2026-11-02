@@ -50,10 +50,10 @@ areas: [frontend, tests]
 
 ## Open points
 - [ ] The legend on the page says "Zigzag P1–P2–C–P3–K–E" for the Libra, but the Libra draws no zigzag (the rule book does not label its points). The legend text is the same for all formations.
-- [ ] The marker Z-LIB-07 has its anchor at the candle that reaches the target, but `drawingLayout.ts` draws every marker at the final point (K). The page shows the box at the touch.
-- [ ] K is set when the touch comes before P3 is a finished fractal (touch within 2 candles after P3). Then the checklist shows no "forming" note and the alarm event "target" can come before P3 is finished.
-- [ ] `cypChecks.ts` calls `analyzeLib` without results of Gartley and Bat (CYP-10); there the Libra still computes them itself.
-- [ ] No test proves that the scan gives the Gartley/Bat and Cypher results to `LIB-10` and `LIB-09`: no real series has a measurable `LIB-09` or a met `LIB-10` (checked over all H4 fixtures).
+- [x] The marker Z-LIB-07 has its anchor at the candle that reaches the target, but `drawingLayout.ts` draws every marker at the final point (K). The page shows the box at the touch. Done: for the Libra, `drawingLayout.ts` draws the marker at its own anchor; the Cypher marker stays at D (FRM-09 test).
+- [x] K is set when the touch comes before P3 is a finished fractal (touch within 2 candles after P3). Then the checklist shows no "forming" note and the alarm event "target" can come before P3 is finished. Done: `libChecks.ts` drops the touch while P3 is not a finished fractal (FRM-09 test, red before the change).
+- [x] `cypChecks.ts` calls `analyzeLib` without results of Gartley and Bat (CYP-10); there the Libra still computes them itself. Done: `analyzeCyp` takes the Gartley and Bat results, the scan gives them (FRM-18 test counts the candle views; red before the change).
+- [x] No test proves that the scan gives the Gartley/Bat and Cypher results to `LIB-10` and `LIB-09`: no real series has a measurable `LIB-09` or a met `LIB-10` (checked over all H4 fixtures). Done: FRM-18 tests call `ANALYZERS.LIB` (now exported) with hand-built series and injected results.
 - [x] OBO, TDF and 2618 follow one at a time. Done: OBO in PR #295, TDF in PR #297, 2618 in PR #301.
 
 ## Lessons

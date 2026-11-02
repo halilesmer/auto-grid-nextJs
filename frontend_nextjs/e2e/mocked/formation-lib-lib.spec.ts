@@ -374,6 +374,60 @@ frm('Zeichnung Z-Regel 07 (Häkchen) kommt erst, wenn das Ziel nach der Berühru
   expect(hit!.anchors[0].price).toBeCloseTo(106.625, 2);
 });
 
+/** Berührung schon in der Kerze nach P3 (Index 31); ohne Nachlauf, P3 hat erst eine Kerze rechts */
+const EARLY_TOUCH = zig([100, 130, 112, 140, 105, 131], [8, 8, 8, 4, 1], 0);
+
+frm('LIB-12: eine Berührung vor dem fertigen P3 setzt kein K; mit fertigem P3 gilt sie', () => {
+  const pending = run({ H4: EARLY_TOUCH });
+  expect(state(pending, 'LIB-04')).toBe(N);
+  expect(state(pending, 'LIB-12')).toBe(N);
+  expect(pending.points.K).toBeUndefined();
+  expect(pending.verdict).toBe('forming');
+  expect(pending.drawings.some((d) => d.id === 'Z-LIB-07')).toBe(false);
+  const done = run({ H4: zig([100, 130, 112, 140, 105, 131], [8, 8, 8, 4, 1], 3) });
+  expect(state(done, 'LIB-04')).toBe(M);
+  expect(state(done, 'LIB-12')).toBe(M);
+  expect(done.points.K.time).toBe(31 * H4);
+});
+
+const layoutOf = (candidate: Candidate, form: 'LIB' | 'CYP') =>
+  layoutDrawings({
+    candidate,
+    form,
+    width: 500,
+    lastBar: { time: 60 * H4, close: 120 },
+    x: (time) => time / H4,
+    y: (price) => 300 - price,
+    yRsi: (value) => value,
+    yWave: (value) => value,
+    text: (key) => key,
+    fmt: (n) => String(n),
+  });
+
+frm('Z-LIB-07: das Ziel-Häkchen sitzt an der Kerze, die das Ziel erreicht, nicht am Punkt K', () => {
+  const c = run({ H4: TARGET });
+  const reachedAt = c.drawings.find((d) => d.id === 'Z-LIB-07')!.anchors[0].time / H4;
+  // Kerze 45: der Fall von 131 (Index 38) läuft 3,875 je Kerze; Index 44 hat Tief 107,65, Index 45 hat 103,775 ≤ 106,625
+  expect(reachedAt).toBe(45);
+  const marker = layoutOf(c, 'LIB').find((g) => g.id === 'Z-LIB-07')!;
+  expect(marker.prims).toEqual([{ kind: 'rect', x: 36, y: 300 - 106.625 - 9, w: 18, h: 18, tone: 'mark' }]);
+});
+
+frm('Z-CYP-06: der Marker der Cypher bleibt am Endpunkt D, auch mit anderen Ankern', () => {
+  const point = (idx: number, price: number): Anchor => ({ time: idx * H4, price });
+  const candidate: Candidate = {
+    code: 'CYP',
+    side: 'buy',
+    tf: 'H4',
+    points: { C: point(10, 139), D: point(20, 108) },
+    checks: [],
+    drawings: [{ id: 'Z-CYP-06', tool: 'marker', anchors: [point(10, 139), point(20, 108), point(60, 109)], rules: [], side: 'buy' }],
+    verdict: 'valid',
+  };
+  const marker = layoutOf(candidate, 'CYP').find((g) => g.id === 'Z-CYP-06')!;
+  expect(marker.prims).toEqual([{ kind: 'rect', x: 20 - 9, y: 300 - 108 - 9, w: 18, h: 18, tone: 'mark' }]);
+});
+
 frm('Analyse findet Paar, P3 und Berührung selbst und liefert alle Bedingungen', () => {
   const res = analyzeLib(ctxOf({ H4: BASE }), END);
   expect(res.map((r) => r.tf)).toEqual(['H4']);
