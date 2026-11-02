@@ -1864,6 +1864,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt erst ab dem vorletzten Punkt, getestet für Harmonik, Doppeltop, Libra und Kopf-Schulter, kein Sprung zu einem nicht zählenden Treffer).
+          - "Playwright-Test e2e/mocked/formation-penultimate-early.spec.ts (@FRM-18) ausführen (ABCD und Doppeltop setzen C und N nicht vor dem fertigen Fraktal; bei keinem Prüfzeitpunkt der echten Reihen hat ein Treffer C bei ABCD-02 ☐ oder N bei CDT-03 ☐)."
           - "Playwright-Test e2e/mocked/formation-tdf-scan-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt bei der Trendfortsetzung erst der vorletzte Punkt der Unterform: C2, H2, LOW oder FLOOR; der Henkel allein zählt nicht)."
           - Playwright-Test e2e/mocked/formation-2618-scan-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt bei 2618 erst I mit fertigem Fraktal, auch auf der echten Reihe f2618-open-h4-01).
           - Playwright-Test e2e/mocked/formation-scan-share-lib.spec.ts (@FRM-18) ausführen (Die Suche baut die Umgebung je Zeiteinheit einmal und liefert dasselbe wie jede Formation allein, über alle Fixtures und zwei seitengroße Reihen mit vier Zeiteinheiten).

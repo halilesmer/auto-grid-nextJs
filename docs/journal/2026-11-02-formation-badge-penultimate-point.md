@@ -2,7 +2,7 @@
 date: 2026-11-02
 author: Claude
 type: decision
-status: open
+status: done
 pr: []
 features: [FRM-18]
 areas: [frontend, tests]
@@ -53,4 +53,4 @@ Count of series with at least one hit that counts (102 fixture series, check tim
 The new tests were red before the change (5 failed) and green after it.
 
 ## Open points
-- [ ] Do C (ABCD, harmonics) and N (double top) exist before they are a finished fractal? The check files set them from found swings and test the fractal in ABCD-02, CDT-01 and CDT-03. Not verified by a test. The review read the code: ABCD-02 and CDT-03 make an unfinished C or N invalid, so the answer is probably no. If yes, the same pattern as for P3 and RS is possible.
+- [x] Do C (ABCD) and N (double top) exist before they are a finished fractal? No. New test `e2e/mocked/formation-penultimate-early.spec.ts` (FRM-18) scans every 4th bar (from bar 20) of the ABCD and double-top fixtures, for hits of any verdict. No hit has C while ABCD-02 is unmet, or N while CDT-03 is unmet (the test fails if it sees no hit with C or N). No change to `scan.ts`. The test was not red, because the answer is no. Other harmonics (Gartley, Bat, Butterfly, Crab, Cypher) are not checked by this test.

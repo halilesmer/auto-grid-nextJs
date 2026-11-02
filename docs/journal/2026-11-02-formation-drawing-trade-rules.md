@@ -2,7 +2,7 @@
 date: 2026-11-02
 author: Claude
 type: fix
-status: open
+status: done
 pr: []
 features: [FRM-20]
 areas: [frontend, tests]
@@ -23,7 +23,7 @@ areas: [frontend, tests]
 | File | Change |
 |---|---|
 | `lib/formation/types.ts` | New constant `TRADE_RULES`: one shared empty list for drawings that only belong to the trade. |
-| `lib/formation/{abcd,bat,but,cdt,crb,cyp,f2618,gar,lib,obo,tdf,t618}Checks.ts` | The 23 trade drawings use `rules: TRADE_RULES` instead of `rules: []`. |
+| `lib/formation/{abcd,bat,but,cdt,crb,cyp,enc,f2618,gar,kei,lib,obo,tdf,t618}Checks.ts` | The 27 trade drawings use `rules: TRADE_RULES` instead of `rules: []`. |
 | `e2e/mocked/formation-drawing-rules-lib.spec.ts` | Coverage test: no `rules: []` in `src/lib/formation`. On the real series of the page search and of T618, each drawing has condition IDs or is `TRADE_RULES` (identity). |
 
 ## Why
@@ -37,7 +37,7 @@ areas: [frontend, tests]
 - Review by the `reviewer` agent: no critical finding. Codex scan not done (weekly limit too low).
 
 ## Open points
-- [ ] ENC and KEI (Z-ENC-02, Z-KEI-02, Z-KEI-03, Z-KEI-03b): another package changes these files now. After its merge, change them to `TRADE_RULES` and remove the `PENDING` list in the coverage test.
+- [x] ENC and KEI (Z-ENC-02, Z-KEI-02, Z-KEI-03, Z-KEI-03b) use `TRADE_RULES`. The `PENDING` list in the coverage test is gone, so the source test checks all files. ENC and KEI are not in the page search, so the series test does not reach them.
 
 ## Lessons
 - An empty list cannot carry a reason. A shared constant can, and a test can check it by identity.

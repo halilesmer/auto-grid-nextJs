@@ -13,7 +13,7 @@ import { zoneGeometry } from './frz';
 import { measureChannel, reversalSide, shrinks, slopesWithTrend, type Channel, type ChannelBase } from './lineChannel';
 import { KEI_PARAMS, LINE_CHANNEL_PARAMS, type ContextTimeframe } from './params';
 import { neighborTf, type Env } from './reasons';
-import type { Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 import { anchorAt, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -115,15 +115,15 @@ function drawingsOf(env: Env, tf: ContextTimeframe, c: Channel): Drawing[] {
       tool: 'fib',
       anchors: [anchorAt(higherBars, impulse.start.idx, impulse.start.price), anchorAt(higherBars, impulse.end.idx, impulse.end.price)],
       levels: [...KEI_PARAMS.targetLevels],
-      rules: [],
+      rules: TRADE_RULES,
       side,
     });
   }
   const stopZone = zoneGeometry(bars, h2.idx, es, tf);
   const startZone = zoneGeometry(bars, la.idx, la.side, tf);
   out.push(
-    { id: 'Z-KEI-03', tool: 'zone', anchors: [anchorAt(bars, h2.idx, stopZone.bottom), { time: lastTime, price: stopZone.top }], rules: [], side },
-    { id: 'Z-KEI-03b', tool: 'zone', anchors: [anchorAt(bars, la.idx, startZone.bottom), { time: lastTime, price: startZone.top }], rules: [], side },
+    { id: 'Z-KEI-03', tool: 'zone', anchors: [anchorAt(bars, h2.idx, stopZone.bottom), { time: lastTime, price: stopZone.top }], rules: TRADE_RULES, side },
+    { id: 'Z-KEI-03b', tool: 'zone', anchors: [anchorAt(bars, la.idx, startZone.bottom), { time: lastTime, price: startZone.top }], rules: TRADE_RULES, side },
   );
   return out;
 }
