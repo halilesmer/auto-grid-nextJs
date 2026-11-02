@@ -101,6 +101,14 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
   });
 
+  test('Kopf-Schulter im Aufbau ohne fertige rechte Schulter bekommt kein Badge', { tag: ['@FRM-18', '@FRM-10'] }, async ({ page, worker }) => {
+    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/abcd-double-h4-01.json', 'utf-8'))).bars;
+    // Zum Reihenende steht dort eine Kopf-Schulter im Aufbau mit LS, K und beiden Nackenpunkten, aber ohne rechte Schulter
+    await openPage(page, worker, `${URL}&form=OBO`, bars[bars.length - 1].time + 14400, bars);
+    await expect(page.getByTestId('formation-form-OBO')).toBeVisible();
+    await expect(page.getByTestId('formation-form-OBO').getByTestId('hit-badge')).toHaveCount(0);
+  });
+
   test('Ohne Treffer steht der Leerzustand statt einer Checkliste', { tag: '@FRM-18' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&tf=M15`);
     await expect(page.getByTestId('formation-empty')).toContainText(msg('formation.empty.chart', { form: 'ABCD', tf: 'M15' }));
