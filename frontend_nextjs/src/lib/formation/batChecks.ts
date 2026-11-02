@@ -141,7 +141,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('BAT-07') === 'unmet') verdict = 'forming';
-  verdict = settle(verdict, withDrawings, exemptFor('BAT', tf, withDrawings));
+  verdict = settle(verdict, withDrawings, exemptFor('BAT', withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

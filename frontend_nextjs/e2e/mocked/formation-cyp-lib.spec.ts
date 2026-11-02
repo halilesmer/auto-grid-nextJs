@@ -27,7 +27,7 @@ const M: CheckState = 'met';
 const N: CheckState = 'unmet';
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-12' }, fn);
 
-const STEP = { D1, H4, M15 } as const;
+const STEP = { W1: 7 * D1, D1, H4, M15 } as const;
 type Tf = keyof typeof STEP;
 
 const ctxOf = (input: Partial<Record<Tf, Row[]>>, symbol = 'TEST') => {
@@ -187,6 +187,9 @@ const CASES: Case[] = [
   { name: 'CYP 01/CYP 04: C unter A (Gartley-Form) ist keine Cypher', candidate: () => run({ H4: C_UNDER_A }, AT, { price: {} }), expect: { 'CYP-01': N, 'CYP-04': N } },
   { name: 'CYP 02: D1 steigt, Kauf in Trend-Richtung', candidate: () => run({ H4: BASE, D1: D1_UP }), expect: { 'CYP-02': M } },
   { name: 'CYP 02: D1 fällt, Kauf gegen die höhere Zeiteinheit', candidate: () => run({ H4: BASE, D1: D1_DOWN }), expect: { 'CYP-02': N } },
+  { name: 'CYP 02 auf D1: W1 steigt, Kauf in Trend-Richtung', candidate: () => run({ D1: BASE, W1: D1_UP }, AT, { tf: 'D1' }), expect: { 'CYP-02': M } },
+  { name: 'CYP 02 auf D1: W1 fällt, Kauf gegen die höhere Zeiteinheit', candidate: () => run({ D1: BASE, W1: D1_DOWN }, AT, { tf: 'D1' }), expect: { 'CYP-02': N } },
+  { name: 'CYP 02 auf D1: ohne W1 nicht messbar', candidate: () => run({ D1: BASE }, AT, { tf: 'D1' }), expect: { 'CYP-02': U } },
   { name: 'CYP 02: ohne höhere Zeiteinheit nicht messbar', candidate: () => run({ H4: BASE }), expect: { 'CYP-02': U } },
   { name: 'CYP 03: B 0.005 vor dem Preis des Levels 0.382 berührt nicht', candidate: () => run({ H4: B_TOL }), expect: { 'CYP-03': N } },
   { name: 'CYP 03: B 0.0007 vor 0.382 berührt nicht', candidate: () => run({ H4: B_FAR }), expect: { 'CYP-03': N } },

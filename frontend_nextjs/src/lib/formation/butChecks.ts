@@ -132,7 +132,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (checks.some((k) => pending(k) && k.state === 'unmet')) verdict = 'forming';
-  verdict = settle(verdict, withDrawings, exemptFor('BUT', tf, withDrawings));
+  verdict = settle(verdict, withDrawings, exemptFor('BUT', withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

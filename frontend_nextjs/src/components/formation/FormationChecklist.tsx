@@ -75,7 +75,7 @@ export function FormationChecklist({
   const title = `${t(`formation.form.${hit.form}` as MessageKey)} ${t(`formation.side.${candidate.side}` as MessageKey)}`;
   const open = candidate.points[FINAL_POINT[hit.form]] === undefined;
   // Dasselbe Prädikat wie im Prüfer: der Hinweis nennt nur Regeln, die das Urteil „gültig“ wirklich halten
-  const unknownIds = blockingUnknowns(candidate.checks, exemptFor(hit.form, hit.tf, candidate.checks));
+  const unknownIds = blockingUnknowns(candidate.checks, exemptFor(hit.form, candidate.checks));
   let note: string | null = null;
   let noteHint = false;
   if (candidate.verdict === 'forming' && open) note = t('formation.note.forming', { point: FINAL_POINT[hit.form] });

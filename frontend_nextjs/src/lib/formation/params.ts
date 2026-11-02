@@ -19,6 +19,8 @@ export const ATR_PERIOD = 14;
 /** Zeiteinheiten des Kontexts (FRZ-27), von hoch nach tief */
 export const CONTEXT_TIMEFRAMES = ['D1', 'H4', 'H1', 'M15'] as const satisfies readonly Timeframe[];
 export type ContextTimeframe = (typeof CONTEXT_TIMEFRAMES)[number];
+/** Zeiteinheiten für Trend, RSI und Divergenz: der Kontext plus W1 (aus D1 gebildet, nur höhere Zeiteinheit von D1) */
+export type TrendTimeframe = 'W1' | ContextTimeframe;
 
 /** Fraktal-Zone (FRZ). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
 export const FRZ_PARAMS = {
@@ -101,7 +103,8 @@ export interface TrendOptions {
 }
 
 /** Tage Verlauf je Zeiteinheit: genug Wendepunkte für die Suche, wenig genug für eine schnelle Antwort (Annahme) */
-export const HISTORY_DAYS = { D1: 400, H4: 120, H1: 40, M15: 10 } as const satisfies Record<ContextTimeframe, number>;
+export const D1_VIEW_DAYS = 400;
+export const HISTORY_DAYS = { D1: D1_VIEW_DAYS, H4: 120, H1: 40, M15: 10 } as const satisfies Record<ContextTimeframe, number>;
 
 /** Trend (TRD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
 export const TRD_PARAMS = {

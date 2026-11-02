@@ -6,7 +6,7 @@ import type { FormationContext, TimeframeView } from './context';
 import { buildFib, breakoutOf, bandOf, levelPrice, type FibModel } from './fib';
 import { analyzeFrz, type FrzAnalysis, type FrzOptions } from './frzChecks';
 import type { Rect } from './frz';
-import { CONTEXT_TIMEFRAMES, FIB_PARAMS, type ContextTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, FIB_PARAMS, type ContextTimeframe, type TrendTimeframe } from './params';
 import { divergenceOf, engulfAt, engulfZones, rsiExtreme, zoneSideOf } from './sig';
 import type { TrendDir, TrendModel } from './trd';
 import { formationTrend } from './trdFormation';
@@ -15,8 +15,8 @@ import type { FormationBar, Side } from './types';
 export interface Env {
   t: number;
   tf: ContextTimeframe;
-  views: Map<ContextTimeframe, TimeframeView>;
-  trends: Map<ContextTimeframe, TrendModel>;
+  views: Map<TrendTimeframe, TimeframeView>;
+  trends: Map<TrendTimeframe, TrendModel>;
   fibs: Map<ContextTimeframe, FibModel>;
   frz: FrzAnalysis;
 }
@@ -35,8 +35,8 @@ export function fibTargetsOf(fibs: ReadonlyMap<ContextTimeframe, FibModel>): num
 /** Umgebung zum Zeitpunkt t; null, wenn die Zeiteinheit nicht geladen ist */
 export function buildEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions = {}): Env | null {
   if (!ctx.timeframes().includes(tf)) return null;
-  const views = new Map<ContextTimeframe, TimeframeView>();
-  const trends = new Map<ContextTimeframe, TrendModel>();
+  const views = new Map<TrendTimeframe, TimeframeView>();
+  const trends = new Map<TrendTimeframe, TrendModel>();
   const fibs = new Map<ContextTimeframe, FibModel>();
   for (const x of ctx.timeframes()) {
     const view = ctx.view(x, t);
@@ -45,6 +45,12 @@ export function buildEnv(ctx: FormationContext, t: number, tf: ContextTimeframe,
     const trend = formationTrend(view);
     trends.set(x, trend);
     fibs.set(x, buildFib(trend));
+  }
+  // W1 (aus D1 gebildet) liefert nur Trend, RSI und Divergenz: keine Fib, keine Zonen
+  const w1 = ctx.view('W1', t);
+  if (w1) {
+    views.set('W1', w1);
+    trends.set('W1', formationTrend(w1));
   }
   return { t, tf, views, trends, fibs, frz: analyzeFrz(ctx, t, { entryTf: tf, fibTargets: fibTargetsOf(fibs), ...frzOptions }) };
 }
@@ -59,6 +65,12 @@ export function envFor(base: Env, ctx: FormationContext, t: number, tf: ContextT
 export const neighborTf = (env: Env, tf: ContextTimeframe, step: -1 | 1): ContextTimeframe | undefined => {
   const next = CONTEXT_TIMEFRAMES[CONTEXT_TIMEFRAMES.indexOf(tf) + step];
   return next && env.views.has(next) ? next : undefined;
+};
+
+/** Höhere Zeiteinheit für den Trend: wie `neighborTf`, über D1 aber W1 (aus D1 gebildet), wenn geladen. Nur für Regeln, die W1 ausdrücklich lesen (CYP-02); GAR-19 liest `env.trends.get('W1')` selbst. */
+export const higherTrendTf = (env: Env, tf: ContextTimeframe): TrendTimeframe | undefined => {
+  if (tf !== CONTEXT_TIMEFRAMES[0]) return neighborTf(env, tf, -1);
+  return env.views.has('W1') ? 'W1' : undefined;
 };
 
 export const lastBarOf = (env: Env, tf: ContextTimeframe = env.tf): FormationBar | undefined => {

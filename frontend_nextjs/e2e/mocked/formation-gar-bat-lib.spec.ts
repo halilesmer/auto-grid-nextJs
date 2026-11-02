@@ -18,7 +18,9 @@ import { analyzeBat, BAT_CHECK_IDS, checkBatCandidate } from '../../src/lib/form
 import { analyzeGar, checkGarCandidate, GAR_CHECK_IDS } from '../../src/lib/formation/garChecks';
 import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
-import { D1, END, H4, M15, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
+import { buildEnv } from '../../src/lib/formation/reasons';
+import { higherAgainst } from '../../src/lib/formation/xabcd';
+import { D1, END, H4, M15, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -642,7 +644,7 @@ const REAL_RUNS: [Code, string, string][] = [
   ['BAT', 'bat-bad-h4-01', '2025-10-30T00:00'],
 ];
 
-/** GAR-19 kann ohne Wochenkerzen nie ☑ werden (W1 gehört nicht zum Kontext) */
+/** GAR-19 wird nur mit Wochenkerzen ☑: der Fall steht im Block „GAR-19 mit Wochenkerzen aus D1“ unten, nicht in CASES */
 const NEVER_MET = ['GAR-19'];
 
 test.describe('GAR und BAT: Abdeckung', () => {
@@ -661,5 +663,35 @@ test.describe('GAR und BAT: Abdeckung', () => {
       }
     }
     expect(miss).toEqual([]);
+  });
+});
+
+// ---- GAR-19 mit W1 (Befund 16, Variante A) ---------------------------------------------------------------------
+
+/** Hoch 130 nach 10 Kerzen (Wave 18,1), zweites Hoch 131 nach 16 Kerzen Gegenbewegung (Wave 10,5): Divergenz */
+const W1_DIVERGENT = [...Array.from({ length: 40 }, () => plain(100, 100)), ...zig([100, 130, 110, 131], [10, 6, 16], 3)];
+/** Hoch 140 in 4 Kerzen, zweites Hoch 141 nach 16 Kerzen: die Wave am zweiten Hoch ist stärker, keine Divergenz */
+const W1_STRONG = [...Array.from({ length: 40 }, () => plain(100, 100)), ...zig([100, 140, 120, 141], [4, 6, 16], 3)];
+/** RSI(7) in H4 lange im Extrem: 40 Kerzen +2 je Kerze */
+const H4_RUN = walk(100, Array.from({ length: 40 }, (_, i) => 102 + 2 * i));
+
+function gar19(input: { D1?: Row[]; W1?: Row[]; H4?: Row[] }): CheckState {
+  const bars: ContextInput = {};
+  if (input.D1) bars.D1 = barsOf(input.D1, D1);
+  if (input.W1) bars.W1 = barsOf(input.W1, 7 * D1);
+  if (input.H4) bars.H4 = barsOf(input.H4, H4);
+  const env = buildEnv(new FormationContext('T', bars), END, input.H4 ? 'H4' : 'D1')!;
+  return higherAgainst(env, 'buy');
+}
+
+test.describe('GAR-19 mit Wochenkerzen aus D1', () => {
+  frm('W1- und D1-Divergenz gegen den Trade + H4 sechsmal im Extrem → ☑', () => {
+    expect(gar19({ D1: W1_DIVERGENT, W1: W1_DIVERGENT, H4: H4_RUN })).toBe(M);
+  });
+  frm('W1 ohne Divergenz → ☐', () => {
+    expect(gar19({ D1: W1_DIVERGENT, W1: W1_STRONG, H4: H4_RUN })).toBe(N);
+  });
+  frm('ohne W1-Daten → nicht messbar', () => {
+    expect(gar19({ D1: W1_DIVERGENT, H4: H4_RUN })).toBe(U);
   });
 });

@@ -155,7 +155,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('CDT-05') === 'unmet' || signalMissing) verdict = 'forming';
-  verdict = settle(verdict, withDrawings, exemptFor('CDT', tf, withDrawings));
+  verdict = settle(verdict, withDrawings, exemptFor('CDT', withDrawings));
 
   const points: Candidate['points'] = {
     H1: { time: bars[h1.idx].time, price: h1.price },
