@@ -49,6 +49,11 @@ const FALLING = lineRows([150, 200, 140, 195, 130, 190, 120]);
 const FLAT_TOP = lineRows([120, 150, 125, 150, 130, 148, 100]);
 /** Das zweite Hoch 150,1 überragt das erste (150) nur mit dem Docht, danach schließt keine Kerze über 150: nach TRD-34 gibt es noch keine Linie */
 const NO_RELEASE = lineRows([100, 150, 130, 150.1, 140, 149, 120]);
+/**
+ * Schluss unter der Linie schon auf Index 68 (147,58 < 148,75), aber über dem Impulsende 150 schließt erst Index 77 (151,25): die Linie gilt
+ * erst ab Index 77 (TRD-34), dort liegt sie bei 165,63 und der Schluss darunter; das ist die Aktivierung
+ */
+const BREAK_BEFORE_RELEASE = lineRows([100, 150, 130, 150.1, 140, 170, 120]);
 /** Das erste Tief ist ein Spike (Körper 0, Docht bis 99): Anker ist das Tief 100,1 der rechten Nachbarkerze (TRD-36) */
 const SPIKE_L0 = patched(BASE, at(0), [101, 101.1, 99, 101]);
 /** Das zweite Hoch 185 (2,19 je Kerze) steigt steiler als die Tiefs (1,875): die Linien laufen auseinander */
@@ -147,6 +152,12 @@ frm('Zeichnungen: zwei zulaufende Linien und Zonen kommen auch bei ☐; ohne hö
   const end = upper.anchors[1].price - lower.anchors[1].price;
   expect(end).toBeLessThan(start);
   expect(run(NO_ACTIVATION).drawings.map((d) => d.id)).toContain('Z-KEI-01b');
+});
+
+frm('Aktivierung erst ab der Freigabe: ein Schluss unter der Linie vor dem ersten Schluss über dem Impulsende zählt nicht', () => {
+  const c = run(BREAK_BEFORE_RELEASE);
+  expect(state(c, 'KEI-03')).toBe(M);
+  expect(c.points.X.time).toBe(77 * H4);
 });
 
 frm('Spike am ersten Tief: die untere Keillinie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {

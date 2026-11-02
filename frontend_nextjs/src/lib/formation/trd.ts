@@ -246,6 +246,8 @@ export interface TrendLine {
   /** Pivot-Positionen der Anker im Trendzug */
   posA: number;
   posB: number;
+  /** Kerze der Freigabe: erster Schluss jenseits des Extrems vor dem zweiten Anker (TRD-34); vorher gibt es die Linie nicht */
+  release: number;
 }
 
 /** Anker eines Punkts: bei einem Manipulationsdocht (FRZ-16) das äußerste Dochtende der direkten Nachbarn */
@@ -287,17 +289,17 @@ export function lineThrough(m: TrendModel, posA: number, posB: number): TrendLin
   if (!rising) return null;
   const before = [...m.pivots.slice(0, posB)].reverse().find((p) => p.side === es);
   if (!before) return null;
-  let impulse = false;
+  let release = -1;
   for (let k = second.idx + 1; k < m.bars.length; k++) {
     if (closesBeyond(m.bars[k], before.price, es)) {
-      impulse = true;
+      release = k;
       break;
     }
   }
-  if (!impulse) return null;
+  if (release < 0) return null;
   const a = anchorOf(m, first);
   const b = anchorOf(m, second);
-  return { a, b, replaced: a.replaced || b.replaced, posA, posB };
+  return { a, b, replaced: a.replaced || b.replaced, posA, posB, release };
 }
 
 export const lineAt = (line: TrendLine, time: number): number =>

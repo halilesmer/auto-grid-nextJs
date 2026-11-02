@@ -82,7 +82,7 @@ export interface Channel {
   counterAt: (k: number) => number;
   /** Gegenlinie: Kopie der Trendlinie am äußersten Extrem (Kanal) bzw. Linie durch hs und h2 (Keil) */
   extremeAt: (k: number) => number;
-  /** erster Schluss jenseits der Trendlinie nach hs (Aktivierung); null ohne solchen */
+  /** erster Schluss jenseits der Trendlinie nach hs, frühestens an der Freigabe (Aktivierung); null ohne solchen */
   act: number | null;
   /** letzte Kerze der Zählung: vor der Aktivierung, sonst die letzte */
   end: number;
@@ -109,7 +109,8 @@ export function measureChannel(bars: Bars, base: ChannelBase, kind: ChannelKind)
     const offset = Math.max(...[hs, h2].map((p) => outward(es, p.price) - outward(es, counterAt(p.idx))));
     extremeAt = (k) => (es === 'resistance' ? counterAt(k) + offset : counterAt(k) - offset);
   }
-  const act = firstCloseBeyond(bars, cs, counterAt, hs.idx);
+  // vor der Freigabe gibt es die Linie nicht (TRD-34): ein Schluss jenseits davor ist keine Aktivierung
+  const act = firstCloseBeyond(bars, cs, counterAt, line ? Math.max(hs.idx, line.release - 1) : hs.idx);
   const end = act === null ? bars.length - 1 : act - 1;
   const touches: Touch[] = [];
   for (let k = hs.idx; k <= end; k++) {

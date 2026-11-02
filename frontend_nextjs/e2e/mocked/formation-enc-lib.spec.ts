@@ -65,6 +65,11 @@ const PARALLEL = lineRows([100, 150, 130, 181, 160, 200, 150]);
 const WEDGE = lineRows([100, 150, 130, 176, 160, 202, 150]);
 /** Das zweite Hoch 150,1 überragt das erste (150) nur mit dem Docht, danach schließt keine Kerze über 150: nach TRD-34 gibt es noch keine Linie */
 const NO_RELEASE = lineRows([100, 150, 130, 150.1, 140, 149, 120]);
+/**
+ * Schluss unter der Linie schon auf Index 68 (147,58 < 148,75), aber über dem Impulsende 150 schließt erst Index 77 (151,25): die Linie gilt
+ * erst ab Index 77 (TRD-34), dort liegt sie bei 165,63 und der Schluss darunter; das ist die Aktivierung
+ */
+const BREAK_BEFORE_RELEASE = lineRows([100, 150, 130, 150.1, 140, 170, 120]);
 /** Das erste Tief ist ein Spike (Körper 0, Docht bis 99): Anker ist das Tief 100,1 der rechten Nachbarkerze (TRD-36) */
 const SPIKE_L0 = patched(BASE, at(0), [101, 101.1, 99, 101]);
 /** Exakte Kopie: beide Hochs haben Abstand 35 zur Trendlinie. */
@@ -182,6 +187,12 @@ frm('Zeichnungen: Trendlinie, Kopie, Höhe und Ziele kommen auch bei ☐', () =>
   expect(line.anchors[1].time).toBe(lastIdx * H4);
   const open = run(NO_ACTIVATION);
   expect(open.drawings.map((d) => d.id)).toEqual(['Z-ENC-01', 'Z-ENC-01b', 'Z-ENC-02']);
+});
+
+frm('Aktivierung erst ab der Freigabe: ein Schluss unter der Linie vor dem ersten Schluss über dem Impulsende zählt nicht', () => {
+  const c = run(BREAK_BEFORE_RELEASE);
+  expect(state(c, 'ENC-03')).toBe(M);
+  expect(c.points.X.time).toBe(77 * H4);
 });
 
 frm('Spike am ersten Tief: die Trendlinie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {

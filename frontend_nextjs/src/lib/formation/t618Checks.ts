@@ -84,7 +84,8 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
 
   // Linie und Bruch (T618-02 bis T618-04)
   let breakIdx: number | null = null;
-  for (let k = p.idx + 1; k < bars.length; k++) {
+  // vor der Freigabe gibt es die Linie nicht (TRD-34): ein Schluss jenseits davor ist kein Bruch
+  for (let k = Math.max(p.idx + 1, line?.release ?? 0); k < bars.length; k++) {
     if (closesBeyond(bars[k], levelAt(k), cs)) {
       breakIdx = k;
       break;

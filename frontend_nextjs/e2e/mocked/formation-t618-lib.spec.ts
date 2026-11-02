@@ -60,6 +60,11 @@ const FALLING_LOWS = lineRows([100, 140, 130, 150, 118, 156, 118, 142]);
 const STEEP = lineRows([100, 140, 118, 152, 146, 156, 118, 142]);
 /** P 150,1 überragt das Hoch 150 davor nur mit dem Docht, kein Schluss darüber: nach TRD-34 gilt die Linie nicht */
 const NO_RELEASE = lineRows([100, 140, 118, 150, 130, 150.1, 118, 142]);
+/**
+ * P 150,1 schließt nicht über dem Hoch 150, nach P fällt der Preis unter die Linie (Index 86: 137,55 < 139). Erst Index 96 schließt über 150
+ * (151,25): ab dort gilt die Linie (TRD-34), danach schließt keine Kerze mehr unter ihr
+ */
+const BREAK_BEFORE_RELEASE = lineRows([100, 140, 118, 150, 130, 150.1, 125, 160]);
 /** Das Tief 118 ist ein Spike (Körper 0, Docht bis 117): Anker ist das Tief 118,1 der rechten Nachbarkerze (TRD-36) */
 const SPIKE_L1 = patched(BASE, at(2), [119, 119.1, 117, 119]);
 /** Nach P fällt der Preis nur auf 150 (die Linie liegt dort bei 142 und steigt): kein Schluss jenseits der Linie */
@@ -99,6 +104,7 @@ const CASES: Case[] = [
   { name: 'T618-02 ☐: P überragt das Hoch davor nur mit dem Docht, die Linie gilt noch nicht', rows: NO_RELEASE, expect: { '02': N } },
   { name: 'T618-03 ☐: P liegt unter der Linie, Schlüsse jenseits der Linie schon vor P', rows: STEEP, expect: { '03': N, '02': M } },
   { name: 'T618-04 ☐: nach P schließt keine Kerze unter der Linie', rows: NO_BREAK, expect: { '04': N, '05': N, '06': N, '03': M } },
+  { name: 'T618-04 ☐: der Schluss unter der Linie kommt vor der Freigabe, danach schließt keine Kerze mehr darunter', rows: BREAK_BEFORE_RELEASE, expect: { '02': M, '04': N } },
   { name: 'T618-05 ☐: Schluss unter der Linie, aber nie zweimal unter dem Tief 130', rows: NO_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
   { name: 'T618-05 ☐: der Trend wechselt erst nach der Berührung von 0.618 (nach dem Einstieg)', rows: LATE_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
   { name: 'T618-05 ☑ ohne Berührung: der Wechsel zählt bis zur letzten Kerze', rows: CHANGE_NO_TOUCH, expect: { '04': M, '05': M, '07': N } },
