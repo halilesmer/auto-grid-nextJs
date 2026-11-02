@@ -81,6 +81,17 @@ def get_watched_bots_path() -> str:
     return os.path.join(_ensure_data_dir(), "watched_bots.json")
 
 
+def get_update_lock_path() -> str:
+    """data/update.lock — aynı anda tek git pull: /system/update, auto-updater ve AutoGrid-Update görevi
+    ayrı süreçlerdir, ortak kilit bu dosyadır (self_updater)."""
+    return os.path.join(_ensure_data_dir(), "update.lock")
+
+
+def get_update_pending_path() -> str:
+    """data/update_pending.json — pull tamam ama pip/yeniden başlatma eksik kaldıysa pull öncesi HEAD."""
+    return os.path.join(_ensure_data_dir(), "update_pending.json")
+
+
 def get_worker_console_log_path() -> str:
     """logs/worker_console.log — worker konsol çıktısının kopyası (SSH/VPS sayfasından okunur)."""
     return os.path.join(_ensure_logs_dir(), "worker_console.log")

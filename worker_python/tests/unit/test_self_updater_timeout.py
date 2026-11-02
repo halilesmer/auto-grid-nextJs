@@ -28,6 +28,16 @@ pytestmark = [
 SECRET_URL = "https://geheimer-token@example.invalid/repo.git"
 
 HANGING_GIT = """#!/bin/sh
+[ -n "$ENV_LOG" ] && echo "[$GIT_TERMINAL_PROMPT]" >> "$ENV_LOG"
+case " $ORPHAN_ON " in
+  *" $1 "*)
+    # git endet vor dem Zeitlimit, nur der Helfer hält die Pipes (wie git-remote-https)
+    sleep 20 &
+    echo $! > "$HANG_PID_FILE"
+    sleep 1.5
+    exit 0
+    ;;
+esac
 case " $HANG_ON " in
   *" $1 "*|*" $1:$2 "*)
     if [ -n "$HANG_AFTER_WORK" ]; then

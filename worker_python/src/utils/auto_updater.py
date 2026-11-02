@@ -9,6 +9,7 @@ varsa çeker (gerekirse pip install) ve kendini yeniden başlatır (run_uvicorn_
 - AUTO_UPDATE_MINUTES (varsayılan 5, 0 = kapalı). Windows'ta her turda kayıt defterinden okunur,
   setx yeniden başlatma istemez. Döngü kapalıyken de çalışır.
 - Her turun sonucu GET /system/worker/status içinde durur; logda yalnız değişince satır çıkar.
+- Pull bitti ama pip/stash pop eksik kaldıysa (data/update_pending.json) bir sonraki tur önce onu tamamlar.
 - Her git çağrısının süre sınırı vardır (self_updater.GitTimeout): takılan git turu check_failed
   ya da pull_failed olarak bitirir, döngü sürer.
 - Git bu süreçte, yani yönetici OLMAYAN worker haklarıyla çalışır; dosya sahipliği bozulmaz.
@@ -27,6 +28,7 @@ from src.utils.self_updater import (
     current_branch,
     execute_git_pull,
     get_project_root,
+    has_pending_update,
     schedule_restart,
 )
 
@@ -120,6 +122,9 @@ async def tick() -> bool:
     if branch != BRANCH:
         _record("other_branch", branch)
         return False
+    if await asyncio.to_thread(has_pending_update):
+        # Önceki pull tamamlandı ama pip/yeniden başlatma eksik: check "güncel" derdi, bu yüzden önce bu
+        return await _pull_and_restart("tamamlanmamış güncelleme sürdürülüyor")
     ok, data = await asyncio.to_thread(check_for_updates, BRANCH)
     if not ok:
         _record("check_failed", str(data))
@@ -131,11 +136,16 @@ async def tick() -> bool:
     if not await asyncio.to_thread(_is_behind_origin):
         _record("local_commits", f"{local_ver} → {remote_ver}")
         return False
+    return await _pull_and_restart(f"yeni sürüm bulundu ({local_ver} → {remote_ver})")
+
+
+async def _pull_and_restart(reason: str) -> bool:
+    """Güncelleyip yeniden başlatma planladıysa True döner."""
     # Kontrol saniyeler sürer: bu arada yazılan setx 0 çekmeyi ve yeniden başlatmayı durdurur
     if not _is_switched_on():
         return False
 
-    print(f"🔄 [AUTO-UPDATE] Yeni sürüm bulundu ({local_ver} → {remote_ver}), güncelleniyor...")
+    print(f"🔄 [AUTO-UPDATE] {reason}, güncelleniyor...")
     ok, message = await asyncio.to_thread(execute_git_pull, BRANCH)
     if not ok:
         _record("pull_failed", message)

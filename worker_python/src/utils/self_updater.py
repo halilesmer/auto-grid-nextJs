@@ -1,11 +1,16 @@
+import glob
+import json
 import subprocess
 import os
 import sys
 import threading
+import time
+import uuid
 
 import psutil
 
 from src.utils.elevation import ELEVATED_HINT, is_elevated
+from src.utils.paths import get_update_lock_path, get_update_pending_path
 
 # Ölçüm 2026-10-31 (Mac → GitHub): değişiklik yokken fetch 0,6 sn, tüm geçmiş (5,6 MB) 1,5 sn.
 # 120 sn bunun 80 katı: yavaş VPS ağına ve checkout'u yavaşlatan antivirüse pay bırakır,
@@ -15,6 +20,20 @@ GIT_NETWORK_TIMEOUT_SEC = 120
 GIT_LOCAL_TIMEOUT_SEC = 60
 # Öldürülen ağacın pipe'larının kapanması için üst sınır
 GIT_KILL_WAIT_SEC = 5
+# pip indirme + derleme yapabilir; VPS'te ölçülmedi, bu yüzden cömert. Sınır, 5 dakikalık turu sonsuza dek tutmasın diye.
+PIP_TIMEOUT_SEC = 600
+# Bekleyen çalışmayı sınırlar: komut süreleri toplamı (fetch + pull + pip + yerel) bunun çok altındadır.
+# Kilidi tutan süreç ölmüşse zaten hemen geçersiz sayılır; bu sınır pid yeniden kullanımına karşıdır.
+UPDATE_LOCK_MAX_AGE_SEC = 30 * 60
+# Kilit dosyası oluşturuldu ama içeriği henüz yazılmadı: bu kadar saniye sonra bozuk sayılır
+UPDATE_LOCK_UNREADABLE_SEC = 10
+# Sürekli bakış: root git bitip yalnız yardımcısı pipe'ları tutarsa children() bulamaz, bu yüzden
+# bekleme sırasında yardımcılar bu aralıkla kaydedilir.
+HELPER_SNAPSHOT_SEC = 0.5
+
+
+class _CommandTimeout(Exception):
+    """_run_limited süresi dolunca; çağıran komutu bilen kendi hata türüne çevirir (komut metni token taşıyabilir)."""
 
 
 class GitTimeout(Exception):
@@ -23,6 +42,11 @@ class GitTimeout(Exception):
 
     def __init__(self, subcommand, seconds):
         super().__init__(f"git {subcommand}: {seconds:g} sn içinde bitmedi, durduruldu")
+
+
+class PipTimeout(Exception):
+    def __init__(self, seconds):
+        super().__init__(f"pip install: {seconds:g} sn içinde bitmedi, durduruldu")
 
 
 def get_project_root():
@@ -81,26 +105,27 @@ def ensure_git_repo(branch, project_root):
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
         return False, f"Sıfırdan kurulum hatası: {error_msg}"
     except GitTimeout as e:
-        _remove_stale_index_lock(project_root)
+        _clean_locks_after_kill(project_root)
         return False, f"Sıfırdan kurulum hatası: {e}"
     except Exception as e:
         return False, f"Beklenmeyen onarım hatası: {str(e)}"
 
 
-def _kill_process_tree(process):
+def _kill_process_tree(process, known_helpers=()):
     """git'i ve alt süreçlerini (git-remote-https) öldürür, pipe'ların kapanmasını sınırlı bekler.
+    known_helpers: bekleme sırasında görülen alt süreçler; root bitmişse tek iz budur.
 
     subprocess.run(timeout=...) burada yetmez: Windows'ta kill'den sonra süresiz communicate()
     çağırır ve pipe'ları tutan git-remote-https yaşadıkça aynı yerde asılı kalır.
     """
+    members = list(known_helpers)
     try:
         root = psutil.Process(process.pid)
-        members = [*root.children(recursive=True), root]
-    except psutil.NoSuchProcess:  # süre dolarken kendiliğinden bitti
-        members = []
+        members += [*root.children(recursive=True), root]
+    except psutil.NoSuchProcess:  # root kendiliğinden bitti: yalnız bilinen yardımcılar kalır
+        pass
     except (psutil.Error, OSError) as e:  # ağaç okunamadıysa en azından git'in kendisi öldürülür
         print(f"⚠️ [UPDATE] git süreç ağacı okunamadı: {e!r}")
-        members = []
         process.kill()
     for member in members:
         try:
@@ -116,19 +141,44 @@ def _kill_process_tree(process):
         print(f"⚠️ [UPDATE] git süreci (pid {process.pid}) {GIT_KILL_WAIT_SEC} sn içinde kapanmadı")
 
 
+def _collect_helpers(process, helpers):
+    try:
+        helpers.update(psutil.Process(process.pid).children(recursive=True))
+    except (psutil.Error, OSError):  # root bitti ya da okunamadı; öldürme aşaması yine dener
+        pass
+
+
+def _run_limited(command, limit, cwd=None, env=None):
+    """Komutu çalıştırır, süre dolarsa süreç ağacını öldürür ve _CommandTimeout fırlatır.
+    Döner: (Popen, stdout, stderr)."""
+    process = subprocess.Popen(
+        command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    helpers = set()
+    deadline = time.monotonic() + limit
+    while True:
+        try:
+            stdout, stderr = process.communicate(timeout=max(0.01, min(HELPER_SNAPSHOT_SEC, deadline - time.monotonic())))
+            return process, stdout, stderr
+        except subprocess.TimeoutExpired:
+            _collect_helpers(process, helpers)
+            if time.monotonic() >= deadline:
+                _kill_process_tree(process, helpers)
+                raise _CommandTimeout() from None  # cause komutu, yani token'ı taşır
+
+
 def _git(args, project_root, check=False, timeout=None):
     """git çalıştırır. Süre dolarsa süreç ağacını öldürür ve GitTimeout fırlatır.
-    timeout verilmezse GIT_LOCAL_TIMEOUT_SEC geçerlidir; ağa çıkan komutlar kendi sınırını verir."""
+    timeout verilmezse GIT_LOCAL_TIMEOUT_SEC geçerlidir; ağa çıkan komutlar kendi sınırını verir.
+    GIT_TERMINAL_PROMPT=0: kimlik bilgisi sorulacaksa git 120 sn beklemez, hemen düşer."""
     limit = GIT_LOCAL_TIMEOUT_SEC if timeout is None else timeout
     command = ["git", *args]
-    process = subprocess.Popen(
-        command, cwd=project_root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
     try:
-        stdout, stderr = process.communicate(timeout=limit)
-    except subprocess.TimeoutExpired:
-        _kill_process_tree(process)
-        raise GitTimeout(args[0], limit) from None  # cause komutu, yani token'ı taşır
+        process, stdout, stderr = _run_limited(
+            command, limit, cwd=project_root, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        )
+    except _CommandTimeout:
+        raise GitTimeout(args[0], limit) from None
     if check and process.returncode != 0:
         raise subprocess.CalledProcessError(process.returncode, command, stdout, stderr)
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
@@ -142,6 +192,49 @@ def _remove_stale_index_lock(project_root):
         pass
     except OSError as e:  # çağıran zaten hata döner; reset de düşerse mesajda görünür
         print(f"⚠️ [UPDATE] index.lock silinemedi: {e!r}")
+
+
+# Ref'i güncelleyen git bu kilitleri milisaniye tutar; öldürülen git silemez ve sonraki her pull düşer
+_GIT_LOCK_PATTERNS = ("refs/**/*.lock", "packed-refs.lock", "HEAD.lock")
+
+
+def _git_running_in(project_root):
+    """Bu deponun klasöründe çalışan bir git süreci var mı? Okunamayan git süreci "var" sayılır
+    (kilidi yanlış silmek, silmemekten pahalı)."""
+    root = os.path.normcase(os.path.realpath(project_root))
+    for proc in psutil.process_iter(["name"]):
+        try:
+            if not (proc.info["name"] or "").lower().startswith("git"):
+                continue
+            cwd = os.path.normcase(os.path.realpath(proc.cwd()))
+        except psutil.NoSuchProcess:
+            continue
+        except (psutil.Error, OSError):
+            return True
+        if cwd == root or cwd.startswith(root + os.sep):
+            return True
+    return False
+
+
+def _remove_stale_ref_locks(project_root):
+    """Kill'den kalan ref kilitlerini siler, ama yalnız bu depoda git çalışmıyorsa; her silme loglanır."""
+    git_dir = os.path.join(project_root, ".git")
+    locks = sorted({path for pattern in _GIT_LOCK_PATTERNS for path in glob.glob(os.path.join(git_dir, pattern), recursive=True)})
+    if not locks or _git_running_in(project_root):
+        return
+    for path in locks:
+        try:
+            os.remove(path)
+            print(f"⚠️ [UPDATE] Veralmış git kilidi silindi: {os.path.relpath(path, project_root)}")
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            print(f"⚠️ [UPDATE] git kilidi silinemedi ({os.path.relpath(path, project_root)}): {e!r}")
+
+
+def _clean_locks_after_kill(project_root):
+    _remove_stale_index_lock(project_root)
+    _remove_stale_ref_locks(project_root)
 
 
 def _newest_stash(project_root):
@@ -171,7 +264,7 @@ def _rollback_failed_pull(project_root, old_head, restorable, stashed):
     except subprocess.CalledProcessError as e:
         return f"\nGeri alma tamamlanamadı: {(e.stderr or e.stdout).strip()}{kept_stash}"
     except GitTimeout as e:
-        _remove_stale_index_lock(project_root)
+        _clean_locks_after_kill(project_root)
         return f"\nGeri alma tamamlanamadı: {e}{kept_stash}"
     return ""
 
@@ -180,16 +273,17 @@ REQUIREMENTS_REL = "worker_python/requirements.txt"
 
 
 def _pip_install(requirements_path):
-    """Worker'ın kendi Python'u (.venv) ile bağımlılıkları kurar."""
-    return subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-r", requirements_path],
-        capture_output=True,
-        text=True,
-    )
+    """Worker'ın kendi Python'u (.venv) ile bağımlılıkları kurar. Süre dolarsa PipTimeout."""
+    command = [sys.executable, "-m", "pip", "install", "-r", requirements_path]
+    try:
+        process, stdout, stderr = _run_limited(command, PIP_TIMEOUT_SEC)
+    except _CommandTimeout:
+        raise PipTimeout(PIP_TIMEOUT_SEC) from None
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
 def _install_requirements_if_changed(project_root, old_head):
-    """Pull requirements.txt'yi değiştirdiyse pip install çalıştırır.
+    """Pull requirements.txt'yi değiştirdiyse pip install çalıştırır (pip zaman aşımı = hata).
 
     Döner: (ok, mesaj). Değişiklik yoksa (True, ""). Eskiden yeni bir paket gelince
     worker yeniden başlarken ImportError ile çöküyor, VPS'te elle pip gerekiyordu.
@@ -199,11 +293,126 @@ def _install_requirements_if_changed(project_root, old_head):
     diff = _git(["diff", "--name-only", old_head, "HEAD", "--", REQUIREMENTS_REL], project_root)
     if diff.returncode != 0 or not diff.stdout.strip():
         return True, ""
-    res = _pip_install(os.path.join(project_root, *REQUIREMENTS_REL.split("/")))
+    try:
+        res = _pip_install(os.path.join(project_root, *REQUIREMENTS_REL.split("/")))
+    except PipTimeout as e:
+        return False, f"pip install hatası: {e}"
     if res.returncode != 0:
         tail = (res.stderr or res.stdout or "").strip()[-800:]
         return False, f"pip install hatası (requirements.txt değişti): {tail}"
     return True, "requirements.txt değişti, bağımlılıklar kuruldu (pip install)."
+
+
+def _read_lock(path):
+    """(Inhalt, Alter in Sekunden) der Lock-Datei; Inhalt None = fehlt, "" = nicht lesbar/bozuk."""
+    try:
+        age = time.time() - os.path.getmtime(path)
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read(), age
+    except FileNotFoundError:
+        return None, 0.0
+    except OSError:  # Windows: von anderem Prozess offen gehalten
+        return "", 0.0
+
+
+def _lock_is_stale(content, age):
+    if content is None:
+        return True
+    try:
+        holder = json.loads(content)
+        return time.time() - holder["created"] > UPDATE_LOCK_MAX_AGE_SEC or not psutil.pid_exists(holder["pid"])
+    except (ValueError, KeyError, TypeError):  # yazılması yarım kalmış ya da bozuk
+        return age > UPDATE_LOCK_UNREADABLE_SEC
+
+
+_held_lock_token = ""
+
+
+def _take_over_stale_lock(path, judged_content):
+    """Veralmış kilidi atomik devralır. Önce yeniden adlandırılır (yalnız bir süreç başarır), sonra yeniden adlandırılan
+    dosyanın hükmedilen içerikle aynı olduğu doğrulanır: başka süreç arada yenisini aldıysa o geri konur."""
+    claimed = f"{path}.{os.getpid()}.{threading.get_ident()}.stale"
+    try:
+        os.replace(path, claimed)
+    except FileNotFoundError:  # başka süreç önce devraldı
+        return True
+    except OSError as e:  # Windows: dosya açık, sonraki tur dener
+        print(f"⚠️ [UPDATE] Veralmış güncelleme kilidi devralınamadı: {e!r}")
+        return False
+    try:
+        with open(claimed, "r", encoding="utf-8") as f:
+            actual = f.read()
+        if actual == judged_content:
+            return True
+        try:  # taze kilit başkasının: geri koy (link var olanı ezmez)
+            os.link(claimed, path)
+        except OSError:
+            pass
+        return False
+    finally:
+        try:
+            os.remove(claimed)
+        except OSError:
+            pass
+
+
+def _acquire_update_lock():
+    """Süreçler arası kilit (O_EXCL dosya): /system/update, auto-updater ve AutoGrid-Update görevi
+    ayrı süreçlerdir. Sahibi ölmüş ya da çok eski kilit geçersizdir ve yeniden alınır."""
+    global _held_lock_token
+    path = get_update_lock_path()
+    for _ in range(2):
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            content, age = _read_lock(path)
+            if not _lock_is_stale(content, age):
+                return False
+            print("⚠️ [UPDATE] Veralmış güncelleme kilidi devralınıyor")
+            if content is not None and not _take_over_stale_lock(path, content):
+                return False
+            continue
+        token = uuid.uuid4().hex
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump({"pid": os.getpid(), "created": time.time(), "token": token}, f)
+        _held_lock_token = token
+        return True
+    return False
+
+
+def _release_update_lock():
+    """Yalnız kendi kilidini siler: 30 dk sonra başkası devraldıysa onunkine dokunmaz."""
+    content, _ = _read_lock(get_update_lock_path())
+    try:
+        if content and json.loads(content).get("token") == _held_lock_token:
+            os.remove(get_update_lock_path())
+    except (OSError, ValueError, AttributeError) as e:  # kilit kalırsa en geç UPDATE_LOCK_MAX_AGE_SEC sonra geçersiz olur
+        print(f"⚠️ [UPDATE] Güncelleme kilidi silinemedi: {e!r}")
+
+
+def _read_pending_update():
+    """Pull tamam ama pip/yeniden başlatma eksik kalmışsa pull öncesi HEAD, yoksa ""."""
+    try:
+        with open(get_update_pending_path(), "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+
+def has_pending_update():
+    return bool(_read_pending_update())
+
+
+def _set_pending_update(old_head):
+    with open(get_update_pending_path(), "w", encoding="utf-8") as f:
+        f.write(old_head)
+
+
+def _clear_pending_update():
+    try:
+        os.remove(get_update_pending_path())
+    except FileNotFoundError:
+        pass
 
 
 def execute_git_pull(branch="main"):
@@ -212,15 +421,27 @@ def execute_git_pull(branch="main"):
     Başarısız olursa çalışma alanını pull öncesi haline döndürür.
     requirements.txt değiştiyse bağımlılıkları da kurar; pip başarısızsa False döner
     (yeniden başlatma yapılmaz, çünkü yeni kod eksik paketle çökerdi).
+    Pull tamamlandıktan sonra bir adım (stash pop, diff, pip) düşerse pull kalır; eksik adımlar
+    sonraki çağrıda (has_pending_update) tamamlanır.
+    Aynı anda tek pull çalışır (süreçler arası kilit); ikinci çağrı beklemez, hata döner.
     Yönetici haklarıyla çalışan süreçte hiç başlamaz: git dosyaları yöneticiye ait yapar,
     sonraki normal güncellemeler "Permission denied" ile düşerdi.
     """
     if is_elevated():
         return False, f"Güncelleme yapılmadı: {ELEVATED_HINT}"
+    if not _acquire_update_lock():
+        return False, "Güncelleme yapılmadı: başka bir güncelleme sürüyor."
+    try:
+        return _pull_locked(branch)
+    finally:
+        _release_update_lock()
 
+
+def _pull_locked(branch):
     project_root = get_project_root()
     old_head = ""
     stashed = False
+    pending_before = ""
     restorable = False  # stash netleşmeden çalışma alanına dokunulmaz
 
     try:
@@ -228,8 +449,12 @@ def execute_git_pull(branch="main"):
         if not is_git_ok:
             return False, error_message
 
+        _remove_stale_ref_locks(project_root)
         head = _git(["rev-parse", "HEAD"], project_root)
         old_head = head.stdout.strip() if head.returncode == 0 else ""
+        # Önceki turda yarım kalan pull varsa pip farkı onun başlangıcından hesaplanır; geri alma yine bu turun HEAD'ine
+        pending_before = _read_pending_update()
+        requirements_base = pending_before or old_head
 
         status = _git(["status", "--porcelain"], project_root)
         clean_before = status.returncode == 0 and not status.stdout.strip()
@@ -250,20 +475,30 @@ def execute_git_pull(branch="main"):
         _git(["fetch", "origin", branch], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
         result = _git(["pull", "origin", branch], project_root, check=True, timeout=GIT_NETWORK_TIMEOUT_SEC)
 
+        # Pull tamam. Sonraki adım düşerse ve pull kalırsa (aşağıdaki except'ler geri alırsa silinir)
+        # sonraki tur pip'i ve yeniden başlatmayı tamamlar.
+        if requirements_base:
+            _set_pending_update(requirements_base)
         if stashed:
             # Yerel değişiklikleri geri yükle; çakışırsa stash korunur, akış bozulmaz.
             # Pop yarıda kesilirse değişikliğin nerede olduğu belli değil: reset onu silebilirdi
             restorable = False
             _git(["stash", "pop"], project_root)
 
-        pip_ok, pip_message = _install_requirements_if_changed(project_root, old_head)
+        pip_ok, pip_message = _install_requirements_if_changed(project_root, requirements_base)
+        if pip_ok:
+            _clear_pending_update()
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
         rollback_note = _rollback_failed_pull(project_root, old_head, restorable, stashed)
+        if restorable and not pending_before and not rollback_note:
+            _clear_pending_update()  # eigener Marker, Geri alma tamam; eski Marker bekleyen pip'i taşır
         return False, f"Git Çekme Hatası: {error_msg}{rollback_note}"
     except GitTimeout as e:
-        _remove_stale_index_lock(project_root)
+        _clean_locks_after_kill(project_root)
         rollback_note = _rollback_failed_pull(project_root, old_head, restorable, stashed)
+        if restorable and not pending_before and not rollback_note:
+            _clear_pending_update()  # eigener Marker, Geri alma tamam; eski Marker bekleyen pip'i taşır
         return False, f"Git Çekme Hatası: {e}{rollback_note}"
 
     message = "\n".join(m for m in (result.stdout.strip(), pip_message) if m)

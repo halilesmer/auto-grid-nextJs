@@ -51,13 +51,15 @@ Measurement for the limit (2026-10-31, Mac to GitHub): `git fetch` without chang
 
 ## Open points
 
-- [ ] If `stash pop` or the `diff` after it times out with local changes, the pull stays. There is no pip and no restart, and the next run gives `up_to_date`. Nothing tries again: the worker keeps the old code in memory, and a change to `requirements.txt` from this pull is not installed. This needs local changes on the VPS and a hung local git. Check `auto_update` after such an error and restart by hand.
-- [ ] If the root `git` has ended and only a helper holds the pipes at the limit, `children()` raises `NoSuchProcess`, and the helper stays. The limit still holds: `GitTimeout` comes after 5 s more.
-- [ ] A stale ref lock after a kill stays. The reset then gives `Geri alma tamamlanamadı` with the lock name, and later pulls fail until a person removes the file.
-- [ ] `_pip_install` in `self_updater.py` has no time limit. A hung `pip install` stops `tick()` in the same way. It was outside this task.
-- [ ] `/system/update`, the auto-updater and the task `AutoGrid-Update` have no common lock. A second pull can run at the same time. The removal of `index.lock` makes this race a little worse. The timeout must occur at the same time, so the risk is small.
-- [ ] A check that hangs at a credential prompt now fails after 120 s each run. `GIT_TERMINAL_PROMPT=0` would fail at once. There is no evidence that this occurs on the VPS.
+- [x] If `stash pop` or the `diff` after it times out with local changes, the pull stays. There is no pip and no restart, and the next run gives `up_to_date`. Nothing tries again: the worker keeps the old code in memory, and a change to `requirements.txt` from this pull is not installed. This needs local changes on the VPS and a hung local git. Check `auto_update` after such an error and restart by hand.
+- [x] If the root `git` has ended and only a helper holds the pipes at the limit, `children()` raises `NoSuchProcess`, and the helper stays. The limit still holds: `GitTimeout` comes after 5 s more.
+- [x] A stale ref lock after a kill stays. The reset then gives `Geri alma tamamlanamadı` with the lock name, and later pulls fail until a person removes the file.
+- [x] `_pip_install` in `self_updater.py` has no time limit. A hung `pip install` stops `tick()` in the same way. It was outside this task.
+- [x] `/system/update`, the auto-updater and the task `AutoGrid-Update` have no common lock. A second pull can run at the same time. The removal of `index.lock` makes this race a little worse. The timeout must occur at the same time, so the risk is small.
+- [x] A check that hangs at a credential prompt now fails after 120 s each run. `GIT_TERMINAL_PROMPT=0` would fail at once. There is no evidence that this occurs on the VPS.
 - [ ] UPD-07 manual check on the VPS: block GitHub for one run, or wait for a real timeout. Expected: `auto_update.result` is `check_failed`, and `checked_at` stays new.
+
+Follow-up PR (2026-11-02), all six code points: `PIP_TIMEOUT_SEC` (600 s, not measured on the VPS) and `PipTimeout`; `GIT_TERMINAL_PROMPT=0` in `_git`; lock file `data/update.lock` (O_EXCL, stale if the holder pid is gone or the lock is older than 30 min) around `execute_git_pull`, so `/system/update`, the auto-updater and `AutoGrid-Update` never pull together; stale `refs/**/*.lock`, `packed-refs.lock`, `HEAD.lock` removed and logged only if no `git` process runs in the repo; marker `data/update_pending.json` (pre-pull HEAD) when a step after the pull fails, which `tick()` completes first on the next run (pip diff from the marker, then restart); helpers of an already ended `git` are tracked every 0.5 s while waiting and killed at the limit. If the rollback runs, the marker is removed. Tests: `test_self_updater_hardening.py`, 10 of 12 red before the fix. Still open: the manual UPD-07 check on the VPS.
 
 ## Lessons
 
