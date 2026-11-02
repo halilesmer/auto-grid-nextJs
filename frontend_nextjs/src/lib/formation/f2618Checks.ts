@@ -16,6 +16,7 @@ import { legLength, levelPrice } from './fib';
 import { outward, zoneGeometry, type ZoneSide } from './frz';
 import { CONTEXT_TIMEFRAMES, F2618_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
+import { exemptFor, settle } from './settle';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
 
@@ -23,13 +24,13 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
   '2618-01': ['required', 'confirmed'],
   '2618-02': ['required', 'confirmed'],
   '2618-03': ['required', 'confirmed'],
-  '2618-04': ['required', 'assumption'],
+  '2618-04': ['required', 'confirmed'],
   '2618-05': ['required', 'confirmed'],
   '2618-06': ['required', 'confirmed'],
-  '2618-07': ['bonus', 'assumption'],
+  '2618-07': ['bonus', 'confirmed'],
   '2618-08': ['bonus', 'confirmed'],
-  '2618-09': ['exclusion', 'assumption'],
-  '2618-10': ['exclusion', 'assumption'],
+  '2618-09': ['exclusion', 'confirmed'],
+  '2618-10': ['exclusion', 'confirmed'],
 };
 
 /** Bedingungen mit Prüfung, in der Reihenfolge des Regelwerks */
@@ -111,14 +112,20 @@ function evaluate(env: Env, tf: ContextTimeframe, c: CdtShape, cdt: Candidate, i
   }));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
-  const excluded = EXCLUSION_IDS.some((id) => stateOf(id) === 'met');
   // Ohne Impulsende (H2 ist die letzte Kerze) fehlt noch alles nach H2: die Formation ist im Aufbau
   const formMissing = s === null || ['2618-02', '2618-03', '2618-04', '2618-05'].some((id) => stateOf(id) === 'unmet');
   // Ohne Berührung kann sich der Trend noch wenden; mit Berührung gilt der Trend dieser Kerze
   const trendMissing = stateOf('2618-06') === 'unmet';
+  // Auslöser von „ungültig“: verletzte Form (Doppeltop), Ausschluss, Gegentrend an der Berührung
+  const invalidBy = [
+    ...(stateOf('2618-01') === 'unmet' ? ['2618-01'] : []),
+    ...(trendMissing && s?.touch ? ['2618-06'] : []),
+    ...EXCLUSION_IDS.filter((id) => stateOf(id) === 'met'),
+  ];
   let verdict: Verdict = 'valid';
-  if (excluded || stateOf('2618-01') === 'unmet' || (trendMissing && s?.touch)) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (formMissing || trendMissing) verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('2618', withDrawings));
 
   const points: Candidate['points'] = {
     H1: anchorAt(bars, c.h1.idx, c.h1.price),
@@ -130,7 +137,7 @@ function evaluate(env: Env, tf: ContextTimeframe, c: CdtShape, cdt: Candidate, i
     if (s.start.idx !== c.h2!.idx) points.S = anchorAt(bars, s.start.idx, s.start.price);
     if (s.touch) points.K = anchorAt(bars, s.touch.idx, s.touch.level);
   }
-  return { code: '2618', side: c.side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: '2618', side: c.side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: F2618Shape, edge: number): Drawing[] {
