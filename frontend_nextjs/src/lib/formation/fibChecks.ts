@@ -351,13 +351,8 @@ function drawingsOf(env: Env, fib: FibModel, leg: FibLeg, confluence: Confluence
     const b = bandOf(other.leg);
     const lo = Math.max(a.bottom, b.bottom);
     const hi = Math.min(a.top, b.top);
-    out.push({
-      id: 'Z-FIB-07',
-      tool: 'zone',
-      anchors: [at(leg.end.idx, Math.min(lo, hi)), { time: lastTime, price: Math.max(lo, hi) }],
-      rules: ids([27]),
-      side,
-    });
+    // Getrennte Bänder haben kein Überlappungsband (FIB-27 ☐)
+    if (lo <= hi) out.push({ id: 'Z-FIB-07', tool: 'zone', anchors: [at(leg.end.idx, lo), { time: lastTime, price: hi }], rules: ids([27]), side });
   }
   const band = bandOf(leg);
   for (const c of confluence) {

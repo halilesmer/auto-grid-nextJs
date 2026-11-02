@@ -205,7 +205,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   const hasConfluence = confluent.length > 0;
 
   add('ABCD-10', near === null ? U : flag(nearZones.length > 0 || hasConfluence));
-  add('ABCD-11', flag(near !== null), near ?? undefined);
+  add('ABCD-11', near === null ? U : 'met', near ?? undefined);
   const tfRank = CONTEXT_TIMEFRAMES.indexOf(tf);
   const isHigher = (x: ContextTimeframe) => CONTEXT_TIMEFRAMES.indexOf(x) < tfRank || x === CONTEXT_TIMEFRAMES[0];
   const higherZones = nearZones.filter((z) => isHigher(z.tf));
@@ -281,13 +281,13 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   }));
 
   const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
-  // ABCD-03 und ABCD-08 warten auf den Endpunkt (im Aufbau); ABCD-07 (streng) ist durch die Toleranz von ABCD-08 ersetzt;
-  // ABCD-11 ohne ATR heißt „nahe nicht messbar“, nicht Verstoß. Die übrigen Pflichten zählen nur, solange kein Endpunkt wartet.
+  // ABCD-03 und ABCD-08 warten auf den Endpunkt (im Aufbau); ABCD-07 (streng) ist durch die Toleranz von ABCD-08 ersetzt.
+  // Die übrigen Pflichten zählen nur, solange kein Endpunkt wartet.
   const waiting = stateOf('ABCD-03') === 'unmet' || stateOf('ABCD-08') === 'unmet';
   const causesInvalid = (c: Check) =>
     (['ABCD-21', 'ABCD-22', 'ABCD-23', 'ABCD-24', 'ABCD-25'].includes(c.id) && c.state === 'met') ||
     (['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'].includes(c.id) && c.state === 'unmet') ||
-    (!waiting && c.kind === 'required' && c.state === 'unmet' && !['ABCD-07', 'ABCD-11'].includes(c.id));
+    (!waiting && c.kind === 'required' && c.state === 'unmet' && c.id !== 'ABCD-07');
   const invalidBy = checks.filter(causesInvalid).map((c) => c.id);
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
