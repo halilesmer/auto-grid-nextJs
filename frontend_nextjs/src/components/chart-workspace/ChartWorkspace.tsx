@@ -59,8 +59,8 @@ interface Props {
   /**
    * Werkzeugleiste und Zeichenleiste schweben über dem Chart (/formasyon). Die Leiste sitzt oben in der Kopfleiste der Seite,
    * sobald der Container `formation-main` breit genug ist (Schwelle in FormationToolbar.tsx), sonst schwebt sie unten.
-   * Rechts endet die schwebende Leiste bei `--chart-tools-right` (die Seite setzt es für eine überlagernde Seitenleiste), sonst 5rem.
-   * Stapelung auf /formasyon: unten z-45 über der Detailkarte (z-40, das Trend-Panel geht nach oben auf), oben z-60 über der Kopfleiste (z-50).
+   * Rechts endet die schwebende Leiste 5rem vom Rand (die Seitenleiste von /formasyon schiebt den Chart, sie überdeckt ihn ab lg nicht).
+   * Stapelung auf /formasyon: oben z-60 über der Kopfleiste (z-50), unten z-45 über den Chart-Overlays.
    */
   overlayLayout?: boolean;
 }
@@ -364,8 +364,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); history(!e.shiftKey); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); history(false); }
   }}>
-    <div className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-[var(--chart-tools-right,5rem)] z-[45] rounded-lg shadow-lg @min-[1240px]/formation-main:bottom-auto @min-[1240px]/formation-main:left-auto @min-[1240px]/formation-main:right-1 @min-[1240px]/formation-main:top-px @min-[1240px]/formation-main:z-[60] @min-[1240px]/formation-main:h-9 @min-[1240px]/formation-main:rounded-none @min-[1240px]/formation-main:border-0 @min-[1240px]/formation-main:bg-transparent @min-[1240px]/formation-main:p-0 @min-[1240px]/formation-main:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
-      <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? '@min-[1240px]/formation-main:hidden' : ''}`}>{context.symbol}</span>
+    <div className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-[45] rounded-lg shadow-lg @min-[1440px]/formation-main:bottom-auto @min-[1440px]/formation-main:left-auto @min-[1440px]/formation-main:right-1 @min-[1440px]/formation-main:top-px @min-[1440px]/formation-main:z-[60] @min-[1440px]/formation-main:h-9 @min-[1440px]/formation-main:rounded-none @min-[1440px]/formation-main:border-0 @min-[1440px]/formation-main:bg-transparent @min-[1440px]/formation-main:p-0 @min-[1440px]/formation-main:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
+      <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? '@min-[1440px]/formation-main:hidden' : ''}`}>{context.symbol}</span>
       <div className="flex flex-wrap items-center gap-1">
         {overlayLayout && appearance.navigation && <Button size="sm" variant="ghost" hint={t('cw.fit.hint')} onClick={() => binding?.chart.timeScale().fitContent()}>{t('cw.fit')}</Button>}
         <Button size="sm" variant="ghost" hint={t('cw.indicators.hint')} onClick={() => setIndicatorsOpen(true)}>{t('cw.indicators')}</Button>

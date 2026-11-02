@@ -1,13 +1,14 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Bookmark, Loader2 } from 'lucide-react';
+import { Bookmark, ListChecks, Loader2 } from 'lucide-react';
 
 import { useAccounts } from '@/components/account/hooks';
-import { FavoritesSidebar } from '@/components/formation/FavoritesSidebar';
-import { CandidateList } from '@/components/formation/CandidateList';
+import { FavoritesAddButton, FavoritesSidebar } from '@/components/formation/FavoritesSidebar';
 import { FormationChart } from '@/components/formation/FormationChart';
-import { FormationChecklist } from '@/components/formation/FormationChecklist';
+import { FormationConditions } from '@/components/formation/FormationConditions';
+import { FormationSidebarTabs } from '@/components/formation/FormationSidebarTabs';
+import { FormationStatusChip } from '@/components/formation/FormationStatusChip';
 import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
 import { FormationAlarmMenu } from '@/components/formation/FormationAlarmMenu';
 import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
@@ -15,11 +16,11 @@ import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/Form
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
 import { Tooltip } from '@/components/ui/tooltip';
-import { FormationDetailsPanel } from '@/components/formation/FormationDetailsPanel';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
+import { useFormationSidebar, type SidebarTab } from '@/hooks/useFormationSidebar';
 import { useFormationParams } from '@/hooks/useFormationParams';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
@@ -94,7 +95,6 @@ function FormationView() {
   const hit = list.find((h) => `${h.form}-${h.tf}` === pickedTf) ?? list[0] ?? null;
   const [active, setActive] = useState<string[] | null>(null);
   const [priceBottom, setPriceBottom] = useState(0);
-  const [detailsOpen, setDetailsOpen] = useState(true);
   // Kandidat und Markierung gehören zum alten Produkt
   const clearSelection = () => {
     setActive(null);
@@ -112,7 +112,7 @@ function FormationView() {
     () => Object.fromEntries(favorites.symbols.filter((s) => found[s]).map((s) => [s, found[s]])),
     [favorites.symbols, found],
   );
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebar = useFormationSidebar();
   const [formFilter, setFormFilter] = useState<ScanFormation | null>(null);
   // Ein Filter, den der gewählte Zeitraum nicht hat, gilt nicht mehr
   const filter = formFilter && formedSummary(results, tf).some((x) => x.form === formFilter) ? formFilter : null;
@@ -134,8 +134,8 @@ function FormationView() {
     clearSelection();
     setSymbol(next);
     setView({ form: filter ?? results[next]?.find((h) => h.tf === tf)?.form, tf });
-    // Unter 900 px liegt die Leiste über dem Chart
-    if (window.innerWidth < 900) setSidebarOpen(false);
+    // Unter 1024 px liegt die Leiste über dem Chart
+    if (window.innerWidth < 1024) sidebar.close();
   };
   const favoriteViews = hasFavorites
     ? {
@@ -143,10 +143,11 @@ function FormationView() {
         forms: <FavoritesForms results={results} tf={tf} filter={filter} onForm={pickFavoriteForm} />,
       }
     : null;
-  // Ohne Favoriten gilt die Leiste wie bisher (undefined); mit offener Seitenleiste stehen die Zeilen dort (null), sonst über dem Chart
+  // Ohne Favoriten gilt die Leiste wie bisher (undefined); mit offenem Reiter Favoriten stehen die Zeilen dort (null), sonst über dem Chart
+  const favoritesShown = sidebar.open && sidebar.tab === 'favorites';
   const toolbarSlot = (node: ReactNode) => {
     if (!favoriteViews) return undefined;
-    return sidebarOpen ? null : node;
+    return favoritesShown ? null : node;
   };
 
   const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol);
@@ -161,6 +162,25 @@ function FormationView() {
     if (!shot || !capture) throw new Error('chart is not ready');
     const data = buildShotData({ hit: shot.hit, symbol: shot.symbol, stamp: format.mt5DateTime(shot.scanAt), locale, t, number: format.number });
     return shotBlob(composeShot({ picture: await capture(), data }));
+  };
+
+  // Symbole der schmalen Leiste: ein Klick öffnet die Seitenleiste auf dem Reiter, auf dem aktiven Reiter schließt er sie
+  const stripButton = (tab: SidebarTab, label: string, hint: string, icon: ReactNode) => {
+    const on = sidebar.open && sidebar.tab === tab;
+    return (
+      <Tooltip content={hint} role="presentation" className={tab === 'favorites' ? 'mt-0.5' : undefined}>
+        <button
+          type="button"
+          aria-pressed={on}
+          aria-label={label}
+          data-testid={`${tab === 'favorites' ? 'favorites' : 'conditions'}-toggle`}
+          onClick={() => sidebar.toggle(tab)}
+          className={cn('inline-flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', on ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground')}
+        >
+          {icon}
+        </button>
+      </Tooltip>
+    );
   };
 
   const body = () => {
@@ -206,8 +226,8 @@ function FormationView() {
   return (
     <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''} data-favorites-scan-ms={favoritesScanMs ?? ''}>
       <h1 className="sr-only">{t('formation.title')}</h1>
-      {/* Die Seitenleiste schiebt den Chart ab 1280 px; darunter liegt sie unter der Kopfleiste über dem Chart. Die unten schwebenden Chart-Werkzeuge enden dann links von ihr (--chart-tools-right: 288 px Leiste + 8 px Abstand). Die Leiste ganz rechts bleibt immer frei */}
-      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10', sidebarOpen && 'min-[1280px]:right-[328px] lg:max-[1279px]:[--chart-tools-right:296px]')} data-testid="formation-main">
+      {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (40 px Leiste + 288 px Panel), statt ihn zu überdecken; darunter liegt sie über dem Chart. Die Leiste ganz rechts bleibt immer frei. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
+      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', sidebar.open && 'lg:right-[328px]')} data-testid="formation-main">
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
@@ -230,6 +250,7 @@ function FormationView() {
             <>
               <FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />
               <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} />
+              <FormationStatusChip hit={hit} open={sidebar.open && sidebar.tab === 'conditions'} onToggle={() => sidebar.toggle('conditions')} />
             </>
           }
         >
@@ -271,27 +292,6 @@ function FormationView() {
           </div>
         )}
       </div>
-      <FormationDetailsPanel
-        title={`${formName} · ${tf}`}
-        open={detailsOpen}
-        onToggle={() => {
-          setActive(null);
-          setDetailsOpen(!detailsOpen);
-        }}
-      >
-        {list.length > 0 ? (
-          <CandidateList hits={list} selected={hit} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} />
-        ) : (
-          <p className="px-3 py-2 text-xs text-muted-foreground" data-testid="candidate-empty">
-            {scan.loading ? t('formation.scan.loading') : t('formation.empty.list', { tf })}
-          </p>
-        )}
-        {hit ? (
-          <FormationChecklist hit={hit} active={active} onActive={setActive} />
-        ) : !scan.loading && (
-          <p className="p-3 text-xs text-muted-foreground">{t('formation.empty.text', { tf })}</p>
-        )}
-      </FormationDetailsPanel>
       {hit && (
         <ul className={`pointer-events-none absolute left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
           <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>
@@ -305,33 +305,43 @@ function FormationView() {
       </div>
       {accountKnown && accountId && (
         <>
-          <div className="absolute inset-y-0 right-0 z-[60] flex w-10 flex-col items-center border-l border-border bg-background pt-18 lg:pt-0" data-testid="favorites-strip">
-            <Tooltip content={t('formation.fav.toggle.hint')} role="presentation" className="mt-0.5">
-              <button
-                type="button"
-                aria-pressed={sidebarOpen}
-                aria-label={t('formation.fav.toggle')}
-                data-testid="favorites-toggle"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className={cn('inline-flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', sidebarOpen ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <Bookmark size={16} aria-hidden="true" className={cn(sidebarOpen && 'fill-primary')} />
-              </button>
-            </Tooltip>
+          <div className="absolute inset-y-0 right-0 z-[60] flex w-10 flex-col items-center gap-0.5 border-l border-border bg-background pt-18 lg:pt-0" data-testid="favorites-strip">
+            {stripButton('favorites', t('formation.fav.toggle'), t('formation.fav.toggle.hint'), <Bookmark size={16} aria-hidden="true" className={cn(sidebar.open && sidebar.tab === 'favorites' && 'fill-primary')} />)}
+            {stripButton('conditions', t('formation.conditions'), t('formation.conditions.hint'), <ListChecks size={16} aria-hidden="true" />)}
           </div>
-          {sidebarOpen && (
-            <div className="absolute inset-y-0 right-10 z-[60] w-72 border-l border-border bg-background pt-18 lg:top-[38px] lg:pt-0 min-[1280px]:top-0" data-testid="favorites-panel">
-              <FavoritesSidebar
-                accountId={accountId}
-                favorites={favorites.symbols}
-                rows={rows}
-                activeSymbol={symbol}
-                timeframes={favoriteViews?.timeframes}
-                forms={favoriteViews?.forms}
-                onPick={openFavorite}
-                onToggle={favorites.toggle}
-                onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()}
-              />
+          {sidebar.open && (
+            <div className="absolute inset-y-0 right-10 z-[60] w-72 border-l border-border bg-background pt-18 lg:pt-0" data-testid="formation-sidebar">
+              <div className="flex h-full min-h-0 flex-col">
+                <FormationSidebarTabs
+                  tab={sidebar.tab}
+                  onTab={sidebar.show}
+                  trailing={sidebar.tab === 'favorites' && <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />}
+                />
+                {sidebar.tab === 'conditions' ? (
+                  <FormationConditions
+                    list={list}
+                    hit={hit}
+                    loading={scan.loading}
+                    tf={tf}
+                    active={active}
+                    onSelect={(h) => setPicked(`${h.form}-${h.tf}`)}
+                    onActive={setActive}
+                  />
+                ) : (
+                  <div className="min-h-0 flex-1" data-testid="favorites-panel">
+                    <FavoritesSidebar
+                      accountId={accountId}
+                      favorites={favorites.symbols}
+                      rows={rows}
+                      activeSymbol={symbol}
+                      timeframes={favoriteViews?.timeframes}
+                      forms={favoriteViews?.forms}
+                      onPick={openFavorite}
+                      onToggle={favorites.toggle}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>

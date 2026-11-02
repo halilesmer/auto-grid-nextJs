@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster
+ * FRM-36 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -143,6 +143,17 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   });
 });
 
+/** Die Legende der Checkliste steht in einem (i)-Tooltip; er geht beim Hover auf das Symbol auf */
+async function showLegend(page: Page) {
+  await page.getByTestId('checklist-legend-hint').getByTestId('field-hint').hover();
+  return page.getByTestId('checklist-legend');
+}
+
+/** Stand der Seitenleiste vor dem ersten Laden setzen (sonst gilt der Startwert des ersten Besuchs) */
+async function storeSidebar(page: Page, state: { open: boolean; tab: 'conditions' | 'favorites' }) {
+  await page.addInitScript((value) => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify(value)), state);
+}
+
 test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
   test('Liste zeigt Urteil, Checkliste Pflicht/Verstärkung/Ausschluss mit Zählern und Zuständen', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
@@ -160,7 +171,7 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     expect(await rows.count()).toBeGreaterThan(10);
     // Ausschluss: ✓ heißt „nicht ausgelöst“; der Hinweis steht am Gruppenkopf und in der Legende
     await expect(list.getByTestId('exclusion-note')).toHaveText(msg('formation.group.exclusion.note'));
-    await expect(list).toContainText(msg('formation.legend.clear'));
+    await expect(await showLegend(page)).toContainText(msg('formation.legend.clear'));
     for (const state of ['met', 'unmet', 'clear']) {
       await expect(rows.and(page.locator(`[data-state="${state}"]`)).first().getByRole('img')).toHaveAttribute('aria-label', msg(`formation.state.${state}` as MessageKey));
     }
@@ -195,7 +206,7 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(list.locator('[data-state="excluded"]')).toHaveCount(0);
     await expect(list.getByTestId('score-required')).toContainText('5/5');
     await expect(list.getByTestId('score-bonus')).toContainText('/6');
-    await expect(list).toContainText(msg('formation.legend.inactive'));
+    await expect(await showLegend(page)).toContainText(msg('formation.legend.inactive'));
     await list.locator('[data-rule-id="CRB-07"]').getByText(msg('formation.mark.inactive')).hover();
     await expect(page.getByText(msg('formation.mark.inactive.hint'))).toBeVisible();
   });
@@ -226,7 +237,7 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'forming');
     const list = page.getByTestId('formation-checklist');
     await expect(list.getByText(msg('formation.note.unmeasurable', { ids: 'CYP-02' }), { exact: true })).toBeVisible();
-    await list.getByTestId('field-hint').hover();
+    await list.getByTestId('checklist-note').getByTestId('field-hint').hover();
     await expect(page.getByText(msg('formation.note.unmeasurable.hint'))).toBeVisible();
   });
 
@@ -243,14 +254,15 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
     const list = page.getByTestId('formation-checklist');
     await expect(list.getByTestId('score-required')).not.toContainText(msg('formation.score.unmeasurable', { n: 1 }));
-    await expect(list.getByTestId('field-hint')).toHaveCount(0);
+    await expect(list.getByTestId('checklist-note')).toHaveCount(0);
     await expect(list).not.toContainText(msg('formation.note.unmeasurable', { ids: 'CYP-02' }));
   });
 
   test('Ohne inaktive Zeile fehlt die Legendenzeile dazu', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
-    await expect(page.getByTestId('formation-checklist')).toContainText(msg('formation.legend.clear'));
-    await expect(page.getByTestId('formation-checklist')).not.toContainText(msg('formation.legend.inactive'));
+    const legend = await showLegend(page);
+    await expect(legend).toContainText(msg('formation.legend.clear'));
+    await expect(legend).not.toContainText(msg('formation.legend.inactive'));
   });
 });
 
@@ -299,7 +311,7 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     await expect(overlay.locator('[data-drawing] rect[rx="3"]')).toHaveCount(0);
   });
 
-  test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: '@FRM-20' }, async ({ page, worker }) => {
+  test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: ['@FRM-20', '@FRM-36'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const overlay = page.getByTestId('formation-overlay');
     await expect(overlay.locator('[data-drawing]').first()).toBeAttached();
@@ -543,44 +555,47 @@ test.describe('FRM-25 freie Produktwahl', () => {
 
 test.describe('FRM-22 schmale Ansicht', () => {
   test.use({ viewport: { width: 375, height: 812 } });
-  test('Bei 375 px liegen die Bedingungen im Chart und lassen sich einklappen', { tag: '@FRM-22' }, async ({ page, worker }) => {
+  test('Bei 375 px ist die Seitenleiste zu; die Bedingungen öffnen über dem Chart und lassen sich schließen', { tag: ['@FRM-22', '@FRM-36'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = await page.getByTestId('formation-chart').boundingBox();
-    const details = page.getByTestId('formation-details');
-    const panel = await details.boundingBox();
     expect(chart!.x).toBe(52);
     const rail = await page.getByTestId('drawing-toolbar').boundingBox();
     expect(rail!.x).toBe(0);
     expect(rail!.width).toBe(52);
     expect(chart!.y).toBe(0);
     expect(chart!.height).toBe(812);
-    expect(panel!.x).toBeGreaterThan(chart!.x);
-    expect(panel!.y + panel!.height).toBeLessThan(chart!.height * 0.83);
-    const toggle = page.getByTestId('formation-details-toggle');
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByTestId('formation-checklist')).toBeHidden();
-    await toggle.press('Enter');
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+    const chip = page.getByTestId('formation-status-chip');
+    await expect(chip).toHaveAttribute('aria-expanded', 'false');
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByTestId('formation-checklist')).toBeVisible();
+    const sidebar = (await page.getByTestId('formation-sidebar').boundingBox())!;
+    expect(sidebar.x + sidebar.width).toBeLessThanOrEqual(375 - 40);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     await page.screenshot({ path: test.info().outputPath('formation-mobile-dark.png') });
+    await chip.press('Enter');
+    await expect(chip).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('formation-checklist')).toHaveCount(0);
   });
 });
 
 test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
   test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
+    // Geschlossene Seitenleiste und 1480 px Fenster: der Chartbereich ist 1440 px breit (Schwelle für die Werkzeuge in der Leiste)
+    await page.setViewportSize({ width: 1480, height: 900 });
+    await storeSidebar(page, { open: false, tab: 'conditions' });
     await openPage(page, worker, `${URL}&form=GAR`);
     const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
-    expect(bar).toEqual({ x: 52, y: 56, width: 1348, height: 38 });
+    expect(bar).toEqual({ x: 52, y: 56, width: 1388, height: 38 });
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
-    expect(forms).toEqual({ x: 52, y: 94, width: 1348, height: 30 });
+    expect(forms).toEqual({ x: 52, y: 94, width: 1388, height: 30 });
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
     expect(tools.y).toBeGreaterThanOrEqual(56);
     expect(tools.y + tools.height).toBeLessThanOrEqual(94);
-    expect(tools.x + tools.width).toBeLessThanOrEqual(1400);
+    expect(tools.x + tools.width).toBeLessThanOrEqual(1440);
     await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
     const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -601,17 +616,24 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
-      expect(chart).toEqual({ x: 52, y: 56, width: 1348, height: 844 });
+      // Die Seitenleiste ist offen (erster Besuch ab lg): 1440 − 40 − 288 − 52
+      expect(chart).toEqual({ x: 52, y: 56, width: 1060, height: 844 });
       const rail = await page.getByTestId('drawing-toolbar').boundingBox();
       expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });
-      for (const id of ['formation-selectors', 'formation-toolbar', 'formation-details', 'formation-legend']) {
+      for (const id of ['formation-selectors', 'formation-toolbar', 'formation-legend']) {
         const box = await page.getByTestId(id).boundingBox();
         expect(box!.x).toBeGreaterThanOrEqual(chart!.x);
         expect(box!.y).toBeGreaterThanOrEqual(56);
         expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.x + chart!.width);
         expect(box!.y + box!.height).toBeLessThanOrEqual(900);
       }
+      // Die Seitenleiste liegt rechts neben dem Chart, nicht darüber
+      const sidebar = (await page.getByTestId('formation-sidebar').boundingBox())!;
+      expect(sidebar.x).toBeGreaterThanOrEqual(chart!.x + chart!.width);
+      expect(sidebar.x + sidebar.width).toBeLessThanOrEqual(1400);
+      expect(sidebar.y).toBeGreaterThanOrEqual(56);
+      expect(sidebar.y + sidebar.height).toBeLessThanOrEqual(900);
       const toolbar = await page.getByTestId('formation-toolbar').boundingBox();
       const pointA = await page.getByTestId('formation-overlay').getByText('A', { exact: true }).boundingBox();
       expect(pointA!.y).toBeGreaterThan(toolbar!.y + toolbar!.height);
@@ -619,7 +641,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
       await expect(page.getByTestId('group-exclusion')).toBeInViewport();
       expect(await page.getByTestId('formation-chart').boundingBox()).toEqual(chart);
-      await page.locator('#formation-details-content').evaluate((el) => { el.scrollTop = 0; });
+      await page.getByTestId('conditions-panel').evaluate((el) => { el.scrollTop = 0; });
       await page.screenshot({ path: test.info().outputPath(`formation-desktop-${theme}.png`) });
       const line = page.getByTestId('formation-overlay').locator('line').first();
       const xBefore = await line.getAttribute('x1');
@@ -629,7 +651,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       await expect.poll(() => line.getAttribute('x1')).not.toBe(xBefore);
       if (theme === 'light') {
         await page.setViewportSize({ width: 375, height: 812 });
-        await expect(page.getByTestId('formation-details')).toBeInViewport();
+        await expect(page.getByTestId('formation-status-chip')).toBeInViewport();
         await page.screenshot({ path: test.info().outputPath('formation-mobile-light.png') });
         await page.setViewportSize({ width: 1440, height: 900 });
       }
@@ -642,84 +664,6 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   }
 });
 
-
-test.describe('FRM-24 bewegliche Bedingungen', () => {
-  test.use({ viewport: { width: 1440, height: 900 } });
-  test('Kopfgriff verschiebt die Karte; Grenzen, Tastatur, Aufklappen und Resize halten sie erreichbar', { tag: '@FRM-24' }, async ({ page, worker }) => {
-    await openPage(page, worker, `${URL}&form=GAR`);
-    const panel = page.getByTestId('formation-details');
-    const handle = page.getByTestId('formation-details-drag');
-    const before = await panel.boundingBox();
-    const dragTo = async (x: number, y: number) => {
-      const grip = await handle.boundingBox();
-      await page.mouse.move(grip!.x + 20, grip!.y + grip!.height / 2);
-      await page.mouse.down();
-      await page.mouse.move(x, y, { steps: 12 });
-      await page.mouse.up();
-    };
-    await expect(handle).toBeVisible();
-    await dragTo(before!.x - 350, before!.y + 70);
-    await expect.poll(async () => (await panel.boundingBox())!.x).toBeLessThan(before!.x - 200);
-    await expect(panel.getByTestId('formation-checklist')).toBeVisible();
-    await page.screenshot({ path: test.info().outputPath('formation-details-dragged.png') });
-    await dragTo(-1000, -1000);
-    await expect.poll(async () => (await panel.boundingBox())!.x).toBeGreaterThanOrEqual(59);
-    await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(56, 0);
-    const left = (await panel.boundingBox())!.x;
-    await handle.focus();
-    await handle.press('ArrowRight');
-    await expect.poll(async () => (await panel.boundingBox())!.x).toBeCloseTo(left + 10, 0);
-    const top = (await panel.boundingBox())!.y;
-    await handle.press('Shift+ArrowDown');
-    await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top + 50, 0);
-    await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
-    await expect(page.getByTestId('group-exclusion')).toBeInViewport();
-    await dragTo(2400, 1600);
-    await page.getByTestId('formation-details-toggle').click();
-    await dragTo(2400, 1600);
-    await page.getByTestId('formation-details-toggle').click();
-    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(837);
-    await page.setViewportSize({ width: 375, height: 812 });
-    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.x + box.width; }).toBeLessThanOrEqual(312);
-    await expect.poll(async () => { const box = (await panel.boundingBox())!; return box.y + box.height; }).toBeLessThanOrEqual(749);
-    await expect(handle).toBeInViewport();
-  });
-
-  test('Kopfgriff-Karte: kein Text ist größer als 12 px', { tag: '@FRM-24' }, async ({ page, worker }) => {
-    await openPage(page, worker, `${URL}&form=GAR`);
-    await expect(page.getByTestId('formation-checklist')).toBeVisible();
-    const sizes = await page.getByTestId('formation-details').evaluate((card) => {
-      const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
-      const found = new Set<number>();
-      while (walker.nextNode()) {
-        const parent = walker.currentNode.parentElement;
-        if (parent && walker.currentNode.textContent?.trim()) found.add(parseFloat(getComputedStyle(parent).fontSize));
-      }
-      return [...found];
-    });
-    expect(sizes.filter((size) => size > 12)).toEqual([]);
-  });
-
-  test('Touch zieht nur am Kopfgriff, der Inhalt bleibt separat scrollbar', { tag: '@FRM-24' }, async ({ page, worker }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await openPage(page, worker, `${URL}&form=GAR`);
-    const panel = page.getByTestId('formation-details');
-    const grip = await page.getByTestId('formation-details-drag').boundingBox();
-    expect(grip).not.toBeNull();
-    const before = (await panel.boundingBox())!;
-    const session = await page.context().newCDPSession(page);
-    const x = grip!.x + 35;
-    const y = grip!.y + grip!.height / 2;
-    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 30 }] });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 110 }] });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect.poll(async () => (await panel.boundingBox())!.y).toBeLessThan(before.y - 70);
-    const position = (await panel.boundingBox())!.y;
-    await page.getByTestId('group-exclusion').scrollIntoViewIfNeeded();
-    expect((await panel.boundingBox())!.y).toBeCloseTo(position, 0);
-  });
-});
 
 test.describe('FRM-26 Formation als Bild festhalten', () => {
   test('PNG enthält Chart samt Formationszeichnungen, ohne Konto im Dateinamen', { tag: '@FRM-26' }, async ({ page, worker }) => {
@@ -1138,24 +1082,6 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
     expect(worker.callsTo('GET', /\/quotes$/)).toHaveLength(0);
     await page.getByTestId('favorites-toggle').click();
     await expect.poll(() => worker.callsTo('GET', /\/quotes$/).length).toBe(1);
-  });
-
-  // Seit S6a (Trend-Knopf) passt die Werkzeugleiste bei 1024 px nicht mehr in die Kopfleiste und schwebt unten (FRM-23);
-  // dort endet sie links der Seitenleiste. Früher prüfte der Test, dass sie oberhalb der Seitenleiste liegt.
-  test('Die offene Seitenleiste überdeckt die Werkzeuge des Charts nicht: unter 1280 px liegt sie neben den unten schwebenden Werkzeugen, ab 1280 px schiebt sie den Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
-    await page.setViewportSize({ width: 1024, height: 700 });
-    await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
-    const toolButtons = page.locator('[data-testid="workspace-toolbar"] button:visible');
-    expect(await toolButtons.count()).toBeGreaterThan(0);
-    const rects = () => toolButtons.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ right: r.right })));
-    const narrow = (await page.getByTestId('favorites-panel').boundingBox())!;
-    for (const r of await rects()) expect(r.right).toBeLessThanOrEqual(narrow.x);
-    await expect.poll(() => onTop(page, page.getByTestId('trend-toggle'))).toBe(true);
-    await expect(page.getByTestId('favorites-toggle')).toBeVisible();
-
-    await page.setViewportSize({ width: 1440, height: 900 });
-    const wide = (await page.getByTestId('favorites-panel').boundingBox())!;
-    for (const r of await rects()) expect(r.right).toBeLessThanOrEqual(wide.x);
   });
 
   test('Bei 375 px liegt die Seitenleiste über dem Chart, nichts scrollt quer', { tag: '@FRM-29' }, async ({ page, worker }) => {
@@ -1635,16 +1561,20 @@ test.describe('ANA-21 Trendzug auf /formasyon', () => {
 test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
   const cases = [
     { width: 1440, favorites: false },
+    // Geschlossene Seitenleiste: ab 1480 px (Chartbereich 1440 px) stehen die Werkzeuge in der Kopfleiste, daneben der Status-Knopf
+    { width: 1480, favorites: false, closed: true },
+    { width: 1440, favorites: false, closed: true },
     { width: 1280, favorites: false },
     { width: 1280, favorites: true },
     { width: 1024, favorites: false },
     { width: 375, favorites: false },
     { width: 375, height: 667, favorites: false },
   ];
-  for (const { width, height = 900, favorites } of cases) {
-    test.describe(`${width}×${height} px${favorites ? ' mit Favoriten' : ''}`, () => {
+  for (const { width, height = 900, favorites, closed = false } of cases) {
+    test.describe(`${width}×${height} px${favorites ? ' mit Favoriten' : ''}${closed ? ' ohne Seitenleiste' : ''}`, () => {
       test.use({ viewport: { width, height }, appLocale: 'de' });
-      test(`Indikatoren und Trend sind nicht verdeckt und überlappen die Kopfleiste nicht (${width}×${height} px${favorites ? ', Favoriten offen' : ''})`, { tag: ['@FRM-23', '@ANA-21'] }, async ({ page, worker }) => {
+      test(`Indikatoren und Trend sind nicht verdeckt und überlappen die Kopfleiste nicht (${width}×${height} px${favorites ? ', Favoriten offen' : ''}${closed ? ', Seitenleiste zu' : ''})`, { tag: ['@FRM-23', '@ANA-21'] }, async ({ page, worker }) => {
+        if (closed) await storeSidebar(page, { open: false, tab: 'conditions' });
         await openPage(page, worker, `${URL}&form=GAR`);
         if (favorites) {
           await page.getByTestId('favorites-toggle').click();
@@ -1694,5 +1624,136 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
       expect(overlaps).toBe(false);
       await expect.poll(() => onTop(page, page.getByTestId('trend-toggle'))).toBe(true);
     });
+  });
+});
+
+test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () => {
+  const geometry = (page: Page) =>
+    page.evaluate(() => {
+      const box = (id: string) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect() ?? null;
+      return { main: box('formation-main'), sidebar: box('formation-sidebar'), strip: box('favorites-strip') };
+    });
+
+  for (const width of [1440, 1100]) {
+    test(`Die offene Seitenleiste schiebt den Chart und überlappt ihn nicht (${width} px)`, { tag: '@FRM-36' }, async ({ page, worker }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await openPage(page, worker, `${URL}&form=GAR`);
+      // Erster Besuch ab lg: offen auf „Bedingungen“
+      await expect(page.getByTestId('conditions-panel')).toBeVisible();
+      const open = await geometry(page);
+      expect(open.main!.width).toBe(width - 40 - 288);
+      expect(open.main!.right).toBeLessThanOrEqual(open.sidebar!.left);
+      expect(open.sidebar!.width).toBe(288);
+      expect(open.sidebar!.right).toBe(open.strip!.left);
+      // Der Chart folgt der Breite von formation-main
+      const chart = (await page.getByTestId('formation-chart').boundingBox())!;
+      expect(chart.x + chart.width).toBeLessThanOrEqual(open.sidebar!.left);
+      await page.getByTestId('conditions-toggle').click();
+      await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+      const closed = await geometry(page);
+      expect(closed.main!.width).toBe(width - 40);
+      const wide = (await page.getByTestId('formation-chart').boundingBox())!;
+      expect(wide.width).toBe(chart.width + 288);
+    });
+  }
+
+  test('Zwei Reiter: jedes Symbol öffnet seinen Reiter, ein Klick auf den aktiven schließt, der Reiter wechselt ohne Schließen', { tag: '@FRM-36' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const conditionsTab = page.getByTestId('sidebar-tab-conditions');
+    const favoritesTab = page.getByTestId('sidebar-tab-favorites');
+    await expect(conditionsTab).toHaveAttribute('aria-selected', 'true');
+    await expect(favoritesTab).toHaveAttribute('aria-selected', 'false');
+    await expect(page.getByTestId('favorites-panel')).toHaveCount(0);
+    await favoritesTab.click();
+    await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    await expect(page.getByTestId('conditions-panel')).toHaveCount(0);
+    await expect(favoritesTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('favorites-add')).toBeVisible();
+    await conditionsTab.click();
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+    await expect(page.getByTestId('favorites-add')).toHaveCount(0);
+    // Symbole der schmalen Leiste
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    await expect(page.getByTestId('favorites-toggle')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('conditions-toggle')).toHaveAttribute('aria-pressed', 'false');
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+    await page.getByTestId('conditions-toggle').click();
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+    await page.getByTestId('conditions-toggle').click();
+    await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+  });
+
+  test('Der Status-Knopf zeigt den Kandidaten und öffnet und schließt den Reiter Bedingungen', { tag: '@FRM-36' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const chip = page.getByTestId('formation-status-chip');
+    await expect(chip.getByTestId('status-verdict')).toHaveAttribute('data-verdict', 'valid');
+    await expect(chip).toContainText(/\d+\/\d+ · \d+\/\d+/);
+    await expect(chip).toHaveAttribute('aria-expanded', 'true');
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+    // Auf dem Reiter Favoriten zählt der Knopf als zu und wechselt zurück zu den Bedingungen
+    await page.getByTestId('sidebar-tab-favorites').click();
+    await expect(chip).toHaveAttribute('aria-expanded', 'false');
+    await chip.click();
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+  });
+
+  test('Ohne Kandidat ist der Status-Knopf deaktiviert und sein Hinweis nennt den Grund', { tag: '@FRM-36' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&tf=M15`);
+    const chip = page.getByTestId('formation-status-chip');
+    await expect(chip).toBeDisabled();
+    await chip.locator('..').hover();
+    await expect(page.getByText(msg('formation.status.empty.hint'))).toBeVisible();
+  });
+
+  test('Offen/zu und Reiter bleiben nach dem Neuladen; erster Besuch: unter lg zu', { tag: '@FRM-36' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await page.getByTestId('sidebar-tab-favorites').click();
+    await page.reload();
+    await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    await page.getByTestId('favorites-toggle').click();
+    await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+    await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+    // Gespeichert ist der letzte Reiter: ein Klick auf das Symbol der Bedingungen öffnet genau diesen
+    await page.getByTestId('conditions-toggle').click();
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+  });
+
+  test('Bei 375 px: Seitenleiste zu, geöffnet über dem Chart, ohne Querscroll; Tooltips an Reitern und Symbolen', { tag: '@FRM-36' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+    await page.getByTestId('conditions-toggle').click();
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+    await expect(page.getByTestId('candidate-item').first()).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.getByTestId('sidebar-tab-favorites').click();
+    await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    const after = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(after).toBeLessThanOrEqual(0);
+  });
+
+  test('Gruppen klappen ein und aus, die Zeilen der Gruppe verschwinden', { tag: '@FRM-36' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const group = page.getByTestId('group-exclusion');
+    const toggle = page.getByTestId('group-toggle-exclusion');
+    await expect(group.getByTestId('check-row').first()).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(group.getByTestId('check-row')).toHaveCount(0);
+    await toggle.click();
+    await expect(group.getByTestId('check-row').first()).toBeVisible();
   });
 });

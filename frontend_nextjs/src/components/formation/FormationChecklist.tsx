@@ -1,12 +1,12 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { Check as CheckIcon, Minus, Slash, X } from 'lucide-react';
-import { VerdictPill } from '@/components/formation/CandidateList';
+import { useState, type ReactNode } from 'react';
+import { Check as CheckIcon, ChevronDown, ChevronRight, Minus, Slash, X } from 'lucide-react';
 import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
 import { ruleText } from '@/lib/formation/ruleTexts';
 import { FINAL_POINT, type ScanHit } from '@/lib/formation/scan';
+import { checkScore } from '@/lib/formation/score';
 import { blockingUnknowns, exemptFor } from '@/lib/formation/settle';
 import type { Check, RuleKind } from '@/lib/formation/types';
 import { cn } from '@/lib/utils';
@@ -50,7 +50,7 @@ function StateIcon({ state }: { state: RowState }) {
   );
 }
 
-/** Checkliste des gewählten Kandidaten: Kopf mit Urteil und Zählern, drei Gruppen, Fußzeile mit Legende. */
+/** Checkliste des gewählten Kandidaten (Reiter „Bedingungen“): Zähler mit Balken, drei einklappbare Gruppen, Legende im (i)-Tooltip. */
 export function FormationChecklist({
   hit,
   active,
@@ -63,16 +63,10 @@ export function FormationChecklist({
   const t = useT();
   const locale = useLocale();
   const { number } = useFormat();
+  const [collapsed, setCollapsed] = useState<ReadonlySet<RuleKind>>(new Set());
   const { candidate } = hit;
-  const counted = candidate.checks.filter((c) => !c.inactive);
-  const hasInactive = counted.length < candidate.checks.length;
-  const required = counted.filter((c) => c.kind === 'required');
-  const bonus = counted.filter((c) => c.kind === 'bonus');
-  const requiredMet = required.filter((c) => c.state === 'met').length;
-  const requiredUnmeasurable = required.filter((c) => c.state === 'unmeasurable').length;
-  const bonusMet = bonus.filter((c) => c.state === 'met').length;
-  const share = (n: number) => (required.length === 0 ? 0 : (n / required.length) * 100);
-  const title = `${t(`formation.form.${hit.form}` as MessageKey)} ${t(`formation.side.${candidate.side}` as MessageKey)}`;
+  const { hasInactive, requiredTotal, requiredMet, requiredUnmeasurable, bonusTotal, bonusMet } = checkScore(candidate);
+  const share = (n: number) => (requiredTotal === 0 ? 0 : (n / requiredTotal) * 100);
   const open = candidate.points[FINAL_POINT[hit.form]] === undefined;
   // Dasselbe Prädikat wie im Prüfer: der Hinweis nennt nur Regeln, die das Urteil „gültig“ wirklich halten
   const unknownIds = blockingUnknowns(candidate.checks, exemptFor(hit.form, candidate.checks));
@@ -85,30 +79,41 @@ export function FormationChecklist({
   }
   else if (candidate.verdict === 'invalid' && candidate.invalidBy && candidate.invalidBy.length > 0) note = t('formation.note.invalid', { ids: candidate.invalidBy.join(', ') });
   const activeSet = active ? new Set(active) : null;
+  const toggleGroup = (kind: RuleKind) => {
+    const next = new Set(collapsed);
+    if (!next.delete(kind)) next.add(kind);
+    setCollapsed(next);
+  };
+  const legend = (
+    <div className="flex flex-col gap-1" data-testid="checklist-legend">
+      <span>{t('formation.legend.secondary')}</span>
+      <span>{t('formation.legend.assumption')}</span>
+      <span>{t('formation.legend.unmeasurable')}</span>
+      <span>{t('formation.legend.clear')}</span>
+      {hasInactive && <span>{t('formation.legend.inactive')}</span>}
+    </div>
+  );
 
   return (
     <div data-testid="formation-checklist">
-      <div className="flex flex-col gap-2 px-3 pb-2 pt-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <strong className="text-xs">{title}</strong>
-          <VerdictPill verdict={candidate.verdict} />
-        </div>
-        <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-xs">
+      <div className="flex flex-col gap-2 px-3 pb-2 pt-1">
+        <div className="flex items-center gap-x-3.5 text-xs">
           <span data-testid="score-required">
-            {t('formation.score.required')} <b className="tabular-nums">{requiredMet}/{required.length}</b>
+            {t('formation.score.required')} <b className="tabular-nums">{requiredMet}/{requiredTotal}</b>
             {requiredUnmeasurable > 0 && <span className="text-muted-foreground"> ({t('formation.score.unmeasurable', { n: requiredUnmeasurable })})</span>}
           </span>
           <span data-testid="score-bonus">
-            {t('formation.score.bonus')} <b className="tabular-nums">{bonusMet}/{bonus.length}</b>
+            {t('formation.score.bonus')} <b className="tabular-nums">{bonusMet}/{bonusTotal}</b>
           </span>
+          <span className="ml-auto shrink-0" data-testid="checklist-legend-hint"><InfoHint hint={legend} /></span>
         </div>
         <div className="flex h-1.5 overflow-hidden rounded-[3px] bg-muted" aria-hidden="true">
           <span className="block h-full bg-success" style={{ width: `${share(requiredMet)}%` }} />
-          <span className="block h-full bg-danger" style={{ width: `${share(required.length - requiredMet - requiredUnmeasurable)}%` }} />
+          <span className="block h-full bg-danger" style={{ width: `${share(requiredTotal - requiredMet - requiredUnmeasurable)}%` }} />
           <span className="block h-full bg-muted-foreground opacity-40" style={{ width: `${share(requiredUnmeasurable)}%` }} />
         </div>
         {note && (
-          <div className="flex items-start gap-1.5 rounded-lg border border-warning/35 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+          <div className="flex items-start gap-1.5 rounded-lg border border-warning/35 bg-warning/10 px-2.5 py-1.5 text-xs text-warning" data-testid="checklist-note">
             <span>{note}</span>
             {noteHint && <InfoHint hint={t('formation.note.unmeasurable.hint')} className="ml-auto shrink-0 text-warning" />}
           </div>
@@ -117,13 +122,25 @@ export function FormationChecklist({
       {GROUPS.map((kind) => {
         const rows = candidate.checks.filter((c) => c.kind === kind);
         if (rows.length === 0) return null;
+        const folded = collapsed.has(kind);
         return (
           <section key={kind} className="border-t border-border" data-testid={`group-${kind}`}>
-            <h3 className="flex flex-wrap items-baseline gap-x-2 px-3 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t(`formation.group.${kind}` as MessageKey)}
+            <h3 className="flex flex-wrap items-baseline gap-x-2 pr-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Tooltip content={t('formation.group.toggle.hint', { group: t(`formation.group.${kind}` as MessageKey) })} role="presentation">
+                <button
+                  type="button"
+                  aria-expanded={!folded}
+                  data-testid={`group-toggle-${kind}`}
+                  onClick={() => toggleGroup(kind)}
+                  className="flex cursor-pointer items-center gap-1 py-1.5 pl-2.5 pr-1 uppercase tracking-wider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {folded ? <ChevronRight size={13} aria-hidden="true" /> : <ChevronDown size={13} aria-hidden="true" />}
+                  {t(`formation.group.${kind}` as MessageKey)}
+                </button>
+              </Tooltip>
               {kind === 'exclusion' && <span className="text-[11px] font-normal normal-case tracking-normal" data-testid="exclusion-note">{t('formation.group.exclusion.note')}</span>}
             </h3>
-            {rows.map((c) => {
+            {!folded && rows.map((c) => {
               const state = rowState(c);
               const highlighted = activeSet !== null && c.drawings.some((d) => activeSet.has(d));
               return (
@@ -138,39 +155,32 @@ export function FormationChecklist({
                   onFocus={() => onActive(c.drawings)}
                   onMouseLeave={() => onActive(null)}
                   onBlur={() => onActive(null)}
-                  className={cn('grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-2 px-3 py-1.5 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary', highlighted && 'bg-muted')}
+                  className={cn('grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-2 px-3 py-1 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary', highlighted && 'bg-muted')}
                 >
                   <StateIcon state={state} />
-                  <span className="min-w-0">
-                    <span className={cn('block text-xs', (state === 'unmeasurable' || state === 'inactive') && 'text-muted-foreground')}>
-                      {ruleText(locale, c.id) ?? c.id}
-                      {c.status !== 'confirmed' && (
-                        <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
-                          <span className="ml-1 cursor-help rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
-                        </Tooltip>
-                      )}
-                      {state === 'inactive' && (
-                        <Tooltip content={t('formation.mark.inactive.hint')} role="presentation">
-                          <span className="ml-1 cursor-help whitespace-nowrap rounded-[5px] bg-muted px-1 text-[10px] text-muted-foreground">{t('formation.mark.inactive')}</span>
-                        </Tooltip>
-                      )}
-                    </span>
-                    <span className="text-[11px] tabular-nums text-muted-foreground">{c.id}</span>
+                  <span className={cn('min-w-0 text-xs', (state === 'unmeasurable' || state === 'inactive') && 'text-muted-foreground')}>
+                    {ruleText(locale, c.id) ?? c.id}
+                    {c.status !== 'confirmed' && (
+                      <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
+                        <span className="ml-1 cursor-help rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
+                      </Tooltip>
+                    )}
+                    {state === 'inactive' && (
+                      <Tooltip content={t('formation.mark.inactive.hint')} role="presentation">
+                        <span className="ml-1 cursor-help whitespace-nowrap rounded-[5px] bg-muted px-1 text-[10px] text-muted-foreground">{t('formation.mark.inactive')}</span>
+                      </Tooltip>
+                    )}
                   </span>
-                  <span className="text-right text-xs tabular-nums text-muted-foreground">{c.value === undefined ? '' : number(c.value, { maximumFractionDigits: 3 })}</span>
+                  <span className="flex flex-col items-end text-[11px] tabular-nums text-muted-foreground">
+                    <span>{c.id}</span>
+                    {c.value !== undefined && <span className="text-xs text-foreground/80">{number(c.value, { maximumFractionDigits: 3 })}</span>}
+                  </span>
                 </div>
               );
             })}
           </section>
         );
       })}
-      <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 px-3 pb-3 pt-2 text-xs text-muted-foreground">
-        <span>{t('formation.legend.secondary')}</span>
-        <span>{t('formation.legend.assumption')}</span>
-        <span>{t('formation.legend.unmeasurable')}</span>
-        <span>{t('formation.legend.clear')}</span>
-        {hasInactive && <span>{t('formation.legend.inactive')}</span>}
-      </div>
     </div>
   );
 }
