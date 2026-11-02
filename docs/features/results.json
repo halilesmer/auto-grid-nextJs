@@ -853,14 +853,14 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 33
+      "tests": 37
     }
   },
   "FRM-17": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 29
+      "tests": 33
     }
   },
   "FRM-18": {

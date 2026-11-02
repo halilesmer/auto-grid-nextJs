@@ -14,7 +14,7 @@ import { FormationContext } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeKei, checkKeiCandidate, KEI_CHECK_IDS } from '../../src/lib/formation/keiChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
-import { D1, END, H4, barsOf, mirror, zig, type Row } from '../fixtures/formation-rows';
+import { D1, END, H4, barsOf, mirror, patched, zig, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip } from '../fixtures/formation-lines';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-17' }, fn);
@@ -47,6 +47,15 @@ const STRONG_LAST = lineRows([100, 150, 130, 176, 160, 225, 150]);
 const FALLING = lineRows([150, 200, 140, 195, 130, 190, 120]);
 /** Flaches Dreieck: die Hochs liegen gleich (150, 150), nur die Tiefs steigen (120, 125, 130) */
 const FLAT_TOP = lineRows([120, 150, 125, 150, 130, 148, 100]);
+/** Das zweite Hoch 150,1 überragt das erste (150) nur mit dem Docht, danach schließt keine Kerze über 150: nach TRD-34 gibt es noch keine Linie */
+const NO_RELEASE = lineRows([100, 150, 130, 150.1, 140, 149, 120]);
+/**
+ * Schluss unter der Linie schon auf Index 68 (147,58 < 148,75), aber über dem Impulsende 150 schließt erst Index 77 (151,25): die Linie gilt
+ * erst ab Index 77 (TRD-34), dort liegt sie bei 165,63 und der Schluss darunter; das ist die Aktivierung
+ */
+const BREAK_BEFORE_RELEASE = lineRows([100, 150, 130, 150.1, 140, 170, 120]);
+/** Das erste Tief ist ein Spike (Körper 0, Docht bis 99): Anker ist das Tief 100,1 der rechten Nachbarkerze (TRD-36) */
+const SPIKE_L0 = patched(BASE, at(0), [101, 101.1, 99, 101]);
 /** Das zweite Hoch 185 (2,19 je Kerze) steigt steiler als die Tiefs (1,875): die Linien laufen auseinander */
 const WIDENING = lineRows([100, 150, 130, 185, 160, 202, 150]);
 /** Das zweite Tief 150 liegt unter der Linie (160) und schließt dort darunter: die Aktivierung kommt vor dem zweiten Test */
@@ -76,6 +85,7 @@ const CASES: Case[] = [
   { name: 'KEI 02 ☐: der letzte Impuls ist länger als der vorige', rows: STRONG_LAST, expect: { '02': N, '03': M } },
   { name: 'KEI 03 ☐: die Tiefs fallen, die Linien zeigen nicht mit dem Trend', rows: FALLING, expect: { '03': N } },
   { name: 'KEI 03 ☐: flaches Dreieck, die Gegenlinie steigt nicht (kein Keil)', rows: FLAT_TOP, expect: { '03': N } },
+  { name: 'KEI 03 ☐: nach dem zweiten Tief schließt keine Kerze über dem Impulsende 150, die Linie gilt noch nicht', rows: NO_RELEASE, expect: { '03': N } },
   { name: 'KEI 04 ☐: die Linien laufen auseinander', rows: WIDENING, expect: { '04': N, '03': M, '05': M } },
   { name: 'KEI 05 ☐: Schluss unter der Linie schon vor dem zweiten Test unten', rows: EARLY_BREAK, expect: { '05': N, '06': M } },
   { name: 'KEI 06 ☐: kein Schluss unter der Linie', rows: NO_ACTIVATION, expect: { '06': N, '07': M, '09': U } },
@@ -142,6 +152,25 @@ frm('Zeichnungen: zwei zulaufende Linien und Zonen kommen auch bei ☐; ohne hö
   const end = upper.anchors[1].price - lower.anchors[1].price;
   expect(end).toBeLessThan(start);
   expect(run(NO_ACTIVATION).drawings.map((d) => d.id)).toContain('Z-KEI-01b');
+});
+
+frm('Aktivierung erst ab der Freigabe: ein Schluss unter der Linie vor dem ersten Schluss über dem Impulsende zählt nicht', () => {
+  const c = run(BREAK_BEFORE_RELEASE);
+  expect(state(c, 'KEI-03')).toBe(M);
+  expect(c.points.X.time).toBe(77 * H4);
+});
+
+frm('Freigabe ohne Blick in die Zukunft: bis Index 76 gibt es keinen Schluss über dem Impulsende, die Linie gilt noch nicht', () => {
+  const c = run(BREAK_BEFORE_RELEASE, { t: 77 * H4 });
+  expect(state(c, 'KEI-03')).toBe(N);
+});
+
+frm('Spike am ersten Tief: die untere Keillinie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {
+  const line = run(SPIKE_L0).drawings.find((d) => d.id === 'Z-KEI-01')!;
+  expect(line.anchors[0].time).toBe((at(0) + 1) * H4);
+  expect(line.anchors[0].price).toBeCloseTo(100.1, 6);
+  // durch 100,1 (Index 43) und 130 (Index 58): bei Index 93 liegt sie bei 199,77
+  expect(line.anchors[1].price).toBeCloseTo(199.7667, 3);
 });
 
 /** D1 im Aufwärtstrend: Wendepunkte 80, 120, 100, 140, 125 auf Index 2, 6, 10, 14, 18; 120 → 100 ist 0,5 tief (Korrektur), der aktuelle Impuls ist 100 → 140 */
@@ -213,8 +242,8 @@ interface Real {
 const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
 const FORM = { '01': M, '02': M, '03': M, '04': M, '05': M, '06': M } as const;
 const REAL: Real[] = [
-  // Verkauf (steigender Keil im Aufwärtstrend); erneuter Test der Gegenlinie, kein Trendwechsel, Bruchkerze ohne große Spanne
-  { file: 'kei-sell-h4-01', t: 1765252800, side: 'sell', verdict: 'valid', expect: { ...FORM, '07': M, '08': N, '09': N } },
+  // Verkauf (steigender Keil im Aufwärtstrend); an der Linie mit Spike-Ersatz kein erneuter Test der Gegenlinie, kein Trendwechsel, Bruchkerze ohne große Spanne
+  { file: 'kei-sell-h4-01', t: 1765252800, side: 'sell', verdict: 'valid', expect: { ...FORM, '07': N, '08': N, '09': N } },
   { file: 'kei-sell-h4-02', t: 1761537600, side: 'sell', verdict: 'valid', expect: { ...FORM, '07': N, '08': N, '09': N } },
   // Kauf (fallender Keil im Abwärtstrend, Spiegelfall)
   { file: 'kei-buy-h4-01', t: 1763956800, side: 'buy', verdict: 'valid', expect: { ...FORM, '07': N, '08': N, '09': N } },
@@ -223,8 +252,8 @@ const REAL: Real[] = [
   { file: 'kei-bad-h4-01', t: 1762430400, side: 'buy', verdict: 'invalid', expect: { '01': M, '02': M, '03': M, '04': N, '05': M, '06': M } },
   // Negativfall: die Linien zeigen nicht mit dem Trend (KEI-03 ☐)
   { file: 'kei-bad-h4-02', t: 1763424000, side: 'sell', verdict: 'invalid', expect: { '01': M, '02': M, '03': N, '04': M } },
-  // Negativfall: Schluss jenseits der Linie vor dem zweiten Test unten (KEI-05 ☐)
-  { file: 'kei-bad-h4-03', t: 1762876800, side: 'sell', verdict: 'invalid', expect: { '03': M, '04': M, '05': N, '06': M } },
+  // Negativfall: Schluss jenseits der Linie vor dem zweiten Test unten (KEI-05 ☐); nach den Tiefs kein Schluss über dem Impulsende, die Linie gilt nicht (KEI-03 ☐)
+  { file: 'kei-bad-h4-03', t: 1762876800, side: 'sell', verdict: 'invalid', expect: { '03': N, '04': M, '05': N, '06': M } },
   // im Aufbau: noch kein Schluss jenseits der Linie
   { file: 'kei-form-h4-01', t: 1766160000, side: 'sell', verdict: 'forming', expect: { '01': M, '02': M, '03': M, '04': M, '05': M, '06': N, '09': U } },
 ];

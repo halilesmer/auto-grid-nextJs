@@ -99,12 +99,12 @@ function evaluate(env: Env, tf: ContextTimeframe, base: ChannelBase): Candidate 
 function drawingsOf(bars: readonly FormationBar[], c: Channel): Drawing[] {
   const last = bars.length - 1;
   const lastTime = bars[last].time;
-  const { l0, hs, es } = c.base;
+  const { l0, hs, es, line } = c.base;
   const side = reversalSide(es);
   const rules = ids('ENC', [1, 3, 4, 5]);
   const height = c.extremeAt(last) - c.counterAt(last);
   const out: Drawing[] = [
-    { id: 'Z-ENC-01', tool: 'trendline', anchors: [anchorAt(bars, l0.idx, l0.price), { time: lastTime, price: c.counterAt(last) }], rules, side },
+    { id: 'Z-ENC-01', tool: 'trendline', anchors: [line ? { time: line.a.time, price: line.a.price } : anchorAt(bars, l0.idx, l0.price), { time: lastTime, price: c.counterAt(last) }], rules, side },
     { id: 'Z-ENC-01b', tool: 'trendline', anchors: [{ time: bars[hs.idx].time, price: c.extremeAt(hs.idx) }, { time: lastTime, price: c.extremeAt(last) }], rules, side },
     { id: 'Z-ENC-02', tool: 'label', anchors: [{ time: lastTime, price: c.counterAt(last) }, { time: lastTime, price: c.extremeAt(last) }], rules: [], side },
   ];
