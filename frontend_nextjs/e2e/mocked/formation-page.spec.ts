@@ -122,7 +122,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
   });
 
-  test('2618 steht in der Leiste: gültiger Kauf mit Badge, Checkliste und erreichter Berührung K', { tag: ['@FRM-18', '@FRM-08'] }, async ({ page, worker }) => {
+  test('2618 steht in der Leiste: gültiges 2618 mit Badge, Checkliste und erreichter Berührung K', { tag: ['@FRM-18', '@FRM-08'] }, async ({ page, worker }) => {
     const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/f2618-buy-h4-01.json', 'utf-8'))).bars;
     await openPage(page, worker, `${URL}&form=2618`, 1761811200, bars);
     await expect(page.getByTestId('formation-form-2618')).toContainText(msg('formation.form.2618'));
