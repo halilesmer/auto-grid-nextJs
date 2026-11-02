@@ -24,6 +24,7 @@ import {
 } from './obo';
 import { FRZ_PARAMS, OBO_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
+import { exemptFor, settle } from './settle';
 import { divergenceOf, tradeSideOf } from './sig';
 import { formationCloses } from './trdFormation';
 import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Verdict } from './types';
@@ -158,17 +159,23 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: OboBase): 
   const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
   const unmet = (id: string) => stateOf(id) === 'unmet';
   // Ohne fertige rechte Schulter oder ohne Nackenbruch ist die Formation im Aufbau
+  const invalidBy = [
+    ...EXCLUSION_IDS.filter((id) => stateOf(id) === 'met'),
+    ...FORM_IDS.filter(unmet),
+    ...(!rsPending && n1 !== null && n2 !== null && !unmet('OBO-11') && unmet('OBO-12') ? ['OBO-12'] : []),
+  ];
   let verdict: Verdict = 'valid';
-  if (EXCLUSION_IDS.some((id) => stateOf(id) === 'met') || FORM_IDS.some(unmet)) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (rsPending || n1 === null || n2 === null || unmet('OBO-11')) verdict = 'forming';
-  else if (unmet('OBO-12')) verdict = 'invalid';
+  verdict = settle(verdict, withDrawings, exemptFor('OBO', withDrawings));
 
   const points: Candidate['points'] = { LS: anchorAt(bars, ls.idx, ls.price), K: anchorAt(bars, k.idx, k.price) };
   if (n1) points.N1 = anchorAt(bars, n1.idx, n1.price);
   if (n2) points.N2 = anchorAt(bars, n2.idx, n2.price);
   if (rs) points.RS = anchorAt(bars, rs.idx, rs.price);
-  if (brk !== null && n1 && n2) points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict };
+  // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
+  if (brk !== null && n1 && n2 && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
+  return { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 type Full = { ls: ObPoint; n1: ObPoint; k: ObPoint; n2: ObPoint; rs: ObPoint };
@@ -195,14 +202,14 @@ function drawingsOf(bars: readonly FormationBar[], es: ZoneSide, p: Full, brk: n
       rules: ids('OBO', [11]),
       side,
     },
-    { id: 'Z-OBO-06', tool: 'label', anchors: [{ time: lastTime, price: p.rs.price }], rules: ids('OBO', [13]), side },
+    { id: 'Z-OBO-06', tool: 'label', anchors: [{ time: lastTime, price: p.rs.price }], rules: ids('OBO', [13]), side, label: 'stop' },
   ];
   if (brk !== null && target !== null && height !== null) {
     const neckK = neckAt(bars[p.k.idx].time);
     const neckB = neckAt(bars[brk].time);
     out.push(
       { id: 'Z-OBO-04', tool: 'zigzag', anchors: [at(p.k.idx, p.k.price), at(p.k.idx, neckK), at(brk, neckB), at(brk, target)], rules: [], side },
-      { id: 'Z-OBO-05', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side },
+      { id: 'Z-OBO-05', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side, label: 'target' },
       { id: 'Z-OBO-07', tool: 'zone', anchors: [at(brk, Math.min(neckB, bars[brk].close)), at(brk, Math.max(neckB, bars[brk].close))], rules: ids('OBO', [11]), side },
       { id: 'Z-OBO-08', tool: 'trendline', anchors: [at(p.rs.idx, p.rs.price), at(brk, neckB), { time: lastTime, price: target }], rules: [], side },
     );

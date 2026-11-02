@@ -1,5 +1,5 @@
 /**
- * Suche für die Seite /formasyon: alle acht Formationen auf allen vier Zeiteinheiten über einem Kontext.
+ * Suche für die Seite /formasyon: alle neun Formationen auf allen vier Zeiteinheiten über einem Kontext.
  * Reine Funktion (kein React, kein Netzwerk). Ein Treffer ist ein Kandidat mit Punkten; ohne Punkte ist nichts gefunden.
  */
 import { analyzeAbcd } from './abcdChecks';
@@ -10,18 +10,19 @@ import { analyzeCrb } from './crbChecks';
 import { analyzeCyp } from './cypChecks';
 import { analyzeGar } from './garChecks';
 import { analyzeLib } from './libChecks';
+import { analyzeObo } from './oboChecks';
 import type { FormationContext } from './context';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
 import type { Candidate } from './types';
 
-export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB'] as const;
+export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB', 'OBO'] as const;
 export type ScanFormation = (typeof SCAN_FORMATIONS)[number];
 
 /** Höhere Zeiteinheit für die Zone (Entwurf): H1→H4, H4→D1, D1→W1, M15→H1 */
 export const UPPER_TIMEFRAME: Record<ContextTimeframe, string> = { D1: 'W1', H4: 'D1', H1: 'H4', M15: 'H1' };
 
-/** Name des letzten Punktes einer Formation: fehlt er, ist die Formation im Aufbau (Libra: K = Berührung der Einstiegskante) */
-export const FINAL_POINT: Record<ScanFormation, string> = { ABCD: 'D', GAR: 'D', BAT: 'D', BUT: 'D', CRB: 'D', CYP: 'D', CDT: 'H2', LIB: 'K' };
+/** Name des letzten Punktes einer Formation: fehlt er, ist die Formation im Aufbau (Libra: K = Berührung der Einstiegskante; Kopf-Schulter: B = Nackenbruch) */
+export const FINAL_POINT: Record<ScanFormation, string> = { ABCD: 'D', GAR: 'D', BAT: 'D', BUT: 'D', CRB: 'D', CYP: 'D', CDT: 'H2', LIB: 'K', OBO: 'B' };
 
 export interface ScanHit {
   form: ScanFormation;
@@ -43,6 +44,7 @@ const ANALYZERS: Record<ScanFormation, (ctx: FormationContext, t: number, result
   CRB: analyzeCrb,
   CYP: analyzeCyp,
   CDT: analyzeCdt,
+  OBO: analyzeObo,
   // Libra misst LIB-10 an Gartley/Bat und LIB-09 an der Cypher und nimmt deren Ergebnisse aus diesem Suchlauf, statt sie neu zu rechnen
   LIB: (ctx, t, results) => analyzeLib(ctx, t, { harmonics: candidatesOf(results, 'GAR', 'BAT'), cyphers: candidatesOf(results, 'CYP') }),
 };

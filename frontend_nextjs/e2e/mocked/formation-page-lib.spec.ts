@@ -7,6 +7,7 @@ import { test, expect } from '@playwright/test';
 import { runningBar, type Bar } from '../../src/lib/analysis/candles';
 import { drawingPriceRange, layoutDrawings } from '../../src/lib/formation/drawingLayout';
 import { LIB_CHECK_IDS } from '../../src/lib/formation/libChecks';
+import { OBO_CHECK_IDS } from '../../src/lib/formation/oboChecks';
 import { ruleText } from '../../src/lib/formation/ruleTexts';
 import { hitsCount, timeframeForForm, type ScanHit } from '../../src/lib/formation/scan';
 import type { Candidate } from '../../src/lib/formation/types';
@@ -162,6 +163,11 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
     expect(ruleText('de', 'LIB-12')).toBe('Preis berührt die Einstiegskante (Zone oder 0,786)');
     expect(ruleText('en', 'LIB-12')).toBe('Price touches the entry edge (zone or 0.786)');
     expect(ruleText('tr', 'LIB-12')).toBe('Fiyat giriş kenarına dokunur (bölge veya 0,786)');
+  });
+
+  frm('FRM-19', 'Jede Kopf-Schulter-Bedingung hat einen Kurztext in tr, en und de', () => {
+    const missing = OBO_CHECK_IDS.flatMap((id) => (['tr', 'en', 'de'] as const).filter((locale) => ruleText(locale, id) === null).map((locale) => `${id} ${locale}`));
+    expect(missing).toEqual([]);
   });
 
   frm('FRM-19', 'GAR-10, BAT-11, BUT-12, CRB-12 und CYP-09 messen „D in einer Zone“ und sagen es', () => {
