@@ -88,6 +88,19 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
   });
 
+  test('Kopf-Schulter steht in der Leiste: gültige OBO mit Badge, Checkliste und erreichtem Punkt B', { tag: ['@FRM-18', '@FRM-10'] }, async ({ page, worker }) => {
+    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/obo-sell-h4-01.json', 'utf-8'))).bars;
+    await openPage(page, worker, `${URL}&form=OBO`, 1763755200, bars);
+    await expect(page.getByTestId('formation-form-OBO')).toContainText(msg('formation.form.OBO'));
+    await expect(page.getByTestId('formation-form-OBO').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
+    const list = page.getByTestId('formation-checklist');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="OBO-11"]')).toHaveAttribute('data-state', 'met');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="OBO-13"]')).toHaveAttribute('data-state', 'clear');
+    await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
+  });
+
   test('Ohne Treffer steht der Leerzustand statt einer Checkliste', { tag: '@FRM-18' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&tf=M15`);
     await expect(page.getByTestId('formation-empty')).toContainText(msg('formation.empty.chart', { form: 'ABCD', tf: 'M15' }));

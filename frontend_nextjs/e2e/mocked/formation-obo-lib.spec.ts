@@ -15,6 +15,7 @@ import { checkCdtCandidate } from '../../src/lib/formation/cdtChecks';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeLib } from '../../src/lib/formation/libChecks';
 import { analyzeObo, checkOboCandidate, OBO_CHECK_IDS } from '../../src/lib/formation/oboChecks';
+import { FINAL_POINT, scanFormations } from '../../src/lib/formation/scan';
 import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, H1, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
@@ -193,6 +194,50 @@ frm('Urteil: gültig, im Aufbau ohne rechte Schulter oder ohne Bruch, ungültig 
   expect(run(RS_HIGH, I).verdict).toBe('invalid');
   expect(run(FALLEN, I).verdict).toBe('invalid');
   expect(run(DOWNTREND, DOWNTREND_AT).verdict).toBe('invalid');
+});
+
+/** Wie BASE, aber der Bruch liegt vor Kerze 20: die Spanne der Bruchkerze hat keine 20 Kerzen davor (OBO-12 nicht messbar) */
+const SHORT = zig([100, 120, 108, 135, 120, 150, 121, 136, 110], 2, 3);
+const SHORT_AT = [8, 10, 12, 14, 16];
+
+frm('Urteil: eine nicht messbare Pflicht hält „gültig“ zurück, die Formation bleibt im Aufbau und hat noch keinen Punkt B', () => {
+  const c = run(SHORT, SHORT_AT);
+  expect(state(c, 'OBO-12')).toBe(U);
+  expect(c.verdict).toBe('forming');
+  expect(c.points.B).toBeUndefined();
+});
+
+frm('Urteil: Punkt B steht nur bei gültigem oder ungültigem Urteil, nie im Aufbau', () => {
+  for (const c of [...CASES.map((x) => x.candidate()), run(SHORT, SHORT_AT), run(NO_BREAK, I), run(BASE, I, { noRs: true })]) {
+    if (c.verdict === 'forming') expect(c.points.B).toBeUndefined();
+  }
+  expect(run(BASE, I).points.B).toBeDefined();
+  expect(FINAL_POINT.OBO).toBe('B');
+});
+
+frm('Urteil: invalidBy nennt nur die Regeln, die „ungültig“ auslösen', () => {
+  expect(run(OVER_RS, I).invalidBy).toEqual(['OBO-13']);
+  expect(run(NARROW, I).invalidBy).toEqual(['OBO-12']);
+  expect(run(HEAD_LOW, I).invalidBy).toEqual(['OBO-03', 'OBO-12']); // HEAD_LOW hat keine breite Bruchkerze
+  expect(run(BASE, I, { tf: 'M15' }).invalidBy).toEqual(['OBO-14']);
+  expect(run(BASE, I).invalidBy).toEqual([]);
+  expect(run(NO_BREAK, I).invalidBy).toEqual([]);
+});
+
+frm('Zeichnungen: Ziel trägt das Etikett „target“, die Linie an der rechten Schulter „stop“', () => {
+  const d = run(BASE, I).drawings;
+  expect(d.find((x) => x.id === 'Z-OBO-05')!.label).toBe('target');
+  expect(d.find((x) => x.id === 'Z-OBO-06')!.label).toBe('stop');
+});
+
+frm('Suche: scanFormations liefert für OBO dieselben Zustände wie analyzeObo allein', () => {
+  const ctx = new FormationContext('TEST', { H4: barsOf(BASE, H4) });
+  const alone = analyzeObo(ctx, 1e9).filter((a) => Object.keys(a.candidate.points).length > 0);
+  const hits = scanFormations(ctx, 1e9).filter((h) => h.form === 'OBO');
+  expect(alone.length).toBeGreaterThan(0);
+  expect(hits.map((h) => [h.tf, h.candidate.verdict, h.candidate.checks.map((c) => [c.id, c.state])])).toEqual(
+    alone.map((a) => [a.tf, a.candidate.verdict, a.candidate.checks.map((c) => [c.id, c.state])]),
+  );
 });
 
 frm('Spiegelfall: TOBO nach Tiefs hat dieselben Zustände wie OBO nach Hochs, nur die Seite wechselt', () => {
