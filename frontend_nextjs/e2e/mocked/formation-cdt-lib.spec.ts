@@ -92,6 +92,9 @@ const FAST_AT: At = { h1: 18, n: 42, h2: 45 };
 const SMALL_OVER = zig([120, 100, 130, 112, 134], 8, 3);
 /** H2 140: Ausdehnung 10 über 8,16: verletzt */
 const BIG_OVER = zig([120, 100, 130, 112, 140], 8, 3);
+/** Wie SMALL_OVER, aber kurze Züge (H1 Index 8, H2 Index 14): die Schlüsse über H1 liegen vor Kerze 20, SIG-34 hat noch keinen Vorlauf */
+const SMALL_OVER_EARLY = zig([120, 100, 130, 112, 134], 3, 3);
+const EARLY_AT: At = { h1: 8, n: 11, h2: 14 };
 /** Lauter Anlauf zu H1: RSI(7) am Hoch unter 80 */
 const CHOP_H1 = chop(BASE, 11, 17);
 /** Lauter Anlauf zu H2 */
@@ -253,6 +256,11 @@ const CASES: Case[] = [
     name: 'Schluss über H1 mit Ausdehnung über 0,272 verletzt',
     candidate: () => run({ H4: BIG_OVER }, AT),
     expect: { 'CDT-15': M },
+  },
+  {
+    name: 'Kleiner Schluss über H1 ohne SIG-34-Vorlauf: Volumen unbekannt, CDT-15 nicht messbar',
+    candidate: () => run({ H4: SMALL_OVER_EARLY }, EARLY_AT),
+    expect: { 'CDT-15': U },
   },
   {
     name: 'Trendbereich: H1 und H2 fertige Fraktale, N eine eigene Welle',

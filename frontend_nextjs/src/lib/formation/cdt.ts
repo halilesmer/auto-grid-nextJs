@@ -97,20 +97,23 @@ export function depthOf(env: Env, tf: Env['tf'], es: ZoneSide, h1: CdtPoint, pri
 /**
  * CDT-15: Schluss jenseits des Extrems von H1 nach H1, schon 1 Punkt genügt. Ausnahme (FIB-21): die Kerze ist nicht volumenstark
  * und der Kurs hat die Ausdehnung der Fib Impulsbeginn → H1 noch nicht erreicht. Ohne Impulsbeginn gibt es keine Ausnahme.
+ * null: kein sicherer Verstoß, aber an einem Schluss fehlt der SIG-34-Vorlauf und nur das Volumen entscheidet.
  */
-function violated(env: Env, tf: Env['tf'], es: ZoneSide, h1: CdtPoint): boolean {
+function violated(env: Env, tf: Env['tf'], es: ZoneSide, h1: CdtPoint): boolean | null {
   const view = env.views.get(tf)!;
   const start = impulseStart(env, tf, es, h1);
   const len = start === null ? 0 : Math.abs(h1.price - start);
   let reach = 0;
+  let unknown = false;
   for (let k = h1.idx + 1; k < view.bars.length; k++) {
     const b = view.bars[k];
     if (len > 0) reach = Math.max(reach, (outward(es, wickEnd(b, es)) - outward(es, h1.price)) / len);
     if (!closesBeyond(b, h1.price, es)) continue;
-    const small = len > 0 && view.wide[k] !== true && reach < CDT_PARAMS.violationExtension;
-    if (!small) return true;
+    const exempt = len > 0 && reach < CDT_PARAMS.violationExtension;
+    if (!exempt || view.wide[k] === true) return true;
+    if (view.wide[k] === null) unknown = true;
   }
-  return false;
+  return unknown ? null : false;
 }
 
 /** Trendrichtung der Formations-ZE beim Anlauf zu H2: nur Kerzen bis H2 (CDT-06) */
@@ -120,6 +123,7 @@ function trendDirAt(env: Env, tf: Env['tf'], idx: number): 'up' | 'down' | null 
 
 export const flag = (cond: boolean): CheckState => (cond ? 'met' : 'unmet');
 export const tri = (v: boolean | null): CheckState => (v === null ? 'unmeasurable' : flag(v));
+const NEGATED: Record<CheckState, CheckState> = { met: 'unmet', unmet: 'met', unmeasurable: 'unmeasurable' };
 
 interface CdtCore {
   c05: CheckState;
@@ -138,7 +142,7 @@ export function cdtCore(env: Env, tf: Env['tf'], es: ZoneSide, h1: CdtPoint, h2:
     c06 = dir === null ? 'unmeasurable' : flag(dir === (es === 'resistance' ? 'up' : 'down'));
   }
   const rsiAt = view.rsi[h1.idx] ?? null;
-  return { c05, c06, c12: tri(rsiExtreme(rsiAt, tradeSideOf(es))), c15: flag(violated(env, tf, es, h1)) };
+  return { c05, c06, c12: tri(rsiExtreme(rsiAt, tradeSideOf(es))), c15: tri(violated(env, tf, es, h1)) };
 }
 
 /**
@@ -149,7 +153,7 @@ export function abcdIsCdt(env: Env, tf: Env['tf'], es: ZoneSide, b: CdtPoint, d:
   const view = env.views.get(tf)!;
   const zone = zoneGeometry(view.bars, b.idx, es, tf);
   const core = cdtCore(env, tf, es, b, d, zone);
-  const noClose: CheckState = core.c15 === 'met' ? 'unmet' : 'met';
+  const noClose = NEGATED[core.c15];
   const parts: CheckState[] = [core.c05, core.c06, core.c12, noClose];
   if (parts.includes('unmet')) return 'unmet';
   return parts.includes('unmeasurable') ? 'unmeasurable' : 'met';

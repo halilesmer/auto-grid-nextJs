@@ -146,6 +146,9 @@ const WIDE_AT = { a: 20, b: 22, c: 23, d: 25 };
 /** A 100, B 130, C 112, D 129,85 = Doppeltop: D berührt die Zone von B (128,875 bis 130), kein Schluss über B, RSI(7) an B über 80 */
 const S_DOUBLE_TOP = zig([120, 100, 130, 112, 129.85], 8, 3);
 const DT = { a: 10, b: 18, c: 26, d: 34 };
+/** A 100, B 130, C 112, D 134 mit kurzen Zügen: kleine Schlüsse über B (0,13 von AB) vor Kerze 20, SIG-34 hat noch keinen Vorlauf; RSI(7) an B über 80 */
+const S_DOUBLE_TOP_EARLY = zig([100, 130, 112, 134], [8, 3, 3], 3);
+const DT_EARLY = { a: 2, b: 10, c: 13, d: 16 };
 const S_ENGULF = [...zig([100, 130, 114, 138], 8, 0), [131, 137.9, 130, 137.7] as Row, [137.7, 137.8, 127, 127.5] as Row];
 
 // ---- Fälle -----------------------------------------------------------------------------------------------------
@@ -344,6 +347,11 @@ const CASES: Case[] = [
     name: 'ABCD-24: D schließt weit über B, kein Doppeltop',
     candidate: () => run({ H4: S1 }, ABC),
     expect: { 'ABCD-24': N },
+  },
+  {
+    name: 'ABCD-24: kleine Schlüsse über B ohne SIG-34-Vorlauf, Volumen unbekannt: nicht messbar',
+    candidate: () => run({ H4: S_DOUBLE_TOP_EARLY }, DT_EARLY),
+    expect: { 'ABCD-24': U },
   },
   {
     name: 'Zwei volumenstarke Kerzen in Richtung D schließen aus',
