@@ -1140,14 +1140,17 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
     await expect.poll(() => worker.callsTo('GET', /\/quotes$/).length).toBe(1);
   });
 
-  test('Die offene Seitenleiste überdeckt die Werkzeuge des Charts nicht: unter 1280 px liegt sie unter der Kopfleiste, ab 1280 px schiebt sie den Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
+  // Seit S6a (Trend-Knopf) passt die Werkzeugleiste bei 1024 px nicht mehr in die Kopfleiste und schwebt unten (FRM-23);
+  // dort endet sie links der Seitenleiste. Früher prüfte der Test, dass sie oberhalb der Seitenleiste liegt.
+  test('Die offene Seitenleiste überdeckt die Werkzeuge des Charts nicht: unter 1280 px liegt sie neben den unten schwebenden Werkzeugen, ab 1280 px schiebt sie den Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1024, height: 700 });
     await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
     const toolButtons = page.locator('[data-testid="workspace-toolbar"] button:visible');
     expect(await toolButtons.count()).toBeGreaterThan(0);
-    const rects = () => toolButtons.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ right: r.right, bottom: r.bottom })));
+    const rects = () => toolButtons.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ right: r.right })));
     const narrow = (await page.getByTestId('favorites-panel').boundingBox())!;
-    for (const r of await rects()) expect(r.bottom).toBeLessThanOrEqual(narrow.y);
+    for (const r of await rects()) expect(r.right).toBeLessThanOrEqual(narrow.x);
+    await expect.poll(() => onTop(page, page.getByTestId('trend-toggle'))).toBe(true);
     await expect(page.getByTestId('favorites-toggle')).toBeVisible();
 
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -1585,5 +1588,111 @@ test.describe('FRM-31 laufende Kerze', () => {
     await expect(chart).toHaveAttribute('data-last-range', '0.9:1.5');
     await page.getByTestId('formation-tf-H1').click();
     await expect(chart).toHaveAttribute('data-last-range', '1.19:1.21');
+  });
+});
+
+/**
+ * Ob das Element in seiner Mitte obenauf gemalt wird. elementFromPoint überspringt Elemente mit pointer-events: none
+ * (so ist die Kopfleiste gesetzt); für die Prüfung gilt deshalb kurz überall pointer-events: auto.
+ */
+async function onTop(page: Page, target: ReturnType<Page['getByTestId']>) {
+  const box = (await target.boundingBox())!;
+  return target.evaluate((el, [x, y]) => {
+    const style = document.createElement('style');
+    style.textContent = '* { pointer-events: auto !important; }';
+    document.head.append(style);
+    try {
+      const top = document.elementFromPoint(x, y);
+      return top !== null && (top === el || el.contains(top));
+    } finally {
+      style.remove();
+    }
+  }, [box.x + box.width / 2, box.y + box.height / 2]);
+}
+
+test.describe('ANA-21 Trendzug auf /formasyon', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
+  test('Trend-Knopf schaltet die Linie aus den geladenen Kerzen an und aus, ohne neue Abfrage', { tag: '@ANA-21' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const toggle = page.getByTestId('trend-toggle');
+    const surface = page.getByTestId('formation-chart').locator('[data-trend]');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(surface).toHaveAttribute('data-trend', '0');
+    const ratesBefore = worker.callsTo('GET', /\/rates/).length;
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(async () => Number(await surface.getAttribute('data-trend'))).toBeGreaterThan(0);
+    await expect(page.getByTestId('trend-settings')).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(surface).toHaveAttribute('data-trend', '0');
+    expect(worker.callsTo('GET', /\/rates/)).toHaveLength(ratesBefore);
+  });
+});
+
+// Defekt seit PR #250 (FRM-27): die Kopfleiste (z-50, deckender Hintergrund) lag über der Werkzeugleiste des Charts.
+// toBeVisible() und Box-Vergleiche sehen keine Überdeckung, deshalb prüft elementFromPoint, was obenauf liegt.
+test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
+  const cases = [
+    { width: 1440, favorites: false },
+    { width: 1280, favorites: false },
+    { width: 1280, favorites: true },
+    { width: 1024, favorites: false },
+    { width: 375, favorites: false },
+    { width: 375, height: 667, favorites: false },
+  ];
+  for (const { width, height = 900, favorites } of cases) {
+    test.describe(`${width}×${height} px${favorites ? ' mit Favoriten' : ''}`, () => {
+      test.use({ viewport: { width, height }, appLocale: 'de' });
+      test(`Indikatoren und Trend sind nicht verdeckt und überlappen die Kopfleiste nicht (${width}×${height} px${favorites ? ', Favoriten offen' : ''})`, { tag: ['@FRM-23', '@ANA-21'] }, async ({ page, worker }) => {
+        await openPage(page, worker, `${URL}&form=GAR`);
+        if (favorites) {
+          await page.getByTestId('favorites-toggle').click();
+          await expect(page.getByTestId('favorites-panel')).toBeVisible();
+        }
+        const tools = page.getByTestId('workspace-toolbar');
+        const indicators = tools.getByRole('button', { name: msg('cw.indicators', {}, 'de') });
+        const trend = page.getByTestId('trend-toggle');
+        await expect.poll(() => onTop(page, indicators)).toBe(true);
+        await expect.poll(() => onTop(page, trend)).toBe(true);
+        // Alle Bedienelemente der Kopfleiste bleiben links der Werkzeugleiste oder liegen in einer anderen Zeile
+        const box = (await tools.boundingBox())!;
+        const controls = page.getByTestId('formation-topbar').locator('button, [role="combobox"], input');
+        for (const control of await controls.all()) {
+          const c = await control.boundingBox();
+          if (!c || c.width === 0) continue;
+          const sameRow = c.y < box.y + box.height && c.y + c.height > box.y;
+          if (sameRow) expect(c.x + c.width).toBeLessThanOrEqual(box.x);
+        }
+        // Das Zahnrad öffnet seine Einstellungen ganz im Bild, auch wenn die Leiste unten schwebt
+        await page.getByTestId('trend-settings').click();
+        const settings = page.getByTestId('trend-settings-panel');
+        await expect(settings).toBeVisible();
+        // Gemessen wird der scrollende Rahmen des Menüs, nicht der (höhere) Inhalt
+        const frame = settings.locator('..');
+        const panel = (await frame.boundingBox())!;
+        expect(panel.y).toBeGreaterThanOrEqual(0);
+        expect(panel.y + panel.height).toBeLessThanOrEqual(height);
+        // Die erste Zeile des Panels ist nicht von der Kopfleiste verdeckt (das Panel geht unten nach oben auf)
+        await expect.poll(() => onTop(page, page.getByTestId('trend-rule'))).toBe(true);
+        await expect.poll(() => onTop(page, frame)).toBe(true);
+      });
+    });
+  }
+
+  test.describe('Menü der Kopfleiste', () => {
+    test.use({ viewport: { width: 1280, height: 900 }, appLocale: 'de' });
+    test('Das Alarm-Menü rechts in der Kopfleiste liegt obenauf und überschneidet die Werkzeugleiste nicht', { tag: '@FRM-23' }, async ({ page, worker }) => {
+      await openPage(page, worker, `${URL}&form=GAR`);
+      await page.getByTestId('formation-alarm').click();
+      const panel = page.getByTestId('formation-alarm-panel');
+      await expect(panel).toBeVisible();
+      await expect.poll(() => onTop(page, panel)).toBe(true);
+      const p = (await panel.boundingBox())!;
+      const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+      const overlaps = p.x < tools.x + tools.width && p.x + p.width > tools.x && p.y < tools.y + tools.height && p.y + p.height > tools.y;
+      expect(overlaps).toBe(false);
+      await expect.poll(() => onTop(page, page.getByTestId('trend-toggle'))).toBe(true);
+    });
   });
 });

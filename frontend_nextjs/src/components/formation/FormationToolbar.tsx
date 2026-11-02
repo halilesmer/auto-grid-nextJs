@@ -54,9 +54,14 @@ export function FormationToolbar({
   children: ReactNode;
 }) {
   const t = useT();
+  // Platz für die Werkzeugleiste des Charts (ChartWorkspace, overlayLayout) rechts in der Kopfleiste. Gemessen 2026-11-02:
+  // Leiste mit Trend und Zahnrad bis 512 px (de) + 4 px Rand rechts; der Inhalt der Kopfleiste endet bei 704 px ab Kante von
+  // `formation-main`. 704 + 8 Abstand + 516 = 1228 px Mindestbreite; Schwelle 1240 px = 1280 − 40 (rechte Leiste), damit sie mit der
+  // Grenze zusammenfällt, ab der die Favoriten-Seitenleiste den Chart schiebt (page.tsx). Reserve 528 px.
+  // Darunter schwebt die Werkzeugleiste unten über dem Chart. Ändert sich die Leiste, beide Werte und ChartWorkspace anpassen.
   return (
     <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap lg:pr-80" data-testid="formation-topbar">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap @min-[1240px]/formation-main:pr-[528px]" data-testid="formation-topbar">
         <div className="pointer-events-auto flex h-[38px] min-w-0 items-center gap-1 max-lg:w-full lg:h-auto" data-testid="formation-selectors">
           {children}
         </div>

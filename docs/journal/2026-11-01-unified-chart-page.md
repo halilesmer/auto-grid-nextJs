@@ -3,7 +3,7 @@ date: 2026-11-01
 author: Claude
 type: plan
 status: open
-pr: [275, 276]
+pr: [275, 276, 307]
 features: [MET-02, UI-06, FRM-20, ANA-21, UI-10]
 areas: [frontend, docs]
 ---
@@ -51,7 +51,8 @@ Each step is one PR. The steps run in sequence because they change the same file
 | S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Open |
 | S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Open |
 | S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
-| S6 | `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. | Open |
+| S6a | `/formasyon` gets the `Trend` button and the trend line (decision of the owner on 2026-11-02: before S3 to S5). Entry: `2026-11-02-formation-trend-toggle.md`. | Done, PR 307 |
+| S6b | `/backtest` gets the `Trend` button. `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. On `/backtest`, the line must stop at the replay cursor. | Open |
 
 ## Why
 - `FormationChart` and `ChartCore` repeat the chart lifecycle. Two engines drift apart, and each new chart feature needs two implementations.
@@ -96,9 +97,10 @@ The chart of `/formasyon` now stays alive when the candidate or the timeframe ch
 The MET-02 test opens `/chart` and reads the live values. It did not touch `ChartViewer`, so the test stays unchanged.
 
 ## Open points
-- [ ] S3 to S6.
+- [ ] S3 to S5 and S6b.
+- [ ] S5 removes `overlayLayout`. Keep the rule from S6a: the place of the chart tools on `/formasyon` depends on the width of the container `formation-main` (threshold 1240 px), not on the viewport.
 - [ ] Do the manual test of MET-02 after S4, because S4 moves the live values into the floating card.
-- [ ] Trap for S6: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
+- [ ] Trap for S6b: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
 - [ ] Add the feature `UI-10` and its e2e test before S4.
 - [ ] `.claude/skills/ui-design/SKILL.md` §8 still names `ChartViewer.tsx`. Rule files change only on request of the project owner (`hooks/RULES.md` §6.6). Ask the owner.
 

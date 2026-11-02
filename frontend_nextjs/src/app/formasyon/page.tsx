@@ -206,8 +206,8 @@ function FormationView() {
   return (
     <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''} data-favorites-scan-ms={favoritesScanMs ?? ''}>
       <h1 className="sr-only">{t('formation.title')}</h1>
-      {/* Die Seitenleiste schiebt den Chart ab 1280 px; darunter liegt sie unter der Kopfleiste über dem Chart, damit die Werkzeuge in der Kopfleiste frei bleiben. Die Leiste ganz rechts bleibt immer frei */}
-      <div className={cn('absolute inset-y-0 left-0 right-10', sidebarOpen && 'min-[1280px]:right-[328px]')} data-testid="formation-main">
+      {/* Die Seitenleiste schiebt den Chart ab 1280 px; darunter liegt sie unter der Kopfleiste über dem Chart. Die unten schwebenden Chart-Werkzeuge enden dann links von ihr (--chart-tools-right: 288 px Leiste + 8 px Abstand). Die Leiste ganz rechts bleibt immer frei */}
+      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10', sidebarOpen && 'min-[1280px]:right-[328px] lg:max-[1279px]:[--chart-tools-right:296px]')} data-testid="formation-main">
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
