@@ -3,7 +3,7 @@ date: 2026-11-02
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [306]
 features: [FRM-18]
 areas: [frontend, tests]
 ---
