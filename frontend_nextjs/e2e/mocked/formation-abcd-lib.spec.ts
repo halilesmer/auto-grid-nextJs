@@ -10,7 +10,6 @@ import { expect, test } from '@playwright/test';
 import { timeframeExcluded } from '../../src/lib/formation/abcd';
 import {
   ABCD_CHECK_IDS,
-  ABCD_UNMEASURABLE_IDS,
   analyzeAbcd,
   checkAbcdCandidate,
 } from '../../src/lib/formation/abcdChecks';
@@ -123,6 +122,18 @@ const DIV_STAIRS = (() => {
   return [...DIV_BEAR.slice(0, 55), ...rows, ...DIV_BEAR.slice(62)];
 })();
 const DIV = { a: 26, b: 38, c: 50 };
+
+// ---- Reihen: harmonisches D (ABCD-16) --------------------------------------------------------------------------
+
+/**
+ * Kauf-Formation mit X 100 (Index 2), A 130 (20), B 111.46 (24), C 124.94 (28, Tiefe 0.727, knapp unter der Grenze 0.728 von ABCD-06 und GAR-08), D 106.41 (32): das ist ein Gartley.
+ * Level 1 = 124.94 − 18.54 = 106.40 liegt vor −0.272 von A → B (106.417): die Zone Z-ABCD-04 enthält das Gartley-D und das ABCD-D ist erreicht.
+ */
+const GARTLEY = zig([100, 130, 111.46, 124.94, 106.41], [18, 4, 4, 4], 3);
+const GARTLEY_AT = { a: 20, b: 24, c: 28, d: 32 };
+/** Verkaufs-Formation mit X 140 vor A 100: B 130 liegt an 0.75 von X → A, C an 0.533 von A → B: Gartley braucht C an 0.618, Bat ist durch B ≥ 0.618 ausgeschlossen */
+const X_NO_HARMONIC = zig([140, 100, 130, 114, 144], 8, 0);
+const X_NO_HARMONIC_AT = { a: 10, b: 18, c: 26, d: 34 };
 /** Die Kerze direkt nach C: der RSI liegt nach dem Abstieg weit unten */
 const DIV_EARLY = { ...DIV, d: 51 };
 
@@ -153,6 +164,21 @@ const CASES: Case[] = [
       'ABCD-01': M, 'ABCD-02': M, 'ABCD-03': M, 'ABCD-04': M, 'ABCD-05': M, 'ABCD-06': M, 'ABCD-07': M, 'ABCD-08': M,
       'ABCD-10': N, 'ABCD-11': M, 'ABCD-15': N, 'ABCD-25': N,
     },
+  },
+  {
+    name: 'ABCD-16: Gartley auf denselben A, B, C mit D in der Zone',
+    candidate: () => run({ H4: GARTLEY }, GARTLEY_AT, { sell: false }),
+    expect: { 'ABCD-16': M },
+  },
+  {
+    name: 'ABCD-16: X vorhanden, aber C nur an 0.533 von A → B (weder Gartley noch Bat)',
+    candidate: () => run({ H4: X_NO_HARMONIC }, X_NO_HARMONIC_AT),
+    expect: { 'ABCD-16': N },
+  },
+  {
+    name: 'ABCD-16: kein Wendepunkt vor A (X fehlt)',
+    candidate: () => run({ H4: S1 }, ABC),
+    expect: { 'ABCD-16': U },
   },
   {
     name: 'Anker A nicht an der Dochtspitze',
@@ -345,7 +371,6 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
   frm('jede messbare Bedingung hat einen Fall mit ☑ und einen mit ☐', () => {
     const missing: string[] = [];
     for (const id of ABCD_CHECK_IDS) {
-      if (ABCD_UNMEASURABLE_IDS.includes(id)) continue;
       const states = new Set(CASES.map((c) => c.expect[id]).filter((s) => s !== undefined));
       // ABCD-25 ☑ gibt es nur für M1 und M5; der Kontext lädt sie nicht, den ☑-Fall deckt der Test der Funktion ab
       if (!states.has(M) && id !== 'ABCD-25') missing.push(`${id} ☑`);
@@ -354,9 +379,20 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
     expect(missing).toEqual([]);
   });
 
-  frm('ABCD-16 ist immer nicht messbar', () => {
-    const c = run({ H4: S1 }, ABC);
-    expect(ABCD_UNMEASURABLE_IDS.map((id) => state(c, id))).toEqual([U]);
+  frm('ABCD-16 ohne Wendepunkt vor A ist nicht messbar', () => {
+    expect(state(run({ H4: S1 }, ABC), 'ABCD-16')).toBe(U);
+  });
+
+  frm('Z-ABCD-05 ankert mit harmonischem D (ABCD-16 ☑) ohne Divergenz an A, ohne Harmonik an C', () => {
+    const harmonic = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false });
+    expect(state(harmonic, 'ABCD-19')).not.toBe(M);
+    const withHarmonic = harmonic.drawings.find((d) => d.id === 'Z-ABCD-05')!;
+    expect(withHarmonic.anchors.map((a) => [a.time, a.price])).toEqual([[20 * H4, 130], [32 * H4, 106.41]]);
+    expect(withHarmonic.levels).toEqual([0.382, 0.618, -0.382]);
+    const plainCase = run({ H4: X_NO_HARMONIC }, X_NO_HARMONIC_AT);
+    const without = plainCase.drawings.find((d) => d.id === 'Z-ABCD-05')!;
+    expect(without.anchors[0].price).toBe(X_NO_HARMONIC[26][2]);
+    expect(without.levels).toEqual([0.382, 0.618, -0.382]);
   });
 
   frm('ABCD-25: M1 und M5 sind ausgeschlossen, die Zeiteinheiten des Kontexts nicht', () => {

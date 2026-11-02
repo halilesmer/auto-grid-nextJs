@@ -80,7 +80,7 @@ const mk = (id: string, state: CheckState, value?: number, kind?: RuleKind): Che
   return { id, kind: kind ?? defaultKind, status, state, ...(value === undefined ? {} : { value }), drawings: [] };
 };
 
-function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): Candidate {
+export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): Candidate {
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
   const { bars } = view;
