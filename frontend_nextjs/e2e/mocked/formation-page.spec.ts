@@ -410,6 +410,24 @@ test.describe('FRM-21 Hintergrundsuche', () => {
       expect(calls.some((c) => c.query.get('timeframe') === tf && c.query.get('symbol') === 'EURUSD')).toBe(true);
     }
   });
+
+  for (const lang of ['tr', 'en'] as const) {
+    test.describe(`ungültige Kerzen (${lang})`, () => {
+      test.use({ appLocale: lang });
+      test('Die Meldung erscheint in der gewählten Sprache, ohne die technische Meldung', { tag: '@FRM-21' }, async ({ page, worker }) => {
+        serveFixture(worker, NOW);
+        // Zwei vertauschte H4-Kerzen: die Zeit steigt nicht streng, die Suche bricht ab
+        const series = worker.state.ratesSeries as Record<string, number[][]>;
+        const rows = [...series.H4];
+        [rows[10], rows[11]] = [rows[11], rows[10]];
+        series.H4 = rows;
+        await page.goto(URL);
+        const alert = page.getByRole('alert').filter({ hasText: msg('formation.scan.failed', {}, lang) });
+        await expect(alert).toContainText(msg('formation.scan.badData', {}, lang));
+        await expect(alert).not.toContainText('Kerzen');
+      });
+    });
+  }
 });
 
 test.describe('FRM-25 freie Produktwahl', () => {

@@ -91,8 +91,10 @@ export function useFormationScan(accountId: string | null, symbol: string | null
         const hits = scanFormations(context, at);
         setSettled({ key, hits, context, error: null, scanAt: at, scanMs: Math.round(performance.now() - started) });
       } catch (err) {
-        // Ungültige Kerzen vom Worker (Reihenfolge, NaN): als Meldung zeigen statt die Seite zu stören
-        setSettled({ key, hits: [], context: null, error: err instanceof Error ? err.message : t('formation.scan.failed'), scanAt: at, scanMs: Math.round(performance.now() - started) });
+        // Ungültige Kerzen vom Worker (Reihenfolge, NaN): übersetzte Meldung statt die Seite zu stören;
+        // die technische Meldung der Bibliothek ist deutsch und nur für Entwickler, daher nur in der Konsole
+        console.error('Formation scan failed', err);
+        setSettled({ key, hits: [], context: null, error: t('formation.scan.badData'), scanAt: at, scanMs: Math.round(performance.now() - started) });
       }
     }, 0);
     return () => clearTimeout(timer);
