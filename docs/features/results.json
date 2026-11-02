@@ -776,14 +776,14 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 62
+      "tests": 61
     }
   },
   "FRM-06": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 46
+      "tests": 44
     }
   },
   "FRM-07": {
@@ -797,7 +797,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 39
+      "tests": 25
     }
   },
   "FRM-09": {
@@ -846,7 +846,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 30
+      "tests": 28
     }
   },
   "FRM-16": {
@@ -860,21 +860,21 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 29
+      "tests": 26
     }
   },
   "FRM-18": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 33
+      "tests": 20
     }
   },
   "FRM-19": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 55
+      "tests": 54
     }
   },
   "FRM-20": {

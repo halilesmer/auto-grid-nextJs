@@ -13,6 +13,9 @@ import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
+import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
+import { buildTrendPath, usableTrendSettings } from '@/lib/formation/trdPath';
+import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
 const TONE_COLOR: Record<Exclude<Tone, 'side'>, string> = {
   ratio: 'var(--secondary)',
@@ -97,6 +100,7 @@ interface Props {
 const NO_LINES: OverlayLine[] = [];
 const NO_BARS: Bar[] = [];
 const NO_MISSING: never[] = [];
+const NO_TREND = { segments: [], axis: [] };
 const RSI_LEVELS = [RSI_PARAMS.overbought, RSI_PARAMS.oversold];
 /** Die Bedienung liegt oben auf dem Chart: die Kerzen beginnen darunter */
 const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
@@ -241,6 +245,13 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
     const value = view?.wave[i];
     return value == null ? [] : [{ time: b.time, value }];
   }), [bars, view]);
+  // Trendzug wie auf /chart (ANA-21), aber aus den Kerzen der Formation: nur geschlossene bis scanAt, ohne laufende Kerze
+  const showTrend = useAnalysisPrefsStore(s => s.showTrend);
+  const trendSettings = useAnalysisPrefsStore(s => s.trend);
+  const trendPath = useMemo(
+    () => (showTrend && bars.length > 0 ? { segments: buildTrendPath(hit.tf, bars, usableTrendSettings(trendSettings)), axis: bars.map(b => b.time) } : NO_TREND),
+    [showTrend, bars, hit.tf, trendSettings],
+  );
   const priceRange = useMemo(() => drawingPriceRange(hit.candidate), [hit.candidate]);
   const finalName = FINAL_POINT[hit.form];
   return (
@@ -267,6 +278,8 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
       systemWave={{ points: wavePoints, visible: overlays.wave }}
       runningBar={running}
       priceRange={priceRange}
+      trendPath={trendPath}
+      toolbarActions={<TrendToggle timeframe={hit.tf} />}
       marginsFor={controlMargins}
       overlayLayout
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
