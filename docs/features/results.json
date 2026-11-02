@@ -888,7 +888,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 6
+      "tests": 9
     }
   },
   "FRM-22": {
