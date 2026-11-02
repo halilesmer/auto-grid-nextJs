@@ -54,17 +54,19 @@ export function FormationToolbar({
   children: ReactNode;
 }) {
   const t = useT();
-  // Platz für die Werkzeugleiste des Charts (ChartWorkspace, overlayLayout) rechts in der Kopfleiste. Gemessen 2026-11-02:
-  // Leiste mit Trend und Zahnrad bis 512 px (de) + 4 px Rand rechts = 516 px. Der Inhalt der Kopfleiste endet bei 767 px ab Kante
-  // von `formation-main`, wenn der Status-Knopf kompakt ist (nur Symbole, 59 px), und bei 893 px mit dem vollen Knopf
-  // (Pille und Zähler, bis 186 px, de „im Aufbau“; FormationStatusChip.tsx).
-  // Schwelle A = 1300 px: 767 + 8 Abstand + 516 = 1291. Ab A stehen die Werkzeuge in der Kopfleiste. Reserve 528 px (767 + 528 = 1295 ≤ 1300).
-  // Schwelle B = 1440 px (nur im Status-Knopf): 893 + 8 + 516 = 1417; ab B zeigt der Knopf Pille und Zähler (893 + 528 = 1421 ≤ 1440).
-  // Unter A schwebt die Werkzeugleiste unten über dem Chart; mit offener Seitenleiste gilt das bis 1628 px Fenster (1300 + 328).
-  // Ändert sich die Leiste oder der Status-Knopf, A (hier, ChartWorkspace, TrendToggle) und B (Status-Knopf) neu messen.
+  // Platz für die Werkzeugleiste des Charts (ChartWorkspace, overlayLayout) rechts in der Kopfleiste. Schwellen und Reserve stehen in rem,
+  // weil Kopfleiste und Werkzeuge mit der Browser-Schrift wachsen; in px überlappten sie bei 20 px Schrift (FRM-23).
+  // Gemessen 2026-11-02 bei 16 px Schrift, tr/de (20 px in Klammern): Werkzeugleiste 272 px (333) + 4 px Rand rechts (5) = 276 px (338).
+  // Der Inhalt der Kopfleiste endet ab Kante von `formation-main` bei 845 px (1011) mit kompaktem Status-Knopf (nur Symbole)
+  // und bei 969 px (1170) mit vollem Knopf (Pille und Zähler; FormationStatusChip.tsx).
+  // Schwelle A = 71rem (1136 px): 845 + 8 Abstand + 276 = 1129 (20 px: 1359 ≤ 1420). Ab A stehen die Werkzeuge in der Kopfleiste.
+  // Reserve 18rem (288 px ≥ 276 + 8): 845 + 288 = 1133 ≤ 1136 (20 px: 1011 + 360 = 1371 ≤ 1420).
+  // Schwelle B = 79rem (1264 px, nur im Status-Knopf): 969 + 8 + 276 = 1253; ab B zeigt der Knopf Pille und Zähler (969 + 288 = 1257; 20 px: 1170 + 360 = 1530 ≤ 1580).
+  // Unter A schwebt die Werkzeugleiste unten über dem Chart; mit offener Seitenleiste gilt das bei 16 px bis 1464 px Fenster (1136 + 328).
+  // Ändert sich die Leiste oder der Status-Knopf, A (hier, ChartWorkspace, TrendToggle) und B (Status-Knopf) bei 16 und 20 px neu messen.
   return (
     <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap @min-[1300px]/formation-main:pr-[528px]" data-testid="formation-topbar">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap @min-[71rem]/formation-main:pr-72" data-testid="formation-topbar">
         <div className="pointer-events-auto flex h-[38px] min-w-0 items-center gap-1 max-lg:w-full lg:h-auto" data-testid="formation-selectors">
           {children}
         </div>

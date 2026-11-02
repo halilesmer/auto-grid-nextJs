@@ -279,7 +279,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
       runningBar={running}
       priceRange={priceRange}
       trendPath={trendPath}
-      toolbarActions={<TrendToggle timeframe={hit.tf} />}
+      toolbarActions={<TrendToggle timeframe={hit.tf} size="xs" />}
       marginsFor={controlMargins}
       overlayLayout
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}

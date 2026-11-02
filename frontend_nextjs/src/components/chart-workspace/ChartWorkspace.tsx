@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, setImageReader, type Drawing, type DrawingKind, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
 import { CrosshairMode, type UTCTimestamp } from 'lightweight-charts';
-import { ListTree, Maximize2, Minimize2, Redo2, Settings2, Undo2 } from 'lucide-react';
+import { ChartSpline, ListTree, Maximize2, Minimize2, Redo2, Scan, Settings2, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { InputField } from '@/components/ui/InputField';
@@ -59,6 +59,7 @@ interface Props {
   /**
    * Werkzeugleiste und Zeichenleiste schweben über dem Chart (/formasyon). Die Leiste sitzt oben in der Kopfleiste der Seite,
    * sobald der Container `formation-main` breit genug ist (Schwelle in FormationToolbar.tsx), sonst schwebt sie unten.
+   * Oben ist sie 1 px + 37 px hoch, in px wie die 38 px hohe Kopfleiste, damit sie bei größerer Browser-Schrift nicht in die Formationszeile ragt.
    * Rechts endet die schwebende Leiste 5rem vom Rand (die Seitenleiste von /formasyon schiebt den Chart, sie überdeckt ihn ab lg nicht).
    * Stapelung auf /formasyon: oben z-60 über der Kopfleiste (z-50), unten z-45 über den Chart-Overlays.
    */
@@ -67,6 +68,8 @@ interface Props {
 
 export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, showRsi = true, className = '', overlayLayout = false }: Props) {
   const t = useT(), fmt = useFormat();
+  // Auf /formasyon (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
+  const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
   const root = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);
   const live = useRef({ drawingBars, until, timeframeSec });
@@ -364,17 +367,19 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); history(!e.shiftKey); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); history(false); }
   }}>
-    <div className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-[45] rounded-lg shadow-lg @min-[1300px]/formation-main:bottom-auto @min-[1300px]/formation-main:left-auto @min-[1300px]/formation-main:right-1 @min-[1300px]/formation-main:top-px @min-[1300px]/formation-main:z-[60] @min-[1300px]/formation-main:h-9 @min-[1300px]/formation-main:rounded-none @min-[1300px]/formation-main:border-0 @min-[1300px]/formation-main:bg-transparent @min-[1300px]/formation-main:p-0 @min-[1300px]/formation-main:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
-      <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? '@min-[1300px]/formation-main:hidden' : ''}`}>{context.symbol}</span>
+    <div className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-[45] rounded-lg shadow-lg @min-[71rem]/formation-main:bottom-auto @min-[71rem]/formation-main:left-auto @min-[71rem]/formation-main:right-1 @min-[71rem]/formation-main:top-px @min-[71rem]/formation-main:z-[60] @min-[71rem]/formation-main:h-[37px] @min-[71rem]/formation-main:rounded-none @min-[71rem]/formation-main:border-0 @min-[71rem]/formation-main:bg-transparent @min-[71rem]/formation-main:p-0 @min-[71rem]/formation-main:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
+      <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? '@min-[71rem]/formation-main:hidden' : ''}`}>{context.symbol}</span>
       <div className="flex flex-wrap items-center gap-1">
-        {overlayLayout && appearance.navigation && <Button size="sm" variant="ghost" hint={t('cw.fit.hint')} onClick={() => binding?.chart.timeScale().fitContent()}>{t('cw.fit')}</Button>}
-        <Button size="sm" variant="ghost" hint={t('cw.indicators.hint')} onClick={() => setIndicatorsOpen(true)}>{t('cw.indicators')}</Button>
+        {overlayLayout && appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => binding?.chart.timeScale().fitContent()}><Scan size={15} /></Button>}
+        {overlayLayout
+          ? <Button size="icon-xs" variant="ghost" hint={t('cw.indicators.hint')} aria-label={t('cw.indicators')} onClick={() => setIndicatorsOpen(true)}><ChartSpline size={15} /></Button>
+          : <Button size="sm" variant="ghost" hint={t('cw.indicators.hint')} onClick={() => setIndicatorsOpen(true)}>{t('cw.indicators')}</Button>}
         {toolbarActions}
-        <Button size="icon-sm" variant="ghost" hint={t(historySize.undo ? 'cw.undo.hint' : 'cw.undoEmpty.hint')} aria-label={t('cw.undo')} disabled={locked || !historySize.undo} onClick={() => history(true)}><Undo2 size={15} /></Button>
-        <Button size="icon-sm" variant="ghost" hint={t(historySize.redo ? 'cw.redo.hint' : 'cw.redoEmpty.hint')} aria-label={t('cw.redo')} disabled={locked || !historySize.redo} onClick={() => history(false)}><Redo2 size={15} /></Button>
-        <Button size="icon-sm" variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>
-        <Button size="icon-sm" variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
-        <Button size="icon-sm" variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
+        <Button size={iconSize} variant="ghost" hint={t(historySize.undo ? 'cw.undo.hint' : 'cw.undoEmpty.hint')} aria-label={t('cw.undo')} disabled={locked || !historySize.undo} onClick={() => history(true)}><Undo2 size={15} /></Button>
+        <Button size={iconSize} variant="ghost" hint={t(historySize.redo ? 'cw.redo.hint' : 'cw.redoEmpty.hint')} aria-label={t('cw.redo')} disabled={locked || !historySize.redo} onClick={() => history(false)}><Redo2 size={15} /></Button>
+        <Button size={iconSize} variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>
+        <Button size={iconSize} variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
+        <Button size={iconSize} variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
       </div>
     </div>
     {(state.storageError || error) && <Alert tone="warning" title={t(state.storageError ? 'cw.storageError' : error ?? 'cw.drawingError')} />}

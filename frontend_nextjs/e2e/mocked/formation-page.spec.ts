@@ -584,7 +584,7 @@ test.describe('FRM-22 schmale Ansicht', () => {
 test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
   test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
-    // Geschlossene Seitenleiste: der Chartbereich ist 1400 px breit, die Werkzeuge stehen in der Leiste (Schwelle 1300 px)
+    // Geschlossene Seitenleiste: der Chartbereich ist 1400 px breit, die Werkzeuge stehen in der Leiste (Schwelle 71rem = 1136 px)
     await storeSidebar(page, { open: false, tab: 'conditions' });
     await openPage(page, worker, `${URL}&form=GAR`);
     const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
@@ -1654,8 +1654,8 @@ test.describe('ANA-21 Trendzug auf /formasyon', () => {
 test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
   const cases = [
     { width: 1440, favorites: false },
-    // Geschlossene Seitenleiste: ab 1340 px (Chartbereich 1300 px) stehen die Werkzeuge in der Kopfleiste, daneben der kompakte Status-Knopf;
-    // ab 1480 px (Chartbereich 1440 px) zeigt der Knopf Pille und Zähler
+    // Geschlossene Seitenleiste: ab Chartbereich 71rem (1136 px) stehen die Werkzeuge in der Kopfleiste, ab 79rem (1264 px) zeigt der
+    // Status-Knopf Pille und Zähler; die Grenzfälle und 20 px Browser-Schrift prüft der Block „Browser-Schrift“ unten
     { width: 1480, favorites: false, closed: true },
     { width: 1440, favorites: false, closed: true },
     { width: 1340, favorites: false, closed: true },
@@ -1704,6 +1704,57 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
       });
     });
   }
+
+  // Defekt 2026-11-02: die Schwellen standen in px, Kopfleiste und Werkzeuge wachsen in rem mit der Browser-Schrift.
+  // Bei 20 px lag die Werkzeugleiste über Zeitrahmen, Alarm und Status-Knopf, und die zusammengedrückte Kopfleiste schob die Zeitrahmen über das Konto.
+  // Schwelle A = 71rem Chartbereich (16 px: 1136 px, 20 px: 1420 px; offene Seitenleiste: 16 px 328 px, 20 px 410 px), B = 79rem (Status-Knopf voll).
+  test.describe('Browser-Schrift', () => {
+  test.use({ appLocale: 'de' });
+  const cases = [
+    { font: 20, width: 1728, closed: false, tools: 'unten' },
+    { font: 20, width: 1920, closed: false, tools: 'oben' },
+    { font: 20, width: 1440, closed: true, tools: 'unten' },
+    { font: 20, width: 1550, closed: true, tools: 'oben' },
+    { font: 20, width: 1728, closed: true, tools: 'oben' },
+    // 16 px genau an den Schwellen: Chartbereich 1136 px (A, kompakter Status-Knopf) und 1264 px (B, voller Knopf)
+    { font: 16, width: 1176, closed: true, tools: 'oben' },
+    { font: 16, width: 1304, closed: true, tools: 'oben' },
+  ];
+  for (const { font, width, closed, tools } of cases) {
+    test(`Bei ${font} px Browser-Schrift überlappen sich keine Bedienelemente der Kopfleiste und der Werkzeugleiste (${width} px${closed ? ', Seitenleiste zu' : ''}, Werkzeuge ${tools})`, { tag: '@FRM-23' }, async ({ page, worker }) => {
+      await page.setViewportSize({ width, height: 900 });
+      if (closed) await storeSidebar(page, { open: false, tab: 'conditions' });
+      await openPage(page, worker, `${URL}&form=GAR`);
+      // Wie die Browser-Einstellung „Schriftgröße: groß“
+      await page.evaluate((size) => {
+        document.documentElement.style.fontSize = `${size}px`;
+      }, font);
+      await expect.poll(async () => {
+        const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
+        const box = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+        if (box.y + box.height <= bar.y + bar.height) return 'oben';
+        return box.y >= bar.y + bar.height ? 'unten' : 'dazwischen';
+      }).toBe(tools);
+      await expect.poll(() => page.evaluate(() => {
+        const controls = [...document.querySelectorAll('[data-testid="formation-topbar"] :is(button, [role="combobox"], input), [data-testid="workspace-toolbar"] button')]
+          // Die Favoriten-Fahne liegt absichtlich im Produktfeld (FormationSelectors.tsx, absolute right-2.5)
+          .filter((el) => el.getBoundingClientRect().width > 0 && el.getAttribute('data-testid') !== 'favorite-flag');
+        const overlaps: string[] = [];
+        for (const [i, a] of controls.entries()) {
+          for (const b of controls.slice(i + 1)) {
+            if (a.contains(b) || b.contains(a)) continue;
+            const r = a.getBoundingClientRect(), s = b.getBoundingClientRect();
+            if (r.left < s.right && s.left < r.right && r.top < s.bottom && s.top < r.bottom) {
+              overlaps.push(`${a.getAttribute('aria-label') ?? a.textContent} ↔ ${b.getAttribute('aria-label') ?? b.textContent}`);
+            }
+          }
+        }
+        return overlaps;
+      })).toEqual([]);
+      await expect.poll(() => onTop(page, page.getByTestId('trend-toggle'))).toBe(true);
+    });
+  }
+  });
 
   test.describe('Menü der Kopfleiste', () => {
     test.use({ viewport: { width: 1280, height: 900 }, appLocale: 'de' });
@@ -1817,12 +1868,12 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
   });
 
-  test('Status-Knopf: unter 1440 px Chartbreite kompakt mit Symbolen, ab 1440 px Pille und Zähler; Werkzeuge stehen oben ohne Überlappung', { tag: '@FRM-37' }, async ({ page, worker }) => {
+  test('Status-Knopf: unter 79rem Chartbreite (1264 px) kompakt mit Symbolen, ab 79rem Pille und Zähler; Werkzeuge stehen oben ohne Überlappung', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await storeSidebar(page, { open: false, tab: 'conditions' });
-    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setViewportSize({ width: 1300, height: 900 });
     await openPage(page, worker, `${URL}&form=GAR`);
     const chip = page.getByTestId('formation-status-chip');
-    // Chartbereich 1400 px: kompakt
+    // Chartbereich 1260 px: kompakt
     await expect(chip.getByTestId('status-verdict-icon')).toBeVisible();
     await expect(chip.getByTestId('status-verdict-icon')).toHaveAttribute('data-verdict', 'valid');
     await expect(chip.getByTestId('status-counts')).toBeHidden();
@@ -1835,8 +1886,8 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     expect(tools.y).toBeGreaterThanOrEqual(topbar.y);
     expect(tools.y + tools.height).toBeLessThanOrEqual(topbar.y + topbar.height + 1);
     expect(tools.x).toBeGreaterThanOrEqual(compact.x + compact.width);
-    // Chartbereich 1440 px: Pille und Zähler
-    await page.setViewportSize({ width: 1480, height: 900 });
+    // Chartbereich 1264 px: Pille und Zähler
+    await page.setViewportSize({ width: 1304, height: 900 });
     await expect(chip.getByTestId('status-verdict')).toBeVisible();
     await expect(chip.getByTestId('status-counts')).toBeVisible();
     await expect(chip.getByTestId('status-verdict-icon')).toBeHidden();

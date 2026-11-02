@@ -18,7 +18,7 @@ const VERDICT_ICON: Record<Verdict, { icon: typeof Check; tone: string }> = {
 
 /**
  * Status-Knopf der Kopfleiste: Seite, Urteil und Zähler des gewählten Kandidaten; öffnet und schließt den Reiter „Bedingungen“.
- * Ab 1440 px Breite von `formation-main` steht das Urteil als Pille mit den Zählern (Schwelle: Rechen-Kommentar in FormationToolbar.tsx),
+ * Ab 79rem Breite von `formation-main` (1264 px bei 16 px Schrift) steht das Urteil als Pille mit den Zählern (Schwelle: Rechen-Kommentar in FormationToolbar.tsx),
  * darunter nur als Symbol; Seite, Urteil und Zähler stehen dann im Namen (aria-label) und im Hinweis.
  */
 export function FormationStatusChip({ hit, open, onToggle }: { hit: ScanHit | null; open: boolean; onToggle: () => void }) {
@@ -46,8 +46,8 @@ export function FormationStatusChip({ hit, open, onToggle }: { hit: ScanHit | nu
       {hit && score && VerdictIcon ? (
         <>
           {buy ? <ArrowUp size={13} aria-hidden="true" className="text-success" /> : <ArrowDown size={13} aria-hidden="true" className="text-danger" />}
-          <VerdictIcon.icon size={13} aria-hidden="true" className={cn('@min-[1440px]/formation-main:hidden', VerdictIcon.tone)} data-testid="status-verdict-icon" data-verdict={hit.candidate.verdict} />
-          <span className="hidden items-center gap-1 @min-[1440px]/formation-main:inline-flex" data-testid="status-full">
+          <VerdictIcon.icon size={13} aria-hidden="true" className={cn('@min-[79rem]/formation-main:hidden', VerdictIcon.tone)} data-testid="status-verdict-icon" data-verdict={hit.candidate.verdict} />
+          <span className="hidden items-center gap-1 @min-[79rem]/formation-main:inline-flex" data-testid="status-full">
             <VerdictPill verdict={hit.candidate.verdict} testId="status-verdict" />
             <span className="tabular-nums text-muted-foreground" data-testid="status-counts">{score.requiredMet}/{score.requiredTotal} · {score.bonusMet}/{score.bonusTotal}</span>
           </span>

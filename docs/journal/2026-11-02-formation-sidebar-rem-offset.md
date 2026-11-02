@@ -2,7 +2,7 @@
 date: 2026-11-02
 author: Claude
 type: fix
-status: open
+status: done
 pr: [313]
 features: [FRM-37]
 areas: [frontend]
@@ -35,7 +35,7 @@ On `/formasyon` the owner saw only the right half of the open side bar: the tab 
 - `eslint` on the two changed files and `tsc --noEmit`: no messages.
 
 ## Open points
-- [ ] The top bar has the same px/rem defect. Threshold A (`@min-[1300px]/formation-main` in `FormationToolbar.tsx`, `ChartWorkspace.tsx`, `TrendToggle.tsx`), the reserve `pr-[528px]` and threshold B (1440 px, `FormationStatusChip.tsx`) are in px, the chart tools and the top bar content are in rem. Measured on `localhost:3000` (tr, DEMO account) with the root font size 20 px, after the layout settled: the chart tools are 608 px wide (486 px at 16 px), the reserve stays 528 px. Overlaps when the tools are in the top bar:
+- [x] Fixed in [2026-11-02-formation-topbar-rem.md](2026-11-02-formation-topbar-rem.md): thresholds A and B and the reserve are in rem (71rem, 79rem, 18rem), and the tools are compact. The top bar has the same px/rem defect. Threshold A (`@min-[1300px]/formation-main` in `FormationToolbar.tsx`, `ChartWorkspace.tsx`, `TrendToggle.tsx`), the reserve `pr-[528px]` and threshold B (1440 px, `FormationStatusChip.tsx`) are in px, the chart tools and the top bar content are in rem. Measured on `localhost:3000` (tr, DEMO account) with the root font size 20 px, after the layout settled: the chart tools are 608 px wide (486 px at 16 px), the reserve stays 528 px. Overlaps when the tools are in the top bar:
   - 1728 px, bar open (`formation-main` 1318 px): timeframe "D", alarm button, status button.
   - 1920 px, bar open (1510 px): status button.
   - 1440 px, bar closed (1390 px): alarm button, status button.
