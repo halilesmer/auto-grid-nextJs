@@ -13,7 +13,7 @@ import { changedAfter, analyzeChannels, checkChannel, correctionLens, impulseLen
 import { measureChannel, reversalSide, shrinks, slopesWithTrend, type Channel, type ChannelBase } from './lineChannel';
 import { ENC_PARAMS, LINE_CHANNEL_PARAMS, type ContextTimeframe } from './params';
 import type { Env } from './reasons';
-import type { Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
 import { anchorAt, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -106,7 +106,7 @@ function drawingsOf(bars: readonly FormationBar[], c: Channel): Drawing[] {
   const out: Drawing[] = [
     { id: 'Z-ENC-01', tool: 'trendline', anchors: [line ? { time: line.a.time, price: line.a.price } : anchorAt(bars, l0.idx, l0.price), { time: lastTime, price: c.counterAt(last) }], rules, side },
     { id: 'Z-ENC-01b', tool: 'trendline', anchors: [{ time: bars[hs.idx].time, price: c.extremeAt(hs.idx) }, { time: lastTime, price: c.extremeAt(last) }], rules, side },
-    { id: 'Z-ENC-02', tool: 'label', anchors: [{ time: lastTime, price: c.counterAt(last) }, { time: lastTime, price: c.extremeAt(last) }], rules: [], side },
+    { id: 'Z-ENC-02', tool: 'label', anchors: [{ time: lastTime, price: c.counterAt(last) }, { time: lastTime, price: c.extremeAt(last) }], rules: TRADE_RULES, side },
   ];
   if (c.act !== null) {
     // Stop an der Gegenlinie, Ziel 2 = Kanalhöhe H ab der Trendlinie in Trade-Richtung

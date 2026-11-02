@@ -16,14 +16,12 @@ import { H4 } from '../fixtures/formation-rows';
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-20' }, fn);
 
 const LIB_DIR = 'src/lib/formation';
-// Paket Linie (Befund 28) ändert diese Dateien gerade; ihre Zeichnungen werden nach dessen Merge nachgezogen, dann fällt die Liste weg
-const PENDING = new Set(['encChecks.ts', 'keiChecks.ts']);
 // Echte Kerzenreihen der Formationen, die die Suche der Seite rechnet, dazu T618 (nicht in der Suche, eigener Aufruf)
 const SCAN_FIXTURE = /^(abcd|bat|but|cdt|crb|cyp|f2618|gar|lib|obo|tdf|t618)-.*\.json$/;
 
 frm('keine Zeichnung im Quelltext hat eine leere Regelliste []', () => {
   const empty: string[] = [];
-  for (const file of readdirSync(LIB_DIR).filter((f) => f.endsWith('.ts') && !PENDING.has(f))) {
+  for (const file of readdirSync(LIB_DIR).filter((f) => f.endsWith('.ts'))) {
     readFileSync(`${LIB_DIR}/${file}`, 'utf-8')
       .split('\n')
       .forEach((line, i) => {
