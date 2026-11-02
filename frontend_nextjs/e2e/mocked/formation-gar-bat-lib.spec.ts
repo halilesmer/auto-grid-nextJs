@@ -444,6 +444,14 @@ test.describe('GAR und BAT: Abgrenzung, Urteil und Zeichnungen', () => {
     expect(run('BAT', { H4: BAT_B_DEEP }).verdict).toBe('invalid');
   });
 
+  test('Ungültig mit wartendem D: invalidBy nennt nur die verursachende Regel, nicht GAR-05 und nicht BAT-07', { tag: '@FRM-19' }, () => {
+    const gar = run('GAR', { H4: zig([100, 130, 111.46, 126.29, 107.75], LEGS, 3) });
+    expect([gar.verdict, state(gar, 'GAR-05'), gar.invalidBy]).toEqual(['invalid', N, ['GAR-08']]);
+    const bat = run('BAT', { H4: zig([100, 130, 115, 127, 104.5], LEGS, 3) });
+    expect([bat.verdict, state(bat, 'BAT-07'), bat.invalidBy]).toEqual(['invalid', N, ['BAT-08', 'BAT-09']]);
+    expect(run('GAR', { H4: GAR_BASE }).invalidBy).toEqual([]);
+  });
+
   frm('BAT 02: Ersatz (Pflicht), wenn BAT 01 fehlt; sonst Verstärkung', () => {
     const base = run('BAT', { H4: BAT_BASE });
     expect(find(base, 'BAT-02').kind).toBe('bonus');

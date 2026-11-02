@@ -424,6 +424,18 @@ const REAL_RUNS: [string, string][] = [
   ['crb-form-h4-01', '2025-11-10T00:00'],
 ];
 
+test.describe('CRB: invalidBy', () => {
+  test('Ungültig mit wartendem D: invalidBy nennt CRB-03, nicht CRB-04/05 und nicht die Variantenregeln', { tag: '@FRM-19' }, () => {
+    const c = run({ H4: harmonic([100, 130, 112, 128.2, 85]) });
+    expect([c.verdict, state(c, 'CRB-04'), c.invalidBy]).toEqual(['invalid', N, ['CRB-03']]);
+  });
+
+  test('Ungültig ohne passende Variante: invalidBy nennt die verfehlten Variantenregeln', { tag: '@FRM-19' }, () => {
+    const c = run({ H4: B_SHALLOW });
+    expect([c.verdict, c.invalidBy]).toEqual(['invalid', ['CRB-06', 'CRB-08']]);
+  });
+});
+
 test.describe('CRB: Abdeckung', () => {
   frm('jede Bedingung der Crab hat einen Fall mit ☑ und einen mit ☐', () => {
     const candidates = [...CASES.map((c) => c.candidate()), ...REAL_RUNS.map(([name, iso]) => analyzeAt(name, iso))];

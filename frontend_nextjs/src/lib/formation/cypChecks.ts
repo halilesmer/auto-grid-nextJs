@@ -138,17 +138,18 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   add('CYP-14', flag(HARMONIC_PARAMS.excludedTimeframes.includes(tf)));
   add('CYP-15', flag(closedBeyondBLimit(bars, s)));
 
-  const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
   const drawings = drawingsOf(env, tf, s, reached);
   const withDrawings = checks.map((k) => ({
     ...k,
     drawings: [...new Set(drawings.filter((z) => z.rules.includes(k.id)).map((z) => z.id))],
   }));
 
-  // D (CYP-07) fehlt nur noch: im Aufbau
+  // CYP-07 (Endpunkt) wartet nur: im Aufbau
+  const causesInvalid = (k: Check) =>
+    (['CYP-11', 'CYP-14', 'CYP-15'].includes(k.id) && k.state === 'met') || (k.kind === 'required' && k.state === 'unmet' && k.id !== 'CYP-07');
+  const invalidBy = checks.filter(causesInvalid).map((k) => k.id);
   let verdict: Verdict = 'valid';
-  if (['CYP-11', 'CYP-14', 'CYP-15'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
-  else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && k.id !== 'CYP-07')) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (!reached) verdict = 'forming';
   verdict = settle(verdict, withDrawings, exemptFor('CYP', tf, withDrawings));
 
@@ -159,7 +160,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'CYP', side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'CYP', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean): Drawing[] {

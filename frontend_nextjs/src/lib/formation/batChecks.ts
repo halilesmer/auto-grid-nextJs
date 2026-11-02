@@ -135,9 +135,11 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
   // BAT-01 ist durch BAT-02 ersetzbar; D (BAT-07) fehlt nur noch
   const excused = (k: Check) => k.id === 'BAT-07' || (k.id === 'BAT-01' && stateOf('BAT-02') === 'met');
+  const causesInvalid = (k: Check) =>
+    (['BAT-14', 'BAT-15', 'BAT-16', 'BAT-17'].includes(k.id) && k.state === 'met') || (k.kind === 'required' && k.state === 'unmet' && !excused(k));
+  const invalidBy = checks.filter(causesInvalid).map((k) => k.id);
   let verdict: Verdict = 'valid';
-  if (['BAT-14', 'BAT-15', 'BAT-16', 'BAT-17'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
-  else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && !excused(k))) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('BAT-07') === 'unmet') verdict = 'forming';
   verdict = settle(verdict, withDrawings, exemptFor('BAT', tf, withDrawings));
 
@@ -148,7 +150,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'BAT', side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'BAT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: number, reached: boolean): Drawing[] {

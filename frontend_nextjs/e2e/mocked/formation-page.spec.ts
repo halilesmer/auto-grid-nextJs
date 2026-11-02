@@ -149,6 +149,15 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(list.getByText(msg('formation.note.invalid', { ids: 'CRB-02' }), { exact: true })).toBeVisible();
   });
 
+  test('Ungültiges Doppeltop mit fehlendem Signal: der Hinweis nennt nur den ausgelösten Ausschluss CDT-15, nicht CDT-12 und CDT-13', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cdt-top-h4-01.json', 'utf-8'))).bars;
+    await openPage(page, worker, `${URL}&form=CDT`, Date.UTC(2025, 9, 8, 0) / 1000, bars);
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'invalid');
+    const list = page.getByTestId('formation-checklist');
+    await expect(list.locator('[data-rule-id="CDT-12"]')).toHaveAttribute('data-state', 'unmet');
+    await expect(list.getByText(msg('formation.note.invalid', { ids: 'CDT-15' }), { exact: true })).toBeVisible();
+  });
+
   test('Pflicht nicht messbar: der Treffer bleibt im Aufbau, der Hinweis nennt die Regel und hat einen Tooltip', { tag: '@FRM-19' }, async ({ page, worker }) => {
     // Kauf-Cypher mit allen Pflichten bis auf CYP-02: auf H4 fehlt die D1-Reihe, die Seite liefert sie hier leer
     const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cyp-buy-h4-01.json', 'utf-8'))).bars;

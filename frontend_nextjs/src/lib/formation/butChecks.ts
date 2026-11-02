@@ -119,7 +119,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('BUT-15', higherWith(env, tf, side));
   add('BUT-16', lowerReversal(env, tf, s));
 
-  const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
   const drawings = drawingsOf(env, tf, s, reached);
   const withDrawings = checks.map((k) => ({
     ...k,
@@ -128,9 +127,10 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
 
   // Bruch von B (BUT-06) und D (BUT-07) fehlen nur noch: im Aufbau
   const pending = (k: Check) => k.id === 'BUT-06' || k.id === 'BUT-07';
+  const causesInvalid = (k: Check) => (POINT_EXCLUSIONS.includes(k.id) && k.state === 'met') || (k.kind === 'required' && k.state === 'unmet' && !pending(k));
+  const invalidBy = checks.filter(causesInvalid).map((k) => k.id);
   let verdict: Verdict = 'valid';
-  if (POINT_EXCLUSIONS.some((id) => stateOf(id) === 'met')) verdict = 'invalid';
-  else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && !pending(k))) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (checks.some((k) => pending(k) && k.state === 'unmet')) verdict = 'forming';
   verdict = settle(verdict, withDrawings, exemptFor('BUT', tf, withDrawings));
 
@@ -141,7 +141,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'BUT', side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'BUT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean): Drawing[] {

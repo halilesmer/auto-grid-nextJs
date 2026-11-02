@@ -385,6 +385,13 @@ const analyzeAt = (names: Partial<Record<'H4' | 'D1', string>>, iso: string): Ca
 };
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 
+test.describe('CDT: invalidBy', () => {
+  test('cdt-top-h4-01: CDT-15 ausgelöst, CDT-12 und CDT-13 fehlen: invalidBy nennt nur CDT-15', { tag: '@FRM-19' }, () => {
+    const c = analyzeAt({ H4: 'cdt-top-h4-01' }, '2025-10-08T00:00');
+    expect([c.verdict, states(c, ['CDT-12', 'CDT-13', 'CDT-15']), c.invalidBy]).toEqual(['invalid', [N, N, M], ['CDT-15']]);
+  });
+});
+
 test.describe('CDT: echte Kerzen', () => {
   frm('cdt-top-h4-01: Doppeltop ohne RSI-Extrem, der Engulf umschließt nur kleine Kerzen (SIG-24, SIG-25): CDT-13 ☐', () => {
     const c = analyzeAt({ H4: 'cdt-top-h4-01' }, '2025-10-28T04:00');

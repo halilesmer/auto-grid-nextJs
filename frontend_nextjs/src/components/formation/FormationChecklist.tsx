@@ -74,7 +74,6 @@ export function FormationChecklist({
   const share = (n: number) => (required.length === 0 ? 0 : (n / required.length) * 100);
   const title = `${t(`formation.form.${hit.form}` as MessageKey)} ${t(`formation.side.${candidate.side}` as MessageKey)}`;
   const open = candidate.points[FINAL_POINT[hit.form]] === undefined;
-  const blockers = counted.filter((c) => (c.kind === 'exclusion' ? c.state === 'met' : c.kind === 'required' && c.state === 'unmet')).map((c) => c.id);
   // Dasselbe Prädikat wie im Prüfer: der Hinweis nennt nur Regeln, die das Urteil „gültig“ wirklich halten
   const unknownIds = blockingUnknowns(candidate.checks, exemptFor(hit.form, hit.tf, candidate.checks));
   let note: string | null = null;
@@ -84,7 +83,7 @@ export function FormationChecklist({
     note = t('formation.note.unmeasurable', { ids: unknownIds.join(', ') });
     noteHint = true;
   }
-  else if (candidate.verdict === 'invalid' && blockers.length > 0) note = t('formation.note.invalid', { ids: blockers.join(', ') });
+  else if (candidate.verdict === 'invalid' && candidate.invalidBy && candidate.invalidBy.length > 0) note = t('formation.note.invalid', { ids: candidate.invalidBy.join(', ') });
   const activeSet = active ? new Set(active) : null;
 
   return (
