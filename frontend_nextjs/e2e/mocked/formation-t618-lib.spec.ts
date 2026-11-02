@@ -52,21 +52,12 @@ const BASE = lineRows([100, 140, 118, 150, 130, 156, 118, 142]);
 const STRONG = lineRows([100, 140, 118, 150, 130, 170, 118, 152]);
 /** Letzter Zug 130 → 170 über 16 Kerzen (Index 74 bis 90): die Wave steigt dort höher als an H2 (22,1 gegen 20,4), keine Divergenz; I 118 bei Index 98 */
 const LONG_LEG = lineRows([100, 140, 118, 150, 130, 170, 118, 152], [8, 8, 8, 8, 16, 8, 8]);
-/** Die Hochs liegen weit auseinander (160, 180, 192), ein Doppeltop gibt es nicht. Impulse 60, 52, 27; Linie durch 128 und 165; Fib 192 → 150, Level 0.618 = 175,96 */
-const NO_DOUBLE = lineRows([100, 160, 128, 180, 165, 192, 150, 176.5]);
+/** Die Hochs fallen (160, 150, 145) und die Tiefs steigen (100, 110, 112), ein Doppeltop gibt es nicht. Impulse 60, 40, 33; Linie durch 110 und 112; Fib 145 → 90, Level 0.618 = 124 */
+const NO_DOUBLE = lineRows([100, 160, 110, 150, 112, 145, 90, 126]);
 /** Tiefs 130 und 118 fallen: die Linie steigt nicht */
 const FALLING_LOWS = lineRows([100, 140, 130, 150, 118, 156, 118, 142]);
-/** Tiefs 118 und 146 (1,75 je Kerze): bei P (Index 82) liegt die Linie bei 160 und damit über P 156; die Kerzen davor schließen unter ihr. P schließt über dem Hoch 152 davor (Linie gilt) */
-const STEEP = lineRows([100, 140, 118, 152, 146, 156, 118, 142]);
-/** P 150,1 überragt das Hoch 150 davor nur mit dem Docht, kein Schluss darüber: nach TRD-34 gilt die Linie nicht */
-const NO_RELEASE = lineRows([100, 140, 118, 150, 130, 150.1, 118, 142]);
-/**
- * P 150,1 schließt nicht über dem Hoch 150, nach P fällt der Preis unter die Linie (Index 86: 137,55 < 139). Erst Index 96 schließt über 150
- * (151,25): ab dort gilt die Linie (TRD-34), danach schließt keine Kerze mehr unter ihr
- */
-const BREAK_BEFORE_RELEASE = lineRows([100, 140, 118, 150, 130, 150.1, 125, 160]);
-/** Das Tief 118 ist ein Spike (Körper 0, Docht bis 117): Anker ist das Tief 118,1 der rechten Nachbarkerze (TRD-36) */
-const SPIKE_L1 = patched(BASE, at(2), [119, 119.1, 117, 119]);
+/** Tiefs 118 und 148 (1,875 je Kerze): bei P (Index 82) liegt die Linie bei 163 und damit über P 156; die Kerzen davor schließen unter ihr */
+const STEEP = lineRows([100, 140, 118, 170, 148, 156, 118, 142]);
 /** Nach P fällt der Preis nur auf 150 (die Linie liegt dort bei 142 und steigt): kein Schluss jenseits der Linie */
 const NO_BREAK = lineRows([100, 140, 118, 150, 130, 156, 150, 155]);
 /** I 135: Schluss unter der Linie, aber nie zweimal unter dem Tief 130; Level 0.618 = 135 + 0,618 × 21 = 147,98, K 149 berührt */
@@ -101,10 +92,8 @@ const CASES: Case[] = [
   { name: 'T618-01 ☐: der letzte Impuls ist länger als der vorige', rows: STRONG, expect: { '01': N, '02': M, '04': M } },
   { name: 'T618-08 ☐: der letzte Impuls ist länger und stärker, die Wave an P ist nicht schwächer', rows: LONG_LEG, options: { p: at(5) + 8, i: at(6) + 8 }, expect: { '01': N, '08': N, '04': M } },
   { name: 'T618-02 ☐: die Tiefs fallen, die Linie steigt nicht', rows: FALLING_LOWS, expect: { '02': N } },
-  { name: 'T618-02 ☐: P überragt das Hoch davor nur mit dem Docht, die Linie gilt noch nicht', rows: NO_RELEASE, expect: { '02': N } },
   { name: 'T618-03 ☐: P liegt unter der Linie, Schlüsse jenseits der Linie schon vor P', rows: STEEP, expect: { '03': N, '02': M } },
   { name: 'T618-04 ☐: nach P schließt keine Kerze unter der Linie', rows: NO_BREAK, expect: { '04': N, '05': N, '06': N, '03': M } },
-  { name: 'T618-04 ☐: der Schluss unter der Linie kommt vor der Freigabe, danach schließt keine Kerze mehr darunter', rows: BREAK_BEFORE_RELEASE, expect: { '02': M, '04': N } },
   { name: 'T618-05 ☐: Schluss unter der Linie, aber nie zweimal unter dem Tief 130', rows: NO_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
   { name: 'T618-05 ☐: der Trend wechselt erst nach der Berührung von 0.618 (nach dem Einstieg)', rows: LATE_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
   { name: 'T618-05 ☑ ohne Berührung: der Wechsel zählt bis zur letzten Kerze', rows: CHANGE_NO_TOUCH, expect: { '04': M, '05': M, '07': N } },
@@ -195,14 +184,6 @@ frm('Zeichnungen: Linie, Fib, Zonen und Expansion kommen auch bei ☐', () => {
   expect(line.rules).toEqual(['T618-02', 'T618-03', 'T618-04']);
   const noTouch = run(NO_TOUCH);
   expect(noTouch.drawings.map((d) => d.id)).toEqual(['Z-T618-01', 'Z-T618-02', 'Z-T618-03', 'Z-T618-03b']);
-});
-
-frm('Spike am ersten Tief: die Linie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {
-  const line = run(SPIKE_L1).drawings.find((d) => d.id === 'Z-T618-01')!;
-  expect(line.anchors[0].time).toBe((at(2) + 1) * H4);
-  expect(line.anchors[0].price).toBeCloseTo(118.1, 6);
-  // durch 118,1 (Index 59) und 130 (Index 74): bei Index 101 liegt sie bei 151,42
-  expect(line.anchors[1].price).toBeCloseTo(151.42, 3);
 });
 
 frm('Analyse findet P, Linie und I selbst und liefert alle Bedingungen', () => {

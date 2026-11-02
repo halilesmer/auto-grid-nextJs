@@ -6,6 +6,7 @@
  */
 import { legDirOf, levelPrice, type FibLeg } from './fib';
 import { closesBeyond, outward, wickEnd, type ZoneSide } from './frz';
+import { lineAtBar } from './lineChannel';
 import { T618_PARAMS } from './params';
 import type { FormationBar } from './types';
 
@@ -29,14 +30,9 @@ export interface LineTouches {
   violatedBeforeP: boolean;
 }
 
-/** Zusätzliche Berührungen der Linie `levelAt` nach dem zweiten Anker bis vor Kerze `until`; die Kerzen direkt nach dem Anker zählen nicht neu */
-export function lineTouches(
-  bars: Bars,
-  cs: ZoneSide,
-  levelAt: (k: number) => number,
-  { l1, l2, p }: { l1: T618Point; l2: T618Point; p: T618Point },
-  until: number,
-): LineTouches {
+/** Zusätzliche Berührungen nach dem zweiten Anker bis vor Kerze `until`; die Kerzen direkt nach dem Anker zählen nicht neu */
+export function lineTouches(bars: Bars, cs: ZoneSide, l1: T618Point, l2: T618Point, p: T618Point, until: number): LineTouches {
+  const levelAt = (k: number) => lineAtBar(bars, l1, l2, k);
   let violatedBeforeP = false;
   for (let k = l1.idx + 1; k <= p.idx; k++) if (closesBeyond(bars[k], levelAt(k), cs)) violatedBeforeP = true;
   let extra = 0;
