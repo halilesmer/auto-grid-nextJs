@@ -887,7 +887,7 @@
   "FRM-21": {
     "e2e": {
       "datum": "2026-11-02",
-      "status": "failed",
+      "status": "passed",
       "tests": 9
     }
   },
