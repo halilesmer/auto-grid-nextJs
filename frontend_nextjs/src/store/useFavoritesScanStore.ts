@@ -22,6 +22,8 @@ interface FavoritesScanState {
   reset: (accountId: string | null) => void;
   /** Ergebnisse von Produkten, die weder Favorit noch Alarm-Produkt sind, fallen weg */
   prune: (symbols: readonly string[]) => void;
+  /** Alle Produkte gelten als nicht gesucht (z. B. nach einem Wechsel des Trendpfads): der nächste Prüfschritt sucht sie neu */
+  invalidate: (accountId: string) => void;
   put: (accountId: string, symbol: string, formed: FormedHit[], at: number, gap: ScanGap | null) => void;
   setProgress: (accountId: string, progress: { done: number; total: number } | null) => void;
   addMs: (accountId: string, ms: number, restart?: boolean) => void;
@@ -41,6 +43,7 @@ export const useFavoritesScanStore = create<FavoritesScanState>((set, get) => ({
     const s = get();
     set({ results: only(s.results), gaps: only(s.gaps), doneAt: only(s.doneAt) });
   },
+  invalidate: (accountId) => set((s) => (s.accountId === accountId ? { doneAt: {} } : s)),
   put: (accountId, symbol, formed, at, gap) =>
     set((s) => {
       if (s.accountId !== accountId) return s;

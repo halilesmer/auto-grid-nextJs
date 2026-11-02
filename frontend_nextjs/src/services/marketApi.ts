@@ -19,9 +19,17 @@ export type BrokerClock =
     }
   | { account_id: string; reliable: false; offset_sec: null; offset_hours: null; server_now: null; cached: boolean };
 
+/** Zeitzonen reichen von UTC−12 bis UTC+14; ein Abstand außerhalb stammt aus einem alten Tick (Markt zu), nicht aus der Brokeruhr */
+const MIN_OFFSET_SEC = -12 * 3600;
+const MAX_OFFSET_SEC = 14 * 3600;
+
 export async function fetchBrokerClock(accountId: string): Promise<BrokerClock> {
   const res = await axiosInstance.get<BrokerClock>(`/market/${encodeURIComponent(accountId)}/clock`);
-  return res.data;
+  const clock = res.data;
+  if (clock.reliable && (clock.offset_sec < MIN_OFFSET_SEC || clock.offset_sec > MAX_OFFSET_SEC)) {
+    return { account_id: clock.account_id, reliable: false, offset_sec: null, offset_hours: null, server_now: null, cached: clock.cached };
+  }
+  return clock;
 }
 
 /** GET /market/{id}/rates: Kerzen [from, to) in MT5-Zeit, spaltenweise (market_sync.get_rates). */
