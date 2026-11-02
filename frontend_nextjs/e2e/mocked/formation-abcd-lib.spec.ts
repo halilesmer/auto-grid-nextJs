@@ -266,7 +266,7 @@ const CASES: Case[] = [
   {
     name: 'ATR(14) fehlt bei zu wenigen Kerzen: „nahe“ nicht messbar',
     candidate: () => run({ H4: zig([100, 130, 114], 2, 0) }, { a: 2, b: 4, c: 6 }),
-    expect: { 'ABCD-11': N, 'ABCD-10': U, 'ABCD-09': U, 'ABCD-15': U },
+    expect: { 'ABCD-11': U, 'ABCD-10': U, 'ABCD-09': U, 'ABCD-15': U },
   },
   {
     name: 'Zone aus der Tageskerze am D',
@@ -382,7 +382,8 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
       const states = new Set(CASES.map((c) => c.expect[id]).filter((s) => s !== undefined));
       // ABCD-25 ☑ gibt es nur für M1 und M5; der Kontext lädt sie nicht, den ☑-Fall deckt der Test der Funktion ab
       if (!states.has(M) && id !== 'ABCD-25') missing.push(`${id} ☑`);
-      if (!states.has(N)) missing.push(`${id} ☐`);
+      // ABCD-11 legt nur das Maß „nahe“ fest: mit ATR(14) ☑, ohne ATR nicht messbar; ein ☐ gibt es nicht
+      if (!states.has(N) && id !== 'ABCD-11') missing.push(`${id} ☐`);
     }
     expect(missing).toEqual([]);
   });
