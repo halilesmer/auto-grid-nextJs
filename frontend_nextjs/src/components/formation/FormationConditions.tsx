@@ -17,7 +17,7 @@ export function FormationConditions({ list, hit, loading, tf, active, onSelect, 
 }) {
   const t = useT();
   return (
-    <div className="h-full min-h-0 overflow-y-auto overscroll-contain" data-testid="conditions-panel" id="formation-conditions">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid="conditions-panel" id="formation-conditions">
       {list.length > 0 ? (
         <CandidateList hits={list} selected={hit} onSelect={onSelect} />
       ) : (

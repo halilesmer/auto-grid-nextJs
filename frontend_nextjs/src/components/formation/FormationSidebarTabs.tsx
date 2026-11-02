@@ -10,12 +10,23 @@ import { cn } from '@/lib/utils';
 export function FormationSidebarTabs({ tab, onTab, trailing }: { tab: SidebarTab; onTab: (tab: SidebarTab) => void; trailing?: ReactNode }) {
   const t = useT();
   const tabs: { id: SidebarTab; label: string; hint: string }[] = [
-    { id: 'conditions', label: t('formation.conditions'), hint: t('formation.conditions.hint') },
-    { id: 'favorites', label: t('formation.fav.title'), hint: t('formation.fav.toggle.hint') },
+    { id: 'conditions', label: t('formation.conditions'), hint: t('formation.tab.conditions.hint') },
+    { id: 'favorites', label: t('formation.fav.title'), hint: t('formation.tab.favorites.hint') },
   ];
   return (
     <div className="flex h-[38px] shrink-0 items-center justify-between border-b border-border pl-1.5 pr-1.5">
-      <div role="tablist" aria-label={t('formation.sidebar.tabs')} className="flex h-full items-center gap-0.5">
+      <div
+        role="tablist"
+        aria-label={t('formation.sidebar.tabs')}
+        className="flex h-full items-center gap-0.5"
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          const next: SidebarTab = tab === 'conditions' ? 'favorites' : 'conditions';
+          onTab(next);
+          document.getElementById(`formation-tab-${next}`)?.focus();
+        }}
+      >
         {tabs.map((item) => (
           <Tooltip key={item.id} content={item.hint} role="presentation">
             <button
@@ -23,6 +34,8 @@ export function FormationSidebarTabs({ tab, onTab, trailing }: { tab: SidebarTab
               role="tab"
               id={`formation-tab-${item.id}`}
               aria-selected={tab === item.id}
+              aria-controls="formation-tabpanel"
+              tabIndex={tab === item.id ? 0 : -1}
               data-testid={`sidebar-tab-${item.id}`}
               onClick={() => onTab(item.id)}
               className={cn(

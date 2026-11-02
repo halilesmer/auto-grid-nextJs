@@ -285,7 +285,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 8
+      "tests": 9
     }
   },
   "BKT-01": {
@@ -902,7 +902,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 12
+      "tests": 13
     }
   },
   "FRM-25": {
@@ -992,11 +992,11 @@
       "tests": 3
     }
   },
-  "FRM-36": {
+  "FRM-37": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 10
+      "tests": 12
     }
   },
   "LOG-01": {

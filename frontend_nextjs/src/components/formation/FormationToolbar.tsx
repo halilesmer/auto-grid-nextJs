@@ -55,14 +55,16 @@ export function FormationToolbar({
 }) {
   const t = useT();
   // Platz für die Werkzeugleiste des Charts (ChartWorkspace, overlayLayout) rechts in der Kopfleiste. Gemessen 2026-11-02:
-  // Leiste mit Trend und Zahnrad bis 512 px (de) + 4 px Rand rechts. Der Inhalt der Kopfleiste endet mit dem Status-Knopf
-  // (Seite, Urteil, Zähler; bis 186 px breit, de „im Aufbau“) bei 893 px ab Kante von `formation-main`. 893 + 8 Abstand + 516 = 1417 px
-  // Mindestbreite; Schwelle 1440 px lässt 23 px für längere Zähler. Reserve 528 px (893 + 528 = 1421 ≤ 1440).
-  // Darunter schwebt die Werkzeugleiste unten über dem Chart; das gilt auch bei offener Seitenleiste bis 1768 px Fenster (1440 + 328).
-  // Ändert sich die Leiste oder der Status-Knopf, beide Werte (Reserve, Schwelle) und ChartWorkspace anpassen.
+  // Leiste mit Trend und Zahnrad bis 512 px (de) + 4 px Rand rechts = 516 px. Der Inhalt der Kopfleiste endet bei 767 px ab Kante
+  // von `formation-main`, wenn der Status-Knopf kompakt ist (nur Symbole, 59 px), und bei 893 px mit dem vollen Knopf
+  // (Pille und Zähler, bis 186 px, de „im Aufbau“; FormationStatusChip.tsx).
+  // Schwelle A = 1300 px: 767 + 8 Abstand + 516 = 1291. Ab A stehen die Werkzeuge in der Kopfleiste. Reserve 528 px (767 + 528 = 1295 ≤ 1300).
+  // Schwelle B = 1440 px (nur im Status-Knopf): 893 + 8 + 516 = 1417; ab B zeigt der Knopf Pille und Zähler (893 + 528 = 1421 ≤ 1440).
+  // Unter A schwebt die Werkzeugleiste unten über dem Chart; mit offener Seitenleiste gilt das bis 1628 px Fenster (1300 + 328).
+  // Ändert sich die Leiste oder der Status-Knopf, A (hier, ChartWorkspace, TrendToggle) und B (Status-Knopf) neu messen.
   return (
     <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap @min-[1440px]/formation-main:pr-[528px]" data-testid="formation-topbar">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap @min-[1300px]/formation-main:pr-[528px]" data-testid="formation-topbar">
         <div className="pointer-events-auto flex h-[38px] min-w-0 items-center gap-1 max-lg:w-full lg:h-auto" data-testid="formation-selectors">
           {children}
         </div>

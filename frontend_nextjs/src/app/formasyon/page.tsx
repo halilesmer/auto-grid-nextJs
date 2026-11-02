@@ -173,7 +173,7 @@ function FormationView() {
           type="button"
           aria-pressed={on}
           aria-label={label}
-          data-testid={`${tab === 'favorites' ? 'favorites' : 'conditions'}-toggle`}
+          data-testid={`${tab}-toggle`}
           onClick={() => sidebar.toggle(tab)}
           className={cn('inline-flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', on ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground')}
         >
@@ -182,6 +182,9 @@ function FormationView() {
       </Tooltip>
     );
   };
+
+  // Strip und Leiste gibt es erst mit bekanntem Konto; nur dann rückt der Chart zur Seite
+  const sidebarShown = sidebar.open && accountKnown && !!accountId;
 
   const body = () => {
     if (!accountId) {
@@ -227,7 +230,7 @@ function FormationView() {
     <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''} data-favorites-scan-ms={favoritesScanMs ?? ''}>
       <h1 className="sr-only">{t('formation.title')}</h1>
       {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (40 px Leiste + 288 px Panel), statt ihn zu überdecken; darunter liegt sie über dem Chart. Die Leiste ganz rechts bleibt immer frei. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
-      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', sidebar.open && 'lg:right-[328px]')} data-testid="formation-main">
+      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', sidebarShown && 'lg:right-[328px]')} data-testid="formation-main">
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
@@ -317,30 +320,32 @@ function FormationView() {
                   onTab={sidebar.show}
                   trailing={sidebar.tab === 'favorites' && <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />}
                 />
-                {sidebar.tab === 'conditions' ? (
-                  <FormationConditions
-                    list={list}
-                    hit={hit}
-                    loading={scan.loading}
-                    tf={tf}
-                    active={active}
-                    onSelect={(h) => setPicked(`${h.form}-${h.tf}`)}
-                    onActive={setActive}
-                  />
-                ) : (
-                  <div className="min-h-0 flex-1" data-testid="favorites-panel">
-                    <FavoritesSidebar
-                      accountId={accountId}
-                      favorites={favorites.symbols}
-                      rows={rows}
-                      activeSymbol={symbol}
-                      timeframes={favoriteViews?.timeframes}
-                      forms={favoriteViews?.forms}
-                      onPick={openFavorite}
-                      onToggle={favorites.toggle}
+                <div role="tabpanel" id="formation-tabpanel" aria-labelledby={`formation-tab-${sidebar.tab}`} className="flex min-h-0 flex-1 flex-col">
+                  {sidebar.tab === 'conditions' ? (
+                    <FormationConditions
+                      list={list}
+                      hit={hit}
+                      loading={scan.loading}
+                      tf={tf}
+                      active={active}
+                      onSelect={(h) => setPicked(`${h.form}-${h.tf}`)}
+                      onActive={setActive}
                     />
-                  </div>
-                )}
+                  ) : (
+                    <div className="min-h-0 flex-1" data-testid="favorites-panel">
+                      <FavoritesSidebar
+                        accountId={accountId}
+                        favorites={favorites.symbols}
+                        rows={rows}
+                        activeSymbol={symbol}
+                        timeframes={favoriteViews?.timeframes}
+                        forms={favoriteViews?.forms}
+                        onPick={openFavorite}
+                        onToggle={favorites.toggle}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

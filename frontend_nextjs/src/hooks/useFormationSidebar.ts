@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export type SidebarTab = 'conditions' | 'favorites';
 
@@ -11,42 +11,66 @@ interface Stored {
   tab: SidebarTab;
 }
 
-function read(): Stored {
+/** Stand beim ersten Rendern, auf dem Server und bei der Hydration: zu (beide müssen übereinstimmen) */
+const SERVER_SNAPSHOT: Stored = { open: false, tab: 'conditions' };
+
+function readRaw(): string | null {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Partial<Stored> | null;
-    if (raw && typeof raw.open === 'boolean' && (raw.tab === 'conditions' || raw.tab === 'favorites')) return { open: raw.open, tab: raw.tab };
+    return localStorage.getItem(STORAGE_KEY);
   } catch {
-    // Kein Speicher oder beschädigter Eintrag: es gilt der Startwert
+    // Kein Speicher (privates Fenster): es gilt der Stand im Arbeitsspeicher bzw. der Startwert
+    return null;
   }
+}
+
+function parse(raw: string | null): Stored {
+  try {
+    const value = JSON.parse(raw ?? 'null') as Partial<Stored> | null;
+    if (value && typeof value.open === 'boolean' && (value.tab === 'conditions' || value.tab === 'favorites')) return { open: value.open, tab: value.tab };
+  } catch {
+    // Beschädigter Eintrag: es gilt der Startwert
+  }
+  // Erster Besuch: ab lg offen auf „Bedingungen“, darunter zu
   return { open: window.matchMedia(WIDE_QUERY).matches, tab: 'conditions' };
 }
 
-/**
- * Seitenleiste von /formasyon (Reiter Bedingungen und Favoriten): offen/zu und gewählter Reiter bleiben im Browser.
- * Erster Besuch: ab `lg` offen auf „Bedingungen“, darunter zu. Beim ersten Rendern ist die Leiste zu (Server und Browser
- * müssen übereinstimmen), der gespeicherte Stand folgt direkt danach.
- */
+// useSyncExternalStore verlangt denselben Snapshot, solange sich der gespeicherte Text nicht ändert
+let cache: { raw: string | null; value: Stored } | null = null;
+const listeners = new Set<() => void>();
+
+function getSnapshot(): Stored {
+  const raw = readRaw();
+  if (cache === null || cache.raw !== raw) cache = { raw, value: parse(raw) };
+  return cache.value;
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  // Ein anderer Tab desselben Browsers hat den Stand geändert
+  window.addEventListener('storage', listener);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener('storage', listener);
+  };
+}
+
+function change(next: Stored) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Speichern nicht möglich: die Leiste funktioniert weiter, nur ohne Merken (der Stand bleibt im Arbeitsspeicher)
+  }
+  // Der gelesene Text kann trotz Fehler gleich geblieben sein; der neue Wert gilt dann für diesen gelesenen Text
+  cache = { raw: readRaw(), value: next };
+  listeners.forEach((listener) => listener());
+}
+
+/** Seitenleiste von /formasyon (Reiter Bedingungen und Favoriten): offen/zu und gewählter Reiter bleiben im Browser. */
 export function useFormationSidebar() {
-  const [state, setState] = useState<Stored>({ open: false, tab: 'conditions' });
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage gibt es erst im Browser; ein Lazy-Init würde die Hydration brechen
-    setState(read());
-  }, []);
-
-  const change = useCallback((next: Stored) => {
-    setState(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Speichern nicht möglich (privates Fenster): die Leiste funktioniert weiter, nur ohne Merken
-    }
-  }, []);
-
+  const state = useSyncExternalStore(subscribe, getSnapshot, () => SERVER_SNAPSHOT);
   /** Ein Klick auf das Symbol des aktiven Reiters schließt die Leiste, sonst öffnet er sie auf diesem Reiter */
   const toggle = (tab: SidebarTab) => change(state.open && state.tab === tab ? { ...state, open: false } : { open: true, tab });
   const show = (tab: SidebarTab) => change({ open: true, tab });
   const close = () => change({ ...state, open: false });
-
   return { ...state, toggle, show, close };
 }

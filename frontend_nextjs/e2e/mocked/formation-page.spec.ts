@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-36 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster
+ * FRM-37 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -311,7 +311,7 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     await expect(overlay.locator('[data-drawing] rect[rx="3"]')).toHaveCount(0);
   });
 
-  test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: ['@FRM-20', '@FRM-36'] }, async ({ page, worker }) => {
+  test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: ['@FRM-20', '@FRM-37'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const overlay = page.getByTestId('formation-overlay');
     await expect(overlay.locator('[data-drawing]').first()).toBeAttached();
@@ -555,7 +555,7 @@ test.describe('FRM-25 freie Produktwahl', () => {
 
 test.describe('FRM-22 schmale Ansicht', () => {
   test.use({ viewport: { width: 375, height: 812 } });
-  test('Bei 375 px ist die Seitenleiste zu; die Bedingungen öffnen über dem Chart und lassen sich schließen', { tag: ['@FRM-22', '@FRM-36'] }, async ({ page, worker }) => {
+  test('Bei 375 px ist die Seitenleiste zu; die Bedingungen öffnen über dem Chart und lassen sich schließen', { tag: ['@FRM-22', '@FRM-37'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = await page.getByTestId('formation-chart').boundingBox();
     expect(chart!.x).toBe(52);
@@ -584,18 +584,17 @@ test.describe('FRM-22 schmale Ansicht', () => {
 test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
   test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
-    // Geschlossene Seitenleiste und 1480 px Fenster: der Chartbereich ist 1440 px breit (Schwelle für die Werkzeuge in der Leiste)
-    await page.setViewportSize({ width: 1480, height: 900 });
+    // Geschlossene Seitenleiste: der Chartbereich ist 1400 px breit, die Werkzeuge stehen in der Leiste (Schwelle 1300 px)
     await storeSidebar(page, { open: false, tab: 'conditions' });
     await openPage(page, worker, `${URL}&form=GAR`);
     const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
-    expect(bar).toEqual({ x: 52, y: 56, width: 1388, height: 38 });
+    expect(bar).toEqual({ x: 52, y: 56, width: 1348, height: 38 });
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
-    expect(forms).toEqual({ x: 52, y: 94, width: 1388, height: 30 });
+    expect(forms).toEqual({ x: 52, y: 94, width: 1348, height: 30 });
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
     expect(tools.y).toBeGreaterThanOrEqual(56);
     expect(tools.y + tools.height).toBeLessThanOrEqual(94);
-    expect(tools.x + tools.width).toBeLessThanOrEqual(1440);
+    expect(tools.x + tools.width).toBeLessThanOrEqual(1400);
     await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
     const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -1561,9 +1560,11 @@ test.describe('ANA-21 Trendzug auf /formasyon', () => {
 test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
   const cases = [
     { width: 1440, favorites: false },
-    // Geschlossene Seitenleiste: ab 1480 px (Chartbereich 1440 px) stehen die Werkzeuge in der Kopfleiste, daneben der Status-Knopf
+    // Geschlossene Seitenleiste: ab 1340 px (Chartbereich 1300 px) stehen die Werkzeuge in der Kopfleiste, daneben der kompakte Status-Knopf;
+    // ab 1480 px (Chartbereich 1440 px) zeigt der Knopf Pille und Zähler
     { width: 1480, favorites: false, closed: true },
     { width: 1440, favorites: false, closed: true },
+    { width: 1340, favorites: false, closed: true },
     { width: 1280, favorites: false },
     { width: 1280, favorites: true },
     { width: 1024, favorites: false },
@@ -1627,7 +1628,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
   });
 });
 
-test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () => {
+test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () => {
   const geometry = (page: Page) =>
     page.evaluate(() => {
       const box = (id: string) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect() ?? null;
@@ -1635,7 +1636,7 @@ test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     });
 
   for (const width of [1440, 1100]) {
-    test(`Die offene Seitenleiste schiebt den Chart und überlappt ihn nicht (${width} px)`, { tag: '@FRM-36' }, async ({ page, worker }) => {
+    test(`Die offene Seitenleiste schiebt den Chart und überlappt ihn nicht (${width} px)`, { tag: '@FRM-37' }, async ({ page, worker }) => {
       await page.setViewportSize({ width, height: 800 });
       await openPage(page, worker, `${URL}&form=GAR`);
       // Erster Besuch ab lg: offen auf „Bedingungen“
@@ -1657,7 +1658,7 @@ test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     });
   }
 
-  test('Zwei Reiter: jedes Symbol öffnet seinen Reiter, ein Klick auf den aktiven schließt, der Reiter wechselt ohne Schließen', { tag: '@FRM-36' }, async ({ page, worker }) => {
+  test('Zwei Reiter: jedes Symbol öffnet seinen Reiter, ein Klick auf den aktiven schließt, der Reiter wechselt ohne Schließen', { tag: '@FRM-37' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     await openPage(page, worker, `${URL}&form=GAR`);
     const conditionsTab = page.getByTestId('sidebar-tab-conditions');
@@ -1686,7 +1687,7 @@ test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
   });
 
-  test('Der Status-Knopf zeigt den Kandidaten und öffnet und schließt den Reiter Bedingungen', { tag: '@FRM-36' }, async ({ page, worker }) => {
+  test('Der Status-Knopf zeigt den Kandidaten und öffnet und schließt den Reiter Bedingungen', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chip = page.getByTestId('formation-status-chip');
     await expect(chip.getByTestId('status-verdict')).toHaveAttribute('data-verdict', 'valid');
@@ -1705,7 +1706,37 @@ test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
   });
 
-  test('Ohne Kandidat ist der Status-Knopf deaktiviert und sein Hinweis nennt den Grund', { tag: '@FRM-36' }, async ({ page, worker }) => {
+  test('Status-Knopf: unter 1440 px Chartbreite kompakt mit Symbolen, ab 1440 px Pille und Zähler; Werkzeuge stehen oben ohne Überlappung', { tag: '@FRM-37' }, async ({ page, worker }) => {
+    await storeSidebar(page, { open: false, tab: 'conditions' });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const chip = page.getByTestId('formation-status-chip');
+    // Chartbereich 1400 px: kompakt
+    await expect(chip.getByTestId('status-verdict-icon')).toBeVisible();
+    await expect(chip.getByTestId('status-verdict-icon')).toHaveAttribute('data-verdict', 'valid');
+    await expect(chip.getByTestId('status-counts')).toBeHidden();
+    await expect(chip.getByTestId('status-verdict')).toBeHidden();
+    // Seite, Urteil und Zähler stehen im Namen, der Hinweis nennt sie ebenfalls
+    await expect(chip).toHaveAccessibleName(new RegExp(`${msg('formation.side.buy')}.*${msg('formation.verdict.valid')}.*\\d+/\\d+.*\\d+/\\d+`));
+    const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+    const topbar = (await page.getByTestId('formation-topbar').boundingBox())!;
+    const compact = (await chip.boundingBox())!;
+    expect(tools.y).toBeGreaterThanOrEqual(topbar.y);
+    expect(tools.y + tools.height).toBeLessThanOrEqual(topbar.y + topbar.height + 1);
+    expect(tools.x).toBeGreaterThanOrEqual(compact.x + compact.width);
+    // Chartbereich 1440 px: Pille und Zähler
+    await page.setViewportSize({ width: 1480, height: 900 });
+    await expect(chip.getByTestId('status-verdict')).toBeVisible();
+    await expect(chip.getByTestId('status-counts')).toBeVisible();
+    await expect(chip.getByTestId('status-verdict-icon')).toBeHidden();
+    await expect.poll(async () => {
+      const full = (await chip.boundingBox())!;
+      const bar = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+      return bar.x - (full.x + full.width);
+    }).toBeGreaterThanOrEqual(0);
+  });
+
+  test('Ohne Kandidat ist der Status-Knopf deaktiviert und sein Hinweis nennt den Grund', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&tf=M15`);
     const chip = page.getByTestId('formation-status-chip');
     await expect(chip).toBeDisabled();
@@ -1713,7 +1744,7 @@ test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(page.getByText(msg('formation.status.empty.hint'))).toBeVisible();
   });
 
-  test('Offen/zu und Reiter bleiben nach dem Neuladen; erster Besuch: unter lg zu', { tag: '@FRM-36' }, async ({ page, worker }) => {
+  test('Offen/zu und Reiter bleiben nach dem Neuladen; erster Besuch: unter lg zu', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     await openPage(page, worker, `${URL}&form=GAR`);
@@ -1730,7 +1761,7 @@ test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
   });
 
-  test('Bei 375 px: Seitenleiste zu, geöffnet über dem Chart, ohne Querscroll; Tooltips an Reitern und Symbolen', { tag: '@FRM-36' }, async ({ page, worker }) => {
+  test('Bei 375 px: Seitenleiste zu, geöffnet über dem Chart, ohne Querscroll; Tooltips an Reitern und Symbolen', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await openPage(page, worker, `${URL}&form=GAR`);
     await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
@@ -1745,15 +1776,41 @@ test.describe('FRM-36 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     expect(after).toBeLessThanOrEqual(0);
   });
 
-  test('Gruppen klappen ein und aus, die Zeilen der Gruppe verschwinden', { tag: '@FRM-36' }, async ({ page, worker }) => {
+  test('Gruppen klappen ein und aus, die Zeilen der Gruppe verschwinden, die Hervorhebung bleibt', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
-    const group = page.getByTestId('group-exclusion');
-    const toggle = page.getByTestId('group-toggle-exclusion');
-    await expect(group.getByTestId('check-row').first()).toBeVisible();
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(group.getByTestId('check-row')).toHaveCount(0);
-    await toggle.click();
-    await expect(group.getByTestId('check-row').first()).toBeVisible();
+    for (const kind of ['required', 'exclusion']) {
+      const group = page.getByTestId(`group-${kind}`);
+      const toggle = page.getByTestId(`group-toggle-${kind}`);
+      await expect(group.getByTestId('check-row').first()).toBeVisible();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(group.getByTestId('check-row')).toHaveCount(0);
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(group.getByTestId('check-row').first()).toBeVisible();
+    }
+    // Nach dem Ein- und Ausklappen hebt eine Zeile ihre Zeichnungen weiter hervor
+    await page.locator('[data-testid="check-row"][data-rule-id="GAR-03"]').hover();
+    await expect(page.getByTestId('formation-overlay').locator('[data-active="true"]').first()).toBeAttached();
+  });
+
+  test('Reiter: Pfeiltasten wechseln den Reiter, Reiter und Inhalt sind verbunden', { tag: '@FRM-37' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const conditionsTab = page.getByTestId('sidebar-tab-conditions');
+    await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'formation-tab-conditions');
+    await conditionsTab.focus();
+    await conditionsTab.press('ArrowRight');
+    await expect(page.getByTestId('sidebar-tab-favorites')).toBeFocused();
+    await expect(page.getByTestId('sidebar-tab-favorites')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'formation-tab-favorites');
+    await page.getByTestId('sidebar-tab-favorites').press('ArrowLeft');
+    await expect(conditionsTab).toBeFocused();
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+    // Der Status-Knopf verweist nur auf den Inhalt, wenn er da ist
+    const chip = page.getByTestId('formation-status-chip');
+    await expect(chip).toHaveAttribute('aria-controls', 'formation-conditions');
+    await chip.click();
+    await expect(chip).not.toHaveAttribute('aria-controls', /.+/);
   });
 });
