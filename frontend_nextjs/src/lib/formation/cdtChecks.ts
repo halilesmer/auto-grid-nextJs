@@ -148,9 +148,12 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
   const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
   // Weder RSI-Extrem noch Umkehrkerze: der Einstieg wartet auf die Bestätigung, die Formation bleibt im Aufbau
   const signalMissing = stateOf('CDT-12') === 'unmet' && stateOf('CDT-13') !== 'met';
+  // CDT-05 und das fehlende Signal (CDT-12/13) warten nur: im Aufbau
+  const causesInvalid = (c: Check) =>
+    (c.id === 'CDT-15' && c.state === 'met') || (['CDT-01', 'CDT-02', 'CDT-03', 'CDT-04', 'CDT-06'].includes(c.id) && c.state === 'unmet');
+  const invalidBy = checks.filter(causesInvalid).map((c) => c.id);
   let verdict: Verdict = 'valid';
-  if (stateOf('CDT-15') === 'met') verdict = 'invalid';
-  else if (['CDT-01', 'CDT-02', 'CDT-03', 'CDT-04', 'CDT-06'].some((id) => stateOf(id) === 'unmet')) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('CDT-05') === 'unmet' || signalMissing) verdict = 'forming';
   verdict = settle(verdict, withDrawings, exemptFor('CDT', tf, withDrawings));
 
@@ -159,7 +162,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
     N: { time: bars[n.idx].time, price: n.price },
   };
   if (h2) points.H2 = { time: bars[h2.idx].time, price: h2.price };
-  return { code: 'CDT', side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'CDT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 /** Prüfung einer fertigen Form für andere Formationen (2618 baut auf dem Doppeltop); dieselbe Messung wie `analyzeCdt` */

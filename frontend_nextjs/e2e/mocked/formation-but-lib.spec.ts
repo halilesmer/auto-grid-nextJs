@@ -329,6 +329,13 @@ const REAL_RUNS: [string, string][] = [
   ['but-form-h4-01', '2025-10-30T16:00'],
 ];
 
+test.describe('BUT: invalidBy', () => {
+  test('Ungültig mit wartendem Bruch von B und D: invalidBy nennt nur die verursachende Regel', { tag: '@FRM-19' }, () => {
+    const c = run({ H4: harmonic([100, 130, 106, 127.6, 92.4]) });
+    expect([c.verdict, state(c, 'BUT-07'), c.invalidBy]).toEqual(['invalid', N, ['BUT-05']]);
+  });
+});
+
 test.describe('BUT: Abdeckung', () => {
   frm('jede Bedingung der Butterfly hat einen Fall mit ☑ und einen mit ☐', () => {
     const candidates = [...CASES.map((c) => c.candidate()), ...REAL_RUNS.map(([name, iso]) => analyzeAt(name, iso))];

@@ -256,14 +256,17 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
   }));
 
   const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
+  // ABCD-03 und ABCD-08 warten auf den Endpunkt (im Aufbau); ABCD-07 (streng) ist durch die Toleranz von ABCD-08 ersetzt;
+  // ABCD-11 ohne ATR heißt „nahe nicht messbar“, nicht Verstoß. Die übrigen Pflichten zählen nur, solange kein Endpunkt wartet.
+  const waiting = stateOf('ABCD-03') === 'unmet' || stateOf('ABCD-08') === 'unmet';
+  const causesInvalid = (c: Check) =>
+    (['ABCD-21', 'ABCD-22', 'ABCD-23', 'ABCD-24', 'ABCD-25'].includes(c.id) && c.state === 'met') ||
+    (['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'].includes(c.id) && c.state === 'unmet') ||
+    (!waiting && c.kind === 'required' && c.state === 'unmet' && !['ABCD-07', 'ABCD-11'].includes(c.id));
+  const invalidBy = checks.filter(causesInvalid).map((c) => c.id);
   let verdict: Verdict = 'valid';
-  if (['ABCD-21', 'ABCD-22', 'ABCD-23', 'ABCD-24', 'ABCD-25'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
-  else if (['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'].some((id) => stateOf(id) === 'unmet')) verdict = 'invalid';
-  else if (stateOf('ABCD-03') === 'unmet' || stateOf('ABCD-08') === 'unmet') verdict = 'forming';
-  else if (checks.some((c) => c.kind === 'required' && c.state === 'unmet' && !['ABCD-07', 'ABCD-11'].includes(c.id))) {
-    // ABCD-07 (streng) ist durch die Toleranz von ABCD-08 ersetzt; ABCD-11 ohne ATR heißt „nahe nicht messbar“, nicht Verstoß
-    verdict = 'invalid';
-  }
+  if (invalidBy.length > 0) verdict = 'invalid';
+  else if (waiting) verdict = 'forming';
   verdict = settle(verdict, withDrawings, exemptFor('ABCD', tf, withDrawings));
 
   const points: Candidate['points'] = {
@@ -272,7 +275,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
     C: { time: bars[s.c.idx].time, price: s.c.price },
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
-  return { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, second: number | undefined): Drawing[] {

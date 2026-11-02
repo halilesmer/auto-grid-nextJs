@@ -483,6 +483,13 @@ const REAL_RUNS: [string, string][] = [
   ['cyp-lib-h4-02', '2025-12-11T08:00'],
 ];
 
+test.describe('CYP: invalidBy', () => {
+  test('Ungültig mit wartendem D: invalidBy nennt nur die verursachende Regel, nicht CYP-07', { tag: '@FRM-19' }, () => {
+    const c = run({ H4: cyp([100, 130, 122, 139, 109.2]) });
+    expect([c.verdict, state(c, 'CYP-07'), c.invalidBy]).toEqual(['invalid', N, ['CYP-03', 'CYP-05']]);
+  });
+});
+
 test.describe('CYP: Abdeckung', () => {
   frm('jede Bedingung der Cypher hat einen Fall mit ☑ und einen mit ☐', () => {
     const candidates = [...CASES.map((c) => c.candidate()), ...REAL_RUNS.map(([name, iso]) => analyzeAt(name, iso))];

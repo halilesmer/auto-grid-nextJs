@@ -64,6 +64,8 @@ export interface Candidate {
   checks: Check[];
   drawings: Drawing[];
   verdict: Verdict;
+  /** Regeln, die das Urteil `invalid` auslösen; der Prüfer setzt sie neben dem Urteil. Wartende, ersetzte und entschuldigte Regeln fehlen, bei anderem Urteil ist die Liste leer */
+  invalidBy?: string[];
 }
 
 /** Eine Kerze der Formation: nur geschlossene Kerzen, Zeit = Kerzenbeginn (MT5-Sekunden) */

@@ -497,6 +497,13 @@ const analyzeAt = (name: string, iso: string): Candidate => {
 };
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 
+test.describe('ABCD: invalidBy', () => {
+  test('Ungültig mit wartendem D: invalidBy nennt die verursachenden Regeln, nicht ABCD-03', { tag: '@FRM-19' }, () => {
+    const c = run({ H4: S_BEYOND_A }, ABC);
+    expect([c.verdict, state(c, 'ABCD-03'), c.invalidBy]).toEqual(['invalid', N, ['ABCD-05', 'ABCD-06']]);
+  });
+});
+
 test.describe('ABCD: echte Kerzen', () => {
   frm('sig-rsi-h4-01: Negativ – Verkauf mit RSI(7) über 80 am D, doch der Kurs ist durch die Zone nahe Level 1 geschlossen', () => {
     const c = analyzeAt('sig-rsi-h4-01', '2025-11-11T04:00');

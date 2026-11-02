@@ -151,9 +151,15 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   // Bruch von B (CRB-05) und D (CRB-04) fehlen nur noch: im Aufbau
   const pending = (id: string) => id === 'CRB-04' || id === 'CRB-05';
   const variantIds = ['CRB-06', 'CRB-07', 'CRB-08', 'CRB-09'];
+  // Passt keine Variante, nennt der Hinweis die verfehlten Variantenregeln (☐ bei den Pflichten, ☑ bei den Ausschlüssen)
+  const variantMissed = (k: Check) => variantIds.includes(k.id) && (k.kind === 'exclusion' ? k.state === 'met' : k.state === 'unmet');
+  const causesInvalid = (k: Check) =>
+    (k.id === 'CRB-03' && k.state === 'met') ||
+    (!variantOk(stateOf) && variantMissed(k)) ||
+    (k.kind === 'required' && k.state === 'unmet' && !pending(k.id) && !variantIds.includes(k.id));
+  const invalidBy = checks.filter(causesInvalid).map((k) => k.id);
   let verdict: Verdict = 'valid';
-  if (stateOf('CRB-03') === 'met' || !variantOk(stateOf)) verdict = 'invalid';
-  else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && !pending(k.id) && !variantIds.includes(k.id))) verdict = 'invalid';
+  if (!variantOk(stateOf) || invalidBy.length > 0) verdict = 'invalid';
   else if (checks.some((k) => pending(k.id) && k.state === 'unmet')) verdict = 'forming';
   verdict = settle(verdict, withDrawings, exemptFor('CRB', tf, withDrawings));
 
@@ -164,7 +170,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'CRB', side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'CRB', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean): Drawing[] {

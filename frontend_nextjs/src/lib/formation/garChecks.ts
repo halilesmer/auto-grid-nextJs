@@ -144,9 +144,13 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   }));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
+  // GAR-05 (Endpunkt) wartet nur: im Aufbau
+  const causesInvalid = (k: Check) =>
+    (['GAR-15', 'GAR-16', 'GAR-17', 'GAR-18', 'GAR-19', 'GAR-20'].includes(k.id) && k.state === 'met') ||
+    (k.kind === 'required' && k.state === 'unmet' && k.id !== 'GAR-05');
+  const invalidBy = checks.filter(causesInvalid).map((k) => k.id);
   let verdict: Verdict = 'valid';
-  if (['GAR-15', 'GAR-16', 'GAR-17', 'GAR-18', 'GAR-19', 'GAR-20'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
-  else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && k.id !== 'GAR-05')) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('GAR-05') === 'unmet') verdict = 'forming';
   verdict = settle(verdict, withDrawings, exemptFor('GAR', tf, withDrawings));
 
@@ -157,7 +161,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'GAR', side, tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'GAR', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dTarget: number, reached: boolean): Drawing[] {
