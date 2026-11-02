@@ -37,9 +37,11 @@ areas: [frontend, tests]
 - `@FRM-35` in `formation-page.spec.ts`: three system panes, 155 wave points for 189 closed candles (the wave needs 35 candles, so 189 - 34), the switch hides and shows the layer, the legend names the entry.
 - The red run came first: both tests failed because the chart had no wave pane. The first red run failed on the type check because the new message keys were missing.
 
-## Not done
-- Codex scan skipped: the weekly limit had 3 percent left (rule `ajan-kullanimi.md` section 8). The `reviewer` subagent was skipped for the same reason.
+## Review follow-up
+- The `reviewer` ran after the first push. The Codex scan did not run: its weekly limit had 3 percent left. The first note in this entry blamed the Claude limit; that was wrong (29 percent used).
+- Fixed: the Wave axis showed "0.00" (price format now follows the symbol digits); the pane label did not follow a dragged separator (the overlay observes every pane); the legend covered the sub-panes (it now sits above the bottom edge of the candle pane, measured from the pane height); the default user indicator EWO duplicated the system wave on `/formasyon` (the default list is empty when `systemWave` is set); the wave data effects stay off on `/chart`; bars wait for the theme colors; the wave pane has its own scale margins.
+- Not changed: `yWave` and `pane: 'wave'` have no user yet (the plan asks for them for 42-B); the wave-top height still ignores the 1 px separators (42-B adds them with `yWave`); the switch label is the legend text.
+- New test `@FRM-35`: the legend ends above the Wave label. It was written after the fix, so there was no red run for it.
 
-## Open finding (not fixed here)
-- On `/formasyon` a layer switch (RSI and Wave alike) changes the chart while the settings dialog is open. After "Apply" the value returned to "on" in the e2e run. The test therefore checks the live switch only. The cause is in the shared overlay store, not in this change. It needs its own diagnosis.
-- The legend (visible from 900 px) now covers the lower edge of the Wave pane.
+## Apply finding: pre-existing
+- A temporary spec on `origin/main` (RSI switch): the switch is on, one click turns it off, "Apply" closes the dialog, and the next open shows "on" again. The error exists on `origin/main` for the RSI switch. It is not fixed here and needs its own diagnosis.

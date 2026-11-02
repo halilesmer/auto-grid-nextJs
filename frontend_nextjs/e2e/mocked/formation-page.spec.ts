@@ -203,6 +203,15 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
     await expect(page.getByTestId('formation-legend')).toContainText(msg('formation.legend.wave'));
   });
 
+  test('Die Legende bleibt im Kerzen-Fenster und verdeckt weder RSI noch Wave', { tag: '@FRM-35' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const legend = (await page.getByTestId('formation-legend').boundingBox())!;
+    const waveLabel = (await page.getByTestId('formation-overlay').getByText(msg('formation.pane.wave'), { exact: true }).boundingBox())!;
+    // Das Wave-Fenster liegt unter dem RSI-Fenster: die Legende endet vor beiden
+    expect(legend.y + legend.height).toBeLessThan(waveLabel.y - 60);
+  });
+
   test('Der Schalter „Wave“ blendet das Wave-Fenster aus und wieder ein', { tag: '@FRM-35' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = page.getByTestId('analysis-chart');
