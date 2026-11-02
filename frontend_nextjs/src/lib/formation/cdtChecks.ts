@@ -27,6 +27,7 @@ import { CDT_PARAMS, FIB_PARAMS, FRZ_PARAMS, RSI_PARAMS, type ContextTimeframe }
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { divergenceOf, rsiExtreme } from './sig';
+import { exemptFor, settle } from './settle';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
@@ -151,6 +152,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
   if (stateOf('CDT-15') === 'met') verdict = 'invalid';
   else if (['CDT-01', 'CDT-02', 'CDT-03', 'CDT-04', 'CDT-06'].some((id) => stateOf(id) === 'unmet')) verdict = 'invalid';
   else if (stateOf('CDT-05') === 'unmet' || signalMissing) verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('CDT', tf, withDrawings));
 
   const points: Candidate['points'] = {
     H1: { time: bars[h1.idx].time, price: h1.price },

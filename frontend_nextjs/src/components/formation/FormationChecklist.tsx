@@ -3,10 +3,11 @@
 import type { ReactNode } from 'react';
 import { Check as CheckIcon, Minus, Slash, X } from 'lucide-react';
 import { VerdictPill } from '@/components/formation/CandidateList';
-import { Tooltip } from '@/components/ui/tooltip';
+import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
 import { ruleText } from '@/lib/formation/ruleTexts';
 import { FINAL_POINT, type ScanHit } from '@/lib/formation/scan';
+import { blockingUnknowns, exemptFor } from '@/lib/formation/settle';
 import type { Check, RuleKind } from '@/lib/formation/types';
 import { cn } from '@/lib/utils';
 
@@ -74,8 +75,15 @@ export function FormationChecklist({
   const title = `${t(`formation.form.${hit.form}` as MessageKey)} ${t(`formation.side.${candidate.side}` as MessageKey)}`;
   const open = candidate.points[FINAL_POINT[hit.form]] === undefined;
   const blockers = counted.filter((c) => (c.kind === 'exclusion' ? c.state === 'met' : c.kind === 'required' && c.state === 'unmet')).map((c) => c.id);
+  // Dasselbe Prädikat wie im Prüfer: der Hinweis nennt nur Regeln, die das Urteil „gültig“ wirklich halten
+  const unknownIds = blockingUnknowns(candidate.checks, exemptFor(hit.form, hit.tf, candidate.checks));
   let note: string | null = null;
+  let noteHint = false;
   if (candidate.verdict === 'forming' && open) note = t('formation.note.forming', { point: FINAL_POINT[hit.form] });
+  else if (candidate.verdict === 'forming' && unknownIds.length > 0) {
+    note = t('formation.note.unmeasurable', { ids: unknownIds.join(', ') });
+    noteHint = true;
+  }
   else if (candidate.verdict === 'invalid' && blockers.length > 0) note = t('formation.note.invalid', { ids: blockers.join(', ') });
   const activeSet = active ? new Set(active) : null;
 
@@ -100,7 +108,12 @@ export function FormationChecklist({
           <span className="block h-full bg-danger" style={{ width: `${share(required.length - requiredMet - requiredUnmeasurable)}%` }} />
           <span className="block h-full bg-muted-foreground opacity-40" style={{ width: `${share(requiredUnmeasurable)}%` }} />
         </div>
-        {note && <div className="rounded-lg border border-warning/35 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">{note}</div>}
+        {note && (
+          <div className="flex items-start gap-1.5 rounded-lg border border-warning/35 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+            <span>{note}</span>
+            {noteHint && <InfoHint hint={t('formation.note.unmeasurable.hint')} className="ml-auto shrink-0 text-warning" />}
+          </div>
+        )}
       </div>
       {GROUPS.map((kind) => {
         const rows = candidate.checks.filter((c) => c.kind === kind);

@@ -11,6 +11,7 @@ import type { FormationContext } from './context';
 import { zoneGeometry, outward } from './frz';
 import { nearEdge } from './cdt';
 import { divergenceOf, rsiExtreme } from './sig';
+import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, FIB_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
 import type { Env } from './reasons';
 import {
@@ -147,6 +148,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   if (['GAR-15', 'GAR-16', 'GAR-17', 'GAR-18', 'GAR-19', 'GAR-20'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
   else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && k.id !== 'GAR-05')) verdict = 'invalid';
   else if (stateOf('GAR-05') === 'unmet') verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('GAR', tf, withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

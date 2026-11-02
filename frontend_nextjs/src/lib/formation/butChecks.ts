@@ -15,6 +15,7 @@ import { levelBC } from './cyp';
 import { BUT_PARAMS, FIB_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
 import type { Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
+import { exemptFor, settle } from './settle';
 import {
   alternates,
   analyzeXabcd,
@@ -131,6 +132,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   if (POINT_EXCLUSIONS.some((id) => stateOf(id) === 'met')) verdict = 'invalid';
   else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && !pending(k))) verdict = 'invalid';
   else if (checks.some((k) => pending(k) && k.state === 'unmet')) verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('BUT', tf, withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

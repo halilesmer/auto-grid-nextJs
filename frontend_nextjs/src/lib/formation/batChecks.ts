@@ -12,6 +12,7 @@ import type { FormationContext } from './context';
 import { zoneGeometry, outward } from './frz';
 import { nearEdge } from './cdt';
 import { rsiExtreme } from './sig';
+import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, BAT_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
 import type { Env } from './reasons';
 import {
@@ -138,6 +139,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   if (['BAT-14', 'BAT-15', 'BAT-16', 'BAT-17'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
   else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && !excused(k))) verdict = 'invalid';
   else if (stateOf('BAT-07') === 'unmet') verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('BAT', tf, withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

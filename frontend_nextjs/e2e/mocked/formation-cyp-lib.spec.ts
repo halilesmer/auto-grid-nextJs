@@ -227,7 +227,7 @@ test.describe('CYP: Bedingungen auf von Hand gerechneten Reihen', () => {
 
 test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
   frm('Abgrenzung Cypher ↔ Gartley/Bat: C jenseits von A ist Cypher (CYP 01 ☑), C unter A ist Gartley/Bat (CYP 01 ☐)', () => {
-    const cypher = run({ H4: BASE });
+    const cypher = run({ H4: BASE, D1: D1_UP });
     expect(state(cypher, 'CYP-01')).toBe(M);
     expect(cypher.verdict).toBe('valid');
     const garOnCypher = analyzeGar(ctxOf({ H4: BASE }), END).find((a) => a.tf === 'H4')!.candidate;
@@ -243,11 +243,11 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
     const abcd = analyzeAbcd(ctxOf({ H4: BASE }), END).find((a) => a.tf === 'H4')!.candidate;
     expect(abcd.checks.find((k) => k.id === 'ABCD-08')!.state).toBe(N);
     expect(abcd.verdict).toBe('forming');
-    expect(run({ H4: BASE }).verdict).toBe('valid');
+    expect(run({ H4: BASE, D1: D1_UP }).verdict).toBe('valid');
   });
 
   frm('Urteil: gültig, im Aufbau mit zu kurzem D, ungültig mit Ausschluss oder fehlendem Vorlauf', () => {
-    expect(run({ H4: BASE }).verdict).toBe('valid');
+    expect(run({ H4: BASE, D1: D1_UP }).verdict).toBe('valid');
     expect(run({ H4: D_SHORT }).verdict).toBe('forming');
     expect(run({ H4: C_CLOSE }).verdict).toBe('invalid');
     expect(run({ H4: B_CLOSE }).verdict).toBe('invalid');
@@ -278,8 +278,8 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
   });
 
   frm('Automatische Auswahl: Cypher und Spiegelbild liefern X, A, B, C, D aus den Wendepunkten', () => {
-    const pick = (rows: Row[]) => analyzeCyp(ctxOf({ H4: rows }), END).find((a) => a.tf === 'H4')!.candidate;
-    const buy = pick(BASE);
+    const pick = (rows: Row[], d1: Row[]) => analyzeCyp(ctxOf({ H4: rows, D1: d1 }), END).find((a) => a.tf === 'H4')!.candidate;
+    const buy = pick(BASE, D1_UP);
     expect(buy.side).toBe('buy');
     expect(buy.verdict).toBe('valid');
     expect(buy.points).toEqual({
@@ -289,7 +289,7 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
       C: { time: 70 * H4, price: 139 },
       D: { time: 78 * H4, price: 108.35 },
     });
-    const sell = pick(mirror(BASE));
+    const sell = pick(mirror(BASE), mirror(D1_UP));
     expect(sell.side).toBe('sell');
     expect(sell.checks.map((c) => [c.id, c.state])).toEqual(buy.checks.map((c) => [c.id, c.state]));
   });
@@ -411,14 +411,15 @@ const times = (c: Candidate) => ['X', 'A', 'B', 'C', 'D'].map((p) => time(c, p))
 const CORE = ['CYP-01', 'CYP-03', 'CYP-04', 'CYP-05', 'CYP-06', 'CYP-07'];
 
 test.describe('CYP: echte Kerzen', () => {
-  frm('cyp-buy-h4-01: Kauf-Cypher mit Divergenz und RSI(7) 80.6 am C ist gültig, D bei 0.873 von X → C', () => {
+  frm('cyp-buy-h4-01: Kauf-Cypher mit Divergenz und RSI(7) 80.6 am C ist ohne D1 im Aufbau (CYP-02 nicht messbar), D bei 0.873 von X → C', () => {
     const c = analyzeAt('cyp-buy-h4-01', '2025-12-17T00:00');
     expect(c.side).toBe('buy');
     expect(times(c)).toEqual(['2025-12-15T08:00', '2025-12-15T16:00', '2025-12-15T20:00', '2025-12-16T12:00', '2025-12-16T20:00']);
     expect(states(c, CORE)).toEqual([M, M, M, M, M, M]);
     // CYP-09 misst am echten D: Tief 1.17346 liegt 0.00006 über der Oberkante 1.1734 der nächsten Unterstützungszone
     expect(states(c, ['CYP-08', 'CYP-09', 'CYP-10', 'CYP-11', 'CYP-14'])).toEqual([N, N, N, N, N]);
-    expect(c.verdict).toBe('valid');
+    expect(state(c, 'CYP-02')).toBe(U);
+    expect(c.verdict).toBe('forming');
   });
 
   frm('cyp-sell-h4-01: Negativ – Verkauf-Cypher, C schließt jenseits 1.414 (CYP 11) und ist ungültig', () => {

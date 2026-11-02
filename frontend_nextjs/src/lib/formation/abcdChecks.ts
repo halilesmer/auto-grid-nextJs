@@ -27,6 +27,7 @@ import { ABCD_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, type ContextTimeframe } fr
 import { abcdIsCdt } from './cdt';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
+import { exemptFor, settle } from './settle';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
 
@@ -263,6 +264,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
     // ABCD-07 (streng) ist durch die Toleranz von ABCD-08 ersetzt; ABCD-11 ohne ATR heißt „nahe nicht messbar“, nicht Verstoß
     verdict = 'invalid';
   }
+  verdict = settle(verdict, withDrawings, exemptFor('ABCD', tf, withDrawings));
 
   const points: Candidate['points'] = {
     A: { time: bars[s.a.idx].time, price: s.a.price },
