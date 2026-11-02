@@ -197,9 +197,10 @@ function evaluate(models: Models, m: TrendModel, options: TrdOptions, p: TrdCand
   }
   add('TRD-04', flag(pivots.length >= 2), pivots.length);
   if (p) {
+    // neues Extrem vor dem fertigen Fraktal: ein Docht jenseits genügt, ein Schluss ist nicht nötig
     let beyond = false;
     for (let k = p.idx + 1; k <= Math.min(bars.length - 1, p.idx + N); k++) {
-      if (closesBeyond(bars[k], p.price, p.side)) beyond = true;
+      if (outward(p.side, wickEnd(bars[k], p.side)) > outward(p.side, p.price)) beyond = true;
     }
     add('TRD-05', flag(beyond));
     add('TRD-06', flag(p.drawn));
@@ -365,7 +366,9 @@ function evaluate(models: Models, m: TrendModel, options: TrdOptions, p: TrdCand
   } else {
     const scan = scanLine(m, line);
     add('TRD-40', flag(scan.touches >= 1), scan.touches);
-    add('TRD-41', flag(scan.touches >= 3), scan.touches);
+    // die beiden Anker sind die ersten zwei Berührungen
+    const withAnchors = scan.touches + 2;
+    add('TRD-41', flag(withAnchors >= 3), withAnchors);
     add('TRD-42', flag(!scan.violated));
     add('TRD-43', flag(scan.violated));
   }
