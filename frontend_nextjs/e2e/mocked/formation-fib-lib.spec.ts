@@ -349,9 +349,14 @@ test.describe('FIB: Abdeckung und Eigenschaften', () => {
     expect(find(c, 'FIB-17').drawings).toEqual(['Z-FIB-04']);
   });
 
-  frm('Zeichnungen mit zweiter Zeiteinheit entstehen auch bei ☐, die Konfluenzzone bei Nähe ohne Überlappung', () => {
+  frm('Überlappungsband Z-FIB-07 nur bei Schnittmenge, die Konfluenzzone bei Nähe ohne Überlappung', () => {
+    // H4-Band 111,46 bis 118,54 (Bein 100 → 130), H1-Band 115,73 bis 119,27 (Bein 110 → 125): Schnittmenge 115,73 bis 118,54
+    const overlap = run({ H4: HEALTHY, H1: zig([110, 125, 116, 122]) });
+    const band = overlap.drawings.find((d) => d.id === 'Z-FIB-07')!;
+    expect(band.anchors.map((a) => Math.round(a.price * 100) / 100)).toEqual([115.73, 118.54]);
+    // H1-Band 125,73 bis 129,27 (Bein 120 → 135) liegt über dem H4-Band: keine Schnittmenge, kein Band
     const two = run({ H4: HEALTHY, H1: zig([120, 135, 128, 133]) });
-    expect(two.drawings.some((d) => d.id === 'Z-FIB-07')).toBe(true);
+    expect(two.drawings.some((d) => d.id === 'Z-FIB-07')).toBe(false);
     expect(find(two, 'FIB-27').state).toBe(N);
     const near = run({ H4: ZONE_NEAR });
     expect(find(near, 'FIB-24').state).toBe(N);
