@@ -10,15 +10,15 @@
  */
 import type { FormationContext } from './context';
 import { levelPrice } from './fib';
-import { closesBeyond, otherSide, outward, zoneGeometry, type ZoneSide } from './frz';
-import { lineAtBar, legLens, reversalSide, shrinks } from './lineChannel';
+import { closesBeyond, otherSide, zoneGeometry, type ZoneSide } from './frz';
+import { counterLine, legLens, reversalSide, shrinks } from './lineChannel';
 import type { ObPoint } from './obo';
 import { T618_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
 import { divergenceOf } from './sig';
 import { impulseEnds, wideAgainst } from './f2618';
 import { lineTouches, returnTouch } from './t618';
-import type { TrendModel } from './trd';
+import { lineThrough, type TrendLine, type TrendModel } from './trd';
 import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Side, Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 
@@ -79,7 +79,8 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
   const wantedDir = es === 'resistance' ? 'down' : 'up';
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
-  const levelAt = (k: number) => lineAtBar(bars, l1, l2, k);
+  const line = lineThrough(model, pPos - 3, pPos - 1);
+  const levelAt = counterLine(bars, line, l1, l2);
 
   // Linie und Bruch (T618-02 bis T618-04)
   let breakIdx: number | null = null;
@@ -89,10 +90,10 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
       break;
     }
   }
-  const touches = lineTouches(bars, cs, l1, l2, p, breakIdx ?? bars.length);
+  const touches = lineTouches(bars, cs, levelAt, { l1, l2, p }, breakIdx ?? bars.length);
 
   add('T618-01', tri(shrinks(legLens(pv, es, p.idx + 1), T618_PARAMS.shrinkCount)));
-  add('T618-02', flag(outward(es, l2.price - l1.price) > 0));
+  add('T618-02', flag(line !== null));
   add('T618-03', flag(!touches.violatedBeforeP), touches.total);
   add('T618-04', flag(breakIdx !== null));
   // Der Wechsel zählt nur bis zur Einstiegskerze (Berührung von 0.618), ohne Berührung bis zur letzten Kerze
@@ -109,7 +110,7 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
   const wide = s.touch ? wideAgainst(env, tf, { es }, s.touch.idx) : null;
   add('T618-09', s.touch ? tri(wide === null ? null : !wide) : U);
 
-  const drawings = drawingsOf(env, tf, model, pPos, i, s);
+  const drawings = drawingsOf(env, tf, model, pPos, i, s, line);
   const withDrawings = checks.map((k) => ({
     ...k,
     drawings: [...new Set(drawings.filter((z) => z.rules.includes(k.id)).map((z) => z.id))],
@@ -133,15 +134,16 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
 type Return = NonNullable<ReturnType<typeof returnTouch>>;
 
 /** Z-T618-01 (die schräge Linie durch die Startpunkte der letzten 2 Impulse, bis zur letzten Kerze verlängert) und die Stop-Zone an P */
-function drawingsOfLine(bars: readonly FormationBar[], l1: ObPoint, l2: ObPoint, p: ObPoint, es: ZoneSide, tf: ContextTimeframe): Drawing[] {
+function drawingsOfLine(bars: readonly FormationBar[], line: TrendLine | null, l1: ObPoint, l2: ObPoint, p: ObPoint, es: ZoneSide, tf: ContextTimeframe): Drawing[] {
   const last = bars.length - 1;
+  const levelAt = counterLine(bars, line, l1, l2);
   const side: Side = reversalSide(es);
   const pZone = zoneGeometry(bars, p.idx, es, tf);
   return [
     {
       id: 'Z-T618-01',
       tool: 'trendline',
-      anchors: [anchorAt(bars, l1.idx, l1.price), { time: bars[last].time, price: lineAtBar(bars, l1, l2, last) }],
+      anchors: [line ? { time: line.a.time, price: line.a.price } : anchorAt(bars, l1.idx, l1.price), { time: bars[last].time, price: levelAt(last) }],
       rules: ids('T618', [2, 3, 4]),
       side,
     },
@@ -149,7 +151,7 @@ function drawingsOfLine(bars: readonly FormationBar[], l1: ObPoint, l2: ObPoint,
   ];
 }
 
-function drawingsOf(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: number, i: ObPoint, s: Return): Drawing[] {
+function drawingsOf(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: number, i: ObPoint, s: Return, line: TrendLine | null): Drawing[] {
   const bars = env.views.get(tf)!.bars;
   const pv = model.pivots;
   const p = pv[pPos];
@@ -159,9 +161,9 @@ function drawingsOf(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: num
   const lastTime = bars[bars.length - 1].time;
   const iZone = zoneGeometry(bars, i.idx, cs, tf);
   const entry = levelPrice(s.leg, T618_PARAMS.entryLevel);
-  const [line, pZoneDrawing] = drawingsOfLine(bars, pv[pPos - 3], pv[pPos - 1], p, es, tf);
+  const [lineDrawing, pZoneDrawing] = drawingsOfLine(bars, line, pv[pPos - 3], pv[pPos - 1], p, es, tf);
   const out: Drawing[] = [
-    line,
+    lineDrawing,
     {
       id: 'Z-T618-02',
       tool: 'fib',
