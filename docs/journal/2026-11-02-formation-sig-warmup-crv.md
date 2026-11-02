@@ -36,6 +36,7 @@ Fix the review findings 11, 13 and 2 for the signal checks (SIG) in `sigChecks.t
 
 ## Open points
 - [ ] In the product SIG-29 stays "not measurable" until a caller passes `trade`.
+  - Checked 2026-11-02: the precondition is missing. The SIG checklist is not connected to any formation, and `TRADE_RULES` is an empty marker list, not a trade. The connection needs a decision of the owner.
 - [ ] `pointAt` partial warm-up (see "Why").
 
 ## Lessons

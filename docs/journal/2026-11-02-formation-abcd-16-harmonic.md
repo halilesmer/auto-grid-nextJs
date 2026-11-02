@@ -42,3 +42,4 @@ areas: [frontend, tests]
 
 ## Open points
 - SIG-15 exception (rule book line 91): the divergence veto does not apply when the harmonic is complete. Not part of this change.
+  - Checked 2026-11-02: the precondition is missing. The SIG checklist (`analyzeSig`, `sigChecks.ts`) is not connected to any formation; the harmonics use only helpers from `sig.ts`. The connection needs a decision of the owner.
