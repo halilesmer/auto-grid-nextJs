@@ -143,7 +143,9 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
   const target = shape ? targetEdge(cs, zoneGeometry(bars, shape.p3.idx, cs, tf)) : null;
   const entry = shape && target !== null ? chooseEntry(shape, target) : null;
   // LIB-12 und alles, was an der Berührung hängt, messen an der Kante des gewählten Einstiegs (E-2 a), nicht an der zuerst erreichten
-  const s = shape && entry && entry.price !== shape.first ? { ...shape, ...measureTouch(bars, es, cs, shape.p3, entry.price) } : shape;
+  const touched = shape && entry && entry.price !== shape.first ? { ...shape, ...measureTouch(bars, es, cs, shape.p3, entry.price) } : shape;
+  // Solange P3 kein fertiges Fraktal ist, gilt keine Berührung: K, LIB-12 und das Ziel warten (die Wendebewegung kann noch weiterlaufen)
+  const s = touched && !fractalDone(bars, touched.p3, cs) ? { ...touched, touch: null } : touched;
   const c = s ? s.c : correctionOf(bars, cs, p1, p2);
   const last = bars.length - 1;
   const checks: Check[] = [];

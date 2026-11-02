@@ -60,13 +60,15 @@ type Results = (form: ScanFormation) => Analysis[];
 
 const candidatesOf = (results: Results, ...forms: ScanFormation[]): Candidate[] => forms.flatMap((f) => results(f).map((a) => a.candidate));
 
-const ANALYZERS: Record<ScanFormation, (ctx: FormationContext, t: number, results: Results) => Analysis[]> = {
+/** Die Rechner je Formation; ausgeführt wird die Suche über `scanFormations`, der Export dient dem Test der Weitergabe von Ergebnissen */
+export const ANALYZERS: Record<ScanFormation, (ctx: FormationContext, t: number, results: Results) => Analysis[]> = {
   ABCD: analyzeAbcd,
   GAR: analyzeGar,
   BAT: analyzeBat,
   BUT: analyzeBut,
   CRB: analyzeCrb,
-  CYP: analyzeCyp,
+  // Die Libra in der Cypher (CYP-10) bekommt Gartley und Bat aus diesem Suchlauf, statt sie neu zu rechnen
+  CYP: (ctx, t, results) => analyzeCyp(ctx, t, candidatesOf(results, 'GAR', 'BAT')),
   CDT: analyzeCdt,
   OBO: analyzeObo,
   TDF: analyzeTdf,

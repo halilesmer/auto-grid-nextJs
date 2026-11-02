@@ -169,10 +169,11 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         return prims;
       }
       case 'marker': {
-        const final = candidate.points[FINAL_POINT[form]];
-        if (!final || forming) return prims;
-        const px = x(final.time);
-        const py = y(final.price);
+        // Z-LIB-07 trägt seinen eigenen Anker (Kerze, die das Ziel erreicht); die Marker der anderen Formationen sitzen am Endpunkt
+        const at = form === 'LIB' ? d.anchors[0] : candidate.points[FINAL_POINT[form]];
+        if (!at || forming) return prims;
+        const px = x(at.time);
+        const py = y(at.price);
         if (px === null || py === null) return prims;
         prims.push({ kind: 'rect', x: px - 9, y: py - 9, w: 18, h: 18, tone: 'mark' });
         return prims;
