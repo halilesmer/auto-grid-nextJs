@@ -195,6 +195,18 @@ export const RULE_TEXTS: Record<string, Text> = {
   'TDF-28': ['Üst ve alt temaslar sırayla değişir (2 + 2)', 'Touches at top and bottom alternate (2 + 2)', 'Berührungen oben und unten wechseln sich ab (2 + 2)'],
   'TDF-29': ['Kutuda temaslar sırayla değişir (2 + 2)', 'Touches in the box alternate (2 + 2)', 'Berührungen in der Box wechseln sich ab (2 + 2)'],
 
+  // 2618: bei den Ausschlüssen (09, 10) heißt „erfüllt“, das Ereignis liegt vor
+  '2618-01': ['Çift tepe/dip oluştu', 'A double top or bottom has formed', 'Ein Doppeltop bzw. Doppelboden liegt vor'],
+  '2618-02': ['H2’den sonra boyun noktasının ötesinde kapanış', 'After H2 a close beyond the neck point', 'Nach H2 ein Schluss jenseits des Nackenpunkts'],
+  '2618-03': ['I tamamlanmış fraktal', 'I is a finished fractal', 'I ist ein fertiges Fraktal'],
+  '2618-04': ['Fib impulsun başından I’ya çizildi, I boyun noktasının ötesinde', 'The Fib runs from the impulse start to I, with I beyond the neck point', 'Die Fib läuft vom Impulsbeginn bis I, I liegt jenseits des Nackenpunkts'],
+  '2618-05': ['Düzeltme 0,618 seviyesine dokunur', 'The correction touches the 0.618 level', 'Die Korrektur berührt das 0,618-Level'],
+  '2618-06': ['Dokunuşta trend işlem yönünde', 'At the touch the trend runs with the trade', 'An der Berührung läuft der Trend in Trade-Richtung'],
+  '2618-07': ['Giriş, daha büyük bir hareketin 0,382/0,5/0,618 seviyesinde', 'The entry lies at a 0.382/0.5/0.618 level of a larger move', 'Der Einstieg liegt an einem 0,382/0,5/0,618-Level einer größeren Bewegung'],
+  '2618-08': ['Zaman dilimi H1, H4 veya D1', 'Timeframe is H1, H4 or D1', 'Zeiteinheit H1, H4 oder D1'],
+  '2618-09': ['Dokunuştan önce durdurma bölgesinin ötesinde kapanış', 'Before the touch a close beyond the stop zone', 'Vor der Berührung ein Schluss jenseits der Stop-Zone'],
+  '2618-10': ['Dokunuşta hacimli ters mum', 'A candle with volume against the trade at the touch', 'An der Berührung eine volumenstarke Kerze gegen den Trade'],
+
   'CDT-01': ['H1 tamamlanmış fraktal, fitil ucunda', 'H1 is a finished fractal on a wick end', 'H1 ist ein fertiges Fraktal an der Dochtspitze'],
   'CDT-02': ['H1 önceki tepenin üstünde kapandı', 'H1 closed beyond the previous high', 'H1 schloss jenseits des vorigen Hochs'],
   'CDT-03': ['N tamamlanmış fraktal, fitil ucunda', 'N is a finished fractal on a wick end', 'N ist ein fertiges Fraktal an der Dochtspitze'],

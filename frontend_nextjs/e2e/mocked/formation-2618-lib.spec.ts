@@ -213,6 +213,22 @@ frm('Zeichnungen: Fib, Einstiegszone, Ziele, Stop-Label und Pfeil kommen auch be
   }
 });
 
+frm('Urteil: invalidBy nennt je Fall die Regel, die „ungültig“ auslöst', () => {
+  // Eine Handreihe kann mehrere Auslöser haben (SHALLOW: auch der Trend an K, ONE_CLOSE: auch die schnelle Rücklaufkerze); geprüft wird der gemeinte
+  const triggers = ['2618-01', '2618-06', '2618-09', '2618-10'];
+  for (const [c, id] of [
+    [run({ H4: SHALLOW }), '2618-01'],
+    [run({ H4: ONE_CLOSE }, { ...AT, i: 36 }), '2618-06'],
+    [run({ H4: STOP_BROKEN }, STOP_AT), '2618-09'],
+  ] as const) {
+    expect(c.invalidBy, id).toContain(id);
+    expect(c.invalidBy!.filter((x) => !triggers.includes(x)), id).toEqual([]);
+  }
+  expect(run({ H4: WIDE_K }).invalidBy).toEqual(['2618-10']);
+  expect(run({ H4: BASE }).invalidBy).toEqual([]);
+  expect(run({ H4: NO_TOUCH }).invalidBy).toEqual([]);
+});
+
 frm('Analyse findet das Paar und I selbst und liefert alle Bedingungen', () => {
   const res = analyze2618(ctxOf({ H4: BASE }), END);
   expect(res.map((r) => r.tf)).toEqual(['H4']);

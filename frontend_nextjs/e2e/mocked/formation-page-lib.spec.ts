@@ -9,6 +9,7 @@ import { drawingPriceRange, layoutDrawings } from '../../src/lib/formation/drawi
 import { LIB_CHECK_IDS } from '../../src/lib/formation/libChecks';
 import { OBO_CHECK_IDS } from '../../src/lib/formation/oboChecks';
 import { TDF_CHECK_IDS } from '../../src/lib/formation/tdfChecks';
+import { F2618_CHECK_IDS } from '../../src/lib/formation/f2618Checks';
 import { ruleText } from '../../src/lib/formation/ruleTexts';
 import { hitsCount, timeframeForForm, type ScanHit } from '../../src/lib/formation/scan';
 import type { Candidate } from '../../src/lib/formation/types';
@@ -173,6 +174,11 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
 
   frm('FRM-19', 'Jede Trendfortsetzungs-Bedingung hat einen Kurztext in tr, en und de', () => {
     const missing = TDF_CHECK_IDS.flatMap((id) => (['tr', 'en', 'de'] as const).filter((locale) => ruleText(locale, id) === null).map((locale) => `${id} ${locale}`));
+    expect(missing).toEqual([]);
+  });
+
+  frm('FRM-19', 'Jede 2618-Bedingung hat einen Kurztext in tr, en und de', () => {
+    const missing = F2618_CHECK_IDS.flatMap((id) => (['tr', 'en', 'de'] as const).filter((locale) => ruleText(locale, id) === null).map((locale) => `${id} ${locale}`));
     expect(missing).toEqual([]);
   });
 

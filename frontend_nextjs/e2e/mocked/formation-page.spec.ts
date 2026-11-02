@@ -12,6 +12,7 @@ import { groupZones, makeZone } from '../fixtures/data';
 import { harmonic } from '../fixtures/formation-harmonic';
 import { H4, barsOf } from '../fixtures/formation-rows';
 import { msg, type MessageKey } from '../fixtures/i18n';
+import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
 const URL = `/formasyon?account=${DEMO_ID}&zone=${ZONE_ID}`;
@@ -119,6 +120,18 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await expect(list.locator('[data-testid="check-row"][data-rule-id="TDF-16"]')).toHaveAttribute('data-state', 'met');
     await expect(list.locator('[data-testid="check-row"][data-rule-id="TDF-19"]')).toHaveAttribute('data-state', 'met');
     await expect(list.locator('[data-testid="check-row"][data-rule-id="TDF-10"]')).toHaveAttribute('data-state', 'inactive');
+    await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
+  });
+
+  test('2618 steht in der Leiste: gültiges 2618 mit Badge, Checkliste und erreichter Berührung K', { tag: ['@FRM-18', '@FRM-08'] }, async ({ page, worker }) => {
+    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/f2618-buy-h4-01.json', 'utf-8'))).bars;
+    await openPage(page, worker, `${URL}&form=2618`, 1761811200, bars);
+    await expect(page.getByTestId('formation-form-2618')).toContainText(msg('formation.form.2618'));
+    await expect(page.getByTestId('formation-form-2618').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
+    const list = page.getByTestId('formation-checklist');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="2618-05"]')).toHaveAttribute('data-state', 'met');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="2618-09"]')).toHaveAttribute('data-state', 'clear');
     await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
   });
 
@@ -409,6 +422,37 @@ test.describe('FRM-21 Hintergrundsuche', () => {
     for (const tf of ['D1', 'H4', 'H1', 'M15']) {
       expect(calls.some((c) => c.query.get('timeframe') === tf && c.query.get('symbol') === 'EURUSD')).toBe(true);
     }
+  });
+
+  for (const lang of ['tr', 'en'] as const) {
+    test.describe(`ungültige Kerzen (${lang})`, () => {
+      test.use({ appLocale: lang });
+      test('Die Meldung erscheint in der gewählten Sprache, ohne die technische Meldung', { tag: '@FRM-21' }, async ({ page, worker }) => {
+        serveFixture(worker, NOW);
+        // Zwei vertauschte H4-Kerzen: die Zeit steigt nicht streng, die Suche bricht ab
+        const series = worker.state.ratesSeries as Record<string, number[][]>;
+        const rows = [...series.H4];
+        [rows[10], rows[11]] = [rows[11], rows[10]];
+        series.H4 = rows;
+        await page.goto(URL);
+        const alert = page.getByRole('alert').filter({ hasText: msg('formation.scan.failed', {}, lang) });
+        await expect(alert).toContainText(msg('formation.scan.badData', {}, lang));
+        await expect(alert).not.toContainText(/Index \d+/);
+      });
+    });
+  }
+
+  test('Ein Sprachwechsel übersetzt die stehende Fehlermeldung sofort', { tag: '@FRM-21' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    const series = worker.state.ratesSeries as Record<string, number[][]>;
+    const rows = [...series.H4];
+    [rows[10], rows[11]] = [rows[11], rows[10]];
+    series.H4 = rows;
+    await page.goto(URL);
+    await expect(page.getByRole('alert').filter({ hasText: msg('formation.scan.failed') })).toContainText(msg('formation.scan.badData'));
+    await openHeaderMenu(page);
+    await page.getByTestId('language-en').click();
+    await expect(page.getByRole('alert').filter({ hasText: msg('formation.scan.failed', {}, 'en') })).toContainText(msg('formation.scan.badData', {}, 'en'));
   });
 });
 
