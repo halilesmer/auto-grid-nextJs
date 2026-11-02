@@ -195,6 +195,11 @@ frm('Aktivierung erst ab der Freigabe: ein Schluss unter der Linie vor dem erste
   expect(c.points.X.time).toBe(77 * H4);
 });
 
+frm('Freigabe ohne Blick in die Zukunft: bis Index 76 gibt es keinen Schluss über dem Impulsende, die Linie gilt noch nicht', () => {
+  const c = run(BREAK_BEFORE_RELEASE, { t: 77 * H4 });
+  expect(state(c, 'ENC-03')).toBe(N);
+});
+
 frm('Spike am ersten Tief: die Trendlinie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {
   const line = run(SPIKE_L0).drawings.find((d) => d.id === 'Z-ENC-01')!;
   expect(line.anchors[0].time).toBe((at(0) + 1) * H4);
