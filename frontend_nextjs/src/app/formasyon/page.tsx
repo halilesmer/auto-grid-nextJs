@@ -234,7 +234,7 @@ function FormationView() {
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
-      <div className="pointer-events-none absolute left-[52px] right-0 top-18 z-50 min-w-0 lg:top-0">
+      <div className="pointer-events-none absolute left-[52px] right-0 top-18 z-50 min-w-0 max-lg:has-[[data-testid=formation-alarm-panel]]:z-[70] lg:top-0">
         <FormationToolbar
           hits={scan.hits}
           tf={tf}

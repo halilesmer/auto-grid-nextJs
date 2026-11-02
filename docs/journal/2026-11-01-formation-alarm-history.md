@@ -35,9 +35,9 @@ areas: [frontend, tests]
 
 ## Open points
 - The bell exists on `/formasyon` only (`actions` of the page header). The alarm runs on every page, but the history is visible on that page only. A bell in the global navigation is a separate step.
-- Known, not caused by this change: at 375 px the favorites sidebar covers the right 30 px of the bell menu. This also affects the "Settings" tab. A test that measures the menu width must wait until the toolbar is ready (`data-favorites-scan-ms`), because the menu aligns itself to the bell when it opens.
+- [x] Fixed 2026-11-02 (below `lg` the top bar is `z-[70]` while the bell menu is open (`has-[…formation-alarm-panel]`), so the menu lies over the sidebar; a bar that is always `z-[70]` hid the sidebar tabs, test `@FRM-30` "verdeckt die Kopfleiste" checks this; test `@FRM-30` "375 px … über der Favoriten-Seitenleiste" waits for `data-favorites-scan-ms`). Known, not caused by this change: at 375 px the favorites sidebar covers the right 30 px of the bell menu. This also affects the "Settings" tab. A test that measures the menu width must wait until the toolbar is ready (`data-favorites-scan-ms`), because the menu aligns itself to the bell when it opens.
 - Known, from the review, not fixed: `save` writes the whole object from the cache of the tab. A tab that was frozen and missed the `storage` event can overwrite a newer `history` or `memory` with the old state on its next change. This was already true for `memory`. A fix (re-read before each write) changes the store for all settings and is a separate step.
-- Known, from the review: the size of a group header counts the entries still in the list. After the cap of 100 cuts the end of an old group, the header shows the smaller number.
+- [x] Known, from the review: the size of a group header counts the entries still in the list. After the cap of 100 cuts the end of an old group, the header shows the smaller number. Decided 2026-11-02: keep. The header counts the entries that are visible below it. After the cap, the oldest group shows fewer entries, and the number agrees with the list. Test `@FRM-32` "Nach der Kappung" checks this.
 - Real browser test with a real alert: open.
 
 ## Verification

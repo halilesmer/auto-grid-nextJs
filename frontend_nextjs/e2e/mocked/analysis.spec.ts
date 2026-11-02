@@ -255,6 +255,15 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
     await expect(page.getByTestId('range-trigger')).toContainText('01.09.26 – 15.09.26');
   });
 
+  test('Ein unmöglicher Abstand (UTC−31:30 aus einem alten Tick) zählt als unsicher, kein falsches Abzeichen', { tag: '@ANA-10' }, async ({ page, worker }) => {
+    worker.state.brokerOffset = -31.5 * 3600;
+    await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
+    await page.goto(`/chart?account=${DEMO_ID}&range=today`);
+    await expect(page.getByRole('alert').filter({ hasText: msg('analysis.clock.unsure.title') })).toBeVisible();
+    await expect(page.getByTestId('broker-clock')).toBeHidden();
+    await expect(page.getByTestId('range-trigger')).toContainText('31.12.26 – 31.12.26');
+  });
+
   test('Unsichere oder unbekannte Brokeruhr: Pflicht-Hinweis, Tage vorerst in UTC', { tag: '@ANA-10' }, async ({ page, worker }) => {
     worker.state.brokerClockReliable = false;
     // UTC: 31.12.2026 22:30 – ohne sichere Brokeruhr gilt der UTC-Tag
