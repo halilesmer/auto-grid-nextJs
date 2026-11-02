@@ -1,7 +1,7 @@
 ---
 date: 2026-10-06
 type: plan
-status: open
+status: done
 pr: [110, 111, 114, 115, 126, 129, 130]
 features: [BKT-01, BKT-02, BKT-03, BKT-04, BKT-05, BKT-06, BKT-07, BKT-08, BKT-09, BKT-10, BKT-11, BKT-12, BKT-13]
 areas: [frontend, worker, docs]

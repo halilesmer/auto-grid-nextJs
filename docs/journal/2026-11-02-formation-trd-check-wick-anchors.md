@@ -2,8 +2,8 @@
 date: 2026-11-02
 author: Claude
 type: fix
-status: open
-pr: []
+status: done
+pr: [298]
 features: [FRM-03, FRM-16]
 areas: [frontend, tests]
 ---
@@ -32,7 +32,7 @@ Only the check line changes. TRD checks are read only by the TRD spec, so no oth
 - Codex scan: not run, the weekly Codex limit was at 3 % left.
 
 ## Open points
-- [ ] Finding 28 (ENC-03, also KEI and T618): the channel line uses raw pivots instead of the TRD line (TRD-34 to TRD-36). This is a separate step in wave 2, after the small-fixes package is merged. A prototype exists: `lineThrough(m, posA, posB)` taken out of `trendLines` in `trd.ts`, and the TRD line in the channel base. It changes 70 of 118 ENC and 49 of 118 KEI runs over all fixtures, and 4 real-series tests become red (`enc-buy-h4-02`, `enc-form-h4-01`, `kei-sell-h4-01`, `kei-bad-h4-03`). The coordinator decides these 4 with the project owner. Also open in that step: the Z-KEI-01 start anchor and the T618 line (`t618.ts`, `t618Checks.ts`). Continued in `2026-11-02-formation-line-trd-measure.md`.
+- [x] Finding 28 (ENC-03, also KEI and T618): the channel line uses raw pivots instead of the TRD line (TRD-34 to TRD-36). This is a separate step in wave 2, after the small-fixes package is merged. A prototype exists: `lineThrough(m, posA, posB)` taken out of `trendLines` in `trd.ts`, and the TRD line in the channel base. It changes 70 of 118 ENC and 49 of 118 KEI runs over all fixtures, and 4 real-series tests become red (`enc-buy-h4-02`, `enc-form-h4-01`, `kei-sell-h4-01`, `kei-bad-h4-03`). The coordinator decides these 4 with the project owner. Also open in that step: the Z-KEI-01 start anchor and the T618 line (`t618.ts`, `t618Checks.ts`). Continued in `2026-11-02-formation-line-trd-measure.md`: ENC and KEI done in PR #305; the T618 line stays open there.
 
 ## Lessons
 - Before you change a shared line helper, measure all fixtures: a stricter line changes which five-point base the channel search selects, not only the check state.

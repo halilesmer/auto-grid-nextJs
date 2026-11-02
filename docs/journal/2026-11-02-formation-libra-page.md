@@ -3,7 +3,7 @@ date: 2026-11-02
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [294]
 features: [FRM-09, FRM-18, FRM-19]
 areas: [frontend, tests]
 ---
@@ -54,7 +54,7 @@ areas: [frontend, tests]
 - [ ] K is set when the touch comes before P3 is a finished fractal (touch within 2 candles after P3). Then the checklist shows no "forming" note and the alarm event "target" can come before P3 is finished.
 - [ ] `cypChecks.ts` calls `analyzeLib` without results of Gartley and Bat (CYP-10); there the Libra still computes them itself.
 - [ ] No test proves that the scan gives the Gartley/Bat and Cypher results to `LIB-10` and `LIB-09`: no real series has a measurable `LIB-09` or a met `LIB-10` (checked over all H4 fixtures).
-- [ ] OBO, TDF and 2618 follow one at a time.
+- [x] OBO, TDF and 2618 follow one at a time. Done: OBO in PR #295, TDF in PR #297, 2618 in PR #301.
 
 ## Lessons
 - A rule that measures an event must measure it at the price that the trade uses. A second edge with its own choice needs its own touch.
