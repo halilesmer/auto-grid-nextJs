@@ -178,8 +178,12 @@ const BREAKOUT = [...zig([100, 120, 110, 135]), [133.3, 136.2, 133.2, 136] as Ro
 const LOWER_LOW_WICK = patched(zig([100, 120, 105]), 10, [108, 108.5, 95, 101]);
 /** Linie 100 → 101 (eine Stufe je Kerze), drei Rücksetzer genau auf die Linie, kein neues Hoch über 140 */
 const TOUCHES = zig([100, 120, 101, 140, 102, 130, 103, 130, 104]);
+/** Wie TOUCHES, aber nur ein Rücksetzer auf die Linie: mit den beiden Ankern die dritte Berührung */
+const ONE_TOUCH = zig([100, 120, 101, 140, 102, 130]);
 /** Rücklauf unter die Linie (Schluss 135 < 136,25), aber über dem Tief 124 */
 const LINE_BROKEN = zig([100, 120, 110, 135, 124, 150, 130]);
+/** Rechter Nachbar des Hochs 135 (Index 15) mit Docht 135,5, Schluss darunter: neues Hoch, bevor das Fraktal fertig ist */
+const RIGHT_WICK = patched(UP3, 15, [134.8, 135.5, 132.15, 132.25]);
 /** Tief auf Index 10 ist ein Spike: Körper 0, Docht 1 */
 const SPIKE = patched(UP3, 10, [111, 111.2, 110, 111]);
 /** 40 steigende Kerzen: Hoch 140 liegt in der grünen Wave-Phase */
@@ -398,6 +402,11 @@ const CASES: Case[] = [
     expect: { 'TRD-34': 'met', 'TRD-40': 'met', 'TRD-41': 'met', 'TRD-42': 'met', 'TRD-43': 'unmet' },
   },
   {
+    name: 'Ein Rücksetzer auf die Linie ist mit den beiden Ankern die dritte Berührung',
+    run: () => run(ONE_TOUCH),
+    expect: { 'TRD-34': 'met', 'TRD-40': 'met', 'TRD-41': 'met' },
+  },
+  {
     name: 'Schluss unter der Linie ohne Trendwechsel ist nur ein Signal',
     run: () => run(LINE_BROKEN),
     expect: { 'TRD-42': 'unmet', 'TRD-43': 'met', 'TRD-16': U },
@@ -441,6 +450,11 @@ const CASES: Case[] = [
     name: 'Mitten im Zug: das Hoch ist kein Fraktal, ein späterer Schluss liegt darüber und das Extrem ist höher',
     run: () => point(UP3, 12, 'resistance'),
     expect: { 'TRD-01': 'met', 'TRD-02': 'unmet', 'TRD-03': 'unmet', 'TRD-05': 'met', 'TRD-06': 'unmet' },
+  },
+  {
+    name: 'Höherer Docht in der rechten Bestätigung, Schluss darunter: neues Hoch vor dem fertigen Fraktal',
+    run: () => point(RIGHT_WICK, 14, 'resistance'),
+    expect: { 'TRD-02': 'unmet', 'TRD-03': 'met', 'TRD-05': 'met', 'TRD-06': 'unmet' },
   },
   {
     name: 'Zweites Hoch nach dem Hoch 135 ohne Tief dazwischen wechselt nicht ab',

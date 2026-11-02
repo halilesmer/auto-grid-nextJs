@@ -1863,7 +1863,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt erst ab dem vorletzten Punkt, getestet für Harmonik, Doppeltop, Libra und Kopf-Schulter, kein Sprung zu einem nicht zählenden Treffer).
-          - Playwright-Test e2e/mocked/formation-tdf-scan-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt bei der Trendfortsetzung erst der vorletzte Punkt der Unterform: C2, H2, LOW oder FLOOR; der Henkel allein zählt nicht).
+          - "Playwright-Test e2e/mocked/formation-tdf-scan-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt bei der Trendfortsetzung erst der vorletzte Punkt der Unterform: C2, H2, LOW oder FLOOR; der Henkel allein zählt nicht)."
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-18) ausführen (Kopf-Schulter im Aufbau ohne rechte Schulter ohne Badge, Badge-Zahlen auf einer echten H4-Reihe, Sprung zur Zeiteinheit des Treffers, Leerzustand auf M15, Libra-, Kopf-Schulter- und Trendfortsetzungs-Schaltfläche mit Badge).
         erwartet: Die Badges zeigen die Treffer der Fixture (Gartley gültig, Bat im Aufbau); ein Klick auf Gartley bei gewählter M15 wechselt auf H4; auf M15 steht der Leerzustand ohne Checkliste; auf einer echten Libra-Reihe zeigt „Libra“ den Badge 1 und die Checkliste der gültigen Libra; auf einer echten Kopf-Schulter-Reihe zeigt „Kopf-Schulter“ den Badge 1 und die Checkliste der gültigen OBO mit erreichtem Punkt B; auf einer echten Dreiecks-Reihe zeigt „Trendfortsetzung“ den Badge 1 und die Checkliste des gültigen Dreiecks (Bedingungen der anderen Unterformen inaktiv) mit erreichtem Punkt B.
 
