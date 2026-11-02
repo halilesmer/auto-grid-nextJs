@@ -37,7 +37,7 @@ import { FRZ_PARAMS, LIB_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
 import { exemptFor, settle } from './settle';
 import { divergenceOf, tradeSideOf } from './sig';
-import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Side, Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Side, type Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -231,10 +231,10 @@ function drawingsOf(bars: readonly FormationBar[], s: LibShape, target: number, 
       tool: 'fib',
       anchors: [at(p2.idx, p2.price), at(p3.idx, p3.price)],
       levels: [LIB_PARAMS.minCorrection, LIB_PARAMS.entryLevel, -LIB_PARAMS.targetExtension],
-      rules: [],
+      rules: TRADE_RULES,
       side,
     },
-    { id: 'Z-LIB-04', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side, label: 'target' },
+    { id: 'Z-LIB-04', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: TRADE_RULES, side, label: 'target' },
     { id: 'Z-LIB-05', tool: 'label', anchors: [{ time: lastTime, price: p2.price }], rules: ids('LIB', [13]), side, label: 'stop' },
     {
       id: 'Z-LIB-06',
@@ -244,7 +244,7 @@ function drawingsOf(bars: readonly FormationBar[], s: LibShape, target: number, 
       side,
     },
   ];
-  if (reached !== null) out.push({ id: 'Z-LIB-07', tool: 'marker', anchors: [at(reached, target)], rules: [], side });
+  if (reached !== null) out.push({ id: 'Z-LIB-07', tool: 'marker', anchors: [at(reached, target)], rules: TRADE_RULES, side });
   return out;
 }
 
