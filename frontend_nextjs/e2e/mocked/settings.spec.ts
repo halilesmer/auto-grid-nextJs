@@ -101,7 +101,8 @@ test.describe('SET Einstellungen', () => {
     worker.overrides.set(`POST /api/settings/${DEMO_ID}`, { status: 500, body: { detail: 'Disk voll' } });
     await dashboard.zoneField(msg('zone.field.maxPrice')).fill('120');
     await page.getByRole('button', { name: msg('saveBar.saveAll') }).click();
-    await expect(page.getByText(/Tüm ayarları kaydetme başarısız|Failed to save settings/)).toBeVisible();
+    await expect(page.getByText(msg('dashboard.saveAll.failed')).first()).toBeVisible();
+    await expect(page.getByText(/Disk voll/).first()).toBeVisible();
     await expect(dashboard.saveAll).toContainText(msg('saveBar.saveAll'));
   });
 });

@@ -178,9 +178,12 @@ Side finding (not part of ANA-14): the scope "GBPCHF · Setup 1" (magic 200001) 
 - [x] Run the steps that remain for VPS-09. Done on 2026-10-15.
 - [ ] Examine the VPS-07 side finding: under an elevated worker, the bots are children of the worker, so `Get-ElevatedSummary` hides them. The warning then shows `infoNoBots` (`VpsElevatedWarning.tsx`), but `fix-elevated` also stops elevated bots and MT5. Not seen in the check, because the bots did not run elevated.
 - [ ] Run the checks that need the owner (table "Verification").
-- [ ] Examine the side finding in "ANA-14 check": USOUSD trades of magic 200001 have the label "GBPCHF · Setup 1".
+- [x] Examine the side finding in "ANA-14 check": USOUSD trades of magic 200001 have the label "GBPCHF · Setup 1".
+  - Decision of the owner (2026-11-02): the label stays. Per ANA-14, the setup row has the same name as the symbol card, also after the symbol of the setup changed (the magic stays, `zone_registry` overwrites the symbol).
+- [ ] The page counted 356 trades for magic 200001, the deal API 354 positions (entry "ANA-14 check"). Not examined. Opened 2026-11-02.
 - [x] Prepare a symbol with 2 setups and trades for LOG-07 and ANA-14. Done on 2026-10-15.
-- [ ] Show the worker `detail` when "save all" fails (`mergeAndSaveSettings` in `useSettingsStore.ts`).
+- [x] Show the worker `detail` when "save all" fails (`mergeAndSaveSettings` in `useSettingsStore.ts`).
+  - Done (2026-11-02): the store throws the `detail` string of the worker; the e2e test SET-03 checks the text (red before the change, green after).
 - [x] Prepare pending orders of a legacy setup for ENG-29, or close ENG-29 as not testable any more. ENG-29 has no manual tier now. See `2026-10-13-eng-29-and-update-task-running.md`.
 - [x] Find why `AutoGrid-Update` shows `Running` since 2026-10-10. See `2026-10-13-eng-29-and-update-task-running.md`.
 
