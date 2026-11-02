@@ -27,7 +27,7 @@ export const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground
 
 /**
  * Kopfleiste im TradingView-Stil: `children` (Symbol und Konto) und Zeiteinheiten in der Leiste, Formationen in der
- * Zeile darunter. Die Badges zählen Treffer (gültig oder im Aufbau) über alle Zeiteinheiten bzw. Formationen.
+ * Zeile darunter. Die Badges zählen Treffer (gültig, oder im Aufbau mit vorletztem Punkt) über alle Zeiteinheiten bzw. Formationen.
  * Rechts bleibt ab lg Platz für die Werkzeuge des ChartWorkspace, die dort über der Leiste liegen; die Leiste reicht Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie), damit ihre Menüs über der Bedingungskarte liegen können, ohne die Werkzeuge zu verdecken.
  */
 export function FormationToolbar({

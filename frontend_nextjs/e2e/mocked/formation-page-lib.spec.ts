@@ -208,6 +208,45 @@ test.describe('Treffer zählen und Zeiteinheit wählen', () => {
   });
 });
 
+const pt = (i: number) => point(i, 10 + i);
+const chk = (id: string, state: 'met' | 'unmet' | 'unmeasurable') => ({ id, kind: 'required' as const, status: 'confirmed' as const, state, drawings: [] });
+/** Treffer im Aufbau mit den genannten Punkten und Prüfzuständen */
+const formingWith = (form: ScanHit['form'], tf: ScanHit['tf'], names: string[], checks: ReturnType<typeof chk>[] = []): ScanHit => ({
+  form,
+  tf,
+  candidate: { ...forming, code: form, tf, verdict: 'forming', points: Object.fromEntries(names.map((n, i) => [n, pt(i)])), checks },
+});
+
+test.describe('Im Aufbau zählt erst ab dem vorletzten Punkt', () => {
+  frm('FRM-18', 'Harmonik und Doppeltop: ohne vorletzten Punkt (C bzw. N) zählt der Treffer nicht, mit ihm zählt er', () => {
+    expect(hitsCount([formingWith('GAR', 'H4', ['A', 'B'])], { form: 'GAR' })).toBe(0);
+    expect(hitsCount([formingWith('GAR', 'H4', ['A', 'B', 'C'])], { form: 'GAR' })).toBe(1);
+    expect(hitsCount([formingWith('CDT', 'H1', ['H1', 'T'])], { form: 'CDT' })).toBe(0);
+    expect(hitsCount([formingWith('CDT', 'H1', ['H1', 'T', 'N'])], { form: 'CDT' })).toBe(1);
+  });
+
+  frm('FRM-18', 'Libra: P3 zählt erst, wenn es ein fertiges Fraktal ist (LIB-04 nicht „nicht erfüllt“)', () => {
+    const names = ['P1', 'P2', 'C', 'P3', 'E'];
+    expect(hitsCount([formingWith('LIB', 'H4', names, [chk('LIB-04', 'unmet')])], { form: 'LIB' })).toBe(0);
+    expect(hitsCount([formingWith('LIB', 'H4', names, [chk('LIB-04', 'met')])], { form: 'LIB' })).toBe(1);
+    expect(hitsCount([formingWith('LIB', 'H4', ['P1', 'P2', 'C'], [chk('LIB-04', 'met')])], { form: 'LIB' })).toBe(0);
+  });
+
+  frm('FRM-18', 'Kopf-Schulter: die rechte Schulter zählt erst fertig (OBO-02 nicht „nicht messbar“)', () => {
+    const names = ['LS', 'K', 'N1', 'N2', 'RS'];
+    expect(hitsCount([formingWith('OBO', 'H4', names, [chk('OBO-02', 'unmeasurable')])], { form: 'OBO' })).toBe(0);
+    expect(hitsCount([formingWith('OBO', 'H4', names, [chk('OBO-02', 'met')])], { form: 'OBO' })).toBe(1);
+    expect(hitsCount([formingWith('OBO', 'H4', ['LS', 'K', 'N1'], [chk('OBO-02', 'met')])], { form: 'OBO' })).toBe(0);
+  });
+
+  frm('FRM-18', 'gültige Treffer zählen auch ohne die Prüfung des vorletzten Punktes; ein nicht zählender Treffer gibt keinen Sprung', () => {
+    expect(hitsCount([hit('OBO', 'H4', 'valid')], { form: 'OBO' })).toBe(1);
+    const early = [formingWith('OBO', 'H1', ['LS', 'K'], [chk('OBO-02', 'unmeasurable')]), hit('OBO', 'D1', 'valid')];
+    expect(timeframeForForm(early, 'OBO', 'M15')).toBe('D1');
+    expect(timeframeForForm([early[0]], 'OBO', 'M15')).toBe('M15');
+  });
+});
+
 test.describe('Laufende Kerze nur zur Anzeige', () => {
   const bar = (time: number, open: number, high: number, low: number, close: number): Bar => ({ time, open, high, low, close });
   const rates = { bars: [bar(0, 10, 12, 9, 11), bar(100, 11, 13, 10, 12)], liveFrom: 100 };

@@ -13,7 +13,7 @@ import { analyzeLib } from './libChecks';
 import { analyzeObo } from './oboChecks';
 import type { FormationContext } from './context';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
-import type { Candidate } from './types';
+import type { Candidate, CheckState } from './types';
 
 export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB', 'OBO'] as const;
 export type ScanFormation = (typeof SCAN_FORMATIONS)[number];
@@ -23,6 +23,22 @@ export const UPPER_TIMEFRAME: Record<ContextTimeframe, string> = { D1: 'W1', H4:
 
 /** Name des letzten Punktes einer Formation: fehlt er, ist die Formation im Aufbau (Libra: K = Berührung der Einstiegskante; Kopf-Schulter: B = Nackenbruch) */
 export const FINAL_POINT: Record<ScanFormation, string> = { ABCD: 'D', GAR: 'D', BAT: 'D', BUT: 'D', CRB: 'D', CYP: 'D', CDT: 'H2', LIB: 'K', OBO: 'B' };
+
+/**
+ * Vorletzter Punkt: ein Treffer im Aufbau zählt erst, wenn er da ist (FRM-18).
+ * Libra und Kopf-Schulter setzen ihn auch vor dem fertigen Fraktal; dort zeigt der Zustand einer Bedingung (`unfinished`), dass er noch kein fertiges Fraktal ist.
+ */
+export const PENULTIMATE_POINT: Record<ScanFormation, { point: string; unfinished?: { id: string; state: CheckState } }> = {
+  ABCD: { point: 'C' },
+  GAR: { point: 'C' },
+  BAT: { point: 'C' },
+  BUT: { point: 'C' },
+  CRB: { point: 'C' },
+  CYP: { point: 'C' },
+  CDT: { point: 'N' },
+  LIB: { point: 'P3', unfinished: { id: 'LIB-04', state: 'unmet' } },
+  OBO: { point: 'RS', unfinished: { id: 'OBO-02', state: 'unmeasurable' } },
+};
 
 export interface ScanHit {
   form: ScanFormation;
@@ -68,8 +84,15 @@ export function scanFormations(ctx: FormationContext, t: number): ScanHit[] {
   return hits;
 }
 
-/** Zählt für das Badge: gültig oder im Aufbau; ungültige zählen nicht */
-export const countsAsHit = (hit: ScanHit): boolean => hit.candidate.verdict !== 'invalid';
+/** Zählt für das Badge: gültig, oder im Aufbau mit fertigem vorletztem Punkt; ungültige zählen nicht */
+export function countsAsHit({ form, candidate }: ScanHit): boolean {
+  if (candidate.verdict === 'valid') return true;
+  if (candidate.verdict === 'invalid') return false;
+  const { point, unfinished } = PENULTIMATE_POINT[form];
+  if (!(point in candidate.points)) return false;
+  if (unfinished === undefined) return true;
+  return !candidate.checks.some((c) => c.id === unfinished.id && c.state === unfinished.state);
+}
 
 export const hitsCount = (hits: readonly ScanHit[], by: { form?: ScanFormation; tf?: ContextTimeframe }): number =>
   hits.filter((h) => countsAsHit(h) && (by.form === undefined || h.form === by.form) && (by.tf === undefined || h.tf === by.tf)).length;
