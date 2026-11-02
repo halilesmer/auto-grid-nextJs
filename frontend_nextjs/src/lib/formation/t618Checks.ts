@@ -95,7 +95,7 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
   add('T618-02', flag(outward(es, l2.price - l1.price) > 0));
   add('T618-03', flag(!touches.violatedBeforeP), touches.total);
   add('T618-04', flag(breakIdx !== null));
-  // Der Wechsel zählt nur bis zur Einstiegskerze (Berührung von 0.618), ohne Berührung bis zur letzten Kerze; wie 2618-06
+  // Der Wechsel zählt nur bis zur Einstiegskerze (Berührung von 0.618), ohne Berührung bis zur letzten Kerze
   const s = returnTouch(bars, es, cs, p, i);
   const entryIdx = s.touch?.idx ?? bars.length - 1;
   add('T618-05', flag(model.changes.some((c) => c.to === wantedDir && c.k > p.idx && c.k <= entryIdx)));

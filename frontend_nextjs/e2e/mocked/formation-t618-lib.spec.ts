@@ -64,6 +64,8 @@ const NO_BREAK = lineRows([100, 140, 118, 150, 130, 156, 150, 155]);
 const NO_CHANGE = lineRows([100, 140, 118, 150, 130, 156, 135, 149]);
 /** Wie NO_CHANGE, danach fällt der Preis auf 120: die zwei Schlüsse unter dem Tief 130 kommen erst nach der Berührung von 0.618 */
 const LATE_CHANGE = lineRows([100, 140, 118, 150, 130, 156, 135, 149, 120]);
+/** I 135, K 145 bleibt unter 0.618 (147,98), danach Fall auf 120: Wechsel ohne Berührung, er zählt bis zur letzten Kerze */
+const CHANGE_NO_TOUCH = lineRows([100, 140, 118, 150, 130, 156, 135, 145, 120]);
 /** Die Reihe endet an I: dort ist noch kein Fraktal fertig */
 const OPEN_I = lineRows([100, 140, 118, 150, 130, 156, 118], 8, 0);
 /** K 138 bleibt unter dem Level 0.618 (141,48) */
@@ -94,6 +96,7 @@ const CASES: Case[] = [
   { name: 'T618-04 ☐: nach P schließt keine Kerze unter der Linie', rows: NO_BREAK, expect: { '04': N, '05': N, '06': N, '03': M } },
   { name: 'T618-05 ☐: Schluss unter der Linie, aber nie zweimal unter dem Tief 130', rows: NO_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
   { name: 'T618-05 ☐: der Trend wechselt erst nach der Berührung von 0.618 (nach dem Einstieg)', rows: LATE_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
+  { name: 'T618-05 ☑ ohne Berührung: der Wechsel zählt bis zur letzten Kerze', rows: CHANGE_NO_TOUCH, expect: { '04': M, '05': M, '07': N } },
   { name: 'T618-06 ☐: an I ist noch kein Fraktal fertig', rows: OPEN_I, expect: { '06': N, '07': N, '09': U } },
   { name: 'T618-07 ☐: die Korrektur bleibt unter 0.618', rows: NO_TOUCH, expect: { '06': M, '07': N, '09': U } },
   { name: 'T618-08 nicht messbar: ohne Vorlauf fehlt die Wave an H2', rows: NO_LEAD, options: { p: at(5, 0), i: at(6, 0) }, expect: { '08': U, '04': M, '07': M } },

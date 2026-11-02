@@ -105,9 +105,10 @@ function drawingsOf(env: Env, tf: ContextTimeframe, c: Channel): Drawing[] {
   ];
   // Ziel-Fib auf den aktuellen Impuls der höheren ZE in Trendrichtung des Keils (Anfangspunkt im Regelwerk nicht genannt); ohne höhere ZE keine Zeichnung
   const higherTf = neighborTf(env, tf, -1);
+  // Alle Beine eines FibModel laufen in seine Trendrichtung; das letzte ist der aktuelle Impuls
   const higherLegs = higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [];
-  const impulse = [...higherLegs].reverse().find((leg) => leg.dir === trendOf(es));
-  if (higherTf && impulse) {
+  const impulse = higherLegs[higherLegs.length - 1];
+  if (higherTf && impulse && impulse.dir === trendOf(es)) {
     const higherBars = env.views.get(higherTf)!.bars;
     out.push({
       id: 'Z-KEI-02',

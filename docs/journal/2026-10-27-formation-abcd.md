@@ -40,7 +40,7 @@ FRZ, TRD, FIB and SIG keep their behaviour. ABCD calls their building blocks onl
 - ABCD-12: without a loaded higher timeframe (and not D1) the state is `unmeasurable`.
 - ABCD-13: "first test" means the near zones had no test before the D candle (FRZ-31 count up to the candle before D).
 - A zone that only the D itself forms (finished fractal at D) does not count as the place of D. Without this rule ABCD-10 would be met by the D alone.
-- ABCD-11 without an ATR is unmet and never blocks the verdict.
+- ABCD-11 without an ATR is unmet and never blocks the verdict. Replaced on 2026-11-02: see `2026-11-02-formation-small-findings.md`.
 - ABCD-20 looks for an engulf whose last candle lies from the D candle on, in this timeframe or the next lower one.
 - ABCD-25 is unmet for every loaded timeframe (the context holds D1, H4, H1, M15 only). The function `timeframeExcluded` covers M1 and M5 in the test.
 - ABCD-16 (harmonic D) and ABCD-24 (double top) are always `unmeasurable` until the GAR/BAT and CDT steps.

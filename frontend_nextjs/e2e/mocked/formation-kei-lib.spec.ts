@@ -147,14 +147,29 @@ frm('Zeichnungen: zwei zulaufende Linien und Zonen kommen auch bei ☐; ohne hö
 /** D1 im Aufwärtstrend: Wendepunkte 80, 120, 100, 140, 125 auf Index 2, 6, 10, 14, 18; 120 → 100 ist 0,5 tief (Korrektur), der aktuelle Impuls ist 100 → 140 */
 const D1_UP = zig([80, 120, 100, 140, 125], 4, 3);
 
+/** Keil der Basisreihe mit D1-Kerzen; `buy = true` spiegelt beide Reihen (Kauf) */
+function runWithD1(d1: Row[], buy = false): Candidate {
+  const series = buy ? mirror(BASE, AXIS) : BASE;
+  const ctx = new FormationContext('TEST', { H4: barsOf(series, H4), D1: barsOf(buy ? mirror(d1, AXIS) : d1, D1) });
+  const pick = (n: number) => tip(series, at(n), n % 2 === 1, buy);
+  return checkKeiCandidate(ctx, END, { tf: 'H4', l0: pick(0), hs: pick(1), la: pick(2), h2: pick(3), lb: pick(4) });
+}
+
 frm('Z-KEI-02: Ziel-Fib auf den aktuellen Impuls der höheren Zeiteinheit (D1), nicht auf die Bewegung der Formations-ZE', () => {
-  const ctx = new FormationContext('TEST', { H4: barsOf(BASE, H4), D1: barsOf(D1_UP, D1) });
-  const pick = (n: number) => tip(BASE, at(n), n % 2 === 1, false);
-  const c = checkKeiCandidate(ctx, END, { tf: 'H4', l0: pick(0), hs: pick(1), la: pick(2), h2: pick(3), lb: pick(4) });
-  const fib = c.drawings.find((d) => d.id === 'Z-KEI-02')!;
+  const fib = runWithD1(D1_UP).drawings.find((d) => d.id === 'Z-KEI-02')!;
   expect(fib.tool).toBe('fib');
   expect(fib.anchors).toEqual([{ time: 10 * D1, price: 100 }, { time: 14 * D1, price: 140 }]);
   expect(fib.levels).toEqual([0.382, 0.618]);
+});
+
+frm('Z-KEI-02 beim Kauf: gespiegelt liegt die Ziel-Fib auf dem fallenden D1-Impuls 300 → 260', () => {
+  const fib = runWithD1(D1_UP, true).drawings.find((d) => d.id === 'Z-KEI-02')!;
+  expect(fib.anchors).toEqual([{ time: 10 * D1, price: 300 }, { time: 14 * D1, price: 260 }]);
+});
+
+frm('Z-KEI-02 fehlt, wenn der D1-Impuls gegen den Trend des Keils läuft', () => {
+  // Verkaufskeil im Aufwärtstrend, D1 gespiegelt: der aktuelle D1-Impuls fällt
+  expect(runWithD1(mirror(D1_UP, AXIS)).drawings.map((d) => d.id)).not.toContain('Z-KEI-02');
 });
 
 frm('Analyse findet den Keil selbst und liefert alle Bedingungen', () => {

@@ -40,7 +40,7 @@ The existing patterns keep their behaviour. No UI.
 - **T6-3** The line anchors are the two turning points of the opposite side directly before P (the last and the third-last point before P). They are wick tips; a spike replacement as in the trend line rule is not applied.
 - **T6-4** The impulses of T618-01 are the legs that end at a P-side turning point up to P. Two in a row, each shorter than the one before (TRD-24 measure).
 - **T6-5** T618-03 counts the two anchors plus later touches until the break. It is unmet when a close lies beyond the line before P, because then the line does not hold as support or resistance.
-- **T6-6** T618-05 is met by the first trend change in trade direction after P. It does not have to come after the break.
+- **T6-6** T618-05 is met by the first trend change in trade direction after P. It does not have to come after the break. Replaced on 2026-11-02: see `2026-11-02-formation-small-findings.md`.
 - **T6-7** T618-06 needs the break bar at or before I and a finished fractal at I; the correction has begun when the fractal is finished.
 - **T6-8** T618-08 uses the tie variant (equal or weaker wave) between the previous turning point on the P side and P. T618-09 is met when neither the touch candle nor the one before it is a wide candle against the trade direction.
 - **T6-9** The verdict is "invalid" when T618-01, -02 or -03 is unmet. It is "forming" when the break, the trend change, the finished fractal at I or the touch is missing.
@@ -51,7 +51,7 @@ The existing patterns keep their behaviour. No UI.
 - **LN-5** KEI-07 is met with at least three touches at the top (the two of the count plus one). It is a bonus rule, as the rule book decides.
 - **LN-6** The activation is the first close beyond the trend line after the impulse end. A trend change counts when it comes at or after the activation.
 - **LN-7** ENC-07 compares the last correction with the one before it (ratio 0.75 to 1.333). The corrections are the legs on the opposite side before the activation.
-- **LN-8** Z-KEI-02 draws the Fibonacci on the last big leg of the pattern time frame (from the opposite-side point before the impulse end to the outermost extreme). The rule book does not name the start and talks about a higher time frame. Z-KEI-03 draws the stop zone at the second extreme and the first target zone at the first low.
+- **LN-8** Z-KEI-02 draws the Fibonacci on the last big leg of the pattern time frame (from the opposite-side point before the impulse end to the outermost extreme). The rule book does not name the start and talks about a higher time frame. Z-KEI-03 draws the stop zone at the second extreme and the first target zone at the first low. Replaced on 2026-11-02: see `2026-11-02-formation-small-findings.md`.
 - **LN-9** The verdict is "invalid" when the form rules (ENC-01 to ENC-03, KEI-01 to KEI-04) are unmet. Without an activation it is "forming". With an activation and unmet touches (ENC-04, KEI-05) it is "invalid".
 
 ## Test cases
@@ -63,4 +63,4 @@ The existing patterns keep their behaviour. No UI.
 - The rule book names no minimum size. Many real finds are small and fast (the points lie within one or two days on H4). A size filter needs a decision of the project owner.
 - ENC-01 is "not measurable" on every real fixture because only H4 candles are loaded; it is covered by hand-made series with H1 candles. No real case with D1 or H1 is loaded.
 - The ENC copy is anchored on the outermost extreme with a tolerance. A real channel whose second extreme lies beyond the copy by more than the tolerance fails ENC-04; the rule book gives no number for this.
-- The Fibonacci of Z-KEI-02 uses the pattern time frame (LN-8). The rule book names a higher time frame.
+- The Fibonacci of Z-KEI-02 uses the pattern time frame (LN-8). The rule book names a higher time frame. Replaced on 2026-11-02: see `2026-11-02-formation-small-findings.md`.
