@@ -93,6 +93,7 @@ function FormationView() {
   const [pickedTf, setPicked] = useState<string | null>(null);
   const hit = list.find((h) => `${h.form}-${h.tf}` === pickedTf) ?? list[0] ?? null;
   const [active, setActive] = useState<string[] | null>(null);
+  const [priceBottom, setPriceBottom] = useState(0);
   const [detailsOpen, setDetailsOpen] = useState(true);
   // Kandidat und Markierung gehören zum alten Produkt
   const clearSelection = () => {
@@ -194,7 +195,7 @@ function FormationView() {
       );
     }
     return hit && scan.context && scan.scanAt !== null ? (
-      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} running={scan.running[hit.tf]} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} />
+      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} running={scan.running[hit.tf]} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} />
     ) : (
       <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted-foreground" data-testid="formation-empty">
         {!scan.loading && t('formation.empty.chart', { form: formName, tf })}
@@ -292,7 +293,7 @@ function FormationView() {
         )}
       </FormationDetailsPanel>
       {hit && (
-        <ul className="pointer-events-none absolute bottom-[20%] left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex" data-testid="formation-legend">
+        <ul className={`pointer-events-none absolute left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
           <li>{t('formation.legend.zigzag', { points: Object.keys(hit.candidate.points).join('–') })}</li>
           <li>{t('formation.legend.ratio')}</li>
           <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>

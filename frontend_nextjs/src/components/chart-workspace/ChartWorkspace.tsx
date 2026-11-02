@@ -38,7 +38,7 @@ const TIMEFRAME_LABEL = Object.fromEntries(Object.entries(TIMEFRAME_SEC).map(([n
 function zoomHint(n: number): MessageKey { if (!n) return 'cw.fit.hint'; return n > 0 ? 'cw.zoomIn.hint' : 'cw.zoomOut.hint'; }
 function zoomLabel(n: number, fit: string) { if (!n) return fit; return n > 0 ? '+' : '−'; }
 const toolKey = (kind: DrawingKind) => `cw.tool.${kind}` as MessageKey;
-export interface WorkspaceContext { key: string; symbol: string; view: 'analysis' | 'backtest' | 'formation' | 'free'; systemRsi?: boolean; syncIdentity?: DrawingIdentity }
+export interface WorkspaceContext { key: string; symbol: string; view: 'analysis' | 'backtest' | 'formation' | 'free'; systemRsi?: boolean; systemWave?: boolean; syncIdentity?: DrawingIdentity }
 interface Props {
   context: WorkspaceContext;
   binding: ChartBinding | null;
@@ -98,10 +98,12 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const drawingKey = state.links[context.key] ?? context.key;
   const locked = preferences.locked;
   const defaults = useMemo(() => {
-    const indicators = context.systemRsi ? [newIndicator('EWO')] : [newIndicator('RSI'), newIndicator('EWO')];
+    // Das System-Wave zeigt schon EWO: kein zweites Histogramm als Nutzer-Indikator
+    const defaultKinds = context.systemRsi ? [newIndicator('EWO')] : [newIndicator('RSI'), newIndicator('EWO')];
+    const indicators = context.systemWave ? [] : defaultKinds;
     indicators.forEach(v => { v.id = `initial-${v.kind}`; });
     return { ...emptyChartDocument(), indicators };
-  }, [context.systemRsi]);
+  }, [context.systemRsi, context.systemWave]);
   const ownDocument = state.documents[context.key] ?? defaults;
   const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? (perProduct ? s.documents[context.key]?.appearance ?? s.appearance : s.appearance)));
   const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;

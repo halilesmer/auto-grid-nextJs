@@ -321,6 +321,8 @@ export function ChartCore({
     if (waveSeries) {
       chart.panes()[0]?.setStretchFactor(5);
       chart.panes()[wavePane]?.setStretchFactor(1.2);
+      // Der Bereich erbt sonst die großen Ränder der Kerzen-Achse (Platz für die Bedienung)
+      waveSeries.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
     }
     // Zahl der Bereiche, die der Chart selbst anlegt (ohne die Indikatoren des Nutzers); Tests und Fehlersuche
     el.setAttribute('data-system-panes', String(chart.panes().length));
@@ -432,11 +434,21 @@ export function ChartCore({
 
   const wavePoints = systemWave?.points, waveVisible = systemWave?.visible;
   useEffect(() => {
-    const up = colors?.up, down = colors?.down;
-    waveRef.current?.setData((wavePoints ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp, color: p.value >= 0 ? up : down })));
-    containerRef.current?.setAttribute('data-wave-points', String(wavePoints?.length ?? 0));
+    // Ohne Theme-Farben bekäme jeder Balken kurz die Standardfarbe der Bibliothek
+    if (!hasWave || !colors) return;
+    waveRef.current?.setData((wavePoints ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp, color: p.value >= 0 ? colors.up : colors.down })));
   }, [wavePoints, colors, hasWave]);
   useEffect(() => {
+    if (!hasWave) return;
+    containerRef.current?.setAttribute('data-wave-points', String(wavePoints?.length ?? 0));
+  }, [wavePoints, hasWave]);
+  // Die Wave-Werte sind Preisdifferenzen (z. B. 0,001): die Standardachse zeigte „0.00“
+  useEffect(() => {
+    const places = digits ?? 5;
+    waveRef.current?.applyOptions({ priceFormat: { type: 'price', precision: places, minMove: 10 ** -places } });
+  }, [digits, hasWave]);
+  useEffect(() => {
+    if (!hasWave) return;
     waveRef.current?.applyOptions({ visible: waveVisible });
     containerRef.current?.setAttribute('data-wave-visible', String(!!waveVisible));
   }, [waveVisible, hasWave]);
