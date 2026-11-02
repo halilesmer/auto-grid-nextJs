@@ -18,7 +18,7 @@ export interface DrawingGroup {
   id: string;
   rules: string[];
   /** price: Kerzen-Pane (außerhalb des Preisbereichs abgeschnitten), rsi: RSI-Pane */
-  pane: 'price' | 'rsi';
+  pane: 'price' | 'rsi' | 'wave';
   prims: Prim[];
 }
 
@@ -33,6 +33,8 @@ export interface LayoutInput {
   y: (price: number) => number | null;
   /** RSI-Wert → y im RSI-Pane (null: Pane nicht vorhanden) */
   yRsi: (value: number) => number | null;
+  /** Wave-Wert → y im Wave-Pane (null: Pane nicht vorhanden); noch ohne Zeichnung, die Divergenzlinie folgt (FRM-36) */
+  yWave: (value: number) => number | null;
   text: (key: string, params?: Record<string, string | number>) => string;
   fmt: (n: number) => string;
 }

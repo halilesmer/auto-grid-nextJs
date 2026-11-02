@@ -38,6 +38,7 @@ const layout = (candidate: Candidate, x: (time: number) => number | null = (time
     x,
     y: (price) => 300 - price * 10,
     yRsi: (value) => 400 - value,
+    yWave: (value) => 600 - value,
     text: (key) => key,
     fmt: (n) => String(n),
   });

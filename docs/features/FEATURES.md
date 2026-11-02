@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-02 · **198/202** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-02 · **199/203** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 9/9 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 20/21 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 34/34 |
+| 16 | **FRM** – Formationserkennung | 35/35 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -65,7 +65,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Ein Link/Code (#connect=…, base64url-JSON {v,u,k}) füllt Adresse und Schlüssel im Dialog und testet sofort; nichts wird ohne Bestätigung gespeichert, das Fragment verschwindet sofort aus der Adresszeile. worker_python/ops/windows/connect-link.ps1 erzeugt denselben Code.
   - **Prüfung:** Einen Verbindungs-Link mit gültigem Code öffnen (z. B. → Einen unvollständigen/kaputten Code öffnen.
   - **Erwartet:** Gültiger Link zeigt das Ziel im Dialog und ein erfolgreiches Testergebnis, ohne die Verbindung schon zu speichern; ungültiger Code zeigt eine Fehlermeldung.
-- [x] **SYS-09** Verbindungsstatus im Header — 🖥️ e2e ✅ 2026-10-31
+- [x] **SYS-09** Verbindungsstatus im Header — 🖥️ e2e ✅ 2026-11-02
   - Das Kopf-Menü (UI-01) öffnet bei jeder Breite über ein kompaktes Zahnrad. Der zugängliche Name und der Tooltip nennen den aktuellen Verbindungsstatus (verbunden/kein Key/nicht erreichbar/unsicher/nicht verbunden). Im Menü stehen Host und Status; „Verbindung ändern“ öffnet den Verbindungsdialog. Der Status wird alle 30 s sowie bei Fenster-Fokus erneut über SYS-07 geprüft.
   - **Prüfung:** Bei laufendem Worker das Dashboard öffnen, dann den API-Key auf dem VPS ändern. → Zurück ins Browserfenster wechseln (Fokus).
   - **Erwartet:** Das Zahnrad öffnet das Menü mit Host und Status; nach dem Fokuswechsel nennen zugänglicher Name, Tooltip und Menü den aktualisierten Status.
@@ -273,7 +273,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der (i)-Hinweis von Grid-Abstand und Take Profit (Buy/Sell) nennt für gängige Symbole (Gold, Silber, Forex, BTC/ETH, US-Indizes, Öl) einen Richtwert; bei unbekanntem Symbol bleibt der Text unverändert. Nur Anzeige, keine Validierung.
   - **Prüfung:** Symbol auf XAUUSD stellen, mit der Maus über das (i) von Grid-Abstand und Take Profit fahren. → Symbol auf ein unbekanntes Symbol stellen.
   - **Erwartet:** Bei XAUUSD steht „1–5“ als Richtwert im Hinweis; bei unbekanntem Symbol nur der Standardtext.
-- [x] **ZON-13** Abstand nach Verlust ($) — 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-10-15
+- [x] **ZON-13** Abstand nach Verlust ($) — 🖥️ e2e ✅ 2026-11-02 · 👤 manuell ✅ 2026-10-15
   - Schalter „Abstand nach Verlust ($)“ in der Zonenkarte. Wenn an, sind Grid-Abstand (BUY/SELL), Min./BUY-/SELL-Pullback, Take Profit und Stop Loss $-Beträge statt Preisabstände; beim Umschalten werden vorhandene Werte mit Lotgröße und Tick-Wert umgerechnet, unter dem Feld steht der entsprechende Preisabstand. Wird mit der Zone gespeichert (step_by_loss). Der Schalter steht direkt unter dem Grid-Abstand und dessen Preisabstand-Vorschau; der gemeinsame Block bleibt beim Zeilenumbruch zusammen, auch im Backtest-Editor.
   - **Prüfung:** Zone mit EURUSD, 0,10 Lot anlegen, „Abstand nach Verlust ($)“ einschalten, Grid-Abstand 10 und Take Profit 5 eingeben. → Speichern, Bot auf dem DEMO-Konto laufen lassen und die Pending Orders in MT5 ansehen.
   - **Erwartet:** Unter dem Feld steht „≈ 0,001 Preisabstand bei 0,1 Lot“; die Orders liegen 0,00100 auseinander (ab der zuletzt eröffneten Position), jede neue Position öffnet, wenn die vorige 10 $ im Minus ist; der TP liegt 0,00050 vom Einstieg.
@@ -302,11 +302,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** DEMO-Konto mit zwei Zonen auf XAUUSD und einer auf EURUSD, alle mit offenen Orders; Bot läuft. → Worker auf den neuen Stand bringen, im Dashboard eine Einstellung ändern und speichern. → configs/settings_<id>_Auto_Grid.json und configs/backup/ ansehen; MT5-Orders und Bot-Log prüfen.
   - **Erwartet:** Die Datei enthält SYMBOLS mit XAUUSD (2 Setups) und EURUSD (1 Setup), alle Magic-Nummern wie vorher; die Kopie der alten Datei liegt in configs/backup/. Der Bot behält alle Orders und Positionen (gleiche Tickets), das Dashboard zeigt alle drei Zonen wie vorher.
   - 📝 DEMO-Konto A, alte ZONES-Datei mit je einer Zone auf zwei Symbolen, Bot lief. Intervall im Dashboard geändert und gespeichert (14:13): Datei hat SYMBOLS mit beiden Symbolen, gleiche ids und Magics, Setups ohne symbol; Backup in configs/backup ist die alte Datei; 5 Orders und 71 Positionen mit gleichen Tickets (drei Vergleiche bis 14:16); keine Bot-Logzeile nach dem Speichern; Dashboard zeigte beide Zonen in gleicher Reihenfolge; Intervall zurückgesetzt. Nicht live geprüft: zwei Setups auf einem Symbol, Umgruppieren einer alten Datei mit gemischten Symbolen (api- und e2e-Tests decken es ab).
-- [x] **ZON-20** Symbolkarten – Setups nach Symbol gruppiert — 🖥️ e2e ✅ 2026-10-31
+- [x] **ZON-20** Symbolkarten – Setups nach Symbol gruppiert — 🖥️ e2e ✅ 2026-11-02
   - Der Zonenbereich zeigt je Symbol eine Karte. Ihr Kopf hat das Symbolfeld, die Zahl der Setups, den Preis, Markt offen/geschlossen und „Setup Ekle“; „Sembol Ekle“ steht in der Steuerleiste neben ⋯ (UI-09); darunter steht jedes Setup als eigene Karte mit dem Kopf „Setup n“. Das Symbolfeld gilt für alle Setups des Symbols und übernimmt die Eingabe erst bei Auswahl aus der Liste oder beim Verlassen des Feldes nach einer Eingabe. „Sembol Ekle“ fragt das Symbol ab und legt das erste Setup an (Lot = kleinster Lot des Symbols; hat das Symbol schon eine Karte, kommt das Setup dorthin). „Setup Ekle“ fragt nicht nach dem Symbol und fügt das Setup hinter dem letzten Setup des Symbols ein. Das letzte Setup eines Symbols zu löschen nimmt das Symbol mit (eigene Rückfrage „Sembolü Sil“). zone_states, zone_market_* und ui-state-Befehle zählen nach dem Engine-Platz der zuletzt geladenen oder gespeicherten Reihenfolge (engineOrder, nach id), nicht nach dem Platz in der Karte; ein ungespeichertes Setup verschiebt die Plätze der anderen nicht. Nach jedem Speichern übernimmt die Oberfläche die vom Worker gruppierte Reihenfolge. Start/Pause schickt den Befehl vor dem Speichern an den heutigen Platz (die ui_state-Datei zieht der Worker bei gestopptem Bot, sonst der Bot beim nächsten Einlesen mit um); scheitert das Speichern, geht der alte Zustand zurück. Das Setup ist kompakt. Zahlenfelder haben eine kurze, feste Breite (Preis 128 px, Abstand 112 px, Lot und Faktor 96 px, Ganzzahl 80 px), Auswahlfelder sind so breit wie Inhalt oder Beschriftung, und die Felder stehen in umbrechenden Zeilen. Zusammengehörige Felder und Schalter bleiben beieinander. „Abstand nach Verlust“ steht direkt unter dem Grid-Abstand und dessen Vorschau in einem gemeinsamen Block; die übrigen Schalter stehen in Feldzeilen daneben, „BUY/SELL gleich“ neben dem Ordertyp, „Erste Position sofort“ hinter dem SL, „Nur Trend“ vor dem Pullback, „Bereinigen“ vor seinen Auswahlfeldern, im Fraktal-Modus „SL“ vor der SL-Methode und „TP als Betrag“ vor dem TP-Feld.
   - **Prüfung:** DEMO-Konto mit zwei Symbolen; im Dashboard „Setup Ekle“ in einer Symbolkarte, „Sembol Ekle“ mit einem neuen Symbol, dann das einzige Setup eines Symbols löschen; speichern und neu laden. → Bei laufendem Bot prüfen, dass „Otomatik temizlendi“ und das Markt-Badge an der richtigen Karte stehen. → In einem Setup Ordertyp BOTH wählen, „BUY/SELL gleich“ aus, „Nur Trend“ und „Bereinigen“ an; ein zweites Setup auf Fraktal stellen.
   - **Erwartet:** Je Symbol eine Karte mit „Setup 1…n“; das neue Setup steht in seiner Symbolkarte; das gelöschte Symbol ist weg; nach dem Neuladen dieselben Karten; Motorzustände an den richtigen Setups. Die Setup-Felder sind kurz. „Abstand nach Verlust“ bleibt direkt unter dem Grid-Abstand; die übrigen Schalter bleiben neben ihrem Feld.
-- [x] **ZON-21** Fraktal – nächste Order ab Verlust (Betrag/Pips/Ticks) — 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-10-13
+- [x] **ZON-21** Fraktal – nächste Order ab Verlust (Betrag/Pips/Ticks) — 🖥️ e2e ✅ 2026-11-02 · 👤 manuell ✅ 2026-10-13
   - Fraktal-Verlustgrenze: Geld in Kontowährung oder echte Pips bei Forex (3/5 Stellen: 10 × point, sonst point), Broker-Ticks bei anderen Instrumenten (trade_tick_size). Formular, Tooltip und Preisabstand-Vorschau passen zum Symbol. Alte Preisabstände ohne fractal_next_loss_unit_version werden nur lokal umgerechnet; ausdrückliches Speichern schreibt die Anzahl und Version 1, ohne den Preisabstand zu ändern. Fehlende Einheitsgröße sperrt die Abstandseingabe.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, BUY, „Nächste Order ab Verlust“ 1, speichern, Bot starten und warten, bis eine Fraktal-Order auslöst. → Pending Orders und Bot-Log beobachten, während die Position ins Minus läuft.
   - **Erwartet:** Solange die letzte BUY-Position weniger als 1 $ im Minus ist, liegt keine BUY-Order und das Log meldet „Sonraki emir … zarara geçince konacak“; ab −1 $ kommen die BUY-Orders auf die jüngsten Fraktale zurück.
@@ -536,7 +536,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 11. UPD – System & Updates
 
-- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-10-31 · 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-23
+- [x] **UPD-01** Update-Prüfung — 🔌 api ✅ 2026-10-31 · 🖥️ e2e ✅ 2026-11-02 · 👤 manuell ✅ 2026-09-23
   - Kopf-Menü → System → „Check for Updates“ (nur Admin, auf jeder Seite); GET /system/update/check vergleicht Git-Hash und VERSION mit origin/main. Der blockierende Git-Aufruf läuft in einem Thread, damit Plattformabfragen währenddessen antworten können.
   - **Prüfung:** „Check for Updates“ klicken.
   - **Erwartet:** „You are up to date“ oder alte → neue Version.
@@ -546,7 +546,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nach einem Merge auf main das Update anwenden (Kopf-Menü → System → Check for Updates → Apply Update).
   - **Erwartet:** VERSION auf dem VPS entspricht main; nach einem Fehler zeigt git status keine geänderten Dateien und git stash list keinen neuen Eintrag.
   - 📝 VPS per Dashboard-Update von v0.7.69 auf v0.7.70 (Worker meldet local_ver = remote_ver = v0.7.70). Erster Versuch scheiterte an Datei-Rechten in docs/features; nach takeown/icacls auf das Repo ok.
-- [x] **UPD-03** System herunterfahren — 🖥️ e2e ✅ 2026-10-31
+- [x] **UPD-03** System herunterfahren — 🖥️ e2e ✅ 2026-11-02
   - Kopf-Menü → System → „Herunterfahren“ (auf jeder Seite, jede Rolle) → Bestätigung mit Kontoname und LIVE/DEMO → /stop für das gewählte Konto, danach window.close(). Ohne gewähltes Konto ist der Eintrag deaktiviert; der Hinweis nennt den Grund.
   - **Prüfung:** Kopf-Menü → System → Herunterfahren → bestätigen.
   - **Erwartet:** Bot wird gestoppt, Fenster schließt (falls vom Browser erlaubt).
@@ -615,49 +615,49 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 13. UI – Oberfläche
 
-- [x] **UI-01** Navigation und Kopf-Menü — 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-01** Navigation und Kopf-Menü — 🖥️ e2e ✅ 2026-11-02 · 👤 manuell ✅ 2026-09-23
   - Die normale Kopfzeile ist bei jeder Breite einzeilig und 56 px hoch (CSS-Variable --nav-height in globals.css; die fixierte Steuerleiste nutzt sie als Abstand nach oben). Logo mit Version, ab lg (1024 px) die Seitenlinks mit animierter Markierung, rechts das Zahnrad für das Kopf-Menü; unter lg öffnet ☰ die Seitenlinks als Overlay-Panel. Das Kopf-Menü bündelt Verbindung (SYS-09), Sprache (UI-05), Design (UI-02) und System (Systeminfo, „Check for Updates“ nur für Admin, Herunterfahren; UPD-01/03). Das Panel liegt über Steuerleiste und Inhalt und verschiebt nichts; Auswahl von Sprache oder Design lässt es offen, Escape schließt es. Update- und Herunterfahren-Dialog funktionieren auf jeder Seite. Auf Formasyon bleibt die schwebende Kopfzeile unter 1024 px 48 px hoch; ab 1024 px gilt auch dort die normale Desktopleiste.
   - **Prüfung:** Zwischen Dashboard und Formasyon wechseln. → Rechts in der Kopfzeile das Menü öffnen, Sprache und Design wählen, Escape drücken. → Auf /chart im Menü „Check for Updates“ wählen. → Bei 375px Breite öffnen und ☰ antippen.
   - **Erwartet:** Aktiver Link ist markiert, Version entspricht VERSION. Die Kopfzeile bleibt einzeilig; das Menü liegt über dem Inhalt, ohne ihn zu verschieben, und zeigt Verbindung, Sprache, Design und System. Bei 375px kein horizontales Scrollen, „Grid Robot“ bricht nicht um, ☰ zeigt alle Seitenlinks.
   - 📝 Claude: Dashboard ↔ Formasyon, Markierung wandert mit, Version v0.7.58 = VERSION
-- [x] **UI-02** Theme hell / dunkel / System — 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-02** Theme hell / dunkel / System — 🖥️ e2e ✅ 2026-11-02 · 👤 manuell ✅ 2026-09-23
   - Umschalter „Açık / Koyu / Sistem“ (Symbol und Name) im Kopf-Menü (UI-01), auf jeder Breite gleich, gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
   - **Prüfung:** Im Kopf-Menü alle drei Varianten wählen und die Seite neu laden.
   - **Erwartet:** Theme bleibt erhalten, kein helles Aufblitzen im Dunkelmodus.
   - 📝 Claude: Açık/Koyu/Sistem setzen Klasse 'dark' + localStorage; 'Açık' übersteht Neuladen; Script vor der Hydration vorhanden; zurück auf 'Sistem'
-- [x] **UI-03** PWA / Service Worker — 🖥️ e2e ✅ 2026-10-31
+- [x] **UI-03** PWA / Service Worker — 🖥️ e2e ✅ 2026-11-02
   - Manifest und Registrierung von /service-worker.js im Layout.
   - **Prüfung:** DevTools → Application → Service Workers.
   - **Erwartet:** Service Worker ist registriert, keine 404 in der Konsole.
-- [x] **UI-04** Zonen-Test-Link (/chart?account=&zone=) — 🖥️ e2e ✅ 2026-10-31 · 👤 manuell ✅ 2026-09-23
+- [x] **UI-04** Zonen-Test-Link (/chart?account=&zone=) — 🖥️ e2e ✅ 2026-11-02 · 👤 manuell ✅ 2026-09-23
   - Link „Test“ im Zonenkopf öffnet die Analyse-Seite /chart?account=<Konto>&zone=<id> mit dieser Zone. Eine Zone, die es im Konto nicht gibt, meldet „Bölge bulunamadı“.
   - **Prüfung:** In einer Zone auf „Test“ klicken.
   - **Erwartet:** Die Analyse-Seite zeigt das Konto und die gewählte Zone mit ihren Einstellungen.
   - 📝 v0.7.59 (Frontend aus main): 'Test'-Link → Karte 'Bölge 1 · USOUSD' mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien 20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)
-- [x] **UI-05** Sprache Türkisch / Englisch / Deutsch — 🖥️ e2e ✅ 2026-10-31
+- [x] **UI-05** Sprache Türkisch / Englisch / Deutsch — 🖥️ e2e ✅ 2026-11-02
   - Umschalter TR · EN · DE im Kopf-Menü (UI-01), auf jeder Breite gleich. Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
   - **Prüfung:** Im Kopf-Menü EN, dann DE, dann TR wählen und dabei Dashboard, /vps und /chart ansehen. → Seite neu laden.
   - **Erwartet:** Alle Texte wechseln sofort, die Sprache bleibt nach dem Reload erhalten, <html lang> stimmt. Keine hartcodierten Reste, keine überlaufenden Buttons (Deutsch ist am längsten).
-- [x] **UI-06** Zahlen- und Zeitformat folgt der Sprache — 🖥️ e2e ✅ 2026-11-01
+- [x] **UI-06** Zahlen- und Zeitformat folgt der Sprache — 🖥️ e2e ✅ 2026-11-02
   - Preise und Gewinne ($97,25 in tr/de, $97.25 in en), Uhrzeiten in Logs und VPS-Seite sowie das Dezimalmuster im Symbol-Label („Sembol (0,00)“) richten sich nach der gewählten Sprache.
   - **Prüfung:** Bot mit MT5 verbinden, dann die Sprache zwischen EN und DE wechseln.
   - **Erwartet:** Der Preis in der Kennzahlenleiste wechselt zwischen Punkt und Komma als Dezimaltrenner.
-- [x] **UI-07** Hinweise (Tooltips) zu jedem Feld und Button — 🖥️ e2e ✅ 2026-10-31
+- [x] **UI-07** Hinweise (Tooltips) zu jedem Feld und Button — 🖥️ e2e ✅ 2026-11-02
   - Jede Einstellung, jedes Feld, jeder Schalter, Button, Tab und Menüpunkt erklärt sich. Felder und Schalter tragen ein (i) hinter dem Label (Hover, Tastaturfokus oder Antippen), Buttons und Links zeigen den Tooltip bei Hover/Fokus, deaktivierte Buttons nennen den Grund. Der Tooltip ist ein Popover im Top-Layer (nicht von overflow-hidden abgeschnitten, über den Dialogen), Escape schließt zuerst nur ihn. Texte stehen als i18n-Schlüssel `<label-key>.hint` in src/i18n/messages/hints.ts (tr, en, de). `hint` ist Pflicht-Prop von InputField, Switch, Button, Tabs und ConfirmModal; der Abdeckungstest meldet jedes Bedienelement ohne Hinweis (hooks/RULES.md §5).
   - **Prüfung:** Im Dashboard mit der Maus über das (i) hinter „Alt Seviyeler“, „Maks Pozisyon“ und „Çıkış Tetikleyici“ fahren. → Mit Tab durch die Felder gehen; Escape drücken. → Bei laufendem Bot über „Edit“ fahren; im Konto-Dialog über ein (i) fahren. → Sprache auf EN und DE stellen.
   - **Erwartet:** Zu jedem Element erscheint ein verständlicher Text in der gewählten Sprache. Er wird nicht abgeschnitten, liegt im Dialog über dem Dialog, Escape schließt erst den Tooltip. Ein deaktivierter Button nennt den Grund. Der Abdeckungstest findet kein Bedienelement ohne Hinweis.
-- [x] **UI-08** Mobil (375 px) ohne horizontalen Überlauf — 🖥️ e2e ✅ 2026-10-31
+- [x] **UI-08** Mobil (375 px) ohne horizontalen Überlauf — 🖥️ e2e ✅ 2026-11-02
   - Bei 375 px Breite läuft keine Seite horizontal über. Im Zonenbereich brechen die Kopfzeile des Panels („Kaydedildi“ und „Bölge Ekle“) und der Zonenkopf (Status, Kaydet, Test und ⋯-Menü) in eine zweite Zeile um, statt die Karte zu sprengen. Das gilt für alle drei Sprachen (Deutsch ist am längsten), auch mit dem Abzeichen „Kaydedilmedi“ und einer vom Motor gestoppten Zone. Die Tab-Leiste des Log-Viewers im Dashboard ist bei 375 px breiter als ihre Karte; sie scrollt deshalb selbst horizontal (ohne sichtbaren Scrollbalken) statt vom overflow-hidden der Karte abgeschnitten zu werden, und ein gewählter Tab wird in Sicht geholt. Auch das gilt für alle drei Sprachen; die Tabs des VPS-Logs auf /vps passen ohne Scrollen. Die Kopfzeile ist einzeilig; unter lg stehen die Seitenlinks mit sichtbaren Beschriftungen im ☰-Menü, ab lg in der Kopfzeile, und das Kopf-Menü liegt bei 375 px ganz im Fenster. Navigation und Kopfzeilen-Bedienelemente überlappen bei 375, 640, 810, 1024 und 1440 px in tr/en/de nicht; die Formationsseite prüft zusätzlich 1023 px und den Wechsel zur Desktopleiste. Die Felder eines Setups sind auch bei 375 px kurz und brechen um; Grid-Schritt und Lot stehen nebeneinander, auch mit allen Schaltern an, getrenntem BUY/SELL und Fraktal-Setup, ohne dass etwas über die Setup-Karte hinausragt.
   - **Prüfung:** Dashboard bei 375 px Breite öffnen (Entwicklertools, Geräteleiste) und ein Konto mit Zone wählen. → Sprache auf DE stellen und in der Zone einen Wert ändern. → /formasyon, /vps und /chart bei 375 px ansehen. → Im Log-Viewer unter dem Zonenbereich die Tab-Leiste nach links wischen und den dritten Tab („MT5 Terminal“) antippen.
   - **Erwartet:** Kein horizontaler Scrollbalken auf keiner Seite. „Bölge Ekle“, „Kaydet“, „Test“ und das ⋯-Menü der Zone sind vollständig sichtbar, notfalls in einer zweiten Zeile. Die Tab-Leiste des Log-Viewers lässt sich wischen, jeder Tab ist erreichbar und nach dem Antippen ganz sichtbar.
-- [x] **UI-09** Kompakte Steuerleiste (Konto, Bot, Intervall) — 🖥️ e2e ✅ 2026-10-31
+- [x] **UI-09** Kompakte Steuerleiste (Konto, Bot, Intervall) — 🖥️ e2e ✅ 2026-11-02
   - Über den Kennzahlen liegt eine einzige Leiste mit LIVE/DEMO-Badge, Kontoauswahl, Kontomenü (⋯ mit Bot-Log herunterladen, Bearbeiten, Löschen, Neues Konto), Bot-Status mit Start/Neustart/Stopp und Prüfintervall mit Speichern. Das Systemmenü liegt im Kopf-Menü (UI-01), nicht in der Leiste. Bei jeder Breite bleibt die Leiste beim Scrollen direkt unter der Kopfzeile (top = --nav-height); Dropdowns (Kontoliste, ⋯, Kopf-Menü) öffnen als Overlay über Leiste und Inhalt und verschieben die Leiste nicht. Direkt darunter sitzen die Kennzahlen im selben fixierten Bereich; ein Anheften-Knopf (📌 rechts in der Leiste) löst sie, die Wahl bleibt im Browser (Standard ist angeheftet). Bei ungespeicherten Änderungen zeigt die Leiste „Kaydedilmedi · Vazgeç · Kaydet“ (Alle speichern); „Vazgeç“ fragt zuerst nach und stellt dann den zuletzt geladenen Stand wieder her, „Değişiklikleri koru“ lässt die Änderung stehen. Ab etwa 1280 px ist das eine Zeile; schmaler brechen die Gruppen um. Rechts neben ⋯ steht „Sembol Ekle“ (gesperrt, wenn der Bot läuft und MT5 nicht verbunden ist; der Dialog liegt weiter im Zonenbereich). Bei 375 px stehen DEMO, Konto, ⋯, Status und Start in einer Zeile (Status und Start als Symbole); „Sembol Ekle“, Prüfintervall und Anheften-Knopf liegen dort im ⋯-Menü. Nichts läuft horizontal über. Alarme der Bot-Steuerung erscheinen in voller Breite unter der Leiste. Zonen und Log nutzen darunter die volle Breite.
   - **Prüfung:** Dashboard auf dem Desktop öffnen und ein Konto wählen. → Auf ⋯ neben der Kontoauswahl klicken, dann Escape drücken. → Die Seite nach unten scrollen, dann 📌 klicken und erneut scrollen. → Fenster auf 375 px Breite verkleinern.
   - **Erwartet:** Konto, Bot-Steuerung und Prüfintervall stehen in einer Zeile. Das ⋯-Menü zeigt Log, Bearbeiten, Löschen und Neues Konto und schließt mit Escape. Beim Scrollen bleiben Leiste und Kennzahlen unter der Kopfzeile sichtbar; nach 📌 scrollen die Kennzahlen mit, die Leiste bleibt. Bei 375 px steht nichts über den Rand.
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 
-- [x] **ANA-01** Analyse-Seite mit Tabs — 🖥️ e2e ✅ 2026-10-31
+- [x] **ANA-01** Analyse-Seite mit Tabs — 🖥️ e2e ✅ 2026-11-02
   - Menüpunkt „Analyse“ (/chart) mit den Tabs Chart und Statistik (der Backtest hat seit B5a die eigene Seite /backtest, BKT-06). Konto, Zone, Tab und Zeitraum stehen in der URL (?account=&zone=&tab=&range= bzw. &from=&to=); Neuladen und geteilte Links zeigen dieselbe Ansicht, ohne ?account= wird das im Dashboard gewählte Konto übernommen. Der Chart-Tab zeigt die Einstellungen der Zone und ihren Kursverlauf (ANA-05). Ein Info-Symbol zeigt den Lizenzhinweis von TradingView Lightweight Charts™ mit Link zu tradingview.com. Bei 375 px stehen Konto, Zone und Zeitraum untereinander; Panels bleiben im Bildschirm.
   - **Prüfung:** Im Menü „Analyse“ öffnen, ein Konto wählen. → Tab „Statistik“ wählen und die Seite neu laden. → Auf das Info-Symbol neben dem Zahnrad klicken. → Fenster auf 375 px Breite verkleinern.
   - **Erwartet:** Die erste Zone des Kontos ist gewählt und steht mit dem Konto in der Adresse; nach dem Neuladen ist derselbe Tab offen. Der Lizenzhinweis nennt TradingView und verlinkt tradingview.com. Bei 375 px läuft nichts über.
@@ -738,7 +738,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Symbol, Statuszeile, Skalen, Canvas und kontextabhängige Anzeigen sind im gemeinsamen Dialog erreichbar: links Bereiche, rechts gruppierte Zeilen mit Häkchen, Farbfeldern und Auswahl, unten das Vorlagenmenü mit Speichern und Zurücksetzen. Auf /chart werden zurückgesetzte Darstellung und der Zoom (sichtbarer Zeitbereich) je Chart-Kontext gespeichert und wiederhergestellt; ohne eigenen Zoom zeigt der Chart alle Kerzen wie nach „Ansicht zurücksetzen“, auch bei mehr als 2000 Kerzen. Neue Kerzen und Größenänderungen speichern keinen Zoom.
   - **Prüfung:** Vorschau abbrechen; Darstellung zurücksetzen und anwenden; Chart ohne Zoom zeigt alle Kerzen; zoomen → Symbol wechseln und zurückkehren → neu laden; Ansicht zurücksetzen; mehr als 2000 Kerzen.
   - **Erwartet:** Abbrechen stellt den Ausgangszustand wieder her; Ohne Zoom sind alle Kerzen sichtbar und nichts gespeichert; ein Zoom bleibt pro Chart-Kontext nach Wechsel und Neuladen gespeichert, „Ansicht zurücksetzen“ löscht ihn.
-- [x] **ANA-20** Oszillatorbereiche und Indikatormenüs — 🖥️ e2e ✅ 2026-10-31
+- [x] **ANA-20** Oszillatorbereiche und Indikatormenüs — 🖥️ e2e ✅ 2026-11-02
   - RSI, EWO, MACD und ATR haben Bereichsaktionen (verschieben, einklappen, vorübergehend vergrößern, entfernen) und ein Menü je Indikator (Sichtbarkeit, Einstellungen, Skala, Bereichswechsel, Alarm, Favorit, Kopie, Info, Formel, Entfernen). Favoriten stehen in der Indikatorauswahl, die Objektliste führt Indikatoren und Zeichnungen. Alles außer Favoriten und Vergrößern liegt im lokalen Chart-Dokument, je Chart-Kontext getrennt und rückwärtskompatibel.
   - **Prüfung:** Bereiche sortieren und einklappen; Indikator favorisieren und aus der Auswahl hinzufügen; Zeitrahmen-Sichtbarkeit ändern; Alarm-Schwellenübertritt auslösen; neu laden → zweiten Chart-Kontext und 375 px prüfen.
   - **Erwartet:** Bereichs- und Indikatoreinstellungen bleiben im passenden Chart; Vergrößern verschwindet beim Neuladen; ein lokaler Alarm meldet einen Live-Übertritt einmal im geöffneten Chart, ein Zeitrahmenwechsel löst ihn nicht aus.
@@ -958,3 +958,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Worker liefert kein W1; der Browser bildet es aus D1 (weekly.ts, weeklyFromDaily). Eine Woche beginnt am Sonntag 00:00 Brokerzeit wie MT5-W1: Open der ersten, Close der letzten D1-Kerze, High/Low als Extreme; eine D1-Kerze am Sonntag gehört zur neuen Woche. Ein fehlender D1-Bereich in oder vor der Woche setzt gapBefore. Die laufende Woche ist erst nach time + 7 Tagen geschlossen (kein Blick in die Zukunft). Für W1 lädt die D1-Anfrage 1100 Tage (Annahme, W1_HISTORY_DAYS); die D1-Ansicht behält 400 Tage (splitDaily), eine Lücke nur im Zusatzteil setzt den Lückenhinweis der Favoriten nicht. W1 steht im FormationContext (RSI, Wave, ATR, Trend), aber nicht in CONTEXT_TIMEFRAMES und nicht in timeframes(): keine Fraktalzonen (FRZ-27), keine Formationssuche, keine Toolbar-Änderung. Folgen: GAR-19 misst die W1-Divergenz statt eines Platzhalters; CYP-02 auf D1 misst gegen den W1-Trend (ohne W1 nicht messbar, blockiert „gültig“). Keine Worker-Änderung, keine Order.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-w1-lib.spec.ts (@FRM-34) ausführen (zwei Wochen, Sonntagskerze, Lücke, laufende Woche, keine W1-Zone, Zusatzteil). → Playwright-Tests GAR-19 (formation-gar-bat-lib.spec.ts) und CYP-02 auf D1 (formation-cyp-lib.spec.ts, formation-settle-lib.spec.ts) ausführen.
   - **Erwartet:** Aus zehn D1-Kerzen Mo–Fr werden zwei Wochenkerzen mit Sonntag-Zeitstempel; GAR-19 und CYP-02 auf D1 sind mit W1 messbar und ohne W1 nicht messbar; W1 erscheint nie als Zeiteinheit der Suche.
+- [x] **FRM-35** Wave-Unterfenster mit Ebenen-Schalter auf /formasyon — 🖥️ e2e ✅ 2026-11-02
+  - Der Chart auf /formasyon hat unter Kerzen und RSI(7) ein drittes Fenster „Wave 5/35“ (Z-SIG-03): EWO als Histogramm, grün über 0, rot unter 0 (Tokens success und danger zur Laufzeit gelesen, bei Themenwechsel neu gesetzt). Die Werte kommen aus der Ansicht der Zeiteinheit (TimeframeView.wave), Kerzen ohne Wave-Wert (Anlaufzeit) fehlen. Der Schalter „Wave 5/35“ (Standard an) steht wie der RSI-Schalter unter Einstellungen → Auto Grid Ebenen und hat einen Tooltip. Die Legende nennt „Wave über / unter 0“. Das Overlay kennt die Höhe und die Wertachse des Wave-Fensters (yWave) für die Divergenzlinie des Folge-PR. Die Analyse-Seite /chart bleibt unverändert (systemWave ist optional). Keine Worker-Änderung, keine Order.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-35) ausführen (drei Fenster, 155 Wave-Werte, Schalter blendet aus und ein, Legende). → UI-07 (Tooltip am Schalter) und UI-08 (375 px ohne Querscroll) ausführen.
+  - **Erwartet:** Der Chart zeigt Kerzen, RSI und ein Wave-Histogramm; der Schalter „Wave 5/35“ blendet das Histogramm aus und ein.

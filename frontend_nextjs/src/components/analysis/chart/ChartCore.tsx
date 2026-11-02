@@ -8,6 +8,7 @@ import {
   ColorType,
   createChart,
   createSeriesMarkers,
+  HistogramSeries,
   LineSeries,
   LineStyle,
   type AutoscaleInfo,
@@ -86,10 +87,17 @@ export interface SystemRsi {
   visible: boolean;
 }
 
+/** Wave (EWO 5/35) als Histogramm im eigenen Bereich unter RSI bzw. den Kerzen: grün über 0, rot darunter */
+export interface SystemWave {
+  points: { time: number; value: number }[];
+  visible: boolean;
+}
+
 /** Was eine Zeichenfläche über dem Chart braucht, um Zeit und Preis in Koordinaten umzurechnen */
 export interface ChartScene {
   binding: ChartBinding;
   rsi: ISeriesApi<'Line'> | null;
+  wave: ISeriesApi<'Histogram'> | null;
 }
 
 interface ChartCoreProps {
@@ -127,6 +135,7 @@ interface ChartCoreProps {
   /** Keep the right edge on the replay cursor while candles are revealed. */
   followTail?: boolean;
   systemRsi?: SystemRsi;
+  systemWave?: SystemWave;
   /** Laufende Kerze nach der letzten geschlossenen, nur zur Anzeige: Indikatoren und Zeichnungen enden davor */
   runningBar?: Bar | null;
   /** Preise außerhalb der Kerzen, bis zu denen die Preisachse reicht */
@@ -207,6 +216,7 @@ export function ChartCore({
   equity,
   followTail = false,
   systemRsi,
+  systemWave,
   runningBar = null,
   priceRange,
   marginsFor,
@@ -222,6 +232,7 @@ export function ChartCore({
   const chartRef = useRef<IChartApi | null>(null);
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const waveRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const [scene, setScene] = useState<ChartScene | null>(null);
   const binding = scene?.binding ?? null;
   const shownRunning = useRef<{ view: string; bar: Bar } | null>(null);
@@ -266,6 +277,7 @@ export function ChartCore({
 
   const hasCurves = !!(balance || equity);
   const hasRsi = !!systemRsi;
+  const hasWave = !!systemWave;
   const marginsForRef = useRef(marginsFor);
   useEffect(() => {
     marginsForRef.current = marginsFor;
@@ -303,6 +315,17 @@ export function ChartCore({
       chart.panes()[0]?.setStretchFactor(5);
       chart.panes()[1]?.setStretchFactor(1);
     }
+    // Eigener Bereich nach dem RSI; Kerzen bleiben der größte Bereich
+    const wavePane = hasRsi ? 2 : 1;
+    const waveSeries = hasWave ? chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false, base: 0 }, wavePane) : null;
+    if (waveSeries) {
+      chart.panes()[0]?.setStretchFactor(5);
+      chart.panes()[wavePane]?.setStretchFactor(1.2);
+      // Der Bereich erbt sonst die großen Ränder der Kerzen-Achse (Platz für die Bedienung)
+      waveSeries.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
+    }
+    // Zahl der Bereiche, die der Chart selbst anlegt (ohne die Indikatoren des Nutzers); Tests und Fehlersuche
+    el.setAttribute('data-system-panes', String(chart.panes().length));
     const band = new ZoneBandPrimitive();
     const missing = new MissingDataPrimitive();
     const pauses = new PauseLinesPrimitive();
@@ -317,10 +340,11 @@ export function ChartCore({
     candles.attachPrimitive(trend);
     markersApi.current = createSeriesMarkers(candles, []);
     const attached = createChartBinding(chart, candles, el, margins ? () => margins(el.clientWidth) : undefined);
-    const readyFrame = requestAnimationFrame(() => setScene({ binding: attached, rsi: rsiSeries }));
+    const readyFrame = requestAnimationFrame(() => setScene({ binding: attached, rsi: rsiSeries, wave: waveSeries }));
     chartRef.current = chart;
     candlesRef.current = candles;
     rsiRef.current = rsiSeries;
+    waveRef.current = waveSeries;
     balanceRef.current = balanceSeries;
     equityRef.current = equitySeries;
     primitives.current = { band, missing, pauses, links, fractals: fractalMarks, trend };
@@ -345,6 +369,7 @@ export function ChartCore({
       chartRef.current = null;
       candlesRef.current = null;
       rsiRef.current = null;
+      waveRef.current = null;
       balanceRef.current = null;
       equityRef.current = null;
       primitives.current = null;
@@ -356,7 +381,7 @@ export function ChartCore({
       shownRunning.current = null;
       runningCount.current = 0;
     };
-  }, [hasCurves, hasRsi, overlayLayout]);
+  }, [hasCurves, hasRsi, hasWave, overlayLayout]);
 
   // Der Abstand für die Bedienung auf dem Chart hängt von der Breite ab
   useEffect(() => {
@@ -406,6 +431,27 @@ export function ChartCore({
   useEffect(() => {
     rsiRef.current?.applyOptions({ visible: rsiVisible });
   }, [rsiVisible, hasRsi]);
+
+  const wavePoints = systemWave?.points, waveVisible = systemWave?.visible;
+  useEffect(() => {
+    // Ohne Theme-Farben bekäme jeder Balken kurz die Standardfarbe der Bibliothek
+    if (!hasWave || !colors) return;
+    waveRef.current?.setData((wavePoints ?? []).map((p) => ({ ...p, time: p.time as UTCTimestamp, color: p.value >= 0 ? colors.up : colors.down })));
+  }, [wavePoints, colors, hasWave]);
+  useEffect(() => {
+    if (!hasWave) return;
+    containerRef.current?.setAttribute('data-wave-points', String(wavePoints?.length ?? 0));
+  }, [wavePoints, hasWave]);
+  // Die Wave-Werte sind Preisdifferenzen (z. B. 0,001): die Standardachse zeigte „0.00“
+  useEffect(() => {
+    const places = digits ?? 5;
+    waveRef.current?.applyOptions({ priceFormat: { type: 'price', precision: places, minMove: 10 ** -places } });
+  }, [digits, hasWave]);
+  useEffect(() => {
+    if (!hasWave) return;
+    waveRef.current?.applyOptions({ visible: waveVisible });
+    containerRef.current?.setAttribute('data-wave-visible', String(!!waveVisible));
+  }, [waveVisible, hasWave]);
 
   // Theme-Farben: nach dem Klassenwechsel am <html> lesen
   useEffect(() => {
