@@ -3,7 +3,7 @@ date: 2026-11-02
 author: Claude
 type: decision
 status: open
-pr: []
+pr: [303]
 features: [FRM-02, FRM-03, FRM-05]
 areas: [frontend]
 ---
