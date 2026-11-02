@@ -1,11 +1,13 @@
 /**
  * Trendfortsetzung (TDF): Prüfung je Bedingungs-ID und Zeichnungen Z-TDF-01 bis Z-TDF-10.
  * `analyzeTdf` sucht je geladener Zeiteinheit und je Unterform (Flagge, Dreieck, Schale, Konsolidierung) die Punkte und misst die
- * Aktivierung; `checkTdfCandidate` prüft eigene Punkte. Jeder Kandidat trägt alle IDs; IDs einer fremden Unterform sind „nicht messbar“.
+ * Aktivierung; `checkTdfCandidate` prüft eigene Punkte. Jeder Kandidat trägt alle IDs; IDs einer fremden Unterform sind „nicht messbar“ und
+ * `inactive` (sie zählen nicht und halten das Urteil nicht zurück).
  *
  * Lesart der Zustände: bei Pflicht und Verstärkung heißt ☑ „die Bedingung gilt“, bei den Ausschlüssen „liegt vor“ (also ausgeschlossen).
  * Kauf (Aufwärtstrend, Hochs als Extrem) und Verkauf (Abwärtstrend) sind derselbe Code. TDF-19 und TDF-26 sind Einstiegsregeln, keine Eigenschaft
- * der Kerzen: sie bleiben „nicht messbar“ (TDF-04 misst den Schluss). TDF-27 ist entfallen.
+ * der Kerzen. TDF-19 (Kauf erst mit dem Schluss über der Oberkante der Zone von H1) hat beim Dreieck dieselbe Messung wie TDF-04. TDF-26 (kein
+ * Einstieg in der Box) ist nach dem Schluss außerhalb ☐ (der Einstieg liegt außerhalb), vorher „nicht messbar“. TDF-27 ist entfallen.
  */
 import type { FormationContext } from './context';
 import { trendDirUpTo } from './f2618';
@@ -14,6 +16,7 @@ import { closesBeyond, otherSide, outward, wickEnd, zoneGeometry, type Rect, typ
 import { closesInRowBeyond, type ObPoint } from './obo';
 import { FRZ_PARAMS, TDF_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
+import { exemptFor, settle } from './settle';
 import { formationCloses } from './trdFormation';
 import {
   alternatingCount,
@@ -198,7 +201,8 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
   put('TDF-02', h1.idx + FRZ_PARAMS.neighbors > last ? U : flag(fractalDone(bars, h1, es) && hasS));
   const calmPause = calm(view.wide, h1.idx + 1, pe);
   put('TDF-03', tri(calmPause), undefined, base.form === 'bowl' ? 'required' : undefined);
-  put('TDF-04', shapeDone ? flag(brk !== null) : U);
+  const activation: CheckState = shapeDone ? flag(brk !== null) : U;
+  put('TDF-04', activation);
   if (brk !== null) put('TDF-05', tri(view.wide[brk]));
   else put('TDF-05', shapeDone ? 'unmet' : U);
   const zoneS = imp.s ? zoneGeometry(bars, imp.s.idx, cs, tf) : null;
@@ -263,7 +267,8 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
     const previous = imp.prev && imp.s ? outward(es, imp.prev.price) - outward(es, imp.s.price) : 0;
     const ratio = previous > 0 ? correction / previous : null;
     put('TDF-18', ratio === null ? U : flag(ratio >= TDF_PARAMS.similar.min && ratio <= TDF_PARAMS.similar.max), ratio ?? undefined);
-    put('TDF-19', U);
+    // TDF-19 (Einstieg erst nach dem Schluss über der Oberkante der Zone von H1) misst beim Dreieck dasselbe wie TDF-04: der Zustand von TDF-04
+    put('TDF-19', activation);
     let fell = false;
     for (let k = l1.idx + 1; k <= pe; k++) if (outward(cs, wickEnd(bars[k], cs)) > outward(cs, l1.price)) fell = true;
     put('TDF-20', flag(fell));
@@ -284,24 +289,32 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
     put('TDF-24', pending(meets(boxCount), brk));
     const counter = closeBeyondAfter(bars, cs, () => farEdge(cs, floor), base.bottoms[0].idx);
     put('TDF-25', flag(counter !== null && (brk === null || counter < brk)));
-    put('TDF-26', U);
+    // TDF-26 (kein Einstieg innerhalb der Box) ist eine Einstiegsregel: die Suche steigt nie ein, B liegt außerhalb. Vor dem Schluss nicht messbar, danach ☐; als Ausschluss hält sie settle nicht auf
+    put('TDF-26', brk === null ? U : 'unmet');
     const enough = meets(alternatingCount([...touch(tops, true), ...touch(bottoms, false)]));
     put('TDF-29', pending(enough, brk));
   }
 
   const checks: Check[] = TDF_CHECK_IDS.map((id) => {
     const [defaultKind, status] = RULES[id];
-    const r = OWN[base.form].includes(id) ? res.get(id) : undefined;
-    return { id, kind: r?.kind ?? defaultKind, status, state: r?.state ?? U, ...(r?.value === undefined ? {} : { value: r.value }), drawings: [] };
+    const own = OWN[base.form].includes(id);
+    const r = own ? res.get(id) : undefined;
+    return { id, kind: r?.kind ?? defaultKind, status, state: r?.state ?? U, ...(r?.value === undefined ? {} : { value: r.value }), ...(own ? {} : { inactive: true as const }), drawings: [] };
   });
   const drawings = drawingsOf({ bars, es, base, imp, zoneH, floor, brk, pl, target, last });
   const withDrawings = checks.map((c) => ({ ...c, drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))] }));
 
   const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
+  // Ohne Schluss jenseits der Kante ist die Formation im Aufbau; TDF-05 verletzt erst mit dem Schluss
+  const invalidBy = [
+    ...EXCLUSION_IDS[base.form].filter((id) => stateOf(id) === 'met'),
+    ...FORM_IDS[base.form].filter((id) => stateOf(id) === 'unmet'),
+    ...(stateOf('TDF-04') === 'met' && stateOf('TDF-05') === 'unmet' ? ['TDF-05'] : []),
+  ];
   let verdict: Verdict = 'valid';
-  if (EXCLUSION_IDS[base.form].some((id) => stateOf(id) === 'met') || FORM_IDS[base.form].some((id) => stateOf(id) === 'unmet')) verdict = 'invalid';
+  if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('TDF-04') !== 'met') verdict = 'forming';
-  else if (stateOf('TDF-05') === 'unmet') verdict = 'invalid';
+  verdict = settle(verdict, withDrawings, exemptFor('TDF', withDrawings));
 
   const points: Candidate['points'] = { H1: anchorAt(bars, h1.idx, h1.price) };
   if (imp.s) points.S = anchorAt(bars, imp.s.idx, imp.s.price);
@@ -323,8 +336,9 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
     add('HANDLE', base.handle);
   }
   if (base.form === 'box') add('FLOOR', base.bottoms[0]);
-  if (brk !== null) points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict };
+  // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
+  if (brk !== null && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
+  return { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
 interface DrawInput {
@@ -381,7 +395,7 @@ function drawingsOf(d: DrawInput): Drawing[] {
     if (base.form === 'triangle' || base.form === 'box') {
       out.push({ id: 'Z-TDF-10', tool: 'zone', anchors: [{ time: bars[brk].time, price: Math.min(edge, target) }, { time: bars[brk].time, price: Math.max(edge, target) }], rules: [], side });
     }
-    out.push({ id: 'Z-TDF-09', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side });
+    out.push({ id: 'Z-TDF-09', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side, label: 'target' });
   }
   return out;
 }

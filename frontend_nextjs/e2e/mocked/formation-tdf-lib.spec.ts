@@ -236,7 +236,7 @@ const CASES: Case[] = [
   {
     name: 'Dreieck, Basis: zweiter Anlauf an die Zone von H1, steigende Tiefs, Korrektur wie die vorige, Schluss über der Oberkante',
     candidate: () => run(TRI, TRI_SPEC),
-    expect: { '01': M, '02': M, '04': M, '05': M, '16': M, '17': M, '18': M, '19': U, '20': N, '28': M, '10': U, '24': U },
+    expect: { '01': M, '02': M, '04': M, '05': M, '16': M, '17': M, '18': M, '19': M, '20': N, '28': M, '10': U, '24': U },
   },
   { name: 'Regel 16 ☐: H2 reicht nicht in die Zone von H1', candidate: () => run(TRI_LOW_H2, TRI_SPEC), expect: { '16': N } },
   { name: 'Regel 16 ☐: vor H2 schließt eine Kerze über der Zone', candidate: () => run(TRI_CLOSED, TRI_SPEC), expect: { '16': N } },
@@ -248,6 +248,7 @@ const CASES: Case[] = [
   { name: 'Regel 20 ☑: nach H2 fällt der Preis unter das Tief nach H1', candidate: () => run(TRI_BELOW, TRI_SPEC), expect: { '20': M, '17': N } },
   { name: 'Regel 28 ☐: kein Tief nach H2 vor dem Bruch', candidate: () => run(TRI_NO_L2, { form: 'triangle', at: TRI_AT.slice(0, 3) }), expect: { '28': N } },
   { name: 'Regel 28 nicht messbar: kein Tief nach H2 und noch kein Bruch', candidate: () => run(TRI_NO_BREAK, { form: 'triangle', at: TRI_AT.slice(0, 3) }), expect: { '28': U } },
+  { name: 'Regel 19 ☐ beim Dreieck: kein Schluss über der Oberkante', candidate: () => run(TRI_NO_BREAK, TRI_SPEC), expect: { '19': N } },
   { name: 'Regel 04 ☐ beim Dreieck: kein Bruch', candidate: () => run(TRI_NO_BREAK, TRI_SPEC), expect: { '04': N } },
   {
     name: 'Schale, Basis: Wende zwischen 0.236 und 0.382, kleine Kerzen, Henkel über dem 0,5-Level, Schluss über der Zone von H1',
@@ -264,11 +265,12 @@ const CASES: Case[] = [
   {
     name: 'Box, Basis: drei Berührungen oben und unten, Schluss über der Oberkante',
     candidate: () => run(BOX, BOX_SPEC),
-    expect: { '01': M, '02': M, '04': M, '05': M, '24': M, '25': N, '26': U, '29': M },
+    expect: { '01': M, '02': M, '04': M, '05': M, '24': M, '25': N, '26': N, '29': M },
   },
   { name: 'Regel 24 ☐: nur eine Berührung unten, der Ausbruch ist da', candidate: () => run(BOX_ONE, BOX_ONE_SPEC), expect: { '24': N, '29': N } },
   { name: 'Regel 24 nicht messbar: nur eine Berührung unten, noch kein Ausbruch', candidate: () => run(BOX_ONE_NO_BREAK, BOX_ONE_SPEC), expect: { '24': U, '29': U } },
   { name: 'Regel 25 ☑: Schluss unter dem Boden, bevor die Box nach oben bricht', candidate: () => run(BOX_BREAKDOWN, BOX_BREAKDOWN_SPEC), expect: { '25': M } },
+  { name: 'Regel 26 nicht messbar bei der Box: noch kein Schluss außerhalb', candidate: () => run(BOX_NO_BREAK, BOX_SPEC), expect: { '26': U } },
   { name: 'Regel 04 ☐ bei der Box: kein Bruch', candidate: () => run(BOX_NO_BREAK, BOX_SPEC), expect: { '04': N } },
 ];
 
@@ -279,15 +281,18 @@ for (const c of CASES) {
   });
 }
 
-const ALWAYS_UNMEASURABLE = ['TDF-19', 'TDF-26'];
+/** TDF-26 ist ein Ausschluss für den Einstieg: der Schluss außerhalb der Box liegt nie in ihr, also nur ☐ oder nicht messbar */
+const NEVER_MET = ['TDF-26'];
 
-frm('Abdeckung: jede messbare Bedingung hat einen ☑- und einen ☐-Fall; die Einstiegsregeln 19 und 26 sind nie messbar', () => {
+frm('Abdeckung: jede messbare Bedingung hat einen ☑- und einen ☐-Fall; TDF-26 nur ☐ und nicht messbar', () => {
   const seen = new Map<string, Set<CheckState>>();
   for (const c of CASES) for (const [n, want] of Object.entries(c.expect)) seen.set(idOf(Number(n)), (seen.get(idOf(Number(n))) ?? new Set()).add(want));
   expect(TDF_CHECK_IDS).toHaveLength(28);
   for (const id of TDF_CHECK_IDS) {
-    if (ALWAYS_UNMEASURABLE.includes(id)) {
-      expect([...(seen.get(id) ?? [])], id).toEqual([U]);
+    if (NEVER_MET.includes(id)) {
+      expect(seen.get(id)?.has(N), `${id} ☐`).toBe(true);
+      expect(seen.get(id)?.has(U), `${id} nicht messbar`).toBe(true);
+      expect(seen.get(id)?.has(M), `${id} ☑`).toBe(false);
       continue;
     }
     expect(seen.get(id)?.has(M), `${id} ☑`).toBe(true);
@@ -519,4 +524,29 @@ frm('echte Reihen: Kauf und Verkauf, alle vier Unterformen und ein Negativfall s
   expect(new Set(REAL.map((r) => r.form))).toEqual(new Set(['flag', 'triangle', 'bowl', 'box']));
   expect(new Set(REAL.map((r) => r.side))).toEqual(new Set(['buy', 'sell']));
   expect(REAL.some((r) => r.verdict === 'invalid')).toBe(true);
+});
+
+frm('Unterform: Bedingungen einer fremden Unterform sind inaktiv, die eigenen nicht', () => {
+  const inactive = (c: Candidate) => c.checks.filter((k) => k.inactive === true).map((k) => k.id);
+  expect(inactive(run(FLAG, FLAG_SPEC))).toEqual(['TDF-16', 'TDF-17', 'TDF-18', 'TDF-19', 'TDF-20', 'TDF-21', 'TDF-22', 'TDF-23', 'TDF-24', 'TDF-25', 'TDF-26', 'TDF-29']);
+  expect(inactive(run(TRI, TRI_SPEC))).toEqual(['TDF-10', 'TDF-11', 'TDF-12', 'TDF-13', 'TDF-14', 'TDF-15', 'TDF-21', 'TDF-22', 'TDF-23', 'TDF-24', 'TDF-25', 'TDF-26', 'TDF-29']);
+});
+
+frm('Urteil: eine nicht messbare Pflicht der eigenen Unterform hält „gültig“ zurück (settle), invalidBy nennt die auslösenden Regeln', () => {
+  // Bruch auf Kerze 19, vor 20 Kerzen Vorlauf: die Volumenmessung fehlt, TDF-05 ist nicht messbar
+  const young = run(zig(FLAG_UP, 2, 3), { form: 'flag', at: [12, 14, 16, 18] });
+  expect(find(young, 'TDF-04').state).toBe(M);
+  expect(find(young, 'TDF-05').state).toBe(U);
+  expect(young.verdict).toBe('forming');
+  expect(young.points.B).toBeUndefined();
+  expect(young.invalidBy).toEqual([]);
+  expect(run(FLAG, FLAG_SPEC).invalidBy).toEqual([]);
+  expect(run(FLAG_COUNTER, FLAG_SPEC).invalidBy).toEqual(['TDF-07', 'TDF-15', 'TDF-11']);
+  expect(run(FLAG_NARROW, FLAG_SPEC).invalidBy).toEqual(['TDF-05']);
+});
+
+frm('Zeichnung Z-TDF-09 ist das Ziel-Label und trägt label „target“ (nicht „Level 1“)', () => {
+  const z = run(FLAG, FLAG_SPEC).drawings.find((d) => d.id === 'Z-TDF-09');
+  expect(z?.tool).toBe('label');
+  expect(z?.label).toBe('target');
 });

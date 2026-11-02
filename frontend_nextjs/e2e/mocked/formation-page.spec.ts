@@ -109,6 +109,19 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await expect(page.getByTestId('formation-form-OBO').getByTestId('hit-badge')).toHaveCount(0);
   });
 
+  test('Trendfortsetzung steht in der Leiste: gültiges Dreieck mit Badge, Checkliste (fremde Unterform inaktiv) und erreichtem Punkt B', { tag: ['@FRM-18', '@FRM-11'] }, async ({ page, worker }) => {
+    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/tdf-tri-h4-01.json', 'utf-8'))).bars;
+    await openPage(page, worker, `${URL}&form=TDF`, 1769644800, bars);
+    await expect(page.getByTestId('formation-form-TDF')).toContainText(msg('formation.form.TDF'));
+    await expect(page.getByTestId('formation-form-TDF').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
+    const list = page.getByTestId('formation-checklist');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="TDF-16"]')).toHaveAttribute('data-state', 'met');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="TDF-19"]')).toHaveAttribute('data-state', 'met');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="TDF-10"]')).toHaveAttribute('data-state', 'inactive');
+    await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
+  });
+
   test('Ohne Treffer steht der Leerzustand statt einer Checkliste', { tag: '@FRM-18' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&tf=M15`);
     await expect(page.getByTestId('formation-empty')).toContainText(msg('formation.empty.chart', { form: 'ABCD', tf: 'M15' }));
