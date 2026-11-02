@@ -2,7 +2,7 @@
 date: 2026-11-02
 author: Claude
 type: fix
-status: done
+status: open
 pr: [313]
 features: [FRM-37]
 areas: [frontend]
@@ -34,6 +34,15 @@ On `/formasyon` the owner saw only the right half of the open side bar: the tab 
 - Browser pane on `localhost:3000`, 1728 px: with 16 px `formation-main` ends at 1400 px = start of the 288 px panel; with 20 px it ends at 1318 px = start of the 360 px panel.
 - `eslint` on the two changed files and `tsc --noEmit`: no messages.
 
+## Open points
+- [ ] The top bar has the same px/rem defect. Threshold A (`@min-[1300px]/formation-main` in `FormationToolbar.tsx`, `ChartWorkspace.tsx`, `TrendToggle.tsx`), the reserve `pr-[528px]` and threshold B (1440 px, `FormationStatusChip.tsx`) are in px, the chart tools and the top bar content are in rem. Measured on `localhost:3000` (tr, DEMO account) with the root font size 20 px, after the layout settled: the chart tools are 608 px wide (486 px at 16 px), the reserve stays 528 px. Overlaps when the tools are in the top bar:
+  - 1728 px, bar open (`formation-main` 1318 px): timeframe "D", alarm button, status button.
+  - 1920 px, bar open (1510 px): status button.
+  - 1440 px, bar closed (1390 px): alarm button, status button.
+  - 1550 px, bar closed (1500 px): status button.
+  - No overlap at 2200 px (bar open), with the tools at the bottom (`formation-main` below 1300 px), or anywhere at 16 px.
+  Possible fix: thresholds and reserve in rem (1300 px → 81.25rem, 528 px → 33rem, 1440 px → 90rem). Check first that container queries use the root font size for rem.
+
 ## Lessons
 - Do not mix a px offset with rem widths that it must match. Use the same unit, or calculate the offset from the same spacing values.
-- The container thresholds of the top bar (`@min-[1300px]/formation-main`, `pr-[528px]`) are also in px, while the tools in the top bar are in rem. With a larger browser font the reserve can be too small. This was not checked in this fix.
+- Measure a layout change with a larger browser font too (root font size 20 px), not only at 16 px.
