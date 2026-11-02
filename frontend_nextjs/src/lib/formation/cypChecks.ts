@@ -15,6 +15,7 @@ import { analyzeLib } from './libChecks';
 import { CYP_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
 import { dirSide, neighborTf, type Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
+import { exemptFor, settle } from './settle';
 import {
   alternates,
   analyzeXabcd,
@@ -149,6 +150,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   if (['CYP-11', 'CYP-14', 'CYP-15'].some((id) => stateOf(id) === 'met')) verdict = 'invalid';
   else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && k.id !== 'CYP-07')) verdict = 'invalid';
   else if (!reached) verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('CYP', tf, withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

@@ -17,6 +17,7 @@ import { dTargetOfCrab, zonesNearOutsideX } from './crb';
 import { CRB_PARAMS, FIB_PARAMS, type ContextTimeframe } from './params';
 import type { Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
+import { exemptFor, settle } from './settle';
 import {
   alternates,
   analyzeXabcd,
@@ -154,6 +155,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   if (stateOf('CRB-03') === 'met' || !variantOk(stateOf)) verdict = 'invalid';
   else if (checks.some((k) => k.kind === 'required' && k.state === 'unmet' && !pending(k.id) && !variantIds.includes(k.id))) verdict = 'invalid';
   else if (checks.some((k) => pending(k.id) && k.state === 'unmet')) verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('CRB', tf, withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

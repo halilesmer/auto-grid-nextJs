@@ -341,6 +341,14 @@ test.describe('CDT: Abdeckung und Eigenschaften', () => {
     expect(bottom.checks.map((c) => [c.id, c.state])).toEqual(top.checks.map((c) => [c.id, c.state]));
   });
 
+  frm('Ohne H2 sind CDT-05 und CDT-06 nicht messbar, N ist ohne spätere Kerze kein Fraktal (CDT-03 ☐): ungültig, nie gültig', () => {
+    // keine Kerze nach N: es gibt kein H2
+    const c = run({ H4: zig([120, 100, 130, 112], 8, 0) }, { h1: 18, n: 26 });
+    expect(states(c, ['CDT-03', 'CDT-05', 'CDT-06', 'CDT-12'])).toEqual([N, U, U, M]);
+    expect(c.points.H2).toBeUndefined();
+    expect(c.verdict).toBe('invalid');
+  });
+
   frm('Ohne zwei Wendepunkte gibt es keine Formation: alles nicht messbar, im Aufbau', () => {
     const c = analyzeCdt(ctxOf({ H4: zig([100], 8, 3) }), END).find((a) => a.tf === 'H4')!.candidate;
     expect(c.checks.every((x) => x.state === U)).toBe(true);
