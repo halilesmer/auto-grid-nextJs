@@ -25,7 +25,7 @@ export interface LibBase {
 }
 
 export interface LibTouch {
-  /** erste Kerze nach P3, deren Docht die erste erreichte Kante erreicht */
+  /** erste Kerze nach P3, deren Docht die gemessene Kante erreicht (in `libChecks` die des gewählten Einstiegs) */
   idx: number;
   level: number;
 }
@@ -137,15 +137,15 @@ export function closedBeyondP2(bars: Bars, p2: LibPoint, es: ZoneSide): boolean 
   return false;
 }
 
-/** Berührung der zuerst erreichten Kante; ein neues Extrem jenseits von P3 beendet die Messung (nächster Impuls) */
-export function measureTouch(bars: Bars, es: ZoneSide, cs: ZoneSide, p3: LibPoint, first: number): { touch: LibTouch | null; windowEnd: number } {
+/** Berührung der Kante `edge`; ein neues Extrem jenseits von P3 beendet die Messung (nächster Impuls) */
+export function measureTouch(bars: Bars, es: ZoneSide, cs: ZoneSide, p3: LibPoint, edge: number): { touch: LibTouch | null; windowEnd: number } {
   let windowEnd = bars.length - 1;
   for (let k = p3.idx + 1; k < bars.length; k++) {
     if (outward(cs, wickEnd(bars[k], cs)) > outward(cs, p3.price)) {
       windowEnd = k - 1;
       break;
     }
-    if (outward(es, wickEnd(bars[k], es)) >= outward(es, first)) return { touch: { idx: k, level: first }, windowEnd: k };
+    if (outward(es, wickEnd(bars[k], es)) >= outward(es, edge)) return { touch: { idx: k, level: edge }, windowEnd: k };
   }
   return { touch: null, windowEnd };
 }

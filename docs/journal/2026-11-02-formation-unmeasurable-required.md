@@ -54,5 +54,5 @@ Exempt rules: rows marked `inactive`, BAT-01 when BAT-02 is met, CDT-12 when CDT
 - An exemption list needs a reachable case. Entries for states that no checker produces are noise.
 
 ## Open points
-- LIB, OBO, ENC, KEI, TDF do not use `settle`. They follow with package E if finding 38 comes.
+- OBO, ENC, KEI, TDF do not use `settle`. They follow with package E if finding 38 comes. LIB uses it since `2026-11-02-formation-libra-page.md`.
 - The warning box has a contrast of 3.2:1 in light mode (existing style, not part of this change).

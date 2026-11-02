@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
+import { SCAN_FORMATIONS } from '../../src/lib/formation/scan';
 import { groupZones, makeZone } from '../fixtures/data';
 import { harmonic } from '../fixtures/formation-harmonic';
 import { H4, barsOf } from '../fixtures/formation-rows';
@@ -72,6 +73,19 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await page.getByTestId('formation-form-GAR').click();
     await expect(page).toHaveURL(/form=GAR/);
     await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('Libra steht in der Leiste: gültige Kauf-Libra mit Badge, Checkliste und erreichtem Punkt K', { tag: ['@FRM-18', '@FRM-09'] }, async ({ page, worker }) => {
+    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/lib-gone-h4-01.json', 'utf-8'))).bars;
+    await openPage(page, worker, `${URL}&form=LIB`, 1763064000, bars);
+    await expect(page.getByTestId('formation-form-LIB')).toContainText(msg('formation.form.LIB'));
+    await expect(page.getByTestId('formation-form-LIB').getByTestId('hit-badge')).toHaveText('1');
+    await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
+    const list = page.getByTestId('formation-checklist');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="LIB-12"]')).toHaveAttribute('data-state', 'met');
+    await expect(list.locator('[data-testid="check-row"][data-rule-id="LIB-13"]')).toHaveAttribute('data-state', 'clear');
+    await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
   });
 
   test('Ohne Treffer steht der Leerzustand statt einer Checkliste', { tag: '@FRM-18' }, async ({ page, worker }) => {
@@ -710,7 +724,7 @@ test.describe('FRM-27 Formationsalarm', () => {
   const enable = async (page: Page, only: string[] = []) => {
     await openAlarm(page);
     await page.getByRole('switch', { name: msg('formation.alarm.enable', { symbol: 'EURUSD' }) }).click();
-    for (const form of only.length > 0 ? ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT'].filter((x) => !only.includes(x)) : []) {
+    for (const form of only.length > 0 ? SCAN_FORMATIONS.filter((x) => !only.includes(x)) : []) {
       await page.getByTestId(`formation-alarm-form-${form}`).click();
     }
     await page.keyboard.press('Escape');
