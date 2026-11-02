@@ -136,7 +136,7 @@ export function trendDirUpTo(env: Env, tf: Env['tf'], idx: number): 'up' | 'down
  * Volumenstarke Kerze gegen die Trade-Richtung an der Berührung (2618-10): die Kerze vor und die Kerze der Berührung.
  * Gegen den Verkauf läuft eine steigende Kerze, gegen den Kauf eine fallende. null, solange eine Kerze nicht messbar ist.
  */
-export function wideAgainst(env: Env, tf: Env['tf'], s: CdtShape, idx: number): boolean | null {
+export function wideAgainst(env: Env, tf: Env['tf'], s: Pick<CdtShape, 'es'>, idx: number): boolean | null {
   const view = env.views.get(tf)!;
   const flags: (boolean | null)[] = [];
   for (const k of [idx - 1, idx]) {

@@ -16,7 +16,7 @@ import type { ObPoint } from './obo';
 import { T618_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
 import { divergenceOf } from './sig';
-import { impulseEnds } from './f2618';
+import { impulseEnds, wideAgainst } from './f2618';
 import { lineTouches, returnTouch } from './t618';
 import type { TrendModel } from './trd';
 import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Side, Verdict } from './types';
@@ -66,20 +66,6 @@ const mk = (id: string, state: CheckState, value?: number): Check => {
 
 const empty = (tf: ContextTimeframe): Candidate => unmeasurable('T618', tf, T618_CHECK_IDS, RULES);
 
-/** Volumenstarke Kerze gegen die Trade-Richtung an der Berührung: die Kerze davor und die Kerze der Berührung; null, solange eine Kerze nicht messbar ist */
-function wideAgainst(env: Env, tf: ContextTimeframe, es: ZoneSide, idx: number): boolean | null {
-  const view = env.views.get(tf)!;
-  const flags: (boolean | null)[] = [];
-  for (const k of [idx - 1, idx]) {
-    if (k < 0) continue;
-    const b = view.bars[k];
-    const against = es === 'resistance' ? b.close > b.open : b.close < b.open;
-    flags.push(view.wide[k] === null ? null : view.wide[k] === true && against);
-  }
-  if (flags.includes(true)) return true;
-  return flags.includes(null) ? null : false;
-}
-
 function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: number, i: ObPoint): Candidate {
   const view = env.views.get(tf)!;
   const { bars } = view;
@@ -120,7 +106,7 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
   const prior = pv[pPos - 2];
   const div = prior ? divergenceOf(model, es, prior.idx, p.idx) : null;
   add('T618-08', div && div.a.wave !== null && div.b.wave !== null ? flag(div.tie) : U);
-  const wide = s.touch ? wideAgainst(env, tf, es, s.touch.idx) : null;
+  const wide = s.touch ? wideAgainst(env, tf, { es }, s.touch.idx) : null;
   add('T618-09', s.touch ? tri(wide === null ? null : !wide) : U);
 
   const drawings = drawingsOf(env, tf, model, pPos, i, s);
