@@ -4,7 +4,7 @@
  * (ein Punkt entscheidet sich an der Kerze, mit der sein Fraktal fertig wird, Wechsel brauchen geschlossene Kerzen),
  * so gibt es keinen Blick in die Zukunft.
  */
-import { closesBeyond, fractalIndices, outward, wickEnd, zoneGeometry, type ZoneSide } from './frz';
+import { closesBeyond, fractalIndices, otherSide, outward, wickEnd, zoneGeometry, type ZoneSide } from './frz';
 import { wilderAtr } from './indicators';
 import { FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe, type TrendOptions } from './params';
 import { zugRule, type ZugEdit, type ZugPoint } from './trdZug';
@@ -268,25 +268,36 @@ export function trendLines(m: TrendModel): TrendLine[] {
   const poss = m.pivots.map((p, pos) => ({ p, pos })).filter((x) => x.pos >= m.originPos && x.p.side === side);
   const out: TrendLine[] = [];
   for (let j = 1; j < poss.length; j++) {
-    const first = poss[j - 1];
-    const second = poss[j];
-    const rising = outward(side, second.p.price) < outward(side, first.p.price);
-    if (!rising) continue;
-    const before = [...m.pivots.slice(0, second.pos)].reverse().find((p) => p.side === extremeSide(m.dir!));
-    if (!before) continue;
-    let impulse = false;
-    for (let k = second.p.idx + 1; k < m.bars.length; k++) {
-      if (closesBeyond(m.bars[k], before.price, extremeSide(m.dir))) {
-        impulse = true;
-        break;
-      }
-    }
-    if (!impulse) continue;
-    const a = anchorOf(m, first.p);
-    const b = anchorOf(m, second.p);
-    out.push({ a, b, replaced: a.replaced || b.replaced, posA: first.pos, posB: second.pos });
+    const line = lineThrough(m, poss[j - 1].pos, poss[j].pos);
+    if (line) out.push(line);
   }
   return out;
+}
+
+/**
+ * Linie durch zwei Wendepunkte derselben Seite an den Positionen `posA` und `posB` des Trendzugs (TRD-34 bis TRD-36). null, wenn die Punkte
+ * nicht in Richtung der Gegenseite laufen (Aufwärts: zweites Tief höher) oder nach dem zweiten Punkt kein Schluss jenseits des Extrems davor kam.
+ */
+export function lineThrough(m: TrendModel, posA: number, posB: number): TrendLine | null {
+  const first = m.pivots[posA];
+  const second = m.pivots[posB];
+  const side = second.side;
+  const es = otherSide(side);
+  const rising = outward(side, second.price) < outward(side, first.price);
+  if (!rising) return null;
+  const before = [...m.pivots.slice(0, posB)].reverse().find((p) => p.side === es);
+  if (!before) return null;
+  let impulse = false;
+  for (let k = second.idx + 1; k < m.bars.length; k++) {
+    if (closesBeyond(m.bars[k], before.price, es)) {
+      impulse = true;
+      break;
+    }
+  }
+  if (!impulse) return null;
+  const a = anchorOf(m, first);
+  const b = anchorOf(m, second);
+  return { a, b, replaced: a.replaced || b.replaced, posA, posB };
 }
 
 export const lineAt = (line: TrendLine, time: number): number =>
