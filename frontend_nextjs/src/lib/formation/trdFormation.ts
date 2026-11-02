@@ -145,7 +145,9 @@ function refreshReference(m: TrendModel): void {
 export function formationTrend(view: TimeframeView, upTo: number = view.bars.length - 1): TrendModel {
   const bars = view.bars.slice(0, upTo + 1);
   const wave = view.wave.slice(0, upTo + 1);
-  return view.zug === 'trend' ? buildTrend(view.tf, bars, wave) : buildFineTrend(view.tf, bars, wave);
+  // W1 hat kein eigenes Trendmodell-Etikett: `tf` wirkt nur in der Zonengeometrie (Manipulation nur H4); das W1-Modell wird nur auf Richtung und Divergenz gelesen
+  const tf = view.tf === 'W1' ? 'D1' : view.tf;
+  return view.zug === 'trend' ? buildTrend(tf, bars, wave) : buildFineTrend(tf, bars, wave);
 }
 
 /** Schlüsse jenseits der Bezugszone für den Trendwechsel im jeweiligen Zug (TRD-17) */

@@ -16,6 +16,7 @@ import { save, serverSnapshot, snapshot, subscribe } from '@/lib/formation/alarm
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
 import { CONTEXT_TIMEFRAMES } from '@/lib/formation/params';
 import { formationRequests } from '@/lib/formation/requests';
+import { splitDaily } from '@/lib/formation/weekly';
 import { formedHits, scanFormations, scanTime, type FormedHit, type ScanHit } from '@/lib/formation/scan';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useAccountStore } from '@/store/useAccountStore';
@@ -80,6 +81,14 @@ async function scanSymbol(accountId: string, symbol: string, to: number, signal:
   const input: ContextInput = {};
   let gap: ScanGap | null = null;
   for (const [tf, res] of loaded) {
+    if (tf === 'D1') {
+      // Lücken nur im Zusatzteil für W1 (vor der D1-Ansicht) setzen den Lückenhinweis nicht
+      const { d1, w1 } = splitDaily(res.bars, res.missing, to);
+      input.D1 = d1;
+      input.W1 = w1;
+      if (d1.missing.length > 0) gap = 'missing';
+      continue;
+    }
     input[tf] = { bars: res.bars, missing: res.missing };
     if (res.missing.length > 0) gap = 'missing';
   }

@@ -13,7 +13,7 @@ import { outward } from './frz';
 import { closedBeyondBLimit, closedBeyondCLimit, extensionOfC, levelBC, levelXC, lenXC, retraceXC } from './cyp';
 import { analyzeLib } from './libChecks';
 import { CYP_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { dirSide, neighborTf, type Env } from './reasons';
+import { dirSide, higherTrendTf, type Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import {
@@ -104,7 +104,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
     extC > 0;
   add('CYP-01', flag(structure));
 
-  const higher = neighborTf(env, tf, -1);
+  const higher = higherTrendTf(env, tf);
   const higherDir = higher ? env.trends.get(higher)?.dir : null;
   add('CYP-02', higherDir ? flag(dirSide(higherDir) === side) : U);
 
@@ -151,7 +151,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (!reached) verdict = 'forming';
-  verdict = settle(verdict, withDrawings, exemptFor('CYP', tf, withDrawings));
+  verdict = settle(verdict, withDrawings, exemptFor('CYP', withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

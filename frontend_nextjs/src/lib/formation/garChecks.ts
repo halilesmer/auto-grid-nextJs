@@ -152,7 +152,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number): C
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('GAR-05') === 'unmet') verdict = 'forming';
-  verdict = settle(verdict, withDrawings, exemptFor('GAR', tf, withDrawings));
+  verdict = settle(verdict, withDrawings, exemptFor('GAR', withDrawings));
 
   const points: Candidate['points'] = {
     X: anchorAt(bars, x.idx, x.price),

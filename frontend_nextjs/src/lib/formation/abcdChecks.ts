@@ -267,7 +267,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (waiting) verdict = 'forming';
-  verdict = settle(verdict, withDrawings, exemptFor('ABCD', tf, withDrawings));
+  verdict = settle(verdict, withDrawings, exemptFor('ABCD', withDrawings));
 
   const points: Candidate['points'] = {
     A: { time: bars[s.a.idx].time, price: s.a.price },

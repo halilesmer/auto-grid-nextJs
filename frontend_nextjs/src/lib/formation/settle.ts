@@ -2,14 +2,13 @@
  * Urteil und nicht messbare Pflicht: „gültig“ gilt nur, wenn keine Pflichtregel nicht messbar ist, die das Urteil blockiert.
  * Prüfer und Checkliste benutzen dasselbe Prädikat (`exemptFor`), damit der Hinweis nur Regeln nennt, die das Urteil wirklich halten.
  */
-import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
 import type { Check, Verdict } from './types';
 
 /** Ausnahme: diese Regel blockiert das Urteil nicht, auch wenn sie nicht messbar ist */
 export type Exempt = (check: Check) => boolean;
 
-/** Ausnahmeprädikat der Formation `code` auf der Zeiteinheit `tf`; `checks` sind die Zeilen des Kandidaten */
-export function exemptFor(code: string, tf: ContextTimeframe, checks: readonly Check[]): Exempt {
+/** Ausnahmeprädikat der Formation `code`; `checks` sind die Zeilen des Kandidaten */
+export function exemptFor(code: string, checks: readonly Check[]): Exempt {
   const stateOf = (id: string) => checks.find((k) => k.id === id)?.state;
   return (k) =>
     k.inactive === true ||
@@ -17,10 +16,7 @@ export function exemptFor(code: string, tf: ContextTimeframe, checks: readonly C
     // BAT-01 gilt als entschuldigt, wenn BAT-02 erfüllt ist
     (code === 'BAT' && k.id === 'BAT-01' && stateOf('BAT-02') === 'met') ||
     // Regelbuch cdt-doppeltop.md E-1: RSI-Extrem (CDT-12) oder Umkehrkerze (CDT-13), eine von beiden genügt
-    (code === 'CDT' && k.id === 'CDT-12' && stateOf('CDT-13') === 'met') ||
-    // D1 ist die oberste Zeiteinheit (CONTEXT_TIMEFRAMES ohne W1): CYP-02 hat dort keine höhere Zeiteinheit.
-    // Fällt weg, sobald W1 im Kontext ist (Paket D, Befund 16).
-    (code === 'CYP' && k.id === 'CYP-02' && tf === CONTEXT_TIMEFRAMES[0]);
+    (code === 'CDT' && k.id === 'CDT-12' && stateOf('CDT-13') === 'met');
 }
 
 /** IDs der nicht messbaren Pflichtregeln, die das Urteil „gültig“ blockieren */

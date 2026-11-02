@@ -6,6 +6,7 @@ import { runningBar, type Bar, type MissingRange } from '@/lib/analysis/candles'
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
 import type { ContextTimeframe } from '@/lib/formation/params';
 import { formationRequests } from '@/lib/formation/requests';
+import { splitDaily } from '@/lib/formation/weekly';
 import { scanFormations, scanTime, type ScanHit } from '@/lib/formation/scan';
 import { scanSignature } from '@/lib/formation/scanKey';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
@@ -75,7 +76,8 @@ export function useFormationScan(accountId: string | null, symbol: string | null
   const latest = useRef<ContextInput>({});
   useEffect(() => {
     const input = (d: { bars: Bar[]; missing: MissingRange[] } | null) => ({ bars: d?.bars ?? [], missing: d?.missing ?? [] });
-    latest.current = { D1: input(d1.data), H4: input(h4.data), H1: input(h1.data), M15: input(m15.data) };
+    const daily = splitDaily(d1.data?.bars ?? [], d1.data?.missing ?? [], to);
+    latest.current = { D1: daily.d1, W1: daily.w1, H4: input(h4.data), H1: input(h1.data), M15: input(m15.data) };
   });
 
   const [settled, setSettled] = useState<Settled | null>(null);

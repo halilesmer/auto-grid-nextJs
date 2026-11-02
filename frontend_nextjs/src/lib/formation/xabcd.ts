@@ -141,9 +141,10 @@ export const atrDistance = (a: number, b: number, atr: number | null): number | 
 /** Schluss jenseits von X in der H4-Reihe (ersatzweise der Formations-Zeiteinheit) nach der Kerze von X */
 export function closedBeyondX(env: Env, tf: ContextTimeframe, s: XabcdShape): boolean {
   const close = HARMONIC_PARAMS.closeTimeframe as ContextTimeframe;
-  const view = env.views.get(env.views.has(close) ? close : tf)!;
+  const viewTf = env.views.has(close) ? close : tf;
+  const view = env.views.get(viewTf)!;
   const xTime = env.views.get(tf)!.bars[s.x.idx].time;
-  const dur = TIMEFRAME_SEC[view.tf];
+  const dur = TIMEFRAME_SEC[viewTf];
   // die Kerze, die X enthält, zählt mit: sie schließt nach X
   return view.bars.some((b) => b.time + dur > xTime && closesBeyond(b, s.x.price, s.es));
 }
@@ -185,16 +186,19 @@ export function wideShareOfMove(wide: readonly (boolean | null)[], s: XabcdShape
 
 /**
  * Höhere Zeiteinheit gegen den Trade (GAR-19): Divergenz in D1 und W1 an den Extremen und RSI(7) in H4 lange im Extrem.
- * W1 gehört nicht zum Kontext (FRZ-27): der Teil ist nicht messbar. Ein ☐ eines Teils macht die Bedingung ☐.
+ * W1 wird aus D1 gebildet (weekly.ts); fehlt es, ist der Teil nicht messbar. Ein ☐ eines Teils macht die Bedingung ☐.
  */
 export function higherAgainst(env: Env, side: Side): CheckState {
   const against: Side = side === 'buy' ? 'sell' : 'buy';
   const d1 = env.trends.get('D1');
   const div = d1 ? divergenceOf(d1, zoneSideOf(against)) : null;
   const divD1 = !div || div.a.wave === null || div.b.wave === null ? null : div.tie;
+  const w1 = env.trends.get('W1');
+  const divW1Raw = w1 ? divergenceOf(w1, zoneSideOf(against)) : null;
+  const divW1 = !divW1Raw || divW1Raw.a.wave === null || divW1Raw.b.wave === null ? null : divW1Raw.tie;
   const h4 = env.views.get('H4');
   const rsiRun = h4 ? trailingRun(h4.rsi.map((v) => rsiExtreme(v, against))) >= HARMONIC_PARAMS.longRun : null;
-  const parts: (boolean | null)[] = [divD1, null, rsiRun];
+  const parts: (boolean | null)[] = [divD1, divW1, rsiRun];
   if (parts.includes(false)) return 'unmet';
   return parts.includes(null) ? 'unmeasurable' : 'met';
 }

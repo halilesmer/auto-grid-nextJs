@@ -7,11 +7,12 @@
 import { TIMEFRAME_SEC, type MissingRange } from '@/lib/analysis/candles';
 import { gapBetween } from '@/lib/analysis/fractals';
 import { atrSeries, narrowRange, rsi, wave, wideRange, type Series } from './indicators';
-import { CONTEXT_TIMEFRAMES, TRD_PARAMS, type ContextTimeframe, type FormationZug } from './params';
+import { CONTEXT_TIMEFRAMES, TRD_PARAMS, type ContextTimeframe, type FormationZug, type TrendTimeframe } from './params';
+import { W1_SEC } from './weekly';
 import type { FormationBar } from './types';
 
 export interface TimeframeView {
-  tf: ContextTimeframe;
+  tf: TrendTimeframe;
   /** Zug, auf dem die Formationen rechnen */
   zug: FormationZug;
   bars: FormationBar[];
@@ -27,7 +28,10 @@ type GapRange = Pick<MissingRange, 'from' | 'to'>;
 /** Kerzen einer Zeiteinheit, optional mit den fehlenden Datenbereichen (wie im Chart: sie trennen Fraktal-Nachbarn) */
 export type TimeframeInput = readonly FormationBar[] | { bars: readonly FormationBar[]; missing: readonly GapRange[] };
 
-export type ContextInput = Partial<Record<ContextTimeframe, TimeframeInput>>;
+/** W1 (aus D1 gebildet, weekly.ts) dient nur Trend, RSI und Divergenz und ist nicht Teil von `timeframes()` */
+export type ContextInput = Partial<Record<TrendTimeframe, TimeframeInput>>;
+
+const durationOf = (tf: TrendTimeframe): number => (tf === 'W1' ? W1_SEC : TIMEFRAME_SEC[tf]);
 
 /** Kopie der Kerzen; wo ein fehlender Bereich zwischen zwei Kerzen liegt, trägt die spätere `gapBefore` */
 function markGaps(bars: readonly FormationBar[], missing: readonly GapRange[]): FormationBar[] {
@@ -37,12 +41,12 @@ function markGaps(bars: readonly FormationBar[], missing: readonly GapRange[]): 
 
 export class FormationContext {
   readonly symbol: string;
-  private readonly full = new Map<ContextTimeframe, TimeframeView>();
+  private readonly full = new Map<TrendTimeframe, TimeframeView>();
 
   constructor(symbol: string, input: ContextInput, options: { zug?: FormationZug } = {}) {
     this.symbol = symbol;
     const zug = options.zug ?? TRD_PARAMS.formationZug;
-    for (const tf of CONTEXT_TIMEFRAMES) {
+    for (const tf of [...CONTEXT_TIMEFRAMES, 'W1'] as const) {
       const given = input[tf];
       if (!given) continue;
       const missing = 'bars' in given ? given.missing : [];
@@ -77,10 +81,10 @@ export class FormationContext {
   }
 
   /** Anzahl Kerzen von `tf`, die zum Zeitpunkt t (MT5-Sekunden) geschlossen sind: time + Dauer ≤ t */
-  closedCount(tf: ContextTimeframe, t: number): number {
+  closedCount(tf: TrendTimeframe, t: number): number {
     const view = this.full.get(tf);
     if (!view) return 0;
-    const dur = TIMEFRAME_SEC[tf];
+    const dur = durationOf(tf);
     let lo = 0;
     let hi = view.bars.length;
     while (lo < hi) {
@@ -92,7 +96,7 @@ export class FormationContext {
   }
 
   /** Geschlossene Kerzen und Indikatoren von `tf` zum Zeitpunkt t; null, wenn `tf` nicht geladen ist */
-  view(tf: ContextTimeframe, t: number): TimeframeView | null {
+  view(tf: TrendTimeframe, t: number): TimeframeView | null {
     const view = this.full.get(tf);
     if (!view) return null;
     const n = this.closedCount(tf, t);
