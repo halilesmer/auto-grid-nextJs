@@ -51,8 +51,9 @@ function NavLinks({ layout }: { layout: 'row' | 'panel' }) {
           aria-label={label}
           onClick={inPanel ? close : undefined}
           className={cn(
-            'relative flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            inPanel && 'w-full',
+            'relative flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            // Kopfzeile eine Stufe kleiner; im ☰-Menü wie die übrigen Menüeinträge (text-sm)
+            inPanel ? 'w-full text-sm' : 'text-xs',
             inPanel && active && 'bg-accent',
             active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
             inPanel && !active && 'hover:bg-accent',
