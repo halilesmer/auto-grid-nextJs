@@ -16,7 +16,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeEnc, checkEncCandidate, ENC_CHECK_IDS } from '../../src/lib/formation/encChecks';
 import { checkKeiCandidate } from '../../src/lib/formation/keiChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
-import { END, H4, mirror, type Row } from '../fixtures/formation-rows';
+import { END, H4, mirror, patched, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip, trendH1 } from '../fixtures/formation-lines';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-16' }, fn);
@@ -63,6 +63,10 @@ const IRREGULAR = lineRows([100, 150, 130, 188, 160, 195, 150]);
 const PARALLEL = lineRows([100, 150, 130, 181, 160, 200, 150]);
 /** Ein Keil: das zweite Hoch 176 liegt weit unter der Kopie (Abstand 31 statt 35) */
 const WEDGE = lineRows([100, 150, 130, 176, 160, 202, 150]);
+/** Das zweite Hoch 150,1 überragt das erste (150) nur mit dem Docht, danach schließt keine Kerze über 150: nach TRD-34 gibt es noch keine Linie */
+const NO_RELEASE = lineRows([100, 150, 130, 150.1, 140, 149, 120]);
+/** Das erste Tief ist ein Spike (Körper 0, Docht bis 99): Anker ist das Tief 100,1 der rechten Nachbarkerze (TRD-36) */
+const SPIKE_L0 = patched(BASE, at(0), [101, 101.1, 99, 101]);
 /** Exakte Kopie: beide Hochs haben Abstand 35 zur Trendlinie. */
 const EXACT_CHANNEL = lineRows([100, 150, 130, 180, 160, 195, 150]);
 
@@ -92,6 +96,7 @@ const CASES: Case[] = [
   { name: 'ENC 01 ☐: Trend in H1 zeigt nach unten (Gegenbewegung in der tieferen Zeiteinheit, keine Flagge im Trend)', rows: BASE, options: { H1: trendH1(false) }, expect: { '01': N } },
   { name: 'ENC 02 ☐: der letzte Impuls ist länger als der vorige', rows: STRONG_LAST, expect: { '02': N, '03': M } },
   { name: 'ENC 03 ☐: die Trendlinie fällt', rows: FALLING_LINE, expect: { '03': N } },
+  { name: 'ENC 03 ☐: nach dem zweiten Tief schließt keine Kerze über dem Impulsende 150, die Linie gilt noch nicht', rows: NO_RELEASE, expect: { '03': N } },
   { name: 'ENC 04 ☐: das zweite Tief liegt über der Linie', rows: NO_SECOND_LOW, expect: { '04': N, '03': M, '05': M } },
   { name: 'ENC 05 ☐: kein Schluss unter der Linie', rows: NO_ACTIVATION, expect: { '05': N, '04': N, '06': N } },
   { name: 'ENC 06 ☐: Schluss unter der Linie, aber nie unter dem Tief 160', rows: NO_CHANGE, expect: { '05': M, '06': N } },
@@ -177,6 +182,14 @@ frm('Zeichnungen: Trendlinie, Kopie, Höhe und Ziele kommen auch bei ☐', () =>
   expect(line.anchors[1].time).toBe(lastIdx * H4);
   const open = run(NO_ACTIVATION);
   expect(open.drawings.map((d) => d.id)).toEqual(['Z-ENC-01', 'Z-ENC-01b', 'Z-ENC-02']);
+});
+
+frm('Spike am ersten Tief: die Trendlinie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {
+  const line = run(SPIKE_L0).drawings.find((d) => d.id === 'Z-ENC-01')!;
+  expect(line.anchors[0].time).toBe((at(0) + 1) * H4);
+  expect(line.anchors[0].price).toBeCloseTo(100.1, 6);
+  // durch 100,1 (Index 43) und 130 (Index 58): bei Index 93 liegt sie bei 199,77
+  expect(line.anchors[1].price).toBeCloseTo(199.7667, 3);
 });
 
 frm('Analyse findet den Kanal selbst und liefert alle Bedingungen', () => {

@@ -14,7 +14,7 @@ import { FormationContext } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeKei, checkKeiCandidate, KEI_CHECK_IDS } from '../../src/lib/formation/keiChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
-import { D1, END, H4, barsOf, mirror, zig, type Row } from '../fixtures/formation-rows';
+import { D1, END, H4, barsOf, mirror, patched, zig, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip } from '../fixtures/formation-lines';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-17' }, fn);
@@ -47,6 +47,10 @@ const STRONG_LAST = lineRows([100, 150, 130, 176, 160, 225, 150]);
 const FALLING = lineRows([150, 200, 140, 195, 130, 190, 120]);
 /** Flaches Dreieck: die Hochs liegen gleich (150, 150), nur die Tiefs steigen (120, 125, 130) */
 const FLAT_TOP = lineRows([120, 150, 125, 150, 130, 148, 100]);
+/** Das zweite Hoch 150,1 überragt das erste (150) nur mit dem Docht, danach schließt keine Kerze über 150: nach TRD-34 gibt es noch keine Linie */
+const NO_RELEASE = lineRows([100, 150, 130, 150.1, 140, 149, 120]);
+/** Das erste Tief ist ein Spike (Körper 0, Docht bis 99): Anker ist das Tief 100,1 der rechten Nachbarkerze (TRD-36) */
+const SPIKE_L0 = patched(BASE, at(0), [101, 101.1, 99, 101]);
 /** Das zweite Hoch 185 (2,19 je Kerze) steigt steiler als die Tiefs (1,875): die Linien laufen auseinander */
 const WIDENING = lineRows([100, 150, 130, 185, 160, 202, 150]);
 /** Das zweite Tief 150 liegt unter der Linie (160) und schließt dort darunter: die Aktivierung kommt vor dem zweiten Test */
@@ -76,6 +80,7 @@ const CASES: Case[] = [
   { name: 'KEI 02 ☐: der letzte Impuls ist länger als der vorige', rows: STRONG_LAST, expect: { '02': N, '03': M } },
   { name: 'KEI 03 ☐: die Tiefs fallen, die Linien zeigen nicht mit dem Trend', rows: FALLING, expect: { '03': N } },
   { name: 'KEI 03 ☐: flaches Dreieck, die Gegenlinie steigt nicht (kein Keil)', rows: FLAT_TOP, expect: { '03': N } },
+  { name: 'KEI 03 ☐: nach dem zweiten Tief schließt keine Kerze über dem Impulsende 150, die Linie gilt noch nicht', rows: NO_RELEASE, expect: { '03': N } },
   { name: 'KEI 04 ☐: die Linien laufen auseinander', rows: WIDENING, expect: { '04': N, '03': M, '05': M } },
   { name: 'KEI 05 ☐: Schluss unter der Linie schon vor dem zweiten Test unten', rows: EARLY_BREAK, expect: { '05': N, '06': M } },
   { name: 'KEI 06 ☐: kein Schluss unter der Linie', rows: NO_ACTIVATION, expect: { '06': N, '07': M, '09': U } },
@@ -142,6 +147,14 @@ frm('Zeichnungen: zwei zulaufende Linien und Zonen kommen auch bei ☐; ohne hö
   const end = upper.anchors[1].price - lower.anchors[1].price;
   expect(end).toBeLessThan(start);
   expect(run(NO_ACTIVATION).drawings.map((d) => d.id)).toContain('Z-KEI-01b');
+});
+
+frm('Spike am ersten Tief: die untere Keillinie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {
+  const line = run(SPIKE_L0).drawings.find((d) => d.id === 'Z-KEI-01')!;
+  expect(line.anchors[0].time).toBe((at(0) + 1) * H4);
+  expect(line.anchors[0].price).toBeCloseTo(100.1, 6);
+  // durch 100,1 (Index 43) und 130 (Index 58): bei Index 93 liegt sie bei 199,77
+  expect(line.anchors[1].price).toBeCloseTo(199.7667, 3);
 });
 
 /** D1 im Aufwärtstrend: Wendepunkte 80, 120, 100, 140, 125 auf Index 2, 6, 10, 14, 18; 120 → 100 ist 0,5 tief (Korrektur), der aktuelle Impuls ist 100 → 140 */

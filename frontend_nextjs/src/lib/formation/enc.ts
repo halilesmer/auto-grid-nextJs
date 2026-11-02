@@ -6,7 +6,7 @@
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { FormationContext, TimeframeView } from './context';
 import { otherSide, type ZoneSide } from './frz';
-import { channelBases, legLens, widthAt, type Channel, type ChannelBase } from './lineChannel';
+import { channelBaseAt, channelBases, legLens, widthAt, type Channel, type ChannelBase } from './lineChannel';
 import { LINE_CHANNEL_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, neighborTf, type Env } from './reasons';
 import type { TrendDir } from './trd';
@@ -115,5 +115,5 @@ export function checkChannel(ctx: FormationContext, t: number, input: ChannelPoi
   const run = pos < 0 ? [] : model.pivots.slice(pos, pos + 5);
   const given = [input.l0, input.hs, input.la, input.h2, input.lb];
   if (run.length < 5 || !run.every((p, n) => p.idx === idxOf(given[n]))) return empty(input.tf);
-  return evaluate(env, input.tf, { es: run[1].side, l0: run[0], hs: run[1], la: run[2], h2: run[3], lb: run[4] });
+  return evaluate(env, input.tf, channelBaseAt(model, pos));
 }

@@ -96,11 +96,11 @@ function drawingsOf(env: Env, tf: ContextTimeframe, c: Channel): Drawing[] {
   const { bars } = env.views.get(tf)!;
   const last = bars.length - 1;
   const lastTime = bars[last].time;
-  const { l0, hs, la, h2, es } = c.base;
+  const { l0, hs, la, h2, es, line } = c.base;
   const side = reversalSide(es);
   const rules = ids('KEI', [1, 3, 4, 5, 6, 7]);
   const out: Drawing[] = [
-    { id: 'Z-KEI-01', tool: 'trendline', anchors: [anchorAt(bars, l0.idx, l0.price), { time: lastTime, price: c.counterAt(last) }], rules, side },
+    { id: 'Z-KEI-01', tool: 'trendline', anchors: [line ? { time: line.a.time, price: line.a.price } : anchorAt(bars, l0.idx, l0.price), { time: lastTime, price: c.counterAt(last) }], rules, side },
     { id: 'Z-KEI-01b', tool: 'trendline', anchors: [anchorAt(bars, hs.idx, hs.price), { time: lastTime, price: c.extremeAt(last) }], rules, side },
   ];
   // Ziel-Fib auf den aktuellen Impuls der höheren ZE in Trendrichtung des Keils (Anfangspunkt im Regelwerk nicht genannt); ohne höhere ZE keine Zeichnung
