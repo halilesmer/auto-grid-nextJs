@@ -23,11 +23,14 @@ import {
   type AbcdShape,
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
-import { ABCD_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, type ContextTimeframe } from './params';
+import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
 import { abcdIsCdt } from './cdt';
+import { evaluate as evaluateBat } from './batChecks';
+import { evaluate as evaluateGar } from './garChecks';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { exemptFor, settle } from './settle';
+import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
 
@@ -63,8 +66,6 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
 
 /** Bedingungen mit Prüfung, in der Reihenfolge des Regelwerks */
 export const ABCD_CHECK_IDS: readonly string[] = Object.keys(RULES);
-/** Immer „nicht messbar“: harmonisches D (GAR und BAT folgen später, ABCD-16) */
-export const ABCD_UNMEASURABLE_IDS: readonly string[] = ['ABCD-16'];
 
 export interface AbcdPointsInput {
   tf: ContextTimeframe;
@@ -97,7 +98,29 @@ interface NearZone {
   testsBeforeD: number;
 }
 
-function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candidate {
+/**
+ * ABCD-16: Gartley oder Bat auf denselben A, B, C (X = Wendepunkt vor A), nicht ungültig, mit D-Ziel in der Zone Z-ABCD-04.
+ * Toleranz der Zone: HARMONIC_PARAMS.touchPips (wie GAR-05). Gartley-D-Ziel: 0.786 von X → A (GAR-07);
+ * Bat-D-Ziel: 0.886 von X → A (BAT-07). Ohne X nicht messbar.
+ */
+function harmonicD(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, zone: [number, number]): CheckState {
+  const { tf } = env;
+  const { pivots } = env.trends.get(tf)!;
+  const bars = env.views.get(tf)!.bars;
+  const at = pivots.findIndex((q) => q.idx === p.a.idx);
+  const x = at > 0 ? pivots[at - 1] : null;
+  if (!x) return U;
+  const s = shapeOfX(bars, { x: { idx: x.idx, price: x.price }, a: p.a, b: p.b, c: p.c }, dInput);
+  if (!ordered(s)) return 'unmet';
+  const tol = HARMONIC_PARAMS.touchPips * pip;
+  const inZone = (price: number) => price >= zone[0] - tol && price <= zone[1] + tol;
+  const gartley = inZone(levelXA(s, GAR_PARAMS.dAtX.level));
+  const bat = inZone(levelXA(s, BAT_PARAMS.dLevel));
+  const holds = (hit: boolean, evaluate: typeof evaluateGar) => hit && evaluate(env, tf, s, pip).verdict !== 'invalid';
+  return flag(holds(gartley, evaluateGar) || holds(bat, evaluateBat));
+}
+
+function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number): Candidate {
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
@@ -195,7 +218,9 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
   const withTrend = higherDir ? dirSide(higherDir) === side : null;
   add('ABCD-14', tri(withTrend));
   add('ABCD-15', near === null ? U : flag(hasConfluence), confluent.length);
-  add('ABCD-16', U);
+  const zonePrices = [s.level1, secondLevels.find(isNear) ?? extensionPrice(s, ABCD_PARAMS.minExtension)];
+  const harmonic = near === null ? U : harmonicD(env, p, dInput, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]);
+  add('ABCD-16', harmonic);
 
   // Signal am D
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
@@ -249,7 +274,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
   add('ABCD-24', abcdIsCdt(env, tf, es, s.b, s.d));
   add('ABCD-25', flag(timeframeExcluded(tf)));
 
-  const drawings = drawingsOf(env, s, reached, divState === 'met', secondLevels.find(isNear));
+  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear));
   const withDrawings = checks.map((c) => ({
     ...c,
     drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))],
@@ -278,7 +303,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined): Candi
   return { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
-function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, second: number | undefined): Drawing[] {
+function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined): Drawing[] {
   const bars = env.views.get(env.tf)!.bars;
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const lastTime = bars[bars.length - 1].time;
@@ -309,7 +334,7 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
     { id: 'Z-ABCD-06', tool: 'label', anchors: [{ time: lastTime, price: s.level1 }], rules: ids([7]), side },
   ];
   if (s.d && reached) {
-    const from = divergence ? s.a : s.c;
+    const from = divergence || harmonic ? s.a : s.c;
     const levels = [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2, ...(divergence ? [ABCD_PARAMS.targets.divergence] : []), -ABCD_PARAMS.targets.stop];
     out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, s.d.price)], levels, rules: [], side });
   }
@@ -326,10 +351,11 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   const tfs = ctx.timeframes();
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
+  const pip = pipOf(ctx.symbol);
   return tfs.map((tf) => {
     const env = envFor(base, ctx, t, tf);
     const points = selectPoints(env.trends.get(tf)!.pivots);
-    return { tf, candidate: points ? evaluate(env, points, undefined) : unmeasurable(tf) };
+    return { tf, candidate: points ? evaluate(env, points, undefined, pip) : unmeasurable(tf) };
   });
 }
 
@@ -347,5 +373,5 @@ export function checkAbcdCandidate(ctx: FormationContext, t: number, input: Abcd
     b: { idx: ib, price: input.b.price },
     c: { idx: ic, price: input.c.price },
   };
-  return evaluate(env, points, input.d && idxD !== undefined ? { idx: idxD, price: input.d.price } : undefined);
+  return evaluate(env, points, input.d && idxD !== undefined ? { idx: idxD, price: input.d.price } : undefined, pipOf(ctx.symbol));
 }

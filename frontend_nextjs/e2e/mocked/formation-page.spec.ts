@@ -115,7 +115,7 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
 
   test('Nicht messbare Bedingung: gestricheltes Symbol mit Beschriftung', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=ABCD`);
-    const row = page.locator('[data-testid="check-row"][data-rule-id="ABCD-16"]');
+    const row = page.locator('[data-testid="check-row"][data-rule-id="ABCD-14"]');
     await expect(row).toHaveAttribute('data-state', 'unmeasurable');
     await expect(row.getByRole('img')).toHaveAttribute('aria-label', msg('formation.state.unmeasurable'));
   });

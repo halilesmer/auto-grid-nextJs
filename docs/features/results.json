@@ -776,7 +776,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 57
+      "tests": 61
     }
   },
   "FRM-06": {
