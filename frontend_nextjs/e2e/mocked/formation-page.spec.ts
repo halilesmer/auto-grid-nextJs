@@ -1658,6 +1658,23 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     });
   }
 
+  test('Mit größerer Schrift im Browser (20 px) überlappt der Chart die offene Seitenleiste nicht', { tag: '@FRM-37' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 800 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+    // Wie die Browser-Einstellung „Schriftgröße: groß“: rem-Breiten wachsen mit, px-Werte nicht
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '20px';
+    });
+    const open = await geometry(page);
+    expect(open.sidebar!.width).toBe(360);
+    expect(open.main!.right).toBeLessThanOrEqual(open.sidebar!.left);
+    await expect.poll(async () => {
+      const chart = (await page.getByTestId('formation-chart').boundingBox())!;
+      return chart.x + chart.width;
+    }).toBeLessThanOrEqual(open.sidebar!.left);
+  });
+
   test('Zwei Reiter: jedes Symbol öffnet seinen Reiter, ein Klick auf den aktiven schließt, der Reiter wechselt ohne Schließen', { tag: '@FRM-37' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     await openPage(page, worker, `${URL}&form=GAR`);
