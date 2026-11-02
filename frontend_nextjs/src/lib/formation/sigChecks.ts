@@ -4,7 +4,8 @@
  * `checkSigDivergence` vergleicht zwei beliebige Punkte einer Seite.
  *
  * Lesart der Zustände: bei Ereignis-Bedingungen (SIG-15, SIG-16, SIG-30, SIG-31, SIG-38, SIG-07) heißt ☑ „liegt vor“, bei
- * Ausschlüssen also „ausgeschlossen“. Ohne die nötigen Daten oder ohne `side` ist der Zustand „nicht messbar“.
+ * Ausschlüssen also „ausgeschlossen“. Ohne die nötigen Daten oder ohne `side` ist der Zustand „nicht messbar“; das gilt auch
+ * für den fehlenden Vorlauf von RSI und Wave in den ersten Kerzen einer Reihe.
  * SIG-42 (Anzeige „stark“ ab 3 Gründen) hat keine Prüfung; die Gründe stehen in `SigAnalysis.reasons`.
  */
 import { outward, type Rect, type ZoneSide } from './frz';
@@ -90,14 +91,25 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
 
 /** Bedingungen mit Prüfung, in der Reihenfolge des Regelwerks */
 export const SIG_CHECK_IDS: readonly string[] = Object.keys(RULES);
-/** Immer „nicht messbar“: Aussage zum Risikoverhalten (SIG-08), Stop und Ziel aus dem Handel (SIG-29), Wirtschaftskalender (SIG-39) */
-export const SIG_UNMEASURABLE_IDS: readonly string[] = ['SIG-08', 'SIG-29', 'SIG-39'];
+/** Immer „nicht messbar“: Aussage zum Risikoverhalten (SIG-08), Wirtschaftskalender (SIG-39) */
+export const SIG_UNMEASURABLE_IDS: readonly string[] = ['SIG-08', 'SIG-39'];
+/** Einstellungen von RSI und Wave: ☑, sobald der Wert da ist; ohne Vorlauf nicht messbar, nie ☐ */
+export const SIG_NO_UNMET_IDS: readonly string[] = ['SIG-01', 'SIG-09', 'SIG-10'];
+
+/** Geplanter Trade: Einstieg, Stop und erstes Ziel (Preise) */
+export interface SigTrade {
+  entry: number;
+  stop: number;
+  tp1: number;
+}
 
 export interface SigOptions {
   /** Seite des geplanten Trades; ohne sie sind die Bedingungen mit Trade-Richtung nicht messbar */
   side?: Side;
   /** G9: Der Ort ist ein Formationspunkt */
   formationPoint?: boolean;
+  /** SIG-29: Einstieg, Stop und TP1 des Aufrufers; ohne sie ist das Chance-Risiko nicht messbar */
+  trade?: SigTrade;
 }
 
 export interface SigPointsInput {
@@ -119,6 +131,8 @@ export interface SigAnalysis {
 const flag = (cond: boolean): CheckState => (cond ? 'met' : 'unmet');
 const tri = (v: boolean | null): CheckState => (v === null ? 'unmeasurable' : flag(v));
 const U: CheckState = 'unmeasurable';
+/** Einstellung messbar, sobald der Wert da ist (SIG_NO_UNMET_IDS) */
+const present = (v: number | null): CheckState => (v === null ? U : 'met');
 const other = (side: Side): Side => (side === 'buy' ? 'sell' : 'buy');
 
 const mk = (id: string, state: CheckState, value?: number): Check => {
@@ -180,7 +194,7 @@ function evaluate(env: Env, explicit: SigPointsInput | null, options: SigOptions
   const nReasons = countReasons(reasons);
 
   // RSI
-  add('SIG-01', bar ? flag(rsiNow !== null) : U, rsiNow ?? undefined);
+  add('SIG-01', bar ? present(rsiNow) : U, rsiNow ?? undefined);
   let extreme: boolean | null = null;
   if (rsiNow !== null) extreme = side ? rsiExtreme(rsiNow, side) : rsiExtreme(rsiNow, 'sell') || rsiExtreme(rsiNow, 'buy');
   add('SIG-02', tri(extreme), rsiNow ?? undefined);
@@ -207,9 +221,9 @@ function evaluate(env: Env, explicit: SigPointsInput | null, options: SigOptions
   add('SIG-08', U);
 
   // Divergenz im Wave
-  add('SIG-09', div ? flag(div.a.wave !== null && div.b.wave !== null) : U);
+  add('SIG-09', div && div.a.wave !== null && div.b.wave !== null ? 'met' : U);
   const waveNow = last >= 0 ? view.wave[last] : null;
-  add('SIG-10', bar ? flag(waveNow !== null) : U, waveNow ?? undefined);
+  add('SIG-10', bar ? present(waveNow) : U, waveNow ?? undefined);
   add('SIG-11', compareSide && trend.dir ? flag(compareSide === extremeSide(trend.dir)) : U);
   add('SIG-12', div ? flag(div.a.pivot && div.b.pivot) : U);
   add('SIG-13', div && div.a.wave !== null && div.b.wave !== null ? flag(div.strict) : U);
@@ -254,7 +268,7 @@ function evaluate(env: Env, explicit: SigPointsInput | null, options: SigOptions
   const holding = engulfZones(bars, view.wide).filter((z) => z.holds && (!side || z.side === side));
   add('SIG-27', bar ? flag(holding.length > 0) : U, holding.length);
   add('SIG-28', side && lowerTf ? flag(lowerEngulf === true) : U);
-  add('SIG-29', U);
+  add('SIG-29', ...crvCheck(options.trade, side, lowerEngulf));
   const lowerAgainst = side && lowerTf ? engulfOf(env, lowerTf, other(side), 2) !== null : null;
   add('SIG-30', tri(lowerAgainst));
   const ahead =
@@ -338,6 +352,26 @@ function evaluate(env: Env, explicit: SigPointsInput | null, options: SigOptions
   }
   const candidateSide = side ?? (compareSide ? tradeSideOf(compareSide) : 'buy');
   return { tf, reasons, candidate: { code: 'SIG', side: candidateSide, tf, points, checks: withDrawings, drawings, verdict } };
+}
+
+/** Rundung bei Dezimalpreisen: 1:1 soll nicht durch 1,0000000000000002 als „über 1“ gelten */
+const CRV_EPS = 1e-9;
+
+/**
+ * SIG-29: bei Chance-Risiko bis TP1 höchstens 1:1 wird die Umkehrkerze der tieferen ZE (wie SIG-28) abgewartet.
+ * ☑ bei CRV > 1 oder mit dieser Umkehrkerze; Wert = CRV. Nicht messbar ohne Trade oder Seite, wenn Stop oder Ziel
+ * nicht auf ihrer Seite des Einstiegs liegen, und bei CRV ≤ 1 ohne tiefere ZE.
+ */
+function crvCheck(trade: SigTrade | undefined, side: Side | undefined, lowerEngulf: boolean | null): [CheckState, number?] {
+  if (!trade || !side) return [U];
+  const risk = side === 'buy' ? trade.entry - trade.stop : trade.stop - trade.entry;
+  const reward = side === 'buy' ? trade.tp1 - trade.entry : trade.entry - trade.tp1;
+  // !(x > 0) fängt auch NaN ab
+  if (!(risk > 0) || !(reward > 0)) return [U];
+  const crv = reward / risk;
+  if (!Number.isFinite(crv)) return [U];
+  if (crv > 1 + CRV_EPS) return ['met', crv];
+  return [tri(lowerEngulf), crv];
 }
 
 /** SIG-46: die aus der tieferen Zeiteinheit zusammengefassten Kerzen stimmen mit der geladenen höheren überein */
