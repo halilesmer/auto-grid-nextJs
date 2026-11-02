@@ -26,11 +26,21 @@ function Change({ quote }: { quote: Quote | null | undefined }) {
   );
 }
 
+/** „Produkt hinzufügen“ steht in der Reiterleiste der Seitenleiste, solange der Reiter Favoriten offen ist */
+export function FavoritesAddButton({ onAdd }: { onAdd: () => void }) {
+  const t = useT();
+  return (
+    <Button size="icon-sm" variant="ghost" hint={t('formation.fav.add.hint')} aria-label={t('formation.fav.add')} data-testid="favorites-add" onClick={onAdd}>
+      <Plus size={15} />
+    </Button>
+  );
+}
+
 /**
- * Favoriten-Seitenleiste (FRM-29): Kopf, Zeitraum-Zeile, Formations-Zeile, Tabelle. Zeitraum- und Formations-Zeile kommen als Inhalt
+ * Favoriten-Reiter der Seitenleiste (FRM-29): Zeitraum-Zeile, Formations-Zeile, Tabelle. Zeitraum- und Formations-Zeile kommen als Inhalt
  * von der Seite, damit sie sich mit der Kopfleiste über dem Chart nie doppeln. Die Preise werden nur abgefragt, solange die Leiste offen ist.
  */
-export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, timeframes, forms, onPick, onToggle, onAdd }: {
+export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, timeframes, forms, onPick, onToggle }: {
   accountId: string;
   /** Alle Favoriten (für Preise und Hinweise), `rows` = die Tabelle nach Filter */
   favorites: readonly string[];
@@ -40,7 +50,6 @@ export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, tim
   forms: ReactNode;
   onPick: (symbol: string) => void;
   onToggle: (symbol: string) => void;
-  onAdd: () => void;
 }) {
   const t = useT();
   const format = useFormat();
@@ -52,12 +61,6 @@ export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, tim
 
   return (
     <aside className="flex h-full min-h-0 flex-col" data-testid="favorites-sidebar" aria-label={t('formation.fav.title')}>
-      <div className="flex h-[38px] shrink-0 items-center justify-between border-b border-border pl-3 pr-1.5">
-        <strong className="text-xs">{t('formation.fav.title')}</strong>
-        <Button size="icon-sm" variant="ghost" hint={t('formation.fav.add.hint')} aria-label={t('formation.fav.add')} data-testid="favorites-add" onClick={onAdd}>
-          <Plus size={15} />
-        </Button>
-      </div>
       {favorites.length === 0 ? (
         <p className="p-3 text-xs text-muted-foreground" data-testid="favorites-empty">{t('formation.fav.empty')}</p>
       ) : (

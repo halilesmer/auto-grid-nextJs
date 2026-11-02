@@ -283,9 +283,9 @@
   },
   "ANA-21": {
     "e2e": {
-      "datum": "2026-10-31",
+      "datum": "2026-11-02",
       "status": "passed",
-      "tests": 23
+      "tests": 9
     }
   },
   "BKT-01": {
@@ -755,7 +755,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 99
+      "tests": 101
     }
   },
   "FRM-03": {
@@ -776,14 +776,14 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 61
+      "tests": 62
     }
   },
   "FRM-06": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 44
+      "tests": 46
     }
   },
   "FRM-07": {
@@ -797,7 +797,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 25
+      "tests": 39
     }
   },
   "FRM-09": {
@@ -846,42 +846,42 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 28
+      "tests": 30
     }
   },
   "FRM-16": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 33
+      "tests": 37
     }
   },
   "FRM-17": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 26
+      "tests": 33
     }
   },
   "FRM-18": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 20
+      "tests": 145
     }
   },
   "FRM-19": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 54
+      "tests": 55
     }
   },
   "FRM-20": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 20
+      "tests": 22
     }
   },
   "FRM-21": {
@@ -902,14 +902,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 3
-    }
-  },
-  "FRM-24": {
-    "e2e": {
-      "datum": "2026-11-02",
-      "status": "passed",
-      "tests": 3
+      "tests": 13
     }
   },
   "FRM-25": {
@@ -954,7 +947,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 20
+      "tests": 19
     }
   },
   "FRM-30": {
@@ -997,6 +990,13 @@
       "datum": "2026-11-02",
       "status": "passed",
       "tests": 3
+    }
+  },
+  "FRM-37": {
+    "e2e": {
+      "datum": "2026-11-02",
+      "status": "passed",
+      "tests": 12
     }
   },
   "LOG-01": {
