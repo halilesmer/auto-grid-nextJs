@@ -298,6 +298,7 @@ function FormationView() {
           <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>
           <li>{t('formation.legend.zone')}</li>
           <li>{t('formation.legend.rsi')}</li>
+          <li>{t('formation.legend.wave')}</li>
         </ul>
       )}
       </div>

@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf
+ * FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -190,6 +190,30 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await openPage(page, worker, `${URL}&form=GAR`);
     await expect(page.getByTestId('formation-checklist')).toContainText(msg('formation.legend.clear'));
     await expect(page.getByTestId('formation-checklist')).not.toContainText(msg('formation.legend.inactive'));
+  });
+});
+
+test.describe('FRM-35 Wave-Unterfenster', () => {
+  test('Der Chart hat drei Fenster, das Wave-Fenster trägt die 155 Wave-Werte der 189 geschlossenen Kerzen', { tag: '@FRM-35' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(chart).toHaveAttribute('data-system-panes', '3');
+    await expect(chart).toHaveAttribute('data-wave-points', '155');
+    await expect(chart).toHaveAttribute('data-wave-visible', 'true');
+    await expect(page.getByTestId('formation-legend')).toContainText(msg('formation.legend.wave'));
+  });
+
+  test('Der Schalter „Wave“ blendet das Wave-Fenster aus und wieder ein', { tag: '@FRM-35' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const chart = page.getByTestId('analysis-chart');
+    await page.getByTestId('workspace-settings').click();
+    await page.getByRole('button', { name: msg('cw.overlays'), exact: true }).click();
+    const wave = page.locator('#overlay-wave');
+    await expect(wave).toHaveAttribute('aria-checked', 'true');
+    await wave.click();
+    await expect(chart).toHaveAttribute('data-wave-visible', 'false');
+    await wave.click();
+    await expect(chart).toHaveAttribute('data-wave-visible', 'true');
   });
 });
 

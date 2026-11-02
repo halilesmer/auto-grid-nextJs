@@ -100,14 +100,14 @@ const RSI_LEVELS = [RSI_PARAMS.overbought, RSI_PARAMS.oversold];
 const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
 
 /** Zeichnungen der Erkennung als SVG über dem Chart; das Overlay endet vor der Preisachse. */
-function FormationOverlay({ scene, hit, bars, running, active, onActive, onCapture, visible }: Pick<Props, 'hit' | 'running' | 'active' | 'onActive' | 'onCapture'> & { scene: ChartScene; bars: readonly Bar[]; visible: boolean }) {
+function FormationOverlay({ scene, hit, bars, running, active, onActive, onCapture, visible, waveVisible }: Pick<Props, 'hit' | 'running' | 'active' | 'onActive' | 'onCapture'> & { scene: ChartScene; bars: readonly Bar[]; visible: boolean; waveVisible: boolean }) {
   const t = useT();
   const { number } = useFormat();
-  const { binding, rsi } = scene;
+  const { binding, rsi, wave } = scene;
   const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
   const overlayRef = useRef<SVGSVGElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
-  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[] }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [] });
+  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; waveTop: number; groups: DrawingGroup[] }>({ width: 0, height: 0, left: 0, priceHeight: 0, waveTop: 0, groups: [] });
 
   useEffect(() => {
     const { chart, host } = binding;
@@ -125,7 +125,8 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
       const width = host.clientWidth - left - chart.priceScale('right').width();
       const panes = chart.panes();
       const top = panes[0]?.getHeight() ?? 0;
-      const rsiHeight = panes[1]?.getHeight() ?? 0;
+      const subHeight = panes.slice(1).reduce((sum, pane) => sum + pane.getHeight(), 0);
+      const waveTop = top + (panes[1]?.getHeight() ?? 0);
       if (width <= 0 || top <= 0) return;
       const groups = layoutDrawings({
         candidate: hit.candidate,
@@ -141,10 +142,14 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
           const y = rsi?.priceToCoordinate(value) ?? null;
           return y === null ? null : top + y;
         },
+        yWave: (value) => {
+          const y = wave?.priceToCoordinate(value) ?? null;
+          return y === null ? null : waveTop + y;
+        },
         text: (key, params) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params }),
         fmt: (n) => number(n, { maximumFractionDigits: 3 }),
       });
-      setOverlay({ width, left, height: top + rsiHeight, priceHeight: top, groups });
+      setOverlay({ width, left, height: top + subHeight, priceHeight: top, waveTop, groups });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
@@ -169,7 +174,7 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
     // ChartCore baut den Chart beim Unmount vor diesem Effekt ab
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, rsi, bars, hit, t, number]);
+  }, [binding, rsi, wave, bars, hit, t, number]);
 
   // Die Preisachse kann sich mit der laufenden Kerze oder den Einstellungen ändern: Zeichnungen folgen im nächsten Frame
   useEffect(() => {
@@ -194,6 +199,9 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
           <rect x={0} y={0} width={overlay.width} height={overlay.priceHeight} />
         </clipPath>
       </defs>
+      {waveVisible && overlay.waveTop > 0 && (
+        <text x={8} y={overlay.waveTop + 16} fill="var(--muted-foreground)" fontSize={11}>{t('formation.pane.wave')}</text>
+      )}
       {overlay.groups.map((g) => (
         <g
           key={g.id}
@@ -218,12 +226,16 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
 export function FormationChart({ accountId, hit, context, scanAt, running, digits, active, onActive, onCapture }: Props) {
   const source = useConnectionStore(s => s.baseUrl);
   const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
-  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
+  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true, wave: true });
   const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
   const bars = view?.bars ?? NO_BARS;
   const data = useMemo(() => ({ points: bars, bars, missing: NO_MISSING, pauses: NO_MISSING }), [bars]);
   const rsiPoints = useMemo(() => bars.flatMap((b, i) => {
     const value = view?.rsi[i];
+    return value == null ? [] : [{ time: b.time, value }];
+  }), [bars, view]);
+  const wavePoints = useMemo(() => bars.flatMap((b, i) => {
+    const value = view?.wave[i];
     return value == null ? [] : [{ time: b.time, value }];
   }), [bars, view]);
   const priceRange = useMemo(() => drawingPriceRange(hit.candidate), [hit.candidate]);
@@ -235,6 +247,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
       workspaceOverlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
         { key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' },
         { key: 'rsi', label: 'formation.legend.rsi', hint: 'cw.systemRsi.hint' },
+        { key: 'wave', label: 'formation.legend.wave', hint: 'cw.systemWave.hint' },
       ]} />}
       data={data}
       timeframeSec={TIMEFRAME_SEC[hit.tf]}
@@ -248,12 +261,13 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
       live={null}
       until={scanAt}
       systemRsi={{ points: rsiPoints, levels: RSI_LEVELS, visible: overlays.rsi }}
+      systemWave={{ points: wavePoints, visible: overlays.wave }}
       runningBar={running}
       priceRange={priceRange}
       marginsFor={controlMargins}
       overlayLayout
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
-      renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} running={running} active={active} onActive={onActive} onCapture={onCapture} visible={overlays.formations} />}
+      renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} running={running} active={active} onActive={onActive} onCapture={onCapture} visible={overlays.formations} waveVisible={overlays.wave} />}
     />
   );
 }

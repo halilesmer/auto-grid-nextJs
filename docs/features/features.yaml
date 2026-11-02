@@ -2023,3 +2023,13 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-w1-lib.spec.ts (@FRM-34) ausführen (zwei Wochen, Sonntagskerze, Lücke, laufende Woche, keine W1-Zone, Zusatzteil).
           - Playwright-Tests GAR-19 (formation-gar-bat-lib.spec.ts) und CYP-02 auf D1 (formation-cyp-lib.spec.ts, formation-settle-lib.spec.ts) ausführen.
         erwartet: Aus zehn D1-Kerzen Mo–Fr werden zwei Wochenkerzen mit Sonntag-Zeitstempel; GAR-19 und CYP-02 auf D1 sind mit W1 messbar und ohne W1 nicht messbar; W1 erscheint nie als Zeiteinheit der Suche.
+
+      - id: FRM-35
+        titel: "Wave-Unterfenster mit Ebenen-Schalter auf /formasyon"
+        beschreibung: "Der Chart auf /formasyon hat unter Kerzen und RSI(7) ein drittes Fenster „Wave 5/35“ (Z-SIG-03): EWO als Histogramm, grün über 0, rot unter 0 (Tokens success und danger zur Laufzeit gelesen, bei Themenwechsel neu gesetzt). Die Werte kommen aus der Ansicht der Zeiteinheit (TimeframeView.wave), Kerzen ohne Wave-Wert (Anlaufzeit) fehlen. Der Schalter „Wave 5/35“ (Standard an) steht wie der RSI-Schalter unter Einstellungen → Auto Grid Ebenen und hat einen Tooltip. Die Legende nennt „Wave über / unter 0“. Das Overlay kennt die Höhe und die Wertachse des Wave-Fensters (yWave) für die Divergenzlinie des Folge-PR. Die Analyse-Seite /chart bleibt unverändert (systemWave ist optional). Keine Worker-Änderung, keine Order."
+        code: [frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/lib/formation/drawingLayout.ts, frontend_nextjs/src/app/formasyon/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-35) ausführen (drei Fenster, 155 Wave-Werte, Schalter blendet aus und ein, Legende).
+          - UI-07 (Tooltip am Schalter) und UI-08 (375 px ohne Querscroll) ausführen.
+        erwartet: Der Chart zeigt Kerzen, RSI und ein Wave-Histogramm; der Schalter „Wave 5/35“ blendet das Histogramm aus und ein.
