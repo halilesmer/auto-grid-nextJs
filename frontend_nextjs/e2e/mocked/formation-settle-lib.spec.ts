@@ -41,19 +41,33 @@ test.describe('settle: gültig nur ohne blockierende unbekannte Pflicht', () => 
     expect((['invalid', 'forming'] as Verdict[]).map((v) => settle(v, checks, exempt))).toEqual(['invalid', 'forming']);
   });
 
-  frm('ausgenommen sind wartende Regeln, entschuldigte Regeln und inaktive Zeilen', () => {
+  frm('ausgenommen sind inaktive Zeilen, BAT-01 bei erfülltem BAT-02 und CDT-12 bei erfülltem CDT-13', () => {
     const cases: [(typeof CODES)[number], Check[]][] = [
-      ['GAR', [mk('GAR-05', U)]],
-      ['BAT', [mk('BAT-07', U)]],
-      ['BAT', [mk('BAT-01', U), mk('BAT-02', M)]],
-      ['BUT', [mk('BUT-06', U), mk('BUT-07', U)]],
-      ['CRB', [mk('CRB-04', U), mk('CRB-05', U)]],
       ['CRB', [mk('CRB-08', U, 'required', { inactive: true })]],
-      ['CYP', [mk('CYP-07', U)]],
-      ['CDT', [mk('CDT-05', U)]],
-      ['ABCD', [mk('ABCD-07', U), mk('ABCD-11', U)]],
+      ['BAT', [mk('BAT-01', U), mk('BAT-02', M)]],
+      ['CDT', [mk('CDT-12', U), mk('CDT-13', M, 'required')]],
     ];
     for (const [code, checks] of cases) expect(settle('valid', checks, exemptFor(code, 'H4', checks)), `${code} ${checks.map((c) => c.id)}`).toBe('valid');
+  });
+
+  frm('wartende Regeln sind nicht ausgenommen: ist der Endpunkt nicht gemessen, bleibt der Treffer im Aufbau', () => {
+    const ids: [(typeof CODES)[number], string][] = [
+      ['ABCD', 'ABCD-07'], ['ABCD', 'ABCD-11'], ['GAR', 'GAR-05'], ['BAT', 'BAT-07'], ['BUT', 'BUT-06'], ['BUT', 'BUT-07'],
+      ['CRB', 'CRB-04'], ['CRB', 'CRB-05'], ['CYP', 'CYP-07'], ['CDT', 'CDT-05'],
+    ];
+    for (const [code, id] of ids) {
+      const checks = [mk(id, U)];
+      expect(settle('valid', checks, exemptFor(code, 'H4', checks)), id).toBe('forming');
+    }
+  });
+
+  frm('CDT-12 nicht messbar: mit erfülltem CDT-13 gültig und ohne Hinweis, sonst im Aufbau mit CDT-12 im Hinweis', () => {
+    const withCandle = [mk('CDT-12', U), mk('CDT-13', M, 'required')];
+    expect(settle('valid', withCandle, exemptFor('CDT', 'H4', withCandle))).toBe('valid');
+    expect(blockingUnknowns(withCandle, exemptFor('CDT', 'H4', withCandle))).toEqual([]);
+    const without = [mk('CDT-12', U), mk('CDT-13', U, 'required')];
+    expect(settle('valid', without, exemptFor('CDT', 'H4', without))).toBe('forming');
+    expect(blockingUnknowns(without, exemptFor('CDT', 'H4', without))).toEqual(['CDT-12', 'CDT-13']);
   });
 
   frm('BAT-01 ohne erfülltes BAT-02 blockiert', () => {

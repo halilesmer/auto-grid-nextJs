@@ -160,6 +160,23 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(page.getByText(msg('formation.note.unmeasurable.hint'))).toBeVisible();
   });
 
+  test('Cypher auf D1 mit nur CYP-02 unbekannt: gültig, kein Hinweis, Kopfzeile zählt „1 nicht messbar“', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    // Dieselben Kerzen als D1 gelesen: über D1 gibt es keine höhere Zeiteinheit, CYP-02 ist dort nie messbar
+    const fixture = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cyp-buy-h4-01.json', 'utf-8'))).bars;
+    const start = Date.UTC(2024, 0, 1) / 1000;
+    const rows = fixture.slice(0, fixture.findIndex((b) => b.time >= Date.UTC(2025, 11, 17, 0) / 1000)).map((b, i) => [start + i * 86400, b.open, b.high, b.low, b.close]);
+    const now = start + rows.length * 86400;
+    worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
+    worker.state.ratesSeries = { D1: rows, H4: [], H1: [], M15: [[now - 900, rows[rows.length - 1][4], rows[rows.length - 1][4], rows[rows.length - 1][4], rows[rows.length - 1][4]]] };
+    await page.goto(`${URL}&form=CYP&tf=D1`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
+    const list = page.getByTestId('formation-checklist');
+    await expect(list.getByTestId('score-required')).toContainText(msg('formation.score.unmeasurable', { n: 1 }));
+    await expect(list.getByTestId('field-hint')).toHaveCount(0);
+    await expect(list).not.toContainText(msg('formation.note.unmeasurable', { ids: 'CYP-02' }));
+  });
+
   test('Ohne inaktive Zeile fehlt die Legendenzeile dazu', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     await expect(page.getByTestId('formation-checklist')).toContainText(msg('formation.legend.clear'));
