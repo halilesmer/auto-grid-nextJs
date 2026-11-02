@@ -229,8 +229,8 @@ function FormationView() {
   return (
     <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''} data-favorites-scan-ms={favoritesScanMs ?? ''}>
       <h1 className="sr-only">{t('formation.title')}</h1>
-      {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (40 px Leiste + 288 px Panel), statt ihn zu überdecken; darunter liegt sie über dem Chart. Die Leiste ganz rechts bleibt immer frei. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
-      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', sidebarShown && 'lg:right-[328px]')} data-testid="formation-main">
+      {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (w-10 Leiste + w-72 Panel = right-82, bei 16 px Schrift 328 px), statt ihn zu überdecken; darunter liegt sie über dem Chart. Der Abstand steht in rem wie die beiden Breiten, sonst überdeckt der Chart die Leiste bei größerer Browser-Schrift. Die Leiste ganz rechts bleibt immer frei. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
+      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', sidebarShown && 'lg:right-82')} data-testid="formation-main">
       <div className="absolute inset-0" data-testid="formation-surface">
         {body()}
       </div>
