@@ -14,6 +14,7 @@ import { analyzeLib } from './libChecks';
 import { analyzeObo } from './oboChecks';
 import { analyzeTdf } from './tdfChecks';
 import type { FormationContext } from './context';
+import { shareEnv } from './reasons';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
 import type { Candidate, CheckState } from './types';
 
@@ -85,11 +86,14 @@ export function scanFormations(ctx: FormationContext, t: number): ScanHit[] {
     found.set(form, computed);
     return computed;
   };
-  for (const form of SCAN_FORMATIONS) {
-    for (const { tf, candidate } of results(form)) {
-      if (Object.keys(candidate.points).length > 0) hits.push({ form, tf, candidate });
+  // Alle Formationen rechnen auf derselben Umgebung je Zeiteinheit (Befund 49)
+  shareEnv(ctx, () => {
+    for (const form of SCAN_FORMATIONS) {
+      for (const { tf, candidate } of results(form)) {
+        if (Object.keys(candidate.points).length > 0) hits.push({ form, tf, candidate });
+      }
     }
-  }
+  });
   return hits;
 }
 
