@@ -162,7 +162,8 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
       case 'label': {
         const [p0, p1] = pts;
         if (!p0 || p0.py === null) return prims;
-        const key = p1 ? 'formation.draw.stop' : 'formation.draw.levelOne';
+        const single = d.label ? (`formation.draw.${d.label}` as const) : 'formation.draw.levelOne';
+        const key = p1 ? 'formation.draw.stop' : single;
         prims.push({ kind: 'text', x: width - 6, y: p0.py - 4, text: text(key), tone: 'target', anchor: 'end' });
         if (p1 && p1.py !== null) prims.push({ kind: 'text', x: width - 6, y: p1.py - 4, text: text('formation.draw.target'), tone: 'target', anchor: 'end' });
         return prims;

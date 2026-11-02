@@ -804,7 +804,7 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 48
+      "tests": 54
     }
   },
   "FRM-10": {
@@ -867,14 +867,14 @@
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 5
+      "tests": 6
     }
   },
   "FRM-19": {
     "e2e": {
       "datum": "2026-11-02",
       "status": "passed",
-      "tests": 49
+      "tests": 52
     }
   },
   "FRM-20": {

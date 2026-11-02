@@ -12,9 +12,11 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
+import { layoutDrawings } from '../../src/lib/formation/drawingLayout';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeLib, checkLibCandidate, LIB_CHECK_IDS } from '../../src/lib/formation/libChecks';
 import type { ContextTimeframe } from '../../src/lib/formation/params';
+import { scanFormations } from '../../src/lib/formation/scan';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H1, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
 
@@ -105,6 +107,15 @@ const ZIGZAG = zig([100, 130, 112, 140, 105, 112, 108, 118, 113, 131], [8, 8, 8,
 const INNER = zig([100, 130, 112, 140, 105, 125, 112.5, 131], [8, 8, 8, 4, 8, 6, 8], 3);
 /** P2 150: Stop weiter weg, CRV = (129,8 − 106,6) / (150 − 129,8) ≈ 1,15 */
 const WIDE_STOP = zig([100, 130, 112, 150, 105, 131], LEGS, 3);
+/**
+ * P2 170: an der zuerst erreichten Kante 129,8 ist das CRV (129,8 − 106,6) / (170 − 129,8) ≈ 0,58 unter 1, also gilt Level 0.786 =
+ * 105 + 0,786 × 65 = 156,09 (CRV ≈ 3,6). K 131 berührt nur die Zonenkante, K 157 auch den Einstieg.
+ */
+const FAR_STOP = zig([100, 130, 112, 170, 105, 131], LEGS, 3);
+const FAR_STOP_TOUCH = zig([100, 130, 112, 170, 105, 157], LEGS, 3);
+/** Kurze Züge: die Wendebewegung liegt in den ersten 20 Kerzen, SIG-34 hat keinen Vorlauf (LIB-03 nicht messbar) */
+const EARLY = zig([100, 130, 112, 140, 105, 131], [4, 4, 4, 2, 6], 3);
+const EARLY_AT: At = { p1: 6, p2: 14, p3: 16 };
 /** Nach K fällt der Preis auf 100: das Ziel (106,625) wird erreicht */
 const TARGET = zig([100, 130, 112, 140, 105, 131, 100], [8, 8, 8, 4, 8, 8], 3);
 /** H4-Aufwärtstrend und H4-Abwärtstrend für LIB-07 */
@@ -188,6 +199,21 @@ frm('Regel 11: Wert ist das CRV bis TP1 am gewählten Einstieg (Handrechnung 2,2
   expect(find(run({ H4: WIDE_STOP }), 'LIB-11').value).toBeCloseTo(1.15, 1);
 });
 
+frm('Regel 12 misst die Kante des gewählten Einstiegs: Berührung nur der Zonenkante reicht nicht, wenn der Einstieg an 0.786 liegt', () => {
+  const zoneOnly = run({ H4: FAR_STOP });
+  expect(zoneOnly.points.E.price).toBeCloseTo(156.09, 2);
+  expect(state(zoneOnly, 'LIB-12')).toBe(N);
+  expect(zoneOnly.points.K).toBeUndefined();
+  expect(zoneOnly.verdict).toBe('forming');
+  expect(zoneOnly.drawings.find((d) => d.id === 'Z-LIB-06')!.anchors[1].price).toBeCloseTo(156.09, 2);
+
+  const entry = run({ H4: FAR_STOP_TOUCH });
+  expect(state(entry, 'LIB-12')).toBe(M);
+  expect(entry.points.K.price).toBeCloseTo(156.09, 2);
+  expect(entry.points.E.time).toBe(entry.points.K.time);
+  expect(entry.verdict).toBe('valid');
+});
+
 frm('Urteil: gültig, im Aufbau ohne Berührung oder ohne fertiges P3, ungültig bei Ausschluss und fehlender Pflicht', () => {
   expect(run({ H4: BASE }).verdict).toBe('valid');
   expect(run({ H4: NO_TOUCH }).verdict).toBe('forming');
@@ -199,6 +225,22 @@ frm('Urteil: gültig, im Aufbau ohne Berührung oder ohne fertiges P3, ungültig
   expect(run({ H4: SLOW }, SLOW_AT).verdict).toBe('invalid');
   expect(run({ H4: P2_BELOW }).verdict).toBe('invalid');
   expect(run({ H4: H4_UP, M15: BASE }, AT, { tf: 'M15' }).verdict).toBe('invalid');
+});
+
+test('Urteil: eine nicht messbare Pflicht hält „gültig“ zurück (LIB-03 ohne Vorlauf → im Aufbau)', { tag: ['@FRM-09', '@FRM-19'] }, () => {
+  const c = run({ H4: EARLY }, EARLY_AT);
+  expect(state(c, 'LIB-03')).toBe(U);
+  expect(state(c, 'LIB-12')).toBe(M);
+  expect(c.verdict).toBe('forming');
+});
+
+test('Urteil: invalidBy nennt nur die Regeln, die „ungültig“ auslösen', { tag: ['@FRM-09', '@FRM-19'] }, () => {
+  expect(run({ H4: VIOLATED }).invalidBy).toEqual(['LIB-13']);
+  expect(run({ H4: SLOW }, SLOW_AT).invalidBy).toEqual(['LIB-03']);
+  expect(run({ H4: P2_BELOW }).invalidBy).toEqual(['LIB-01']);
+  expect(run({ H4: BASE }).invalidBy).toEqual([]);
+  // P3 ist noch kein Fraktal: LIB-02 und LIB-03 warten, sie lösen nichts aus
+  expect(run({ H4: OPEN_P3 }, { p1: 10, p2: 26 }).invalidBy).toEqual([]);
 });
 
 frm('Urteil: ist P2 die letzte Kerze, fehlt noch alles nach P2 – im Aufbau, nichts erfunden', () => {
@@ -362,10 +404,10 @@ const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fix
 
 const GOOD = { '01': M, '02': M, '03': M, '04': M, '06': M, '07': M, '12': M, '13': N, '14': N, '15': N, '16': N } as const;
 const REAL: Real[] = [
-  // Verkauf, CRV 2,13 am gewählten Einstieg
-  { file: 'lib-sell-h4-01', t: 1760486400, side: 'sell', verdict: 'valid', p2: 1760112000, p3: 1760443200, expect: { ...GOOD, '08': N, '10': N, '11': M } },
-  // Kauf (Spiegelfall), dieselbe Libra eine Kerze nach P3-Bestätigung noch ohne Berührung: im Aufbau
-  { file: 'lib-buy-h4-01', t: 1761048000, side: 'buy', verdict: 'valid', p2: 1760688000, p3: 1761004800, expect: { ...GOOD, '10': N, '11': M } },
+  // Verkauf: CRV an der Zone 0,42, Einstieg daher 0.786 (CRV 2,36); der Preis berührt nur die Zone, nicht 0.786: im Aufbau
+  { file: 'lib-sell-h4-01', t: 1760486400, side: 'sell', verdict: 'forming', p2: 1760112000, p3: 1760443200, expect: { ...GOOD, '08': N, '10': N, '11': M, '12': N } },
+  // Kauf (Spiegelfall): CRV an der Zone 0,75, Einstieg 0.786 noch nicht berührt: im Aufbau; dieselbe Libra eine Kerze nach P3-Bestätigung ohne jede Berührung
+  { file: 'lib-buy-h4-01', t: 1761048000, side: 'buy', verdict: 'forming', p2: 1760688000, p3: 1761004800, expect: { ...GOOD, '10': N, '11': M, '12': N } },
   { file: 'lib-buy-h4-01', t: 1760976000, side: 'buy', verdict: 'forming', p2: 1760688000, p3: 1760932800, expect: { '01': M, '02': M, '03': M, '04': M, '12': N } },
   // Level 0.786 liegt am D eines inneren AB=CD; zwei Kerzen später schließt eine Kerze über P2: dieselbe Libra ist verletzt
   { file: 'lib-swing-h4-01', t: 1765195200, side: 'sell', verdict: 'valid', p2: 1764763200, p3: 1764921600, expect: { ...GOOD, '08': M } },
@@ -373,12 +415,41 @@ const REAL: Real[] = [
   // Negativfall: mehr als 2 Schwungpunkte zwischen P3 und Berührung (zweite Libra derselben Reihe: zusätzlich Level 0.786 am inneren AB=CD)
   { file: 'lib-zigzag-h4-01', t: 1760616000, side: 'sell', verdict: 'invalid', p2: 1760414400, p3: 1760428800, expect: { '01': M, '02': M, '03': M, '04': M, '12': M, '13': N, '14': N, '15': M } },
   { file: 'lib-zigzag-h4-01', t: 1762545600, side: 'sell', verdict: 'invalid', p2: 1761825600, p3: 1762300800, expect: { '01': M, '02': M, '03': M, '04': M, '08': M, '12': M, '15': M } },
-  // Negativfall: Docht, aber kein Schluss jenseits der Korrektur
-  { file: 'lib-docht-h4-01', t: 1760976000, side: 'buy', verdict: 'invalid', p2: 1760688000, p3: 1760932800, expect: { '01': M, '02': N, '04': M, '12': M } },
+  // Negativfall: Docht, aber kein Schluss jenseits der Korrektur; der Preis berührt die Zone, nicht den gewählten Einstieg 0.786
+  { file: 'lib-docht-h4-01', t: 1760976000, side: 'buy', verdict: 'invalid', p2: 1760688000, p3: 1760932800, expect: { '01': M, '02': N, '04': M, '12': N } },
   // gültig, dann verletzt
   { file: 'lib-gone-h4-01', t: 1763064000, side: 'buy', verdict: 'valid', p2: 1762992000, p3: 1763020800, expect: { ...GOOD } },
   { file: 'lib-gone-h4-01', t: 1763107200, side: 'buy', verdict: 'invalid', p2: 1762992000, p3: 1763020800, expect: { ...GOOD, '13': M } },
 ];
+
+frm('Seite: Ziel-Label Z-LIB-04 heißt „Ziel“, Label Z-LIB-05 an P2 heißt „Stop“ (nicht „Level 1“)', () => {
+  const groups = layoutDrawings({
+    candidate: run({ H4: BASE }),
+    form: 'LIB',
+    width: 500,
+    lastBar: { time: 50 * H4, close: 120 },
+    x: (time) => time / H4,
+    y: (price) => 300 - price,
+    yRsi: (value) => value,
+    yWave: (value) => value,
+    text: (key) => key,
+    fmt: (n) => String(n),
+  });
+  const texts = (id: string) => groups.find((g) => g.id === id)!.prims.flatMap((p) => (p.kind === 'text' ? [p.text] : []));
+  expect(texts('Z-LIB-04')).toEqual(['formation.draw.target']);
+  expect(texts('Z-LIB-05')).toEqual(['formation.draw.stop']);
+});
+
+frm('Suche der Seite: die Libra steht mit denselben Zuständen und Punkten wie bei analyzeLib allein', () => {
+  const fx = loadReal('lib-gone-h4-01');
+  const t = 1763064000;
+  const ctx = () => new FormationContext(fx.symbol, { H4: fx.bars.filter((b) => b.time + H4 <= t) });
+  const alone = analyzeLib(ctx(), t)[0].candidate;
+  const hit = scanFormations(ctx(), t).find((h) => h.form === 'LIB' && h.tf === 'H4');
+  expect(hit?.candidate.verdict).toBe('valid');
+  expect(hit?.candidate.checks).toEqual(alone.checks);
+  expect(hit?.candidate.points).toEqual(alone.points);
+});
 
 for (const r of REAL) {
   frm(`echte Reihe ${r.file} bei t=${r.t}`, () => {

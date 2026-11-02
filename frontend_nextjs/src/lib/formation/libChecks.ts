@@ -1,7 +1,7 @@
 /**
  * Libra: Prüfung je Bedingungs-ID und Zeichnungen Z-LIB-01 bis Z-LIB-07.
  * `analyzeLib` sucht je geladener Zeiteinheit und je Seite das Paar P1/P2 und das Ende P3 der Wendebewegung und misst die
- * Berührung der zuerst erreichten Kante (Zone oder Level 0.786); `checkLibCandidate` prüft eigene Punkte.
+ * Berührung der Kante des gewählten Einstiegs (Zone oder Level 0.786, E-2 a); `checkLibCandidate` prüft eigene Punkte.
  *
  * Lesart der Zustände: bei Ereignis-Bedingungen (LIB-02, LIB-03, LIB-12 bis LIB-15) heißt ☑ „liegt vor“, bei den Ausschlüssen
  * LIB-13 bis LIB-16 also „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“; LIB-09 ist es, solange
@@ -23,6 +23,7 @@ import {
   correctionOf,
   endsOf,
   innerLevels,
+  measureTouch,
   pairsOf,
   shapeOfLib,
   swingsAfter,
@@ -34,6 +35,7 @@ import {
 } from './lib';
 import { FRZ_PARAMS, LIB_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, envFor, type Env } from './reasons';
+import { exemptFor, settle } from './settle';
 import { divergenceOf, tradeSideOf } from './sig';
 import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Side, Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
@@ -137,7 +139,11 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
   const { bars } = view;
   const cs: ZoneSide = es === 'resistance' ? 'support' : 'resistance';
   const { p1, p2 } = base;
-  const s: LibShape | null = p3 ? shapeOfLib(bars, es, cs, base, p3) : null;
+  const shape: LibShape | null = p3 ? shapeOfLib(bars, es, cs, base, p3) : null;
+  const target = shape ? targetEdge(cs, zoneGeometry(bars, shape.p3.idx, cs, tf)) : null;
+  const entry = shape && target !== null ? chooseEntry(shape, target) : null;
+  // LIB-12 und alles, was an der Berührung hängt, messen an der Kante des gewählten Einstiegs (E-2 a), nicht an der zuerst erreichten
+  const s = shape && entry && entry.price !== shape.first ? { ...shape, ...measureTouch(bars, es, cs, shape.p3, entry.price) } : shape;
   const c = s ? s.c : correctionOf(bars, cs, p1, p2);
   const last = bars.length - 1;
   const checks: Check[] = [];
@@ -169,8 +175,6 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
   const swings = s && upTo !== null ? swingsAfter(bars, s.p3, cs, upTo) : [];
   const inner = s ? innerLevels(swings, s.p3, es, cs) : [];
   add('LIB-08', s && near !== null ? flag(inner.some((level) => Math.abs(level - s.level786) <= near)) : U);
-  const target = s ? targetEdge(cs, zoneGeometry(bars, s.p3.idx, cs, tf)) : null;
-  const entry = s && target !== null ? chooseEntry(s, target) : null;
   add('LIB-09', cyphers && s && entry && near !== null ? cypherAtEntry(cyphers(), tf, tradeSideOf(es), entry.price, near) : U);
   add('LIB-10', s ? flag(threeChain(env, tf, s, harmonics)) : U);
 
@@ -182,7 +186,7 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
   add('LIB-15', s ? flag(swingsAfter(bars, s.p3, cs, s.touch ? s.touch.idx : last).length > LIB_PARAMS.maxFractals) : U);
   add('LIB-16', flag(LIB_PARAMS.belowH1.includes(tf)));
 
-  const drawings = s && target !== null ? drawingsOf(bars, s, target) : [];
+  const drawings = s && target !== null && entry ? drawingsOf(bars, s, target, entry.price) : [];
   const withDrawings = checks.map((k) => ({
     ...k,
     drawings: [...new Set(drawings.filter((z) => z.rules.includes(k.id)).map((z) => z.id))],
@@ -190,12 +194,17 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
   const unmet = (id: string) => stateOf(id) === 'unmet';
-  // Solange P3 kein fertiges Fraktal ist, kann die Wendebewegung noch weiterlaufen: im Aufbau
+  // Solange P3 kein fertiges Fraktal ist, kann die Wendebewegung noch weiterlaufen: LIB-02, LIB-03 und LIB-07 warten, im Aufbau
+  const p3Done = s !== null && !unmet('LIB-04');
+  const causesInvalid = (k: Check) =>
+    (EXCLUSION_IDS.includes(k.id) && k.state === 'met') ||
+    (k.id === 'LIB-01' && k.state === 'unmet') ||
+    (p3Done && ['LIB-02', 'LIB-03', 'LIB-07'].includes(k.id) && k.state === 'unmet');
+  const invalidBy = checks.filter(causesInvalid).map((k) => k.id);
   let verdict: Verdict = 'valid';
-  if (EXCLUSION_IDS.some((id) => stateOf(id) === 'met') || unmet('LIB-01')) verdict = 'invalid';
-  else if (s === null || unmet('LIB-04')) verdict = 'forming';
-  else if (['LIB-02', 'LIB-03', 'LIB-07'].some(unmet)) verdict = 'invalid';
-  else if (unmet('LIB-12')) verdict = 'forming';
+  if (invalidBy.length > 0) verdict = 'invalid';
+  else if (!p3Done || unmet('LIB-12')) verdict = 'forming';
+  verdict = settle(verdict, withDrawings, exemptFor('LIB', withDrawings));
 
   const points: Candidate['points'] = { P1: anchorAt(bars, p1.idx, p1.price), P2: anchorAt(bars, p2.idx, p2.price) };
   if (c) points.C = anchorAt(bars, c.idx, c.price);
@@ -205,12 +214,12 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
     // gewählter Einstieg (LIB-09 und CYP-10 vergleichen ihn mit dem Cypher-Einstieg)
     if (entry) points.E = anchorAt(bars, s.touch ? s.touch.idx : last, entry.price);
   }
-  return { code: 'LIB', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict };
+  return { code: 'LIB', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
 }
 
-function drawingsOf(bars: readonly FormationBar[], s: LibShape, target: number): Drawing[] {
+function drawingsOf(bars: readonly FormationBar[], s: LibShape, target: number, entryPrice: number): Drawing[] {
   const lastTime = bars[bars.length - 1].time;
-  const { p1, p2, p3, zone, first, touch } = s;
+  const { p1, p2, p3, zone, touch } = s;
   const side = tradeSideOf(s.es);
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const reached = targetReachedAt(bars, s, target);
@@ -225,12 +234,12 @@ function drawingsOf(bars: readonly FormationBar[], s: LibShape, target: number):
       rules: [],
       side,
     },
-    { id: 'Z-LIB-04', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side },
-    { id: 'Z-LIB-05', tool: 'label', anchors: [{ time: lastTime, price: p2.price }], rules: ids('LIB', [13]), side },
+    { id: 'Z-LIB-04', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side, label: 'target' },
+    { id: 'Z-LIB-05', tool: 'label', anchors: [{ time: lastTime, price: p2.price }], rules: ids('LIB', [13]), side, label: 'stop' },
     {
       id: 'Z-LIB-06',
       tool: 'trendline',
-      anchors: [at(p3.idx, p3.price), { time: touch ? bars[touch.idx].time : lastTime, price: first }, { time: lastTime, price: target }],
+      anchors: [at(p3.idx, p3.price), { time: touch ? bars[touch.idx].time : lastTime, price: entryPrice }, { time: lastTime, price: target }],
       rules: ids('LIB', [12]),
       side,
     },
@@ -259,6 +268,9 @@ const cyphersOf = (ctx: FormationContext, t: number): (() => readonly Candidate[
 export interface LibOptions {
   /** false: LIB-09 bleibt nicht messbar (die Cypher rechnet die Libra für CYP-10 ohne Rückweg); Vorgabe true */
   withCypher?: boolean;
+  /** schon gerechnete Ergebnisse von Gartley und Bat (LIB-10) und der Cypher (LIB-09); ohne Angabe rechnet `analyzeLib` sie selbst */
+  harmonics?: readonly Candidate[];
+  cyphers?: readonly Candidate[];
 }
 
 /** Sucht je geladener Zeiteinheit (hoch → tief) und Seite Paar P1/P2 und P3; es gilt der Kandidat mit den wenigsten verletzten Form-Bedingungen, bei Gleichstand der jüngste */
@@ -266,8 +278,10 @@ export function analyzeLib(ctx: FormationContext, t: number, options: LibOptions
   const tfs = ctx.timeframes();
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
-  const harmonics = harmonicsOf(ctx, t);
-  const cyphers = options.withCypher === false ? null : cyphersOf(ctx, t);
+  const { harmonics: knownHarmonics, cyphers: knownCyphers } = options;
+  const harmonics = knownHarmonics ? () => knownHarmonics : harmonicsOf(ctx, t);
+  const cypherResults = knownCyphers ? () => knownCyphers : cyphersOf(ctx, t);
+  const cyphers = options.withCypher === false ? null : cypherResults;
   return tfs.map((tf) => {
     const env = envFor(base, ctx, t, tf);
     const bars = env.views.get(tf)!.bars;
