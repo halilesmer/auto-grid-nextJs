@@ -18,7 +18,7 @@ import { CONTEXT_TIMEFRAMES, F2618_PARAMS, type ContextTimeframe } from './param
 import { buildEnv, envFor, type Env } from './reasons';
 import { exemptFor, settle } from './settle';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
-import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
   '2618-01': ['required', 'confirmed'],
@@ -174,9 +174,9 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: F2618Shape, edge: number)
       rules: ids('2618', [3]),
       side,
     },
-    { id: 'Z-2618-03b', tool: 'hline', anchors: [anchorAt(bars, i.idx, target2)], levels: [-F2618_PARAMS.targetExtension], rules: [], side },
+    { id: 'Z-2618-03b', tool: 'hline', anchors: [anchorAt(bars, i.idx, target2)], levels: [-F2618_PARAMS.targetExtension], rules: TRADE_RULES, side },
     { id: 'Z-2618-04', tool: 'label', anchors: [{ time: lastTime, price: edge }, { time: lastTime, price: tp1Edge }], rules: ids('2618', [9]), side },
-    { id: 'Z-2618-05', tool: 'trendline', anchors: [{ time: from, price: entry }, { time: lastTime, price: tp1Edge }], rules: [], side },
+    { id: 'Z-2618-05', tool: 'trendline', anchors: [{ time: from, price: entry }, { time: lastTime, price: tp1Edge }], rules: TRADE_RULES, side },
   ];
 }
 

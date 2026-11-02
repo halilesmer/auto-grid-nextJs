@@ -6,7 +6,7 @@
  */
 import { closesBeyond, otherSide, outward, wickEnd, type ZoneSide } from './frz';
 import { alternatingCount, lineAt, type Touch } from './tdf';
-import type { Pivot, TrendModel } from './trd';
+import { lineAt as trendLineAt, lineThrough, type Pivot, type TrendLine, type TrendModel } from './trd';
 import type { FormationBar, Side } from './types';
 
 type Bars = readonly FormationBar[];
@@ -33,6 +33,10 @@ export function legLens(pivots: readonly Pivot[], side: ZoneSide, before: number
 export const lineAtBar = (bars: Bars, a: Pivot | { idx: number; price: number }, b: Pivot | { idx: number; price: number }, k: number): number =>
   lineAt(bars, a, b, bars[k].time);
 
+/** Gegenlinie durch die Wendepunkte a und b, zur Kerze k: die Trendlinie nach TRD-34 bis TRD-36; gilt sie nicht (null), die Linie durch die rohen Dochtspitzen */
+export const counterLine = (bars: Bars, line: TrendLine | null, a: Pivot | { idx: number; price: number }, b: Pivot | { idx: number; price: number }) =>
+  line ? (k: number) => trendLineAt(line, bars[k].time) : (k: number) => lineAtBar(bars, a, b, k);
+
 /** Erste Kerze nach `from`, die mit dem Körper jenseits der Linie der Seite `side` schließt (Docht allein zählt nicht) */
 export function firstCloseBeyond(bars: Bars, side: ZoneSide, levelAt: (k: number) => number, from: number): number | null {
   for (let k = from + 1; k < bars.length; k++) if (closesBeyond(bars[k], levelAt(k), side)) return k;
@@ -52,15 +56,21 @@ export interface ChannelBase {
   la: Pivot;
   h2: Pivot;
   lb: Pivot;
+  /** Trendlinie durch l0 und la nach TRD-34 bis TRD-36; null, wenn sie nicht gilt */
+  line: TrendLine | null;
+}
+
+/** Fünf Wendepunkte ab Position `pos` des Trendzugs als Grundlage eines Kanals oder Keils */
+export function channelBaseAt(model: TrendModel, pos: number): ChannelBase {
+  const pv = model.pivots;
+  return { es: pv[pos + 1].side, l0: pv[pos], hs: pv[pos + 1], la: pv[pos + 2], h2: pv[pos + 3], lb: pv[pos + 4], line: lineThrough(model, pos, pos + 2) };
 }
 
 /** Kandidaten aus den letzten Wendepunkten des Trendzugs, jüngster zuerst; beide Richtungen */
 export function channelBases(model: TrendModel, maxStarts: number): ChannelBase[] {
   const pv = model.pivots;
   const out: ChannelBase[] = [];
-  for (let j = pv.length - 5; j >= 0 && out.length < maxStarts; j--) {
-    out.push({ es: pv[j + 1].side, l0: pv[j], hs: pv[j + 1], la: pv[j + 2], h2: pv[j + 3], lb: pv[j + 4] });
-  }
+  for (let j = pv.length - 5; j >= 0 && out.length < maxStarts; j--) out.push(channelBaseAt(model, j));
   return out;
 }
 
@@ -68,11 +78,11 @@ export type ChannelKind = 'parallel' | 'wedge';
 
 export interface Channel {
   base: ChannelBase;
-  /** Linie der Gegenseite durch l0 und la (Trendlinie nach TRD-34/TRD-35; die Anker sind rohe Dochtspitzen, ohne den Spike-Ersatz TRD-36 und ohne die Wartezeit auf den zweiten Impuls) */
+  /** Linie der Gegenseite durch l0 und la: die Trendlinie nach TRD-34 bis TRD-36; gilt sie nicht, die Linie durch die rohen Dochtspitzen */
   counterAt: (k: number) => number;
   /** Gegenlinie: Kopie der Trendlinie am äußersten Extrem (Kanal) bzw. Linie durch hs und h2 (Keil) */
   extremeAt: (k: number) => number;
-  /** erster Schluss jenseits der Trendlinie nach hs (Aktivierung); null ohne solchen */
+  /** erster Schluss jenseits der Trendlinie nach hs, frühestens an der Freigabe (Aktivierung); null ohne solchen */
   act: number | null;
   /** letzte Kerze der Zählung: vor der Aktivierung, sonst die letzte */
   end: number;
@@ -89,9 +99,9 @@ export const widthAt = (c: Channel, k: number): number => Math.abs(c.extremeAt(k
  * der Schluss liegt nicht jenseits. Beide Linien haben keine Pip- oder ATR-Toleranz.
  */
 export function measureChannel(bars: Bars, base: ChannelBase, kind: ChannelKind): Channel {
-  const { es, l0, hs, la, h2 } = base;
+  const { es, l0, hs, la, h2, line } = base;
   const cs = otherSide(es);
-  const counterAt = (k: number) => lineAtBar(bars, l0, la, k);
+  const counterAt = counterLine(bars, line, l0, la);
   let extremeAt: (k: number) => number;
   if (kind === 'wedge') {
     extremeAt = (k) => lineAtBar(bars, hs, h2, k);
@@ -99,7 +109,8 @@ export function measureChannel(bars: Bars, base: ChannelBase, kind: ChannelKind)
     const offset = Math.max(...[hs, h2].map((p) => outward(es, p.price) - outward(es, counterAt(p.idx))));
     extremeAt = (k) => (es === 'resistance' ? counterAt(k) + offset : counterAt(k) - offset);
   }
-  const act = firstCloseBeyond(bars, cs, counterAt, hs.idx);
+  // vor der Freigabe gibt es die Linie nicht (TRD-34): ein Schluss jenseits davor ist keine Aktivierung
+  const act = firstCloseBeyond(bars, cs, counterAt, line ? Math.max(hs.idx, line.release - 1) : hs.idx);
   const end = act === null ? bars.length - 1 : act - 1;
   const touches: Touch[] = [];
   for (let k = hs.idx; k <= end; k++) {
@@ -115,8 +126,8 @@ export function measureChannel(bars: Bars, base: ChannelBase, kind: ChannelKind)
   return { base, counterAt, extremeAt, act, end, count, lastTouch };
 }
 
-/** Beide Linien zeigen in Trendrichtung (Aufwärtstrend: beide steigen) */
+/** Beide Linien zeigen in Trendrichtung (Aufwärtstrend: beide steigen); die Trendlinie zusätzlich nur, wenn sie nach TRD-34 bis TRD-36 gilt */
 export const slopesWithTrend = (c: Channel): { counter: boolean; extreme: boolean } => {
-  const { es, l0, hs, la, h2 } = c.base;
-  return { counter: outward(es, la.price - l0.price) > 0, extreme: outward(es, h2.price - hs.price) > 0 };
+  const { es, hs, h2, line } = c.base;
+  return { counter: line !== null, extreme: outward(es, h2.price - hs.price) > 0 };
 };

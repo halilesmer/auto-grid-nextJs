@@ -27,7 +27,7 @@ import { buildEnv, envFor, type Env } from './reasons';
 import { exemptFor, settle } from './settle';
 import { divergenceOf, tradeSideOf } from './sig';
 import { formationCloses } from './trdFormation';
-import type { Anchor, Candidate, Check, CheckState, Drawing, FormationBar, RuleKind, RuleStatus, Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
@@ -208,10 +208,10 @@ function drawingsOf(bars: readonly FormationBar[], es: ZoneSide, p: Full, brk: n
     const neckK = neckAt(bars[p.k.idx].time);
     const neckB = neckAt(bars[brk].time);
     out.push(
-      { id: 'Z-OBO-04', tool: 'zigzag', anchors: [at(p.k.idx, p.k.price), at(p.k.idx, neckK), at(brk, neckB), at(brk, target)], rules: [], side },
-      { id: 'Z-OBO-05', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: [], side, label: 'target' },
+      { id: 'Z-OBO-04', tool: 'zigzag', anchors: [at(p.k.idx, p.k.price), at(p.k.idx, neckK), at(brk, neckB), at(brk, target)], rules: TRADE_RULES, side },
+      { id: 'Z-OBO-05', tool: 'label', anchors: [{ time: lastTime, price: target }], rules: TRADE_RULES, side, label: 'target' },
       { id: 'Z-OBO-07', tool: 'zone', anchors: [at(brk, Math.min(neckB, bars[brk].close)), at(brk, Math.max(neckB, bars[brk].close))], rules: ids('OBO', [11]), side },
-      { id: 'Z-OBO-08', tool: 'trendline', anchors: [at(p.rs.idx, p.rs.price), at(brk, neckB), { time: lastTime, price: target }], rules: [], side },
+      { id: 'Z-OBO-08', tool: 'trendline', anchors: [at(p.rs.idx, p.rs.price), at(brk, neckB), { time: lastTime, price: target }], rules: TRADE_RULES, side },
     );
   }
   return out;

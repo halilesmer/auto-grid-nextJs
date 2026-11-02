@@ -16,7 +16,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeEnc, checkEncCandidate, ENC_CHECK_IDS } from '../../src/lib/formation/encChecks';
 import { checkKeiCandidate } from '../../src/lib/formation/keiChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
-import { END, H4, mirror, type Row } from '../fixtures/formation-rows';
+import { END, H4, mirror, patched, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip, trendH1 } from '../fixtures/formation-lines';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-16' }, fn);
@@ -63,6 +63,15 @@ const IRREGULAR = lineRows([100, 150, 130, 188, 160, 195, 150]);
 const PARALLEL = lineRows([100, 150, 130, 181, 160, 200, 150]);
 /** Ein Keil: das zweite Hoch 176 liegt weit unter der Kopie (Abstand 31 statt 35) */
 const WEDGE = lineRows([100, 150, 130, 176, 160, 202, 150]);
+/** Das zweite Hoch 150,1 überragt das erste (150) nur mit dem Docht, danach schließt keine Kerze über 150: nach TRD-34 gibt es noch keine Linie */
+const NO_RELEASE = lineRows([100, 150, 130, 150.1, 140, 149, 120]);
+/**
+ * Schluss unter der Linie schon auf Index 68 (147,58 < 148,75), aber über dem Impulsende 150 schließt erst Index 77 (151,25): die Linie gilt
+ * erst ab Index 77 (TRD-34), dort liegt sie bei 165,63 und der Schluss darunter; das ist die Aktivierung
+ */
+const BREAK_BEFORE_RELEASE = lineRows([100, 150, 130, 150.1, 140, 170, 120]);
+/** Das erste Tief ist ein Spike (Körper 0, Docht bis 99): Anker ist das Tief 100,1 der rechten Nachbarkerze (TRD-36) */
+const SPIKE_L0 = patched(BASE, at(0), [101, 101.1, 99, 101]);
 /** Exakte Kopie: beide Hochs haben Abstand 35 zur Trendlinie. */
 const EXACT_CHANNEL = lineRows([100, 150, 130, 180, 160, 195, 150]);
 
@@ -92,6 +101,7 @@ const CASES: Case[] = [
   { name: 'ENC 01 ☐: Trend in H1 zeigt nach unten (Gegenbewegung in der tieferen Zeiteinheit, keine Flagge im Trend)', rows: BASE, options: { H1: trendH1(false) }, expect: { '01': N } },
   { name: 'ENC 02 ☐: der letzte Impuls ist länger als der vorige', rows: STRONG_LAST, expect: { '02': N, '03': M } },
   { name: 'ENC 03 ☐: die Trendlinie fällt', rows: FALLING_LINE, expect: { '03': N } },
+  { name: 'ENC 03 ☐: nach dem zweiten Tief schließt keine Kerze über dem Impulsende 150, die Linie gilt noch nicht', rows: NO_RELEASE, expect: { '03': N } },
   { name: 'ENC 04 ☐: das zweite Tief liegt über der Linie', rows: NO_SECOND_LOW, expect: { '04': N, '03': M, '05': M } },
   { name: 'ENC 05 ☐: kein Schluss unter der Linie', rows: NO_ACTIVATION, expect: { '05': N, '04': N, '06': N } },
   { name: 'ENC 06 ☐: Schluss unter der Linie, aber nie unter dem Tief 160', rows: NO_CHANGE, expect: { '05': M, '06': N } },
@@ -179,6 +189,25 @@ frm('Zeichnungen: Trendlinie, Kopie, Höhe und Ziele kommen auch bei ☐', () =>
   expect(open.drawings.map((d) => d.id)).toEqual(['Z-ENC-01', 'Z-ENC-01b', 'Z-ENC-02']);
 });
 
+frm('Aktivierung erst ab der Freigabe: ein Schluss unter der Linie vor dem ersten Schluss über dem Impulsende zählt nicht', () => {
+  const c = run(BREAK_BEFORE_RELEASE);
+  expect(state(c, 'ENC-03')).toBe(M);
+  expect(c.points.X.time).toBe(77 * H4);
+});
+
+frm('Freigabe ohne Blick in die Zukunft: bis Index 76 gibt es keinen Schluss über dem Impulsende, die Linie gilt noch nicht', () => {
+  const c = run(BREAK_BEFORE_RELEASE, { t: 77 * H4 });
+  expect(state(c, 'ENC-03')).toBe(N);
+});
+
+frm('Spike am ersten Tief: die Trendlinie beginnt am Docht der Nachbarkerze und läuft von dort durch das zweite Tief', () => {
+  const line = run(SPIKE_L0).drawings.find((d) => d.id === 'Z-ENC-01')!;
+  expect(line.anchors[0].time).toBe((at(0) + 1) * H4);
+  expect(line.anchors[0].price).toBeCloseTo(100.1, 6);
+  // durch 100,1 (Index 43) und 130 (Index 58): bei Index 93 liegt sie bei 199,77
+  expect(line.anchors[1].price).toBeCloseTo(199.7667, 3);
+});
+
 frm('Analyse findet den Kanal selbst und liefert alle Bedingungen', () => {
   const res = analyzeEnc(ctxOf(BASE), END);
   expect(res.map((r) => r.tf)).toEqual(['H4']);
@@ -226,15 +255,16 @@ const REAL: Real[] = [
   { file: 'enc-sell-h4-02', t: 1764763200, side: 'sell', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
   // Kauf; Berührungen unzureichend
   { file: 'enc-buy-h4-01', t: 1766145600, side: 'buy', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
-  { file: 'enc-buy-h4-02', t: 1764561600, side: 'buy', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
+  // im Aufbau: mit der Linie nach TRD-34 bis TRD-36 gilt ein früherer Kanal, unter dessen Linie seit der Freigabe noch kein Schluss liegt
+  { file: 'enc-buy-h4-02', t: 1764561600, side: 'buy', verdict: 'forming', expect: { ...FORM, '05': N, '06': N, '07': M } },
   // Negativfall: die Trendlinie zeigt nicht mit dem Trend (ENC-03 ☐)
   { file: 'enc-bad-h4-01', t: 1765497600, side: 'sell', verdict: 'invalid', expect: { '02': M, '03': N, '04': N, '05': N } },
   // Negativfall: das zweite Hoch verfehlt die Kopie (ENC-04 ☐), sonst Form erfüllt
   { file: 'enc-bad-h4-02', t: 1762430400, side: 'buy', verdict: 'invalid', expect: { '02': M, '03': M, '04': N, '05': M } },
   // Negativfall: kein Kraftverlust (ENC-02 ☐)
   { file: 'enc-bad-h4-03', t: 1762401600, side: 'buy', verdict: 'invalid', expect: { '02': N, '03': M } },
-  // im Aufbau: noch kein Schluss jenseits der Linie
-  { file: 'enc-form-h4-01', t: 1763452800, side: 'buy', verdict: 'forming', expect: { ...FORM, '05': N } },
+  // im Aufbau: 2-und-2 erfüllt, seit der Freigabe noch kein Schluss jenseits der Linie
+  { file: 'enc-form-h4-01', t: 1763452800, side: 'buy', verdict: 'forming', expect: { ...FORM, '04': M, '05': N } },
 ];
 
 for (const r of REAL) {
