@@ -60,10 +60,13 @@ function aloneHits(make: () => FormationContext, t: number): ScanHit[] {
 }
 
 function expectSameAsAlone(make: () => FormationContext, t: number) {
+  const alone = aloneHits(make, t);
+  const scanned = scanFormations(make(), t);
+  // zweiter Durchlauf im selben Bereich: nutzt die Umgebungen des ersten weiter
   const ctx = make();
   const [first, second] = shareEnv(ctx, () => [scanFormations(ctx, t), scanFormations(ctx, t)]);
-  const alone = aloneHits(make, t);
-  expect(first.length).toBeGreaterThan(0);
+  expect(scanned.length).toBeGreaterThan(0);
+  expect(scanned).toEqual(alone);
   expect(first).toEqual(alone);
   expect(second).toEqual(alone);
 }
@@ -71,16 +74,19 @@ function expectSameAsAlone(make: () => FormationContext, t: number) {
 frm('innerhalb von shareEnv liefert buildEnv für gleichen Kontext, Zeitpunkt und Zeiteinheit dasselbe Objekt', () => {
   const fx = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-sell-h4-01.json', 'utf-8')));
   const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
-  const t = fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC.H4;
-  const [a, b] = shareEnv(ctx, () => [buildEnv(ctx, t, 'H4'), buildEnv(ctx, t, 'H4')]);
-  expect(a).not.toBeNull();
-  expect(b).toBe(a);
-  // außerhalb des Bereichs und mit Zonen-Optionen wird wie bisher neu gebaut
-  expect(buildEnv(ctx, t, 'H4')).not.toBe(a);
-  expect(shareEnv(ctx, () => buildEnv(ctx, t, 'H4', { entryTf: 'H4' }))).not.toBe(a);
-  // ein anderer Kontext im Bereich teilt nichts
   const other = new FormationContext(fx.symbol, { H4: fx.bars });
-  expect(shareEnv(ctx, () => buildEnv(other, t, 'H4'))).not.toBe(a);
+  const t = fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC.H4;
+  shareEnv(ctx, () => {
+    const a = buildEnv(ctx, t, 'H4');
+    expect(a).not.toBeNull();
+    expect(buildEnv(ctx, t, 'H4')).toBe(a);
+    // im selben Bereich neu gebaut: anderer Zeitpunkt, Zonen-Optionen, anderer Kontext
+    expect(buildEnv(ctx, t - TIMEFRAME_SEC.H4, 'H4')).not.toBe(a);
+    expect(buildEnv(ctx, t, 'H4', { entryTf: 'H4' })).not.toBe(a);
+    expect(buildEnv(other, t, 'H4')).not.toBe(a);
+  });
+  // außerhalb des Bereichs wie bisher neu gebaut
+  expect(buildEnv(ctx, t, 'H4')).not.toBe(buildEnv(ctx, t, 'H4'));
 });
 
 const FX = 'e2e/fixtures/formation';
@@ -120,16 +126,37 @@ function retimed(offset: number, tfSec: number, days: number, end: number): Form
 }
 
 const END = Date.UTC(2026, 9, 28, 12) / 1000;
+function pageInput(offset: number): ContextInput {
+  const daily = retimed(offset, 86400, 1100, END);
+  return {
+    D1: daily.filter((b) => b.time >= END - 400 * 86400),
+    W1: weeklyFromDaily(daily),
+    H4: retimed(offset + 1000, 14400, 120, END),
+    H1: retimed(offset + 2000, 3600, 40, END),
+    M15: retimed(offset + 3000, 900, 10, END),
+  };
+}
+
 for (const offset of [0, 5000]) {
   frm(`Suche mit geteilter Umgebung = jede Formation allein: vier Zeiteinheiten in Seitengröße mit W1 (Versatz ${offset})`, () => {
-    const daily = retimed(offset, 86400, 1100, END);
-    const input: ContextInput = {
-      D1: daily.filter((b) => b.time >= END - 400 * 86400),
-      W1: weeklyFromDaily(daily),
-      H4: retimed(offset + 1000, 14400, 120, END),
-      H1: retimed(offset + 2000, 3600, 40, END),
-      M15: retimed(offset + 3000, 900, 10, END),
-    };
+    const input = pageInput(offset);
     expectSameAsAlone(() => new FormationContext('X', input), END);
   });
 }
+
+frm('die Suche teilt die Umgebung selbst: ohne äußeren Bereich so wenige Kerzenansichten wie mit', () => {
+  const input = pageInput(0);
+  const viewCalls = (outerScope: boolean): number => {
+    const ctx = new FormationContext('X', input);
+    const view = ctx.view.bind(ctx);
+    let calls = 0;
+    ctx.view = (tf, t) => {
+      calls++;
+      return view(tf, t);
+    };
+    if (outerScope) shareEnv(ctx, () => scanFormations(ctx, END));
+    else scanFormations(ctx, END);
+    return calls;
+  };
+  expect(viewCalls(false)).toBe(viewCalls(true));
+});

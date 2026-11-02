@@ -39,6 +39,7 @@ let shared: { ctx: FormationContext; envs: Map<string, Env | null> } | null = nu
  * Führt `fn` so aus, dass `buildEnv` für diesen Kontext je Zeitpunkt und Zeiteinheit nur einmal rechnet (Befund 49):
  * die Suche ruft elf Analyzer, jeder baute sonst Trends, Fibs und Zonen neu. Gilt nur ohne `frzOptions`.
  * Ein geteiltes Env darf niemand verändern. Ein innerer Bereich für denselben Kontext nutzt den äußeren weiter.
+ * Nur für synchrones `fn`: nach dem ersten `await` ist der Bereich schon zu (Ergebnis gleich, aber ohne Teilung).
  */
 export function shareEnv<T>(ctx: FormationContext, fn: () => T): T {
   if (shared?.ctx === ctx) return fn();
