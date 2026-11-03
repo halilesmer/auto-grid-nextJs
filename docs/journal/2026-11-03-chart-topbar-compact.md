@@ -41,13 +41,15 @@ The estimate of the design was about 196 px (free) and 160 px (setup) without co
 At 1440 px the lower edge of the bar and the pane heights are the same as before (149, 179, 124 and 419, 419, 510 px).
 
 ## Changes of existing tests
-The coordinator was asked on 2026-11-03. The checks are tighter, not looser.
+The coordinator approved them on 2026-11-03, with an upper limit on the reserves. The checks are tighter, not looser.
 
 | File | Change | Reason |
 |---|---|---|
 | `formation-page.spec.ts` (FRM-22, 375 px) | The chart starts at the lower edge of the bar (was `y = 0`); `y + height + reserve = 812`. | The bar stands above the chart. |
-| `chart-page.spec.ts` (UI-10 setup) | `chart height + --workspace-card + --floating-card >= surface height - 2` (was `>= 0.6 * surface height`). | The surface is smaller and the reserves are fixed pixels. The new check is stricter. |
-| `chart-layers.spec.ts` (UI-11 narrow, setup) | The gap between chart and tool card is at most `24 + --floating-card` (was 24). | The collapsed setup card has its own strip. |
+| `chart-page.spec.ts` (UI-10 setup) | `chart height + --workspace-card + --floating-card >= surface height - 2` (was `>= 0.6 * surface height`). New upper limits: `--workspace-card <= tool card height + its bottom gap + 8 + 4`, `--floating-card <= setup card height + 8`. | The surface is smaller and the reserves are fixed pixels. The upper limits stop the chart from shrinking when a reserve grows. |
+| `chart-layers.spec.ts` (UI-11 narrow, setup) | The gap between chart and tool card is at most `24 + --floating-card` (was 24). New upper limit: `--floating-card <= setup card height + 8`. | The collapsed setup card has its own strip. |
+
+Numbers behind the UI-10 change (setup, mock worker): at 375 x 667 the surface under the bar is 424 px, the chart 250 px (59 %), the reserves 132 px (tool card 91.5 + 32 gap + 8) and 42 px (setup card 38 + 4). At 375 x 812 the surface is 569 px and the chart 395 px (69 %). The old limit of 0.6 gave 254 px at 667; the chart has 250 px. The tool card with its 32 px gap already took 132 px before this step (U2a); the new strip for the setup card adds 42 px. The chart is therefore below 80 % on a small phone because of fixed reserves, not because of a wrong value.
 
 ## Lessons
 - A Tailwind build failed with "Unexpected token Delim" in `globals.css` while a dev build directory (`.next-dev-u3`) lay inside the project: Tailwind scanned the cache files. Put dev output outside the project or delete it before a build.

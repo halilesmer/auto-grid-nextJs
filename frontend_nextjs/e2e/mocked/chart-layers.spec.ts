@@ -85,6 +85,9 @@ test.describe('UI-11 schmale Breite', () => {
           await expect.poll(async () => (await box('workspace-toolbar')).y - (await bottomOf('analysis-chart'))).toBeGreaterThanOrEqual(0);
           // Die zugeklappte Setup-Karte hat einen eigenen Streifen über den Werkzeugen (--floating-card, UI-12)
           const card = await page.getByTestId('formation-main').evaluate(el => parseFloat(el.style.getPropertyValue('--floating-card')) || 0);
+          // Obergrenze: höchstens die Höhe der Karte plus 4 px Abstand und 4 px Toleranz
+          if (name === 'Setup') expect(card).toBeLessThanOrEqual((await box('chart-floating-card')).height + 8);
+          else expect(card).toBe(0);
           expect((await box('workspace-toolbar')).y - (await bottomOf('analysis-chart'))).toBeLessThanOrEqual(24 + card);
           expect((await box('analysis-chart')).height).toBeGreaterThan(300);
         } else await expect.poll(async () => workspaceBottom - (await bottomOf('analysis-chart'))).toBeLessThanOrEqual(1);
