@@ -17,8 +17,6 @@ export interface ChartViewProps extends Omit<ChartCoreProps, OwnProps> {
   workspace: WorkspaceContext;
   /** Geschlossene Kerzen, aus denen System-RSI(7) und Wave 5/35 rechnen; ohne laufende Kerze */
   signalBars: readonly Bar[];
-  /** Eigener Abschnitt „Ebenen“ im Dialog „Anzeige“ (Vorschau bis „Anwenden“); die gemeinsamen Ebenen stehen im Menü „Ebenen“ */
-  modeOverlays?: ReactNode;
   /** Zeitrahmen des Charts: der Schalter Trendzug im Menü „Ebenen“ gilt nur, wo es einen Trendzug gibt */
   timeframe: Timeframe;
   /** Schalter des Modus im Menü „Ebenen“, unter den gemeinsamen Ebenen; `modeTitle` ist ihre Überschrift */
@@ -47,7 +45,7 @@ function seriesPoints(bars: readonly Bar[], values: (number | null)[]) {
  * Ebenen, die jeder Chart zeigt: System-RSI(7) und Wave 5/35 aus denselben Kerzen wie der Chart. Der Modus liefert
  * nur seine Daten, seine Schalter und seine Zeichenfläche.
  */
-export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, modeOverlays, renderOverlay, workspace, toolbarActions, ...core }: ChartViewProps) {
+export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, renderOverlay, workspace, toolbarActions, ...core }: ChartViewProps) {
   const overlays = useChartOverlays(workspace.key, { rsi: true, wave: true });
   const showPauses = useAnalysisPrefsStore(s => s.showPauses), showGaps = useAnalysisPrefsStore(s => s.showGaps);
   const rsiPoints = useMemo(() => seriesPoints(signalBars, rsi(signalBars)), [signalBars]);
@@ -59,7 +57,6 @@ export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, modeOv
       showPauses={showPauses}
       showGaps={showGaps}
       toolbarActions={<>{toolbarActions}<LayersMenu contextKey={workspace.key} timeframe={timeframe} rsi={overlays.rsi} wave={overlays.wave} modeTitle={modeTitle}>{modeLayers}</LayersMenu></>}
-      workspaceOverlays={modeOverlays}
       systemRsi={{ points: rsiPoints, levels: RSI_LEVELS, visible: overlays.rsi }}
       systemWave={{ points: wavePoints, visible: overlays.wave }}
       marginsFor={controlMargins}

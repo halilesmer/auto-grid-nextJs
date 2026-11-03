@@ -75,8 +75,8 @@ function seed(worker: MockWorker) {
 }
 
 async function openSettings(page: Page) {
-  await page.getByRole('button', { name: msg('analysis.settings') }).click();
-  return page.getByTestId('analysis-settings');
+  await page.getByTestId('layers-button').click();
+  return page.getByTestId('layers-menu');
 }
 
 /** Das Trade-Archiv liegt im Reiter „Trades“ der schwebenden Karte (UI-10) */

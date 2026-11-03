@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import SymbolAutoComplete from '@/components/SymbolAutoComplete';
 import { ChartView } from '@/components/chart-page/ChartView';
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
-import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { formatOffset } from '@/components/analysis/BrokerClockNotice';
 import { LicenseInfo } from '@/components/analysis/LicenseInfo';
@@ -87,7 +86,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
       timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} />}
       range={chrome.range}
       view={chrome.view}
-      tools={<><LicenseInfo /><AnalysisSettingsPanel /></>}
+      tools={<LicenseInfo />}
     />}
     surface={<div className="absolute inset-0" data-testid="free-chart-panel">
       {data && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}

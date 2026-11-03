@@ -80,7 +80,7 @@ Each step is one PR. The steps run in sequence because they change the same file
 | Top bar | Compact top bar below lg: the bar stands above the chart and covers no candles (UI-12). Entry: `2026-11-03-chart-topbar-compact.md`. | Done, PR 331 |
 | U2b | Button "Layers" next to Trend, one menu on each chart. Entry: `2026-11-03-chart-u2b-layers-menu.md`. | In review, PR to follow |
 | U3a | The formation page moves to `/chart` as the mode Formation; one menu item "Chart"; redirect `/formasyon`. Entry: `2026-11-03-chart-u3a-one-page.md`. | In review, PR to follow |
-| U3b | Remove the gear `analysis-settings`; its switches go to the legend and the menu "Layers". | Open |
+| U3b | Remove the gear `analysis-settings`; its switches go to the legend and the menu "Layers". Entry: `2026-11-03-chart-u3b-gear.md`. | In review, PR to follow |
 
 ## Why
 - `FormationChart` and `ChartCore` repeat the chart lifecycle. Two engines drift apart, and each new chart feature needs two implementations.

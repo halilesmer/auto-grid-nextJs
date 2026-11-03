@@ -12,7 +12,6 @@ import {
 } from '@/components/analysis/chart/ChartCore';
 import { ChartView } from '@/components/chart-page/ChartView';
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
-import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
 import { formatOffset } from '@/components/analysis/BrokerClockNotice';
 import { ChartPage } from '@/components/chart-page/ChartPage';
 import { ChartNotice, ChartOverlays } from '@/components/chart-page/ChartOverlays';
@@ -198,7 +197,7 @@ const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
   noPrice: 'analysis.chart.levels.noPrice',
 };
 
-/** Legendeneintrag als Schalter: blendet sein Element im Chart ein/aus (dieselben Werte wie das Zahnrad) */
+/** Legendeneintrag als Schalter: blendet sein Element im Chart ein/aus (dieselben Werte wie im Menü „Ebenen“) */
 function LegendToggle({
   items,
   hint,
@@ -539,6 +538,25 @@ export default function ZoneChartPanel({
       : []),
   ];
 
+  // Dieselben Schalter wie die Legende, auch im Menü „Ebenen“: die Legende scrollt bei schmalen Fenstern seitlich
+  const legendLayers: { pref: keyof AnalysisPrefs; id: string; label: MessageKey; hint: MessageKey }[] = [
+    { pref: 'showZoneLines', id: 'zone-lines', label: 'analysis.settings.zoneLines', hint: 'analysis.settings.zoneLines.hint' },
+    { pref: 'showLevels', id: 'levels', label: 'analysis.settings.levels', hint: 'analysis.settings.levels.hint' },
+    { pref: 'showTrades', id: 'trades', label: 'analysis.settings.trades', hint: 'analysis.settings.trades.hint' },
+    { pref: 'showOrders', id: 'orders', label: 'analysis.settings.orders', hint: 'analysis.settings.orders.hint' },
+    { pref: 'showHistory', id: 'history', label: 'analysis.settings.history', hint: 'analysis.settings.history.hint' },
+    ...(isFractalZone ? [{ pref: 'showFractals' as const, id: 'fractals', label: 'analysis.settings.fractals' as const, hint: 'analysis.settings.fractals.hint' as const }] : []),
+  ];
+
+  const setupSwitches = (idPrefix: string) => (
+    <>
+      {legendLayers.map(l => <Switch key={l.pref} id={`${idPrefix}-${l.id}`} label={t(l.label)} hint={t(l.hint)} checked={prefs[l.pref]} onChange={v => setPref(l.pref, v)} />)}
+      <Switch id={`${idPrefix}-rsi14`} label={t('analysis.settings.rsi')} hint={t('analysis.settings.rsi.hint')} checked={prefs.showRsi} onChange={v => setPref('showRsi', v)} />
+      <Switch id={`${idPrefix}-zone-card`} label={t('analysis.settings.zoneCard')} hint={t('analysis.settings.zoneCard.hint')} checked={prefs.showZoneCard} onChange={v => setPref('showZoneCard', v)} />
+      <p className="border-t border-border pt-2 text-[11px] leading-relaxed text-muted-foreground">{t('analysis.settings.fixed')}</p>
+    </>
+  );
+
   const setupNo = zone && zones ? (setupNumbers(zones).get(zone.id) ?? 0) : 0;
   const zoneMissing = Boolean(zoneId && zones && !zone);
 
@@ -679,7 +697,7 @@ export default function ZoneChartPanel({
           timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} />}
           range={chrome.range}
           view={chrome.view}
-          tools={<><LicenseInfo /><AnalysisSettingsPanel /></>}
+          tools={<LicenseInfo />}
           extra={
             zone && (
               <div className="flex min-w-0 items-center gap-x-4 text-[11px] text-muted-foreground" data-testid="chart-key">
@@ -718,8 +736,7 @@ export default function ZoneChartPanel({
               signalBars={signalBars}
               timeframe={timeframe}
               modeTitle={t('cw.layers.setup')}
-              modeLayers={<Switch id="layer-rsi14" label={t('analysis.settings.rsi')} hint={t('analysis.settings.rsi.hint')} checked={prefs.showRsi} onChange={v => setPref('showRsi', v)} />}
-              modeOverlays={<AnalysisSettingsPanel inline />}
+              modeLayers={setupSwitches('layer')}
               clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
               data={chart}
               timeframeSec={tfSec}
