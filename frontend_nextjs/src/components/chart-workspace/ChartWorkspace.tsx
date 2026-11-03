@@ -22,7 +22,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding } from './runtime';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
 import { IndicatorDialog } from './IndicatorDialog';
-import { indicatorNames, OscillatorControls, type OscillatorActions } from './OscillatorControls';
+import { IndicatorLegend, indicatorNames, type OscillatorActions } from './IndicatorLegend';
 import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
@@ -306,13 +306,11 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const updateDrawing = (next: Drawing) => { if (locked) return; manager.current?.update(next); checkpoint(); };
   const drawings = drawingSnapshot.filter(d => d.points.every(p => typeof p.time !== 'number' || p.time <= until));
   const remaining = countdownNow == null ? null : Math.max(0, timeframeSec - ((countdownNow + elapsed) % timeframeSec));
-  const oscillatorIndicators = effectiveIndicators.filter(isOscillator);
   const patchIndicators = (change: (indicators: Indicator[]) => Indicator[]) => saveDocument({ ...documentRef.current, indicators: change(documentRef.current.indicators) });
   const removeIndicators = (ids: Set<string>) => saveDocument({ ...documentRef.current, indicators: documentRef.current.indicators.filter(item => !ids.has(item.id)), alarms: documentRef.current.alarms.filter(alarm => !ids.has(alarm.indicatorId)) });
   const changeIndicator = (id: string, change: Partial<Indicator>) => patchIndicators(indicators => indicators.map(item => item.id === id ? { ...item, ...change } : item));
   const sideOf = (indicator: Indicator) => indicator.scaleSide === 'auto' ? appearance.side as 'left' | 'right' : indicator.scaleSide;
   const oscillatorActions: OscillatorActions = {
-    add: () => setIndicatorsOpen(true),
     movePane: (paneId, offset) => patchIndicators(indicators => {
       const oscillators = indicators.filter(isOscillator), panes = [...new Set(oscillators.map(item => item.paneId))], index = panes.indexOf(paneId), target = index + offset;
       if (target < 0 || target >= panes.length) return indicators;
@@ -395,9 +393,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       </div>
       <div className={overlayLayout ? 'contents' : 'relative min-w-0 flex-1'}>
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-[60px] z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
-        {oscillatorIndicators.length > 0 && <OscillatorControls indicators={oscillatorIndicators} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} actions={oscillatorActions} />}
+        <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} textStyle={statusStyle} actions={oscillatorActions} />
         {children}
-        {(appearance.names || appearance.params || appearance.values) && <div className={`${overlayLayout ? 'absolute right-20 bottom-2 z-10 max-w-[50%] rounded bg-card' : ''} flex flex-wrap gap-x-4 gap-y-1 px-2 py-1 font-mono text-[11px] text-muted-foreground`} style={statusStyle} data-testid="workspace-indicator-values">{lastValues.map(({ config: c, value }) => <span key={c.id} data-indicator-value={c.kind}>{appearance.names ? c.kind : ''}{appearance.params ? ` (${c.period}${c.kind === 'EWO' || c.kind === 'MACD' ? `/${c.slow}` : ''})` : ''}{appearance.values && c.values ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: 5 })}` : ''}</span>)}</div>}
         {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) scale.fitContent(); else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
       </div>
     </div>

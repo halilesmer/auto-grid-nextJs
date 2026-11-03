@@ -24,7 +24,7 @@ Ohne Setup-Bezug öffnet `/chart` den freien Modus. Die Suche verwendet echte Br
 | Kerzenänderung | Schlusskurs minus Eröffnung unter dem Fadenkreuz | Analyse, Backtest |
 | Indikatornamen | Namen der Anzeigeindikatoren ein/aus | Alle |
 | Indikatorparameter | Perioden neben den Namen ein/aus | Alle |
-| Indikatorwerte | Letzte berechnete Werte ein/aus | Alle |
+| Indikatorwerte | Werte der Indikatoren in der Legende ein/aus; sie folgen dem Fadenkreuz, ohne Fadenkreuz gilt der letzte berechnete Wert | Alle |
 | Statushintergrund | Hintergrund der Status- und Indikatorzeile ein/aus | Alle |
 | Statusfarbe und Deckkraft | Farbe und Transparenz dieses Hintergrunds | Alle |
 | Skalierung | Linear, logarithmisch oder prozentual | Alle |
@@ -62,7 +62,9 @@ OHLC und Kerzenänderung werden in der Formationsansicht nicht angeboten, solang
 ## Indikatoren
 
 - SMA(20), EMA(20), RSI(14), EWO(5/35), MACD(12/26/9), Bollinger(20/2) und ATR(14).
-- RSI, EWO, MACD und ATR haben in der Bereichsleiste die Aktionen Verschieben, Einklappen, Vergrößern und Entfernen. Vergrößern gilt nur für den geöffneten Chart und Zeitrahmen und wird nicht gespeichert.
+- Jeder Indikator hat eine Legendenzeile oben links in seinem Bereich (Preisindikatoren im Kursbereich unter der OHLC-Zeile, Oszillatoren im eigenen Bereich). Auge, Einstellungen, Entfernen und das Menü „Mehr“ erscheinen beim Hover über die Zeile und bei Tastaturfokus; auf Touch-Geräten sind sie immer sichtbar. Die Werte der Zeile folgen dem Fadenkreuz. Alarme rechnen weiter mit dem letzten Wert.
+- Die Linie unter der Maus wird dicker, der Zeiger wird zur Hand und die Zeile ist hervorgehoben. Ein Klick wählt die Linie (Markierungen auf der Linie, Knöpfe bleiben sichtbar); Escape oder ein Klick ins Leere hebt die Auswahl auf. Ein aktives Zeichenwerkzeug und eine Zeichnung unter der Maus haben Vorrang. Ein ausgeblendeter Indikator behält seine abgeblendete Zeile.
+- RSI, EWO, MACD und ATR haben in ihrem Bereich die Aktionen Verschieben, Einklappen, Vergrößern und Entfernen; die Knöpfe erscheinen beim Hover über den Bereich und bei Tastaturfokus (Touch: immer). Vergrößern gilt nur für den geöffneten Chart und Zeitrahmen und wird nicht gespeichert.
 - Das Menü je Indikator bietet Sichtbarkeit, Einstellungen, Skala, Wechsel in einen anderen oder neuen Bereich, Alarm, Favorit, Kopie, Info, lesbare schreibgeschützte Formel und Entfernen. Favoriten gelten je Indikatorart und stehen oben in der Indikatorauswahl.
 - Reihenfolge, Sichtbarkeit, Bereich, Einklappen, Skala, Zeitrahmen-Einschränkungen und Alarme liegen im lokalen Chart-Dokument und sind dadurch je Chart-Kontext getrennt. Ältere Dokumente laden ohne Umstellung: Jeder Indikator erhält seinen eigenen Bereich, die Skala folgt weiter der Chart-Achse.
 - Alarme gibt es nur im Analyse- und im freien Chart. Ein Alarm meldet einmalig den Übertritt zwischen zwei Werten desselben Charts und Zeitrahmens, solange dieser Chart geöffnet ist, und bleibt danach als ausgelöst stehen. Ein Zeitrahmenwechsel ist kein Übertritt. In einem Hintergrund-Tab wird der Übertritt erst beim Zurückkehren erkannt. Es gibt keine Hintergrund-, E-Mail- oder Push-Dienste.

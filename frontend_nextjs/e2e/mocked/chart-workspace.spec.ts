@@ -410,7 +410,8 @@ const storedDocument = (page: Page, key: string) => page.evaluate(k => {
 /** Height of each chart pane in pixels, price pane first. Lightweight Charts draws one table row per pane. */
 const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator('table').first().evaluate(table =>
   [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1));
-const rsiValue = async (page: Page) => Number((await page.locator('[data-indicator-value="RSI"]').innerText()).replace(/^.*\)\s*/, '').replace(',', '.'));
+// The legend shows the value under the crosshair, so move the mouse off the chart to read the latest value.
+const rsiValue = async (page: Page) => { await page.mouse.move(0, 0); return Number((await page.locator('[data-indicator-value="RSI"]').innerText()).replace(/^.*\)\s*/, '').replace(',', '.')); };
 
 test('Bereiche lassen sich verschieben, einklappen, vergrößern und entfernen; nur das Vergrößern ist vorübergehend', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
   test.slow();
@@ -460,9 +461,11 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 
   await menu('RSI');
   await page.getByRole('button', { name: msg('cw.indicatorHide', { indicator: 'RSI' }) }).click();
-  await expect(values).not.toContainText('RSI');
+  // A hidden indicator keeps its legend row (struck through) so it can be shown again.
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-visible', 'false');
   await menu('RSI');
   await page.getByRole('button', { name: msg('cw.indicatorShow', { indicator: 'RSI' }) }).click();
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-visible', 'true');
   await expect(values).toContainText('RSI');
 
   await menu('RSI');
@@ -472,8 +475,10 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
   await expect(values).toContainText('RSI');
   await page.getByRole('radio', { name: 'H4', exact: true }).click();
   await expect(values).toContainText('EWO');
-  await expect(values).not.toContainText('RSI');
+  // Outside its timeframe range the indicator is not drawn: its row stays, dimmed and without a value.
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'false');
   await page.getByRole('radio', { name: 'H1', exact: true }).click();
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'true');
   await expect(values).toContainText('RSI');
 
   await menu('RSI');
@@ -509,7 +514,7 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 
   await menu('RSI 1');
   await page.getByRole('button', { name: msg('cw.indicatorFavorite') }).click();
-  await controls.getByRole('button', { name: `+ ${msg('cw.addIndicator')}` }).click();
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText(msg('cw.favoriteIndicators'));
   await dialog.getByRole('button', { name: 'RSI', exact: true }).click();
