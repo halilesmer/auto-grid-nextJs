@@ -56,7 +56,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     return { price: metrics.price, nowSec: brokerNow(offsetSec) };
   }, [isConnected, offsetSec, accepted, metrics.symbol, metrics.price, metrics.market_open, rates.data]);
   const prefs = useAnalysisPrefsStore();
-  const trend = useTrendPath({ accountId, symbol: accepted, timeframe, offsetSec, clockReady }, prefs.showTrend, prefs.trend, now);
+  const trend = useTrendPath({ accountId, symbol: accepted, timeframe, range, offsetSec, clockReady }, prefs.showTrend, prefs.trend, now);
   useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);
   const symbolField = (
     <div className="flex min-w-0 flex-1 items-center gap-1 sm:w-44 sm:flex-none" data-tooltip-exempt>

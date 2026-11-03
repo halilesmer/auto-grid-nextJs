@@ -284,7 +284,7 @@ export default function ZoneChartPanel({
   const data = rates.data;
   const showTrend = useAnalysisPrefsStore((st) => st.showTrend);
   const trendSettings = useAnalysisPrefsStore((st) => st.trend);
-  const trend = useTrendPath({ accountId, symbol, timeframe, offsetSec, clockReady }, showTrend, trendSettings, nowSec);
+  const trend = useTrendPath({ accountId, symbol, timeframe, range, offsetSec, clockReady }, showTrend, trendSettings, nowSec);
 
   // Fehlende Bereiche enden jetzt (Brokeruhr); ohne sichere Uhr bei UTC jetzt: die Zukunft fehlt nie
   const chart = useMemo(() => {
