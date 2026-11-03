@@ -67,14 +67,15 @@ export function FormationChecklist({
   const { candidate } = hit;
   const { hasInactive, requiredTotal, requiredMet, requiredUnmeasurable, bonusTotal, bonusMet } = checkScore(candidate);
   const share = (n: number) => (requiredTotal === 0 ? 0 : (n / requiredTotal) * 100);
-  const open = candidate.points[FINAL_POINT[hit.form]] === undefined;
+  // Offen heißt: der Endpunkt fehlt und ist noch nicht gemessen; bei `pointHeld` ist er gemessen, nur das Urteil hält ihn zurück
+  const open = candidate.points[FINAL_POINT[hit.form]] === undefined && !candidate.pointHeld;
   // Dasselbe Prädikat wie im Prüfer: der Hinweis nennt nur Regeln, die das Urteil „gültig“ wirklich halten
   const unknownIds = blockingUnknowns(candidate.checks, exemptFor(hit.form, candidate.checks));
   const notes: string[] = [];
   let noteHint = false;
   if (candidate.verdict === 'forming' && candidate.pointHeld) notes.push(t('formation.note.held', { point: FINAL_POINT[hit.form] }));
   else if (candidate.verdict === 'forming' && open) notes.push(t('formation.note.forming', { point: FINAL_POINT[hit.form] }));
-  if (candidate.verdict === 'forming' && unknownIds.length > 0 && !(open && !candidate.pointHeld)) {
+  if (candidate.verdict === 'forming' && unknownIds.length > 0 && !open) {
     notes.push(t('formation.note.unmeasurable', { ids: unknownIds.join(', ') }));
     noteHint = true;
   } else if (candidate.verdict === 'invalid' && candidate.invalidBy && candidate.invalidBy.length > 0) notes.push(t('formation.note.invalid', { ids: candidate.invalidBy.join(', ') }));

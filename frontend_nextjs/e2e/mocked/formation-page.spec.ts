@@ -10,7 +10,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { SCAN_FORMATIONS } from '../../src/lib/formation/scan';
 import { groupZones, makeZone } from '../fixtures/data';
 import { harmonic } from '../fixtures/formation-harmonic';
-import { H4, barsOf } from '../fixtures/formation-rows';
+import { H4, barsOf, zig } from '../fixtures/formation-rows';
 import { msg, type MessageKey } from '../fixtures/i18n';
 import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
@@ -87,6 +87,29 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await expect(list.locator('[data-testid="check-row"][data-rule-id="LIB-12"]')).toHaveAttribute('data-state', 'met');
     await expect(list.locator('[data-testid="check-row"][data-rule-id="LIB-13"]')).toHaveAttribute('data-state', 'clear');
     await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-final-point', 'done');
+  });
+
+  test('Die Legende nennt den Zickzack nur, wenn die Formation ihn zeichnet: Libra ohne, Gartley mit', { tag: ['@FRM-19', '@FRM-09'] }, async ({ page, worker }) => {
+    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/lib-gone-h4-01.json', 'utf-8'))).bars;
+    await openPage(page, worker, `${URL}&form=LIB`, 1763064000, bars);
+    await expect(page.getByTestId('candidate-item').first()).toBeVisible();
+    await expect(page.getByTestId('formation-legend')).toContainText(msg('formation.legend.ratio'));
+    await expect(page.getByTestId('formation-legend')).not.toContainText(msg('formation.legend.zigzag', { points: '' }).trim());
+    await page.goto(`${URL}&form=GAR`);
+    await expect(page.getByTestId('formation-legend')).toContainText(msg('formation.legend.zigzag', { points: '' }).trim());
+  });
+
+  test('Kopf-Schulter mit Bruch, aber nicht messbarer Pflicht: der Hinweis sagt „erreicht, Bestätigung steht aus“ und nennt die Regel', { tag: ['@FRM-19', '@FRM-10'] }, async ({ page, worker }) => {
+    // Bruch vor Kerze 20: OBO-12 hat keine 20 Kerzen Vorlauf, das Urteil bleibt im Aufbau
+    const start = 1760000000 - (1760000000 % H4);
+    const rows = zig([100, 120, 108, 135, 120, 150, 121, 136, 110], 2, 3);
+    const bars = barsOf(rows, H4, start);
+    await openPage(page, worker, `${URL}&form=OBO`, start + rows.length * H4, bars);
+    await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'forming');
+    const note = page.getByTestId('formation-checklist').getByTestId('checklist-note');
+    await expect(note).toContainText(msg('formation.note.held', { point: 'B' }));
+    await expect(note).toContainText(msg('formation.note.unmeasurable', { ids: 'OBO-12' }));
+    await expect(note).not.toContainText(msg('formation.note.forming', { point: 'B' }));
   });
 
   test('Kopf-Schulter steht in der Leiste: gültige OBO mit Badge, Checkliste und erreichtem Punkt B', { tag: ['@FRM-18', '@FRM-10'] }, async ({ page, worker }) => {

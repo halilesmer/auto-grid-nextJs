@@ -40,6 +40,6 @@ areas: [frontend, tests]
 - Screenshots with the real fixture `obo-sell-h4-01` against the mock worker, 1440 px and 375 px, light and dark: no horizontal overflow, badge 1, required 7/7, labels "Target" and "Stop".
 
 ## Open points
-- Because `B` is missing while the verdict is `forming`, the checklist note says "B not yet reached" also when the break exists and only `settle` holds the verdict back. The "not measurable" note is then not shown for OBO.
+- [x] Because `B` is missing while the verdict is `forming`, the checklist note says "B not yet reached" also when the break exists and only `settle` holds the verdict back. The "not measurable" note is then not shown for OBO. Done 2026-11-03 (PR PRNUM): the checker sets `pointHeld` when `settle` turns `valid` into `forming`. The note then says "B is reached. The confirmation is still pending." (`formation.note.held`) and the "not measurable" note follows (FRM-19 and FRM-10 tests, red before the change).
 - The drawing layout names only points that are anchors of a zigzag. N1, N2 and `B` get no circle and no name.
 - `basesOf` always gives a candidate for the latest head without a right shoulder. It has the verdict `forming` and counts as a hit in the badges.

@@ -26,6 +26,7 @@ import { useFormationSidebar, type SidebarTab } from '@/hooks/useFormationSideba
 import { useFormationParams } from '@/hooks/useFormationParams';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
+import { drawsZigzag } from '@/lib/formation/drawingLayout';
 import { favoriteSymbols, FINAL_POINT, formedSummary, timeframeForForm, type ScanFormation } from '@/lib/formation/scan';
 import { buildShotData, shotFileName } from '@/lib/formation/shotData';
 import { composeShot, shotBlob, type ChartPicture } from '@/lib/formation/shotImage';
@@ -300,7 +301,7 @@ function FormationView() {
       floating={
         hit && (
           <ul className={`pointer-events-none absolute left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
-            <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>
+            {drawsZigzag(hit.candidate) && <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>}
             <li>{t('formation.legend.ratio')}</li>
             <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>
             <li>{t('formation.legend.zone')}</li>
