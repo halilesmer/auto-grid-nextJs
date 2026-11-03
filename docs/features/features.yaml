@@ -1331,7 +1331,7 @@ kategorien:
       - id: UI-10
         titel: Chartseiten mit gemeinsamem Gerüst (/chart)
         beschreibung: Alle Kerzenchartseiten folgen dem Vorbild von /formasyon (Plan docs/journal/2026-11-01-unified-chart-page.md). Auf /chart (frei und Setup) füllt der Chart die Seite; es gibt keinen Seitentitel, keine Karte um den Chart (ChartFrame) und keinen Seitenscroll. Die Kopfleiste trägt Konto, Modus, Symbol bzw. Setup, Zeiteinheit, Bereich und den Schalter Chart/Statistik. Die zweite Zeile trägt die Legenden-Schalter (nur im Setup-Modus). Im Setup-Modus schwebt auf dem Chart eine Karte mit Zonenkarte und Live-Werten (Reiter Übersicht) sowie den Trades (Reiter Trades). Warnungen schweben auf dem Chart; die Datenqualitäts-Warnung bleibt sichtbar (docs/analyse-regeln.md §3, §7). Die Statistik bleibt eine normale Seite. Bei 375, 1024 und 1440 px entsteht kein horizontaler Überlauf.
-        code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/components/chart-page/ChartPage.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/chart-workspace/FreeChartPanel.tsx]
+        code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/components/chart-page/ChartPage.tsx, frontend_nextjs/src/components/chart-page/ChartTopBar.tsx, frontend_nextjs/src/components/chart-page/ChartOverlays.tsx, frontend_nextjs/src/components/chart-page/FloatingCard.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/chart-workspace/FreeChartPanel.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx]
         tiers: [e2e]
         pruefung:
           - /chart im freien Modus und im Setup-Modus öffnen.

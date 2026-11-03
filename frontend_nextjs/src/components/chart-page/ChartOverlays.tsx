@@ -21,13 +21,14 @@ export function ChartOverlays({ notices, children }: { notices: ReactNode; child
   }, []);
   return (
     <div ref={ref} className="pointer-events-none absolute inset-0 z-30">
-      <div className="absolute left-[64px] right-3 top-[calc(var(--chart-top,0px)+0.5rem)] flex min-w-0 flex-col items-start gap-2 sm:right-20">{notices}</div>
       {children}
+      {/* Nach der Karte: die Datenqualitäts-Warnung bleibt sichtbar, auch wenn die breite Karte (Reiter Trades) ihren Platz berührt */}
+      <div className="absolute left-[64px] right-3 top-[calc(var(--chart-top,0px)+0.5rem)] flex min-w-0 flex-col items-start gap-2 sm:right-20">{notices}</div>
     </div>
   );
 }
 
 /** Ein Hinweis auf dem Chart: fängt Klicks, obwohl die Ebene darunter sie durchreicht */
 export function ChartNotice({ children }: { children: ReactNode }) {
-  return <div className="pointer-events-auto w-full max-w-md">{children}</div>;
+  return <div className="pointer-events-auto w-full max-w-md empty:hidden">{children}</div>;
 }

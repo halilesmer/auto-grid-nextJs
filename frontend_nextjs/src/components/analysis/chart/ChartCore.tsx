@@ -356,7 +356,9 @@ export function ChartCore({
         return;
       }
       const time = Number(param.time);
-      setHover({ bar: barByTimeRef.current.get(time) ?? null, time });
+      const bar = barByTimeRef.current.get(time) ?? null;
+      // Gleiche Kerze: kein neuer Zustand, sonst rendert jede Mausbewegung den Chart neu
+      setHover((prev) => (prev && prev.time === time && prev.bar === bar ? prev : { bar, time }));
     };
     // OHLC unter dem Fadenkreuz gibt es nur im Layout mit Karte; die Trade-Notizen (notes) gibt es in beiden
     if (!overlayLayout || hasNotes) chart.subscribeCrosshairMove(onMove);
@@ -722,8 +724,8 @@ export function ChartCore({
       <div ref={surfaceRef} {...surfaceProps} className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card">
         <div {...hostAttributes} className="absolute inset-0" />
         {hoverNotes.length > 0 && (
-          // Unter der Kopfleiste: ChartOverlays setzt --chart-top auf deren Unterkante
-          <div className="pointer-events-none absolute left-2 top-[calc(var(--chart-top,6rem)+0.5rem)] z-10 flex max-w-[60%] flex-col gap-0.5 rounded bg-card/90 px-2 py-1 font-mono text-[11px] text-foreground" data-testid="chart-legend">
+          // Unten links über der Statuszeile: oben stehen die Hinweise der Seite
+          <div className="pointer-events-none absolute bottom-9 left-[60px] z-10 flex max-w-[60%] flex-col gap-0.5 rounded bg-card/90 px-2 py-1 font-mono text-[11px] text-foreground" data-testid="chart-legend">
             {hoverNotes.map((n, i) => (
               <span key={i} data-testid="chart-legend-note">{n}</span>
             ))}

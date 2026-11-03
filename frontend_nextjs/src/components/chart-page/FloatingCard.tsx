@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -26,14 +26,24 @@ export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCar
   const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024);
   const [tabId, setTabId] = useState(tabs[0].id);
   const tab = tabs.find((x) => x.id === tabId) ?? tabs[0];
+  const base = useId();
+  const moveTab = (event: KeyboardEvent, index: number) => {
+    const steps: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
+    const step = steps[event.key];
+    if (step === undefined) return;
+    event.preventDefault();
+    const next = tabs[(index + step + tabs.length) % tabs.length];
+    setTabId(next.id);
+    document.getElementById(`${base}-tab-${next.id}`)?.focus();
+  };
   return (
     <aside
       aria-label={title}
       data-testid="chart-floating-card"
       className={cn(
-        'pointer-events-auto absolute flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
+        'pointer-events-auto absolute flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] max-lg:max-h-[calc(100dvh-var(--chart-top,0px)-9.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
         'max-lg:bottom-[8.5rem] max-lg:left-[64px] max-lg:right-3 lg:right-[84px] lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
-        tab.wide ? 'lg:w-[min(46rem,calc(100%-9rem))]' : 'lg:w-80',
+        open && tab.wide ? 'lg:w-[min(46rem,calc(100%-9rem))]' : 'lg:w-80',
       )}
     >
       <div className="flex items-center justify-between gap-2 px-3 py-1.5">
@@ -52,13 +62,17 @@ export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCar
       {open && (
         <>
           {tabs.length > 1 && (
-            <div role="tablist" className="flex gap-0.5 border-t border-border px-2 pt-1.5">
-              {tabs.map((x) => (
+            <div role="tablist" aria-label={title} className="flex gap-0.5 border-t border-border px-2 pt-1.5">
+              {tabs.map((x, index) => (
                 <Tooltip key={x.id} content={x.hint} role="presentation">
                   <button
                     type="button"
                     role="tab"
+                    id={`${base}-tab-${x.id}`}
+                    aria-controls={`${base}-panel`}
                     aria-selected={x.id === tab.id}
+                    tabIndex={x.id === tab.id ? 0 : -1}
+                    onKeyDown={(event) => moveTab(event, index)}
                     onClick={() => setTabId(x.id)}
                     className={cn(
                       'inline-flex h-7 cursor-pointer items-center rounded-md px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -71,7 +85,7 @@ export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCar
               ))}
             </div>
           )}
-          <div role="tabpanel" className="min-h-0 overflow-y-auto border-t border-border p-3">
+          <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-tab-${tab.id}`} className="min-h-0 overflow-y-auto border-t border-border p-3">
             {tab.content}
           </div>
         </>
