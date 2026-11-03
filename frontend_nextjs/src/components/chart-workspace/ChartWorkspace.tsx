@@ -64,9 +64,11 @@ interface Props {
    * Stapelung auf /formasyon: oben z-60 über der Kopfleiste (z-50), unten z-45 über den Chart-Overlays.
    */
   overlayLayout?: boolean;
+  /** Vollbild zeigt die ganze Chartseite (`data-chart-page`, mit Kopfleiste) statt nur den Chart; nur mit overlayLayout sinnvoll */
+  fullscreenOfPage?: boolean;
 }
 
-export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, showRsi = true, className = '', overlayLayout = false }: Props) {
+export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
   const t = useT(), fmt = useFormat();
   // Auf /formasyon (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
@@ -377,7 +379,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
         <Button size={iconSize} variant="ghost" hint={t(historySize.redo ? 'cw.redo.hint' : 'cw.redoEmpty.hint')} aria-label={t('cw.redo')} disabled={locked || !historySize.redo} onClick={() => history(false)}><Redo2 size={15} /></Button>
         <Button size={iconSize} variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>
         <Button size={iconSize} variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
-        <Button size={iconSize} variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
+        <Button size={iconSize} variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = fullscreenOfPage ? (root.current?.closest<HTMLElement>('[data-chart-page]') ?? root.current) : root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
       </div>
     </div>
     {(state.storageError || error) && <Alert tone="warning" title={t(state.storageError ? 'cw.storageError' : error ?? 'cw.drawingError')} />}

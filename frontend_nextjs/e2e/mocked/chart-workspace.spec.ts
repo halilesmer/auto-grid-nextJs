@@ -299,7 +299,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 375, height: 812 
       const workspace = page.getByTestId('chart-workspace');
       await expect(workspace).toBeVisible();
       await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen', {}, 'de'), exact: true }).click();
-      await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-workspace');
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-page');
       const before = await page.getByTestId('analysis-chart').screenshot();
       await page.getByTestId('workspace-settings').click();
       const settings = page.getByTestId('chart-workspace-settings');

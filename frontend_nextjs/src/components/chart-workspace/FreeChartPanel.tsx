@@ -93,7 +93,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
         workspaceOverlays={<div className="space-y-3"><Switch label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={prefs.showPauses} onChange={v => prefs.setPref('showPauses', v)} /><Switch label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={prefs.showGaps} onChange={v => prefs.setPref('showGaps', v)} /></div>}
         data={data} timeframeSec={TIMEFRAME_SEC[timeframe]} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
         band={null} lines={[]} markers={[]} showPauses={prefs.showPauses} showGaps={prefs.showGaps} showRsi live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()}
-        marginsFor={controlMargins} overlayLayout />}
+        marginsFor={controlMargins} overlayLayout fullscreenOfPage />}
     </div>}
     floating={<ChartOverlays notices={notices} />}
   />;

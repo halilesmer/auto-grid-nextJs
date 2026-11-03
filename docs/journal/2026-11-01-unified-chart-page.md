@@ -70,6 +70,8 @@ The page `/chart` (free mode and setup mode) now runs in `ChartPage`. The chart 
 | Notices (`ChartOverlays`) | The broker clock, load errors and the data quality warning float on the chart under the top bar. `ChartOverlays` measures the top bar and sets `--chart-top` on `formation-main`. |
 | `ChartCore` | `ChartCore` also reads the crosshair in the overlay layout when `notes` is set, and shows the trade notes under the top bar. |
 | `rememberChartView` | It writes `data-visible-range` on the host and on the surface. In the overlay layout it wrote only on the surface, and the tests read the host. |
+| `ChartWorkspace` | New optional prop `fullscreenOfPage`: the full screen button shows the whole page (`data-chart-page`). Only `/chart` sets it. |
+| `Modal` | In full screen, the dialog uses `z-[100]`. `formation-main` (`z-70`) lies in the same stacking context. |
 | `IndicatorRenderer` | The panes of indicators get their own price scale margins (0.08), not the top margin 0.3 of the candle pane. |
 | `ChartPage` | New optional prop `testId` (default `formation-page`). `/chart` uses `chart-page`. |
 
@@ -77,7 +79,8 @@ Changes of existing tests (approved by the coordinator):
 
 | File | Change | Reason |
 |---|---|---|
-| `analysis.spec.ts` (ANA-15) | Settings and license buttons are in `chart-topbar`. Full screen uses the button of the chart tools. The full screen element is `chart-workspace`. | `ChartFrame` is gone. The step "open the settings in full screen" is gone too: the settings button is in the top bar, outside the full screen element. |
+| `analysis.spec.ts` (ANA-15) | Settings and license buttons are in `chart-topbar`. Full screen uses the button of the chart tools. The full screen element is `chart-page`. The step "open the settings in full screen" stays. | `ChartFrame` is gone. The full screen now shows the whole chart page with the top bar (`fullscreenOfPage`), so the settings button stays usable. |
+| `chart-workspace.spec.ts` (ANA-19, test "Vollbild-Dialog") | The expected full screen element is `chart-page`, not `chart-workspace`. | Same reason. The rest of the test is unchanged. |
 | `analysis-trades.spec.ts` (ANA-08 x2, ANA-12) | The tab "Trades" opens first. | The archive is in the card tab. |
 | `chart-workspace.spec.ts` (ANA-19 x3) | The zoom uses the mouse wheel (`zoomIn`). | The overlay layout has no `+` button. |
 | `chart-toolbar.spec.ts` (ANA-17) | The line height counts from the lower edge of `chart-topbar` (`lineY`). | The chart fills the page, and the top bar lies on it. |

@@ -754,6 +754,7 @@ export default function ZoneChartPanel({
               focus={focus && focus.view === viewKey ? focus : null}
               marginsFor={controlMargins}
               overlayLayout
+              fullscreenOfPage
             />
           )}
           {zone && !chart && (

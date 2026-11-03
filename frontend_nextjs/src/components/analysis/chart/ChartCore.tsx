@@ -146,6 +146,8 @@ interface ChartCoreProps {
   until?: number;
   /** Chart füllt die ganze Fläche, die Bedienung liegt darauf (bis alle Seiten so aussehen: Journal 2026-11-01) */
   overlayLayout?: boolean;
+  /** Vollbild der ganzen Chartseite statt nur des Charts (ChartPage) */
+  fullscreenOfPage?: boolean;
   surfaceProps?: HTMLAttributes<HTMLDivElement> & Record<`data-${string}`, string>;
   /** Zeichenfläche über dem Chart; nur mit overlayLayout */
   renderOverlay?: (scene: ChartScene) => ReactNode;
@@ -222,6 +224,7 @@ export function ChartCore({
   marginsFor,
   until,
   overlayLayout = false,
+  fullscreenOfPage = false,
   surfaceProps,
   renderOverlay,
 }: ChartCoreProps) {
@@ -718,7 +721,7 @@ export function ChartCore({
     'data-pauses': data.pauses.length,
   };
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage}>
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
       <div ref={surfaceRef} {...surfaceProps} className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card">
