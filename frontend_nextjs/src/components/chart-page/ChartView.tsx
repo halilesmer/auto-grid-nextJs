@@ -22,8 +22,11 @@ export interface ChartViewProps extends Omit<ChartCoreProps, OwnProps> {
 }
 
 const RSI_LEVELS = [RSI_PARAMS.overbought, RSI_PARAMS.oversold];
-/** Die Bedienung liegt oben auf dem Chart: die Kerzen beginnen darunter */
-const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
+/**
+ * Ab lg liegt die Bedienung oben auf dem Chart (ChartPage): die Kerzen beginnen darunter. Darunter steht die Kopfleiste über dem
+ * Chart, und nur die Legende braucht oben Platz.
+ */
+const controlMargins = () => ({ top: window.matchMedia('(min-width: 64rem)').matches ? 0.3 : 0.1, bottom: 0.12 });
 
 const OPTIONS = [
   { key: 'rsi', label: 'cw.layerRsi', hint: 'cw.layerRsi.hint' },

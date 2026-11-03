@@ -605,9 +605,11 @@ test.describe('FRM-22 schmale Ansicht', () => {
     const rail = await page.getByTestId('drawing-toolbar').boundingBox();
     expect(rail!.x).toBe(0);
     expect(rail!.width).toBe(52);
-    expect(chart!.y).toBe(0);
-    // Chart und Reserve für die Werkzeugkarte füllen die Seite (UI-11)
-    expect(chart!.height + (await cardReserve(page))).toBe(812);
+    // Die Kopfleiste steht über dem Chart (UI-12): der Chart beginnt an ihrer Unterkante
+    const bar = (await page.getByTestId('formation-toolbar').boundingBox())!;
+    expect(chart!.y).toBe(bar.y + bar.height);
+    // Chart und Reserve für die Werkzeugkarte füllen den Rest der Seite (UI-11)
+    expect(chart!.y + chart!.height + (await cardReserve(page))).toBe(812);
     await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
     const chip = page.getByTestId('formation-status-chip');
     await expect(chip).toHaveAttribute('aria-expanded', 'false');

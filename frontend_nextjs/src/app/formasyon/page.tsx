@@ -300,7 +300,7 @@ function FormationView() {
       }
       floating={
         hit && (
-          <ul className={`pointer-events-none absolute left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
+          <ul className={`pointer-events-none absolute max-lg:mt-(--chart-top) left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
             {drawsZigzag(hit.candidate) && <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>}
             <li>{t('formation.legend.ratio')}</li>
             <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,9 @@ export interface FloatingCardTab {
 
 /**
  * Schwebende Karte auf dem Chart mit Titel, Reitern und Einklappen. Ab lg rechts unter der Kopfleiste (`--chart-top`, ChartOverlays),
- * darunter unten über den Werkzeugen (zwei Zeilen hoch) des Charts und dort zunächst eingeklappt.
+ * darunter unten über den Werkzeugen (zwei Zeilen hoch) des Charts und dort zunächst eingeklappt. Eingeklappt unter lg steht sie in einem
+ * eigenen Streifen über den Werkzeugen: ihre Höhe steht als `--floating-card` auf `formation-main`, die Chartfläche endet darüber (ChartCore),
+ * damit sie den untersten Bereich (EWO) nicht verdeckt. Aufgeklappt liegt sie über dem Chart.
  */
 export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCardTab[] }) {
   const t = useT();
@@ -27,6 +29,17 @@ export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCar
   const [tabId, setTabId] = useState(tabs[0].id);
   const tab = tabs.find((x) => x.id === tabId) ?? tabs[0];
   const base = useId();
+  const card = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = card.current, page = el?.closest<HTMLElement>('[data-testid="formation-main"]');
+    if (!el || !page) return;
+    const measure = () => page.style.setProperty('--floating-card', !open && !window.matchMedia('(min-width: 64rem)').matches ? `${el.offsetHeight + 4}px` : '0px');
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); page.style.removeProperty('--floating-card'); };
+  }, [open]);
   const moveTab = (event: KeyboardEvent, index: number) => {
     const steps: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
     const step = steps[event.key];
@@ -38,11 +51,13 @@ export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCar
   };
   return (
     <aside
+      ref={card}
       aria-label={title}
       data-testid="chart-floating-card"
       className={cn(
         'pointer-events-auto absolute max-lg:z-[52] flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] max-lg:max-h-[calc(100dvh-var(--chart-top,0px)-9.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
-        'max-lg:bottom-[8.5rem] max-lg:left-[64px] max-lg:right-3 lg:right-[84px] lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
+        'max-lg:left-[64px] max-lg:right-3 lg:right-[84px] lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
+        open ? 'max-lg:bottom-[8.5rem]' : 'max-lg:bottom-[calc(var(--workspace-card,6.5rem)+0.25rem)]',
         open && tab.wide ? 'lg:w-[min(46rem,calc(100%-9rem))]' : 'lg:w-80',
       )}
     >

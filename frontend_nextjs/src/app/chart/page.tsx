@@ -132,7 +132,7 @@ function AnalysisView() {
       <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
     </div>
   );
-  const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" />;
+  const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" className="@max-[30rem]/formation-main:[&_[role=tab]]:px-2.5 @max-[30rem]/formation-main:[&_[role=tab]]:py-1 @max-[30rem]/formation-main:[&_[role=tab]]:text-xs" />;
   const chrome: ChartChrome = {
     account,
     mode: <ChartModeSelect value={mode} onChange={setMode} />,

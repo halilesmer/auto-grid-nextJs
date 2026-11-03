@@ -156,16 +156,20 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   useLayoutEffect(() => {
     const card = toolbarCard.current, host = root.current;
     if (!overlayLayout || !card || !host) return;
+    // Auch auf der Seite (`formation-main`): die schwebende Karte der Chartseite sitzt darüber (FloatingCard)
+    const page = host.closest<HTMLElement>('[data-testid="formation-main"]');
     const measure = () => {
       const atBottom = card.offsetTop > host.clientHeight / 2;
-      host.style.setProperty('--workspace-card', atBottom ? `${card.offsetHeight + parseFloat(getComputedStyle(card).bottom) + 8}px` : '0px');
+      const reserve = atBottom ? `${card.offsetHeight + parseFloat(getComputedStyle(card).bottom) + 8}px` : '0px';
+      host.style.setProperty('--workspace-card', reserve);
+      page?.style.setProperty('--workspace-card', reserve);
     };
     measure();
     // Die Karte ändert ihre Größe beim Umbruch, der Container beim Wechsel der Breite (Seitenleiste auf oder zu)
     const observer = new ResizeObserver(measure);
     observer.observe(card);
     observer.observe(host);
-    return () => { observer.disconnect(); host.style.removeProperty('--workspace-card'); };
+    return () => { observer.disconnect(); host.style.removeProperty('--workspace-card'); page?.style.removeProperty('--workspace-card'); };
   }, [overlayLayout]);
   useEffect(() => { live.current = { drawingBars, until, timeframeSec }; documentRef.current = doc; });
   const saveDocument = useCallback((next: ChartDocument) => {
@@ -401,7 +405,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     </div>
     {(state.storageError || error) && <Alert tone="warning" title={t(state.storageError ? 'cw.storageError' : error ?? 'cw.drawingError')} />}
     <div className={overlayLayout ? 'contents' : 'relative flex min-w-0 flex-row pl-[52px]'}>
-      <div className={overlayLayout ? 'absolute bottom-0 left-0 top-18 z-20 flex w-[52px] lg:top-0' : 'absolute inset-y-0 left-0 flex w-[52px]'}>
+      <div className={overlayLayout ? 'absolute inset-y-0 left-0 z-20 flex w-[52px]' : 'absolute inset-y-0 left-0 flex w-[52px]'}>
         <DrawingToolbar tool={tool} gesture={gesture} preferences={preferences} magnet={magnet} keepDrawing={keepDrawing} drawingsVisible={appearance.hideDrawings}
           favorites={state.favorites} linked={drawingKey !== context.key} linkAvailable={Boolean(context.syncIdentity)} selected={selected.length > 0} canResetZoom={zoomSnapshot !== null}
           arm={arm} setGesture={setGesture} setPreferences={setPreferences} setFavorites={state.setFavorites}

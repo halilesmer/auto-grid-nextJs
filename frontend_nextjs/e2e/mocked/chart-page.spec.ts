@@ -48,7 +48,15 @@ for (const viewport of VIEWPORTS) {
       expect(surface && box).toBeTruthy();
       // links bleibt die 52 px breite Zeichenleiste (Entwurf)
       expect(box!.width).toBeGreaterThanOrEqual(surface!.width - 52 - 2);
-      expect(box!.height).toBeGreaterThanOrEqual(surface!.height * 0.6);
+      // Chart plus Reserven (Werkzeugkarte, zugeklappte Setup-Karte) füllen die Fläche unter der Kopfleiste (UI-12).
+      // Obergrenze: eine Reserve ist höchstens so hoch wie ihr Element plus Randabstand und 4 px, sonst könnte der Chart schrumpfen.
+      const vars = await page.getByTestId('formation-main').evaluate(el => ({ workspace: parseFloat(el.style.getPropertyValue('--workspace-card')) || 0, floating: parseFloat(el.style.getPropertyValue('--floating-card')) || 0 }));
+      const tools = await page.getByTestId('workspace-toolbar').evaluate(el => el.getBoundingClientRect().height + parseFloat(getComputedStyle(el).bottom) + 8);
+      const cardHeight = (await page.getByTestId('chart-floating-card').boundingBox())!.height;
+      expect(vars.workspace).toBeLessThanOrEqual(tools + 4);
+      expect(vars.floating).toBeLessThanOrEqual(cardHeight + 4 + 4);
+      const reserve = vars.workspace + vars.floating;
+      expect(box!.height + reserve).toBeGreaterThanOrEqual(surface!.height - 2);
 
       // Kopfleiste: Setup, Zeiteinheit, Bereich; zweite Zeile: Legenden-Schalter
       const topbar = page.getByTestId('chart-topbar');
