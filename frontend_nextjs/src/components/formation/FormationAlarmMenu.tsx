@@ -95,7 +95,7 @@ function HistoryList({ alarm }: { alarm: Alarm }) {
 export function FormationAlarmMenu({ symbol, alarm }: { symbol: string | null; alarm: Alarm }) {
   const t = useT();
   const fmt = useFormat();
-  const [tab, setTab] = useState<'settings' | 'history'>('settings');
+  const [tab, setTab] = useState<'settings' | 'history'>('history');
   const { prefs, enabled, favoritesEnabled, extras, status, permission, history, account } = alarm;
   // Kein Konto, mit dem der Alarm suchen darf (und die Seite hat keins): das Menü nennt nur den Grund
   const rest = !alarm.pageAccount && account.state !== 'ok' ? account.state : null;
