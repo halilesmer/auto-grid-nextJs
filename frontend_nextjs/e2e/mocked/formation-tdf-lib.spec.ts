@@ -550,3 +550,11 @@ frm('Zeichnung Z-TDF-09 ist das Ziel-Label und trägt label „target“ (nicht 
   expect(z?.tool).toBe('label');
   expect(z?.label).toBe('target');
 });
+
+frm('Urteil: der Bruch liegt vor, nur settle hält „gültig“ zurück: pointHeld steht, ohne Bruch und bei gültigem Urteil fehlt es', () => {
+  const held = run(zig(FLAG_UP, 2, 3), { form: 'flag', at: [12, 14, 16, 18] });
+  expect(held.verdict).toBe('forming');
+  expect(held.pointHeld).toBe(true);
+  expect(run(FLAG_NO_BREAK, FLAG_SPEC).pointHeld).toBeUndefined();
+  expect(run(FLAG, FLAG_SPEC).pointHeld).toBeUndefined();
+});
