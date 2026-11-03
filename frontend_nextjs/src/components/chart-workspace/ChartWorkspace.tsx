@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, setImageReader, type Drawing, type DrawingKind, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
 import { CrosshairMode, type UTCTimestamp } from 'lightweight-charts';
 import { ChartSpline, ListTree, Maximize2, Minimize2, Redo2, Scan, Settings2, Undo2 } from 'lucide-react';
@@ -61,7 +61,7 @@ interface Props {
    * sobald der Container `formation-main` breit genug ist (Schwelle in FormationToolbar.tsx), sonst schwebt sie unten.
    * Oben ist sie 1 px + 37 px hoch, in px wie die 38 px hohe Kopfleiste, damit sie bei größerer Browser-Schrift nicht in die Formationszeile ragt.
    * Rechts endet die schwebende Leiste 5rem vom Rand (die Seitenleiste von /formasyon schiebt den Chart, sie überdeckt ihn ab lg nicht).
-   * Stapelung auf /formasyon: oben z-60 über der Kopfleiste (z-50), unten z-45 über den Chart-Overlays.
+   * Stapelung auf /formasyon: oben z-60 über der Kopfleiste (z-50), unten z-53 über den Chart-Overlays und der Infokarte (z-52, unter lg).
    */
   overlayLayout?: boolean;
   /** Vollbild zeigt die ganze Chartseite (`data-chart-page`, mit Kopfleiste) statt nur den Chart; nur mit overlayLayout sinnvoll */
@@ -72,7 +72,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const t = useT(), fmt = useFormat();
   // Auf /formasyon (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
-  const root = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
+  const root = useRef<HTMLDivElement>(null), toolbarCard = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);
   const live = useRef({ drawingBars, until, timeframeSec });
   const replay = useRef(new ReplayDrawingVisibility());
@@ -150,6 +150,23 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     const frame = requestAnimationFrame(() => { setZoomSnapshot(null); setGesture(null); });
     return () => cancelAnimationFrame(frame);
   }, [binding, context.key]);
+  // Unter 71 rem Containerbreite liegt die Werkzeugleiste als Karte unten auf dem Chart. Die Fläche des Chart endet dann
+  // darüber (--workspace-card, siehe ChartCore): Höhe, Randabstand und eine Lücke, gemessen, damit es bei jeder Schriftgröße passt.
+  // Ab 71 rem sitzt die Karte oben in der Kopfleiste: keine Reserve.
+  useLayoutEffect(() => {
+    const card = toolbarCard.current, host = root.current;
+    if (!overlayLayout || !card || !host) return;
+    const measure = () => {
+      const atBottom = card.offsetTop > host.clientHeight / 2;
+      host.style.setProperty('--workspace-card', atBottom ? `${card.offsetHeight + parseFloat(getComputedStyle(card).bottom) + 8}px` : '0px');
+    };
+    measure();
+    // Die Karte ändert ihre Größe beim Umbruch, der Container beim Wechsel der Breite (Seitenleiste auf oder zu)
+    const observer = new ResizeObserver(measure);
+    observer.observe(card);
+    observer.observe(host);
+    return () => { observer.disconnect(); host.style.removeProperty('--workspace-card'); };
+  }, [overlayLayout]);
   useEffect(() => { live.current = { drawingBars, until, timeframeSec }; documentRef.current = doc; });
   const saveDocument = useCallback((next: ChartDocument) => {
     documentRef.current = next;
@@ -367,7 +384,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); history(!e.shiftKey); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); history(false); }
   }}>
-    <div className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-[45] rounded-lg shadow-lg @min-[71rem]/formation-main:bottom-auto @min-[71rem]/formation-main:left-auto @min-[71rem]/formation-main:right-1 @min-[71rem]/formation-main:top-px @min-[71rem]/formation-main:z-[60] @min-[71rem]/formation-main:h-[37px] @min-[71rem]/formation-main:rounded-none @min-[71rem]/formation-main:border-0 @min-[71rem]/formation-main:bg-transparent @min-[71rem]/formation-main:p-0 @min-[71rem]/formation-main:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
+    <div ref={toolbarCard} className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-[53] rounded-lg shadow-lg @min-[71rem]/formation-main:bottom-auto @min-[71rem]/formation-main:left-auto @min-[71rem]/formation-main:right-1 @min-[71rem]/formation-main:top-px @min-[71rem]/formation-main:z-[60] @min-[71rem]/formation-main:h-[37px] @min-[71rem]/formation-main:rounded-none @min-[71rem]/formation-main:border-0 @min-[71rem]/formation-main:bg-transparent @min-[71rem]/formation-main:p-0 @min-[71rem]/formation-main:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
       <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? '@min-[71rem]/formation-main:hidden' : ''}`}>{context.symbol}</span>
       <div className="flex flex-wrap items-center gap-1">
         {overlayLayout && appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => binding?.chart.timeScale().fitContent()}><Scan size={15} /></Button>}

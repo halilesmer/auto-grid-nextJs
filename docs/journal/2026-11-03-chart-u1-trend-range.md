@@ -37,11 +37,11 @@ Step U1 of `2026-11-01-unified-chart-page.md`. On `/chart` the trend path must c
 | `scripts/features/run.sh e2e ANA-21` | Red before the fix (new test), 34 passed after |
 | `scripts/features/run.sh ANA`, `BKT` | 183 and 304 passed |
 | `npx tsc --noEmit`, `npm run lint` | No error (2 old lint warnings) |
-| Visual check in the browser | Open. The coordinator does it on `main`. |
+| Visual check in the browser | Passed. Coordinator, 2026-11-03, on `main`: `/chart` free, XAUUSD M15, last 30 days, trend on. 152 segments from the left edge. The trend request starts 10 days before the chart start. |
 | Codex scan | Not done: `weekly_left` was 2 |
 
 ## Open points
-- [ ] Visual check on `main` (the coordinator): `/chart`, free mode, XAUUSD M15, "last 30 days", trend on.
+- [x] Visual check on `main` (the coordinator, 2026-11-03): passed, see Verification.
 - [ ] Range in the past with an unsafe broker clock (`serverNow` and `offsetSec` null): `closedBars` drops the last candle although it is closed. The path then ends one candle before the chart. Before U1 this case did not occur.
 - [ ] When the chart window is clipped (`MAX_CHART_BARS`), `useMarketRates` cuts the lead-in again. The path then starts unsettled at the left edge.
 - [ ] The trend loads its own window and refreshes its tail every 60 s. The cost of `buildTrendPath` over up to 100,000 candles is not measured. U2 may merge the two requests into one window.

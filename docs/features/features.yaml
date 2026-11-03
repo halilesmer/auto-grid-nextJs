@@ -1340,6 +1340,17 @@ kategorien:
           - Bei 375, 1024 und 1440 px Breite wiederholen.
         erwartet: Der Chart füllt die Seite. Konto, Modus, Setup bzw. Symbol, Zeiteinheit und Bereich stehen in der Kopfleiste, die Legenden-Schalter in der zweiten Zeile, Zonenkarte, Live-Werte und Trades in der schwebenden Karte. Kein Seitentitel, kein Seitenscroll, kein horizontaler Überlauf.
 
+      - id: UI-11
+        titel: Gemeinsame Chart-Ebenen in ChartView (RSI(7) und Wave 5/35)
+        beschreibung: Alle Kerzenchartseiten laufen über die Hülle ChartView um ChartCore (Plan „Ein Chart im System“, docs/journal/2026-11-03-chart-u2-chartview.md). ChartView rechnet aus den geschlossenen Kerzen des Charts den System-RSI(7) und die Wave 5/35 (lib/formation/indicators, dieselbe Rechnung wie /formasyon) und zeigt sie als eigene Fenster unter den Kerzen, auf /chart frei, /chart im Setup-Modus und /formasyon. Im Dialog „Anzeige“, Abschnitt „Ebenen“, schalten die Schalter „RSI“ und „Wave“ die Fenster ein und aus (je Chart gespeichert). Die Nutzer-Indikatoren (RSI 14, EWO usw.) und ihre gespeicherten Layouts bleiben unverändert. Unter 71 rem Breite des Containers formation-main (Werkzeugkarte unten auf dem Chart) enden alle Fenster über der Karte, damit keine Bereichsknöpfe darunter liegen; ab 71 rem füllt der Chart die Fläche.
+        code: [frontend_nextjs/src/components/chart-page/ChartView.tsx, frontend_nextjs/src/hooks/useSignalBars.ts, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-page/ChartOverlays.tsx, frontend_nextjs/src/components/chart-page/FloatingCard.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/chart-workspace/FreeChartPanel.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx]
+        tiers: [e2e]
+        pruefung:
+          - /chart im freien Modus und im Setup-Modus öffnen.
+          - Prüfen, dass unter den Kerzen die Fenster RSI und Wave stehen.
+          - Im Dialog Anzeige, Ebenen, den Schalter Wave aus- und einschalten.
+        erwartet: Auf /chart frei und Setup stehen RSI(7) und Wave 5/35 wie auf /formasyon; die Schalter blenden sie aus und ein; die Nutzer-Indikatoren bleiben.
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
@@ -1946,7 +1957,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-23) ausführen (Viewport-Abmessungen, Position der Bedienelemente, Chart-Werkzeuge obenauf bei 1480/1440/1340/1280/1024/375 px, mit und ohne offene Seitenleiste, keine Überlappung in Kopf- und Werkzeugleiste bei 20 px Browser-Schrift und an den Schwellen bei 16 px, internes Scrollen, Navigation, helles und dunkles Design).
-        erwartet: Der Chart füllt mobil den Viewport und ab 1024 px den Bereich unter der Kopfzeile; alle Bedienelemente liegen innerhalb der Fläche; Scrollen der Bedingungen verschiebt den Chart nicht; Navigation bleibt erreichbar.
+        erwartet: Der Chart füllt mobil den Viewport und ab 1024 px den Bereich unter der Kopfzeile (unter 71 rem Containerbreite endet er über der Werkzeugkarte, UI-11); alle Bedienelemente liegen innerhalb der Fläche; Scrollen der Bedingungen verschiebt den Chart nicht; Navigation bleibt erreichbar.
 
       - id: FRM-25
         titel: "Seite Formasyon: freie Produktwahl"

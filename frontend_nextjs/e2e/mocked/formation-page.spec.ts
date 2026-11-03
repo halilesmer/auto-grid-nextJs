@@ -44,6 +44,16 @@ async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW, ba
   await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
+/** Reserve unter dem Chart in px: unter 71 rem Containerbreite endet der Chart über der Werkzeugkarte (UI-11), sonst 0 */
+const cardReserve = async (page: Page) => {
+  const reserve = await page.getByTestId('chart-workspace').evaluate(el => parseFloat(el.style.getPropertyValue('--workspace-card')));
+  // Die Reserve muss gesetzt sein, und der Chart endet über der Werkzeugkarte (nicht nur rechnerisch)
+  expect(reserve).toBeGreaterThan(0);
+  const chart = (await page.getByTestId('formation-chart').boundingBox())!, card = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+  expect(chart.y + chart.height).toBeLessThanOrEqual(card.y);
+  return reserve;
+};
+
 /** Das Alarmmenü öffnet auf dem Verlauf; Schalter, Formationen und Alarm-Produkte stehen auf dem Reiter Einstellungen */
 async function openAlarmSettings(page: Page) {
   await page.getByTestId('formation-alarm').click();
@@ -596,7 +606,8 @@ test.describe('FRM-22 schmale Ansicht', () => {
     expect(rail!.x).toBe(0);
     expect(rail!.width).toBe(52);
     expect(chart!.y).toBe(0);
-    expect(chart!.height).toBe(812);
+    // Chart und Reserve für die Werkzeugkarte füllen die Seite (UI-11)
+    expect(chart!.height + (await cardReserve(page))).toBe(812);
     await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
     const chip = page.getByTestId('formation-status-chip');
     await expect(chip).toHaveAttribute('aria-expanded', 'false');
@@ -649,7 +660,8 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
       // Die Seitenleiste ist offen (erster Besuch ab lg): 1440 − 40 − 288 − 52
-      expect(chart).toEqual({ x: 52, y: 56, width: 1060, height: 844 });
+      // Hier ist der Container schmaler als 71 rem: der Chart endet über der Werkzeugkarte (UI-11), mit der Reserve füllt er die Seite
+      expect({ ...chart, height: chart!.height + (await cardReserve(page)) }).toEqual({ x: 52, y: 56, width: 1060, height: 844 });
       const rail = await page.getByTestId('drawing-toolbar').boundingBox();
       expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });

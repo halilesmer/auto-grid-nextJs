@@ -11,6 +11,14 @@ const paneBox = (page: Page, index: number) => page.getByTestId('chart-workspace
   const rect = rows[i].getBoundingClientRect();
   return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
 }, index);
+/** Screen box of the pane that holds the legend row of an indicator (the system panes RSI(7) and wave, UI-11, lie above the user panes). */
+const paneBoxOf = (page: Page, kind: string) => rowOf(page, kind).first().evaluate((row) => {
+  const table = row.ownerDocument.querySelector('[data-testid="chart-workspace"] table')!;
+  const rows = [...table.querySelectorAll('tr')].filter(r => r.querySelector('canvas') && r.children.length === 3);
+  const top = row.getBoundingClientRect().top;
+  const rect = rows.map(r => r.getBoundingClientRect()).filter(r => r.top <= top + 1).at(-1)!;
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+});
 /** Opacity does not inherit, so the effective value is the product over all ancestors. */
 const opacity = (locator: Locator) => locator.evaluate(element => {
   let value = 1;
@@ -27,7 +35,7 @@ async function openChart(page: Page) {
 
 /** Moves down the RSI pane in small steps until the crosshair reports the RSI line under the mouse. */
 async function hoverRsiLine(page: Page) {
-  const pane = await paneBox(page, 1), x = pane.x + pane.width * 0.5;
+  const pane = await paneBoxOf(page, 'RSI'), x = pane.x + pane.width * 0.5;
   for (let y = pane.y + 4; y < pane.y + pane.height - 4; y += 1) {
     await page.mouse.move(x, y);
     await page.waitForTimeout(15);
@@ -85,7 +93,7 @@ test('Bereichsknöpfe erscheinen beim Hover über den Bereich', { tag: ['@ANA-22
   const up = page.getByTestId('oscillator-controls').getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) });
   await page.mouse.move(5, 5);
   await expect.poll(() => opacity(up)).toBe('0');
-  const pane = await paneBox(page, 1);
+  const pane = await paneBoxOf(page, 'RSI');
   await page.mouse.move(pane.x + pane.width * 0.4, pane.y + pane.height * 0.7);
   await expect.poll(() => opacity(up)).toBe('1');
   await page.mouse.move(5, 5);

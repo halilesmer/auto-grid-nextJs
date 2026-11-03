@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import SymbolAutoComplete from '@/components/SymbolAutoComplete';
-import { ChartCore } from '@/components/analysis/chart/ChartCore';
+import { ChartView } from '@/components/chart-page/ChartView';
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
 import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { Alert } from '@/components/ui/alert';
 import { InfoHint } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { useMarketRates } from '@/hooks/useMarketRates';
+import { useSignalBars } from '@/hooks/useSignalBars';
 import { useTrendPath } from '@/hooks/useTrendPath';
 import { TrendToggle } from './TrendToggle';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
@@ -26,9 +27,6 @@ import { brokerNow } from '@/lib/serverTime';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { useBotRuntimeStore, useWebSocketManager, useSettingsStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
-
-/** Die Bedienung liegt oben auf dem Chart: die Kerzen beginnen darunter (wie auf /formasyon) */
-const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
 
 export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimeframe, range, offsetSec, clockReady, chrome }: {
   accountId: string; symbol: string | null; onSymbol: (symbol: string) => void; timeframe: Timeframe; onTimeframe: (tf: Timeframe) => void;
@@ -50,6 +48,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
   const request = useMemo(() => accepted && clockReady ? { accountId, symbol: accepted, timeframe, ...range } : null, [accepted, clockReady, accountId, timeframe, range]);
   const rates = useMarketRates(request, now);
   const data = useMemo(() => rates.data ? buildChartData(rates.data.bars, rates.data.missing, TIMEFRAME_SEC[timeframe], now()) : null, [rates.data, timeframe, now]);
+  const signalBars = useSignalBars(rates.data, timeframe, offsetSec, now);
   const live = useMemo(() => {
     const last = rates.data?.bars.at(-1);
     if (!isConnected || offsetSec === null || !accepted || !metrics.symbol || metrics.symbol.toUpperCase() !== accepted.toUpperCase() || rates.data?.liveFrom == null || metrics.market_open === false || !last || metrics.price <= 0 || Math.abs(metrics.price / last.close - 1) >= .2) return null;
@@ -89,11 +88,12 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
       actions={<>{chrome.range}{chrome.view}<LicenseInfo /><AnalysisSettingsPanel /></>}
     />}
     surface={<div className="absolute inset-0" data-testid="free-chart-panel">
-      {data && accepted && <ChartCore key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
-        workspaceOverlays={<div className="space-y-3"><Switch label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={prefs.showPauses} onChange={v => prefs.setPref('showPauses', v)} /><Switch label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={prefs.showGaps} onChange={v => prefs.setPref('showGaps', v)} /></div>}
+      {data && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
+        signalBars={signalBars}
+        modeOverlays={<div className="space-y-3"><Switch label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={prefs.showPauses} onChange={v => prefs.setPref('showPauses', v)} /><Switch label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={prefs.showGaps} onChange={v => prefs.setPref('showGaps', v)} /></div>}
         data={data} timeframeSec={TIMEFRAME_SEC[timeframe]} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
         band={null} lines={[]} markers={[]} showPauses={prefs.showPauses} showGaps={prefs.showGaps} showRsi live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()}
-        marginsFor={controlMargins} overlayLayout fullscreenOfPage />}
+        fullscreenOfPage />}
     </div>}
     floating={<ChartOverlays notices={notices} />}
   />;
