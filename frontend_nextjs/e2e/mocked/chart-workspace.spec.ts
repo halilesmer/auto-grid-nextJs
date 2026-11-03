@@ -30,6 +30,9 @@ test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, asy
   await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
   await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
+  // The store writes through a browser lock, asynchronously. Reload only after the write, or the reload loses it.
+  const key = await page.getByTestId('chart-workspace').getAttribute('data-context');
+  await expect.poll(() => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey!]?.appearance?.names, key)).toBe(false);
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
 });

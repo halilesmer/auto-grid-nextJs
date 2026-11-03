@@ -74,8 +74,8 @@ test.describe('Touch-Gerät', () => {
     await page.goto(CHART_URL);
     const row = rowOf(page, 'RSI');
     await expect(row).toBeVisible();
-    expect(await opacity(row.getByRole('button', { name: msg('cw.legend.visibility', { indicator: 'RSI' }) }))).toBe('1');
-    expect(await opacity(page.getByTestId('oscillator-controls').getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) }))).toBe('1');
+    await expect.poll(() => opacity(row.getByRole('button', { name: msg('cw.legend.visibility', { indicator: 'RSI' }) }))).toBe('1');
+    await expect.poll(() => opacity(page.getByTestId('oscillator-controls').getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) }))).toBe('1');
   });
 });
 
