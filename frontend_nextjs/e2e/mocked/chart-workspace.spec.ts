@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { DEMO_ID, LIVE_ID, test, expect } from '../fixtures/test';
+import { DEMO_ID, LIVE_ID, ZONE_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 /** Zoom in per Mausrad auf der Mitte des Charts: das Overlay-Layout (UI-10) hat keine +/−-Knöpfe */
@@ -354,21 +354,37 @@ test('Speicherfehler wird angezeigt und die aktuelle Sitzung bleibt bedienbar', 
 
 test('Anzeige-Schalter speichern erst beim Anwenden, auch nach hartem Neuladen', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1`);
+  // Setup-Modus: der Abschnitt „Ebenen“ des Dialogs hält die Schalter der Zone (Pausen und Lücken stehen im Menü „Ebenen“, UI-13).
+  // Sichtbare Wirkung am Chart: `data-lines` zählt die Stufen-Linien; der Schalter „Stufen“ blendet sie aus.
+  await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`);
   const chart = page.getByTestId('analysis-chart');
-  await page.getByTestId('workspace-settings').click();
-  await page.getByTestId('chart-workspace-settings').getByRole('button', { name: msg('cw.overlays'), exact: true }).click();
-  await page.getByRole('dialog').getByRole('switch', { name: msg('analysis.settings.gaps') }).click();
-  await expect(chart).toHaveAttribute('data-gaps-shown', 'false');
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') || '{}').state.showGaps)).toBe(true);
+  await expect(chart).toHaveAttribute('data-lines', /^[1-9]\d*$/);
+  const lines = await chart.getAttribute('data-lines');
+  const fewer = async () => expect.poll(async () => Number(await chart.getAttribute('data-lines'))).toBeLessThan(Number(lines));
+  const levels = () => page.getByRole('dialog').getByRole('switch', { name: new RegExp(`^${msg('analysis.settings.levels')}`) });
+  const openLevels = async () => {
+    await page.getByTestId('workspace-settings').click();
+    await page.getByTestId('chart-workspace-settings').getByRole('button', { name: msg('cw.overlays'), exact: true }).click();
+  };
+  // Vorschau: schon vor „Anwenden“ sichtbar am Chart, gespeichert ist noch nichts
+  await openLevels();
+  await levels().click();
+  await fewer();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') || '{}').state.showLevels)).toBe(true);
+  // „Abbrechen“ stellt den Ausgangszustand wieder her
+  await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
+  await expect(chart).toHaveAttribute('data-lines', lines!);
+  // Hartes Neuladen ohne Anwenden: weiter der Ausgangszustand
+  await openLevels();
+  await levels().click();
+  await fewer();
   await page.reload();
-  await expect(chart).toHaveAttribute('data-gaps-shown', 'true');
-  await page.getByTestId('workspace-settings').click();
-  await page.getByTestId('chart-workspace-settings').getByRole('button', { name: msg('cw.overlays'), exact: true }).click();
-  await page.getByRole('dialog').getByRole('switch', { name: msg('analysis.settings.gaps') }).click();
+  await expect(chart).toHaveAttribute('data-lines', lines!);
+  await openLevels();
+  await levels().click();
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
   await page.reload();
-  await expect(chart).toHaveAttribute('data-gaps-shown', 'false');
+  await fewer();
 });
 
 test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgängig und Neuladen', { tag: '@ANA-17' }, async ({ page, worker }) => {

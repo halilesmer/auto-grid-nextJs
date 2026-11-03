@@ -17,6 +17,9 @@ import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
 import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/FormationFavoritesBar';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { formatOffset } from '@/components/analysis/BrokerClockNotice';
+import { ChartNotice } from '@/components/chart-page/ChartOverlays';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
@@ -281,6 +284,11 @@ function FormationView() {
       }
       notices={
         <>
+          {offsetSec !== null && (
+            <ChartNotice>
+              <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">{t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}</Badge>
+            </ChartNotice>
+          )}
           {scan.loading && (
             <p className="flex items-center gap-2 rounded-lg bg-background/95 p-2 text-xs text-muted-foreground" role="status" data-testid="formation-loading">
               <Loader2 size={14} className="animate-spin" /> {t('formation.scan.loading')}

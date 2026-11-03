@@ -55,16 +55,15 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
       await expect(chart).toHaveAttribute('data-bars', String(worker.ratesDelivered[0]));
       // Nur eingeschlossene Wochenenden: Randwochenenden haben nicht auf beiden Seiten echte Kerzen.
       await expect(chart).toHaveAttribute('data-pauses', String(period.pauses));
-      await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.noData'));
-
-      // Pausen-Linien und Schraffur abschaltbar, der Hinweis über dem Chart nicht
+      // Pausen-Linien und Schraffur abschaltbar (Menü „Ebenen“), der Hinweis über dem Chart nicht
       await expect(chart).toHaveAttribute('data-gaps-shown', 'true');
-      const panel = await openSettings(page);
-      await panel.getByRole('switch', { name: msg('analysis.settings.pauses') }).click();
-      await expect(page.getByTestId('chart-key-showPauses')).toHaveAttribute('aria-pressed', 'false');
-      await page.keyboard.press('Escape');
-      await page.getByTestId('chart-key-showGaps').click();
+      await expect(chart).toHaveAttribute('data-pauses-shown', 'true');
+      await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
+      await page.locator('#layer-pauses').click();
+      await expect(chart).toHaveAttribute('data-pauses-shown', 'false');
+      await page.locator('#layer-gaps').click();
       await expect(chart).toHaveAttribute('data-gaps-shown', 'false');
+      await page.keyboard.press('Escape');
       await expect(chart).toHaveAttribute('data-gap-areas', '1');
       await expect(quality).toBeVisible();
     });

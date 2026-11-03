@@ -331,9 +331,8 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
   test('Der Schalter „Wave“ blendet das Wave-Fenster aus und wieder ein', { tag: '@FRM-35' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = page.getByTestId('analysis-chart');
-    await page.getByTestId('workspace-settings').click();
-    await page.getByRole('button', { name: msg('cw.overlays'), exact: true }).click();
-    const wave = page.locator('#overlay-wave');
+    await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
+    const wave = page.locator('#layer-wave');
     await expect(wave).toHaveAttribute('aria-checked', 'true');
     await wave.click();
     await expect(chart).toHaveAttribute('data-wave-visible', 'false');

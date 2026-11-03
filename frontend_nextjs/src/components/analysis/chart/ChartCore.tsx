@@ -436,6 +436,7 @@ export function ChartCore({
   }, [rsiPoints, hasRsi]);
   useEffect(() => {
     rsiRef.current?.applyOptions({ visible: rsiVisible });
+    if (hasRsi) containerRef.current?.setAttribute('data-rsi-visible', String(!!rsiVisible));
   }, [rsiVisible, hasRsi]);
 
   const wavePoints = systemWave?.points, waveVisible = systemWave?.visible;
@@ -717,6 +718,7 @@ export function ChartCore({
     'data-bars': data.bars.length,
     'data-gap-areas': data.missing.length,
     'data-gaps-shown': showGaps,
+    'data-pauses-shown': showPauses,
     'data-lines': lines.length,
     'data-pauses': data.pauses.length,
   };
