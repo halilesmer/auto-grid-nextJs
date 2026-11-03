@@ -2,6 +2,14 @@ import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
+/** Zoom in per Mausrad auf der Mitte des Charts: das Overlay-Layout (UI-10) hat keine +/−-Knöpfe */
+async function zoomIn(page: Page) {
+  const box = await page.getByTestId('analysis-chart').boundingBox();
+  if (!box) throw new Error('Chart missing');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+  await page.mouse.wheel(0, -400);
+}
+
 test('Freier Chart lädt Broker-Symbol ohne Setup und stellt URL wieder her', { tag: '@ANA-16' }, async ({ page, worker }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
@@ -30,6 +38,9 @@ test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, asy
   await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
   await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
+  // The store writes through a browser lock, asynchronously. Reload only after the write, or the reload loses it.
+  const key = await page.getByTestId('chart-workspace').getAttribute('data-context');
+  await expect.poll(() => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey!]?.appearance?.names, key)).toBe(false);
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
 });
@@ -112,14 +123,14 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   const fitRange = await rangeOf();
   await page.waitForTimeout(500);
   expect(await savedZoom()).toBeNull();
-  await eurChart.getByRole('button', { name: '+', exact: true }).click();
+  await zoomIn(page);
   await expect.poll(rangeOf).not.toBe(fitRange);
   const eurRange = await rangeOf();
   await expect.poll(savedZoom).toBe(eurRange);
   await eurChart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
   await expect.poll(rangeOf).toBe(fitRange);
   await expect.poll(savedZoom).toBeNull();
-  await eurChart.getByRole('button', { name: '+', exact: true }).click();
+  await zoomIn(page);
   await expect.poll(rangeOf).toBe(eurRange);
   await expect.poll(savedZoom).toBe(eurRange);
 
@@ -168,7 +179,7 @@ test('Mit mehr Kerzen, als die Breite fasst, löscht „Ansicht zurücksetzen“
   const rangeOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-range');
   await expect.poll(rangeOf).toMatch(new RegExp(`,${lastTime}$`));
   await page.waitForTimeout(500);
-  await chart.getByRole('button', { name: '+', exact: true }).click();
+  await zoomIn(page);
   await expect.poll(zoom).not.toBeNull();
   await chart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
   await expect.poll(zoom).toBeNull();
@@ -190,7 +201,7 @@ test('Neue Kerze und Größenänderung speichern keinen Zoom, ein eigener Zoom �
   await page.setViewportSize({ width: 1200, height: 700 });
   await page.waitForTimeout(600);
   expect(await zoom()).toBeNull();
-  await chart.getByRole('button', { name: '+', exact: true }).click();
+  await zoomIn(page);
   await expect.poll(zoom).not.toBeNull();
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H4&range=30d`);
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-visible-range', /^\d+,\d+$/);
@@ -288,7 +299,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 375, height: 812 
       const workspace = page.getByTestId('chart-workspace');
       await expect(workspace).toBeVisible();
       await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen', {}, 'de'), exact: true }).click();
-      await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-workspace');
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-page');
       const before = await page.getByTestId('analysis-chart').screenshot();
       await page.getByTestId('workspace-settings').click();
       const settings = page.getByTestId('chart-workspace-settings');
@@ -410,7 +421,8 @@ const storedDocument = (page: Page, key: string) => page.evaluate(k => {
 /** Height of each chart pane in pixels, price pane first. Lightweight Charts draws one table row per pane. */
 const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator('table').first().evaluate(table =>
   [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1));
-const rsiValue = async (page: Page) => Number((await page.locator('[data-indicator-value="RSI"]').innerText()).replace(/^.*\)\s*/, '').replace(',', '.'));
+// The legend shows the value under the crosshair, so move the mouse off the chart to read the latest value.
+const rsiValue = async (page: Page) => { await page.mouse.move(0, 0); return Number((await page.locator('[data-indicator-value="RSI"]').innerText()).replace(/^.*\)\s*/, '').replace(',', '.')); };
 
 test('Bereiche lassen sich verschieben, einklappen, vergrößern und entfernen; nur das Vergrößern ist vorübergehend', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
   test.slow();
@@ -460,9 +472,11 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 
   await menu('RSI');
   await page.getByRole('button', { name: msg('cw.indicatorHide', { indicator: 'RSI' }) }).click();
-  await expect(values).not.toContainText('RSI');
+  // A hidden indicator keeps its legend row (struck through) so it can be shown again.
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-visible', 'false');
   await menu('RSI');
   await page.getByRole('button', { name: msg('cw.indicatorShow', { indicator: 'RSI' }) }).click();
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-visible', 'true');
   await expect(values).toContainText('RSI');
 
   await menu('RSI');
@@ -472,8 +486,10 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
   await expect(values).toContainText('RSI');
   await page.getByRole('radio', { name: 'H4', exact: true }).click();
   await expect(values).toContainText('EWO');
-  await expect(values).not.toContainText('RSI');
+  // Outside its timeframe range the indicator is not drawn: its row stays, dimmed and without a value.
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'false');
   await page.getByRole('radio', { name: 'H1', exact: true }).click();
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'true');
   await expect(values).toContainText('RSI');
 
   await menu('RSI');
@@ -509,7 +525,7 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 
   await menu('RSI 1');
   await page.getByRole('button', { name: msg('cw.indicatorFavorite') }).click();
-  await controls.getByRole('button', { name: `+ ${msg('cw.addIndicator')}` }).click();
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText(msg('cw.favoriteIndicators'));
   await dialog.getByRole('button', { name: 'RSI', exact: true }).click();

@@ -455,10 +455,10 @@ test.describe('CYP: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  frm('cyp-lib-h4-01: Verkauf-Cypher mit einem Libra-Einstieg am D (CYP 10 ☑); ohne RSI am C ungültig, darum LIB 09 nicht messbar', () => {
+  frm('cyp-lib-h4-01: Verkauf-Cypher; das gewählte P3 der Libra ist noch kein fertiges Fraktal (LIB-04), darum CYP 10 ☐; ohne RSI am C ungültig, darum LIB 09 nicht messbar', () => {
     const c = analyzeAt('cyp-lib-h4-01', '2025-12-30T20:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, N, M, N, M]);
+    expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, N, M, N, N]);
     expect(c.verdict).toBe('invalid');
     const fixture = loadFixture('cyp-lib-h4-01');
     const lib = analyzeLib(new FormationContext(fixture.symbol, { H4: fixture.bars }), at('2025-12-30T20:00')).find((a) => a.tf === 'H4')!.candidate;

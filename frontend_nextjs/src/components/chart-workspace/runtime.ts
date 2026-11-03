@@ -1,11 +1,12 @@
 import {
   BaselineSeries, ColorType, CrosshairMode, createTextWatermark, HistogramSeries, LineSeries, LineStyle, PriceScaleMode,
-  type IChartApi, type ISeriesApi, type LogicalRange, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
+  type IChartApi, type ISeriesApi, type LineWidth, type LogicalRange, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
 import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
 import { aggregateIndicatorBars, calculateIndicator, isOscillator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { valueAtTime } from '@/lib/chart-workspace/hover';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 
 export interface ChartBinding { chart: IChartApi; candles: ISeriesApi<'Candlestick'>; host: HTMLDivElement; defaultMargins?: () => { top: number; bottom: number }; isDisposed: () => boolean; onDispose: (callback: () => void) => () => void; dispose: () => void }
@@ -35,16 +36,17 @@ export function restoreChartView(chart: IChartApi, times: readonly number[], sav
 /**
  * Speichert den Zoom des Nutzers in dem Chart-Dokument `contextKey`; ein Bereich, der alle Kerzen zeigt, löscht ihn.
  * Änderungen durch neue Kerzen (`pointCount`) oder eine andere Breite sind kein Zoom und bleiben unbeachtet.
- * Setzt `data-visible-range` (von,bis in Kerzenzeit) am Element; gibt die Abmeldung zurück, die Ausstehendes schreibt.
+ * Setzt `data-visible-range` (von,bis in Kerzenzeit) an den Elementen `hosts`; gibt die Abmeldung zurück, die Ausstehendes schreibt.
  */
-export function rememberChartView(chart: IChartApi, host: HTMLElement, contextKey: string, pointCount: () => number): () => void {
+export function rememberChartView(chart: IChartApi, hosts: HTMLElement[], contextKey: string, pointCount: () => number): () => void {
   const scale = chart.timeScale();
   let count = pointCount(), width = scale.width();
   const asText = (r: { from: unknown; to: unknown }) => `${r.from},${r.to}`;
   const settledAt = performance.now() + VIEW_SETTLE_MS;
   // Steht die Ansicht beim Anmelden schon, meldet der Chart danach keine Änderung mehr
   const shown = scale.getVisibleRange();
-  if (shown) host.setAttribute('data-visible-range', asText(shown));
+  const publish = (range: { from: unknown; to: unknown }) => hosts.forEach((host) => host.setAttribute('data-visible-range', asText(range)));
+  if (shown) publish(shown);
   let pending: { zoom: VisibleTime | undefined } | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const flush = () => {
@@ -63,7 +65,7 @@ export function rememberChartView(chart: IChartApi, host: HTMLElement, contextKe
   const onChange = (logical: LogicalRange | null) => {
     const range = scale.getVisibleRange();
     if (!logical || !range) return;
-    host.setAttribute('data-visible-range', asText(range));
+    publish(range);
     if (pointCount() !== count || scale.width() !== width || performance.now() < settledAt) {
       count = pointCount();
       width = scale.width();
@@ -154,10 +156,43 @@ class DivergenceLines implements ISeriesPrimitive<Time> {
   }
 }
 
+/** Number of gaps between the marks on a selected line, so it has 5 marks across the pane. */
+const SELECTION_MARK_GAPS = 6;
+const SELECTION_MARK_RADIUS_PX = 4;
+
+/** Marks on a selected indicator line, like TradingView's selection. Positions follow the visible time range, so they stay on the line while the chart pans. */
+class SelectionMarks implements ISeriesPrimitive<Time> {
+  private attachedTo: SeriesAttachedParameter<Time> | null = null;
+  constructor(private valueAt: (time: number) => Value, private color: string, private fill: string) {}
+  attached(p: SeriesAttachedParameter<Time>) { this.attachedTo = p; }
+  detached() { this.attachedTo = null; }
+  paneViews(): readonly IPrimitivePaneView[] {
+    return [{ zOrder: () => 'top', renderer: () => ({ draw: target => {
+      const p = this.attachedTo; if (!p) return;
+      target.useMediaCoordinateSpace(({ context, mediaSize }) => {
+        context.lineWidth = 2; context.strokeStyle = this.color; context.fillStyle = this.fill;
+        for (let i = 1; i < SELECTION_MARK_GAPS; i++) {
+          const time = p.chart.timeScale().coordinateToTime(mediaSize.width * i / SELECTION_MARK_GAPS);
+          if (time === null) continue;
+          const x = p.chart.timeScale().timeToCoordinate(time), value = this.valueAt(Number(time)), y = value === null ? null : p.series.priceToCoordinate(value);
+          if (x === null || y === null) continue;
+          context.beginPath(); context.arc(x, y, SELECTION_MARK_RADIUS_PX, 0, Math.PI * 2); context.fill(); context.stroke();
+        }
+      });
+    } }) }];
+  }
+}
+
+type Plot = ISeriesApi<'Line' | 'Histogram' | 'Baseline'>;
+interface IndicatorGroup { config: Indicator; plots: Plot[]; result: ReturnType<typeof calculateIndicator> | null; times: number[]; divergence: DivergenceLines | null; color: string; marks: SelectionMarks | null }
+
 export class IndicatorRenderer {
-  private series: ISeriesApi<'Line' | 'Histogram' | 'Baseline'>[] = [];
+  private series: Plot[] = [];
   private signature = '';
-  private groups: { config: Indicator; plots: ISeriesApi<'Line' | 'Histogram' | 'Baseline'>[]; result: ReturnType<typeof calculateIndicator> | null; divergence: DivergenceLines | null }[] = [];
+  private groups: IndicatorGroup[] = [];
+  private hoveredId: string | null = null;
+  private selectedId: string | null = null;
+  private markFill = '';
   private paneIndices = new Map<string, number>();
   private maximizedPaneId: string | null = null;
   private stretchBeforeMaximize: number[] | null = null;
@@ -185,6 +220,8 @@ export class IndicatorRenderer {
         const line = (tone: string, histogram = false) => {
           const options = { priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
           const s = histogram ? chart.addSeries(HistogramSeries, options, pane) : chart.addSeries(LineSeries, options, pane);
+          // Ein Indikator-Bereich übernähme sonst die großen oberen Ränder der Kerzen-Achse (Platz für die Bedienung auf dem Chart)
+          if (pane > 0) s.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
           plots.push(s); this.series.push(s); return s;
         };
         const first = line(color, config.kind === 'EWO');
@@ -204,7 +241,7 @@ export class IndicatorRenderer {
         if (config.kind === 'MACD') { line(config.maColor || colors.warning); line(negative, true); }
         if (config.kind === 'BB') { line(color); line(color); }
         if (config.kind === 'EWO' || config.kind === 'MACD') first.createPriceLine({ price: 0, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false });
-        this.groups.push({ config, plots, result: null, divergence });
+        this.groups.push({ config, plots, result: null, times: [], divergence, color, marks: null });
       }
     }
     const values: { config: Indicator; value: Value }[] = [];
@@ -212,7 +249,7 @@ export class IndicatorRenderer {
       const { config, plots } = group;
       const visibleBars = bars.filter(b => b.time <= until);
       const source = config.timeframe > tf ? aggregateIndicatorBars(visibleBars, config.timeframe, tf, config.waitClose, until, missing) : visibleBars;
-      const result = calculateIndicator(source, config, missing); group.result = result;
+      const result = calculateIndicator(source, config, missing); group.result = result; group.times = source.map(b => b.time);
       const points = (data: Value[], histogram = false) => {
         const out: { time: UTCTimestamp; value?: number; color?: string; topFillColor1?: string; topFillColor2?: string; bottomFillColor1?: string; bottomFillColor2?: string }[] = [];
         let previous = -1;
@@ -234,10 +271,40 @@ export class IndicatorRenderer {
       if (config.kind === 'RSI' && config.gradients) for (const s of plots.slice(-2)) s.setData(points(result.main));
       values.push({ config, value: result.main.at(-1) ?? null });
     }
+    this.markFill = colors.background;
+    this.applyEmphasis();
     if (rebuilt || maximizedPaneId !== this.maximizedPaneId) this.layoutPanes(active, maximizedPaneId);
     if (!this.watermark) this.watermark = createTextWatermark(chart.panes()[0], { visible: false });
     this.watermark.applyOptions({ visible: a.watermark, lines: [{ text: symbol, color: withAlpha(a.watermarkColor || colors.muted, .15), fontSize: 60 }] });
     return values;
+  }
+  /** Value of every drawn indicator at `time` (the candle under the crosshair); without a time, its latest value. */
+  valuesAt(time: number | null): Map<string, Value> {
+    return new Map(this.groups.map(group => [group.config.id, valueAtTime(group.times, group.result?.main ?? [], time)]));
+  }
+  /** Indicator that owns a chart series, or null for the candles, drawings and other series. */
+  ownerOf(series: unknown): string | null {
+    return this.groups.find(group => (group.plots as unknown[]).includes(series))?.config.id ?? null;
+  }
+  /** Chart pane of an indicator pane group; null while all its indicators are hidden. */
+  paneIndexOf(paneId: string): number | null { return this.paneIndices.get(paneId) ?? null; }
+  /** Draws the hovered and the selected indicator thicker; the selected one also gets marks. */
+  emphasize(hoveredId: string | null, selectedId: string | null) {
+    this.hoveredId = hoveredId; this.selectedId = selectedId;
+    this.applyEmphasis();
+  }
+  private applyEmphasis() {
+    for (const group of this.groups) {
+      const { config } = group, selected = config.id === this.selectedId, raised = selected || config.id === this.hoveredId;
+      const width = (raised ? Math.min(4, config.width + 1) : config.width) as LineWidth;
+      for (const plot of group.plots) if (plot.seriesType() === 'Line') (plot as ISeriesApi<'Line'>).applyOptions({ lineWidth: width }); // Histogram- und Baseline-Reihen haben keine Linienbreite
+      if (selected && !group.marks) {
+        group.marks = new SelectionMarks(time => valueAtTime(group.times, group.result?.main ?? [], time), group.color, this.markFill);
+        group.plots[0].attachPrimitive(group.marks);
+      } else if (!selected && group.marks) {
+        group.plots[0].detachPrimitive(group.marks); group.marks = null;
+      }
+    }
   }
   private layoutPanes(active: readonly Indicator[], maximizedPaneId: string | null) {
     const panes = this.binding.chart.panes();

@@ -4,6 +4,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type React
 import { Bookmark, ListChecks, Loader2 } from 'lucide-react';
 
 import { useAccounts } from '@/components/account/hooks';
+import { ChartPage } from '@/components/chart-page/ChartPage';
+import { ChartPanel } from '@/components/chart-page/ChartPanel';
 import { FavoritesAddButton, FavoritesSidebar } from '@/components/formation/FavoritesSidebar';
 import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationConditions } from '@/components/formation/FormationConditions';
@@ -24,6 +26,7 @@ import { useFormationSidebar, type SidebarTab } from '@/hooks/useFormationSideba
 import { useFormationParams } from '@/hooks/useFormationParams';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
+import { drawsZigzag } from '@/lib/formation/drawingLayout';
 import { favoriteSymbols, FINAL_POINT, formedSummary, timeframeForForm, type ScanFormation } from '@/lib/formation/scan';
 import { buildShotData, shotFileName } from '@/lib/formation/shotData';
 import { composeShot, shotBlob, type ChartPicture } from '@/lib/formation/shotImage';
@@ -227,14 +230,12 @@ function FormationView() {
   };
 
   return (
-    <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" data-testid="formation-page" data-scan-ms={scan.scanMs ?? ''} data-favorites-scan-ms={favoritesScanMs ?? ''}>
-      <h1 className="sr-only">{t('formation.title')}</h1>
-      {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (w-10 Leiste + w-72 Panel = right-82, bei 16 px Schrift 328 px), statt ihn zu überdecken; darunter liegt sie über dem Chart. Der Abstand steht in rem wie die beiden Breiten, sonst überdeckt der Chart die Leiste bei größerer Browser-Schrift. Die Leiste ganz rechts bleibt immer frei. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
-      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', sidebarShown && 'lg:right-82')} data-testid="formation-main">
-      <div className="absolute inset-0" data-testid="formation-surface">
-        {body()}
-      </div>
-      <div className="pointer-events-none absolute left-[52px] right-0 top-18 z-50 min-w-0 lg:top-0">
+    <ChartPage
+      title={t('formation.title')}
+      pageProps={{ 'data-scan-ms': scan.scanMs ?? '', 'data-favorites-scan-ms': favoritesScanMs ?? '' }}
+      panelShown={sidebarShown}
+      surface={body()}
+      topBar={
         <FormationToolbar
           hits={scan.hits}
           tf={tf}
@@ -277,81 +278,86 @@ function FormationView() {
             }}
           />
         </FormationToolbar>
-      </div>
-      <div className="pointer-events-none absolute left-[64px] right-3 top-[184px] z-30 flex min-w-0 flex-col items-start gap-2 sm:right-20 lg:top-[136px]">
-        {scan.loading && (
-          <p className="flex items-center gap-2 rounded-lg bg-background/95 p-2 text-xs text-muted-foreground" role="status" data-testid="formation-loading">
-            <Loader2 size={14} className="animate-spin" /> {t('formation.scan.loading')}
-          </p>
-        )}
-        {accountKnown && symbolsError && (
-          <div className="pointer-events-auto max-w-md" data-testid="formation-symbols-error">
-            <Alert tone="warning" title={t('formation.symbols.failed')}>{symbolsError}</Alert>
-          </div>
-        )}
-        {accountKnown && settingsError && (
-          <div className="pointer-events-auto max-w-md">
-            <Alert tone="danger" title={t('analysis.zone.failed')}>{settingsError}</Alert>
-          </div>
-        )}
-      </div>
-      {hit && (
-        <ul className={`pointer-events-none absolute left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
-          <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>
-          <li>{t('formation.legend.ratio')}</li>
-          <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>
-          <li>{t('formation.legend.zone')}</li>
-          <li>{t('formation.legend.rsi')}</li>
-          <li>{t('formation.legend.wave')}</li>
-        </ul>
-      )}
-      </div>
-      {accountKnown && accountId && (
+      }
+      notices={
         <>
-          <div className="absolute inset-y-0 right-0 z-[60] flex w-10 flex-col items-center gap-0.5 border-l border-border bg-background pt-18 lg:pt-0" data-testid="favorites-strip">
-            {stripButton('favorites', t('formation.fav.toggle'), t('formation.fav.toggle.hint'), <Bookmark size={16} aria-hidden="true" className={cn(sidebar.open && sidebar.tab === 'favorites' && 'fill-primary')} />)}
-            {stripButton('conditions', t('formation.conditions'), t('formation.conditions.hint'), <ListChecks size={16} aria-hidden="true" />)}
-          </div>
-          {sidebar.open && (
-            <div className="absolute inset-y-0 right-10 z-[60] w-72 border-l border-border bg-background pt-18 lg:pt-0" data-testid="formation-sidebar">
-              <div className="flex h-full min-h-0 flex-col">
-                <FormationSidebarTabs
-                  tab={sidebar.tab}
-                  onTab={sidebar.show}
-                  trailing={sidebar.tab === 'favorites' && <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />}
-                />
-                <div role="tabpanel" id="formation-tabpanel" aria-labelledby={`formation-tab-${sidebar.tab}`} className="flex min-h-0 flex-1 flex-col">
-                  {sidebar.tab === 'conditions' ? (
-                    <FormationConditions
-                      list={list}
-                      hit={hit}
-                      loading={scan.loading}
-                      tf={tf}
-                      active={active}
-                      onSelect={(h) => setPicked(`${h.form}-${h.tf}`)}
-                      onActive={setActive}
-                    />
-                  ) : (
-                    <div className="min-h-0 flex-1" data-testid="favorites-panel">
-                      <FavoritesSidebar
-                        accountId={accountId}
-                        favorites={favorites.symbols}
-                        rows={rows}
-                        activeSymbol={symbol}
-                        timeframes={favoriteViews?.timeframes}
-                        forms={favoriteViews?.forms}
-                        onPick={openFavorite}
-                        onToggle={favorites.toggle}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+          {scan.loading && (
+            <p className="flex items-center gap-2 rounded-lg bg-background/95 p-2 text-xs text-muted-foreground" role="status" data-testid="formation-loading">
+              <Loader2 size={14} className="animate-spin" /> {t('formation.scan.loading')}
+            </p>
+          )}
+          {accountKnown && symbolsError && (
+            <div className="pointer-events-auto max-w-md" data-testid="formation-symbols-error">
+              <Alert tone="warning" title={t('formation.symbols.failed')}>{symbolsError}</Alert>
+            </div>
+          )}
+          {accountKnown && settingsError && (
+            <div className="pointer-events-auto max-w-md">
+              <Alert tone="danger" title={t('analysis.zone.failed')}>{settingsError}</Alert>
             </div>
           )}
         </>
-      )}
-    </div>
+      }
+      floating={
+        hit && (
+          <ul className={`pointer-events-none absolute left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
+            {drawsZigzag(hit.candidate) && <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>}
+            <li>{t('formation.legend.ratio')}</li>
+            <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>
+            <li>{t('formation.legend.zone')}</li>
+            <li>{t('formation.legend.rsi')}</li>
+            <li>{t('formation.legend.wave')}</li>
+          </ul>
+        )
+      }
+      panel={
+        accountKnown && accountId && (
+          <ChartPanel
+            open={sidebar.open}
+            strip={
+              <>
+                {stripButton('favorites', t('formation.fav.toggle'), t('formation.fav.toggle.hint'), <Bookmark size={16} aria-hidden="true" className={cn(sidebar.open && sidebar.tab === 'favorites' && 'fill-primary')} />)}
+                {stripButton('conditions', t('formation.conditions'), t('formation.conditions.hint'), <ListChecks size={16} aria-hidden="true" />)}
+              </>
+            }
+          >
+            <div className="flex h-full min-h-0 flex-col">
+              <FormationSidebarTabs
+                tab={sidebar.tab}
+                onTab={sidebar.show}
+                trailing={sidebar.tab === 'favorites' && <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />}
+              />
+              <div role="tabpanel" id="formation-tabpanel" aria-labelledby={`formation-tab-${sidebar.tab}`} className="flex min-h-0 flex-1 flex-col">
+                {sidebar.tab === 'conditions' ? (
+                  <FormationConditions
+                    list={list}
+                    hit={hit}
+                    loading={scan.loading}
+                    tf={tf}
+                    active={active}
+                    onSelect={(h) => setPicked(`${h.form}-${h.tf}`)}
+                    onActive={setActive}
+                  />
+                ) : (
+                  <div className="min-h-0 flex-1" data-testid="favorites-panel">
+                    <FavoritesSidebar
+                      accountId={accountId}
+                      favorites={favorites.symbols}
+                      rows={rows}
+                      activeSymbol={symbol}
+                      timeframes={favoriteViews?.timeframes}
+                      forms={favoriteViews?.forms}
+                      onPick={openFavorite}
+                      onToggle={favorites.toggle}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </ChartPanel>
+        )
+      }
+    />
   );
 }
 

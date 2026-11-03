@@ -412,3 +412,20 @@ frm('echte Reihe: eine gültige Kopf-Schulter ist keine gültige Libra', () => {
   expect(analyzeLib(ctx, t)[0].candidate.verdict).not.toBe('valid');
 });
 
+
+frm('Urteil: der Bruch liegt vor, nur settle hält „gültig“ zurück: pointHeld steht, ohne Bruch und bei gültigem Urteil fehlt es', () => {
+  const held = run(SHORT, SHORT_AT);
+  expect(held.verdict).toBe('forming');
+  expect(held.pointHeld).toBe(true);
+  expect(run(NO_BREAK, I).pointHeld).toBeUndefined();
+  expect(run(BASE, I).pointHeld).toBeUndefined();
+});
+
+frm('Urteil: gehaltener Bruch trägt seine Lage in heldPoint (Bruchkerze), points.B bleibt leer', () => {
+  const held = run(SHORT, SHORT_AT);
+  expect(held.points.B).toBeUndefined();
+  // Die Lage ist der Schluss einer Kerze der Reihe (nicht die Nackenlinie)
+  expect(SHORT[held.heldPoint!.time / H4][3]).toBe(held.heldPoint!.price);
+  expect(run(NO_BREAK, I).heldPoint).toBeUndefined();
+  expect(run(BASE, I).heldPoint).toBeUndefined();
+});

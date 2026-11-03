@@ -67,17 +67,18 @@ export function FormationChecklist({
   const { candidate } = hit;
   const { hasInactive, requiredTotal, requiredMet, requiredUnmeasurable, bonusTotal, bonusMet } = checkScore(candidate);
   const share = (n: number) => (requiredTotal === 0 ? 0 : (n / requiredTotal) * 100);
-  const open = candidate.points[FINAL_POINT[hit.form]] === undefined;
+  // Offen heißt: der Endpunkt fehlt und ist noch nicht gemessen; bei `pointHeld` ist er gemessen, nur das Urteil hält ihn zurück
+  const open = candidate.points[FINAL_POINT[hit.form]] === undefined && !candidate.pointHeld;
   // Dasselbe Prädikat wie im Prüfer: der Hinweis nennt nur Regeln, die das Urteil „gültig“ wirklich halten
   const unknownIds = blockingUnknowns(candidate.checks, exemptFor(hit.form, candidate.checks));
-  let note: string | null = null;
+  const notes: string[] = [];
   let noteHint = false;
-  if (candidate.verdict === 'forming' && open) note = t('formation.note.forming', { point: FINAL_POINT[hit.form] });
-  else if (candidate.verdict === 'forming' && unknownIds.length > 0) {
-    note = t('formation.note.unmeasurable', { ids: unknownIds.join(', ') });
+  if (candidate.verdict === 'forming' && candidate.pointHeld) notes.push(t('formation.note.held', { point: FINAL_POINT[hit.form] }));
+  else if (candidate.verdict === 'forming' && open) notes.push(t('formation.note.forming', { point: FINAL_POINT[hit.form] }));
+  if (candidate.verdict === 'forming' && unknownIds.length > 0 && !open) {
+    notes.push(t('formation.note.unmeasurable', { ids: unknownIds.join(', ') }));
     noteHint = true;
-  }
-  else if (candidate.verdict === 'invalid' && candidate.invalidBy && candidate.invalidBy.length > 0) note = t('formation.note.invalid', { ids: candidate.invalidBy.join(', ') });
+  } else if (candidate.verdict === 'invalid' && candidate.invalidBy && candidate.invalidBy.length > 0) notes.push(t('formation.note.invalid', { ids: candidate.invalidBy.join(', ') }));
   const activeSet = active ? new Set(active) : null;
   const toggleGroup = (kind: RuleKind) => {
     const next = new Set(collapsed);
@@ -112,9 +113,13 @@ export function FormationChecklist({
           <span className="block h-full bg-danger" style={{ width: `${share(requiredTotal - requiredMet - requiredUnmeasurable)}%` }} />
           <span className="block h-full bg-muted-foreground opacity-40" style={{ width: `${share(requiredUnmeasurable)}%` }} />
         </div>
-        {note && (
+        {notes.length > 0 && (
           <div className="flex items-start gap-1.5 rounded-lg border border-warning/35 bg-warning/10 px-2.5 py-1.5 text-xs text-warning" data-testid="checklist-note">
-            <span>{note}</span>
+            <span className="flex flex-col gap-0.5">
+              {notes.map((n) => (
+                <span key={n}>{n}</span>
+              ))}
+            </span>
             {noteHint && <InfoHint hint={t('formation.note.unmeasurable.hint')} className="ml-auto shrink-0 text-warning" />}
           </div>
         )}

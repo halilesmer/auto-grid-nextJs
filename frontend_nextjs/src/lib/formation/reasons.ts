@@ -9,7 +9,7 @@ import type { Rect } from './frz';
 import { CONTEXT_TIMEFRAMES, FIB_PARAMS, type ContextTimeframe, type TrendTimeframe } from './params';
 import { divergenceOf, engulfAt, engulfZones, rsiExtreme, zoneSideOf } from './sig';
 import type { TrendDir, TrendModel } from './trd';
-import { formationTrend } from './trdFormation';
+import { formationTrend, withTrendDirMemo } from './trdFormation';
 import type { FormationBar, Side } from './types';
 
 export interface Env {
@@ -38,6 +38,7 @@ let shared: { ctx: FormationContext; envs: Map<string, Env | null> } | null = nu
 /**
  * Führt `fn` so aus, dass `buildEnv` für diesen Kontext je Zeitpunkt und Zeiteinheit nur einmal rechnet (Befund 49):
  * die Suche ruft elf Analyzer, jeder baute sonst Trends, Fibs und Zonen neu. Gilt nur ohne `frzOptions`.
+ * Im selben Bereich rechnet auch die Trendrichtung bis zu einer früheren Kerze (`formationTrendDir`) je Ansicht und Kerze nur einmal.
  * Ein geteiltes Env darf niemand verändern. Ein innerer Bereich für denselben Kontext nutzt den äußeren weiter.
  * Nur für synchrones `fn`: nach dem ersten `await` ist der Bereich schon zu (Ergebnis gleich, aber ohne Teilung).
  */
@@ -46,7 +47,7 @@ export function shareEnv<T>(ctx: FormationContext, fn: () => T): T {
   const outer = shared;
   shared = { ctx, envs: new Map() };
   try {
-    return fn();
+    return withTrendDirMemo(fn);
   } finally {
     shared = outer;
   }

@@ -107,6 +107,66 @@ def test_logs_leeren_kuerzt_nur_log_dateien(client, account_logs):
     assert json.loads((account_logs / f"met_{TEST_ACCOUNT_ID}.json").read_text())["open_positions"] == 3
 
 
+def _runs_in_event_loop() -> bool:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
+
+
+# --------------------------------------------------------------------------- LOG-01 / LOG-02: Event-Loop frei
+@pytest.mark.feature("LOG-01")
+def test_logs_lesen_blockiert_die_event_loop_nicht(client, account_logs, bot_running, monkeypatch):
+    import src.api.logs as logs_api
+
+    in_loop: list[str] = []
+    calls: list[str] = []
+    real_decode = logs_api._decode_log_bytes
+    real_glob = logs_api.glob.glob
+
+    def spy_decode(raw):
+        calls.append("decode")
+        if _runs_in_event_loop():
+            in_loop.append("decode")
+        return real_decode(raw)
+
+    def spy_glob(pattern, *args, **kwargs):
+        if TEST_ACCOUNT_ID not in str(pattern):
+            return real_glob(pattern, *args, **kwargs)
+        calls.append("glob")
+        if _runs_in_event_loop():
+            in_loop.append("glob")
+        return real_glob(pattern, *args, **kwargs)
+
+    monkeypatch.setattr(logs_api, "_decode_log_bytes", spy_decode)
+    monkeypatch.setattr(logs_api.glob, "glob", spy_glob)
+    assert client.get(LOGS_URL, params={"log_type": "all"}).status_code == 200
+    assert {"decode", "glob"} <= set(calls)  # Spy hat wirklich gegriffen
+    assert in_loop == []
+
+
+@pytest.mark.feature("LOG-02")
+def test_logs_leeren_blockiert_die_event_loop_nicht(client, account_logs, monkeypatch):
+    import src.api.logs as logs_api
+
+    in_loop: list[str] = []
+    calls: list[str] = []
+    real_listdir = logs_api.os.listdir
+
+    def spy_listdir(path="."):
+        if str(path).endswith(TEST_ACCOUNT_ID):
+            calls.append("listdir")
+            if _runs_in_event_loop():
+                in_loop.append("listdir")
+        return real_listdir(path)
+
+    monkeypatch.setattr(logs_api.os, "listdir", spy_listdir)
+    assert client.delete(LOGS_URL).status_code == 200
+    assert calls == ["listdir"]  # Spy hat wirklich gegriffen
+    assert in_loop == []
+
+
 # --------------------------------------------------------------------------- LOG-03
 @pytest.mark.feature("LOG-03")
 def test_zip_download_enthaelt_logs_state_und_settings(client, account_logs):

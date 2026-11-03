@@ -187,14 +187,14 @@ const misses = (cand: Candidate): number =>
   cand.checks.filter((k) => (FORM_IDS.includes(k.id) && k.state === 'unmet') || (POINT_EXCLUSIONS.includes(k.id) && k.state === 'met')).length;
 
 /** Libra aller geladenen Zeiteinheiten ohne LIB-09 (sonst riefen sich beide Erkennungen gegenseitig auf); eine Rechnung je Aufruf */
-const librasOf = (ctx: FormationContext, t: number): Libras => {
+const librasOf = (ctx: FormationContext, t: number, harmonics?: readonly Candidate[]): Libras => {
   let cache: readonly Candidate[] | null = null;
-  return () => (cache ??= analyzeLib(ctx, t, { withCypher: false }).map((a) => a.candidate));
+  return () => (cache ??= analyzeLib(ctx, t, { withCypher: false, harmonics }).map((a) => a.candidate));
 };
 
-/** Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte X, A, B, C und misst D */
-export function analyzeCyp(ctx: FormationContext, t: number): CypAnalysis[] {
-  const libras = librasOf(ctx, t);
+/** Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte X, A, B, C und misst D; `harmonics` sind schon gerechnete Ergebnisse von Gartley und Bat für LIB-10 der Libra */
+export function analyzeCyp(ctx: FormationContext, t: number, harmonics?: readonly Candidate[]): CypAnalysis[] {
+  const libras = librasOf(ctx, t, harmonics);
   return analyzeXabcd(ctx, t, (env, tf, s, pip) => evaluate(env, tf, s, pip, libras), misses, empty);
 }
 

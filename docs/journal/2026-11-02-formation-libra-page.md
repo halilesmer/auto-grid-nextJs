@@ -49,11 +49,11 @@ areas: [frontend, tests]
 - Screenshots with the real fixture `lib-gone-h4-01` against the mock worker, light and dark, 1440 px and 375 px: Libra button with badge 1, checklist "required 5/5", labels "Target" and "Stop", no horizontal overflow. Dark mode comes from the app theme store (`grid-robot-theme`), not from `prefers-color-scheme`.
 
 ## Open points
-- [ ] The legend on the page says "Zigzag P1–P2–C–P3–K–E" for the Libra, but the Libra draws no zigzag (the rule book does not label its points). The legend text is the same for all formations.
-- [ ] The marker Z-LIB-07 has its anchor at the candle that reaches the target, but `drawingLayout.ts` draws every marker at the final point (K). The page shows the box at the touch.
-- [ ] K is set when the touch comes before P3 is a finished fractal (touch within 2 candles after P3). Then the checklist shows no "forming" note and the alarm event "target" can come before P3 is finished.
-- [ ] `cypChecks.ts` calls `analyzeLib` without results of Gartley and Bat (CYP-10); there the Libra still computes them itself.
-- [ ] No test proves that the scan gives the Gartley/Bat and Cypher results to `LIB-10` and `LIB-09`: no real series has a measurable `LIB-09` or a met `LIB-10` (checked over all H4 fixtures).
+- [x] The legend on the page says "Zigzag P1–P2–C–P3–K–E" for the Libra, but the Libra draws no zigzag (the rule book does not label its points). The legend text is the same for all formations. Done 2026-11-03 (PR 323): `drawsZigzag` in `drawingLayout.ts` is true only when the candidate has a `zigzag` drawing. The page shows the zigzag line only then (FRM-19 tests, red before the change).
+- [x] The marker Z-LIB-07 has its anchor at the candle that reaches the target, but `drawingLayout.ts` draws every marker at the final point (K). The page shows the box at the touch. Done: for the Libra, `drawingLayout.ts` draws the marker at its own anchor; the Cypher marker stays at D (FRM-09 test).
+- [x] K is set when the touch comes before P3 is a finished fractal (touch within 2 candles after P3). Then the checklist shows no "forming" note and the alarm event "target" can come before P3 is finished. Done: `libChecks.ts` drops the touch while P3 is not a finished fractal (FRM-09 test, red before the change). The real series `cyp-lib-h4-01` changes CYP-10 from met to unmet, because the chosen P3 was not a finished fractal yet (LIB-04).
+- [x] `cypChecks.ts` calls `analyzeLib` without results of Gartley and Bat (CYP-10); there the Libra still computes them itself. Done: `analyzeCyp` takes the Gartley and Bat results, the scan gives them (FRM-18 test counts the candle views; red before the change).
+- [x] No test proves that the scan gives the Gartley/Bat and Cypher results to `LIB-10` and `LIB-09`: no real series has a measurable `LIB-09` or a met `LIB-10` (checked over all H4 fixtures). Done: FRM-18 tests call `ANALYZERS.LIB` (now exported) with hand-built series and injected results.
 - [x] OBO, TDF and 2618 follow one at a time. Done: OBO in PR #295, TDF in PR #297, 2618 in PR #301.
 
 ## Lessons

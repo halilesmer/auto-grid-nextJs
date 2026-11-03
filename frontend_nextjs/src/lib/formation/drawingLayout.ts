@@ -46,6 +46,9 @@ const RSI_ZONES = new Set(['Z-CDT-04']);
 const fibLevelPrice = ([start, end, from]: [Anchor, Anchor, Anchor?], level: number): number =>
   from ? from.price + level * (end.price - start.price) : end.price + level * (start.price - end.price);
 
+/** Zeichnet die Erkennung einen Zickzack? Dieselbe Quelle wie `primsOf`; die Legende zeigt die Zickzack-Zeile nur dann */
+export const drawsZigzag = (c: Candidate): boolean => c.drawings.some((d) => d.tool === 'zigzag');
+
 const pointName = (c: Candidate, time: number, price: number): string | null =>
   Object.entries(c.points).find(([, a]) => a.time === time && a.price === price)?.[0] ?? null;
 
@@ -67,7 +70,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
   /** Beschriftung der Zone: erste Stelle (links/rechts, innen/außen), an der sie keinen Formationspunkt verdeckt */
   function zoneLabelSpot(label: string, z: { x1: number; x2: number; top: number; bottom: number }) {
     const w = label.length * 6;
-    const dots = Object.values(candidate.points).flatMap((a) => {
+    const dots = [...Object.values(candidate.points), ...(candidate.heldPoint ? [candidate.heldPoint] : [])].flatMap((a) => {
       const px = x(a.time);
       const py = y(a.price);
       return px === null || py === null ? [] : [{ px, py }];
@@ -101,6 +104,20 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         // Ziel des offenen Weges: der noch nicht erreichte Endpunkt, sonst die letzte Kerze
         const lx = final ? x(final.time) : x(lastBar.time);
         const ly = final ? y(final.price) : y(lastBar.close);
+        // Gemessener, aber vom Urteil gehaltener Endpunkt: wie ein bestätigter Punkt an der Bruchkerze (durchgezogen, Name ohne „?“);
+        // ein Zug, der die Bruchkerze schon enthält (Zielweg), zeichnet nichts dazu
+        const held = candidate.heldPoint;
+        if (forming && held) {
+          const hx = x(held.time);
+          const hy = y(held.price);
+          if (last && hx !== null && hy !== null && !ok.some((p) => p.a.time === held.time)) {
+            // Der Strich geht nur von einem gemessenen Punkt aus (nicht von einer Zielprojektion wie beim Mast der Trendfortsetzung)
+            if (pointName(candidate, last.a.time, last.a.price)) prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: hx, y2: hy, tone: 'side', width: 2.2 });
+            prims.push({ kind: 'circle', x: hx, y: hy, r: 4, tone: 'text' });
+            prims.push({ kind: 'text', x: hx - 4, y: hy + (hy > last.py ? 17 : -9), text: FINAL_POINT[form], tone: 'text', bold: true });
+          }
+          return prims;
+        }
         if (forming && last && ly !== null) {
           if (lx !== null) {
             prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: lx, y2: ly, tone: 'side', dashed: true, width: 2 });
@@ -169,10 +186,11 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         return prims;
       }
       case 'marker': {
-        const final = candidate.points[FINAL_POINT[form]];
-        if (!final || forming) return prims;
-        const px = x(final.time);
-        const py = y(final.price);
+        // Z-LIB-07 trägt seinen eigenen Anker (Kerze, die das Ziel erreicht); die Marker der anderen Formationen sitzen am Endpunkt
+        const at = form === 'LIB' ? d.anchors[0] : candidate.points[FINAL_POINT[form]];
+        if (!at || forming) return prims;
+        const px = x(at.time);
+        const py = y(at.price);
         if (px === null || py === null) return prims;
         prims.push({ kind: 'rect', x: px - 9, y: py - 9, w: 18, h: 18, tone: 'mark' });
         return prims;

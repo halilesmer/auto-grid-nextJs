@@ -89,7 +89,7 @@ Details that are not in the plan:
 - AUDNZD H4 hits 8 of 11 at 2.5 × ATR and 10 of 11 at 1.75 × ATR. The last leg is red, not green.
 - GBPCAD D1 has more points than the chart in one reference case. The source suggests "similar wave lengths" as a rule. This is not measured.
 - The rule book still describes the old path. The project owner decides the new wording for TRD-07, TRD-08, TRD-09, TRD-15, TRD-16, TRD-17, TRD-45, E-2 and E-3.
-- The favorites search and the alarm (`FormationScanRunner`) read `formationZug` at each pass but do not start again when it changes. After a change, the next pass can report hits that differ from the stored state of the alarm.
+- [x] Fixed 2026-11-02 (`zug` is a dependency of the run; a change clears the searched slots and the compare marks of the account; test `@FRM-30` "Wechsel des Trendpfads", red before). A change also drops the remembered state of the account (hit keys carry the anchor times of the path, so every hit would look new); the first compare after it remembers silently. Another tab that changes the path reaches the lock tab through the `storage` event (rehydrate); this two-tab case has no test. The favorites search and the alarm (`FormationScanRunner`) read `formationZug` at each pass but did not start again when it changed. After a change, the next pass can report hits that differ from the stored state of the alarm.
 - Not in this step: support line (Z-TRD-04), channel (Z-TRD-05) and the D1 path in H4 (Z-TRD-06).
 
 ## Verification

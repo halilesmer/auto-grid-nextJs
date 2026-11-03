@@ -2,7 +2,7 @@
 date: 2026-11-02
 author: Claude
 type: fix
-status: open
+status: done
 pr: [306]
 features: [FRM-18]
 areas: [frontend, tests]
@@ -57,5 +57,30 @@ areas: [frontend, tests]
 - After the merge of `main` (#302 to #304, new fixtures): 112 of 112 green.
 - `features.yaml`: FRM-18 names the new spec. The FRM-20 coverage line has double quotes, as in the line package, because YAML read it as an object and `run.sh` stopped.
 
-## Open points
-- `trendDirUpTo` (`f2618.ts:131`, called from TDF, 2618, OBO and Libra) and `trendDirAt` (`cdt.ts:120`) build the formation trend again up to an earlier candle. Before the change about 26 % of the scan, after it 63.8 %. This is the largest remaining part. Not in this change.
+## Trend direction memo (second change)
+- Open point of the first change: `trendDirUpTo` (`f2618.ts`) and `trendDirAt` (`cdt.ts`) build the formation trend again up to an earlier candle. Profile of the old code (24 scans, page and double size): 52.4 % + 12.9 % = 65.3 % of the scan.
+- Cause: the trend up to candle `idx` depends only on the candle view and `idx`. The analyzers (TDF, 2618, OBO, Libra, CDT) ask for the same pair many times. One page scan calls `formationTrend` 291 times, but only 67 different (view, candle) pairs exist.
+- Solution: `formationTrendDir(view, upTo)` in `trdFormation.ts` keeps the direction per view object and candle. `withTrendDirMemo` opens the scope; `shareEnv` calls it, so the memo lives exactly as long as the shared environment. Outside a scan nothing is kept. `trendDirUpTo` and `trendDirAt` call `formationTrendDir`. No analyzer signature changes. The memo keeps only a direction (a string or null), so no analyzer can change a shared object.
+- Measurement: old and new code in turns in the same process, median of 11 scans (ms; load average 5 to 10). Results of old and new code are identical as JSON in all 6 cases.
+
+| Size | Series | Old | New | Less |
+|---|---|---|---|---|
+| page | 1 | 162 | 84 | 48 % |
+| page | 2 | 170 | 86 | 49 % |
+| page | 3 | 153 | 80 | 48 % |
+| double | 1 | 449 | 209 | 53 % |
+| double | 2 | 488 | 233 | 52 % |
+| double | 3 | 460 | 223 | 52 % |
+
+- Profile after the change (same method): `trendDirUpTo` 23.0 % and `trendDirAt` 9.4 %, together 32.4 % (before: 65.3 %). What remains are the different (view, candle) pairs, each built once. A forward build with kept intermediate states would cut more, but it needs a change inside `trd.ts`; not done.
+- Equality: `e2e/mocked/formation-trend-memo-lib.spec.ts` (111 tests) compares `formationTrendDir` in the scope with the old calculation `formationTrend(view, idx).dir` for every candle of every loaded timeframe of all fixtures, on the second call and in reverse order, and outside the scope. Three more tests: two views with different directions at the same candle (trend path and fine path) do not mix; the memo saves work (one build per view and candle, counted with a `bars.slice` counter; an inner scope does not clear the outer one; after the scope every call builds again); `shareEnv` opens and closes the scope. The scan equality spec `formation-scan-share-lib.spec.ts` stays green.
+- Deliberate defects, red tests (new spec / scan equality spec):
+
+| Defect | Red |
+|---|---|
+| memo key rounds `upTo` down to an even number | 105 / 0 |
+| `shareEnv` does not open the scope | 1 / 0 |
+| `formationTrendDir` never keeps a result | 2 / 0 |
+| memo key ignores the view (one map for all views) | 1 / 0 |
+
+- The scan equality spec stays green for all four defects, because no verdict of the fixtures changes with them. The new spec is the one that guards the memo.

@@ -97,16 +97,18 @@ test.describe('ANA Analyse-Seite', () => {
   test('Werkzeugleiste liegt auf dem Chart, Vollbild an und aus', { tag: '@ANA-15' }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    const toolbar = page.getByTestId('analysis-chart-frame').getByTestId('chart-toolbar');
-    await expect(toolbar.getByRole('button', { name: msg('analysis.settings') })).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
+    // Zahnrad und Lizenz stehen in der Kopfleiste (UI-10), das Vollbild im Werkzeug des Charts; es zeigt die ganze Chartseite samt Kopfleiste
+    const topbar = page.getByTestId('chart-topbar');
+    const workspace = page.getByTestId('chart-workspace');
+    await expect(topbar.getByRole('button', { name: msg('analysis.settings') })).toBeVisible();
+    await expect(topbar.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
 
-    await toolbar.getByRole('button', { name: msg('analysis.chart.fullscreen') }).click();
-    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('analysis-chart-frame');
-    await toolbar.getByRole('button', { name: msg('analysis.settings') }).click();
+    await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen') }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-page');
+    await topbar.getByRole('button', { name: msg('analysis.settings') }).click();
     await expect(page.getByTestId('analysis-settings')).toBeVisible();
 
-    await toolbar.getByRole('button', { name: msg('analysis.chart.fullscreen.exit') }).click();
+    await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen.exit') }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
   });
 
@@ -253,6 +255,15 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
 
     await page.reload();
     await expect(page.getByTestId('range-trigger')).toContainText('01.09.26 – 15.09.26');
+  });
+
+  test('Ein unmöglicher Abstand (UTC−31:30 aus einem alten Tick) zählt als unsicher, kein falsches Abzeichen', { tag: '@ANA-10' }, async ({ page, worker }) => {
+    worker.state.brokerOffset = -31.5 * 3600;
+    await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
+    await page.goto(`/chart?account=${DEMO_ID}&range=today`);
+    await expect(page.getByRole('alert').filter({ hasText: msg('analysis.clock.unsure.title') })).toBeVisible();
+    await expect(page.getByTestId('broker-clock')).toBeHidden();
+    await expect(page.getByTestId('range-trigger')).toContainText('31.12.26 – 31.12.26');
   });
 
   test('Unsichere oder unbekannte Brokeruhr: Pflicht-Hinweis, Tage vorerst in UTC', { tag: '@ANA-10' }, async ({ page, worker }) => {

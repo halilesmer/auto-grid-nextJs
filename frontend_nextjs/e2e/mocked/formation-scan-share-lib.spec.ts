@@ -21,9 +21,10 @@ import { analyzeTdf } from '../../src/lib/formation/tdfChecks';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { buildEnv, shareEnv } from '../../src/lib/formation/reasons';
-import { SCAN_FORMATIONS, scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
+import { ANALYZERS, SCAN_FORMATIONS, scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
 import { weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
+import { END as SERIES_END, H4 as H4_SEC, barsOf as rowsToBars, plain, zig, type Row } from '../fixtures/formation-rows';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-18' }, fn);
 
@@ -38,7 +39,7 @@ const ALONE: Record<ScanFormation, Alone> = {
   BAT: (c, t) => analyzeBat(c, t),
   BUT: (c, t) => analyzeBut(c, t),
   CRB: (c, t) => analyzeCrb(c, t),
-  CYP: (c, t) => analyzeCyp(c, t),
+  CYP: (c, t, done) => analyzeCyp(c, t, candidates(done.GAR, done.BAT)),
   CDT: (c, t) => analyzeCdt(c, t),
   LIB: (c, t, done) => analyzeLib(c, t, { harmonics: candidates(done.GAR, done.BAT), cyphers: candidates(done.CYP) }),
   OBO: (c, t) => analyzeObo(c, t),
@@ -159,4 +160,71 @@ frm('die Suche teilt die Umgebung selbst: ohne äußeren Bereich so wenige Kerze
     return calls;
   };
   expect(viewCalls(false)).toBe(viewCalls(true));
+});
+
+// ---- Weitergabe der Ergebnisse an die Libra (LIB-09, LIB-10, CYP-10) --------------------------------------------
+
+/** 40 ruhige Kerzen, dann Verkaufs-Libra: P1 in 22 Kerzen erreicht, P2 in 14 (Divergenz, SIG-13); P1 Index 50, P2 72, P3 76 */
+const LEAD: Row[] = Array.from({ length: 40 }, () => plain(100, 100));
+const LIBRA_ROWS = [...LEAD, ...zig([100, 130, 112, 140, 105, 131], [8, 8, 14, 4, 8], 3)];
+const libraCtx = () => new FormationContext('TEST', { H4: rowsToBars(LIBRA_ROWS, H4_SEC) });
+
+/** Gartley (Kauf) mit D auf P3 (Index 76) und A weit darüber: beide Ziele sind bis zur Berührung erreicht */
+const harmonicAtP3: Candidate = {
+  code: 'GAR',
+  side: 'buy',
+  tf: 'H4',
+  points: { A: { time: 0, price: 135 }, D: { time: 76 * H4_SEC, price: LIBRA_ROWS[76][2] } },
+  checks: [],
+  drawings: [],
+  verdict: 'valid',
+};
+/** Cypher (Verkauf), dessen Einstieg 0.786 der Fib X → C bei 129.8 liegt: C 100, X = 100 + 29.8 / 0.786 */
+const cypherAtEntry: Candidate = {
+  code: 'CYP',
+  side: 'sell',
+  tf: 'H4',
+  points: { X: { time: 0, price: 100 + 29.8 / 0.786 }, C: { time: 1, price: 100 } },
+  checks: [],
+  drawings: [],
+  verdict: 'valid',
+};
+
+/** Ergebnisse eines Suchlaufs, von Hand eingespritzt */
+const resultsOf =
+  (given: Partial<Record<ScanFormation, Candidate[]>>) =>
+  (form: ScanFormation) =>
+    (given[form] ?? []).map((candidate) => ({ tf: 'H4' as const, candidate }));
+
+const stateOf = (c: Candidate, id: string) => c.checks.find((k) => k.id === id)?.state;
+
+frm('die Suche gibt Gartley und Bat an LIB-10 weiter', () => {
+  const lib = (given: Partial<Record<ScanFormation, Candidate[]>>) => ANALYZERS.LIB(libraCtx(), SERIES_END, resultsOf(given))[0].candidate;
+  expect(stateOf(lib({}), 'LIB-10')).toBe('unmet');
+  expect(stateOf(lib({ GAR: [harmonicAtP3] }), 'LIB-10')).toBe('met');
+  expect(stateOf(lib({ BAT: [{ ...harmonicAtP3, code: 'BAT' }] }), 'LIB-10')).toBe('met');
+});
+
+frm('die Suche gibt die Cypher an LIB-09 weiter', () => {
+  const lib = (given: Partial<Record<ScanFormation, Candidate[]>>) => ANALYZERS.LIB(libraCtx(), SERIES_END, resultsOf(given))[0].candidate;
+  expect(stateOf(lib({}), 'LIB-09')).toBe('unmeasurable');
+  expect(stateOf(lib({ CYP: [cypherAtEntry] }), 'LIB-09')).toBe('met');
+});
+
+frm('die Cypher rechnet Gartley und Bat nicht neu, wenn die Suche sie schon hat', () => {
+  const viewCalls = (run: (ctx: FormationContext) => unknown): number => {
+    const ctx = libraCtx();
+    const view = ctx.view.bind(ctx);
+    let calls = 0;
+    ctx.view = (tf, t) => {
+      calls++;
+      return view(tf, t);
+    };
+    run(ctx);
+    return calls;
+  };
+  const alone = viewCalls((ctx) => analyzeCyp(ctx, SERIES_END));
+  expect(viewCalls((ctx) => analyzeCyp(ctx, SERIES_END, [harmonicAtP3]))).toBeLessThan(alone);
+  // die Verdrahtung der Suche: ANALYZERS.CYP nimmt Gartley und Bat aus den Ergebnissen des Laufs
+  expect(viewCalls((ctx) => ANALYZERS.CYP(ctx, SERIES_END, resultsOf({ GAR: [harmonicAtP3] })))).toBeLessThan(alone);
 });

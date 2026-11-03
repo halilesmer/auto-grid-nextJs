@@ -1328,6 +1328,18 @@ kategorien:
           - Fenster auf 375 px Breite verkleinern.
         erwartet: Konto, Bot-Steuerung und Prüfintervall stehen in einer Zeile. Das ⋯-Menü zeigt Log, Bearbeiten, Löschen und Neues Konto und schließt mit Escape. Beim Scrollen bleiben Leiste und Kennzahlen unter der Kopfzeile sichtbar; nach 📌 scrollen die Kennzahlen mit, die Leiste bleibt. Bei 375 px steht nichts über den Rand.
 
+      - id: UI-10
+        titel: Chartseiten mit gemeinsamem Gerüst (/chart)
+        beschreibung: Alle Kerzenchartseiten folgen dem Vorbild von /formasyon (Plan docs/journal/2026-11-01-unified-chart-page.md). Auf /chart (frei und Setup) füllt der Chart die Seite; es gibt keinen Seitentitel, keine Karte um den Chart (ChartFrame) und keinen Seitenscroll. Die Kopfleiste trägt Konto, Modus, Symbol bzw. Setup, Zeiteinheit, Bereich und den Schalter Chart/Statistik. Die zweite Zeile trägt die Legenden-Schalter (nur im Setup-Modus). Im Setup-Modus schwebt auf dem Chart eine Karte mit Zonenkarte und Live-Werten (Reiter Übersicht) sowie den Trades (Reiter Trades). Warnungen schweben auf dem Chart; die Datenqualitäts-Warnung bleibt sichtbar (docs/analyse-regeln.md §3, §7). Die Statistik bleibt eine normale Seite. Bei 375, 1024 und 1440 px entsteht kein horizontaler Überlauf.
+        code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/components/chart-page/ChartPage.tsx, frontend_nextjs/src/components/chart-page/ChartTopBar.tsx, frontend_nextjs/src/components/chart-page/ChartOverlays.tsx, frontend_nextjs/src/components/chart-page/FloatingCard.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/chart-workspace/FreeChartPanel.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx]
+        tiers: [e2e]
+        pruefung:
+          - /chart im freien Modus und im Setup-Modus öffnen.
+          - Prüfen, dass kein Seitentitel und keine Karte um den Chart steht und die Seite nicht scrollt.
+          - Im Setup-Modus Legenden-Schalter, schwebende Karte und ihren Reiter Trades ansehen.
+          - Bei 375, 1024 und 1440 px Breite wiederholen.
+        erwartet: Der Chart füllt die Seite. Konto, Modus, Setup bzw. Symbol, Zeiteinheit und Bereich stehen in der Kopfleiste, die Legenden-Schalter in der zweiten Zeile, Zonenkarte, Live-Werte und Trades in der schwebenden Karte. Kein Seitentitel, kein Seitenscroll, kein horizontaler Überlauf.
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
@@ -1432,7 +1444,7 @@ kategorien:
 
       - id: ANA-10
         titel: Kalender in Brokerzeit
-        beschreibung: "Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1)."
+        beschreibung: "Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen (heute, diese Woche ab Montag, dieser/letzter Monat, letzte 7/30/90 Tage, dieses/letztes Jahr, letzte 12 Monate, alles), Kalender und Eingabe als TT.MM.JJ mit Prüfung. „Heute“ ist der Tag auf der Brokeruhr, nicht im Browser; dazu misst GET /market/{id}/clock (nur lesend, für eigene Konten) den Abstand der Brokeruhr zu UTC und merkt ihn sich 10 min; ist MT5 nicht erreichbar, gilt die letzte sichere Messung. Ohne sichere Messung (Markt zu, alter Tick) liefert er keinen Abstand statt eines falschen; die Seite rechnet dann in UTC, fragt jede Minute erneut und zeigt einen nicht abschaltbaren Hinweis. Zeiträume sind halb offen, ohne 23:59:59 (src/lib/serverTime.ts, docs/analyse-regeln.md §1). Ein Abstand außerhalb UTC−12…UTC+14 (z. B. aus einem alten Tick bei geschlossenem Markt) gilt als unsicher: Pflicht-Hinweis, kein Abzeichen."
         code: [frontend_nextjs/src/lib/serverTime.ts, frontend_nextjs/src/components/analysis/DateRangePicker.tsx, frontend_nextjs/src/components/analysis/BrokerClockNotice.tsx, frontend_nextjs/src/hooks/useBrokerClock.ts, worker_python/src/api/market.py, worker_python/src/utils/mt5_market.py]
         tiers: [api, e2e]
         pruefung:
@@ -1518,7 +1530,7 @@ kategorien:
       - id: ANA-20
         titel: Oszillatorbereiche und Indikatormenüs
         beschreibung: "RSI, EWO, MACD und ATR haben Bereichsaktionen (verschieben, einklappen, vorübergehend vergrößern, entfernen) und ein Menü je Indikator (Sichtbarkeit, Einstellungen, Skala, Bereichswechsel, Alarm, Favorit, Kopie, Info, Formel, Entfernen). Favoriten stehen in der Indikatorauswahl, die Objektliste führt Indikatoren und Zeichnungen. Alles außer Favoriten und Vergrößern liegt im lokalen Chart-Dokument, je Chart-Kontext getrennt und rückwärtskompatibel."
-        code: [frontend_nextjs/src/components/chart-workspace/OscillatorControls.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        code: [frontend_nextjs/src/components/chart-workspace/IndicatorLegend.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
         tiers: [e2e]
         pruefung: [Bereiche sortieren und einklappen; Indikator favorisieren und aus der Auswahl hinzufügen; Zeitrahmen-Sichtbarkeit ändern; Alarm-Schwellenübertritt auslösen; neu laden, zweiten Chart-Kontext und 375 px prüfen.]
         erwartet: Bereichs- und Indikatoreinstellungen bleiben im passenden Chart; Vergrößern verschwindet beim Neuladen; ein lokaler Alarm meldet einen Live-Übertritt einmal im geöffneten Chart, ein Zeitrahmenwechsel löst ihn nicht aus.
@@ -1530,6 +1542,14 @@ kategorien:
         tiers: [e2e]
         pruefung: [Button an und aus und Neuladen; /formasyon an und aus ohne neuen Abruf; M30 gesperrt ohne Laden; Mindestgröße ändern mit Speicher und Zurücksetzen; Regel und gesperrte Regler; ungültiges EWO-Paar; Grundlage der Formationen mit Hinweis; 375 px; Sichtprüfung EURCAD D1 und H4 auf dem DEMO-Konto in hell und dunkel.]
         erwartet: Die Linie verbindet die Punkte des Zugs (EURCAD D1 sechs Segmente) und folgt den Reglern; ohne Button kein Abruf und keine Linie; die Einstellungen bleiben im Browser; die Formationen ändern sich nur mit der Grundlage.
+
+      - id: ANA-22
+        titel: Indikator-Legende mit Hover wie bei TradingView
+        beschreibung: "Jeder Indikator hat eine Legendenzeile oben links in seinem Bereich (Preisindikatoren im Kursbereich, Oszillatoren im eigenen Bereich). Die Werte der Zeile folgen dem Fadenkreuz (Wert der Kerze darunter) und zeigen ohne Fadenkreuz den letzten Wert; Alarme und Übertritt-Erkennung bleiben auf dem letzten Wert. Auge, Einstellungen, Entfernen und das Menü „Mehr“ erscheinen erst beim Hover über die Zeile oder bei Tastaturfokus, die Bereichsknöpfe (hoch, runter, einklappen, vergrößern, entfernen) beim Hover über den Bereich; auf Touch-Geräten sind sie immer sichtbar. Die Linie unter der Maus wird dicker gezeichnet, der Zeiger wird zur Hand und die Zeile hervorgehoben; ein Klick wählt die Linie (Markierungen, Knöpfe bleiben sichtbar), Escape oder ein Klick ins Leere hebt die Auswahl auf. Ein aktives Zeichenwerkzeug und eine Zeichnung unter der Maus haben Vorrang. Ein ausgeblendeter Indikator oder einer außerhalb seines Zeitrahmenbereichs behält seine Zeile (abgeblendet, ohne Wert), damit er wieder eingeblendet werden kann."
+        code: [frontend_nextjs/src/components/chart-workspace/IndicatorLegend.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/lib/chart-workspace/hover.ts]
+        tiers: [e2e]
+        pruefung: [Werte folgen dem Fadenkreuz und kehren zum letzten Wert zurück; ein Sweep über den Chart löst keinen Alarm aus; Zeilenknöpfe erst bei Hover oder Fokus; Bereichsknöpfe beim Hover über den Bereich; Touch-Gerät; Linie unter der Maus, Klick, Escape und Klick ins Leere; Preisindikator mit Zeile und Knöpfen; 375 px ohne horizontales Scrollen; Sichtprüfung auf /chart, Backtest und /formasyon in hell und dunkel.]
+        erwartet: Die Legende zeigt Werte am Fadenkreuz und den letzten Wert ohne Fadenkreuz; Knöpfe erscheinen nur beim Hover oder Fokus (Touch immer); die Linie unter der Maus ist hervorgehoben und ein Klick wählt sie; Alarme feuern nur auf dem letzten Wert.
 
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)
@@ -1782,6 +1802,7 @@ kategorien:
         pruefung:
           - Playwright-Logiktest e2e/mocked/formation-lib-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Verkauf/Kauf, Abgrenzung Doppeltop/-boden, Urteil, Wechsel gültig → ungültig, Ablauf ohne Blick in die Zukunft, Zeichnungen, LIB-12 an der Kante des gewählten Einstiegs, dieselbe Libra in der Suche der Seite und echte Kerzenreihen).
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-09) ausführen (gültige Kauf-Libra mit Badge, Checkliste und erreichtem Punkt K).
+          - Playwright-Logiktest e2e/mocked/formation-lib-lib.spec.ts (@FRM-09) ausführen (K und LIB-12 gelten erst mit fertigem P3 als Fraktal; das Ziel-Häkchen Z-LIB-07 sitzt an der Kerze, die das Ziel erreicht, der Cypher-Marker bleibt am Endpunkt D).
         erwartet: Jeder Fall stimmt mit der Handrechnung überein; eine Libra nach Hochs und ihr Spiegelbild nach Tiefs haben dieselben Zustände; bei den echten Reihen stimmen Punkte P2 und P3, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen.
 
       - id: FRM-10
@@ -1868,6 +1889,8 @@ kategorien:
           - "Playwright-Test e2e/mocked/formation-tdf-scan-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt bei der Trendfortsetzung erst der vorletzte Punkt der Unterform: C2, H2, LOW oder FLOOR; der Henkel allein zählt nicht)."
           - Playwright-Test e2e/mocked/formation-2618-scan-lib.spec.ts (@FRM-18) ausführen (Im Aufbau zählt bei 2618 erst I mit fertigem Fraktal, auch auf der echten Reihe f2618-open-h4-01).
           - Playwright-Test e2e/mocked/formation-scan-share-lib.spec.ts (@FRM-18) ausführen (Die Suche baut die Umgebung je Zeiteinheit einmal und liefert dasselbe wie jede Formation allein, über alle Fixtures und zwei seitengroße Reihen mit vier Zeiteinheiten).
+          - Playwright-Test e2e/mocked/formation-trend-memo-lib.spec.ts (@FRM-18) ausführen (Das Trend-Memo der Suche liefert für jede Kerze jeder Fixture dieselbe Trendrichtung wie die alte Rechnung, auch beim zweiten Abruf und in anderer Reihenfolge).
+          - Playwright-Test e2e/mocked/formation-scan-share-lib.spec.ts (@FRM-18) ausführen (Die Suche gibt Gartley und Bat an LIB-10, die Cypher an LIB-09 und Gartley/Bat an die Libra in der Cypher weiter; handgebaute Reihe mit eingespritzten Ergebnissen).
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-18) ausführen (Kopf-Schulter im Aufbau ohne rechte Schulter ohne Badge, Badge-Zahlen auf einer echten H4-Reihe, Sprung zur Zeiteinheit des Treffers, Leerzustand auf M15, Libra-, Kopf-Schulter-, Trendfortsetzungs- und 2618-Schaltfläche mit Badge).
         erwartet: Die Badges zeigen die Treffer der Fixture (Gartley gültig, Bat im Aufbau); ein Klick auf Gartley bei gewählter M15 wechselt auf H4; auf M15 steht der Leerzustand ohne Checkliste; auf einer echten Libra-Reihe zeigt „Libra“ den Badge 1 und die Checkliste der gültigen Libra; auf einer echten Kopf-Schulter-Reihe zeigt „Kopf-Schulter“ den Badge 1 und die Checkliste der gültigen OBO mit erreichtem Punkt B; auf einer echten Dreiecks-Reihe zeigt „Trendfortsetzung“ den Badge 1 und die Checkliste des gültigen Dreiecks (Bedingungen der anderen Unterformen inaktiv) mit erreichtem Punkt B; auf einer echten 2618-Reihe zeigt „2618“ den Badge 1 und die Checkliste des gültigen 2618 mit erreichter Berührung K.
 
@@ -1882,6 +1905,7 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-crb-lib.spec.ts (@FRM-19) ausführen (Bedingungen der anderen Crab-Variante, Zählung im Bild).
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) und die sechs Prüfer-Specs formation-{abcd,gar-bat,but,crb,cyp,cdt}-lib.spec.ts (Gruppe invalidBy) ausführen (ungültig mit wartender Regel, invalidBy nennt nur die verursachende Regel, Doppeltop mit CDT-15 und fehlendem Signal nur CDT-15).
           - "Playwright-Test e2e/mocked/formation-settle-lib.spec.ts (@FRM-19) ausführen (nicht messbare Pflicht → im Aufbau, auch CYP-02 auf D1 ohne W1) und formation-page.spec.ts (Hinweis „Nicht messbar: CYP-02“ mit Tooltip)."
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19, Legende ohne Zickzack bei Libra; Hinweis „B ist erreicht“ bei Kopf-Schulter mit nicht messbarer Pflicht) und e2e/mocked/formation-legend-lib.spec.ts (@FRM-19) ausführen.
         erwartet: Die Liste zeigt das Urteil der Bibliothek, die Zähler stehen als x/y, jede Zeile trägt ein beschriftetes Symbol, die Formation im Aufbau nennt D und der Chart führt D als offen. GAR-04 nennt 0,618, BAT-05 nennt 0,5, CDT-06 den Trend beim Anlauf zu H2; BUT-12, CRB-12 und CYP-09 sagen „in einer Zone“. Bei einer Crab oder Deep Crab tragen die Bedingungen der anderen Variante das Symbol / und „gilt nicht“, bleiben an ihrem Platz, zählen weder in Pflicht noch in Verstärkung noch im Hinweis auf eine ungültige Formation, tragen einen Tooltip und erscheinen in der Legende; eine gültige Deep Crab zeigt bei CRB-07 kein rotes Kreuz und Pflicht 5/5. Ein Treffer mit nicht messbarer Pflicht (Cypher H4 ohne D1, Regel CYP-02) steht im Aufbau und der Hinweis nennt nur die Regel CYP-02; eine Cypher auf D1 misst CYP-02 gegen W1 aus D1 und ist mit passendem W1 gültig ohne Hinweis. Ein ungültiges Doppeltop mit ausgelöstem CDT-15 und fehlendem CDT-12/CDT-13 nennt im Hinweis „Geçersiz“ nur CDT-15 (nicht CDT-12 und CDT-13); dasselbe gilt für wartende Regeln der anderen Prüfer (GAR-05, BAT-07, BUT-06/07, CRB-04/05, CYP-07, ABCD-03/08).
 
       - id: FRM-20
@@ -1891,7 +1915,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-20) ausführen (Zeichnungen vorhanden, Hover auf eine Zeile hebt hervor, Overlay-Breite endet vor der Preisachse, alle Kerzen beim Laden, Formationsklick lässt die Ansicht, Zoom bleibt nach Neuladen, Zurücksetzen).
-          - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-20) ausführen (Zeichnungen im Aufbau, Fib-Extension mit drei Ankern).
+          - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-20) ausführen (Zeichnungen im Aufbau, Fib-Extension mit drei Ankern; gemessener, aber gehaltener Endpunkt B steht durchgezogen an der Bruchkerze ohne „?“) und formation-obo-lib.spec.ts / formation-tdf-lib.spec.ts (heldPoint trägt die Bruchkerze, points.B bleibt leer).
           - "Playwright-Logiktest e2e/mocked/formation-drawing-rules-lib.spec.ts (@FRM-20) ausführen (Abdeckung: jede Zeichnung nennt Bedingungs-IDs oder trägt die Handel-Kennung TRADE_RULES, im Quelltext und auf echten Kerzenreihen)."
         erwartet: Das Overlay trägt Zeichnungsgruppen; beim Hover auf die Zeile GAR-03 sind einige Gruppen hervorgehoben und die übrigen blass; ohne Hover ist keine Gruppe hervorgehoben. Der Chart zeigt alle Kerzen; ein Formationsklick im selben Zeitrahmen ändert den sichtbaren Zeitbereich nicht. Eine Fib-Extension mit drei Ankern A, B, C legt Level 1 bei C + (B − A) und beginnt bei C; die Preisachse weitet sich auf dieselben Preise aus. Jede Zeichnung nennt Bedingungs-IDs oder trägt die Handel-Kennung TRADE_RULES; keine hat eine leere Liste [].
 
@@ -1981,6 +2005,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Meldung während /chart offen ist, Systemmeldung mit tag und url, Anzeigen führt zu Produkt, Formation und Zeiteinheit, Glocken-Produkt ohne Einfluss auf Favoriten-Zahlen, unvollständiges Produkt, zwei Tabs eine Suche, Sammelmeldung beim Öffnen, Menü bei 375 px, Schalter speichern sofort bei offener Browser-Abfrage, Neuladen ohne ?account= meldet mit dem gemerkten Konto, Kontowahl wird gemerkt, Dashboard wählt kein Konto vor, kein Konto und gelöschtes Konto ruhen mit Hinweis im Menü).
+          - "Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen: Wechsel des Trendpfads startet die Suche neu, Lock-Übernahme meldet sofort, Konto-ID im Tag, Nachricht des Service Workers navigiert, Glocken-Menü bei 375 px über der Seitenleiste."
           - "Im echten Browser auf dem DEMO-Konto mit rund 10 Favoriten prüfen: Systemmeldung erscheint, Klick darauf öffnet Produkt und Formation, verstecktes Tab meldet weiter, Dauer eines Durchlaufs und ob die Rechnung die Seite spürbar blockiert; auf dem iPhone nur mit installierter App."
         erwartet: Eine neue Formation eines Favoriten oder Alarm-Produkts wird auf jeder Seite als Karte und Systemmeldung gemeldet, ein Klick öffnet sie auf /formasyon, Verpasstes kommt einmal als Sammelmeldung, nichts kommt doppelt, und ein unvollständiges Produkt meldet nichts. Nach dem Neuladen ohne gewähltes Konto sucht der Alarm mit dem gemerkten Konto weiter oder sagt im Menü, warum er ruht.
 
@@ -2038,7 +2063,7 @@ kategorien:
       - id: FRM-37
         titel: "Seite Formasyon: Seitenleiste mit Reitern Bedingungen und Favoriten"
         beschreibung: "Die Bedingungen (Kandidaten und Checkliste) stehen als Reiter „Bedingungen“ neben „Favoriten“ in der rechten Seitenleiste; die verschiebbare Karte über dem Chart entfällt (früher FRM-24). Die schmale Leiste ganz rechts hat zwei Symbole (Lesezeichen, Bedingungen); jedes öffnet die Seitenleiste auf seinem Reiter, ein Klick auf das Symbol des aktiven Reiters schließt sie. Ab 1024 px schiebt die offene Leiste den Chart nach links (formation-main wird um 40 + 288 px schmaler) und überdeckt ihn nicht; darunter liegt sie über dem Chart. Ein Status-Knopf in der Kopfleiste öffnet und schließt den Reiter „Bedingungen“; ohne Kandidat ist er deaktiviert. Bei einer Chartbreite unter 79rem (1264 px bei 16 px Browser-Schrift) zeigt er nur Pfeil (Kauf/Verkauf), Urteil als Symbol mit eigener Form (✓, ✗, Uhr) und Pfeil, ab 79rem Urteil als Pille und Zähler Pflicht · Verstärkung; Seite, Urteil und Zähler stehen immer im Namen (aria-label) und im Hinweis. Offen/zu und der Reiter bleiben im Browser (localStorage); erster Besuch: ab 1024 px offen auf „Bedingungen“, darunter zu."
-        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/hooks/useFormationSidebar.ts, frontend_nextjs/src/components/formation/FormationSidebarTabs.tsx, frontend_nextjs/src/components/formation/FormationStatusChip.tsx, frontend_nextjs/src/components/formation/FormationConditions.tsx]
+        code: [frontend_nextjs/src/app/formasyon/page.tsx, frontend_nextjs/src/components/chart-page/ChartPage.tsx, frontend_nextjs/src/components/chart-page/ChartPanel.tsx, frontend_nextjs/src/hooks/useFormationSidebar.ts, frontend_nextjs/src/components/formation/FormationSidebarTabs.tsx, frontend_nextjs/src/components/formation/FormationStatusChip.tsx, frontend_nextjs/src/components/formation/FormationConditions.tsx]
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-37) ausführen (Chart und Leiste überlappen bei 1440 und 1100 px und mit 20 px Browser-Schrift nicht, Reiterwechsel, Status-Knopf, erster Besuch, Merken, Hover auf eine Zeile hebt die Zeichnung hervor, 375 px ohne Querscroll).
