@@ -35,16 +35,17 @@ export function restoreChartView(chart: IChartApi, times: readonly number[], sav
 /**
  * Speichert den Zoom des Nutzers in dem Chart-Dokument `contextKey`; ein Bereich, der alle Kerzen zeigt, löscht ihn.
  * Änderungen durch neue Kerzen (`pointCount`) oder eine andere Breite sind kein Zoom und bleiben unbeachtet.
- * Setzt `data-visible-range` (von,bis in Kerzenzeit) am Element; gibt die Abmeldung zurück, die Ausstehendes schreibt.
+ * Setzt `data-visible-range` (von,bis in Kerzenzeit) an den Elementen `hosts`; gibt die Abmeldung zurück, die Ausstehendes schreibt.
  */
-export function rememberChartView(chart: IChartApi, host: HTMLElement, contextKey: string, pointCount: () => number): () => void {
+export function rememberChartView(chart: IChartApi, hosts: HTMLElement[], contextKey: string, pointCount: () => number): () => void {
   const scale = chart.timeScale();
   let count = pointCount(), width = scale.width();
   const asText = (r: { from: unknown; to: unknown }) => `${r.from},${r.to}`;
   const settledAt = performance.now() + VIEW_SETTLE_MS;
   // Steht die Ansicht beim Anmelden schon, meldet der Chart danach keine Änderung mehr
   const shown = scale.getVisibleRange();
-  if (shown) host.setAttribute('data-visible-range', asText(shown));
+  const publish = (range: { from: unknown; to: unknown }) => hosts.forEach((host) => host.setAttribute('data-visible-range', asText(range)));
+  if (shown) publish(shown);
   let pending: { zoom: VisibleTime | undefined } | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const flush = () => {
@@ -63,7 +64,7 @@ export function rememberChartView(chart: IChartApi, host: HTMLElement, contextKe
   const onChange = (logical: LogicalRange | null) => {
     const range = scale.getVisibleRange();
     if (!logical || !range) return;
-    host.setAttribute('data-visible-range', asText(range));
+    publish(range);
     if (pointCount() !== count || scale.width() !== width || performance.now() < settledAt) {
       count = pointCount();
       width = scale.width();
@@ -185,6 +186,8 @@ export class IndicatorRenderer {
         const line = (tone: string, histogram = false) => {
           const options = { priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
           const s = histogram ? chart.addSeries(HistogramSeries, options, pane) : chart.addSeries(LineSeries, options, pane);
+          // Ein Indikator-Bereich übernähme sonst die großen oberen Ränder der Kerzen-Achse (Platz für die Bedienung auf dem Chart)
+          if (pane > 0) s.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
           plots.push(s); this.series.push(s); return s;
         };
         const first = line(color, config.kind === 'EWO');

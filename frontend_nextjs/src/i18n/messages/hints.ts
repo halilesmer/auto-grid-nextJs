@@ -89,6 +89,10 @@ const existingHints = defineArea(
     'chart.zone.priceRange.hint': 'Setup’ın alt ve üst fiyat sınırı. Emirler yalnızca bu aralığa konur.',
     'chart.zone.levels.hint': 'Fiyatın altına / üstüne kurulan grid seviyesi sayısı (Alt / Üst Seviyeler).',
     'chart.stat.price.hint': 'Grafikteki sembolün son fiyatı (canlı akış).',
+    'chart.card.overview.hint': 'Setup ayarları ve canlı değerler.',
+    'chart.card.trades.hint': 'Seçili dönemdeki işlemler; satıra tıklamak grafikte işleme gider.',
+    'chart.card.collapse.hint': 'Kartı daraltır; grafik tamamen görünür.',
+    'chart.card.expand.hint': 'Kartı açar: setup ayarları, canlı değerler ve işlemler.',
     'chart.stat.rsi.hint':
       'RSI (Relative Strength Index): 0–100 arası momentum göstergesi. 70 üstü genelde aşırı alım, 30 altı aşırı satım sayılır. Grafikte ayrı bir çizgi olarak gösterilir.',
     'chart.stat.pl.hint': 'Açık pozisyonların toplam kâr/zararı (yüzen K/Z, henüz gerçekleşmemiş).',
@@ -676,6 +680,10 @@ const existingHints = defineArea(
     'chart.zone.priceRange.hint': 'Lower and upper price limit of the setup. Orders are only placed within this range.',
     'chart.zone.levels.hint': 'Number of grid levels below / above the price (Levels Below / Above).',
     'chart.stat.price.hint': 'Latest price of the symbol in the chart (live stream).',
+    'chart.card.overview.hint': 'Setup settings and live values.',
+    'chart.card.trades.hint': 'Trades in the chosen range; a click on a row jumps to the trade in the chart.',
+    'chart.card.collapse.hint': 'Collapses the card so the chart is fully visible.',
+    'chart.card.expand.hint': 'Opens the card with the setup settings, live values and trades.',
     'chart.stat.rsi.hint':
       'RSI (Relative Strength Index): a 0–100 momentum indicator. Above 70 is usually considered overbought, below 30 oversold. Drawn as a separate line in the chart.',
     'chart.stat.pl.hint': 'Total profit/loss of the open positions (floating P/L, not yet realised).',
@@ -1263,6 +1271,10 @@ const existingHints = defineArea(
     'chart.zone.priceRange.hint': 'Untere und obere Preisgrenze des Setups. Orders werden nur in diesem Bereich gesetzt.',
     'chart.zone.levels.hint': 'Anzahl der Grid-Level unter / über dem Preis (Level darunter / darüber).',
     'chart.stat.price.hint': 'Letzter Preis des Symbols im Chart (Live-Stream).',
+    'chart.card.overview.hint': 'Setup-Einstellungen und Live-Werte.',
+    'chart.card.trades.hint': 'Trades im gewählten Zeitraum; ein Klick auf eine Zeile springt im Chart zum Trade.',
+    'chart.card.collapse.hint': 'Klappt die Karte ein, damit der Chart ganz sichtbar ist.',
+    'chart.card.expand.hint': 'Öffnet die Karte mit Setup-Einstellungen, Live-Werten und Trades.',
     'chart.stat.rsi.hint':
       'RSI (Relative Strength Index): Momentum-Indikator von 0 bis 100. Über 70 gilt meist als überkauft, unter 30 als überverkauft. Wird im Chart als eigene Linie gezeichnet.',
     'chart.stat.pl.hint': 'Gesamtgewinn/-verlust der offenen Positionen (schwebender G/V, noch nicht realisiert).',

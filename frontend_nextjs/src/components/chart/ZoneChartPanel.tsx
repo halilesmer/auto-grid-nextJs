@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CandlestickChart, Layers, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 import {
   ChartCore,
@@ -14,13 +14,16 @@ import {
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
 import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
 import { formatOffset } from '@/components/analysis/BrokerClockNotice';
+import { ChartPage } from '@/components/chart-page/ChartPage';
+import { ChartNotice, ChartOverlays } from '@/components/chart-page/ChartOverlays';
+import { ChartTopBar, type ChartChrome } from '@/components/chart-page/ChartTopBar';
+import { FloatingCard } from '@/components/chart-page/FloatingCard';
 import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { DataQualityBanner } from '@/components/analysis/DataQualityBanner';
 import { TradesTable } from '@/components/analysis/TradesTable';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader } from '@/components/ui/card';
 import { FieldLabel, InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { LiveStats } from '@/components/chart/LiveStats';
 import { useDealsHistory } from '@/hooks/useDealsHistory';
@@ -101,7 +104,7 @@ function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [Message
   return fields;
 }
 
-function ZoneInfoCard({ zone, setupNo }: { zone: ZoneSettings; setupNo: number }) {
+function ZoneInfo({ zone }: { zone: ZoneSettings }) {
   const t = useT();
   const isFractal = zone.entry_mode === 'fractal';
   const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
@@ -127,26 +130,22 @@ function ZoneInfoCard({ zone, setupNo }: { zone: ZoneSettings; setupNo: number }
   }
 
   return (
-    <Card>
-      <CardHeader
-        icon={<Layers size={16} />}
-        title={t('chart.zone.title', { n: setupNo, symbol: zone.symbol || '—' })}
-        description={t(zoneKindKey({ isFractal, isBreakout: zone.is_breakout }))}
-        actions={
-          <div className="flex gap-2">
-            <Badge tone="info" hint={t('zone.field.orderType.hint')}>{zone.order_type}</Badge>
-            <Badge tone={zone.is_active ? 'success' : 'neutral'} hint={zone.is_active ? t('chart.zone.active.hint') : t('chart.zone.inactive.hint')}>
-              {zone.is_active ? t('chart.zone.active') : t('chart.zone.inactive')}
-            </Badge>
-          </div>
-        }
-      />
-      <div className="grid grid-cols-2 gap-2 px-5 pb-5 pt-4 sm:grid-cols-4">
+    <div className="space-y-2" data-testid="zone-info">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">{t(zoneKindKey({ isFractal, isBreakout: zone.is_breakout }))}</span>
+        <div className="flex gap-2">
+          <Badge tone="info" hint={t('zone.field.orderType.hint')}>{zone.order_type}</Badge>
+          <Badge tone={zone.is_active ? 'success' : 'neutral'} hint={zone.is_active ? t('chart.zone.active.hint') : t('chart.zone.inactive.hint')}>
+            {zone.is_active ? t('chart.zone.active') : t('chart.zone.inactive')}
+          </Badge>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
         {fields.map(([labelKey, hintKey, value]) => (
           <Field key={labelKey} label={t(labelKey)} hint={t(hintKey)} value={value} />
         ))}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -165,6 +164,7 @@ interface ZoneChartPanelProps {
   /** Antwort der Brokeruhr da (auch „unsicher“): erst dann steht der Zeitraum fest, vorher kein Abruf */
   clockReady: boolean;
   prefs: AnalysisPrefs;
+  chrome: ChartChrome;
 }
 
 /** MT5 ORDER_TYPE_* → Kurzname wie im Terminal */
@@ -196,50 +196,9 @@ const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
   noPrice: 'analysis.chart.levels.noPrice',
 };
 
-/**
- * Chart-Rahmen: Broker-Uhr, Lizenz, Anzeige-Einstellungen und Vollbild oben rechts auf dem Chart.
- * Vollbild über die Browser-API; Esc beendet es, `fullscreenchange` hält den Knopf synchron.
- */
-function ChartFrame({ offsetSec, children }: { offsetSec: number | null; children: ReactNode }) {
-  const t = useT();
-  const frameRef = useRef<HTMLDivElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+/** Die Bedienung liegt oben auf dem Chart: die Kerzen beginnen darunter (wie auf /formasyon) */
+const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
 
-  useEffect(() => {
-    const sync = () => setIsFullscreen(document.fullscreenElement === frameRef.current);
-    document.addEventListener('fullscreenchange', sync);
-    return () => document.removeEventListener('fullscreenchange', sync);
-  }, []);
-
-  const toggle = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void frameRef.current?.requestFullscreen();
-  };
-
-  return (
-    <div ref={frameRef} className="relative bg-card [&:fullscreen]:bg-background [&:fullscreen]:p-2" data-testid="analysis-chart-frame">
-      <div className="relative z-20 justify-end bg-card p-1 flex items-center gap-1.5" data-testid="chart-toolbar">
-        {offsetSec !== null && (
-          <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">
-            {t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}
-          </Badge>
-        )}
-        <LicenseInfo />
-        <AnalysisSettingsPanel />
-        <Button
-          size="icon-sm"
-          onClick={toggle}
-          aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')}
-          hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')}
-          data-testid="chart-fullscreen"
-        >
-          {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-        </Button>
-      </div>
-      {children}
-    </div>
-  );
-}
 /** Legendeneintrag als Schalter: blendet sein Element im Chart ein/aus (dieselben Werte wie das Zahnrad) */
 function LegendToggle({
   items,
@@ -294,6 +253,7 @@ export default function ZoneChartPanel({
   offsetSec,
   clockReady,
   prefs,
+  chrome,
 }: ZoneChartPanelProps) {
   const t = useT();
   const source = useConnectionStore(s => s.baseUrl);
@@ -366,7 +326,6 @@ export default function ZoneChartPanel({
   const focusTrade = useCallback(
     (tr: Trade) => {
       setFocus((f) => ({ time: Math.floor((tr.entryTime ?? tr.exitTime) / tfSec) * tfSec, seq: (f?.seq ?? 0) + 1, view: viewKey }));
-      document.querySelector('[data-testid="analysis-chart-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
     [tfSec, viewKey],
   );
@@ -601,159 +560,207 @@ export default function ZoneChartPanel({
     },
   ];
 
-  return (
-    <div className="space-y-5">
-      {zoneId && zones && !zone && (
-        <Alert tone="info" title={t('chart.zone.notFound')}>
-          {t('chart.zone.notFound.withAccount')}
+  const setupNo = zone && zones ? (setupNumbers(zones).get(zone.id) ?? 0) : 0;
+  const zoneMissing = Boolean(zoneId && zones && !zone);
+
+  const notices = (
+    <>
+      {offsetSec !== null && (
+        <ChartNotice>
+          <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">
+            {t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}
+          </Badge>
+        </ChartNotice>
+      )}
+      {chrome.notices}
+      {zoneMissing && (
+        <ChartNotice>
+          <Alert tone="info" title={t('chart.zone.notFound')}>
+            {t('chart.zone.notFound.withAccount')}
+          </Alert>
+        </ChartNotice>
+      )}
+      {zone && rates.error && (
+        <ChartNotice>
+          <Alert tone="danger" title={t('analysis.chart.loadFailed')}>
+            {rates.error}
+          </Alert>
+        </ChartNotice>
+      )}
+      {zone && trend.error && (
+        <ChartNotice>
+          <Alert tone="danger" title={t('analysis.chart.loadFailed')}>
+            {trend.error}
+          </Alert>
+        </ChartNotice>
+      )}
+      {zone && data && chart && (
+        <ChartNotice>
+          <DataQualityBanner missing={chart.missing} clipped={data.clipped} dbFull={data.dbFull} loadedFrom={data.from} />
+        </ChartNotice>
+      )}
+      {zone && data && chart && data.bars.length === 0 && chart.missing.length === 0 && (
+        <ChartNotice>
+          <Alert tone="info" title={t('analysis.chart.empty.title')}>
+            {t('analysis.chart.empty.text')}
+          </Alert>
+        </ChartNotice>
+      )}
+      {zone && rates.loading && (
+        <p className="rounded-lg bg-background/95 p-2" role="status">
+          <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label={t('analysis.chart.loading')} />
+        </p>
+      )}
+    </>
+  );
+
+  const overview = zone && (
+    <div className="space-y-3" data-testid="chart-card-overview">
+      <LiveStats digits={streamMatches ? (data?.digits ?? undefined) : undefined} />
+      {symbolMismatch && (
+        <Alert tone="warning" title={t('chart.zone.mismatch.title')}>
+          {t('chart.zone.mismatch.text', { stream: metrics.symbol ?? '', symbol: zone.symbol })}
         </Alert>
       )}
-      {zone && zones && prefs.showZoneCard && <ZoneInfoCard zone={zone} setupNo={setupNumbers(zones).get(zone.id) ?? 0} />}
-      {zone && (
-        <Card data-testid="analysis-chart-card">
-          <CardHeader
-            icon={<CandlestickChart size={16} />}
-            title={t('analysis.chart.title', { symbol: zone.symbol || '—' })}
-            description={t('analysis.chart.subtitle')}
-            actions={rates.loading ? <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label={t('analysis.chart.loading')} /> : undefined}
-          />
-          <div className="space-y-3 px-5 pb-5 pt-4">
-            <LiveStats digits={streamMatches ? (data?.digits ?? undefined) : undefined} />
-            {symbolMismatch && (
-              <Alert tone="warning" title={t('chart.zone.mismatch.title')}>
-                {t('chart.zone.mismatch.text', { stream: metrics.symbol ?? '', symbol: zone.symbol })}
-              </Alert>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <TimeframeSelect value={timeframe} onChange={onTimeframe} />
-              <div className="flex flex-wrap items-center gap-2">
-                {marketHours && (
-                  <Badge hint={t('analysis.chart.hours.hint')} data-testid="market-hours">
-                    {t('analysis.chart.hours', { hours: marketHours })}
-                  </Badge>
-                )}
-                <Badge tone="info" hint={t('analysis.chart.brokerTime.hint')}>
-                  {t('analysis.range.brokerTime')}
-                </Badge>
-              </div>
-            </div>
-
-            {rates.error && (
-              <Alert tone="danger" title={t('analysis.chart.loadFailed')}>
-                {rates.error}
-              </Alert>
-            )}
-            {trend.error && (
-              <Alert tone="danger" title={t('analysis.chart.loadFailed')}>
-                {trend.error}
-              </Alert>
-            )}
-            {data && chart && (
-              <DataQualityBanner missing={chart.missing} clipped={data.clipped} dbFull={data.dbFull} loadedFrom={data.from} />
-            )}
-            {data && chart && data.bars.length === 0 && chart.missing.length === 0 && (
-              <Alert tone="info" title={t('analysis.chart.empty.title')}>
-                {t('analysis.chart.empty.text')}
-              </Alert>
-            )}
-
-            <ChartFrame offsetSec={offsetSec}>
-            {isChartEmpty && (
-              // Keine einzige Kerze: lightweight-charts kann reine Leerstellen nicht verteilen. Eine Fläche
-              // statt eines leeren Charts; der Grund steht im Hinweis darüber
-              <div
-                data-testid="analysis-chart-empty"
-                className="flex h-[max(360px,calc(100dvh-22rem))] items-center [:fullscreen_&]:h-dvh justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_9px,color-mix(in_oklab,var(--muted-foreground)_22%,transparent)_9px_10px)] text-sm font-medium text-muted-foreground"
-              >
-                {t('analysis.chart.noData')}
-              </div>
-            )}
-            {chart && !isChartEmpty && (
-              <ChartCore
-                key={`${accountId}|${symbol}`}
-                workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'setup', account: accountId, symbol: symbol ?? '' }), symbol: symbol ?? '', view: 'analysis', syncIdentity: { source, account: accountId, symbol: symbol ?? '' } }}
-                workspaceOverlays={<AnalysisSettingsPanel inline />}
-                clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
-                data={chart}
-                timeframeSec={tfSec}
-                digits={data?.digits ?? null}
-                viewKey={viewKey}
-                band={band}
-                lines={lines}
-                showPauses={prefs.showPauses}
-                showGaps={prefs.showGaps}
-                showRsi={prefs.showRsi}
-                live={live}
-                markers={overlays.markers}
-                links={overlays.links}
-                fractals={fractals}
-                trendPath={trend}
-                toolbarActions={<TrendToggle timeframe={timeframe} />}
-                notes={overlays.notes}
-                focus={focus && focus.view === viewKey ? focus : null}
-              />
-            )}
-            {!chart && (
-              <div className="h-[max(360px,calc(100dvh-22rem))] animate-pulse [:fullscreen_&]:h-dvh rounded-lg bg-muted/40" data-testid="analysis-chart-loading" />
-            )}
-            </ChartFrame>
-
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground" data-testid="chart-key">
-              {legend.map((entry) => (
-                <LegendToggle
-                  key={entry.pref}
-                  items={entry.items}
-                  hint={t(entry.hint)}
-                  active={prefs[entry.pref]}
-                  onToggle={() => setPref(entry.pref, !prefs[entry.pref])}
-                  testId={`chart-key-${entry.pref}`}
-                />
-              ))}
-              <InfoHint hint={t('analysis.chart.key.hint')} />
-            </div>
-
-            {prefs.showLevels && levels?.unavailable && (
-              <p className="text-xs text-muted-foreground" data-testid="levels-note">
-                {t(LEVELS_UNAVAILABLE[levels.unavailable])}
-              </p>
-            )}
-            {isFractalZone && prefs.showFractals && timeframe !== fractalTf && (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="fractal-tf-note">
-                <span>{t('analysis.chart.fractals.otherTf', { tf: fractalTf })}</span>
-                <Button size="sm" variant="outline" hint={t('analysis.chart.fractals.switch.hint', { tf: fractalTf })} onClick={() => onTimeframe(fractalTf)}>
-                  {t('analysis.chart.fractals.switch', { tf: fractalTf })}
-                </Button>
-              </div>
-            )}
-            {(prefs.showTrades || prefs.showOrders) && (
-              <p className="text-xs text-muted-foreground" data-testid="trades-note">
-                {!botRunning && t('analysis.chart.trades.botStopped')}
-                {botRunning && zone.magic === undefined && t('analysis.chart.trades.noMagic')}
-                {botRunning &&
-                  zone.magic !== undefined &&
-                  t('analysis.chart.trades.count', { positions: positions.length, orders: orders.length })}
-              </p>
-            )}
-          </div>
-        </Card>
+      {prefs.showZoneCard && <ZoneInfo zone={zone} />}
+      {marketHours && (
+        <Badge hint={t('analysis.chart.hours.hint')} data-testid="market-hours">
+          {t('analysis.chart.hours', { hours: marketHours })}
+        </Badge>
       )}
-      {zone && dealsRequest && (
-        <TradesTable
-          accountId={accountId}
-          variant="zone"
-          trades={history?.trades ?? []}
-          openEntries={history?.openEntries ?? 0}
-          otherTrades={history?.otherTrades ?? 0}
-          from={dealsRequest.from}
-          digits={data?.digits ?? null}
-          currency={deals.data?.account?.currency ?? null}
-          loading={deals.loading}
-          error={deals.error}
-          missing={deals.data?.missing ?? []}
-          setupLabel={setupLabel}
-          onFocus={focusTrade}
-        />
+      {prefs.showLevels && levels?.unavailable && (
+        <p className="text-xs text-muted-foreground" data-testid="levels-note">
+          {t(LEVELS_UNAVAILABLE[levels.unavailable])}
+        </p>
+      )}
+      {isFractalZone && prefs.showFractals && timeframe !== fractalTf && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="fractal-tf-note">
+          <span>{t('analysis.chart.fractals.otherTf', { tf: fractalTf })}</span>
+          <Button size="sm" variant="outline" hint={t('analysis.chart.fractals.switch.hint', { tf: fractalTf })} onClick={() => onTimeframe(fractalTf)}>
+            {t('analysis.chart.fractals.switch', { tf: fractalTf })}
+          </Button>
+        </div>
+      )}
+      {(prefs.showTrades || prefs.showOrders) && (
+        <p className="text-xs text-muted-foreground" data-testid="trades-note">
+          {!botRunning && t('analysis.chart.trades.botStopped')}
+          {botRunning && zone.magic === undefined && t('analysis.chart.trades.noMagic')}
+          {botRunning &&
+            zone.magic !== undefined &&
+            t('analysis.chart.trades.count', { positions: positions.length, orders: orders.length })}
+        </p>
       )}
     </div>
+  );
+
+  const card = zone && (
+    <FloatingCard
+      title={t('chart.zone.title', { n: setupNo, symbol: zone.symbol || '—' })}
+      tabs={[
+        { id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: overview },
+        {
+          id: 'trades',
+          label: t('chart.card.trades'),
+          hint: t('chart.card.trades.hint'),
+          wide: true,
+          content: dealsRequest && (
+            <TradesTable
+              accountId={accountId}
+              variant="zone"
+              trades={history?.trades ?? []}
+              openEntries={history?.openEntries ?? 0}
+              otherTrades={history?.otherTrades ?? 0}
+              from={dealsRequest.from}
+              digits={data?.digits ?? null}
+              currency={deals.data?.account?.currency ?? null}
+              loading={deals.loading}
+              error={deals.error}
+              missing={deals.data?.missing ?? []}
+              setupLabel={setupLabel}
+              onFocus={focusTrade}
+            />
+          ),
+        },
+      ]}
+    />
+  );
+
+  return (
+    <ChartPage
+      title={t('analysis.title')}
+      testId="chart-page"
+      panelShown={false}
+      panel={null}
+      notices={null}
+      topBar={
+        <ChartTopBar
+          selectors={<>{chrome.account}{chrome.mode}{chrome.zone}</>}
+          timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} />}
+          actions={<>{chrome.range}{chrome.view}<LicenseInfo /><AnalysisSettingsPanel /></>}
+          extra={
+            zone && (
+              <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground" data-testid="chart-key">
+                {legend.map((entry) => (
+                  <LegendToggle
+                    key={entry.pref}
+                    items={entry.items}
+                    hint={t(entry.hint)}
+                    active={prefs[entry.pref]}
+                    onToggle={() => setPref(entry.pref, !prefs[entry.pref])}
+                    testId={`chart-key-${entry.pref}`}
+                  />
+                ))}
+                <InfoHint hint={t('analysis.chart.key.hint')} />
+              </div>
+            )
+          }
+        />
+      }
+      surface={
+        <div className="absolute inset-0">
+          {zone && isChartEmpty && (
+            // Keine einzige Kerze: lightweight-charts kann reine Leerstellen nicht verteilen. Eine Fläche
+            // statt eines leeren Charts; der Grund steht im Hinweis darüber
+            <div
+              data-testid="analysis-chart-empty"
+              className="absolute inset-y-0 left-[52px] right-0 flex items-center justify-center bg-[repeating-linear-gradient(135deg,transparent_0_9px,color-mix(in_oklab,var(--muted-foreground)_22%,transparent)_9px_10px)] text-sm font-medium text-muted-foreground"
+            >
+              {t('analysis.chart.noData')}
+            </div>
+          )}
+          {zone && chart && !isChartEmpty && (
+            <ChartCore
+              key={`${accountId}|${symbol}`}
+              workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'setup', account: accountId, symbol: symbol ?? '' }), symbol: symbol ?? '', view: 'analysis', syncIdentity: { source, account: accountId, symbol: symbol ?? '' } }}
+              workspaceOverlays={<AnalysisSettingsPanel inline />}
+              clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
+              data={chart}
+              timeframeSec={tfSec}
+              digits={data?.digits ?? null}
+              viewKey={viewKey}
+              band={band}
+              lines={lines}
+              showPauses={prefs.showPauses}
+              showGaps={prefs.showGaps}
+              showRsi={prefs.showRsi}
+              live={live}
+              markers={overlays.markers}
+              links={overlays.links}
+              fractals={fractals}
+              trendPath={trend}
+              toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />}
+              notes={overlays.notes}
+              focus={focus && focus.view === viewKey ? focus : null}
+              marginsFor={controlMargins}
+              overlayLayout
+            />
+          )}
+          {zone && !chart && (
+            <div className="absolute inset-0 animate-pulse bg-muted/40" data-testid="analysis-chart-loading" />
+          )}
+        </div>
+      }
+      floating={<ChartOverlays notices={notices}>{card}</ChartOverlays>}
+    />
   );
 }

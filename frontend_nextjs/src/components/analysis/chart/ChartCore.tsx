@@ -278,6 +278,7 @@ export function ChartCore({
   const hasCurves = !!(balance || equity);
   const hasRsi = !!systemRsi;
   const hasWave = !!systemWave;
+  const hasNotes = notes !== undefined;
   const marginsForRef = useRef(marginsFor);
   useEffect(() => {
     marginsForRef.current = marginsFor;
@@ -357,8 +358,8 @@ export function ChartCore({
       const time = Number(param.time);
       setHover({ bar: barByTimeRef.current.get(time) ?? null, time });
     };
-    // Die Legende unter dem Fadenkreuz gibt es nur im Layout mit Karte
-    if (!overlayLayout) chart.subscribeCrosshairMove(onMove);
+    // OHLC unter dem Fadenkreuz gibt es nur im Layout mit Karte; die Trade-Notizen (notes) gibt es in beiden
+    if (!overlayLayout || hasNotes) chart.subscribeCrosshairMove(onMove);
     return () => {
       forgetView.current?.();
       forgetView.current = null;
@@ -381,7 +382,7 @@ export function ChartCore({
       shownRunning.current = null;
       runningCount.current = 0;
     };
-  }, [hasCurves, hasRsi, hasWave, overlayLayout]);
+  }, [hasCurves, hasRsi, hasWave, hasNotes, overlayLayout]);
 
   // Der Abstand für die Bedienung auf dem Chart hängt von der Breite ab
   useEffect(() => {
@@ -528,7 +529,7 @@ export function ChartCore({
         return;
       }
       restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
-      forgetView.current = rememberChartView(chart, surfaceRef.current ?? el, workspaceKey, () => pointsRef.current.length + runningCount.current);
+      forgetView.current = rememberChartView(chart, surfaceRef.current ? [el, surfaceRef.current] : [el], workspaceKey, () => pointsRef.current.length + runningCount.current);
     };
     // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
     // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
@@ -720,6 +721,14 @@ export function ChartCore({
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
       <div ref={surfaceRef} {...surfaceProps} className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card">
         <div {...hostAttributes} className="absolute inset-0" />
+        {hoverNotes.length > 0 && (
+          // Unter der Kopfleiste: ChartOverlays setzt --chart-top auf deren Unterkante
+          <div className="pointer-events-none absolute left-2 top-[calc(var(--chart-top,6rem)+0.5rem)] z-10 flex max-w-[60%] flex-col gap-0.5 rounded bg-card/90 px-2 py-1 font-mono text-[11px] text-foreground" data-testid="chart-legend">
+            {hoverNotes.map((n, i) => (
+              <span key={i} data-testid="chart-legend-note">{n}</span>
+            ))}
+          </div>
+        )}
         {scene && !scene.binding.isDisposed() && renderOverlay?.(scene)}
       </div>
     ) : (

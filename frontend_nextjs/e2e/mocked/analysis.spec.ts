@@ -97,16 +97,16 @@ test.describe('ANA Analyse-Seite', () => {
   test('Werkzeugleiste liegt auf dem Chart, Vollbild an und aus', { tag: '@ANA-15' }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    const toolbar = page.getByTestId('analysis-chart-frame').getByTestId('chart-toolbar');
-    await expect(toolbar.getByRole('button', { name: msg('analysis.settings') })).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
+    // Zahnrad und Lizenz stehen in der Kopfleiste (UI-10), das Vollbild im Werkzeug des Charts
+    const topbar = page.getByTestId('chart-topbar');
+    const workspace = page.getByTestId('chart-workspace');
+    await expect(topbar.getByRole('button', { name: msg('analysis.settings') })).toBeVisible();
+    await expect(topbar.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
 
-    await toolbar.getByRole('button', { name: msg('analysis.chart.fullscreen') }).click();
-    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('analysis-chart-frame');
-    await toolbar.getByRole('button', { name: msg('analysis.settings') }).click();
-    await expect(page.getByTestId('analysis-settings')).toBeVisible();
+    await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen') }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-workspace');
 
-    await toolbar.getByRole('button', { name: msg('analysis.chart.fullscreen.exit') }).click();
+    await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen.exit') }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
   });
 

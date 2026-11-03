@@ -19,14 +19,16 @@ interface ChartPageProps {
   panelShown: boolean;
   /** Attribute für Tests am Seitenelement */
   pageProps?: Record<`data-${string}`, string | number>;
+  /** `data-testid` des Seitenelements; Standard `formation-page` (Aufruf von /formasyon bleibt unverändert) */
+  testId?: string;
 }
 
 /**
  * Seitengerüst einer Chartseite: Chart füllt die Seite, darüber liegen Kopfleiste, Hinweise und schwebende Karte, rechts das Seitenpanel.
  */
-export function ChartPage({ title, topBar, surface, notices, floating, panel, panelShown, pageProps }: ChartPageProps) {
+export function ChartPage({ title, topBar, surface, notices, floating, panel, panelShown, pageProps, testId = 'formation-page' }: ChartPageProps) {
   return (
-    <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" {...pageProps} data-testid="formation-page">
+    <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height)" {...pageProps} data-testid={testId}>
       <h1 className="sr-only">{title}</h1>
       {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (w-10 Leiste + w-72 Panel = right-82, bei 16 px Schrift 328 px), statt ihn zu überdecken; darunter liegt sie über dem Chart. Der Abstand steht in rem wie die beiden Breiten, sonst überdeckt der Chart die Leiste bei größerer Browser-Schrift. Die Leiste ganz rechts bleibt immer frei. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
       <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', panelShown && 'lg:right-82')} data-testid="formation-main">
