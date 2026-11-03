@@ -1518,7 +1518,7 @@ kategorien:
       - id: ANA-20
         titel: Oszillatorbereiche und Indikatormenüs
         beschreibung: "RSI, EWO, MACD und ATR haben Bereichsaktionen (verschieben, einklappen, vorübergehend vergrößern, entfernen) und ein Menü je Indikator (Sichtbarkeit, Einstellungen, Skala, Bereichswechsel, Alarm, Favorit, Kopie, Info, Formel, Entfernen). Favoriten stehen in der Indikatorauswahl, die Objektliste führt Indikatoren und Zeichnungen. Alles außer Favoriten und Vergrößern liegt im lokalen Chart-Dokument, je Chart-Kontext getrennt und rückwärtskompatibel."
-        code: [frontend_nextjs/src/components/chart-workspace/OscillatorControls.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        code: [frontend_nextjs/src/components/chart-workspace/IndicatorLegend.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
         tiers: [e2e]
         pruefung: [Bereiche sortieren und einklappen; Indikator favorisieren und aus der Auswahl hinzufügen; Zeitrahmen-Sichtbarkeit ändern; Alarm-Schwellenübertritt auslösen; neu laden, zweiten Chart-Kontext und 375 px prüfen.]
         erwartet: Bereichs- und Indikatoreinstellungen bleiben im passenden Chart; Vergrößern verschwindet beim Neuladen; ein lokaler Alarm meldet einen Live-Übertritt einmal im geöffneten Chart, ein Zeitrahmenwechsel löst ihn nicht aus.
@@ -1530,6 +1530,14 @@ kategorien:
         tiers: [e2e]
         pruefung: [Button an und aus und Neuladen; /formasyon an und aus ohne neuen Abruf; M30 gesperrt ohne Laden; Mindestgröße ändern mit Speicher und Zurücksetzen; Regel und gesperrte Regler; ungültiges EWO-Paar; Grundlage der Formationen mit Hinweis; 375 px; Sichtprüfung EURCAD D1 und H4 auf dem DEMO-Konto in hell und dunkel.]
         erwartet: Die Linie verbindet die Punkte des Zugs (EURCAD D1 sechs Segmente) und folgt den Reglern; ohne Button kein Abruf und keine Linie; die Einstellungen bleiben im Browser; die Formationen ändern sich nur mit der Grundlage.
+
+      - id: ANA-22
+        titel: Indikator-Legende mit Hover wie bei TradingView
+        beschreibung: "Jeder Indikator hat eine Legendenzeile oben links in seinem Bereich (Preisindikatoren im Kursbereich, Oszillatoren im eigenen Bereich). Die Werte der Zeile folgen dem Fadenkreuz (Wert der Kerze darunter) und zeigen ohne Fadenkreuz den letzten Wert; Alarme und Übertritt-Erkennung bleiben auf dem letzten Wert. Auge, Einstellungen, Entfernen und das Menü „Mehr“ erscheinen erst beim Hover über die Zeile oder bei Tastaturfokus, die Bereichsknöpfe (hoch, runter, einklappen, vergrößern, entfernen) beim Hover über den Bereich; auf Touch-Geräten sind sie immer sichtbar. Die Linie unter der Maus wird dicker gezeichnet, der Zeiger wird zur Hand und die Zeile hervorgehoben; ein Klick wählt die Linie (Markierungen, Knöpfe bleiben sichtbar), Escape oder ein Klick ins Leere hebt die Auswahl auf. Ein aktives Zeichenwerkzeug und eine Zeichnung unter der Maus haben Vorrang. Ein ausgeblendeter Indikator oder einer außerhalb seines Zeitrahmenbereichs behält seine Zeile (abgeblendet, ohne Wert), damit er wieder eingeblendet werden kann."
+        code: [frontend_nextjs/src/components/chart-workspace/IndicatorLegend.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/lib/chart-workspace/hover.ts]
+        tiers: [e2e]
+        pruefung: [Werte folgen dem Fadenkreuz und kehren zum letzten Wert zurück; ein Sweep über den Chart löst keinen Alarm aus; Zeilenknöpfe erst bei Hover oder Fokus; Bereichsknöpfe beim Hover über den Bereich; Touch-Gerät; Linie unter der Maus, Klick, Escape und Klick ins Leere; Preisindikator mit Zeile und Knöpfen; 375 px ohne horizontales Scrollen; Sichtprüfung auf /chart, Backtest und /formasyon in hell und dunkel.]
+        erwartet: Die Legende zeigt Werte am Fadenkreuz und den letzten Wert ohne Fadenkreuz; Knöpfe erscheinen nur beim Hover oder Fokus (Touch immer); die Linie unter der Maus ist hervorgehoben und ein Klick wählt sie; Alarme feuern nur auf dem letzten Wert.
 
       - id: ANA-13
         titel: Zeit-Check und Login-Schonung (Schritt 0)
