@@ -3,7 +3,7 @@ date: 2026-11-03
 author: Claude
 type: plan
 status: open
-pr: []
+pr: [330]
 features: [UI-11, FRM-35, ANA-21]
 areas: [frontend, docs]
 ---

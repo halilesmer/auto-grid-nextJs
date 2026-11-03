@@ -2,8 +2,8 @@
 date: 2026-11-03
 author: Claude
 type: change
-status: open
-pr: []
+status: done
+pr: [334]
 features: [ANA-03, ANA-05, ANA-06, ANA-15, UI-13, ANA-19]
 areas: [frontend, docs]
 ---

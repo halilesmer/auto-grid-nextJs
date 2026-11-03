@@ -3,7 +3,7 @@ date: 2026-11-03
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [329]
 features: [ANA-21]
 areas: [frontend, docs]
 ---
