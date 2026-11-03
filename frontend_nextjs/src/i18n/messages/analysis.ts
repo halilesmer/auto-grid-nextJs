@@ -48,7 +48,6 @@ export default defineArea(
     'analysis.clock.unsure.title': 'Broker saati kesin değil',
     'analysis.clock.unsure.text':
       'Piyasa kapalı ve henüz güvenilir bir ölçüm yok. „Bugün“ şimdilik UTC’ye göre hesaplanıyor; gün sınırları birkaç saat kayabilir.',
-    'analysis.settings': 'Görünüm ayarları',
     'analysis.settings.zoneLines': 'Setup bandı (sınırlar)',
     'analysis.settings.levels': 'Grid kademeleri',
     'analysis.settings.trades': 'Açık pozisyonlar',
@@ -245,7 +244,6 @@ export default defineArea(
     'analysis.clock.unsure.title': 'Broker time uncertain',
     'analysis.clock.unsure.text':
       'The market is closed and there is no reliable measurement yet. “Today” is calculated in UTC for now; day boundaries may be shifted by a few hours.',
-    'analysis.settings': 'Display settings',
     'analysis.settings.zoneLines': 'Setup band (limits)',
     'analysis.settings.levels': 'Grid levels',
     'analysis.settings.trades': 'Open positions',
@@ -442,7 +440,6 @@ export default defineArea(
     'analysis.clock.unsure.title': 'Brokerzeit unsicher',
     'analysis.clock.unsure.text':
       'Markt geschlossen und noch keine sichere Messung. „Heute“ wird vorerst in UTC berechnet; die Tagesgrenzen können um einige Stunden verschoben sein.',
-    'analysis.settings': 'Anzeige-Einstellungen',
     'analysis.settings.zoneLines': 'Setup-Band (Grenzen)',
     'analysis.settings.levels': 'Grid-Stufen',
     'analysis.settings.trades': 'Offene Positionen',

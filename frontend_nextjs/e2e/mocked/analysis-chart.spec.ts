@@ -16,8 +16,8 @@ function ratesCalls(worker: MockWorker) {
 }
 
 async function openSettings(page: Page) {
-  await page.getByRole('button', { name: msg('analysis.settings') }).click();
-  return page.getByTestId('analysis-settings');
+  await page.getByTestId('layers-button').click();
+  return page.getByTestId('layers-menu');
 }
 
 test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
@@ -158,7 +158,7 @@ test.describe('ANA-06 Positionen und Orders', () => {
 });
 
 test.describe('ANA-03 Legende als Schalter', () => {
-  test('Klick in der Legende blendet nur Pending-Orders aus; Zahnrad folgt, bleibt nach Neuladen', { tag: '@ANA-03' }, async ({ page, worker }) => {
+  test('Klick in der Legende blendet nur Pending-Orders aus; das Menü „Ebenen“ folgt, bleibt nach Neuladen', { tag: '@ANA-03' }, async ({ page, worker }) => {
     worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
     worker.setBotRunning(DEMO_ID);
     const row = { symbol: 'USOUSD', sl: 0, tp: 0, time: 1, volume: 0.01 };

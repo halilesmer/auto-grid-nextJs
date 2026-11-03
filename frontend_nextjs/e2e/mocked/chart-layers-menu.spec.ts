@@ -105,30 +105,77 @@ for (const [name, url] of PAGES) {
   });
 }
 
-// Pausen und Datenlücken stehen im Menü und im Zahnrad „Anzeige“ (analysis-settings): beide zeigen denselben Zustand (U3 baut das Zahnrad ab)
+// Pausen und Datenlücken stehen nur im Menü (das Zahnrad „Anzeige-Einstellungen“ ist weg, U3b): ein Schalter wirkt am Chart und bleibt nach dem Neuladen
 for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
-  test(`UI-13 ${name}: Menü und Zahnrad zeigen für Pausen und Datenlücken denselben Zustand`, { tag: '@UI-13' }, async ({ page, worker }) => {
+  test(`UI-13 ${name}: Pausen und Datenlücken schalten aus dem Menü und bleiben nach dem Neuladen`, { tag: '@UI-13' }, async ({ page, worker }) => {
     await open(page, worker, name, url);
     const chart = page.getByTestId('analysis-chart');
-    const gear = () => page.getByTestId('analysis-settings');
-    const gearSwitch = (key: Parameters<typeof msg>[0]) => gear().getByRole('switch', { name: new RegExp(`^${msg(key).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}( |$)`) });
-    const openGear = () => page.getByRole('button', { name: msg('analysis.settings'), exact: true }).click();
     for (const [key, attr] of [['analysis.settings.pauses', 'data-pauses-shown'], ['analysis.settings.gaps', 'data-gaps-shown']] as const) {
-      // Menü schaltet aus: Zahnrad zeigt aus
       await openMenu(page);
       await layerSwitch(page, key).click();
       await expect(chart).toHaveAttribute(attr, 'false');
-      await page.keyboard.press('Escape');
-      await openGear();
-      await expect(gearSwitch(key)).toHaveAttribute('aria-checked', 'false');
-      // Zahnrad schaltet ein: Menü zeigt ein
-      await gearSwitch(key).click();
+      await page.reload();
+      await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+      await expect(chart).toHaveAttribute(attr, 'false');
+      await openMenu(page);
+      await expect(layerSwitch(page, key)).toHaveAttribute('aria-checked', 'false');
+      await layerSwitch(page, key).click();
       await expect(chart).toHaveAttribute(attr, 'true');
       await page.keyboard.press('Escape');
-      await openMenu(page);
-      await expect(layerSwitch(page, key)).toHaveAttribute('aria-checked', 'true');
-      await page.keyboard.press('Escape');
     }
+  });
+}
+
+test('UI-13 kein Zahnrad „Anzeige-Einstellungen“ mehr, in keinem Modus', { tag: '@UI-13' }, async ({ page, worker }) => {
+  for (const [name, url] of PAGES) {
+    await open(page, worker, name, url);
+    await expect(page.getByTestId('analysis-settings')).toHaveCount(0);
+  }
+});
+
+// Die Setup-Schalter stehen in der Legende (chart-key-<pref>) und im Menü; beide zeigen denselben Zustand
+test('UI-13 Setup: Legende und Menü zeigen für die Setup-Ebenen denselben Zustand', { tag: '@UI-13' }, async ({ page, worker }) => {
+  await open(page, worker, 'Setup', SETUP);
+  const pairs = [
+    ['showZoneLines', 'analysis.settings.zoneLines'], ['showLevels', 'analysis.settings.levels'], ['showTrades', 'analysis.settings.trades'],
+    ['showOrders', 'analysis.settings.orders'], ['showHistory', 'analysis.settings.history'],
+  ] as const;
+  for (const [pref, key] of pairs) {
+    const legend = page.getByTestId(`chart-key-${pref}`);
+    // Legende schaltet aus: Menü zeigt aus
+    await legend.click();
+    await expect(legend).toHaveAttribute('aria-pressed', 'false');
+    await openMenu(page);
+    await expect(layerSwitch(page, key)).toHaveAttribute('aria-checked', 'false');
+    // Menü schaltet ein: Legende zeigt ein
+    await layerSwitch(page, key).click();
+    await page.keyboard.press('Escape');
+    await expect(legend).toHaveAttribute('aria-pressed', 'true');
+  }
+});
+
+// showZoneCard, RSI(14) und die sechs Setup-Ebenen sind im Setup-Menü erreichbar, bei 1440 und bei 375 px (Menü scrollt)
+for (const [width, height] of [[1440, 900], [375, 812]] as const) {
+  test(`UI-13 Setup ${width} px: jeder Setup-Schalter ist im Menü erreichbar`, { tag: '@UI-13' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width, height });
+    await open(page, worker, 'Setup', SETUP);
+    await openMenu(page);
+    for (const key of ['analysis.settings.zoneLines', 'analysis.settings.levels', 'analysis.settings.trades', 'analysis.settings.orders', 'analysis.settings.history', 'analysis.settings.rsi', 'analysis.settings.zoneCard'] as const) {
+      const sw = layerSwitch(page, key);
+      await sw.scrollIntoViewIfNeeded();
+      await expect(sw).toBeInViewport();
+    }
+    await expect(page.getByTestId('layers-menu')).toContainText(msg('analysis.settings.fixed'));
+    // showZoneCard wirkt über das Menü: die Karte mit den Setup-Einstellungen verschwindet und kommt zurück
+    const zoneCard = layerSwitch(page, 'analysis.settings.zoneCard');
+    await zoneCard.scrollIntoViewIfNeeded();
+    await zoneCard.click();
+    await expect(zoneCard).toHaveAttribute('aria-checked', 'false');
+    // Bei 375 px liegt die schwebende Karte eingeklappt; die Wirkung auf die Karte prüfen wir nur in der breiten Ansicht
+    if (width >= 1024) await expect(page.getByText('90 – 110')).toBeHidden();
+    await zoneCard.click();
+    await expect(zoneCard).toHaveAttribute('aria-checked', 'true');
+    if (width >= 1024) await expect(page.getByText('90 – 110')).toBeVisible();
   });
 }
 

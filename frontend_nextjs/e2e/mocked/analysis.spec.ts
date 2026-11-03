@@ -1,5 +1,5 @@
 /**
- * Analyse-Seite (/chart), Schritt 1 des Plans: Seitengerüst mit Tabs, Konto/Zone, Kalender, Zahnrad.
+ * Analyse-Seite (/chart), Schritt 1 des Plans: Seitengerüst mit Tabs, Konto/Zone, Kalender, Menü „Ebenen“.
  * ANA-01 Seite/Tabs · ANA-02 Konto/Zone ohne fremde Daten · ANA-03 Schalter · ANA-10 Kalender/Brokerzeit
  */
 import type { Page } from '@playwright/test';
@@ -79,7 +79,7 @@ test.describe('ANA Analyse-Seite', () => {
     await expect(info.getByRole('link', { name: 'tradingview.com' })).toHaveAttribute('href', 'https://www.tradingview.com/');
   });
 
-  test('Jedes Bedienelement hat einen Hinweis, auch in Kalender und Zahnrad', { tag: ['@ANA-01', '@UI-07'] }, async ({ page, worker }) => {
+  test('Jedes Bedienelement hat einen Hinweis, auch in Kalender und Menü „Ebenen“', { tag: ['@ANA-01', '@UI-07'] }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText('USOUSD');
@@ -90,24 +90,24 @@ test.describe('ANA Analyse-Seite', () => {
     expect(await unhinted(page)).toEqual([]);
     await page.keyboard.press('Escape');
 
-    await page.getByRole('button', { name: msg('analysis.settings') }).click();
-    await expect(page.getByTestId('analysis-settings')).toBeVisible();
+    await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
+    await expect(page.getByTestId('layers-menu')).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
   });
 
   test('Werkzeugleiste liegt auf dem Chart, Vollbild an und aus', { tag: '@ANA-15' }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    // Zahnrad und Lizenz stehen in der Kopfleiste (UI-10), das Vollbild im Werkzeug des Charts; es zeigt die ganze Chartseite samt Kopfleiste
+    // Die Lizenz steht in der Kopfleiste (UI-10), das Zahnrad „Anzeige-Einstellungen“ gibt es nicht mehr (UI-13), das Vollbild im Werkzeug des Charts; es zeigt die ganze Chartseite samt Kopfleiste
     const topbar = page.getByTestId('chart-topbar');
     const workspace = page.getByTestId('chart-workspace');
-    await expect(topbar.getByRole('button', { name: msg('analysis.settings') })).toBeVisible();
+    await expect(page.getByTestId('analysis-settings')).toHaveCount(0);
     await expect(topbar.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
 
     await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen') }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-page');
-    await topbar.getByRole('button', { name: msg('analysis.settings') }).click();
-    await expect(page.getByTestId('analysis-settings')).toBeVisible();
+    await workspace.getByTestId('layers-button').click();
+    await expect(page.getByTestId('layers-menu')).toBeVisible();
 
     await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen.exit') }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
@@ -193,8 +193,8 @@ test.describe('ANA Analyse-Seite', () => {
     await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByText('90 – 110')).toBeVisible();
 
-    await page.getByRole('button', { name: msg('analysis.settings') }).click();
-    const panel = page.getByTestId('analysis-settings');
+    await page.getByTestId('layers-button').click();
+    const panel = page.getByTestId('layers-menu');
     await expect(panel).toContainText(msg('analysis.settings.fixed'));
     await panel.getByRole('switch', { name: msg('analysis.settings.zoneCard') }).click();
     await expect(page.getByText('90 – 110')).toBeHidden();
@@ -202,8 +202,8 @@ test.describe('ANA Analyse-Seite', () => {
     await page.reload();
     await expect(page.getByTestId('zone-select')).toContainText('USOUSD');
     await expect(page.getByText('90 – 110')).toBeHidden();
-    await page.getByRole('button', { name: msg('analysis.settings') }).click();
-    await expect(page.getByTestId('analysis-settings').getByRole('switch', { name: msg('analysis.settings.zoneCard') })).toHaveAttribute(
+    await page.getByTestId('layers-button').click();
+    await expect(page.getByTestId('layers-menu').getByRole('switch', { name: msg('analysis.settings.zoneCard') })).toHaveAttribute(
       'aria-checked',
       'false',
     );

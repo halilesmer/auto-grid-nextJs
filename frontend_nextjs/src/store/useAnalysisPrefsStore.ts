@@ -4,8 +4,8 @@ import { DEFAULT_TREND_SETTINGS, type TrendSettings } from '@/lib/formation/para
 import { sanitizeTrendSettings } from '@/lib/formation/trdPath';
 
 /**
- * Anzeige-Schalter der Analyse-Seite (Zahnrad). Gerätebezogene Vorliebe: nur im localStorage dieses
- * Browsers, nie an den Worker. Zahnrad und Chart-Legende schalten dieselben Werte. Datenqualitäts-Hinweise,
+ * Anzeige-Schalter der Analyse-Seite (Menü „Ebenen“). Gerätebezogene Vorliebe: nur im localStorage dieses
+ * Browsers, nie an den Worker. Menü „Ebenen“ und Chart-Legende schalten dieselben Werte. Datenqualitäts-Hinweise,
  * Datenquelle und Modellgrenzen haben bewusst keinen Schalter (docs/analyse-regeln.md §7).
  */
 export interface AnalysisPrefs {

@@ -85,7 +85,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┃ ┣ 📜 InputField.tsx
 ┃ ┃ ┃ ┃ ┣ 📜 tooltip.tsx          # Tooltip + InfoHint (i) + FieldLabel (Popover API/top-layer); hint zorunlu, bkz. hooks/RULES.md §5
 ┃ ┃ ┃ ┃ ┗ 📜 index.ts
-┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect (setup seçimi „Sembol · Setup n“), AnalysisSettingsPanel (dişli, görünüm anahtarları), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„setup bilinmiyor“, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), stats/ (StatsTab: kapsam hesap/sembol/setup, StatsKpis, BreakdownTable: setup karşılaştırması, CurveChart)
+┃ ┃ ┃ ┣ 📂 analysis             # Analiz sayfası: DateRangePicker (broker günü, hazır aralıklar, GG.AA.YY), ZoneSelect (setup seçimi „Sembol · Setup n“), LicenseInfo (TradingView NOTICE), BrokerClockNotice, DataQualityBanner (eksik veri, kapatılamaz), TradesTable (işlem arşivi: kısmi/ters çevirme/„setup bilinmiyor“, düğmeyle MFE/MAE, grafiğe atlama; grafik ve istatistik sekmesinde), stats/ (StatsTab: kapsam hesap/sembol/setup, StatsKpis, BreakdownTable: setup karşılaştırması, CurveChart)
 ┃ ┃ ┃ ┃ ┗ 📂 chart              # Grafik sekmesi: ChartCore (lightweight-charts, mumlar + boşluklar, RSI bölmesi, fiyat çizgileri), primitives.ts (bölge bandı, eksik veri taraması, piyasa arası çizgileri), TimeframeSelect
 ┃ ┃ ┃ ┗ 📂 zone                 # Zone (Bölge) ayar bileşenleri; arayüzde sembol kartı + setup kartları (ZON-20)
 ┃ ┃ ┃   ┣ 📜 SymbolCard.tsx
