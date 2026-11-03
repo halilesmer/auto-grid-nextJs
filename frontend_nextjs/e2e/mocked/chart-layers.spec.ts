@@ -1,7 +1,7 @@
 /**
  * UI-11 Gemeinsame Chart-Ebenen (ChartView): System-RSI(7) und Wave 5/35 stehen auf jedem Chart, auch auf /chart frei
- * und im Setup-Modus. Sie werden aus den geschlossenen Kerzen des Charts gerechnet und lassen sich im Dialog
- * „Anzeige“ ein- und ausschalten. Plan: docs/journal/2026-11-01-unified-chart-page.md.
+ * und im Setup-Modus. Sie werden aus den geschlossenen Kerzen des Charts gerechnet und lassen sich im Menü
+ * „Ebenen“ (UI-13) ein- und ausschalten. Plan: docs/journal/2026-11-01-unified-chart-page.md.
  */
 import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
@@ -13,8 +13,7 @@ const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const WAVE_WARMUP = 34;
 
 async function openOverlays(page: Page) {
-  await page.getByTestId('workspace-settings').click();
-  await page.getByRole('button', { name: msg('cw.overlays'), exact: true }).click();
+  await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
 }
 
 for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
@@ -39,13 +38,13 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
       const chart = page.getByTestId('analysis-chart');
       await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       await openOverlays(page);
-      const wave = page.locator('#overlay-wave');
+      const wave = page.locator('#layer-wave');
       await expect(wave).toHaveAttribute('aria-checked', 'true');
       await wave.click();
       await expect(chart).toHaveAttribute('data-wave-visible', 'false');
       await wave.click();
       await expect(chart).toHaveAttribute('data-wave-visible', 'true');
-      await expect(page.locator('#overlay-rsi')).toHaveAttribute('aria-checked', 'true');
+      await expect(page.locator('#layer-rsi')).toHaveAttribute('aria-checked', 'true');
     });
   });
 }
@@ -58,9 +57,8 @@ test.describe('UI-11 Nutzer-Indikatoren', () => {
     await expect(values).toContainText('EWO');
     await expect(values).toContainText('RSI');
     await openOverlays(page);
-    await page.locator('#overlay-wave').click();
+    await page.locator('#layer-wave').click();
     await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'false');
-    await page.getByRole('button', { name: msg('cw.apply') }).click();
     await expect(values).toContainText('EWO');
     await expect(values).toContainText('RSI');
     await page.reload();

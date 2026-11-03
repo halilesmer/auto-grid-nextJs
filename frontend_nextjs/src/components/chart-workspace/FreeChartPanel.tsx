@@ -14,7 +14,6 @@ import { ChartNotice, ChartOverlays } from '@/components/chart-page/ChartOverlay
 import { ChartTopBar, type ChartChrome } from '@/components/chart-page/ChartTopBar';
 import { Alert } from '@/components/ui/alert';
 import { InfoHint } from '@/components/ui/tooltip';
-import { Switch } from '@/components/ui/switch';
 import { useMarketRates } from '@/hooks/useMarketRates';
 import { useSignalBars } from '@/hooks/useSignalBars';
 import { useTrendPath } from '@/hooks/useTrendPath';
@@ -92,10 +91,9 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     />}
     surface={<div className="absolute inset-0" data-testid="free-chart-panel">
       {data && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
-        signalBars={signalBars}
-        modeOverlays={<div className="space-y-3"><Switch label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={prefs.showPauses} onChange={v => prefs.setPref('showPauses', v)} /><Switch label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={prefs.showGaps} onChange={v => prefs.setPref('showGaps', v)} /></div>}
+        signalBars={signalBars} timeframe={timeframe}
         data={data} timeframeSec={TIMEFRAME_SEC[timeframe]} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
-        band={null} lines={[]} markers={[]} showPauses={prefs.showPauses} showGaps={prefs.showGaps} showRsi live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()}
+        band={null} lines={[]} markers={[]} showRsi live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()}
         fullscreenOfPage />}
     </div>}
     floating={<ChartOverlays notices={notices} />}

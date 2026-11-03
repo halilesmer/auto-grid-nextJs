@@ -44,6 +44,7 @@ import { setupNumbers } from '@/lib/symbolSetups';
 import { useBotRuntimeStore, useSettingsStore, useWebSocketManager } from '@/store';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
+import { Switch } from '@/components/ui/switch';
 import { useAnalysisPrefsStore, type AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
 import { useFormat, useT, type MessageKey } from '@/i18n';
@@ -499,22 +500,6 @@ export default function ZoneChartPanel({
   const setPref = useAnalysisPrefsStore((s) => s.setPref);
   const legend: { pref: keyof AnalysisPrefs; hint: MessageKey; items: { swatch: string; label: string }[] }[] = [
     {
-      pref: 'showGaps',
-      hint: 'analysis.settings.gaps.hint',
-      items: [
-        {
-          swatch:
-            'inline-block h-3 w-4 rounded-sm border border-muted-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0_3px,var(--muted-foreground)_3px_4px)] opacity-60',
-          label: t('analysis.chart.key.noData'),
-        },
-      ],
-    },
-    {
-      pref: 'showPauses',
-      hint: 'analysis.settings.pauses.hint',
-      items: [{ swatch: 'inline-block h-3 border-l border-dashed border-muted-foreground', label: t('analysis.chart.key.pause') }],
-    },
-    {
       pref: 'showZoneLines',
       hint: 'analysis.settings.zoneLines.hint',
       items: [{ swatch: 'inline-block h-3 w-4 rounded-sm border-y border-dashed border-primary bg-primary/10', label: t('analysis.chart.key.band') }],
@@ -552,11 +537,6 @@ export default function ZoneChartPanel({
           },
         ]
       : []),
-    {
-      pref: 'showRsi',
-      hint: 'analysis.settings.rsi.hint',
-      items: [{ swatch: 'inline-block w-4 border-t-2 border-info', label: t('analysis.chart.key.rsi') }],
-    },
   ];
 
   const setupNo = zone && zones ? (setupNumbers(zones).get(zone.id) ?? 0) : 0;
@@ -736,6 +716,9 @@ export default function ZoneChartPanel({
               key={`${accountId}|${symbol}`}
               workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'setup', account: accountId, symbol: symbol ?? '' }), symbol: symbol ?? '', view: 'analysis', syncIdentity: { source, account: accountId, symbol: symbol ?? '' } }}
               signalBars={signalBars}
+              timeframe={timeframe}
+              modeTitle={t('cw.layers.setup')}
+              modeLayers={<Switch id="layer-rsi14" label={t('analysis.settings.rsi')} hint={t('analysis.settings.rsi.hint')} checked={prefs.showRsi} onChange={v => setPref('showRsi', v)} />}
               modeOverlays={<AnalysisSettingsPanel inline />}
               clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
               data={chart}
@@ -744,8 +727,6 @@ export default function ZoneChartPanel({
               viewKey={viewKey}
               band={band}
               lines={lines}
-              showPauses={prefs.showPauses}
-              showGaps={prefs.showGaps}
               showRsi={prefs.showRsi}
               live={live}
               markers={overlays.markers}

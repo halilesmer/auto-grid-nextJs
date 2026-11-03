@@ -16,6 +16,8 @@ export interface TimeframeView {
   /** Zug, auf dem die Formationen rechnen */
   zug: FormationZug;
   bars: FormationBar[];
+  /** Fehlende Datenbereiche der Reihe (für die Fläche „Datenlücke“ im Chart, UI-13); `bars` tragen sie als `gapBefore` */
+  missing: GapRange[];
   rsi: Series;
   wave: Series;
   atr: Series;
@@ -66,6 +68,7 @@ export class FormationContext {
         tf,
         zug,
         bars: markGaps(bars, missing),
+        missing: [...missing],
         rsi: rsi(bars),
         wave: wave(bars),
         atr: atrSeries(bars),
@@ -104,6 +107,7 @@ export class FormationContext {
       tf,
       zug: view.zug,
       bars: view.bars.slice(0, n),
+      missing: view.missing,
       rsi: view.rsi.slice(0, n),
       wave: view.wave.slice(0, n),
       atr: view.atr.slice(0, n),

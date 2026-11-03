@@ -261,3 +261,17 @@
 .animate-ping-soft {
   animation: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+
+/*
+ * Chartseiten (formation-main, nicht Backtest): das TradingView-Logo sitzt unten links im untersten Bereich und läge dort bei
+ * schmaler Breite über dessen Legendenzeile (UI-13). Unter lg rückt es an den unteren Rand des Bereichs und wird kleiner,
+ * damit die Zeile darüber frei bleibt (der Bereich ist dort nur etwa 43 px hoch).
+ */
+@media (width < 64rem) {
+  [data-testid="formation-main"] #tv-attr-logo {
+    bottom: 0 !important;
+    top: auto !important;
+    transform: scale(0.75);
+    transform-origin: left bottom;
+  }
+}

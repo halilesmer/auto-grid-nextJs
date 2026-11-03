@@ -77,8 +77,8 @@ Each step is one PR. The steps run in sequence because they change the same file
 | S6b | `/backtest` gets the `Trend` button. `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. On `/backtest`, the line must stop at the replay cursor. | Open |
 | U1 | Trend path over the whole range of the chart. Entry: `2026-11-03-chart-u1-trend-range.md`. | Done, PR 329 |
 | U2a | Shell `ChartView` with system RSI(7) and Wave 5/35 on each chart. Entry: `2026-11-03-chart-u2-chartview.md`. | Done, PR 330 |
-| Top bar | Compact top bar below lg: the bar stands above the chart and covers no candles (UI-12). Entry: `2026-11-03-chart-topbar-compact.md`. | In review, PR to follow |
-| U2b | Button "Layers" next to Trend. | Open |
+| Top bar | Compact top bar below lg: the bar stands above the chart and covers no candles (UI-12). Entry: `2026-11-03-chart-topbar-compact.md`. | Done, PR 331 |
+| U2b | Button "Layers" next to Trend, one menu on each chart. Entry: `2026-11-03-chart-u2b-layers-menu.md`. | In review, PR to follow |
 | U3 | Merge the pages. | Open |
 
 ## Why
