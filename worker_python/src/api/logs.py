@@ -23,6 +23,7 @@ def _decode_log_bytes(raw: bytes) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
+# Bewusst `def`: Datei-I/O läuft so im FastAPI-Threadpool, nicht in der Event-Loop.
 @router.get("/logs/{account_id}", dependencies=[Depends(account_access)])
 def get_logs(
     account_id: str,
