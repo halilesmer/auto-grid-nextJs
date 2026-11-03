@@ -49,7 +49,7 @@ Each step is one PR. The steps run in sequence because they change the same file
 | S1 | Remove `ChartViewer.tsx` and the code that only it used | Done, PR 275 |
 | S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Done, PR 276 |
 | S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Done, PR 321 |
-| S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Done, PR n |
+| S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Done, PR 326 |
 | S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
 | S6a | `/formasyon` gets the `Trend` button and the trend line (decision of the owner on 2026-11-02: before S3 to S5). Entry: `2026-11-02-formation-trend-toggle.md`. | Done, PR 307 |
 | S6b | `/backtest` gets the `Trend` button. `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. On `/backtest`, the line must stop at the replay cursor. | Open |
@@ -161,6 +161,18 @@ The MET-02 test opens `/chart` and reads the live values. It did not touch `Char
 | Codex scan | No finding. Browser reconnect paths: not verified, the scan ran read-only. |
 
 The first run on port 3100 failed. An unrelated Python process held this port, so Playwright reused it and no WebSocket opened.
+
+S4:
+
+| Check | Result |
+|---|---|
+| `UI-10` (`chart-page.spec.ts`) | Red before S4 (6 failed), green after (6 passed) |
+| `npx tsc --noEmit`, `npm run lint` | Exit 0 |
+| `npm run test:e2e` with `E2E_PORT=3170` | 2360 passed, 3 failed (FRM-30, UI-08, ZON-01). The 3 are time-outs under load (run of 27 minutes, other sessions at the same time). Alone, they pass (39 passed). |
+| Screenshots of `/chart`, free and setup, 375, 1024, 1440 px | No horizontal overflow |
+| `/formasyon` before and after, 1440 px and 375 px | Pixel-identical |
+| Reviewer | No critical finding. The "should" findings are fixed. |
+| Codex scan | Not done: `weekly_left` was 3 |
 
 S2:
 
