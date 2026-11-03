@@ -60,5 +60,5 @@ Tests: catalog entries ANA-09 (statistics, curves, split for each setup) and ANA
 - [x] Step 8: backtest runner and CSV import. Moved to `2026-10-06-backtest-module-plan.md` (B4, B9).
 - [x] Step 9: backtest tab. Moved to `2026-10-06-backtest-module-plan.md` (B5–B8, page `/backtest`).
 - [x] The zone registry of the DEMO account has entries since 2026-10-02. Trades that opened before the registry entry stay "zone unknown" (by design). On 2026-10-06 this was most trades of the last 30 days.
-- [ ] Observation (2026-10-02): `/api/logs` requests waited up to 15 s while a long `/rates` fetch from MT5 ran. The cause is not known.
+- [ ] Observation (2026-10-02): `/api/logs` requests waited up to 15 s while a long `/rates` fetch from MT5 ran. The cause is not known. Since PR 319 (2026-11-03) the log route no longer reads in the event loop. The cause is still open.
 - [ ] Manual tests that are still open: see `docs/features/FEATURES.md` (`scripts/features/run.sh next`).
