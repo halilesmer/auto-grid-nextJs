@@ -70,7 +70,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
   /** Beschriftung der Zone: erste Stelle (links/rechts, innen/außen), an der sie keinen Formationspunkt verdeckt */
   function zoneLabelSpot(label: string, z: { x1: number; x2: number; top: number; bottom: number }) {
     const w = label.length * 6;
-    const dots = Object.values(candidate.points).flatMap((a) => {
+    const dots = [...Object.values(candidate.points), ...(candidate.heldPoint ? [candidate.heldPoint] : [])].flatMap((a) => {
       const px = x(a.time);
       const py = y(a.price);
       return px === null || py === null ? [] : [{ px, py }];
@@ -104,6 +104,20 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         // Ziel des offenen Weges: der noch nicht erreichte Endpunkt, sonst die letzte Kerze
         const lx = final ? x(final.time) : x(lastBar.time);
         const ly = final ? y(final.price) : y(lastBar.close);
+        // Gemessener, aber vom Urteil gehaltener Endpunkt: wie ein bestätigter Punkt an der Bruchkerze (durchgezogen, Name ohne „?“);
+        // ein Zug, der die Bruchkerze schon enthält (Zielweg), zeichnet nichts dazu
+        const held = candidate.heldPoint;
+        if (forming && held) {
+          const hx = x(held.time);
+          const hy = y(held.price);
+          if (last && hx !== null && hy !== null && !ok.some((p) => p.a.time === held.time)) {
+            // Der Strich geht nur von einem gemessenen Punkt aus (nicht von einer Zielprojektion wie beim Mast der Trendfortsetzung)
+            if (pointName(candidate, last.a.time, last.a.price)) prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: hx, y2: hy, tone: 'side', width: 2.2 });
+            prims.push({ kind: 'circle', x: hx, y: hy, r: 4, tone: 'text' });
+            prims.push({ kind: 'text', x: hx - 4, y: hy + (hy > last.py ? 17 : -9), text: FINAL_POINT[form], tone: 'text', bold: true });
+          }
+          return prims;
+        }
         if (forming && last && ly !== null) {
           if (lx !== null) {
             prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: lx, y2: ly, tone: 'side', dashed: true, width: 2 });

@@ -341,7 +341,7 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
   if (base.form === 'box') add('FLOOR', base.bottoms[0]);
   // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
   if (brk !== null && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld ? { pointHeld } : {}) };
+  return { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld && brk !== null ? { pointHeld, heldPoint: anchorAt(bars, brk, bars[brk].close) } : {}) };
 }
 
 interface DrawInput {

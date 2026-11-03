@@ -110,6 +110,10 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await expect(note).toContainText(msg('formation.note.held', { point: 'B' }));
     await expect(note).toContainText(msg('formation.note.unmeasurable', { ids: 'OBO-12' }));
     await expect(note).not.toContainText(msg('formation.note.forming', { point: 'B' }));
+    // Der Chart zeigt B ebenfalls als erreicht: kein „B?“, kein offener Kreis, B an der Bruchkerze
+    const overlay = page.getByTestId('formation-overlay');
+    await expect(overlay.locator('text', { hasText: /^B$/ })).toHaveCount(1);
+    await expect(overlay.locator('text', { hasText: 'B?' })).toHaveCount(0);
   });
 
   test('Kopf-Schulter steht in der Leiste: gültige OBO mit Badge, Checkliste und erreichtem Punkt B', { tag: ['@FRM-18', '@FRM-10'] }, async ({ page, worker }) => {

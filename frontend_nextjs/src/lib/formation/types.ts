@@ -76,6 +76,8 @@ export interface Candidate {
   invalidBy?: string[];
   /** Der Endpunkt ist gemessen (Bruch liegt vor), aber `settle` hält das Urteil auf `forming`; der Endpunkt steht deshalb nicht in `points` */
   pointHeld?: boolean;
+  /** Lage des gehaltenen Endpunkts (Bruchkerze), nur zum Zeichnen; Alarm und Suche lesen `points`, nicht dieses Feld */
+  heldPoint?: Anchor;
 }
 
 /** Eine Kerze der Formation: nur geschlossene Kerzen, Zeit = Kerzenbeginn (MT5-Sekunden) */
