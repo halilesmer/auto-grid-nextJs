@@ -41,7 +41,7 @@ export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCar
       aria-label={title}
       data-testid="chart-floating-card"
       className={cn(
-        'pointer-events-auto absolute flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] max-lg:max-h-[calc(100dvh-var(--chart-top,0px)-9.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
+        'pointer-events-auto absolute max-lg:z-[52] flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] max-lg:max-h-[calc(100dvh-var(--chart-top,0px)-9.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
         'max-lg:bottom-[8.5rem] max-lg:left-[64px] max-lg:right-3 lg:right-[84px] lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
         open && tab.wide ? 'lg:w-[min(46rem,calc(100%-9rem))]' : 'lg:w-80',
       )}

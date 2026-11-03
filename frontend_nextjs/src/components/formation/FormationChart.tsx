@@ -5,10 +5,10 @@ import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { useFormat, useT } from '@/i18n';
 import type { FormationContext } from '@/lib/formation/context';
 import { drawingPriceRange, layoutDrawings, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
-import { RSI_PARAMS } from '@/lib/formation/params';
 import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
 import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
-import { ChartCore, type ChartScene, type OverlayLine } from '@/components/analysis/chart/ChartCore';
+import { type ChartScene, type OverlayLine } from '@/components/analysis/chart/ChartCore';
+import { ChartView } from '@/components/chart-page/ChartView';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
@@ -101,9 +101,6 @@ const NO_LINES: OverlayLine[] = [];
 const NO_BARS: Bar[] = [];
 const NO_MISSING: never[] = [];
 const NO_TREND = { segments: [], axis: [] };
-const RSI_LEVELS = [RSI_PARAMS.overbought, RSI_PARAMS.oversold];
-/** Die Bedienung liegt oben auf dem Chart: die Kerzen beginnen darunter */
-const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
 
 /** Zeichnungen der Erkennung als SVG über dem Chart; das Overlay endet vor der Preisachse. */
 function FormationOverlay({ scene, hit, bars, running, active, onActive, onCapture, onPriceBottom, visible, waveVisible }: Pick<Props, 'hit' | 'running' | 'active' | 'onActive' | 'onCapture' | 'onPriceBottom'> & { scene: ChartScene; bars: readonly Bar[]; visible: boolean; waveVisible: boolean }) {
@@ -233,18 +230,10 @@ function FormationOverlay({ scene, hit, bars, running, active, onActive, onCaptu
 export function FormationChart({ accountId, hit, context, scanAt, running, digits, active, onActive, onCapture, onPriceBottom }: Props) {
   const source = useConnectionStore(s => s.baseUrl);
   const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
-  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true, wave: true });
+  const overlays = useChartOverlays(contextKey, { formations: true, wave: true });
   const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
   const bars = view?.bars ?? NO_BARS;
   const data = useMemo(() => ({ points: bars, bars, missing: NO_MISSING, pauses: NO_MISSING }), [bars]);
-  const rsiPoints = useMemo(() => bars.flatMap((b, i) => {
-    const value = view?.rsi[i];
-    return value == null ? [] : [{ time: b.time, value }];
-  }), [bars, view]);
-  const wavePoints = useMemo(() => bars.flatMap((b, i) => {
-    const value = view?.wave[i];
-    return value == null ? [] : [{ time: b.time, value }];
-  }), [bars, view]);
   // Trendzug wie auf /chart (ANA-21), aber aus den Kerzen der Formation: nur geschlossene bis scanAt, ohne laufende Kerze
   const showTrend = useAnalysisPrefsStore(s => s.showTrend);
   const trendSettings = useAnalysisPrefsStore(s => s.trend);
@@ -255,14 +244,11 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
   const priceRange = useMemo(() => drawingPriceRange(hit.candidate), [hit.candidate]);
   const finalName = FINAL_POINT[hit.form];
   return (
-    <ChartCore
+    <ChartView
       key={contextKey}
       workspace={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true, systemWave: true, syncIdentity: { source, account: accountId, symbol: context.symbol } }}
-      workspaceOverlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[
-        { key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' },
-        { key: 'rsi', label: 'formation.legend.rsi', hint: 'cw.systemRsi.hint' },
-        { key: 'wave', label: 'formation.legend.wave', hint: 'cw.systemWave.hint' },
-      ]} />}
+      signalBars={bars}
+      modeOverlays={<ContextOverlays contextKey={contextKey} values={overlays} options={[{ key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' }]} />}
       data={data}
       timeframeSec={TIMEFRAME_SEC[hit.tf]}
       digits={digits}
@@ -274,14 +260,10 @@ export function FormationChart({ accountId, hit, context, scanAt, running, digit
       showRsi
       live={null}
       until={scanAt}
-      systemRsi={{ points: rsiPoints, levels: RSI_LEVELS, visible: overlays.rsi }}
-      systemWave={{ points: wavePoints, visible: overlays.wave }}
       runningBar={running}
       priceRange={priceRange}
       trendPath={trendPath}
       toolbarActions={<TrendToggle timeframe={hit.tf} size="xs" />}
-      marginsFor={controlMargins}
-      overlayLayout
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
       renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} running={running} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} waveVisible={overlays.wave} />}
     />

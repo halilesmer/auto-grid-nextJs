@@ -238,8 +238,11 @@ test('RSI-Füllung verwendet nach Wechsel auf die linke Achse weiter die RSI-Ska
   const fillBottom = () => page.getByTestId('analysis-chart').evaluate(host => {
     const canvases = [...host.querySelectorAll('canvas')].filter(c => c.getBoundingClientRect().width > 200 && c.getBoundingClientRect().height > 40);
     const rows = [...new Set(canvases.map(c => c.getBoundingClientRect().top))].sort((a, b) => a - b);
+    // The user RSI pane is the pane that holds its legend row (the system RSI(7) pane lies above it)
+    const legendTop = host.ownerDocument.querySelector('[data-indicator-row="RSI"]')!.getBoundingClientRect().top;
+    const rsiRow = rows.filter(top => top <= legendTop).at(-1);
     let bottom = -1;
-    for (const c of canvases.filter(c => c.getBoundingClientRect().top === rows[1])) {
+    for (const c of canvases.filter(c => c.getBoundingClientRect().top === rsiRow)) {
       const context = c.getContext('2d'); if (!context) continue;
       const pixels = context.getImageData(0, 0, c.width, c.height).data;
       for (let y = 0; y < c.height; y++) for (let x = 20; x < c.width - 20; x += 8) {
@@ -411,6 +414,9 @@ async function openOscillatorChart(page: Page) {
   await page.goto(CHART_URL);
   const controls = page.getByTestId('oscillator-controls');
   await expect(controls).toBeVisible();
+  // UI-11: the system panes RSI(7) and wave (price pane, then these two) are there; the checks below count the user panes only
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '3');
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'true');
   const context = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
   return { controls, context };
 }
@@ -418,9 +424,11 @@ const storedDocument = (page: Page, key: string) => page.evaluate(k => {
   const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
   return state.documents[k] as { indicators: StoredIndicator[]; alarms: StoredAlarm[] };
 }, key);
-/** Height of each chart pane in pixels, price pane first. Lightweight Charts draws one table row per pane. */
+/** Height of the price pane and of each user pane in pixels, price pane first. Lightweight Charts draws one table row per pane. The two system panes RSI(7) and wave (UI-11) lie after the price pane and are left out. */
+const SYSTEM_PANES = 2;
 const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator('table').first().evaluate(table =>
-  [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1));
+  [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1))
+  .then(heights => heights.filter((_, i) => i === 0 || i > SYSTEM_PANES));
 // The legend shows the value under the crosshair, so move the mouse off the chart to read the latest value.
 const rsiValue = async (page: Page) => { await page.mouse.move(0, 0); return Number((await page.locator('[data-indicator-value="RSI"]').innerText()).replace(/^.*\)\s*/, '').replace(',', '.')); };
 

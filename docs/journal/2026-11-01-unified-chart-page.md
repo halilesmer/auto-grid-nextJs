@@ -52,6 +52,15 @@ The owner wants exactly one chart and one chart component in the system.
 
 Result of U1: `2026-11-03-chart-u1-trend-range.md`.
 
+U2 is split in two PRs (coordinator, 2026-11-03):
+
+| Step | Content |
+|---|---|
+| U2a | Shell `ChartView` around `ChartCore`. System RSI(7) and Wave 5/35 on all chart pages. The three shells call `ChartView`. Result: `2026-11-03-chart-u2-chartview.md`. |
+| U2b | The button "Layers" next to Trend, one menu for each mode. Broker clock, pauses and gaps on `/formasyon`. |
+
+Order after U2a (owner, 2026-11-03): U2a → compact top bar (design "Handy") → U2b → U3. At 375 x 812 px the price pane is 297 px high after U2a. The top bar covers most of it: about 105 px stay visible in free mode and about 21 px in setup mode. The compact top bar removes this.
+
 ## Steps
 
 Each step is one PR. The steps run in sequence because they change the same files. Structure comes before behavior.

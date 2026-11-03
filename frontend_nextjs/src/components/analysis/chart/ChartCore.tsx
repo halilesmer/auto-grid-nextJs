@@ -100,7 +100,7 @@ export interface ChartScene {
   wave: ISeriesApi<'Histogram'> | null;
 }
 
-interface ChartCoreProps {
+export interface ChartCoreProps {
   workspace?: WorkspaceContext;
   workspaceOverlays?: React.ReactNode;
   clockNow?: number | null;
@@ -724,7 +724,7 @@ export function ChartCore({
     <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage}>
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
-      <div ref={surfaceRef} {...surfaceProps} className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card">
+      <div ref={surfaceRef} {...surfaceProps} className="absolute top-0 bottom-[var(--workspace-card,0px)] left-[52px] right-0 isolate overflow-hidden bg-card @min-[71rem]/formation-main:bottom-0">
         <div {...hostAttributes} className="absolute inset-0" />
         {hoverNotes.length > 0 && (
           // Unten links über der Statuszeile: oben stehen die Hinweise der Seite

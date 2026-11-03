@@ -4,13 +4,13 @@ import { useCallback, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import {
-  ChartCore,
   type FractalPoint,
   type LineTone,
   type OverlayLine,
   type TradeLinkLine,
   type TradeMarker,
 } from '@/components/analysis/chart/ChartCore';
+import { ChartView } from '@/components/chart-page/ChartView';
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
 import { AnalysisSettingsPanel } from '@/components/analysis/AnalysisSettingsPanel';
 import { formatOffset } from '@/components/analysis/BrokerClockNotice';
@@ -30,6 +30,7 @@ import { useDealsHistory } from '@/hooks/useDealsHistory';
 import { useSetupLabel } from '@/hooks/useSetupLabel';
 import { useLiveTrades } from '@/hooks/useLiveTrades';
 import { useMarketRates } from '@/hooks/useMarketRates';
+import { useSignalBars } from '@/hooks/useSignalBars';
 import { useTrendPath } from '@/hooks/useTrendPath';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
@@ -196,9 +197,6 @@ const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
   noPrice: 'analysis.chart.levels.noPrice',
 };
 
-/** Die Bedienung liegt oben auf dem Chart: die Kerzen beginnen darunter (wie auf /formasyon) */
-const controlMargins = (width: number) => ({ top: width < 640 ? 0.4 : 0.3, bottom: 0.12 });
-
 /** Legendeneintrag als Schalter: blendet sein Element im Chart ein/aus (dieselben Werte wie das Zahnrad) */
 function LegendToggle({
   items,
@@ -282,6 +280,7 @@ export default function ZoneChartPanel({
   const viewKey = request ? `${request.accountId}|${request.symbol}|${request.timeframe}|${request.from}|${request.to}` : '';
   const rates = useMarketRates(request, nowSec);
   const data = rates.data;
+  const signalBars = useSignalBars(data, timeframe, offsetSec, nowSec);
   const showTrend = useAnalysisPrefsStore((st) => st.showTrend);
   const trendSettings = useAnalysisPrefsStore((st) => st.trend);
   const trend = useTrendPath({ accountId, symbol, timeframe, range, offsetSec, clockReady }, showTrend, trendSettings, nowSec);
@@ -730,10 +729,11 @@ export default function ZoneChartPanel({
             </div>
           )}
           {zone && chart && !isChartEmpty && (
-            <ChartCore
+            <ChartView
               key={`${accountId}|${symbol}`}
               workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'setup', account: accountId, symbol: symbol ?? '' }), symbol: symbol ?? '', view: 'analysis', syncIdentity: { source, account: accountId, symbol: symbol ?? '' } }}
-              workspaceOverlays={<AnalysisSettingsPanel inline />}
+              signalBars={signalBars}
+              modeOverlays={<AnalysisSettingsPanel inline />}
               clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
               data={chart}
               timeframeSec={tfSec}
@@ -752,8 +752,6 @@ export default function ZoneChartPanel({
               toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />}
               notes={overlays.notes}
               focus={focus && focus.view === viewKey ? focus : null}
-              marginsFor={controlMargins}
-              overlayLayout
               fullscreenOfPage
             />
           )}
