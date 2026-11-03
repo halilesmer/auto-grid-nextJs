@@ -1351,6 +1351,16 @@ kategorien:
           - Im Dialog Anzeige, Ebenen, den Schalter Wave aus- und einschalten.
         erwartet: Auf /chart frei und Setup stehen RSI(7) und Wave 5/35 wie auf /formasyon; die Schalter blenden sie aus und ein; die Nutzer-Indikatoren bleiben.
 
+      - id: UI-12
+        titel: "Kompakte Kopfleiste der Chartseiten bei schmaler Breite"
+        beschreibung: "Unter lg (1024 px, Handy und Tablet) steht die Kopfleiste der Chartseiten (/chart frei und Setup, /formasyon) im Fluss über dem Chart statt auf ihm (ChartPage, Plan „Ein Chart im System“, docs/journal/2026-11-03-chart-topbar-compact.md). Sie beginnt unter der schwebenden Navigation der App; die Kerzen beginnen an ihrer Unterkante, nichts verdeckt sie. Auf dem Handy (Container unter 30 rem) ordnet ChartTopBar die Teile in vier Zeilen: Konto und Setup bzw. Symbol; Modus, Zeitraum und Knöpfe; Zeiteinheiten; Ansicht (Chart/Statistik). Der obere Rand der Preisachse ist unter lg 10 % statt 30 %. Die zugeklappte Setup-Karte steht in einem eigenen Streifen über den Werkzeugen (--floating-card), die Chartfläche endet darüber, sie verdeckt den untersten Bereich nicht. Ab lg liegt die Kopfleiste wie bisher über dem Chart. Kein Werkzeug entfällt."
+        code: [frontend_nextjs/src/components/chart-page/ChartPage.tsx, frontend_nextjs/src/components/chart-page/ChartTopBar.tsx, frontend_nextjs/src/components/chart-page/ChartView.tsx, frontend_nextjs/src/components/chart-page/FloatingCard.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/app/chart/page.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-topbar.spec.ts (@UI-12) ausführen."
+          - "/chart frei, /chart Setup und /formasyon bei 375 × 812 öffnen und bei 1440 px vergleichen."
+        erwartet: "Bei 375 × 812 liegt die Unterkante der Kopfleiste nicht über dem Kursbereich, der Kursbereich ist mindestens 150 px hoch, die zugeklappte Setup-Karte liegt unter dem untersten Bereich, nichts läuft waagerecht über. Bei 1440 px bleibt die Kopfleiste über dem Chart."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)

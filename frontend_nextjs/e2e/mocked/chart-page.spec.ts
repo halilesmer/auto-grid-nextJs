@@ -48,7 +48,9 @@ for (const viewport of VIEWPORTS) {
       expect(surface && box).toBeTruthy();
       // links bleibt die 52 px breite Zeichenleiste (Entwurf)
       expect(box!.width).toBeGreaterThanOrEqual(surface!.width - 52 - 2);
-      expect(box!.height).toBeGreaterThanOrEqual(surface!.height * 0.6);
+      // Chart plus Reserven (Werkzeugkarte, zugeklappte Setup-Karte) füllen die Fläche unter der Kopfleiste (UI-12)
+      const reserve = await page.getByTestId('formation-main').evaluate(el => ['--workspace-card', '--floating-card'].reduce((sum, name) => sum + (parseFloat(el.style.getPropertyValue(name)) || 0), 0));
+      expect(box!.height + reserve).toBeGreaterThanOrEqual(surface!.height - 2);
 
       // Kopfleiste: Setup, Zeiteinheit, Bereich; zweite Zeile: Legenden-Schalter
       const topbar = page.getByTestId('chart-topbar');

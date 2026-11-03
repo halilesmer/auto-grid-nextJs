@@ -688,15 +688,18 @@ export default function ZoneChartPanel({
     <ChartPage
       title={t('analysis.title')}
       testId="chart-page"
-      surfaceBelowNav
       panelShown={false}
       panel={null}
       notices={null}
       topBar={
         <ChartTopBar
-          selectors={<>{chrome.account}{chrome.mode}{chrome.zone}</>}
+          account={chrome.account}
+          mode={chrome.mode}
+          target={chrome.zone}
           timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} />}
-          actions={<>{chrome.range}{chrome.view}<LicenseInfo /><AnalysisSettingsPanel /></>}
+          range={chrome.range}
+          view={chrome.view}
+          tools={<><LicenseInfo /><AnalysisSettingsPanel /></>}
           extra={
             zone && (
               <div className="flex min-w-0 items-center gap-x-4 text-[11px] text-muted-foreground" data-testid="chart-key">

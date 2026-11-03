@@ -83,7 +83,9 @@ test.describe('UI-11 schmale Breite', () => {
         if (narrow) {
           // Die Fläche endet über der Karte, die Lücke ist klein, und die Fläche ist nicht auf null gefallen
           await expect.poll(async () => (await box('workspace-toolbar')).y - (await bottomOf('analysis-chart'))).toBeGreaterThanOrEqual(0);
-          expect((await box('workspace-toolbar')).y - (await bottomOf('analysis-chart'))).toBeLessThanOrEqual(24);
+          // Die zugeklappte Setup-Karte hat einen eigenen Streifen über den Werkzeugen (--floating-card, UI-12)
+          const card = await page.getByTestId('formation-main').evaluate(el => parseFloat(el.style.getPropertyValue('--floating-card')) || 0);
+          expect((await box('workspace-toolbar')).y - (await bottomOf('analysis-chart'))).toBeLessThanOrEqual(24 + card);
           expect((await box('analysis-chart')).height).toBeGreaterThan(300);
         } else await expect.poll(async () => workspaceBottom - (await bottomOf('analysis-chart'))).toBeLessThanOrEqual(1);
       }

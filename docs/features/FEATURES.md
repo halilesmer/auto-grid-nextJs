@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-03 · **202/206** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-03 · **202/207** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -26,7 +26,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
-| 13 | **UI** – Oberfläche | 11/11 |
+| 13 | **UI** – Oberfläche | 11/12 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/22 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
 | 16 | **FRM** – Formationserkennung | 35/35 |
@@ -662,6 +662,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Alle Kerzenchartseiten laufen über die Hülle ChartView um ChartCore (Plan „Ein Chart im System“, docs/journal/2026-11-03-chart-u2-chartview.md). ChartView rechnet aus den geschlossenen Kerzen des Charts den System-RSI(7) und die Wave 5/35 (lib/formation/indicators, dieselbe Rechnung wie /formasyon) und zeigt sie als eigene Fenster unter den Kerzen, auf /chart frei, /chart im Setup-Modus und /formasyon. Im Dialog „Anzeige“, Abschnitt „Ebenen“, schalten die Schalter „RSI“ und „Wave“ die Fenster ein und aus (je Chart gespeichert). Die Nutzer-Indikatoren (RSI 14, EWO usw.) und ihre gespeicherten Layouts bleiben unverändert. Unter 71 rem Breite des Containers formation-main (Werkzeugkarte unten auf dem Chart) enden alle Fenster über der Karte, damit keine Bereichsknöpfe darunter liegen; ab 71 rem füllt der Chart die Fläche.
   - **Prüfung:** /chart im freien Modus und im Setup-Modus öffnen. → Prüfen, dass unter den Kerzen die Fenster RSI und Wave stehen. → Im Dialog Anzeige, Ebenen, den Schalter Wave aus- und einschalten.
   - **Erwartet:** Auf /chart frei und Setup stehen RSI(7) und Wave 5/35 wie auf /formasyon; die Schalter blenden sie aus und ein; die Nutzer-Indikatoren bleiben.
+- [ ] **UI-12** Kompakte Kopfleiste der Chartseiten bei schmaler Breite — 🖥️ e2e ⏳
+  - Unter lg (1024 px, Handy und Tablet) steht die Kopfleiste der Chartseiten (/chart frei und Setup, /formasyon) im Fluss über dem Chart statt auf ihm (ChartPage, Plan „Ein Chart im System“, docs/journal/2026-11-03-chart-topbar-compact.md). Sie beginnt unter der schwebenden Navigation der App; die Kerzen beginnen an ihrer Unterkante, nichts verdeckt sie. Auf dem Handy (Container unter 30 rem) ordnet ChartTopBar die Teile in vier Zeilen: Konto und Setup bzw. Symbol; Modus, Zeitraum und Knöpfe; Zeiteinheiten; Ansicht (Chart/Statistik). Der obere Rand der Preisachse ist unter lg 10 % statt 30 %. Die zugeklappte Setup-Karte steht in einem eigenen Streifen über den Werkzeugen (--floating-card), die Chartfläche endet darüber, sie verdeckt den untersten Bereich nicht. Ab lg liegt die Kopfleiste wie bisher über dem Chart. Kein Werkzeug entfällt.
+  - **Prüfung:** Playwright-Test e2e/mocked/chart-topbar.spec.ts (@UI-12) ausführen. → /chart frei, /chart Setup und /formasyon bei 375 × 812 öffnen und bei 1440 px vergleichen.
+  - **Erwartet:** Bei 375 × 812 liegt die Unterkante der Kopfleiste nicht über dem Kursbereich, der Kursbereich ist mindestens 150 px hoch, die zugeklappte Setup-Karte liegt unter dem untersten Bereich, nichts läuft waagerecht über. Bei 1440 px bleibt die Kopfleiste über dem Chart.
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 

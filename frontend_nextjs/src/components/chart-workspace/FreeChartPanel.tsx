@@ -78,14 +78,17 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
   return <ChartPage
     title={t('analysis.title')}
     testId="chart-page"
-      surfaceBelowNav
     panelShown={false}
     panel={null}
     notices={null}
     topBar={<ChartTopBar
-      selectors={<>{chrome.account}{chrome.mode}{symbolField}</>}
+      account={chrome.account}
+      mode={chrome.mode}
+      target={symbolField}
       timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} />}
-      actions={<>{chrome.range}{chrome.view}<LicenseInfo /><AnalysisSettingsPanel /></>}
+      range={chrome.range}
+      view={chrome.view}
+      tools={<><LicenseInfo /><AnalysisSettingsPanel /></>}
     />}
     surface={<div className="absolute inset-0" data-testid="free-chart-panel">
       {data && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
