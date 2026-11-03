@@ -280,3 +280,53 @@ test.describe('Laufende Kerze nur zur Anzeige', () => {
     expect(runningBar(null, 12)).toBeNull();
   });
 });
+
+test.describe('Gemessener, aber gehaltener Endpunkt (pointHeld)', () => {
+  /** OBO: Bruch B gemessen, das Urteil bleibt „im Aufbau“; B steht nicht in `points`, die Lage trägt `heldPoint` */
+  const held: Candidate = {
+    code: 'OBO',
+    side: 'sell',
+    tf: 'H4',
+    points: { LS: point(0, 10), K: point(1, 20), RS: point(2, 15) },
+    verdict: 'forming',
+    pointHeld: true,
+    heldPoint: point(3, 12),
+    checks: [],
+    drawings: [{ id: 'Z-1', tool: 'zigzag', anchors: [point(0, 10), point(1, 20), point(2, 15)], rules: ['OBO-01'], side: 'sell' }],
+  };
+  const heldLayout = (c: Candidate) =>
+    layoutDrawings({
+      candidate: c,
+      form: 'OBO',
+      width: 500,
+      lastBar: { time: 1500, close: 22 },
+      x: (time) => (time - 1000) / 2,
+      y: (price) => 300 - price * 10,
+      yRsi: (value) => 400 - value,
+      yWave: (value) => 600 - value,
+      text: (key) => key,
+      fmt: (n) => String(n),
+    });
+
+  frm('FRM-20', 'B gemessen und gehalten: durchgezogen an der Bruchkerze, Name „B“ ohne Fragezeichen, kein offener Kreis', () => {
+    const zig = heldLayout(held).find((g) => g.id === 'Z-1')!;
+    expect(zig.prims.some((p) => p.kind === 'text' && p.text === 'B?')).toBe(false);
+    expect(zig.prims.some((p) => p.kind === 'circle' && p.open)).toBe(false);
+    expect(zig.prims.filter((p) => p.kind === 'line').every((l) => l.kind === 'line' && !l.dashed)).toBe(true);
+    expect(zig.prims.find((p) => p.kind === 'text' && p.text === 'B')).toBeDefined();
+    expect(zig.prims.filter((p) => p.kind === 'circle').some((p) => p.kind === 'circle' && p.x === 150 && p.y === 180 && !p.open)).toBe(true);
+  });
+
+  frm('FRM-20', 'Zickzack endet in einer Zielprojektion (Trendfortsetzung): B steht als Punkt mit Namen, aber ohne Strich vom Ziel', () => {
+    const tdf: Candidate = { ...held, code: 'TDF', drawings: [{ id: 'Z-1', tool: 'zigzag', anchors: [point(0, 10), point(1, 20), point(2, 30)], rules: ['TDF-01'], side: 'sell' }] };
+    const zig = layoutDrawings({ candidate: tdf, form: 'TDF', width: 500, lastBar: { time: 1500, close: 22 }, x: (time) => (time - 1000) / 2, y: (price) => 300 - price * 10, yRsi: (v) => 400 - v, yWave: (v) => 600 - v, text: (key) => key, fmt: (n) => String(n) }).find((g) => g.id === 'Z-1')!;
+    expect(zig.prims.filter((p) => p.kind === 'line')).toHaveLength(2);
+    expect(zig.prims.some((p) => p.kind === 'text' && p.text === 'B')).toBe(true);
+  });
+
+  frm('FRM-20', 'ohne gehaltenen Punkt bleibt der offene Weg zu „B?“', () => {
+    const { heldPoint: _h, pointHeld: _p, ...open } = held;
+    const zig = heldLayout(open).find((g) => g.id === 'Z-1')!;
+    expect(zig.prims.some((p) => p.kind === 'text' && p.text === 'B?')).toBe(true);
+  });
+});

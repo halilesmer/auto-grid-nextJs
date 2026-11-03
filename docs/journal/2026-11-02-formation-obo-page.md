@@ -41,5 +41,6 @@ areas: [frontend, tests]
 
 ## Open points
 - [x] Because `B` is missing while the verdict is `forming`, the checklist note says "B not yet reached" also when the break exists and only `settle` holds the verdict back. The "not measurable" note is then not shown for OBO. Done 2026-11-03 (PR 323): the checker sets `pointHeld` when `settle` turns `valid` into `forming`. The note then says "B is reached. The confirmation is still pending." (`formation.note.held`) and the "not measurable" note follows (FRM-19 and FRM-10 tests, red before the change).
-- The drawing layout names only points that are anchors of a zigzag. N1, N2 and `B` get no circle and no name.
+- [x] The chart still drew the held `B` as open (`B?`, dashed, open circle). Done 2026-11-03: the checker sets `heldPoint` (the break candle) next to `pointHeld`; the drawing layout then draws `B` solid with the name `B` at the break candle. `points.B` stays empty, so the alarm target (FRM-27, FRM-30), the badges and the search do not change (FRM-20 test, red before the change).
+- The drawing layout names only points that are anchors of a zigzag. N1, N2 and a confirmed `B` get no circle and no name. Only the held `B` (`heldPoint`) is drawn, with a solid line from the last measured zigzag point.
 - `basesOf` always gives a candidate for the latest head without a right shoulder. It has the verdict `forming` and counts as a hit in the badges.

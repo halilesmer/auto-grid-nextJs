@@ -178,7 +178,7 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: OboBase): 
   if (rs) points.RS = anchorAt(bars, rs.idx, rs.price);
   // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
   if (brk !== null && n1 && n2 && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld ? { pointHeld } : {}) };
+  return { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld && brk !== null ? { pointHeld, heldPoint: anchorAt(bars, brk, bars[brk].close) } : {}) };
 }
 
 type Full = { ls: ObPoint; n1: ObPoint; k: ObPoint; n2: ObPoint; rs: ObPoint };

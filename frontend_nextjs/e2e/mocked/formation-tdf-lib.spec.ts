@@ -558,3 +558,13 @@ frm('Urteil: der Bruch liegt vor, nur settle hält „gültig“ zurück: pointH
   expect(run(FLAG_NO_BREAK, FLAG_SPEC).pointHeld).toBeUndefined();
   expect(run(FLAG, FLAG_SPEC).pointHeld).toBeUndefined();
 });
+
+frm('Urteil: gehaltener Bruch trägt seine Lage in heldPoint (Bruchkerze), points.B bleibt leer', () => {
+  const held = run(zig(FLAG_UP, 2, 3), { form: 'flag', at: [12, 14, 16, 18] });
+  expect(held.points.B).toBeUndefined();
+  // Die Lage ist der Schluss einer Kerze der Reihe (nicht die Nackenlinie)
+  const rows = zig(FLAG_UP, 2, 3);
+  expect(rows[held.heldPoint!.time / H4][3]).toBe(held.heldPoint!.price);
+  expect(run(FLAG_NO_BREAK, FLAG_SPEC).heldPoint).toBeUndefined();
+  expect(run(FLAG, FLAG_SPEC).heldPoint).toBeUndefined();
+});

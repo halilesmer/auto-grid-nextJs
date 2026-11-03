@@ -420,3 +420,12 @@ frm('Urteil: der Bruch liegt vor, nur settle hält „gültig“ zurück: pointH
   expect(run(NO_BREAK, I).pointHeld).toBeUndefined();
   expect(run(BASE, I).pointHeld).toBeUndefined();
 });
+
+frm('Urteil: gehaltener Bruch trägt seine Lage in heldPoint (Bruchkerze), points.B bleibt leer', () => {
+  const held = run(SHORT, SHORT_AT);
+  expect(held.points.B).toBeUndefined();
+  // Die Lage ist der Schluss einer Kerze der Reihe (nicht die Nackenlinie)
+  expect(SHORT[held.heldPoint!.time / H4][3]).toBe(held.heldPoint!.price);
+  expect(run(NO_BREAK, I).heldPoint).toBeUndefined();
+  expect(run(BASE, I).heldPoint).toBeUndefined();
+});
