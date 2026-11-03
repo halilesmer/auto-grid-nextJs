@@ -39,6 +39,19 @@ The `Trend` button is missing on `/formasyon` and `/backtest`. Only the two `/ch
 
 Approved design (the owner must give access): https://claude.ai/artifact/4mXjBGcm6mby1MNghnMT4x. The table above records its content.
 
+## Decision of 2026-11-03: one page "Chart"
+
+The owner wants exactly one chart and one chart component in the system.
+
+| Topic | Decision |
+|---|---|
+| Target | One page "Chart" made of Formation and Analysis. The Analysis page goes. The `/backtest` page stays untouched. |
+| Steps | S5 and S6b go. New steps: D0 (design), U1 (data source and trend over the range), U2 (shell `ChartView` with the shared layers), U3 (merge the pages). Each step is one PR. |
+| Design D0 | Approved: https://claude.ai/artifact/4mXjBGcm6mby1MNghnMT4x, page "Ein Chart · 03.11." |
+| Condition | No tool is deleted. All developments stay. Only duplicate shells go, never a function. |
+
+Result of U1: `2026-11-03-chart-u1-trend-range.md`.
+
 ## Steps
 
 Each step is one PR. The steps run in sequence because they change the same files. Structure comes before behavior.

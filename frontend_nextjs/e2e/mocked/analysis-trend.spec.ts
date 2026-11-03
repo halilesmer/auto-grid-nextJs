@@ -55,6 +55,20 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     await expect(chart(page)).toHaveAttribute('data-trend', '0');
   });
 
+  test('Der Zug rechnet über den Zeitraum des Charts plus Vorlauf davor, auch in der Vergangenheit', { tag: '@ANA-21' }, async ({ page, worker }) => {
+    worker.state.ratesSeries = { D1: D1_SERIES };
+    await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=D1&from=2025-03-01&to=2025-03-31`);
+    await expect(chart(page)).toHaveAttribute('data-bars', String(bars.length));
+    await trend(page).click();
+    await expect(chart(page)).toHaveAttribute('data-trend', '6');
+    const calls = ratesCalls(worker).map((c) => ({ from: Number(c.query.get('from')), to: Number(c.query.get('to')) }));
+    const chartCall = calls.reduce((a, b) => (b.from > a.from ? b : a));
+    const trendCall = calls.reduce((a, b) => (b.from < a.from ? b : a));
+    expect(new Set(calls.map((c) => c.to))).toEqual(new Set([chartCall.to]));
+    // D1: HISTORY_DAYS = 400 Tage Vorlauf vor dem Anfang des Charts
+    expect(trendCall.from).toBe(chartCall.from - 400 * 86400);
+  });
+
   test('Auf M30 ist der Button gesperrt und es wird nichts für den Zug geladen, auch wenn er an gespeichert ist', { tag: '@ANA-21' }, async ({ page, worker }) => {
     await page.addInitScript(([key]) => localStorage.setItem(key, JSON.stringify({ state: { showTrend: true }, version: 0 })), [PREFS_KEY]);
     await open(page, worker, 'M30');
