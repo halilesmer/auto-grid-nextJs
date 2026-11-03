@@ -7,7 +7,7 @@
  */
 import { wickEnd, zoneGeometry, closesBeyond, outward, otherSide, type Rect, type ZoneGeometry, type ZoneSide } from './frz';
 import type { Pivot } from './trd';
-import { formationTrend } from './trdFormation';
+import { formationTrendDir } from './trdFormation';
 import { CDT_PARAMS } from './params';
 import { rsiExtreme, tradeSideOf } from './sig';
 import type { Env } from './reasons';
@@ -118,7 +118,7 @@ function violated(env: Env, tf: Env['tf'], es: ZoneSide, h1: CdtPoint): boolean 
 
 /** Trendrichtung der Formations-ZE beim Anlauf zu H2: nur Kerzen bis H2 (CDT-06) */
 function trendDirAt(env: Env, tf: Env['tf'], idx: number): 'up' | 'down' | null {
-  return formationTrend(env.views.get(tf)!, idx).dir;
+  return formationTrendDir(env.views.get(tf)!, idx);
 }
 
 export const flag = (cond: boolean): CheckState => (cond ? 'met' : 'unmet');
