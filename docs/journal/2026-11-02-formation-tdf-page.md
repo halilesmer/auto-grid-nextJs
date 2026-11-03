@@ -47,3 +47,4 @@ areas: [frontend, tests]
 - **Noise:** 14 of the 102 unrelated fixtures show a valid TDF, mostly a bowl. The bowl has few rules (a turn between 0.236 and 0.382, quiet candles, a close above the zone), so it matches many charts. The rules are unchanged by this step.
 - **Best candidate per timeframe:** the page shows one TDF candidate per timeframe, the one with the fewest violated rules. On `tdf-tri-h4-01` the check at the end of the series prefers a bowl; at the time of the page test it is the triangle.
 - [x] The checklist note says "B not yet reached" also when the break exists and only `settle` holds the verdict back (same as OBO). Done 2026-11-03 (PR 323): same `pointHeld` flag and note as for OBO (FRM-11 test, red before the change).
+- [x] The chart still drew the held `B` as open (`B?`). Done 2026-11-03: same `heldPoint` anchor as for OBO; the layout draws `B` solid at the break candle, `points.B` stays empty (FRM-11 and FRM-20 tests, red before the change).
