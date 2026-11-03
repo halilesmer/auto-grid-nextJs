@@ -314,7 +314,10 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (stateOf('TDF-04') !== 'met') verdict = 'forming';
+  const unsettled = verdict;
   verdict = settle(verdict, withDrawings, exemptFor('TDF', withDrawings));
+  // Der Bruch liegt vor, nur eine nicht messbare Pflicht hält das Urteil auf „im Aufbau“: die Checkliste sagt dann nicht „B nicht erreicht“
+  const pointHeld = unsettled === 'valid' && verdict === 'forming';
 
   const points: Candidate['points'] = { H1: anchorAt(bars, h1.idx, h1.price) };
   if (imp.s) points.S = anchorAt(bars, imp.s.idx, imp.s.price);
@@ -338,7 +341,7 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
   if (base.form === 'box') add('FLOOR', base.bottoms[0]);
   // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
   if (brk !== null && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  return { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld ? { pointHeld } : {}) };
 }
 
 interface DrawInput {

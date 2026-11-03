@@ -112,6 +112,9 @@ test('Sichtbarkeit und Indikatorlöschung wirken nur auf die eigenen Indikatoren
   await page.getByRole('button', { name: msg('cw.rail.removeIndicators'), exact: true }).click();
   await page.getByRole('button', { name: msg('confirm.delete'), exact: true }).click();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
+  // The store writes through a browser lock, asynchronously. Reload only after the write, or the reload loses it.
+  const key = await page.getByTestId('chart-workspace').getAttribute('data-context');
+  await expect.poll(() => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey!]?.indicators?.length, key)).toBe(0);
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
 });
