@@ -24,7 +24,7 @@ def _decode_log_bytes(raw: bytes) -> str:
 
 
 @router.get("/logs/{account_id}", dependencies=[Depends(account_access)])
-async def get_logs(
+def get_logs(
     account_id: str,
     log_type: str = Query("all", description="'robot' | 'mt5' | 'metrics' | 'all'"),
     lines: int = Query(200, ge=1, le=2000, description="Son kaç satır/kayıt döneceği"),
@@ -99,7 +99,7 @@ async def get_logs(
 
 
 @router.delete("/logs/{account_id}", dependencies=[Depends(account_access)])
-async def clear_logs(account_id: str):
+def clear_logs(account_id: str):
     account_dir = os.path.join(LOGS_DIR, account_id)
     if os.path.exists(account_dir) and os.path.isdir(account_dir):
         for file_name in os.listdir(account_dir):
