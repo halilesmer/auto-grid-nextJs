@@ -79,10 +79,16 @@ async function openSettings(page: Page) {
   return page.getByTestId('analysis-settings');
 }
 
+/** Das Trade-Archiv liegt im Reiter „Trades“ der schwebenden Karte (UI-10) */
+async function openTradesTab(page: Page) {
+  await page.getByTestId('chart-floating-card').getByRole('tab', { name: msg('chart.card.trades') }).click();
+}
+
 test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
   test('Teilschließung, Umkehr und „Zone unbekannt“ in Liste und Chart', { tag: '@ANA-08' }, async ({ page, worker }) => {
     seed(worker);
     await page.goto(URL);
+    await openTradesTab(page);
 
     const archive = page.getByTestId('trades-archive');
     const rows = archive.getByTestId('trade-row');
@@ -128,6 +134,7 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
     const now = Math.floor(Date.now() / 1000) + worker.state.brokerOffset;
     worker.state.dealsMissing = [{ from: now - 2 * DAY, to: now, reason: 'busy' }];
     await page.goto(URL);
+    await openTradesTab(page);
     await expect(page.getByTestId('trades-missing')).toContainText(msg('analysis.data.reason.busy'));
     await expect(page.getByTestId('trades-empty')).toHaveText(msg('analysis.trades.empty'));
   });
@@ -163,6 +170,7 @@ test.describe('ANA-12 MFE/MAE im Chart-Tab', () => {
   test('Dieselbe Tabelle: Knopf berechnet MFE/MAE für alle Zeilen', { tag: '@ANA-12' }, async ({ page, worker }) => {
     seed(worker);
     await page.goto(URL);
+    await openTradesTab(page);
 
     const archive = page.getByTestId('trades-archive');
     await expect(archive.getByTestId('trade-row')).toHaveCount(6);

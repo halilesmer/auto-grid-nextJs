@@ -1328,6 +1328,18 @@ kategorien:
           - Fenster auf 375 px Breite verkleinern.
         erwartet: Konto, Bot-Steuerung und Prüfintervall stehen in einer Zeile. Das ⋯-Menü zeigt Log, Bearbeiten, Löschen und Neues Konto und schließt mit Escape. Beim Scrollen bleiben Leiste und Kennzahlen unter der Kopfzeile sichtbar; nach 📌 scrollen die Kennzahlen mit, die Leiste bleibt. Bei 375 px steht nichts über den Rand.
 
+      - id: UI-10
+        titel: Chartseiten mit gemeinsamem Gerüst (/chart)
+        beschreibung: Alle Kerzenchartseiten folgen dem Vorbild von /formasyon (Plan docs/journal/2026-11-01-unified-chart-page.md). Auf /chart (frei und Setup) füllt der Chart die Seite; es gibt keinen Seitentitel, keine Karte um den Chart (ChartFrame) und keinen Seitenscroll. Die Kopfleiste trägt Konto, Modus, Symbol bzw. Setup, Zeiteinheit, Bereich und den Schalter Chart/Statistik. Die zweite Zeile trägt die Legenden-Schalter (nur im Setup-Modus). Im Setup-Modus schwebt auf dem Chart eine Karte mit Zonenkarte und Live-Werten (Reiter Übersicht) sowie den Trades (Reiter Trades). Warnungen schweben auf dem Chart; die Datenqualitäts-Warnung bleibt sichtbar (docs/analyse-regeln.md §3, §7). Die Statistik bleibt eine normale Seite. Bei 375, 1024 und 1440 px entsteht kein horizontaler Überlauf.
+        code: [frontend_nextjs/src/app/chart/page.tsx, frontend_nextjs/src/components/chart-page/ChartPage.tsx, frontend_nextjs/src/components/chart-page/ChartTopBar.tsx, frontend_nextjs/src/components/chart-page/ChartOverlays.tsx, frontend_nextjs/src/components/chart-page/FloatingCard.tsx, frontend_nextjs/src/components/chart/ZoneChartPanel.tsx, frontend_nextjs/src/components/chart-workspace/FreeChartPanel.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx]
+        tiers: [e2e]
+        pruefung:
+          - /chart im freien Modus und im Setup-Modus öffnen.
+          - Prüfen, dass kein Seitentitel und keine Karte um den Chart steht und die Seite nicht scrollt.
+          - Im Setup-Modus Legenden-Schalter, schwebende Karte und ihren Reiter Trades ansehen.
+          - Bei 375, 1024 und 1440 px Breite wiederholen.
+        erwartet: Der Chart füllt die Seite. Konto, Modus, Setup bzw. Symbol, Zeiteinheit und Bereich stehen in der Kopfleiste, die Legenden-Schalter in der zweiten Zeile, Zonenkarte, Live-Werte und Trades in der schwebenden Karte. Kein Seitentitel, kein Seitenscroll, kein horizontaler Überlauf.
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)

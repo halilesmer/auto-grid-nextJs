@@ -146,6 +146,8 @@ interface ChartCoreProps {
   until?: number;
   /** Chart füllt die ganze Fläche, die Bedienung liegt darauf (bis alle Seiten so aussehen: Journal 2026-11-01) */
   overlayLayout?: boolean;
+  /** Vollbild der ganzen Chartseite statt nur des Charts (ChartPage) */
+  fullscreenOfPage?: boolean;
   surfaceProps?: HTMLAttributes<HTMLDivElement> & Record<`data-${string}`, string>;
   /** Zeichenfläche über dem Chart; nur mit overlayLayout */
   renderOverlay?: (scene: ChartScene) => ReactNode;
@@ -222,6 +224,7 @@ export function ChartCore({
   marginsFor,
   until,
   overlayLayout = false,
+  fullscreenOfPage = false,
   surfaceProps,
   renderOverlay,
 }: ChartCoreProps) {
@@ -278,6 +281,7 @@ export function ChartCore({
   const hasCurves = !!(balance || equity);
   const hasRsi = !!systemRsi;
   const hasWave = !!systemWave;
+  const hasNotes = notes !== undefined;
   const marginsForRef = useRef(marginsFor);
   useEffect(() => {
     marginsForRef.current = marginsFor;
@@ -355,10 +359,12 @@ export function ChartCore({
         return;
       }
       const time = Number(param.time);
-      setHover({ bar: barByTimeRef.current.get(time) ?? null, time });
+      const bar = barByTimeRef.current.get(time) ?? null;
+      // Gleiche Kerze: kein neuer Zustand, sonst rendert jede Mausbewegung den Chart neu
+      setHover((prev) => (prev && prev.time === time && prev.bar === bar ? prev : { bar, time }));
     };
-    // Die Legende unter dem Fadenkreuz gibt es nur im Layout mit Karte
-    if (!overlayLayout) chart.subscribeCrosshairMove(onMove);
+    // OHLC unter dem Fadenkreuz gibt es nur im Layout mit Karte; die Trade-Notizen (notes) gibt es in beiden
+    if (!overlayLayout || hasNotes) chart.subscribeCrosshairMove(onMove);
     return () => {
       forgetView.current?.();
       forgetView.current = null;
@@ -381,7 +387,7 @@ export function ChartCore({
       shownRunning.current = null;
       runningCount.current = 0;
     };
-  }, [hasCurves, hasRsi, hasWave, overlayLayout]);
+  }, [hasCurves, hasRsi, hasWave, hasNotes, overlayLayout]);
 
   // Der Abstand für die Bedienung auf dem Chart hängt von der Breite ab
   useEffect(() => {
@@ -528,7 +534,7 @@ export function ChartCore({
         return;
       }
       restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
-      forgetView.current = rememberChartView(chart, surfaceRef.current ?? el, workspaceKey, () => pointsRef.current.length + runningCount.current);
+      forgetView.current = rememberChartView(chart, surfaceRef.current ? [el, surfaceRef.current] : [el], workspaceKey, () => pointsRef.current.length + runningCount.current);
     };
     // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
     // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
@@ -715,11 +721,19 @@ export function ChartCore({
     'data-pauses': data.pauses.length,
   };
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage}>
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
       <div ref={surfaceRef} {...surfaceProps} className="absolute inset-y-0 left-[52px] right-0 isolate overflow-hidden bg-card">
         <div {...hostAttributes} className="absolute inset-0" />
+        {hoverNotes.length > 0 && (
+          // Unten links über der Statuszeile: oben stehen die Hinweise der Seite
+          <div className="pointer-events-none absolute bottom-9 left-[60px] z-10 flex max-w-[60%] flex-col gap-0.5 rounded bg-card/90 px-2 py-1 font-mono text-[11px] text-foreground" data-testid="chart-legend">
+            {hoverNotes.map((n, i) => (
+              <span key={i} data-testid="chart-legend-note">{n}</span>
+            ))}
+          </div>
+        )}
         {scene && !scene.binding.isDisposed() && renderOverlay?.(scene)}
       </div>
     ) : (

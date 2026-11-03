@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { BarChart3, CandlestickChart } from 'lucide-react';
 
 import { FreeChartPanel } from '@/components/chart-workspace/FreeChartPanel';
-import { Choice } from '@/components/chart-workspace/SettingsDialog';
+import { ChartModeSelect, type ChartChrome } from '@/components/chart-page/ChartTopBar';
+import { ChartNotice } from '@/components/chart-page/ChartOverlays';
 import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import { AccountDropdown } from '@/components/account/components';
 import { useAccounts } from '@/components/account/hooks';
@@ -114,6 +115,65 @@ function AnalysisView() {
     { id: 'stats', label: t('analysis.tab.stats'), hint: t('analysis.tab.stats.hint'), icon: <BarChart3 size={14} /> },
   ];
 
+  const account = (
+    <div className="min-w-0 flex-1 sm:flex-none sm:[&>[data-tooltip-scope]]:w-56">
+      <AccountDropdown
+        accounts={accounts}
+        selectedAccount={accountId}
+        activeAccount={activeAccount}
+        onSelect={(id) => {
+          if (id !== accountId) setAccount(id);
+        }}
+      />
+    </div>
+  );
+  const zoneSelect = (
+    <div className="w-full sm:w-auto">
+      <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
+    </div>
+  );
+  const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" />;
+  const chrome: ChartChrome = {
+    account,
+    mode: <ChartModeSelect value={mode} onChange={setMode} />,
+    zone: zoneSelect,
+    range: <DateRangePicker value={range} today={today} onChange={setRange} />,
+    view: viewTabs,
+    notices: (
+      <>
+        <ChartNotice>
+          <BrokerClockNotice state={clock} />
+        </ChartNotice>
+        {settingsError && (
+          <ChartNotice>
+            <Alert tone="danger" title={t('analysis.zone.failed')}>
+              {settingsError}
+            </Alert>
+          </ChartNotice>
+        )}
+      </>
+    ),
+  };
+
+  // Chart-Ansicht: Chart füllt die Seite (ChartPage); Statistik und fehlendes Konto bleiben eine normale Seite
+  if (accountKnown && accountId && tab === 'chart') {
+    if (mode === 'free') return <FreeChartPanel key={accountId} accountId={accountId} symbol={symbol} onSymbol={setSymbol} timeframe={timeframe} onTimeframe={setTimeframe} range={bounds} offsetSec={offsetSec} clockReady={!clock.loading} chrome={chrome} />;
+    return (
+      <ZoneChartPanel
+        accountId={accountId}
+        zoneId={zoneId}
+        zones={zones}
+        timeframe={timeframe}
+        onTimeframe={setTimeframe}
+        range={bounds}
+        offsetSec={offsetSec}
+        clockReady={!clock.loading}
+        prefs={prefs}
+        chrome={chrome}
+      />
+    );
+  }
+
   const renderTab = () => {
     if (!accountId) {
       return (
@@ -129,22 +189,6 @@ function AnalysisView() {
             {t('analysis.account.notFound', { id: accountId })}
           </Alert>
         )
-      );
-    }
-    if (tab === 'chart') {
-      if (mode === 'free') return <FreeChartPanel key={accountId} accountId={accountId} symbol={symbol} onSymbol={setSymbol} timeframe={timeframe} onTimeframe={setTimeframe} range={bounds} offsetSec={offsetSec} clockReady={!clock.loading} />;
-      return (
-        <ZoneChartPanel
-          accountId={accountId}
-          zoneId={zoneId}
-          zones={zones}
-          timeframe={timeframe}
-          onTimeframe={setTimeframe}
-          range={bounds}
-          offsetSec={offsetSec}
-          clockReady={!clock.loading}
-          prefs={prefs}
-        />
       );
     }
     return (
@@ -181,8 +225,7 @@ function AnalysisView() {
             }}
           />
         </div>
-        {accountKnown && tab === 'chart' && <Choice name="cw.mode" value={mode} options={['free', 'setup']} onChange={value => setMode(value as 'free' | 'setup')} />}
-        {accountKnown && (mode === 'setup' || tab === 'stats') && (
+        {accountKnown && tab === 'stats' && (
           <div className="w-full sm:w-auto">
             <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
           </div>

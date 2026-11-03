@@ -5,11 +5,16 @@ import { msg } from '../fixtures/i18n';
 const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
+/** Höhe einer Linie: `offset` zählt ab der Unterkante der Kopfleiste (UI-10: der Chart füllt die Seite, die Kopfleiste liegt auf ihm) */
+async function lineY(page: Page, offset: number) {
+  const bar = await page.getByTestId('chart-topbar').boundingBox(); if (!bar) throw new Error('Topbar missing');
+  return bar.y + bar.height + offset;
+}
 async function drawLine(page: Page, offset = 60) {
   await page.getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
   await page.getByTestId('tool-horizontal-line').click();
   const box = await page.getByTestId('analysis-chart').boundingBox(); if (!box) throw new Error('Chart missing');
-  await page.mouse.click(box.x + box.width * .45, box.y + offset);
+  await page.mouse.click(box.x + box.width * .45, await lineY(page, offset));
   await expect(page.getByRole('button', { name: msg('cw.undo'), exact: true })).toBeEnabled();
 }
 async function storedDrawings(page: Page, shared = false) {
@@ -201,9 +206,9 @@ test('Mehrere ausgewählte Zeichnungen bleiben bis zur Löschbestätigung vorgem
   await page.getByRole('button', { name: msg('cw.selection'), exact: true }).click();
   const box = await page.getByTestId('analysis-chart').boundingBox();
   if (!box) throw new Error('Chart missing');
-  await page.mouse.click(box.x + box.width * .45, box.y + 110);
+  await page.mouse.click(box.x + box.width * .45, await lineY(page, 110));
   await page.keyboard.down('Control');
-  await page.mouse.click(box.x + box.width * .45, box.y + 60);
+  await page.mouse.click(box.x + box.width * .45, await lineY(page, 60));
   await page.keyboard.up('Control');
   await page.getByRole('button', { name: msg('cw.rail.trash'), exact: true }).click();
   await page.getByRole('button', { name: msg('cw.rail.removeSelected'), exact: true }).click();
