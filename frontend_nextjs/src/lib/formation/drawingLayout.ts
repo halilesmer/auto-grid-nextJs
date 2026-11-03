@@ -46,6 +46,9 @@ const RSI_ZONES = new Set(['Z-CDT-04']);
 const fibLevelPrice = ([start, end, from]: [Anchor, Anchor, Anchor?], level: number): number =>
   from ? from.price + level * (end.price - start.price) : end.price + level * (start.price - end.price);
 
+/** Zeichnet die Erkennung einen Zickzack? Dieselbe Quelle wie `primsOf`; die Legende zeigt die Zickzack-Zeile nur dann */
+export const drawsZigzag = (c: Candidate): boolean => c.drawings.some((d) => d.tool === 'zigzag');
+
 const pointName = (c: Candidate, time: number, price: number): string | null =>
   Object.entries(c.points).find(([, a]) => a.time === time && a.price === price)?.[0] ?? null;
 

@@ -167,7 +167,10 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: OboBase): 
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (rsPending || n1 === null || n2 === null || unmet('OBO-11')) verdict = 'forming';
+  const unsettled = verdict;
   verdict = settle(verdict, withDrawings, exemptFor('OBO', withDrawings));
+  // Der Bruch liegt vor, nur eine nicht messbare Pflicht hält das Urteil auf „im Aufbau“: die Checkliste sagt dann nicht „B nicht erreicht“
+  const pointHeld = unsettled === 'valid' && verdict === 'forming';
 
   const points: Candidate['points'] = { LS: anchorAt(bars, ls.idx, ls.price), K: anchorAt(bars, k.idx, k.price) };
   if (n1) points.N1 = anchorAt(bars, n1.idx, n1.price);
@@ -175,7 +178,7 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: OboBase): 
   if (rs) points.RS = anchorAt(bars, rs.idx, rs.price);
   // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
   if (brk !== null && n1 && n2 && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  return { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld ? { pointHeld } : {}) };
 }
 
 type Full = { ls: ObPoint; n1: ObPoint; k: ObPoint; n2: ObPoint; rs: ObPoint };
