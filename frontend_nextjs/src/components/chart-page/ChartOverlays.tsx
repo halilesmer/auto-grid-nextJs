@@ -5,7 +5,7 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react';
 /**
  * Hinweise und schwebende Karte einer Chartseite. Die Kopfleiste ist so hoch, wie ihre Zeilen umbrechen; deshalb misst die
  * Komponente ihre Unterkante und legt sie als `--chart-top` auf `formation-main`. Hinweise und Karte (ab lg) beginnen darunter.
- * Unter lg liegt die Karte unten über den Werkzeugen des Charts (bottom-8, etwa 3 rem hoch).
+ * Unter lg liegt die Karte unten über den Werkzeugen des Charts (bottom-8, bei 375 px zwei Zeilen, etwa 7,5 rem hoch).
  */
 export function ChartOverlays({ notices, children }: { notices: ReactNode; children?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);

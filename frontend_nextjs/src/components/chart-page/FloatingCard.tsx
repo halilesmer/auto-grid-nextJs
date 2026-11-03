@@ -19,7 +19,7 @@ export interface FloatingCardTab {
 
 /**
  * Schwebende Karte auf dem Chart mit Titel, Reitern und Einklappen. Ab lg rechts unter der Kopfleiste (`--chart-top`, ChartOverlays),
- * darunter unten über den Werkzeugen des Charts und dort zunächst eingeklappt.
+ * darunter unten über den Werkzeugen (zwei Zeilen hoch) des Charts und dort zunächst eingeklappt.
  */
 export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCardTab[] }) {
   const t = useT();
@@ -32,7 +32,7 @@ export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCar
       data-testid="chart-floating-card"
       className={cn(
         'pointer-events-auto absolute flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
-        'max-lg:bottom-[5.5rem] max-lg:left-[64px] max-lg:right-3 lg:right-[84px] lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
+        'max-lg:bottom-[8.5rem] max-lg:left-[64px] max-lg:right-3 lg:right-[84px] lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
         tab.wide ? 'lg:w-[min(46rem,calc(100%-9rem))]' : 'lg:w-80',
       )}
     >

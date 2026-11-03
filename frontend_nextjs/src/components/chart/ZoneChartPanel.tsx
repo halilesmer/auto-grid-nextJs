@@ -689,6 +689,7 @@ export default function ZoneChartPanel({
     <ChartPage
       title={t('analysis.title')}
       testId="chart-page"
+      surfaceBelowNav
       panelShown={false}
       panel={null}
       notices={null}
@@ -699,7 +700,7 @@ export default function ZoneChartPanel({
           actions={<>{chrome.range}{chrome.view}<LicenseInfo /><AnalysisSettingsPanel /></>}
           extra={
             zone && (
-              <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground" data-testid="chart-key">
+              <div className="flex min-w-0 items-center gap-x-4 text-[11px] text-muted-foreground" data-testid="chart-key">
                 {legend.map((entry) => (
                   <LegendToggle
                     key={entry.pref}

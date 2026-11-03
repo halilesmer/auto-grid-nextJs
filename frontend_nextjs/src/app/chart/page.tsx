@@ -116,7 +116,7 @@ function AnalysisView() {
   ];
 
   const account = (
-    <div className="w-full sm:w-auto sm:[&>[data-tooltip-scope]]:w-56">
+    <div className="min-w-0 flex-1 sm:flex-none sm:[&>[data-tooltip-scope]]:w-56">
       <AccountDropdown
         accounts={accounts}
         selectedAccount={accountId}

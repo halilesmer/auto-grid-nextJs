@@ -49,7 +49,7 @@ Each step is one PR. The steps run in sequence because they change the same file
 | S1 | Remove `ChartViewer.tsx` and the code that only it used | Done, PR 275 |
 | S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Done, PR 276 |
 | S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Done, PR 321 |
-| S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Open |
+| S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Done, PR n |
 | S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
 | S6a | `/formasyon` gets the `Trend` button and the trend line (decision of the owner on 2026-11-02: before S3 to S5). Entry: `2026-11-02-formation-trend-toggle.md`. | Done, PR 307 |
 | S6b | `/backtest` gets the `Trend` button. `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. On `/backtest`, the line must stop at the replay cursor. | Open |
@@ -58,6 +58,39 @@ Each step is one PR. The steps run in sequence because they change the same file
 - `FormationChart` and `ChartCore` repeat the chart lifecycle. Two engines drift apart, and each new chart feature needs two implementations.
 - `overlayLayout` stays until S5. A single switch of all pages in one PR is too large to review and to revert.
 - Slots keep `ChartCore` free of formation logic. A flag for each caller makes the shared code worse with each caller.
+
+## S4 result
+
+The page `/chart` (free mode and setup mode) now runs in `ChartPage`. The chart fills the page. `ChartFrame` and the page title are gone. The statistics view stays a normal page, with its own heading.
+
+| Part | Content |
+|---|---|
+| Top bar (`ChartTopBar`) | Account, mode, setup or symbol, time frame, range, the switch Chart/Statistics, license and display settings. The second row holds the legend switches (setup mode only). The row wraps. |
+| Floating card (`FloatingCard`) | Setup mode only. Tab "Overview": live values, setup card, notes. Tab "Trades": the trade archive. At 1024 px and above it is open, below it is closed. |
+| Notices (`ChartOverlays`) | The broker clock, load errors and the data quality warning float on the chart under the top bar. `ChartOverlays` measures the top bar and sets `--chart-top` on `formation-main`. |
+| `ChartCore` | `ChartCore` also reads the crosshair in the overlay layout when `notes` is set, and shows the trade notes under the top bar. |
+| `rememberChartView` | It writes `data-visible-range` on the host and on the surface. In the overlay layout it wrote only on the surface, and the tests read the host. |
+| `IndicatorRenderer` | The panes of indicators get their own price scale margins (0.08), not the top margin 0.3 of the candle pane. |
+| `ChartPage` | New optional prop `testId` (default `formation-page`). `/chart` uses `chart-page`. |
+
+Changes of existing tests (approved by the coordinator):
+
+| File | Change | Reason |
+|---|---|---|
+| `analysis.spec.ts` (ANA-15) | Settings and license buttons are in `chart-topbar`. Full screen uses the button of the chart tools. The full screen element is `chart-workspace`. | `ChartFrame` is gone. The step "open the settings in full screen" is gone too: the settings button is in the top bar, outside the full screen element. |
+| `analysis-trades.spec.ts` (ANA-08 x2, ANA-12) | The tab "Trades" opens first. | The archive is in the card tab. |
+| `chart-workspace.spec.ts` (ANA-19 x3) | The zoom uses the mouse wheel (`zoomIn`). | The overlay layout has no `+` button. |
+| `chart-toolbar.spec.ts` (ANA-17) | The line height counts from the lower edge of `chart-topbar` (`lineY`). | The chart fills the page, and the top bar lies on it. |
+
+`chart-workspace.spec.ts` test ANA-18 (RSI fill) stays unchanged. It found a defect: the RSI pane took the top margin 0.3 of the candle pane. The fix is in `IndicatorRenderer`. `/formasyon` stays pixel-identical (screenshots at 1440 px and 375 px before and after). The 375 px picture changes by itself from run to run, but the "before" picture equals the second "after" picture.
+
+Decisions of this step (assumptions, to confirm):
+- "Notes" in the card are the existing trade notes under the crosshair. They have no tab.
+- The display settings button and the license button stay in the top bar. Existing tests find them by name.
+- No `+` and `-` zoom buttons in the overlay layout, as in the design.
+
+## Open points for S5
+- The legend row at 375 px scrolls sideways. The top bar takes about half of the screen height there. Check the compact design for narrow screens again (artifact board "Handy").
 
 ## S2 result
 
@@ -111,9 +144,9 @@ The MET-02 test opens `/chart` and reads the live values. It did not touch `Char
 ## Open points
 - [ ] S4, S5 and S6b.
 - [ ] S5 removes `overlayLayout`. Keep the rule from S6a: the place of the chart tools on `/formasyon` depends on the width of the container `formation-main` (threshold 1240 px), not on the viewport.
-- [ ] Do the manual test of MET-02 after S4, because S4 moves the live values into the floating card.
+- [ ] Do the manual test of MET-02 after S4 is merged (the owner does it), because S4 moves the live values into the floating card.
 - [ ] Trap for S6b: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
-- [ ] Add the feature `UI-10` and its e2e test before S4.
+- [x] Add the feature `UI-10` and its e2e test before S4.
 - [ ] `.claude/skills/ui-design/SKILL.md` §8 still names `ChartViewer.tsx`. Rule files change only on request of the project owner (`hooks/RULES.md` §6.6). Ask the owner.
 
 ## Verification

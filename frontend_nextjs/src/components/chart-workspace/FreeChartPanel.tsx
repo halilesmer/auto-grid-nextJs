@@ -59,7 +59,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
   const trend = useTrendPath({ accountId, symbol: accepted, timeframe, offsetSec, clockReady }, prefs.showTrend, prefs.trend, now);
   useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);
   const symbolField = (
-    <div className="flex w-44 items-center gap-1" data-tooltip-exempt>
+    <div className="flex min-w-0 flex-1 items-center gap-1 sm:w-44 sm:flex-none" data-tooltip-exempt>
       <SymbolAutoComplete key={`${accountId}:${symbol}`} aria-label={t('cw.symbol')} value={input} onChange={setInput} preserveCase symbolDetails={ready ? details : {}} onCommit={value => { const found = details[value.toUpperCase()]; if (found) { setInput(found.name); onSymbol(found.name); } }} />
       {/* Der Hinweis sitzt am (i): ein Tooltip am Eingabefeld läge beim Tippen über der Liste */}
       <InfoHint hint={t('cw.chooseSymbol.hint')} />
@@ -79,6 +79,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
   return <ChartPage
     title={t('analysis.title')}
     testId="chart-page"
+      surfaceBelowNav
     panelShown={false}
     panel={null}
     notices={null}

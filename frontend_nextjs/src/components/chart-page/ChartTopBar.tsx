@@ -31,7 +31,7 @@ export function ChartTopBar({ selectors, timeframes, actions, extra }: { selecto
         <div className="pointer-events-auto flex min-w-0 max-w-full items-center gap-1">{timeframes}</div>
         <div className="pointer-events-auto flex min-w-0 flex-wrap items-center gap-1">{actions}</div>
       </div>
-      {extra && <div className="pointer-events-auto flex min-h-[30px] flex-wrap items-center gap-x-1 border-b border-border px-2 py-0.5">{extra}</div>}
+      {extra && <div className="pointer-events-auto flex min-h-[30px] items-center gap-x-1 overflow-x-auto border-b border-border px-2 py-0.5">{extra}</div>}
     </div>
   );
 }
