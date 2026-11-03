@@ -44,6 +44,12 @@ async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW, ba
   await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
+/** Das Alarmmenü öffnet auf dem Verlauf; Schalter, Formationen und Alarm-Produkte stehen auf dem Reiter Einstellungen */
+async function openAlarmSettings(page: Page) {
+  await page.getByTestId('formation-alarm').click();
+  await page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.settings')}`) }).click();
+}
+
 test('Chart-Werkzeuge bleiben nach Formationswechsel ohne veraltete Chart-Zugriffe bedienbar', { tag: ['@ANA-17', '@FRM-20'] }, async ({ page, worker }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -761,7 +767,7 @@ test.describe('FRM-26 Formation als Bild festhalten', () => {
 
 test.describe('FRM-27 Formationsalarm', () => {
   const openAlarm = async (page: Page) => {
-    await page.getByTestId('formation-alarm').click();
+    await openAlarmSettings(page);
     await expect(page.getByTestId('formation-alarm-panel')).toBeVisible();
   };
   /** `only`: Formationen, die gemeldet werden; die übrigen werden abgewählt */
@@ -1217,7 +1223,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|GBPUSD`]: {} } });
     await page.goto(`/formasyon?account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
-    await page.getByTestId('formation-alarm').click();
+    await openAlarmSettings(page);
     await expect(page.getByTestId('formation-alarm-incomplete')).toContainText('GBPUSD');
     await expect(page.getByTestId('formation-alarm-incomplete')).not.toContainText('EURUSD');
     // GBPUSD hatte einen gemerkten Stand, wurde aber nicht verglichen: keine Meldung für dieses Produkt
@@ -1303,7 +1309,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
       Notification.requestPermission = () => new Promise(() => {});
     });
     await page.goto(`/formasyon?account=${DEMO_ID}`);
-    await page.getByTestId('formation-alarm').click();
+    await openAlarmSettings(page);
     const stored = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}'), KEY);
     await page.getByRole('switch', { name: msg('formation.alarm.favorites') }).click();
     await expect(page.getByRole('switch', { name: msg('formation.alarm.favorites') })).toBeChecked();
@@ -1373,7 +1379,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     await seed(page, { account: DEMO_ID, enabled: [`${DEMO_ID}|EURUSD`] });
     await page.goto('/formasyon?symbol=EURUSD');
-    await page.getByTestId('formation-alarm').click();
+    await openAlarmSettings(page);
     await page.getByTestId('formation-alarm-extra-EURUSD').click();
     await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key) ?? '{}').enabled.length === 0, KEY);
   });
@@ -1414,7 +1420,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await seed(page, { favoritesEnabled: [DEMO_ID], enabled: [`${DEMO_ID}|XAUUSD`] });
     await page.goto(`/formasyon?account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
-    await page.getByTestId('formation-alarm').click();
+    await openAlarmSettings(page);
     await expect(page.getByRole('switch', { name: msg('formation.alarm.favorites') })).toBeChecked();
     await expect(page.getByTestId('formation-alarm-status')).toContainText('3/3');
     await expect(page.getByTestId('formation-alarm-extra-XAUUSD')).toBeVisible();
@@ -1483,6 +1489,16 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.history')}`) }).click();
   };
   const historyItems = (page: Page) => page.getByTestId('formation-alarm-history-item');
+
+  test('Das Menü öffnet standardmäßig auf dem Verlauf', { tag: '@FRM-32' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: [history()] }, forms: [] });
+    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.getByTestId('formation-alarm').click();
+    await expect(page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.history')}`) })).toHaveAttribute('aria-selected', 'true');
+    await expect(historyItems(page)).toHaveCount(1);
+  });
 
   test('Der Verlauf hält eine Meldung fest, auch wenn Systemmeldung und Ton aus sind', { tag: '@FRM-32' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
