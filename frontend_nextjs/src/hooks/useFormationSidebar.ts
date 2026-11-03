@@ -65,7 +65,7 @@ function change(next: Stored) {
   listeners.forEach((listener) => listener());
 }
 
-/** Seitenleiste von /formasyon (Reiter Bedingungen und Favoriten): offen/zu und gewählter Reiter bleiben im Browser. */
+/** Seitenleiste vom Modus Formation von /chart (Reiter Bedingungen und Favoriten): offen/zu und gewählter Reiter bleiben im Browser. */
 export function useFormationSidebar() {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => SERVER_SNAPSHOT);
   /** Ein Klick auf das Symbol des aktiven Reiters schließt die Leiste, sonst öffnet er sie auf diesem Reiter */

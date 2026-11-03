@@ -4,10 +4,11 @@ import { Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { BarChart3, CandlestickChart } from 'lucide-react';
 
 import { FreeChartPanel } from '@/components/chart-workspace/FreeChartPanel';
-import { ChartModeSelect, type ChartChrome } from '@/components/chart-page/ChartTopBar';
+import { ChartModeSegment, type ChartChrome } from '@/components/chart-page/ChartTopBar';
 import { ChartNotice } from '@/components/chart-page/ChartOverlays';
 import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
-import { AccountDropdown } from '@/components/account/components';
+import { FormationAccountSelect } from '@/components/formation/FormationSelectors';
+import { FormationView } from '@/components/formation/FormationView';
 import { useAccounts } from '@/components/account/hooks';
 import { BrokerClockNotice } from '@/components/analysis/BrokerClockNotice';
 import { DateRangePicker } from '@/components/analysis/DateRangePicker';
@@ -16,6 +17,7 @@ import { StatsTab } from '@/components/analysis/stats/StatsTab';
 import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Alert } from '@/components/ui/alert';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
+import { useChartMode } from '@/hooks/useChartMode';
 import { useAnalysisParams, type AnalysisTab } from '@/hooks/useAnalysisParams';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useT } from '@/i18n';
@@ -24,13 +26,13 @@ import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
 /**
- * Analyse-Seite (/chart): Tabs Chart und Statistik für ein Konto und eine Zone; Zeitraum in
+ * Modi Setup und Frei der Chartseite (/chart): Tabs Chart und Statistik für ein Konto und eine Zone; Zeitraum in
  * Brokertagen. Der Zustand steht in der URL (useAnalysisParams), Regeln: docs/analyse-regeln.md.
  */
 function AnalysisView() {
   const t = useT();
   const {
-    tab, symbol, mode, setMode, setSymbol,
+    tab, symbol, mode, setSymbol,
     accountId: urlAccount,
     zoneId,
     range,
@@ -44,7 +46,6 @@ function AnalysisView() {
   } = useAnalysisParams();
   const accounts = useAccountStore((s) => s.accounts);
   const selected = useAccountStore((s) => s.selectedAccount);
-  const activeAccount = useAccountStore((s) => s.activeAccount);
   const settings = useSettingsStore((s) => s.settings);
   const loadedAccount = useSettingsStore((s) => s.loadedAccount);
   const showZoneLines = useAnalysisPrefsStore((s) => s.showZoneLines);
@@ -116,16 +117,13 @@ function AnalysisView() {
   ];
 
   const account = (
-    <div className="min-w-0 flex-1 sm:flex-none sm:[&>[data-tooltip-scope]]:w-56">
-      <AccountDropdown
-        accounts={accounts}
-        selectedAccount={accountId}
-        activeAccount={activeAccount}
-        onSelect={(id) => {
-          if (id !== accountId) setAccount(id);
-        }}
-      />
-    </div>
+    <FormationAccountSelect
+      accounts={accounts}
+      value={accountId}
+      onChange={(id) => {
+        if (id !== accountId) setAccount(id);
+      }}
+    />
   );
   const zoneSelect = (
     <div className="w-full sm:w-auto">
@@ -135,7 +133,7 @@ function AnalysisView() {
   const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" className="@max-[30rem]/formation-main:[&_[role=tab]]:px-2.5 @max-[30rem]/formation-main:[&_[role=tab]]:py-1 @max-[30rem]/formation-main:[&_[role=tab]]:text-xs" />;
   const chrome: ChartChrome = {
     account,
-    mode: <ChartModeSelect value={mode} onChange={setMode} />,
+    mode: <ChartModeSegment />,
     zone: zoneSelect,
     range: <DateRangePicker value={range} today={today} onChange={setRange} />,
     view: viewTabs,
@@ -215,16 +213,7 @@ function AnalysisView() {
 
       <div className="flex flex-wrap items-center gap-2" data-testid="analysis-controls">
         {/* Handy: jede Auswahl in eigener Zeile, sonst werden Konto- und Zonenname abgeschnitten */}
-        <div className="w-full sm:w-auto">
-          <AccountDropdown
-            accounts={accounts}
-            selectedAccount={accountId}
-            activeAccount={activeAccount}
-            onSelect={(id) => {
-              if (id !== accountId) setAccount(id);
-            }}
-          />
-        </div>
+        <div className="w-full sm:w-52">{account}</div>
         {accountKnown && tab === 'stats' && (
           <div className="w-full sm:w-auto">
             <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
@@ -247,11 +236,17 @@ function AnalysisView() {
   );
 }
 
-export default function AnalysisPage() {
+/** Die eine Chartseite: je nach Modus Formation (FormationView) oder Setup/Frei mit Statistik (AnalysisView) */
+function ChartRoot() {
+  const { mode } = useChartMode();
+  return mode === 'formation' ? <FormationView /> : <AnalysisView />;
+}
+
+export default function ChartPageRoute() {
   // useSearchParams braucht eine Suspense-Grenze, sonst schlägt der Produktions-Build fehl
   return (
     <Suspense fallback={<div className="min-h-125" />}>
-      <AnalysisView />
+      <ChartRoot />
     </Suspense>
   );
 }

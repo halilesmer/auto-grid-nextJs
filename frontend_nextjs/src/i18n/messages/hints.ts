@@ -144,7 +144,7 @@ const existingHints = defineArea(
     // --- Gezinme ---
     'nav.home.hint': 'Grid Robot {version}. Ana sayfaya gider.',
     'nav.dashboard.hint': 'Ana sayfa: hesap, bölgeler, bot kontrolü ve loglar.',
-    'nav.formation.hint': 'Fiyat grafiği ve formasyonlar.',
+    'nav.chart.hint': 'Grafik sayfası: formasyonlar, setup grafiği ve serbest ürün grafiği; istatistik de burada.',
     'nav.vps.hint': 'VPS yönetimi: worker durumu, güncelleme, yeniden başlatma ve loglar.',
     'nav.users.hint': 'Kullanıcı yönetimi (yalnızca yönetici): kullanıcı ekle, anahtarlarını yenile, sil.',
     'nav.menu.hint': 'Sayfa listesini açar: Dashboard, Analiz, Backtest, Formasyon ve (yöneticiye) VPS ve Kullanıcılar.',
@@ -416,7 +416,6 @@ const existingHints = defineArea(
       'Kararı kaydeder; emirler MT5\'te kalır, bot onlara dokunmaz ve bu pencere bir daha açılmaz.',
     'vps.online.restart.hint': 'Worker’ı worker API’si üzerinden yeniden başlatır (run_uvicorn_watchdog.bat açar). Botlar çalışmaya devam eder; yalnızca yönetici anahtarıyla, watchdog altında kullanılabilir.',
     // --- Analiz ---
-    'nav.analysis.hint': 'Analiz sayfası: seçili hesap ve setup için grafik ve istatistik.',
     'analysis.tab.chart.hint': 'MT5 fiyat grafiği; setup sınırları ve setup ayarlarıyla.',
     'formation.conditions.hint': 'Seçili adayın koşullarını kenar çubuğunda gösterir. Çubuk açılınca grafik sola kayar, üstünü örtmez. Etkin sekmenin simgesine tekrar tıklamak çubuğu kapatır.',
     'formation.tab.conditions.hint': 'Seçili adayın koşullarını gösterir: aday seçici ve kontrol listesi.',
@@ -735,7 +734,7 @@ const existingHints = defineArea(
     // --- Navigation ---
     'nav.home.hint': 'Grid Robot {version}. Goes to the home page.',
     'nav.dashboard.hint': 'Home page: account, zones, bot control and logs.',
-    'nav.formation.hint': 'Price chart and formations.',
+    'nav.chart.hint': 'Chart page: formations, setup chart and free product chart; statistics are here too.',
     'nav.vps.hint': 'VPS management: worker status, update, restart and logs.',
     'nav.users.hint': 'User management (administrator only): add users, renew their keys, delete them.',
     'nav.menu.hint': 'Opens the page list: Dashboard, Analysis, Backtest, Formation and (for the admin) VPS and Users.',
@@ -1007,7 +1006,6 @@ const existingHints = defineArea(
       'Saves the decision; the orders stay in MT5, the bot leaves them alone and this window does not open again.',
     'vps.online.restart.hint': 'Restarts the worker through the worker API (run_uvicorn_watchdog.bat brings it back). Bots keep running; admin key only, and only under the restart loop.',
     // --- Analysis ---
-    'nav.analysis.hint': 'Analysis page: chart and statistics for the selected account and setup.',
     'analysis.tab.chart.hint': 'MT5 price chart with the setup limits and the setup settings.',
     'formation.conditions.hint': 'Shows the conditions of the selected candidate in the side bar. When the bar opens, the chart moves left instead of being covered. Clicking the icon of the active tab closes the bar.',
     'formation.tab.conditions.hint': 'Shows the conditions of the selected candidate: candidate switch and checklist.',
@@ -1326,7 +1324,7 @@ const existingHints = defineArea(
     // --- Navigation ---
     'nav.home.hint': 'Grid Robot {version}. Geht zur Startseite.',
     'nav.dashboard.hint': 'Startseite: Konto, Zonen, Bot-Steuerung und Logs.',
-    'nav.formation.hint': 'Preischart und Formationen.',
+    'nav.chart.hint': 'Chartseite: Formationen, Setup-Chart und freier Produkt-Chart; die Statistik steht auch hier.',
     'nav.vps.hint': 'VPS-Verwaltung: Worker-Status, Update, Neustart und Logs.',
     'nav.users.hint': 'Benutzerverwaltung (nur Administrator): Benutzer anlegen, Schlüssel erneuern, löschen.',
     'nav.menu.hint': 'Öffnet die Seitenliste: Dashboard, Analyse, Backtest, Formation und (für den Admin) VPS und Benutzer.',
@@ -1598,7 +1596,6 @@ const existingHints = defineArea(
       'Speichert die Entscheidung; die Orders bleiben in MT5, der Bot fasst sie nicht an und dieses Fenster erscheint nicht wieder.',
     'vps.online.restart.hint': 'Startet den Worker über die Worker-API neu (run_uvicorn_watchdog.bat startet ihn wieder). Bots laufen weiter; nur mit Admin-Schlüssel und nur unter der Neustart-Schleife.',
     // --- Analyse ---
-    'nav.analysis.hint': 'Analyse-Seite: Chart und Statistik für das gewählte Konto und Setup.',
     'analysis.tab.chart.hint': 'MT5-Kurschart mit den Setup-Grenzen und den Setup-Einstellungen.',
     'formation.conditions.hint': 'Zeigt die Bedingungen des gewählten Kandidaten in der Seitenleiste. Beim Öffnen rückt der Chart nach links und wird nicht überdeckt. Ein Klick auf das Symbol des aktiven Reiters schließt die Leiste.',
     'formation.tab.conditions.hint': 'Zeigt die Bedingungen des gewählten Kandidaten: Kandidaten-Umschalter und Checkliste.',

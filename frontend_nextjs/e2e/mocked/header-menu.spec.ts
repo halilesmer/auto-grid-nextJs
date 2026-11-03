@@ -33,20 +33,20 @@ test.describe('UI-01 Kopfzeile', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await dashboard.open(DEMO_ID);
     const nav = page.getByRole('navigation');
-    await expect(nav.getByRole('link', { name: msg('nav.analysis') })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: msg('nav.chart') })).toHaveCount(0);
 
     const panel = await openPageMenu(page);
-    for (const key of ['nav.dashboard', 'nav.analysis', 'nav.backtest', 'nav.formation', 'nav.vps', 'nav.users'] as const) {
+    for (const key of ['nav.dashboard', 'nav.chart', 'nav.backtest', 'nav.vps', 'nav.users'] as const) {
       await expectInViewport(page, panel.getByRole('link', { name: msg(key), exact: true }), key);
     }
     await expect(panel.getByRole('link', { name: msg('nav.dashboard') })).toHaveAttribute('aria-current', 'page');
-    await panel.getByRole('link', { name: msg('nav.analysis') }).click();
+    await panel.getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(/\/chart/);
     await expect(panel).toBeHidden();
 
     await page.setViewportSize({ width: 1024, height: 800 });
     await expect(page.getByTestId('nav-menu')).toBeHidden();
-    await expect(nav.getByRole('link', { name: msg('nav.analysis') })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: msg('nav.chart') })).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -151,7 +151,7 @@ test.describe('UI-01 Kopf-Menü', () => {
   test('System funktioniert auf jeder Seite: Update-Prüfung und Herunterfahren auf /chart', { tag: ['@UI-01', '@UPD-01', '@UPD-03'] }, async ({ page, worker, dashboard }) => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
-    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(/\/chart/);
 
     let panel = await openHeaderMenu(page);

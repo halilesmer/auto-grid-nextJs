@@ -12,7 +12,7 @@ import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/tes
 
 const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
-const FORMATION = `/formasyon?account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
+const FORMATION = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 const fixtureBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
 

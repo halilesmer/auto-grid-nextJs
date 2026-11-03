@@ -21,7 +21,7 @@ interface ChartPageProps {
   panelShown: boolean;
   /** Attribute für Tests am Seitenelement */
   pageProps?: Record<`data-${string}`, string | number>;
-  /** `data-testid` des Seitenelements; Standard `formation-page` (Aufruf von /formasyon bleibt unverändert) */
+  /** `data-testid` des Seitenelements; Standard `formation-page` (Modus Formation) */
   testId?: string;
 }
 
@@ -45,8 +45,8 @@ export function ChartPage({ title, topBar, surface, notices, floating, panel, pa
   return (
     <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height) [&:fullscreen]:top-0" data-chart-page="" {...pageProps} data-testid={testId}>
       <h1 className="sr-only">{title}</h1>
-      {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (w-10 Leiste + w-72 Panel = right-82, bei 16 px Schrift 328 px), statt ihn zu überdecken; darunter liegt sie über dem Chart. Der Abstand steht in rem wie die beiden Breiten, sonst überdeckt der Chart die Leiste bei größerer Browser-Schrift. Die Leiste ganz rechts bleibt immer frei. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
-      <div className={cn('@container/formation-main absolute inset-y-0 left-0 right-10 lg:z-[70]', panelShown && 'lg:right-82')} data-testid="formation-main">
+      {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (w-10 Leiste + w-72 Panel = right-82, bei 16 px Schrift 328 px), statt ihn zu überdecken; darunter liegt sie über dem Chart. Der Abstand steht in rem wie die beiden Breiten, sonst überdeckt der Chart die Leiste bei größerer Browser-Schrift. Die Leiste ganz rechts bleibt frei, solange es ein Panel gibt; ohne Panel (Setup, Frei) füllt der Chart die ganze Breite. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
+      <div className={cn('@container/formation-main absolute inset-y-0 left-0 lg:z-[70]', panel ? 'right-10' : 'right-0', panel && panelShown && 'lg:right-82')} data-testid="formation-main">
       <div className="absolute inset-0 flex flex-col lg:block">
       <div ref={bar} className="pointer-events-none relative z-50 min-w-0 shrink-0 bg-background max-lg:pt-16 [[data-chart-page]:fullscreen_&]:max-lg:pt-0 max-lg:has-[[data-testid=formation-alarm-panel]]:z-[70] lg:absolute lg:left-[52px] lg:right-0 lg:top-0 lg:bg-transparent">
         {topBar}

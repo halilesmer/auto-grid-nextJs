@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useMemo } from 'react';
+import { useUrlUpdate } from '@/hooks/useUrlUpdate';
+import { resolveChartMode, timeframeParam } from '@/lib/chart/mode';
 import { isDayString, isTimeString, RANGE_PRESETS, type DayRange, type RangePreset } from '@/lib/serverTime';
-import { DEFAULT_TIMEFRAME, isTimeframe, type Timeframe } from '@/lib/analysis/candles';
+import { DEFAULT_TIMEFRAME, type Timeframe } from '@/lib/analysis/candles';
 
 export const ANALYSIS_TABS = ['chart', 'stats'] as const;
 export type AnalysisTab = (typeof ANALYSIS_TABS)[number];
@@ -14,14 +15,12 @@ export type RangeSelection = { preset: RangePreset } | { custom: DayRange };
 export const DEFAULT_RANGE: RangeSelection = { preset: 'last30' };
 
 /**
- * Zustand der Analyse-Seite in der URL (/chart?tab=&account=&zone=&tf=&range= bzw. &from=&to=):
+ * Zustand der Modi Setup und Frei der Chartseite in der URL (/chart?mode=&tab=&account=&zone=&tf=&range= bzw. &from=&to=):
  * Neuladen und geteilte Links zeigen dieselbe Ansicht. Änderungen ersetzen den Eintrag im
  * Verlauf (kein „Zurück“ durch jeden Klick).
  */
 export function useAnalysisParams() {
-  const params = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
+  const { params, update } = useUrlUpdate();
 
   const tabParam = params.get('tab');
   const tab: AnalysisTab = (ANALYSIS_TABS as readonly string[]).includes(tabParam ?? '')
@@ -30,15 +29,15 @@ export function useAnalysisParams() {
   const accountId = params.get('account') || null;
   const zoneId = params.get('zone') || null;
   const symbol = params.get('symbol')?.trim() || null;
-  let mode: 'free' | 'setup' = 'free';
-  if (params.get('mode') !== 'free' && (params.get('mode') === 'setup' || zoneId)) mode = 'setup';
+  // Diese Hülle rendert nur Setup und Frei; Formation hat ihre eigene Ansicht (FormationView)
+  const mode: 'free' | 'setup' = resolveChartMode(params) === 'free' ? 'free' : 'setup';
   const rangeParam = params.get('range');
   const fromParam = params.get('from');
   const toParam = params.get('to');
   const fromTimeParam = params.get('ft');
   const toTimeParam = params.get('tt');
   const tfParam = params.get('tf');
-  const timeframe: Timeframe = isTimeframe(tfParam) ? tfParam : DEFAULT_TIMEFRAME;
+  const timeframe = timeframeParam(mode, tfParam) as Timeframe;
 
   const range = useMemo<RangeSelection>(() => {
     if (isDayString(fromParam) && isDayString(toParam) && fromParam <= toParam) {
@@ -51,35 +50,11 @@ export function useAnalysisParams() {
     return DEFAULT_RANGE;
   }, [rangeParam, fromParam, toParam, fromTimeParam, toTimeParam]);
 
-  // router.replace wirkt erst mit dem nächsten Render: mehrere Änderungen im selben Durchlauf (z. B.
-  // Konto übernehmen + erste Zone wählen) bauen auf der zuletzt gesendeten Adresse auf, nicht auf der alten
-  const current = params.toString();
-  const pending = useRef<string | null>(null);
-  useEffect(() => {
-    pending.current = null;
-  }, [current]);
-
-  const update = useCallback(
-    (changes: Record<string, string | null>) => {
-      const next = new URLSearchParams(pending.current ?? current);
-      for (const [key, value] of Object.entries(changes)) {
-        if (value === null || value === '') next.delete(key);
-        else next.set(key, value);
-      }
-      const query = next.toString();
-      if (query === (pending.current ?? current)) return;
-      pending.current = query;
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    },
-    [current, pathname, router],
-  );
-
   const setTab = useCallback((value: AnalysisTab) => update({ tab: value === 'chart' ? null : value }), [update]);
   // Neues Konto: die alte Zone fällt weg; ein durch einen alten zone=-Link gewählter Setup-Modus bleibt.
   const setAccount = useCallback((value: string) => update({ account: value, zone: null, ...(mode === 'setup' ? { mode: 'setup' } : {}) }), [update, mode]);
   // Konto aus dem Store in die URL schreiben (Seite ohne ?account= geöffnet): Zone bleibt
   const adoptAccount = useCallback((value: string) => update({ account: value }), [update]);
-  const setMode = useCallback((value: 'free' | 'setup') => update({ mode: value, zone: value === 'free' ? null : zoneId }), [update, zoneId]);
   const setSymbol = useCallback((value: string | null) => update({ symbol: value, mode: 'free', zone: null }), [update]);
   const setZone = useCallback((value: string | null) => update({ zone: value }), [update]);
   const setTimeframe = useCallback(
@@ -96,5 +71,5 @@ export function useAnalysisParams() {
     [update],
   );
 
-  return { tab, accountId, zoneId, symbol, mode, setMode, setSymbol, range, timeframe, setTab, setAccount, adoptAccount, setZone, setRange, setTimeframe };
+  return { tab, accountId, zoneId, symbol, mode, setSymbol, range, timeframe, setTab, setAccount, adoptAccount, setZone, setRange, setTimeframe };
 }

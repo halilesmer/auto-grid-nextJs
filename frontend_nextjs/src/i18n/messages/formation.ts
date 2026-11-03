@@ -1,6 +1,6 @@
 import { defineArea } from './define';
 
-// Seite /formasyon (Formationserkennung). Titel/Untertitel der Seite stehen in chart.ts. Kurztexte der Bedingungen
+// Modus Formation von /chart (Formationserkennung). Titel/Untertitel der Seite stehen in chart.ts. Kurztexte der Bedingungen
 // je ID stehen in src/lib/formation/ruleTexts.ts (dynamische Schlüssel, deshalb außerhalb der geprüften Schlüsselmenge).
 export default defineArea(
   {

@@ -46,7 +46,7 @@ for (const appLocale of ['tr', 'en', 'de'] as AppLocale[]) {
     });
     test('Formationsnavigation wechselt bei 1024 px und bleibt ohne Überlappung', { tag: '@UI-08' }, async ({ page, dashboard }) => {
       await dashboard.open(null);
-      await page.goto('/formasyon');
+      await page.goto('/chart?mode=formation');
       const nav = page.locator('nav').first();
       for (const width of [375, 810, 1023, 1024, 1440]) {
         await page.setViewportSize({ width, height: 900 });

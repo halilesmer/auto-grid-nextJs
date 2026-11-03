@@ -16,7 +16,7 @@ const VARIANTS: Record<Variant, string> = {
   warning: 'bg-warning text-warning-foreground hover:bg-warning/90',
 };
 
-// xs/icon-xs: Pille wie die Zeitrahmen-Knöpfe der Kopfleiste von /formasyon (FormationFavoritesBar), für die Chart-Werkzeuge dort
+// xs/icon-xs: Pille wie die Zeitrahmen-Knöpfe der Kopfleiste vom Modus Formation von /chart (FormationFavoritesBar), für die Chart-Werkzeuge dort
 const SIZES: Record<Size, string> = {
   xs: 'h-6 rounded-full px-2.5 text-[11px] font-normal gap-1',
   sm: 'h-7 px-2.5 text-xs gap-1.5 sm:h-8 sm:px-3',

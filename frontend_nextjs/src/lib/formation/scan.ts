@@ -1,5 +1,5 @@
 /**
- * Suche für die Seite /formasyon: alle elf Formationen auf allen vier Zeiteinheiten über einem Kontext.
+ * Suche für die Modus Formation von /chart: alle elf Formationen auf allen vier Zeiteinheiten über einem Kontext.
  * Reine Funktion (kein React, kein Netzwerk). Ein Treffer ist ein Kandidat mit Punkten; ohne Punkte ist nichts gefunden.
  */
 import { analyzeAbcd } from './abcdChecks';

@@ -120,7 +120,7 @@ export function FormationSymbolSelect({ accountId, value, onChange }: {
   const current = details[(value ?? '').toUpperCase()]?.name ?? value ?? '';
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1 lg:w-48 lg:flex-none">
+    <div className="flex min-w-0 flex-1 items-center gap-1 lg:w-44 lg:flex-none">
       {/* Der Hinweis sitzt am (i): ein Tooltip am Eingabefeld läge beim Tippen über der Liste */}
       <div
         className="relative min-w-0 flex-1 [&_[data-slot=autocomplete-content]]:right-auto [&_[data-slot=autocomplete-content]]:min-w-60"
@@ -163,7 +163,7 @@ export function FormationAccountSelect({ accounts, value, onChange }: {
   const t = useT();
   const env = accounts.find((account) => String(account.id) === value)?.env_type;
   return (
-    <Tooltip content={t('account.label.hint')} className="min-w-0 flex-1 lg:w-52 lg:flex-none">
+    <Tooltip content={t('account.label.hint')} className="min-w-0 flex-1 lg:w-44 lg:flex-none">
       <div className="flex w-full min-w-0 items-center gap-1">
         <div className="min-w-0 flex-1">
           <Combobox

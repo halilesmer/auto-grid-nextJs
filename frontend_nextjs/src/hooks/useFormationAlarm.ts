@@ -19,7 +19,7 @@ const NO_HISTORY: HistoryEntry[] = [];
 /**
  * Einstellungen und Stand des Formationsalarms fürs Glocken-Menü. Die Suche und die Meldungen laufen app-weit im
  * FormationScanRunner; dieser Hook ändert nur die gespeicherten Einstellungen und liest den Stand der Suche.
- * `symbol` ist das auf /formasyon gewählte Produkt (Schalter „Alarm für …“), null ohne Konto oder Produkt.
+ * `symbol` ist das im Modus Formation von /chart gewählte Produkt (Schalter „Alarm für …“), null ohne Konto oder Produkt.
  */
 export function useFormationAlarm(pageAccount: string | null, pageSymbol: string | null) {
   const router = useRouter();

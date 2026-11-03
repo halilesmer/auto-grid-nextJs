@@ -23,15 +23,15 @@ const NAMED_SYMBOLS = 3;
 
 export const notificationPermission = (): NotificationPermission | 'unsupported' => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
 
-/** Adresse auf /formasyon: mit Notice zeigt sie Produkt, Formation und Zeiteinheit, ohne nur die Seite des Kontos */
+/** Adresse im Modus Formation der Chartseite: mit Notice zeigt sie Produkt, Formation und Zeiteinheit, ohne nur die Seite des Kontos */
 export function formationUrl(accountId: string, notice?: AlarmNotice): string {
-  const params = new URLSearchParams({ account: accountId });
+  const params = new URLSearchParams({ mode: 'formation', account: accountId });
   if (notice) {
     params.set('symbol', notice.symbol);
     params.set('form', notice.form);
     params.set('tf', notice.tf);
   }
-  return `/formasyon?${params.toString()}`;
+  return `/chart?${params.toString()}`;
 }
 
 function eventKey(notice: AlarmNotice, prefix: 'notice' | 'system'): MessageKey {

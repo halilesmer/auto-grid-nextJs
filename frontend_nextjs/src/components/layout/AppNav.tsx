@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { CandlestickChart, ChartLine, FlaskConical, Grid3x3, LayoutDashboard, Menu, Server, Users } from 'lucide-react';
+import { CandlestickChart, FlaskConical, Grid3x3, LayoutDashboard, Menu, Server, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { VERSION } from '@/app/version';
@@ -21,9 +21,8 @@ const LINKS: {
   visible?: (me: Me | null) => boolean;
 }[] = [
   { href: '/', labelKey: 'nav.dashboard', hintKey: 'nav.dashboard.hint', icon: LayoutDashboard },
-  { href: '/chart', labelKey: 'nav.analysis', hintKey: 'nav.analysis.hint', icon: ChartLine },
+  { href: '/chart', labelKey: 'nav.chart', hintKey: 'nav.chart.hint', icon: CandlestickChart },
   { href: '/backtest', labelKey: 'nav.backtest', hintKey: 'nav.backtest.hint', icon: FlaskConical },
-  { href: '/formasyon', labelKey: 'nav.formation', hintKey: 'nav.formation.hint', icon: CandlestickChart },
   // /vps läuft auch ohne Worker-Verbindung: erst ausblenden, wenn feststeht, dass es kein Admin ist
   { href: '/vps', labelKey: 'nav.vps', hintKey: 'nav.vps.hint', icon: Server, visible: (me) => !me || me.role === 'admin' },
   { href: '/users', labelKey: 'nav.users', hintKey: 'nav.users.hint', icon: Users, visible: (me) => me?.role === 'admin' },
@@ -74,10 +73,10 @@ function NavLinks({ layout }: { layout: 'row' | 'panel' }) {
   });
 }
 
-/** Auf /formasyon schwebt die Navigation nur unter lg; ab lg gilt überall die Desktop-Kopfzeile. */
+/** Auf /chart schwebt die Navigation nur unter lg; ab lg gilt überall die Desktop-Kopfzeile. */
 export default function AppNav() {
   const t = useT();
-  const chartWorkspace = usePathname() === '/formasyon';
+  const chartWorkspace = usePathname() === '/chart';
 
   return (
     <nav data-testid="app-nav" className={cn(
@@ -97,7 +96,7 @@ export default function AppNav() {
           </Link>
         </Tooltip>
 
-        {chartWorkspace && <span className="hidden text-sm font-medium sm:block lg:hidden">{t('nav.formation')}</span>}
+        {chartWorkspace && <span className="hidden text-sm font-medium sm:block lg:hidden">{t('nav.chart')}</span>}
         <div className="hidden min-w-0 items-center gap-1 lg:flex">
           <NavLinks layout="row" />
         </div>

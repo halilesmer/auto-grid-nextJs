@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   // E2E-Testleri (playwright.config.ts) bauen in einen eigenen Ordner: Next 16 sperrt
   // denselben distDir, sonst kollidiert der Testserver mit einem laufenden `next dev`.
   distDir: process.env.NEXT_DIST_DIR || '.next',
+  // Die Formationsseite ist der Modus Formation von /chart. Alte Links (gespeicherte Alarm-Meldungen, Lesezeichen) behalten ihren Query-String:
+  // Next reicht die Query-Werte der Anfrage an das Ziel durch.
+  async redirects() {
+    return [{ source: '/formasyon', destination: '/chart?mode=formation', permanent: false }];
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000", "*.ngrok-free.dev"],
