@@ -3,7 +3,7 @@ date: 2026-11-01
 author: Claude
 type: plan
 status: open
-pr: [275, 276, 307]
+pr: [275, 276, 307, 321]
 features: [MET-02, UI-06, FRM-20, ANA-21, UI-10]
 areas: [frontend, docs]
 ---
@@ -48,7 +48,7 @@ Each step is one PR. The steps run in sequence because they change the same file
 | S0 | Design | Approved on 2026-11-01 |
 | S1 | Remove `ChartViewer.tsx` and the code that only it used | Done, PR 275 |
 | S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Done, PR 276 |
-| S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Open |
+| S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Done, PR 321 |
 | S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Open |
 | S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
 | S6a | `/formasyon` gets the `Trend` button and the trend line (decision of the owner on 2026-11-02: before S3 to S5). Entry: `2026-11-02-formation-trend-toggle.md`. | Done, PR 307 |
@@ -83,6 +83,18 @@ The chart of `/formasyon` now stays alive when the candidate or the timeframe ch
 
 `surfaceProps` and `renderOverlay` apply only with `overlayLayout`. `overlayLayout` is a temporary flag in shared code. S5 removes it.
 
+## S3 result
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/components/chart-page/ChartPage.tsx` | New. Page frame moved from `formasyon/page.tsx`: root `formation-page`, container `@container/formation-main`, `formation-surface`, top bar wrapper (z-index rules), notices, floating card. Slots: `topBar`, `surface`, `notices`, `floating`, `panel`. |
+| `frontend_nextjs/src/components/chart-page/ChartPanel.tsx` | New. Strip on the right (`favorites-strip`) and the side panel (`formation-sidebar`). Slots: `strip`, `children`. |
+| `frontend_nextjs/src/app/formasyon/page.tsx` | Uses both. State, hooks, texts and handlers stay in the page. |
+
+The classes, `data-testid` values and z-index rules of the frame moved without change. The 1240 px threshold stays in `FormationToolbar.tsx` and `ChartWorkspace.tsx`; it depends on the container `formation-main`, which `ChartPage` renders. The test ids keep their `formation-` names, because the tests of S4 and S5 use the same frame. `features.yaml`: FRM-37 now lists both new files in `code`.
+
+Verification of "no visible change": screenshots of the mocked build before (state of `main`) and after, at 375, 1024, 1280, 1280 with favorites panel, 1440 px, and 375 px with the alarm panel open. The chart canvas is not stable between runs (it differs in 35 to 10000 bytes of the same screenshot from run to run, also with unchanged code). So I took 5 runs after the change. For each of the six sizes, at least one run is byte-identical to the picture before. The picture with the alarm panel is identical in all runs.
+
 ## S1 result
 
 | File | Change |
@@ -97,7 +109,7 @@ The chart of `/formasyon` now stays alive when the candidate or the timeframe ch
 The MET-02 test opens `/chart` and reads the live values. It did not touch `ChartViewer`, so the test stays unchanged.
 
 ## Open points
-- [ ] S3 to S5 and S6b.
+- [ ] S4, S5 and S6b.
 - [ ] S5 removes `overlayLayout`. Keep the rule from S6a: the place of the chart tools on `/formasyon` depends on the width of the container `formation-main` (threshold 1240 px), not on the viewport.
 - [ ] Do the manual test of MET-02 after S4, because S4 moves the live values into the floating card.
 - [ ] Trap for S6b: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
