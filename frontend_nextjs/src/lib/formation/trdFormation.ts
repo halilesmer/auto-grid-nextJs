@@ -150,6 +150,32 @@ export function formationTrend(view: TimeframeView, upTo: number = view.bars.len
   return view.zug === 'trend' ? buildTrend(tf, bars, wave) : buildFineTrend(tf, bars, wave);
 }
 
+/** Bereich von `withTrendDirMemo`: die Trendrichtung je Kerzenansicht (nach Objekt) und letzter Kerze */
+let dirMemo: WeakMap<TimeframeView, Map<number, TrendDir | null>> | null = null;
+
+/**
+ * Führt `fn` so aus, dass `formationTrendDir` je Kerzenansicht und letzter Kerze nur einmal rechnet (FRM-18).
+ * Die Ansicht muss unverändert bleiben; der Bereich gilt nur für synchrones `fn`. Ein innerer Bereich nutzt den äußeren weiter.
+ */
+export function withTrendDirMemo<T>(fn: () => T): T {
+  if (dirMemo) return fn();
+  dirMemo = new WeakMap();
+  try {
+    return fn();
+  } finally {
+    dirMemo = null;
+  }
+}
+
+/** Richtung von `formationTrend(view, upTo)`; im Bereich von `withTrendDirMemo` je Ansicht und Kerze nur einmal gerechnet */
+export function formationTrendDir(view: TimeframeView, upTo: number): TrendDir | null {
+  if (!dirMemo) return formationTrend(view, upTo).dir;
+  let byIdx = dirMemo.get(view);
+  if (!byIdx) dirMemo.set(view, (byIdx = new Map()));
+  if (!byIdx.has(upTo)) byIdx.set(upTo, formationTrend(view, upTo).dir);
+  return byIdx.get(upTo)!;
+}
+
 /** Schlüsse jenseits der Bezugszone für den Trendwechsel im jeweiligen Zug (TRD-17) */
 export const formationCloses = (zug: FormationZug): number =>
   zug === 'trend' ? TRD_PARAMS.changeCloses : TRD_PARAMS.fine.changeCloses;
