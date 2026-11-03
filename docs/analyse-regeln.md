@@ -179,7 +179,7 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
   innerhalb einer Kerze) und nennt den wirklich gerechneten Zeitraum im Hinweis. Ganze Tage bleiben unverändert.
 - **Kein Blick in die Zukunft:** Zum Zeitpunkt t sieht der Bot nur abgeschlossene Kerzen, die
   laufende Kerze bis zum bisher gelaufenen Weg und den aktuellen Preis.
-- **Laufende Kerze auf /formasyon:** Der Chart zeigt zusätzlich die laufende Kerze mit dem gemeinsamen Preis
+- **Laufende Kerze im Modus Formation von /chart:** Der Chart zeigt zusätzlich die laufende Kerze mit dem gemeinsamen Preis
   (Schluss der laufenden M15-Kerze). Das ist nur Anzeige: Suche, RSI und Zeichnungen enden an der letzten
   geschlossenen Kerze (FRM-31).
 - **Optionen:** „Konservative Ausführungsregel“ (TP und SL mit demselben Auslösepreis: SL zuerst; sonst gilt die Preis-Reihenfolge im Wegstück),

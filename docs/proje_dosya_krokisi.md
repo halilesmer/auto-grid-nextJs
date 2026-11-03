@@ -40,8 +40,6 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┃ ┃ ┃ ┣ 📜 page.tsx             # Ana sayfa (Dashboard)
 ┃ ┃ ┃ ┣ 📜 globals.css          # Global stiller (Tailwind), açık (:root) / koyu (.dark) tema token'ları
 ┃ ┃ ┃ ┣ 📜 version.ts           # Sürüm bilgisi
-┃ ┃ ┃ ┣ 📂 formasyon            # Formasyon sayfası
-┃ ┃ ┃ ┃ ┗ 📜 page.tsx
 ┃ ┃ ┃ ┣ 📂 vps                  # VPS uzaktan kontrol sayfası (sadece lokal, yalnızca admin; components/vps/)
 ┃ ┃ ┃ ┃ ┗ 📜 page.tsx
 ┃ ┃ ┃ ┣ 📂 users                # Kullanıcı yönetimi (yalnızca admin; components/users/, store/useUsersStore.ts, services/usersApi.ts)
@@ -411,9 +409,9 @@ grid_orchestrator (Ana Orkestratör)
 | Rota | Açıklama | Ana Bileşenler |
 |------|----------|----------------|
 | `/` | **Dashboard (Ana Sayfa)** | AccountSelector, ZoneSettingsPanel (sol 2/3), LogViewer, BotControls, SettingsForm (sağ 1/3), 📈 Grafik Butonu |
-| `/chart` | **Analiz** | Sekmeler Grafik (bölge kartı + MT5 mumları: zaman dilimi, eksik veri, piyasa araları, bölge bandı, kademeler, pozisyon/emirler, RSI), İstatistik (KPI, eğriler, bölge/setup dağılımı, MFE/MAE); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&tf=&range=`) |
+| `/chart` | **Chart** (modlar: Formasyon, Setup, Serbest) | Tek sayfa, `?mode=formation\|setup\|free`. Setup/Serbest modlarında sekmeler Grafik (bölge kartı + MT5 mumları: zaman dilimi, eksik veri, piyasa araları, bölge bandı, kademeler, pozisyon/emirler, RSI), İstatistik (KPI, eğriler, bölge/setup dağılımı, MFE/MAE); hesap/bölge/tarih aralığı seçimi, dişli (görünüm), lisans bilgisi; durum URL'de (`?account=&zone=&tab=&tf=&range=`) |
 | `/backtest` | **Backtest** *(B7/B8: BKT-08/11/12/13/14, Codex)* | Aktif sayfa: en çok 6 yerel setup kopyası, aynı anda 2 bağımsız koşu, ortak ZoneFieldsEditor ile düzenleme, çoğaltma ve silme; karşılaştırma tablosu ve equity overlay, KPI/sonuç özeti, grafik + tekrar oynatma (B6; en çok 50.000 tamamlanmış mum ve replay imlecinden sonraki veriler gizli), işlem tablosu. Hesaplama tarayıcıda (`lib/backtest/`, Web Worker), worker mum/sembol verisini sağlar. Setup ve koşu durumu `useBacktestStore`, worker haritası `useBacktestRun` içindedir. Aynı dönem ve bilinen hesap para birimi için bağımsız equity toplamı mümkündür; alternatif mum yolları birlikte toplanmaz. PresetPanel ve backtestPresetApi kullanıcıya ait preset'leri GET/POST /api/backtest/presets ve PUT/DELETE /api/backtest/presets/{id} üzerinden yönetir (api/backtest_presets.py; market.sqlite migration 3). BKT-14: LiveCompareSection ("Live-Vergleich") tamamlanan koşuları devralır, canlı deal'leri magic'e göre backtest işlemleriyle eşler (`lib/backtest/liveCompare.ts`) ve raporu GET/POST /api/backtest/reports, GET/DELETE /api/backtest/reports/{id} ile saklar (api/backtest_reports.py; market.sqlite migration 5, tablo backtest_reports; kullanıcı yalnız kendi raporlarını, admin hepsini görür). TransferDialog hedef hesabı/setup'ı seçer; useZoneTransferStore ve useZoneTransfer kaydedilmiş ayarlar yüklendikten sonra yalnız taslağı değiştirir. Yeni setup pasiftir; otomatik kayıt yoktur. Plan: `docs/journal/2026-10-06-backtest-module-plan.md` |
-| `/formasyon` | Formasyon Analizi | (Mevcut) |
+| `/formasyon` | Yönlendirme | `/chart?mode=formation` adresine yönlendirir (sorgu dizesi korunur); Formasyon artık `/chart` sayfasının bir modudur (`components/formation/FormationView.tsx`) |
 | `/vps` | **VPS Uzaktan Kontrol** (sadece lokal) | VpsElevatedWarning (admin haklı süreçler), VpsStatusPanel, AutoUpdateRow (otomatik güncellemenin gerçek durumu), VpsActions (güncelleme, worker/ngrok/VPS yeniden başlatma), VpsLogViewer |
 
 ### Bileşen Sorumlulukları

@@ -79,7 +79,8 @@ Each step is one PR. The steps run in sequence because they change the same file
 | U2a | Shell `ChartView` with system RSI(7) and Wave 5/35 on each chart. Entry: `2026-11-03-chart-u2-chartview.md`. | Done, PR 330 |
 | Top bar | Compact top bar below lg: the bar stands above the chart and covers no candles (UI-12). Entry: `2026-11-03-chart-topbar-compact.md`. | Done, PR 331 |
 | U2b | Button "Layers" next to Trend, one menu on each chart. Entry: `2026-11-03-chart-u2b-layers-menu.md`. | In review, PR to follow |
-| U3 | Merge the pages. | Open |
+| U3a | The formation page moves to `/chart` as the mode Formation; one menu item "Chart"; redirect `/formasyon`. Entry: `2026-11-03-chart-u3a-one-page.md`. | In review, PR to follow |
+| U3b | Remove the gear `analysis-settings`; its switches go to the legend and the menu "Layers". | Open |
 
 ## Why
 - `FormationChart` and `ChartCore` repeat the chart lifecycle. Two engines drift apart, and each new chart feature needs two implementations.

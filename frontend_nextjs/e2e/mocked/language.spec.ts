@@ -18,7 +18,7 @@ test.describe('UI Sprache', () => {
     await page.getByTestId('language-en').click();
     await expect(html).toHaveAttribute('lang', 'en');
     await expect(page.getByText(msg('dashboard.empty.title', undefined, 'en'))).toBeVisible();
-    await expect(page.getByRole('link', { name: msg('nav.formation', undefined, 'en') })).toBeVisible();
+    await expect(page.getByRole('link', { name: msg('nav.chart', undefined, 'en') })).toBeVisible();
 
     await page.getByTestId('language-de').click();
     await expect(html).toHaveAttribute('lang', 'de');
@@ -46,7 +46,7 @@ test.describe('UI Sprache', () => {
 
     await page.goto('/vps');
     await expect(page.getByRole('heading', { name: msg('vps.title', undefined, 'en') })).toBeVisible();
-    await page.goto('/chart');
+    await page.goto('/chart?mode=setup');
     await expect(page.getByRole('heading', { name: msg('analysis.title', undefined, 'en') })).toBeVisible();
   });
 

@@ -162,11 +162,11 @@ test.describe('UI Oberfläche', () => {
     const nav = page.getByRole('navigation');
     await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).toHaveAttribute('aria-current', 'page');
 
-    await nav.getByRole('link', { name: msg('nav.formation') }).click();
-    await expect(page).toHaveURL(/\/formasyon$/);
+    await nav.getByRole('link', { name: msg('nav.chart') }).click();
+    await expect(page).toHaveURL(/\/chart$/);
     await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
     await expect(page.getByTestId('nav-menu')).toBeHidden();
-    await expect(nav.getByRole('link', { name: msg('nav.formation') })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: msg('nav.chart') })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).not.toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.vps') })).toHaveAttribute('href', '/vps');
 
@@ -271,10 +271,11 @@ test.describe('UI Oberfläche', () => {
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
     await expect(page).toHaveURL(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
-    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
+    await page.getByTestId('chart-mode-free').click();
     await expect(page.getByTestId('free-chart-panel')).toBeVisible();
-    await page.getByRole('combobox', { name: msg('cw.mode'), exact: true }).selectOption('setup');
+    await page.getByTestId('chart-mode-setup').click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     await expect(page.getByText('90 – 110')).toBeVisible();

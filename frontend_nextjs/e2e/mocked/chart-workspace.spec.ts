@@ -326,7 +326,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 375, height: 812 
 test('Broker-Suche bewahrt Originalnamen und verwirft ungültige Symbole nach Kontowechsel', { tag: '@ANA-16' }, async ({ page, worker }) => {
   worker.setZones(DEMO_ID, []);
   worker.state.symbols = worker.state.symbols.map(s => s.name === 'XAUUSD' ? { ...s, name: 'Gold.m' } : s);
-  await page.goto(`/chart?account=${DEMO_ID}`);
+  await page.goto(`/chart?account=${DEMO_ID}&mode=free`);
   await page.getByRole('combobox', { name: msg('cw.symbol') }).fill('Gold');
   await page.getByRole('option').filter({ hasText: 'Gold.m' }).click();
   await expect(page.getByTestId('chart-workspace')).toHaveAttribute('data-context', /Gold\.m/);

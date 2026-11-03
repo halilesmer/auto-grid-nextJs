@@ -15,7 +15,7 @@ import { msg, type MessageKey } from '../fixtures/i18n';
 import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
-const URL = `/formasyon?account=${DEMO_ID}&zone=${ZONE_ID}`;
+const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 
 const fixtureBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
@@ -547,7 +547,7 @@ test.describe('FRM-25 freie Produktwahl', () => {
 
   test('Ein Konto ohne Setup kann ein Produkt wählen', { tag: '@FRM-25' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
-    await page.goto(`/formasyon?account=${LIVE_ID}`);
+    await page.goto(`/chart?mode=formation&account=${LIVE_ID}`);
     await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
     await pick(page, 'euro', 'EURUSD');
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
@@ -555,7 +555,7 @@ test.describe('FRM-25 freie Produktwahl', () => {
   });
 
   test('Ein Kontowechsel löscht das gewählte Produkt', { tag: '@FRM-25' }, async ({ page, worker }) => {
-    await openPage(page, worker, `/formasyon?account=${DEMO_ID}&symbol=XAUUSD`);
+    await openPage(page, worker, `/chart?mode=formation&account=${DEMO_ID}&symbol=XAUUSD`);
     await expect(symbolInput(page)).toHaveValue('XAUUSD');
     await page.getByRole('combobox', { name: msg('account.select.aria') }).click();
     await page.getByRole('option', { name: /LIVE/ }).click();
@@ -576,7 +576,7 @@ test.describe('FRM-25 freie Produktwahl', () => {
     worker.state.symbols = worker.state.symbols.map((s) => (s.name === 'EURUSD' ? { ...s, name: 'EURUSDm' } : s));
     serveFixture(worker, NOW);
     worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSDm' })]) };
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(symbolInput(page)).toHaveValue('EURUSDM');
     // Der Listeneintrag zeigt: Die Symbole sind geladen, das Verlassen des Feldes vergleicht wirklich
@@ -702,8 +702,9 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       }
       // Desktoplinks sind direkt in der Kopfzeile erreichbar.
       await expect(page.getByTestId('nav-menu')).toBeHidden();
-      await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.analysis', {}, 'de'), exact: true }).click();
-      await expect(page).toHaveURL(/\/chart/);
+      await expect(page.getByTestId('app-nav').getByRole('link', { name: msg('nav.chart', {}, 'de'), exact: true })).toBeVisible();
+      await page.getByTestId('chart-mode-setup').click();
+      await expect(page).toHaveURL(/mode=setup/);
       await expect(page.getByTestId('formation-page')).toHaveCount(0);
     });
   }
@@ -1143,7 +1144,7 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
 
 test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', () => {
   const KEY = 'grid-robot-formation-alarm';
-  const ALARM_URL = `/chart?account=${DEMO_ID}`;
+  const ALARM_URL = `/chart?account=${DEMO_ID}&mode=free`;
   const gartley = (symbol: string) => msg('formation.alarm.notice.both', { form: msg('formation.form.GAR'), side: msg('formation.side.buy'), symbol, tf: 'H4', point: 'D' });
   const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
 
@@ -1196,7 +1197,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect(note.tag).toContain('EURUSD');
     // Der Schlüssel trägt das Konto: gleiche Formation in zwei Konten ersetzt sich nicht
     expect(note.tag).toContain(DEMO_ID);
-    expect(note.url).toBe(`/formasyon?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`);
+    expect(note.url).toBe(`/chart?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`);
   });
 
   test('„Anzeigen“ führt von /chart zu Produkt, Formation und Zeiteinheit auf /formasyon', { tag: '@FRM-30' }, async ({ page, worker }) => {
@@ -1208,7 +1209,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await remembered(page, 'EURUSD');
     await nextSlot(page, worker);
     await page.getByRole('button', { name: msg('formation.alarm.show'), exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/formasyon\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    await expect(page).toHaveURL(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     // Mit Favoriten stehen die Formationen in der Favoriten-Zeile: die Liste zeigt die Gartley der Zeiteinheit H4
     await expect(page.getByTestId('candidate-item').first()).toBeVisible();
@@ -1226,7 +1227,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(page.getByText(gartley('GBPUSD'))).toBeVisible();
     // Der Favorit EURUSD hat keinen Alarm: keine Meldung für ihn
     await expect(page.getByText(gartley('EURUSD'))).toHaveCount(0);
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await page.getByTestId('favorites-toggle').click();
     await expect(page.getByTestId('fav-form-GAR').getByTestId('hit-badge')).toHaveText('1');
@@ -1238,7 +1239,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.ratesErrorSymbols = ['GBPUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|GBPUSD`]: {} } });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await openAlarmSettings(page);
     await expect(page.getByTestId('formation-alarm-incomplete')).toContainText('GBPUSD');
@@ -1287,7 +1288,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(page.getByRole('button', { name: msg('formation.alarm.show'), exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: msg('formation.alarm.openFavorites'), exact: true })).toBeVisible();
     const [note] = await shown(page);
-    expect(note.url).toBe(`/formasyon?account=${DEMO_ID}`);
+    expect(note.url).toBe(`/chart?mode=formation&account=${DEMO_ID}`);
     expect(note.tag).toBe(`formation-alarm-since-${DEMO_ID}`);
   });
 
@@ -1311,10 +1312,10 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Die Nachricht des Service Workers nach einem Klick auf die Systemmeldung öffnet die Formation ohne Neuladen', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await page.goto(`/chart?account=${DEMO_ID}`);
-    const url = `/formasyon?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`;
+    const url = `/chart?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`;
     // Der Service Worker selbst ist in den Tests blockiert; geprüft wird die Seite, die seine Nachricht annimmt
     await page.evaluate((target) => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'formation-alarm-open', url: target } })), url);
-    await expect(page).toHaveURL(new RegExp(`/formasyon\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    await expect(page).toHaveURL(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
   });
 
   test('Die Schalter „Alle Favoriten“ und „Systemmeldung“ speichern sofort, auch wenn die Browser-Abfrage nie beantwortet wird', { tag: '@FRM-30' }, async ({ page, worker }) => {
@@ -1325,7 +1326,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
       Object.defineProperty(Notification, 'permission', { get: () => 'default' });
       Notification.requestPermission = () => new Promise(() => {});
     });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await openAlarmSettings(page);
     const stored = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}'), KEY);
     await page.getByRole('switch', { name: msg('formation.alarm.favorites') }).click();
@@ -1366,7 +1367,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Ohne gewähltes und ohne gemerktes Konto ruht der Alarm und das Menü sagt es', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await seed(page, {});
-    await page.goto('/formasyon');
+    await page.goto('/chart?mode=formation');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.none'));
     await expect(page.getByTestId('formation-alarm-rest-note')).toBeVisible();
@@ -1376,7 +1377,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Ein gemerktes Konto, das es nicht mehr gibt, lässt den Alarm ruhen und das Menü sagt es', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await seed(page, { account: '999999' });
-    await page.goto('/formasyon');
+    await page.goto('/chart?mode=formation');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
     expect(ratesCalls(worker)).toBe(0);
@@ -1387,7 +1388,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.accounts = [];
     serveFixture(worker, NOW);
     await seed(page, { account: DEMO_ID });
-    await page.goto('/formasyon');
+    await page.goto('/chart?mode=formation');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
   });
@@ -1395,7 +1396,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Ein Alarm-Produkt bleibt nach dem Neuladen ohne Konto auf der Seite im Menü entfernbar', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await seed(page, { account: DEMO_ID, enabled: [`${DEMO_ID}|EURUSD`] });
-    await page.goto('/formasyon?symbol=EURUSD');
+    await page.goto('/chart?mode=formation&symbol=EURUSD');
     await openAlarmSettings(page);
     await page.getByTestId('formation-alarm-extra-EURUSD').click();
     await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key) ?? '{}').enabled.length === 0, KEY);
@@ -1408,7 +1409,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], account: '999999' });
-    await page.goto('/formasyon');
+    await page.goto('/chart?mode=formation');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
     // Das Konto entsteht, ein anderer Tab merkt es: dieser Tab bekommt nur das storage-Ereignis
@@ -1435,7 +1436,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD', 'GBPUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], enabled: [`${DEMO_ID}|XAUUSD`] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await openAlarmSettings(page);
     await expect(page.getByRole('switch', { name: msg('formation.alarm.favorites') })).toBeChecked();
@@ -1452,7 +1453,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await waitForPass(worker, 1);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     const before = ratesCalls(worker);
@@ -1466,7 +1467,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     // Das Menü richtet sich erst an der Glocke aus, wenn die Leiste fertig ist
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await expect(page.getByTestId('favorites-strip')).toBeVisible();
@@ -1494,7 +1495,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     await storeSidebar(page, { open: true, tab: 'favorites' });
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-sidebar')).toBeVisible();
     await expect(page.getByTestId('sidebar-tab-favorites')).toBeVisible();
     expect(await onTop(page, page.getByTestId('sidebar-tab-favorites'))).toBe(true);
@@ -1511,7 +1512,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: [history()] }, forms: [] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.history')}`) })).toHaveAttribute('aria-selected', 'true');
     await expect(historyItems(page)).toHaveCount(1);
@@ -1522,7 +1523,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, FORMING_NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], system: false });
     await page.clock.install();
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await remembered(page, 'EURUSD');
     await nextSlot(page, worker);
     await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
@@ -1539,7 +1540,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, forms: ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT'] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await expect(page.getByText(msg('formation.alarm.notice.since', { count: 5 }))).toBeVisible();
     await openHistory(page);
     await expect(historyItems(page)).toHaveCount(5);
@@ -1551,7 +1552,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     const memory = { [`${DEMO_ID}|EURUSD`]: { 'EURUSD|GAR|H4|buy|1': { valid: true, target: true } } };
     await seed(page, { favoritesEnabled: [DEMO_ID], memory, history: { [DEMO_ID]: [history()] }, forms: [] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await openHistory(page);
     await expect(historyItems(page)).toHaveCount(1);
     await page.getByTestId('formation-alarm-history-clear').click();
@@ -1566,11 +1567,11 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, FORMING_NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
     await page.clock.install();
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await remembered(page, 'EURUSD');
     const second = await page.context().newPage();
     await worker.install(second);
-    await second.goto(`/formasyon?account=${DEMO_ID}`);
+    await second.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await second.waitForTimeout(1500);
     await nextSlot(page, worker);
     await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
@@ -1582,10 +1583,10 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, history: { [DEMO_ID]: [history()] }, forms: [] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await openHistory(page);
     await historyItems(page).first().click();
-    await expect(page).toHaveURL(new RegExp(`/formasyon\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    await expect(page).toHaveURL(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
     // Das Menü schließt, damit der gewählte Chart frei liegt
     await expect(page.getByTestId('formation-alarm-panel')).toHaveCount(0);
   });
@@ -1594,7 +1595,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], forms: [] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await openHistory(page);
     await expect(page.getByTestId('formation-alarm-history-empty')).toHaveText(new RegExp(msg('formation.alarm.history.empty')));
     await expect(page.getByTestId('formation-alarm-history-clear')).toBeDisabled();
@@ -1607,7 +1608,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     // Die älteste Gruppe hat nur noch zwei Einträge, der Rest fiel an der Grenze heraus
     const oldest = [0, 1].map((i) => ({ ...history(), id: `o${i}`, key: `o${i}`, at: Date.UTC(2025, 10, 16, 9, 0), batch: 'since' }));
     await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: [...single, ...oldest] }, forms: [] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     await openHistory(page);
     await expect(historyItems(page)).toHaveCount(100);
     await expect(page.getByTestId('formation-alarm-history-group')).toHaveText(new RegExp(msg('formation.alarm.history.group.since', { count: 2 })));
@@ -1619,7 +1620,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     const many = Array.from({ length: 8 }, (_, i) => ({ ...history(), id: `h${i}`, key: `k${i}`, at: Date.UTC(2025, 10, 16, 9, i) }));
     await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: many }, forms: [] });
-    await page.goto(`/formasyon?account=${DEMO_ID}`);
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
     // Wie im Menü-Test oben: erst wenn die Leiste fertig ist, sitzt die Glocke an ihrem Platz; das Menü richtet sich beim Öffnen daran aus
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await openHistory(page);

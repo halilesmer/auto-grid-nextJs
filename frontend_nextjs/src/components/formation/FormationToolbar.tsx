@@ -54,20 +54,21 @@ export function FormationToolbar({
   children: ReactNode;
 }) {
   const t = useT();
-  // Platz für die Werkzeugleiste des Charts (ChartWorkspace, overlayLayout) rechts in der Kopfleiste. Schwellen und Reserve stehen in rem,
+  // Platz für die Werkzeugleiste des Charts (ChartWorkspace, overlayLayout) rechts in der Kopfleiste. Schwelle und Reserve stehen in rem,
   // weil Kopfleiste und Werkzeuge mit der Browser-Schrift wachsen; in px überlappten sie bei 20 px Schrift (FRM-23).
-  // Gemessen 2026-11-02 bei 16 px Schrift, tr/de (20 px in Klammern): Werkzeugleiste 272 px (333) + 4 px Rand rechts (5) = 276 px (338).
-  // Der Inhalt der Kopfleiste endet ab Kante von `formation-main` bei 845 px (1011) mit kompaktem Status-Knopf (nur Symbole)
-  // und bei 969 px (1170) mit vollem Knopf (Pille und Zähler; FormationStatusChip.tsx).
-  // Schwelle A = 71rem (1136 px): 845 + 8 Abstand + 276 = 1129 (20 px: 1359 ≤ 1420). Ab A stehen die Werkzeuge in der Kopfleiste.
-  // Reserve 18rem (288 px ≥ 276 + 8): 845 + 288 = 1133 ≤ 1136 (20 px: 1011 + 360 = 1371 ≤ 1420).
-  // Schwelle B = 79rem (1264 px, nur im Status-Knopf): 969 + 8 + 276 = 1253; ab B zeigt der Knopf Pille und Zähler (969 + 288 = 1257; 20 px: 1170 + 360 = 1530 ≤ 1580).
-  // Unter A schwebt die Werkzeugleiste unten über dem Chart; mit offener Seitenleiste gilt das bei 16 px bis 1464 px Fenster (1136 + 328).
-  // Ändert sich die Leiste oder der Status-Knopf, A (hier, ChartWorkspace, TrendToggle) und B (Status-Knopf) bei 16 und 20 px neu messen.
+  // Gemessen 2026-11-03 (UI-14, e2e chart-one-page.spec.ts), tr/de: Werkzeugleiste mit dem Knopf „Ebenen“ 374 px bei 16 px Schrift (456 px bei 20 px)
+  // + 4 px (5 px) Rand rechts des Containers + 8 px Abstand = 386 px (469 px). Die Reserve ist 24,25rem = 388 px (485 px bei 20 px Schrift).
+  // Vorher 18rem (288 px, gemessen ohne „Ebenen“): die Leiste deckte bei 1520 px Fenster den Status-Knopf ab (Befund der Prüfung).
+  // Die Kopfleiste bricht um (alle drei Modi): was nicht mehr vor die Reserve passt, steht in der zweiten Zeile; die Werkzeuge liegen nur in der ersten (37 px).
+  // Schwelle A = 71rem (1136 px): ab A stehen die Werkzeuge in der Kopfleiste, darunter schwebt die Werkzeugleiste unten über dem Chart
+  // (mit offener Seitenleiste gilt das bei 16 px Schrift bis 1464 px Fenster, 1136 + 328).
+  // Schwelle B = 79rem (nur im Status-Knopf): ab B zeigt der Knopf Pille und Zähler statt nur Symbole (FormationStatusChip.tsx).
+  // Ändert sich die Leiste, die Werkzeugleiste oder der Status-Knopf, A (hier, ChartTopBar, ChartWorkspace, TrendToggle, LayersMenu) und B bei 16 und 20 px
+  // neu messen; der Test UI-14 prüft in allen Modi, dass kein Element der Kopfleiste unter der Werkzeugleiste liegt.
   return (
     <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:h-[38px] lg:flex-nowrap @min-[71rem]/formation-main:pr-72" data-testid="formation-topbar">
-        <div className="pointer-events-auto flex h-[38px] min-w-0 items-center gap-1 max-lg:w-full lg:h-auto" data-testid="formation-selectors">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:min-h-[38px] @min-[71rem]/formation-main:pr-97" data-testid="formation-topbar">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />

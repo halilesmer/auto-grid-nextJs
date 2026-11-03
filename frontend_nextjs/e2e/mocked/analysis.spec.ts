@@ -40,15 +40,16 @@ test.describe('ANA Analyse-Seite', () => {
   test('Menü „Analyse“ und erste Zone des Kontos', { tag: '@ANA-01' }, async ({ page, worker }) => {
     void worker;
     await page.goto('/');
-    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
-    await expect(page.getByRole('heading', { name: msg('analysis.title') })).toBeVisible();
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
+    await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
     await expect(page.getByRole('alert').filter({ hasText: msg('analysis.noAccount.title') })).toBeVisible();
 
     await chooseAccount(page, DEMO_ID);
+    await page.getByTestId('chart-mode-free').click();
     await expect(page.getByTestId('free-chart-panel')).toBeVisible();
-    await page.getByRole('combobox', { name: msg('cw.mode'), exact: true }).selectOption('setup');
+    await page.getByTestId('chart-mode-setup').click();
     // Erste Zone des Kontos wird gewählt und steht mit dem Konto in der URL
-    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
+    await expect.poll(() => { const q = new URL(page.url()).searchParams; return [q.get('account'), q.get('mode'), q.get('zone')]; }).toEqual([DEMO_ID, 'setup', ZONE_ID]);
     await expect(page.getByText('90 – 110')).toBeVisible();
   });
 
@@ -135,10 +136,10 @@ test.describe('ANA Analyse-Seite', () => {
   test('Alter Setup-Link behält seinen Chartmodus beim Kontowechsel', { tag: ['@ANA-02', '@ANA-16'] }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    await expect(page.getByRole('combobox', { name: msg('cw.mode'), exact: true })).toHaveValue('setup');
+    await expect(page.getByTestId('chart-mode-setup')).toHaveAttribute('aria-pressed', 'true');
     await chooseAccount(page, LIVE_ID);
     await expect(page).toHaveURL(new RegExp(`account=${LIVE_ID}`));
-    await expect(page.getByRole('combobox', { name: msg('cw.mode'), exact: true })).toHaveValue('setup');
+    await expect(page.getByTestId('chart-mode-setup')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('free-chart-panel')).toHaveCount(0);
     await expect(page.getByTestId('zone-select').getByRole('combobox')).toBeDisabled();
   });
@@ -214,7 +215,7 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
     void worker;
     // Browser (Europe/Berlin): 31.12.2026 23:30 – Broker (UTC+3): schon 01.01.2027 01:30
     await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
-    await page.goto(`/chart?account=${DEMO_ID}&range=today`);
+    await page.goto(`/chart?account=${DEMO_ID}&mode=free&range=today`);
     await expect(page.getByTestId('broker-clock')).toHaveText(msg('analysis.clock.badge', { offset: '+3' }));
     await expect(page.getByTestId('range-trigger')).toContainText('01.01.27 – 01.01.27');
 
@@ -260,7 +261,7 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
   test('Ein unmöglicher Abstand (UTC−31:30 aus einem alten Tick) zählt als unsicher, kein falsches Abzeichen', { tag: '@ANA-10' }, async ({ page, worker }) => {
     worker.state.brokerOffset = -31.5 * 3600;
     await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
-    await page.goto(`/chart?account=${DEMO_ID}&range=today`);
+    await page.goto(`/chart?account=${DEMO_ID}&mode=free&range=today`);
     await expect(page.getByRole('alert').filter({ hasText: msg('analysis.clock.unsure.title') })).toBeVisible();
     await expect(page.getByTestId('broker-clock')).toBeHidden();
     await expect(page.getByTestId('range-trigger')).toContainText('31.12.26 – 31.12.26');
@@ -270,7 +271,7 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
     worker.state.brokerClockReliable = false;
     // UTC: 31.12.2026 22:30 – ohne sichere Brokeruhr gilt der UTC-Tag
     await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
-    await page.goto(`/chart?account=${DEMO_ID}&range=today`);
+    await page.goto(`/chart?account=${DEMO_ID}&mode=free&range=today`);
     await expect(page.getByRole('alert').filter({ hasText: msg('analysis.clock.unsure.title') })).toBeVisible();
     await expect(page.getByTestId('broker-clock')).toBeHidden();
     await expect(page.getByTestId('range-trigger')).toContainText('31.12.26 – 31.12.26');

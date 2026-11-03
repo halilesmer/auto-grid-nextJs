@@ -41,7 +41,7 @@ export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, childr
       size="xs"
       align="left"
       // Unter der Schwelle von FormationToolbar.tsx schwebt die Werkzeugkarte unten: das Menü geht dann nach oben auf
-      panelClassName="w-72 max-w-[calc(100vw-16px)] max-h-[70dvh] overflow-y-auto @max-[71rem]/formation-main:top-auto @max-[71rem]/formation-main:bottom-full @max-[71rem]/formation-main:mt-0 @max-[71rem]/formation-main:mb-2 @max-[71rem]/formation-main:max-h-[min(70dvh,calc(100dvh-24rem))]"
+      panelClassName="w-72 max-w-[calc(100vw-16px)] max-h-[70dvh] overflow-y-auto @max-[71rem]/formation-main:top-auto @max-[71rem]/formation-main:bottom-full @max-[71rem]/formation-main:mt-0 @max-[71rem]/formation-main:mb-2 @max-[71rem]/formation-main:max-h-[min(70dvh,max(12rem,calc(100dvh-24rem)))]"
       triggerProps={{ 'data-testid': 'layers-button' }}
     >
       <div className="grid gap-1 p-3" data-testid="layers-menu">

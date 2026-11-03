@@ -251,8 +251,8 @@ test.describe('Weitere Seiten (de)', () => {
     // Über die Navigation, damit das gewählte Konto erhalten bleibt
     await dashboard.open(DEMO_ID);
     // Bei 375 px stehen die Seitenlinks im ☰-Menü (UI-01)
-    await (await openPageMenu(page)).getByRole('link', { name: msg('nav.formation', undefined, 'de') }).click();
-    await expect(page).toHaveURL(/\/formasyon$/);
+    await (await openPageMenu(page)).getByRole('link', { name: msg('nav.chart', undefined, 'de') }).click();
+    await expect(page).toHaveURL(/\/chart(\?account=\d+)?$/);
     await expectNoPageOverflow(page);
 
     await (await openPageMenu(page)).getByRole('link', { name: msg('nav.vps', undefined, 'de') }).click();

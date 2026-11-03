@@ -294,7 +294,7 @@ export function ChartCore({
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        // Das Layout von /formasyon ist die Vorlage: es behält die Schrift und die Ränder des Charts
+        // Das Layout vom Modus Formation von /chart ist die Vorlage: es behält die Schrift und die Ränder des Charts
         ...(overlayLayout ? {} : { fontFamily: 'var(--font-geist-mono), ui-monospace, monospace' }),
         fontSize: 11,
         panes: { separatorColor: 'transparent' },

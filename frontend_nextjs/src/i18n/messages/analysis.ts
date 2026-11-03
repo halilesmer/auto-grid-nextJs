@@ -3,7 +3,6 @@ import { defineArea } from './define';
 // Analiz sayfası (/chart): sekmeler, hesap/setup seçimi, takvim, görünüm ayarları (docs/analyse-regeln.md)
 export default defineArea(
   {
-    'nav.analysis': 'Analiz',
     'analysis.title': 'Analiz',
     'analysis.subtitle': 'Seçili hesap ve setup için grafik ve istatistik',
     'analysis.tab.chart': 'Grafik',
@@ -72,7 +71,6 @@ export default defineArea(
     'analysis.chart.hours': 'İşlem saati (tahmini): {hours}',
     'analysis.chart.empty.title': 'Bu aralıkta mum yok',
     'analysis.chart.empty.text': 'MT5 bu sembol ve zaman aralığı için mum vermedi (ör. piyasa kapalı). Başka bir aralık seçin.',
-    'analysis.chart.key.noData': 'Eksik veri',
     'analysis.chart.key.pause': 'Piyasa arası',
     'analysis.chart.key.band': 'Setup bandı',
     'analysis.chart.key.levels': 'Kademeler',
@@ -202,7 +200,6 @@ export default defineArea(
     'analysis.stats.weekday.6': 'Cumartesi',
   },
   {
-    'nav.analysis': 'Analysis',
     'analysis.title': 'Analysis',
     'analysis.subtitle': 'Chart and statistics for the selected account and setup',
     'analysis.tab.chart': 'Chart',
@@ -271,7 +268,6 @@ export default defineArea(
     'analysis.chart.hours': 'Trading hours (estimated): {hours}',
     'analysis.chart.empty.title': 'No candles in this range',
     'analysis.chart.empty.text': 'MT5 returned no candles for this symbol and range (e.g. market closed). Pick another range.',
-    'analysis.chart.key.noData': 'Missing data',
     'analysis.chart.key.pause': 'Market pause',
     'analysis.chart.key.band': 'Setup band',
     'analysis.chart.key.levels': 'Levels',
@@ -401,7 +397,6 @@ export default defineArea(
     'analysis.stats.weekday.6': 'Saturday',
   },
   {
-    'nav.analysis': 'Analyse',
     'analysis.title': 'Analyse',
     'analysis.subtitle': 'Chart und Statistik für das gewählte Konto und Setup',
     'analysis.tab.chart': 'Chart',
@@ -470,7 +465,6 @@ export default defineArea(
     'analysis.chart.hours': 'Handelszeit (geschätzt): {hours}',
     'analysis.chart.empty.title': 'Keine Kerzen in diesem Zeitraum',
     'analysis.chart.empty.text': 'MT5 hat für dieses Symbol und diesen Zeitraum keine Kerzen geliefert (z. B. Markt zu). Wähle einen anderen Zeitraum.',
-    'analysis.chart.key.noData': 'Fehlende Daten',
     'analysis.chart.key.pause': 'Marktpause',
     'analysis.chart.key.band': 'Setup-Band',
     'analysis.chart.key.levels': 'Stufen',

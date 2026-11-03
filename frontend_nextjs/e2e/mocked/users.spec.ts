@@ -173,7 +173,7 @@ test.describe('USR Ansicht eines Benutzers', () => {
   });
 
   test('Chart-Seite ohne gewähltes Konto öffnet keinen Stream (Worker würde ablehnen)', { tag: '@USR-08' }, async ({ page, worker }) => {
-    await page.goto('/formasyon');
+    await page.goto('/chart?mode=formation');
     await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
     // Kurz warten: die Rolle ist geladen, ein Admin würde jetzt verbinden
     await expect.poll(() => worker.callsTo('GET', '/api/auth/me').length).toBeGreaterThan(0);

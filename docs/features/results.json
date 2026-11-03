@@ -257,7 +257,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 19
+      "tests": 1
     }
   },
   "ANA-18": {
@@ -271,7 +271,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 19
+      "tests": 4
     }
   },
   "ANA-20": {
@@ -285,7 +285,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 34
+      "tests": 9
     }
   },
   "ANA-22": {
@@ -719,7 +719,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 5
+      "tests": 4
     },
     "unit": {
       "datum": "2026-11-03",
@@ -1328,7 +1328,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 8
+      "tests": 1
     }
   },
   "UI-01": {
@@ -1377,14 +1377,14 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 35
+      "tests": 14
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 52
+      "tests": 6
     }
   },
   "UI-09": {
@@ -1422,6 +1422,13 @@
       "tests": 21
     }
   },
+  "UI-14": {
+    "e2e": {
+      "datum": "2026-11-03",
+      "status": "passed",
+      "tests": 24
+    }
+  },
   "UPD-01": {
     "api": {
       "datum": "2026-11-03",
@@ -1431,7 +1438,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 2
+      "tests": 1
     }
   },
   "UPD-02": {
@@ -1450,7 +1457,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 3
+      "tests": 2
     }
   },
   "UPD-05": {
@@ -1741,7 +1748,7 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 18
+      "tests": 16
     }
   },
   "ZON-14": {
@@ -1798,14 +1805,14 @@
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 38
+      "tests": 25
     }
   },
   "ZON-21": {
     "e2e": {
       "datum": "2026-11-03",
       "status": "passed",
-      "tests": 5
+      "tests": 1
     }
   }
 }

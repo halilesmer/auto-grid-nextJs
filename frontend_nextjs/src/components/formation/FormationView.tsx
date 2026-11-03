@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Bookmark, ListChecks, Loader2 } from 'lucide-react';
 
 import { useAccounts } from '@/components/account/hooks';
 import { ChartPage } from '@/components/chart-page/ChartPage';
+import { ChartModeSegment } from '@/components/chart-page/ChartTopBar';
 import { ChartPanel } from '@/components/chart-page/ChartPanel';
 import { FavoritesAddButton, FavoritesSidebar } from '@/components/formation/FavoritesSidebar';
 import { FormationChart } from '@/components/formation/FormationChart';
@@ -41,14 +42,14 @@ import { cn } from '@/lib/utils';
 const ACCOUNTS_RETRY_MS = 10_000;
 
 /**
- * Formationserkennung (/formasyon): Das Symbol ist frei wählbar, ohne Wahl gilt das erste Setup des Kontos; im Hintergrund läuft die Suche über alle
+ * Modus Formation der Chartseite (/chart?mode=formation): Das Symbol ist frei wählbar, ohne Wahl gilt das erste Setup des Kontos; im Hintergrund läuft die Suche über alle
  * Formationen und Zeiteinheiten (useFormationScan). Chart, Kandidaten-Liste und Checkliste zeigen den gewählten Kandidaten.
  */
-function FormationView() {
+export function FormationView() {
   const t = useT();
   const locale = useLocale();
   const format = useFormat();
-  const { accountId: urlAccount, zoneId: urlZone, symbol: urlSymbol, tf, form, setAccount, setSymbol, setView } = useFormationParams();
+  const { accountId: urlAccount, zoneId: urlZone, symbol: urlSymbol, tf, form, setAccount, adoptAccount, setSymbol, setView } = useFormationParams();
   const accounts = useAccountStore((s) => s.accounts);
   const selected = useAccountStore((s) => s.selectedAccount);
   const settings = useSettingsStore((s) => s.settings);
@@ -77,10 +78,15 @@ function FormationView() {
     };
   }, [accountsLoaded, fetchAccounts]);
 
-  // Ein Konto aus der Adresse wird global gewählt (wie auf /chart); ohne ?account= gilt das gewählte Konto, die Adresse bleibt sauber
+  // Ein Konto aus der Adresse wird global gewählt (wie in Setup und Frei); ohne ?account= wird das gewählte Konto in die Adresse übernommen,
+  // damit Moduswechsel und Links dasselbe Konto tragen
   useEffect(() => {
-    if (urlAccount && accountKnown && urlAccount !== useAccountStore.getState().selectedAccount) selectAccount(urlAccount);
-  }, [urlAccount, accountKnown]);
+    if (urlAccount) {
+      if (accountKnown && urlAccount !== useAccountStore.getState().selectedAccount) selectAccount(urlAccount);
+    } else if (selected) {
+      adoptAccount(selected);
+    }
+  }, [urlAccount, selected, accountKnown, adoptAccount]);
 
   const settingsError = useAccountSettings(accountKnown ? accountId : null, 'ifMissing');
   const zones = useMemo(
@@ -261,6 +267,7 @@ function FormationView() {
             </>
           }
         >
+          <ChartModeSegment fill />
           {accountKnown && (
             <FormationSymbolSelect
               accountId={accountId}
@@ -366,14 +373,5 @@ function FormationView() {
         )
       }
     />
-  );
-}
-
-export default function FormasyonPage() {
-  // useSearchParams braucht eine Suspense-Grenze, sonst schlägt der Produktions-Build fehl
-  return (
-    <Suspense fallback={<div className="min-h-125" />}>
-      <FormationView />
-    </Suspense>
   );
 }

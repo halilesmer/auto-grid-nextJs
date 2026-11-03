@@ -57,11 +57,11 @@ interface Props {
   showRsi?: boolean;
   className?: string;
   /**
-   * Werkzeugleiste und Zeichenleiste schweben über dem Chart (/formasyon). Die Leiste sitzt oben in der Kopfleiste der Seite,
+   * Werkzeugleiste und Zeichenleiste schweben über dem Chart (Modus Formation von /chart). Die Leiste sitzt oben in der Kopfleiste der Seite,
    * sobald der Container `formation-main` breit genug ist (Schwelle in FormationToolbar.tsx), sonst schwebt sie unten.
    * Oben ist sie 1 px + 37 px hoch, in px wie die 38 px hohe Kopfleiste, damit sie bei größerer Browser-Schrift nicht in die Formationszeile ragt.
-   * Rechts endet die schwebende Leiste 5rem vom Rand (die Seitenleiste von /formasyon schiebt den Chart, sie überdeckt ihn ab lg nicht).
-   * Stapelung auf /formasyon: oben z-60 über der Kopfleiste (z-50), unten z-53 über den Chart-Overlays und der Infokarte (z-52, unter lg).
+   * Rechts endet die schwebende Leiste 5rem vom Rand (die Seitenleiste vom Modus Formation von /chart schiebt den Chart, sie überdeckt ihn ab lg nicht).
+   * Stapelung im Modus Formation von /chart: oben z-60 über der Kopfleiste (z-50), unten z-53 über den Chart-Overlays und der Infokarte (z-52, unter lg).
    */
   overlayLayout?: boolean;
   /** Vollbild zeigt die ganze Chartseite (`data-chart-page`, mit Kopfleiste) statt nur den Chart; nur mit overlayLayout sinnvoll */
@@ -70,7 +70,7 @@ interface Props {
 
 export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
   const t = useT(), fmt = useFormat();
-  // Auf /formasyon (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
+  // Auf /chart (Formation) (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
   const root = useRef<HTMLDivElement>(null), toolbarCard = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);

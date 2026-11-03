@@ -241,7 +241,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
 
   test('Formasyon- und Chart-Seite', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     void worker;
-    await page.goto('/formasyon');
+    await page.goto('/chart?mode=formation');
     await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
 
@@ -249,10 +249,11 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
     await expect(page).toHaveURL(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`);
     expect(await unhinted(page)).toEqual([]);
-    await page.getByRole('navigation').getByRole('link', { name: msg('nav.analysis') }).click();
+    await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
+    await page.getByTestId('chart-mode-free').click();
     expect(await unhinted(page)).toEqual([]);
-    await page.getByRole('combobox', { name: msg('cw.mode'), exact: true }).selectOption('setup');
+    await page.getByTestId('chart-mode-setup').click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
     await expect(page.getByText(msg('chart.zone.priceRange'), { exact: true })).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
