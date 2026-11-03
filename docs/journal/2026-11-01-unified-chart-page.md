@@ -3,7 +3,7 @@ date: 2026-11-01
 author: Claude
 type: plan
 status: open
-pr: [275, 276, 307, 321]
+pr: [275, 276, 307, 321, 326, 329, 330, 331, 332, 333, 334]
 features: [MET-02, UI-06, FRM-20, ANA-21, UI-10]
 areas: [frontend, docs]
 ---
@@ -72,15 +72,15 @@ Each step is one PR. The steps run in sequence because they change the same file
 | S2 | `FormationChart` runs on `ChartCore`, with slots instead of flags. A check blocks other `createChart` calls. | Done, PR 276 |
 | S3 | Extract `ChartPage` and a general `ChartPanel`. `/formasyon` shows no visible change. | Done, PR 321 |
 | S4 | `/chart` moves into `ChartPage`. `ChartFrame` and the page title go. | Done, PR 326 |
-| S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Open |
+| S5 | `/backtest` moves into `ChartPage`. Remove `overlayLayout`. | Dropped (decision of 2026-11-03: `/backtest` stays as it is) |
 | S6a | `/formasyon` gets the `Trend` button and the trend line (decision of the owner on 2026-11-02: before S3 to S5). Entry: `2026-11-02-formation-trend-toggle.md`. | Done, PR 307 |
-| S6b | `/backtest` gets the `Trend` button. `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. On `/backtest`, the line must stop at the replay cursor. | Open |
+| S6b | `/backtest` gets the `Trend` button. `TrendToggle` moves into `ChartWorkspace`, so all pages have the same buttons. On `/backtest`, the line must stop at the replay cursor. | Dropped (decision of 2026-11-03) |
 | U1 | Trend path over the whole range of the chart. Entry: `2026-11-03-chart-u1-trend-range.md`. | Done, PR 329 |
 | U2a | Shell `ChartView` with system RSI(7) and Wave 5/35 on each chart. Entry: `2026-11-03-chart-u2-chartview.md`. | Done, PR 330 |
 | Top bar | Compact top bar below lg: the bar stands above the chart and covers no candles (UI-12). Entry: `2026-11-03-chart-topbar-compact.md`. | Done, PR 331 |
-| U2b | Button "Layers" next to Trend, one menu on each chart. Entry: `2026-11-03-chart-u2b-layers-menu.md`. | In review, PR to follow |
-| U3a | The formation page moves to `/chart` as the mode Formation; one menu item "Chart"; redirect `/formasyon`. Entry: `2026-11-03-chart-u3a-one-page.md`. | In review, PR to follow |
-| U3b | Remove the gear `analysis-settings`; its switches go to the legend and the menu "Layers". Entry: `2026-11-03-chart-u3b-gear.md`. | In review, PR to follow |
+| U2b | Button "Layers" next to Trend, one menu on each chart. Entry: `2026-11-03-chart-u2b-layers-menu.md`. | Done, PR 332 |
+| U3a | The formation page moves to `/chart` as the mode Formation; one menu item "Chart"; redirect `/formasyon`. Entry: `2026-11-03-chart-u3a-one-page.md`. | Done, PR 333 |
+| U3b | Remove the gear `analysis-settings`; its switches go to the legend and the menu "Layers". Entry: `2026-11-03-chart-u3b-gear.md`. | Done, PR 334 |
 
 ## Why
 - `FormationChart` and `ChartCore` repeat the chart lifecycle. Two engines drift apart, and each new chart feature needs two implementations.
@@ -173,12 +173,21 @@ Verification of "no visible change": screenshots of the mocked build before (sta
 The MET-02 test opens `/chart` and reads the live values. It did not touch `ChartViewer`, so the test stays unchanged.
 
 ## Open points
-- [ ] S4, S5 and S6b.
-- [ ] S5 removes `overlayLayout`. Keep the rule from S6a: the place of the chart tools on `/formasyon` depends on the width of the container `formation-main` (threshold 1240 px), not on the viewport.
+- [x] S4 is done (PR 326). S5 and S6b are dropped (decision of 2026-11-03).
+- [x] Dropped with S5: `overlayLayout` stays, because `/backtest` keeps its shell `BacktestChart`. Rule from S6a, still valid: the place of the chart tools on `/formasyon` depends on the width of the container `formation-main` (threshold 1240 px), not on the viewport.
 - [ ] Do the manual test of MET-02 after S4 is merged (the owner does it), because S4 moves the live values into the floating card.
-- [ ] Trap for S6b: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
+- [x] Dropped with S6b. Keep this trap for a later trend line on `/backtest`: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
 - [x] Add the feature `UI-10` and its e2e test before S4.
 - [ ] `.claude/skills/ui-design/SKILL.md` §8 still names `ChartViewer.tsx`. Rule files change only on request of the project owner (`hooks/RULES.md` §6.6). Ask the owner.
+
+## Open points after U3
+- [ ] The Statistics view of `/chart` still shows the heading "Analiz" (old page name) and its subtitle.
+- [ ] The Statistics view has no mode segment Formation/Setup/Free.
+- [ ] In landscape on a phone (812 x 375 px) the top bar is about 150 px high.
+- [ ] Later decision of the owner: formation search for a range in the past.
+
+## Live check after U3 (2026-11-03, main v0.7.377)
+Dev server against the live worker, DEMO account. At 1440 and 375 px: the three modes and Statistics load, there is no horizontal scroll, and no mode shows the gear. `/formasyon?…` redirects to `/chart?…&mode=formation` with all parameters. The menu "Layers" has 6 switches in Formation, 12 in Setup (account without fractal setups) and 5 in Free; at 375 px each switch is in the viewport. The switch "zone card" hides `zone-info` and stores `showZoneCard`. A mode change keeps the account; Free takes the symbol of the setup.
 
 ## Verification
 

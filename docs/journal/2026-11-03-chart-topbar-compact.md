@@ -3,7 +3,7 @@ date: 2026-11-03
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [331]
 features: [UI-12, UI-10, UI-11, FRM-22, FRM-23]
 areas: [frontend, docs]
 ---

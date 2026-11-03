@@ -2,8 +2,8 @@
 date: 2026-11-03
 author: Claude
 type: change
-status: open
-pr: []
+status: done
+pr: [333]
 features: [UI-14, UI-13, UI-12, UI-01, FRM-30]
 areas: [frontend, docs]
 ---
