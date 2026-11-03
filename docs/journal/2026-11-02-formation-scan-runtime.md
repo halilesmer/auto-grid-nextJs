@@ -73,5 +73,14 @@ areas: [frontend, tests]
 | double | 3 | 460 | 223 | 52 % |
 
 - Profile after the change (same method): `trendDirUpTo` 23.0 % and `trendDirAt` 9.4 %, together 32.4 % (before: 65.3 %). What remains are the different (view, candle) pairs, each built once. A forward build with kept intermediate states would cut more, but it needs a change inside `trd.ts`; not done.
-- Equality: `e2e/mocked/formation-trend-memo-lib.spec.ts` compares `formationTrendDir` in the scope with the old calculation `formationTrend(view, idx).dir` for every candle of every loaded timeframe of all fixtures, on the second call and in reverse order, and outside the scope (105 tests). The scan equality spec `formation-scan-share-lib.spec.ts` stays green (119 of 119 with the new spec).
-- Deliberate defect (the memo key rounds `upTo` down to an even number): 105 of 105 tests of the new spec were red. The scan equality spec stayed green, because the verdicts do not change when only the direction of an odd candle is wrong in the fixtures. So the new spec is the one that guards the memo.
+- Equality: `e2e/mocked/formation-trend-memo-lib.spec.ts` (111 tests) compares `formationTrendDir` in the scope with the old calculation `formationTrend(view, idx).dir` for every candle of every loaded timeframe of all fixtures, on the second call and in reverse order, and outside the scope. Three more tests: two views with different directions at the same candle (trend path and fine path) do not mix; the memo saves work (one build per view and candle, counted with a `bars.slice` counter; an inner scope does not clear the outer one; after the scope every call builds again); `shareEnv` opens and closes the scope. The scan equality spec `formation-scan-share-lib.spec.ts` stays green.
+- Deliberate defects, red tests (new spec / scan equality spec):
+
+| Defect | Red |
+|---|---|
+| memo key rounds `upTo` down to an even number | 105 / 0 |
+| `shareEnv` does not open the scope | 1 / 0 |
+| `formationTrendDir` never keeps a result | 2 / 0 |
+| memo key ignores the view (one map for all views) | 1 / 0 |
+
+- The scan equality spec stays green for all four defects, because no verdict of the fixtures changes with them. The new spec is the one that guards the memo.

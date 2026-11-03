@@ -7,8 +7,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { TIMEFRAME_SEC } from '../../src/lib/analysis/candles';
-import { FormationContext } from '../../src/lib/formation/context';
+import { FormationContext, type ContextInput, type TimeframeView } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
+import { shareEnv } from '../../src/lib/formation/reasons';
 import { formationTrend, formationTrendDir, withTrendDirMemo } from '../../src/lib/formation/trdFormation';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-18' }, fn);
@@ -36,19 +37,60 @@ for (const file of readdirSync(FX).filter((f) => f.endsWith('.json')).sort()) {
   });
 }
 
-frm('Trend-Memo trennt Ansichten: gleiche Kerze, andere Ansicht, anderes Ergebnis', () => {
-  const fx = parseFixture(JSON.parse(readFileSync(`${FX}/${readdirSync(FX).filter((f) => f.endsWith('.json')).sort()[0]}`, 'utf-8')));
-  const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars });
-  const t = fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC[fx.timeframe];
+const fixtureCtx = (name: string, zug: 'trend' | 'fein') => {
+  const fx = parseFixture(JSON.parse(readFileSync(`${FX}/${name}.json`, 'utf-8')));
+  const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { zug });
   const [tf] = ctx.timeframes();
-  const full = ctx.view(tf, t)!;
-  const short = ctx.view(tf, fx.bars[Math.floor(fx.bars.length / 2)].time + TIMEFRAME_SEC[fx.timeframe])!;
-  const i = short.bars.length - 1;
+  return ctx.view(tf, fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC[fx.timeframe])!;
+};
+
+/** Ansicht, deren `bars.slice` mitzählt: jeder Aufbau von `formationTrend` ruft es genau einmal */
+function counted(view: TimeframeView): { view: TimeframeView; builds: () => number } {
+  let n = 0;
+  const bars = view.bars.slice();
+  bars.slice = (...args) => {
+    n++;
+    return Array.prototype.slice.apply(view.bars, args);
+  };
+  return { view: { ...view, bars }, builds: () => n };
+}
+
+frm('Trend-Memo trennt Ansichten: gleiche Kerze, zwei Ansichten mit verschiedener Richtung', () => {
+  const trend = fixtureCtx('trd-ref-h4-audnzd', 'trend');
+  const fein = fixtureCtx('trd-ref-h4-audnzd', 'fein');
+  const at = [150, 200, 250, 300, 350];
+  const want = (v: TimeframeView) => at.map((k) => formationTrend(v, k).dir);
+  expect(want(trend)).not.toEqual(want(fein));
   withTrendDirMemo(() => {
-    expect(formationTrendDir(short, i)).toBe(formationTrend(short, i).dir);
-    expect(formationTrendDir(full, i)).toBe(formationTrend(full, i).dir);
-    // innerer Bereich nutzt den äußeren weiter und räumt ihn nicht ab
-    withTrendDirMemo(() => formationTrendDir(full, i));
-    expect(formationTrendDir(full, i)).toBe(formationTrend(full, i).dir);
+    expect(at.map((k) => formationTrendDir(trend, k))).toEqual(want(trend));
+    expect(at.map((k) => formationTrendDir(fein, k))).toEqual(want(fein));
   });
+});
+
+frm('Trend-Memo spart Arbeit: im Bereich ein Aufbau je Ansicht und Kerze, danach wieder jeder', () => {
+  const { view, builds } = counted(fixtureCtx('trd-ref-h4-audnzd', 'fein'));
+  const ask = () => [200, 250, 200, 250, 200].map((k) => formationTrendDir(view, k));
+  withTrendDirMemo(() => {
+    ask();
+    expect(builds()).toBe(2);
+    // innerer Bereich nutzt den äußeren weiter und räumt ihn nicht ab
+    withTrendDirMemo(ask);
+    ask();
+    expect(builds()).toBe(2);
+  });
+  ask();
+  expect(builds()).toBe(2 + 5);
+});
+
+frm('Trend-Memo gehört zur Suche: shareEnv öffnet den Bereich und schließt ihn wieder', () => {
+  const view = fixtureCtx('trd-ref-h4-audnzd', 'fein');
+  const ctx = new FormationContext('X', { H4: view.bars });
+  const { view: probe, builds } = counted(view);
+  shareEnv(ctx, () => {
+    formationTrendDir(probe, 200);
+    formationTrendDir(probe, 200);
+  });
+  expect(builds()).toBe(1);
+  formationTrendDir(probe, 200);
+  expect(builds()).toBe(2);
 });

@@ -172,8 +172,10 @@ export function formationTrendDir(view: TimeframeView, upTo: number): TrendDir |
   if (!dirMemo) return formationTrend(view, upTo).dir;
   let byIdx = dirMemo.get(view);
   if (!byIdx) dirMemo.set(view, (byIdx = new Map()));
-  if (!byIdx.has(upTo)) byIdx.set(upTo, formationTrend(view, upTo).dir);
-  return byIdx.get(upTo)!;
+  if (byIdx.has(upTo)) return byIdx.get(upTo) ?? null;
+  const dir = formationTrend(view, upTo).dir;
+  byIdx.set(upTo, dir);
+  return dir;
 }
 
 /** Schlüsse jenseits der Bezugszone für den Trendwechsel im jeweiligen Zug (TRD-17) */
