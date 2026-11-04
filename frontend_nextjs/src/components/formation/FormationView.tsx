@@ -177,6 +177,8 @@ export function FormationView() {
     return favoritesShown ? null : node;
   };
 
+  // Schwebende Gruppe: auf dem Handy nur mit Stand, sonst bis 106 rem Container (im Band mit dem Schalter)
+  const floatingGroup = compact ? (pastAt !== null && 'flex') || 'hidden' : 'flex @min-[106rem]/formation-main:hidden';
   const alarm = useFormationAlarm(accountKnown ? accountId : null, symbol);
 
   const captureRef = useRef<(() => Promise<ChartPicture>) | null>(null);
@@ -342,7 +344,7 @@ export function FormationView() {
         <>
         {accountKnown && (
           // Schwebende Gruppe: unter 106 rem Container (und auf dem Handy) die Schritte, im Band 91 bis 106 rem auch der Schalter (UI-15)
-          <div className={cn('pointer-events-none absolute bottom-3 right-16 z-20 items-center gap-1', compact ? (pastAt !== null ? 'flex' : 'hidden') : 'flex @min-[106rem]/formation-main:hidden')} data-testid="formation-asof-floating">
+          <div className={cn('pointer-events-none absolute bottom-3 right-16 z-20 items-center gap-1', floatingGroup)} data-testid="formation-asof-floating">
             <FormationAsOf float pastAt={pastAt} now={brokerNowSec} onChange={setAt} />
             <FormationAsOfSteps float pastAt={pastAt} tfSec={TIMEFRAME_SEC[tf]} now={brokerNowSec} onChange={setAt} />
           </div>
