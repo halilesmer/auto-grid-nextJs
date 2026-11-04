@@ -38,6 +38,7 @@ Fix finding 28 of the formation audit (wave 2, package "Linie"). ENC, KEI and T6
 
 ## Open points
 - [ ] T618 still uses the raw line (`t618.ts`, `t618Checks.ts`). The change exists as a patch outside the repo; it changes 92 of 125 T618 runs (51 verdicts) and 5 real series. Main cause: the candidate search picks P without a release check, and P often goes beyond the extreme before it only with a wick, or not at all. Review it together with finding 7.
+  - Decision 2026-11-04: yes, the TRD line is the rule for T618. Source: rule book T618-02 ("the sloped line … after TRD-34/TRD-35") and Z-T618-01 ("TRD-34/TRD-35, TRD-40/TRD-42"); the T618 rule book has no own line rule, it takes the TRD measure. So TRD-34 (no line before the release), TRD-36 (a spike is no anchor) and TRD-42 apply. A P that passes the extreme before it only with a wick, or not at all, has no line and is no T618 candidate. Code change that follows: `t618.ts` and `t618Checks.ts` use `lineThrough` (`trd.ts`) as ENC and KEI do (PR #305); the candidate search keeps only P after a release. Measure all fixtures before and after (the patch outside the repo changed 92 of 125 runs, 51 verdicts, 5 real series); the changed real series need the approval of the project owner as in PR #305. Run it in the same session as item 7 (same files). Finding 7 (real verdicts not proven against the acceptance list) stays with the acceptance cases, item 5.
 
 ## Lessons
 - A TRD line object carries extra fields (`replaced`, `release`). Do not put it into a drawing anchor directly; copy time and price.

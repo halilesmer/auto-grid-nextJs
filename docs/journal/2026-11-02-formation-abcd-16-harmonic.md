@@ -2,7 +2,7 @@
 date: 2026-11-02
 author: Claude
 type: feature
-status: open
+status: done
 pr: []
 features: [FRM-05, FRM-19, FRM-20]
 areas: [frontend, tests]
@@ -41,5 +41,6 @@ areas: [frontend, tests]
 - Codex scan skipped: weekly limit nearly used.
 
 ## Open points
-- SIG-15 exception (rule book line 91): the divergence veto does not apply when the harmonic is complete. Not part of this change.
+- [x] SIG-15 exception (rule book line 91): the divergence veto does not apply when the harmonic is complete. Not part of this change.
   - Checked 2026-11-02: the precondition is missing. The SIG checklist (`analyzeSig`, `sigChecks.ts`) is not connected to any formation; the harmonics use only helpers from `sig.ts`. The connection needs a decision of the owner.
+  - [x] Decision 2026-11-04: no connection, no code change. Source: rule book README ("building blocks have IDs, but no checklist of their own"; SIG is a building block) and SIG-15 itself: the veto has an exception for the completion of a harmonic pattern (SIG E-4 (a), project owner 2026-10-20). The rule books GAR, BAT and CYP repeat this under `## Bezüge`. So a harmonic pattern (and an ABCD whose ABCD-16 is met) never gets a veto row, and there is nothing to connect for this exception. The open question is a different one: the non-harmonic patterns (for example TDF, OBO) do not apply the SIG-15 veto today. That is a question for the project owner (summary, question Q1).

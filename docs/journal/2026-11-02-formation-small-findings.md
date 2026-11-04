@@ -67,6 +67,7 @@ areas: [frontend, tests]
 
 ## Open points
 - [ ] When the touch of 0.618 came before the trend change, T618 stays "forming" for all time. The state cannot change after the entry. Examine whether "invalid" is correct. This PR does not change it.
+  - Decision 2026-11-04 (Varsayım): "invalid". Source: rule book T618-06 ("after the trend-turning impulse a correction begins", with I = end of that impulse) and T618-07 ("in the correction the price touches 0.618"); the rule order T618-04 → T618-07 puts the trend change before the touch. A touch before the trend change is not the touch of T618-07 for this I, and `## Handel`, Entry, says "no entry in the middle of the turn". The candidate cannot become valid later; a new I after the trend change is a new candidate. Code change that follows: `t618Checks.ts`, verdict: when the 0.618 touch exists and T618-05 is unmet up to the touch bar, the verdict is "invalid" with T618-05 in `invalidBy`. The real series `t618-buy-h4-01` (and `tdf-flag-h4-02`, same case) change from "forming" to "invalid". Run it together with item 10 (same files).
 
 ## Lessons
 - Before you write a Fibonacci leg into a test row, calculate the correction depth. A correction below 0.382 extends the leg (FIB-07).
