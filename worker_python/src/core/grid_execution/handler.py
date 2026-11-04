@@ -1,6 +1,6 @@
 from typing import Callable
 
-from src.core.grid_helpers import log_message as default_log_message, zone_log_context, zone_log_id
+from src.core.grid_helpers import log_message as default_log_message, zone_log_context, zone_log_id, zone_label
 from src.core.grid_orders import (
     cancel_order,
     get_existing_levels_by_direction,
@@ -86,7 +86,7 @@ def _handle_sliding_grid(
             if state.limit_warned_zones.get(active_zone_idx) != current_open_positions:
                 state.limit_warned_zones[active_zone_idx] = current_open_positions
                 log_message(
-                    f"⚠️ DİKKAT: Bölge {active_zone_idx+1} Maksimum pozisyon sınırına ulaştı "
+                    f"⚠️ DİKKAT: {zone_label(active_zone_idx)} Maksimum pozisyon sınırına ulaştı "
                     f"({current_open_positions}/{config.max_positions}). Yeni emir konmuyor.",
                     "WARN",
                 )
