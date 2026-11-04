@@ -26,6 +26,8 @@ export interface FormationScan {
   digits: number | null;
   /** Laufende Kerze je Zeiteinheit mit dem gemeinsamen Preis, nur zur Anzeige (null: keine) */
   running: Record<ContextTimeframe, Bar | null>;
+  /** Mindestens eine Zeiteinheit hat fehlende Kerzen im geladenen Bereich (Datenlücke, ANA-04); die Seite zeigt im Vergangenheits-Stand einen Hinweis */
+  hasGaps: boolean;
 }
 
 interface Settled {
@@ -121,10 +123,12 @@ export function useFormationScan(
   }), [d1.data, h4.data, h1.data, m15.data, price]);
 
   const current = settled && settled.key === key ? settled : null;
+  // Ein Stand vor der ersten M15-Kerze des Verlaufs: nichts zu suchen, die Seite zeigt den Lückenhinweis statt ewig zu laden (A13.6.5)
+  const beforeHistory = pastAt !== null && m15.data !== null && m15.data.bars.length === 0;
   // Bei jedem Render übersetzt, damit ein Sprachwechsel die stehende Meldung mitnimmt
   const scanError = current?.failed ? t('formation.scan.badData') : null;
   return {
-    loading: ready && !loadError && !current,
+    loading: ready && !loadError && !current && !beforeHistory,
     error: loadError ?? scanError,
     hits: current?.hits ?? [],
     context: current?.context ?? null,
@@ -132,5 +136,6 @@ export function useFormationScan(
     scanMs: current?.scanMs ?? null,
     digits: m15.data?.digits ?? null,
     running,
+    hasGaps: beforeHistory || gaps.replace(/[,]/g, '') !== '',
   };
 }

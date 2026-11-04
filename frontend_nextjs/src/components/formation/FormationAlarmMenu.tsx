@@ -92,7 +92,7 @@ function HistoryList({ alarm }: { alarm: Alarm }) {
  * <Produkt>“, den weiteren Alarm-Produkten, den Ereignissen, den Formationen und den Kanälen. Das Banner sagt dauerhaft,
  * dass der Alarm auf jeder Seite läuft, solange die App offen ist. Ohne Konto, für das der Alarm sucht, zeigt das Menü nur den Grund der Ruhe.
  */
-export function FormationAlarmMenu({ symbol, alarm }: { symbol: string | null; alarm: Alarm }) {
+export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol: string | null; alarm: Alarm; pastView?: boolean }) {
   const t = useT();
   const fmt = useFormat();
   const [tab, setTab] = useState<'settings' | 'history'>('history');
@@ -120,14 +120,14 @@ export function FormationAlarmMenu({ symbol, alarm }: { symbol: string | null; a
   return (
     <DropdownMenu
       label={t('formation.alarm.menu')}
-      hint={t('formation.alarm.menu.hint')}
+      hint={pastView ? t('formation.alarm.menu.past.hint') : t('formation.alarm.menu.hint')}
       icon={icon}
       variant="ghost"
       size="icon-sm"
       align="left"
       className="max-lg:mr-1"
       panelClassName="w-80 max-w-[calc(100vw-1rem)]"
-      triggerProps={{ 'data-testid': 'formation-alarm', 'data-enabled': String(active) }}
+      triggerProps={{ 'data-testid': 'formation-alarm', 'data-enabled': String(active), disabled: pastView }}
     >
       <div className="flex flex-col gap-3 p-3" data-testid="formation-alarm-panel">
         <div className="flex flex-col gap-0.5">
