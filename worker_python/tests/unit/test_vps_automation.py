@@ -617,7 +617,7 @@ def test_vps_skript_erkennt_und_beendet_admin_reste():
     assert "'bot'" not in restart and "'mt5'" not in restart
     fix = vps[vps.index("function Invoke-FixElevated"):vps.index("function Get-TaskInfo")]
     assert "'bot', 'mt5'" in fix and "Start-Task $StartTask" in fix
-    assert "'fix-elevated' { Out-Json (Invoke-FixElevated) }" in vps
+    assert "'fix-elevated' { Out-Json (Invoke-FixElevated $Arg) }" in vps
 
 
 # --------------------------------------------------------------------------- VPS-08
@@ -750,3 +750,40 @@ def test_setup_legt_tunnel_aufgabe_an_und_vps_status_meldet_sie():
     vps = _ps_code("ops/windows/vps.ps1")
     assert "tunnel = 'tunnel_watchdog.log'" in vps
     assert "tunnel = Get-TaskInfo $TunnelTask" in vps and "tunnel_watchdog = Get-TunnelWatchdogState" in vps
+
+
+@pytest.mark.feature("VPS-07")
+def test_fix_elevated_stoppt_bots_und_mt5_nur_mit_stop_bots():
+    """1104-K6: ohne Argument stop-bots beendet fix-elevated nichts, wenn Bot/MT5 erhoeht laufen."""
+    vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
+    body = vps[vps.index("function Invoke-FixElevated"):vps.index("function Get-TaskInfo")]
+    # Die Pruefung liegt vor dem ersten Stop-ElevatedProcesses
+    assert body.index("botsElevated") < body.index("Stop-ElevatedProcesses")
+    assert "$Mode -eq 'stop-bots'" in body
+    # bot/mt5 werden nur mit stop-bots in die Rollenliste aufgenommen
+    assert "if ($withBots) { $roles += @('bot', 'mt5') }" in body
+    assert "'fix-elevated' { Out-Json (Invoke-FixElevated $Arg) }" in vps
+
+
+@pytest.mark.feature("VPS-07")
+def test_elevated_liste_versteckt_nur_gleiche_rolle_oder_schleife():
+    """1104-K6: Bots und MT5 (Kinder des Workers/Bots) duerfen nicht mehr aus der Liste fallen."""
+    vps = Path(WORKER_ROOT, "ops/windows/vps.ps1").read_text(encoding="ascii")
+    body = vps[vps.index("function Get-ElevatedSummary"):vps.index("function Stop-ElevatedProcesses")]
+    assert "$parent.role -eq $_.role" in body
+    assert "'worker' = 'worker-loop'" in body and "'ngrok' = 'ngrok-loop'" in body
+    # Der alte Filter (jeder Prozess mit erhoehtem Elternprozess) ist weg
+    assert "$ids -notcontains" not in body
+
+
+@pytest.mark.feature("VPS-07")
+def test_gestoppte_bots_kommen_ueber_watched_bots_zurueck():
+    """1104-K6, Kontrollschritt: die Warnung verspricht, der Worker setze die Bots fort. Der Beweis:
+    ein per /start begonnener Bot bleibt in watched_bots.json, auch wenn sein Prozess beendet wird;
+    nur /stop (unwatch) entfernt ihn. Der neue Worker liest die Liste beim Start."""
+    wd._watched.clear()
+    try:
+        wd.watch(TEST_ACCOUNT_ID)
+        assert wd.load_persisted() == {TEST_ACCOUNT_ID: "Auto Grid"}  # Prozess beenden aendert nichts
+    finally:
+        wd._watched.clear()

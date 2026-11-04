@@ -8,8 +8,11 @@
 #   logs <worker|ngrok|update|tunnel> [zeilen]
 #   restart              Worker + ngrok neu starten (geplante Aufgabe AutoGrid-Start -> start.bat);
 #                        Neustart-Schleifen/Worker/ngrok mit Adminrechten werden vorher beendet
-#   fix-elevated         alle AutoGrid-Prozesse mit Adminrechten beenden (auch Bots und MT5),
-#                        dann wie restart; der Worker setzt die Bots ohne Adminrechte fort
+#   fix-elevated [stop-bots]
+#                        AutoGrid-Prozesse mit Adminrechten beenden, dann wie restart. Laufen Bots
+#                        oder MT5 mit Adminrechten, beendet es ohne stop-bots NICHTS und meldet
+#                        code botsElevated; mit stop-bots beendet es auch sie (der Worker setzt die
+#                        Bots danach ohne Adminrechte fort)
 #   restart-ngrok        nur ngrok beenden; run_ngrok_watchdog.bat startet ihn nach 3 s neu
 #   update               Update ueber den laufenden Worker (POST /api/system/update); ist er
 #                        nicht erreichbar, ueber die geplante Aufgabe AutoGrid-Update
@@ -193,11 +196,22 @@ function Get-ElevatedProcesses {
     return $found
 }
 
-# Fuer die Anzeige: .venv-Starter + echter Python-Prozess = ein Eintrag (wie bei den Bots)
+# Fuer die Anzeige: .venv-Starter + echter Python-Prozess = ein Eintrag. Ein Prozess wird nur
+# versteckt, wenn sein Elternprozess dieselbe Rolle hat, oder wenn Worker/ngrok unter ihrer
+# Neustart-Schleife haengen (die Schleife steht fuer sie). Bots (Kind des Workers) und MT5
+# (Kind des Bots) bleiben sichtbar, denn fix-elevated beendet sie ebenfalls (1104-K6).
 function Get-ElevatedSummary {
     $all = @(Get-ElevatedProcesses)
-    $ids = @($all | ForEach-Object { $_.pid })
-    return @($all | Where-Object { $ids -notcontains $_.parent } | ForEach-Object {
+    $byPid = @{}
+    foreach ($p in $all) { $byPid[$p.pid] = $p }
+    $loopOf = @{ 'worker' = 'worker-loop'; 'ngrok' = 'ngrok-loop' }
+    return @($all | Where-Object {
+        $parent = $byPid[$_.parent]
+        if (-not $parent) { return $true }
+        if ($parent.role -eq $_.role) { return $false }
+        if ($loopOf.ContainsKey($_.role) -and $parent.role -eq $loopOf[$_.role]) { return $false }
+        return $true
+    } | ForEach-Object {
         @{ pid = $_.pid; role = $_.role; account = $_.account }
     })
 }
@@ -220,16 +234,35 @@ function Invoke-Restart {
     return @{ ok = $true; message = $message }
 }
 
-function Invoke-FixElevated {
-    $stopped = @(Stop-ElevatedProcesses @('worker-loop', 'ngrok-loop', 'worker', 'ngrok', 'bot', 'mt5'))
+function Invoke-FixElevated([string]$Mode) {
+    # Schutz (1104-K6): Bots und MT5 nur stoppen, wenn der Aufrufer es ausdruecklich erlaubt hat
+    # (Argument stop-bots). Die Liste auf der Seite kann veraltet sein.
+    $withBots = ($Mode -eq 'stop-bots')
+    if (-not $withBots) {
+        $summary = @(Get-ElevatedSummary)
+        $botsOrMt5 = @($summary | Where-Object { $_.role -eq 'bot' -or $_.role -eq 'mt5' })
+        if ($botsOrMt5.Count -gt 0) {
+            return @{
+                ok = $false
+                code = 'botsElevated'
+                error = 'Bots oder MT5 laufen mit Adminrechten - nichts beendet. Mit dem Argument stop-bots erneut aufrufen.'
+                elevated = $summary
+            }
+        }
+    }
+    $roles = @('worker-loop', 'ngrok-loop', 'worker', 'ngrok')
+    if ($withBots) { $roles += @('bot', 'mt5') }
+    $stopped = @(Stop-ElevatedProcesses $roles)
     if ($stopped.Count -eq 0) {
         return @{ ok = $true; message = 'Keine Prozesse mit Adminrechten gefunden.' }
     }
     Start-Task $StartTask
-    $roles = ($stopped | ForEach-Object { $_.role } | Sort-Object -Unique) -join ', '
+    $names = ($stopped | ForEach-Object {
+        if ($_.role -eq 'bot' -and $_.account) { "bot $($_.account)" } else { $_.role }
+    } | Sort-Object -Unique) -join ', '
     return @{
         ok = $true
-        message = "$($stopped.Count) Prozess(e) mit Adminrechten beendet ($roles). Worker und ngrok starten ohne Adminrechte neu, der Worker setzt die Bots danach fort."
+        message = "$($stopped.Count) Prozess(e) mit Adminrechten beendet ($names). Worker und ngrok starten ohne Adminrechte neu, der Worker setzt die Bots danach fort."
     }
 }
 
@@ -466,7 +499,7 @@ try {
         'status' { Out-Json (Get-Status) }
         'logs' { Out-Json (Get-Logs ($(if ($Arg) { $Arg } else { 'worker' })) $Lines) }
         'restart' { Out-Json (Invoke-Restart) }
-        'fix-elevated' { Out-Json (Invoke-FixElevated) }
+        'fix-elevated' { Out-Json (Invoke-FixElevated $Arg) }
         'restart-ngrok' { Out-Json (Invoke-RestartNgrok) }
         'check-update' { Out-Json (Invoke-CheckUpdate) }
         'update' { Out-Json (Invoke-Update) }

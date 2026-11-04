@@ -2,7 +2,8 @@
  * /api/vps/[action] – VPS-Fernsteuerung für die Seite /vps (nur lokal auf dem Mac).
  *
  * GET  status | check-update | logs?log=worker|ngrok|update|tunnel&lines=300
- * POST update | restart | restart-ngrok | reboot
+ * POST update | restart | restart-ngrok | reboot | fix-elevated[?stopBots=1]
+ *   (fix-elevated beendet Bots/MT5 nur mit stopBots=1; sonst 409 botsElevated, wenn welche laufen)
  *
  * Schutz (diese Route startet SSH-Befehle auf dem VPS):
  *   - nur über localhost/127.0.0.1 erreichbar (Host-Header)
@@ -83,9 +84,18 @@ async function handle(request: NextRequest, ctx: { params: Promise<{ action: str
     const lines = Math.min(2000, Math.max(10, Number(request.nextUrl.searchParams.get('lines')) || 300));
     args.push(log, String(lines));
   }
+  if (action === 'fix-elevated') {
+    const stopBots = request.nextUrl.searchParams.get('stopBots');
+    if (stopBots === '1') args.push('stop-bots');
+    else if (stopBots !== null) {
+      return json({ ok: false, error: 'Ungültiges Argument', code: 'badArg' }, 400);
+    }
+  }
 
   try {
     const result = await runVps(config, action, args);
+    // Bots/MT5 laufen mit Adminrechten, stopBots fehlt: nichts beendet, die Seite lädt die Liste neu
+    if (result.ok === false && result.code === 'botsElevated') return json(result, 409);
     return json(result, result.ok === false ? 502 : 200);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

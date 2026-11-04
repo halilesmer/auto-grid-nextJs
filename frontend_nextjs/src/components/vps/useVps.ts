@@ -171,11 +171,16 @@ export function useVps() {
   }, []);
 
   const runAction = useCallback(
-    async (action: PostAction) => {
+    async (action: PostAction, options: { stopBots?: boolean } = {}) => {
       setBusy(action);
       try {
-        const { data } = await callVps<VpsActionResult>(action, 'POST');
-        if (data.ok) {
+        // Bots/MT5 beendet fix-elevated nur mit ausdrücklichem stopBots=1 (1104-K6)
+        const path = action === 'fix-elevated' && options.stopBots ? `${action}?stopBots=1` : action;
+        const { status: code, data } = await callVps<VpsActionResult>(path, 'POST');
+        if (code === 409 && data.code === 'botsElevated') {
+          // Die Liste war veraltet: nichts wurde beendet, der Status wird unten neu gelesen
+          toast.warning(t('vps.err.botsElevated'), { title: t('vps.err.botsElevated.title') });
+        } else if (data.ok) {
           toast.success(data.message || t('vps.action.done'), { title: t(ACTION_TITLE_KEYS[action]) });
           fastUntil.current = Date.now() + FAST_POLL_DURATION_MS;
           if (action === 'update') setUpdateCheck(null);

@@ -33,10 +33,12 @@ interface VpsMock {
   statusCode: number;
   /** Antwort für /api/vps/logs; null = Standardzeilen */
   logs: { body: Record<string, unknown>; code: number } | null;
+  /** Antwort für POST fix-elevated; null = ok */
+  fixElevated: { body: Record<string, unknown>; code: number } | null;
 }
 
 async function mockVps(page: Page, overrides: Partial<VpsMock> = {}): Promise<VpsMock> {
-  const mock: VpsMock = { calls: [], status: { ...STATUS }, statusCode: 200, logs: null, ...overrides };
+  const mock: VpsMock = { calls: [], status: { ...STATUS }, statusCode: 200, logs: null, fixElevated: null, ...overrides };
   await page.route('**/api/vps/**', async (route: Route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -56,6 +58,7 @@ async function mockVps(page: Page, overrides: Partial<VpsMock> = {}): Promise<Vp
         lines: [`[${log}] Zeile 1`, `\u001b[32mINFO\u001b[0m:     [${log}] Application startup complete.`],
       });
     }
+    if (action.startsWith('fix-elevated') && mock.fixElevated) return reply(mock.fixElevated.body, mock.fixElevated.code);
     if (req.method() === 'POST') return reply({ ok: true, message: `${action} ausgeführt` });
     return reply({ ok: false, error: 'unbekannt' }, 404);
   });
@@ -150,35 +153,92 @@ test.describe('VPS Fernsteuerung', () => {
     await expect(page.getByTestId('vps-tile-worker')).toContainText(msg('bot.status.running'));
     await expect(page.getByTestId('vps-elevated')).toHaveCount(0);
 
+    // Nur Schleifen: ein Knopf ohne Bots, keine Haken-Pflicht, kein stopBots
     mock.status = {
       ...STATUS,
       elevated: [
         { pid: 5068, role: 'worker-loop', account: '' },
-        { pid: 424, role: 'worker', account: '' },
-        { pid: 7272, role: 'bot', account: '87654321' },
+        { pid: 5070, role: 'ngrok-loop', account: '' },
       ],
     };
     await page.getByRole('button', { name: msg('vps.refresh') }).click();
     const warning = page.getByTestId('vps-elevated');
+    await expect(warning).toContainText(msg('vps.elevated.title', { count: 2 }));
+    await expect(page.getByTestId('vps-elevated-stop')).toHaveCount(0);
+    await expect(page.getByTestId('vps-action-fix-elevated')).toContainText(msg('vps.elevated.fix'));
+    await page.getByTestId('vps-action-fix-elevated').click();
+    const loopsDialog = page.getByRole('dialog');
+    await expect(loopsDialog).toContainText(msg('vps.elevated.infoNoBots'));
+    await expect(loopsDialog.getByRole('checkbox')).toHaveCount(0);
+    await loopsDialog.getByRole('button', { name: msg('vps.elevated.fix') }).click();
+    await expect.poll(() => mock.calls).toContain('POST fix-elevated');
+
+    // Mit Bots und MT5: zwei Gruppen, getrennter Knopf, Haken vor „Beenden“
+    mock.calls.length = 0;
+    mock.status = {
+      ...STATUS,
+      elevated: [
+        { pid: 5068, role: 'worker-loop', account: '' },
+        { pid: 7272, role: 'bot', account: '87654321' },
+        { pid: 7300, role: 'mt5', account: '' },
+      ],
+    };
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
     await expect(warning).toContainText(msg('vps.elevated.title', { count: 3 }));
-    await expect(warning).toContainText(`${msg('vps.role.worker-loop')} · PID 5068`);
-    await expect(warning).toContainText('Bot 87654321 · PID 7272');
+    await expect(page.getByTestId('vps-elevated-restart')).toContainText(`${msg('vps.role.worker-loop')} · PID 5068`);
+    await expect(page.getByTestId('vps-elevated-stop')).toContainText('Bot 87654321');
+    await expect(page.getByTestId('vps-elevated-stop')).toContainText(`${msg('vps.role.mt5')} · PID 7300`);
+    await expect(page.getByTestId('vps-action-fix-elevated')).toContainText(msg('vps.elevated.fixWithBots'));
 
     // Abbrechen löst nichts aus
     await page.getByTestId('vps-action-fix-elevated').click();
     await page.getByRole('dialog').getByRole('button', { name: msg('common.cancel') }).click();
-    expect(mock.calls).not.toContain('POST fix-elevated');
+    expect(mock.calls).not.toContain('POST fix-elevated?stopBots=1');
 
     await page.getByTestId('vps-action-fix-elevated').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText(msg('vps.elevated.confirmTitle'));
-    // Betroffene Bots werden beendet und vom Worker ohne Adminrechte fortgesetzt
-    await expect(dialog).toContainText(msg('vps.elevated.infoBots'));
+    await expect(dialog).toContainText(msg('vps.elevated.confirmTitleBots'));
+    await expect(dialog).toContainText('87654321');
+    const confirm = dialog.getByRole('button', { name: msg('vps.elevated.fixWithBots') });
+    await expect(confirm).toBeDisabled();
+    await dialog.getByRole('checkbox').click();
+    await expect(confirm).toBeEnabled();
     mock.status = { ...STATUS, elevated: [] };
-    await dialog.getByRole('button', { name: msg('vps.action.fixElevated') }).click();
-    await expect.poll(() => mock.calls).toContain('POST fix-elevated');
-    await expect(page.getByText('fix-elevated ausgeführt')).toBeVisible();
+    await confirm.click();
+    await expect.poll(() => mock.calls).toContain('POST fix-elevated?stopBots=1');
+    await expect(page.getByText('fix-elevated?stopBots=1 ausgeführt')).toBeVisible();
     await expect(warning).toHaveCount(0);
+  });
+
+  test('Admin-Reste: veraltete Liste, Skript beendet nichts (409)', { tag: '@VPS-07' }, async ({ page, worker }) => {
+    void worker;
+    const mock = await mockVps(page, {
+      status: { ...STATUS, elevated: [{ pid: 5068, role: 'worker-loop', account: '' }] },
+      fixElevated: {
+        code: 409,
+        body: {
+          ok: false,
+          code: 'botsElevated',
+          error: 'Bots oder MT5 laufen mit Adminrechten - nichts beendet.',
+          elevated: [{ pid: 7272, role: 'bot', account: '87654321' }],
+        },
+      },
+    });
+    await page.goto('/vps');
+    await page.getByTestId('vps-action-fix-elevated').click();
+    await page.getByRole('dialog').getByRole('button', { name: msg('vps.elevated.fix') }).click();
+    await expect.poll(() => mock.calls).toContain('POST fix-elevated');
+    // Warnung statt Erfolg; danach kommt die neue Liste mit den Bots
+    await expect(page.getByText(msg('vps.err.botsElevated.title'))).toBeVisible();
+    mock.status = {
+      ...STATUS,
+      elevated: [
+        { pid: 5068, role: 'worker-loop', account: '' },
+        { pid: 7272, role: 'bot', account: '87654321' },
+      ],
+    };
+    await page.getByRole('button', { name: msg('vps.refresh') }).click();
+    await expect(page.getByTestId('vps-elevated-stop')).toContainText('Bot 87654321');
   });
 
   test('Logs von Worker, ngrok und Update', { tag: '@VPS-03' }, async ({ page, worker }) => {

@@ -1,4 +1,5 @@
 'use client';
+import type { ReactNode } from 'react';
 import { AlertTriangle, Info, XCircle } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,10 @@ interface ConfirmModalProps {
   title: string;
   message: string;
   infoText?: string;
+  /** Zusätzlicher Inhalt unter dem Hinweis (z. B. ein Bestätigungs-Häkchen) */
+  children?: ReactNode;
+  /** Bestätigen sperren (z. B. bis ein Häkchen gesetzt ist) */
+  confirmDisabled?: boolean;
   confirmLabel?: string;
   /** Pflicht (hooks/RULES.md §5): was passiert, wenn man bestätigt. */
   confirmHint: string;
@@ -49,6 +54,8 @@ export default function ConfirmModal({
   title,
   message,
   infoText,
+  children,
+  confirmDisabled = false,
   confirmLabel,
   confirmHint,
   cancelLabel,
@@ -97,6 +104,8 @@ export default function ConfirmModal({
         </div>
       )}
 
+      {children && <div className="mt-4">{children}</div>}
+
       <div className="mt-6 flex flex-wrap justify-end gap-2">
         {showCancel && (
           <Button variant="ghost" onClick={onClose} disabled={loading} hint={t('common.cancel.hint')}>
@@ -108,7 +117,7 @@ export default function ConfirmModal({
             {secondary.label}
           </Button>
         )}
-        <Button variant={cfg.button} onClick={handleConfirm} loading={loading} hint={confirmHint}>
+        <Button variant={cfg.button} onClick={handleConfirm} loading={loading} disabled={confirmDisabled} hint={confirmHint}>
           {label}
         </Button>
       </div>

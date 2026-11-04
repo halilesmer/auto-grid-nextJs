@@ -180,6 +180,7 @@ export const VPS_ERROR_CODES = [
   'unknownLog',
   'repoPath',
   'badArg',
+  'botsElevated',
   'timeout',
   'noSsh',
   'sshFailed',
@@ -198,6 +199,8 @@ export interface VpsActionResult {
   error?: string;
   code?: VpsErrorCode;
   params?: VpsErrorParams;
+  /** botsElevated: aktuelle Liste der Admin-Prozesse (Bots/MT5 laufen mit Adminrechten) */
+  elevated?: VpsElevatedProcess[];
   via?: 'worker' | 'task';
   restarting?: boolean;
 }
