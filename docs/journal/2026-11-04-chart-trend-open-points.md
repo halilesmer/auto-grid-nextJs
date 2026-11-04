@@ -45,8 +45,8 @@ The time grows with the square of the number of candles. The largest real window
 
 ## Open points
 - [ ] Point 1. Question: for a past range without a reliable clock, may the path treat all candles as closed? Or must it keep dropping the last candle? The past formation search depends on the answer.
-- [ ] Point 2. Question: keep the unsettled start of the path when the window is clipped? Or cut the visible part of the trend?
-- [ ] Point 3. Question: find the quadratic part in `buildTrend`? Or limit the candles that go into the path (for example the last 5,000)?
+- [ ] Point 2 (the `MAX_CHART_BARS` lead-in; the unsettled start of the 5,000-candle cap is accepted, see point 3). Question: keep the unsettled start of the path when the window is clipped? Or cut the visible part of the trend?
+- [x] Point 3: done. `buildTrendPath` uses only the last `TREND_PATH_MAX_BARS` (5,000) candles (owner decision A13.3.3). For 5,000 candles or fewer the path is unchanged. Point 2 (unsettled start of a cut window) is accepted by the owner. Point 1 stays as it is until the past formation search (A13.6). The formations use `formationZug` in `context.ts`, not `buildTrendPath`, so they keep their full basis. Tests: two new ANA-21 tests in `analysis-trend-lib.spec.ts` (identical path up to the limit; only the last candles above it).
 - [x] Point 4: two tests added.
 
 ## Verification
@@ -59,3 +59,4 @@ The time grows with the square of the number of candles. The largest real window
 
 ## Lessons
 - `MAX_CHART_BARS` counts time steps. Real candle counts are lower. State which one a number means.
+- A quadratic cost in the render path needs a cap on its input. Measure first, then name the cap as a constant.
