@@ -13,7 +13,7 @@ import { analyzeT618 } from '../../src/lib/formation/t618Checks';
 import { AXIS, ctxOf, lineRows } from '../fixtures/formation-lines';
 import { buildEnv } from '../../src/lib/formation/reasons';
 import { tradeSigChecks } from '../../src/lib/formation/sigChecks';
-import { crvOf, emergencyStopOf, tradeMetrics } from '../../src/lib/formation/trade';
+import { crvOf, emergencyStopOf, pipSizeOf, tradeMetrics } from '../../src/lib/formation/trade';
 import type { Anchor, Candidate, Trade } from '../../src/lib/formation/types';
 import { END, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
 
@@ -171,4 +171,10 @@ t39('SIG-29: CRV über 1 ☑ mit Wert; CRV ≤ 1 ohne tiefere ZE nicht messbar m
   const missing = tradeSigChecks(env, 'H4', 'buy', { entry: 100, stop: null, tp1: 130 }).sig29;
   expect(missing.state).toBe('unmeasurable');
   expect(missing.value).toBeUndefined();
+});
+
+t39('pipSizeOf: 10 × Punkt bei 3 oder 5 Nachkommastellen, sonst null', () => {
+  expect(pipSizeOf(5)).toBeCloseTo(1e-4, 12);
+  expect(pipSizeOf(3)).toBeCloseTo(1e-2, 12);
+  for (const d of [0, 1, 2, 4, null]) expect(pipSizeOf(d)).toBeNull();
 });

@@ -62,7 +62,7 @@ export interface Check {
   drawings: string[];
   /** Nur Anzeige: die Bedingung gehört zu einer anderen Variante der Formation. Der Zustand bleibt gemessen, die Zeile zählt nicht mit */
   inactive?: true;
-  /** Veto-Zeile (A40.2): ein Ausschluss, der das Urteil nicht ändert; nur der Handelsblock zeigt ihn. Die Zeile kommt erst nach `settle` in die Liste, Urteil und `invalidBy` sehen sie nie */
+  /** Veto-Zeile (A40.2): ein Ausschluss, der das Urteil nicht ändert; Handelsblock, Checkliste und Kandidatenliste zeigen ihn. Die Zeile kommt erst nach `settle` in die Liste, Urteil und `invalidBy` sehen sie nie */
   veto?: true;
 }
 

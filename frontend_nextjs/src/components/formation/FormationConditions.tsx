@@ -2,15 +2,18 @@
 
 import { CandidateList } from '@/components/formation/CandidateList';
 import { FormationChecklist } from '@/components/formation/FormationChecklist';
+import { FormationTrade } from '@/components/formation/FormationTrade';
 import { useT } from '@/i18n';
 import type { ScanHit } from '@/lib/formation/scan';
 
 /** Reiter „Bedingungen“ der Seitenleiste: Kandidaten als Umschalter, darunter die Checkliste des gewählten. */
-export function FormationConditions({ list, hit, loading, tf, active, onSelect, onActive }: {
+export function FormationConditions({ list, hit, loading, tf, digits, active, onSelect, onActive }: {
   list: readonly ScanHit[];
   hit: ScanHit | null;
   loading: boolean;
   tf: string;
+  /** Nachkommastellen des Symbols (für Preise und Pips im Handelsblock); null, solange unbekannt */
+  digits: number | null;
   active: readonly string[] | null;
   onSelect: (hit: ScanHit) => void;
   onActive: (ids: string[] | null) => void;
@@ -26,7 +29,10 @@ export function FormationConditions({ list, hit, loading, tf, active, onSelect, 
         </p>
       )}
       {hit ? (
-        <FormationChecklist hit={hit} active={active} onActive={onActive} />
+        <>
+          <FormationTrade hit={hit} digits={digits} />
+          <FormationChecklist hit={hit} active={active} onActive={onActive} />
+        </>
       ) : !loading && (
         <p className="p-3 text-xs text-muted-foreground">{t('formation.empty.text', { tf })}</p>
       )}

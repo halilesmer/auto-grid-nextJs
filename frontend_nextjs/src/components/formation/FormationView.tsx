@@ -385,6 +385,7 @@ export function FormationView() {
                     hit={hit}
                     loading={scan.loading}
                     tf={tf}
+                    digits={scan.digits}
                     active={active}
                     onSelect={(h) => setPicked(`${h.form}-${h.tf}`)}
                     onActive={setActive}
