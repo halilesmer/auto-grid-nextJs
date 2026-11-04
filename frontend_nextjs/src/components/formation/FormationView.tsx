@@ -279,8 +279,8 @@ export function FormationView() {
             />
           )}
           <FormationAccountSelect
-            // Querformat: Platz für die ganze Kontonummer (UI-15)
-            className="short:min-w-40"
+            // Raster (Querformat und Desktop bis 91rem): Platz für die ganze Kontonummer (UI-15); breiter als `lg:w-44` wird es nur im Querformat
+            className="bar2:min-w-40"
             accounts={accounts}
             value={accountId}
             onChange={(id) => {

@@ -7,6 +7,22 @@
 @custom-variant short (@media (height <= 30rem) and (width < 64rem));
 
 /*
+ * Zweizeilige Formation-Kopfleiste (UI-15, A13.7): im Querformat des Handys (wie `short`) und ab lg, solange der Container `formation-main`
+ * 48 rem bis unter 91 rem breit ist. Ab 91 rem passen Auswahl, Zeiteinheiten, Aktionen und die Reserve für die Werkzeugleiste in eine Zeile
+ * (gemessen 2026-11-04 bei 16 und 20 px Schrift, e2e chart-header.spec.ts); darunter brach die Leiste in zwei Bändern auf drei Zeilen um (94 px).
+ */
+@custom-variant bar2 {
+  @media (height <= 30rem) and (width < 64rem) {
+    @slot;
+  }
+  @media (width >= 64rem) {
+    @container formation-main (width >= 48rem) and (width < 91rem) {
+      @slot;
+    }
+  }
+}
+
+/*
  * Tema: 21st.dev "Darkmatter" (serafimcloud) temel alındı.
  * Trading için anlamsal renkler eklendi: success (kâr/BUY), danger (zarar/SELL),
  * warning, info. :root açık tema, .dark koyu tema; seçim useThemeStore'da.

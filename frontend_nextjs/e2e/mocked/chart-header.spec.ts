@@ -195,15 +195,47 @@ test.describe('UI-15 Formation mit Ergebniszeile im Querformat', () => {
     await expect(page.getByTestId('formation-tf-D1')).toHaveCount(1);
   });
 
-  test('Formation hochkant und Desktop: Zeiteinheiten liegen über der Formationszeile (kein Querformat-Raster)', { tag: '@UI-15' }, async ({ page, worker }) => {
+  test('Formation hochkant (375 × 812): Zeiteinheiten liegen über der Formationszeile (kein Raster)', { tag: '@UI-15' }, async ({ page, worker }) => {
     await open(page, worker, ['EURUSD', 'GBPUSD']);
-    for (const [w, h] of [[375, 812], [1440, 900]] as const) {
-      await page.setViewportSize({ width: w, height: h });
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+    const tf = await rect(page, 'favorites-timeframes');
+    const forms = await rect(page, 'favorites-forms');
+    expect(tf.bottom, 'Zeiteinheiten über der Formationszeile').toBeLessThanOrEqual(forms.top + 1);
+  });
+
+  /** Zwei feste Zeilen auch auf dem Desktop (A13.7): bis 91rem Container brach die Leiste in zwei Bändern auf drei Zeilen (94 px) um. Ab 91rem bleibt es eine Zeile + Formationszeile (68 bis 69 px). Gemessen nur bei 16 px Schrift; die 20-px-Werte stehen im Journal. */
+  for (const sidebar of [true, false]) {
+    test(`Formation Desktop, Seitenleiste ${sidebar ? 'offen' : 'zu'}: die Kopfleiste ist bei jeder Breite höchstens 70 px hoch (nie drei Zeilen)`, { tag: '@UI-15' }, async ({ page, worker }) => {
+      await page.addInitScript((open) => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open, tab: 'conditions' })), sidebar);
+      await open(page, worker, ['EURUSD', 'GBPUSD']);
       await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
-      const tf = await rect(page, 'favorites-timeframes');
-      const forms = await rect(page, 'favorites-forms');
-      expect(tf.bottom, `${w} × ${h}: Zeiteinheiten über der Formationszeile`).toBeLessThanOrEqual(forms.top + 1);
-    }
+      const tallest: string[] = [];
+      for (let width = 1100; width <= 1900; width += 40) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+        const h = await height(page);
+        if (h > 70) tallest.push(`${width} px: ${Math.round(h)} px`);
+      }
+      expect(tallest, 'Fensterbreiten mit mehr als zwei Zeilen').toEqual([]);
+    });
+  }
+
+  test('Formation 1440 × 900 mit offener Seitenleiste: Zeiteinheiten und Formationen stehen in Zeile 2, Aktionen in Zeile 1, die Leiste ist höchstens 70 px hoch', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: true, tab: 'conditions' })));
+    await open(page, worker, ['EURUSD', 'GBPUSD']);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+    const tf = await rect(page, 'favorites-timeframes');
+    const forms = await rect(page, 'favorites-forms');
+    const sel = await rect(page, 'formation-selectors');
+    const status = await rect(page, 'formation-status-chip');
+    expect(tf.top, 'Zeiteinheiten unter Zeile 1').toBeGreaterThanOrEqual(sel.bottom - 1);
+    expect(Math.abs(forms.top - tf.top), 'Formationen in der Zeile der Zeiteinheiten').toBeLessThanOrEqual(4);
+    expect(tf.right, 'Zeiteinheiten links vor den Formationen').toBeLessThanOrEqual(forms.left + 1);
+    expect(status.top, 'Aktionen in Zeile 1').toBeLessThan(sel.bottom);
+    await expect.poll(() => height(page)).toBeLessThanOrEqual(70);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
   });
 
   test('Formation mit Favoriten hochkant (375 × 812): die Favoriten-Zeilen behalten ihre Höhen', { tag: '@UI-15' }, async ({ page, worker }) => {

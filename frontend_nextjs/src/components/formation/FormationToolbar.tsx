@@ -27,7 +27,7 @@ export const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground
 
 /**
  * Kopfleiste im TradingView-Stil: `children` (Symbol und Konto) und Zeiteinheiten in der Leiste, Formationen in der
- * Zeile darunter. Die Badges zählen Treffer (gültig, oder im Aufbau mit vorletztem Punkt) über alle Zeiteinheiten bzw. Formationen.
+ * Zeile darunter (im Raster `bar2` stehen die Zeiteinheiten links in Zeile 2 vor den Formationen). Die Badges zählen Treffer (gültig, oder im Aufbau mit vorletztem Punkt) über alle Zeiteinheiten bzw. Formationen.
  * Rechts bleibt ab der Container-Schwelle Platz für die Werkzeuge des ChartWorkspace, die dort über der Leiste liegen; die Leiste reicht Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie), damit die Werkzeuge nicht verdeckt werden.
  */
 export function FormationToolbar({
@@ -59,25 +59,26 @@ export function FormationToolbar({
   // Gemessen 2026-11-03 (UI-14, e2e chart-one-page.spec.ts), tr/de: Werkzeugleiste mit dem Knopf „Ebenen“ 374 px bei 16 px Schrift (456 px bei 20 px)
   // + 4 px (5 px) Rand rechts des Containers + 8 px Abstand = 386 px (469 px). Die Reserve ist 24,25rem = 388 px (485 px bei 20 px Schrift).
   // Vorher 18rem (288 px, gemessen ohne „Ebenen“): die Leiste deckte bei 1520 px Fenster den Status-Knopf ab (Befund der Prüfung).
-  // Die Kopfleiste bricht um (alle drei Modi): was nicht mehr vor die Reserve passt, steht in der zweiten Zeile; die Werkzeuge liegen nur in der ersten (37 px).
+  // Die Kopfleiste von Setup und Frei bricht um: was nicht mehr vor die Reserve passt, steht in der zweiten Zeile; die Werkzeuge liegen nur in der ersten (37 px).
+  // Formation (A13.7): bis 91rem Container ein festes Raster mit zwei Zeilen (Variante `bar2`, globals.css), davor brach die Leiste in zwei Bändern auf drei Zeilen (94 px) um: 48–57rem und 71–88rem (gemessen 2026-11-04, 16 und 20 px Schrift).
   // Schwelle A = 71rem (1136 px): ab A stehen die Werkzeuge in der Kopfleiste, darunter schwebt die Werkzeugleiste unten über dem Chart
   // (mit offener Seitenleiste gilt das bei 16 px Schrift bis 1464 px Fenster, 1136 + 328).
   // Schwelle B = 79rem (nur im Status-Knopf): ab B zeigt der Knopf Pille und Zähler statt nur Symbole (FormationStatusChip.tsx).
   // Ändert sich die Leiste, die Werkzeugleiste oder der Status-Knopf, A (hier, ChartTopBar, ChartWorkspace, TrendToggle, LayersMenu) und B bei 16 und 20 px
-  // neu messen; der Test UI-14 prüft in allen Modi, dass kein Element der Kopfleiste unter der Werkzeugleiste liegt.
-  // Querformat (UI-15, A8.2): ein Raster mit zwei Zeilen. Zeile 1: Symbol und Konto (Spalte 1–2), Werkzeuge (Spalte 3); Zeile 2: Zeiteinheiten (Spalte 1), Formationen (Spalte 2–3). Kopfleiste und Zeiteinheiten-Block sind dort `contents`, jedes Element bleibt einmal im DOM.
+  // neu messen, ebenso die Raster-Grenzen 48rem und 91rem (`bar2`, globals.css); der Test UI-14 prüft in allen Modi, dass kein Element der Kopfleiste unter der Werkzeugleiste liegt.
+  // Raster (`bar2`: Querformat des Handys UI-15/A8.2, und ab lg bis 91rem Container, A13.7): ein Raster mit zwei Zeilen. Ab 71rem ist Zeile 1 mindestens 38 px hoch und hält rechts 24,25rem für die Werkzeugleiste frei. Zeile 1: Symbol und Konto (Spalte 1–2), Werkzeuge (Spalte 3); Zeile 2: Zeiteinheiten (Spalte 1), Formationen (Spalte 2–3). Kopfleiste und Zeiteinheiten-Block sind dort `contents`, jedes Element bleibt einmal im DOM.
   return (
-    <div className="pointer-events-none bg-background short:grid short:grid-cols-[auto_minmax(0,1fr)_auto] short:items-center short:gap-x-1 short:border-b short:border-border short:px-2" data-testid="formation-toolbar">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 short:contents lg:min-h-[38px] @min-[71rem]/formation-main:pr-97" data-testid="formation-topbar">
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 short:col-span-2 short:col-start-1 short:row-start-1 short:w-auto short:flex-nowrap short:py-0.5 lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
+    <div className="pointer-events-none bg-background bar2:grid bar2:grid-cols-[auto_minmax(0,1fr)_auto] bar2:items-center bar2:gap-x-1 bar2:border-b bar2:border-border bar2:px-2" data-testid="formation-toolbar">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 bar2:contents lg:min-h-[38px] @min-[71rem]/formation-main:pr-97" data-testid="formation-topbar">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 bar2:col-span-2 bar2:col-start-1 bar2:row-start-1 bar2:w-auto bar2:flex-nowrap bar2:py-0.5 bar2:@min-[71rem]/formation-main:min-h-[38px] lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
           {children}
         </div>
-        <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full short:contents">
+        <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block bar2:hidden" aria-hidden="true" />
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full bar2:contents">
           {timeframes !== undefined ? (timeframes && (
-            <div className="contents short:col-start-1 short:row-start-2 short:flex short:items-center short:[&>[data-testid=favorites-timeframes]]:h-7">{timeframes}</div>
+            <div className="contents bar2:col-start-1 bar2:row-start-2 bar2:flex bar2:items-center bar2:[&>[data-testid=favorites-timeframes]]:h-7">{timeframes}</div>
           )) : (
-          <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 short:col-start-1 short:row-start-2 short:h-7 lg:h-auto">
+          <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 bar2:col-start-1 bar2:row-start-2 bar2:h-7 lg:h-auto">
             {CONTEXT_TIMEFRAMES.map((x) => {
               const count = hitsCount(hits, { tf: x });
               return (
@@ -92,17 +93,17 @@ export function FormationToolbar({
           </div>
           )}
           {actions && (
-            <div className="contents short:col-start-3 short:row-start-1 short:flex short:items-center short:gap-1">
-              <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
+            <div className="contents bar2:col-start-3 bar2:row-start-1 bar2:flex bar2:items-center bar2:gap-1 bar2:@min-[71rem]/formation-main:mr-97">
+              <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block bar2:hidden" aria-hidden="true" />
               {actions}
             </div>
           )}
         </div>
       </div>
       {forms !== undefined ? (
-        forms && <div className="pointer-events-auto min-w-0 border-b border-border short:col-span-2 short:col-start-2 short:row-start-2 short:border-b-0 short:[&>[data-testid=favorites-forms]]:min-h-[26px] short:[&>[data-testid=favorites-forms]]:flex-nowrap short:[&>[data-testid=favorites-forms]]:overflow-x-auto short:[&>[data-testid=favorites-forms]]:py-0">{forms}</div>
+        forms && <div className="pointer-events-auto min-w-0 border-b border-border bar2:col-span-2 bar2:col-start-2 bar2:row-start-2 bar2:border-b-0 bar2:[&>[data-testid=favorites-forms]]:min-h-[26px] bar2:[&>[data-testid=favorites-forms]]:flex-nowrap bar2:[&>[data-testid=favorites-forms]]:overflow-x-auto bar2:[&>[data-testid=favorites-forms]]:py-0">{forms}</div>
       ) : (
-      <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] min-w-0 items-center gap-0.5 overflow-x-auto border-b border-border px-2 short:col-span-2 short:col-start-2 short:row-start-2 short:h-7 short:border-b-0 short:px-0" data-testid="formation-forms">
+      <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] min-w-0 items-center gap-0.5 overflow-x-auto border-b border-border px-2 bar2:col-span-2 bar2:col-start-2 bar2:row-start-2 bar2:h-7 bar2:border-b-0 bar2:px-0" data-testid="formation-forms">
         {SCAN_FORMATIONS.map((x) => {
           const count = hitsCount(hits, { form: x });
           const name = t(`formation.form.${x}` as MessageKey);
