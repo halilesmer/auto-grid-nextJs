@@ -33,13 +33,20 @@ async function openChart(page: Page) {
   await expect.poll(async () => (await rsiText(page)).length).toBeGreaterThan(0);
 }
 
-/** Moves down the RSI pane in small steps until the crosshair reports the RSI line under the mouse. */
-async function hoverRsiLine(page: Page) {
-  const pane = await paneBoxOf(page, 'RSI'), x = pane.x + pane.width * 0.5;
-  for (let y = pane.y + 4; y < pane.y + pane.height - 4; y += 1) {
-    await page.mouse.move(x, y);
-    await page.waitForTimeout(15);
-    if (await rowOf(page, 'RSI').getAttribute('data-emphasis') === 'hover') return { x, y };
+/**
+ * Moves down the RSI pane in small steps until the crosshair reports the RSI line under the mouse.
+ * The hit zone of a line is only a few pixels wide and the mock candles move with the clock, so one column can miss the line
+ * (a flat or very steep part). Therefore the search tries several columns, the middle one first.
+ */
+async function hoverRsiLine(page: Page, firstX?: number) {
+  const pane = await paneBoxOf(page, 'RSI');
+  const columns = [...(firstX === undefined ? [] : [firstX]), ...[0.5, 0.35, 0.65, 0.2, 0.8, 0.42, 0.58, 0.28, 0.72].map(fraction => pane.x + pane.width * fraction)];
+  for (const x of columns) {
+    for (let y = pane.y + 4; y < pane.y + pane.height - 4; y += 1) {
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(15);
+      if (await rowOf(page, 'RSI').getAttribute('data-emphasis') === 'hover') return { x, y };
+    }
   }
   throw new Error('RSI line not found under the mouse');
 }
@@ -115,7 +122,7 @@ test('Linie unter der Maus: Zeile hervorgehoben, Hand-Zeiger, Klick wählt, Esca
   await expect.poll(() => opacity(row.getByRole('button', { name: msg('cw.legend.visibility', { indicator: 'RSI' }) }))).toBe('1');
   await page.keyboard.press('Escape');
   await expect(row).not.toHaveAttribute('data-emphasis', /.+/);
-  const again = await hoverRsiLine(page);
+  const again = await hoverRsiLine(page, spot.x);
   await page.mouse.click(again.x, again.y);
   await expect(row).toHaveAttribute('data-emphasis', 'selected');
   const price = await paneBox(page, 0);
