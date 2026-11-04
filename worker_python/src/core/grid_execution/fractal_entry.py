@@ -206,6 +206,19 @@ def _sl_for(config: ZoneConfig, direction: str, f: Fractal, ups, downs, atr_vals
     return f.low - buf if direction == "BUY" else f.high + buf
 
 
+def _point_of(symbol_infos, symbol: str) -> float:
+    info = symbol_infos.get(symbol)
+    return float(getattr(info, "point", 0) or 0) if info is not None else 0.0
+
+
+def _bar_spread(bar) -> float:
+    """Kerzenspread in Punkten (MT5 `spread`); fehlt das Feld, 0."""
+    try:
+        return float(bar["spread"])
+    except (KeyError, ValueError, IndexError, TypeError):
+        return 0.0
+
+
 def _build_desired(mt5, config, zone_idx, zone_key, side, f, m: _Market, tick, symbol_infos, log_message):
     breakout = config.fractal_order_mode == "breakout"
     direction = _direction_of(config, side)
@@ -224,7 +237,10 @@ def _build_desired(mt5, config, zone_idx, zone_key, side, f, m: _Market, tick, s
     if side == "U":
         consumed = any(float(b["high"]) >= f.price for b in later) or float(tick.bid) >= f.price
     else:
-        consumed = any(float(b["low"]) <= f.price for b in later) or float(tick.ask) <= f.price
+        # Kerzen sind Bid. Eine BUY-Order füllt am Ask (≈ Bid + Spread derselben Kerze, K5);
+        # SELL (Bid-Füllung) bleibt beim Kerzen-Tief.
+        spread = _point_of(symbol_infos, config.symbol) if direction == "BUY" else 0.0
+        consumed = any(float(b["low"]) + _bar_spread(b) * spread <= f.price for b in later) or float(tick.ask) <= f.price
 
     if direction == "BUY":
         order_type = mt5.ORDER_TYPE_BUY_STOP if breakout else mt5.ORDER_TYPE_BUY_LIMIT

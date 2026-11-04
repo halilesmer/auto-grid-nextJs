@@ -238,10 +238,12 @@ function buildDesired(ctx: BuildContext, side: Side, f: BarFractal): DesiredOrde
   }
 
   const later = [...m.closed.slice(f.index + 1), m.forming];
+  // Kerzen sind Bid; eine BUY-Order füllt am Ask (≈ Bid + Spread derselben Kerze, K5). SELL bleibt Bid.
+  const buySpread = direction === 'BUY' ? infos[config.symbol]?.point || 0 : 0;
   const consumed =
     side === 'U'
       ? later.some((b) => b.high >= f.price) || tick.bid >= f.price
-      : later.some((b) => b.low <= f.price) || tick.ask <= f.price;
+      : later.some((b) => b.low + (b.spread || 0) * buySpread <= f.price) || tick.ask <= f.price;
 
   let orderType: number;
   let lot: number;
