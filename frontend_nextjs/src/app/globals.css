@@ -3,6 +3,9 @@
 /* dark: prefix'i <html>'deki .dark class'ına bağlı (prefers-color-scheme'e değil) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Handy im Querformat (Höhe bis 30 rem = 480 px, Breite unter lg): die Kopfleisten der Chartseiten sind dort zwei Zeilen hoch (UI-15) */
+@custom-variant short (@media (height <= 30rem) and (width < 64rem));
+
 /*
  * Tema: 21st.dev "Darkmatter" (serafimcloud) temel alındı.
  * Trading için anlamsal renkler eklendi: success (kâr/BUY), danger (zarar/SELL),

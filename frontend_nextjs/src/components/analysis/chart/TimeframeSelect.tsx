@@ -13,7 +13,7 @@ export function TimeframeSelect({ value, onChange }: { value: Timeframe; onChang
       role="radiogroup"
       aria-label={t('analysis.chart.timeframe')}
       data-testid="timeframe-select"
-      className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-muted/50 p-0.5"
+      className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-muted/50 p-0.5 short:[&_button]:h-6"
     >
       {TIMEFRAMES.map((tf) => {
         const active = tf === value;

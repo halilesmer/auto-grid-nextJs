@@ -181,9 +181,9 @@ The MET-02 test opens `/chart` and reads the live values. It did not touch `Char
 - [ ] `.claude/skills/ui-design/SKILL.md` §8 still names `ChartViewer.tsx`. Rule files change only on request of the project owner (`hooks/RULES.md` §6.6). Ask the owner.
 
 ## Open points after U3
-- [ ] The Statistics view of `/chart` still shows the heading "Analiz" (old page name) and its subtitle.
-- [ ] The Statistics view has no mode segment Formation/Setup/Free.
-- [ ] In landscape on a phone (812 x 375 px) the top bar is about 150 px high.
+- [x] (done 2026-11-04, `2026-11-04-chart-header-stats-landscape.md`) The Statistics view of `/chart` still shows the heading "Analiz" (old page name) and its subtitle.
+- [x] (done 2026-11-04) The Statistics view has no mode segment Formation/Setup/Free.
+- [x] (done 2026-11-04) In landscape on a phone (812 x 375 px) the top bar is about 150 px high.
 - [ ] Later decision of the owner: formation search for a range in the past.
 
 ## Live check after U3 (2026-11-03, main v0.7.377)

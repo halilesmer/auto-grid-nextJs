@@ -67,14 +67,14 @@ export function FormationToolbar({
   // neu messen; der Test UI-14 prüft in allen Modi, dass kein Element der Kopfleiste unter der Werkzeugleiste liegt.
   return (
     <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 lg:min-h-[38px] @min-[71rem]/formation-main:pr-97" data-testid="formation-topbar">
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 short:flex-nowrap lg:min-h-[38px] @min-[71rem]/formation-main:pr-97" data-testid="formation-topbar">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 short:w-auto short:flex-nowrap short:py-0.5 lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full short:w-auto short:shrink-0">
           {timeframes !== undefined ? timeframes : (
-          <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 lg:h-auto">
+          <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 short:h-7 lg:h-auto">
             {CONTEXT_TIMEFRAMES.map((x) => {
               const count = hitsCount(hits, { tf: x });
               return (

@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { BarChart3, CandlestickChart } from 'lucide-react';
 
 import { FreeChartPanel } from '@/components/chart-workspace/FreeChartPanel';
-import { ChartModeSegment, type ChartChrome } from '@/components/chart-page/ChartTopBar';
+import { ChartModeSegment, ChartTopBar, type ChartChrome } from '@/components/chart-page/ChartTopBar';
 import { ChartNotice } from '@/components/chart-page/ChartOverlays';
 import ZoneChartPanel from '@/components/chart/ZoneChartPanel';
 import { FormationAccountSelect } from '@/components/formation/FormationSelectors';
@@ -130,7 +130,7 @@ function AnalysisView() {
       <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
     </div>
   );
-  const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" className="@max-[30rem]/formation-main:[&_[role=tab]]:px-2.5 @max-[30rem]/formation-main:[&_[role=tab]]:py-1 @max-[30rem]/formation-main:[&_[role=tab]]:text-xs" />;
+  const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" className="@max-[30rem]/formation-main:[&_[role=tab]]:px-2.5 @max-[30rem]/formation-main:[&_[role=tab]]:py-1 @max-[30rem]/formation-main:[&_[role=tab]]:text-xs short:p-0.5 short:[&_[role=tab]]:px-2.5 short:[&_[role=tab]]:py-0.5 short:[&_[role=tab]]:text-xs" />;
   const chrome: ChartChrome = {
     account,
     mode: <ChartModeSegment />,
@@ -202,36 +202,22 @@ function AnalysisView() {
     );
   };
 
+  // Statistik: eine normale Seite, aber mit derselben Kopfleiste wie die Chart-Ansichten (kein Seitentitel mehr, UI-15)
   return (
-    <div className="w-full space-y-5 px-4 py-6 md:px-8 md:py-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{t('analysis.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('analysis.subtitle')}</p>
-        </div>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-2" data-testid="analysis-controls">
-        {/* Handy: jede Auswahl in eigener Zeile, sonst werden Konto- und Zonenname abgeschnitten */}
-        <div className="w-full sm:w-52">{account}</div>
-        {accountKnown && tab === 'stats' && (
-          <div className="w-full sm:w-auto">
-            <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
-          </div>
-        )}
-        <DateRangePicker value={range} today={today} onChange={setRange} />
+    <div className="w-full space-y-4 px-0 pb-6 pt-16 md:pb-8" data-testid="analysis-page">
+      <h1 className="sr-only">{t('analysis.title')}</h1>
+      <div className="@container/formation-main" data-testid="analysis-controls">
+        <ChartTopBar flat account={account} mode={chrome.mode} target={accountKnown ? zoneSelect : null} timeframes={null} range={chrome.range} view={viewTabs} tools={null} />
       </div>
-
-      {accountKnown && <BrokerClockNotice state={clock} />}
-      {accountKnown && settingsError && (
-        <Alert tone="danger" title={t('analysis.zone.failed')}>
-          {settingsError}
-        </Alert>
-      )}
-
-      <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" />
-
-      {renderTab()}
+      <div className="space-y-5 px-4 md:px-8">
+        {accountKnown && <BrokerClockNotice state={clock} />}
+        {accountKnown && settingsError && (
+          <Alert tone="danger" title={t('analysis.zone.failed')}>
+            {settingsError}
+          </Alert>
+        )}
+        {renderTab()}
+      </div>
     </div>
   );
 }
