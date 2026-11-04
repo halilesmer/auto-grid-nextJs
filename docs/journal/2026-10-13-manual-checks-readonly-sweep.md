@@ -176,7 +176,7 @@ Side finding (not part of ANA-14): the scope "GBPCHF · Setup 1" (magic 200001) 
 
 - [x] Run the steps that remain for VPS-07. Done on 2026-10-15.
 - [x] Run the steps that remain for VPS-09. Done on 2026-10-15.
-- [ ] Examine the VPS-07 side finding: under an elevated worker, the bots are children of the worker, so `Get-ElevatedSummary` hides them. The warning then shows `infoNoBots` (`VpsElevatedWarning.tsx`), but `fix-elevated` also stops elevated bots and MT5. Not seen in the check, because the bots did not run elevated.
+- [x] Examine the VPS-07 side finding: under an elevated worker, the bots are children of the worker, so `Get-ElevatedSummary` hides them. The warning then shows `infoNoBots` (`VpsElevatedWarning.tsx`), but `fix-elevated` also stops elevated bots and MT5. Not seen in the check, because the bots did not run elevated. Closed on 2026-11-04 by `2026-11-04-fix-elevated-bots-visible.md`.
 - [ ] Run the checks that need the owner (table "Verification").
 - [x] Examine the side finding in "ANA-14 check": USOUSD trades of magic 200001 have the label "GBPCHF · Setup 1".
   - Decision of the owner (2026-11-02): the label stays. Per ANA-14, the setup row has the same name as the symbol card, also after the symbol of the setup changed (the magic stays, `zone_registry` overwrites the symbol).

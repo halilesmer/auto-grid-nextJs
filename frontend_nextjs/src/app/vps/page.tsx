@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Loader2, RefreshCw, ServerOff } from 'lucide-react';
 import AdminOnly from '@/components/auth/AdminOnly';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,8 @@ import VpsLogViewer from '@/components/vps/VpsLogViewer';
 import VpsStatusPanel from '@/components/vps/VpsStatusPanel';
 import { useVps } from '@/components/vps/useVps';
 import { useFormat, useT } from '@/i18n';
+import { useAccounts } from '@/components/account/hooks';
+import { useAccountStore } from '@/store/useAccountStore';
 
 // `...` im Text wird als <code> dargestellt
 function withCode(text: string) {
@@ -19,6 +22,14 @@ function withCode(text: string) {
 
 function VpsView() {
   const vps = useVps();
+  // Nur zum Anzeigen von LIVE/DEMO an den Bot-Zeilen; ist die Liste nicht geladen, entfällt die Rozette
+  const accounts = useAccountStore((state) => state.accounts);
+  const { fetchAccounts } = useAccounts();
+  // Direkt aufgerufen (Neuladen): die Rozette braucht die Kontoliste, aber nur, wenn Bots erhöht laufen
+  const hasElevatedBots = Boolean(vps.status?.elevated?.some((p) => p.role === 'bot'));
+  useEffect(() => {
+    if (hasElevatedBots && useAccountStore.getState().accounts.length === 0) fetchAccounts();
+  }, [hasElevatedBots, fetchAccounts]);
   const t = useT();
   const fmt = useFormat();
 
@@ -63,7 +74,8 @@ function VpsView() {
           processes={vps.status?.elevated ?? []}
           busy={vps.busy === 'fix-elevated'}
           disabled={vps.busy !== null}
-          onFix={() => vps.runAction('fix-elevated')}
+          accounts={accounts}
+          onFix={(stopBots) => vps.runAction('fix-elevated', { stopBots })}
         />
         <VpsStatusPanel status={vps.status} sshError={vps.statusError} autoUpdate={vps.autoUpdate} />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">

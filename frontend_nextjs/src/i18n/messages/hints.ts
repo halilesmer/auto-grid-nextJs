@@ -226,7 +226,10 @@ const existingHints = defineArea(
     'vps.action.reboot.hint':
       'VPS’i (Windows) tamamen yeniden başlatır. Tüm süreçler kapanır; oturum açılınca otomatik başlatma devreye girer. Onay ister.',
     'vps.elevated.fix.hint':
-      'Yönetici haklarıyla çalışan eski AutoGrid süreçlerini sonlandırır; worker sonra normal haklarla yeniden başlar. Onay ister.',
+      'Listedeki yönetici süreçlerini sonlandırır; worker ve ngrok normal haklarla yeniden başlar. Onay ister.',
+    'vps.elevated.fixWithBots.hint':
+      'Listedeki tüm yönetici süreçlerini sonlandırır, botlar ve MT5 dahil. Botlar yaklaşık 1 dakika durur, sonra worker onları normal haklarla yeniden başlatır. Ayrı onay ister.',
+    'vps.elevated.ack.hint': 'Listede bot ya da MT5 varken onay düğmesi ancak bu kutu işaretlenince açılır.',
     'vps.log.tab.worker.hint': 'Worker konsol logu (uvicorn, worker_console.log).',
     'vps.log.tab.ngrok.hint': 'ngrok tünelinin logu (ngrok.log).',
     'vps.log.tab.update.hint': 'Otomatik güncelleme görevinin logu.',
@@ -831,7 +834,10 @@ const existingHints = defineArea(
     'vps.action.reboot.hint':
       'Fully reboots the VPS (Windows). All processes close; autostart takes over after logon. Asks for confirmation.',
     'vps.elevated.fix.hint':
-      'Terminates old AutoGrid processes running with administrator rights; the worker then restarts with normal rights. Asks for confirmation.',
+      'Ends the listed admin processes; worker and ngrok restart with normal rights. Asks for confirmation.',
+    'vps.elevated.fixWithBots.hint':
+      'Ends all listed admin processes, including bots and MT5. The bots stop for about 1 minute, then the worker starts them again with normal rights. Asks for a separate confirmation.',
+    'vps.elevated.ack.hint': 'While bots or MT5 are in the list, the confirm button opens only after you tick this box.',
     'vps.log.tab.worker.hint': 'Worker console log (uvicorn, worker_console.log).',
     'vps.log.tab.ngrok.hint': 'Log of the ngrok tunnel (ngrok.log).',
     'vps.log.tab.update.hint': 'Log of the automatic update task.',
@@ -1436,7 +1442,10 @@ const existingHints = defineArea(
     'vps.action.reboot.hint':
       'Startet den VPS (Windows) komplett neu. Alle Prozesse werden beendet; nach der Anmeldung übernimmt der Autostart. Mit Rückfrage.',
     'vps.elevated.fix.hint':
-      'Beendet alte AutoGrid-Prozesse, die mit Administratorrechten laufen; der Worker startet danach mit normalen Rechten neu. Mit Rückfrage.',
+      'Beendet die aufgelisteten Admin-Prozesse; Worker und ngrok starten mit normalen Rechten neu. Mit Rückfrage.',
+    'vps.elevated.fixWithBots.hint':
+      'Beendet alle aufgelisteten Admin-Prozesse, auch Bots und MT5. Die Bots stehen etwa 1 Minute, dann startet der Worker sie mit normalen Rechten neu. Mit eigener Rückfrage.',
+    'vps.elevated.ack.hint': 'Solange Bots oder MT5 in der Liste stehen, wird die Bestätigung erst mit diesem Haken aktiv.',
     'vps.log.tab.worker.hint': 'Worker-Konsolenlog (uvicorn, worker_console.log).',
     'vps.log.tab.ngrok.hint': 'Log des ngrok-Tunnels (ngrok.log).',
     'vps.log.tab.update.hint': 'Log der automatischen Update-Aufgabe.',
