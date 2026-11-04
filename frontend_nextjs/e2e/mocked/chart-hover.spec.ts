@@ -170,3 +170,22 @@ test('Hover-Werte lösen keinen Alarm aus; der Alarm gilt für den letzten Wert'
   await expect(page.getByRole('status').filter({ hasText: msg('cw.alarmTriggered', { indicator: 'RSI', value: '50' }) })).toHaveCount(0);
   expect(await armed()).toEqual([true]);
 });
+
+test('System-Bereiche RSI(7) und Wave 5/35 haben eine Legendenzeile; Ausblenden geht in jedem Bereich', { tag: ['@ANA-22', '@UI-07'] }, async ({ page, worker }) => {
+  void worker;
+  await openChart(page);
+  for (const [id, label] of [['rsi', 'RSI(7)'], ['wave', 'Wave 5/35']] as const) {
+    const row = page.locator(`[data-system-row="${id}"]`), hide = row.getByRole('button', { name: msg('cw.legend.hideLayer', { layer: label }) });
+    await expect(row).toHaveCount(1);
+    await page.mouse.move(5, 5);
+    await expect.poll(() => opacity(hide)).toBe('0');
+    await row.hover();
+    await expect.poll(() => opacity(hide)).toBe('1');
+    // The row has a background while hovered, so the text stays readable over bars and lines.
+    await expect.poll(() => row.evaluate(el => getComputedStyle(el).backgroundColor)).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+    await hide.click();
+    await expect(row).toHaveCount(0);
+  }
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-visible', 'false');
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'false');
+});
