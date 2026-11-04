@@ -1,6 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
 import { Tooltip } from '@/components/ui/tooltip';
 import { useChartMode } from '@/hooks/useChartMode';
@@ -56,6 +57,8 @@ function Slot({ className, children }: { className?: string; children: ReactNode
  * Werkzeuge nicht verdeckt werden.
  */
 export function ChartTopBar({ account, mode, target, timeframes, range, view, tools, extra, flat = false }: ChartTopBarProps) {
+  const t = useT();
+  const [legendOpen, setLegendOpen] = useState(false);
   return (
     <div className="pointer-events-none bg-background short:grid short:grid-cols-[max-content_max-content_minmax(0,1fr)] short:[&_[aria-haspopup]]:max-h-7 short:[&_input]:max-h-7 short:border-b short:border-border" data-testid="chart-topbar">
       <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-2 py-1 short:contents', !flat && '@min-[71rem]/formation-main:pr-97', '@max-[30rem]/formation-main:gap-x-1')}>
@@ -73,7 +76,26 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
           <Slot className="@max-[30rem]/formation-main:order-5 @max-[30rem]/formation-main:flex @max-[30rem]/formation-main:gap-1">{tools}</Slot>
         </div>
       </div>
-      {extra && <div className="pointer-events-auto flex min-h-[30px] items-center gap-x-1 overflow-x-auto border-b border-border px-2 py-0.5 short:min-h-0 short:border-b-0 short:py-0 short:whitespace-nowrap short:[&_button]:flex-nowrap">{extra}</div>}
+      {extra && (
+        <div className="pointer-events-auto border-b border-border short:border-b-0 short:@max-[30rem]/formation-main:col-span-3 @max-[30rem]/formation-main:order-8">
+          {/* Handy (Container unter 30 rem): ein Knopf „Lejant“ klappt die Schalter darunter auf (Entwurf B vom 05.11.); sonst stehen sie wie früher in der Zeile */}
+          <div className="hidden px-2 py-0.5 @max-[30rem]/formation-main:block">
+            <Tooltip content={t('analysis.chart.key.toggle.hint')}>
+              <button
+                type="button"
+                aria-expanded={legendOpen}
+                onClick={() => setLegendOpen(o => !o)}
+                data-testid="chart-legend-toggle"
+                className={cn('inline-flex h-6 cursor-pointer items-center gap-1 rounded-md border border-border px-2 text-[11px] text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', legendOpen && 'bg-accent')}
+              >
+                {t('analysis.chart.key.toggle')}
+                <ChevronDown aria-hidden className={cn('size-3 transition-transform', legendOpen && 'rotate-180')} />
+              </button>
+            </Tooltip>
+          </div>
+          <div className={cn('flex min-h-[30px] items-center gap-x-1 overflow-x-auto px-2 py-0.5 short:min-h-0 short:py-0 short:whitespace-nowrap short:[&_button]:flex-nowrap', '@max-[30rem]/formation-main:min-h-0 @max-[30rem]/formation-main:flex-wrap @max-[30rem]/formation-main:overflow-x-visible @max-[30rem]/formation-main:pt-0', !legendOpen && '@max-[30rem]/formation-main:hidden')}>{extra}</div>
+        </div>
+      )}
     </div>
   );
 }

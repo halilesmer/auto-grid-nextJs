@@ -110,6 +110,47 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
   });
 });
 
+/** Legendenzeile (Setup): auf dem Handy hinter dem Knopf „Lejant“, kein Seitwärts-Scrollen; Desktop unverändert */
+test.describe('UI-15 Legendenzeile im Setup-Modus', () => {
+  const SETUP_URL = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
+  const prefs = ['showZoneLines', 'showLevels', 'showTrades', 'showOrders', 'showHistory'] as const;
+
+  async function open(page: Page, worker: MockWorker, w: number, h: number) {
+    worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto(SETUP_URL);
+    await expect(page.getByTestId('chart-key')).toHaveCount(1);
+  }
+
+  test('375 × 812: Knopf „Lejant“ klappt die Schalter auf und zu, nichts läuft seitwärts', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, 375, 812);
+    const toggle = page.getByTestId('chart-legend-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('chart-key')).toBeHidden();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const key = page.getByTestId('chart-key');
+    await expect(key).toBeVisible();
+    const row = await key.evaluate(e => { const r = e.parentElement!; return { sw: r.scrollWidth, cw: r.clientWidth }; });
+    expect(row.sw, 'Legendenzeile scrollt nicht seitwärts').toBeLessThanOrEqual(row.cw);
+    for (const pref of prefs) {
+      await expect(page.getByTestId(`chart-key-${pref}`)).toBeVisible();
+      const box = (await page.getByTestId(`chart-key-${pref}`).boundingBox())!;
+      expect(box.x + box.width, `${pref} liegt im Bild`).toBeLessThanOrEqual(375);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+    await toggle.click();
+    await expect(key).toBeHidden();
+  });
+
+  test('1440 × 900: kein Knopf, die Schalter stehen wie bisher in der Zeile', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, 1440, 900);
+    await expect(page.getByTestId('chart-legend-toggle')).toBeHidden();
+    await expect(page.getByTestId('chart-key')).toBeVisible();
+  });
+});
+
 /** Formation mit Treffern und Favoriten: die Ergebniszeile (Formationen mit Zahl) und die Zeiteinheiten der Favoriten liegen unter der Kopfleiste */
 test.describe('UI-15 Formation mit Ergebniszeile im Querformat', () => {
   const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
