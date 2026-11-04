@@ -10,6 +10,12 @@ export function crvOf(entry: number, stop: number, target: number): number | nul
   return risk > 0 ? Math.abs(entry - target) / risk : null;
 }
 
+/** Rundung bei Dezimalpreisen: 1:1 soll nicht durch 1,0000000000000002 als „über 1“ gelten */
+export const CRV_EPS = 1e-9;
+
+/** Pip-Größe als Preis: 10 × Punkt bei 3 oder 5 Nachkommastellen, sonst null (dann zeigt die Anzeige den Preisabstand) */
+export const pipSizeOf = (digits: number | null): number | null => (digits === 3 || digits === 5 ? 10 ** (1 - digits) : null);
+
 export interface TradeMetrics {
   risk: number;
   reward: number;

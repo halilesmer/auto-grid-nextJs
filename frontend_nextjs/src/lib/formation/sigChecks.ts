@@ -37,7 +37,7 @@ import {
   type Engulf,
 } from './sig';
 import { counterSide, extremeSide } from './trd';
-import { tradeMetrics } from './trade';
+import { CRV_EPS, tradeMetrics } from './trade';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { FormationContext } from './context';
 import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Side, Trade, Verdict } from './types';
@@ -355,8 +355,6 @@ function evaluate(env: Env, explicit: SigPointsInput | null, options: SigOptions
   return { tf, reasons, candidate: { code: 'SIG', side: candidateSide, tf, points, checks: withDrawings, drawings, verdict } };
 }
 
-/** Rundung bei Dezimalpreisen: 1:1 soll nicht durch 1,0000000000000002 als „über 1“ gelten */
-const CRV_EPS = 1e-9;
 
 /**
  * SIG-29: bei Chance-Risiko bis TP1 höchstens 1:1 wird die Umkehrkerze der tieferen ZE (wie SIG-28) abgewartet.

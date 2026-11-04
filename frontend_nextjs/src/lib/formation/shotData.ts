@@ -70,6 +70,7 @@ export function buildShotData(input: {
     ],
     groups: GROUPS.flatMap((kind) => {
       const rows = candidate.checks
+        // Die Veto-Zeile (A40.2) bleibt im Bild weg: dort fehlt die Marke, die sie vom Ausschluss unterscheidet
         .filter((c) => c.kind === kind && !c.veto)
         .map((c) => {
           const state = rowState(c);

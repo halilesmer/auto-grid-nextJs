@@ -30,8 +30,9 @@ export function CandidateList({ hits, selected, onSelect }: { hits: readonly Sca
       {hits.map((hit) => {
         const title = `${t(`formation.form.${hit.form}` as MessageKey)} ${t(`formation.side.${hit.candidate.side}` as MessageKey)}`;
         const buy = hit.candidate.side === 'buy';
+        const veto = hit.candidate.checks.some((c) => c.veto && c.state === 'met');
         return (
-          <Tooltip key={`${hit.form}-${hit.tf}-${hit.candidate.side}`} content={t('formation.cand.item.hint', { title, tf: hit.tf })} role="presentation">
+          <Tooltip key={`${hit.form}-${hit.tf}-${hit.candidate.side}`} content={veto ? `${t('formation.cand.item.hint', { title, tf: hit.tf })} ${t('formation.mark.veto.hint')}` : t('formation.cand.item.hint', { title, tf: hit.tf })} role="presentation">
             <button
               type="button"
               aria-pressed={hit === selected}
@@ -45,6 +46,11 @@ export function CandidateList({ hits, selected, onSelect }: { hits: readonly Sca
               {buy ? <ArrowUp size={12} aria-hidden="true" className="text-success" /> : <ArrowDown size={12} aria-hidden="true" className="text-danger" />}
               <span>{t(`formation.side.${hit.candidate.side}` as MessageKey)}</span>
               <VerdictPill verdict={hit.candidate.verdict} />
+              {veto && (
+                <span data-testid="veto-badge" className="whitespace-nowrap rounded-full border border-danger/40 bg-danger/10 px-2 py-0.5 text-xs text-danger">
+                  {t('formation.mark.veto')}
+                </span>
+              )}
             </button>
           </Tooltip>
         );

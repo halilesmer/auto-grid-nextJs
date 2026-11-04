@@ -16,7 +16,7 @@ const GROUPS: RuleKind[] = ['required', 'bonus', 'exclusion'];
 type RowState = 'met' | 'unmet' | 'excluded' | 'clear' | 'unmeasurable' | 'inactive';
 
 /** Ausschlüsse sind Ereignisse: „erfüllt“ heißt, das Ereignis liegt vor (ausgelöst) */
-const rowState = (c: Check): RowState => {
+export const checkRowState = (c: Check): RowState => {
   if (c.inactive) return 'inactive';
   if (c.state === 'unmeasurable') return 'unmeasurable';
   if (c.kind === 'exclusion') return c.state === 'met' ? 'excluded' : 'clear';
@@ -41,7 +41,7 @@ const GLYPH: Record<RowState, ReactNode> = {
   inactive: <Slash size={13} strokeWidth={3} />,
 };
 
-function StateIcon({ state }: { state: RowState }) {
+export function StateIcon({ state }: { state: RowState }) {
   const t = useT();
   return (
     <span role="img" aria-label={t(`formation.state.${state}` as MessageKey)} className={cn('grid h-5 w-5 place-items-center rounded-md border-[1.5px]', ICON_STYLE[state])}>
@@ -125,8 +125,7 @@ export function FormationChecklist({
         )}
       </div>
       {GROUPS.map((kind) => {
-        // Veto-Zeilen (A40.2) zeigt erst der Handelsblock (Phase 2)
-        const rows = candidate.checks.filter((c) => c.kind === kind && !c.veto);
+        const rows = candidate.checks.filter((c) => c.kind === kind);
         if (rows.length === 0) return null;
         const folded = collapsed.has(kind);
         return (
@@ -147,13 +146,13 @@ export function FormationChecklist({
               {kind === 'exclusion' && <span className="text-[11px] font-normal normal-case tracking-normal" data-testid="exclusion-note">{t('formation.group.exclusion.note')}</span>}
             </h3>
             {!folded && rows.map((c) => {
-              const state = rowState(c);
+              const state = checkRowState(c);
               const highlighted = activeSet !== null && c.drawings.some((d) => activeSet.has(d));
               return (
                 <div
                   key={c.id}
                   tabIndex={0}
-                  data-testid="check-row"
+                  data-testid={c.veto ? 'veto-row' : 'check-row'}
                   data-rule-id={c.id}
                   data-state={state}
                   data-on={highlighted ? 'true' : 'false'}
@@ -166,6 +165,11 @@ export function FormationChecklist({
                   <StateIcon state={state} />
                   <span className={cn('min-w-0 text-xs', (state === 'unmeasurable' || state === 'inactive') && 'text-muted-foreground')}>
                     {ruleText(locale, c.id) ?? c.id}
+                    {c.veto && (
+                      <Tooltip content={t('formation.mark.veto.hint')} role="presentation">
+                        <span className="ml-1 cursor-help rounded-[5px] border border-danger/40 px-1 text-[10px] text-danger">{t('formation.mark.veto')}</span>
+                      </Tooltip>
+                    )}
                     {c.status !== 'confirmed' && (
                       <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
                         <span className="ml-1 cursor-help rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
