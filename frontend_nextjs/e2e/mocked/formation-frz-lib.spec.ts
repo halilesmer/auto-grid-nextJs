@@ -709,6 +709,49 @@ test.describe('FRZ: Abnahmefälle der Testliste (echte Kerzen)', () => {
   });
 });
 
+test.describe('FRZ: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)', () => {
+  const load = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+  const utc = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
+  const states = (c: Candidate, ids: string[]) => Object.fromEntries(ids.map((id) => [id, state(c, id)]));
+  const atEnd = (bars: FormationBar[]) => bars[bars.length - 1].time + H4;
+
+  // Die Liste liest die Zone 23282.2 bis 23597.8 aus dem Bild; das Tief 2025-09-17 12:00 liegt 3 Punkte darüber (Toleranz 0,5 × ATR).
+  // FRZ-21 („nahe“ ohne Zahl im Regelwerk): die D1-Zone liegt 508 Punkte vom Kurs, das sind 1,9 × ATR(14) der D1. Mit nearAtr 1 war FRZ-21 ☐, mit 2 (Annahme) ☑ wie in der Liste.
+  frm('frz-support-h4-01: die H4-Unterstützung liegt an der D1-Zone, FRZ-21 ist erfüllt und die H4-Zone entfällt', () => {
+    const h4 = load('frz-support-h4-01');
+    const d1 = load('frz-support-d1-01');
+    const ctx = new FormationContext(h4.symbol, { H4: h4.bars, D1: d1.bars });
+    const low = h4.bars.filter((b) => b.time >= utc('2025-09-16T00:00') && b.time < utc('2025-09-30T00:00')).reduce((x, y) => (y.low < x.low ? y : x));
+    expect(Math.abs(low.low - 23282.2)).toBeLessThanOrEqual(0.5 * atrSeries(h4.bars)[h4.bars.findIndex((b) => b.time === low.time)]!);
+    const c = checkFrzCandidate(ctx, atEnd(h4.bars), { tf: 'H4', time: low.time, side: 'support' });
+    expect(low.time).toBe(utc('2025-09-17T12:00'));
+    expect(states(c, ['FRZ-01', 'FRZ-07', 'FRZ-11', 'FRZ-21'])).toEqual({ 'FRZ-01': 'met', 'FRZ-07': 'met', 'FRZ-11': 'met', 'FRZ-21': 'met' });
+    expect(analyzeFrz(ctx, atEnd(h4.bars)).zones.filter((z) => z.tf === 'H4' && z.side === 'support')).toHaveLength(0);
+  });
+
+  // Abweichung von der Liste: Die Liste liest das letzte Hoch 0.92407 jenseits der Zone ohne Schluss (FRZ-06 ☐, FRZ-07 ☑, FRZ-08 ☑).
+  // Quelle der Liste ist das Bild eines anderen Datenanbieters („ca.“). Unsere Broker-Kerzen schließen am 2025-10-06 um 12:00 und 16:00 über dem Zonenende:
+  // FRZ-06 ☑ (ein Schluss jenseits genügt, auch um einen Pip), die Zone ist ungültig. Die Regel (FRZ-06, FRZ-08) gilt vor dem abgelesenen Preis.
+  frm('frz-resist-h4-02: zwei H4-Schlüsse über der Zone am 06.10. (Datenquelle weicht von der Liste ab), FRZ-06 ☑ und die Zone ist ungültig', () => {
+    const fx = load('frz-resist-h4-02');
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
+    const bar = fx.bars.filter((b) => b.time >= utc('2025-09-11T00:00') && b.time < utc('2025-09-13T00:00')).reduce((x, y) => (y.high > x.high ? y : x));
+    expect(Math.abs(bar.high - 0.92256)).toBeLessThanOrEqual(0.5 * atrSeries(fx.bars)[fx.bars.findIndex((b) => b.time === bar.time)]!);
+    const c = checkFrzCandidate(ctx, atEnd(fx.bars), { tf: 'H4', time: bar.time, side: 'resistance' });
+    expect(states(c, ['FRZ-01', 'FRZ-06', 'FRZ-07', 'FRZ-08', 'FRZ-32'])).toEqual({
+      'FRZ-01': 'met',
+      'FRZ-06': 'met',
+      'FRZ-07': 'unmet',
+      'FRZ-08': 'unmet',
+      'FRZ-32': 'met',
+    });
+    expect(find(c, 'FRZ-06').value).toBe(utc('2025-10-06T12:00'));
+    expect(c.verdict).toBe('invalid');
+    const closes = fx.bars.filter((b) => b.time >= utc('2025-10-06T12:00') && b.time <= utc('2025-10-06T16:00')).map((b) => b.close);
+    expect(closes.every((x) => x > bar.high)).toBe(true);
+  });
+});
+
 test.describe('FRZ 24 im Produktionsweg (buildEnv speist die Fibonacci-Ziele)', () => {
   const zonesOf = (rows: Row[]) => buildEnv(new FormationContext('TEST', { H4: barsOf(rows) }), END, 'H4')!.frz.zones;
   // Ziele der Fib 110 → 95,8 (0,618 bei 104,5756) liegen in der Zwischenzone [102,7; 104,7]

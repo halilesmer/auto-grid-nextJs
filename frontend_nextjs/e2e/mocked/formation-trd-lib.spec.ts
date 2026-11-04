@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
-import { buildTrend } from '../../src/lib/formation/trd';
+import { buildTrend, lineAnchorPositions, trendLines } from '../../src/lib/formation/trd';
 import { wave } from '../../src/lib/formation/indicators';
 import { TRD_PARAMS, type FormationZug, type TrendOptions } from '../../src/lib/formation/params';
 import { analyzeCrb } from '../../src/lib/formation/crbChecks';
@@ -655,6 +655,25 @@ test.describe('TRD: echte Kerzen', () => {
       'TRD-34': 'met',
       'TRD-35': 'met',
     });
+  });
+});
+
+test.describe('TRD: Abnahmefall trd-line-h4-01 (Linie vom Hoch vor dem Trendbeginn)', () => {
+  // Die Kerzen sind die von frz-resist-h4-01. Der Abwärtstrend beginnt nach dem Hoch vom 2025-09-17 20:00; die Linie der Lehrerzeichnung
+  // beginnt an diesem Hoch (TRD-35), gilt nach der Freigabe am 2025-09-25 12:00 (TRD-34) und das Hoch vom 2025-10-01 08:00 ist die dritte Berührung (TRD-40, TRD-41).
+  // Abweichung von der Liste: Die Liste liest den Anker am Docht VOR dem Spike (TRD-36 ☑, keine Verletzung). Unser Spike-Hoch hat Docht / Körper = 1.62,
+  // FRZ-16 (Annahme, ratio 2) erkennt es nicht als Spike; der Anker bleibt am Spike-Docht, TRD-36 ☐ und die Linie wird verletzt (TRD-42 ☐).
+  frm('trd-line-h4-01: Linie ab dem Hoch vor dem Trendbeginn, dritte Berührung; TRD-36 und TRD-42 wie gemessen (Spike nicht erkannt)', () => {
+    const a = loadFixture('frz-resist-h4-01');
+    const c = a.candidate;
+    expect(a.model.dir).toBe('down');
+    const got = Object.fromEntries(['TRD-34', 'TRD-35', 'TRD-36', 'TRD-40', 'TRD-41', 'TRD-42'].map((id) => [id, state(c, id)]));
+    expect(got).toEqual({ 'TRD-34': 'met', 'TRD-35': 'met', 'TRD-36': 'unmet', 'TRD-40': 'met', 'TRD-41': 'met', 'TRD-42': 'unmet' });
+    expect(lineAnchorPositions(a.model)[0]).toBe(a.model.originPos - 1);
+    expect(find(c, 'TRD-40').value).toBe(2);
+    const line = trendLines(a.model).slice(-1)[0];
+    expect(new Date(line.a.time * 1000).toISOString().slice(0, 13)).toBe('2025-09-17T20');
+    expect(new Date(a.model.bars[line.release].time * 1000).toISOString().slice(0, 13)).toBe('2025-09-25T12');
   });
 });
 

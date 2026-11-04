@@ -15,7 +15,8 @@ import {
 } from '../../src/lib/formation/abcdChecks';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
-import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
+import { zoneGeometry } from '../../src/lib/formation/frz';
+import type { Anchor, Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
 import { D1, END, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
 
 const U: CheckState = 'unmeasurable';
@@ -629,3 +630,61 @@ test.describe('ABCD: echte Kerzen', () => {
   });
 });
 
+// ---- Abnahmefälle der Testliste mit eigenen Punkten ---------------------------------------------------------------
+
+test.describe('ABCD: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)', () => {
+  const extreme = (bars: FormationBar[], from: string, to: string, side: 'high' | 'low') =>
+    bars
+      .filter((b) => b.time >= at(from) && b.time < at(to))
+      .reduce((x, y) => {
+        const further = side === 'high' ? y.high > x.high : y.low < x.low;
+        return further ? y : x;
+      });
+  const points = (a: FormationBar, ap: number, b: FormationBar, bp: number, c: FormationBar, cp: number) => ({
+    tf: 'H4' as const,
+    a: { time: a.time, price: ap },
+    b: { time: b.time, price: bp },
+    c: { time: c.time, price: cp },
+  });
+
+  // Die Liste liest A 142.367, B 145.464, C ca. 142.79; unsere Kerzen: 142.375, 145.459, 142.787 (Tiefe 0.866, Liste „ca. 0.86“).
+  // Das Urteil „ungültig wegen ABCD-06“ stimmt mit der Liste überein. Abweichung der Zustände: Die Liste nennt „RSI überkauft, keine Divergenz“
+  // (ABCD-17 ☑, ABCD-19 ☐) nur aus dem gesprochenen Wort. Das Bild zeigt weder RSI noch Wave. Gemessen am D (145.953, die Liste liest 145.885):
+  // RSI(7) 70.5, unter der Linie 80 (SIG-01), also ABCD-17 ☐; Wave-Divergenz liegt vor, ABCD-19 ☑.
+  frm('abcd-neg-h4-01: Negativ – C zu tief, Urteil ungültig wegen ABCD-06; ABCD-17 ☐ und ABCD-19 ☑ weichen vom gesprochenen Wort ab', () => {
+    const fx = loadFixture('abcd-neg-h4-01');
+    const a = extreme(fx.bars, '2025-06-03T00:00', '2025-06-04T00:00', 'low');
+    const b = extreme(fx.bars, '2025-06-11T00:00', '2025-06-13T00:00', 'high');
+    const c = extreme(fx.bars, '2025-06-13T00:00', '2025-06-14T00:00', 'low');
+    expect([a.low, b.high, c.low]).toEqual([142.375, 145.459, 142.787]);
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput);
+    const cand = checkAbcdCandidate(ctx, at('2025-06-20T20:00'), points(a, a.low, b, b.high, c, c.low));
+    expect(cand.side).toBe('sell');
+    expect(cand.points?.D?.price).toBe(145.953);
+    expect(states(cand, ['ABCD-04', 'ABCD-06', 'ABCD-17', 'ABCD-19'])).toEqual([M, N, N, M]);
+    expect(find(cand, 'ABCD-04').value!).toBeCloseTo(0.866, 3);
+    expect(find(cand, 'ABCD-17').value!).toBeCloseTo(70.5, 1);
+    expect(cand.verdict).toBe('invalid');
+    expect(cand.invalidBy).toContain('ABCD-06');
+  });
+
+  // Die Liste liest B ≈ 0.8156 und damit eine Tiefe von etwa 0.81; unsere Kerze (2025-06-16 00:00) hat B bei 0.81471 und die Tiefe 0.851,
+  // also erreicht D −0.272 von A → B nicht (ABCD-06 ☐, Urteil ungültig). Die Kerze von B ist kein Spike: Docht unter dem Körper 0.00043 bei Körper 0.00322,
+  // FRZ-16 (ratio 2) und TRD-36 greifen nicht, die Punktwahl ist kein Fehler. Unser B weicht vom abgelesenen B ab; die Regel gilt vor dem abgelesenen Preis.
+  frm('abcd-buy-h4-02: Kauf – B ist kein Spike, die Tiefe 0.851 erreicht −0.272 nicht, Urteil ungültig (Datenquelle weicht von der Liste ab)', () => {
+    const fx = loadFixture('abcd-buy-h4-02');
+    const a = extreme(fx.bars, '2025-06-10T00:00', '2025-06-11T00:00', 'high');
+    const b = extreme(fx.bars, '2025-06-14T00:00', '2025-06-18T00:00', 'low');
+    const c = extreme(fx.bars, '2025-06-18T00:00', '2025-06-21T00:00', 'high');
+    expect([a.high, b.low, c.high]).toEqual([0.82979, 0.81471, 0.82754]);
+    expect(zoneGeometry(fx.bars, fx.bars.indexOf(b), 'support', 'H4').manipulation).toBe(false);
+    expect(Math.min(b.open, b.close) - b.low).toBeLessThan(0.5 * Math.abs(b.close - b.open));
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput);
+    const cand = checkAbcdCandidate(ctx, at('2025-06-24T00:00'), points(a, a.high, b, b.low, c, c.high));
+    expect(cand.side).toBe('buy');
+    expect(states(cand, ['ABCD-04', 'ABCD-06', 'ABCD-19'])).toEqual([M, N, M]);
+    expect(find(cand, 'ABCD-06').value!).toBeCloseTo(0.851, 3);
+    expect(cand.verdict).toBe('invalid');
+    expect(cand.invalidBy).toContain('ABCD-06');
+  });
+});
