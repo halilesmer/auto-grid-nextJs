@@ -36,8 +36,8 @@ export const FRZ_PARAMS = {
   manipulation: { ratio: 2, timeframe: 'H4' },
   /** FRZ-20: Zonen je Seite. M15 ist eine Annahme (keine Zahl im Regelwerk) */
   zonesPerSide: { D1: 2, H4: 2, H1: 1, M15: 1 },
-  /** FRZ-21 (Annahme): „nahe am Kurs“ = Abstand ≤ dieses Vielfache der ATR(14) der höheren Zeiteinheit */
-  nearAtr: 1,
+  /** FRZ-21 (Annahme, 2025-11-04 von 1 auf 2: die D1-Zone des DAX-Beispiels liegt 1,9 × ATR entfernt): „nahe am Kurs“ = Abstand ≤ dieses Vielfache der ATR(14) der höheren Zeiteinheit; gilt auch für FRZ-28 (D1-Zone zusätzlich in H1 zeigen) */
+  nearAtr: 2,
   /** FRZ-22 (Annahme): zusammenlegen, wenn die Lücke ≤ Faktor × Höhe der kleineren Zone ist */
   mergeGap: 1,
   /** FRZ-31 (Annahme): Test = Kerze kommt bis auf Faktor × Zonenhöhe an die Zone */

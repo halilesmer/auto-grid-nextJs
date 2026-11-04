@@ -13,13 +13,13 @@ import { CONTEXT_TIMEFRAMES, FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe, type
 import {
   buildTrend,
   changeRef,
-  counterSide,
   extremeSide,
   lastOf,
   lensOf,
   lineAt,
   scanLine,
   trendLines,
+  lineAnchorPositions,
   type TrdCand,
   type TrendDir,
   type TrendLine,
@@ -342,7 +342,7 @@ function evaluate(models: Models, m: TrendModel, options: TrdOptions, p: TrdCand
 
   // Linie
   add('TRD-34', !dir ? U : flag(lines.length > 0));
-  const anchorsPos = dir ? pivots.map((x, i) => ({ x, i })).filter((e) => e.i >= m.originPos && e.x.side === counterSide(dir)) : [];
+  const anchorsPos = lineAnchorPositions(m).map((i) => ({ x: pivots[i], i }));
   if (anchorsPos.length < 2) {
     add('TRD-35', U);
   } else {

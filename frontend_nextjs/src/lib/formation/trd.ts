@@ -261,16 +261,27 @@ function anchorOf(m: TrendModel, p: Pivot): { time: number; price: number; repla
 }
 
 /**
+ * Positionen der Wendepunkte, durch die die Trendlinie laufen darf (TRD-34, TRD-35): die Gegenseite ab dem Trendbeginn.
+ * Der Punkt direkt vor dem Trendbeginn gehört dazu: Er ist das Extrem, von dem der Trend ausgeht (Abwärtstrend: das Hoch vor dem ersten Tief),
+ * und die Linie der Lehrerzeichnung beginnt dort (auch am Docht vor einem Spike, TRD-36).
+ */
+export function lineAnchorPositions(m: TrendModel): number[] {
+  if (!m.dir) return [];
+  const side = counterSide(m.dir);
+  const from = Math.max(0, m.originPos - 1);
+  return m.pivots.flatMap((p, pos) => (pos >= from && p.side === side ? [pos] : []));
+}
+
+/**
  * Gültige Linien des laufenden Trends, alt → neu (TRD-34, TRD-35): durch die letzten 2 Tiefs (Aufwärtstrend) bzw. Hochs.
  * Die Linie gilt erst, wenn nach dem zweiten Anker ein Schluss jenseits des Extrems davor kam (zweiter Impuls).
  */
 export function trendLines(m: TrendModel): TrendLine[] {
   if (!m.dir) return [];
-  const side = counterSide(m.dir);
-  const poss = m.pivots.map((p, pos) => ({ p, pos })).filter((x) => x.pos >= m.originPos && x.p.side === side);
+  const poss = lineAnchorPositions(m);
   const out: TrendLine[] = [];
   for (let j = 1; j < poss.length; j++) {
-    const line = lineThrough(m, poss[j - 1].pos, poss[j].pos);
+    const line = lineThrough(m, poss[j - 1], poss[j]);
     if (line) out.push(line);
   }
   return out;
