@@ -1,5 +1,5 @@
 /**
- * Cypher (CYP): Prüfung je Bedingungs-ID und Zeichnungen Z-CYP-01 bis Z-CYP-06.
+ * Cypher (CYP): Prüfung je Bedingungs-ID und Zeichnungen Z-CYP-01 bis Z-CYP-07.
  * `analyzeCyp` sucht je geladener Zeiteinheit die letzten Punkte X, A, B, C aus den Wendepunkten und misst D;
  * `checkCypCandidate` prüft eigene Punkte, auch wenn sie keine Formation ergeben (Zeichnung und ☐ gibt es trotzdem).
  *
@@ -175,8 +175,10 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: bool
   ];
   if (d && reached) {
     const t = P.targets;
-    out.push({ id: 'Z-CYP-03', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, d.price)], levels: [t.tp1, t.tp2, -t.stop], rules: TRADE_RULES, side });
+    out.push({ id: 'Z-CYP-03', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, d.price)], levels: [t.tp1, t.tp2], rules: TRADE_RULES, side });
     out.push({ id: 'Z-CYP-06', tool: 'marker', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, d.price), { time: lastTime, price: levelXC(s, P.dLevel) }], rules: TRADE_RULES, side });
+    // Stop fest am Einstieg (CYP `## Handel` E-8 (a)): Fib C → Einstiegslevel, nicht C → äußerster Docht; die Ziele in Z-CYP-03 folgen dem neuen Extrem
+    out.push({ id: 'Z-CYP-07', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, levelXC(s, P.dLevel))], levels: [-t.stop], rules: TRADE_RULES, side });
   }
   return out;
 }
