@@ -175,7 +175,8 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: bool
   ];
   if (d && reached) {
     const t = P.targets;
-    out.push({ id: 'Z-CYP-03', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, d.price)], levels: [t.tp1, t.tp2, -t.stop], rules: TRADE_RULES, side });
+    // Stop fest am Einstieg (CYP `## Handel` E-8 (a)): Fib C → Einstiegslevel, nicht C → äußerster Docht
+    out.push({ id: 'Z-CYP-03', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, levelXC(s, P.dLevel))], levels: [t.tp1, t.tp2, -t.stop], rules: TRADE_RULES, side });
     out.push({ id: 'Z-CYP-06', tool: 'marker', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, d.price), { time: lastTime, price: levelXC(s, P.dLevel) }], rules: TRADE_RULES, side });
   }
   return out;

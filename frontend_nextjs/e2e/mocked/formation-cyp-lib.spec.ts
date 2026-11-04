@@ -275,6 +275,16 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
     expect(ok.drawings.every((d) => d.side === 'buy')).toBe(true);
   });
 
+  frm('Z-CYP-03: der Stop (−0.382) hängt am Einstieg (0.786 von X → C), nicht am äußersten D', () => {
+    const entry = 100 + (139 - 100) * (1 - 0.786);
+    const stopAnchor = (c: Candidate) => c.drawings.find((d) => d.id === 'Z-CYP-03')!.anchors[1].price;
+    const ok = run({ H4: BASE });
+    const far = run({ H4: cyp([100, 130, 115, 139, 105]) });
+    expect(far.drawings.some((d) => d.id === 'Z-CYP-03')).toBe(true);
+    expect(stopAnchor(far)).toBeCloseTo(entry, 6);
+    expect(stopAnchor(far)).toBe(stopAnchor(ok));
+  });
+
   frm('Pflicht und Verstärkung: CYP 05 und CYP 06 sind Pflicht, CYP 08 Verstärkung, CYP 11 und CYP 15 Ausschluss (Annahme)', () => {
     const c = run({ H4: BASE });
     expect([find(c, 'CYP-05').kind, find(c, 'CYP-06').kind, find(c, 'CYP-08').kind, find(c, 'CYP-11').kind, find(c, 'CYP-11').status, find(c, 'CYP-15').kind, find(c, 'CYP-15').status]).toEqual(['required', 'required', 'bonus', 'exclusion', 'assumption', 'exclusion', 'assumption']);
