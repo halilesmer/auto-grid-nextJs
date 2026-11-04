@@ -1,7 +1,7 @@
 ---
 date: 2026-09-29
 type: diagnosis
-status: open
+status: done
 pr: [68, 69]
 features: [ENG-25, ACC-11]
 areas: [worker, ops]

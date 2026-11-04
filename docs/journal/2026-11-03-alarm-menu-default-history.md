@@ -2,7 +2,7 @@
 date: 2026-11-03
 author: Claude
 type: fix
-status: open
+status: done
 pr: []
 features: [FRM-32]
 areas: [frontend, tests]
