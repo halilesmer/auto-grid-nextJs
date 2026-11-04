@@ -121,7 +121,7 @@ Decisions of this step (assumptions, to confirm):
 - No `+` and `-` zoom buttons in the overlay layout, as in the design.
 
 ## Open points for S5
-- The legend row at 375 px scrolls sideways. The top bar takes about half of the screen height there. Check the compact design for narrow screens again (artifact board "Handy").
+- (Done 2026-11-05, see `2026-11-05-chart-legend-375.md`.) The legend row at 375 px scrolls sideways. The top bar takes about half of the screen height there. Check the compact design for narrow screens again (artifact board "Handy").
 
 ## S2 result
 

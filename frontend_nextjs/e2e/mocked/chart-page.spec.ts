@@ -63,6 +63,8 @@ for (const viewport of VIEWPORTS) {
       await expect(topbar.getByTestId('zone-select')).toBeVisible();
       await expect(topbar.getByTestId('timeframe-H1')).toBeVisible();
       await expect(topbar.getByTestId('range-trigger')).toBeVisible();
+      // Auf dem Handy (unter 30 rem) steht die Legende hinter dem Knopf „Lejant“
+      if (viewport.width < 480) await topbar.getByTestId('chart-legend-toggle').click();
       await expect(topbar.getByTestId('chart-key')).toBeVisible();
 
       // Schwebende Karte: Zonenkarte und Live-Werte, Trades im zweiten Reiter

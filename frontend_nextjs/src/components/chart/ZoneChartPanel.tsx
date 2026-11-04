@@ -700,7 +700,7 @@ export default function ZoneChartPanel({
           tools={<LicenseInfo />}
           extra={
             zone && (
-              <div className="flex min-w-0 items-center gap-x-4 text-[11px] text-muted-foreground" data-testid="chart-key">
+              <div className="flex min-w-0 items-center gap-x-4 text-[11px] text-muted-foreground @max-[30rem]/formation-main:flex-wrap @max-[30rem]/formation-main:gap-x-2 @max-[30rem]/formation-main:gap-y-0.5" data-testid="chart-key">
                 {legend.map((entry) => (
                   <LegendToggle
                     key={entry.pref}
