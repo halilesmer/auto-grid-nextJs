@@ -249,3 +249,35 @@ test.describe('UI-15 Formation mit Ergebniszeile im Querformat', () => {
     }
   });
 });
+
+/** Handy 375 px: das Ziel (Symbol bzw. Setup) hat Inhaltsbreite (höchstens 42 %), das Konto bekommt den Rest (Entwurf C, 2026-11-04) */
+test.describe('UI-15 Konto und Ziel in Zeile 1 auf dem Handy', () => {
+  const LONG_NAME = 'Beispielkonto Demo Hedge Handy';
+  const width = (page: Page, locator: ReturnType<Page['getByTestId']>) => locator.evaluate(e => e.getBoundingClientRect().width);
+
+  async function open(page: Page, worker: MockWorker, url: string) {
+    worker.state.accounts[0].account_name = LONG_NAME;
+    worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(url);
+  }
+
+  for (const [name, url, bar, target] of [
+    ['Formation', `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`, 'formation-selectors', 'formation-symbol'],
+    ['Frei', `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`, 'chart-topbar', 'chart-symbol'],
+    ['Setup', `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`, 'chart-topbar', 'zone-select'],
+  ] as const) {
+    test(`375 × 812, ${name}: das Konto ist breiter als das Ziel, das Ziel höchstens 42 % der Zeile`, { tag: '@UI-15' }, async ({ page, worker }) => {
+      await open(page, worker, url);
+      const account = page.getByRole('combobox', { name: msg('account.select.aria') });
+      await expect(account).toBeVisible();
+      // Innenbreite der Leiste: 8 px Rand je Seite
+      const row = (await page.getByTestId(bar).first().evaluate(e => e.getBoundingClientRect().width)) - 16;
+      const targetWidth = await width(page, page.getByTestId(target).first());
+      const accountWidth = await width(page, account);
+      expect(targetWidth, 'Ziel ≤ 42 % der Zeile').toBeLessThanOrEqual(row * 0.42 + 1);
+      expect(accountWidth, 'Konto breiter als das Ziel').toBeGreaterThan(targetWidth);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+    });
+  }
+});

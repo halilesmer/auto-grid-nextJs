@@ -2,7 +2,7 @@
 date: 2026-10-15
 author: Claude
 type: fix
-status: open
+status: done
 pr: [173]
 features: [ENG-06, ENG-17, ENG-18, ZON-13]
 areas: [worker, tests]

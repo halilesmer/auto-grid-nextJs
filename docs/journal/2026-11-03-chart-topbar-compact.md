@@ -2,7 +2,7 @@
 date: 2026-11-03
 author: Claude
 type: fix
-status: open
+status: done
 pr: [331]
 features: [UI-12, UI-10, UI-11, FRM-22, FRM-23]
 areas: [frontend, docs]
@@ -65,4 +65,4 @@ Known, not fixed: on a phone (below 30 rem) the tab order does not follow the vi
 ## Open points
 - [x] (done 2026-11-03, PR 332) U2b: the button "Layers".
 - [x] (done 2026-11-03, PR 333 and 334) U3: merge the pages.
-- [ ] The names of account and setup are shortened in the first row at 375 px. A smaller `(i)` or a longer row can fix this if the owner wants it.
+- [x] (done 2026-11-04, UI-15) The names of account and setup are shortened in the first row at 375 px. Fixed with design C of the owner: see `2026-11-04-chart-topbar-names.md`.

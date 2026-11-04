@@ -2,7 +2,7 @@
 date: 2026-10-16
 author: Claude
 type: fix
-status: open
+status: done
 pr: [182]
 features: [SYS-06]
 areas: [worker, tests]

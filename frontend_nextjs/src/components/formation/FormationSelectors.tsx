@@ -120,7 +120,7 @@ export function FormationSymbolSelect({ accountId, value, onChange }: {
   const current = details[(value ?? '').toUpperCase()]?.name ?? value ?? '';
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1 lg:w-44 lg:flex-none">
+    <div className="flex min-w-0 flex-1 items-center gap-1 @max-[30rem]/formation-main:w-34 @max-[30rem]/formation-main:max-w-[42%] @max-[30rem]/formation-main:flex-none lg:w-44 lg:flex-none">
       {/* Der Hinweis sitzt am (i): ein Tooltip am Eingabefeld läge beim Tippen über der Liste */}
       <div
         className="relative min-w-0 flex-1 [&_[data-slot=autocomplete-content]]:right-auto [&_[data-slot=autocomplete-content]]:min-w-60"
