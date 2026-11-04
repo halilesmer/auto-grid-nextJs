@@ -131,7 +131,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('CRB-10', crabPrz === null ? U : flag(crabPrz <= P.nearAtr), crabPrz ?? undefined);
   const deepPrz = nearestInversion(s, P.deepInversions, dTarget, atr);
   add('CRB-11', deepPrz === null ? U : flag(deepPrz <= P.nearAtr), deepPrz ?? undefined);
-  add('CRB-12', flag(zonesNearOutsideX(env, tf, s, d && reached ? d.price : dTarget, 0).length > 0));
+  add('CRB-12', flag(zonesNearOutsideX(env, tf, s, d && reached ? d.price : dTarget, 0, reached).length > 0));
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('CRB-13', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
   const div = d ? divergenceOf(trend, es, b.idx, d.idx) : null;

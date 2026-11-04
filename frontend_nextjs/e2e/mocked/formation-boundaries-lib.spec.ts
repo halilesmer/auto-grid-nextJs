@@ -80,24 +80,59 @@ for (const spec of ZONE_SPECS) {
   });
 }
 
-// Eine D1-Zone zählt nur, wenn ihre Fraktalkerze vor D geschlossen hat (9b): liegt D in der D1-Kerze, die später selbst Fraktal wird, ist die Zone Folge von D
+// Eine D1-Zone zählt an D erst, wenn ihre Fraktalkerze UND die 2 rechten Nachbarkerzen vor D geschlossen haben (A46.1; FRZ-01..04). D selbst braucht keinen Kerzenschluss.
+// D1-Kerze k deckt die H4-Kerzen 6k bis 6k+5. Die Fraktal-Kerze ist die tiefste, ihre Nachbarn liegen höher.
+// `skip`: D1-Kerzen, die fehlen (Wochenende); die Nachbarn zählen als Kerzen, nicht als Sekunden.
 for (const spec of ZONE_SPECS) {
   for (const buy of [true, false]) {
     for (const c of [
       { name: 'D liegt in der Fraktal-Kerze', dip: 7, dIdx: 44, want: 'unmet' },
-      { name: 'Fraktal-Kerze schloss vor D', dip: 5, dIdx: 44, want: 'met' },
-      { name: 'Kerzenende gleich Öffnung von D', dip: 7, dIdx: 48, want: 'met' },
-      { name: 'D öffnet in der nächsten Fraktal-Kerze', dip: 8, dIdx: 48, want: 'unmet' },
-    ] as const) {
+      { name: 'D liegt in der ersten Nachbar-Kerze', dip: 6, dIdx: 44, want: 'unmet' },
+      { name: 'D liegt in der zweiten Nachbar-Kerze', dip: 6, dIdx: 50, want: 'unmet' },
+      { name: 'D öffnet, wenn die zweite Nachbar-Kerze schließt', dip: 6, dIdx: 54, want: 'met' },
+      { name: 'beide Nachbarn schlossen vor D', dip: 3, dIdx: 44, want: 'met' },
+      { name: 'Freitag-Fraktal, D öffnet mit der ersten Nachbar-Kerze (Montag)', dip: 7, dIdx: 60, skip: [8, 9], want: 'unmet' },
+      { name: 'Freitag-Fraktal, D in der zweiten Nachbar-Kerze (Dienstag)', dip: 7, dIdx: 66, skip: [8, 9], want: 'unmet' },
+      { name: 'Freitag-Fraktal, D öffnet nach dem Dienstag', dip: 7, dIdx: 72, skip: [8, 9], want: 'met' },
+    ] as ReadonlyArray<{ name: string; dip: number; dIdx: number; skip?: number[]; want: 'met' | 'unmet' }>) {
       test(`${spec.id}: ${buy ? 'Kauf' : 'Verkauf'}, D1-Zone, ${c.name} → ${c.want}`, { tag: spec.tag }, () => {
-        const h4 = Array.from({ length: 66 }, (_, i) => bar(i * H4, 2999, 3001, 3000));
-        // H4-Kerze 44 liegt in der D1-Kerze 7 (H4-Kerzen 42 bis 47); H4-Kerze 48 öffnet D1-Kerze 8
+        const h4 = Array.from({ length: 84 }, (_, i) => bar(i * H4, 2999, 3001, 3000));
         const low = spec.target;
-        const d1 = Array.from({ length: 11 }, (_, i) => i === c.dip ? bar(i * D1, low, low + 3, low + 1) : bar(i * D1, low + 2, low + 4, low + 3));
+        const d1 = Array.from({ length: 14 }, (_, i) => i)
+          .filter((i) => !c.skip?.includes(i))
+          .map((i) => i === c.dip ? bar(i * D1, low, low + 3, low + 1) : bar(i * D1, low + 2 + i * 0.01, low + 4 + i * 0.01, low + 3 + i * 0.01));
         const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) });
         const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
-        const candidate = spec.check(ctx, 66 * H4, {
+        const candidate = spec.check(ctx, 84 * H4, {
           tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(c.dIdx, spec.target),
+        });
+        expect(candidate.checks.find((x) => x.id === spec.id)?.state).toBe(c.want);
+      });
+    }
+  }
+}
+
+// Zusammengelegte Zone: ein jüngeres, noch unbestätigtes Mitglied nimmt dem älteren, bestätigten die Zone nicht (A46.1). Ältere D1-Kerze 3 (Rechteck Ziel − 2.5 bis − 0.1), jüngere D1-Kerze 6 (Ziel − 0.2 bis + 1.5, überlappt, ohne die ältere zu brechen); mit `shift` 1.5 liegt das Ziel nur im älteren.
+// Das Ziel liegt nur im Rechteck des jüngeren Mitglieds: es zählt erst, wenn dieses bestätigt ist (schließt mit der Nachbar-Kerze 8 bei H4-Kerze 54).
+// Ist D nicht erreicht, misst die Zeile am Ziel-Preis mit der Zone, wie sie jetzt besteht (ein Zwischenextrem ist kein D).
+for (const spec of ZONE_SPECS) {
+  for (const buy of [true, false]) {
+    for (const c of [
+      { name: 'zusammengelegte Zone, Ziel nur im unbestätigten jüngeren Mitglied, D davor', dIdx: 44, miss: false, shift: 0, want: 'unmet' },
+      { name: 'zusammengelegte Zone, Ziel nur im jüngeren Mitglied, D nach dessen Bestätigung', dIdx: 54, miss: false, shift: 0, want: 'met' },
+      { name: 'zusammengelegte Zone, Ziel nur im bestätigten älteren Mitglied, D vor dem jüngeren', dIdx: 44, miss: false, shift: 1.5, want: 'met' },
+      { name: 'D nicht erreicht, Zone inzwischen bestätigt', dIdx: 44, miss: true, shift: 0, want: 'met' },
+    ] as const) {
+      test(`${spec.id}: ${buy ? 'Kauf' : 'Verkauf'}, D1-Zone, ${c.name} → ${c.want}`, { tag: spec.tag }, () => {
+        const h4 = Array.from({ length: 84 }, (_, i) => bar(i * H4, 2999, 3001, 3000));
+        const t = spec.target;
+        const z = t + c.shift;
+        const dips: Record<number, FormationBar> = { 3: bar(3 * D1, z - 2.5, z + 3, z - 0.1), 6: bar(6 * D1, z - 0.2, z + 3, z + 1.5) };
+        const d1 = Array.from({ length: 14 }, (_, i) => dips[i] ?? bar(i * D1, z + 4 + i * 0.01, z + 6 + i * 0.01, z + 5 + i * 0.01));
+        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) });
+        const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
+        const candidate = spec.check(ctx, 84 * H4, {
+          tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(c.dIdx, c.miss ? t + 50 : t),
         });
         expect(candidate.checks.find((x) => x.id === spec.id)?.state).toBe(c.want);
       });

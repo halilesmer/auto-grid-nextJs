@@ -111,7 +111,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('BUT-10', ext === null ? U : flag(ext <= P.nearAtr), ext ?? undefined);
   const inner = atrDistance(abcd.level1, dTarget, atr);
   add('BUT-11', inner === null ? U : flag(inner <= HARMONIC_PARAMS.nearAtr), inner ?? undefined);
-  add('BUT-12', flag(zonesNear(env, tf, s, d && reached ? d.price : dTarget, 0).length > 0));
+  add('BUT-12', flag(zonesNear(env, tf, s, d && reached ? d.price : dTarget, 0, reached).length > 0));
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('BUT-13', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
   const div = d ? divergenceOf(trend, es, b.idx, d.idx) : null;
