@@ -14,7 +14,7 @@ areas: [tooling]
 Make `.github/workflows/version-bump.yml` robust against short GitHub SSH faults.
 
 ## Cause
-After PR 340, the bump run failed 3 times. `git fetch` returned `git@github.com: Permission denied (publickey)`. The deploy key was valid. In the same run, `actions/checkout` only worked on the third try. The step ran `git fetch` under `set -euo pipefail` with no retry. Only the push had a retry loop (3 tries). One SSH fault stopped the bump, and `main` kept the old version.
+After PR 340, the bump workflow failed in 3 runs (for example run 41816574834). `git fetch` returned `git@github.com: Permission denied (publickey)`. The deploy key was valid. In the same run, `actions/checkout` only worked on the third try. The step ran `git fetch` under `set -euo pipefail` with no retry. Only the push had a retry loop (3 tries). One SSH fault stopped the bump, and `main` kept the old version.
 
 ## Solution
 | File | Change |
@@ -33,4 +33,4 @@ The outer loop already repeats the push after a fresh fetch. It covers both a re
 - `actionlint` is not installed: not verified.
 
 ## Lessons
-Wrap each network call of a CI step in a retry. A valid key does not prevent short GitHub SSH faults.
+Wrap each network call of a CI step in a retry when the call is safe to repeat. A valid key does not prevent short GitHub SSH faults.
