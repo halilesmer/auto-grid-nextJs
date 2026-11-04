@@ -176,6 +176,28 @@ def test_bestehende_buy_limit_bleibt_wenn_nur_der_bid_das_fraktal_beruehrt(fake_
 
 
 @pytest.mark.feature("ENG-21")
+def test_neue_buy_limit_beginnt_beruehrung_am_ask_der_kerze(fake_mt5):
+    # Spätere Kerze: Bid-Tief 96,49 unter dem Fraktal 96,5, aber Ask-Tief = 96,49 + 20 Punkte = 96,51 → nicht berührt
+    later = {"time": T0 + 27 * STEP, "open": 96.9, "high": 96.9, "low": 96.49, "close": 96.7, "spread": 20}
+    seven = bars(FLAT + SHAPE) + [later, dict(later, time=T0 + 28 * STEP, low=96.7, spread=20)]
+    fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_H4, seven)
+    h = EngineHarness(fake_mt5, [fractal_zone(order_type="BUY", fractal_order_mode="rebound")])
+    h.tick()
+    assert order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_LIMIT).price_open == pytest.approx(96.5)
+
+
+@pytest.mark.feature("ENG-21")
+def test_neue_buy_limit_entfaellt_wenn_der_ask_der_kerze_das_fraktal_erreicht(fake_mt5):
+    # Bid-Tief 96,49 + Spread 5 Punkte = Ask-Tief 96,495 ≤ 96,5 → berührt, keine neue Order
+    later = {"time": T0 + 27 * STEP, "open": 96.9, "high": 96.9, "low": 96.49, "close": 96.7, "spread": 5}
+    seven = bars(FLAT + SHAPE) + [later, dict(later, time=T0 + 28 * STEP, low=96.7, spread=5)]
+    fake_mt5.set_rates("USOUSD", fake_mt5.TIMEFRAME_H4, seven)
+    h = EngineHarness(fake_mt5, [fractal_zone(order_type="BUY", fractal_order_mode="rebound")])
+    h.tick()
+    assert order_of(fake_mt5, fake_mt5.ORDER_TYPE_BUY_LIMIT) is None
+
+
+@pytest.mark.feature("ENG-21")
 def test_grid_orders_verschwinden_beim_umschalten(fake_mt5):
     fake_mt5.add_order("USOUSD", fake_mt5.ORDER_TYPE_BUY_LIMIT, 96.9, magic=MAGIC_ZONE_1, comment="AutoGrid_Z1")
     setup(fake_mt5, order_type="BUY").tick()
