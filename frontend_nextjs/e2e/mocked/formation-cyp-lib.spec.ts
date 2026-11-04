@@ -14,6 +14,7 @@ import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeCyp, checkCypCandidate, CYP_CHECK_IDS } from '../../src/lib/formation/cypChecks';
+import { layoutDrawings } from '../../src/lib/formation/drawingLayout';
 import { analyzeGar } from '../../src/lib/formation/garChecks';
 import { analyzeBat } from '../../src/lib/formation/batChecks';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
@@ -261,28 +262,38 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
     expect(run({ H4: BASE, D1: D1_DOWN }).verdict).toBe('invalid');
   });
 
-  frm('Zeichnungen: Z-CYP 01, 02, 04, 05 immer, Z-CYP 03 und 06 nur mit erreichtem D', () => {
+  frm('Zeichnungen: Z-CYP 01, 02, 04, 05 immer, Z-CYP 03, 06 und 07 nur mit erreichtem D', () => {
     const ok = run({ H4: BASE });
-    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-CYP-01', 'Z-CYP-02', 'Z-CYP-04', 'Z-CYP-05', 'Z-CYP-03', 'Z-CYP-06']);
+    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-CYP-01', 'Z-CYP-02', 'Z-CYP-04', 'Z-CYP-05', 'Z-CYP-03', 'Z-CYP-06', 'Z-CYP-07']);
     const short = run({ H4: D_SHORT });
     expect(short.drawings.map((d) => d.id)).toEqual(['Z-CYP-01', 'Z-CYP-02', 'Z-CYP-04', 'Z-CYP-05']);
     expect(ok.drawings.find((d) => d.id === 'Z-CYP-01')!.levels).toEqual([0.382, -0.272, -0.414]);
     expect(ok.drawings.find((d) => d.id === 'Z-CYP-02')!.levels).toEqual([0.786]);
-    expect(ok.drawings.find((d) => d.id === 'Z-CYP-03')!.levels).toEqual([0.382, 0.618, -0.382]);
+    expect(ok.drawings.find((d) => d.id === 'Z-CYP-03')!.levels).toEqual([0.382, 0.618]);
+    expect(ok.drawings.find((d) => d.id === 'Z-CYP-07')!.levels).toEqual([-0.382]);
     expect(ok.drawings.find((d) => d.id === 'Z-CYP-04')!.levels).toEqual([1.272]);
     expect(find(ok, 'CYP-07').drawings).toEqual(['Z-CYP-02', 'Z-CYP-05']);
     expect(find(ok, 'CYP-12').drawings).toEqual(['Z-CYP-04']);
     expect(ok.drawings.every((d) => d.side === 'buy')).toBe(true);
   });
 
-  frm('Z-CYP-03: der Stop (−0.382) hängt am Einstieg (0.786 von X → C), nicht am äußersten D', () => {
+  frm('Z-CYP-07: der Stop (−0.382) hängt am Einstieg (0.786 von X → C), Z-CYP-03 mit den Zielen folgt dem äußersten D', () => {
     const entry = 100 + (139 - 100) * (1 - 0.786);
-    const stopAnchor = (c: Candidate) => c.drawings.find((d) => d.id === 'Z-CYP-03')!.anchors[1].price;
+    const anchor = (c: Candidate, id: string) => c.drawings.find((d) => d.id === id)!.anchors[1].price;
     const ok = run({ H4: BASE });
     const far = run({ H4: cyp([100, 130, 115, 139, 105]) });
-    expect(far.drawings.some((d) => d.id === 'Z-CYP-03')).toBe(true);
-    expect(stopAnchor(far)).toBeCloseTo(entry, 6);
-    expect(stopAnchor(far)).toBe(stopAnchor(ok));
+    expect(far.drawings.some((d) => d.id === 'Z-CYP-07')).toBe(true);
+    expect(anchor(far, 'Z-CYP-07')).toBeCloseTo(entry, 6);
+    expect(anchor(far, 'Z-CYP-07')).toBe(anchor(ok, 'Z-CYP-07'));
+    expect(anchor(far, 'Z-CYP-03')).toBe(far.points.D.price);
+    expect(far.drawings.find((d) => d.id === 'Z-CYP-07')!.anchors[0]).toEqual(far.points.C);
+  });
+
+  frm('Z-CYP-03 trägt weiter das Präfix „CD“ im Label', () => {
+    const far = run({ H4: cyp([100, 130, 115, 139, 105]) });
+    const groups = layoutDrawings({ candidate: far, form: 'CYP', width: 500, lastBar: { time: 60 * H4, close: 120 }, x: (t) => t / H4, y: (p) => 300 - p, yRsi: (v) => v, yWave: (v) => v, text: (k) => k, fmt: (n) => String(n) });
+    const labels = groups.find((g) => g.id === 'Z-CYP-03')!.prims.filter((p) => p.kind === 'text').map((p) => p.kind === 'text' && p.text);
+    expect(labels).toEqual(['CD 0.382', 'CD 0.618']);
   });
 
   frm('Pflicht und Verstärkung: CYP 05 und CYP 06 sind Pflicht, CYP 08 Verstärkung, CYP 11 und CYP 15 Ausschluss (Annahme)', () => {
