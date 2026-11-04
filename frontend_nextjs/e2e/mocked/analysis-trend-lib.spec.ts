@@ -7,8 +7,8 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
-import { emptyTrend } from '../../src/lib/formation/trd';
-import { buildTrendPath, clipSegments, closedBars, ewoPairValid, sanitizeTrendSettings, trendSegments, usableTrendSettings } from '../../src/lib/formation/trdPath';
+import { buildTrend, emptyTrend } from '../../src/lib/formation/trd';
+import { buildTrendPath, TREND_PATH_MAX_BARS, clipSegments, closedBars, ewoPairValid, sanitizeTrendSettings, trendSegments, usableTrendSettings } from '../../src/lib/formation/trdPath';
 import type { FormationBar } from '../../src/lib/formation/types';
 
 const ana = (name: string, fn: () => void) => test(name, { tag: '@ANA-21' }, fn);
@@ -36,6 +36,28 @@ test.describe('ANA-21 Trendzug im Chart', () => {
       [103, 110],
       [110, 133],
     ]);
+  });
+
+  /** Deterministische Wellenreihe mit n Kerzen (kein Zufall, kein Timing) */
+  const wave = (n: number): FormationBar[] =>
+    Array.from({ length: n }, (_, i) => {
+      const c = 100 + 10 * Math.sin(i / 7) + 4 * Math.sin(i / 23) + i * 0.01;
+      return { time: 1_000_000 + i * 3600, open: c - 0.3, high: c + 1, low: c - 1, close: c };
+    });
+
+  ana('Bis TREND_PATH_MAX_BARS Kerzen bleibt der Pfad unverändert (gleich dem Pfad ohne Kappung)', () => {
+    const exact = wave(TREND_PATH_MAX_BARS);
+    expect(buildTrendPath('D1', eurcad.bars, DEFAULT_TREND_SETTINGS)).toEqual(trendSegments(buildTrend('D1', eurcad.bars, [], DEFAULT_TREND_SETTINGS)));
+    expect(buildTrendPath('H1', exact, DEFAULT_TREND_SETTINGS)).toEqual(trendSegments(buildTrend('H1', exact, [], DEFAULT_TREND_SETTINGS)));
+  });
+
+  ana('Über TREND_PATH_MAX_BARS Kerzen gehen nur die letzten in den Pfad', () => {
+    const bars = wave(TREND_PATH_MAX_BARS + 1200);
+    const tail = bars.slice(-TREND_PATH_MAX_BARS);
+    const segments = buildTrendPath('H1', bars, DEFAULT_TREND_SETTINGS);
+    expect(segments.length).toBeGreaterThan(0);
+    expect(segments).toEqual(buildTrendPath('H1', tail, DEFAULT_TREND_SETTINGS));
+    expect(segments[0].from.time).toBeGreaterThanOrEqual(tail[0].time);
   });
 
   ana('Ein Segment endet dort, wo das nächste beginnt, mit demselben Preis', () => {

@@ -58,10 +58,18 @@ export function closedBars<T extends { time: number }>(bars: readonly T[], durat
   return liveFrom === null ? known : known.filter((b) => b.time < liveFrom);
 }
 
-/** Zug aus geschlossenen Kerzen mit den Einstellungen der Linie */
+/**
+ * Obergrenze der Kerzen, die in den Pfad der Linie gehen. `buildTrend` wächst quadratisch (gemessen: 5.000 Kerzen ≈ 0,1 s,
+ * 20.000 ≈ 1,1 s, 100.000 ≈ 30 s). Es zählen die letzten Kerzen; der Pfadanfang eines gekürzten Fensters ist unruhig.
+ * Gilt nur für die Linie: die Formationen rechnen mit `formationZug` (context.ts), nicht mit diesem Pfad.
+ */
+export const TREND_PATH_MAX_BARS = 5000;
+
+/** Zug aus geschlossenen Kerzen mit den Einstellungen der Linie (höchstens die letzten TREND_PATH_MAX_BARS Kerzen) */
 export function buildTrendPath(tf: ContextTimeframe, bars: readonly FormationBar[], settings: TrendSettings): TrendSegment[] {
+  const used = bars.length > TREND_PATH_MAX_BARS ? bars.slice(-TREND_PATH_MAX_BARS) : bars;
   // `formationZug` gehört nicht zur Linie; buildTrend liest nur die Felder von TrendOptions
-  return trendSegments(buildTrend(tf, bars, [], settings));
+  return trendSegments(buildTrend(tf, used, [], settings));
 }
 
 /** Position von `time` auf der Kerzenachse (erste Kerze ab `time`); der Chart zeichnet nach Kerzen, nicht nach Sekunden */
