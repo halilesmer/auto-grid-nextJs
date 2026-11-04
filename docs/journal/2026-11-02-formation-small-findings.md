@@ -2,8 +2,8 @@
 date: 2026-11-02
 author: Claude
 type: fix
-status: open
-pr: [300]
+status: done
+pr: [300, 356]
 features: [FRM-04, FRM-05, FRM-06, FRM-15, FRM-17]
 areas: [frontend, tests]
 ---
@@ -66,8 +66,9 @@ areas: [frontend, tests]
 | 34, 36 | No change. |
 
 ## Open points
-- [ ] When the touch of 0.618 came before the trend change, T618 stays "forming" for all time. The state cannot change after the entry. Examine whether "invalid" is correct. This PR does not change it.
+- [x] When the touch of 0.618 came before the trend change, T618 stays "forming" for all time. The state cannot change after the entry. Examine whether "invalid" is correct. This PR does not change it.
   - Decision 2026-11-04 (Varsayım): "invalid". Source: rule book T618-06 ("after the trend-turning impulse a correction begins", with I = end of that impulse) and T618-07 ("in the correction the price touches 0.618"); the rule order T618-04 → T618-07 puts the trend change before the touch. A touch before the trend change is not the touch of T618-07 for this I, and `## Handel`, Entry, says "no entry in the middle of the turn". The candidate cannot become valid later; a new I after the trend change is a new candidate. Code change that follows: `t618Checks.ts`, verdict: when the 0.618 touch exists and T618-05 is unmet up to the touch bar, the verdict is "invalid" with T618-05 in `invalidBy`. The real series `t618-buy-h4-01` (and `tdf-flag-h4-02`, same case) change from "forming" to "invalid". Run it together with item 10 (same files).
+  - Result 2026-11-04 (package A): `t618Checks.ts` puts T618-05 in `invalidBy` and the verdict is "invalid" when the 0.618 touch exists, T618-04 (line break) is met and T618-05 is unmet up to the touch bar (K2b, approved by the project owner: without a break there is no turn yet, so the candidate stays "forming"). `invalidBy` now also lists the unmet structure conditions T618-01 to T618-03. Different from the plan above: `t618-buy-h4-01` and `tdf-flag-h4-02` do not become "invalid". The line change of item 10 removes or replaces their P before the verdict rule applies (`t618-buy-h4-01`: no candidate; `tdf-flag-h4-02`: another P, still "forming"). The rule alone would have made both "invalid" (measured without the line change). The synthetic `NO_BREAK` stays "forming" with an empty `invalidBy`; `NO_CHANGE` and `LATE_CHANGE` become "invalid".
 
 ## Lessons
 - Before you write a Fibonacci leg into a test row, calculate the correction depth. A correction below 0.382 extends the leg (FIB-07).

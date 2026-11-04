@@ -2,8 +2,8 @@
 date: 2026-11-02
 author: Claude
 type: fix
-status: open
-pr: [305]
+status: done
+pr: [305, 356]
 features: [FRM-03, FRM-16, FRM-17]
 areas: [frontend, tests]
 ---
@@ -37,8 +37,9 @@ Fix finding 28 of the formation audit (wave 2, package "Linie"). ENC, KEI and T6
 - Codex scan: not run, the weekly Codex limit was at 3 % left.
 
 ## Open points
-- [ ] T618 still uses the raw line (`t618.ts`, `t618Checks.ts`). The change exists as a patch outside the repo; it changes 92 of 125 T618 runs (51 verdicts) and 5 real series. Main cause: the candidate search picks P without a release check, and P often goes beyond the extreme before it only with a wick, or not at all. Review it together with finding 7.
+- [x] T618 still uses the raw line (`t618.ts`, `t618Checks.ts`). The change exists as a patch outside the repo; it changes 92 of 125 T618 runs (51 verdicts) and 5 real series. Main cause: the candidate search picks P without a release check, and P often goes beyond the extreme before it only with a wick, or not at all. Review it together with finding 7.
   - Decision 2026-11-04: yes, the TRD line is the rule for T618. Source: rule book T618-02 ("the sloped line … after TRD-34/TRD-35") and Z-T618-01 ("TRD-34/TRD-35, TRD-40/TRD-42"); the T618 rule book has no own line rule, it takes the TRD measure. So TRD-34 (no line before the release), TRD-36 (a spike is no anchor) and TRD-42 apply. A P that passes the extreme before it only with a wick, or not at all, has no line and is no T618 candidate. Code change that follows: `t618.ts` and `t618Checks.ts` use `lineThrough` (`trd.ts`) as ENC and KEI do (PR #305); the candidate search keeps only P after a release. Measure all fixtures before and after (the patch outside the repo changed 92 of 125 runs, 51 verdicts, 5 real series); the changed real series need the approval of the project owner as in PR #305. Run it in the same session as item 7 (same files). Finding 7 (real verdicts not proven against the acceptance list) stays with the acceptance cases, item 5.
+  - Result 2026-11-04 (package A, same PR as item 7): `t618.ts` and `t618Checks.ts` use `lineThrough` as ENC and KEI do. `lineOf` returns the line only when its release comes before P (TRD-34, TRD-36, TRD-42); T618-02 is met only then, and the candidate search skips a P without a line. `lineTouches` takes the line as a function. The drawing Z-T618-01 starts at the line anchor. Measurement over 115 runs (108 fixtures at series end and 7 spec times), before and after both changes of the package: 89 runs changed, 49 verdicts. Real series (K2a, approved by the project owner 2026-11-04; the old expectations only recorded the old output, the series are no examples of the rule book): `t618-sell-h4-01`, `t618-sell-h4-02`, `t618-buy-h4-01`, `t618-form-h4-01` have no candidate any more (no P with a valid line); `t618-buy-h4-02` becomes "invalid" on another P; `t618-bad-h4-02` stays "invalid" on another P (T618-01 unmet, T618-03 met); `tdf-flag-h4-02` stays "forming" on another P (T618-05 met, T618-06 to T618-09 unmet). The new synthetic cases were red before the change, then green; a mutation of each new branch turns a test red. New synthetic cases: no release, release only after P, spike anchor (TRD-36), mirrored. `STEEP` now tests T618-02 (no release), the new case `VIOLATED` tests T618-03, `NO_DOUBLE` uses strongly rising highs.
 
 ## Lessons
 - A TRD line object carries extra fields (`replaced`, `release`). Do not put it into a drawing anchor directly; copy time and price.
