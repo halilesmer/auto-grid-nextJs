@@ -28,6 +28,7 @@ from src.core.grid_helpers import (
     log_message as default_log_message,
     normalize_price,
     normalize_volume,
+    zone_label,
 )
 from src.core.grid_orders import (
     cancel_order,
@@ -158,7 +159,7 @@ def _update_done(zone_idx, zone_key, config, zone_orders, zone_positions, log_me
             changed = True
             how = "doldu" if ticket in position_ids else "elle silindi / süresi doldu"
             log_message(
-                f"📌 Fraktal: Bölge {zone_idx+1} | {SIDE_NAMES[side]} fraktal ({_fmt_time(bar_time)}) emri "
+                f"📌 Fraktal: {zone_label(zone_idx)} | {SIDE_NAMES[side]} fraktal ({_fmt_time(bar_time)}) emri "
                 f"{how} (Bilet {ticket}). Bu fraktala yeni emir konmayacak."
             )
 
@@ -317,7 +318,7 @@ def _log_key(zone_idx: int, side: str, f: Fractal) -> tuple:
 
 def _label(config: ZoneConfig, zone_idx: int, side: str, f: Fractal) -> str:
     return (
-        f"Bölge {zone_idx+1} | {config.fractal_timeframe} {SIDE_NAMES[side]} fraktal {f.price} "
+        f"{zone_label(zone_idx)} | {config.fractal_timeframe} {SIDE_NAMES[side]} fraktal {f.price} "
         f"({_fmt_time(f.time)})"
     )
 
@@ -350,7 +351,7 @@ def _read_market(mt5, config: ZoneConfig, timeframe: str, zone_idx: int, log_mes
     if rates is not None and len(rates) >= 6 and tick is not None and _rates_stale(rates, timeframe, tick):
         _log_once(
             (zone_idx, "rates", timeframe), "stale",
-            f"⏳ Fraktal: Bölge {zone_idx+1} için {config.symbol} {timeframe} mumları henüz güncel değil "
+            f"⏳ Fraktal: {zone_label(zone_idx)} için {config.symbol} {timeframe} mumları henüz güncel değil "
             f"(MT5 geçmişi yükleniyor), bekleniyor.",
             "INFO", log_message,
         )
@@ -358,7 +359,7 @@ def _read_market(mt5, config: ZoneConfig, timeframe: str, zone_idx: int, log_mes
     if rates is None or len(rates) < 6:
         _log_once(
             (zone_idx, "rates", timeframe), "missing",
-            f"⚠️ Fraktal: Bölge {zone_idx+1} için {config.symbol} {timeframe} mumları okunamadı.",
+            f"⚠️ Fraktal: {zone_label(zone_idx)} için {config.symbol} {timeframe} mumları okunamadı.",
             "WARN", log_message,
         )
         return None
@@ -396,7 +397,7 @@ def manage_fractal_orders(
     if tick is None:
         _log_once(
             (zone_idx, "rates", config.fractal_timeframe), "missing",
-            f"⚠️ Fraktal: Bölge {zone_idx+1} için {symbol} {config.fractal_timeframe} mumları okunamadı.",
+            f"⚠️ Fraktal: {zone_label(zone_idx)} için {symbol} {config.fractal_timeframe} mumları okunamadı.",
             "WARN", log_message,
         )
         return False
@@ -436,7 +437,7 @@ def _at_limit(zone_idx: int, config: ZoneConfig, open_positions: int, log_messag
         return False
     _log_once(
         key, open_positions,
-        f"⚠️ DİKKAT: Bölge {zone_idx+1} Maksimum pozisyon sınırına ulaştı "
+        f"⚠️ DİKKAT: {zone_label(zone_idx)} Maksimum pozisyon sınırına ulaştı "
         f"({open_positions}/{config.max_positions}). Yeni emir konmuyor.",
         "WARN", log_message,
     )
@@ -453,7 +454,7 @@ def _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_
     if limit > 0 and config.fractal_next_loss_mode == "pips" and config.fractal_next_loss_unit_version != 0:
         _, size = distance_unit_of(symbol_infos.get(config.symbol))
         if config.fractal_next_loss_unit_version != 1 or size is None:
-            _log_once(key, "unit_missing", f"⚠️ Fraktal: Bölge {zone_idx+1} {direction} | "
+            _log_once(key, "unit_missing", f"⚠️ Fraktal: {zone_label(zone_idx)} {direction} | "
                       "Pip/tick bilgisi geçersiz, yeni emir konmuyor.", "WARN", log_message)
             return False
         distance = limit * size
@@ -477,7 +478,7 @@ def _loss_gate_open(mt5, config, zone_idx, direction, zone_positions, tick, log_
         unit = distance_unit_of(symbol_infos.get(config.symbol))[0]
     _log_once(
         key, last.ticket,
-        f"⏸️ Fraktal: Bölge {zone_idx+1} {direction} | Sonraki emir, Bilet {last.ticket} en az "
+        f"⏸️ Fraktal: {zone_label(zone_idx)} {direction} | Sonraki emir, Bilet {last.ticket} en az "
         f"{limit} ({unit}) zarara geçince konacak.",
         "INFO", log_message,
     )
@@ -491,7 +492,7 @@ def _manage_orders(
     """Hedef emirleri kurar, mevcut emirleri eşleştirir/siler, eksikleri koyar.
     Dönüş: değerlendirilen fraktalların zamanları (log kayıtlarının temizliği için)."""
     symbol = config.symbol
-    zone_name = f"Bölge {zone_idx+1}"
+    zone_name = f"{zone_label(zone_idx)}"
 
     desired: list[DesiredOrder] = []
     candidates: set[int] = set()
@@ -590,4 +591,4 @@ def _trail_sar(mt5, config, zone_idx, positions, sar, sar_is_long, tick, symbol_
         else:
             better = (not sar_is_long) and (cur == 0 or new_sl < cur - tol) and new_sl - float(tick.ask) > stops
         if better and modify_position_tp_sl(mt5, p, p.tp, new_sl, symbol_infos):
-            log_message(f"🪜 SAR Takip: Bölge {zone_idx+1} | Bilet {p.ticket} SL {cur} → {new_sl}")
+            log_message(f"🪜 SAR Takip: {zone_label(zone_idx)} | Bilet {p.ticket} SL {cur} → {new_sl}")

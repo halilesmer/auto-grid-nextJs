@@ -15,6 +15,22 @@ LOG_TO_FILE = True
 _current_zone_id: contextvars.ContextVar = contextvars.ContextVar("current_zone_id", default=None)
 
 
+def zone_label(zone_idx, zones=None) -> str:
+    """Log satırları için setup etiketi: "<SEMBOL> · Setup n" (LOG-07; arayüzdeki rozetle aynı).
+
+    n, aynı sembolün kurulumları içindeki sıradır (sembol kartındaki numara). Etiket bölgenin
+    liste konumuna değil sembol grubuna bağlıdır; zones verilmezse motorun güncel listesi kullanılır.
+    """
+    if zones is None:
+        from src.core.state import state
+        zones = state.zones
+    if not (isinstance(zone_idx, int) and 0 <= zone_idx < len(zones)):
+        return f"Setup (sıra {zone_idx + 1})"
+    symbol = str(zones[zone_idx].get("symbol") or "")
+    number = sum(1 for z in zones[: zone_idx + 1] if str(z.get("symbol") or "") == symbol)
+    return f"{symbol.upper().strip()} · Setup {number}"
+
+
 def zone_log_id(zone, idx) -> str:
     return str((zone or {}).get("id") or f"idx{idx}")
 

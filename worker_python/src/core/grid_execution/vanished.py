@@ -13,7 +13,7 @@ dışarıdan silinirse bölge güvenliğe alınır (PAUSE, ENG-11 ile aynı yol)
 from src.core import clock
 from typing import Callable
 
-from src.core.grid_helpers import log_message as default_log_message, zone_log_id
+from src.core.grid_helpers import log_message as default_log_message, zone_log_id, zone_label
 from src.core.grid_orders import pause_zone_for_safety, zone_index_by_magic
 from src.core.state import state
 from src.utils.trade_utils import TradeState
@@ -94,7 +94,7 @@ def check_vanished_orders(
         ticket, price, _, comment, age = items[0]
         comment_txt = f", yorum '{comment}'" if comment else ""
         log_message(
-            f"⚠️ Bölge {zone_idx + 1}: {len(items)} bekleyen emir MT5'te kayboldu — bot silmedi, dolmadı "
+            f"⚠️ {zone_label(zone_idx, zones)}: {len(items)} bekleyen emir MT5'te kayboldu — bot silmedi, dolmadı "
             f"(geçmiş durumu: {state_txt}; ör. bilet {ticket} @ {price}, {age:.1f} sn yaşadı{comment_txt}). "
             "Silen: elle (MT5/mobil), broker veya aynı hesaba bağlı başka bir terminal/EA olabilir.",
             "WARN",
@@ -106,7 +106,7 @@ def check_vanished_orders(
         state.vanished_times[zone_idx] = times
         if len(times) >= VANISH_LIMIT and active_zones_state.get(zone_idx) != "PAUSE":
             msg = (
-                f"Emir seli durduruldu: Bölge {zone_idx + 1}'de {int(VANISH_WINDOW_SEC)} sn içinde "
+                f"Emir seli durduruldu: {zone_label(zone_idx, zones)}'de {int(VANISH_WINDOW_SEC)} sn içinde "
                 f"{len(times)} emir dışarıdan silindi"
             )
             TradeState.last_error_message = msg

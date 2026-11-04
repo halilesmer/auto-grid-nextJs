@@ -9,6 +9,7 @@ from src.core.grid_helpers import (
     normalize_volume,
     get_current_market_price,
     log_message,
+    zone_label,
 )
 
 # Bölge magic yardımcıları API ile ortak (ENG-27); buradan da içe aktarılabilir
@@ -255,7 +256,7 @@ def send_pending_order_helper(
         magic = BASE_MAGIC_NUMBER + zone_idx + 1
     if not symbol or mt5 is None:
         log_message(
-            f"🚨 Hata: Bölge {zone_idx+1} için geçerli bir sembol atanmamış!", "ERROR"
+            f"🚨 Hata: {zone_label(zone_idx)} için geçerli bir sembol atanmamış!", "ERROR"
         )
         return False
 
@@ -318,7 +319,7 @@ def send_pending_order_helper(
         if consecutive_errors[zone_idx] >= 3:
             last_err_msg = TradeState.last_error_message or "Bilinmeyen Hata"
             log_message(
-                f"🚨 DİKKAT: Bölge {zone_idx+1} için üst üste {consecutive_errors[zone_idx]} işlem reddedildi! (Detay: {last_err_msg}). Bölge güvenliğe alınıyor.",
+                f"🚨 DİKKAT: {zone_label(zone_idx)} için üst üste {consecutive_errors[zone_idx]} işlem reddedildi! (Detay: {last_err_msg}). Bölge güvenliğe alınıyor.",
                 "ERROR",
             )
             pause_zone_for_safety(zone_idx, active_zones_state)

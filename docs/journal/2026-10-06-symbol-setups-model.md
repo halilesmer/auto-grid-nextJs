@@ -354,7 +354,8 @@ The statistics tab compares the setups of one symbol. The Analyse page says "set
 - [x] Part D (PR #124).
 - [x] Texts that still say "zone" or "Bölge": the field hints (for example min and max price). The log texts of the UI (part B2b) and the Analyse page (part D) are done.
   - Done (2026-11-02): the hints of the setup fields (min and max price, positions limit, exit options, fractal, candle close) say "setup" in tr, en and de. The general hints (account, bot, save bar, navigation, presets) still say "zone" in some places; the owner did not ask for them.
-- [ ] The worker log messages say "Bölge n" (19 places in `worker_python/src/core`). n is the engine position + 1, not the setup number of the card. Worker messages are not translated, and the change is in engine code (golden test BKT-01). Found 2026-10-07 in part B2b.
+- [x] The worker log messages say "Bölge n" (19 places in `worker_python/src/core`). n is the engine position + 1, not the setup number of the card. Worker messages are not translated, and the change is in engine code (golden test BKT-01). Found 2026-10-07 in part B2b.
+  - Done (2026-11-04, see `2026-11-04-worker-log-setup-label.md`): the worker log lines use the setup label, not the list position.
 - [x] `GET /api/logs/{id}` reads the log files directly in the `async def` (a blocking call, `hooks/RULES.md` §9.1). With a zone filter, it reads the full file. Present before part B2b. Part B2b sends fewer requests (one for each symbol). Found 2026-10-07. Done 2026-11-03 in PR 319: `get_logs` and `clear_logs` are now plain `def` routes. FastAPI runs them in the threadpool, and their bodies have no `await`. The zone filter still reads the full file (separate point).
 - [ ] ZON-20: manual check on the DEMO account (`pruefung` in `features.yaml`).
 - [x] LOG-07: manual check on the DEMO account after the merge of part B2b. Passed on 2026-10-15, see `2026-10-13-manual-checks-readonly-sweep.md`.

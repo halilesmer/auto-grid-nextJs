@@ -2,6 +2,7 @@ from src.core.grid_helpers import (
     log_message,
     normalize_price,
     zone_log_id,
+    zone_label,
 )
 from src.core.grid_execution.config import extract_zone_config, is_fractal_zone, max_positions_of
 from src.core.grid_execution.exceptions import InvalidZoneConfigError
@@ -43,9 +44,9 @@ def clean_zombie_orders(mt5, robot_orders, zones, active_zones_state):
                 if order.type in [mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP]
                 else "SELL"
             )
-            zone_label = order_zone_idx + 1 if order_zone_idx >= 0 else f"(silinmiş, magic {order.magic})"
+            zone_text = zone_label(order_zone_idx, zones) if order_zone_idx >= 0 else f"(silinmiş, magic {order.magic})"
             log_message(
-                f"🧹 Mutlak Temizlik: Bölge {zone_label} pasif/uyumsuz olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket}, Sembol: {order.symbol})",
+                f"🧹 Mutlak Temizlik: {zone_text} pasif/uyumsuz olduğu için {dir_str} emri iptal ediliyor. (Bilet: {order.ticket}, Sembol: {order.symbol})",
                 zone_id=zone_log_id(zones[order_zone_idx], order_zone_idx) if 0 <= order_zone_idx < len(zones) else None,
             )
             cancel_order(mt5, order)
@@ -143,7 +144,7 @@ def process_partial_fills_and_tpsl(
                 if state.tpsl_blocked_logged.get(pos.ticket) != key:
                     state.tpsl_blocked_logged[pos.ticket] = key
                     log_message(
-                        f"⏸️ TP/SL Bekliyor: Bölge {pos_zone_idx+1} | Bilet {pos.ticket} için yeni TP {expected_tp}"
+                        f"⏸️ TP/SL Bekliyor: {zone_label(pos_zone_idx, zones)} | Bilet {pos.ticket} için yeni TP {expected_tp}"
                         f"{f' / SL {expected_sl}' if expected_sl else ''} fiyatın yanlış tarafında (MT5 reddederdi). "
                         "Fiyat uygun olunca ayarlanır.",
                         "WARN",
@@ -152,7 +153,7 @@ def process_partial_fills_and_tpsl(
             else:
                 state.tpsl_blocked_logged.pop(pos.ticket, None)
                 log_message(
-                    f"🔄 Açık Pozisyon Güncellemesi: Bölge {pos_zone_idx+1} | Bilet {pos.ticket} için yeni TP/SL ayarlanıyor.",
+                    f"🔄 Açık Pozisyon Güncellemesi: {zone_label(pos_zone_idx, zones)} | Bilet {pos.ticket} için yeni TP/SL ayarlanıyor.",
                     zone_id=zone_log_id(z_data, pos_zone_idx),
                 )
                 modify_position_tp_sl(mt5, pos, expected_tp, expected_sl, symbol_infos)
@@ -201,7 +202,7 @@ def process_partial_fills_and_tpsl(
 
         if not has_pending and is_pos_zone_active:
             log_message(
-                f"🔄 Kısmi Dolum: Bölge {pos_zone_idx+1} | Kalan {remaining_lot} lot ({direction}) emir gönderiliyor.",
+                f"🔄 Kısmi Dolum: {zone_label(pos_zone_idx, zones)} | Kalan {remaining_lot} lot ({direction}) emir gönderiliyor.",
                 zone_id=zone_log_id(z_data, pos_zone_idx),
             )
             send_pending_order_helper(
@@ -256,7 +257,7 @@ def handle_zone_exit(
     target_magic = zone_magic(active_zone, active_zone_idx)
 
     log_message(
-        f"🧹 Bölge ({z_min}-{z_max}) DIŞINA ÇIKILDI! ({actual_exit_dir}). Kapsam: {scope} | Kapatılacak Yön: {target}"
+        f"🧹 {zone_label(active_zone_idx)} ({z_min}-{z_max}) DIŞINA ÇIKILDI! ({actual_exit_dir}). Kapsam: {scope} | Kapatılacak Yön: {target}"
     )
 
     silinen_emir_sayisi = 0
