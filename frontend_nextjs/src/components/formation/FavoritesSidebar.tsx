@@ -40,7 +40,7 @@ export function FavoritesAddButton({ onAdd }: { onAdd: () => void }) {
  * Favoriten-Reiter der Seitenleiste (FRM-29): Zeitraum-Zeile, Formations-Zeile, Tabelle. Zeitraum- und Formations-Zeile kommen als Inhalt
  * von der Seite, damit sie sich mit der Kopfleiste über dem Chart nie doppeln. Die Preise werden nur abgefragt, solange die Leiste offen ist.
  */
-export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, timeframes, forms, onPick, onToggle }: {
+export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, timeframes, forms, asOfPast = false, onPick, onToggle }: {
   accountId: string;
   /** Alle Favoriten (für Preise und Hinweise), `rows` = die Tabelle nach Filter */
   favorites: readonly string[];
@@ -48,6 +48,8 @@ export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, tim
   activeSymbol: string | null;
   timeframes: ReactNode;
   forms: ReactNode;
+  /** Die Seite zeigt einen Stand in der Vergangenheit: Favoriten bleiben live, die Marke sagt es (FRM-38) */
+  asOfPast?: boolean;
   onPick: (symbol: string) => void;
   onToggle: (symbol: string) => void;
 }) {
@@ -65,6 +67,11 @@ export function FavoritesSidebar({ accountId, favorites, rows, activeSymbol, tim
         <p className="p-3 text-xs text-muted-foreground" data-testid="favorites-empty">{t('formation.fav.empty')}</p>
       ) : (
         <>
+          {asOfPast && (
+            <Tooltip content={t('formation.fav.live.hint')} role="presentation" className="px-3 pt-2">
+              <span className="inline-flex h-[18px] items-center rounded-[5px] border border-success/40 px-1.5 text-[10px] text-success" data-testid="favorites-live-tag">{t('formation.fav.live')}</span>
+            </Tooltip>
+          )}
           <div className="shrink-0 px-2 pb-1 pt-2">{timeframes}</div>
           <div className="shrink-0 border-b border-border">{forms}</div>
           {(progress || gapCount > 0 || failed) && (

@@ -14,6 +14,7 @@ import { FormationSidebarTabs } from '@/components/formation/FormationSidebarTab
 import { FormationStatusChip } from '@/components/formation/FormationStatusChip';
 import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
 import { FormationAlarmMenu } from '@/components/formation/FormationAlarmMenu';
+import { FormationAsOf, FormationAsOfSteps } from '@/components/formation/FormationAsOf';
 import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
 import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/FormationFavoritesBar';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
@@ -27,6 +28,9 @@ import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormationSidebar, type SidebarTab } from '@/hooks/useFormationSidebar';
+import { brokerNow } from '@/lib/serverTime';
+import { resolveAsOf } from '@/lib/formation/asOf';
+import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { useFormationParams } from '@/hooks/useFormationParams';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
@@ -49,7 +53,7 @@ export function FormationView() {
   const t = useT();
   const locale = useLocale();
   const format = useFormat();
-  const { accountId: urlAccount, zoneId: urlZone, symbol: urlSymbol, tf, form, setAccount, adoptAccount, setSymbol, setView } = useFormationParams();
+  const { accountId: urlAccount, zoneId: urlZone, symbol: urlSymbol, tf, form, atParam, setAccount, adoptAccount, setSymbol, setView, setAt } = useFormationParams();
   const accounts = useAccountStore((s) => s.accounts);
   const selected = useAccountStore((s) => s.selectedAccount);
   const settings = useSettingsStore((s) => s.settings);
@@ -100,7 +104,15 @@ export function FormationView() {
 
   const clock = useBrokerClock(accountKnown ? accountId : null);
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
-  const scan = useFormationScan(accountKnown ? accountId : null, symbol, offsetSec, !clock.loading);
+  // Suche in der Vergangenheit (FRM-38): `?at=` gilt, solange es vor der laufenden M15-Kerze liegt; sonst live
+  const brokerNowSec = useCallback(() => (offsetSec !== null ? brokerNow(offsetSec) : Date.now() / 1000), [offsetSec]);
+  // Ohne verlässliche Brokeruhr gilt UTC jetzt: der Broker liegt davor, ein Stand nahe „jetzt“ fällt so eher auf live zurück als in die Zukunft
+  const pastAt = resolveAsOf(atParam, brokerNowSec());
+  // Ein ungültiger oder zu junger Wert fällt auf live zurück und verschwindet aus der Adresse (sobald die Brokeruhr geladen ist)
+  useEffect(() => {
+    if (atParam !== null && pastAt === null && !clock.loading) setAt(null);
+  }, [atParam, pastAt, clock.loading, setAt]);
+  const scan = useFormationScan(accountKnown ? accountId : null, symbol, offsetSec, !clock.loading, pastAt);
 
   const list = useMemo(() => scan.hits.filter((h) => h.form === form && h.tf === tf), [scan.hits, form, tf]);
   const [pickedTf, setPicked] = useState<string | null>(null);
@@ -144,6 +156,8 @@ export function FormationView() {
   };
   const openFavorite = (next: string) => {
     clearSelection();
+    // Favoriten gelten live: ein Klick im Vergangenheits-Stand öffnet das Produkt live (FRM-38)
+    if (pastAt !== null) setAt(null);
     setSymbol(next);
     setView({ form: filter ?? results[next]?.find((h) => h.tf === tf)?.form, tf });
     // Unter 1024 px liegt die Leiste über dem Chart
@@ -172,7 +186,7 @@ export function FormationView() {
   const makeShotImage = async () => {
     const capture = captureRef.current;
     if (!shot || !capture) throw new Error('chart is not ready');
-    const data = buildShotData({ hit: shot.hit, symbol: shot.symbol, stamp: format.mt5DateTime(shot.scanAt), locale, t, number: format.number });
+    const data = buildShotData({ hit: shot.hit, symbol: shot.symbol, stamp: pastAt !== null ? t('formation.asof.stamp', { time: format.mt5DateTime(shot.scanAt) }) : format.mt5DateTime(shot.scanAt), locale, t, number: format.number });
     return shotBlob(composeShot({ picture: await capture(), data }));
   };
 
@@ -230,7 +244,7 @@ export function FormationView() {
       );
     }
     return hit && scan.context && scan.scanAt !== null ? (
-      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} running={scan.running[hit.tf]} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} />
+      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} running={scan.running[hit.tf]} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} asOf={pastAt !== null} />
     ) : (
       <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted-foreground" data-testid="formation-empty">
         {!scan.loading && t('formation.empty.chart', { form: formName, tf })}
@@ -261,8 +275,10 @@ export function FormationView() {
           }}
           actions={
             <>
+              {accountKnown && <FormationAsOfSteps pastAt={pastAt} tfSec={TIMEFRAME_SEC[tf]} now={brokerNowSec} onChange={setAt} />}
+              {accountKnown && <FormationAsOf pastAt={pastAt} now={brokerNowSec} onChange={setAt} />}
               <FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />
-              <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} />
+              <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} pastView={pastAt !== null} />
               <FormationStatusChip hit={hit} open={sidebar.open && sidebar.tab === 'conditions'} onToggle={() => sidebar.toggle('conditions')} />
             </>
           }
@@ -298,6 +314,12 @@ export function FormationView() {
               <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">{t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}</Badge>
             </ChartNotice>
           )}
+          {pastAt !== null && (
+            <ChartNotice>
+              <Badge tone="warning" hint={t('formation.asof.menu.hint')} data-testid="formation-asof-notice">{t('formation.asof.notice', { time: format.mt5DateTime(pastAt) })}</Badge>
+              {scan.hasGaps && <Badge tone="warning" hint={t('formation.asof.menu.hint')} data-testid="formation-asof-gap">{t('formation.asof.gap')}</Badge>}
+            </ChartNotice>
+          )}
           {scan.loading && (
             <p className="flex items-center gap-2 rounded-lg bg-background/95 p-2 text-xs text-muted-foreground" role="status" data-testid="formation-loading">
               <Loader2 size={14} className="animate-spin" /> {t('formation.scan.loading')}
@@ -316,7 +338,9 @@ export function FormationView() {
         </>
       }
       floating={
-        hit && (
+        <>
+        {pastAt !== null && accountKnown && <FormationAsOfSteps float pastAt={pastAt} tfSec={TIMEFRAME_SEC[tf]} now={brokerNowSec} onChange={setAt} />}
+        {hit && (
           <ul className={`pointer-events-none absolute max-lg:mt-(--chart-top) left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
             {drawsZigzag(hit.candidate) && <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>}
             <li>{t('formation.legend.ratio')}</li>
@@ -325,7 +349,8 @@ export function FormationView() {
             <li>{t('formation.legend.rsi')}</li>
             <li>{t('formation.legend.wave')}</li>
           </ul>
-        )
+        )}
+        </>
       }
       panel={
         accountKnown && accountId && (
@@ -364,6 +389,7 @@ export function FormationView() {
                       activeSymbol={symbol}
                       timeframes={favoriteViews?.timeframes}
                       forms={favoriteViews?.forms}
+                      asOfPast={pastAt !== null}
                       onPick={openFavorite}
                       onToggle={favorites.toggle}
                     />

@@ -21,6 +21,8 @@ export function useFormationParams() {
   const symbol = params.get('symbol')?.trim() || null;
   const tfParam = params.get('tf');
   const formParam = params.get('form');
+  // Suchzeitpunkt in der Vergangenheit (FRM-38); roh, aufgelöst wird er mit der Brokeruhr (resolveAsOf)
+  const atParam = params.get('at');
   const tf = (CONTEXT_TIMEFRAMES as readonly string[]).includes(tfParam ?? '') ? (tfParam as ContextTimeframe) : DEFAULT_FORMATION_TF;
   const form = (SCAN_FORMATIONS as readonly string[]).includes(formParam ?? '') ? (formParam as ScanFormation) : DEFAULT_FORMATION;
 
@@ -30,7 +32,7 @@ export function useFormationParams() {
   // Konto aus dem Store in die Adresse schreiben; der Modus bleibt, wie er aus der Adresse gelesen wird
   const adoptAccount = useCallback((value: string) => write({ account: value }), [write]);
   // Symbolnamen gelten je Broker (XAUUSD, XAUUSD.m): ein neues Konto beginnt wieder mit seinem ersten Setup
-  const setAccount = useCallback((value: string) => update({ account: value, zone: null, symbol: null }), [update]);
+  const setAccount = useCallback((value: string) => update({ account: value, zone: null, symbol: null, at: null }), [update]);
   const setSymbol = useCallback((value: string) => update({ symbol: value, zone: null }), [update]);
   const setView = useCallback(
     (next: { tf?: ContextTimeframe; form?: ScanFormation }) =>
@@ -41,5 +43,8 @@ export function useFormationParams() {
     [update],
   );
 
-  return { accountId, zoneId, symbol, tf, form, setAccount, adoptAccount, setSymbol, setView };
+  // null = live (Parameter entfernen)
+  const setAt = useCallback((value: string | null) => update({ at: value }), [update]);
+
+  return { accountId, zoneId, symbol, tf, form, atParam, setAccount, adoptAccount, setSymbol, setView, setAt };
 }

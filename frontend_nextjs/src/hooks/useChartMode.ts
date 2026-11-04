@@ -32,7 +32,7 @@ export function useChartMode() {
         ...(next === 'setup' ? { symbol: null } : {}),
         mode: next,
         tf: timeframeAllowed(next, tf) ? tf : null,
-        ...(next === 'formation' ? {} : { form: null }),
+        ...(next === 'formation' ? {} : { form: null, at: null }),
         ...(next === 'free' ? { zone: null } : {}),
         // Die Statistik gibt es nur im Setup-Modus; Formation und Frei öffnen den Chart
         ...(next === 'setup' ? {} : { tab: null }),
