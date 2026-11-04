@@ -65,16 +65,19 @@ export function FormationToolbar({
   // Schwelle B = 79rem (nur im Status-Knopf): ab B zeigt der Knopf Pille und Zähler statt nur Symbole (FormationStatusChip.tsx).
   // Ändert sich die Leiste, die Werkzeugleiste oder der Status-Knopf, A (hier, ChartTopBar, ChartWorkspace, TrendToggle, LayersMenu) und B bei 16 und 20 px
   // neu messen; der Test UI-14 prüft in allen Modi, dass kein Element der Kopfleiste unter der Werkzeugleiste liegt.
+  // Querformat (UI-15, A8.2): ein Raster mit zwei Zeilen. Zeile 1: Symbol und Konto (Spalte 1–2), Werkzeuge (Spalte 3); Zeile 2: Zeiteinheiten (Spalte 1), Formationen (Spalte 2–3). Kopfleiste und Zeiteinheiten-Block sind dort `contents`, jedes Element bleibt einmal im DOM.
   return (
-    <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 short:flex-nowrap lg:min-h-[38px] @min-[71rem]/formation-main:pr-97" data-testid="formation-topbar">
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 short:w-auto short:flex-nowrap short:py-0.5 lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
+    <div className="pointer-events-none bg-background short:grid short:grid-cols-[auto_minmax(0,1fr)_auto] short:items-center short:gap-x-1 short:border-b short:border-border short:px-2" data-testid="formation-toolbar">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 short:contents lg:min-h-[38px] @min-[71rem]/formation-main:pr-97" data-testid="formation-topbar">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 short:col-span-2 short:col-start-1 short:row-start-1 short:w-auto short:flex-nowrap short:py-0.5 lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full short:w-auto short:shrink-0 short:[&>[data-testid=favorites-timeframes]]:h-7">
-          {timeframes !== undefined ? timeframes : (
-          <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 short:h-7 lg:h-auto">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full short:contents">
+          {timeframes !== undefined ? (timeframes && (
+            <div className="contents short:col-start-1 short:row-start-2 short:flex short:items-center short:[&>[data-testid=favorites-timeframes]]:h-7">{timeframes}</div>
+          )) : (
+          <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 short:col-start-1 short:row-start-2 short:h-7 lg:h-auto">
             {CONTEXT_TIMEFRAMES.map((x) => {
               const count = hitsCount(hits, { tf: x });
               return (
@@ -89,17 +92,17 @@ export function FormationToolbar({
           </div>
           )}
           {actions && (
-            <>
+            <div className="contents short:col-start-3 short:row-start-1 short:flex short:items-center short:gap-1">
               <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
               {actions}
-            </>
+            </div>
           )}
         </div>
       </div>
       {forms !== undefined ? (
-        forms && <div className="pointer-events-auto border-b border-border short:[&>[data-testid=favorites-forms]]:min-h-[26px] short:[&>[data-testid=favorites-forms]]:flex-nowrap short:[&>[data-testid=favorites-forms]]:overflow-x-auto short:[&>[data-testid=favorites-forms]]:py-0">{forms}</div>
+        forms && <div className="pointer-events-auto min-w-0 border-b border-border short:col-span-2 short:col-start-2 short:row-start-2 short:border-b-0 short:[&>[data-testid=favorites-forms]]:min-h-[26px] short:[&>[data-testid=favorites-forms]]:flex-nowrap short:[&>[data-testid=favorites-forms]]:overflow-x-auto short:[&>[data-testid=favorites-forms]]:py-0">{forms}</div>
       ) : (
-      <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] items-center gap-0.5 overflow-x-auto border-b border-border px-2" data-testid="formation-forms">
+      <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] min-w-0 items-center gap-0.5 overflow-x-auto border-b border-border px-2 short:col-span-2 short:col-start-2 short:row-start-2 short:h-7 short:border-b-0 short:px-0" data-testid="formation-forms">
         {SCAN_FORMATIONS.map((x) => {
           const count = hitsCount(hits, { form: x });
           const name = t(`formation.form.${x}` as MessageKey);
