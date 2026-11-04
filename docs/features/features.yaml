@@ -2125,3 +2125,12 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-37) ausführen (Chart und Leiste überlappen bei 1440 und 1100 px und mit 20 px Browser-Schrift nicht, Reiterwechsel, Status-Knopf, erster Besuch, Merken, Hover auf eine Zeile hebt die Zeichnung hervor, 375 px ohne Querscroll).
           - UI-07 (Tooltips an Reitern, Symbolen und Knopf) und UI-08 (375 px ohne Querscroll) ausführen.
         erwartet: Die offene Seitenleiste liegt rechts neben dem Chart, nicht darüber; jeder Reiter hat sein Symbol; der Status-Knopf zeigt den gewählten Kandidaten und öffnet den Reiter.
+
+      - id: FRM-38
+        titel: "Formation-Suche zu einem Zeitpunkt in der Vergangenheit (Logik)"
+        beschreibung: "Die Logik für die Suche „zu einem Zeitpunkt“ auf /chart (Modus Formation); die Oberfläche folgt in einem eigenen Schritt. asOf.ts liest ?at=YYYY-MM-DDTHH:MM (Brokerzeit, MT5-Sekunden wie UTC) und rundet auf 15 Minuten ab (parseAt); ungültige Werte und Werte ab dem Beginn der laufenden M15-Kerze gelten als live (resolveAsOf). formationRequests endet bei at (ratesWindow rundet je Zeiteinheit auf), splitDaily bekommt das Ende des Brokertags von at (pastDayEnd). useFormationScan nimmt ein optionales pastAt: Suchzeit ist pastAt, keine laufende Kerze (running überall null), das Nachladen des Endstücks (useMarketRates) bleibt unverändert und trifft nur Anfragen, deren Fensterende nahe an jetzt liegt (D1 bei heute/gestern, H4/H1 bei kurz zurück); die Suchzeit wird nie hinter die laufende Kerze gesetzt. Kein Blick in die Zukunft: ein Kontext mit Kerzen nach at liefert dieselben Treffer wie ein bei at geschnittener Kontext. Favoriten und Alarm (FormationScanRunner) bleiben live und schreiben nie den Stand einer Vergangenheitssuche."
+        code: [frontend_nextjs/src/lib/formation/asOf.ts, frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/lib/formation/requests.ts, frontend_nextjs/src/lib/formation/weekly.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-past-lib.spec.ts (@FRM-38) ausführen (Zeitpunkt lesen und abrunden, Rückweg, live ab laufender Kerze, Schritt um eine Kerze, Anfrageende, kein Blick in die Zukunft für jede Fixture und mit W1).
+        erwartet: Die Zeitpunkte werden auf 15 Minuten abgerundet, ungültige oder zu junge Werte fallen auf live zurück, und die Treffer hängen nicht von Kerzen nach at ab.

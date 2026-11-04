@@ -9,6 +9,7 @@ import { formationRequests } from '@/lib/formation/requests';
 import { splitDaily } from '@/lib/formation/weekly';
 import { scanFormations, scanTime, type ScanHit } from '@/lib/formation/scan';
 import { scanSignature } from '@/lib/formation/scanKey';
+import { pastDayEnd, pastRequestEnd } from '@/lib/formation/asOf';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useMarketRates } from '@/hooks/useMarketRates';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -44,9 +45,17 @@ const tfData = (data: { bars: Bar[]; liveFrom: number | null } | null) => ({ bar
  * (scanSignature; jede Zeiteinheit lädt mit eigenem Takt, eine höhere kann nach M15 kommen), und bei Wechsel
  * von Konto oder Symbol; zwischen zwei Kerzen ändert sich nichts Geschlossenes.
  */
-export function useFormationScan(accountId: string | null, symbol: string | null, offsetSec: number | null, clockReady: boolean): FormationScan {
+export function useFormationScan(
+  accountId: string | null,
+  symbol: string | null,
+  offsetSec: number | null,
+  clockReady: boolean,
+  /** Suche zu einem Zeitpunkt in der Vergangenheit (MT5-Sekunden, auf 15 min gerundet, aus resolveAsOf); null = live */
+  pastAt: number | null = null,
+): FormationScan {
   const nowSec = useCallback(() => (offsetSec !== null ? brokerNow(offsetSec) : Date.now() / 1000), [offsetSec]);
-  const to = dayStart(brokerToday(offsetSec ?? 0)) + DAY_SEC;
+  const dayEnd = pastAt !== null ? pastDayEnd(pastAt) : dayStart(brokerToday(offsetSec ?? 0)) + DAY_SEC;
+  const to = pastAt !== null ? pastRequestEnd(pastAt) : dayEnd;
   const requests = useMemo(() => {
     if (!accountId || !symbol || !clockReady) return null;
     return formationRequests(accountId, symbol, to);
@@ -64,7 +73,9 @@ export function useFormationScan(accountId: string | null, symbol: string | null
   const allLoaded = Boolean(d1.data && h4.data && h1.data && m15.data && m15.data.bars.length > 0);
 
   const lastM15 = m15.data?.bars[m15.data.bars.length - 1];
-  const at = lastM15 && m15.data ? scanTime(lastM15.time, m15.data.liveFrom === lastM15.time) : null;
+  const liveAt = lastM15 && m15.data ? scanTime(lastM15.time, m15.data.liveFrom === lastM15.time) : null;
+  // Nie hinter die laufende Kerze: ohne verlässliche Brokeruhr könnte pastAt in der Zukunft liegen (vorläufige Werte)
+  const at = pastAt !== null && liveAt !== null ? Math.min(pastAt, liveAt) : (pastAt ?? liveAt);
   const signature = allLoaded && at !== null
     ? scanSignature({ D1: tfData(d1.data), H4: tfData(h4.data), H1: tfData(h1.data), M15: tfData(m15.data) }, at)
     : null;
@@ -76,7 +87,7 @@ export function useFormationScan(accountId: string | null, symbol: string | null
   const latest = useRef<ContextInput>({});
   useEffect(() => {
     const input = (d: { bars: Bar[]; missing: MissingRange[] } | null) => ({ bars: d?.bars ?? [], missing: d?.missing ?? [] });
-    const daily = splitDaily(d1.data?.bars ?? [], d1.data?.missing ?? [], to);
+    const daily = splitDaily(d1.data?.bars ?? [], d1.data?.missing ?? [], dayEnd);
     latest.current = { D1: daily.d1, W1: daily.w1, H4: input(h4.data), H1: input(h1.data), M15: input(m15.data) };
   });
 
@@ -101,7 +112,7 @@ export function useFormationScan(accountId: string | null, symbol: string | null
   }, [key, at, symbol, zug]);
 
   // Gemeinsamer Preis: Schluss der laufenden M15-Kerze, so zeigen alle Zeiteinheiten denselben aktuellen Preis
-  const price = lastM15 && lastM15.time === m15.data?.liveFrom ? lastM15.close : null;
+  const price = pastAt === null && lastM15 && lastM15.time === m15.data?.liveFrom ? lastM15.close : null;
   const running = useMemo<Record<ContextTimeframe, Bar | null>>(() => ({
     D1: runningBar(d1.data, price),
     H4: runningBar(h4.data, price),
