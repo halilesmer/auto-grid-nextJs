@@ -3,7 +3,7 @@ date: 2026-11-04
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [336]
 features: [UI-15, UI-12, UI-14, ANA-01]
 areas: [frontend, docs]
 ---
@@ -36,7 +36,7 @@ Bar height before: Formation about 108 px, Setup 123 px, Free 93 px. After: at m
 - BSD `sed` has no `\+` or `\/` shortcuts that GNU `sed` has. Use Python for multi-line class edits.
 
 ## Verification
-See the PR.
+See PR 336.
 
 ## Open points
 - [ ] d: formation search for a range in the past (owner decision later).
