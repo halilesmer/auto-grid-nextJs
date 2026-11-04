@@ -223,6 +223,9 @@ export const RULE_TEXTS: Record<string, Text> = {
   'CDT-14': ['H2’de RSI(7) uç bölgede', 'RSI(7) at H2 is in the extreme zone', 'RSI(7) bei H2 im Extrem'],
   'CDT-15': ['Kapanış H1’in ötesinde (küçük hacimsiz kapanış hariç)', 'A close beyond H1 (small low-volume closes excepted)', 'Schluss jenseits von H1 (kleine, nicht volumenstarke ausgenommen)'],
   'CDT-16': ['H1 ve H2 tamamlanmış fraktal', 'H1 and H2 are finished fractals', 'H1 und H2 sind fertige Fraktale'],
+  'SIG-15': ['Son iki tepede Wave uyuşmazlığı: alış yapılmaz (veto)', 'Wave disagrees at the last two highs: no buy (veto)', 'Wave bestätigt die letzten zwei Hochs nicht: kein Kauf (Veto)'],
+  'SIG-16': ['Son iki dipte Wave uyuşmazlığı: satış yapılmaz (veto, varsayım)', 'Wave disagrees at the last two lows: no sell (veto, assumption)', 'Wave bestätigt die letzten zwei Tiefs nicht: kein Verkauf (Veto, Annahme)'],
+  'SIG-29': ['Kâr/risk TP1’e kadar 1’in üstünde, değilse alt zaman diliminde dönüş mumu beklenir', 'Reward-to-risk to TP1 is above 1, otherwise wait for the reversal candle on the lower timeframe', 'CRV bis TP1 über 1, sonst Umkehrkerze der tieferen Zeiteinheit abwarten'],
 };
 
 const INDEX: Record<Locale, 0 | 1 | 2> = { tr: 0, en: 1, de: 2 };

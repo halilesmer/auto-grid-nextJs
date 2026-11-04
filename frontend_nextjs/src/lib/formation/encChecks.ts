@@ -12,6 +12,7 @@ import type { FormationContext } from './context';
 import { changedAfter, analyzeChannels, checkChannel, correctionLens, impulseLens, lowerTrendDir, measureBar, regularCorrections, trendDirAt, trendOf, type ChannelPointsInput } from './enc';
 import { measureChannel, reversalSide, shrinks, slopesWithTrend, type Channel, type ChannelBase } from './lineChannel';
 import { ENC_PARAMS, LINE_CHANNEL_PARAMS, type ContextTimeframe } from './params';
+import { withTrade, type TradeInput } from './tradeApply';
 import type { Env } from './reasons';
 import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
 import { anchorAt, ids, unmeasurable } from './xabcd';
@@ -93,7 +94,16 @@ function evaluate(env: Env, tf: ContextTimeframe, base: ChannelBase): Candidate 
     L2: anchorAt(bars, base.lb.idx, base.lb.price),
   };
   if (c.act !== null) points.X = anchorAt(bars, c.act, bars[c.act].close);
-  return { code: 'ENC', side: reversalSide(base.es), tf, points, checks: withDrawings, drawings, verdict };
+  const candidate: Candidate = { code: 'ENC', side: reversalSide(base.es), tf, points, checks: withDrawings, drawings, verdict };
+  // Einstieg = Schluss der Kerze, die die Linie bricht (ENC-05), Stop = obere Kanallinie (Z-ENC-03); Ziel 1 nennt das Regelbuch nicht
+  const lastIdx = bars.length - 1;
+  const trade: TradeInput = {
+    entry: c.act !== null ? bars[c.act].close : null,
+    stop: c.extremeAt(lastIdx),
+    tp1: null,
+    reason: { ...(c.act === null ? { entry: 'ENC-05' } : {}), tp1: 'noRule' },
+  };
+  return withTrade(candidate, env, tf, trade, true);
 }
 
 function drawingsOf(bars: readonly FormationBar[], c: Channel): Drawing[] {

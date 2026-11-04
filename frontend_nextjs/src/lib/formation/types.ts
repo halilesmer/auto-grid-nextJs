@@ -62,6 +62,22 @@ export interface Check {
   drawings: string[];
   /** Nur Anzeige: die Bedingung gehört zu einer anderen Variante der Formation. Der Zustand bleibt gemessen, die Zeile zählt nicht mit */
   inactive?: true;
+  /** Veto-Zeile (A40.2): ein Ausschluss, der das Urteil nicht ändert; nur der Handelsblock zeigt ihn. Die Zeile kommt erst nach `settle` in die Liste, Urteil und `invalidBy` sehen sie nie */
+  veto?: true;
+}
+
+/**
+ * Anzeige des Handels (A40.3), keine Order. `null` = nicht messbar; `reason` nennt dann eine Regel-ID als Grund (z. B. `LIB-04`) oder `noRule` (das Regelbuch nennt den Wert nicht).
+ * Einstieg und Ziel sind Preise; der Stop ist der Schluss-Stop, der Not-SL liegt eine ATR(14) dahinter (HDL-41).
+ */
+export interface Trade {
+  entry: number | null;
+  stop: number | null;
+  emergencyStop: number | null;
+  tp1: number | null;
+  reason: { entry?: string; stop?: string; tp1?: string };
+  /** SIG-29 (CRV bis TP1 über 1, sonst Umkehrkerze der tieferen ZE): ☑ bei CRV > 1; Wert = CRV; die Anzeige zeigt die Zeile nur bei CRV ≤ 1 */
+  sig29?: Check;
 }
 
 export interface Candidate {
@@ -78,6 +94,8 @@ export interface Candidate {
   pointHeld?: boolean;
   /** Lage des gehaltenen Endpunkts (Bruchkerze), nur zum Zeichnen; Alarm und Suche lesen `points`, nicht dieses Feld */
   heldPoint?: Anchor;
+  /** Einstieg, Stop und TP1 zur Anzeige (A40.3); fehlt bei Formationen ohne Handelswerte */
+  trade?: Trade;
 }
 
 /** Eine Kerze der Formation: nur geschlossene Kerzen, Zeit = Kerzenbeginn (MT5-Sekunden) */

@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-04 · **206/211** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-04 · **206/213** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 15/15 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/22 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 35/36 |
+| 16 | **FRM** – Formationserkennung | 35/38 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -994,3 +994,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Die Suche „zu einem Zeitpunkt“ auf /chart (Modus Formation), Plan A13.6. Logik (P1): asOf.ts liest ?at=YYYY-MM-DDTHH:MM (Brokerzeit, MT5-Sekunden wie UTC) und rundet auf 15 Minuten ab (parseAt); ungültige Werte und Werte ab dem Beginn der laufenden M15-Kerze gelten als live (resolveAsOf). formationRequests endet bei at (ratesWindow rundet je Zeiteinheit auf), splitDaily bekommt das Ende des Brokertags von at (pastDayEnd). useFormationScan nimmt ein optionales pastAt: Suchzeit ist pastAt, keine laufende Kerze (running überall null), kein Nachladen (useMarketRates lädt nur Anfragen nahe an jetzt nach). Kein Blick in die Zukunft: ein Kontext mit Kerzen nach at liefert dieselben Treffer wie ein bei at geschnittener Kontext. Oberfläche (P2): der Schalter „Stand“ (FormationAsOf) in der Kopfleiste zeigt „Live“ oder den Stand (Warnfarbe, Uhr-Symbol und Text); er öffnet auf dem Desktop ein Popover, unter 640 px ein Blatt von unten (Live/Vergangenheit, Datum, Uhrzeit in 15-Minuten-Schritten, vor 1 Tag/Woche/Monat, Suchen); ◀ ▶ gehen um eine Kerze der gewählten Zeiteinheit (vor der Gegenwart: live), auf dem Handy schweben sie im Chart; ✕ entfernt at. Auf dem Chart stehen der Hinweis „Vergangenheit · Stand … · keine Live-Daten“ (bei Datenlücken ein zweiter Hinweis) und eine gestrichelte Linie „Stand“ hinter der letzten Kerze; Kerzen nach dem Stand fehlen. Die Glocke ist im Stand aus (Hinweis „Alarm nur live“); Favoriten bleiben live (Marke „live“), ein Klick öffnet das Produkt live und entfernt at. Das Bild trägt den Stempel „Vergangenheit · Stand“. Ein Kontowechsel entfernt at; Wechsel von Formation, Zeiteinheit oder Produkt behalten es. Favoriten und Alarm (FormationScanRunner) bleiben live und schreiben nie den Stand einer Vergangenheitssuche.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-past-lib.spec.ts (@FRM-38) ausführen (Zeitpunkt lesen und abrunden, Rückweg, live ab laufender Kerze, Schritt um eine Kerze, Anfrageende, kein Blick in die Zukunft für jede Fixture und mit W1). → Playwright-Test e2e/mocked/formation-past.spec.ts (@FRM-38) ausführen (Anfrageende at, gleiche Treffer wie mit Reihe bis zum Stand, keine Anfrage nach 60 s, Hinweis/Schalter/Linie/Glocke/Favoriten-Marke, ◀ ▶ und ✕, Zukunft fällt auf live, Datenlücken-Hinweis, 375 px und 812 x 375 px ohne Querscroll).
   - **Erwartet:** Die Zeitpunkte werden auf 15 Minuten abgerundet, ungültige oder zu junge Werte fallen auf live zurück, die Treffer hängen nicht von Kerzen nach at ab, und die Seite zeigt den Stand sichtbar (nicht nur durch Farbe) mit abgeschalteter Glocke und live bleibenden Favoriten.
+- [ ] **FRM-39** Formation: Handelsblock (Einstieg, Stop, Not-SL, TP1, CRV) und SIG-29 — 🖥️ e2e ⏳
+  - Jeder Kandidat der Formationen TDF, OBO, CDT, LIB, T618, ENC, KEI, ABCD, GAR, BAT, BUT, CRB, CYP und 2618 trägt `trade` (A40.3): Einstieg, Schluss-Stop, Not-SL (Stop ± 1 × ATR(14) der Zeiteinheit, HDL-41), TP1 und je fehlendem Wert einen Grund (Regel-ID). Reine Anzeige, keine Order. `tradeMetrics` rechnet Risiko, Gewinn und CRV bis TP1 je Seite; `trade.sig29` ist SIG-29 (☑ bei CRV über 1, sonst nach der Umkehrkerze der tieferen Zeiteinheit). Phase 1 ist die Logik (src/lib/formation/trade.ts, tradeApply.ts, tradeSigChecks in sigChecks.ts); der Block auf der Seite folgt in Phase 2.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-trade-lib.spec.ts (@FRM-39) ausführen (CRV, Risiko, Not-SL je Seite, Werte aus Handrechnung für jede Formation, fehlende Werte mit Grund, SIG-29).
+  - **Erwartet:** Jede Formation liefert Einstieg, Stop und TP1 nach dem Regelbuch (`## Handel`); was das Regelbuch nicht nennt, bleibt null mit Grund; das Urteil ändert sich nicht.
+- [ ] **FRM-40** Formation: Veto-Zeile SIG-15 / SIG-16 (Wave-Abweichung) — 🖥️ e2e ⏳
+  - TDF, OBO, CDT, LIB, T618, ENC und KEI haben im Ausschluss eine Zeile `veto: true`: Kauf SIG-15, Verkauf SIG-16 (Annahme). Das Veto ändert das Urteil nicht (`valid` bleibt), zählt nicht als Pflicht oder Verstärkung und steht nicht in `invalidBy`; Alarm, Suche und Favoriten bleiben unverändert (A40.2.1). Harmoniken (ABCD, GAR, BAT, BUT, CRB, CYP) und 2618 haben keine Zeile. Phase 1 ist die Logik; die Anzeige (Veto-Streifen, Zeile, Abzeichen) folgt in Phase 2.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-trade-lib.spec.ts (@FRM-40) ausführen (Zeile je Seite und Formation, kein Veto bei Harmoniken und 2618, Urteil unverändert bei ☑).
+  - **Erwartet:** Die sieben Formationen tragen die Veto-Zeile, die übrigen nicht; ein erfülltes Veto lässt das Urteil und `invalidBy` unverändert.

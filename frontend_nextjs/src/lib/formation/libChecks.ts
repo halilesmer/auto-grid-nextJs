@@ -12,6 +12,7 @@
 import { analyzeBat } from './batChecks';
 import type { FormationContext } from './context';
 import { entryOfCypher } from './cyp';
+import { withTrade } from './tradeApply';
 import { analyzeCyp } from './cypChecks';
 import { trendDirUpTo } from './f2618';
 import { analyzeGar } from './garChecks';
@@ -216,7 +217,15 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: LibBase, p
     // gewählter Einstieg (LIB-09 und CYP-10 vergleichen ihn mit dem Cypher-Einstieg)
     if (entry) points.E = anchorAt(bars, s.touch ? s.touch.idx : last, entry.price);
   }
-  return { code: 'LIB', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'LIB', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  // Einstieg = gewählte Kante (E-2 a), Stop = P2 (Schluss darüber, LIB-13), TP1 = Fraktalzone von P3; ohne P3 fehlen Einstieg und Ziel
+  return withTrade(
+    candidate,
+    env,
+    tf,
+    { entry: entry?.price ?? null, stop: p2.price, tp1: target, reason: { ...(entry ? {} : { entry: 'LIB-04' }), ...(target === null ? { tp1: 'LIB-04' } : {}) } },
+    true,
+  );
 }
 
 function drawingsOf(bars: readonly FormationBar[], s: LibShape, target: number, entryPrice: number): Drawing[] {

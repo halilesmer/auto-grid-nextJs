@@ -70,7 +70,7 @@ export function buildShotData(input: {
     ],
     groups: GROUPS.flatMap((kind) => {
       const rows = candidate.checks
-        .filter((c) => c.kind === kind)
+        .filter((c) => c.kind === kind && !c.veto)
         .map((c) => {
           const state = rowState(c);
           return {

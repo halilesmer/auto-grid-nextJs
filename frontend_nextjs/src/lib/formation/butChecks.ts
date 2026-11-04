@@ -13,6 +13,7 @@ import { outward } from './frz';
 import { abExtensionPrice, dTargetOfButterfly } from './but';
 import { levelBC } from './cyp';
 import { BUT_PARAMS, FIB_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
+import { harmonicTrade, withTrade } from './tradeApply';
 import type { Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
@@ -141,7 +142,8 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'BUT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'BUT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, BUT_PARAMS.targets, 'BUT-07'), false);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean): Drawing[] {

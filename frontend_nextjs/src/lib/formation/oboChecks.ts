@@ -23,6 +23,7 @@ import {
   type OboBase,
 } from './obo';
 import { FRZ_PARAMS, OBO_PARAMS, type ContextTimeframe } from './params';
+import { withTrade, type TradeInput } from './tradeApply';
 import { buildEnv, envFor, type Env } from './reasons';
 import { exemptFor, settle } from './settle';
 import { divergenceOf, tradeSideOf } from './sig';
@@ -178,7 +179,15 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: OboBase): 
   if (rs) points.RS = anchorAt(bars, rs.idx, rs.price);
   // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
   if (brk !== null && n1 && n2 && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld && brk !== null ? { pointHeld, heldPoint: anchorAt(bars, brk, bars[brk].close) } : {}) };
+  const candidate: Candidate = { code: 'OBO', side: tradeSideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld && brk !== null ? { pointHeld, heldPoint: anchorAt(bars, brk, bars[brk].close) } : {}) };
+  // Einstieg = Schluss der Ausbruchskerze (B), Stop = Spitze der rechten Schulter (OBO-13), TP1 = Hals − h (Z-OBO-05)
+  const trade: TradeInput = {
+    entry: brk !== null ? bars[brk].close : null,
+    stop: rs ? rs.price : null,
+    tp1: target,
+    reason: { ...(brk === null ? { entry: 'OBO-11' } : {}), ...(rs ? {} : { stop: 'OBO-02' }), ...(target === null ? { tp1: 'OBO-11' } : {}) },
+  };
+  return withTrade(candidate, env, tf, trade, true);
 }
 
 type Full = { ls: ObPoint; n1: ObPoint; k: ObPoint; n2: ObPoint; rs: ObPoint };

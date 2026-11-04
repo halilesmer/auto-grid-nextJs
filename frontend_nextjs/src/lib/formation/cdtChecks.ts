@@ -24,6 +24,7 @@ import {
 } from './cdt';
 import { levelPrice } from './fib';
 import { CDT_PARAMS, FIB_PARAMS, FRZ_PARAMS, RSI_PARAMS, type ContextTimeframe } from './params';
+import { withTrade, type TradeInput } from './tradeApply';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { divergenceOf, rsiExtreme } from './sig';
@@ -162,7 +163,21 @@ function evaluate(env: Env, tf: ContextTimeframe, s: CdtShape): Candidate {
     N: { time: bars[n.idx].time, price: n.price },
   };
   if (h2) points.H2 = { time: bars[h2.idx].time, price: h2.price };
-  return { code: 'CDT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'CDT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  // Einstieg = Berührung der Zone von H1 durch H2 (CDT-12); ohne RSI-Extrem der Schluss der Bestätigungskerze (CDT-13). Stop = Außenkante der Zone von H1,
+  // TP1 = nahe Kante der Fraktalzone an N (wie Z-CDT-05)
+  const nZone = zoneGeometry(bars, n.idx, cs, tf);
+  const rsiEntry = stateOf('CDT-12') === 'met';
+  // CDT-12 ☑: Verkauf, sobald H2 die Zone berührt (nahe Kante); die Bestätigungskerze von CDT-13 hat hier keinen Index, dann bleibt der Einstieg offen
+  const touchEdge = es === 'resistance' ? zone.bottom : zone.top;
+  const entry = h2 && rsiEntry ? touchEdge : null;
+  const trade: TradeInput = {
+    entry,
+    stop: es === 'resistance' ? zone.top : zone.bottom,
+    tp1: es === 'resistance' ? nZone.top : nZone.bottom,
+    reason: entry === null ? { entry: h2 ? 'CDT-12' : 'CDT-05' } : {},
+  };
+  return withTrade(candidate, env, tf, trade, true);
 }
 
 /** Prüfung einer fertigen Form für andere Formationen (2618 baut auf dem Doppeltop); dieselbe Messung wie `analyzeCdt` */

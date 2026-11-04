@@ -19,6 +19,7 @@ import { FINAL_POINT, scanFormations } from '../../src/lib/formation/scan';
 import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, H1, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -254,7 +255,7 @@ frm('Spiegelfall: TOBO nach Tiefs hat dieselben Zustände wie OBO nach Hochs, nu
     const buy = run(mirror(rows as Row[]), [...idx]);
     expect(sell.side, name).toBe('sell');
     expect(buy.side, name).toBe('buy');
-    expect(buy.checks.map((c) => `${c.id}:${c.state}`), name).toEqual(sell.checks.map((c) => `${c.id}:${c.state}`));
+    expect(buy.checks.filter((c) => !c.veto).map((c) => `${c.id}:${c.state}`), name).toEqual(sell.checks.filter((c) => !c.veto).map((c) => `${c.id}:${c.state}`));
     expect(buy.verdict, name).toBe(sell.verdict);
   }
 });
@@ -428,4 +429,8 @@ frm('Urteil: gehaltener Bruch trägt seine Lage in heldPoint (Bruchkerze), point
   expect(SHORT[held.heldPoint!.time / H4][3]).toBe(held.heldPoint!.price);
   expect(run(NO_BREAK, I).heldPoint).toBeUndefined();
   expect(run(BASE, I).heldPoint).toBeUndefined();
+});
+
+test('Handelsblock: Einstieg = Schluss des Nackenbruchs, Stop = rechte Schulter, TP1 = Hals − h; Veto-Zeile SIG-16', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run(BASE, I), { veto: true });
 });

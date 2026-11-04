@@ -249,7 +249,7 @@ frm('Analyse findet P, Linie und I selbst und liefert alle Bedingungen', () => {
   const res = analyzeT618(ctxOf(BASE), END);
   expect(res.map((r) => r.tf)).toEqual(['H4']);
   const c = res[0].candidate;
-  expect(c.checks.map((x) => x.id)).toEqual([...T618_CHECK_IDS]);
+  expect(c.checks.filter((c) => !c.veto).map((x) => x.id)).toEqual([...T618_CHECK_IDS]);
   expect(c.verdict).toBe('valid');
   expect(c.points.P.time).toBe(P * H4);
   expect(c.points.I.time).toBe(I * H4);

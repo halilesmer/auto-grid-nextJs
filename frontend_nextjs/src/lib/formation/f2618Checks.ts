@@ -15,6 +15,7 @@ import { closedBeyondStop, impulseEnds, secondTop, shapeOf2618, stopEdge, trendD
 import { legLength, levelPrice } from './fib';
 import { outward, zoneGeometry, type ZoneSide } from './frz';
 import { CONTEXT_TIMEFRAMES, F2618_PARAMS, type ContextTimeframe } from './params';
+import { withTrade, type TradeInput } from './tradeApply';
 import { buildEnv, envFor, type Env } from './reasons';
 import { exemptFor, settle } from './settle';
 import { anchorAt, fractalDone, ids, unmeasurable } from './xabcd';
@@ -75,6 +76,8 @@ function atLargerLevel(env: Env, tf: ContextTimeframe, s: F2618Shape, atr: numbe
   const legs = tfs.flatMap((x) => env.fibs.get(x)?.legs ?? []).filter((leg) => legLength(leg) > legLength(s.leg));
   return legs.some((leg) => F2618_PARAMS.confluenceLevels.some((level) => Math.abs(levelPrice(leg, level) - entry) <= near));
 }
+
+const nearTarget = (top: boolean, zone: { top: number; bottom: number }): number => (top ? zone.top : zone.bottom);
 
 function evaluate(env: Env, tf: ContextTimeframe, c: CdtShape, cdt: Candidate, i: CdtPoint | null): Candidate {
   const view = env.views.get(tf)!;
@@ -137,7 +140,16 @@ function evaluate(env: Env, tf: ContextTimeframe, c: CdtShape, cdt: Candidate, i
     if (s.start.idx !== c.h2!.idx) points.S = anchorAt(bars, s.start.idx, s.start.price);
     if (s.touch) points.K = anchorAt(bars, s.touch.idx, s.touch.level);
   }
-  return { code: '2618', side: c.side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: '2618', side: c.side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  // Einstieg am Level 0.618 der Fib, Stop an der Kante (2618-09), TP1 an der nahen Kante der Zone von I (Z-2618-04)
+  const iZone = s ? zoneGeometry(bars, s.i.idx, c.cs, tf) : null;
+  const trade: TradeInput = {
+    entry: s ? levelPrice(s.leg, F2618_PARAMS.entryLevel) : null,
+    stop: edge,
+    tp1: iZone === null ? null : nearTarget(c.es === 'resistance', iZone),
+    reason: { ...(s ? {} : { entry: '2618-05', tp1: '2618-03' }), ...(edge === null ? { stop: '2618-02' } : {}) },
+  };
+  return withTrade(candidate, env, tf, trade, false);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: F2618Shape, edge: number): Drawing[] {

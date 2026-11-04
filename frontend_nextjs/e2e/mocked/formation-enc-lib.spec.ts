@@ -212,7 +212,7 @@ frm('Analyse findet den Kanal selbst und liefert alle Bedingungen', () => {
   const res = analyzeEnc(ctxOf(BASE), END);
   expect(res.map((r) => r.tf)).toEqual(['H4']);
   const c = res[0].candidate;
-  expect(c.checks.map((x) => x.id)).toEqual([...ENC_CHECK_IDS]);
+  expect(c.checks.filter((c) => !c.veto).map((x) => x.id)).toEqual([...ENC_CHECK_IDS]);
   expect(c.verdict).toBe('invalid');
   expect(c.side).toBe('sell');
   expect(c.points.H1.time).toBe(at(1) * H4);

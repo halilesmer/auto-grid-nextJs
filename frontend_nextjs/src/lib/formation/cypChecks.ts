@@ -13,6 +13,8 @@ import { outward } from './frz';
 import { closedBeyondBLimit, closedBeyondCLimit, extensionOfC, levelBC, levelXC, lenXC, retraceXC } from './cyp';
 import { analyzeLib } from './libChecks';
 import { CYP_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
+import { fibPrice } from './trade';
+import { withTrade, type TradeInput } from './tradeApply';
 import { dirSide, higherTrendTf, type Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
@@ -160,7 +162,12 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'CYP', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'CYP', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  // Einstieg am Level 0.786 der Fib X → C, Stop fest am Einstieg (E-8 a: Fib C → Einstiegslevel), TP1 aus der Fib C → D
+  const trade: TradeInput = reached && d
+    ? { entry, stop: fibPrice(c.price, entry, -P.targets.stop), tp1: fibPrice(c.price, d.price, P.targets.tp1), reason: {} }
+    : { entry: null, stop: null, tp1: null, reason: { entry: 'CYP-07', stop: 'CYP-07', tp1: 'CYP-07' } };
+  return withTrade(candidate, env, tf, trade, false);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean): Drawing[] {

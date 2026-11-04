@@ -125,7 +125,8 @@ export function FormationChecklist({
         )}
       </div>
       {GROUPS.map((kind) => {
-        const rows = candidate.checks.filter((c) => c.kind === kind);
+        // Veto-Zeilen (A40.2) zeigt erst der Handelsblock (Phase 2)
+        const rows = candidate.checks.filter((c) => c.kind === kind && !c.veto);
         if (rows.length === 0) return null;
         const folded = collapsed.has(kind);
         return (
