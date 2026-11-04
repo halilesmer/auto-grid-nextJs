@@ -684,7 +684,7 @@ export default function ZoneChartPanel({
 
   return (
     <ChartPage
-      title={t('analysis.title')}
+      title={t('nav.chart')}
       testId="chart-page"
       panelShown={false}
       panel={null}

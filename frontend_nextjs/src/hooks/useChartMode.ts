@@ -7,7 +7,7 @@ import { useUrlUpdate } from './useUrlUpdate';
 
 /**
  * Modus der Chartseite aus der Adresse (`resolveChartMode`) und der Wechsel dazu. Beim Wechsel bleibt das Konto; das Produkt bleibt in Formation und Frei (Setup und Formation ohne symbol= geben Frei das Produkt ihrer Zone);
- * ein im neuen Modus unerlaubtes `tf` fällt auf den Standard des Modus, `form` gilt nur in Formation, `zone` nicht in Frei.
+ * ein im neuen Modus unerlaubtes `tf` fällt auf den Standard des Modus, `form` gilt nur in Formation, `zone` nicht in Frei, `tab` (Statistik) nur in Setup.
  */
 export function useChartMode() {
   const { params, update } = useUrlUpdate();
@@ -15,7 +15,8 @@ export function useChartMode() {
   const tf = params.get('tf');
   const setMode = useCallback(
     (next: ChartMode) => {
-      if (next === mode && params.get('mode') === next) return;
+      // Schon im Modus: nichts tun, außer ein alter Link (mode=free&tab=stats) zeigt noch die Statistik
+      if (next === mode && params.get('mode') === next && (next === 'setup' || !params.get('tab'))) return;
       // Frei braucht ein Produkt in der Adresse; Setup und Formation (ohne symbol=) gewinnen es aus ihrer Zone
       let symbol: string | undefined;
       if (next === 'free' && !params.get('symbol')?.trim()) {
@@ -33,7 +34,8 @@ export function useChartMode() {
         tf: timeframeAllowed(next, tf) ? tf : null,
         ...(next === 'formation' ? {} : { form: null }),
         ...(next === 'free' ? { zone: null } : {}),
-        ...(next === 'formation' ? { tab: null } : {}),
+        // Die Statistik gibt es nur im Setup-Modus; Formation und Frei öffnen den Chart
+        ...(next === 'setup' ? {} : { tab: null }),
       });
     },
     [mode, params, tf, update],

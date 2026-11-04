@@ -77,7 +77,9 @@ test.describe('UI-14 Eine Seite Chart', () => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&tab=stats&zone=${ZONE_ID}`);
     await expect(page.getByTestId('analysis-controls')).toBeVisible();
-    await expect(page.getByTestId('chart-mode-formation')).toHaveCount(0);
+    await expect(page.getByTestId('stats-tab')).toBeVisible();
+    await expect(page.getByTestId('chart-mode-formation')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId('chart-mode-setup')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('Das Konto bleibt beim Moduswechsel, ein unerlaubtes tf fällt auf den Standard des Modus', { tag: '@UI-14' }, async ({ page, worker }) => {

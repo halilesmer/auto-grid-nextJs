@@ -33,6 +33,8 @@ export interface ChartTopBarProps {
   tools: ReactNode;
   /** Legenden-Schalter in der Zeile darunter */
   extra?: ReactNode;
+  /** Statistik-Seite: kein Platz für die Werkzeugleiste rechts (sie gibt es dort nicht) */
+  flat?: boolean;
 }
 
 /**
@@ -53,25 +55,25 @@ function Slot({ className, children }: { className?: string; children: ReactNode
  * der Rechnung in FormationToolbar.tsx. Dort reicht sie Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie), damit die
  * Werkzeuge nicht verdeckt werden.
  */
-export function ChartTopBar({ account, mode, target, timeframes, range, view, tools, extra }: ChartTopBarProps) {
+export function ChartTopBar({ account, mode, target, timeframes, range, view, tools, extra, flat = false }: ChartTopBarProps) {
   return (
-    <div className="pointer-events-none bg-background" data-testid="chart-topbar">
-      <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-2 py-1 @min-[71rem]/formation-main:pr-97', '@max-[30rem]/formation-main:gap-x-1')}>
-        <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 max-lg:w-full', '@max-[30rem]/formation-main:contents')}>
+    <div className="pointer-events-none bg-background short:grid short:grid-cols-[max-content_max-content_minmax(0,1fr)] short:[&_[aria-haspopup]]:max-h-7 short:[&_input]:max-h-7 short:border-b short:border-border" data-testid="chart-topbar">
+      <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-2 py-1 short:contents', !flat && '@min-[71rem]/formation-main:pr-97', '@max-[30rem]/formation-main:gap-x-1')}>
+        <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 max-lg:w-full short:col-span-3 short:w-auto short:flex-nowrap short:border-b short:border-border short:px-2 short:py-0.5', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-1 @max-[30rem]/formation-main:flex-1 @max-[30rem]/formation-main:basis-2/5">{account}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-3">{mode}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-2 @max-[30rem]/formation-main:flex-1 @max-[30rem]/formation-main:basis-2/5">{target}</Slot>
         </div>
-        <div className={cn('pointer-events-auto flex min-w-0 max-w-full items-center gap-1', '@max-[30rem]/formation-main:contents')}>
+        <div className={cn('pointer-events-auto flex min-w-0 max-w-full items-center gap-1 short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-6 @max-[30rem]/formation-main:basis-full @max-[30rem]/formation-main:[&>[data-testid=timeframe-select]]:w-full @max-[30rem]/formation-main:[&>[data-testid=timeframe-select]]:justify-between">{timeframes}</Slot>
         </div>
-        <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1', '@max-[30rem]/formation-main:contents')}>
+        <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 short:flex-nowrap short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-4 @max-[30rem]/formation-main:flex-1">{range}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-7">{view}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-5 @max-[30rem]/formation-main:flex @max-[30rem]/formation-main:gap-1">{tools}</Slot>
         </div>
       </div>
-      {extra && <div className="pointer-events-auto flex min-h-[30px] items-center gap-x-1 overflow-x-auto border-b border-border px-2 py-0.5">{extra}</div>}
+      {extra && <div className="pointer-events-auto flex min-h-[30px] items-center gap-x-1 overflow-x-auto border-b border-border px-2 py-0.5 short:min-h-0 short:border-b-0 short:py-0 short:whitespace-nowrap short:[&_button]:flex-nowrap">{extra}</div>}
     </div>
   );
 }

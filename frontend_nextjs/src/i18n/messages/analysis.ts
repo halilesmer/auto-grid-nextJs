@@ -3,7 +3,6 @@ import { defineArea } from './define';
 // Analiz sayfası (/chart): sekmeler, hesap/setup seçimi, takvim, görünüm ayarları (docs/analyse-regeln.md)
 export default defineArea(
   {
-    'analysis.title': 'Analiz',
     'analysis.subtitle': 'Seçili hesap ve setup için grafik ve istatistik',
     'analysis.tab.chart': 'Grafik',
     'analysis.tab.stats': 'İstatistik',
@@ -199,7 +198,6 @@ export default defineArea(
     'analysis.stats.weekday.6': 'Cumartesi',
   },
   {
-    'analysis.title': 'Analysis',
     'analysis.subtitle': 'Chart and statistics for the selected account and setup',
     'analysis.tab.chart': 'Chart',
     'analysis.tab.stats': 'Statistics',
@@ -395,7 +393,6 @@ export default defineArea(
     'analysis.stats.weekday.6': 'Saturday',
   },
   {
-    'analysis.title': 'Analyse',
     'analysis.subtitle': 'Chart und Statistik für das gewählte Konto und Setup',
     'analysis.tab.chart': 'Chart',
     'analysis.tab.stats': 'Statistik',
