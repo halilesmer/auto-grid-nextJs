@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-04 · **206/210** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-04 · **206/211** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 15/15 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/22 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/15 |
-| 16 | **FRM** – Formationserkennung | 35/35 |
+| 16 | **FRM** – Formationserkennung | 35/36 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -990,3 +990,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Die Bedingungen (Kandidaten und Checkliste) stehen als Reiter „Bedingungen“ neben „Favoriten“ in der rechten Seitenleiste; die verschiebbare Karte über dem Chart entfällt (früher FRM-24). Die schmale Leiste ganz rechts hat zwei Symbole (Lesezeichen, Bedingungen); jedes öffnet die Seitenleiste auf seinem Reiter, ein Klick auf das Symbol des aktiven Reiters schließt sie. Ab 1024 px schiebt die offene Leiste den Chart nach links (formation-main wird um 40 + 288 px schmaler) und überdeckt ihn nicht; darunter liegt sie über dem Chart. Ein Status-Knopf in der Kopfleiste öffnet und schließt den Reiter „Bedingungen“; ohne Kandidat ist er deaktiviert. Bei einer Chartbreite unter 79rem (1264 px bei 16 px Browser-Schrift) zeigt er nur Pfeil (Kauf/Verkauf), Urteil als Symbol mit eigener Form (✓, ✗, Uhr) und Pfeil, ab 79rem Urteil als Pille und Zähler Pflicht · Verstärkung; Seite, Urteil und Zähler stehen immer im Namen (aria-label) und im Hinweis. Offen/zu und der Reiter bleiben im Browser (localStorage); erster Besuch: ab 1024 px offen auf „Bedingungen“, darunter zu.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-37) ausführen (Chart und Leiste überlappen bei 1440 und 1100 px und mit 20 px Browser-Schrift nicht, Reiterwechsel, Status-Knopf, erster Besuch, Merken, Hover auf eine Zeile hebt die Zeichnung hervor, 375 px ohne Querscroll). → UI-07 (Tooltips an Reitern, Symbolen und Knopf) und UI-08 (375 px ohne Querscroll) ausführen.
   - **Erwartet:** Die offene Seitenleiste liegt rechts neben dem Chart, nicht darüber; jeder Reiter hat sein Symbol; der Status-Knopf zeigt den gewählten Kandidaten und öffnet den Reiter.
+- [ ] **FRM-38** Formation-Suche zu einem Zeitpunkt in der Vergangenheit (Logik) — 🖥️ e2e ⏳
+  - Die Logik für die Suche „zu einem Zeitpunkt“ auf /chart (Modus Formation); die Oberfläche folgt in einem eigenen Schritt. asOf.ts liest ?at=YYYY-MM-DDTHH:MM (Brokerzeit, MT5-Sekunden wie UTC) und rundet auf 15 Minuten ab (parseAt); ungültige Werte und Werte ab dem Beginn der laufenden M15-Kerze gelten als live (resolveAsOf). formationRequests endet bei at (ratesWindow rundet je Zeiteinheit auf), splitDaily bekommt das Ende des Brokertags von at (pastDayEnd). useFormationScan nimmt ein optionales pastAt: Suchzeit ist pastAt, keine laufende Kerze (running überall null), das Nachladen des Endstücks (useMarketRates) bleibt unverändert und trifft nur Anfragen, deren Fensterende nahe an jetzt liegt (D1 bei heute/gestern, H4/H1 bei kurz zurück); die Suchzeit wird nie hinter die laufende Kerze gesetzt. Kein Blick in die Zukunft: ein Kontext mit Kerzen nach at liefert dieselben Treffer wie ein bei at geschnittener Kontext. Favoriten und Alarm (FormationScanRunner) bleiben live und schreiben nie den Stand einer Vergangenheitssuche.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-past-lib.spec.ts (@FRM-38) ausführen (Zeitpunkt lesen und abrunden, Rückweg, live ab laufender Kerze, Schritt um eine Kerze, Anfrageende, kein Blick in die Zukunft für jede Fixture und mit W1).
+  - **Erwartet:** Die Zeitpunkte werden auf 15 Minuten abgerundet, ungültige oder zu junge Werte fallen auf live zurück, und die Treffer hängen nicht von Kerzen nach at ab.
