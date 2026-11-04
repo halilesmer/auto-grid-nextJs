@@ -1316,8 +1316,11 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await page.goto(`/chart?account=${DEMO_ID}`);
     const url = `/chart?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`;
     // Der Service Worker selbst ist in den Tests blockiert; geprüft wird die Seite, die seine Nachricht annimmt
-    await page.evaluate((target) => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'formation-alarm-open', url: target } })), url);
-    await expect(page).toHaveURL(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    // Der Hörer steht erst nach der Hydration: die Nachricht kommt, bis die Seite sie annimmt (auf einem langsamen Rechner nach dem Ladeereignis)
+    await expect.poll(async () => {
+      await page.evaluate((target) => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'formation-alarm-open', url: target } })), url);
+      return page.url();
+    }, { intervals: [250, 500, 1000] }).toMatch(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
   });
 
   test('Die Schalter „Alle Favoriten“ und „Systemmeldung“ speichern sofort, auch wenn die Browser-Abfrage nie beantwortet wird', { tag: '@FRM-30' }, async ({ page, worker }) => {
