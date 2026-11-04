@@ -12,6 +12,7 @@ import { analyzeChannels, changedAfter, checkChannel, impulseLens, measureBar, n
 import { zoneGeometry } from './frz';
 import { measureChannel, reversalSide, shrinks, slopesWithTrend, type Channel, type ChannelBase } from './lineChannel';
 import { KEI_PARAMS, LINE_CHANNEL_PARAMS, type ContextTimeframe } from './params';
+import { withTrade, type TradeInput } from './tradeApply';
 import { neighborTf, type Env } from './reasons';
 import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 import { anchorAt, ids, unmeasurable } from './xabcd';
@@ -89,7 +90,18 @@ function evaluate(env: Env, tf: ContextTimeframe, base: ChannelBase): Candidate 
     L2: anchorAt(bars, base.lb.idx, base.lb.price),
   };
   if (c.act !== null) points.X = anchorAt(bars, c.act, bars[c.act].close);
-  return { code: 'KEI', side: reversalSide(base.es), tf, points, checks: withDrawings, drawings, verdict };
+  const candidate: Candidate = { code: 'KEI', side: reversalSide(base.es), tf, points, checks: withDrawings, drawings, verdict };
+  // Einstieg = Schluss jenseits der Keillinie (KEI-06), Stop = jenseits der Fraktalzone von H2 (Z-KEI-03), TP1 = nahe Kante der Zone am Keilbeginn (Z-KEI-03b)
+  const stopZone = zoneGeometry(bars, base.h2.idx, base.es, tf);
+  const startZone = zoneGeometry(bars, base.la.idx, base.la.side, tf);
+  const top = base.es === 'resistance';
+  const trade: TradeInput = {
+    entry: c.act !== null ? bars[c.act].close : null,
+    stop: top ? stopZone.top : stopZone.bottom,
+    tp1: top ? startZone.top : startZone.bottom,
+    reason: c.act === null ? { entry: 'KEI-06' } : {},
+  };
+  return withTrade(candidate, env, tf, trade, true);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, c: Channel): Drawing[] {

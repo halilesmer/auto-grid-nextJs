@@ -24,6 +24,7 @@ import { analyzeTdf, checkTdfCandidate, TDF_CHECK_IDS, type TdfPointsInput } fro
 import type { TdfForm } from '../../src/lib/formation/tdfForms';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, H1, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -349,7 +350,7 @@ frm('Spiegelfall: Abwärtstrend (Verkauf) hat dieselben Zustände wie Aufwärtst
     const down = run(mirror(rows), spec, { down: true });
     expect(up.side, name).toBe('buy');
     expect(down.side, name).toBe('sell');
-    expect(down.checks.map((c) => `${c.id}:${c.state}`), name).toEqual(up.checks.map((c) => `${c.id}:${c.state}`));
+    expect(down.checks.filter((c) => !c.veto).map((c) => `${c.id}:${c.state}`), name).toEqual(up.checks.filter((c) => !c.veto).map((c) => `${c.id}:${c.state}`));
     expect(down.verdict, name).toBe(up.verdict);
   }
 });
@@ -602,4 +603,8 @@ frm('Z-TDF-07: auch ohne Mast gezeichnet, Z-TDF-06 und Z-TDF-03 brauchen den Mas
   expect(ids).toContain('Z-TDF-07');
   expect(ids).not.toContain('Z-TDF-06');
   expect(ids).not.toContain('Z-TDF-03');
+});
+
+test('Handelsblock Flagge: Einstieg = Schluss der Ausbruchskerze, Stop unter der letzten Fraktalzone, TP1 = Masthöhe; Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run(FLAG, FLAG_SPEC), { veto: true });
 });

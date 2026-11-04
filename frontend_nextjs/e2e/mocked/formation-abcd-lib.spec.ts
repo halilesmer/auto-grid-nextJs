@@ -18,6 +18,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { zoneGeometry } from '../../src/lib/formation/frz';
 import type { Anchor, Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
 import { D1, END, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -687,4 +688,8 @@ test.describe('ABCD: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)',
     expect(cand.verdict).toBe('invalid');
     expect(cand.invalidBy).toContain('ABCD-06');
   });
+});
+
+test('Handelsblock: Einstieg am D, Ziel und Stop aus der Fib ab C (oder A); keine Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run({ H4: S1_TAIL }, ABC), { veto: false });
 });

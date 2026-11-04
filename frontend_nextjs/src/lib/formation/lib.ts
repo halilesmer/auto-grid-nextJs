@@ -9,6 +9,7 @@ import { nearEdge } from './cdt';
 import { levelPrice, legDirOf, type FibLeg } from './fib';
 import { closesBeyond, fractalIndices, outward, wickEnd, type ZoneSide } from './frz';
 import { FRZ_PARAMS, LIB_PARAMS } from './params';
+import { crvOf } from './trade';
 import type { FormationBar } from './types';
 
 type Bars = readonly FormationBar[];
@@ -164,12 +165,6 @@ export function shapeOfLib(bars: Bars, es: ZoneSide, cs: ZoneSide, base: LibBase
 
 /** Nahe Kante der Fraktalzone von P3: Ziel 1 */
 export const targetEdge = (cs: ZoneSide, zone: { top: number; bottom: number }): number => (cs === 'support' ? zone.top : zone.bottom);
-
-/** CRV = Abstand Einstieg → Ziel durch Abstand Einstieg → Stop; null bei Risiko 0 */
-export function crvOf(entry: number, stop: number, target: number): number | null {
-  const risk = Math.abs(stop - entry);
-  return risk > 0 ? Math.abs(entry - target) / risk : null;
-}
 
 /**
  * Einstiegswahl (E-2 a): die zuerst erreichte Kante, wenn dort das CRV bis TP1 mindestens `floorCrv` ist; sonst die andere

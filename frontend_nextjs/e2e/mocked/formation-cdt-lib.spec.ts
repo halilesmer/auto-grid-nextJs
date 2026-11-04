@@ -14,6 +14,7 @@ import { analyzeCdt, CDT_CHECK_IDS, checkCdtCandidate } from '../../src/lib/form
 import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, M15, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -309,7 +310,7 @@ test.describe('CDT: Abdeckung und Eigenschaften', () => {
       const bottom = run({ H4: mirror(rows) }, at, { top: false });
       expect(top.side).toBe('sell');
       expect(bottom.side).toBe('buy');
-      expect(bottom.checks.map((c) => [c.id, c.state, c.kind])).toEqual(top.checks.map((c) => [c.id, c.state, c.kind]));
+      expect(bottom.checks.filter((c) => !c.veto).map((c) => [c.id, c.state, c.kind])).toEqual(top.checks.filter((c) => !c.veto).map((c) => [c.id, c.state, c.kind]));
       expect(bottom.verdict).toBe(top.verdict);
     }
   });
@@ -353,7 +354,7 @@ test.describe('CDT: Abdeckung und Eigenschaften', () => {
     });
     const bottom = pick(mirror(BASE));
     expect(bottom.side).toBe('buy');
-    expect(bottom.checks.map((c) => [c.id, c.state])).toEqual(top.checks.map((c) => [c.id, c.state]));
+    expect(bottom.checks.filter((c) => !c.veto).map((c) => [c.id, c.state])).toEqual(top.checks.filter((c) => !c.veto).map((c) => [c.id, c.state]));
   });
 
   frm('Ohne H2 sind CDT-05 und CDT-06 nicht messbar, N ist ohne spätere Kerze kein Fraktal (CDT-03 ☐): ungültig, nie gültig', () => {
@@ -451,4 +452,8 @@ test.describe('CDT: echte Kerzen', () => {
     expect(state(early, 'CDT-04')).toBe(N);
     expect(state(late, 'CDT-04')).toBe(M);
   });
+});
+
+test('Handelsblock: Einstieg an der Zone von H1, Stop an der Außenkante, TP1 an der Zone von N; Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run({ H4: BASE }, AT), { veto: true });
 });

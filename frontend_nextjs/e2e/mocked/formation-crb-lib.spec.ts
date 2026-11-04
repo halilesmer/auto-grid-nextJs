@@ -20,6 +20,7 @@ import { buildShotData } from '../../src/lib/formation/shotData';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { END, H4, mirror, zig, type Row } from '../fixtures/formation-rows';
 import { M, N, U, atOf, chop, ctxOf, find, harmonic as harmonicWith, lowerRows, makeRun, state, wick, wickOnlyD } from '../fixtures/formation-harmonic';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-14' }, fn);
 
@@ -447,4 +448,8 @@ test.describe('CRB: Abdeckung', () => {
     }
     expect(miss).toEqual([]);
   });
+});
+
+test('Handelsblock: Einstieg am D, Ziel und Stop aus der Fib A → D; keine Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run({ H4: BASE }), { veto: false });
 });

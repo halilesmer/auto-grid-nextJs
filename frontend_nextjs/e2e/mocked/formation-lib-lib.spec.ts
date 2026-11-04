@@ -272,7 +272,7 @@ frm('Spiegelfall: Kauf nach Tiefs P1/P2 hat dieselben Zustände wie der Verkauf'
     const bottom = run({ H4: mirror(rows) }, at, { top: false });
     expect(top.side, name).toBe('sell');
     expect(bottom.side, name).toBe('buy');
-    expect(bottom.checks.map((x) => [x.id, x.state]), name).toEqual(top.checks.map((x) => [x.id, x.state]));
+    expect(bottom.checks.filter((c) => !c.veto).map((x) => [x.id, x.state]), name).toEqual(top.checks.filter((c) => !c.veto).map((x) => [x.id, x.state]));
     expect(bottom.verdict, name).toBe(top.verdict);
   }
 });
@@ -432,7 +432,7 @@ frm('Analyse findet Paar, P3 und Berührung selbst und liefert alle Bedingungen'
   const res = analyzeLib(ctxOf({ H4: BASE }), END);
   expect(res.map((r) => r.tf)).toEqual(['H4']);
   const c = res[0].candidate;
-  expect(c.checks.map((x) => x.id)).toEqual([...LIB_CHECK_IDS]);
+  expect(c.checks.filter((c) => !c.veto).map((x) => x.id)).toEqual([...LIB_CHECK_IDS]);
   expect(c.verdict).toBe('valid');
   expect(c.side).toBe('sell');
   expect(c.points.P1.time).toBe(10 * H4);

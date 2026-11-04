@@ -22,6 +22,7 @@ import { analyzeLib, checkLibCandidate, LIB_CHECK_IDS } from '../../src/lib/form
 import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -414,7 +415,7 @@ test.describe('CYP 10 und LIB 09: Libra-Einstieg fällt mit dem Cypher-Einstieg 
     const ctx = ctxOf({ H4: BASE });
     const lib = analyzeLib(ctx, END).find((a) => a.tf === 'H4')!.candidate;
     const cypher = analyzeCyp(ctx, END).find((a) => a.tf === 'H4')!.candidate;
-    expect(lib.checks.map((k) => k.id)).toEqual([...LIB_CHECK_IDS]);
+    expect(lib.checks.filter((c) => !c.veto).map((k) => k.id)).toEqual([...LIB_CHECK_IDS]);
     expect(state(lib, 'LIB-09')).not.toBe(M);
     expect(cypher.checks.map((k) => k.id)).toEqual([...CYP_CHECK_IDS]);
   });
@@ -530,4 +531,8 @@ test.describe('CYP: Abdeckung', () => {
     const got = new Set([libRun([cypherAt('sell', 130)]), libRun([cypherAt('sell', 135)])].map((c) => state(c, 'LIB-09')));
     expect([...got].sort()).toEqual([M, N].sort());
   });
+});
+
+test('Handelsblock: Einstieg am Level 0.786 der Fib X → C, Stop fest am Einstieg, TP1 aus C → D; keine Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run({ H4: BASE }), { veto: false });
 });

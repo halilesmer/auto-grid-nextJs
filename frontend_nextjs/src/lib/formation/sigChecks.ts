@@ -37,9 +37,10 @@ import {
   type Engulf,
 } from './sig';
 import { counterSide, extremeSide } from './trd';
+import { tradeMetrics } from './trade';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { FormationContext } from './context';
-import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Side, Verdict } from './types';
+import type { Anchor, Candidate, Check, CheckState, Drawing, RuleKind, RuleStatus, Side, Trade, Verdict } from './types';
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'SIG-01': ['required', 'confirmed'],
@@ -364,14 +365,35 @@ const CRV_EPS = 1e-9;
  */
 function crvCheck(trade: SigTrade | undefined, side: Side | undefined, lowerEngulf: boolean | null): [CheckState, number?] {
   if (!trade || !side) return [U];
-  const risk = side === 'buy' ? trade.entry - trade.stop : trade.stop - trade.entry;
-  const reward = side === 'buy' ? trade.tp1 - trade.entry : trade.entry - trade.tp1;
-  // !(x > 0) fängt auch NaN ab
-  if (!(risk > 0) || !(reward > 0)) return [U];
-  const crv = reward / risk;
-  if (!Number.isFinite(crv)) return [U];
-  if (crv > 1 + CRV_EPS) return ['met', crv];
-  return [tri(lowerEngulf), crv];
+  const m = tradeMetrics(trade, side);
+  if (!m) return [U];
+  if (m.crv > 1 + CRV_EPS) return ['met', m.crv];
+  return [tri(lowerEngulf), m.crv];
+}
+
+export interface TradeSigChecks {
+  /** SIG-15 (Kauf) oder SIG-16 (Verkauf): die Wave bestätigt die letzten zwei Extrempunkte der Gegenseite nicht; `veto: true`, ändert kein Urteil */
+  veto: Check;
+  /** SIG-29 am Handel (CRV bis TP1); Wert = CRV */
+  sig29: Check;
+}
+
+/**
+ * Veto- und SIG-29-Zeile für den Handelsblock einer Formation (A40.2, A40.3). Rechnet nur Divergenz und tiefere Engulf-Prüfung der Zeiteinheit `tf`,
+ * nicht die ganze Signalprüfung. Fehlt ein Wert des Trades, ist SIG-29 nicht messbar.
+ */
+export function tradeSigChecks(env: Env, tf: ContextTimeframe, side: Side, trade: Pick<Trade, 'entry' | 'stop' | 'tp1'>): TradeSigChecks {
+  // Kauf: Hochs (Widerstand) prüfen, Verkauf: Tiefs (Unterstützung)
+  const zs: ZoneSide = side === 'buy' ? 'resistance' : 'support';
+  const trend = env.trends.get(tf);
+  const div = trend ? divergenceOf(trend, zs) : null;
+  const vetoState: CheckState = div && div.a.wave !== null && div.b.wave !== null ? flag(div.tie) : U;
+  const veto: Check = { ...mk(side === 'buy' ? 'SIG-15' : 'SIG-16', vetoState), veto: true };
+  const lowerTf = neighborTf(env, tf, 1);
+  const lowerEngulf = lowerTf ? engulfOf(env, lowerTf, side, 2) !== null : null;
+  const full = trade.entry !== null && trade.stop !== null && trade.tp1 !== null;
+  const [state, value] = crvCheck(full ? { entry: trade.entry!, stop: trade.stop!, tp1: trade.tp1! } : undefined, side, lowerEngulf);
+  return { veto, sig29: mk('SIG-29', state, value) };
 }
 
 /** SIG-46: die aus der tieferen Zeiteinheit zusammengefassten Kerzen stimmen mit der geladenen höheren überein */

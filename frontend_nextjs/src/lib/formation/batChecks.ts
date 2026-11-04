@@ -14,6 +14,7 @@ import { nearEdge } from './cdt';
 import { rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, BAT_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
+import { harmonicTrade, withTrade } from './tradeApply';
 import type { Env } from './reasons';
 import {
   analyzeXabcd,
@@ -150,7 +151,8 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'BAT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'BAT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'BAT-07'), false);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: number, reached: boolean): Drawing[] {

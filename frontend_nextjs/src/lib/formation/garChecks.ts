@@ -13,6 +13,7 @@ import { nearEdge } from './cdt';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, FIB_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
+import { harmonicTrade, withTrade } from './tradeApply';
 import type { Env } from './reasons';
 import {
   analyzeXabcd,
@@ -161,7 +162,8 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
     C: anchorAt(bars, c.idx, c.price),
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
-  return { code: 'GAR', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'GAR', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'GAR-05'), false);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dTarget: number, reached: boolean): Drawing[] {

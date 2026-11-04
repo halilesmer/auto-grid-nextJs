@@ -44,4 +44,4 @@ export const find = (c: Candidate, id: string) => {
   return hit;
 };
 export const state = (c: Candidate, id: string): CheckState => find(c, id).state;
-export const statesOf = (c: Candidate) => c.checks.map((x) => [x.id, x.state]);
+export const statesOf = (c: Candidate) => c.checks.filter((x) => !x.veto).map((x) => [x.id, x.state]);

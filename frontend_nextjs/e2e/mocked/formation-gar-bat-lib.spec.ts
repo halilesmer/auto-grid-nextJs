@@ -21,6 +21,7 @@ import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/type
 import { buildEnv } from '../../src/lib/formation/reasons';
 import { higherAgainst } from '../../src/lib/formation/xabcd';
 import { D1, END, H4, M15, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -695,3 +696,9 @@ test.describe('GAR-19 mit Wochenkerzen aus D1', () => {
     expect(gar19({ D1: W1_DIVERGENT, H4: H4_RUN })).toBe(U);
   });
 });
+
+for (const [code, base] of [['GAR', GAR_BASE], ['BAT', BAT_BASE]] as const) {
+  test(`Handelsblock ${code}: Einstieg am D, Ziel und Stop aus der Fib A → D; keine Veto-Zeile`, { tag: ['@FRM-39', '@FRM-40'] }, () => {
+    expectTradeShape(run(code, { H4: base }), { veto: false });
+  });
+}

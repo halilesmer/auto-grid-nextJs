@@ -24,6 +24,7 @@ import {
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
 import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
+import { harmonicTrade, withTrade } from './tradeApply';
 import { abcdIsCdt } from './cdt';
 import { evaluate as evaluateBat } from './batChecks';
 import { evaluate as evaluateGar } from './garChecks';
@@ -300,7 +301,10 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
     C: { time: bars[s.c.idx].time, price: s.c.price },
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
-  return { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  // Ziel-Fib wie Z-ABCD-05: ab A bei Divergenz oder Harmonik, sonst ab C
+  const from = divState === 'met' || harmonic === 'met' ? s.a : s.c;
+  return withTrade(candidate, env, tf, harmonicTrade(from, d ?? null, reached, ABCD_PARAMS.targets, 'ABCD-08'), false);
 }
 
 function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined): Drawing[] {

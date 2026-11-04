@@ -15,6 +15,7 @@ import { analyze2618, check2618Candidate, F2618_CHECK_IDS } from '../../src/lib/
 import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, barsOf, mirror, zig, type Row } from '../fixtures/formation-rows';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -281,3 +282,7 @@ for (const r of REAL) {
     expect(cut.verdict).toBe(c.verdict);
   });
 }
+
+test('Handelsblock: Einstieg am Level 0.618, Stop an der Kante, TP1 an der Zone von I; keine Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run({ H4: BASE }), { veto: false });
+});

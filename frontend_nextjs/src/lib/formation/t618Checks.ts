@@ -14,6 +14,7 @@ import { closesBeyond, otherSide, zoneGeometry, type ZoneSide } from './frz';
 import { counterLine, lineAtBar, legLens, reversalSide, shrinks } from './lineChannel';
 import type { ObPoint } from './obo';
 import { T618_PARAMS, type ContextTimeframe } from './params';
+import { withTrade, type TradeInput } from './tradeApply';
 import { buildEnv, envFor, type Env } from './reasons';
 import { divergenceOf } from './sig';
 import { impulseEnds, wideAgainst } from './f2618';
@@ -143,7 +144,17 @@ function evaluate(env: Env, tf: ContextTimeframe, model: TrendModel, pPos: numbe
     I: anchorAt(bars, i.idx, i.price),
   };
   if (s.touch) points.K = anchorAt(bars, s.touch.idx, s.touch.level);
-  return { code: 'T618', side: reversalSide(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  const candidate: Candidate = { code: 'T618', side: reversalSide(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  // Einstieg = Level 0.618 der Fib P → I, Stop = jenseits der Fraktalzone von P, TP1 = nahe Kante der Fraktalzone von I
+  const pZone = zoneGeometry(bars, p.idx, es, tf);
+  const iZone = zoneGeometry(bars, i.idx, cs, tf);
+  const trade: TradeInput = {
+    entry: levelPrice(s.leg, T618_PARAMS.entryLevel),
+    stop: es === 'resistance' ? pZone.top : pZone.bottom,
+    tp1: es === 'resistance' ? iZone.top : iZone.bottom,
+    reason: {},
+  };
+  return withTrade(candidate, env, tf, trade, true);
 }
 
 type Return = NonNullable<ReturnType<typeof returnTouch>>;

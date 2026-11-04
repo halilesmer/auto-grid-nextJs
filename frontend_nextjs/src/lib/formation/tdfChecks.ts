@@ -15,6 +15,7 @@ import { nearEdge } from './cdt';
 import { closesBeyond, otherSide, outward, wickEnd, zoneGeometry, type Rect, type ZoneSide } from './frz';
 import { closesInRowBeyond, type ObPoint } from './obo';
 import { FRZ_PARAMS, TDF_PARAMS, type ContextTimeframe } from './params';
+import { withTrade, type TradeInput } from './tradeApply';
 import { buildEnv, envFor, type Env } from './reasons';
 import { exemptFor, settle } from './settle';
 import { formationCloses } from './trdFormation';
@@ -341,7 +342,22 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
   if (base.form === 'box') add('FLOOR', base.bottoms[0]);
   // B ist der Zielpunkt des Alarms: erst setzen, wenn das Urteil nicht mehr „im Aufbau“ ist
   if (brk !== null && verdict !== 'forming') points.B = anchorAt(bars, brk, bars[brk].close);
-  return { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld && brk !== null ? { pointHeld, heldPoint: anchorAt(bars, brk, bars[brk].close) } : {}) };
+  const candidate: Candidate = { code: 'TDF', side: sideOf(es), tf, points, checks: withDrawings, drawings, verdict, invalidBy, ...(pointHeld && brk !== null ? { pointHeld, heldPoint: anchorAt(bars, brk, bars[brk].close) } : {}) };
+  // Einstieg = Schluss der Ausbruchskerze (TDF-04), Stop = jenseits der letzten Fraktalzone der Gegenseite je Form, TP1 = Ziel der Form (Z-TDF-09)
+  let lastLow: ObPoint | null = null;
+  if (base.form === 'flag') lastLow = base.c2 ?? base.c1;
+  else if (base.form === 'triangle') lastLow = base.l2 ?? base.l1;
+  // Schale: Stop an der Zone des Schalentiefs (HDL-41, Regelbuch nennt nur diese Vorgabe)
+  else if (base.form === 'bowl') lastLow = base.low;
+  const stopZone = lastLow ? zoneGeometry(bars, lastLow.idx, cs, tf) : floor;
+  const trade: TradeInput = {
+    entry: brk !== null ? bars[brk].close : null,
+    stop: stopZone ? farEdge(cs, stopZone) : null,
+    // Flagge: TP1 ist die Widerstandszone der Flagge (nahe Kante der Zone von H1), die Masthöhe ist TP2 (E-5)
+    tp1: base.form === 'flag' ? nearEdge(es, zoneH) : target,
+    reason: { ...(brk === null ? { entry: 'TDF-04' } : {}), ...(stopZone ? {} : { stop: 'TDF-24' }), ...(target === null ? { tp1: 'TDF-09' } : {}) },
+  };
+  return withTrade(candidate, env, tf, trade, true);
 }
 
 interface DrawInput {

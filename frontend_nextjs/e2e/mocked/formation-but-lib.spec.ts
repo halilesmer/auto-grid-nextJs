@@ -20,6 +20,7 @@ import { analyzeCyp } from '../../src/lib/formation/cypChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { END, H1, H4, mirror, zig, type Row } from '../fixtures/formation-rows';
 import { AT, M, N, U, atOf, chop, ctxOf, find, harmonic, lowerRows, makeRun, state, wick, wickOnlyD } from '../fixtures/formation-harmonic';
+import { expectTradeShape } from '../fixtures/formation-trade';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-13' }, fn);
 const run = makeRun(checkButCandidate);
@@ -387,3 +388,7 @@ function describe_reversal() {
     });
   }
 }
+
+test('Handelsblock: Einstieg am D, Ziel und Stop aus der Fib A → D; keine Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
+  expectTradeShape(run({ H4: BASE }), { veto: false });
+});
