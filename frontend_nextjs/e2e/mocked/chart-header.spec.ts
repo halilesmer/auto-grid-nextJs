@@ -157,6 +157,55 @@ test.describe('UI-15 Formation mit Ergebniszeile im Querformat', () => {
     expect(clipped, 'abgeschnittene Elemente im Kontoknopf').toEqual([]);
   });
 
+  const rect = (page: Page, id: string) => page.getByTestId(id).first().evaluate(e => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; });
+
+  /** Querformat (A8.2): Zeiteinheiten links in Zeile 2 vor der Formationsliste, Symbolfeld zeigt den Namen ganz, kein Seitenscroll */
+  async function expectRow2(page: Page, tfId: string, formsId: string, tfLastId = tfId) {
+    const tf = { ...(await rect(page, tfId)), right: (await rect(page, tfLastId)).right };
+    const forms = await rect(page, formsId);
+    const sel = await rect(page, 'formation-selectors');
+    expect(tf.top, 'Zeiteinheiten unter Zeile 1').toBeGreaterThanOrEqual(sel.bottom - 1);
+    expect(Math.abs(forms.top - tf.top), 'Formationen in derselben Zeile wie die Zeiteinheiten').toBeLessThanOrEqual(4);
+    const status = await rect(page, 'formation-status-chip');
+    expect(status.top, 'Werkzeuge in Zeile 1').toBeLessThan(sel.bottom);
+    const bar = await rect(page, 'formation-toolbar');
+    expect(status.right, 'Werkzeuge ragen nicht aus der Leiste').toBeLessThanOrEqual(bar.right + 1);
+    expect(tf.right, 'Zeiteinheiten links vor den Formationen').toBeLessThanOrEqual(forms.left + 1);
+    expect(tf.left).toBeLessThan(40);
+    const input = page.getByTestId('formation-symbol').locator('input');
+    await expect(input).toHaveValue(/EURUSD/);
+    expect(await input.evaluate(e => e.scrollWidth <= e.clientWidth + 1), 'Symbolfeld abgeschnitten').toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(812);
+    await expect.poll(() => height(page)).toBeLessThanOrEqual(MAX_BAR);
+  }
+
+  test('812 × 375, Formation mit Favoriten: Zeiteinheiten links in Zeile 2, Symbolfeld und Konto ganz', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, ['EURUSD', 'GBPUSD']);
+    await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+    await expectRow2(page, 'favorites-timeframes', 'favorites-forms');
+    await expect(page.getByTestId('favorites-timeframes')).toHaveCount(1);
+    const select = page.getByRole('combobox', { name: msg('account.select.aria') });
+    await expect(select).toContainText(ACCOUNT_NAME);
+  });
+
+  test('812 × 375, Formation ohne Favoriten: D1–M15 links in Zeile 2 vor der Formationsliste', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, []);
+    await expect(page.getByTestId('formation-form-GAR')).toBeVisible();
+    await expectRow2(page, 'formation-tf-D1', 'formation-forms', 'formation-tf-M15');
+    await expect(page.getByTestId('formation-tf-D1')).toHaveCount(1);
+  });
+
+  test('Formation hochkant und Desktop: Zeiteinheiten liegen über der Formationszeile (kein Querformat-Raster)', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, ['EURUSD', 'GBPUSD']);
+    for (const [w, h] of [[375, 812], [1440, 900]] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+      const tf = await rect(page, 'favorites-timeframes');
+      const forms = await rect(page, 'favorites-forms');
+      expect(tf.bottom, `${w} × ${h}: Zeiteinheiten über der Formationszeile`).toBeLessThanOrEqual(forms.top + 1);
+    }
+  });
+
   test('Formation mit Favoriten hochkant (375 × 812): die Favoriten-Zeilen behalten ihre Höhen', { tag: '@UI-15' }, async ({ page, worker }) => {
     await open(page, worker, ['EURUSD', 'GBPUSD']);
     for (const [w, h] of [[375, 812]] as const) {

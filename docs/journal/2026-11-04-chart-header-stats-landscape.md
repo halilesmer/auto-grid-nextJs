@@ -33,6 +33,20 @@ Bar height before: Formation about 108 px, Setup 123 px, Free 93 px. After: at m
 ## Follow-up: Formation with result row (PR for UI-15)
 The first test did not see two faults in Formation at 812 x 375, because the mock had no hits and no favorites. With favorites the bar was 70 px high: the favorites time frames were 38 px high (no `short` height) and the result row was 31 px. Also the account select was only 82 px wide and cut the account name. Fix, only with `short:` classes: time frames and result row get `short:` classes in `FormationToolbar` (not in the favorites sidebar): `h-7`, `min-h-[26px]`, one line, scrolls sideways; account select `short:min-w-40` (new prop `className`, set only in Formation). Now the bar is 62 px. Cost: the symbol field is a little narrower at 812 px. New tests use mock accounts and the Gartley fixture with favorites. Lesson: a layout test needs the data that fills every row of the bar.
 
+## Follow-up: time frames in row 2 (design A8.2)
+After PR 338 the bar was 62 px high and the account name was complete, but the symbol field was only 42 px wide: "XAUUSD" was not readable. Row 2 held only the result row (about 15 % of its width). The owner approved design A8.2 on 2026-11-04: with `short`, the time frames move to the left end of row 2, in front of the forms.
+
+| File | Change |
+|---|---|
+| `FormationToolbar.tsx` | With `short` the toolbar root is a grid with three columns (`auto`, `minmax(0,1fr)`, `auto`) and two rows. The top bar and the time frame block are `display: contents`, so each element stays once in the DOM. Row 1: selectors (columns 1 and 2) and the tools (column 3). Row 2: time frames (column 1) and forms (columns 2 and 3, scrolls sideways). The border moves to the root. |
+| `FormationToolbar.tsx` (wrapper) | The custom time frames node (favorites) sits in a wrapper that is `contents` and, with `short`, a grid item in row 2 with `h-7`. The component `FavoritesTimeframes` is not changed. |
+
+Known limit: the tab order follows the DOM (selectors, time frames, tools, forms), so focus jumps from row 2 back to row 1 at 812 px. `order` cannot change the tab order. The favorites sidebar uses the same `FavoritesTimeframes` component; the grid classes sit in the toolbar wrapper so the sidebar does not change.
+
+Below `short` the layout does not change: `display: contents` is the default of the new tool wrapper, so it adds no box.
+
+Measured (812 x 375, mock worker, 10-digit account name): bar 63 px (34 + 28 + 1 border), same with and without favorites. Symbol field 192 px wide. The account name is complete. The page has no horizontal scroll. The tests were red before the change (time frames in row 1) and green after it.
+
 ## Lessons
 - A scroll container (`overflow-x: auto`) on the bar clips the dropdowns that sit inside it (account list, symbol search). The review found this. The bar now has no overflow; only the legend scrolls. The test opens the account list at 812 x 375 and checks that its lower edge is on top.
 - With `auto` grid columns the legend wrapped and row 2 was 47 px high. The legend now has its own scroll column (`minmax(0,1fr)`) and does not wrap.
