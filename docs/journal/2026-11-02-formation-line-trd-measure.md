@@ -3,7 +3,7 @@ date: 2026-11-02
 author: Claude
 type: fix
 status: done
-pr: [305]
+pr: [305, 356]
 features: [FRM-03, FRM-16, FRM-17]
 areas: [frontend, tests]
 ---
