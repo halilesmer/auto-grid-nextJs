@@ -3,7 +3,7 @@ date: 2026-11-04
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [350]
 features: [LOG-07, ENG-27]
 areas: [worker]
 ---
