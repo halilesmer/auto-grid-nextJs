@@ -79,7 +79,7 @@ charts `--chart-1…5`.
 
 ## 8. Charts
 
-`lightweight-charts` (`src/components/chart/`, `ChartViewer.tsx`): the chart can't use Tailwind
+`lightweight-charts` (`src/components/analysis/chart/ChartCore.tsx`, the only `createChart` for candle charts; shell `ChartView`): the chart can't use Tailwind
 classes. Existing code still has literal colours; for new code read the CSS tokens at runtime
 (`getComputedStyle`) and re-apply them on theme change, keeping the §2 colour mapping. For new chart types, stat tiles or KPI
 rows also load the `dataviz` skill.

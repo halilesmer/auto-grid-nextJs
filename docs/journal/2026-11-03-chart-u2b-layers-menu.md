@@ -2,7 +2,7 @@
 date: 2026-11-03
 author: Claude
 type: plan
-status: open
+status: done
 pr: [332]
 features: [UI-13, UI-11, FRM-35, ANA-19]
 areas: [frontend, docs]
@@ -46,5 +46,5 @@ The coordinator approved them on 2026-11-03. The checks stay the same; only the 
 | `chart-layers-menu.spec.ts` (UI-13, new) | Menu and gear `analysis-settings` show the same state for pauses and gaps, in both directions. | Two places for the same value (the gear goes in U3). |
 
 ## Open points
-- [ ] U3: remove the gear `analysis-settings` as the artboard shows (top bar without gear). ANA-03 and `analysis-trades` then move to legend chips or the menu `Layers`. Pauses and gaps are in two places until then (menu and gear).
-- [ ] U3: merge the pages.
+- [x] (done 2026-11-03, PR 334) U3: remove the gear `analysis-settings` as the artboard shows (top bar without gear). ANA-03 and `analysis-trades` then move to legend chips or the menu `Layers`. Pauses and gaps are in two places until then (menu and gear, before PR 334).
+- [x] (done 2026-11-03, PR 333 and 334) U3: merge the pages.

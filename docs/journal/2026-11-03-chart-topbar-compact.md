@@ -63,6 +63,6 @@ Fixed: the formation legend on `/formasyon` below lg (it moved up by the bar hei
 Known, not fixed: on a phone (below 30 rem) the tab order does not follow the visual order (CSS `order` moves the mode, range and tools up; WCAG 2.4.3). A flat slot structure would fix it. Landscape phones (height about 375 px) and phones wider than 430 px are not tested.
 
 ## Open points
-- [ ] U2b: the button "Layers".
-- [ ] U3: merge the pages.
+- [x] (done 2026-11-03, PR 332) U2b: the button "Layers".
+- [x] (done 2026-11-03, PR 333 and 334) U3: merge the pages.
 - [ ] The names of account and setup are shortened in the first row at 375 px. A smaller `(i)` or a longer row can fix this if the owner wants it.
