@@ -51,9 +51,9 @@ export function useTrendPath(
   const liveFrom = rates.data?.liveFrom ?? null;
   const path = useMemo(() => {
     if (!tf || !bars) return NONE;
-    // Brokerzeit der Antwort; ohne sie die Uhr des Charts, und ohne verlässliche Uhr gilt die Zeit als unbekannt
+    // Brokerzeit der Antwort; ohne sie die Uhr des Charts, und ohne verlässliche Uhr zählen Kerzen vor UTC jetzt minus 12 h als geschlossen (A13.3.1)
     const now = serverNow ?? (offsetSec === null ? null : nowSec());
-    const closed = closedBars(bars, TIMEFRAME_SEC[tf], now, liveFrom);
+    const closed = closedBars(bars, TIMEFRAME_SEC[tf], now, liveFrom, offsetSec === null ? nowSec() : null);
     return { segments: buildTrendPath(tf, closed, usableTrendSettings(settings)), axis: closed.map((b) => b.time) };
     // nowSec ändert sich nur mit der Brokeruhr; die Kerzen laden bei jeder Antwort neu
   }, [tf, bars, serverNow, liveFrom, offsetSec, settings, nowSec]);

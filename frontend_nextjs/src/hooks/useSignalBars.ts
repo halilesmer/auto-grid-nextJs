@@ -9,7 +9,7 @@ const NONE: Bar[] = [];
 
 /**
  * Geschlossene Kerzen des Charts, aus denen RSI(7) und Wave 5/35 rechnen (ChartView). Brokerzeit der Antwort,
- * sonst die Uhr des Charts; ohne verlässliche Uhr fällt die letzte Kerze weg (wie beim Trendzug).
+ * sonst die Uhr des Charts; ohne verlässliche Uhr fällt die letzte Kerze weg (anders als beim Trendzug, der dann UTC − 12 h nimmt).
  */
 export function useSignalBars(rates: MarketRates | null, timeframe: Timeframe, offsetSec: number | null, nowSec: () => number): Bar[] {
   return useMemo(() => {

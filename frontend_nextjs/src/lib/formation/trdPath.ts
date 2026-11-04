@@ -49,12 +49,21 @@ export function trendSegments(m: TrendModel): TrendSegment[] {
   });
 }
 
+/** Kein Broker liegt hinter UTC-12; eine Kerze, die vor UTC jetzt minus 12 Stunden endet, ist bei jedem Broker geschlossen (A13.3.1) */
+const MAX_BROKER_LAG_SEC = 12 * 3600;
+
 /**
  * Nur geschlossene Kerzen: Öffnungszeit + Dauer ≤ `now` (Brokerzeit) und vor der laufenden Kerze (`liveFrom`). Ist die Brokerzeit
- * unbekannt (`now` null), fällt die letzte Kerze weg: Sie könnte noch laufen, und UTC statt Brokerzeit würde falsch vergleichen.
+ * unbekannt (`now` null), zählt mit `utcNow` (Sekunden) jede Kerze, die vor `utcNow − 12 h` endet; die laufende Kerze bleibt so
+ * draußen, eine vergangene Spanne behält alle Kerzen. Ohne `utcNow` fällt die letzte Kerze weg.
  */
-export function closedBars<T extends { time: number }>(bars: readonly T[], durationSec: number, now: number | null, liveFrom: number | null): T[] {
-  const known = now === null ? bars.slice(0, -1) : bars.filter((b) => b.time + durationSec <= now);
+export function closedBars<T extends { time: number }>(
+  bars: readonly T[], durationSec: number, now: number | null, liveFrom: number | null, utcNow: number | null = null,
+): T[] {
+  let known: T[];
+  if (now !== null) known = bars.filter((b) => b.time + durationSec <= now);
+  else if (utcNow !== null) known = bars.filter((b) => b.time + durationSec <= utcNow - MAX_BROKER_LAG_SEC);
+  else known = bars.slice(0, -1);
   return liveFrom === null ? known : known.filter((b) => b.time < liveFrom);
 }
 
