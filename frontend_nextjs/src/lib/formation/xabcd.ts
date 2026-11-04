@@ -160,7 +160,8 @@ export function zonesNear(env: Env, tf: ContextTimeframe, s: XabcdShape, price: 
   const dTime = s.d ? view.bars[s.d.idx].time : Infinity;
   const out: Rect[] = [];
   for (const z of [...env.frz.zones, ...env.frz.reversed]) {
-    const formedByD = z.fractalTimes.every((ft) => ft >= dTime);
+    // die Fraktalkerze zählt erst, wenn sie vor D geschlossen hat (Öffnung + Länge ihrer Zeiteinheit)
+    const formedByD = z.fractalTimes.every((ft) => ft + TIMEFRAME_SEC[z.tf] > dTime);
     if (z.side === tradeZone && zoneTfCounts(z.tf, tf) && !formedByD && gapToRect(z.rect, price) <= near) out.push(z.rect);
   }
   for (const z of engulfZones(view.bars, view.wide)) {

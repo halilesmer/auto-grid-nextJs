@@ -3,6 +3,7 @@
  * Hier stehen die Preise, die nur die Crab braucht: das Ziel-D bei 1.618 der Fib X → A jenseits von X,
  * und die Zonen am D ohne die gebrochene X-Zone (CRB-12).
  */
+import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { gapToRect } from './abcd';
 import { CRB_PARAMS, type ContextTimeframe } from './params';
 import type { Env } from './reasons';
@@ -24,7 +25,8 @@ export function zonesNearOutsideX(env: Env, tf: ContextTimeframe, s: XabcdShape,
   const xTime = view.bars[s.x.idx].time;
   const out: Rect[] = [];
   for (const z of [...env.frz.zones, ...env.frz.reversed]) {
-    const formedByD = z.fractalTimes.every((ft) => ft >= dTime);
+    // die Fraktalkerze zählt erst, wenn sie vor D geschlossen hat (Öffnung + Länge ihrer Zeiteinheit)
+    const formedByD = z.fractalTimes.every((ft) => ft + TIMEFRAME_SEC[z.tf] > dTime);
     const isXZone = z.tf === tf && z.fractalTimes.includes(xTime);
     if (z.side === tradeZone && zoneTfCounts(z.tf, tf) && !formedByD && !isXZone && gapToRect(z.rect, price) <= near) out.push(z.rect);
   }

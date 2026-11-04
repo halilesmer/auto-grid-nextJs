@@ -80,6 +80,31 @@ for (const spec of ZONE_SPECS) {
   });
 }
 
+// Eine D1-Zone zählt nur, wenn ihre Fraktalkerze vor D geschlossen hat (9b): liegt D in der D1-Kerze, die später selbst Fraktal wird, ist die Zone Folge von D
+for (const spec of ZONE_SPECS) {
+  for (const buy of [true, false]) {
+    for (const c of [
+      { name: 'D liegt in der Fraktal-Kerze', dip: 7, dIdx: 44, want: 'unmet' },
+      { name: 'Fraktal-Kerze schloss vor D', dip: 5, dIdx: 44, want: 'met' },
+      { name: 'Kerzenende gleich Öffnung von D', dip: 7, dIdx: 48, want: 'met' },
+      { name: 'D öffnet in der nächsten Fraktal-Kerze', dip: 8, dIdx: 48, want: 'unmet' },
+    ] as const) {
+      test(`${spec.id}: ${buy ? 'Kauf' : 'Verkauf'}, D1-Zone, ${c.name} → ${c.want}`, { tag: spec.tag }, () => {
+        const h4 = Array.from({ length: 66 }, (_, i) => bar(i * H4, 2999, 3001, 3000));
+        // H4-Kerze 44 liegt in der D1-Kerze 7 (H4-Kerzen 42 bis 47); H4-Kerze 48 öffnet D1-Kerze 8
+        const low = spec.target;
+        const d1 = Array.from({ length: 11 }, (_, i) => i === c.dip ? bar(i * D1, low, low + 3, low + 1) : bar(i * D1, low + 2, low + 4, low + 3));
+        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) });
+        const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
+        const candidate = spec.check(ctx, 66 * H4, {
+          tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(c.dIdx, spec.target),
+        });
+        expect(candidate.checks.find((x) => x.id === spec.id)?.state).toBe(c.want);
+      });
+    }
+  }
+}
+
 // Zonen zählen nur aus der Formations-Zeiteinheit oder einer höheren (Regelbuch: „der Formations- oder einer höheren ZE“)
 type Tf = keyof typeof DUR;
 for (const spec of ZONE_SPECS) {
