@@ -47,7 +47,7 @@ test.describe('UI Sprache', () => {
     await page.goto('/vps');
     await expect(page.getByRole('heading', { name: msg('vps.title', undefined, 'en') })).toBeVisible();
     await page.goto('/chart?mode=setup');
-    await expect(page.getByRole('heading', { name: msg('analysis.title', undefined, 'en') })).toBeVisible();
+    await expect(page.getByRole('heading', { name: msg('nav.chart', undefined, 'en') })).toBeVisible();
   });
 
   test.describe('Deutsch als Startsprache', () => {

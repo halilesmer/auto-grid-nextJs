@@ -205,7 +205,7 @@ function AnalysisView() {
   // Statistik: eine normale Seite, aber mit derselben Kopfleiste wie die Chart-Ansichten (kein Seitentitel mehr, UI-15)
   return (
     <div className="w-full space-y-4 px-0 pb-6 pt-16 md:pb-8" data-testid="analysis-page">
-      <h1 className="sr-only">{t('analysis.title')}</h1>
+      <h1 className="sr-only">{t('nav.chart')}</h1>
       <div className="@container/formation-main" data-testid="analysis-controls">
         <ChartTopBar flat account={account} mode={chrome.mode} target={accountKnown ? zoneSelect : null} timeframes={null} range={chrome.range} view={viewTabs} tools={null} />
       </div>

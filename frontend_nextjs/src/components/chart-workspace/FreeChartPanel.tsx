@@ -74,7 +74,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     {rates.loading && <p className="rounded-lg bg-background/95 p-2 text-sm text-muted-foreground">{t('analysis.chart.loading')}</p>}
   </>;
   return <ChartPage
-    title={t('analysis.title')}
+    title={t('nav.chart')}
     testId="chart-page"
     panelShown={false}
     panel={null}

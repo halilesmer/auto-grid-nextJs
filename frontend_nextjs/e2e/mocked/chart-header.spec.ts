@@ -27,6 +27,7 @@ test.describe('UI-15 Statistik mit Kopfleiste', () => {
       await expect(page.getByTestId('chart-mode-free')).toHaveAttribute('aria-pressed', 'false');
       await expect(page.getByText(msg('analysis.subtitle'))).toHaveCount(0);
       expect(await visibleHeadings(page)).toEqual([]);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(msg('nav.chart'));
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(w);
     });
   }
