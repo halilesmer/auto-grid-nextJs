@@ -238,6 +238,34 @@ test.describe('UI-15 Formation mit Ergebniszeile im Querformat', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
   });
 
+  /** Tab-Folge der Kopfleiste (A19.2): Zeile 1 links nach rechts, dann Zeile 2 links nach rechts. Die Folge ist die DOM-Reihenfolge der fokussierbaren Elemente. */
+  const tabOrderBreaks = (page: Page) => page.getByTestId('formation-toolbar').evaluate((bar) => {
+    const items = [...bar.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+      .filter(e => !(e as HTMLButtonElement).disabled && e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().height > 0)
+      .map(e => ({ id: e.dataset.testid ?? e.getAttribute('aria-label') ?? e.tagName, r: e.getBoundingClientRect() }));
+    // Gleiche Zeile: Mitten höchstens 8 px auseinander. Sichtreihenfolge: erst weiter unten = später, in der Zeile weiter rechts = später.
+    const breaks: string[] = [];
+    const cy = (r: DOMRect) => r.top + r.height / 2;
+    for (let i = 1; i < items.length; i++) {
+      const a = items[i - 1], b = items[i];
+      const dy = cy(b.r) - cy(a.r);
+      if (dy < -8 || (Math.abs(dy) <= 8 && b.r.left < a.r.left - 1)) breaks.push(`${a.id} (y ${Math.round(cy(a.r))}, x ${Math.round(a.r.left)}) → ${b.id} (y ${Math.round(cy(b.r))}, x ${Math.round(b.r.left)})`);
+    }
+    return { count: items.length, breaks };
+  });
+
+  for (const [w, h, sidebar] of [[812, 375, false], [1440, 900, true], [1440, 900, false], [375, 812, false], [1700, 900, false]] as const) {
+    test(`Formation ${w} × ${h}${w === 1440 ? `, Seitenleiste ${sidebar ? 'offen' : 'zu'}` : ''}: die Tab-Folge der Kopfleiste folgt der Sichtreihenfolge`, { tag: '@UI-15' }, async ({ page, worker }) => {
+      await page.addInitScript((open) => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open, tab: 'conditions' })), sidebar);
+      await open(page, worker, ['EURUSD', 'GBPUSD']);
+      await page.setViewportSize({ width: w, height: h });
+      await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+      // Die DOM-Reihenfolge stellt sich nach der Messung des Containers um
+      await expect.poll(async () => (await tabOrderBreaks(page)).breaks, { message: 'Sprünge der Tab-Folge' }).toEqual([]);
+      expect((await tabOrderBreaks(page)).count).toBeGreaterThan(5);
+    });
+  }
+
   test('Formation mit Favoriten hochkant (375 × 812): die Favoriten-Zeilen behalten ihre Höhen', { tag: '@UI-15' }, async ({ page, worker }) => {
     await open(page, worker, ['EURUSD', 'GBPUSD']);
     for (const [w, h] of [[375, 812]] as const) {

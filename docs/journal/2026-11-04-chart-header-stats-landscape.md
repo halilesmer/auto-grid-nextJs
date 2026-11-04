@@ -41,7 +41,7 @@ After PR 338 the bar was 62 px high and the account name was complete, but the s
 | `FormationToolbar.tsx` | With `short` the toolbar root is a grid with three columns (`auto`, `minmax(0,1fr)`, `auto`) and two rows. The top bar and the time frame block are `display: contents`, so each element stays once in the DOM. Row 1: selectors (columns 1 and 2) and the tools (column 3). Row 2: time frames (column 1) and forms (columns 2 and 3, scrolls sideways). The border moves to the root. |
 | `FormationToolbar.tsx` (wrapper) | The custom time frames node (favorites) sits in a wrapper that is `contents` and, with `short`, a grid item in row 2 with `h-7`. The component `FavoritesTimeframes` is not changed. |
 
-Known limit: the tab order follows the DOM (selectors, time frames, tools, forms), so focus jumps from row 2 back to row 1 at 812 px. `order` cannot change the tab order. The favorites sidebar uses the same `FavoritesTimeframes` component; the grid classes sit in the toolbar wrapper so the sidebar does not change.
+Known limit (done 2026-11-04, see `2026-11-04-formation-tab-order.md`): the tab order followed the DOM (selectors, time frames, tools, forms), so focus jumped from row 2 back to row 1 at 812 px. It now follows the visual order. The favorites sidebar uses the same `FavoritesTimeframes` component; the grid classes sit in the toolbar wrapper so the sidebar does not change.
 
 Below `short` the layout does not change: `display: contents` is the default of the new tool wrapper, so it adds no box.
 
