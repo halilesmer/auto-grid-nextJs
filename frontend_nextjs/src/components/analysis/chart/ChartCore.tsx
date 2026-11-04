@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import {
   AreaSeries,
@@ -28,7 +28,7 @@ import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
 import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView } from '@/components/chart-workspace/runtime';
-import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { emptyChartDocument, useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
 import {
   FractalsPrimitive,
@@ -281,6 +281,7 @@ export function ChartCore({
   const hasCurves = !!(balance || equity);
   const hasRsi = !!systemRsi;
   const hasWave = !!systemWave;
+  const rsiVisibleNow = !!systemRsi?.visible, waveVisibleNow = !!systemWave?.visible;
   const hasNotes = notes !== undefined;
   const marginsForRef = useRef(marginsFor);
   useEffect(() => {
@@ -415,6 +416,16 @@ export function ChartCore({
       },
     });
   }, [priceRange]);
+
+  const systemPanes = useMemo(() => [
+    ...(hasRsi && rsiVisibleNow ? [{ id: 'rsi', label: 'RSI(7)', paneIndex: 1 }] : []),
+    ...(hasWave && waveVisibleNow ? [{ id: 'wave', label: 'Wave 5/35', paneIndex: hasRsi ? 2 : 1 }] : []),
+  ], [hasRsi, hasWave, rsiVisibleNow, waveVisibleNow]);
+  const hideSystemPane = useCallback((id: string) => {
+    if (!workspaceKey) return;
+    const state = useChartWorkspaceStore.getState(), doc = state.documents[workspaceKey] ?? emptyChartDocument();
+    state.setDocument(workspaceKey, { ...doc, overlays: { ...doc.overlays, [id]: false } });
+  }, [workspaceKey]);
 
   const rsiLevels = systemRsi?.levels;
   useEffect(() => {
@@ -723,7 +734,7 @@ export function ChartCore({
     'data-pauses': data.pauses.length,
   };
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemPanes={systemPanes} onHideSystemPane={hideSystemPane}>
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
       <div ref={surfaceRef} {...surfaceProps} className="absolute top-0 bottom-[calc(var(--workspace-card,0px)+var(--floating-card,0px))] left-[52px] right-0 isolate overflow-hidden bg-card @min-[71rem]/formation-main:bottom-0">

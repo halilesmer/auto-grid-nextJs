@@ -22,7 +22,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding } from './runtime';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
 import { IndicatorDialog } from './IndicatorDialog';
-import { IndicatorLegend, indicatorNames, type OscillatorActions } from './IndicatorLegend';
+import { IndicatorLegend, indicatorNames, type OscillatorActions, type SystemPane } from './IndicatorLegend';
 import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
@@ -53,6 +53,9 @@ interface Props {
   overlays?: ReactNode;
   /** Schalter, die rechts neben den Indikatoren in der Kopfleiste stehen (z. B. Trendzug) */
   toolbarActions?: ReactNode;
+  /** Panes the chart draws itself (system RSI(7), Wave 5/35); each gets a legend row that hides its layer. */
+  systemPanes?: readonly SystemPane[];
+  onHideSystemPane?: (id: string) => void;
   /** Preserve the old RSI preference without modifying the formation detector. */
   showRsi?: boolean;
   className?: string;
@@ -68,7 +71,7 @@ interface Props {
   fullscreenOfPage?: boolean;
 }
 
-export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
+export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, systemPanes, onHideSystemPane, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
   const t = useT(), fmt = useFormat();
   // Auf /chart (Formation) (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
@@ -416,7 +419,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       </div>
       <div className={overlayLayout ? 'contents' : 'relative min-w-0 flex-1'}>
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-[60px] z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
-        <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} textStyle={statusStyle} actions={oscillatorActions} />
+        <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} textStyle={statusStyle} actions={oscillatorActions} systemPanes={systemPanes} onHideSystemPane={onHideSystemPane} />
         {children}
         {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) scale.fitContent(); else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
       </div>

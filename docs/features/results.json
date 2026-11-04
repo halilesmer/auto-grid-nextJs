@@ -278,7 +278,7 @@
     "e2e": {
       "datum": "2026-11-04",
       "status": "passed",
-      "tests": 6
+      "tests": 1
     }
   },
   "ANA-21": {
@@ -292,7 +292,7 @@
     "e2e": {
       "datum": "2026-11-04",
       "status": "passed",
-      "tests": 18
+      "tests": 19
     }
   },
   "BKT-01": {
@@ -1377,14 +1377,14 @@
     "e2e": {
       "datum": "2026-11-04",
       "status": "passed",
-      "tests": 14
+      "tests": 3
     }
   },
   "UI-08": {
     "e2e": {
       "datum": "2026-11-04",
       "status": "passed",
-      "tests": 6
+      "tests": 2
     }
   },
   "UI-09": {

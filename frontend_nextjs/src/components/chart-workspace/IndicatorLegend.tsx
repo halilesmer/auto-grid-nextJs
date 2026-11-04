@@ -38,6 +38,9 @@ export interface OscillatorActions {
   remove: (indicator: Indicator) => void;
 }
 
+/** A pane the chart draws itself (system RSI(7), Wave 5/35); its legend row hides the layer. */
+export interface SystemPane { id: string; label: string; paneIndex: number }
+
 interface Props {
   binding: ChartBinding | null;
   renderer: RefObject<IndicatorRenderer | null>;
@@ -59,6 +62,8 @@ interface Props {
   showValues: boolean;
   textStyle?: CSSProperties;
   actions: OscillatorActions;
+  systemPanes?: readonly SystemPane[];
+  onHideSystemPane?: (id: string) => void;
 }
 
 interface Layout { tops: readonly number[]; paneOf: Readonly<Record<string, number | null>>; priceInset: number }
@@ -70,7 +75,7 @@ const sameLayout = (a: Layout, b: Layout) => a.priceInset === b.priceInset && a.
 const REVEAL = 'opacity-0 transition-opacity has-[[aria-expanded=true]]:opacity-100 group-hover/row:opacity-100 group-focus-within/row:opacity-100 [@media(hover:none)]:opacity-100';
 const REVEAL_PANE = 'opacity-0 transition-opacity group-hover/stack:opacity-100 group-focus-within/stack:opacity-100 [@media(hover:none)]:opacity-100';
 
-export function IndicatorLegend({ binding, renderer, manager, indicators, latest, names, favorites, sideOf, maximizedPaneId, alarmsAvailable, atLimit, overlayLayout, showNames, showParams, showValues, textStyle, actions }: Props) {
+export function IndicatorLegend({ binding, renderer, manager, indicators, latest, names, favorites, sideOf, maximizedPaneId, alarmsAvailable, atLimit, overlayLayout, showNames, showParams, showValues, textStyle, actions, systemPanes = [], onHideSystemPane }: Props) {
   const t = useT(), fmt = useFormat();
   const wrapper = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState<Layout>(NO_LAYOUT);
@@ -173,7 +178,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     // The formation page does not scroll and its chart ends at the bottom edge, so the menu opens upwards below the price pane there.
     const menuPanelClass = overlayLayout && paneIndex > 0 ? 'bottom-full top-auto mb-2 mt-0 max-h-[70dvh] w-64 overflow-y-auto' : 'w-64';
     return <div key={indicator.id} data-indicator-row={indicator.kind} data-visible={indicator.visible} data-drawn={drawn} data-emphasis={emphasis}
-      className={`group/row pointer-events-auto flex min-w-0 items-center gap-0.5 rounded px-1 py-0.5 ${emphasis ? 'bg-muted' : ''}`}>
+      className={`group/row pointer-events-auto flex min-w-0 items-center gap-0.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/80 focus-within:bg-muted/80 ${emphasis || hover.pane === paneIndex ? 'bg-muted/80' : ''}`}>
       <span data-indicator-value={indicator.kind} style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${drawn ? 'text-muted-foreground' : 'text-muted-foreground/60 line-through'}`}>
         {showNames ? indicator.kind : ''}{showParams && drawn ? ` (${indicator.period}${indicator.kind === 'EWO' || indicator.kind === 'MACD' ? `/${indicator.slow}` : ''})` : ''}{showValues && drawn && indicator.values && value !== undefined ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: 5 })}` : ''}
       </span>
@@ -214,16 +219,26 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     </div>;
   };
 
+  const systemRow = (pane: SystemPane) => <div key={pane.id} data-system-row={pane.id}
+    className={`group/row pointer-events-auto flex min-w-0 items-center gap-0.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/80 focus-within:bg-muted/80 ${hover.pane === pane.paneIndex ? 'bg-muted/80' : ''}`}>
+    <span style={textStyle} className="min-w-0 truncate rounded px-1 font-mono text-[11px] text-muted-foreground">{pane.label}</span>
+    <span className={`flex items-center ${REVEAL}`}>
+      <Button size="icon-xs" variant="ghost" hint={t('cw.legend.hideLayer.hint')} aria-label={t('cw.legend.hideLayer', { layer: pane.label })} onClick={() => onHideSystemPane?.(pane.id)}><X size={14} /></Button>
+    </span>
+  </div>;
+
   // A pane group without a drawn indicator (all hidden) has no chart pane; its rows sit in the price pane so they can be shown again.
   const stacks = new Map<number, { price: Indicator[]; panes: string[] }>();
   const stackAt = (index: number) => { if (!stacks.has(index)) stacks.set(index, { price: [], panes: [] }); return stacks.get(index)!; };
   stackAt(0).price.push(...indicators.filter(item => !isOscillator(item)));
   for (const paneId of paneIds) stackAt(layout.paneOf[paneId] ?? 0).panes.push(paneId);
+  for (const pane of systemPanes) stackAt(pane.paneIndex);
 
   return <div ref={wrapper} data-testid="oscillator-controls" className="pointer-events-none absolute left-0 top-0 z-[51] h-px w-px">
     <div data-testid="workspace-indicator-values" className="contents">
       {[...stacks.entries()].sort(([a], [b]) => a - b).map(([paneIndex, stack]) => <div key={paneIndex} style={{ top: (layout.tops[paneIndex] ?? 0) + 4 + (paneIndex === 0 ? layout.priceInset : 0) }}
         className={`group/stack absolute ${overlayLayout ? 'left-14' : 'left-1'} flex w-max max-w-[min(32rem,calc(100vw-6rem))] flex-col items-start gap-0.5`}>
+        {systemPanes.filter(pane => pane.paneIndex === paneIndex).map(systemRow)}
         {stack.price.map(indicator => row(indicator, paneIndex))}
         {stack.panes.map(paneId => <div key={paneId} className="flex min-w-0 max-w-full flex-wrap items-center gap-x-1">
           {indicators.filter(item => item.paneId === paneId).map(indicator => row(indicator, paneIndex))}
