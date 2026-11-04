@@ -38,8 +38,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          for attempt in 1 2 3; do
-            git fetch --depth=1 origin main
+          # GitHub-SSH ist zeitweise gestört (z. B. "Permission denied (publickey)"):
+          # Netzwerkbefehle bis zu 5-mal wiederholen, Wartezeit 5/10/20/40 s.
+          retry() {
+            local n=1 wait=5
+            until "$@"; do
+              if [ "$n" -ge 5 ]; then
+                echo "::error::'$*' schlug nach $n Versuchen fehl"
+                return 1
+              fi
+              echo "'$*' fehlgeschlagen (Versuch $n/5), warte ${wait}s..."
+              sleep "$wait"
+              n=$((n + 1))
+              wait=$((wait * 2))
+            done
+          }
+
+          for attempt in 1 2 3 4 5; do
+            retry git fetch --depth=1 origin main
             git reset --hard origin/main
 
             current="$(tr -d '[:space:]' < VERSION)"
@@ -60,7 +76,7 @@ jobs:
               echo "Version $current -> $next"
               exit 0
             fi
-            echo "Push abgelehnt (main hat sich geändert), neuer Versuch $attempt/3..."
+            echo "Push fehlgeschlagen (main geändert oder SSH gestört), neuer Versuch $attempt/5..."
             sleep $((attempt * 5))
           done
 
