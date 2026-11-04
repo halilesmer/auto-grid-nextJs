@@ -35,14 +35,14 @@ Result (16 px font, measured before the 38 px minimum of row 1 was added): 63 px
 
 ## Changes of behavior to know
 - At 1440 px without the sidebar (container 1348 to 1400 px) the bar was one line before. It is now the grid too. The height is about the same, the time frames are in row 2 at the left. The reason: with favorites the single line wrapped at the same width, and one rule for both is simpler.
-- The tab order follows the DOM: selectors, time frames (row 2), actions (row 1), forms. Focus jumps from row 2 back to row 1. This is the known limit of UI-15 (phone landscape). `order` cannot change the tab order.
+- The tab order followed the DOM: selectors, time frames (row 2), actions (row 1), forms. Focus jumped from row 2 back to row 1. Done: see `2026-11-04-formation-tab-order.md`.
 - Tooltips do not change (`Tooltip` uses the top layer). Phone portrait (375 px) and phone landscape (812 x 375, 63 px) keep their rules: `bar2` has the `short` condition unchanged, and the desktop branch needs a width of at least 64 rem.
 
 ## Known limits
 - Below 48 rem container (sidebar open, window 1024 to about 1099 px at 16 px font; 1280 to 1369 px at 20 px) the old wrapping stays. Selectors and actions need about 722 px; a grid with fixed rows would clip them there. Not measured. Open point if the owner sees 94 px there.
 - The sweep test starts at 1100 px and checks the height at 16 px font with favorites only. It does not see clipping inside the grid.
 - The owner saw 94 px at "1440 px". The sweep does not reproduce it at exactly 1112 px (one line). A window of 1470 px (1142 px container) does. The cause of the owner's report is assumed to be the second band, not proven.
-- Decision for the owner: the tab order jumps between the rows (selectors, row 2 time frames, row 1 actions, row 2 forms). It was a known limit on the phone in landscape. It now applies to desktop windows too. A fix would move the actions in the DOM before the time frames and use `order` in the flex mode.
+- Done (see `2026-11-04-formation-tab-order.md`). Decision for the owner: the tab order jumped between the rows (selectors, row 2 time frames, row 1 actions, row 2 forms). It was a known limit on the phone in landscape. It now applies to desktop windows too. A fix would move the actions in the DOM before the time frames and use `order` in the flex mode.
 
 ## Verification
 tsc and lint without errors. Playwright (`E2E_PORT=3151`): `chart-header.spec.ts` 24 passed; `chart-one-page`, `chart-topbar`, `chart-workspace`, `chart-page`, `formation-page`, `language`, `tooltips` 205 passed. New tests red before the change (94 px), green after.
