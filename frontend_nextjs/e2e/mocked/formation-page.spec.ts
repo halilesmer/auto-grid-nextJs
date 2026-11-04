@@ -628,14 +628,16 @@ test.describe('FRM-22 schmale Ansicht', () => {
 
 test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
-  test('Kopfleiste: durchgehend 38 px, Formationen direkt darunter, Werkzeuge rechts in der Leiste', { tag: '@FRM-23' }, async ({ page, worker }) => {
+  test('Kopfleiste: Zeile 1 mit 38 px, Formationen in Zeile 2, Werkzeuge rechts in Zeile 1', { tag: '@FRM-23' }, async ({ page, worker }) => {
     // Geschlossene Seitenleiste: der Chartbereich ist 1400 px breit, die Werkzeuge stehen in der Leiste (Schwelle 71rem = 1136 px)
     await storeSidebar(page, { open: false, tab: 'conditions' });
     await openPage(page, worker, `${URL}&form=GAR`);
-    const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
-    expect(bar).toEqual({ x: 52, y: 56, width: 1348, height: 38 });
+    // Container 1348 px (< 91rem): zwei Zeilen (UI-15, A13.7). Zeile 1 ist 38 px hoch und trägt die Werkzeuge, Zeile 2 die Zeiteinheiten und Formationen
+    const bar = (await page.getByTestId('formation-toolbar').boundingBox())!;
+    expect(bar).toMatchObject({ x: 52, y: 56, width: 1348 });
+    expect(bar.height).toBeLessThanOrEqual(70);
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
-    expect(forms).toEqual({ x: 52, y: 94, width: 1348, height: 30 });
+    expect(forms.y).toBe(94);
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
     expect(tools.y).toBeGreaterThanOrEqual(56);
     expect(tools.y + tools.height).toBeLessThanOrEqual(94);
@@ -1787,9 +1789,10 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
         document.documentElement.style.fontSize = `${size}px`;
       }, font);
       await expect.poll(async () => {
-        const bar = (await page.getByTestId('formation-topbar').boundingBox())!;
+        // Die Kopfleiste ist bis 91rem Containerbreite ein Raster (UI-15, `contents` am Kopfleisten-Knoten): Bezugspunkt ist die Leiste als Ganzes, Zeile 1 ist 38 px hoch
+        const bar = (await page.getByTestId('formation-toolbar').boundingBox())!;
         const box = (await page.getByTestId('workspace-toolbar').boundingBox())!;
-        if (box.y + box.height <= bar.y + bar.height) return 'oben';
+        if (box.y + box.height <= bar.y + 39) return 'oben';
         return box.y >= bar.y + bar.height ? 'unten' : 'dazwischen';
       }).toBe(tools);
       await expect.poll(() => page.evaluate(() => {
@@ -1938,10 +1941,11 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     // Seite, Urteil und Zähler stehen im Namen, der Hinweis nennt sie ebenfalls
     await expect(chip).toHaveAccessibleName(new RegExp(`${msg('formation.side.buy')}.*${msg('formation.verdict.valid')}.*\\d+/\\d+.*\\d+/\\d+`));
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
-    const topbar = (await page.getByTestId('formation-topbar').boundingBox())!;
+    const topbar = (await page.getByTestId('formation-toolbar').boundingBox())!;
     const compact = (await chip.boundingBox())!;
     expect(tools.y).toBeGreaterThanOrEqual(topbar.y);
-    expect(tools.y + tools.height).toBeLessThanOrEqual(topbar.y + topbar.height + 1);
+    // Zeile 1 der Leiste (UI-15): 38 px
+    expect(tools.y + tools.height).toBeLessThanOrEqual(topbar.y + 39);
     expect(tools.x).toBeGreaterThanOrEqual(compact.x + compact.width);
     // Chartbereich 1264 px: Pille und Zähler
     await page.setViewportSize({ width: 1304, height: 900 });
