@@ -3,7 +3,7 @@ date: 2026-11-04
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [344]
 features: [UI-15]
 areas: [frontend, docs]
 ---
