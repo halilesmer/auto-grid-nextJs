@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { checkCdtCandidate } from '../../src/lib/formation/cdtChecks';
 import { FormationContext } from '../../src/lib/formation/context';
+import { drawingPriceRange } from '../../src/lib/formation/drawingLayout';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeObo } from '../../src/lib/formation/oboChecks';
 import type { ContextTimeframe } from '../../src/lib/formation/params';
@@ -567,4 +568,38 @@ frm('Urteil: gehaltener Bruch trägt seine Lage in heldPoint (Bruchkerze), point
   expect(rows[held.heldPoint!.time / H4][3]).toBe(held.heldPoint!.price);
   expect(run(FLAG_NO_BREAK, FLAG_SPEC).heldPoint).toBeUndefined();
   expect(run(FLAG, FLAG_SPEC).heldPoint).toBeUndefined();
+});
+
+frm('Z-TDF-07: umgekehrte Fib mit den Ankern H1 und Schalentief, Level 1,618 und 2 liegen über H1 (Kauf) bzw. unter H1 (Verkauf)', () => {
+  // Handrechnung Kauf: H1 160, Tief 147 → Preis = Tief + Level × (H1 − Tief); Verkauf ist der Spiegel (200 − Preis)
+  const buyPrice = (level: number) => 147 + level * (160 - 147);
+  for (const [rows, down] of [[BOWL, false], [mirror(BOWL), true]] as const) {
+    const c = run(rows, BOWL_SPEC, { down });
+    expect(c.side).toBe(down ? 'sell' : 'buy');
+    const d = c.drawings.find((x) => x.id === 'Z-TDF-07')!;
+    expect(d.tool).toBe('fib');
+    expect(d.levels).toEqual([1.618, 2]);
+    expect(d.anchors).toHaveLength(2);
+    const [h1, low] = d.anchors;
+    expect(h1).toEqual({ time: c.points.H1.time, price: c.points.H1.price });
+    const at = (a: number) => (down ? 200 - a : a);
+    expect(h1.price).toBeCloseTo(at(160), 5);
+    expect(low.price).toBeCloseTo(at(147), 5);
+    // Die Preise der Levels kommen aus der Fib-Formel der Zeichnung (drawingPriceRange führt fibLevelPrice aus)
+    const range = drawingPriceRange({ ...c, drawings: [d] });
+    expect(range).not.toBeNull();
+    const want = [1.618, 2].map((l) => at(buyPrice(l)));
+    expect(down ? range!.min : range!.max).toBeCloseTo(down ? Math.min(...want) : Math.max(...want), 5);
+    for (const w of want) expect(down ? w < h1.price : w > h1.price).toBe(true);
+    // der Mastanfang ist kein Anker mehr
+    expect(c.points.S).toBeDefined();
+    expect(d.anchors.some((a) => a.time === c.points.S.time)).toBe(false);
+  }
+});
+
+frm('Z-TDF-07: auch ohne Mast gezeichnet, Z-TDF-06 und Z-TDF-03 brauchen den Mast', () => {
+  const ids = run(BOWL_NOMAST, { form: 'bowl', at: [2, 6, 14] }).drawings.map((d) => d.id);
+  expect(ids).toContain('Z-TDF-07');
+  expect(ids).not.toContain('Z-TDF-06');
+  expect(ids).not.toContain('Z-TDF-03');
 });
