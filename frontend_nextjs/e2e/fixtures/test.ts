@@ -32,6 +32,7 @@ export const test = base.extend<{ worker: MockWorker; dashboard: Dashboard; appL
         [LOCALE_STORAGE_KEY, appLocale],
       );
     }
+    if (process.env.E2E_FAKE_NOW) await page.clock.install({ time: new Date(process.env.E2E_FAKE_NOW) });
     await provide(page);
   },
   worker: async ({ page }, provide) => {
