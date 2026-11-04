@@ -69,6 +69,37 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(trendCall.from).toBe(chartCall.from - 400 * 86400);
   });
 
+  test('„Alles“: der Zug beginnt Vorlauf-Tage vor dem Anfang, den der Chart selbst wählt (letzte 5.000 Kerzen)', { tag: '@ANA-21' }, async ({ page, worker }) => {
+    await open(page, worker);
+    await trend(page).click();
+    await expect(chart(page)).toHaveAttribute('data-trend', '6');
+    const calls = ratesCalls(worker).map((c) => ({ from: Number(c.query.get('from')), to: Number(c.query.get('to')) }));
+    const chartCall = calls.reduce((a, b) => (b.from > a.from ? b : a));
+    const trendCall = calls.reduce((a, b) => (b.from < a.from ? b : a));
+    // D1: OPEN_RANGE_BARS = 5.000 Kerzen vor dem Ende, dazu 400 Tage Vorlauf
+    expect(chartCall.to - chartCall.from).toBe(5000 * 86400);
+    expect(trendCall.from).toBe(chartCall.from - 400 * 86400);
+    expect(trendCall.to).toBe(chartCall.to);
+  });
+
+  test('Gekürzter Zeitraum (mehr als 100.000 Zeitschritte): Chart und Zug beginnen am selben gekürzten Anfang, der Vorlauf entfällt', { tag: '@ANA-21' }, async ({ page, worker }) => {
+    worker.state.ratesSeries = { M15: D1_SERIES };
+    await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=M15&from=2020-01-01&to=2025-03-31`);
+    await expect(trend(page)).toBeEnabled();
+    await expect.poll(() => ratesCalls(worker).length).toBeGreaterThan(0);
+    const query = () => ratesCalls(worker).map((c) => ({ from: Number(c.query.get('from')), to: Number(c.query.get('to')) }));
+    // M15 über 5 Jahre: MAX_CHART_BARS = 100.000 Zeitschritte, der Chart ist gekürzt (aktueller Stand, offen: Journal 2026-11-04, Punkt 2)
+    const end = query()[0].to;
+    const first = end - 100_000 * 900;
+    await trend(page).click();
+    // Der Worker liefert 50.000 je Antwort: jede Abfrage hat zwei Seiten, die erste beginnt am gekürzten Anfang.
+    // Zwei erste Seiten = Chart und Zug.
+    await expect.poll(() => query().filter((c) => c.from === first).length).toBeGreaterThanOrEqual(2);
+    expect(new Set(query().map((c) => c.to))).toEqual(new Set([end]));
+    // Kein Aufruf beginnt früher: der Zug hat keinen Vorlauf vor dem gekürzten Anfang
+    expect(Math.min(...query().map((c) => c.from))).toBe(first);
+  });
+
   test('Auf M30 ist der Button gesperrt und es wird nichts für den Zug geladen, auch wenn er an gespeichert ist', { tag: '@ANA-21' }, async ({ page, worker }) => {
     await page.addInitScript(([key]) => localStorage.setItem(key, JSON.stringify({ state: { showTrend: true }, version: 0 })), [PREFS_KEY]);
     await open(page, worker, 'M30');
