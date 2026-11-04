@@ -2,7 +2,7 @@
 date: 2026-10-09
 author: Codex
 type: plan
-status: open
+status: done
 pr: [141, 154]
 features: [BKT-04, BKT-05, BKT-06, BKT-07, BKT-10, ZON-21]
 areas: [frontend, worker, tests, docs]

@@ -1,7 +1,7 @@
 ---
 date: 2026-10-02
 type: plan
-status: open
+status: done
 pr: [86, 87, 88, 89, 90, 91, 93, 94, 96, 98, 100, 101, 102, 108, 109]
 features: [ZON-18, ENG-28, ANA-09, ANA-12]
 areas: [frontend]

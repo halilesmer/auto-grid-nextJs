@@ -2,7 +2,7 @@
 date: 2026-11-02
 author: Claude
 type: feature
-status: open
+status: done
 pr: [294]
 features: [FRM-09, FRM-18, FRM-19]
 areas: [frontend, tests]

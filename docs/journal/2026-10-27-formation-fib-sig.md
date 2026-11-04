@@ -2,7 +2,7 @@
 date: 2026-10-27
 author: Claude
 type: decision
-status: open
+status: done
 pr: []
 features: [FRM-04]
 areas: [frontend]
