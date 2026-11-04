@@ -385,7 +385,8 @@ function drawingsOf(d: DrawInput): Drawing[] {
     const levels = base.form === 'bowl' ? [TDF_PARAMS.bowl.reach, TDF_PARAMS.bowl.spare] : [TDF_PARAMS.flagDepth.min, TDF_PARAMS.flagDepth.max, TDF_PARAMS.maxDepth];
     out.push({ id: 'Z-TDF-06', tool: 'fib', anchors: [at(imp.s), at(h1)], levels, rules: n2([7, ...FIB_RULE[base.form]]), side });
   }
-  if (base.form === 'bowl' && imp.s && pl) out.push({ id: 'Z-TDF-07', tool: 'fibExt', anchors: [at(imp.s), at(h1), at(pl)], levels: [...TDF_PARAMS.inversion], rules: TRADE_RULES, side });
+  // Umgekehrte Fib: 1 bei H1, 0 am Schalentief → Preis = Tief + Level × (H1 − Tief); 1,618 und 2 liegen über H1 (Verkauf: darunter)
+  if (base.form === 'bowl' && pl) out.push({ id: 'Z-TDF-07', tool: 'fib', anchors: [at(h1), at(pl)], levels: [...TDF_PARAMS.inversion], rules: TRADE_RULES, side });
   if (base.form === 'box' && floor) {
     const near = nearEdge(es, zoneH);
     const lower = nearEdge(otherSide(es), floor);
