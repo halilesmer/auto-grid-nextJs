@@ -112,7 +112,7 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   const dist = atrDistance(abcd.level1, dLevel, atr);
   add('BAT-09', dist === null ? U : flag(dist <= HARMONIC_PARAMS.nearAtr), dist ?? undefined);
   add('BAT-10', tri(enoughSpace(s, last, atr)));
-  add('BAT-11', flag(zonesNear(env, tf, s, d && reached ? d.price : dLevel, 0).length > 0));
+  add('BAT-11', flag(zonesNear(env, tf, s, d && reached ? d.price : dLevel, 0, reached).length > 0));
   add('BAT-12', flag(HARMONIC_PARAMS.highTimeframes.includes(tf)));
 
   // Signal am Einstieg (die Divergenz am D ist egal und hat keine Zeile)

@@ -98,6 +98,8 @@ export interface FrzZone {
   rect: Rect;
   /** Öffnungszeiten der Fraktalkerzen in der Zone (zusammengelegt: mehrere) */
   fractalTimes: number[];
+  /** Öffnungszeit und Rechteck jeder Fraktalkerze der Zone; die Zone zeigt die Vereinigung, an D zählen nur die bestätigten Mitglieder (A46.1) */
+  members: { time: number; rect: Rect }[];
   tests: number;
   /** 0 potenziell, 1 stark, 2 sehr stark */
   strength: 0 | 1 | 2;
@@ -448,6 +450,7 @@ function toZone(model: Model, m: TfModel, g: Group, role: 'original' | 'reversed
     role,
     rect: g.rect,
     fractalTimes: g.members.map((x) => m.view.bars[x.idx].time),
+    members: g.members.map((x) => ({ time: m.view.bars[x.idx].time, rect: { top: x.geom.top, bottom: x.geom.bottom } })),
     tests: g.tests,
     strength: g.strength,
     candidate: evaluate(model, m, g, role, undefined),

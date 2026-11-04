@@ -153,16 +153,38 @@ export function closedBeyondX(env: Env, tf: ContextTimeframe, s: XabcdShape): bo
 export const zoneTfCounts = (zoneTf: ContextTimeframe, tf: ContextTimeframe): boolean =>
   CONTEXT_TIMEFRAMES.indexOf(zoneTf) <= CONTEXT_TIMEFRAMES.indexOf(tf);
 
+/**
+ * Rechteck der Fraktalzone, wie sie bei `dTime` zu sehen war (A46.1; FRZ-01..04: die Zone entsteht, wenn das Fraktal fertig ist):
+ * Vereinigung der Mitglieder, deren Fraktalkerze UND `FRZ_PARAMS.neighbors` rechte Nachbarkerzen bis `dTime` geschlossen haben; null ohne solches Mitglied.
+ * Eine zusammengelegte Zone verliert so ein jüngeres, noch unbestätigtes Mitglied, behält aber die älteren. D selbst braucht keinen Kerzenschluss.
+ * Nachbarn zählen als Kerzen der Zonen-Zeiteinheit (Wochenende und Lücken zählen nicht), nicht als Sekunden.
+ */
+export function zoneRectAt(env: Env, z: { tf: ContextTimeframe; members: readonly { time: number; rect: Rect }[] }, dTime: number): Rect | null {
+  const bars = env.views.get(z.tf)?.bars;
+  if (!bars) return null;
+  const dur = TIMEFRAME_SEC[z.tf];
+  const rects = z.members.filter((m) => {
+    const idx = bars.findIndex((b) => b.time === m.time);
+    const last = idx < 0 ? undefined : bars[idx + N];
+    return last !== undefined && last.time + dur <= dTime;
+  }).map((m) => m.rect);
+  if (rects.length === 0) return null;
+  return { top: Math.max(...rects.map((r) => r.top)), bottom: Math.min(...rects.map((r) => r.bottom)) };
+}
+
+/** Zeitpunkt von D für die Zonenzeilen: das echte D, sonst unbegrenzt (die Zeile misst am Ziel-Preis; ein Zwischenextrem ist kein D) */
+const dTimeOf = (view: { bars: readonly FormationBar[] }, s: XabcdShape, atD: boolean): number => (s.d && atD ? view.bars[s.d.idx].time : Infinity);
+
 /** Zonen (Fraktal- und Engulf-Zonen) nahe `price`, die nicht erst das D selbst bildet */
-export function zonesNear(env: Env, tf: ContextTimeframe, s: XabcdShape, price: number, near: number): Rect[] {
+export function zonesNear(env: Env, tf: ContextTimeframe, s: XabcdShape, price: number, near: number, atD = true): Rect[] {
   const view = env.views.get(tf)!;
   const tradeZone = zoneSideOf(s.side);
-  const dTime = s.d ? view.bars[s.d.idx].time : Infinity;
+  const dTime = dTimeOf(view, s, atD);
   const out: Rect[] = [];
   for (const z of [...env.frz.zones, ...env.frz.reversed]) {
-    // die Fraktalkerze zählt erst, wenn sie vor D geschlossen hat (Öffnung + Länge ihrer Zeiteinheit)
-    const formedByD = z.fractalTimes.every((ft) => ft + TIMEFRAME_SEC[z.tf] > dTime);
-    if (z.side === tradeZone && zoneTfCounts(z.tf, tf) && !formedByD && gapToRect(z.rect, price) <= near) out.push(z.rect);
+    // die Zone zählt erst, wenn Fraktalkerze und rechte Nachbarn vor D geschlossen haben (A46.1)
+    const rect = z.side === tradeZone && zoneTfCounts(z.tf, tf) ? zoneRectAt(env, z, dTime) : null;
+    if (rect && gapToRect(rect, price) <= near) out.push(rect);
   }
   for (const z of engulfZones(view.bars, view.wide)) {
     const formedByD = s.d !== null && z.idx >= s.d.idx;

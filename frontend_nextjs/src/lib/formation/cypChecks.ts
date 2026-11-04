@@ -127,7 +127,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   const atr = view.atr[d ? d.idx : last] ?? null;
   const rsiD = d ? (view.rsi[d.idx] ?? null) : null;
   add('CYP-08', rsiD === null ? U : tri(rsiExtreme(rsiD, side)), rsiD ?? undefined);
-  add('CYP-09', flag(zonesNear(env, tf, s, d && reached ? d.price : entry, 0).length > 0));
+  add('CYP-09', flag(zonesNear(env, tf, s, d && reached ? d.price : entry, 0, reached).length > 0));
   add('CYP-10', atr === null ? U : flag(libraAtEntry(libras(), tf, side, entry, P.nearAtr * atr)));
 
   // Ausschluss und PRZ
