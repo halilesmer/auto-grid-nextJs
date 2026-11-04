@@ -59,7 +59,7 @@ async function mockVps(page: Page, overrides: Partial<VpsMock> = {}): Promise<Vp
       });
     }
     if (action.startsWith('fix-elevated') && mock.fixElevated) return reply(mock.fixElevated.body, mock.fixElevated.code);
-    if (req.method() === 'POST') return reply({ ok: true, message: `${action} ausgeführt` });
+    if (req.method() === 'POST') return reply({ ok: true, message: `${action}${url.search} ausgeführt` });
     return reply({ ok: false, error: 'unbekannt' }, 404);
   });
   return mock;
