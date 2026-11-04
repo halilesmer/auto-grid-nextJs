@@ -87,10 +87,21 @@ Details that are not in the plan:
 ## Open points
 - The rule `filter` can remove a drawn correction pair when the continuation comes (15 of 890 prefixes). This is not look-ahead, but a drawn point can go away.
 - AUDNZD H4 hits 8 of 11 at 2.5 × ATR and 10 of 11 at 1.75 × ATR. The last leg is red, not green.
+  - On 2026-11-04 we measured again with the same method. We used fixture candles from the repository and made no worker call.
+    - The 8 reference charts have 66 reference points. The path hits 58 at 2.5 × ATR and 63 at 1.75 × ATR. The extra hits are EURCAD D1 (+2), EURJPY D1 (+1) and AUDNZD H4 (+2). The other five charts do not change.
+    - In the window of the reference points, the path draws 78 points at 2.5 and 124 at 1.75 (+59 %).
+    - We also ran 28 longer series (19 H4, 9 D1), some on the same symbols as the reference charts. At 1.75 the path keeps 619 of the 627 points of the 2.5 path and has about twice as many points in total.
+    - We have no reference drawings for these series. We cannot say if the extra points are correct.
+    - The project owner delegated the decision on 2026-11-04. The threshold stays at 2.5 × ATR.
+    - The measurement table is in appendix K7.3 of the draft (see the next open point).
 - GBPCAD D1 has more points than the chart in one reference case. The source suggests "similar wave lengths" as a rule. This is not measured.
 - The rule book still describes the old path. The project owner decides the new wording for TRD-07, TRD-08, TRD-09, TRD-15, TRD-16, TRD-17, TRD-45, E-2 and E-3.
+  - A draft is ready (2026-11-04, in the local research folder, not in the repository). For each rule it gives the old text, the new text, the evidence in code and tests, and the places where the source differs.
+    - Step 1: TRD-07, TRD-08, TRD-09. Step 2: TRD-15, TRD-16, TRD-17, TRD-45, E-2, E-3.
+    - The project owner must approve each step. The old text stays true for the old path (`fein`), which the formations use by default.
 - [x] Fixed 2026-11-02 (`zug` is a dependency of the run; a change clears the searched slots and the compare marks of the account; test `@FRM-30` "Wechsel des Trendpfads", red before). A change also drops the remembered state of the account (hit keys carry the anchor times of the path, so every hit would look new); the first compare after it remembers silently. Another tab that changes the path reaches the lock tab through the `storage` event (rehydrate); this two-tab case has no test. The favorites search and the alarm (`FormationScanRunner`) read `formationZug` at each pass but did not start again when it changed. After a change, the next pass can report hits that differ from the stored state of the alarm.
 - Not in this step: support line (Z-TRD-04), channel (Z-TRD-05) and the D1 path in H4 (Z-TRD-06).
+  - On 2026-11-04 the project owner decided not to build them now (delegated decision). They stay open for a later plan.
 
 ## Verification
 - `scripts/features/run.sh FRM`: 1091 passed, 0 failed, exit 0.
