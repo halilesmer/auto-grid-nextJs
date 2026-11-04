@@ -2,7 +2,7 @@
 date: 2026-10-02
 type: fix
 status: open
-pr: [97, K5]
+pr: [97, 362]
 features: [ENG-21]
 areas: [worker]
 ---
