@@ -50,7 +50,7 @@ function Slot({ className, children }: { className?: string; children: ReactNode
  * Kopfleiste einer Chartseite im Stil vom Modus Formation von /chart. Ab 30 rem Containerbreite stehen Konto, Modus und Ziel (Symbol bzw. Setup),
  * Zeiteinheiten sowie Zeitraum, Ansicht und Knöpfe in einer umbrechenden Zeile, `extra` (Legenden-Schalter) in der Zeile darunter.
  * Auf dem Handy (unter 30 rem, Handy-Entwurf „Ein Chart · 03.11.“) stehen sie in vier Zeilen:
- * Konto und Ziel; Modus, Zeitraum und Knöpfe; Zeiteinheiten; Ansicht.
+ * Konto und Ziel (das Ziel hat Inhaltsbreite, höchstens 42 %, das Konto den Rest, Variante C von 04.11.); Modus, Zeitraum und Knöpfe; Zeiteinheiten; Ansicht.
  * Ab lg liegt die Leiste über dem Chart (ChartPage); ab 71 rem lässt sie rechts Platz für die Werkzeuge des ChartWorkspace; Schwelle und Reserve stehen mit
  * der Rechnung in FormationToolbar.tsx. Dort reicht sie Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie), damit die
  * Werkzeuge nicht verdeckt werden.
@@ -60,9 +60,9 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
     <div className="pointer-events-none bg-background short:grid short:grid-cols-[max-content_max-content_minmax(0,1fr)] short:[&_[aria-haspopup]]:max-h-7 short:[&_input]:max-h-7 short:border-b short:border-border" data-testid="chart-topbar">
       <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-2 py-1 short:contents', !flat && '@min-[71rem]/formation-main:pr-97', '@max-[30rem]/formation-main:gap-x-1')}>
         <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 max-lg:w-full short:col-span-3 short:w-auto short:flex-nowrap short:border-b short:border-border short:px-2 short:py-0.5', '@max-[30rem]/formation-main:contents')}>
-          <Slot className="@max-[30rem]/formation-main:order-1 @max-[30rem]/formation-main:flex-1 @max-[30rem]/formation-main:basis-2/5">{account}</Slot>
+          <Slot className="@max-[30rem]/formation-main:order-1 @max-[30rem]/formation-main:flex-1 @max-[30rem]/formation-main:basis-[56%]">{account}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-3">{mode}</Slot>
-          <Slot className="@max-[30rem]/formation-main:order-2 @max-[30rem]/formation-main:flex-1 @max-[30rem]/formation-main:basis-2/5">{target}</Slot>
+          <Slot className="@max-[30rem]/formation-main:order-2 @max-[30rem]/formation-main:flex-[0_1_auto] @max-[30rem]/formation-main:max-w-[42%]">{target}</Slot>
         </div>
         <div className={cn('pointer-events-auto flex min-w-0 max-w-full items-center gap-1 short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-6 @max-[30rem]/formation-main:basis-full @max-[30rem]/formation-main:[&>[data-testid=timeframe-select]]:w-full @max-[30rem]/formation-main:[&>[data-testid=timeframe-select]]:justify-between">{timeframes}</Slot>
