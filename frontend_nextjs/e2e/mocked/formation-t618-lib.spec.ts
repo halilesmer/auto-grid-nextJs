@@ -52,12 +52,14 @@ const BASE = lineRows([100, 140, 118, 150, 130, 156, 118, 142]);
 const STRONG = lineRows([100, 140, 118, 150, 130, 170, 118, 152]);
 /** Letzter Zug 130 → 170 über 16 Kerzen (Index 74 bis 90): die Wave steigt dort höher als an H2 (22,1 gegen 20,4), keine Divergenz; I 118 bei Index 98 */
 const LONG_LEG = lineRows([100, 140, 118, 150, 130, 170, 118, 152], [8, 8, 8, 8, 16, 8, 8]);
-/** Die Hochs fallen (160, 150, 145) und die Tiefs steigen (100, 110, 112), ein Doppeltop gibt es nicht. Impulse 60, 40, 33; Linie durch 110 und 112; Fib 145 → 90, Level 0.618 = 124 */
-const NO_DOUBLE = lineRows([100, 160, 110, 150, 112, 145, 90, 126]);
+/** Die Hochs steigen deutlich (130, 150, 175), ein Doppeltop gibt es nicht; P 175 überragt das Hoch davor (150), die Linie gilt. Impulse 50, 45, 40; Linie durch 105 und 135; Fib 175 → 105 (70), Level 0.618 = 148,3, K 150 berührt */
+const NO_DOUBLE = lineRows([80, 130, 105, 150, 135, 175, 105, 150]);
 /** Tiefs 130 und 118 fallen: die Linie steigt nicht */
 const FALLING_LOWS = lineRows([100, 140, 130, 150, 118, 156, 118, 142]);
-/** Tiefs 118 und 148 (1,875 je Kerze): bei P (Index 82) liegt die Linie bei 163 und damit über P 156; die Kerzen davor schließen unter ihr */
+/** Tiefs 118 und 148 (1,875 je Kerze): P 156 überragt das Hoch davor (170) nie, also schließt nach dem zweiten Anker keine Kerze darüber (TRD-34): keine Linie */
 const STEEP = lineRows([100, 140, 118, 170, 148, 156, 118, 142]);
+/** Wie BASE, aber die Kerze nach dem zweiten Anker (Tief 130) schließt mit 130,4 unter der Linie (130,75): Schluss jenseits der Linie vor P, die Linie gilt (Freigabe vor P) */
+const VIOLATED = patched(BASE, at(4) + 1, [131.5, 131.6, 130.1, 130.4]);
 /** Nach P fällt der Preis nur auf 150 (die Linie liegt dort bei 142 und steigt): kein Schluss jenseits der Linie */
 const NO_BREAK = lineRows([100, 140, 118, 150, 130, 156, 150, 155]);
 /** I 135: Schluss unter der Linie, aber nie zweimal unter dem Tief 130; Level 0.618 = 135 + 0,618 × 21 = 147,98, K 149 berührt */
@@ -66,6 +68,12 @@ const NO_CHANGE = lineRows([100, 140, 118, 150, 130, 156, 135, 149]);
 const LATE_CHANGE = lineRows([100, 140, 118, 150, 130, 156, 135, 149, 120]);
 /** I 135, K 145 bleibt unter 0.618 (147,98), danach Fall auf 120: Wechsel ohne Berührung, er zählt bis zur letzten Kerze */
 const CHANGE_NO_TOUCH = lineRows([100, 140, 118, 150, 130, 156, 135, 145, 120]);
+/** P 150,1 überragt das Hoch davor (150) nur mit dem Docht, danach schließt keine Kerze über 150: nach TRD-34 gibt es noch keine Linie */
+const NO_RELEASE = lineRows([100, 140, 118, 150, 130, 150.1, 118, 142]);
+/** Wie NO_RELEASE, aber nach I schließt eine Kerze über 150 (152): die Freigabe kommt erst nach P, P liegt vor der Linie (TRD-42) */
+const RELEASE_AFTER_P = lineRows([100, 140, 118, 150, 130, 150.1, 118, 152]);
+/** Das erste Tief der Linie ist ein Spike (Körper 119, Docht bis 117): Anker ist der Docht der rechten Nachbarkerze (TRD-36) */
+const SPIKE_L1 = patched(BASE, at(2), [119, 119.1, 117, 119]);
 /** Die Reihe endet an I: dort ist noch kein Fraktal fertig */
 const OPEN_I = lineRows([100, 140, 118, 150, 130, 156, 118], 8, 0);
 /** K 138 bleibt unter dem Level 0.618 (141,48) */
@@ -92,8 +100,9 @@ const CASES: Case[] = [
   { name: 'T618-01 ☐: der letzte Impuls ist länger als der vorige', rows: STRONG, expect: { '01': N, '02': M, '04': M } },
   { name: 'T618-08 ☐: der letzte Impuls ist länger und stärker, die Wave an P ist nicht schwächer', rows: LONG_LEG, options: { p: at(5) + 8, i: at(6) + 8 }, expect: { '01': N, '08': N, '04': M } },
   { name: 'T618-02 ☐: die Tiefs fallen, die Linie steigt nicht', rows: FALLING_LOWS, expect: { '02': N } },
-  { name: 'T618-03 ☐: P liegt unter der Linie, Schlüsse jenseits der Linie schon vor P', rows: STEEP, expect: { '03': N, '02': M } },
-  { name: 'T618-04 ☐: nach P schließt keine Kerze unter der Linie', rows: NO_BREAK, expect: { '04': N, '05': N, '06': N, '03': M } },
+  { name: 'T618-02 ☐: P überragt das Hoch davor nie, nach dem zweiten Anker gibt es keine Freigabe der Linie (TRD-34)', rows: STEEP, expect: { '02': N } },
+  { name: 'T618-03 ☐: ein Schluss jenseits der Linie vor P', rows: VIOLATED, expect: { '03': N, '02': M } },
+  { name: 'T618-04 ☐: nach P schließt keine Kerze unter der Linie', rows: NO_BREAK, expect: { '04': N, '05': N, '06': N, '03': M, '07': M } },
   { name: 'T618-05 ☐: Schluss unter der Linie, aber nie zweimal unter dem Tief 130', rows: NO_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
   { name: 'T618-05 ☐: der Trend wechselt erst nach der Berührung von 0.618 (nach dem Einstieg)', rows: LATE_CHANGE, expect: { '04': M, '05': N, '06': M, '07': M } },
   { name: 'T618-05 ☑ ohne Berührung: der Wechsel zählt bis zur letzten Kerze', rows: CHANGE_NO_TOUCH, expect: { '04': M, '05': M, '07': N } },
@@ -111,12 +120,62 @@ for (const c of CASES) {
   });
 }
 
+frm('Urteil: Berührung von 0.618 ohne Trendwechsel davor ist ungültig, T618-05 steht in invalidBy', () => {
+  for (const rows of [NO_CHANGE, LATE_CHANGE]) {
+    const c = run(rows);
+    expect(state(c, 'T618-07')).toBe(M);
+    expect(state(c, 'T618-05')).toBe(N);
+    expect(c.verdict).toBe('invalid');
+    expect(c.invalidBy).toEqual(['T618-05']);
+  }
+  // ohne Berührung bleibt es im Aufbau: der Wechsel kann noch kommen
+  const open = run(CHANGE_NO_TOUCH);
+  expect(open.verdict).toBe('forming');
+  expect(open.invalidBy).toEqual([]);
+  const spiegel = run(NO_CHANGE, { buy: true });
+  expect(spiegel.verdict).toBe('invalid');
+  expect(spiegel.invalidBy).toEqual(['T618-05']);
+});
+
+frm('Linie nach TRD-34: ohne Schluss über dem Hoch vor dem zweiten Anker gibt es keine Linie, T618-02 ☐', () => {
+  for (const buy of [false, true]) {
+    const c = run(NO_RELEASE, { buy });
+    expect(state(c, 'T618-02')).toBe(N);
+    expect(c.verdict).toBe('invalid');
+    expect(c.invalidBy).toContain('T618-02');
+  }
+});
+
+frm('Linie nach TRD-34: kommt die Freigabe erst nach P, ist T618-02 ☐', () => {
+  for (const buy of [false, true]) {
+    const c = run(RELEASE_AFTER_P, { buy });
+    expect(state(c, 'T618-02')).toBe(N);
+    expect(c.invalidBy).toContain('T618-02');
+  }
+});
+
+frm('Suche: ein P ohne Freigabe der Linie ist kein Kandidat', () => {
+  for (const buy of [false, true]) {
+    const c = analyzeT618(ctxOf(buy ? mirror(NO_RELEASE, AXIS) : NO_RELEASE), END)[0].candidate;
+    expect(c.points.P?.time).not.toBe(P * H4);
+  }
+});
+
+frm('TRD-36: ein Spike am ersten Tief der Linie ist kein Anker, die Linie beginnt am Docht der Nachbarkerze', () => {
+  const c = run(SPIKE_L1);
+  expect(state(c, 'T618-02')).toBe(M);
+  const line = c.drawings.find((d) => d.id === 'Z-T618-01')!;
+  expect(line.anchors[0].time).toBe((at(2) + 1) * H4);
+  expect(line.anchors[0].price).toBeGreaterThan(BASE[at(2)][2]);
+});
+
 frm('Urteil: gültig bei allen Pflichten, im Aufbau ohne Bruch oder Berührung, ungültig bei verletzter Struktur', () => {
   expect(run(BASE).verdict).toBe('valid');
   expect(run(NO_BREAK).verdict).toBe('forming');
+  expect(run(NO_BREAK).invalidBy).toEqual([]);
   expect(run(OPEN_I).verdict).toBe('forming');
   expect(run(NO_TOUCH).verdict).toBe('forming');
-  expect(run(NO_CHANGE).verdict).toBe('forming');
+  expect(run(NO_CHANGE).verdict).toBe('invalid');
   expect(run(STRONG).verdict).toBe('invalid');
   expect(run(FALLING_LOWS).verdict).toBe('invalid');
   expect(run(STEEP).verdict).toBe('invalid');
@@ -212,40 +271,53 @@ interface Real {
   file: string;
   /** Prüfzeitpunkt t (MT5-Sekunden) */
   t: number;
-  side: 'sell' | 'buy';
-  verdict: Candidate['verdict'];
-  expect: Record<string, CheckState>;
+  /** true: kein Kandidat, alle Bedingungen nicht messbar (kein P mit gültiger Linie) */
+  none?: boolean;
+  /** bei `none`: das frühere P (Öffnungszeit); mit eigenen Punkten ist T618-02 ☐, weil die Linie erst nach P frei wird */
+  oldP?: number;
+  side?: 'sell' | 'buy';
+  verdict?: Candidate['verdict'];
+  expect?: Record<string, CheckState>;
   /** 2618 ist am selben Ort gültig (Doppeltop/-boden mit Rücklauf) */
   with2618: boolean;
 }
 
 const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
-const ALL = { '01': M, '02': M, '03': M, '04': M, '05': M, '06': M, '07': M } as const;
 const REAL: Real[] = [
-  // Verkauf; alle Pflichten und beide Verstärkungen erfüllt; ohne Doppeltop
-  { file: 't618-sell-h4-01', t: 1763481600, side: 'sell', verdict: 'valid', expect: { ...ALL, '08': M, '09': M }, with2618: false },
-  // Verkauf; Berührung nach 5 Tagen; keine Divergenz, volumenstarke Kerze an der Berührung
-  { file: 't618-sell-h4-02', t: 1762257600, side: 'sell', verdict: 'valid', expect: { ...ALL, '08': N, '09': N }, with2618: false },
-  // Kauf (Spiegelfall), im Aufbau: der Trendwechsel (2025-12-22 08:00) kommt erst nach der Berührung von 0.618 (2025-12-19 20:00);
-  // T618-05 verlangt ihn bis zum Einstieg, also T618-05 ☐ (Befund 30)
-  { file: 't618-buy-h4-01', t: 1766404800, side: 'buy', verdict: 'forming', expect: { ...ALL, '05': N, '08': M, '09': M }, with2618: false },
-  // Kauf ohne Divergenz; hier gilt zugleich ein Doppelboden (2618 gültig): beide Formationen können am selben Ort liegen
-  { file: 't618-buy-h4-02', t: 1764072000, side: 'buy', verdict: 'valid', expect: { ...ALL, '08': N, '09': M }, with2618: true },
+  // K2 freigegeben 2026-11-04: P hat keine Freigabe der Linie (TRD-34), also kein Kandidat (vorher: gültig, alle ☑). Die alte Erwartung hielt nur die Ausgabe fest.
+  { file: 't618-sell-h4-01', oldP: 1763395200, t: 1763481600, none: true, with2618: false },
+  // K2 freigegeben 2026-11-04: wie t618-sell-h4-01, kein Kandidat (vorher: gültig)
+  { file: 't618-sell-h4-02', oldP: 1761854400, t: 1762257600, none: true, with2618: false },
+  // K2 freigegeben 2026-11-04: der Kauf mit der Berührung vor dem Wechsel (2025-12-19 20:00 gegen 2025-12-22 08:00) hat kein P mit Freigabe der Linie,
+  // also kein Kandidat; "ungültig" über T618-05 wird es nicht (vorher: im Aufbau, T618-05 ☐)
+  { file: 't618-buy-h4-01', oldP: 1766131200, t: 1766404800, none: true, with2618: false },
+  // K2 freigegeben 2026-11-04: das frühere P ohne Freigabe fällt weg; die Suche wählt P an der Kerze 11-25 00:00 (Verkauf, vorher: gültiger Kauf).
+  // Kraftverlust ☐, Linie und Bruch ☑, Wechsel, I und Berührung ☐ (Berührung von 0.618 ohne Wechsel davor)
+  { file: 't618-buy-h4-02', t: 1764072000, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '04': M, '05': N, '06': N, '07': N }, with2618: true },
   // Negativfall: keine Kraftverlust-Folge (T618-01 ☐); ein Doppeltop mit Rücklauf gibt es dort trotzdem (2618 gültig)
   { file: 't618-bad-h4-01', t: 1764129600, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '04': M }, with2618: true },
-  // Negativfall: P liegt jenseits der Linie, Schlüsse davor (T618-03 ☐)
-  { file: 't618-bad-h4-02', t: 1763755200, side: 'sell', verdict: 'invalid', expect: { '01': M, '02': M, '03': N, '07': N }, with2618: false },
-  // im Aufbau: nach P noch kein Schluss jenseits der Linie
-  { file: 't618-form-h4-01', t: 1765497600, side: 'sell', verdict: 'forming', expect: { '01': M, '02': M, '03': M, '04': N, '05': N, '06': N }, with2618: false },
+  // K2 freigegeben 2026-11-04: Negativfall, die Suche wählt P eine Kerze früher (11-20 12:00); T618-01 ☐ (vorher T618-03 ☐ am alten P), Linie nach TRD-34 gültig
+  { file: 't618-bad-h4-02', t: 1763755200, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '07': N }, with2618: false },
+  // K2 freigegeben 2026-11-04: im Aufbau wurde kein Kandidat (P ohne Freigabe der Linie)
+  { file: 't618-form-h4-01', oldP: 1765454400, t: 1765497600, none: true, with2618: false },
 ];
 
 for (const r of REAL) {
   frm(`echte Reihe ${r.file}`, () => {
     const fx = loadReal(r.file);
     const c = analyzeT618(new FormationContext(fx.symbol, { H4: fx.bars }), r.t)[0].candidate;
-    expect(c.side).toBe(r.side);
-    expect(c.verdict).toBe(r.verdict);
-    for (const [n, want] of Object.entries(r.expect)) expect(state(c, idOf(Number(n))), idOf(Number(n))).toBe(want);
+    if (r.none) {
+      expect(c.checks.every((k) => k.state === U)).toBe(true);
+      expect(c.verdict).toBe('forming');
+      const bar = fx.bars.find((b) => b.time === r.oldP)!;
+      const side = r.file.includes('buy') ? 'support' : 'resistance';
+      const own = checkT618Candidate(new FormationContext(fx.symbol, { H4: fx.bars }), r.t, { tf: 'H4', p: { time: bar.time, price: side === 'support' ? bar.low : bar.high } });
+      expect(state(own, 'T618-02'), 'T618-02 am früheren P').toBe(N);
+    } else {
+      expect(c.side).toBe(r.side);
+      expect(c.verdict).toBe(r.verdict);
+      for (const [n, want] of Object.entries(r.expect ?? {})) expect(state(c, idOf(Number(n))), idOf(Number(n))).toBe(want);
+    }
     const known = fx.bars.filter((b) => b.time + H4 <= r.t);
     const cut = analyzeT618(new FormationContext(fx.symbol, { H4: known }), r.t)[0].candidate;
     expect(statesOf(cut)).toEqual(statesOf(c));
