@@ -14,7 +14,7 @@ import { FormationSidebarTabs } from '@/components/formation/FormationSidebarTab
 import { FormationStatusChip } from '@/components/formation/FormationStatusChip';
 import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
 import { FormationAlarmMenu } from '@/components/formation/FormationAlarmMenu';
-import { FormationAsOf, FormationAsOfSteps } from '@/components/formation/FormationAsOf';
+import { FormationAsOf, FormationAsOfSteps, useCompact } from '@/components/formation/FormationAsOf';
 import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
 import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/FormationFavoritesBar';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
@@ -50,6 +50,7 @@ const ACCOUNTS_RETRY_MS = 10_000;
  * Formationen und Zeiteinheiten (useFormationScan). Chart, Kandidaten-Liste und Checkliste zeigen den gewählten Kandidaten.
  */
 export function FormationView() {
+  const compact = useCompact();
   const t = useT();
   const locale = useLocale();
   const format = useFormat();
@@ -339,7 +340,13 @@ export function FormationView() {
       }
       floating={
         <>
-        {pastAt !== null && accountKnown && <FormationAsOfSteps float pastAt={pastAt} tfSec={TIMEFRAME_SEC[tf]} now={brokerNowSec} onChange={setAt} />}
+        {accountKnown && (
+          // Schwebende Gruppe: unter 106 rem Container (und auf dem Handy) die Schritte, im Band 91 bis 106 rem auch der Schalter (UI-15)
+          <div className={cn('pointer-events-none absolute bottom-3 right-16 z-20 items-center gap-1', compact ? (pastAt !== null ? 'flex' : 'hidden') : 'flex @min-[106rem]/formation-main:hidden')} data-testid="formation-asof-floating">
+            <FormationAsOf float pastAt={pastAt} now={brokerNowSec} onChange={setAt} />
+            <FormationAsOfSteps float pastAt={pastAt} tfSec={TIMEFRAME_SEC[tf]} now={brokerNowSec} onChange={setAt} />
+          </div>
+        )}
         {hit && (
           <ul className={`pointer-events-none absolute max-lg:mt-(--chart-top) left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
             {drawsZigzag(hit.candidate) && <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>}

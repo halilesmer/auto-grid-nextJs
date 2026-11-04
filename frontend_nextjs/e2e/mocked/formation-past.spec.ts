@@ -38,6 +38,8 @@ async function open(page: Page, worker: MockWorker, query = `&at=${AT_PARAM}`, h
 const badges = (page: Page) =>
   page.locator('[data-testid^="formation-form-"]').evaluateAll((els) => els.map((el) => `${el.getAttribute('data-testid')}:${el.querySelector('[data-testid="hit-badge"]')?.textContent ?? '0'}`));
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+/** Schritte und Schließen stehen in der Kopfleiste (Container ab 106 rem) oder schweben im Chart: je Fall ist genau eines sichtbar */
+const control = (page: Page, name: 'prev' | 'next' | 'close') => page.locator(`[data-testid="formation-asof-${name}"], [data-testid="formation-asof-${name}-float"]`).locator('visible=true');
 const atFromUrl = (page: Page) => new globalThis.URL(page.url()).searchParams.get('at');
 
 test.describe('FRM-38 Stand in der Vergangenheit', () => {
@@ -97,16 +99,16 @@ test.describe('FRM-38 Stand in der Vergangenheit', () => {
 
   test('Zurück und vor gehen um eine Kerze der gewählten Zeiteinheit; das Schließen entfernt at', { tag: '@FRM-38' }, async ({ page, worker }) => {
     await open(page, worker, `&at=${AT_PARAM}&tf=H4`);
-    await page.getByTestId('formation-asof-prev').click();
+    await control(page, 'prev').click();
     await expect.poll(() => atFromUrl(page)).toBe('2025-10-23T00:00');
-    await page.getByTestId('formation-asof-next').click();
+    await control(page, 'next').click();
     await expect.poll(() => atFromUrl(page)).toBe('2025-10-23T04:00');
-    await page.getByTestId('formation-asof-next').click();
+    await control(page, 'next').click();
     await expect.poll(() => atFromUrl(page)).toBe('2025-10-23T08:00');
-    await page.getByTestId('formation-asof-close').click();
+    await control(page, 'close').click();
     await expect.poll(() => atFromUrl(page)).toBeNull();
     await expect(page.getByTestId('formation-asof')).toHaveAttribute('data-state', 'live');
-    await expect(page.getByTestId('formation-asof-steps')).toHaveCount(0);
+    await expect(page.getByTestId('formation-asof-steps-float')).toHaveCount(0);
   });
 
   test('Der Schalter wählt einen Stand; die Zeit springt in 15-Minuten-Schritten; Live setzt zurück', { tag: '@FRM-38' }, async ({ page, worker }) => {
@@ -146,6 +148,23 @@ test.describe('FRM-38 Stand in der Vergangenheit', () => {
     await expect(page.getByTestId('formation-asof-gap')).toHaveText(msg('formation.asof.gap'));
     await expect(page.getByTestId('formation-asof-notice')).toBeVisible();
     await expect(page.getByTestId('formation-loading')).toHaveCount(0);
+  });
+
+  test('Im Band 91 bis 106 rem schwebt der Schalter im Chart, die Kopfleiste bleibt zwei Zeilen hoch (UI-15)', { tag: '@FRM-38' }, async ({ page, worker }) => {
+    await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' })));
+    await page.setViewportSize({ width: 1500, height: 900 });
+    await open(page, worker);
+    await expect(page.getByTestId('formation-asof-float')).toBeVisible();
+    await expect(page.getByTestId('formation-asof')).toBeHidden();
+    expect(await page.getByTestId('formation-toolbar').evaluate((e) => e.getBoundingClientRect().height)).toBeLessThanOrEqual(70);
+    await page.getByTestId('formation-asof-float').click();
+    const box = await page.getByTestId('formation-asof-panel').boundingBox();
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(900);
+    await page.getByTestId('formation-asof-mode-live').click();
+    await page.getByTestId('formation-asof-apply').click();
+    await expect.poll(() => atFromUrl(page)).toBeNull();
+    await expect(page.getByTestId('formation-asof-float')).toHaveAttribute('data-state', 'live');
   });
 
   test('Bei 375 px und 812 x 375 px: kein Querscroll, Schalter und Schritte im Bild', { tag: '@FRM-38' }, async ({ page, worker }) => {

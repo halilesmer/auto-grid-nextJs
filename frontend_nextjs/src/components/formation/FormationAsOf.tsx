@@ -32,7 +32,7 @@ function shortAt(sec: number): string {
 
 /** Handy im Hochformat (unter 640 px) oder im Querformat (Höhe bis 30 rem): die Kopfleiste hat keinen Platz, die Schritte schweben im Chart */
 const COMPACT_QUERY = '(max-width: 639px), (max-height: 480px)';
-function useCompact(): boolean {
+export function useCompact(): boolean {
   return useSyncExternalStore(
     (notify) => {
       const query = window.matchMedia(COMPACT_QUERY);
@@ -45,6 +45,8 @@ function useCompact(): boolean {
 }
 
 interface Props {
+  /** Schwebende Ausgabe im Chart (Band 91 bis 106 rem): der Schalter steht dort nicht in der Kopfleiste, das Panel öffnet nach oben */
+  float?: boolean;
   /** Zeitpunkt der Suche (MT5-Sekunden) oder null = live */
   pastAt: number | null;
   /** Brokerzeit jetzt in MT5-Sekunden (ohne verlässliche Brokeruhr UTC) */
@@ -57,7 +59,7 @@ interface Props {
  * Schalter „Stand“ der Kopfleiste (FRM-38): live oder ein Zeitpunkt in der Vergangenheit. Der Klick öffnet auf dem Desktop ein Popover,
  * unter 640 px ein Blatt von unten. Datum und Uhrzeit sind Brokerzeit; die Uhrzeit springt im Takt der Suche (15 Minuten).
  */
-export function FormationAsOf({ pastAt, now, onChange }: Props) {
+export function FormationAsOf({ pastAt, now, onChange, float = false }: Props) {
   const t = useT();
   const format = useFormat();
   const compact = useCompact();
@@ -67,7 +69,7 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
   const [time, setTime] = useState('00:00');
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState({ top: 0, right: 8 });
+  const [place, setPlace] = useState<{ top: string; bottom: string; right: number }>({ top: '0px', bottom: 'auto', right: 8 });
   const titleId = useId();
 
   const draftFrom = (sec: number) => {
@@ -89,12 +91,14 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
       const rect = root.current?.getBoundingClientRect();
       if (!rect) return;
       const short = window.innerHeight <= 480;
-      setPlace({ top: short ? 64 : rect.bottom + 8, right: Math.max(8, window.innerWidth - rect.right) });
+      const right = Math.max(8, window.innerWidth - rect.right);
+      if (float && !short) setPlace({ top: 'auto', bottom: `${window.innerHeight - rect.top + 8}px`, right });
+      else setPlace({ top: `${short ? 64 : rect.bottom + 8}px`, bottom: 'auto', right });
     };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [open]);
+  }, [open, float]);
 
   useEffect(() => {
     if (!open) return;
@@ -107,7 +111,7 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
       e.preventDefault();
       e.stopPropagation();
       setOpen(false);
-      root.current?.querySelector<HTMLButtonElement>('[data-testid="formation-asof"]')?.focus();
+      root.current?.querySelector<HTMLButtonElement>('button')?.focus();
     };
     document.addEventListener('pointerdown', onDown);
     window.addEventListener('keydown', onKey, true);
@@ -121,7 +125,7 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
   useEffect(() => {
     if (!open) return;
     const el = panel.current;
-    const trigger = root.current?.querySelector<HTMLButtonElement>('[data-testid="formation-asof"]');
+    const trigger = root.current?.querySelector<HTMLButtonElement>('button');
     el?.querySelector<HTMLElement>('button[aria-pressed="true"]')?.focus();
     return () => {
       if (el && el.contains(document.activeElement)) trigger?.focus();
@@ -145,8 +149,12 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
   const today = dayOf(now());
   const past = pastAt !== null;
 
+  // Die schwebende Ausgabe gibt es nur außerhalb des Handy-Layouts; dort steht der Schalter in der Kopfleiste
+  if (float && compact) return null;
+  const id = float ? 'formation-asof-float' : 'formation-asof';
+
   return (
-    <div className="relative flex shrink-0 items-center gap-1" ref={root} data-testid="formation-asof-root">
+    <div className={cn('pointer-events-auto relative flex shrink-0 items-center gap-1', !float && '@min-[91rem]/formation-main:@max-[106rem]/formation-main:hidden', float && 'hidden @min-[91rem]/formation-main:@max-[106rem]/formation-main:flex')} ref={root} data-testid={float ? 'formation-asof-root-float' : 'formation-asof-root'}>
       <Button
         size="sm"
         variant="outline"
@@ -155,7 +163,7 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
         aria-label={pastAt === null ? t('formation.asof.live') : t('formation.asof.chip', { time: format.mt5DateTime(pastAt) })}
         aria-expanded={open}
         aria-haspopup="dialog"
-        data-testid="formation-asof"
+        data-testid={id}
         data-state={past ? 'past' : 'live'}
         onClick={toggle}
       >
@@ -168,12 +176,12 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
           <>
             <Clock size={13} aria-hidden="true" />
             <span className="hidden tabular-nums @min-[106rem]/formation-main:inline" data-testid="formation-asof-text">{t('formation.asof.chip', { time: format.mt5DateTime(pastAt) })}</span>
-            <span className="tabular-nums max-sm:sr-only @min-[91rem]/formation-main:@max-[106rem]/formation-main:sr-only @min-[106rem]/formation-main:hidden" data-testid="formation-asof-text-short">{shortAt(pastAt)}</span>
+            <span className="sr-only @min-[106rem]/formation-main:hidden" data-testid="formation-asof-text-short">{shortAt(pastAt)}</span>
           </>
         )}
       </Button>
-      {past && !compact && (
-        <Button size="icon-sm" variant="ghost" className="@min-[91rem]/formation-main:@max-[106rem]/formation-main:hidden" hint={t('formation.asof.close.hint')} aria-label={t('formation.asof.close')} data-testid="formation-asof-close" onClick={() => { setOpen(false); onChange(null); }}>
+      {past && !compact && !float && (
+        <Button size="icon-sm" variant="ghost" className="@max-[106rem]/formation-main:hidden" hint={t('formation.asof.close.hint')} aria-label={t('formation.asof.close')} data-testid="formation-asof-close" onClick={() => { setOpen(false); onChange(null); }}>
           <X size={14} />
         </Button>
       )}
@@ -182,12 +190,12 @@ export function FormationAsOf({ pastAt, now, onChange }: Props) {
           <div className="fixed inset-0 z-[70] bg-black/40 sm:hidden" aria-hidden="true" onClick={() => setOpen(false)} />
           <div
             ref={panel}
-            style={{ '--asof-top': `${place.top}px`, '--asof-right': `${place.right}px` } as CSSProperties}
+            style={{ '--asof-top': place.top, '--asof-bottom': place.bottom, '--asof-right': `${place.right}px` } as CSSProperties}
             role="dialog"
             aria-modal={compact}
             aria-labelledby={titleId}
             data-testid="formation-asof-panel"
-            className="fixed z-[70] flex max-h-[calc(100dvh-4.5rem)] w-80 flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-popover p-3 shadow-2xl max-sm:inset-x-0 max-sm:bottom-0 max-sm:w-auto max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:right-(--asof-right) sm:top-(--asof-top)"
+            className="fixed z-[70] flex max-h-[calc(100dvh-4.5rem)] w-80 flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-popover p-3 shadow-2xl max-sm:inset-x-0 max-sm:bottom-0 max-sm:w-auto max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:right-(--asof-right) sm:top-(--asof-top) sm:bottom-(--asof-bottom)"
           >
             <span className="mx-auto h-1 w-9 rounded-full bg-border sm:hidden" aria-hidden="true" />
             <div className="flex flex-col gap-0.5">
@@ -279,8 +287,8 @@ export function FormationAsOfSteps({ pastAt, tfSec, now, onChange, float = false
     <div
       className={cn(
         'pointer-events-auto flex items-center rounded-md border border-warning/50 bg-warning/10',
-        float && ['absolute bottom-3 right-16 z-20 bg-background', compact ? 'flex' : 'hidden @min-[91rem]/formation-main:@max-[106rem]/formation-main:flex'],
-        !float && '@min-[91rem]/formation-main:@max-[106rem]/formation-main:hidden',
+        float && 'bg-background',
+        !float && '@max-[106rem]/formation-main:hidden',
       )}
       role="group"
       data-testid={`formation-asof-steps${suffix}`}
