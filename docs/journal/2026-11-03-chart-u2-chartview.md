@@ -2,7 +2,7 @@
 date: 2026-11-03
 author: Claude
 type: plan
-status: open
+status: done
 pr: [330]
 features: [UI-11, FRM-35, ANA-21]
 areas: [frontend, docs]
@@ -72,6 +72,6 @@ The coordinator approved the changes on 2026-11-03. The checks stay the same; on
 A stale server of an earlier run on the same port served the old build once and gave wrong failures. Use a new `E2E_PORT` after you stop a run.
 
 ## Open points
-- [ ] Compact top bar (design "Handy"), next step (owner, 2026-11-03). At 375 px only 105 px (free mode) and 21 px (setup mode) of the price pane stay visible.
-- [ ] U2b: the button "Layers" next to Trend, one menu for each mode; Broker clock, pauses and gaps on `/formasyon`.
-- [ ] U3: merge the pages.
+- [x] (done 2026-11-03, PR 331) Compact top bar (design "Handy"), next step (owner, 2026-11-03). At 375 px only 105 px (free mode) and 21 px (setup mode) of the price pane stay visible.
+- [x] (done 2026-11-03, PR 332) U2b: the button "Layers" next to Trend, one menu for each mode; Broker clock, pauses and gaps on `/formasyon`.
+- [x] (done 2026-11-03, PR 333 and 334) U3: merge the pages.

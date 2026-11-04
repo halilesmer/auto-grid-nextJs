@@ -178,7 +178,7 @@ The MET-02 test opens `/chart` and reads the live values. It did not touch `Char
 - [ ] Do the manual test of MET-02 after S4 is merged (the owner does it), because S4 moves the live values into the floating card.
 - [x] Dropped with S6b. Keep this trap for a later trend line on `/backtest`: do not use `useTrendPath` on the backtest chart. It loads MT5 candles up to today. In replay, this shows the future, and it does not match CSV data. Calculate the path from the candles of the run, up to the replay cursor. Write a failing test first.
 - [x] Add the feature `UI-10` and its e2e test before S4.
-- [ ] `.claude/skills/ui-design/SKILL.md` §8 still names `ChartViewer.tsx`. Rule files change only on request of the project owner (`hooks/RULES.md` §6.6). Ask the owner.
+- [x] (done 2026-11-04, this PR) `.claude/skills/ui-design/SKILL.md` §8 named `ChartViewer.tsx`. Rule files change only on request of the project owner (`hooks/RULES.md` §6.6). The owner approved the change on 2026-11-04.
 
 ## Open points after U3
 - [x] (done 2026-11-04, `2026-11-04-chart-header-stats-landscape.md`) The Statistics view of `/chart` still shows the heading "Analiz" (old page name) and its subtitle.
