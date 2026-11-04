@@ -2,7 +2,7 @@
 date: 2026-10-02
 type: fix
 status: open
-pr: [97]
+pr: [97, K5]
 features: [ENG-21]
 areas: [worker]
 ---
@@ -25,7 +25,7 @@ Fractal mode "rebound", M1 (DEMO account C): each BUY LIMIT disappeared shortly 
 
 - "Used" applies only to new orders. An existing order on a reached fractal stays, and MT5 decides about the fill.
 - The bot does not change SL/TP of such an order (freeze level near the price). It writes one log line with `fiyatça ulaşıldı` and `MT5'te kalıyor, dolumu broker belirler`.
-- Not changed: when the bot deletes an order for a different reason (max. positions, changed lot), it does not place it again on a fractal that the candle (Bid) touched.
+- Not changed (SELL side; for BUY LIMIT see the follow-up of 2026-11-04): when the bot deletes an order for a different reason (max. positions, changed lot), it does not place it again on a fractal that the candle (Bid) touched.
 - The golden scenario `fractal_rebound_opposite` was generated again. Before the fix: a delete one tick before the fill. After the fix: a fill.
 
 Code: `worker_python/src/core/grid_execution/fractal_entry.py`.
@@ -40,6 +40,8 @@ Code: `worker_python/src/core/grid_execution/fractal_entry.py`.
 - [x] Live check (K17, 2026-11-04, DEMO, read-only): see "Follow-up 2026-11-04".
 - [x] Decision of the owner (K5, 2026-11-04): "touched" for a new BUY LIMIT starts at the Ask of the candle. See "Follow-up 2026-11-04".
 - [ ] VPS test of K5 after the worker update (owner).
+- [ ] Backtest aggregator (`candles/bars.ts`) sets `spread: 0` on strategy-timeframe candles, so the Ask branch does not act in real backtest runs yet. Pass the base candle spread through (check MT5 semantics for aggregated candles first).
+- [ ] Possible MODIFY near the price: for an existing BUY LIMIT with Bid touch but no Ask touch, `consumed` is now false, so a changed SL/TP (modes `sar`, `opposite_fractal`) may send a MODIFY near the freeze level. Check on the DEMO account; a test with `spread` and `fractal_sl_mode="sar"` is missing.
 - [ ] No parity scenario yet reaches the new branch (Bid-low below the level, Ask-low above it): `fractal_rebound_opposite` is unchanged.
 
 ## Lessons
@@ -61,3 +63,4 @@ Code: `worker_python/src/core/grid_execution/fractal_entry.py`.
 - Code: `_build_desired` in `fractal_entry.py` and the same check in `frontend_nextjs/src/lib/backtest/engine/fractalEntry.ts` (parity). A candle without a `spread` field counts as spread 0 (old behavior).
 - Tests (ENG-21): a later candle with Bid low 96.49 and spread 20 points does not consume the level 96.5 (order is placed); with spread 5 points it does (no order). The first test failed before the change.
 - Golden: `fractal_rebound_opposite` regenerated, no change (its candles never separate Bid and Ask touch).
+- The candle `spread` is one value per candle, not the spread at the time of the low. The Ask low is an approximation.
