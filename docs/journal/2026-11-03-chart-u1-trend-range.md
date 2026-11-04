@@ -42,10 +42,10 @@ Step U1 of `2026-11-01-unified-chart-page.md`. On `/chart` the trend path must c
 
 ## Open points
 - [x] Visual check on `main` (the coordinator, 2026-11-03): passed, see Verification.
-- [ ] Range in the past with an unsafe broker clock (`serverNow` and `offsetSec` null): `closedBars` drops the last candle although it is closed. The path then ends one candle before the chart. Before U1 this case did not occur.
-- [ ] When the chart window is clipped (`MAX_CHART_BARS`), `useMarketRates` cuts the lead-in again. The path then starts unsettled at the left edge.
-- [ ] The trend loads its own window and refreshes its tail every 60 s. The cost of `buildTrendPath` over up to 100,000 candles is not measured. U2 may merge the two requests into one window.
-- [ ] Tests: the branches "all" and "clipped range" check no value of `from`.
+- [ ] Range in the past with an unsafe broker clock: open. Decision needed. See `2026-11-04-chart-trend-open-points.md`, point 1.
+- [ ] Clipped chart window (`MAX_CHART_BARS`) cuts the lead-in: open. Decision needed. See the same entry, point 2.
+- [ ] Cost of `buildTrendPath`: measured, and too high for long ranges. See the same entry, point 3.
+- [x] Tests check no value of `from`: done, two tests added (2026-11-04). See the same entry, point 4.
 
 ## Lessons
 - A hook that has its own date logic drifts from the chart. Derive its window from the same function (`ratesWindow`).
