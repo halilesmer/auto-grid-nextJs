@@ -105,6 +105,18 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(closedBars(bars, 3600, null, null)).toEqual([{ time: 0 }, { time: 3600 }]);
   });
 
+  ana('Ohne Brokerzeit, aber mit UTC-Zeit: Kerzen, die vor UTC jetzt minus 12 Stunden enden, zählen als geschlossen (A13.3.1)', () => {
+    const bars = [{ time: 0 }, { time: 3600 }, { time: 7200 }];
+    const h12 = 12 * 3600;
+    // Die zweite Kerze endet bei 7200; sie zählt ab utc = 7200 + 12 h, nicht früher
+    expect(closedBars(bars, 3600, null, null, 7200 + h12)).toEqual(bars.slice(0, 2));
+    expect(closedBars(bars, 3600, null, null, 7200 + h12 - 1)).toEqual(bars.slice(0, 1));
+    // Eine vergangene Spanne behält alle Kerzen, auch die letzte
+    expect(closedBars(bars, 3600, null, null, 10800 + h12)).toEqual(bars);
+    // Die laufende Kerze (liveFrom) zählt weiter nie
+    expect(closedBars(bars, 3600, null, 7200, 10800 + h12)).toEqual(bars.slice(0, 2));
+  });
+
   ana('Über eine Marktpause wird nach Kerzen geschnitten, nicht nach Sekunden', () => {
     // Freitag 0, Dienstag 10 (das Wochenende liegt dazwischen), Mittwoch 110, Donnerstag 120
     const axis = [0, 10, 110, 120];
