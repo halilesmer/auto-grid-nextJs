@@ -72,7 +72,7 @@ export function FormationToolbar({
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block" aria-hidden="true" />
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full short:w-auto short:shrink-0">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full short:w-auto short:shrink-0 short:[&>[data-testid=favorites-timeframes]]:h-7">
           {timeframes !== undefined ? timeframes : (
           <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1 short:h-7 lg:h-auto">
             {CONTEXT_TIMEFRAMES.map((x) => {
@@ -97,7 +97,7 @@ export function FormationToolbar({
         </div>
       </div>
       {forms !== undefined ? (
-        forms && <div className="pointer-events-auto border-b border-border">{forms}</div>
+        forms && <div className="pointer-events-auto border-b border-border short:[&>[data-testid=favorites-forms]]:min-h-[26px] short:[&>[data-testid=favorites-forms]]:flex-nowrap short:[&>[data-testid=favorites-forms]]:overflow-x-auto short:[&>[data-testid=favorites-forms]]:py-0">{forms}</div>
       ) : (
       <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] items-center gap-0.5 overflow-x-auto border-b border-border px-2" data-testid="formation-forms">
         {SCAN_FORMATIONS.map((x) => {

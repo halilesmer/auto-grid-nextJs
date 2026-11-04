@@ -4,10 +4,12 @@
  * (Höhe bis 480 px, Breite unter 1024 px) ist die Kopfleiste in jedem Modus höchstens 66 px hoch (zwei Zeilen).
  * Entwurf freigegeben am 2026-11-04 (Artifact „Ein Chart Kopfleiste“). Plan: docs/journal/2026-11-01-unified-chart-page.md, „Open points after U3“.
  */
+import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
+import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
-import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
+import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
 const STATS = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tab=stats`;
 const SIZES = [[1440, 900], [375, 812], [812, 375]] as const;
@@ -105,5 +107,64 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
     await page.getByTestId('chart-mode-free').click();
     await expect(page.getByTestId('chart-page')).toBeVisible();
     expect(new URL(page.url()).searchParams.get('tab')).toBeNull();
+  });
+});
+
+/** Formation mit Treffern und Favoriten: die Ergebniszeile (Formationen mit Zahl) und die Zeiteinheiten der Favoriten liegen unter der Kopfleiste */
+test.describe('UI-15 Formation mit Ergebniszeile im Querformat', () => {
+  const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
+  const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
+  // Platzhalter-Kontoname mit Ziffern wie eine Kontonummer, länger als die Leiste ohne Mindestbreite zeigt
+  const ACCOUNT_NAME = '1234567890';
+
+  async function open(page: Page, worker: MockWorker, favorites: string[]) {
+    worker.state.accounts[0].account_name = ACCOUNT_NAME;
+    worker.state.favorites[DEMO_ID] = favorites;
+    worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
+    const rows = bars.filter(b => b.time + 14400 <= NOW).map(b => [b.time, b.open, b.high, b.low, b.close]);
+    const last = rows[rows.length - 1];
+    worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[NOW - 900, last[4], last[4], last[4], last[4]]] };
+    await page.setViewportSize({ width: 812, height: 375 });
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`);
+    await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  }
+
+  const height = (page: Page) => page.getByTestId('formation-toolbar').evaluate(e => e.getBoundingClientRect().height);
+
+  test('812 × 375, Formation ohne Favoriten: Formationszeile sichtbar, Kopfleiste höchstens 66 px', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, []);
+    await expect(page.getByTestId('formation-form-GAR')).toBeVisible();
+    await expect.poll(() => height(page)).toBeLessThanOrEqual(MAX_BAR);
+  });
+
+  test('812 × 375, Formation mit Favoriten: Ergebniszeile sichtbar, Kopfleiste höchstens 66 px', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, ['EURUSD', 'GBPUSD']);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+    await expect(page.getByTestId('favorites-timeframes')).toBeVisible();
+    await expect(page.getByTestId('favorites-forms')).toHaveCSS('flex-wrap', 'nowrap');
+    await expect.poll(() => height(page)).toBeLessThanOrEqual(MAX_BAR);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(812);
+  });
+
+  test('812 × 375, Formation: die Kontoauswahl zeigt den Kontonamen ganz', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, ['EURUSD', 'GBPUSD']);
+    const select = page.getByRole('combobox', { name: msg('account.select.aria') });
+    await expect(select).toContainText(ACCOUNT_NAME);
+    // Kein Element im Knopf (Text oder Knopf selbst) ist abgeschnitten
+    const clipped = await select.evaluate(el => [el, ...el.querySelectorAll('*')].filter(n => n.scrollWidth > n.clientWidth + 1).map(n => `${n.tagName} sw=${n.scrollWidth} cw=${n.clientWidth}`));
+    expect(clipped, 'abgeschnittene Elemente im Kontoknopf').toEqual([]);
+  });
+
+  test('Formation mit Favoriten hochkant (375 × 812): die Favoriten-Zeilen behalten ihre Höhen', { tag: '@UI-15' }, async ({ page, worker }) => {
+    await open(page, worker, ['EURUSD', 'GBPUSD']);
+    for (const [w, h] of [[375, 812]] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
+      expect(await page.getByTestId('formation-toolbar').getByTestId('favorites-forms').evaluate(e => getComputedStyle(e).flexWrap), `${w} × ${h}`).toBe('wrap');
+      expect(await page.getByTestId('formation-toolbar').getByTestId('favorites-forms').evaluate(e => e.getBoundingClientRect().height), `${w} × ${h}`).toBeGreaterThanOrEqual(30);
+      expect(await page.getByTestId('formation-toolbar').getByTestId('favorites-timeframes').evaluate(e => e.getBoundingClientRect().height), `${w} × ${h}`).toBeGreaterThanOrEqual(30);
+    }
   });
 });

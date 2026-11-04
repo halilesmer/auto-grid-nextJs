@@ -155,7 +155,8 @@ export function FormationSymbolSelect({ accountId, value, onChange }: {
 }
 
 /** Konto als flacher Knopf; LIVE/DEMO steht immer sichtbar daneben. */
-export function FormationAccountSelect({ accounts, value, onChange }: {
+export function FormationAccountSelect({ accounts, value, onChange, className }: {
+  className?: string;
   accounts: Account[];
   value: string | null;
   onChange: (id: string) => void;
@@ -163,7 +164,7 @@ export function FormationAccountSelect({ accounts, value, onChange }: {
   const t = useT();
   const env = accounts.find((account) => String(account.id) === value)?.env_type;
   return (
-    <Tooltip content={t('account.label.hint')} className="min-w-0 flex-1 lg:w-44 lg:flex-none">
+    <Tooltip content={t('account.label.hint')} className={cn('min-w-0 flex-1 lg:w-44 lg:flex-none', className)}>
       <div className="flex w-full min-w-0 items-center gap-1">
         <div className="min-w-0 flex-1">
           <Combobox

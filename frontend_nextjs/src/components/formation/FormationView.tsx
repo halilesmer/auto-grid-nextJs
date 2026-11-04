@@ -279,6 +279,8 @@ export function FormationView() {
             />
           )}
           <FormationAccountSelect
+            // Querformat: Platz für die ganze Kontonummer (UI-15)
+            className="short:min-w-40"
             accounts={accounts}
             value={accountId}
             onChange={(id) => {
