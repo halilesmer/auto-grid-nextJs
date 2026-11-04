@@ -411,7 +411,7 @@ export class MockWorker {
       from,
       to,
       deals: [...earlier, ...inside],
-      account: { currency: 'USD', balance: 10000, margin_mode: this.state.marginMode, updated_at: Math.floor(Date.now() / 1000) },
+      account: { currency: 'USD', balance: 10000, margin_mode: this.state.marginMode, updated_at: Math.floor(nowMs() / 1000) },
       zones: this.state.zoneRegistry[accountId] ?? [],
       missing: this.state.dealsMissing.filter((m) => m.to > from && m.from < to),
     };
@@ -434,7 +434,7 @@ export class MockWorker {
     const a = Math.floor(Number(q.get('from')) / tf) * tf;
     const b = Math.ceil(Number(q.get('to')) / tf) * tf;
     const end = Math.min(b, a + 50_000 * tf);
-    const latest = Math.floor((Date.now() / 1000 + this.state.brokerOffset) / tf) * tf;
+    const latest = Math.floor((nowMs() / 1000 + this.state.brokerOffset) / tf) * tf;
     const missing = this.state.ratesMissing
       .filter((m) => m.to > a && m.from < end)
       .map((m) => ({ ...m, from: Math.max(m.from, a), to: Math.min(m.to, end) }));
@@ -464,7 +464,7 @@ export class MockWorker {
       cols.l.push(Number((Math.min(open, close) - 0.05).toFixed(3)));
     }
     this.ratesDelivered.push(cols.t.length);
-    const now = Date.now() / 1000;
+    const now = nowMs() / 1000;
     return {
       account_id: accountId,
       source: 'Broker-Demo',
@@ -563,7 +563,7 @@ export class MockWorker {
         gaps: null,
         offset_sec: Number(b.time_offset_sec ?? 0),
         offset_mode: b.time_offset_mode === 'row' ? 'row' : 'fixed',
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: Math.floor(nowMs() / 1000),
         committed_at: null,
         text: '',
       });
@@ -611,7 +611,7 @@ export class MockWorker {
       }
       s.csvImports = s.csvImports.filter((i) => !overlaps.includes(i));
       Object.assign(item, { status: 'committed', bars: times.length, first_t: first, last_t: last, gaps: 0,
-        committed_at: Math.floor(Date.now() / 1000), text: '' });
+        committed_at: Math.floor(nowMs() / 1000), text: '' });
       return { status: 200, body: pub(item) };
     }
     if (seg.length === 4 && method === 'DELETE') {
@@ -663,7 +663,7 @@ export class MockWorker {
             return { status: 201, body: { preset: publicPreset(existing) } };
           }
           if (own.length >= 100) return { status: 409, body: { detail: 'Preset limit reached (100)' } };
-          const preset = { ...data, id: body.requestId, name, createdAt: Math.floor(Date.now() / 1000), owner: principal.id };
+          const preset = { ...data, id: body.requestId, name, createdAt: Math.floor(nowMs() / 1000), owner: principal.id };
           this.presets.push(preset);
           return { status: 201, body: { preset: publicPreset(preset) } };
         } catch {
@@ -715,7 +715,7 @@ export class MockWorker {
         }
         if (this.reports.filter((r) => r.owner === principal.id).length >= 50) return { status: 409, body: { detail: 'Report limit reached (50)' } };
         const { requestId, ...rest } = body;
-        const report = { ...rest, name, id: String(requestId), owner: principal.id, workerVersion: 'v0.0.0-mock', createdAt: Math.floor(Date.now() / 1000) };
+        const report = { ...rest, name, id: String(requestId), owner: principal.id, workerVersion: 'v0.0.0-mock', createdAt: Math.floor(nowMs() / 1000) };
         const row = { ...report, ...summary(report) };
         this.reports.push(row);
         return { status: 201, body: { report: row } };
@@ -866,7 +866,7 @@ export class MockWorker {
       if (!s.brokerClockReliable) {
         return ok({ account_id: seg[1], reliable: false, offset_sec: null, offset_hours: null, server_now: null, cached: false });
       }
-      const now = Date.now() / 1000;
+      const now = nowMs() / 1000;
       const offset = s.brokerOffset;
       return ok({
         account_id: seg[1],
@@ -1020,4 +1020,9 @@ export class MockWorker {
       },
     };
   }
+}
+
+/** Test-Uhr: mit E2E_FAKE_NOW (ISO) läuft der Mock wie der Browser auf einer festen Uhrzeit. */
+export function nowMs(): number {
+  return process.env.E2E_FAKE_NOW ? new Date(process.env.E2E_FAKE_NOW).getTime() : Date.now();
 }
