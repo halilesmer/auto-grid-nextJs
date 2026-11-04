@@ -35,8 +35,9 @@ Fix the review findings 11, 13 and 2 for the signal checks (SIG) in `sigChecks.t
 - Codex scan not run: weekly quota left 3 % (limit 5 %).
 
 ## Open points
-- [ ] In the product SIG-29 stays "not measurable" until a caller passes `trade`.
+- [x] In the product SIG-29 stays "not measurable" until a caller passes `trade`.
   - Checked 2026-11-02: the precondition is missing. The SIG checklist is not connected to any formation, and `TRADE_RULES` is an empty marker list, not a trade. The connection needs a decision of the owner.
+  - [x] Decision 2026-11-04: no connection now, no code change. Source: rule book README (building blocks have no checklist of their own) and SIG-29: it is a rule about the entry (stop almost as far as TP1 → wait for the reversal candle in the lower time frame). Entry, stop and TP1 belong to `## Handel` of each pattern, which the rule books mark "display, no checkbox", and HDL-02 (CRV ≥ 1 at TP1) is the trade rule there. SIG-29 therefore gets a value only when the page shows a trade (entry, stop, TP1) per pattern. Whether the page shows a trade block is a product decision, not a rule question (summary, question Q2). `crvCheck` stays ready for that caller.
 - [ ] `pointAt` partial warm-up (see "Why").
 
 ## Lessons

@@ -44,6 +44,7 @@ The code reuses `trendDirUpTo` (`f2618.ts`), `fractalDone` (`xabcd.ts`), `peaksO
 ## Open points
 - The real candles are scan results from the broker (13 symbols, H4, 2025-09-22 to 2026-04-01: 24 valid states, 18 of them bowls). The examples in the rule book have no usable date or lie before the H4 coverage. The mapping stays in the local test list.
 - A bowl is easy to meet: the rule book gives no minimum length, so a pause of two candles with a turn between 0.236 and 0.382 counts. A minimum length is a decision for the project owner.
+  - [x] Decision 2026-11-04: no minimum length for the bowl. No code change. Source: rule book TDF-21 and TDF-22 define the bowl by the turn at 0.236 (without 0.382) and by small, low-volume candles, not by a duration; TDF E-9 (a) gives no minimum size, because the teacher filters too small patterns by the CRV at TP1 (`## Handel`). The project owner confirmed "no size filter" for all small patterns on 2026-10-29 (local decision log). Summary: `2026-11-04-formation-decision-backlog.md`, item 1.
 - A triangle and a bowl (or a box) can read the same pause. Both are returned; the order is flag, triangle, bowl, box.
 - TDF-17 (rising lows) is only a bonus (rule book E-1 a), so a triangle with no low after H2 and a close above the zone is valid. The flag stays forming without its second low, because its two waves are a required rule.
 - Own points (not found by `analyzeTdf`) are checked for fractals only at H1, H2, C1, F1, C2 and the bowl low; prices of other points are taken as given.
