@@ -10,6 +10,10 @@
 #   scripts/features/run.sh sign ENG-13 bestanden|fehlgeschlagen ["Notiz"]
 #   scripts/features/run.sh check           nur features.yaml prüfen
 #   scripts/features/run.sh render          nur FEATURES.md neu erzeugen
+#
+# Sperre (SYS-11, heavy_lock.sh): Läufe mit Playwright ohne Filter oder mit Kategorie-Filter
+# (all, e2e, live, ZON) warten auf die maschinenweite Sperre, denn jeder baut next und startet
+# viele Browser. Ein einzelnes Feature (run.sh ENG-05, run.sh e2e ENG-05) und unit/api laufen ohne Sperre.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -67,6 +71,24 @@ run_playwright() {  # $1 = tier (e2e|live), $2 = Playwright-Projekt
 if [[ "$cmd" =~ ^[A-Z]{2,3}(-[0-9]{2})?$ ]]; then
   filter="$cmd"
   cmd=all
+fi
+
+# Schwerer Lauf? Playwright-Ebene und kein Einzel-Feature-Filter → Sperre
+case "$cmd" in
+  all|e2e|live)
+    if ! [[ "$filter" =~ ^[A-Z]{2,3}-[0-9]{2}$ ]]; then
+      # shellcheck source=heavy_lock.sh
+      source "$ROOT/scripts/features/heavy_lock.sh"
+      heavy_lock_acquire || exit $?
+    fi ;;
+esac
+if [ "$cmd" = all ] || [ "$cmd" = e2e ]; then
+  # shellcheck source=e2e_server.sh
+  source "$ROOT/scripts/features/e2e_server.sh"
+  E2E_PORT_NUM=$(e2e_port "$FRONTEND")
+  _cleanup_server() { e2e_server_cleanup "$E2E_PORT_NUM" "$FRONTEND" exit; }
+  if declare -F heavy_on_exit >/dev/null; then heavy_on_exit _cleanup_server; else trap _cleanup_server EXIT; fi
+  e2e_server_cleanup "$E2E_PORT_NUM" "$FRONTEND" start || exit 1
 fi
 
 case "$cmd" in
