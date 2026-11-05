@@ -7,6 +7,7 @@ import { useT } from '@/i18n';
 import type { Timeframe } from '@/lib/analysis/candles';
 import { contextTimeframe } from '@/hooks/useTrendPath';
 import { cn } from '@/lib/utils';
+import { trendFingerprint } from '@/lib/formation/trdPath';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { TrendSettingsPanel } from './TrendSettingsPanel';
 
@@ -18,6 +19,8 @@ export function TrendToggle({ timeframe, size = 'sm' }: { timeframe: Timeframe; 
   const t = useT();
   const on = useAnalysisPrefsStore((s) => s.showTrend);
   const setShowTrend = useAnalysisPrefsStore((s) => s.setShowTrend);
+  // Entwurf ≠ angewendet: Punkt am Knopf, bis der Nutzer im Panel bestätigt oder zurücknimmt (FRM-42)
+  const pending = useAnalysisPrefsStore((s) => trendFingerprint(s.trendDraft) !== trendFingerprint(s.trend));
   const available = contextTimeframe(timeframe) !== null;
   return (
     <>
@@ -32,6 +35,7 @@ export function TrendToggle({ timeframe, size = 'sm' }: { timeframe: Timeframe; 
         onClick={() => setShowTrend(!on)}
       >
         {t('cw.trend')}
+        {pending && <span aria-hidden className="ml-1 size-1.5 rounded-full bg-primary" data-testid="trend-pending-dot" />}
       </Button>
       <DropdownMenu
         label={t('cw.trend.settings')}

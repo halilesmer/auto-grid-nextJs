@@ -34,10 +34,17 @@ export interface AnalysisPrefs {
 interface AnalysisPrefsState extends AnalysisPrefs {
   /** Trendzug im Chart (ANA-21), nicht Teil der Vorschau des Einstellungsdialogs */
   showTrend: boolean;
+  /** Angewendete Einstellungen: Formationen, Seitensuche und Alarm rechnen damit (FRM-42) */
   trend: TrendSettings;
+  /** Entwurf der Regler (nicht gespeichert): die Trendlinie im Chart zeigt ihn; bis zur Bestätigung ändert er nur die Linie */
+  trendDraft: TrendSettings;
   setShowTrend: (value: boolean) => void;
   setTrend: (patch: Partial<TrendSettings>) => void;
   resetTrend: () => void;
+  /** Entwurf übernehmen: Formationen, Suche und Alarm rechnen neu */
+  applyTrend: () => void;
+  /** Entwurf auf die angewendeten Einstellungen zurücksetzen */
+  revertTrend: () => void;
   previewBackup: AnalysisPrefs | null;
   beginPreview: () => void;
   finishPreview: (commit: boolean) => void;
@@ -64,9 +71,12 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
       ...DEFAULTS,
       showTrend: false,
       trend: DEFAULT_TREND_SETTINGS,
+      trendDraft: DEFAULT_TREND_SETTINGS,
       setShowTrend: value => set({ showTrend: value }),
-      setTrend: patch => set({ trend: sanitizeTrendSettings({ ...get().trend, ...patch }) }),
-      resetTrend: () => set({ trend: DEFAULT_TREND_SETTINGS }),
+      setTrend: patch => set({ trendDraft: sanitizeTrendSettings({ ...get().trendDraft, ...patch }) }),
+      resetTrend: () => set({ trendDraft: DEFAULT_TREND_SETTINGS }),
+      applyTrend: () => set({ trend: get().trendDraft }),
+      revertTrend: () => set({ trendDraft: get().trend }),
       previewBackup: null,
       beginPreview: () => {
         const state = get(), backup = { ...DEFAULTS };
@@ -98,6 +108,7 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
         const next = { ...current };
         if (typeof p.showTrend === 'boolean') next.showTrend = p.showTrend;
         next.trend = sanitizeTrendSettings(p.trend);
+        next.trendDraft = next.trend;
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) {
           if (typeof p[key] === 'boolean') next[key] = p[key] as boolean;
         }
