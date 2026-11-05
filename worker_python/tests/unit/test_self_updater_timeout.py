@@ -54,6 +54,16 @@ exec "$REAL_GIT" "$@"
 """
 
 
+def warm_up(script, *args, env=None):
+    """Startet ein frisch geschriebenes Skript einmal, bevor ein Zeitlimit läuft.
+
+    macOS prüft eine neue ausführbare Datei beim ersten Start. Gemessen unter Last: erster Start
+    bis 3,6 s, zweiter Start höchstens 0,1 s. Ohne Vorlauf trifft diese Prüfung das 1-s- oder
+    3-s-Limit des ersten Aufrufs, und der Test schlägt an der falschen Stelle fehl.
+    """
+    subprocess.run([str(script), *args], env=env, check=True, capture_output=True, timeout=60)
+
+
 def git(cwd, *args):
     env = {**os.environ, "HANG_ON": ""}
     return subprocess.run(["git", *args], cwd=cwd, env=env, check=True, capture_output=True, text=True).stdout
@@ -87,6 +97,7 @@ def vps(tmp_path, monkeypatch):
     wrapper = wrapper_dir / "git"
     wrapper.write_text(HANGING_GIT)
     wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR)
+    warm_up(wrapper, "--version", env={**os.environ, "REAL_GIT": real_git, "HANG_ON": "", "ORPHAN_ON": ""})
     monkeypatch.setenv("PATH", f"{wrapper_dir}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("REAL_GIT", real_git)
     monkeypatch.setenv("HANG_PID_FILE", str(tmp_path / "grandchild.pid"))
