@@ -117,7 +117,7 @@ Rejected alternatives:
 - [ ] S2: confirmation strip (FRM-42)
 - [ ] S3: alarm main switch and trend row (FRM-43)
 - [ ] S4: expected D and badges (FRM-44)
-- [ ] S5: "Formation drawings" button (FRM-45)
+- [x] S5: "Formation drawings" button (FRM-45), PR 378. The Formation toolbar reserve is now 26rem (was 24.25rem), because the new button is 28 px wide
 - [ ] S6: movable toolbar groups (UI-16). The plan named UI-10, but UI-10 is already in use
 - [ ] After S1: the owner checks the chart with an ATR factor of 1.5
 
