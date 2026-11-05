@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: decision
 status: open
-pr: []
+pr: [388]
 features: [FRM-41]
 areas: [frontend, tests]
 ---
