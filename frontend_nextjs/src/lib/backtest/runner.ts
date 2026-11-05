@@ -235,7 +235,12 @@ export function runBacktest(input: RunInput): RunResult {
     if ((i - first) % PROGRESS_EVERY === 0) input.onProgress?.((i - first) / total);
     const t0 = rates.t[i];
     const tEnd = t0 + dataSec - 1;
-    let spreadPoints = candleSpreadPoints(input.spread, rates.s[i]);
+    // „max“ ohne eigenen Wert (0) nimmt den Symbol-Spread als Untergrenze; fehlt er, gilt der Kerzen-Spread
+    const spreadSetting: SpreadSetting =
+      input.spread.mode === 'max' && !(input.spread.points > 0) && snapshot.spreadPoints !== null && snapshot.spreadPoints > 0
+        ? { mode: 'max', points: snapshot.spreadPoints }
+        : input.spread;
+    let spreadPoints = candleSpreadPoints(spreadSetting, rates.s[i]);
     if (spreadPoints === null) {
       spreadPoints = snapshot.spreadPoints;
       if (spreadPoints === null) throw new RunError('run.spreadMissing', { time: t0 });

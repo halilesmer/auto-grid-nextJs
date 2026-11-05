@@ -1815,6 +1815,15 @@ kategorien:
           - Automatisiert (backtest-realism-lib.spec.ts); kein manueller Test, solange die Oberfläche kein Feld hat.
         erwartet: Der Lauf mit Spread-Spitze in der Vorkerze füllt nicht zum schmalen Endwert, ein SL schließt schlechter als die Stufe, eine Vorposition belegt max_positions.
 
+      - id: BKT-18
+        titel: Backtest-Spread standardmäßig „max“ (Kerze oder Symbol)
+        beschreibung: "Der Standard der Spread-Quelle im Backtest ist „max“ statt „aus der Kerze“ (DEFAULT_RUN_SETTINGS.spreadMode). Ist der eigene Wert 0, gilt je Kerze max(Kerzen-Spread, Symbol-Spread); fehlt der Symbol-Spread, gilt der Kerzen-Spread. Ein eigener Wert größer 0 und gespeicherte oder gewählte Einstellungen bleiben unverändert. Grund: der M1-Kerzen-Spread liegt unter dem echten Live-Spread."
+        code: [frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/src/lib/backtest/runSettings.ts]
+        tiers: [e2e]
+        pruefung:
+          - e2e backtest-runner-lib.spec.ts (@BKT-18) ausführen.
+        erwartet: Der Test besteht.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung
