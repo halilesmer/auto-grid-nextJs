@@ -206,7 +206,7 @@ export function analyze2618(ctx: FormationContext, t: number): F2618Analysis[] {
     const env = envFor(base, ctx, t, tf);
     const bars = env.views.get(tf)!.bars;
     let best: { candidate: Candidate; unmet: number } | null = null;
-    for (const picked of selectBases(env, tf)) {
+    for (const picked of selectBases(env, tf, (b, base, es) => secondTop(b, base, es, tf))) {
       const shape = shapeOn(bars, tf, picked, picked.es, secondTop(bars, picked, picked.es, tf));
       const cdt = evaluateCdt(env, tf, shape);
       const ends: (CdtPoint | null)[] = shape.h2 ? impulseEnds(bars, shape.h2, shape.cs).reverse() : [];
