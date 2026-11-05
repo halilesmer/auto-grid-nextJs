@@ -70,7 +70,7 @@ Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını ke
 4. Hata yolunu bilerek tetikleyip test et.
 5. Yeni kurallar İngilizce ve ASD-STE100 yazım kurallarına göre yazılır (özet: `docs/journal/README.md`); düz metin yerine tablo/liste.
 6. Kural dosyaları (`CLAUDE.md`, `hooks/`, `.claude/` içindeki skill, agent ve ayarlar) yalnızca proje sahibi istediğinde değiştirilir; bu PR'lar da §1.8'e göre merge edilir.
-7. **[otomatik-uyarı]** `docs/agent-rules/` is a copy of the owner's global rules in `~/.claude/rules/`. After a change to a global rule, refresh the copy with the command in `docs/agent-rules/README.md`. pre-push gives a warning when a source file is different or missing in the copy. The check runs only where the source folder exists (the owner's Mac). It does not block the push.
+7. `docs/agent-rules/` is the live copy of the owner's global rules. Its source folder `~/.claude/rules/` was removed on 2026-11-03, so edit the copy directly. No hook checks it.
 
 ## 7. Project journal
 
