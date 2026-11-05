@@ -20,6 +20,7 @@ import { PANES_CHANGED_EVENT } from '@/components/chart-workspace/runtime';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { buildTrendPath, usableTrendSettings } from '@/lib/formation/trdPath';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
+import { dashOf, type FormationStyle } from '@/lib/formation/lineStyle';
 
 const TONE_COLOR: Record<Exclude<Tone, 'side'>, string> = {
   ratio: 'var(--secondary)',
@@ -33,35 +34,56 @@ const SIDE_COLOR = { buy: 'var(--success)', sell: 'var(--danger)' } as const;
 
 const toneColor = (tone: Tone, side: 'buy' | 'sell'): string => (tone === 'side' ? SIDE_COLOR[side] : TONE_COLOR[tone]);
 
-function PrimView({ prim, side }: { prim: Prim; side: 'buy' | 'sell' }) {
+function PrimView({ prim, side, style }: { prim: Prim; side: 'buy' | 'sell'; style: FormationStyle }) {
   const color = toneColor(prim.tone, side);
   switch (prim.kind) {
     case 'line': {
-      let dash: string | undefined;
-      if (prim.dashed) dash = '6 5';
-      else if (prim.dotted) dash = '2 4';
+      // Farbe, Muster und Dicke kommen aus dem Stil der Rolle (leere Farbe: Themefarbe); eine ausgeblendete Rolle fällt weg
+      const spec = style[prim.role];
+      if (!spec.visible) return null;
       return (
         <>
-          <line x1={prim.x1} y1={prim.y1} x2={prim.x2} y2={prim.y2} stroke={color} strokeWidth={prim.width ?? 1.4} strokeDasharray={dash} />
+          <line
+            x1={prim.x1}
+            y1={prim.y1}
+            x2={prim.x2}
+            y2={prim.y2}
+            stroke={spec.color || color}
+            strokeWidth={spec.width}
+            strokeDasharray={dashOf(spec.style)}
+            data-role={prim.role}
+            data-expected-path={prim.role === 'expected' ? '' : undefined}
+          />
           <line x1={prim.x1} y1={prim.y1} x2={prim.x2} y2={prim.y2} stroke="transparent" strokeWidth={14} style={{ pointerEvents: 'stroke' }} />
         </>
       );
     }
-    case 'rect':
+    case 'rect': {
+      const spec = prim.role ? style[prim.role] : null;
+      if (spec && !spec.visible) return null;
+      const stroke = spec?.color || color;
+      const small = prim.w <= 20;
+      let strokeWidth = small ? 2 : 1;
+      let dash = prim.dashed ? '4 3' : undefined;
+      if (spec) {
+        strokeWidth = spec.width;
+        dash = dashOf(spec.style);
+      }
       return (
         <rect
           x={prim.x}
           y={prim.y}
           width={prim.w}
           height={prim.h}
-          fill={prim.tone === 'zone' || prim.tone === 'mark' ? color : 'none'}
+          fill={prim.tone === 'zone' || prim.tone === 'mark' ? stroke : 'none'}
           fillOpacity={prim.tone === 'mark' && prim.w <= 20 ? 0 : 0.16}
-          stroke={color}
-          strokeWidth={prim.w <= 20 ? 2 : 1}
-          strokeDasharray={prim.dashed ? '4 3' : undefined}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeDasharray={dash}
           rx={prim.w <= 20 ? 3 : 0}
         />
       );
+    }
     case 'circle':
       return <circle cx={prim.x} cy={prim.y} r={prim.r} fill={prim.open ? 'none' : color} stroke={color} strokeWidth={2} />;
     case 'text':
@@ -119,6 +141,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
   const { number } = useFormat();
   const { binding, rsi, wave } = scene;
   const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
+  const formationStyle = useAnalysisPrefsStore(s => s.formationStyle);
   const overlayRef = useRef<SVGSVGElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; waveTop: number; groups: DrawingGroup[]; asOfX: number | null; d: DLayout }>({ width: 0, height: 0, left: 0, priceHeight: 0, waveTop: 0, groups: [], asOfX: null, d: NO_D });
@@ -275,7 +298,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
           onMouseLeave={() => onActive(null)}
         >
           {g.prims.map((p, i) => (
-            <PrimView key={i} prim={p} side={hit.candidate.side} />
+            <PrimView key={i} prim={p} side={hit.candidate.side} style={formationStyle} />
           ))}
         </g>
       ))}

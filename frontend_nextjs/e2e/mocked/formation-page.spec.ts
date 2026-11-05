@@ -395,7 +395,7 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     await openPage(page, worker, `${URL}&form=ABCD`, FORMING_NOW);
     await expect(page.getByTestId('candidate-item').getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'forming');
     const overlay = page.getByTestId('formation-overlay');
-    await expect(overlay.locator('line[stroke-dasharray="6 5"]')).toHaveCount(1);
+    await expect(overlay.locator('line[data-expected-path]')).toHaveCount(1);
     await expect(overlay.locator('circle[fill="none"]')).toHaveCount(1);
     await expect(overlay.locator('text', { hasText: 'D?' })).toHaveCount(1);
     await expect(overlay.locator('text', { hasText: msg('formation.draw.zonePossible', { tf: 'H4', up: 'D1' }) })).toHaveCount(1);
@@ -414,7 +414,7 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
       await expect(badge).toContainText(`${msg('formation.form.ABCD')} · ${msg('formation.verdict.forming')}`);
       await expect(badge).toHaveAttribute('aria-pressed', 'true');
       // Das D liegt rechts der letzten Kerze: der gestrichelte Weg endet nicht an ihr
-      const dashed = overlay.locator('line[stroke-dasharray="6 5"]');
+      const dashed = overlay.locator('line[data-expected-path]');
       const x2 = Number(await dashed.getAttribute('x2'));
       // Rechts aller bestätigten Punkte (A, B, C) und am erwarteten D steht das Abzeichen
       const pointXs = await overlay.locator('circle:not([fill="none"])').evaluateAll((els) => els.map((e) => Number(e.getAttribute('cx'))));
@@ -432,6 +432,52 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
       }
     });
   }
+
+  for (const theme of ['light', 'dark']) {
+    test(`Formationslinien: Zickzack grau und gestrichelt, D?-Ring in der Richtungsfarbe (${theme})`, { tag: '@FRM-46' }, async ({ page, worker }) => {
+      await page.addInitScript((value) => {
+        localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 }));
+      }, theme);
+      // openPage legt einen alten Speicherstand (Version 0, nur Trend) an: ohne Stilfelder gilt die Vorgabe
+      await openPage(page, worker, `${URL}&form=ABCD`, FORMING_NOW);
+      const overlay = page.getByTestId('formation-overlay');
+      const legs = overlay.locator('line[data-role="zigzag"]');
+      expect(await legs.count()).toBeGreaterThan(1);
+      for (const leg of await legs.all()) {
+        await expect(leg).toHaveAttribute('stroke', 'var(--muted-foreground)');
+        await expect(leg).toHaveAttribute('stroke-dasharray', '6 4');
+        await expect(leg).toHaveAttribute('stroke-width', '2');
+      }
+      const expected = overlay.locator('line[data-expected-path]');
+      await expect(expected).toHaveAttribute('stroke', 'var(--muted-foreground)');
+      await expect(expected).toHaveAttribute('stroke-dasharray', '2 4');
+      await expect(overlay.locator('circle[fill="none"]')).toHaveAttribute('stroke', /var\(--(success|danger)\)/);
+      await expect(overlay.locator('text', { hasText: 'D?' })).toHaveAttribute('fill', /var\(--(success|danger)\)/);
+      await page.screenshot({ path: test.info().outputPath(`formation-line-style-${theme}.png`) });
+    });
+  }
+
+  test('Gespeicherter Linienstil: unsichtbare Rolle wird nicht gezeichnet, Dicke und Typ folgen dem Speicher', { tag: '@FRM-46' }, async ({ page, worker }) => {
+    serveFixture(worker, FORMING_NOW);
+    await seedFixtureTrend(page, trendOf(fixtureBars), true);
+    // Nach dem Trend-Seed: Stilfelder in denselben Speicherstand schreiben (Version 1)
+    await page.addInitScript(() => {
+      const key = 'grid-robot-analysis-prefs';
+      const style = { zigzag: { color: '#ff00ff', style: 'solid', width: 4, visible: true }, expected: { color: '', style: 'dotted', width: 2, visible: false } };
+      const saved = JSON.parse(localStorage.getItem(key) ?? '{"state":{}}');
+      localStorage.setItem(key, JSON.stringify({ state: { ...saved.state, formationStyle: style }, version: 1 }));
+    });
+    await page.goto(`${URL}&form=ABCD`);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    const overlay = page.getByTestId('formation-overlay');
+    const leg = overlay.locator('line[data-role="zigzag"]').first();
+    await expect(leg).toHaveAttribute('stroke', '#ff00ff');
+    await expect(leg).toHaveAttribute('stroke-width', '4');
+    await expect(leg).not.toHaveAttribute('stroke-dasharray', /.+/);
+    await expect(overlay.locator('line[data-expected-path]')).toHaveCount(0);
+    // Ring und Beschriftung bleiben in der Richtungsfarbe
+    await expect(overlay.locator('circle[fill="none"]')).toHaveCount(1);
+  });
 
   test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: ['@FRM-20', '@FRM-37'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);

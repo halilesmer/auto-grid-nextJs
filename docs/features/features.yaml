@@ -2211,6 +2211,16 @@ kategorien:
           - UI-07 (Tooltip) und UI-08 (375 px ohne Querscroll) ausführen.
         erwartet: Der Schalter blendet die Formationszeichnungen aus und ein, steht nur im Modus Formation und nicht mehr im Menü „Ebenen“.
 
+      - id: FRM-46
+        titel: "Formationslinien: Zickzack grau und gestrichelt, Stil je Rolle im Speicher"
+        beschreibung: "Auf /chart im Modus Formation sind die bestätigten Zickzack-Schenkel standardmäßig grau (--muted-foreground), gestrichelt (6 4) und 2 px, der erwartete D-Weg grau und gepunktet (2 4), Boyun-/Kanallinien grau und gestrichelt. Der D?-Ring, die Beschriftung „D?“ und das Preisschild bleiben in der Richtungsfarbe (Kauf grün, Verkauf rot). Der Stil (Farbe, Typ, Dicke 1–4, sichtbar) liegt je Rolle (trendUp, trendDown, zigzag, expected, neck, ratio, target, zone) im Browser-Speicher (useAnalysisPrefsStore, formationStyle); eine ausgeblendete Rolle wird nicht gezeichnet, ein älterer Speicherstand ohne Stilfelder fällt auf die Vorgabe. Der Trendzug liest Farbe (leer: Kerzenfarbe), Dicke und Muster aus den Rollen trendUp und trendDown. Noch ohne Menü (folgt in S2). Keine Worker-Änderung, keine Order."
+        code: [frontend_nextjs/src/lib/formation/lineStyle.ts, frontend_nextjs/src/lib/formation/drawingLayout.ts, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/store/useAnalysisPrefsStore.ts, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx, frontend_nextjs/src/components/analysis/chart/primitives.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-46) ausführen (hell und dunkel, gespeicherter Stil, ausgeblendete Rolle).
+          - FRM-20 und FRM-44 ausführen (Weg des erwarteten D über data-expected-path).
+        erwartet: Zickzack und erwarteter Weg sind grau und gestrichelt bzw. gepunktet, der D?-Ring behält die Richtungsfarbe, ein gespeicherter Stil wird gelesen.
+
       - id: FRM-37
         titel: "Seite Formasyon: Seitenleiste mit Reitern Bedingungen und Favoriten"
         beschreibung: "Die Bedingungen (Kandidaten und Checkliste) stehen als Reiter „Bedingungen“ neben „Favoriten“ in der rechten Seitenleiste; die verschiebbare Karte über dem Chart entfällt (früher FRM-24). Die schmale Leiste ganz rechts hat zwei Symbole (Lesezeichen, Bedingungen); jedes öffnet die Seitenleiste auf seinem Reiter, ein Klick auf das Symbol des aktiven Reiters schließt sie. Ab 1024 px schiebt die offene Leiste den Chart nach links (formation-main wird um 40 + 288 px schmaler) und überdeckt ihn nicht; darunter liegt sie über dem Chart. Ein Status-Knopf in der Kopfleiste öffnet und schließt den Reiter „Bedingungen“; ohne Kandidat ist er deaktiviert. Bei einer Chartbreite unter 79rem (1264 px bei 16 px Browser-Schrift) zeigt er nur Pfeil (Kauf/Verkauf), Urteil als Symbol mit eigener Form (✓, ✗, Uhr) und Pfeil, ab 79rem Urteil als Pille und Zähler Pflicht · Verstärkung; Seite, Urteil und Zähler stehen immer im Namen (aria-label) und im Hinweis. Offen/zu und der Reiter bleiben im Browser (localStorage); erster Besuch: ab 1024 px offen auf „Bedingungen“, darunter zu."

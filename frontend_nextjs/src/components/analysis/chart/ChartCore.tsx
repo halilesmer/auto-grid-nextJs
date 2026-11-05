@@ -28,6 +28,8 @@ import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-worksp
 import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemPaneInput, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
+import { dashArrayOf } from '@/lib/formation/lineStyle';
+import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import {
   FractalsPrimitive,
   MissingDataPrimitive,
@@ -585,6 +587,8 @@ export function ChartCore({
   }, [fractals, colors, data]);
 
   // Trendzug: Farben der Kerzen, Saum in der Panelfarbe; außerhalb der geladenen Kerzen abgeschnitten
+  const trendUp = useAnalysisPrefsStore(s => s.formationStyle.trendUp);
+  const trendDown = useAnalysisPrefsStore(s => s.formationStyle.trendDown);
   useEffect(() => {
     if (!colors || !primitives.current) return;
     const first = data.bars[0]?.time, last = data.bars.at(-1)?.time;
@@ -592,10 +596,13 @@ export function ChartCore({
     const tones = { up: c.up === c.background ? c.borderUp : c.up, down: c.down === c.background ? c.borderDown : c.down };
     // Preset „classic“: beide Kerzenfarben fallen zusammen, dann tragen die Themefarben die Richtung
     if (tones.up === tones.down) { tones.up = colors.up; tones.down = colors.down; }
-    const drawn = first === undefined || last === undefined ? [] : clipSegments(trendPath.segments, first, last, trendPath.axis).map((s) => ({ from: s.from, to: s.to, color: tones[s.tone] }));
+    const drawn = first === undefined || last === undefined ? [] : clipSegments(trendPath.segments, first, last, trendPath.axis).flatMap((s) => {
+      const spec = s.tone === 'up' ? trendUp : trendDown;
+      return spec.visible ? [{ from: s.from, to: s.to, color: spec.color || tones[s.tone], width: spec.width, dash: dashArrayOf(spec.style) }] : [];
+    });
     primitives.current.trend.set(drawn, c.background);
     containerRef.current?.setAttribute('data-trend', String(drawn.length));
-  }, [trendPath, colors, data, appearance]);
+  }, [trendPath, colors, data, appearance, trendUp, trendDown]);
 
   // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
   useEffect(() => {

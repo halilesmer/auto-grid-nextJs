@@ -257,7 +257,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 19
+      "tests": 1
     }
   },
   "ANA-18": {
@@ -271,7 +271,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 19
+      "tests": 4
     }
   },
   "ANA-20": {
@@ -285,7 +285,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 38
+      "tests": 9
     }
   },
   "ANA-22": {
@@ -803,7 +803,7 @@
   "FRM-04": {
     "e2e": {
       "datum": "2026-11-05",
-      "status": "passed",
+      "status": "xfail",
       "tests": 131
     }
   },
@@ -818,13 +818,13 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 46
+      "tests": 47
     }
   },
   "FRM-07": {
     "e2e": {
       "datum": "2026-11-05",
-      "status": "passed",
+      "status": "xfail",
       "tests": 148
     }
   },
@@ -887,7 +887,7 @@
   "FRM-16": {
     "e2e": {
       "datum": "2026-11-05",
-      "status": "passed",
+      "status": "xfail",
       "tests": 37
     }
   },
@@ -1087,7 +1087,14 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 3
+    }
+  },
+  "FRM-46": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 3
     }
   },
   "LOG-01": {
@@ -1510,7 +1517,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 25
+      "tests": 1
     }
   },
   "UI-14": {
@@ -1524,7 +1531,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 35
+      "tests": 1
     }
   },
   "UPD-01": {

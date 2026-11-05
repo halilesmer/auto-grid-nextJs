@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { DEFAULT_TREND_SETTINGS, type TrendSettings } from '@/lib/formation/params';
 import { sanitizeTrendSettings } from '@/lib/formation/trdPath';
+import { DEFAULT_FORMATION_STYLE, sanitizeFormationStyle, type FormationLineRole, type FormationStyle, type LineStyleSpec } from '@/lib/formation/lineStyle';
 
 /**
  * Anzeige-Schalter der Analyse-Seite (Menü „Ebenen“). Gerätebezogene Vorliebe: nur im localStorage dieses
@@ -45,6 +46,11 @@ interface AnalysisPrefsState extends AnalysisPrefs {
   applyTrend: () => void;
   /** Entwurf auf die angewendeten Einstellungen zurücksetzen */
   revertTrend: () => void;
+  /** Stil der Formationslinien je Rolle (A7.1), einer je Browser (A7.2); die Rollen trendUp/trendDown tragen den Trendzug (`trendStyle`) */
+  formationStyle: FormationStyle;
+  setFormationStyle: (role: FormationLineRole, patch: Partial<LineStyleSpec>) => void;
+  /** Eine Rolle (oder alle) auf die Vorgabe zurücksetzen */
+  resetFormationStyle: (role?: FormationLineRole) => void;
   previewBackup: AnalysisPrefs | null;
   beginPreview: () => void;
   finishPreview: (commit: boolean) => void;
@@ -77,6 +83,10 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
       resetTrend: () => set({ trendDraft: DEFAULT_TREND_SETTINGS }),
       applyTrend: () => set({ trend: get().trendDraft }),
       revertTrend: () => set({ trendDraft: get().trend }),
+      formationStyle: DEFAULT_FORMATION_STYLE,
+      setFormationStyle: (role, patch) =>
+        set({ formationStyle: sanitizeFormationStyle({ ...get().formationStyle, [role]: { ...get().formationStyle[role], ...patch } }) }),
+      resetFormationStyle: role => set({ formationStyle: role ? { ...get().formationStyle, [role]: DEFAULT_FORMATION_STYLE[role] } : DEFAULT_FORMATION_STYLE }),
       previewBackup: null,
       beginPreview: () => {
         const state = get(), backup = { ...DEFAULTS };
@@ -94,21 +104,29 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
     }),
     {
       name: ANALYSIS_PREFS_KEY,
+      // Version 1: Stilfelder dazugekommen; ein älterer Speicherstand trägt keine und fällt in `merge` auf die Vorgabe
+      version: 1,
+      migrate: persisted => {
+        const rest = { ...(persisted as object) } as Record<string, unknown>;
+        delete rest.formationStyle;
+        return rest;
+      },
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => {
         const out = { ...DEFAULTS };
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) out[key] = (s.previewBackup ?? s)[key];
-        return { ...out, showTrend: s.showTrend, trend: s.trend };
+        return { ...out, showTrend: s.showTrend, trend: s.trend, formationStyle: s.formationStyle };
       },
       // Wie ThemeSync: erst nach der Hydration lesen (rehydrate() in app/chart/page.tsx), sonst SSR-Abweichung
       skipHydration: true,
       // Nur bekannte boolesche Felder übernehmen (alter/kaputter Speicherstand)
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<Record<keyof AnalysisPrefs | 'showTrend' | 'trend', unknown>>;
+        const p = (persisted ?? {}) as Partial<Record<keyof AnalysisPrefs | 'showTrend' | 'trend' | 'formationStyle', unknown>>;
         const next = { ...current };
         if (typeof p.showTrend === 'boolean') next.showTrend = p.showTrend;
         next.trend = sanitizeTrendSettings(p.trend);
         next.trendDraft = next.trend;
+        next.formationStyle = sanitizeFormationStyle(p.formationStyle);
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) {
           if (typeof p[key] === 'boolean') next[key] = p[key] as boolean;
         }
@@ -117,3 +135,4 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
     },
   ),
 );
+
