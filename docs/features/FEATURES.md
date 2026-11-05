@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-05 · **217/228** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-05 · **218/229** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 15/16 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/23 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/18 |
-| 16 | **FRM** – Formationserkennung | 41/44 |
+| 16 | **FRM** – Formationserkennung | 42/45 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -1030,6 +1030,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Auf /chart im Modus Formation sind die bestätigten Zickzack-Schenkel standardmäßig grau (--muted-foreground), gestrichelt (6 4) und 2 px, der erwartete D-Weg grau und gepunktet (2 4), Boyun-/Kanallinien grau und gestrichelt. Der D?-Ring, die Beschriftung „D?“ und das Preisschild bleiben in der Richtungsfarbe (Kauf grün, Verkauf rot). Der Stil (Farbe, Typ, Dicke 1–4, sichtbar) liegt je Rolle (trendUp, trendDown, zigzag, expected, neck, ratio, target, zone) im Browser-Speicher (useAnalysisPrefsStore, formationStyle); eine ausgeblendete Rolle wird nicht gezeichnet, ein älterer Speicherstand ohne Stilfelder fällt auf die Vorgabe. Der Trendzug liest Farbe (leer: Kerzenfarbe), Dicke und Muster aus den Rollen trendUp und trendDown. Noch ohne Menü (folgt in S2). Keine Worker-Änderung, keine Order.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-46) ausführen (hell und dunkel, gespeicherter Stil, ausgeblendete Rolle). → FRM-20 und FRM-44 ausführen (Weg des erwarteten D über data-expected-path).
   - **Erwartet:** Zickzack und erwarteter Weg sind grau und gestrichelt bzw. gepunktet, der D?-Ring behält die Richtungsfarbe, ein gespeicherter Stil wird gelesen.
+- [x] **FRM-47** Formasyon-Linien: Kontextmenü auf der Linie, Tabelle in den Chart-Einstellungen, Einstellung Linienmenü — 🖥️ e2e ✅ 2026-11-05
+  - Auf /chart im Modus Formation öffnet ein Rechtsklick oder Doppelklick auf eine Formasyon-Linie (Zickzack, erwarteter Weg, Boyun/Kanal, Oran, Ziel, D-Zone) ein Menü an der Mausposition (role=menu, Pfeiltasten, Escape, Klick außerhalb oder Scrollen schließt; am Bildschirmrand rutscht es hinein). Es zeigt Farbe, Typ (durchgezogen, gestrichelt, gepunktet) und Dicke 1–4 der Rolle, dazu „Bu çizgiyi gizle“, „Varsayılana dön“ und „Tüm formasyon çizgileri…“. Letzteres öffnet die Chart-Einstellungen im Abschnitt Auto-Grid-Anzeigen mit der Tabelle „Formasyon-Linien“ (je Rolle eine Zeile, gleiche Regler); die Tabelle folgt Übernehmen/Abbrechen des Dialogs (Abbrechen macht sie rückgängig). Die Einstellung Tuval › Çizim ve kullanım › „Çizgi menüsü“ (cw.lineMenu: both, right, double, off; Vorgabe both) legt fest, welcher Klick das Menü öffnet; Android-Langdruck zählt als Rechtsklick. Auf leerer Fläche bleibt das Browsermenü. Der Stil liegt wie in FRM-46 im Browser (formationStyle). Keine Worker-Änderung, keine Order.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-line-menu.spec.ts (@FRM-47) ausführen (Rechtsklick, Doppelklick, Einstellung Linienmenü, Tabelle mit Abbrechen, 375 px, hell und dunkel). → FRM-46, UI-07 (Tooltip) und UI-08 (375 px ohne Querscroll) ausführen.
+  - **Erwartet:** Das Menü öffnet nur mit dem eingestellten Klick, ändert Dicke und Typ der Rolle sofort, die Änderung bleibt nach dem Neuladen, die Tabelle macht Abbrechen rückgängig.
 - [x] **FRM-37** Seite Formasyon: Seitenleiste mit Reitern Bedingungen und Favoriten — 🖥️ e2e ✅ 2026-11-05
   - Die Bedingungen (Kandidaten und Checkliste) stehen als Reiter „Bedingungen“ neben „Favoriten“ in der rechten Seitenleiste; die verschiebbare Karte über dem Chart entfällt (früher FRM-24). Die schmale Leiste ganz rechts hat zwei Symbole (Lesezeichen, Bedingungen); jedes öffnet die Seitenleiste auf seinem Reiter, ein Klick auf das Symbol des aktiven Reiters schließt sie. Ab 1024 px schiebt die offene Leiste den Chart nach links (formation-main wird um 40 + 288 px schmaler) und überdeckt ihn nicht; darunter liegt sie über dem Chart. Ein Status-Knopf in der Kopfleiste öffnet und schließt den Reiter „Bedingungen“; ohne Kandidat ist er deaktiviert. Bei einer Chartbreite unter 79rem (1264 px bei 16 px Browser-Schrift) zeigt er nur Pfeil (Kauf/Verkauf), Urteil als Symbol mit eigener Form (✓, ✗, Uhr) und Pfeil, ab 79rem Urteil als Pille und Zähler Pflicht · Verstärkung; Seite, Urteil und Zähler stehen immer im Namen (aria-label) und im Hinweis. Offen/zu und der Reiter bleiben im Browser (localStorage); erster Besuch: ab 1024 px offen auf „Bedingungen“, darunter zu.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-37) ausführen (Chart und Leiste überlappen bei 1440 und 1100 px und mit 20 px Browser-Schrift nicht, Reiterwechsel, Status-Knopf, erster Besuch, Merken, Hover auf eine Zeile hebt die Zeichnung hervor, 375 px ohne Querscroll). → UI-07 (Tooltips an Reitern, Symbolen und Knopf) und UI-08 (375 px ohne Querscroll) ausführen.

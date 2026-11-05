@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { useFormat, useT } from '@/i18n';
 import { formationChartData } from '@/lib/formation/chartData';
@@ -20,7 +20,12 @@ import { PANES_CHANGED_EVENT } from '@/components/chart-workspace/runtime';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { buildTrendPath, usableTrendSettings } from '@/lib/formation/trdPath';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
-import { dashOf, type FormationStyle } from '@/lib/formation/lineStyle';
+import { dashOf, type FormationLineRole, type FormationStyle } from '@/lib/formation/lineStyle';
+import { FormationLineMenu } from './FormationLineMenu';
+import { FormationLineTable } from './FormationLineTable';
+
+/** Öffnet das Linienmenü einer Rolle (Rechtsklick/Doppelklick); die Seite entscheidet, ob der Klick zählt */
+type OpenLineMenu = (kind: 'context' | 'double', event: React.MouseEvent, role: FormationLineRole) => void;
 
 const TONE_COLOR: Record<Exclude<Tone, 'side'>, string> = {
   ratio: 'var(--secondary)',
@@ -34,7 +39,7 @@ const SIDE_COLOR = { buy: 'var(--success)', sell: 'var(--danger)' } as const;
 
 const toneColor = (tone: Tone, side: 'buy' | 'sell'): string => (tone === 'side' ? SIDE_COLOR[side] : TONE_COLOR[tone]);
 
-function PrimView({ prim, side, style }: { prim: Prim; side: 'buy' | 'sell'; style: FormationStyle }) {
+function PrimView({ prim, side, style, onMenu }: { prim: Prim; side: 'buy' | 'sell'; style: FormationStyle; onMenu: OpenLineMenu }) {
   const color = toneColor(prim.tone, side);
   switch (prim.kind) {
     case 'line': {
@@ -54,7 +59,19 @@ function PrimView({ prim, side, style }: { prim: Prim; side: 'buy' | 'sell'; sty
             data-role={prim.role}
             data-expected-path={prim.role === 'expected' ? '' : undefined}
           />
-          <line x1={prim.x1} y1={prim.y1} x2={prim.x2} y2={prim.y2} stroke="transparent" strokeWidth={14} style={{ pointerEvents: 'stroke' }} />
+          <line
+            x1={prim.x1}
+            y1={prim.y1}
+            x2={prim.x2}
+            y2={prim.y2}
+            stroke="transparent"
+            strokeWidth={14}
+            style={{ pointerEvents: 'stroke' }}
+            data-testid="line-hit"
+            data-hit-role={prim.role}
+            onContextMenu={e => onMenu('context', e, prim.role)}
+            onDoubleClick={e => onMenu('double', e, prim.role)}
+          />
         </>
       );
     }
@@ -142,6 +159,16 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
   const { binding, rsi, wave } = scene;
   const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
   const formationStyle = useAnalysisPrefsStore(s => s.formationStyle);
+  const lineMenuMode = appearance.lineMenu;
+  const [lineMenu, setLineMenu] = useState<{ x: number; y: number; role: FormationLineRole } | null>(null);
+  const closeLineMenu = useCallback(() => setLineMenu(null), []);
+  // Einstellung „Çizgi menüsü“ (A7.7): Langdruck auf Android kommt als contextmenu und zählt als Rechtsklick; sonst bleibt das Browsermenü
+  const openLineMenu = useCallback<OpenLineMenu>((kind, event, role) => {
+    const allowed = kind === 'context' ? lineMenuMode === 'both' || lineMenuMode === 'right' : lineMenuMode === 'both' || lineMenuMode === 'double';
+    if (!allowed) return;
+    event.preventDefault();
+    setLineMenu({ x: event.clientX, y: event.clientY, role });
+  }, [lineMenuMode]);
   const overlayRef = useRef<SVGSVGElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; waveTop: number; groups: DrawingGroup[]; asOfX: number | null; d: DLayout }>({ width: 0, height: 0, left: 0, priceHeight: 0, waveTop: 0, groups: [], asOfX: null, d: NO_D });
@@ -298,7 +325,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
           onMouseLeave={() => onActive(null)}
         >
           {g.prims.map((p, i) => (
-            <PrimView key={i} prim={p} side={hit.candidate.side} style={formationStyle} />
+            <PrimView key={i} prim={p} side={hit.candidate.side} style={formationStyle} onMenu={openLineMenu} />
           ))}
         </g>
       ))}
@@ -344,6 +371,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
         );
       })}
     </svg>
+    {lineMenu && <FormationLineMenu x={lineMenu.x} y={lineMenu.y} role={lineMenu.role} onClose={closeLineMenu} />}
     </>
   );
 }
@@ -381,6 +409,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
       digits={digits}
       viewKey={`${contextKey}|${hit.tf}`}
       band={null}
+      modeSettings={<FormationLineTable />}
       lines={NO_LINES}
       showRsi
       live={null}

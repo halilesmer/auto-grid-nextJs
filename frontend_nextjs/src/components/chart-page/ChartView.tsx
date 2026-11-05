@@ -24,6 +24,8 @@ export interface ChartViewProps extends Omit<ChartCoreProps, OwnProps> {
   modeTitle?: string;
   /** Zeichenfläche des Modus über dem Chart (z. B. die Formationszeichnung) */
   renderOverlay?: (scene: ChartScene) => ReactNode;
+  /** Einstellungen des Modus im Abschnitt „Auto Grid katmanları“ der Chart-Einstellungen (z. B. Tabelle der Formationslinien) */
+  modeSettings?: ReactNode;
 }
 
 const RSI_LEVELS = [RSI_PARAMS.overbought, RSI_PARAMS.oversold];
@@ -45,7 +47,7 @@ function seriesPoints(bars: readonly Bar[], values: (number | null)[]) {
  * Ebenen, die jeder Chart zeigt: System-RSI(7) und Wave 5/35 aus denselben Kerzen wie der Chart. Der Modus liefert
  * nur seine Daten, seine Schalter und seine Zeichenfläche.
  */
-export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, renderOverlay, workspace, toolbarActions, ...core }: ChartViewProps) {
+export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, renderOverlay, modeSettings, workspace, toolbarActions, ...core }: ChartViewProps) {
   const overlays = useChartOverlays(workspace.key, { rsi: true, wave: true });
   const showPauses = useAnalysisPrefsStore(s => s.showPauses), showGaps = useAnalysisPrefsStore(s => s.showGaps);
   const rsiPoints = useMemo(() => seriesPoints(signalBars, rsi(signalBars)), [signalBars]);
@@ -62,6 +64,7 @@ export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, render
       marginsFor={controlMargins}
       overlayLayout
       renderOverlay={renderOverlay}
+      workspaceOverlays={modeSettings}
     />
   );
 }
