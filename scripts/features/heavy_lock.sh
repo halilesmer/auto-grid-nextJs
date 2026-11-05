@@ -22,6 +22,10 @@
 #                            Abstand > Prüfintervall + HEAVY_LOCK_SLEEP_GAP, Standard 60 s) setzt den Zähler zurück. Kein Wanduhr-Limit:
 #                            nach dem Ruhezustand sähe sonst jeder Halter hängend aus.
 #   HEAVY_LOCK_BREAK=1       nach MAX_IDLE den Prozessbaum des Halters beenden und die Sperre nehmen
+#   HEAVY_LOCK_FOREIGN_MAX=<s>  fremder Halter (erstes owner-Feld keine Zahl, z. B. Skript eines anderen
+#                            Gesprächs): nie als tot werten; Verzeichnis erst nach so viel wacher Wartezeit
+#                            löschen (Standard 10800 = 3 h), mit HEAVY_LOCK_BREAK=1 schon nach MAX_IDLE.
+#                            Kein Prozess wird beendet.
 #   HEAVY_LOCK_SKIP_MEM_CHECK=1  Speicherprüfung vor dem Lauf auslassen
 #   HEAVY_LOCK_SWAP_MAX=<%>  (90), HEAVY_LOCK_MEM_MIN=<%> (20), HEAVY_LOCK_MEM_WINDOW=<s> (120):
 #                            nach dem Nehmen der Sperre startet der Lauf nicht (Exit 76), wenn
@@ -32,7 +36,8 @@
 #
 # Fortschritt: precheck.sh schreibt mit heavy_lock_step <name> den laufenden Schritt nach <sperre>/step.
 #
-# Veraltete Sperre: lebt der Prozess aus `owner` nicht mehr (kill -0), wird sie gelöscht.
+# Veraltete Sperre: ist das erste owner-Feld eine pid und lebt der Prozess nicht mehr (kill -0),
+# wird sie gelöscht. Andere Skripte und Gespräche nutzen dasselbe Verzeichnis: Format einhalten.
 # Ein Sperrverzeichnis ohne `owner` gilt nach 60 s als verwaist.
 # Wiedereintritt: hält ein Vorfahr dieses Prozesses die Sperre (z. B. heavy_lock.sh precheck.sh),
 # läuft der Befehl ohne erneutes Warten.
@@ -148,7 +153,7 @@ heavy_lock_acquire() {
   _hl_skip && return 0
   local poll="${HEAVY_LOCK_POLL:-5}" timeout="${HEAVY_LOCK_TIMEOUT:-0}"
   local start now waited owner owner_pid age last_msg=-1
-  local last_t sig last_sig="" last_owner="" idle=0 gap
+  local last_t sig last_sig="" last_owner="" idle=0 gap jump foreign fheld=0
   start=$(date +%s)
   last_t=$start
   local name
@@ -156,6 +161,13 @@ heavy_lock_acquire() {
   while ! mkdir "$HEAVY_LOCK_DIR" 2>/dev/null; do
     owner=$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)
     owner_pid=${owner%% *}
+    # Nur eine reine Zahl ist eine pid. Ein anderes Format (andere Skripte, andere Gespräche) gilt
+    # als fremder Halter: nie per kill -0 als tot werten, sondern warten.
+    foreign=0
+    if [ -n "$owner" ] && ! [[ "$owner_pid" =~ ^[0-9]+$ ]]; then
+      foreign=1
+      owner_pid=""
+    fi
     if [ -n "$owner_pid" ] && _hl_is_ancestor "$owner_pid"; then
       _hl_log "Sperre hält schon ein Vorfahr (pid $owner_pid), weiter ohne Warten"
       return 0
@@ -175,7 +187,7 @@ heavy_lock_acquire() {
     else
       age=$(( now - $(_hl_mtime "$HEAVY_LOCK_DIR") ))
     fi
-    if [ -z "$owner_pid" ] && [ -d "$HEAVY_LOCK_DIR" ] && [ "$age" -gt 60 ]; then
+    if [ -z "$owner" ] && [ -d "$HEAVY_LOCK_DIR" ] && [ "$age" -gt 60 ]; then
       _hl_log "verwaiste Sperre ohne owner (${age}s) gelöscht"
       rm -rf "$HEAVY_LOCK_DIR"
       continue
@@ -188,22 +200,43 @@ heavy_lock_acquire() {
     # Leerlauf des Halters: nur Wartezeit ohne Fortschritt zählt, ein Uhrsprung (Ruhezustand) setzt zurück
     gap=$(( now - last_t ))
     last_t=$now
+    jump=0
+    if [ "$gap" -gt $(( ${poll%.*} + ${HEAVY_LOCK_SLEEP_GAP:-60} )) ]; then
+      jump=1
+      _hl_log "Uhrsprung ${gap}s zwischen zwei Prüfungen (Ruhezustand?): Leerlaufzähler zurückgesetzt"
+    fi
     if [ -n "$owner_pid" ]; then
       sig=$(_hl_signature "$owner_pid")
-      if [ "$owner" != "$last_owner" ]; then
-        idle=0
-      elif [ "$gap" -gt $(( ${poll%.*} + ${HEAVY_LOCK_SLEEP_GAP:-60} )) ]; then
-        _hl_log "Uhrsprung ${gap}s zwischen zwei Prüfungen (Ruhezustand?): Leerlaufzähler zurückgesetzt"
+      if [ "$owner" != "$last_owner" ] || [ "$jump" = 1 ]; then
         idle=0
       elif [ "$sig" = "$last_sig" ]; then
         idle=$(( idle + gap ))
       else
         idle=0
       fi
-      last_owner=$owner
       last_sig=$sig
     fi
     local max_idle="${HEAVY_LOCK_MAX_IDLE:-600}"
+    # Fremder Halter: kein Fortschritt messbar. Gezählt wird nur die wache Wartezeit dieses Prozesses
+    # (Uhrsprung zählt nicht), damit ein Ruhezustand die Sperre nicht „alt“ macht.
+    if [ "$foreign" = 1 ]; then
+      if [ "$owner" != "$last_owner" ]; then
+        fheld=0
+      elif [ "$jump" = 0 ]; then
+        fheld=$(( fheld + gap ))
+      fi
+      local fmax="${HEAVY_LOCK_FOREIGN_MAX:-10800}"
+      if [ "$fheld" -ge "$fmax" ] || { [ "${HEAVY_LOCK_BREAK:-0}" = 1 ] && [ "$fheld" -ge "$max_idle" ]; }; then
+        if [ "$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)" = "$owner" ]; then
+          _hl_log "WARNUNG: fremde Sperre (owner ohne pid: \"$owner\") nach ${fheld}s wacher Wartezeit gelöscht."
+          _hl_log "  Nur das Verzeichnis wurde gelöscht, kein Prozess beendet. Läuft der Halter noch, laufen jetzt zwei schwere Läufe."
+          rm -rf "$HEAVY_LOCK_DIR"
+        fi
+        last_owner=""
+        continue
+      fi
+    fi
+    last_owner=$owner
     if [ -n "$owner_pid" ] && [ "$idle" -ge "$max_idle" ] && [ "${HEAVY_LOCK_BREAK:-0}" = 1 ]; then
       _hl_idle_report "$owner" "$idle"
       _hl_break "$owner"
@@ -212,6 +245,9 @@ heavy_lock_acquire() {
     if [ $(( waited / 120 )) -ne "$last_msg" ] || { [ "$idle" -ge "$max_idle" ] && [ "${_HL_WARNED:-}" != "$owner" ]; }; then
       last_msg=$(( waited / 120 ))
       _hl_log "warte seit $((waited / 60)) min; Sperre hält: ${owner:-?} (seit $((age / 60)) min)"
+      if [ "$foreign" = 1 ]; then
+        _hl_log "  fremder Halter (owner ohne pid, anderes Skript?): wird nicht als tot gewertet; gelöscht erst nach $(( ${HEAVY_LOCK_FOREIGN_MAX:-10800} / 60 )) min wacher Wartezeit oder mit HEAVY_LOCK_BREAK=1 nach $(( max_idle / 60 )) min"
+      fi
       if [ -n "$owner_pid" ] && [ "$idle" -ge "$max_idle" ]; then
         _hl_idle_report "$owner" "$idle"
         _HL_WARNED=$owner
@@ -219,14 +255,15 @@ heavy_lock_acquire() {
     fi
     sleep "$poll"
   done
-  echo "$$ $name $(date -u +%H:%M:%S)" > "$HEAVY_LOCK_DIR/owner"
+  # traps vor owner: ein Signal direkt nach mkdir gibt die Sperre sonst nie frei
   _HL_HELD=1
-  local waited_total=$(( $(date +%s) - start ))
-  _hl_log "Sperre genommen nach ${waited_total}s Warten (pid $$, $name)"
   trap '_hl_on_exit' EXIT
   trap '_hl_on_signal 129' HUP
   trap '_hl_on_signal 130' INT
   trap '_hl_on_signal 143' TERM
+  echo "$$ $name $(date -u +%H:%M:%S)" > "$HEAVY_LOCK_DIR/owner"
+  local waited_total=$(( $(date +%s) - start ))
+  _hl_log "Sperre genommen nach ${waited_total}s Warten (pid $$, $name)"
   if ! heavy_mem_check; then
     heavy_lock_release
     return 76
@@ -239,24 +276,36 @@ heavy_lock_release() {
   [ "$_HL_HELD" = 1 ] || return 0
   local owner_pid
   owner_pid=$(cut -d' ' -f1 "$HEAVY_LOCK_DIR/owner" 2>/dev/null)
-  [ "$owner_pid" = "$$" ] && rm -rf "$HEAVY_LOCK_DIR"
+  # leer = mkdir war unser, owner noch nicht geschrieben
+  if [ -z "$owner_pid" ] || [ "$owner_pid" = "$$" ]; then rm -rf "$HEAVY_LOCK_DIR"; fi
   _HL_HELD=0
 }
 
 # Weitere Aufräumfunktion für Exit/Signal registrieren (läuft vor der Freigabe der Sperre).
 heavy_on_exit() { _HL_EXIT_HOOKS+=("$1"); trap '_hl_on_exit' EXIT; }
 
-_hl_on_exit() {
-  local status=$? h
-  # Ein zweites Signal während des Aufräumens würde bash beenden, bevor die Sperre frei ist
-  trap '' HUP INT TERM
+_hl_cleanup() {  # Hooks + Freigabe; mehrfach aufrufbar
+  local h
   for h in "${_HL_EXIT_HOOKS[@]+"${_HL_EXIT_HOOKS[@]}"}"; do "$h" || true; done
   _HL_EXIT_HOOKS=()
   heavy_lock_release
+}
+
+_hl_on_exit() {
+  local status=$?
+  # Ein zweites Signal während des Aufräumens würde bash beenden, bevor die Sperre frei ist
+  trap '' HUP INT TERM
+  _hl_cleanup
   return "$status"
 }
 
-_hl_on_signal() { exit "$1"; }  # exit löst den EXIT-trap aus
+# Signal: selbst aufräumen, dann beenden. Kommt das Signal, während der EXIT-trap schon läuft
+# (vor dessen `trap ''`), beendet exit hier bash ohne Rest des EXIT-traps: deshalb nicht darauf bauen.
+_hl_on_signal() {
+  trap '' HUP INT TERM
+  _hl_cleanup
+  exit "$1"
+}
 
 # Als Hülle aufgerufen (nicht per source)
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then

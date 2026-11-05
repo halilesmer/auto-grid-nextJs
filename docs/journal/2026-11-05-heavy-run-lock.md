@@ -49,6 +49,8 @@ Hang detection does not use the wall clock. The waiting run calculates a signatu
 
 Memory check (macOS only): after the run gets the lock, it does not start when swap is at 90 % or more AND free memory (`kern.memorystatus_level`) is less than 20 %, and this stays so for 2 min (checks every 10 s).
 
+Other conversations use the same lock directory `/tmp/gridrobot-heavy.lock`. The `owner` format is `<pid> <worktree> <HH:MM:SS>`. A session of another conversation (`osc-panes-tv`) wrote an owner with a non-numeric first field (`pane-model-pr2 …`). The first versions of the temporary and the new script read this as a dead pid (`kill -0` failed) and removed the lock, so two heavy runs could overlap. Fix: only a numeric first field is a pid. Any other owner is a foreign holder. The script waits for it and never removes it as stale. It removes only the directory (no process) after 3 h of awake waiting time (`HEAVY_LOCK_FOREIGN_MAX`) or with `HEAVY_LOCK_BREAK=1` after `HEAVY_LOCK_MAX_IDLE`.
+
 ## Why
 
 - **Directory lock, not `flock`.** macOS has no `flock(1)` by default. `mkdir` is atomic on each file system. The temporary script of the sessions used the same directory and format, so the old and the new script see each other.
@@ -90,5 +92,7 @@ Not verified: the memory thresholds against a real out-of-memory state. The valu
 
 ## Lessons
 - A test that simulates "another holder" must not use its own pid: the test runner is an ancestor of the script.
-- In a `trap … EXIT` handler, ignore signals first. Else a second signal stops bash before the cleanup.
+- Set the signal traps before you write `owner`. CI (Linux) sent TERM between the `owner` write and the `trap` line, and the lock stayed (SIGTERM test red in PR 389, 2 of 2 tries).
+- Let the signal handler do the cleanup itself, then `exit`. A signal that arrives while the EXIT trap starts runs the signal handler, and its `exit` ends bash without the rest of the EXIT trap. Local loop: 1 of 30 kept the lock before the fix, 0 of 40 after it.
+- A lock directory that other scripts share needs a fixed `owner` format. Never treat an owner that you cannot parse as dead.
 - Before you call a run "hung", look at `pmset -g log`. Sleep looks like a hang.

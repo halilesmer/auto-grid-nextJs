@@ -2,7 +2,8 @@
  * Maschinenweite Sperre für schwere Testläufe ohne Browser (scripts/features/heavy_lock.sh).
  * SYS-11 Zwei schwere Läufe laufen nacheinander; eine veraltete Sperre wird gelöscht;
  * HEAVY_LOCK=0 und CI überspringen; die Sperre wird auch bei Fehler freigegeben, der Exit-Code bleibt;
- * ein Halter ohne Fortschritt wird gemeldet (nach Ruhezustand nicht); Speicherdruck stoppt den Lauf.
+ * ein Halter ohne Fortschritt wird gemeldet (nach Ruhezustand nicht); Speicherdruck stoppt den Lauf;
+ * ein fremder owner ohne pid wird nie als tot gewertet.
  *
  * Jeder Test nimmt ein eigenes Sperrverzeichnis (HEAVY_LOCK_DIR), nie /tmp/gridrobot-heavy.lock.
  */
@@ -210,6 +211,33 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     const skip = run(['echo', 'trotzdem'], { ...force, HEAVY_LOCK_SKIP_MEM_CHECK: '1' });
     expect(skip.status).toBe(0);
     expect(skip.stdout).toContain('trotzdem');
+  });
+
+  test('fremder owner ohne pid: Wartender löscht nicht, läuft erst nach Freigabe', async () => {
+    mkdirSync(lockDir);
+    writeFileSync(path.join(lockDir, 'owner'), 'pane-model-pr2 osc-panes-tv 18:00\n');
+    const t = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '2' });
+    expect(t.status).toBe(75);
+    expect(t.stderr).toContain('fremder Halter');
+    expect(t.stderr).not.toContain('veraltete Sperre');
+    expect(readFileSync(path.join(lockDir, 'owner'), 'utf8')).toContain('pane-model-pr2');
+    const w = runAsync(['echo', 'nach Freigabe']);
+    let out = '';
+    w.child.stdout?.on('data', (d) => (out += d));
+    await new Promise((r) => setTimeout(r, 800));
+    expect(existsSync(lockDir)).toBe(true); // wartet noch
+    rmSync(lockDir, { recursive: true, force: true }); // fremder Halter gibt frei
+    expect((await w.done).code).toBe(0);
+    expect(out).toContain('nach Freigabe');
+  });
+
+  test('fremder owner: nach HEAVY_LOCK_FOREIGN_MAX wacher Wartezeit nur das Verzeichnis gelöscht', () => {
+    mkdirSync(lockDir);
+    writeFileSync(path.join(lockDir, 'owner'), 'pane-model-pr2 osc-panes-tv 18:00\n');
+    const r = run(['echo', 'danach'], { HEAVY_LOCK_FOREIGN_MAX: '1' });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toContain('fremde Sperre');
+    expect(r.stdout).toContain('danach');
   });
 
   test('hält ein Vorfahr die Sperre, läuft der Befehl ohne Warten (Wiedereintritt)', () => {
