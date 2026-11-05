@@ -2167,6 +2167,16 @@ kategorien:
           - UI-07 (Tooltip am Schalter) und UI-08 (375 px ohne Querscroll) ausführen.
         erwartet: Der Chart zeigt Kerzen, RSI und ein Wave-Histogramm; der Schalter „Wave 5/35“ blendet das Histogramm aus und ein.
 
+      - id: FRM-45
+        titel: "Schalter „Formasyon çizimleri“ in der Symbolleiste (Modus Formation)"
+        beschreibung: "Im Modus Formation der Seite /chart steht in der Symbolleiste direkt hinter „Görünümü sıfırla“ ein Symbol-Schalter (aria-pressed, Tooltip) „Formasyon çizimleri“. Er schreibt denselben Wert (overlays.formations des Chart-Dokuments) wie früher der Schalter im Menü „Ebenen“, gespeicherte Einstellungen bleiben also gültig. Aus dem Menü „Ebenen“ ist der Abschnitt „Yalnız Formasyon modunda“ entfernt. In den Modi Setup und Frei gibt es den Schalter nicht. Keine Worker-Änderung, keine Order."
+        code: [frontend_nextjs/src/components/chart-workspace/FormationDrawingsToggle.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-45) ausführen.
+          - UI-07 (Tooltip) und UI-08 (375 px ohne Querscroll) ausführen.
+        erwartet: Der Schalter blendet die Formationszeichnungen aus und ein, steht nur im Modus Formation und nicht mehr im Menü „Ebenen“.
+
       - id: FRM-37
         titel: "Seite Formasyon: Seitenleiste mit Reitern Bedingungen und Favoriten"
         beschreibung: "Die Bedingungen (Kandidaten und Checkliste) stehen als Reiter „Bedingungen“ neben „Favoriten“ in der rechten Seitenleiste; die verschiebbare Karte über dem Chart entfällt (früher FRM-24). Die schmale Leiste ganz rechts hat zwei Symbole (Lesezeichen, Bedingungen); jedes öffnet die Seitenleiste auf seinem Reiter, ein Klick auf das Symbol des aktiven Reiters schließt sie. Ab 1024 px schiebt die offene Leiste den Chart nach links (formation-main wird um 40 + 288 px schmaler) und überdeckt ihn nicht; darunter liegt sie über dem Chart. Ein Status-Knopf in der Kopfleiste öffnet und schließt den Reiter „Bedingungen“; ohne Kandidat ist er deaktiviert. Bei einer Chartbreite unter 79rem (1264 px bei 16 px Browser-Schrift) zeigt er nur Pfeil (Kauf/Verkauf), Urteil als Symbol mit eigener Form (✓, ✗, Uhr) und Pfeil, ab 79rem Urteil als Pille und Zähler Pflicht · Verstärkung; Seite, Urteil und Zähler stehen immer im Namen (aria-label) und im Hinweis. Offen/zu und der Reiter bleiben im Browser (localStorage); erster Besuch: ab 1024 px offen auf „Bedingungen“, darunter zu."

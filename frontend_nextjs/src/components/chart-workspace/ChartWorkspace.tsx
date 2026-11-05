@@ -53,6 +53,7 @@ interface Props {
   overlays?: ReactNode;
   /** Schalter, die rechts neben den Indikatoren in der Kopfleiste stehen (z. B. Trendzug) */
   toolbarActions?: ReactNode;
+  viewActions?: ReactNode;
   /** Panes the chart draws itself (system RSI(7), Wave 5/35); each gets a legend row that hides its layer. */
   systemPanes?: readonly SystemPane[];
   onHideSystemPane?: (id: string) => void;
@@ -71,7 +72,7 @@ interface Props {
   fullscreenOfPage?: boolean;
 }
 
-export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, systemPanes, onHideSystemPane, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
+export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, viewActions, systemPanes, onHideSystemPane, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
   const t = useT(), fmt = useFormat();
   // Auf /chart (Formation) (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
@@ -395,6 +396,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? '@min-[71rem]/formation-main:hidden' : ''}`}>{context.symbol}</span>
       <div className="flex flex-wrap items-center gap-1">
         {overlayLayout && appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => binding?.chart.timeScale().fitContent()}><Scan size={15} /></Button>}
+        {overlayLayout && viewActions}
         {overlayLayout
           ? <Button size="icon-xs" variant="ghost" hint={t('cw.indicators.hint')} aria-label={t('cw.indicators')} onClick={() => setIndicatorsOpen(true)}><ChartSpline size={15} /></Button>
           : <Button size="sm" variant="ghost" hint={t('cw.indicators.hint')} onClick={() => setIndicatorsOpen(true)}>{t('cw.indicators')}</Button>}
