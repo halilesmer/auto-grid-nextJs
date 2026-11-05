@@ -119,6 +119,9 @@ class AccountInfo:
     currency: str = "USD"
     margin_mode: int = 2  # ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
     balance: float = 10000.0
+    margin: float = 0.0
+    margin_free: float = 10000.0
+    margin_level: float = 0.0  # MT5: 0 ohne offene Positionen
 
 
 @dataclass

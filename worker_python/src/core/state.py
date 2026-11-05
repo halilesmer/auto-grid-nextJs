@@ -41,6 +41,8 @@ class GridState:
     placed_orders: Dict[int, tuple] = field(default_factory=dict)
     # Sembol → monotonic bitiş: 10018 "Market closed" sonrası emir gönderilmez (ENG-32)
     market_closed_until: Dict[str, float] = field(default_factory=dict)
+    # Sembol → monotonic bitiş: iptal 10018 ile reddedilince Mutlak Temizlik beklenir (ENG-33)
+    cancel_closed_until: Dict[str, float] = field(default_factory=dict)
     # Bölge → dışarıdan silinen emirlerin zamanları (monotonic, kayan pencere)
     vanished_times: Dict[int, list] = field(default_factory=dict)
     # Kaldırılan fraktal ek kurgularının emirleri için kullanıcı kararı: "delete" / "keep" / "" (bekliyor)

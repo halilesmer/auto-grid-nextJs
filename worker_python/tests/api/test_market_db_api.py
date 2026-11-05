@@ -501,3 +501,23 @@ def test_konto_loeschen_loescht_das_deal_archiv(client, broker, deals):
     with market_db.reading() as conn:
         assert conn.execute("SELECT COUNT(*) FROM deals").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM deal_coverage").fetchone()[0] == 0
+
+
+@pytest.mark.feature("ANA-04")
+def test_size_bytes_ueberlebt_verschwindende_wal_datei(monkeypatch, tmp_path):
+    import os
+    from src.utils import market_db
+
+    db = tmp_path / "m.sqlite"
+    db.write_bytes(b"x" * 10)
+    monkeypatch.setattr(market_db, "db_path", lambda: str(db))
+    real = os.path.getsize
+
+    def racy(p):
+        if str(p).endswith("-wal"):
+            raise FileNotFoundError(p)  # exists() war True, Datei dann weg
+        return real(p)
+
+    monkeypatch.setattr(os.path, "exists", lambda p: True)
+    monkeypatch.setattr(os.path, "getsize", racy)
+    assert market_db.size_bytes() == 10

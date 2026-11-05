@@ -159,8 +159,12 @@ def size_bytes() -> int:
     path = db_path()
     total = 0
     for p in (path, path + "-wal"):
-        if os.path.exists(p):
+        try:
             total += os.path.getsize(p)
+        except FileNotFoundError:
+            # exists()+getsize() ist nicht atomar: SQLite löscht die -wal-Datei beim Checkpoint
+            # dazwischen (HTTP 500 auf /rates). Fehlende Datei zählt als 0 Byte.
+            pass
     return total
 
 

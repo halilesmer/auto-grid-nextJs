@@ -103,6 +103,13 @@ def calculate_live_metrics(mt5, active_symbols, connection_lost, remote_paused, 
     if not terminal_info.trade_allowed:
         metrics["algo_trading_error"] = True
 
+    # Marj verisi (ENG-34): keine UI, nur Daten; account_info() kann None liefern
+    acc = mt5.account_info()
+    if acc is not None:
+        metrics["margin"] = _num(getattr(acc, "margin", None))
+        metrics["margin_free"] = _num(getattr(acc, "margin_free", None))
+        metrics["margin_level"] = _num(getattr(acc, "margin_level", None))
+
     positions = mt5.positions_get()
     if positions:
         robot_pos = [
