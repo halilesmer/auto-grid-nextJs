@@ -21,6 +21,7 @@ import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { END, H4, mirror, zig, type Row } from '../fixtures/formation-rows';
 import { M, N, U, atOf, chop, ctxOf, find, harmonic as harmonicWith, lowerRows, makeRun, state, wick, wickOnlyD } from '../fixtures/formation-harmonic';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-14' }, fn);
 
@@ -266,11 +267,11 @@ test.describe('CRB: Abgrenzung, Urteil und Zeichnungen', () => {
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------
 
-const loadFixture = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const loadFixture = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const analyzeAt = (name: string, iso: string): Candidate => {
   const fixture = loadFixture(name);
-  const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars });
+  const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
   return analyzeCrb(ctx, at(iso)).find((a) => a.tf === 'H4')!.candidate;
 };
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
@@ -355,8 +356,8 @@ test.describe('CRB: echte Kerzen', () => {
       const fixture = loadFixture(name);
       const t = at(iso);
       const cut = fixture.bars.filter((b) => b.time < t);
-      const full = analyzeCrb(new FormationContext(fixture.symbol, { H4: fixture.bars }), t).find((a) => a.tf === 'H4')!;
-      const prefix = analyzeCrb(new FormationContext(fixture.symbol, { H4: cut }), t).find((a) => a.tf === 'H4')!;
+      const full = analyzeCrb(new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) }), t).find((a) => a.tf === 'H4')!;
+      const prefix = analyzeCrb(new FormationContext(fixture.symbol, { H4: cut }, { trend: trendOf(cut) }), t).find((a) => a.tf === 'H4')!;
       expect(full.candidate).toEqual(prefix.candidate);
     }
   });

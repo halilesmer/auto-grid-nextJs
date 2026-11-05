@@ -16,6 +16,7 @@ import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, barsOf, mirror, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -28,7 +29,7 @@ type Tf = keyof typeof STEP;
 const ctxOf = (input: Partial<Record<Tf, Row[]>>) => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext('TEST', bars);
+  return new FormationContext('TEST', bars, { trend: FIXTURE_TREND });
 };
 
 const wick = (rows: Row[], idx: number, high: boolean, step: number = H4): Anchor => ({ time: idx * step, price: high ? rows[idx][1] : rows[idx][2] });
@@ -250,7 +251,7 @@ interface Real {
   expect: Record<string, CheckState>;
 }
 
-const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
+const loadReal = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))));
 
 const ALL = { '01': M, '02': M, '03': M, '04': M, '05': M, '06': M, '08': M, '09': N, '10': N } as const;
 const REAL: Real[] = [
@@ -258,8 +259,8 @@ const REAL: Real[] = [
   { file: 'f2618-sell-h4-01', t: 1759737600, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': N } },
   // Verkauf; Fib-Beginn ist ein Hoch knapp unter H2 (E-8), zweiter Verkauf am selben Doppeltop
   { file: 'f2618-sell-h4-02', t: 1761811200, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': N } },
-  // Verkauf; Berührung nach 3 Tagen; 0.618 nahe einem Level einer größeren Bewegung
-  { file: 'f2618-sell-h4-03', t: 1760385600, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': M } },
+  // Verkauf; Berührung nach 3 Tagen. FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): die größere Bewegung hat hier kein Level nahe 0.618 mehr (vorher 2618-07 ☑)
+  { file: 'f2618-sell-h4-03', t: 1760385600, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': N } },
   // Kauf nach Doppelboden (Spiegelfall)
   { file: 'f2618-buy-h4-01', t: 1762747200, side: 'buy', verdict: 'valid', expect: { ...ALL, '07': M } },
   // Negativfall: volumenstarke Kerze gegen den Verkauf an der Berührung
@@ -271,13 +272,13 @@ const REAL: Real[] = [
 for (const r of REAL) {
   frm(`echte Reihe ${r.file}`, () => {
     const fx = loadReal(r.file);
-    const c = analyze2618(new FormationContext(fx.symbol, { H4: fx.bars }), r.t)[0].candidate;
+    const c = analyze2618(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     expect(c.side).toBe(r.side);
     expect(c.verdict).toBe(r.verdict);
     for (const [n, want] of Object.entries(r.expect)) expect(state(c, `2618-${n}`), idOf(Number(n))).toBe(want);
     // Kein Blick in die Zukunft: ohne die späteren Kerzen derselbe Befund
     const known = fx.bars.filter((b) => b.time + H4 <= r.t);
-    const cut = analyze2618(new FormationContext(fx.symbol, { H4: known }), r.t)[0].candidate;
+    const cut = analyze2618(new FormationContext(fx.symbol, { H4: known }, { trend: trendOf(known) }), r.t)[0].candidate;
     expect(cut.checks.map((x) => [x.id, x.state])).toEqual(c.checks.map((x) => [x.id, x.state]));
     expect(cut.verdict).toBe(c.verdict);
   });

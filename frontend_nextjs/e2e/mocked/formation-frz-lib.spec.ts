@@ -11,6 +11,7 @@ import { FRZ_CHECK_IDS, analyzeFrz, checkFrzCandidate, type FrzCandidateInput, t
 import type { Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
 import { buildEnv } from '../../src/lib/formation/reasons';
 import { atrSeries } from '../../src/lib/formation/indicators';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 type Row = [number, number, number, number];
 
@@ -78,7 +79,7 @@ function run(
   options: FrzOptions = {},
   extra: ContextInput = {},
 ): Candidate {
-  const ctx = new FormationContext('TEST', { H4: barsOf(rows), ...extra });
+  const ctx = new FormationContext('TEST', { H4: barsOf(rows), ...extra }, { trend: FIXTURE_TREND });
   return checkFrzCandidate(ctx, END, { tf: 'H4', side: 'resistance', time: T5, ...input }, options);
 }
 
@@ -112,7 +113,7 @@ test.describe('FRZ: Fraktal und Kandidat (FRZ 01 bis FRZ 05)', () => {
   });
   frm('FRZ 02 ☐: eine Kerze, die noch läuft, zählt nicht (Kontext gibt sie nicht frei)', () => {
     // Kerze 7 öffnet bei 7 × 14400 und endet bei 8 × 14400; zum Zeitpunkt 8 × 14400 − 1 ist sie offen
-    const ctx = new FormationContext('TEST', { H4: barsOf(BASE) });
+    const ctx = new FormationContext('TEST', { H4: barsOf(BASE) }, { trend: FIXTURE_TREND });
     const c = checkFrzCandidate(ctx, 8 * H4 - 1, { tf: 'H4', side: 'resistance', time: T5 });
     expect(state(c, 'FRZ-02')).toBe('unmet');
     expect(find(c, 'FRZ-02').value).toBe(1);
@@ -292,7 +293,7 @@ test.describe('FRZ: Zone zeichnen (FRZ 11 bis FRZ 16)', () => {
     expect(rectOf(c)).toEqual({ top: 105, bottom: 102 });
   });
   frm('FRZ 16 ☐: dieselbe Kerzenform in H1 ist kein Manipulationsdocht (nur H4)', () => {
-    const ctx = new FormationContext('TEST', { H1: barsOf(manipulation, 3600) });
+    const ctx = new FormationContext('TEST', { H1: barsOf(manipulation, 3600) }, { trend: FIXTURE_TREND });
     const c = checkFrzCandidate(ctx, END, { tf: 'H1', side: 'resistance', time: 5 * 3600 });
     expect(state(c, 'FRZ-16')).toBe('unmet');
   });
@@ -348,7 +349,7 @@ test.describe('FRZ: Auswahl (FRZ 19 bis FRZ 25, FRZ 27)', () => {
     expect(find(c, 'FRZ-20').value).toBe(3);
   });
   frm('FRZ 20: analyzeFrz wählt je Seite nur die zwei Zonen [108; 110] und [118; 120]', () => {
-    const ctx = new FormationContext('TEST', { H4: barsOf(LADDER) });
+    const ctx = new FormationContext('TEST', { H4: barsOf(LADDER) }, { trend: FIXTURE_TREND });
     const zones = analyzeFrz(ctx, END).zones.filter((z) => z.side === 'resistance');
     expect(zones.map((z) => z.rect)).toEqual([
       { top: 110, bottom: 108 },
@@ -373,7 +374,7 @@ test.describe('FRZ: Auswahl (FRZ 19 bis FRZ 25, FRZ 27)', () => {
     expect(state(c, 'FRZ-21')).toBe('unmet');
   });
   frm('FRZ 21 ☐: der D1-Kandidat selbst hat keine höhere Zeiteinheit', () => {
-    const ctx = new FormationContext('TEST', { D1: barsOf(d1Rows(0), D1_STEP) });
+    const ctx = new FormationContext('TEST', { D1: barsOf(d1Rows(0), D1_STEP) }, { trend: FIXTURE_TREND });
     const c = checkFrzCandidate(ctx, END, { tf: 'D1', side: 'resistance', time: 12 * D1_STEP });
     expect(state(c, 'FRZ-21')).toBe('unmet');
   });
@@ -420,7 +421,7 @@ test.describe('FRZ: Auswahl (FRZ 19 bis FRZ 25, FRZ 27)', () => {
     expect(state(run(BASE), 'FRZ-27')).toBe('met');
   });
   frm('FRZ 27 ☐: M15-Zonen gelten nur, wenn M15 die Einstiegs-Zeiteinheit ist', () => {
-    const ctx = new FormationContext('TEST', { M15: barsOf(BASE, 900) });
+    const ctx = new FormationContext('TEST', { M15: barsOf(BASE, 900) }, { trend: FIXTURE_TREND });
     const input: FrzCandidateInput = { tf: 'M15', side: 'resistance', time: 5 * 900 };
     expect(state(checkFrzCandidate(ctx, END, input), 'FRZ-27')).toBe('unmet');
     expect(state(checkFrzCandidate(ctx, END, input, { entryTf: 'M15' }), 'FRZ-27')).toBe('met');
@@ -577,7 +578,7 @@ test.describe('FRZ: Zeichnungen und Grundverhalten', () => {
   });
   frm('Z-FRZ 06: D1-Zone auch in H4, H4-Zone auch in H1, H1-Zone nur in H1', () => {
     const visible = (tf: 'D1' | 'H4' | 'H1', step: number) => {
-      const ctx = new FormationContext('TEST', { [tf]: barsOf(BASE, step) });
+      const ctx = new FormationContext('TEST', { [tf]: barsOf(BASE, step) }, { trend: FIXTURE_TREND });
       const c = checkFrzCandidate(ctx, END, { tf, side: 'resistance', time: 5 * step });
       return c.drawings.find((d) => d.id === 'Z-FRZ-06')?.timeframes;
     };
@@ -601,14 +602,14 @@ test.describe('FRZ: Zeichnungen und Grundverhalten', () => {
     expect(c.verdict).toBe('forming');
   });
   frm('kein Blick in die Zukunft: zum früheren Zeitpunkt ist der spätere Bruch unsichtbar', () => {
-    const ctx = new FormationContext('TEST', { H4: barsOf([...BASE, [100, 112, 99, 111]]) });
+    const ctx = new FormationContext('TEST', { H4: barsOf([...BASE, [100, 112, 99, 111]]) }, { trend: FIXTURE_TREND });
     const before = checkFrzCandidate(ctx, 9 * H4, { tf: 'H4', side: 'resistance', time: T5 });
     const after = checkFrzCandidate(ctx, 10 * H4, { tf: 'H4', side: 'resistance', time: T5 });
     expect(state(before, 'FRZ-06')).toBe('unmet');
     expect(state(after, 'FRZ-06')).toBe('met');
   });
   frm('analyzeFrz: Rollenwechsel liefert eine Unterstützung mit der Rolle „reversed“', () => {
-    const ctx = new FormationContext('TEST', { H4: barsOf([...BASE, [100, 112, 99, 111]]) });
+    const ctx = new FormationContext('TEST', { H4: barsOf([...BASE, [100, 112, 99, 111]]) }, { trend: FIXTURE_TREND });
     const { reversed } = analyzeFrz(ctx, END);
     const zone = reversed.find((z) => z.fractalTimes.includes(T5));
     expect(zone?.side).toBe('support');
@@ -620,11 +621,11 @@ test.describe('FRZ: Zeichnungen und Grundverhalten', () => {
 
 test.describe('FRZ: echte Kerzen (Fixture)', () => {
   // 66 H4-Kerzen eines Forex-Paares vom 23.09. bis 07.10.2025; davor liefert der Broker keine H4-Kerzen
-  const fixture = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/frz-zone-h4-01.json', 'utf-8')));
+  const fixture = named('e2e/fixtures/formation/frz-zone-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/frz-zone-h4-01.json', 'utf-8'))));
   const end = fixture.bars[fixture.bars.length - 1].time + H4;
 
   frm('Fixture: jede gewählte Zone besteht FRZ 01 bis FRZ 04, FRZ 07 und FRZ 20; höchstens zwei je Seite', () => {
-    const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars });
+    const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
     const { zones } = analyzeFrz(ctx, end);
     expect(zones.length).toBeGreaterThan(0);
     for (const side of ['resistance', 'support'] as const) {
@@ -639,7 +640,7 @@ test.describe('FRZ: echte Kerzen (Fixture)', () => {
     }
   });
   frm('Fixture: zur Mitte der Reihe sieht die Erkennung nur die bis dahin geschlossenen Kerzen', () => {
-    const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars });
+    const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
     const half = fixture.bars[33].time + H4;
     const times = analyzeFrz(ctx, half).zones.flatMap((z) => z.fractalTimes);
     expect(times.length).toBeGreaterThan(0);
@@ -648,7 +649,7 @@ test.describe('FRZ: echte Kerzen (Fixture)', () => {
 });
 
 test.describe('FRZ: Abnahmefälle der Testliste (echte Kerzen)', () => {
-  const load = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+  const load = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
   const utc = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
   const states = (c: Candidate, ids: string[]) => Object.fromEntries(ids.map((id) => [id, state(c, id)]));
   /** Fraktal-Kerze der Liste: äußerster Docht der Seite im Ablesefenster [from, to) */
@@ -664,7 +665,7 @@ test.describe('FRZ: Abnahmefälle der Testliste (echte Kerzen)', () => {
 
   frm('frz-resist-h4-01: die drei Widerstands-Fraktale der Liste liegen am 02.10. in gültigen Zonen, keine durch einen Schluss verletzt', () => {
     const fx = load('frz-resist-h4-01');
-    const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
     const zones = [
       { from: '2025-09-16T00:00', to: '2025-09-19T00:00', top: 1.19188, outer: '2025-09-17T20:00' },
       // gehört zur zusammengelegten Zone von Fraktal 1 (FRZ 22, nächster Test): geprüft wird deren äußeres Fraktal
@@ -692,7 +693,7 @@ test.describe('FRZ: Abnahmefälle der Testliste (echte Kerzen)', () => {
   // Gemessene Auswahl, keine Vorgabe der Liste (die Liste zeichnet drei Zonen); FRZ 22 ist eine Annahme (FRZ_PARAMS.mergeGap)
   frm('frz-resist-h4-01: FRZ 22 legt die Listenzonen 1 und 2 über das Fraktal vom 18.09. 12:00 zusammen, Zone 3 bleibt eigene Zone', () => {
     const fx = load('frz-resist-h4-01');
-    const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
     const first = fractalBar(fx.bars, 'resistance', '2025-09-16T00:00', '2025-09-19T00:00').time;
     const second = fractalBar(fx.bars, 'resistance', '2025-09-22T00:00', '2025-09-26T00:00').time;
     const third = fractalBar(fx.bars, 'resistance', '2025-09-30T00:00', '2025-10-03T00:00').time;
@@ -710,7 +711,7 @@ test.describe('FRZ: Abnahmefälle der Testliste (echte Kerzen)', () => {
 });
 
 test.describe('FRZ: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)', () => {
-  const load = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+  const load = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
   const utc = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
   const states = (c: Candidate, ids: string[]) => Object.fromEntries(ids.map((id) => [id, state(c, id)]));
   const atEnd = (bars: FormationBar[]) => bars[bars.length - 1].time + H4;
@@ -720,7 +721,7 @@ test.describe('FRZ: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)', 
   frm('frz-support-h4-01: die H4-Unterstützung liegt an der D1-Zone, FRZ-21 ist erfüllt und die H4-Zone entfällt', () => {
     const h4 = load('frz-support-h4-01');
     const d1 = load('frz-support-d1-01');
-    const ctx = new FormationContext(h4.symbol, { H4: h4.bars, D1: d1.bars });
+    const ctx = new FormationContext(h4.symbol, { H4: h4.bars, D1: d1.bars }, { trend: FIXTURE_TREND });
     const low = h4.bars.filter((b) => b.time >= utc('2025-09-16T00:00') && b.time < utc('2025-09-30T00:00')).reduce((x, y) => (y.low < x.low ? y : x));
     expect(Math.abs(low.low - 23282.2)).toBeLessThanOrEqual(0.5 * atrSeries(h4.bars)[h4.bars.findIndex((b) => b.time === low.time)]!);
     const c = checkFrzCandidate(ctx, atEnd(h4.bars), { tf: 'H4', time: low.time, side: 'support' });
@@ -734,7 +735,7 @@ test.describe('FRZ: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)', 
   // FRZ-06 ☑ (ein Schluss jenseits genügt, auch um einen Pip), die Zone ist ungültig. Die Regel (FRZ-06, FRZ-08) gilt vor dem abgelesenen Preis.
   frm('frz-resist-h4-02: zwei H4-Schlüsse über der Zone am 06.10. (Datenquelle weicht von der Liste ab), FRZ-06 ☑ und die Zone ist ungültig', () => {
     const fx = load('frz-resist-h4-02');
-    const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
     const bar = fx.bars.filter((b) => b.time >= utc('2025-09-11T00:00') && b.time < utc('2025-09-13T00:00')).reduce((x, y) => (y.high > x.high ? y : x));
     expect(Math.abs(bar.high - 0.92256)).toBeLessThanOrEqual(0.5 * atrSeries(fx.bars)[fx.bars.findIndex((b) => b.time === bar.time)]!);
     const c = checkFrzCandidate(ctx, atEnd(fx.bars), { tf: 'H4', time: bar.time, side: 'resistance' });
@@ -753,7 +754,7 @@ test.describe('FRZ: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)', 
 });
 
 test.describe('FRZ 24 im Produktionsweg (buildEnv speist die Fibonacci-Ziele)', () => {
-  const zonesOf = (rows: Row[]) => buildEnv(new FormationContext('TEST', { H4: barsOf(rows) }), END, 'H4')!.frz.zones;
+  const zonesOf = (rows: Row[], trend = FIXTURE_TREND) => buildEnv(new FormationContext('TEST', { H4: barsOf(rows) }, { trend }), END, 'H4')!.frz.zones;
   // Ziele der Fib 110 → 95,8 (0,618 bei 104,5756) liegen in der Zwischenzone [102,7; 104,7]
   const WITH_TARGET = patched(patched(TESTED2, 22, [100, 104.7, 99, 104.4]), 14, [100, 104.7, 99, 104.4]);
   frm('FRZ 24 ☑ (Ausnahme): Fibonacci-Ziel in der Zwischenzone, sie bleibt in der Auswahl', () => {
@@ -761,7 +762,8 @@ test.describe('FRZ 24 im Produktionsweg (buildEnv speist die Fibonacci-Ziele)', 
     expect(zones.some((z) => z.rect.top === 104.7 && z.rect.bottom === 102.7)).toBe(true);
   });
   frm('FRZ 24 ☐ (Ausschluss): kein Ziel in der Zwischenzone [102,5; 104,5], sie entfällt', () => {
-    const zones = zonesOf(TESTED2);
+    // Auf dem feinsten Zug liegt ein weiterer Wendepunkt neben der Zwischenzone; die Regel zeigt der Zug „eine Welle je EWO-Welle“
+    const zones = zonesOf(TESTED2, { ...FIXTURE_TREND, rule: 'welle' });
     expect(zones.map((z) => z.rect)).toEqual([
       { top: 110, bottom: 107 },
       { top: 97.05, bottom: 95 },

@@ -20,6 +20,7 @@ import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, H1, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -51,7 +52,7 @@ function run(rows: Row[], idx: number[], o: Options = {}): Candidate {
     time: bars[i].time,
     price: (high ? bars[i].high : bars[i].low) + (o.shift?.[name] ?? 0),
   });
-  return checkOboCandidate(new FormationContext('TEST', input), o.t ?? 1e9, {
+  return checkOboCandidate(new FormationContext('TEST', input, { trend: FIXTURE_TREND }), o.t ?? 1e9, {
     tf: tf as ContextTimeframe,
     ls: at(ls, top, 'ls'),
     n1: at(n1, !top, 'n1'),
@@ -232,7 +233,7 @@ frm('Zeichnungen: Ziel trägt das Etikett „target“, die Linie an der rechten
 });
 
 frm('Suche: scanFormations liefert für OBO dieselben Zustände wie analyzeObo allein', () => {
-  const ctx = new FormationContext('TEST', { H4: barsOf(BASE, H4) });
+  const ctx = new FormationContext('TEST', { H4: barsOf(BASE, H4) }, { trend: FIXTURE_TREND });
   const alone = analyzeObo(ctx, 1e9).filter((a) => Object.keys(a.candidate.points).length > 0);
   const hits = scanFormations(ctx, 1e9).filter((h) => h.form === 'OBO');
   expect(alone.length).toBeGreaterThan(0);
@@ -287,7 +288,7 @@ frm('Abgrenzung Doppeltop: gleich hohe Spitzen sind kein Kopf (Regel 03 ☐), di
   expect(state(obo, 'OBO-03')).toBe(N);
   expect(obo.verdict).toBe('invalid');
   const bars = barsOf(DOUBLE_TOP, H4);
-  const cdt = checkCdtCandidate(new FormationContext('TEST', { H4: bars }), 1e9, {
+  const cdt = checkCdtCandidate(new FormationContext('TEST', { H4: bars }, { trend: FIXTURE_TREND }), 1e9, {
     tf: 'H4',
     h1: { time: bars[54].time, price: bars[54].high },
     n: { time: bars[58].time, price: bars[58].low },
@@ -299,10 +300,10 @@ frm('Abgrenzung Doppeltop: gleich hohe Spitzen sind kein Kopf (Regel 03 ☐), di
 frm('Abgrenzung Libra: fällt der Preis vor dem Nackenbruch unter N1, ist es eine Libra (Regel 05 ☐), nicht Kopf-Schulter', () => {
   expect(state(run(FALLEN, I), 'OBO-05')).toBe(N);
   expect(run(FALLEN, I).verdict).toBe('invalid');
-  const lib = analyzeLib(new FormationContext('TEST', { H4: barsOf(FALLEN, H4) }), 1e9)[0].candidate;
+  const lib = analyzeLib(new FormationContext('TEST', { H4: barsOf(FALLEN, H4) }, { trend: FIXTURE_TREND }), 1e9)[0].candidate;
   expect(lib.verdict).toBe('valid');
   // die gültige Kopf-Schulter-Formation ist keine Libra
-  const baseLib = analyzeLib(new FormationContext('TEST', { H4: barsOf(BASE, H4) }), 1e9)[0].candidate;
+  const baseLib = analyzeLib(new FormationContext('TEST', { H4: barsOf(BASE, H4) }, { trend: FIXTURE_TREND }), 1e9)[0].candidate;
   expect(baseLib.verdict).not.toBe('valid');
 });
 
@@ -321,7 +322,7 @@ frm('Zeichnungen: Nackenlinie, Bögen, Ziel und Stop mit Ankern; Ziel und Maß e
 });
 
 frm('analyzeObo: sucht die Punkte selbst; Verkauf nach Hochs, Kauf nach Tiefs; der Kontext mit mehreren Zeiteinheiten bleibt je Zeiteinheit getrennt', () => {
-  const sell = analyzeObo(new FormationContext('TEST', { H4: barsOf(BASE, H4) }), 1e9);
+  const sell = analyzeObo(new FormationContext('TEST', { H4: barsOf(BASE, H4) }, { trend: FIXTURE_TREND }), 1e9);
   expect(sell).toHaveLength(1);
   expect(sell[0].tf).toBe('H4');
   const c = sell[0].candidate;
@@ -331,7 +332,7 @@ frm('analyzeObo: sucht die Punkte selbst; Verkauf nach Hochs, Kauf nach Tiefs; d
   expect(Object.keys(c.points)).toEqual(['LS', 'K', 'N1', 'N2', 'RS', 'B']);
   expect(c.points.K.time).toBe(62 * H4);
   expect(c.points.B.time).toBe(73 * H4);
-  const buy = analyzeObo(new FormationContext('TEST', { H4: barsOf(mirror(BASE), H4), D1: barsOf(BASE, D1) }), 1e9);
+  const buy = analyzeObo(new FormationContext('TEST', { H4: barsOf(mirror(BASE), H4), D1: barsOf(BASE, D1) }, { trend: FIXTURE_TREND }), 1e9);
   expect(buy.map((x) => x.tf)).toEqual(['D1', 'H4']);
   expect(buy[1].candidate.side).toBe('buy');
   expect(buy[1].candidate.verdict).toBe('valid');
@@ -339,15 +340,15 @@ frm('analyzeObo: sucht die Punkte selbst; Verkauf nach Hochs, Kauf nach Tiefs; d
 });
 
 frm('analyzeObo: ruhige Reihe und fehlender Kontext liefern nichts Gültiges', () => {
-  expect(analyzeObo(new FormationContext('TEST', {}), 1e9)).toEqual([]);
-  const flat = analyzeObo(new FormationContext('TEST', { H4: barsOf(LEAD, H4) }), 1e9)[0].candidate;
+  expect(analyzeObo(new FormationContext('TEST', {}, { trend: FIXTURE_TREND }), 1e9)).toEqual([]);
+  const flat = analyzeObo(new FormationContext('TEST', { H4: barsOf(LEAD, H4) }, { trend: FIXTURE_TREND }), 1e9)[0].candidate;
   expect(flat.verdict).toBe('forming');
   expect(flat.checks.every((k) => k.state === U || k.id === 'OBO-09' || k.id === 'OBO-14')).toBe(true);
 });
 
 frm('checkOboCandidate: falsche Reihenfolge oder nicht geladene Kerze ergibt nicht messbar', () => {
   const bars = barsOf(BASE, H4);
-  const ctx = new FormationContext('TEST', { H4: bars });
+  const ctx = new FormationContext('TEST', { H4: bars }, { trend: FIXTURE_TREND });
   const a = (i: number, price: number): Anchor => ({ time: bars[i].time, price });
   const swapped = checkOboCandidate(ctx, 1e9, { tf: 'H4', ls: a(62, 150), n1: a(58, 120), k: a(54, 135), n2: a(66, 121) });
   expect(swapped.checks.every((k) => k.state === U)).toBe(true);
@@ -357,7 +358,7 @@ frm('checkOboCandidate: falsche Reihenfolge oder nicht geladene Kerze ergibt nic
 
 // ---- Echte Kerzenreihen ----------------------------------------------------------------------------------------
 
-const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
+const loadReal = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))));
 
 interface Real {
   file: string;
@@ -391,7 +392,7 @@ for (const r of REAL) {
   frm(`echte Reihe ${r.file} bei t=${r.t}`, () => {
     const fx = loadReal(r.file);
     const known = fx.bars.filter((b) => b.time + H4 <= r.t);
-    const c = analyzeObo(new FormationContext(fx.symbol, { H4: known }), r.t)[0].candidate;
+    const c = analyzeObo(new FormationContext(fx.symbol, { H4: known }, { trend: trendOf(known) }), r.t)[0].candidate;
     expect(c.side).toBe(r.side);
     expect(c.verdict).toBe(r.verdict);
     expect(c.points.K.time).toBe(r.k);
@@ -399,7 +400,7 @@ for (const r of REAL) {
     expect(c.points.B.time).toBe(r.b);
     for (const [n, want] of Object.entries(r.expect)) expect(state(c, idOf(Number(n))), idOf(Number(n))).toBe(want);
     // Kein Blick in die Zukunft: mit allen Kerzen der Datei und gleichem t derselbe Befund
-    const full = analyzeObo(new FormationContext(fx.symbol, { H4: fx.bars }), r.t)[0].candidate;
+    const full = analyzeObo(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     expect(full.checks.map((x) => [x.id, x.state])).toEqual(c.checks.map((x) => [x.id, x.state]));
     expect(full.verdict).toBe(c.verdict);
   });
@@ -408,7 +409,7 @@ for (const r of REAL) {
 frm('echte Reihe: eine gültige Kopf-Schulter ist keine gültige Libra', () => {
   const fx = loadReal('obo-sell-h4-01');
   const t = 1763755200;
-  const ctx = new FormationContext(fx.symbol, { H4: fx.bars.filter((b) => b.time + H4 <= t) });
+  const ctx = new FormationContext(fx.symbol, { H4: fx.bars.filter((b) => b.time + H4 <= t) }, { trend: trendOf(fx.bars.filter((b) => b.time + H4 <= t)) });
   expect(analyzeObo(ctx, t)[0].candidate.verdict).toBe('valid');
   expect(analyzeLib(ctx, t)[0].candidate.verdict).not.toBe('valid');
 });

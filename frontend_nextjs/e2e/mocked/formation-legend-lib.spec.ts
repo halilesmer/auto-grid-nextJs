@@ -8,12 +8,13 @@ import { drawsZigzag } from '../../src/lib/formation/drawingLayout';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { FormationContext } from '../../src/lib/formation/context';
 import { scanFormations } from '../../src/lib/formation/scan';
+import { FIXTURE_TREND, named } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-19' }, fn);
 
 const hitsOf = (file: string, form: 'LIB' | 'ABCD', now: number) => {
-  const bars = parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}`, 'utf-8'))).bars;
-  return scanFormations(new FormationContext('EURUSD', { H4: bars }), now).filter((h) => h.form === form);
+  const bars = named(`e2e/fixtures/formation/${file}`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}`, 'utf-8')))).bars;
+  return scanFormations(new FormationContext('EURUSD', { H4: bars }, { trend: FIXTURE_TREND }), now).filter((h) => h.form === form);
 };
 
 frm('Libra zeichnet keinen Zickzack, ABCD zeichnet einen', () => {

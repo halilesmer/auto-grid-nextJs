@@ -25,6 +25,7 @@ import { ANALYZERS, SCAN_FORMATIONS, scanFormations, type ScanFormation, type Sc
 import { weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
 import { END as SERIES_END, H4 as H4_SEC, barsOf as rowsToBars, plain, zig, type Row } from '../fixtures/formation-rows';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-18' }, fn);
 
@@ -73,9 +74,9 @@ function expectSameAsAlone(make: () => FormationContext, t: number) {
 }
 
 frm('innerhalb von shareEnv liefert buildEnv für gleichen Kontext, Zeitpunkt und Zeiteinheit dasselbe Objekt', () => {
-  const fx = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-sell-h4-01.json', 'utf-8')));
-  const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
-  const other = new FormationContext(fx.symbol, { H4: fx.bars });
+  const fx = named('e2e/fixtures/formation/gar-sell-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-sell-h4-01.json', 'utf-8'))));
+  const ctx = new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
+  const other = new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
   const t = fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC.H4;
   shareEnv(ctx, () => {
     const a = buildEnv(ctx, t, 'H4');
@@ -93,9 +94,9 @@ frm('innerhalb von shareEnv liefert buildEnv für gleichen Kontext, Zeitpunkt un
 const FX = 'e2e/fixtures/formation';
 for (const file of readdirSync(FX).filter((f) => f.endsWith('.json')).sort()) {
   frm(`Suche mit geteilter Umgebung = jede Formation allein: ${file}`, () => {
-    const fx = parseFixture(JSON.parse(readFileSync(`${FX}/${file}`, 'utf-8')));
+    const fx = named(`${FX}/${file}`, parseFixture(JSON.parse(readFileSync(`${FX}/${file}`, 'utf-8'))));
     const t = fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC[fx.timeframe];
-    expectSameAsAlone(() => new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars }), t);
+    expectSameAsAlone(() => new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars }, { trend: trendOf(fx.bars) }), t);
   });
 }
 
@@ -104,7 +105,7 @@ const steps = readdirSync(FX)
   .filter((f) => f.endsWith('.json'))
   .sort()
   .flatMap((f) => {
-    const bars = parseFixture(JSON.parse(readFileSync(`${FX}/${f}`, 'utf-8'))).bars;
+    const bars = named(`${FX}/${f}`, parseFixture(JSON.parse(readFileSync(`${FX}/${f}`, 'utf-8')))).bars;
     return bars.slice(1).map((b, i) => {
       const pc = bars[i].close;
       return { o: b.open / pc, h: b.high / pc, l: b.low / pc, c: b.close / pc };
@@ -141,14 +142,14 @@ function pageInput(offset: number): ContextInput {
 for (const offset of [0, 5000]) {
   frm(`Suche mit geteilter Umgebung = jede Formation allein: vier Zeiteinheiten in Seitengröße mit W1 (Versatz ${offset})`, () => {
     const input = pageInput(offset);
-    expectSameAsAlone(() => new FormationContext('X', input), END);
+    expectSameAsAlone(() => new FormationContext('X', input, { trend: FIXTURE_TREND }), END);
   });
 }
 
 frm('die Suche teilt die Umgebung selbst: ohne äußeren Bereich so wenige Kerzenansichten wie mit', () => {
   const input = pageInput(0);
   const viewCalls = (outerScope: boolean): number => {
-    const ctx = new FormationContext('X', input);
+    const ctx = new FormationContext('X', input, { trend: FIXTURE_TREND });
     const view = ctx.view.bind(ctx);
     let calls = 0;
     ctx.view = (tf, t) => {
@@ -167,7 +168,7 @@ frm('die Suche teilt die Umgebung selbst: ohne äußeren Bereich so wenige Kerze
 /** 40 ruhige Kerzen, dann Verkaufs-Libra: P1 in 22 Kerzen erreicht, P2 in 14 (Divergenz, SIG-13); P1 Index 50, P2 72, P3 76 */
 const LEAD: Row[] = Array.from({ length: 40 }, () => plain(100, 100));
 const LIBRA_ROWS = [...LEAD, ...zig([100, 130, 112, 140, 105, 131], [8, 8, 14, 4, 8], 3)];
-const libraCtx = () => new FormationContext('TEST', { H4: rowsToBars(LIBRA_ROWS, H4_SEC) });
+const libraCtx = () => new FormationContext('TEST', { H4: rowsToBars(LIBRA_ROWS, H4_SEC) }, { trend: FIXTURE_TREND });
 
 /** Gartley (Kauf) mit D auf P3 (Index 76) und A weit darüber: beide Ziele sind bis zur Berührung erreicht */
 const harmonicAtP3: Candidate = {

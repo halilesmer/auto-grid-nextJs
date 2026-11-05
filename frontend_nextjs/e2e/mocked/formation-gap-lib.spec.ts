@@ -10,6 +10,7 @@ import { FormationContext, type ContextInput } from '../../src/lib/formation/con
 import { fractalIndices, probeFractal } from '../../src/lib/formation/frz';
 import type { Anchor } from '../../src/lib/formation/types';
 import { END, H4, barsOf, type Row } from '../fixtures/formation-rows';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-33' }, fn);
 
@@ -18,7 +19,7 @@ const flat = (c: number): Row => [c, c + 1, c - 1, c];
 const PEAK: Row[] = [flat(100), flat(104), [106, 110, 105, 108], flat(104), flat(100)];
 
 const viewBars = (rows: Row[], missing: { from: number; to: number }[]) => {
-  const ctx = new FormationContext('TEST', { H4: { bars: barsOf(rows, H4), missing } });
+  const ctx = new FormationContext('TEST', { H4: { bars: barsOf(rows, H4), missing } }, { trend: FIXTURE_TREND });
   return ctx.view('H4', END)!.bars;
 };
 
@@ -40,7 +41,7 @@ frm('Lücke rechts der Fraktalkerze: kein Fraktal', () => {
 frm('Ohne Lücke: Fraktal', () => {
   expect(fractalIndices(viewBars(PEAK, []), 'resistance')).toEqual([2]);
   const plain: ContextInput = { H4: barsOf(PEAK, H4) };
-  expect(fractalIndices(new FormationContext('TEST', plain).view('H4', END)!.bars, 'resistance')).toEqual([2]);
+  expect(fractalIndices(new FormationContext('TEST', plain, { trend: FIXTURE_TREND }).view('H4', END)!.bars, 'resistance')).toEqual([2]);
 });
 
 frm('Lücke außerhalb der fünf Kerzen: Fraktal', () => {
@@ -59,7 +60,7 @@ frm('Lücke hinter den Nachbarn des Fraktals: Fraktal bleibt', () => {
 frm('Wie der Worker: Bereich ersetzt einen ganzen fehlenden Kerzenplatz', () => {
   const rows = PEAK.filter((_, i) => i !== 3);
   const bars = rows.map((r, i) => ({ time: (i < 3 ? i : i + 1) * H4, open: r[0], high: r[1], low: r[2], close: r[3] }));
-  const ctx = new FormationContext('TEST', { H4: { bars, missing: [{ from: 3 * H4, to: 4 * H4 }] } });
+  const ctx = new FormationContext('TEST', { H4: { bars, missing: [{ from: 3 * H4, to: 4 * H4 }] } }, { trend: FIXTURE_TREND });
   expect(fractalIndices(ctx.view('H4', END)!.bars, 'resistance')).toEqual([]);
 });
 
@@ -78,7 +79,7 @@ const S: Row[] = [
 const wick = (idx: number, high: boolean): Anchor => ({ time: idx * H4, price: high ? S[idx][1] : S[idx][2] });
 
 const abcd02 = (missing: { from: number; to: number }[]) => {
-  const ctx = new FormationContext('TEST', { H4: { bars: barsOf(S, H4), missing } });
+  const ctx = new FormationContext('TEST', { H4: { bars: barsOf(S, H4), missing } }, { trend: FIXTURE_TREND });
   const c = checkAbcdCandidate(ctx, END, { tf: 'H4', a: wick(4, false), b: wick(10, true), c: wick(18, false) });
   return c.checks.find((x) => x.id === 'ABCD-02')!.state;
 };

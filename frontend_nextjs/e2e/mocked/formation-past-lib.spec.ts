@@ -13,6 +13,7 @@ import { scanFormations } from '../../src/lib/formation/scan';
 import { splitDaily, weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { FormationBar } from '../../src/lib/formation/types';
 import { DAY_SEC, dayStart } from '../../src/lib/serverTime';
+import { FIXTURE_TREND, named } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-38' }, fn);
 
@@ -67,7 +68,7 @@ let withHits = 0;
 let futureMatters = 0;
 for (const file of readdirSync(FX).filter((f) => f.endsWith('.json')).sort()) {
   frm(`kein Blick in die Zukunft: Kontext mit Kerzen nach at = Kontext bei at geschnitten: ${file}`, () => {
-    const fx = parseFixture(JSON.parse(readFileSync(`${FX}/${file}`, 'utf-8')));
+    const fx = named(`${FX}/${file}`, parseFixture(JSON.parse(readFileSync(`${FX}/${file}`, 'utf-8'))));
     const tfSec = TIMEFRAME_SEC[fx.timeframe];
     const last = fx.bars[fx.bars.length - 1].time;
     // Schnitt vor dem Ende: at liegt in der Mitte, die Kerzen danach sind die „Zukunft“
@@ -76,16 +77,16 @@ for (const file of readdirSync(FX).filter((f) => f.endsWith('.json')).sort()) {
     expect(at).toBeLessThanOrEqual(last + tfSec);
     const full: ContextInput = { [fx.timeframe]: fx.bars };
     const trimmed: ContextInput = { [fx.timeframe]: fx.bars.filter((b) => b.time + tfSec <= at) };
-    const a = scanFormations(new FormationContext(fx.symbol, full), at);
-    const b = scanFormations(new FormationContext(fx.symbol, trimmed), at);
+    const a = scanFormations(new FormationContext(fx.symbol, full, { trend: FIXTURE_TREND }), at);
+    const b = scanFormations(new FormationContext(fx.symbol, trimmed, { trend: FIXTURE_TREND }), at);
     expect(a).toEqual(b);
     if (a.length > 0) withHits++;
     // `at` mitten in einer Kerze (M15-Raster): die angeschnittene, noch offene Kerze steckt im vollen Kontext und zählt nicht
     const mid = fx.bars[cut].time + tfSec / 4;
     const partial: ContextInput = { [fx.timeframe]: fx.bars.filter((bar) => bar.time + tfSec <= mid) };
-    expect(scanFormations(new FormationContext(fx.symbol, full), mid)).toEqual(scanFormations(new FormationContext(fx.symbol, partial), mid));
+    expect(scanFormations(new FormationContext(fx.symbol, full, { trend: FIXTURE_TREND }), mid)).toEqual(scanFormations(new FormationContext(fx.symbol, partial, { trend: FIXTURE_TREND }), mid));
     // Die Zukunft hätte etwas geändert: die Suche am Ende der Reihe ist eine andere
-    if (JSON.stringify(a) !== JSON.stringify(scanFormations(new FormationContext(fx.symbol, full), last + tfSec))) futureMatters++;
+    if (JSON.stringify(a) !== JSON.stringify(scanFormations(new FormationContext(fx.symbol, full, { trend: FIXTURE_TREND }), last + tfSec))) futureMatters++;
   });
 }
 
@@ -108,5 +109,5 @@ frm('kein Blick in die Zukunft auch mit Zickzack nach at (alle Zeiteinheiten, W1
   const full: ContextInput = { D1: daily, W1: weeklyFromDaily(daily) };
   const cutDaily = closed(daily, DAY_SEC);
   const cut: ContextInput = { D1: cutDaily, W1: weeklyFromDaily(cutDaily) };
-  expect(scanFormations(new FormationContext('X', full), at)).toEqual(scanFormations(new FormationContext('X', cut), at));
+  expect(scanFormations(new FormationContext('X', full, { trend: FIXTURE_TREND }), at)).toEqual(scanFormations(new FormationContext('X', cut, { trend: FIXTURE_TREND }), at));
 });

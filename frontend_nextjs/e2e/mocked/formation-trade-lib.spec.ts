@@ -16,6 +16,7 @@ import { tradeSigChecks } from '../../src/lib/formation/sigChecks';
 import { crvOf, emergencyStopOf, pipSizeOf, tradeMetrics } from '../../src/lib/formation/trade';
 import type { Anchor, Candidate, Trade } from '../../src/lib/formation/types';
 import { END, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 const trade = (tag: '@FRM-39' | '@FRM-40') => (name: string, fn: () => void) => test(name, { tag }, fn);
 const t39 = trade('@FRM-39');
@@ -27,7 +28,7 @@ const BASE = zig([100, 130, 112, 140, 105, 131], LEGS, 3);
 
 function lib(rows: Row[], top = true): Candidate {
   const input: ContextInput = { H4: barsOf(rows, H4) };
-  return checkLibCandidate(new FormationContext('TEST', input), END, {
+  return checkLibCandidate(new FormationContext('TEST', input, { trend: FIXTURE_TREND }), END, {
     tf: 'H4',
     p1: wick(rows, 10, top),
     p2: wick(rows, 26, top),
@@ -74,7 +75,7 @@ t39('LIB (Kauf, gespiegelt): Not-SL liegt unter dem Stop', () => {
 
 t39('LIB ohne P3: Einstieg und TP1 fehlen mit Grund, der Stop (P2) steht', () => {
   const rows = zig([100, 130, 112, 140], [8, 8, 8], 0);
-  const c = checkLibCandidate(new FormationContext('TEST', { H4: barsOf(rows, H4) }), END, { tf: 'H4', p1: wick(rows, 10, true), p2: wick(rows, 26, true) });
+  const c = checkLibCandidate(new FormationContext('TEST', { H4: barsOf(rows, H4) }, { trend: FIXTURE_TREND }), END, { tf: 'H4', p1: wick(rows, 10, true), p2: wick(rows, 26, true) });
   const t = tradeOf(c);
   expect(t.entry).toBeNull();
   expect(t.tp1).toBeNull();
@@ -155,7 +156,7 @@ const LEAD: Row[] = Array.from({ length: 40 }, () => plain(100, 100));
 const DIVERGENT = [...LEAD, ...zig([100, 130, 112, 140, 105, 131], [8, 8, 14, 4, 8], 3)];
 
 t40('SIG-15 (Kauf) ist ☑ bei Wave-Abweichung an den letzten zwei Hochs; SIG-16 (Verkauf) prüft die Tiefs und bleibt davon unberührt', () => {
-  const env = buildEnv(new FormationContext('TEST', { H4: barsOf(DIVERGENT, H4) }), END, 'H4')!;
+  const env = buildEnv(new FormationContext('TEST', { H4: barsOf(DIVERGENT, H4) }, { trend: FIXTURE_TREND }), END, 'H4')!;
   const any = { entry: 100, stop: 90, tp1: 130 };
   const buy = tradeSigChecks(env, 'H4', 'buy', any).veto;
   expect(buy).toMatchObject({ id: 'SIG-15', kind: 'exclusion', status: 'confirmed', state: 'met', veto: true });
@@ -165,7 +166,7 @@ t40('SIG-15 (Kauf) ist ☑ bei Wave-Abweichung an den letzten zwei Hochs; SIG-16
 });
 
 t39('SIG-29: CRV über 1 ☑ mit Wert; CRV ≤ 1 ohne tiefere ZE nicht messbar mit Wert; fehlender Wert nicht messbar ohne Wert', () => {
-  const env = buildEnv(new FormationContext('TEST', { H4: barsOf(DIVERGENT, H4) }), END, 'H4')!;
+  const env = buildEnv(new FormationContext('TEST', { H4: barsOf(DIVERGENT, H4) }, { trend: FIXTURE_TREND }), END, 'H4')!;
   expect(tradeSigChecks(env, 'H4', 'buy', { entry: 100, stop: 90, tp1: 130 }).sig29).toMatchObject({ id: 'SIG-29', state: 'met', value: 3 });
   expect(tradeSigChecks(env, 'H4', 'buy', { entry: 100, stop: 90, tp1: 105 }).sig29).toMatchObject({ state: 'unmeasurable', value: 0.5 });
   const missing = tradeSigChecks(env, 'H4', 'buy', { entry: 100, stop: null, tp1: 130 }).sig29;

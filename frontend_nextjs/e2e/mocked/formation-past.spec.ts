@@ -9,6 +9,10 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
+import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
+
+// Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
+test.beforeEach(({ page }) => seedFixtureTrend(page, trendOf(fixtureBars)));
 
 const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
 /** 2025-10-23 04:00 Brokerzeit: mit diesem Stand steht in der Fixture ein ABCD im Aufbau */
@@ -16,7 +20,7 @@ const AT = 1761192000;
 const AT_PARAM = '2025-10-23T04:00';
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 
-const fixtureBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
+const fixtureBars = named('e2e/fixtures/formation/gar-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8')))).bars;
 /** H4-Kerzen der Fixture, die zum Zeitpunkt `until` geschlossen sind */
 const rowsUntil = (until: number) => fixtureBars.filter((b) => b.time + 14400 <= until).map((b) => [b.time, b.open, b.high, b.low, b.close]);
 

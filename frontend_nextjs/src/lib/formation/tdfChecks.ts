@@ -207,7 +207,7 @@ function evaluate(env: Env, tf: ContextTimeframe, es: ZoneSide, base: TdfBase): 
   if (brk !== null) put('TDF-05', tri(view.wide[brk]));
   else put('TDF-05', shapeDone ? 'unmet' : U);
   const zoneS = imp.s ? zoneGeometry(bars, imp.s.idx, cs, tf) : null;
-  put('TDF-06', zoneS ? flag(closesInRowBeyond(bars, cs, farEdge(cs, zoneS), { from: h1.idx + 1, to: pe, closes: formationCloses(view.zug) })) : U);
+  put('TDF-06', zoneS ? flag(closesInRowBeyond(bars, cs, farEdge(cs, zoneS), { from: h1.idx + 1, to: pe, closes: formationCloses(view.trend) })) : U);
   put('TDF-07', depth === null ? U : flag(depth > TDF_PARAMS.maxDepth), depth ?? undefined);
   put('TDF-08', flag(TDF_PARAMS.belowH1.includes(tf)));
 

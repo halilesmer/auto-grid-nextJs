@@ -23,6 +23,7 @@ import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -35,7 +36,7 @@ type Tf = keyof typeof STEP;
 const ctxOf = (input: Partial<Record<Tf, Row[]>>, symbol = 'TEST') => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext(symbol, bars);
+  return new FormationContext(symbol, bars, { trend: FIXTURE_TREND });
 };
 
 const wick = (rows: Row[], idx: number, high: boolean, step: number = H4): Anchor => ({ time: idx * step, price: high ? rows[idx][1] : rows[idx][2] });
@@ -423,11 +424,11 @@ test.describe('CYP 10 und LIB 09: Libra-Einstieg fällt mit dem Cypher-Einstieg 
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------
 
-const loadFixture = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const loadFixture = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const analyzeAt = (name: string, iso: string): Candidate => {
   const fixture = loadFixture(name);
-  const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars });
+  const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
   return analyzeCyp(ctx, at(iso)).find((a) => a.tf === 'H4')!.candidate;
 };
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
@@ -469,10 +470,12 @@ test.describe('CYP: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  frm('cyp-bad-h4-03: Negativ – B nur an 0.239 (CYP 03 ☐) und D bei 0.092 von X → C noch weit von 0.786 (CYP 07 ☐)', () => {
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher B nur an 0.239 (CYP 03 ☐); auf dem Trendzug des Nutzers liegen X, A, B, C anders
+  frm('cyp-bad-h4-03: Negativ – Kauf-Cypher ungültig wegen CYP 04 und CYP 06, D noch weit von 0.786 (CYP 07 ☐)', () => {
     const c = analyzeAt('cyp-bad-h4-03', '2025-12-05T20:00');
-    expect(states(c, ['CYP-03', 'CYP-04', 'CYP-05', 'CYP-06', 'CYP-07'])).toEqual([N, M, M, M, N]);
-    expect(find(c, 'CYP-03').value!).toBeLessThan(0.382);
+    expect(c.side).toBe('buy');
+    expect(states(c, ['CYP-03', 'CYP-04', 'CYP-05', 'CYP-06', 'CYP-07'])).toEqual([M, N, M, N, N]);
+    expect(c.invalidBy).toEqual(['CYP-04', 'CYP-06']);
     expect(find(c, 'CYP-07').value!).toBeLessThan(0.786);
     expect(c.verdict).toBe('invalid');
   });
@@ -483,7 +486,7 @@ test.describe('CYP: echte Kerzen', () => {
     expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, N, M, N, N]);
     expect(c.verdict).toBe('invalid');
     const fixture = loadFixture('cyp-lib-h4-01');
-    const lib = analyzeLib(new FormationContext(fixture.symbol, { H4: fixture.bars }), at('2025-12-30T20:00')).find((a) => a.tf === 'H4')!.candidate;
+    const lib = analyzeLib(new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) }), at('2025-12-30T20:00')).find((a) => a.tf === 'H4')!.candidate;
     expect(state(lib, 'LIB-09')).toBe(U);
   });
 

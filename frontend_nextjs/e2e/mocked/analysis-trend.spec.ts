@@ -6,7 +6,6 @@
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
-import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, test, type MockWorker } from '../fixtures/test';
 
 const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/trd-up-d1-01.json', 'utf-8'))).bars;
@@ -154,20 +153,14 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect((await stored(page)).trend).toMatchObject({ ewoFast: 5, ewoSlow: 40 });
   });
 
-  test('Grundlage der Formationen: Trendzug zeigt den Hinweis mit der Tabelle, Fein den kurzen Hinweis; die Linie bleibt gleich', { tag: '@ANA-21' }, async ({ page, worker }) => {
+  test('Die Einstellungen gelten für Linie und Formationen: keine eigene Gruppe „Formationen“, keine Grundlage mehr', { tag: '@ANA-21' }, async ({ page, worker }) => {
     await open(page, worker);
     await trend(page).click();
     const panel = await openSettings(page);
-    const note = panel.getByTestId('trend-zug-note');
-    await expect(note).toContainText(msg('cw.trend.zug.noteFein'));
-    await expect(note.locator('table')).toHaveCount(0);
-
-    await panel.getByRole('button', { name: msg('cw.trend.zug.trend'), exact: true }).click();
-    await expect(note).toContainText(msg('cw.trend.zug.noteTrend'));
-    await expect(note.locator('tr', { hasText: 'ABCD' })).toContainText('24');
-    await expect(note.locator('tr', { hasText: 'ABCD' })).toContainText('1');
+    await expect(panel.getByTestId('trend-zug-note')).toHaveCount(0);
+    await expect(panel.locator('table')).toHaveCount(0);
     await expect(chart(page)).toHaveAttribute('data-trend', '6');
-    expect((await stored(page)).trend.formationZug).toBe('trend');
+    expect(Object.keys((await stored(page)).trend)).not.toContain('formationZug');
   });
 
   test('Alles ist bei 375 px erreichbar, ohne waagerechten Überlauf', { tag: '@ANA-21' }, async ({ page, worker }) => {

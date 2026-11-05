@@ -16,6 +16,7 @@ import { analyzeKei, checkKeiCandidate, KEI_CHECK_IDS } from '../../src/lib/form
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, barsOf, mirror, patched, zig, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip } from '../fixtures/formation-lines';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-17' }, fn);
 const idOf = (n: number) => `KEI-${String(n).padStart(2, '0')}`;
@@ -179,7 +180,7 @@ const D1_UP = zig([80, 120, 100, 140, 125], 4, 3);
 /** Keil der Basisreihe mit D1-Kerzen; `buy = true` spiegelt beide Reihen (Kauf) */
 function runWithD1(d1: Row[], buy = false): Candidate {
   const series = buy ? mirror(BASE, AXIS) : BASE;
-  const ctx = new FormationContext('TEST', { H4: barsOf(series, H4), D1: barsOf(buy ? mirror(d1, AXIS) : d1, D1) });
+  const ctx = new FormationContext('TEST', { H4: barsOf(series, H4), D1: barsOf(buy ? mirror(d1, AXIS) : d1, D1) }, { trend: FIXTURE_TREND });
   const pick = (n: number) => tip(series, at(n), n % 2 === 1, buy);
   return checkKeiCandidate(ctx, END, { tf: 'H4', l0: pick(0), hs: pick(1), la: pick(2), h2: pick(3), lb: pick(4) });
 }
@@ -239,7 +240,7 @@ interface Real {
   expect: Record<string, CheckState>;
 }
 
-const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
+const loadReal = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))));
 const FORM = { '01': M, '02': M, '03': M, '04': M, '05': M, '06': M } as const;
 const REAL: Real[] = [
   // Verkauf (steigender Keil im Aufwärtstrend); an der Linie mit Spike-Ersatz kein erneuter Test der Gegenlinie, kein Trendwechsel, Bruchkerze ohne große Spanne
@@ -261,12 +262,12 @@ const REAL: Real[] = [
 for (const r of REAL) {
   frm(`echte Reihe ${r.file}`, () => {
     const fx = loadReal(r.file);
-    const c = analyzeKei(new FormationContext(fx.symbol, { H4: fx.bars }), r.t)[0].candidate;
+    const c = analyzeKei(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     expect(c.side).toBe(r.side);
     expect(c.verdict).toBe(r.verdict);
     for (const [n, want] of Object.entries(r.expect)) expect(state(c, idOf(Number(n))), idOf(Number(n))).toBe(want);
     const known = fx.bars.filter((b) => b.time + H4 <= r.t);
-    const cut = analyzeKei(new FormationContext(fx.symbol, { H4: known }), r.t)[0].candidate;
+    const cut = analyzeKei(new FormationContext(fx.symbol, { H4: known }, { trend: trendOf(known) }), r.t)[0].candidate;
     expect(statesOf(cut)).toEqual(statesOf(c));
     expect(cut.verdict).toBe(c.verdict);
   });

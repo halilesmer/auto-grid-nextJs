@@ -8,6 +8,7 @@ import { FormationContext, type ContextInput } from '../../src/lib/formation/con
 import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H1, H4, barsOf, plain, zig, type Row } from './formation-rows';
+import { FIXTURE_TREND } from './formation-trend';
 
 export const U: CheckState = 'unmeasurable';
 export const M: CheckState = 'met';
@@ -19,7 +20,7 @@ export type Tf = keyof typeof STEP;
 export const ctxOf = (input: Partial<Record<Tf, Row[]>>, symbol = 'TEST') => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext(symbol, bars);
+  return new FormationContext(symbol, bars, { trend: FIXTURE_TREND });
 };
 
 export const wick = (rows: Row[], idx: number, high: boolean, step: number = H4): Anchor => ({ time: idx * step, price: high ? rows[idx][1] : rows[idx][2] });

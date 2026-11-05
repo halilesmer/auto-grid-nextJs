@@ -1,14 +1,13 @@
 /**
  * Trendzug als Linie im Chart (ANA-21): Segmente aus den Punkten von `buildTrend`, Abschneiden am Rand des
- * Charts und die gespeicherten Einstellungen. Die Linie hängt nur an den Einstellungen des Zugs; die Formationen
- * rechnen mit `formationZug` (siehe context.ts).
+ * Charts und die gespeicherten Einstellungen. Linie und Formationen rechnen mit denselben Einstellungen des Zugs
+ * (Halil 2026-11-05, siehe context.ts).
  */
 import { legDir, buildTrend, type TrendDir, type TrendModel } from './trd';
 import {
   DEFAULT_TREND_SETTINGS,
   TREND_LIMITS,
   type ContextTimeframe,
-  FORMATION_ZUEGE,
   TREND_RULES,
   type TrendSettings,
 } from './params';
@@ -70,14 +69,13 @@ export function closedBars<T extends { time: number }>(
 /**
  * Obergrenze der Kerzen, die in den Pfad der Linie gehen. `buildTrend` wächst quadratisch (gemessen: 5.000 Kerzen ≈ 0,1 s,
  * 20.000 ≈ 1,1 s, 100.000 ≈ 30 s). Es zählen die letzten Kerzen; der Pfadanfang eines gekürzten Fensters ist unruhig.
- * Gilt nur für die Linie: die Formationen rechnen mit `formationZug` (context.ts), nicht mit diesem Pfad.
+ * Die Formationen rechnen mit denselben Einstellungen (context.ts), aber ohne diese Kürzung.
  */
 export const TREND_PATH_MAX_BARS = 5000;
 
 /** Zug aus geschlossenen Kerzen mit den Einstellungen der Linie (höchstens die letzten TREND_PATH_MAX_BARS Kerzen) */
 export function buildTrendPath(tf: ContextTimeframe, bars: readonly FormationBar[], settings: TrendSettings): TrendSegment[] {
   const used = bars.length > TREND_PATH_MAX_BARS ? bars.slice(-TREND_PATH_MAX_BARS) : bars;
-  // `formationZug` gehört nicht zur Linie; buildTrend liest nur die Felder von TrendOptions
   return trendSegments(buildTrend(tf, used, [], settings));
 }
 
@@ -124,6 +122,12 @@ export function usableTrendSettings(s: TrendSettings): TrendSettings {
   return ewoPairValid(s) ? s : { ...s, ewoFast: DEFAULT_TREND_SETTINGS.ewoFast, ewoSlow: DEFAULT_TREND_SETTINGS.ewoSlow };
 }
 
+/** Kurzer Schlüssel der wirksamen Einstellungen: ändert er sich, ändern sich Linie und Formationen (neue Suche) */
+export const trendFingerprint = (s: TrendSettings): string => {
+  const u = usableTrendSettings(s);
+  return [u.rule, u.minSize, u.ewoRetreat, u.changeCloses, u.ewoFast, u.ewoSlow, u.atrPeriod].join('/');
+};
+
 /** Gespeicherte Einstellungen vom Browser-Speicher: unbekannte oder kaputte Werte fallen auf den Standard */
 export function sanitizeTrendSettings(raw: unknown): TrendSettings {
   const d = DEFAULT_TREND_SETTINGS;
@@ -136,6 +140,5 @@ export function sanitizeTrendSettings(raw: unknown): TrendSettings {
     ewoFast: clamped(p.ewoFast, TREND_LIMITS.ewoFast, d.ewoFast, true),
     ewoSlow: clamped(p.ewoSlow, TREND_LIMITS.ewoSlow, d.ewoSlow, true),
     atrPeriod: clamped(p.atrPeriod, TREND_LIMITS.atrPeriod, d.atrPeriod, true),
-    formationZug: FORMATION_ZUEGE.find((z) => z === p.formationZug) ?? d.formationZug,
   };
 }

@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { buildTrend, lineAnchorPositions, trendLines } from '../../src/lib/formation/trd';
 import { wave } from '../../src/lib/formation/indicators';
-import { TRD_PARAMS, type FormationZug, type TrendOptions } from '../../src/lib/formation/params';
+import { DEFAULT_TREND_SETTINGS, type TrendOptions } from '../../src/lib/formation/params';
 import { analyzeCrb } from '../../src/lib/formation/crbChecks';
 import { closesInRowBeyond } from '../../src/lib/formation/obo';
 import { buildEnv } from '../../src/lib/formation/reasons';
@@ -856,35 +856,35 @@ test.describe('TRD: Trendzug', () => {
   });
 });
 
-// ---- Zug der Formationen: Einstellung formationZug --------------------------------------------------------------
+// ---- Trend der Formationen: Einstellungen des Nutzers (Halil 2026-11-05) -----------------------------------------
 
-test.describe('TRD: Zug der Formationen', () => {
-  const contextOf = (name: string, zug?: FormationZug) => {
+test.describe('TRD: Trend der Formationen', () => {
+  const fine: TrendOptions = { ...DEFAULT_TREND_SETTINGS, minSize: 1 };
+  const contextOf = (name: string, trend?: TrendOptions) => {
     const fx = fixtureBars(name);
-    const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { zug });
+    const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { trend });
     return { ctx, fx, t: fx.bars[fx.bars.length - 1].time + (fx.timeframe === 'D1' ? D1 : H4) };
   };
-  const envPivots = (name: string, zug?: FormationZug) => {
-    const { ctx, fx, t } = contextOf(name, zug);
+  const envPivots = (name: string, trend?: TrendOptions) => {
+    const { ctx, fx, t } = contextOf(name, trend);
     const tf = fx.timeframe as 'H4';
     return buildEnv(ctx, t, tf)!.trends.get(tf)!.pivots.map((p) => p.idx);
   };
 
-  frm('Standard ist der feine Zug: EURCAD D1 hat dort die bisherigen 7 Punkte', () => {
-    expect(TRD_PARAMS.formationZug).toBe('fein');
-    expect(envPivots('trd-up-d1-01')).toEqual(envPivots('trd-up-d1-01', 'fein'));
-    expect(envPivots('trd-up-d1-01')).toHaveLength(7);
-  });
-
-  frm('Mit Trendzug rechnen die Formationen auf den Punkten des Trendzugs', () => {
+  frm('Ohne Einstellung rechnen die Formationen auf den Punkten des Standard-Trendzugs', () => {
     const { fx } = contextOf('trd-ref-d1-gbpcad');
-    expect(envPivots('trd-ref-d1-gbpcad', 'trend')).toEqual(buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx));
-    // getrennte Messung: dieselben Punkte, sie beginnt zusätzlich am Tief der ersten Außenkerze
-    expect(envPivots('trd-up-d1-01', 'trend')).toEqual([14, 29, 84, 87, 103, 110, 133]);
+    expect(envPivots('trd-ref-d1-gbpcad')).toEqual(buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx));
+    expect(envPivots('trd-up-d1-01')).toEqual([14, 29, 84, 87, 103, 110, 133]);
   });
 
-  frm('Mit Trendzug stammen X, A, B und C einer Crab aus dem Trendzug', () => {
-    const { ctx, fx, t } = contextOf('crb-buy-h4-01', 'trend');
+  frm('Eine andere Mindestgröße ändert die Punkte der Formationen', () => {
+    const { fx } = contextOf('trd-ref-d1-gbpcad');
+    expect(envPivots('trd-ref-d1-gbpcad', fine)).toEqual(buildTrend('D1', fx.bars, [], fine).pivots.map((p) => p.idx));
+    expect(envPivots('trd-ref-d1-gbpcad', fine)).not.toEqual(envPivots('trd-ref-d1-gbpcad'));
+  });
+
+  frm('X, A, B und C einer Crab stammen aus dem Trendzug', () => {
+    const { ctx, fx, t } = contextOf('crb-buy-h4-01');
     const times = buildTrend('H4', fx.bars, []).pivots.map((p) => fx.bars[p.idx].time);
     const found = analyzeCrb(ctx, t).filter((a) => a.candidate.points.X);
     expect(found.length).toBeGreaterThan(0);
@@ -894,29 +894,23 @@ test.describe('TRD: Zug der Formationen', () => {
     }
   });
 
-  frm('Die Trendrichtung zum Zeitpunkt einer Kerze folgt der Einstellung', () => {
-    const { ctx, fx, t } = contextOf('trd-ref-h4-audnzd', 'trend');
-    const trendPath = ctx.view('H4', t)!;
-    const fein = contextOf('trd-ref-h4-audnzd', 'fein').ctx.view('H4', t)!;
+  frm('Die Trendrichtung zum Zeitpunkt einer Kerze folgt den Einstellungen', () => {
+    const { ctx, fx, t } = contextOf('trd-ref-h4-audnzd');
+    const standard = ctx.view('H4', t)!;
+    const custom = contextOf('trd-ref-h4-audnzd', fine).ctx.view('H4', t)!;
     const at = [150, 200, 250, 300, 350];
-    expect(at.map((k) => trendDirAt(trendPath, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), []).dir));
-    expect(at.map((k) => trendDirAt(trendPath, k))).not.toEqual(at.map((k) => trendDirAt(fein, k)));
+    expect(at.map((k) => trendDirAt(standard, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), []).dir));
+    expect(at.map((k) => trendDirAt(custom, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), [], fine).dir));
   });
 
-  frm('Zeichnung und TRD-Prüfung nutzen immer Trendzug, unabhängig von der Einstellung', () => {
-    const pivotsWith = (zug: FormationZug) => {
-      const { ctx, t } = contextOf('trd-up-d1-01', zug);
-      return analyzeTrd(ctx, t)[0].model.pivots.map((p) => p.idx);
-    };
-    const { fx } = contextOf('trd-up-d1-01');
-    const trendPath = buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx);
-    expect(pivotsWith('fein')).toEqual(trendPath);
-    expect(pivotsWith('trend')).toEqual(trendPath);
+  frm('Die TRD-Prüfung rechnet weiter mit dem Standard-Trendzug, unabhängig von den Einstellungen', () => {
+    const { ctx, t, fx } = contextOf('trd-up-d1-01', fine);
+    expect(analyzeTrd(ctx, t)[0].model.pivots.map((p) => p.idx)).toEqual(buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx));
   });
 
-  frm('Schlüsse für den Wechsel: feiner Zug 2, Trendzug 1', () => {
+  frm('Schlüsse für den Wechsel kommen aus den Einstellungen', () => {
     const rows = barsOf([plain(100, 100), plain(100, 98), plain(98, 101), plain(101, 102)]);
-    expect([formationCloses('fein'), formationCloses('trend')]).toEqual([2, 1]);
+    expect([formationCloses({ ...DEFAULT_TREND_SETTINGS, changeCloses: 2 }), formationCloses(DEFAULT_TREND_SETTINGS)]).toEqual([2, 1]);
     expect(closesInRowBeyond(rows, 'support', 99, { from: 0, to: 3, closes: 1 })).toBe(true);
     expect(closesInRowBeyond(rows, 'support', 99, { from: 0, to: 3, closes: 2 })).toBe(false);
   });

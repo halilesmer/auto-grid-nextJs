@@ -9,6 +9,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { atrSeries, rsi, wave, wideRange } from '../../src/lib/formation/indicators';
 import { CONTEXT_TIMEFRAMES, RSI_PARAMS, WAVE_PARAMS, WIDE_RANGE_PARAMS } from '../../src/lib/formation/params';
 import type { FormationBar } from '../../src/lib/formation/types';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 function bar(time: number, high: number, low: number, close: number, open = close): FormationBar {
   return { time, open, high, low, close };
@@ -127,7 +128,7 @@ test.describe('Formation: Kontext mehrerer Zeiteinheiten', () => {
   const h4 = [0, 1, 2, 3].map((i) => bar(i * 14400, 11 + i, 9 + i, 10 + i));
 
   test('Kerze zählt erst, wenn ihre Dauer vorbei ist: H4 ab 28800 → 2 Kerzen, 28799 → 1', { tag: '@FRM-01' }, () => {
-    const ctx = new FormationContext('TEST', { H4: h4 });
+    const ctx = new FormationContext('TEST', { H4: h4 }, { trend: FIXTURE_TREND });
     expect(ctx.closedCount('H4', 28799)).toBe(1);
     expect(ctx.closedCount('H4', 28800)).toBe(2);
     expect(ctx.closedCount('H4', 0)).toBe(0);
@@ -136,7 +137,7 @@ test.describe('Formation: Kontext mehrerer Zeiteinheiten', () => {
 
   test('view(t) gibt nur geschlossene Kerzen und dieselben Indikatorwerte wie die Rechnung auf dem Teilstück', { tag: '@FRM-01' }, () => {
     const many = Array.from({ length: 60 }, (_, i) => bar(i * 3600, 100 + Math.sin(i) + 1, 100 + Math.sin(i) - 1, 100 + Math.sin(i) * 0.5));
-    const ctx = new FormationContext('TEST', { H1: many });
+    const ctx = new FormationContext('TEST', { H1: many }, { trend: FIXTURE_TREND });
     const t = 40 * 3600; // Kerzen 0..39 geschlossen
     const v = ctx.view('H1', t)!;
     expect(v.bars).toHaveLength(40);
@@ -147,23 +148,23 @@ test.describe('Formation: Kontext mehrerer Zeiteinheiten', () => {
   });
 
   test('view vor der ersten geschlossenen Kerze → leere Reihen', { tag: '@FRM-01' }, () => {
-    const v = new FormationContext('TEST', { H4: h4 }).view('H4', 100)!;
+    const v = new FormationContext('TEST', { H4: h4 }, { trend: FIXTURE_TREND }).view('H4', 100)!;
     expect(v.bars).toEqual([]);
     expect(v.rsi).toEqual([]);
   });
 
   test('nicht geladene Zeiteinheit → null; timeframes() von hoch nach tief', { tag: '@FRM-01' }, () => {
-    const ctx = new FormationContext('TEST', { M15: h4, D1: h4 });
+    const ctx = new FormationContext('TEST', { M15: h4, D1: h4 }, { trend: FIXTURE_TREND });
     expect(ctx.view('H1', 0)).toBeNull();
     expect(ctx.timeframes()).toEqual(['D1', 'M15']);
   });
 
   test('Kerze ohne endliche Zahl → Fehler', { tag: '@FRM-01' }, () => {
-    expect(() => new FormationContext('TEST', { H4: [bar(0, NaN, 1, 1)] })).toThrow(/endliche Zahl/);
+    expect(() => new FormationContext('TEST', { H4: [bar(0, NaN, 1, 1)] }, { trend: FIXTURE_TREND })).toThrow(/endliche Zahl/);
   });
 
   test('Zeit nicht streng steigend → Fehler', { tag: '@FRM-01' }, () => {
-    expect(() => new FormationContext('TEST', { H4: [bar(0, 2, 1, 1), bar(0, 2, 1, 1)] })).toThrow(/streng steigend/);
+    expect(() => new FormationContext('TEST', { H4: [bar(0, 2, 1, 1), bar(0, 2, 1, 1)] }, { trend: FIXTURE_TREND })).toThrow(/streng steigend/);
   });
 });
 

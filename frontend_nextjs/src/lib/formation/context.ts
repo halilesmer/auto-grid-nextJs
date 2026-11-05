@@ -7,14 +7,15 @@
 import { TIMEFRAME_SEC, type MissingRange } from '@/lib/analysis/candles';
 import { gapBetween } from '@/lib/analysis/fractals';
 import { atrSeries, narrowRange, rsi, wave, wideRange, type Series } from './indicators';
-import { CONTEXT_TIMEFRAMES, TRD_PARAMS, type ContextTimeframe, type FormationZug, type TrendTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, DEFAULT_TREND_SETTINGS, type ContextTimeframe, type TrendSettings, type TrendTimeframe } from './params';
+import { usableTrendSettings } from './trdPath';
 import { W1_SEC } from './weekly';
 import type { FormationBar } from './types';
 
 export interface TimeframeView {
   tf: TrendTimeframe;
-  /** Zug, auf dem die Formationen rechnen */
-  zug: FormationZug;
+  /** Trend-Einstellungen des Nutzers: Formationen und Linie rechnen damit (Halil 2026-11-05) */
+  trend: TrendSettings;
   bars: FormationBar[];
   /** Fehlende Datenbereiche der Reihe (für die Fläche „Datenlücke“ im Chart, UI-13); `bars` tragen sie als `gapBefore` */
   missing: GapRange[];
@@ -45,9 +46,9 @@ export class FormationContext {
   readonly symbol: string;
   private readonly full = new Map<TrendTimeframe, TimeframeView>();
 
-  constructor(symbol: string, input: ContextInput, options: { zug?: FormationZug } = {}) {
+  constructor(symbol: string, input: ContextInput, options: { trend?: TrendSettings } = {}) {
     this.symbol = symbol;
-    const zug = options.zug ?? TRD_PARAMS.formationZug;
+    const trend = usableTrendSettings(options.trend ?? DEFAULT_TREND_SETTINGS);
     for (const tf of [...CONTEXT_TIMEFRAMES, 'W1'] as const) {
       const given = input[tf];
       if (!given) continue;
@@ -66,7 +67,7 @@ export class FormationContext {
       }
       this.full.set(tf, {
         tf,
-        zug,
+        trend,
         bars: markGaps(bars, missing),
         missing: [...missing],
         rsi: rsi(bars),
@@ -105,7 +106,7 @@ export class FormationContext {
     const n = this.closedCount(tf, t);
     return {
       tf,
-      zug: view.zug,
+      trend: view.trend,
       bars: view.bars.slice(0, n),
       missing: view.missing,
       rsi: view.rsi.slice(0, n),

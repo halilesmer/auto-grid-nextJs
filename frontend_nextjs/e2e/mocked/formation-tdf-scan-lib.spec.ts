@@ -11,6 +11,7 @@ import { countsAsHit, FINAL_POINT, SCAN_FORMATIONS, scanFormations, type ScanHit
 import { analyzeTdf } from '../../src/lib/formation/tdfChecks';
 import type { Candidate } from '../../src/lib/formation/types';
 import { H4 } from '../fixtures/formation-rows';
+import { named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: ['@FRM-11', '@FRM-18'] }, fn);
 
@@ -24,9 +25,9 @@ const REAL = [
 
 for (const r of REAL) {
   frm(`Suche liefert für ${r.file} dieselben Zustände wie analyzeTdf allein`, () => {
-    const fx = parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${r.file}.json`, 'utf-8')));
+    const fx = named(`e2e/fixtures/formation/${r.file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${r.file}.json`, 'utf-8'))));
     const bars = fx.bars.filter((b) => b.time + H4 <= r.t);
-    const ctx = () => new FormationContext(fx.symbol, { H4: bars });
+    const ctx = () => new FormationContext(fx.symbol, { H4: bars }, { trend: trendOf(bars) });
     const alone = analyzeTdf(ctx(), r.t)
       .filter((a) => Object.keys(a.candidate.points).length > 0)
       .map((a) => ({ tf: a.tf, candidate: a.candidate }));

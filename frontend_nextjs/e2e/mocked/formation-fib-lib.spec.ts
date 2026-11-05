@@ -11,6 +11,7 @@ import { FIB_CHECK_IDS, analyzeFib, checkFibCandidate, type FibOptions } from '.
 import { parseFixture } from '../../src/lib/formation/fixture';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H1, H4, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-04' }, fn);
@@ -22,7 +23,7 @@ type Tf = keyof typeof STEP;
 const ctxOf = (input: Partial<Record<Tf, Row[]>>, start: Partial<Record<Tf, number>> = {}) => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf], start[tf] ?? 0);
-  return new FormationContext('TEST', bars);
+  return new FormationContext('TEST', bars, { trend: FIXTURE_TREND });
 };
 
 function run(input: Partial<Record<Tf, Row[]>>, tf: Tf = 'H4', options: FibOptions = {}, start: Partial<Record<Tf, number>> = {}): Candidate {
@@ -383,7 +384,7 @@ test.describe('FIB: Abdeckung und Eigenschaften', () => {
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------
 
-const loadFixture = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const loadFixture = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
 const lastTime = (fx: { bars: { time: number }[] }, dur: number) => fx.bars[fx.bars.length - 1].time + dur;
 /** halbe ATR(14) der letzten geschlossenen Kerze: Toleranz für Preise, die aus anderen Quellen stammen */
 const halfAtr = (ctx: FormationContext, tf: 'H4' | 'H1', t: number) => 0.5 * (ctx.view(tf, t)!.atr.slice(-1)[0] as number);
@@ -391,7 +392,7 @@ const halfAtr = (ctx: FormationContext, tf: 'H4' | 'H1', t: number) => 0.5 * (ct
 test.describe('FIB: echte Kerzen', () => {
   frm('fib-retrace-h4-01: Aufwärtsimpuls 1,15419 → 1,17279, Korrektur berührt 0.382 und 0.618, Preis(0.382) ≈ 1,1655', () => {
     const fx = loadFixture('fib-retrace-h4-01');
-    const ctx = new FormationContext(fx.symbol, { H4: fx.bars });
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
     const t = lastTime(fx, H4);
     const start = fx.bars.find((b) => b.low === 1.15419)!;
     const end = fx.bars.find((b) => b.high === 1.17279)!;
@@ -408,7 +409,7 @@ test.describe('FIB: echte Kerzen', () => {
 
   frm('fib-levelprice-h1-01: Preis(0.382) des Impulses 23434,34 → 23848,8 liegt innerhalb der halben ATR bei 23700', () => {
     const fx = loadFixture('fib-levelprice-h1-01');
-    const ctx = new FormationContext(fx.symbol, { H1: fx.bars });
+    const ctx = new FormationContext(fx.symbol, { H1: fx.bars }, { trend: trendOf(fx.bars) });
     const t = lastTime(fx, H1);
     const start = fx.bars.find((b) => b.low === 23434.34)!;
     const end = fx.bars.find((b) => b.high === 23848.8)!;
@@ -423,19 +424,20 @@ test.describe('FIB: echte Kerzen', () => {
     expect(Math.abs(find(c, 'FIB-08').value! - 23700)).toBeLessThan(halfAtr(ctx, 'H1', t));
   });
 
-  frm('fib-counter-d1-01 und -h4-01 (weicht von der Testliste ab: Ausdehnung nur 0,047): Tages-Impuls 0,89027 → 0,92262 mit Korrektur 0,48, kaum Ausdehnung, Fraktal der H4 in der Zone des Hochs', () => {
+  frm('fib-counter-d1-01 und -h4-01 (weicht von der Testliste ab: Ausdehnung nur 0,055): Tages-Impuls 0,89513 → 0,92262 mit Korrektur 0,56, kaum Ausdehnung, Fraktal der H4 in der Zone des Hochs', () => {
     const d1 = loadFixture('fib-counter-d1-01');
     const h4 = loadFixture('fib-counter-h4-01');
-    const ctx = new FormationContext('TEST', { D1: d1.bars, H4: h4.bars });
+    const ctx = new FormationContext('TEST', { D1: d1.bars, H4: h4.bars }, { trend: FIXTURE_TREND });
     const t = lastTime(h4, H4);
     const day = analyzeFib(ctx, t).find((a) => a.tf === 'D1')!;
-    // Länge 0,03235; Korrektur bis 0,90713: Tiefe (0,92262 − 0,90713)/0,03235 = 0,479; Hoch 0,92414 danach: Ausdehnung 0,047
-    expect(day.model.state!.leg.start.price).toBe(0.89027);
+    // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): der Impuls beginnt am späteren Tief 0,89513 (vorher 0,89027).
+    // Länge 0,02749; Korrektur bis 0,90713: Tiefe (0,92262 − 0,90713)/0,02749 = 0,563; Hoch 0,92414 danach: Ausdehnung 0,055
+    expect(day.model.state!.leg.start.price).toBe(0.89513);
     expect(day.model.state!.leg.end.price).toBe(0.92262);
     expect(state(day.candidate, 'FIB-12')).toBe(M);
-    expect(find(day.candidate, 'FIB-12').value).toBeCloseTo(0.479, 3);
+    expect(find(day.candidate, 'FIB-12').value).toBeCloseTo(0.563, 3);
     expect(state(day.candidate, 'FIB-20')).toBe(N);
-    expect(find(day.candidate, 'FIB-20').value).toBeCloseTo(0.047, 3);
+    expect(find(day.candidate, 'FIB-20').value).toBeCloseTo(0.055, 3);
     const intraday = analyzeFib(ctx, t).find((a) => a.tf === 'H4')!;
     expect([state(intraday.candidate, 'FIB-29'), state(intraday.candidate, 'FIB-30')]).toEqual([N, M]);
   });

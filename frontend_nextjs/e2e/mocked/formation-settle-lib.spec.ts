@@ -11,6 +11,7 @@ import { blockingUnknowns, exemptFor, settle } from '../../src/lib/formation/set
 import type { Check, CheckState, RuleKind, Verdict } from '../../src/lib/formation/types';
 import { CONTEXT_TIMEFRAMES } from '../../src/lib/formation/params';
 import { D1, END, H4, barsOf, mirror, plain, zig } from '../fixtures/formation-rows';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-19' }, fn);
 const mk = (id: string, state: CheckState, kind: RuleKind = 'required', extra: Partial<Check> = {}): Check => ({ id, kind, status: 'confirmed', state, drawings: [], ...extra });
@@ -100,7 +101,7 @@ const pick = (input: { H4?: typeof BASE; D1?: typeof BASE; W1?: typeof BASE }, t
   if (input.H4) bars.H4 = barsOf(input.H4, H4);
   if (input.D1) bars.D1 = barsOf(input.D1, D1);
   if (input.W1) bars.W1 = barsOf(input.W1, 7 * D1);
-  return analyzeCyp(new FormationContext('TEST', bars), END).find((a) => a.tf === tf)!.candidate;
+  return analyzeCyp(new FormationContext('TEST', bars, { trend: FIXTURE_TREND }), END).find((a) => a.tf === tf)!.candidate;
 };
 
 test.describe('settle: im Prüfer', () => {

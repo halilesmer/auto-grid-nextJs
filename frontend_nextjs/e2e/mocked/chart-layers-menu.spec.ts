@@ -9,6 +9,10 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
+import { fixtureTrend, seedFixtureTrend } from '../fixtures/formation-trend';
+
+// Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixture zeigt ihre Formation mit ihrer Einstellung
+test.beforeEach(({ page }) => seedFixtureTrend(page, fixtureTrend('gar-buy-h4-01')));
 
 const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;

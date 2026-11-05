@@ -6,6 +6,7 @@
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { H1, H4, barsOf, mirror, plain, zig, type Row } from './formation-rows';
+import { FIXTURE_TREND } from './formation-trend';
 
 export const U: CheckState = 'unmeasurable';
 export const M: CheckState = 'met';
@@ -25,7 +26,7 @@ export const at = (k: number, lead = LEAD, leg = LEG): number => lead + 2 + leg 
 export const ctxOf = (rows: Row[], extra: { H1?: Row[] } = {}): FormationContext => {
   const input: ContextInput = { H4: barsOf(rows, H4) };
   if (extra.H1) input.H1 = barsOf(extra.H1, H1);
-  return new FormationContext('TEST', input);
+  return new FormationContext('TEST', input, { trend: FIXTURE_TREND });
 };
 
 /** Dochtspitze der Kerze `idx`: Hoch oder Tief; beim Kauf (gespiegelte Reihe) die Gegenseite */

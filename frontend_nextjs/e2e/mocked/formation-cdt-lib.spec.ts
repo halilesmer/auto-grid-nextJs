@@ -15,6 +15,7 @@ import type { ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, M15, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -27,7 +28,7 @@ type Tf = keyof typeof STEP;
 const ctxOf = (input: Partial<Record<Tf, Row[]>>) => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext('TEST', bars);
+  return new FormationContext('TEST', bars, { trend: FIXTURE_TREND });
 };
 
 const wick = (rows: Row[], idx: number, high: boolean, step: number = H4): Anchor => ({ time: idx * step, price: high ? rows[idx][1] : rows[idx][2] });
@@ -392,12 +393,12 @@ test.describe('CDT: Abdeckung und Eigenschaften', () => {
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------
 
-const loadFixture = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const loadFixture = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const analyzeAt = (names: Partial<Record<'H4' | 'D1', string>>, iso: string): Candidate => {
   const input: ContextInput = {};
   for (const [tf, name] of Object.entries(names)) input[tf as 'H4' | 'D1'] = loadFixture(name).bars;
-  return analyzeCdt(new FormationContext('TEST', input), at(iso)).find((a) => a.tf === 'H4')!.candidate;
+  return analyzeCdt(new FormationContext('TEST', input, { trend: trendOf(loadFixture(names.H4 ?? names.D1!).bars) }), at(iso)).find((a) => a.tf === 'H4')!.candidate;
 };
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 
@@ -418,7 +419,8 @@ test.describe('CDT: echte Kerzen', () => {
   });
 
   frm('cdt-top-h4-02: Doppeltop mit zweitem Hoch knapp unter dem ersten, ohne RSI-Extrem und ohne Engulf, bleibt im Aufbau', () => {
-    const c = analyzeAt({ H4: 'cdt-top-h4-02' }, '2025-11-10T16:00');
+    // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): derselbe Befund liegt auf dem Trendzug des Nutzers am Doppeltop vom 2025-10-23 (vorher 2025-11-10)
+    const c = analyzeAt({ H4: 'cdt-top-h4-02' }, '2025-10-23T08:00');
     expect(c.side).toBe('sell');
     expect(states(c, ['CDT-01', 'CDT-02', 'CDT-03', 'CDT-04', 'CDT-05', 'CDT-06', 'CDT-15'])).toEqual([M, M, M, M, M, M, N]);
     expect(c.points.H2.price).toBeLessThan(c.points.H1.price);

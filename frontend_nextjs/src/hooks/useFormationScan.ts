@@ -9,6 +9,7 @@ import { formationRequests } from '@/lib/formation/requests';
 import { splitDaily } from '@/lib/formation/weekly';
 import { scanFormations, scanTime, type ScanHit } from '@/lib/formation/scan';
 import { scanSignature } from '@/lib/formation/scanKey';
+import { trendFingerprint } from '@/lib/formation/trdPath';
 import { pastDayEnd, pastRequestEnd } from '@/lib/formation/asOf';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useMarketRates } from '@/hooks/useMarketRates';
@@ -68,7 +69,8 @@ export function useFormationScan(
   const m15 = useMarketRates(requests?.M15 ?? null, nowSec);
   const ready = requests !== null;
   // Grundlage der Formationen (Trend-Einstellungen im Chart); ein Wechsel löst eine neue Suche aus
-  const zug = useAnalysisPrefsStore((st) => st.trend.formationZug);
+  const trend = useAnalysisPrefsStore((st) => st.trend);
+  const trendKey = trendFingerprint(trend);
   useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);
 
   const loadError = d1.error ?? h4.error ?? h1.error ?? m15.error;
@@ -83,7 +85,7 @@ export function useFormationScan(
     : null;
   // Ein neuer fehlender Bereich trennt Fraktal-Nachbarn: auch ohne neue Kerze neu suchen
   const gaps = [d1, h4, h1, m15].map((r) => r.data?.missing.map((m) => `${m.from}-${m.to}`).join(';') ?? '').join(',');
-  const key = signature !== null ? `${accountId}|${symbol}|${at}|${zug}|${signature}|${gaps}` : null;
+  const key = signature !== null ? `${accountId}|${symbol}|${at}|${trendKey}|${signature}|${gaps}` : null;
 
   // Neuester Stand der Kerzen für die Suche, ohne sie bei jedem Nachladen neu zu starten
   const latest = useRef<ContextInput>({});
@@ -100,7 +102,7 @@ export function useFormationScan(
     const timer = setTimeout(() => {
       const started = performance.now();
       try {
-        const context = new FormationContext(symbol as string, latest.current, { zug });
+        const context = new FormationContext(symbol as string, latest.current, { trend });
         const hits = scanFormations(context, at);
         setSettled({ key, hits, context, failed: false, scanAt: at, scanMs: Math.round(performance.now() - started) });
       } catch (err) {
@@ -111,7 +113,7 @@ export function useFormationScan(
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [key, at, symbol, zug]);
+  }, [key, at, symbol, trend]);
 
   // Gemeinsamer Preis: Schluss der laufenden M15-Kerze, so zeigen alle Zeiteinheiten denselben aktuellen Preis
   const price = pastAt === null && lastM15 && lastM15.time === m15.data?.liveFrom ? lastM15.close : null;

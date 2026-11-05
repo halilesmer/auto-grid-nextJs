@@ -134,18 +134,12 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(fine.length).toBeGreaterThan(6);
   });
 
-  ana('Die Formationsgrundlage ändert die Linie nicht', () => {
-    const fein = buildTrendPath('D1', eurcad.bars, { ...DEFAULT_TREND_SETTINGS, formationZug: 'fein' });
-    const trendPath = buildTrendPath('D1', eurcad.bars, { ...DEFAULT_TREND_SETTINGS, formationZug: 'trend' });
-    expect(trendPath).toEqual(fein);
-  });
-
   ana('Gespeicherte Werte: Unsinn fällt auf den Standard, Zahlen bleiben in ihren Grenzen', () => {
     expect(sanitizeTrendSettings(null)).toEqual(DEFAULT_TREND_SETTINGS);
-    expect(sanitizeTrendSettings({ rule: 'quatsch', minSize: 'x', changeCloses: 7, formationZug: 'mitte', ewoFast: 1.5 })).toEqual(DEFAULT_TREND_SETTINGS);
+    expect(sanitizeTrendSettings({ rule: 'quatsch', minSize: 'x', changeCloses: 7, formationZug: 'trend', ewoFast: 1.5 })).toEqual(DEFAULT_TREND_SETTINGS);
     expect(sanitizeTrendSettings({ minSize: 99, ewoRetreat: -1, atrPeriod: 500 })).toEqual({ ...DEFAULT_TREND_SETTINGS, minSize: 3.5, ewoRetreat: 0.1, atrPeriod: 100 });
-    expect(sanitizeTrendSettings({ rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4, formationZug: 'trend' })).toEqual({
-      rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4, formationZug: 'trend',
+    expect(sanitizeTrendSettings({ rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4, formationZug: 'fein' })).toEqual({
+      rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4,
     });
   });
 
@@ -157,7 +151,7 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(usableTrendSettings({ ...typed, ewoFast: 4, ewoSlow: 30 })).toMatchObject({ ewoFast: 4, ewoSlow: 30 });
   });
 
-  ana('Der Standard ist Trendzug mit Mindestgröße 2,5 ATR, ein Schluss und feine Formationen', () => {
-    expect(DEFAULT_TREND_SETTINGS).toEqual({ rule: 'groesse', minSize: 2.5, ewoRetreat: 0.2, changeCloses: 1, ewoFast: 5, ewoSlow: 35, atrPeriod: 14, formationZug: 'fein' });
+  ana('Der Standard ist Trendzug mit Mindestgröße 2,5 ATR, ein Schluss', () => {
+    expect(DEFAULT_TREND_SETTINGS).toEqual({ rule: 'groesse', minSize: 2.5, ewoRetreat: 0.2, changeCloses: 1, ewoFast: 5, ewoSlow: 35, atrPeriod: 14 });
   });
 });

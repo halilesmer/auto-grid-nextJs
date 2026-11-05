@@ -87,9 +87,6 @@ export const SIG_PARAMS = {
 
 export const TREND_RULES = ['groesse', 'welle', 'geruest', 'filter'] as const;
 export type TrendRule = (typeof TREND_RULES)[number];
-/** Worauf die Formationen rechnen: feiner Zug oder Trendzug */
-export const FORMATION_ZUEGE = ['fein', 'trend'] as const;
-export type FormationZug = (typeof FORMATION_ZUEGE)[number];
 
 /** Einstellungen des Trendzugs (`buildTrend`); Standard in TRD_PARAMS */
 export interface TrendOptions {
@@ -122,13 +119,6 @@ export const TRD_PARAMS = {
     /** Regel `filter`: Eine Korrektur fällt weg, wenn der EWO in ihr weniger als diesen Anteil zurückkam */
     ewoRetreat: 0.2,
   },
-  /**
-   * Grundlage der Formationen, einstellbar (Halil 2026-10-31). Der Standard `fein` ist eine Annahme: Auf Trendzug fallen viele
-   * geprüfte Formationen weg. Zeichnung und TRD-Prüfung nutzen immer Trendzug.
-   */
-  formationZug: 'fein' as FormationZug,
-  /** Feiner Zug: eigene Welle ab diesem Anteil der kleinsten Korrektur seit dem Wechsel, Wechsel nach so vielen Schlüssen */
-  fine: { ownWave: 0.75, changeCloses: 2 },
   /** TRD-08 (Annahme): Zwischenbereich beginnt bei diesem Anteil der Mindestgröße */
   gapLow: 0.5,
   /** TRD-17 (Halil 2026-10-31): aufeinanderfolgende Schlüsse jenseits der Bezugszone für den Wechsel */
@@ -149,15 +139,12 @@ export const TRD_PARAMS = {
   lowerTfBars: { counts: 8, notCounts: 3 },
 } as const;
 
-/** Einstellungen des Trendzugs im Chart (ANA-21) und die Grundlage der Formationen; im Browser gespeichert */
-export interface TrendSettings extends TrendOptions {
-  formationZug: FormationZug;
-}
+/** Einstellungen des Trendzugs im Chart (ANA-21); Linie und Formationen rechnen damit (Halil 2026-11-05); im Browser gespeichert */
+export type TrendSettings = TrendOptions;
 
 export const DEFAULT_TREND_SETTINGS: TrendSettings = {
   ...TRD_PARAMS.trend,
   changeCloses: TRD_PARAMS.changeCloses,
-  formationZug: TRD_PARAMS.formationZug,
 };
 
 /** Grenzen der Regler im Chart (Annahme, gewählt damit die Rechnung stabil bleibt) */
