@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: plan
 status: open
-pr: [379, 381]
+pr: [379, 381, 382]
 features: [FRM-03, FRM-18, FRM-30, FRM-41, FRM-42, FRM-43, FRM-44, FRM-45, UI-07, UI-08, UI-13, UI-16]
 areas: [frontend, docs]
 ---
@@ -116,7 +116,7 @@ Rejected alternatives:
 - [x] S1: formations follow the trend path (FRM-41), PR 381. `buildFineTrend()`, `formationZug` and the panel group "Formations" are removed. `FormationContext` takes `options.trend`; the page search and the alarm restart when the fingerprint of the settings changes. The TRD check (`analyzeTrd`) still uses the default trend path; S1 did not change it
   - Tests: the fixtures showed their formation on the fine zigzag. They now carry a trend setting in `e2e/fixtures/formation-trend.ts`: default 0.5 ATR and 2 closes (`FIXTURE_TREND`), 23 fixtures with their own setting (found with a scan of the sliders). 13 cases had no matching setting. Their expectations are regenerated and carry the note "FRM-41"; the owner did not yet compare them with the rule book
   - Scan time (FRM-18, library, 108 fixtures, 4 runs on the same Mac): main 4.3 to 4.7 s, S1 4.8 to 5.0 s (about +8 %)
-- [ ] S2: confirmation strip (FRM-42)
+- [x] S2: confirmation strip (FRM-42), PR 382. The store has `trendDraft` (not saved). The sliders change only the draft; the trend line reads the draft. Formations, the page search and the alarm read the applied `trend`. [Yeniden ara] applies the draft; [Geri al] sets it back. The strip is the first, sticky element of the trend panel, and the Trend button shows a dot while the draft differs. The strip shows only in Formation mode: in Setup and Free the change applies at once (no search there). The first alarm round after an applied change stays silent: the existing reset logic in `FormationScanRunner` (S1) drops the stored hit memory, so no code change was necessary there
 - [x] S3: alarm main switch and trend row (FRM-43). PR 380. The main switch is the stored flag `active`; old stored data counts as on. Off: `alarmSymbols` is empty, the search for favorites continues. The e2e test fails when the alarm is on (checked). Run e2e tests with your own `E2E_PORT`: other worktrees use port 3100 and `reuseExistingServer` then tests their build
 - [x] S4: expected D and badges (FRM-44), PR 379. Also a measured D that is not reached shows the expected D. Open: the time scale has no free space right of the last candle, thus the expected D is often at the plot edge (right offset in ChartView)
 - [x] S5: "Formation drawings" button (FRM-45), PR 378. The Formation toolbar reserve is now 26rem (was 24.25rem), because the new button is 28 px wide

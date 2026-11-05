@@ -180,7 +180,9 @@ export default defineArea(
   "cw.trend.ewoFast.hint": "EWO'nun (Elliott dalga osilatörü) hızlı ortalamasının uzunluğu. Birim: mum. Varsayılan 5.",
   "cw.trend.ewoSlow.hint": "EWO'nun yavaş ortalamasının uzunluğu; EWO kısadan büyük olmalıdır. Birim: mum. Varsayılan 35.",
   "cw.trend.atrPeriod.hint": "Asgari boyutun ölçüldüğü ATR'nin uzunluğu. Birim: mum. Varsayılan 14.",
-  "cw.trend.reset.hint": "Tüm değerleri varsayılana döndürür: yalnız asgari boyut 2,5 ATR, 1 kapanış, EWO 5/35, ATR 14, formasyonlar ince.",
+  "cw.trend.reset.hint": "Tüm değerleri varsayılana döndürür: yalnız asgari boyut 2,5 ATR, 1 kapanış, EWO 5/35, ATR 14. Yalnız taslağı değiştirir.",
+  "cw.trend.confirm.apply.hint": "Formasyon aramasını ve alarmı taslak ayarlarla yeniden başlatır. Çizgi ile formasyonlar yeniden aynı köşelerde olur; alarm eski isabetleri tekrar bildirmez.",
+  "cw.trend.confirm.revert.hint": "Taslağı atar: ayarları, formasyonların ve alarmın kullandığı değerlere geri döndürür. Arama yeniden başlamaz.",
 },
 {
   "cw.title.hint": "Chart workspace: adjust this chart display. Saved in this browser; no orders are sent.",
@@ -361,7 +363,9 @@ export default defineArea(
   "cw.trend.ewoFast.hint": "Length of the fast average in the EWO (Elliott Wave Oscillator). Unit: candles. Default 5.",
   "cw.trend.ewoSlow.hint": "Length of the slow average in the EWO. Must be greater than EWO short. Unit: candles. Default 35.",
   "cw.trend.atrPeriod.hint": "Length of the ATR that measures the minimum size. Unit: candles. Default 14.",
-  "cw.trend.reset.hint": "Sets all values back to the default: minimum size only 2.5 ATR, 1 close, EWO 5/35, ATR 14, formations fine.",
+  "cw.trend.reset.hint": "Sets all values back to the default: minimum size only 2.5 ATR, 1 close, EWO 5/35, ATR 14. Changes only the draft.",
+  "cw.trend.confirm.apply.hint": "Restarts the formation search and the alarm with the draft settings. The line and the formations use the same vertices again; the alarm does not report old hits again.",
+  "cw.trend.confirm.revert.hint": "Discards the draft: sets the controls back to the values that formations and the alarm use. The search does not restart.",
 },
 {
   "cw.title.hint": "Chart-Werkzeuge: Chartdarstellung anpassen. Wird in diesem Browser gespeichert; löst keine Order aus.",
@@ -542,6 +546,8 @@ export default defineArea(
   "cw.trend.ewoFast.hint": "Länge des schnellen Mittels im EWO (Elliott-Wellen-Oszillator). Einheit: Kerzen. Standard 5.",
   "cw.trend.ewoSlow.hint": "Länge des langsamen Mittels im EWO. Muss größer als EWO kurz sein. Einheit: Kerzen. Standard 35.",
   "cw.trend.atrPeriod.hint": "Länge der ATR, mit der die Mindestgröße gemessen wird. Einheit: Kerzen. Standard 14.",
-  "cw.trend.reset.hint": "Setzt alle Werte auf den Standard: nur Mindestgröße 2,5 ATR, 1 Schluss, EWO 5/35, ATR 14, Formationen fein.",
+  "cw.trend.reset.hint": "Setzt alle Werte auf den Standard: nur Mindestgröße 2,5 ATR, 1 Schluss, EWO 5/35, ATR 14. Ändert nur den Entwurf.",
+  "cw.trend.confirm.apply.hint": "Startet Formationssuche und Alarm mit den Entwurfs-Einstellungen neu. Linie und Formationen liegen wieder auf denselben Eckpunkten; der Alarm meldet alte Treffer nicht erneut.",
+  "cw.trend.confirm.revert.hint": "Verwirft den Entwurf: stellt die Regler auf die Werte zurück, mit denen Formationen und Alarm rechnen. Die Suche startet nicht neu.",
 }
 );

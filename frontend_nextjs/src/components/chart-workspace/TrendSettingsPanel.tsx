@@ -1,12 +1,14 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { TREND_LIMITS, TREND_RULES, type TrendRule, type TrendSettings } from '@/lib/formation/params';
-import { ewoPairValid } from '@/lib/formation/trdPath';
+import { resolveChartMode } from '@/lib/chart/mode';
+import { ewoPairValid, trendFingerprint } from '@/lib/formation/trdPath';
 import { cn } from '@/lib/utils';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
@@ -52,12 +54,28 @@ function IntField({ name, value, limit, onCommit }: { name: 'ewoFast' | 'ewoSlow
 /** Einstellungen des Trendzugs; Linie und Formationen rechnen damit; gespeichert im Browser. */
 export function TrendSettingsPanel() {
   const t = useT(), fmt = useFormat();
-  const s = useAnalysisPrefsStore((st) => st.trend);
+  const s = useAnalysisPrefsStore((st) => st.trendDraft);
+  const applied = useAnalysisPrefsStore((st) => st.trend);
   const setTrend = useAnalysisPrefsStore((st) => st.setTrend);
   const reset = useAnalysisPrefsStore((st) => st.resetTrend);
-  const set = <K extends keyof TrendSettings>(key: K, value: TrendSettings[K]) => setTrend({ [key]: value });
+  const applyTrend = useAnalysisPrefsStore((st) => st.applyTrend);
+  const revertTrend = useAnalysisPrefsStore((st) => st.revertTrend);
+  // Nur im Modus Formation rechnen Formationen, Suche und Alarm mit den Werten: dort bestätigt der Nutzer (FRM-42). In Setup und Frei gilt jede Änderung sofort.
+  const confirm = resolveChartMode(new URLSearchParams(useSearchParams().toString())) === 'formation';
+  const set = <K extends keyof TrendSettings>(key: K, value: TrendSettings[K]) => { setTrend({ [key]: value }); if (!confirm) applyTrend(); };
+  const dirty = confirm && trendFingerprint(s) !== trendFingerprint(applied);
+  const appliedText = [t(`cw.trend.rule.${applied.rule}` as MessageKey), applied.rule === 'welle' ? null : `${fmt.number(applied.minSize)} ATR`, t(`cw.trend.closes.${applied.changeCloses}` as MessageKey)].filter(Boolean).join(' · ');
   return (
     <div className="grid min-w-0 gap-4 p-3 text-sm" data-testid="trend-settings-panel">
+    {dirty && (
+      <div role="status" className="sticky top-0 z-10 grid gap-2 rounded-md border border-primary/40 bg-card p-2.5 shadow-sm text-xs" data-testid="trend-confirm">
+        <p><b className="font-semibold">{t('cw.trend.confirm.title')}</b><br /><span className="text-muted-foreground">{t('cw.trend.confirm.body', { applied: appliedText })}</span></p>
+        <div className="flex flex-wrap gap-1.5">
+          <Button size="sm" variant="primary" hint={t('cw.trend.confirm.apply.hint')} data-testid="trend-confirm-apply" onClick={applyTrend}>{t('cw.trend.confirm.apply')}</Button>
+          <Button size="sm" variant="outline" hint={t('cw.trend.confirm.revert.hint')} data-testid="trend-confirm-revert" onClick={revertTrend}>{t('cw.trend.confirm.revert')}</Button>
+        </div>
+      </div>
+    )}
       <div className="grid gap-3">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('cw.trend.group.line')}</h3>
         <InputField label={t('cw.trend.rule')} hint={t('cw.trend.rule.hint')}>
@@ -88,7 +106,7 @@ export function TrendSettingsPanel() {
         </div>
         {!ewoPairValid(s) && <p role="alert" className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs" data-testid="trend-ewo-invalid">{t('cw.trend.ewoInvalid')}</p>}
       </div>
-      <div><Button size="sm" variant="outline" hint={t('cw.trend.reset.hint')} data-testid="trend-reset" onClick={reset}>{t('cw.trend.reset')}</Button></div>
+      <div><Button size="sm" variant="outline" hint={t('cw.trend.reset.hint')} data-testid="trend-reset" onClick={() => { reset(); if (!confirm) applyTrend(); }}>{t('cw.trend.reset')}</Button></div>
     </div>
   );
 }

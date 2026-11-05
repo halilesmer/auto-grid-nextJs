@@ -2229,6 +2229,16 @@ kategorien:
           - "Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Änderung der Trend-Einstellungen startet die Suche neu)."
         erwartet: Jeder Punkt einer Formation liegt auf einem Eckpunkt der Trendlinie; eine andere Mindestgröße ändert die gefundenen Formationen; das Trend-Menü hat keine Gruppe „Formationen“.
 
+      - id: FRM-42
+        titel: "Trend-Einstellungen: Bestätigung vor der neuen Suche"
+        beschreibung: "Im Modus Formation ändert ein Regler im Trend-Panel nur den Entwurf (`trendDraft`, nicht gespeichert): die Trendlinie im Chart zeigt ihn, Formationen, Seitensuche und Alarm rechnen weiter mit den angewendeten Einstellungen (`trend`). Weicht der Entwurf ab, erscheint im Panel ein Streifen „Formasyonlar yeni ayarlarla yeniden aransın mı?“ mit [Yeniden ara] (Entwurf wird angewendet und gespeichert, Suche und Alarm starten neu, die erste Alarmrunde meldet alte Treffer nicht erneut) und [Geri al] (Regler zurück auf die angewendeten Werte); am Trend-Knopf steht ein Punkt, solange der Entwurf abweicht. Ein Neuladen verwirft den Entwurf. In Setup und Frei gilt jede Änderung sofort (Plan 1105-A5, A5.2 / A5.2.1). Keine Worker-Änderung."
+        code: [frontend_nextjs/src/store/useAnalysisPrefsStore.ts, frontend_nextjs/src/components/chart-workspace/TrendSettingsPanel.tsx, frontend_nextjs/src/components/chart-workspace/TrendToggle.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/formation/FormationScanRunner.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Tests e2e/mocked/formation-page.spec.ts (@FRM-42) ausführen (Regler ändert nur den Entwurf: nichts gespeichert, keine neue Suche; [Yeniden ara] speichert und startet die Suche neu; [Geri al] stellt den Regler zurück, keine Suche)."
+          - "Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (nach der Bestätigung startet die Suche neu)."
+        erwartet: Nach einem Reglerzug zeigt der Streifen die Frage mit beiden Knöpfen und die Suche läuft nicht neu; [Yeniden ara] wendet an und sucht neu, [Geri al] verwirft den Entwurf.
+
       - id: FRM-43
         titel: "Formationsalarm: Hauptschalter und Trend-Zeile"
         beschreibung: "Das Alarm-Menü hat oben rechts einen Hauptschalter (gespeichert als `active`, Standard an, ältere Speicherstände gelten als an). Aus: keine Suche und keine Meldung für den Alarm (`alarmSymbols` leer), Glocke `BellOff` ohne Punkt, Status „Kapalı · seçimler korunuyor“; alle Auswahlen bleiben, gedimmt aber bedienbar. Unter dem Status steht eine nur lesende Trend-Zeile (Regel, Größe in ATR, Schlüsse) aus den Trend-Einstellungen des Charts; [Ayarlar] klappt dasselbe Trend-Panel auf. Keine eigenen Trend-Einstellungen des Alarms (Plan 1105-A5, A5.3 / A5.4)."
