@@ -8,7 +8,7 @@ import { useT } from '@/i18n';
 import { contextTimeframe } from '@/hooks/useTrendPath';
 import type { Timeframe } from '@/lib/analysis/candles';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
-import { emptyChartDocument, useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { setSystemLayer } from '@/components/chart-workspace/systemLayers';
 
 /**
  * Knopf „Ebenen“ neben Trend (UI-13): ein Menü, das auf jedem Chart gleich aufgebaut ist. Oben die gemeinsamen Ebenen
@@ -28,10 +28,7 @@ export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, childr
   const showTrend = useAnalysisPrefsStore(s => s.showTrend), setShowTrend = useAnalysisPrefsStore(s => s.setShowTrend);
   const showPauses = useAnalysisPrefsStore(s => s.showPauses), showGaps = useAnalysisPrefsStore(s => s.showGaps), setPref = useAnalysisPrefsStore(s => s.setPref);
   const trendAvailable = contextTimeframe(timeframe) !== null;
-  const setOverlay = (key: 'rsi' | 'wave', value: boolean) => {
-    const state = useChartWorkspaceStore.getState(), doc = state.documents[contextKey] ?? emptyChartDocument();
-    state.setDocument(contextKey, { ...doc, overlays: { ...doc.overlays, [key]: value } });
-  };
+  const setOverlay = (key: 'rsi' | 'wave', value: boolean) => setSystemLayer(contextKey, key, value);
   return (
     <DropdownMenu
       label={t('cw.layers')}

@@ -347,6 +347,23 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
   });
 });
 
+test.describe('FRM-35 Wave-Fenster ohne RSI-Fenster', () => {
+  test('Ist RSI(7) ausgeschaltet, rückt das Wave-Fenster nach oben und seine Beschriftung bleibt in ihm', { tag: ['@FRM-35', '@UI-11'] }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(chart).toHaveAttribute('data-system-panes', '3');
+    await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
+    await page.locator('#layer-rsi').click();
+    await expect(chart).toHaveAttribute('data-system-panes', '2');
+    await page.keyboard.press('Escape');
+    const label = page.getByTestId('formation-overlay').getByText(msg('formation.pane.wave'), { exact: true });
+    const row = page.locator('[data-system-row="wave"]');
+    // Die Legendenzeile sitzt 4 px unter der Oberkante des Wave-Fensters, die Beschriftung 16 px (Grundlinie)
+    await expect.poll(async () => Math.abs((await label.boundingBox())!.y - (await row.boundingBox())!.y)).toBeLessThan(24);
+  });
+});
+
 test.describe('FRM-45 Schalter Formasyon çizimleri', () => {
   test('Der Schalter steht in der Symbolleiste, blendet die Zeichnungen aus und ein und fehlt im Menü „Ebenen“', { tag: '@FRM-45' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
