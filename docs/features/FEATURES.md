@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-05 · **207/216** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-05 · **207/217** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 15/15 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/22 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/16 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/17 |
 | 16 | **FRM** – Formationserkennung | 35/38 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -852,7 +852,11 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Zeitraum-Panel (Eigener Zeitraum) gibt es zwei optionale Felder „Startzeit“ und „Endzeit“ (HH:MM:SS, Brokerzeit). Leer oder Ende 00:00:00 heißt ganzer Tag, wie bisher. rangeBounds addiert die Zeiten zu den Tagesgrenzen; die Grenzen [Start, Ende) in MT5-Sekunden gehen unverändert an den Lauf. Die Adresse trägt sie als ft= und tt=, gespeicherte Voreinstellungen behalten sie (der Worker nimmt fromTime und toTime als HH:MM:SS an). Ungültige Uhrzeit oder Ende vor Start sperrt „Übernehmen“. Der Lauf rechnet nur Kerzen, die ganz in [Start, Ende) liegen (t ≥ Start und t + Datenauflösung ≤ Ende); liegt eine Grenze innerhalb einer Kerze, meldet er run.rangeRounded mit dem wirklich gerechneten Zeitraum, ohne ganze Kerze run.noCandles.
   - **Prüfung:** Auf /backtest „Eigener Zeitraum“ öffnen, Tage und Uhrzeiten eintragen und übernehmen; Seite neu laden.
   - **Erwartet:** Die Adresse trägt ft= und tt=, nach dem Neuladen stehen dieselben Zeiten im Panel; der Lauf rechnet die Kerzen ganz in diesen Grenzen und meldet eine Grenze innerhalb einer Kerze als Hinweis.
-- [ ] **BKT-16** Backtest-Engine ohne Vorteil gegenüber live — 🖥️ e2e ⏳
+- [ ] **BKT-16** Backtest-Live-Paarung nach Orderstufe und Bewertung K1–K4 — 🖥️ e2e ⏳
+  - pairByOrder paart Live- und Backtest-Trades zuerst nach gleicher Seite und gleicher Orderstufe (Einstiegspreise höchstens ein halber Grid-Schritt, mindestens ein Spread auseinander, levelToleranceOf) und kleinstem Zeitabstand im Fenster von 1 h; erst der Rest wird nach Reihenfolge und Zeit gepaart. Zwei Trades derselben Stufen in kurzem Abstand werden so nicht mehr über Kreuz gepaart (falsche Ausstiegsgründe). evaluateBtLive bewertet ein Symbol rein rechnerisch: K1 Anzahl |BT−Live| ≤ max(1; 5 % von Live), K2 gleiche M1-Kerze bei ≥ 90 % der Paare, K3 gleicher Ausstiegsgrund bei allen Paaren, K4 Netto BT ≤ Netto Live + max(0,50; 0,5 % von Σ|Live-Netto|); Option excludeEntryBefore nimmt Live-Trades mit Einstieg vor dem Fenster aus. Keine sichtbare UI-Änderung; die Werte der Paarlisten im Live-Vergleich können sich ändern.
+  - **Prüfung:** e2e backtest-live-compare-lib.spec.ts (@BKT-16) ausführen.
+  - **Erwartet:** Alle BKT-16-Tests bestehen.
+- [ ] **BKT-17** Backtest-Engine ohne Vorteil gegenüber live — 🖥️ e2e ⏳
   - Der Rechner ist konservativ: Für Füllprüfung und Füllpreis gilt max(Spread der Kerze, Spread der Vorkerze); nach einer breiteren Vorkerze füllt eine Limit-Order per Kurslücke nie besser als zum Orderpreis (RunModel.carrySpread, Standard an). Ein SL füllt um den halben Kerzen-Spread schlechter als die Stufe (RunModel.slSlippagePoints, 0 = aus); TP bleibt auf der Stufe. Optionaler Startzustand: RunInput.initialPositions (Seite, Volumen, Einstieg, SL/TP, Magic, Kommentar) belegt max_positions und Fraktal-Plätze, RunInput.initialFractalDone markiert vor dem Start gehandelte Fraktale. Nur Engine-Konfiguration, noch kein Feld in der Oberfläche.
   - **Prüfung:** Automatisiert (backtest-realism-lib.spec.ts); kein manueller Test, solange die Oberfläche kein Feld hat.
   - **Erwartet:** Der Lauf mit Spread-Spitze in der Vorkerze füllt nicht zum schmalen Endwert, ein SL schließt schlechter als die Stufe, eine Vorposition belegt max_positions.
