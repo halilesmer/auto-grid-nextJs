@@ -63,6 +63,9 @@ export function named<T extends { bars: readonly object[] }>(path: string, fx: T
   return fx;
 }
 
+/** Trend-Einstellung einer Fixture nach Name */
+export const fixtureTrend = (name: string): TrendSettings => ({ ...FIXTURE_TREND, ...FIXTURE_TRENDS[name] });
+
 /** Trend-Einstellung einer Fixture (auch gekürzt): eigene aus FIXTURE_TRENDS, sonst FIXTURE_TREND */
 export function trendOf(bars: readonly object[]): TrendSettings {
   return (bars.length > 0 && registered.get(bars[0])) || FIXTURE_TREND;
