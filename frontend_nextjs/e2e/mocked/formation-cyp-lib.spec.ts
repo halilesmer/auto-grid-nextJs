@@ -470,12 +470,13 @@ test.describe('CYP: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher B nur an 0.239 (CYP 03 ☐); auf dem Trendzug des Nutzers liegen X, A, B, C anders
-  frm('cyp-bad-h4-03: Negativ – Kauf-Cypher ungültig wegen CYP 04 und CYP 06, D noch weit von 0.786 (CYP 07 ☐)', () => {
+  // Trend { minSize 1.5, changeCloses 1 } (FIXTURE_TRENDS): C ist das echte Hoch 2025-12-04 16:00 (TRD-02), darum zusätzlich CYP 06 ☐
+  frm('cyp-bad-h4-03: Negativ – B nur an 0.239 (CYP 03 ☐), RSI(7) am C nur 76 (CYP 06 ☐) und D bei 0.100 von X → C noch weit von 0.786 (CYP 07 ☐)', () => {
     const c = analyzeAt('cyp-bad-h4-03', '2025-12-05T20:00');
     expect(c.side).toBe('buy');
-    expect(states(c, ['CYP-03', 'CYP-04', 'CYP-05', 'CYP-06', 'CYP-07'])).toEqual([M, N, M, N, N]);
-    expect(c.invalidBy).toEqual(['CYP-04', 'CYP-06']);
+    expect(states(c, ['CYP-03', 'CYP-04', 'CYP-05', 'CYP-06', 'CYP-07'])).toEqual([N, M, M, N, N]);
+    expect(c.invalidBy).toEqual(['CYP-03', 'CYP-06']);
+    expect(find(c, 'CYP-03').value!).toBeLessThan(0.382);
     expect(find(c, 'CYP-07').value!).toBeLessThan(0.786);
     expect(c.verdict).toBe('invalid');
   });
