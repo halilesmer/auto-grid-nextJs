@@ -49,6 +49,24 @@ const fibLevelPrice = ([start, end, from]: [Anchor, Anchor, Anchor?], level: num
 /** Zeichnet die Erkennung einen Zickzack? Dieselbe Quelle wie `primsOf`; die Legende zeigt die Zickzack-Zeile nur dann */
 export const drawsZigzag = (c: Candidate): boolean => c.drawings.some((d) => d.tool === 'zigzag');
 
+/**
+ * Erwartetes D einer Formation im Aufbau (A5.5): Preis = Zielniveau (Linie „Level 1“, sonst Mitte der D-Zone, sonst Einstieg),
+ * Zeit = C plus die Dauer von AB (liegt rechts der letzten Kerze). Null, wenn die Formation kein D hat, fertig ist oder das Niveau fehlt.
+ */
+export function expectedD(c: Candidate, form: ScanFormation): { time: number; price: number } | null {
+  // Wie beim Zeichnen: ein gemessenes D zählt erst, wenn es im Zickzack steht (Ziel erreicht)
+  const d = c.points.D;
+  const reached = d !== undefined && c.drawings.some((x) => x.tool === 'zigzag' && x.anchors.some((a) => a.time === d.time && a.price === d.price));
+  if (FINAL_POINT[form] !== 'D' || c.verdict !== 'forming' || reached) return null;
+  const { A, B, C } = c.points;
+  if (!A || !B || !C) return null;
+  const hline = c.drawings.find((d) => d.tool === 'hline')?.anchors[0]?.price;
+  const zone = c.drawings.find((d) => d.tool === 'zone')?.anchors;
+  const price = hline ?? (zone && zone.length >= 2 ? (zone[0].price + zone[1].price) / 2 : (c.trade?.entry ?? null));
+  if (price === null || price === undefined) return null;
+  return { time: C.time + Math.max(0, B.time - A.time), price };
+}
+
 const pointName = (c: Candidate, time: number, price: number): string | null =>
   Object.entries(c.points).find(([, a]) => a.time === time && a.price === price)?.[0] ?? null;
 
@@ -118,7 +136,20 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
           }
           return prims;
         }
-        if (forming && last && ly !== null) {
+        // Erwartetes D (A5.5): gestrichelter Weg von C zum Zielniveau, in der Zukunft rechts der letzten Kerze (am Rand abgeschnitten)
+        const exp = forming ? expectedD(candidate, form) : null;
+        const ex = exp ? x(exp.time) : null;
+        const ey = exp ? y(exp.price) : null;
+        if (forming && last && exp && ex !== null && ey !== null) {
+          const dx = Math.min(width - 8, Math.max(ex, last.px));
+          prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: dx, y2: ey, tone: 'side', dashed: true, width: 2 });
+          prims.push({ kind: 'circle', x: dx, y: ey, r: 5, tone: 'side', open: true });
+          // Name unter/über dem Ring, Preis auf der anderen Seite am rechten Rand; nahe am Rand steht der Name links vom Ring
+          const below = ey > last.py;
+          const edge = dx > width - 40;
+          prims.push({ kind: 'text', x: edge ? dx - 8 : dx - 4, y: ey + (below ? 17 : -9), text: `${FINAL_POINT[form]}?`, tone: 'side', bold: true, ...(edge ? { anchor: 'end' as const } : {}) });
+          prims.push({ kind: 'text', x: width - 4, y: ey + (below ? -9 : 17), text: fmt(exp.price), tone: 'side', anchor: 'end', bold: true });
+        } else if (forming && last && ly !== null) {
           if (lx !== null) {
             prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: lx, y2: ly, tone: 'side', dashed: true, width: 2 });
             prims.push({ kind: 'circle', x: lx, y: ly, r: 5, tone: 'side', open: true });
@@ -249,4 +280,123 @@ export function drawingPriceRange(candidate: Candidate): { min: number; max: num
     }
   }
   return prices.length === 0 ? null : { min: Math.min(...prices), max: Math.max(...prices) };
+}
+
+// ---------- Abzeichen am erwarteten D (A5.6, A5.6.1) ----------
+
+export interface DItem {
+  /** Schlüssel zum Auswählen (Formation und Zeitrahmen) */
+  id: string;
+  form: ScanFormation;
+  candidate: Candidate;
+}
+
+export interface DBadge {
+  id: string;
+  selected: boolean;
+  status: 'forming' | 'valid';
+  /** Lage des D-Rings (Mitte) */
+  x: number;
+  y: number;
+  /** Abzeichen: Text, linke obere Ecke und Größe */
+  label: string;
+  bx: number;
+  by: number;
+  w: number;
+  h: number;
+}
+
+export interface DBand {
+  x: number;
+  top: number;
+  bottom: number;
+  label: string;
+}
+
+export interface DLayout {
+  badges: DBadge[];
+  /** Blasse Ringe der nicht gewählten Formationen */
+  rings: { id: string; x: number; y: number }[];
+  bands: DBand[];
+}
+
+export interface DLayoutInput {
+  items: DItem[];
+  selectedId: string | null;
+  width: number;
+  /** Letzter Schlusskurs: bestimmt die Reihenfolge im Stapel (nächstes D oben) */
+  close: number;
+  /** ATR der letzten Kerze: D-Niveaus näher als 1,5 ATR bilden ein Band; null: keine Bänder */
+  atr: number | null;
+  x: (time: number) => number | null;
+  y: (price: number) => number | null;
+  text: LayoutInput['text'];
+  fmt: (n: number) => string;
+}
+
+const BADGE_H = 20;
+const BADGE_GAP = 4;
+export const BAND_ATR = 1.5;
+
+export function layoutExpectedD(input: DLayoutInput): DLayout {
+  const { items, selectedId, width, close, atr, x, y, text, fmt } = input;
+  const found = items.flatMap((it) => {
+    const c = it.candidate;
+    const name = text(`formation.form.${it.form}`);
+    let at: { time: number; price: number } | null = null;
+    let status: DBadge['status'] = 'forming';
+    if (c.verdict === 'forming') at = expectedD(c, it.form);
+    else if (c.verdict === 'valid' && c.points.D) {
+      at = c.points.D;
+      status = 'valid';
+    }
+    if (!at) return [];
+    const px = x(at.time);
+    const py = y(at.price);
+    if (px === null || py === null) return [];
+    const label = status === 'valid' ? `${name} ✓` : `${name} · ${text('formation.verdict.forming')}`;
+    return [{ id: it.id, selected: it.id === selectedId, status, price: at.price, x: Math.min(width - 8, px), y: py, label, w: label.length * 6.6 + 16 }];
+  });
+  found.sort((a, b) => Math.abs(a.price - close) - Math.abs(b.price - close));
+
+  const badges: DBadge[] = found.map((f, i) => {
+    let bx: number;
+    let by: number;
+    if (found.length === 1) {
+      bx = f.x + 12 + f.w > width ? Math.max(2, f.x - 12 - f.w) : f.x + 12;
+      by = Math.max(2, f.y - BADGE_H / 2);
+    } else {
+      // Ein Stapel am rechten Rand, das nächste D oben
+      bx = Math.max(2, width - f.w - 6);
+      by = Math.max(2, found[0].y - BADGE_H / 2) + i * (BADGE_H + BADGE_GAP);
+    }
+    return { id: f.id, selected: f.selected, status: f.status, x: f.x, y: f.y, label: f.label, bx, by, w: f.w, h: BADGE_H };
+  });
+  const rings = found.filter((f) => !f.selected).map((f) => ({ id: f.id, x: f.x, y: f.y }));
+
+  const bands: DBand[] = [];
+  if (atr !== null && atr > 0) {
+    const sorted = [...found].filter((f) => f.status === 'forming').sort((a, b) => a.price - b.price);
+    let group: typeof sorted = [];
+    const flush = () => {
+      if (group.length >= 2) {
+        const lo = group[0];
+        const hi = group[group.length - 1];
+        const ys = group.map((g) => g.y);
+        bands.push({
+          x: Math.max(0, Math.min(...group.map((g) => g.x)) - 24),
+          top: Math.min(...ys) - 6,
+          bottom: Math.max(...ys) + 6,
+          label: `${text('formation.expectedD.band')} ${fmt(lo.price)} – ${fmt(hi.price)}`,
+        });
+      }
+      group = [];
+    };
+    for (const f of sorted) {
+      if (group.length > 0 && f.price - group[group.length - 1].price >= BAND_ATR * atr) flush();
+      group.push(f);
+    }
+    flush();
+  }
+  return { badges, rings, bands };
 }
