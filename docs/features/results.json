@@ -297,7 +297,7 @@
   },
   "BKT-01": {
     "unit": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 94
     }
@@ -328,7 +328,7 @@
       "tests": 84
     },
     "unit": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 4
     }
@@ -373,7 +373,7 @@
       "tests": 60
     },
     "unit": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 46
     }

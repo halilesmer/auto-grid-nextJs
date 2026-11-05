@@ -1806,6 +1806,15 @@ kategorien:
           - e2e backtest-live-compare-lib.spec.ts (@BKT-16) ausführen.
         erwartet: Alle BKT-16-Tests bestehen.
 
+      - id: BKT-17
+        titel: Backtest-Engine ohne Vorteil gegenüber live
+        beschreibung: "Der Rechner ist konservativ: Für Füllprüfung und Füllpreis gilt max(Spread der Kerze, Spread der Vorkerze); nach einer breiteren Vorkerze füllt eine Limit-Order per Kurslücke nie besser als zum Orderpreis (RunModel.carrySpread, Standard an). Ein SL füllt um den halben Kerzen-Spread schlechter als die Stufe (RunModel.slSlippagePoints, 0 = aus); TP bleibt auf der Stufe. Optionaler Startzustand: RunInput.initialPositions (Seite, Volumen, Einstieg, SL/TP, Magic, Kommentar) belegt max_positions und Fraktal-Plätze, RunInput.initialFractalDone markiert vor dem Start gehandelte Fraktale. Nur Engine-Konfiguration, noch kein Feld in der Oberfläche."
+        code: [frontend_nextjs/src/lib/backtest/broker/pathBroker.ts, frontend_nextjs/src/lib/backtest/runner.ts]
+        tiers: [e2e]
+        pruefung:
+          - Automatisiert (backtest-realism-lib.spec.ts); kein manueller Test, solange die Oberfläche kein Feld hat.
+        erwartet: Der Lauf mit Spread-Spitze in der Vorkerze füllt nicht zum schmalen Endwert, ein SL schließt schlechter als die Stufe, eine Vorposition belegt max_positions.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung

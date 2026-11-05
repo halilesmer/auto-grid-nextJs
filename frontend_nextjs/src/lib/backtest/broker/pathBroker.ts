@@ -66,6 +66,32 @@ export interface PathBrokerOptions {
   timeframes: readonly { name: Timeframe; sec: number }[];
   /** Name der Zone zu einer Magic-Nummer (für die Trades) */
   zoneLabel: (magic: number) => string | null;
+  /**
+   * Konservativer Spread (Standard: an). Das Spread-Feld der Kerze ist ein Endwert; im Rollover und bei Spitzen
+   * war der echte Spread in der Minute höher. Es gilt max(Spread dieser Kerze, Spread der Vorkerze) für die
+   * Füllprüfung und den Füllpreis. War die Vorkerze breiter, füllt eine Limit-Order per Kurslücke nie zu einem
+   * besseren Preis als dem Orderpreis.
+   */
+  carrySpread?: boolean;
+  /**
+   * SL-Schlupf in Punkten (Standard: halber Spread der Kerze). 0 = aus. Ein SL füllt um diesen Betrag schlechter
+   * als die Stufe; TP füllt weiter auf der Stufe (live eher besser, also bleibt der Backtest konservativ).
+   */
+  slSlippagePoints?: number | null;
+}
+
+/** Position, die zum Startzeitpunkt schon offen war (Daten aus den Live-Deals vor `from`) */
+export interface InitialPosition {
+  side: 'buy' | 'sell';
+  volume: number;
+  price: number;
+  sl?: number;
+  tp?: number;
+  magic: number;
+  /** Kommentar der Eröffnungsorder, bei Fraktal-Positionen mit Fraktalzeit (markiert das Fraktal als erledigt) */
+  comment?: string;
+  /** Eröffnungszeit in Sekunden; ohne Angabe die Startzeit */
+  time?: number;
 }
 
 export interface Trigger {
@@ -107,6 +133,11 @@ export class PathBroker extends SimBroker {
   spreadPrice = 0;
   private profitStale = true;
   private exitTickets = 0;
+  private readonly carrySpread: boolean;
+  private readonly slSlippagePoints: number | null;
+  private prevSpreadPrice = 0;
+  /** Die Vorkerze war breiter: Kurslücken-Füllung von Limit-Orders nie besser als der Orderpreis */
+  private wideBefore = false;
 
   constructor(options: PathBrokerOptions) {
     super({ symbol: options.info, start: options.start, firstBid: options.firstBid });
@@ -115,6 +146,8 @@ export class PathBroker extends SimBroker {
     this.commissionPerLot = options.commissionPerLot;
     this.slFirst = options.slFirst;
     this.zoneLabel = options.zoneLabel;
+    this.carrySpread = options.carrySpread ?? true;
+    this.slSlippagePoints = options.slSlippagePoints ?? null;
     for (const tf of options.timeframes) this.aggregators.set(tf.name, new TimeframeAggregator(tf.sec));
     this.hooks = {
       openedByBot: (position, price) => this.register(position, price),
@@ -130,7 +163,10 @@ export class PathBroker extends SimBroker {
 
   /** Neue Kerze der Datenauflösung: Spread der Kerze (Punkte) gilt bis zum Kerzenende */
   beginCandle(time: number, open: number, spreadPoints: number): void {
-    this.spreadPrice = this.round(spreadPoints * this.costs.point);
+    const own = this.round(spreadPoints * this.costs.point);
+    this.wideBefore = this.carrySpread && this.prevSpreadPrice > own;
+    this.spreadPrice = this.wideBefore ? this.prevSpreadPrice : own;
+    this.prevSpreadPrice = own;
     this.forming = { time, open, high: open, low: open, close: open };
   }
 
@@ -254,7 +290,8 @@ export class PathBroker extends SimBroker {
       if (!order) throw new RunError('run.internal', { what: 'order missing', ticket: trigger.ticket });
       const buy = BUY_ORDER_TYPES.includes(order.type);
       const marketPrice = buy ? this.tick.ask : this.tick.bid;
-      const price = useMarket ? marketPrice : order.price_open;
+      let price = useMarket ? marketPrice : order.price_open;
+      if (useMarket && this.wideBefore) price = buy ? Math.max(price, order.price_open) : Math.min(price, order.price_open);
       this.orders = this.orders.filter((o) => o.ticket !== order.ticket);
       const position: Position = {
         ticket: order.ticket,
@@ -281,8 +318,39 @@ export class PathBroker extends SimBroker {
     const buy = position.type === POSITION_TYPE_BUY;
     const level = trigger.kind === 'tp' ? position.tp : position.sl;
     const marketPrice = buy ? this.tick.bid : this.tick.ask;
-    const price = useMarket ? marketPrice : level;
+    let price = useMarket ? marketPrice : level;
+    if (trigger.kind === 'sl') {
+      const slip = this.slSlippagePoints === null ? this.spreadPrice / 2 : this.slSlippagePoints * this.costs.point;
+      const worse = this.round(buy ? level - slip : level + slip);
+      if (!useMarket) price = worse;
+      else if (buy) price = Math.min(price, worse);
+      else price = Math.max(price, worse);
+    }
     this.closePosition(position, price, trigger.kind);
+  }
+
+  /** Startzustand: eine schon offene Position übernehmen (ohne Eingangskommission, die liegt vor dem Zeitraum) */
+  seedPosition(init: InitialPosition): void {
+    const ticket = this.nextTicket++;
+    const buy = init.side === 'buy';
+    const position: Position = {
+      ticket,
+      identifier: ticket,
+      symbol: this.symbol,
+      type: buy ? POSITION_TYPE_BUY : POSITION_TYPE_SELL,
+      price_open: init.price,
+      volume: init.volume,
+      tp: init.tp ?? 0,
+      sl: init.sl ?? 0,
+      magic: init.magic,
+      profit: 0,
+      comment: init.comment ?? '',
+    };
+    this.positions.push(position);
+    const exitPrice = buy ? this.tick.bid : this.tick.ask;
+    this.opens.set(ticket, { time: init.time ?? this.now, price: init.price, commission: 0, swap: 0, favorablePrice: exitPrice, adversePrice: exitPrice });
+    position.time_msc = Math.trunc((init.time ?? this.now) * 1000);
+    this.profitStale = true;
   }
 
   /** Testende „alles schließen“: zum Marktpreis */

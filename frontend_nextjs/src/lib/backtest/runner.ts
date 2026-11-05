@@ -12,13 +12,13 @@ import type { CurvePoint } from '@/lib/analysis/curves';
 import type { Trade } from '@/lib/analysis/tradePairing';
 import type { Excursion } from '@/lib/analysis/excursions';
 import { candleSpreadPoints, cents, type SpreadSetting, type SymbolSnapshot } from '@/lib/backtest/broker/costs';
-import { PathBroker, type FillModel } from '@/lib/backtest/broker/pathBroker';
+import { PathBroker, type FillModel, type InitialPosition } from '@/lib/backtest/broker/pathBroker';
 import type { LoadedRates } from '@/lib/backtest/candles/loadRates';
 import { candleWaypoints, waypointTimes, type PathMode } from '@/lib/backtest/candles/pathModel';
 import { manageDynamicGrid, type ActiveZones } from '@/lib/backtest/engine/orchestrator';
 import { EngineState } from '@/lib/backtest/engine/state';
 import { TF_SECONDS, type Timeframe, type ZoneDict } from '@/lib/backtest/engine/types';
-import { toTimeframe, zget } from '@/lib/backtest/engine/helpers';
+import { toTimeframe, zget, zoneLogId } from '@/lib/backtest/engine/helpers';
 import { zoneSymbolOf } from '@/lib/backtest/engine/zoneSelector';
 import { RunError, RunLog, type RunLogLine } from '@/lib/backtest/runContext';
 import { downsampleCurve, EquityTrack, type RunSummary } from '@/lib/backtest/runSummary';
@@ -36,6 +36,17 @@ export interface RunModel {
   slFirst: boolean;
   path: PathMode;
   closeAtEnd: boolean;
+  /** Konservativer Spread (max aus Kerze und Vorkerze); Standard an, siehe PathBrokerOptions */
+  carrySpread?: boolean;
+  /** SL-Schlupf in Punkten; ohne Angabe halber Kerzen-Spread, 0 = aus */
+  slSlippagePoints?: number | null;
+}
+
+/** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
+export interface InitialFractalDone {
+  side: 'U' | 'D';
+  /** Kerzenzeit des Fraktals (Sekunden) */
+  time: number;
 }
 
 export interface RunInput {
@@ -55,6 +66,10 @@ export interface RunInput {
   startCapital?: number;
   accountCurrency?: string;
   zoneLabel?: string | null;
+  /** Startzustand: Positionen, die zum Start live offen waren (Standard: leer wie bisher) */
+  initialPositions?: InitialPosition[];
+  /** Startzustand: schon gehandelte Fraktale der Zone (Positionen mit Fraktal-Kommentar zählen automatisch) */
+  initialFractalDone?: InitialFractalDone[];
   /** Meldungen vor dem Lauf (z. B. aus dem Schnappschuss), kommen vorn ins Protokoll */
   notes?: { code: string; params?: Record<string, unknown> }[];
   onProgress?: (fraction: number) => void;
@@ -183,7 +198,10 @@ export function runBacktest(input: RunInput): RunResult {
     slFirst: model.slFirst,
     timeframes: timeframes.map((name) => ({ name, sec: TF_SECONDS[name] })),
     zoneLabel: () => input.zoneLabel ?? null,
+    carrySpread: model.carrySpread,
+    slSlippagePoints: model.slSlippagePoints,
   });
+  for (const init of input.initialPositions ?? []) broker.seedPosition(init);
   for (let i = 0; i < first; i++) {
     broker.warm({ time: rates.t[i], open: rates.o[i], high: rates.h[i], low: rates.l[i], close: rates.c[i] });
   }
@@ -193,6 +211,12 @@ export function runBacktest(input: RunInput): RunResult {
     (entry) => log.add(entry.level, entry.code, entry.params, broker.now),
   );
   const zones = [zone];
+  for (const f of input.initialFractalDone ?? []) {
+    const key = `${zoneLogId(zone, 0)}:${symbol}:${toTimeframe(zget(zone, 'fractal_timeframe', 'H4'))}:${f.side}`;
+    const set = state.fractalDone.get(key) ?? new Set<number>();
+    set.add(f.time);
+    state.fractalDone.set(key, set);
+  }
   const infos = broker.symbolInfos();
   let active: ActiveZones = {};
   const runBot = () => {
