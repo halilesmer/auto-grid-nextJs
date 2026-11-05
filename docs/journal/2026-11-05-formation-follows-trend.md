@@ -120,7 +120,7 @@ Rejected alternatives:
 - [x] S3: alarm main switch and trend row (FRM-43). PR 380. The main switch is the stored flag `active`; old stored data counts as on. Off: `alarmSymbols` is empty, the search for favorites continues. The e2e test fails when the alarm is on (checked). Run e2e tests with your own `E2E_PORT`: other worktrees use port 3100 and `reuseExistingServer` then tests their build
 - [x] S4: expected D and badges (FRM-44), PR 379. Also a measured D that is not reached shows the expected D. Open: the time scale has no free space right of the last candle, thus the expected D is often at the plot edge (right offset in ChartView)
 - [x] S5: "Formation drawings" button (FRM-45), PR 378. The Formation toolbar reserve is now 26rem (was 24.25rem), because the new button is 28 px wide
-- [ ] S6: movable toolbar groups (UI-16). The plan named UI-10, but UI-10 is already in use
+- [x] S6: movable toolbar groups (UI-16). The plan named UI-10, but UI-10 is already in use. Details in `2026-11-05-toolbar-groups.md`. The header reserve is now 30.5rem (Formation) and 29rem (Setup, Free)
 - [ ] After S1: the owner checks the chart with an ATR factor of 1.5
 
 ## Lessons

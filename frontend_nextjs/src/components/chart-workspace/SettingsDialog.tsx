@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import { COLOR_KEYS, DEFAULT_APPEARANCE, OPTIONS, SETTINGS_LAYOUT, type Appearance, type Section, type SettingKey, type SettingRow } from '@/lib/chart-workspace/settings';
+import { isAutoLayout } from '@/lib/chart-workspace/toolbar';
 import { cn } from '@/lib/utils';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { appearanceColors } from './runtime';
@@ -61,13 +62,14 @@ function RowColor({ name, value, onChange }: { name: MessageKey; value: string; 
 
 const SECTION_ICONS: Record<Section, LucideIcon> = { symbol: CandlestickChart, status: AlignLeft, scales: Ruler, canvas: Paintbrush, overlays: Layers };
 
-export function SettingsDialog({ initialAppearance, onApply, onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, ohlcAvailable, defaultMargins }: { initialAppearance: Appearance; onApply: (appearance: Appearance) => void; onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
+export function SettingsDialog({ toolbarResettable = false, initialAppearance, onApply, onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, ohlcAvailable, defaultMargins }: { toolbarResettable?: boolean; initialAppearance: Appearance; onApply: (appearance: Appearance) => void; onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
   const t = useT(), s = useChartWorkspaceStore();
   const saved = s.preview ?? initialAppearance;
   const a = !saved.marginsSet && defaultMargins ? { ...saved, marginTop: defaultMargins.top * 100, marginBottom: defaultMargins.bottom * 100 } : saved;
   const [section, setSection] = useState<Section>('symbol');
   const [template, setTemplate] = useState<string>(initialAppearance.preset);
   const [name, setName] = useState('');
+  const toolbarAuto = isAutoLayout(s.toolbarLayout);
   const cancel = () => { s.setPreview(null); rollbackOverlays(); onClose(); };
   const change = (key: SettingKey, value: string | number | boolean) => {
     const next = { ...saved, [key]: value };
@@ -114,7 +116,9 @@ export function SettingsDialog({ initialAppearance, onApply, onClose, overlayCon
           <DropdownMenuGroup className="grid gap-2 p-3"><InputField label={t('cw.templateName')} hint={t('cw.templateName.hint')}><input className={fieldClass} value={name} maxLength={80} onChange={e => setName(e.target.value)} /></InputField><Button size="sm" variant="outline" hint={t('cw.saveTemplate.hint')} disabled={!name.trim()} onClick={() => { s.saveTemplate(name, saved); setTemplate(name.trim()); }}>{t('cw.saveTemplate')}</Button></DropdownMenuGroup>
           <DropdownMenuGroup><DropdownMenuItem icon={<RotateCcw className="size-4" aria-hidden="true" />} hint={t('cw.reset.hint')} onSelect={() => { setTemplate('auto'); s.setPreview({ ...DEFAULT_APPEARANCE }); }}>{t('cw.reset')}</DropdownMenuItem></DropdownMenuGroup>
         </DropdownMenu>
-        <div className="flex gap-2"><Button variant="outline" hint={t('cw.cancel.hint')} onClick={cancel}>{t('cw.cancel')}</Button><Button variant="primary" hint={t('cw.apply.hint')} onClick={() => { onApply(saved); s.setPreview(null); commitOverlays(); onClose(); }}>{t('cw.apply')}</Button></div>
+        {/* UI-16 (1105-A5.8.4): sofort wirksam, unabhängig von Übernehmen/Abbrechen; dieselbe Aktion steht unten im Griff-Menü jeder Gruppe */}
+        {toolbarResettable && <Button size="sm" variant="ghost" data-testid="settings-toolbar-reset" hint={t(toolbarAuto ? 'cw.tbReset.auto.hint' : 'cw.tbReset.hint')} disabled={toolbarAuto} onClick={() => s.setToolbarLayout({})}><RotateCcw className="size-3.5" aria-hidden="true" />{t('cw.tbReset')}</Button>}
+        <div className="ml-auto flex gap-2"><Button variant="outline" hint={t('cw.cancel.hint')} onClick={cancel}>{t('cw.cancel')}</Button><Button variant="primary" hint={t('cw.apply.hint')} onClick={() => { onApply(saved); s.setPreview(null); commitOverlays(); onClose(); }}>{t('cw.apply')}</Button></div>
       </div>
     </div>
   </Modal>;

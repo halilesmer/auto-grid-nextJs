@@ -45,7 +45,7 @@ export function TrendToggle({ timeframe, size = 'sm' }: { timeframe: Timeframe; 
         size={size === 'xs' ? 'icon-xs' : 'icon-sm'}
         // Auf /chart (Formation) schwebt die Werkzeugleiste unter der Schwelle von FormationToolbar.tsx unten: dort geht das Panel nach oben auf.
         // Höhe dann höchstens Viewport − 24rem, mindestens 12rem (bei 812×375 wurde sie sonst 0 und das Menü unbenutzbar), damit die Oberkante unter der Kopfleiste bleibt.
-        panelClassName="w-[372px] max-w-[calc(100vw-16px)] max-h-[70dvh] overflow-y-auto @max-[71rem]/formation-main:top-auto @max-[71rem]/formation-main:bottom-full @max-[71rem]/formation-main:mt-0 @max-[71rem]/formation-main:mb-2 @max-[71rem]/formation-main:max-h-[min(70dvh,max(12rem,calc(100dvh-24rem)))]"
+        panelClassName="w-[372px] max-w-[calc(100vw-16px)] max-h-[70dvh] overflow-y-auto group-data-[menu=up]/tb:top-auto group-data-[menu=up]/tb:bottom-full group-data-[menu=up]/tb:mt-0 group-data-[menu=up]/tb:mb-2 group-data-[menu=up]/tb:max-h-[min(70dvh,max(12rem,calc(100dvh-24rem)))]"
         triggerProps={{ 'data-testid': 'trend-settings' }}
       >
         <TrendSettingsPanel />

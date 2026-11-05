@@ -90,6 +90,7 @@ export function FormationToolbar({
   // weil Kopfleiste und Werkzeuge mit der Browser-Schrift wachsen; in px überlappten sie bei 20 px Schrift (FRM-23).
   // Gemessen 2026-11-03 (UI-14, e2e chart-one-page.spec.ts), tr/de: Werkzeugleiste mit dem Knopf „Ebenen“ 374 px bei 16 px Schrift (456 px bei 20 px)
   // + 28 px für den Schalter „Formasyon çizimleri“ (FRM-45, nur Formation: Reserve 26rem = 416 px statt 24,25rem) + 4 px (5 px) Rand rechts des Containers + 8 px Abstand = 386 px (469 px). Die Reserve ist 24,25rem = 388 px (485 px bei 20 px Schrift).
+  // Gruppen mit Griff (UI-16, 2026-11-05, 16 px Schrift): Formation 476 px, Setup/Frei 450 px; Reserve jetzt 30,5rem (Formation, mr-/pr-122) und 29rem (ChartTopBar, pr-116), je + 4 px Rand + 8 px Abstand.
   // Vorher 18rem (288 px, gemessen ohne „Ebenen“): die Leiste deckte bei 1520 px Fenster den Status-Knopf ab (Befund der Prüfung).
   // Die Kopfleiste von Setup und Frei bricht um: was nicht mehr vor die Reserve passt, steht in der zweiten Zeile; die Werkzeuge liegen nur in der ersten (37 px).
   // Formation (A13.7): bis 91rem Container ein festes Raster mit zwei Zeilen (Variante `bar2`, globals.css), davor brach die Leiste in zwei Bändern auf drei Zeilen (94 px) um: 48–57rem und 71–88rem (gemessen 2026-11-04, 16 und 20 px Schrift).
@@ -120,7 +121,7 @@ export function FormationToolbar({
   );
   const actionsNode = (
           actions && (
-            <div className="contents bar2:col-start-3 bar2:row-start-1 bar2:flex bar2:items-center bar2:gap-1 bar2:@min-[71rem]/formation-main:mr-104">
+            <div className="contents bar2:col-start-3 bar2:row-start-1 bar2:flex bar2:items-center bar2:gap-1 bar2:@min-[71rem]/formation-main:mr-122">
               <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block bar2:hidden" aria-hidden="true" />
               {actions}
             </div>
@@ -128,7 +129,7 @@ export function FormationToolbar({
   );
   return (
     <div className="pointer-events-none bg-background bar2:grid bar2:grid-cols-[auto_minmax(0,1fr)_auto] bar2:items-center bar2:gap-x-1 bar2:border-b bar2:border-border bar2:px-2" data-testid="formation-toolbar" ref={root}>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 bar2:contents lg:min-h-[38px] @min-[71rem]/formation-main:pr-104" data-testid="formation-topbar">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 bar2:contents lg:min-h-[38px] @min-[71rem]/formation-main:pr-122" data-testid="formation-topbar">
         <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 bar2:col-span-2 bar2:col-start-1 bar2:row-start-1 bar2:w-auto bar2:flex-nowrap bar2:py-0.5 bar2:@min-[71rem]/formation-main:min-h-[38px] lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
           {children}
         </div>

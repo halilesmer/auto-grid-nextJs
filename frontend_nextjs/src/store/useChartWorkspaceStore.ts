@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { defaultToolbar, parseToolbar, type ToolbarPreferences } from '@/lib/chart-workspace/toolbar';
+import { defaultToolbar, parseToolbar, parseToolbarLayout, type ToolbarLayout, type ToolbarPreferences } from '@/lib/chart-workspace/toolbar';
 import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-workspace/linkedDrawings';
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
 import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
@@ -17,6 +17,9 @@ interface State {
   links: Record<string, string>;
   toolbar: Record<string, ToolbarPreferences>;
   setToolbar: (key: string, patch: Partial<ToolbarPreferences>) => void;
+  /** Araç gruplarının yeri (UI-16): tarayıcı başına, her grafikte aynı; boş nesne = oto yerleşim. */
+  toolbarLayout: ToolbarLayout;
+  setToolbarLayout: (layout: ToolbarLayout) => void;
   setLinked: (key: string, sharedKey: string | null) => void;
   receiveStorage: () => void;
   appearance: Appearance;
@@ -63,6 +66,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
   let lastDocuments: Record<string, ChartDocument> = {};
   let lastToolbar: Record<string, ToolbarPreferences> = {};
   let lastLinks: Record<string, string> = {};
+  let lastLayout: ToolbarLayout = {};
   let pendingWrites = 0, receivePending = false;
   const readDocument = (d: ChartDocument): ChartDocument => ({ ...d, images: Object.fromEntries(Object.entries(d.images ?? {}).flatMap(([name, ref]) => {
     const bytes = typeof ref === 'string' ? ref : localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${name}`);
@@ -80,6 +84,9 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
         combined[key] = key.startsWith('@linked:') && latest ? { ...doc, drawings: rebaseDrawings(lastDocuments[key]?.drawings ?? '[]', doc.drawings, latest.drawings), images: { ...latest.images, ...doc.images } } : doc;
       }
       const toolbar = { ...remote.toolbar }, links = { ...remote.links };
+      const remoteLayout = parseToolbarLayout(remote.toolbarLayout);
+      // Bu sekme yerleşimi değiştirmediyse diskteki geçerlidir; içerik aynıysa nesne kimliği korunur (gereksiz çizim yok)
+      const toolbarLayout = s.toolbarLayout !== lastLayout || JSON.stringify(remoteLayout) === JSON.stringify(s.toolbarLayout) ? s.toolbarLayout : remoteLayout;
       for (const [key, value] of Object.entries(s.toolbar)) if (value !== lastToolbar[key]) toolbar[key] = value;
       for (const key of new Set([...Object.keys(lastLinks), ...Object.keys(s.links)])) {
         if (s.links[key] === lastLinks[key]) continue;
@@ -89,12 +96,12 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
         for (const [id, data] of Object.entries(d.images)) if (localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`) !== data) localStorage.setItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`, data);
         return [key, { ...d, overlays: s.overlayPreview?.key === key ? s.overlayPreview.original : d.overlays, images: Object.fromEntries(Object.keys(d.images).map(id => [id, true])) }];
       }));
-      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 1, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, links, toolbar }));
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 1, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, links, toolbar, toolbarLayout }));
       // Delete orphan image bytes only after the replacement metadata is safely written.
       const prefix = `${WORKSPACE_STORAGE_KEY}-image-`, usedImages = new Set(Object.values(combined).flatMap(d => Object.keys(d.images)));
       for (let i = localStorage.length - 1; i >= 0; i--) { const key = localStorage.key(i); if (key?.startsWith(prefix) && !usedImages.has(key.slice(prefix.length))) localStorage.removeItem(key); }
-      lastDocuments = combined; lastToolbar = s.toolbar; lastLinks = s.links;
-      set({ documents: combined, storageError: false });
+      lastDocuments = combined; lastToolbar = s.toolbar; lastLinks = s.links; lastLayout = toolbarLayout;
+      set({ documents: combined, toolbarLayout, storageError: false });
     }
     catch { set({ storageError: true }); } // Quota/private mode: keep the current session and show a visible warning.
   };
@@ -109,7 +116,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     } else write();
   };
   return {
-    links: {}, toolbar: {}, appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
+    links: {}, toolbar: {}, toolbarLayout: {}, appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
     hydrate: () => {
       if (get().hydrated) return;
       try {
@@ -134,11 +141,12 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }
         lastDocuments = documents;
-        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
-        lastToolbar = get().toolbar; lastLinks = get().links;
+        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), toolbarLayout: parseToolbarLayout(raw?.toolbarLayout), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
+        lastToolbar = get().toolbar; lastLinks = get().links; lastLayout = get().toolbarLayout;
       } catch { set({ hydrated: true, storageError: true }); }
     },
     receiveStorage: () => { if (pendingWrites) { receivePending = true; return; } set({ hydrated: false }); get().hydrate(); },
+    setToolbarLayout: toolbarLayout => { set({ toolbarLayout }); persist(); },
     setToolbar: (key, patch) => { set(s => ({ toolbar: { ...s.toolbar, [key]: { ...(s.toolbar[key] ?? defaultToolbar()), ...patch } } })); persist(); },
     setLinked: (key, sharedKey) => {
       if (!sharedKey) { set(s => { const links = { ...s.links }; delete links[key]; return { links }; }); persist(); return; }
