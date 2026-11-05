@@ -3,7 +3,7 @@ import { defineArea } from './define';
 export default defineArea(
 {
   "cw.overlayFormations": "Formasyon çizimleri",
-  "cw.overlayFormations.hint": "Formasyon çizgilerini ve bölgelerini gösterir.",
+  "cw.overlayFormations.hint": "Formasyon çizimleri: bulunan formasyonun çizgilerini ve bölgelerini grafikte gösterir ya da gizler. Bu tarayıcıda saklanır; emir göndermez.",
   "cw.layers": "Katmanlar",
   "cw.layers.hint": "Katmanlar menüsünü açar: trend çizgisi, RSI(7), Wave 5/35, duraklar ve veri boşlukları her grafikte aynıdır; altında bu moda özel katmanlar yer alır.",
   "cw.layers.shared": "Her grafikte aynı",
@@ -328,7 +328,7 @@ export default defineArea(
 },
 {
   "cw.overlayFormations": "Formation drawings",
-  "cw.overlayFormations.hint": "Show the detected formation lines and zones.",
+  "cw.overlayFormations.hint": "Formation drawings: show or hide the lines and zones of the detected formation on the chart. Saved in this browser; no orders are sent.",
   "cw.layers": "Layers",
   "cw.layers.hint": "Open the layers menu: trend path, RSI(7), Wave 5/35, pauses and data gaps are the same on every chart; the layers of this mode follow below them.",
   "cw.layers.shared": "The same on every chart",
@@ -653,7 +653,7 @@ export default defineArea(
 },
 {
   "cw.overlayFormations": "Formationszeichnungen",
-  "cw.overlayFormations.hint": "Erkannte Formationslinien und Zonen anzeigen.",
+  "cw.overlayFormations.hint": "Formationszeichnungen: Linien und Zonen der erkannten Formation im Chart ein- oder ausblenden. Wird in diesem Browser gespeichert; löst keine Order aus.",
   "cw.layers": "Ebenen",
   "cw.layers.hint": "Öffnet das Menü der Ebenen: Trendzug, RSI(7), Wave 5/35, Pausen und Datenlücken sind auf jedem Chart gleich; darunter stehen die Ebenen des Modus.",
   "cw.layers.shared": "Auf jedem Chart gleich",

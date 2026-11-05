@@ -1034,11 +1034,18 @@
       "tests": 22
     }
   },
-  "FRM-41": {
+  "FRM-43": {
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 3
+      "tests": 4
+    }
+  },
+  "FRM-44": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 9
     }
   },
   "LOG-01": {

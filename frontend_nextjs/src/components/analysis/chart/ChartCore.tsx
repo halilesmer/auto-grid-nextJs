@@ -125,6 +125,8 @@ export interface ChartCoreProps {
   trendPath?: { segments: TrendSegment[]; axis: number[] };
   /** Schalter in der Kopfleiste des Charts, rechts neben den Indikatoren */
   toolbarActions?: React.ReactNode;
+  /** Symbolleisten-Schalter direkt hinter „Ansicht zurücksetzen“ (z. B. Formasyon çizimleri) */
+  viewActions?: React.ReactNode;
   /** Zusatzzeilen unter dem Fadenkreuz je Kerzenzeit (z. B. Trades dieser Kerze) */
   notes?: Map<number, string[]>;
   /** Ansicht auf diese Kerzenzeit setzen; `seq` erzwingt es auch bei gleicher Zeit erneut */
@@ -212,6 +214,7 @@ export function ChartCore({
   fractals = EMPTY_FRACTALS,
   trendPath = EMPTY_TREND,
   toolbarActions,
+  viewActions,
   notes,
   focus,
   balance,
@@ -734,7 +737,7 @@ export function ChartCore({
     'data-pauses': data.pauses.length,
   };
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemPanes={systemPanes} onHideSystemPane={hideSystemPane}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} viewActions={viewActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemPanes={systemPanes} onHideSystemPane={hideSystemPane}>
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
       <div ref={surfaceRef} {...surfaceProps} className="absolute top-0 bottom-[calc(var(--workspace-card,0px)+var(--floating-card,0px))] left-[52px] right-0 isolate overflow-hidden bg-card @min-[71rem]/formation-main:bottom-0">

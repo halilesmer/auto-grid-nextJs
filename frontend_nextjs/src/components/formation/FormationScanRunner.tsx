@@ -256,13 +256,14 @@ export default function FormationScanRunner() {
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
   const favoritesKey = favorites.symbols.join('|');
   const bellKey = accountId ? symbolsOf(accountId, stored.enabled).sort().join('|') : '';
+  const alarmActive = stored.active;
   const favoritesAlarm = accountId !== null && stored.favoritesEnabled.includes(accountId);
   // Aus Schlüsseln abgeleitet, damit eine neue Liste mit gleichem Inhalt die Suche nicht neu startet
   const { symbols, alarmSymbols } = useMemo(() => {
     const favorite = favoritesKey ? favoritesKey.split('|') : [];
     const bells = bellKey ? bellKey.split('|') : [];
-    return { symbols: [...new Set([...favorite, ...bells])], alarmSymbols: [...new Set([...(favoritesAlarm ? favorite : []), ...bells])] };
-  }, [favoritesKey, bellKey, favoritesAlarm]);
+    return { symbols: [...new Set([...favorite, ...bells])], alarmSymbols: alarmActive ? [...new Set([...(favoritesAlarm ? favorite : []), ...bells])] : [] };
+  }, [favoritesKey, bellKey, favoritesAlarm, alarmActive]);
   const alarmKey = alarmSymbols.join('|');
   // Der Durchlauf liest die aktuellen Alarm-Produkte über diese Referenz, nicht die beim Start
   const alarmKeyRef = useRef(alarmKey);

@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-37 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster
+ * FRM-37 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster · FRM-45 Schalter Formasyon çizimleri
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -347,6 +347,32 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
   });
 });
 
+test.describe('FRM-45 Schalter Formasyon çizimleri', () => {
+  test('Der Schalter steht in der Symbolleiste, blendet die Zeichnungen aus und ein und fehlt im Menü „Ebenen“', { tag: '@FRM-45' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const toggle = page.getByRole('button', { name: msg('cw.overlayFormations'), exact: true });
+    const overlay = page.getByTestId('formation-overlay'), drawings = overlay.locator('[data-drawing]');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(drawings.first()).toBeAttached();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(overlay).toBeHidden();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(overlay).toBeVisible();
+    await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
+    await expect(page.locator('#layer-wave')).toBeVisible();
+    await expect(page.locator('#overlay-formations')).toHaveCount(0);
+  });
+
+  test('Im Modus Frei gibt es den Schalter nicht', { tag: '@FRM-45' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD`);
+    await expect(page.getByTestId('chart-workspace')).toBeVisible();
+    await expect(page.getByRole('button', { name: msg('cw.overlayFormations'), exact: true })).toHaveCount(0);
+  });
+});
+
 test.describe('FRM-20 Chart-Overlay und Hover', () => {
   test('ABCD im Aufbau: gestrichelter Weg, offener Kreis mit „?“, mögliche Zone, keine Umkehrkerzen-Marke', { tag: '@FRM-20' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=ABCD`, FORMING_NOW);
@@ -358,6 +384,37 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     await expect(overlay.locator('text', { hasText: msg('formation.draw.zonePossible', { tf: 'H4', up: 'D1' }) })).toHaveCount(1);
     await expect(overlay.locator('[data-drawing] rect[rx="3"]')).toHaveCount(0);
   });
+
+  for (const theme of ['light', 'dark']) {
+    test(`ABCD im Aufbau: erwartetes D rechts der letzten Kerze mit Abzeichen, 375 px ohne Querscroll (${theme})`, { tag: '@FRM-44' }, async ({ page, worker }) => {
+      await page.addInitScript((value) => localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 })), theme);
+      await openPage(page, worker, `${URL}&form=ABCD`, FORMING_NOW);
+      const overlay = page.getByTestId('formation-overlay');
+      await expect(overlay.locator('text', { hasText: 'D?' })).toHaveCount(1);
+      const badge = page.getByTestId('formation-d-badge').first();
+      await expect(badge).toHaveAttribute('data-status', 'forming');
+      // Der Stand steht als Text im Abzeichen, nicht nur in der Farbe
+      await expect(badge).toContainText(`${msg('formation.form.ABCD')} · ${msg('formation.verdict.forming')}`);
+      await expect(badge).toHaveAttribute('aria-pressed', 'true');
+      // Das D liegt rechts der letzten Kerze: der gestrichelte Weg endet nicht an ihr
+      const dashed = overlay.locator('line[stroke-dasharray="6 5"]');
+      const x2 = Number(await dashed.getAttribute('x2'));
+      // Rechts aller bestätigten Punkte (A, B, C) und am erwarteten D steht das Abzeichen
+      const pointXs = await overlay.locator('circle:not([fill="none"])').evaluateAll((els) => els.map((e) => Number(e.getAttribute('cx'))));
+      expect(x2).toBeGreaterThan(Math.max(...pointXs));
+      await page.screenshot({ path: test.info().outputPath(`formation-expected-d-${theme}.png`) });
+      if (theme === 'light') {
+        await page.setViewportSize({ width: 375, height: 812 });
+        // Die Seitenleiste deckt den Chart bei 375 px ab: für das Bild schließen
+        const chip = page.getByTestId('formation-status-chip');
+        if ((await chip.getAttribute('aria-expanded')) === 'true') await chip.press('Enter');
+        await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+        await expect(page.getByTestId('formation-d-badge').first()).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+        await page.screenshot({ path: test.info().outputPath('formation-expected-d-mobile.png') });
+      }
+    });
+  }
 
   test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: ['@FRM-20', '@FRM-37'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);

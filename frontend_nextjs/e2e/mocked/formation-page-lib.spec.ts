@@ -53,15 +53,16 @@ test.describe('Zeichnungen einer Formation im Aufbau', () => {
     const lines = zig.prims.filter((p) => p.kind === 'line');
     expect(lines.map((l) => l.kind === 'line' && Boolean(l.dashed))).toEqual([false, false, true]);
     const open = zig.prims.find((p) => p.kind === 'circle' && p.open);
-    expect(open).toMatchObject({ kind: 'circle', x: 250, y: 80, open: true });
+    expect(open).toMatchObject({ kind: 'circle', x: 150, y: 50, open: true });
     expect(zig.prims.some((p) => p.kind === 'text' && p.text === 'D?')).toBe(true);
-    expect(zig.prims.filter((p) => p.kind === 'text').map((p) => p.kind === 'text' && p.text).sort()).toEqual(['A', 'B', 'C', 'D?']);
+    expect(zig.prims.filter((p) => p.kind === 'text').map((p) => p.kind === 'text' && p.text).sort()).toEqual(['25', 'A', 'B', 'C', 'D?']);
   });
 
-  frm('FRM-20', 'D vorhanden, aber nicht erreicht: der Weg läuft gestrichelt zum Punkt D, der als offener Kreis steht', () => {
+  // A5.5 (2026-11-05): auch ein gemessenes, nicht erreichtes D zeigt das erwartete D am Zielniveau (C plus Dauer von AB)
+  frm('FRM-20', 'D vorhanden, aber nicht erreicht: der Weg läuft gestrichelt zum erwarteten D, das als offener Kreis steht', () => {
     const open: Candidate = { ...forming, points: { ...forming.points, D: point(3, 24) } };
     const zig = layout(open).find((g) => g.id === 'Z-1')!;
-    expect(zig.prims.find((p) => p.kind === 'circle' && p.open)).toMatchObject({ x: 150, y: 60 });
+    expect(zig.prims.find((p) => p.kind === 'circle' && p.open)).toMatchObject({ x: 150, y: 50 });
     expect(zig.prims.some((p) => p.kind === 'text' && p.text === 'D?')).toBe(true);
   });
 

@@ -2167,6 +2167,16 @@ kategorien:
           - UI-07 (Tooltip am Schalter) und UI-08 (375 px ohne Querscroll) ausführen.
         erwartet: Der Chart zeigt Kerzen, RSI und ein Wave-Histogramm; der Schalter „Wave 5/35“ blendet das Histogramm aus und ein.
 
+      - id: FRM-45
+        titel: "Schalter „Formasyon çizimleri“ in der Symbolleiste (Modus Formation)"
+        beschreibung: "Im Modus Formation der Seite /chart steht in der Symbolleiste direkt hinter „Görünümü sıfırla“ ein Symbol-Schalter (aria-pressed, Tooltip) „Formasyon çizimleri“. Er schreibt denselben Wert (overlays.formations des Chart-Dokuments) wie früher der Schalter im Menü „Ebenen“, gespeicherte Einstellungen bleiben also gültig. Aus dem Menü „Ebenen“ ist der Abschnitt „Yalnız Formasyon modunda“ entfernt. In den Modi Setup und Frei gibt es den Schalter nicht. Keine Worker-Änderung, keine Order."
+        code: [frontend_nextjs/src/components/chart-workspace/FormationDrawingsToggle.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/formation/FormationChart.tsx]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-45) ausführen.
+          - UI-07 (Tooltip) und UI-08 (375 px ohne Querscroll) ausführen.
+        erwartet: Der Schalter blendet die Formationszeichnungen aus und ein, steht nur im Modus Formation und nicht mehr im Menü „Ebenen“.
+
       - id: FRM-37
         titel: "Seite Formasyon: Seitenleiste mit Reitern Bedingungen und Favoriten"
         beschreibung: "Die Bedingungen (Kandidaten und Checkliste) stehen als Reiter „Bedingungen“ neben „Favoriten“ in der rechten Seitenleiste; die verschiebbare Karte über dem Chart entfällt (früher FRM-24). Die schmale Leiste ganz rechts hat zwei Symbole (Lesezeichen, Bedingungen); jedes öffnet die Seitenleiste auf seinem Reiter, ein Klick auf das Symbol des aktiven Reiters schließt sie. Ab 1024 px schiebt die offene Leiste den Chart nach links (formation-main wird um 40 + 288 px schmaler) und überdeckt ihn nicht; darunter liegt sie über dem Chart. Ein Status-Knopf in der Kopfleiste öffnet und schließt den Reiter „Bedingungen“; ohne Kandidat ist er deaktiviert. Bei einer Chartbreite unter 79rem (1264 px bei 16 px Browser-Schrift) zeigt er nur Pfeil (Kauf/Verkauf), Urteil als Symbol mit eigener Form (✓, ✗, Uhr) und Pfeil, ab 79rem Urteil als Pille und Zähler Pflicht · Verstärkung; Seite, Urteil und Zähler stehen immer im Namen (aria-label) und im Hinweis. Offen/zu und der Reiter bleiben im Browser (localStorage); erster Besuch: ab 1024 px offen auf „Bedingungen“, darunter zu."
@@ -2218,3 +2228,23 @@ kategorien:
           - "Playwright-Test e2e/mocked/formation-trd-lib.spec.ts (@FRM-03) ausführen (Formationen rechnen auf den Punkten des Trendzugs der Einstellungen)."
           - "Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Änderung der Trend-Einstellungen startet die Suche neu)."
         erwartet: Jeder Punkt einer Formation liegt auf einem Eckpunkt der Trendlinie; eine andere Mindestgröße ändert die gefundenen Formationen; das Trend-Menü hat keine Gruppe „Formationen“.
+
+      - id: FRM-43
+        titel: "Formationsalarm: Hauptschalter und Trend-Zeile"
+        beschreibung: "Das Alarm-Menü hat oben rechts einen Hauptschalter (gespeichert als `active`, Standard an, ältere Speicherstände gelten als an). Aus: keine Suche und keine Meldung für den Alarm (`alarmSymbols` leer), Glocke `BellOff` ohne Punkt, Status „Kapalı · seçimler korunuyor“; alle Auswahlen bleiben, gedimmt aber bedienbar. Unter dem Status steht eine nur lesende Trend-Zeile (Regel, Größe in ATR, Schlüsse) aus den Trend-Einstellungen des Charts; [Ayarlar] klappt dasselbe Trend-Panel auf. Keine eigenen Trend-Einstellungen des Alarms (Plan 1105-A5, A5.3 / A5.4)."
+        code: [frontend_nextjs/src/lib/formation/alarmStore.ts, frontend_nextjs/src/hooks/useFormationAlarm.ts, frontend_nextjs/src/components/formation/FormationAlarmMenu.tsx, frontend_nextjs/src/components/formation/FormationScanRunner.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/formation-alarm-switch.spec.ts (@FRM-43) ausführen (aus: Glocke aus, Status, Auswahlen bleiben; an: wie vorher; Trend-Zeile und Panel; 375 px ohne Querscroll)."
+          - UI-07 (Tooltips) und UI-08 (375 px ohne Querscroll) ausführen.
+        erwartet: Mit dem Hauptschalter aus sucht und meldet der Alarm nicht, die Auswahlen bleiben erhalten; die Trend-Zeile zeigt die Chart-Einstellungen nur lesend.
+
+      - id: FRM-44
+        titel: "Formation: erwartetes D und Abzeichen"
+        beschreibung: "Eine Formation im Aufbau zeigt einen gestrichelten Weg von C zum erwarteten D in der Zukunft (Preis = Zielniveau Level 1 bzw. Mitte der D-Zone, Zeit = C plus Dauer von AB, am Rand abgeschnitten), einen Ring „D?“ und den Preis am rechten Rand (Z-ABCD-02). Neben dem Ring steht ein Abzeichen „ABCD · oluşuyor“ (Rahmen Warnung) oder „Gartley ✓“ (gültig, Rahmen Erfolg); der Stand ist als Text lesbar. Mehrere Formationen im Zeitrahmen: Abzeichen in einem Stapel (nächstes D oben), nur die gewählte voll gezeichnet, die übrigen als blasser Ring und blasses Abzeichen; Klick auf ein Abzeichen wählt die Formation; D-Niveaus näher als 1,5 ATR bilden ein Band „D? bölgesi“ mit beiden Preisen (Plan 1105-A5, A5.5/A5.6/A5.6.1)."
+        code: [frontend_nextjs/src/lib/formation/drawingLayout.ts, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/formation/FormationView.tsx, frontend_nextjs/src/i18n/messages/formation.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-expected-d-lib.spec.ts (@FRM-44) ausführen (D-Zeit und -Preis, Weg in die Zukunft und am Rand, Abzeichen im Aufbau und gültig, Stapel, blasse Ringe, Band bei 1,5 ATR).
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-44) ausführen (ABCD im Aufbau mit Abzeichen, hell und dunkel, 375 px ohne Querscroll).
+        erwartet: Der gestrichelte Weg endet am erwarteten D rechts der letzten Kerze, nicht an deren Schluss; das Abzeichen nennt Name und Stand als Text; nahe D-Niveaus erscheinen als ein Band.
