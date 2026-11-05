@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: plan
 status: open
-pr: []
+pr: [379]
 features: [FRM-03, FRM-18, FRM-30, FRM-41, FRM-42, FRM-43, FRM-44, FRM-45, UI-07, UI-08, UI-13, UI-16]
 areas: [frontend, docs]
 ---
@@ -116,7 +116,7 @@ Rejected alternatives:
 - [ ] S1: formations follow the trend path (FRM-41)
 - [ ] S2: confirmation strip (FRM-42)
 - [ ] S3: alarm main switch and trend row (FRM-43)
-- [ ] S4: expected D and badges (FRM-44)
+- [x] S4: expected D and badges (FRM-44), PR 379. Also a measured D that is not reached shows the expected D. Open: the time scale has no free space right of the last candle, thus the expected D is often at the plot edge (right offset in ChartView)
 - [ ] S5: "Formation drawings" button (FRM-45)
 - [ ] S6: movable toolbar groups (UI-16). The plan named UI-10, but UI-10 is already in use
 - [ ] After S1: the owner checks the chart with an ATR factor of 1.5
