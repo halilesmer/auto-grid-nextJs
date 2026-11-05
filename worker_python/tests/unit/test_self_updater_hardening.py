@@ -18,14 +18,16 @@ import pytest
 import src.utils.auto_updater as auto_updater
 import src.utils.self_updater as updater
 from src.utils.paths import get_update_lock_path, get_update_pending_path
-from tests.unit.test_self_updater_timeout import git, vps, wait_until_gone  # noqa: F401
+from tests.unit.test_self_updater_timeout import git, vps, wait_until_gone, warm_up  # noqa: F401
 
 pytestmark = [
     pytest.mark.skipif(shutil.which("git") is None, reason="git nicht installiert"),
     pytest.mark.skipif(os.name == "nt", reason="das hängende git ist ein sh-Skript"),
 ]
 
+# "--warmup" beendet das Skript sofort: der Test führt es einmal vor dem Zeitlimit aus.
 FAKE_PIP_PYTHON = """#!/bin/sh
+[ "$1" = "--warmup" ] && exit 0
 sleep 20 &
 echo $! > "$HANG_PID_FILE"
 sleep 20
@@ -48,6 +50,8 @@ def test_haengendes_pip_install_ergibt_klares_zeitlimit_ergebnis(vps, monkeypatc
     fake_python = tmp_path / "fake-python"
     fake_python.write_text(FAKE_PIP_PYTHON)
     fake_python.chmod(fake_python.stat().st_mode | stat.S_IXUSR)
+    # Ohne Vorlauf stirbt das Skript im 1-s-Limit, bevor es grandchild.pid schreibt.
+    warm_up(fake_python, "--warmup")
     monkeypatch.setattr(sys, "executable", str(fake_python))
     monkeypatch.setattr(updater, "PIP_TIMEOUT_SEC", 1, raising=False)
 
