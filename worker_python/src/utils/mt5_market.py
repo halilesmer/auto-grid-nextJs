@@ -221,6 +221,31 @@ def quotes(account_config: dict, symbols: list[str]) -> dict:
     return _connected(account_config, lambda mt5: collect_quotes(mt5, account_config, symbols))
 
 
+TICKS_MAX_WINDOW_SEC = 2 * 3600  # BKT-17: bir çağrıda en çok 2 saat
+TICKS_MAX_ROWS = 200_000
+
+
+def collect_ticks(mt5, account_config: dict, symbol: str, date_from: int, date_to: int) -> list[dict]:
+    """copy_ticks_range (COPY_TICKS_ALL): [from, to] MT5 zamanında time_msc/bid/ask/flags."""
+    _check_account(mt5, account_config)
+    if mt5.symbol_info(symbol) is None:
+        raise MarketDataError(f"[SYMBOL] {symbol} bu terminalde yok.", status=404)
+    rows = mt5.copy_ticks_range(symbol, date_from, date_to, mt5.COPY_TICKS_ALL)
+    if rows is None:
+        code, text = mt5.last_error()
+        if code not in (0, 1):
+            raise MarketDataError(f"[TICKS] copy_ticks_range başarısız: {code} {text}")
+        return []
+    if len(rows) > TICKS_MAX_ROWS:
+        raise MarketDataError(f"[TICKS] {len(rows)} tick; pencereyi daraltın.", status=413)
+    return [{k: _plain(r[k]) for k in ("time_msc", "bid", "ask", "flags")} for r in rows]
+
+
+def ticks(account_config: dict, symbol: str, date_from: int, date_to: int) -> list[dict]:
+    """Bağlanır (veri sorgusu kipinde) ve tick'leri tek kilit altında okur."""
+    return _connected(account_config, lambda mt5: collect_ticks(mt5, account_config, symbol, date_from, date_to))
+
+
 def _check_account(mt5, account_config: dict):
     """Terminal bu hesapta mı? Değilse sorgu yapılmaz (başka hesabın verisi dönmesin)."""
     try:

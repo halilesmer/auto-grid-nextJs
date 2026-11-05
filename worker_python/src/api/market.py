@@ -3,6 +3,7 @@
 - /time-check (ANA-13): salt-okunur, yalnızca yönetici. Broker saati, hesap modeli
   (hedging/netting) ve sembolün kâr hesabı türü VPS'te bununla ölçülür.
 - /clock (ANA-10): takvimin "bugün/bu hafta" gibi seçimleri için broker saati farkı.
+- /ticks (BKT-17): ham tick'ler, yalnızca yönetici, en çok 2 saat.
 - /rates, /coverage (ANA-04): mum veritabanı; eksik parçalar MT5'ten ihtiyaç anında çekilir.
 - /history/{id}/deals (ANA-07): hesabın deal arşivi ve bölge kaydı.
 - /market/{id}/imports (BKT-05): CSV'den mum içe aktarma; kaynak `csv:<import_id>`.
@@ -223,6 +224,37 @@ async def quotes(account_id: str, symbols: str = Query(..., max_length=QUOTES_MA
     except mt5_market.MarketDataError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
     return {"account_id": account_id, "quotes": found}
+
+
+@router.get(
+    "/market/{account_id}/ticks",
+    dependencies=[Depends(require_admin), Depends(account_access)],
+)
+async def ticks(
+    account_id: str,
+    symbol: str,
+    from_: int = Query(..., alias="from", ge=0),
+    to: int = Query(..., gt=0),
+):
+    """BKT-17: ham tick'ler [from, to] MT5 zamanında (saniye), en çok 2 saatlik pencere.
+
+    Salt-okunur, yalnızca yönetici, veri sorgusu kipinde. Yanıt: sütunlar time_msc/bid/ask/flags.
+    """
+    symbol = symbol.strip()
+    if not symbol or len(symbol) > 40:
+        raise HTTPException(status_code=400, detail="Sembol boş ya da çok uzun")
+    if to <= from_:
+        raise HTTPException(status_code=400, detail="'to', 'from'dan büyük olmalı")
+    if to - from_ > mt5_market.TICKS_MAX_WINDOW_SEC:
+        raise HTTPException(status_code=400, detail="Pencere en çok 2 saat olabilir")
+    account = _account_or_404(account_id)
+    if is_account_busy(account_id):
+        raise HTTPException(status_code=409, detail="Hesap şu an başlatılıyor/durduruluyor.")
+    try:
+        rows = await asyncio.to_thread(mt5_market.ticks, account, symbol, from_, to)
+    except mt5_market.MarketDataError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    return {"account_id": account_id, "symbol": symbol, "from": from_, "to": to, "count": len(rows), "ticks": rows}
 
 
 @router.get("/market/{account_id}/coverage", dependencies=[Depends(account_access)])
