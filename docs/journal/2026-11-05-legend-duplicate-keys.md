@@ -14,7 +14,7 @@ areas: [frontend]
 On `/chart?mode=formation` the browser console showed "Encountered two children with the same key" for `rsi` and `wave` (45 times, the Next dev issue counter rose).
 
 ## Cause
-`IndicatorLegend` renders each pane as `<div key={paneId}>` with two siblings: the row (`systemRow`, key = pane id) and `paneControls` (key = pane id). Since UI-11 (PR 386) the system oscillators use the pane model, so both siblings carry `rsi` or `wave`. For user oscillators the rows sit in an array, so no clash. There was no double registration of a pane: `paneIds` has no duplicate. React warns only in development, so the production build of the e2e run never showed it.
+`IndicatorLegend` renders each pane as `<div key={paneId}>` with two siblings: the row (`systemRow`, key = pane id) and `paneControls` (key = pane id). Since UI-11 (PR 386; the pane model of PR 392, `2026-11-05-oscillator-single-pane-model.md`, kept the structure) the system oscillators use the pane model, so both siblings carry `rsi` or `wave`. For user oscillators the rows sit in an array, so no clash. There was no double registration of a pane: `paneIds` has no duplicate. React warns only in development, so the production build of the e2e run never showed it.
 
 ## Solution
 | File | Change |
@@ -26,7 +26,7 @@ On `/chart?mode=formation` the browser console showed "Encountered two children 
 Rejected: a unique prefix on both keys. The key was not needed on the single child, and the prefix would hide a real duplicate later.
 
 ## Verification
-- Against `next dev` (port 3612, mock worker address): before the fix 3 failed (rsi and wave messages), after the fix 3 passed.
+- Against `next dev` (port 3612, mock worker address), on main with PR 392: before the fix 3 failed (rsi and wave messages), after the fix 3 passed.
 - In the production build the test passes before and after. It bites only with a dev server.
 
 ## Lessons
