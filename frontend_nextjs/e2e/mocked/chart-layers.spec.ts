@@ -16,6 +16,10 @@ async function openOverlays(page: Page) {
   await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
 }
 
+/** Höhe jedes Chart-Bereichs in px, Kerzen-Bereich zuerst (lightweight-charts zeichnet eine Tabellenzeile je Bereich) */
+const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator('table').first().evaluate(table =>
+  [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1));
+
 for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
   test.describe(`UI-11 ${name}`, () => {
     test('RSI(7) und Wave 5/35 stehen als System-Fenster unter den Kerzen', { tag: '@UI-11' }, async ({ page, worker }) => {
@@ -45,6 +49,56 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
       await wave.click();
       await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       await expect(page.locator('#layer-rsi')).toHaveAttribute('aria-checked', 'true');
+    });
+  });
+}
+
+for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
+  test.describe(`UI-11 ${name}: Ein Bereich pro Ebene`, () => {
+    test('Eine ausgeschaltete Ebene belegt keinen Platz; beim Einschalten kommt ihr Bereich ganz nach unten', { tag: '@UI-11' }, async ({ page, worker }) => {
+      void worker;
+      await page.goto(url);
+      const chart = page.getByTestId('analysis-chart');
+      await expect(chart).toHaveAttribute('data-system-panes', '3');
+      await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThanOrEqual(3);
+      const before = await paneHeights(page);
+      await openOverlays(page);
+      await page.locator('#layer-wave').click();
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await expect.poll(async () => (await paneHeights(page)).length).toBe(before.length - 1);
+      await expect.poll(async () => (await paneHeights(page))[0]).toBeGreaterThan(before[0]);
+      const withoutWave = await paneHeights(page);
+      await page.locator('#layer-rsi').click();
+      await expect(chart).toHaveAttribute('data-system-panes', '1');
+      await expect.poll(async () => (await paneHeights(page)).length).toBe(before.length - 2);
+      await expect.poll(async () => (await paneHeights(page))[0]).toBeGreaterThan(withoutWave[0]);
+      await expect(page.locator('[data-system-row]')).toHaveCount(0);
+      await page.locator('#layer-wave').click();
+      await page.locator('#layer-rsi').click();
+      await expect(chart).toHaveAttribute('data-system-panes', '3');
+      await expect.poll(async () => (await paneHeights(page)).length).toBe(before.length);
+      // Neu eingeschaltet: Wave steht unter den Nutzer-Bereichen (EWO), RSI(7) darunter oder davor je nach Reihenfolge des Einschaltens
+      const wave = (await page.locator('[data-system-row="wave"]').boundingBox())!, rsi = (await page.locator('[data-system-row="rsi"]').boundingBox())!;
+      const ewo = (await page.locator('[data-indicator-row="EWO"]').boundingBox())!;
+      expect(wave.y).toBeGreaterThan(ewo.y);
+      expect(rsi.y).toBeGreaterThan(wave.y);
+    });
+
+    test('Eine gespeicherte, ausgeschaltete Ebene wird beim Laden gar nicht erst aufgebaut', { tag: '@UI-11' }, async ({ page, worker }) => {
+      void worker;
+      await page.goto(url);
+      const chart = page.getByTestId('analysis-chart');
+      await expect(chart).toHaveAttribute('data-system-panes', '3');
+      const before = (await paneHeights(page)).length;
+      await openOverlays(page);
+      await page.locator('#layer-wave').click();
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await page.reload();
+      await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await expect.poll(async () => (await paneHeights(page)).length).toBe(before - 1);
+      await expect(page.locator('[data-system-row="wave"]')).toHaveCount(0);
+      await expect(page.locator('[data-system-row="rsi"]')).toHaveCount(1);
     });
   });
 }

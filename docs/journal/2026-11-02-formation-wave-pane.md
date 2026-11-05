@@ -26,7 +26,7 @@ areas: [frontend, tests]
 ## Why
 - The Analysis page `/chart` stays as it is: `systemWave` is optional.
 - The pane label sits in the formation overlay. It hides together with the formation drawings (layer switch "Formation drawings"). This is a small deviation from the design.
-- A hidden Wave layer sets the series to invisible, like the RSI layer. The empty pane keeps its height.
+- A hidden Wave layer sets the series to invisible, like the RSI layer. The empty pane keeps its height. Replaced on 2026-11-05: a hidden or deleted layer has no pane (see `2026-11-05-oscillator-single-pane-model.md`).
 
 ## Decision
 - **Decision:** `/formasyon` shows a third sub-window "Wave 5/35" with its own layer switch.

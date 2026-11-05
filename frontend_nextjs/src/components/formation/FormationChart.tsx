@@ -16,6 +16,7 @@ import { useConnectionStore } from '@/store/useConnectionStore';
 import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationDrawingsToggle';
 import { useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
+import { PANES_CHANGED_EVENT } from '@/components/chart-workspace/runtime';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { buildTrendPath, usableTrendSettings } from '@/lib/formation/trdPath';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -139,7 +140,13 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
       const panes = chart.panes();
       const top = panes[0]?.getHeight() ?? 0;
       const subHeight = panes.slice(1).reduce((sum, pane) => sum + pane.getHeight(), 0);
-      const waveTop = top + (panes[1]?.getHeight() ?? 0);
+      // The system panes come and go (layers, eye) and move (order), so their position is read from the pane of their series now
+      const hostTop = host.getBoundingClientRect().top;
+      const paneTop = (series: { getPane: () => { getHTMLElement: () => HTMLElement | null } } | null) => {
+        const element = series?.getPane().getHTMLElement();
+        return element ? element.getBoundingClientRect().top - hostTop : null;
+      };
+      const rsiSeries = rsi.current, waveSeries = wave.current, rsiTop = paneTop(rsiSeries), waveTop = paneTop(waveSeries) ?? 0;
       if (width <= 0 || top <= 0) return;
       // Zeiten hinter der letzten Kerze (erwartetes D) liegen in Kerzenabständen rechts davon
       const lastPoint = points[points.length - 1];
@@ -172,12 +179,12 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
         x,
         y,
         yRsi: (value) => {
-          const y = rsi?.priceToCoordinate(value) ?? null;
-          return y === null ? null : top + y;
+          const y = rsiSeries?.priceToCoordinate(value) ?? null;
+          return y === null || rsiTop === null ? null : rsiTop + y;
         },
         yWave: (value) => {
-          const y = wave?.priceToCoordinate(value) ?? null;
-          return y === null ? null : waveTop + y;
+          const y = waveSeries?.priceToCoordinate(value) ?? null;
+          return y === null || waveSeries === null ? null : waveTop + y;
         },
         text: (key, params) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params }),
         fmt: (n) => number(n, { maximumFractionDigits: 3 }),
@@ -197,6 +204,14 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
     chart.panes().forEach((pane) => { const el = pane.getHTMLElement(); if (el) observer.observe(el); });
     let redrawFrame = 0;
     const frame = requestAnimationFrame(() => { redrawFrame = requestAnimationFrame(redraw); });
+    // Panes were built, removed or reordered: observe the new ones, measure after the chart laid them out
+    let panesFrame = 0;
+    const panesChanged = () => {
+      chart.panes().forEach((pane) => { const el = pane.getHTMLElement(); if (el) observer.observe(el); });
+      cancelAnimationFrame(panesFrame);
+      panesFrame = requestAnimationFrame(() => { panesFrame = requestAnimationFrame(redraw); });
+    };
+    host.addEventListener(PANES_CHANGED_EVENT, panesChanged);
     let disposed = false;
     const dispose = () => {
       if (disposed) return;
@@ -204,6 +219,8 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
       redrawRef.current = null;
       cancelAnimationFrame(frame);
       cancelAnimationFrame(redrawFrame);
+      cancelAnimationFrame(panesFrame);
+      host.removeEventListener(PANES_CHANGED_EVENT, panesChanged);
       observer.disconnect();
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(redraw);
       chart.timeScale().unsubscribeSizeChange(redraw);
