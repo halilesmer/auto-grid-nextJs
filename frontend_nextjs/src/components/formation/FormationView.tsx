@@ -247,7 +247,7 @@ export function FormationView() {
       );
     }
     return hit && scan.context && scan.scanAt !== null ? (
-      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} running={scan.running[hit.tf]} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} asOf={pastAt !== null} />
+      <FormationChart accountId={accountId} hit={hit} context={scan.context} scanAt={scan.scanAt} running={scan.running[hit.tf]} digits={scan.digits} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} asOf={pastAt !== null} others={scan.hits.filter((h) => h.tf === hit.tf)} onSelectHit={(h) => { setView({ form: h.form, tf: h.tf }); setPicked(`${h.form}-${h.tf}`); }} />
     ) : (
       <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted-foreground" data-testid="formation-empty">
         {!scan.loading && t('formation.empty.chart', { form: formName, tf })}

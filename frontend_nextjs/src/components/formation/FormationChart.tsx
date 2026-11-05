@@ -6,7 +6,7 @@ import { useFormat, useT } from '@/i18n';
 import { formationChartData } from '@/lib/formation/chartData';
 import type { FormationBar } from '@/lib/formation/types';
 import type { FormationContext } from '@/lib/formation/context';
-import { drawingPriceRange, layoutDrawings, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
+import { drawingPriceRange, layoutDrawings, layoutExpectedD, type DLayout, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
 import { FINAL_POINT, UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
 import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
 import { type ChartScene, type OverlayLine } from '@/components/analysis/chart/ChartCore';
@@ -100,21 +100,27 @@ interface Props {
   onCapture: (capture: (() => Promise<ChartPicture>) | null) => void;
   /** Unterkante des Kerzen-Bereichs in px ab Oberkante des Charts; die Legende bleibt darüber */
   onPriceBottom: (px: number) => void;
+  /** Alle Treffer des Zeitrahmens: ihr erwartetes D erscheint als Abzeichen (A5.6.1); der gewählte Treffer wird voll gezeichnet */
+  others?: readonly ScanHit[];
+  /** Klick auf ein Abzeichen wählt die Formation */
+  onSelectHit?: (hit: ScanHit) => void;
 }
 
+const NO_D: DLayout = { badges: [], rings: [], bands: [] };
+const NO_HITS: readonly ScanHit[] = [];
 const NO_LINES: OverlayLine[] = [];
 const NO_BARS: FormationBar[] = [];
 const NO_TREND = { segments: [], axis: [] };
 
 /** Zeichnungen der Erkennung als SVG über dem Chart; das Overlay endet vor der Preisachse. */
-function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, waveVisible }: Pick<Props, 'hit' | 'running' | 'asOf' | 'active' | 'onActive' | 'onCapture' | 'onPriceBottom'> & { scene: ChartScene; bars: readonly Bar[]; /** Zeiten der Chart-Punkte: Kerzen plus Leerstellen der Datenlücken (der logische Index zählt beide) */ points: readonly { time: number }[]; visible: boolean; rsiVisible: boolean; waveVisible: boolean }) {
+function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, waveVisible, others = NO_HITS, onSelectHit, atr }: Pick<Props, 'hit' | 'running' | 'asOf' | 'active' | 'onActive' | 'onCapture' | 'onPriceBottom' | 'others' | 'onSelectHit'> & { /** ATR der letzten Kerze (Band „D? bölgesi“) */ atr: number | null; scene: ChartScene; bars: readonly Bar[]; /** Zeiten der Chart-Punkte: Kerzen plus Leerstellen der Datenlücken (der logische Index zählt beide) */ points: readonly { time: number }[]; visible: boolean; rsiVisible: boolean; waveVisible: boolean }) {
   const t = useT();
   const { number } = useFormat();
   const { binding, rsi, wave } = scene;
   const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
   const overlayRef = useRef<SVGSVGElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
-  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; waveTop: number; groups: DrawingGroup[]; asOfX: number | null }>({ width: 0, height: 0, left: 0, priceHeight: 0, waveTop: 0, groups: [], asOfX: null });
+  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; waveTop: number; groups: DrawingGroup[]; asOfX: number | null; d: DLayout }>({ width: 0, height: 0, left: 0, priceHeight: 0, waveTop: 0, groups: [], asOfX: null, d: NO_D });
 
   useEffect(() => {
     const { chart, host } = binding;
@@ -135,16 +141,36 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
       const subHeight = panes.slice(1).reduce((sum, pane) => sum + pane.getHeight(), 0);
       const waveTop = top + (panes[1]?.getHeight() ?? 0);
       if (width <= 0 || top <= 0) return;
+      // Zeiten hinter der letzten Kerze (erwartetes D) liegen in Kerzenabständen rechts davon
+      const lastPoint = points[points.length - 1];
+      const x = (time: number) => {
+        const i = indexOf.get(time);
+        if (i !== undefined) return chart.timeScale().logicalToCoordinate(i as never);
+        if (lastPoint && time > lastPoint.time) return chart.timeScale().logicalToCoordinate((points.length - 1 + (time - lastPoint.time) / TIMEFRAME_SEC[hit.tf]) as never);
+        return null;
+      };
+      const y = (price: number) => candles.priceToCoordinate(price);
+      const label = (key: string, params?: Record<string, string | number>) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params });
+      const fmtN = (n: number) => number(n, { maximumFractionDigits: 5 });
+      const selectedId = `${hit.form}-${hit.tf}`;
+      const d = layoutExpectedD({
+        items: [{ id: selectedId, form: hit.form, candidate: hit.candidate }, ...others.filter((o) => o.tf === hit.tf && o.candidate !== hit.candidate).map((o) => ({ id: `${o.form}-${o.tf}`, form: o.form, candidate: o.candidate }))],
+        selectedId,
+        width,
+        close: lastBar.close,
+        atr,
+        x,
+        y,
+        text: label,
+        fmt: fmtN,
+      });
       const groups = layoutDrawings({
         candidate: hit.candidate,
         form: hit.form,
         width,
         lastBar: { time: lastBar.time, close: lastBar.close },
-        x: (time) => {
-          const i = indexOf.get(time);
-          return i === undefined ? null : chart.timeScale().logicalToCoordinate(i as never);
-        },
-        y: (price) => candles.priceToCoordinate(price),
+        x,
+        y,
         yRsi: (value) => {
           const y = rsi?.priceToCoordinate(value) ?? null;
           return y === null ? null : top + y;
@@ -160,7 +186,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
       // Ende der letzten Kerze: halbe Kerzenbreite hinter ihrer Mitte (der logische Index zählt Kerzen und Leerstellen)
       const lastX = chart.timeScale().logicalToCoordinate((points.length - 1) as never);
       const asOfX = lastX === null ? null : lastX + chart.timeScale().options().barSpacing / 2;
-      setOverlay({ width, left, height: top + subHeight, priceHeight: top, waveTop, groups, asOfX });
+      setOverlay({ width, left, height: top + subHeight, priceHeight: top, waveTop, groups, asOfX, d });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
@@ -185,7 +211,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
     // ChartCore baut den Chart beim Unmount vor diesem Effekt ab
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, rsi, wave, bars, points, hit, t, number, onPriceBottom]);
+  }, [binding, rsi, wave, bars, points, hit, others, atr, t, number, onPriceBottom]);
 
   // Die Preisachse kann sich mit der laufenden Kerze oder den Einstellungen ändern: Zeichnungen folgen im nächsten Frame
   useEffect(() => {
@@ -237,12 +263,53 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
         </g>
       ))}
     </svg>
+    <svg
+      data-testid="formation-d-badges"
+      className="absolute left-0 top-0 z-10 overflow-hidden"
+      width={overlay.width}
+      height={overlay.priceHeight}
+      style={{ pointerEvents: 'none', left: overlay.left, display: visible ? undefined : 'none' }}
+    >
+      {overlay.d.bands.map((b, i) => (
+        <g key={`band-${i}`} data-testid="formation-d-band">
+          <rect x={b.x} y={b.top} width={Math.max(0, overlay.width - b.x)} height={Math.max(2, b.bottom - b.top)} fill="var(--info)" fillOpacity={0.14} stroke="var(--info)" strokeDasharray="6 5" />
+          <text x={b.x + 6} y={b.top - 4} fill="var(--info)" fontSize={11} stroke="var(--card)" strokeWidth={3} strokeLinejoin="round" paintOrder="stroke">{b.label}</text>
+        </g>
+      ))}
+      {overlay.d.rings.map((r) => (
+        <circle key={`ring-${r.id}`} data-testid="formation-d-ring" cx={r.x} cy={r.y} r={5} fill="none" stroke="var(--muted-foreground)" strokeWidth={2} opacity={0.55} />
+      ))}
+      {overlay.d.badges.map((b) => {
+        const color = b.status === 'valid' ? 'var(--success)' : 'var(--warning)';
+        const pick = () => { const h = [hit, ...others].find((o) => `${o.form}-${o.tf}` === b.id); if (h && !b.selected) onSelectHit?.(h); };
+        return (
+          <g
+            key={b.id}
+            data-testid="formation-d-badge"
+            data-id={b.id}
+            data-status={b.status}
+            data-selected={b.selected ? 'true' : 'false'}
+            role="button"
+            tabIndex={0}
+            aria-label={t('formation.expectedD.select', { name: b.label })}
+            aria-pressed={b.selected}
+            opacity={b.selected ? 1 : 0.55}
+            style={{ pointerEvents: 'all', cursor: b.selected ? 'default' : 'pointer' }}
+            onClick={pick}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }}
+          >
+            <rect x={b.bx} y={b.by} width={b.w} height={b.h} rx={4} fill="var(--card)" stroke={color} strokeWidth={b.selected ? 2 : 1.2} />
+            <text x={b.bx + 8} y={b.by + b.h / 2 + 4} fill="var(--foreground)" fontSize={11} fontWeight={600}>{b.label}</text>
+          </g>
+        );
+      })}
+    </svg>
     </>
   );
 }
 
 /** Kerzen und RSI(7) des gewählten Kandidaten mit den Zeichnungen der Erkennung. */
-export function FormationChart({ accountId, hit, context, scanAt, running, asOf, digits, active, onActive, onCapture, onPriceBottom }: Props) {
+export function FormationChart({ accountId, hit, context, scanAt, running, asOf, digits, active, onActive, onCapture, onPriceBottom, others, onSelectHit }: Props) {
   const t = useT();
   const source = useConnectionStore(s => s.baseUrl);
   const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
@@ -258,6 +325,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
     () => (showTrend && bars.length > 0 ? { segments: buildTrendPath(hit.tf, bars, usableTrendSettings(trendSettings)), axis: bars.map(b => b.time) } : NO_TREND),
     [showTrend, bars, hit.tf, trendSettings],
   );
+  const atr = useMemo(() => [...(view?.atr ?? [])].reverse().find((v): v is number => v !== null && v > 0) ?? null, [view]);
   const priceRange = useMemo(() => drawingPriceRange(hit.candidate), [hit.candidate]);
   const finalName = FINAL_POINT[hit.form];
   return (
@@ -282,7 +350,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
       trendPath={trendPath}
       toolbarActions={<TrendToggle timeframe={hit.tf} size="xs" />}
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
-      renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi} waveVisible={overlays.wave} />}
+      renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi} waveVisible={overlays.wave} others={others} onSelectHit={onSelectHit} atr={atr} />}
     />
   );
 }
