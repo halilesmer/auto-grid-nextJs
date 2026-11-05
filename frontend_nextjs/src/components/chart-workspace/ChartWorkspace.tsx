@@ -19,10 +19,12 @@ import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 import { useShallow } from 'zustand/react/shallow';
-import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding } from './runtime';
+import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
+import { isSystemPane, orderPanes, presentPanes, SYSTEM_PANE_IDS, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
+import { applySystemLayer } from './systemLayers';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
 import { IndicatorDialog } from './IndicatorDialog';
-import { IndicatorLegend, indicatorNames, type OscillatorActions, type SystemPane } from './IndicatorLegend';
+import { IndicatorLegend, indicatorNames, type OscillatorActions } from './IndicatorLegend';
 import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
@@ -55,9 +57,10 @@ interface Props {
   /** Schalter, die rechts neben den Indikatoren in der Kopfleiste stehen (z. B. Trendzug) */
   toolbarActions?: ReactNode;
   viewActions?: ReactNode;
-  /** Panes the chart draws itself (system RSI(7), Wave 5/35); each gets a legend row that hides its layer. */
-  systemPanes?: readonly SystemPane[];
-  onHideSystemPane?: (id: string) => void;
+  /** System oscillators of the switched-on layers (RSI(7), Wave 5/35) with ready-made points. They live in the same pane model as the user oscillators. */
+  systemPanes?: readonly SystemPaneInput[];
+  /** Receives the series of the system panes while they are drawn (for the drawing layer above the chart) */
+  systemSeries?: SystemSeriesRefs;
   /** Preserve the old RSI preference without modifying the formation detector. */
   showRsi?: boolean;
   className?: string;
@@ -73,7 +76,7 @@ interface Props {
   fullscreenOfPage?: boolean;
 }
 
-export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, viewActions, systemPanes, onHideSystemPane, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
+export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, viewActions, systemPanes, systemSeries, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
   const t = useT(), fmt = useFormat();
   // Auf /chart (Formation) (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
@@ -128,6 +131,10 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const sharedDocument = state.documents[drawingKey];
   const doc = useMemo(() => drawingKey === context.key || !sharedDocument ? ownDocument : { ...ownDocument, drawings: sharedDocument.drawings, images: sharedDocument.images }, [drawingKey, context.key, sharedDocument, ownDocument]);
   const effectiveIndicators = useMemo(() => preferences.indicatorsHidden ? [] : doc.indicators.filter(v => v.id !== 'initial-RSI' || showRsi), [doc.indicators, showRsi, preferences.indicatorsHidden]);
+  const systemModels = useMemo<SystemPaneModel[]>(() => (systemPanes ?? []).map(pane => ({ ...pane, hidden: !!doc.systemPanes?.[pane.id]?.hidden, collapsed: !!doc.systemPanes?.[pane.id]?.collapsed })), [systemPanes, doc.systemPanes]);
+  const systemKey = systemModels.map(pane => pane.id).join('|');
+  // Pane order from top to bottom (all panes, also hidden ones): the saved order, new panes at the end; the default is RSI(7), Wave, then the user panes
+  const paneOrder = useMemo(() => orderPanes(doc.paneOrder, presentPanes(doc.indicators, systemKey ? systemKey.split('|') as SystemPaneId[] : [])), [doc.paneOrder, doc.indicators, systemKey]);
   const chartScope = `${context.key}|${timeframeSec}`;
   const maximizedPaneId = maximized?.scope === chartScope ? maximized.paneId : null;
   // Backtest and formation charts show history, so their values never cross a level live.
@@ -186,7 +193,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if (drawingKey === context.key) store.setDocument(context.key, next);
     else {
       const own = store.documents[context.key] ?? defaults;
-      if (own.indicators !== next.indicators || own.overlays !== next.overlays) store.setDocument(context.key, { ...own, indicators: next.indicators, overlays: next.overlays });
+      if (own.indicators !== next.indicators || own.overlays !== next.overlays || own.paneOrder !== next.paneOrder || own.systemPanes !== next.systemPanes) store.setDocument(context.key, { ...own, indicators: next.indicators, overlays: next.overlays, paneOrder: next.paneOrder, systemPanes: next.systemPanes });
       store.setDocument(drawingKey, { ...emptyChartDocument(), drawings: next.drawings, images: next.images });
     }
   }, [context.key, drawingKey, defaults]);
@@ -253,13 +260,13 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     const inputFocus = (e: FocusEvent) => { if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) { m.setTool(null); m.select([]); } };
     document.addEventListener('pointerdown', deactivate, true);
     const el = root.current; el?.addEventListener('focusout', focusOut); el?.addEventListener('focusin', inputFocus);
-    const r = new IndicatorRenderer(binding); renderer.current = r;
+    const r = new IndicatorRenderer(binding, systemSeries); renderer.current = r;
     const frame = requestAnimationFrame(() => { setTool(m.tool()); setSelected([...m.selection()]); checkpoint(); });
     let disposed = false;
     const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance]);
+  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance, systemSeries]);
 
   useEffect(() => {
     const m = manager.current;
@@ -293,14 +300,14 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       cursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") 8 8, crosshair`;
     }
     binding.host.style.setProperty('cursor', cursor);
-    const values = renderer.current?.update(effectiveIndicators, bars, missing, timeframeSec, appearance, context.symbol, until, maximizedPaneId) ?? [];
+    const values = renderer.current?.update(effectiveIndicators, bars, missing, timeframeSec, appearance, context.symbol, until, maximizedPaneId, systemModels, paneOrder) ?? [];
     const frame = requestAnimationFrame(() => setSample({ scope: chartScope, values }));
     manager.current?.setDrawingsVisible(appearance.hideDrawings);
     manager.current?.setInterval(timeframeSec >= 86400 ? '1D' : String(timeframeSec / 60));
     if (manager.current) replay.current.sync(manager.current, until);
     manager.current?.redraw();
     return () => cancelAnimationFrame(frame);
-  }, [binding, appearance, digits, effectiveIndicators, bars, missing, timeframeSec, context.symbol, until, theme, revision, preferences.cursor, maximizedPaneId, chartScope]);
+  }, [binding, appearance, digits, effectiveIndicators, bars, missing, timeframeSec, context.symbol, until, theme, revision, preferences.cursor, maximizedPaneId, chartScope, systemModels, paneOrder]);
 
   useEffect(() => {
     if (!alarmsAvailable || sample.scope !== chartScope) return;
@@ -341,19 +348,33 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const removeIndicators = (ids: Set<string>) => saveDocument({ ...documentRef.current, indicators: documentRef.current.indicators.filter(item => !ids.has(item.id)), alarms: documentRef.current.alarms.filter(alarm => !ids.has(alarm.indicatorId)) });
   const changeIndicator = (id: string, change: Partial<Indicator>) => patchIndicators(indicators => indicators.map(item => item.id === id ? { ...item, ...change } : item));
   const sideOf = (indicator: Indicator) => indicator.scaleSide === 'auto' ? appearance.side as 'left' | 'right' : indicator.scaleSide;
+  const patchSystemPane = (id: SystemPaneId, change: (state: { hidden?: boolean; collapsed?: boolean }) => { hidden?: boolean; collapsed?: boolean }) => {
+    const current = documentRef.current;
+    saveDocument({ ...current, systemPanes: { ...current.systemPanes, [id]: change(current.systemPanes?.[id] ?? {}) } });
+  };
   const oscillatorActions: OscillatorActions = {
-    movePane: (paneId, offset) => patchIndicators(indicators => {
-      const oscillators = indicators.filter(isOscillator), panes = [...new Set(oscillators.map(item => item.paneId))], index = panes.indexOf(paneId), target = index + offset;
-      if (target < 0 || target >= panes.length) return indicators;
+    movePane: (paneId, offset) => {
+      const current = documentRef.current, systemIds = SYSTEM_PANE_IDS.filter(id => systemModels.some(pane => pane.id === id));
+      const panes = orderPanes(current.paneOrder, presentPanes(current.indicators, systemIds)), index = panes.indexOf(paneId), target = index + offset;
+      if (index < 0 || target < 0 || target >= panes.length) return;
       [panes[index], panes[target]] = [panes[target], panes[index]];
-      return [...indicators.filter(item => !isOscillator(item)), ...panes.flatMap(id => oscillators.filter(item => item.paneId === id))];
-    }),
-    toggleCollapsed: paneId => patchIndicators(indicators => {
-      const collapsed = !indicators.find(item => item.paneId === paneId)?.paneCollapsed;
-      return indicators.map(item => item.paneId === paneId ? { ...item, paneCollapsed: collapsed } : item);
-    }),
+      // The user panes keep the same order in the indicator list, so older readers of the document see the same order
+      const oscillators = current.indicators.filter(isOscillator), userPanes = panes.filter(id => !isSystemPane(id));
+      saveDocument({ ...current, paneOrder: panes, indicators: [...current.indicators.filter(item => !isOscillator(item)), ...userPanes.flatMap(id => oscillators.filter(item => item.paneId === id))] });
+    },
+    toggleCollapsed: paneId => {
+      if (isSystemPane(paneId)) { patchSystemPane(paneId, pane => ({ ...pane, collapsed: !pane.collapsed })); return; }
+      patchIndicators(indicators => {
+        const collapsed = !indicators.find(item => item.paneId === paneId)?.paneCollapsed;
+        return indicators.map(item => item.paneId === paneId ? { ...item, paneCollapsed: collapsed } : item);
+      });
+    },
     toggleMaximized: paneId => setMaximized(maximizedPaneId === paneId ? null : { scope: chartScope, paneId }),
-    removePane: paneId => removeIndicators(new Set(documentRef.current.indicators.filter(item => item.paneId === paneId).map(item => item.id))),
+    removePane: paneId => {
+      if (isSystemPane(paneId)) { saveDocument(applySystemLayer(documentRef.current, paneId, false)); return; }
+      removeIndicators(new Set(documentRef.current.indicators.filter(item => item.paneId === paneId).map(item => item.id)));
+    },
+    toggleSystemVisible: id => patchSystemPane(id, pane => ({ ...pane, hidden: !pane.hidden })),
     toggleVisible: indicator => changeIndicator(indicator.id, { visible: !indicator.visible }),
     openSettings: indicator => { setSettingsFocus(indicator.id); setIndicatorsOpen(true); },
     switchScale: indicator => changeIndicator(indicator.id, { scaleSide: sideOf(indicator) === 'left' ? 'right' : 'left' }),
@@ -431,7 +452,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       </div>
       <div className={overlayLayout ? 'contents' : 'relative min-w-0 flex-1'}>
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-[60px] z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
-        <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} textStyle={statusStyle} actions={oscillatorActions} systemPanes={systemPanes} onHideSystemPane={onHideSystemPane} />
+        <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} textStyle={statusStyle} actions={oscillatorActions} systemPanes={systemModels} paneOrder={paneOrder} />
         {children}
         {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) scale.fitContent(); else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
       </div>

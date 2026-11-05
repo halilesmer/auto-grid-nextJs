@@ -1,11 +1,12 @@
 import {
   BaselineSeries, ColorType, CrosshairMode, createTextWatermark, HistogramSeries, LineSeries, LineStyle, PriceScaleMode,
-  type IChartApi, type ISeriesApi, type LineWidth, type LogicalRange, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
+  type IChartApi, type IPaneApi, type ISeriesApi, type LineWidth, type LogicalRange, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
 import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
 import { aggregateIndicatorBars, calculateIndicator, isOscillator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { orderPanes, presentPanes, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { valueAtTime } from '@/lib/chart-workspace/hover';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 
@@ -116,6 +117,9 @@ export function applyAppearance(binding: ChartBinding, a: Appearance, digits: nu
 
 /** RSI band tint follows public series coordinates, so resizing and inverted axes remain correct. */
 const COLLAPSED_PANE_PX = 32;
+/** Height of a new pane as a part of the price pane. The system parts keep the proportions of the former fixed layout 5 : 1 : 1.2 (PR 2 of plan 1105-A6 sets one ratio for all). */
+const USER_PANE_PART = 0.25;
+const SYSTEM_PANE_PART: Record<SystemPaneId, number> = { rsi: 0.2, wave: 0.24 };
 /** Ratio against 1 for the other panes; the chart keeps its own minimum pane height. */
 const MAXIMIZED_PANE_STRETCH = 1000;
 
@@ -184,6 +188,24 @@ class SelectionMarks implements ISeriesPrimitive<Time> {
 }
 
 type Plot = ISeriesApi<'Line' | 'Histogram' | 'Baseline'>;
+
+/** System oscillator (RSI(7), Wave 5/35): ready-made points, drawn in its own pane like a user oscillator. The calculation stays with the caller, so drawings and rules see the same numbers. */
+export interface SystemPaneInput {
+  id: SystemPaneId;
+  label: string;
+  kind: 'line' | 'histogram';
+  points: readonly { time: number; value: number }[];
+  /** Dashed lines, for example overbought and oversold */
+  levels?: readonly number[];
+  /** Decimal places of the price scale */
+  precision: number;
+}
+export interface SystemPaneModel extends SystemPaneInput { hidden: boolean; collapsed: boolean }
+/** The series of a system pane while it is drawn, for the drawing layer above the chart (formation page); null when the pane is off or hidden. */
+export interface SystemSeriesRef { current: ISeriesApi<'Line' | 'Histogram'> | null }
+export type SystemSeriesRefs = Record<SystemPaneId, SystemSeriesRef>;
+/** Sent on the chart host after the renderer built or changed panes, so layers above the chart measure again. */
+export const PANES_CHANGED_EVENT = 'chart-panes-changed';
 interface IndicatorGroup { config: Indicator; plots: Plot[]; result: ReturnType<typeof calculateIndicator> | null; times: number[]; divergence: DivergenceLines | null; color: string; marks: SelectionMarks | null }
 
 export class IndicatorRenderer {
@@ -193,28 +215,32 @@ export class IndicatorRenderer {
   private hoveredId: string | null = null;
   private selectedId: string | null = null;
   private markFill = '';
-  private paneIndices = new Map<string, number>();
+  /** First series of each pane (user pane id or system pane id). The pane number is read from it when needed, never stored. */
+  private paneSeries = new Map<string, Plot>();
+  private systemDrawn: { system: SystemPaneModel; plot: Plot }[] = [];
   private maximizedPaneId: string | null = null;
-  private stretchBeforeMaximize: number[] | null = null;
+  /** Stretch factor of each pane before a pane was maximized; keyed by the pane, not by its number. */
+  private stretchBeforeMaximize: { pane: IPaneApi<Time>; stretch: number }[] | null = null;
   private watermark: ITextWatermarkPluginApi<Time> | null = null;
-  constructor(private binding: ChartBinding) {}
-  update(configs: Indicator[], bars: readonly Bar[], missing: readonly MissingRange[], tf: number, a: Appearance, symbol: string, until: number, maximizedPaneId: string | null = null) {
-    const { chart } = this.binding, colors = appearanceColors(a);
+  constructor(private binding: ChartBinding, private systemSeries?: SystemSeriesRefs) {}
+  /**
+   * `systems` are the system oscillators of switched-on layers; `order` is the pane order from top to bottom (pane ids of
+   * user oscillators and system ids). Hidden and switched-off panes get no series, so the chart removes their panes.
+   */
+  update(configs: Indicator[], bars: readonly Bar[], missing: readonly MissingRange[], tf: number, a: Appearance, symbol: string, until: number, maximizedPaneId: string | null = null, systems: readonly SystemPaneModel[] = [], order: readonly string[] = []) {
+    const { chart } = this.binding, colors = appearanceColors(a), theme = readChartColors();
     const active = configs.filter(config => config.visible && tf >= config.minTimeframe && tf <= config.maxTimeframe);
     const scaleOf = (config: Indicator) => !isOscillator(config) || config.scaleSide === 'auto' ? a.side : config.scaleSide;
     chart.applyOptions({ leftPriceScale: { visible: active.some(config => scaleOf(config) === 'left') || a.side === 'left' }, rightPriceScale: { visible: active.some(config => scaleOf(config) === 'right') || a.side !== 'left' } });
-    const signature = JSON.stringify([configs, a.indicatorLabels, a.preset, colors.primary, colors.text, tf, a.side]);
+    const paneOrder = orderPanes(order, presentPanes(active, systems.map(system => system.id)));
+    const signature = JSON.stringify([configs, a.indicatorLabels, a.preset, colors.primary, colors.text, tf, a.side, paneOrder, systems.map(({ points, ...rest }) => { void points; return rest; }), theme.primary]);
     const rebuilt = signature !== this.signature;
     if (rebuilt) {
-      this.restoreStretch(); this.clearSeries(); this.paneIndices.clear(); this.signature = signature;
-      const paneById = new Map<string, number>();
-      for (const config of active) {
+      this.restoreStretch(); this.clearSeries(); this.signature = signature;
+      const basePanes = chart.panes().length;
+      const build = (config: Indicator) => {
         let pane = 0;
-        if (isOscillator(config)) {
-          if (!paneById.has(config.paneId)) paneById.set(config.paneId, chart.panes().length);
-          pane = paneById.get(config.paneId)!;
-          this.paneIndices.set(config.paneId, pane);
-        }
+        if (isOscillator(config)) pane = this.paneSeries.get(config.paneId)?.getPane().paneIndex() ?? chart.panes().length;
         const color = config.color || colors.info, negative = config.negative || colors.down;
         const plots: typeof this.series = [];
         const line = (tone: string, histogram = false) => {
@@ -225,9 +251,10 @@ export class IndicatorRenderer {
           plots.push(s); this.series.push(s); return s;
         };
         const first = line(color, config.kind === 'EWO');
+        if (isOscillator(config) && !this.paneSeries.has(config.paneId)) this.paneSeries.set(config.paneId, first);
         const divergence = config.kind === 'RSI' && config.divergence ? new DivergenceLines(colors.up, negative) : null;
         if (divergence) first.attachPrimitive(divergence);
-        if (pane > 0) chart.panes()[pane]?.setStretchFactor((chart.panes()[0]?.getStretchFactor() ?? 1) * 0.25);
+        if (pane > 0) this.setDefaultStretch(pane);
         if (config.kind === 'RSI') {
           first.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
           if (config.bands) for (const p of [config.upper, config.middle, config.lower]) first.createPriceLine({ price: p, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
@@ -242,7 +269,15 @@ export class IndicatorRenderer {
         if (config.kind === 'BB') { line(color); line(color); }
         if (config.kind === 'EWO' || config.kind === 'MACD') first.createPriceLine({ price: 0, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false });
         this.groups.push({ config, plots, result: null, times: [], divergence, color, marks: null });
+      };
+      // Overlays on the price pane first, then one pane after the other in the saved order; a pane is built only when it has something to draw
+      for (const config of active) if (!isOscillator(config)) build(config);
+      for (const paneId of paneOrder) {
+        const system = systems.find(item => item.id === paneId);
+        if (system) { if (!system.hidden) this.buildSystem(system, theme); continue; }
+        for (const config of active) if (isOscillator(config) && config.paneId === paneId) build(config);
       }
+      this.binding.host.setAttribute('data-system-panes', String(basePanes + this.systemDrawn.length));
     }
     const values: { config: Indicator; value: Value }[] = [];
     for (const group of this.groups) {
@@ -271,9 +306,16 @@ export class IndicatorRenderer {
       if (config.kind === 'RSI' && config.gradients) for (const s of plots.slice(-2)) s.setData(points(result.main));
       values.push({ config, value: result.main.at(-1) ?? null });
     }
+    for (const { system, plot } of this.systemDrawn) {
+      plot.setData(system.points.map(p => system.kind === 'histogram' ? { time: p.time as UTCTimestamp, value: p.value, color: p.value >= 0 ? theme.up : theme.down } : { time: p.time as UTCTimestamp, value: p.value }));
+    }
     this.markFill = colors.background;
     this.applyEmphasis();
-    if (rebuilt || maximizedPaneId !== this.maximizedPaneId) this.layoutPanes(active, maximizedPaneId);
+    if (rebuilt || maximizedPaneId !== this.maximizedPaneId) {
+      this.layoutPanes(new Set([...active.filter(config => isOscillator(config) && config.paneCollapsed).map(config => config.paneId), ...this.systemDrawn.filter(item => item.system.collapsed).map(item => item.system.id)]), maximizedPaneId);
+      // Layers above the chart (formation drawings) measure the panes again
+      if (rebuilt) this.binding.host.dispatchEvent(new CustomEvent(PANES_CHANGED_EVENT));
+    }
     if (!this.watermark) this.watermark = createTextWatermark(chart.panes()[0], { visible: false });
     this.watermark.applyOptions({ visible: a.watermark, lines: [{ text: symbol, color: withAlpha(a.watermarkColor || colors.muted, .15), fontSize: 60 }] });
     return values;
@@ -286,8 +328,28 @@ export class IndicatorRenderer {
   ownerOf(series: unknown): string | null {
     return this.groups.find(group => (group.plots as unknown[]).includes(series))?.config.id ?? null;
   }
-  /** Chart pane of an indicator pane group; null while all its indicators are hidden. */
-  paneIndexOf(paneId: string): number | null { return this.paneIndices.get(paneId) ?? null; }
+  /** Chart pane of a pane id (user pane group or system pane), read from its series now; null while nothing of it is drawn. */
+  paneIndexOf(paneId: string): number | null {
+    const plot = this.paneSeries.get(paneId);
+    if (!plot || this.binding.isDisposed()) return null;
+    try { return plot.getPane().paneIndex(); } catch { return null; }
+  }
+  /** Height of a new pane as a part of the price pane */
+  private setDefaultStretch(pane: number, part = USER_PANE_PART) { this.binding.chart.panes()[pane]?.setStretchFactor((this.binding.chart.panes()[0]?.getStretchFactor() ?? 1) * part); }
+  /** One pane with one series for a system oscillator; its series goes to `systemSeries` for the drawing layer. */
+  private buildSystem(system: SystemPaneModel, theme: ReturnType<typeof readChartColors>) {
+    const { chart } = this.binding, pane = chart.panes().length;
+    const priceFormat = { type: 'price' as const, precision: system.precision, minMove: 10 ** -system.precision };
+    const plot = system.kind === 'histogram'
+      ? chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false, base: 0, priceFormat }, pane)
+      : chart.addSeries(LineSeries, { color: theme.primary, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, priceFormat }, pane);
+    // The pane would take the large top margin of the candle axis (room for the controls)
+    plot.priceScale().applyOptions({ scaleMargins: system.kind === 'histogram' ? { top: 0.1, bottom: 0.1 } : { top: 0.08, bottom: 0.08 } });
+    for (const price of system.levels ?? []) plot.createPriceLine({ price, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
+    this.setDefaultStretch(pane, SYSTEM_PANE_PART[system.id]);
+    this.series.push(plot); this.paneSeries.set(system.id, plot); this.systemDrawn.push({ system, plot });
+    if (this.systemSeries) this.systemSeries[system.id].current = plot as ISeriesApi<'Line' | 'Histogram'>;
+  }
   /** Draws the hovered and the selected indicator thicker; the selected one also gets marks. */
   emphasize(hoveredId: string | null, selectedId: string | null) {
     this.hoveredId = hoveredId; this.selectedId = selectedId;
@@ -306,25 +368,30 @@ export class IndicatorRenderer {
       }
     }
   }
-  private layoutPanes(active: readonly Indicator[], maximizedPaneId: string | null) {
+  private layoutPanes(collapsedIds: ReadonlySet<string>, maximizedPaneId: string | null) {
     const panes = this.binding.chart.panes();
     this.restoreStretch();
     // pane.setHeight() reads the last layout, which new panes do not have yet. Stretch factors need no layout.
-    const collapsed = new Set(active.filter(config => isOscillator(config) && config.paneCollapsed).map(config => this.paneIndices.get(config.paneId)));
+    const collapsed = new Set([...collapsedIds].map(id => this.paneIndexOf(id)).filter((index): index is number => index !== null));
     const openStretch = panes.reduce((sum, pane, index) => collapsed.has(index) ? sum : sum + pane.getStretchFactor(), 0);
     const roomForOpenPanes = Math.max(1, this.binding.host.clientHeight - collapsed.size * COLLAPSED_PANE_PX);
-    for (const index of collapsed) if (index !== undefined) panes[index]?.setStretchFactor(COLLAPSED_PANE_PX * openStretch / roomForOpenPanes);
-    const maximized = maximizedPaneId === null ? undefined : this.paneIndices.get(maximizedPaneId);
-    if (maximized !== undefined) {
-      this.stretchBeforeMaximize = panes.map(pane => pane.getStretchFactor());
+    for (const index of collapsed) panes[index]?.setStretchFactor(COLLAPSED_PANE_PX * openStretch / roomForOpenPanes);
+    const maximized = maximizedPaneId === null ? null : this.paneIndexOf(maximizedPaneId);
+    if (maximized !== null) {
+      this.stretchBeforeMaximize = panes.map(pane => ({ pane, stretch: pane.getStretchFactor() }));
       panes.forEach((pane, index) => pane.setStretchFactor(index === maximized ? MAXIMIZED_PANE_STRETCH : 1));
     }
     this.maximizedPaneId = maximizedPaneId;
   }
   private restoreStretch() {
-    this.stretchBeforeMaximize?.forEach((stretch, index) => this.binding.chart.panes()[index]?.setStretchFactor(stretch));
+    // A pane the chart removed since then cannot take a factor any more; its saved value is of no use
+    for (const { pane, stretch } of this.stretchBeforeMaximize ?? []) { try { pane.setStretchFactor(stretch); } catch { /* pane is gone */ } }
     this.stretchBeforeMaximize = null;
   }
-  private clearSeries() { for (const s of [...this.series].reverse()) this.binding.chart.removeSeries(s); this.series = []; this.groups = []; }
+  private clearSeries() {
+    for (const s of [...this.series].reverse()) this.binding.chart.removeSeries(s);
+    this.series = []; this.groups = []; this.paneSeries.clear(); this.systemDrawn = [];
+    if (this.systemSeries) for (const ref of Object.values(this.systemSeries)) ref.current = null;
+  }
   destroy() { this.restoreStretch(); this.clearSeries(); this.watermark?.detach(); this.watermark = null; }
 }

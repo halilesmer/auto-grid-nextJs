@@ -18,7 +18,7 @@ import { checkKeiCandidate } from '../../src/lib/formation/keiChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { END, H4, mirror, patched, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip, trendH1 } from '../fixtures/formation-lines';
-import { named, trendOf } from '../fixtures/formation-trend';
+import { markUnreachable, named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-16' }, fn);
 const idOf = (n: number) => `ENC-${String(n).padStart(2, '0')}`;
@@ -254,13 +254,12 @@ const REAL: Real[] = [
   { file: 'enc-sell-h4-01', t: 1761840000, side: 'sell', verdict: 'invalid', expect: { ...FORM, '06': N, '07': N } },
   // Verkauf; Korrekturen regelmäßig, Berührungen unzureichend
   { file: 'enc-sell-h4-02', t: 1764763200, side: 'sell', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
-  // Kauf; Berührungen unzureichend. FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): hier steht ein Verkaufs-Kanal ohne Kraftverlust (vorher Kauf mit ENC-01 ◇)
-  { file: 'enc-buy-h4-01', t: 1766145600, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '04': N, '05': N, '06': N, '07': M } },
+  // Kauf; Berührungen unzureichend
+  { file: 'enc-buy-h4-01', t: 1766145600, side: 'buy', verdict: 'invalid', expect: { ...FORM, '06': N, '07': M } },
   // im Aufbau: mit der Linie nach TRD-34 bis TRD-36 gilt ein früherer Kanal, unter dessen Linie seit der Freigabe noch kein Schluss liegt
   { file: 'enc-buy-h4-02', t: 1764561600, side: 'buy', verdict: 'forming', expect: { ...FORM, '05': N, '06': N, '07': M } },
   // Negativfall: die Trendlinie zeigt nicht mit dem Trend (ENC-03 ☐)
-  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): derselbe Befund liegt am 2025-11-27 (vorher 2025-12-12)
-  { file: 'enc-bad-h4-01', t: 1764259200, side: 'sell', verdict: 'invalid', expect: { '02': M, '03': N, '04': N, '05': N } },
+  { file: 'enc-bad-h4-01', t: 1765497600, side: 'sell', verdict: 'invalid', expect: { '02': M, '03': N, '04': N, '05': N } },
   // Negativfall: das zweite Hoch verfehlt die Kopie (ENC-04 ☐), sonst Form erfüllt
   { file: 'enc-bad-h4-02', t: 1762430400, side: 'buy', verdict: 'invalid', expect: { '02': M, '03': M, '04': N, '05': M } },
   // Negativfall: kein Kraftverlust (ENC-02 ☐)
@@ -271,6 +270,7 @@ const REAL: Real[] = [
 
 for (const r of REAL) {
   frm(`echte Reihe ${r.file}`, () => {
+    markUnreachable(r.file);
     const fx = loadReal(r.file);
     const c = analyzeEnc(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     expect(c.side).toBe(r.side);

@@ -358,6 +358,23 @@ test.describe('CDT: Abdeckung und Eigenschaften', () => {
     expect(bottom.checks.filter((c) => !c.veto).map((c) => [c.id, c.state])).toEqual(top.checks.filter((c) => !c.veto).map((c) => [c.id, c.state]));
   });
 
+  frm('Automatische Auswahl: N ist das tiefste Tief zwischen H1 und H2, nicht der erste Wendepunkt nach H1 (CDT-N)', () => {
+    // CDT-N (2026-11-05): Lesart CDT „N = Korrekturtief zwischen den Hochs“, CDT-03, TRD-02 (Dochtende der Extremkerze des
+    // Abschnitts), TRD-13 (Gegenbewegungen in der Korrektur bleiben Korrektur). H1 130@18, Tief 116@26, inneres Hoch 124@34,
+    // tieferes Tief 110@42, H2 129,85@50: N ist 110, nicht 116.
+    const pick = (rows: Row[]) => analyzeCdt(ctxOf({ H4: rows }), END).find((a) => a.tf === 'H4')!.candidate;
+    const rows = zig([120, 100, 130, 116, 124, 110, 129.85], 8, 3);
+    const top = pick(rows);
+    expect(top.points).toEqual({
+      H1: { time: 18 * H4, price: 130 },
+      N: { time: 42 * H4, price: 110 },
+      H2: { time: 50 * H4, price: 129.85 },
+    });
+    expect(find(top, 'CDT-04').value).toBeCloseTo(20 / 30, 6);
+    const bottom = pick(mirror(rows));
+    expect(bottom.points.N).toEqual({ time: 42 * H4, price: 90 });
+  });
+
   frm('Ohne H2 sind CDT-05 und CDT-06 nicht messbar, N ist ohne spätere Kerze kein Fraktal (CDT-03 ☐): ungültig, nie gültig', () => {
     // keine Kerze nach N: es gibt kein H2
     const c = run({ H4: zig([120, 100, 130, 112], 8, 0) }, { h1: 18, n: 26 });
@@ -424,6 +441,10 @@ test.describe('CDT: echte Kerzen', () => {
     expect(c.side).toBe('sell');
     expect(states(c, ['CDT-01', 'CDT-02', 'CDT-03', 'CDT-04', 'CDT-05', 'CDT-06', 'CDT-15'])).toEqual([M, M, M, M, M, M, N]);
     expect(c.points.H2.price).toBeLessThan(c.points.H1.price);
+    // CDT-N (2026-11-05, CDT-03, TRD-02, TRD-13): N ist das Korrekturtief zwischen den Hochs (10-22 12:00, 201.915), nicht
+    // der erste Wendepunkt nach H1 (10-21 16:00, 202.566); die Tiefe CDT-04 ist damit 0,929 statt 0,551
+    expect(c.points.N).toEqual({ time: at('2025-10-22T12:00'), price: 201.915 });
+    expect(find(c, 'CDT-04').value!).toBeCloseTo(0.929, 3);
     expect(states(c, ['CDT-12', 'CDT-13'])).toEqual([N, N]);
     expect(c.verdict).toBe('forming');
   });
@@ -448,11 +469,21 @@ test.describe('CDT: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  frm('cdt-top-h4-01: kein Blick in die Zukunft – früher fehlt die Tiefe von 0,382 noch', () => {
+  frm('cdt-top-h4-01: kein Blick in die Zukunft – früher gilt noch das ältere Paar, das ein Schluss über H1 ausschließt', () => {
+    // CDT-N (2026-11-05, CDT-03, TRD-02, TRD-13): früher hieß es hier „die Tiefe von 0,382 fehlt noch“ (CDT-04 ☐, 0,277). Das kam
+    // aus N = erster Wendepunkt nach H1 (10-23 16:00, 152.47); das Korrekturtief zwischen den Hochs ist 152.224 (10-24 12:00),
+    // Tiefe 0,493. Früh gilt daher das ältere Paar mit H1 10-23 12:00, ungültig über CDT-15; das spätere H1 (10-27 00:00) ist
+    // noch nicht sichtbar.
     const early = analyzeAt({ H4: 'cdt-top-h4-01' }, '2025-10-27T12:00');
     const late = analyzeAt({ H4: 'cdt-top-h4-01' }, '2025-10-28T04:00');
-    expect(state(early, 'CDT-04')).toBe(N);
-    expect(state(late, 'CDT-04')).toBe(M);
+    expect([early.points.H1, early.points.N]).toEqual([
+      { time: at('2025-10-23T12:00'), price: 152.787 },
+      { time: at('2025-10-24T12:00'), price: 152.224 },
+    ]);
+    expect(states(early, ['CDT-04', 'CDT-15'])).toEqual([M, M]);
+    expect(early.verdict).toBe('invalid');
+    expect(late.points.H1).toEqual({ time: at('2025-10-27T00:00'), price: 153.173 });
+    expect(states(late, ['CDT-04', 'CDT-15'])).toEqual([M, N]);
   });
 });
 

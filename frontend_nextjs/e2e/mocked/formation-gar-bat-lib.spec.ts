@@ -22,7 +22,7 @@ import { buildEnv } from '../../src/lib/formation/reasons';
 import { higherAgainst } from '../../src/lib/formation/xabcd';
 import { D1, END, H4, M15, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
-import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
+import { FIXTURE_TREND, markUnreachable, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -602,22 +602,19 @@ test.describe('GAR und BAT: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher gültig; auf dem Trendzug des Nutzers fehlt die Vorbedingung und der Ausschluss greift
-  frm('bat-buy-h4-01: Kauf-Bat mit B an 0.5 und D an 0.886 ist auf dem Trendzug des Nutzers ungültig', () => {
+  frm('bat-buy-h4-01: Kauf-Bat mit B an 0.5 und D an 0.886 ist gültig', () => {
     const c = analyzeAt('BAT', 'bat-buy-h4-01', '2025-12-16T16:00');
     expect(c.side).toBe('buy');
-    expect(states(c, ['BAT-01', 'BAT-03', 'BAT-05', 'BAT-06', 'BAT-07', 'BAT-08', 'BAT-14', 'BAT-15', 'BAT-17'])).toEqual([N, M, M, M, M, M, M, N, M]);
-    expect(c.invalidBy).toEqual(['BAT-01', 'BAT-02', 'BAT-09', 'BAT-14', 'BAT-17']);
-    expect(c.verdict).toBe('invalid');
+    expect(states(c, ['BAT-01', 'BAT-03', 'BAT-05', 'BAT-06', 'BAT-07', 'BAT-08', 'BAT-14', 'BAT-15', 'BAT-17'])).toEqual([M, M, M, M, M, M, N, N, N]);
+    expect(c.verdict).toBe('valid');
   });
 
-  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher gültig; auf dem Trendzug des Nutzers greift der Ausschluss
-  frm('bat-sell-h4-01: Verkauf-Bat (Spiegel der Kauf-Form) ist auf dem Trendzug des Nutzers ungültig', () => {
+  frm('bat-sell-h4-01: Verkauf-Bat ist gültig (Spiegel der Kauf-Form)', () => {
+    markUnreachable('bat-sell-h4-01');
     const c = analyzeAt('BAT', 'bat-sell-h4-01', '2025-12-08T16:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['BAT-05', 'BAT-06', 'BAT-07', 'BAT-14'])).toEqual([M, M, M, M]);
-    expect(c.invalidBy).toEqual(['BAT-09', 'BAT-14', 'BAT-17']);
-    expect(c.verdict).toBe('invalid');
+    expect(states(c, ['BAT-05', 'BAT-06', 'BAT-07', 'BAT-14'])).toEqual([M, M, M, N]);
+    expect(c.verdict).toBe('valid');
   });
 
   frm('bat-sell-h4-02: Verkauf-Bat mit D weit jenseits von X → A ist gültig', () => {

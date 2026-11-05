@@ -65,15 +65,39 @@ export function shapeOn(bars: Bars, tf: Env['tf'], base: CdtBase, es: ZoneSide, 
 }
 
 /**
- * Kandidatenpaare: N ist einer der letzten `lookbackPivots` Wendepunkte, H1 der Wendepunkt davor; jüngstes Paar zuerst.
- * Welches Paar gilt, entscheidet `analyzeCdt` an den Bedingungen CDT-01 bis CDT-06 und CDT-15.
+ * N = Korrekturtief zwischen den Hochs (Lesart CDT, CDT-03): der äußerste Docht auf der Seite von N zwischen dem ersten
+ * Wendepunkt nach H1 und H2 (TRD-02). Innere Gegenbewegungen der Korrektur zählen nicht (TRD-13). Ohne H2 bleibt der erste
+ * Wendepunkt.
  */
-export function selectBases(env: Env, tf: Env['tf']): (CdtBase & { es: ZoneSide })[] {
+function correctionLow(bars: Bars, first: CdtPoint, h2: CdtPoint | null | undefined, cs: ZoneSide): CdtPoint {
+  let n = first;
+  if (!h2) return n;
+  for (let k = first.idx + 1; k < h2.idx; k++) {
+    const price = wickEnd(bars[k], cs);
+    if (outward(cs, price) > outward(cs, n.price)) n = { idx: k, price };
+  }
+  return n;
+}
+
+/** H2 des Doppeltops nach N: der äußerste Docht seit N (wie `shapeOn` ohne eigenen Punkt) */
+export type SecondTopOf = (bars: Bars, base: CdtBase, es: ZoneSide) => CdtPoint | null | undefined;
+const extremeSinceN: SecondTopOf = (bars, base, es) => extremeAfter(bars, base.n.idx, es);
+
+/**
+ * Kandidatenpaare: H1 ist einer der letzten `lookbackPivots` Wendepunkte vor dem jüngsten, N das Korrekturtief bis zu dem H2,
+ * das `secondTopOf` liefert (`correctionLow`); jüngstes Paar zuerst. `secondTopOf` muss H2 als frühesten bzw. äußersten Punkt
+ * seit N wählen: dann bleibt H2 gleich, wenn N innerhalb der Korrektur nach rechts rückt. Welches Paar gilt, entscheidet
+ * `analyzeCdt` an den Bedingungen CDT-01 bis CDT-06 und CDT-15.
+ */
+export function selectBases(env: Env, tf: Env['tf'], secondTopOf: SecondTopOf = extremeSinceN): (CdtBase & { es: ZoneSide })[] {
   const pivots = env.trends.get(tf)?.pivots ?? [];
+  const bars = env.views.get(tf)?.bars ?? [];
   const pt = (p: Pivot): CdtPoint => ({ idx: p.idx, price: p.price });
   const out: (CdtBase & { es: ZoneSide })[] = [];
   for (let i = pivots.length - 2; i >= Math.max(0, pivots.length - 1 - CDT_PARAMS.lookbackPivots); i--) {
-    out.push({ h1: pt(pivots[i]), n: pt(pivots[i + 1]), es: pivots[i].side });
+    const es = pivots[i].side;
+    const base = { h1: pt(pivots[i]), n: pt(pivots[i + 1]) };
+    out.push({ h1: base.h1, n: correctionLow(bars, base.n, secondTopOf(bars, base, es), otherSide(es)), es });
   }
   return out;
 }
