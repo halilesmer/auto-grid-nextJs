@@ -379,7 +379,7 @@ const CASES: Case[] = [
   {
     name: 'Regel welle kennt keine Mindestgröße: die Korrektur ist nicht messbar gegen ein Maß',
     run: () => run(zig([120, 100, 140, 120, 150], [36, 12, 12, 12]), { trend: { rule: 'welle' } }),
-    expect: { 'TRD-09': 'unmet' },
+    expect: { 'TRD-09': U },
   },
   {
     name: 'Schluss unter einer inneren Zone ohne Wechsel ist nur eine Annäherung',
@@ -553,7 +553,8 @@ test.describe('TRD: Abdeckung und Eigenschaften', () => {
       if (TRD_UNMEASURABLE_IDS.includes(id)) continue;
       const states = new Set(CASES.map((c) => c.expect[id]).filter((s) => s !== undefined));
       if (!states.has('met')) missing.push(`${id} ☑`);
-      if (!states.has('unmet')) missing.push(`${id} ☐`);
+      // TRD-09 ist nie ☐: mit Maß immer ☑, ohne Maß (Regel welle) nicht messbar
+      if (id !== 'TRD-09' && !states.has('unmet')) missing.push(`${id} ☐`);
     }
     expect(missing).toEqual([]);
   });

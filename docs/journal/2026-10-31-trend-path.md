@@ -95,11 +95,12 @@ Details that are not in the plan:
     - The project owner delegated the decision on 2026-11-04. The threshold stays at 2.5 × ATR.
     - The measurement table is in appendix K7.3 of the draft (see the next open point).
 - GBPCAD D1 has more points than the chart in one reference case. The source suggests "similar wave lengths" as a rule. This is not measured.
-- The rule book still describes the old path. The project owner decides the new wording for TRD-07, TRD-08, TRD-09, TRD-15, TRD-16, TRD-17, TRD-45, E-2 and E-3.
+- [x] Done 2026-11-05. The rule book still described the old path. The project owner decides the new wording for TRD-07, TRD-08, TRD-09, TRD-15, TRD-16, TRD-17, TRD-45, E-2 and E-3.
   - A draft is ready (2026-11-04, in the local research folder, not in the repository). For each rule it gives the old text, the new text, the evidence in code and tests, and the places where the source differs.
     - Step 1: TRD-07, TRD-08, TRD-09. Step 2: TRD-15, TRD-16, TRD-17, TRD-45, E-2, E-3.
     - The project owner must approve each step. The old text stays true for the old path (`fein`), which the formations use by default.
   - On 2026-11-05 the project owner approved step 1 (TRD-07, TRD-08, TRD-09). The rule book describes the trend path in the main text and the fine path as an extra line for each rule. TRD-07 and TRD-09 changed from confirmed to assumption. The source line of TRD-22 now names the 75 % of the fine path. Step 2 is open.
+  - On 2026-11-05 the project owner approved step 2 (TRD-15, TRD-16, TRD-17, TRD-45, E-2, E-3). TRD-17 is confirmed for the trend path (one close). TRD-09 with rule `welle` is now unmeasurable, not unmet. TRD-08 is a bonus (hint), not a required condition.
   - The status table in `trdChecks.ts` follows (TRD-07, TRD-09 → assumption).
 - [x] Fixed 2026-11-02 (`zug` is a dependency of the run; a change clears the searched slots and the compare marks of the account; test `@FRM-30` "Wechsel des Trendpfads", red before). A change also drops the remembered state of the account (hit keys carry the anchor times of the path, so every hit would look new); the first compare after it remembers silently. Another tab that changes the path reaches the lock tab through the `storage` event (rehydrate); this two-tab case has no test. The favorites search and the alarm (`FormationScanRunner`) read `formationZug` at each pass but did not start again when it changed. After a change, the next pass can report hits that differ from the stored state of the alarm.
 - Not in this step: support line (Z-TRD-04), channel (Z-TRD-05) and the D1 path in H4 (Z-TRD-06).

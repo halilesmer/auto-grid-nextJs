@@ -39,7 +39,7 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'TRD-05': ['required', 'confirmed'],
   'TRD-06': ['required', 'confirmed'],
   'TRD-07': ['required', 'assumption'],
-  'TRD-08': ['required', 'assumption'],
+  'TRD-08': ['bonus', 'assumption'],
   'TRD-09': ['required', 'assumption'],
   'TRD-10': ['required', 'confirmed'],
   'TRD-11': ['required', 'confirmed'],
@@ -47,7 +47,7 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'TRD-13': ['required', 'confirmed'],
   'TRD-15': ['required', 'confirmed'],
   'TRD-16': ['required', 'confirmed'],
-  'TRD-17': ['required', 'assumption'],
+  'TRD-17': ['required', 'confirmed'],
   'TRD-18': ['exclusion', 'confirmed'],
   'TRD-19': ['exclusion', 'confirmed'],
   'TRD-20': ['required', 'confirmed'],
@@ -215,7 +215,8 @@ function evaluate(models: Models, m: TrendModel, options: TrdOptions, p: TrdCand
   const ratio = corr?.ratio ?? undefined;
   add('TRD-07', corr ? flag(corr.accepted) : U, ratio);
   add('TRD-08', !corr || corr.ratio === null ? U : flag(corr.ratio >= TRD_PARAMS.gapLow && corr.ratio < 1), ratio);
-  add('TRD-09', corr ? flag(corr.ratio !== null) : U, m.refCorrection ?? undefined);
+  // Regel welle kennt kein Maß: ohne Bezugskorrektur ist TRD-09 nicht messbar, nicht ☐
+  add('TRD-09', corr && options.trend?.rule !== 'welle' ? flag(corr.ratio !== null) : U, m.refCorrection ?? undefined);
 
   // TRD-10: die Welle nach einer Korrektur ist mindestens so lang wie diese
   const impPos = pivots.map((x) => x.kind).lastIndexOf('impulse');
