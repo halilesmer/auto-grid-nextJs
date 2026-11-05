@@ -155,9 +155,9 @@ Sessions for plan phases (`start_session`):
 - A scheduled task (`create_scheduled_task`) has no `model` parameter. If Claude cannot set the plan model (scheduled task, fork, cloud session, limit error), it tells the user at once.
 ## Session discipline
 
-Every tool call re-reads the whole session history, so cost grows with session length and with the number of sessions that run at once (measured 2026-10-21: the largest sessions had 350–750 model calls and read 70–150 M cached tokens each).
+Every tool call re-reads the whole session history, so cost grows with session length and with the number of sessions that run at once (measured on the transcripts, 2026-11-04, by start date: the largest session started on 2026-10-06 had 183 model calls and read 55 M cached tokens; the largest started on 2026-10-21 had 130 and read 37 M).
 
 - A step is one planned item that ends in a merged PR or a written result. When a step is finished, Claude does not start the next step in the same session. It writes the state into the journal or the pending list, starts the next step with `start_session` (`initiation: "user_asked"`, `fresh`, brief with files and done criterion), and ends its turn. Auto-fix events and review fixes for the PR of this session stay in this session.
-- Approval from the phone: if the app refuses `start_session` after an approval that the user typed in this turn, follow `~/.claude/rules/ajan-kullanimi.md` §10. An idle linked session or this session then does the step.
+- Approval from the phone: if the app refuses `start_session` after an approval that the user typed in this turn, follow `docs/agent-rules/ajan-kullanimi.md` §10. An idle linked session or this session then does the step.
 - At most 5 sessions that write files run at the same time. Before `start_session`, Claude calls `list_sessions` and counts the rows with `isRunning: true` that write. If there are 5, Claude does not start the session; it puts the step in the pending list and says so in one line. Sessions that change the same files, branch or PR do not run in parallel (see `~/.claude/koordinator/ANLEITUNG.md`, „Parallele Untersitzungen“).
 - Read-only sessions (search, review) share the checkout and do not count towards the limit.

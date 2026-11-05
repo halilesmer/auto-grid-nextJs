@@ -1,6 +1,6 @@
 # Agent rules
 
-Copy of the owner's global rules for coding agents (source: `~/.claude/rules/` on the owner's Mac). Claude Code loads the source; other agents (Codex) read this copy through the root `AGENTS.md`.
+Copy of the owner's global rules for coding agents. The source folder `~/.claude/rules/` was removed on 2026-11-03; a snapshot is in `~/.claude/backups/rules-2026-11-03/`. This copy is now the live version. Other agents (Codex) read it through the root `AGENTS.md`.
 
 | File | Topic | Applies to |
 |---|---|---|
@@ -15,4 +15,4 @@ Copy of the owner's global rules for coding agents (source: `~/.claude/rules/` o
 
 Project rules (`CLAUDE.md`, `hooks/RULES.md`) take precedence where they are more specific.
 
-The copy can go out of date. To refresh it on the Mac: `cp ~/.claude/rules/*.md docs/agent-rules/` (keep this README). On that Mac, pre-push gives a warning when the copy is different from the source (`hooks/RULES.md` §6.7).
+Edit this copy directly; there is no source to refresh it from. No hook checks this copy.

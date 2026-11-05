@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: fix
 status: open
-features: [BKT-16]
+features: [BKT-17]
 areas: [frontend]
 ---
 

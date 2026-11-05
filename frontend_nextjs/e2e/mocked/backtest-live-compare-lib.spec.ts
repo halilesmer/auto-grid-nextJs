@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { pairTrades, type Deal, type Trade } from '../../src/lib/analysis/tradePairing';
-import { buildSymbolRows, pairLive, DEFAULT_TOLERANCE, flatZone, maxDrawdownOf, pairByOrder, type CollectedRun, type TradeLite } from '../../src/lib/backtest/liveCompare';
+import { buildSymbolRows, pairLive, DEFAULT_TOLERANCE, evaluateBtLive, flatZone, levelToleranceOf, maxDrawdownOf, pairByOrder, type CollectedRun, type TradeLite } from '../../src/lib/backtest/liveCompare';
 import { DEFAULT_RUN_SETTINGS } from '../../src/lib/backtest/runSettings';
 
 const T0 = 1_760_000_040; // volle Minute
@@ -118,4 +118,86 @@ test('Live-Trades mit Ausstieg vor dem Zeitraum zählen nicht: Archiv-Deals → 
   expect(row.live).toMatchObject({ trades: 1, net: 5 });
   // Obergrenze ausgeschlossen
   expect(pairLive(all, t + 120, t + 180).trades).toHaveLength(0);
+});
+
+// Zwei Stufen (95,0 und 94,8) in kurzem Abstand; Live: obere Stufe SL, untere TP; Backtest füllt in anderer Reihenfolge
+const crossLive = [
+  lite({ entryTime: T0, entryPrice: 95.006, exitTime: T0 + 2500, exitPrice: 94, exitReason: 4, net: -17 }),
+  lite({ entryTime: T0 + 70, entryPrice: 94.776, exitTime: T0 + 250, exitPrice: 94.9, exitReason: 5, net: 2.5 }),
+];
+const crossBt = [
+  lite({ entryTime: T0 + 65, entryPrice: 94.8, exitTime: T0 + 250, exitPrice: 94.95, exitReason: 5, net: 2.5 }),
+  lite({ entryTime: T0 + 200, entryPrice: 95, exitTime: T0 + 2500, exitPrice: 94, exitReason: 4, net: -17 }),
+];
+
+test('Paarung nach Orderstufe: zwei Trades derselben Stufen bilden keine Kreuzpaare', { tag: '@BKT-16' }, () => {
+  // alte Paarung (ohne Stufentoleranz): nach Zeit gekreuzt, SL gegen TP
+  const old = pairByOrder(crossLive, crossBt);
+  expect(old.pairs.some((p) => p.live.exitReason !== p.backtest.exitReason)).toBe(true);
+  const fixed = pairByOrder(crossLive, crossBt, 0.1);
+  expect(fixed.pairs).toHaveLength(2);
+  expect(fixed.pairs.every((p) => p.live.exitReason === p.backtest.exitReason)).toBe(true);
+  expect(fixed.unmatchedLive).toHaveLength(0);
+});
+
+test('Stufentoleranz: Rest wird nach Zeit gepaart, Trades außerhalb des Fensters bleiben ohne Paar', { tag: '@BKT-16' }, () => {
+  const far = lite({ entryTime: T0 + 99_999, entryPrice: 95 });
+  const result = pairByOrder([crossLive[0], far], [crossBt[1], lite({ entryTime: T0 + 5, entryPrice: 90 })], 0.1);
+  expect(result.pairs).toHaveLength(1); // 95↔95 über Stufe; Rest (far ↔ 90) liegt außerhalb des Zeitfensters → kein Paar
+  expect(result.unmatchedLive).toHaveLength(1);
+  expect(result.unmatchedBacktest).toHaveLength(1);
+  expect(levelToleranceOf({ grid_step: 0.2 }, 0.032)).toBeCloseTo(0.1);
+  expect(levelToleranceOf({ grid_step: 0.02 }, 0.032)).toBeCloseTo(0.032);
+  expect(levelToleranceOf({}, 0.03)).toBeCloseTo(0.06);
+});
+
+test('buildSymbolRows nutzt die Stufenpaarung über grid_step der Zone', { tag: '@BKT-16' }, () => {
+  const toTrade = (t: TradeLite) => trade({ entryTime: t.entryTime, entryPrice: t.entryPrice, exitTime: t.exitTime, exitPrice: t.exitPrice, exitReason: t.exitReason, net: t.net });
+  const r = run(crossBt.map(toTrade), { zone: { magic: 200001, grid_step: 0.2 }, spreadPrice: 0.03 });
+  const [row] = buildSymbolRows([r], { trades: crossLive.map(toTrade), entries: [] }, DEFAULT_TOLERANCE);
+  expect(row.pairs.every((p) => p.live.exitReason === p.backtest.exitReason)).toBe(true);
+});
+
+function evalRow(liveNets: number[], btNets: number[], opts: { btShift?: number; btReason?: number } = {}) {
+  const l = liveNets.map((net, i) => trade({ entryTime: T0 + i * 7200, exitTime: T0 + i * 7200 + 600, net, exitReason: 5 }));
+  const b = btNets.map((net, i) => trade({ entryTime: T0 + i * 7200 + (opts.btShift ?? 0), exitTime: T0 + i * 7200 + 600, net, exitReason: opts.btReason ?? 5 }));
+  return buildSymbolRows([run(b)], { trades: l, entries: [] }, DEFAULT_TOLERANCE)[0];
+}
+
+test('evaluateBtLive K1 Anzahl: Differenz höchstens max(1, 5 % von Live)', { tag: '@BKT-16' }, () => {
+  const live = Array(40).fill(10);
+  expect(evaluateBtLive(evalRow(live, live.slice(0, 38))).k1Count).toBe(true);
+  expect(evaluateBtLive(evalRow(live, live.slice(0, 37))).k1Count).toBe(false);
+  expect(evaluateBtLive(evalRow([10, 10], [10])).k1Count).toBe(true);
+  expect(evaluateBtLive(evalRow([10, 10, 10], [10])).k1Count).toBe(false);
+});
+
+test('evaluateBtLive K2 Kerze und K3 Ausstiegsgrund', { tag: '@BKT-16' }, () => {
+  const nets = Array(10).fill(10);
+  expect(evaluateBtLive(evalRow(nets, nets)).passed).toBe(true);
+  const shifted = evaluateBtLive(evalRow(nets, nets, { btShift: 300 }));
+  expect(shifted.k2Candle).toBe(false);
+  expect(shifted.sameCandlePairs).toBe(0);
+  const reason = evaluateBtLive(evalRow(nets, nets, { btReason: 4 }));
+  expect(reason.k3Reason).toBe(false);
+  expect(reason.reasonMismatches).toBe(10);
+});
+
+test('evaluateBtLive K4 Netto: BT darf Live um max(0,50; 0,5 % von Σ|Live|) übertreffen', { tag: '@BKT-16' }, () => {
+  expect(evaluateBtLive(evalRow([10], [10.4])).k4Net).toBe(true);
+  expect(evaluateBtLive(evalRow([10], [10.6])).k4Net).toBe(false);
+  expect(evaluateBtLive(evalRow([10], [5])).k4Net).toBe(true); // schlechter als Live ist erlaubt
+  const big = Array(10).fill(1000); // Σ|Live| = 10000 → Toleranz 50
+  const row = evalRow(big, big.map((v, i) => (i === 0 ? v + 49 : v)));
+  expect(evaluateBtLive(row).netTolerance).toBe(50);
+  expect(evaluateBtLive(row).k4Net).toBe(true);
+});
+
+test('evaluateBtLive: Live-Trades mit Einstieg vor dem Fenster ausschließen', { tag: '@BKT-16' }, () => {
+  const l = [trade({ entryTime: T0 - 5000, exitTime: T0 + 10, net: -50 }), trade({ entryTime: T0 + 100, exitTime: T0 + 700, net: 10 })];
+  const b = [trade({ entryTime: T0 + 100, exitTime: T0 + 700, net: 10 })];
+  const [row] = buildSymbolRows([run(b)], { trades: l, entries: [] }, DEFAULT_TOLERANCE);
+  expect(evaluateBtLive(row).liveTrades).toBe(2);
+  const cut = evaluateBtLive(row, { excludeEntryBefore: T0 });
+  expect(cut).toMatchObject({ liveTrades: 1, backtestTrades: 1, liveNet: 10, backtestNet: 10, passed: true });
 });

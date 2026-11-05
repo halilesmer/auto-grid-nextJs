@@ -1,7 +1,7 @@
 /**
- * Backtest nie optimistischer als live (BKT-16): konservativer Spread, SL-Schlupf, Startzustand.
+ * Backtest nie optimistischer als live (BKT-17): konservativer Spread, SL-Schlupf, Startzustand.
  * Befunde: Ursache 200044 (Rollover-Spread), 200050 (SL-Schlupf), Fraktal 200054/200058 (Vorpositionen).
- * BKT-16 Backtest-Engine ohne Vorteil gegenüber live
+ * BKT-17 Backtest-Engine ohne Vorteil gegenüber live
  */
 import { expect, test } from '@playwright/test';
 import { snapshotSymbol } from '../../src/lib/backtest/broker/costs';
@@ -45,7 +45,7 @@ function run(rows: number[][], zone: ZoneDict = ZONE, extra: Partial<RunInput> =
 const flat = (i: number, price: number, spread: number) => [T0 + i * 60, price, price, price, price, spread];
 
 test.describe('Spread konservativ', () => {
-  test('Spread-Spitze der Vorkerze: Kauf-Limit füllt nicht mit dem schmalen Endwert der Folgekerze', { tag: '@BKT-16' }, () => {
+  test('Spread-Spitze der Vorkerze: Kauf-Limit füllt nicht mit dem schmalen Endwert der Folgekerze', { tag: '@BKT-17' }, () => {
     // Kerze 0: breit (1,00). Kerze 1: Spread 0,20, Tief 2648,50 → mit eigenem Spread Ask 2648,70 ≤ 2649, mit 1,00 nicht.
     const rows = [flat(0, 2650, 100), [T0 + 60, 2650, 2650, 2648.5, 2650, 20], flat(2, 2650, 20)];
     const old = run(rows, ZONE, {}, { carrySpread: false });
@@ -55,7 +55,7 @@ test.describe('Spread konservativ', () => {
     expect(safe.trades.map((t) => t.entryPrice)).not.toContain(2649);
   });
 
-  test('Kurslücke nach breiter Kerze füllt ein Kauf-Limit nie besser als zum Orderpreis', { tag: '@BKT-16' }, () => {
+  test('Kurslücke nach breiter Kerze füllt ein Kauf-Limit nie besser als zum Orderpreis', { tag: '@BKT-17' }, () => {
     const rows = [flat(0, 2650, 100), flat(1, 2640, 20), flat(2, 2640, 20)];
     const old = run(rows, ZONE, {}, { carrySpread: false });
     const safe = run(rows);
@@ -71,7 +71,7 @@ test.describe('SL-Schlupf', () => {
   const rows = [flat(0, 2650, 20), [T0 + 60, 2650, 2650, 2647, 2647, 20], flat(2, 2647, 20)];
   const slExit = (model: Partial<RunModel>) => run(rows, zone, {}, model).trades.find((t) => t.exitReason === 4)?.exitPrice;
 
-  test('Standard: halber Spread schlechter als die Stufe; 0 schaltet ab; feste Punkte gelten', { tag: '@BKT-16' }, () => {
+  test('Standard: halber Spread schlechter als die Stufe; 0 schaltet ab; feste Punkte gelten', { tag: '@BKT-17' }, () => {
     expect(slExit({ slSlippagePoints: 0 })).toBeCloseTo(2648, 6);
     expect(slExit({})).toBeCloseTo(2647.9, 6);
     expect(slExit({ slSlippagePoints: 50 })).toBeCloseTo(2647.5, 6);
@@ -80,7 +80,7 @@ test.describe('SL-Schlupf', () => {
 
 test.describe('Startzustand', () => {
   const rows = [flat(0, 2650, 20), [T0 + 60, 2650, 2650, 2648, 2649, 20], flat(2, 2649, 20)];
-  test('offene Vorposition belegt max_positions: keine neue Füllung', { tag: '@BKT-16' }, () => {
+  test('offene Vorposition belegt max_positions: keine neue Füllung', { tag: '@BKT-17' }, () => {
     const zone = { ...ZONE, max_positions: 1 };
     expect(run(rows, zone).trades.length).toBeGreaterThan(0);
     const seeded = run(rows, zone, { initialPositions: [{ side: 'buy', volume: 0.1, price: 2600, magic: 200001 }] });
@@ -88,7 +88,7 @@ test.describe('Startzustand', () => {
     expect(seeded.log.counts['grid.maxPositions']).toBeGreaterThan(0);
   });
 
-  test('Fraktal, das vor dem Start gehandelt wurde, bekommt keine Order mehr', { tag: '@BKT-16' }, () => {
+  test('Fraktal, das vor dem Start gehandelt wurde, bekommt keine Order mehr', { tag: '@BKT-17' }, () => {
     const n = 240;
     const START = T0 - 2 * 3600;
     const mk = (): number[][] => {

@@ -27,7 +27,7 @@ Geniş bir işte, ajan kullanılsın ya da kullanılmasın, iş başlamadan önc
 - İş bitince gerçekleşen süre, araç çağrısı ve token oturum kaydından ölçülür ve tahminin yanına yazılır; sonraki tahmin bu ölçümlerle karşılaştırılarak verilir.
 - Bağlamı büyümüş bir oturumda geniş işe başlanacaksa yeni oturum önerilir; her araç çağrısı biriken bağlamın tamamını yeniden okur.
 
-Gerekçe: 3 Ekim 2026'da kullanıcıya gösterilmeden kurulan 46 ve 26 ajanlık iki iş akışı, kullanım limitini doldurdu ve kontrolü zorlaştırdı; maliyet işten önce görünür olmalıdır. Anthropic'in ölçümlerine göre çok ajanlı sistemler sohbete göre katlarca fazla token harcar (Anthropic, çok ajanlı araştırma sistemi). 6 Ekim 2026'da ajansız yapılan inceleme bölme işi tahminsiz başladı ve 28 dakika sürdü: 43 araç çağrısı, 187 bin çıktı tokenı; her çağrı ortalama 395 bin tokenlık bağlamı yeniden okudu (oturum kaydı ölçümü).
+Gerekçe: 3 Ekim 2026'da kullanıcıya gösterilmeden kurulan 46 ve 26 ajanlık iki iş akışı, kullanım limitini doldurdu ve kontrolü zorlaştırdı (sayılar ölçülmedi: 3 Ekim'in transkriptleri yok); maliyet işten önce görünür olmalıdır. Anthropic'in ölçümlerine göre çok ajanlı sistemler sohbete göre katlarca fazla token harcar (Anthropic, çok ajanlı araştırma sistemi). 6 Ekim 2026'da ajansız yapılan inceleme bölme işi tahminsiz başladı. Ölçüm (transkript, başlangıç tarihine göre; düzeltme 2026-11-04): en büyük ajansız ana oturum 43 dakika sürdü, 92 araç çağrısı, 49 bin çıktı tokenı; her modellaufruf ortalama 127 bin tokenlık bağlam okudu (oturum 5e0beb81). Önceki değerler (28 dakika, 43 araç çağrısı, 187 bin çıktı, 395 bin bağlam) bu kayıtlarda bulunamadı.
 
 ## 3. Ekip: en fazla 5 ajan, rollere göre
 
@@ -57,7 +57,7 @@ Gerekçe: Ekibe kişi eklemek iletişim ve eşgüdüm yükünü katlayarak artı
 - Rol başına model seçimi projenin kuralıdır. Proje model belirtmiyorsa ajan oturumun modelini kullanır.
 - Ajan sonuçları kalıcı bir klasöre yazılır. Geçici klasör tek kayıt yeri olmaz.
 
-Gerekçe: Bir ajanın her araç çağrısında o ana kadar biriken bağlamın tamamı yeniden gönderilir; bu yüzden maliyet adım sayısından hızlı büyür. 3 Ekim 2026'da ajan başına 35–60 adım ve devralınan `xhigh` ayarı, maliyetin ana nedeniydi.
+Gerekçe: Bir ajanın her araç çağrısında o ana kadar biriken bağlamın tamamı yeniden gönderilir; bu yüzden maliyet adım sayısından hızlı büyür. 3 Ekim 2026'da devralınan `xhigh` ayarı maliyetin ana nedeni sayıldı; ajan başına 35–60 adım ölçülmedi (3 Ekim'in transkriptleri yok).
 
 ## 5. Görünürlük ve dürüstlük
 
