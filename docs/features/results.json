@@ -1034,6 +1034,13 @@
       "tests": 22
     }
   },
+  "FRM-41": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 3
+    }
+  },
   "FRM-43": {
     "e2e": {
       "datum": "2026-11-05",
@@ -1046,6 +1053,13 @@
       "datum": "2026-11-05",
       "status": "passed",
       "tests": 9
+    }
+  },
+  "FRM-45": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 3
     }
   },
   "LOG-01": {
@@ -1459,9 +1473,9 @@
   },
   "UI-13": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 25
+      "tests": 1
     }
   },
   "UI-14": {

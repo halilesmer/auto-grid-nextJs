@@ -113,7 +113,9 @@ Rejected alternatives:
 
 ## Open points
 
-- [ ] S1: formations follow the trend path (FRM-41)
+- [x] S1: formations follow the trend path (FRM-41), PR S1PR. `buildFineTrend()`, `formationZug` and the panel group "Formations" are removed. `FormationContext` takes `options.trend`; the page search and the alarm restart when the fingerprint of the settings changes. The TRD check (`analyzeTrd`) still uses the default trend path; S1 did not change it
+  - Tests: the fixtures showed their formation on the fine zigzag. They now carry a trend setting in `e2e/fixtures/formation-trend.ts`: default 0.5 ATR and 2 closes (`FIXTURE_TREND`), 23 fixtures with their own setting (found with a scan of the sliders). 13 cases had no matching setting. Their expectations are regenerated and carry the note "FRM-41"; the owner did not yet compare them with the rule book
+  - Scan time (FRM-18, library, 108 fixtures, 4 runs on the same Mac): main 4.3 to 4.7 s, S1 4.8 to 5.0 s (about +8 %)
 - [ ] S2: confirmation strip (FRM-42)
 - [x] S3: alarm main switch and trend row (FRM-43). PR 380. The main switch is the stored flag `active`; old stored data counts as on. Off: `alarmSymbols` is empty, the search for favorites continues. The e2e test fails when the alarm is on (checked). Run e2e tests with your own `E2E_PORT`: other worktrees use port 3100 and `reuseExistingServer` then tests their build
 - [x] S4: expected D and badges (FRM-44), PR 379. Also a measured D that is not reached shows the expected D. Open: the time scale has no free space right of the last candle, thus the expected D is often at the plot edge (right offset in ChartView)
@@ -122,5 +124,8 @@ Rejected alternatives:
 - [ ] After S1: the owner checks the chart with an ATR factor of 1.5
 
 ## Lessons
+
+Run e2e tests with your own `E2E_PORT`. On port 3100, `reuseExistingServer` tested the build of another worktree and gave 7 false failures (S1).
+
 
 Do not let a second calculation of the same zigzag decide what the user sees. When a chart shows a line, the formations must use that line and its settings.
