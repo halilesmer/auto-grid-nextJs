@@ -353,6 +353,37 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     await expect(overlay.locator('[data-drawing] rect[rx="3"]')).toHaveCount(0);
   });
 
+  for (const theme of ['light', 'dark']) {
+    test(`ABCD im Aufbau: erwartetes D rechts der letzten Kerze mit Abzeichen, 375 px ohne Querscroll (${theme})`, { tag: '@FRM-44' }, async ({ page, worker }) => {
+      await page.addInitScript((value) => localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 })), theme);
+      await openPage(page, worker, `${URL}&form=ABCD`, FORMING_NOW);
+      const overlay = page.getByTestId('formation-overlay');
+      await expect(overlay.locator('text', { hasText: 'D?' })).toHaveCount(1);
+      const badge = page.getByTestId('formation-d-badge').first();
+      await expect(badge).toHaveAttribute('data-status', 'forming');
+      // Der Stand steht als Text im Abzeichen, nicht nur in der Farbe
+      await expect(badge).toContainText(`${msg('formation.form.ABCD')} · ${msg('formation.verdict.forming')}`);
+      await expect(badge).toHaveAttribute('aria-pressed', 'true');
+      // Das D liegt rechts der letzten Kerze: der gestrichelte Weg endet nicht an ihr
+      const dashed = overlay.locator('line[stroke-dasharray="6 5"]');
+      const x2 = Number(await dashed.getAttribute('x2'));
+      // Rechts aller bestätigten Punkte (A, B, C) und am erwarteten D steht das Abzeichen
+      const pointXs = await overlay.locator('circle:not([fill="none"])').evaluateAll((els) => els.map((e) => Number(e.getAttribute('cx'))));
+      expect(x2).toBeGreaterThan(Math.max(...pointXs));
+      await page.screenshot({ path: test.info().outputPath(`formation-expected-d-${theme}.png`) });
+      if (theme === 'light') {
+        await page.setViewportSize({ width: 375, height: 812 });
+        // Die Seitenleiste deckt den Chart bei 375 px ab: für das Bild schließen
+        const chip = page.getByTestId('formation-status-chip');
+        if ((await chip.getAttribute('aria-expanded')) === 'true') await chip.press('Enter');
+        await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+        await expect(page.getByTestId('formation-d-badge').first()).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+        await page.screenshot({ path: test.info().outputPath('formation-expected-d-mobile.png') });
+      }
+    });
+  }
+
   test('Zeichnungen liegen über dem Chart, Hover auf eine Zeile hebt ihre Zeichnungen hervor', { tag: ['@FRM-20', '@FRM-37'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const overlay = page.getByTestId('formation-overlay');

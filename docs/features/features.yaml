@@ -2217,3 +2217,13 @@ kategorien:
           - "Playwright-Test e2e/mocked/formation-alarm-switch.spec.ts (@FRM-43) ausführen (aus: Glocke aus, Status, Auswahlen bleiben; an: wie vorher; Trend-Zeile und Panel; 375 px ohne Querscroll)."
           - UI-07 (Tooltips) und UI-08 (375 px ohne Querscroll) ausführen.
         erwartet: Mit dem Hauptschalter aus sucht und meldet der Alarm nicht, die Auswahlen bleiben erhalten; die Trend-Zeile zeigt die Chart-Einstellungen nur lesend.
+
+      - id: FRM-44
+        titel: "Formation: erwartetes D und Abzeichen"
+        beschreibung: "Eine Formation im Aufbau zeigt einen gestrichelten Weg von C zum erwarteten D in der Zukunft (Preis = Zielniveau Level 1 bzw. Mitte der D-Zone, Zeit = C plus Dauer von AB, am Rand abgeschnitten), einen Ring „D?“ und den Preis am rechten Rand (Z-ABCD-02). Neben dem Ring steht ein Abzeichen „ABCD · oluşuyor“ (Rahmen Warnung) oder „Gartley ✓“ (gültig, Rahmen Erfolg); der Stand ist als Text lesbar. Mehrere Formationen im Zeitrahmen: Abzeichen in einem Stapel (nächstes D oben), nur die gewählte voll gezeichnet, die übrigen als blasser Ring und blasses Abzeichen; Klick auf ein Abzeichen wählt die Formation; D-Niveaus näher als 1,5 ATR bilden ein Band „D? bölgesi“ mit beiden Preisen (Plan 1105-A5, A5.5/A5.6/A5.6.1)."
+        code: [frontend_nextjs/src/lib/formation/drawingLayout.ts, frontend_nextjs/src/components/formation/FormationChart.tsx, frontend_nextjs/src/components/formation/FormationView.tsx, frontend_nextjs/src/i18n/messages/formation.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Test e2e/mocked/formation-expected-d-lib.spec.ts (@FRM-44) ausführen (D-Zeit und -Preis, Weg in die Zukunft und am Rand, Abzeichen im Aufbau und gültig, Stapel, blasse Ringe, Band bei 1,5 ATR).
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-44) ausführen (ABCD im Aufbau mit Abzeichen, hell und dunkel, 375 px ohne Querscroll).
+        erwartet: Der gestrichelte Weg endet am erwarteten D rechts der letzten Kerze, nicht an deren Schluss; das Abzeichen nennt Name und Stand als Text; nahe D-Niveaus erscheinen als ein Band.
