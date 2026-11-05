@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: plan
 status: open
-pr: [379]
+pr: [379, 381]
 features: [FRM-03, FRM-18, FRM-30, FRM-41, FRM-42, FRM-43, FRM-44, FRM-45, UI-07, UI-08, UI-13, UI-16]
 areas: [frontend, docs]
 ---
@@ -113,7 +113,7 @@ Rejected alternatives:
 
 ## Open points
 
-- [x] S1: formations follow the trend path (FRM-41), PR S1PR. `buildFineTrend()`, `formationZug` and the panel group "Formations" are removed. `FormationContext` takes `options.trend`; the page search and the alarm restart when the fingerprint of the settings changes. The TRD check (`analyzeTrd`) still uses the default trend path; S1 did not change it
+- [x] S1: formations follow the trend path (FRM-41), PR 381. `buildFineTrend()`, `formationZug` and the panel group "Formations" are removed. `FormationContext` takes `options.trend`; the page search and the alarm restart when the fingerprint of the settings changes. The TRD check (`analyzeTrd`) still uses the default trend path; S1 did not change it
   - Tests: the fixtures showed their formation on the fine zigzag. They now carry a trend setting in `e2e/fixtures/formation-trend.ts`: default 0.5 ATR and 2 closes (`FIXTURE_TREND`), 23 fixtures with their own setting (found with a scan of the sliders). 13 cases had no matching setting. Their expectations are regenerated and carry the note "FRM-41"; the owner did not yet compare them with the rule book
   - Scan time (FRM-18, library, 108 fixtures, 4 runs on the same Mac): main 4.3 to 4.7 s, S1 4.8 to 5.0 s (about +8 %)
 - [ ] S2: confirmation strip (FRM-42)
