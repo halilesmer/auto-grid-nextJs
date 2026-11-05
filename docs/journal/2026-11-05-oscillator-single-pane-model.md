@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [386]
 features: [UI-11, ANA-20, ANA-22, FRM-35]
 areas: [frontend, tests]
 ---
