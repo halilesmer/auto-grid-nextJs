@@ -1797,6 +1797,15 @@ kategorien:
           - Auf /backtest „Eigener Zeitraum“ öffnen, Tage und Uhrzeiten eintragen und übernehmen; Seite neu laden.
         erwartet: Die Adresse trägt ft= und tt=, nach dem Neuladen stehen dieselben Zeiten im Panel; der Lauf rechnet die Kerzen ganz in diesen Grenzen und meldet eine Grenze innerhalb einer Kerze als Hinweis.
 
+      - id: BKT-16
+        titel: Backtest-Live-Paarung nach Orderstufe und Bewertung K1–K4
+        beschreibung: "pairByOrder paart Live- und Backtest-Trades zuerst nach gleicher Seite und gleicher Orderstufe (Einstiegspreise höchstens ein halber Grid-Schritt, mindestens ein Spread auseinander, levelToleranceOf) und kleinstem Zeitabstand im Fenster von 1 h; erst der Rest wird nach Reihenfolge und Zeit gepaart. Zwei Trades derselben Stufen in kurzem Abstand werden so nicht mehr über Kreuz gepaart (falsche Ausstiegsgründe). evaluateBtLive bewertet ein Symbol rein rechnerisch: K1 Anzahl |BT−Live| ≤ max(1; 5 % von Live), K2 gleiche M1-Kerze bei ≥ 90 % der Paare, K3 gleicher Ausstiegsgrund bei allen Paaren, K4 Netto BT ≤ Netto Live + max(0,50; 0,5 % von Σ|Live-Netto|); Option excludeEntryBefore nimmt Live-Trades mit Einstieg vor dem Fenster aus. Keine sichtbare UI-Änderung; die Werte der Paarlisten im Live-Vergleich können sich ändern."
+        code: [frontend_nextjs/src/lib/backtest/liveCompare.ts]
+        tiers: [e2e]
+        pruefung:
+          - e2e backtest-live-compare-lib.spec.ts (@BKT-16) ausführen.
+        erwartet: Alle BKT-16-Tests bestehen.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung

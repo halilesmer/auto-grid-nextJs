@@ -191,26 +191,56 @@ function alignGreedy(a: readonly TradeLite[], b: readonly TradeLite[]): [number,
 }
 
 /**
- * Paart Live- und Backtest-Trades einer Zone: je Seite nach Einstiegszeit geordnet, die Reihenfolge bleibt erhalten,
- * zwei Trades bilden ein Paar nur, wenn sie höchstens MATCH_WINDOW_SEC auseinander liegen. Gewählt wird die Zuordnung
- * mit den meisten Paaren und dann der kleinsten Summe der Zeitabstände: gleiche Zahl von Trades mit versetzten Zeiten
- * ergibt Paare, ein fehlender Trade nur eine Lücke und verschiebt die übrigen Paare nicht.
+ * Paart Live- und Backtest-Trades einer Zone, je Seite. Stufe 1 (nur mit `levelTolerance`): gleiche Orderstufe
+ * (Einstiegspreise höchstens `levelTolerance` auseinander) und Einstiegszeiten höchstens MATCH_WINDOW_SEC auseinander,
+ * kleinster Zeitabstand zuerst; so entstehen keine Kreuzpaarungen zweier Trades derselben Stufe. Stufe 2: der Rest
+ * nach Reihenfolge und Zeit: die meisten Paare, dann die kleinste Summe der Zeitabstände.
  */
-export function pairByOrder(live: readonly TradeLite[], backtest: readonly TradeLite[]) {
+export function pairByOrder(live: readonly TradeLite[], backtest: readonly TradeLite[], levelTolerance?: number) {
   const pairs: { live: TradeLite; backtest: TradeLite }[] = [];
   const unmatchedLive: TradeLite[] = [];
   const unmatchedBacktest: TradeLite[] = [];
   for (const side of ['buy', 'sell'] as const) {
     const a = live.filter((trade) => trade.side === side).sort(byTime);
     const b = backtest.filter((trade) => trade.side === side).sort(byTime);
-    const matched = (a.length + 1) * (b.length + 1) <= MAX_ALIGN_CELLS ? alignByTime(a, b) : alignGreedy(a, b);
-    const usedLive = new Set(matched.map(([i]) => i));
-    const usedBacktest = new Set(matched.map(([, j]) => j));
-    for (const [i, j] of matched) pairs.push({ live: a[i], backtest: b[j] });
-    unmatchedLive.push(...a.filter((_, i) => !usedLive.has(i)));
-    unmatchedBacktest.push(...b.filter((_, j) => !usedBacktest.has(j)));
+    const usedA = new Set<number>();
+    const usedB = new Set<number>();
+    if (levelTolerance !== undefined && levelTolerance > 0 && a.length * b.length <= MAX_ALIGN_CELLS) {
+      const candidates: { i: number; j: number; gap: number }[] = [];
+      for (let i = 0; i < a.length; i++) {
+        for (let j = 0; j < b.length; j++) {
+          const pa = a[i].entryPrice;
+          const pb = b[j].entryPrice;
+          if (pa === null || pb === null || Math.abs(pa - pb) > levelTolerance + 1e-9) continue;
+          const gap = Math.abs(sortKey(a[i]) - sortKey(b[j]));
+          if (gap <= MATCH_WINDOW_SEC) candidates.push({ i, j, gap });
+        }
+      }
+      candidates.sort((x, y) => x.gap - y.gap || x.i - y.i || x.j - y.j);
+      for (const { i, j } of candidates) {
+        if (usedA.has(i) || usedB.has(j)) continue;
+        usedA.add(i);
+        usedB.add(j);
+        pairs.push({ live: a[i], backtest: b[j] });
+      }
+    }
+    const restA = a.filter((_, i) => !usedA.has(i));
+    const restB = b.filter((_, j) => !usedB.has(j));
+    const matched = (restA.length + 1) * (restB.length + 1) <= MAX_ALIGN_CELLS ? alignByTime(restA, restB) : alignGreedy(restA, restB);
+    const doneA = new Set(matched.map(([i]) => i));
+    const doneB = new Set(matched.map(([, j]) => j));
+    for (const [i, j] of matched) pairs.push({ live: restA[i], backtest: restB[j] });
+    unmatchedLive.push(...restA.filter((_, i) => !doneA.has(i)));
+    unmatchedBacktest.push(...restB.filter((_, j) => !doneB.has(j)));
   }
   return { pairs, unmatchedLive, unmatchedBacktest };
+}
+
+/** Toleranz für „gleiche Orderstufe“: ein halber Grid-Schritt, mindestens der Spread (Fraktal-Zonen ohne Schritt: zwei Spreads) */
+export function levelToleranceOf(zone: Record<string, unknown>, spreadPrice: number): number {
+  const steps = [zone.grid_step, zone.sell_grid_step].filter((v): v is number => typeof v === 'number' && v > 0);
+  if (!steps.length) return spreadPrice * 2;
+  return Math.max(Math.min(...steps) / 2, spreadPrice);
 }
 
 function comparePair(live: TradeLite, backtest: TradeLite, spreadPrice: number, tolerance: Tolerance): Pair {
@@ -246,7 +276,8 @@ export function buildSymbolRows(runs: readonly CollectedRun[], live: LiveData, t
     const unmatchedLive: TradeLite[] = [];
     const unmatchedBacktest: TradeLite[] = [];
     for (const magic of magics) {
-      const matched = pairByOrder(liveTrades.filter((trade) => trade.magic === magic), backtestTrades.filter((trade) => trade.magic === magic));
+      const levelTolerance = Math.max(...own.filter((run) => run.magic === magic).map((run) => levelToleranceOf(run.zone, run.spreadPrice)));
+      const matched = pairByOrder(liveTrades.filter((trade) => trade.magic === magic), backtestTrades.filter((trade) => trade.magic === magic), levelTolerance);
       pairs.push(...matched.pairs.map((pair) => comparePair(pair.live, pair.backtest, spreadPrice, tolerance)));
       unmatchedLive.push(...matched.unmatchedLive);
       unmatchedBacktest.push(...matched.unmatchedBacktest);
@@ -314,3 +345,52 @@ export interface ReportSummary {
 }
 
 export type Report = ReportSummary & ReportContent;
+
+
+/** BKT-16: Bewertung K1–K4 eines Symbols (Live gegen Backtest), reine Funktion */
+export interface EvaluateOptions {
+  /** Live-Trades mit Einstieg vor diesem Zeitpunkt (MT5-Sekunden) fallen aus Zählung, Netto und Paarung; ohne Wert zählen alle */
+  excludeEntryBefore?: number;
+}
+
+export interface Evaluation {
+  k1Count: boolean;
+  k2Candle: boolean;
+  k3Reason: boolean;
+  k4Net: boolean;
+  passed: boolean;
+  liveTrades: number;
+  backtestTrades: number;
+  pairs: number;
+  sameCandlePairs: number;
+  reasonMismatches: number;
+  liveNet: number;
+  backtestNet: number;
+  /** Erlaubter Mehrgewinn des Backtests: max(0,50; 0,5 % von Σ|Live-Netto|) */
+  netTolerance: number;
+}
+
+export const K2_MIN_SHARE = 0.9;
+
+export function evaluateBtLive(row: SymbolRow, options: EvaluateOptions = {}): Evaluation {
+  const cut = options.excludeEntryBefore;
+  const keep = (trade: TradeLite) => cut === undefined || trade.entryTime === null || trade.entryTime >= cut;
+  const pairs = row.pairs.filter((pair) => keep(pair.live));
+  const liveAll = [...pairs.map((pair) => pair.live), ...row.unmatchedLive.filter(keep)];
+  const backtestAll = [...row.pairs.map((pair) => pair.backtest), ...row.unmatchedBacktest];
+  const droppedBacktest = new Set(row.pairs.filter((pair) => !keep(pair.live)).map((pair) => pair.backtest));
+  const backtest = cut === undefined ? backtestAll : backtestAll.filter((trade) => !droppedBacktest.has(trade));
+  const liveNet = round(liveAll.reduce((sum, trade) => sum + trade.net, 0));
+  const backtestNet = round(backtest.reduce((sum, trade) => sum + trade.net, 0));
+  const netTolerance = round(Math.max(0.5, 0.005 * liveAll.reduce((sum, trade) => sum + Math.abs(trade.net), 0)));
+  const sameCandlePairs = pairs.filter((pair) => !pair.deviations.includes('entryCandle')).length;
+  const reasonMismatches = pairs.filter((pair) => pair.live.exitReason !== pair.backtest.exitReason).length;
+  const k1Count = Math.abs(backtest.length - liveAll.length) <= Math.max(1, 0.05 * liveAll.length);
+  const k2Candle = pairs.length === 0 ? liveAll.length === 0 : sameCandlePairs >= K2_MIN_SHARE * pairs.length;
+  const k3Reason = reasonMismatches === 0;
+  const k4Net = backtestNet <= liveNet + netTolerance + 1e-9;
+  return {
+    k1Count, k2Candle, k3Reason, k4Net, passed: k1Count && k2Candle && k3Reason && k4Net,
+    liveTrades: liveAll.length, backtestTrades: backtest.length, pairs: pairs.length, sameCandlePairs, reasonMismatches, liveNet, backtestNet, netTolerance,
+  };
+}
