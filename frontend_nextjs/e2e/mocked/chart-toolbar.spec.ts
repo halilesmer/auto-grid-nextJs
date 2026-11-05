@@ -133,7 +133,7 @@ test('Verknüpfte Ansichten und Tabs teilen Zeichnungen; Trennen stellt privaten
   await expect(second.getByTestId('drawing-toolbar')).toBeVisible();
   await second.getByRole('button', { name: msg('cw.rail.link'), exact: true }).click();
   await expect(second.getByRole('button', { name: msg('cw.rail.link'), exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await drawLine(second, 100);
+  await drawLine(second, 60);
   await expect.poll(() => storedDrawings(page, true)).toHaveLength(3);
   await second.reload();
   await second.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
