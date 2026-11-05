@@ -44,9 +44,8 @@ for (const [name, url] of PAGES) {
       expect(Math.abs(trend.y - layers.y)).toBeLessThan(40);
       await openMenu(page);
       for (const key of ['cw.layerTrend', 'cw.layerRsi', 'cw.layerWave', 'analysis.settings.pauses', 'analysis.settings.gaps'] as const) await expect(layerSwitch(page, key)).toBeVisible();
-      // Der Abschnitt des Modus steht unter den gemeinsamen Schaltern
-      if (name === 'Formation') await expect(layerSwitch(page, 'cw.overlayFormations')).toBeVisible();
-      else await expect(layerSwitch(page, 'cw.overlayFormations')).toHaveCount(0);
+      // Formasyon çizimleri ist seit FRM-45 ein Schalter in der Symbolleiste, nicht mehr im Menü
+      await expect(layerSwitch(page, 'cw.overlayFormations')).toHaveCount(0);
     });
 
     test('Wave und RSI(7) blenden ihre Fenster aus und ein und bleiben nach dem Neuladen', { tag: '@UI-13' }, async ({ page, worker }) => {
@@ -179,18 +178,18 @@ for (const [width, height] of [[1440, 900], [375, 812]] as const) {
   });
 }
 
-test('UI-13 Formation: der Schalter „Formationszeichnung“ blendet die Zeichnung aus und ein', { tag: '@UI-13' }, async ({ page, worker }) => {
+test('UI-13 Formation: der Schalter „Formasyon çizimleri“ in der Symbolleiste blendet die Zeichnung aus und ein und bleibt nach dem Neuladen', { tag: ['@UI-13', '@FRM-45'] }, async ({ page, worker }) => {
   await open(page, worker, 'Formation', FORMATION);
   const overlay = page.getByTestId('formation-overlay');
+  const toggle = page.getByRole('button', { name: msg('cw.overlayFormations'), exact: true });
   await expect(overlay).toBeVisible();
-  await openMenu(page);
-  await layerSwitch(page, 'cw.overlayFormations').click();
+  await toggle.click();
   await expect(overlay).toBeHidden();
   await page.reload();
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
   await expect(overlay).toBeHidden();
-  await openMenu(page);
-  await layerSwitch(page, 'cw.overlayFormations').click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
   await expect(overlay).toBeVisible();
 });
 
