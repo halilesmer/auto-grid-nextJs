@@ -60,7 +60,8 @@ runner needs `worker_python/.venv` with `requirements-dev.txt`; if pyyaml is mis
 
 Useful extras (inside `frontend_nextjs/`): `npx playwright test --ui` (interactive),
 `npx playwright show-trace test-results/<test>/trace.zip` (replay a failure),
-`npx playwright codegen http://localhost:3100` (record clicks while writing a new test).
+`npx playwright codegen http://localhost:$(node -p "require('./e2e/fixtures/env.ts').E2E_PORT")` (record clicks while writing a new test; the e2e port is per checkout, SYS-10, and the server must be running: start it with `E2E_REUSE=1` only for your own server).
+Before the first push of a PR: `scripts/features/precheck.sh` (same steps as CI, fails on zero tests; `hooks/RULES.md` §4.8).
 
 ## Live tests and safety (hooks/RULES.md §3)
 
