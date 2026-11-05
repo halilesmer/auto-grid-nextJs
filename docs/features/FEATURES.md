@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-05 · **211/220** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-05 · **212/221** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 15/15 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/23 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/18 |
-| 16 | **FRM** – Formationserkennung | 39/39 |
+| 16 | **FRM** – Formationserkennung | 40/40 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -1026,6 +1026,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - TDF, OBO, CDT, LIB, T618, ENC und KEI haben im Ausschluss eine Zeile `veto: true`: Kauf SIG-15, Verkauf SIG-16 (Annahme). Das Veto ändert das Urteil nicht (`valid` bleibt), zählt nicht als Pflicht oder Verstärkung und steht nicht in `invalidBy`; Alarm, Suche und Favoriten bleiben unverändert (A40.2.1). Harmoniken (ABCD, GAR, BAT, BUT, CRB, CYP) und 2618 haben keine Zeile. Phase 1 ist die Logik; Anzeige: Veto-Streifen im Handelsblock (die Werte werden blass), die Zeile in der Gruppe Dışlama mit Marke „Veto“ und das Abzeichen „Veto“ am Kandidaten.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-trade-lib.spec.ts (@FRM-40) ausführen (Zeile je Seite und Formation, kein Veto bei Harmoniken und 2618, Urteil unverändert bei ☑). → Playwright-Test e2e/mocked/formation-trade.spec.ts (@FRM-40) ausführen (Streifen, Zeile, Abzeichen bei erfülltem Veto, Urteil bleibt gültig; keine Veto-Anzeige bei 2618).
   - **Erwartet:** Die sieben Formationen tragen die Veto-Zeile, die übrigen nicht; ein erfülltes Veto lässt das Urteil und `invalidBy` unverändert.
+- [x] **FRM-43** Formationsalarm: Hauptschalter und Trend-Zeile — 🖥️ e2e ✅ 2026-11-05
+  - Das Alarm-Menü hat oben rechts einen Hauptschalter (gespeichert als `active`, Standard an, ältere Speicherstände gelten als an). Aus: keine Suche und keine Meldung für den Alarm (`alarmSymbols` leer), Glocke `BellOff` ohne Punkt, Status „Kapalı · seçimler korunuyor“; alle Auswahlen bleiben, gedimmt aber bedienbar. Unter dem Status steht eine nur lesende Trend-Zeile (Regel, Größe in ATR, Schlüsse) aus den Trend-Einstellungen des Charts; [Ayarlar] klappt dasselbe Trend-Panel auf. Keine eigenen Trend-Einstellungen des Alarms (Plan 1105-A5, A5.3 / A5.4).
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-alarm-switch.spec.ts (@FRM-43) ausführen (aus: Glocke aus, Status, Auswahlen bleiben; an: wie vorher; Trend-Zeile und Panel; 375 px ohne Querscroll). → UI-07 (Tooltips) und UI-08 (375 px ohne Querscroll) ausführen.
+  - **Erwartet:** Mit dem Hauptschalter aus sucht und meldet der Alarm nicht, die Auswahlen bleiben erhalten; die Trend-Zeile zeigt die Chart-Einstellungen nur lesend.
 - [x] **FRM-44** Formation: erwartetes D und Abzeichen — 🖥️ e2e ✅ 2026-11-05
   - Eine Formation im Aufbau zeigt einen gestrichelten Weg von C zum erwarteten D in der Zukunft (Preis = Zielniveau Level 1 bzw. Mitte der D-Zone, Zeit = C plus Dauer von AB, am Rand abgeschnitten), einen Ring „D?“ und den Preis am rechten Rand (Z-ABCD-02). Neben dem Ring steht ein Abzeichen „ABCD · oluşuyor“ (Rahmen Warnung) oder „Gartley ✓“ (gültig, Rahmen Erfolg); der Stand ist als Text lesbar. Mehrere Formationen im Zeitrahmen: Abzeichen in einem Stapel (nächstes D oben), nur die gewählte voll gezeichnet, die übrigen als blasser Ring und blasses Abzeichen; Klick auf ein Abzeichen wählt die Formation; D-Niveaus näher als 1,5 ATR bilden ein Band „D? bölgesi“ mit beiden Preisen (Plan 1105-A5, A5.5/A5.6/A5.6.1).
   - **Prüfung:** Playwright-Test e2e/mocked/formation-expected-d-lib.spec.ts (@FRM-44) ausführen (D-Zeit und -Preis, Weg in die Zukunft und am Rand, Abzeichen im Aufbau und gültig, Stapel, blasse Ringe, Band bei 1,5 ATR). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-44) ausführen (ABCD im Aufbau mit Abzeichen, hell und dunkel, 375 px ohne Querscroll).

@@ -2208,6 +2208,16 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-trade.spec.ts (@FRM-40) ausführen (Streifen, Zeile, Abzeichen bei erfülltem Veto, Urteil bleibt gültig; keine Veto-Anzeige bei 2618).
         erwartet: Die sieben Formationen tragen die Veto-Zeile, die übrigen nicht; ein erfülltes Veto lässt das Urteil und `invalidBy` unverändert.
 
+      - id: FRM-43
+        titel: "Formationsalarm: Hauptschalter und Trend-Zeile"
+        beschreibung: "Das Alarm-Menü hat oben rechts einen Hauptschalter (gespeichert als `active`, Standard an, ältere Speicherstände gelten als an). Aus: keine Suche und keine Meldung für den Alarm (`alarmSymbols` leer), Glocke `BellOff` ohne Punkt, Status „Kapalı · seçimler korunuyor“; alle Auswahlen bleiben, gedimmt aber bedienbar. Unter dem Status steht eine nur lesende Trend-Zeile (Regel, Größe in ATR, Schlüsse) aus den Trend-Einstellungen des Charts; [Ayarlar] klappt dasselbe Trend-Panel auf. Keine eigenen Trend-Einstellungen des Alarms (Plan 1105-A5, A5.3 / A5.4)."
+        code: [frontend_nextjs/src/lib/formation/alarmStore.ts, frontend_nextjs/src/hooks/useFormationAlarm.ts, frontend_nextjs/src/components/formation/FormationAlarmMenu.tsx, frontend_nextjs/src/components/formation/FormationScanRunner.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/formation-alarm-switch.spec.ts (@FRM-43) ausführen (aus: Glocke aus, Status, Auswahlen bleiben; an: wie vorher; Trend-Zeile und Panel; 375 px ohne Querscroll)."
+          - UI-07 (Tooltips) und UI-08 (375 px ohne Querscroll) ausführen.
+        erwartet: Mit dem Hauptschalter aus sucht und meldet der Alarm nicht, die Auswahlen bleiben erhalten; die Trend-Zeile zeigt die Chart-Einstellungen nur lesend.
+
       - id: FRM-44
         titel: "Formation: erwartetes D und Abzeichen"
         beschreibung: "Eine Formation im Aufbau zeigt einen gestrichelten Weg von C zum erwarteten D in der Zukunft (Preis = Zielniveau Level 1 bzw. Mitte der D-Zone, Zeit = C plus Dauer von AB, am Rand abgeschnitten), einen Ring „D?“ und den Preis am rechten Rand (Z-ABCD-02). Neben dem Ring steht ein Abzeichen „ABCD · oluşuyor“ (Rahmen Warnung) oder „Gartley ✓“ (gültig, Rahmen Erfolg); der Stand ist als Text lesbar. Mehrere Formationen im Zeitrahmen: Abzeichen in einem Stapel (nächstes D oben), nur die gewählte voll gezeichnet, die übrigen als blasser Ring und blasses Abzeichen; Klick auf ein Abzeichen wählt die Formation; D-Niveaus näher als 1,5 ATR bilden ein Band „D? bölgesi“ mit beiden Preisen (Plan 1105-A5, A5.5/A5.6/A5.6.1)."
