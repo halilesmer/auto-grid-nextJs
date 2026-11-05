@@ -147,3 +147,21 @@ test.describe('UI-11 schmale Breite', () => {
     });
   }
 });
+
+/**
+ * React meldet doppelte Schlüssel nur auf der Konsole, und nur im Dev-Build: im Produktions-Build dieses Laufs bleibt der Test grün.
+ * Er greift gegen `next dev` (E2E_REUSE=1 E2E_PORT=<Port>, Server mit NEXT_PUBLIC_API_URL=http://mock-worker.test).
+ */
+for (const [name, url] of [['frei', FREE], ['Setup', SETUP], ['Formation', `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`]] as const) {
+  test(`UI-11 ${name}: Legende meldet keine doppelten React-Schlüssel`, { tag: '@UI-11' }, async ({ page, worker }) => {
+    void worker;
+    const errors: string[] = [];
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await page.goto(url);
+    await expect(page.getByTestId('oscillator-controls')).toBeAttached();
+    await expect(page.locator('[data-system-row="rsi"]')).toHaveCount(1);
+    await expect(page.locator('[data-system-row="wave"]')).toHaveCount(1);
+    await page.waitForTimeout(500);
+    expect(errors.filter(text => /same key/.test(text))).toEqual([]);
+  });
+}

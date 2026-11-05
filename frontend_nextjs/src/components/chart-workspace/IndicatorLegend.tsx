@@ -249,7 +249,8 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
   const paneControls = (paneId: string, paneIndex: number, hot: boolean) => {
     const system = systemOf(paneId), members = indicators.filter(item => item.paneId === paneId), name = paneName(paneId), collapsed = system ? system.collapsed : members[0].paneCollapsed, maximized = maximizedPaneId === paneId;
     const order = paneIds.indexOf(paneId), first = order === 0, last = order === paneIds.length - 1;
-    return <div key={paneId} className={`pointer-events-auto flex items-center rounded ${hot ? 'opacity-100' : REVEAL_PANE}`} data-oscillator-pane={name} data-pane-index={paneIndex}>
+    // No key: the controls are a single child next to the row, whose key is the pane id (same key = React duplicate-key warning)
+    return <div className={`pointer-events-auto flex items-center rounded ${hot ? 'opacity-100' : REVEAL_PANE}`} data-oscillator-pane={name} data-pane-index={paneIndex}>
       {!first && <Button size="icon-xs" variant="ghost" data-pane-action="up" hint={t('cw.paneUp.hint')} aria-label={t('cw.paneUp', { indicator: name })} onClick={() => actions.movePane(paneId, -1)}><ArrowUp size={14} /></Button>}
       {!last && <Button size="icon-xs" variant="ghost" data-pane-action="down" hint={t('cw.paneDown.hint')} aria-label={t('cw.paneDown', { indicator: name })} onClick={() => actions.movePane(paneId, 1)}><ArrowDown size={14} /></Button>}
       <Button size="icon-xs" variant="ghost" data-pane-action="remove" hint={t('cw.paneRemove.hint')} aria-label={t('cw.paneRemoveNamed', { indicator: name })} onClick={() => actions.removePane(paneId)}><Trash2 size={14} /></Button>
