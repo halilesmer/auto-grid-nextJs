@@ -117,11 +117,14 @@ export function applyAppearance(binding: ChartBinding, a: Appearance, digits: nu
 
 /** RSI band tint follows public series coordinates, so resizing and inverted axes remain correct. */
 const COLLAPSED_PANE_PX = 32;
-/** Height of a new pane as a part of the price pane. The system parts keep the proportions of the former fixed layout 5 : 1 : 1.2 (PR 2 of plan 1105-A6 sets one ratio for all). */
-const USER_PANE_PART = 0.25;
-const SYSTEM_PANE_PART: Record<SystemPaneId, number> = { rsi: 0.2, wave: 0.24 };
+/** Height of every oscillator pane as a part of the price pane: 2 : 1 like TradingView (system panes too). */
+const OSCILLATOR_PANE_PART = 0.5;
+/** On a small screen the oscillator panes give way, so the price pane keeps this height (UI-12). */
+const MIN_PRICE_PANE_PX = 150;
+/** Height of the time axis below the last pane */
+const TIME_AXIS_PX = 28;
 /** Ratio against 1 for the other panes; the chart keeps its own minimum pane height. */
-const MAXIMIZED_PANE_STRETCH = 1000;
+const MAXIMIZED_PANE_STRETCH = 1_000_000;
 
 class BandTint implements ISeriesPrimitive<Time> {
   private series: SeriesAttachedParameter<Time>['series'] | null = null;
@@ -229,9 +232,10 @@ export class IndicatorRenderer {
    */
   update(configs: Indicator[], bars: readonly Bar[], missing: readonly MissingRange[], tf: number, a: Appearance, symbol: string, until: number, maximizedPaneId: string | null = null, systems: readonly SystemPaneModel[] = [], order: readonly string[] = []) {
     const { chart } = this.binding, colors = appearanceColors(a), theme = readChartColors();
-    const active = configs.filter(config => config.visible && tf >= config.minTimeframe && tf <= config.maxTimeframe);
+    // Hidden (eye) oscillators stay in `active`: their pane keeps its place and height, only the series is invisible
+    const active = configs.filter(config => (config.visible || isOscillator(config)) && tf >= config.minTimeframe && tf <= config.maxTimeframe);
     const scaleOf = (config: Indicator) => !isOscillator(config) || config.scaleSide === 'auto' ? a.side : config.scaleSide;
-    chart.applyOptions({ leftPriceScale: { visible: active.some(config => scaleOf(config) === 'left') || a.side === 'left' }, rightPriceScale: { visible: active.some(config => scaleOf(config) === 'right') || a.side !== 'left' } });
+    chart.applyOptions({ leftPriceScale: { visible: active.some(config => config.visible && scaleOf(config) === 'left') || a.side === 'left' }, rightPriceScale: { visible: active.some(config => config.visible && scaleOf(config) === 'right') || a.side !== 'left' } });
     const paneOrder = orderPanes(order, presentPanes(active, systems.map(system => system.id)));
     const signature = JSON.stringify([configs, a.indicatorLabels, a.preset, colors.primary, colors.text, tf, a.side, paneOrder, systems.map(({ points, ...rest }) => { void points; return rest; }), theme.primary]);
     const rebuilt = signature !== this.signature;
@@ -244,7 +248,7 @@ export class IndicatorRenderer {
         const color = config.color || colors.info, negative = config.negative || colors.down;
         const plots: typeof this.series = [];
         const line = (tone: string, histogram = false) => {
-          const options = { priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
+          const options = { visible: config.visible, priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
           const s = histogram ? chart.addSeries(HistogramSeries, options, pane) : chart.addSeries(LineSeries, options, pane);
           // Ein Indikator-Bereich übernähme sonst die großen oberen Ränder der Kerzen-Achse (Platz für die Bedienung auf dem Chart)
           if (pane > 0) s.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
@@ -254,14 +258,13 @@ export class IndicatorRenderer {
         if (isOscillator(config) && !this.paneSeries.has(config.paneId)) this.paneSeries.set(config.paneId, first);
         const divergence = config.kind === 'RSI' && config.divergence ? new DivergenceLines(colors.up, negative) : null;
         if (divergence) first.attachPrimitive(divergence);
-        if (pane > 0) this.setDefaultStretch(pane);
         if (config.kind === 'RSI') {
           first.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
           if (config.bands) for (const p of [config.upper, config.middle, config.lower]) first.createPriceLine({ price: p, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
           if (config.background) first.attachPrimitive(new BandTint(config.lower, config.upper, withAlpha(color, .08)));
           if (config.smoothing !== 'none') { line(config.maColor || colors.warning); if (config.smoothing === 'BB') { line(colors.up); line(colors.up); } }
           if (config.gradients) for (const [threshold, top] of [[config.upper, true], [config.lower, false]] as const) {
-            const s = chart.addSeries(BaselineSeries, { baseValue: { type: 'price', price: threshold }, topLineColor: 'transparent', bottomLineColor: 'transparent', topFillColor1: top ? withAlpha(colors.up, .4) : 'transparent', topFillColor2: 'transparent', bottomFillColor1: 'transparent', bottomFillColor2: !top ? withAlpha(negative, .4) : 'transparent', priceLineVisible: false, lastValueVisible: false }, pane);
+            const s = chart.addSeries(BaselineSeries, { baseValue: { type: 'price', price: threshold }, visible: config.visible, topLineColor: 'transparent', bottomLineColor: 'transparent', topFillColor1: top ? withAlpha(colors.up, .4) : 'transparent', topFillColor2: 'transparent', bottomFillColor1: 'transparent', bottomFillColor2: !top ? withAlpha(negative, .4) : 'transparent', priceLineVisible: false, lastValueVisible: false }, pane);
             plots.push(s); this.series.push(s);
           }
         }
@@ -274,7 +277,7 @@ export class IndicatorRenderer {
       for (const config of active) if (!isOscillator(config)) build(config);
       for (const paneId of paneOrder) {
         const system = systems.find(item => item.id === paneId);
-        if (system) { if (!system.hidden) this.buildSystem(system, theme); continue; }
+        if (system) { this.buildSystem(system, theme); continue; }
         for (const config of active) if (isOscillator(config) && config.paneId === paneId) build(config);
       }
       this.binding.host.setAttribute('data-system-panes', String(basePanes + this.systemDrawn.length));
@@ -282,6 +285,7 @@ export class IndicatorRenderer {
     const values: { config: Indicator; value: Value }[] = [];
     for (const group of this.groups) {
       const { config, plots } = group;
+      if (!config.visible) { group.result = null; group.times = []; continue; } // hidden by the eye: no calculation, no value
       const visibleBars = bars.filter(b => b.time <= until);
       const source = config.timeframe > tf ? aggregateIndicatorBars(visibleBars, config.timeframe, tf, config.waitClose, until, missing) : visibleBars;
       const result = calculateIndicator(source, config, missing); group.result = result; group.times = source.map(b => b.time);
@@ -334,21 +338,27 @@ export class IndicatorRenderer {
     if (!plot || this.binding.isDisposed()) return null;
     try { return plot.getPane().paneIndex(); } catch { return null; }
   }
-  /** Height of a new pane as a part of the price pane */
-  private setDefaultStretch(pane: number, part = USER_PANE_PART) { this.binding.chart.panes()[pane]?.setStretchFactor((this.binding.chart.panes()[0]?.getStretchFactor() ?? 1) * part); }
+  /** Every open oscillator pane gets half the height of the price pane; a room too small for that keeps the price pane at its minimum. */
+  private applyPaneParts(collapsed: ReadonlySet<number>) {
+    const panes = this.binding.chart.panes(), base = panes[0]?.getStretchFactor() || 1;
+    const open = panes.map((_, index) => index).filter(index => index > 0 && !collapsed.has(index));
+    const room = this.binding.host.clientHeight - TIME_AXIS_PX - panes.length /* 1 px separator each */ - collapsed.size * COLLAPSED_PANE_PX;
+    let part = OSCILLATOR_PANE_PART;
+    if (room > MIN_PRICE_PANE_PX && open.length && room / (1 + part * open.length) < MIN_PRICE_PANE_PX) part = (room - MIN_PRICE_PANE_PX) / (open.length * MIN_PRICE_PANE_PX);
+    for (const index of open) panes[index].setStretchFactor(base * part);
+  }
   /** One pane with one series for a system oscillator; its series goes to `systemSeries` for the drawing layer. */
   private buildSystem(system: SystemPaneModel, theme: ReturnType<typeof readChartColors>) {
     const { chart } = this.binding, pane = chart.panes().length;
     const priceFormat = { type: 'price' as const, precision: system.precision, minMove: 10 ** -system.precision };
     const plot = system.kind === 'histogram'
-      ? chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false, base: 0, priceFormat }, pane)
-      : chart.addSeries(LineSeries, { color: theme.primary, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, priceFormat }, pane);
+      ? chart.addSeries(HistogramSeries, { visible: !system.hidden, priceLineVisible: false, lastValueVisible: false, base: 0, priceFormat }, pane)
+      : chart.addSeries(LineSeries, { visible: !system.hidden, color: theme.primary, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, priceFormat }, pane);
     // The pane would take the large top margin of the candle axis (room for the controls)
     plot.priceScale().applyOptions({ scaleMargins: system.kind === 'histogram' ? { top: 0.1, bottom: 0.1 } : { top: 0.08, bottom: 0.08 } });
     for (const price of system.levels ?? []) plot.createPriceLine({ price, color: 'rgba(128,128,128,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
-    this.setDefaultStretch(pane, SYSTEM_PANE_PART[system.id]);
     this.series.push(plot); this.paneSeries.set(system.id, plot); this.systemDrawn.push({ system, plot });
-    if (this.systemSeries) this.systemSeries[system.id].current = plot as ISeriesApi<'Line' | 'Histogram'>;
+    if (this.systemSeries && !system.hidden) this.systemSeries[system.id].current = plot as ISeriesApi<'Line' | 'Histogram'>;
   }
   /** Draws the hovered and the selected indicator thicker; the selected one also gets marks. */
   emphasize(hoveredId: string | null, selectedId: string | null) {
@@ -373,6 +383,7 @@ export class IndicatorRenderer {
     this.restoreStretch();
     // pane.setHeight() reads the last layout, which new panes do not have yet. Stretch factors need no layout.
     const collapsed = new Set([...collapsedIds].map(id => this.paneIndexOf(id)).filter((index): index is number => index !== null));
+    this.applyPaneParts(collapsed);
     const openStretch = panes.reduce((sum, pane, index) => collapsed.has(index) ? sum : sum + pane.getStretchFactor(), 0);
     const roomForOpenPanes = Math.max(1, this.binding.host.clientHeight - collapsed.size * COLLAPSED_PANE_PX);
     for (const index of collapsed) panes[index]?.setStretchFactor(COLLAPSED_PANE_PX * openStretch / roomForOpenPanes);
@@ -380,10 +391,22 @@ export class IndicatorRenderer {
     if (maximized !== null) {
       this.stretchBeforeMaximize = panes.map(pane => ({ pane, stretch: pane.getStretchFactor() }));
       panes.forEach((pane, index) => pane.setStretchFactor(index === maximized ? MAXIMIZED_PANE_STRETCH : 1));
+      // The chart keeps a 2 px strip and a separator for each pane at any ratio. Like TradingView, the other panes go completely.
+      const rows = new Set<HTMLElement>();
+      panes.forEach((pane, index) => { const row = pane.getHTMLElement()?.closest('tr'); if (row && index !== maximized) rows.add(row); });
+      for (const row of [...rows]) { const next = row.nextElementSibling; if (next instanceof HTMLElement && next.children.length === 1) rows.add(next); }
+      const before = maximized > 0 ? panes[maximized].getHTMLElement()?.closest('tr')?.previousElementSibling : null;
+      if (before instanceof HTMLElement && before.children.length === 1) rows.add(before);
+      for (const row of rows) row.style.setProperty('display', 'none');
+      this.hiddenRows = [...rows];
     }
     this.maximizedPaneId = maximizedPaneId;
   }
+  /** Pane rows hidden while a pane is maximized */
+  private hiddenRows: HTMLElement[] = [];
   private restoreStretch() {
+    for (const row of this.hiddenRows) row.style.removeProperty('display');
+    this.hiddenRows = [];
     // A pane the chart removed since then cannot take a factor any more; its saved value is of no use
     for (const { pane, stretch } of this.stretchBeforeMaximize ?? []) { try { pane.setStretchFactor(stretch); } catch { /* pane is gone */ } }
     this.stretchBeforeMaximize = null;

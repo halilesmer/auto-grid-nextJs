@@ -458,7 +458,8 @@ test('Bereiche lassen sich verschieben, einklappen, vergrößern und entfernen; 
 
   await controls.getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) }).click();
   await expect.poll(async () => (await storedDocument(page, context)).indicators.map(item => item.kind)).toEqual(['EWO', 'RSI']);
-  await expect(controls.getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) })).toBeDisabled();
+  // The last pane has no down button (TradingView hides a move that is not possible)
+  await expect(controls.getByRole('button', { name: msg('cw.paneDown', { indicator: 'RSI' }) })).toHaveCount(0);
 
   await controls.getByRole('button', { name: msg('cw.paneCollapse', { indicator: 'RSI' }) }).click();
   await expect.poll(async () => (await paneHeights(page))[2]).toBeLessThanOrEqual(34);
@@ -496,7 +497,7 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 
   await menu('RSI');
   await page.getByRole('button', { name: msg('cw.indicatorHide', { indicator: 'RSI' }) }).click();
-  // A hidden indicator keeps its legend row (struck through) so it can be shown again.
+  // A hidden indicator keeps its pane and its legend row (grey, eye off) so it can be shown again.
   await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-visible', 'false');
   await menu('RSI');
   await page.getByRole('button', { name: msg('cw.indicatorShow', { indicator: 'RSI' }) }).click();

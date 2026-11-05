@@ -59,7 +59,7 @@ areas: [frontend, tests]
 - No test was changed to pass. ANA-20 (`paneHeights`) and ANA-22 (`paneBoxOf`) count the system panes after the price pane. The default order (RSI(7), Wave, user panes) keeps them true. A move of a user pane also keeps the order of the indicator list, so the ANA-20 check of the stored list stays true.
 
 ## Open points
-- [ ] PR 2 (A6.6 to A6.8): eye like TradingView, height 2 : 1, pane button order and trash icon.
+- [x] PR 2 (A6.6 to A6.8): done, see `2026-11-05-oscillator-pane-tradingview.md`.
 
 ## Lessons
 - A fixed pane number in two files (`ChartCore`, `FormationChart`) made each change of the pane set a change in both. Read the number from the series.

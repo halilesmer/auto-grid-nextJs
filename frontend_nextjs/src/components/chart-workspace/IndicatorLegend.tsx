@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import type { DrawingManager } from 'lightweight-charts-drawing';
 import type { MouseEventParams, Time } from 'lightweight-charts';
-import { ArrowDown, ArrowLeftRight, ArrowUp, Bell, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FunctionSquare, Info, ListTree, Maximize2, Minimize2, MoreHorizontal, Plus, Settings2, Star, X } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, Bell, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FunctionSquare, Info, ListTree, Maximize2, Minimize2, MoreHorizontal, Plus, Settings2, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useFormat, useT } from '@/i18n';
@@ -85,7 +85,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
   const [hover, setHover] = useState<{ time: number | null; values: Map<string, Value> | null; pane: number | null; line: string | null }>({ time: null, values: null, pane: null, line: null });
   const [selected, setSelected] = useState<string | null>(null);
   const oscillators = indicators.filter(isOscillator);
-  // Every pane of the chart in its order, hidden ones included (a hidden pane has no chart pane, its row sits in the price pane)
+  // Every pane of the chart in its order. A pane hidden with the eye keeps its chart pane and its height (TradingView).
   const known = [...systemPanes.map(pane => pane.id as string), ...new Set(oscillators.map(item => item.paneId))];
   const paneIds = paneOrder ? [...paneOrder.filter(id => known.includes(id)), ...known.filter(id => !paneOrder.includes(id))] : known;
   const paneKey = `${indicators.map(item => `${item.id}${item.paneId}${item.visible}${item.paneCollapsed}`).join('|')}#${systemPanes.map(pane => `${pane.id}${pane.hidden}${pane.collapsed}`).join('|')}#${paneIds.join('|')}`;
@@ -189,7 +189,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     <span className={`flex items-center ${emphasis === 'selected' ? 'opacity-100' : REVEAL}`}>
       <Button size="icon-xs" variant="ghost" aria-pressed={visible} hint={t('cw.legend.visibility.hint')} aria-label={t('cw.legend.visibility', { indicator: label })} onClick={onToggleVisible}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</Button>
       {settings && <Button size="icon-xs" variant="ghost" hint={t('cw.legend.settings.hint')} aria-label={t('cw.legend.settings', { indicator: label })} onClick={settings}><Settings2 size={14} /></Button>}
-      <Button size="icon-xs" variant="ghost" hint={removeHint} aria-label={removeLabel} onClick={remove}><X size={14} /></Button>
+      <Button size="icon-xs" variant="ghost" hint={removeHint} aria-label={removeLabel} onClick={remove}><Trash2 size={14} /></Button>
       {menu}
     </span>
   </div>;
@@ -204,7 +204,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     const menuPanelClass = overlayLayout && paneIndex > 0 ? 'bottom-full top-auto mb-2 mt-0 max-h-[70dvh] w-64 overflow-y-auto' : 'w-64';
     return rowShell({
       key: indicator.id, attributes: { 'data-indicator-row': indicator.kind }, hot: hover.pane === paneIndex, label, visible: indicator.visible, drawn, emphasis,
-      text: <span data-indicator-value={indicator.kind} style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${drawn ? 'text-muted-foreground' : 'text-muted-foreground/60 line-through'}`}>
+      text: <span data-indicator-value={indicator.kind} style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${drawn ? 'text-muted-foreground' : `text-muted-foreground/60 ${indicator.visible ? 'line-through' : ''}`}`}>
         {showNames ? indicator.kind : ''}{showParams && drawn ? ` (${indicator.period}${indicator.kind === 'EWO' || indicator.kind === 'MACD' ? `/${indicator.slow}` : ''})` : ''}{showValues && drawn && indicator.values && value !== undefined ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: 5 })}` : ''}
       </span>,
       onToggleVisible: () => actions.toggleVisible(indicator), settings: () => actions.openSettings(indicator), remove: () => actions.remove(indicator),
@@ -223,7 +223,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
           <DropdownMenuGroup>
             <DropdownMenuItem icon={<Info size={15} />} hint={t('cw.indicatorInfo.hint')} onSelect={() => actions.openInfo(indicator, false)}>{t('cw.indicatorInfo')}</DropdownMenuItem>
             <DropdownMenuItem icon={<FunctionSquare size={15} />} hint={t('cw.indicatorSource.hint')} onSelect={() => actions.openInfo(indicator, true)}>{t('cw.indicatorSource')}</DropdownMenuItem>
-            <DropdownMenuItem icon={<X size={15} />} hint={t('cw.remove.hint')} tone="danger" onSelect={() => actions.remove(indicator)}>{t('cw.remove')}</DropdownMenuItem>
+            <DropdownMenuItem icon={<Trash2 size={15} />} hint={t('cw.remove.hint')} tone="danger" onSelect={() => actions.remove(indicator)}>{t('cw.remove')}</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenu>,
     });
@@ -234,13 +234,13 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     const menuPanelClass = overlayLayout && paneIndex > 0 ? 'bottom-full top-auto mb-2 mt-0 max-h-[70dvh] w-64 overflow-y-auto' : 'w-64';
     return rowShell({
       key: pane.id, attributes: { 'data-system-row': pane.id }, hot: hover.pane === paneIndex, label: pane.label, visible: !pane.hidden, drawn: !pane.hidden,
-      text: <span style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${pane.hidden ? 'text-muted-foreground/60 line-through' : 'text-muted-foreground'}`}>{pane.label}</span>,
+      text: <span style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${pane.hidden ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}>{pane.label}</span>,
       onToggleVisible: () => actions.toggleSystemVisible(pane.id), remove: () => actions.removePane(pane.id),
       removeLabel: t('cw.legend.hideLayer', { layer: pane.label }), removeHint: t('cw.legend.hideLayer.hint'),
       menu: <DropdownMenu label={t('cw.indicatorActions', { indicator: pane.label })} hint={t('cw.indicatorActions.hint')} icon={<MoreHorizontal size={14} />} size="icon-xs" variant="ghost" panelClassName={menuPanelClass}>
         <DropdownMenuGroup>
           <DropdownMenuItem icon={pane.hidden ? <Eye size={15} /> : <EyeOff size={15} />} hint={t(pane.hidden ? 'cw.indicatorShow.hint' : 'cw.indicatorHide.hint')} onSelect={() => actions.toggleSystemVisible(pane.id)}>{t(pane.hidden ? 'cw.indicatorShow' : 'cw.indicatorHide', { indicator: pane.label })}</DropdownMenuItem>
-          <DropdownMenuItem icon={<X size={15} />} hint={t('cw.legend.hideLayer.hint')} tone="danger" onSelect={() => actions.removePane(pane.id)}>{t('cw.legend.hideLayer', { layer: pane.label })}</DropdownMenuItem>
+          <DropdownMenuItem icon={<Trash2 size={15} />} hint={t('cw.legend.hideLayer.hint')} tone="danger" onSelect={() => actions.removePane(pane.id)}>{t('cw.legend.hideLayer', { layer: pane.label })}</DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenu>,
     });
@@ -250,11 +250,11 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     const system = systemOf(paneId), members = indicators.filter(item => item.paneId === paneId), name = paneName(paneId), collapsed = system ? system.collapsed : members[0].paneCollapsed, maximized = maximizedPaneId === paneId;
     const order = paneIds.indexOf(paneId), first = order === 0, last = order === paneIds.length - 1;
     return <div key={paneId} className={`pointer-events-auto flex items-center rounded ${hot ? 'opacity-100' : REVEAL_PANE}`} data-oscillator-pane={name} data-pane-index={paneIndex}>
-      <Button size="icon-xs" variant="ghost" hint={t(first ? 'cw.paneFirst.hint' : 'cw.paneUp.hint')} aria-label={t('cw.paneUp', { indicator: name })} disabled={first} onClick={() => actions.movePane(paneId, -1)}><ArrowUp size={14} /></Button>
-      <Button size="icon-xs" variant="ghost" hint={t(last ? 'cw.paneLast.hint' : 'cw.paneDown.hint')} aria-label={t('cw.paneDown', { indicator: name })} disabled={last} onClick={() => actions.movePane(paneId, 1)}><ArrowDown size={14} /></Button>
-      <Button size="icon-xs" variant="ghost" hint={t(collapsed ? 'cw.paneExpand.hint' : 'cw.paneCollapse.hint')} aria-label={t(collapsed ? 'cw.paneExpand' : 'cw.paneCollapse', { indicator: name })} aria-expanded={!collapsed} onClick={() => actions.toggleCollapsed(paneId)}>{collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</Button>
-      <Button size="icon-xs" variant="ghost" hint={t(maximized ? 'cw.paneRestore.hint' : 'cw.paneMaximize.hint')} aria-label={t(maximized ? 'cw.paneRestore' : 'cw.paneMaximize', { indicator: name })} aria-pressed={maximized} onClick={() => actions.toggleMaximized(paneId)}>{maximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</Button>
-      <Button size="icon-xs" variant="ghost" hint={t('cw.paneRemove.hint')} aria-label={t('cw.paneRemoveNamed', { indicator: name })} onClick={() => actions.removePane(paneId)}><X size={14} /></Button>
+      {!first && <Button size="icon-xs" variant="ghost" data-pane-action="up" hint={t('cw.paneUp.hint')} aria-label={t('cw.paneUp', { indicator: name })} onClick={() => actions.movePane(paneId, -1)}><ArrowUp size={14} /></Button>}
+      {!last && <Button size="icon-xs" variant="ghost" data-pane-action="down" hint={t('cw.paneDown.hint')} aria-label={t('cw.paneDown', { indicator: name })} onClick={() => actions.movePane(paneId, 1)}><ArrowDown size={14} /></Button>}
+      <Button size="icon-xs" variant="ghost" data-pane-action="remove" hint={t('cw.paneRemove.hint')} aria-label={t('cw.paneRemoveNamed', { indicator: name })} onClick={() => actions.removePane(paneId)}><Trash2 size={14} /></Button>
+      <Button size="icon-xs" variant="ghost" data-pane-action="collapse" hint={t(collapsed ? 'cw.paneExpand.hint' : 'cw.paneCollapse.hint')} aria-label={t(collapsed ? 'cw.paneExpand' : 'cw.paneCollapse', { indicator: name })} aria-expanded={!collapsed} onClick={() => actions.toggleCollapsed(paneId)}>{collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</Button>
+      <Button size="icon-xs" variant="ghost" data-pane-action="maximize" hint={t(maximized ? 'cw.paneRestore.hint' : 'cw.paneMaximize.hint')} aria-label={t(maximized ? 'cw.paneRestore' : 'cw.paneMaximize', { indicator: name })} aria-pressed={maximized} onClick={() => actions.toggleMaximized(paneId)}>{maximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</Button>
     </div>;
   };
 

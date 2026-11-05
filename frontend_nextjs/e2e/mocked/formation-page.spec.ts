@@ -773,7 +773,8 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       const line = page.getByTestId('formation-overlay').locator('line').first();
       const xBefore = await line.getAttribute('x1');
       // Links vor dem ersten Formationspunkt liegt freie Chart-Fläche ohne interaktive SVG-Linien.
-      await page.mouse.move(200, 450);
+      // y 250 lies in the price pane; with the 2 : 1 pane heights (UI-11) y 450 falls on the buttons of the first oscillator pane
+      await page.mouse.move(200, 250);
       await page.mouse.wheel(0, -250);
       await expect.poll(() => line.getAttribute('x1')).not.toBe(xBefore);
       if (theme === 'light') {
