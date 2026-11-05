@@ -35,6 +35,7 @@ export const FIXTURE_TRENDS: Record<string, Partial<TrendSettings>> = {
   'crb-buy-h4-01': { minSize: 0.75, changeCloses: 1 },
   'crb-sell-h4-01': { minSize: 0.75, changeCloses: 1 },
   'cyp-bad-h4-01': { minSize: 1.25, changeCloses: 1 },
+  'cyp-bad-h4-03': { minSize: 1.5, changeCloses: 1 },
   'cyp-buy-h4-01': { minSize: 0.75, changeCloses: 1 },
   'cyp-lib-h4-01': { minSize: 1, changeCloses: 1 },
   'cyp-sell-h4-01': { minSize: 1, changeCloses: 1 },

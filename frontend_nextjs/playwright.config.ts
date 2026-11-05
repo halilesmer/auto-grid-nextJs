@@ -20,6 +20,10 @@ import { E2E_API_KEY, E2E_PORT, MOCK_API } from './e2e/fixtures/env';
  *   npx playwright test --grep @ZON      nur eine Kategorie
  *   npx playwright test --ui             interaktiv
  *
+ * Port: lokal aus dem Checkout-Pfad abgeleitet (3300–3999, je Worktree ein anderer),
+ * in CI 3100, ein gesetztes E2E_PORT gewinnt (e2e/fixtures/env.ts, SYS-10). Ist der Port
+ * belegt, bricht Playwright ab; einen eigenen laufenden Server nimmt es nur mit E2E_REUSE=1.
+ *
  * Builds landen in .next-e2e bzw. .next-live (NEXT_DIST_DIR), damit sie neben
  * `npm run dev:frontend` laufen können.
  */
@@ -75,7 +79,9 @@ export default defineConfig({
       ? undefined
       : {
           ...server,
-          reuseExistingServer: !process.env.CI,
+          // Nie einen fremden Server weiterverwenden (anderer Worktree = anderer Build, SYS-10).
+          // Nur für einen von Hand gestarteten Server im Dev-Loop: E2E_REUSE=1.
+          reuseExistingServer: process.env.E2E_REUSE === '1',
           timeout: 240_000,
           stdout: 'ignore',
           stderr: 'pipe',
