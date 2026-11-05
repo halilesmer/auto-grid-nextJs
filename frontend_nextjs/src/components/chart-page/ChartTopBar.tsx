@@ -61,7 +61,7 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
   const [legendOpen, setLegendOpen] = useState(false);
   return (
     <div className="pointer-events-none bg-background short:grid short:grid-cols-[max-content_max-content_minmax(0,1fr)] short:[&_[aria-haspopup]]:max-h-7 short:[&_input]:max-h-7 short:border-b short:border-border" data-testid="chart-topbar">
-      <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-2 py-1 short:contents', !flat && '@min-[71rem]/formation-main:pr-116', '@max-[30rem]/formation-main:gap-x-1')}>
+      <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-2 py-1 short:contents', !flat && '@min-[71rem]/formation-main:pr-97', '@max-[30rem]/formation-main:gap-x-1')}>
         <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 max-lg:w-full short:col-span-3 short:w-auto short:flex-nowrap short:border-b short:border-border short:px-2 short:py-0.5', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-1 @max-[30rem]/formation-main:flex-1 @max-[30rem]/formation-main:basis-[56%]">{account}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-3">{mode}</Slot>

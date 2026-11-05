@@ -23,8 +23,8 @@ Step S6 of plan 1105-A5 (owner, 2026-11-05; decisions A5.8 to A5.8.4 in `2026-11
 | `components/chart-workspace/ToolbarDock.tsx` (new) | Renders the top strip, the bottom strip and the free groups. Handle = `DropdownMenu` trigger with pointer drag. Drag ghost shows the group name and the target. Arrow keys move a free group |
 | `components/chart-workspace/ChartWorkspace.tsx` | The toolbar region gives the buttons to `ToolbarDock` as four groups. The `--workspace-card` reserve follows the bottom strip; with no bottom strip the reserve is `0px` |
 | `components/chart-workspace/SettingsDialog.tsx` | Button "Araç çubuğunu sıfırla" in the footer (only on `/chart`). It acts at once, not on "Apply" |
-| `components/chart-page/LayersMenu.tsx` | Below a 30rem container, "Layers" shows only the icon (design A5.8, 375 px). The name stays as `aria-label` |
-| `components/formation/FormationToolbar.tsx`, `chart-page/ChartTopBar.tsx` | The header reserve for the toolbar is now 30.5rem (Formation, was 26rem) and 29rem (Setup, Free, was 24.25rem) |
+| `components/chart-page/LayersMenu.tsx`, `chart-workspace/TrendToggle.tsx` | "Layers" shows only the icon below a 30rem container (design A5.8, 375 px) and in the header strip. The name stays as `aria-label`. Both menus open up or down by the place of the group |
+| `components/formation/FormationToolbar.tsx` | Comment only: the header reserve stays 26rem (Formation) and 24.25rem (Setup, Free) |
 | `i18n/messages/workspace.ts` | `cw.tbGroup.*`, `cw.tbHandle`, `cw.tbMove*`, `cw.tbReset`, `cw.tbDrop*` and their hints (tr/en/de) |
 
 Rules of the layout:
@@ -35,6 +35,7 @@ Rules of the layout:
 - A free group stores `x` and `y` as ratios (0 to 1) of the chart container. The drawing pushes the group inside the chart: 60 px from the left (drawing bar), 5rem from the right (price axis, same as the bottom strip), 8 px from the top and the bottom.
 - When a free group does not fit, it shows in the bottom strip. The stored place does not change. When the window becomes wide again, the group goes back to its free place.
 - The free group size is measured only while the group is free (`w-max`, no wrap). Thus the decision "fits / does not fit" does not oscillate.
+- In the header (top strip, container 71rem or wider) the groups have no border and no padding, the handle is 12 px wide and "Layers" shows only the icon. Thus the toolbar is not wider than before S6, and the header reserve does not change.
 - At `lg` and wider the page header lies on the chart (`ChartPage`, `--chart-top`). Below a 71rem container the top strip and the free area start below the header.
 - Menus in a group (Layers, Trend settings, the handle menu) open by the place of the group, not by the window width: up in the bottom strip and in the lower half of the chart (`data-menu="up"` on the group, `group-data-[menu=up]/tb:` in `LayersMenu` and `TrendToggle`).
 - A bottom strip in a wide container floats over the chart. The chart does not become smaller there (as before for the card at narrow widths only).
@@ -52,6 +53,7 @@ Rules of the layout:
 | Write the fallback to the store when a free group does not fit (as the design mock) | The group then stays in the bottom strip after the window is wide again |
 | `motion` drag | Pointer events are sufficient. No new code path for touch is necessary (`touch-action: none` on the handle) |
 | Order inside a strip by drop position | Not in the decisions. The strips use the fixed group order. Can come later |
+| A larger header reserve for the wider toolbar (first attempt: 30.5rem and 29rem) | The precheck failed: at some window widths the header had three rows (UI-15, 1820 px: 94 px; FRM-38) or header controls overlapped (FRM-23, 1176 and 1304 px). The compact header strip keeps the old width |
 
 The handle uses the existing `DropdownMenu` (buttons, arrow keys, Escape returns focus). A drag sets a flag that stops the click after the pointer-up, so the menu does not open after a drag.
 
@@ -60,7 +62,7 @@ The handle uses the existing `DropdownMenu` (buttons, arrow keys, Escape returns
 - `npx tsc --noEmit`, `npm run lint`: no errors.
 - Lib tests `e2e/mocked/chart-toolbar-groups-lib.spec.ts` (@UI-16): auto zone, ratio, clamp, fallback, parse.
 - E2E `e2e/mocked/chart-toolbar-groups.spec.ts` (@UI-16): drag to the bottom strip and reload; keyboard only (menu, arrow keys, focus back on the handle); reset in the settings dialog and in the menu; fallback at 280 px and return at 1440 px; 375 px without horizontal scroll (@UI-08).
-- Browser pane, dev server against the worker, DEMO account, read only: mouse drag into the chart and to the bottom strip; Enter and arrow keys in the menu; reload keeps the place; 1600, 800, 375 and 280 px; light and dark. Measured toolbar width in the header: 476 px (Formation), 450 px (Setup).
+- Browser pane, dev server against the worker, DEMO account, read only: mouse drag into the chart and to the bottom strip; Enter and arrow keys in the menu; reload keeps the place; 1600, 800, 375 and 280 px; light and dark. Toolbar width in the header with bordered groups: 476 px (Formation), 450 px (Setup); this was too wide, see "Why".
 - Review by the `reviewer` agent: 1 critical, 6 should, 4 optional findings. Fixed: menu direction by group place, header offset at `lg`, ghost portal, stuck click suppression, stacked free groups, `aria-haspopup` without menu role, lost pointer capture, arrow keys with Alt/Ctrl/Meta, store object identity. Not fixed: handle target size and the hydration flash (see open points).
 - Not verified: drag with a real touch screen. The handle has `touch-action: none` and uses pointer events; the menu path works without drag.
 
@@ -74,4 +76,6 @@ The handle uses the existing `DropdownMenu` (buttons, arrow keys, Escape returns
 
 A child component's `useLayoutEffect` runs before the parent's `ref` is attached. Do not read `parentRef.current` in a child layout effect on mount. Use an own anchor element and its `parentElement`.
 
-When the toolbar becomes wider, measure it in all modes and change the header reserve (`FormationToolbar.tsx`, `ChartTopBar.tsx`). UI-14 checks that no header control is under the toolbar.
+Do not make the header toolbar wider. The header reserve is tuned against many window widths (UI-14, UI-15, FRM-23, FRM-38); a larger reserve gives three header rows at some widths. Make new toolbar parts compact in the header instead.
+
+A handle label must not contain the name of a button in its group. Tests find buttons with a non-exact name ("Gruppe Indikatoren verschieben" matched "Indikatoren").

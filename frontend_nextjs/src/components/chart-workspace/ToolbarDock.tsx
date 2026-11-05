@@ -183,12 +183,13 @@ export function ToolbarDock({ host, symbol, groups, movable, bottomRef }: Props)
         style={pos ? { left: pos.left, top: pos.top } : undefined}
         className={cn('group/tb flex min-w-0 max-w-full flex-wrap items-center gap-0.5 rounded-[0.875rem] border border-border bg-card p-px',
           zone === 'free' && 'absolute z-[53] w-max max-w-none flex-nowrap shadow-lg',
-          zone === 'top' && 'shadow-md @min-[71rem]/formation-main:shadow-none',
+          // Başlıkta (71rem ve üstü üst şerit) yer dar: çerçeve, iç boşluk ve gölge yok, tutamaç 12 px; araç çubuğu böylece S6 öncesi genişlikte kalır (UI-14/UI-15)
+          zone === 'top' && 'shadow-md @min-[71rem]/formation-main:border-transparent @min-[71rem]/formation-main:bg-transparent @min-[71rem]/formation-main:p-0 @min-[71rem]/formation-main:shadow-none',
           drag?.active && drag.id === id && 'opacity-40')}>
-        <DropdownMenu label={t('cw.tbHandle', { group: name })} hint={t('cw.tbHandle.hint')} variant="ghost" size="icon-xs"
+        <DropdownMenu label={t('cw.tbHandle')} hint={t('cw.tbHandle.hint')} variant="ghost" size="icon-xs"
           side={menuUp ? 'top' : 'bottom'} align="left" panelClassName="w-60"
           icon={<GripVertical size={14} aria-hidden="true" />}
-          triggerProps={{ className: 'w-4 cursor-grab touch-none active:cursor-grabbing', 'data-toolbar-handle': id, 'data-testid': `toolbar-handle-${id}`, ...handlers(id, zone, pos) }}>
+          triggerProps={{ className: cn('w-4 cursor-grab touch-none active:cursor-grabbing', zone === 'top' && '@min-[71rem]/formation-main:w-3'), 'data-toolbar-handle': id, 'data-testid': `toolbar-handle-${id}`, ...handlers(id, zone, pos) }}>
           <DropdownMenuGroup>
             {item('top', <ArrowUpToLine className="size-4" aria-hidden="true" />, 'cw.tbMoveTop', 'toolbar-move-top')}
             {item('bottom', <ArrowDownToLine className="size-4" aria-hidden="true" />, 'cw.tbMoveBottom', 'toolbar-move-bottom')}
@@ -220,7 +221,7 @@ export function ToolbarDock({ host, symbol, groups, movable, bottomRef }: Props)
     {(top.length > 0 || dragging) && (
       // Dar kapta grafiğin üstünde sağa yaslı; 71rem ve üstünde sayfa başlığının sağında (eski kartın yeri, FormationToolbar ve ChartTopBar yer ayırır)
       <div ref={topStrip} data-strip="top" data-testid={autoZone === 'top' ? 'workspace-toolbar' : 'toolbar-strip-top'}
-        className={cn('pointer-events-none absolute left-[60px] right-20 top-2 z-[53] lg:@max-[71rem]/formation-main:top-[calc(var(--chart-top,0px)+0.5rem)] flex min-w-0 flex-wrap items-center justify-end gap-1 rounded-lg',
+        className={cn('pointer-events-none absolute left-[60px] right-20 top-2 z-[53] lg:@max-[71rem]/formation-main:top-[calc(var(--chart-top,0px)+0.5rem)] flex min-w-0 flex-wrap items-center justify-end gap-1 rounded-lg @min-[71rem]/formation-main:gap-0.5',
           '@min-[71rem]/formation-main:left-auto @min-[71rem]/formation-main:right-1 @min-[71rem]/formation-main:top-px @min-[71rem]/formation-main:z-[60] @min-[71rem]/formation-main:h-[37px] @min-[71rem]/formation-main:rounded-none',
           '[&>*]:pointer-events-auto', dropMark('top'))}>
         {top.map(renderGroup)}

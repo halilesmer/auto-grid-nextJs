@@ -36,8 +36,8 @@ export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, childr
     <DropdownMenu
       label={t('cw.layers')}
       hint={t('cw.layers.hint')}
-      // Dar kapta (30rem altı, 375 px) yalnız simge; ad aria-label'da kalır (1105-A5.8, UI-16)
-      icon={<span className="inline-flex items-center gap-1.5 text-xs"><Layers size={15} aria-hidden="true" /><span className="@max-[30rem]/formation-main:sr-only">{t('cw.layers')}</span></span>}
+      // Dar kapta (30rem altı, 375 px) ve başlıktaki üst şeritte (71rem ve üstü) yalnız simge; ad aria-label'da kalır (1105-A5.8, UI-16)
+      icon={<span className="inline-flex items-center gap-1.5 text-xs"><Layers size={15} aria-hidden="true" /><span className="@max-[30rem]/formation-main:sr-only group-data-[zone=top]/tb:@min-[71rem]/formation-main:sr-only">{t('cw.layers')}</span></span>}
       variant="ghost"
       size="xs"
       align="left"

@@ -27,7 +27,7 @@ test('Oto yerleşim: geniş pencerede bütün gruplar üst şeritte, tutamaçlı
     await expect(group(page, id)).toHaveAttribute('role', 'group');
   }
   await expect(group(page, 'edit')).toHaveAttribute('aria-label', msg('cw.tbGroup.edit'));
-  await expect(handle(page, 'edit')).toHaveAccessibleName(msg('cw.tbHandle', { group: msg('cw.tbGroup.edit') }));
+  await expect(handle(page, 'edit')).toHaveAccessibleName(msg('cw.tbHandle'));
   await expect(strip(page, 'bottom')).toHaveCount(0);
 });
 
