@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [390]
 features: [UI-16, UI-08, UI-07, UI-14]
 areas: [frontend]
 ---
