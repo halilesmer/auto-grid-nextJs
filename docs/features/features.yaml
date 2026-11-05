@@ -1385,6 +1385,7 @@ kategorien:
           - /chart im freien Modus und im Setup-Modus öffnen.
           - Prüfen, dass unter den Kerzen die Fenster RSI und Wave stehen.
           - Im Menü Ebenen den Schalter Wave aus- und einschalten; das Wave-Fenster verschwindet ganz und kommt beim Einschalten ganz nach unten zurück.
+          - Gegen einen `next dev`-Server (E2E_REUSE=1) den Test „Legende meldet keine doppelten React-Schlüssel“ ausführen; die Konsole zeigt keine Meldung „same key“ für rsi oder wave.
         erwartet: Auf /chart frei und Setup stehen RSI(7) und Wave 5/35 wie auf /chart (Modus Formation); die Schalter entfernen und bauen ihre Bereiche (ausgeschaltet = kein Platz, ohne Wave wird das Kerzen-Fenster höher); die Nutzer-Indikatoren bleiben.
 
       - id: UI-12
