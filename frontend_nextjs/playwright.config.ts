@@ -53,11 +53,24 @@ const liveServer = {
 
 const server = LIVE ? liveServer : mockedServer;
 
+/**
+ * Lokale Worker (SYS-11): E2E_WORKERS, sonst 3 statt der Hälfte der Kerne. Auf dem 8-Kern-Mac
+ * laufen oft mehrere Sitzungen; mehr Browser machen den Lauf nicht schneller, nur die Zeitlimits
+ * knapper (Messung: docs/journal/2026-11-05-heavy-run-lock.md). CI bleibt bei Playwrights Standard.
+ */
+const LOCAL_WORKERS = Number(process.env.E2E_WORKERS) || 3;
+function resolveWorkers(): number | undefined {
+  if (LIVE) return 1;
+  if (process.env.CI) return undefined;
+  return LOCAL_WORKERS;
+}
+const workers = resolveWorkers();
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: !LIVE,
   // Live: nacheinander, damit der VPS/ngrok nicht mit parallelen Browsern belastet wird
-  workers: LIVE ? 1 : undefined,
+  workers,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',

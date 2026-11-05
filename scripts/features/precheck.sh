@@ -9,6 +9,9 @@
 # Ändert keine Dateien im Repo: Bericht unter .feature-results/precheck-e2e.json,
 # FEATURES.md/results.json aktualisiert weiterhin scripts/features/run.sh.
 # Dauer: rund 15 min (e2e ohne Shards). Läuft deshalb nicht im pre-push-Hook (hooks/RULES.md §4.8).
+# Maschinenweite Sperre (SYS-11, heavy_lock.sh): der ganze Lauf wartet, bis kein anderer schwerer Lauf
+# mehr läuft (HEAVY_LOCK=0 schaltet ab, in CI aus). Ein verwaister eigener Testserver auf dem Port
+# wird vor dem e2e-Schritt und beim Exit beendet (e2e_server.sh).
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -23,6 +26,17 @@ PY="$WORKER/.venv/bin/python"
 [ -x "$PY" ] || PY="$(command -v python3)"
 mkdir -p "$REPORTS"
 
+# shellcheck source=heavy_lock.sh
+source "$ROOT/scripts/features/heavy_lock.sh"
+# shellcheck source=e2e_server.sh
+source "$ROOT/scripts/features/e2e_server.sh"
+E2E_PORT_NUM=$(e2e_port "$FRONTEND")
+_cleanup_server() { e2e_server_cleanup "$E2E_PORT_NUM" "$FRONTEND" exit; }
+heavy_on_exit _cleanup_server
+lock_t0=$(date +%s)
+heavy_lock_acquire || exit $?
+LOCK_WAIT=$(( $(date +%s) - lock_t0 ))
+
 start=$(date +%s)
 results=()
 fail=0
@@ -30,6 +44,7 @@ fail=0
 step() {  # $1 = Name, Rest = Befehl
   local name="$1"; shift
   echo "━━ $name"
+  heavy_lock_step "$name"
   local t0=$(date +%s)
   "$@"
   local status=$?
@@ -49,9 +64,9 @@ lint()    { (cd "$FRONTEND" && npm run lint --silent); }
 tsc()     { (cd "$FRONTEND" && npx tsc --noEmit); }
 e2e() {
   rm -f "$JSON"
-  local port
-  port=$(cd "$FRONTEND" && node -p "require('./e2e/fixtures/env.ts').E2E_PORT" 2>/dev/null)
+  local port="$E2E_PORT_NUM"
   echo "   Port ${port:-?} (E2E_PORT überschreibt)"
+  e2e_server_cleanup "$port" "$FRONTEND" start || return 1
   (cd "$FRONTEND" && PLAYWRIGHT_JSON_OUTPUT_NAME="$JSON" \
       npx playwright test --project=mocked --reporter=dot,json "$@")
   local pw=$?
@@ -77,8 +92,8 @@ step e2e e2e "$@"
 total=$(( $(date +%s) - start ))
 echo
 if [ "$fail" -eq 0 ]; then
-  echo "PRECHECK OK in ${total}s · ${results[*]} · e2e $E2E_LINE"
+  echo "PRECHECK OK in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e $E2E_LINE"
 else
-  echo "PRECHECK FEHLER in ${total}s · ${results[*]} · e2e ${E2E_LINE:-–}"
+  echo "PRECHECK FEHLER in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e ${E2E_LINE:-–}"
 fi
 exit "$fail"

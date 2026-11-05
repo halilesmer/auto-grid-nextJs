@@ -42,6 +42,8 @@ Claude her seferinde aynı demo hesabı kullanır; kullanıcıdan tekrar bilgi i
 
 ## 4. Fonksiyon kataloğu ve otomatik testler
 
+Heavy test runs operate one at a time on the Mac, with a machine-wide lock (§4.12–4.14).
+
 Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FEATURES.md` (üretilir). Claude Code'da `/feature-test` skill'i (`.claude/skills/feature-test/SKILL.md`).
 
 1. **[elle]** Yeni veya değişen her özellik: `features.yaml`'da kayıt (`id`, `tiers`, `erwartet` …) + ilgili katmanda ID etiketli test (`@pytest.mark.feature("ENG-05")` / Playwright `tag: '@ENG-05'`). İkisi yoksa iş bitmiş sayılmaz.
@@ -75,6 +77,16 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
     ```bash
     E2E_REUSE=1 npx playwright test e2e/mocked/zone-card.spec.ts   # only with your own `next start -p <port>`
     ```
+
+12. **[otomatik]** (in `scripts/features/heavy_lock.sh`, SYS-11) Only one heavy test run operates on the Mac at a time. A heavy run is `precheck.sh`, `run.sh` without a filter or with a category filter, and each full `npx playwright test` (each e2e run does `next build`). `precheck.sh` and `run.sh` get the lock themselves. For other heavy commands, use the wrapper. A run for one feature ID or one spec file can run without the lock. Do not use `HEAVY_LOCK=0` for a heavy run. A script that uses the lock directory writes `owner` as `<pid> <worktree> <HH:MM:SS>`. The script waits for an owner without a numeric pid and does not remove it as stale. When the process tree of the holder shows no progress for 10 min (`HEAVY_LOCK_MAX_IDLE`, CPU time and process list do not change), the waiting run writes a warning with the holder and its last step. The counter ignores time when the Mac sleeps. Stop a hung holder in its own session. Use `HEAVY_LOCK_BREAK=1` only when that session does not answer. On macOS the run does not start (exit 76) when swap is at 90 % or more and free memory is less than 20 % for 2 min.
+
+    ```bash
+    scripts/features/heavy_lock.sh npx playwright test --project=mocked   # waits: "[heavy-lock] warte seit 4 min; Sperre hält: <pid> <worktree> …"
+    ```
+
+13. **[elle]** The limit of 5 writing sessions (CLAUDE.md, "Session discipline") does not make test runs sequential. The lock does. A step brief that names `precheck.sh` or a full e2e run also says: "the run waits for the heavy lock; waiting is normal, write down the waiting time". Run the heavy command in the background.
+
+14. **[elle]** After the Claude app restarts, examine each linked session: a background run that stopped with `Exit code 137` does not send a notification. Start the run again. The next run removes the stale lock and the orphan test server of its checkout.
 
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
 
