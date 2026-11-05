@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [384]
 features: [SYS-10]
 areas: [frontend, tests, rules]
 ---
