@@ -191,7 +191,7 @@ export function buildTrend(
     const outerBar = batch.length === 2 && batch[0].idx === batch[1].idx;
     if (outerBar) {
       const prev = lastOf(m.pivots);
-      batch = prev ? [...batch].sort((a) => (a.side === prev.side ? 1 : -1)) : batch.slice(0, 1);
+      batch = prev ? [...batch.filter((x) => x.side !== prev.side), ...batch.filter((x) => x.side === prev.side)] : batch.slice(0, 1);
     }
     for (const c of batch) {
       const price = wickEnd(bars[c.idx], c.side);
@@ -209,7 +209,12 @@ export function buildTrend(
       const legStart = last?.side === c.side ? m.pivots[m.pivots.length - 2] : last;
       const movesLeg = last?.side !== c.side || outward(c.side, price) > outward(c.side, last.price);
       // ein zweites, schwächeres Fraktal derselben Seite hinter einer verworfenen Korrektur zählt nicht als eigene Korrektur
-      const folded = last && m.cands.find((x) => x.isCorrection && !x.accepted && x.side === c.side && x.idx > last.idx);
+      // Maßstab ist das äußerste verworfene Fraktal dieser Seite, nicht das älteste
+      const folded =
+        last &&
+        m.cands
+          .filter((x) => x.isCorrection && !x.accepted && x.side === c.side && x.idx > last.idx)
+          .reduce<TrdCand | undefined>((best, x) => (!best || outward(c.side, x.price) > outward(c.side, best.price) ? x : best), undefined);
       const weaker = folded && outward(c.side, price) <= outward(c.side, folded.price);
       if (legStart && m.dir && legDir(c.side) !== m.dir && movesLeg && !weaker) {
         cand.isCorrection = true;

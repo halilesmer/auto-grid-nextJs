@@ -505,14 +505,18 @@ function drawingsOf(
       rules: ['TRD-45'],
     });
   }
-  if (corrPos >= 1 && m.refCorrection !== null) {
+  // Mindestgröße der gezeichneten Korrektur: ihr Längenverhältnis gibt das Maß zurück; ohne Verhältnis (Regel `welle`) das jüngste Maß
+  const to0 = pivots[corrPos];
+  const shown = to0 && m.cands.find((c) => c.drawn && c.idx === to0.idx && c.side === to0.side);
+  const measure = shown?.ratio ? to0.len / shown.ratio : m.refCorrection;
+  if (corrPos >= 1 && measure !== null) {
     const from = pivots[corrPos - 1];
     const to = pivots[corrPos];
     const sign = to.price > from.price ? 1 : -1;
     out.push({
       id: 'Z-TRD-08',
       tool: 'zone',
-      anchors: [at(from.idx, from.price), { time: bars[to.idx].time, price: from.price + sign * m.refCorrection }],
+      anchors: [at(from.idx, from.price), { time: bars[to.idx].time, price: from.price + sign * measure }],
       rules: ['TRD-07', 'TRD-08', 'TRD-10'],
       side: color,
     });
