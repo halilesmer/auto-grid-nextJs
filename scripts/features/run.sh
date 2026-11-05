@@ -56,6 +56,11 @@ run_playwright() {  # $1 = tier (e2e|live), $2 = Playwright-Projekt
   (cd "$FRONTEND" && E2E_LIVE=$live PLAYWRIGHT_JSON_OUTPUT_NAME="$REPORTS/$tier.json" \
       npx playwright test --project="$project" --reporter=list,json --pass-with-no-tests \
       ${filter:+--grep "@$filter"}) || rc=1
+  # Ohne Filter muss mindestens ein Test laufen; 0 Tests ist kein grüner Lauf (hooks/RULES.md §4.9)
+  if [ -z "$filter" ]; then
+    "$PY" "$ROOT/scripts/features/pw_stats.py" "$REPORTS/$tier.json" >/dev/null
+    [ $? -eq 3 ] && { echo "• $tier: KEIN Test ausgeführt" >&2; rc=1; }
+  fi
 }
 
 # Nur ID/Kategorie angegeben (ENG-05, ZON): alle Ebenen ohne VPS, gefiltert

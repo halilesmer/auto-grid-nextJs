@@ -52,6 +52,30 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
 6. **[elle]** Manuel doğrulama `scripts/features/run.sh sign <ID> bestanden|fehlgeschlagen "not"` ile kaydedilir; notlara credential yazılmaz.
 7. **[otomatik]** Bot mantığı değişince (`grid_execution/**`, `grid_orchestrator.py`, `grid_zone_selector.py`, `grid_order_manager.py`, `grid_orders.py`, `grid_helpers.py`, `grid_zone_state.py`) örnek çözümler (BKT-01, `worker_python/tests/parity/golden`) testi düşer. Değişiklik bilinçliyse `pytest tests/unit/test_parity_golden.py --update-golden` ile yeniden yazılır, fark PR'da gerekçelendirilir ve tarayıcıdaki bot kopyası (`frontend_nextjs/src/lib/backtest/engine/`, Schritt 7) aynı PR'da uyarlanır.
 
+8. **[elle]** Before the first push of a PR, run the full pre-PR check. It runs the CI steps in CI order (catalog, worker pytest, lint, tsc, all mocked e2e tests) on the port of this checkout. A category run (for example `run.sh FRM`) is not sufficient when the change touches shared logic, fixtures or shared UI. The check takes approx. 15 min, so it is not in the pre-push hook.
+
+   ```bash
+   scripts/features/precheck.sh   # last line: PRECHECK OK … · e2e ran=N passed=N failed=0 …
+   ```
+
+9. **[elle]** A script that uses Playwright JSON results as a pass signal must fail when zero tests ran (`stats.expected + stats.unexpected + stats.flaky == 0`). `precheck.sh` and an unfiltered `run.sh` use this check. Use it in each ad hoc sweep too.
+
+   ```bash
+   scripts/features/pw_stats.py "$REPORT_JSON" || exit 1   # exit 3 = no test ran
+   ```
+
+10. **[elle]** A plan step that changes logic used by golden or fixture tests states how many tests it expects to turn red. Measure the number with a spike or a dry run of the affected suites. When more than approx. 20 tests change, split the step into "logic change" and "re-baseline fixtures". The step brief names the full check (§4.8) and the port of the session (each worktree has its own port, SYS-10).
+
+    ```text
+    Blast radius: 62 red tests in 17 files (dry run: npx playwright test e2e/mocked/*-lib.spec.ts) → S1a logic, S1b re-baseline. Check: precheck.sh, own port.
+    ```
+
+11. **[otomatik]** (in `frontend_nextjs/playwright.config.ts`, not in a hook) Each checkout uses its own e2e port (3300–3999, derived from the checkout path; 3100 in CI; `E2E_PORT` wins). Playwright does not reuse a running server, and it stops with "is already used" when the port is occupied. Use `E2E_REUSE=1` only for a server that you started yourself in this checkout.
+
+    ```bash
+    E2E_REUSE=1 npx playwright test e2e/mocked/zone-card.spec.ts   # only with your own `next start -p <port>`
+    ```
+
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
 
 Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını kendisi anlatır; kullanıcı belgeye bakmak zorunda kalmaz.
