@@ -22,6 +22,7 @@ import { buildEnv } from '../../src/lib/formation/reasons';
 import { higherAgainst } from '../../src/lib/formation/xabcd';
 import { D1, END, H4, M15, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -35,7 +36,7 @@ type Code = 'GAR' | 'BAT';
 const ctxOf = (input: Partial<Record<Tf, Row[]>>, symbol = 'TEST') => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext(symbol, bars);
+  return new FormationContext(symbol, bars, { trend: FIXTURE_TREND });
 };
 
 const wick = (rows: Row[], idx: number, high: boolean, step: number = H4): Anchor => ({ time: idx * step, price: high ? rows[idx][1] : rows[idx][2] });
@@ -538,11 +539,11 @@ test.describe('GAR und BAT: Abgrenzung, Urteil und Zeichnungen', () => {
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------
 
-const loadFixture = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const loadFixture = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const analyzeAt = (code: Code, name: string, iso: string): Candidate => {
   const fixture = loadFixture(name);
-  const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars });
+  const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
   const list = code === 'GAR' ? analyzeGar(ctx, at(iso)) : analyzeBat(ctx, at(iso));
   const hit = list.find((a) => a.tf === 'H4')!.candidate;
   return hit;
@@ -601,18 +602,22 @@ test.describe('GAR und BAT: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  frm('bat-buy-h4-01: Kauf-Bat mit B an 0.5 und D an 0.886 ist gültig', () => {
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher gültig; auf dem Trendzug des Nutzers fehlt die Vorbedingung und der Ausschluss greift
+  frm('bat-buy-h4-01: Kauf-Bat mit B an 0.5 und D an 0.886 ist auf dem Trendzug des Nutzers ungültig', () => {
     const c = analyzeAt('BAT', 'bat-buy-h4-01', '2025-12-16T16:00');
     expect(c.side).toBe('buy');
-    expect(states(c, ['BAT-01', 'BAT-03', 'BAT-05', 'BAT-06', 'BAT-07', 'BAT-08', 'BAT-14', 'BAT-15', 'BAT-17'])).toEqual([M, M, M, M, M, M, N, N, N]);
-    expect(c.verdict).toBe('valid');
+    expect(states(c, ['BAT-01', 'BAT-03', 'BAT-05', 'BAT-06', 'BAT-07', 'BAT-08', 'BAT-14', 'BAT-15', 'BAT-17'])).toEqual([N, M, M, M, M, M, M, N, M]);
+    expect(c.invalidBy).toEqual(['BAT-01', 'BAT-02', 'BAT-09', 'BAT-14', 'BAT-17']);
+    expect(c.verdict).toBe('invalid');
   });
 
-  frm('bat-sell-h4-01: Verkauf-Bat ist gültig (Spiegel der Kauf-Form)', () => {
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher gültig; auf dem Trendzug des Nutzers greift der Ausschluss
+  frm('bat-sell-h4-01: Verkauf-Bat (Spiegel der Kauf-Form) ist auf dem Trendzug des Nutzers ungültig', () => {
     const c = analyzeAt('BAT', 'bat-sell-h4-01', '2025-12-08T16:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['BAT-05', 'BAT-06', 'BAT-07', 'BAT-14'])).toEqual([M, M, M, N]);
-    expect(c.verdict).toBe('valid');
+    expect(states(c, ['BAT-05', 'BAT-06', 'BAT-07', 'BAT-14'])).toEqual([M, M, M, M]);
+    expect(c.invalidBy).toEqual(['BAT-09', 'BAT-14', 'BAT-17']);
+    expect(c.verdict).toBe('invalid');
   });
 
   frm('bat-sell-h4-02: Verkauf-Bat mit D weit jenseits von X → A ist gültig', () => {
@@ -681,7 +686,7 @@ function gar19(input: { D1?: Row[]; W1?: Row[]; H4?: Row[] }): CheckState {
   if (input.D1) bars.D1 = barsOf(input.D1, D1);
   if (input.W1) bars.W1 = barsOf(input.W1, 7 * D1);
   if (input.H4) bars.H4 = barsOf(input.H4, H4);
-  const env = buildEnv(new FormationContext('T', bars), END, input.H4 ? 'H4' : 'D1')!;
+  const env = buildEnv(new FormationContext('T', bars, { trend: FIXTURE_TREND }), END, input.H4 ? 'H4' : 'D1')!;
   return higherAgainst(env, 'buy');
 }
 

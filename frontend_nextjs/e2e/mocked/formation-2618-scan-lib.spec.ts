@@ -11,13 +11,14 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { countsAsHit, FINAL_POINT, PENULTIMATE_POINT, SCAN_FORMATIONS, scanFormations, type ScanHit } from '../../src/lib/formation/scan';
 import type { Candidate } from '../../src/lib/formation/types';
 import { H4 } from '../fixtures/formation-rows';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: ['@FRM-08', '@FRM-18'] }, fn);
-const load = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
+const load = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))));
 const run = (file: string, t: number) => {
   const fx = load(file);
   const bars = fx.bars.filter((b) => b.time + H4 <= t);
-  return { fx, bars, ctx: () => new FormationContext(fx.symbol, { H4: bars }) };
+  return { fx, bars, ctx: () => new FormationContext(fx.symbol, { H4: bars }, { trend: trendOf(bars) }) };
 };
 
 const REAL = [
@@ -74,11 +75,12 @@ frm('Badge: im Aufbau zählt erst I mit fertigem Fraktal', () => {
 
 frm('Badge auf echter Reihe: I ohne fertiges Fraktal zählt nicht, mit Fraktal und Berührung zählt es', () => {
   const count = (t: number) => scanFormations(run('f2618-open-h4-01', t).ctx(), t).filter((h) => h.form === '2618' && countsAsHit(h)).length;
-  const before = scanFormations(run('f2618-open-h4-01', 1760544000).ctx(), 1760544000).find((h) => h.form === '2618')!;
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): der Wechsel liegt am 2025-10-22 (vorher 2025-10-15)
+  const before = scanFormations(run('f2618-open-h4-01', 1761091200).ctx(), 1761091200).find((h) => h.form === '2618')!;
   expect(before.candidate.verdict).toBe('forming');
   expect('I' in before.candidate.points).toBe(true);
-  expect(count(1760544000)).toBe(0);
-  expect(count(1760558400)).toBe(1);
+  expect(count(1761091200)).toBe(0);
+  expect(count(1761105600)).toBe(1);
 });
 
 frm('Status laut Regelbuch: 2618-04, -07, -09 und -10 sind bestätigt', () => {
@@ -89,10 +91,11 @@ frm('Status laut Regelbuch: 2618-04, -07, -09 und -10 sind bestätigt', () => {
 });
 
 frm('Urteil: eine nicht messbare Pflicht (2618-01) hält „gültig“ zurück (settle)', () => {
-  const t = 1762156800;
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): dieselbe Reihe, 20 statt 30 Kerzen
+  const t = 1761840000;
   const fx = JSON.parse(readFileSync('e2e/fixtures/formation/cyp-bad-h4-01.json', 'utf-8'));
-  const bars = parseFixture(fx).bars.slice(0, 30);
-  const c = analyze2618(new FormationContext('TEST', { H4: bars }), t)[0].candidate;
+  const bars = parseFixture(fx).bars.slice(0, 20);
+  const c = analyze2618(new FormationContext('TEST', { H4: bars }, { trend: FIXTURE_TREND }), t)[0].candidate;
   // Alles andere spricht für „gültig“: Berührung K da, die übrigen Pflichten ☑, kein Ausschluss
   expect('K' in c.points).toBe(true);
   expect(c.checks.filter((k) => k.kind === 'required' && k.state !== 'met').map((k) => k.id)).toEqual(['2618-01']);

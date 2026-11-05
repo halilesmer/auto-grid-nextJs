@@ -6,11 +6,12 @@ import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { formationChartData } from '../../src/lib/formation/chartData';
 import { H4, END, barsOf, type Row } from '../fixtures/formation-rows';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 const ui = (name: string, fn: () => void) => test(name, { tag: '@UI-13' }, fn);
 const flat = (c: number): Row => [c, c + 1, c - 1, c];
 const ROWS: Row[] = [flat(100), flat(101), flat(102), flat(103), flat(104), flat(105)];
-const view = (missing: { from: number; to: number }[]) => new FormationContext('TEST', { H4: { bars: barsOf(ROWS, H4), missing } }).view('H4', END)!;
+const view = (missing: { from: number; to: number }[]) => new FormationContext('TEST', { H4: { bars: barsOf(ROWS, H4), missing } }, { trend: FIXTURE_TREND }).view('H4', END)!;
 
 ui('Ohne fehlenden Bereich: keine Lücke, keine Leerstelle', () => {
   const data = formationChartData(view([]), 14400);

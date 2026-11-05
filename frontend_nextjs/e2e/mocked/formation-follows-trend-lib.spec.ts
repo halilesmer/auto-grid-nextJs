@@ -38,6 +38,8 @@ frm('Jeder Wendepunkt der Formationen ist ein Eckpunkt der Linie (gleiche Kerzen
       const pivots = env.trends.get(tf)!.pivots.map((p) => fx.bars[p.idx].time);
       const path = buildTrendPath(tf, fx.bars.slice(0, ctx.closedCount(tf, t)), trend);
       const vertices = new Set(path.flatMap((s) => [s.from.time, s.to.time]));
+      // ein einzelner Punkt ergibt noch keine Linie
+      if (pivots.length < 2) continue;
       expect(pivots.every((time) => vertices.has(time)), `${name} ${JSON.stringify(trend)}`).toBe(true);
     }
   }

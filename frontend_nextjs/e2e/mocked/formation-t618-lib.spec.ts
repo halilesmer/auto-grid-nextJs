@@ -16,6 +16,7 @@ import { analyzeT618, checkT618Candidate, T618_CHECK_IDS } from '../../src/lib/f
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { END, H4, mirror, patched, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip } from '../fixtures/formation-lines';
+import { named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-15' }, fn);
 const idOf = (n: number) => `T618-${String(n).padStart(2, '0')}`;
@@ -282,7 +283,7 @@ interface Real {
   with2618: boolean;
 }
 
-const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
+const loadReal = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))));
 const REAL: Real[] = [
   // K2 freigegeben 2026-11-04: P hat keine Freigabe der Linie (TRD-34), also kein Kandidat (vorher: gültig, alle ☑). Die alte Erwartung hielt nur die Ausgabe fest.
   { file: 't618-sell-h4-01', oldP: 1763395200, t: 1763481600, none: true, with2618: false },
@@ -298,20 +299,21 @@ const REAL: Real[] = [
   { file: 't618-bad-h4-01', t: 1764129600, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '04': M }, with2618: true },
   // K2 freigegeben 2026-11-04: Negativfall, die Suche wählt P eine Kerze früher (11-20 12:00); T618-01 ☐ (vorher T618-03 ☐ am alten P), Linie nach TRD-34 gültig
   { file: 't618-bad-h4-02', t: 1763755200, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '07': N }, with2618: false },
-  // K2 freigegeben 2026-11-04: im Aufbau wurde kein Kandidat (P ohne Freigabe der Linie)
-  { file: 't618-form-h4-01', oldP: 1765454400, t: 1765497600, none: true, with2618: false },
+  // K2 freigegeben 2026-11-04: im Aufbau wurde kein Kandidat (P ohne Freigabe der Linie).
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): auf dem Trendzug des Nutzers gibt es einen Kauf-Kandidaten ohne Kraftverlust-Folge (T618-01 ☐)
+  { file: 't618-form-h4-01', t: 1765497600, side: 'buy', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '04': N, '07': M }, with2618: false },
 ];
 
 for (const r of REAL) {
   frm(`echte Reihe ${r.file}`, () => {
     const fx = loadReal(r.file);
-    const c = analyzeT618(new FormationContext(fx.symbol, { H4: fx.bars }), r.t)[0].candidate;
+    const c = analyzeT618(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     if (r.none) {
       expect(c.checks.every((k) => k.state === U)).toBe(true);
       expect(c.verdict).toBe('forming');
       const bar = fx.bars.find((b) => b.time === r.oldP)!;
       const side = r.file.includes('buy') ? 'support' : 'resistance';
-      const own = checkT618Candidate(new FormationContext(fx.symbol, { H4: fx.bars }), r.t, { tf: 'H4', p: { time: bar.time, price: side === 'support' ? bar.low : bar.high } });
+      const own = checkT618Candidate(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t, { tf: 'H4', p: { time: bar.time, price: side === 'support' ? bar.low : bar.high } });
       expect(state(own, 'T618-02'), 'T618-02 am früheren P').toBe(N);
     } else {
       expect(c.side).toBe(r.side);
@@ -319,10 +321,10 @@ for (const r of REAL) {
       for (const [n, want] of Object.entries(r.expect ?? {})) expect(state(c, idOf(Number(n))), idOf(Number(n))).toBe(want);
     }
     const known = fx.bars.filter((b) => b.time + H4 <= r.t);
-    const cut = analyzeT618(new FormationContext(fx.symbol, { H4: known }), r.t)[0].candidate;
+    const cut = analyzeT618(new FormationContext(fx.symbol, { H4: known }, { trend: trendOf(known) }), r.t)[0].candidate;
     expect(statesOf(cut)).toEqual(statesOf(c));
     expect(cut.verdict).toBe(c.verdict);
-    const other = analyze2618(new FormationContext(fx.symbol, { H4: fx.bars }), r.t)[0].candidate;
+    const other = analyze2618(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     expect(other.verdict === 'valid', 'zugleich 2618 gültig').toBe(r.with2618);
   });
 }

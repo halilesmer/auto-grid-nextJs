@@ -23,6 +23,7 @@ import {
 import { buildTrend, type TrendModel } from '../../src/lib/formation/trd';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H1, H4, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -35,7 +36,7 @@ type Tf = keyof typeof STEP;
 const ctxOf = (input: Partial<Record<Tf, Row[]>>) => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext('TEST', bars);
+  return new FormationContext('TEST', bars, { trend: FIXTURE_TREND });
 };
 
 function run(input: Partial<Record<Tf, Row[]>>, options: SigOptions = {}, tf: Tf = 'H4'): Candidate {
@@ -670,11 +671,11 @@ test.describe('SIG: Abdeckung und Eigenschaften', () => {
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------
 
-const loadFixture = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const loadFixture = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const analyzeAt = (name: string, iso: string, side: 'buy' | 'sell'): Candidate => {
   const fx = loadFixture(name);
-  const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput);
+  const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput, { trend: trendOf(fx.bars) });
   return analyzeSig(ctx, at(iso), { side }).find((a) => a.tf === 'H4')!.candidate;
 };
 

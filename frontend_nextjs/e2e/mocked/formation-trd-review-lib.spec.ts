@@ -10,6 +10,7 @@ import { TRD_PARAMS } from '../../src/lib/formation/params';
 import { buildTrend } from '../../src/lib/formation/trd';
 import { analyzeTrd } from '../../src/lib/formation/trdChecks';
 import type { FormationBar } from '../../src/lib/formation/types';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 type Row = [number, number, number, number];
 const H4 = 14400;
@@ -66,7 +67,7 @@ test('TRD-08: Messrechteck nutzt die Mindestgröße der gezeichneten Korrektur',
   expect(later && !later.drawn).toBe(true);
   const want = TRD_PARAMS.trend.minSize * wilderAtr(bars, TRD_PARAMS.trend.atrPeriod)[drawn!.idx];
   expect(m.refCorrection).not.toBeCloseTo(want, 6); // der Fall unterscheidet beide Maße
-  const found = analyzeTrd(new FormationContext('TEST', { H4: bars }), 100_000_000).find((a) => a.tf === 'H4');
+  const found = analyzeTrd(new FormationContext('TEST', { H4: bars }, { trend: FIXTURE_TREND }), 100_000_000).find((a) => a.tf === 'H4');
   const box = found!.candidate.drawings.find((d) => d.id === 'Z-TRD-08');
   expect(box).toBeDefined();
   const [from, to] = box!.anchors;

@@ -8,6 +8,7 @@ import { checkBatCandidate } from '../../src/lib/formation/batChecks';
 import { checkGarCandidate } from '../../src/lib/formation/garChecks';
 import { pipOf } from '../../src/lib/formation/xabcd';
 import type { FormationBar } from '../../src/lib/formation/types';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 const M15 = 900;
 const H1 = 3600;
@@ -33,7 +34,7 @@ for (const spec of ZONE_SPECS) {
         const low = spec.target + edge.gap;
         const h4 = Array.from({ length: 50 }, (_, i) => bar(i * H4, 2999, 3001, 3000));
         const d1 = Array.from({ length: 5 }, (_, i) => i === 2 ? bar(i * D1, low, low + 3, low + 1) : bar(i * D1, low + 2, low + 4, low + 3));
-        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) });
+        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) }, { trend: FIXTURE_TREND });
         const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
         const candidate = spec.check(ctx, 50 * H4, {
           tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(44, spec.target),
@@ -53,7 +54,7 @@ for (const spec of ZONE_SPECS) {
     const length = dAt === null ? 43 : 50;
     const h4 = Array.from({ length }, (_, i) => bar(i * H4, 2999, 3001, 3000));
     const d1 = Array.from({ length: 5 }, (_, i) => i === 2 ? bar(i * D1, zoneAt, zoneAt + 3, zoneAt + 1) : bar(i * D1, zoneAt + 2, zoneAt + 4, zoneAt + 3));
-    const ctx = new FormationContext('TEST', { H4: h4, D1: d1 });
+    const ctx = new FormationContext('TEST', { H4: h4, D1: d1 }, { trend: FIXTURE_TREND });
     const anchor = (idx: number, price: number) => ({ time: idx * H4, price });
     return spec.check(ctx, length * H4, {
       tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c),
@@ -101,7 +102,7 @@ for (const spec of ZONE_SPECS) {
         const d1 = Array.from({ length: 14 }, (_, i) => i)
           .filter((i) => !c.skip?.includes(i))
           .map((i) => i === c.dip ? bar(i * D1, low, low + 3, low + 1) : bar(i * D1, low + 2 + i * 0.01, low + 4 + i * 0.01, low + 3 + i * 0.01));
-        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) });
+        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) }, { trend: FIXTURE_TREND });
         const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
         const candidate = spec.check(ctx, 84 * H4, {
           tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(c.dIdx, spec.target),
@@ -129,7 +130,7 @@ for (const spec of ZONE_SPECS) {
         const z = t + c.shift;
         const dips: Record<number, FormationBar> = { 3: bar(3 * D1, z - 2.5, z + 3, z - 0.1), 6: bar(6 * D1, z - 0.2, z + 3, z + 1.5) };
         const d1 = Array.from({ length: 14 }, (_, i) => dips[i] ?? bar(i * D1, z + 4 + i * 0.01, z + 6 + i * 0.01, z + 5 + i * 0.01));
-        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) });
+        const ctx = new FormationContext('TEST', { H4: buy ? h4 : h4.map(reflect), D1: buy ? d1 : d1.map(reflect) }, { trend: FIXTURE_TREND });
         const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
         const candidate = spec.check(ctx, 84 * H4, {
           tf: 'H4', x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(c.dIdx, c.miss ? t + 50 : t),
@@ -163,7 +164,7 @@ for (const spec of ZONE_SPECS) {
       const start = 10 * dur;
       const zoneBars = Array.from({ length: 5 }, (_, i) => (i === 2 ? dip(start + i * DUR[c.zone as Tf]) : bar(start + i * DUR[c.zone as Tf], spec.target + 2, spec.target + 4, spec.target + 3)));
       const extra = own ? null : zoneBars;
-      const ctx = new FormationContext('TEST', { [c.form]: base, ...(extra ? { [c.zone]: extra } : {}) });
+      const ctx = new FormationContext('TEST', { [c.form]: base, ...(extra ? { [c.zone]: extra } : {}) }, { trend: FIXTURE_TREND });
       const anchor = (idx: number, price: number) => ({ time: idx * dur, price });
       const candidate = spec.check(ctx, 50 * dur, {
         tf: c.form, x: anchor(36, 0), a: anchor(38, 1000), b: anchor(40, 'b' in spec ? spec.b : 200), c: anchor(42, spec.c), d: anchor(44, spec.target),
@@ -188,7 +189,7 @@ for (const buy of [true, false]) {
     test(`GAR-03: GERMANY40 ${buy ? 'Kauf' : 'Verkauf'}, B ${edge.b}`, { tag: '@FRM-07' }, () => {
       const bars = Array.from({ length: 12 }, (_, i) => bar(i * H4, 0, 1000, 500));
       const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
-      const candidate = checkGarCandidate(new FormationContext('GERMANY40', { H4: buy ? bars : bars.map(reflect) }), 12 * H4, {
+      const candidate = checkGarCandidate(new FormationContext('GERMANY40', { H4: buy ? bars : bars.map(reflect) }, { trend: FIXTURE_TREND }), 12 * H4, {
         tf: 'H4', x: anchor(2, 0), a: anchor(4, 1000), b: anchor(6, edge.b), c: anchor(8, 800), d: anchor(10, 300),
       });
       expect(candidate.side).toBe(buy ? 'buy' : 'sell');
@@ -215,7 +216,7 @@ for (const spec of [
         const bars = Array.from({ length: 12 }, (_, i) => bar(i * H4, -1000, 2000, 500));
         const prices = { x: 0, a: 1000, b: 200, c: 800, d: -700, [spec.key]: edge.price };
         const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
-        const candidate = spec.check(new FormationContext('TEST', { H4: buy ? bars : bars.map(reflect) }), 12 * H4, {
+        const candidate = spec.check(new FormationContext('TEST', { H4: buy ? bars : bars.map(reflect) }, { trend: FIXTURE_TREND }), 12 * H4, {
           tf: 'H4', x: anchor(2, prices.x), a: anchor(4, prices.a), b: anchor(6, prices.b), c: anchor(8, prices.c), d: anchor(10, prices.d),
         });
         expect(candidate.side).toBe(buy ? 'buy' : 'sell');
@@ -229,7 +230,7 @@ for (const buy of [true, false]) {
   test(`BUT-02: ${buy ? 'Kauf' : 'Verkauf'}, exakter Preis 106.42`, { tag: '@FRM-13' }, () => {
     const bars = Array.from({ length: 12 }, (_, i) => bar(i * H4, 90, 140, 110));
     const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
-    const candidate = checkButCandidate(new FormationContext('TEST', { H4: buy ? bars : bars.map(reflect) }), 12 * H4, {
+    const candidate = checkButCandidate(new FormationContext('TEST', { H4: buy ? bars : bars.map(reflect) }, { trend: FIXTURE_TREND }), 12 * H4, {
       tf: 'H4', x: anchor(2, 100), a: anchor(4, 130), b: anchor(6, 106.42), c: anchor(8, 120), d: anchor(10, 91.84),
     });
     expect(candidate.checks.find((c) => c.id === 'BUT-02')?.state).toBe('met');
@@ -241,7 +242,7 @@ for (const buy of [true, false]) {
     test(`CYP-07: ${buy ? 'Kauf' : 'Verkauf'}, 1-Pip-Grenze bei D ${edge.d}`, { tag: '@FRM-12' }, () => {
       const bars = Array.from({ length: 12 }, (_, i) => bar(i * H4, 0, 2000, 500));
       const anchor = (idx: number, price: number) => ({ time: idx * H4, price: buy ? price : -price });
-      const candidate = checkCypCandidate(new FormationContext('TEST', { H4: buy ? bars : bars.map(reflect) }), 12 * H4, {
+      const candidate = checkCypCandidate(new FormationContext('TEST', { H4: buy ? bars : bars.map(reflect) }, { trend: FIXTURE_TREND }), 12 * H4, {
         tf: 'H4', x: anchor(2, 0), a: anchor(4, 1000), b: anchor(6, 500), c: anchor(8, 2000), d: anchor(10, edge.d),
       });
       expect(candidate.checks.find((c) => c.id === 'CYP-07')?.state).toBe(edge.want);
@@ -256,7 +257,7 @@ for (const spec of [
   test(`${spec.id}: ohne ATR (zu wenige Kerzen) ist die Zeile ☐ und nicht messbar`, { tag: '@FRM-07' }, () => {
     const bars = Array.from({ length: 12 }, (_, i) => bar(i * H4, 0, 1000, 500));
     const anchor = (idx: number, price: number) => ({ time: idx * H4, price });
-    const candidate = spec.check(new FormationContext('TEST', { H4: bars }), 12 * H4, {
+    const candidate = spec.check(new FormationContext('TEST', { H4: bars }, { trend: FIXTURE_TREND }), 12 * H4, {
       tf: 'H4', x: anchor(2, 0), a: anchor(4, 1000), b: anchor(6, spec.b), c: anchor(8, 800), d: anchor(10, 300),
     });
     expect(candidate.checks.find((c) => c.id === spec.id.replace(/-\d+$/, '-09'))?.state).toBe('unmeasurable');

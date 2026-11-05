@@ -10,9 +10,13 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
+import { named, seedFixtureTrend } from '../fixtures/formation-trend';
+
+// Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
+test.beforeEach(({ page }) => seedFixtureTrend(page));
 
 const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
-const load = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))).bars;
+const load = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')))).bars;
 
 async function openPage(page: Page, worker: MockWorker, file: string, now: number, form: string) {
   const narrow = (page.viewportSize()?.width ?? 1280) < 640;

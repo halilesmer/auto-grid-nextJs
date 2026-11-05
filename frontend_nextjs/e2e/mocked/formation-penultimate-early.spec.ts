@@ -9,6 +9,7 @@ import { FormationContext } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { scanFormations } from '../../src/lib/formation/scan';
 import { H4 } from '../fixtures/formation-rows';
+import { named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-18' }, fn);
 
@@ -19,11 +20,11 @@ function offenders(prefix: RegExp, form: string, point: string, checkId: string)
   const early: string[] = [];
   let seen = 0;
   for (const file of readdirSync('e2e/fixtures/formation').filter((f) => prefix.test(f))) {
-    const fx = parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}`, 'utf-8')));
+    const fx = named(`e2e/fixtures/formation/${file}`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}`, 'utf-8'))));
     // Ab der 20. Kerze, davor gibt es keine Schwünge
     for (let k = 20; k < fx.bars.length; k += 4) {
       const t = fx.bars[k].time + H4;
-      const hits = scanFormations(new FormationContext(fx.symbol, { H4: fx.bars }), t).filter((h) => h.form === form);
+      const hits = scanFormations(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), t).filter((h) => h.form === form);
       for (const h of hits) {
         const c = h.candidate;
         if (!c.points[point]) continue;

@@ -2214,7 +2214,7 @@ kategorien:
         code: [frontend_nextjs/src/lib/formation/params.ts, frontend_nextjs/src/lib/formation/trdFormation.ts, frontend_nextjs/src/lib/formation/context.ts, frontend_nextjs/src/lib/formation/trdPath.ts, frontend_nextjs/src/hooks/useFormationScan.ts, frontend_nextjs/src/components/formation/FormationScanRunner.tsx, frontend_nextjs/src/components/chart-workspace/TrendSettingsPanel.tsx]
         tiers: [e2e]
         pruefung:
-          - Playwright-Test e2e/mocked/formation-follows-trend-lib.spec.ts (@FRM-41) ausführen (gleiche Kerzen und Einstellungen: jeder Formationspunkt ist ein Eckpunkt von buildTrendPath; andere Mindestgröße ändert die Formationen).
-          - Playwright-Test e2e/mocked/formation-trd-lib.spec.ts (@FRM-03) ausführen (Formationen rechnen auf den Punkten des Trendzugs der Einstellungen).
-          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Änderung der Trend-Einstellungen startet die Suche neu).
+          - "Playwright-Test e2e/mocked/formation-follows-trend-lib.spec.ts (@FRM-41) ausführen (gleiche Kerzen und Einstellungen: jeder Formationspunkt ist ein Eckpunkt von buildTrendPath; andere Mindestgröße ändert die Formationen)."
+          - "Playwright-Test e2e/mocked/formation-trd-lib.spec.ts (@FRM-03) ausführen (Formationen rechnen auf den Punkten des Trendzugs der Einstellungen)."
+          - "Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Änderung der Trend-Einstellungen startet die Suche neu)."
         erwartet: Jeder Punkt einer Formation liegt auf einem Eckpunkt der Trendlinie; eine andere Mindestgröße ändert die gefundenen Formationen; das Trend-Menü hat keine Gruppe „Formationen“.

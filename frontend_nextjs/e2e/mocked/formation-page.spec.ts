@@ -14,17 +14,21 @@ import { H4, barsOf, zig } from '../fixtures/formation-rows';
 import { msg, type MessageKey } from '../fixtures/i18n';
 import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
+import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
+
+// Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
+test.beforeEach(({ page }) => seedFixtureTrend(page, trendOf(fixtureBars)));
 
 const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 
-const fixtureBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
+const fixtureBars = named('e2e/fixtures/formation/gar-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8')))).bars;
 /** Kerzen der Fixture, die zum Zeitpunkt `now` geschlossen sind */
 const rowsUntil = (now: number, bars = fixtureBars) => bars.filter((b) => b.time + 14400 <= now).map((b) => [b.time, b.open, b.high, b.low, b.close]);
 /** Mit diesem Zeitpunkt steht in der Fixture ein ABCD im Aufbau: C ist da, das Ziel von D noch nicht erreicht */
 const FORMING_NOW = 1761192000;
 /** Verkauf-Deep-Crab mit B bei 0.967, gültig zum Zeitpunkt DEEP_CRAB_NOW (FRM-14) */
-const deepCrabBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/crb-deep-h4-02.json', 'utf-8'))).bars;
+const deepCrabBars = named('e2e/fixtures/formation/crb-deep-h4-02.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/crb-deep-h4-02.json', 'utf-8')))).bars;
 const DEEP_CRAB_NOW = Date.UTC(2025, 10, 26, 8) / 1000;
 
 /** H4 aus der Fixture, M15 mit einer Kerze (legt den Suchzeitpunkt fest), die übrigen Zeiteinheiten leer */
@@ -38,6 +42,7 @@ function serveFixture(worker: MockWorker, now: number, bars = fixtureBars) {
 
 async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW, bars = fixtureBars) {
   serveFixture(worker, now, bars);
+  await seedFixtureTrend(page, trendOf(bars), true);
   await page.goto(url);
   await expect(page.getByTestId('formation-toolbar')).toBeVisible();
   // Die Suche ist fertig, wenn ihre Rechenzeit am Seitenelement steht
@@ -93,7 +98,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   });
 
   test('Libra steht in der Leiste: gültige Kauf-Libra mit Badge, Checkliste und erreichtem Punkt K', { tag: ['@FRM-18', '@FRM-09'] }, async ({ page, worker }) => {
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/lib-gone-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/lib-gone-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/lib-gone-h4-01.json', 'utf-8')))).bars;
     await openPage(page, worker, `${URL}&form=LIB`, 1763064000, bars);
     await expect(page.getByTestId('formation-form-LIB')).toContainText(msg('formation.form.LIB'));
     await expect(page.getByTestId('formation-form-LIB').getByTestId('hit-badge')).toHaveText('1');
@@ -106,7 +111,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   });
 
   test('Die Legende nennt den Zickzack nur, wenn die Formation ihn zeichnet: Libra ohne, Gartley mit', { tag: ['@FRM-19', '@FRM-09'] }, async ({ page, worker }) => {
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/lib-gone-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/lib-gone-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/lib-gone-h4-01.json', 'utf-8')))).bars;
     await openPage(page, worker, `${URL}&form=LIB`, 1763064000, bars);
     await expect(page.getByTestId('candidate-item').first()).toBeVisible();
     await expect(page.getByTestId('formation-legend')).toContainText(msg('formation.legend.ratio'));
@@ -133,7 +138,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   });
 
   test('Kopf-Schulter steht in der Leiste: gültige OBO mit Badge, Checkliste und erreichtem Punkt B', { tag: ['@FRM-18', '@FRM-10'] }, async ({ page, worker }) => {
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/obo-sell-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/obo-sell-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/obo-sell-h4-01.json', 'utf-8')))).bars;
     await openPage(page, worker, `${URL}&form=OBO`, 1763755200, bars);
     await expect(page.getByTestId('formation-form-OBO')).toContainText(msg('formation.form.OBO'));
     await expect(page.getByTestId('formation-form-OBO').getByTestId('hit-badge')).toHaveText('1');
@@ -146,7 +151,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   });
 
   test('Kopf-Schulter im Aufbau ohne fertige rechte Schulter bekommt kein Badge', { tag: ['@FRM-18', '@FRM-10'] }, async ({ page, worker }) => {
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/abcd-double-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/abcd-double-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/abcd-double-h4-01.json', 'utf-8')))).bars;
     // Zum Reihenende steht dort eine Kopf-Schulter im Aufbau mit LS, K und beiden Nackenpunkten, aber ohne rechte Schulter
     await openPage(page, worker, `${URL}&form=OBO`, bars[bars.length - 1].time + 14400, bars);
     await expect(page.getByTestId('formation-form-OBO')).toBeVisible();
@@ -154,7 +159,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   });
 
   test('Trendfortsetzung steht in der Leiste: gültiges Dreieck mit Badge, Checkliste (fremde Unterform inaktiv) und erreichtem Punkt B', { tag: ['@FRM-18', '@FRM-11'] }, async ({ page, worker }) => {
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/tdf-tri-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/tdf-tri-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/tdf-tri-h4-01.json', 'utf-8')))).bars;
     await openPage(page, worker, `${URL}&form=TDF`, 1769644800, bars);
     await expect(page.getByTestId('formation-form-TDF')).toContainText(msg('formation.form.TDF'));
     await expect(page.getByTestId('formation-form-TDF').getByTestId('hit-badge')).toHaveText('1');
@@ -167,7 +172,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
   });
 
   test('2618 steht in der Leiste: gültiges 2618 mit Badge, Checkliste und erreichter Berührung K', { tag: ['@FRM-18', '@FRM-08'] }, async ({ page, worker }) => {
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/f2618-buy-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/f2618-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/f2618-buy-h4-01.json', 'utf-8')))).bars;
     await openPage(page, worker, `${URL}&form=2618`, 1761811200, bars);
     await expect(page.getByTestId('formation-form-2618')).toContainText(msg('formation.form.2618'));
     await expect(page.getByTestId('formation-form-2618').getByTestId('hit-badge')).toHaveText('1');
@@ -265,7 +270,7 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
   });
 
   test('Ungültiges Doppeltop mit fehlendem Signal: der Hinweis nennt nur den ausgelösten Ausschluss CDT-15, nicht CDT-12 und CDT-13', { tag: '@FRM-19' }, async ({ page, worker }) => {
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cdt-top-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/cdt-top-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cdt-top-h4-01.json', 'utf-8')))).bars;
     await openPage(page, worker, `${URL}&form=CDT`, Date.UTC(2025, 9, 8, 0) / 1000, bars);
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'invalid');
     const list = page.getByTestId('formation-checklist');
@@ -275,7 +280,7 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
 
   test('Pflicht nicht messbar: der Treffer bleibt im Aufbau, der Hinweis nennt die Regel und hat einen Tooltip', { tag: '@FRM-19' }, async ({ page, worker }) => {
     // Kauf-Cypher mit allen Pflichten bis auf CYP-02: auf H4 fehlt die D1-Reihe, die Seite liefert sie hier leer
-    const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cyp-buy-h4-01.json', 'utf-8'))).bars;
+    const bars = named('e2e/fixtures/formation/cyp-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cyp-buy-h4-01.json', 'utf-8')))).bars;
     await openPage(page, worker, `${URL}&form=CYP`, Date.UTC(2025, 11, 17, 0) / 1000, bars);
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'forming');
     const list = page.getByTestId('formation-checklist');
@@ -286,12 +291,13 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
 
   test('Cypher auf D1: CYP-02 misst gegen W1 aus D1, gültig ohne Hinweis und ohne nicht messbare Pflicht', { tag: ['@FRM-19', '@FRM-34'] }, async ({ page, worker }) => {
     // Dieselben Kerzen als D1 gelesen; sie enden am heutigen Brokertag, weil die Seite nur die letzten 400 Tage als D1 zeigt. W1 entsteht daraus (Befund 16, Variante A)
-    const fixture = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cyp-buy-h4-01.json', 'utf-8'))).bars;
+    const fixture = named('e2e/fixtures/formation/cyp-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/cyp-buy-h4-01.json', 'utf-8')))).bars;
     const count = fixture.findIndex((b) => b.time >= Date.UTC(2025, 11, 17, 0) / 1000);
     const now = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 86400) * 86400;
     const rows = fixture.slice(0, count).map((b, i) => [now - (count - i) * 86400, b.open, b.high, b.low, b.close]);
     worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
     worker.state.ratesSeries = { D1: rows, H4: [], H1: [], M15: [[now - 900, rows[rows.length - 1][4], rows[rows.length - 1][4], rows[rows.length - 1][4], rows[rows.length - 1][4]]] };
+    await seedFixtureTrend(page, trendOf(fixture), true);
     await page.goto(`${URL}&form=CYP&tf=D1`);
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');

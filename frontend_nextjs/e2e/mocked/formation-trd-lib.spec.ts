@@ -903,9 +903,9 @@ test.describe('TRD: Trend der Formationen', () => {
     expect(at.map((k) => trendDirAt(custom, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), [], fine).dir));
   });
 
-  frm('Die TRD-Prüfung nutzt denselben Trendzug wie die Formationen', () => {
+  frm('Die TRD-Prüfung rechnet weiter mit dem Standard-Trendzug, unabhängig von den Einstellungen', () => {
     const { ctx, t, fx } = contextOf('trd-up-d1-01', fine);
-    expect(analyzeTrd(ctx, t)[0].model.pivots.map((p) => p.idx)).toEqual(buildTrend('D1', fx.bars, [], fine).pivots.map((p) => p.idx));
+    expect(analyzeTrd(ctx, t)[0].model.pivots.map((p) => p.idx)).toEqual(buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx));
   });
 
   frm('Schlüsse für den Wechsel kommen aus den Einstellungen', () => {

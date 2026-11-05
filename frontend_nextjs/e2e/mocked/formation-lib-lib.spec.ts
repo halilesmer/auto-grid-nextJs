@@ -15,10 +15,11 @@ import { FormationContext, type ContextInput } from '../../src/lib/formation/con
 import { layoutDrawings } from '../../src/lib/formation/drawingLayout';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeLib, checkLibCandidate, LIB_CHECK_IDS } from '../../src/lib/formation/libChecks';
-import type { ContextTimeframe } from '../../src/lib/formation/params';
+import type { ContextTimeframe, TrendSettings } from '../../src/lib/formation/params';
 import { scanFormations } from '../../src/lib/formation/scan';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H1, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -28,10 +29,10 @@ const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-09' }, fn)
 const STEP = { D1, H4, H1, M15 } as const;
 type Tf = keyof typeof STEP;
 
-const ctxOf = (input: Partial<Record<Tf, Row[]>>) => {
+const ctxOf = (input: Partial<Record<Tf, Row[]>>, trend: TrendSettings = FIXTURE_TREND) => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext('TEST', bars);
+  return new FormationContext('TEST', bars, { trend });
 };
 
 const wick = (rows: Row[], idx: number, high: boolean, step: number = H4): Anchor => ({ time: idx * step, price: high ? rows[idx][1] : rows[idx][2] });
@@ -49,6 +50,8 @@ interface Options {
   tf?: Tf;
   t?: number;
   harmonics?: Candidate[];
+  /** Trend-Einstellung des Kontexts (FRM-41); Standard FIXTURE_TREND */
+  trend?: TrendSettings;
 }
 
 /** Prüft P1, P2 und P3; `top = false` für das Spiegelbild */
@@ -58,7 +61,7 @@ function run(input: Partial<Record<Tf, Row[]>>, at: At = AT, options: Options = 
   const top = options.top ?? true;
   const step = STEP[tf];
   return checkLibCandidate(
-    ctxOf(input),
+    ctxOf(input, options.trend),
     options.t ?? END,
     {
       tf: tf as ContextTimeframe,
@@ -228,7 +231,8 @@ frm('Urteil: gültig, im Aufbau ohne Berührung oder ohne fertiges P3, ungültig
 });
 
 test('Urteil: eine nicht messbare Pflicht hält „gültig“ zurück (LIB-03 ohne Vorlauf → im Aufbau)', { tag: ['@FRM-09', '@FRM-19'] }, () => {
-  const c = run({ H4: EARLY }, EARLY_AT);
+  // Mit zwei Schlüssen für den Wechsel steht vor P1 kein Trend; der Vorlauf fehlt erst mit einem Schluss (FRM-41)
+  const c = run({ H4: EARLY }, EARLY_AT, { trend: { ...FIXTURE_TREND, changeCloses: 1 } });
   expect(state(c, 'LIB-03')).toBe(U);
   expect(state(c, 'LIB-12')).toBe(M);
   expect(c.verdict).toBe('forming');
@@ -454,7 +458,7 @@ interface Real {
   expect: Record<string, CheckState>;
 }
 
-const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
+const loadReal = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))));
 
 const GOOD = { '01': M, '02': M, '03': M, '04': M, '06': M, '07': M, '12': M, '13': N, '14': N, '15': N, '16': N } as const;
 const REAL: Real[] = [
@@ -497,7 +501,7 @@ frm('Seite: Ziel-Label Z-LIB-04 heißt „Ziel“, Label Z-LIB-05 an P2 heißt �
 frm('Suche der Seite: die Libra steht mit denselben Zuständen und Punkten wie bei analyzeLib allein', () => {
   const fx = loadReal('lib-gone-h4-01');
   const t = 1763064000;
-  const ctx = () => new FormationContext(fx.symbol, { H4: fx.bars.filter((b) => b.time + H4 <= t) });
+  const ctx = () => new FormationContext(fx.symbol, { H4: fx.bars.filter((b) => b.time + H4 <= t) }, { trend: trendOf(fx.bars.filter((b) => b.time + H4 <= t)) });
   const alone = analyzeLib(ctx(), t)[0].candidate;
   const hit = scanFormations(ctx(), t).find((h) => h.form === 'LIB' && h.tf === 'H4');
   expect(hit?.candidate.verdict).toBe('valid');
@@ -509,14 +513,14 @@ for (const r of REAL) {
   frm(`echte Reihe ${r.file} bei t=${r.t}`, () => {
     const fx = loadReal(r.file);
     const known = fx.bars.filter((b) => b.time + H4 <= r.t);
-    const c = analyzeLib(new FormationContext(fx.symbol, { H4: known }), r.t)[0].candidate;
+    const c = analyzeLib(new FormationContext(fx.symbol, { H4: known }, { trend: trendOf(known) }), r.t)[0].candidate;
     expect(c.side).toBe(r.side);
     expect(c.verdict).toBe(r.verdict);
     expect(c.points.P2.time).toBe(r.p2);
     expect(c.points.P3.time).toBe(r.p3);
     for (const [n, want] of Object.entries(r.expect)) expect(state(c, idOf(Number(n))), idOf(Number(n))).toBe(want);
     // Kein Blick in die Zukunft: mit allen Kerzen der Datei und gleichem t derselbe Befund
-    const full = analyzeLib(new FormationContext(fx.symbol, { H4: fx.bars }), r.t)[0].candidate;
+    const full = analyzeLib(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     expect(full.checks.map((x) => [x.id, x.state])).toEqual(c.checks.map((x) => [x.id, x.state]));
     expect(full.verdict).toBe(c.verdict);
   });

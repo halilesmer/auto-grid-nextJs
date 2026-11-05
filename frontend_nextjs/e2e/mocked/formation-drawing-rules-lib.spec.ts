@@ -12,6 +12,7 @@ import { scanFormations } from '../../src/lib/formation/scan';
 import { analyzeT618 } from '../../src/lib/formation/t618Checks';
 import { TRADE_RULES } from '../../src/lib/formation/types';
 import { H4 } from '../fixtures/formation-rows';
+import { named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-20' }, fn);
 
@@ -35,9 +36,9 @@ frm('auf echten Kerzenreihen hat jede Zeichnung Bedingungs-IDs oder die Handel-K
   const unassigned = new Set<string>();
   const trade = new Set<string>();
   for (const file of readdirSync('e2e/fixtures/formation').filter((f) => SCAN_FIXTURE.test(f))) {
-    const fx = parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}`, 'utf-8')));
+    const fx = named(`e2e/fixtures/formation/${file}`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}`, 'utf-8'))));
     const t = fx.bars[fx.bars.length - 1].time + H4;
-    const ctx = () => new FormationContext(fx.symbol, { H4: fx.bars });
+    const ctx = () => new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
     const candidates = [...scanFormations(ctx(), t), ...analyzeT618(ctx(), t)].map((a) => a.candidate);
     for (const candidate of candidates) {
       for (const d of candidate.drawings) {

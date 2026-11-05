@@ -8,6 +8,7 @@ import { FormationContext } from '../../src/lib/formation/context';
 import { analyzeFrz } from '../../src/lib/formation/frzChecks';
 import { splitDaily, weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { FormationBar } from '../../src/lib/formation/types';
+import { FIXTURE_TREND } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-34' }, fn);
 
@@ -54,7 +55,7 @@ test.describe('W1 aus D1', () => {
   });
 
   frm('laufende Woche ist bis time + 7 Tage nicht in der Ansicht (kein Blick in die Zukunft)', () => {
-    const ctx = new FormationContext('T', { W1: weeklyFromDaily(twoWeeks()) });
+    const ctx = new FormationContext('T', { W1: weeklyFromDaily(twoWeeks()) }, { trend: FIXTURE_TREND });
     expect(ctx.view('W1', SUN2 + 7 * DAY - 1)?.bars.map((b) => b.time)).toEqual([SUN1]);
     expect(ctx.view('W1', SUN2 + 7 * DAY)?.bars.map((b) => b.time)).toEqual([SUN1, SUN2]);
     expect(ctx.view('W1', SUN1 + 7 * DAY - 1)?.bars).toEqual([]);
@@ -67,7 +68,7 @@ test.describe('W1 aus D1', () => {
       return { time: SUN1 + i * 7 * DAY, open: p, high: p + 3, low: p - 3, close: p + 1 };
     });
     const d1: FormationBar[] = weeks.map((w) => ({ ...w, time: w.time + DAY }));
-    const ctx = new FormationContext('T', { D1: d1, W1: weeks });
+    const ctx = new FormationContext('T', { D1: d1, W1: weeks }, { trend: FIXTURE_TREND });
     expect(ctx.timeframes()).toEqual(['D1']);
     const frz = analyzeFrz(ctx, SUN1 + 70 * 7 * DAY);
     expect([...frz.zones, ...frz.reversed].map((z) => z.tf as string)).not.toContain('W1');
@@ -75,7 +76,7 @@ test.describe('W1 aus D1', () => {
 
   frm('W1 hat RSI, Wave und ATR im Kontext', () => {
     const weeks = Array.from({ length: 40 }, (_, i): FormationBar => ({ time: SUN1 + i * 7 * DAY, open: 100 + i, high: 103 + i, low: 98 + i, close: 101 + i }));
-    const v = new FormationContext('T', { W1: weeks }).view('W1', SUN1 + 100 * 7 * DAY)!;
+    const v = new FormationContext('T', { W1: weeks }, { trend: FIXTURE_TREND }).view('W1', SUN1 + 100 * 7 * DAY)!;
     expect(v.tf).toBe('W1');
     expect(v.bars).toHaveLength(40);
     expect(v.rsi).toHaveLength(40);

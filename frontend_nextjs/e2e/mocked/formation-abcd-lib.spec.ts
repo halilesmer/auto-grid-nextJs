@@ -19,6 +19,7 @@ import { zoneGeometry } from '../../src/lib/formation/frz';
 import type { Anchor, Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
 import { D1, END, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -31,7 +32,7 @@ type Tf = keyof typeof STEP;
 const ctxOf = (input: Partial<Record<Tf, Row[]>>) => {
   const bars: ContextInput = {};
   for (const tf of Object.keys(input) as Tf[]) bars[tf] = barsOf(input[tf]!, STEP[tf]);
-  return new FormationContext('TEST', bars);
+  return new FormationContext('TEST', bars, { trend: FIXTURE_TREND });
 };
 
 /** Wick einer Zeile: Hoch oder Tief */
@@ -535,11 +536,11 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------
 
-const loadFixture = (name: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8')));
+const loadFixture = (name: string) => named(`e2e/fixtures/formation/${name}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${name}.json`, 'utf-8'))));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const analyzeAt = (name: string, iso: string): Candidate => {
   const fx = loadFixture(name);
-  const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput);
+  const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput, { trend: trendOf(fx.bars) });
   return analyzeAbcd(ctx, at(iso)).find((a) => a.tf === 'H4')!.candidate;
 };
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
@@ -567,13 +568,15 @@ test.describe('ABCD: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  frm('abcd-double-h4-01: Verkauf am D mit RSI(7) über 80 ohne Umkehrkerze ist gültig', () => {
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher gültig; auf dem Trendzug des Nutzers liegt am D keine Zone
+  frm('abcd-double-h4-01: Verkauf am D mit RSI(7) über 80 ohne Umkehrkerze, ohne Zone am D ungültig (ABCD-10 ☐)', () => {
     const c = analyzeAt('abcd-double-h4-01', '2025-11-13T00:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-20'])).toEqual([M, M, N]);
+    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-20', 'ABCD-10'])).toEqual([M, M, N, N]);
     expect(find(c, 'ABCD-17').value!).toBeGreaterThanOrEqual(80);
     expect(find(c, 'ABCD-20').kind).toBe('bonus');
-    expect(c.verdict).toBe('valid');
+    expect(c.invalidBy).toEqual(['ABCD-10']);
+    expect(c.verdict).toBe('invalid');
   });
 
   frm('sig-diverg-h4-01: Kauf am D ohne RSI-Extrem, der Engulf umschließt nur eine kleine Kerze (SIG-24), Zone durchbrochen', () => {
@@ -605,7 +608,7 @@ test.describe('ABCD: echte Kerzen', () => {
       b: { time: bars[b].time, price: bars[b].low },
       c: { time: bars[cIdx].time, price: bars[cIdx].high },
     });
-    const ctx = new FormationContext(fx.symbol, { H4: bars } as ContextInput);
+    const ctx = new FormationContext(fx.symbol, { H4: bars } as ContextInput, { trend: trendOf(bars) });
     // Kerze 12:00 geschlossen (Schluss 16:00): C-Hoch 0.80588, Tiefe 0.331 von AB 0.0143
     const early = checkAbcdCandidate(ctx, at('2025-10-08T16:00'), input(c));
     expect(state(early, 'ABCD-04')).toBe(N);
@@ -617,10 +620,12 @@ test.describe('ABCD: echte Kerzen', () => {
     expect(find(later, 'ABCD-04').value!).toBeCloseTo(0.397, 3);
   });
 
-  frm('abcd-double-h4-01: Negativ – volumenstarkes D-Bein schließt aus, ein Verkauf ohne Zone', () => {
+  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher schloss das volumenstarke D-Bein aus (ABCD-23 ☑, ABCD-10 ☐)
+  frm('abcd-double-h4-01: Negativ – Verkauf mit Zone am D, ohne Umkehrkerze ungültig (ABCD-20 ☐)', () => {
     const c = analyzeAt('abcd-double-h4-01', '2025-11-18T12:00');
     expect(c.side).toBe('sell');
-    expect(states(c, ['ABCD-23', 'ABCD-10'])).toEqual([M, N]);
+    expect(states(c, ['ABCD-23', 'ABCD-10', 'ABCD-20'])).toEqual([N, M, N]);
+    expect(c.invalidBy).toEqual(['ABCD-20']);
     expect(c.verdict).toBe('invalid');
   });
 
@@ -658,7 +663,7 @@ test.describe('ABCD: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)',
     const b = extreme(fx.bars, '2025-06-11T00:00', '2025-06-13T00:00', 'high');
     const c = extreme(fx.bars, '2025-06-13T00:00', '2025-06-14T00:00', 'low');
     expect([a.low, b.high, c.low]).toEqual([142.375, 145.459, 142.787]);
-    const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput);
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput, { trend: trendOf(fx.bars) });
     const cand = checkAbcdCandidate(ctx, at('2025-06-20T20:00'), points(a, a.low, b, b.high, c, c.low));
     expect(cand.side).toBe('sell');
     expect(cand.points?.D?.price).toBe(145.953);
@@ -680,7 +685,7 @@ test.describe('ABCD: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)',
     expect([a.high, b.low, c.high]).toEqual([0.82979, 0.81471, 0.82754]);
     expect(zoneGeometry(fx.bars, fx.bars.indexOf(b), 'support', 'H4').manipulation).toBe(false);
     expect(Math.min(b.open, b.close) - b.low).toBeLessThan(0.5 * Math.abs(b.close - b.open));
-    const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput);
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput, { trend: trendOf(fx.bars) });
     const cand = checkAbcdCandidate(ctx, at('2025-06-24T00:00'), points(a, a.high, b, b.low, c, c.high));
     expect(cand.side).toBe('buy');
     expect(states(cand, ['ABCD-04', 'ABCD-06', 'ABCD-19'])).toEqual([M, N, M]);

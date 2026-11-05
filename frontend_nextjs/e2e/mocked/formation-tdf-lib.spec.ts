@@ -25,6 +25,7 @@ import type { TdfForm } from '../../src/lib/formation/tdfForms';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, H1, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -56,7 +57,7 @@ interface Spec {
 function run(rows: Row[], spec: Spec, o: Options = {}): Candidate {
   const tf = o.tf ?? 'H4';
   const bars = barsOf(rows, STEP[tf]);
-  const ctx = new FormationContext('TEST', { [tf]: bars });
+  const ctx = new FormationContext('TEST', { [tf]: bars }, { trend: FIXTURE_TREND });
   const high = !o.down;
   const pt = (i: number, es: boolean, name: string): Anchor => ({
     time: bars[i].time,
@@ -367,8 +368,8 @@ frm('Zeitpunkt: die Prüfung bis zur Kerze vor dem Bruch ist im Aufbau und bleib
 });
 
 frm('Abgrenzung Flagge und Dreieck: F1 unter der Zone von H1 ist eine Flagge, H2 in der Zone ein Dreieck; die Suche bietet nur die passende Unterform an', () => {
-  const flag = analyzeTdf(new FormationContext('TEST', { H4: barsOf(FLAG, H4) }), 1e9)[0];
-  const tri = analyzeTdf(new FormationContext('TEST', { H4: barsOf(TRI, H4) }), 1e9)[0];
+  const flag = analyzeTdf(new FormationContext('TEST', { H4: barsOf(FLAG, H4) }, { trend: FIXTURE_TREND }), 1e9)[0];
+  const tri = analyzeTdf(new FormationContext('TEST', { H4: barsOf(TRI, H4) }, { trend: FIXTURE_TREND }), 1e9)[0];
   expect(flag.forms.find((f) => f.form === 'flag')?.candidate.verdict).toBe('valid');
   expect(tri.forms.find((f) => f.form === 'triangle')?.candidate.verdict).toBe('valid');
   // Mit F1 in der Zone von H1 ist die Flagge nach Regel 11 ungültig
@@ -394,7 +395,7 @@ frm('Abgrenzung Doppeltop: dieselben Kerzen mit einem Fall unter das Tief zwisch
   expect(state(run(TRI_BELOW, TRI_SPEC), 'TDF-20')).toBe(M);
   expect(run(TRI_BELOW, TRI_SPEC).verdict).toBe('invalid');
   const bars = barsOf(TRI_BELOW, H4);
-  const cdt = checkCdtCandidate(new FormationContext('TEST', { H4: bars }), 1e9, {
+  const cdt = checkCdtCandidate(new FormationContext('TEST', { H4: bars }, { trend: FIXTURE_TREND }), 1e9, {
     tf: 'H4',
     h1: { time: bars[pv(5)].time, price: bars[pv(5)].high },
     n: { time: bars[pv(6)].time, price: bars[pv(6)].low },
@@ -406,8 +407,8 @@ frm('Abgrenzung Doppeltop: dieselben Kerzen mit einem Fall unter das Tief zwisch
 frm('Abgrenzung Kopf-Schulter: eine Kopf-Schulter-Reihe liefert keine gültige Trendfortsetzung', () => {
   const base = series([100, 120, 108, 135, 120, 150, 121, 136, 110]);
   const rows = patched(base, 73, [base[73][0], base[73][0] + 0.1, 108, 116.5]);
-  expect(analyzeObo(new FormationContext('TEST', { H4: barsOf(rows, H4) }), 1e9)[0].candidate.verdict).toBe('valid');
-  const tdf = analyzeTdf(new FormationContext('TEST', { H4: barsOf(rows, H4) }), 1e9)[0];
+  expect(analyzeObo(new FormationContext('TEST', { H4: barsOf(rows, H4) }, { trend: FIXTURE_TREND }), 1e9)[0].candidate.verdict).toBe('valid');
+  const tdf = analyzeTdf(new FormationContext('TEST', { H4: barsOf(rows, H4) }, { trend: FIXTURE_TREND }), 1e9)[0];
   expect(tdf.forms.filter((f) => f.candidate.verdict === 'valid')).toEqual([]);
 });
 
@@ -427,7 +428,7 @@ frm('Zeichnungen: Flagge hat obere Linie, Kopie und Mast; Dreieck Zone und Unter
 });
 
 frm('analyzeTdf: sucht die Punkte selbst; Kauf nach Hochs, Verkauf nach Tiefs; Kontext mit mehreren Zeiteinheiten bleibt je Zeiteinheit getrennt', () => {
-  const up = analyzeTdf(new FormationContext('TEST', { H4: barsOf(FLAG, H4) }), 1e9);
+  const up = analyzeTdf(new FormationContext('TEST', { H4: barsOf(FLAG, H4) }, { trend: FIXTURE_TREND }), 1e9);
   expect(up).toHaveLength(1);
   expect(up[0].tf).toBe('H4');
   const flag = up[0].forms.find((f) => f.form === 'flag')!.candidate;
@@ -437,28 +438,28 @@ frm('analyzeTdf: sucht die Punkte selbst; Kauf nach Hochs, Verkauf nach Tiefs; K
   expect(Object.keys(flag.points)).toEqual(['H1', 'S', 'C1', 'F1', 'C2', 'B']);
   expect(flag.points.H1.time).toBe(pv(5) * H4);
   expect(flag.points.B.time).toBe(77 * H4);
-  const down = analyzeTdf(new FormationContext('TEST', { H4: barsOf(mirror(FLAG), H4), D1: barsOf(FLAG, D1) }), 1e9);
+  const down = analyzeTdf(new FormationContext('TEST', { H4: barsOf(mirror(FLAG), H4), D1: barsOf(FLAG, D1) }, { trend: FIXTURE_TREND }), 1e9);
   expect(down.map((x) => x.tf)).toEqual(['D1', 'H4']);
   expect(down[1].forms.find((f) => f.form === 'flag')?.candidate.side).toBe('sell');
   expect(down[0].forms.find((f) => f.form === 'flag')?.candidate.side).toBe('buy');
 });
 
 frm('analyzeTdf: Dreieck, Schale und Box werden selbst gefunden', () => {
-  const pick = (rows: Row[], form: TdfForm) => analyzeTdf(new FormationContext('TEST', { H4: barsOf(rows, H4) }), 1e9)[0].forms.find((f) => f.form === form)?.candidate;
+  const pick = (rows: Row[], form: TdfForm) => analyzeTdf(new FormationContext('TEST', { H4: barsOf(rows, H4) }, { trend: FIXTURE_TREND }), 1e9)[0].forms.find((f) => f.form === form)?.candidate;
   expect(pick(TRI, 'triangle')?.verdict).toBe('valid');
   expect(pick(BOWL, 'bowl')?.verdict).toBe('valid');
   expect(pick(BOX, 'box')?.verdict).toBe('valid');
 });
 
 frm('analyzeTdf: ruhige Reihe und fehlender Kontext liefern nichts Gültiges', () => {
-  expect(analyzeTdf(new FormationContext('TEST', {}), 1e9)).toEqual([]);
-  const flat = analyzeTdf(new FormationContext('TEST', { H4: barsOf(LEAD, H4) }), 1e9)[0];
+  expect(analyzeTdf(new FormationContext('TEST', {}, { trend: FIXTURE_TREND }), 1e9)).toEqual([]);
+  const flat = analyzeTdf(new FormationContext('TEST', { H4: barsOf(LEAD, H4) }, { trend: FIXTURE_TREND }), 1e9)[0];
   expect(flat.forms.filter((f) => f.candidate.verdict === 'valid')).toEqual([]);
 });
 
 frm('checkTdfCandidate: falsche Reihenfolge oder nicht geladene Kerze ergibt nicht messbar', () => {
   const bars = barsOf(FLAG, H4);
-  const ctx = new FormationContext('TEST', { H4: bars });
+  const ctx = new FormationContext('TEST', { H4: bars }, { trend: FIXTURE_TREND });
   const a = (i: number, price: number): Anchor => ({ time: bars[i].time, price });
   const swapped = checkTdfCandidate(ctx, 1e9, { form: 'flag', tf: 'H4', h1: a(66, 146), c1: a(62, 160), f1: a(70, 154) });
   expect(swapped.checks.every((k) => k.state === U)).toBe(true);
@@ -470,7 +471,7 @@ frm('checkTdfCandidate: falsche Reihenfolge oder nicht geladene Kerze ergibt nic
 
 // ---- Echte Kerzenreihen ----------------------------------------------------------------------------------------
 
-const loadReal = (file: string) => parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')));
+const loadReal = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8'))));
 
 interface Real {
   file: string;
@@ -509,7 +510,7 @@ for (const r of REAL) {
   frm(`echte Reihe ${r.file} (${r.form}) bei t=${r.t}`, () => {
     const fx = loadReal(r.file);
     const known = fx.bars.filter((b) => b.time + H4 <= r.t);
-    const pick = (bars: typeof known) => analyzeTdf(new FormationContext(fx.symbol, { H4: bars }), r.t)[0].forms.find((f) => f.form === r.form)!.candidate;
+    const pick = (bars: typeof known) => analyzeTdf(new FormationContext(fx.symbol, { H4: bars }, { trend: trendOf(bars) }), r.t)[0].forms.find((f) => f.form === r.form)!.candidate;
     const c = pick(known);
     expect(c.side).toBe(r.side);
     expect(c.verdict).toBe(r.verdict);
