@@ -257,7 +257,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 19
+      "tests": 1
     }
   },
   "ANA-18": {
@@ -271,7 +271,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 19
+      "tests": 4
     }
   },
   "ANA-20": {
@@ -285,7 +285,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 38
+      "tests": 9
     }
   },
   "ANA-22": {
@@ -1510,7 +1510,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 25
+      "tests": 1
     }
   },
   "UI-14": {
@@ -1524,7 +1524,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 35
+      "tests": 1
     }
   },
   "UPD-01": {

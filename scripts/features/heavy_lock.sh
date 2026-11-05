@@ -248,6 +248,8 @@ heavy_on_exit() { _HL_EXIT_HOOKS+=("$1"); trap '_hl_on_exit' EXIT; }
 
 _hl_on_exit() {
   local status=$? h
+  # Ein zweites Signal während des Aufräumens würde bash beenden, bevor die Sperre frei ist
+  trap '' HUP INT TERM
   for h in "${_HL_EXIT_HOOKS[@]+"${_HL_EXIT_HOOKS[@]}"}"; do "$h" || true; done
   _HL_EXIT_HOOKS=()
   heavy_lock_release

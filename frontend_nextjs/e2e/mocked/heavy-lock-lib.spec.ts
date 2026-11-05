@@ -6,7 +6,7 @@
  *
  * Jeder Test nimmt ein eigenes Sperrverzeichnis (HEAVY_LOCK_DIR), nie /tmp/gridrobot-heavy.lock.
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -17,6 +17,7 @@ const SCRIPT = path.join(CHECKOUT_ROOT, 'scripts/features/heavy_lock.sh');
 
 let work: string;
 let lockDir: string;
+let holders: ChildProcess[] = [];
 
 /** Umgebung ohne CI/HEAVY_LOCK des Testlaufs (CI setzt CI=true, das würde die Sperre abschalten). */
 function env(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
@@ -56,10 +57,17 @@ async function waitFor(cond: () => boolean, ms = 10_000) {
   }
 }
 
-/** Sperre so anlegen, wie ein laufender anderer Prozess sie hält (Format von heavy-run.sh). */
-function holdLock(pid: number) {
+/**
+ * Sperre so anlegen, wie ein laufender anderer Prozess sie hält (Format von heavy-run.sh).
+ * Halter ist ein eigenes `sleep`, kein Vorfahr der Hülle: process.pid wäre ein Vorfahr, und dann
+ * liefe die Hülle per Wiedereintritt ohne Warten.
+ */
+function holdLock(): ChildProcess {
+  const holder = spawn('sleep', ['60']);
   mkdirSync(lockDir);
-  writeFileSync(path.join(lockDir, 'owner'), `${pid} other-worktree 12:00:00\n`);
+  writeFileSync(path.join(lockDir, 'owner'), `${holder.pid} other-worktree 12:00:00\n`);
+  holders.push(holder);
+  return holder;
 }
 
 test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
@@ -67,7 +75,11 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     work = mkdtempSync(path.join(tmpdir(), 'heavy-lock-'));
     lockDir = path.join(work, 'lock');
   });
-  test.afterEach(() => rmSync(work, { recursive: true, force: true }));
+  test.afterEach(() => {
+    for (const h of holders) h.kill('SIGKILL');
+    holders = [];
+    rmSync(work, { recursive: true, force: true });
+  });
 
   test('zwei gleichzeitige Läufe laufen nacheinander, nicht überlappend', async () => {
     const log = path.join(work, 'log');
@@ -105,14 +117,14 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
   });
 
   test('HEAVY_LOCK=0 und CI laufen sofort, trotz gehaltener Sperre', () => {
-    holdLock(process.pid); // lebender fremder Halter
+    const holder = holdLock(); // lebender fremder Halter
     for (const extra of [{ HEAVY_LOCK: '0' }, { CI: 'true' }] as Record<string, string>[]) {
       const r = run(['echo', 'ohne Sperre'], { ...extra, HEAVY_LOCK_TIMEOUT: '1' });
       expect(r.status).toBe(0);
       expect(r.stdout).toContain('ohne Sperre');
     }
     // fremde Sperre unangetastet
-    expect(readFileSync(path.join(lockDir, 'owner'), 'utf8')).toContain(String(process.pid));
+    expect(readFileSync(path.join(lockDir, 'owner'), 'utf8')).toContain(String(holder.pid));
   });
 
   test('Fehler im Befehl: Sperre frei, Exit-Code bleibt', () => {
@@ -132,7 +144,7 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
   });
 
   test('HEAVY_LOCK_TIMEOUT: Exit 75 mit Halter in der Meldung', () => {
-    holdLock(process.pid);
+    holdLock();
     const r = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '1' });
     expect(r.status).toBe(75);
     expect(r.stdout).not.toContain('nie');
