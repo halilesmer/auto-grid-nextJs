@@ -3,7 +3,7 @@ date: 2026-11-05
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [389]
 features: [SYS-11, SYS-10]
 areas: [tests, tooling]
 ---
