@@ -63,7 +63,7 @@ finished touch of the zone (2618) since the old N.
 - Before the fix: the two new assertions failed (synthetic N 116 instead of 110; fixture N 202.566 instead of 201.915).
 - After the fix: all formation logic tests (`e2e/mocked/formation-*-lib.spec.ts`) pass, also all CDT, 2618, ABCD and scan tests.
 - `npx tsc --noEmit`, `npm run lint`, `python scripts/features/update_checklist.py --check` and the full mocked e2e: see the PR.
-- Not verified: Bora's images and the M30 case of `cdt-top-h4-02` (tg-2815); the global fixture trend setting (G1) is a
+- Not verified: the source images and a lower time frame (M30) for `cdt-top-h4-02`; the global fixture trend setting is a
   separate decision.
 
 ## Lessons
