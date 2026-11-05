@@ -15,6 +15,8 @@ export interface AlarmPrefs extends AlarmSettings {
 }
 
 export interface Stored {
+  /** Hauptschalter des Alarms: aus = keine Suche, keine Meldung; alle Auswahlen bleiben. Fehlt in älteren Speicherständen (gilt als an). */
+  active: boolean;
   prefs: AlarmPrefs;
   /** Schalter je Konto und Symbol: `${konto}|${symbol}` */
   enabled: string[];
@@ -28,6 +30,7 @@ export interface Stored {
 }
 
 export const DEFAULTS: Stored = {
+  active: true,
   prefs: { events: { valid: true, target: true }, forms: SCAN_FORMATIONS, system: false, sound: false },
   enabled: [],
   favoritesEnabled: [],
@@ -55,6 +58,7 @@ export function parseStored(raw: string | null): Stored {
     if (valid.length > 0) history[accountId] = valid;
   }
   return {
+    active: data.active !== false,
     prefs: {
       events: { valid: events.valid !== false, target: events.target !== false },
       forms: Array.isArray(prefs.forms) ? SCAN_FORMATIONS.filter((form) => (prefs.forms as unknown[]).includes(form)) : SCAN_FORMATIONS,

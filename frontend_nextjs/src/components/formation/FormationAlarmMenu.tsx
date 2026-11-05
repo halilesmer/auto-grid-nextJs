@@ -11,12 +11,43 @@ import type { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { HISTORY_LIMIT, type HistoryEntry } from '@/lib/formation/alarmHistory';
 import { SCAN_FORMATIONS } from '@/lib/formation/scan';
+import { TrendSettingsPanel } from '@/components/chart-workspace/TrendSettingsPanel';
+import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { cn } from '@/lib/utils';
 
 type Alarm = ReturnType<typeof useFormationAlarm>;
 
 const REST_STATUS = { none: 'formation.alarm.status.rest.none', gone: 'formation.alarm.status.rest.gone', checking: 'formation.alarm.status.checking' } as const satisfies Record<string, MessageKey>;
+const RULE_LABEL = { welle: 'formation.alarm.trend.rule.welle', geruest: 'formation.alarm.trend.rule.geruest', filter: 'formation.alarm.trend.rule.filter' } as const satisfies Record<string, MessageKey>;
 const REST_NOTE = { none: 'formation.alarm.rest.none.note', gone: 'formation.alarm.rest.gone.note', checking: 'formation.alarm.checking.note' } as const satisfies Record<string, MessageKey>;
+
+/** Nur lesende Zeile mit den Trend-Einstellungen des Charts; [Ayarlar] klappt dasselbe Panel auf wie das Zahnrad im Chart */
+function TrendRow() {
+  const t = useT();
+  const fmt = useFormat();
+  const trend = useAnalysisPrefsStore((s) => s.trend);
+  const [open, setOpen] = useState(false);
+  const rule = trend.rule === 'groesse' ? t('cw.trend.minSize') : t(RULE_LABEL[trend.rule]);
+  const size = trend.rule === 'welle' ? '' : ` · ${fmt.number(trend.minSize, { maximumFractionDigits: 2 })} ATR`;
+  return (
+    <div className="flex flex-col gap-1" data-testid="formation-alarm-trend">
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="min-w-0" data-testid="formation-alarm-trend-text">
+          {t('formation.alarm.trend')}: {rule}
+          {size} · {t('formation.alarm.trend.closes', { count: trend.changeCloses })}
+        </span>
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen(!open)} hint={t('formation.alarm.trend.settings.hint')} data-testid="formation-alarm-trend-settings">
+          {t('formation.alarm.trend.settings')}
+        </Button>
+      </div>
+      {open && (
+        <div className="max-h-72 overflow-y-auto rounded-md border border-border" data-testid="formation-alarm-trend-panel">
+          <TrendSettingsPanel />
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Gruppenkopf über den Einträgen einer Sammelmeldung: erscheint beim ersten Eintrag eines Durchlaufs */
 const startsGroup = (list: readonly HistoryEntry[], i: number) => list[i].batch !== 'single' && (i === 0 || list[i - 1].at !== list[i].at || list[i - 1].batch !== list[i].batch);
@@ -99,24 +130,26 @@ export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol
   const { prefs, enabled, favoritesEnabled, extras, status, permission, history, account } = alarm;
   // Kein Konto, mit dem der Alarm suchen darf (und die Seite hat keins): das Menü nennt nur den Grund
   const rest = !alarm.pageAccount && account.state !== 'ok' ? account.state : null;
-  const active = rest === null && status.total > 0;
+  const on = alarm.active;
+  const active = on && rest === null && status.total > 0;
   const incomplete = status.incomplete.length > 0;
   const activeDot = incomplete ? 'bg-warning' : 'bg-success';
   const restDot = rest === 'checking' ? 'bg-muted-foreground' : 'bg-warning';
   const idleDot = active ? activeDot : 'bg-muted-foreground';
-  const dot = rest !== null ? restDot : idleDot;
+  const liveDot = rest !== null ? restDot : idleDot;
+  const dot = on ? liveDot : 'bg-muted-foreground';
   const icon = (
     <span className="relative inline-flex">
       {active ? <Bell size={16} /> : <BellOff size={16} />}
-      {(active || rest !== null) && <span className={cn('absolute -right-1 -top-1 size-2 rounded-full border border-background', dot)} aria-hidden="true" />}
+      {on && (active || rest !== null) && <span className={cn('absolute -right-1 -top-1 size-2 rounded-full border border-background', dot)} aria-hidden="true" />}
     </span>
   );
   const blocked = permission === 'denied';
-  const activeText = !active
-    ? t('formation.alarm.status.off')
-    : t(status.lastRunAt === null ? 'formation.alarm.status.running' : 'formation.alarm.status.active', { time: status.lastRunAt === null ? '' : fmt.time(status.lastRunAt), ready: status.ready, total: status.total });
+  const runningText = t(status.lastRunAt === null ? 'formation.alarm.status.running' : 'formation.alarm.status.active', { time: status.lastRunAt === null ? '' : fmt.time(status.lastRunAt), ready: status.ready, total: status.total });
+  const activeText = active ? runningText : t('formation.alarm.status.off');
   const remembered = account.source === 'remembered' ? t('formation.alarm.status.remembered', { account: account.label }) : '';
-  const statusText = rest !== null ? t(REST_STATUS[rest]) : remembered + activeText;
+  const liveText = rest !== null ? t(REST_STATUS[rest]) : remembered + activeText;
+  const statusText = on ? liveText : t('formation.alarm.status.paused');
   return (
     <DropdownMenu
       label={t('formation.alarm.menu')}
@@ -131,11 +164,15 @@ export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol
     >
       <div className="flex flex-col gap-3 p-3" data-testid="formation-alarm-panel">
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-semibold">{t('formation.alarm.menu')}</span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold">{t('formation.alarm.menu')}</span>
+            <Switch id="formation-alarm-active" checked={on} onChange={alarm.setActive} label={t(on ? 'formation.alarm.active' : 'formation.alarm.inactive')} hint={t('formation.alarm.active.hint')} />
+          </div>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums" data-testid="formation-alarm-status">
             <span className={cn('size-2 shrink-0 rounded-full', dot)} aria-hidden="true" />
             {statusText}
           </span>
+          {rest === null && <TrendRow />}
         </div>
         {rest !== null ? (
           <p className={cn('rounded-md border px-2 py-1.5 text-xs text-foreground', rest === 'checking' ? 'border-border bg-muted' : 'border-warning/30 bg-warning/10')} data-testid="formation-alarm-rest-note">
@@ -164,7 +201,7 @@ export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol
               </div>
             </>
           ) : (
-            <>
+            <div className={cn('flex flex-col gap-3', !on && 'opacity-60')} data-testid="formation-alarm-settings" data-dimmed={String(!on)}>
           <div className="flex flex-col gap-2">
             <Switch
               id="formation-alarm-favorites"
@@ -252,7 +289,7 @@ export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol
             {blocked && <p className="text-xs text-muted-foreground" data-testid="formation-alarm-blocked">{t('formation.alarm.system.blocked')}</p>}
             <Switch id="formation-alarm-sound" checked={prefs.sound} onChange={alarm.setSound} label={t('formation.alarm.channel.sound')} hint={t('formation.alarm.channel.sound.hint')} />
           </fieldset>
-            </>
+            </div>
           )}
           </>
         )}

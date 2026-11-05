@@ -942,7 +942,7 @@
   },
   "FRM-28": {
     "api": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 10
     },
@@ -954,7 +954,7 @@
   },
   "FRM-29": {
     "api": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 7
     },
@@ -1011,6 +1011,13 @@
       "datum": "2026-11-04",
       "status": "passed",
       "tests": 13
+    }
+  },
+  "FRM-43": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 4
     }
   },
   "LOG-01": {

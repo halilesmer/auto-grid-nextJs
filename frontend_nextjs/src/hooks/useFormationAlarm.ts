@@ -101,6 +101,7 @@ export function useFormationAlarm(pageAccount: string | null, pageSymbol: string
       update((current) => ({ ...current, prefs: { ...current.prefs, forms: SCAN_FORMATIONS.filter((x) => (x === form ? on : current.prefs.forms.includes(x))) } })),
     [update],
   );
+  const setActive = useCallback((on: boolean) => update((current) => ({ ...current, active: on })), [update]);
   const setSound = useCallback((on: boolean) => update((current) => ({ ...current, prefs: { ...current.prefs, sound: on } })), [update]);
   const setSystem = useCallback(
     async (on: boolean) => {
@@ -111,5 +112,5 @@ export function useFormationAlarm(pageAccount: string | null, pageSymbol: string
     [update],
   );
 
-  return { account: alarmAccount, pageAccount: pageAccount !== null, prefs: stored.prefs, enabled, favoritesEnabled, favoriteCount: favorites.symbols.length, extras, status, permission, history, clearHistory, openEntry, setEnabled, setFavorites, removeExtra, setEvent, setForm, setSound, setSystem };
+  return { account: alarmAccount, pageAccount: pageAccount !== null, active: stored.active, prefs: stored.prefs, enabled, favoritesEnabled, favoriteCount: favorites.symbols.length, extras, status, permission, history, clearHistory, openEntry, setEnabled, setFavorites, removeExtra, setEvent, setForm, setSound, setSystem, setActive };
 }
