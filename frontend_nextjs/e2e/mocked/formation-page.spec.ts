@@ -1527,7 +1527,57 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     const before = ratesCalls(worker);
     await page.getByTestId('trend-settings').click();
     await page.getByTestId('trend-settings-panel').getByTestId('trend-minSize').fill('1.5');
+    await page.getByTestId('trend-confirm-apply').click();
     await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(before + 4);
+  });
+
+  test('FRM-42 [Yeniden ara]: ein Regler ändert nur den Entwurf; erst die Bestätigung wendet an, speichert und startet die Suche neu', { tag: '@FRM-42' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await waitForPass(worker, 1);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') ?? '{}').state?.trend?.minSize as number | undefined);
+    const applied = await stored();
+    await expect(page.getByTestId('trend-confirm')).toHaveCount(0);
+    await page.getByTestId('trend-settings').click();
+    const panel = page.getByTestId('trend-settings-panel');
+    await panel.getByTestId('trend-minSize').fill('1.5');
+    const strip = page.getByTestId('trend-confirm');
+    await expect(strip).toBeVisible();
+    await expect(strip).toContainText(msg('cw.trend.confirm.title'));
+    await expect(page.getByTestId('trend-pending-dot')).toBeVisible();
+    // Entwurf: nichts gespeichert, keine neue Suche
+    const before = ratesCalls(worker);
+    await page.waitForTimeout(1500);
+    expect(await stored()).toBe(applied);
+    expect(ratesCalls(worker)).toBe(before);
+    await page.getByTestId('trend-confirm-apply').click();
+    await expect(strip).toHaveCount(0);
+    await expect(page.getByTestId('trend-pending-dot')).toHaveCount(0);
+    expect(await stored()).toBe(1.5);
+    await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(before + 4);
+  });
+
+  test('FRM-42 [Geri al]: der Entwurf kehrt zur angewendeten Einstellung zurück, ohne neue Suche', { tag: '@FRM-42' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await waitForPass(worker, 1);
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await page.getByTestId('trend-settings').click();
+    const slider = page.getByTestId('trend-settings-panel').getByTestId('trend-minSize');
+    const original = await slider.inputValue();
+    await slider.fill('1.5');
+    await expect(page.getByTestId('trend-confirm')).toBeVisible();
+    const before = ratesCalls(worker);
+    await page.getByTestId('trend-confirm-revert').click();
+    await expect(page.getByTestId('trend-confirm')).toHaveCount(0);
+    await expect(slider).toHaveValue(original);
+    await page.waitForTimeout(1500);
+    expect(ratesCalls(worker)).toBe(before);
   });
 
   test('Bei 375 px liegt das Glocken-Menü über der Favoriten-Seitenleiste, auch an seinem rechten Rand', { tag: '@FRM-30' }, async ({ page, worker }) => {

@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-05 · **218/224** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-05 · **219/225** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 15/15 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/23 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/18 |
-| 16 | **FRM** – Formationserkennung | 42/42 |
+| 16 | **FRM** – Formationserkennung | 43/43 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -1038,6 +1038,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Die Formationen (Suche, Seite, Alarm) rechnen nur mit dem Trendzug, den der Nutzer im Chart einstellt (buildTrend mit seinen Einstellungen, Plan 1105-A5, Entscheidung Halil 2026-11-05; sie ersetzt die vom 2026-10-31). Es gibt keinen eigenen feinen Zug mehr und keine Einstellung „Formationen: Grundlage“; die Gruppe „Formationen“ im Trend-Menü entfällt, ein alter gespeicherter Wert formationZug wird ignoriert. FormationContext nimmt die Einstellungen (options.trend, Standard DEFAULT_TREND_SETTINGS); jeder Wendepunkt einer Formation ist damit ein Eckpunkt der Linie (buildTrendPath). Ändert der Nutzer eine Einstellung, rechnen Seitensuche und Alarm neu (Fingerabdruck der Einstellungen). Keine Worker-Änderung.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-follows-trend-lib.spec.ts (@FRM-41) ausführen (gleiche Kerzen und Einstellungen: jeder Formationspunkt ist ein Eckpunkt von buildTrendPath; andere Mindestgröße ändert die Formationen). → Playwright-Test e2e/mocked/formation-trd-lib.spec.ts (@FRM-03) ausführen (Formationen rechnen auf den Punkten des Trendzugs der Einstellungen). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (Änderung der Trend-Einstellungen startet die Suche neu).
   - **Erwartet:** Jeder Punkt einer Formation liegt auf einem Eckpunkt der Trendlinie; eine andere Mindestgröße ändert die gefundenen Formationen; das Trend-Menü hat keine Gruppe „Formationen“.
+- [x] **FRM-42** Trend-Einstellungen: Bestätigung vor der neuen Suche — 🖥️ e2e ✅ 2026-11-05
+  - Im Modus Formation ändert ein Regler im Trend-Panel nur den Entwurf (`trendDraft`, nicht gespeichert): die Trendlinie im Chart zeigt ihn, Formationen, Seitensuche und Alarm rechnen weiter mit den angewendeten Einstellungen (`trend`). Weicht der Entwurf ab, erscheint im Panel ein Streifen „Formasyonlar yeni ayarlarla yeniden aransın mı?“ mit [Yeniden ara] (Entwurf wird angewendet und gespeichert, Suche und Alarm starten neu, die erste Alarmrunde meldet alte Treffer nicht erneut) und [Geri al] (Regler zurück auf die angewendeten Werte); am Trend-Knopf steht ein Punkt, solange der Entwurf abweicht. Ein Neuladen verwirft den Entwurf. In Setup und Frei gilt jede Änderung sofort (Plan 1105-A5, A5.2 / A5.2.1). Keine Worker-Änderung.
+  - **Prüfung:** Playwright-Tests e2e/mocked/formation-page.spec.ts (@FRM-42) ausführen (Regler ändert nur den Entwurf: nichts gespeichert, keine neue Suche; [Yeniden ara] speichert und startet die Suche neu; [Geri al] stellt den Regler zurück, keine Suche). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-30) ausführen (nach der Bestätigung startet die Suche neu).
+  - **Erwartet:** Nach einem Reglerzug zeigt der Streifen die Frage mit beiden Knöpfen und die Suche läuft nicht neu; [Yeniden ara] wendet an und sucht neu, [Geri al] verwirft den Entwurf.
 - [x] **FRM-43** Formationsalarm: Hauptschalter und Trend-Zeile — 🖥️ e2e ✅ 2026-11-05
   - Das Alarm-Menü hat oben rechts einen Hauptschalter (gespeichert als `active`, Standard an, ältere Speicherstände gelten als an). Aus: keine Suche und keine Meldung für den Alarm (`alarmSymbols` leer), Glocke `BellOff` ohne Punkt, Status „Kapalı · seçimler korunuyor“; alle Auswahlen bleiben, gedimmt aber bedienbar. Unter dem Status steht eine nur lesende Trend-Zeile (Regel, Größe in ATR, Schlüsse) aus den Trend-Einstellungen des Charts; [Ayarlar] klappt dasselbe Trend-Panel auf. Keine eigenen Trend-Einstellungen des Alarms (Plan 1105-A5, A5.3 / A5.4).
   - **Prüfung:** Playwright-Test e2e/mocked/formation-alarm-switch.spec.ts (@FRM-43) ausführen (aus: Glocke aus, Status, Auswahlen bleiben; an: wie vorher; Trend-Zeile und Panel; 375 px ohne Querscroll). → UI-07 (Tooltips) und UI-08 (375 px ohne Querscroll) ausführen.

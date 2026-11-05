@@ -325,6 +325,10 @@ export default defineArea(
   "cw.trend.atrPeriod": "ATR uzunluğu",
   "cw.trend.ewoInvalid": "EWO uzun, EWO kısadan büyük olmalı. O zamana kadar varsayılan çift geçerlidir.",
   "cw.trend.reset": "Sıfırla",
+  "cw.trend.confirm.title": "Formasyonlar yeni ayarlarla yeniden aransın mı?",
+  "cw.trend.confirm.body": "Çizgi taslağı gösteriyor. Formasyonlar ve alarm hâlâ {applied} ile çalışıyor.",
+  "cw.trend.confirm.apply": "Yeniden ara",
+  "cw.trend.confirm.revert": "Geri al",
 },
 {
   "cw.overlayFormations": "Formation drawings",
@@ -650,6 +654,10 @@ export default defineArea(
   "cw.trend.atrPeriod": "ATR length",
   "cw.trend.ewoInvalid": "EWO long must be greater than EWO short. Until then the default pair applies.",
   "cw.trend.reset": "Reset",
+  "cw.trend.confirm.title": "Search formations again with the new settings?",
+  "cw.trend.confirm.body": "The line shows the draft. Formations and the alarm still use {applied}.",
+  "cw.trend.confirm.apply": "Search again",
+  "cw.trend.confirm.revert": "Undo",
 },
 {
   "cw.overlayFormations": "Formationszeichnungen",
@@ -975,5 +983,9 @@ export default defineArea(
   "cw.trend.atrPeriod": "ATR-Länge",
   "cw.trend.ewoInvalid": "EWO lang muss größer sein als EWO kurz. Bis dahin gilt das Paar des Standards.",
   "cw.trend.reset": "Zurücksetzen",
+  "cw.trend.confirm.title": "Formationen mit den neuen Einstellungen neu suchen?",
+  "cw.trend.confirm.body": "Die Linie zeigt den Entwurf. Formationen und Alarm rechnen noch mit {applied}.",
+  "cw.trend.confirm.apply": "Neu suchen",
+  "cw.trend.confirm.revert": "Zurücknehmen",
 }
 );

@@ -320,7 +320,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
   const data = useMemo(() => formationChartData(view, TIMEFRAME_SEC[hit.tf]), [view, hit.tf]);
   // Trendzug wie auf /chart (ANA-21), aber aus den Kerzen der Formation: nur geschlossene bis scanAt, ohne laufende Kerze
   const showTrend = useAnalysisPrefsStore(s => s.showTrend);
-  const trendSettings = useAnalysisPrefsStore(s => s.trend);
+  const trendSettings = useAnalysisPrefsStore(s => s.trendDraft);
   const trendPath = useMemo(
     () => (showTrend && bars.length > 0 ? { segments: buildTrendPath(hit.tf, bars, usableTrendSettings(trendSettings)), axis: bars.map(b => b.time) } : NO_TREND),
     [showTrend, bars, hit.tf, trendSettings],
