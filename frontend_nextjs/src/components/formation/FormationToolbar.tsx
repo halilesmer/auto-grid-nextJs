@@ -90,6 +90,7 @@ export function FormationToolbar({
   // weil Kopfleiste und Werkzeuge mit der Browser-Schrift wachsen; in px überlappten sie bei 20 px Schrift (FRM-23).
   // Gemessen 2026-11-03 (UI-14, e2e chart-one-page.spec.ts), tr/de: Werkzeugleiste mit dem Knopf „Ebenen“ 374 px bei 16 px Schrift (456 px bei 20 px)
   // + 28 px für den Schalter „Formasyon çizimleri“ (FRM-45, nur Formation: Reserve 26rem = 416 px statt 24,25rem) + 4 px (5 px) Rand rechts des Containers + 8 px Abstand = 386 px (469 px). Die Reserve ist 24,25rem = 388 px (485 px bei 20 px Schrift).
+  // Gruppen mit Griff (UI-16, 2026-11-05): in der Kopfleiste ohne Rahmen und Innenabstand, Griff 12 px, „Ebenen“ nur als Symbol, damit die Leiste nicht breiter wird als vorher (eine größere Reserve brach UI-15/FRM-38: drei Zeilen bei 1820 px).
   // Vorher 18rem (288 px, gemessen ohne „Ebenen“): die Leiste deckte bei 1520 px Fenster den Status-Knopf ab (Befund der Prüfung).
   // Die Kopfleiste von Setup und Frei bricht um: was nicht mehr vor die Reserve passt, steht in der zweiten Zeile; die Werkzeuge liegen nur in der ersten (37 px).
   // Formation (A13.7): bis 91rem Container ein festes Raster mit zwei Zeilen (Variante `bar2`, globals.css), davor brach die Leiste in zwei Bändern auf drei Zeilen (94 px) um: 48–57rem und 71–88rem (gemessen 2026-11-04, 16 und 20 px Schrift).

@@ -28,6 +28,7 @@ import { IndicatorLegend, indicatorNames, type OscillatorActions } from './Indic
 import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
+import { ToolbarDock } from './ToolbarDock';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
 
@@ -79,13 +80,15 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const t = useT(), fmt = useFormat();
   // Auf /chart (Formation) (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
-  const root = useRef<HTMLDivElement>(null), toolbarCard = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
+  const root = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);
   const live = useRef({ drawingBars, until, timeframeSec });
   const replay = useRef(new ReplayDrawingVisibility());
   const documentRef = useRef<ChartDocument>(emptyChartDocument());
   const undo = useRef<string[]>([]), redo = useRef<string[]>([]), current = useRef('[]');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Alt şerit (ToolbarDock): yalnız grupları varken; yoksa grafik altta yer ayırmaz
+  const [toolbarCard, setToolbarCard] = useState<HTMLDivElement | null>(null);
   const [gesture, setGesture] = useState<ChartGesture>(null);
   const zoomActive = useRef(false);
   const [zoomSnapshot, setZoomSnapshot] = useState<ZoomSnapshot | null>(null);
@@ -165,23 +168,24 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   // darüber (--workspace-card, siehe ChartCore): Höhe, Randabstand und eine Lücke, gemessen, damit es bei jeder Schriftgröße passt.
   // Ab 71 rem sitzt die Karte oben in der Kopfleiste: keine Reserve.
   useLayoutEffect(() => {
-    const card = toolbarCard.current, host = root.current;
-    if (!overlayLayout || !card || !host) return;
+    const card = toolbarCard, host = root.current;
+    if (!overlayLayout || !host) return;
     // Auch auf der Seite (`formation-main`): die schwebende Karte der Chartseite sitzt darüber (FloatingCard)
     const page = host.closest<HTMLElement>('[data-testid="formation-main"]');
     const measure = () => {
-      const atBottom = card.offsetTop > host.clientHeight / 2;
-      const reserve = atBottom ? `${card.offsetHeight + parseFloat(getComputedStyle(card).bottom) + 8}px` : '0px';
+      // Ohne untere Leiste (alle Gruppen oben oder frei, UI-16) keine Reserve
+      const atBottom = card ? card.offsetTop > host.clientHeight / 2 : false;
+      const reserve = card && atBottom ? `${card.offsetHeight + parseFloat(getComputedStyle(card).bottom) + 8}px` : '0px';
       host.style.setProperty('--workspace-card', reserve);
       page?.style.setProperty('--workspace-card', reserve);
     };
     measure();
     // Die Karte ändert ihre Größe beim Umbruch, der Container beim Wechsel der Breite (Seitenleiste auf oder zu)
     const observer = new ResizeObserver(measure);
-    observer.observe(card);
+    if (card) observer.observe(card);
     observer.observe(host);
     return () => { observer.disconnect(); host.style.removeProperty('--workspace-card'); page?.style.removeProperty('--workspace-card'); };
-  }, [overlayLayout]);
+  }, [overlayLayout, toolbarCard]);
   useEffect(() => { live.current = { drawingBars, until, timeframeSec }; documentRef.current = doc; });
   const saveDocument = useCallback((next: ChartDocument) => {
     documentRef.current = next;
@@ -413,22 +417,28 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); history(!e.shiftKey); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); history(false); }
   }}>
-    <div ref={toolbarCard} className={`${overlayLayout ? 'absolute bottom-8 left-[60px] right-20 z-[53] rounded-lg shadow-lg @min-[71rem]/formation-main:bottom-auto @min-[71rem]/formation-main:left-auto @min-[71rem]/formation-main:right-1 @min-[71rem]/formation-main:top-px @min-[71rem]/formation-main:z-[60] @min-[71rem]/formation-main:h-[37px] @min-[71rem]/formation-main:rounded-none @min-[71rem]/formation-main:border-0 @min-[71rem]/formation-main:bg-transparent @min-[71rem]/formation-main:p-0 @min-[71rem]/formation-main:shadow-none' : ''} flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5`} data-testid="workspace-toolbar">
-      <span className={`min-w-0 truncate text-xs font-medium ${overlayLayout ? '@min-[71rem]/formation-main:hidden' : ''}`}>{context.symbol}</span>
-      <div className="flex flex-wrap items-center gap-1">
-        {overlayLayout && appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => binding?.chart.timeScale().fitContent()}><Scan size={15} /></Button>}
-        {overlayLayout && viewActions}
+    {/* Araç grupları (UI-16, 1105-A5.8): Görünüm · Göstergeler · Düzen · Pencere; yerleşim ToolbarDock'ta */}
+    <ToolbarDock host={root} symbol={context.symbol} movable={overlayLayout} bottomRef={setToolbarCard} groups={{
+      view: overlayLayout && (appearance.navigation || viewActions) ? <>
+        {appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => binding?.chart.timeScale().fitContent()}><Scan size={15} /></Button>}
+        {viewActions}
+      </> : null,
+      indicators: <>
         {overlayLayout
           ? <Button size="icon-xs" variant="ghost" hint={t('cw.indicators.hint')} aria-label={t('cw.indicators')} onClick={() => setIndicatorsOpen(true)}><ChartSpline size={15} /></Button>
           : <Button size="sm" variant="ghost" hint={t('cw.indicators.hint')} onClick={() => setIndicatorsOpen(true)}>{t('cw.indicators')}</Button>}
         {toolbarActions}
+      </>,
+      edit: <>
         <Button size={iconSize} variant="ghost" hint={t(historySize.undo ? 'cw.undo.hint' : 'cw.undoEmpty.hint')} aria-label={t('cw.undo')} disabled={locked || !historySize.undo} onClick={() => history(true)}><Undo2 size={15} /></Button>
         <Button size={iconSize} variant="ghost" hint={t(historySize.redo ? 'cw.redo.hint' : 'cw.redoEmpty.hint')} aria-label={t('cw.redo')} disabled={locked || !historySize.redo} onClick={() => history(false)}><Redo2 size={15} /></Button>
         <Button size={iconSize} variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>
+      </>,
+      window: <>
         <Button size={iconSize} variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
         <Button size={iconSize} variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = fullscreenOfPage ? (root.current?.closest<HTMLElement>('[data-chart-page]') ?? root.current) : root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
-      </div>
-    </div>
+      </>,
+    }} />
     {(state.storageError || error) && <Alert tone="warning" title={t(state.storageError ? 'cw.storageError' : error ?? 'cw.drawingError')} />}
     <div className={overlayLayout ? 'contents' : 'relative flex min-w-0 flex-row pl-[52px]'}>
       <div className={overlayLayout ? 'absolute inset-y-0 left-0 z-20 flex w-[52px]' : 'absolute inset-y-0 left-0 flex w-[52px]'}>
@@ -450,7 +460,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {binding && !binding.isDisposed() && gesture && <ChartGestureLayer key={`${context.key}-${gesture}`} binding={binding} mode={gesture} digits={digits} cancel={() => setGesture(null)} finishZoom={previous => { zoomActive.current = true; setZoomSnapshot(previous); setGesture(null); arm(null); }} />}
     {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: [] }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
-    {settingsOpen && <SettingsDialog initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
+    {settingsOpen && <SettingsDialog toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
     {indicatorsOpen && <IndicatorDialog values={doc.indicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={indicators => saveDocument({ ...documentRef.current, indicators, alarms: documentRef.current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) })} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
       <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id)} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>

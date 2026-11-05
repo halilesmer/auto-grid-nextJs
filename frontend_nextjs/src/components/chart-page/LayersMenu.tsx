@@ -33,12 +33,13 @@ export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, childr
     <DropdownMenu
       label={t('cw.layers')}
       hint={t('cw.layers.hint')}
-      icon={<span className="inline-flex items-center gap-1.5 text-xs"><Layers size={15} aria-hidden="true" />{t('cw.layers')}</span>}
+      // Dar kapta (30rem altı, 375 px) ve başlıktaki üst şeritte (71rem ve üstü) yalnız simge; ad aria-label'da kalır (1105-A5.8, UI-16)
+      icon={<span className="inline-flex items-center gap-1.5 text-xs"><Layers size={15} aria-hidden="true" /><span className="@max-[30rem]/formation-main:sr-only group-data-[zone=top]/tb:@min-[71rem]/formation-main:sr-only">{t('cw.layers')}</span></span>}
       variant="ghost"
       size="xs"
       align="left"
-      // Unter der Schwelle von FormationToolbar.tsx schwebt die Werkzeugkarte unten: das Menü geht dann nach oben auf
-      panelClassName="w-72 max-w-[calc(100vw-16px)] max-h-[70dvh] overflow-y-auto @max-[71rem]/formation-main:top-auto @max-[71rem]/formation-main:bottom-full @max-[71rem]/formation-main:mt-0 @max-[71rem]/formation-main:mb-2 @max-[71rem]/formation-main:max-h-[min(70dvh,max(12rem,calc(100dvh-24rem)))]"
+      // Liegt die Gruppe unten (untere Leiste oder untere Hälfte des Charts, ToolbarDock data-menu=up), geht das Menü nach oben auf (UI-16)
+      panelClassName="w-72 max-w-[calc(100vw-16px)] max-h-[70dvh] overflow-y-auto group-data-[menu=up]/tb:top-auto group-data-[menu=up]/tb:bottom-full group-data-[menu=up]/tb:mt-0 group-data-[menu=up]/tb:mb-2 group-data-[menu=up]/tb:max-h-[min(70dvh,max(12rem,calc(100dvh-24rem)))]"
       triggerProps={{ 'data-testid': 'layers-button' }}
     >
       <div className="grid gap-1 p-3" data-testid="layers-menu">
