@@ -15,14 +15,20 @@
 #   HEAVY_LOCK_TIMEOUT=<s>   höchstens so lange warten, dann Exit 75 (Standard: unbegrenzt)
 #   HEAVY_LOCK_DIR=<pfad>    anderes Sperrverzeichnis (nur für Tests)
 #   HEAVY_LOCK_POLL=<s>      Prüfintervall beim Warten (Standard 5)
-#   HEAVY_LOCK_MAX_HOLD=<s>  hält jemand die Sperre länger (Standard 2700 = 45 min), warnt der Wartende
-#                            mit Halter, Prozess, letztem Schritt und CPU-Fortschritt des Prozessbaums
-#   HEAVY_LOCK_BREAK=1       nach MAX_HOLD den Prozessbaum des Halters beenden und die Sperre nehmen
+#   HEAVY_LOCK_MAX_IDLE=<s>  zeigt der Prozessbaum des Halters so lange keinen Fortschritt (Standard
+#                            600 = 10 min), warnt der Wartende mit Halter, Prozess, letztem Schritt und
+#                            CPU-Zeit. Fortschritt = CPU-Zeit des Baums oder seine Prozessliste ändert sich.
+#                            Gezählt wird nur Wartezeit zwischen zwei Prüfungen; ein Uhrsprung (Mac schlief,
+#                            Abstand > Prüfintervall + HEAVY_LOCK_SLEEP_GAP, Standard 60 s) setzt den Zähler zurück. Kein Wanduhr-Limit:
+#                            nach dem Ruhezustand sähe sonst jeder Halter hängend aus.
+#   HEAVY_LOCK_BREAK=1       nach MAX_IDLE den Prozessbaum des Halters beenden und die Sperre nehmen
 #   HEAVY_LOCK_SKIP_MEM_CHECK=1  Speicherprüfung vor dem Lauf auslassen
-#   HEAVY_LOCK_SWAP_MAX=<%>  (90) und HEAVY_LOCK_MEM_MIN=<%> (20): nach dem Nehmen der Sperre startet
-#                            der Lauf nicht (Exit 76), wenn Swap ≥ SWAP_MAX UND freier Speicher
-#                            (kern.memorystatus_level) < MEM_MIN; nur macOS. Swap allein reicht nicht:
-#                            macOS gibt Swap erst frei, wenn die Seiten wieder gebraucht werden.
+#   HEAVY_LOCK_SWAP_MAX=<%>  (90), HEAVY_LOCK_MEM_MIN=<%> (20), HEAVY_LOCK_MEM_WINDOW=<s> (120):
+#                            nach dem Nehmen der Sperre startet der Lauf nicht (Exit 76), wenn
+#                            Swap ≥ SWAP_MAX UND freier Speicher (kern.memorystatus_level) < MEM_MIN
+#                            über das ganze Fenster anhält (Prüfung alle 10 s); nur macOS. Swap allein
+#                            reicht nicht: macOS gibt Swap erst frei, wenn die Seiten gebraucht werden,
+#                            und direkt nach dem Aufwachen ist der Druck nur kurz hoch.
 #
 # Fortschritt: precheck.sh schreibt mit heavy_lock_step <name> den laufenden Schritt nach <sperre>/step.
 #
@@ -49,14 +55,20 @@ _hl_tree() {  # $1 = pid; der Prozess und alle Nachfahren
   for c in $(pgrep -P "$1" 2>/dev/null); do _hl_tree "$c"; done
 }
 
-_hl_cpu_secs() {  # CPU-Sekunden des ganzen Prozessbaums von $1
-  local t=0 v
-  for v in $(ps -o time= -p "$(_hl_tree "$1" | paste -sd, -)" 2>/dev/null); do
-    # [[dd-]hh:]mm:ss[.cc]
-    v=${v%%.*}
-    t=$(( t + $(echo "$v" | awk -F'[-:]' '{s=0; for(i=1;i<=NF;i++) s=s*60+$i; if (NF==4) s=$1*86400+$2*3600+$3*60+$4; print s}') ))
-  done
-  echo "$t"
+_hl_cpu_cs() {  # CPU-Zeit des ganzen Prozessbaums von $1 in Hundertstelsekunden
+  local pids
+  pids=$(_hl_tree "$1" | paste -sd, -)
+  # ps time: [[dd-]hh:]mm:ss[.cc]
+  ps -o time= -p "$pids" 2>/dev/null | awk '{
+      n = split($1, a, /[-:]/); s = 0
+      if (n == 4) s = a[1]*86400 + a[2]*3600 + a[3]*60 + a[4]
+      else for (i = 1; i <= n; i++) s = s*60 + a[i]
+      t += s
+    } END { printf "%d\n", t*100 }'
+}
+
+_hl_signature() {  # Fortschrittsmerkmal des Halters: CPU-Zeit + Prozessliste
+  echo "$(_hl_cpu_cs "$1") $(_hl_tree "$1" | sort -n | paste -sd, -)"
 }
 
 # Laufenden Schritt für Wartende sichtbar machen (ändert owner nicht)
@@ -65,15 +77,13 @@ heavy_lock_step() {
   echo "$1 $(date -u +%H:%M:%S)" > "$HEAVY_LOCK_DIR/step" 2>/dev/null || true
 }
 
-_hl_hold_report() {  # $1 owner, $2 age (s); Warnung bei MAX_HOLD
-  local pid=${1%% *} step cpu
+_hl_idle_report() {  # $1 owner, $2 Leerlauf (s)
+  local pid=${1%% *} step
   step=$(cat "$HEAVY_LOCK_DIR/step" 2>/dev/null)
-  cpu=$(_hl_cpu_secs "$pid")
-  _hl_log "WARNUNG: Sperre seit $(( $2 / 60 )) min gehalten (> $(( ${HEAVY_LOCK_MAX_HOLD:-2700} / 60 )) min): $1"
+  _hl_log "WARNUNG: Halter ohne Fortschritt seit ${2}s (Grenze ${HEAVY_LOCK_MAX_IDLE:-600}s): $1"
   _hl_log "  Prozess: $(ps -o command= -p "$pid" 2>/dev/null | cut -c1-100)"
-  _hl_log "  letzter Schritt: ${step:-unbekannt} · CPU des Prozessbaums: ${cpu}s (+$(( cpu - ${_HL_LAST_CPU:-$cpu} ))s seit der letzten Meldung)"
+  _hl_log "  letzter Schritt: ${step:-unbekannt} · CPU des Prozessbaums: $(( $(_hl_cpu_cs "$pid") / 100 ))s, unverändert"
   _hl_log "  beenden: im Besitzer-Worktree den Lauf stoppen, oder hier HEAVY_LOCK_BREAK=1 (beendet pid $pid samt Nachfahren)"
-  _HL_LAST_CPU=$cpu
 }
 
 _hl_break() {  # $1 owner; Prozessbaum des Halters beenden, Sperre löschen
@@ -87,22 +97,33 @@ _hl_break() {  # $1 owner; Prozessbaum des Halters beenden, Sperre löschen
   [ "$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)" = "$1" ] && rm -rf "$HEAVY_LOCK_DIR"
 }
 
-# Speicherdruck vor dem Lauf (nur macOS). 0 = ok, 1 = zu wenig Speicher
-heavy_mem_check() {
-  [ "${HEAVY_LOCK_SKIP_MEM_CHECK:-0}" = 1 ] && return 0
+_HL_MEM=""  # letzte Messung: "<used>M/<total>M (<pct>%), frei <level>%"
+_hl_mem_bad() {  # wahr bei Speicherdruck jetzt; ohne macOS-Werte nie
   local level swap used total pct
-  level=$(sysctl -n kern.memorystatus_level 2>/dev/null) || return 0
-  swap=$(sysctl -n vm.swapusage 2>/dev/null) || return 0
+  level=$(sysctl -n kern.memorystatus_level 2>/dev/null) || return 1
+  swap=$(sysctl -n vm.swapusage 2>/dev/null) || return 1
   total=$(echo "$swap" | awk '{gsub("M","",$3); print int($3)}')
   used=$(echo "$swap" | awk '{gsub("M","",$6); print int($6)}')
-  [ -n "$level" ] && [ "${total:-0}" -gt 0 ] || return 0
+  [ -n "$level" ] && [ "${total:-0}" -gt 0 ] || return 1
   pct=$(( used * 100 / total ))
-  if [ "$pct" -ge "${HEAVY_LOCK_SWAP_MAX:-90}" ] && [ "$level" -lt "${HEAVY_LOCK_MEM_MIN:-20}" ]; then
-    _hl_log "ABBRUCH: zu wenig Speicher: Swap ${used}M/${total}M (${pct}%), freier Speicher ${level}%."
-    _hl_log "  Andere Läufe/Apps beenden und neu starten, oder HEAVY_LOCK_SKIP_MEM_CHECK=1."
-    return 1
-  fi
-  return 0
+  _HL_MEM="Swap ${used}M/${total}M (${pct}%), freier Speicher ${level}%"
+  [ "$pct" -ge "${HEAVY_LOCK_SWAP_MAX:-90}" ] && [ "$level" -lt "${HEAVY_LOCK_MEM_MIN:-20}" ]
+}
+
+# Speicherdruck vor dem Lauf (nur macOS). 0 = ok, 1 = Druck hält über das ganze Fenster an
+heavy_mem_check() {
+  [ "${HEAVY_LOCK_SKIP_MEM_CHECK:-0}" = 1 ] && return 0
+  _hl_mem_bad || return 0
+  local window="${HEAVY_LOCK_MEM_WINDOW:-120}" t0
+  t0=$(date +%s)
+  _hl_log "Speicherdruck: $_HL_MEM; prüfe ${window}s lang, ob er nachlässt"
+  while [ $(( $(date +%s) - t0 )) -lt "$window" ]; do
+    sleep 10
+    _hl_mem_bad || { _hl_log "Speicherdruck vorbei: $_HL_MEM"; return 0; }
+  done
+  _hl_log "ABBRUCH: zu wenig Speicher seit ${window}s: $_HL_MEM."
+  _hl_log "  Andere Läufe/Apps beenden und neu starten, oder HEAVY_LOCK_SKIP_MEM_CHECK=1."
+  return 1
 }
 
 _hl_is_ancestor() {  # $1 = pid; wahr, wenn $1 dieser Prozess oder ein Vorfahr ist
@@ -127,7 +148,9 @@ heavy_lock_acquire() {
   _hl_skip && return 0
   local poll="${HEAVY_LOCK_POLL:-5}" timeout="${HEAVY_LOCK_TIMEOUT:-0}"
   local start now waited owner owner_pid age last_msg=-1
+  local last_t sig last_sig="" last_owner="" idle=0 gap
   start=$(date +%s)
+  last_t=$start
   local name
   name=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
   while ! mkdir "$HEAVY_LOCK_DIR" 2>/dev/null; do
@@ -162,16 +185,36 @@ heavy_lock_acquire() {
       _hl_log "Zeitlimit ${timeout}s erreicht, Sperre hält: ${owner:-?} (seit $((age / 60)) min)"
       return 75
     fi
-    if [ -n "$owner_pid" ] && [ "$age" -ge "${HEAVY_LOCK_MAX_HOLD:-2700}" ] && [ "${HEAVY_LOCK_BREAK:-0}" = 1 ]; then
-      _hl_hold_report "$owner" "$age"
+    # Leerlauf des Halters: nur Wartezeit ohne Fortschritt zählt, ein Uhrsprung (Ruhezustand) setzt zurück
+    gap=$(( now - last_t ))
+    last_t=$now
+    if [ -n "$owner_pid" ]; then
+      sig=$(_hl_signature "$owner_pid")
+      if [ "$owner" != "$last_owner" ]; then
+        idle=0
+      elif [ "$gap" -gt $(( ${poll%.*} + ${HEAVY_LOCK_SLEEP_GAP:-60} )) ]; then
+        _hl_log "Uhrsprung ${gap}s zwischen zwei Prüfungen (Ruhezustand?): Leerlaufzähler zurückgesetzt"
+        idle=0
+      elif [ "$sig" = "$last_sig" ]; then
+        idle=$(( idle + gap ))
+      else
+        idle=0
+      fi
+      last_owner=$owner
+      last_sig=$sig
+    fi
+    local max_idle="${HEAVY_LOCK_MAX_IDLE:-600}"
+    if [ -n "$owner_pid" ] && [ "$idle" -ge "$max_idle" ] && [ "${HEAVY_LOCK_BREAK:-0}" = 1 ]; then
+      _hl_idle_report "$owner" "$idle"
       _hl_break "$owner"
       continue
     fi
-    if [ $(( waited / 120 )) -ne "$last_msg" ]; then  # alle 2 min eine Zeile
+    if [ $(( waited / 120 )) -ne "$last_msg" ] || { [ "$idle" -ge "$max_idle" ] && [ "${_HL_WARNED:-}" != "$owner" ]; }; then
       last_msg=$(( waited / 120 ))
       _hl_log "warte seit $((waited / 60)) min; Sperre hält: ${owner:-?} (seit $((age / 60)) min)"
-      if [ -n "$owner_pid" ] && [ "$age" -ge "${HEAVY_LOCK_MAX_HOLD:-2700}" ]; then
-        _hl_hold_report "$owner" "$age"
+      if [ -n "$owner_pid" ] && [ "$idle" -ge "$max_idle" ]; then
+        _hl_idle_report "$owner" "$idle"
+        _HL_WARNED=$owner
       fi
     fi
     sleep "$poll"

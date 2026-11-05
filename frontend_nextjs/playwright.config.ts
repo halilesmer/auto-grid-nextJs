@@ -59,7 +59,12 @@ const server = LIVE ? liveServer : mockedServer;
  * knapper (Messung: docs/journal/2026-11-05-heavy-run-lock.md). CI bleibt bei Playwrights Standard.
  */
 const LOCAL_WORKERS = Number(process.env.E2E_WORKERS) || 3;
-const workers = LIVE ? 1 : process.env.CI ? undefined : LOCAL_WORKERS;
+function resolveWorkers(): number | undefined {
+  if (LIVE) return 1;
+  if (process.env.CI) return undefined;
+  return LOCAL_WORKERS;
+}
+const workers = resolveWorkers();
 
 export default defineConfig({
   testDir: './e2e',

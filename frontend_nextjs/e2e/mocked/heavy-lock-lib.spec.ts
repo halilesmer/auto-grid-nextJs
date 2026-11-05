@@ -1,7 +1,8 @@
 /**
  * Maschinenweite Sperre für schwere Testläufe ohne Browser (scripts/features/heavy_lock.sh).
  * SYS-11 Zwei schwere Läufe laufen nacheinander; eine veraltete Sperre wird gelöscht;
- * HEAVY_LOCK=0 und CI überspringen; die Sperre wird auch bei Fehler freigegeben, der Exit-Code bleibt.
+ * HEAVY_LOCK=0 und CI überspringen; die Sperre wird auch bei Fehler freigegeben, der Exit-Code bleibt;
+ * ein Halter ohne Fortschritt wird gemeldet (nach Ruhezustand nicht); Speicherdruck stoppt den Lauf.
  *
  * Jeder Test nimmt ein eigenes Sperrverzeichnis (HEAVY_LOCK_DIR), nie /tmp/gridrobot-heavy.lock.
  */
@@ -105,7 +106,7 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
 
   test('HEAVY_LOCK=0 und CI laufen sofort, trotz gehaltener Sperre', () => {
     holdLock(process.pid); // lebender fremder Halter
-    for (const extra of [{ HEAVY_LOCK: '0' }, { CI: 'true' }]) {
+    for (const extra of [{ HEAVY_LOCK: '0' }, { CI: 'true' }] as Record<string, string>[]) {
       const r = run(['echo', 'ohne Sperre'], { ...extra, HEAVY_LOCK_TIMEOUT: '1' });
       expect(r.status).toBe(0);
       expect(r.stdout).toContain('ohne Sperre');
@@ -138,28 +139,57 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     expect(r.stderr).toContain('other-worktree');
   });
 
-  test('MAX_HOLD warnt mit Halter und Schritt; HEAVY_LOCK_BREAK beendet den Halter', async () => {
-    // Halter wie precheck.sh: Bibliothek per source, Sperre nehmen, Schritt melden
+  test('MAX_IDLE warnt bei Halter ohne Fortschritt; HEAVY_LOCK_BREAK beendet ihn', async () => {
+    // Halter wie precheck.sh: Bibliothek per source, Sperre nehmen, Schritt melden, dann still (sleep)
     const a = spawn('bash', ['-c', `source "${SCRIPT}"; heavy_lock_acquire; heavy_lock_step e2e; sleep 30`], {
       env: env(),
     });
     const aDone = new Promise<number | null>((resolve) => a.on('exit', (code) => resolve(code)));
     await waitFor(() => existsSync(path.join(lockDir, 'step')));
-    await new Promise((r) => setTimeout(r, 1100));
-    const warn = run(['echo', 'nie'], { HEAVY_LOCK_MAX_HOLD: '1', HEAVY_LOCK_TIMEOUT: '1' });
+    const warn = run(['echo', 'nie'], { HEAVY_LOCK_MAX_IDLE: '2', HEAVY_LOCK_TIMEOUT: '5' });
     expect(warn.status).toBe(75);
-    expect(warn.stderr).toContain('WARNUNG');
+    expect(warn.stderr).toContain('ohne Fortschritt');
     expect(warn.stderr).toContain('letzter Schritt: e2e');
-    const brk = run(['echo', 'B lief'], { HEAVY_LOCK_MAX_HOLD: '1', HEAVY_LOCK_BREAK: '1' });
+    const brk = run(['echo', 'B lief'], { HEAVY_LOCK_MAX_IDLE: '2', HEAVY_LOCK_BREAK: '1' });
     expect(brk.status).toBe(0);
     expect(brk.stdout).toContain('B lief');
     expect(await aDone).not.toBe(0); // Halter wurde beendet
     expect(existsSync(lockDir)).toBe(false);
   });
 
+  test('ein arbeitender Halter (CPU steigt) gilt nicht als hängend', async () => {
+    const a = runAsync(['bash', '-c', 'while :; do :; done']);
+    await waitFor(() => existsSync(path.join(lockDir, 'owner')));
+    const r = run(['echo', 'nie'], { HEAVY_LOCK_MAX_IDLE: '2', HEAVY_LOCK_TIMEOUT: '5' });
+    expect(r.status).toBe(75);
+    expect(r.stderr).not.toContain('ohne Fortschritt');
+    spawnSync('pkill', ['-P', String(a.child.pid)]);
+    await a.done;
+  });
+
+  test('Uhrsprung (Ruhezustand) setzt den Leerlaufzähler zurück', async () => {
+    const a = runAsync(['sleep', '30']);
+    await waitFor(() => existsSync(path.join(lockDir, 'owner')));
+    const w = runAsync(['echo', 'nie'], { HEAVY_LOCK_SLEEP_GAP: '1', HEAVY_LOCK_TIMEOUT: '6' });
+    await new Promise((r) => setTimeout(r, 1000));
+    w.child.kill('SIGSTOP'); // Wartender „schläft“ wie ein zugeklappter Mac
+    await new Promise((r) => setTimeout(r, 3000));
+    w.child.kill('SIGCONT');
+    const rw = await w.done;
+    expect(rw.code).toBe(75);
+    expect(rw.stderr).toContain('Uhrsprung');
+    spawnSync('pkill', ['-P', String(a.child.pid)]);
+    await a.done;
+  });
+
   test('Speicherprüfung: bei Druck Exit 76 und Sperre frei; SKIP_MEM_CHECK läuft', () => {
     test.skip(process.platform !== 'darwin', 'kern.memorystatus_level gibt es nur auf macOS');
-    const force = { HEAVY_LOCK_SWAP_MAX: '0', HEAVY_LOCK_MEM_MIN: '101', HEAVY_LOCK_SKIP_MEM_CHECK: '0' };
+    const force = {
+      HEAVY_LOCK_SWAP_MAX: '0',
+      HEAVY_LOCK_MEM_MIN: '101',
+      HEAVY_LOCK_MEM_WINDOW: '0',
+      HEAVY_LOCK_SKIP_MEM_CHECK: '0',
+    };
     const r = run(['echo', 'nie'], force);
     expect(r.status).toBe(76);
     expect(r.stdout).not.toContain('nie');
