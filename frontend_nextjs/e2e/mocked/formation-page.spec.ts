@@ -2,7 +2,7 @@
  * Seite /formasyon: Suche über alle Formationen und Zeiteinheiten, Zeiteinheit- und Formationsleiste mit Treffer-Badges,
  * Kandidaten-Liste, Checkliste und Chart-Overlay. Die Kerzen sind echte H4-Kerzen (e2e/fixtures/formation/gar-buy-h4-01.json),
  * die der Mock-Worker fest ausliefert; die Reihe endet am 2025-11-17 12:00 (Brokerzeit).
- * FRM-37 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster
+ * FRM-37 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster · FRM-45 Schalter Formasyon çizimleri
  */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -338,6 +338,32 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
     await expect(chart).toHaveAttribute('data-wave-visible', 'false');
     await wave.click();
     await expect(chart).toHaveAttribute('data-wave-visible', 'true');
+  });
+});
+
+test.describe('FRM-45 Schalter Formasyon çizimleri', () => {
+  test('Der Schalter steht in der Symbolleiste, blendet die Zeichnungen aus und ein und fehlt im Menü „Ebenen“', { tag: '@FRM-45' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const toggle = page.getByRole('button', { name: msg('cw.overlayFormations'), exact: true });
+    const overlay = page.getByTestId('formation-overlay'), drawings = overlay.locator('[data-drawing]');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(drawings.first()).toBeAttached();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(overlay).toBeHidden();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(overlay).toBeVisible();
+    await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
+    await expect(page.locator('#layer-wave')).toBeVisible();
+    await expect(page.locator('#overlay-formations')).toHaveCount(0);
+  });
+
+  test('Im Modus Frei gibt es den Schalter nicht', { tag: '@FRM-45' }, async ({ page, worker }) => {
+    serveFixture(worker, NOW);
+    await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD`);
+    await expect(page.getByTestId('chart-workspace')).toBeVisible();
+    await expect(page.getByRole('button', { name: msg('cw.overlayFormations'), exact: true })).toHaveCount(0);
   });
 });
 

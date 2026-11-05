@@ -13,7 +13,8 @@ import { type ChartScene, type OverlayLine } from '@/components/analysis/chart/C
 import { ChartView } from '@/components/chart-page/ChartView';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
-import { ContextOverlays, useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
+import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationDrawingsToggle';
+import { useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { buildTrendPath, usableTrendSettings } from '@/lib/formation/trdPath';
@@ -334,7 +335,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
       signalBars={bars}
       timeframe={hit.tf}
       modeTitle={t('cw.layers.formation')}
-      modeLayers={<ContextOverlays contextKey={contextKey} values={overlays} options={[{ key: 'formations', label: 'cw.overlayFormations', hint: 'cw.overlayFormations.hint' }]} />}
+      viewActions={<FormationDrawingsToggle contextKey={contextKey} visible={overlays.formations} />}
       data={data}
       timeframeSec={TIMEFRAME_SEC[hit.tf]}
       digits={digits}
