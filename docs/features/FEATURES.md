@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-05 · **207/217** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-05 · **207/218** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 15/15 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 21/22 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/17 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 15/18 |
 | 16 | **FRM** – Formationserkennung | 35/38 |
 
 ## 1. SYS – Verbindung & Infrastruktur
@@ -860,6 +860,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Der Rechner ist konservativ: Für Füllprüfung und Füllpreis gilt max(Spread der Kerze, Spread der Vorkerze); nach einer breiteren Vorkerze füllt eine Limit-Order per Kurslücke nie besser als zum Orderpreis (RunModel.carrySpread, Standard an). Ein SL füllt um den halben Kerzen-Spread schlechter als die Stufe (RunModel.slSlippagePoints, 0 = aus); TP bleibt auf der Stufe. Optionaler Startzustand: RunInput.initialPositions (Seite, Volumen, Einstieg, SL/TP, Magic, Kommentar) belegt max_positions und Fraktal-Plätze, RunInput.initialFractalDone markiert vor dem Start gehandelte Fraktale. Nur Engine-Konfiguration, noch kein Feld in der Oberfläche.
   - **Prüfung:** Automatisiert (backtest-realism-lib.spec.ts); kein manueller Test, solange die Oberfläche kein Feld hat.
   - **Erwartet:** Der Lauf mit Spread-Spitze in der Vorkerze füllt nicht zum schmalen Endwert, ein SL schließt schlechter als die Stufe, eine Vorposition belegt max_positions.
+- [ ] **BKT-18** Backtest-Spread standardmäßig „max“ (Kerze oder Symbol) — 🖥️ e2e ⏳
+  - Der Standard der Spread-Quelle im Backtest ist „max“ statt „aus der Kerze“ (DEFAULT_RUN_SETTINGS.spreadMode). Ist der eigene Wert 0, gilt je Kerze max(Kerzen-Spread, Symbol-Spread); fehlt der Symbol-Spread, gilt der Kerzen-Spread. Ein eigener Wert größer 0 und gespeicherte oder gewählte Einstellungen bleiben unverändert. Grund: der M1-Kerzen-Spread liegt unter dem echten Live-Spread.
+  - **Prüfung:** e2e backtest-runner-lib.spec.ts (@BKT-18) ausführen.
+  - **Erwartet:** Der Test besteht.
 
 ## 16. FRM – Formationserkennung
 

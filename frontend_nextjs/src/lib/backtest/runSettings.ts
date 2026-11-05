@@ -25,7 +25,7 @@ export interface RunSettingsValue {
 export const DEFAULT_RUN_SETTINGS: RunSettingsValue = {
   csvImportId: null,
   timeframe: 'M1',
-  spreadMode: 'candle',
+  spreadMode: 'max',
   spreadPoints: 0,
   commission: null,
   swapEnabled: true,

@@ -19,6 +19,7 @@ import {
 } from '../../src/lib/backtest/engine/types';
 import type { RunRequest, WorkerMessage } from '../../src/lib/backtest/protocol';
 import { RunError, RunLog, RUN_LOG_MAX_LINES } from '../../src/lib/backtest/runContext';
+import { DEFAULT_RUN_SETTINGS } from '../../src/lib/backtest/runSettings';
 import { spreadHistoryNote } from '../../src/lib/backtest/spreadHistoryNote';
 import { drawdownCurve } from '../../src/lib/analysis/curves';
 import { FETCH_TIMEOUT_MS, httpFetchJson, runJob } from '../../src/lib/backtest/runJob';
@@ -628,6 +629,14 @@ test.describe('Vorbedingungen und Abbruch', () => {
     // Eine Position (0,10 Lot) bei Spread 20 Punkte kostet 2,00 (Test oben); fest 30 Punkte: 30 Ticks × 1,00 × 0,10 = 3,00
     const result = run(candles([C1]), { spread: { mode: 'fixed', points: 30 } });
     expect(result.summary.spreadInfo).toBe(3);
+  });
+
+  test('Standard „max“ ohne eigenen Wert: größerer von Kerzen- und Symbol-Spread; ohne Symbol-Spread der Kerzenwert', { tag: '@BKT-18' }, () => {
+    expect(DEFAULT_RUN_SETTINGS.spreadMode).toBe('max');
+    const max0 = { mode: 'max', points: 0 } as const;
+    expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: 30 }) }).summary.spreadInfo).toBe(3);
+    expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: 10 }) }).summary.spreadInfo).toBe(2);
+    expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: null }) }).summary.spreadInfo).toBe(2);
   });
 });
 
