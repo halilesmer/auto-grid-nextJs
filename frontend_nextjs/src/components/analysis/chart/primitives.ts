@@ -201,6 +201,9 @@ export interface TradeLink {
   from: { time: number; price: number };
   to: { time: number; price: number };
   color: string;
+  /** Dicke in px (1–4) und Strichmuster (leer: durchgezogen), aus dem Trendstil */
+  width?: number;
+  dash?: number[];
 }
 
 export class TradeLinksPrimitive extends BasePrimitive {
@@ -231,7 +234,7 @@ export class TradeLinksPrimitive extends BasePrimitive {
       const x2 = this.nearestX(l.to.time);
       const y1 = series.priceToCoordinate(l.from.price);
       const y2 = series.priceToCoordinate(l.to.price);
-      return x1 === null || x2 === null || y1 === null || y2 === null ? [] : [{ x1, x2, y1: Number(y1), y2: Number(y2), color: l.color }];
+      return x1 === null || x2 === null || y1 === null || y2 === null ? [] : [{ x1, x2, y1: Number(y1), y2: Number(y2), color: l.color, width: l.width ?? 2, dash: l.dash ?? [] }];
     });
     target.useBitmapCoordinateSpace(({ context, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
       context.save();
@@ -303,6 +306,9 @@ export interface TrendPathLine {
   from: { time: number; price: number };
   to: { time: number; price: number };
   color: string;
+  /** Dicke in px (1–4) und Strichmuster (leer: durchgezogen), aus dem Trendstil */
+  width?: number;
+  dash?: number[];
 }
 
 /** Trendzug (ANA-21): 2 px, darunter ein Saum von 1 px in der Panelfarbe, damit die Linie auf gleichfarbigen Kerzen nicht untergeht. */
@@ -328,16 +334,18 @@ export class TrendPathPrimitive extends BasePrimitive {
       const x2 = this.x(l.to.time);
       const y1 = series.priceToCoordinate(l.from.price);
       const y2 = series.priceToCoordinate(l.to.price);
-      return x1 === null || x2 === null || y1 === null || y2 === null ? [] : [{ x1, x2, y1: Number(y1), y2: Number(y2), color: l.color }];
+      return x1 === null || x2 === null || y1 === null || y2 === null ? [] : [{ x1, x2, y1: Number(y1), y2: Number(y2), color: l.color, width: l.width ?? 2, dash: l.dash ?? [] }];
     });
     const halo = this.halo;
     target.useBitmapCoordinateSpace(({ context, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
       context.save();
       context.lineCap = 'round';
       context.lineJoin = 'round';
-      const stroke = (width: number, color: (s: (typeof segs)[number]) => string) => {
-        context.lineWidth = width * hr;
+      const stroke = (extra: number, color: (s: (typeof segs)[number]) => string, dashed: boolean) => {
         for (const s of segs) {
+          context.lineWidth = (s.width + extra) * hr;
+          // Der Saum bleibt durchgezogen, nur die Linie trägt das Muster
+          context.setLineDash(dashed ? s.dash.map((d) => d * hr) : []);
           context.strokeStyle = color(s);
           context.beginPath();
           context.moveTo(s.x1 * hr, s.y1 * vr);
@@ -345,8 +353,8 @@ export class TrendPathPrimitive extends BasePrimitive {
           context.stroke();
         }
       };
-      if (halo) stroke(4, () => halo);
-      stroke(2, (s) => s.color);
+      if (halo) stroke(2, () => halo, false);
+      stroke(0, (s) => s.color, true);
       context.restore();
     });
   };

@@ -5,12 +5,13 @@
  */
 import { FINAL_POINT, type ScanFormation } from './scan';
 import type { Anchor, Candidate, Drawing } from './types';
+import type { FormationLineRole } from './lineStyle';
 
 export type Tone = 'side' | 'ratio' | 'target' | 'zone' | 'mark' | 'text';
 
 export type Prim =
-  | { kind: 'line'; x1: number; y1: number; x2: number; y2: number; tone: Tone; dashed?: boolean; width?: number; dotted?: boolean }
-  | { kind: 'rect'; x: number; y: number; w: number; h: number; tone: Tone; dashed?: boolean }
+  | { kind: 'line'; x1: number; y1: number; x2: number; y2: number; tone: Tone; role: FormationLineRole; dashed?: boolean; width?: number; dotted?: boolean }
+  | { kind: 'rect'; x: number; y: number; w: number; h: number; tone: Tone; role?: FormationLineRole; dashed?: boolean }
   | { kind: 'circle'; x: number; y: number; r: number; tone: Tone; open?: boolean }
   | { kind: 'text'; x: number; y: number; text: string; tone: Tone; anchor?: 'start' | 'end'; bold?: boolean };
 
@@ -111,7 +112,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
     switch (d.tool) {
       case 'zigzag': {
         const ok = pts.filter((p): p is typeof p & { px: number; py: number } => p.px !== null && p.py !== null);
-        for (let i = 1; i < ok.length; i++) prims.push({ kind: 'line', x1: ok[i - 1].px, y1: ok[i - 1].py, x2: ok[i].px, y2: ok[i].py, tone: 'side', width: 2.2 });
+        for (let i = 1; i < ok.length; i++) prims.push({ kind: 'line', x1: ok[i - 1].px, y1: ok[i - 1].py, x2: ok[i].px, y2: ok[i].py, tone: 'side', role: 'zigzag', width: 2.2 });
         const high = (i: number) => (i > 0 ? ok[i].py < ok[i - 1].py : ok.length > 1 && ok[0].py < ok[1].py);
         ok.forEach((p, i) => {
           prims.push({ kind: 'circle', x: p.px, y: p.py, r: 4, tone: 'text' });
@@ -130,7 +131,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
           const hy = y(held.price);
           if (last && hx !== null && hy !== null && !ok.some((p) => p.a.time === held.time)) {
             // Der Strich geht nur von einem gemessenen Punkt aus (nicht von einer Zielprojektion wie beim Mast der Trendfortsetzung)
-            if (pointName(candidate, last.a.time, last.a.price)) prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: hx, y2: hy, tone: 'side', width: 2.2 });
+            if (pointName(candidate, last.a.time, last.a.price)) prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: hx, y2: hy, tone: 'side', role: 'zigzag', width: 2.2 });
             prims.push({ kind: 'circle', x: hx, y: hy, r: 4, tone: 'text' });
             prims.push({ kind: 'text', x: hx - 4, y: hy + (hy > last.py ? 17 : -9), text: FINAL_POINT[form], tone: 'text', bold: true });
           }
@@ -142,7 +143,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         const ey = exp ? y(exp.price) : null;
         if (forming && last && exp && ex !== null && ey !== null) {
           const dx = Math.min(width - 8, Math.max(ex, last.px));
-          prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: dx, y2: ey, tone: 'side', dashed: true, width: 2 });
+          prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: dx, y2: ey, tone: 'side', role: 'expected', dashed: true, width: 2 });
           prims.push({ kind: 'circle', x: dx, y: ey, r: 5, tone: 'side', open: true });
           // Name unter/über dem Ring, Preis auf der anderen Seite am rechten Rand; nahe am Rand steht der Name links vom Ring
           const below = ey > last.py;
@@ -151,7 +152,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
           prims.push({ kind: 'text', x: width - 4, y: ey + (below ? -9 : 17), text: fmt(exp.price), tone: 'side', anchor: 'end', bold: true });
         } else if (forming && last && ly !== null) {
           if (lx !== null) {
-            prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: lx, y2: ly, tone: 'side', dashed: true, width: 2 });
+            prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: lx, y2: ly, tone: 'side', role: 'expected', dashed: true, width: 2 });
             prims.push({ kind: 'circle', x: lx, y: ly, r: 5, tone: 'side', open: true });
             prims.push({ kind: 'text', x: lx - 4, y: ly + (ly > last.py ? 17 : -9), text: `${FINAL_POINT[form]}?`, tone: 'side', bold: true });
           }
@@ -172,7 +173,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
           const py = y(price);
           if (py === null) continue;
           const tone: Tone = d.rules.length === 0 ? 'target' : 'ratio';
-          prims.push({ kind: 'line', x1: right(lineStart), y1: py, x2: width - 6, y2: py, tone, dotted: true });
+          prims.push({ kind: 'line', x1: right(lineStart), y1: py, x2: width - 6, y2: py, tone, role: tone === 'target' ? 'target' : 'ratio', dotted: true });
           prims.push({ kind: 'text', x: width - 6, y: py - 4, text: `${legName}${fmt(level)}`, tone, anchor: 'end' });
         }
         return prims;
@@ -180,7 +181,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
       case 'hline': {
         const p = pts[0];
         if (!p || p.px === null || p.py === null) return prims;
-        prims.push({ kind: 'line', x1: right(p.px), y1: p.py, x2: width - 6, y2: p.py, tone: 'target', dotted: true });
+        prims.push({ kind: 'line', x1: right(p.px), y1: p.py, x2: width - 6, y2: p.py, tone: 'target', role: 'target', dotted: true });
         return prims;
       }
       case 'zone': {
@@ -193,7 +194,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         if (p0.px === null || ya === null || yb === null) return prims;
         const x2 = p1.px === null || p1.a.time >= lastBar.time ? width : p1.px;
         const x1 = Math.max(0, p0.px);
-        prims.push({ kind: 'rect', x: x1, y: Math.min(ya, yb), w: Math.max(0, x2 - x1), h: Math.max(2, Math.abs(ya - yb)), tone: rsi ? 'mark' : 'zone', dashed: true });
+        prims.push({ kind: 'rect', x: x1, y: Math.min(ya, yb), w: Math.max(0, x2 - x1), h: Math.max(2, Math.abs(ya - yb)), tone: rsi ? 'mark' : 'zone', ...(rsi ? {} : { role: 'zone' as const }), dashed: true });
         if (!rsi) {
           const label = text(forming ? 'formation.draw.zonePossible' : 'formation.draw.zone');
           const place = zoneLabelSpot(label, { x1, x2, top: Math.min(ya, yb), bottom: Math.max(ya, yb) });
@@ -204,7 +205,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
       case 'trendline': {
         const [p0, p1] = pts;
         if (!p0 || !p1 || p0.px === null || p0.py === null || p1.px === null || p1.py === null) return prims;
-        prims.push({ kind: 'line', x1: p0.px, y1: p0.py, x2: p1.px, y2: p1.py, tone: 'ratio', width: 2 });
+        prims.push({ kind: 'line', x1: p0.px, y1: p0.py, x2: p1.px, y2: p1.py, tone: 'ratio', role: 'neck', width: 2 });
         return prims;
       }
       case 'label': {
