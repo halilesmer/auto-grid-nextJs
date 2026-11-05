@@ -16,6 +16,7 @@ import { save, serverSnapshot, snapshot, subscribe } from '@/lib/formation/alarm
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
 import { CONTEXT_TIMEFRAMES } from '@/lib/formation/params';
 import { formationRequests } from '@/lib/formation/requests';
+import { trendFingerprint } from '@/lib/formation/trdPath';
 import { splitDaily } from '@/lib/formation/weekly';
 import { formedHits, scanFormations, scanTime, type FormedHit, type ScanHit } from '@/lib/formation/scan';
 import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
@@ -96,7 +97,7 @@ async function scanSymbol(accountId: string, symbol: string, to: number, signal:
   const last: Bar | undefined = m15?.bars[m15.bars.length - 1];
   if (!m15 || !last) return { formed: [], hits: [], gap: 'missing' };
   const at = scanTime(last.time, m15.liveFrom === last.time);
-  const hits = scanFormations(new FormationContext(symbol, input, { zug: useAnalysisPrefsStore.getState().trend.formationZug }), at);
+  const hits = scanFormations(new FormationContext(symbol, input, { trend: useAnalysisPrefsStore.getState().trend }), at);
   spent.ms += performance.now() - started;
   return { formed: formedHits(hits), hits, gap };
 }
@@ -268,9 +269,9 @@ export default function FormationScanRunner() {
   useEffect(() => {
     alarmKeyRef.current = alarmKey;
   }, [alarmKey]);
-  // Der Trendpfad ändert die Treffer: ein Wechsel startet die Suche neu (Dependency des Laufs unten)
-  const zug = useAnalysisPrefsStore((s) => s.trend.formationZug);
-  const searchedZug = useRef<string | null>(null);
+  // Die Trend-Einstellungen ändern Linie und Treffer: ein Wechsel startet die Suche neu (Dependency des Laufs unten)
+  const trendKey = useAnalysisPrefsStore((s) => trendFingerprint(s.trend));
+  const searchedTrend = useRef<string | null>(null);
   const active = accountId !== null && favorites.ready && !clock.loading;
 
   useEffect(() => {
@@ -305,13 +306,13 @@ export default function FormationScanRunner() {
   useEffect(() => {
     if (!active || !accountId || symbols.length === 0) return;
     // Anderer Trendpfad als beim letzten Lauf: alles neu suchen. Der gemerkte Stand des alten Pfads fällt weg (die Treffer-Schlüssel tragen die Ankerzeiten des Pfads), der erste Vergleich merkt still.
-    if (searchedZug.current !== null && searchedZug.current !== zug) {
+    if (searchedTrend.current !== null && searchedTrend.current !== trendKey) {
       useFavoritesScanStore.getState().invalidate(accountId);
       for (const scope of [...comparedHere]) if (scope.startsWith(`${accountId}|`)) comparedHere.delete(scope);
       const current = snapshot();
       save({ ...current, memory: Object.fromEntries(Object.entries(current.memory).filter(([scope]) => !scope.startsWith(`${accountId}|`))) });
     }
-    searchedZug.current = zug;
+    searchedTrend.current = trendKey;
     const controller = new AbortController();
     let holding = false;
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL_NAME) : null;
@@ -358,7 +359,7 @@ export default function FormationScanRunner() {
       controller.abort();
       void finished.finally(() => channel?.close());
     };
-  }, [active, accountId, symbols, alarmKey, offsetSec, zug, router]);
+  }, [active, accountId, symbols, alarmKey, offsetSec, trendKey, router]);
 
   return null;
 }

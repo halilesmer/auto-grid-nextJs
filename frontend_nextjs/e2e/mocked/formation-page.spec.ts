@@ -1454,7 +1454,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 
-  test('Ein Wechsel des Trendpfads startet die Suche neu, ohne neue Kerze', { tag: '@FRM-30' }, async ({ page, worker }) => {
+  test('Eine Änderung der Trend-Einstellungen startet die Suche neu, ohne neue Kerze', { tag: '@FRM-30' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
@@ -1463,7 +1463,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     const before = ratesCalls(worker);
     await page.getByTestId('trend-settings').click();
-    await page.getByTestId('trend-settings-panel').getByRole('button', { name: msg('cw.trend.zug.trend'), exact: true }).click();
+    await page.getByTestId('trend-settings-panel').getByTestId('trend-minSize').fill('1.5');
     await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(before + 4);
   });
 

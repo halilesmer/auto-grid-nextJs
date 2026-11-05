@@ -9,6 +9,7 @@ import { expect, test } from '@playwright/test';
 import { TIMEFRAME_SEC } from '../../src/lib/analysis/candles';
 import { FormationContext, type ContextInput, type TimeframeView } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
+import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { shareEnv } from '../../src/lib/formation/reasons';
 import { formationTrend, formationTrendDir, withTrendDirMemo } from '../../src/lib/formation/trdFormation';
 
@@ -38,8 +39,9 @@ for (const file of readdirSync(FX).filter((f) => f.endsWith('.json')).sort()) {
 }
 
 const fixtureCtx = (name: string, zug: 'trend' | 'fein') => {
+  const trend = { ...DEFAULT_TREND_SETTINGS, minSize: zug === 'trend' ? 2.5 : 1 };
   const fx = parseFixture(JSON.parse(readFileSync(`${FX}/${name}.json`, 'utf-8')));
-  const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { zug });
+  const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { trend });
   const [tf] = ctx.timeframes();
   return ctx.view(tf, fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC[fx.timeframe])!;
 };

@@ -5,14 +5,12 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { FORMATION_ZUEGE, TREND_LIMITS, TREND_RULES, type FormationZug, type TrendRule, type TrendSettings } from '@/lib/formation/params';
+import { TREND_LIMITS, TREND_RULES, type TrendRule, type TrendSettings } from '@/lib/formation/params';
 import { ewoPairValid } from '@/lib/formation/trdPath';
 import { cn } from '@/lib/utils';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
 const fieldClass = 'w-full min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground';
-/** Gültige Treffer auf echten Kerzen, jede 6. Kerze (Journal 2026-10-31-trend-path): fein → Trendzug */
-const LOSS: readonly [string, number, number][] = [['ABCD', 24, 1], ['BAT', 5, 0], ['ENC', 8, 0], ['KEI', 127, 102], ['LIB', 62, 50], ['CDT', 40, 102]];
 
 function Segmented<T extends string | number>({ label, hint, value, options, onChange }: {
   label: string; hint: string; value: T; options: { value: T; label: string; hint: string }[]; onChange: (v: T) => void;
@@ -51,7 +49,7 @@ function IntField({ name, value, limit, onCommit }: { name: 'ewoFast' | 'ewoSlow
   );
 }
 
-/** Einstellungen des Trendzugs (nur die Linie) und der Grundlage der Formationen; gespeichert im Browser. */
+/** Einstellungen des Trendzugs; Linie und Formationen rechnen damit; gespeichert im Browser. */
 export function TrendSettingsPanel() {
   const t = useT(), fmt = useFormat();
   const s = useAnalysisPrefsStore((st) => st.trend);
@@ -89,25 +87,6 @@ export function TrendSettingsPanel() {
           <IntField name="atrPeriod" value={s.atrPeriod} limit={TREND_LIMITS.atrPeriod} onCommit={(n) => set('atrPeriod', n)} />
         </div>
         {!ewoPairValid(s) && <p role="alert" className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs" data-testid="trend-ewo-invalid">{t('cw.trend.ewoInvalid')}</p>}
-      </div>
-      <div className="grid gap-3 border-t border-border pt-3">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('cw.trend.group.formation')}</h3>
-        <Segmented<FormationZug>
-          label={t('cw.trend.zug')} hint={t('cw.trend.zug.hint')} value={s.formationZug} onChange={(v) => set('formationZug', v)}
-          options={FORMATION_ZUEGE.map((z) => ({ value: z, label: t(`cw.trend.zug.${z}` as MessageKey), hint: t(`cw.trend.zug.${z}.hint` as MessageKey) }))}
-        />
-        <div className="grid gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs" data-testid="trend-zug-note">
-          <p>{t(s.formationZug === 'trend' ? 'cw.trend.zug.noteTrend' : 'cw.trend.zug.noteFein')}</p>
-          {s.formationZug === 'trend' && (
-            <>
-              <table className="font-mono tabular-nums">
-                <thead><tr><th className="pr-3 text-left font-normal" /><th className="pr-3 text-right font-normal">{t('cw.trend.zug.fein')}</th><th className="text-right font-normal">{t('cw.trend.zug.trend')}</th></tr></thead>
-                <tbody>{LOSS.map(([name, fein, trend]) => <tr key={name}><td className="pr-3">{name}</td><td className="pr-3 text-right">{fein}</td><td className="text-right">{trend}</td></tr>)}</tbody>
-              </table>
-              <p className="text-muted-foreground">{t('cw.trend.zug.table')}</p>
-            </>
-          )}
-        </div>
       </div>
       <div><Button size="sm" variant="outline" hint={t('cw.trend.reset.hint')} data-testid="trend-reset" onClick={reset}>{t('cw.trend.reset')}</Button></div>
     </div>
