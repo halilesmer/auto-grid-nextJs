@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-04 · **206/213** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-05 · **207/215** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -21,7 +21,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 20/20 |
 | 7 | **BOT** – Bot-Steuerung | 7/7 |
-| 8 | **ENG** – Grid-Engine (Handelslogik) | 30/31 |
+| 8 | **ENG** – Grid-Engine (Handelslogik) | 31/33 |
 | 9 | **MET** – Live-Daten & Diagramm | 4/4 |
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
@@ -475,6 +475,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Lehnt MT5 eine Pending Order mit Retcode 10018 „Market closed“ ab (order_check oder order_send), zählt das nicht als fehlgeschlagene Order (ENG-11). Der Bot sendet für dieses Symbol 60 Sekunden (MARKET_CLOSED_CHECK_INTERVAL) keine Orders und versucht es danach erneut. Die Zone wird nicht pausiert.
   - **Prüfung:** Im DEMO-Lauf über einen Sessionstart (z. B. Montag 00:00 Brokerzeit) prüfen, dass kein „Bölge güvenliğe alınıyor“ erscheint und die Orders nach Marktöffnung stehen.
   - **Erwartet:** Nach 10018 keine Zonensperre; Orders erscheinen nach Marktöffnung.
+- [x] **ENG-33** Aufräumen alter Magic-Orders pausiert bei 10018 — 🧪 unit ✅ 2026-11-05
+  - Lehnt MT5 das Löschen einer Order (Mutlak Temizlik) mit Retcode 10018 ab, versucht der Bot es für dieses Symbol 60 Sekunden (MARKET_CLOSED_CHECK_INTERVAL) nicht erneut. Das Log zeigt die Ablehnung nur einmal je Pause.
+  - **Prüfung:** Im DEMO-Lauf bei geschlossenem Markt ein altes Magic-Order-Ziel provozieren und das Log zählen.
+  - **Erwartet:** Kein Logflut bei geschlossenem Markt; nach 60 Sekunden ein neuer Versuch.
+- [ ] **ENG-34** Marj-Werte in den Metriken — 🧪 unit ⏳
+  - Die Bot-Metriken enthalten margin, margin_free und margin_level aus account_info() und kommen über die vorhandene Metrik-Route mit. Keine eigene Anzeige.
+  - **Prüfung:** Metrikdatei des laufenden Bots öffnen und die drei Margin-Felder mit MT5 vergleichen.
+  - **Erwartet:** Die drei Werte stehen in den Metriken und stimmen mit MT5 überein.
 
 ## 9. MET – Live-Daten & Diagramm
 
