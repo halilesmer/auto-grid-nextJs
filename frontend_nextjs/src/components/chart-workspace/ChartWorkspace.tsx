@@ -17,7 +17,8 @@ import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
-import type { Appearance } from '@/lib/chart-workspace/settings';
+import type { Appearance, Section } from '@/lib/chart-workspace/settings';
+import { OPEN_SETTINGS_EVENT } from '@/lib/chart-workspace/settingsRequest';
 import { useShallow } from 'zustand/react/shallow';
 import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
 import { isSystemPane, orderPanes, presentPanes, SYSTEM_PANE_IDS, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
@@ -98,7 +99,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const [drawingSnapshot, setDrawingSnapshot] = useState<Drawing[]>([]);
   const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 });
   const [revision, setRevision] = useState(0), [selected, setSelected] = useState<string[]>([]), [tool, setTool] = useState<DrawingKind | null>(null);
-  const [objectsOpen, setObjectsOpen] = useState(false), [settingsOpen, setSettingsOpen] = useState(false), [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const [objectsOpen, setObjectsOpen] = useState(false), [settingsOpen, setSettingsOpen] = useState(false), [settingsSection, setSettingsSection] = useState<Section>('symbol'), [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null), [editor, setEditor] = useState<{ drawing: Drawing; cell?: TableCellRef; text: string } | null>(null);
   const [sample, setSample] = useState<{ scope: string; values: { config: Indicator; value: Value }[] }>({ scope: '', values: [] });
   const lastValues = sample.values;
@@ -209,6 +210,20 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     useChartWorkspaceStore.getState().finishOverlayPreview(false);
     useAnalysisPrefsStore.getState().finishPreview(false);
   }, []);
+  const openSettings = useCallback((section: Section = 'symbol') => {
+    const workspace = useChartWorkspaceStore.getState();
+    useAnalysisPrefsStore.getState().beginPreview();
+    workspace.beginOverlayPreview(context.key);
+    workspace.setPreview({ ...appearance });
+    setSettingsSection(section);
+    setSettingsOpen(true);
+  }, [context.key, appearance]);
+  // Andere Teile der Seite (Linienmenü der Formation) öffnen die Einstellungen in einem Abschnitt
+  useEffect(() => {
+    const onRequest = (e: Event) => { if (!settingsOpen) openSettings((e as CustomEvent<Section>).detail); };
+    window.addEventListener(OPEN_SETTINGS_EVENT, onRequest);
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, onRequest);
+  }, [openSettings, settingsOpen]);
   useEffect(() => {
     if (!settingsOpen) return;
     return () => {
@@ -435,7 +450,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
         <Button size={iconSize} variant="ghost" hint={t('cw.objects.hint')} aria-label={t('cw.objects')} onClick={() => setObjectsOpen(true)}><ListTree size={15} /></Button>
       </>,
       window: <>
-        <Button size={iconSize} variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => { useAnalysisPrefsStore.getState().beginPreview(); state.beginOverlayPreview(context.key); state.setPreview({ ...appearance }); setSettingsOpen(true); }}><Settings2 size={15} /></Button>
+        <Button size={iconSize} variant="ghost" hint={t('cw.settings.hint')} aria-label={t('cw.settings')} data-testid="workspace-settings" onClick={() => openSettings()}><Settings2 size={15} /></Button>
         <Button size={iconSize} variant="ghost" hint={t(isFullscreen ? 'analysis.chart.fullscreen.exit.hint' : 'analysis.chart.fullscreen.hint')} aria-label={t(isFullscreen ? 'analysis.chart.fullscreen.exit' : 'analysis.chart.fullscreen')} onClick={() => { const target = fullscreenOfPage ? (root.current?.closest<HTMLElement>('[data-chart-page]') ?? root.current) : root.current; if (!target) return; void (document.fullscreenElement ? document.exitFullscreen() : target.requestFullscreen()).catch(() => setError('cw.drawingError')); }}>{isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
       </>,
     }} />
@@ -460,7 +475,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {binding && !binding.isDisposed() && gesture && <ChartGestureLayer key={`${context.key}-${gesture}`} binding={binding} mode={gesture} digits={digits} cancel={() => setGesture(null)} finishZoom={previous => { zoomActive.current = true; setZoomSnapshot(previous); setGesture(null); arm(null); }} />}
     {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: [] }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
-    {settingsOpen && <SettingsDialog toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
+    {settingsOpen && <SettingsDialog initialSection={settingsSection} toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
     {indicatorsOpen && <IndicatorDialog values={doc.indicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={indicators => saveDocument({ ...documentRef.current, indicators, alarms: documentRef.current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) })} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
       <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id)} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>

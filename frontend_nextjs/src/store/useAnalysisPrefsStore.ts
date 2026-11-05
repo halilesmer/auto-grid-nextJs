@@ -52,6 +52,8 @@ interface AnalysisPrefsState extends AnalysisPrefs {
   /** Eine Rolle (oder alle) auf die Vorgabe zurücksetzen */
   resetFormationStyle: (role?: FormationLineRole) => void;
   previewBackup: AnalysisPrefs | null;
+  /** Stil der Formationslinien beim Öffnen der Chart-Einstellungen: Abbrechen stellt ihn wieder her */
+  styleBackup: FormationStyle | null;
   beginPreview: () => void;
   finishPreview: (commit: boolean) => void;
   setPref: <K extends keyof AnalysisPrefs>(key: K, value: AnalysisPrefs[K]) => void;
@@ -88,17 +90,19 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
         set({ formationStyle: sanitizeFormationStyle({ ...get().formationStyle, [role]: { ...get().formationStyle[role], ...patch } }) }),
       resetFormationStyle: role => set({ formationStyle: role ? { ...get().formationStyle, [role]: DEFAULT_FORMATION_STYLE[role] } : DEFAULT_FORMATION_STYLE }),
       previewBackup: null,
+      styleBackup: null,
       beginPreview: () => {
         const state = get(), backup = { ...DEFAULTS };
         if (state.previewBackup) return;
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) backup[key] = state[key];
-        set({ previewBackup: backup });
+        set({ previewBackup: backup, styleBackup: state.formationStyle });
       },
       finishPreview: commit => {
         const backup = get().previewBackup;
         if (!backup) return;
-        if (commit) set({ previewBackup: null });
-        else set({ ...backup, previewBackup: null });
+        const style = get().styleBackup;
+        if (commit) set({ previewBackup: null, styleBackup: null });
+        else set({ ...backup, previewBackup: null, styleBackup: null, ...(style ? { formationStyle: style } : {}) });
       },
       setPref: (key, value) => set({ [key]: value } as Pick<AnalysisPrefs, typeof key>),
     }),
@@ -115,7 +119,7 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
       partialize: (s) => {
         const out = { ...DEFAULTS };
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) out[key] = (s.previewBackup ?? s)[key];
-        return { ...out, showTrend: s.showTrend, trend: s.trend, formationStyle: s.formationStyle };
+        return { ...out, showTrend: s.showTrend, trend: s.trend, formationStyle: s.styleBackup ?? s.formationStyle };
       },
       // Wie ThemeSync: erst nach der Hydration lesen (rehydrate() in app/chart/page.tsx), sonst SSR-Abweichung
       skipHydration: true,

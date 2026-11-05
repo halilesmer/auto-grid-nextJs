@@ -2,7 +2,7 @@ export const SETTINGS = {
   body: ['symbol', true], up: ['symbol', ''], down: ['symbol', ''], border: ['symbol', false], borderUp: ['symbol', ''], borderDown: ['symbol', ''], wick: ['symbol', true], wickUp: ['symbol', ''], wickDown: ['symbol', ''], previous: ['symbol', false], precision: ['symbol', 'auto'],
   title: ['status', true], timeframe: ['status', true], ohlc: ['status', true], change: ['status', false], names: ['status', true], params: ['status', true], values: ['status', true], statusBackground: ['status', false], statusColor: ['status', ''], opacity: ['status', 80],
   scale: ['scales', 'linear'], autoScale: ['scales', true], invert: ['scales', false], side: ['scales', 'right'], align: ['scales', true], priceLine: ['scales', true], priceColor: ['scales', ''], priceStyle: ['scales', 'dotted'], priceLabel: ['scales', true], countdown: ['scales', false], indicatorLabels: ['scales', true],
-  hideDrawings: ['canvas', true], magnet: ['canvas', 'weak'], keepDrawing: ['canvas', false],
+  hideDrawings: ['canvas', true], magnet: ['canvas', 'weak'], keepDrawing: ['canvas', false], lineMenu: ['canvas', 'both'],
   background: ['canvas', ''], gridV: ['canvas', true], gridH: ['canvas', true], gridColor: ['canvas', ''], crosshair: ['canvas', true], crosshairColor: ['canvas', ''], crosshairStyle: ['canvas', 'dashed'], watermark: ['canvas', false], watermarkColor: ['canvas', ''], fontSize: ['canvas', 11], textColor: ['canvas', ''], axisColor: ['canvas', ''], separator: ['canvas', ''], marginTop: ['canvas', 8], marginBottom: ['canvas', 8], navigation: ['canvas', true],
 } as const;
 export type SettingKey = keyof typeof SETTINGS;
@@ -16,7 +16,7 @@ export const COLOR_KEYS = new Set<SettingKey>(['up', 'down', 'borderUp', 'border
 export const OPTIONS: Partial<Record<SettingKey, string[]>> = {
   precision: ['auto', '0', '1', '2', '3', '4', '5', '6', '7', '8'],
   magnet: ['off', 'weak', 'strong'],
-  scale: ['linear', 'log', 'percent'], side: ['right', 'left'], priceStyle: ['solid', 'dashed', 'dotted'], crosshairStyle: ['solid', 'dashed', 'dotted'],
+  scale: ['linear', 'log', 'percent'], side: ['right', 'left'], lineMenu: ['both', 'right', 'double', 'off'], priceStyle: ['solid', 'dashed', 'dotted'], crosshairStyle: ['solid', 'dashed', 'dotted'],
 };
 export type SettingRow = { key: SettingKey; extras?: readonly SettingKey[]; nested?: boolean };
 export type SettingGroup = { id: 'candles' | 'data' | 'symbol' | 'indicators' | 'priceScale' | 'priceLines' | 'style' | 'axes' | 'margins' | 'drawing'; rows: readonly SettingRow[] };
@@ -37,7 +37,7 @@ export const SETTINGS_LAYOUT: Record<Exclude<Section, 'overlays'>, readonly Sett
     { id: 'style', rows: [{ key: 'background' }, { key: 'gridV', extras: ['gridColor'] }, { key: 'gridH' }, { key: 'separator' }, { key: 'crosshair', extras: ['crosshairColor', 'crosshairStyle'] }, { key: 'watermark', extras: ['watermarkColor'] }] },
     { id: 'axes', rows: [{ key: 'textColor', extras: ['fontSize'] }, { key: 'axisColor' }] },
     { id: 'margins', rows: [{ key: 'marginTop' }, { key: 'marginBottom' }] },
-    { id: 'drawing', rows: [{ key: 'hideDrawings' }, { key: 'magnet' }, { key: 'keepDrawing' }, { key: 'navigation' }] },
+    { id: 'drawing', rows: [{ key: 'hideDrawings' }, { key: 'magnet' }, { key: 'keepDrawing' }, { key: 'navigation' }, { key: 'lineMenu' }] },
   ],
 };
 export function parseAppearance(value: unknown): Appearance {

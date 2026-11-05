@@ -21,7 +21,7 @@ export const fieldClass = 'w-full min-w-0 rounded-md border border-border bg-bac
 const optionKeys: Record<string, MessageKey> = Object.fromEntries(['auto', 'linear', 'log', 'percent', 'right', 'left', 'solid', 'dashed', 'dotted', 'none', 'off', 'weak', 'strong', 'close', 'open', 'high', 'low', 'chart', 'free', 'setup'].map(k => [k, `cw.option.${k}`])) as Record<string, MessageKey>;
 function useOptionLabel(name: MessageKey) {
   const t = useT();
-  return (v: string): string => { if (name === 'cw.timeframe') { if (v === '0') return t('cw.option.chart'); return ({ '60': 'M1', '300': 'M5', '900': 'M15', '1800': 'M30', '3600': 'H1', '14400': 'H4', '86400': 'D1' } as Record<string, string>)[v] ?? v; } if (v === 'free' || v === 'setup') return t(`cw.${v}`); if (optionKeys[v]) return t(optionKeys[v]); return v; };
+  return (v: string): string => { if (name === 'cw.lineMenu') return t(`cw.lineMenu.${v}` as MessageKey); if (name === 'cw.timeframe') { if (v === '0') return t('cw.option.chart'); return ({ '60': 'M1', '300': 'M5', '900': 'M15', '1800': 'M30', '3600': 'H1', '14400': 'H4', '86400': 'D1' } as Record<string, string>)[v] ?? v; } if (v === 'free' || v === 'setup') return t(`cw.${v}`); if (optionKeys[v]) return t(optionKeys[v]); return v; };
 }
 export function Choice({ name, value, options, onChange }: { name: MessageKey; value: string; options: readonly string[]; onChange: (v: string) => void }) {
   const t = useT(), label = useOptionLabel(name);
@@ -53,7 +53,7 @@ function RowRange({ name, value, onChange }: { name: MessageKey; value: number; 
   const t = useT();
   return <Tooltip content={t(`${name}.hint` as MessageKey)}><input aria-label={t(name)} className="h-8 w-24 accent-foreground" type="range" min={0} max={100} value={value} onChange={e => onChange(Number(e.target.value))} /></Tooltip>;
 }
-function RowColor({ name, value, onChange }: { name: MessageKey; value: string; onChange: (v: string) => void }) {
+export function RowColor({ name, value, onChange }: { name: MessageKey; value: string; onChange: (v: string) => void }) {
   // Der Produktions-Build kürzt CSS-Farben (#ffffff → #fff); input[type=color] kennt nur die Langform.
   const long = value.replace(/^#([\da-f])([\da-f])([\da-f])$/i, '#$1$1$2$2$3$3');
   const t = useT(), safe = /^#[\da-f]{6}$/i.test(long) ? long : '#808080';
@@ -62,11 +62,11 @@ function RowColor({ name, value, onChange }: { name: MessageKey; value: string; 
 
 const SECTION_ICONS: Record<Section, LucideIcon> = { symbol: CandlestickChart, status: AlignLeft, scales: Ruler, canvas: Paintbrush, overlays: Layers };
 
-export function SettingsDialog({ toolbarResettable = false, initialAppearance, onApply, onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, ohlcAvailable, defaultMargins }: { toolbarResettable?: boolean; initialAppearance: Appearance; onApply: (appearance: Appearance) => void; onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
+export function SettingsDialog({ initialSection = 'symbol', toolbarResettable = false, initialAppearance, onApply, onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, ohlcAvailable, defaultMargins }: { initialSection?: Section; toolbarResettable?: boolean; initialAppearance: Appearance; onApply: (appearance: Appearance) => void; onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
   const t = useT(), s = useChartWorkspaceStore();
   const saved = s.preview ?? initialAppearance;
   const a = !saved.marginsSet && defaultMargins ? { ...saved, marginTop: defaultMargins.top * 100, marginBottom: defaultMargins.bottom * 100 } : saved;
-  const [section, setSection] = useState<Section>('symbol');
+  const [section, setSection] = useState<Section>(initialSection);
   const [template, setTemplate] = useState<string>(initialAppearance.preset);
   const [name, setName] = useState('');
   const toolbarAuto = isAutoLayout(s.toolbarLayout);
