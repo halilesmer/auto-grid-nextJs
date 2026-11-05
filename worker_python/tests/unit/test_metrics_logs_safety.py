@@ -230,3 +230,10 @@ def test_orders_entfernter_setups_werden_gemeldet(fake_mt5):
     assert [o["ticket"] for o in metrics["legacy_setup_orders"]] == [legacy.ticket]
     assert metrics["legacy_setup_orders"][0]["price_open"] == 98.0
     assert len(metrics["orders"]) == 2
+
+
+@pytest.mark.feature("ENG-34")
+def test_marj_werte_in_der_telemetrie(fake_mt5):
+    fake_mt5.account = AccountInfo(margin=120.5, margin_free=9879.5, margin_level=8300.0)
+    m = calculate_live_metrics(fake_mt5, ["EURUSD"], False, False)
+    assert (m["margin"], m["margin_free"], m["margin_level"]) == (120.5, 9879.5, 8300.0)

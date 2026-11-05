@@ -385,3 +385,28 @@ def test_nach_marktoeffnung_setzt_der_bot_die_orders(fake_mt5, monkeypatch):
     now[0] += 61  # Wartezeit vorbei, Markt offen
     engine.tick()
     assert len(m.robot_orders()) == 6
+
+
+# --------------------------------------------------------------------------- ENG-33
+@pytest.mark.feature("ENG-33")
+def test_zombie_iptal_bei_10018_wird_gedrosselt(fake_mt5, monkeypatch):
+    from types import SimpleNamespace
+    from src.core import clock
+    from src.core.grid_order_manager import clean_zombie_orders
+
+    now = [1000.0]
+    monkeypatch.setattr(clock, "monotonic", lambda: now[0])
+    m = fake_mt5
+    sends = []
+    monkeypatch.setattr(m, "order_send", lambda req: sends.append(req) or SimpleNamespace(retcode=10018, comment="Market closed"))
+    logs = []
+    monkeypatch.setattr("src.core.grid_order_manager.log_message", lambda *a, **k: None)
+    monkeypatch.setattr("src.core.grid_orders.log_message", lambda msg, *a, **k: logs.append(msg))
+    monkeypatch.setattr("src.utils.trade_utils.time.sleep", lambda *_: None)
+    order = SimpleNamespace(ticket=5, symbol="EURUSD", magic=999999, type=m.ORDER_TYPE_BUY_LIMIT, comment="")
+    for _ in range(5):
+        clean_zombie_orders(m, [order], [], {})
+    assert len(sends) == 1  # Pause: kein erneuter Versuch
+    now[0] += 61
+    clean_zombie_orders(m, [order], [], {})
+    assert len(sends) == 2

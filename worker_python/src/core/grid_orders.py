@@ -181,14 +181,21 @@ def parse_fractal_comment(comment):
 def cancel_order(mt5, order):
     if mt5 is None:
         return False
+    from src.core.state import state
+
+    # 10018 sonrası bu sembol için iptal denemesi bekler (ENG-33): döngü her ~2 sn'de yeniden
+    # denerdi ve logu doldururdu
+    if state.cancel_closed_until.get(order.symbol, 0) > clock.monotonic():
+        return False
     request = {
         "action": mt5.TRADE_ACTION_REMOVE,
         "order": order.ticket,
         "symbol": order.symbol,
     }
     ok = safe_send_order(mt5, request, log_message)
+    if not ok and TradeState.last_retcode == MARKET_CLOSED_RETCODE:
+        state.cancel_closed_until[order.symbol] = clock.monotonic() + state.MARKET_CLOSED_CHECK_INTERVAL
     if ok:
-        from src.core.state import state
 
         # Bot sildi: kaybolan emir takibi (vanished.py) bunu "dışarıdan silindi" saymasın
         state.placed_orders.pop(order.ticket, None)

@@ -962,6 +962,20 @@ kategorien:
         pruefung:
           - Im DEMO-Lauf über einen Sessionstart (z. B. Montag 00:00 Brokerzeit) prüfen, dass kein „Bölge güvenliğe alınıyor“ erscheint und die Orders nach Marktöffnung stehen.
         erwartet: Nach 10018 keine Zonensperre; Orders erscheinen nach Marktöffnung.
+      - id: ENG-33
+        titel: Aufräumen alter Magic-Orders pausiert bei 10018
+        beschreibung: "Lehnt MT5 das Löschen einer Order (Mutlak Temizlik) mit Retcode 10018 ab, versucht der Bot es für dieses Symbol 60 Sekunden (MARKET_CLOSED_CHECK_INTERVAL) nicht erneut. Das Log zeigt die Ablehnung nur einmal je Pause."
+        code: [worker_python/src/core/grid_orders.py, worker_python/src/core/state.py]
+        tiers: [unit]
+        pruefung: []
+        erwartet: Kein Logflut bei geschlossenem Markt; nach 60 Sekunden ein neuer Versuch.
+      - id: ENG-34
+        titel: Marj-Werte in den Metriken
+        beschreibung: "Die Bot-Metriken enthalten margin, margin_free und margin_level aus account_info() und kommen über die vorhandene Metrik-Route mit. Keine eigene Anzeige."
+        code: [worker_python/src/core/grid_metrics.py]
+        tiers: [unit]
+        pruefung: []
+        erwartet: Die drei Werte stehen in den Metriken und stimmen mit MT5 überein.
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm
