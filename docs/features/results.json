@@ -6,7 +6,7 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -23,7 +23,7 @@
       "tests": 7
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -35,7 +35,7 @@
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -47,7 +47,7 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     }
@@ -59,14 +59,14 @@
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     }
   },
   "ACC-06": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -78,7 +78,7 @@
   },
   "ACC-07": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -104,7 +104,7 @@
       "tests": 6
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 3
     },
@@ -123,21 +123,21 @@
   },
   "ANA-01": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 4
     }
   },
   "ANA-02": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
     }
   },
   "ANA-03": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     }
@@ -151,14 +151,14 @@
   },
   "ANA-05": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
     }
   },
   "ANA-06": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -177,14 +177,14 @@
   },
   "ANA-08": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 13
     }
   },
   "ANA-09": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 12
     }
@@ -196,21 +196,21 @@
       "tests": 7
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 9
     }
   },
   "ANA-11": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 12
     }
   },
   "ANA-12": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 12
     }
@@ -234,21 +234,21 @@
   },
   "ANA-14": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
     }
   },
   "ANA-15": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ANA-16": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 3
     }
@@ -257,12 +257,12 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 19
     }
   },
   "ANA-18": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 7
     }
@@ -271,12 +271,12 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 4
+      "tests": 19
     }
   },
   "ANA-20": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 6
     }
@@ -285,12 +285,12 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 9
+      "tests": 38
     }
   },
   "ANA-22": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 19
     }
@@ -304,14 +304,14 @@
   },
   "BKT-02": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 43
     }
   },
   "BKT-03": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 30
     }
@@ -323,7 +323,7 @@
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 84
     },
@@ -340,35 +340,35 @@
       "tests": 50
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 14
     }
   },
   "BKT-06": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 13
     }
   },
   "BKT-07": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 17
     }
   },
   "BKT-08": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 3
     }
   },
   "BKT-09": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 60
     },
@@ -380,7 +380,7 @@
   },
   "BKT-10": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 9
     }
@@ -392,21 +392,21 @@
       "tests": 28
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 7
     }
   },
   "BKT-12": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 7
     }
   },
   "BKT-13": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -418,7 +418,7 @@
       "tests": 32
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 18
     }
@@ -430,9 +430,30 @@
       "tests": 7
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 10
+    }
+  },
+  "BKT-16": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 7
+    }
+  },
+  "BKT-17": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 5
+    }
+  },
+  "BKT-18": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 1
     }
   },
   "BOT-01": {
@@ -458,7 +479,7 @@
   },
   "BOT-04": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 4
     }
@@ -700,7 +721,7 @@
       "tests": 3
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
     },
@@ -717,9 +738,9 @@
       "tests": 3
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 4
+      "tests": 5
     },
     "unit": {
       "datum": "2026-11-03",
@@ -734,7 +755,7 @@
       "tests": 16
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 13
     },
@@ -1069,7 +1090,7 @@
       "tests": 3
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -1086,7 +1107,7 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -1098,14 +1119,14 @@
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "LOG-04": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -1131,7 +1152,7 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     },
@@ -1143,7 +1164,7 @@
   },
   "MET-01": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     },
@@ -1155,7 +1176,7 @@
   },
   "MET-02": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -1191,7 +1212,7 @@
       "tests": 3
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -1203,14 +1224,14 @@
   },
   "SET-02": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "SET-03": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 4
     }
@@ -1260,14 +1281,14 @@
   },
   "SYM-02": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "SYM-03": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -1279,7 +1300,7 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -1298,7 +1319,7 @@
   },
   "SYS-02": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -1332,7 +1353,7 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     },
@@ -1368,105 +1389,112 @@
   },
   "SYS-07": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 4
     }
   },
   "SYS-08": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
     }
   },
   "SYS-09": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 8
+    }
+  },
+  "SYS-10": {
+    "e2e": {
+      "datum": "2026-11-05",
+      "status": "passed",
+      "tests": 6
     }
   },
   "UI-01": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 12
     }
   },
   "UI-02": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-03": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-04": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     }
   },
   "UI-05": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 4
     }
   },
   "UI-06": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "UI-07": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 15
+      "tests": 36
     }
   },
   "UI-08": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 6
+      "tests": 52
     }
   },
   "UI-09": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 17
     }
   },
   "UI-10": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 6
     }
   },
   "UI-11": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 7
     }
   },
   "UI-12": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 8
     }
@@ -1475,12 +1503,12 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 25
     }
   },
   "UI-14": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 25
     }
@@ -1489,7 +1517,7 @@
     "e2e": {
       "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 35
     }
   },
   "UPD-01": {
@@ -1499,14 +1527,14 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     }
   },
   "UPD-02": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     },
@@ -1518,9 +1546,9 @@
   },
   "UPD-03": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 2
+      "tests": 3
     }
   },
   "UPD-05": {
@@ -1549,7 +1577,7 @@
       "tests": 1
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 14
     },
@@ -1580,7 +1608,7 @@
       "tests": 13
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 3
     }
@@ -1608,28 +1636,28 @@
   },
   "USR-07": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 4
     }
   },
   "USR-08": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 3
     }
   },
   "VPS-01": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 3
     }
   },
   "VPS-02": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -1641,7 +1669,7 @@
   },
   "VPS-03": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     },
@@ -1653,7 +1681,7 @@
   },
   "VPS-04": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     }
@@ -1667,9 +1695,9 @@
   },
   "VPS-07": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     },
     "unit": {
       "datum": "2026-11-04",
@@ -1691,14 +1719,14 @@
       "tests": 5
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-10": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     },
@@ -1710,49 +1738,49 @@
   },
   "ZON-01": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     }
   },
   "ZON-02": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-03": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-04": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
     }
   },
   "ZON-05": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-06": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-07": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
@@ -1764,7 +1792,7 @@
       "tests": 2
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
     },
@@ -1781,63 +1809,63 @@
   },
   "ZON-09": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-10": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-11": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-12": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-13": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 16
+      "tests": 18
     }
   },
   "ZON-14": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-15": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-16": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     }
   },
   "ZON-17": {
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
     },
@@ -1854,7 +1882,7 @@
       "tests": 15
     },
     "e2e": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-05",
       "status": "passed",
       "tests": 2
     },
@@ -1866,16 +1894,16 @@
   },
   "ZON-20": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 25
+      "tests": 38
     }
   },
   "ZON-21": {
     "e2e": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-05",
       "status": "passed",
-      "tests": 1
+      "tests": 5
     }
   }
 }

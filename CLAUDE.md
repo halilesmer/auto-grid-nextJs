@@ -66,6 +66,7 @@ scripts/features/run.sh next | show ID | sign ID bestanden "Notiz"
 - **e2e** (`frontend_nextjs/e2e/mocked/`, Playwright, `npm run test:e2e`): a production build in `.next-e2e` (`NEXT_DIST_DIR`, so it runs next to `npm run dev:frontend`) against a mocked worker (`e2e/fixtures/mock-worker.ts`, mirrors `worker_python/src/api/*`; fails on missing `X-API-Key` or unknown endpoints). Tag with `{ tag: '@ZON-05' }`. Stable selectors are `data-testid`/aria attributes (`zone-card`, `metric-*`, `bot-status`, `log-output` …).
 - **live** (`frontend_nextjs/e2e/live/`, `npm run test:live`): uses `.env.local` and the account from `hooks/test-account.local.md`; skips unless it's DEMO. Read-only by default; trading tests need `E2E_LIVE_DEMO=1` (and `E2E_LIVE_BOT_RESTART=1` for stop/start) and only run when the user explicitly asks (`hooks/RULES.md` §3).
 - **CI** (`.github/workflows/tests.yml`) runs the catalog check, worker tests, and frontend lint + tsc + e2e on every PR and push to `main`.
+- **Before the first push of a PR** run `scripts/features/precheck.sh`: the same steps as CI (catalog, pytest, lint, tsc, all mocked e2e) in CI order; it fails when Playwright ran zero tests (`hooks/RULES.md` §4.8–4.11). The mocked e2e port is per checkout (3300–3999 from the checkout path, 3100 in CI, `E2E_PORT` wins, no reuse of a running server without `E2E_REUSE=1`; SYS-10), so parallel worktrees do not share a test server.
 
 ## Versioning
 
