@@ -86,6 +86,7 @@ Not verified: the memory thresholds against a real out-of-memory state. The valu
 ## Open points
 - [ ] Measure the full `precheck.sh` with 3 and 4 workers more than once, when the Mac is idle and awake.
 - [ ] Check the memory threshold when the next `Exit code 137` occurs (`sysctl kern.memorystatus_level vm.swapusage`).
+- [ ] Known local red test, not related to this change: `test_haengendes_pip_install_ergibt_klares_zeitlimit_ergebnis` (UPD-07) can fail on this Mac. The fake pip script needs 0.6–2.8 s for its first start, the pip limit of the test is 1 s, and the script stops before it writes `grandchild.pid` (`FileNotFoundError`). It passed in the first precheck of this change (`worker ok (193s)`). The lock does not hide or skip it. A separate task to make the test robust was proposed.
 
 ## Lessons
 - A test that simulates "another holder" must not use its own pid: the test runner is an ancestor of the script.
