@@ -43,12 +43,35 @@ Approved plan `1105-A5`. Each step has its own session and PR. Each PR has a cat
 | S0 | all | Design artifact. Approved 2026-11-05 | Opus / medium | — |
 | S1 | A5.1 | Formations use `buildTrend(tf, bars, wave, settings)` with the trend settings of the user. `formationZug`, `buildFineTrend()` and the LOSS table go away | Sonnet / medium | S0 |
 | S2 | A5.2 | Confirmation strip after a change of the trend settings | Sonnet / medium | S1 |
-| S3 | A5.3, A5.4 | Alarm main switch and trend row | Sonnet / low | S1 |
+| S3 | A5.3, A5.4 | Alarm main switch and trend row | Sonnet / low | S0 |
 | S4 | A5.5, A5.6 | Expected D and formation badges | Sonnet / medium | S0 |
 | S5 | A5.7 | "Formation drawings" button in the toolbar | Sonnet / low | S0 |
 | S6 | A5.8 | Movable toolbar groups | Sonnet / high | S5 |
 
-S4 and S5 both change `components/formation/FormationChart.tsx`. Thus they run one after the other.
+### Parallel order (owner, 2026-11-05)
+
+The owner said: run the steps in parallel when they do not conflict. Thus:
+
+| Wave | Steps | Start |
+|---|---|---|
+| 1 | S1, S3, S4, S5 | At the same time, after the design approval. They do not wait for this docs PR |
+| 2 | S2 | The S1 session starts it after the S1 PR merged |
+| 2 | S6 | The S5 session starts it after the S5 PR merged |
+
+S2 and S6 can run at the same time. Max. 5 sessions that write files run at the same time.
+
+Some steps change the same file. Each step changes only its own region of the file:
+
+| File | Step | Region |
+|---|---|---|
+| `components/formation/FormationChart.tsx` | S4 | `FormationOverlay` only |
+| `components/formation/FormationChart.tsx` | S5 | The `modeLayers` line only |
+| `components/formation/FormationScanRunner.tsx` | S1 | The `zug` dependency of the search only |
+| `components/formation/FormationScanRunner.tsx` | S3 | The alarm symbols only (`bellKey`, `favoritesAlarm`, `alarmSymbols`). With the main switch off, `alarmSymbols` is empty |
+| `i18n/messages/formation.ts` | S3 | `formation.alarm.*` keys only |
+| `i18n/messages/formation.ts` | S4 | Keys of the expected D and the badges only |
+
+S2 puts the confirmation strip in `TrendSettingsPanel` or `TrendToggle`. S2 does not change `ChartWorkspace.tsx`, because S6 changes it. When a PR that merges later has a conflict, the session updates its branch with `sync_with_base_branch`.
 
 ### Design decisions (approved 2026-11-05)
 
