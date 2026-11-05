@@ -299,9 +299,8 @@ const REAL: Real[] = [
   { file: 't618-bad-h4-01', t: 1764129600, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '04': M }, with2618: true },
   // K2 freigegeben 2026-11-04: Negativfall, die Suche wählt P eine Kerze früher (11-20 12:00); T618-01 ☐ (vorher T618-03 ☐ am alten P), Linie nach TRD-34 gültig
   { file: 't618-bad-h4-02', t: 1763755200, side: 'sell', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '07': N }, with2618: false },
-  // K2 freigegeben 2026-11-04: im Aufbau wurde kein Kandidat (P ohne Freigabe der Linie).
-  // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): auf dem Trendzug des Nutzers gibt es einen Kauf-Kandidaten ohne Kraftverlust-Folge (T618-01 ☐)
-  { file: 't618-form-h4-01', t: 1765497600, side: 'buy', verdict: 'invalid', expect: { '01': N, '02': M, '03': M, '04': N, '07': M }, with2618: false },
+  // K2 freigegeben 2026-11-04: im Aufbau wurde kein Kandidat (P ohne Freigabe der Linie)
+  { file: 't618-form-h4-01', oldP: 1765454400, t: 1765497600, none: true, with2618: false },
 ];
 
 for (const r of REAL) {

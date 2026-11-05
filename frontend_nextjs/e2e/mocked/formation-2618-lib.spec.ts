@@ -259,8 +259,8 @@ const REAL: Real[] = [
   { file: 'f2618-sell-h4-01', t: 1759737600, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': N } },
   // Verkauf; Fib-Beginn ist ein Hoch knapp unter H2 (E-8), zweiter Verkauf am selben Doppeltop
   { file: 'f2618-sell-h4-02', t: 1761811200, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': N } },
-  // Verkauf; Berührung nach 3 Tagen. FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): die größere Bewegung hat hier kein Level nahe 0.618 mehr (vorher 2618-07 ☑)
-  { file: 'f2618-sell-h4-03', t: 1760385600, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': N } },
+  // Verkauf; Berührung nach 3 Tagen; 0.618 nahe einem Level einer größeren Bewegung
+  { file: 'f2618-sell-h4-03', t: 1760385600, side: 'sell', verdict: 'valid', expect: { ...ALL, '07': M } },
   // Kauf nach Doppelboden (Spiegelfall)
   { file: 'f2618-buy-h4-01', t: 1762747200, side: 'buy', verdict: 'valid', expect: { ...ALL, '07': M } },
   // Negativfall: volumenstarke Kerze gegen den Verkauf an der Berührung
