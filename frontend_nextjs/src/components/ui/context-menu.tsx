@@ -6,6 +6,9 @@ import { cn } from '@/lib/utils';
 import { Tooltip, type HintContent } from './tooltip';
 
 const CloseContext = createContext<() => void>(() => {});
+const InMenuContext = createContext(false);
+/** true innerhalb eines `ContextMenu`: Bedienelemente müssen dann Menü-Rollen tragen (R2-03) */
+export const useInContextMenu = () => useContext(InMenuContext);
 const EDGE = 8; // Mindestabstand zum Bildschirmrand
 
 interface ContextMenuProps {
@@ -94,7 +97,7 @@ export function ContextMenu({ x, y, label, onClose, children, className, 'data-t
       style={{ left: x, top: y }}
       onContextMenu={e => e.preventDefault()}
     >
-      <CloseContext.Provider value={onClose}>{children}</CloseContext.Provider>
+      <InMenuContext.Provider value><CloseContext.Provider value={onClose}>{children}</CloseContext.Provider></InMenuContext.Provider>
     </div>,
     document.body,
   );
