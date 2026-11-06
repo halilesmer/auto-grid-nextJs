@@ -3,7 +3,7 @@ date: 2026-11-06
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [415]
 features: [BKT-19, BKT-18, ANA-04]
 areas: [worker, frontend]
 ---
