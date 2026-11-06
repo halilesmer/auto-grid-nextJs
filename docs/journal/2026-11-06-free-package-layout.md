@@ -3,7 +3,7 @@ date: 2026-11-06
 author: Claude
 type: plan
 status: open
-pr: [397, 401]
+pr: [397, 401, 413, 421]
 features: [UI-17, UI-16]
 areas: [frontend]
 ---
@@ -126,6 +126,47 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 | `chart-toolbar-groups` default | row 1 hidden | row 1 order `toEqual` | as above |
 | `chart-toolbar-groups` keyboard | 2 x Down reaches "drop on chart" | 3 x Down | the handle menu has "row 2" in Free |
 
+## Solution (S5)
+
+Phone (portrait, container below 30 rem) and landscape phone. The fixed phone layout of S2 to S4 stays. This step measures it, closes four defects and adds the tests (`chart-dock-s5.spec.ts`, @UI-17, phone tests also @UI-08).
+
+### Measurement (before any change)
+
+Sizes: 375 x 812, 280 x 640, 667 x 375, 740 x 360, 812 x 375, 844 x 390, 932 x 430. Modes: Formation, Setup, Free. At every size there was no horizontal scroll and the account anchor was free. At 667 x 375 and above the bar is at most 66 px high. No defect showed in these numbers. The defects below came from the new tests.
+
+### Defects found and fixes
+
+| Defect | Cause | Fix |
+|---|---|---|
+| Date range panel is 490 px high and goes below the window at every landscape size (bottom at 592 px, window 360 to 430 px) | The panel has a fixed height. Nothing limits it to the free space | `DropdownMenu` has a new opt-in prop `fitHeight`. The panel gets `max-height` = free space and scrolls inside. Only `DateRangePicker` sets it. A first version for all menus broke the layers menu tests (UI-13, UI-14), so it is opt-in |
+| Row 1 is 1.7 px too wide at 667 x 375 Formation | The fit loop measured with `offsetWidth` and `clientWidth` (whole numbers). Then, with every package at its smallest, the sum was still larger than the row | Fractional measure (`getBoundingClientRect`). Then plan decision 1106-A5.3: the product box is the last shrink step |
+| The handle touch area is 16 x 24 px | The handle is `w-4` | On a coarse pointer a pseudo-element makes the area 24 x 24 px (8 px to the left, not over a neighbor). The visible size is the same |
+| Free mode: product field wider than a narrowed product box | `sm:w-44` without a maximum | `sm:max-w-full` |
+
+### Smallest widths at 667 x 375 Formation (plan 1106-A5.1.1)
+
+Row 1 inner width 611.00 px. Packages already at their smallest (selected button plus arrow): mode 127.69, product 205 (box 176 plus handle and line), account anchor 185, actions 89 (one button plus arrow). Sum 606.69 px plus 3 gaps of 2 px = 612.69 px. The overflow is 1.69 px. The shrink order is correct. The sum of the smallest widths is larger than the row. The account anchor is not a package and does not change. Decision 1106-A5.3: the fit code lowers the width of the product box by the deficit, with a floor of 144 px (`w-36`). At 667 x 375 the box is then 174.31 px. When the row gets wider, the box is 176 px again.
+
+### Touch (CDP `Input.dispatchTouchEvent`, 812 x 375)
+
+A tap on a handle opens the handle menu and does not start a drag. A move below 10 px does not start a drag. A drag moves the package and the place stays after a reload. During the drag the page does not scroll, the viewport scale stays 1, and no touch or pointer event reaches the chart. The handle has `touch-action: none`.
+
+### Clearance of the touch area
+
+The touch rectangle of every handle (default layout) does not cross an interactive element of another package, and does not cross an element of its own package. Smallest free space to the nearest left neighbor, in px:
+
+| Mode | 667 x 375 | 740 x 360 | 812 x 375 |
+|---|---|---|---|
+| Formation | 5 | 5 | 5 |
+| Setup | 7 | 5 | 7 |
+| Free | 7 | 7 | 5 |
+
+### Lessons
+
+- A test must read the box that really scrolls. The first date range test measured the inner content (490 px), not the outer panel.
+- A shared component change (menu height) must be opt-in. The full e2e run found two menus that it broke.
+- `offsetWidth` rounds. Use `getBoundingClientRect` when a sum of boxes is compared to a row.
+
 ## Risks
 
 - The header gap was tuned at many window widths (UI-14, UI-15, FRM-23, FRM-38). The groups move into the row. These measures change. Do not relax tests. Each PR says what changed and why.
@@ -142,5 +183,5 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 
 ## Open points
 
-- [ ] S5 and S6.
-- [ ] Touch drag on a real phone (owner).
+- [ ] S6.
+- [ ] Touch drag on a real phone (owner, S5 preview).
