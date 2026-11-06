@@ -1681,6 +1681,55 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(before + 4);
   });
 
+  /** Entwurf in Formation (Regler bewegt, nicht bestätigt), dann in derselben Seite zu Setup: der Speicher bleibt, die Adresse wechselt nur den Modus */
+  async function draftThenSetup(page: Page, worker: MockWorker) {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await page.addInitScript(([key, trend]) => {
+      localStorage.setItem(key, JSON.stringify({ state: { trend, showTrend: true }, version: 1 }));
+    }, ['grid-robot-analysis-prefs', trendOf(fixtureBars)] as const);
+    await page.goto(`/chart?mode=setup&account=${DEMO_ID}&zone=${ZONE_ID}&tf=H4`);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(chart).toHaveAttribute('data-trend', /^[1-9]\d*$/);
+    const applied = await chart.getAttribute('data-trend');
+    await page.getByTestId('chart-mode-formation').click();
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.getByTestId('trend-settings').click();
+    await page.getByTestId('trend-settings-panel').getByTestId('trend-minSize').fill('3.5');
+    await expect(page.getByTestId('trend-confirm')).toBeVisible();
+    await page.getByTestId('chart-mode-setup').click();
+    await expect(chart).toBeVisible();
+    return { chart, applied: applied as string };
+  }
+  const storedTrend = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') ?? '{}').state?.trend as { minSize: number; changeCloses: number });
+
+  test('FRM-42 Setup: ein offener Entwurf aus Formation wird dort nicht still angewendet; eine Änderung gilt für die angewendete Einstellung und der Entwurf bleibt (R1-03)', { tag: '@FRM-42' }, async ({ page, worker }) => {
+    const { applied } = await draftThenSetup(page, worker);
+    const before = await storedTrend(page);
+    // Setup hat keine Bestätigungsleiste und kein Wartepunkt: das Panel zeigt die angewendete Einstellung
+    await expect(page.getByTestId('trend-pending-dot')).toHaveCount(0);
+    await page.getByTestId('trend-settings').click();
+    const panel = page.getByTestId('trend-settings-panel');
+    await expect(panel.getByTestId('trend-minSize')).toHaveValue(String(before.minSize));
+    await expect(page.getByTestId('trend-confirm')).toHaveCount(0);
+    const other = before.changeCloses === 1 ? 2 : 1;
+    await panel.getByRole('button', { name: msg(`cw.trend.closes.${other}`) }).click();
+    await expect.poll(async () => (await storedTrend(page)).changeCloses).toBe(other);
+    expect((await storedTrend(page)).minSize).toBe(before.minSize);
+    expect(applied).toMatch(/^\d+$/);
+    // Zurück in Formation wartet der Entwurf noch auf die Bestätigung
+    await page.getByTestId('chart-mode-formation').click();
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.getByTestId('trend-settings').click();
+    await expect(page.getByTestId('trend-settings-panel').getByTestId('trend-minSize')).toHaveValue('3.5');
+    await expect(page.getByTestId('trend-confirm')).toBeVisible();
+  });
+
+  test('FRM-42 Setup: der Chart zeichnet die angewendete Linie, nicht den offenen Entwurf aus Formation (R1-10)', { tag: '@FRM-42' }, async ({ page, worker }) => {
+    const { chart, applied } = await draftThenSetup(page, worker);
+    await expect(chart).toHaveAttribute('data-trend', applied);
+  });
+
   test('FRM-42 [Geri al]: der Entwurf kehrt zur angewendeten Einstellung zurück, ohne neue Suche', { tag: '@FRM-42' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
