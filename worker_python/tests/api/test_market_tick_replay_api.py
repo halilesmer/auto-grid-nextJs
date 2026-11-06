@@ -135,6 +135,8 @@ def test_migration_from_version_6_keeps_tick_spread(client, broker):
     conn = sqlite3.connect(market_db.db_path(), isolation_level=None)
     conn.execute("DROP TABLE position_orders")
     conn.execute("DROP TABLE tick_replay")
+    for col in ("ahi", "alo", "g"):  # BKT-22 (Migration 9) zurücknehmen
+        conn.execute(f"ALTER TABLE tick_spread DROP COLUMN {col}")
     rows = conn.execute("SELECT source, symbol, from_t, to_t, state, checked_at FROM tick_spread_coverage").fetchall()
     conn.execute("DROP TABLE tick_spread_coverage")
     conn.execute("CREATE TABLE tick_spread_coverage (source TEXT NOT NULL, symbol TEXT NOT NULL, "

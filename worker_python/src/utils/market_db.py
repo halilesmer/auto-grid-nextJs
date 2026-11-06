@@ -38,6 +38,8 @@ STATE_COMPLETE = "complete"
 STATE_GAP = "gap_confirmed"
 STATE_UNAVAILABLE = "unavailable"
 COVERED_STATES = (STATE_COMPLETE, STATE_GAP)
+# BKT-22: Version der Tick-Statistik (1 = ahi/alo/g); ältere Abdeckung wird einmal neu geholt
+TICK_STATS_VERSION = 1
 
 _WRITE_LOCK = threading.Lock()
 # Yedek yazıcıları kilitlemez (SQLite backup API'si tutarlı kopya verir); yalnızca iki yedek aynı anda olmasın
@@ -165,6 +167,14 @@ MIGRATIONS: list[list[str]] = [
             account_id TEXT NOT NULL, position_id INTEGER NOT NULL, sl REAL, tp REAL,
             looked_up_at INTEGER NOT NULL, PRIMARY KEY (account_id, position_id)
         )""",
+    ],
+    [
+        # BKT-22: Ask-Extreme (ganze Punkte, nur Ticks in der Minute), Kursraster der Minute (1 = keins) und die
+        # Version der Tick-Statistik in der Abdeckung (0 = Stand von BKT-19/20, wird einmal neu geholt). NULL = unbekannt.
+        "ALTER TABLE tick_spread ADD COLUMN ahi INTEGER",
+        "ALTER TABLE tick_spread ADD COLUMN alo INTEGER",
+        "ALTER TABLE tick_spread ADD COLUMN g INTEGER",
+        "ALTER TABLE tick_spread_coverage ADD COLUMN stats INTEGER NOT NULL DEFAULT 0",
     ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
@@ -455,7 +465,7 @@ def read_rates(source: str, symbol: str, timeframe: int, a: int, b: int, limit: 
         if with_ticks:
             return [dict(r) for r in conn.execute(
                 "SELECT r.t_mt5 AS time, r.o AS open, r.h AS high, r.l AS low, r.c AS close, r.tick_volume, "
-                "r.spread, t.sa AS sa, t.sx AS sx FROM rates r LEFT JOIN tick_spread t "
+                "r.spread, t.sa AS sa, t.sx AS sx, t.ahi AS ahi, t.alo AS alo, t.g AS g FROM rates r LEFT JOIN tick_spread t "
                 "ON t.source = r.source AND t.symbol = r.symbol AND t.t_mt5 = r.t_mt5 "
                 "WHERE r.source=? AND r.symbol=? AND r.timeframe=? AND r.t_mt5 >= ? AND r.t_mt5 < ? "
                 "ORDER BY r.t_mt5 LIMIT ?",
@@ -483,12 +493,12 @@ def plan_tick_spread(source: str, symbol: str, a: int, b: int, now: float | None
     now = time.time() if now is None else now
     with reading() as conn:
         segs = [dict(r) for r in conn.execute(
-            "SELECT from_t, to_t, state, checked_at, replay FROM tick_spread_coverage "
+            "SELECT from_t, to_t, state, checked_at, replay, stats FROM tick_spread_coverage "
             "WHERE source=? AND symbol=? AND to_t > ? AND from_t < ? ORDER BY from_t", (source, symbol, a, b))]
     covered, waiting = [], []
     for seg in segs:
         if seg["state"] in COVERED_STATES:
-            if not replay or seg["replay"]:
+            if seg["stats"] >= TICK_STATS_VERSION and (not replay or seg["replay"]):
                 covered.append((seg["from_t"], seg["to_t"]))
         elif now - seg["checked_at"] < UNAVAILABLE_RETRY_SEC:
             x, y = max(a, seg["from_t"]), min(b, seg["to_t"])
@@ -498,17 +508,21 @@ def plan_tick_spread(source: str, symbol: str, a: int, b: int, now: float | None
     return todo, waiting
 
 
-def store_tick_spread(source: str, symbol: str, rows: list[tuple[int, float, int, int]],
+def store_tick_spread(source: str, symbol: str, rows: list[tuple],
                       segments: list[tuple[int, int, str]], checked_at: int | None = None,
-                      replay_rows: list[tuple[int, str, bytes]] | None = None, replay: bool = False) -> bool:
-    """Minutenwerte (t, sa, sx, n), Replay-Minuten (t, Art, Blob) und Abdeckung in einer Transaktion. Datenbank voll → False."""
+                      replay_rows: list[tuple[int, str, bytes]] | None = None, replay: bool = False,
+                      stats: bool = False) -> bool:
+    """Minutenwerte (t, sa, sx, n[, ahi, alo, g]), Replay-Minuten (t, Art, Blob) und Abdeckung in einer Transaktion.
+
+    `stats`: die Zeilen tragen ahi/alo/g (BKT-22), die Abdeckung bekommt TICK_STATS_VERSION. Datenbank voll → False."""
     if is_full():
         return False
     checked_at = int(time.time()) if checked_at is None else checked_at
     with writing() as conn:
         conn.executemany(
-            "INSERT OR REPLACE INTO tick_spread VALUES (?,?,?,?,?,?)",
-            [(source, symbol, int(t), round(float(sa), 2), int(sx), int(n)) for t, sa, sx, n in rows],
+            "INSERT OR REPLACE INTO tick_spread (source, symbol, t_mt5, sa, sx, n, ahi, alo, g) VALUES (?,?,?,?,?,?,?,?,?)",
+            [(source, symbol, int(r[0]), round(float(r[1]), 2), int(r[2]), int(r[3]),
+              *((None if v is None else int(v)) for v in (tuple(r[4:7]) + (None, None, None))[:3])) for r in rows],
         )
         if replay_rows:
             conn.executemany(
@@ -520,7 +534,8 @@ def store_tick_spread(source: str, symbol: str, rows: list[tuple[int, float, int
                 _replace_segment(
                     conn, "tick_spread_coverage", "source=? AND symbol=?", (source, symbol), x, y,
                     {"source": source, "symbol": symbol, "state": state, "checked_at": checked_at,
-                     "replay": 1 if replay else 0}, merge_key=("state", "replay"),
+                     "replay": 1 if replay else 0, "stats": TICK_STATS_VERSION if stats else 0},
+                    merge_key=("state", "replay", "stats"),
                 )
     return True
 
@@ -536,8 +551,9 @@ def read_tick_replay(source: str, symbol: str, a: int, b: int) -> list[tuple[int
 def tick_coverage_summary(source: str, symbol: str) -> list[dict]:
     with reading() as conn:
         return [dict(r) for r in conn.execute(
-            "SELECT state, replay, MIN(from_t) AS first, MAX(to_t) AS last, COUNT(*) AS segments "
-            "FROM tick_spread_coverage WHERE source=? AND symbol=? GROUP BY state, replay ORDER BY state, replay",
+            "SELECT state, replay, stats, MIN(from_t) AS first, MAX(to_t) AS last, COUNT(*) AS segments "
+            "FROM tick_spread_coverage WHERE source=? AND symbol=? GROUP BY state, replay, stats "
+            "ORDER BY state, replay, stats",
             (source, symbol))]
 
 

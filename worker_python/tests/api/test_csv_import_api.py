@@ -237,7 +237,7 @@ def test_existing_csv_import_defaults_to_fixed_mode_after_migration(client):
         conn.execute("DROP TABLE tick_replay")
         conn.execute("DROP TABLE backtest_reports")
         conn.execute("ALTER TABLE csv_imports DROP COLUMN offset_mode")
-        conn.execute(f"PRAGMA user_version={market_db.SCHEMA_VERSION - 5}")
+        conn.execute("PRAGMA user_version=3")  # Stand vor der Migration von offset_mode (feste Zahl: neue Migrationen ändern sie nicht)
     market_db.reset_cache()
 
     listed = client.get(f"{BASE}/imports")
