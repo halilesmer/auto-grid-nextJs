@@ -138,6 +138,18 @@ Kurz gesagt:
   Bot-Telemetrie (`grid_metrics.py`, `positions[]`/`orders[]`, höchstens 500) und werden über die
   feste Magic-Nummer der Zone zugeordnet; ohne laufenden Bot gibt es keine.
 
+### Tick-Spread (BKT-19)
+
+- Der Backtest-Spread „Tick“ braucht je M1-Minute den zeitgewichteten Mittelspread der Ticks. Er liegt in
+  eigenen Tabellen (`tick_spread`, `tick_spread_coverage`), nicht in `rates`: `store_rates` ersetzt Kerzenzeilen
+  und würde die Werte löschen.
+- Die Tick-Abdeckung ist unabhängig von der Kerzen-Abdeckung (Zustände `complete`, `unavailable`). Gerechnet wird nur
+  dort, wo die Kerzen-Abdeckung `complete` ist, in Stücken eines Brokertags. Gerechnet wird erst auf Anfrage
+  (`tick_spread=1`), nie beim normalen Kerzenabruf des Charts.
+- Zu wenige Ticks (weniger als die Hälfte der M1-`tick_volume`) heißt: das Terminal lädt die Historie noch. Das
+  Stück wird nicht gespeichert und beim nächsten Aufruf neu versucht. Eine Kerze ganz ohne Tick wird `unavailable`.
+- Datenabruf wie alle Marktdaten mit `data_query`; ist das Konto in /start oder /stop, bleibt MT5 unberührt.
+
 ## 4. Kennzahlen
 
 | Begriff | Regel |

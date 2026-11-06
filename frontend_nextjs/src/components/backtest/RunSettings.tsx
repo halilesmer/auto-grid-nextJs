@@ -15,7 +15,7 @@ import type { CsvImport } from '@/services/csvImportApi';
 
 import { DATA_TIMEFRAMES, type DataTimeframe, type RunSettingsValue } from '@/lib/backtest/runSettings';
 
-const SPREAD_MODES = ['candle', 'fixed', 'max'] as const;
+const SPREAD_MODES = ['tick', 'candle', 'fixed', 'max'] as const;
 const FILLS = ['gap', 'parity'] as const;
 const PATHS = ['auto', 'lowFirst', 'highFirst', 'both'] as const;
 

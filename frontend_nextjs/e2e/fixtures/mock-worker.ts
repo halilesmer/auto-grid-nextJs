@@ -203,6 +203,8 @@ export class MockWorker {
   readonly overrides = new Map<string, Reply>();
   /** Anzahl Kerzen je Antwort von /market/{id}/rates, in Reihenfolge (der Chart darf nicht mehr zeigen). */
   readonly ratesDelivered: number[] = [];
+  /** Abfragen von /market/{id}/rates (Query-Text), für BKT-19 */
+  readonly tickSpreadRequests: string[] = [];
   /** Rohkörper der laufenden Anfrage (Chunk-Upload des CSV-Imports) */
   private rawBody = '';
   /** URLs aller WebSocket-Verbindungen (inkl. Reconnects). */
@@ -465,7 +467,12 @@ export class MockWorker {
     }
     this.ratesDelivered.push(cols.t.length);
     const now = nowMs() / 1000;
+    // BKT-19: wie market_sync.get_rates mit tick_spread=1 (nur M1); der Mock rechnet sa = Kerzen-Spread, sx = +1
+    const tickSpread = q.get('tick_spread') === '1';
+    this.tickSpreadRequests.push(q.toString());
+    const tickColumns = tickSpread ? { sa: cols.t.map(() => 3), sx: cols.t.map(() => 4), tick_missing: [] } : {};
     return {
+      ...tickColumns,
       account_id: accountId,
       source: 'Broker-Demo',
       symbol: q.get('symbol'),
@@ -892,6 +899,9 @@ export class MockWorker {
       }
       if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
       if (s.ratesErrorSymbols.includes(url.searchParams.get('symbol') ?? '')) return { status: 500, body: { detail: 'MT5 error' } };
+      if (url.searchParams.get('tick_spread') === '1' && (url.searchParams.get('timeframe') ?? 'M1') !== 'M1') {
+        return { status: 400, body: { detail: 'tick_spread yalnız M1 için' } };
+      }
       return ok(this.rates(seg[1], url.searchParams));
     }
 

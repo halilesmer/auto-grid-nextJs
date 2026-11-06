@@ -7,6 +7,9 @@ import type { MissingRange } from '@/lib/analysis/candles';
 import { RunError } from '@/lib/backtest/runContext';
 
 export const MAX_CANDLES = 1_000_000;
+/** Der Worker rechnet Tick-Stücke in Etappen (`budget`) und lädt unfertige Historie nach (`syncing`): so oft dieselbe Seite neu holen */
+export const TICK_RETRIES = 15;
+const RETRY_REASONS = new Set(['budget', 'syncing']);
 
 export type FetchJson = (path: string) => Promise<unknown>;
 
@@ -18,6 +21,9 @@ export interface LoadedRates {
   c: Float64Array;
   /** Spread je Kerze in Punkten; NaN = unbekannt (z. B. CSV-Import) */
   s: Float64Array;
+  /** BKT-19 (nur mit `tickSpread`): zeitgewichteter und größter Tick-Spread je Minute in Punkten; NaN = keine Tick-Daten */
+  sa?: Float64Array;
+  sx?: Float64Array;
   missing: MissingRange[];
   digits: number | null;
   point: number | null;
@@ -36,6 +42,8 @@ export interface LoadRatesParams {
   /** `csv:<import_id>` für einen CSV-Import, sonst der MT5-Server des Kontos */
   source?: string;
   maxCandles?: number;
+  /** BKT-19: Minuten-Spread aus Ticks mitladen (nur M1, nur MT5-Quelle) */
+  tickSpread?: boolean;
   /** Anteil des Zeitraums, der geladen ist (0…1) */
   onProgress?: (fraction: number) => void;
 }
@@ -47,6 +55,9 @@ interface Page {
   l: number[];
   c: number[];
   s?: (number | null)[];
+  sa?: (number | null)[];
+  sx?: (number | null)[];
+  tick_missing?: { reason?: string }[];
   missing?: MissingRange[];
   next_from: number | null;
   live_from?: number | null;
@@ -64,6 +75,10 @@ function parsePage(raw: unknown): Page {
   }
   const n = page.t.length;
   if ([page.o, page.h, page.l, page.c].some((col) => col.length !== n) || (page.s && page.s.length !== n)) {
+    throw new RunError('run.badRatesResponse');
+  }
+  const tickCols = [page.sa, page.sx];
+  if (tickCols.some((col) => col !== undefined && (!Array.isArray(col) || col.length !== n || col.some((x) => x !== null && typeof x !== 'number')))) {
     throw new RunError('run.badRatesResponse');
   }
   if (page.next_from !== null && typeof page.next_from !== 'number') throw new RunError('run.badRatesResponse');
@@ -86,17 +101,22 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
   while (cursor < p.to) {
     const query = new URLSearchParams({ symbol: p.symbol, timeframe: p.timeframe, from: String(cursor), to: String(p.to) });
     if (p.source) query.set('source', p.source);
-    const page = parsePage(await p.fetchJson(`/market/${encodeURIComponent(p.accountId)}/rates?${query}`));
+    if (p.tickSpread) query.set('tick_spread', '1');
+    let page = parsePage(await p.fetchJson(`/market/${encodeURIComponent(p.accountId)}/rates?${query}`));
+    // Noch nicht fertig berechnete oder noch ladende Tick-Stücke: dieselbe Seite erneut holen (der Worker macht weiter)
+    for (let retry = 0; p.tickSpread && retry < TICK_RETRIES - 1 && page.tick_missing?.some((m) => RETRY_REASONS.has(m.reason ?? '')); retry++) {
+      page = parsePage(await p.fetchJson(`/market/${encodeURIComponent(p.accountId)}/rates?${query}`));
+    }
     // Die laufende Kerze ist unfertig: sie zählt nicht (docs/analyse-regeln.md §3), sonst wäre der Lauf nicht wiederholbar
     if (typeof page.live_from === 'number') {
       liveFrom = page.live_from;
       const cut = page.t.indexOf(page.live_from);
-      if (cut >= 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? []]) col.length = Math.min(col.length, cut);
+      if (cut >= 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? [], page.sa ?? [], page.sx ?? []]) col.length = Math.min(col.length, cut);
     }
     // Der Worker richtet `from` nach unten auf das Raster aus: Kerzen davor gehören nicht zum Zeitraum
     const lead = page.t.findIndex((time) => time >= p.from);
     const skip = lead < 0 ? page.t.length : lead;
-    if (skip > 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? []]) col.splice(0, skip);
+    if (skip > 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? [], page.sa ?? [], page.sx ?? []]) col.splice(0, skip);
     for (const time of page.t) {
       if (!(time > lastTime)) throw new RunError('run.ratesNotAscending', { time });
       lastTime = time;
@@ -125,6 +145,10 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     point,
     liveFrom,
   };
+  if (p.tickSpread) {
+    out.sa = new Float64Array(count).fill(NaN);
+    out.sx = new Float64Array(count).fill(NaN);
+  }
   let at = 0;
   for (const page of pages) {
     out.t.set(page.t, at);
@@ -135,6 +159,11 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     page.s?.forEach((v, i) => {
       if (typeof v === 'number') out.s[at + i] = v;
     });
+    for (const [column, target] of [[page.sa, out.sa], [page.sx, out.sx]] as const) {
+      column?.forEach((v, i) => {
+        if (target && typeof v === 'number') target[at + i] = v;
+      });
+    }
     at += page.t.length;
   }
   p.onProgress?.(1);
