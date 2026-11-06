@@ -464,3 +464,65 @@ test.describe('Laufprotokoll', () => {
     expect(log.counts.many).toBe(RUN_LOG_MAX_LINES);
   });
 });
+
+test.describe('Tick-Replay-Minuten laden', () => {
+  const replay = { t: [60], kind: ['S'], off: [0, 2], ms: [0, 1000], b: [100, 101], a: [110, 150] };
+  const page = (extra: Record<string, unknown>) => ({
+    t: [0, 60, 120], o: [1, 1, 1], h: [2, 2, 2], l: [0, 0, 0], c: [1, 1, 1], s: [10, 10, 10],
+    sa: [10, 10, 10], sx: [10, 10, 10], digits: 2, point: 0.01, missing: [], next_from: null, tick_missing: [], ...extra,
+  });
+  const load = (fetchJson: (path: string) => Promise<unknown>, extra: Record<string, unknown> = {}) =>
+    loadRates({ fetchJson, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true, tickReplay: true, ...extra });
+
+  test('tick_replay=1 wird gesendet; Punkte werden zu Preisen, Minuten kommen als Karte', { tag: '@BKT-20' }, async () => {
+    const seen: string[] = [];
+    const rates = await load(async (path) => (seen.push(path), page({ replay })));
+    expect(seen).toEqual(['/market/a/rates?symbol=X&timeframe=M1&from=0&to=180&tick_spread=1&tick_replay=1']);
+    expect(rates.replay?.size).toBe(1);
+    expect(rates.replay?.get(60)).toEqual({ ms: [0, 1000], bid: [1, 1.01], ask: [1.1, 1.5] });
+  });
+
+  test('ohne tickReplay kein Parameter und keine Karte', { tag: '@BKT-20' }, async () => {
+    const seen: string[] = [];
+    const rates = await load(async (path) => (seen.push(path), page({})), { tickReplay: false });
+    expect(seen[0]).not.toContain('tick_replay');
+    expect(rates.replay).toBeUndefined();
+  });
+
+  test('laufende Kerze und Minuten vor from fallen aus der Karte; Seiten werden vereint', { tag: '@BKT-20' }, async () => {
+    const two = { t: [0, 60], kind: ['S', 'J'], off: [0, 1, 2], ms: [5, 7], b: [100, 100], a: [110, 110] };
+    const live = await load(async () => page({ live_from: 120, replay: { ...two, t: [0, 120] } }), { from: 60 });
+    expect(live.replay?.size).toBe(0);
+    let calls = 0;
+    const paged = async () => {
+      calls += 1;
+      return calls === 1
+        ? page({ t: [0, 60], o: [1, 1], h: [2, 2], l: [0, 0], c: [1, 1], s: [10, 10], sa: [10, 10], sx: [10, 10], next_from: 120, replay: { t: [0], kind: ['S'], off: [0, 1], ms: [5], b: [100], a: [110] } })
+        : page({ t: [120], o: [1], h: [2], l: [0], c: [1], s: [10], sa: [10], sx: [10], replay: { t: [120], kind: ['J'], off: [0, 1], ms: [9], b: [100], a: [110] } });
+    };
+    const rates = await load(paged);
+    expect([...(rates.replay?.keys() ?? [])]).toEqual([0, 120]);
+  });
+
+  test('budget wiederholt dieselbe Seite; die letzte Antwort zählt', { tag: '@BKT-20' }, async () => {
+    let calls = 0;
+    const rates = await load(async () => {
+      calls += 1;
+      return calls === 1
+        ? page({ tick_missing: [{ reason: 'budget' }], replay: { t: [], kind: [], off: [0], ms: [], b: [], a: [] } })
+        : page({ replay });
+    });
+    expect(calls).toBe(2);
+    expect(rates.replay?.size).toBe(1);
+  });
+
+  test('bozuk: off nicht aufsteigend, Bid über Ask, falsche Länge, Zeit außerhalb der Minute', { tag: '@BKT-20' }, async () => {
+    const bad = (r: Record<string, unknown>) => expect(load(async () => page({ replay: { ...replay, ...r } }))).rejects.toMatchObject({ code: 'run.badRatesResponse' });
+    await bad({ off: [0, 2, 1] });
+    await bad({ off: [0, 3] });
+    await bad({ b: [100, 200], a: [110, 150] });
+    await bad({ ms: [0, 60000] });
+    await bad({ kind: [] });
+    await expect(load(async () => page({ replay: undefined }))).resolves.toBeTruthy();
+  });
+});

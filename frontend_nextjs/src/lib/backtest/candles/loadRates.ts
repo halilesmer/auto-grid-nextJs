@@ -13,6 +13,13 @@ const RETRY_REASONS = new Set(['budget', 'syncing']);
 
 export type FetchJson = (path: string) => Promise<unknown>;
 
+/** Ticks einer Minute (alt → neu): Zeit in ms ab Minutenanfang, Bid und Ask als Preise */
+export interface ReplayMinute {
+  ms: number[];
+  bid: number[];
+  ask: number[];
+}
+
 export interface LoadedRates {
   t: Float64Array;
   o: Float64Array;
@@ -24,6 +31,8 @@ export interface LoadedRates {
   /** BKT-19 (nur mit `tickSpread`): zeitgewichteter und größter Tick-Spread je Minute in Punkten; NaN = keine Tick-Daten */
   sa?: Float64Array;
   sx?: Float64Array;
+  /** BKT-20 (nur mit `tickReplay`): Ticks der Rollover-/Sprung-Minuten, Schlüssel = Minutenbeginn; ms ab Minutenanfang, Preise */
+  replay?: Map<number, ReplayMinute>;
   missing: MissingRange[];
   digits: number | null;
   point: number | null;
@@ -44,6 +53,8 @@ export interface LoadRatesParams {
   maxCandles?: number;
   /** BKT-19: Minuten-Spread aus Ticks mitladen (nur M1, nur MT5-Quelle) */
   tickSpread?: boolean;
+  /** BKT-20: dazu die Ticks der Rollover-/Sprung-Minuten (braucht `tickSpread`) */
+  tickReplay?: boolean;
   /** Anteil des Zeitraums, der geladen ist (0…1) */
   onProgress?: (fraction: number) => void;
 }
@@ -58,6 +69,7 @@ interface Page {
   sa?: (number | null)[];
   sx?: (number | null)[];
   tick_missing?: { reason?: string }[];
+  replay?: ReplayColumns;
   missing?: MissingRange[];
   next_from: number | null;
   live_from?: number | null;
@@ -65,7 +77,28 @@ interface Page {
   point?: number | null;
 }
 
+/** Antwort-Spalten der Replay-Minuten: `off[i]` = Start der Minute i in ms/b/a (Länge + 1, aufsteigend), Preise in ganzen Punkten */
+interface ReplayColumns {
+  t: number[];
+  kind: string[];
+  off: number[];
+  ms: number[];
+  b: number[];
+  a: number[];
+}
+
 const isNumArray = (v: unknown): v is number[] => Array.isArray(v) && v.every((x) => typeof x === 'number');
+
+function validReplay(r: unknown): r is ReplayColumns {
+  const c = r as Partial<ReplayColumns> | null;
+  if (!c || !isNumArray(c.t) || !isNumArray(c.off) || !isNumArray(c.ms) || !isNumArray(c.b) || !isNumArray(c.a)) return false;
+  if (!Array.isArray(c.kind) || c.kind.length !== c.t.length || c.off.length !== c.t.length + 1) return false;
+  const total = c.ms.length;
+  if (c.b.length !== total || c.a.length !== total || c.off[0] !== 0 || c.off[c.off.length - 1] !== total) return false;
+  for (let i = 1; i < c.off.length; i++) if (c.off[i] < c.off[i - 1]) return false;
+  for (let i = 0; i < total; i++) if (!(c.ms[i] >= 0 && c.ms[i] < 60_000) || c.b[i] > c.a[i]) return false;
+  return true;
+}
 
 /** Antwort des Workers prüfen (Systemgrenze): alle Spalten gleich lang, Zahlen */
 function parsePage(raw: unknown): Page {
@@ -81,9 +114,26 @@ function parsePage(raw: unknown): Page {
   if (tickCols.some((col) => col !== undefined && (!Array.isArray(col) || col.length !== n || col.some((x) => x !== null && typeof x !== 'number')))) {
     throw new RunError('run.badRatesResponse');
   }
+  if (page.replay !== undefined && !validReplay(page.replay)) throw new RunError('run.badRatesResponse');
   if (page.next_from !== null && typeof page.next_from !== 'number') throw new RunError('run.badRatesResponse');
   if (page.missing !== undefined && !Array.isArray(page.missing)) throw new RunError('run.badRatesResponse');
   return page as Page;
+}
+
+function keepReplay(r: ReplayColumns, keep: boolean[]): ReplayColumns {
+  const out: ReplayColumns = { t: [], kind: [], off: [0], ms: [], b: [], a: [] };
+  r.t.forEach((time, i) => {
+    if (!keep[i]) return;
+    out.t.push(time);
+    out.kind.push(r.kind[i]);
+    for (let k = r.off[i]; k < r.off[i + 1]; k++) {
+      out.ms.push(r.ms[k]);
+      out.b.push(r.b[k]);
+      out.a.push(r.a[k]);
+    }
+    out.off.push(out.ms.length);
+  });
+  return out;
 }
 
 export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
@@ -102,6 +152,7 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     const query = new URLSearchParams({ symbol: p.symbol, timeframe: p.timeframe, from: String(cursor), to: String(p.to) });
     if (p.source) query.set('source', p.source);
     if (p.tickSpread) query.set('tick_spread', '1');
+    if (p.tickSpread && p.tickReplay) query.set('tick_replay', '1');
     let page = parsePage(await p.fetchJson(`/market/${encodeURIComponent(p.accountId)}/rates?${query}`));
     // Noch nicht fertig berechnete oder noch ladende Tick-Stücke: dieselbe Seite erneut holen (der Worker macht weiter)
     for (let retry = 0; p.tickSpread && retry < TICK_RETRIES - 1 && page.tick_missing?.some((m) => RETRY_REASONS.has(m.reason ?? '')); retry++) {
@@ -117,6 +168,12 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     const lead = page.t.findIndex((time) => time >= p.from);
     const skip = lead < 0 ? page.t.length : lead;
     if (skip > 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? [], page.sa ?? [], page.sx ?? []]) col.splice(0, skip);
+    if (page.replay) {
+      const first = page.t[0] ?? Infinity;
+      const last = page.t[page.t.length - 1] ?? -Infinity;
+      const keep = page.replay.t.map((time) => time >= first && time <= last);
+      page.replay = keepReplay(page.replay, keep);
+    }
     for (const time of page.t) {
       if (!(time > lastTime)) throw new RunError('run.ratesNotAscending', { time });
       lastTime = time;
@@ -145,6 +202,7 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     point,
     liveFrom,
   };
+  if (p.tickSpread && p.tickReplay) out.replay = new Map();
   if (p.tickSpread) {
     out.sa = new Float64Array(count).fill(NaN);
     out.sx = new Float64Array(count).fill(NaN);
@@ -165,6 +223,20 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
       });
     }
     at += page.t.length;
+  }
+  if (out.replay) {
+    const factor = digits === null ? null : 10 ** digits;
+    for (const page of pages) {
+      const r = page.replay;
+      if (!r || r.t.length === 0) continue;
+      const step = page.point ?? point;
+      if (step === null || step === undefined || factor === null) throw new RunError('run.badRatesResponse');
+      const price = (points: number) => Math.round(points * step * factor) / factor;
+      r.t.forEach((time, i) => {
+        const range = [r.off[i], r.off[i + 1]] as const;
+        out.replay?.set(time, { ms: r.ms.slice(...range), bid: r.b.slice(...range).map(price), ask: r.a.slice(...range).map(price) });
+      });
+    }
   }
   p.onProgress?.(1);
   return out;
