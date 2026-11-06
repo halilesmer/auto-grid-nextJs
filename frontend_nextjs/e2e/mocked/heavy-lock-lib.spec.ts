@@ -3,7 +3,11 @@
  * SYS-11 Zwei schwere Läufe laufen nacheinander; eine veraltete Sperre wird gelöscht;
  * HEAVY_LOCK=0 und CI überspringen; die Sperre wird auch bei Fehler freigegeben, der Exit-Code bleibt;
  * ein Halter ohne Fortschritt wird gemeldet (nach Ruhezustand nicht); Speicherdruck stoppt den Lauf;
- * ein fremder owner ohne pid wird nie als tot gewertet.
+ * ein fremder owner ohne pid wird nie als tot gewertet;
+ * R3-03 viele Wartende vor einer toten Sperre betreten den kritischen Bereich nie gemeinsam;
+ * R3-04 owner trägt die Startzeit des Halters (4. Feld), eine wiederverwendete pid gilt als veraltet
+ * und wird nie beendet, ein owner ohne 4. Feld (älteres Skript) bleibt gültig;
+ * R3-10 „Operation not permitted“ bei kill -0 heißt: der Halter lebt.
  *
  * Jeder Test nimmt ein eigenes Sperrverzeichnis (HEAVY_LOCK_DIR), nie /tmp/gridrobot-heavy.lock.
  */
@@ -246,5 +250,113 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     expect(r.stdout).toContain('innen');
     expect(r.stderr).toContain('Vorfahr');
     expect(existsSync(lockDir)).toBe(false);
+  });
+  /** Startzeit wie heavy_lock.sh sie schreibt: ps lstart, Leerzeichen zu _ */
+  function lstartOf(pid: number): string {
+    const out = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' } });
+    return out.stdout.trim().replace(/\s+/g, '_');
+  }
+
+  test('owner hat die Startzeit als 4. Feld, die ersten drei Felder bleiben (R3-04)', async () => {
+    const a = runAsync(['sleep', '30']);
+    await waitFor(() => existsSync(path.join(lockDir, 'owner')));
+    const owner = readFileSync(path.join(lockDir, 'owner'), 'utf8').trim();
+    expect(owner).toMatch(/^\d+ \S+ \d\d:\d\d:\d\d ls=\S+$/);
+    expect(owner.split(' ')[0]).toBe(String(a.child.pid));
+    expect(owner.split(' ')[3]).toBe(`ls=${lstartOf(a.child.pid as number)}`);
+    spawnSync('pkill', ['-P', String(a.child.pid)]);
+    await a.done;
+  });
+
+  test('wiederverwendete pid (Startzeit passt nicht) gilt als veraltet, der Prozess bleibt (R3-04)', () => {
+    const holder = spawn('sleep', ['60']);
+    holders.push(holder);
+    mkdirSync(lockDir);
+    writeFileSync(path.join(lockDir, 'owner'), `${holder.pid} other-worktree 12:00:00 ls=Mon_Jan_1_00:00:00_2001\n`);
+    // MAX_IDLE + BREAK: der alte Stand hätte den fremden Prozess nach 2 s beendet
+    const r = run(['echo', 'B lief'], { HEAVY_LOCK_MAX_IDLE: '2', HEAVY_LOCK_BREAK: '1', HEAVY_LOCK_TIMEOUT: '10' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('B lief');
+    expect(r.stderr).toContain('veraltete Sperre gelöscht');
+    expect(r.stderr).not.toContain('beende Prozessbaum');
+    expect(spawnSync('kill', ['-0', String(holder.pid)]).status).toBe(0); // lebt noch
+  });
+
+  test('owner mit passender Startzeit gilt als lebender Halter (R3-04)', () => {
+    const holder = spawn('sleep', ['60']);
+    holders.push(holder);
+    mkdirSync(lockDir);
+    const ls = lstartOf(holder.pid as number);
+    writeFileSync(path.join(lockDir, 'owner'), `${holder.pid} other-worktree 12:00:00 ls=${ls}\n`);
+    const r = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '1' });
+    expect(r.status).toBe(75);
+    expect(r.stderr).not.toContain('veraltete Sperre');
+  });
+
+  test('owner ohne 4. Feld (älteres Skript) bleibt gültig, solange die pid lebt (R3-04)', () => {
+    holdLock(); // schreibt „<pid> other-worktree 12:00:00“
+    const r = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '1' });
+    expect(r.status).toBe(75);
+    expect(r.stderr).not.toContain('veraltete Sperre');
+  });
+
+  test('kill -0 mit „Operation not permitted“ zählt als lebender Halter (R3-10)', () => {
+    test.skip(process.getuid?.() === 0, 'als root gibt es kein EPERM');
+    // Ein Prozess ohne Kinder, der root gehört: kill -0 antwortet dem normalen Benutzer mit EPERM
+    const ps = spawnSync('ps', ['-axo', 'pid=,user='], { encoding: 'utf8' }).stdout.trim().split('\n');
+    const rootPid = ps
+      .map((l) => l.trim().split(/\s+/))
+      .filter(([pid, user]) => user === 'root' && Number(pid) > 1)
+      .map(([pid]) => pid)
+      .find((pid) => spawnSync('pgrep', ['-P', pid]).stdout.length === 0);
+    test.skip(!rootPid, 'kein root-Prozess ohne Kinder gefunden');
+    expect(spawnSync('kill', ['-0', rootPid as string]).status).not.toBe(0); // EPERM wie erwartet
+    mkdirSync(lockDir);
+    writeFileSync(path.join(lockDir, 'owner'), `${rootPid} other-worktree 12:00:00\n`);
+    const r = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '1' });
+    expect(r.status).toBe(75);
+    expect(r.stderr).not.toContain('veraltete Sperre');
+    expect(readFileSync(path.join(lockDir, 'owner'), 'utf8')).toContain(`${rootPid} other-worktree`);
+  });
+
+  test('owner mit pid 1 gilt als fremder Halter: nie ein Baum ab pid 1 beendet (R3-10)', () => {
+    mkdirSync(lockDir);
+    writeFileSync(path.join(lockDir, 'owner'), '1 other-worktree 12:00:00\n');
+    const wait = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '1' });
+    expect(wait.status).toBe(75);
+    expect(wait.stderr).toContain('fremder Halter');
+    // BREAK: bei einem fremden Halter nur das Verzeichnis löschen, nie einen Prozess beenden
+    const brk = run(['echo', 'B lief'], { HEAVY_LOCK_MAX_IDLE: '0', HEAVY_LOCK_BREAK: '1', HEAVY_LOCK_TIMEOUT: '10' });
+    expect(brk.status).toBe(0);
+    expect(brk.stderr).toContain('fremde Sperre');
+    expect(brk.stderr).not.toContain('beende Prozessbaum');
+  });
+
+  test('viele Wartende vor einer toten Sperre: nie zwei im kritischen Bereich (R3-03)', () => {
+    // Je Runde: tote Sperre, 15 gleichzeitige Hüllen. Der kritische Bereich ist ein mkdir ohne Wartezeit:
+    // schlägt es fehl, hielten zwei gleichzeitig die Sperre. Der alte Stand verletzte das in etwa
+    // jeder zweiten Runde (eine Hülle löschte die frische Sperre einer anderen).
+    const harness = `
+      set -u
+      N=15
+      for round in 1 2 3 4; do
+        d=$(mktemp -d "${work}/r.XXXXXX")
+        export HEAVY_LOCK_DIR="$d/lock" HEAVY_LOCK_POLL=0.05 HEAVY_LOCK_SKIP_MEM_CHECK=1
+        sleep 0.1 & dead=$!; wait $dead
+        mkdir "$HEAVY_LOCK_DIR"; echo "$dead other 12:00:00" > "$HEAVY_LOCK_DIR/owner"
+        for i in $(seq 1 $N); do
+          bash "${SCRIPT}" bash -c "if mkdir '$d/cs' 2>/dev/null; then sleep 0.05; rmdir '$d/cs'; else echo VIOLATION; fi; echo OK" 2>>"$d/err" >>"$d/out" &
+        done
+        wait
+        echo "round $round violations=$(grep -c VIOLATION "$d/out" 2>/dev/null || true) done=$(grep -c OK "$d/out" 2>/dev/null || true) stale=$(grep -c 'veraltete Sperre gelöscht' "$d/err" 2>/dev/null || true)"
+      done`;
+    const r = spawnSync('bash', ['-c', harness], { env: env(), encoding: 'utf8', timeout: 120_000 });
+    const rounds = r.stdout.trim().split('\n');
+    expect(rounds).toHaveLength(4);
+    for (const line of rounds) {
+      expect(line).toMatch(/violations=0 /); // kein gemeinsamer Eintritt
+      expect(line).toMatch(/done=15 /); // alle 15 liefen
+      expect(line).toMatch(/stale=1$/); // die tote Sperre wurde genau einmal gelöscht
+    }
   });
 });

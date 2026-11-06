@@ -6,7 +6,12 @@
 #   source scripts/features/heavy_lock.sh         als Bibliothek: heavy_lock_acquire / heavy_lock_release
 #
 # Sperre: Verzeichnis /tmp/gridrobot-heavy.lock (mkdir ist atomar), darin `owner`:
-#   "<pid> <worktree-name> <HH:MM:SS UTC>"
+#   "<pid> <worktree-name> <HH:MM:SS UTC> ls=<Startzeit des Prozesses>"
+# Die ersten drei Felder sind unverändert (ältere Skripte lesen nur sie); `ls=` ist ein optionales
+# viertes Feld (`ps -o lstart` mit _ statt Leerzeichen). Es hält fest, WELCHER Prozess die Sperre
+# nahm: Hat die pid inzwischen ein anderer Prozess (pid-Wiederverwendung), gilt die Sperre als
+# veraltet, und HEAVY_LOCK_BREAK beendet nie diesen fremden Prozess. Ein owner ohne `ls=` (älteres
+# Skript) bleibt gültig und wird nur nach der pid beurteilt.
 # Dasselbe Verzeichnis und Format wie das frühere Übergangsskript heavy-run.sh, beide sehen sich.
 #
 # Umgebung:
@@ -36,22 +41,79 @@
 #
 # Fortschritt: precheck.sh schreibt mit heavy_lock_step <name> den laufenden Schritt nach <sperre>/step.
 #
-# Veraltete Sperre: ist das erste owner-Feld eine pid und lebt der Prozess nicht mehr (kill -0),
-# wird sie gelöscht. Andere Skripte und Gespräche nutzen dasselbe Verzeichnis: Format einhalten.
+# Veraltete Sperre: ist das erste owner-Feld eine pid und lebt der Prozess nicht mehr (kill -0;
+# „Operation not permitted“ zählt als lebendig, ebenso ein Treffer von ps -p) oder ist die pid
+# einem anderen Prozess zugewiesen (ls= passt nicht), wird sie gelöscht. Jedes Löschen läuft durch
+# einen zweiten Mutex (Verzeichnis <sperre>.break) und liest owner dort noch einmal: sonst löschte ein
+# Wartender mit veraltetem Wissen die frische Sperre eines anderen (R3-03). Andere Skripte und Gespräche nutzen dasselbe Verzeichnis: Format einhalten.
 # Ein Sperrverzeichnis ohne `owner` gilt nach 60 s als verwaist.
 # Wiedereintritt: hält ein Vorfahr dieses Prozesses die Sperre (z. B. heavy_lock.sh precheck.sh),
 # läuft der Befehl ohne erneutes Warten.
 # Freigabe per trap bei Exit, Fehler und INT/TERM/HUP; der Exit-Code des Befehls bleibt erhalten.
-# kill -9 lässt sich nicht abfangen: dann räumt der nächste Wartende die Sperre (kill -0).
+# kill -9 lässt sich nicht abfangen: dann räumt der nächste Wartende die Sperre (pid + ls=).
 
 HEAVY_LOCK_DIR="${HEAVY_LOCK_DIR:-/tmp/gridrobot-heavy.lock}"
 _HL_HELD=0          # 1 = dieser Prozess hat die Sperre angelegt und gibt sie frei
+_HL_OWNER_SET=0     # 1 = owner wurde geschrieben (leerer owner heißt dann: Verzeichnis ist nicht mehr unser)
 _HL_EXIT_HOOKS=()   # weitere Aufräumfunktionen (heavy_on_exit)
 
 _hl_log() { echo "[heavy-lock] $*" >&2; }
 
 _hl_mtime() {  # GNU (CI) zuerst, dann BSD (macOS)
   stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+}
+
+# --- Prozess-Identität (R3-04, R3-10) -----------------------------------------------------------
+
+_hl_pid_alive() {  # $1 = pid. Lebt der Prozess? EPERM („Operation not permitted“) heißt: er lebt.
+  local err
+  err=$(LC_ALL=C kill -0 "$1" 2>&1) && return 0
+  case "$err" in *[Pp]ermitted*) return 0 ;; esac
+  ps -p "$1" >/dev/null 2>&1  # zweite Meinung, falls kill -0 nicht zuverlässig antwortet
+}
+
+_hl_lstart() {  # $1 = pid; Startzeit als ein Wort (Leerzeichen → _), leer wenn nicht lesbar
+  LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | tr -s ' ' '_' | sed 's/^_//; s/_$//'
+}
+
+_hl_owner_start() {  # $1 = owner-Zeile; Wert des ls=-Feldes oder leer (älteres Format)
+  printf '%s\n' "$1" | tr ' ' '\n' | sed -n 's/^ls=//p' | head -n 1
+}
+
+_hl_owner_alive() {  # $1 = owner-Zeile: wahr, wenn derselbe Prozess noch lebt
+  local pid=${1%% *} rec act
+  _hl_pid_alive "$pid" || return 1
+  rec=$(_hl_owner_start "$1")
+  [ -n "$rec" ] || return 0   # älteres Format: nur die pid zählt
+  act=$(_hl_lstart "$pid")
+  [ -n "$act" ] || return 0   # Startzeit nicht lesbar: im Zweifel lebendig
+  [ "$act" = "$rec" ]
+}
+
+# Sperre löschen, aber nur wenn owner IN DIESER Sekunde noch dem erwarteten Wert entspricht.
+# Alle Löschvorgänge laufen durch den Mutex <sperre>.break, damit zwischen Prüfung und rm niemand
+# die Sperre löscht und neu nimmt (R3-03). $1 = erwarteter owner ("" = ohne owner),
+# $2 = Mindestalter in s, nur bei leerem owner (frisches Verzeichnis eines Anderen bleibt).
+# Rückgabe 0 = gelöscht, 1 = nicht gelöscht.
+_hl_remove() {
+  local expected=$1 minage=${2:--1} brk="$HEAVY_LOCK_DIR.break" tries=0 cur age rc=1
+  while ! mkdir "$brk" 2>/dev/null; do
+    # Mutex hängt (Prozess zwischen mkdir und rmdir getötet): nach 30 s übernehmen
+    if [ $(( $(date +%s) - $(_hl_mtime "$brk") )) -gt 30 ]; then rmdir "$brk" 2>/dev/null; continue; fi
+    tries=$((tries + 1))
+    [ "$tries" -gt 200 ] && return 1
+    sleep 0.05
+  done
+  cur=$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)
+  if [ -d "$HEAVY_LOCK_DIR" ] && [ "$cur" = "$expected" ]; then
+    if [ -f "$HEAVY_LOCK_DIR/owner" ]; then age=$(( $(date +%s) - $(_hl_mtime "$HEAVY_LOCK_DIR/owner") ))
+    else age=$(( $(date +%s) - $(_hl_mtime "$HEAVY_LOCK_DIR") )); fi
+    if [ -n "$expected" ] || [ "$age" -gt "$minage" ]; then
+      rm -rf "$HEAVY_LOCK_DIR" && rc=0
+    fi
+  fi
+  rmdir "$brk" 2>/dev/null
+  return $rc
 }
 
 _hl_tree() {  # $1 = pid; der Prozess und alle Nachfahren
@@ -93,13 +155,20 @@ _hl_idle_report() {  # $1 owner, $2 Leerlauf (s)
 
 _hl_break() {  # $1 owner; Prozessbaum des Halters beenden, Sperre löschen
   local pid=${1%% *} tree
+  # Identität unmittelbar vor dem Beenden prüfen: gehört die pid inzwischen einem anderen Prozess,
+  # wird nur die Sperre gelöscht, nie dieser Prozess beendet (R3-04).
+  if ! _hl_owner_alive "$1"; then
+    _hl_log "HEAVY_LOCK_BREAK=1: pid $pid gehört nicht mehr dem Halter ($1): kein Prozess beendet, nur die Sperre gelöscht"
+    _hl_remove "$1"
+    return 0
+  fi
   tree=$(_hl_tree "$pid" | tr '\n' ' ')
   _hl_log "HEAVY_LOCK_BREAK=1: beende Prozessbaum des Halters ($1): $tree"
   kill $tree 2>/dev/null
   local i=0
-  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 40 ]; do sleep 0.25; i=$((i + 1)); done
+  while _hl_pid_alive "$pid" && [ "$i" -lt 40 ]; do sleep 0.25; i=$((i + 1)); done
   kill -9 $tree 2>/dev/null
-  [ "$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)" = "$1" ] && rm -rf "$HEAVY_LOCK_DIR"
+  _hl_remove "$1"
 }
 
 _HL_MEM=""  # letzte Messung: "<used>M/<total>M (<pct>%), frei <level>%"
@@ -164,22 +233,21 @@ heavy_lock_acquire() {
     # Nur eine reine Zahl ist eine pid. Ein anderes Format (andere Skripte, andere Gespräche) gilt
     # als fremder Halter: nie per kill -0 als tot werten, sondern warten.
     foreign=0
-    if [ -n "$owner" ] && ! [[ "$owner_pid" =~ ^[0-9]+$ ]]; then
+    # pid 0 und 1 sind nie ein Halter (ein Baum ab pid 1 wäre die ganze Maschine): auch fremd.
+    if [ -n "$owner" ] && { ! [[ "$owner_pid" =~ ^[0-9]+$ ]] || [ "$owner_pid" -le 1 ]; }; then
       foreign=1
       owner_pid=""
+    fi
+    if [ -n "$owner_pid" ] && ! _hl_owner_alive "$owner"; then
+      # Zwei Wartende können dieselbe tote Sperre sehen: _hl_remove prüft owner im Mutex noch einmal.
+      if _hl_remove "$owner"; then
+        _hl_log "veraltete Sperre gelöscht (pid $owner_pid lebt nicht mehr oder gehört einem anderen Prozess: $owner)"
+      fi
+      continue
     fi
     if [ -n "$owner_pid" ] && _hl_is_ancestor "$owner_pid"; then
       _hl_log "Sperre hält schon ein Vorfahr (pid $owner_pid), weiter ohne Warten"
       return 0
-    fi
-    if [ -n "$owner_pid" ] && ! kill -0 "$owner_pid" 2>/dev/null; then
-      # Zwei Wartende können dieselbe tote Sperre sehen: nur löschen, wenn owner noch derselbe ist,
-      # sonst hätte der andere schon eine neue Sperre angelegt.
-      if [ "$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)" = "$owner" ]; then
-        _hl_log "veraltete Sperre gelöscht (pid $owner_pid lebt nicht mehr: $owner)"
-        rm -rf "$HEAVY_LOCK_DIR"
-      fi
-      continue
     fi
     now=$(date +%s)
     if [ -f "$HEAVY_LOCK_DIR/owner" ]; then
@@ -188,8 +256,7 @@ heavy_lock_acquire() {
       age=$(( now - $(_hl_mtime "$HEAVY_LOCK_DIR") ))
     fi
     if [ -z "$owner" ] && [ -d "$HEAVY_LOCK_DIR" ] && [ "$age" -gt 60 ]; then
-      _hl_log "verwaiste Sperre ohne owner (${age}s) gelöscht"
-      rm -rf "$HEAVY_LOCK_DIR"
+      _hl_remove "" 60 && _hl_log "verwaiste Sperre ohne owner (${age}s) gelöscht"
       continue
     fi
     waited=$(( now - start ))
@@ -227,10 +294,9 @@ heavy_lock_acquire() {
       fi
       local fmax="${HEAVY_LOCK_FOREIGN_MAX:-10800}"
       if [ "$fheld" -ge "$fmax" ] || { [ "${HEAVY_LOCK_BREAK:-0}" = 1 ] && [ "$fheld" -ge "$max_idle" ]; }; then
-        if [ "$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)" = "$owner" ]; then
+        if _hl_remove "$owner"; then
           _hl_log "WARNUNG: fremde Sperre (owner ohne pid: \"$owner\") nach ${fheld}s wacher Wartezeit gelöscht."
           _hl_log "  Nur das Verzeichnis wurde gelöscht, kein Prozess beendet. Läuft der Halter noch, laufen jetzt zwei schwere Läufe."
-          rm -rf "$HEAVY_LOCK_DIR"
         fi
         last_owner=""
         continue
@@ -261,7 +327,10 @@ heavy_lock_acquire() {
   trap '_hl_on_signal 129' HUP
   trap '_hl_on_signal 130' INT
   trap '_hl_on_signal 143' TERM
-  echo "$$ $name $(date -u +%H:%M:%S)" > "$HEAVY_LOCK_DIR/owner"
+  local mystart
+  mystart=$(_hl_lstart "$$")
+  echo "$$ $name $(date -u +%H:%M:%S)${mystart:+ ls=$mystart}" > "$HEAVY_LOCK_DIR/owner"
+  _HL_OWNER_SET=1
   local waited_total=$(( $(date +%s) - start ))
   _hl_log "Sperre genommen nach ${waited_total}s Warten (pid $$, $name)"
   if ! heavy_mem_check; then
@@ -274,11 +343,16 @@ heavy_lock_acquire() {
 # Gibt die Sperre frei, aber nur die eigene (nie die eines anderen Prozesses).
 heavy_lock_release() {
   [ "$_HL_HELD" = 1 ] || return 0
-  local owner_pid
-  owner_pid=$(cut -d' ' -f1 "$HEAVY_LOCK_DIR/owner" 2>/dev/null)
-  # leer = mkdir war unser, owner noch nicht geschrieben
-  if [ -z "$owner_pid" ] || [ "$owner_pid" = "$$" ]; then rm -rf "$HEAVY_LOCK_DIR"; fi
+  local cur
+  cur=$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)
+  if [ "${cur%% *}" = "$$" ] && [ -n "$cur" ]; then
+    _hl_remove "$cur"
+  elif [ -z "$cur" ] && [ "$_HL_OWNER_SET" = 0 ]; then
+    _hl_remove ""   # mkdir war unser, owner noch nicht geschrieben (ein Signal dazwischen)
+  fi
+  # leerer owner nach dem Schreiben: das Verzeichnis gehört nicht mehr uns (gelöscht, ggf. neu genommen)
   _HL_HELD=0
+  _HL_OWNER_SET=0
 }
 
 # Weitere Aufräumfunktion für Exit/Signal registrieren (läuft vor der Freigabe der Sperre).
