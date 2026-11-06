@@ -351,6 +351,8 @@ export type Report = ReportSummary & ReportContent;
 export interface EvaluateOptions {
   /** Live-Trades mit Einstieg vor diesem Zeitpunkt (MT5-Sekunden) fallen aus Zählung, Netto und Paarung; ohne Wert zählen alle */
   excludeEntryBefore?: number;
+  /** K3: Anteil der Paare, deren Ausstiegsgrund abweichen darf (Standard K3_REASON_MISMATCH_RATIO); Grenze = floor(Anteil × Paare) */
+  reasonMismatchRatio?: number;
 }
 
 export interface Evaluation {
@@ -364,6 +366,8 @@ export interface Evaluation {
   pairs: number;
   sameCandlePairs: number;
   reasonMismatches: number;
+  /** Erlaubte Zahl abweichender Ausstiegsgründe: floor(reasonMismatchRatio × Paare) */
+  reasonMismatchLimit: number;
   liveNet: number;
   backtestNet: number;
   /** Erlaubter Mehrgewinn des Backtests: max(0,50; 0,5 % von Σ|Live-Netto|) */
@@ -371,6 +375,8 @@ export interface Evaluation {
 }
 
 export const K2_MIN_SHARE = 0.9;
+/** K3: höchstens 2 % der Paare dürfen einen anderen Ausstiegsgrund haben (SL/TP in derselben Minute ist aus der Kerze nicht lesbar) */
+export const K3_REASON_MISMATCH_RATIO = 0.02;
 
 export function evaluateBtLive(row: SymbolRow, options: EvaluateOptions = {}): Evaluation {
   const cut = options.excludeEntryBefore;
@@ -387,10 +393,11 @@ export function evaluateBtLive(row: SymbolRow, options: EvaluateOptions = {}): E
   const reasonMismatches = pairs.filter((pair) => pair.live.exitReason !== pair.backtest.exitReason).length;
   const k1Count = Math.abs(backtest.length - liveAll.length) <= Math.max(1, 0.05 * liveAll.length);
   const k2Candle = pairs.length === 0 ? liveAll.length === 0 : sameCandlePairs >= K2_MIN_SHARE * pairs.length;
-  const k3Reason = reasonMismatches === 0;
+  const reasonMismatchLimit = Math.floor((options.reasonMismatchRatio ?? K3_REASON_MISMATCH_RATIO) * pairs.length + 1e-9);
+  const k3Reason = reasonMismatches <= reasonMismatchLimit;
   const k4Net = backtestNet <= liveNet + netTolerance + 1e-9;
   return {
     k1Count, k2Candle, k3Reason, k4Net, passed: k1Count && k2Candle && k3Reason && k4Net,
-    liveTrades: liveAll.length, backtestTrades: backtest.length, pairs: pairs.length, sameCandlePairs, reasonMismatches, liveNet, backtestNet, netTolerance,
+    liveTrades: liveAll.length, backtestTrades: backtest.length, pairs: pairs.length, sameCandlePairs, reasonMismatches, reasonMismatchLimit, liveNet, backtestNet, netTolerance,
   };
 }
