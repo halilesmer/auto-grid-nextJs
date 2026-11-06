@@ -86,7 +86,7 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
   );
   if (docked) {
     // UI-17, S4 (plan 1106-A4.1): Satır 1 = Mod · Ürün · Hesap (sabit) · Aksiyonlar + diğer paketler; tek DockRow. Setup/Frei'de Aksiyonlar paketi Zeitraum,
-    // Chart/Statistik ve araç düğmelerini taşır (Zeitraum ve Chart/Statistik data-keep). Satır 2 yalnız Zaman dilimleri (TimeframeSelect) paketi içindir ve boşsa gizlidir.
+    // Chart/Statistik ve araç düğmelerini taşır (plan 1106-A4.10: data-keep yok; ok menüsüne giriş sırası araçlar, Chart/Statistik, Zeitraum; Zeitraum ilk düğme olduğu için satırda kalır, dar kapsayıcıda tarih aralığı gizlenir). Satır 2 yalnız Zaman dilimleri (TimeframeSelect) paketi içindir ve boşsa gizlidir.
     return (
       <div className="pointer-events-none bg-background short:[&_button]:max-h-7 short:[&_input]:max-h-7" data-testid="chart-topbar">
         <div className="flex min-h-[38px] min-w-0 items-center border-b border-border px-2 short:min-h-0" data-testid="chart-topbar-row1">
@@ -98,11 +98,11 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
           {legend && <div className="short:min-w-0 short:flex-1">{legend}</div>}
         </div>
         {mode}
-        {target && <DockPackage id="symbol"><div className="w-48 min-w-0 max-w-full" data-keep="">{target}</div></DockPackage>}
+        {target && <DockPackage id="symbol"><div className="w-44 min-w-0 max-w-full" data-keep="">{target}</div></DockPackage>}
         <DockAnchor className="px-1">{account}</DockAnchor>
         <DockPackage id="actions">
-          <div className="flex items-center" data-keep="">{range}</div>
-          <div className="flex items-center" data-keep="">{view}</div>
+          <div className="flex items-center @max-[75rem]/formation-main:[&_[data-range-detail]]:hidden">{range}</div>
+          <div className="flex items-center">{view}</div>
           {tools}
         </DockPackage>
         {timeframes && <DockPackage id="timeframes"><div className="flex items-center" data-keep="">{timeframes}</div></DockPackage>}

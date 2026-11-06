@@ -131,12 +131,19 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     await go(page, url);
     const actions = pkg(page, 'actions');
     await expect(actions).toBeVisible();
-    await expect(actions.getByRole('tab', { name: msg('analysis.tab.chart') })).toBeVisible();
-    await expect(actions.getByRole('tab', { name: msg('analysis.tab.stats') })).toBeVisible();
     await expect(actions.getByTestId('range-trigger')).toBeVisible();
     await expect(row(page, 'row2')).toBeVisible();
     await singleLine(page);
     await noScroll(page, 720);
+    // A4.10: Chart/Statistik ya satırda ya paketin ok menüsünde; ok görünür, Statistik'e menüden ulaşılır
+    await expect(actions.getByTestId('dock-more')).toBeVisible();
+    const stats = actions.getByRole('tab', { name: msg('analysis.tab.stats') });
+    if (await stats.isVisible()) await stats.click();
+    else {
+      await actions.getByTestId('dock-more').click();
+      await page.getByTestId('dock-more-menu').getByRole('tab', { name: msg('analysis.tab.stats') }).click();
+    }
+    await expect(page).toHaveURL(/tab=stats/);
   });
 }
 
@@ -187,3 +194,25 @@ for (const [name, url] of [['Formation', FORMATION], ['Setup', SETUP], ['Frei', 
     for (const id of Object.keys(wide.wraps)) expect(narrow.wraps[id], `paket kutusu ${id}`).toBeLessThanOrEqual(wide.wraps[id]);
   });
 }
+
+// Plan 1106-A4.10: hiçbir paket kutusu Satır 1'in dışına taşmaz (belge kaydırması ve merkez hizası bunu yakalamaz)
+for (const [w, h] of [[720, 800], [812, 375], [1024, 800], [1176, 800]] as const) {
+  test(`Satır 1 ${w} × ${h}: her paket kutusu satırın içinde (Formation, Setup, Frei)`, { tag: '@UI-17' }, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    for (const url of [FORMATION, SETUP, FREE]) {
+      await go(page, url);
+      const out = await row(page, 'row1').evaluate(r => {
+        const b = r.getBoundingClientRect();
+        return [...r.querySelectorAll(':scope > [data-dock-wrap]')].map(e => { const x = e.getBoundingClientRect(); return { id: (e as HTMLElement).dataset.dockWrap, left: x.left - b.left, right: b.right - x.right }; })
+          .filter(x => x.left < -0.5 || x.right < -0.5);
+      });
+      expect(out, `${url} ${w}`).toEqual([]);
+    }
+  });
+}
+
+test('Setup 1176 px: Mod paketi tam görünür (üç düğme)', { tag: '@UI-17' }, async ({ page }) => {
+  await page.setViewportSize({ width: 1176, height: 800 });
+  await go(page, SETUP);
+  for (const m of ['formation', 'setup', 'free']) await expect(page.getByTestId(`chart-mode-${m}`)).toBeVisible();
+});

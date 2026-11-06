@@ -72,17 +72,20 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(812);
       if (name === 'Formation') await expect(page.getByTestId('chart-mode-formation')).toBeVisible();
       else {
-        // Satır 1 dar (Mod 190, Ürün 221, Hesap 156, Zeitraum 222, Chart/Statistik 171 px; satır 796 px): Mod tek düğmeye daralır (plan 1106-A4.2).
-        // Seçili mod satırda kalır, Mod okunun menüsünde tam olarak diğer iki mod bulunur.
-        const selected = name === 'Setup' ? 'setup' : 'free', others = name === 'Setup' ? ['formation', 'free'] : ['formation', 'setup'];
-        await expect(page.getByTestId(`chart-mode-${selected}`)).toBeVisible();
-        await expect(page.getByTestId(`chart-mode-${others[0]}`)).toBeHidden();
-        const more = page.locator('[data-dock-pkg="mode"]').getByTestId('dock-more');
-        await expect(more).toBeVisible();
-        await more.click();
-        const menu = page.getByTestId('dock-more-menu');
-        expect(await menu.locator('button:visible').evaluateAll(b => b.map(x => x.getAttribute('data-testid')))).toEqual(others.map(m => `chart-mode-${m}`));
-        await menu.getByTestId('chart-mode-formation').click();
+        // Satır 1 dar (satır 796 px): plan 1106-A4.10 sırası: önce araçlar, Chart/Statistik, en son Zeitraum ok menüsüne girer, Mod ancak sonra daralır.
+        // Burada Mod tam kalır (213 px, üç düğme, oku yok), Aksiyonlar Zeitraum + ok (168 px) olur.
+        for (const m of ['formation', 'setup', 'free']) await expect(page.getByTestId(`chart-mode-${m}`)).toBeVisible();
+        await expect(page.locator('[data-dock-pkg="mode"]').getByTestId('dock-more')).toBeHidden();
+        const actions = page.locator('[data-dock-pkg="actions"]');
+        await expect(actions.getByTestId('range-trigger')).toBeVisible();
+        await expect(actions.getByTestId('dock-more')).toBeVisible();
+        // Aksiyonlar okunun menüsü: tam olarak Chart/Statistik sekmeleri ve araç düğmesi (lisans), bu sırayla (plan 1106-A4.14)
+        await actions.getByTestId('dock-more').click();
+        const items = page.getByTestId('dock-more-menu').locator('button:visible, [role=tab]:visible');
+        expect(await items.evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`))).toEqual([`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`]);
+        await page.getByTestId('dock-more-menu').getByRole('tab', { name: msg('analysis.tab.stats') }).click();
+        await expect(page).toHaveURL(/tab=stats/);
+        await page.getByTestId('chart-mode-formation').click();
         await expect(page).toHaveURL(/mode=formation/);
       }
     });
