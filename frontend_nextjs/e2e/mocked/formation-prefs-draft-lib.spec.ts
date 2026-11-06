@@ -23,7 +23,9 @@ function installStorage() {
 
 async function freshStore() {
   installStorage();
-  const { useAnalysisPrefsStore } = await import('../../src/store/useAnalysisPrefsStore');
+  // `require` statt `import()`: der Store nutzt den Alias `@/`, den Playwright nur für `require` auflöst (Node 22 in CI löst ihn bei `import()` nicht auf)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useAnalysisPrefsStore } = require('../../src/store/useAnalysisPrefsStore') as typeof import('../../src/store/useAnalysisPrefsStore');
   // Das Modul bleibt zwischen den Tests im Speicher: jeder Test beginnt mit den Vorgaben
   useAnalysisPrefsStore.setState({ trend: DEFAULT_TREND_SETTINGS, trendDraft: DEFAULT_TREND_SETTINGS });
   await useAnalysisPrefsStore.persist.rehydrate();
