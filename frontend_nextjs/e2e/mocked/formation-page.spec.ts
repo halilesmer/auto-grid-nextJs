@@ -754,19 +754,19 @@ test.describe('FRM-22 schmale Ansicht', () => {
 
 test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
   test.use({ viewport: { width: 1440, height: 900 }, appLocale: 'de' });
-  test('Kopfleiste: Zeile 1 mit 38 px, Formationen in Zeile 2, Werkzeuge rechts in Zeile 1', { tag: '@FRM-23' }, async ({ page, worker }) => {
+  test('Kopfleiste: Zeile 1 mit 38 px, Formationen in Zeile 2, Werkzeuge in der unteren Leiste des Charts', { tag: '@FRM-23' }, async ({ page, worker }) => {
     // Geschlossene Seitenleiste: der Chartbereich ist 1400 px breit, die Werkzeuge stehen in der Leiste (Schwelle 71rem = 1136 px)
     await storeSidebar(page, { open: false, tab: 'conditions' });
     await openPage(page, worker, `${URL}&form=GAR`);
-    // Container 1348 px (< 91rem): zwei Zeilen (UI-15, A13.7). Zeile 1 ist 38 px hoch und trägt die Werkzeuge, Zeile 2 die Zeiteinheiten und Formationen
+    // Container 1348 px (< 91rem): zwei Zeilen (UI-15, A13.7). Zeile 1 ist 38 px hoch (Mindesthöhe, auch ohne Pakete in Zeile 1), Zeile 2 trägt die Zeiteinheiten und Formationen.
+    // UI-17 S2: die Werkzeuge sind Pakete und stehen standardmäßig in der unteren Leiste des Charts, nicht mehr in der Kopfleiste (Mass vorher: Werkzeuge in Zeile 1, y 56–94)
     const bar = (await page.getByTestId('formation-toolbar').boundingBox())!;
     expect(bar).toMatchObject({ x: 52, y: 56, width: 1348 });
     expect(bar.height).toBeLessThanOrEqual(70);
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
     expect(forms.y).toBe(94);
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
-    expect(tools.y).toBeGreaterThanOrEqual(56);
-    expect(tools.y + tools.height).toBeLessThanOrEqual(94);
+    expect(tools.y).toBeGreaterThanOrEqual(bar.y + bar.height);
     expect(tools.x + tools.width).toBeLessThanOrEqual(1400);
     await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
     const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
@@ -1916,7 +1916,9 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
         }
         const tools = page.getByTestId('workspace-toolbar');
         const indicators = tools.getByRole('button', { name: msg('cw.indicators', {}, 'de') });
-        const trend = page.getByTestId('trend-toggle');
+        // UI-17 S2: passt der Trend-Schalter nicht in die Leiste, steht er im Pfeilmenü des Pakets (Zeile bricht nie um); dann gilt die Prüfung dem Menü
+        if (!(await page.locator('[data-testid="trend-toggle"]:visible').count())) await page.locator('[data-dock-pkg="indicators"]').getByTestId('dock-more').click();
+        const trend = page.locator('[data-testid="trend-toggle"]:visible');
         await expect.poll(() => onTop(page, indicators)).toBe(true);
         await expect.poll(() => onTop(page, trend)).toBe(true);
         // Alle Bedienelemente der Kopfleiste bleiben links der Werkzeugleiste oder liegen in einer anderen Zeile
@@ -1929,7 +1931,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
           if (sameRow) expect(c.x + c.width).toBeLessThanOrEqual(box.x);
         }
         // Das Zahnrad öffnet seine Einstellungen ganz im Bild, auch wenn die Leiste unten schwebt
-        await page.getByTestId('trend-settings').click();
+        await page.locator('[data-testid="trend-settings"]:visible').click();
         const settings = page.getByTestId('trend-settings-panel');
         await expect(settings).toBeVisible();
         // Gemessen wird der scrollende Rahmen des Menüs, nicht der (höhere) Inhalt
@@ -1949,15 +1951,16 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
   // Schwelle A = 71rem Chartbereich (16 px: 1136 px, 20 px: 1420 px; offene Seitenleiste: 16 px 328 px, 20 px 410 px), B = 79rem (Status-Knopf voll).
   test.describe('Browser-Schrift', () => {
   test.use({ appLocale: 'de' });
+  // UI-17 S2: die Werkzeug-Pakete stehen standardmäßig unten (vorher ab 71rem oben in der Kopfleiste); ‚oben‘ gilt für Pakete, die in Zeile 1 gelegt sind (eigener Test darunter)
   const cases = [
     { font: 20, width: 1728, closed: false, tools: 'unten' },
-    { font: 20, width: 1920, closed: false, tools: 'oben' },
+    { font: 20, width: 1920, closed: false, tools: 'unten' },
     { font: 20, width: 1440, closed: true, tools: 'unten' },
-    { font: 20, width: 1550, closed: true, tools: 'oben' },
-    { font: 20, width: 1728, closed: true, tools: 'oben' },
+    { font: 20, width: 1550, closed: true, tools: 'unten' },
+    { font: 20, width: 1728, closed: true, tools: 'unten' },
     // 16 px genau an den Schwellen: Chartbereich 1136 px (A, kompakter Status-Knopf) und 1264 px (B, voller Knopf)
-    { font: 16, width: 1176, closed: true, tools: 'oben' },
-    { font: 16, width: 1304, closed: true, tools: 'oben' },
+    { font: 16, width: 1176, closed: true, tools: 'unten' },
+    { font: 16, width: 1304, closed: true, tools: 'unten' },
   ];
   for (const { font, width, closed, tools } of cases) {
     test(`Bei ${font} px Browser-Schrift überlappen sich keine Bedienelemente der Kopfleiste und der Werkzeugleiste (${width} px${closed ? ', Seitenleiste zu' : ''}, Werkzeuge ${tools})`, { tag: '@FRM-23' }, async ({ page, worker }) => {
@@ -1995,6 +1998,42 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
     });
   }
   });
+
+  // UI-17 S2: Pakete in Zeile 1 liegen im Rest der Kopfleiste (DockRow) und überlappen keine Bedienelemente der Kopfleiste (vorher: Werkzeugleiste mit Reserve rechts, UI-14)
+  for (const { font, width } of [{ font: 16, width: 1440 }, { font: 20, width: 1920 }, { font: 16, width: 1176 }]) {
+    test(`Werkzeug-Pakete in Zeile 1 überlappen die Kopfleiste nicht (${font} px Schrift, ${width} px)`, { tag: ['@FRM-23', '@UI-17'] }, async ({ page, worker }) => {
+      await page.addInitScript(() => {
+        const key = 'grid-robot-chart-workspaces-v1', raw = JSON.parse(localStorage.getItem(key) || '{"version":1}');
+        localStorage.setItem(key, JSON.stringify({ ...raw, version: 1, dockLayout: { row1: ['view', 'indicators', 'edit', 'window', 'account'], row2: [], bottom: [], free: {}, pos: {} } }));
+      });
+      await page.setViewportSize({ width, height: 900 });
+      await storeSidebar(page, { open: false, tab: 'conditions' });
+      await openPage(page, worker, `${URL}&form=GAR`);
+      await page.evaluate((size) => { document.documentElement.style.fontSize = `${size}px`; }, font);
+      const row = page.getByTestId('dock-row-row1');
+      await expect(row).toBeVisible();
+      await expect(page.locator('[data-testid="workspace-toolbar"]')).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => {
+        const controls = [...document.querySelectorAll('[data-testid="formation-topbar"] :is(button, [role="combobox"], input), [data-testid="dock-row-row1"] button')]
+          .filter((el) => el.getBoundingClientRect().width > 0 && el.getAttribute('data-testid') !== 'favorite-flag');
+        const overlaps: string[] = [];
+        for (const [i, a] of controls.entries()) {
+          for (const b of controls.slice(i + 1)) {
+            if (a.contains(b) || b.contains(a)) continue;
+            const r = a.getBoundingClientRect(), s = b.getBoundingClientRect();
+            if (r.left < s.right && s.left < r.right && r.top < s.bottom && s.top < r.bottom) overlaps.push(`${a.getAttribute('aria-label') ?? a.textContent} ↔ ${b.getAttribute('aria-label') ?? b.textContent}`);
+          }
+        }
+        return overlaps;
+      })).toEqual([]);
+      // Die Zeile bricht nie um: alle Pakete in einer Linie, nicht breiter als ihre Zeile
+      const box = (await row.boundingBox())!;
+      for (const id of ['view', 'indicators', 'edit', 'window']) {
+        const g = (await page.locator(`[data-dock-wrap="${id}"]`).boundingBox())!;
+        expect(g.x + g.width, id).toBeLessThanOrEqual(box.x + box.width + 1);
+      }
+    });
+  }
 
   test.describe('Menü der Kopfleiste', () => {
     test.use({ viewport: { width: 1280, height: 900 }, appLocale: 'de' });
@@ -2108,7 +2147,7 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
   });
 
-  test('Status-Knopf: unter 79rem Chartbreite (1264 px) kompakt mit Symbolen, ab 79rem Pille und Zähler; Werkzeuge stehen oben ohne Überlappung', { tag: '@FRM-37' }, async ({ page, worker }) => {
+  test('Status-Knopf: unter 79rem Chartbreite (1264 px) kompakt mit Symbolen, ab 79rem Pille und Zähler; Werkzeuge stehen unten ohne Überlappung', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await storeSidebar(page, { open: false, tab: 'conditions' });
     await page.setViewportSize({ width: 1300, height: 900 });
     await openPage(page, worker, `${URL}&form=GAR`);
@@ -2123,10 +2162,9 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
     const topbar = (await page.getByTestId('formation-toolbar').boundingBox())!;
     const compact = (await chip.boundingBox())!;
-    expect(tools.y).toBeGreaterThanOrEqual(topbar.y);
-    // Zeile 1 der Leiste (UI-15): 38 px
-    expect(tools.y + tools.height).toBeLessThanOrEqual(topbar.y + 39);
-    expect(tools.x).toBeGreaterThanOrEqual(compact.x + compact.width);
+    // UI-17 S2: die Werkzeug-Pakete stehen in der unteren Leiste des Charts, unter der Kopfleiste (vorher in Zeile 1 rechts vom Status-Knopf)
+    expect(tools.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
+    expect(compact.y + compact.height).toBeLessThanOrEqual(topbar.y + topbar.height);
     // Chartbereich 1264 px: Pille und Zähler
     await page.setViewportSize({ width: 1304, height: 900 });
     await expect(chip.getByTestId('status-verdict')).toBeVisible();
@@ -2135,7 +2173,7 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect.poll(async () => {
       const full = (await chip.boundingBox())!;
       const bar = (await page.getByTestId('workspace-toolbar').boundingBox())!;
-      return bar.x - (full.x + full.width);
+      return bar.y - (full.y + full.height);
     }).toBeGreaterThanOrEqual(0);
   });
 

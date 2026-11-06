@@ -121,7 +121,7 @@ export function FormationToolbar({
   return (
     <div className="pointer-events-none bg-background bar2:grid bar2:grid-cols-[auto_minmax(0,1fr)_auto] bar2:items-center bar2:gap-x-1 bar2:border-b bar2:border-border bar2:px-2" data-testid="formation-toolbar" ref={root}>
       <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 bar2:contents lg:min-h-[38px]" data-testid="formation-topbar">
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 bar2:col-start-1 bar2:row-start-1 bar2:w-auto bar2:flex-nowrap bar2:py-0.5 lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 bar2:col-start-1 bar2:row-start-1 bar2:w-auto bar2:flex-nowrap bar2:py-0.5 bar2:@min-[71rem]/formation-main:min-h-[38px] lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block bar2:hidden" aria-hidden="true" />

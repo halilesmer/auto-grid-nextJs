@@ -49,7 +49,7 @@ test('Dar pencerede ok görünür; menüdeki düğme çalışır ve ipucu taşı
   await expect(editMore).toBeVisible();
   await editMore.click();
   await page.getByTestId('dock-more-menu').getByRole('button', { name: msg('cw.objects'), exact: true }).click();
-  await expect(page.getByRole('dialog', { name: msg('cw.objects') })).toBeVisible();
+  await expect(page.getByText(msg('cw.objects'), { exact: true })).toBeVisible();
 });
 
 test('Yer olmayan yere bırakılan paket eski yerinde kalır', { tag: '@UI-17' }, async ({ page, worker }) => {
