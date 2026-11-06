@@ -8,6 +8,7 @@ import type { Timeframe } from '@/lib/analysis/candles';
 import { contextTimeframe } from '@/hooks/useTrendPath';
 import { cn } from '@/lib/utils';
 import { trendFingerprint } from '@/lib/formation/trdPath';
+import { useTrendConfirm } from '@/hooks/useTrendConfirm';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { TrendSettingsPanel } from './TrendSettingsPanel';
 
@@ -20,7 +21,9 @@ export function TrendToggle({ timeframe, size = 'sm' }: { timeframe: Timeframe; 
   const on = useAnalysisPrefsStore((s) => s.showTrend);
   const setShowTrend = useAnalysisPrefsStore((s) => s.setShowTrend);
   // Entwurf ≠ angewendet: Punkt am Knopf, bis der Nutzer im Panel bestätigt oder zurücknimmt (FRM-42)
-  const pending = useAnalysisPrefsStore((s) => trendFingerprint(s.trendDraft) !== trendFingerprint(s.trend));
+  // Nur im Modus Formation gibt es eine Bestätigungsleiste: dort ist der Punkt sichtbar (R1-03)
+  const confirm = useTrendConfirm();
+  const pending = useAnalysisPrefsStore((s) => confirm && trendFingerprint(s.trendDraft) !== trendFingerprint(s.trend));
   const available = contextTimeframe(timeframe) !== null;
   return (
     <>
