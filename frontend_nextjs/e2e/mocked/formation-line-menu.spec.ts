@@ -183,6 +183,109 @@ for (const theme of ['light', 'dark']) {
     await openPage(page, worker);
     await rightClick(page);
     await expect(menu(page)).toBeVisible();
+    // Echte Prüfung: der Menühintergrund ist die Popover-Farbe des gewählten Themes
+    const popover = await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.style.background = 'var(--popover)';
+      document.body.appendChild(probe);
+      const color = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return color;
+    });
+    expect(popover).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(menu(page)).toHaveCSS('background-color', popover);
     await page.screenshot({ path: test.info().outputPath(`line-menu-${theme}.png`) });
   });
 }
+
+/** Öffnet das Menü per contextmenu-Ereignis an einer Viewport-Position, ohne den Fokus per Mausklick zu verschieben */
+async function openAt(page: Page, at?: { x: number; y: number }, role = 'zigzag') {
+  const p = at ?? (await pointOn(page, hitOf(page, role)));
+  await hitOf(page, role).evaluate((el, pt) => {
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: pt.x, clientY: pt.y, button: 2 }));
+  }, p);
+}
+
+test('Pfeiltasten, Home und End wandern durch die Knöpfe des Menüs', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await rightClick(page);
+  await expect(menu(page)).toBeFocused();
+  const buttons = menu(page).locator('button:not(:disabled)');
+  const count = await buttons.count();
+  expect(count).toBeGreaterThan(3);
+  await page.keyboard.press('ArrowDown');
+  await expect(buttons.nth(0)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(buttons.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(buttons.nth(0)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(buttons.nth(count - 1)).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(buttons.nth(0)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(buttons.nth(count - 1)).toBeFocused();
+  await expect(menu(page)).toBeVisible();
+});
+
+test('Tab aus dem Menü schließt es; ein Pfeil außerhalb zieht den Fokus nicht zurück', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await rightClick(page);
+  await expect(menu(page)).toBeVisible();
+  await page.getByTestId('workspace-settings').focus();
+  await expect(menu(page)).toHaveCount(0);
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByTestId('workspace-settings')).toBeFocused();
+});
+
+test('Umschalt+Tab führt aus dem Menü auf die Seite und schließt es (das Menü liegt am Ende von body)', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await rightClick(page);
+  await expect(menu(page)).toBeVisible();
+  await page.keyboard.press('Shift+Tab');
+  await expect(menu(page)).toHaveCount(0);
+});
+
+test('Escape gibt den Fokus an das vorherige Element zurück', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await page.getByTestId('workspace-settings').focus();
+  await openAt(page);
+  await expect(menu(page)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).toHaveCount(0);
+  await expect(page.getByTestId('workspace-settings')).toBeFocused();
+});
+
+test('Scrollen und Größenänderung schließen das Menü', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await rightClick(page);
+  await expect(menu(page)).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
+  await expect(menu(page)).toHaveCount(0);
+  await rightClick(page);
+  await expect(menu(page)).toBeVisible();
+  const vp = page.viewportSize()!;
+  await page.setViewportSize({ width: vp.width - 40, height: vp.height });
+  await expect(menu(page)).toHaveCount(0);
+});
+
+test('Am rechten unteren Rand geöffnet bleibt das Menü im Bild', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  const vp = page.viewportSize()!;
+  await openAt(page, { x: vp.width - 2, y: vp.height - 2 });
+  await expect(menu(page)).toBeVisible();
+  const box = (await menu(page).boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+});
+
+test('Rechtsklick auf leerer Fläche: das Browsermenü wird nicht unterdrückt', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  const prevented = page.evaluate(() => new Promise<boolean>(resolve => document.addEventListener('contextmenu', e => resolve(e.defaultPrevented), { once: true })));
+  const box = (await page.getByTestId('formation-chart').boundingBox())!;
+  await page.mouse.click(box.x + 4, box.y + 60, { button: 'right' });
+  expect(await prevented).toBe(false);
+  await expect(menu(page)).toHaveCount(0);
+});
