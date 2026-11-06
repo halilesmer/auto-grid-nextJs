@@ -209,19 +209,19 @@ for (const [w, h] of [[720, 800], [812, 375], [1024, 800], [1176, 800], [1440, 9
           if (x.left < b.left - 0.5 || x.right > b.right + 0.5) bad.push({ id: wrap.dataset.dockWrap, what: 'satır dışı' });
           for (const el of wrap.querySelectorAll<HTMLElement>('*')) {
             const c = el.getBoundingClientRect();
-            if (c.width === 0 || c.height === 0 || el.closest('[hidden]') || el.closest('[data-dock-more]')) continue;
+            if (c.width === 0 || c.height === 0 || el.closest('[hidden]')) continue;
             if (c.left < x.left - 0.5 || c.right > x.right + 0.5) { bad.push({ id: wrap.dataset.dockWrap, what: `${el.tagName}:${el.getAttribute('data-testid') ?? ''} taşar ${Math.round(c.left - x.left)}/${Math.round(x.right - c.right)}` }); break; }
           }
         }
         return bad;
       });
       expect(out, `${url} ${w}`).toEqual([]);
-      // Hesap çapası: içeriğin başlangıcının (+2 px) üstünde çapanın kendisi durur (başka bir öğe binmemiş)
+      // Hesap çapası: sol (+2 px) ve sağ (−2 px, DEMO işareti) kenarın üstünde çapanın kendisi durur (komşu kutu binmemiş)
       const covered = await page.getByTestId('dock-account').evaluate(a => {
-        const c = a.getBoundingClientRect(), e = document.elementFromPoint(c.left + 2, c.top + c.height / 2);
-        return !e || !a.contains(e);
+        const c = a.getBoundingClientRect(), y = c.top + c.height / 2;
+        return [c.left + 2, c.right - 2].map(x => { const e = document.elementFromPoint(x, y); return !e || !a.contains(e); });
       });
-      expect(covered, `${url} ${w}: hesap çapasının sol kenarı örtülü`).toBe(false);
+      expect(covered, `${url} ${w}: hesap çapasının [sol, sağ] kenarı örtülü`).toEqual([false, false]);
     }
   });
 }
