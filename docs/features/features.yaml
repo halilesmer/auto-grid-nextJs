@@ -1446,6 +1446,19 @@ kategorien:
           - "Bei 375 × 812 mit verschobenen Gruppen ansehen, hell und dunkel."
         erwartet: "Die Gruppe bleibt nach dem Neuladen an ihrem Ort; Tastatur und Menü reichen ohne Ziehen; „Araç çubuğunu sıfırla“ stellt die automatische Anordnung her; eine freie Gruppe, die nicht passt, steht unten und kehrt im breiten Fenster zurück; bei 375 px kein waagerechtes Scrollen; kein Element der Kopfleiste liegt unter der Werkzeugleiste."
 
+      - id: UI-17
+        titel: "Frei platzierbare Pakete auf /chart"
+        beschreibung: "Die Bedienelemente von /chart sind neun Pakete: Modus, Produkt (Symbol), Aktionen, Zeiteinheiten, Formationen, Ansicht, Indikatoren, Bearbeiten, Fenster. Jedes Paket lässt sich am Griff an vier Orte ziehen: Zeile 1 (Kopfleiste), Zeile 2, untere Leiste oder frei auf den Chart, in der gewünschten Reihenfolge und im freien Raum einer Zeile. Pakete reihen sich von links ohne Lücke; eine Lücke entsteht nie von selbst. Ein Paket, das in freien Raum gelegt wird, bleibt dort; der Ort wird als Anteil der Zeilenbreite gespeichert und rastet im Abstand von 14 px an den Nachbarn oder den rechten Rand ein. Eine Zeile bricht nie um: zuerst schrumpfen die Lücken, dann wandern nicht passende Knöpfe in das Pfeilmenü (˅) rechts vom Paket; gewählte Formation, Zeiteinheit, Modus und Symbol bleiben in der Zeile. Zwischen Paketen steht eine dünne senkrechte Linie; ein Paket in der Zeile hat keinen Rahmen, ein auf den Chart gelegtes Paket schwebt als Karte. Das Ablegen gleitet weich (motion); ohne Platz oder mit Esc kehrt das Paket animiert zurück. Konto und DEMO bleiben fest in Zeile 1 (Sicherheitsmarke Live/Demo). Die drei Modi Formation, Setup und Frei teilen sich eine Anordnung. Unter 30 rem bleibt die feste Handy-Anordnung. Die Anordnung gilt pro Browser (useChartWorkspaceStore.dockLayout, localStorage, Übernahme aus toolbarLayout). Stand: S1 (Datenmodell, lib/chart-workspace/dock.ts) ist fertig, die Oberfläche folgt in S2 bis S6; Plan 1106-A1, Journal docs/journal/2026-11-06-free-package-layout.md. Keine Worker-Änderung, keine Order."
+        code: [frontend_nextjs/src/lib/chart-workspace/dock.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts, frontend_nextjs/src/lib/chart-workspace/toolbar.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-dock-lib.spec.ts (@UI-17) ausführen (Datenmodell)."
+          - "Nach S2 bis S6: /chart bei 1440 × 900 öffnen, Pakete am Griff in Zeile 1, Zeile 2, untere Leiste, in freien Raum einer Zeile und auf den Chart ziehen, neu laden."
+          - "Fenster auf 720 px verkleinern: Zeile bricht nicht um, das Pfeilmenü nimmt Knöpfe auf, gewählte Formation bleibt sichtbar."
+          - "Ablegen ohne Platz und Esc während des Ziehens: Paket kehrt zurück."
+          - "Bei 375 × 812 ansehen: feste Handy-Anordnung, keine Griffe."
+        erwartet: "Jedes Paket bleibt nach dem Neuladen an seinem Ort und in seiner Reihenfolge; Konto und DEMO stehen immer in Zeile 1; Zeilen brechen nie um; bei 375 px kein waagerechtes Scrollen."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
