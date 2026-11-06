@@ -114,9 +114,10 @@ test('"Yerleşimi sıfırla" ayarlar diyaloğunda ve tutamaç menüsünde varsay
   await expect(reset).toBeEnabled();
   await reset.click();
   await expect(reset).toBeDisabled();
-  const after = await page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}'), storageKey);
-  expect(after.toolbarLayout).toEqual({});
-  expect(after.dockLayout.row1).not.toContain('edit');
+  // Die Speicherung läuft nach dem Klick asynchron (persist): abwarten statt sofort lesen
+  const readStored = () => page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}'), storageKey);
+  await expect.poll(async () => (await readStored()).toolbarLayout).toEqual({});
+  expect((await readStored()).dockLayout.row1).not.toContain('edit');
   await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
   await expect(row(page, 'bottom').locator('[data-dock-pkg="edit"]')).toBeVisible();
   // Menüdeki sıfırlama
