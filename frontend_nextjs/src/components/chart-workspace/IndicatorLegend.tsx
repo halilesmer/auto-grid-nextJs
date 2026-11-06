@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import type { DrawingManager } from 'lightweight-charts-drawing';
 import type { MouseEventParams, Time } from 'lightweight-charts';
 import { ArrowDown, ArrowLeftRight, ArrowUp, Bell, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FunctionSquare, Info, ListTree, Maximize2, Minimize2, MoreHorizontal, Plus, Settings2, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useFormat, useT } from '@/i18n';
+import { lineMenuAllows, type LineMenuTrigger } from '@/lib/chart-workspace/lineMenu';
+import type { Appearance } from '@/lib/chart-workspace/settings';
+import { IndicatorLineMenu } from './IndicatorLineMenu';
 import { isOscillator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { lineTarget, nextSelection, type DrawingPriority } from '@/lib/chart-workspace/hover';
 import { isSystemPane, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
@@ -29,6 +32,8 @@ export interface OscillatorActions {
   toggleMaximized: (paneId: string) => void;
   removePane: (paneId: string) => void;
   toggleVisible: (indicator: Indicator) => void;
+  /** Changes fields of one indicator (line menu: color, pattern, width) */
+  update: (indicator: Indicator, change: Partial<Indicator>) => void;
   /** Eye of a system pane (RSI(7), Wave 5/35) */
   toggleSystemVisible: (id: SystemPaneId) => void;
   openSettings: (indicator: Indicator) => void;
@@ -60,6 +65,8 @@ interface Props {
   showNames: boolean;
   showParams: boolean;
   showValues: boolean;
+  /** Setting „Çizgi menüsü“: which trigger may open the line menu */
+  lineMenuMode: Appearance['lineMenu'];
   textStyle?: CSSProperties;
   actions: OscillatorActions;
   /** System oscillators of the switched-on layers; they share the pane model, the row and the pane buttons with the user oscillators */
@@ -78,12 +85,14 @@ const sameLayout = (a: Layout, b: Layout) => a.priceInset === b.priceInset && a.
 const REVEAL = 'opacity-0 transition-opacity has-[[aria-expanded=true]]:opacity-100 group-hover/row:opacity-100 group-focus-within/row:opacity-100 [@media(hover:none)]:opacity-100';
 const REVEAL_PANE = 'opacity-0 transition-opacity group-hover/stack:opacity-100 group-focus-within/stack:opacity-100 [@media(hover:none)]:opacity-100';
 
-export function IndicatorLegend({ binding, renderer, manager, indicators, latest, names, favorites, sideOf, maximizedPaneId, alarmsAvailable, atLimit, overlayLayout, showNames, showParams, showValues, textStyle, actions, systemPanes = NO_SYSTEM, paneOrder }: Props) {
+export function IndicatorLegend({ binding, renderer, manager, indicators, latest, names, favorites, sideOf, maximizedPaneId, alarmsAvailable, atLimit, overlayLayout, showNames, showParams, showValues, lineMenuMode, textStyle, actions, systemPanes = NO_SYSTEM, paneOrder }: Props) {
   const t = useT(), fmt = useFormat();
   const wrapper = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState<Layout>(NO_LAYOUT);
   const [hover, setHover] = useState<{ time: number | null; values: Map<string, Value> | null; pane: number | null; line: string | null }>({ time: null, values: null, pane: null, line: null });
   const [selected, setSelected] = useState<string | null>(null);
+  const [lineMenu, setLineMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const closeLineMenu = useCallback(() => setLineMenu(null), []);
   const oscillators = indicators.filter(isOscillator);
   // Every pane of the chart in its order. A pane hidden with the eye keeps its chart pane and its height (TradingView).
   const known = [...systemPanes.map(pane => pane.id as string), ...new Set(oscillators.map(item => item.paneId))];
@@ -116,13 +125,30 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
       });
     };
     const onClick = (param: MouseEventParams<Time>) => setSelected(prev => nextSelection(prev, ownerOf(param), priority()));
+    // Line menu (A7.4/A7.5): the line under the pointer comes from the last chart event; a drawing tool or a drawing under the mouse wins (priority)
+    const open = (trigger: LineMenuTrigger, clientX: number, clientY: number, event?: Event) => {
+      if (!lineMenuAllows(lineMenuMode, trigger)) return;
+      const current = latestParam, id = current ? ownerOf(current) : null;
+      if (!id || lineTarget(id, priority()) !== id) return;
+      event?.preventDefault();
+      setLineMenu({ x: clientX, y: clientY, id });
+    };
+    const onContext = (event: MouseEvent) => open('context', event.clientX, event.clientY, event);
+    const onDouble = (param: MouseEventParams<Time>) => {
+      latestParam = param;
+      const rect = binding.host.getBoundingClientRect();
+      if (param.point) open('double', rect.left + param.point.x, rect.top + param.point.y);
+    };
+    binding.host.addEventListener('contextmenu', onContext);
+    chart.subscribeDblClick(onDouble);
     chart.subscribeCrosshairMove(onMove);
     chart.subscribeClick(onClick);
     return () => {
       cancelAnimationFrame(frame);
-      if (!binding.isDisposed()) { chart.unsubscribeCrosshairMove(onMove); chart.unsubscribeClick(onClick); }
+      binding.host.removeEventListener('contextmenu', onContext);
+      if (!binding.isDisposed()) { chart.unsubscribeCrosshairMove(onMove); chart.unsubscribeClick(onClick); chart.unsubscribeDblClick(onDouble); }
     };
-  }, [binding, renderer, manager]);
+  }, [binding, renderer, manager, lineMenuMode]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setHover(prev => prev.time === null ? prev : { ...prev, values: renderer.current?.valuesAt(prev.time) ?? null }));
@@ -265,7 +291,9 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
   stackAt(0).price.push(...indicators.filter(item => !isOscillator(item)));
   for (const paneId of paneIds) stackAt(layout.paneOf[paneId] ?? 0).panes.push(paneId);
 
+  const menuIndicator = lineMenu ? indicators.find(item => item.id === lineMenu.id) : undefined;
   return <div ref={wrapper} data-testid="oscillator-controls" className="pointer-events-none absolute left-0 top-0 z-[51] h-px w-px">
+    {lineMenu && menuIndicator && <IndicatorLineMenu x={lineMenu.x} y={lineMenu.y} indicator={menuIndicator} label={names.get(menuIndicator.id) ?? menuIndicator.kind} actions={actions} alarmsAvailable={alarmsAvailable} atLimit={atLimit} onClose={closeLineMenu} />}
     <div data-testid="workspace-indicator-values" className="contents">
       {[...stacks.entries()].sort(([a], [b]) => a - b).map(([paneIndex, stack]) => <div key={paneIndex} style={{ top: (layout.tops[paneIndex] ?? 0) + 4 + (paneIndex === 0 ? layout.priceInset : 0) }}
         className={`group/stack absolute ${overlayLayout ? 'left-14' : 'left-1'} flex w-max max-w-[min(32rem,calc(100vw-6rem))] flex-col items-start gap-0.5`}>

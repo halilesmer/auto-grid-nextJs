@@ -23,6 +23,8 @@ export interface Indicator {
   negative: string;
   maColor: string;
   width: 1 | 2 | 3 | 4;
+  /** Line pattern of the main line; documents saved before this field read as solid. */
+  lineStyle: 'solid' | 'dashed' | 'dotted';
   upper: number;
   middle: number;
   lower: number;
@@ -52,7 +54,7 @@ export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
   return {
     id, kind, paneId: id, paneCollapsed: false, scaleSide: 'auto', visible: true,
     period,
-    slow: kind === 'MACD' ? 26 : 35, signal: 9, source: 'close', color, negative: '', maColor: '', width: 1,
+    slow: kind === 'MACD' ? 26 : 35, signal: 9, source: 'close', color, negative: '', maColor: '', width: 1, lineStyle: 'solid',
     upper: 70, middle: 50, lower: 30, bands: true, background: true, gradients: true,
     smoothing: kind === 'RSI' ? 'SMA' : 'none', smoothingPeriod: 14, deviation: 2,
     percent: true, divergence: false, labels: true, values: true, timeframe: 0, waitClose: true,

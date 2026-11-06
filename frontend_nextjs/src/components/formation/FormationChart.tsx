@@ -21,6 +21,7 @@ import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { buildTrendPath, usableTrendSettings } from '@/lib/formation/trdPath';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { dashOf, type FormationLineRole, type FormationStyle } from '@/lib/formation/lineStyle';
+import { lineMenuAllows } from '@/lib/chart-workspace/lineMenu';
 import { FormationLineMenu } from './FormationLineMenu';
 import { FormationLineTable } from './FormationLineTable';
 
@@ -164,8 +165,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
   const closeLineMenu = useCallback(() => setLineMenu(null), []);
   // Einstellung „Çizgi menüsü“ (A7.7): Langdruck auf Android kommt als contextmenu und zählt als Rechtsklick; sonst bleibt das Browsermenü
   const openLineMenu = useCallback<OpenLineMenu>((kind, event, role) => {
-    const allowed = kind === 'context' ? lineMenuMode === 'both' || lineMenuMode === 'right' : lineMenuMode === 'both' || lineMenuMode === 'double';
-    if (!allowed) return;
+    if (!lineMenuAllows(lineMenuMode, kind)) return;
     event.preventDefault();
     setLineMenu({ x: event.clientX, y: event.clientY, role });
   }, [lineMenuMode]);
