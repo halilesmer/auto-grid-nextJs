@@ -36,7 +36,7 @@ The Opus audit R4 found defects in the indicator line menu (plan 1105-A7/A8, S3)
 | `chart-indicator-menu.spec.ts`, `features.yaml` | New tests (tag `@ANA-24`), catalog text. |
 
 ## Verification
-See the PR description (red/green run per finding).
+Red then green per finding in `chart-indicator-menu.spec.ts` (R4-01, R4-02, R4-06, R4-08). R4-03: the test also passes without the guard (the drawing library seems to swallow that double-click), so there is no red proof; the guard stays as the shared rule. `precheck.sh`: 2951 of 2952 e2e passed; the one failure (ZON-05) passed alone and is unrelated.
 
 ## Lessons
 A canvas color test needs two different start values to tell "ignored" from "accepted".
