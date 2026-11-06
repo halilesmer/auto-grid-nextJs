@@ -177,6 +177,7 @@ async def rates(
     `source=csv:<import_id>`: onaylanmış bir CSV içe aktarmasından (MT5'e hiç bağlanmaz).
     `tick_spread=1` (BKT-19, yalnız M1, MT5 kaynağı): ek sütunlar `sa`/`sx` (dakikanın zaman ağırlıklı ve en büyük
     tick spread'i, puan; tick yoksa null) ve `tick_missing`. Eksik dakikalar ihtiyaç anında hesaplanıp saklanır.
+    BKT-22: ayrıca `ahi`/`alo` (dakikanın en yüksek/en düşük Ask'ı, tam puan) ve `g` (fiyat ızgarası, puan; 1 = yok).
     `tick_replay=1` (BKT-20, yalnız `tick_spread=1` ile): ek `replay` sütunları, rollover/sıçrama dakikalarının tick'leri.
     """
     if timeframe not in market_sync.TIMEFRAMES:
