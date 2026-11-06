@@ -167,7 +167,7 @@ export class PathBroker extends SimBroker {
     this.wideBefore = this.carrySpread && this.prevSpreadPrice > own;
     this.spreadPrice = this.wideBefore ? this.prevSpreadPrice : own;
     this.prevSpreadPrice = own;
-    this.forming = { time, open, high: open, low: open, close: open };
+    this.forming = { time, open, high: open, low: open, close: open, spread: spreadPoints };
   }
 
   endCandle(): void {
