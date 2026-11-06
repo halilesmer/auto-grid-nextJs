@@ -3,7 +3,7 @@ date: 2026-11-06
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [423, 424]
 features: [BKT-22, BKT-19, BKT-20]
 areas: [worker, frontend]
 ---
@@ -42,9 +42,45 @@ Decisions: the SL slip stays (half spread), but it is rounded to the grid and ne
 - PR-B: `backtest-fill-grid-lib.spec.ts` and the BKT-22 tests in `backtest-data-lib.spec.ts` red first (14 failed, 2 passed), then green; all other `backtest-*-lib` specs stay green without change.
 - Not verified: the worker on the VPS (the worker cannot run on the Mac).
 
+## Acceptance run (2026-11-06, VPS, read only)
+The run used `origin/main` v0.7.466 and the worker v0.7.465 (not older than v0.7.464). It used the DEMO account, 24 setups (magic 200041 to 200064), M1, tick spread, replay, trade sessions and `buildStartState` in all arms. The tool is the session script `bt8.mjs` (outside the repository). Only GET requests ran.
+
+| Window | UTC |
+|---|---|
+| P3 | 2026-11-04 07:00:00 to 2026-11-05 06:29:26 |
+| P4 | 2026-11-05 06:29:46 to 2026-11-06 06:29:46 |
+| P5 | 2026-11-06 06:29:46 to **21:10:00** (cut short: the planned end, 2026-11-07 06:29:46, was in the future) |
+
+Arms: B = both off, D2 = `askExtremes` only, D1 = `quoteGrid` only, D12 = both. The table shows passed/evaluable setups, then unmatched trades (live plus backtest, 24 setups).
+
+| Window | B | D2 | D1 | D12 |
+|---|---|---|---|---|
+| P3 | 15/18, 10 | 16/18, 10 | 15/18, 9 | 16/18, 8 |
+| P4 | 10/14, 28 | 11/14, 25 | 11/14, 22 | 12/14, 22 |
+| P5 (short) | 7/12, 24 | 7/12, 22 | 7/12, 25 | 7/12, 22 |
+
+Check of arm B: it gives the results of run 6 again (P3 15/18, P4 10/14). The current default is on, so the old C arm of the run-6 tool now equals D12 (identical in all 48 setup-window pairs).
+
+| # | Criterion (D12 against B) | Result |
+|---|---|---|
+| 1 | Unmatched trades of 200050 P3, 200050 P4 and 200052 P4, each not above B, sum strictly lower | Passed. 3 / 5, 4 / 7 and 0 / 1. Sum 7 against 13. |
+| 2 | 200047 P3 not above B (not a threshold) | 1 against 1. Unchanged, as expected (USDJPY has `g = 1`). Stays with T2.9. |
+| 3 | No setup gets a worse K class | Passed. Three setups change from F to ok (200050 P3, 200051 P4, 200052 P4). 200050 P5 stays F (K2 now passes). No setup gets worse. |
+| 4 | Fills on the grid 100 percent, USOUSD entry difference median at most 1 point, trade #13 gone | Passed. USOUSD and GER40: all fills outside replay minutes are on the grid of the minute (entries and exits, all three windows). Median entry difference: 6 to 8 points in B, 0 in D1 and D12. Trade #13 (200050 P4) is only in B and D2. |
+| 5 | Information: sum of the net differences | P3: B 72.35, D12 77.82. P4: 162.79, 148.40. P5: 99.82, 95.25. |
+
+Limits of the result:
+- NDX100 gives **no grid proof**: every checked minute outside replay has `g = 1`. Only "no grid when `g = 1`" is shown there.
+- In P3 the sum of the net differences is 5.5 higher in D12 than in B. K4 does not change.
+- The proof of the grid compares backtest fills with the grid phase of the minute. It does not compare each live fill.
+- The default stays on (`RunModel.quoteGrid` and `RunModel.askExtremes`). No criterion failed.
+
 ## Open points
-- [ ] A/B acceptance run on windows 3, 4 and 5 (four arms: none, `askExtremes`, `quoteGrid`, both). Window 5 starts before the SL/TP of the opening order is stored (ANA-07), so its start positions stay estimated.
-- [ ] VPS: the first run fetches again all tick ranges stored by BKT-19 and BKT-20 (once). Check the worker log.
+- [x] A/B acceptance run on windows 3, 4 and 5: done, see "Acceptance run".
+- [x] VPS: the worker runs v0.7.465 with migration 9. The worker log was not read in this run.
+- [ ] Run window 5 for the full day (to 2026-11-07 06:29:46 UTC). The run used the end 21:10 UTC.
+- [ ] Measure the start state of #419 (SL/TP from the order history) in a window that starts after 13:51 UTC. Window 5 starts before that time, so its start positions stay estimated.
+- [ ] T2.9: setup 200047 in P3 has one extra backtest trade (USDJPY, `g = 1`). The grid does not fix it.
 - [ ] A price jump over several grid steps in one tick (USOUSD +16 to +36 points) is not modelled.
 
 ## Lessons
