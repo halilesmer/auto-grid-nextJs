@@ -158,9 +158,9 @@ test('buildSymbolRows nutzt die Stufenpaarung über grid_step der Zone', { tag: 
   expect(row.pairs.every((p) => p.live.exitReason === p.backtest.exitReason)).toBe(true);
 });
 
-function evalRow(liveNets: number[], btNets: number[], opts: { btShift?: number; btReason?: number } = {}) {
+function evalRow(liveNets: number[], btNets: number[], opts: { btShift?: number; btReason?: number; btReasonCount?: number } = {}) {
   const l = liveNets.map((net, i) => trade({ entryTime: T0 + i * 7200, exitTime: T0 + i * 7200 + 600, net, exitReason: 5 }));
-  const b = btNets.map((net, i) => trade({ entryTime: T0 + i * 7200 + (opts.btShift ?? 0), exitTime: T0 + i * 7200 + 600, net, exitReason: opts.btReason ?? 5 }));
+  const b = btNets.map((net, i) => trade({ entryTime: T0 + i * 7200 + (opts.btShift ?? 0), exitTime: T0 + i * 7200 + 600, net, exitReason: i < (opts.btReasonCount ?? Infinity) ? (opts.btReason ?? 5) : 5 }));
   return buildSymbolRows([run(b)], { trades: l, entries: [] }, DEFAULT_TOLERANCE)[0];
 }
 
@@ -181,6 +181,22 @@ test('evaluateBtLive K2 Kerze und K3 Ausstiegsgrund', { tag: '@BKT-16' }, () => 
   const reason = evaluateBtLive(evalRow(nets, nets, { btReason: 4 }));
   expect(reason.k3Reason).toBe(false);
   expect(reason.reasonMismatches).toBe(10);
+});
+
+test('evaluateBtLive K3 anteilig: höchstens floor(2 % der Paare) mit anderem Ausstiegsgrund', { tag: '@BKT-16' }, () => {
+  const nets314 = Array(314).fill(10);
+  const ok = evaluateBtLive(evalRow(nets314, nets314, { btReason: 4, btReasonCount: 5 }));
+  expect(ok.reasonMismatches).toBe(5);
+  expect(ok.reasonMismatchLimit).toBe(6);
+  expect(ok.k3Reason).toBe(true);
+  expect(evaluateBtLive(evalRow(nets314, nets314, { btReason: 4, btReasonCount: 7 })).k3Reason).toBe(false);
+  const nets129 = Array(129).fill(10);
+  const small = evaluateBtLive(evalRow(nets129, nets129, { btReason: 4, btReasonCount: 3 }));
+  expect(small.reasonMismatchLimit).toBe(2);
+  expect(small.k3Reason).toBe(false);
+  const tiny = Array(49).fill(10);
+  expect(evaluateBtLive(evalRow(tiny, tiny, { btReason: 4, btReasonCount: 1 })).k3Reason).toBe(false);
+  expect(evaluateBtLive(evalRow(tiny, tiny, { btReason: 4, btReasonCount: 1 }), { reasonMismatchRatio: 0.05 }).k3Reason).toBe(true);
 });
 
 test('evaluateBtLive K4 Netto: BT darf Live um max(0,50; 0,5 % von Σ|Live|) übertreffen', { tag: '@BKT-16' }, () => {

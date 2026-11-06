@@ -451,9 +451,9 @@
   },
   "BKT-16": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 7
+      "tests": 8
     }
   },
   "BKT-17": {
