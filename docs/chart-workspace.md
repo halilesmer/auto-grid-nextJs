@@ -68,7 +68,7 @@ OHLC und Kerzenänderung werden in der Formationsansicht nicht angeboten, solang
 - Das Menü je Indikator bietet Sichtbarkeit, Einstellungen, Skala, Wechsel in einen anderen oder neuen Bereich, Alarm, Favorit, Kopie, Info, lesbare schreibgeschützte Formel und Entfernen. Favoriten gelten je Indikatorart und stehen oben in der Indikatorauswahl.
 - Reihenfolge, Sichtbarkeit, Bereich, Einklappen, Skala, Zeitrahmen-Einschränkungen und Alarme liegen im lokalen Chart-Dokument und sind dadurch je Chart-Kontext getrennt. Ältere Dokumente laden ohne Umstellung: Jeder Indikator erhält seinen eigenen Bereich, die Skala folgt weiter der Chart-Achse.
 - Alarme gibt es nur im Analyse- und im freien Chart. Ein Alarm meldet einmalig den Übertritt zwischen zwei Werten desselben Charts und Zeitrahmens, solange dieser Chart geöffnet ist, und bleibt danach als ausgelöst stehen. Ein Zeitrahmenwechsel ist kein Übertritt. In einem Hintergrund-Tab wird der Übertritt erst beim Zurückkehren erkannt. Es gibt keine Hintergrund-, E-Mail- oder Push-Dienste.
-- Die Objektliste enthält Indikatoren und Zeichnungen. „Indikator hinzufügen“ öffnet die vorhandene Auswahl. Eigene Skripte und Strategien werden nicht ausgeführt.
+- Der Knopf „Göstergeler“ öffnet ein Fenster mit zwei Reitern: Göstergeler (Indikatoren hinzufügen, bearbeiten, ein-/ausblenden, entfernen) und Çizimler (die Zeichnungen, früher eigene Objektliste; UI-20, Plan 1106-A3). Eigene Skripte und Strategien werden nicht ausgeführt.
 - Mehrere Instanzen, Perioden, Quellen, Farben, Linienbreite, Sichtbarkeit und Achsen-/Statuswerte. ATR bietet keine wirkungslose Quellenwahl; Histogramme bieten keine Linienbreite.
 - Preisindikatoren im Kursbereich; Oszillatoren in eigenen Bereichen. System-RSI und Anzeige-RSI bleiben unabhängig.
 - RSI verwendet Wilder-Glättung. Zusätzliche Glättung: keine, SMA, EMA, RMA, WMA oder SMA mit Bollinger-Bändern. Die Schwellen 70/50/30 sind einstellbar, ebenso Hintergrund und Überkauft-/Überverkauft-Füllungen.
@@ -85,7 +85,7 @@ Auf `/chart` werden Darstellung und sichtbarer Balkenbereich je Datenquelle, Ans
 
 Die Vorlagen **Auto Grid** und **Klassisch dunkel** können verändert und unter eigenen Namen gespeichert werden. Zurücksetzen stellt die Ausgangswerte wieder her. Bestehende Analyse-Schalter bleiben erhalten.
 
-Zeichnungen lassen sich auswählen, ziehen, bearbeiten, benennen, duplizieren, sperren, ausblenden und löschen. Objektliste und Verlauf gehören zum jeweiligen Chart. Strg/Cmd+Z und Strg/Cmd+Umschalt+Z gelten im fokussierten Chart; Eingabefelder sind ausgenommen. Text, Tabellenzellen und lokale PNG/JPEG/WebP-Bilder haben eigene Eingaben. Der Bildimport ist auf 2 MB und 2000 Pixel je Seite begrenzt.
+Zeichnungen lassen sich auswählen, ziehen, bearbeiten, benennen, duplizieren, sperren, ausblenden und löschen. Der Reiter Çizimler und der Verlauf gehören zum jeweiligen Chart. Strg/Cmd+Z und Strg/Cmd+Umschalt+Z gelten im fokussierten Chart; Eingabefelder sind ausgenommen. Text, Tabellenzellen und lokale PNG/JPEG/WebP-Bilder haben eigene Eingaben. Der Bildimport ist auf 2 MB und 2000 Pixel je Seite begrenzt.
 
 Keine neuen Handelsaktionen, Alarmdienste, Nachrichten, Wirtschaftstermine oder Pine-Ausführung. Volumenwerkzeuge bleiben ausgeschlossen. Brokerzeit, Datenqualitätswarnungen und Lizenzhinweise sind verbindlich.
 
