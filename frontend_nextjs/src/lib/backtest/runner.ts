@@ -203,7 +203,7 @@ export function runBacktest(input: RunInput): RunResult {
   });
   for (const init of input.initialPositions ?? []) broker.seedPosition(init);
   for (let i = 0; i < first; i++) {
-    broker.warm({ time: rates.t[i], open: rates.o[i], high: rates.h[i], low: rates.l[i], close: rates.c[i] });
+    broker.warm({ time: rates.t[i], open: rates.o[i], high: rates.h[i], low: rates.l[i], close: rates.c[i], spread: rates.s[i] });
   }
 
   const state = new EngineState(

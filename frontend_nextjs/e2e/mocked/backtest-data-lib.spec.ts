@@ -313,6 +313,29 @@ test.describe('Höhere Zeitrahmen und Kerzenpfad', () => {
     expect(wild[1]).toMatchObject({ time: 300, open: 10.5, high: 99, low: 1, close: 98 });
   });
 
+  test('Spread der Zeitrahmen-Kerze = Minimum der M1-Spreads (MT5), auch für die laufende Kerze; Fraktal bleibt Ask-genau', { tag: '@BKT-04' }, () => {
+    const sp = (time: number, low: number, s: number) => ({ time, open: 10, high: 11, low, close: 10, spread: s });
+    const m15 = new TimeframeAggregator(900);
+    m15.push(sp(0, 9.5, 14));
+    m15.push(sp(60, 9.4, 10));
+    m15.push(sp(120, 9.6, 12));
+    m15.push(sp(900, 9.5, 8));
+    // Abgeschlossene Kerze ab 0: Minimum 10, nicht 0; laufende M15-Kerze ab 900 mit laufender M1 (spread 20): Minimum 8
+    const rates = m15.rates(sp(960, 9.5, 20), 0, 5)!;
+    expect(rates.map((r) => [r.time, r.spread])).toEqual([[0, 10], [900, 8]]);
+    // Laufende M1 senkt das Minimum der laufenden Kerze, wenn sie enger ist
+    expect(m15.rates(sp(960, 9.5, 5), 0, 5)![1].spread).toBe(5);
+    // Fraktal-Check des Bots (low + spread × point <= fractal): Tief 1,12123 + 10 × 0,00001 liegt über dem Fraktal 1,12123
+    const point = 0.00001;
+    const low = 1.12123;
+    const fractal = 1.12123;
+    const bars = new TimeframeAggregator(900);
+    bars.push({ time: 0, open: 1.1213, high: 1.1215, low: 1.1214, close: 1.1214, spread: 10 });
+    bars.push({ time: 60, open: 1.1214, high: 1.1215, low, close: 1.1214, spread: 10 });
+    const bar = bars.rates(null, 0, 1)![0];
+    expect(bar.low + bar.spread * point <= fractal).toBe(false);
+  });
+
   test('ohne Kerzen gibt es null; der Speicher behält nur die letzten Kerzen', { tag: '@BKT-04' }, () => {
     const empty = new TimeframeAggregator(300);
     expect(empty.rates(null, 0, 5)).toBeNull();
