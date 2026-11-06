@@ -30,6 +30,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
 import { ToolbarDock } from './ToolbarDock';
+import { DrawingPriorityContext } from './drawingPriority';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
 
@@ -82,6 +83,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   // Auf /chart (Formation) (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
   const root = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
+  // Für Teile im Inneren (Trendmenü): ein aktives Werkzeug und eine Zeichnung unter der Maus haben Vorrang vor Linienmenüs
+  const drawingPriority = useCallback(() => ({ toolActive: manager.current?.tool() != null, drawingHovered: manager.current?.hoveredId() != null }), []);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);
   const live = useRef({ drawingBars, until, timeframeSec });
   const replay = useRef(new ReplayDrawingVisibility());
@@ -468,7 +471,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       <div className={overlayLayout ? 'contents' : 'relative min-w-0 flex-1'}>
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-[60px] z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
         <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} textStyle={statusStyle} actions={oscillatorActions} systemPanes={systemModels} paneOrder={paneOrder} />
-        {children}
+        <DrawingPriorityContext.Provider value={drawingPriority}>{children}</DrawingPriorityContext.Provider>
         {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) scale.fitContent(); else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
       </div>
     </div>

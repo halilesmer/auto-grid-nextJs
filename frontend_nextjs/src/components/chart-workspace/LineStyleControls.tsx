@@ -29,10 +29,12 @@ interface Props {
   layout?: 'stack' | 'inline';
   /** Nur die Farbe (zweite Trendfarbe im Menü) */
   colorOnly?: boolean;
+  /** Beschriftung der Farbgruppe, wenn sie nicht „Renk“ heißen soll (Trend: „Yukarı rengi“, „Aşağı rengi“) */
+  colorLabel?: MessageKey;
 }
 
 /** Farbe, Typ und Dicke einer Linie. Menü und Einstellungstabelle benutzen diese eine Komponente (Plan 1105-A7). */
-export function LineStyleControls({ spec, onChange, auto = 'theme', layout = 'stack', colorOnly = false }: Props) {
+export function LineStyleControls({ spec, onChange, auto = 'theme', layout = 'stack', colorOnly = false, colorLabel = 'lineStyle.color' }: Props) {
   const t = useT();
   const group = (label: MessageKey, children: React.ReactNode) => (
     <div role="group" aria-label={t(label)} className={cn('flex flex-col gap-1', layout === 'stack' ? 'px-2 py-1' : 'min-w-0')}>
@@ -55,7 +57,7 @@ export function LineStyleControls({ spec, onChange, auto = 'theme', layout = 'st
   );
   return (
     <div className={cn(layout === 'stack' ? 'flex flex-col' : 'flex flex-wrap items-start gap-x-5 gap-y-2')}>
-      {group('lineStyle.color', <>
+      {group(colorLabel, <>
         {swatch('', autoKey)}
         {COLORS.map(c => swatch(c.value, c.key))}
         <RowColor name="lineStyle.custom" value={spec.color} onChange={v => onChange({ color: v })} />
