@@ -333,6 +333,7 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
   });
 
   test('viele Wartende vor einer toten Sperre: nie zwei im kritischen Bereich (R3-03)', () => {
+    test.setTimeout(150_000); // vier Runden mit je 15 Hüllen; auf einer ausgelasteten Maschine über 30 s
     // Je Runde: tote Sperre, 15 gleichzeitige Hüllen. Der kritische Bereich ist ein mkdir ohne Wartezeit:
     // schlägt es fehl, hielten zwei gleichzeitig die Sperre. Der alte Stand verletzte das in etwa
     // jeder zweiten Runde (eine Hülle löschte die frische Sperre einer anderen).
@@ -344,19 +345,23 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
         export HEAVY_LOCK_DIR="$d/lock" HEAVY_LOCK_POLL=0.05 HEAVY_LOCK_SKIP_MEM_CHECK=1
         sleep 0.1 & dead=$!; wait $dead
         mkdir "$HEAVY_LOCK_DIR"; echo "$dead other 12:00:00" > "$HEAVY_LOCK_DIR/owner"
+        pids=()
         for i in $(seq 1 $N); do
           bash "${SCRIPT}" bash -c "if mkdir '$d/cs' 2>/dev/null; then sleep 0.05; rmdir '$d/cs'; else echo VIOLATION; fi; echo OK" 2>>"$d/err" >>"$d/out" &
+          pids+=($!)
         done
-        wait
+        for p in "\${pids[@]}"; do wait $p || echo "rc=$?" >> "$d/rcs"; done
         echo "round $round violations=$(grep -c VIOLATION "$d/out" 2>/dev/null || true) done=$(grep -c OK "$d/out" 2>/dev/null || true) stale=$(grep -c 'veraltete Sperre gelöscht' "$d/err" 2>/dev/null || true)"
+        echo "dbg rcs=[$(cat "$d/rcs" 2>/dev/null | sort | uniq -c | tr '\n' ' ')] err=[$(sort "$d/err" 2>/dev/null | uniq -c | sort -rn | head -6 | cut -c1-150 | tr '\n' '|')]"
       done`;
     const r = spawnSync('bash', ['-c', harness], { env: env(), encoding: 'utf8', timeout: 120_000 });
-    const rounds = r.stdout.trim().split('\n');
-    expect(rounds).toHaveLength(4);
+    const rounds = r.stdout.trim().split('\n').filter((l) => l.startsWith('round'));
+    const dbg = r.stdout + r.stderr; // bei einem Fehler in der Meldung: Austrittscodes und stderr der Hüllen
+    expect(rounds, dbg).toHaveLength(4);
     for (const line of rounds) {
-      expect(line).toMatch(/violations=0 /); // kein gemeinsamer Eintritt
-      expect(line).toMatch(/done=15 /); // alle 15 liefen
-      expect(line).toMatch(/stale=1$/); // die tote Sperre wurde genau einmal gelöscht
+      expect(line, dbg).toMatch(/violations=0 /); // kein gemeinsamer Eintritt
+      expect(line, dbg).toMatch(/done=15 /); // alle 15 liefen
+      expect(line, dbg).toMatch(/stale=1$/); // die tote Sperre wurde genau einmal gelöscht
     }
   });
 });
