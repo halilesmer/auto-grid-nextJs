@@ -133,6 +133,7 @@ def test_migration_from_version_6_keeps_tick_spread(client, broker):
     get(client, MON, MON + 3600, replay=False)
     market_db.reset_cache()
     conn = sqlite3.connect(market_db.db_path(), isolation_level=None)
+    conn.execute("DROP TABLE position_orders")
     conn.execute("DROP TABLE tick_replay")
     rows = conn.execute("SELECT source, symbol, from_t, to_t, state, checked_at FROM tick_spread_coverage").fetchall()
     conn.execute("DROP TABLE tick_spread_coverage")

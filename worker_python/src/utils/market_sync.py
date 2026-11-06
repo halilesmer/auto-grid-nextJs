@@ -507,6 +507,28 @@ def _fetch_deals(account: dict, pieces: list[tuple[int, int]], positions: list[i
     return mm._connected(account, collect)
 
 
+def _fetch_open_levels(account: dict, entries: list[dict]) -> list[dict]:
+    """Eröffnungsorder je Position aus der MT5-Order-Historie: SL/TP (0 = None). MT5-Fehler → Position fehlt."""
+    def collect(mt5):
+        rows = []
+        for e in entries:
+            pid = e["position_id"]
+            got = mt5.history_orders_get(position=pid)
+            if mm._mt5_error(mt5, "history_orders_get", got, []):
+                continue
+            orders = list(got or ())
+            # Bei Hedging-Konten trägt die Eröffnungsorder die Positions-ID als Ticket
+            opening = next((o for o in orders if getattr(o, "ticket", None) == pid), None) \
+                or next((o for o in orders if getattr(o, "ticket", None) == e.get("order")), None) \
+                or (min(orders, key=lambda o: getattr(o, "time_setup", 0) or 0) if orders else None)
+            sl = mm._plain(getattr(opening, "sl", None)) if opening else None
+            tp = mm._plain(getattr(opening, "tp", None)) if opening else None
+            rows.append({"position_id": pid, "sl": sl or None, "tp": tp or None})
+        return rows
+
+    return mm._connected(account, collect)
+
+
 def get_deals(account_id: str, account: dict, a: int, b: int, busy: bool = False, resync: bool = False) -> dict:
     """Deal arşivi [a, b): eşitlenmemiş parçalar + en yeni kenar MT5'ten, sonra veritabanından."""
     settle = int(time.time()) - DEAL_SETTLE_SEC
@@ -537,6 +559,13 @@ def get_deals(account_id: str, account: dict, a: int, b: int, busy: bool = False
                 else:
                     # MT5'te de girişi olmayanlar bir daha sorulmaz
                     done.update(set(orphans[:MAX_ENTRY_LOOKUPS]) & set(db.positions_without_entry(account_id, a, b, ENTRY_IN)))
+    if not busy:
+        pending = db.entries_without_levels(account_id, a, b, ENTRY_IN)[:MAX_ENTRY_LOOKUPS]
+        if pending:
+            try:
+                db.store_position_orders(account_id, _fetch_open_levels(account, pending))
+            except mm.MarketDataError:
+                pass  # open_sl/open_tp bleiben None; die nächste Anfrage versucht es erneut
     return {
         "account_id": account_id,
         "from": a,
