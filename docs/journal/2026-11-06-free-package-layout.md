@@ -3,7 +3,7 @@ date: 2026-11-06
 author: Claude
 type: plan
 status: open
-pr: []
+pr: [397, 401]
 features: [UI-17, UI-16]
 areas: [frontend]
 ---
@@ -51,6 +51,41 @@ Each step has its own session and PR. The worker does not change. No order is se
 | `store/useChartWorkspaceStore.ts` | New field `dockLayout` in the same storage key. Merged across tabs like `toolbarLayout`. Without a stored `dockLayout` the store migrates from `toolbarLayout`. The UI does not read it yet |
 | `e2e/mocked/chart-dock-lib.spec.ts` (new) | Lib tests (@UI-17) |
 | `docs/features/features.yaml` | New entry UI-17 |
+
+## Solution (S2)
+
+The four tool groups (view, indicators, edit, window) are now real packages.
+
+| Part | Change |
+|---|---|
+| `components/chart-workspace/dock/DockProvider.tsx` | Page-level provider. It holds the slot registry (row 1, bottom bar, chart), places each package box in the stored order, fits rows, and runs drag, drop, keyboard and the soft animation |
+| `dock/DockRow.tsx` | Empty region for one row. Row 1 sits at the end of the header (`FormationToolbar`, `ChartTopBar`). It is hidden when it has no package. While a drag runs, it shows as a drop place |
+| `dock/DockPackage.tsx` | Handle (drag, menu), the buttons, and the overflow arrow. The content is a React portal into a box that is created once |
+| `dock/DockOverflow.tsx` | Arrow menu (˅). It draws the package content a second time and shows only the buttons that are hidden in the row. So a button in the menu is the same component: same action, same tooltip |
+| `dock/DockSurface.tsx` | Replaces `ToolbarDock`. It draws the bottom bar and the free-drop hint, and it measures the phone width (below 30 rem the fixed default layout stays) |
+| `lib/chart-workspace/dock.ts` | New `isDefaultDockLayout` |
+| Store | New `resetDockLayout`. It clears `dockLayout` and the old `toolbarLayout` together. The UI does not read `toolbarLayout` any more |
+| Header | The absolute strip over the header and the 24.25 rem / 26 rem / `pr-97` reserves are removed. In the `bar2` grid the selectors use column 1 only and row 1 of the dock uses column 2 |
+
+### Result of the `layoutId` check
+
+The task was to check first if `layoutId` of `motion` v13 survives a move between two portal targets. I did not run a browser experiment. The `motion` documentation (Context7) says that `layoutId` links two components when one unmounts and the other mounts in the same commit. That is not our case. A package box is never rebuilt: it is created once and the provider moves the DOM node between rows with `insertBefore`. This keeps state, focus and open menus, and the tab order equals the visible order. A moved node gives `layout` and `layoutId` nothing to measure, so the slide uses a manual FLIP (measure, place, close the difference) with the Web Animations API, as in the design draft. `useReducedMotion` of `motion` switches the animation off. CSS transitions have a `prefers-reduced-motion` rule.
+
+### Defaults and rules
+
+- The default place of the four groups is now the bottom bar at all widths (the design draft shows this). Before, they sat in the header from 71 rem. Row 1 is empty by default and hidden.
+- Packages keep one line. If the row is full, gaps shrink first (`rowMargins`), then buttons go into the arrow menu in the `SHRINK_ORDER`. Each package keeps its first button and every button with `data-keep`. The fit always starts from the natural width, so a row does not flicker.
+- On a phone (container below 30 rem, decision A1.5) the fixed default layout shows: the row wraps, there is no arrow menu, handles are hidden, and the stored layout is kept. The arrow menu is for rows wider than that.
+- Free packages stop above the bottom bar (R2-05): the lower limit of the free area is the top of the bar, which is also the lower limit of the chart (`--workspace-card`).
+- A package in a row has no frame. A thin line shows between packages (CSS `::before` on the box, 1 px). A package on the chart is a card.
+- Drop on empty space stores `pos` (ratio of the row width). Within 14 px of a neighbor, or of the right end, it snaps (`dropPosition`).
+- Drop with no room, or Esc: the ghost flies back and the package takes its old place.
+- Keyboard on the handle: Left/Right order, Shift+Left/Right shift in the free space, Up/Down row 1 and bottom bar, Esc cancels a drag. The handle menu has row 1, bottom bar, drop on chart, left, right, close the gap, reset. There is no row 2 yet (S3).
+
+### Lessons
+
+- The chart host element gets its `ref` after the layout effects of its children. A child that reads `host.current` in a layout effect gets `null`. Use `useEffect`, and never let a package without a home lose its DOM node (it falls back to the bottom bar).
+- The box of a package includes the separator line. Measure positions on the box (`[data-dock-wrap]`), not on the inner group.
 
 ## Risks
 

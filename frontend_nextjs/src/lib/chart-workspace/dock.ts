@@ -107,6 +107,8 @@ export function moveToFree(layout: DockLayout, id: PackageId, at: { x: number; y
   next.free[id] = { x: ratio(at.x), y: ratio(at.y) };
   return next;
 }
+/** Yerleşim varsayılanla aynı mı (sıfırla düğmesi pasif olur). */
+export const isDefaultDockLayout = (layout: DockLayout) => JSON.stringify(layout) === JSON.stringify(defaultDockLayout());
 /** Paketi komşusunun yanına dizer (`pos` siler). */
 export function packPackage(layout: DockLayout, id: PackageId): DockLayout {
   const pos = { ...layout.pos };

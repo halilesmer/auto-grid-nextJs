@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { DockRow } from '@/components/chart-workspace/dock/DockRow';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from '@/lib/formation/params';
@@ -86,20 +87,10 @@ export function FormationToolbar({
   const t = useT();
   const root = useRef<HTMLDivElement>(null);
   const bar2 = useBar2(root);
-  // Platz für die Werkzeugleiste des Charts (ChartWorkspace, overlayLayout) rechts in der Kopfleiste. Schwelle und Reserve stehen in rem,
-  // weil Kopfleiste und Werkzeuge mit der Browser-Schrift wachsen; in px überlappten sie bei 20 px Schrift (FRM-23).
-  // Gemessen 2026-11-03 (UI-14, e2e chart-one-page.spec.ts), tr/de: Werkzeugleiste mit dem Knopf „Ebenen“ 374 px bei 16 px Schrift (456 px bei 20 px)
-  // + 28 px für den Schalter „Formasyon çizimleri“ (FRM-45, nur Formation: Reserve 26rem = 416 px statt 24,25rem) + 4 px (5 px) Rand rechts des Containers + 8 px Abstand = 386 px (469 px). Die Reserve ist 24,25rem = 388 px (485 px bei 20 px Schrift).
-  // Gruppen mit Griff (UI-16, 2026-11-05): in der Kopfleiste ohne Rahmen und Innenabstand, Griff 12 px, „Ebenen“ nur als Symbol, damit die Leiste nicht breiter wird als vorher (eine größere Reserve brach UI-15/FRM-38: drei Zeilen bei 1820 px).
-  // Vorher 18rem (288 px, gemessen ohne „Ebenen“): die Leiste deckte bei 1520 px Fenster den Status-Knopf ab (Befund der Prüfung).
-  // Die Kopfleiste von Setup und Frei bricht um: was nicht mehr vor die Reserve passt, steht in der zweiten Zeile; die Werkzeuge liegen nur in der ersten (37 px).
-  // Formation (A13.7): bis 91rem Container ein festes Raster mit zwei Zeilen (Variante `bar2`, globals.css), davor brach die Leiste in zwei Bändern auf drei Zeilen (94 px) um: 48–57rem und 71–88rem (gemessen 2026-11-04, 16 und 20 px Schrift).
-  // Schwelle A = 71rem (1136 px): ab A stehen die Werkzeuge in der Kopfleiste, darunter schwebt die Werkzeugleiste unten über dem Chart
-  // (mit offener Seitenleiste gilt das bei 16 px Schrift bis 1464 px Fenster, 1136 + 328).
-  // Schwelle B = 79rem (nur im Status-Knopf): ab B zeigt der Knopf Pille und Zähler statt nur Symbole (FormationStatusChip.tsx).
-  // Ändert sich die Leiste, die Werkzeugleiste oder der Status-Knopf, A (hier, ChartTopBar, ChartWorkspace, TrendToggle, LayersMenu) und B bei 16 und 20 px
-  // neu messen, ebenso die Raster-Grenzen 48rem und 91rem (`bar2`, globals.css); der Test UI-14 prüft in allen Modi, dass kein Element der Kopfleiste unter der Werkzeugleiste liegt.
-  // Raster (`bar2`: Querformat des Handys UI-15/A8.2, und ab lg bis 91rem Container, A13.7): ein Raster mit zwei Zeilen. Ab 71rem ist Zeile 1 mindestens 38 px hoch und hält rechts 24,25rem für die Werkzeugleiste frei. Zeile 1: Symbol und Konto (Spalte 1–2), Werkzeuge (Spalte 3); Zeile 2: Zeiteinheiten (Spalte 1), Formationen (Spalte 2–3). Kopfleiste und Zeiteinheiten-Block sind dort `contents`, jedes Element bleibt einmal im DOM.
+  // Die Werkzeuge des Charts reservieren hier keinen Platz mehr (UI-17, Plan 1106-A1, Journal 2026-11-06-free-package-layout): sie sind Pakete, die in der unteren Leiste
+  // des Charts, in Zeile 1 (der `DockRow` am Ende der Kopfleiste), oder frei auf dem Chart stehen. Die früheren Reserven (24,25rem, 26rem mit dem Schalter „Formasyon çizimleri“)
+  // und die Schwelle 71rem für die Werkzeugleiste entfallen. Die Raster-Grenzen 48rem und 91rem (`bar2`, globals.css) gelten weiter; der Test UI-14 prüft, dass kein Element der Kopfleiste unter einem Paket in Zeile 1 liegt.
+  // Raster (`bar2`: Querformat des Handys UI-15/A8.2, und ab lg bis 91rem Container, A13.7): ein Raster mit zwei Zeilen. Zeile 1: Symbol und Konto (Spalte 1), Pakete in Zeile 1 (`DockRow`, Spalte 2), Aktionen (Spalte 3); Zeile 2: Zeiteinheiten (Spalte 1), Formationen (Spalte 2–3). Kopfleiste und Zeiteinheiten-Block sind dort `contents`, jedes Element bleibt einmal im DOM.
   const timeframesNode = (
           timeframes !== undefined ? (timeframes && (
             <div className="contents bar2:col-start-1 bar2:row-start-2 bar2:flex bar2:items-center bar2:[&>[data-testid=favorites-timeframes]]:h-7">{timeframes}</div>
@@ -121,7 +112,7 @@ export function FormationToolbar({
   );
   const actionsNode = (
           actions && (
-            <div className="contents bar2:col-start-3 bar2:row-start-1 bar2:flex bar2:items-center bar2:gap-1 bar2:@min-[71rem]/formation-main:mr-104">
+            <div className="contents bar2:col-start-3 bar2:row-start-1 bar2:flex bar2:items-center bar2:gap-1">
               <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block bar2:hidden" aria-hidden="true" />
               {actions}
             </div>
@@ -129,8 +120,8 @@ export function FormationToolbar({
   );
   return (
     <div className="pointer-events-none bg-background bar2:grid bar2:grid-cols-[auto_minmax(0,1fr)_auto] bar2:items-center bar2:gap-x-1 bar2:border-b bar2:border-border bar2:px-2" data-testid="formation-toolbar" ref={root}>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 bar2:contents lg:min-h-[38px] @min-[71rem]/formation-main:pr-104" data-testid="formation-topbar">
-        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 bar2:col-span-2 bar2:col-start-1 bar2:row-start-1 bar2:w-auto bar2:flex-nowrap bar2:py-0.5 bar2:@min-[71rem]/formation-main:min-h-[38px] lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 bar2:contents lg:min-h-[38px]" data-testid="formation-topbar">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 bar2:col-start-1 bar2:row-start-1 bar2:w-auto bar2:flex-nowrap bar2:py-0.5 bar2:@min-[71rem]/formation-main:min-h-[38px] lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
           {children}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block bar2:hidden" aria-hidden="true" />
@@ -140,6 +131,8 @@ export function FormationToolbar({
             <Fragment key={id}>{id === 'actions' ? actionsNode : timeframesNode}</Fragment>
           ))}
         </div>
+        {/* Satır 1'in paket bölgesi (UI-17): başlıkta kalan genişlik; paket yokken gizli */}
+        <DockRow zone="row1" className="bar2:col-start-2 bar2:row-start-1 bar2:min-h-[38px]" />
       </div>
       {forms !== undefined ? (
         forms && <div className="pointer-events-auto min-w-0 border-b border-border bar2:col-span-2 bar2:col-start-2 bar2:row-start-2 bar2:border-b-0 bar2:[&>[data-testid=favorites-forms]]:min-h-[26px] bar2:[&>[data-testid=favorites-forms]]:flex-nowrap bar2:[&>[data-testid=favorites-forms]]:overflow-x-auto bar2:[&>[data-testid=favorites-forms]]:py-0">{forms}</div>
