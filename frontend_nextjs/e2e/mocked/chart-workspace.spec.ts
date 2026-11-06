@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, ZONE_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { dialogTab, openDrawings } from '../fixtures/chart-dialog';
 
 /** Zoom in per Mausrad auf der Mitte des Charts: das Overlay-Layout (UI-10) hat keine +/−-Knöpfe */
 async function zoomIn(page: Page) {
@@ -258,7 +259,22 @@ test('RSI-Füllung verwendet nach Wechsel auf die linke Achse weiter die RSI-Ska
   expect(await fillBottom()).toBeLessThan(.5);
 });
 
-test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: '@ANA-17' }, async ({ page, worker }) => {
+test('Göstergeler-Fenster hat die Reiter Göstergeler und Çizimler; ohne Zeichnung steht ein Hinweis', { tag: '@UI-20' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: msg('cw.indicatorsAndDrawings') })).toBeVisible();
+  await expect(dialogTab(page, 'cw.tab.indicators')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('indicator-instances')).toBeVisible();
+  await dialogTab(page, 'cw.tab.drawings').click();
+  await expect(dialogTab(page, 'cw.tab.drawings')).toHaveText(`${msg('cw.tab.drawings')} · 0`);
+  await expect(page.getByTestId('drawing-objects')).toContainText(msg('cw.drawingsEmpty'));
+  await dialogTab(page, 'cw.tab.indicators').click();
+  await expect(page.getByTestId('indicator-instances')).toBeVisible();
+});
+
+test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: ['@ANA-17', '@UI-20'] }, async ({ page, worker }) => {
   void worker;
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
@@ -278,7 +294,8 @@ test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: '@AN
   await undo.click();
   const redo = workspace.getByRole('button', { name: msg('cw.redo'), exact: true });
   await expect(redo).toBeEnabled(); await redo.click();
-  await workspace.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(workspace);
+  await expect(dialogTab(page, 'cw.tab.drawings')).toHaveText(`${msg('cw.tab.drawings')} · 1`);
   const object = page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.horizontal-line'), exact: true });
   await object.click();
   await page.getByRole('dialog').getByRole('spinbutton', { name: msg('cw.width'), exact: true }).fill('3');
@@ -289,7 +306,7 @@ test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: '@AN
   await expect(page).toHaveURL(/tf=H4/);
   expect(await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents).map(d => (d as { drawings: string }).drawings))).toEqual(drawings);
   await page.reload();
-  await workspace.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(workspace);
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.horizontal-line'), exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('spinbutton', { name: msg('cw.width'), exact: true })).toHaveValue('3');
   expect(errors).toEqual([]);
@@ -403,7 +420,7 @@ test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgäng
   const workspace = page.getByTestId('chart-workspace');
   // addImage places and selects the image at the pane centre immediately.
   await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some(d => JSON.parse((d as { drawings: string }).drawings).some((drawing: { kind: string }) => drawing.kind === 'image')))).toBe(true);
-  await workspace.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(workspace);
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.image'), exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.remove'), exact: true }).click();
   await page.keyboard.press('Escape');
@@ -419,7 +436,7 @@ test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgäng
   expect(images.metadata).toContain('\\"kind\\":\\"image\\"');
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('EWO');
-  await workspace.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(workspace);
   await expect(page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.image'), exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -570,12 +587,15 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
   await expect.poll(async () => (await storedDocument(page, context)).indicators.filter(item => item.kind === 'RSI').length).toBe(3);
   await page.keyboard.press('Escape');
 
-  await page.getByRole('button', { name: msg('cw.objects') }).click();
-  const objects = page.getByTestId('object-indicators');
-  await expect(objects).toContainText('RSI 3');
-  await expect(objects).toContainText('EWO');
-  await objects.getByRole('button', { name: `+ ${msg('cw.addIndicator')}` }).click();
-  await expect(page.getByTestId('indicator-instances')).toBeVisible();
+  // Göster/gizle eski „Çizim nesneleri“ penceresinden Göstergeler sekmesine taşındı (UI-20, 1106-A3)
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
+  const ewo = page.getByTestId('indicator-instances').locator('[data-indicator="EWO"]').first().getByTestId('indicator-visibility');
+  await expect(ewo).toContainText(msg('cw.visible'));
+  await ewo.click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators.find(item => item.kind === 'EWO')?.visible).toBe(false);
+  await expect(ewo).toContainText(msg('cw.hidden'));
+  await ewo.click();
+  await expect.poll(async () => (await storedDocument(page, context)).indicators.find(item => item.kind === 'EWO')?.visible).toBe(true);
   await page.keyboard.press('Escape');
 
   await page.reload();
