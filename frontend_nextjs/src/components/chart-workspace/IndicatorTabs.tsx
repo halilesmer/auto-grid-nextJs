@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuGroup } from '@/components/ui/dropdown-menu';
 import { useT, type MessageKey } from '@/i18n';
 import { rowStyle, STYLE_ROWS, type Tones } from '@/lib/chart-workspace/indicatorStyle';
-import { isSystemRsi, PLOT_TYPES, SMOOTHINGS, SOURCES, type Indicator, type PlotType } from '@/lib/chart-workspace/indicators';
+import { isSystemRsi, matchesFormationRsi, PLOT_TYPES, SMOOTHINGS, SOURCES, type Indicator, type PlotType } from '@/lib/chart-workspace/indicators';
 import { RSI_PARAMS } from '@/lib/formation/params';
 import { Check, ColorBox, Heading, Line, NumberBox, SelectBox, StyleRow } from './indicatorControls';
 
@@ -18,7 +18,7 @@ export function InputsTab({ indicator: v, update, timeframeSec }: TabProps) {
   const t = useT(), rsi = v.kind === 'RSI';
   const sourceOptions = SOURCES.map(s => ({ value: s, label: t(`ind.src.${s}` as MessageKey) }));
   const tfs = [60, 300, 900, 1800, 3600, 14400, 86400].filter(s => s > timeframeSec && s % timeframeSec === 0);
-  const off = rsi && isSystemRsi(v) && (v.period !== RSI_PARAMS.period || v.source !== 'close' || v.timeframe !== 0);
+  const off = rsi && isSystemRsi(v) && !matchesFormationRsi(v, timeframeSec, RSI_PARAMS.period);
   return <div data-tab-panel="inputs">
     <Heading>{t(rsi ? 'ind.sec.rsi' : 'ind.sec.general')}</Heading>
     <Line label={t(rsi ? 'ind.rsiLength' : 'cw.period')} hint={t(rsi ? 'ind.rsiLength.hint' : 'cw.period.hint')}><NumberBox label={t(rsi ? 'ind.rsiLength' : 'cw.period')} hint={t(rsi ? 'ind.rsiLength.hint' : 'cw.period.hint')} value={v.period} min={1} max={5000} onChange={period => update({ period })} /></Line>
@@ -47,7 +47,7 @@ export function StyleTab({ indicator: v, update, tones }: TabProps) {
   const plot = <DropdownMenu label={t('ind.plotType')} hint={t('ind.plotType.hint')} variant="outline" size="sm" align="right" triggerProps={{ 'data-plot-trigger': v.plotType }} icon={(() => { const Icon = PLOT_ICON[v.plotType]; return <span className="inline-flex items-center gap-1.5"><Icon className="size-4" aria-hidden="true" /><span className="sr-only">{t(`ind.plot.${v.plotType}` as MessageKey)}</span></span>; })()}>
     <DropdownMenuGroup>{PLOT_TYPES.map(type => { const Icon = PLOT_ICON[type]; return <DropdownMenuItem key={type} icon={<Icon className="size-4" aria-hidden="true" />} hint={t('ind.plotType.hint')} onSelect={() => update({ plotType: type })}>{t(`ind.plot.${type}` as MessageKey)}{type === v.plotType ? ' ✓' : ''}</DropdownMenuItem>; })}</DropdownMenuGroup>
   </DropdownMenu>;
-  const row = (key: Parameters<typeof rowStyle>[1], extra?: React.ReactNode, opacity = true) => <StyleRow key={key} indicator={v} rowKey={key} tones={tones} update={update} extra={extra} opacity={opacity} />;
+  const row = (key: Parameters<typeof rowStyle>[1], extra?: React.ReactNode, opacity = true, labelKey?: MessageKey) => <StyleRow key={key} indicator={v} rowKey={key} tones={tones} update={update} extra={extra} opacity={opacity} labelKey={labelKey} />;
   return <div data-tab-panel="style">
     <Heading>{t('ind.sec.lines')}</Heading>
     {rsi
@@ -60,7 +60,7 @@ export function StyleTab({ indicator: v, update, tones }: TabProps) {
         {v.divergence && <div className="mt-2 rounded-lg border border-dashed border-border px-3 pb-1 pt-2" data-group="divergence"><p className="text-[11px] text-muted-foreground">{t('ind.group.divergence')}</p>{STYLE_ROWS.divergence.map(k => row(k))}</div>}
       </>
       : <>
-        {row('rsi', undefined, false)}
+        {row('rsi', undefined, false, 'ind.row.line')}
         {['EWO', 'MACD'].includes(v.kind) && <Line label={t('ind.negative')} hint={t('ind.negative.hint')}><ColorBox label={t('ind.negative')} hint={t('ind.negative.hint')} value={v.negative || tones.down} onChange={negative => update({ negative })} /></Line>}
         {v.kind === 'MACD' && <Line label={t('ind.signalColor')} hint={t('ind.signalColor.hint')}><ColorBox label={t('ind.signalColor')} hint={t('ind.signalColor.hint')} value={v.maColor || tones.warning} onChange={maColor => update({ maColor })} /></Line>}
       </>}

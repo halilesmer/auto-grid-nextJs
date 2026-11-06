@@ -1,5 +1,5 @@
 'use client';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -22,8 +22,23 @@ export function Heading({ children }: { children: ReactNode }) { return <p class
 export function Check({ label, hint, checked, onChange, disabled }: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return <div className="flex min-h-10 items-center"><Checkbox label={label} hint={hint} checked={checked} onChange={onChange} disabled={disabled} /></div>;
 }
+/** Clamp and round to `step`, as the stored value must be. */
+export const clampNumber = (raw: number, min: number, max: number, step: number) => Math.max(min, Math.min(max, Math.round(raw / step) / (1 / step)));
+/**
+ * Number field. While the user types, the text stays as typed (a valid partial value such as the "8" of "85" is not clamped at once);
+ * a valid number goes to the chart live only when it is inside the limits, and the text is brought into the limits on blur or Enter.
+ */
 export function NumberBox({ label, hint, value, min, max, step = 1, onChange, disabled, className = 'w-36' }: { label: string; hint: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void; disabled?: boolean; className?: string }) {
-  return <Tooltip content={hint}><input aria-label={label} disabled={disabled} className={cn(box, className, 'px-2.5 text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-50')} type="number" min={min} max={max} step={step} value={value} onChange={e => { if (e.target.value === '') return; const raw = Number(e.target.value); if (Number.isFinite(raw)) onChange(Math.max(min, Math.min(max, Math.round(raw / step) / (1 / step)))); }} /></Tooltip>;
+  const [text, setText] = useState<string | null>(null);
+  const commit = (raw: string) => {
+    setText(null);
+    if (raw === '' || raw === '-') return;
+    const n = Number(raw);
+    if (Number.isFinite(n)) onChange(clampNumber(n, min, max, step));
+  };
+  return <Tooltip content={hint}><input aria-label={label} disabled={disabled} className={cn(box, className, 'px-2.5 text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-50')} type="number" min={min} max={max} step={step} value={text ?? value}
+    onChange={e => { setText(e.target.value); const n = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(n) && n >= min && n <= max) onChange(clampNumber(n, min, max, step)); }}
+    onBlur={e => commit(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(e.currentTarget.value); }} /></Tooltip>;
 }
 export function SelectBox({ label, hint, value, options, onChange, disabled }: { label: string; hint: string; value: string; options: readonly { value: string; label: string }[]; onChange: (v: string) => void; disabled?: boolean }) {
   return <Tooltip content={hint}><span className="relative inline-flex"><select aria-label={label} disabled={disabled} className={cn(box, 'w-36 appearance-none truncate pl-2.5 pr-7 disabled:cursor-not-allowed disabled:opacity-50')} value={value} onChange={e => onChange(e.target.value)}>{options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2 top-2 size-4 text-muted-foreground" aria-hidden="true" /></span></Tooltip>;

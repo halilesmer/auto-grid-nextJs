@@ -145,3 +145,53 @@ test('UI-19: Kaynak (Y+D+K+K)/4, Sichtbarkeitsregeln und Taşıma von Version 2'
   expect(bad.rowStyles).toEqual({ upper: { opacity: 100, lineStyle: 'dashed' } });
   expect(bad.visibility.hour).toEqual({ on: true, from: 2, to: 24 });
 });
+
+test('UI-19 4: Eingabefeld kürzt nicht bei jedem Tastendruck (Obere Linie 85 per Tastatur)', { tag: '@UI-19' }, async ({ page, worker }) => {
+  void worker;
+  await openSystemRsiSettings(page);
+  await dialog(page).getByRole('tab', { name: msg('ind.tab.style') }).click();
+  const upper = field(page, 'ind.bandValue.upper');
+  await upper.click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('85');
+  await expect(upper).toHaveValue('85');
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-scale', /^20:85:/);
+  // A value outside the limits is brought inside on blur
+  await upper.click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('8');
+  await page.keyboard.press('Tab');
+  await expect(upper).toHaveValue('50');
+});
+
+test('UI-19 3: Zeile „Çizgi“ bei anderen Arten; ausgeschaltete Hauptlinie bleibt als Serie, ist aber unsichtbar', { tag: '@UI-19' }, async ({ page, worker }) => {
+  void worker;
+  await openSystemRsiSettings(page);
+  await dialog(page).getByRole('tab', { name: msg('ind.tab.style') }).click();
+  const chart = page.getByTestId('analysis-chart');
+  await expect(chart).toHaveAttribute('data-rsi-line', 'on');
+  await dialog(page).locator('[data-style-row="rsi"]').getByRole('checkbox').uncheck();
+  await expect(chart).toHaveAttribute('data-rsi-line', 'off');
+  await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'true'); // value and scale stay
+  await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
+  // Another kind: the row has a general label, not "RSI"
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
+  await page.getByRole('button', { name: '+ EWO', exact: true }).click();
+  await dialog(page).getByRole('tab', { name: msg('ind.tab.style') }).click();
+  const row = dialog(page).locator('[data-style-row="rsi"]');
+  await expect(row).toContainText(msg('ind.row.line'));
+  await expect(row).not.toContainText(msg('ind.row.rsi'));
+});
+
+test('UI-19 8: Verlaufsserien liegen auf der Skala des RSI (rechts und links)', { tag: '@UI-19' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  for (const side of ['right', 'left'] as const) {
+    await page.addInitScript(([key, s]) => { localStorage.setItem(key, JSON.stringify({ version: 3, appearance: { side: s }, documents: {} })); }, [STORAGE, side]);
+    await page.goto(FREE);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+    await expect(chart).toHaveAttribute('data-rsi-over-scale', side);
+    await expect(chart).toHaveAttribute('data-rsi-under-scale', side);
+  }
+});

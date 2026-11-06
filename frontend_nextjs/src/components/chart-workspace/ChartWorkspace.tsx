@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { toast } from '@/components/ui/animated-toast';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
-import { INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -370,7 +370,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const remaining = countdownNow == null ? null : Math.max(0, timeframeSec - ((countdownNow + elapsed) % timeframeSec));
   const patchIndicators = (change: (indicators: Indicator[]) => Indicator[]) => saveDocument({ ...documentRef.current, indicators: change(documentRef.current.indicators) });
   /** The system RSI is never deleted: removing it switches its layer off (same state as the switch in the layers menu). */
-  const removeIndicators = (ids: Set<string>) => saveDocument({ ...(ids.has(SYSTEM_RSI_ID) ? applySystemLayer(documentRef.current, 'rsi', false) : documentRef.current), indicators: documentRef.current.indicators.filter(item => !ids.has(item.id) || isSystemRsi(item)), alarms: documentRef.current.alarms.filter(alarm => !ids.has(alarm.indicatorId)) });
+  const removeIndicators = (ids: Set<string>) => saveDocument({ ...(ids.has(SYSTEM_RSI_ID) ? applySystemLayer(documentRef.current, 'rsi', false) : documentRef.current), indicators: documentRef.current.indicators.filter(item => !ids.has(item.id) || isSystemRsi(item)), alarms: alarmsAfterRemove(documentRef.current.alarms, ids) });
   const changeIndicator = (id: string, change: Partial<Indicator>) => patchIndicators(indicators => indicators.map(item => item.id === id ? { ...item, ...change } : item));
   const sideOf = (indicator: Indicator) => indicator.scaleSide === 'auto' ? appearance.side as 'left' | 'right' : indicator.scaleSide;
   const patchSystemPane = (id: SystemPaneId, change: (state: { hidden?: boolean; collapsed?: boolean }) => { hidden?: boolean; collapsed?: boolean }) => {
@@ -494,7 +494,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       saveDocument({ ...base, indicators, alarms: current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) });
     }} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
-      <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id)} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>
+      <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id) ?? indicator.kind} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>
       <div className="flex flex-wrap gap-2">{drawings.map(d => <Button key={d.id} size="sm" aria-pressed={selected.includes(d.id)} hint={t('cw.selection.hint')} onClick={() => { manager.current?.select([d.id]); }}>{d.name || t(toolKey(d.kind))}</Button>)}</div>
       {active && <fieldset disabled={locked} className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
         <InputField label={t('cw.objectName')} hint={t('cw.objectName.hint')}><input className={fieldClass} value={active.name ?? ''} onChange={e => updateDrawing({ ...active, name: e.target.value })} /></InputField>
