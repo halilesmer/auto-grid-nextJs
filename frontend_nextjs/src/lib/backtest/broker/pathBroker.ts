@@ -239,6 +239,7 @@ export class PathBroker extends SimBroker {
    * Kauf-Position TP: Bid ≥ TP, SL: Bid ≤ SL; Verkaufs-Position TP: Ask ≤ TP, SL: Ask ≥ SL.
    */
   quoteTriggers(): Trigger[] {
+    if (!this.tradeOpen) return [];
     const { bid, ask } = this.tick;
     const order = this.slFirst ? { sl: 0, tp: 1, fill: 2 } : { tp: 0, sl: 1, fill: 2 };
     const found: Trigger[] = [];
@@ -298,6 +299,7 @@ export class PathBroker extends SimBroker {
 
   /** `holdsAt`: nur Marken, deren Bedingung bei diesem Bid gilt; null = keine Einschränkung */
   private scan(from: number, to: number, holdsAt: number | null): Trigger | null {
+    if (!this.tradeOpen) return null; // BKT-21: bei geschlossener Handelsseite löst nichts aus
     const up = to > from;
     const down = to < from;
     const order = this.slFirst ? { sl: 0, tp: 1, fill: 2 } : { tp: 0, sl: 1, fill: 2 };

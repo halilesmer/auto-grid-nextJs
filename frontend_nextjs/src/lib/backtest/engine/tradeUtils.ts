@@ -102,6 +102,7 @@ export function safeSendOrder(broker: Broker, request: TradeRequest, state: Engi
 }
 
 function sendOrder(broker: Broker, request: TradeRequest, state: EngineState, beforeSend?: () => boolean): boolean {
+  state.lastRetcode = 0;
   if (request.volume !== undefined && request.symbol !== undefined) {
     request.volume = brokerNormalizeVolume(broker, request.symbol, request.volume);
   }
@@ -111,6 +112,7 @@ function sendOrder(broker: Broker, request: TradeRequest, state: EngineState, be
     const check = broker.orderCheck(req);
     if (!check || check.retcode !== 0) {
       const retcode = check ? check.retcode : -1;
+      state.lastRetcode = retcode;
       if (retcode === TRADE_RETCODE_ALGO_DISABLED) {
         state.algoTradingDisabled = true;
         state.lastErrorMessage = 'algoTradingDisabled';
@@ -128,6 +130,7 @@ function sendOrder(broker: Broker, request: TradeRequest, state: EngineState, be
     return false;
   }
   if (result.retcode !== TRADE_RETCODE_DONE) {
+    state.lastRetcode = result.retcode;
     if (result.retcode === TRADE_RETCODE_ALGO_DISABLED) {
       state.algoTradingDisabled = true;
       state.lastErrorMessage = 'algoTradingDisabled';

@@ -47,7 +47,7 @@ def test_ohne_fehler_kein_error_feld(client, seed_accounts, no_symbol_cache, mon
     monkeypatch.setattr(mh, "fetch_and_cache_symbols", ok_fetch)
     body = client.get(f"/api/symbols/{TEST_ACCOUNT_ID}").json()
 
-    assert body["symbols"] == [{"name": "USOUSD"}]
+    assert body["symbols"] == [{"name": "USOUSD", "trade_sessions": None}]  # BKT-21: Feld immer da, null ohne Datei
     assert "error" not in body
 
 

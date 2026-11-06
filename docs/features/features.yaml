@@ -977,7 +977,7 @@ kategorien:
       - id: ENG-32
         titel: Markt geschlossen (10018) sperrt die Zone nicht
         beschreibung: "Lehnt MT5 eine Pending Order mit Retcode 10018 „Market closed“ ab (order_check oder order_send), zählt das nicht als fehlgeschlagene Order (ENG-11). Der Bot sendet für dieses Symbol 60 Sekunden (MARKET_CLOSED_CHECK_INTERVAL) keine Orders und versucht es danach erneut. Die Zone wird nicht pausiert."
-        code: [worker_python/src/core/grid_orders.py, worker_python/src/utils/trade_utils.py, worker_python/src/core/state.py]
+        code: [worker_python/src/core/grid_orders.py, worker_python/src/utils/trade_utils.py, worker_python/src/core/state.py, frontend_nextjs/src/lib/backtest/engine/orders.ts, frontend_nextjs/src/lib/backtest/engine/tradeUtils.ts]
         tiers: [unit, manuell]
         pruefung:
           - Im DEMO-Lauf über einen Sessionstart (z. B. Montag 00:00 Brokerzeit) prüfen, dass kein „Bölge güvenliğe alınıyor“ erscheint und die Orders nach Marktöffnung stehen.
@@ -985,7 +985,7 @@ kategorien:
       - id: ENG-33
         titel: Aufräumen alter Magic-Orders pausiert bei 10018
         beschreibung: "Lehnt MT5 das Löschen einer Order (Mutlak Temizlik) mit Retcode 10018 ab, versucht der Bot es für dieses Symbol 60 Sekunden (MARKET_CLOSED_CHECK_INTERVAL) nicht erneut. Das Log zeigt die Ablehnung nur einmal je Pause."
-        code: [worker_python/src/core/grid_orders.py, worker_python/src/core/state.py]
+        code: [worker_python/src/core/grid_orders.py, worker_python/src/core/state.py, frontend_nextjs/src/lib/backtest/engine/orders.ts]
         tiers: [unit]
         pruefung:
           - Im DEMO-Lauf bei geschlossenem Markt ein altes Magic-Order-Ziel provozieren und das Log zählen.
@@ -1948,6 +1948,17 @@ kategorien:
           - Playwright-Logiktests e2e/mocked/backtest-data-lib.spec.ts und backtest-runner-lib.spec.ts (@BKT-20) ausführen.
           - Auf dem VPS (DEMO, nur lesen) die Fenster 3 und 4 mit „tick“ mit und ohne Replay rechnen (bt-Werkzeug); im Worker-Log je Tag die Zahl der S/J-Minuten und Ticks prüfen.
         erwartet: Die Tests bestehen. Auf dem VPS ist die Summe |ΔNetto| über alle Setups einschließlich EURCHF in den Fenstern 3 und 4 mit Replay niedriger als mit „tick“ allein; EURCHF 200044/200045 weichen in der Tradezahl um höchstens 1 ab.
+      - id: BKT-21
+        titel: "Backtest: Handelsseiten des Brokers (10018 „Market closed“)"
+        beschreibung: "Der Backtest kennt die Handelszeiten des Brokers und verhält sich bei geschlossener Handelsseite wie der Bot live. Quelle: Die MT5-Python-API liefert keine Handelsseiten; ein MQL5-Skript (worker_python/ops/mt5/AutoGridTradeSessions.mq5, einmal auf dem VPS ausführen, Anleitung in docs/windows_start_guide.md) schreibt SymbolInfoSessionTrade aller Symbole der Marktübersicht nach Common\\Files\\autogrid_trade_sessions.json. Der Worker (src/utils/trade_sessions.py, Pfad %APPDATA%\\MetaQuotes\\Terminal\\Common\\Files oder AUTOGRID_TRADE_SESSIONS_FILE) prüft Schema und Servername und liefert je Symbol `trade_sessions` (7 Tage ab Sonntag, [von, bis) in Sekunden, Brokerzeit) in GET /symbols/{id}, sonst null; die Liste im Cache bleibt unberührt. Im Lauf (runner.ts, RunModel.tradeSessions, Standard an) gilt die Seite zu Beginn jeder Kerze für die ganze Kerze; liegt eine Grenze in der Kerze, zählt run.tradeSessionPartial. Geschlossen: order_check und order_send liefern 10018 (SimBroker), Pending-Füllung, TP und SL lösen nicht aus (PathBroker.scan, quoteTriggers), Kurs, Kerzen, Equity und Swap laufen weiter. Beim Öffnen füllt die bestehende Kurslücken-Regel zum Marktpreis, was am neuen Quote noch gilt. Der Bot-Nachbau übernimmt ENG-32 und ENG-33: Retcode in state.lastRetcode, nach 10018 je Symbol 60 Sekunden keine neue Order (marketClosedUntil, Zone bleibt aktiv, order.marketClosed) und kein neuer Löschversuch (cancelClosedUntil); eine laufende Pause weckt den Bot zu ihrem Ende, auch innerhalb einer Kerze. Sofort-Einstieg prüft marketClosedUntil nicht, wie instant_entry.py. Ohne Seiten (null), mit „immer offen“ oder RunModel.tradeSessions = false rechnen alle Spread-Modi und der Replay wie zuvor (Zahlen und Protokoll gleich); das Protokoll bekommt run.tradeSessions und ersetzt run.rejectsNotSimulated durch run.rejectsNotSimulatedExceptClosed nur mit Seiten."
+        code: [worker_python/src/utils/trade_sessions.py, worker_python/src/api/symbols.py, worker_python/ops/mt5/AutoGridTradeSessions.mq5, frontend_nextjs/src/lib/backtest/broker/tradeSessions.ts, frontend_nextjs/src/lib/backtest/broker/costs.ts, frontend_nextjs/src/lib/backtest/broker/simBroker.ts, frontend_nextjs/src/lib/backtest/broker/pathBroker.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/src/lib/backtest/engine/orders.ts, frontend_nextjs/src/lib/backtest/engine/tradeUtils.ts, frontend_nextjs/src/lib/backtest/engine/state.ts, worker_python/tests/unit/test_trade_sessions.py, worker_python/tests/api/test_symbol_sessions_api.py, frontend_nextjs/e2e/mocked/backtest-sessions-lib.spec.ts]
+        tiers: [unit, api, e2e, manuell]
+        pruefung:
+          - pytest tests/unit/test_trade_sessions.py und tests/api/test_symbol_sessions_api.py ausführen.
+          - Playwright-Logiktest e2e/mocked/backtest-sessions-lib.spec.ts (@BKT-21) und die übrigen backtest-*-lib-Tests ausführen (ohne Seiten unveränderte Zahlen).
+          - Auf dem VPS das MQL5-Skript einmal kompilieren und ausführen (nicht auf dem Mac getestet); GET /symbols/{id} muss für die acht Symbole trade_sessions liefern, die Grenzen sind minutengenau.
+          - Auf dem VPS (DEMO, nur lesen) jede 10018-Zeile der Fenster 3 und 4 (Log-Zeit = Brokerzeit minus 1 Stunde) einem geschlossenen Bereich des Symbols zuordnen; mit dem bt-Werkzeug „tick“ mit und ohne Seiten rechnen.
+        erwartet: Die Tests bestehen. Auf dem VPS fällt jede 10018-Zeile des Bots in einen geschlossenen Bereich; mit Seiten ist die Summe |ΔNetto| über alle Setups nicht größer als ohne, keine K-Klasse wird schlechter, und die Protokoll-Zeile run.tradeSessions zählt Ablehnungen in der Größenordnung des Bot-Logs.
 
   # ---------------------------------------------------------------------------
   - id: FRM

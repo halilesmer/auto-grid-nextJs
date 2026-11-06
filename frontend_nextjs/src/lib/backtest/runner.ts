@@ -13,6 +13,7 @@ import type { Trade } from '@/lib/analysis/tradePairing';
 import type { Excursion } from '@/lib/analysis/excursions';
 import { candleSpreadPoints, cents, type SpreadSetting, type SymbolSnapshot } from '@/lib/backtest/broker/costs';
 import { PathBroker, type FillModel, type InitialPosition } from '@/lib/backtest/broker/pathBroker';
+import { tradeOpenAt } from '@/lib/backtest/broker/tradeSessions';
 import type { LoadedRates } from '@/lib/backtest/candles/loadRates';
 import { candleWaypoints, waypointTimes, type PathMode } from '@/lib/backtest/candles/pathModel';
 import { manageDynamicGrid, type ActiveZones } from '@/lib/backtest/engine/orchestrator';
@@ -46,6 +47,8 @@ export interface RunModel {
   slSlippagePoints?: number | null;
   /** BKT-20: Rollover-/Sprung-Minuten mit den echten Ticks abspielen (nur Spread „tick“ und M1-Daten mit Replay-Minuten); Standard an */
   tickReplay?: boolean;
+  /** BKT-21: Handelsseiten des Brokers (Schnappschuss) anwenden: zu = 10018, nichts löst aus; Standard an, ohne Seiten wirkungslos */
+  tradeSessions?: boolean;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -176,7 +179,7 @@ export function runBacktest(input: RunInput): RunResult {
 
   const log = new RunLog();
   log.add('INFO', 'run.marginNotChecked');
-  log.add('INFO', 'run.rejectsNotSimulated');
+  log.add('INFO', model.tradeSessions !== false && snapshot.tradeSessions ? 'run.rejectsNotSimulatedExceptClosed' : 'run.rejectsNotSimulated');
   log.add('INFO', 'run.stopsLevelNotSimulated', { stopsLevel: snapshot.info.trade_stops_level });
   log.add('INFO', 'run.costsEstimated');
   if (input.accountCurrency && snapshot.currencyProfit && input.accountCurrency !== snapshot.currencyProfit) {
@@ -224,6 +227,7 @@ export function runBacktest(input: RunInput): RunResult {
     state.fractalDone.set(key, set);
   }
   const infos = broker.symbolInfos();
+  const sessions = model.tradeSessions === false ? null : snapshot.tradeSessions;
   let active: ActiveZones = {};
   let lastBot = -Infinity;
   const runBot = () => {
@@ -238,6 +242,8 @@ export function runBacktest(input: RunInput): RunResult {
   let replayMinutes = 0;
   let replayTicks = 0;
   let replayMismatches = 0;
+  let closedCandles = 0;
+  let partialCandles = 0;
   let prevClose = rates.o[first];
   let prevTime = rates.t[first];
   const total = end - first;
@@ -262,6 +268,13 @@ export function runBacktest(input: RunInput): RunResult {
     }
 
     broker.rollover(prevTime, t0);
+    if (sessions) {
+      // BKT-21: die Handelsseite zu Beginn der Kerze gilt für die ganze Kerze; liegt eine Grenze darin, zählt es als Warnung
+      const open = tradeOpenAt(sessions, t0);
+      if (open !== tradeOpenAt(sessions, tEnd)) partialCandles += 1;
+      if (!open) closedCandles += 1;
+      broker.setTradeOpen(open);
+    }
     // Die Zeitrahmen-Kerzen des Bots tragen wie bei MT5 den Kerzen-Spread (Minimum), nicht den Minutenmittelwert
     const barSpread = input.spread.mode === 'tick' && rates.s[i] > 0 ? rates.s[i] : spreadPoints;
     broker.beginCandle(t0, rates.o[i], spreadPoints, barSpread);
@@ -283,6 +296,20 @@ export function runBacktest(input: RunInput): RunResult {
         const trigger = jump ? broker.nextGapTrigger(cur, b) : broker.nextTrigger(cur, b);
         const wake = jump ? null : nextWake(wakes, cur, b);
         const triggerFirst = trigger !== null && (wake === null || (b > cur ? trigger.bid <= wake : trigger.bid >= wake));
+        // BKT-21: endet eine 10018-Pause (60 s) in diesem Wegstück, läuft der Bot dann wie live nach der Pause
+        const retryAt = jump || !sessions ? null : state.nextClosedRetry(broker.now);
+        if (retryAt !== null && retryAt <= tb) {
+          let next = Infinity;
+          if (trigger !== null && triggerFirst) next = timeAt(trigger.bid);
+          else if (wake !== null) next = timeAt(wake);
+          if (retryAt < next) {
+            countEvent();
+            cur = b === a || tb === ta ? cur : a + ((b - a) * (retryAt - ta)) / (tb - ta);
+            broker.setMarket(cur, retryAt);
+            runBot();
+            continue;
+          }
+        }
         if (trigger !== null && triggerFirst) {
           countEvent();
           if (!jump) broker.setMarket(trigger.bid, timeAt(trigger.bid));
@@ -333,6 +360,12 @@ export function runBacktest(input: RunInput): RunResult {
     } else {
       traverse(prevClose, way[0], t0, t0, true);
       for (let k = 1; k < way.length; k++) traverse(way[k - 1], way[k], times[k - 1], times[k], false);
+      // BKT-21: der Weg endet vor dem Kerzenende (flache Kerze: am Anfang); Pausen nach 10018 enden trotzdem darin
+      for (let retryAt = sessions ? state.nextClosedRetry(broker.now) : null; retryAt !== null && retryAt <= tEnd; retryAt = state.nextClosedRetry(broker.now)) {
+        countEvent();
+        broker.setMarket(way[way.length - 1], retryAt);
+        runBot();
+      }
     }
 
     broker.endCandle();
@@ -341,6 +374,10 @@ export function runBacktest(input: RunInput): RunResult {
     prevTime = tEnd;
   }
 
+  if (sessions) {
+    log.add('INFO', 'run.tradeSessions', { candles: closedCandles, rejects: broker.closedRejects });
+    if (partialCandles > 0) log.add('WARN', 'run.tradeSessionPartial', { candles: partialCandles });
+  }
   if (replayMinutes > 0) log.add('INFO', 'run.tickReplay', { minutes: replayMinutes, ticks: replayTicks });
   if (replayMismatches > 0) log.add('WARN', 'run.tickReplayMismatch', { minutes: replayMismatches });
   if (tickFallbacks > 0) log.add('WARN', 'run.tickSpreadFallback', { candles: tickFallbacks, total: total });
