@@ -11,7 +11,7 @@ import { FIB_CHECK_IDS, analyzeFib, checkFibCandidate, type FibOptions } from '.
 import { parseFixture } from '../../src/lib/formation/fixture';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H1, H4, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
-import { FIXTURE_TREND, markUnreachable, named, trendOf } from '../fixtures/formation-trend';
+import { FIXTURE_TREND, fixtureTrend, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-04' }, fn);
@@ -425,10 +425,9 @@ test.describe('FIB: echte Kerzen', () => {
   });
 
   frm('fib-counter-d1-01 und -h4-01 (weicht von der Testliste ab: Ausdehnung nur 0,047): Tages-Impuls 0,89027 → 0,92262 mit Korrektur 0,48, kaum Ausdehnung, Fraktal der H4 in der Zone des Hochs', () => {
-    markUnreachable('fib-counter-d1-01');
     const d1 = loadFixture('fib-counter-d1-01');
     const h4 = loadFixture('fib-counter-h4-01');
-    const ctx = new FormationContext('TEST', { D1: d1.bars, H4: h4.bars }, { trend: FIXTURE_TREND });
+    const ctx = new FormationContext('TEST', { D1: d1.bars, H4: h4.bars }, { trend: fixtureTrend('fib-counter-d1-01') });
     const t = lastTime(h4, H4);
     const day = analyzeFib(ctx, t).find((a) => a.tf === 'D1')!;
     // Länge 0,03235; Korrektur bis 0,90713: Tiefe (0,92262 − 0,90713)/0,03235 = 0,479; Hoch 0,92414 danach: Ausdehnung 0,047

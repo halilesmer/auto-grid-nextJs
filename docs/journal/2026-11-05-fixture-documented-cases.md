@@ -10,6 +10,8 @@ areas: [frontend, tests]
 
 # Fixtures keep documented cases or mark them unreachable
 
+> **Correction (2026-11-06):** the four cases marked "unreachable" in this entry are reachable with a selectable ATR period and EWO pair, and "1288 settings" covers only ATR 14 and five EWO pairs, not all selectable settings. `cyp-bad-h4-03` is the one case that stays unreachable. See `2026-11-06-fixture-unreachable-audit.md`.
+
 ## Request
 PR 381 (FRM-41) made the formations use the trend path of the user. For 13 test cases no fixture setting kept the old expectation, so the expectations were regenerated at the global fixture setting `FIXTURE_TREND` (0.5 ATR, the slider minimum). A rule book check found that many regenerated cases are micro formations of 1 to 3 H4 candles, which the rule book does not draw (TRD-06). Decision of the project owner (2026-11-05, plan 1105-A5): a fixture must use a setting that keeps the documented case. If no setting does, do not replace the case with a micro formation. Mark it as "unreachable on the user's path".
 

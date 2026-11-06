@@ -22,7 +22,7 @@ import { buildEnv } from '../../src/lib/formation/reasons';
 import { higherAgainst } from '../../src/lib/formation/xabcd';
 import { D1, END, H4, M15, barsOf, mirror, plain, walk, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
-import { FIXTURE_TREND, markUnreachable, named, trendOf } from '../fixtures/formation-trend';
+import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const U: CheckState = 'unmeasurable';
 const M: CheckState = 'met';
@@ -610,9 +610,10 @@ test.describe('GAR und BAT: echte Kerzen', () => {
   });
 
   frm('bat-sell-h4-01: Verkauf-Bat ist gültig (Spiegel der Kauf-Form)', () => {
-    markUnreachable('bat-sell-h4-01');
     const c = analyzeAt('BAT', 'bat-sell-h4-01', '2025-12-08T16:00');
     expect(c.side).toBe('sell');
+    // gleiche Punkte wie vor FRM-41 (gemessen am Stand 5955b204): X 12-03 12:00, A 12-05 08:00, B 12-05 16:00, C 12-08 04:00, D 12-08 12:00
+    expect(['X', 'A', 'B', 'C', 'D'].map((p) => time(c, p))).toEqual(['2025-12-03T12:00', '2025-12-05T08:00', '2025-12-05T16:00', '2025-12-08T04:00', '2025-12-08T12:00']);
     expect(states(c, ['BAT-05', 'BAT-06', 'BAT-07', 'BAT-14'])).toEqual([M, M, M, N]);
     expect(c.verdict).toBe('valid');
   });
