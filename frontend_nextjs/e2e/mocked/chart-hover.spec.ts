@@ -126,8 +126,14 @@ test('Linie unter der Maus: Zeile hervorgehoben, Hand-Zeiger, Klick wählt, Esca
   await page.mouse.click(again.x, again.y);
   await expect(row).toHaveAttribute('data-emphasis', 'selected');
   const price = await paneBox(page, 0);
-  await page.mouse.click(price.x + price.width * 0.5, price.y + 4);
+  // Leerer Punkt ohne Linie im Kursbereich: Klick dort hebt die Auswahl auf. Die Kopfleiste liegt über dem oberen Rand des Bereichs (--chart-top); der Punkt liegt darunter (plan 1106-A4.16.3)
+  const bar = (await page.getByTestId('chart-topbar').boundingBox())!;
+  const empty = { x: price.x + price.width * 0.5, y: Math.max(price.y, bar.y + bar.height) + 4 };
+  expect(await page.evaluate(({ x, y }) => { const e = document.elementFromPoint(x, y); return !!e && !!e.closest('[data-testid="analysis-chart"], [data-testid="chart-gesture-layer"]') && !e.closest('[data-testid="chart-topbar"]'); }, empty), 'Klickpunkt muss auf dem Chart (Kursbereich) liegen, nicht in Kopfleiste, Leiste oder Karte').toBe(true);
+  await page.mouse.click(empty.x, empty.y);
   await expect(row).not.toHaveAttribute('data-emphasis', /.+/);
+  // Keine Zeile der Legende bleibt hervorgehoben oder gewählt (auch nicht eine andere Linie)
+  await expect(page.locator('[data-indicator-row][data-emphasis]')).toHaveCount(0);
 });
 
 test('Preisindikator hat eine Legendenzeile mit Knöpfen im Kursbereich', { tag: '@ANA-22' }, async ({ page, worker }) => {

@@ -285,30 +285,33 @@ export function FormationView() {
               <FormationStatusChip hit={hit} open={sidebar.open && sidebar.tab === 'conditions'} onToggle={() => sidebar.toggle('conditions')} />
             </>
           }
-        >
-          <ChartModeSegment fill />
-          {accountKnown && (
-            <FormationSymbolSelect
-              accountId={accountId}
-              value={symbol}
-              onChange={(next) => {
+          mode={<ChartModeSegment fill />}
+          symbol={
+            accountKnown && (
+              <FormationSymbolSelect
+                accountId={accountId}
+                value={symbol}
+                onChange={(next) => {
+                  clearSelection();
+                  setSymbol(next);
+                }}
+              />
+            )
+          }
+          account={
+            <FormationAccountSelect
+              // Raster (Querformat und Desktop bis 91rem): Platz für die ganze Kontonummer (UI-15); breiter als `lg:w-44` wird es nur im Querformat
+              className="bar2:min-w-40"
+              accounts={accounts}
+              value={accountId}
+              onChange={(id) => {
+                if (id === accountId) return;
                 clearSelection();
-                setSymbol(next);
+                setAccount(id);
               }}
             />
-          )}
-          <FormationAccountSelect
-            // Raster (Querformat und Desktop bis 91rem): Platz für die ganze Kontonummer (UI-15); breiter als `lg:w-44` wird es nur im Querformat
-            className="bar2:min-w-40"
-            accounts={accounts}
-            value={accountId}
-            onChange={(id) => {
-              if (id === accountId) return;
-              clearSelection();
-              setAccount(id);
-            }}
-          />
-        </FormationToolbar>
+          }
+        />
       }
       notices={
         <>

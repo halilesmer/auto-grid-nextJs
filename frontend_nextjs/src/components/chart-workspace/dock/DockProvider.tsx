@@ -38,6 +38,8 @@ export interface DockApi {
   registerRow: (zone: DockRowZone, el: HTMLElement | null) => void;
   registerChart: (el: HTMLElement | null) => void;
   registerPackage: (id: PackageId, el: HTMLElement | null, fit?: FitApi) => void;
+  /** Sabit hesap çapası (hesap + DEMO): paket değildir, Satır 1'de sırada yer tutar */
+  registerAccount: (el: HTMLElement | null) => void;
   refit: () => void;
   startDrag: (id: PackageId, e: ReactPointerEvent<HTMLElement>) => void;
   moveDrag: (e: ReactPointerEvent<HTMLElement>) => void;
@@ -82,6 +84,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const reduce = useReducedMotion() ?? false;
   const [phone, setPhone] = useState(false);
   const [present, setPresent] = useState<PackageId[]>([]);
+  const [accountOn, setAccountOn] = useState(false);
   const [fallback, setFallback] = useState<PackageId[]>([]);
   const [dragging, setDragging] = useState(false);
   const [live, setLive] = useState('');
@@ -91,7 +94,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   // 30 rem altında sabit telefon düzeni (S5 sürer); kayıt silinmez
   const layout = useMemo(() => phone ? defaultDockLayout() : stored, [phone, stored]);
 
-  const rows = useRef<Partial<Record<DockRowZone, HTMLElement>>>({}), chart = useRef<HTMLElement | null>(null), wraps = useRef(new Map<PackageId, Wrap>());
+  const rows = useRef<Partial<Record<DockRowZone, HTMLElement>>>({}), chart = useRef<HTMLElement | null>(null), wraps = useRef(new Map<PackageId, Wrap>()), accountEl = useRef<HTMLElement | null>(null);
   const layoutRef = useRef(layout), presentRef = useRef(present), fallbackRef = useRef(fallback), phoneRef = useRef(phone), reduceRef = useRef(reduce);
   const dragRef = useRef<Drag | null>(null), ghostRef = useRef<HTMLElement | null>(null), slotRef = useRef<HTMLElement | null>(null), raf = useRef(0);
   const suppress = useRef(false), focusAfter = useRef<PackageId | null>(null), pendingFlip = useRef<{ before: Map<string, DOMRect>; from: Record<string, DOMRect> } | null>(null), fitQueued = useRef(false);
@@ -104,9 +107,9 @@ export function DockProvider({ children }: { children: ReactNode }) {
     return 'bottom';
   }, [layout, fallback, row2On]);
   /** Bir satırın görünen paketleri, DOM sırasıyla aynı sırada (sekme sırası). */
-  const orderOf = (zone: DockRowZone, l = layoutRef.current): PackageId[] => {
+  const orderOf = (zone: DockRowZone, l = layoutRef.current): DockItem[] => {
     const list = listOf(l, zone, !!rows.current.row2, fallbackRef.current);
-    return list.filter((id): id is PackageId => id !== 'account' && presentRef.current.includes(id));
+    return list.filter(id => id === 'account' ? !!accountEl.current : presentRef.current.includes(id));
   };
 
   const registerRow = useCallback((zone: DockRowZone, el: HTMLElement | null) => {
@@ -118,6 +121,9 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const registerChart = useCallback((el: HTMLElement | null) => {
     if (chart.current === el) return;
     chart.current = el; setRev(r => r + 1);
+  }, []);
+  const registerAccount = useCallback((el: HTMLElement | null) => {
+    accountEl.current = el; setAccountOn(!!el); setRev(r => r + 1);
   }, []);
   const registerPackage = useCallback((id: PackageId, el: HTMLElement | null, fit?: FitApi) => {
     if (el && fit) { wraps.current.set(id, { el, fit }); setPresent(p => p.includes(id) ? p : [...p, id]); }
@@ -172,8 +178,8 @@ export function DockProvider({ children }: { children: ReactNode }) {
     for (const zone of ZONES) {
       const row = rows.current[zone];
       if (!row) continue;
-      const order = (listOf(l, zone, !!rows.current.row2, fb)).filter((id): id is PackageId => id !== 'account' && wraps.current.has(id));
-      const want = order.map(id => wraps.current.get(id)!.el);
+      const order = (listOf(l, zone, !!rows.current.row2, fb)).filter(id => id === 'account' ? !!accountEl.current : wraps.current.has(id));
+      const want = order.map(id => id === 'account' ? accountEl.current! : wraps.current.get(id as PackageId)!.el);
       [...row.children].forEach(c => { if (c.classList.contains('dock-wrap') && !want.includes(c as HTMLElement)) c.remove(); });
       want.forEach((el, i) => {
         if (row.children[i] !== el) row.insertBefore(el, row.children[i] ?? null);
@@ -421,9 +427,9 @@ export function DockProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => { endDragRef.current = endDrag; });
   useEffect(() => () => { window.removeEventListener('keydown', onEsc, true); ghostRef.current?.remove(); }, [onEsc]);
 
-  const hasIn = (zone: DockRowZone) => present.some(id => placeOf(id) === zone);
+  const hasIn = (zone: DockRowZone) => (zone === 'row1' && accountOn) || present.some(id => placeOf(id) === zone);
   const menuUp = (id: PackageId) => { const p = placeOf(id); return p === 'bottom' || (p === 'free' && (layout.free[id]?.y ?? 0) > 0.5); };
   const consumeClick = () => { const was = suppress.current; suppress.current = false; return was; };
-  const api: DockApi = { layout, phone, setPhone, dragging, placeOf, menuUp, hasIn, registerRow, registerChart, registerPackage, refit, startDrag, moveDrag, endDrag, consumeClick, keyDown, menuInfo, act };
+  const api: DockApi = { layout, phone, setPhone, dragging, placeOf, menuUp, hasIn, registerRow, registerChart, registerPackage, registerAccount, refit, startDrag, moveDrag, endDrag, consumeClick, keyDown, menuInfo, act };
   return <Ctx.Provider value={api}>{children}<div role="status" aria-live="polite" className="sr-only">{live}</div></Ctx.Provider>;
 }

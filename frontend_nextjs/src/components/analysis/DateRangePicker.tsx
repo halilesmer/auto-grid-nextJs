@@ -79,7 +79,7 @@ export function DateRangePicker({ value, today, onChange }: DateRangePickerProps
         <span className="flex min-w-0 items-center gap-2" data-testid="range-trigger">
           <CalendarDays size={14} className="shrink-0" />
           <span className="truncate">{label}</span>
-          {detail && <span className="hidden truncate text-xs font-normal text-muted-foreground sm:inline">{detail}</span>}
+          {detail && <span data-range-detail className="hidden truncate text-xs font-normal text-muted-foreground sm:inline">{detail}</span>}
         </span>
       }
       size="sm"

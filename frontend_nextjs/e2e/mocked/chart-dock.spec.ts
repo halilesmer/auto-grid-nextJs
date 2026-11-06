@@ -114,10 +114,15 @@ test('Klavyeyle sıra değişir: ← sola alır, ↓ ↑ satır değiştirir', {
   // Sekme sırası görünen sırayla aynı: DOM'da düzen paketi göstergelerden önce
   const order = await page.getByTestId('dock-row-bottom').locator('[data-dock-pkg]').evaluateAll(els => els.map(e => e.getAttribute('data-dock-pkg')));
   expect(order).toEqual(['view', 'edit', 'indicators', 'window']);
+  // Setup/Frei'de de Satır 2 vardır (S4): ↑ önce Satır 2'ye, sonra Satır 1'e çıkar
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(async () => (await stored(page)).row2).toContain('edit');
+  await expect(page.getByTestId('dock-row-row2').locator('[data-dock-pkg="edit"]')).toBeVisible();
   await page.keyboard.press('ArrowUp');
   await expect.poll(async () => (await stored(page)).row1).toContain('edit');
   await expect(page.getByTestId('dock-row-row1').locator('[data-dock-pkg="edit"]')).toBeVisible();
   await expect(handle(page, 'edit')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await expect(page.getByTestId('dock-row-bottom').locator('[data-dock-pkg="edit"]')).toBeVisible();
 });

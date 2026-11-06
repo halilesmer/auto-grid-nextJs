@@ -42,7 +42,11 @@ async function segments(page: Page): Promise<Segment[]> {
 }
 /** Ob der Chart selbst unter dem Punkt liegt und nicht eine Karte, ein Hinweis oder die Werkzeugleiste davor */
 const free = (page: Page, p: { x: number; y: number }) =>
-  page.evaluate(([x, y]) => document.querySelector('[data-testid="analysis-chart"]')!.contains(document.elementFromPoint(x, y)), [p.x, p.y]);
+  // Auch die Nachbarpunkte (±2 px) müssen der Chart sein: an der Kante einer Karte trifft `elementFromPoint` den Chart, das contextmenu aber die Karte (S4: Karte endet bei y = 288,5)
+  page.evaluate(([x, y]) => {
+    const chart = document.querySelector('[data-testid="analysis-chart"]')!;
+    return [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]].every(([dx, dy]) => chart.contains(document.elementFromPoint(x + dx, y + dy)));
+  }, [p.x, p.y]);
 
 /** Ein Punkt auf der Linie in Seitenkoordinaten: der erste Punkt eines Schenkels, den nichts verdeckt (über der Linie liegt oft ein Hinweis) */
 async function onLine(page: Page) {

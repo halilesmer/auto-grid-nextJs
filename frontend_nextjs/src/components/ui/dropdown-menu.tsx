@@ -1,12 +1,22 @@
 'use client';
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useIsPresent } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Button, type ButtonProps } from './button';
 import { Tooltip, type HintContent } from './tooltip';
 
 const CloseContext = createContext<() => void>(() => {});
+
+/** Das Panel selbst. Beim Schließen läuft die Ausblend-Animation (~320 ms); in dieser Zeit nimmt es keine Zeigerereignisse mehr an, sonst fängt ein schon geschlossenes Panel Klicks auf darunterliegende Bedienelemente ab (plan 1106-A4.16.2). */
+function MenuPanel({ panelRef, popover, className, children }: { panelRef: React.RefObject<HTMLDivElement | null>; popover: boolean; className: string; children: ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <motion.div ref={panelRef} popover={popover ? 'manual' : undefined} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={cn(className, !present && 'pointer-events-none')}>
+      {children}
+    </motion.div>
+  );
+}
 
 interface DropdownMenuProps {
   /** Name des Menüs (aria-label des Auslösers). */
@@ -109,10 +119,9 @@ export function DropdownMenu({
 
   const panel = <AnimatePresence>
         {open && (
-          <motion.div ref={panelRef} popover={side === 'right' ? 'manual' : undefined} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className={cn('absolute z-50 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl', side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2', align === 'right' ? 'right-0' : 'left-0', panelClassName)}>
+          <MenuPanel panelRef={panelRef} popover={side === 'right'} className={cn('absolute z-50 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl', side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2', align === 'right' ? 'right-0' : 'left-0', panelClassName)}>
             <CloseContext.Provider value={() => setOpen(false)}>{children}</CloseContext.Provider>
-          </motion.div>
+          </MenuPanel>
         )}
       </AnimatePresence>;
   return (

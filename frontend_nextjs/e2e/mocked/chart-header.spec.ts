@@ -68,9 +68,26 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
       await page.goto(url);
       const el = page.getByTestId(bar);
       await expect(el).toBeVisible();
-      await expect(page.getByTestId('chart-mode-formation')).toBeVisible();
       await expect.poll(() => el.evaluate(e => e.getBoundingClientRect().height), { message: 'Höhe der Kopfleiste' }).toBeLessThanOrEqual(MAX_BAR);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(812);
+      if (name === 'Formation') await expect(page.getByTestId('chart-mode-formation')).toBeVisible();
+      else {
+        // Satır 1 dar (satır 796 px): plan 1106-A4.10 sırası: önce araçlar, Chart/Statistik, en son Zeitraum ok menüsüne girer, Mod ancak sonra daralır.
+        // Burada Mod tam kalır (213 px, üç düğme, oku yok), Aksiyonlar Zeitraum + ok (168 px) olur.
+        for (const m of ['formation', 'setup', 'free']) await expect(page.getByTestId(`chart-mode-${m}`)).toBeVisible();
+        await expect(page.locator('[data-dock-pkg="mode"]').getByTestId('dock-more')).toBeHidden();
+        const actions = page.locator('[data-dock-pkg="actions"]');
+        await expect(actions.getByTestId('range-trigger')).toBeVisible();
+        await expect(actions.getByTestId('dock-more')).toBeVisible();
+        // Aksiyonlar okunun menüsü: tam olarak Chart/Statistik sekmeleri ve araç düğmesi (lisans), bu sırayla (plan 1106-A4.14)
+        await actions.getByTestId('dock-more').click();
+        const items = page.getByTestId('dock-more-menu').locator('button:visible, [role=tab]:visible');
+        expect(await items.evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`))).toEqual([`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`]);
+        await page.getByTestId('dock-more-menu').getByRole('tab', { name: msg('analysis.tab.stats') }).click();
+        await expect(page).toHaveURL(/tab=stats/);
+        await page.getByTestId('chart-mode-formation').click();
+        await expect(page).toHaveURL(/mode=formation/);
+      }
     });
   }
 
@@ -81,7 +98,9 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
       await page.goto(BARS[2].url);
       const bar = page.getByTestId('chart-topbar');
       await expect(bar).toBeVisible();
-      await expect.poll(() => bar.evaluate(e => getComputedStyle(e).display === 'grid')).toBe(short);
+      // S4 (A4.5): iki yönlü, kesin gözlem: Querformat-Leiste uygulanırsa Zeitraum tetikleyicisi 28 px'e kısılır, uygulanmazsa sınırsızdır
+      await expect.poll(() => page.getByTestId('range-trigger').locator('xpath=ancestor::button[1]').evaluate(e => getComputedStyle(e).maxHeight)).toBe(short ? '28px' : 'none');
+      if (short) await expect.poll(() => bar.evaluate(e => e.getBoundingClientRect().height)).toBeLessThanOrEqual(MAX_BAR);
     });
   }
 
