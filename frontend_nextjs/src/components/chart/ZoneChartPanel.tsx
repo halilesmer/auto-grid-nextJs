@@ -552,7 +552,6 @@ export default function ZoneChartPanel({
   const setupSwitches = (idPrefix: string) => (
     <>
       {legendLayers.map(l => <Switch key={l.pref} id={`${idPrefix}-${l.id}`} label={t(l.label)} hint={t(l.hint)} checked={prefs[l.pref]} onChange={v => setPref(l.pref, v)} />)}
-      <Switch id={`${idPrefix}-rsi14`} label={t('analysis.settings.rsi')} hint={t('analysis.settings.rsi.hint')} checked={prefs.showRsi} onChange={v => setPref('showRsi', v)} />
       <Switch id={`${idPrefix}-zone-card`} label={t('analysis.settings.zoneCard')} hint={t('analysis.settings.zoneCard.hint')} checked={prefs.showZoneCard} onChange={v => setPref('showZoneCard', v)} />
       <p className="border-t border-border pt-2 text-[11px] leading-relaxed text-muted-foreground">{t('analysis.settings.fixed')}</p>
     </>
@@ -745,7 +744,6 @@ export default function ZoneChartPanel({
               viewKey={viewKey}
               band={band}
               lines={lines}
-              showRsi={prefs.showRsi}
               live={live}
               markers={overlays.markers}
               links={overlays.links}

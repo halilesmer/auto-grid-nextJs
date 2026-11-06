@@ -157,13 +157,13 @@ test('UI-13 Setup: Legende und Menü zeigen für die Setup-Ebenen denselben Zust
   }
 });
 
-// showZoneCard, RSI(14) und die sechs Setup-Ebenen sind im Setup-Menü erreichbar, bei 1440 und bei 375 px (Menü scrollt)
+// showZoneCard und die sechs Setup-Ebenen sind im Setup-Menü erreichbar, bei 1440 und bei 375 px (Menü scrollt)
 for (const [width, height] of [[1440, 900], [375, 812]] as const) {
   test(`UI-13 Setup ${width} px: jeder Setup-Schalter ist im Menü erreichbar`, { tag: '@UI-13' }, async ({ page, worker }) => {
     await page.setViewportSize({ width, height });
     await open(page, worker, 'Setup', SETUP);
     await openMenu(page);
-    for (const key of ['analysis.settings.zoneLines', 'analysis.settings.levels', 'analysis.settings.trades', 'analysis.settings.orders', 'analysis.settings.history', 'analysis.settings.rsi', 'analysis.settings.zoneCard'] as const) {
+    for (const key of ['analysis.settings.zoneLines', 'analysis.settings.levels', 'analysis.settings.trades', 'analysis.settings.orders', 'analysis.settings.history', 'analysis.settings.zoneCard'] as const) {
       const sw = layerSwitch(page, key);
       await sw.scrollIntoViewIfNeeded();
       await expect(sw).toBeInViewport();

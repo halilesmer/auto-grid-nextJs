@@ -123,9 +123,9 @@
   },
   "ANA-01": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 4
+      "tests": 1
     }
   },
   "ANA-02": {
@@ -255,9 +255,9 @@
   },
   "ANA-17": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 1
+      "tests": 4
     }
   },
   "ANA-18": {
@@ -269,16 +269,16 @@
   },
   "ANA-19": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 4
+      "tests": 2
     }
   },
   "ANA-20": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 1
+      "tests": 5
     }
   },
   "ANA-21": {
@@ -290,9 +290,9 @@
   },
   "ANA-22": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 19
+      "tests": 3
     }
   },
   "ANA-24": {
@@ -928,9 +928,9 @@
   },
   "FRM-20": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 25
+      "tests": 1
     }
   },
   "FRM-21": {
@@ -1036,9 +1036,9 @@
   },
   "FRM-35": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 4
+      "tests": 1
     }
   },
   "FRM-37": {
@@ -1494,16 +1494,16 @@
   },
   "UI-07": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 3
+      "tests": 36
     }
   },
   "UI-08": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 2
+      "tests": 4
     }
   },
   "UI-09": {
@@ -1522,9 +1522,9 @@
   },
   "UI-11": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 1
+      "tests": 4
     }
   },
   "UI-12": {
@@ -1553,6 +1553,13 @@
       "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
+    }
+  },
+  "UI-18": {
+    "e2e": {
+      "datum": "2026-11-06",
+      "status": "passed",
+      "tests": 4
     }
   },
   "UPD-01": {
@@ -1929,9 +1936,9 @@
   },
   "ZON-20": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-06",
       "status": "passed",
-      "tests": 38
+      "tests": 1
     }
   },
   "ZON-21": {

@@ -13,6 +13,8 @@ import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
 import { type ChartScene, type OverlayLine } from '@/components/analysis/chart/ChartCore';
 import { ChartView } from '@/components/chart-page/ChartView';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { isSystemRsi } from '@/lib/chart-workspace/indicators';
+import { RSI_PARAMS } from '@/lib/formation/params';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationDrawingsToggle';
 import { useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
@@ -388,6 +390,11 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
   const source = useConnectionStore(s => s.baseUrl);
   const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
   const overlays = useChartOverlays(contextKey, { formations: true, rsi: true, wave: true });
+  // The formation rules read RSI(7) on close of the chart timeframe: with other settings the RSI pane shows other numbers, so its drawings are hidden
+  const rsiMatches = useChartWorkspaceStore(s => {
+    const config = s.documents[contextKey]?.indicators.find(isSystemRsi);
+    return !config || (config.period === RSI_PARAMS.period && config.source === 'close' && config.timeframe === 0);
+  });
   const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
   const bars = view?.bars ?? NO_BARS;
   // Pausen und Datenlücken wie auf /chart (formationChartData)
@@ -417,7 +424,6 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
       band={null}
       modeSettings={<FormationLineTable />}
       lines={NO_LINES}
-      showRsi
       live={null}
       until={scanAt}
       runningBar={running}
@@ -425,7 +431,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
       trendPath={trendPath}
       toolbarActions={<TrendToggle timeframe={hit.tf} size="xs" />}
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
-      renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi} waveVisible={overlays.wave} others={others} onSelectHit={onSelectHit} atr={atr} />}
+      renderOverlay={(scene) => <FormationOverlay scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} waveVisible={overlays.wave} others={others} onSelectHit={onSelectHit} atr={atr} />}
     />
   );
 }

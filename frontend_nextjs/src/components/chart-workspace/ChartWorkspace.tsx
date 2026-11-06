@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { toast } from '@/components/ui/animated-toast';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
-import { INDICATOR_KINDS, indicatorFormula, isOscillator, newIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -124,26 +124,32 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const locked = preferences.locked;
   const defaults = useMemo(() => {
     // Das System-Wave zeigt schon EWO: kein zweites Histogramm als Nutzer-Indikator
-    const defaultKinds = context.systemRsi ? [newIndicator('EWO')] : [newIndicator('RSI'), newIndicator('EWO')];
-    const indicators = context.systemWave ? [] : defaultKinds;
-    indicators.forEach(v => { v.id = `initial-${v.kind}`; });
-    return { ...emptyChartDocument(), indicators };
+    const others = context.systemWave ? [] : [newIndicator('EWO')];
+    others.forEach(v => { v.id = `initial-${v.kind}`; });
+    // Charts with the system RSI own one RSI with a fixed id; other charts (backtest) keep the old RSI(14) default
+    const rsi = context.systemRsi ? systemRsiIndicator() : newIndicator('RSI');
+    if (!context.systemRsi) rsi.id = 'initial-RSI';
+    return { ...emptyChartDocument(), indicators: context.systemRsi && context.systemWave ? [rsi] : [rsi, ...others] };
   }, [context.systemRsi, context.systemWave]);
-  const ownDocument = state.documents[context.key] ?? defaults;
+  const stored = state.documents[context.key] ?? defaults;
+  // A saved document without the system RSI (older version) gets it at the start; it cannot be deleted, only switched off as a layer
+  const ownDocument = useMemo(() => context.systemRsi && !stored.indicators.some(isSystemRsi) ? { ...stored, indicators: [systemRsiIndicator(), ...stored.indicators] } : stored, [context.systemRsi, stored]);
   const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? (perProduct ? s.documents[context.key]?.appearance ?? s.appearance : s.appearance)));
   const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;
   const sharedDocument = state.documents[drawingKey];
   const doc = useMemo(() => drawingKey === context.key || !sharedDocument ? ownDocument : { ...ownDocument, drawings: sharedDocument.drawings, images: sharedDocument.images }, [drawingKey, context.key, sharedDocument, ownDocument]);
-  const effectiveIndicators = useMemo(() => preferences.indicatorsHidden ? [] : doc.indicators.filter(v => v.id !== 'initial-RSI' || showRsi), [doc.indicators, showRsi, preferences.indicatorsHidden]);
+  const effectiveIndicators = useMemo(() => preferences.indicatorsHidden ? [] : doc.indicators.filter(v => (v.id !== 'initial-RSI' || showRsi) && (!isSystemRsi(v) || (doc.overlays.rsi ?? true))), [doc.indicators, doc.overlays, showRsi, preferences.indicatorsHidden]);
+  // Panes of the document: the system RSI counts only while its layer is on
+  const paneIndicators = useMemo(() => doc.indicators.filter(v => !isSystemRsi(v) || (doc.overlays.rsi ?? true)), [doc.indicators, doc.overlays]);
   const systemModels = useMemo<SystemPaneModel[]>(() => (systemPanes ?? []).map(pane => ({ ...pane, hidden: !!doc.systemPanes?.[pane.id]?.hidden, collapsed: !!doc.systemPanes?.[pane.id]?.collapsed })), [systemPanes, doc.systemPanes]);
   const systemKey = systemModels.map(pane => pane.id).join('|');
   // Pane order from top to bottom (all panes, also hidden ones): the saved order, new panes at the end; the default is RSI(7), Wave, then the user panes
-  const paneOrder = useMemo(() => orderPanes(doc.paneOrder, presentPanes(doc.indicators, systemKey ? systemKey.split('|') as SystemPaneId[] : [])), [doc.paneOrder, doc.indicators, systemKey]);
+  const paneOrder = useMemo(() => orderPanes(doc.paneOrder, presentPanes(paneIndicators, systemKey ? systemKey.split('|') as SystemPaneId[] : [])), [doc.paneOrder, paneIndicators, systemKey]);
   const chartScope = `${context.key}|${timeframeSec}`;
   const maximizedPaneId = maximized?.scope === chartScope ? maximized.paneId : null;
   // Backtest and formation charts show history, so their values never cross a level live.
   const alarmsAvailable = context.view === 'analysis' || context.view === 'free';
-  const names = useMemo(() => indicatorNames(doc.indicators), [doc.indicators]);
+  const names = useMemo(() => indicatorNames(paneIndicators), [paneIndicators]);
 
   useEffect(() => {
     // The library may paint before our preload finishes. Its default reader rejects
@@ -363,7 +369,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const drawings = drawingSnapshot.filter(d => d.points.every(p => typeof p.time !== 'number' || p.time <= until));
   const remaining = countdownNow == null ? null : Math.max(0, timeframeSec - ((countdownNow + elapsed) % timeframeSec));
   const patchIndicators = (change: (indicators: Indicator[]) => Indicator[]) => saveDocument({ ...documentRef.current, indicators: change(documentRef.current.indicators) });
-  const removeIndicators = (ids: Set<string>) => saveDocument({ ...documentRef.current, indicators: documentRef.current.indicators.filter(item => !ids.has(item.id)), alarms: documentRef.current.alarms.filter(alarm => !ids.has(alarm.indicatorId)) });
+  /** The system RSI is never deleted: removing it switches its layer off (same state as the switch in the layers menu). */
+  const removeIndicators = (ids: Set<string>) => saveDocument({ ...(ids.has(SYSTEM_RSI_ID) ? applySystemLayer(documentRef.current, 'rsi', false) : documentRef.current), indicators: documentRef.current.indicators.filter(item => !ids.has(item.id) || isSystemRsi(item)), alarms: documentRef.current.alarms.filter(alarm => !ids.has(alarm.indicatorId)) });
   const changeIndicator = (id: string, change: Partial<Indicator>) => patchIndicators(indicators => indicators.map(item => item.id === id ? { ...item, ...change } : item));
   const sideOf = (indicator: Indicator) => indicator.scaleSide === 'auto' ? appearance.side as 'left' | 'right' : indicator.scaleSide;
   const patchSystemPane = (id: SystemPaneId, change: (state: { hidden?: boolean; collapsed?: boolean }) => { hidden?: boolean; collapsed?: boolean }) => {
@@ -373,7 +380,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const oscillatorActions: OscillatorActions = {
     movePane: (paneId, offset) => {
       const current = documentRef.current, systemIds = SYSTEM_PANE_IDS.filter(id => systemModels.some(pane => pane.id === id));
-      const panes = orderPanes(current.paneOrder, presentPanes(current.indicators, systemIds)), index = panes.indexOf(paneId), target = index + offset;
+      const panes = orderPanes(current.paneOrder, presentPanes(current.indicators.filter(v => !isSystemRsi(v) || (current.overlays.rsi ?? true)), systemIds)), index = panes.indexOf(paneId), target = index + offset;
       if (index < 0 || target < 0 || target >= panes.length) return;
       [panes[index], panes[target]] = [panes[target], panes[index]];
       // The user panes keep the same order in the indicator list, so older readers of the document see the same order
@@ -477,10 +484,15 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       </div>
     </div>
     {binding && !binding.isDisposed() && gesture && <ChartGestureLayer key={`${context.key}-${gesture}`} binding={binding} mode={gesture} digits={digits} cancel={() => setGesture(null)} finishZoom={previous => { zoomActive.current = true; setZoomSnapshot(previous); setGesture(null); arm(null); }} />}
-    {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: [] }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
+    {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: doc.indicators.filter(isSystemRsi) }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
     {settingsOpen && <SettingsDialog initialSection={settingsSection} toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
-    {indicatorsOpen && <IndicatorDialog values={doc.indicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={indicators => saveDocument({ ...documentRef.current, indicators, alarms: documentRef.current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) })} />}
+    {indicatorsOpen && <IndicatorDialog values={paneIndicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={next => {
+      // The dialog does not list the system RSI while its layer is off, and deleting it there only switches the layer off
+      const current = documentRef.current, system = current.indicators.find(isSystemRsi), lost = !!system && !next.some(isSystemRsi);
+      const indicators = lost ? [system, ...next] : next, base = lost && (current.overlays.rsi ?? true) ? applySystemLayer(current, 'rsi', false) : current;
+      saveDocument({ ...base, indicators, alarms: current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) });
+    }} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
       <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id)} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>
       <div className="flex flex-wrap gap-2">{drawings.map(d => <Button key={d.id} size="sm" aria-pressed={selected.includes(d.id)} hint={t('cw.selection.hint')} onClick={() => { manager.current?.select([d.id]); }}>{d.name || t(toolKey(d.kind))}</Button>)}</div>

@@ -22,8 +22,6 @@ export interface AnalysisPrefs {
   showOrders: boolean;
   /** Marktpausen als Trennlinien */
   showPauses: boolean;
-  /** RSI(14) im eigenen Bereich unter den Kerzen */
-  showRsi: boolean;
   /** Abgeschlossene Trades aus dem Archiv als Pfeile im Chart */
   showHistory: boolean;
   /** Fraktale (nur Fraktal-Zonen) */
@@ -72,7 +70,6 @@ const DEFAULTS: AnalysisPrefs = {
   showTrades: true,
   showOrders: true,
   showPauses: true,
-  showRsi: true,
   showHistory: true,
   showFractals: true,
   showGaps: true,
