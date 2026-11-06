@@ -136,3 +136,36 @@ test('Tutamaç menüsü: Boşluğu kapat, Sola al, Sağa al ve Yerleşimi sıfı
   await expect.poll(async () => (await stored(page)).bottom).toEqual(['view', 'indicators', 'edit', 'window']);
   await expect(page.getByText(msg('cw.tbHandle'), { exact: true })).toHaveCount(0);
 });
+
+// R2-05: serbest paket alt çubuğun üstüne binmez (alt sınır = çubuğun üstü)
+const overlap = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+  Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+for (const width of [1100, 375]) {
+  test(`Serbest paket alt çubuğa binmez (${width} px)`, { tag: '@UI-17' }, async ({ page, worker }) => {
+    void worker;
+    await page.setViewportSize({ width, height: 800 });
+    await page.addInitScript(([key]) => {
+      const raw = JSON.parse(localStorage.getItem(key) || '{"version":1}');
+      localStorage.setItem(key, JSON.stringify({ ...raw, version: 1, dockLayout: { row1: ['account'], row2: [], bottom: ['view', 'indicators', 'edit'], free: { window: { x: 0.05, y: 1 } }, pos: {} } }));
+    }, [storageKey] as const);
+    await open(page);
+    const card = (await page.getByTestId('workspace-toolbar').boundingBox())!;
+    const win = await box(page, 'window');
+    // Serbest paket (geniş pencerede) çubuğun üstünde ya da çubuğun içinde (telefonda düzen sabit); iki paket kutusu hiçbir yerde örtüşmez
+    for (const id of ['view', 'indicators', 'edit']) expect(overlap(win, await box(page, id)), `${id} ↔ window`).toBe(0);
+    if (width > 480) expect(win.y + win.height).toBeLessThanOrEqual(card.y + 0.5);
+  });
+}
+
+test('Klavyeyle ↓ ile serbest paket en alta indirilince alt çubuğa binmez', { tag: '@UI-17' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await open(page);
+  await handle(page, 'window').click();
+  await page.getByTestId('dock-move-free').click();
+  await expect(group(page, 'window')).toHaveAttribute('data-zone', 'free');
+  for (let i = 0; i < 12; i++) await page.keyboard.press('Shift+ArrowDown');
+  const card = (await page.getByTestId('workspace-toolbar').boundingBox())!, win = await box(page, 'window');
+  expect(win.y + win.height).toBeLessThanOrEqual(card.y + 0.5);
+  for (const id of ['view', 'indicators', 'edit']) expect(overlap(win, await box(page, id)), `${id} ↔ window`).toBe(0);
+});

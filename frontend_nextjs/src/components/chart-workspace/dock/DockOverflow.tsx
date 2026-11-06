@@ -47,11 +47,15 @@ export function DockOverflow({ content, up, label, children }: { content: RefObj
       </Button>
       {open && createPortal(
         <div ref={list} role="group" aria-label={`${label}: ${t('cw.tbMore')}`} data-testid="dock-more-menu" data-menu={up ? 'up' : 'down'}
-          // Bir düğmeye basınca menü kapanır; açılır menü düğmesi (aria-expanded) kendi paneli için açık kalır
-          onClick={e => { const b = (e.target as HTMLElement).closest('button'); if (b && !b.hasAttribute('aria-expanded')) close(); }}
+          // Bir düğmeye basınca menü kapanır. Kendi açılır paneli olan öğede (Ebenen, Trend ayarları: aria-expanded) menü açık kalır,
+          // yoksa panel içindeki her tıklama paneli de kapatırdı
+          onClick={e => {
+            const target = e.target as HTMLElement, item = [...(list.current?.children ?? [])].find(c => c.contains(target));
+            if (target.closest('button') && item && !item.querySelector('[aria-expanded]')) close();
+          }}
           className={cn('group/tb fixed z-[90] flex max-w-[calc(100vw-16px)] flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-lg')}>
           {children}
-        </div>, document.body,
+        </div>, document.fullscreenElement instanceof HTMLElement ? document.fullscreenElement : document.body,
       )}
     </span>
   );

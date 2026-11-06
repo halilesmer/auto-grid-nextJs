@@ -63,7 +63,10 @@ function freeArea(chart: HTMLElement): FreeArea {
   const page = chart.closest<HTMLElement>('[data-testid="formation-main"]') ?? chart;
   // lg ve üstünde sayfa başlığı grafiğin üstüne biner (ChartPage, --chart-top); serbest paket onun altında başlar
   const inset = window.matchMedia('(min-width: 64rem)').matches ? parseFloat(getComputedStyle(page).getPropertyValue('--chart-top')) || 0 : 0;
-  return { width: chart.clientWidth, height: chart.clientHeight, left: 60, top: 8 + inset, bottom: 8, right: 5 * rem };
+  // Alt çubuk görünürken serbest alan onun üstünde biter (R2-05): çubuk `bottom-8` yukarıda durur ve yüksektir, sabit 8 px paketi üstüne bindirirdi.
+  // Çubuğun üstü aynı zamanda `--workspace-card` ile küçülen grafik alanının alt sınırıdır.
+  const card = chart.querySelector<HTMLElement>('[data-dock-card]'), cardTop = card && card.offsetHeight > 0 ? chart.getBoundingClientRect().bottom - card.getBoundingClientRect().top : 0;
+  return { width: chart.clientWidth, height: chart.clientHeight, left: 60, top: 8 + inset, bottom: Math.max(8, cardTop + 8), right: 5 * rem };
 }
 
 export function DockProvider({ children }: { children: ReactNode }) {
@@ -115,6 +118,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const layoutRow = (zone: DockRowZone) => {
     const row = rows.current[zone], W = row?.clientWidth ?? 0;
     if (!row || W <= 0) return;
+    if (phoneRef.current) { [...row.children].forEach(k => { (k as HTMLElement).style.marginLeft = ''; }); return; }
     const kids = [...row.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.matches('.dock-wrap:not(.dock-src), .dock-ph'));
     const wants = kids.map(k => {
       if (k.classList.contains('dock-ph')) return k.dataset.left ? Number(k.dataset.left) : undefined;
@@ -131,7 +135,8 @@ export function DockProvider({ children }: { children: ReactNode }) {
     if (!row) return;
     const kids = rowEls(zone), ids = kids.map(k => k.dataset.dockWrap as PackageId);
     ids.forEach(id => wraps.current.get(id)?.fit.reset());
-    if (row.clientWidth <= 0) return;
+    // Telefon (kap < 30 rem, plan 1106-A1.5): sabit düzen, satır kırılır, ok menüsü yok
+    if (phoneRef.current || row.clientWidth <= 0) return;
     const need = () => kids.reduce((s, k) => s + k.offsetWidth, 0) + GAP * Math.max(0, kids.length - 1);
     for (let guard = 0; guard < 80 && need() > row.clientWidth; guard++) {
       const id = SHRINK_ORDER.find(x => ids.includes(x) && wraps.current.get(x)?.fit.canHide());

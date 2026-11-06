@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, type ReactNode, type RefObject } from 'react';
+import { cn } from '@/lib/utils';
 import { TOOLBAR_GROUPS, type ToolbarGroupId } from '@/lib/chart-workspace/toolbar';
 import { DockPackage } from './DockPackage';
 import { DockRow } from './DockRow';
@@ -56,7 +57,7 @@ export function DockSurface({ host, symbol, groups, movable, bottomRef }: Props)
     {TOOLBAR_GROUPS.filter(id => groups[id] != null).map(id => <DockPackage key={id} id={id}>{groups[id]}</DockPackage>)}
     {showBottom && (
       <div ref={bottomRef} data-dock-card data-strip="bottom" data-testid="workspace-toolbar"
-        className="pointer-events-auto absolute bottom-8 left-[60px] right-20 z-[53] flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 shadow-lg data-[target=true]:bg-primary/10">
+        className={cn('pointer-events-auto absolute bottom-8 left-[60px] right-20 z-[53] flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 shadow-lg data-[target=true]:bg-primary/10', dock.phone && 'flex-wrap')}>
         <span className="max-w-[30%] shrink-0 truncate text-xs font-medium">{symbol}</span>
         <DockRow zone="bottom" className="outline-none" />
       </div>

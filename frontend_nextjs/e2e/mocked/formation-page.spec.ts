@@ -1916,9 +1916,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
         }
         const tools = page.getByTestId('workspace-toolbar');
         const indicators = tools.getByRole('button', { name: msg('cw.indicators', {}, 'de') });
-        // UI-17 S2: passt der Trend-Schalter nicht in die Leiste, steht er im Pfeilmenü des Pakets (Zeile bricht nie um); dann gilt die Prüfung dem Menü
-        if (!(await page.locator('[data-testid="trend-toggle"]:visible').count())) await page.locator('[data-dock-pkg="indicators"]').getByTestId('dock-more').click();
-        const trend = page.locator('[data-testid="trend-toggle"]:visible');
+        const trend = page.getByTestId('trend-toggle');
         await expect.poll(() => onTop(page, indicators)).toBe(true);
         await expect.poll(() => onTop(page, trend)).toBe(true);
         // Alle Bedienelemente der Kopfleiste bleiben links der Werkzeugleiste oder liegen in einer anderen Zeile
@@ -1931,7 +1929,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
           if (sameRow) expect(c.x + c.width).toBeLessThanOrEqual(box.x);
         }
         // Das Zahnrad öffnet seine Einstellungen ganz im Bild, auch wenn die Leiste unten schwebt
-        await page.locator('[data-testid="trend-settings"]:visible').click();
+        await page.getByTestId('trend-settings').click();
         const settings = page.getByTestId('trend-settings-panel');
         await expect(settings).toBeVisible();
         // Gemessen wird der scrollende Rahmen des Menüs, nicht der (höhere) Inhalt
