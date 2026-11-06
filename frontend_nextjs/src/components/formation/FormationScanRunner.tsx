@@ -108,6 +108,10 @@ interface AlarmRun {
   /** Die Produkte, für die der Alarm jetzt gilt (kann sich mitten im Durchlauf ändern, z. B. Glocke aus) */
   currentSymbols: () => ReadonlySet<string>;
   navigate: (url: string) => void;
+  /** Trendpfad, auf dem dieser Durchlauf vergleicht (`trendFingerprint`) */
+  trendKey: string;
+  /** Der Trendpfad jetzt: ein anderer als `trendKey` heißt, der Durchlauf ist überholt (Einstellung wurde mitten im Durchlauf angewendet) */
+  currentTrendKey: () => string;
 }
 
 /**
@@ -115,6 +119,8 @@ interface AlarmRun {
  * Ein abgebrochener Durchlauf (Kontowechsel, neue Uhr) zählt nicht als erster: sonst kämen die Treffer des nächsten einzeln.
  */
 function flushAlarm(accountId: string, run: { notices: AlarmNotice[]; memory: Record<string, AlarmMemory>; completed: boolean }, alarm: AlarmRun, post: (m: Message) => void) {
+  // Ein Durchlauf auf einem überholten Trendpfad meldet nichts und merkt nichts: sein Stand gehört zu Schlüsseln, die der neue Durchlauf gerade verworfen hat (R1-02)
+  if (alarm.currentTrendKey() !== alarm.trendKey) return;
   const { completed } = run;
   // Ein Produkt, dessen Glocke seit dem Vergleich ausgeschaltet wurde, meldet nichts und behält keinen Stand
   const live = alarm.currentSymbols();
@@ -262,7 +268,8 @@ export default function FormationScanRunner() {
   const { symbols, alarmSymbols } = useMemo(() => {
     const favorite = favoritesKey ? favoritesKey.split('|') : [];
     const bells = bellKey ? bellKey.split('|') : [];
-    return { symbols: [...new Set([...favorite, ...bells])], alarmSymbols: alarmActive ? [...new Set([...(favoritesAlarm ? favorite : []), ...bells])] : [] };
+    // Ohne eingeschalteten Alarm sucht nur die Favoriten-Suche: ein Glocken-Produkt ohne Favorit wird dann nicht geladen (R1-06)
+    return { symbols: [...new Set([...favorite, ...(alarmActive ? bells : [])])], alarmSymbols: alarmActive ? [...new Set([...(favoritesAlarm ? favorite : []), ...bells])] : [] };
   }, [favoritesKey, bellKey, favoritesAlarm, alarmActive]);
   const alarmKey = alarmSymbols.join('|');
   // Der Durchlauf liest die aktuellen Alarm-Produkte über diese Referenz, nicht die beim Start
@@ -334,7 +341,13 @@ export default function FormationScanRunner() {
       post({ type: 'hello', accountId });
     }
     const asSet = (key: string) => new Set(key ? key.split('|') : []);
-    const alarm: AlarmRun = { symbols: asSet(alarmKey), currentSymbols: () => asSet(alarmKeyRef.current), navigate: (url) => router.push(url) };
+    const alarm: AlarmRun = {
+      symbols: asSet(alarmKey),
+      currentSymbols: () => asSet(alarmKeyRef.current),
+      navigate: (url) => router.push(url),
+      trendKey,
+      currentTrendKey: () => trendFingerprint(useAnalysisPrefsStore.getState().trend),
+    };
     // Der Kanal bleibt offen, bis auch ein abgebrochener Durchlauf seine Meldungen verschickt hat (flushAlarm)
     let finished: Promise<void> = Promise.resolve();
     const run = () => {

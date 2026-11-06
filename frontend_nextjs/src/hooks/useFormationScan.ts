@@ -24,6 +24,8 @@ export interface FormationScan {
   scanAt: number | null;
   /** Rechenzeit der letzten Suche in Millisekunden */
   scanMs: number | null;
+  /** Wie oft die Suche dieser Seite gerechnet hat (nur zur Beobachtung in Tests: ein Entwurf darf sie nicht erhöhen) */
+  scanRuns: number;
   digits: number | null;
   /** Laufende Kerze je Zeiteinheit mit dem gemeinsamen Preis, nur zur Anzeige (null: keine) */
   running: Record<ContextTimeframe, Bar | null>;
@@ -38,6 +40,7 @@ interface Settled {
   failed: boolean;
   scanAt: number;
   scanMs: number;
+  runs: number;
 }
 
 const tfData = (data: { bars: Bar[]; liveFrom: number | null } | null) => ({ bars: data?.bars ?? [], liveFrom: data?.liveFrom ?? null });
@@ -104,12 +107,12 @@ export function useFormationScan(
       try {
         const context = new FormationContext(symbol as string, latest.current, { trend });
         const hits = scanFormations(context, at);
-        setSettled({ key, hits, context, failed: false, scanAt: at, scanMs: Math.round(performance.now() - started) });
+        setSettled((prev) => ({ key, hits, context, failed: false, scanAt: at, scanMs: Math.round(performance.now() - started), runs: (prev?.runs ?? 0) + 1 }));
       } catch (err) {
         // Ungültige Kerzen vom Worker (Reihenfolge, NaN): Meldung statt die Seite zu stören; die technische
         // Meldung der Bibliothek ist deutsch und nur für Entwickler, daher nur in der Konsole
         console.error('Formation scan failed', err);
-        setSettled({ key, hits: [], context: null, failed: true, scanAt: at, scanMs: Math.round(performance.now() - started) });
+        setSettled((prev) => ({ key, hits: [], context: null, failed: true, scanAt: at, scanMs: Math.round(performance.now() - started), runs: (prev?.runs ?? 0) + 1 }));
       }
     }, 0);
     return () => clearTimeout(timer);
@@ -136,6 +139,7 @@ export function useFormationScan(
     context: current?.context ?? null,
     scanAt: current?.scanAt ?? null,
     scanMs: current?.scanMs ?? null,
+    scanRuns: settled?.runs ?? 0,
     digits: m15.data?.digits ?? null,
     running,
     hasGaps: beforeHistory || gaps.replace(/[,]/g, '') !== '',
