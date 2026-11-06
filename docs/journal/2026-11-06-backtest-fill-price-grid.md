@@ -27,12 +27,23 @@ The BT-live run 6 left 24 unmatched trades. Ten of them are fill price or spread
 
 The frontend part (PR-B) uses the new columns for D2 (Ask extremes) and D1 (grid fill).
 
+## Solution (PR-B, frontend)
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/lib/backtest/candles/loadRates.ts` | Reads and validates `ahi`, `alo`, `g` (whole numbers, `g` at least 1, `alo` not above `ahi`, `ahi` not below the candle high), converts Ask extremes to prices, merges pages. |
+| `frontend_nextjs/src/lib/backtest/broker/pathBroker.ts` | `beginCandle(…, quotes)`: Ask marks use `ahi`/`alo`, marks and fill prices snap to the grid, the market Ask is the nearest grid Ask clamped to `alo`…`ahi`. Replay minutes clear it. |
+| `frontend_nextjs/src/lib/backtest/runner.ts` | Per minute (tick mode, no replay) builds the quotes; `RunModel.askExtremes` and `RunModel.quoteGrid` (default on); logs `run.quoteGrid` and `run.askExtremesMissing`. |
+| i18n, mock worker, docs | Two log texts and a hint sentence (tr/en/de), mock columns, `docs/analyse-regeln.md`. No new control. |
+
+Decisions: the SL slip stays (half spread), but it is rounded to the grid and never better than the grid level. With `g = 1` (forex, gold) only the Ask extremes apply, so results change only slightly there.
+
 ## Verification
 - pytest `tests/unit/test_quote_grid.py` and `tests/api/test_market_tick_stats_api.py`: red first (14 failed, 3 passed), then green. Whole worker suite: 1062 passed.
+- PR-B: `backtest-fill-grid-lib.spec.ts` and the BKT-22 tests in `backtest-data-lib.spec.ts` red first (14 failed, 2 passed), then green; all other `backtest-*-lib` specs stay green without change.
 - Not verified: the worker on the VPS (the worker cannot run on the Mac).
 
 ## Open points
-- [ ] PR-B (frontend): use `ahi`/`alo`/`g` in the run, and the A/B acceptance run on windows 3, 4 and 5.
+- [ ] A/B acceptance run on windows 3, 4 and 5 (four arms: none, `askExtremes`, `quoteGrid`, both). Window 5 starts before the SL/TP of the opening order is stored (ANA-07), so its start positions stay estimated.
 - [ ] VPS: the first run fetches again all tick ranges stored by BKT-19 and BKT-20 (once). Check the worker log.
 - [ ] A price jump over several grid steps in one tick (USOUSD +16 to +36 points) is not modelled.
 

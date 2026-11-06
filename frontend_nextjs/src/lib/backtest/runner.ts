@@ -12,7 +12,7 @@ import type { CurvePoint } from '@/lib/analysis/curves';
 import type { Trade } from '@/lib/analysis/tradePairing';
 import type { Excursion } from '@/lib/analysis/excursions';
 import { candleSpreadPoints, cents, type SpreadSetting, type SymbolSnapshot } from '@/lib/backtest/broker/costs';
-import { PathBroker, type FillModel, type InitialPosition } from '@/lib/backtest/broker/pathBroker';
+import { PathBroker, type FillModel, type InitialPosition, type MinuteQuotes } from '@/lib/backtest/broker/pathBroker';
 import { tradeOpenAt } from '@/lib/backtest/broker/tradeSessions';
 import type { LoadedRates } from '@/lib/backtest/candles/loadRates';
 import { candleWaypoints, waypointTimes, type PathMode } from '@/lib/backtest/candles/pathModel';
@@ -49,6 +49,10 @@ export interface RunModel {
   tickReplay?: boolean;
   /** BKT-21: Handelsseiten des Brokers (Schnappschuss) anwenden: zu = 10018, nichts löst aus; Standard an, ohne Seiten wirkungslos */
   tradeSessions?: boolean;
+  /** BKT-22: Ask-Marken gegen die echten Ask-Extreme der Minute (nur Spread „tick“, Minuten ohne Replay); Standard an */
+  askExtremes?: boolean;
+  /** BKT-22: Füllpreise und Marken auf dem Kursraster der Minute (nur Spread „tick“, Minuten ohne Replay); Standard an */
+  quoteGrid?: boolean;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -242,6 +246,8 @@ export function runBacktest(input: RunInput): RunResult {
   let replayMinutes = 0;
   let replayTicks = 0;
   let replayMismatches = 0;
+  let gridMinutes = 0;
+  let quotesMissing = 0;
   let closedCandles = 0;
   let partialCandles = 0;
   let prevClose = rates.o[first];
@@ -277,7 +283,32 @@ export function runBacktest(input: RunInput): RunResult {
     }
     // Die Zeitrahmen-Kerzen des Bots tragen wie bei MT5 den Kerzen-Spread (Minimum), nicht den Minutenmittelwert
     const barSpread = input.spread.mode === 'tick' && rates.s[i] > 0 ? rates.s[i] : spreadPoints;
-    broker.beginCandle(t0, rates.o[i], spreadPoints, barSpread);
+    // BKT-22: nur Minuten ohne Replay (dort kommen Bid und Ask aus den Ticks) im Spread-Modus „tick“
+    const replayMinute = input.spread.mode === 'tick' && model.tickReplay !== false && rates.replay?.has(t0) === true;
+    let quotes: MinuteQuotes | undefined;
+    if (input.spread.mode === 'tick' && !replayMinute && (model.askExtremes !== false || model.quoteGrid !== false)) {
+      const askHigh = rates.ahi?.[i];
+      const askLow = rates.alo?.[i];
+      if (askHigh === undefined || askLow === undefined || !Number.isFinite(askHigh) || !Number.isFinite(askLow)) {
+        quotesMissing += 1;
+      } else {
+        const gridPoints = model.quoteGrid !== false && rates.g ? rates.g[i] : 1;
+        const grid = Number.isFinite(gridPoints) && gridPoints > 1 ? gridPoints : 1;
+        const toPoints = (price: number) => Math.round(price / info.point);
+        quotes = {
+          askHigh,
+          askLow,
+          high: rates.h[i],
+          low: rates.l[i],
+          extremes: model.askExtremes !== false,
+          grid,
+          askPhase: grid > 1 ? ((toPoints(askHigh) % grid) + grid) % grid : 0,
+          bidPhase: grid > 1 ? ((toPoints(rates.o[i]) % grid) + grid) % grid : 0,
+        };
+        if (grid > 1) gridMinutes += 1;
+      }
+    }
+    broker.beginCandle(t0, rates.o[i], spreadPoints, barSpread, quotes);
     const way = candleWaypoints(rates.o[i], rates.h[i], rates.l[i], rates.c[i], model.path);
     const times = waypointTimes(way, t0, tEnd);
     const wakes = wakeLevels(zone, info.point, info.digits, broker.spreadPrice);
@@ -329,7 +360,7 @@ export function runBacktest(input: RunInput): RunResult {
       runBot();
     };
 
-    const replay = input.spread.mode === 'tick' && model.tickReplay !== false ? rates.replay?.get(t0) : undefined;
+    const replay = replayMinute ? rates.replay?.get(t0) : undefined;
     let closeBid = rates.c[i];
     if (replay && replay.ms.length > 0) {
       // BKT-20: Rollover-/Sprung-Minute mit den echten Ticks (Bid und Ask getrennt) statt Kerzenweg
@@ -379,6 +410,8 @@ export function runBacktest(input: RunInput): RunResult {
     if (partialCandles > 0) log.add('WARN', 'run.tradeSessionPartial', { candles: partialCandles });
   }
   if (replayMinutes > 0) log.add('INFO', 'run.tickReplay', { minutes: replayMinutes, ticks: replayTicks });
+  if (gridMinutes > 0) log.add('INFO', 'run.quoteGrid', { minutes: gridMinutes });
+  if (quotesMissing > 0) log.add('WARN', 'run.askExtremesMissing', { candles: quotesMissing });
   if (replayMismatches > 0) log.add('WARN', 'run.tickReplayMismatch', { minutes: replayMismatches });
   if (tickFallbacks > 0) log.add('WARN', 'run.tickSpreadFallback', { candles: tickFallbacks, total: total });
   if (spreadFallbacks > 0) log.add('WARN', 'run.spreadFallback', { candles: spreadFallbacks, points: snapshot.spreadPoints });

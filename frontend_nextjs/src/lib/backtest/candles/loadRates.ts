@@ -31,6 +31,10 @@ export interface LoadedRates {
   /** BKT-19 (nur mit `tickSpread`): zeitgewichteter und größter Tick-Spread je Minute in Punkten; NaN = keine Tick-Daten */
   sa?: Float64Array;
   sx?: Float64Array;
+  /** BKT-22 (nur mit `tickSpread`): höchster/niedrigster Ask der Minute als Preis und Kursraster in Punkten (1 = keins); NaN = unbekannt */
+  ahi?: Float64Array;
+  alo?: Float64Array;
+  g?: Float64Array;
   /** BKT-20 (nur mit `tickReplay`): Ticks der Rollover-/Sprung-Minuten, Schlüssel = Minutenbeginn; ms ab Minutenanfang, Preise */
   replay?: Map<number, ReplayMinute>;
   missing: MissingRange[];
@@ -68,6 +72,9 @@ interface Page {
   s?: (number | null)[];
   sa?: (number | null)[];
   sx?: (number | null)[];
+  ahi?: (number | null)[];
+  alo?: (number | null)[];
+  g?: (number | null)[];
   tick_missing?: { reason?: string }[];
   replay?: ReplayColumns;
   missing?: MissingRange[];
@@ -113,6 +120,20 @@ function parsePage(raw: unknown): Page {
   const tickCols = [page.sa, page.sx];
   if (tickCols.some((col) => col !== undefined && (!Array.isArray(col) || col.length !== n || col.some((x) => x !== null && typeof x !== 'number')))) {
     throw new RunError('run.badRatesResponse');
+  }
+  // BKT-22: ahi/alo in ganzen Punkten, g ganzzahlig ≥ 1, alo ≤ ahi, ahi nicht unter dem Kerzenhoch (1 Punkt Spielraum)
+  const quoteCols = [page.ahi, page.alo, page.g];
+  const whole = (x: number | null | undefined) => x === null || x === undefined || Number.isInteger(x);
+  if (quoteCols.some((col) => col !== undefined && (!Array.isArray(col) || col.length !== n || col.some((x) => x !== null && typeof x !== 'number' || !whole(x))))) {
+    throw new RunError('run.badRatesResponse');
+  }
+  for (let i = 0; i < n; i++) {
+    const hi = page.ahi?.[i];
+    const lo = page.alo?.[i];
+    const g = page.g?.[i];
+    if (g !== null && g !== undefined && g < 1) throw new RunError('run.badRatesResponse');
+    if (typeof hi === 'number' && typeof lo === 'number' && lo > hi) throw new RunError('run.badRatesResponse');
+    if (typeof hi === 'number' && typeof page.point === 'number' && page.point > 0 && hi * page.point < page.h[i] - page.point * 1.0001) throw new RunError('run.badRatesResponse');
   }
   if (page.replay !== undefined && !validReplay(page.replay)) throw new RunError('run.badRatesResponse');
   if (page.next_from !== null && typeof page.next_from !== 'number') throw new RunError('run.badRatesResponse');
@@ -162,12 +183,12 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     if (typeof page.live_from === 'number') {
       liveFrom = page.live_from;
       const cut = page.t.indexOf(page.live_from);
-      if (cut >= 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? [], page.sa ?? [], page.sx ?? []]) col.length = Math.min(col.length, cut);
+      if (cut >= 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? [], page.sa ?? [], page.sx ?? [], page.ahi ?? [], page.alo ?? [], page.g ?? []]) col.length = Math.min(col.length, cut);
     }
     // Der Worker richtet `from` nach unten auf das Raster aus: Kerzen davor gehören nicht zum Zeitraum
     const lead = page.t.findIndex((time) => time >= p.from);
     const skip = lead < 0 ? page.t.length : lead;
-    if (skip > 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? [], page.sa ?? [], page.sx ?? []]) col.splice(0, skip);
+    if (skip > 0) for (const col of [page.t, page.o, page.h, page.l, page.c, page.s ?? [], page.sa ?? [], page.sx ?? [], page.ahi ?? [], page.alo ?? [], page.g ?? []]) col.splice(0, skip);
     if (page.replay) {
       const first = page.t[0] ?? Infinity;
       const last = page.t[page.t.length - 1] ?? -Infinity;
@@ -206,6 +227,9 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
   if (p.tickSpread) {
     out.sa = new Float64Array(count).fill(NaN);
     out.sx = new Float64Array(count).fill(NaN);
+    if (pages.some((page) => page.ahi !== undefined)) out.ahi = new Float64Array(count).fill(NaN);
+    if (pages.some((page) => page.alo !== undefined)) out.alo = new Float64Array(count).fill(NaN);
+    if (pages.some((page) => page.g !== undefined)) out.g = new Float64Array(count).fill(NaN);
   }
   let at = 0;
   for (const page of pages) {
@@ -220,6 +244,17 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     for (const [column, target] of [[page.sa, out.sa], [page.sx, out.sx]] as const) {
       column?.forEach((v, i) => {
         if (target && typeof v === 'number') target[at + i] = v;
+      });
+    }
+    // BKT-22: Ask-Extreme in Preise umrechnen (Punkte × Tick), g bleibt in Punkten
+    const step = page.point ?? point;
+    const priceOf = (points: number) => {
+      if (step === null || step === undefined || digits === null) throw new RunError('run.badRatesResponse');
+      return Math.round(points * step * 10 ** digits) / 10 ** digits;
+    };
+    for (const [column, target, convert] of [[page.ahi, out.ahi, true], [page.alo, out.alo, true], [page.g, out.g, false]] as const) {
+      column?.forEach((v, i) => {
+        if (target && typeof v === 'number') target[at + i] = convert ? priceOf(v) : v;
       });
     }
     at += page.t.length;
