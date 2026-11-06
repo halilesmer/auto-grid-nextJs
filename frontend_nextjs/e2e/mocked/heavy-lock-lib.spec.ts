@@ -63,6 +63,15 @@ async function waitFor(cond: () => boolean, ms = 10_000) {
 }
 
 /**
+ * Wartet, bis die Hülle ihren Befehl gestartet hat. `owner` wird VOR dem Befehl geschrieben: ein
+ * `pkill -P` direkt nach `owner` kann ins Leere gehen (unter Last, R3-Nachlauf), und dann hält
+ * bash das TERM-Signal zurück, bis das 30 s lange `sleep` endet.
+ */
+async function waitForCommand(wrapperPid: number | undefined) {
+  await waitFor(() => spawnSync('pgrep', ['-P', String(wrapperPid)]).stdout.length > 0);
+}
+
+/**
  * Sperre so anlegen, wie ein laufender anderer Prozess sie hält (Format von heavy-run.sh).
  * Halter ist ein eigenes `sleep`, kein Vorfahr der Hülle: process.pid wäre ein Vorfahr, und dann
  * liefe die Hülle per Wiedereintritt ohne Warten.
@@ -141,6 +150,7 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
   test('SIGTERM gibt die Sperre frei', async () => {
     const a = runAsync(['sleep', '30']);
     await waitFor(() => existsSync(path.join(lockDir, 'owner')));
+    await waitForCommand(a.child.pid);
     spawnSync('pkill', ['-TERM', '-P', String(a.child.pid)]); // Befehl endet, Hülle läuft weiter
     a.child.kill('SIGTERM');
     const ra = await a.done;
@@ -264,6 +274,7 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     expect(owner).toMatch(/^\d+ \S+ \d\d:\d\d:\d\d ls=\S+$/);
     expect(owner.split(' ')[0]).toBe(String(a.child.pid));
     expect(owner.split(' ')[3]).toBe(`ls=${lstartOf(a.child.pid as number)}`);
+    await waitForCommand(a.child.pid);
     spawnSync('pkill', ['-P', String(a.child.pid)]);
     await a.done;
   });

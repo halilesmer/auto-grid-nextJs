@@ -33,6 +33,7 @@ mkdir -p "$REPORTS"
 cmd="${1:-all}"
 filter="${2:-}"
 rc=0
+ran_any=0   # mindestens eine Ebene hat mindestens einen Test ausgeführt (R3-08)
 
 run_pytest() {  # $1 = tier (unit|api)
   local tier="$1"
@@ -45,6 +46,7 @@ run_pytest() {  # $1 = tier (unit|api)
       --junitxml="$REPORTS/$tier.xml" ${filter:+--feature "$filter"})
   local status=$?
   # 5 = keine Tests für diesen Filter auf dieser Ebene (kein Fehler)
+  [ "$status" -eq 0 ] && ran_any=1
   [ "$status" -eq 0 ] || [ "$status" -eq 5 ] || rc=1
 }
 
@@ -57,13 +59,25 @@ run_playwright() {  # $1 = tier (e2e|live), $2 = Playwright-Projekt
   echo "• $tier: playwright --project=$project ${filter:+(Filter $filter)}"
   local live=0
   [ "$tier" = live ] && live=1
+  # Alten Bericht löschen: sonst läse pw_stats nach einem abgebrochenen Lauf die Zahlen des letzten (R3-08)
+  rm -f "$REPORTS/$tier.json"
   (cd "$FRONTEND" && E2E_LIVE=$live PLAYWRIGHT_JSON_OUTPUT_NAME="$REPORTS/$tier.json" \
       npx playwright test --project="$project" --reporter=list,json --pass-with-no-tests \
       ${filter:+--grep "@$filter"}) || rc=1
-  # Ohne Filter muss mindestens ein Test laufen; 0 Tests ist kein grüner Lauf (hooks/RULES.md §4.9)
-  if [ -z "$filter" ]; then
-    "$PY" "$ROOT/scripts/features/pw_stats.py" "$REPORTS/$tier.json" >/dev/null
-    [ $? -eq 3 ] && { echo "• $tier: KEIN Test ausgeführt" >&2; rc=1; }
+  # Ohne Filter muss mindestens ein Test laufen; 0 Tests ist kein grüner Lauf (hooks/RULES.md §4.9).
+  # Mit Filter darf eine einzelne Ebene leer sein (ENG-05 hat keine e2e-Tests), aber nicht alle zusammen.
+  "$PY" "$ROOT/scripts/features/pw_stats.py" "$REPORTS/$tier.json" >/dev/null 2>&1
+  local st=$?
+  if [ ! -f "$REPORTS/$tier.json" ]; then
+    echo "• $tier: kein Playwright-Bericht (Lauf abgebrochen?)" >&2; rc=1
+  fi
+  [ "$st" -ne 3 ] && ran_any=1   # 0 = Tests liefen, 1 = Tests fehlgeschlagen (rc steht schon auf 1)
+  if [ "$st" -eq 3 ]; then
+    if [ -z "$filter" ]; then
+      echo "• $tier: KEIN Test ausgeführt" >&2; rc=1
+    else
+      echo "• $tier: kein Test für Filter $filter auf dieser Ebene"
+    fi
   fi
 }
 
@@ -103,6 +117,15 @@ case "$cmd" in
   sign)   exec "$PY" "$GEN" --sign "${2:?ID fehlt}" "${3:?STATUS fehlt}" ${4:+--notiz "$4"} ;;
   render) ;;
   *) sed -n '2,14p' "$0"; exit 2 ;;
+esac
+
+# Ein Filter (ID oder Kategorie), zu dem keine Ebene einen Test ausgeführt hat, ist ein Fehler (R3-08)
+case "$cmd" in
+  all|unit|api|e2e|live)
+    if [ -n "$filter" ] && [ "$ran_any" -eq 0 ]; then
+      echo "FEHLER: kein Test für den Filter \"$filter\" ausgeführt (Tippfehler im Kürzel? docs/features/features.yaml prüfen)" >&2
+      rc=1
+    fi ;;
 esac
 
 "$PY" "$GEN" || rc=1
