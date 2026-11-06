@@ -1,5 +1,6 @@
 'use client';
 
+import { useInContextMenu } from '@/components/ui/context-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import { dashOf, type LineKind, type LineStyleSpec, type LineWidth } from '@/lib/formation/lineStyle';
@@ -18,7 +19,7 @@ const COLORS: { value: string; key: MessageKey }[] = [
 const TYPES: LineKind[] = ['solid', 'dashed', 'dotted'];
 const WIDTHS: LineWidth[] = [1, 2, 3, 4];
 
-const pill = 'inline-flex h-7 min-w-8 cursor-pointer items-center justify-center rounded-md border border-border px-2 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const pill = 'inline-flex h-7 min-w-8 cursor-pointer items-center justify-center rounded-md border border-muted-foreground/50 px-2 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 interface Props {
   spec: LineStyleSpec;
@@ -36,6 +37,10 @@ interface Props {
 /** Farbe, Typ und Dicke einer Linie. Menü und Einstellungstabelle benutzen diese eine Komponente (Plan 1105-A7). */
 export function LineStyleControls({ spec, onChange, auto = 'theme', layout = 'stack', colorOnly = false, colorLabel = 'lineStyle.color' }: Props) {
   const t = useT();
+  // Im Kontextmenü tragen die Wahlknöpfe Menü-Rollen, in der Tabelle bleiben es Schaltflächen (R2-03)
+  const inMenu = useInContextMenu();
+  const pick = (on: boolean) => (inMenu ? { role: 'menuitemradio' as const, 'aria-checked': on } : { 'aria-pressed': on });
+  const customHex = /^#[\da-f]{3}([\da-f]{3})?$/i.test(spec.color);
   const group = (label: MessageKey, children: React.ReactNode) => (
     <div role="group" aria-label={t(label)} className={cn('flex flex-col gap-1', layout === 'stack' ? 'px-2 py-1' : 'min-w-0')}>
       <span className="text-[11px] text-muted-foreground">{t(label)}</span>
@@ -48,9 +53,9 @@ export function LineStyleControls({ spec, onChange, auto = 'theme', layout = 'st
       <button
         type="button"
         aria-label={t(key)}
-        aria-pressed={spec.color === value}
+        {...pick(spec.color === value)}
         onClick={() => onChange({ color: value })}
-        className={cn('size-5 cursor-pointer rounded-md border border-border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', spec.color === value && 'ring-2 ring-primary ring-offset-1 ring-offset-popover')}
+        className={cn('size-5 cursor-pointer rounded-md border border-muted-foreground/50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', spec.color === value && 'ring-2 ring-primary ring-offset-1 ring-offset-popover')}
         style={value ? { backgroundColor: value } : { backgroundImage: 'repeating-linear-gradient(45deg, var(--card) 0 4px, var(--border) 4px 8px)' }}
       />
     </Tooltip>
@@ -60,14 +65,14 @@ export function LineStyleControls({ spec, onChange, auto = 'theme', layout = 'st
       {group(colorLabel, <>
         {swatch('', autoKey)}
         {COLORS.map(c => swatch(c.value, c.key))}
-        <RowColor name="lineStyle.custom" value={spec.color} onChange={v => onChange({ color: v })} />
+        <RowColor name="lineStyle.custom" value={spec.color} empty={!customHex} role={inMenu ? 'menuitem' : undefined} onChange={v => onChange({ color: v })} />
       </>)}
       {!colorOnly && group('lineStyle.type', TYPES.map(kind => (
         <Tooltip key={kind} content={t(`lineStyle.type.${kind}.hint` as MessageKey)}>
           <button
             type="button"
             aria-label={t(`lineStyle.type.${kind}` as MessageKey)}
-            aria-pressed={spec.style === kind}
+            {...pick(spec.style === kind)}
             onClick={() => onChange({ style: kind })}
             className={cn(pill, 'w-11', spec.style === kind ? 'bg-primary text-primary-foreground' : 'bg-popover text-foreground hover:bg-accent')}
           >
@@ -80,7 +85,7 @@ export function LineStyleControls({ spec, onChange, auto = 'theme', layout = 'st
           <button
             type="button"
             aria-label={t('lineStyle.width.option', { n })}
-            aria-pressed={spec.width === n}
+            {...pick(spec.width === n)}
             onClick={() => onChange({ width: n })}
             className={cn(pill, spec.width === n ? 'bg-primary text-primary-foreground' : 'bg-popover text-foreground hover:bg-accent')}
           >
