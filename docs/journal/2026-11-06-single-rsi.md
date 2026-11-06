@@ -27,7 +27,7 @@ Design: https://claude.ai/artifact/35TMPfFuWY68Rh5jRTi7iH (canvas `Main.dc.html`
 | `useAnalysisPrefsStore`, `ZoneChartPanel`, `app/chart/page.tsx` | switch "RSI (14)" and `showRsi` removed (`BacktestChart` keeps `showRsi={false}` on `ChartCore`) |
 
 ## Why
-- A2.5: the formation scanner always uses `RSI_PARAMS` (7, close, 80/20, rule of Bora). The pane setting changes only the RSI the user sees.
+- A2.5: the formation scanner always uses `RSI_PARAMS` (7, close, 80/20, the formation rules). The pane setting changes only the RSI the user sees.
 - A2.6: no volume source and no VWMA, because the candles have no volume.
 - A2.7: merging EWO and Wave 5/35 is not part of this plan. Wave stays a system pane.
 - The delete menu item reuses the existing text "hide layer" (`cw.legend.hideLayer`), not a new "close layer" text.
