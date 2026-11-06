@@ -53,11 +53,11 @@ function RowRange({ name, value, onChange }: { name: MessageKey; value: number; 
   const t = useT();
   return <Tooltip content={t(`${name}.hint` as MessageKey)}><input aria-label={t(name)} className="h-8 w-24 accent-foreground" type="range" min={0} max={100} value={value} onChange={e => onChange(Number(e.target.value))} /></Tooltip>;
 }
-export function RowColor({ name, value, onChange }: { name: MessageKey; value: string; onChange: (v: string) => void }) {
+export function RowColor({ name, value, onChange, empty = false, role }: { name: MessageKey; value: string; onChange: (v: string) => void; /** Kein eigener Wert gewählt: gestrichelt statt Grau zeigen (R2-08) */ empty?: boolean; role?: 'menuitem' }) {
   // Der Produktions-Build kürzt CSS-Farben (#ffffff → #fff); input[type=color] kennt nur die Langform.
   const long = value.replace(/^#([\da-f])([\da-f])([\da-f])$/i, '#$1$1$2$2$3$3');
   const t = useT(), safe = /^#[\da-f]{6}$/i.test(long) ? long : '#808080';
-  return <Tooltip content={t(`${name}.hint` as MessageKey)}><span className="relative block size-8 rounded-md border border-border p-1 focus-within:ring-2 focus-within:ring-ring"><span className="block size-full rounded-sm" style={{ backgroundColor: safe }} /><input aria-label={t(name)} className="absolute inset-0 size-full cursor-pointer opacity-0" type="color" value={safe} onChange={e => onChange(e.target.value)} /></span></Tooltip>;
+  return <Tooltip content={t(`${name}.hint` as MessageKey)}><span data-empty={empty || undefined} className="relative block size-8 rounded-md border border-muted-foreground/50 p-1 focus-within:ring-2 focus-within:ring-ring"><span className="block size-full rounded-sm" style={empty ? { backgroundImage: 'repeating-linear-gradient(45deg, var(--card) 0 4px, var(--border) 4px 8px)' } : { backgroundColor: safe }} /><input aria-label={t(name)} role={role} className="absolute inset-0 size-full cursor-pointer opacity-0" type="color" value={safe} onChange={e => onChange(e.target.value)} /></span></Tooltip>;
 }
 
 const SECTION_ICONS: Record<Section, LucideIcon> = { symbol: CandlestickChart, status: AlignLeft, scales: Ruler, canvas: Paintbrush, overlays: Layers };
