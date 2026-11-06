@@ -29,12 +29,13 @@ async function dragTo(page: Page, id: string, testId: string) {
   await page.mouse.up();
 }
 
-test('Varsayılan: zaman dilimleri ve formasyonlar Satır 2\'de, Satır 1 paketsiz', { tag: '@UI-17' }, async ({ page, worker }) => {
+test('Varsayılan: zaman dilimleri ve formasyonlar Satır 2\'de, Satır 1 = mod, ürün, hesap, aksiyonlar', { tag: '@UI-17' }, async ({ page, worker }) => {
   void worker;
   await open(page);
   await expect(row(page, 'row2').locator('[data-dock-pkg="timeframes"]')).toBeVisible();
   await expect(row(page, 'row2').locator('[data-dock-pkg="formations"]')).toBeVisible();
-  await expect(row(page, 'row1')).toBeHidden();
+  // Satır 1'in görünen sırası tam bu dört öğe (hesap paket değil, sabit çapa)
+  expect(await row(page, 'row1').locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.dockWrap))).toEqual(['mode', 'symbol', 'account', 'actions']);
   await expect(pkg(page, 'timeframes')).toHaveAttribute('aria-label', msg('cw.tbGroup.timeframes'));
 });
 
@@ -100,13 +101,13 @@ test('Bir araç grubunu Satır 2\'ye taşı (menü ve ↑/↓), yeniden yükle: 
   await expect(row(page, 'bottom').locator('[data-dock-pkg="edit"]')).toBeVisible();
 });
 
-test('Frei modunda Satır 2 yok: oradaki araç grubu alt çubuğa düşer, kayıt kalır', { tag: '@UI-17' }, async ({ page, worker }) => {
+test('Frei modunda da Satır 2 var: oradaki paket Frei\'de de Satır 2\'de görünür, kayıt kalır', { tag: '@UI-17' }, async ({ page, worker }) => {
   void worker;
   await open(page);
   await handle(page, 'edit').click();
   await page.getByTestId('dock-move-row2').click();
   await expect.poll(async () => (await stored(page))?.row2).toContain('edit');
   await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
-  await expect(row(page, 'bottom').locator('[data-dock-pkg="edit"]')).toBeVisible();
+  await expect(row(page, 'row2').locator('[data-dock-pkg="edit"]')).toBeVisible();
   expect((await stored(page)).row2).toContain('edit');
 });

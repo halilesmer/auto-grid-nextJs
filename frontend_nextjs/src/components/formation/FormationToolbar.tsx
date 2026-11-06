@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { DockAnchor } from '@/components/chart-workspace/dock/DockAnchor';
 import { DockPackage } from '@/components/chart-workspace/dock/DockPackage';
 import { useDock } from '@/components/chart-workspace/dock/DockProvider';
 import { DockRow } from '@/components/chart-workspace/dock/DockRow';
@@ -33,6 +34,7 @@ export const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground
  * Zeile 2: die Pakete in Zeile 2 (`DockRow`), standardmäßig die Zeiteinheiten und die Formationen. Beide sind Pakete (`DockPackage`, Tutamaç, Pfeil-Menü):
  * der Inhalt bleibt, nur der Behälter ändert sich. Das gewählte Element trägt `data-keep` und wandert nie ins Pfeil-Menü. Die Badges zählen Treffer (gültig, oder im Aufbau mit
  * vorletztem Punkt) über alle Zeiteinheiten bzw. Formationen; mit Favoriten (FRM-29) steht deren Ansicht im Paket.
+ * Zeile 1 (S4): Modus, Produkt (Symbol), Konto (feste Verankerung, kein Paket) und Aktionen sind ebenfalls Pakete bzw. die Verankerung in einer einzigen `DockRow`; sie bricht nie um.
  * Auf dem Handy (Container unter 30 rem, Plan A1.5) gilt die feste Anordnung wie bisher: Zeiteinheiten neben den Aktionen, Formationen darunter, ohne Pakete. Die Zeilen zerfallen dort nicht in Raster.
  * Rechts bleibt ab der Container-Schwelle Platz für die Werkzeuge des ChartWorkspace; die Leiste reicht Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie).
  */
@@ -45,7 +47,9 @@ export function FormationToolbar({
   actions,
   timeframes,
   forms,
-  children,
+  mode,
+  symbol,
+  account,
 }: {
   hits: readonly ScanHit[];
   tf: ContextTimeframe;
@@ -57,7 +61,10 @@ export function FormationToolbar({
   forms?: ReactNode;
   /** Knöpfe in Zeile 1 (z. B. Bild der Formation) */
   actions?: ReactNode;
-  children: ReactNode;
+  /** Modus (selbst ein Paket, sobald angedockt), Symbol (Produkt-Paket, null = nicht zeigen) und Konto (feste Verankerung) */
+  mode: ReactNode;
+  symbol: ReactNode;
+  account: ReactNode;
 }) {
   const t = useT();
   const dock = useDock();
@@ -105,27 +112,46 @@ export function FormationToolbar({
         : <div className="pointer-events-auto min-w-0 border-b border-border">{forms}</div>;
     }
   } else formsNode = docked ? <DockPackage id="formations" testId="formation-forms">{formButtons}</DockPackage> : phoneForms;
+  if (docked) {
+    return (
+      <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
+        {/* Zeile 1 (UI-17, S4): eine einzige DockRow, nie umbrechend; der Wrapper trägt die alte Kennung der Auswahlzeile */}
+        <div className="flex min-h-[38px] min-w-0 items-center border-b border-border px-2 short:min-h-0" data-testid="formation-topbar">
+          <div className="flex min-w-0 flex-1 items-center" data-testid="formation-selectors">
+            <DockRow zone="row1" className="min-h-[38px] short:min-h-7" />
+          </div>
+        </div>
+        <DockRow zone="row2" className="w-full flex-none rounded-none border-b border-border px-2" />
+        {timeframesNode}
+        {formsNode}
+        {mode}
+        {symbol && <DockPackage id="symbol"><div className="w-44 min-w-0" data-keep="">{symbol}</div></DockPackage>}
+        <DockAnchor className="w-44 min-w-40 px-1">{account}</DockAnchor>
+        {actions && <DockPackage id="actions">{actions}</DockPackage>}
+      </div>
+    );
+  }
   return (
     <div className="pointer-events-none bg-background" data-testid="formation-toolbar">
       {/* Zeile 1. Querformat des Handys und 48–91rem (bar2): eine Reihe ohne Umbruch; darunter bricht die Auswahl um (Tablet) */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-1 border-b border-border px-2 bar2:flex-nowrap lg:min-h-[38px] lg:flex-nowrap" data-testid="formation-topbar">
         <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full max-lg:flex-wrap max-lg:py-1 bar2:w-auto bar2:flex-nowrap bar2:py-0.5 bar2:@min-[71rem]/formation-main:min-h-[38px] lg:h-auto lg:flex-nowrap" data-testid="formation-selectors">
-          {children}
+          {mode}
+          {symbol}
+          {account}
         </div>
         <span className="mx-1 hidden h-[22px] w-px shrink-0 bg-border lg:block bar2:hidden" aria-hidden="true" />
-        {(actions || (!docked && timeframesNode)) && (
+        {(actions || timeframesNode) && (
           <div className="pointer-events-auto flex min-w-0 items-center gap-1 max-lg:w-full bar2:w-auto">
-            {!docked && timeframesNode}
+            {timeframesNode}
             {actions && <div className="contents">{actions}</div>}
           </div>
         )}
-        {/* Satır 1'in paket bölgesi (UI-17): başlıkta kalan genişlik; paket yokken gizli */}
+        {/* Satır 1'in paket bölgesi (UI-17): Provider varsa ve Handy ise leer/versteckt */}
         <DockRow zone="row1" className="bar2:min-h-[38px]" />
       </div>
       {/* Satır 2 (UI-17, S3): paketi yoksa gizli, sürüklerken bırakma yeri olarak görünür; Formation modunun başlığında bulunur */}
-      {docked ? <DockRow zone="row2" className="w-full flex-none rounded-none border-b border-border px-2" /> : formsNode}
-      {docked && timeframesNode}
-      {docked && formsNode}
+      {formsNode}
     </div>
   );
 }

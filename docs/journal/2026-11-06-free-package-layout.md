@@ -95,6 +95,31 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 - `FormationToolbar` no longer has the `bar2` grid. Row 1: selectors, actions, `DockRow row1`. Row 2: `DockRow row2` (hidden when empty, visible while dragging). Each element is in the DOM once, in the visible order. `useBar2` is gone. `ChartPage` measures the header height, so `--chart-top` follows the height of row 2.
 - Phone (container below 30 rem, decision A1.5): the old fixed order stays (timeframes next to actions, the formations strip below). It is rendered without packages when `dock.phone` is true.
 
+## Solution (S4)
+
+- Row 1 is one `DockRow` in all three modes. The default order is `mode`, `symbol`, `account`, `actions`. The account and the DEMO mark are `DockAnchor`: a fixed item with no handle. It is not in the arrow menu and it holds a place in the row order (`registerAccount` in `DockProvider`). Arrow keys and the drop target count it as a neighbor.
+- `mode`: `ChartModeSegment` is a package with one button per mode. The selected mode has `data-keep`. `symbol`: the symbol field in Formation and Free, the setup select in Setup. `actions` in Formation: the as-of steps, the picture menu, the alarm menu and the status chip.
+- Decision 1106-A4.1: in Setup and Free the `actions` package holds the date range (Zeitraum), the Chart/Statistik tabs and the tool buttons (license note). Zeitraum and Chart/Statistik have `data-keep`. The sentence "formations and actions are not shown in Setup and Free" applies to the Formation action buttons only. A fixed group in row 2 would be a second anchor and would keep row 2 open in Setup and Free.
+- Setup and Free have row 2 (`DockRow row2`). The `timeframes` package holds `TimeframeSelect` there. Row 2 is hidden when no package is in it. With the default layout the timeframe select moves from row 1 to row 2 in these modes.
+- The Statistik view has no `DockProvider` (flat bar). It keeps the old bar, so the Chart tab stays visible.
+- Below 30 rem the old fixed phone layout stays. `FormationToolbar` takes `mode`, `symbol` and `account` props instead of `children`. On the dock path the wrapper `formation-selectors` holds the `DockRow`, so the tests that measure row 1 use the same id.
+- Decision 1106-A4.2: at 812 x 375 the row is 796 px wide. The content is 960 px: mode 190, product 221, account 156, date range 222, Chart/Statistik 171. The shrink order is followed: the mode package keeps only the selected button and the arrow. The test `812 × 375 … höchstens 66 px` now checks: height at most 66 px, the selected mode is visible, the arrow menu holds exactly the other two modes in order, and a click on `formation` changes the URL. The Formation branch is unchanged.
+
+- Decision 1106-A4.3: row 1 must not wrap and must not change height with width. Measured row 1 height at 1440 px and at 720 px: Formation 38 and 38, Setup 46 and 46, Free 46 and 46. The 46 px in Setup and Free comes from the Chart/Statistik tabs (36 px) and the date range button (32 px), not from wrapping. The old limit of 40 px was a wrong guess. The test `(h)` checks `h720 toBe h1440` for each mode.
+- Decision 1106-A4.4: at 812 x 375 the legend of Setup stays in the same line as row 2 (fixed tail, scrolls sideways), as the old grid did. Row 1 (31 px) and row 2 with the legend (33 px) keep the bar under 66 px. The package box test uses `toBeLessThanOrEqual` (a box can only get shorter when long buttons go into the arrow menu; inner wrapping would make it longer).
+
+### Changed tests
+
+| Test | Old | New | Why |
+|---|---|---|---|
+| `chart-header` 812 × 375 Setup / Free | `chart-mode-formation` visible | selected mode visible, arrow menu = other two modes (`toEqual`), click switches to Formation | A4.2: row is 796 px, content 960 px |
+| `chart-header` "Querformat-Leiste" | `display: grid` on the bar | height at most 66 px (short), not grid (other sizes) | the dock bar has no grid |
+| `chart-dock-formation` default | row 1 hidden | row 1 order `['mode','symbol','account','actions']` | row 1 holds the new items |
+| `chart-dock-formation` "Frei: no row 2" | row 2 packages fall to the bottom bar | row 2 exists in Free | S4 gives Setup and Free a row 2 |
+| `chart-dock` keyboard | Up from bottom goes to row 1 | Up goes to row 2, then row 1 | row 2 exists in Setup and Free |
+| `chart-toolbar-groups` default | row 1 hidden | row 1 order `toEqual` | as above |
+| `chart-toolbar-groups` keyboard | 2 x Down reaches "drop on chart" | 3 x Down | the handle menu has "row 2" in Free |
+
 ## Risks
 
 - The header gap was tuned at many window widths (UI-14, UI-15, FRM-23, FRM-38). The groups move into the row. These measures change. Do not relax tests. Each PR says what changed and why.
@@ -111,5 +136,5 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 
 ## Open points
 
-- [ ] S4 to S6.
+- [ ] S5 and S6.
 - [ ] Touch drag on a real phone (owner).

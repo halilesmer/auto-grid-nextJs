@@ -68,9 +68,23 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
       await page.goto(url);
       const el = page.getByTestId(bar);
       await expect(el).toBeVisible();
-      await expect(page.getByTestId('chart-mode-formation')).toBeVisible();
       await expect.poll(() => el.evaluate(e => e.getBoundingClientRect().height), { message: 'Höhe der Kopfleiste' }).toBeLessThanOrEqual(MAX_BAR);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(812);
+      if (name === 'Formation') await expect(page.getByTestId('chart-mode-formation')).toBeVisible();
+      else {
+        // Satır 1 dar (Mod 190, Ürün 221, Hesap 156, Zeitraum 222, Chart/Statistik 171 px; satır 796 px): Mod tek düğmeye daralır (plan 1106-A4.2).
+        // Seçili mod satırda kalır, Mod okunun menüsünde tam olarak diğer iki mod bulunur.
+        const selected = name === 'Setup' ? 'setup' : 'free', others = name === 'Setup' ? ['formation', 'free'] : ['formation', 'setup'];
+        await expect(page.getByTestId(`chart-mode-${selected}`)).toBeVisible();
+        await expect(page.getByTestId(`chart-mode-${others[0]}`)).toBeHidden();
+        const more = page.locator('[data-dock-pkg="mode"]').getByTestId('dock-more');
+        await expect(more).toBeVisible();
+        await more.click();
+        const menu = page.getByTestId('dock-more-menu');
+        expect(await menu.locator('button:visible').evaluateAll(b => b.map(x => x.getAttribute('data-testid')))).toEqual(others.map(m => `chart-mode-${m}`));
+        await menu.getByTestId('chart-mode-formation').click();
+        await expect(page).toHaveURL(/mode=formation/);
+      }
     });
   }
 
@@ -81,7 +95,9 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
       await page.goto(BARS[2].url);
       const bar = page.getByTestId('chart-topbar');
       await expect(bar).toBeVisible();
-      await expect.poll(() => bar.evaluate(e => getComputedStyle(e).display === 'grid')).toBe(short);
+      // S4 (A4.5): iki yönlü, kesin gözlem: Querformat-Leiste uygulanırsa Zeitraum tetikleyicisi 28 px'e kısılır, uygulanmazsa sınırsızdır
+      await expect.poll(() => page.getByTestId('range-trigger').locator('xpath=ancestor::button[1]').evaluate(e => getComputedStyle(e).maxHeight)).toBe(short ? '28px' : 'none');
+      if (short) await expect.poll(() => bar.evaluate(e => e.getBoundingClientRect().height)).toBeLessThanOrEqual(MAX_BAR);
     });
   }
 
