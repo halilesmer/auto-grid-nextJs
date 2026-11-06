@@ -7,12 +7,14 @@
  * R3-03 viele Wartende vor einer toten Sperre betreten den kritischen Bereich nie gemeinsam;
  * R3-04 owner trägt die Startzeit des Halters (4. Feld), eine wiederverwendete pid gilt als veraltet
  * und wird nie beendet, ein owner ohne 4. Feld (älteres Skript) bleibt gültig;
- * R3-10 „Operation not permitted“ bei kill -0 heißt: der Halter lebt.
+ * R3-10 „Operation not permitted“ bei kill -0 heißt: der Halter lebt;
+ * FIFO Wartende bekommen die Sperre in Ankunftsreihenfolge; die Fahrkarte eines getöteten Wartenden hält die
+ * Schlange nicht auf; ein älteres Skript ohne Fahrkarte verklemmt nichts.
  *
  * Jeder Test nimmt ein eigenes Sperrverzeichnis (HEAVY_LOCK_DIR), nie /tmp/gridrobot-heavy.lock.
  */
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -51,7 +53,7 @@ function runAsync(args: string[], extra: Record<string, string> = {}) {
   const done = new Promise<{ code: number | null; stderr: string }>((resolve) =>
     child.on('exit', (code) => resolve({ code, stderr })),
   );
-  return { child, done };
+  return { child, done, err: () => stderr };
 }
 
 async function waitFor(cond: () => boolean, ms = 10_000) {
@@ -389,5 +391,70 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
       expect(line, dbg).toMatch(/done=15 /); // alle 15 liefen
       expect(line, dbg).toMatch(/stale=1$/); // die tote Sperre wurde genau einmal gelöscht
     }
+  });
+
+  /** Anzahl lebender Fahrkarten in <sperre>.queue */
+  const tickets = () => {
+    const q = `${lockDir}.queue`;
+    return existsSync(q) ? readdirSync(q).filter((f) => !f.startsWith('.')).length : 0;
+  };
+
+  test('FIFO: A, B, C warten in dieser Reihenfolge und laufen in dieser Reihenfolge', async () => {
+    const log = path.join(work, 'order');
+    const job = (n: string) => ['bash', '-c', `echo ${n} >> "${log}"; sleep 0.2`];
+    const holder = holdLock();
+    // Sequenziell aufbauen: der Nächste startet erst, wenn der Vorherige seinen Platz gemeldet hat
+    const a = runAsync(job('A'));
+    await waitFor(() => tickets() === 1 && /1\. Stelle der Schlange/.test(a.err()));
+    const b = runAsync(job('B'));
+    await waitFor(() => tickets() === 2 && /2\. Stelle der Schlange/.test(b.err()));
+    const c = runAsync(job('C'));
+    await waitFor(() => tickets() === 3 && /3\. Stelle der Schlange/.test(c.err()));
+    holder.kill('SIGKILL'); // Halter stirbt: veraltete Sperre
+    const res = await Promise.all([a.done, b.done, c.done]);
+    expect(res.map((r) => r.code)).toEqual([0, 0, 0]);
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual(['A', 'B', 'C']);
+    expect(tickets()).toBe(0);
+    expect(existsSync(lockDir)).toBe(false);
+  });
+
+  test('FIFO: die Fahrkarte eines mit kill -9 getöteten Wartenden hält die Schlange nicht auf', async () => {
+    const log = path.join(work, 'order');
+    const job = (n: string) => ['bash', '-c', `echo ${n} >> "${log}"; sleep 0.2`];
+    const holder = holdLock();
+    const a = runAsync(job('A'));
+    await waitFor(() => tickets() === 1);
+    const b = runAsync(job('B'));
+    await waitFor(() => tickets() === 2);
+    const c = runAsync(job('C'));
+    await waitFor(() => tickets() === 3);
+    a.child.kill('SIGKILL'); // vorderster Wartender stirbt, seine Fahrkarte bleibt liegen
+    await a.done;
+    expect(tickets()).toBe(3);
+    holder.kill('SIGKILL');
+    const [rb, rc] = await Promise.all([b.done, c.done]);
+    expect([rb.code, rc.code]).toEqual([0, 0]);
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual(['B', 'C']);
+    expect(rb.stderr + rc.stderr).toContain('tote Fahrkarte entfernt'); // B oder C räumt sie
+    expect(tickets()).toBe(0);
+  });
+
+  test('FIFO: ein älterer Wartender ohne Fahrkarte (altes Skript) verklemmt nichts', async () => {
+    const log = path.join(work, 'order');
+    const holder = holdLock();
+    const a = runAsync(['bash', '-c', `echo A >> "${log}"; sleep 0.2`]);
+    await waitFor(() => tickets() === 1);
+    // so wartet das alte Skript: pollt mkdir, schreibt owner im alten Format (3 Felder), gibt frei
+    const legacy = spawn('bash', ['-c', `until mkdir "${lockDir}" 2>/dev/null; do sleep 0.05; done
+      echo "$$ legacy 12:00:00" > "${lockDir}/owner"; echo L >> "${log}"; sleep 0.2; rm -rf "${lockDir}"`]);
+    const legacyDone = new Promise<number | null>((r) => legacy.on('exit', (c) => r(c)));
+    holder.kill('SIGKILL');
+    // Die ersten Wartenden räumen die tote Sperre; wer sie sieht, nimmt sie. Beide müssen fertig werden.
+    // Der alte Wartende räumt selbst nicht (kennt die pid-Prüfung nicht), A tut es für ihn.
+    const [ra, lc] = await Promise.all([a.done, legacyDone]);
+    expect(ra.code).toBe(0);
+    expect(lc).toBe(0);
+    expect(readFileSync(log, 'utf8').trim().split('\n').sort()).toEqual(['A', 'L']);
+    expect(existsSync(lockDir)).toBe(false);
   });
 });
