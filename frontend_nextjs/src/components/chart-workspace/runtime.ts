@@ -4,11 +4,15 @@ import {
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
+import { canvasColor } from '@/lib/formation/lineStyle';
 import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
 import { aggregateIndicatorBars, calculateIndicator, isOscillator, SYSTEM_RSI_ID, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { orderPanes, presentPanes, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { valueAtTime } from '@/lib/chart-workspace/hover';
 import type { Appearance } from '@/lib/chart-workspace/settings';
+
+/** Stored indicator color for the canvas: `var(--muted-foreground)` (gray swatch) becomes the theme's real color; '' stays '' (role color) */
+export const ownColor = (color: string) => canvasColor(color, name => (typeof document === 'undefined' ? '' : getComputedStyle(document.documentElement).getPropertyValue(name)));
 
 export interface ChartBinding { chart: IChartApi; candles: ISeriesApi<'Candlestick'>; host: HTMLDivElement; defaultMargins?: () => { top: number; bottom: number }; isDisposed: () => boolean; onDispose: (callback: () => void) => () => void; dispose: () => void }
 export function createChartBinding(chart: IChartApi, candles: ISeriesApi<'Candlestick'>, host: HTMLDivElement, defaultMargins?: ChartBinding['defaultMargins']): ChartBinding {
@@ -248,7 +252,7 @@ export class IndicatorRenderer {
       const build = (config: Indicator) => {
         let pane = 0;
         if (isOscillator(config)) pane = this.paneSeries.get(config.paneId)?.getPane().paneIndex() ?? chart.panes().length;
-        const color = config.color || colors.info, negative = config.negative || colors.down;
+        const color = ownColor(config.color) || colors.info, negative = config.negative || colors.down;
         const plots: typeof this.series = [];
         const line = (tone: string, histogram = false) => {
           const options = { visible: config.visible, priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
@@ -311,7 +315,7 @@ export class IndicatorRenderer {
             out.push({ time: b.time as UTCTimestamp }); previous = -1;
           } else {
             const point = { time: b.time as UTCTimestamp, value: data[i] as number, color: undefined as string | undefined };
-            if (histogram) point.color = (data[i] as number) >= 0 ? config.color || colors.up : config.negative || colors.down;
+            if (histogram) point.color = (data[i] as number) >= 0 ? group.color : config.negative || colors.down;
             previous = out.length; out.push(point);
           }
         });

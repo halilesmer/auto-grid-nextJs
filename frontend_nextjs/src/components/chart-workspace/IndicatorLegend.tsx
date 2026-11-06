@@ -10,6 +10,7 @@ import { useFormat, useT } from '@/i18n';
 import { lineMenuAllows, type LineMenuTrigger } from '@/lib/chart-workspace/lineMenu';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 import { IndicatorLineMenu } from './IndicatorLineMenu';
+import { useToolGrace } from './drawingPriority';
 import { isOscillator, isSystemRsi, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { lineTarget, nextSelection, type DrawingPriority } from '@/lib/chart-workspace/hover';
 import { isSystemPane, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
@@ -93,6 +94,9 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
   const [selected, setSelected] = useState<string | null>(null);
   const [lineMenu, setLineMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const closeLineMenu = useCallback(() => setLineMenu(null), []);
+  const toolRecent = useToolGrace(binding?.host ?? null, () => manager.current?.tool() != null);
+  const toolRecentRef = useRef(toolRecent);
+  useEffect(() => { toolRecentRef.current = toolRecent; }, [toolRecent]);
   const oscillators = indicators.filter(isOscillator);
   // Every pane of the chart in its order. A pane hidden with the eye keeps its chart pane and its height (TradingView).
   const known = [...systemPanes.map(pane => pane.id as string), ...new Set(oscillators.map(item => item.paneId))];
@@ -127,7 +131,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     const onClick = (param: MouseEventParams<Time>) => setSelected(prev => nextSelection(prev, ownerOf(param), priority()));
     // Line menu (A7.4/A7.5): the line under the pointer comes from the last chart event; a drawing tool or a drawing under the mouse wins (priority)
     const open = (trigger: LineMenuTrigger, clientX: number, clientY: number, event?: Event) => {
-      if (!lineMenuAllows(lineMenuMode, trigger)) return;
+      if (!lineMenuAllows(lineMenuMode, trigger) || toolRecentRef.current()) return;
       const current = latestParam, id = current ? ownerOf(current) : null;
       if (!id || lineTarget(id, priority()) !== id) return;
       event?.preventDefault();
@@ -136,8 +140,9 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     const onContext = (event: MouseEvent) => open('context', event.clientX, event.clientY, event);
     const onDouble = (param: MouseEventParams<Time>) => {
       latestParam = param;
-      const rect = binding.host.getBoundingClientRect();
-      if (param.point) open('double', rect.left + param.point.x, rect.top + param.point.y);
+      // `param.point` is relative to the pane under the pointer; the viewport position comes from the DOM event (same as the trend menu)
+      const source = param.sourceEvent;
+      if (param.point && source) open('double', source.clientX, source.clientY);
     };
     binding.host.addEventListener('contextmenu', onContext);
     chart.subscribeDblClick(onDouble);
@@ -294,7 +299,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
 
   const menuIndicator = lineMenu ? indicators.find(item => item.id === lineMenu.id) : undefined;
   return <div ref={wrapper} data-testid="oscillator-controls" className="pointer-events-none absolute left-0 top-0 z-[51] h-px w-px">
-    {lineMenu && menuIndicator && <IndicatorLineMenu x={lineMenu.x} y={lineMenu.y} indicator={menuIndicator} label={names.get(menuIndicator.id) ?? menuIndicator.kind} actions={actions} alarmsAvailable={alarmsAvailable} atLimit={atLimit} onClose={closeLineMenu} />}
+    {lineMenu && menuIndicator && <IndicatorLineMenu x={lineMenu.x} y={lineMenu.y} indicator={menuIndicator} label={names.get(menuIndicator.id) ?? menuIndicator.kind} actions={actions} alarmsAvailable={alarmsAvailable} atLimit={atLimit} favorite={favorites.includes(menuIndicator.kind)} onClose={closeLineMenu} />}
     <div data-testid="workspace-indicator-values" className="contents">
       {[...stacks.entries()].sort(([a], [b]) => a - b).map(([paneIndex, stack]) => <div key={paneIndex} style={{ top: (layout.tops[paneIndex] ?? 0) + 4 + (paneIndex === 0 ? layout.priceInset : 0) }}
         className={`group/stack absolute ${overlayLayout ? 'left-14' : 'left-1'} flex w-max max-w-[min(32rem,calc(100vw-6rem))] flex-col items-start gap-0.5`}>

@@ -5,7 +5,7 @@ import { defaultToolbar, parseToolbar, parseToolbarLayout, type ToolbarLayout, t
 import { defaultDockLayout, migrateToolbarLayout, parseDockLayout, type DockLayout } from '@/lib/chart-workspace/dock';
 import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-workspace/linkedDrawings';
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
-import { INDICATOR_KINDS, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { INDICATOR_GRAY, INDICATOR_KINDS, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
 
 /** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
@@ -83,7 +83,7 @@ function parseIndicators(input: unknown): Indicator[] {
     out.lineStyle = v.lineStyle === 'dashed' || v.lineStyle === 'dotted' ? v.lineStyle : 'solid';
     out.source = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'].includes(v.source) ? v.source : 'close';
     out.smoothing = ['none', 'SMA', 'EMA', 'RMA', 'WMA', 'BB'].includes(v.smoothing) ? v.smoothing : defaults.smoothing;
-    for (const k of ['color', 'negative', 'maColor'] as const) if (typeof v[k] === 'string' && /^#[\da-f]{6}$/i.test(v[k])) out[k] = v[k];
+    for (const k of ['color', 'negative', 'maColor'] as const) if (typeof v[k] === 'string' && (/^#[\da-f]{6}$/i.test(v[k]) || (k === 'color' && v[k] === INDICATOR_GRAY))) out[k] = v[k];
     out.upper = Math.min(100, out.upper); out.lower = Math.min(out.upper, out.lower); out.middle = Math.max(out.lower, Math.min(out.upper, out.middle));
     return [out];
   });

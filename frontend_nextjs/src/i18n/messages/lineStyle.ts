@@ -65,7 +65,7 @@ export default defineArea(
     'cw.lineMenu.off': 'Kapalı',
     'cw.indicatorLine.menu': 'Gösterge · {indicator}',
     'cw.lineStyle': 'Çizgi tipi',
-    'cw.lineStyle.hint': 'Çizgi tipi: göstergenin ana çizgisinin düz, kesik veya noktalı çizilmesini ayarlar. Bu tarayıcıda saklanır; emir göndermez.',
+    'cw.lineStyle.hint': 'Çizgi tipi: göstergenin tüm çizgilerinin (ör. RSI ortalaması, Bollinger bantları, MACD sinyali) düz, kesik veya noktalı çizilmesini ayarlar. Bu tarayıcıda saklanır; emir göndermez.',
   },
   {
     'lineStyle.color': 'Color',
@@ -130,7 +130,7 @@ export default defineArea(
     'cw.lineMenu.off': 'Off',
     'cw.indicatorLine.menu': 'Indicator · {indicator}',
     'cw.lineStyle': 'Line type',
-    'cw.lineStyle.hint': 'Line type: draws the main line of the indicator solid, dashed or dotted. Saved in this browser; no orders are sent.',
+    'cw.lineStyle.hint': 'Line type: draws all lines of the indicator (for example the RSI average, the Bollinger bands, the MACD signal) solid, dashed or dotted. Saved in this browser; no orders are sent.',
   },
   {
     'lineStyle.color': 'Farbe',
@@ -195,6 +195,6 @@ export default defineArea(
     'cw.lineMenu.off': 'Aus',
     'cw.indicatorLine.menu': 'Indikator · {indicator}',
     'cw.lineStyle': 'Linientyp',
-    'cw.lineStyle.hint': 'Linientyp: zeichnet die Hauptlinie des Indikators durchgezogen, gestrichelt oder gepunktet. Wird in diesem Browser gespeichert; löst keine Order aus.',
+    'cw.lineStyle.hint': 'Linientyp: zeichnet alle Linien des Indikators (etwa RSI-Mittelwert, Bollinger-Bänder, MACD-Signal) durchgezogen, gestrichelt oder gepunktet. Wird in diesem Browser gespeichert; löst keine Order aus.',
   },
 );

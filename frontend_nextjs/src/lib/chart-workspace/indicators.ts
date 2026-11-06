@@ -1,5 +1,8 @@
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 
+/** The gray swatch of the line menu: stays a CSS variable in the document, so the line follows the theme (runtime resolves it) */
+export const INDICATOR_GRAY = 'var(--muted-foreground)';
+
 export const INDICATOR_KINDS = ['SMA', 'EMA', 'RSI', 'EWO', 'MACD', 'BB', 'ATR'] as const;
 export type IndicatorKind = typeof INDICATOR_KINDS[number];
 const OSCILLATOR_KINDS: readonly IndicatorKind[] = ['RSI', 'EWO', 'MACD', 'ATR'];
