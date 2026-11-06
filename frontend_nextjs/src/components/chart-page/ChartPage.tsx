@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 
+import { DockProvider } from '@/components/chart-workspace/dock/DockProvider';
 import { cn } from '@/lib/utils';
 
 interface ChartPageProps {
@@ -43,6 +44,7 @@ export function ChartPage({ title, topBar, surface, notices, floating, panel, pa
     return () => observer.disconnect();
   }, []);
   return (
+    <DockProvider>
     <div className="fixed inset-0 z-20 overflow-hidden bg-card lg:top-(--nav-height) [&:fullscreen]:top-0" data-chart-page="" {...pageProps} data-testid={testId}>
       <h1 className="sr-only">{title}</h1>
       {/* Ab lg schiebt die offene Seitenleiste den Chart nach links (w-10 Leiste + w-72 Panel = right-82, bei 16 px Schrift 328 px), statt ihn zu überdecken; darunter liegt sie über dem Chart. Der Abstand steht in rem wie die beiden Breiten, sonst überdeckt der Chart die Leiste bei größerer Browser-Schrift. Die Leiste ganz rechts bleibt frei, solange es ein Panel gibt; ohne Panel (Setup, Frei) füllt der Chart die ganze Breite. Ab lg liegt `formation-main` über der Seitenleiste (z-70): seine Menüs (Alarm, Bild) ragen sonst unter sie, und die Fläche selbst überlappt sie nicht */}
@@ -62,5 +64,6 @@ export function ChartPage({ title, topBar, surface, notices, floating, panel, pa
       </div>
       {panel}
     </div>
+    </DockProvider>
   );
 }

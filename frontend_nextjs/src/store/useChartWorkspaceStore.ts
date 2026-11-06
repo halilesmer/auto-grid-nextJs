@@ -26,9 +26,11 @@ interface State {
   /** Araç gruplarının yeri (UI-16): tarayıcı başına, her grafikte aynı; boş nesne = oto yerleşim. */
   toolbarLayout: ToolbarLayout;
   setToolbarLayout: (layout: ToolbarLayout) => void;
-  /** Serbest paket yerleşimi (UI-17, 1106-A1): tarayıcı başına, her grafikte aynı. S2'ye kadar UI okumaz. */
+  /** Serbest paket yerleşimi (UI-17, 1106-A1): tarayıcı başına, her grafikte aynı. UI yalnız bunu okur; `toolbarLayout` yalnız eski kayıttan geçiş için kalır. */
   dockLayout: DockLayout;
   setDockLayout: (layout: DockLayout) => void;
+  /** Yerleşimi sıfırla: `dockLayout` varsayılana döner, eski `toolbarLayout` da temizlenir. */
+  resetDockLayout: () => void;
   setLinked: (key: string, sharedKey: string | null) => void;
   receiveStorage: () => void;
   appearance: Appearance;
@@ -161,6 +163,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     receiveStorage: () => { if (pendingWrites) { receivePending = true; return; } set({ hydrated: false }); get().hydrate(); },
     setToolbarLayout: toolbarLayout => { set({ toolbarLayout }); persist(); },
     setDockLayout: dockLayout => { set({ dockLayout }); persist(); },
+    resetDockLayout: () => { set({ dockLayout: defaultDockLayout(), toolbarLayout: {} }); persist(); },
     setToolbar: (key, patch) => { set(s => ({ toolbar: { ...s.toolbar, [key]: { ...(s.toolbar[key] ?? defaultToolbar()), ...patch } } })); persist(); },
     setLinked: (key, sharedKey) => {
       if (!sharedKey) { set(s => { const links = { ...s.links }; delete links[key]; return { links }; }); persist(); return; }

@@ -294,3 +294,21 @@
     transform-origin: left bottom;
   }
 }
+
+/*
+ * Serbest paket yerleşimi (UI-17, plan 1106-A1, journal 2026-11-06-free-package-layout). Paketlerin kutusu (`.dock-wrap`) DockProvider
+ * tarafından yuvalar arasında taşınır; içeriği React portalıdır. Satırdaki paketin çerçevesi yoktur, paketler arasında ince dikey çizgi durur;
+ * satırda `margin-left` (boşluk) değişince paket yumuşakça kayar.
+ */
+.dock-row > .dock-wrap { display: flex; flex: none; align-items: center; min-width: 0; transition: margin-left 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+.dock-row > .dock-wrap ~ .dock-wrap::before { content: ""; flex: none; align-self: center; width: 1px; height: 1.25rem; margin: 0 5px 0 3px; background: var(--border); }
+.dock-wrap.dock-free { position: absolute; z-index: 53; width: max-content; transition: none; }
+.dock-wrap.dock-src { position: absolute; opacity: 0; pointer-events: none; transition: none; }
+.dock-wrap.dock-returning { opacity: 0; }
+.dock-ph { flex: none; height: 1.75rem; border: 1.5px dashed color-mix(in srgb, var(--primary) 70%, transparent); background: color-mix(in srgb, var(--primary) 9%, transparent); border-radius: 0.5rem; transition: margin-left 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+.dock-ghost { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; will-change: transform; }
+.dock-ghost [data-dock-pkg] { border-color: var(--primary); background: var(--card); box-shadow: 0 14px 32px #000b; }
+.dock-ghost-label { position: absolute; left: 0; top: calc(100% + 6px); white-space: nowrap; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 999px; background: var(--card); color: var(--foreground); border: 1px solid var(--border); box-shadow: 0 6px 16px #0008; transition: opacity 0.15s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .dock-row > .dock-wrap, .dock-ph, .dock-ghost-label { transition: none; }
+}

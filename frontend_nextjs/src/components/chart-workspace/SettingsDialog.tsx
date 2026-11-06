@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import { COLOR_KEYS, DEFAULT_APPEARANCE, OPTIONS, SETTINGS_LAYOUT, type Appearance, type Section, type SettingKey, type SettingRow } from '@/lib/chart-workspace/settings';
-import { isAutoLayout } from '@/lib/chart-workspace/toolbar';
+import { isDefaultDockLayout } from '@/lib/chart-workspace/dock';
 import { cn } from '@/lib/utils';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { appearanceColors } from './runtime';
@@ -69,7 +69,7 @@ export function SettingsDialog({ initialSection = 'symbol', toolbarResettable = 
   const [section, setSection] = useState<Section>(initialSection);
   const [template, setTemplate] = useState<string>(initialAppearance.preset);
   const [name, setName] = useState('');
-  const toolbarAuto = isAutoLayout(s.toolbarLayout);
+  const toolbarAuto = isDefaultDockLayout(s.dockLayout);
   const cancel = () => { s.setPreview(null); rollbackOverlays(); onClose(); };
   const change = (key: SettingKey, value: string | number | boolean) => {
     const next = { ...saved, [key]: value };
@@ -117,7 +117,7 @@ export function SettingsDialog({ initialSection = 'symbol', toolbarResettable = 
           <DropdownMenuGroup><DropdownMenuItem icon={<RotateCcw className="size-4" aria-hidden="true" />} hint={t('cw.reset.hint')} onSelect={() => { setTemplate('auto'); s.setPreview({ ...DEFAULT_APPEARANCE }); }}>{t('cw.reset')}</DropdownMenuItem></DropdownMenuGroup>
         </DropdownMenu>
         {/* UI-16 (1105-A5.8.4): sofort wirksam, unabhängig von Übernehmen/Abbrechen; dieselbe Aktion steht unten im Griff-Menü jeder Gruppe */}
-        {toolbarResettable && <Button size="sm" variant="ghost" data-testid="settings-toolbar-reset" hint={t(toolbarAuto ? 'cw.tbReset.auto.hint' : 'cw.tbReset.hint')} disabled={toolbarAuto} onClick={() => s.setToolbarLayout({})}><RotateCcw className="size-3.5" aria-hidden="true" />{t('cw.tbReset')}</Button>}
+        {toolbarResettable && <Button size="sm" variant="ghost" data-testid="settings-toolbar-reset" hint={t(toolbarAuto ? 'cw.tbReset.auto.hint' : 'cw.tbReset.hint')} disabled={toolbarAuto} onClick={() => s.resetDockLayout()}><RotateCcw className="size-3.5" aria-hidden="true" />{t('cw.tbReset')}</Button>}
         <div className="ml-auto flex gap-2"><Button variant="outline" hint={t('cw.cancel.hint')} onClick={cancel}>{t('cw.cancel')}</Button><Button variant="primary" hint={t('cw.apply.hint')} onClick={() => { onApply(saved); s.setPreview(null); commitOverlays(); onClose(); }}>{t('cw.apply')}</Button></div>
       </div>
     </div>

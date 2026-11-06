@@ -29,7 +29,7 @@ import { IndicatorLegend, indicatorNames, type OscillatorActions } from './Indic
 import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
-import { ToolbarDock } from './ToolbarDock';
+import { DockSurface } from './dock/DockSurface';
 import { DrawingPriorityContext } from './drawingPriority';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
@@ -91,7 +91,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const documentRef = useRef<ChartDocument>(emptyChartDocument());
   const undo = useRef<string[]>([]), redo = useRef<string[]>([]), current = useRef('[]');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Alt şerit (ToolbarDock): yalnız grupları varken; yoksa grafik altta yer ayırmaz
+  // Alt çubuk (DockSurface): yalnız grupları varken; yoksa grafik altta yer ayırmaz
   const [toolbarCard, setToolbarCard] = useState<HTMLDivElement | null>(null);
   const [gesture, setGesture] = useState<ChartGesture>(null);
   const zoomActive = useRef(false);
@@ -435,8 +435,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); history(!e.shiftKey); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); history(false); }
   }}>
-    {/* Araç grupları (UI-16, 1105-A5.8): Görünüm · Göstergeler · Düzen · Pencere; yerleşim ToolbarDock'ta */}
-    <ToolbarDock host={root} symbol={context.symbol} movable={overlayLayout} bottomRef={setToolbarCard} groups={{
+    {/* Araç grupları (UI-16, 1105-A5.8): Görünüm · Göstergeler · Düzen · Pencere; yerleşim dock/ altında (DockProvider, DockSurface; UI-17) */}
+    <DockSurface host={root} symbol={context.symbol} movable={overlayLayout} bottomRef={setToolbarCard} groups={{
       view: overlayLayout && (appearance.navigation || viewActions) ? <>
         {appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => binding?.chart.timeScale().fitContent()}><Scan size={15} /></Button>}
         {viewActions}
