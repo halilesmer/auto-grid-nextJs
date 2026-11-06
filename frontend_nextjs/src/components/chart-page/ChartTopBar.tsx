@@ -98,7 +98,7 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
           {legend && <div className="short:min-w-0 short:flex-1">{legend}</div>}
         </div>
         {mode}
-        {target && <DockPackage id="symbol"><div className="w-44 min-w-0 max-w-full" data-keep="">{target}</div></DockPackage>}
+        {target && <DockPackage id="symbol"><div className="w-44 min-w-0 max-w-full [&_[data-testid=zone-select]]:w-full [&_[data-testid=zone-select]]:flex-1" data-keep="">{target}</div></DockPackage>}
         <DockAnchor className="px-1">{account}</DockAnchor>
         <DockPackage id="actions">
           <div className="flex items-center @max-[75rem]/formation-main:[&_[data-range-detail]]:hidden">{range}</div>

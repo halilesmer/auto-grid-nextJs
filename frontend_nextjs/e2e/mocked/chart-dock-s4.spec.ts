@@ -135,14 +135,13 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     await expect(row(page, 'row2')).toBeVisible();
     await singleLine(page);
     await noScroll(page, 720);
-    // A4.10: Chart/Statistik ya satırda ya paketin ok menüsünde; ok görünür, Statistik'e menüden ulaşılır
-    await expect(actions.getByTestId('dock-more')).toBeVisible();
-    const stats = actions.getByRole('tab', { name: msg('analysis.tab.stats') });
-    if (await stats.isVisible()) await stats.click();
-    else {
-      await actions.getByTestId('dock-more').click();
-      await page.getByTestId('dock-more-menu').getByRole('tab', { name: msg('analysis.tab.stats') }).click();
-    }
+    // A4.10/A4.17.2: 720 px'te sekmeler satırda gizli; Aksiyonlar okunun menüsü tam olarak ölçülen liste; menüden İstatistik'e geçilir
+    await expect(actions.getByRole('tab', { name: msg('analysis.tab.stats') })).toBeHidden();
+    await actions.getByTestId('dock-more').click();
+    const menu = page.getByTestId('dock-more-menu');
+    expect(await menu.locator('button:visible, [role=tab]:visible').evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`)))
+      .toEqual([`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`]);
+    await menu.getByRole('tab', { name: msg('analysis.tab.stats') }).click();
     await expect(page).toHaveURL(/tab=stats/);
   });
 }
@@ -195,18 +194,34 @@ for (const [name, url] of [['Formation', FORMATION], ['Setup', SETUP], ['Frei', 
   });
 }
 
-// Plan 1106-A4.10: hiçbir paket kutusu Satır 1'in dışına taşmaz (belge kaydırması ve merkez hizası bunu yakalamaz)
-for (const [w, h] of [[720, 800], [812, 375], [1024, 800], [1176, 800]] as const) {
-  test(`Satır 1 ${w} × ${h}: her paket kutusu satırın içinde (Formation, Setup, Frei)`, { tag: '@UI-17' }, async ({ page }) => {
+// Plan 1106-A4.10 ve A4.17.1: hiçbir paket kutusu Satır 1'in dışına taşmaz, kutunun içindeki görünen öğeler kutunun dışına çıkmaz,
+// ve hesap çapasının içeriği (DEMO işareti dahil) hiçbir şeyin altında kalmaz.
+for (const [w, h] of [[720, 800], [812, 375], [1024, 800], [1176, 800], [1440, 900]] as const) {
+  test(`Satır 1 ${w} × ${h}: paket kutuları satırın, görünen öğeler kutunun içinde; hesap çapası açık (Formation, Setup, Frei)`, { tag: '@UI-17' }, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     for (const url of [FORMATION, SETUP, FREE]) {
       await go(page, url);
+      await expect(page.getByTestId('dock-account')).toBeVisible();
       const out = await row(page, 'row1').evaluate(r => {
-        const b = r.getBoundingClientRect();
-        return [...r.querySelectorAll(':scope > [data-dock-wrap]')].map(e => { const x = e.getBoundingClientRect(); return { id: (e as HTMLElement).dataset.dockWrap, left: x.left - b.left, right: b.right - x.right }; })
-          .filter(x => x.left < -0.5 || x.right < -0.5);
+        const b = r.getBoundingClientRect(), bad: { id?: string; what: string }[] = [];
+        for (const wrap of r.querySelectorAll<HTMLElement>(':scope > [data-dock-wrap]')) {
+          const x = wrap.getBoundingClientRect();
+          if (x.left < b.left - 0.5 || x.right > b.right + 0.5) bad.push({ id: wrap.dataset.dockWrap, what: 'satır dışı' });
+          for (const el of wrap.querySelectorAll<HTMLElement>('*')) {
+            const c = el.getBoundingClientRect();
+            if (c.width === 0 || c.height === 0 || el.closest('[hidden]') || el.closest('[data-dock-more]')) continue;
+            if (c.left < x.left - 0.5 || c.right > x.right + 0.5) { bad.push({ id: wrap.dataset.dockWrap, what: `${el.tagName}:${el.getAttribute('data-testid') ?? ''} taşar ${Math.round(c.left - x.left)}/${Math.round(x.right - c.right)}` }); break; }
+          }
+        }
+        return bad;
       });
       expect(out, `${url} ${w}`).toEqual([]);
+      // Hesap çapası: içeriğin başlangıcının (+2 px) üstünde çapanın kendisi durur (başka bir öğe binmemiş)
+      const covered = await page.getByTestId('dock-account').evaluate(a => {
+        const c = a.getBoundingClientRect(), e = document.elementFromPoint(c.left + 2, c.top + c.height / 2);
+        return !e || !a.contains(e);
+      });
+      expect(covered, `${url} ${w}: hesap çapasının sol kenarı örtülü`).toBe(false);
     }
   });
 }

@@ -112,6 +112,8 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 - Root cause 1106-A4.16.2: a closing dropdown panel kept taking pointer events for the 320 ms exit animation and covered the list below it. Fix: `MenuPanel` in `dropdown-menu.tsx` sets `pointer-events-none` as soon as the panel is not present (`useIsPresent`). Measured: `elementFromPoint` does not return the panel from 0 ms after Escape; focus returns to the trigger.
 - Root cause 1106-A4.16.1: the title bar overlaps the chart and Setup/Free now have a second title row. The ANA-17 drag started inside the title bar. The test now starts below the bar and checks the start point with `elementFromPoint`.
 
+- Root cause 1106-A4.11 / A4.17.1: in Setup the setup select (`ZoneSelect`, `sm:w-56 sm:flex-none`, 224 px) was wider than its product box (176 px) and covered the account anchor, including the DEMO mark. Fix: in the docked title bar the select fills the product box (long names end with an ellipsis). In Formation the account anchor had extra padding and its content was 4 px wider than the box; the padding is gone. The new boundary test checks every visible child of every row 1 box (five widths, three modes) and that nothing covers the left edge of the account anchor. It failed in 5 of 5 widths before the fix.
+
 ### Changed tests
 
 | Test | Old | New | Why |

@@ -126,7 +126,7 @@ export function FormationToolbar({
         {formsNode}
         {mode}
         {symbol && <DockPackage id="symbol"><div className="w-44 min-w-0" data-keep="">{symbol}</div></DockPackage>}
-        <DockAnchor className="w-44 min-w-40 px-1">{account}</DockAnchor>
+        <DockAnchor className="w-44 min-w-40">{account}</DockAnchor>
         {actions && <DockPackage id="actions">{actions}</DockPackage>}
       </div>
     );
