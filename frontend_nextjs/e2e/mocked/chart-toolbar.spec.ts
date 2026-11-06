@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, ZONE_ID, makeZone, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { openDrawings } from '../fixtures/chart-dialog';
 
 const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
@@ -90,7 +91,7 @@ test('Magnet merkt Stärke; globale Sperre schützt Bearbeitung und Löschen', {
   await page.getByRole('button', { name: msg('cw.rail.lockAll'), exact: true }).click();
   await page.getByTestId('analysis-chart').focus(); await page.keyboard.press('Delete');
   expect(await storedDrawings(page)).toHaveLength(1);
-  await page.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(page);
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.horizontal-line'), exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('spinbutton', { name: msg('cw.width'), exact: true })).toBeDisabled();
   await page.getByRole('dialog').getByRole('button', { name: msg('ui.close'), exact: true }).click();
@@ -142,10 +143,10 @@ test('Verknüpfte Ansichten und Tabs teilen Zeichnungen; Trennen stellt privaten
   await drawLine(second, 60);
   await expect.poll(() => storedDrawings(page, true)).toHaveLength(3);
   await second.reload();
-  await second.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(second);
   await expect(second.getByRole('dialog').getByRole('button', { name: msg('cw.tool.image'), exact: true })).toBeVisible();
   await second.getByRole('dialog').getByRole('button', { name: msg('ui.close'), exact: true }).click();
-  await page.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(page);
   await expect(page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.horizontal-line'), exact: true })).toHaveCount(2);
   await page.getByRole('dialog').getByRole('button', { name: msg('ui.close'), exact: true }).click();
   await page.getByRole('button', { name: msg('cw.rail.link'), exact: true }).click();
@@ -189,7 +190,7 @@ test('Einzelne Objektsperren überleben die globale Sperre; ausgewählte Löschu
   await expect.poll(() => storedDrawings(page)).toHaveLength(0);
   await page.getByRole('button', { name: msg('cw.undo'), exact: true }).click();
   await expect.poll(() => storedDrawings(page)).toHaveLength(1);
-  await page.getByRole('button', { name: msg('cw.objects'), exact: true }).click();
+  await openDrawings(page);
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.tool.horizontal-line'), exact: true }).click();
   await page.getByRole('switch', { name: msg('cw.lock') }).click();
   await page.getByRole('dialog').getByRole('button', { name: msg('ui.close'), exact: true }).click();

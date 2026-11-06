@@ -43,13 +43,12 @@ test('Dar pencerede ok görünür; menüdeki düğme çalışır ve ipucu taşı
   // Menüdeki her düğme ipucunu (hint) taşır: üzerine gelince açılır
   await items.first().hover();
   await expect(page.getByRole('tooltip')).toBeVisible();
-  // Menüdeki düğme satırdakiyle aynı işi yapar: Düzen paketinde „Çizim nesneleri“ (Düzen 520 px'te Geri al'a kadar daralır)
+  // Menüdeki düğme satırdakiyle aynı işi yapar: Göstergeler paketinin son düğmesi „Katmanlar“ ilk taşan düğmedir ve menüden de
+  // katman menüsünü açar. (1106-A3'ten beri Düzen paketi 520 px'e sığar: „Çizim nesneleri“ Göstergeler penceresinde.)
   await page.keyboard.press('Escape');
-  const editMore = group(page, 'edit').getByTestId('dock-more');
-  await expect(editMore).toBeVisible();
-  await editMore.click();
-  await page.getByTestId('dock-more-menu').getByRole('button', { name: msg('cw.objects'), exact: true }).click();
-  await expect(page.getByText(msg('cw.objects'), { exact: true })).toBeVisible();
+  await more.click();
+  await page.getByTestId('dock-more-menu').getByRole('button', { name: msg('cw.layers'), exact: true }).click();
+  await expect(page.locator('#layer-rsi')).toBeVisible();
 });
 
 test('Yer olmayan yere bırakılan paket eski yerinde kalır', { tag: '@UI-17' }, async ({ page, worker }) => {
