@@ -49,6 +49,15 @@
 # Ein Sperrverzeichnis ohne `owner` gilt nach 60 s als verwaist.
 # Wiedereintritt: hält ein Vorfahr dieses Prozesses die Sperre (z. B. heavy_lock.sh precheck.sh),
 # läuft der Befehl ohne erneutes Warten.
+# Reihenfolge (FIFO): jeder Wartende legt beim Eintreffen eine Fahrkarte <sperre>.queue/<µs-Ankunftszeit>-<pid>
+# an (Inhalt: gleiches Format wie owner, mit ls=). Ein Wartender versucht das mkdir nur, wenn seine
+# Fahrkarte die älteste LEBENDE ist; so bekommt nicht der zuerst Pollende die Sperre, sondern der
+# am längsten Wartende. Tote Fahrkarten (pid lebt nicht oder ls= passt nicht) löscht jeder Wartende beim
+# Prüfen (rm -f einer Datei, die nie wieder lebendig wird, braucht keinen Mutex); eine tote Fahrkarte vorn
+# hält also niemanden auf. Die Fahrkarte verschwindet beim Nehmen der Sperre, bei Zeitlimit, Wiedereintritt,
+# Exit, Fehler und INT/TERM/HUP. owner und Sperrverzeichnis sind unverändert: ein älteres Skript kennt
+# keine Fahrkarten und pollt weiter selbst; es kann die Reihenfolge überspringen, verklemmt aber nichts
+# (wer frei sieht, nimmt; ein Wartender mit Fahrkarte versucht es bei jeder Prüfung wieder).
 # Freigabe per trap bei Exit, Fehler und INT/TERM/HUP; der Exit-Code des Befehls bleibt erhalten.
 # kill -9 lässt sich nicht abfangen: dann räumt der nächste Wartende die Sperre (pid + ls=).
 
@@ -223,6 +232,52 @@ _hl_skip() {
   return 1
 }
 
+# --- Warteschlange (FIFO) -------------------------------------------------------------------------
+
+_HL_TICKET=""   # Pfad der eigenen Fahrkarte, solange wir warten
+_HL_POS=1       # Platz in der Schlange (1 = vorn), gesetzt von _hl_my_turn
+
+_hl_usec() {  # Ankunftszeit in µs, 16 Stellen (sortierbar); ohne perl auf Sekunden genau
+  perl -MTime::HiRes=time -e 'printf "%016d\n", time*1e6' 2>/dev/null \
+    || printf '%016d\n' $(( $(date +%s) * 1000000 ))
+}
+
+_hl_ticket_take() {  # $1 = Name des Worktrees; legt die Fahrkarte atomar an (tmp + mv)
+  local q="$HEAVY_LOCK_DIR.queue" mystart tmp
+  mkdir -p "$q" 2>/dev/null || return 0
+  mystart=$(_hl_lstart "$$")
+  tmp="$q/.tmp-$$"
+  echo "$$ $1 $(date -u +%H:%M:%S)${mystart:+ ls=$mystart}" > "$tmp" 2>/dev/null || return 0
+  _HL_TICKET="$q/$(_hl_usec)-$$"
+  mv -f "$tmp" "$_HL_TICKET" 2>/dev/null || { _HL_TICKET=""; rm -f "$tmp"; }
+}
+
+_hl_ticket_drop() {
+  [ -n "$_HL_TICKET" ] && rm -f "$_HL_TICKET" 2>/dev/null
+  _HL_TICKET=""   # das leere Verzeichnis <sperre>.queue bleibt: ein rmdir liefe gegen ein gleichzeitiges Anlegen
+}
+
+# Wahr, wenn die eigene Fahrkarte die älteste lebende ist (oder keine Fahrkarte da ist: dann FIFO aus).
+# Löscht tote Fahrkarten; setzt _HL_POS.
+_hl_my_turn() {
+  [ -n "$_HL_TICKET" ] || return 0
+  local q="$HEAVY_LOCK_DIR.queue" f line pid pos=0 mine
+  mine=$(basename "$_HL_TICKET")
+  [ -e "$_HL_TICKET" ] || { _hl_log "Fahrkarte verschwunden, lege neu an"; _hl_ticket_take "${_HL_NAME:-?}"; return 1; }
+  for f in $(ls "$q" 2>/dev/null | sort); do
+    line=$(cat "$q/$f" 2>/dev/null)
+    pid=${line%% *}
+    if [ -z "$line" ] || ! [[ "$pid" =~ ^[0-9]+$ ]] || ! _hl_owner_alive "$line"; then
+      [ "$f" = "$mine" ] || { rm -f "$q/$f"; _hl_log "tote Fahrkarte entfernt ($f)"; }
+      continue
+    fi
+    pos=$((pos + 1))
+    if [ "$f" = "$mine" ]; then _HL_POS=$pos; [ "$pos" = 1 ]; return; fi
+  done
+  _HL_POS=1
+  return 0
+}
+
 # Nimmt die Sperre. Rückgabe 0 = Sperre gehalten (oder übersprungen), 75 = Zeitlimit,
 # 76 = Speicher zu knapp (Sperre wieder frei).
 heavy_lock_acquire() {
@@ -234,7 +289,15 @@ heavy_lock_acquire() {
   last_t=$start
   local name
   name=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
-  while ! mkdir "$HEAVY_LOCK_DIR" 2>/dev/null; do
+  _HL_NAME=$name
+  local last_pos=0
+  _hl_ticket_take "$name"
+  # traps vor dem Warten: auch ein abgebrochener Wartender gibt seine Fahrkarte frei
+  trap '_hl_on_exit' EXIT
+  trap '_hl_on_signal 129' HUP
+  trap '_hl_on_signal 130' INT
+  trap '_hl_on_signal 143' TERM
+  while ! { _hl_my_turn && mkdir "$HEAVY_LOCK_DIR" 2>/dev/null; }; do
     owner=$(cat "$HEAVY_LOCK_DIR/owner" 2>/dev/null)
     owner_pid=${owner%% *}
     # Nur eine reine Zahl ist eine pid. Ein anderes Format (andere Skripte, andere Gespräche) gilt
@@ -254,6 +317,7 @@ heavy_lock_acquire() {
     fi
     if [ -n "$owner_pid" ] && _hl_is_ancestor "$owner_pid"; then
       _hl_log "Sperre hält schon ein Vorfahr (pid $owner_pid), weiter ohne Warten"
+      _hl_ticket_drop
       return 0
     fi
     now=$(date +%s)
@@ -262,6 +326,7 @@ heavy_lock_acquire() {
     else
       age=$(( now - $(_hl_mtime "$HEAVY_LOCK_DIR") ))
     fi
+    [ -d "$HEAVY_LOCK_DIR" ] || age=0   # Sperre gerade frei (der vorderste Wartende ist dran): kein Alter
     if [ -z "$owner" ] && [ -d "$HEAVY_LOCK_DIR" ] && [ "$age" -gt 60 ]; then
       _hl_remove "" 60 && _hl_log "verwaiste Sperre ohne owner (${age}s) gelöscht"
       continue
@@ -269,6 +334,7 @@ heavy_lock_acquire() {
     waited=$(( now - start ))
     if [ "$timeout" -gt 0 ] && [ "$waited" -ge "$timeout" ]; then
       _hl_log "Zeitlimit ${timeout}s erreicht, Sperre hält: ${owner:-?} (seit $((age / 60)) min)"
+      _hl_ticket_drop
       return 75
     fi
     # Leerlauf des Halters: nur Wartezeit ohne Fortschritt zählt, ein Uhrsprung (Ruhezustand) setzt zurück
@@ -315,9 +381,10 @@ heavy_lock_acquire() {
       _hl_break "$owner"
       continue
     fi
-    if [ $(( waited / 120 )) -ne "$last_msg" ] || { [ "$idle" -ge "$max_idle" ] && [ "${_HL_WARNED:-}" != "$owner" ]; }; then
+    if [ $(( waited / 120 )) -ne "$last_msg" ] || [ "$_HL_POS" != "$last_pos" ] || { [ "$idle" -ge "$max_idle" ] && [ "${_HL_WARNED:-}" != "$owner" ]; }; then
       last_msg=$(( waited / 120 ))
-      _hl_log "warte seit $((waited / 60)) min; Sperre hält: ${owner:-?} (seit $((age / 60)) min)"
+      last_pos=$_HL_POS
+      _hl_log "warte seit $((waited / 60)) min, sitze an ${_HL_POS}. Stelle der Schlange; Sperre hält: ${owner:-frei, vorderster Wartender ist dran} (seit $((age / 60)) min)"
       if [ "$foreign" = 1 ]; then
         _hl_log "  fremder Halter (owner ohne pid, anderes Skript?): wird nicht als tot gewertet; gelöscht erst nach $(( ${HEAVY_LOCK_FOREIGN_MAX:-10800} / 60 )) min wacher Wartezeit oder mit HEAVY_LOCK_BREAK=1 nach $(( max_idle / 60 )) min"
       fi
@@ -328,12 +395,9 @@ heavy_lock_acquire() {
     fi
     sleep "$poll"
   done
-  # traps vor owner: ein Signal direkt nach mkdir gibt die Sperre sonst nie frei
+  # traps stehen schon (vor dem Warten): ein Signal direkt nach mkdir gibt die Sperre frei
   _HL_HELD=1
-  trap '_hl_on_exit' EXIT
-  trap '_hl_on_signal 129' HUP
-  trap '_hl_on_signal 130' INT
-  trap '_hl_on_signal 143' TERM
+  _hl_ticket_drop
   local mystart
   mystart=$(_hl_lstart "$$")
   echo "$$ $name $(date -u +%H:%M:%S)${mystart:+ ls=$mystart}" > "$HEAVY_LOCK_DIR/owner"
@@ -369,6 +433,7 @@ _hl_cleanup() {  # Hooks + Freigabe; mehrfach aufrufbar
   local h
   for h in "${_HL_EXIT_HOOKS[@]+"${_HL_EXIT_HOOKS[@]}"}"; do "$h" || true; done
   _HL_EXIT_HOOKS=()
+  _hl_ticket_drop
   heavy_lock_release
 }
 
