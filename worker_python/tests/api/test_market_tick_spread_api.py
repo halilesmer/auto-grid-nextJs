@@ -180,6 +180,7 @@ def test_migration_from_version_5_keeps_rates(client, broker):
     get(client, MON, MON + 600, tick=False)
     market_db.reset_cache()
     conn = sqlite3.connect(market_db.db_path())
+    conn.execute("DROP TABLE position_orders")
     conn.execute("DROP TABLE tick_spread")
     conn.execute("DROP TABLE tick_spread_coverage")
     conn.execute("DROP TABLE tick_replay")
