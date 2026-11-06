@@ -3,6 +3,7 @@
  * Testende, Zeitrahmen des Bots, Abbruchgründe. Die Zahlen sind von Hand gerechnet (Rechnung im Kommentar).
  * BKT-04 Backtest-Rechner mit Kosten
  * BKT-15 Backtest-Zeitraum sekundengenau (Kerzen ganz im Zeitraum)
+ * BKT-19 Backtest-Spread „tick“ (Minuten-Mittel aus Ticks)
  */
 import { expect, test } from '@playwright/test';
 import { snapshotSymbol, type SymbolSnapshot } from '../../src/lib/backtest/broker/costs';
@@ -63,9 +64,10 @@ function snapshot(detail: Partial<SymbolDetail> = {}, swapEnabled = false): Symb
 }
 
 /** Zeilen: [Zeit, Eröffnung, Hoch, Tief, Schluss, Spread in Punkten] */
-function candles(rows: number[][]): LoadedRates {
+function candles(rows: number[][], sa?: number[]): LoadedRates {
   const col = (i: number) => Float64Array.from(rows.map((r) => r[i]));
-  return { t: col(0), o: col(1), h: col(2), l: col(3), c: col(4), s: Float64Array.from(rows.map((r) => r[5] ?? NaN)), missing: [], digits: 2, point: 0.01, liveFrom: null };
+  const tick = sa ? { sa: Float64Array.from(sa), sx: Float64Array.from(sa) } : {};
+  return { t: col(0), o: col(1), h: col(2), l: col(3), c: col(4), s: Float64Array.from(rows.map((r) => r[5] ?? NaN)), ...tick, missing: [], digits: 2, point: 0.01, liveFrom: null };
 }
 
 /** Kauf-Grid, Raster 1,00 ab 2600, 0,10 Lot, TP 1,00; der Bot setzt um den Kurs je zwei Stufen darunter und darüber */
@@ -632,11 +634,41 @@ test.describe('Vorbedingungen und Abbruch', () => {
   });
 
   test('Standard „max“ ohne eigenen Wert: größerer von Kerzen- und Symbol-Spread; ohne Symbol-Spread der Kerzenwert', { tag: '@BKT-18' }, () => {
-    expect(DEFAULT_RUN_SETTINGS.spreadMode).toBe('max');
     const max0 = { mode: 'max', points: 0 } as const;
     expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: 30 }) }).summary.spreadInfo).toBe(3);
     expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: 10 }) }).summary.spreadInfo).toBe(2);
     expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: null }) }).summary.spreadInfo).toBe(2);
+  });
+});
+
+test.describe('Spread „tick“ (Minuten-Mittel)', () => {
+  const tick0 = { mode: 'tick', points: 0 } as const;
+
+  test('Standard der Oberfläche ist „tick“', { tag: '@BKT-19' }, () => {
+    expect(DEFAULT_RUN_SETTINGS.spreadMode).toBe('tick');
+    expect(DEFAULT_RUN_SETTINGS.spreadPoints).toBe(0);
+  });
+
+  test('Ask = Bid + Minutenwert sa, nicht der Kerzen-Spread (35 statt 20 Punkte = 3,50 für 0,10 Lot)', { tag: '@BKT-19' }, () => {
+    const result = run(candles([C1], [35]), { spread: tick0 });
+    expect(result.summary.spreadInfo).toBe(3.5);
+    expect(result.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toBeUndefined();
+  });
+
+  test('ohne sa (NaN) gilt die Regel von „max“ (Kerze 20, Symbol 30 → 30) und eine Meldung zählt die Kerzen', { tag: '@BKT-19' }, () => {
+    const result = run(candles([C1], [NaN]), { spread: tick0, snapshot: snapshot({ spread: 30 }) });
+    expect(result.summary.spreadInfo).toBe(3);
+    expect(result.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toMatchObject({ params: { candles: 1, total: 1 } });
+    // ohne Tick-Spalten überhaupt (CSV): dasselbe, alle Kerzen zählen
+    const csv = run(candles([C1]), { spread: tick0, snapshot: snapshot({ spread: 30 }) });
+    expect(csv.summary.spreadInfo).toBe(3);
+    expect(csv.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toMatchObject({ params: { candles: 1, total: 1 } });
+  });
+
+  test('„tick“ mit M5-Daten (keine Minutenwerte): Regel von „max“ für alle Kerzen, mit Meldung statt Abbruch', { tag: '@BKT-19' }, () => {
+    const result = run(candles([C1]), { spread: tick0, dataTimeframe: 'M5', to: T1 + 300, snapshot: snapshot({ spread: 30 }) });
+    expect(result.summary.spreadInfo).toBe(3);
+    expect(result.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toMatchObject({ params: { candles: 1, total: 1 } });
   });
 });
 

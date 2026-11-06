@@ -3,6 +3,7 @@
  * ohne Zukunftsdaten, Kerzenpfad, Gewinn, Kommission, Swap, Spread, Schnappschuss der Symbolwerte.
  * Alle erwarteten Werte sind von Hand gerechnet.
  * BKT-04 Backtest-Rechner mit Kosten
+ * BKT-19 Backtest-Spread „tick“ (Minuten-Mittel aus Ticks)
  */
 import { expect, test } from '@playwright/test';
 import {
@@ -275,6 +276,77 @@ test.describe('Kerzen laden', () => {
     await expect(loadRates({ fetchJson: stuck, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 300 })).rejects.toMatchObject({
       code: 'run.badRatesResponse',
     });
+  });
+});
+
+test.describe('Minuten-Spread aus Ticks laden', () => {
+  const base = { digits: 2, point: 0.01, missing: [] as unknown[], next_from: null };
+  const page = (extra: Record<string, unknown>) => ({
+    t: [0, 60, 120], o: [1, 1, 1], h: [2, 2, 2], l: [0, 0, 0], c: [1, 1, 1], s: [10, 10, 10], ...base, ...extra,
+  });
+
+  test('tick_spread=1 wird gesendet; sa und sx werden gelesen, null ist NaN', { tag: '@BKT-19' }, async () => {
+    const seen: string[] = [];
+    const fetchJson = async (path: string) => {
+      seen.push(path);
+      return page({ sa: [12.5, null, 30], sx: [20, null, 40], tick_missing: [] });
+    };
+    const rates = await loadRates({ fetchJson, accountId: 'a', symbol: 'XAUUSD', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(seen).toEqual(['/market/a/rates?symbol=XAUUSD&timeframe=M1&from=0&to=180&tick_spread=1']);
+    expect(Array.from(rates.sa ?? []).map((v) => (Number.isNaN(v) ? 'nan' : v))).toEqual([12.5, 'nan', 30]);
+    expect(Array.from(rates.sx ?? []).map((v) => (Number.isNaN(v) ? 'nan' : v))).toEqual([20, 'nan', 40]);
+  });
+
+  test('ohne tickSpread keine Spalten und kein Parameter', { tag: '@BKT-19' }, async () => {
+    const seen: string[] = [];
+    const rates = await loadRates({ fetchJson: async (path) => (seen.push(path), page({})), accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180 });
+    expect(rates.sa).toBeUndefined();
+    expect(seen[0]).not.toContain('tick_spread');
+  });
+
+  test('budget und syncing: dieselbe Seite wird erneut geholt, danach zählt die vollständige Antwort', { tag: '@BKT-19' }, async () => {
+    let calls = 0;
+    const fetchJson = async () => {
+      calls += 1;
+      if (calls === 1) return page({ sa: [null, null, null], sx: [null, null, null], tick_missing: [{ from: 0, to: 180, reason: 'budget', checked_at: null }] });
+      if (calls === 2) return page({ sa: [11, null, null], sx: [11, null, null], tick_missing: [{ from: 60, to: 180, reason: 'syncing', checked_at: null }] });
+      return page({ sa: [11, 12, 13], sx: [11, 12, 13], tick_missing: [] });
+    };
+    const rates = await loadRates({ fetchJson, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(calls).toBe(3);
+    expect(Array.from(rates.t)).toEqual([0, 60, 120]);
+    expect(Array.from(rates.sa ?? [])).toEqual([11, 12, 13]);
+  });
+
+  test('unavailable, busy und error werden nicht wiederholt; endloses budget bricht nach 15 Versuchen ab', { tag: '@BKT-19' }, async () => {
+    let calls = 0;
+    const once = async () => (calls += 1, page({ sa: [null, null, null], sx: [null, null, null], tick_missing: [{ from: 0, to: 180, reason: 'unavailable', checked_at: 1 }] }));
+    await loadRates({ fetchJson: once, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(calls).toBe(1);
+    calls = 0;
+    const endless = async () => (calls += 1, page({ sa: [null, null, null], sx: [null, null, null], tick_missing: [{ from: 0, to: 180, reason: 'budget', checked_at: null }] }));
+    const rates = await loadRates({ fetchJson: endless, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(calls).toBe(15);
+    expect(rates.sa?.every((v) => Number.isNaN(v))).toBe(true);
+  });
+
+  test('laufende Kerze und Kerzen vor from werden auch aus sa und sx entfernt; falsche Länge bricht ab', { tag: '@BKT-19' }, async () => {
+    const live = async () => page({ sa: [1, 2, 3], sx: [1, 2, 3], live_from: 120, tick_missing: [] });
+    const rates = await loadRates({ fetchJson: live, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 60, to: 180, tickSpread: true });
+    expect(Array.from(rates.t)).toEqual([60]);
+    expect(Array.from(rates.sa ?? [])).toEqual([2]);
+    const bad = async () => page({ sa: [1, 2], sx: [1, 2, 3], tick_missing: [] });
+    await expect(loadRates({ fetchJson: bad, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true })).rejects.toMatchObject({ code: 'run.badRatesResponse' });
+  });
+
+  test('candleSpreadPoints „tick“: Minutenwert, sonst die Regel von „max“', { tag: '@BKT-19' }, () => {
+    const tick0 = { mode: 'tick', points: 0 } as const;
+    expect(candleSpreadPoints(tick0, 18, 25)).toBe(25);
+    expect(candleSpreadPoints(tick0, 18, NaN)).toBe(18);
+    expect(candleSpreadPoints(tick0, 18, null)).toBe(18);
+    expect(candleSpreadPoints({ mode: 'tick', points: 30 }, 18, undefined)).toBe(30);
+    expect(candleSpreadPoints({ mode: 'tick', points: 30 }, NaN, NaN)).toBe(30);
+    expect(candleSpreadPoints({ mode: 'tick', points: 30 }, 18, 25)).toBe(25);
   });
 });
 

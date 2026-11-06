@@ -9,7 +9,7 @@ export interface RunSettingsValue {
   /** Datenquelle: Import-ID eines CSV-Imports, null = MT5-Server des Kontos */
   csvImportId: string | null;
   timeframe: DataTimeframe;
-  spreadMode: 'candle' | 'fixed' | 'max';
+  spreadMode: 'candle' | 'fixed' | 'max' | 'tick';
   spreadPoints: number;
   /** null = noch nicht angefasst: es gilt der Vorschlag aus dem Archiv (oder 0) */
   commission: number | null;
@@ -25,7 +25,7 @@ export interface RunSettingsValue {
 export const DEFAULT_RUN_SETTINGS: RunSettingsValue = {
   csvImportId: null,
   timeframe: 'M1',
-  spreadMode: 'max',
+  spreadMode: 'tick',
   spreadPoints: 0,
   commission: null,
   swapEnabled: true,

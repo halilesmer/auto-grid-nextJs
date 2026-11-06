@@ -161,13 +161,13 @@ export class PathBroker extends SimBroker {
     for (const agg of this.aggregators.values()) agg.push(bar);
   }
 
-  /** Neue Kerze der Datenauflösung: Spread der Kerze (Punkte) gilt bis zum Kerzenende */
-  beginCandle(time: number, open: number, spreadPoints: number): void {
+  /** Neue Kerze der Datenauflösung: Spread der Kerze (Punkte) gilt bis zum Kerzenende; `barSpreadPoints`: Wert, den die Zeitrahmen-Kerze erhält (Standard: derselbe) */
+  beginCandle(time: number, open: number, spreadPoints: number, barSpreadPoints: number = spreadPoints): void {
     const own = this.round(spreadPoints * this.costs.point);
     this.wideBefore = this.carrySpread && this.prevSpreadPrice > own;
     this.spreadPrice = this.wideBefore ? this.prevSpreadPrice : own;
     this.prevSpreadPrice = own;
-    this.forming = { time, open, high: open, low: open, close: open, spread: spreadPoints };
+    this.forming = { time, open, high: open, low: open, close: open, spread: barSpreadPoints };
   }
 
   endCandle(): void {

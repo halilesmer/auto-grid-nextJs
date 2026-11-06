@@ -226,6 +226,7 @@ export function runBacktest(input: RunInput): RunResult {
   const capital = input.startCapital ?? 0;
   const track = new EquityTrack(capital);
   let spreadFallbacks = 0;
+  let tickFallbacks = 0;
   let prevClose = rates.o[first];
   let prevTime = rates.t[first];
   const total = end - first;
@@ -235,12 +236,14 @@ export function runBacktest(input: RunInput): RunResult {
     if ((i - first) % PROGRESS_EVERY === 0) input.onProgress?.((i - first) / total);
     const t0 = rates.t[i];
     const tEnd = t0 + dataSec - 1;
-    // „max“ ohne eigenen Wert (0) nimmt den Symbol-Spread als Untergrenze; fehlt er, gilt der Kerzen-Spread
+    // „max“ und „tick“ ohne eigenen Wert (0) nehmen den Symbol-Spread als Untergrenze; fehlt er, gilt der Kerzen-Spread
     const spreadSetting: SpreadSetting =
-      input.spread.mode === 'max' && !(input.spread.points > 0) && snapshot.spreadPoints !== null && snapshot.spreadPoints > 0
-        ? { mode: 'max', points: snapshot.spreadPoints }
+      (input.spread.mode === 'max' || input.spread.mode === 'tick') && !(input.spread.points > 0) && snapshot.spreadPoints !== null && snapshot.spreadPoints > 0
+        ? { mode: input.spread.mode, points: snapshot.spreadPoints }
         : input.spread;
-    let spreadPoints = candleSpreadPoints(spreadSetting, rates.s[i]);
+    const minuteSpread = rates.sa ? rates.sa[i] : null;
+    if (input.spread.mode === 'tick' && !(typeof minuteSpread === 'number' && minuteSpread > 0)) tickFallbacks += 1;
+    let spreadPoints = candleSpreadPoints(spreadSetting, rates.s[i], minuteSpread);
     if (spreadPoints === null) {
       spreadPoints = snapshot.spreadPoints;
       if (spreadPoints === null) throw new RunError('run.spreadMissing', { time: t0 });
@@ -248,7 +251,9 @@ export function runBacktest(input: RunInput): RunResult {
     }
 
     broker.rollover(prevTime, t0);
-    broker.beginCandle(t0, rates.o[i], spreadPoints);
+    // Die Zeitrahmen-Kerzen des Bots tragen wie bei MT5 den Kerzen-Spread (Minimum), nicht den Minutenmittelwert
+    const barSpread = input.spread.mode === 'tick' && rates.s[i] > 0 ? rates.s[i] : spreadPoints;
+    broker.beginCandle(t0, rates.o[i], spreadPoints, barSpread);
     const way = candleWaypoints(rates.o[i], rates.h[i], rates.l[i], rates.c[i], model.path);
     const times = waypointTimes(way, t0, tEnd);
     const wakes = wakeLevels(zone, info.point, info.digits, broker.spreadPrice);
@@ -295,6 +300,7 @@ export function runBacktest(input: RunInput): RunResult {
     prevTime = tEnd;
   }
 
+  if (tickFallbacks > 0) log.add('WARN', 'run.tickSpreadFallback', { candles: tickFallbacks, total: total });
   if (spreadFallbacks > 0) log.add('WARN', 'run.spreadFallback', { candles: spreadFallbacks, points: snapshot.spreadPoints });
   if (model.closeAtEnd) {
     broker.closeAll();
