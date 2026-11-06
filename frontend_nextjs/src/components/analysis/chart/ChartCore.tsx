@@ -39,6 +39,10 @@ import {
   ZoneBandPrimitive,
   type FractalMark,
 } from './primitives';
+import { TrendLineMenuHost } from './TrendLineMenu';
+
+/** Höchstzahl der Schenkel in `data-trend-segments` */
+const MAX_TEST_SEGMENTS = 40;
 
 export type LineTone = 'primary' | 'up' | 'down' | 'muted';
 
@@ -601,8 +605,30 @@ export function ChartCore({
       return spec.visible ? [{ from: s.from, to: s.to, color: spec.color || tones[s.tone], width: spec.width, dash: dashArrayOf(spec.style) }] : [];
     });
     primitives.current.trend.set(drawn, c.background);
-    containerRef.current?.setAttribute('data-trend', String(drawn.length));
+    const host = containerRef.current;
+    host?.setAttribute('data-trend', String(drawn.length));
+    // Stil der Trendlinie am Element (Tests: die Linie ist Canvas und sonst nicht lesbar); Typ und Dicke gelten je Richtung
+    host?.setAttribute('data-trend-width', String(trendUp.width));
+    host?.setAttribute('data-trend-width-down', String(trendDown.width));
+    host?.setAttribute('data-trend-style', trendUp.style);
+    host?.setAttribute('data-trend-style-down', trendDown.style);
+    host?.setAttribute('data-trend-color', `${trendUp.color},${trendDown.color}`);
   }, [trendPath, colors, data, appearance, trendUp, trendDown]);
+
+  // Sichtbare Schenkel der Linie (Pixel ab Chart-Rand) am Element: die Linie ist Canvas, Tests finden sonst keinen Punkt auf ihr. Nur bei Änderung schreiben.
+  useEffect(() => {
+    const trend = primitives.current?.trend, host = containerRef.current;
+    if (!trend || !host) return;
+    let last = '';
+    trend.listenLayout((segments) => {
+      const left = chartRef.current?.priceScale('left').width() ?? 0;
+      const value = segments.slice(0, MAX_TEST_SEGMENTS).map((s) => [s.x1 + left, s.y1, s.x2 + left, s.y2].map(Math.round).join(',')).join(';');
+      if (value === last) return;
+      last = value;
+      if (value) host.setAttribute('data-trend-segments', value); else host.removeAttribute('data-trend-segments');
+    });
+    return () => trend.listenLayout(null);
+  }, [scene]);
 
   // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
   useEffect(() => {
@@ -673,6 +699,8 @@ export function ChartCore({
     allNotes.length > MAX_HOVER_NOTES
       ? [...allNotes.slice(0, MAX_HOVER_NOTES), t('analysis.chart.notes.more', { n: allNotes.length - MAX_HOVER_NOTES })]
       : allNotes;
+  // Menü der Trendlinie (Rechtsklick/Doppelklick auf die Linie); im Arbeitsbereich, damit es das aktive Zeichenwerkzeug kennt
+  const trendMenu = scene && !scene.binding.isDisposed() ? <TrendLineMenuHost chart={scene.binding.chart} host={scene.binding.host} lineMenu={appearance.lineMenu} /> : null;
   const hostAttributes = {
     ref: containerRef,
     tabIndex: 0,
@@ -701,6 +729,7 @@ export function ChartCore({
           </div>
         )}
         {scene && !scene.binding.isDisposed() && renderOverlay?.(scene)}
+        {trendMenu}
       </div>
     ) : (
     <div className="relative">
@@ -724,6 +753,7 @@ export function ChartCore({
       </div>
       {/* Die TradingView-Namensnennung (Link) erzeugt lightweight-charts selbst */}
       <div {...hostAttributes} className="h-[max(360px,calc(100dvh-22rem))] w-full [:fullscreen_&]:h-[calc(100dvh-12rem)]" />
+      {trendMenu}
     </div>
     )}
     </ChartWorkspace>

@@ -12,12 +12,14 @@ import type {
   Logical,
   ISeriesApi,
   ISeriesPrimitive,
+  PrimitiveHoveredItem,
   PrimitivePaneViewZOrder,
   SeriesAttachedParameter,
   SeriesType,
   Time,
   UTCTimestamp,
 } from 'lightweight-charts';
+import { TREND_HIT_PX, nearestDistance, toScreenSegments, type ScreenSegment } from '@/lib/chart/trendHit';
 type Draw = (target: Parameters<IPrimitivePaneRenderer['draw']>[0]) => void;
 
 /** Gemeinsame Hülle: hält Chart/Serie, zeichnet über eine Funktion, fordert Neuzeichnen an. */
@@ -30,6 +32,12 @@ abstract class BasePrimitive implements ISeriesPrimitive<Time> {
   constructor(zOrder: PrimitivePaneViewZOrder) {
     const renderer: IPrimitivePaneRenderer = { draw: (target) => this.draw(target) };
     this.views = [{ zOrder: () => zOrder, renderer: () => renderer }];
+  }
+
+  /** Treffer unter dem Zeiger (Pane-Pixel, `ISeriesPrimitive.hitTest`); die meisten Zeichnungen sind nicht anklickbar */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  hitTest(x: number, y: number): PrimitiveHoveredItem | null {
+    return null;
   }
 
   attached(param: SeriesAttachedParameter<Time>) {
@@ -311,10 +319,20 @@ export interface TrendPathLine {
   dash?: number[];
 }
 
+/** `externalId` der Trendlinie in `MouseEventParams.hoveredInfo.objectId` (Plan 1105-A7, S4) */
+export const TREND_PATH_ID = 'trend-path';
+
 /** Trendzug (ANA-21): 2 px, darunter ein Saum von 1 px in der Panelfarbe, damit die Linie auf gleichfarbigen Kerzen nicht untergeht. */
 export class TrendPathPrimitive extends BasePrimitive {
   private lines: TrendPathLine[] = [];
   private halo: string | null = null;
+  /** Die sichtbaren Schenkel in Pane-Pixeln nach jedem Zeichnen (Prüfwerte für die Tests, die Linie ist Canvas) */
+  private onLayout: ((segments: readonly ScreenSegment[]) => void) | null = null;
+
+  /** Meldet nach jedem Zeichnen die sichtbaren Schenkel; `null` beendet es */
+  listenLayout(listener: ((segments: readonly ScreenSegment[]) => void) | null) {
+    this.onLayout = listener;
+  }
 
   constructor() {
     super('top');
@@ -326,16 +344,33 @@ export class TrendPathPrimitive extends BasePrimitive {
     this.update();
   }
 
-  protected draw: Draw = (target) => {
-    if (this.lines.length === 0 || !this.series) return;
+  /** Die Schenkel in Pane-Pixeln; was der Chart nicht abbilden kann, fällt weg */
+  private screen() {
     const series = this.series;
-    const segs = this.lines.flatMap((l) => {
-      const x1 = this.x(l.from.time);
-      const x2 = this.x(l.to.time);
-      const y1 = series.priceToCoordinate(l.from.price);
-      const y2 = series.priceToCoordinate(l.to.price);
-      return x1 === null || x2 === null || y1 === null || y2 === null ? [] : [{ x1, x2, y1: Number(y1), y2: Number(y2), color: l.color, width: l.width ?? 2, dash: l.dash ?? [] }];
-    });
+    if (!series || this.lines.length === 0) return [];
+    return toScreenSegments(
+      this.lines,
+      (time) => this.x(time),
+      (price) => {
+        const y = series.priceToCoordinate(price);
+        return y === null ? null : Number(y);
+      },
+    );
+  }
+
+  override hitTest(x: number, y: number): PrimitiveHoveredItem | null {
+    const distance = nearestDistance(this.screen(), x, y);
+    return distance <= TREND_HIT_PX ? { externalId: TREND_PATH_ID, zOrder: 'top', cursorStyle: 'pointer', distance, hitTestPriority: 1 } : null;
+  }
+
+  protected draw: Draw = (target) => {
+    if (!this.series) return;
+    const segs = this.screen().map((s) => ({ ...s, color: s.line.color, width: s.line.width ?? 2, dash: s.line.dash ?? [] }));
+    if (this.onLayout) {
+      const width = this.chart?.timeScale().width() ?? 0, height = this.series.getPane().getHeight();
+      this.onLayout(segs.filter((s) => Math.max(s.x1, s.x2) > 0 && Math.min(s.x1, s.x2) < width && Math.max(s.y1, s.y2) > 0 && Math.min(s.y1, s.y2) < height));
+    }
+    if (segs.length === 0) return;
     const halo = this.halo;
     target.useBitmapCoordinateSpace(({ context, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
       context.save();

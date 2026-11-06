@@ -21,9 +21,10 @@ import vps from './vps';
 import zone from './zone';
 import workspace from './workspace';
 import toolbar from './toolbar';
+import trendLine from './trendLine';
 
 // Yeni bölüm: dosyayı ekle, buraya import et ve aşağıdaki listeye koy.
-const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, workspace, toolbar, hints, lineStyle] as const;
+const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, workspace, toolbar, hints, lineStyle, trendLine] as const;
 
 type Union2Intersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 
