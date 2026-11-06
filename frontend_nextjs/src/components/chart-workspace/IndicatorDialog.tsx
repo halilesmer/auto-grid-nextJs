@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/
 import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Modal } from '@/components/ui/modal';
 import { useT } from '@/i18n';
-import { INDICATOR_KINDS, isSystemRsi, newIndicator, systemRsiIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { INDICATOR_KINDS, newIndicator, resetIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 import { readChartColors } from '@/lib/chartTheme';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { InputsTab, StyleTab, VisibilityTab } from './IndicatorTabs';
@@ -40,12 +40,7 @@ export function IndicatorDialog({ values, favorites, focusId = null, onChange, o
     snapshot.current = [...values, item]; setTab('inputs'); setEditing(id); onChange([...values, item]);
   };
   const cancel = () => { onChange(snapshot.current); onClose(); };
-  const reset = (item: Indicator) => {
-    const factory = isSystemRsi(item) ? systemRsiIndicator() : newIndicator(item.kind), saved = defaults[item.kind];
-    // The system RSI starts from its formation look unless the user saved another one
-    const base = { ...factory, ...(isSystemRsi(item) && !saved ? {} : saved) };
-    update(item.id, { ...base, id: item.id, paneId: item.paneId, paneCollapsed: item.paneCollapsed, scaleSide: item.scaleSide, visible: item.visible, kind: item.kind });
-  };
+  const reset = (item: Indicator) => update(item.id, resetIndicator(item, defaults[item.kind]));
 
   if (!current) {
     return <Modal open onClose={onClose} title={t('cw.indicators')} className="max-h-[90dvh] max-w-4xl overflow-y-auto">

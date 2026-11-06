@@ -38,6 +38,27 @@ function migrateSystemRsi(indicators: Indicator[], paneOrder: string[] | undefin
   const withSystem = hasOld && !kept.some(item => item.id === SYSTEM_RSI_ID) ? [{ ...systemRsiIndicator(), visible: old?.hidden !== true, paneCollapsed: old?.collapsed === true }, ...kept] : kept;
   return { indicators: withSystem, paneOrder: paneOrder?.map(id => id === 'rsi' ? SYSTEM_RSI_ID : id) };
 }
+/**
+ * One stored document as the app uses it (images read from their own keys, version 1 moved to the single RSI, version 2 given its unit ranges).
+ * `hydrate` and `write` both use it: a document that this tab never touched must not go back to disk or into memory as raw bytes.
+ */
+export function parseStoredDocument(unknownDoc: unknown, version: unknown): ChartDocument | null {
+  const d = unknownDoc as Partial<ChartDocument>;
+  if (!d || typeof d !== 'object') return null;
+  const images: Record<string, string> = {};
+  for (const [name, ref] of Object.entries(d.images ?? {})) {
+    const value = typeof ref === 'string' ? ref : localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${name}`);
+    if (typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value) && value.length < 2_800_000) images[name] = value;
+  }
+  const overlays = Object.fromEntries(Object.entries(d.overlays ?? {}).filter(([, v]) => typeof v === 'boolean'));
+  // Alte Dokumente speichern `viewport` als Indexbereich; er passt zu keiner Zeit und wird nicht übernommen
+  const saved = d.visibleTime && typeof d.visibleTime === 'object' ? d.visibleTime as Partial<VisibleTime> : null;
+  const visibleTime = saved && typeof saved.from === 'number' && Number.isFinite(saved.from) && typeof saved.to === 'number' && Number.isFinite(saved.to) && saved.from < saved.to ? { from: saved.from, to: saved.to } : undefined;
+  const alarms = Array.isArray(d.alarms) ? d.alarms.flatMap(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.indicatorId === 'string' && (item.direction === 'above' || item.direction === 'below') && typeof item.value === 'number' && Number.isFinite(item.value) ? [{ id: item.id, indicatorId: item.indicatorId, direction: item.direction, value: item.value, armed: item.armed !== false }] : []).slice(0, 50) : [];
+  const migrated = version === 1 ? migrateSystemRsi(parseIndicators(d.indicators), parsePaneOrder(d.paneOrder), d.systemPanes) : { indicators: parseIndicators(d.indicators), paneOrder: parsePaneOrder(d.paneOrder) };
+  const paneOrder = migrated.paneOrder, systemPanes = parseSystemPanes(d.systemPanes);
+  return { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: migrated.indicators, images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(visibleTime ? { visibleTime } : {}), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}) };
+}
 export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {}, alarms: [] });
 interface State {
   links: Record<string, string>;
@@ -80,16 +101,12 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
   let lastLayout: ToolbarLayout = {};
   let lastDock: DockLayout = defaultDockLayout();
   let pendingWrites = 0, receivePending = false;
-  const readDocument = (d: ChartDocument): ChartDocument => ({ ...d, images: Object.fromEntries(Object.entries(d.images ?? {}).flatMap(([name, ref]) => {
-    const bytes = typeof ref === 'string' ? ref : localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${name}`);
-    return typeof bytes === 'string' ? [[name, bytes]] : [];
-  })) });
   const write = () => {
     const s = get();
     if (!s.hydrated) return;
     try {
       const remote = JSON.parse(localStorage.getItem(WORKSPACE_STORAGE_KEY) || '{}');
-      const combined: Record<string, ChartDocument> = Object.fromEntries(Object.entries(remote.documents ?? {}).map(([key, value]) => [key, readDocument(value as ChartDocument)]));
+      const combined: Record<string, ChartDocument> = Object.fromEntries(Object.entries(remote.documents ?? {}).flatMap(([key, value]) => { const doc = parseStoredDocument(value, remote.version); return doc ? [[key, doc]] : []; }));
       for (const [key, doc] of Object.entries(s.documents)) {
         if (doc === lastDocuments[key] && combined[key]) continue;
         const latest = combined[key];
@@ -138,21 +155,8 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
         const documents: Record<string, ChartDocument> = {}, templates: Record<string, Appearance> = {};
         if (raw?.version === 1 || raw?.version === 2 || raw?.version === STORAGE_VERSION) {
           for (const [key, unknownDoc] of Object.entries(raw.documents ?? {})) {
-            const d = unknownDoc as Partial<ChartDocument>;
-            if (!d || typeof d !== 'object') continue;
-            const images: Record<string, string> = {};
-            for (const [name, ref] of Object.entries(d.images ?? {})) {
-              const value = typeof ref === 'string' ? ref : localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${name}`);
-              if (typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value) && value.length < 2_800_000) images[name] = value;
-            }
-            const overlays = Object.fromEntries(Object.entries(d.overlays ?? {}).filter(([, v]) => typeof v === 'boolean'));
-            // Alte Dokumente speichern `viewport` als Indexbereich; er passt zu keiner Zeit und wird nicht übernommen
-            const saved = d.visibleTime && typeof d.visibleTime === 'object' ? d.visibleTime as Partial<VisibleTime> : null;
-            const visibleTime = saved && typeof saved.from === 'number' && Number.isFinite(saved.from) && typeof saved.to === 'number' && Number.isFinite(saved.to) && saved.from < saved.to ? { from: saved.from, to: saved.to } : undefined;
-            const alarms = Array.isArray(d.alarms) ? d.alarms.flatMap(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.indicatorId === 'string' && (item.direction === 'above' || item.direction === 'below') && typeof item.value === 'number' && Number.isFinite(item.value) ? [{ id: item.id, indicatorId: item.indicatorId, direction: item.direction, value: item.value, armed: item.armed !== false }] : []).slice(0, 50) : [];
-            const migrated = raw.version === 1 ? migrateSystemRsi(parseIndicators(d.indicators), parsePaneOrder(d.paneOrder), d.systemPanes) : { indicators: parseIndicators(d.indicators), paneOrder: parsePaneOrder(d.paneOrder) };
-            const paneOrder = migrated.paneOrder, systemPanes = parseSystemPanes(d.systemPanes);
-            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: migrated.indicators, images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(visibleTime ? { visibleTime } : {}), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}) };
+            const doc = parseStoredDocument(unknownDoc, raw.version);
+            if (doc) documents[key] = doc;
           }
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }

@@ -99,10 +99,10 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     await rightClick(page);
     await expect(menu(page)).toBeVisible();
     await expect(menu(page)).toHaveAttribute('role', 'menu');
-    await menu(page).getByRole('button', { name: msg('lineStyle.width.option', { n: 3 }), exact: true }).click();
+    await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 3 }), exact: true }).click();
     await expect(chart(page)).toHaveAttribute('data-trend-width', '3');
     await expect(chart(page)).toHaveAttribute('data-trend-width-down', '3');
-    await menu(page).getByRole('button', { name: msg('lineStyle.type.dashed'), exact: true }).click();
+    await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.type.dashed'), exact: true }).click();
     await expect(chart(page)).toHaveAttribute('data-trend-style', 'dashed');
     await expect(chart(page)).toHaveAttribute('data-trend-style-down', 'dashed');
     await page.keyboard.press('Escape');
@@ -119,12 +119,12 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     await rightClick(page);
     const up = menu(page).getByRole('group', { name: msg('trendLine.up'), exact: true });
     const down = menu(page).getByRole('group', { name: msg('trendLine.down'), exact: true });
-    await up.getByRole('button', { name: msg('lineStyle.color.blue'), exact: true }).click();
+    await up.getByRole('menuitemradio', { name: msg('lineStyle.color.blue'), exact: true }).click();
     await expect(chart(page)).toHaveAttribute('data-trend-color', '#2a6df4,');
-    await down.getByRole('button', { name: msg('lineStyle.color.purple'), exact: true }).click();
+    await down.getByRole('menuitemradio', { name: msg('lineStyle.color.purple'), exact: true }).click();
     await expect(chart(page)).toHaveAttribute('data-trend-color', '#2a6df4,#8b5cf6');
     // Die Abwärtsgruppe hat nur die Farbe, nicht Typ und Dicke (die gelten für beide)
-    await expect(down.getByRole('button', { name: msg('lineStyle.width.option', { n: 3 }), exact: true })).toHaveCount(0);
+    await expect(down.getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 3 }), exact: true })).toHaveCount(0);
   });
 
   for (const theme of ['light', 'dark']) {
@@ -168,8 +168,8 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
   test('„Varsayılana dön“ stellt Farbe, Typ und Dicke beider Richtungen her und lässt das Menü offen', { tag: '@ANA-25' }, async ({ page, worker }) => {
     await open(page, worker);
     await rightClick(page);
-    await menu(page).getByRole('button', { name: msg('lineStyle.width.option', { n: 4 }), exact: true }).click();
-    await menu(page).getByRole('button', { name: msg('lineStyle.type.dotted'), exact: true }).click();
+    await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 4 }), exact: true }).click();
+    await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.type.dotted'), exact: true }).click();
     await expect(chart(page)).toHaveAttribute('data-trend-width', '4');
     await menu(page).getByRole('menuitem', { name: msg('trendLine.reset'), exact: true }).click();
     await expect(chart(page)).toHaveAttribute('data-trend-width', '2');
@@ -350,7 +350,7 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     await expect(chart(page)).toHaveAttribute('data-trend-segments', /\d/);
     await rightClick(page);
     await expect(menu(page)).toBeVisible();
-    await menu(page).getByRole('button', { name: msg('lineStyle.width.option', { n: 4 }), exact: true }).click();
+    await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 4 }), exact: true }).click();
     await expect(chart(page)).toHaveAttribute('data-trend-width', '4');
   });
 

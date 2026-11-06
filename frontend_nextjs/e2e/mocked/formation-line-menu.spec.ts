@@ -65,9 +65,9 @@ test('Rechtsklick auf den Zickzack öffnet das Menü: Dicke 3, Typ durchgezogen,
   await rightClick(page);
   await expect(menu(page)).toBeVisible();
   await expect(menu(page)).toHaveAttribute('role', 'menu');
-  await menu(page).getByRole('button', { name: msg('lineStyle.width.option', { n: 3 }), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 3 }), exact: true }).click();
   for (const leg of await legs(page).all()) await expect(leg).toHaveAttribute('stroke-width', '3');
-  await menu(page).getByRole('button', { name: msg('lineStyle.type.solid'), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.type.solid'), exact: true }).click();
   for (const leg of await legs(page).all()) await expect(leg).not.toHaveAttribute('stroke-dasharray', /.+/);
   await page.keyboard.press('Escape');
   await expect(menu(page)).toHaveCount(0);
@@ -82,7 +82,7 @@ test('Doppelklick öffnet dasselbe Menü; „Bu çizgiyi gizle“ blendet die Ro
   await openPage(page, worker);
   await doubleClick(page);
   await expect(menu(page)).toBeVisible();
-  await menu(page).getByRole('button', { name: msg('lineStyle.width.option', { n: 4 }), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 4 }), exact: true }).click();
   await menu(page).getByRole('menuitem', { name: msg('formation.line.reset'), exact: true }).click();
   for (const leg of await legs(page).all()) await expect(leg).toHaveAttribute('stroke-width', '2');
   await menu(page).getByRole('menuitem', { name: msg('formation.line.hide'), exact: true }).click();
@@ -288,4 +288,62 @@ test('Rechtsklick auf leerer Fläche: das Browsermenü wird nicht unterdrückt',
   await page.mouse.click(box.x + 4, box.y + 60, { button: 'right' });
   expect(await prevented).toBe(false);
   await expect(menu(page)).toHaveCount(0);
+});
+
+test('Menü-Rollen: Farb-, Typ- und Dickenwahl sind menuitemradio mit aria-checked, keine nackten Schaltflächen (R2-03)', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await rightClick(page);
+  await expect(menu(page)).toBeVisible();
+  const radios = menu(page).getByRole('menuitemradio');
+  // 7 Farben + 3 Typen + 4 Dicken
+  await expect(radios).toHaveCount(14);
+  await expect(menu(page).locator('button:not([role])')).toHaveCount(0);
+  await expect(menu(page).getByRole('menuitemradio', { checked: true })).toHaveCount(3);
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 3 }), exact: true }).click();
+  await expect(menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 3 }), exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 2 }), exact: true })).toHaveAttribute('aria-checked', 'false');
+  await expect(menu(page).getByRole('menuitem', { name: msg('lineStyle.custom'), exact: true })).toHaveCount(1);
+  // Pfeiltasten laufen weiter über die neuen Rollen
+  await page.keyboard.press('Home');
+  await expect(menu(page).getByRole('menuitemradio').first()).toBeFocused();
+  // Die Tabelle bleibt bei Schaltflächen mit aria-pressed
+  const dialog = await openSettings(page, 'cw.overlays');
+  const row = dialog.locator('[data-testid="line-style-row"][data-role="zigzag"]');
+  await expect(row.getByRole('menuitemradio')).toHaveCount(0);
+  await expect(row.getByRole('button', { name: msg('lineStyle.width.option', { n: 3 }), exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('Eigene Farbe: das Feld ist leer, solange keine feste Farbe gewählt ist, und gefüllt bei Hex (R2-08)', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await rightClick(page);
+  const custom = menu(page).locator('span:has(> input[type="color"])').first();
+  await expect(custom).toHaveAttribute('data-empty', 'true');
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.color.gray'), exact: true }).click();
+  await expect(custom).toHaveAttribute('data-empty', 'true');
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.color.green'), exact: true }).click();
+  await expect(custom).not.toHaveAttribute('data-empty', /.*/);
+});
+
+test('Farbfelder haben eine Kante mit genug Kontrast zum Menühintergrund (R2-10)', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  await rightClick(page);
+  const swatch = menu(page).getByRole('menuitemradio', { name: msg('lineStyle.color.green'), exact: true });
+  const classes = await swatch.getAttribute('class');
+  expect(classes).toContain('border-muted-foreground/50');
+  expect(classes).not.toMatch(/(^|\s)border-border(\s|$)/);
+  const custom = menu(page).locator('span:has(> input[type="color"])').first();
+  expect(await custom.getAttribute('class')).toContain('border-muted-foreground/50');
+});
+
+test('Texte: Rollenfarbe, Tabellen-Hinweis und Touch-Hinweis stimmen (R2-04, R2-06)', { tag: '@FRM-47' }, async ({ page, worker }) => {
+  await openPage(page, worker);
+  expect(msg('lineStyle.auto.theme.hint')).not.toContain('varsayılan renk budur');
+  expect(msg('lineStyle.auto.theme.hint')).toContain('Rolün kendi rengi');
+  expect(msg('formation.line.table.hint')).not.toContain('Tamam');
+  expect(msg('formation.line.table.hint')).toContain(msg('cw.apply'));
+  expect(msg('cw.lineMenu.hint')).toContain('Android');
+  expect(msg('cw.lineMenu.hint')).not.toContain('dokunmatikte uzun basma');
+  const dialog = await openSettings(page, 'cw.overlays');
+  await dialog.getByRole('heading', { name: msg('formation.line.table'), exact: true }).hover();
+  await expect(page.getByRole('tooltip').filter({ hasText: msg('formation.line.table.hint') })).toBeVisible();
 });

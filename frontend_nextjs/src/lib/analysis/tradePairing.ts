@@ -29,6 +29,9 @@ export interface Deal {
   fee: number | null;
   comment: string | null;
   reason: number | null;
+  /** SL/TP der Eröffnungsorder (nur Einstiegs-Deals; null = unbekannt oder ohne Wert, ANA-07) */
+  open_sl?: number | null;
+  open_tp?: number | null;
 }
 
 /** Eintrag im Zonen-Register (market_db.zone_registry); created_at/deleted_at sind echte Unix-Sekunden. */

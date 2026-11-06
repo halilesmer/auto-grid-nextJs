@@ -13,7 +13,7 @@ import { captureChart, type ChartPicture } from '@/lib/formation/shotImage';
 import { type ChartScene, type OverlayLine } from '@/components/analysis/chart/ChartCore';
 import { ChartView } from '@/components/chart-page/ChartView';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
-import { isSystemRsi } from '@/lib/chart-workspace/indicators';
+import { isSystemRsi, matchesFormationRsi } from '@/lib/chart-workspace/indicators';
 import { RSI_PARAMS } from '@/lib/formation/params';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationDrawingsToggle';
@@ -217,6 +217,9 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
         items: [{ id: selectedId, form: hit.form, candidate: hit.candidate }, ...others.filter((o) => o.tf === hit.tf && o.candidate !== hit.candidate).map((o) => ({ id: `${o.form}-${o.tf}`, form: o.form, candidate: o.candidate }))],
         selectedId,
         width,
+        height: top,
+        lastTime: lastBar.time,
+        barSec: TIMEFRAME_SEC[hit.tf],
         close: lastBar.close,
         atr,
         x,
@@ -229,6 +232,8 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
         form: hit.form,
         width,
         lastBar: { time: lastBar.time, close: lastBar.close },
+        barSec: TIMEFRAME_SEC[hit.tf],
+        stack: d.badges.length > 1 ? { left: Math.min(...d.badges.map((b) => b.bx)), top: Math.min(...d.badges.map((b) => b.by)), bottom: Math.max(...d.badges.map((b) => b.by + b.h)) } : null,
         x,
         y,
         yRsi: (value) => {
@@ -393,7 +398,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
   // The formation rules read RSI(7) on close of the chart timeframe: with other settings the RSI pane shows other numbers, so its drawings are hidden
   const rsiMatches = useChartWorkspaceStore(s => {
     const config = s.documents[contextKey]?.indicators.find(isSystemRsi);
-    return !config || (config.period === RSI_PARAMS.period && config.source === 'close' && config.timeframe === 0);
+    return !config || matchesFormationRsi(config, TIMEFRAME_SEC[hit.tf], RSI_PARAMS.period);
   });
   const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);
   const bars = view?.bars ?? NO_BARS;

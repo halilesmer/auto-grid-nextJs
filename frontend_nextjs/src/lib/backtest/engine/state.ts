@@ -76,12 +76,29 @@ export class EngineState {
   algoTradingDisabled = false;
   lastErrorMessage = '';
   lastOrderTicket = 0;
+  /** Retcode der letzten Ablehnung (TradeState.last_retcode); 0 = keiner */
+  lastRetcode = 0;
+  /** Symbol → Zeit, bis zu der nach 10018 keine Order gesendet wird (market_closed_until, ENG-32) */
+  readonly marketClosedUntil = new Map<string, number>();
+  /** Symbol → Zeit, bis zu der nach 10018 beim Löschen kein neuer Versuch kommt (cancel_closed_until, ENG-33) */
+  readonly cancelClosedUntil = new Map<string, number>();
+  /** Pause nach 10018 in Sekunden (MARKET_CLOSED_CHECK_INTERVAL) */
+  readonly MARKET_CLOSED_CHECK_INTERVAL = 60;
 
   constructor(
     /** Simulierte Uhr in Sekunden (clock.monotonic und clock.wall) */
     readonly now: () => number,
     private readonly sink: (entry: EngineLogEntry) => void = () => {},
   ) {}
+
+  /** Früheste Zeit nach `now`, zu der eine 10018-Pause endet; null = keine läuft (der Lauf weckt den Bot dann) */
+  nextClosedRetry(now: number): number | null {
+    let next: number | null = null;
+    for (const map of [this.marketClosedUntil, this.cancelClosedUntil]) {
+      for (const until of map.values()) if (until > now && (next === null || until < next)) next = until;
+    }
+    return next;
+  }
 
   log(level: LogLevel, code: string, params?: Record<string, unknown>): void {
     this.sink({ level, code, params });

@@ -10,7 +10,10 @@ docs/analyse-regeln.md §3 ve §8:
 - Canlı botu korumak için: parçalar en fazla ~1 ay M1, aynı anda tek geçmiş sorgusu (semafor),
   parçalar arasında 0,5 sn ara, her parça kendi bağlantısı ve kilidiyle (araya bot/diğer istekler girer).
 """
+import json
+import logging
 import threading
+import zlib
 import time
 
 from src.utils import market_db as db
@@ -40,6 +43,21 @@ MAX_ENTRY_LOOKUPS = 200
 # onaylanmış ara bir daha hiç sorulmaz
 MAX_PAUSE_SEC = 4 * 86400
 ENTRY_IN = 0
+# BKT-19: Minuten-Spread aus Ticks. Ein Tagesstück je Abruf; ein Aufruf rechnet höchstens TICK_BUDGET_SEC (unter dem
+# 120-s-Timeout des Browsers), der Rest kommt als `budget` und wird beim nächsten Aufruf fortgesetzt.
+TICK_BUDGET_SEC = 40
+TICK_PAUSE_SEC = 0.5
+TICK_DAY_SEC = 86400
+TICK_LOOKBACK_SEC = 3600  # der letzte Tick vor dem Stück bestimmt den Spread am Stückanfang
+# Weniger Ticks als dieser Anteil der M1-tick_volume: das Terminal lädt die Historie noch → nicht speichern
+TICK_MIN_RATIO = 0.5
+# BKT-20: Replay-Minuten. S: größter Spread ≥ 3 × Median der Minuten-Mittel des Stücks (mind. 30 Minuten);
+# J: Bid- oder Ask-Sprung zwischen zwei Ticks ≥ 4 × Median (Punkte). Höchstens REPLAY_MAX_TICKS_DAY Ticks je Tagesstück.
+REPLAY_S_RATIO = 3.0
+REPLAY_J_RATIO = 4.0
+REPLAY_MIN_MINUTES = 30
+REPLAY_MAX_TICKS_DAY = 30_000
+_log = logging.getLogger(__name__)
 _FETCH_SLOT = threading.Semaphore(1)
 # Uç parçası (canlı mumu içeren yanıt) 30 sn tekrar kullanılır: grafik her dakika ucu yeniler,
 # birden fazla sekme/kullanıcı aynı anda sorsa da MT5'e en fazla 30 sn'de bir bağlanılır
@@ -121,6 +139,211 @@ def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> di
     return mm._connected(account, collect)
 
 
+def minute_spread_stats(ticks, point: float, a: int, b: int) -> list[tuple[int, float, int, int]]:
+    """Je Minute in [a, b) (MT5-Sekunden): (Minute, zeitgewichteter Mittelspread, größter Spread, Tickzahl), Spread in Punkten.
+
+    Ein Spread gilt von seinem Tick bis zum nächsten (bzw. Minutenende); am Minutenanfang gilt der Spread des letzten
+    Ticks davor. Ticks mit Bid/Ask 0 oder Ask < Bid zählen nicht. Minuten ohne Tick bekommen keine Zeile.
+    `ticks`: alt → neu, Zeilen mit time_msc/bid/ask (dict oder numpy-Zeile).
+    """
+    a_ms, b_ms = a * 1000, b * 1000
+    out: list[tuple[int, float, int, int]] = []
+    carry = None  # Spread des letzten Ticks vor der aktuellen Minute
+    cur = None  # [Minutenstart ms, Position ms, Spread seit Position, Σ Spread·ms, Σ ms, Max, Anzahl]
+
+    def flush():
+        nonlocal carry
+        m, pos, sp_now, total, weight, top, count = cur
+        if sp_now is not None:
+            span = m + 60000 - pos
+            total += sp_now * span
+            weight += span
+        if weight > 0:
+            out.append((m // 1000, total / weight, top, count))
+        carry = sp_now
+
+    for row in ticks:
+        bid, ask = float(row["bid"]), float(row["ask"])
+        if not (bid > 0 and ask > 0 and ask >= bid):
+            continue
+        t = int(row["time_msc"])
+        if t >= b_ms:
+            break
+        spread = round((ask - bid) / point)
+        m = t - t % 60000
+        if m < a_ms:  # Vorlauf: nur der Spread zählt
+            carry = spread
+            continue
+        if cur is not None and cur[0] != m:
+            flush()
+            cur = None
+        if cur is None:
+            cur = [m, m, carry, 0.0, 0, 0, 0]
+        if cur[2] is not None:
+            cur[3] += cur[2] * (t - cur[1])
+            cur[4] += t - cur[1]
+        cur[1], cur[2] = t, spread
+        cur[5] = max(cur[5], spread)
+        cur[6] += 1
+    if cur is not None:
+        flush()
+    return out
+
+
+def replay_minutes(ticks, stats, point: float, a: int, b: int, max_ticks: int = REPLAY_MAX_TICKS_DAY):
+    """Rollover-/Sprung-Minuten in [a, b): ([(Minute, Art 'S'|'J'|'SJ', ms im Minute, Bid, Ask)], verworfene Minuten).
+
+    Bid/Ask in ganzen Punkten. `stats` = minute_spread_stats desselben Stücks (Median der Minuten-Mittel als Referenz).
+    Der Sprung zählt auch vom letzten Tick vor der Minute (Vorlauf) zum ersten Tick der Minute. Ist mehr da als
+    `max_ticks`, bleiben die Minuten mit dem größten Verhältnis zum Median.
+    """
+    if not stats:
+        return [], 0
+    means = sorted(s[1] for s in stats)
+    mid = len(means) // 2
+    med = means[mid] if len(means) % 2 else (means[mid - 1] + means[mid]) / 2
+    if med <= 0:
+        return [], 0
+    top = {s[0]: s[2] for s in stats}
+    use_spread = len(stats) >= REPLAY_MIN_MINUTES
+    a_ms, b_ms = a * 1000, b * 1000
+    minutes: dict[int, tuple[list[int], list[int], list[int]]] = {}
+    jump: dict[int, float] = {}
+    prev = None
+    for row in ticks:
+        bid, ask = float(row["bid"]), float(row["ask"])
+        if not (bid > 0 and ask > 0 and ask >= bid):
+            continue
+        t = int(row["time_msc"])
+        if t >= b_ms:
+            break
+        bp, ap = round(bid / point), round(ask / point)
+        if t >= a_ms:
+            m = t - t % 60000
+            if prev is not None:
+                step = max(abs(bp - prev[0]), abs(ap - prev[1]))
+                if step > jump.get(m, 0):
+                    jump[m] = step
+            cols = minutes.setdefault(m, ([], [], []))
+            cols[0].append(t - m)
+            cols[1].append(bp)
+            cols[2].append(ap)
+        prev = (bp, ap)
+    found = []
+    for m, cols in minutes.items():
+        s_ratio = top.get(m // 1000, 0) / med if use_spread else 0.0
+        j_ratio = jump.get(m, 0) / med
+        kind = ("S" if s_ratio >= REPLAY_S_RATIO else "") + ("J" if j_ratio >= REPLAY_J_RATIO else "")
+        if kind:
+            found.append((max(s_ratio if "S" in kind else 0, j_ratio if "J" in kind else 0), m // 1000, kind, cols))
+    found.sort(key=lambda f: -f[0])
+    kept, total, dropped = [], 0, 0
+    for _, minute, kind, cols in found:
+        if total + len(cols[0]) > max_ticks:
+            dropped += 1
+            continue
+        total += len(cols[0])
+        kept.append((minute, kind, cols[0], cols[1], cols[2]))
+    kept.sort(key=lambda r: r[0])
+    return kept, dropped
+
+
+def encode_replay(ms: list[int], bid: list[int], ask: list[int]) -> bytes:
+    return zlib.compress(json.dumps([ms, bid, ask], separators=(",", ":")).encode())
+
+
+def decode_replay(blob: bytes) -> tuple[list[int], list[int], list[int]]:
+    ms, bid, ask = json.loads(zlib.decompress(blob))
+    return ms, bid, ask
+
+
+def _fetch_tick_piece(account: dict, symbol: str, x: int, y: int, replay: bool = False) -> dict:
+    """Ein Stück [x, y): Minutenstatistik aus den Ticks (Vorlauf eine Stunde davor) und Tickzahl im Stück."""
+
+    def collect(mt5):
+        mm._check_account(mt5, account)
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            raise mm.MarketDataError(f"[SYMBOL] {symbol} bu hesapta bulunamadı.", status=404)
+        if not getattr(info, "visible", True):
+            mt5.symbol_select(symbol, True)
+        errors: list[str] = []
+        rows = mt5.copy_ticks_range(symbol, x - TICK_LOOKBACK_SEC, y - 1, mt5.COPY_TICKS_ALL)
+        if mm._mt5_error(mt5, "copy_ticks_range", rows, errors):
+            raise mm.MarketDataError(f"[TICKS] {errors[0]}")
+        rows = rows if rows is not None else []
+        point = float(getattr(info, "point", 0) or 0)
+        if point <= 0:
+            raise mm.MarketDataError(f"[SYMBOL] {symbol} için point değeri yok.")
+        inside = sum(1 for r in rows if int(r["time_msc"]) >= x * 1000)
+        stats = minute_spread_stats(rows, point, x, y)
+        marked, dropped = replay_minutes(rows, stats, point, x, y) if replay else ([], 0)
+        return {"stats": stats, "count": inside, "replay": marked, "dropped": dropped}
+
+    return mm._connected(account, collect)
+
+
+def _tick_pieces(todo):
+    """Eksik aralıkları Brokertag sınırlarında Stücke böler."""
+    for a, b in todo:
+        x = a
+        while x < b:
+            y = min(b, (x // TICK_DAY_SEC + 1) * TICK_DAY_SEC)
+            yield x, y
+            x = y
+
+
+def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, busy: bool,
+                      replay: bool = False) -> list[dict]:
+    """Fehlende Minuten-Spreads (und Replay-Minuten) für M1 [a, b) aus MT5 holen und speichern. Gibt `tick_missing` zurück."""
+    todo, missing = db.plan_tick_spread(source, symbol, a, b, replay=replay)
+    pieces = list(_tick_pieces(todo))
+    if not pieces:
+        return missing
+    if busy:
+        return missing + [{"from": x, "to": y, "reason": "busy", "checked_at": None} for x, y in pieces]
+    deadline = time.monotonic() + TICK_BUDGET_SEC
+    fetched = 0
+    for i, (x, y) in enumerate(pieces):
+        volume = sum(r.get("tick_volume") or 0 for r in db.read_rates(source, symbol, 60, x, y, MAX_BARS + 1))
+        if volume == 0 and not db.read_rates(source, symbol, 60, x, y, 1):
+            # Wochenende oder Pause innerhalb des Kerzenbereichs: keine Kerze, also nichts zu holen
+            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_COMPLETE)], replay=replay)
+            continue
+        if fetched and time.monotonic() >= deadline:
+            missing += [{"from": p, "to": q, "reason": "budget", "checked_at": None} for p, q in pieces[i:]]
+            break
+        if fetched:
+            time.sleep(TICK_PAUSE_SEC)
+        if not _FETCH_SLOT.acquire(timeout=FETCH_WAIT_SEC):
+            missing += [{"from": p, "to": q, "reason": "busy", "checked_at": None} for p, q in pieces[i:]]
+            break
+        fetched += 1
+        try:
+            part = _fetch_tick_piece(account, symbol, x, y, replay)
+        except mm.MarketDataError as exc:
+            missing.append({"from": x, "to": y, "reason": "error", "detail": exc.detail, "checked_at": None})
+            continue
+        finally:
+            _FETCH_SLOT.release()
+        if part["count"] == 0:
+            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_UNAVAILABLE)], replay=replay)
+            missing.append({"from": x, "to": y, "reason": db.STATE_UNAVAILABLE, "checked_at": int(time.time())})
+        elif part["count"] < TICK_MIN_RATIO * volume:
+            # Das Terminal lädt die Historie vermutlich noch: nichts speichern, beim nächsten Aufruf neu versuchen
+            missing.append({"from": x, "to": y, "reason": "syncing", "checked_at": None})
+        else:
+            marked = [(m, kind, encode_replay(ms, bid, ask)) for m, kind, ms, bid, ask in part["replay"]]
+            db.store_tick_spread(source, symbol, part["stats"], [(x, y, db.STATE_COMPLETE)],
+                                 replay_rows=marked, replay=replay)
+            if replay:
+                # Für die Kalibrierung der Schwellen (S/J) auf dem VPS
+                _log.info("tick_replay %s %s [%s,%s): %d Minuten markiert (%d Ticks), %d verworfen, %d Ticks gesamt",
+                          source, symbol, x, y, len(marked), sum(len(r[2]) for r in part["replay"]),
+                          part["dropped"], part["count"])
+    return sorted(missing, key=lambda m: m["from"])
+
+
 def _chunks(pieces, step):
     for a, b in pieces:
         x = a
@@ -129,7 +352,8 @@ def _chunks(pieces, step):
             x += step
 
 
-def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: bool = False) -> dict:
+def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: bool = False,
+              tick_spread: bool = False, tick_replay: bool = False) -> dict:
     """Mumlar [a, b): eksik parçalar MT5'ten çekilir, veritabanından verilir.
 
     MT5'e ulaşılamaz veya hesap meşgulse veritabanındakiler + `missing` döner.
@@ -138,25 +362,27 @@ def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: 
     tf_sec = TIMEFRAMES[timeframe][1]
     source = str(account.get("server") or "")
     a, b = _align(a, b, tf_sec)
-    key = (source, symbol, timeframe, a, b)
+    key = (source, symbol, timeframe, a, b, tick_spread, tick_replay)
     with _tail_lock:
         hit = _tail_cache.get(key)
         if hit and time.monotonic() - hit[0] < TAIL_CACHE_SEC:
             return hit[1]
-    result = _get_rates(account, source, symbol, timeframe, a, b, busy)
+    result = _get_rates(account, source, symbol, timeframe, a, b, busy, tick_spread, tick_replay)
     with _tail_lock:
         # Süresi dolanlar atılır (sözlük büyümesin)
         now = time.monotonic()
         for k in [k for k, (at, _) in _tail_cache.items() if now - at >= TAIL_CACHE_SEC]:
             del _tail_cache[k]
         # Geçici sorun (meşgul, MT5 hatası) önbellekte kalmasın: bir dahaki istek yeniden denesin
-        transient = any(m["reason"] in ("busy", "error") for m in result["missing"])
+        transient = any(m["reason"] in ("busy", "error") for m in result["missing"]) or any(
+            m["reason"] in ("busy", "error", "budget", "syncing") for m in result.get("tick_missing", []))
         if result["live_from"] is not None and not transient:
             _tail_cache[key] = (now, result)
     return result
 
 
-def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, b: int, busy: bool) -> dict:
+def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, b: int, busy: bool,
+               tick_spread: bool = False, tick_replay: bool = False) -> dict:
     tf_name, tf_sec = TIMEFRAMES[timeframe]
     # Bir yanıt en fazla MAX_BARS mum: takvim süresi bunu aşarsa geri kalanı next_from ile
     end = min(b, a + MAX_BARS * tf_sec)
@@ -196,7 +422,8 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
             finally:
                 _FETCH_SLOT.release()
 
-    rows = db.read_rates(source, symbol, tf_sec, a, end, MAX_BARS + 1)
+    tick_missing = _fill_tick_spread(account, source, symbol, a, end, busy, tick_replay) if tick_spread else None
+    rows = db.read_rates(source, symbol, tf_sec, a, end, MAX_BARS + 1, with_ticks=tick_spread)
     if full:  # veritabanı dolu: çekilenler saklanamadı, yine de bu yanıtta verilir
         merged = {r["time"]: r for r in rows}
         merged.update(fetched)
@@ -208,7 +435,7 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
         next_from = rows[MAX_BARS]["time"]
         rows = rows[:MAX_BARS]
     meta = db.symbol_meta(source, symbol) or {}
-    return {
+    result = {
         "source": source,
         "symbol": symbol,
         "timeframe": timeframe,
@@ -228,6 +455,27 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
         "missing": sorted(missing, key=lambda m: m["from"]),
         "db_full": full,
     }
+    if tick_spread:
+        result["sa"] = [r.get("sa") for r in rows]
+        result["sx"] = [r.get("sx") for r in rows]
+        result["tick_missing"] = tick_missing
+        if tick_replay:
+            result["replay"] = _replay_columns(source, symbol, a, rows[-1]["time"] + 60 if rows else a)
+    return result
+
+
+def _replay_columns(source: str, symbol: str, a: int, b: int) -> dict:
+    """Replay-Minuten [a, b) sütunweise: t/kind je Minute, off = Start der Minute in ms/b/a (Länge + 1)."""
+    out = {"t": [], "kind": [], "off": [0], "ms": [], "b": [], "a": []}
+    for minute, kind, blob in db.read_tick_replay(source, symbol, a, b):
+        ms, bid, ask = decode_replay(blob)
+        out["t"].append(minute)
+        out["kind"].append(kind)
+        out["ms"] += ms
+        out["b"] += bid
+        out["a"] += ask
+        out["off"].append(len(out["ms"]))
+    return out
 
 
 def _deal_dict(d) -> dict:
@@ -255,6 +503,28 @@ def _fetch_deals(account: dict, pieces: list[tuple[int, int]], positions: list[i
             "margin_mode": mm._plain(getattr(acc, "margin_mode", None)),
         }
         return {"deals": deals, "done": done, "errors": errors, "account": account_data}
+
+    return mm._connected(account, collect)
+
+
+def _fetch_open_levels(account: dict, entries: list[dict]) -> list[dict]:
+    """Eröffnungsorder je Position aus der MT5-Order-Historie: SL/TP (0 = None). MT5-Fehler → Position fehlt."""
+    def collect(mt5):
+        rows = []
+        for e in entries:
+            pid = e["position_id"]
+            got = mt5.history_orders_get(position=pid)
+            if mm._mt5_error(mt5, "history_orders_get", got, []):
+                continue
+            orders = list(got or ())
+            # Bei Hedging-Konten trägt die Eröffnungsorder die Positions-ID als Ticket
+            opening = next((o for o in orders if getattr(o, "ticket", None) == pid), None) \
+                or next((o for o in orders if getattr(o, "ticket", None) == e.get("order")), None) \
+                or (min(orders, key=lambda o: getattr(o, "time_setup", 0) or 0) if orders else None)
+            sl = mm._plain(getattr(opening, "sl", None)) if opening else None
+            tp = mm._plain(getattr(opening, "tp", None)) if opening else None
+            rows.append({"position_id": pid, "sl": sl or None, "tp": tp or None})
+        return rows
 
     return mm._connected(account, collect)
 
@@ -289,6 +559,13 @@ def get_deals(account_id: str, account: dict, a: int, b: int, busy: bool = False
                 else:
                     # MT5'te de girişi olmayanlar bir daha sorulmaz
                     done.update(set(orphans[:MAX_ENTRY_LOOKUPS]) & set(db.positions_without_entry(account_id, a, b, ENTRY_IN)))
+    if not busy:
+        pending = db.entries_without_levels(account_id, a, b, ENTRY_IN)[:MAX_ENTRY_LOOKUPS]
+        if pending:
+            try:
+                db.store_position_orders(account_id, _fetch_open_levels(account, pending))
+            except mm.MarketDataError:
+                pass  # open_sl/open_tp bleiben None; die nächste Anfrage versucht es erneut
     return {
         "account_id": account_id,
         "from": a,

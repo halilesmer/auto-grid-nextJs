@@ -36,6 +36,8 @@ export const ORDER_FILLING_RETURN = 2;
 export const TRADE_RETCODE_DONE = 10009;
 export const TRADE_RETCODE_ALGO_DISABLED = 10027;
 export const TRADE_RETCODE_INVALID = 10013;
+/** Handelsseite zu (BKT-21): MT5 lehnt neue Orders, Löschen und Ändern ab */
+export const TRADE_RETCODE_MARKET_CLOSED = 10018;
 
 /** Zeitrahmen als Name (MT5-Konstanten braucht der Nachbau nicht) */
 export type Timeframe = 'M1' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1';

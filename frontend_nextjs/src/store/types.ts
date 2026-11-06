@@ -51,6 +51,8 @@ export interface SymbolDetail {
   spread?: number | null;
   /** Mindestabstand von TP/SL/Pending zum Kurs in Punkten */
   trade_stops_level?: number | null;
+  /** Handelsseiten je Wochentag (0 = Sonntag), [von, bis) in Sekunden ab 00:00 Brokerzeit; null/fehlt = unbekannt (BKT-21) */
+  trade_sessions?: [number, number][][] | null;
 }
 
 export interface ZoneSettings {

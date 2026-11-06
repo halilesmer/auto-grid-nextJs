@@ -68,3 +68,25 @@ test('UI-18: ein gespeichertes Dokument der Version 1 wandert auf den neuen RSI,
   await expect(page.locator('[data-indicator-value="RSI"]').filter({ hasText: '(14)' })).toHaveCount(0);
   await expect(page.locator('[data-indicator-value="RSI"]').filter({ hasText: '(21)' })).toHaveCount(1);
 });
+
+test('UI-18 11: Objektliste nennt den RSI auch bei ausgeschalteter Ebene', { tag: '@UI-18' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(FREE);
+  await expect(rows(page)).toHaveCount(1);
+  await rows(page).locator('svg.lucide-trash-2').click();
+  await expect(rows(page)).toHaveCount(0);
+  await page.getByRole('button', { name: msg('cw.objects') }).click();
+  const objects = page.getByTestId('object-indicators');
+  await expect(objects.getByRole('button').first()).toContainText(/^RSI · /);
+});
+
+test('UI-18 11: ausgeschaltete RSI-Ebene ändert den Namen des Nutzer-RSI nicht', { tag: '@UI-18' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(FREE);
+  await rows(page).locator('svg.lucide-trash-2').click();
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
+  await page.getByRole('button', { name: '+ RSI', exact: true }).click();
+  await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
+  await expect(page.locator('[data-indicator-value="RSI"]')).toContainText(/^RSI /);
+  await expect(page.locator('[data-indicator-value="RSI"]')).not.toContainText('RSI 2');
+});

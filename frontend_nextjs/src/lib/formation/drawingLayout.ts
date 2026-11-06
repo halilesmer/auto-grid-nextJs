@@ -30,6 +30,10 @@ export interface LayoutInput {
   width: number;
   /** Letzte geschlossene Kerze: Ziel des gestrichelten Weges bei einer Formation im Aufbau */
   lastBar: { time: number; close: number };
+  /** Dauer einer Kerze in Sekunden: ein D, dessen Zeit schon vergangen ist, rückt eine Kerze hinter die letzte Kerze (R1-07) */
+  barSec?: number;
+  /** Stapel der Abzeichen am rechten Rand (Kanten): die Preisschrift des erwarteten D weicht ihm nach links aus (R1-08) */
+  stack?: { left: number; top: number; bottom: number } | null;
   x: (time: number) => number | null;
   y: (price: number) => number | null;
   /** RSI-Wert → y im RSI-Pane (null: Pane nicht vorhanden) */
@@ -54,7 +58,7 @@ export const drawsZigzag = (c: Candidate): boolean => c.drawings.some((d) => d.t
  * Erwartetes D einer Formation im Aufbau (A5.5): Preis = Zielniveau (Linie „Level 1“, sonst Mitte der D-Zone, sonst Einstieg),
  * Zeit = C plus die Dauer von AB (liegt rechts der letzten Kerze). Null, wenn die Formation kein D hat, fertig ist oder das Niveau fehlt.
  */
-export function expectedD(c: Candidate, form: ScanFormation): { time: number; price: number } | null {
+export function expectedD(c: Candidate, form: ScanFormation, after?: { time: number; step: number }): { time: number; price: number } | null {
   // Wie beim Zeichnen: ein gemessenes D zählt erst, wenn es im Zickzack steht (Ziel erreicht)
   const d = c.points.D;
   const reached = d !== undefined && c.drawings.some((x) => x.tool === 'zigzag' && x.anchors.some((a) => a.time === d.time && a.price === d.price));
@@ -65,14 +69,16 @@ export function expectedD(c: Candidate, form: ScanFormation): { time: number; pr
   const zone = c.drawings.find((d) => d.tool === 'zone')?.anchors;
   const price = hline ?? (zone && zone.length >= 2 ? (zone[0].price + zone[1].price) / 2 : (c.trade?.entry ?? null));
   if (price === null || price === undefined) return null;
-  return { time: C.time + Math.max(0, B.time - A.time), price };
+  const time = C.time + Math.max(0, B.time - A.time);
+  // Abgelaufene Zeit (R1-07): das D steht frühestens eine Kerze hinter der letzten Kerze, nie zwischen geschlossenen Kerzen
+  return { time: after ? Math.max(time, after.time + after.step) : time, price };
 }
 
 const pointName = (c: Candidate, time: number, price: number): string | null =>
   Object.entries(c.points).find(([, a]) => a.time === time && a.price === price)?.[0] ?? null;
 
 export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
-  const { candidate, form, width, lastBar, x, y, yRsi, text, fmt } = input;
+  const { candidate, form, width, lastBar, barSec, stack, x, y, yRsi, text, fmt } = input;
   const final = candidate.points[FINAL_POINT[form]];
   // „Im Aufbau“ mit offenem Endpunkt: der Endpunkt fehlt oder ist noch nicht Teil des Zickzacks (Ziel nicht erreicht)
   const zigzag = candidate.drawings.find((d) => d.tool === 'zigzag');
@@ -138,7 +144,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
           return prims;
         }
         // Erwartetes D (A5.5): gestrichelter Weg von C zum Zielniveau, in der Zukunft rechts der letzten Kerze (am Rand abgeschnitten)
-        const exp = forming ? expectedD(candidate, form) : null;
+        const exp = forming ? expectedD(candidate, form, barSec ? { time: lastBar.time, step: barSec } : undefined) : null;
         const ex = exp ? x(exp.time) : null;
         const ey = exp ? y(exp.price) : null;
         if (forming && last && exp && ex !== null && ey !== null) {
@@ -149,7 +155,10 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
           const below = ey > last.py;
           const edge = dx > width - 40;
           prims.push({ kind: 'text', x: edge ? dx - 8 : dx - 4, y: ey + (below ? 17 : -9), text: `${FINAL_POINT[form]}?`, tone: 'side', bold: true, ...(edge ? { anchor: 'end' as const } : {}) });
-          prims.push({ kind: 'text', x: width - 4, y: ey + (below ? -9 : 17), text: fmt(exp.price), tone: 'side', anchor: 'end', bold: true });
+          // Der Stapel der Abzeichen sitzt am rechten Rand: schneidet die Preisschrift ihn, steht sie links davon (R1-08)
+          const priceY = ey + (below ? -9 : 17);
+          const hitsStack = stack != null && priceY - 12 < stack.bottom && priceY + 4 > stack.top;
+          prims.push({ kind: 'text', x: hitsStack ? Math.min(width - 4, stack.left - 6) : width - 4, y: priceY, text: fmt(exp.price), tone: 'side', anchor: 'end', bold: true });
         } else if (forming && last && ly !== null) {
           if (lx !== null) {
             prims.push({ kind: 'line', x1: last.px, y1: last.py, x2: lx, y2: ly, tone: 'side', role: 'expected', dashed: true, width: 2 });
@@ -325,6 +334,11 @@ export interface DLayoutInput {
   items: DItem[];
   selectedId: string | null;
   width: number;
+  /** Höhe des Zeichenbereichs (Kerzen-Pane): der Stapel der Abzeichen bleibt darin (R1-08) */
+  height: number;
+  /** Zeit der letzten Kerze und Kerzendauer: ein vergangenes D rückt dahinter (R1-07) */
+  lastTime: number;
+  barSec: number;
   /** Letzter Schlusskurs: bestimmt die Reihenfolge im Stapel (nächstes D oben) */
   close: number;
   /** ATR der letzten Kerze: D-Niveaus näher als 1,5 ATR bilden ein Band; null: keine Bänder */
@@ -340,19 +354,20 @@ const BADGE_GAP = 4;
 export const BAND_ATR = 1.5;
 
 export function layoutExpectedD(input: DLayoutInput): DLayout {
-  const { items, selectedId, width, close, atr, x, y, text, fmt } = input;
+  const { items, selectedId, width, height, lastTime, barSec, close, atr, x, y, text, fmt } = input;
   const found = items.flatMap((it) => {
     const c = it.candidate;
     const name = text(`formation.form.${it.form}`);
     let at: { time: number; price: number } | null = null;
     let status: DBadge['status'] = 'forming';
-    if (c.verdict === 'forming') at = expectedD(c, it.form);
+    if (c.verdict === 'forming') at = expectedD(c, it.form, { time: lastTime, step: barSec });
     else if (c.verdict === 'valid' && c.points.D) {
       at = c.points.D;
       status = 'valid';
     }
     if (!at) return [];
-    const px = x(at.time);
+    // Fehlt der Pixelwert der D-Zeit (Zeit nicht abbildbar), sitzt das Abzeichen an der letzten Kerze wie der Ring in layoutDrawings (R1-07)
+    const px = x(at.time) ?? (status === 'forming' ? x(lastTime) : null);
     const py = y(at.price);
     if (px === null || py === null) return [];
     const label = status === 'valid' ? `${name} ✓` : `${name} · ${text('formation.verdict.forming')}`;
@@ -360,6 +375,8 @@ export function layoutExpectedD(input: DLayoutInput): DLayout {
   });
   found.sort((a, b) => Math.abs(a.price - close) - Math.abs(b.price - close));
 
+  // Der Stapel beginnt am nächsten D, rutscht aber nach oben, damit der letzte Eintrag noch im Zeichenbereich steht
+  const stackTop = Math.max(2, Math.min(found[0] ? found[0].y - BADGE_H / 2 : 2, height - found.length * (BADGE_H + BADGE_GAP)));
   const badges: DBadge[] = found.map((f, i) => {
     let bx: number;
     let by: number;
@@ -369,7 +386,7 @@ export function layoutExpectedD(input: DLayoutInput): DLayout {
     } else {
       // Ein Stapel am rechten Rand, das nächste D oben
       bx = Math.max(2, width - f.w - 6);
-      by = Math.max(2, found[0].y - BADGE_H / 2) + i * (BADGE_H + BADGE_GAP);
+      by = stackTop + i * (BADGE_H + BADGE_GAP);
     }
     return { id: f.id, selected: f.selected, status: f.status, x: f.x, y: f.y, label: f.label, bx, by, w: f.w, h: BADGE_H };
   });

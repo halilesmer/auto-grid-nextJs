@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { pairTrades, type Deal, type Trade } from '../../src/lib/analysis/tradePairing';
 import { buildSymbolRows, pairLive, DEFAULT_TOLERANCE, evaluateBtLive, flatZone, levelToleranceOf, maxDrawdownOf, pairByOrder, type CollectedRun, type TradeLite } from '../../src/lib/backtest/liveCompare';
+import { buildStartState } from '../../src/lib/backtest/startState';
 import { DEFAULT_RUN_SETTINGS } from '../../src/lib/backtest/runSettings';
 
 const T0 = 1_760_000_040; // volle Minute
@@ -216,4 +217,42 @@ test('evaluateBtLive: Live-Trades mit Einstieg vor dem Fenster ausschließen', {
   expect(evaluateBtLive(row).liveTrades).toBe(2);
   const cut = evaluateBtLive(row, { excludeEntryBefore: T0 });
   expect(cut).toMatchObject({ liveTrades: 1, backtestTrades: 1, liveNet: 10, backtestNet: 10, passed: true });
+});
+
+// ---- Startzustand: SL/TP aus der Eröffnungsorder statt aus dem Verhältnis (BKT-16)
+const FROM = T0 + 1000;
+function dealOf(over: Partial<Deal>): Deal {
+  return { ticket: 1, order: 1, position_id: 7, time: T0, time_msc: null, type: 0, entry: 0, magic: 200058, symbol: 'GBPUSD', volume: 0.1, price: 1.3474,
+    profit: 0, commission: 0, swap: 0, fee: 0, comment: '', reason: null, ...over };
+}
+const closeDeal = dealOf({ ticket: 2, entry: 1, type: 1, time: FROM + 500, price: 1.34513, comment: '[sl 1.34513]' });
+const fractalSetup = { entry_mode: 'fractal', stop_loss: 0.0023, take_profit: 0.0023 };
+
+test('Startzustand nimmt SL/TP der Eröffnungsorder, auch wenn die Schätzung anders läge', { tag: '@BKT-16' }, () => {
+  const state = buildStartState([dealOf({ open_sl: 1.34513, open_tp: 1.351 }), closeDeal], 200058, fractalSetup, FROM, 5);
+  expect(state.positions).toHaveLength(1);
+  expect(state.positions[0]).toMatchObject({ side: 'buy', price: 1.3474, sl: 1.34513, tp: 1.351 });
+  expect(state.estimated).toBe(0);
+  expect(state.notes).toEqual([]);
+});
+
+test('Ohne Ordernachweis fällt der Startzustand auf die Schätzung zurück und zählt sie', { tag: '@BKT-16' }, () => {
+  const state = buildStartState([dealOf({ open_sl: null, open_tp: null }), closeDeal], 200058, fractalSetup, FROM, 5);
+  expect(state.positions[0].tp).toBe(1.34967); // Verhältnis 1: der bekannte falsche Wert aus 200058
+  expect(state.estimated).toBe(1);
+  expect(state.notes).toEqual([{ code: 'run.startLevelsEstimated', params: { positions: 1 } }]);
+});
+
+test('Nur ein fehlender Wert wird geschätzt, der andere bleibt der echte', { tag: '@BKT-16' }, () => {
+  const state = buildStartState([dealOf({ open_sl: 1.34513, open_tp: null }), closeDeal], 200058, fractalSetup, FROM, 5);
+  expect(state.positions[0]).toMatchObject({ sl: 1.34513, tp: 1.34967 });
+  expect(state.estimated).toBe(1);
+});
+
+test('Vor dem Start geschlossene Fraktal-Position wird als erledigt gemerkt, nicht als Position', { tag: '@BKT-16' }, () => {
+  const early = dealOf({ comment: 'x_FU1759999000' });
+  const out = dealOf({ ticket: 3, entry: 1, type: 1, time: FROM - 10 });
+  const state = buildStartState([early, out], 200058, fractalSetup, FROM, 5);
+  expect(state.positions).toEqual([]);
+  expect(state.fractalDone).toEqual([{ side: 'U', time: 1759999000 }]);
 });
