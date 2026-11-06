@@ -526,3 +526,57 @@ test.describe('Tick-Replay-Minuten laden', () => {
     await expect(load(async () => page({ replay: undefined }))).resolves.toBeTruthy();
   });
 });
+
+test.describe('Ask-Extreme und Kursraster je Minute (BKT-22)', () => {
+  const page = (extra: Record<string, unknown>) => ({
+    t: [0, 60, 120], o: [1, 1, 1], h: [2, 2, 2], l: [0, 0, 0], c: [1, 1, 1], s: [10, 10, 10],
+    sa: [10, 10, 10], sx: [10, 10, 10], ahi: [200, 205, null], alo: [10, 10, null], g: [1, 10, null],
+    digits: 2, point: 0.01, missing: [], next_from: null, tick_missing: [], ...extra,
+  });
+  const load = (fetchJson: (path: string) => Promise<unknown>, extra: Record<string, unknown> = {}) =>
+    loadRates({ fetchJson, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true, ...extra });
+
+  test('ahi/alo werden zu Preisen, g bleibt in Punkten, null wird NaN', { tag: '@BKT-22' }, async () => {
+    const rates = await load(async () => page({}));
+    expect([...(rates.ahi ?? [])].slice(0, 2)).toEqual([2, 2.05]);
+    expect([...(rates.alo ?? [])].slice(0, 2)).toEqual([0.1, 0.1]);
+    expect([...(rates.g ?? [])].slice(0, 2)).toEqual([1, 10]);
+    expect(Number.isNaN(rates.ahi?.[2])).toBe(true);
+    expect(Number.isNaN(rates.g?.[2])).toBe(true);
+  });
+
+  test('ohne tickSpread keine Spalten; alter Worker ohne die Spalten: keine Felder', { tag: '@BKT-22' }, async () => {
+    expect((await load(async () => page({}), { tickSpread: false })).ahi).toBeUndefined();
+    const old = await load(async () => page({ ahi: undefined, alo: undefined, g: undefined }));
+    expect(old.ahi).toBeUndefined();
+    expect(old.g).toBeUndefined();
+  });
+
+  test('laufende Kerze und Minuten vor from fallen aus; Seiten werden vereint', { tag: '@BKT-22' }, async () => {
+    const live = await load(async () => page({ live_from: 120 }));
+    expect(live.t.length).toBe(2);
+    expect(live.ahi?.length).toBe(2);
+    let calls = 0;
+    const paged = async () => {
+      calls += 1;
+      return calls === 1
+        ? page({ t: [0, 60], o: [1, 1], h: [2, 2], l: [0, 0], c: [1, 1], s: [10, 10], sa: [10, 10], sx: [10, 10], ahi: [200, 205], alo: [10, 10], g: [1, 10], next_from: 120 })
+        : page({ t: [120], o: [1], h: [2], l: [0], c: [1], s: [10], sa: [10], sx: [10], ahi: [210], alo: [10], g: [10] });
+    };
+    const rates = await load(paged);
+    expect([...(rates.ahi ?? [])]).toEqual([2, 2.05, 2.1]);
+    expect([...(rates.g ?? [])]).toEqual([1, 10, 10]);
+    const skipped = await load(async () => page({}), { from: 60 });
+    expect([...(skipped.g ?? [])].slice(0, 1)).toEqual([10]);
+  });
+
+  test('bozuk: alo über ahi, g null/kommazahl, ahi kommazahl, ahi unter dem Kerzenhoch, falsche Länge', { tag: '@BKT-22' }, async () => {
+    const bad = (r: Record<string, unknown>) => expect(load(async () => page(r))).rejects.toMatchObject({ code: 'run.badRatesResponse' });
+    await bad({ alo: [300, 10, null] });
+    await bad({ g: [0, 10, null] });
+    await bad({ g: [1.5, 10, null] });
+    await bad({ ahi: [200.5, 205, null] });
+    await bad({ ahi: [150, 205, null] });
+    await bad({ ahi: [200, 205] });
+  });
+});

@@ -100,7 +100,17 @@ for (const viewport of VIEWPORTS) {
       const topbar = page.getByTestId('chart-topbar');
       await expect(topbar.getByTestId('timeframe-H1')).toBeVisible();
       await expect(topbar.getByTestId('range-trigger')).toBeVisible();
-      await expect(topbar.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true })).toBeVisible();
+      const stats = topbar.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true });
+      if (viewport.width === 1024) {
+        // Plan 1106-A4.15 (Halil: „A4.15.1 menü“): bei 1024 px passt die Satır 1 nicht; Chart/Statistik stehen im ˅-Menü der Aksiyonlar
+        await expect(stats).toBeHidden();
+        await topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more').click();
+        const menu = page.getByTestId('dock-more-menu');
+        expect(await menu.locator('button:visible, [role=tab]:visible').evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`)))
+          .toEqual([`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`]);
+        await menu.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true }).click();
+        await expect(page).toHaveURL(/tab=stats/);
+      } else await expect(stats).toBeVisible();
     });
   });
 }

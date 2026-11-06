@@ -162,6 +162,20 @@ Kurz gesagt:
   einmal je Sekunde Tickzeit, nach jeder Auslösung und am Minutenende. Die nächste Minute übernimmt den Spread des
   letzten Ticks. Die Zeitrahmen-Kerze der Minute trägt das OHLC der M1-Kerze.
 
+### Kursraster und Ask-Extreme (BKT-22)
+
+- In Minuten ohne Replay (§5 Kerzenweg) im Modus „tick“ kennt der Lauf je Minute die echten Ask-Extreme (`ahi`, `alo`,
+  nur Ticks in der Minute) und das Kursraster `g` in Punkten (1 = keins). Ask-Marken („Ask ≥ Marke“: Kauf-Stop,
+  Verkaufs-SL; „Ask ≤ Marke“: Kauf-Limit, Verkaufs-TP) gelten gegen `ahi` bzw. `alo`, nicht gegen Bid + Minutenmittel.
+  Das M1-Spreadfeld ist das Minimum der Minute, `Bid + Minimum` wäre am Tief zu optimistisch.
+- Raster (USOUSD 10, NDX100 25, GER40 50 Punkte; Devisen und Gold 1): Die Phase wechselt täglich; Ask-Phase = `ahi` mod
+  `g`, Bid-Phase = Eröffnung der Minute mod `g`. Marken und Füllpreise liegen auf dem Raster: Kauf-Stop und Verkaufs-SL
+  am nächsten Ask-Rasterwert darüber, Kauf-Limit und Verkaufs-TP darunter, Verkaufs-Stop und Kauf-SL am Bid-Raster
+  darunter, Verkaufs-Limit und Kauf-TP darüber. Ein Limit füllt zum besseren Rasterpreis. Der Marktpreis (Ask) ist der
+  nächste Raster-Ask, gekappt auf `alo`…`ahi`. Der SL-Schlupf (halber Spread) bleibt, auf das Raster gerundet.
+- Nicht modelliert: springt der Kurs in einem Tick über mehrere Rasterschritte. Replay-Minuten und die Modi „max“,
+  „fixed“, „candle“ sowie CSV bleiben unverändert.
+
 ## 4. Kennzahlen
 
 | Begriff | Regel |

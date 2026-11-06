@@ -52,8 +52,13 @@ test('Messung ist vorübergehend und Bereichszoom kann zurückgesetzt werden', {
   await page.getByRole('button', { name: msg('cw.rail.measure'), exact: true }).click();
   const layer = page.getByTestId('chart-gesture-layer');
   const box = await layer.boundingBox(); if (!box) throw new Error('Gesture layer missing');
-  await page.mouse.move(box.x + 40, box.y + 40); await page.mouse.down();
-  await page.mouse.move(box.x + 160, box.y + 110, { steps: 5 }); await page.mouse.up();
+  // Başlık katmanın üstüne biner (--chart-top); sürükleme görünen grafiğin üstünden başlar: üst = max(katman üstü, başlığın alt kenarı) (plan 1106-A4.16.1)
+  const bar = (await page.getByTestId('chart-topbar').boundingBox())!;
+  const top = Math.max(box.y, bar.y + bar.height);
+  const startAt = await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return !!e && !!e.closest('[data-testid="chart-gesture-layer"]'); }, [box.x + 40, top + 40]);
+  expect(startAt, 'Sürükleme başlangıcı gesture katmanında olmalı (başlık üstünde değil)').toBe(true);
+  await page.mouse.move(box.x + 40, top + 40); await page.mouse.down();
+  await page.mouse.move(box.x + 160, top + 110, { steps: 5 }); await page.mouse.up();
   await expect(page.getByTestId('chart-measurement')).toContainText('%');
   expect(await storedDrawings(page)).toEqual(initial);
   await page.keyboard.press('Escape');
@@ -61,8 +66,9 @@ test('Messung ist vorübergehend und Bereichszoom kann zurückgesetzt werden', {
   await page.getByRole('button', { name: msg('cw.rail.zoom'), exact: true }).click();
   await page.getByRole('button', { name: msg('cw.rail.zoomArea'), exact: true }).click();
   const zoom = await layer.boundingBox(); if (!zoom) throw new Error('Zoom layer missing');
-  await page.mouse.move(zoom.x + 50, zoom.y + 40); await page.mouse.down();
-  await page.mouse.move(zoom.x + 180, zoom.y + 120, { steps: 5 }); await page.mouse.up();
+  const zoomTop = Math.max(zoom.y, bar.y + bar.height); // aynı varsayım: görünen grafiğin üstü (A4.16.1)
+  await page.mouse.move(zoom.x + 50, zoomTop + 40); await page.mouse.down();
+  await page.mouse.move(zoom.x + 180, zoomTop + 120, { steps: 5 }); await page.mouse.up();
   await expect(layer).toHaveCount(0);
   await page.getByRole('button', { name: msg('cw.rail.zoom'), exact: true }).click();
   const reset = page.getByRole('button', { name: msg('cw.rail.zoomReset'), exact: true });

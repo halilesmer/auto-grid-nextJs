@@ -129,7 +129,7 @@ function AnalysisView() {
       <ZoneSelect zones={zones} value={zoneId} onChange={setZone} />
     </div>
   );
-  const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" className="@max-[30rem]/formation-main:[&_[role=tab]]:px-2.5 @max-[30rem]/formation-main:[&_[role=tab]]:py-1 @max-[30rem]/formation-main:[&_[role=tab]]:text-xs short:p-0.5 short:[&_[role=tab]]:px-2.5 short:[&_[role=tab]]:py-0.5 short:[&_[role=tab]]:text-xs" />;
+  const viewTabs = <AnimatedTabs tabs={tabs} activeTab={tab} onChange={(id) => setTab(id as AnalysisTab)} layoutId="analysis-tabs" variant="segment" className="@min-[30rem]/formation-main:[&_[role=tab]]:h-7 @min-[30rem]/formation-main:[&_[role=tab]]:py-0 @max-[30rem]/formation-main:[&_[role=tab]]:px-2.5 @max-[30rem]/formation-main:[&_[role=tab]]:py-1 @max-[30rem]/formation-main:[&_[role=tab]]:text-xs short:p-0.5 short:[&_[role=tab]]:px-2.5 short:[&_[role=tab]]:h-auto! short:[&_[role=tab]]:py-0.5! short:[&_[role=tab]]:text-xs" />;
   const chrome: ChartChrome = {
     account,
     mode: <ChartModeSegment />,

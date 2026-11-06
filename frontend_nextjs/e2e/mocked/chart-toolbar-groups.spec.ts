@@ -40,8 +40,8 @@ test('Varsayılan yerleşim: bütün gruplar alt çubukta, tutamaçlı ve adlı'
   }
   await expect(group(page, 'edit')).toHaveAttribute('aria-label', msg('cw.tbGroup.edit'));
   await expect(handle(page, 'edit')).toHaveAccessibleName(msg('cw.tbHandle'));
-  // Satır 1 boştur: gizli
-  await expect(row(page, 'row1')).toBeHidden();
+  // Satır 1'de araç grubu yok; yalnız mod, ürün, hesap (çapa) ve aksiyonlar durur (S4)
+  expect(await row(page, 'row1').locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.dockWrap))).toEqual(['mode', 'symbol', 'account', 'actions']);
 });
 
 test('Grubu Satır 1\'e sürükle: yenilemeden sonra yerinde', { tag: '@UI-16' }, async ({ page, worker }) => {
@@ -71,7 +71,9 @@ test('Tutamaç menüsüyle yalnız klavye: grafiğe bırak, ok tuşuyla kaydır,
   await expect(page.getByTestId('dock-reset')).toBeDisabled();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByTestId('dock-move-row1')).toBeFocused();
-  // Alt çubuk pasif, atlanır: sıradaki Grafiğe bırak
+  // Satır 2 (S4: Frei'de de var), sonra alt çubuk pasif, atlanır: sıradaki Grafiğe bırak
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByTestId('dock-move-row2')).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByTestId('dock-move-free')).toBeFocused();
   await page.keyboard.press('Enter');

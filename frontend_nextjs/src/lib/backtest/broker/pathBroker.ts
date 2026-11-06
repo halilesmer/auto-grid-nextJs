@@ -51,6 +51,21 @@ const REASON_TP = 5;
 export type CloseReason = 'tp' | 'sl' | 'bot' | 'end';
 const REASON_CODE: Record<CloseReason, number> = { tp: REASON_TP, sl: REASON_SL, bot: REASON_EXPERT, end: REASON_EXPERT };
 
+/**
+ * BKT-22: echte Werte der Minute aus den Ticks (Preise). `extremes`: Ask-Marken gelten gegen askHigh/askLow statt gegen
+ * Bid + Minutenmittel. `grid` > 1: Kursraster in Punkten; `askPhase`/`bidPhase` = Rest der Kurse in Punkten mod grid.
+ */
+export interface MinuteQuotes {
+  askHigh: number;
+  askLow: number;
+  high: number;
+  low: number;
+  extremes: boolean;
+  grid: number;
+  askPhase: number;
+  bidPhase: number;
+}
+
 export interface PathBrokerOptions {
   info: SymbolInfo;
   costs: SymbolCosts;
@@ -140,6 +155,15 @@ export class PathBroker extends SimBroker {
   private wideBefore = false;
   /** BKT-20: Replay-Minute: Bid/Ask kommen aus den Ticks, SL ohne Schlupf, keine Kurslücken-Sperre für Limit-Orders */
   private replaying = false;
+  /** BKT-22: Abstand Ask-Hoch − Bid-Hoch und Ask-Tief − Bid-Tief der Minute (Preis); null = Minutenmittel gilt */
+  private spUp: number | null = null;
+  private spDn: number | null = null;
+  /** BKT-22: echte Ask-Grenzen der Minute für den Marktpreis; null = keine */
+  private askBounds: { lo: number; hi: number } | null = null;
+  /** BKT-22: Kursraster der Minute in Punkten (1 = keins) und die Phasen von Ask und Bid */
+  private grid = 1;
+  private askPhase = 0;
+  private bidPhase = 0;
 
   constructor(options: PathBrokerOptions) {
     super({ symbol: options.info, start: options.start, firstBid: options.firstBid });
@@ -164,12 +188,66 @@ export class PathBroker extends SimBroker {
   }
 
   /** Neue Kerze der Datenauflösung: Spread der Kerze (Punkte) gilt bis zum Kerzenende; `barSpreadPoints`: Wert, den die Zeitrahmen-Kerze erhält (Standard: derselbe) */
-  beginCandle(time: number, open: number, spreadPoints: number, barSpreadPoints: number = spreadPoints): void {
+  beginCandle(time: number, open: number, spreadPoints: number, barSpreadPoints: number = spreadPoints, quotes?: MinuteQuotes): void {
+    this.applyQuotes(quotes);
     const own = this.round(spreadPoints * this.costs.point);
     this.wideBefore = this.carrySpread && this.prevSpreadPrice > own;
     this.spreadPrice = this.wideBefore ? this.prevSpreadPrice : own;
     this.prevSpreadPrice = own;
     this.forming = { time, open, high: open, low: open, close: open, spread: barSpreadPoints };
+  }
+
+  /** BKT-22: Minutenwerte (echte Ask-Grenzen, Kursraster) übernehmen oder löschen */
+  private applyQuotes(quotes?: MinuteQuotes): void {
+    this.spUp = null;
+    this.spDn = null;
+    this.askBounds = null;
+    this.grid = 1;
+    if (!quotes) return;
+    if (quotes.extremes) {
+      this.spUp = Math.max(0, this.round(quotes.askHigh - quotes.high));
+      this.spDn = Math.max(0, this.round(quotes.askLow - quotes.low));
+      this.askBounds = { lo: quotes.askLow, hi: quotes.askHigh };
+    }
+    if (quotes.grid > 1) {
+      this.grid = quotes.grid;
+      this.askPhase = quotes.askPhase;
+      this.bidPhase = quotes.bidPhase;
+    }
+  }
+
+  // Raster-Rechnung in ganzen Punkten (Preise liegen auf dem Punktraster)
+  private pts(price: number): number {
+    return Math.round(price / this.costs.point);
+  }
+  private fromPts(points: number): number {
+    return this.round(points * this.costs.point);
+  }
+  /** Erster Rasterwert ≥ Preis (`up`) bzw. ≤ Preis (sonst) zur gegebenen Phase; ohne Raster der Preis selbst */
+  private snap(price: number, phase: number, up: boolean): number {
+    if (this.grid <= 1) return price;
+    const x = this.pts(price);
+    const rest = (((x - phase) % this.grid) + this.grid) % this.grid;
+    if (!up) return this.fromPts(x - rest);
+    return this.fromPts(rest === 0 ? x : x + this.grid - rest);
+  }
+  private snapNearest(price: number, phase: number): number {
+    if (this.grid <= 1) return price;
+    const x = this.pts(price);
+    const rest = (((x - phase) % this.grid) + this.grid) % this.grid;
+    return this.fromPts(rest * 2 < this.grid ? x - rest : x + this.grid - rest);
+  }
+  private askUp = (price: number) => this.snap(price, this.askPhase, true);
+  private askDown = (price: number) => this.snap(price, this.askPhase, false);
+  private bidUp = (price: number) => this.snap(price, this.bidPhase, true);
+  private bidDown = (price: number) => this.snap(price, this.bidPhase, false);
+
+  /** Wirksamer Preis einer Pending Order auf dem Raster: Stop zum nächsten Rasterwert in Richtung Kurs, Limit zum besseren */
+  private orderLevel(type: number, price: number): number {
+    if (type === ORDER_TYPE_BUY_STOP) return this.askUp(price);
+    if (type === ORDER_TYPE_BUY_LIMIT) return this.askDown(price);
+    if (type === ORDER_TYPE_SELL_STOP) return this.bidDown(price);
+    return this.bidUp(price);
   }
 
   endCandle(): void {
@@ -181,7 +259,14 @@ export class PathBroker extends SimBroker {
   /** Kurs und Uhr setzen; Ask = Bid + Spread (oder der gegebene Ask eines Ticks) */
   setMarket(bid: number, time: number, ask?: number): void {
     this.now = time;
-    this.tick = this.makeTick(bid, ask ?? this.round(bid + this.spreadPrice));
+    let quote = ask;
+    if (quote === undefined) {
+      quote = this.round(bid + this.spreadPrice);
+      // BKT-22: Marktpreis auf dem Ask-Raster und innerhalb der echten Ask-Grenzen der Minute
+      quote = this.snapNearest(quote, this.askPhase);
+      if (this.askBounds) quote = Math.min(Math.max(quote, this.askBounds.lo), this.askBounds.hi);
+    }
+    this.tick = this.makeTick(bid, quote);
     this.profitStale = true;
     for (const position of this.positions) {
       const info = this.opens.get(position.ticket);
@@ -206,6 +291,7 @@ export class PathBroker extends SimBroker {
   /** Replay-Minute beginnen (nach beginCandle): echte Ticks statt Kerzenweg */
   beginReplay(): void {
     this.replaying = true;
+    this.applyQuotes();
     this.wideBefore = false;
   }
 
@@ -324,20 +410,23 @@ export class PathBroker extends SimBroker {
       }
       pick.best = { kind, ticket, bid, immediate };
     };
-    const sp = this.spreadPrice;
+    // BKT-22: „Ask ≥ Marke“ (Kauf-Stop, Verkaufs-SL) gilt gegen das echte Ask-Hoch, „Ask ≤ Marke“ (Kauf-Limit, Verkaufs-TP) gegen das Ask-Tief
+    const spUp = this.spUp ?? this.spreadPrice;
+    const spDn = this.spDn ?? this.spreadPrice;
     for (const o of this.orders) {
-      if (o.type === ORDER_TYPE_BUY_LIMIT) consider('fill', o.ticket, false, this.round(o.price_open - sp));
-      else if (o.type === ORDER_TYPE_BUY_STOP) consider('fill', o.ticket, true, this.round(o.price_open - sp));
-      else if (o.type === ORDER_TYPE_SELL_LIMIT) consider('fill', o.ticket, true, o.price_open);
-      else if (o.type === ORDER_TYPE_SELL_STOP) consider('fill', o.ticket, false, o.price_open);
+      const level = this.orderLevel(o.type, o.price_open);
+      if (o.type === ORDER_TYPE_BUY_LIMIT) consider('fill', o.ticket, false, this.round(level - spDn));
+      else if (o.type === ORDER_TYPE_BUY_STOP) consider('fill', o.ticket, true, this.round(level - spUp));
+      else if (o.type === ORDER_TYPE_SELL_LIMIT) consider('fill', o.ticket, true, level);
+      else if (o.type === ORDER_TYPE_SELL_STOP) consider('fill', o.ticket, false, level);
     }
     for (const p of this.positions) {
       if (p.type === POSITION_TYPE_BUY) {
-        if (p.tp) consider('tp', p.ticket, true, p.tp);
-        if (p.sl) consider('sl', p.ticket, false, p.sl);
+        if (p.tp) consider('tp', p.ticket, true, this.bidUp(p.tp));
+        if (p.sl) consider('sl', p.ticket, false, this.bidDown(p.sl));
       } else {
-        if (p.tp) consider('tp', p.ticket, false, this.round(p.tp - sp));
-        if (p.sl) consider('sl', p.ticket, true, this.round(p.sl - sp));
+        if (p.tp) consider('tp', p.ticket, false, this.round(this.askDown(p.tp) - spDn));
+        if (p.sl) consider('sl', p.ticket, true, this.round(this.askUp(p.sl) - spUp));
       }
     }
     return pick.best;
@@ -354,8 +443,14 @@ export class PathBroker extends SimBroker {
       if (!order) throw new RunError('run.internal', { what: 'order missing', ticket: trigger.ticket });
       const buy = BUY_ORDER_TYPES.includes(order.type);
       const marketPrice = buy ? this.tick.ask : this.tick.bid;
-      let price = useMarket ? marketPrice : order.price_open;
+      const level = this.orderLevel(order.type, order.price_open);
+      let price = useMarket ? marketPrice : level;
       if (useMarket && this.wideBefore) price = buy ? Math.max(price, order.price_open) : Math.min(price, order.price_open);
+      if (useMarket && this.grid > 1) {
+        // BKT-22: ein Stop füllt nie besser, ein Limit nie schlechter als auf dem Raster der Marke
+        const stop = order.type === ORDER_TYPE_BUY_STOP || order.type === ORDER_TYPE_SELL_STOP;
+        price = stop === buy ? Math.max(price, level) : Math.min(price, level);
+      }
       this.orders = this.orders.filter((o) => o.ticket !== order.ticket);
       const position: Position = {
         ticket: order.ticket,
@@ -381,11 +476,19 @@ export class PathBroker extends SimBroker {
     if (!position) throw new RunError('run.internal', { what: 'position missing', ticket: trigger.ticket });
     const buy = position.type === POSITION_TYPE_BUY;
     const level = trigger.kind === 'tp' ? position.tp : position.sl;
+    // BKT-22: die Marke liegt auf dem Raster des Gegenkurses (Kauf-Position schließt am Bid, Verkaufs-Position am Ask)
+    const tp = trigger.kind === 'tp';
+    let onGrid: number;
+    if (buy) onGrid = tp ? this.bidUp(level) : this.bidDown(level);
+    else onGrid = tp ? this.askDown(level) : this.askUp(level);
     const marketPrice = buy ? this.tick.bid : this.tick.ask;
-    let price = useMarket ? marketPrice : level;
+    let price = useMarket ? marketPrice : onGrid;
     if (trigger.kind === 'sl' && !this.replaying) {
       const slip = this.slSlippagePoints === null ? this.spreadPrice / 2 : this.slSlippagePoints * this.costs.point;
-      const worse = this.round(buy ? level - slip : level + slip);
+      let worse = this.round(buy ? level - slip : level + slip);
+      if (this.grid > 1) {
+        worse = buy ? Math.min(onGrid, this.snapNearest(worse, this.bidPhase)) : Math.max(onGrid, this.snapNearest(worse, this.askPhase));
+      }
       if (!useMarket) price = worse;
       else if (buy) price = Math.min(price, worse);
       else price = Math.max(price, worse);
