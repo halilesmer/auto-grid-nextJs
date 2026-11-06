@@ -478,7 +478,10 @@ export class MockWorker {
       tickSpread && q.get('tick_replay') === '1'
         ? { replay: first === undefined ? { t: [], kind: [], off: [0], ms: [], b: [], a: [] } : { t: [cols.t[0]], kind: ['S'], off: [0, 2], ms: [0, 1000], b: [bid0, bid0], a: [bid0 + 5, bid0 + 5] } }
         : {};
-    const tickColumns = tickSpread ? { sa: cols.t.map(() => 3), sx: cols.t.map(() => 4), tick_missing: [], ...replay } : {};
+    // BKT-22: Ask-Extreme = Bid-Extrem + 3 Punkte (wie sa), kein Kursraster (g = 1): der Lauf rechnet wie mit dem Minutenmittel
+    const askHigh = cols.h.map((h) => Math.round(h / 0.001) + 3);
+    const askLow = cols.l.map((l) => Math.round(l / 0.001) + 3);
+    const tickColumns = tickSpread ? { sa: cols.t.map(() => 3), sx: cols.t.map(() => 4), ahi: askHigh, alo: askLow, g: cols.t.map(() => 1), tick_missing: [], ...replay } : {};
     return {
       ...tickColumns,
       account_id: accountId,

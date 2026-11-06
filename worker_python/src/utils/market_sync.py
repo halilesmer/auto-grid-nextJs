@@ -57,6 +57,10 @@ REPLAY_S_RATIO = 3.0
 REPLAY_J_RATIO = 4.0
 REPLAY_MIN_MINUTES = 30
 REPLAY_MAX_TICKS_DAY = 30_000
+# BKT-22: Kursraster (Tickschritt in Punkten), Kandidaten groß → klein; ab GRID_SHARE aller Schritte teilbar = Raster
+GRID_CANDIDATES = (100, 50, 25, 20, 10, 5, 4, 2)
+GRID_SHARE = 0.99
+GRID_MIN_STEPS = 50
 _log = logging.getLogger(__name__)
 _FETCH_SLOT = threading.Semaphore(1)
 # Uç parçası (canlı mumu içeren yanıt) 30 sn tekrar kullanılır: grafik her dakika ucu yeniler,
@@ -190,6 +194,61 @@ def minute_spread_stats(ticks, point: float, a: int, b: int) -> list[tuple[int, 
     return out
 
 
+def _valid_quotes(ticks, point: float, b_ms: int | None = None):
+    """(Zeit ms, Bid, Ask) in ganzen Punkten; Ticks mit Bid/Ask 0 oder Ask < Bid zählen nicht."""
+    for row in ticks:
+        bid, ask = float(row["bid"]), float(row["ask"])
+        if not (bid > 0 and ask > 0 and ask >= bid):
+            continue
+        t = int(row["time_msc"])
+        if b_ms is not None and t >= b_ms:
+            break
+        yield t, round(bid / point), round(ask / point)
+
+
+def quote_grid(ticks, point: float) -> int:
+    """BKT-22: Raster der Kurse in Punkten (größter Kandidat, durch den ≥ 99 % der Bid- und Ask-Schritte teilbar sind), sonst 1.
+
+    Indizes, Öl und Metalle quotieren in festen Schritten (USOUSD 10, NDX100 25, GER40 50 Punkte); Devisen in 1 Punkt
+    (kein Raster). Zu wenige Schritte (< 50) zählen nicht als Raster. Die Phase des Rasters wechselt von Tag zu Tag.
+    """
+    steps: list[int] = []
+    prev = None
+    for _, bid, ask in _valid_quotes(ticks, point):
+        if prev is not None:
+            for now, before in ((bid, prev[0]), (ask, prev[1])):
+                if now != before:
+                    steps.append(abs(now - before))
+        prev = (bid, ask)
+    if len(steps) < GRID_MIN_STEPS:
+        return 1
+    for g in GRID_CANDIDATES:
+        if sum(1 for x in steps if x % g == 0) >= GRID_SHARE * len(steps):
+            return g
+    return 1
+
+
+def minute_quote_extremes(ticks, point: float, a: int, b: int, grid: int) -> dict[int, tuple[int, int, int]]:
+    """BKT-22: je Minute in [a, b) mit Tick: (höchster Ask, niedrigster Ask in ganzen Punkten, Raster der Minute).
+
+    Nur Ticks in der Minute (der übernommene Tick der Vorminute zählt nicht). Raster der Minute = `grid`, wenn alle Bid-Kurse
+    und alle Ask-Kurse der Minute je eine Restklasse mod `grid` haben, sonst 1 (Phase wechselt, ausreißender Tick).
+    """
+    a_ms, b_ms = a * 1000, b * 1000
+    cur: dict[int, list] = {}
+    for t, bid, ask in _valid_quotes(ticks, point, b_ms):
+        if t < a_ms:
+            continue
+        m = t - t % 60000
+        slot = cur.setdefault(m, [ask, ask, set(), set()])
+        slot[0], slot[1] = max(slot[0], ask), min(slot[1], ask)
+        if grid > 1:
+            slot[2].add(bid % grid)
+            slot[3].add(ask % grid)
+    return {m // 1000: (hi, lo, grid if grid > 1 and len(rb) == 1 and len(ra) == 1 else 1)
+            for m, (hi, lo, rb, ra) in cur.items()}
+
+
 def replay_minutes(ticks, stats, point: float, a: int, b: int, max_ticks: int = REPLAY_MAX_TICKS_DAY):
     """Rollover-/Sprung-Minuten in [a, b): ([(Minute, Art 'S'|'J'|'SJ', ms im Minute, Bid, Ask)], verworfene Minuten).
 
@@ -278,6 +337,9 @@ def _fetch_tick_piece(account: dict, symbol: str, x: int, y: int, replay: bool =
         inside = sum(1 for r in rows if int(r["time_msc"]) >= x * 1000)
         stats = minute_spread_stats(rows, point, x, y)
         marked, dropped = replay_minutes(rows, stats, point, x, y) if replay else ([], 0)
+        extremes = minute_quote_extremes(rows, point, x, y, quote_grid(rows, point))
+        # BKT-22: sa/sx/n bleiben wie BKT-19; dazu ahi/alo/g je Minute (Minuten ohne gültigen Tick haben auch keine Stat-Zeile)
+        stats = [(*row, *extremes.get(row[0], (None, None, None))) for row in stats]
         return {"stats": stats, "count": inside, "replay": marked, "dropped": dropped}
 
     return mm._connected(account, collect)
@@ -308,7 +370,7 @@ def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, b
         volume = sum(r.get("tick_volume") or 0 for r in db.read_rates(source, symbol, 60, x, y, MAX_BARS + 1))
         if volume == 0 and not db.read_rates(source, symbol, 60, x, y, 1):
             # Wochenende oder Pause innerhalb des Kerzenbereichs: keine Kerze, also nichts zu holen
-            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_COMPLETE)], replay=replay)
+            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_COMPLETE)], replay=replay, stats=True)
             continue
         if fetched and time.monotonic() >= deadline:
             missing += [{"from": p, "to": q, "reason": "budget", "checked_at": None} for p, q in pieces[i:]]
@@ -327,7 +389,7 @@ def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, b
         finally:
             _FETCH_SLOT.release()
         if part["count"] == 0:
-            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_UNAVAILABLE)], replay=replay)
+            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_UNAVAILABLE)], replay=replay, stats=True)
             missing.append({"from": x, "to": y, "reason": db.STATE_UNAVAILABLE, "checked_at": int(time.time())})
         elif part["count"] < TICK_MIN_RATIO * volume:
             # Das Terminal lädt die Historie vermutlich noch: nichts speichern, beim nächsten Aufruf neu versuchen
@@ -335,7 +397,7 @@ def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, b
         else:
             marked = [(m, kind, encode_replay(ms, bid, ask)) for m, kind, ms, bid, ask in part["replay"]]
             db.store_tick_spread(source, symbol, part["stats"], [(x, y, db.STATE_COMPLETE)],
-                                 replay_rows=marked, replay=replay)
+                                 replay_rows=marked, replay=replay, stats=True)
             if replay:
                 # Für die Kalibrierung der Schwellen (S/J) auf dem VPS
                 _log.info("tick_replay %s %s [%s,%s): %d Minuten markiert (%d Ticks), %d verworfen, %d Ticks gesamt",
@@ -458,6 +520,10 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
     if tick_spread:
         result["sa"] = [r.get("sa") for r in rows]
         result["sx"] = [r.get("sx") for r in rows]
+        # BKT-22: Ask-Extreme (ganze Punkte) und Kursraster je Minute; null = unbekannt
+        result["ahi"] = [r.get("ahi") for r in rows]
+        result["alo"] = [r.get("alo") for r in rows]
+        result["g"] = [r.get("g") for r in rows]
         result["tick_missing"] = tick_missing
         if tick_replay:
             result["replay"] = _replay_columns(source, symbol, a, rows[-1]["time"] + 60 if rows else a)
