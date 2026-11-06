@@ -4,12 +4,16 @@ import {
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
+import { canvasColor } from '@/lib/formation/lineStyle';
 import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
 import { rowStyle } from '@/lib/chart-workspace/indicatorStyle';
 import { aggregateIndicatorBars, calculateIndicator, isOscillator, SYSTEM_RSI_ID, visibleAtInterval, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { orderPanes, presentPanes, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { valueAtTime } from '@/lib/chart-workspace/hover';
 import type { Appearance } from '@/lib/chart-workspace/settings';
+
+/** Stored indicator color for the canvas: `var(--muted-foreground)` (gray swatch) becomes the theme's real color; '' stays '' (role color) */
+export const ownColor = (color: string) => canvasColor(color, name => (typeof document === 'undefined' ? '' : getComputedStyle(document.documentElement).getPropertyValue(name)));
 
 export interface ChartBinding { chart: IChartApi; candles: ISeriesApi<'Candlestick'>; host: HTMLDivElement; defaultMargins?: () => { top: number; bottom: number }; isDisposed: () => boolean; onDispose: (callback: () => void) => () => void; dispose: () => void }
 export function createChartBinding(chart: IChartApi, candles: ISeriesApi<'Candlestick'>, host: HTMLDivElement, defaultMargins?: ChartBinding['defaultMargins']): ChartBinding {
@@ -277,11 +281,11 @@ export class IndicatorRenderer {
       const build = (config: Indicator) => {
         let pane = 0;
         if (isOscillator(config)) pane = this.paneSeries.get(config.paneId)?.getPane().paneIndex() ?? chart.panes().length;
-        const color = config.color || colors.info, negative = config.negative || colors.down;
+        const color = ownColor(config.color) || colors.info, negative = config.negative || colors.down;
         const plots: typeof this.series = [];
         let gradientPlots = 0;
         const tones = { info: colors.info, warning: colors.warning, up: colors.up, down: negative, muted: colors.muted };
-        const row = (key: Parameters<typeof rowStyle>[1]) => rowStyle(config, key, tones);
+        const row = (key: Parameters<typeof rowStyle>[1]) => rowStyle({ ...config, color: color }, key, tones);
         const fade = (c: string, opacity: number) => { if (!c) return 'transparent'; return opacity >= 100 ? c : withAlpha(c, opacity / 100); };
         const percentLike = config.kind === 'RSI' || (config.kind === 'EWO' && config.percent);
         const decimals = config.precision >= 0 ? config.precision : (percentLike && 2) || 5;
@@ -367,7 +371,7 @@ export class IndicatorRenderer {
             out.push({ time: b.time as UTCTimestamp }); previous = -1;
           } else {
             const point = { time: b.time as UTCTimestamp, value: data[i] as number, color: undefined as string | undefined };
-            if (histogram) point.color = (data[i] as number) >= 0 ? config.color || colors.up : config.negative || colors.down;
+            if (histogram) point.color = (data[i] as number) >= 0 ? group.color : config.negative || colors.down;
             previous = out.length; out.push(point);
           }
         });

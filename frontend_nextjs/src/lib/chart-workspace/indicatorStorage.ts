@@ -1,4 +1,4 @@
-import { DEFAULT_VISIBILITY, INDICATOR_KINDS, newIndicator, PLOT_TYPES, SMOOTHINGS, SOURCES, type Indicator, type RangeRule, type Visibility } from './indicators';
+import { DEFAULT_VISIBILITY, INDICATOR_GRAY, INDICATOR_KINDS, newIndicator, PLOT_TYPES, SMOOTHINGS, SOURCES, type Indicator, type RangeRule, type Visibility } from './indicators';
 import { parseRowOverrides } from './indicatorStyle';
 
 function rule(input: unknown, fallback: RangeRule, max: number): RangeRule {
@@ -42,7 +42,7 @@ export function parseIndicators(input: unknown): Indicator[] {
     out.smoothing = SMOOTHINGS.includes(v.smoothing) ? v.smoothing : defaults.smoothing;
     out.plotType = PLOT_TYPES.includes(v.plotType) ? v.plotType : 'line';
     out.precision = typeof v.precision === 'number' && Number.isInteger(v.precision) && v.precision >= 0 && v.precision <= 8 ? v.precision : -1;
-    for (const k of ['color', 'negative', 'maColor'] as const) if (typeof v[k] === 'string' && /^#[\da-f]{6}$/i.test(v[k])) out[k] = v[k];
+    for (const k of ['color', 'negative', 'maColor'] as const) if (typeof v[k] === 'string' && (/^#[\da-f]{6}$/i.test(v[k]) || (k === 'color' && v[k] === INDICATOR_GRAY))) out[k] = v[k];
     out.upper = Math.min(100, out.upper); out.lower = Math.min(out.upper, out.lower); out.middle = Math.max(out.lower, Math.min(out.upper, out.middle));
     out.rowStyles = parseRowOverrides(v.rowStyles);
     if (v.visibility) out.visibility = parseVisibility(v.visibility);

@@ -604,6 +604,7 @@ export function ChartCore({
       return spec.visible ? [{ from: s.from, to: s.to, color: resolve(spec.color) || tones[s.tone], width: spec.width, dash: dashArrayOf(spec.style) }] : [];
     });
     primitives.current.trend.set(drawn, c.background);
+    primitives.current.trend.setInteractive(appearance.lineMenu !== 'off');
     host?.setAttribute('data-trend', String(drawn.length));
     // Stil der Trendlinie am Element (Tests: die Linie ist Canvas und sonst nicht lesbar); Typ und Dicke gelten je Richtung
     host?.setAttribute('data-trend-width', String(trendUp.width));

@@ -224,6 +224,73 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     await expect(menu(page)).toHaveCount(0);
   });
 
+  test('Trend und Indikatorlinie überlagern sich: die Indikatorlinie (EMA) gewinnt, nur die Linie allein öffnet das Trendmenü', { tag: '@ANA-25' }, async ({ page, worker }) => {
+    test.setTimeout(180_000);
+    await open(page, worker);
+    const context = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
+    await page.evaluate(([key, ctx]) => {
+      localStorage.setItem(key, JSON.stringify({ version: 1, documents: { [ctx]: { drawings: '[]', indicators: [{ id: 'ema-over-trend', kind: 'EMA', period: 5, visible: true }] } } }));
+    }, ['grid-robot-chart-workspaces-v1', context]);
+    await page.reload();
+    await expect(chart(page)).toHaveAttribute('data-trend', '6');
+    await expect(chart(page)).toHaveAttribute('data-trend-segments', /\d/);
+    const row = page.locator('[data-indicator-row="EMA"]');
+    await expect(row).toHaveCount(1);
+    const segs = await segments(page);
+    // Punkt, an dem die EMA-Linie unter dem Zeiger liegt (Fadenkreuz meldet sie) und die Trendlinie höchstens 4 px entfernt ist
+    let both: { x: number; y: number } | null = null;
+    search: for (const s of segs) {
+      for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9]) {
+        for (let dy = -4; dy <= 4; dy++) {
+          const p = { x: s.x1 + (s.x2 - s.x1) * t, y: s.y1 + (s.y2 - s.y1) * t + dy };
+          if (nearestDistance(segs, p.x, p.y) > 4 || !(await free(page, p))) continue;
+          await page.mouse.move(p.x, p.y);
+          await page.waitForTimeout(30);
+          if ((await row.getAttribute('data-emphasis')) === 'hover') { both = p; break search; }
+        }
+      }
+    }
+    expect(both, 'Kein Punkt, an dem EMA-Linie und Trendlinie zusammenfallen').not.toBeNull();
+    await page.mouse.click(both!.x, both!.y, { button: 'right' });
+    await expect(page.getByTestId('indicator-line-menu')).toBeVisible();
+    await expect(menu(page)).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    // Auf der Trendlinie ohne EMA darunter bleibt das Trendmenü erreichbar
+    let alone: { x: number; y: number } | null = null;
+    for (const s of segs) {
+      for (const t of [0.5, 0.3, 0.7, 0.2, 0.8, 0.4, 0.6]) {
+        const p = { x: s.x1 + (s.x2 - s.x1) * t, y: s.y1 + (s.y2 - s.y1) * t };
+        if (!(await free(page, p))) continue;
+        await page.mouse.move(p.x, p.y);
+        await page.waitForTimeout(40);
+        if ((await row.getAttribute('data-emphasis')) !== 'hover') { alone = p; break; }
+      }
+      if (alone) break;
+    }
+    expect(alone, 'Kein Punkt nur auf der Trendlinie').not.toBeNull();
+    await page.mouse.click(alone!.x, alone!.y, { button: 'right' });
+    await expect(menu(page)).toBeVisible();
+    await expect(page.getByTestId('indicator-line-menu')).toHaveCount(0);
+  });
+
+  test('„Çizgi menüsü: Kapalı“: auf der Trendlinie kein Handzeiger', { tag: '@ANA-25' }, async ({ page, worker }) => {
+    await open(page, worker);
+    const on = await onLine(page);
+    const cursorAt = (p: { x: number; y: number }) => page.evaluate(([x, y]) => getComputedStyle(document.elementFromPoint(x, y)!).cursor, [p.x, p.y]);
+    await page.mouse.move(on.x - 30, on.y);
+    await page.mouse.move(on.x, on.y, { steps: 4 });
+    await expect.poll(() => cursorAt(on)).toBe('pointer');
+    await setLineMenu(page, 'off');
+    await page.mouse.move(on.x - 30, on.y);
+    await page.mouse.move(on.x, on.y, { steps: 4 });
+    await expect.poll(() => cursorAt(on)).not.toBe('pointer');
+    // „nur Doppelklick“ lässt die Linie treffbar (Hand)
+    await setLineMenu(page, 'double');
+    await page.mouse.move(on.x - 30, on.y);
+    await page.mouse.move(on.x, on.y, { steps: 4 });
+    await expect.poll(() => cursorAt(on)).toBe('pointer');
+  });
+
   test('„Trend ayarları…“ öffnet das Panel der Trend-Einstellungen', { tag: '@ANA-25' }, async ({ page, worker }) => {
     await open(page, worker);
     await rightClick(page);
@@ -264,7 +331,7 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     await expect(menu(page)).toHaveCount(0);
   });
 
-  test('Auch im Modus Formation (die Zeichnungen darüber nehmen die Klicks auf der Linie nicht weg)', { tag: '@ANA-25' }, async ({ page, worker }) => {
+  test('Auch im Modus Formation: auf einem von der Formations-Zeichnung unverdeckten Punkt der Linie öffnet der Rechtsklick das Trendmenü', { tag: '@ANA-25' }, async ({ page, worker }) => {
     const gar = 'e2e/fixtures/formation/gar-buy-h4-01.json';
     const garBars = named(gar, parseFixture(JSON.parse(readFileSync(gar, 'utf-8')))).bars;
     const forming = 1761192000;
@@ -289,6 +356,19 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
       await open(page, worker);
       await rightClick(page);
       await expect(menu(page)).toBeVisible();
+      // Echte Aussage statt nur Bild: der Hintergrund des Menüs folgt dem Thema (hell > 0,6, dunkel < 0,4 relative Helligkeit)
+      const luminance = await menu(page).evaluate((el) => {
+        let node: Element | null = el;
+        while (node) {
+          const m = getComputedStyle(node).backgroundColor.match(/[\d.]+/g)?.map(Number);
+          if (m && (m[3] ?? 1) > 0.9) return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255;
+          node = node.parentElement;
+        }
+        return -1;
+      });
+      expect(luminance).toBeGreaterThanOrEqual(0);
+      if (theme === 'dark') expect(luminance).toBeLessThan(0.4);
+      else expect(luminance).toBeGreaterThan(0.6);
       await page.screenshot({ path: test.info().outputPath(`trend-menu-${theme}.png`) });
     });
   }

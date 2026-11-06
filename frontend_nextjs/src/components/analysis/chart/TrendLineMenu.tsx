@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IChartApi, MouseEventParams, Time } from 'lightweight-charts';
-import { useDrawingPriority } from '@/components/chart-workspace/drawingPriority';
+import { useDrawingPriority, useToolGrace } from '@/components/chart-workspace/drawingPriority';
 import { LineStyleControls } from '@/components/chart-workspace/LineStyleControls';
 import { TrendSettingsPanel } from '@/components/chart-workspace/TrendSettingsPanel';
 import { ContextMenu, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
@@ -45,9 +45,6 @@ function TrendLineMenu({ x, y, onClose, onSettings }: { x: number; y: number; on
   );
 }
 
-/** So lange nach einem Druck bei aktivem Zeichenwerkzeug öffnet kein Menü (länger als ein Doppelklick) */
-const TOOL_GRACE_MS = 600;
-
 interface HostProps {
   chart: IChartApi;
   /** Das Element, in dem der Chart liegt: dort kommt das `contextmenu`-Ereignis an */
@@ -71,19 +68,17 @@ export function TrendLineMenuHost({ chart, host, lineMenu }: HostProps) {
   const mode = useRef(lineMenu);
   const overLine = useRef(false);
   const priorityRef = useRef(priority);
+  const toolRecent = useToolGrace(host, () => priorityRef.current().toolActive);
+  const toolRecentRef = useRef(toolRecent);
   // Die Handler unten lesen immer den neuesten Stand, ohne bei jeder Änderung neu abonniert zu werden
-  useEffect(() => { mode.current = lineMenu; priorityRef.current = priority; }, [lineMenu, priority]);
+  useEffect(() => { mode.current = lineMenu; priorityRef.current = priority; toolRecentRef.current = toolRecent; }, [lineMenu, priority, toolRecent]);
 
   useEffect(() => {
     if (!host) return;
     const isTrend = (param: MouseEventParams<Time>) => param.hoveredInfo?.objectKind === 'primitive' && param.hoveredInfo.objectId === TREND_PATH_ID;
-    // Der erste Klick eines Doppelklicks setzt den Punkt des Werkzeugs und beendet es; beim `dblclick` ist es schon nicht mehr aktiv.
-    // Darum merkt sich ein Druck bei aktivem Werkzeug dieses für die Dauer eines Doppelklicks.
-    let toolDownAt = -Infinity;
-    const onDown = () => { if (priorityRef.current().toolActive) toolDownAt = performance.now(); };
     const allowed = (trigger: LineMenuTrigger) => {
       const { toolActive, drawingHovered } = priorityRef.current();
-      const toolRecent = performance.now() - toolDownAt < TOOL_GRACE_MS;
+      const toolRecent = toolRecentRef.current();
       return overLine.current && !toolActive && !toolRecent && !drawingHovered && lineMenuAllows(mode.current, trigger);
     };
     const onMove = (param: MouseEventParams<Time>) => { overLine.current = !!param.point && isTrend(param); };
@@ -101,13 +96,11 @@ export function TrendLineMenuHost({ chart, host, lineMenu }: HostProps) {
     chart.subscribeCrosshairMove(onMove);
     chart.subscribeDblClick(onDouble);
     host.addEventListener('contextmenu', onContext);
-    host.addEventListener('pointerdown', onDown, true);
     return () => {
       overLine.current = false;
       chart.unsubscribeCrosshairMove(onMove);
       chart.unsubscribeDblClick(onDouble);
       host.removeEventListener('contextmenu', onContext);
-      host.removeEventListener('pointerdown', onDown, true);
     };
   }, [chart, host]);
 

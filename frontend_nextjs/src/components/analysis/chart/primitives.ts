@@ -328,6 +328,12 @@ export class TrendPathPrimitive extends BasePrimitive {
   private halo: string | null = null;
   /** Die sichtbaren Schenkel in Pane-Pixeln nach jedem Zeichnen (Prüfwerte für die Tests, die Linie ist Canvas) */
   private onLayout: ((segments: readonly ScreenSegment[]) => void) | null = null;
+  /** Aus („Çizgi menüsü“ aus): kein Treffer und kein Handzeiger, weil weder Klick noch Doppelklick etwas öffnet */
+  private interactive = true;
+
+  setInteractive(value: boolean) {
+    this.interactive = value;
+  }
 
   /** Meldet nach jedem Zeichnen die sichtbaren Schenkel; `null` beendet es */
   listenLayout(listener: ((segments: readonly ScreenSegment[]) => void) | null) {
@@ -359,8 +365,11 @@ export class TrendPathPrimitive extends BasePrimitive {
   }
 
   override hitTest(x: number, y: number): PrimitiveHoveredItem | null {
+    if (!this.interactive) return null;
     const distance = nearestDistance(this.screen(), x, y);
-    return distance <= TREND_HIT_PX ? { externalId: TREND_PATH_ID, zOrder: 'top', cursorStyle: 'pointer', distance, hitTestPriority: 1 } : null;
+    // 'normal', nicht 'top': Lightweight-Charts lässt einen Treffer der Ebene 'top' jeden Reihentreffer überstimmen (hitTestPane);
+    // so behalten Indikatorlinien, die höher als die Kerzenreihe liegen, den Vorrang vor der Trendlinie (ANA-25)
+    return distance <= TREND_HIT_PX ? { externalId: TREND_PATH_ID, zOrder: 'normal', cursorStyle: 'pointer', distance, hitTestPriority: 1 } : null;
   }
 
   protected draw: Draw = (target) => {

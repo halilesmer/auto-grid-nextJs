@@ -9,6 +9,7 @@ import { useT, type MessageKey } from '@/i18n';
 import { FILL_ROWS, GRADIENT_ROWS, patchRow, rowStyle, type Tones } from '@/lib/chart-workspace/indicatorStyle';
 import type { Indicator, RowKey, RowStyle } from '@/lib/chart-workspace/indicators';
 import { cn } from '@/lib/utils';
+import { ownColor } from './runtime';
 
 const box = 'h-8 rounded-md border border-border bg-popover text-sm text-foreground';
 const CHECKER = 'repeating-conic-gradient(var(--border) 0 25%, var(--muted) 0 50%) 0 0 / 8px 8px';
@@ -47,7 +48,7 @@ function Swatch({ row, line }: { row: RowStyle; line: boolean }) {
  * `extra` is an optional control right of it (the value of a band).
  */
 export function StyleRow({ indicator, rowKey, tones, update, extra, opacity = true, labelKey }: { indicator: Indicator; rowKey: RowKey; tones: Tones; update: (change: Partial<Indicator>) => void; extra?: ReactNode; opacity?: boolean; labelKey?: MessageKey }) {
-  const t = useT(), row = rowStyle(indicator, rowKey, tones), key = (labelKey ?? `ind.row.${rowKey}`) as MessageKey;
+  const t = useT(), row = rowStyle({ ...indicator, color: ownColor(indicator.color) }, rowKey, tones), key = (labelKey ?? `ind.row.${rowKey}`) as MessageKey;
   const fill = FILL_ROWS.includes(rowKey), gradient = GRADIENT_ROWS.includes(rowKey);
   let menuLabel: MessageKey = 'ind.rowStyle';
   if (fill) menuLabel = gradient ? 'ind.fillTop' : 'ind.fillColor';
