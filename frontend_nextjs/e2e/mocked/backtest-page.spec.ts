@@ -1,6 +1,7 @@
 /**
  * Backtest-Seite (/backtest), B5a: ein Lauf im Web Worker gegen den Mock-Worker.
  * BKT-06 Seite, Lauf, Test-Knopf der Zone, Netting-Sperre · BKT-10 Hinweise zum Ergebnis · BKT-12 Fehler, Kontowechsel
+ * BKT-19 Spread „tick“ als Standard der Spread-Quelle
  * Die Zahlen des Rechners prüft backtest-runner-lib.spec.ts; hier geht es um Seite, Übergabe und Anzeige.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -58,6 +59,22 @@ test.describe('BKT Backtest-Seite', () => {
     // Der Backtest speichert nie ein Setup
     expect(worker.callsTo('POST', /\/api\/settings/)).toHaveLength(0);
     expect(worker.callsTo('PUT', /\/api\/settings/)).toHaveLength(0);
+  });
+
+  test('Spread-Quelle: „Tick“ ist der Standard, der Lauf holt die Minutenwerte; M5 fragt sie nicht an', { tag: '@BKT-19' }, async ({ page, worker }) => {
+    await page.goto(URL);
+    const select = page.getByTestId('bt-spread');
+    await expect(select).toHaveValue('tick');
+    await expect(select.locator('option')).toHaveCount(4);
+    await expect(select.locator('option[value="tick"]')).toHaveText(msg('backtest.spread.tick'));
+    await runTest(page);
+    expect(worker.tickSpreadRequests.some((q) => q.includes('tick_spread=1') && q.includes('timeframe=M1'))).toBe(true);
+
+    worker.tickSpreadRequests.length = 0;
+    await page.getByTestId('bt-timeframe').selectOption('M5');
+    await runTest(page);
+    expect(worker.tickSpreadRequests.length).toBeGreaterThan(0);
+    expect(worker.tickSpreadRequests.some((q) => q.includes('tick_spread'))).toBe(false);
   });
 
   test('ungespeicherte Änderung der Zone läuft mit, ohne gespeichert zu werden', { tag: '@BKT-06' }, async ({ page, worker, dashboard }) => {

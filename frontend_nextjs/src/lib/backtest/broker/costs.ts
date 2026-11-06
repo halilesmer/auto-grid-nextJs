@@ -183,15 +183,25 @@ export function swapNights(day: number, rollover3days: number): number {
   return weekday === rollover3days ? 3 : 1;
 }
 
-export type SpreadSetting = { mode: 'candle' } | { mode: 'fixed'; points: number } | { mode: 'max'; points: number };
+export type SpreadSetting =
+  | { mode: 'candle' }
+  | { mode: 'fixed'; points: number }
+  | { mode: 'max'; points: number }
+  /** BKT-19: Minuten-Mittel aus Ticks; `points` und fehlende Minutenwerte folgen der Regel von „max“ */
+  | { mode: 'tick'; points: number };
 
 /**
  * Spread einer Kerze in Punkten; null = nicht bestimmbar. Ein Kerzenwert von null, NaN (CSV-Import) oder 0 gilt als
  * unbekannt: MT5 liefert 0, wenn der Broker den Spread der Kerze nicht aufgezeichnet hat.
+ * `tickValue` (nur Modus „tick“): zeitgewichteter Spread der Minute aus den Ticks; fehlt er (null, NaN, ≤ 0),
+ * gilt dieselbe Regel wie bei „max“ (größerer von eigenem Wert und Kerzenwert), damit fehlende Tick-Daten den Lauf
+ * nie optimistischer machen als der bisherige Standard.
  */
-export function candleSpreadPoints(setting: SpreadSetting, candleValue: number | null): number | null {
+export function candleSpreadPoints(setting: SpreadSetting, candleValue: number | null, tickValue?: number | null): number | null {
   if (setting.mode === 'fixed') return setting.points;
+  if (setting.mode === 'tick' && typeof tickValue === 'number' && tickValue > 0) return tickValue;
   const candle = candleValue === null || !(candleValue > 0) ? null : candleValue;
-  if (candle === null) return setting.mode === 'max' ? setting.points : null;
-  return setting.mode === 'max' ? Math.max(setting.points, candle) : candle;
+  const maxRule = setting.mode === 'max' || setting.mode === 'tick';
+  if (candle === null) return maxRule ? setting.points : null;
+  return maxRule ? Math.max(setting.points, candle) : candle;
 }

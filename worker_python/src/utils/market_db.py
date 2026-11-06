@@ -135,6 +135,30 @@ MIGRATIONS: list[list[str]] = [
         "CREATE INDEX backtest_reports_owner ON backtest_reports (owner, created_at)",
     ],
     [
+        # BKT-19: Minuten-Spread aus Ticks. Eigene Tabellen, weil store_rates die Kerzenzeilen ersetzt (INSERT OR
+        # REPLACE) und die Tick-Spalten sonst verloren gingen; die Tick-Abdeckung lebt unabhängig von der Kerzen-Abdeckung.
+        """CREATE TABLE tick_spread (
+            source TEXT NOT NULL, symbol TEXT NOT NULL, t_mt5 INTEGER NOT NULL,
+            sa REAL NOT NULL, sx INTEGER NOT NULL, n INTEGER NOT NULL,
+            PRIMARY KEY (source, symbol, t_mt5)
+        ) WITHOUT ROWID""",
+        """CREATE TABLE tick_spread_coverage (
+            source TEXT NOT NULL, symbol TEXT NOT NULL,
+            from_t INTEGER NOT NULL, to_t INTEGER NOT NULL, state TEXT NOT NULL, checked_at INTEGER NOT NULL
+        )""",
+        "CREATE INDEX tick_spread_coverage_key ON tick_spread_coverage (source, symbol, from_t)",
+    ],
+    [
+        # BKT-20: Tick-Replay. Die Ticks der Rollover-/Sprung-Minuten (Blob: zlib(JSON [ms[], bid[], ask[]]), Preise in
+        # ganzen Punkten); `replay` in der Abdeckung = der Bereich ist auch auf Replay-Minuten geprüft (0 = nur BKT-19).
+        """CREATE TABLE tick_replay (
+            source TEXT NOT NULL, symbol TEXT NOT NULL, t_mt5 INTEGER NOT NULL,
+            kind TEXT NOT NULL, ticks BLOB NOT NULL,
+            PRIMARY KEY (source, symbol, t_mt5)
+        ) WITHOUT ROWID""",
+        "ALTER TABLE tick_spread_coverage ADD COLUMN replay INTEGER NOT NULL DEFAULT 0",
+    ],
+    [
         # ANA-07: SL/TP der Eröffnungsorder je Position (history_orders_get). Eine Zeile = nachgeschlagen;
         # sl/tp NULL = die Order trug keinen Wert oder ist nicht mehr in der MT5-Historie.
         """CREATE TABLE position_orders (
@@ -362,7 +386,8 @@ def _replace_segment(conn, table: str, where: str, args: tuple, a: int, b: int, 
     lo, hi = a, b
     for row in rows:
         conn.execute(f"DELETE FROM {table} WHERE rowid = ?", (row["rid"],))
-        same = row[merge_key] == values[merge_key]
+        keys = (merge_key,) if isinstance(merge_key, str) else merge_key
+        same = all(row[k] == values[k] for k in keys)
         if same:  # aynı durumdaki komşu veya çakışan satır birleşir
             lo, hi = min(lo, row["from_t"]), max(hi, row["to_t"])
             continue
@@ -423,14 +448,97 @@ def store_rates(source: str, symbol: str, timeframe: int, bars: list[dict], segm
     return True
 
 
-def read_rates(source: str, symbol: str, timeframe: int, a: int, b: int, limit: int) -> list[dict]:
+def read_rates(source: str, symbol: str, timeframe: int, a: int, b: int, limit: int,
+               with_ticks: bool = False) -> list[dict]:
+    """Kerzen [a, b). `with_ticks` (nur M1): dazu sa/sx aus tick_spread (None ohne Tick-Daten)."""
     with reading() as conn:
+        if with_ticks:
+            return [dict(r) for r in conn.execute(
+                "SELECT r.t_mt5 AS time, r.o AS open, r.h AS high, r.l AS low, r.c AS close, r.tick_volume, "
+                "r.spread, t.sa AS sa, t.sx AS sx FROM rates r LEFT JOIN tick_spread t "
+                "ON t.source = r.source AND t.symbol = r.symbol AND t.t_mt5 = r.t_mt5 "
+                "WHERE r.source=? AND r.symbol=? AND r.timeframe=? AND r.t_mt5 >= ? AND r.t_mt5 < ? "
+                "ORDER BY r.t_mt5 LIMIT ?",
+                (source, symbol, timeframe, a, b, limit),
+            )]
         return [dict(r) for r in conn.execute(
             "SELECT t_mt5 AS time, o AS open, h AS high, l AS low, c AS close, tick_volume, spread "
             "FROM rates WHERE source=? AND symbol=? AND timeframe=? AND t_mt5 >= ? AND t_mt5 < ? "
             "ORDER BY t_mt5 LIMIT ?",
             (source, symbol, timeframe, a, b, limit),
         )]
+
+
+# --------------------------------------------------------------------------- Tick-Spread (BKT-19)
+def complete_candle_ranges(source: str, symbol: str, timeframe: int, a: int, b: int) -> list[tuple[int, int]]:
+    """Teile von [a, b) mit Kerzen-Abdeckung `complete` (nur dort gibt es Kerzen, also Tick-Arbeit)."""
+    return [(max(a, x["from_t"]), min(b, x["to_t"])) for x in rate_coverage(source, symbol, timeframe, a, b)
+            if x["state"] == STATE_COMPLETE]
+
+
+def plan_tick_spread(source: str, symbol: str, a: int, b: int, now: float | None = None, replay: bool = False):
+    """[a, b) für M1: aus MT5 zu berechnende Teile und noch nicht erneut zu versuchende „nicht verfügbar“-Teile.
+
+    `replay`: auch Bereiche, die nur für BKT-19 (ohne Replay-Minuten) gespeichert sind, werden noch einmal geholt."""
+    now = time.time() if now is None else now
+    with reading() as conn:
+        segs = [dict(r) for r in conn.execute(
+            "SELECT from_t, to_t, state, checked_at, replay FROM tick_spread_coverage "
+            "WHERE source=? AND symbol=? AND to_t > ? AND from_t < ? ORDER BY from_t", (source, symbol, a, b))]
+    covered, waiting = [], []
+    for seg in segs:
+        if seg["state"] in COVERED_STATES:
+            if not replay or seg["replay"]:
+                covered.append((seg["from_t"], seg["to_t"]))
+        elif now - seg["checked_at"] < UNAVAILABLE_RETRY_SEC:
+            x, y = max(a, seg["from_t"]), min(b, seg["to_t"])
+            covered.append((x, y))
+            waiting.append({"from": x, "to": y, "reason": STATE_UNAVAILABLE, "checked_at": seg["checked_at"]})
+    todo = subtract(complete_candle_ranges(source, symbol, 60, a, b), covered)
+    return todo, waiting
+
+
+def store_tick_spread(source: str, symbol: str, rows: list[tuple[int, float, int, int]],
+                      segments: list[tuple[int, int, str]], checked_at: int | None = None,
+                      replay_rows: list[tuple[int, str, bytes]] | None = None, replay: bool = False) -> bool:
+    """Minutenwerte (t, sa, sx, n), Replay-Minuten (t, Art, Blob) und Abdeckung in einer Transaktion. Datenbank voll → False."""
+    if is_full():
+        return False
+    checked_at = int(time.time()) if checked_at is None else checked_at
+    with writing() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO tick_spread VALUES (?,?,?,?,?,?)",
+            [(source, symbol, int(t), round(float(sa), 2), int(sx), int(n)) for t, sa, sx, n in rows],
+        )
+        if replay_rows:
+            conn.executemany(
+                "INSERT OR REPLACE INTO tick_replay VALUES (?,?,?,?,?)",
+                [(source, symbol, int(t), kind, blob) for t, kind, blob in replay_rows],
+            )
+        for x, y, state in segments:
+            if y > x:
+                _replace_segment(
+                    conn, "tick_spread_coverage", "source=? AND symbol=?", (source, symbol), x, y,
+                    {"source": source, "symbol": symbol, "state": state, "checked_at": checked_at,
+                     "replay": 1 if replay else 0}, merge_key=("state", "replay"),
+                )
+    return True
+
+
+def read_tick_replay(source: str, symbol: str, a: int, b: int) -> list[tuple[int, str, bytes]]:
+    """Replay-Minuten [a, b): (Minute, Art, Blob)."""
+    with reading() as conn:
+        return [(r["t_mt5"], r["kind"], bytes(r["ticks"])) for r in conn.execute(
+            "SELECT t_mt5, kind, ticks FROM tick_replay WHERE source=? AND symbol=? AND t_mt5 >= ? AND t_mt5 < ? "
+            "ORDER BY t_mt5", (source, symbol, a, b))]
+
+
+def tick_coverage_summary(source: str, symbol: str) -> list[dict]:
+    with reading() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT state, replay, MIN(from_t) AS first, MAX(to_t) AS last, COUNT(*) AS segments "
+            "FROM tick_spread_coverage WHERE source=? AND symbol=? GROUP BY state, replay ORDER BY state, replay",
+            (source, symbol))]
 
 
 def save_symbol_meta(source: str, symbol: str, digits, point):

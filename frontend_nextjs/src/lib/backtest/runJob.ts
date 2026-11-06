@@ -34,6 +34,8 @@ export async function runJob(
       from: params.from - warmupSeconds(params.zone, params.dataTimeframe),
       to: params.to,
       source: params.source,
+      tickSpread: params.spread.mode === 'tick' && params.dataTimeframe === 'M1' && !params.source,
+      tickReplay: params.spread.mode === 'tick' && params.dataTimeframe === 'M1' && !params.source && params.model.tickReplay !== false,
       onProgress: (fraction) => post({ type: 'progress', runId, phase: 'load', fraction: fraction * LOAD_SHARE }),
     });
     onRates?.(rates);
