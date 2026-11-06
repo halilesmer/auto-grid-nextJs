@@ -58,9 +58,10 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
 
    ```bash
    scripts/features/precheck.sh   # last line: PRECHECK OK … · e2e ran=N passed=N failed=0 …
+   # with extra Playwright arguments the last line is PRECHECK TEILLAUF: not a full check
    ```
 
-9. **[elle]** A script that uses Playwright JSON results as a pass signal must fail when zero tests ran (`stats.expected + stats.unexpected + stats.flaky == 0`). `precheck.sh` and an unfiltered `run.sh` use this check. Use it in each ad hoc sweep too.
+9. **[elle]** A script that uses Playwright JSON results as a pass signal must fail when zero tests ran (`stats.expected + stats.unexpected + stats.flaky == 0`). `precheck.sh` and an unfiltered `run.sh` use this check. A filtered `run.sh` (ID or category) fails when no tier ran a test for the filter. `run.sh` deletes the old report before each Playwright run. Use the check in each ad hoc sweep too.
 
    ```bash
    scripts/features/pw_stats.py "$REPORT_JSON" || exit 1   # exit 3 = no test ran
@@ -72,7 +73,7 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
     Blast radius: 62 red tests in 17 files (dry run: npx playwright test e2e/mocked/*-lib.spec.ts) → S1a logic, S1b re-baseline. Check: precheck.sh, own port.
     ```
 
-11. **[otomatik]** (in `frontend_nextjs/playwright.config.ts`, not in a hook) Each checkout uses its own e2e port (3300–3999, derived from the checkout path; 3100 in CI; `E2E_PORT` wins). Playwright does not reuse a running server, and it stops with "is already used" when the port is occupied. Use `E2E_REUSE=1` only for a server that you started yourself in this checkout.
+11. **[otomatik]** (in `frontend_nextjs/playwright.config.ts`, not in a hook) Each checkout uses its own e2e port (3300–3999, derived from the checkout path; 3100 in CI; `E2E_PORT` wins, and an `E2E_PORT` that is not a whole number from 1 to 65535 is an error). If the port is unknown, the e2e step of `precheck.sh` and `run.sh` fails. Playwright does not reuse a running server, and it stops with "is already used" when the port is occupied. Use `E2E_REUSE=1` only for a server that you started yourself in this checkout.
 
     ```bash
     E2E_REUSE=1 npx playwright test e2e/mocked/zone-card.spec.ts   # only with your own `next start -p <port>`
