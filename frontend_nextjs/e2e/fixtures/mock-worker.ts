@@ -470,7 +470,14 @@ export class MockWorker {
     // BKT-19: wie market_sync.get_rates mit tick_spread=1 (nur M1); der Mock rechnet sa = Kerzen-Spread, sx = +1
     const tickSpread = q.get('tick_spread') === '1';
     this.tickSpreadRequests.push(q.toString());
-    const tickColumns = tickSpread ? { sa: cols.t.map(() => 3), sx: cols.t.map(() => 4), tick_missing: [] } : {};
+    // BKT-20: mit tick_replay=1 kommt dazu eine Replay-Minute (die erste Kerze, zwei Ticks, Ask = Bid + 5 Punkte)
+    const first = cols.o[0];
+    const bid0 = first === undefined ? 0 : Math.round(first / 0.001);
+    const replay =
+      tickSpread && q.get('tick_replay') === '1'
+        ? { replay: first === undefined ? { t: [], kind: [], off: [0], ms: [], b: [], a: [] } : { t: [cols.t[0]], kind: ['S'], off: [0, 2], ms: [0, 1000], b: [bid0, bid0], a: [bid0 + 5, bid0 + 5] } }
+        : {};
+    const tickColumns = tickSpread ? { sa: cols.t.map(() => 3), sx: cols.t.map(() => 4), tick_missing: [], ...replay } : {};
     return {
       ...tickColumns,
       account_id: accountId,
@@ -901,6 +908,9 @@ export class MockWorker {
       if (s.ratesErrorSymbols.includes(url.searchParams.get('symbol') ?? '')) return { status: 500, body: { detail: 'MT5 error' } };
       if (url.searchParams.get('tick_spread') === '1' && (url.searchParams.get('timeframe') ?? 'M1') !== 'M1') {
         return { status: 400, body: { detail: 'tick_spread yalnız M1 için' } };
+      }
+      if (url.searchParams.get('tick_replay') === '1' && url.searchParams.get('tick_spread') !== '1') {
+        return { status: 400, body: { detail: 'tick_replay tick_spread ister' } };
       }
       return ok(this.rates(seg[1], url.searchParams));
     }

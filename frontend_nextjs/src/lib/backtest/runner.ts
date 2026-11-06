@@ -29,6 +29,10 @@ export const EQUITY_CURVE_POINTS = 20_000;
 /** Der Bot liest höchstens 301 Kerzen des Strategie-Zeitrahmens (fractal_entry.py RATES_COUNT + 1) */
 const BOT_BARS = 301;
 const PROGRESS_EVERY = 5000;
+/** Im Replay läuft der Bot wie live höchstens einmal je Sekunde (LOOP_INTERVAL_SECONDS 1,0), danach nur nach einer Auslösung und am Minutenende */
+const REPLAY_BOT_INTERVAL = 1;
+/** Abweichung von Tick-Hoch/-Tief zum Kerzen-Hoch/-Tief in Punkten, ab der die Minute als abweichend zählt */
+const REPLAY_BAR_TOLERANCE_POINTS = 1.5;
 
 export interface RunModel {
   fill: FillModel;
@@ -40,6 +44,8 @@ export interface RunModel {
   carrySpread?: boolean;
   /** SL-Schlupf in Punkten; ohne Angabe halber Kerzen-Spread, 0 = aus */
   slSlippagePoints?: number | null;
+  /** BKT-20: Rollover-/Sprung-Minuten mit den echten Ticks abspielen (nur Spread „tick“ und M1-Daten mit Replay-Minuten); Standard an */
+  tickReplay?: boolean;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -219,14 +225,19 @@ export function runBacktest(input: RunInput): RunResult {
   }
   const infos = broker.symbolInfos();
   let active: ActiveZones = {};
+  let lastBot = -Infinity;
   const runBot = () => {
     [, active] = manageDynamicGrid(broker, zones, active, infos, state);
+    lastBot = broker.now;
   };
 
   const capital = input.startCapital ?? 0;
   const track = new EquityTrack(capital);
   let spreadFallbacks = 0;
   let tickFallbacks = 0;
+  let replayMinutes = 0;
+  let replayTicks = 0;
+  let replayMismatches = 0;
   let prevClose = rates.o[first];
   let prevTime = rates.t[first];
   const total = end - first;
@@ -291,15 +302,47 @@ export function runBacktest(input: RunInput): RunResult {
       runBot();
     };
 
-    traverse(prevClose, way[0], t0, t0, true);
-    for (let k = 1; k < way.length; k++) traverse(way[k - 1], way[k], times[k - 1], times[k], false);
+    const replay = input.spread.mode === 'tick' && model.tickReplay !== false ? rates.replay?.get(t0) : undefined;
+    let closeBid = rates.c[i];
+    if (replay && replay.ms.length > 0) {
+      // BKT-20: Rollover-/Sprung-Minute mit den echten Ticks (Bid und Ask getrennt) statt Kerzenweg
+      replayMinutes += 1;
+      replayTicks += replay.ms.length;
+      broker.beginReplay();
+      for (let k = 0; k < replay.ms.length; k++) {
+        broker.setQuote(replay.bid[k], replay.ask[k], t0 + replay.ms[k] / 1000);
+        let ran = false;
+        for (const trigger of broker.quoteTriggers()) {
+          if (!broker.hasTarget(trigger)) continue;
+          countEvent();
+          broker.fire(trigger, true);
+          runBot();
+          ran = true;
+        }
+        if (!ran && broker.now - lastBot >= REPLAY_BOT_INTERVAL) {
+          countEvent();
+          runBot();
+        }
+      }
+      closeBid = replay.bid[replay.bid.length - 1];
+      const seen = broker.setBarOhlc(rates.o[i], rates.h[i], rates.l[i], rates.c[i]);
+      const tolerance = REPLAY_BAR_TOLERANCE_POINTS * info.point;
+      if (seen && (Math.abs(seen.high - rates.h[i]) > tolerance || Math.abs(seen.low - rates.l[i]) > tolerance)) replayMismatches += 1;
+      broker.endReplay();
+      runBot();
+    } else {
+      traverse(prevClose, way[0], t0, t0, true);
+      for (let k = 1; k < way.length; k++) traverse(way[k - 1], way[k], times[k - 1], times[k], false);
+    }
 
     broker.endCandle();
     track.add(tEnd, capital + broker.equity());
-    prevClose = rates.c[i];
+    prevClose = closeBid;
     prevTime = tEnd;
   }
 
+  if (replayMinutes > 0) log.add('INFO', 'run.tickReplay', { minutes: replayMinutes, ticks: replayTicks });
+  if (replayMismatches > 0) log.add('WARN', 'run.tickReplayMismatch', { minutes: replayMismatches });
   if (tickFallbacks > 0) log.add('WARN', 'run.tickSpreadFallback', { candles: tickFallbacks, total: total });
   if (spreadFallbacks > 0) log.add('WARN', 'run.spreadFallback', { candles: spreadFallbacks, points: snapshot.spreadPoints });
   if (model.closeAtEnd) {

@@ -182,6 +182,7 @@ def test_migration_from_version_5_keeps_rates(client, broker):
     conn = sqlite3.connect(market_db.db_path())
     conn.execute("DROP TABLE tick_spread")
     conn.execute("DROP TABLE tick_spread_coverage")
+    conn.execute("DROP TABLE tick_replay")
     conn.execute("PRAGMA user_version=5")
     conn.close()
     market_db.reset_cache()

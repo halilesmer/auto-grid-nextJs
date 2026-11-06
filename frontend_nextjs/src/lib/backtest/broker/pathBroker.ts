@@ -138,6 +138,8 @@ export class PathBroker extends SimBroker {
   private prevSpreadPrice = 0;
   /** Die Vorkerze war breiter: Kurslücken-Füllung von Limit-Orders nie besser als der Orderpreis */
   private wideBefore = false;
+  /** BKT-20: Replay-Minute: Bid/Ask kommen aus den Ticks, SL ohne Schlupf, keine Kurslücken-Sperre für Limit-Orders */
+  private replaying = false;
 
   constructor(options: PathBrokerOptions) {
     super({ symbol: options.info, start: options.start, firstBid: options.firstBid });
@@ -176,10 +178,10 @@ export class PathBroker extends SimBroker {
     this.forming = null;
   }
 
-  /** Kurs und Uhr setzen; Ask = Bid + Spread */
-  setMarket(bid: number, time: number): void {
+  /** Kurs und Uhr setzen; Ask = Bid + Spread (oder der gegebene Ask eines Ticks) */
+  setMarket(bid: number, time: number, ask?: number): void {
     this.now = time;
-    this.tick = this.makeTick(bid, this.round(bid + this.spreadPrice));
+    this.tick = this.makeTick(bid, ask ?? this.round(bid + this.spreadPrice));
     this.profitStale = true;
     for (const position of this.positions) {
       const info = this.opens.get(position.ticket);
@@ -199,6 +201,67 @@ export class PathBroker extends SimBroker {
       bar.low = Math.min(bar.low, bid);
       bar.close = bid;
     }
+  }
+
+  /** Replay-Minute beginnen (nach beginCandle): echte Ticks statt Kerzenweg */
+  beginReplay(): void {
+    this.replaying = true;
+    this.wideBefore = false;
+  }
+
+  /** Replay-Minute beenden: die nächste Minute übernimmt den Spread des letzten Ticks (nicht den Minutenwert) */
+  endReplay(): void {
+    this.replaying = false;
+    this.prevSpreadPrice = this.spreadPrice;
+  }
+
+  /** Kurs aus einem Tick setzen (nur im Replay): Bid und Ask getrennt, der aktuelle Spread gilt für Kosten und SL */
+  setQuote(bid: number, ask: number, time: number): void {
+    this.spreadPrice = this.round(ask - bid);
+    this.setMarket(bid, time, ask);
+  }
+
+  /** Das Zeitrahmen-Kerzen-OHLC der Minute auf die Werte der Kerze setzen (der Bot liest MT5-Kerzen, nicht Tick-Extrema) */
+  setBarOhlc(open: number, high: number, low: number, close: number): { high: number; low: number } | null {
+    const bar = this.forming;
+    if (!bar) return null;
+    const seen = { high: bar.high, low: bar.low };
+    bar.open = open;
+    bar.high = high;
+    bar.low = low;
+    bar.close = close;
+    return seen;
+  }
+
+  /**
+   * BKT-20: alle Marken, die bei den aktuellen Quotes (Bid und Ask des letzten Ticks) gelten, in Auslöse-Reihenfolge.
+   * Kauf-Limit: Ask ≤ Preis, Kauf-Stop: Ask ≥ Preis, Verkaufs-Limit: Bid ≥ Preis, Verkaufs-Stop: Bid ≤ Preis;
+   * Kauf-Position TP: Bid ≥ TP, SL: Bid ≤ SL; Verkaufs-Position TP: Ask ≤ TP, SL: Ask ≥ SL.
+   */
+  quoteTriggers(): Trigger[] {
+    const { bid, ask } = this.tick;
+    const order = this.slFirst ? { sl: 0, tp: 1, fill: 2 } : { tp: 0, sl: 1, fill: 2 };
+    const found: Trigger[] = [];
+    for (const o of this.orders) {
+      const hit =
+        o.type === ORDER_TYPE_BUY_LIMIT ? ask <= o.price_open
+        : o.type === ORDER_TYPE_BUY_STOP ? ask >= o.price_open
+        : o.type === ORDER_TYPE_SELL_LIMIT ? bid >= o.price_open
+        : o.type === ORDER_TYPE_SELL_STOP ? bid <= o.price_open
+        : false;
+      if (hit) found.push({ kind: 'fill', ticket: o.ticket, bid, immediate: true });
+    }
+    for (const p of this.positions) {
+      const buy = p.type === POSITION_TYPE_BUY;
+      if (p.tp && (buy ? bid >= p.tp : ask <= p.tp)) found.push({ kind: 'tp', ticket: p.ticket, bid, immediate: true });
+      if (p.sl && (buy ? bid <= p.sl : ask >= p.sl)) found.push({ kind: 'sl', ticket: p.ticket, bid, immediate: true });
+    }
+    return found.sort((x, y) => order[x.kind] - order[y.kind] || x.ticket - y.ticket);
+  }
+
+  /** Gibt es die Order bzw. Position dieser Marke noch (eine frühere Auslösung im selben Tick kann sie entfernt haben)? */
+  hasTarget(trigger: Trigger): boolean {
+    return trigger.kind === 'fill' ? this.orders.some((o) => o.ticket === trigger.ticket) : this.positions.some((p) => p.ticket === trigger.ticket);
   }
 
   /** Brokertag-Wechsel zwischen zwei Zeiten: Swap jeder offenen Position für jede Nacht */
@@ -319,7 +382,7 @@ export class PathBroker extends SimBroker {
     const level = trigger.kind === 'tp' ? position.tp : position.sl;
     const marketPrice = buy ? this.tick.bid : this.tick.ask;
     let price = useMarket ? marketPrice : level;
-    if (trigger.kind === 'sl') {
+    if (trigger.kind === 'sl' && !this.replaying) {
       const slip = this.slSlippagePoints === null ? this.spreadPrice / 2 : this.slSlippagePoints * this.costs.point;
       const worse = this.round(buy ? level - slip : level + slip);
       if (!useMarket) price = worse;

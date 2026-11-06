@@ -10,7 +10,10 @@ docs/analyse-regeln.md §3 ve §8:
 - Canlı botu korumak için: parçalar en fazla ~1 ay M1, aynı anda tek geçmiş sorgusu (semafor),
   parçalar arasında 0,5 sn ara, her parça kendi bağlantısı ve kilidiyle (araya bot/diğer istekler girer).
 """
+import json
+import logging
 import threading
+import zlib
 import time
 
 from src.utils import market_db as db
@@ -48,6 +51,13 @@ TICK_DAY_SEC = 86400
 TICK_LOOKBACK_SEC = 3600  # der letzte Tick vor dem Stück bestimmt den Spread am Stückanfang
 # Weniger Ticks als dieser Anteil der M1-tick_volume: das Terminal lädt die Historie noch → nicht speichern
 TICK_MIN_RATIO = 0.5
+# BKT-20: Replay-Minuten. S: größter Spread ≥ 3 × Median der Minuten-Mittel des Stücks (mind. 30 Minuten);
+# J: Bid- oder Ask-Sprung zwischen zwei Ticks ≥ 4 × Median (Punkte). Höchstens REPLAY_MAX_TICKS_DAY Ticks je Tagesstück.
+REPLAY_S_RATIO = 3.0
+REPLAY_J_RATIO = 4.0
+REPLAY_MIN_MINUTES = 30
+REPLAY_MAX_TICKS_DAY = 30_000
+_log = logging.getLogger(__name__)
 _FETCH_SLOT = threading.Semaphore(1)
 # Uç parçası (canlı mumu içeren yanıt) 30 sn tekrar kullanılır: grafik her dakika ucu yeniler,
 # birden fazla sekme/kullanıcı aynı anda sorsa da MT5'e en fazla 30 sn'de bir bağlanılır
@@ -180,7 +190,74 @@ def minute_spread_stats(ticks, point: float, a: int, b: int) -> list[tuple[int, 
     return out
 
 
-def _fetch_tick_piece(account: dict, symbol: str, x: int, y: int) -> dict:
+def replay_minutes(ticks, stats, point: float, a: int, b: int, max_ticks: int = REPLAY_MAX_TICKS_DAY):
+    """Rollover-/Sprung-Minuten in [a, b): ([(Minute, Art 'S'|'J'|'SJ', ms im Minute, Bid, Ask)], verworfene Minuten).
+
+    Bid/Ask in ganzen Punkten. `stats` = minute_spread_stats desselben Stücks (Median der Minuten-Mittel als Referenz).
+    Der Sprung zählt auch vom letzten Tick vor der Minute (Vorlauf) zum ersten Tick der Minute. Ist mehr da als
+    `max_ticks`, bleiben die Minuten mit dem größten Verhältnis zum Median.
+    """
+    if not stats:
+        return [], 0
+    means = sorted(s[1] for s in stats)
+    mid = len(means) // 2
+    med = means[mid] if len(means) % 2 else (means[mid - 1] + means[mid]) / 2
+    if med <= 0:
+        return [], 0
+    top = {s[0]: s[2] for s in stats}
+    use_spread = len(stats) >= REPLAY_MIN_MINUTES
+    a_ms, b_ms = a * 1000, b * 1000
+    minutes: dict[int, tuple[list[int], list[int], list[int]]] = {}
+    jump: dict[int, float] = {}
+    prev = None
+    for row in ticks:
+        bid, ask = float(row["bid"]), float(row["ask"])
+        if not (bid > 0 and ask > 0 and ask >= bid):
+            continue
+        t = int(row["time_msc"])
+        if t >= b_ms:
+            break
+        bp, ap = round(bid / point), round(ask / point)
+        if t >= a_ms:
+            m = t - t % 60000
+            if prev is not None:
+                step = max(abs(bp - prev[0]), abs(ap - prev[1]))
+                if step > jump.get(m, 0):
+                    jump[m] = step
+            cols = minutes.setdefault(m, ([], [], []))
+            cols[0].append(t - m)
+            cols[1].append(bp)
+            cols[2].append(ap)
+        prev = (bp, ap)
+    found = []
+    for m, cols in minutes.items():
+        s_ratio = top.get(m // 1000, 0) / med if use_spread else 0.0
+        j_ratio = jump.get(m, 0) / med
+        kind = ("S" if s_ratio >= REPLAY_S_RATIO else "") + ("J" if j_ratio >= REPLAY_J_RATIO else "")
+        if kind:
+            found.append((max(s_ratio if "S" in kind else 0, j_ratio if "J" in kind else 0), m // 1000, kind, cols))
+    found.sort(key=lambda f: -f[0])
+    kept, total, dropped = [], 0, 0
+    for _, minute, kind, cols in found:
+        if total + len(cols[0]) > max_ticks:
+            dropped += 1
+            continue
+        total += len(cols[0])
+        kept.append((minute, kind, cols[0], cols[1], cols[2]))
+    kept.sort(key=lambda r: r[0])
+    return kept, dropped
+
+
+def encode_replay(ms: list[int], bid: list[int], ask: list[int]) -> bytes:
+    return zlib.compress(json.dumps([ms, bid, ask], separators=(",", ":")).encode())
+
+
+def decode_replay(blob: bytes) -> tuple[list[int], list[int], list[int]]:
+    ms, bid, ask = json.loads(zlib.decompress(blob))
+    return ms, bid, ask
+
+
+def _fetch_tick_piece(account: dict, symbol: str, x: int, y: int, replay: bool = False) -> dict:
     """Ein Stück [x, y): Minutenstatistik aus den Ticks (Vorlauf eine Stunde davor) und Tickzahl im Stück."""
 
     def collect(mt5):
@@ -199,7 +276,9 @@ def _fetch_tick_piece(account: dict, symbol: str, x: int, y: int) -> dict:
         if point <= 0:
             raise mm.MarketDataError(f"[SYMBOL] {symbol} için point değeri yok.")
         inside = sum(1 for r in rows if int(r["time_msc"]) >= x * 1000)
-        return {"stats": minute_spread_stats(rows, point, x, y), "count": inside}
+        stats = minute_spread_stats(rows, point, x, y)
+        marked, dropped = replay_minutes(rows, stats, point, x, y) if replay else ([], 0)
+        return {"stats": stats, "count": inside, "replay": marked, "dropped": dropped}
 
     return mm._connected(account, collect)
 
@@ -214,9 +293,10 @@ def _tick_pieces(todo):
             x = y
 
 
-def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, busy: bool) -> list[dict]:
-    """Fehlende Minuten-Spreads für M1 [a, b) aus MT5 holen und speichern. Gibt `tick_missing` zurück."""
-    todo, missing = db.plan_tick_spread(source, symbol, a, b)
+def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, busy: bool,
+                      replay: bool = False) -> list[dict]:
+    """Fehlende Minuten-Spreads (und Replay-Minuten) für M1 [a, b) aus MT5 holen und speichern. Gibt `tick_missing` zurück."""
+    todo, missing = db.plan_tick_spread(source, symbol, a, b, replay=replay)
     pieces = list(_tick_pieces(todo))
     if not pieces:
         return missing
@@ -228,7 +308,7 @@ def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, b
         volume = sum(r.get("tick_volume") or 0 for r in db.read_rates(source, symbol, 60, x, y, MAX_BARS + 1))
         if volume == 0 and not db.read_rates(source, symbol, 60, x, y, 1):
             # Wochenende oder Pause innerhalb des Kerzenbereichs: keine Kerze, also nichts zu holen
-            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_COMPLETE)])
+            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_COMPLETE)], replay=replay)
             continue
         if fetched and time.monotonic() >= deadline:
             missing += [{"from": p, "to": q, "reason": "budget", "checked_at": None} for p, q in pieces[i:]]
@@ -240,20 +320,27 @@ def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, b
             break
         fetched += 1
         try:
-            part = _fetch_tick_piece(account, symbol, x, y)
+            part = _fetch_tick_piece(account, symbol, x, y, replay)
         except mm.MarketDataError as exc:
             missing.append({"from": x, "to": y, "reason": "error", "detail": exc.detail, "checked_at": None})
             continue
         finally:
             _FETCH_SLOT.release()
         if part["count"] == 0:
-            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_UNAVAILABLE)])
+            db.store_tick_spread(source, symbol, [], [(x, y, db.STATE_UNAVAILABLE)], replay=replay)
             missing.append({"from": x, "to": y, "reason": db.STATE_UNAVAILABLE, "checked_at": int(time.time())})
         elif part["count"] < TICK_MIN_RATIO * volume:
             # Das Terminal lädt die Historie vermutlich noch: nichts speichern, beim nächsten Aufruf neu versuchen
             missing.append({"from": x, "to": y, "reason": "syncing", "checked_at": None})
         else:
-            db.store_tick_spread(source, symbol, part["stats"], [(x, y, db.STATE_COMPLETE)])
+            marked = [(m, kind, encode_replay(ms, bid, ask)) for m, kind, ms, bid, ask in part["replay"]]
+            db.store_tick_spread(source, symbol, part["stats"], [(x, y, db.STATE_COMPLETE)],
+                                 replay_rows=marked, replay=replay)
+            if replay:
+                # Für die Kalibrierung der Schwellen (S/J) auf dem VPS
+                _log.info("tick_replay %s %s [%s,%s): %d Minuten markiert (%d Ticks), %d verworfen, %d Ticks gesamt",
+                          source, symbol, x, y, len(marked), sum(len(r[2]) for r in part["replay"]),
+                          part["dropped"], part["count"])
     return sorted(missing, key=lambda m: m["from"])
 
 
@@ -266,7 +353,7 @@ def _chunks(pieces, step):
 
 
 def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: bool = False,
-              tick_spread: bool = False) -> dict:
+              tick_spread: bool = False, tick_replay: bool = False) -> dict:
     """Mumlar [a, b): eksik parçalar MT5'ten çekilir, veritabanından verilir.
 
     MT5'e ulaşılamaz veya hesap meşgulse veritabanındakiler + `missing` döner.
@@ -275,12 +362,12 @@ def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: 
     tf_sec = TIMEFRAMES[timeframe][1]
     source = str(account.get("server") or "")
     a, b = _align(a, b, tf_sec)
-    key = (source, symbol, timeframe, a, b, tick_spread)
+    key = (source, symbol, timeframe, a, b, tick_spread, tick_replay)
     with _tail_lock:
         hit = _tail_cache.get(key)
         if hit and time.monotonic() - hit[0] < TAIL_CACHE_SEC:
             return hit[1]
-    result = _get_rates(account, source, symbol, timeframe, a, b, busy, tick_spread)
+    result = _get_rates(account, source, symbol, timeframe, a, b, busy, tick_spread, tick_replay)
     with _tail_lock:
         # Süresi dolanlar atılır (sözlük büyümesin)
         now = time.monotonic()
@@ -295,7 +382,7 @@ def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: 
 
 
 def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, b: int, busy: bool,
-               tick_spread: bool = False) -> dict:
+               tick_spread: bool = False, tick_replay: bool = False) -> dict:
     tf_name, tf_sec = TIMEFRAMES[timeframe]
     # Bir yanıt en fazla MAX_BARS mum: takvim süresi bunu aşarsa geri kalanı next_from ile
     end = min(b, a + MAX_BARS * tf_sec)
@@ -335,7 +422,7 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
             finally:
                 _FETCH_SLOT.release()
 
-    tick_missing = _fill_tick_spread(account, source, symbol, a, end, busy) if tick_spread else None
+    tick_missing = _fill_tick_spread(account, source, symbol, a, end, busy, tick_replay) if tick_spread else None
     rows = db.read_rates(source, symbol, tf_sec, a, end, MAX_BARS + 1, with_ticks=tick_spread)
     if full:  # veritabanı dolu: çekilenler saklanamadı, yine de bu yanıtta verilir
         merged = {r["time"]: r for r in rows}
@@ -372,7 +459,23 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
         result["sa"] = [r.get("sa") for r in rows]
         result["sx"] = [r.get("sx") for r in rows]
         result["tick_missing"] = tick_missing
+        if tick_replay:
+            result["replay"] = _replay_columns(source, symbol, a, rows[-1]["time"] + 60 if rows else a)
     return result
+
+
+def _replay_columns(source: str, symbol: str, a: int, b: int) -> dict:
+    """Replay-Minuten [a, b) sütunweise: t/kind je Minute, off = Start der Minute in ms/b/a (Länge + 1)."""
+    out = {"t": [], "kind": [], "off": [0], "ms": [], "b": [], "a": []}
+    for minute, kind, blob in db.read_tick_replay(source, symbol, a, b):
+        ms, bid, ask = decode_replay(blob)
+        out["t"].append(minute)
+        out["kind"].append(kind)
+        out["ms"] += ms
+        out["b"] += bid
+        out["a"] += ask
+        out["off"].append(len(out["ms"]))
+    return out
 
 
 def _deal_dict(d) -> dict:

@@ -150,6 +150,18 @@ Kurz gesagt:
   Stück wird nicht gespeichert und beim nächsten Aufruf neu versucht. Eine Kerze ganz ohne Tick wird `unavailable`.
 - Datenabruf wie alle Marktdaten mit `data_query`; ist das Konto in /start oder /stop, bleibt MT5 unberührt.
 
+### Tick-Replay (BKT-20)
+
+- Im Modus „tick“ (M1) werden Rollover- und Sprungminuten nicht über den Kerzenweg (§5) gerechnet, sondern mit den
+  echten Ticks. Markiert sind Minuten mit größtem Spread ≥ 3 × Median der Minuten-Mittel des Tagesstücks (S, ab 30
+  Minuten) oder einem Bid-/Ask-Sprung zwischen zwei Ticks ≥ 4 × Median (J, auch vom letzten Tick der Vorminute).
+  Je Tagesstück höchstens 30 000 Ticks, größtes Verhältnis zuerst. Die Ticks liegen in `tick_replay` (Preise in ganzen
+  Punkten) und kommen mit `tick_replay=1` zusammen mit `tick_spread=1`.
+- In der Replay-Minute gelten Bid und Ask des Ticks getrennt: Kauf-Limit/-Stop am Ask, Verkaufs-Limit/-Stop am Bid,
+  Kauf-TP/-SL am Bid, Verkaufs-TP/-SL am Ask; gefüllt wird zum Tickpreis, der SL ohne Schlupf. Der Bot läuft höchstens
+  einmal je Sekunde Tickzeit, nach jeder Auslösung und am Minutenende. Die nächste Minute übernimmt den Spread des
+  letzten Ticks. Die Zeitrahmen-Kerze der Minute trägt das OHLC der M1-Kerze.
+
 ## 4. Kennzahlen
 
 | Begriff | Regel |
