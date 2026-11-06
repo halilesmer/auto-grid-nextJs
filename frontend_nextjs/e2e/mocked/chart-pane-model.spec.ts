@@ -83,6 +83,21 @@ test('Bereichsknöpfe: Reihenfolge hoch, runter, löschen, einklappen, vergröß
   await expect(page.locator('[data-system-row="rsi"] svg.lucide-trash-2')).toHaveCount(1);
 });
 
+test('Bereichsknöpfe: Gruppe ganz rechts am Bereich, Kacheln 34 px hoch wie in TradingView', { tag: ['@UI-11'] }, async ({ page, worker }) => {
+  void worker;
+  await open(page);
+  const chart = (await page.getByTestId('chart-workspace').boundingBox())!;
+  const total = await group(page).count();
+  for (let i = 0; i < total; i++) {
+    const box = (await group(page).nth(i).boundingBox())!;
+    // Rechte Kante der Gruppe liegt im rechten Teil des Charts, nicht in der Zeile links
+    expect(box.x + box.width).toBeGreaterThan(chart.x + chart.width * 0.6);
+    expect(box.x + box.width).toBeLessThanOrEqual(chart.x + chart.width);
+    const tile = (await group(page).nth(i).locator('[data-pane-action="remove"]').boundingBox())!;
+    expect(Math.round(tile.height)).toBe(34);
+  }
+});
+
 test('Vergrößern: die anderen Bereiche haben keine Höhe mehr', { tag: ['@UI-11', '@ANA-20'] }, async ({ page, worker }) => {
   void worker;
   await open(page);
