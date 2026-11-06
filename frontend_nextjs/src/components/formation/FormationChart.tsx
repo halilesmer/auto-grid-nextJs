@@ -217,6 +217,9 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
         items: [{ id: selectedId, form: hit.form, candidate: hit.candidate }, ...others.filter((o) => o.tf === hit.tf && o.candidate !== hit.candidate).map((o) => ({ id: `${o.form}-${o.tf}`, form: o.form, candidate: o.candidate }))],
         selectedId,
         width,
+        height: top,
+        lastTime: lastBar.time,
+        barSec: TIMEFRAME_SEC[hit.tf],
         close: lastBar.close,
         atr,
         x,
@@ -229,6 +232,8 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
         form: hit.form,
         width,
         lastBar: { time: lastBar.time, close: lastBar.close },
+        barSec: TIMEFRAME_SEC[hit.tf],
+        stack: d.badges.length > 1 ? { left: Math.min(...d.badges.map((b) => b.bx)), top: Math.min(...d.badges.map((b) => b.by)), bottom: Math.max(...d.badges.map((b) => b.by + b.h)) } : null,
         x,
         y,
         yRsi: (value) => {
