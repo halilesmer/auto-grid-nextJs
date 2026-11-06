@@ -27,6 +27,7 @@ import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
 import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemPaneInput, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { isSystemRsi } from '@/lib/chart-workspace/indicators';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
 import { dashArrayOf } from '@/lib/formation/lineStyle';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -83,13 +84,6 @@ export interface FractalPoint {
   traded: boolean;
 }
 
-/** RSI im eigenen Bereich unter den Kerzen, unabhängig von den Indikatoren des Nutzers */
-export interface SystemRsi {
-  points: { time: number; value: number }[];
-  /** Gestrichelte Linien, z. B. überkauft und überverkauft */
-  levels: readonly number[];
-  visible: boolean;
-}
 
 /** Wave (EWO 5/35) als Histogramm im eigenen Bereich unter RSI bzw. den Kerzen: grün über 0, rot darunter */
 export interface SystemWave {
@@ -119,7 +113,8 @@ export interface ChartCoreProps {
   showPauses: boolean;
   /** Schraffur der fehlenden Bereiche; die Leerstellen selbst bleiben (es wird keine Kerze erfunden) */
   showGaps: boolean;
-  showRsi: boolean;
+  /** Nur für Charts ohne System-RSI (Backtest): false blendet den Standard-RSI(14) aus */
+  showRsi?: boolean;
   /** Live-Preis des Streams für die laufende Kerze; null = keine Live-Kerze (anderes Symbol, Uhr unsicher) */
   live: { price: number; nowSec: number } | null;
   /** Trades aus dem Archiv: Pfeile, Ausstiege, Verbindungen (leer = aus) */
@@ -141,7 +136,6 @@ export interface ChartCoreProps {
   equity?: { time: number; value: number }[];
   /** Keep the right edge on the replay cursor while candles are revealed. */
   followTail?: boolean;
-  systemRsi?: SystemRsi;
   systemWave?: SystemWave;
   /** Laufende Kerze nach der letzten geschlossenen, nur zur Anzeige: Indikatoren und Zeichnungen enden davor */
   runningBar?: Bar | null;
@@ -212,7 +206,7 @@ export function ChartCore({
   lines,
   showPauses,
   showGaps,
-  showRsi,
+  showRsi = true,
   live,
   markers = EMPTY_MARKERS,
   links = EMPTY_LINKS,
@@ -225,7 +219,6 @@ export function ChartCore({
   balance,
   equity,
   followTail = false,
-  systemRsi,
   systemWave,
   runningBar = null,
   priceRange,
@@ -287,7 +280,7 @@ export function ChartCore({
   }, [barByTime]);
 
   const hasCurves = !!(balance || equity);
-  const hasRsi = !!systemRsi;
+  const hasRsi = !!workspace?.systemRsi;
   const hasWave = !!systemWave;
   const hasNotes = notes !== undefined;
   const marginsForRef = useRef(marginsFor);
@@ -405,16 +398,19 @@ export function ChartCore({
   }, [priceRange]);
 
   // Die Zahlen für RSI(7) und Wave 5/35 kommen fertig vom Aufrufer; der Renderer des Arbeitsbereichs besitzt die Bereiche und baut sie nur für eingeschaltete Ebenen auf
-  const rsiPoints = systemRsi?.points, rsiLevels = systemRsi?.levels, rsiVisible = !!systemRsi?.visible;
   const wavePoints = systemWave?.points, waveVisible = !!systemWave?.visible;
   const systemPanes = useMemo<SystemPaneInput[]>(() => [
-    ...(rsiVisible ? [{ id: 'rsi' as const, label: 'RSI(7)', kind: 'line' as const, points: rsiPoints ?? [], levels: rsiLevels, precision: 2 }] : []),
     // Die Wave-Werte sind Preisdifferenzen (z. B. 0,001): die Standardachse zeigte „0.00“
     ...(waveVisible ? [{ id: 'wave' as const, label: 'Wave 5/35', kind: 'histogram' as const, points: wavePoints ?? [], precision: digits ?? 5 }] : []),
-  ], [rsiVisible, rsiPoints, rsiLevels, waveVisible, wavePoints, digits]);
+  ], [waveVisible, wavePoints, digits]);
   // Mit dem Auge ausgeblendet = gleich eingeschaltete Ebene, aber ohne Bereich; Tests lesen „sichtbar“ als „gezeichnet“
   const hiddenPanes = useChartWorkspaceStore(s => (workspaceKey ? s.documents[workspaceKey]?.systemPanes : undefined));
-  const rsiDrawn = rsiVisible && !hiddenPanes?.rsi?.hidden, waveDrawn = waveVisible && !hiddenPanes?.wave?.hidden;
+  // The RSI is an indicator now: drawn = layer on and the eye open
+  const rsiDrawn = useChartWorkspaceStore(s => {
+    const doc = workspaceKey ? s.documents[workspaceKey] : undefined;
+    return (doc?.overlays.rsi ?? true) && (doc?.indicators.find(isSystemRsi)?.visible ?? true);
+  });
+  const waveDrawn = waveVisible && !hiddenPanes?.wave?.hidden;
   useEffect(() => {
     if (hasRsi) containerRef.current?.setAttribute('data-rsi-visible', String(rsiDrawn));
     if (hasWave) containerRef.current?.setAttribute('data-wave-visible', String(waveDrawn));

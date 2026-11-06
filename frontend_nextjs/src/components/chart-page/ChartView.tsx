@@ -4,18 +4,17 @@ import { useMemo, type ReactNode } from 'react';
 import { ChartCore, type ChartCoreProps, type ChartScene } from '@/components/analysis/chart/ChartCore';
 import { useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import type { WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
-import { rsi, wave } from '@/lib/formation/indicators';
-import { RSI_PARAMS } from '@/lib/formation/params';
+import { wave } from '@/lib/formation/indicators';
 import type { Bar, Timeframe } from '@/lib/analysis/candles';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { LayersMenu } from './LayersMenu';
 
 /** Was ChartView selbst setzt: die gemeinsamen Ebenen und das Layout der Chartseiten */
-type OwnProps = 'workspace' | 'systemRsi' | 'systemWave' | 'overlayLayout' | 'workspaceOverlays' | 'renderOverlay' | 'marginsFor' | 'showPauses' | 'showGaps';
+type OwnProps = 'workspace' | 'systemWave' | 'overlayLayout' | 'workspaceOverlays' | 'renderOverlay' | 'marginsFor' | 'showPauses' | 'showGaps';
 
 export interface ChartViewProps extends Omit<ChartCoreProps, OwnProps> {
   workspace: WorkspaceContext;
-  /** Geschlossene Kerzen, aus denen System-RSI(7) und Wave 5/35 rechnen; ohne laufende Kerze */
+  /** Geschlossene Kerzen, aus denen Wave 5/35 rechnet; ohne laufende Kerze */
   signalBars: readonly Bar[];
   /** Zeitrahmen des Charts: der Schalter Trendzug im Menü „Ebenen“ gilt nur, wo es einen Trendzug gibt */
   timeframe: Timeframe;
@@ -28,7 +27,6 @@ export interface ChartViewProps extends Omit<ChartCoreProps, OwnProps> {
   modeSettings?: ReactNode;
 }
 
-const RSI_LEVELS = [RSI_PARAMS.overbought, RSI_PARAMS.oversold];
 /**
  * Ab lg liegt die Bedienung oben auf dem Chart (ChartPage): die Kerzen beginnen darunter. Darunter steht die Kopfleiste über dem
  * Chart, und nur die Legende braucht oben Platz.
@@ -50,16 +48,14 @@ function seriesPoints(bars: readonly Bar[], values: (number | null)[]) {
 export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, renderOverlay, modeSettings, workspace, toolbarActions, ...core }: ChartViewProps) {
   const overlays = useChartOverlays(workspace.key, { rsi: true, wave: true });
   const showPauses = useAnalysisPrefsStore(s => s.showPauses), showGaps = useAnalysisPrefsStore(s => s.showGaps);
-  const rsiPoints = useMemo(() => seriesPoints(signalBars, rsi(signalBars)), [signalBars]);
   const wavePoints = useMemo(() => seriesPoints(signalBars, wave(signalBars)), [signalBars]);
   return (
     <ChartCore
       {...core}
-      workspace={workspace}
+      workspace={{ ...workspace, systemRsi: true }}
       showPauses={showPauses}
       showGaps={showGaps}
       toolbarActions={<>{toolbarActions}<LayersMenu contextKey={workspace.key} timeframe={timeframe} rsi={overlays.rsi} wave={overlays.wave} modeTitle={modeTitle}>{modeLayers}</LayersMenu></>}
-      systemRsi={{ points: rsiPoints, levels: RSI_LEVELS, visible: overlays.rsi }}
       systemWave={{ points: wavePoints, visible: overlays.wave }}
       marginsFor={controlMargins}
       overlayLayout

@@ -5,7 +5,7 @@ import { defaultToolbar, parseToolbar, parseToolbarLayout, type ToolbarLayout, t
 import { defaultDockLayout, migrateToolbarLayout, parseDockLayout, type DockLayout } from '@/lib/chart-workspace/dock';
 import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-workspace/linkedDrawings';
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
-import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { INDICATOR_KINDS, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
 
 /** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
@@ -18,6 +18,20 @@ export interface ChartDocument { drawings: string; indicators: Indicator[]; imag
   systemPanes?: SystemPaneStates }
 const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overlays: {}, alarms: [] };
 export const WORKSPACE_STORAGE_KEY = 'grid-robot-chart-workspaces-v1';
+/** Version 2 (plan 1106-A2): the system RSI(7) pane became an ordinary indicator with a fixed id. */
+const STORAGE_VERSION = 2;
+/**
+ * Version 1 → 2 for one document: the default `initial-RSI` goes; the old system RSI state (layer `overlays.rsi`, eye and fold in `systemPanes.rsi`,
+ * place `'rsi'` in `paneOrder`) moves to the new indicator. RSIs the user added stay. Documents that never had the old state need nothing:
+ * the chart adds the system RSI by itself.
+ */
+function migrateSystemRsi(indicators: Indicator[], paneOrder: string[] | undefined, raw: unknown) {
+  const old = raw && typeof raw === 'object' ? (raw as Record<string, { hidden?: unknown; collapsed?: unknown } | undefined>).rsi : undefined;
+  const kept = indicators.filter(item => item.id !== 'initial-RSI');
+  const hasOld = !!old || !!paneOrder?.includes('rsi');
+  const withSystem = hasOld && !kept.some(item => item.id === SYSTEM_RSI_ID) ? [{ ...systemRsiIndicator(), visible: old?.hidden !== true, paneCollapsed: old?.collapsed === true }, ...kept] : kept;
+  return { indicators: withSystem, paneOrder: paneOrder?.map(id => id === 'rsi' ? SYSTEM_RSI_ID : id) };
+}
 export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {}, alarms: [] });
 interface State {
   links: Record<string, string>;
@@ -111,7 +125,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
         for (const [id, data] of Object.entries(d.images)) if (localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`) !== data) localStorage.setItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`, data);
         return [key, { ...d, overlays: s.overlayPreview?.key === key ? s.overlayPreview.original : d.overlays, images: Object.fromEntries(Object.keys(d.images).map(id => [id, true])) }];
       }));
-      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 1, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, links, toolbar, toolbarLayout, dockLayout }));
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, links, toolbar, toolbarLayout, dockLayout }));
       // Delete orphan image bytes only after the replacement metadata is safely written.
       const prefix = `${WORKSPACE_STORAGE_KEY}-image-`, usedImages = new Set(Object.values(combined).flatMap(d => Object.keys(d.images)));
       for (let i = localStorage.length - 1; i >= 0; i--) { const key = localStorage.key(i); if (key?.startsWith(prefix) && !usedImages.has(key.slice(prefix.length))) localStorage.removeItem(key); }
@@ -137,7 +151,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
       try {
         const raw = JSON.parse(localStorage.getItem(WORKSPACE_STORAGE_KEY) || 'null');
         const documents: Record<string, ChartDocument> = {}, templates: Record<string, Appearance> = {};
-        if (raw?.version === 1) {
+        if (raw?.version === 1 || raw?.version === STORAGE_VERSION) {
           for (const [key, unknownDoc] of Object.entries(raw.documents ?? {})) {
             const d = unknownDoc as Partial<ChartDocument>;
             if (!d || typeof d !== 'object') continue;
@@ -151,8 +165,9 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
             const saved = d.visibleTime && typeof d.visibleTime === 'object' ? d.visibleTime as Partial<VisibleTime> : null;
             const visibleTime = saved && typeof saved.from === 'number' && Number.isFinite(saved.from) && typeof saved.to === 'number' && Number.isFinite(saved.to) && saved.from < saved.to ? { from: saved.from, to: saved.to } : undefined;
             const alarms = Array.isArray(d.alarms) ? d.alarms.flatMap(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.indicatorId === 'string' && (item.direction === 'above' || item.direction === 'below') && typeof item.value === 'number' && Number.isFinite(item.value) ? [{ id: item.id, indicatorId: item.indicatorId, direction: item.direction, value: item.value, armed: item.armed !== false }] : []).slice(0, 50) : [];
-            const paneOrder = parsePaneOrder(d.paneOrder), systemPanes = parseSystemPanes(d.systemPanes);
-            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: parseIndicators(d.indicators), images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(visibleTime ? { visibleTime } : {}), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}) };
+            const migrated = raw.version === 1 ? migrateSystemRsi(parseIndicators(d.indicators), parsePaneOrder(d.paneOrder), d.systemPanes) : { indicators: parseIndicators(d.indicators), paneOrder: parsePaneOrder(d.paneOrder) };
+            const paneOrder = migrated.paneOrder, systemPanes = parseSystemPanes(d.systemPanes);
+            documents[key] = { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: migrated.indicators, images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(visibleTime ? { visibleTime } : {}), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}) };
           }
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }

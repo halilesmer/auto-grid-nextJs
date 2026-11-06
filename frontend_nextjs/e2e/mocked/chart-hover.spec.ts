@@ -70,7 +70,7 @@ test('Zeilenknöpfe erscheinen erst beim Hover oder Fokus', { tag: ['@ANA-22', '
   await openChart(page);
   const row = rowOf(page, 'RSI'), visibility = row.getByRole('button', { name: msg('cw.legend.visibility', { indicator: 'RSI' }) });
   await expect(row.getByRole('button', { name: msg('cw.legend.settings', { indicator: 'RSI' }) })).toHaveCount(1);
-  await expect(row.getByRole('button', { name: msg('cw.legend.remove', { indicator: 'RSI' }) })).toHaveCount(1);
+  await expect(row.getByRole('button', { name: msg('cw.legend.hideLayer', { layer: 'RSI' }) })).toHaveCount(1);
   await expect(row.getByRole('button', { name: msg('cw.indicatorActions', { indicator: 'RSI' }) })).toHaveCount(1);
   await page.mouse.move(5, 5);
   await expect.poll(() => opacity(visibility)).toBe('0');
@@ -181,7 +181,7 @@ test('Hover-Werte lösen keinen Alarm aus; der Alarm gilt für den letzten Wert'
 test('System-Bereiche RSI(7) und Wave 5/35 haben eine Legendenzeile; Ausblenden geht in jedem Bereich', { tag: ['@ANA-22', '@UI-07'] }, async ({ page, worker }) => {
   void worker;
   await openChart(page);
-  for (const [id, label] of [['rsi', 'RSI(7)'], ['wave', 'Wave 5/35']] as const) {
+  for (const [id, label] of [['rsi', 'RSI'], ['wave', 'Wave 5/35']] as const) {
     const row = page.locator(`[data-system-row="${id}"]`), hide = row.getByRole('button', { name: msg('cw.legend.hideLayer', { layer: label }) });
     await expect(row).toHaveCount(1);
     await page.mouse.move(5, 5);

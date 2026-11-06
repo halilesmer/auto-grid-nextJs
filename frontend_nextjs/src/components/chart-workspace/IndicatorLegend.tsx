@@ -10,7 +10,7 @@ import { useFormat, useT } from '@/i18n';
 import { lineMenuAllows, type LineMenuTrigger } from '@/lib/chart-workspace/lineMenu';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 import { IndicatorLineMenu } from './IndicatorLineMenu';
-import { isOscillator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { isOscillator, isSystemRsi, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { lineTarget, nextSelection, type DrawingPriority } from '@/lib/chart-workspace/hover';
 import { isSystemPane, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { PANES_CHANGED_EVENT, type ChartBinding, type IndicatorRenderer, type SystemPaneModel } from './runtime';
@@ -225,16 +225,17 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     let emphasis: 'selected' | 'hover' | undefined;
     if (indicator.id === selectedId) emphasis = 'selected'; else if (indicator.id === hover.line) emphasis = 'hover';
     const members = indicators.filter(item => item.paneId === indicator.paneId);
+    const system = isSystemRsi(indicator);
     const value = valueOf(indicator), drawn = latest.some(item => item.config.id === indicator.id);
     // The formation page does not scroll and its chart ends at the bottom edge, so the menu opens upwards below the price pane there.
-    const menuPanelClass = overlayLayout && paneIndex > 0 ? 'bottom-full top-auto mb-2 mt-0 max-h-[70dvh] w-64 overflow-y-auto' : 'w-64';
+    const menuPanelClass = overlayLayout && paneIndex > 0 ? 'bottom-full top-auto mb-2 mt-0 max-h-[40dvh] w-64 overflow-y-auto' : 'w-64';
     return rowShell({
-      key: indicator.id, attributes: { 'data-indicator-row': indicator.kind }, hot: hover.pane === paneIndex, label, visible: indicator.visible, drawn, emphasis,
+      key: indicator.id, attributes: { 'data-indicator-row': indicator.kind, ...(system ? { 'data-system-row': 'rsi' } : {}) }, hot: hover.pane === paneIndex, label, visible: indicator.visible, drawn, emphasis,
       text: <span data-indicator-value={indicator.kind} style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${drawn ? 'text-muted-foreground' : `text-muted-foreground/60 ${indicator.visible ? 'line-through' : ''}`}`}>
-        {showNames ? indicator.kind : ''}{showParams && drawn ? ` (${indicator.period}${indicator.kind === 'EWO' || indicator.kind === 'MACD' ? `/${indicator.slow}` : ''})` : ''}{showValues && drawn && indicator.values && value !== undefined ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: 5 })}` : ''}
+        {showNames ? indicator.kind : ''}{showParams && drawn ? ` (${indicator.period}${indicator.kind === 'EWO' || indicator.kind === 'MACD' ? `/${indicator.slow}` : ''})` : ''}{showValues && drawn && indicator.values && value !== undefined ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: indicator.kind === 'RSI' ? 2 : 5 })}` : ''}
       </span>,
       onToggleVisible: () => actions.toggleVisible(indicator), settings: () => actions.openSettings(indicator), remove: () => actions.remove(indicator),
-      removeLabel: t('cw.legend.remove', { indicator: label }), removeHint: t('cw.legend.remove.hint'),
+      removeLabel: system ? t('cw.legend.hideLayer', { layer: label }) : t('cw.legend.remove', { indicator: label }), removeHint: system ? t('cw.legend.hideLayer.hint') : t('cw.legend.remove.hint'),
       menu: <DropdownMenu label={t('cw.indicatorActions', { indicator: label })} hint={t('cw.indicatorActions.hint')} icon={<MoreHorizontal size={14} />} size="icon-xs" variant="ghost" panelClassName={menuPanelClass}>
           <DropdownMenuGroup>
             <DropdownMenuItem icon={indicator.visible ? <EyeOff size={15} /> : <Eye size={15} />} hint={t(indicator.visible ? 'cw.indicatorHide.hint' : 'cw.indicatorShow.hint')} onSelect={() => actions.toggleVisible(indicator)}>{t(indicator.visible ? 'cw.indicatorHide' : 'cw.indicatorShow', { indicator: label })}</DropdownMenuItem>
@@ -249,7 +250,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
           <DropdownMenuGroup>
             <DropdownMenuItem icon={<Info size={15} />} hint={t('cw.indicatorInfo.hint')} onSelect={() => actions.openInfo(indicator, false)}>{t('cw.indicatorInfo')}</DropdownMenuItem>
             <DropdownMenuItem icon={<FunctionSquare size={15} />} hint={t('cw.indicatorSource.hint')} onSelect={() => actions.openInfo(indicator, true)}>{t('cw.indicatorSource')}</DropdownMenuItem>
-            <DropdownMenuItem icon={<Trash2 size={15} />} hint={t('cw.remove.hint')} tone="danger" onSelect={() => actions.remove(indicator)}>{t('cw.remove')}</DropdownMenuItem>
+            <DropdownMenuItem icon={<Trash2 size={15} />} hint={system ? t('cw.legend.hideLayer.hint') : t('cw.remove.hint')} tone="danger" onSelect={() => actions.remove(indicator)}>{system ? t('cw.legend.hideLayer', { layer: label }) : t('cw.remove')}</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenu>,
     });

@@ -430,18 +430,28 @@ async function openOscillatorChart(page: Page) {
   await page.goto(CHART_URL);
   const controls = page.getByTestId('oscillator-controls');
   await expect(controls).toBeVisible();
-  // UI-11: the system panes RSI(7) and wave (price pane, then these two) are there; the checks below count the user panes only
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '3');
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'true');
   const context = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
+  // UI-18: the system RSI is an indicator of its own now. These tests are about user panes, so they start from a document with
+  // the layer RSI off and a user RSI(14) + EWO (the former default); the system RSI stays at the start of the stored list and is left out by `storedDocument`.
+  await page.evaluate(key => {
+    const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{"version":2}');
+    state.version = 2;
+    state.documents = { ...state.documents, [key]: { drawings: '[]', images: {}, alarms: [], overlays: { rsi: false }, indicators: [{ id: 'user-rsi', kind: 'RSI' }, { id: 'user-ewo', kind: 'EWO' }] } };
+    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(state));
+  }, context);
+  await page.reload();
+  await expect(controls).toBeVisible();
+  // UI-11: the wave system pane (price pane, then wave) is there; the checks below count the user panes only
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '2');
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'true');
   return { controls, context };
 }
 const storedDocument = (page: Page, key: string) => page.evaluate(k => {
   const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
   return state.documents[k] as { indicators: StoredIndicator[]; alarms: StoredAlarm[] };
-}, key);
-/** Height of the price pane and of each user pane in pixels, price pane first. Lightweight Charts draws one table row per pane. The two system panes RSI(7) and wave (UI-11) lie after the price pane and are left out. */
-const SYSTEM_PANES = 2;
+}, key).then(doc => ({ ...doc, indicators: doc.indicators.filter(item => item.id !== 'system-rsi') }));
+/** Height of the price pane and of each user pane in pixels, price pane first. Lightweight Charts draws one table row per pane. The system pane wave (UI-11) lie after the price pane and are left out. */
+const SYSTEM_PANES = 1;
 const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator('table').first().evaluate(table =>
   [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1))
   .then(heights => heights.filter((_, i) => i === 0 || i > SYSTEM_PANES));

@@ -1,10 +1,10 @@
-import { isOscillator, type Indicator } from './indicators';
+import { isOscillator, SYSTEM_RSI_ID, type Indicator } from './indicators';
 
 /**
  * System-Oszillatoren des Charts (RSI(7), Wave 5/35). Sie stehen im selben Bereichsmodell wie die Oszillatoren des Nutzers:
  * ein Bereich je Eintrag, Reihenfolge, Einklappen und Ausblenden im Chart-Dokument (UI-11, Plan 1105-A6).
  */
-export const SYSTEM_PANE_IDS = ['rsi', 'wave'] as const;
+export const SYSTEM_PANE_IDS = ['wave'] as const;
 export type SystemPaneId = (typeof SYSTEM_PANE_IDS)[number];
 export const isSystemPane = (id: string): id is SystemPaneId => (SYSTEM_PANE_IDS as readonly string[]).includes(id);
 
@@ -23,7 +23,9 @@ export function orderPanes(stored: readonly string[] | undefined, present: reado
 
 /** Bereiche in Standardreihenfolge: System-Bereiche der eingeschalteten Ebenen, dann die Bereiche der Oszillatoren */
 export function presentPanes(indicators: readonly Indicator[], systemIds: readonly SystemPaneId[]): string[] {
-  return [...systemIds, ...new Set(indicators.filter(isOscillator).map(item => item.paneId))];
+  const own = [...new Set(indicators.filter(isOscillator).map(item => item.paneId))];
+  // The system RSI pane stands first, like the former RSI(7) pane
+  return [...own.filter(id => id === SYSTEM_RSI_ID), ...systemIds, ...own.filter(id => id !== SYSTEM_RSI_ID)];
 }
 
 /** Gespeicherte Werte eines Dokuments prüfen: Reihenfolge als Liste von Namen, Zustände als Wahrheitswerte */

@@ -114,7 +114,7 @@ test('Sichtbarkeit und Indikatorlöschung wirken nur auf die eigenen Indikatoren
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
   // The store writes through a browser lock, asynchronously. Reload only after the write, or the reload loses it.
   const key = await page.getByTestId('chart-workspace').getAttribute('data-context');
-  await expect.poll(() => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey!]?.indicators?.length, key)).toBe(0);
+  await expect.poll(() => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey!]?.indicators?.length, key)).toBe(1); // the system RSI stays (UI-18)
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
 });
