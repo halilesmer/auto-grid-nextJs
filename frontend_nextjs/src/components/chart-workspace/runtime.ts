@@ -1,12 +1,13 @@
 import {
-  BaselineSeries, ColorType, CrosshairMode, createTextWatermark, HistogramSeries, LineSeries, LineStyle, PriceScaleMode,
+  AreaSeries, BaselineSeries, ColorType, CrosshairMode, createTextWatermark, HistogramSeries, LineSeries, LineStyle, LineType, PriceScaleMode,
   type IChartApi, type IPaneApi, type ISeriesApi, type LineWidth, type LogicalRange, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
 import { canvasColor } from '@/lib/formation/lineStyle';
 import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
-import { aggregateIndicatorBars, calculateIndicator, isOscillator, SYSTEM_RSI_ID, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { rowStyle } from '@/lib/chart-workspace/indicatorStyle';
+import { aggregateIndicatorBars, calculateIndicator, isOscillator, SYSTEM_RSI_ID, visibleAtInterval, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { orderPanes, presentPanes, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { valueAtTime } from '@/lib/chart-workspace/hover';
 import type { Appearance } from '@/lib/chart-workspace/settings';
@@ -144,17 +145,45 @@ class BandTint implements ISeriesPrimitive<Time> {
   }
 }
 
+/** Fills the area between two series values (Bollinger upper and lower of the RSI MA). The data come from callbacks, so the fill follows every refresh. */
+class BandFill implements ISeriesPrimitive<Time> {
+  private attachedTo: SeriesAttachedParameter<Time> | null = null;
+  constructor(private extra: () => readonly (readonly Value[])[], private times: () => readonly number[], private color: string) {}
+  attached(p: SeriesAttachedParameter<Time>) { this.attachedTo = p; }
+  detached() { this.attachedTo = null; }
+  paneViews(): readonly IPrimitivePaneView[] {
+    return [{ zOrder: () => 'bottom', renderer: () => ({ draw: target => {
+      const p = this.attachedTo, upper = this.extra()[1], lower = this.extra()[2], times = this.times(); if (!p || !upper || !lower) return;
+      target.useMediaCoordinateSpace(({ context }) => {
+        context.fillStyle = this.color;
+        let run: { x: number; u: number; l: number }[] = [];
+        const flush = () => {
+          if (run.length > 1) { context.beginPath(); run.forEach((q, i) => (i ? context.lineTo(q.x, q.u) : context.moveTo(q.x, q.u))); for (let i = run.length - 1; i >= 0; i--) context.lineTo(run[i].x, run[i].l); context.closePath(); context.fill(); }
+          run = [];
+        };
+        for (let i = 0; i < times.length; i++) {
+          const x = p.chart.timeScale().timeToCoordinate(times[i] as UTCTimestamp), u = upper[i], l = lower[i];
+          const yu = u == null ? null : p.series.priceToCoordinate(u), yl = l == null ? null : p.series.priceToCoordinate(l);
+          if (x === null || yu === null || yl === null) { flush(); continue; }
+          run.push({ x, u: yu, l: yl });
+        }
+        flush();
+      });
+    } }) }];
+  }
+}
+
 class DivergenceLines implements ISeriesPrimitive<Time> {
   private attachedTo: SeriesAttachedParameter<Time> | null = null;
   segments: { from: number; to: number; fromValue: number; toValue: number; bullish: boolean }[] = [];
-  constructor(private positive: string, private negative: string) {}
+  constructor(private positive: string, private negative: string, private width = 2) {}
   attached(p: SeriesAttachedParameter<Time>) { this.attachedTo = p; }
   detached() { this.attachedTo = null; }
   paneViews(): readonly IPrimitivePaneView[] {
     return [{ zOrder: () => 'top', renderer: () => ({ draw: target => {
       const p = this.attachedTo; if (!p) return;
       target.useMediaCoordinateSpace(({ context }) => {
-        context.lineWidth = 2;
+        context.lineWidth = this.width;
         for (const segment of this.segments) {
           const x1 = p.chart.timeScale().timeToCoordinate(segment.from as UTCTimestamp), x2 = p.chart.timeScale().timeToCoordinate(segment.to as UTCTimestamp);
           const y1 = p.series.priceToCoordinate(segment.fromValue), y2 = p.series.priceToCoordinate(segment.toValue);
@@ -194,7 +223,7 @@ class SelectionMarks implements ISeriesPrimitive<Time> {
   }
 }
 
-type Plot = ISeriesApi<'Line' | 'Histogram' | 'Baseline'>;
+type Plot = ISeriesApi<'Line' | 'Histogram' | 'Baseline' | 'Area'>;
 
 /** System oscillator (RSI(7), Wave 5/35): ready-made points, drawn in its own pane like a user oscillator. The calculation stays with the caller, so drawings and rules see the same numbers. */
 export interface SystemPaneInput {
@@ -216,7 +245,7 @@ export type SystemSeriesRefs = Record<SystemPaneId | 'rsi', SystemSeriesRef>;
 export const RSI_LEGEND_PX = 32;
 /** Sent on the chart host after the renderer built or changed panes, so layers above the chart measure again. */
 export const PANES_CHANGED_EVENT = 'chart-panes-changed';
-interface IndicatorGroup { config: Indicator; plots: Plot[]; result: ReturnType<typeof calculateIndicator> | null; times: number[]; divergence: DivergenceLines | null; color: string; marks: SelectionMarks | null }
+interface IndicatorGroup { config: Indicator; plots: Plot[]; result: ReturnType<typeof calculateIndicator> | null; times: number[]; divergence: DivergenceLines | null; color: string; marks: SelectionMarks | null; /** Number of gradient fill series at the end of `plots` */ gradients: number }
 
 export class IndicatorRenderer {
   private series: Plot[] = [];
@@ -240,7 +269,7 @@ export class IndicatorRenderer {
   update(configs: Indicator[], bars: readonly Bar[], missing: readonly MissingRange[], tf: number, a: Appearance, symbol: string, until: number, maximizedPaneId: string | null = null, systems: readonly SystemPaneModel[] = [], order: readonly string[] = []) {
     const { chart } = this.binding, colors = appearanceColors(a), theme = readChartColors();
     // Hidden (eye) oscillators stay in `active`: their pane keeps its place and height, only the series is invisible
-    const active = configs.filter(config => (config.visible || isOscillator(config)) && tf >= config.minTimeframe && tf <= config.maxTimeframe);
+    const active = configs.filter(config => (config.visible || isOscillator(config)) && visibleAtInterval(config.visibility, tf));
     const scaleOf = (config: Indicator) => !isOscillator(config) || config.scaleSide === 'auto' ? a.side : config.scaleSide;
     chart.applyOptions({ leftPriceScale: { visible: active.some(config => config.visible && scaleOf(config) === 'left') || a.side === 'left' }, rightPriceScale: { visible: active.some(config => config.visible && scaleOf(config) === 'right') || a.side !== 'left' } });
     const paneOrder = orderPanes(order, presentPanes(active, systems.map(system => system.id)));
@@ -254,24 +283,49 @@ export class IndicatorRenderer {
         if (isOscillator(config)) pane = this.paneSeries.get(config.paneId)?.getPane().paneIndex() ?? chart.panes().length;
         const color = ownColor(config.color) || colors.info, negative = config.negative || colors.down;
         const plots: typeof this.series = [];
-        const line = (tone: string, histogram = false) => {
-          const options = { visible: config.visible, priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
-          const s = histogram ? chart.addSeries(HistogramSeries, options, pane) : chart.addSeries(LineSeries, { ...options, lineStyle: lineStyle(config.lineStyle) }, pane);
+        let gradientPlots = 0;
+        const tones = { info: colors.info, warning: colors.warning, up: colors.up, down: negative, muted: colors.muted };
+        const row = (key: Parameters<typeof rowStyle>[1]) => rowStyle({ ...config, color: color }, key, tones);
+        const fade = (c: string, opacity: number) => { if (!c) return 'transparent'; return opacity >= 100 ? c : withAlpha(c, opacity / 100); };
+        const percentLike = config.kind === 'RSI' || (config.kind === 'EWO' && config.percent);
+        const decimals = config.precision >= 0 ? config.precision : (percentLike && 2) || 5;
+        const line = (tone: string, histogram = false, main = false, style = { width: config.width, lineStyle: config.lineStyle }) => {
+          const plot = main && config.kind === 'RSI' ? config.plotType : 'line';
+          const options = { visible: config.visible, priceScaleId: scaleOf(config), lineWidth: style.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: decimals, minMove: 10 ** -decimals } };
+          let s;
+          if (histogram || plot === 'histogram') s = chart.addSeries(HistogramSeries, { ...options, color: tone }, pane);
+          else if (plot === 'area') s = chart.addSeries(AreaSeries, { ...options, lineColor: tone, topColor: withAlpha(tone, .3), bottomColor: 'transparent', lineStyle: lineStyle(style.lineStyle) }, pane);
+          else s = chart.addSeries(LineSeries, { ...options, color: tone, lineStyle: lineStyle(style.lineStyle), lineType: plot === 'stepline' ? LineType.WithSteps : LineType.Simple, lineVisible: plot !== 'circles', pointMarkersVisible: plot === 'circles' }, pane);
           // Ein Indikator-Bereich übernähme sonst die großen oberen Ränder der Kerzen-Achse (Platz für die Bedienung auf dem Chart)
           if (pane > 0) s.priceScale().applyOptions({ scaleMargins: config.kind === 'RSI' ? { top: 0, bottom: 0 } : { top: 0.08, bottom: 0.08 } });
-          plots.push(s); this.series.push(s); return s;
+          plots.push(s as ISeriesApi<'Line'>); this.series.push(s as ISeriesApi<'Line'>); return s;
         };
-        const first = line(color, config.kind === 'EWO');
+        const mainRow = row('rsi');
+        const first = line(config.kind === 'RSI' ? fade(mainRow.color, mainRow.opacity) : color, config.kind === 'EWO', true, config.kind === 'RSI' ? mainRow : undefined);
         if (isOscillator(config) && !this.paneSeries.has(config.paneId)) this.paneSeries.set(config.paneId, first);
-        const divergence = config.kind === 'RSI' && config.divergence ? new DivergenceLines(colors.up, negative) : null;
+        const divergence = config.kind === 'RSI' && config.divergence && row('divUp').on ? new DivergenceLines(fade(row('divUp').color, row('divUp').opacity), fade(row('divDown').color, row('divDown').opacity), row('divUp').width) : null;
         if (divergence) first.attachPrimitive(divergence);
         if (config.kind === 'RSI') {
-          if (config.bands) for (const p of [config.upper, config.middle, config.lower]) first.createPriceLine({ price: p, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
-          if (config.background) first.attachPrimitive(new BandTint(config.lower, config.upper, withAlpha(color, .08)));
-          if (config.smoothing !== 'none') { line(config.maColor || colors.warning); if (config.smoothing === 'BB') { line(colors.up); line(colors.up); } }
-          if (config.gradients) for (const [threshold, top] of [[config.upper, true], [config.lower, false]] as const) {
-            const s = chart.addSeries(BaselineSeries, { baseValue: { type: 'price', price: threshold }, visible: config.visible, topLineColor: 'transparent', bottomLineColor: 'transparent', topFillColor1: top ? withAlpha(colors.up, .4) : 'transparent', topFillColor2: 'transparent', bottomFillColor1: 'transparent', bottomFillColor2: !top ? withAlpha(negative, .4) : 'transparent', priceLineVisible: false, lastValueVisible: false }, pane);
-            plots.push(s); this.series.push(s);
+          for (const [key, price] of [['upper', config.upper], ['middle', config.middle], ['lower', config.lower]] as const) {
+            const r = row(key);
+            if (r.on) first.createPriceLine({ price, color: fade(r.color, r.opacity), lineWidth: r.width, lineStyle: lineStyle(r.lineStyle), axisLabelVisible: false });
+          }
+          const bg = row('bg');
+          if (bg.on) first.attachPrimitive(new BandTint(config.lower, config.upper, fade(bg.color, bg.opacity)));
+          if (config.smoothing !== 'none') {
+            const ma = row('ma');
+            line(ma.on ? fade(ma.color, ma.opacity) : 'transparent', false, false, ma);
+            if (config.smoothing === 'BB') {
+              const upper = row('bbUpper'), lower = row('bbLower'), fill = row('bbFill');
+              line(upper.on ? fade(upper.color, upper.opacity) : 'transparent', false, false, upper); line(lower.on ? fade(lower.color, lower.opacity) : 'transparent', false, false, lower);
+              if (fill.on) first.attachPrimitive(new BandFill(() => this.groups.find(g => g.config.id === config.id)?.result?.extra ?? [], () => this.groups.find(g => g.config.id === config.id)?.times ?? [], fade(fill.color, fill.opacity)));
+            }
+          }
+          for (const key of ['over', 'under'] as const) {
+            const r = row(key), top = key === 'over';
+            if (!r.on) continue;
+            const s = chart.addSeries(BaselineSeries, { baseValue: { type: 'price', price: top ? config.upper : config.lower }, visible: config.visible, topLineColor: 'transparent', bottomLineColor: 'transparent', topFillColor1: top ? fade(r.color, r.opacity) : 'transparent', topFillColor2: top ? fade(r.color2, r.opacity) : 'transparent', bottomFillColor1: !top ? fade(r.color, r.opacity) : 'transparent', bottomFillColor2: !top ? fade(r.color2, r.opacity) : 'transparent', priceLineVisible: false, lastValueVisible: false }, pane);
+            plots.push(s as unknown as ISeriesApi<'Line'>); this.series.push(s as unknown as ISeriesApi<'Line'>); gradientPlots++;
           }
         }
         if (config.kind === 'RSI') {
@@ -283,12 +337,14 @@ export class IndicatorRenderer {
             return { priceRange: { minValue: config.lower, maxValue: config.upper }, margins: { above: RSI_LEGEND_PX, below: 10 } };
           };
           for (const plot of plots) plot.applyOptions({ autoscaleInfoProvider: provider });
+          // Proof for the tests (UI-19): the plot type the system RSI is drawn with
+          if (config.id === SYSTEM_RSI_ID) this.binding.host.setAttribute('data-rsi-plot', config.plotType);
           if (config.id === SYSTEM_RSI_ID && config.visible && this.systemSeries) this.systemSeries.rsi.current = first as ISeriesApi<'Line'>;
         }
         if (config.kind === 'MACD') { line(config.maColor || colors.warning); line(negative, true); }
         if (config.kind === 'BB') { line(color); line(color); }
         if (config.kind === 'EWO' || config.kind === 'MACD') first.createPriceLine({ price: 0, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false });
-        this.groups.push({ config, plots, result: null, times: [], divergence, color, marks: null });
+        this.groups.push({ config, plots, result: null, times: [], divergence, color, marks: null, gradients: gradientPlots });
       };
       // Overlays on the price pane first, then one pane after the other in the saved order; a pane is built only when it has something to draw
       for (const config of active) if (!isOscillator(config)) build(config);
@@ -324,7 +380,7 @@ export class IndicatorRenderer {
       plots[0].setData(points(result.main, config.kind === 'EWO'));
       if (group.divergence) group.divergence.segments = result.divergences.map(d => ({ from: source[d.from].time, to: source[d.to].time, fromValue: result.main[d.from] as number, toValue: result.main[d.to] as number, bullish: d.bullish }));
       result.extra.forEach((v, i) => plots[i + 1]?.setData(points(v, config.kind === 'MACD' && i === 1)));
-      if (config.kind === 'RSI' && config.gradients) for (const s of plots.slice(-2)) s.setData(points(result.main));
+      if (config.kind === 'RSI' && group.gradients > 0) for (const s of plots.slice(-group.gradients)) s.setData(points(result.main));
       values.push({ config, value: result.main.at(-1) ?? null });
     }
     for (const { system, plot } of this.systemDrawn) {

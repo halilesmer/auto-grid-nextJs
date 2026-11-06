@@ -213,12 +213,14 @@ test('Indikatorinstanzen und Parameter bleiben je Symbol getrennt', { tag: '@ANA
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
   await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
   await page.getByRole('button', { name: '+ SMA', exact: true }).click();
-  await page.locator('[data-indicator="RSI"]').getByRole('spinbutton', { name: msg('cw.period'), exact: true }).fill('10');
-  await page.keyboard.press('Escape');
+  // Adding opens the settings of the new indicator; OK keeps it
+  await page.locator('[data-indicator="SMA"]').getByRole('spinbutton', { name: msg('cw.period'), exact: true }).fill('10');
+  await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('SMA');
   await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
-  await expect(page.locator('[data-indicator="RSI"]').getByRole('spinbutton', { name: msg('cw.period'), exact: true })).toHaveValue('10');
+  await page.locator('[data-indicator="SMA"]').getByRole('button', { name: msg('ind.edit'), exact: true }).click();
+  await expect(page.locator('[data-indicator="SMA"]').getByRole('spinbutton', { name: msg('cw.period'), exact: true })).toHaveValue('10');
   await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=7d`);
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('SMA');
 });
@@ -516,8 +518,9 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 
   await menu('RSI');
   await page.getByRole('button', { name: msg('cw.indicatorSettings') }).click();
-  await page.locator('[data-indicator="RSI"]').getByRole('spinbutton', { name: msg('cw.maxTimeframe') }).fill('3600');
-  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: msg('ind.tab.visibility') }).click();
+  await page.locator('[data-indicator="RSI"]').getByRole('spinbutton', { name: msg('ind.vis.hour.to') }).fill('1');
+  await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
   await expect(values).toContainText('RSI');
   await page.getByRole('radio', { name: 'H4', exact: true }).click();
   await expect(values).toContainText('EWO');

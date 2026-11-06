@@ -1,46 +1,85 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Modal } from '@/components/ui/modal';
 import { useT } from '@/i18n';
-import { INDICATOR_KINDS, newIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { INDICATOR_KINDS, isSystemRsi, newIndicator, systemRsiIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
 import { readChartColors } from '@/lib/chartTheme';
-import { ownColor } from './runtime';
-import { Choice, ColorField, Numeric, Toggle } from './SettingsDialog';
+import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { InputsTab, StyleTab, VisibilityTab } from './IndicatorTabs';
 
+type TabId = 'inputs' | 'style' | 'visibility';
+const LIMIT = 20;
+
+/**
+ * Indicator dialog. Without a chosen indicator it lists the kinds to add and the indicators of the chart. With one it is the
+ * tabbed settings dialog (Inputs / Style / Visibility). Changes show on the chart at once; Cancel restores the state from when
+ * the settings were opened (a new indicator stays, with its default look), OK keeps it.
+ */
 export function IndicatorDialog({ values, favorites, focusId = null, onChange, onClose, timeframeSec }: { values: Indicator[]; favorites: Indicator['kind'][]; focusId?: string | null; onChange: (v: Indicator[]) => void; onClose: () => void; timeframeSec: number }) {
-  const t = useT(), colors = readChartColors();
+  const t = useT(), defaults = useChartWorkspaceStore(s => s.indicatorDefaults), saveDefault = useChartWorkspaceStore(s => s.saveIndicatorDefault);
+  const [editing, setEditing] = useState<string | null>(focusId);
+  const [tab, setTab] = useState<TabId>('inputs');
+  // State from before the settings were opened: Cancel puts it back
+  const snapshot = useRef<Indicator[]>(values);
+  const live = useRef(values);
+  useEffect(() => { live.current = values; });
+  const current = values.find(v => v.id === editing) ?? null;
+  const colors = readChartColors();
+  const tones = useMemo(() => ({ info: colors.info, warning: colors.warning, up: colors.up, down: colors.down, muted: colors.muted }), [colors.info, colors.warning, colors.up, colors.down, colors.muted]);
   const update = (id: string, change: Partial<Indicator>) => onChange(values.map(v => v.id === id ? { ...v, ...change } : v));
-  const add = (kind: Indicator['kind']) => { if (values.length < 20) onChange([...values, newIndicator(kind)]); };
-  const list = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (focusId) list.current?.querySelector(`[data-indicator-id="${focusId}"]`)?.scrollIntoView({ block: 'start' }); }, [focusId]);
-  return <Modal open onClose={onClose} title={t('cw.indicators')} className="max-h-[90dvh] max-w-4xl overflow-y-auto">
-    {favorites.length > 0 && <div className="mb-3"><p className="mb-2 text-sm font-medium">{t('cw.favoriteIndicators')}</p><div className="flex flex-wrap gap-2">{favorites.map(kind => <Button key={kind} size="sm" hint={t(values.length >= 20 ? 'cw.indicatorLimit.hint' : 'cw.add.hint')} disabled={values.length >= 20} onClick={() => add(kind)}><span aria-hidden="true">★ </span>{kind}</Button>)}</div></div>}
-    <div className="flex flex-wrap gap-2">{INDICATOR_KINDS.map(kind => <Button key={kind} size="sm" hint={t(values.length >= 20 ? 'cw.indicatorLimit.hint' : 'cw.add.hint')} disabled={values.length >= 20} onClick={() => add(kind)}>+ {kind}</Button>)}</div>
-    <div ref={list} className="mt-4 space-y-4" data-testid="indicator-instances">{values.map(v => <section key={v.id} className="space-y-3 rounded-lg border border-border p-3" data-indicator={v.kind} data-indicator-id={v.id}>
-      <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">{v.kind}</strong><div className="flex items-center gap-3"><Toggle name="cw.visible" checked={v.visible} onChange={visible => update(v.id, { visible })} /><Button size="sm" variant="ghost" hint={t('cw.remove.hint')} onClick={() => onChange(values.filter(i => i.id !== v.id))}>{t('cw.remove')}</Button></div></div>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Numeric name="cw.period" value={v.period} min={1} onChange={period => update(v.id, { period })} />
-        {v.kind !== 'ATR' && <Choice name="cw.source" value={v.source} options={['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4']} onChange={source => update(v.id, { source: source as Indicator['source'] })} />}
-        <ColorField name="cw.color" value={ownColor(v.color) || colors.info} onChange={color => update(v.id, { color })} />
-        {v.kind !== 'EWO' && <Numeric name="cw.width" value={v.width} min={1} max={4} onChange={width => update(v.id, { width: width as Indicator['width'] })} />}
-        {v.kind !== 'EWO' && <Choice name="cw.lineStyle" value={v.lineStyle} options={['solid', 'dashed', 'dotted']} onChange={lineStyle => update(v.id, { lineStyle: lineStyle as Indicator['lineStyle'] })} />}
-        {['EWO', 'MACD'].includes(v.kind) && <><Numeric name="cw.slow" value={v.slow} min={1} onChange={slow => update(v.id, { slow })} /><ColorField name="cw.negative" value={v.negative || colors.down} onChange={negative => update(v.id, { negative })} /></>}
-        {v.kind === 'EWO' && <Toggle name="cw.percent" checked={v.percent} onChange={percent => update(v.id, { percent })} />}
-        {v.kind === 'MACD' && <Numeric name="cw.signal" value={v.signal} min={1} onChange={signal => update(v.id, { signal })} />}
-        {v.kind === 'BB' && <Numeric name="cw.deviation" value={v.deviation} min={0.1} max={20} step={0.1} onChange={deviation => update(v.id, { deviation })} />}
-        {v.kind === 'RSI' && <>
-          <Choice name="cw.smoothing" value={v.smoothing} options={['none', 'SMA', 'EMA', 'RMA', 'WMA', 'BB']} onChange={smoothing => update(v.id, { smoothing: smoothing as Indicator['smoothing'] })} />
-          {v.smoothing !== 'none' && <><Numeric name="cw.smoothingPeriod" value={v.smoothingPeriod} min={1} onChange={smoothingPeriod => update(v.id, { smoothingPeriod })} /><ColorField name="cw.maColor" value={v.maColor || colors.warning} onChange={maColor => update(v.id, { maColor })} /></>}
-          {v.smoothing === 'BB' && <Numeric name="cw.deviation" value={v.deviation} min={0.1} max={20} step={0.1} onChange={deviation => update(v.id, { deviation })} />}
-          <Numeric name="cw.upper" value={v.upper} max={100} onChange={upper => update(v.id, { upper: Math.max(v.middle, upper) })} /><Numeric name="cw.middle" value={v.middle} min={v.lower} max={v.upper} onChange={middle => update(v.id, { middle })} /><Numeric name="cw.lower" value={v.lower} max={v.middle} onChange={lower => update(v.id, { lower })} />
-          <Toggle name="cw.bands" checked={v.bands} onChange={bands => update(v.id, { bands })} /><Toggle name="cw.backgroundFill" checked={v.background} onChange={background => update(v.id, { background })} /><Toggle name="cw.gradients" checked={v.gradients} onChange={gradients => update(v.id, { gradients })} /><Toggle name="cw.divergence" checked={v.divergence} onChange={divergence => update(v.id, { divergence })} />
-        </>}
-        <Choice name="cw.timeframe" value={String(v.timeframe > timeframeSec ? v.timeframe : 0)} options={['0', ...[60, 300, 900, 1800, 3600, 14400, 86400].filter(s => s > timeframeSec && s % timeframeSec === 0).map(String)]} onChange={timeframe => update(v.id, { timeframe: Number(timeframe) })} />
-        {v.timeframe > timeframeSec && <Toggle name="cw.waitClose" checked={v.waitClose} onChange={waitClose => update(v.id, { waitClose })} />}
-        <Numeric name="cw.minTimeframe" value={v.minTimeframe} max={86400} onChange={minTimeframe => update(v.id, { minTimeframe, maxTimeframe: Math.max(v.maxTimeframe, minTimeframe) })} /><Numeric name="cw.maxTimeframe" value={v.maxTimeframe} min={v.minTimeframe} max={86400} onChange={maxTimeframe => update(v.id, { maxTimeframe })} />
-        <Toggle name="cw.labels" checked={v.labels} onChange={labels => update(v.id, { labels })} /><Toggle name="cw.values" checked={v.values} onChange={values => update(v.id, { values })} />
+  const open = (id: string) => { snapshot.current = values; setTab('inputs'); setEditing(id); };
+  const add = (kind: Indicator['kind']) => {
+    if (values.length >= LIMIT) return;
+    const created = { ...newIndicator(kind), ...defaults[kind] }, id = crypto.randomUUID();
+    const item = { ...created, id, paneId: id, paneCollapsed: false, visible: true };
+    // Adding is its own step in the list: Cancel in the settings keeps the new indicator with its default look
+    snapshot.current = [...values, item]; setTab('inputs'); setEditing(id); onChange([...values, item]);
+  };
+  const cancel = () => { onChange(snapshot.current); onClose(); };
+  const reset = (item: Indicator) => {
+    const factory = isSystemRsi(item) ? systemRsiIndicator() : newIndicator(item.kind), saved = defaults[item.kind];
+    // The system RSI starts from its formation look unless the user saved another one
+    const base = { ...factory, ...(isSystemRsi(item) && !saved ? {} : saved) };
+    update(item.id, { ...base, id: item.id, paneId: item.paneId, paneCollapsed: item.paneCollapsed, scaleSide: item.scaleSide, visible: item.visible, kind: item.kind });
+  };
+
+  if (!current) {
+    return <Modal open onClose={onClose} title={t('cw.indicators')} className="max-h-[90dvh] max-w-4xl overflow-y-auto">
+      {favorites.length > 0 && <div className="mb-3"><p className="mb-2 text-sm font-medium">{t('cw.favoriteIndicators')}</p><div className="flex flex-wrap gap-2">{favorites.map(kind => <Button key={kind} size="sm" hint={t(values.length >= LIMIT ? 'cw.indicatorLimit.hint' : 'cw.add.hint')} disabled={values.length >= LIMIT} onClick={() => add(kind)}><span aria-hidden="true">★ </span>{kind}</Button>)}</div></div>}
+      <div className="flex flex-wrap gap-2">{INDICATOR_KINDS.map(kind => <Button key={kind} size="sm" hint={t(values.length >= LIMIT ? 'cw.indicatorLimit.hint' : 'cw.add.hint')} disabled={values.length >= LIMIT} onClick={() => add(kind)}>+ {kind}</Button>)}</div>
+      <ul className="mt-4 space-y-2" data-testid="indicator-instances">{values.map(v => <li key={v.id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-2" data-indicator={v.kind} data-indicator-id={v.id}>
+        <strong className="text-sm">{v.kind} <span className="font-normal text-muted-foreground">{v.period}</span></strong>
+        <span className="flex gap-2"><Button size="sm" variant="outline" hint={t('ind.edit.hint')} onClick={() => open(v.id)}>{t('ind.edit')}</Button><Button size="sm" variant="ghost" hint={t('cw.remove.hint')} onClick={() => onChange(values.filter(i => i.id !== v.id))}>{t('cw.remove')}</Button></span>
+      </li>)}</ul>
+    </Modal>;
+  }
+  const tabs = [
+    { id: 'inputs', label: t('ind.tab.inputs'), hint: t('ind.tab.inputs.hint') },
+    { id: 'style', label: t('ind.tab.style'), hint: t('ind.tab.style.hint') },
+    { id: 'visibility', label: t('ind.tab.visibility'), hint: t('ind.tab.visibility.hint') },
+  ];
+  const props = { indicator: current, update: (change: Partial<Indicator>) => update(current.id, change), timeframeSec, tones };
+  return <Modal open onClose={cancel} title={current.kind} className="flex max-h-[90dvh] max-w-md flex-col" >
+    <div className="-mx-6 -mb-6 flex min-h-0 flex-1 flex-col" data-indicator={current.kind} data-indicator-id={current.id} data-testid="indicator-settings">
+      <div className="px-6"><AnimatedTabs tabs={tabs} activeTab={tab} onChange={id => setTab(id as TabId)} /></div>
+      <div className="max-h-[60dvh] min-h-[22rem] overflow-y-auto px-6 py-4">
+        {tab === 'inputs' && <InputsTab {...props} />}
+        {tab === 'style' && <StyleTab {...props} />}
+        {tab === 'visibility' && <VisibilityTab {...props} />}
       </div>
-    </section>)}</div>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-6 py-3">
+        <DropdownMenu label={t('ind.defaults')} hint={t('ind.defaults.hint')} side="top" align="left" size="sm" panelClassName="w-60" icon={<span>{t('ind.defaults')} ▾</span>}>
+          <DropdownMenuGroup>
+            <DropdownMenuItem icon={<RotateCcw className="size-4" aria-hidden="true" />} hint={t('ind.reset.hint')} onSelect={() => reset(current)}>{t('ind.reset')}</DropdownMenuItem>
+            <DropdownMenuItem icon={<Save className="size-4" aria-hidden="true" />} hint={t('ind.saveDefault.hint')} onSelect={() => saveDefault(current)}>{t('ind.saveDefault')}</DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenu>
+        <div className="flex gap-2"><Button variant="outline" hint={t('ind.cancel.hint')} onClick={cancel}>{t('cw.cancel')}</Button><Button variant="primary" hint={t('ind.ok.hint')} onClick={onClose}>{t('ind.ok')}</Button></div>
+      </div>
+    </div>
   </Modal>;
 }

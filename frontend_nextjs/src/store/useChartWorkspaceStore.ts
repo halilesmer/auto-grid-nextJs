@@ -5,7 +5,9 @@ import { defaultToolbar, parseToolbar, parseToolbarLayout, type ToolbarLayout, t
 import { defaultDockLayout, migrateToolbarLayout, parseDockLayout, type DockLayout } from '@/lib/chart-workspace/dock';
 import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-workspace/linkedDrawings';
 import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from '@/lib/chart-workspace/settings';
-import { INDICATOR_GRAY, INDICATOR_KINDS, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { defaultsOf } from '@/lib/chart-workspace/indicatorStyle';
+import { parseIndicatorDefaults, parseIndicators } from '@/lib/chart-workspace/indicatorStorage';
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
 
 /** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
@@ -18,8 +20,12 @@ export interface ChartDocument { drawings: string; indicators: Indicator[]; imag
   systemPanes?: SystemPaneStates }
 const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overlays: {}, alarms: [] };
 export const WORKSPACE_STORAGE_KEY = 'grid-robot-chart-workspaces-v1';
-/** Version 2 (plan 1106-A2): the system RSI(7) pane became an ordinary indicator with a fixed id. */
-const STORAGE_VERSION = 2;
+/**
+ * Version 2 (plan 1106-A2): the system RSI(7) pane became an ordinary indicator with a fixed id.
+ * Version 3 (plan 1106-A2 S2): indicators carry plot type, row styles, precision, status-line inputs and unit visibility ranges
+ * (replacing the seconds range), and the root holds the saved default look per kind. `parseIndicators` converts version 2 documents.
+ */
+const STORAGE_VERSION = 3;
 /**
  * Version 1 → 2 for one document: the default `initial-RSI` goes; the old system RSI state (layer `overlays.rsi`, eye and fold in `systemPanes.rsi`,
  * place `'rsi'` in `paneOrder`) moves to the new indicator. RSIs the user added stay. Documents that never had the old state need nothing:
@@ -55,6 +61,9 @@ interface State {
   documents: Record<string, ChartDocument>;
   templates: Record<string, Appearance>;
   favorites: string[];
+  /** Look saved with "save as default", per indicator kind; new indicators start from it. */
+  indicatorDefaults: Partial<Record<Indicator['kind'], Partial<Indicator>>>;
+  saveIndicatorDefault: (indicator: Indicator) => void;
   hydrated: boolean;
   storageError: boolean;
   hydrate: () => void;
@@ -63,30 +72,6 @@ interface State {
   setDocument: (key: string, document: ChartDocument) => void;
   saveTemplate: (name: string, a: Appearance) => void;
   setFavorites: (values: string[]) => void;
-}
-function parseIndicators(input: unknown): Indicator[] {
-  if (!Array.isArray(input)) return [];
-  return input.slice(0, 20).flatMap(v => {
-    if (!v || typeof v !== 'object' || !INDICATOR_KINDS.includes(v.kind) || typeof v.id !== 'string') return [];
-    const defaults = newIndicator(v.kind);
-    const out = { ...defaults, id: v.id, paneId: v.id };
-    for (const k of Object.keys(defaults) as (keyof Indicator)[]) {
-      const value = v[k];
-      if (typeof defaults[k] === 'boolean' && typeof value === 'boolean') Object.assign(out, { [k]: value });
-      if (k === 'paneId' && typeof value === 'string' && value && value.length <= 80) Object.assign(out, { paneId: value });
-      if (k === 'scaleSide' && (value === 'auto' || value === 'left' || value === 'right')) Object.assign(out, { scaleSide: value });
-      if (typeof defaults[k] === 'number' && typeof value === 'number' && Number.isFinite(value)) Object.assign(out, { [k]: Math.max(0, Math.min(86400, value)) });
-    }
-    out.period = Math.max(1, Math.min(5000, Math.round(out.period))); out.slow = Math.max(1, Math.min(5000, Math.round(out.slow)));
-    out.signal = Math.max(1, Math.min(5000, Math.round(out.signal))); out.smoothingPeriod = Math.max(1, Math.min(5000, Math.round(out.smoothingPeriod)));
-    out.width = [1, 2, 3, 4].includes(out.width) ? out.width : 1;
-    out.lineStyle = v.lineStyle === 'dashed' || v.lineStyle === 'dotted' ? v.lineStyle : 'solid';
-    out.source = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'].includes(v.source) ? v.source : 'close';
-    out.smoothing = ['none', 'SMA', 'EMA', 'RMA', 'WMA', 'BB'].includes(v.smoothing) ? v.smoothing : defaults.smoothing;
-    for (const k of ['color', 'negative', 'maColor'] as const) if (typeof v[k] === 'string' && (/^#[\da-f]{6}$/i.test(v[k]) || (k === 'color' && v[k] === INDICATOR_GRAY))) out[k] = v[k];
-    out.upper = Math.min(100, out.upper); out.lower = Math.min(out.upper, out.lower); out.middle = Math.max(out.lower, Math.min(out.upper, out.middle));
-    return [out];
-  });
 }
 export const useChartWorkspaceStore = create<State>((set, get) => {
   let lastDocuments: Record<string, ChartDocument> = {};
@@ -125,7 +110,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
         for (const [id, data] of Object.entries(d.images)) if (localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`) !== data) localStorage.setItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`, data);
         return [key, { ...d, overlays: s.overlayPreview?.key === key ? s.overlayPreview.original : d.overlays, images: Object.fromEntries(Object.keys(d.images).map(id => [id, true])) }];
       }));
-      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, links, toolbar, toolbarLayout, dockLayout }));
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, indicatorDefaults: s.indicatorDefaults, links, toolbar, toolbarLayout, dockLayout }));
       // Delete orphan image bytes only after the replacement metadata is safely written.
       const prefix = `${WORKSPACE_STORAGE_KEY}-image-`, usedImages = new Set(Object.values(combined).flatMap(d => Object.keys(d.images)));
       for (let i = localStorage.length - 1; i >= 0; i--) { const key = localStorage.key(i); if (key?.startsWith(prefix) && !usedImages.has(key.slice(prefix.length))) localStorage.removeItem(key); }
@@ -145,13 +130,13 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     } else write();
   };
   return {
-    links: {}, toolbar: {}, toolbarLayout: {}, dockLayout: defaultDockLayout(), appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
+    links: {}, toolbar: {}, toolbarLayout: {}, dockLayout: defaultDockLayout(), appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, indicatorDefaults: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
     hydrate: () => {
       if (get().hydrated) return;
       try {
         const raw = JSON.parse(localStorage.getItem(WORKSPACE_STORAGE_KEY) || 'null');
         const documents: Record<string, ChartDocument> = {}, templates: Record<string, Appearance> = {};
-        if (raw?.version === 1 || raw?.version === STORAGE_VERSION) {
+        if (raw?.version === 1 || raw?.version === 2 || raw?.version === STORAGE_VERSION) {
           for (const [key, unknownDoc] of Object.entries(raw.documents ?? {})) {
             const d = unknownDoc as Partial<ChartDocument>;
             if (!d || typeof d !== 'object') continue;
@@ -172,7 +157,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }
         lastDocuments = documents;
-        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), toolbarLayout: parseToolbarLayout(raw?.toolbarLayout), dockLayout: raw?.dockLayout ? parseDockLayout(raw.dockLayout) : migrateToolbarLayout(parseToolbarLayout(raw?.toolbarLayout)), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
+        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), toolbarLayout: parseToolbarLayout(raw?.toolbarLayout), dockLayout: raw?.dockLayout ? parseDockLayout(raw.dockLayout) : migrateToolbarLayout(parseToolbarLayout(raw?.toolbarLayout)), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, indicatorDefaults: parseIndicatorDefaults(raw?.indicatorDefaults), favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
         lastToolbar = get().toolbar; lastLinks = get().links; lastLayout = get().toolbarLayout; lastDock = get().dockLayout;
       } catch { set({ hydrated: true, storageError: true }); }
     },
@@ -207,6 +192,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
       set(s => ({ documents: { ...s.documents, [key]: document } })); persist();
     },
     saveTemplate: (name, appearance) => { if (!name.trim()) return; set(s => ({ templates: { ...s.templates, [name.trim()]: parseAppearance(appearance) } })); persist(); },
+    saveIndicatorDefault: indicator => { set(s => ({ indicatorDefaults: { ...s.indicatorDefaults, [indicator.kind]: defaultsOf(indicator) } })); persist(); },
     setFavorites: favorites => { set({ favorites }); persist(); },
   };
 });
