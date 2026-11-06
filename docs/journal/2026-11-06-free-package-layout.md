@@ -3,7 +3,7 @@ date: 2026-11-06
 author: Claude
 type: plan
 status: open
-pr: []
+pr: [397, 401]
 features: [UI-17, UI-16]
 areas: [frontend]
 ---
@@ -75,6 +75,8 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 
 - The default place of the four groups is now the bottom bar at all widths (the design draft shows this). Before, they sat in the header from 71 rem. Row 1 is empty by default and hidden.
 - Packages keep one line. If the row is full, gaps shrink first (`rowMargins`), then buttons go into the arrow menu in the `SHRINK_ORDER`. Each package keeps its first button and every button with `data-keep`. The fit always starts from the natural width, so a row does not flicker.
+- On a phone (container below 30 rem, decision A1.5) the fixed default layout shows: the row wraps, there is no arrow menu, handles are hidden, and the stored layout is kept. The arrow menu is for rows wider than that.
+- Free packages stop above the bottom bar (R2-05): the lower limit of the free area is the top of the bar, which is also the lower limit of the chart (`--workspace-card`).
 - A package in a row has no frame. A thin line shows between packages (CSS `::before` on the box, 1 px). A package on the chart is a card.
 - Drop on empty space stores `pos` (ratio of the row width). Within 14 px of a neighbor, or of the right end, it snaps (`dropPosition`).
 - Drop with no room, or Esc: the ghost flies back and the package takes its old place.
