@@ -4,7 +4,25 @@ export const INDICATOR_KINDS = ['SMA', 'EMA', 'RSI', 'EWO', 'MACD', 'BB', 'ATR']
 export type IndicatorKind = typeof INDICATOR_KINDS[number];
 const OSCILLATOR_KINDS: readonly IndicatorKind[] = ['RSI', 'EWO', 'MACD', 'ATR'];
 export const isOscillator = (indicator: Pick<Indicator, 'kind'>) => OSCILLATOR_KINDS.includes(indicator.kind);
-export type Source = 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4';
+export type Source = 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4';
+export const SOURCES: readonly Source[] = ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'];
+export const SMOOTHINGS: readonly Smoothing[] = ['none', 'SMA', 'BB', 'EMA', 'RMA', 'WMA'];
+export const PLOT_TYPES = ['line', 'stepline', 'area', 'histogram', 'circles'] as const;
+export type PlotType = typeof PLOT_TYPES[number];
+export type RowKey = 'rsi' | 'ma' | 'upper' | 'middle' | 'lower' | 'bg' | 'over' | 'under' | 'bbUpper' | 'bbLower' | 'bbFill' | 'divUp' | 'divDown';
+/** One style row of the dialog. An empty colour is transparent. Only the fields the user changed are stored; the rest follows the theme. */
+export interface RowStyle { on: boolean; color: string; color2: string; opacity: number; width: 1 | 2 | 3 | 4; lineStyle: 'solid' | 'dashed' | 'dotted' }
+export type RowOverrides = Partial<Record<RowKey, Partial<RowStyle>>>;
+/** Chart interval ranges where an indicator shows (TradingView: minutes 1..59, hours 1..24, days). */
+export interface RangeRule { on: boolean; from: number; to: number }
+export interface Visibility { minute: RangeRule; hour: RangeRule; day: boolean }
+export const DEFAULT_VISIBILITY: Visibility = { minute: { on: true, from: 1, to: 59 }, hour: { on: true, from: 1, to: 24 }, day: true };
+/** Whether the indicator shows on a chart with candles of `seconds` (M1..M30 are minutes, H1/H4 hours, D1 days). */
+export function visibleAtInterval(v: Visibility, seconds: number): boolean {
+  if (seconds < 3600) { const m = Math.max(1, Math.round(seconds / 60)); return v.minute.on && m >= v.minute.from && m <= v.minute.to; }
+  if (seconds < 86400) { const h = Math.max(1, Math.round(seconds / 3600)); return v.hour.on && h >= v.hour.from && h <= v.hour.to; }
+  return v.day;
+}
 export type Smoothing = 'none' | 'SMA' | 'EMA' | 'RMA' | 'WMA' | 'BB';
 export interface Indicator {
   id: string;
@@ -41,8 +59,14 @@ export interface Indicator {
   /** 0 = chart; higher intervals are aggregated from available chart candles. */
   timeframe: number;
   waitClose: boolean;
-  minTimeframe: number;
-  maxTimeframe: number;
+  /** Plot of the main series (RSI); other kinds draw as before. */
+  plotType: PlotType;
+  /** Decimals of the output values; -1 = the kind's default. */
+  precision: number;
+  /** Show the inputs, like `RSI 7 Close`, in the status line. */
+  statusInputs: boolean;
+  visibility: Visibility;
+  rowStyles: RowOverrides;
 }
 /** Fixed id of the one RSI the chart always owns (plan 1106-A2): the formation rules read it. The user cannot delete it, only switch its layer off. */
 export const SYSTEM_RSI_ID = 'system-rsi';
@@ -61,7 +85,7 @@ export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
     upper: 70, middle: 50, lower: 30, bands: true, background: true, gradients: true,
     smoothing: kind === 'RSI' ? 'SMA' : 'none', smoothingPeriod: 14, deviation: 2,
     percent: true, divergence: false, labels: true, values: true, timeframe: 0, waitClose: true,
-    minTimeframe: 0, maxTimeframe: 86400,
+    plotType: 'line', precision: -1, statusInputs: false, visibility: structuredClone(DEFAULT_VISIBILITY), rowStyles: {},
   };
 }
 
@@ -83,6 +107,7 @@ export function sourceValue(b: Bar, source: Source): number {
   if (source === 'hl2') return (b.high + b.low) / 2;
   if (source === 'hlc3') return (b.high + b.low + b.close) / 3;
   if (source === 'ohlc4') return (b.open + b.high + b.low + b.close) / 4;
+  if (source === 'hlcc4') return (b.high + b.low + 2 * b.close) / 4;
   return b[source];
 }
 

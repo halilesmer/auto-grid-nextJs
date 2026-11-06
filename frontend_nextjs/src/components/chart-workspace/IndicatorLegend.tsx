@@ -6,7 +6,7 @@ import type { MouseEventParams, Time } from 'lightweight-charts';
 import { ArrowDown, ArrowLeftRight, ArrowUp, Bell, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FunctionSquare, Info, ListTree, Maximize2, Minimize2, MoreHorizontal, Plus, Settings2, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { useFormat, useT } from '@/i18n';
+import { useFormat, useT, type MessageKey } from '@/i18n';
 import { lineMenuAllows, type LineMenuTrigger } from '@/lib/chart-workspace/lineMenu';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 import { IndicatorLineMenu } from './IndicatorLineMenu';
@@ -24,6 +24,17 @@ export function indicatorNames(indicators: readonly Indicator[]) {
     names.set(indicator.id, total > 1 ? `${indicator.kind} ${number}` : indicator.kind);
   }
   return names;
+}
+
+/** Parameters in the status line: `(7)` or, with "inputs in status line", `7 Close` */
+function paramsText(indicator: Indicator, t: (key: MessageKey) => string): string {
+  const lengths = indicator.kind === 'EWO' || indicator.kind === 'MACD' ? `${indicator.period}/${indicator.slow}` : String(indicator.period);
+  if (!indicator.statusInputs) return ` (${lengths})`;
+  return indicator.kind === 'ATR' ? ` ${lengths}` : ` ${lengths} ${t(`ind.src.${indicator.source}` as MessageKey)}`;
+}
+function valueDigits(indicator: Indicator): number {
+  if (indicator.precision >= 0) return indicator.precision;
+  return indicator.kind === 'RSI' ? 2 : 5;
 }
 
 export interface OscillatorActions {
@@ -232,7 +243,7 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     return rowShell({
       key: indicator.id, attributes: { 'data-indicator-row': indicator.kind, ...(system ? { 'data-system-row': 'rsi' } : {}) }, hot: hover.pane === paneIndex, label, visible: indicator.visible, drawn, emphasis,
       text: <span data-indicator-value={indicator.kind} style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${drawn ? 'text-muted-foreground' : `text-muted-foreground/60 ${indicator.visible ? 'line-through' : ''}`}`}>
-        {showNames ? indicator.kind : ''}{showParams && drawn ? ` (${indicator.period}${indicator.kind === 'EWO' || indicator.kind === 'MACD' ? `/${indicator.slow}` : ''})` : ''}{showValues && drawn && indicator.values && value !== undefined ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: indicator.kind === 'RSI' ? 2 : 5 })}` : ''}
+        {showNames ? indicator.kind : ''}{showParams && drawn ? paramsText(indicator, t) : ''}{showValues && drawn && indicator.values && value !== undefined ? ` ${value === null ? '—' : fmt.number(value, { maximumFractionDigits: valueDigits(indicator) })}` : ''}
       </span>,
       onToggleVisible: () => actions.toggleVisible(indicator), settings: () => actions.openSettings(indicator), remove: () => actions.remove(indicator),
       removeLabel: system ? t('cw.legend.hideLayer', { layer: label }) : t('cw.legend.remove', { indicator: label }), removeHint: system ? t('cw.legend.hideLayer.hint') : t('cw.legend.remove.hint'),
