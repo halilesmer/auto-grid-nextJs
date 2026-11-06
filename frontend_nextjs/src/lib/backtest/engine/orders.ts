@@ -19,6 +19,7 @@ import {
   TRADE_ACTION_PENDING,
   TRADE_ACTION_REMOVE,
   TRADE_ACTION_SLTP,
+  TRADE_RETCODE_MARKET_CLOSED,
   type Broker,
   type Order,
   type Position,
@@ -129,7 +130,12 @@ export function isFractalComment(comment: string): boolean {
 }
 
 export function cancelOrder(broker: Broker, order: Order, state: EngineState): boolean {
+  // Nach 10018 wartet das Löschen für dieses Symbol (ENG-33): sonst versuchte der Bot es jeden Durchlauf neu
+  if ((state.cancelClosedUntil.get(order.symbol) ?? 0) > state.now()) return false;
   const ok = safeSendOrder(broker, { action: TRADE_ACTION_REMOVE, order: order.ticket, symbol: order.symbol }, state);
+  if (!ok && state.lastRetcode === TRADE_RETCODE_MARKET_CLOSED) {
+    state.cancelClosedUntil.set(order.symbol, state.now() + state.MARKET_CLOSED_CHECK_INTERVAL);
+  }
   if (ok) {
     // Der Bot hat gelöscht: vanished.ts zählt die Order nicht als „von außen gelöscht“
     state.placedOrders.delete(order.ticket);
@@ -234,9 +240,16 @@ export function sendPendingOrderHelper(
   };
 
   state.lastOrderTicket = 0;
+  if ((state.marketClosedUntil.get(symbol) ?? 0) > state.now()) return false;
   if (!entryAllowed(broker, magic, state)) return false;
   if (!safeSendOrder(broker, request, state, () => entryAllowed(broker, magic, state))) {
     if (state.spreadGuard.status.get(magic)?.blocked) return false;
+    // 10018 = Handelsseite zu: kein Orderfehler, die Zone bleibt aktiv; nach der Pause ein neuer Versuch (ENG-32)
+    if (state.lastRetcode === TRADE_RETCODE_MARKET_CLOSED) {
+      state.marketClosedUntil.set(symbol, state.now() + state.MARKET_CLOSED_CHECK_INTERVAL);
+      state.log('WARN', 'order.marketClosed', { symbol, seconds: state.MARKET_CLOSED_CHECK_INTERVAL });
+      return false;
+    }
     const errors = (state.consecutiveErrors.get(zoneIdx) ?? 0) + 1;
     state.consecutiveErrors.set(zoneIdx, errors);
     if (errors >= 3) {

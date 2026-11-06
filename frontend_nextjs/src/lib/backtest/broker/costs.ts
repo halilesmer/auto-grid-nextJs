@@ -14,6 +14,7 @@ import type { SymbolDetail } from '@/store/types';
 import { pyRound } from '@/lib/backtest/engine/pyRound';
 import type { SymbolInfo } from '@/lib/backtest/engine/types';
 import type { RunProblem } from '@/lib/backtest/runContext';
+import { parseTradeSessions, type TradeSessions } from '@/lib/backtest/broker/tradeSessions';
 
 /** MT5 SYMBOL_CALC_MODE_*: Forex, CFD, CFD-Index, CFD mit Hebel, Forex ohne Hebel (docs/analyse-regeln.md §6) */
 export const SUPPORTED_CALC_MODES: readonly number[] = [0, 2, 3, 4, 5];
@@ -48,6 +49,8 @@ export interface SymbolSnapshot {
   spreadPoints: number | null;
   currencyProfit: string | null;
   calcMode: number;
+  /** Handelsseiten des Brokers; null = unbekannt, der Lauf kennt keine Schließzeiten (BKT-21) */
+  tradeSessions: TradeSessions | null;
 }
 
 export interface SnapshotOptions {
@@ -123,6 +126,7 @@ export function snapshotSymbol(detail: SymbolDetail, options: SnapshotOptions): 
       spreadPoints: isNum(detail.spread) ? detail.spread : null,
       currencyProfit: detail.currency_profit,
       calcMode,
+      tradeSessions: parseTradeSessions(detail.trade_sessions),
     },
     warnings,
   };

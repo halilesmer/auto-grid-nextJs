@@ -93,6 +93,8 @@ function symbol(name: string, digits: number, description: string, volumeMin = 0
     swap_rollover3days: 3,
     spread: 20,
     trade_stops_level: 0,
+    // wie GET /symbols (BKT-21): null, solange der Worker keine MQL5-Exportdatei mit den Handelsseiten findet
+    trade_sessions: null,
   };
 }
 

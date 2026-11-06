@@ -121,6 +121,8 @@ Hinweise:
   Reihenfolge beim Umstellen: erst im Frontend verbinden bzw. den neuen Schlüssel eintragen (ein Worker ohne Schlüssel ignoriert den Header), dann den Worker mit gesetztem `WORKER_API_KEY` neu starten. Schlüssel wechseln = im Verbindungsdialog neu verbinden (oder `.env.local`) und den Worker neu starten.
 - **MT5-Passwörter:** Die API gibt gespeicherte Passwörter nicht mehr zurück (`GET /api/accounts` liefert nur `has_password`). Beim Bearbeiten eines Kontos bleibt das Passwortfeld leer; leer lassen = gespeichertes Passwort bleibt erhalten.
 
+- **Handelsseiten für den Backtest (BKT-21, einmalig, optional):** Ohne diese Datei rechnet der Backtest wie bisher und kennt keine geschlossenen Handelszeiten. So legst du sie an: (1) `worker_python\ops\mt5\AutoGridTradeSessions.mq5` nach `<MT5-Datenordner>\MQL5\Scripts\` kopieren (MT5: *Datei → Datenordner öffnen*). (2) MetaEditor öffnen (F4), die Datei öffnen, kompilieren (F7, 0 Fehler). (3) Im MT5-Terminal in der Navigator-Liste unter *Skripte* `AutoGridTradeSessions` auf ein beliebiges Chart ziehen. (4) Im Reiter *Experten* steht „Symbole nach Common\Files\autogrid_trade_sessions.json geschrieben“. Der Worker liest die Datei ohne Neustart (Standardpfad `%APPDATA%\MetaQuotes\Terminal\Common\Files`, anders mit der Umgebungsvariable `AUTOGRID_TRADE_SESSIONS_FILE`). Wiederholen, wenn der Broker seine Handelszeiten ändert oder neue Symbole in die Marktübersicht kommen. Das Skript wurde nicht gegen einen echten Terminal getestet.
+
 ---
 
 ### 1. Terminal: FastAPI Backend (Worker)

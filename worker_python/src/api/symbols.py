@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from src.api.access import account_access
 from src.utils.mt5_helpers import get_or_fetch_symbols, get_symbols_fetch_error
 from src.utils.mt5_connection import safe_log
+from src.utils import trade_sessions
+from src.api.helpers import _load_accounts
 
 router = APIRouter(tags=["Symbols"])
 
@@ -10,6 +12,10 @@ router = APIRouter(tags=["Symbols"])
 async def get_symbols(account_id: str):
     try:
         symbols = await get_or_fetch_symbols(account_id, safe_log)
+
+        server = next((a.get("server") for a in _load_accounts() if str(a.get("id")) == account_id), "")
+        # BKT-21: Seans planı önbelleğe girmez (dosya değişince hemen geçerli olur); yoksa null
+        symbols = [{**s, "trade_sessions": trade_sessions.sessions_for(s.get("name", ""), server)} for s in symbols]
 
         response = {
             "status": "success",

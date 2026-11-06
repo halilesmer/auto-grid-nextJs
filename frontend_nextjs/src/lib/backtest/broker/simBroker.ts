@@ -29,6 +29,7 @@ import {
   TRADE_ACTION_SLTP,
   TRADE_RETCODE_DONE,
   TRADE_RETCODE_INVALID,
+  TRADE_RETCODE_MARKET_CLOSED,
   type Bar,
   type Broker,
   type Order,
@@ -121,6 +122,10 @@ export class SimBroker implements Broker {
   protected nextTicket = 1000;
   /** Der Lauf (PathBroker) hängt hier Kosten und Trades ein; im Paritätsmodus bleibt es leer */
   protected hooks: SimBrokerHooks | null = null;
+  /** BKT-21: false = Handelsseite zu; order_check/order_send liefern 10018 und es lösen keine Marken aus */
+  protected tradeOpen = true;
+  /** Wie viele Anfragen wegen geschlossener Handelsseite abgelehnt wurden */
+  closedRejects = 0;
 
   constructor(options: SimBrokerOptions) {
     this.mode = options.mode ?? 'parity';
@@ -294,7 +299,18 @@ export class SimBroker implements Broker {
     return order ? [order] : [];
   }
 
+  /** BKT-21: Handelsseite öffnen oder schließen (der Lauf setzt sie je Kerze aus den Seiten des Brokers) */
+  setTradeOpen(open: boolean): void {
+    this.tradeOpen = open;
+  }
+
+  private closedResult(): TradeResult {
+    this.closedRejects += 1;
+    return { retcode: TRADE_RETCODE_MARKET_CLOSED, order: 0, comment: 'Market closed' };
+  }
+
   orderCheck(): TradeResult {
+    if (!this.tradeOpen) return this.closedResult();
     return { retcode: 0, order: 0, comment: '' };
   }
 
@@ -303,6 +319,7 @@ export class SimBroker implements Broker {
   }
 
   orderSend(request: TradeRequest): TradeResult {
+    if (!this.tradeOpen) return this.closedResult();
     const ordersBefore = new Map(this.orders.map((o) => [o.ticket, { ...o }]));
     const positionsBefore = new Map(this.positions.map((p) => [p.ticket, { ...p }]));
     const result = this.execute(request);
