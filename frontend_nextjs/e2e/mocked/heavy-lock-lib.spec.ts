@@ -332,6 +332,21 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     expect(brk.stderr).not.toContain('beende Prozessbaum');
   });
 
+  test('_hl_mtime: fehlende Datei gibt genau „0“, vorhandene eine Zahl (GNU und BSD stat)', () => {
+    // Unter GNU stat lieferte der Rückfall `stat -f` Dateisystem-Angaben statt 0 und brach die
+    // Arithmetik ab (CI-Fehler im Stresstest R3-03).
+    writeFileSync(path.join(work, 'da'), 'x');
+    const r = spawnSync(
+      'bash',
+      ['-c', `source "${SCRIPT}"; echo "fehlt=[$(_hl_mtime "${work}/nicht-da")]"; echo "da=[$(_hl_mtime "${work}/da")]"`],
+      { env: env(), encoding: 'utf8' },
+    );
+    expect(r.stdout).toContain('fehlt=[0]');
+    const da = /da=\[(\d+)\]/.exec(r.stdout);
+    expect(da, r.stdout).not.toBeNull();
+    expect(Math.abs(Number(da?.[1]) - Date.now() / 1000)).toBeLessThan(30);
+  });
+
   test('viele Wartende vor einer toten Sperre: nie zwei im kritischen Bereich (R3-03)', () => {
     test.setTimeout(150_000); // vier Runden mit je 15 Hüllen; auf einer ausgelasteten Maschine über 30 s
     // Je Runde: tote Sperre, 15 gleichzeitige Hüllen. Der kritische Bereich ist ein mkdir ohne Wartezeit:

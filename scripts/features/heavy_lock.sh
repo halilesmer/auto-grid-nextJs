@@ -59,8 +59,13 @@ _HL_EXIT_HOOKS=()   # weitere Aufräumfunktionen (heavy_on_exit)
 
 _hl_log() { echo "[heavy-lock] $*" >&2; }
 
-_hl_mtime() {  # GNU (CI) zuerst, dann BSD (macOS)
-  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+_hl_mtime() {  # mtime in s; 0 wenn die Datei fehlt. GNU (CI) zuerst, BSD (macOS) nur, wenn stat -c fehlt.
+  local m
+  if m=$(stat -c %Y "$1" 2>/dev/null); then echo "$m"; return; fi
+  # Fehlt die Datei, darf es kein Rückfall auf `stat -f` geben: unter GNU liefert -f Dateisystem-Angaben
+  # statt einer Zahl (und ein Wert in $(( )) bricht die Funktion ab).
+  if ! stat -c %Y / >/dev/null 2>&1 && m=$(stat -f %m "$1" 2>/dev/null); then echo "$m"; return; fi
+  echo 0
 }
 
 # --- Prozess-Identität (R3-04, R3-10) -----------------------------------------------------------
@@ -96,10 +101,12 @@ _hl_owner_alive() {  # $1 = owner-Zeile: wahr, wenn derselbe Prozess noch lebt
 # $2 = Mindestalter in s, nur bei leerem owner (frisches Verzeichnis eines Anderen bleibt).
 # Rückgabe 0 = gelöscht, 1 = nicht gelöscht.
 _hl_remove() {
-  local expected=$1 minage=${2:--1} brk="$HEAVY_LOCK_DIR.break" tries=0 cur age rc=1
+  local expected=$1 minage=${2:--1} brk="$HEAVY_LOCK_DIR.break" tries=0 cur age mt rc=1
   while ! mkdir "$brk" 2>/dev/null; do
     # Mutex hängt (Prozess zwischen mkdir und rmdir getötet): nach 30 s übernehmen
-    if [ $(( $(date +%s) - $(_hl_mtime "$brk") )) -gt 30 ]; then rmdir "$brk" 2>/dev/null; continue; fi
+    mt=$(_hl_mtime "$brk")
+    [ "$mt" = 0 ] && continue   # Mutex ist gerade verschwunden: neu versuchen, nie „veraltet“ löschen
+    if [ $(( $(date +%s) - mt )) -gt 30 ]; then rmdir "$brk" 2>/dev/null; continue; fi
     tries=$((tries + 1))
     [ "$tries" -gt 200 ] && return 1
     sleep 0.05

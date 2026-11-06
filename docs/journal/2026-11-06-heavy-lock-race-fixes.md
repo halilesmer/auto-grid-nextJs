@@ -25,7 +25,8 @@ Reproduction before the fix (own temporary lock directory, 15 parallel wrappers 
 ## Solution
 | File | Change |
 |---|---|
-| `scripts/features/heavy_lock.sh` | `_hl_remove`: every delete takes the mutex `<lock>.break`, reads `owner` again inside it, and deletes only if it still matches (an empty owner needs a minimum age). A mutex that is older than 30 s is taken over. |
+| `scripts/features/heavy_lock.sh` | `_hl_mtime`: a missing file gives `0`. The old code fell back to `stat -f %m`. On GNU `stat`, `-f` prints file system data, and that text broke `$(( ))` in the first CI run (15 wrappers: 3 to 5 ended with exit 1). A mutex that vanished during the check now means "try again", not "stale". |
+| | `_hl_remove`: every delete takes the mutex `<lock>.break`, reads `owner` again inside it, and deletes only if it still matches (an empty owner needs a minimum age). A mutex that is older than 30 s is taken over. |
 | | `heavy_lock_release`: removes the directory only when `owner` starts with its own pid. If `owner` is empty, a local flag decides (empty before the write = ours; empty after the write = not ours any more). |
 | | Fourth `owner` field `ls=<ps lstart, spaces as _>`. `_hl_owner_alive` compares it. A legacy `owner` without it is judged by the pid only. `_hl_break` checks it again right before `kill`. |
 | | `_hl_pid_alive`: "operation not permitted" and a `ps -p` hit count as alive. |
@@ -42,7 +43,8 @@ Reproduction before the fix (own temporary lock directory, 15 parallel wrappers 
 ## Verification
 - Before the fix (old script, same tests): R3-03, R3-04 (2 tests) and R3-10 (2 tests) red; the legacy-format and matching-start-time tests passed.
 - After the fix: `heavy-lock-lib.spec.ts` 20 of 20 passed on macOS with bash 3.2. The stress loop (15 wrappers, dead lock) ran 12 rounds: 0 violations, the stale message exactly once per round (before: 11 messages instead of 5 in the audit run).
-- Not verified: Linux CI before the PR checks run (`ps -o lstart`, GNU `stat` path); the real EPERM case as a sandboxed process (only a root-owned process as a normal user).
+- First CI run (Linux) failed: the stress test showed 3 to 5 wrappers with exit 1 (`arithmetic syntax error`). Cause: `_hl_mtime` (see above). It never showed on macOS, where `stat -f %m` is correct. Checked with a fake GNU `stat` (old function: file system text, new function: `0`). Test `_hl_mtime` added.
+- Not verified: the real EPERM case as a sandboxed process (only a root-owned process as a normal user).
 
 ## Open points
 - [ ] Part 2 of the R3 fixes: R3-06, R3-07, R3-08, R3-09, R3-11 (scripts `e2e_server.sh`, `precheck.sh`, `run.sh`, `e2e/fixtures/env.ts`).
@@ -51,3 +53,5 @@ Reproduction before the fix (own temporary lock directory, 15 parallel wrappers 
 - Compare-then-delete on a shared directory needs a mutex around both steps. A re-read is not enough.
 - `kill -0` returns the same code for ESRCH and EPERM. Read the message, or ask `ps -p`.
 - An owner file that stores a pid also needs the process start time.
+- Do not use `cmd1 || cmd2` for GNU and BSD variants of one tool when both accept the flag. `stat -f` exists in both, with different meanings. Test the first variant, and use the second only if the first flag is not supported.
+- A stress test that runs only on the developer's OS misses OS-specific bugs. Print exit codes and stderr of the children in the failure message.
