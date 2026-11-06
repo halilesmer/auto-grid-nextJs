@@ -764,7 +764,8 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
     expect(bar).toMatchObject({ x: 52, y: 56, width: 1348 });
     expect(bar.height).toBeLessThanOrEqual(70);
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
-    expect(forms.y).toBe(94);
+    // UI-17 S3: Zeile 2 ist eine DockRow (Mindesthöhe 28 px, Paketgruppe zentriert); Mass vorher 94, jetzt 96 (+2 px: Gruppenrahmen im Paket)
+    expect(forms.y).toBe(96);
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
     expect(tools.y).toBeGreaterThanOrEqual(bar.y + bar.height);
     expect(tools.x + tools.width).toBeLessThanOrEqual(1400);

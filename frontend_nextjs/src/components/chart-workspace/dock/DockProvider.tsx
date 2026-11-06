@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { flushSync } from 'react-dom';
 import { useReducedMotion } from 'motion/react';
 import { useT, type MessageKey } from '@/i18n';
-import { defaultDockLayout, DOCK_SNAP, dropPosition, isDefaultDockLayout, moveToFree, moveToRow, packPackage, rowMargins, SHRINK_ORDER, type DockLayout, type PackageId } from '@/lib/chart-workspace/dock';
+import { defaultDockLayout, DOCK_SNAP, dropPosition, isDefaultDockLayout, moveToFree, moveToRow, packPackage, rowMargins, SHRINK_ORDER, type DockItem, type DockLayout, type PackageId } from '@/lib/chart-workspace/dock';
 import { nudgeStep, placeFree, toRatio, type FreeArea } from '@/lib/chart-workspace/toolbar';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 
@@ -16,9 +16,9 @@ import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
  *  - Sürükleme, ekleme çizgisi (kesik çizgili kutu), boşluk (`pos`) ve yumuşak yerleşme (elle FLIP, Web Animations) burada yürür.
  *    `motion`'ın layoutId'si yeniden kurulan öğeleri bağlar; kutular kurulmadığı için burada elle FLIP gerekir (journal S2 bölümü).
  */
-export type DockPlace = 'row1' | 'bottom' | 'free';
-export type DockRowZone = 'row1' | 'bottom';
-export type DockAction = 'row1' | 'bottom' | 'free' | 'left' | 'right' | 'pack' | 'reset';
+export type DockPlace = 'row1' | 'row2' | 'bottom' | 'free';
+export type DockRowZone = 'row1' | 'row2' | 'bottom';
+export type DockAction = 'row1' | 'row2' | 'bottom' | 'free' | 'left' | 'right' | 'pack' | 'reset';
 /** Bir paketin ok menüsü için arayüzü: kutudaki düğmeleri gizler/gösterir. */
 export interface FitApi { reset: () => void; canHide: () => boolean; hideNext: () => void }
 
@@ -44,7 +44,7 @@ export interface DockApi {
   endDrag: (e: ReactPointerEvent<HTMLElement> | null, commit: boolean) => void;
   consumeClick: () => boolean;
   keyDown: (id: PackageId, e: ReactKeyboardEvent<HTMLElement>) => void;
-  menuInfo: (id: PackageId) => { place: DockPlace; canLeft: boolean; canRight: boolean; canPack: boolean; isDefault: boolean };
+  menuInfo: (id: PackageId) => { place: DockPlace; hasRow2: boolean; canLeft: boolean; canRight: boolean; canPack: boolean; isDefault: boolean };
   act: (id: PackageId, action: DockAction) => void;
 }
 
@@ -53,6 +53,7 @@ const Ctx = createContext<DockApi | null>(null);
 export const useDock = () => useContext(Ctx);
 
 const GAP = 2;
+const ZONES = ['row1', 'row2', 'bottom'] as const;
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -69,6 +70,12 @@ function freeArea(chart: HTMLElement): FreeArea {
   return { width: chart.clientWidth, height: chart.clientHeight, left: 60, top: 8 + inset, bottom: Math.max(8, cardTop + 8), right: 5 * rem };
 }
 
+/** Bir bölgenin sıralı listesi; Satır 2 kayıtlı değilse (Setup/Frei) onun paketleri alt çubuğa düşer. */
+function listOf(l: DockLayout, zone: DockRowZone, hasRow2: boolean, fb: DockItem[]): DockItem[] {
+  if (zone !== 'bottom') return l[zone];
+  return [...l.bottom, ...(hasRow2 ? [] : l.row2), ...fb];
+}
+
 export function DockProvider({ children }: { children: ReactNode }) {
   const t = useT();
   const stored = useChartWorkspaceStore(s => s.dockLayout), setStored = useChartWorkspaceStore(s => s.setDockLayout), resetStored = useChartWorkspaceStore(s => s.resetDockLayout);
@@ -79,6 +86,8 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const [dragging, setDragging] = useState(false);
   const [live, setLive] = useState('');
   const [rev, setRev] = useState(0);
+  // Satır 2 yalnız Formation modunun başlığında var; yoksa oradaki paketler çizimde alt çubuğa düşer, kayıt aynı kalır (S3)
+  const [row2On, setRow2On] = useState(false);
   // 30 rem altında sabit telefon düzeni (S5 sürer); kayıt silinmez
   const layout = useMemo(() => phone ? defaultDockLayout() : stored, [phone, stored]);
 
@@ -90,18 +99,20 @@ export function DockProvider({ children }: { children: ReactNode }) {
 
   const placeOf = useCallback((id: PackageId): DockPlace => {
     if (layout.row1.includes(id)) return 'row1';
+    if (layout.row2.includes(id)) return row2On ? 'row2' : 'bottom';
     if (layout.free[id]) return fallback.includes(id) ? 'bottom' : 'free';
     return 'bottom';
-  }, [layout, fallback]);
+  }, [layout, fallback, row2On]);
   /** Bir satırın görünen paketleri, DOM sırasıyla aynı sırada (sekme sırası). */
   const orderOf = (zone: DockRowZone, l = layoutRef.current): PackageId[] => {
-    const list = zone === 'row1' ? l.row1 : [...l.bottom, ...l.row2, ...fallbackRef.current];
+    const list = listOf(l, zone, !!rows.current.row2, fallbackRef.current);
     return list.filter((id): id is PackageId => id !== 'account' && presentRef.current.includes(id));
   };
 
   const registerRow = useCallback((zone: DockRowZone, el: HTMLElement | null) => {
     if ((rows.current[zone] ?? null) === el) return;
     if (el) rows.current[zone] = el; else delete rows.current[zone];
+    if (zone === 'row2') setRow2On(!!el);
     setRev(r => r + 1);
   }, []);
   const registerChart = useCallback((el: HTMLElement | null) => {
@@ -144,7 +155,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
       wraps.current.get(id)!.fit.hideNext();
     }
   };
-  const fitAll = () => { for (const zone of ['row1', 'bottom'] as const) { fitRow(zone); layoutRow(zone); } };
+  const fitAll = () => { for (const zone of ZONES) { fitRow(zone); layoutRow(zone); } };
   const placeAll = () => {
     const l = layoutRef.current, host = chart.current, fb: PackageId[] = [];
     const area = host ? freeArea(host) : null;
@@ -158,10 +169,10 @@ export function DockProvider({ children }: { children: ReactNode }) {
       if (pos) { w.el.style.left = `${Math.round(pos.left)}px`; w.el.style.top = `${Math.round(pos.top)}px`; w.fit.reset(); }
       else fb.push(id); // sığmıyor: çizimde alt çubukta, kayıt aynı
     }
-    for (const zone of ['row1', 'bottom'] as const) {
+    for (const zone of ZONES) {
       const row = rows.current[zone];
       if (!row) continue;
-      const order = (zone === 'row1' ? l.row1 : [...l.bottom, ...l.row2, ...fb]).filter((id): id is PackageId => id !== 'account' && wraps.current.has(id));
+      const order = (listOf(l, zone, !!rows.current.row2, fb)).filter((id): id is PackageId => id !== 'account' && wraps.current.has(id));
       const want = order.map(id => wraps.current.get(id)!.el);
       [...row.children].forEach(c => { if (c.classList.contains('dock-wrap') && !want.includes(c as HTMLElement)) c.remove(); });
       want.forEach((el, i) => {
@@ -207,7 +218,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   // Satır ya da grafik boyutu değişince (pencere, kenar çubuğu) yeniden sığdır
   useEffect(() => {
     const observer = new ResizeObserver(() => { if (!dragRef.current?.active) placeAll(); });
-    for (const el of [rows.current.row1, rows.current.bottom, chart.current]) if (el) observer.observe(el);
+    for (const el of [rows.current.row1, rows.current.row2, rows.current.bottom, chart.current]) if (el) observer.observe(el);
     return () => observer.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rev]);
@@ -220,11 +231,11 @@ export function DockProvider({ children }: { children: ReactNode }) {
     setStored(next); setRev(r => r + 1);
   };
   const groupName = (id: PackageId) => t(`cw.tbGroup.${id}` as MessageKey);
-  const ZONE_KEY: Record<DockPlace, MessageKey> = { row1: 'cw.tbDropRow1', bottom: 'cw.tbDropBottom', free: 'cw.tbDropFree' };
+  const ZONE_KEY: Record<DockPlace, MessageKey> = { row1: 'cw.tbDropRow1', row2: 'cw.tbDropRow2', bottom: 'cw.tbDropBottom', free: 'cw.tbDropFree' };
   const zoneName = (zone: DockPlace) => t(ZONE_KEY[zone]);
   const menuInfo = (id: PackageId) => {
     const place = placeOf(id), inRow = place !== 'free', order = inRow ? orderOf(place as DockRowZone, layout) : [], i = order.indexOf(id);
-    return { place, canLeft: inRow && i > 0, canRight: inRow && i >= 0 && i < order.length - 1, canPack: inRow && layout.pos[id] != null, isDefault: isDefaultDockLayout(stored) };
+    return { place, hasRow2: row2On, canLeft: inRow && i > 0, canRight: inRow && i >= 0 && i < order.length - 1, canPack: inRow && layout.pos[id] != null, isDefault: isDefaultDockLayout(stored) };
   };
   const reorder = (id: PackageId, dir: -1 | 1) => {
     const place = placeOf(id);
@@ -238,7 +249,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   };
   const act = (id: PackageId, action: DockAction) => {
     if (action === 'reset') { pendingFlip.current = { before: snapshot(), from: {} }; focusAfter.current = id; setLive(t('cw.tbReset')); resetStored(); setRev(r => r + 1); return; }
-    if (action === 'row1' || action === 'bottom') apply(moveToRow(layout, id, action, layout[action].length), id, `${groupName(id)} → ${zoneName(action)}`);
+    if (action === 'row1' || action === 'row2' || action === 'bottom') apply(moveToRow(layout, id, action, layout[action].length), id, `${groupName(id)} → ${zoneName(action)}`);
     else if (action === 'free') apply(moveToFree(layout, id, { x: 0.12, y: 0.12 * (Object.keys(layout.free).filter(x => x !== id).length + 1) }), id, `${groupName(id)} → ${zoneName('free')}`);
     else if (action === 'pack') apply(packPackage(layout, id), id);
     else reorder(id, action === 'left' ? -1 : 1);
@@ -264,26 +275,29 @@ export function DockProvider({ children }: { children: ReactNode }) {
       apply({ ...layout, pos: { ...layout.pos, [id]: clamp01(left / row.clientWidth) } }, id);
     } else if (k === 'ArrowLeft' || k === 'ArrowRight') {
       if (reorder(id, k === 'ArrowLeft' ? -1 : 1)) e.preventDefault();
-    } else if ((k === 'ArrowUp' && place === 'bottom') || (k === 'ArrowDown' && place === 'row1')) {
+    } else if (k === 'ArrowUp' || k === 'ArrowDown') {
+      // ↑/↓: Satır 1 ↔ Satır 2 ↔ Alt çubuk (Satır 2 yoksa doğrudan Satır 1 ↔ Alt çubuk)
+      const seq: DockRowZone[] = ['row1', ...(row2On ? ['row2' as const] : []), 'bottom'], to = seq[seq.indexOf(place) + (k === 'ArrowUp' ? -1 : 1)];
+      if (!to) return;
       e.preventDefault();
-      act(id, k === 'ArrowUp' ? 'row1' : 'bottom');
+      act(id, to);
     }
   };
 
   // --- Sürükleme ---
-  const hitEl = (zone: DockRowZone) => zone === 'bottom' ? rows.current.bottom?.closest<HTMLElement>('[data-dock-card]') ?? rows.current.bottom : rows.current.row1;
+  const hitEl = (zone: DockRowZone) => zone === 'bottom' ? rows.current.bottom?.closest<HTMLElement>('[data-dock-card]') ?? rows.current.bottom : rows.current[zone];
   const inside = (el: Element | null | undefined, x: number, y: number) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
   function rowTarget(d: Drag, zone: DockRowZone, x: number): Target {
     const row = rows.current[zone]!, sr = row.getBoundingClientRect(), W = row.clientWidth, els = rowEls(zone).filter(el => el.dataset.dockWrap !== d.id);
     let vi = els.length;
     for (let i = 0; i < els.length; i++) { const r = els[i].getBoundingClientRect(); if (x < r.left + r.width / 2) { vi = i; break; } }
     const prev = els[vi - 1], packed = prev ? prev.getBoundingClientRect().right - sr.left + GAP : 0;
-    const list = (zone === 'row1' ? layoutRef.current.row1 : layoutRef.current.bottom).filter(id => id !== d.id), nid = els[vi]?.dataset.dockWrap as PackageId | undefined;
+    const list = layoutRef.current[zone].filter(id => id !== d.id), nid = els[vi]?.dataset.dockWrap as PackageId | undefined;
     const at = nid ? list.indexOf(nid) : -1;
     return { zone, index: at >= 0 ? at : list.length, x: dropPosition(Math.max(0, x - d.offX - sr.left), packed, W, d.w, DOCK_SNAP), visible: vi };
   }
   function targetAt(d: Drag): Target | null {
-    for (const zone of ['row1', 'bottom'] as const) if (rows.current[zone] && inside(hitEl(zone), d.x, d.y)) return rowTarget(d, zone, d.x);
+    for (const zone of ZONES) if (rows.current[zone] && inside(hitEl(zone), d.x, d.y)) return rowTarget(d, zone, d.x);
     // Grafiğe sığmayan paket için orada yer yok: bırakılırsa eski yerine döner
     return chart.current && inside(chart.current, d.x, d.y) && chart.current.clientWidth - 114 >= d.w ? { zone: 'free' } : null;
   }
@@ -318,10 +332,10 @@ export function DockProvider({ children }: { children: ReactNode }) {
     const dest = !target ? t('cw.tbDropNone') : zoneName(target.zone);
     const label = g.querySelector('.dock-ghost-label');
     if (label) label.textContent = `${groupName(d.id)} → ${dest}`;
-    for (const zone of ['row1', 'bottom'] as const) hitEl(zone)?.setAttribute('data-target', String(target?.zone === zone));
+    for (const zone of ZONES) hitEl(zone)?.setAttribute('data-target', String(target?.zone === zone));
     chart.current?.querySelector('[data-dock-free-hint]')?.setAttribute('data-target', String(target?.zone === 'free'));
     setSlot(d, target);
-    layoutRow('row1'); layoutRow('bottom');
+    for (const zone of ZONES) layoutRow(zone);
   }
   // Sabit kimlikli Esc dinleyicisi: sürükleme sırasında yeniden çizim olsa da aynı işlev eklenir ve kaldırılır
   const endDragRef = useRef<(e: ReactPointerEvent<HTMLElement> | null, commit: boolean) => void>(() => {});
@@ -346,7 +360,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
       d.active = true; d.wrap.classList.add('dock-src');
       ghostRef.current = makeGhost(d);
       flushSync(() => setDragging(true));
-      layoutRow('row1'); layoutRow('bottom');
+      for (const zone of ZONES) layoutRow(zone);
       before.delete(d.id); playFlip(before);
       window.addEventListener('keydown', onEsc, true);
     }
@@ -357,7 +371,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const returnHome = (d: Drag, g: HTMLElement, before: Map<string, DOMRect>) => {
     slotRef.current?.remove(); slotRef.current = null;
     d.wrap.classList.remove('dock-src'); d.wrap.classList.add('dock-returning');
-    layoutRow('row1'); layoutRow('bottom');
+    for (const zone of ZONES) layoutRow(zone);
     before.delete(d.id); playFlip(before);
     const copy = g.firstElementChild as HTMLElement, home = d.wrap.getBoundingClientRect(), label = g.querySelector<HTMLElement>('.dock-ghost-label');
     if (label) label.style.opacity = '0';
@@ -380,7 +394,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
     suppress.current = true;
     const target = commit ? targetAt(d) : null, before = snapshot(), g = ghostRef.current!;
     ghostRef.current = null;
-    for (const zone of ['row1', 'bottom'] as const) hitEl(zone)?.removeAttribute('data-target');
+    for (const zone of ZONES) hitEl(zone)?.removeAttribute('data-target');
     chart.current?.querySelector('[data-dock-free-hint]')?.removeAttribute('data-target');
     if (!target) {
       flushSync(() => setDragging(false));

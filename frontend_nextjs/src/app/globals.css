@@ -302,6 +302,7 @@
  */
 .dock-row > .dock-wrap { display: flex; flex: none; align-items: center; min-width: 0; transition: margin-left 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
 .dock-row > .dock-wrap ~ .dock-wrap::before { content: ""; flex: none; align-self: center; width: 1px; height: 1.25rem; margin: 0 5px 0 3px; background: var(--border); }
+.dock-row > .dock-wrap[data-shrink] { flex: 0 1 auto; }
 .dock-wrap.dock-free { position: absolute; z-index: 53; width: max-content; transition: none; }
 .dock-wrap.dock-src { position: absolute; opacity: 0; pointer-events: none; transition: none; }
 .dock-wrap.dock-returning { opacity: 0; }
