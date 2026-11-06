@@ -40,7 +40,11 @@ export const dashOf = (style: LineKind): string | undefined => DASH[style];
 export const dashArrayOf = (style: LineKind): number[] => dashOf(style)?.split(' ').map(Number) ?? [];
 
 // Nur Farben, die kein Markup ins Attribut tragen: Hex, var(--name), rgb()/hsl()
-const COLOR = /^(#[0-9a-f]{3,8}|var\(--[a-z0-9-]+\)|(rgb|hsl)a?\([0-9 ,.%/]+\))$/i;
+const NUM = String.raw`-?(?:\d+\.?\d*|\.\d+)%?`;
+const COLOR = new RegExp(
+  String.raw`^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|var\(--[a-z0-9-]+\)|(?:rgb|hsl)a?\(\s*(?:${NUM}(?:\s*,\s*${NUM}){2,3}|${NUM}(?:\s+${NUM}){2}(?:\s*/\s*${NUM})?)\s*\))$`,
+  'i',
+);
 
 function sanitizeSpec(raw: unknown, base: LineStyleSpec): LineStyleSpec {
   const r = (raw ?? {}) as Partial<Record<keyof LineStyleSpec, unknown>>;
@@ -58,4 +62,10 @@ export function sanitizeFormationStyle(raw: unknown): FormationStyle {
   const out = {} as FormationStyle;
   for (const role of FORMATION_LINE_ROLES) out[role] = sanitizeSpec(r[role], DEFAULT_FORMATION_STYLE[role]);
   return out;
+}
+
+/** Farbe für Canvas: `var(--name)` kennt Canvas nicht (die Zuweisung wird still ignoriert); hier zur echten Farbe aufgelöst */
+export function canvasColor(color: string, read: (name: string) => string): string {
+  const m = /^var\((--[a-z0-9-]+)\)$/i.exec(color);
+  return m ? read(m[1]).trim() : color;
 }

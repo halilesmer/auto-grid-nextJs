@@ -258,7 +258,7 @@ export function FormationView() {
   return (
     <ChartPage
       title={t('formation.title')}
-      pageProps={{ 'data-scan-ms': scan.scanMs ?? '', 'data-favorites-scan-ms': favoritesScanMs ?? '' }}
+      pageProps={{ 'data-scan-ms': scan.scanMs ?? '', 'data-scan-runs': scan.scanRuns, 'data-favorites-scan-ms': favoritesScanMs ?? '' }}
       panelShown={sidebarShown}
       surface={body()}
       topBar={

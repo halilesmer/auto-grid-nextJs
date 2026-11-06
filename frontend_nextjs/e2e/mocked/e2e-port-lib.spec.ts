@@ -42,9 +42,16 @@ test.describe('e2e-Port aus dem Checkout-Pfad', { tag: '@SYS-10' }, () => {
     expect(resolveE2EPort({ E2E_PORT: '3187', CI: 'true' }, WT_A)).toBe(3187);
   });
 
-  test('ein ungültiges E2E_PORT fällt auf die Ableitung zurück', () => {
-    expect(resolveE2EPort({ E2E_PORT: 'abc' }, WT_A)).toBe(portForPath(WT_A));
+  test('ein leeres E2E_PORT zählt als nicht gesetzt', () => {
     expect(resolveE2EPort({ E2E_PORT: '' }, WT_A)).toBe(portForPath(WT_A));
+  });
+
+  test('ein ungültiges E2E_PORT ist ein klarer Fehler, kein stiller Rückfall (R3-09)', () => {
+    for (const bad of ['abc', '0', '-5', '65536', '99999', '3187.5', '3e3', '12 34']) {
+      expect(() => resolveE2EPort({ E2E_PORT: bad }, WT_A), bad).toThrow(/E2E_PORT=".*" ist ungültig/);
+    }
+    expect(resolveE2EPort({ E2E_PORT: '65535' }, WT_A)).toBe(65535);
+    expect(resolveE2EPort({ E2E_PORT: '1' }, WT_A)).toBe(1);
   });
 
   test('die Checkout-Wurzel aus der Umgebung wird übernommen (Playwright-Worker)', () => {

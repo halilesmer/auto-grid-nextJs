@@ -8,15 +8,20 @@
 #
 # Regeln:
 #   - Nur ein lauschender Prozess, dessen cwd (lsof) genau <frontend-dir> ist, wird beendet.
-#   - Hat er einen laufenden `playwright`-Vorfahren, gehört er zu einem aktiven Lauf: nicht anfassen
-#     (start: Fehler, exit: in Ruhe lassen).
+#   - Hat er einen laufenden Playwright-Vorfahren (Befehl `playwright test`, `playwright/cli …` oder
+#     `@playwright/test/cli …`; der Checkout-PFAD zählt nicht, R3-06), gehört er zu einem aktiven Lauf:
+#     nicht anfassen (start: Fehler, exit: in Ruhe lassen).
+#   - Ist der Port leer (env.ts nicht lesbar, E2E_PORT ungültig), meldet start einen Fehler (R3-11);
+#     exit tut nichts.
 #   - Ein fremder Prozess (anderes cwd) wird nie beendet: start → klare Fehlermeldung, Rückgabe 1.
 #   - E2E_REUSE=1: der eigene Server ist gewollt (playwright.config.ts), nichts beenden.
 
 _es_log() { echo "[e2e-server] $*" >&2; }
 
 e2e_port() {
-  (cd "$1" && node -p "require('./e2e/fixtures/env.ts').E2E_PORT" 2>/dev/null)
+  # stderr bleibt sichtbar: ein ungültiges E2E_PORT oder eine unlesbare env.ts soll man sehen (R3-09, R3-11)
+  # process.stdout.write statt `node -p`: -p färbt Zahlen bei FORCE_COLOR ein, der Port bliebe mit ANSI-Codes
+  (cd "$1" && node --no-warnings -e "process.stdout.write(String(require('./e2e/fixtures/env.ts').E2E_PORT))")
 }
 
 _es_cwd() { lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1; }
@@ -25,7 +30,9 @@ _es_has_playwright_ancestor() {
   local p n=0
   p=$(ps -o ppid= -p "$1" 2>/dev/null | tr -d ' ')
   while [ -n "$p" ] && [ "$p" -gt 1 ] && [ "$n" -lt 32 ]; do
-    ps -o command= -p "$p" 2>/dev/null | grep -q 'playwright' && return 0
+    # Nur der Befehl des Vorfahren, nicht der Pfad: ein Checkout unter .../playwright-port-fix/...
+    # ließe sonst jeden verwaisten Server wie einen aktiven Lauf aussehen (R3-06).
+    ps -o command= -p "$p" 2>/dev/null | grep -Eq 'playwright test|playwright/cli|playwright/test/cli' && return 0
     p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')
     n=$((n + 1))
   done
@@ -34,8 +41,12 @@ _es_has_playwright_ancestor() {
 
 e2e_server_cleanup() {  # $1 port, $2 frontend-dir, $3 start|exit
   local port="$1" dir mode="${3:-start}" pid cwd rc=0
-  [ -n "$port" ] || return 0
   [ "${E2E_REUSE:-}" = "1" ] && return 0
+  if [ -z "$port" ]; then
+    [ "$mode" = start ] || return 0
+    _es_log "Port dieses Checkouts unbekannt (frontend_nextjs/e2e/fixtures/env.ts nicht lesbar oder E2E_PORT ungültig): kein sicherer Lauf möglich. Fehlermeldung oben prüfen, oder E2E_PORT=<1-65535> setzen."
+    return 1
+  fi
   command -v lsof >/dev/null || return 0
   dir=$(cd "$2" && pwd -P)
   for pid in $(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | sort -u); do

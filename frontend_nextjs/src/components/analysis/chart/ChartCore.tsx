@@ -29,7 +29,7 @@ import { type ChartBinding, createChartBinding, appearanceColors, rememberChartV
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { isSystemRsi } from '@/lib/chart-workspace/indicators';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
-import { dashArrayOf } from '@/lib/formation/lineStyle';
+import { canvasColor, dashArrayOf } from '@/lib/formation/lineStyle';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import {
   FractalsPrimitive,
@@ -596,12 +596,14 @@ export function ChartCore({
     const tones = { up: c.up === c.background ? c.borderUp : c.up, down: c.down === c.background ? c.borderDown : c.down };
     // Preset „classic“: beide Kerzenfarben fallen zusammen, dann tragen die Themefarben die Richtung
     if (tones.up === tones.down) { tones.up = colors.up; tones.down = colors.down; }
+    // Canvas kennt var(--…) nicht und ignoriert es still (die Linie bekäme die Saumfarbe): vorher zur echten Farbe lösen
+    const host = containerRef.current;
+    const resolve = (color: string) => canvasColor(color, (name) => (host ? getComputedStyle(host).getPropertyValue(name) : ''));
     const drawn = first === undefined || last === undefined ? [] : clipSegments(trendPath.segments, first, last, trendPath.axis).flatMap((s) => {
       const spec = s.tone === 'up' ? trendUp : trendDown;
-      return spec.visible ? [{ from: s.from, to: s.to, color: spec.color || tones[s.tone], width: spec.width, dash: dashArrayOf(spec.style) }] : [];
+      return spec.visible ? [{ from: s.from, to: s.to, color: resolve(spec.color) || tones[s.tone], width: spec.width, dash: dashArrayOf(spec.style) }] : [];
     });
     primitives.current.trend.set(drawn, c.background);
-    const host = containerRef.current;
     host?.setAttribute('data-trend', String(drawn.length));
     // Stil der Trendlinie am Element (Tests: die Linie ist Canvas und sonst nicht lesbar); Typ und Dicke gelten je Richtung
     host?.setAttribute('data-trend-width', String(trendUp.width));

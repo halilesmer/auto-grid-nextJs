@@ -31,10 +31,19 @@ export function portForPath(root: string): number {
   return E2E_PORT_MIN + (h % (E2E_PORT_MAX - E2E_PORT_MIN + 1));
 }
 
-/** Reihenfolge: explizites E2E_PORT > CI (3100) > Port aus dem Checkout-Pfad. */
+/**
+ * Reihenfolge: explizites E2E_PORT > CI (3100) > Port aus dem Checkout-Pfad.
+ * Ein gesetztes, aber ungültiges E2E_PORT (keine ganze Zahl 1–65535) ist ein Fehler, kein stiller
+ * Rückfall auf den Pfad-Port: sonst läuft ein Lauf auf einem anderen Port als gedacht (R3-09).
+ */
 export function resolveE2EPort(env: E2EEnv, root: string): number {
-  const explicit = Number(env.E2E_PORT);
-  if (env.E2E_PORT && Number.isInteger(explicit) && explicit > 0) return explicit;
+  if (env.E2E_PORT) {
+    const explicit = Number(env.E2E_PORT);
+    if (!/^\d+$/.test(env.E2E_PORT.trim()) || !Number.isInteger(explicit) || explicit < 1 || explicit > 65535) {
+      throw new Error(`E2E_PORT="${env.E2E_PORT}" ist ungültig: erwartet eine ganze Zahl von 1 bis 65535.`);
+    }
+    return explicit;
+  }
   if (env.CI) return E2E_CI_PORT;
   return portForPath(root);
 }

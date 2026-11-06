@@ -27,6 +27,9 @@ interface ContextMenuProps {
  */
 export function ContextMenu({ x, y, label, onClose, children, className, 'data-testid': testId }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  // Der Schließer darf wechseln, ohne die Listener (und den Fokus-Rückgabewert) neu aufzubauen
+  const closeRef = useRef(onClose);
+  useLayoutEffect(() => { closeRef.current = onClose; });
 
   // Nach dem Rendern messen und vor dem Paint in den sichtbaren Bereich schieben
   useLayoutEffect(() => {
@@ -38,11 +41,16 @@ export function ContextMenu({ x, y, label, onClose, children, className, 'data-t
   }, [x, y, children]);
 
   useEffect(() => {
-    ref.current?.focus({ preventScroll: true });
+    const onClose = () => closeRef.current();
+    const menuEl = ref.current;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    menuEl?.focus({ preventScroll: true });
     const inside = (target: EventTarget | null) => target instanceof Node && !!ref.current?.contains(target);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); return; }
       if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+      // Nur Tasten, die im Menü selbst eintreffen (Muster wie dropdown-menu.tsx), sonst gehört der Pfeil der Seite
+      if (!ref.current?.contains(document.activeElement)) return;
       const buttons = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
       if (!buttons.length) return;
       const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -54,17 +62,26 @@ export function ContextMenu({ x, y, label, onClose, children, className, 'data-t
     };
     const onDown = (e: Event) => { if (!inside(e.target)) onClose(); };
     const onScroll = (e: Event) => { if (!inside(e.target)) onClose(); };
+    // Tab (oder Klick) auf ein Element außerhalb schließt; Fensterverlust (relatedTarget null) schließt nicht
+    const onFocusOut = (e: FocusEvent) => {
+      if (e.relatedTarget instanceof Node && !menuEl?.contains(e.relatedTarget)) onClose();
+    };
+    menuEl?.addEventListener('focusout', onFocusOut);
     window.addEventListener('keydown', onKey, true);
     document.addEventListener('pointerdown', onDown, true);
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onClose);
     return () => {
+      menuEl?.removeEventListener('focusout', onFocusOut);
       window.removeEventListener('keydown', onKey, true);
       document.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onClose);
+      // Fokus zurück an das Element von vor dem Öffnen (sofern es noch da ist und der Fokus nicht schon woanders liegt)
+      const active = document.activeElement;
+      if (previous?.isConnected && (!active || active === document.body || menuEl?.contains(active))) previous.focus({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
 
   return createPortal(
     <div

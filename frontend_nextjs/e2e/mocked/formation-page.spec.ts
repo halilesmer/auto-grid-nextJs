@@ -1278,7 +1278,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
 
   /** Gespeicherter Alarm im Browser vor dem ersten Laden; `memory` = gemerkter Stand je `${Konto}|${Symbol}` */
-  async function seed(page: Page, stored: { favoritesEnabled?: string[]; enabled?: string[]; memory?: Record<string, unknown>; forms?: string[]; system?: boolean; history?: Record<string, unknown[]>; account?: string }) {
+  async function seed(page: Page, stored: { active?: boolean; favoritesEnabled?: string[]; enabled?: string[]; memory?: Record<string, unknown>; forms?: string[]; system?: boolean; history?: Record<string, unknown[]>; account?: string }) {
     // Nur Gartley, damit jede Meldung einzeln kommt; `forms` wählt andere Formationen
     const { forms = ['GAR'], system = true, ...rest } = stored;
     const value = JSON.stringify({ prefs: { events: { valid: true, target: true }, forms, system }, enabled: [], memory: {}, favoritesEnabled: [], ...rest });
@@ -1595,6 +1595,58 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(before + 4);
   });
 
+  test('Eine Trend-Änderung mitten im Durchlauf: der abgebrochene Durchlauf schreibt keinen Stand des alten Pfads zurück (R1-02)', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD', 'GBPUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    // Jede Speicherung des Alarms merken: die Produkte, deren Stand sie trägt
+    await page.addInitScript((key) => {
+      const writes: string[][] = [];
+      (window as unknown as { __alarmWrites: string[][] }).__alarmWrites = writes;
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k: string, v: string) {
+        if (k === key) {
+          try { writes.push(Object.keys(JSON.parse(v).memory ?? {})); } catch { /* kein JSON */ }
+        }
+        return original.call(this, k, v);
+      };
+    }, KEY);
+    // GBPUSD lädt langsam: der Durchlauf steckt dort fest, wenn der Trend sich ändert
+    let held = 0;
+    await page.route(/\/market\/.*\/rates/, async (route) => {
+      if (new globalThis.URL(route.request().url()).searchParams.get('symbol') === 'GBPUSD') {
+        held += 1;
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+      }
+      await route.fallback().catch(() => undefined);
+    });
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await expect.poll(() => held, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+    await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+    const writes = () => page.evaluate(() => (window as unknown as { __alarmWrites: string[][] }).__alarmWrites.length);
+    const before = await writes();
+    await page.getByTestId('trend-settings').click();
+    await page.getByTestId('trend-settings-panel').getByTestId('trend-minSize').fill('1.5');
+    await page.getByTestId('trend-confirm-apply').click();
+    // Der neue Durchlauf hängt wieder an GBPUSD (4 s): bis dahin darf nur der Abbruch des alten gespeichert haben
+    await page.waitForTimeout(2000);
+    const after = await page.evaluate((from) => (window as unknown as { __alarmWrites: string[][] }).__alarmWrites.slice(from), before);
+    expect(after.flat().filter((scope) => scope.startsWith(`${DEMO_ID}|`))).toEqual([]);
+    await expect(page.getByText(gartley('EURUSD'))).toHaveCount(0);
+  });
+
+  test('Alarm aus: kein Alarm-Produkt wird gesucht, auch keins ohne Favorit (R1-06)', { tag: '@FRM-43' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await seed(page, { enabled: [`${DEMO_ID}|GBPUSD`], active: false });
+    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await waitForPass(worker, 1);
+    await page.waitForTimeout(1500);
+    const symbols = worker.callsTo('GET', /\/market\/.*\/rates$/).map((c) => c.query.get('symbol'));
+    expect(symbols).toContain('EURUSD');
+    expect(symbols).not.toContain('GBPUSD');
+  });
+
   test('FRM-42 [Yeniden ara]: ein Regler ändert nur den Entwurf; erst die Bestätigung wendet an, speichert und startet die Suche neu', { tag: '@FRM-42' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
@@ -1612,16 +1664,70 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(strip).toBeVisible();
     await expect(strip).toContainText(msg('cw.trend.confirm.title'));
     await expect(page.getByTestId('trend-pending-dot')).toBeVisible();
-    // Entwurf: nichts gespeichert, keine neue Suche
+    // Entwurf: nichts gespeichert, keine neue Suche (weder der Favoriten-Suche noch der Suche der Seite selbst, R1-11)
     const before = ratesCalls(worker);
+    const pageRuns = () => page.getByTestId('formation-page').getAttribute('data-scan-runs');
+    const runs = await pageRuns();
+    expect(Number(runs)).toBeGreaterThan(0);
     await page.waitForTimeout(1500);
     expect(await stored()).toBe(applied);
     expect(ratesCalls(worker)).toBe(before);
+    expect(await pageRuns()).toBe(runs);
     await page.getByTestId('trend-confirm-apply').click();
+    await expect.poll(pageRuns, { timeout: 15_000 }).not.toBe(runs);
     await expect(strip).toHaveCount(0);
     await expect(page.getByTestId('trend-pending-dot')).toHaveCount(0);
     expect(await stored()).toBe(1.5);
     await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(before + 4);
+  });
+
+  /** Entwurf in Formation (Regler bewegt, nicht bestätigt), dann in derselben Seite zu Setup: der Speicher bleibt, die Adresse wechselt nur den Modus */
+  async function draftThenSetup(page: Page, worker: MockWorker) {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    serveFixture(worker, NOW);
+    await page.addInitScript(([key, trend]) => {
+      localStorage.setItem(key, JSON.stringify({ state: { trend, showTrend: true }, version: 1 }));
+    }, ['grid-robot-analysis-prefs', trendOf(fixtureBars)] as const);
+    await page.goto(`/chart?mode=setup&account=${DEMO_ID}&zone=${ZONE_ID}&tf=H4`);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(chart).toHaveAttribute('data-trend', /^[1-9]\d*$/);
+    const applied = await chart.getAttribute('data-trend');
+    await page.getByTestId('chart-mode-formation').click();
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.getByTestId('trend-settings').click();
+    await page.getByTestId('trend-settings-panel').getByTestId('trend-minSize').fill('3.5');
+    await expect(page.getByTestId('trend-confirm')).toBeVisible();
+    await page.getByTestId('chart-mode-setup').click();
+    await expect(chart).toBeVisible();
+    return { chart, applied: applied as string };
+  }
+  const storedTrend = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') ?? '{}').state?.trend as { minSize: number; changeCloses: number });
+
+  test('FRM-42 Setup: ein offener Entwurf aus Formation wird dort nicht still angewendet; eine Änderung gilt für die angewendete Einstellung und der Entwurf bleibt (R1-03)', { tag: '@FRM-42' }, async ({ page, worker }) => {
+    const { applied } = await draftThenSetup(page, worker);
+    const before = await storedTrend(page);
+    // Setup hat keine Bestätigungsleiste und kein Wartepunkt: das Panel zeigt die angewendete Einstellung
+    await expect(page.getByTestId('trend-pending-dot')).toHaveCount(0);
+    await page.getByTestId('trend-settings').click();
+    const panel = page.getByTestId('trend-settings-panel');
+    await expect(panel.getByTestId('trend-minSize')).toHaveValue(String(before.minSize));
+    await expect(page.getByTestId('trend-confirm')).toHaveCount(0);
+    const other = before.changeCloses === 1 ? 2 : 1;
+    await panel.getByRole('button', { name: msg(`cw.trend.closes.${other}`) }).click();
+    await expect.poll(async () => (await storedTrend(page)).changeCloses).toBe(other);
+    expect((await storedTrend(page)).minSize).toBe(before.minSize);
+    expect(applied).toMatch(/^\d+$/);
+    // Zurück in Formation wartet der Entwurf noch auf die Bestätigung
+    await page.getByTestId('chart-mode-formation').click();
+    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.getByTestId('trend-settings').click();
+    await expect(page.getByTestId('trend-settings-panel').getByTestId('trend-minSize')).toHaveValue('3.5');
+    await expect(page.getByTestId('trend-confirm')).toBeVisible();
+  });
+
+  test('FRM-42 Setup: der Chart zeichnet die angewendete Linie, nicht den offenen Entwurf aus Formation (R1-10)', { tag: '@FRM-42' }, async ({ page, worker }) => {
+    const { chart, applied } = await draftThenSetup(page, worker);
+    await expect(chart).toHaveAttribute('data-trend', applied);
   });
 
   test('FRM-42 [Geri al]: der Entwurf kehrt zur angewendeten Einstellung zurück, ohne neue Suche', { tag: '@FRM-42' }, async ({ page, worker }) => {

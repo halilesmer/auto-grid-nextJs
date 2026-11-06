@@ -421,6 +421,7 @@ const existingHints = defineArea(
     // --- Analiz ---
     'analysis.tab.chart.hint': 'MT5 fiyat grafiği; setup sınırları ve setup ayarlarıyla.',
     'formation.conditions.hint': 'Seçili adayın koşullarını kenar çubuğunda gösterir. Çubuk açılınca grafik sola kayar, üstünü örtmez. Etkin sekmenin simgesine tekrar tıklamak çubuğu kapatır.',
+    'formation.expectedD.select.hint': 'Bu formasyonu seçer: grafikteki beklenen D yolu, çizgiler ve koşullar ona geçer. Seçili rozet zaten etkindir.',
     'formation.tab.conditions.hint': 'Seçili adayın koşullarını gösterir: aday seçici ve kontrol listesi.',
     'formation.tab.favorites.hint': 'Favori ürünleri gösterir: hangi formasyonlar hangi zaman diliminde oluşmuş.',
     'formation.group.toggle.hint': '{group} grubunu daraltır veya genişletir.',
@@ -1038,6 +1039,7 @@ const existingHints = defineArea(
     // --- Analysis ---
     'analysis.tab.chart.hint': 'MT5 price chart with the setup limits and the setup settings.',
     'formation.conditions.hint': 'Shows the conditions of the selected candidate in the side bar. When the bar opens, the chart moves left instead of being covered. Clicking the icon of the active tab closes the bar.',
+    'formation.expectedD.select.hint': 'Selects this formation: the expected D path, the lines and the conditions on the chart switch to it. The selected badge is already active.',
     'formation.tab.conditions.hint': 'Shows the conditions of the selected candidate: candidate switch and checklist.',
     'formation.tab.favorites.hint': 'Shows the favourite products: which formations are formed in which timeframe.',
     'formation.group.toggle.hint': 'Collapses or expands the group {group}.',
@@ -1655,6 +1657,7 @@ const existingHints = defineArea(
     // --- Analyse ---
     'analysis.tab.chart.hint': 'MT5-Kurschart mit den Setup-Grenzen und den Setup-Einstellungen.',
     'formation.conditions.hint': 'Zeigt die Bedingungen des gewählten Kandidaten in der Seitenleiste. Beim Öffnen rückt der Chart nach links und wird nicht überdeckt. Ein Klick auf das Symbol des aktiven Reiters schließt die Leiste.',
+    'formation.expectedD.select.hint': 'Wählt diese Formation: erwarteter D-Weg, Linien und Bedingungen im Chart wechseln zu ihr. Das gewählte Abzeichen ist bereits aktiv.',
     'formation.tab.conditions.hint': 'Zeigt die Bedingungen des gewählten Kandidaten: Kandidaten-Umschalter und Checkliste.',
     'formation.tab.favorites.hint': 'Zeigt die Favoriten: welche Formationen in welchem Zeitraum gebildet sind.',
     'formation.group.toggle.hint': 'Klappt die Gruppe {group} ein oder aus.',

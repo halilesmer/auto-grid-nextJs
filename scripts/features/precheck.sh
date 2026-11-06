@@ -2,7 +2,8 @@
 # Prüfung vor dem ersten Push eines PRs: dasselbe wie CI (.github/workflows/tests.yml), in CI-Reihenfolge.
 #
 #   scripts/features/precheck.sh                  Katalog, Worker-pytest, lint, tsc, ALLE gemockten e2e-Tests
-#   scripts/features/precheck.sh --grep @ZON-05   zusätzliche Playwright-Argumente (nur zum Prüfen des Skripts)
+#   scripts/features/precheck.sh --grep @ZON-05   zusätzliche Playwright-Argumente (nur zum Prüfen des Skripts);
+#                                                  die Ergebniszeile heißt dann „PRECHECK TEILLAUF“, nie „PRECHECK OK“
 #
 # Der e2e-Lauf nimmt den Port dieses Checkouts (e2e/fixtures/env.ts, SYS-10), nie einen fremden Server.
 # Bricht ab, wenn Playwright keinen Test ausgeführt hat (scripts/features/pw_stats.py).
@@ -90,10 +91,18 @@ step tsc tsc
 step e2e e2e "$@"
 
 total=$(( $(date +%s) - start ))
+# Mit zusätzlichen Playwright-Argumenten (--grep …) läuft nur ein Teil der Tests: das ist kein
+# vollständiger Vorab-Check und darf nicht „PRECHECK OK“ heißen (R3-07).
+label="PRECHECK"
+[ "$#" -gt 0 ] && label="PRECHECK TEILLAUF (nur e2e mit: $*)"
 echo
 if [ "$fail" -eq 0 ]; then
-  echo "PRECHECK OK in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e $E2E_LINE"
+  if [ "$#" -gt 0 ]; then
+    echo "$label, kein vollständiger Check, nicht vor dem Push verwenden · in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e $E2E_LINE"
+  else
+    echo "PRECHECK OK in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e $E2E_LINE"
+  fi
 else
-  echo "PRECHECK FEHLER in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e ${E2E_LINE:-–}"
+  echo "$label FEHLER in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e ${E2E_LINE:-–}"
 fi
 exit "$fail"
