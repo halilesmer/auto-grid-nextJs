@@ -87,6 +87,14 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 - The chart host element gets its `ref` after the layout effects of its children. A child that reads `host.current` in a layout effect gets `null`. Use `useEffect`, and never let a package without a home lose its DOM node (it falls back to the bottom bar).
 - The box of a package includes the separator line. Measure positions on the box (`[data-dock-wrap]`), not on the inner group.
 
+## Solution (S3)
+
+- Row 2 is a real `DockRow` (`row2`). `DockPlace`, `DockRowZone` and `DockAction` have `row2`. The handle menu has "Move to row 2". Up and Down walk row 1, row 2 and the bottom bar.
+- Row 2 exists only in the Formation header. `DockProvider` knows this with `row2On` (the row registers itself). Without it, packages stored in row 2 are drawn in the bottom bar. The stored layout does not change. Setup and Free have no `timeframes` or `formations` package until S4.
+- `timeframes` and `formations` are `DockPackage`. The content is the same buttons, or the favorites views (FRM-29). The selected button carries `data-keep`, so it never goes into the arrow menu. `SHRINK_ORDER` hides formations first, then timeframes. The favorites views are one child each. They cannot split, so the box shrinks (`data-shrink`, CSS `flex: 0 1 auto`) and the view scrolls inside.
+- `FormationToolbar` no longer has the `bar2` grid. Row 1: selectors, actions, `DockRow row1`. Row 2: `DockRow row2` (hidden when empty, visible while dragging). Each element is in the DOM once, in the visible order. `useBar2` is gone. `ChartPage` measures the header height, so `--chart-top` follows the height of row 2.
+- Phone (container below 30 rem, decision A1.5): the old fixed order stays (timeframes next to actions, the formations strip below). It is rendered without packages when `dock.phone` is true.
+
 ## Risks
 
 - The header gap was tuned at many window widths (UI-14, UI-15, FRM-23, FRM-38). The groups move into the row. These measures change. Do not relax tests. Each PR says what changed and why.
@@ -103,5 +111,5 @@ The task was to check first if `layoutId` of `motion` v13 survives a move betwee
 
 ## Open points
 
-- [ ] S2 to S6.
+- [ ] S4 to S6.
 - [ ] Touch drag on a real phone (owner).

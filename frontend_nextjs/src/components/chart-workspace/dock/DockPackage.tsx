@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpToLine, GripVertical, Move, RotateCcw, FoldHorizontal } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpToLine, GripVertical, Move, RotateCcw, FoldHorizontal, Rows2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useT, type MessageKey } from '@/i18n';
 import type { PackageId } from '@/lib/chart-workspace/dock';
@@ -18,7 +18,9 @@ const isKept = (el: HTMLElement) => el.hasAttribute('data-keep') || el.querySele
  * taşır; içerik buraya portal edilir, bu yüzden durum, odak ve açık menüler taşınırken kalır. `children` paketin düğmeleridir
  * (her doğrudan çocuk bir öğe); sığmayan öğeler sondan başlayarak ok menüsüne girer, `data-keep` işaretli öğe ve ilk öğe girmez.
  */
-export function DockPackage({ id, children }: { id: PackageId; children: ReactNode }) {
+function setShrink(el: HTMLElement, on: boolean) { if (on) el.dataset.shrink = '1'; else delete el.dataset.shrink; }
+
+export function DockPackage({ id, children, className, shrink = false, testId }: { id: PackageId; children: ReactNode; className?: string; shrink?: boolean; testId?: string }) {
   const t = useT(), dock = useDock();
   // Kutu bir kez kurulur (istemcide); portal yalnız hidrasyondan sonra çizilir
   const mounted = useSyncExternalStore(subscribeNone, () => true, () => false);
@@ -40,6 +42,8 @@ export function DockPackage({ id, children }: { id: PackageId; children: ReactNo
   }, []);
 
   useLayoutEffect(() => () => wrap?.remove(), [wrap]);
+  // Bölünemeyen içerik (tek parça, kendi kaydırması olan Favoriler görünümü) satıra sığmazsa kutu küçülür; bölünebilir içerik küçülmez, ok menüsüne girer
+  useLayoutEffect(() => { if (!wrap) return; setShrink(wrap, shrink); }, [wrap, shrink]);
   const register = dock?.registerPackage;
   useLayoutEffect(() => {
     if (!wrap || !register) return;
@@ -52,7 +56,7 @@ export function DockPackage({ id, children }: { id: PackageId; children: ReactNo
 
   if (!dock || !wrap || !mounted) return null;
   const place = dock.placeOf(id), up = dock.menuUp(id), name = t(`cw.tbGroup.${id}` as MessageKey), info = dock.menuInfo(id);
-  const item = (target: 'row1' | 'bottom' | 'free', icon: ReactNode, label: MessageKey, testId: string) => (
+  const item = (target: 'row1' | 'row2' | 'bottom' | 'free', icon: ReactNode, label: MessageKey, testId: string) => (
     <DropdownMenuItem icon={icon} hint={t(place === target ? 'cw.tbHere.hint' : `${label}.hint` as MessageKey)} disabled={place === target} data-testid={testId} onSelect={() => dock.act(id, target)}>{t(label)}</DropdownMenuItem>
   );
   const handleHandlers = {
@@ -66,7 +70,7 @@ export function DockPackage({ id, children }: { id: PackageId; children: ReactNo
     onKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => dock.keyDown(id, e),
   };
   return createPortal(
-    <div role="group" aria-label={name} data-dock-pkg={id} data-zone={place} data-menu={up ? 'up' : 'down'}
+    <div role="group" aria-label={name} data-dock-pkg={id} data-testid={testId} data-zone={place} data-menu={up ? 'up' : 'down'}
       className={cn('group/tb flex min-w-0 items-center gap-0.5 rounded-[0.875rem] border border-transparent',
         place === 'free' && 'border-border bg-card p-px shadow-lg')}>
       {!dock.phone && (
@@ -75,6 +79,7 @@ export function DockPackage({ id, children }: { id: PackageId; children: ReactNo
           triggerProps={{ className: 'w-4 cursor-grab touch-none active:cursor-grabbing', 'data-dock-handle': id, 'data-testid': `dock-handle-${id}`, ...handleHandlers }}>
           <DropdownMenuGroup>
             {item('row1', <ArrowUpToLine className="size-4" aria-hidden="true" />, 'cw.tbMoveRow1', 'dock-move-row1')}
+            {info.hasRow2 && item('row2', <Rows2 className="size-4" aria-hidden="true" />, 'cw.tbMoveRow2', 'dock-move-row2')}
             {item('bottom', <ArrowDownToLine className="size-4" aria-hidden="true" />, 'cw.tbMoveBottom', 'dock-move-bottom')}
             {item('free', <Move className="size-4" aria-hidden="true" />, 'cw.tbMoveFree', 'dock-move-free')}
           </DropdownMenuGroup>
@@ -88,7 +93,7 @@ export function DockPackage({ id, children }: { id: PackageId; children: ReactNo
           </DropdownMenuGroup>
         </DropdownMenu>
       )}
-      <div ref={content} className="flex min-w-0 items-center gap-0.5">
+      <div ref={content} className={cn('flex min-w-0 items-center gap-0.5', className)}>
         {children}
         <DockOverflow content={content} up={up} label={name}>{children}</DockOverflow>
       </div>
