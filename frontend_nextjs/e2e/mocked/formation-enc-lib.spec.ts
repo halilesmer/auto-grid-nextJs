@@ -18,7 +18,7 @@ import { checkKeiCandidate } from '../../src/lib/formation/keiChecks';
 import type { Candidate, CheckState } from '../../src/lib/formation/types';
 import { END, H4, mirror, patched, type Row } from '../fixtures/formation-rows';
 import { AXIS, M, N, U, at, ctxOf, lineRows, state, statesOf, tip, trendH1 } from '../fixtures/formation-lines';
-import { markUnreachable, named, trendOf } from '../fixtures/formation-trend';
+import { named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-16' }, fn);
 const idOf = (n: number) => `ENC-${String(n).padStart(2, '0')}`;
@@ -270,7 +270,6 @@ const REAL: Real[] = [
 
 for (const r of REAL) {
   frm(`echte Reihe ${r.file}`, () => {
-    markUnreachable(r.file);
     const fx = loadReal(r.file);
     const c = analyzeEnc(new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) }), r.t)[0].candidate;
     expect(c.side).toBe(r.side);

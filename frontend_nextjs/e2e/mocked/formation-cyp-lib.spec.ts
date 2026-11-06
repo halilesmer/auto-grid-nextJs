@@ -19,7 +19,7 @@ import { analyzeGar } from '../../src/lib/formation/garChecks';
 import { analyzeBat } from '../../src/lib/formation/batChecks';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import { analyzeLib, checkLibCandidate, LIB_CHECK_IDS } from '../../src/lib/formation/libChecks';
-import type { ContextTimeframe } from '../../src/lib/formation/params';
+import { TREND_LIMITS, type ContextTimeframe } from '../../src/lib/formation/params';
 import type { Anchor, Candidate, CheckState } from '../../src/lib/formation/types';
 import { D1, END, H4, M15, barsOf, mirror, patched, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
@@ -434,6 +434,8 @@ const analyzeAt = (name: string, iso: string): Candidate => {
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 const time = (c: Candidate, point: string) => new Date(c.points[point].time * 1000).toISOString().slice(0, 16);
 const times = (c: Candidate) => ['X', 'A', 'B', 'C', 'D'].map((p) => time(c, p));
+/** Punkte des belegten Falls cyp-bad-h4-03 vor FRM-41 (aus dem Stand 5955b204 gemessen) */
+const DOCUMENTED_BAD_03 = { X: '2025-11-25T16:00', A: '2025-12-01T12:00', B: '2025-12-02T00:00', C: '2025-12-04T08:00', D: '2025-12-04T12:00' };
 const CORE = ['CYP-01', 'CYP-03', 'CYP-04', 'CYP-05', 'CYP-06', 'CYP-07'];
 
 test.describe('CYP: echte Kerzen', () => {
@@ -470,8 +472,12 @@ test.describe('CYP: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
-  // Trend { minSize 1.5, changeCloses 1 } (FIXTURE_TRENDS): C ist das echte Hoch 2025-12-04 16:00 (TRD-02), darum zusätzlich CYP 06 ☐
-  frm('cyp-bad-h4-03: Negativ – B nur an 0.239 (CYP 03 ☐), RSI(7) am C nur 76 (CYP 06 ☐) und D bei 0.100 von X → C noch weit von 0.786 (CYP 07 ☐)', () => {
+  // Audit R3-05 (2026-11-06): der belegte Fall (Stand vor FRM-41) hat X 11-25 16:00, A 12-01 12:00, B 12-02 00:00, C 12-04 08:00,
+  // D 12-04 12:00 mit CYP-03 ☐, CYP-06 ☑ (RSI(7) 86.5), CYP-07 ☐. Auf dem Trendzug des Nutzers liegt C am echten Hoch 16:00
+  // (0.66235, TRD-02), nicht am Hoch 08:00 (0.66187). Der Fall ist darum nicht erreichbar (journal 2026-11-06-fixture-unreachable-audit.md).
+  // Dieser Test hält die nächste Form auf dem Trendzug fest (Trend { minSize 1.5, changeCloses 1 }, FIXTURE_TRENDS); sie ist NICHT
+  // der belegte Fall: anderes C, CYP-06 ☐ statt ☑.
+  frm('cyp-bad-h4-03: Negativ auf dem Trendzug – B nur an 0.239 (CYP 03 ☐), RSI(7) am C nur 76 (CYP 06 ☐), D bei 0.100 von X → C (CYP 07 ☐); belegtes C 08:00 und CYP 06 ☑ nicht erreichbar', () => {
     const c = analyzeAt('cyp-bad-h4-03', '2025-12-05T20:00');
     expect(c.side).toBe('buy');
     expect(states(c, ['CYP-03', 'CYP-04', 'CYP-05', 'CYP-06', 'CYP-07'])).toEqual([N, M, M, N, N]);
@@ -479,6 +485,31 @@ test.describe('CYP: echte Kerzen', () => {
     expect(find(c, 'CYP-03').value!).toBeLessThan(0.382);
     expect(find(c, 'CYP-07').value!).toBeLessThan(0.786);
     expect(c.verdict).toBe('invalid');
+    // Abweichung vom belegten Fall, ausdrücklich gemessen
+    expect(time(c, 'C')).toBe('2025-12-04T16:00');
+    expect(time(c, 'C')).not.toBe(DOCUMENTED_BAD_03.C);
+    expect(state(c, 'CYP-06')).not.toBe(M);
+  });
+
+  frm('cyp-bad-h4-03: der belegte Fall (C 12-04 08:00) liegt auf keinem Zug des Stichproben-Rasters (Regeln, Größe 0,5–3,5, Schlüsse, ATR, EWO, Rücklauf)', () => {
+    const fixture = loadFixture('cyp-bad-h4-03');
+    const documented = Object.values(DOCUMENTED_BAD_03).join();
+    const rules = ['groesse', 'welle', 'geruest', 'filter'] as const;
+    const sizes = Array.from({ length: 13 }, (_, i) => TREND_LIMITS.minSize.min + TREND_LIMITS.minSize.step * i);
+    let runs = 0;
+    let withCandidate = 0;
+    for (const rule of rules) for (const minSize of sizes) for (const changeCloses of [1, 2]) for (const atrPeriod of [7, 14, 28]) for (const [ewoFast, ewoSlow] of [[5, 35], [8, 50], [13, 89]]) for (const ewoRetreat of [0.2, 0.5]) {
+      const trend = { ...FIXTURE_TREND, rule, minSize, changeCloses: changeCloses as 1 | 2, atrPeriod, ewoFast, ewoSlow, ewoRetreat };
+      const hit = analyzeCyp(new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend }), at('2025-12-05T20:00')).find((a) => a.tf === 'H4');
+      runs++;
+      if (hit?.candidate.points.X) {
+        withCandidate++;
+        expect(times(hit.candidate).join(), `${rule} ${minSize} ${changeCloses} ${atrPeriod} ${ewoFast}/${ewoSlow} ${ewoRetreat}`).not.toBe(documented);
+      }
+    }
+    expect(runs).toBeGreaterThan(1000);
+    // das Raster findet Cypher-Kandidaten (sonst bewiese die Schleife nichts)
+    expect(withCandidate).toBeGreaterThan(100);
   });
 
   frm('cyp-lib-h4-01: Verkauf-Cypher; das gewählte P3 der Libra ist noch kein fertiges Fraktal (LIB-04), darum CYP 10 ☐; ohne RSI am C ungültig, darum LIB 09 nicht messbar', () => {
