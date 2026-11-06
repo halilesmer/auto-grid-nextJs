@@ -464,6 +464,24 @@ def test_einstieg_vor_dem_zeitraum_wird_nachgeladen(client, broker, deals):
 
 
 @pytest.mark.feature("ANA-07")
+def test_einstiegsdeal_traegt_sl_tp_der_eroeffnungsorder(client, broker):
+    now = int(time.time()) + 3 * 3600
+    pos = broker.add_position(SYMBOL, 0, 2600.0, 0.1, tp=2610.0, sl=2590.0, magic=200001)
+    broker.add_deal(SYMBOL, 0, 0, now - 3600, volume=0.1, price=2600.0, magic=200001,
+                    position_id=pos.identifier, order=pos.identifier)
+    nolevel = broker.add_deal(SYMBOL, 0, 0, now - 1800, volume=0.1, price=2601.0, magic=200001,
+                              position_id=999001, order=999001)  # Order nicht mehr in der Historie
+    out = broker.add_deal(SYMBOL, 1, 1, now - 600, volume=0.1, price=2610.0, magic=200001,
+                          position_id=pos.identifier)
+    body = client.get(DEALS_URL, params={"from": now - 86400}).json()
+    by = {d["ticket"]: d for d in body["deals"]}
+    entry = next(d for d in body["deals"] if d["position_id"] == pos.identifier and d["entry"] == 0)
+    assert (entry["open_sl"], entry["open_tp"]) == (2590.0, 2610.0)
+    assert (by[nolevel.ticket]["open_sl"], by[nolevel.ticket]["open_tp"]) == (None, None)
+    assert by[out.ticket]["open_sl"] == 2590.0  # Ausstieg derselben Position: gleiche Werte (Konsument nimmt den Einstieg)
+
+
+@pytest.mark.feature("ANA-07")
 def test_deals_bei_belegtem_konto_nur_aus_dem_archiv(client, broker, deals, monkeypatch):
     import src.api.market as market
 

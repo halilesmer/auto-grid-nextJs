@@ -134,6 +134,14 @@ MIGRATIONS: list[list[str]] = [
         )""",
         "CREATE INDEX backtest_reports_owner ON backtest_reports (owner, created_at)",
     ],
+    [
+        # ANA-07: SL/TP der Eröffnungsorder je Position (history_orders_get). Eine Zeile = nachgeschlagen;
+        # sl/tp NULL = die Order trug keinen Wert oder ist nicht mehr in der MT5-Historie.
+        """CREATE TABLE position_orders (
+            account_id TEXT NOT NULL, position_id INTEGER NOT NULL, sl REAL, tp REAL,
+            looked_up_at INTEGER NOT NULL, PRIMARY KEY (account_id, position_id)
+        )""",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
@@ -507,6 +515,42 @@ def _deal_row(row) -> dict:
     return d
 
 
+def entries_without_levels(account_id: str, a: int, b: int, entry_in: int = 0) -> list[dict]:
+    """Einstiegs-Deals im Zeitraum, deren Eröffnungsorder noch nicht nachgeschlagen wurde (neueste zuerst)."""
+    with reading() as conn:
+        return [{"position_id": r[0], "order": r[1]} for r in conn.execute(
+            "SELECT d.position_id, MAX(d.\"order\") FROM deals d WHERE d.account_id=? AND d.t_mt5 >= ? "
+            "AND d.t_mt5 < ? AND d.entry=? AND d.position_id > 0 AND NOT EXISTS (SELECT 1 FROM position_orders p "
+            "WHERE p.account_id=d.account_id AND p.position_id=d.position_id) "
+            "GROUP BY d.position_id ORDER BY MAX(d.t_mt5) DESC",
+            (account_id, a, b, entry_in),
+        )]
+
+
+def store_position_orders(account_id: str, rows: list[dict]):
+    now = int(time.time())
+    with writing() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO position_orders (account_id, position_id, sl, tp, looked_up_at) VALUES (?,?,?,?,?)",
+            [(account_id, r["position_id"], r.get("sl"), r.get("tp"), now) for r in rows],
+        )
+
+
+def _attach_open_levels(conn, account_id: str, deals: list[dict]) -> None:
+    """Einstiegs-Deals bekommen open_sl/open_tp der Eröffnungsorder (None = unbekannt)."""
+    ids = {d["position_id"] for d in deals if d.get("position_id")}
+    levels = {}
+    if ids:
+        marks = ",".join("?" for _ in ids)
+        levels = {r[0]: (r[1], r[2]) for r in conn.execute(
+            f"SELECT position_id, sl, tp FROM position_orders WHERE account_id=? AND position_id IN ({marks})",
+            (account_id, *ids),
+        )}
+    for d in deals:
+        sl, tp = levels.get(d.get("position_id"), (None, None))
+        d["open_sl"], d["open_tp"] = sl, tp
+
+
 def read_deals(account_id: str, a: int, b: int) -> list[dict]:
     """Aralıktaki deal'ler + aralıktan önce açılmış pozisyonların giriş deal'leri (eşleştirme için)."""
     with reading() as conn:
@@ -524,7 +568,9 @@ def read_deals(account_id: str, a: int, b: int) -> list[dict]:
                 "ORDER BY time_msc, ticket",
                 (account_id, a, *positions),
             ) if r["ticket"] not in tickets]
-    return earlier + inside
+        merged = earlier + inside
+        _attach_open_levels(conn, account_id, merged)
+    return merged
 
 
 def positions_without_entry(account_id: str, a: int, b: int, entry_in: int = 0) -> list[int]:

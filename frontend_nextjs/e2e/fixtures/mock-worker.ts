@@ -410,7 +410,8 @@ export class MockWorker {
       account_id: accountId,
       from,
       to,
-      deals: [...earlier, ...inside],
+      // Wie market_db.read_deals: Einstiege tragen open_sl/open_tp der Eröffnungsorder (null = unbekannt)
+      deals: [...earlier, ...inside].map((d) => ({ ...d, open_sl: d.open_sl ?? null, open_tp: d.open_tp ?? null })),
       account: { currency: 'USD', balance: 10000, margin_mode: this.state.marginMode, updated_at: Math.floor(nowMs() / 1000) },
       zones: this.state.zoneRegistry[accountId] ?? [],
       missing: this.state.dealsMissing.filter((m) => m.to > from && m.from < to),
