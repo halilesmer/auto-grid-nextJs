@@ -6,7 +6,7 @@ import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
 import { canvasColor } from '@/lib/formation/lineStyle';
 import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
-import { aggregateIndicatorBars, calculateIndicator, isOscillator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { aggregateIndicatorBars, calculateIndicator, isOscillator, SYSTEM_RSI_ID, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { orderPanes, presentPanes, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { valueAtTime } from '@/lib/chart-workspace/hover';
 import type { Appearance } from '@/lib/chart-workspace/settings';
@@ -210,7 +210,10 @@ export interface SystemPaneInput {
 export interface SystemPaneModel extends SystemPaneInput { hidden: boolean; collapsed: boolean }
 /** The series of a system pane while it is drawn, for the drawing layer above the chart (formation page); null when the pane is off or hidden. */
 export interface SystemSeriesRef { current: ISeriesApi<'Line' | 'Histogram'> | null }
-export type SystemSeriesRefs = Record<SystemPaneId, SystemSeriesRef>;
+/** `rsi` is the series of the system RSI indicator (an ordinary indicator with a fixed id); the other ids are system panes. */
+export type SystemSeriesRefs = Record<SystemPaneId | 'rsi', SystemSeriesRef>;
+/** Height in px reserved above the upper band of an RSI pane for the legend row (design 1106-A2). */
+export const RSI_LEGEND_PX = 32;
 /** Sent on the chart host after the renderer built or changed panes, so layers above the chart measure again. */
 export const PANES_CHANGED_EVENT = 'chart-panes-changed';
 interface IndicatorGroup { config: Indicator; plots: Plot[]; result: ReturnType<typeof calculateIndicator> | null; times: number[]; divergence: DivergenceLines | null; color: string; marks: SelectionMarks | null }
@@ -255,7 +258,7 @@ export class IndicatorRenderer {
           const options = { visible: config.visible, priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
           const s = histogram ? chart.addSeries(HistogramSeries, options, pane) : chart.addSeries(LineSeries, { ...options, lineStyle: lineStyle(config.lineStyle) }, pane);
           // Ein Indikator-Bereich übernähme sonst die großen oberen Ränder der Kerzen-Achse (Platz für die Bedienung auf dem Chart)
-          if (pane > 0) s.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
+          if (pane > 0) s.priceScale().applyOptions({ scaleMargins: config.kind === 'RSI' ? { top: 0, bottom: 0 } : { top: 0.08, bottom: 0.08 } });
           plots.push(s); this.series.push(s); return s;
         };
         const first = line(color, config.kind === 'EWO');
@@ -263,7 +266,6 @@ export class IndicatorRenderer {
         const divergence = config.kind === 'RSI' && config.divergence ? new DivergenceLines(colors.up, negative) : null;
         if (divergence) first.attachPrimitive(divergence);
         if (config.kind === 'RSI') {
-          first.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
           if (config.bands) for (const p of [config.upper, config.middle, config.lower]) first.createPriceLine({ price: p, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false });
           if (config.background) first.attachPrimitive(new BandTint(config.lower, config.upper, withAlpha(color, .08)));
           if (config.smoothing !== 'none') { line(config.maColor || colors.warning); if (config.smoothing === 'BB') { line(colors.up); line(colors.up); } }
@@ -271,6 +273,17 @@ export class IndicatorRenderer {
             const s = chart.addSeries(BaselineSeries, { baseValue: { type: 'price', price: threshold }, visible: config.visible, topLineColor: 'transparent', bottomLineColor: 'transparent', topFillColor1: top ? withAlpha(colors.up, .4) : 'transparent', topFillColor2: 'transparent', bottomFillColor1: 'transparent', bottomFillColor2: !top ? withAlpha(negative, .4) : 'transparent', priceLineVisible: false, lastValueVisible: false }, pane);
             plots.push(s); this.series.push(s);
           }
+        }
+        if (config.kind === 'RSI') {
+          // Scale = lower..upper band, with room for the legend row above and a small gap below; ends outside the bands are cut at the edge.
+          // Every series of the group gets it, or the gradient series would widen the scale again.
+          const provider = () => {
+            // Proof for the tests (UI-18): the scale the chart really asked for
+            if (config.id === SYSTEM_RSI_ID) this.binding.host.setAttribute('data-rsi-scale', `${config.lower}:${config.upper}:${RSI_LEGEND_PX}:10`);
+            return { priceRange: { minValue: config.lower, maxValue: config.upper }, margins: { above: RSI_LEGEND_PX, below: 10 } };
+          };
+          for (const plot of plots) plot.applyOptions({ autoscaleInfoProvider: provider });
+          if (config.id === SYSTEM_RSI_ID && config.visible && this.systemSeries) this.systemSeries.rsi.current = first as ISeriesApi<'Line'>;
         }
         if (config.kind === 'MACD') { line(config.maColor || colors.warning); line(negative, true); }
         if (config.kind === 'BB') { line(color); line(color); }
@@ -284,7 +297,7 @@ export class IndicatorRenderer {
         if (system) { this.buildSystem(system, theme); continue; }
         for (const config of active) if (isOscillator(config) && config.paneId === paneId) build(config);
       }
-      this.binding.host.setAttribute('data-system-panes', String(basePanes + this.systemDrawn.length));
+      this.binding.host.setAttribute('data-system-panes', String(basePanes + this.systemDrawn.length + this.groups.filter(group => group.config.id === SYSTEM_RSI_ID).length));
     }
     const values: { config: Indicator; value: Value }[] = [];
     for (const group of this.groups) {

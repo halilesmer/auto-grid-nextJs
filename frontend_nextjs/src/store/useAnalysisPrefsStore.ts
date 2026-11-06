@@ -22,8 +22,6 @@ export interface AnalysisPrefs {
   showOrders: boolean;
   /** Marktpausen als Trennlinien */
   showPauses: boolean;
-  /** RSI(14) im eigenen Bereich unter den Kerzen */
-  showRsi: boolean;
   /** Abgeschlossene Trades aus dem Archiv als Pfeile im Chart */
   showHistory: boolean;
   /** Fraktale (nur Fraktal-Zonen) */
@@ -41,6 +39,8 @@ interface AnalysisPrefsState extends AnalysisPrefs {
   trendDraft: TrendSettings;
   setShowTrend: (value: boolean) => void;
   setTrend: (patch: Partial<TrendSettings>) => void;
+  /** Änderung außerhalb von Formation (Setup, Frei): gilt sofort für die angewendeten Einstellungen. Ein offener Entwurf behält seine Änderungen und übernimmt nur diese Felder, damit er nichts zurückdreht (R1-03) */
+  setAppliedTrend: (patch: Partial<TrendSettings>) => void;
   resetTrend: () => void;
   /** Entwurf übernehmen: Formationen, Suche und Alarm rechnen neu */
   applyTrend: () => void;
@@ -59,6 +59,9 @@ interface AnalysisPrefsState extends AnalysisPrefs {
   setPref: <K extends keyof AnalysisPrefs>(key: K, value: AnalysisPrefs[K]) => void;
 }
 
+/** Alle Felder gleich (nicht nur die, die die Linie rechnet): so bleibt ein Objekt oder ein Entwurf nur stehen, wenn nichts abweicht */
+const sameSettings = (a: TrendSettings, b: TrendSettings) => (Object.keys(DEFAULT_TREND_SETTINGS) as (keyof TrendSettings)[]).every((key) => a[key] === b[key]);
+
 export const ANALYSIS_PREFS_KEY = 'grid-robot-analysis-prefs';
 const DEFAULTS: AnalysisPrefs = {
   showZoneLines: true,
@@ -67,7 +70,6 @@ const DEFAULTS: AnalysisPrefs = {
   showTrades: true,
   showOrders: true,
   showPauses: true,
-  showRsi: true,
   showHistory: true,
   showFractals: true,
   showGaps: true,
@@ -82,6 +84,11 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
       trendDraft: DEFAULT_TREND_SETTINGS,
       setShowTrend: value => set({ showTrend: value }),
       setTrend: patch => set({ trendDraft: sanitizeTrendSettings({ ...get().trendDraft, ...patch }) }),
+      setAppliedTrend: patch => {
+        const trend = sanitizeTrendSettings({ ...get().trend, ...patch });
+        const draft = sanitizeTrendSettings({ ...get().trendDraft, ...patch });
+        set({ trend, trendDraft: sameSettings(draft, trend) ? trend : draft });
+      },
       resetTrend: () => set({ trendDraft: DEFAULT_TREND_SETTINGS }),
       applyTrend: () => set({ trend: get().trendDraft }),
       revertTrend: () => set({ trendDraft: get().trend }),
@@ -128,8 +135,12 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
         const p = (persisted ?? {}) as Partial<Record<keyof AnalysisPrefs | 'showTrend' | 'trend' | 'formationStyle', unknown>>;
         const next = { ...current };
         if (typeof p.showTrend === 'boolean') next.showTrend = p.showTrend;
-        next.trend = sanitizeTrendSettings(p.trend);
-        next.trendDraft = next.trend;
+        // Gleiche Werte: das Objekt bleibt, sonst startet jede Auswahlprüfung der Seite die Suche neu (R1-05)
+        const stored = sanitizeTrendSettings(p.trend);
+        next.trend = sameSettings(stored, current.trend) ? current.trend : stored;
+        // Ein ungespeicherter Entwurf überlebt das erneute Lesen (anderer Tab schreibt, Ansicht öffnet): sonst verschwindet die Bestätigungsleiste ohne Zutun des Nutzers (R1-04)
+        const dirty = !sameSettings(current.trendDraft, current.trend);
+        next.trendDraft = dirty ? current.trendDraft : next.trend;
         next.formationStyle = sanitizeFormationStyle(p.formationStyle);
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) {
           if (typeof p[key] === 'boolean') next[key] = p[key] as boolean;

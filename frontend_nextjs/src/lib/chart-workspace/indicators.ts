@@ -47,6 +47,9 @@ export interface Indicator {
   minTimeframe: number;
   maxTimeframe: number;
 }
+/** Fixed id of the one RSI the chart always owns (plan 1106-A2): the formation rules read it. The user cannot delete it, only switch its layer off. */
+export const SYSTEM_RSI_ID = 'system-rsi';
+export const isSystemRsi = (indicator: Pick<Indicator, 'id'>) => indicator.id === SYSTEM_RSI_ID;
 export type Value = number | null;
 export interface IndicatorResult { main: Value[]; extra: Value[][]; divergences: { from: number; to: number; bullish: boolean }[] }
 
@@ -66,6 +69,11 @@ export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
 }
 
 /** Readable text of the built-in calculation. It is shown only and never evaluated. */
+/** The system RSI with TradingView-like settings: length 7, close, no smoothing, bands 80/50/20, no background fill. */
+export function systemRsiIndicator(): Indicator {
+  return { ...newIndicator('RSI'), id: SYSTEM_RSI_ID, paneId: SYSTEM_RSI_ID, period: 7, smoothing: 'none', upper: 80, middle: 50, lower: 20, bands: true, background: false, gradients: true };
+}
+
 export function indicatorFormula(c: Indicator): string {
   if (c.kind === 'EWO') { const difference = `SMA(${c.source}, ${c.period}) - SMA(${c.source}, ${c.slow})`; return c.percent ? `EWO = (${difference}) / close * 100` : `EWO = ${difference}`; }
   if (c.kind === 'MACD') return `MACD = EMA(${c.source}, ${c.period}) - EMA(${c.source}, ${c.slow})\nSignal = EMA(MACD, ${c.signal})\nHistogram = MACD - Signal`;

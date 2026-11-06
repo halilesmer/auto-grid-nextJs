@@ -3,7 +3,7 @@
 import { Bell, Copy, EyeOff, Settings2, Star, Trash2 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import { useT } from '@/i18n';
-import { isOscillator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { isOscillator, isSystemRsi, type Indicator } from '@/lib/chart-workspace/indicators';
 import type { LineStyleSpec } from '@/lib/formation/lineStyle';
 import { INDICATOR_GRAY as GRAY } from '@/lib/chart-workspace/indicators';
 import { LineStyleControls } from './LineStyleControls';
@@ -48,7 +48,7 @@ export function IndicatorLineMenu({ x, y, indicator, label, actions, alarmsAvail
       {alarmsAvailable && isOscillator(indicator) && <ContextMenuItem hint={t('cw.indicatorAlarm.hint')} onSelect={() => actions.openAlarm(indicator)}><span className="flex items-center gap-2"><Bell size={15} />{t('cw.indicatorAlarm')}</span></ContextMenuItem>}
       <ContextMenuItem hint={t('cw.indicatorFavorite.hint')} onSelect={() => actions.toggleFavorite(indicator)}><span className="flex items-center gap-2"><Star size={15} />{t(favorite ? 'cw.indicatorUnfavorite' : 'cw.indicatorFavorite')}</span></ContextMenuItem>
       <ContextMenuItem hint={t(atLimit ? 'cw.indicatorCopyLimit.hint' : 'cw.indicatorCopy.hint')} onSelect={() => { if (!atLimit) actions.copy(indicator); }}><span className="flex items-center gap-2"><Copy size={15} />{t('cw.indicatorCopy')}</span></ContextMenuItem>
-      <ContextMenuItem hint={t('cw.remove.hint')} tone="danger" onSelect={() => actions.remove(indicator)}><span className="flex items-center gap-2"><Trash2 size={15} />{t('cw.remove')}</span></ContextMenuItem>
+      <ContextMenuItem hint={t(isSystemRsi(indicator) ? 'cw.legend.hideLayer.hint' : 'cw.remove.hint')} tone="danger" onSelect={() => actions.remove(indicator)}><span className="flex items-center gap-2"><Trash2 size={15} />{isSystemRsi(indicator) ? t('cw.legend.hideLayer', { layer: label }) : t('cw.remove')}</span></ContextMenuItem>
     </ContextMenu>
   );
 }

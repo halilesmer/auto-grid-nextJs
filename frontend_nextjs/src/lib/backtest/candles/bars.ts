@@ -12,11 +12,22 @@ export interface BaseBar {
   high: number;
   low: number;
   close: number;
+  /** Spread der Kerze in Punkten (MT5 `s`); fehlt er, zählt die Kerze nicht für das Minimum */
+  spread?: number | null;
+}
+
+/** Kleinster belegter Spread zweier Werte (wie MT5: Minimum der M1-Spreads in der Kerze); 0, wenn keiner belegt ist */
+function minSpread(a: number | null | undefined, b: number | null | undefined): number {
+  const av = typeof a === 'number' && Number.isFinite(a) ? a : null;
+  const bv = typeof b === 'number' && Number.isFinite(b) ? b : null;
+  if (av === null) return bv ?? 0;
+  if (bv === null) return av;
+  return Math.min(av, bv);
 }
 
 /**
- * `tick_volume` zählt die Basis-Kerzen der Zeitrahmen-Kerze und `spread` ist 0: beide Felder sind nicht belegt
- * (der Bot-Nachbau liest nur Zeit und OHLC).
+ * `tick_volume` zählt die Basis-Kerzen der Zeitrahmen-Kerze. `spread` ist wie in MT5 das Minimum der Spreads der
+ * Basis-Kerzen; der Fraktal-Check des Bots (`low + spread × point`) liest ihn.
  */
 export class TimeframeAggregator {
   private closed: Bar[] = [];
@@ -41,13 +52,14 @@ export class TimeframeAggregator {
       last.low = Math.min(last.low, bar.low);
       last.close = bar.close;
       last.tick_volume += 1;
+      last.spread = minSpread(last.spread, bar.spread);
       return;
     }
     if (last) {
       this.closed.push(last);
       if (this.closed.length > this.keep * 2) this.closed.splice(0, this.closed.length - this.keep);
     }
-    this.last = { time: start, open: bar.open, high: bar.high, low: bar.low, close: bar.close, tick_volume: 1, spread: 0 };
+    this.last = { time: start, open: bar.open, high: bar.high, low: bar.low, close: bar.close, tick_volume: 1, spread: minSpread(null, bar.spread) };
   }
 
   /**
@@ -68,11 +80,11 @@ export class TimeframeAggregator {
           low: Math.min(last.low, forming.low),
           close: forming.close,
           tick_volume: last.tick_volume + 1,
-          spread: 0,
+          spread: minSpread(last.spread, forming.spread),
         });
       } else {
         if (last) all.push(last);
-        all.push({ time: start, open: forming.open, high: forming.high, low: forming.low, close: forming.close, tick_volume: 1, spread: 0 });
+        all.push({ time: start, open: forming.open, high: forming.high, low: forming.low, close: forming.close, tick_volume: 1, spread: minSpread(null, forming.spread) });
       }
     } else if (last) {
       all.push(last);

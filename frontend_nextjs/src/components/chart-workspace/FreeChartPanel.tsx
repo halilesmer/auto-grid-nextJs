@@ -92,7 +92,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
       {data && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
         signalBars={signalBars} timeframe={timeframe}
         data={data} timeframeSec={TIMEFRAME_SEC[timeframe]} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
-        band={null} lines={[]} markers={[]} showRsi live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()}
+        band={null} lines={[]} markers={[]} live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()}
         fullscreenOfPage />}
     </div>}
     floating={<ChartOverlays notices={notices} />}
