@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { toast } from '@/components/ui/animated-toast';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
-import { INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
+import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -149,7 +149,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const maximizedPaneId = maximized?.scope === chartScope ? maximized.paneId : null;
   // Backtest and formation charts show history, so their values never cross a level live.
   const alarmsAvailable = context.view === 'analysis' || context.view === 'free';
-  const names = useMemo(() => indicatorNames(paneIndicators), [paneIndicators]);
+  const names = useMemo(() => indicatorNames(doc.indicators), [doc.indicators]);
 
   useEffect(() => {
     // The library may paint before our preload finishes. Its default reader rejects
@@ -370,7 +370,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const remaining = countdownNow == null ? null : Math.max(0, timeframeSec - ((countdownNow + elapsed) % timeframeSec));
   const patchIndicators = (change: (indicators: Indicator[]) => Indicator[]) => saveDocument({ ...documentRef.current, indicators: change(documentRef.current.indicators) });
   /** The system RSI is never deleted: removing it switches its layer off (same state as the switch in the layers menu). */
-  const removeIndicators = (ids: Set<string>) => saveDocument({ ...(ids.has(SYSTEM_RSI_ID) ? applySystemLayer(documentRef.current, 'rsi', false) : documentRef.current), indicators: documentRef.current.indicators.filter(item => !ids.has(item.id) || isSystemRsi(item)), alarms: documentRef.current.alarms.filter(alarm => !ids.has(alarm.indicatorId)) });
+  const removeIndicators = (ids: Set<string>) => saveDocument({ ...(ids.has(SYSTEM_RSI_ID) ? applySystemLayer(documentRef.current, 'rsi', false) : documentRef.current), indicators: documentRef.current.indicators.filter(item => !ids.has(item.id) || isSystemRsi(item)), alarms: alarmsAfterRemove(documentRef.current.alarms, ids) });
   const changeIndicator = (id: string, change: Partial<Indicator>) => patchIndicators(indicators => indicators.map(item => item.id === id ? { ...item, ...change } : item));
   const sideOf = (indicator: Indicator) => indicator.scaleSide === 'auto' ? appearance.side as 'left' | 'right' : indicator.scaleSide;
   const patchSystemPane = (id: SystemPaneId, change: (state: { hidden?: boolean; collapsed?: boolean }) => { hidden?: boolean; collapsed?: boolean }) => {

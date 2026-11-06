@@ -301,7 +301,11 @@ export class IndicatorRenderer {
           plots.push(s as ISeriesApi<'Line'>); this.series.push(s as ISeriesApi<'Line'>); return s;
         };
         const mainRow = row('rsi');
-        const first = line(config.kind === 'RSI' ? fade(mainRow.color, mainRow.opacity) : color, config.kind === 'EWO', true, config.kind === 'RSI' ? mainRow : undefined);
+        // The main line row switched off: the series stays (scale, legend value, bands hang on it) and only turns transparent
+        let mainTone = config.kind === 'RSI' ? fade(mainRow.color, mainRow.opacity) : color;
+        if (!mainRow.on) mainTone = 'transparent';
+        const first = line(mainTone, config.kind === 'EWO', true, config.kind === 'RSI' ? mainRow : undefined);
+        if (config.id === SYSTEM_RSI_ID) this.binding.host.setAttribute('data-rsi-line', mainRow.on ? 'on' : 'off');
         if (isOscillator(config) && !this.paneSeries.has(config.paneId)) this.paneSeries.set(config.paneId, first);
         const divergence = config.kind === 'RSI' && config.divergence && row('divUp').on ? new DivergenceLines(fade(row('divUp').color, row('divUp').opacity), fade(row('divDown').color, row('divDown').opacity), row('divUp').width) : null;
         if (divergence) first.attachPrimitive(divergence);
@@ -324,8 +328,9 @@ export class IndicatorRenderer {
           for (const key of ['over', 'under'] as const) {
             const r = row(key), top = key === 'over';
             if (!r.on) continue;
-            const s = chart.addSeries(BaselineSeries, { baseValue: { type: 'price', price: top ? config.upper : config.lower }, visible: config.visible, topLineColor: 'transparent', bottomLineColor: 'transparent', topFillColor1: top ? fade(r.color, r.opacity) : 'transparent', topFillColor2: top ? fade(r.color2, r.opacity) : 'transparent', bottomFillColor1: !top ? fade(r.color, r.opacity) : 'transparent', bottomFillColor2: !top ? fade(r.color2, r.opacity) : 'transparent', priceLineVisible: false, lastValueVisible: false }, pane);
+            const s = chart.addSeries(BaselineSeries, { priceScaleId: scaleOf(config), baseValue: { type: 'price', price: top ? config.upper : config.lower }, visible: config.visible, topLineColor: 'transparent', bottomLineColor: 'transparent', topFillColor1: top ? fade(r.color, r.opacity) : 'transparent', topFillColor2: top ? fade(r.color2, r.opacity) : 'transparent', bottomFillColor1: !top ? fade(r.color, r.opacity) : 'transparent', bottomFillColor2: !top ? fade(r.color2, r.opacity) : 'transparent', priceLineVisible: false, lastValueVisible: false }, pane);
             plots.push(s as unknown as ISeriesApi<'Line'>); this.series.push(s as unknown as ISeriesApi<'Line'>); gradientPlots++;
+            if (config.id === SYSTEM_RSI_ID) this.binding.host.setAttribute(`data-rsi-${key}-scale`, scaleOf(config));
           }
         }
         if (config.kind === 'RSI') {
@@ -344,7 +349,7 @@ export class IndicatorRenderer {
         if (config.kind === 'MACD') { line(config.maColor || colors.warning); line(negative, true); }
         if (config.kind === 'BB') { line(color); line(color); }
         if (config.kind === 'EWO' || config.kind === 'MACD') first.createPriceLine({ price: 0, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false });
-        this.groups.push({ config, plots, result: null, times: [], divergence, color, marks: null, gradients: gradientPlots });
+        this.groups.push({ config, plots, result: null, times: [], divergence, color: mainRow.on ? color : 'transparent', marks: null, gradients: gradientPlots });
       };
       // Overlays on the price pane first, then one pane after the other in the saved order; a pane is built only when it has something to draw
       for (const config of active) if (!isOscillator(config)) build(config);

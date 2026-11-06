@@ -24,8 +24,8 @@ export function rowStyle(c: Indicator, key: RowKey, tones: Tones): RowStyle {
       case 'upper': case 'lower': return { on: c.bands, color: tones.muted, color2: '', opacity: 100, width: 1, lineStyle: 'dashed' };
       case 'middle': return { on: c.bands, color: tones.muted, color2: '', opacity: 50, width: 1, lineStyle: 'dashed' };
       case 'bg': return { on: c.background, color: c.color || tones.info, color2: '', opacity: 8, width: 1, lineStyle: 'solid' };
-      case 'over': return { on: c.gradients, color: tones.up, color2: '', opacity: 40, width: 1, lineStyle: 'solid' };
-      case 'under': return { on: c.gradients, color: '', color2: c.negative || tones.down, opacity: 40, width: 1, lineStyle: 'solid' };
+      case 'over': return { on: c.gradients, color: tones.up, color2: '', opacity: 100, width: 1, lineStyle: 'solid' };
+      case 'under': return { on: c.gradients, color: '', color2: c.negative || tones.down, opacity: 100, width: 1, lineStyle: 'solid' };
       case 'bbUpper': case 'bbLower': return { on: true, color: tones.up, color2: '', opacity: 100, width: 1, lineStyle: 'solid' };
       case 'bbFill': return { on: true, color: tones.up, color2: '', opacity: 15, width: 1, lineStyle: 'solid' };
       case 'divUp': return { on: true, color: tones.up, color2: '', opacity: 100, width: 2, lineStyle: 'solid' };

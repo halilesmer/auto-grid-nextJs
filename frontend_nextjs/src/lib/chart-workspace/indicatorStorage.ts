@@ -12,11 +12,19 @@ export function parseVisibility(input: unknown): Visibility {
   const v = input as Record<string, unknown>;
   return { minute: rule(v.minute, DEFAULT_VISIBILITY.minute, 59), hour: rule(v.hour, DEFAULT_VISIBILITY.hour, 24), day: typeof v.day === 'boolean' ? v.day : true };
 }
-/** Version 2 stored one range of seconds. It maps to the new unit rules: a unit shows when any interval of it lies inside the old range. */
+/**
+ * Version 2 stored one range of seconds. It maps to the unit rules: a unit shows for the intervals of it that lie inside the old range,
+ * and its range is narrowed to them (the intervals the old range did not show stay hidden).
+ */
 export function visibilityFromSeconds(min: number, max: number): Visibility {
-  const has = (from: number, to: number, step: number) => { for (let s = from; s <= to; s += step) if (s >= min && s <= max) return true; return false; };
   const v = structuredClone(DEFAULT_VISIBILITY);
-  v.minute.on = has(60, 3540, 60); v.hour.on = has(3600, 86399, 3600); v.day = max >= 86400 && min <= 86400;
+  const unit = (rule: RangeRule, step: number, first: number, last: number) => {
+    const from = Math.max(first, Math.ceil(min / step)), to = Math.min(last, Math.floor(max / step));
+    if (from > to) { rule.on = false; return; }
+    rule.on = true; rule.from = from; rule.to = to;
+  };
+  unit(v.minute, 60, 1, 59); unit(v.hour, 3600, 1, 24);
+  v.day = max >= 86400 && min <= 86400;
   return v;
 }
 

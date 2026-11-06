@@ -242,3 +242,34 @@ export function aggregateIndicatorBars(bars: readonly Bar[], seconds: number, ch
   // An unfinished current bucket is only known at the latest visible constituent candle.
   return [...buckets.values()].map(b => ({ ...b, time: Math.min(b.time, bars.at(-1)?.time ?? b.time) }));
 }
+
+/** Digits of the value in the status line: the chosen precision, else two for RSI and five for the rest. */
+export function valueDigits(indicator: Pick<Indicator, 'kind' | 'precision'>): number {
+  if (indicator.precision >= 0) return indicator.precision;
+  return indicator.kind === 'RSI' ? 2 : 5;
+}
+/** Number format of the status-line value: always the full digits, so 53,70 does not turn into 53,7. */
+export const legendValueOptions = (indicator: Pick<Indicator, 'kind' | 'precision'>) => ({ minimumFractionDigits: valueDigits(indicator), maximumFractionDigits: valueDigits(indicator) });
+/** Alarms left after removing indicators: the system RSI only switches its layer off, so its alarms stay. */
+export function alarmsAfterRemove<T extends { indicatorId: string }>(alarms: readonly T[], ids: ReadonlySet<string>): T[] {
+  return alarms.filter(alarm => !ids.has(alarm.indicatorId) || alarm.indicatorId === SYSTEM_RSI_ID);
+}
+/** The RSI reads the chart candles when it has no own timeframe or its timeframe is not above the chart's (`runtime.ts` does the same). */
+export const usesChartCandles = (timeframe: number, chartSeconds: number) => timeframe === 0 || timeframe <= chartSeconds;
+/** Whether the system RSI shows the numbers the formation rules read: length 7, close, the candles of the chart. */
+export function matchesFormationRsi(config: Pick<Indicator, 'period' | 'source' | 'timeframe'>, chartSeconds: number, period: number): boolean {
+  return config.period === period && config.source === 'close' && usesChartCandles(config.timeframe, chartSeconds);
+}
+/**
+ * "Reset" of an indicator. The system RSI always goes back to its formation inputs (length, source, timeframe, smoothing, bands);
+ * only its look may come from a saved default. Other kinds start from the saved default over the factory look.
+ */
+export function resetIndicator(item: Indicator, saved: Partial<Indicator> | undefined): Indicator {
+  const factory = isSystemRsi(item) ? systemRsiIndicator() : newIndicator(item.kind);
+  const base: Indicator = { ...factory, ...saved };
+  if (isSystemRsi(item)) {
+    const own = systemRsiIndicator();
+    Object.assign(base, { period: own.period, source: own.source, timeframe: own.timeframe, smoothing: own.smoothing, upper: own.upper, middle: own.middle, lower: own.lower });
+  }
+  return { ...base, id: item.id, paneId: item.paneId, paneCollapsed: item.paneCollapsed, scaleSide: item.scaleSide, visible: item.visible, kind: item.kind };
+}
