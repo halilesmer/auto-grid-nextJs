@@ -31,7 +31,7 @@ The project owner could not see the gradient fill and asked for a review of PR 4
 | 12 | Old layer text | `cw.layerRsi` still said "RSI(7) from closed candles" and "RSI 14, EWO" | Label "RSI"; hint says the gear opens the settings and the formation rules read RSI 7 · Close · 80/20 (tr/en/de) |
 
 ## Point 9: difference kept on purpose
-The pane RSI uses the TradingView formula: when the loss is 0, the RSI is 100, and a gap in the data restarts the warm-up. The formation function `wilderRsi` uses the Bora rule: when gain and loss are both 0, the RSI is 50. The two can differ on flat data. Do not make them the same. The formation scanner, `RSI_PARAMS` and the S1 band scale (32 px above, 10 px below) did not change.
+The pane RSI uses the TradingView formula: when the loss is 0, the RSI is 100, and a gap in the data restarts the warm-up. The formation function `wilderRsi` uses the formation rule: when gain and loss are both 0, the RSI is 50. The two can differ on flat data. Do not make them the same. The formation scanner, `RSI_PARAMS` and the S1 band scale (32 px above, 10 px below) did not change.
 
 ## Tests
 - `e2e/mocked/chart-rsi-review-lib.spec.ts` (no page): G, 1 (v1 and v2), 2, 5, 6, 7, 10. Before the fixes G, 1 and 10 were red.

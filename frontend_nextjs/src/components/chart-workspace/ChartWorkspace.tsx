@@ -149,7 +149,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const maximizedPaneId = maximized?.scope === chartScope ? maximized.paneId : null;
   // Backtest and formation charts show history, so their values never cross a level live.
   const alarmsAvailable = context.view === 'analysis' || context.view === 'free';
-  const names = useMemo(() => indicatorNames(doc.indicators), [doc.indicators]);
+  const names = useMemo(() => indicatorNames(paneIndicators), [paneIndicators]);
 
   useEffect(() => {
     // The library may paint before our preload finishes. Its default reader rejects
@@ -494,7 +494,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       saveDocument({ ...base, indicators, alarms: current.alarms.filter(alarm => indicators.some(item => item.id === alarm.indicatorId)) });
     }} />}
     {objectsOpen && <Modal open title={t('cw.objects')} onClose={() => setObjectsOpen(false)} className="max-h-[85dvh] max-w-3xl overflow-y-auto">
-      <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id)} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>
+      <div className="mb-3 flex flex-wrap gap-2" data-testid="object-indicators">{doc.indicators.map(indicator => <Button key={indicator.id} size="sm" aria-pressed={indicator.visible} hint={t('cw.indicatorTree.hint')} onClick={() => changeIndicator(indicator.id, { visible: !indicator.visible })}>{names.get(indicator.id) ?? indicator.kind} · {t(indicator.visible ? 'cw.visible' : 'cw.hidden')}</Button>)}<Button size="sm" variant="ghost" hint={t('cw.add.hint')} onClick={() => { setObjectsOpen(false); setIndicatorsOpen(true); }}>+ {t('cw.addIndicator')}</Button></div>
       <div className="flex flex-wrap gap-2">{drawings.map(d => <Button key={d.id} size="sm" aria-pressed={selected.includes(d.id)} hint={t('cw.selection.hint')} onClick={() => { manager.current?.select([d.id]); }}>{d.name || t(toolKey(d.kind))}</Button>)}</div>
       {active && <fieldset disabled={locked} className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
         <InputField label={t('cw.objectName')} hint={t('cw.objectName.hint')}><input className={fieldClass} value={active.name ?? ''} onChange={e => updateDrawing({ ...active, name: e.target.value })} /></InputField>

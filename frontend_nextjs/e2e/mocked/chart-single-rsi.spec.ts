@@ -79,3 +79,14 @@ test('UI-18 11: Objektliste nennt den RSI auch bei ausgeschalteter Ebene', { tag
   const objects = page.getByTestId('object-indicators');
   await expect(objects.getByRole('button').first()).toContainText(/^RSI · /);
 });
+
+test('UI-18 11: ausgeschaltete RSI-Ebene ändert den Namen des Nutzer-RSI nicht', { tag: '@UI-18' }, async ({ page, worker }) => {
+  void worker;
+  await page.goto(FREE);
+  await rows(page).locator('svg.lucide-trash-2').click();
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
+  await page.getByRole('button', { name: '+ RSI', exact: true }).click();
+  await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
+  await expect(page.locator('[data-indicator-value="RSI"]')).toContainText(/^RSI /);
+  await expect(page.locator('[data-indicator-value="RSI"]')).not.toContainText('RSI 2');
+});
