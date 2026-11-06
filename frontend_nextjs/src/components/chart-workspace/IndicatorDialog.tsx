@@ -23,6 +23,7 @@ export function IndicatorDialog({ values, favorites, focusId = null, onChange, o
         {v.kind !== 'ATR' && <Choice name="cw.source" value={v.source} options={['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4']} onChange={source => update(v.id, { source: source as Indicator['source'] })} />}
         <ColorField name="cw.color" value={v.color || colors.info} onChange={color => update(v.id, { color })} />
         {v.kind !== 'EWO' && <Numeric name="cw.width" value={v.width} min={1} max={4} onChange={width => update(v.id, { width: width as Indicator['width'] })} />}
+        {v.kind !== 'EWO' && <Choice name="cw.lineStyle" value={v.lineStyle} options={['solid', 'dashed', 'dotted']} onChange={lineStyle => update(v.id, { lineStyle: lineStyle as Indicator['lineStyle'] })} />}
         {['EWO', 'MACD'].includes(v.kind) && <><Numeric name="cw.slow" value={v.slow} min={1} onChange={slow => update(v.id, { slow })} /><ColorField name="cw.negative" value={v.negative || colors.down} onChange={negative => update(v.id, { negative })} /></>}
         {v.kind === 'EWO' && <Toggle name="cw.percent" checked={v.percent} onChange={percent => update(v.id, { percent })} />}
         {v.kind === 'MACD' && <Numeric name="cw.signal" value={v.signal} min={1} onChange={signal => update(v.id, { signal })} />}

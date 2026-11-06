@@ -64,6 +64,7 @@ function parseIndicators(input: unknown): Indicator[] {
     out.period = Math.max(1, Math.min(5000, Math.round(out.period))); out.slow = Math.max(1, Math.min(5000, Math.round(out.slow)));
     out.signal = Math.max(1, Math.min(5000, Math.round(out.signal))); out.smoothingPeriod = Math.max(1, Math.min(5000, Math.round(out.smoothingPeriod)));
     out.width = [1, 2, 3, 4].includes(out.width) ? out.width : 1;
+    out.lineStyle = v.lineStyle === 'dashed' || v.lineStyle === 'dotted' ? v.lineStyle : 'solid';
     out.source = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'].includes(v.source) ? v.source : 'close';
     out.smoothing = ['none', 'SMA', 'EMA', 'RMA', 'WMA', 'BB'].includes(v.smoothing) ? v.smoothing : defaults.smoothing;
     for (const k of ['color', 'negative', 'maColor'] as const) if (typeof v[k] === 'string' && /^#[\da-f]{6}$/i.test(v[k])) out[k] = v[k];

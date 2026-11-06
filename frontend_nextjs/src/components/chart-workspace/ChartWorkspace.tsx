@@ -394,6 +394,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     },
     toggleSystemVisible: id => patchSystemPane(id, pane => ({ ...pane, hidden: !pane.hidden })),
     toggleVisible: indicator => changeIndicator(indicator.id, { visible: !indicator.visible }),
+    update: (indicator, change) => changeIndicator(indicator.id, change),
     openSettings: indicator => { setSettingsFocus(indicator.id); setIndicatorsOpen(true); },
     switchScale: indicator => changeIndicator(indicator.id, { scaleSide: sideOf(indicator) === 'left' ? 'right' : 'left' }),
     moveToPane: (indicator, paneId) => changeIndicator(indicator.id, { paneId: paneId ?? crypto.randomUUID(), paneCollapsed: paneId ? doc.indicators.some(item => item.paneId === paneId && item.paneCollapsed) : false }),
@@ -470,7 +471,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       </div>
       <div className={overlayLayout ? 'contents' : 'relative min-w-0 flex-1'}>
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-[60px] z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
-        <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} textStyle={statusStyle} actions={oscillatorActions} systemPanes={systemModels} paneOrder={paneOrder} />
+        <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} lineMenuMode={appearance.lineMenu} textStyle={statusStyle} actions={oscillatorActions} systemPanes={systemModels} paneOrder={paneOrder} />
         <DrawingPriorityContext.Provider value={drawingPriority}>{children}</DrawingPriorityContext.Provider>
         {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) scale.fitContent(); else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
       </div>

@@ -63,6 +63,9 @@ export default defineArea(
     'cw.lineMenu.right': 'Yalnız sağ tık',
     'cw.lineMenu.double': 'Yalnız çift tık',
     'cw.lineMenu.off': 'Kapalı',
+    'cw.indicatorLine.menu': 'Gösterge · {indicator}',
+    'cw.lineStyle': 'Çizgi tipi',
+    'cw.lineStyle.hint': 'Çizgi tipi: göstergenin ana çizgisinin düz, kesik veya noktalı çizilmesini ayarlar. Bu tarayıcıda saklanır; emir göndermez.',
   },
   {
     'lineStyle.color': 'Color',
@@ -125,6 +128,9 @@ export default defineArea(
     'cw.lineMenu.right': 'Right click only',
     'cw.lineMenu.double': 'Double click only',
     'cw.lineMenu.off': 'Off',
+    'cw.indicatorLine.menu': 'Indicator · {indicator}',
+    'cw.lineStyle': 'Line type',
+    'cw.lineStyle.hint': 'Line type: draws the main line of the indicator solid, dashed or dotted. Saved in this browser; no orders are sent.',
   },
   {
     'lineStyle.color': 'Farbe',
@@ -187,5 +193,8 @@ export default defineArea(
     'cw.lineMenu.right': 'Nur Rechtsklick',
     'cw.lineMenu.double': 'Nur Doppelklick',
     'cw.lineMenu.off': 'Aus',
+    'cw.indicatorLine.menu': 'Indikator · {indicator}',
+    'cw.lineStyle': 'Linientyp',
+    'cw.lineStyle.hint': 'Linientyp: zeichnet die Hauptlinie des Indikators durchgezogen, gestrichelt oder gepunktet. Wird in diesem Browser gespeichert; löst keine Order aus.',
   },
 );

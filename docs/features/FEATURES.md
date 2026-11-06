@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-06 · **219/231** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-06 · **219/232** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 15/17 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 22/24 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 22/25 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/18 |
 | 16 | **FRM** – Formationserkennung | 42/45 |
 
@@ -806,6 +806,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - GET /market/{id}/ticks?symbol=&from=&to= (nur Admin, nur lesend) liefert die rohen Ticks (copy_ticks_range, COPY_TICKS_ALL) im Fenster [from, to] in MT5-Zeit (Sekunden) als time_msc/bid/ask/flags. Ein Aufruf deckt höchstens 2 Stunden ab (sonst 400), mehr als 200.000 Ticks ergeben 413. Die Verbindung nutzt data_query (kein Kontowechsel bei laufendem Bot, kein Login); ist das Konto in /start oder /stop, kommt 409. Zweck: beweisen, ob der Kerzen-Spread (Schluss-Snapshot) den M1-Versatz im Backtest-Live-Vergleich (K2) erklärt.
   - **Prüfung:** Als Admin auf dem VPS ein Zwei-Stunden-Fenster mit offenem Markt abrufen; ein Fenster über 2 Stunden abrufen.
   - **Erwartet:** Die Ticks kommen alt → neu mit Millisekunden-Zeit; das längere Fenster wird mit 400 abgelehnt.
+- [ ] **ANA-24** Menü auf der Indikator-Linie (Farbe, Typ, Dicke) — 🖥️ e2e ✅ 2026-11-06 · 👤 manuell ⏳
+  - Ein Rechtsklick (auf Android der Langdruck) oder Doppelklick auf eine Indikator-Linie öffnet an der Zeigerposition ein Menü: Stil (Farbe, Typ durchgezogen/gestrichelt/gepunktet, Dicke 1 bis 4) und die Aktionen der Legende (Ausblenden, Einstellungen…, Alarm, Favorit, Kopieren, Entfernen). Änderungen wirken sofort und werden im Dokument gespeichert; ein Dokument ohne das Feld lineStyle zeichnet die Linie durchgezogen. Welcher Auslöser das Menü öffnen darf, bestimmt die Chart-Einstellung „Çizgi menüsü“ (Rechts- und Doppelklick, nur Rechtsklick, nur Doppelklick, aus; gemeinsam mit FRM-47); bei gesperrtem Auslöser bleibt das Browsermenü. Ein aktives Zeichenwerkzeug oder eine Zeichnung unter der Maus haben Vorrang (wie bei der Auswahl in ANA-22), auf leerer Fläche öffnet sich kein Menü. Der Linientyp steht außerdem im Indikator-Dialog; auf iOS gibt es kein Menü, dort genügen „⋯“ und der Dialog.
+  - **Prüfung:** Auf /chart einen RSI anlegen, Rechtsklick auf die RSI-Linie, Farbe, Typ und Dicke ändern; Doppelklick und „Ayarlar…“ ausprobieren. → Chart-Einstellungen › Zeichnen › „Çizgi menüsü“ auf „Yalnız çift tık“, „Yalnız sağ tık“ und „Kapalı“ stellen und die Auslöser prüfen. → Zeichenwerkzeug wählen und auf die Linie klicken. Android: Langdruck auf die Linie. iOS: Linientyp im Indikator-Dialog.
+  - **Erwartet:** Das Menü öffnet sich nur auf der Linie und nur mit dem erlaubten Auslöser; der Stil wirkt sofort, bleibt nach dem Neuladen und ändert nur diesen Indikator; mit Zeichenwerkzeug öffnet sich kein Menü.
 - [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-11-04 · 🔌 api ✅ 2026-11-04 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.

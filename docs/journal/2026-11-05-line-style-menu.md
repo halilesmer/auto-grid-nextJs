@@ -55,6 +55,19 @@ Each step has its own session and PR.
 
 Screenshots: `docs/journal/images/2026-11-05-line-menu-light.png` and `…-dark.png`.
 
+### S3 decisions (indicators, ANA-24)
+
+- `Indicator.lineStyle` is `solid`, `dashed` or `dotted` (default `solid`). `parseIndicators` reads a missing or invalid value as `solid`, so older documents keep their look. The line series get it as `lineStyle` (lightweight-charts `LineStyle`, through the existing `lineStyle()` helper in `runtime.ts`). Histogram series (EWO bars) have no line pattern, so the dialog hides the choice for EWO.
+- Right click or double click on an indicator line opens `IndicatorLineMenu`: the shared `LineStyleControls` (color, type, width; no "visible" row) plus Settings, Hide, Alarm (oscillators), Copy and Delete. `IndicatorLegend` keeps the last `MouseEventParams`; `ownerOf()` and `lineTarget()` decide, so a drawing tool or a drawing under the mouse wins, and an empty area keeps the browser menu. `preventDefault` runs only when the menu opens.
+- The trigger gate is the shared helper `lib/chart-workspace/lineMenu.ts` (`lineMenuAllows`); the formation chart uses it too. The mode comes to the legend as a prop from `ChartWorkspace`, because the appearance is stored per product and the legend must read the same value as the settings dialog.
+- The gray swatch is a CSS variable. A canvas cannot draw it and the document accepts only `#rrggbb`, so the menu converts it to the theme gray as hex before it saves.
+- The renderer writes `data-indicator-lines` (kind, line pattern read from the series options, color) on the chart host. The test reads the real series state from it, not the document.
+- Not verified here: a real long press on Android and an iOS device (there is no menu on iOS; "⋯" and the dialog stay).
+
+### Lessons (S3)
+
+- After the settings dialog closes, the crosshair is not on the line any more, and a second search for the line can fail. The test reloads after each mode change. It also waits until the document is in `localStorage` first, because the write is delayed.
+
 ### Lessons
 
 - `openPage()` in `formation-page.spec.ts` writes a version-0 record with `seedFixtureTrend(..., force)` on every load. A test that needs stored prefs must add its init script after that seed and merge into the record.

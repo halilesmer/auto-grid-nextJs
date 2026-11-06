@@ -249,7 +249,7 @@ export class IndicatorRenderer {
         const plots: typeof this.series = [];
         const line = (tone: string, histogram = false) => {
           const options = { visible: config.visible, priceScaleId: scaleOf(config), color: tone, lineWidth: config.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 2 : 5, minMove: config.kind === 'RSI' || (config.kind === 'EWO' && config.percent) ? 0.01 : 0.00001 } };
-          const s = histogram ? chart.addSeries(HistogramSeries, options, pane) : chart.addSeries(LineSeries, options, pane);
+          const s = histogram ? chart.addSeries(HistogramSeries, options, pane) : chart.addSeries(LineSeries, { ...options, lineStyle: lineStyle(config.lineStyle) }, pane);
           // Ein Indikator-Bereich übernähme sonst die großen oberen Ränder der Kerzen-Achse (Platz für die Bedienung auf dem Chart)
           if (pane > 0) s.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
           plots.push(s); this.series.push(s); return s;
@@ -377,6 +377,12 @@ export class IndicatorRenderer {
         group.plots[0].detachPrimitive(group.marks); group.marks = null;
       }
     }
+    // Proof for the tests (ANA-24): the style the chart really draws, read from the series options
+    if (!this.binding.isDisposed()) this.binding.host.setAttribute('data-indicator-lines', JSON.stringify(this.groups.flatMap(({ config, plots }) => {
+      const first = plots[0]; if (!first || first.seriesType() !== 'Line') return [];
+      const options = (first as ISeriesApi<'Line'>).options();
+      return [{ id: config.id, kind: config.kind, lineStyle: options.lineStyle, lineWidth: config.width, color: options.color }];
+    })));
   }
   private layoutPanes(collapsedIds: ReadonlySet<string>, maximizedPaneId: string | null) {
     const panes = this.binding.chart.panes();
