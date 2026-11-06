@@ -3,6 +3,7 @@
 import { LineStyleControls } from '@/components/chart-workspace/LineStyleControls';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 import { FORMATION_LINE_ROLES } from '@/lib/formation/lineStyle';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -20,7 +21,7 @@ export function FormationLineTable() {
   return (
     <section aria-label={t('formation.line.table')} className="mt-6 first:mt-0">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('formation.line.table')}</h4>
+        <Tooltip content={t('formation.line.table.hint')}><h4 tabIndex={0} className="cursor-help text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('formation.line.table')}</h4></Tooltip>
         <Button size="sm" variant="ghost" hint={t('formation.line.table.resetAll.hint')} onClick={() => reset()}>{t('formation.line.table.resetAll')}</Button>
       </div>
       <div className="grid gap-2">

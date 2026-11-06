@@ -230,10 +230,13 @@ def test_unknown_offset_mode_is_rejected_at_request_boundary(client):
 def test_existing_csv_import_defaults_to_fixed_mode_after_migration(client):
     import_id, _ = upload(client, epoch_csv([MON]), commit=False)
     with market_db.writing() as conn:
-        # Spätere Migrationen (BKT-14: backtest_reports) zurücknehmen, dann die von offset_mode
+        # Spätere Migrationen (BKT-19: tick_spread*, BKT-20: tick_replay, BKT-14: backtest_reports) zurücknehmen, dann die von offset_mode
+        conn.execute("DROP TABLE tick_spread")
+        conn.execute("DROP TABLE tick_spread_coverage")
+        conn.execute("DROP TABLE tick_replay")
         conn.execute("DROP TABLE backtest_reports")
         conn.execute("ALTER TABLE csv_imports DROP COLUMN offset_mode")
-        conn.execute(f"PRAGMA user_version={market_db.SCHEMA_VERSION - 2}")
+        conn.execute(f"PRAGMA user_version={market_db.SCHEMA_VERSION - 4}")
     market_db.reset_cache()
 
     listed = client.get(f"{BASE}/imports")

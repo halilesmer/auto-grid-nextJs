@@ -3,6 +3,7 @@
  * Testende, Zeitrahmen des Bots, Abbruchgründe. Die Zahlen sind von Hand gerechnet (Rechnung im Kommentar).
  * BKT-04 Backtest-Rechner mit Kosten
  * BKT-15 Backtest-Zeitraum sekundengenau (Kerzen ganz im Zeitraum)
+ * BKT-19 Backtest-Spread „tick“ (Minuten-Mittel aus Ticks)
  */
 import { expect, test } from '@playwright/test';
 import { snapshotSymbol, type SymbolSnapshot } from '../../src/lib/backtest/broker/costs';
@@ -63,9 +64,10 @@ function snapshot(detail: Partial<SymbolDetail> = {}, swapEnabled = false): Symb
 }
 
 /** Zeilen: [Zeit, Eröffnung, Hoch, Tief, Schluss, Spread in Punkten] */
-function candles(rows: number[][]): LoadedRates {
+function candles(rows: number[][], sa?: number[]): LoadedRates {
   const col = (i: number) => Float64Array.from(rows.map((r) => r[i]));
-  return { t: col(0), o: col(1), h: col(2), l: col(3), c: col(4), s: Float64Array.from(rows.map((r) => r[5] ?? NaN)), missing: [], digits: 2, point: 0.01, liveFrom: null };
+  const tick = sa ? { sa: Float64Array.from(sa), sx: Float64Array.from(sa) } : {};
+  return { t: col(0), o: col(1), h: col(2), l: col(3), c: col(4), s: Float64Array.from(rows.map((r) => r[5] ?? NaN)), ...tick, missing: [], digits: 2, point: 0.01, liveFrom: null };
 }
 
 /** Kauf-Grid, Raster 1,00 ab 2600, 0,10 Lot, TP 1,00; der Bot setzt um den Kurs je zwei Stufen darunter und darüber */
@@ -632,11 +634,41 @@ test.describe('Vorbedingungen und Abbruch', () => {
   });
 
   test('Standard „max“ ohne eigenen Wert: größerer von Kerzen- und Symbol-Spread; ohne Symbol-Spread der Kerzenwert', { tag: '@BKT-18' }, () => {
-    expect(DEFAULT_RUN_SETTINGS.spreadMode).toBe('max');
     const max0 = { mode: 'max', points: 0 } as const;
     expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: 30 }) }).summary.spreadInfo).toBe(3);
     expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: 10 }) }).summary.spreadInfo).toBe(2);
     expect(run(candles([C1]), { spread: max0, snapshot: snapshot({ spread: null }) }).summary.spreadInfo).toBe(2);
+  });
+});
+
+test.describe('Spread „tick“ (Minuten-Mittel)', () => {
+  const tick0 = { mode: 'tick', points: 0 } as const;
+
+  test('Standard der Oberfläche ist „tick“', { tag: '@BKT-19' }, () => {
+    expect(DEFAULT_RUN_SETTINGS.spreadMode).toBe('tick');
+    expect(DEFAULT_RUN_SETTINGS.spreadPoints).toBe(0);
+  });
+
+  test('Ask = Bid + Minutenwert sa, nicht der Kerzen-Spread (35 statt 20 Punkte = 3,50 für 0,10 Lot)', { tag: '@BKT-19' }, () => {
+    const result = run(candles([C1], [35]), { spread: tick0 });
+    expect(result.summary.spreadInfo).toBe(3.5);
+    expect(result.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toBeUndefined();
+  });
+
+  test('ohne sa (NaN) gilt die Regel von „max“ (Kerze 20, Symbol 30 → 30) und eine Meldung zählt die Kerzen', { tag: '@BKT-19' }, () => {
+    const result = run(candles([C1], [NaN]), { spread: tick0, snapshot: snapshot({ spread: 30 }) });
+    expect(result.summary.spreadInfo).toBe(3);
+    expect(result.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toMatchObject({ params: { candles: 1, total: 1 } });
+    // ohne Tick-Spalten überhaupt (CSV): dasselbe, alle Kerzen zählen
+    const csv = run(candles([C1]), { spread: tick0, snapshot: snapshot({ spread: 30 }) });
+    expect(csv.summary.spreadInfo).toBe(3);
+    expect(csv.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toMatchObject({ params: { candles: 1, total: 1 } });
+  });
+
+  test('„tick“ mit M5-Daten (keine Minutenwerte): Regel von „max“ für alle Kerzen, mit Meldung statt Abbruch', { tag: '@BKT-19' }, () => {
+    const result = run(candles([C1]), { spread: tick0, dataTimeframe: 'M5', to: T1 + 300, snapshot: snapshot({ spread: 30 }) });
+    expect(result.summary.spreadInfo).toBe(3);
+    expect(result.log.lines.find((l) => l.code === 'run.tickSpreadFallback')).toMatchObject({ params: { candles: 1, total: 1 } });
   });
 });
 
@@ -851,5 +883,99 @@ test.describe('Pflichthinweise, Spread-Lernhistorie, Drawdown-Start', () => {
     expect(drawdownCurve(points, 1000).map((p) => p.value)).toEqual([-100, -100]);
     // Ohne Startwert (Statistik-Reiter) bleibt das Verhalten
     expect(drawdownCurve(points).map((p) => p.value)).toEqual([0, 0]);
+  });
+});
+
+test.describe('Selektives Tick-Replay (Rollover und Sprünge)', () => {
+  const tick0 = { mode: 'tick', points: 0 } as const;
+  /** Eine Replay-Minute: Zeilen [ms im Minute, Bid, Ask] in Preisen */
+  const withReplay = (rates: LoadedRates, t: number, ticks: number[][]): LoadedRates => ({
+    ...rates,
+    replay: new Map([[t, { ms: ticks.map((x) => x[0]), bid: ticks.map((x) => x[1]), ask: ticks.map((x) => x[2]) }]]),
+  });
+  /** Kerze 1 mit den Werten von C1; sa = 20 Punkte */
+  const base = () => candles([C1], [20]);
+  const same = (a: ReturnType<typeof run>, b: ReturnType<typeof run>) => {
+    expect(JSON.stringify(a.trades)).toBe(JSON.stringify(b.trades));
+    expect(a.summary).toEqual(b.summary);
+  };
+
+  test('Rollover: Ask bleibt hoch, ein Kauf-Limit füllt nicht, das der Kerzenweg füllen würde', { tag: '@BKT-20' }, () => {
+    const frozen = [[0, 2650.0, 2650.2], [10000, 2649.5, 2650.2], [20000, 2648.4, 2650.2], [30000, 2648.6, 2650.2]];
+    const path = run(base(), { spread: tick0, model: { ...MODEL, closeAtEnd: true } });
+    expect(path.trades.length).toBeGreaterThan(0); // ohne Replay füllt BUY_LIMIT 2649 bei Bid 2648,80
+    const replayed = run(withReplay(base(), T1, frozen), { spread: tick0, model: { ...MODEL, closeAtEnd: true } });
+    expect(replayed.trades).toEqual([]);
+    expect(replayed.log.lines.find((l) => l.code === 'run.tickReplay')).toMatchObject({ params: { minutes: 1, ticks: 4 } });
+  });
+
+  test('Ask springt über ein Kauf-Stop: Füllung zum Ask des Ticks, nicht zum Orderpreis', { tag: '@BKT-20' }, () => {
+    const ticks = [[0, 2650.0, 2650.2], [10000, 2650.0, 2651.07], [20000, 2650.0, 2651.07]];
+    const rates = withReplay(candles([[T1, 2650, 2650, 2650, 2650, 20]], [20]), T1, ticks);
+    const result = run(rates, { spread: tick0, commissionPerLot: 0, model: { ...MODEL, closeAtEnd: true } });
+    expect(result.trades[0].entryPrice).toBe(2651.07);
+  });
+
+  test('Verkaufs-SL füllt zum Ask des Ticks, ohne halben Spread als Schlupf', { tag: '@BKT-20' }, () => {
+    const SELL_ZONE = { ...ZONE, order_type: 'SELL', instant_entry: true, sync_buy_sell: false, sell_stop_loss: 1, sell_take_profit: 50, levels_below: 0, levels_above: 0 };
+    const row = [T1, 2650, 2651.2, 2650, 2651, 10];
+    const ticks = [[0, 2650.0, 2650.1], [10000, 2650.93, 2651.03], [20000, 2650.93, 2651.03]];
+    const options = { zone: SELL_ZONE, spread: tick0, commissionPerLot: 0 } as const;
+    const path = run(candles([row], [10]), options);
+    expect(path.trades[0].exitPrice).toBe(2651.05); // Weg: Stufe + halber Spread
+    const replayed = run(withReplay(candles([row], [10]), T1, ticks), options);
+    expect(replayed.trades[0].exitPrice).toBe(2651.03);
+  });
+
+  test('ohne Replay-Schalter, mit „max“ und ohne Minute in der Karte bleibt alles wie im Kerzenweg', { tag: '@BKT-20' }, () => {
+    const ticks = [[0, 2650.0, 2650.2], [20000, 2648.4, 2650.2]];
+    const closed = { ...MODEL, closeAtEnd: true };
+    same(run(withReplay(base(), T1, ticks), { spread: tick0, model: { ...closed, tickReplay: false } }), run(base(), { spread: tick0, model: closed }));
+    const max0 = { mode: 'max', points: 0 } as const;
+    same(run(withReplay(base(), T1, ticks), { spread: max0, model: closed }), run(base(), { spread: max0, model: closed }));
+    same(run(withReplay(base(), T1 + 600, ticks), { spread: tick0, model: closed }), run(base(), { spread: tick0, model: closed }));
+  });
+
+  test('Tick-Hoch und -Tief weichen vom Kerzen-OHLC ab: Warnung mit Minutenzahl, sonst keine', { tag: '@BKT-20' }, () => {
+    const fits = [[0, 2650.0, 2650.2], [10000, 2650.3, 2650.5], [20000, 2648.4, 2648.6], [30000, 2648.6, 2648.8]];
+    expect(run(withReplay(base(), T1, fits), { spread: tick0 }).log.lines.find((l) => l.code === 'run.tickReplayMismatch')).toBeUndefined();
+    const off = [[0, 2650.0, 2650.2], [10000, 2651.5, 2651.7], [30000, 2648.6, 2648.8]];
+    expect(run(withReplay(base(), T1, off), { spread: tick0 }).log.lines.find((l) => l.code === 'run.tickReplayMismatch')).toMatchObject({ params: { minutes: 1 } });
+  });
+
+  test('der Bot läuft höchstens einmal je Sekunde Tickzeit, nach einer Auslösung sofort', { tag: '@BKT-20' }, () => {
+    const proto = PathBroker.prototype as unknown as { positionsGet: (...a: unknown[]) => unknown };
+    const original = proto.positionsGet;
+    let calls = 0;
+    proto.positionsGet = function counted(this: PathBroker, ...args: unknown[]) {
+      calls += 1;
+      return original.apply(this, args);
+    };
+    try {
+      const count = (ticks: number[][]) => {
+        calls = 0;
+        run(withReplay(candles([[T1, 2650, 2650, 2650, 2650, 20]], [20]), T1, ticks), { spread: tick0 });
+        return calls;
+      };
+      const one = count([[0, 2650.0, 2650.2]]);
+      const dense = count(Array.from({ length: 10 }, (_, i) => [i * 100, 2650.0, 2650.2]));
+      const spaced = count(Array.from({ length: 10 }, (_, i) => [i * 2000, 2650.0, 2650.2]));
+      expect(dense).toBe(one);
+      expect(spaced).toBeGreaterThan(one);
+    } finally {
+      proto.positionsGet = original;
+    }
+  });
+
+  test('Broker: nach dem Replay trägt die nächste Minute den Spread des letzten Ticks, nicht den Minutenwert', { tag: '@BKT-20' }, () => {
+    const snap = snapshot();
+    const b = new PathBroker({ info: snap.info, costs: snap.costs, start: WED, firstBid: 2650, fill: 'gap', commissionPerLot: 0, slFirst: false, timeframes: [{ name: 'M5', sec: 300 }], zoneLabel: () => 'Z1' });
+    b.beginCandle(WED, 2650, 181);
+    b.beginReplay();
+    b.setQuote(2650, 2651.81, WED);
+    b.setQuote(2649.9, 2650.1, WED + 30);
+    b.endReplay();
+    b.beginCandle(WED + 60, 2649.9, 20);
+    expect(b.spreadPrice).toBe(0.2); // nicht 1,81 und nicht der Wert der Vorminute 0,20 aus dem Minutenmittel
   });
 });

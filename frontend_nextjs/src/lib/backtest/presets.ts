@@ -78,7 +78,7 @@ export function parsePresetData(input: unknown): PresetData {
     checked[key] = value;
   }
   const choices: Record<string, readonly string[]> = {
-    timeframe: ['M1', 'M5', 'M15', 'H1'], spreadMode: ['candle', 'fixed', 'max'], fill: ['gap', 'parity'],
+    timeframe: ['M1', 'M5', 'M15', 'H1'], spreadMode: ['candle', 'fixed', 'max', 'tick'], fill: ['gap', 'parity'],
     path: ['auto', 'lowFirst', 'highFirst', 'both'],
   };
   for (const [key, values] of Object.entries(choices)) if (!values.includes(String(checked[key]))) throw new Error(t('backtest.presets.invalid'));

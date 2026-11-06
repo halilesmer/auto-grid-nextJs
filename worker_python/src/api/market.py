@@ -169,15 +169,24 @@ async def rates(
     from_: int = Query(..., alias="from", ge=0),
     to: int = Query(..., gt=0),
     source: Optional[str] = None,
+    tick_spread: bool = False,
+    tick_replay: bool = False,
 ):
     """Mumlar [from, to) MT5 zamanında, sütun sütun. Eksik/alınamayan parçalar `missing`'de.
 
     `source=csv:<import_id>`: onaylanmış bir CSV içe aktarmasından (MT5'e hiç bağlanmaz).
+    `tick_spread=1` (BKT-19, yalnız M1, MT5 kaynağı): ek sütunlar `sa`/`sx` (dakikanın zaman ağırlıklı ve en büyük
+    tick spread'i, puan; tick yoksa null) ve `tick_missing`. Eksik dakikalar ihtiyaç anında hesaplanıp saklanır.
+    `tick_replay=1` (BKT-20, yalnız `tick_spread=1` ile): ek `replay` sütunları, rollover/sıçrama dakikalarının tick'leri.
     """
     if timeframe not in market_sync.TIMEFRAMES:
         raise HTTPException(status_code=400, detail=f"Zaman dilimi {timeframe} desteklenmiyor")
     if to <= from_:
         raise HTTPException(status_code=400, detail="'to', 'from'dan büyük olmalı")
+    if tick_spread and timeframe != "M1":
+        raise HTTPException(status_code=400, detail="tick_spread yalnız M1 için")
+    if tick_replay and not tick_spread:
+        raise HTTPException(status_code=400, detail="tick_replay tick_spread ister")
     if source:
         if not source.startswith(market_db.CSV_SOURCE_PREFIX):
             raise HTTPException(status_code=400, detail="source must be csv:<import_id>")
@@ -191,7 +200,8 @@ async def rates(
         raise HTTPException(status_code=400, detail="Sembol boş")
     try:
         result = await asyncio.to_thread(
-            market_sync.get_rates, account, symbol, timeframe, from_, to, is_account_busy(account_id)
+            market_sync.get_rates, account, symbol, timeframe, from_, to, is_account_busy(account_id), tick_spread,
+            tick_replay
         )
     except market_db.MarketDbUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
@@ -271,6 +281,7 @@ async def coverage(account_id: str, symbol: str):
         "symbol": symbol,
         "source": account.get("server"),
         "coverage": summary,
+        "tick_spread": await asyncio.to_thread(market_db.tick_coverage_summary, str(account.get("server") or ""), symbol),
         "db_bytes": market_db.size_bytes(),
         "db_max_bytes": market_db.max_bytes(),
         "server_now": server_now,

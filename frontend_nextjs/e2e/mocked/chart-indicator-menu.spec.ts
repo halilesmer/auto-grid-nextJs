@@ -66,15 +66,15 @@ test('Rechtsklick auf die RSI-Linie öffnet das Menü; Farbe, Dicke und Typ wirk
   await expect.poll(() => seriesOf(page, 'RSI')).toMatchObject({ lineStyle: 0, lineWidth: 1 });
   await rightClickRsi(page);
   await expect(menu(page)).toBeVisible();
-  await menu(page).getByRole('button', { name: msg('lineStyle.color.green'), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.color.green'), exact: true }).click();
   await expect.poll(() => seriesOf(page, 'RSI')).toMatchObject({ color: '#16a56b' });
-  await menu(page).getByRole('button', { name: msg('lineStyle.width.option', { n: 3 }), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.width.option', { n: 3 }), exact: true }).click();
   await expect.poll(async () => (await seriesOf(page, 'RSI'))?.lineWidth).toBeGreaterThanOrEqual(3);
-  await menu(page).getByRole('button', { name: msg('lineStyle.type.dashed'), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.type.dashed'), exact: true }).click();
   await expect.poll(() => seriesOf(page, 'RSI')).toMatchObject({ lineStyle: 2 });
-  await menu(page).getByRole('button', { name: msg('lineStyle.type.dotted'), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.type.dotted'), exact: true }).click();
   await expect.poll(() => seriesOf(page, 'RSI')).toMatchObject({ lineStyle: 1 });
-  await menu(page).getByRole('button', { name: msg('lineStyle.type.dashed'), exact: true }).click();
+  await menu(page).getByRole('menuitemradio', { name: msg('lineStyle.type.dashed'), exact: true }).click();
   await page.keyboard.press('Escape');
   await expect(menu(page)).toHaveCount(0);
   await expect.poll(() => page.evaluate(([key]) => Object.values(JSON.parse(localStorage.getItem(key) || '{}').documents ?? {}).some(d => ((d as { indicators: { kind: string; lineStyle: string }[] }).indicators ?? []).some(i => i.kind === 'RSI' && i.lineStyle === 'dashed')), [STORE_KEY])).toBe(true);
@@ -152,26 +152,26 @@ test('„Themefarbe“ stellt die Linie auf ihre Vorgabefarbe zurück (nicht sch
   await openChart(page);
   const before = (await seriesOf(page, 'RSI'))!.color;
   await rightClickRsi(page);
-  const button = (key: Parameters<typeof msg>[0]) => menu(page).getByRole('button', { name: msg(key), exact: true });
+  const button = (key: Parameters<typeof msg>[0]) => menu(page).getByRole('menuitemradio', { name: msg(key), exact: true });
   await button('lineStyle.color.green').click();
   await expect.poll(async () => (await seriesOf(page, 'RSI'))?.color).toBe('#16a56b');
   await button('lineStyle.auto.theme').click();
   await expect.poll(async () => (await seriesOf(page, 'RSI'))?.color).toBe(before);
   expect(before.toLowerCase()).not.toBe('#000000');
-  await expect(button('lineStyle.auto.theme')).toHaveAttribute('aria-pressed', 'true');
+  await expect(button('lineStyle.auto.theme')).toHaveAttribute('aria-checked', 'true');
 });
 
 test('„Gri“ folgt dem Thema und bleibt beim erneuten Öffnen gewählt', { tag: '@ANA-24' }, async ({ page, worker }) => {
   void worker;
   await openChart(page);
   await rightClickRsi(page);
-  const gray = () => menu(page).getByRole('button', { name: msg('lineStyle.color.gray'), exact: true });
+  const gray = () => menu(page).getByRole('menuitemradio', { name: msg('lineStyle.color.gray'), exact: true });
   await gray().click();
   const muted = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--muted-foreground').trim().toLowerCase());
   await expect.poll(async () => (await seriesOf(page, 'RSI'))?.color.toLowerCase()).toBe(await muted());
   await page.keyboard.press('Escape');
   await rightClickRsi(page);
-  await expect(gray()).toHaveAttribute('aria-pressed', 'true');
+  await expect(gray()).toHaveAttribute('aria-checked', 'true');
 });
 
 test('Menü: „Favori“ schaltet den Favoriten dieses Indikators', { tag: '@ANA-24' }, async ({ page, worker }) => {

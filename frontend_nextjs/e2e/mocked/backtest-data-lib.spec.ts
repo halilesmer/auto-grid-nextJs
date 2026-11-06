@@ -3,6 +3,7 @@
  * ohne Zukunftsdaten, Kerzenpfad, Gewinn, Kommission, Swap, Spread, Schnappschuss der Symbolwerte.
  * Alle erwarteten Werte sind von Hand gerechnet.
  * BKT-04 Backtest-Rechner mit Kosten
+ * BKT-19 Backtest-Spread „tick“ (Minuten-Mittel aus Ticks)
  */
 import { expect, test } from '@playwright/test';
 import {
@@ -278,6 +279,77 @@ test.describe('Kerzen laden', () => {
   });
 });
 
+test.describe('Minuten-Spread aus Ticks laden', () => {
+  const base = { digits: 2, point: 0.01, missing: [] as unknown[], next_from: null };
+  const page = (extra: Record<string, unknown>) => ({
+    t: [0, 60, 120], o: [1, 1, 1], h: [2, 2, 2], l: [0, 0, 0], c: [1, 1, 1], s: [10, 10, 10], ...base, ...extra,
+  });
+
+  test('tick_spread=1 wird gesendet; sa und sx werden gelesen, null ist NaN', { tag: '@BKT-19' }, async () => {
+    const seen: string[] = [];
+    const fetchJson = async (path: string) => {
+      seen.push(path);
+      return page({ sa: [12.5, null, 30], sx: [20, null, 40], tick_missing: [] });
+    };
+    const rates = await loadRates({ fetchJson, accountId: 'a', symbol: 'XAUUSD', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(seen).toEqual(['/market/a/rates?symbol=XAUUSD&timeframe=M1&from=0&to=180&tick_spread=1']);
+    expect(Array.from(rates.sa ?? []).map((v) => (Number.isNaN(v) ? 'nan' : v))).toEqual([12.5, 'nan', 30]);
+    expect(Array.from(rates.sx ?? []).map((v) => (Number.isNaN(v) ? 'nan' : v))).toEqual([20, 'nan', 40]);
+  });
+
+  test('ohne tickSpread keine Spalten und kein Parameter', { tag: '@BKT-19' }, async () => {
+    const seen: string[] = [];
+    const rates = await loadRates({ fetchJson: async (path) => (seen.push(path), page({})), accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180 });
+    expect(rates.sa).toBeUndefined();
+    expect(seen[0]).not.toContain('tick_spread');
+  });
+
+  test('budget und syncing: dieselbe Seite wird erneut geholt, danach zählt die vollständige Antwort', { tag: '@BKT-19' }, async () => {
+    let calls = 0;
+    const fetchJson = async () => {
+      calls += 1;
+      if (calls === 1) return page({ sa: [null, null, null], sx: [null, null, null], tick_missing: [{ from: 0, to: 180, reason: 'budget', checked_at: null }] });
+      if (calls === 2) return page({ sa: [11, null, null], sx: [11, null, null], tick_missing: [{ from: 60, to: 180, reason: 'syncing', checked_at: null }] });
+      return page({ sa: [11, 12, 13], sx: [11, 12, 13], tick_missing: [] });
+    };
+    const rates = await loadRates({ fetchJson, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(calls).toBe(3);
+    expect(Array.from(rates.t)).toEqual([0, 60, 120]);
+    expect(Array.from(rates.sa ?? [])).toEqual([11, 12, 13]);
+  });
+
+  test('unavailable, busy und error werden nicht wiederholt; endloses budget bricht nach 15 Versuchen ab', { tag: '@BKT-19' }, async () => {
+    let calls = 0;
+    const once = async () => (calls += 1, page({ sa: [null, null, null], sx: [null, null, null], tick_missing: [{ from: 0, to: 180, reason: 'unavailable', checked_at: 1 }] }));
+    await loadRates({ fetchJson: once, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(calls).toBe(1);
+    calls = 0;
+    const endless = async () => (calls += 1, page({ sa: [null, null, null], sx: [null, null, null], tick_missing: [{ from: 0, to: 180, reason: 'budget', checked_at: null }] }));
+    const rates = await loadRates({ fetchJson: endless, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true });
+    expect(calls).toBe(15);
+    expect(rates.sa?.every((v) => Number.isNaN(v))).toBe(true);
+  });
+
+  test('laufende Kerze und Kerzen vor from werden auch aus sa und sx entfernt; falsche Länge bricht ab', { tag: '@BKT-19' }, async () => {
+    const live = async () => page({ sa: [1, 2, 3], sx: [1, 2, 3], live_from: 120, tick_missing: [] });
+    const rates = await loadRates({ fetchJson: live, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 60, to: 180, tickSpread: true });
+    expect(Array.from(rates.t)).toEqual([60]);
+    expect(Array.from(rates.sa ?? [])).toEqual([2]);
+    const bad = async () => page({ sa: [1, 2], sx: [1, 2, 3], tick_missing: [] });
+    await expect(loadRates({ fetchJson: bad, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true })).rejects.toMatchObject({ code: 'run.badRatesResponse' });
+  });
+
+  test('candleSpreadPoints „tick“: Minutenwert, sonst die Regel von „max“', { tag: '@BKT-19' }, () => {
+    const tick0 = { mode: 'tick', points: 0 } as const;
+    expect(candleSpreadPoints(tick0, 18, 25)).toBe(25);
+    expect(candleSpreadPoints(tick0, 18, NaN)).toBe(18);
+    expect(candleSpreadPoints(tick0, 18, null)).toBe(18);
+    expect(candleSpreadPoints({ mode: 'tick', points: 30 }, 18, undefined)).toBe(30);
+    expect(candleSpreadPoints({ mode: 'tick', points: 30 }, NaN, NaN)).toBe(30);
+    expect(candleSpreadPoints({ mode: 'tick', points: 30 }, 18, 25)).toBe(25);
+  });
+});
+
 test.describe('Höhere Zeitrahmen und Kerzenpfad', () => {
   const bar = (time: number, open: number, high: number, low: number, close: number) => ({ time, open, high, low, close });
 
@@ -390,5 +462,67 @@ test.describe('Laufprotokoll', () => {
     expect(log.lines).toHaveLength(RUN_LOG_MAX_LINES);
     expect(log.dropped).toBe(3);
     expect(log.counts.many).toBe(RUN_LOG_MAX_LINES);
+  });
+});
+
+test.describe('Tick-Replay-Minuten laden', () => {
+  const replay = { t: [60], kind: ['S'], off: [0, 2], ms: [0, 1000], b: [100, 101], a: [110, 150] };
+  const page = (extra: Record<string, unknown>) => ({
+    t: [0, 60, 120], o: [1, 1, 1], h: [2, 2, 2], l: [0, 0, 0], c: [1, 1, 1], s: [10, 10, 10],
+    sa: [10, 10, 10], sx: [10, 10, 10], digits: 2, point: 0.01, missing: [], next_from: null, tick_missing: [], ...extra,
+  });
+  const load = (fetchJson: (path: string) => Promise<unknown>, extra: Record<string, unknown> = {}) =>
+    loadRates({ fetchJson, accountId: 'a', symbol: 'X', timeframe: 'M1', from: 0, to: 180, tickSpread: true, tickReplay: true, ...extra });
+
+  test('tick_replay=1 wird gesendet; Punkte werden zu Preisen, Minuten kommen als Karte', { tag: '@BKT-20' }, async () => {
+    const seen: string[] = [];
+    const rates = await load(async (path) => (seen.push(path), page({ replay })));
+    expect(seen).toEqual(['/market/a/rates?symbol=X&timeframe=M1&from=0&to=180&tick_spread=1&tick_replay=1']);
+    expect(rates.replay?.size).toBe(1);
+    expect(rates.replay?.get(60)).toEqual({ ms: [0, 1000], bid: [1, 1.01], ask: [1.1, 1.5] });
+  });
+
+  test('ohne tickReplay kein Parameter und keine Karte', { tag: '@BKT-20' }, async () => {
+    const seen: string[] = [];
+    const rates = await load(async (path) => (seen.push(path), page({})), { tickReplay: false });
+    expect(seen[0]).not.toContain('tick_replay');
+    expect(rates.replay).toBeUndefined();
+  });
+
+  test('laufende Kerze und Minuten vor from fallen aus der Karte; Seiten werden vereint', { tag: '@BKT-20' }, async () => {
+    const two = { t: [0, 60], kind: ['S', 'J'], off: [0, 1, 2], ms: [5, 7], b: [100, 100], a: [110, 110] };
+    const live = await load(async () => page({ live_from: 120, replay: { ...two, t: [0, 120] } }), { from: 60 });
+    expect(live.replay?.size).toBe(0);
+    let calls = 0;
+    const paged = async () => {
+      calls += 1;
+      return calls === 1
+        ? page({ t: [0, 60], o: [1, 1], h: [2, 2], l: [0, 0], c: [1, 1], s: [10, 10], sa: [10, 10], sx: [10, 10], next_from: 120, replay: { t: [0], kind: ['S'], off: [0, 1], ms: [5], b: [100], a: [110] } })
+        : page({ t: [120], o: [1], h: [2], l: [0], c: [1], s: [10], sa: [10], sx: [10], replay: { t: [120], kind: ['J'], off: [0, 1], ms: [9], b: [100], a: [110] } });
+    };
+    const rates = await load(paged);
+    expect([...(rates.replay?.keys() ?? [])]).toEqual([0, 120]);
+  });
+
+  test('budget wiederholt dieselbe Seite; die letzte Antwort zählt', { tag: '@BKT-20' }, async () => {
+    let calls = 0;
+    const rates = await load(async () => {
+      calls += 1;
+      return calls === 1
+        ? page({ tick_missing: [{ reason: 'budget' }], replay: { t: [], kind: [], off: [0], ms: [], b: [], a: [] } })
+        : page({ replay });
+    });
+    expect(calls).toBe(2);
+    expect(rates.replay?.size).toBe(1);
+  });
+
+  test('bozuk: off nicht aufsteigend, Bid über Ask, falsche Länge, Zeit außerhalb der Minute', { tag: '@BKT-20' }, async () => {
+    const bad = (r: Record<string, unknown>) => expect(load(async () => page({ replay: { ...replay, ...r } }))).rejects.toMatchObject({ code: 'run.badRatesResponse' });
+    await bad({ off: [0, 2, 1] });
+    await bad({ off: [0, 3] });
+    await bad({ b: [100, 200], a: [110, 150] });
+    await bad({ ms: [0, 60000] });
+    await bad({ kind: [] });
+    await expect(load(async () => page({ replay: undefined }))).resolves.toBeTruthy();
   });
 });
