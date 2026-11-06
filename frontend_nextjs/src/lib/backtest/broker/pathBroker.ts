@@ -243,12 +243,11 @@ export class PathBroker extends SimBroker {
     const order = this.slFirst ? { sl: 0, tp: 1, fill: 2 } : { tp: 0, sl: 1, fill: 2 };
     const found: Trigger[] = [];
     for (const o of this.orders) {
-      const hit =
-        o.type === ORDER_TYPE_BUY_LIMIT ? ask <= o.price_open
-        : o.type === ORDER_TYPE_BUY_STOP ? ask >= o.price_open
-        : o.type === ORDER_TYPE_SELL_LIMIT ? bid >= o.price_open
-        : o.type === ORDER_TYPE_SELL_STOP ? bid <= o.price_open
-        : false;
+      let hit = false;
+      if (o.type === ORDER_TYPE_BUY_LIMIT) hit = ask <= o.price_open;
+      else if (o.type === ORDER_TYPE_BUY_STOP) hit = ask >= o.price_open;
+      else if (o.type === ORDER_TYPE_SELL_LIMIT) hit = bid >= o.price_open;
+      else if (o.type === ORDER_TYPE_SELL_STOP) hit = bid <= o.price_open;
       if (hit) found.push({ kind: 'fill', ticket: o.ticket, bid, immediate: true });
     }
     for (const p of this.positions) {
