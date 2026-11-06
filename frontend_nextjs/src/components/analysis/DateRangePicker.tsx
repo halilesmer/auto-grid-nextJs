@@ -86,6 +86,7 @@ export function DateRangePicker({ value, today, onChange }: DateRangePickerProps
       align="left"
       className="min-w-0 max-w-full"
       panelClassName="w-[min(calc(100vw-2rem),36rem)]"
+      fitHeight
     >
       <RangePanel value={value} range={range} today={today} onChange={onChange} />
     </DropdownMenu>

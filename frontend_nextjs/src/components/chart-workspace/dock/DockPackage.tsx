@@ -74,9 +74,10 @@ export function DockPackage({ id, children, className, shrink = false, testId }:
       className={cn('group/tb flex min-w-0 items-center gap-0.5 rounded-[0.875rem] border border-transparent',
         place === 'free' && 'border-border bg-card p-px shadow-lg')}>
       {!dock.phone && (
+        /* Kaba işaretçide (dokunmatik) görünmez uzantı dokunma alanını 24 × 24 px yapar (WCAG 2.5.8): 8 px sola, komşu pakete binmeden (aradaki boşluk ölçüldü, UI-17 S5); görünüş aynı kalır */
         <DropdownMenu label={t('cw.tbHandle')} hint={t('cw.tbHandle.hint')} variant="ghost" size="icon-xs" side={up ? 'top' : 'bottom'} align="left" panelClassName="w-60"
           icon={<GripVertical size={14} aria-hidden="true" />}
-          triggerProps={{ className: 'w-4 cursor-grab touch-none active:cursor-grabbing', 'data-dock-handle': id, 'data-testid': `dock-handle-${id}`, ...handleHandlers }}>
+          triggerProps={{ className: "relative w-4 cursor-grab touch-none active:cursor-grabbing pointer-coarse:before:absolute pointer-coarse:before:inset-y-0 pointer-coarse:before:-left-2 pointer-coarse:before:right-0 pointer-coarse:before:content-['']", 'data-dock-handle': id, 'data-testid': `dock-handle-${id}`, ...handleHandlers }}>
           <DropdownMenuGroup>
             {item('row1', <ArrowUpToLine className="size-4" aria-hidden="true" />, 'cw.tbMoveRow1', 'dock-move-row1')}
             {info.hasRow2 && item('row2', <Rows2 className="size-4" aria-hidden="true" />, 'cw.tbMoveRow2', 'dock-move-row2')}

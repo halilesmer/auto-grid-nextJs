@@ -59,6 +59,8 @@ const ZONES = ['row1', 'row2', 'bottom'] as const;
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+/** Ürün kutusunun en dar hâli (w-36): daralma sırasının son adımı (plan 1106-A5.3) */
+const PRODUCT_MIN_PX = 144;
 const DRAG_THRESHOLD = { mouse: 5, touch: 10 };
 
 function freeArea(chart: HTMLElement): FreeArea {
@@ -152,13 +154,25 @@ export function DockProvider({ children }: { children: ReactNode }) {
     if (!row) return;
     const kids = rowEls(zone), ids = kids.map(k => k.dataset.dockWrap as PackageId);
     ids.forEach(id => wraps.current.get(id)?.fit.reset());
+    // Ürün kutusu, daralma sırasının son adımıdır (plan 1106-A5.3): doğal genişliğine döner, aşağıda gerekirse açığı kadar daralır
+    const symbolWrap = wraps.current.get('symbol')?.el, productBox = symbolWrap && kids.includes(symbolWrap) ? symbolWrap.querySelector<HTMLElement>('[data-keep]') : null;
+    if (productBox) productBox.style.width = '';
     // Telefon (kap < 30 rem, plan 1106-A1.5): sabit düzen, satır kırılır, ok menüsü yok
     if (phoneRef.current || row.clientWidth <= 0) return;
-    const need = () => kids.reduce((s, k) => s + k.offsetWidth, 0) + GAP * Math.max(0, kids.length - 1);
-    for (let guard = 0; guard < 80 && need() > row.clientWidth; guard++) {
+    // Kesirli genişlik: offsetWidth/clientWidth tam sayıya yuvarlar, 0,5 px'lik fazlalık fark edilmez ve son kutu satırdan taşardı (UI-17 S5, 667 px)
+    const need = () => kids.reduce((s, k) => s + k.getBoundingClientRect().width, 0) + GAP * Math.max(0, kids.length - 1);
+    for (let guard = 0; guard < 80 && need() > row.getBoundingClientRect().width + 0.01; guard++) {
       const id = SHRINK_ORDER.find(x => ids.includes(x) && wraps.current.get(x)?.fit.canHide());
       if (!id) break;
       wraps.current.get(id)!.fit.hideNext();
+    }
+    // Bütün paketler en küçük hâlinde ve satır hâlâ taşıyorsa Ürün kutusu açığı kadar daralır (en çok PRODUCT_MIN_PX'e kadar, kesirli ölçüm)
+    if (productBox) {
+      const deficit = need() - row.getBoundingClientRect().width;
+      if (deficit > 0.01) {
+        const natural = productBox.getBoundingClientRect().width;
+        productBox.style.width = `${Math.max(PRODUCT_MIN_PX, Math.floor((natural - deficit) * 100) / 100)}px`;
+      }
     }
   };
   const fitAll = () => { for (const zone of ZONES) { fitRow(zone); layoutRow(zone); } };

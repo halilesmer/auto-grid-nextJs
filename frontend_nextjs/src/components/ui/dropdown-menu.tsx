@@ -31,6 +31,8 @@ interface DropdownMenuProps {
   className?: string;
   /** Klassen des aufgeklappten Panels (z. B. Breite). */
   panelClassName?: string;
+  /** Panel höher als der freie Platz bis zum Fensterrand: kürzen und innen scrollen (z. B. Zeitraum-Kalender im Querformat des Handys, UI-17 S5). */
+  fitHeight?: boolean;
   /** Zusätzliche Attribute des Auslöser-Buttons (z. B. data-testid, Klassen). */
   triggerProps?: Omit<ButtonProps, 'hint' | 'variant' | 'size' | 'onClick' | 'aria-label' | 'aria-expanded' | 'children'> &
     Record<`data-${string}`, string>;
@@ -51,6 +53,7 @@ export function DropdownMenu({
   side = 'bottom',
   className,
   panelClassName,
+  fitHeight = false,
   triggerProps,
   children,
 }: DropdownMenuProps) {
@@ -75,13 +78,22 @@ export function DropdownMenu({
       panel.style.left = `${trigger.right + 4}px`;
       panel.style.top = `${Math.max(8, Math.min(trigger.top, window.innerHeight - panel.offsetHeight - 8))}px`;
     }
+    // Panel höher als der Platz zwischen Auslöser und Fensterrand (Handy im Querformat): auf den freien Platz kürzen, innen scrollen (UI-17 S5)
+    if (fitHeight && side !== 'right') {
+      panel.style.maxHeight = ''; panel.style.overflowY = '';
+      const trigger = ref.current?.getBoundingClientRect();
+      if (trigger) {
+        const free = side === 'top' ? trigger.top - 16 : window.innerHeight - trigger.bottom - 16;
+        if (panel.offsetHeight > free && free > 0) { panel.style.maxHeight = `${Math.floor(free)}px`; panel.style.overflowY = 'auto'; }
+      }
+    }
     const { left, right } = panel.getBoundingClientRect();
     const margin = 8;
     let dx = 0;
     if (right > window.innerWidth - margin) dx = window.innerWidth - margin - right;
     if (left + dx < margin) dx = margin - left;
     if (dx) panel.style.translate = `${Math.round(dx)}px 0`;
-  }, [open, side, placementRevision]);
+  }, [open, side, fitHeight, placementRevision]);
 
   useEffect(() => {
     if (!open) return;
