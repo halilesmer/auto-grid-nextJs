@@ -11,7 +11,7 @@ import { msg } from '../fixtures/i18n';
 import { openConnectionDialog, openHeaderMenu, openPageMenu } from '../fixtures/header';
 
 const CONTROLS =
-  'button, a[href], input, select, textarea, [role="switch"], [role="tab"], [role="radio"], [role="combobox"]';
+  'button, a[href], input, select, textarea, [role="switch"], [role="button"], [role="tab"], [role="radio"], [role="combobox"]';
 
 /** Sichtbare Bedienelemente ohne Hinweis. Leere Liste = alles erklärt. */
 async function unhinted(page: Page): Promise<string[]> {

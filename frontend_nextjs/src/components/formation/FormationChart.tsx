@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { useFormat, useT } from '@/i18n';
+import { Tooltip } from '@/components/ui/tooltip';
 import { formationChartData } from '@/lib/formation/chartData';
 import type { FormationBar } from '@/lib/formation/types';
 import type { FormationContext } from '@/lib/formation/context';
@@ -358,6 +359,7 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
             data-selected={b.selected ? 'true' : 'false'}
             role="button"
             tabIndex={0}
+            data-tooltip-scope
             aria-label={t('formation.expectedD.select', { name: b.label })}
             aria-pressed={b.selected}
             opacity={b.selected ? 1 : 0.55}
@@ -367,6 +369,10 @@ function FormationOverlay({ scene, hit, bars, points, running, asOf, active, onA
           >
             <rect x={b.bx} y={b.by} width={b.w} height={b.h} rx={4} fill="var(--card)" stroke={color} strokeWidth={b.selected ? 2 : 1.2} />
             <text x={b.bx + 8} y={b.by + b.h / 2 + 4} fill="var(--foreground)" fontSize={11} fontWeight={600}>{b.label}</text>
+            {/* Tooltip ist HTML: in SVG über ein foreignObject mit durchsichtiger Fläche auf dem Abzeichen */}
+            <foreignObject x={b.bx} y={b.by} width={b.w} height={b.h}>
+              <Tooltip content={t('formation.expectedD.select.hint')} side="bottom" className="block size-full"><span className="block size-full" /></Tooltip>
+            </foreignObject>
           </g>
         );
       })}

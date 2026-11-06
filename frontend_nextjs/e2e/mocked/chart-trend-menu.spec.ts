@@ -123,6 +123,44 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     await expect(down.getByRole('button', { name: msg('lineStyle.width.option', { n: 3 }), exact: true })).toHaveCount(0);
   });
 
+  for (const theme of ['light', 'dark']) {
+    test(`Graue Trendlinie (var(--muted-foreground)) wird gezeichnet, nicht in der Saumfarbe versteckt (${theme})`, { tag: '@ANA-25' }, async ({ page, worker }) => {
+      await page.addInitScript(([key, value]) => {
+        localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 }));
+        localStorage.setItem(key, JSON.stringify({ state: { showTrend: true, formationStyle: { trendUp: { color: 'var(--muted-foreground)' }, trendDown: { color: 'var(--muted-foreground)' } } }, version: 1 }));
+      }, [PREFS_KEY, theme]);
+      worker.state.ratesSeries = { D1: D1_SERIES };
+      await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=D1&range=all`);
+      await expect(chart(page)).toHaveAttribute('data-trend', '6');
+      await expect(chart(page)).toHaveAttribute('data-trend-segments', /\d/);
+      const expected = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--muted-foreground').trim());
+      expect(expected).toMatch(/^#/);
+      const box = (await chart(page).boundingBox())!;
+      // Mittelpunkte aller sichtbaren Schenkel: auf mindestens einem trägt die Leinwand die Linienfarbe (Saum wäre die Panelfarbe)
+      const points = (await segments(page)).map((s) => ({ x: (s.x1 + s.x2) / 2 - box.x, y: (s.y1 + s.y2) / 2 - box.y }));
+      const hit = await page.evaluate(([pts, hex]) => {
+        const want = [1, 3, 5].map((i) => parseInt((hex as string).slice(i, i + 2), 16));
+        const host = document.querySelector('[data-testid="analysis-chart"]')!;
+        const hostBox = host.getBoundingClientRect();
+        const seen: string[] = [];
+        for (const canvas of Array.from(host.querySelectorAll('canvas'))) {
+          const r = canvas.getBoundingClientRect(), ctx = canvas.getContext('2d');
+          if (!ctx) continue;
+          const kx = canvas.width / r.width, ky = canvas.height / r.height;
+          for (const p of pts as { x: number; y: number }[]) {
+            const cx = Math.round((hostBox.left + p.x - r.left) * kx), cy = Math.round((hostBox.top + p.y - r.top) * ky);
+            if (cx < 2 || cy < 2 || cx >= canvas.width - 2 || cy >= canvas.height - 2) continue;
+            const d = ctx.getImageData(cx - 2, cy - 2, 5, 5).data;
+            seen.push(`${canvas.width}x${canvas.height}@${cx},${cy}:${d[48]},${d[49]},${d[50]},${d[51]}`);
+            for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && Math.abs(d[i] - want[0]) < 12 && Math.abs(d[i + 1] - want[1]) < 12 && Math.abs(d[i + 2] - want[2]) < 12) return 'ok';
+          }
+        }
+        return seen.join(' | ');
+      }, [points, expected] as const);
+      expect(hit, `erwartet ${expected}`).toBe('ok');
+    });
+  }
+
   test('„Varsayılana dön“ stellt Farbe, Typ und Dicke beider Richtungen her und lässt das Menü offen', { tag: '@ANA-25' }, async ({ page, worker }) => {
     await open(page, worker);
     await rightClick(page);
