@@ -28,7 +28,7 @@ One CSS variable, `--overlay`, now sets the layer behind every dialog. The value
 
 ## Why
 - A variable in one place lets a later change of the value touch one line only.
-- Variant B (no blur, 20 % / 40 % dark layer) was the first proposal. The owner selected C because the chart must stay fully readable.
+- Variant B (no blur, 20 % / 40 % dark layer) was the first proposal. The owner selected C in the design review.
 - A click on the transparent layer still closes the dialog. Thus the layer stays in the DOM.
 - The blur on the navigation bar, cards, toasts and the save bar is a glass surface, not a dialog backdrop. This change does not touch it.
 
