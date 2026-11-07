@@ -328,6 +328,11 @@ UI-04:
   notiz: 'v0.7.59 (Frontend aus main): ''Test''-Link → Karte ''Bölge 1 · USOUSD''
     mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien
     20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)'
+UI-17:
+  status: bestanden
+  datum: '2026-11-07'
+  notiz: 'Inhaber hat am echten Handy selbst geprüft: bestanden (Stand v0.7.474 oder
+    neuer). Automatisch: chart-dock-s5.spec.ts.'
 ANA-04:
   status: bestanden
   datum: '2026-10-02'
