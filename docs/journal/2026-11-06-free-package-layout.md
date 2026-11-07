@@ -167,6 +167,34 @@ The touch rectangle of every handle (default layout) does not cross an interacti
 - A shared component change (menu height) must be opt-in. The full e2e run found two menus that it broke.
 - `offsetWidth` rounds. Use `getBoundingClientRect` when a sum of boxes is compared to a row.
 
+## Solution (S6, closing)
+
+S6 changes no behavior. It closes the catalog, the journal and the browser check.
+
+### Steps and pull requests
+
+| Step | PR | Content |
+|---|---|---|
+| S1 | 397 | Data model `dock.ts`, migration from `toolbarLayout` |
+| S2 | 401 | Slots, arrow menu, soft drop (FLIP), tool groups as packages |
+| S3 | 413 | Row 2, time frame and formation packages |
+| S4 | 421 | Mode, product, account anchor and actions; Setup and Free |
+| S5 | 428 | Phone and landscape phone, touch area, last shrink step of the product box |
+| S6 | this PR | Catalog (UI-16, UI-17), journal, browser check on the DEMO account |
+
+### Lessons
+
+- Measure widths with fractions (`getBoundingClientRect`). `offsetWidth` rounds, and a sum of boxes that is 1.7 px too wide still overflows the row.
+- A change to a shared component must be opt-in. `DropdownMenu` got `fitHeight` for the date range only. The first version for all menus broke the layers menu tests.
+- A timeout under load is not a red test. Run the test again alone before you change code. Change code only when the test fails alone (the FRM-47 flake is such a case and is still open).
+- Touch tests need CDP (`Input.dispatchTouchEvent`). Mouse events in Playwright do not set `pointerType: touch`, so the drag threshold and `touch-action` are not tested.
+
+### Open points
+
+- Touch test on a real phone (owner). The Vercel preview was closed for about 24 hours on 2026-11-06 because of the quota.
+- The owner may still object to the compact date range (no dates below 75 rem).
+- UI-17 is not signed. The owner signs it after the visual check.
+
 ## Risks
 
 - The header gap was tuned at many window widths (UI-14, UI-15, FRM-23, FRM-38). The groups move into the row. These measures change. Do not relax tests. Each PR says what changed and why.
@@ -183,5 +211,5 @@ The touch rectangle of every handle (default layout) does not cross an interacti
 
 ## Open points
 
-- [ ] S6.
+- [x] S6 (this section).
 - [ ] Touch drag on a real phone (owner, S5 preview).
