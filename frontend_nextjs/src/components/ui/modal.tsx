@@ -46,7 +46,8 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
           {open && (
             <div className={cn('fixed inset-0 flex items-center justify-center p-4', inFullscreen ? 'z-[100]' : 'z-[60]')}>
               <motion.div
-                className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm"
+                className="absolute inset-0 bg-overlay"
+                data-testid="modal-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

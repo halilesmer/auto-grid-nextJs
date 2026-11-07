@@ -64,6 +64,8 @@
   --chart-5: #9a9a9a;
 
   --radius: 0.75rem;
+  /* Pencere (Modal, <dialog>) arka katmanı: arkası bulanıklaşmadan ve kararmadan görünür (UI-21); tek değer burada */
+  --overlay: transparent;
   /* Kopfzeile (AppNav) hat bei jeder Breite diese Höhe; fixierte Leisten darunter nutzen sie als top */
   --nav-height: 3.5rem;
   color-scheme: light;
@@ -104,6 +106,8 @@
   --chart-4: #888888;
   --chart-5: #999999;
 
+  --overlay: transparent;
+
   color-scheme: dark;
 }
 
@@ -114,6 +118,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-overlay: var(--overlay);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
