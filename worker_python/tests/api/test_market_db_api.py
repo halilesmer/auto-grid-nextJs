@@ -349,6 +349,82 @@ def test_fehlgeschlagene_migration_laesst_alte_version_und_antwortet_503(client,
     assert any(f"pre-v{old_version + 1}" in name for name in os.listdir(market_db.backups_dir()))
 
 
+def _legacy_csv_imports(rows):
+    """Datenbank auf den Stand vor der server-Migration (Version 9) zurücksetzen und Importe ohne server einfügen."""
+    with market_db.writing() as conn:
+        conn.execute("DROP INDEX csv_imports_server")
+        conn.execute("ALTER TABLE csv_imports DROP COLUMN server")
+        conn.execute("PRAGMA user_version=9")  # feste Zahl: neue Migrationen ändern sie nicht
+        for import_id, account_id in rows:
+            conn.execute(
+                "INSERT INTO csv_imports (import_id, account_id, symbol, timeframe, filename, status, size_bytes, "
+                "created_at, bars, first_t, last_t, gaps, committed_at) "
+                "VALUES (?,?, 'XAUUSD', 60, 'x.csv', 'committed', 10, 1, 1, ?, ?, 0, 1)", (import_id, account_id, MON, MON))
+            conn.execute("INSERT INTO rates VALUES (?, 'XAUUSD', 60, ?, 1, 2, 0.5, 1.5, 5, NULL)",
+                         (f"csv:{import_id}", MON))
+    market_db.reset_cache()
+
+
+def _csv_state():
+    with market_db.reading() as conn:
+        imports = [tuple(r) for r in conn.execute("SELECT import_id, account_id, server FROM csv_imports ORDER BY import_id")]
+        rates = conn.execute("SELECT COUNT(*) FROM rates WHERE source LIKE 'csv:%'").fetchone()[0]
+    return imports, rates
+
+
+@pytest.mark.feature("ANA-04")
+def test_migration_gives_existing_csv_imports_the_server_of_their_account(client, broker, seed_accounts):
+    seed_accounts(account("1001", server="Alpha-Server"), account("1002", server=" "))
+    get_rates(client, MON, MON + 60)  # legt die Datenbank im aktuellen Stand an
+    a, b, c = "a" * 32, "b" * 32, "c" * 32
+    _legacy_csv_imports([(a, "1001"), (b, "9999"), (c, "1002")])  # b: Konto gibt es nicht mehr, c: ohne Server
+
+    assert _csv_state() == ([(a, "1001", "Alpha-Server"), (b, "9999", None), (c, "1002", None)], 3)
+    # Vor der Migration wurde gesichert
+    assert any(f"pre-v{market_db.SCHEMA_VERSION}" in name for name in os.listdir(market_db.backups_dir()))
+
+
+@pytest.mark.feature("ANA-04")
+def test_migration_runs_twice_without_harm_or_lost_rows(client, broker, seed_accounts):
+    seed_accounts(account("1001", server="Alpha-Server"))
+    get_rates(client, MON, MON + 60)
+    a, b = "a" * 32, "b" * 32
+    _legacy_csv_imports([(a, "1001"), (b, "9999")])
+    first = _csv_state()
+
+    # Versionsnummer zurücksetzen: dieselbe Migration läuft auf einer schon migrierten Datenbank noch einmal
+    with market_db.writing() as conn:
+        conn.execute("UPDATE csv_imports SET server='Von-Hand' WHERE import_id=?", (a,))
+        conn.execute("PRAGMA user_version=9")
+    market_db.reset_cache()
+    second = _csv_state()
+
+    assert first[1] == second[1] == 2
+    assert [i[0] for i in second[0]] == [a, b]
+    assert dict((i[0], i[2]) for i in second[0])[a] == "Von-Hand"  # gesetzter Wert wird nicht überschrieben
+    assert dict((i[0], i[2]) for i in second[0])[b] is None
+
+
+@pytest.mark.feature("ANA-04")
+def test_migration_bricht_bei_unlesbarer_kontodatei_ab_statt_alle_importe_ohne_server_zu_lassen(client, broker, worker_dir):
+    get_rates(client, MON, MON + 60)
+    _legacy_csv_imports([("a" * 32, "1001")])
+    (worker_dir / "configs" / "accounts.json").write_text("{kaputt", encoding="utf-8")
+
+    with pytest.raises(market_db.MarketDbUnavailable, match="göçü"):
+        with market_db.reading():
+            pass
+    conn = sqlite3.connect(market_db.db_path())
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 9  # alte Version bleibt, nächster Start versucht es erneut
+    assert conn.execute("SELECT COUNT(*) FROM rates WHERE source LIKE 'csv:%'").fetchone()[0] == 1
+    conn.close()
+    # Datei repariert: die Migration läuft jetzt und füllt den Server
+    (worker_dir / "configs" / "accounts.json").write_text(
+        '{"accounts": [{"id": "1001", "server": "Alpha-Server"}]}', encoding="utf-8")
+    market_db.reset_cache()
+    assert _csv_state()[0] == [("a" * 32, "1001", "Alpha-Server")]
+
+
 @pytest.mark.feature("ANA-04")
 def test_kaputte_datenbankdatei_antwortet_503(client, broker, worker_dir):
     (worker_dir / "data" / "market.sqlite").write_bytes(b"kein sqlite" * 100)
@@ -513,12 +589,15 @@ def test_zonen_register_beim_speichern(client, broker):
 
 
 @pytest.mark.feature("ANA-07")
-def test_konto_loeschen_loescht_das_deal_archiv(client, broker, deals):
+def test_konto_loeschen_laesst_das_deal_archiv_stehen(client, broker, deals):
     client.get(DEALS_URL)
-    assert client.delete(f"/api/accounts/{TEST_ACCOUNT_ID}").status_code == 200
     with market_db.reading() as conn:
-        assert conn.execute("SELECT COUNT(*) FROM deals").fetchone()[0] == 0
-        assert conn.execute("SELECT COUNT(*) FROM deal_coverage").fetchone()[0] == 0
+        before = conn.execute("SELECT COUNT(*) FROM deals").fetchone()[0]
+    assert before > 0
+    assert client.delete(f"/api/accounts/{TEST_ACCOUNT_ID}").status_code == 200
+    with market_db.reading() as conn:  # 1107-A6.3: nur der Kontoeintrag verschwindet
+        assert conn.execute("SELECT COUNT(*) FROM deals").fetchone()[0] == before
+        assert conn.execute("SELECT COUNT(*) FROM deal_coverage").fetchone()[0] > 0
 
 
 @pytest.mark.feature("ANA-04")
