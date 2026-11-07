@@ -385,6 +385,13 @@ ANA-14:
     Setup 3 +206,11). Jede Zeile stimmt mit den MT5-Deals ihrer Magic (Worker-Deal-API,
     Einstieg nach Register-created_at) überein; Namen wie Symbolkarten. Lücke: Vergleich
     über die Worker-Deal-API, nicht im MT5-Terminal.'
+ANA-26:
+  status: bestanden
+  datum: '2026-11-07'
+  notiz: 'MT5 karşılaştırması 2026-11-07 (USOUSD, Halil''in ekran görüntüleri): W1
+    hafta başı Pazar (eksen 12.10.25, 11.10.26); W1 2026.11.01 ve MN 2026.10.01 ile
+    2026.11.01 mumlarının O/H/L/C değerleri hesaplanan değerlerle birebir. W1 25.10
+    mumu ayrıca bakılmadı.'
 ANA-27:
   status: bestanden
   datum: '2026-11-07'

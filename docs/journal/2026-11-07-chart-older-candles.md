@@ -2,9 +2,9 @@
 date: 2026-11-07
 author: Claude
 type: feature
-status: open
+status: done
 pr: []
-features: [ANA-27, ANA-05]
+features: [ANA-26, ANA-27, ANA-05]
 areas: [frontend, tests]
 ---
 
@@ -65,7 +65,7 @@ The check used a temporary Playwright script (not committed) with real mouse dra
 - M1, custom range 2025-11-01 to 2025-11-30 (c): 26 648 candles loaded at once. No data-quality banner (no missing-range warning).
 - M1, "Last 90 days" and "Last 12 months" (checks 1 and 2): not completed. The first run was stopped by machine load. A second run with low load (about 2) finished, but it is not a result: 40 mouse drags moved the view back only about 42 days, the bar count stayed at 68 369 in both ranges, no request failed (no 4xx), and no pill showed because the range start was not reached. The range-start pill and the limit pill are covered by the mocked `@ANA-27` tests only. A live check needs a longer drag, or a jump to the range start.
 - D1, "All" (b), after PR 439: the older page request (`from=0`) returned 200. No 422. The pill showed "Start of MT5 history" at 22.01.13 00:00 (D1 coverage starts at 2013-01-24). With the response held, the visible range before the page was 2013-03-01 to 2020-07-01 and after the page 2013-01-22 to 2020-07-01: the right edge did not move. The request for the older page was sent twice (two 200 answers with the same parameters).
-- W1 and MN (d): the chart has no hover legend with open, high, low and close. The values below were NOT read from the chart. They were calculated from the worker D1 candles with the same rule as `calendarBars.ts` (week starts Sunday 00:00, month on the 1st, broker time). The last W1 candle matches the screenshot (open about 103, low about 87, close 90.84). The owner compares them with the MT5 terminal.
+- W1 and MN (d): the chart has no hover legend with open, high, low and close. The values below were NOT read from the chart. They were calculated from the worker D1 candles with the same rule as `calendarBars.ts` (week starts Sunday 00:00, month on the 1st, broker time). The last W1 candle matches the screenshot (open about 103, low about 87, close 90.84). The owner compared them with the MT5 terminal; see the result below.
 
 | Period | Start | Open | High | Low | Close |
 |---|---|---|---|---|---|
@@ -78,3 +78,8 @@ The check used a temporary Playwright script (not committed) with real mouse dra
 
 ## Lesson: stale `unavailable` mark
 A D1 range of 2026-10-30 to 2026-11-06 was marked `unavailable` ("not in MT5") although H1 candles existed for the same days. W1 and MN are built from D1, so they would have been wrong. The mark was old (the 24-hour retry did not run) and was refreshed later. Check the D1 coverage before you trust W1 and MN.
+
+## MT5 comparison of W1 and MN (2026-11-07, owner, USOUSD)
+- The MT5 weekly axis shows 12 Oct 2025 and 11 Oct 2026. Both are Sundays. The week starts on Sunday, as the rule in `calendarBars.ts` says.
+- The MT5 data window matches the calculated values to the third decimal for three candles: W1 2026-11-01, MN 2026-10-01 and MN 2026-11-01 (open, high, low, close).
+- The W1 candle of 2026-10-25 was not compared. `ANA-26` is signed on the three candles above.
