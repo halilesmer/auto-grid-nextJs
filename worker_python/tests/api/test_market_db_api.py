@@ -598,3 +598,10 @@ def test_size_bytes_ueberlebt_verschwindende_wal_datei(monkeypatch, tmp_path):
     monkeypatch.setattr(os.path, "exists", lambda p: True)
     monkeypatch.setattr(os.path, "getsize", racy)
     assert market_db.size_bytes() == 10
+
+
+@pytest.mark.feature("ANA-04")
+def test_standardgrenze_ist_10000_mb(monkeypatch):
+    monkeypatch.delenv("MARKET_DB_MAX_MB", raising=False)
+    from src.utils import market_db
+    assert market_db.max_bytes() == 10000 * 1024 * 1024

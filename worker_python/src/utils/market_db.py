@@ -30,7 +30,7 @@ DB_FILENAME = "market.sqlite"
 BUSY_TIMEOUT_SEC = 10
 BACKUP_KEEP = 7
 # Veritabanı bu boyutu aşınca yeni mum saklanmaz (deal arşivi küçüktür, devam eder)
-MAX_MB_DEFAULT = 5000
+MAX_MB_DEFAULT = 10000
 # "Mevcut değil" aralıkları bu kadar sonra yeniden denenir
 UNAVAILABLE_RETRY_SEC = 24 * 3600
 
