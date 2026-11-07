@@ -3,7 +3,7 @@ date: 2026-11-07
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [437]
 features: [VPS-04]
 areas: [frontend, tests]
 ---
@@ -50,7 +50,7 @@ The server writes the real TCP peer address into every request before Next handl
 - The new tests fail with the old `route.ts`: a forged POST from the non-loopback address got 404 `disabled` instead of 403.
 - `/vps` in the browser on `localhost` shows the same page as before.
 - `/security-review` of the diff: no finding with high confidence. See the lesson on port forwards.
-- `scripts/features/precheck.sh`: see the pull request.
+- `scripts/features/precheck.sh`: PRECHECK OK. Catalog, worker tests, lint and tsc passed. e2e: 3180 passed, 0 failed, 0 flaky, 0 skipped.
 
 ## Open points
 - [ ] Restart the long-running dev server (launch agent) after it pulls this change. The hook loads at server start. Until then every request to `/api/vps/*` gets 403 `localOnly`. This is the safe direction.
