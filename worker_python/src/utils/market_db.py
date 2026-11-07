@@ -51,8 +51,35 @@ class MarketDbUnavailable(Exception):
     """Veritabanı kullanılamıyor (ör. başarısız göç). Veri uçları 503 döner."""
 
 
+def _stored_account_servers() -> dict[str, str]:
+    """accounts.json: hesap kimliği → MT5 sunucusu (boş sunucu yok sayılır). Dosya yoksa ya da bozuksa boş."""
+    try:
+        with open(os.path.join(paths.CONFIGS_DIR, "accounts.json"), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        accounts = data.get("accounts", []) if isinstance(data, dict) else data
+        return {str(a.get("id")): str(a.get("server") or "").strip() for a in accounts if isinstance(a, dict)}
+    except (OSError, ValueError):
+        return {}
+
+
+def _csv_imports_add_server(conn):
+    """SW / 1107-A6.2: CSV aktarmaları hesaba değil MT5 sunucusuna bağlanır.
+
+    Tekrar çalışması zarar vermez: sütun varsa eklenmez, yalnız `server IS NULL` satırlar doldurulur,
+    hiçbir satır silinmez. Hesabı artık olmayan (ya da sunucusu boş) aktarma NULL kalır; yalnız admin görür."""
+    if "server" not in {row[1] for row in conn.execute("PRAGMA table_info(csv_imports)")}:
+        conn.execute("ALTER TABLE csv_imports ADD COLUMN server TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS csv_imports_server ON csv_imports (server, symbol, timeframe)")
+    servers = _stored_account_servers()
+    for row in conn.execute("SELECT import_id, account_id FROM csv_imports WHERE server IS NULL").fetchall():
+        server = servers.get(str(row[1]))
+        if server:
+            conn.execute("UPDATE csv_imports SET server=? WHERE import_id=?", (server, row[0]))
+
+
 # Göçler: sürüm N, MIGRATIONS[N-1]'deki komutlarla kurulur. Var olan bir göç asla değiştirilmez.
-MIGRATIONS: list[list[str]] = [
+# Bir giriş SQL metni ya da `fn(conn)` olabilir (veri doldurma).
+MIGRATIONS: list[list] = [
     [
         """CREATE TABLE rates (
             source TEXT NOT NULL, symbol TEXT NOT NULL, timeframe INTEGER NOT NULL,
@@ -176,6 +203,10 @@ MIGRATIONS: list[list[str]] = [
         "ALTER TABLE tick_spread ADD COLUMN g INTEGER",
         "ALTER TABLE tick_spread_coverage ADD COLUMN stats INTEGER NOT NULL DEFAULT 0",
     ],
+    [
+        # 1107-A6.2: CSV-Importe gehören dem MT5-Server; Konten desselben Servers teilen sie.
+        _csv_imports_add_server,
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
@@ -247,7 +278,10 @@ def _migrate(path: str):
         try:
             for target in range(version + 1, SCHEMA_VERSION + 1):
                 for statement in MIGRATIONS[target - 1]:
-                    conn.execute(statement)
+                    if callable(statement):
+                        statement(conn)
+                    else:
+                        conn.execute(statement)
             conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
             conn.execute("COMMIT")
         except Exception as exc:
@@ -420,6 +454,32 @@ def rate_coverage(source: str, symbol: str, timeframe: int, a: int, b: int) -> l
             "WHERE source=? AND symbol=? AND timeframe=? AND to_t > ? AND from_t < ? ORDER BY from_t",
             (source, symbol, timeframe, a, b),
         )]
+
+
+def rate_coverage_union(sources: list[str], symbol: str, timeframe: int, a: int, b: int) -> list[dict]:
+    """Abdeckung mehrerer Quellen (CSV-Serie) im Bereich; die Aufrufer vereinigen die abgedeckten Teile selbst."""
+    marks = ",".join("?" for _ in sources)
+    with reading() as conn:
+        return [dict(r) for r in conn.execute(
+            f"SELECT from_t, to_t, state, checked_at FROM rate_coverage WHERE source IN ({marks}) AND symbol=? "
+            "AND timeframe=? AND to_t > ? AND from_t < ? ORDER BY from_t",
+            (*sources, symbol, timeframe, a, b))]
+
+
+def read_rates_union(sources: list[str], symbol: str, timeframe: int, a: int, b: int, limit: int) -> list[dict]:
+    """Kerzen [a, b) aus mehreren Quellen; `sources` nach Vorrang (die erste gewinnt eine doppelte Minute).
+
+    MIN(Rang) mit „bare columns“: SQLite liefert die übrigen Spalten aus der Zeile mit dem kleinsten Rang."""
+    rank = "CASE source " + " ".join("WHEN ? THEN ?" for _ in sources) + " END"
+    rank_args = [x for i, source in enumerate(sources) for x in (source, i)]
+    marks = ",".join("?" for _ in sources)
+    with reading() as conn:
+        rows = conn.execute(
+            "SELECT t_mt5 AS time, o AS open, h AS high, l AS low, c AS close, tick_volume, spread, "
+            f"MIN({rank}) AS rank FROM rates WHERE source IN ({marks}) AND symbol=? AND timeframe=? "
+            "AND t_mt5 >= ? AND t_mt5 < ? GROUP BY t_mt5 ORDER BY t_mt5 LIMIT ?",
+            (*rank_args, *sources, symbol, timeframe, a, b, limit)).fetchall()
+    return [{k: r[k] for k in r.keys() if k != "rank"} for r in rows]
 
 
 def plan_rates(source: str, symbol: str, timeframe: int, a: int, b: int, now: float | None = None):
@@ -784,7 +844,9 @@ def staging_file(import_id: str) -> str:
 
 
 def remove_csv_import(conn, import_id: str):
-    """Kayıt, mumlar ve aralıklar (transaction içinde) ve hazırlık dosyası. Dosya hatası yutulmaz."""
+    """Kayıt, mumlar ve aralıklar (transaction içinde) ve hazırlık dosyası. Dosya hatası yutulmaz.
+
+    Yalnız elle silmede (admin), yarım kalan yüklemeyi iptalde ve hatalı dosyada kullanılır; hesap silme çağırmaz."""
     src = csv_source(import_id)
     conn.execute("DELETE FROM rates WHERE source=?", (src,))
     conn.execute("DELETE FROM rate_coverage WHERE source=?", (src,))
@@ -795,7 +857,9 @@ def remove_csv_import(conn, import_id: str):
         pass  # onaylanmış içe aktarmanın dosyası zaten silinmiştir
 
 
-# --------------------------------------------------------------------------- hesap silme
+# --------------------------------------------------------------------------- yer geri verme
+# Hesap silinince veri silinmez (1107-A6.3): deal arşivi, hesap bilgisi, backtest raporları, CSV aktarmaları ve
+# favoriler kalır; hesap aynı kimlikle yeniden eklenirse yeniden görünür. Silme yalnız elle (admin) yapılır.
 def reclaim_space():
     """Silinen sayfaları dosyadan geri verir (aksi halde boyut küçülmez ve is_full() doğru kalır)."""
     if not os.path.exists(db_path()):
@@ -805,15 +869,3 @@ def reclaim_space():
         conn.execute("PRAGMA incremental_vacuum")
     finally:
         conn.close()
-
-
-def delete_account(account_id: str):
-    """Hesabın deal arşivini, CSV içe aktarmalarını ve backtest raporlarını (BKT-14) siler (bölge kaydı ve MT5 mumları kalır; mumlar sunucuya aittir)."""
-    if not os.path.exists(db_path()):
-        return
-    with writing() as conn:
-        for table in ("deals", "deal_coverage", "account_meta", "backtest_reports"):
-            conn.execute(f"DELETE FROM {table} WHERE account_id=?", (account_id,))
-        for row in conn.execute("SELECT import_id FROM csv_imports WHERE account_id=?", (account_id,)).fetchall():
-            remove_csv_import(conn, row["import_id"])
-    reclaim_space()

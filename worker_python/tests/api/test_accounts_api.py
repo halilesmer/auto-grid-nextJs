@@ -85,6 +85,41 @@ def test_loeschen(client, seed_accounts, worker_dir):
     assert client.delete("/api/accounts/1001").status_code == 404
 
 
+@pytest.mark.feature("ACC-05")
+def test_loeschen_laesst_archiv_berichte_importe_und_favoriten_stehen(client, seed_accounts, worker_dir):
+    """1107-A6.3: nur der Kontoeintrag verschwindet; mit derselben Kennung ist alles wieder da."""
+    from src.utils import csv_import, market_db
+
+    seed_accounts(account("1001"), account("1002"))
+    market_db.store_deals("1001", [{"ticket": 7, "time": 1_760_000_000, "type": 0, "entry": 0, "symbol": "XAUUSD"}],
+                          [(1_760_000_000 - 60, 1_760_000_000 + 60)], account={"currency": "USD", "balance": 1.0})
+    with market_db.writing() as conn:
+        conn.execute("INSERT INTO backtest_reports (id, owner, name, note, account_id, period_from, period_to, "
+                     "worker_version, payload, created_at, symbol_count, passed_count) "
+                     "VALUES ('r1','admin','Bericht','','1001',1,2,'v','{}',1,1,1)")
+    data = b"time,open,high,low,close\n1760000040,1,2,0.5,1.5\n"
+    created = csv_import.create("1001", "Fake-Demo", "XAUUSD", "M1", "x.csv", len(data), 0)
+    csv_import.add_chunk("1001", created["import_id"], 0, data)
+    csv_import.commit("1001", created["import_id"], False)
+    assert client.put("/api/favorites/1001", json={"symbols": ["XAUUSD"]}).status_code == 200
+    stored_account = _stored(worker_dir)[0]
+
+    assert client.delete("/api/accounts/1001").json() == {"status": "deleted", "account_id": "1001"}
+    assert [a["id"] for a in _stored(worker_dir)] == ["1002"]
+    assert (worker_dir / "configs" / "favorites_1001.json").exists()
+    with market_db.reading() as conn:
+        counts = {t: conn.execute(f"SELECT COUNT(*) FROM {t} WHERE account_id='1001'").fetchone()[0]
+                  for t in ("deals", "deal_coverage", "account_meta", "backtest_reports", "csv_imports")}
+        assert conn.execute("SELECT COUNT(*) FROM rates WHERE source LIKE 'csv:%'").fetchone()[0] == 1
+    assert counts == {"deals": 1, "deal_coverage": 1, "account_meta": 1, "backtest_reports": 1, "csv_imports": 1}
+
+    assert client.post("/api/accounts", json=stored_account).status_code == 201
+    assert client.get("/api/favorites/1001").json()["symbols"] == ["XAUUSD"]
+    assert [d["ticket"] for d in market_db.read_deals("1001", 1_760_000_000 - 10, 1_760_000_000 + 10)] == [7]
+    listed = client.get("/api/market/1001/imports").json()["imports"]
+    assert [(i["status"], i["bars"], i["server"]) for i in listed] == [("committed", 1, "Fake-Demo")]
+
+
 # --------------------------------------------------------------------------- ACC-09
 @pytest.mark.feature("ACC-09")
 def test_passwort_steht_in_keiner_antwort(client, seed_accounts):

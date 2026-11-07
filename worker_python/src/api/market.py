@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from src.api.access import account_access
-from src.api.auth import require_admin
+from src.api.auth import get_principal, require_admin
 from src.api.helpers import _find_settings_file, _load_accounts, _load_settings_data
 from src.utils import csv_import, market_db, market_sync, mt5_market
 from src.utils.bot_watchdog import is_account_busy
@@ -163,6 +163,7 @@ def _clock_now(account_id: str, server: str = "") -> tuple[float | None, int | N
 
 @router.get("/market/{account_id}/rates", dependencies=[Depends(account_access)])
 async def rates(
+    request: Request,
     account_id: str,
     symbol: str,
     timeframe: str = "M1",
@@ -192,8 +193,8 @@ async def rates(
         if not source.startswith(market_db.CSV_SOURCE_PREFIX):
             raise HTTPException(status_code=400, detail="source must be csv:<import_id>")
         return await _csv_call(
-            csv_import.get_rates, account_id, source[len(market_db.CSV_SOURCE_PREFIX):], symbol.strip(),
-            timeframe, from_, to,
+            csv_import.get_rates, _viewer(request, account_id), source[len(market_db.CSV_SOURCE_PREFIX):],
+            symbol.strip(), timeframe, from_, to,
         )
     account = _account_or_404(account_id)
     symbol = symbol.strip()
@@ -322,7 +323,8 @@ class ImportCreate(BaseModel):
 
 
 class ImportCommit(BaseModel):
-    replace: bool = False
+    # Onay: örtüşen dosya varken devam et. Eski dosya silinmez; seri yalnız eksik dakikalarla uzar (1107-A5.2).
+    extend: bool = False
 
 
 async def _csv_call(func, *args):
@@ -336,18 +338,24 @@ async def _csv_call(func, *args):
         raise HTTPException(status_code=503, detail=str(exc))
 
 
+def _viewer(request: Request, account_id: str) -> csv_import.Viewer:
+    """Wer fragt: Konto (Server stammt aus dem Konto, nie aus der Anfrage) und Rolle."""
+    account = _account_or_404(account_id)
+    return csv_import.Viewer(account_id, str(account.get("server") or "").strip(), get_principal(request).is_admin)
+
+
 @router.get("/market/{account_id}/imports", dependencies=[Depends(account_access)])
-async def list_imports(account_id: str):
-    """CSV-Importe des Kontos (onaylanmış und unfertige); nur `committed` ist wählbar."""
-    _account_or_404(account_id)
-    return {"imports": await _csv_call(csv_import.list_imports, account_id)}
+async def list_imports(request: Request, account_id: str):
+    """CSV-Importe: Dateien (die des Servers + eigene unfertige) und die Serien (Server + Symbol + Zeitrahmen)."""
+    return await _csv_call(csv_import.list_imports, _viewer(request, account_id))
 
 
 @router.post("/market/{account_id}/imports", dependencies=[Depends(account_access)])
 async def create_import(account_id: str, body: ImportCreate):
-    _account_or_404(account_id)
+    account = _account_or_404(account_id)
     return await _csv_call(
-        csv_import.create, account_id, body.symbol, body.timeframe, body.filename, body.size, body.time_offset_sec, body.time_offset_mode
+        csv_import.create, account_id, str(account.get("server") or ""), body.symbol, body.timeframe, body.filename,
+        body.size, body.time_offset_sec, body.time_offset_mode
     )
 
 
@@ -366,10 +374,11 @@ async def import_chunk(account_id: str, import_id: str, request: Request, index:
 
 @router.post("/market/{account_id}/imports/{import_id}/commit", dependencies=[Depends(account_access)])
 async def commit_import(account_id: str, import_id: str, body: ImportCommit):
-    return await _csv_call(csv_import.commit, account_id, import_id, body.replace)
+    return await _csv_call(csv_import.commit, account_id, import_id, body.extend)
 
 
 @router.delete("/market/{account_id}/imports/{import_id}", dependencies=[Depends(account_access)])
-async def delete_import(account_id: str, import_id: str):
-    await _csv_call(csv_import.delete, account_id, import_id)
+async def delete_import(request: Request, account_id: str, import_id: str):
+    """Unfertigen Upload bricht sein Konto ab; eine fertige Datei löscht nur der Admin (endgültig, 403 sonst)."""
+    await _csv_call(csv_import.delete, _viewer(request, account_id), import_id)
     return {"deleted": import_id}

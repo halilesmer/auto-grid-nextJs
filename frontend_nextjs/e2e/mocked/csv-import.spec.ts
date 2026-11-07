@@ -3,8 +3,10 @@
  * Zeiten: erste CSV-Spalte = Epoche in Sekunden (MON = 28.09.2026 00:00).
  */
 import type { Page } from '@playwright/test';
+import { connectWithKey } from '../fixtures/connection';
+import { E2E_USER_KEY, MOCK_API } from '../fixtures/env';
 import { fmt, msg } from '../fixtures/i18n';
-import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
+import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test } from '../fixtures/test';
 import { openHeaderMenu } from '../fixtures/header';
 
 const MON = 1790553600;
@@ -58,7 +60,7 @@ test.describe('BKT CSV-Import', () => {
         worker.state.csvImports.push({ import_id: importId, account_id: DEMO_ID, symbol: body.symbol,
           timeframe: body.timeframe, filename: body.filename, status: 'staging', size_bytes: body.size,
           received_bytes: 0, next_chunk: 0, bars: null, first_t: null, last_t: null, gaps: null,
-          offset_sec: 0, created_at: MON, committed_at: null, text: '' });
+          offset_sec: 0, created_at: MON, committed_at: null, server: 'Broker-Demo', text: '' });
         created();
         await responseGate;
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ import_id: importId, chunk_bytes: 4194304 }) });
@@ -78,23 +80,34 @@ test.describe('BKT CSV-Import', () => {
     });
   }
 
-  test('Import wird in Teilen hochgeladen, geprüft und erscheint in der Liste', { tag: '@BKT-05' }, async ({ page, worker }) => {
+  test('Import wird in Teilen hochgeladen, geprüft und erscheint als Serie mit seiner Datei', { tag: '@BKT-05' }, async ({ page, worker }) => {
     await openDialog(page);
     await expect(page.getByTestId('csv-submit')).toBeDisabled(); // ohne Datei
 
     await importFile(page, csv([MON, MON + 60, MON + 120]));
 
     await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
+    const series = page.getByTestId('csv-series');
+    await expect(series).toHaveCount(1);
+    await expect(series).toContainText('XAUUSD · M1');
+    await expect(series).toContainText(msg('csv.series.files', { count: 1 }));
+    await expect(page.getByTestId('csv-series-server')).toHaveText('Broker-Demo');
+    await expect(page.getByTestId('csv-series-range')).toContainText(
+      msg('csv.series.range', { from: fmt().mt5DateTime(MON), to: fmt().mt5DateTime(MON + 120), bars: '3' }),
+    );
+    await page.getByTestId('csv-series-toggle').click();
     const item = page.getByTestId('csv-item');
     await expect(item).toHaveCount(1);
     await expect(item).toHaveAttribute('data-status', 'committed');
-    await expect(item).toContainText('XAUUSD · M1');
-    await expect(item).toContainText(msg('csv.item.range', { from: '', to: '', bars: '3' }).split(' · ')[1]);
+    await expect(item).toContainText('xau.csv');
     expect(worker.callsTo('POST', `/api/market/${DEMO_ID}/imports`)[0].body).toMatchObject({
       symbol: 'XAUUSD', timeframe: 'M1', time_offset_sec: 0,
     });
     expect(worker.callsTo('PUT', new RegExp(`/imports/[0-9a-f]+/chunk$`)).length).toBe(1);
-    expect(worker.state.csvImports.map((i) => i.status)).toEqual(['committed']);
+    expect(worker.state.csvImports.map((i) => [i.status, i.server])).toEqual([['committed', 'Broker-Demo']]);
+    // Auch aufgeklappt läuft nichts über den Rand (375 px)
+    await page.setViewportSize({ width: 375, height: 812 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   for (const [season, rows, expected] of [
@@ -113,6 +126,7 @@ test.describe('BKT CSV-Import', () => {
         time_offset_sec: 0, time_offset_mode: 'row',
       });
       expect(worker.state.csvImports[0]).toMatchObject({ offset_mode: 'row', first_t: expected[0], last_t: expected[1] });
+      await page.getByTestId('csv-series-toggle').click();
       await expect(page.getByTestId('csv-item')).toContainText(msg('csv.item.range', {
         from: fmt().mt5DateTime(expected[0]),
         to: fmt().mt5DateTime(expected[1]),
@@ -120,6 +134,7 @@ test.describe('BKT CSV-Import', () => {
       }));
       await expect(page.getByTestId('csv-row-offset')).toContainText(msg('csv.item.rowOffset'));
       await page.reload();
+      await page.getByTestId('csv-series-toggle').click();
       await expect(page.getByTestId('csv-row-offset')).toContainText(msg('csv.item.rowOffset'));
     });
   }
@@ -134,7 +149,7 @@ test.describe('BKT CSV-Import', () => {
       worker.state.csvImports.push({ import_id: importId, account_id: DEMO_ID, symbol: body.symbol,
         timeframe: body.timeframe, filename: body.filename, status: 'staging', size_bytes: body.size,
         received_bytes: 0, next_chunk: 0, bars: null, first_t: null, last_t: null, gaps: null,
-        offset_sec: 0, offset_mode: 'row', created_at: MON, committed_at: null, text: '' });
+        offset_sec: 0, offset_mode: 'row', created_at: MON, committed_at: null, server: 'Broker-Demo', text: '' });
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ import_id: importId, chunk_bytes: 4194304 }) });
     });
     await importFile(page, rowOffsetCsv([[1743296340, 7200], [1743296400, 10800]]));
@@ -155,39 +170,80 @@ test.describe('BKT CSV-Import', () => {
     await expect(page.getByTestId('csv-import-dialog')).toBeVisible();
     expect(worker.state.csvImports).toEqual([]);
     await page.getByRole('button', { name: msg('csv.cancel') }).click();
-    await expect(page.getByTestId('csv-item')).toHaveCount(0);
+    await expect(page.getByTestId('csv-series')).toHaveCount(0);
     await expect(page.getByText(msg('csv.empty'))).toBeVisible();
   });
 
-  test('Überlappung geht nur mit „Ersetzen“', { tag: '@BKT-05' }, async ({ page, worker }) => {
+  test('Überlappung verlängert die Serie und löscht nichts', { tag: '@BKT-05' }, async ({ page, worker }) => {
     await openDialog(page);
     await importFile(page, csv([MON, MON + 60, MON + 120]));
-    await expect(page.getByTestId('csv-item')).toHaveCount(1);
+    await expect(page.getByTestId('csv-series')).toHaveCount(1);
     const first = worker.state.csvImports[0].import_id;
 
     await page.getByTestId('csv-open').click();
     await importFile(page, csv([MON + 60, MON + 120, MON + 180]));
+    // Der Hinweis ist nur eine Information (info), die Bestätigung heißt „Erweitern“
     await expect(page.getByRole('alert').filter({ hasText: msg('csv.overlap.title') })).toBeVisible();
+    await expect(page.getByTestId('csv-replace')).toHaveCount(0);
     expect(worker.state.csvImports.map((i) => [i.import_id === first, i.status])).toEqual([[true, 'committed'], [false, 'staging']]);
 
     // Abbrechen löscht den wartenden Import, der alte bleibt
     await page.getByRole('button', { name: msg('csv.cancel') }).click();
-    await expect(page.getByTestId('csv-item')).toHaveCount(1);
+    await expect(page.getByTestId('csv-series')).toHaveCount(1);
     expect(worker.state.csvImports.map((i) => i.import_id)).toEqual([first]);
 
     await page.getByTestId('csv-open').click();
     await importFile(page, csv([MON + 60, MON + 120, MON + 180]));
-    await page.getByTestId('csv-replace').click();
+    await page.getByTestId('csv-extend').click();
     await expect(page.getByTestId('csv-import-dialog')).toBeHidden();
-    await expect(page.getByTestId('csv-item')).toHaveCount(1);
-    expect(worker.state.csvImports.map((i) => [i.import_id === first, i.status])).toEqual([[false, 'committed']]);
+
+    // Eine Serie aus zwei Dateien, 4 verschiedene Minuten; die alte Datei ist unverändert da
+    await expect(page.getByTestId('csv-series')).toHaveCount(1);
+    await expect(page.getByTestId('csv-series')).toHaveAttribute('data-files', '2');
+    await expect(page.getByTestId('csv-series-range')).toContainText(
+      msg('csv.series.range', { from: fmt().mt5DateTime(MON), to: fmt().mt5DateTime(MON + 180), bars: '4' }),
+    );
+    expect(worker.state.csvImports.map((i) => [i.import_id === first, i.status])).toEqual([[true, 'committed'], [false, 'committed']]);
+    expect(worker.callsTo('POST', /\/imports\/[0-9a-f]+\/commit$/).map((c) => (c.body as { extend?: boolean }).extend)).toEqual([false, false, false, true]); // 1. Datei, zwei Versuche mit Überlappung (409), dann die Bestätigung
+    await page.getByTestId('csv-series-toggle').click();
+    await expect(page.getByTestId('csv-item')).toHaveCount(2);
+  });
+
+  test('Admin löscht eine Datei erst nach der Bestätigung, die den Server nennt', { tag: '@BKT-05' }, async ({ page, worker }) => {
+    await openDialog(page);
+    await importFile(page, csv([MON, MON + 60]));
+    await page.getByTestId('csv-series-toggle').click();
+    await page.getByTestId('csv-delete').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(msg('csv.delete.title'));
+    await expect(dialog).toContainText(msg('csv.delete.account', { mode: 'DEMO', server: 'Broker-Demo' }));
+    await dialog.getByRole('button', { name: msg('common.cancel'), exact: true }).click();
+    expect(worker.state.csvImports).toHaveLength(1);
+
+    await page.getByTestId('csv-delete').click();
+    await page.getByRole('dialog').getByRole('button', { name: msg('csv.delete.confirm'), exact: true }).click();
+    await expect(page.getByTestId('csv-series')).toHaveCount(0);
+    expect(worker.state.csvImports).toEqual([]);
+  });
+
+  test('Ein Konto mit anderem Server sieht die Serie nicht, derselbe Server teilt sie', { tag: '@BKT-05' }, async ({ page, worker }) => {
+    const file = { import_id: 'a'.repeat(32), account_id: DEMO_ID, symbol: 'XAUUSD', timeframe: 'M1', filename: 'a.csv',
+      status: 'committed' as const, size_bytes: 10, received_bytes: 10, next_chunk: 1, bars: 3, first_t: MON, last_t: MON + 120,
+      gaps: 0, offset_sec: 0, created_at: MON, committed_at: MON, text: '' };
+    worker.state.csvImports.push({ ...file, server: 'Broker-Demo' });
+    await page.goto(`/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await expect(page.getByTestId('csv-series')).toHaveCount(1);
+    await page.goto(`/backtest?account=${LIVE_ID}`);
+    await expect(page.getByTestId('csv-panel')).toBeVisible();
+    await expect(page.getByTestId('csv-series')).toHaveCount(0);
+    await expect(page.getByText(msg('csv.empty'))).toBeVisible();
   });
 
   test('Unfertiger Import ist markiert und nur löschbar', { tag: '@BKT-05' }, async ({ page, worker }) => {
     worker.state.csvImports.push({
       import_id: 'a'.repeat(32), account_id: DEMO_ID, symbol: 'EURUSD', timeframe: 'M5', filename: 'alt.csv',
       status: 'staging', size_bytes: 100, received_bytes: 10, next_chunk: 1, bars: null, first_t: null, last_t: null,
-      gaps: null, offset_sec: 0, created_at: MON, committed_at: null, text: '',
+      gaps: null, offset_sec: 0, created_at: MON, committed_at: null, server: 'Broker-Demo', text: '',
     });
     await page.goto(URL);
     const item = page.getByTestId('csv-item');
@@ -219,5 +275,24 @@ test.describe('BKT CSV-Import', () => {
         .map((el) => el.outerHTML.slice(0, 120));
     });
     expect(unhinted).toEqual([]);
+  });
+
+  test.describe('als Benutzer', () => {
+    test('Ein Benutzer sieht die Serie seines Servers, aber keine Löschen-Knöpfe', { tag: '@BKT-05' }, async ({ page, worker }) => {
+      const anna = worker.addUser('Anna');
+      worker.setOwner(DEMO_ID, anna.id);
+      worker.state.csvImports.push({ import_id: 'a'.repeat(32), account_id: LIVE_ID, symbol: 'XAUUSD', timeframe: 'M1', filename: 'a.csv',
+        status: 'committed', size_bytes: 10, received_bytes: 10, next_chunk: 1, bars: 3, first_t: MON, last_t: MON + 120,
+        gaps: 0, offset_sec: 0, created_at: MON, committed_at: MON, server: 'Broker-Demo', text: '' });
+      await connectWithKey(page, MOCK_API, E2E_USER_KEY);
+      await page.goto(URL);
+
+      // Die Datei kam von einem anderen Konto, aber vom selben Server
+      await expect(page.getByTestId('csv-series')).toHaveCount(1);
+      await page.getByTestId('csv-series-toggle').click();
+      await expect(page.getByTestId('csv-item')).toHaveCount(1);
+      await expect(page.getByTestId('csv-delete')).toHaveCount(0);
+      await expect(page.getByTestId('csv-admin-only')).toHaveText(msg('csv.delete.adminOnly'));
+    });
   });
 });

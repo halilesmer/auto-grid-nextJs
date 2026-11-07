@@ -35,7 +35,8 @@ interface Props {
 
 /**
  * Dialog „CSV importieren“ (BKT-05): Datei in Teilen hochladen, Worker prüft und übernimmt sie. Fehlerhafte
- * Dateien werden vom Worker verworfen und nie wählbar; eine Überlappung geht nur nach „Ersetzen“.
+ * Dateien werden vom Worker verworfen und nie wählbar; bei Überlappung bestätigt „Erweitern“: die Serie wächst,
+ * eine alte Datei wird nie gelöscht.
  * Die Modal-Instanz bleibt eingehängt, damit der Zustand beim Schließen neu beginnt (key im Aufrufer).
  */
 export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImported }: Props) {
@@ -57,7 +58,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
   useEffect(() => () => abort.current?.abort(), []);
 
   const busy = phase !== 'form';
-  const waitingForReplace = overlaps.length > 0; // Import liegt fertig hochgeladen auf dem Worker
+  const waitingForExtend = overlaps.length > 0; // Import liegt fertig hochgeladen auf dem Worker
   const tooBig = file !== null && file.size > MAX_FILE_MB * 1024 * 1024;
   const offsetValid = Number.isFinite(offsetHours) && Math.abs(offsetHours) <= MAX_OFFSET_HOURS;
   const canSubmit = file !== null && !tooBig && symbol.trim() !== '' && offsetValid && !busy;
@@ -75,7 +76,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
 
   const close = async () => {
     abort.current?.abort();
-    // Ein Import, der bei Überlappung auf „Ersetzen“ wartet, bleibt sonst unfertig liegen
+    // Ein Import, der bei Überlappung auf „Erweitern“ wartet, bleibt sonst unfertig liegen
     if (phase !== 'check') await discard();
     onClose();
   };
@@ -87,7 +88,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
     onClose();
   };
 
-  const run = async (replace: boolean) => {
+  const run = async (extend: boolean) => {
     if (!file) return;
     setFailure(null);
     setLineErrors([]);
@@ -109,11 +110,11 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
       }
       setPhase('check');
       setOverlaps([]);
-      finish(await commitCsvImport(accountId, importId.current!, replace));
+      finish(await commitCsvImport(accountId, importId.current!, extend));
     } catch (err) {
       setPhase('form');
       if (err instanceof CsvImportError && err.status === 409) {
-        setOverlaps(err.overlaps); // Import wartet; „Ersetzen“ wiederholt nur den Commit
+        setOverlaps(err.overlaps); // Import wartet; „Erweitern“ wiederholt nur den Commit
         return;
       }
       if (err instanceof CsvImportError) {
@@ -126,7 +127,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
       setFailure(await getApiErrorMessage(err, t('csv.failed')));
       // Ohne Urteil des Workers (Netzabbruch, 5xx) kann der Commit schon durch sein: erst nachsehen, nie blind löschen
       const stored = importId.current
-        ? await listCsvImports(accountId).then((list) => list.find((i) => i.import_id === importId.current), () => undefined)
+        ? await listCsvImports(accountId).then((list) => list.imports.find((i) => i.import_id === importId.current), () => undefined)
         : undefined;
       if (stored?.status === 'committed') {
         finish(stored);
@@ -159,7 +160,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
         </InputField>
         {tooBig && <p className="text-xs text-danger">{t('csv.tooBig', { max: MAX_FILE_MB })}</p>}
         <InputField label={t('csv.offset.mode')} hint={t('csv.offset.mode.hint')}>
-          <select value={offsetMode} disabled={busy || waitingForReplace} data-testid="csv-offset-mode" className="input-s"
+          <select value={offsetMode} disabled={busy || waitingForExtend} data-testid="csv-offset-mode" className="input-s"
             onChange={(e) => {
               const mode = e.target.value as 'fixed' | 'row'; // Optionen unten bilden die geschlossene Menge.
               setOffsetMode(mode);
@@ -174,7 +175,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
             <input
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
-              disabled={busy || waitingForReplace}
+              disabled={busy || waitingForExtend}
               maxLength={32}
               className="input-s"
               data-testid="csv-symbol"
@@ -184,7 +185,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
             <select
               value={timeframe}
               onChange={(e) => setTimeframe(e.target.value as Timeframe)}
-              disabled={busy || waitingForReplace}
+              disabled={busy || waitingForExtend}
               className="input-s"
               data-testid="csv-timeframe"
             >
@@ -203,7 +204,7 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
               max={MAX_OFFSET_HOURS}
               value={offsetHours}
               onChange={(e) => setOffsetHours(e.target.value === '' ? Number.NaN : Number(e.target.value))}
-              disabled={busy || waitingForReplace || offsetMode === 'row'}
+              disabled={busy || waitingForExtend || offsetMode === 'row'}
               className="input-s"
               data-testid="csv-offset"
             />
@@ -228,8 +229,8 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
             <p className="mt-2 text-xs">{t('csv.errors.advice')}</p>
           </Alert>
         )}
-        {waitingForReplace && (
-          <Alert tone="warning" title={t('csv.overlap.title')}>
+        {waitingForExtend && (
+          <Alert tone="info" title={t('csv.overlap.title')}>
             <p>{t('csv.overlap.text')}</p>
           </Alert>
         )}
@@ -238,15 +239,15 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
           <Button variant="ghost" hint={t('csv.cancel.hint')} onClick={() => void close()} disabled={phase === 'check'}>
             {t('csv.cancel')}
           </Button>
-          {waitingForReplace ? (
+          {waitingForExtend ? (
             <Button
-              variant="danger"
-              hint={t('csv.replace.hint')}
+              variant="primary"
+              hint={t('csv.extend.hint')}
               onClick={() => void run(true)}
               loading={busy}
-              data-testid="csv-replace"
+              data-testid="csv-extend"
             >
-              {t('csv.replace')}
+              {t('csv.extend')}
             </Button>
           ) : (
             <Button

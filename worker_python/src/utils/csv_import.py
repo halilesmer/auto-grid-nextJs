@@ -3,6 +3,9 @@
 Akış: create (kayıt + ara dosya) → chunk (sıralı parçalar) → commit (doğrula, yaz) / delete.
 Onaylanmış bir içe aktarmanın mumları `csv:<import_id>` kaynağında durur; MT5 mumlarına (kaynak = sunucu adı)
 dokunulmaz. Yalnızca `committed` içe aktarmalar seçilebilir; hatalı dosya commit'te hemen silinir.
+1107-A6.2 / A5.2: bir aktarma aktarıldığı hesabın MT5 sunucusuna bağlıdır; aynı sunucudaki her hesap onu görür.
+Aynı sunucu, sembol ve dilimdeki bütün onaylı aktarmalar tek seri olarak okunur (aynı dakika birden çok dosyada
+varsa en eski aktarma kazanır). Yeni aktarma eskisini silmez; silme yalnızca elle ve yalnızca admin içindir.
 Zaman: CSV zamanı + offset_sec = MT5 zamanı. UTC dosyasında broker_offset_sec sütunu varsa
 her satır kendi farkını kullanır (mevsimsel geçiş); sabit offset_sec bu durumda sıfır olmalıdır.
 """
@@ -16,6 +19,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
+from typing import NamedTuple
 
 from src.utils import market_db as db
 from src.utils.market_sync import MAX_BARS, MAX_PAUSE_SEC, TIMEFRAMES
@@ -50,34 +54,108 @@ class ImportFailure(Exception):
         self.status, self.detail, self.errors = status, detail, errors or []
 
 
+class Viewer(NamedTuple):
+    """İsteği yapan: hangi hesapla geldi, hesabın MT5 sunucusu, admin mi."""
+
+    account_id: str
+    server: str
+    is_admin: bool
+
+
 # --------------------------------------------------------------------------- ara kayıt (staging)
-def _entry(import_id: str, account_id: str) -> dict:
-    """Eintrag des Kontos; fremde oder unbekannte Importe sehen gleich aus (404)."""
+def _row(import_id: str) -> dict:
     if not ID_RE.fullmatch(import_id):
         raise ImportFailure(404, "Import not found")
     with db.reading() as conn:
-        row = conn.execute("SELECT * FROM csv_imports WHERE import_id=? AND account_id=?",
-                           (import_id, account_id)).fetchone()
+        row = conn.execute("SELECT * FROM csv_imports WHERE import_id=?", (import_id,)).fetchone()
     if row is None:
         raise ImportFailure(404, "Import not found")
     return dict(row)
 
 
+def _entry(import_id: str, account_id: str) -> dict:
+    """Yükleme sürerken (staging) kayıt yalnızca yükleyen hesaba aittir; yabancı ya da bilinmeyen: 404."""
+    row = _row(import_id)
+    if row["account_id"] != account_id:
+        raise ImportFailure(404, "Import not found")
+    return row
+
+
+def _visible(row: dict, viewer: Viewer) -> bool:
+    """Onaylı aktarma: aynı sunucudaki hesaplar görür; sunucusuz (hesabı kalmamış) aktarmayı yalnız admin görür.
+    Yarım yükleme: yalnız yükleyen hesap."""
+    if row["status"] != "committed":
+        return row["account_id"] == viewer.account_id
+    if row["server"] is None:
+        return viewer.is_admin
+    return row["server"] == viewer.server
+
+
+def _visible_entry(import_id: str, viewer: Viewer) -> dict:
+    row = _row(import_id)
+    if not _visible(row, viewer):
+        raise ImportFailure(404, "Import not found")
+    return row
+
+
 def _public(row: dict) -> dict:
     keys = ("import_id", "symbol", "filename", "status", "size_bytes", "received_bytes", "bars",
-            "first_t", "last_t", "gaps", "offset_sec", "offset_mode", "created_at", "committed_at")
+            "first_t", "last_t", "gaps", "offset_sec", "offset_mode", "created_at", "committed_at", "server")
     return {**{k: row[k] for k in keys}, "timeframe": TF_BY_SEC.get(row["timeframe"], str(row["timeframe"]))}
 
 
-def list_imports(account_id: str) -> list[dict]:
+def _series_key(row: dict) -> tuple:
+    """Aynı sunucu + sembol + dilim = bir seri. Sunucusuz aktarma (yalnız admin görür) yükleyen hesapla gruplanır."""
+    owner = ("server", row["server"]) if row["server"] is not None else ("account", row["account_id"])
+    return owner + (row["symbol"], row["timeframe"])
+
+
+def _series_rows(conn, row: dict) -> list[dict]:
+    """Serinin onaylı dosyaları, öncelik sırasıyla (en eski önce; eşitlikte import_id)."""
+    where, args = ("server=?", [row["server"]]) if row["server"] is not None else (
+        "server IS NULL AND account_id=?", [row["account_id"]])
+    return [dict(r) for r in conn.execute(
+        f"SELECT * FROM csv_imports WHERE {where} AND symbol=? AND timeframe=? AND status='committed' "
+        "ORDER BY committed_at, import_id", (*args, row["symbol"], row["timeframe"]))]
+
+
+def list_imports(viewer: Viewer) -> dict:
+    """Görünen dosyalar (onaylı: sunucudaki hepsi; yarım: yalnız kendi yüklemeleri) ve seriler.
+
+    Seri: sunucu + sembol + dilim; `bars` birleşik seride farklı dakika sayısıdır (çakışan dakikalar bir kez sayılır),
+    `import_id` serinin en eski dosyasıdır; `import_ids` hepsi (`csv:<import_id>` bütün seriyi okur, hangisi olursa)."""
     with db.reading() as conn:
-        rows = conn.execute("SELECT * FROM csv_imports WHERE account_id=? ORDER BY created_at DESC",
-                            (account_id,)).fetchall()
-    return [_public(dict(r)) for r in rows]
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM csv_imports WHERE (status='committed' AND (server=? OR (server IS NULL AND ?))) "
+            "OR (status='staging' AND account_id=?) ORDER BY created_at DESC",
+            (viewer.server, 1 if viewer.is_admin else 0, viewer.account_id))]
+        groups: dict[tuple, list[dict]] = {}
+        for row in rows:
+            if row["status"] == "committed":
+                groups.setdefault(_series_key(row), []).append(row)
+        series = []
+        for files in groups.values():
+            files.sort(key=lambda r: (r["committed_at"], r["import_id"]))
+            sources = [db.csv_source(f["import_id"]) for f in files]
+            marks = ",".join("?" for _ in sources)
+            bars = conn.execute(
+                f"SELECT COUNT(DISTINCT t_mt5) FROM rates WHERE source IN ({marks}) AND symbol=? AND timeframe=?",
+                (*sources, files[0]["symbol"], files[0]["timeframe"])).fetchone()[0]
+            series.append({
+                "import_id": files[0]["import_id"], "server": files[0]["server"], "symbol": files[0]["symbol"],
+                "timeframe": TF_BY_SEC.get(files[0]["timeframe"], str(files[0]["timeframe"])),
+                "first_t": min(f["first_t"] for f in files), "last_t": max(f["last_t"] for f in files),
+                "bars": bars, "files": len(files), "import_ids": [f["import_id"] for f in files],
+            })
+    series.sort(key=lambda x: (x["symbol"], x["timeframe"], x["import_id"]))
+    return {"imports": [_public(r) for r in rows], "series": series}
 
 
-def create(account_id: str, symbol: str, timeframe: str, filename: str, size: int, offset_sec: int, offset_mode: str = 'fixed') -> dict:
+def create(account_id: str, server: str, symbol: str, timeframe: str, filename: str, size: int, offset_sec: int, offset_mode: str = 'fixed') -> dict:
     symbol = symbol.strip()
+    server = server.strip()
+    if not server:
+        raise ImportFailure(400, "Account has no MT5 server")
     if not SYMBOL_RE.match(symbol):
         raise ImportFailure(400, "Symbol is not valid")
     if timeframe not in TIMEFRAMES:
@@ -101,9 +179,9 @@ def create(account_id: str, symbol: str, timeframe: str, filename: str, size: in
             raise ImportFailure(409, "Too many unfinished imports; cancel one first")
         conn.execute(
             "INSERT INTO csv_imports (import_id, account_id, symbol, timeframe, filename, status, size_bytes, "
-            "offset_sec, created_at, offset_mode) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "offset_sec, created_at, offset_mode, server) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (import_id, account_id, symbol, TIMEFRAMES[timeframe][1], os.path.basename(filename or "")[:120],
-             "staging", size, offset_sec, now, offset_mode),
+             "staging", size, offset_sec, now, offset_mode, server),
         )
     os.makedirs(db.imports_dir(), exist_ok=True)
     return {"import_id": import_id, "chunk_bytes": MAX_CHUNK_BYTES, "offset_mode": offset_mode}
@@ -133,9 +211,12 @@ def add_chunk(account_id: str, import_id: str, index: int, data: bytes) -> dict:
     return {"received_bytes": received, "next_chunk": index + 1}
 
 
-def delete(account_id: str, import_id: str):
+def delete(viewer: Viewer, import_id: str):
+    """Yarım yüklemeyi yükleyen hesap iptal eder; onaylı aktarmayı yalnız admin siler (kalıcı, geri alınamaz)."""
     with _CHUNK_LOCK:  # sürmekte olan bir chunk yazımı dosyayı silmeden sonra yeniden yaratmasın
-        _entry(import_id, account_id)
+        row = _visible_entry(import_id, viewer)
+        if row["status"] == "committed" and not viewer.is_admin:
+            raise ImportFailure(403, "Administrator access required")
         if import_id in _COMMITTING:
             raise ImportFailure(409, "Import is being committed")
         with db.writing() as conn:
@@ -314,7 +395,7 @@ def _scan(path: str, tf_sec: int, offset_sec: int) -> dict:
 
 
 # --------------------------------------------------------------------------- Commit
-def commit(account_id: str, import_id: str, replace: bool) -> dict:
+def commit(account_id: str, import_id: str, extend: bool) -> dict:
     with _CHUNK_LOCK:
         row = _entry(import_id, account_id)
         if row["status"] != "staging" or import_id in _COMMITTING:
@@ -325,12 +406,12 @@ def commit(account_id: str, import_id: str, replace: bool) -> dict:
             raise ImportFailure(409, "Upload is not complete")
         _COMMITTING.add(import_id)
     try:
-        return _commit(account_id, row, replace)
+        return _commit(account_id, row, extend)
     finally:
         _COMMITTING.discard(import_id)
 
 
-def _commit(account_id: str, row: dict, replace: bool) -> dict:
+def _commit(account_id: str, row: dict, extend: bool) -> dict:
     import_id, path, tf_sec = row["import_id"], db.staging_file(row["import_id"]), row["timeframe"]
     try:
         scan = _scan(path, tf_sec, row["offset_sec"])
@@ -377,14 +458,14 @@ def _commit(account_id: str, row: dict, replace: bool) -> dict:
             _insert_batch(account_id, import_id, batch)
         with db.writing() as conn:
             _require_staging(conn, account_id, import_id)
+            # Aynı sunucu, sembol ve dilimde örtüşen dosya: uyarı. Eski dosya hiçbir durumda silinmez (1107-A5.2):
+            # onayla ("extend") gelirse yeni dosya kendi mumlarının tamamıyla saklanır, seri yalnız eksik dakikalarla uzar.
             overlaps = [dict(r) for r in conn.execute(
-                "SELECT * FROM csv_imports WHERE account_id=? AND symbol=? AND timeframe=? AND status='committed' "
+                "SELECT * FROM csv_imports WHERE server=? AND symbol=? AND timeframe=? AND status='committed' "
                 "AND first_t < ? AND last_t >= ?",
-                (account_id, row["symbol"], tf_sec, end, scan["first"]))]
-            if overlaps and not replace:
+                (row["server"], row["symbol"], tf_sec, end, scan["first"]))]
+            if overlaps and not extend:
                 raise ImportFailure(409, "Overlaps an existing import", [_public(o) for o in overlaps])
-            for old in overlaps:
-                db.remove_csv_import(conn, old["import_id"])
             for x, y, state in segments:
                 if y > x:
                     db._insert(conn, "rate_coverage", {"source": src, "symbol": row["symbol"], "timeframe": tf_sec,
@@ -397,8 +478,6 @@ def _commit(account_id: str, row: dict, replace: bool) -> dict:
         with db.writing() as conn:
             conn.execute("DELETE FROM rates WHERE source=?", (src,))
         raise
-    if overlaps:
-        db.reclaim_space()
     try:
         os.remove(path)  # ham dosya artık gerekmiyor
     except OSError:
@@ -424,29 +503,33 @@ def _insert_batch(account_id: str, import_id: str, batch: list):
 
 
 # --------------------------------------------------------------------------- Lesen
-def get_rates(account_id: str, import_id: str, symbol: str, timeframe: str, a: int, b: int) -> dict:
-    """Kerzen [a, b) eines onaylanmış Imports im Format von market_sync.get_rates; nie MT5."""
-    row = _entry(import_id, account_id)
+def get_rates(viewer: Viewer, import_id: str, symbol: str, timeframe: str, a: int, b: int) -> dict:
+    """Kerzen [a, b) der Serie, zu der der Import gehört, im Format von market_sync.get_rates; nie MT5.
+
+    Serie = alle onaylı aktarmalar desselben Servers, Symbols und Zeitrahmens; eine Minute in mehreren Dateien
+    liefert die älteste. `missing` sind die Lücken der vereinigten Abdeckung."""
+    row = _visible_entry(import_id, viewer)
     if row["status"] != "committed":
         raise ImportFailure(409, "Import is not committed")
     tf_sec = TIMEFRAMES[timeframe][1]
     if symbol != row["symbol"] or tf_sec != row["timeframe"]:
         raise ImportFailure(400, f"Import holds {row['symbol']} {TF_BY_SEC[row['timeframe']]} only")
-    src = db.csv_source(import_id)
+    with db.reading() as conn:
+        sources = [db.csv_source(f["import_id"]) for f in _series_rows(conn, row)]
     a = a - a % tf_sec
     b = b - b % tf_sec if b % tf_sec == 0 else b - b % tf_sec + tf_sec
     end = min(b, a + MAX_BARS * tf_sec)
-    covered = [(s["from_t"], s["to_t"]) for s in db.rate_coverage(src, symbol, tf_sec, a, end)
+    covered = [(s["from_t"], s["to_t"]) for s in db.rate_coverage_union(sources, symbol, tf_sec, a, end)
                if s["state"] in db.COVERED_STATES]
     missing = [{"from": x, "to": y, "reason": "csv_gap", "checked_at": None}
-               for x, y in db.subtract([(a, end)], covered)]
-    rows = db.read_rates(src, symbol, tf_sec, a, end, MAX_BARS + 1)
+               for x, y in db.subtract([(a, end)], sorted(covered))]
+    rows = db.read_rates_union(sources, symbol, tf_sec, a, end, MAX_BARS + 1)
     next_from = end if end < b else None
     if len(rows) > MAX_BARS:
         next_from = rows[MAX_BARS]["time"]
         rows = rows[:MAX_BARS]
     return {
-        "source": src, "symbol": symbol, "timeframe": timeframe, "from": a, "to": b,
+        "source": db.csv_source(import_id), "symbol": symbol, "timeframe": timeframe, "from": a, "to": b,
         "t": [r["time"] for r in rows], "o": [r["open"] for r in rows], "h": [r["high"] for r in rows],
         "l": [r["low"] for r in rows], "c": [r["close"] for r in rows], "v": [r.get("tick_volume") for r in rows],
         "s": [None for _ in rows], "live_from": None, "digits": None, "point": None,

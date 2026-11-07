@@ -20,7 +20,7 @@ import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import { proposeCommission } from '@/lib/backtest/commission';
 import type { RunParams } from '@/lib/backtest/protocol';
 import { spreadHistoryNote } from '@/lib/backtest/spreadHistoryNote';
-import type { CsvImport } from '@/services/csvImportApi';
+import type { CsvSeries } from '@/services/csvImportApi';
 import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/serverTime';
 import { insertSetup } from '@/lib/symbolSetups';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
@@ -179,18 +179,19 @@ export function BacktestView() {
   const symbolsLoading = useSettingsStore((s) => s.isLoadingSymbols);
   const symbol = zone?.symbol ? (symbolDetails[zone.symbol.toUpperCase()] ?? null) : null;
 
-  // Datenquelle (B5b): wählbar sind nur abgeschlossene Importe mit dem Symbol und einem Zeitrahmen des Laufs; der
-  // Worker liefert für ein anderes Symbol oder einen anderen Zeitrahmen nichts (csv_import.get_rates)
+  // Datenquelle (B5b): wählbar sind nur Serien (Server + Symbol + Zeitrahmen, 1107-A5.2) mit dem Symbol des Setups und
+  // einem Zeitrahmen des Laufs; der Worker liefert für ein anderes Symbol oder einen anderen Zeitrahmen nichts
   const csv = useCsvImports(accountKnown ? accountId : null);
   const symbolName = symbol?.name ?? null;
   const csvChoices = useMemo(
     () =>
-      (csv.imports ?? []).filter(
-        (i): i is CsvImport & { timeframe: DataTimeframe } => i.status === 'committed' && i.symbol === symbolName && isDataTimeframe(i.timeframe),
+      (csv.series ?? []).filter(
+        (i): i is CsvSeries & { timeframe: DataTimeframe } => i.symbol === symbolName && isDataTimeframe(i.timeframe),
       ),
-    [csv.imports, symbolName],
+    [csv.series, symbolName],
   );
-  const csvImport = csvChoices.find((i) => i.import_id === form.csvImportId) ?? null;
+  // Eine gemerkte ID (auch aus einer alten Vorgabe) kann jede Datei der Serie sein: `csv:<id>` liest die ganze Serie
+  const csvImport = csvChoices.find((i) => i.import_ids.includes(form.csvImportId ?? '')) ?? null;
   const dataTimeframe = csvImport?.timeframe ?? form.timeframe;
 
   const clock = useBrokerClock(accountKnown ? accountId : null);
@@ -252,7 +253,7 @@ export function BacktestView() {
       zoneLabel,
       notes: spreadNote ? [spreadNote] : undefined,
     };
-    start(accountId, { setupId: activeId, params, unsaved, currency, sourceLabel: csvImport ? t('backtest.data.csv', { symbol: csvImport.symbol, tf: csvImport.timeframe, from: csvImport.first_t === null ? '—' : fmt.mt5DateTime(csvImport.first_t), to: csvImport.last_t === null ? '—' : fmt.mt5DateTime(csvImport.last_t) }) : t('backtest.data.mt5') });
+    start(accountId, { setupId: activeId, params, unsaved, currency, sourceLabel: csvImport ? t('backtest.data.csv', { symbol: csvImport.symbol, tf: csvImport.timeframe, from: fmt.mt5DateTime(csvImport.first_t), to: fmt.mt5DateTime(csvImport.last_t) }) : t('backtest.data.mt5') });
   };
 
   // Ergebnis und Fehler gehören zu Konto und Setup ihres Laufs; bei einem anderen Setup zeigt die Seite sie nicht
@@ -340,7 +341,7 @@ export function BacktestView() {
         {status === 'done' && results && context && runMatches && <RunResultView key={`${activeId}-${runState.runId}`} results={results} context={context} requestBars={selectedBars} comparison={comparison} />}
         {!hasResult && comparison}
         {liveOpen && <LiveCompareSection key={`live-${accountId}`} accountId={accountId} offsetSec={offsetSec} />}
-        <CsvImportPanel key={`csv-${accountId}`} accountId={accountId} defaultSymbol={symbol?.name ?? zone?.symbol ?? ''} imports={csv.imports} reload={csv.reload} />
+        <CsvImportPanel key={`csv-${accountId}`} accountId={accountId} defaultSymbol={symbol?.name ?? zone?.symbol ?? ''} imports={csv.imports} series={csv.series} reload={csv.reload} />
       </div>
     );
   };
