@@ -43,12 +43,12 @@ def test_invalid_content_is_422(client, multi, body):
     assert client.put("/api/favorites/1001", json=body, headers=multi["anna"]).status_code == 422
 
 
-def test_deleting_account_removes_file(client, multi, worker_dir):
+def test_deleting_account_keeps_the_file(client, multi, worker_dir):
     client.put("/api/favorites/1002", json={"symbols": ["XAUUSD"]}, headers=multi["admin"])
     path = worker_dir / "configs" / "favorites_1002.json"
     assert path.exists()
     assert client.delete("/api/accounts/1002", headers=multi["admin"]).status_code == 200
-    assert not path.exists()
+    assert path.exists()  # 1107-A6.3: Favoriten bleiben; dieselbe Kennung bekommt sie zurück
 
 
 def test_admin_put_for_unknown_account_is_404_and_writes_no_file(client, multi, worker_dir):

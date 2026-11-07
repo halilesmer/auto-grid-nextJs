@@ -11,7 +11,7 @@ import { useFormat, useT, type MessageKey } from '@/i18n';
 import type { FillModel } from '@/lib/backtest/broker/pathBroker';
 import type { CommissionProposal } from '@/lib/backtest/commission';
 import type { PathChoice } from '@/lib/backtest/protocol';
-import type { CsvImport } from '@/services/csvImportApi';
+import type { CsvSeries } from '@/services/csvImportApi';
 
 import { DATA_TIMEFRAMES, type DataTimeframe, type RunSettingsValue } from '@/lib/backtest/runSettings';
 
@@ -22,10 +22,10 @@ const PATHS = ['auto', 'lowFirst', 'highFirst', 'both'] as const;
 interface RunSettingsProps {
   value: RunSettingsValue;
   onChange: (value: RunSettingsValue) => void;
-  /** Wählbare CSV-Importe: abgeschlossen, Symbol des Setups, Zeitrahmen aus DATA_TIMEFRAMES */
-  csvImports: CsvImport[];
-  /** Gewählter Import aus `csvImports`; null = MT5-Server (auch wenn die gemerkte ID nicht mehr wählbar ist) */
-  csvImport: CsvImport | null;
+  /** Wählbare CSV-Serien (Server + Symbol + Zeitrahmen): Symbol des Setups, Zeitrahmen aus DATA_TIMEFRAMES */
+  csvImports: CsvSeries[];
+  /** Gewählte Serie aus `csvImports`; null = MT5-Server (auch wenn die gemerkte ID nicht mehr wählbar ist) */
+  csvImport: CsvSeries | null;
   /** Vorschlag für die Kommission aus dem Deal-Archiv; undefined = wird geladen, null = keiner */
   proposal: CommissionProposal | null | undefined;
   /** Kommission, die der Lauf verwendet (Eingabe oder Vorschlag) */
@@ -75,11 +75,12 @@ export function RunSettings({
               <option value="">{t('backtest.data.mt5')}</option>
               {csvImports.map((item) => (
                 <option key={item.import_id} value={item.import_id}>
-                  {t('backtest.data.csv', {
+                  {t('backtest.data.csvSeries', {
                     symbol: item.symbol,
                     tf: item.timeframe,
-                    from: item.first_t === null ? '—' : fmt.mt5DateTime(item.first_t),
-                    to: item.last_t === null ? '—' : fmt.mt5DateTime(item.last_t),
+                    from: fmt.mt5DateTime(item.first_t),
+                    to: fmt.mt5DateTime(item.last_t),
+                    files: item.files,
                   })}
                 </option>
               ))}

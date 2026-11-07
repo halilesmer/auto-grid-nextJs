@@ -20,6 +20,30 @@ export interface CsvImport {
   offset_mode?: 'fixed' | 'row';
   created_at: number;
   committed_at: number | null;
+  /** MT5-Server des Imports (1107-A6.2); `null` = Konto gibt es nicht mehr, nur der Admin sieht den Import */
+  server: string | null;
+}
+
+/**
+ * Eine Serie = Server + Symbol + Zeitrahmen (1107-A5.2). `import_id` ist die älteste Datei; `csv:<import_id>` liest die
+ * ganze Serie. `bars` zählt jede Minute einmal, auch wenn mehrere Dateien sie enthalten.
+ */
+export interface CsvSeries {
+  import_id: string;
+  server: string | null;
+  symbol: string;
+  timeframe: Timeframe;
+  first_t: number;
+  last_t: number;
+  bars: number;
+  files: number;
+  /** Alle Dateien der Serie; `csv:<id>` mit jeder davon liest dieselbe Serie (alte Vorgaben bleiben gültig) */
+  import_ids: string[];
+}
+
+export interface CsvImportList {
+  imports: CsvImport[];
+  series: CsvSeries[];
 }
 
 export interface CsvImportOptions {
@@ -49,18 +73,19 @@ export class CsvImportError extends Error {
 
 const base = (accountId: string) => `/market/${encodeURIComponent(accountId)}/imports`;
 
-export async function listCsvImports(accountId: string): Promise<CsvImport[]> {
-  const res = await axiosInstance.get<{ imports: CsvImport[] }>(base(accountId));
-  return res.data.imports;
+export async function listCsvImports(accountId: string): Promise<CsvImportList> {
+  const res = await axiosInstance.get<CsvImportList>(base(accountId));
+  return res.data;
 }
 
 export async function deleteCsvImport(accountId: string, importId: string): Promise<void> {
   await axiosInstance.delete(`${base(accountId)}/${importId}`);
 }
 
-export async function commitCsvImport(accountId: string, importId: string, replace: boolean): Promise<CsvImport> {
+/** `extend`: bei Überlappung trotzdem speichern. Der Worker löscht nie eine alte Datei; die Serie wächst nur. */
+export async function commitCsvImport(accountId: string, importId: string, extend: boolean): Promise<CsvImport> {
   try {
-    const res = await axiosInstance.post<CsvImport>(`${base(accountId)}/${importId}/commit`, { replace });
+    const res = await axiosInstance.post<CsvImport>(`${base(accountId)}/${importId}/commit`, { extend });
     return res.data;
   } catch (err) {
     const response = (err as { response?: { status: number; data?: { detail?: unknown } } }).response;
@@ -81,7 +106,7 @@ export async function commitCsvImport(accountId: string, importId: string, repla
 
 /**
  * Legt den Import an und lädt die Datei in Teilen hoch (Größe gibt der Worker vor). Gibt die Import-ID zurück;
- * den Commit macht der Aufrufer (bei Überlappung wiederholbar mit `replace`). Beim Abbruch vor der ersten
+ * den Commit macht der Aufrufer (bei Überlappung wiederholbar mit `extend`). Beim Abbruch vor der ersten
  * ID wird die verspätete Anlage gelöscht; später kennt der Aufrufer die ID und räumt sie auf.
  */
 export async function uploadCsv(

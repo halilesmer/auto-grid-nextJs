@@ -1,5 +1,4 @@
 import asyncio
-import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,8 +9,8 @@ from src.api.models import AccountModel
 from src.api.errors import DuplicateAccountProblem
 from src.api.helpers import _load_accounts, _public_account, _save_accounts
 from src.api.system import find_mt5_terminals
+from src.utils import market_db
 from src.utils.bot_manager import is_bot_running
-from src.utils.paths import get_favorites_path
 
 router = APIRouter(tags=["Accounts"])
 
@@ -61,6 +60,19 @@ def _check_mt5_path(
         other_path = (other.get("mt5_path") or "").strip()
         if other_path and other.get("owner") != principal.user_id and _terminal_dir(other_path) == _terminal_dir(wanted):
             raise HTTPException(status_code=422, detail="This MT5 terminal is already used by another account")
+
+
+async def _note_archive_owner(account_id: str, owner: Optional[str]) -> None:
+    """Archiv bleibt nach dem Löschen (1107-A6.3); der alte Besitzer wird gemerkt, bevor der Eintrag verschwindet.
+    Fehler bricht den Vorgang ab (fail-closed): ohne Notiz erbte ein neuer Besitzer das Archiv. Läuft im Thread:
+    der SQLite-Schreibzugriff wartet auf den Schreibsperre-Halter (z. B. CSV-Commit) und blockiert sonst die Event-Loop."""
+    await asyncio.to_thread(market_db.note_account_deleted, account_id, owner)
+
+
+async def _claim_archive(account_id: str, owner: Optional[str]) -> None:
+    """Konto mit alter Kennung: ein anderer Besitzer erbt das Archiv nicht, es wird verworfen (auch wenn der Administrator
+    ohne Besitzer neu anlegt). Fail-closed wie oben: scheitert der Aufruf, wird das Konto nicht angelegt."""
+    await asyncio.to_thread(market_db.claim_account, account_id, owner)
 
 
 def _ensure_bot_stopped(account_id: str) -> None:
@@ -130,6 +142,7 @@ async def create_account(account: AccountModel, principal: Principal = Depends(g
         record = account.model_dump()
         record["owner"] = _admin_owner(account.owner) if principal.is_admin else principal.user_id
         accounts.append(record)
+        await _claim_archive(str(record["id"]), record["owner"])
         _save_accounts(accounts)
         return {"status": "created", "account": _public_account(accounts[-1])}
     except HTTPException:
@@ -174,6 +187,10 @@ async def update_account(
             if not stored:
                 raise HTTPException(status_code=422, detail="Password is required")
             updated["password"] = stored
+        if str(updated.get("id")) != str(account_id):
+            # Umbenennen: das Archiv der alten Kennung bleibt dem alten Besitzer, die neue Kennung erbt kein fremdes
+            await _note_archive_owner(str(account_id), accounts[idx].get("owner"))
+            await _claim_archive(str(updated["id"]), updated.get("owner"))
         accounts[idx] = updated
         _save_accounts(accounts)
         return {"status": "updated", "account": _public_account(accounts[idx])}
@@ -193,19 +210,11 @@ async def delete_account(account_id: str):
             raise HTTPException(
                 status_code=404, detail=f"Account '{account_id}' not found"
             )
+        owner = next((a.get("owner") for a in accounts if str(a.get("id")) == str(account_id)), None)
+        await _note_archive_owner(str(account_id), owner)
         _save_accounts(filtered)
-        try:
-            from src.utils import market_db
-
-            await asyncio.to_thread(market_db.delete_account, str(account_id))
-        except Exception as exc:  # noqa: BLE001  (arşiv silinemese de hesap silinmiş olur)
-            print(f"⚠️ [MARKET-DB] Hesabın deal arşivi silinemedi: {exc}")
-        try:
-            os.remove(get_favorites_path(account_id))
-        except FileNotFoundError:
-            pass  # Hesabın favorisi yoktu
-        except OSError as exc:  # hesap zaten silindi; artık dosya yetim kalır ama istek başarısız sayılmaz
-            print(f"⚠️ [FAVORITES] Favori dosyası silinemedi: {exc}")
+        # 1107-A6.3: Nur der Kontoeintrag verschwindet. Deal-Archiv, Berichte, CSV-Importe und Favoriten
+        # bleiben; wird dieselbe Kennung wieder angelegt, ist alles wieder da.
         return {"status": "deleted", "account_id": account_id}
     except HTTPException:
         raise

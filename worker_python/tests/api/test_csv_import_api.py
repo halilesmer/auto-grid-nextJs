@@ -30,28 +30,28 @@ def _line(t, o=1.0, h=2.0, low=0.5, c=1.5):
     return f"{t},{o},{h},{low},{c},5"
 
 
-def epoch_csv(times, header=True):
+def epoch_csv(times, header=True, close=1.5):
     rows = ["time,open,high,low,close,volume"] if header else []
-    return "\n".join(rows + [_line(t) for t in times]) + "\n"
+    return "\n".join(rows + [_line(t, c=close) for t in times]) + "\n"
 
 
-def upload(client, text, *, raw=None, symbol=SYMBOL, timeframe="M1", offset=0, offset_mode="fixed", chunk=None, commit=True, replace=False):
+def upload(client, text, *, raw=None, symbol=SYMBOL, timeframe="M1", offset=0, offset_mode="fixed", chunk=None, commit=True, extend=False, headers=None, base=BASE):
     data = raw if raw is not None else text.encode("utf-8")
-    res = client.post(f"{BASE}/imports", json={"symbol": symbol, "timeframe": timeframe, "filename": "x.csv",
+    res = client.post(f"{base}/imports", headers=headers, json={"symbol": symbol, "timeframe": timeframe, "filename": "x.csv",
                                                "size": len(data), "time_offset_sec": offset, "time_offset_mode": offset_mode})
     assert res.status_code == 200, res.text
     import_id = res.json()["import_id"]
     step = chunk or len(data)
     for i, start in enumerate(range(0, len(data), step)):
-        part = client.put(f"{BASE}/imports/{import_id}/chunk", params={"index": i}, content=data[start:start + step])
+        part = client.put(f"{base}/imports/{import_id}/chunk", headers=headers, params={"index": i}, content=data[start:start + step])
         assert part.status_code == 200, part.text
     if not commit:
         return import_id, None
-    return import_id, client.post(f"{BASE}/imports/{import_id}/commit", json={"replace": replace})
+    return import_id, client.post(f"{base}/imports/{import_id}/commit", headers=headers, json={"extend": extend})
 
 
-def read(client, import_id, a, b, timeframe="M1"):
-    return client.get(f"{BASE}/rates", params={"symbol": SYMBOL, "timeframe": timeframe, "from": a, "to": b,
+def read(client, import_id, a, b, timeframe="M1", headers=None, base=BASE):
+    return client.get(f"{base}/rates", headers=headers, params={"symbol": SYMBOL, "timeframe": timeframe, "from": a, "to": b,
                                                "source": f"csv:{import_id}"})
 
 
@@ -116,33 +116,11 @@ def test_failed_second_pass_removes_prepared_rows_and_preserves_old_import(clien
 
     monkeypatch.setattr(csv_import, "iter_rows", changed_rows)
     monkeypatch.setattr(csv_import, "BATCH_ROWS", 1)
-    response = client.post(f"{BASE}/imports/{new_id}/commit", json={"replace": True})
+    response = client.post(f"{BASE}/imports/{new_id}/commit", json={"extend": True})
     assert response.status_code == 409
     assert read(client, old_id, MON, MON + 120).json()["t"] == [MON, MON + 60]
     assert read(client, new_id, MON, MON + 120).status_code == 409
     assert rows_in_db() == 2
-
-
-@pytest.mark.feature("BKT-05")
-def test_account_removed_between_import_batches_leaves_no_orphan_candles(client, monkeypatch):
-    import_id, _ = upload(client, epoch_csv([MON, MON + 60]), commit=False)
-    real_rows = csv_import.iter_rows
-    passes = 0
-
-    def removed_account_rows(*args, **kwargs):
-        nonlocal passes
-        passes += 1
-        for index, row in enumerate(real_rows(*args, **kwargs)):
-            if passes == 2 and index == 1:
-                market_db.delete_account(TEST_ACCOUNT_ID)
-            yield row
-
-    monkeypatch.setattr(csv_import, "iter_rows", removed_account_rows)
-    monkeypatch.setattr(csv_import, "BATCH_ROWS", 1)
-    response = client.post(f"{BASE}/imports/{import_id}/commit", json={})
-    assert response.status_code == 404
-    assert rows_in_db() == 0
-    assert client.get(f"{BASE}/imports").json()["imports"] == []
 
 
 @pytest.mark.feature("BKT-05")
@@ -236,6 +214,8 @@ def test_existing_csv_import_defaults_to_fixed_mode_after_migration(client):
         conn.execute("DROP TABLE tick_spread_coverage")
         conn.execute("DROP TABLE tick_replay")
         conn.execute("DROP TABLE backtest_reports")
+        conn.execute("DROP INDEX csv_imports_server")  # SW: server-Spalte der CSV-Importe (1107-A6.2)
+        conn.execute("ALTER TABLE csv_imports DROP COLUMN server")
         conn.execute("ALTER TABLE csv_imports DROP COLUMN offset_mode")
         conn.execute("PRAGMA user_version=3")  # Stand vor der Migration von offset_mode (feste Zahl: neue Migrationen ändern sie nicht)
     market_db.reset_cache()
@@ -323,7 +303,7 @@ def test_fehlerliste_nennt_zeilen_und_ist_begrenzt(client):
 
 
 @pytest.mark.feature("BKT-05")
-def test_ueberlappung_nur_mit_ersetzen(client):
+def test_overlap_needs_confirmation_and_never_deletes_the_old_import(client):
     first, _ = upload(client, epoch_csv([MON + 60 * i for i in range(5)]))
     second, res = upload(client, epoch_csv([MON + 120 + 60 * i for i in range(5)]))
 
@@ -332,11 +312,70 @@ def test_ueberlappung_nur_mit_ersetzen(client):
             if i["status"] == "committed"] == [first]
     assert read(client, second, MON, MON + 600).status_code == 409  # noch nicht committed
 
-    res = client.post(f"{BASE}/imports/{second}/commit", json={"replace": True})
+    res = client.post(f"{BASE}/imports/{second}/commit", json={"extend": True})
     assert res.status_code == 200
-    assert read(client, first, MON, MON + 600).status_code == 404
-    assert read(client, second, MON, MON + 600).json()["t"][0] == MON + 120
-    assert rows_in_db() == 5
+    # Der alte Import bleibt, jeder Import hält seine Kerzen vollständig (die 3 Überlappungsminuten doppelt)
+    assert rows_in_db() == 10
+    both = {i["import_id"] for i in client.get(f"{BASE}/imports").json()["imports"] if i["status"] == "committed"}
+    assert both == {first, second}
+    # Beide Ids lesen dieselbe zusammengeführte Serie
+    for import_id in (first, second):
+        series = read(client, import_id, MON, MON + 900).json()
+        assert series["t"] == [MON + 60 * i for i in range(7)] and series["missing"] == [
+            {"from": MON + 420, "to": MON + 900, "reason": "csv_gap", "checked_at": None}]
+
+
+@pytest.mark.feature("BKT-05")
+def test_old_import_wins_a_minute_that_two_imports_hold(client):
+    old, _ = upload(client, epoch_csv([MON, MON + 60], close=1.5))
+    new, res = upload(client, epoch_csv([MON + 60, MON + 120], close=1.7))
+    assert res.status_code == 409
+    assert client.post(f"{BASE}/imports/{new}/commit", json={"extend": True}).status_code == 200
+    with market_db.writing() as conn:  # gleiche Sekunde ausschließen: der erste Import ist eindeutig älter
+        conn.execute("UPDATE csv_imports SET committed_at=committed_at-100 WHERE import_id=?", (old,))
+    series = read(client, new, MON, MON + 180).json()
+    assert series["t"] == [MON, MON + 60, MON + 120]
+    assert series["c"] == [1.5, 1.5, 1.7]  # die gemeinsame Minute kommt vom älteren Import
+
+
+@pytest.mark.feature("BKT-05")
+def test_series_grows_by_the_missing_minutes_and_survives_deleting_the_old_file(client):
+    old, _ = upload(client, epoch_csv([MON + 60 * i for i in range(4)], close=1.5))
+    new, _ = upload(client, epoch_csv([MON + 120 + 60 * i for i in range(4)], close=1.7), commit=False)
+    assert client.post(f"{BASE}/imports/{new}/commit", json={"extend": True}).status_code == 200
+    with market_db.writing() as conn:
+        conn.execute("UPDATE csv_imports SET committed_at=committed_at-100 WHERE import_id=?", (old,))
+    assert read(client, old, MON, MON + 600).json()["t"] == [MON + 60 * i for i in range(6)]
+    # Löschen der alten Datei lässt nur ihre exklusiven Minuten aus der Serie fallen
+    assert client.delete(f"{BASE}/imports/{old}").status_code == 200
+    assert read(client, old, MON, MON + 600).status_code == 404
+    left = read(client, new, MON, MON + 600).json()
+    assert left["t"] == [MON + 120 + 60 * i for i in range(4)] and left["c"] == [1.7] * 4
+
+
+@pytest.mark.feature("BKT-05")
+def test_list_groups_files_into_series_and_counts_each_minute_once(client):
+    old, _ = upload(client, epoch_csv([MON + 60 * i for i in range(5)]))
+    new, _ = upload(client, epoch_csv([MON + 120 + 60 * i for i in range(5)]), commit=False)
+    assert client.post(f"{BASE}/imports/{new}/commit", json={"extend": True}).status_code == 200
+    other, _ = upload(client, epoch_csv([MON]), symbol="EURUSD")
+    with market_db.writing() as conn:
+        conn.execute("UPDATE csv_imports SET committed_at=committed_at-100 WHERE import_id=?", (old,))
+
+    listed = client.get(f"{BASE}/imports").json()
+    assert len(listed["imports"]) == 3
+    by_symbol = {x["symbol"]: x for x in listed["series"]}
+    assert by_symbol[SYMBOL] == {
+        "import_id": old, "server": "Fake-Demo", "symbol": SYMBOL, "timeframe": "M1", "first_t": MON,
+        "last_t": MON + 360, "bars": 7, "files": 2, "import_ids": [old, new]}  # 10 Zeilen, 7 verschiedene Minuten
+    assert by_symbol["EURUSD"]["import_ids"] == [other]
+
+
+@pytest.mark.feature("BKT-05")
+def test_unrelated_symbol_or_timeframe_is_not_part_of_the_series(client):
+    base, _ = upload(client, epoch_csv([MON, MON + 60]))
+    upload(client, epoch_csv([MON + 120]), symbol="EURUSD")
+    assert read(client, base, MON, MON + 300).json()["t"] == [MON, MON + 60]
 
 
 @pytest.mark.feature("BKT-05")
@@ -434,15 +473,6 @@ def test_zeitrahmen_und_symbol_muessen_zum_import_passen(client):
 
 
 @pytest.mark.feature("BKT-05")
-def test_kontoloeschung_entfernt_importe(client):
-    import_id, _ = upload(client, epoch_csv([MON]))
-    pending, _ = upload(client, epoch_csv([MON]), commit=False)
-    market_db.delete_account(TEST_ACCOUNT_ID)
-    assert rows_in_db() == 0 and not os.path.exists(market_db.staging_file(pending))
-    assert read(client, import_id, MON, MON + 60).status_code == 404
-
-
-@pytest.mark.feature("BKT-05")
 def test_fremde_konten_sehen_keine_importe(client, seed_accounts, monkeypatch):
     import src.api.auth as auth
     from src.api import users_store
@@ -452,7 +482,7 @@ def test_fremde_konten_sehen_keine_importe(client, seed_accounts, monkeypatch):
     monkeypatch.setattr(auth, "WORKER_API_KEY", admin_key)
     anna, anna_key = users_store.create_user("Anna")
     ben, ben_key = users_store.create_user("Ben")
-    seed_accounts(account(owner=anna["id"]), account("1002", owner=ben["id"]))
+    seed_accounts(account(owner=anna["id"]), account("1002", owner=ben["id"], server="Other-Server"))
 
     ben_h, anna_h = {"X-API-Key": ben_key}, {"X-API-Key": anna_key}
     assert client.get(f"{BASE}/imports", headers=ben_h).status_code == 404
@@ -536,3 +566,98 @@ def test_nicht_loeschbare_rohdatei_nach_dem_commit_macht_den_import_nicht_unguel
     import_id, res = upload(client, epoch_csv([MON]))
     assert res.status_code == 200 and res.json()["status"] == "committed"
     assert read(client, import_id, MON, MON + 60).json()["t"] == [MON]
+
+
+# --------------------------------------------------------------------------- Server statt Konto (1107-A6.2)
+@pytest.fixture
+def team(client, seed_accounts, monkeypatch):
+    """Admin, Anna (1001) und Ben (1002) auf demselben Server, Cara (1003) auf einem anderen."""
+    import src.api.auth as auth
+    from src.api import users_store
+
+    admin_key = secrets.token_urlsafe(24)  # zur Laufzeit erzeugt (Secret-Scan der Hooks)
+    monkeypatch.setattr(auth, "WORKER_API_KEY", admin_key)
+    anna, anna_key = users_store.create_user("Anna")
+    ben, ben_key = users_store.create_user("Ben")
+    cara, cara_key = users_store.create_user("Cara")
+    accounts_ = (account("1001", owner=anna["id"]), account("1002", owner=ben["id"]),
+                 account("1003", owner=cara["id"], server="Other-Live"))
+    seed_accounts(*accounts_)
+    return {
+        "admin": {"X-API-Key": admin_key}, "anna": {"X-API-Key": anna_key}, "ben": {"X-API-Key": ben_key},
+        "cara": {"X-API-Key": cara_key}, "accounts": accounts_,
+    }
+
+
+def _listed(client, who, account_id):
+    res = client.get(f"/api/market/{account_id}/imports", headers=who)
+    assert res.status_code == 200, res.text
+    return res.json()["imports"]
+
+
+@pytest.mark.feature("BKT-05")
+def test_accounts_on_the_same_server_share_an_import_other_servers_get_404(client, team):
+    import_id, res = upload(client, epoch_csv([MON, MON + 60]), headers=team["anna"], base="/api/market/1001")
+    assert res.status_code == 200 and res.json()["server"] == "Fake-Demo"
+
+    ben = _listed(client, team["ben"], "1002")
+    assert [(i["import_id"], i["server"]) for i in ben] == [(import_id, "Fake-Demo")]
+    assert "account_id" not in ben[0]
+    assert read(client, import_id, MON, MON + 120, headers=team["ben"], base="/api/market/1002").json()["t"] == [MON, MON + 60]
+
+    assert _listed(client, team["cara"], "1003") == []
+    assert read(client, import_id, MON, MON + 120, headers=team["cara"], base="/api/market/1003").status_code == 404
+    assert client.delete(f"/api/market/1003/imports/{import_id}", headers=team["cara"]).status_code == 404
+
+
+@pytest.mark.feature("BKT-05")
+def test_unfinished_upload_belongs_to_its_account_only(client, team):
+    pending, _ = upload(client, epoch_csv([MON]), commit=False, headers=team["anna"], base="/api/market/1001")
+    assert [i["import_id"] for i in _listed(client, team["anna"], "1001")] == [pending]
+    assert _listed(client, team["ben"], "1002") == []
+    other = client.post(f"/api/market/1002/imports/{pending}/commit", headers=team["ben"], json={})
+    assert other.status_code == 404
+
+
+@pytest.mark.feature("BKT-05")
+def test_only_admin_deletes_a_finished_import_but_anyone_cancels_an_unfinished_one(client, team):
+    done, _ = upload(client, epoch_csv([MON]), headers=team["anna"], base="/api/market/1001")
+    for who, account_id in (("anna", "1001"), ("ben", "1002")):
+        res = client.delete(f"/api/market/{account_id}/imports/{done}", headers=team[who])
+        assert res.status_code == 403, who
+    assert rows_in_db() == 1
+    pending, _ = upload(client, epoch_csv([MON + 60]), commit=False, headers=team["anna"], base="/api/market/1001")
+    assert client.delete(f"/api/market/1001/imports/{pending}", headers=team["anna"]).status_code == 200
+    assert client.delete(f"/api/market/1002/imports/{done}", headers=team["admin"]).status_code == 200
+    assert rows_in_db() == 0
+
+
+@pytest.mark.feature("BKT-05")
+def test_another_user_on_the_server_extends_the_series(client, team):
+    first, _ = upload(client, epoch_csv([MON, MON + 60]), headers=team["anna"], base="/api/market/1001")
+    second, res = upload(client, epoch_csv([MON + 60, MON + 120]), headers=team["ben"], base="/api/market/1002")
+    assert res.status_code == 409 and res.json()["detail"]["errors"][0]["import_id"] == first
+    ok = client.post(f"/api/market/1002/imports/{second}/commit", headers=team["ben"], json={"extend": True})
+    assert ok.status_code == 200
+    assert read(client, first, MON, MON + 180, headers=team["anna"], base="/api/market/1001").json()["t"] == [MON, MON + 60, MON + 120]
+
+
+@pytest.mark.feature("BKT-05")
+def test_import_stays_with_its_server_when_the_account_is_deleted_and_added_again(client, team, seed_accounts):
+    import_id, _ = upload(client, epoch_csv([MON]), headers=team["anna"], base="/api/market/1001")
+    assert client.delete("/api/accounts/1001", headers=team["anna"]).status_code == 200
+    assert [i["import_id"] for i in _listed(client, team["ben"], "1002")] == [import_id]
+    anna_again = {**team["accounts"][0]}
+    assert client.post("/api/accounts", headers=team["admin"], json=anna_again).status_code == 201
+    assert [i["import_id"] for i in _listed(client, team["anna"], "1001")] == [import_id]
+
+
+@pytest.mark.feature("BKT-05")
+def test_import_without_a_server_is_visible_to_admin_only(client, team):
+    import_id, _ = upload(client, epoch_csv([MON]), headers=team["anna"], base="/api/market/1001")
+    with market_db.writing() as conn:
+        conn.execute("UPDATE csv_imports SET server=NULL WHERE import_id=?", (import_id,))
+    assert _listed(client, team["anna"], "1001") == []
+    assert read(client, import_id, MON, MON + 60, headers=team["anna"], base="/api/market/1001").status_code == 404
+    assert [i["import_id"] for i in _listed(client, team["admin"], "1001")] == [import_id]
+    assert read(client, import_id, MON, MON + 60, headers=team["admin"], base="/api/market/1001").json()["t"] == [MON]

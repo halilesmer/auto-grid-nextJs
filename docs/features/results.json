@@ -354,16 +354,16 @@
       "tests": 50
     },
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
-      "tests": 14
+      "tests": 17
     }
   },
   "BKT-06": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
-      "tests": 13
+      "tests": 2
     }
   },
   "BKT-07": {
