@@ -309,6 +309,13 @@
       "tests": 21
     }
   },
+  "ANA-26": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "passed",
+      "tests": 13
+    }
+  },
   "BKT-01": {
     "unit": {
       "datum": "2026-11-05",
@@ -1448,6 +1455,13 @@
       "datum": "2026-11-05",
       "status": "passed",
       "tests": 6
+    }
+  },
+  "SYS-11": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "failed",
+      "tests": 24
     }
   },
   "UI-01": {

@@ -10,7 +10,7 @@ import { InputField } from '@/components/ui/InputField';
 import { Modal } from '@/components/ui/modal';
 import { toast } from '@/components/ui/animated-toast';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
+import { CHART_TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
 import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
@@ -39,7 +39,7 @@ const removalLabels = {
   drawings: { title: 'cw.rail.removeDrawings', message: 'cw.rail.confirmDrawings', hint: 'cw.rail.removeDrawings.hint' },
   indicators: { title: 'cw.rail.removeIndicators', message: 'cw.rail.confirmIndicators', hint: 'cw.rail.removeIndicators.hint' },
 } as const;
-const TIMEFRAME_LABEL = Object.fromEntries(Object.entries(TIMEFRAME_SEC).map(([name, seconds]) => [seconds, name]));
+const TIMEFRAME_LABEL = Object.fromEntries(Object.entries(CHART_TIMEFRAME_SEC).map(([name, seconds]) => [seconds, name]));
 function zoomHint(n: number): MessageKey { if (!n) return 'cw.fit.hint'; return n > 0 ? 'cw.zoomIn.hint' : 'cw.zoomOut.hint'; }
 function zoomLabel(n: number, fit: string) { if (!n) return fit; return n > 0 ? '+' : '−'; }
 const toolKey = (kind: DrawingKind) => `cw.tool.${kind}` as MessageKey;

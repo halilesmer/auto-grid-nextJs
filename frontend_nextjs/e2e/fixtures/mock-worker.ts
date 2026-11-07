@@ -205,6 +205,8 @@ export class MockWorker {
   readonly ratesDelivered: number[] = [];
   /** Abfragen von /market/{id}/rates (Query-Text), für BKT-19 */
   readonly tickSpreadRequests: string[] = [];
+  /** Abfragetext jeder Antwort von /market/{id}/rates, in Reihenfolge (ANA-26: W1 und MN fragen D1) */
+  readonly ratesQueries: string[] = [];
   /** Rohkörper der laufenden Anfrage (Chunk-Upload des CSV-Imports) */
   private rawBody = '';
   /** URLs aller WebSocket-Verbindungen (inkl. Reconnects). */
@@ -467,6 +469,7 @@ export class MockWorker {
       cols.l.push(Number((Math.min(open, close) - 0.05).toFixed(3)));
     }
     this.ratesDelivered.push(cols.t.length);
+    this.ratesQueries.push(q.toString());
     const now = nowMs() / 1000;
     // BKT-19: wie market_sync.get_rates mit tick_spread=1 (nur M1); der Mock rechnet sa = Kerzen-Spread, sx = +1
     const tickSpread = q.get('tick_spread') === '1';

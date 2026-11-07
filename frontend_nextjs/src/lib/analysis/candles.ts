@@ -18,6 +18,22 @@ export const TIMEFRAME_SEC: Record<Timeframe, number> = {
   D1: 86400,
 };
 
+/** Zeitrahmen des freien Charts: dazu W1 und MN, die der Browser aus D1 baut (calendarBars.ts); der Worker kennt sie nicht */
+export const CHART_TIMEFRAMES = [...TIMEFRAMES, 'W1', 'MN'] as const;
+export type ChartTimeframe = (typeof CHART_TIMEFRAMES)[number];
+
+/** Nennlänge in Sekunden für die Anzeige (Statuszeile, Marktpausen); ein Monat hat in Wahrheit 28–31 Tage (barEnd in calendarBars.ts) */
+export const CHART_TIMEFRAME_SEC: Record<ChartTimeframe, number> = { ...TIMEFRAME_SEC, W1: 7 * 86400, MN: 30 * 86400 };
+
+export function isChartTimeframe(value: string | null | undefined): value is ChartTimeframe {
+  return (CHART_TIMEFRAMES as readonly string[]).includes(value ?? '');
+}
+
+/** Zeitrahmen, den der Worker für diese Anzeige liefert: W1 und MN kommen aus D1 */
+export function dataTimeframeOf(tf: ChartTimeframe): Timeframe {
+  return tf === 'W1' || tf === 'MN' ? 'D1' : tf;
+}
+
 export function isTimeframe(value: string | null | undefined): value is Timeframe {
   return (TIMEFRAMES as readonly string[]).includes(value ?? '');
 }

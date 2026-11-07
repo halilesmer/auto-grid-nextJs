@@ -22,11 +22,14 @@ export function DataQualityBanner({
   clipped,
   dbFull,
   loadedFrom,
+  calendar = false,
 }: {
   missing: MissingRange[];
   clipped: boolean;
   dbFull: boolean;
   loadedFrom: number | null;
+  /** W1 oder MN: die fehlenden Bereiche sind D1-Lücken, der Chart zeichnet keine Lückenplätze */
+  calendar?: boolean;
 }) {
   const t = useT();
   const fmt = useFormat();
@@ -35,7 +38,7 @@ export function DataQualityBanner({
     <div className="space-y-2" data-testid="data-quality">
       {missing.length > 0 && (
         <Alert tone="warning" title={t('analysis.data.missing.title', { n: missing.length })}>
-          <p>{t('analysis.data.missing.text')}</p>
+          <p>{t(calendar ? 'analysis.data.missing.textCalendar' : 'analysis.data.missing.text')}</p>
           <ul className="mt-1.5 space-y-0.5 font-mono text-xs tabular-nums" data-testid="missing-ranges">
             {missing.slice(0, LISTED).map((m) => (
               <li key={`${m.from}-${m.to}-${m.reason}`}>

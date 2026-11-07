@@ -19,7 +19,9 @@ import { useTrendPath } from '@/hooks/useTrendPath';
 import { TrendToggle } from './TrendToggle';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useT } from '@/i18n';
-import { buildChartData, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
+import { buildChartData, CHART_TIMEFRAME_SEC, CHART_TIMEFRAMES, dataTimeframeOf, type Bar, type ChartTimeframe } from '@/lib/analysis/candles';
+import { barEnd, calendarFromDaily, isCalendarTimeframe, liveCalendarBar, periodStart } from '@/lib/analysis/calendarBars';
+import { DAY_SEC } from '@/lib/serverTime';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
 import { brokerNow } from '@/lib/serverTime';
 import { useConnectionStore } from '@/store/useConnectionStore';
@@ -27,7 +29,7 @@ import { useBotRuntimeStore, useWebSocketManager, useSettingsStore } from '@/sto
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
 export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimeframe, range, offsetSec, clockReady, chrome }: {
-  accountId: string; symbol: string | null; onSymbol: (symbol: string) => void; timeframe: Timeframe; onTimeframe: (tf: Timeframe) => void;
+  accountId: string; symbol: string | null; onSymbol: (symbol: string) => void; timeframe: ChartTimeframe; onTimeframe: (tf: ChartTimeframe) => void;
   range: { from: number | null; to: number }; offsetSec: number | null; clockReady: boolean; chrome: ChartChrome;
 }) {
   const t = useT();
@@ -43,15 +45,41 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
   const selected = ready && symbol ? details[symbol.toUpperCase()] : null;
   const accepted = selected?.name === symbol ? symbol : null;
   const now = useCallback(() => offsetSec === null ? Date.now() / 1000 : brokerNow(offsetSec), [offsetSec]);
-  const request = useMemo(() => accepted && clockReady ? { accountId, symbol: accepted, timeframe, ...range } : null, [accepted, clockReady, accountId, timeframe, range]);
-  const rates = useMarketRates(request, now);
-  const data = useMemo(() => rates.data ? buildChartData(rates.data.bars, rates.data.missing, TIMEFRAME_SEC[timeframe], now()) : null, [rates.data, timeframe, now]);
+  // W1 and MN are built from D1 in the browser (1107-A4.2). The request starts at a week or month start, so the first candle is whole.
+  const calendar = isCalendarTimeframe(timeframe) ? timeframe : null;
+  const askRange = useMemo(() => calendar && range.from !== null ? { ...range, from: periodStart(calendar, range.from) } : range, [calendar, range]);
+  const request = useMemo(() => accepted && clockReady ? { accountId, symbol: accepted, timeframe: dataTimeframeOf(timeframe), ...askRange } : null, [accepted, clockReady, accountId, timeframe, askRange]);
+  const d1 = useMarketRates(request, now);
+  const ratesData = useMemo(() => {
+    if (!calendar || !d1.data) return d1.data;
+    const bars: Bar[] = calendarFromDaily(calendar, d1.data.bars, d1.data.missing, d1.data.from);
+    const liveFrom = d1.data.liveFrom === null ? null : periodStart(calendar, d1.data.liveFrom);
+    return { ...d1.data, bars, liveFrom };
+  }, [d1.data, calendar]);
+  const rates = { data: ratesData, loading: d1.loading, error: d1.error };
+  const tfSec = CHART_TIMEFRAME_SEC[timeframe];
+  const data = useMemo(() => {
+    if (!rates.data) return null;
+    if (!calendar) return buildChartData(rates.data.bars, rates.data.missing, tfSec, now());
+    // No gap slots on W1 and MN: the missing D1 ranges show in the banner only.
+    return buildChartData(rates.data.bars, [], tfSec, now());
+  }, [rates.data, calendar, tfSec, now]);
+  const dailyMissing = useMemo(() => calendar && d1.data ? buildChartData(d1.data.bars, d1.data.missing, DAY_SEC, now()).missing : null, [calendar, d1.data, now]);
   const signalBars = useSignalBars(rates.data, timeframe, offsetSec, now);
   const live = useMemo(() => {
     const last = rates.data?.bars.at(-1);
     if (!isConnected || offsetSec === null || !accepted || !metrics.symbol || metrics.symbol.toUpperCase() !== accepted.toUpperCase() || rates.data?.liveFrom == null || metrics.market_open === false || !last || metrics.price <= 0 || Math.abs(metrics.price / last.close - 1) >= .2) return null;
     return { price: metrics.price, nowSec: brokerNow(offsetSec) };
   }, [isConnected, offsetSec, accepted, metrics.symbol, metrics.price, metrics.market_open, rates.data]);
+  // ChartCore aligns the running candle to fixed seconds. That does not fit a week or month, so for W1 and MN the price goes into the last candle here.
+  const calendarLive = useMemo(() => {
+    if (!calendar || !live || !rates.data) return null;
+    return liveCalendarBar(calendar, rates.data.bars.at(-1) ?? null, live.price, live.nowSec);
+  }, [calendar, live, rates.data]);
+  const shown = useMemo(() => {
+    if (!data || !calendarLive) return data;
+    return buildChartData([...rates.data!.bars.slice(0, -1), calendarLive], [], tfSec, now());
+  }, [data, calendarLive, rates.data, tfSec, now]);
   const prefs = useAnalysisPrefsStore();
   const trend = useTrendPath({ accountId, symbol: accepted, timeframe, range, offsetSec, clockReady }, prefs.showTrend, prefs.trend, now);
   useEffect(() => { useAnalysisPrefsStore.persist.rehydrate(); }, []);
@@ -70,7 +98,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     {symbol && ready && !isLoading && !accepted && <ChartNotice><Alert tone="warning" title={t('cw.invalidSymbol')} /></ChartNotice>}
     {rates.error && <ChartNotice><Alert tone="danger" title={rates.error} /></ChartNotice>}
     {trend.error && <ChartNotice><Alert tone="danger" title={trend.error} /></ChartNotice>}
-    {rates.data && data && <ChartNotice><DataQualityBanner missing={data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} /></ChartNotice>}
+    {rates.data && data && <ChartNotice><DataQualityBanner missing={dailyMissing ?? data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} calendar={calendar !== null} /></ChartNotice>}
     {rates.loading && <p className="rounded-lg bg-background/95 p-2 text-sm text-muted-foreground">{t('analysis.chart.loading')}</p>}
   </>;
   return <ChartPage
@@ -83,16 +111,16 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
       account={chrome.account}
       mode={chrome.mode}
       target={symbolField}
-      timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} />}
+      timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} options={CHART_TIMEFRAMES} />}
       range={chrome.range}
       view={chrome.view}
       tools={<LicenseInfo />}
     />}
     surface={<div className="absolute inset-0" data-testid="free-chart-panel">
-      {data && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
+      {shown && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
         signalBars={signalBars} timeframe={timeframe}
-        data={data} timeframeSec={TIMEFRAME_SEC[timeframe]} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
-        band={null} lines={[]} markers={[]} live={live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={offsetSec === null || rates.data?.liveFrom == null ? null : now()}
+        data={shown ?? data!} timeframeSec={tfSec} until={calendar ? barEnd(calendar, (shown ?? data!).bars.at(-1)?.time ?? 0) : undefined} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
+        band={null} lines={[]} markers={[]} live={calendar ? null : live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={calendar || offsetSec === null || rates.data?.liveFrom == null ? null : now()}
         fullscreenOfPage />}
     </div>}
     floating={<ChartOverlays notices={notices} />}
