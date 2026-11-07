@@ -66,7 +66,6 @@ interface State {
   setToolbar: (key: string, patch: Partial<ToolbarPreferences>) => void;
   /** Araç gruplarının yeri (UI-16): tarayıcı başına, her grafikte aynı; boş nesne = oto yerleşim. */
   toolbarLayout: ToolbarLayout;
-  setToolbarLayout: (layout: ToolbarLayout) => void;
   /** Serbest paket yerleşimi (UI-17, 1106-A1): tarayıcı başına, her grafikte aynı. UI yalnız bunu okur; `toolbarLayout` yalnız eski kayıttan geçiş için kalır. */
   dockLayout: DockLayout;
   setDockLayout: (layout: DockLayout) => void;
@@ -166,7 +165,6 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
       } catch { set({ hydrated: true, storageError: true }); }
     },
     receiveStorage: () => { if (pendingWrites) { receivePending = true; return; } set({ hydrated: false }); get().hydrate(); },
-    setToolbarLayout: toolbarLayout => { set({ toolbarLayout }); persist(); },
     setDockLayout: dockLayout => { set({ dockLayout }); persist(); },
     resetDockLayout: () => { set({ dockLayout: defaultDockLayout(), toolbarLayout: {} }); persist(); },
     setToolbar: (key, patch) => { set(s => ({ toolbar: { ...s.toolbar, [key]: { ...(s.toolbar[key] ?? defaultToolbar()), ...patch } } })); persist(); },

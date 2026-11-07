@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-07 · **221/239** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-07 · **221/240** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -26,7 +26,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
-| 13 | **UI** – Oberfläche | 17/20 |
+| 13 | **UI** – Oberfläche | 17/21 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 22/25 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/22 |
 | 16 | **FRM** – Formationserkennung | 42/45 |
@@ -714,6 +714,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Auf /chart gibt es keinen eigenen Knopf „Çizim nesneleri“ (Zeichenobjekte) mehr (Plan 1106-A3, Entwurf „Tek düğme: Göstergeler ve çizimler“). Der Knopf Göstergeler öffnet das Fenster „Göstergeler ve çizimler“ mit zwei Reitern, beide mit Anzahl: Göstergeler (Indikatoren hinzufügen, bearbeiten, entfernen; neu je Zeile Görünür/Gizli, vorher in der Objektliste) und Çizimler (die frühere Objektliste unverändert: Zeichnung wählen; Name, Farbe, Stärke, Linienstil, Sperre, Sichtbarkeit, Text, Füllung, Fibonacci-Stufen, Duplizieren, nach vorn/hinten, Löschen, Tabellenzeile/-spalte). Ohne Zeichnung zeigt der Reiter Çizimler einen Hinweis. Der System-RSI fehlt im Reiter Göstergeler, solange seine Ebene aus ist (Regel des Dialogs, unverändert). Journal docs/journal/2026-11-06-indicators-drawings-window.md. Keine Worker-Änderung, keine Order.
   - **Prüfung:** Playwright-Tests mit @UI-20 ausführen (e2e/mocked/chart-workspace.spec.ts, e2e/mocked/chart-single-rsi.spec.ts). → /chart öffnen: in der Werkzeugleiste kein Knopf „Çizim nesneleri“; Göstergeler öffnet „Göstergeler ve çizimler“ mit den Reitern Göstergeler und Çizimler. → Eine Linie zeichnen, Reiter Çizimler: Linie wählen und die Stärke ändern; die Linie im Chart ändert sich und bleibt nach dem Neuladen. → Reiter Göstergeler: das Auge einer Zeile klicken; der Indikator verschwindet im Chart, ein zweiter Klick zeigt ihn wieder.
   - **Erwartet:** Ein Knopf verwaltet Indikatoren und Zeichnungen; alle Einstellungen der früheren Objektliste sind im Reiter Çizimler erreichbar, Ein-/Ausblenden im Reiter Göstergeler.
+- [ ] **UI-21** Dialoge ohne Unschärfe und ohne Abdunkeln — 🖥️ e2e ⏳
+  - Hinter jedem Dialog bleibt die Seite scharf und unverändert sichtbar (Plan 1107-A1, Entwurf „Modal Arka Planı“, Variante C). Die Hintergrundschicht nimmt ihre Farbe nur aus der CSS-Variablen --overlay (globals.css, Tailwind-Klasse bg-overlay), in beiden Themes transparent und ohne backdrop-filter. Das gilt für alle Dialoge mit Modal (Indikator- und Zeichnungseinstellungen, Chart-Einstellungen, Trendlinie, Alarm, Bestätigungen, Verbindung, Symbol hinzufügen, Backtest, Benutzer, Update), für das Kontoformular (natives <dialog>, ::backdrop) und für das Datums-Panel der Formasyon-Seite auf dem Telefon. Ein Klick neben den Dialog und Escape schließen ihn wie bisher. Keine Worker-Änderung.
+  - **Prüfung:** Playwright-Test e2e/mocked/modal-backdrop.spec.ts (@UI-21) ausführen. → /chart öffnen, Indikatoren → RSI → Ayarlar, in hellem und dunklem Theme: der Chart hinter dem Dialog ist scharf und nicht abgedunkelt; ein Klick neben den Dialog schließt ihn. → Dashboard → Kontomenü → Konto hinzufügen: auch hinter dem Kontoformular ist die Seite scharf und nicht abgedunkelt.
+  - **Erwartet:** Kein Dialog macht die Seite dahinter unscharf oder dunkler; Schließen durch Klick daneben und Escape funktioniert weiter.
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 

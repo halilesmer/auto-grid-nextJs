@@ -195,6 +195,16 @@ S6 changes no behavior. It closes the catalog, the journal and the browser check
 - The owner may still object to the compact date range (no dates below 75 rem).
 - UI-17 is not signed. The owner signs it after the visual check.
 
+### Dead code removed
+
+After S6, no application code called some parts of the old UI-16 zone model. They are removed. No behavior changes.
+
+- `toolbar.ts`: `isAutoLayout`, `moveGroup`, `placementZone` and the `ToolbarZone` type. Only a unit test used them. `GroupPlacement` stays, because `ToolbarLayout` uses it.
+- `useChartWorkspaceStore.ts`: `setToolbarLayout`. Nothing called it.
+- `workspace.ts`: the key `cw.tbAnchor` (tr, en, de). Nothing used it.
+- The first test in `chart-toolbar-groups-lib.spec.ts` and the `moveGroup` lines of the second test tested only the removed code.
+- Kept: the `toolbarLayout` field, `parseToolbarLayout`, `placeFree`, `toRatio`, `nudgeStep`, `TOOLBAR_GROUPS` and the `cw.tbGroup.*` keys (they are still used).
+
 ## Defect 1106-A5.16 (phone mode only measured with a chart)
 
 ### Symptom
