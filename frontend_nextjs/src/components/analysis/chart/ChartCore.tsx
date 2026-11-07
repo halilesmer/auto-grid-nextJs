@@ -175,6 +175,8 @@ const FIT_MAX_POINTS = 2000;
 const VISIBLE_BARS = 300;
 /** Bleiben links so wenige Kerzen übrig, werden ältere nachgeladen (Serbest kip, 1107-A4) */
 const OLDER_TRIGGER_BARS = 50;
+/** Ältere Kerzen laden nur, wenn der Nutzer den Chart gerade bedient hat (Rad, Ziehen, Tippen); eine Ansicht, die schon am Rand steht (alles passt, gespeicherter Zoom), lädt nichts von selbst */
+const USER_INPUT_WINDOW_MS = 1500;
 
 function previousColor(up: boolean, body: boolean, positive: string, negative: string) { if (!body) return 'transparent'; return up ? positive : negative; }
 /** Farben einer Kerze, wenn sie sich nach dem Schluss der vorigen Kerze richten (Einstellung „previous“) */
@@ -275,6 +277,7 @@ export function ChartCore({
   const lastBar = useRef<Bar | null>(null);
   const fittedKey = useRef<string | null>(null);
   const checkOlder = useRef<(() => void) | null>(null);
+  const lastInput = useRef(-Infinity);
   const keepViewFrame = useRef(0);
   // Bis zur Korrektur der Ansicht nach einer Seite älterer Kerzen sieht check() noch die verschobene Ansicht und holte sonst unnötig eine weitere Seite
   const viewFixPending = useRef(false);
@@ -536,7 +539,6 @@ export function ChartCore({
       }
       restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
       forgetView.current = rememberChartView(chart, surfaceRef.current ? [el, surfaceRef.current] : [el], workspaceKey, () => pointsRef.current.length + runningCount.current);
-      checkOlder.current?.();
     };
     // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
     // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
@@ -548,8 +550,16 @@ export function ChartCore({
   useEffect(() => {
     if (!binding) return;
     const { chart, candles } = binding;
+    // Die Zeichenfläche und die Bedienung liegen über dem Chart, darum an der Fläche lauschen, nicht am Chart-Element
+    const host = surfaceRef.current ?? binding.host;
+    const mark = () => { lastInput.current = performance.now(); };
+    const drag = (event: PointerEvent) => { if (event.buttons) mark(); };
+    const inputs = ['wheel', 'pointerdown', 'touchstart', 'touchmove', 'keydown'] as const;
+    inputs.forEach((name) => host.addEventListener(name, mark, { passive: true }));
+    host.addEventListener('pointermove', drag, { passive: true });
     const check = () => {
       if (!needOlder.current || viewFixPending.current || fittedKey.current !== currentViewKey.current) return;
+      if (performance.now() - lastInput.current > USER_INPUT_WINDOW_MS) return;
       const range = chart.timeScale().getVisibleLogicalRange();
       const info = range ? candles.barsInLogicalRange(range) : null;
       if (info && info.barsBefore < OLDER_TRIGGER_BARS) needOlder.current();
@@ -558,6 +568,8 @@ export function ChartCore({
     chart.timeScale().subscribeVisibleLogicalRangeChange(check);
     return () => {
       checkOlder.current = null;
+      inputs.forEach((name) => host.removeEventListener(name, mark));
+      host.removeEventListener('pointermove', drag);
       try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(check); } catch { /* Chart schon entfernt */ }
     };
   }, [binding]);

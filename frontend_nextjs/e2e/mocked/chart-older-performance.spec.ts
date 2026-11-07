@@ -16,7 +16,7 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
   worker.state.ratesAllDays = true;
   // Zeitpunkte im Browser: Antwort von /rates fertig, Kerzenzahl am Chart geändert, danach zwei Bilder später
   await page.addInitScript(() => {
-    const w = window as unknown as { __older: { response: number[]; steps: { bars: number; drawn: number }[]; longest: number } };
+    const w = window as unknown as { __older: { response: number[]; steps: { bars: number; committed: number; drawn: number }[]; longest: number } };
     w.__older = { response: [], steps: [], longest: 0 };
     const open = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: unknown[]) {
@@ -31,7 +31,8 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
       const bars = document.querySelector('[data-testid="analysis-chart"]')?.getAttribute('data-bars') ?? '';
       if (bars === last) return;
       last = bars;
-      requestAnimationFrame(() => requestAnimationFrame(() => w.__older.steps.push({ bars: Number(bars), drawn: performance.now() })));
+      const committed = performance.now();
+      requestAnimationFrame(() => requestAnimationFrame(() => w.__older.steps.push({ bars: Number(bars), committed, drawn: performance.now() })));
     }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-bars'] });
   });
   const days = Math.ceil(DATA_BARS / 1440);
@@ -40,20 +41,28 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
   await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=M1&from=${iso(to - days * DAY)}&to=${iso(to)}`);
   const chart = page.getByTestId('analysis-chart');
   await expect(chart).toHaveAttribute('data-bars', '100000', { timeout: 120_000 });
-  const box = (await chart.boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
-  const read = () => page.evaluate(() => (window as unknown as { __older: { response: number[]; steps: { bars: number; drawn: number }[]; longest: number } }).__older);
+  const read = () => page.evaluate(() => (window as unknown as { __older: { response: number[]; steps: { bars: number; committed: number; drawn: number }[]; longest: number } }).__older);
   const pages: { bars: number; ms: number }[] = [];
   for (let guard = 0; guard < 12; guard++) {
     const before = Number(await chart.getAttribute('data-bars'));
     if (before >= TARGET) break;
-    // Waagerechtes Rad schiebt den Chart weit nach links: der Rand löst die nächste Seite aus
-    await page.mouse.wheel(-400_000, 0);
-    await expect.poll(async () => Number(await chart.getAttribute('data-bars')), { timeout: 60_000 }).toBeGreaterThan(before);
+    // Mit der Maus nach links ziehen, bis die nächste Seite kommt (der Rand löst sie aus)
+    await expect.poll(async () => {
+      const now = Number(await chart.getAttribute('data-bars'));
+      if (now > before) return now;
+      const area = (await chart.boundingBox())!;
+      await page.mouse.move(area.x + area.width * 0.4, area.y + area.height * 0.6);
+      await page.mouse.down();
+      await page.mouse.move(area.x + area.width * 0.9, area.y + area.height * 0.6, { steps: 6 });
+      await page.mouse.up();
+      return now;
+    }, { timeout: 120_000, intervals: [50] }).toBeGreaterThan(before);
     await expect.poll(async () => (await read()).steps.at(-1)?.bars ?? 0, { timeout: 30_000 }).toBeGreaterThan(before);
     const { response, steps } = await read();
     const step = steps.at(-1)!;
-    const answered = response.filter((t) => t <= step.drawn).at(-1)!;
+    // Die erste Antwort nach dem letzten Zeichnen (kommen zwei Seiten in einem Schritt, zählt der ganze Schritt)
+    const previousCommitted = steps.at(-2)?.committed ?? 0;
+    const answered = response.find((t) => t > previousCommitted && t <= step.committed) ?? step.committed;
     pages.push({ bars: step.bars, ms: Math.round(step.drawn - answered) });
   }
   const { longest } = await read();

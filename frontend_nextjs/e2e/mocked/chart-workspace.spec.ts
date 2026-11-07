@@ -735,17 +735,36 @@ test('ANA-26 D1-Lücke: Hinweis nennt D1, W1 zeichnet keinen Lückenplatz', { ta
 
 test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (M1)', () => {
   const M1_URL = `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=M1&from=2024-01-03&to=2024-03-20`;
-  // 77 Tage M1 = 110.880 Kerzen: mehr als die 100.000 der ersten Ladung, der Rest kommt nach
+  // 78 Tage M1 = 112.320 Kerzen: mehr als die 100.000 der ersten Ladung, der Rest kommt nach
 
-  /** Waagerechtes Rad schiebt den Chart weit nach links, bis die erste Kerze sichtbar ist */
-  async function panToFirstCandle(page: Page) {
+  /** Zieht den Chart mit der Maus um `dx` Pixel nach rechts, also die Ansicht nach links (der Nutzer bedient den Chart) */
+  async function dragLeft(page: Page, dx: number) {
     const box = (await page.getByTestId('analysis-chart').boundingBox())!;
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
-    await page.mouse.wheel(-400_000, 0);
+    // Nicht über den Hinweisen oben links: dort fängt der Hinweis „gekürzt“ die Maus ab
+    const y = box.y + box.height * 0.6, x = box.x + box.width * 0.4;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + Math.min(dx, box.width * 0.5), y, { steps: 6 });
+    await page.mouse.up();
+  }
+  /** Zieht, bis die erste Kerze mit der Anzeige „Beginn“ zu sehen ist (die Seiten kommen dabei nach) */
+  async function panToFirstCandle(page: Page) {
+    // Erst herauszoomen: bei engem Zoom wären es Dutzende Züge bis zur ersten Kerze
+    const box = (await page.getByTestId('analysis-chart').boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
+    await page.mouse.wheel(0, 4000);
+    await expect.poll(async () => {
+      if (await page.getByTestId('older-edge-line').count()) return true;
+      await dragLeft(page, 2000);
+      return false;
+    }, { timeout: 60_000, intervals: [100] }).toBe(true);
   }
 
-  /** Öffnet den Chart, merkt sich den geladenen Beginn und startet ihn neu mit einem Zoom am linken Rand */
-  async function openAtLeftEdge(page: Page, worker: { ratesQueries: string[] }, extra: Record<string, unknown> = {}) {
+  /**
+   * Öffnet den Chart mit einem gespeicherten Zoom am linken Rand und schiebt ihn einmal leicht nach links. Die Antwort
+   * auf die Seite älterer Kerzen hält der Test an, bis `release()` sie freigibt: so ist die Ansicht davor lesbar.
+   */
+  async function openNearLeftEdge(page: Page, worker: { ratesQueries: string[] }, extra: Record<string, unknown> = {}, fail = false) {
     await page.goto(M1_URL);
     const chart = page.getByTestId('analysis-chart');
     await expect(chart).toHaveAttribute('data-bars', '100000');
@@ -762,29 +781,49 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (M1)', () =>
     }, { contextKey: key, visibleTime: zoom, fields: extra });
     worker.ratesQueries.length = 0;
     await page.reload();
-    return { chart, zoom, loadedFrom };
+    const rangeOf = async () => ((await chart.getAttribute('data-visible-range')) ?? '').split(',').map(Number);
+    const near = (a: number[], b: { from: number; to: number }) => Math.max(Math.abs(a[0] - b.from), Math.abs(a[1] - b.to)) <= 60;
+    // Der Chart rundet beim Wiederherstellen um höchstens eine Kerze (60 s)
+    await expect.poll(async () => near(await rangeOf(), zoom)).toBe(true);
+    // Ohne Bedienung lädt der Chart nichts, auch wenn die Ansicht am linken Rand steht
+    await page.waitForTimeout(800);
+    expect(worker.ratesQueries.map((q) => new URLSearchParams(q).get('to')).every((to) => to !== String(loadedFrom))).toBe(true);
+    let release = () => {};
+    let failures = 0;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('**/api/market/*/rates?*', async (route) => {
+      if (new URL(route.request().url()).searchParams.get('to') !== String(loadedFrom)) return route.fallback();
+      // Die Seite älterer Kerzen: festhalten (Ansicht davor lesen) oder mit einem Fehler beantworten
+      if (fail) {
+        failures++;
+        return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'busy' }) });
+      }
+      await gate;
+      return route.fallback();
+    });
+    await dragLeft(page, 30);
+    if (!fail) {
+      await expect(page.getByTestId('older-edge')).toHaveAttribute('data-state', 'loading');
+      await expect(page.getByTestId('older-loading-strip')).toBeVisible();
+    }
+    const before = await rangeOf();
+    return { chart, rangeOf, before, loadedFrom, release, failures: () => failures };
   }
 
   test('Sola kaydırınca bir sayfa eklenir, görünen zaman aralığı aynı kalır, aralık başında yükleme durur', { tag: '@ANA-27' }, async ({ page, worker }) => {
+    test.setTimeout(90_000);
     worker.state.ratesAllDays = true;
-    const { chart, zoom, loadedFrom } = await openAtLeftEdge(page, worker);
-    const rangeOf = async () => ((await chart.getAttribute('data-visible-range')) ?? '').split(',').map(Number);
-    // Der Chart rundet beim Wiederherstellen um höchstens eine Kerze (60 s)
-    await expect.poll(async () => { const [from, to] = await rangeOf(); return Math.max(Math.abs(from - zoom.from), Math.abs(to - zoom.to)) <= 60; }).toBe(true);
+    const { chart, rangeOf, before, loadedFrom, release } = await openNearLeftEdge(page, worker);
+    release();
     // Die zweite Seite: nur der Rest bis zum Zeitraumbeginn, nicht mehr als eine Seite
-    await expect.poll(() => worker.ratesDelivered.length).toBeGreaterThan(2);
-    await expect(chart).toHaveAttribute('data-bars', /^1[01]\d{4}$/);
-    const total = Number(await chart.getAttribute('data-bars'));
-    expect(total).toBeGreaterThan(100_000);
-    expect(total).toBeLessThanOrEqual(112_320);
-    const older = new URLSearchParams(worker.ratesQueries.at(-1));
-    expect(Number(older.get('to'))).toBe(loadedFrom);
+    await expect(chart).toHaveAttribute('data-bars', '112320');
+    const older = new URLSearchParams(worker.ratesQueries.filter((q) => new URLSearchParams(q).get('to') === String(loadedFrom)).at(-1));
     expect(Number(older.get('from'))).toBe(Date.UTC(2024, 0, 3) / 1000);
-    // Die Ansicht springt nicht: dieselbe erste und letzte sichtbare Kerzenzeit wie vorher
+    // Die Ansicht springt nicht: dieselbe erste und letzte sichtbare Kerzenzeit wie vor dem Anfügen
     await page.waitForTimeout(500);
-    const [from, to] = await rangeOf();
-    expect(Math.max(Math.abs(from - zoom.from), Math.abs(to - zoom.to))).toBeLessThanOrEqual(60);
-    // Am Zeitraumbeginn ist Schluss: keine weitere Anfrage, der Hinweis „gekürzt“ ist weg, die Anzeige links nennt den Beginn
+    const after = await rangeOf();
+    expect(Math.max(Math.abs(after[0] - before[0]), Math.abs(after[1] - before[1]))).toBeLessThanOrEqual(60);
+    // Am Zeitraumbeginn ist Schluss: der Hinweis „gekürzt“ ist weg, die Anzeige links nennt den Beginn
     await expect(page.getByTestId('data-quality')).toHaveCount(0);
     await panToFirstCandle(page);
     await expect(page.getByTestId('older-edge')).toHaveAttribute('data-state', 'range');
@@ -795,6 +834,7 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (M1)', () =>
   });
 
   test('„Tümü“: erst eine Seite ohne Kerzen entscheidet über den Beginn der MT5-Historie, der Bereich davor zählt nicht als fehlend', { tag: '@ANA-27' }, async ({ page, worker }) => {
+    test.setTimeout(120_000);
     worker.state.ratesAllDays = true;
     const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 60) * 60;
     worker.state.ratesSince = latest - 30_000 * 60;
@@ -804,7 +844,8 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (M1)', () =>
     await expect(page.getByTestId('data-quality')).toContainText(msg('analysis.data.scroll.title'));
     const edge = () => page.evaluate(() => document.querySelector('[data-testid="older-edge"]')?.getAttribute('data-state') ?? null);
     // Bis zur ersten Kerze schieben, bis die Anzeige „Beginn der Historie“ meldet (zwei Seiten mit Kerzen, dann eine leere)
-    await expect.poll(async () => { await panToFirstCandle(page); return edge(); }, { timeout: 30_000, intervals: [500] }).toBe('history');
+    await panToFirstCandle(page);
+    await expect.poll(edge).toBe('history');
     expect(Math.abs(Number(await chart.getAttribute('data-bars')) - 30_000)).toBeLessThanOrEqual(1500);
     await expect(page.getByTestId('data-quality')).toHaveCount(0);
     await expect(chart).toHaveAttribute('data-gap-areas', '0');
@@ -815,11 +856,22 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (M1)', () =>
 
   test('Ohne Indikator-Reihen und Ebenen bleibt die Ansicht beim Anfügen ebenfalls stehen', { tag: '@ANA-27' }, async ({ page, worker }) => {
     worker.state.ratesAllDays = true;
-    const { chart, zoom } = await openAtLeftEdge(page, worker, { drawings: '[]', indicators: [], images: {}, overlays: { rsi: false, wave: false } });
-    await expect.poll(() => worker.ratesDelivered.length).toBeGreaterThan(2);
-    await expect(chart).toHaveAttribute('data-bars', /^1[01]\d{4}$/);
+    const { chart, rangeOf, before, release } = await openNearLeftEdge(page, worker, { drawings: '[]', indicators: [], images: {}, overlays: { rsi: false, wave: false } });
+    release();
+    await expect(chart).toHaveAttribute('data-bars', '112320');
     await page.waitForTimeout(500);
-    const [from, to] = ((await chart.getAttribute('data-visible-range')) ?? '').split(',').map(Number);
-    expect(Math.max(Math.abs(from - zoom.from), Math.abs(to - zoom.to))).toBeLessThanOrEqual(60);
+    const after = await rangeOf();
+    expect(Math.max(Math.abs(after[0] - before[0]), Math.abs(after[1] - before[1]))).toBeLessThanOrEqual(60);
+  });
+
+  test('Ein Fehlschlag pausiert das Laden: keine Anfrage im Dauertakt', { tag: '@ANA-27' }, async ({ page, worker }) => {
+    worker.state.ratesAllDays = true;
+    const { chart, failures } = await openNearLeftEdge(page, worker, {}, true);
+    await expect.poll(failures).toBe(1);
+    // Der Chart steht weiter am linken Rand; ohne Pause käme sofort die nächste Anfrage, auch bei weiterer Bedienung
+    await dragLeft(page, 30);
+    await page.waitForTimeout(1500);
+    expect(failures()).toBe(1);
+    await expect(chart).toHaveAttribute('data-bars', '100000');
   });
 });
