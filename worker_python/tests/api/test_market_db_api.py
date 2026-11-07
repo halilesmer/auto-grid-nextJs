@@ -406,6 +406,26 @@ def test_migration_runs_twice_without_harm_or_lost_rows(client, broker, seed_acc
 
 
 @pytest.mark.feature("ANA-04")
+def test_migration_bricht_bei_unlesbarer_kontodatei_ab_statt_alle_importe_ohne_server_zu_lassen(client, broker, worker_dir):
+    get_rates(client, MON, MON + 60)
+    _legacy_csv_imports([("a" * 32, "1001")])
+    (worker_dir / "configs" / "accounts.json").write_text("{kaputt", encoding="utf-8")
+
+    with pytest.raises(market_db.MarketDbUnavailable, match="göçü"):
+        with market_db.reading():
+            pass
+    conn = sqlite3.connect(market_db.db_path())
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 9  # alte Version bleibt, nächster Start versucht es erneut
+    assert conn.execute("SELECT COUNT(*) FROM rates WHERE source LIKE 'csv:%'").fetchone()[0] == 1
+    conn.close()
+    # Datei repariert: die Migration läuft jetzt und füllt den Server
+    (worker_dir / "configs" / "accounts.json").write_text(
+        '{"accounts": [{"id": "1001", "server": "Alpha-Server"}]}', encoding="utf-8")
+    market_db.reset_cache()
+    assert _csv_state()[0] == [("a" * 32, "1001", "Alpha-Server")]
+
+
+@pytest.mark.feature("ANA-04")
 def test_kaputte_datenbankdatei_antwortet_503(client, broker, worker_dir):
     (worker_dir / "data" / "market.sqlite").write_bytes(b"kein sqlite" * 100)
     res = client.get(URL, params={"symbol": SYMBOL, "timeframe": "M1", "from": MON, "to": MON + 60})

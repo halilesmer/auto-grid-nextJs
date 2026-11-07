@@ -11,7 +11,7 @@ import { useFormat, useT } from '@/i18n';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { deleteCsvImport, type CsvImport, type CsvSeries } from '@/services/csvImportApi';
 import { useAccountStore } from '@/store/useAccountStore';
-import { useIsAdmin } from '@/store/useAuthStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { CsvImportDialog } from './CsvImportDialog';
 
 interface CsvImportPanelProps {
@@ -33,7 +33,8 @@ interface CsvImportPanelProps {
 export function CsvImportPanel({ accountId, defaultSymbol, imports, series, reload }: CsvImportPanelProps) {
   const t = useT();
   const fmt = useFormat();
-  const isAdmin = useIsAdmin();
+  const me = useAuthStore((s) => s.me);
+  const isAdmin = me?.role === 'admin';
   const account = useAccountStore((s) => s.accounts.find((a) => String(a.id) === accountId));
   const [dialogKey, setDialogKey] = useState(0);
   const [open, setOpen] = useState(false);
@@ -164,7 +165,7 @@ export function CsvImportPanel({ accountId, defaultSymbol, imports, series, relo
                       )}
                     </li>
                   ))}
-                  {!isAdmin && (
+                  {me && !isAdmin && ( // erst wenn die Rolle bekannt ist: sonst blitzt der Hinweis beim Admin kurz auf
                     <li className="text-xs text-muted-foreground" data-testid="csv-admin-only">
                       {t('csv.delete.adminOnly')}
                     </li>

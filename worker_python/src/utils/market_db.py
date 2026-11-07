@@ -52,14 +52,15 @@ class MarketDbUnavailable(Exception):
 
 
 def _stored_account_servers() -> dict[str, str]:
-    """accounts.json: hesap kimliği → MT5 sunucusu (boş sunucu yok sayılır). Dosya yoksa ya da bozuksa boş."""
-    try:
-        with open(os.path.join(paths.CONFIGS_DIR, "accounts.json"), "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        accounts = data.get("accounts", []) if isinstance(data, dict) else data
-        return {str(a.get("id")): str(a.get("server") or "").strip() for a in accounts if isinstance(a, dict)}
-    except (OSError, ValueError):
+    """accounts.json: hesap kimliği → MT5 sunucusu (boş sunucu yok sayılır). Dosya yoksa: hesap yok ({}).
+    Dosya var ama okunamıyorsa (bozuk, yarım yazılmış) hata verir: göç geri alınır ve sonra yeniden denenir."""
+    path = os.path.join(paths.CONFIGS_DIR, "accounts.json")
+    if not os.path.exists(path):
         return {}
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    accounts = data.get("accounts", []) if isinstance(data, dict) else data
+    return {str(a.get("id")): str(a.get("server") or "").strip() for a in accounts if isinstance(a, dict)}
 
 
 def _csv_imports_add_server(conn):
@@ -70,8 +71,11 @@ def _csv_imports_add_server(conn):
     if "server" not in {row[1] for row in conn.execute("PRAGMA table_info(csv_imports)")}:
         conn.execute("ALTER TABLE csv_imports ADD COLUMN server TEXT")
     conn.execute("CREATE INDEX IF NOT EXISTS csv_imports_server ON csv_imports (server, symbol, timeframe)")
-    servers = _stored_account_servers()
-    for row in conn.execute("SELECT import_id, account_id FROM csv_imports WHERE server IS NULL").fetchall():
+    pending = conn.execute("SELECT import_id, account_id FROM csv_imports WHERE server IS NULL").fetchall()
+    if not pending:
+        return
+    servers = _stored_account_servers()  # okunamıyorsa göç geri alınır, hiçbir aktarma sessizce sunucusuz kalmaz
+    for row in pending:
         server = servers.get(str(row[1]))
         if server:
             conn.execute("UPDATE csv_imports SET server=? WHERE import_id=?", (server, row[0]))

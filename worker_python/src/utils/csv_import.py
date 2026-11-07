@@ -137,10 +137,15 @@ def list_imports(viewer: Viewer) -> dict:
         for files in groups.values():
             files.sort(key=lambda r: (r["committed_at"], r["import_id"]))
             sources = [db.csv_source(f["import_id"]) for f in files]
-            marks = ",".join("?" for _ in sources)
-            bars = conn.execute(
-                f"SELECT COUNT(DISTINCT t_mt5) FROM rates WHERE source IN ({marks}) AND symbol=? AND timeframe=?",
-                (*sources, files[0]["symbol"], files[0]["timeframe"])).fetchone()[0]
+            by_start = sorted(files, key=lambda f: f["first_t"])
+            disjoint = all(a["last_t"] < b["first_t"] for a, b in zip(by_start, by_start[1:]))
+            if disjoint:  # örtüşme yok: dosya başına mum sayıları toplanır, milyonlarca satır taranmaz
+                bars = sum(f["bars"] or 0 for f in files)
+            else:
+                marks = ",".join("?" for _ in sources)
+                bars = conn.execute(
+                    f"SELECT COUNT(DISTINCT t_mt5) FROM rates WHERE source IN ({marks}) AND symbol=? AND timeframe=?",
+                    (*sources, files[0]["symbol"], files[0]["timeframe"])).fetchone()[0]
             series.append({
                 "import_id": files[0]["import_id"], "server": files[0]["server"], "symbol": files[0]["symbol"],
                 "timeframe": TF_BY_SEC.get(files[0]["timeframe"], str(files[0]["timeframe"])),
@@ -470,9 +475,12 @@ def _commit(account_id: str, row: dict, extend: bool) -> dict:
                 if y > x:
                     db._insert(conn, "rate_coverage", {"source": src, "symbol": row["symbol"], "timeframe": tf_sec,
                                                        "from_t": x, "to_t": y, "state": state, "checked_at": now})
+            # committed_at (Vorrang in der Serie) ist der Zeitpunkt der Fertigstellung, nicht des Commit-Beginns:
+            # eine große Datei, die früher begann, aber später fertig wird, ist nicht „älter“
             conn.execute(
                 "UPDATE csv_imports SET status='committed', bars=?, first_t=?, last_t=?, gaps=?, committed_at=?, offset_mode=? "
-                "WHERE import_id=?", (scan["bars"], scan["first"], scan["last"], len(scan["gaps"]), now, scan["offset_mode"], import_id))
+                "WHERE import_id=?", (scan["bars"], scan["first"], scan["last"], len(scan["gaps"]), int(time.time()),
+                                      scan["offset_mode"], import_id))
     except BaseException:
         # Abgebrochene Batches dürfen bei einem erneuten Commit nicht doppelt eingefügt werden.
         with db.writing() as conn:
@@ -487,7 +495,7 @@ def _commit(account_id: str, row: dict, extend: bool) -> dict:
 
 
 def _require_staging(conn, account_id: str, import_id: str):
-    # Kontolöschung kann zwischen Batches stattfinden. Dann keine verwaisten Kerzen schreiben.
+    # Ein Admin-Löschen oder Abbruch kann zwischen Batches stattfinden. Dann keine verwaisten Kerzen schreiben.
     entry = conn.execute("SELECT status FROM csv_imports WHERE import_id=? AND account_id=?",
                          (import_id, account_id)).fetchone()
     if entry is None:
@@ -516,6 +524,8 @@ def get_rates(viewer: Viewer, import_id: str, symbol: str, timeframe: str, a: in
         raise ImportFailure(400, f"Import holds {row['symbol']} {TF_BY_SEC[row['timeframe']]} only")
     with db.reading() as conn:
         sources = [db.csv_source(f["import_id"]) for f in _series_rows(conn, row)]
+    if not sources:  # Admin hat die Datei zwischen Prüfung und Lesen gelöscht
+        raise ImportFailure(404, "Import not found")
     a = a - a % tf_sec
     b = b - b % tf_sec if b % tf_sec == 0 else b - b % tf_sec + tf_sec
     end = min(b, a + MAX_BARS * tf_sec)

@@ -172,6 +172,26 @@ def test_umbenennen_auf_eine_verwaiste_kennung_erbt_das_archiv_nicht(client, see
     assert market_db.read_deals("1001", 0, 2_000_000_000) == []
 
 
+@pytest.mark.feature("ACC-05")
+def test_alte_kennung_nach_dem_umbenennen_wird_dem_alten_besitzer_zugeordnet(client, seed_accounts, monkeypatch):
+    from src.api import accounts as accounts_api
+    from src.api import auth, users_store
+    from src.utils import market_db
+
+    monkeypatch.setattr(auth, "WORKER_API_KEY", "admin-" + "key-for-tests")
+    monkeypatch.setattr(accounts_api, "find_mt5_terminals", lambda: ["C:/MT5/terminal64.exe", "C:/MT5b/terminal64.exe"])
+    anna, anna_key = users_store.create_user("Anna")
+    ben, ben_key = users_store.create_user("Ben")
+    seed_accounts(account("1001", owner=anna["id"]))
+    market_db.store_deals("1001", [{"ticket": 7, "time": 1_760_000_000, "type": 0, "entry": 0, "symbol": "XAUUSD"}],
+                          [(1_760_000_000 - 60, 1_760_000_000 + 60)])
+    renamed = account("1005", owner=anna["id"], password="")
+    assert client.put("/api/accounts/1001", headers={"X-API-Key": anna_key}, json=renamed).status_code == 200
+    # Die alte Kennung 1001 ist frei; ihr Archiv gehört Anna, nicht Ben
+    assert client.post("/api/accounts", headers={"X-API-Key": ben_key}, json=account("1001", owner=ben["id"], mt5_path="C:/MT5b/terminal64.exe")).status_code == 201
+    assert market_db.read_deals("1001", 0, 2_000_000_000) == []
+
+
 # --------------------------------------------------------------------------- ACC-09
 @pytest.mark.feature("ACC-09")
 def test_passwort_steht_in_keiner_antwort(client, seed_accounts):

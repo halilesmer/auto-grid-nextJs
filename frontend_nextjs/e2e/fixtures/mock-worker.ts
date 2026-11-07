@@ -646,10 +646,15 @@ export class MockWorker {
         committed_at: null,
         text: '',
       });
-      return { status: 200, body: { import_id: importId, chunk_bytes: 4 * 1024 * 1024, offset_mode: b.time_offset_mode === 'row' ? 'row' : 'fixed', server: viewer.server } };
+      return { status: 200, body: { import_id: importId, chunk_bytes: 4 * 1024 * 1024, offset_mode: b.time_offset_mode === 'row' ? 'row' : 'fixed' } };
     }
     const item = visible().find((i) => i.import_id === seg[3]);
     if (!item) return { status: 404, body: { detail: 'Import not found' } };
+    if (seg.length === 5 && (seg[4] === 'chunk' || seg[4] === 'commit')) {
+      // Wie csv_import._entry: Teile und Commit gehören dem hochladenden Konto (sonst 404); ein fertiger Import: 409
+      if (item.account_id !== account) return { status: 404, body: { detail: 'Import not found' } };
+      if (item.status !== 'staging') return { status: 409, body: { detail: 'Import is already committed' } };
+    }
     if (seg.length === 5 && seg[4] === 'chunk' && method === 'PUT') {
       item.text += this.rawBody;
       item.received_bytes += Buffer.byteLength(this.rawBody);

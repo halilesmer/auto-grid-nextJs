@@ -30,7 +30,7 @@ The project owner decided on 2026-11-07: imported data must never be deleted aga
 
 ### Rules in the worker
 - A series is the set of finished imports with the same server, symbol and timeframe.
-- Priority: the import with the oldest `committed_at` wins a minute. A tie goes to the smaller `import_id`.
+- Priority: the import with the oldest `committed_at` (the time of the end of the commit) wins a minute. A tie goes to the smaller `import_id`.
 - `missing` is the gap list of the joined coverage.
 - A finished import is visible when its server equals the server of the account. An import with `server IS NULL` is visible to the admin only. A staging upload is visible to the uploading account only.
 - `DELETE`: a finished import needs the admin (403 for a user). The uploading account can cancel its own unfinished upload.
@@ -42,11 +42,13 @@ The project owner decided on 2026-11-07: imported data must never be deleted aga
 - **Overlap is stored twice.** Each import keeps all of its own candles. Nine months of overlap on one symbol costs about 25 MB. In return, a delete of one file never leaves a hole.
 - **A delete of an account keeps the data.** The data belongs to the server, to the user and to the account id. The same id gets everything back.
 - **The admin sees imports with `NULL` server.** The server of an import whose account no longer exists is not known. It is not safe to show it to other users.
-- **The migration uses `accounts.json`.** It runs once on the live database. It is idempotent: it adds the column only if the column is missing and it fills only rows with `server IS NULL`. It deletes no row. The automatic backup before each migration (`pre-v10`) is the same as before.
+- **The migration uses `accounts.json`.** It runs once on the live database. It is idempotent: it adds the column only if the column is missing and it fills only rows with `server IS NULL`. It deletes no row. If `accounts.json` exists but is not readable, the migration stops and rolls back (503). The next start tries again. A missing file counts as no accounts. The automatic backup before each migration (`pre-v10`) is the same as before.
 
 ## Risks
 - **One disk (1107-A5.3).** All imported data lives on the disk of the one VPS. The daily backups (`BACKUP_KEEP` = 7) are on the same disk. A disk failure loses data and backups. The size of the database now only grows: no delete cleans up. The limit of `MARKET_DB_MAX_MB` stops new candles only.
-- **Archive and a reused account id.** The deal archive hangs on the account id. After a delete, a new account with the same id could read the old archive. The security review found this. The worker now stores the old owner in `deleted_accounts`. A create, or a rename to that id, calls `claim_account`. A different owner gets an empty archive (deals, account information, SL/TP lookups, zone register). The same owner gets the archive back. Tests: `test_anderer_besitzer_erbt_das_deal_archiv_einer_geloeschten_kennung_nicht` and `test_umbenennen_auf_eine_verwaiste_kennung_erbt_das_archiv_nicht`.
+- **Archive and a reused account id.** The deal archive hangs on the account id. After a delete, a new account with the same id could read the old archive. The security review found this. The worker now stores the old owner in `deleted_accounts`. A create, or a rename to that id, calls `claim_account`. A different owner gets an empty archive (deals, account information, SL/TP lookups, zone register). The same owner gets the archive back. An admin who creates the account without an owner also discards the archive of a user. The delete and the create fail closed: if the database does not answer, the call fails. A rename notes the old id for the old owner. Tests: `test_anderer_besitzer_erbt_das_deal_archiv_einer_geloeschten_kennung_nicht` and `test_umbenennen_auf_eine_verwaiste_kennung_erbt_das_archiv_nicht`.
+- **Unfinished uploads and favorites** hang on the account id too. A new owner of a reused id can see an unfinished upload for up to 24 hours. The new owner also gets the favorites file. The impact is low. `claim_account` does not remove them.
+- **Disk quota.** Each user of a server can store full duplicates with `extend` (150 MB per file). Only the admin deletes them. There is no quota. A full database also stops new MT5 candles.
 - **Access.** Users on the same server share the imports. A user can add overlapping files for all of them. Only the admin removes a file.
 
 ## Verification
