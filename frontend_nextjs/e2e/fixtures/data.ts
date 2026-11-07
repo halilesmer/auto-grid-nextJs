@@ -203,6 +203,8 @@ export function defaultState() {
     ratesLive: null as Record<string, number> | null,
     /** Kerzen auch für Samstag und Sonntag liefern: für Tests, die unabhängig vom Wochentag eine laufende Kerze brauchen. */
     ratesAllDays: false,
+    /** Beginn der MT5-Historie (Sekunden): davor keine Kerzen, die Antwort nennt den Bereich als `unavailable` (wie market_sync); null = unbegrenzt */
+    ratesSince: null as number | null,
     ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],
     /** Antwort von /rates erzwingt einen Fehler (z. B. 503 Datenbank nicht bereit); null = normal */
     ratesError: null as { status: number; detail: string } | null,

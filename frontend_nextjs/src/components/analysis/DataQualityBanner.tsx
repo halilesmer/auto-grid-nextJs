@@ -2,7 +2,7 @@
 
 import { Alert } from '@/components/ui/alert';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import type { MissingRange } from '@/lib/analysis/candles';
+import { MAX_TOTAL_BARS, type MissingRange } from '@/lib/analysis/candles';
 
 const REASON_KEYS: Record<string, MessageKey> = {
   unavailable: 'analysis.data.reason.unavailable',
@@ -23,6 +23,9 @@ export function DataQualityBanner({
   dbFull,
   loadedFrom,
   calendar = false,
+  scroll = false,
+  allHistory = false,
+  limit = false,
 }: {
   missing: MissingRange[];
   clipped: boolean;
@@ -30,10 +33,18 @@ export function DataQualityBanner({
   loadedFrom: number | null;
   /** W1 oder MN: die fehlenden Bereiche sind D1-Lücken, der Chart zeichnet keine Lückenplätze */
   calendar?: boolean;
+  /** Serbest kip: ältere Kerzen werden beim Scrollen nach links geladen (1107-A4); der Hinweis „gekürzt“ sagt das */
+  scroll?: boolean;
+  /** „Alles“ gewählt: bis zum Beginn der MT5-Historie (nur mit scroll) */
+  allHistory?: boolean;
+  /** Gesamtgrenze MAX_TOTAL_BARS erreicht (nur mit scroll): bleibt stehen */
+  limit?: boolean;
 }) {
   const t = useT();
   const fmt = useFormat();
-  if (missing.length === 0 && !clipped && !dbFull) return null;
+  if (missing.length === 0 && !clipped && !dbFull && !limit) return null;
+  const scrollText = allHistory ? 'analysis.data.scroll.textAll' : 'analysis.data.scroll.text';
+  const clippedText = scroll ? scrollText : 'analysis.data.clipped.text';
   return (
     <div className="space-y-2" data-testid="data-quality">
       {missing.length > 0 && (
@@ -51,8 +62,13 @@ export function DataQualityBanner({
         </Alert>
       )}
       {clipped && loadedFrom !== null && (
-        <Alert tone="info" title={t('analysis.data.clipped.title')}>
-          {t('analysis.data.clipped.text', { from: fmt.mt5DateTime(loadedFrom) })}
+        <Alert tone="info" title={t(scroll ? 'analysis.data.scroll.title' : 'analysis.data.clipped.title')}>
+          {t(clippedText, { from: fmt.mt5DateTime(loadedFrom) })}
+        </Alert>
+      )}
+      {limit && loadedFrom !== null && (
+        <Alert tone="warning" title={t('analysis.data.limit.title')}>
+          {t('analysis.data.limit.text', { from: fmt.mt5DateTime(loadedFrom), max: fmt.number(MAX_TOTAL_BARS) })}
         </Alert>
       )}
       {dbFull && (
