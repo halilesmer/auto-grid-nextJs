@@ -127,6 +127,16 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
     expect(olderPage(start, start, 60, MAX_TOTAL_BARS)).toEqual({ edge: 'range' });
   });
 
+  test('Ältere Seite beginnt nie vor 1970 (der Worker nimmt nur from >= 0); davor ist der Beginn der Historie', { tag: '@ANA-27' }, () => {
+    const D1 = 86400;
+    // D1 „alles“ ab 2013: eine Seite von 20.000 Tagen reichte vor 1970
+    const loaded = Date.UTC(2013, 2, 1) / 1000;
+    expect(olderPage(loaded, null, D1, 3480)).toEqual({ from: 0, to: loaded });
+    expect(olderPage(0, null, D1, 25_000)).toEqual({ edge: 'history' });
+    // Mit Zeitraumbeginn gilt wie bisher der Zeitraum
+    expect(olderPage(loaded, loaded - 100 * D1, D1, 3480)).toEqual({ from: loaded - 100 * D1, to: loaded });
+  });
+
   test('Abfragefenster: ausgerichtet, zu lange Zeiträume und „alles“ nur mit dem Ende', { tag: '@ANA-11' }, () => {
     expect(ratesWindow(MON + 100, MON + 3600 + 1, M15)).toEqual({ from: MON, to: MON + 3600 + M15, clipped: false });
     const end = MON + 400 * 86400;

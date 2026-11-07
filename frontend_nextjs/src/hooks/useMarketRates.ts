@@ -219,7 +219,13 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
       if (busy || performance.now() < retryAt || cur.key !== key || !cur.data || cur.data.older !== 'more') return;
       const plan = olderPage(cur.data.from, rangeFrom, tfSec, cur.data.bars.length);
       if ('edge' in plan) {
-        setState((s) => (s.key !== key || !s.data ? s : { ...s, data: { ...s.data, older: plan.edge, clipped: false } }));
+        setState((s) => {
+          if (s.key !== key || !s.data) return s;
+          // Beginn der Historie: „unavailable“ vor der ersten Kerze ist kein Datenmangel
+          const first = s.data.bars[0]?.time ?? Infinity;
+          const missing = plan.edge === 'history' ? s.data.missing.filter((m) => !(m.reason === 'unavailable' && m.to <= first)) : s.data.missing;
+          return { ...s, data: { ...s.data, missing, older: plan.edge, clipped: false } };
+        });
         return;
       }
       busy = true;

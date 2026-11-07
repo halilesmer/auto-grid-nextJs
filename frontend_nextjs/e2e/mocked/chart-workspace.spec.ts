@@ -854,6 +854,22 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (M1)', () =>
     expect(worker.ratesQueries.length).toBe(requests);
   });
 
+  test('D1 „Tümü“ (mehr als 3000 Kerzen): am linken Rand kommen ältere Seiten, auch wenn eine Seite vor 1970 reichte', { tag: '@ANA-27' }, async ({ page, worker }) => {
+    test.setTimeout(150_000);
+    worker.state.ratesAllDays = true;
+    const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 86400) * 86400;
+    // Die Historie beginnt 1970-01-04: die erste Seite (20.000 Tage vor 2013) wäre mit from < 0 angefragt worden
+    worker.state.ratesSince = 3 * 86400;
+    await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=D1&range=all`);
+    const chart = page.getByTestId('analysis-chart');
+    await expect(chart).toHaveAttribute('data-bars', /^[45]\d{3}$/);
+    await panToFirstCandle(page);
+    await expect(page.getByTestId('older-edge')).toHaveAttribute('data-state', 'history');
+    expect(Math.abs(Number(await chart.getAttribute('data-bars')) - (latest - 3 * 86400) / 86400)).toBeLessThanOrEqual(5);
+    // Keine Anfrage mit from < 0
+    expect(worker.ratesQueries.every((q) => Number(new URLSearchParams(q).get('from')) >= 0)).toBe(true);
+  });
+
   test('Ohne Indikator-Reihen und Ebenen bleibt die Ansicht beim Anfügen ebenfalls stehen', { tag: '@ANA-27' }, async ({ page, worker }) => {
     worker.state.ratesAllDays = true;
     const { chart, rangeOf, before, release } = await openNearLeftEdge(page, worker, { drawings: '[]', indicators: [], images: {}, overlays: { rsi: false, wave: false } });
