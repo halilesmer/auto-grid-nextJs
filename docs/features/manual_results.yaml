@@ -385,6 +385,13 @@ ANA-14:
     Setup 3 +206,11). Jede Zeile stimmt mit den MT5-Deals ihrer Magic (Worker-Deal-API,
     Einstieg nach Register-created_at) überein; Namen wie Symbolkarten. Lücke: Vergleich
     über die Worker-Deal-API, nicht im MT5-Terminal.'
+ANA-27:
+  status: bestanden
+  datum: '2026-11-07'
+  notiz: 'DEMO canlı 2026-11-07: M1 Tümü birden çok sayfa; M1 2025-11 doğrudan yüklenir,
+    uyarı yok; D1 Tümü: eski sayfa 200, MT5 geçmişinin başı hapı 22.01.13, görünen
+    aralığın sağ ucu sabit. Aralık başı/sınır hapı canlıda ölçülemedi (yük), sahte
+    worker testleri kapsar.'
 ANA-13:
   status: bestanden
   datum: '2026-10-01'
