@@ -195,6 +195,29 @@ S6 changes no behavior. It closes the catalog, the journal and the browser check
 - The owner may still object to the compact date range (no dates below 75 rem).
 - UI-17 is not signed. The owner signs it after the visual check.
 
+## Defect 1106-A5.16 (phone mode only measured with a chart)
+
+### Symptom
+
+At 375 x 812 on `/chart` (Free mode) the header showed the package layout while the candles loaded: four handles, and the account anchor from x 304 to 444 in a 375 px window. The DEMO mark was not visible. When the candles arrived, the layout changed to the phone layout.
+
+### Root cause
+
+`dock.phone` was measured only in `DockSurface`. `DockSurface` exists only while `ChartWorkspace` is mounted. Without a chart (loading, error) `DockProvider` kept its start value "wide". The mocked e2e worker returns candles at once, so no test saw it.
+
+### Fix
+
+`DockProvider` measures the phone mode itself. A layout effect (keyed on the row and chart registration) finds the `formation-main` container from the first registered row, or from the chart surface, measures it and observes it with a `ResizeObserver`. Row 1 is in the header, so it exists without a chart. The layout effect runs before the first paint. The second measurement in `DockSurface` and `setPhone` in the dock API are removed: there is one source.
+
+### Test
+
+`chart-dock-s5.spec.ts`, @UI-17 @UI-08: at 375 x 812 in Formation, Setup and Free, the candle request is held, then released, and answered with 500 in a second run. With no chart: 0 handles, no arrow menu, no horizontal scroll, the account selector is inside the window and not covered. A frame counter shows that no frame drew a handle. A mode switch Formation, Free, Setup, Formation by the mode buttons is checked the same way. Before the fix 7 of these tests failed (5 handles, expected 0). After the fix all pass.
+
+### Notes
+
+- Server rendering: the packages and the account anchor are React portals into boxes that exist only in the browser (`DockAnchor` draws nothing on the server). Read from the code, not measured: the server HTML has no handles.
+- The account selector in the phone layout has no `dock-account` test id (only the anchor in the package layout has it). The test uses the combobox.
+
 ## Risks
 
 - The header gap was tuned at many window widths (UI-14, UI-15, FRM-23, FRM-38). The groups move into the row. These measures change. Do not relax tests. Each PR says what changed and why.
