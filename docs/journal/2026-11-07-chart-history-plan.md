@@ -84,4 +84,4 @@ Order: S0, SW, S1, S2, S3. SW, S1 and S2 touch common files (`features.yaml`, `F
 - [ ] SW: merged and checked on the VPS (read-only).
 - [ ] S1: W1 and MN.
 - [ ] S2: load older candles.
-- [ ] S3: live check and signatures.
+- [x] S3: live check and signatures. `ANA-27` signed. `ANA-26` stays open until the owner checks the MT5 week start (Sunday or Monday) and the W1/MN values; the worker serves no W1 or MN, so only MT5 can answer this. See `2026-11-07-chart-older-candles.md`.
