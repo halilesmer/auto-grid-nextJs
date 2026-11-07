@@ -949,9 +949,9 @@
   },
   "FRM-23": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
-      "tests": 20
+      "tests": 3
     }
   },
   "FRM-25": {
@@ -1501,9 +1501,9 @@
   },
   "UI-08": {
     "e2e": {
-      "datum": "2026-11-06",
+      "datum": "2026-11-07",
       "status": "passed",
-      "tests": 4
+      "tests": 58
     }
   },
   "UI-09": {
@@ -1553,6 +1553,13 @@
       "datum": "2026-11-05",
       "status": "passed",
       "tests": 1
+    }
+  },
+  "UI-17": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "passed",
+      "tests": 106
     }
   },
   "UI-18": {

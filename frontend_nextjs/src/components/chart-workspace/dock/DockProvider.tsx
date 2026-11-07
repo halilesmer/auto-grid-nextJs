@@ -30,7 +30,6 @@ interface Drag { id: PackageId; pid: number; sx: number; sy: number; x: number; 
 export interface DockApi {
   layout: DockLayout;
   phone: boolean;
-  setPhone: (phone: boolean) => void;
   dragging: boolean;
   placeOf: (id: PackageId) => DockPlace;
   menuUp: (id: PackageId) => boolean;
@@ -61,6 +60,8 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 /** Ürün kutusunun en dar hâli (w-36): daralma sırasının son adımı (plan 1106-A5.3) */
 const PRODUCT_MIN_PX = 144;
+/** Altında bu kap genişliğinde sabit telefon düzeni kalır (plan 1106-A1.5) */
+const PHONE_REM = 30;
 const DRAG_THRESHOLD = { mouse: 5, touch: 10 };
 
 function freeArea(chart: HTMLElement): FreeArea {
@@ -235,6 +236,18 @@ export function DockProvider({ children }: { children: ReactNode }) {
     const id = focusAfter.current;
     if (id) { focusAfter.current = null; document.querySelector<HTMLElement>(`[data-dock-handle="${id}"]`)?.focus(); }
   });
+  // Telefon kipi (kap formation-main < PHONE_REM): grafikten bağımsız, ilk boyamadan önce ölçülür (1106-A5.16). Tek ölçüm kaynağı burasıdır;
+  // kap ilk kayıtlı satırdan (Satır 1 başlıkta, grafik yokken de vardır) ya da grafik yüzeyinden bulunur. Kayıt değişince (rev) yeniden bağlanır.
+  useLayoutEffect(() => {
+    const anchor = rows.current.row1 ?? rows.current.row2 ?? rows.current.bottom ?? chart.current;
+    const el = anchor?.closest<HTMLElement>('[data-testid="formation-main"]') ?? anchor;
+    if (!el) return;
+    const measure = () => setPhone(el.getBoundingClientRect().width < PHONE_REM * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [rev]);
   // Satır ya da grafik boyutu değişince (pencere, kenar çubuğu) yeniden sığdır
   useEffect(() => {
     const observer = new ResizeObserver(() => { if (!dragRef.current?.active) placeAll(); });
@@ -444,6 +457,6 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const hasIn = (zone: DockRowZone) => (zone === 'row1' && accountOn) || present.some(id => placeOf(id) === zone);
   const menuUp = (id: PackageId) => { const p = placeOf(id); return p === 'bottom' || (p === 'free' && (layout.free[id]?.y ?? 0) > 0.5); };
   const consumeClick = () => { const was = suppress.current; suppress.current = false; return was; };
-  const api: DockApi = { layout, phone, setPhone, dragging, placeOf, menuUp, hasIn, registerRow, registerChart, registerPackage, registerAccount, refit, startDrag, moveDrag, endDrag, consumeClick, keyDown, menuInfo, act };
+  const api: DockApi = { layout, phone, dragging, placeOf, menuUp, hasIn, registerRow, registerChart, registerPackage, registerAccount, refit, startDrag, moveDrag, endDrag, consumeClick, keyDown, menuInfo, act };
   return <Ctx.Provider value={api}>{children}<div role="status" aria-live="polite" className="sr-only">{live}</div></Ctx.Provider>;
 }

@@ -7,9 +7,6 @@ import { DockPackage } from './DockPackage';
 import { DockRow } from './DockRow';
 import { useDock } from './DockProvider';
 
-/** Altında bu kap genişliğinde sabit telefon düzeni kalır (plan 1106-A1.5; S5 bunu tamamlar) */
-const PHONE_REM = 30;
-
 interface Props {
   host: RefObject<HTMLDivElement | null>;
   symbol: string;
@@ -27,7 +24,7 @@ interface Props {
  */
 export function DockSurface({ host, symbol, groups, movable, bottomRef }: Props) {
   const dock = useDock();
-  const registerChart = dock?.registerChart, setPhone = dock?.setPhone;
+  const registerChart = dock?.registerChart;
   // useEffect: üst öğenin ref'i alt öğelerin yerleşim efektinden sonra bağlanır
   useEffect(() => {
     const el = host.current;
@@ -35,16 +32,6 @@ export function DockSurface({ host, symbol, groups, movable, bottomRef }: Props)
     registerChart(el);
     return () => registerChart(null);
   }, [movable, host, registerChart]);
-  // Kap (formation-main) PHONE_REM altındaysa sabit telefon düzeni
-  useEffect(() => {
-    const el = host.current?.closest<HTMLElement>('[data-testid="formation-main"]') ?? host.current;
-    if (!movable || !el || !setPhone) return;
-    const measure = () => setPhone(el.getBoundingClientRect().width < PHONE_REM * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16));
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [movable, host, setPhone]);
 
   if (!movable || !dock) return (
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5" data-testid="workspace-toolbar">

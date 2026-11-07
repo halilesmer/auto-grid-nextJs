@@ -352,3 +352,65 @@ test.describe('dokunmatik', () => {
     }
   });
 });
+
+// --- 1106-A5.16: telefon kipi grafikten bağımsız ve ilk boyamadan önce ölçülür; mumlar yüklenirken de paket düzeni görünmez ---
+const RATES = '**/api/market/*/rates*';
+const accountCovered = (page: Page) => page.getByRole('combobox', { name: msg('account.select.aria') }).evaluate(a => {
+  const c = a.getBoundingClientRect(), y = c.top + c.height / 2;
+  return { inside: c.left >= 0 && c.right <= innerWidth, covered: [c.left + 2, c.right - 2].map(x => { const e = document.elementFromPoint(x, y); return !e || !a.contains(e); }) };
+});
+const expectPhoneStrict = async (page: Page, why: string) => {
+  expect(await handles(page), `${why}: tutamaç`).toBe(0);
+  expect(await page.locator('[data-testid="dock-more"]:visible').count(), `${why}: ok menüsü`).toBe(0);
+  expect(await scrollW(page), `${why}: yatay kaydırma`).toBeLessThanOrEqual(375);
+  expect(await accountCovered(page), `${why}: hesap/DEMO çapası pencerede ve örtülmemiş`).toEqual({ inside: true, covered: [false, false] });
+};
+for (const [name, url] of MODES) {
+  for (const mode of ['bekletilir', 'hata'] as const) {
+    test(`1106-A5.16 ${name} 375×812: mumlar ${mode}ken telefon düzeni (tutamaç yok), sonra da aynı`, { tag: BOTH }, async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      let release: () => void = () => {};
+      const gate = new Promise<void>(r => { release = r; });
+      await page.route(RATES, async route => {
+        if (mode === 'hata') return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'MT5 error' }) });
+        await gate; return route.fallback();
+      });
+      await page.addInitScript(() => {
+        // İlk boyamadan önce de tutamaç görünmemeli: her karede say
+        const w = window as unknown as { __maxHandles: number };
+        w.__maxHandles = 0;
+        const tick = () => { w.__maxHandles = Math.max(w.__maxHandles, document.querySelectorAll('[data-dock-handle]').length); requestAnimationFrame(tick); };
+        requestAnimationFrame(tick);
+      });
+      await page.goto(url);
+      await expect(page.getByTestId('chart-mode')).toBeVisible();
+      await page.waitForTimeout(500);
+      await expectPhoneStrict(page, 'grafik yokken');
+      if (mode === 'bekletilir') {
+        release();
+        await expect(page.locator('canvas').first()).toBeVisible();
+        await page.waitForTimeout(300);
+        await expectPhoneStrict(page, 'grafik gelince');
+      }
+      expect(await page.evaluate(() => (window as unknown as { __maxHandles: number }).__maxHandles), 'hiçbir karede tutamaç çizilmedi').toBe(0);
+    });
+  }
+}
+test('1106-A5.16 Formation → Frei → Setup 375×812: geçişte kip bir an bile geniş olmaz', { tag: BOTH }, async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await go(page, FORMATION);
+  await expectPhoneStrict(page, 'Formation');
+  await page.evaluate(() => {
+    const w = window as unknown as { __max: number };
+    w.__max = 0;
+    const tick = () => { w.__max = Math.max(w.__max, document.querySelectorAll('[data-dock-handle]').length); requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+  for (const m of ['free', 'setup', 'formation']) {
+    await page.getByTestId(`chart-mode-${m}`).click();
+    await expect(page).toHaveURL(new RegExp(`mode=${m}`));
+    await page.waitForTimeout(400);
+    await expectPhoneStrict(page, m);
+  }
+  expect(await page.evaluate(() => (window as unknown as { __max: number }).__max), 'geçişte hiçbir karede tutamaç çizilmedi').toBe(0);
+});
