@@ -106,3 +106,14 @@ Method: temporary `minBarSpacing` option, 100 000 M1 candles, chart 1 228 px wid
 
 ## Fix: clock-dependent test (ANA-27, 2026-11-07)
 - The test „Tümü“ in `chart-workspace.spec.ts` expected 4000–5999 candles on the first load. The value depends on the time of day: the window "all" ends at the end of the broker day and reaches `OPEN_RANGE_BARS` minutes back, and M1 candles exist only up to now. So the first load has `OPEN_RANGE_BARS` minus the minutes to the end of the day (3561 to 5000). The test failed from about 21:00 to 04:20 UTC, also on `main`. The test was wrong, the code is right (the window ends at the broker day end since #94). The test now calculates the expected count from the mock clock (±1 for a minute change). Found by the coordinator of the free-layout plan, checked in the code by the session "Grafik geçmiş verileri".
+
+## Intermittent failures of the ANA-27 e2e tests (2026-11-08)
+- Symptom: `chart-older-performance.spec.ts` failed on some runs. `data-bars` stayed at 100 000 (or 120 000, 140 000) until the 120 s limit. Other ANA-27 page tests also failed when three workers ran together. The worker load was 3 to 15.
+- Diagnosis: no product defect. A log of each drag (candles from the first candle, time, requests) on an unloaded Mac showed that the view moved 820 candles per drag. The test drags half the chart width. 100 000 candles are about 120 drags away, and each drag took 0.7 to 1 s. The requests started at the left edge (two pages came at drag 119), so the trigger and the pause worked. Under load a drag takes longer and the 120 s ended before the left edge. Both guesses (the 1.5 s input window rejects the trigger; a failed page waits for the 15 s pause) did not apply: the failing runs showed no failed request and the view was still far from the edge.
+- Heavy tests also slowed each other. With fully parallel tests, two 100 000-candle charts rendered at the same time.
+- Fix, tests only:
+  - A wide drag (15 % to 96 % of the chart width, 1 800 candles) needs about 55 drags and 13 s for the same distance. A drag with two intermediate steps does not move the chart, so it keeps six steps. The helpers are in `e2e/fixtures/chart-older.ts`.
+  - The cases with more than 100 000 candles (the range test and the measurement) are in `chart-older-heavy.spec.ts` with `test.describe.configure({ mode: 'default' })`. They run one after the other in one worker. A failure does not skip the second (`serial` would).
+  - The other page tests use the window "all" (about 4 000 candles at the start) and no longer load 100 000 candles twice.
+  - No timeout was raised and no expectation was relaxed.
+- Result with the real clock, `heavy_lock.sh scripts/features/run.sh e2e ANA-27`: 9 of 9 passed in 3 runs (50 to 54 s, before: 2.2 min and failures). A run with eight busy loops (load 15) also passed 9 of 9 (1.1 min).

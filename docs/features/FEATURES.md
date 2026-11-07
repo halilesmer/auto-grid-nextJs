@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-07 · **222/243** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-08 · **223/243** abgehakt · ❌ 4 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -27,7 +27,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 17/21 |
-| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 23/27 |
+| 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 24/27 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/22 |
 | 16 | **FRM** – Formationserkennung | 42/45 |
 
@@ -836,7 +836,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Im Modus Frei USOUSD wählen, W1 und MN anklicken; die Anfrage geht an D1, die Adresse trägt ?tf=W1 bzw. ?tf=MN, Neuladen stellt sie wieder her. → Die letzten drei Wochen- und drei Monatskerzen (Open, High, Low, Close) mit dem W1- und MN-Chart im MT5-Terminal vergleichen (DEMO, nur lesen). → Trend-Button auf W1 und MN gesperrt; 375 px, der Schalter läuft nicht über.
   - **Erwartet:** W1 und MN zeigen dieselben Werte wie das MT5-Terminal; die erste Kerze ist nie angeschnitten; auf Setup und Formation ändert sich nichts.
   - 📝 MT5 karşılaştırması 2026-11-07 (USOUSD, Halil'in ekran görüntüleri): W1 hafta başı Pazar (eksen 12.10.25, 11.10.26); W1 2026.11.01 ve MN 2026.10.01 ile 2026.11.01 mumlarının O/H/L/C değerleri hesaplanan değerlerle birebir. W1 25.10 mumu ayrıca bakılmadı.
-- [ ] **ANA-27** Ältere Kerzen laden beim Scrollen nach links (Modus Frei) — 🖥️ e2e ❌ 2026-11-07 · 👤 manuell ✅ 2026-11-07
+- [x] **ANA-27** Ältere Kerzen laden beim Scrollen nach links (Modus Frei) — 🖥️ e2e ✅ 2026-11-08 · 👤 manuell ✅ 2026-11-07
   - Im Modus Frei von /chart lädt der Chart die ersten höchstens 100.000 Kerzen des Zeitraums wie bisher (bei „alles“ die letzten 5.000). Kommt die Ansicht durch eine Bedienung des Nutzers (Rad, Ziehen, Tippen; nicht von selbst beim Öffnen) bis auf 50 Kerzen an die erste geladene Kerze, holt useMarketRates.loadOlder eine Seite davor ([max(Zeitraumbeginn, Beginn − 20.000 Kerzen), Beginn), eine Worker-Antwort) und setzt sie vorn an (mergeHead). Die Ansicht springt nicht: ChartCore merkt den sichtbaren Bereich vor setData und verschiebt ihn um die Zahl der neuen Punkte; der gespeicherte Zoom (rememberChartView) und die Ausrichtung (fittedKey) bleiben unberührt. Es läuft höchstens eine Seite zugleich, das 60-s-Nachladen des Endstücks läuft weiter. Bei „alles“ gibt es keine Grenze nach links außer dem Beginn der MT5-Historie, bei gewähltem Zeitraum endet das Laden am Zeitraumbeginn; ab 220.000 Kerzen (MAX_TOTAL_BARS) kommt keine weitere Seite, die letzte darf bis zu 20.000 Kerzen darüber hinausgehen (höchstens 240.000; gemessen: darüber dauert das Anfügen einer Seite länger als eine Sekunde), dann bleibt eine Warnung stehen. Das Ende der Historie erkennt der Chart an einer Seite ohne Kerzen, in der höchstens „unavailable“ steht (ein „unavailable“ am Beginn einer Seite mit Kerzen kann auch ein langes Loch mittendrin sein und bleibt in der Liste „fehlt“); bei einem Fehlschlag (Netz, Konto beschäftigt) pausiert das Laden 15 s. Links zeigt eine Anzeige „Ältere Kerzen werden geladen…“ (Streifen), „Beginn des Zeitraums“, „Beginn der MT5-Historie“ oder „Kerzenlimit“ (gestrichelte Linie vor der ersten Kerze); der Hinweis „gekürzt“ nennt das Scrollen und verschwindet, wenn nichts mehr nachkommt. W1 und MN laden die Seiten als D1 und bauen die Kerzen neu. Setup und Formation ändern sich nicht.
   - **Prüfung:** Im Modus Frei USOUSD, M1, „Son 3 ay“ wählen und den Chart nach links ziehen, bis der Zeitraumbeginn erreicht ist (Anzeige „Aralığın başı“). → Beim Nachladen die Ansicht beobachten (kein Sprung) und den Hinweis „gekürzt“ lesen; die Liste „fehlt“ bleibt leer. → „Son 12 ay“ (rund 360.000 M1-Kerzen): der Chart stoppt bei rund 220.000 bis 240.000 Kerzen mit der Warnung „Mum sınırına ulaşıldı“. → „Tümü“ mit W1 oder D1: bis zum Beginn der MT5-Historie ziehen (Anzeige „MT5 geçmişinin başı“).
   - **Erwartet:** Die Kerzen kommen seitenweise ohne Sprung der Ansicht; am Zeitraumbeginn bzw. am Beginn der MT5-Historie hört das Laden auf und die Anzeige links nennt den Grund; die Kerzenzahl bleibt unter 240.000, danach bleibt die Warnung stehen.
