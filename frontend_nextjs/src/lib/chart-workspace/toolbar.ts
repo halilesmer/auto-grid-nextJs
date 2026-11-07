@@ -44,7 +44,6 @@ export function parseToolbar(value: unknown): ToolbarPreferences {
  */
 export const TOOLBAR_GROUPS = ['view', 'indicators', 'edit', 'window'] as const;
 export type ToolbarGroupId = typeof TOOLBAR_GROUPS[number];
-export type ToolbarZone = 'top' | 'bottom' | 'free';
 export type GroupPlacement = { zone: 'top' | 'bottom' } | { zone: 'free'; x: number; y: number };
 export type ToolbarLayout = Partial<Record<ToolbarGroupId, GroupPlacement>>;
 export interface Box { width: number; height: number }
@@ -52,7 +51,6 @@ export interface Box { width: number; height: number }
 export interface FreeArea extends Box { left: number; right: number; top: number; bottom: number }
 
 const ratio = (v: number) => Math.max(0, Math.min(1, v));
-export const isAutoLayout = (layout: ToolbarLayout) => TOOLBAR_GROUPS.every(id => !layout[id]);
 export function parseToolbarLayout(value: unknown): ToolbarLayout {
   const out: ToolbarLayout = {};
   if (!value || typeof value !== 'object') return out;
@@ -63,13 +61,6 @@ export function parseToolbarLayout(value: unknown): ToolbarLayout {
     else if (p.zone === 'free' && typeof p.x === 'number' && Number.isFinite(p.x) && typeof p.y === 'number' && Number.isFinite(p.y)) out[id] = { zone: 'free', x: ratio(p.x), y: ratio(p.y) };
   }
   return out;
-}
-export function moveGroup(layout: ToolbarLayout, id: ToolbarGroupId, placement: GroupPlacement): ToolbarLayout {
-  return { ...layout, [id]: placement.zone === 'free' ? { zone: 'free', x: ratio(placement.x), y: ratio(placement.y) } : { zone: placement.zone } };
-}
-/** Kayıtlı yer; "oto" geniş kapta üst, dar kapta alt şerittir. */
-export function placementZone(layout: ToolbarLayout, id: ToolbarGroupId, wide: boolean): ToolbarZone {
-  return layout[id]?.zone ?? (wide ? 'top' : 'bottom');
 }
 /** Serbest grubun sol üst köşesi (kap pikseli); grup alana sığmıyorsa null (alt şeride düşer). */
 export function placeFree(p: { x: number; y: number }, size: Box, area: FreeArea): { left: number; top: number } | null {

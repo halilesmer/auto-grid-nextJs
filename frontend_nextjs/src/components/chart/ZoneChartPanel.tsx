@@ -33,7 +33,7 @@ import { useSignalBars } from '@/hooks/useSignalBars';
 import { useTrendPath } from '@/hooks/useTrendPath';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
-import { buildChartData, isTimeframe, ratesWindow, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
+import { buildChartData, isTimeframe, ratesWindow, TIMEFRAMES, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
 import { findFractals } from '@/lib/analysis/fractals';
 import { belongsToZoneView, pairTrades, type Trade } from '@/lib/analysis/tradePairing';
 import { zoneLevels, type LevelsUnavailable, type ZoneLevels } from '@/lib/analysis/levels';
@@ -694,7 +694,7 @@ export default function ZoneChartPanel({
           account={chrome.account}
           mode={chrome.mode}
           target={chrome.zone}
-          timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} />}
+          timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} options={TIMEFRAMES} />}
           range={chrome.range}
           view={chrome.view}
           tools={<LicenseInfo />}

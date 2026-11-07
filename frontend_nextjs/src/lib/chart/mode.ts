@@ -1,4 +1,4 @@
-import { DEFAULT_TIMEFRAME, isTimeframe, type Timeframe } from '@/lib/analysis/candles';
+import { DEFAULT_TIMEFRAME, isChartTimeframe, isTimeframe, type ChartTimeframe } from '@/lib/analysis/candles';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from '@/lib/formation/params';
 
 /** Die drei Modi der einen Chartseite (/chart): Formationserkennung, Setup einer Zone, freies Produkt */
@@ -19,14 +19,16 @@ export function resolveChartMode(params: URLSearchParams): ChartMode {
   return 'formation';
 }
 
-/** `tf` einer Adresse für einen Modus: Formation erlaubt D1/H4/H1/M15 (Standard H4), Setup und Frei M1…D1 (Standard M15) */
-export function timeframeParam(mode: ChartMode, tf: string | null): Timeframe {
+/** `tf` einer Adresse für einen Modus: Formation erlaubt D1/H4/H1/M15 (Standard H4), Setup M1…D1, Frei zusätzlich W1 und MN (Standard M15) */
+export function timeframeParam(mode: ChartMode, tf: string | null): ChartTimeframe {
   if (mode === 'formation') return (CONTEXT_TIMEFRAMES as readonly string[]).includes(tf ?? '') ? (tf as ContextTimeframe) : DEFAULT_FORMATION_TF;
+  if (mode === 'free') return isChartTimeframe(tf) ? tf : DEFAULT_TIMEFRAME;
   return isTimeframe(tf) ? tf : DEFAULT_TIMEFRAME;
 }
 
 /** Ist die Zeiteinheit im Modus erlaubt? Sonst fällt sie beim Moduswechsel auf den Standard des Modus. */
 export function timeframeAllowed(mode: ChartMode, tf: string | null): boolean {
   if (!tf) return true;
-  return mode === 'formation' ? (CONTEXT_TIMEFRAMES as readonly string[]).includes(tf) : isTimeframe(tf);
+  if (mode === 'formation') return (CONTEXT_TIMEFRAMES as readonly string[]).includes(tf);
+  return mode === 'free' ? isChartTimeframe(tf) : isTimeframe(tf);
 }

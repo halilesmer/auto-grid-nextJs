@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { useUrlUpdate } from '@/hooks/useUrlUpdate';
 import { resolveChartMode, timeframeParam } from '@/lib/chart/mode';
 import { isDayString, isTimeString, RANGE_PRESETS, type DayRange, type RangePreset } from '@/lib/serverTime';
-import { DEFAULT_TIMEFRAME, type Timeframe } from '@/lib/analysis/candles';
+import { DEFAULT_TIMEFRAME, type ChartTimeframe } from '@/lib/analysis/candles';
 
 export const ANALYSIS_TABS = ['chart', 'stats'] as const;
 export type AnalysisTab = (typeof ANALYSIS_TABS)[number];
@@ -37,7 +37,7 @@ export function useAnalysisParams() {
   const fromTimeParam = params.get('ft');
   const toTimeParam = params.get('tt');
   const tfParam = params.get('tf');
-  const timeframe = timeframeParam(mode, tfParam) as Timeframe;
+  const timeframe = timeframeParam(mode, tfParam);
 
   const range = useMemo<RangeSelection>(() => {
     if (isDayString(fromParam) && isDayString(toParam) && fromParam <= toParam) {
@@ -58,7 +58,7 @@ export function useAnalysisParams() {
   const setSymbol = useCallback((value: string | null) => update({ symbol: value, mode: 'free', zone: null }), [update]);
   const setZone = useCallback((value: string | null) => update({ zone: value }), [update]);
   const setTimeframe = useCallback(
-    (value: Timeframe) => update({ tf: value === DEFAULT_TIMEFRAME ? null : value }),
+    (value: ChartTimeframe) => update({ tf: value === DEFAULT_TIMEFRAME ? null : value }),
     [update],
   );
   const setRange = useCallback(

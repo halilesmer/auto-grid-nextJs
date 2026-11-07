@@ -168,14 +168,13 @@ def test_huge_body_is_stopped_before_parsing(client, identities, monkeypatch):
     assert response.status_code == 413
 
 
-def test_list_does_not_read_payloads_and_account_delete_removes_reports(client, identities):
-    from src.utils import market_db
+def test_list_does_not_read_payloads(client, identities):
     owner = identities[0]
     client.post(URL, json=payload(), headers=owner)
     client.post(URL, json=payload(accountId='demo-b'), headers=owner)
     assert [item['symbolCount'] for item in client.get(URL, headers=owner).json()['reports']] == [1, 1]
-    market_db.delete_account('demo-a')
-    assert [item['accountId'] for item in client.get(URL, headers=owner).json()['reports']] == ['demo-b']
+    # Berichte gehören dem Nutzer (owner), nicht dem Konto: Kontolöschung lässt sie stehen (1107-A6.3, ACC-05)
+    assert sorted(item['accountId'] for item in client.get(URL, headers=owner).json()['reports']) == ['demo-a', 'demo-b']
 
 
 def test_commission_and_archive_gaps_are_stored(client, identities):

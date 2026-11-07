@@ -1,5 +1,6 @@
 'use client';
 
+import { DEFAULT_TIMEFRAME, isTimeframe } from '@/lib/analysis/candles';
 import { Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { BarChart3, CandlestickChart } from 'lucide-react';
 
@@ -160,7 +161,7 @@ function AnalysisView() {
         accountId={accountId}
         zoneId={zoneId}
         zones={zones}
-        timeframe={timeframe}
+        timeframe={isTimeframe(timeframe) ? timeframe : DEFAULT_TIMEFRAME}
         onTimeframe={setTimeframe}
         range={bounds}
         offsetSec={offsetSec}

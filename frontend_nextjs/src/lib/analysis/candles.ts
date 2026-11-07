@@ -18,6 +18,22 @@ export const TIMEFRAME_SEC: Record<Timeframe, number> = {
   D1: 86400,
 };
 
+/** Zeitrahmen des freien Charts: dazu W1 und MN, die der Browser aus D1 baut (calendarBars.ts); der Worker kennt sie nicht */
+export const CHART_TIMEFRAMES = [...TIMEFRAMES, 'W1', 'MN'] as const;
+export type ChartTimeframe = (typeof CHART_TIMEFRAMES)[number];
+
+/** Nennlänge in Sekunden für die Anzeige (Statuszeile, Marktpausen); ein Monat hat in Wahrheit 28–31 Tage (barEnd in calendarBars.ts) */
+export const CHART_TIMEFRAME_SEC: Record<ChartTimeframe, number> = { ...TIMEFRAME_SEC, W1: 7 * 86400, MN: 30 * 86400 };
+
+export function isChartTimeframe(value: string | null | undefined): value is ChartTimeframe {
+  return (CHART_TIMEFRAMES as readonly string[]).includes(value ?? '');
+}
+
+/** Zeitrahmen, den der Worker für diese Anzeige liefert: W1 und MN kommen aus D1 */
+export function dataTimeframeOf(tf: ChartTimeframe): Timeframe {
+  return tf === 'W1' || tf === 'MN' ? 'D1' : tf;
+}
+
 export function isTimeframe(value: string | null | undefined): value is Timeframe {
   return (TIMEFRAMES as readonly string[]).includes(value ?? '');
 }
@@ -178,6 +194,47 @@ export function mergeTail(
       ...tail.missing.filter((m) => m.to > from).map((m) => (m.from < from ? { ...m, from } : m)),
     ],
   };
+}
+
+/**
+ * Ältere Kerzen (Serbest kip, 1107-A4): ab so vielen Kerzen im Chart kommt keine weitere Seite; die letzte Seite darf darüber hinaus gehen
+ * (höchstens MAX_TOTAL_BARS + OLDER_PAGE_BARS). Gemessen: bis dahin dauert das Anfügen einer Seite rund eine Sekunde (Journal 2026-11-07-chart-older-candles)
+ */
+export const MAX_TOTAL_BARS = 220_000;
+export const OLDER_PAGE_BARS = 20_000;
+
+/** Wo das Laden nach links endet: Zeitraumbeginn, Beginn der MT5-Historie oder Gesamtgrenze */
+export type OlderEdge = 'range' | 'history' | 'limit';
+
+/**
+ * Ältere Kerzen davor setzen (Gegenstück zu `mergeTail`): `head` gilt bis `at`, `old` ab `at`.
+ * Die Kerze am Schnittpunkt kommt aus der alten Antwort.
+ */
+export function mergeHead(
+  old: { bars: Bar[]; missing: MissingRange[] },
+  head: { bars: Bar[]; missing: MissingRange[] },
+  at: number,
+): { bars: Bar[]; missing: MissingRange[] } {
+  return mergeTail(head, old, at);
+}
+
+/**
+ * Die nächste Seite älterer Kerzen als halb offener Bereich [from, to) oder der Grund, warum es keine gibt.
+ * `rangeFrom`: ausgerichteter Beginn des gewählten Zeitraums (null bei „alles“: bis zum Beginn der Historie).
+ * `have`: Zahl der geladenen Kerzen. Der Zeitraumbeginn gewinnt vor der Gesamtgrenze.
+ */
+export function olderPage(
+  loadedFrom: number,
+  rangeFrom: number | null,
+  tfSec: number,
+  have: number,
+): { from: number; to: number } | { edge: 'range' | 'limit' } {
+  if (rangeFrom !== null && loadedFrom <= rangeFrom) return { edge: 'range' };
+  if (have >= MAX_TOTAL_BARS) return { edge: 'limit' };
+  // Immer eine volle Seite: ein kleines Restfenster könnte ganz in ein Wochenende fallen und leer zurückkommen.
+  // Darum liegt der Chart am Ende bis zu einer Seite über MAX_TOTAL_BARS
+  const from = loadedFrom - OLDER_PAGE_BARS * tfSec;
+  return { from: rangeFrom === null ? from : Math.max(from, rangeFrom), to: loadedFrom };
 }
 
 /** RSI nach Wilder (Standard 14) aus Schlusskursen; die ersten `period` Werte sind null. */

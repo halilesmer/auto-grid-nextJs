@@ -205,6 +205,8 @@ export class MockWorker {
   readonly ratesDelivered: number[] = [];
   /** Abfragen von /market/{id}/rates (Query-Text), für BKT-19 */
   readonly tickSpreadRequests: string[] = [];
+  /** Abfragetext jeder Antwort von /market/{id}/rates, in Reihenfolge (ANA-26: W1 und MN fragen D1) */
+  readonly ratesQueries: string[] = [];
   /** Rohkörper der laufenden Anfrage (Chunk-Upload des CSV-Imports) */
   private rawBody = '';
   /** URLs aller WebSocket-Verbindungen (inkl. Reconnects). */
@@ -438,9 +440,12 @@ export class MockWorker {
     const b = Math.ceil(Number(q.get('to')) / tf) * tf;
     const end = Math.min(b, a + 50_000 * tf);
     const latest = Math.floor((nowMs() / 1000 + this.state.brokerOffset) / tf) * tf;
+    const since = this.state.ratesSince;
     const missing = this.state.ratesMissing
       .filter((m) => m.to > a && m.from < end)
       .map((m) => ({ ...m, from: Math.max(m.from, a), to: Math.min(m.to, end) }));
+    // Vor dem Beginn der Historie: keine Kerzen, der Bereich ist „unavailable“ (market_sync: ilk mumdan önce)
+    if (since !== null && a < since) missing.push({ from: a, to: Math.min(since, end), reason: 'unavailable', checked_at: Math.floor(nowMs() / 1000) });
     const cols = { t: [] as number[], o: [] as number[], h: [] as number[], l: [] as number[], c: [] as number[] };
     const mid = (t: number) => 97 + 2 * Math.sin(t / 43200) + 0.3 * Math.sin(t / 2700);
     const series = this.state.ratesSeries?.[timeframe];
@@ -454,7 +459,7 @@ export class MockWorker {
         cols.c.push(c);
       }
     }
-    for (let t = a; !series && t < end && t <= latest; t += tf) {
+    for (let t = since === null ? a : Math.max(a, Math.ceil(since / tf) * tf); !series && t < end && t <= latest; t += tf) {
       const weekday = new Date(t * 1000).getUTCDay();
       if (tf < 86400 && !this.state.ratesAllDays && (weekday === 0 || weekday === 6)) continue;
       if (missing.some((m) => t >= m.from && t < m.to)) continue;
@@ -467,6 +472,7 @@ export class MockWorker {
       cols.l.push(Number((Math.min(open, close) - 0.05).toFixed(3)));
     }
     this.ratesDelivered.push(cols.t.length);
+    this.ratesQueries.push(q.toString());
     const now = nowMs() / 1000;
     // BKT-19: wie market_sync.get_rates mit tick_spread=1 (nur M1); der Mock rechnet sa = Kerzen-Spread, sx = +1
     const tickSpread = q.get('tick_spread') === '1';
@@ -504,16 +510,51 @@ export class MockWorker {
     };
   }
 
+  /** Wie csv_import.Viewer: Konto, Server des Kontos (nie aus der Anfrage) und Rolle. */
+  private csvViewer(accountId: string, principal: Principal) {
+    const account = this.state.accounts.find((a) => String(a.id) === accountId);
+    return { accountId, server: String(account?.server ?? '').trim(), admin: principal.role === 'admin' };
+  }
+
+  /** Wie csv_import._visible: Bestätigt = Server des Kontos (ohne Server nur Admin); unfertig = nur das hochladende Konto. */
+  private csvVisible(item: CsvImportRow, viewer: { accountId: string; server: string; admin: boolean }): boolean {
+    if (item.status !== 'committed') return item.account_id === viewer.accountId;
+    if (item.server === null) return viewer.admin;
+    return item.server === viewer.server;
+  }
+
+  /** Wie csv_import._series_rows: bestätigte Dateien desselben Servers, Symbols und Zeitrahmens, älteste zuerst. */
+  private csvSeries(item: CsvImportRow): CsvImportRow[] {
+    return this.state.csvImports
+      .filter((i) => i.status === 'committed' && i.symbol === item.symbol && i.timeframe === item.timeframe &&
+        (item.server !== null ? i.server === item.server : i.server === null && i.account_id === item.account_id))
+      .sort((a, b) => (a.committed_at! - b.committed_at!) || a.import_id.localeCompare(b.import_id));
+  }
+
+  /** Vereinigung der Zeitbereiche [first_t, last_t] einer Serie (Mock-Dateien sind lückenlos), sortiert. */
+  private csvUnion(files: CsvImportRow[], tf: number): [number, number][] {
+    const merged: [number, number][] = [];
+    for (const [x, y] of files.map((f) => [f.first_t!, f.last_t! + tf] as [number, number]).sort((p, q) => p[0] - q[0])) {
+      const last = merged[merged.length - 1];
+      if (last && x <= last[1]) last[1] = Math.max(last[1], y);
+      else merged.push([x, y]);
+    }
+    return merged;
+  }
+
   /**
    * Wie csv_import.get_rates: nur ein abgeschlossener Import (sonst 409), nur sein Symbol und Zeitrahmen (sonst 400),
-   * nie MT5. Eine Kerze je Zeitrahmen im Bereich [first_t, last_t] (auch am Wochenende); der Rest ist `csv_gap`
-   * (Lücken innerhalb der Datei bildet der Mock nicht ab).
+   * nie MT5. Gelesen wird die ganze Serie (derselbe Server, Symbol und Zeitrahmen), nicht nur die eine Datei:
+   * eine Kerze je Zeitrahmen in der Vereinigung der Bereiche [first_t, last_t] (auch am Wochenende); der Rest ist `csv_gap`
+   * (Lücken innerhalb der Datei bildet der Mock nicht ab). Der Preis hängt nur von der Zeit ab, daher ist die
+   * Vorrangregel „älteste Datei gewinnt“ hier nicht sichtbar (der Worker-Test prüft sie).
    * Kein Spread, keine laufende Kerze, keine Brokeruhr in der Antwort.
    */
-  private csvRates(accountId: string, importId: string, q: URLSearchParams): Reply {
+  private csvRates(accountId: string, importId: string, q: URLSearchParams, principal: Principal): Reply {
     const TF: Record<string, number> = { M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600, H4: 14400, D1: 86400 };
-    const item = this.state.csvImports.find((i) => i.account_id === accountId && i.import_id === importId);
-    if (!item) return { status: 404, body: { detail: 'Import not found' } };
+    const viewer = this.csvViewer(accountId, principal);
+    const item = this.state.csvImports.find((i) => i.import_id === importId);
+    if (!item || !this.csvVisible(item, viewer)) return { status: 404, body: { detail: 'Import not found' } };
     if (item.status !== 'committed') return { status: 409, body: { detail: 'Import is not committed' } };
     const timeframe = q.get('timeframe') ?? 'M1';
     if (q.get('symbol') !== item.symbol || timeframe !== item.timeframe) {
@@ -523,14 +564,19 @@ export class MockWorker {
     const a = Math.floor(Number(q.get('from')) / tf) * tf;
     const b = Math.ceil(Number(q.get('to')) / tf) * tf;
     const end = Math.min(b, a + 50_000 * tf);
-    // committed ⇒ first_t und last_t sind gesetzt (Commit oben)
-    const first = Math.max(a, item.first_t!);
-    const stop = Math.min(end, item.last_t! + tf);
+    const union = this.csvUnion(this.csvSeries(item), tf);
     const t: number[] = [];
-    for (let time = first; time < stop; time += tf) t.push(time);
+    for (const [x, y] of union) {
+      for (let time = Math.max(a, x); time < Math.min(end, y); time += tf) t.push(time);
+    }
     const missing: { from: number; to: number; reason: string; checked_at: null }[] = [];
-    if (first > a) missing.push({ from: a, to: Math.min(first, end), reason: 'csv_gap', checked_at: null });
-    if (stop < end) missing.push({ from: Math.max(stop, a), to: end, reason: 'csv_gap', checked_at: null });
+    let pos = a;
+    for (const [x, y] of union) {
+      if (y <= pos || x >= end) continue;
+      if (x > pos) missing.push({ from: pos, to: x, reason: 'csv_gap', checked_at: null });
+      pos = Math.max(pos, y);
+    }
+    if (pos < end) missing.push({ from: pos, to: end, reason: 'csv_gap', checked_at: null });
     const price = (time: number) => Number((97 + Math.sin(time / 3600)).toFixed(3));
     return {
       status: 200,
@@ -545,14 +591,17 @@ export class MockWorker {
 
   /**
    * Wie csv_import.py in klein: Anlegen, Teile in Reihenfolge, Commit (422 bei Text „BAD“ oder nicht
-   * steigender Zeit, 409 bei Überlappung ohne `replace`), Löschen. Erste Spalte = Epoche in Sekunden.
+   * steigender Zeit, 409 bei Überlappung ohne `extend`), Löschen (fertige Datei nur Admin, 403; ein unfertiger
+   * Upload nur sein Konto). Importe gehören dem Server des Kontos; Konten desselben Servers teilen sie.
+   * Erste Spalte = Epoche in Sekunden.
    */
-  private csvImports(method: string, seg: string[], body: Json | null): Reply | null {
+  private csvImports(method: string, seg: string[], body: Json | null, principal: Principal): Reply | null {
     const s = this.state;
     const account = seg[1];
     if (!s.accounts.some((a) => String(a.id) === account)) {
       return { status: 404, body: { detail: `Account '${account}' not found` } };
     }
+    const viewer = this.csvViewer(account, principal);
     const pub = (row: CsvImportRow) => {
       const copy: Partial<CsvImportRow> = { ...row };
       delete copy.account_id;
@@ -560,14 +609,32 @@ export class MockWorker {
       delete copy.text;
       return copy;
     };
-    const mine = () => s.csvImports.filter((i) => i.account_id === account);
-    if (seg.length === 3 && method === 'GET') return { status: 200, body: { imports: mine().map(pub) } };
+    const visible = () => s.csvImports.filter((i) => this.csvVisible(i, viewer));
+    if (seg.length === 3 && method === 'GET') {
+      const files = visible();
+      const seen = new Set<string>();
+      const series = [];
+      for (const file of files.filter((f) => f.status === 'committed')) {
+        const group = this.csvSeries(file);
+        if (seen.has(group[0].import_id)) continue;
+        seen.add(group[0].import_id);
+        const tf = { M1: 60, M5: 300, M15: 900, M30: 1800, H1: 3600, H4: 14400, D1: 86400 }[file.timeframe] ?? 60;
+        series.push({
+          import_id: group[0].import_id, server: file.server, symbol: file.symbol, timeframe: file.timeframe,
+          first_t: Math.min(...group.map((f) => f.first_t!)), last_t: Math.max(...group.map((f) => f.last_t!)),
+          bars: this.csvUnion(group, tf).reduce((sum, [x, y]) => sum + (y - x) / tf, 0), files: group.length,
+          import_ids: group.map((f) => f.import_id),
+        });
+      }
+      return { status: 200, body: { imports: files.map(pub), series } };
+    }
     if (seg.length === 3 && method === 'POST') {
       const b = (body ?? {}) as Record<string, unknown>;
       const importId = (s.csvImports.length + 1).toString(16).padStart(32, '0');
       s.csvImports.push({
         import_id: importId,
         account_id: account,
+        server: viewer.server,
         symbol: String(b.symbol),
         timeframe: String(b.timeframe),
         filename: String(b.filename ?? ''),
@@ -587,8 +654,13 @@ export class MockWorker {
       });
       return { status: 200, body: { import_id: importId, chunk_bytes: 4 * 1024 * 1024, offset_mode: b.time_offset_mode === 'row' ? 'row' : 'fixed' } };
     }
-    const item = mine().find((i) => i.import_id === seg[3]);
+    const item = visible().find((i) => i.import_id === seg[3]);
     if (!item) return { status: 404, body: { detail: 'Import not found' } };
+    if (seg.length === 5 && (seg[4] === 'chunk' || seg[4] === 'commit')) {
+      // Wie csv_import._entry: Teile und Commit gehören dem hochladenden Konto (sonst 404); ein fertiger Import: 409
+      if (item.account_id !== account) return { status: 404, body: { detail: 'Import not found' } };
+      if (item.status !== 'staging') return { status: 409, body: { detail: 'Import is already committed' } };
+    }
     if (seg.length === 5 && seg[4] === 'chunk' && method === 'PUT') {
       item.text += this.rawBody;
       item.received_bytes += Buffer.byteLength(this.rawBody);
@@ -596,7 +668,7 @@ export class MockWorker {
       return { status: 200, body: { received_bytes: item.received_bytes, next_chunk: item.next_chunk } };
     }
     if (seg.length === 5 && seg[4] === 'commit' && method === 'POST') {
-      const replace = Boolean((body as Record<string, unknown> | null)?.replace);
+      const extend = Boolean((body as Record<string, unknown> | null)?.extend);
       const rows = item.text.split('\n').map((line) => line.split(',')).filter((row) => row.some((cell) => cell.trim()));
       const header = rows[0]?.map((cell) => cell.trim().toLowerCase()) ?? [];
       const hasHeader = header.includes('time') || header.includes('timestamp') || header.includes('datetime');
@@ -620,19 +692,22 @@ export class MockWorker {
       }
       const first = times[0];
       const last = times[times.length - 1];
-      const overlaps = mine().filter(
-        (i) => i !== item && i.status === 'committed' && i.symbol === item.symbol && i.timeframe === item.timeframe &&
-          i.first_t! <= last && i.last_t! >= first,
+      const overlaps = s.csvImports.filter(
+        (i) => i !== item && i.status === 'committed' && i.server === item.server && i.symbol === item.symbol &&
+          i.timeframe === item.timeframe && i.first_t! <= last && i.last_t! >= first,
       );
-      if (overlaps.length > 0 && !replace) {
+      if (overlaps.length > 0 && !extend) {
         return { status: 409, body: { detail: { detail: 'Overlaps an existing import', errors: overlaps.map(pub) } } };
       }
-      s.csvImports = s.csvImports.filter((i) => !overlaps.includes(i));
+      // Der Worker löscht nie eine alte Datei: die Serie wächst nur um die fehlenden Minuten
       Object.assign(item, { status: 'committed', bars: times.length, first_t: first, last_t: last, gaps: 0,
         committed_at: Math.floor(nowMs() / 1000), text: '' });
       return { status: 200, body: pub(item) };
     }
     if (seg.length === 4 && method === 'DELETE') {
+      if (item.status === 'committed' && principal.role !== 'admin') {
+        return { status: 403, body: { detail: 'Administrator access required' } };
+      }
       s.csvImports = s.csvImports.filter((i) => i !== item);
       return { status: 200, body: { deleted: item.import_id } };
     }
@@ -906,7 +981,7 @@ export class MockWorker {
       const source = url.searchParams.get('source');
       if (source) {
         if (!source.startsWith('csv:')) return { status: 400, body: { detail: 'source must be csv:<import_id>' } };
-        return this.csvRates(seg[1], source.slice('csv:'.length), url.searchParams);
+        return this.csvRates(seg[1], source.slice('csv:'.length), url.searchParams, principal);
       }
       if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
       if (s.ratesErrorSymbols.includes(url.searchParams.get('symbol') ?? '')) return { status: 500, body: { detail: 'MT5 error' } };
@@ -932,7 +1007,7 @@ export class MockWorker {
 
     // --------------------------------------------------------------- CSV-Import (market.py, BKT-05)
     if (seg[0] === 'market' && seg[2] === 'imports') {
-      return this.csvImports(method, seg, body);
+      return this.csvImports(method, seg, body, principal);
     }
 
     if (seg[0] === 'history' && seg[2] === 'deals' && method === 'GET') {

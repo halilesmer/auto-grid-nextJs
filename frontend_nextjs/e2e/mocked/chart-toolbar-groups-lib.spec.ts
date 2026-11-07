@@ -1,22 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { isAutoLayout, moveGroup, nudgeStep, parseToolbarLayout, placeFree, placementZone, toRatio } from '../../src/lib/chart-workspace/toolbar';
+import { nudgeStep, parseToolbarLayout, placeFree, toRatio } from '../../src/lib/chart-workspace/toolbar';
 
 // Yerleşim mantığı (UI-16, 1105-A5.8): oto yer, oran, kenara yaslama, sığmazsa alt şerit
 const area = { width: 1000, height: 600, left: 60, right: 80, top: 8, bottom: 8 };
 
-test('Kayıtsız grup otodur: geniş kapta üst, dar kapta alt şerit', { tag: '@UI-16' }, () => {
-  expect(placementZone({}, 'edit', true)).toBe('top');
-  expect(placementZone({}, 'edit', false)).toBe('bottom');
-  const layout = moveGroup({}, 'edit', { zone: 'bottom' });
-  expect(placementZone(layout, 'edit', true)).toBe('bottom');
-  expect(placementZone(layout, 'view', true)).toBe('top');
-  expect(isAutoLayout({})).toBe(true);
-  expect(isAutoLayout(layout)).toBe(false);
-});
-
 test('Serbest konum oran olarak saklanır ve kap boyutuyla ölçeklenir', { tag: '@UI-16' }, () => {
-  const layout = moveGroup({}, 'indicators', { zone: 'free', x: 0.5, y: 0.25 });
-  expect(layout.indicators).toEqual({ zone: 'free', x: 0.5, y: 0.25 });
   expect(placeFree({ x: 0.5, y: 0.25 }, { width: 100, height: 30 }, area)).toEqual({ left: 500, top: 150 });
   expect(placeFree({ x: 0.5, y: 0.25 }, { width: 100, height: 30 }, { ...area, width: 500, height: 300 })).toEqual({ left: 250, top: 75 });
   expect(toRatio(250, 75, { width: 500, height: 300 })).toEqual({ x: 0.5, y: 0.25 });

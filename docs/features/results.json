@@ -309,6 +309,20 @@
       "tests": 21
     }
   },
+  "ANA-26": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "passed",
+      "tests": 13
+    }
+  },
+  "ANA-27": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "passed",
+      "tests": 7
+    }
+  },
   "BKT-01": {
     "unit": {
       "datum": "2026-11-05",
@@ -354,16 +368,16 @@
       "tests": 50
     },
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
-      "tests": 14
+      "tests": 17
     }
   },
   "BKT-06": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
-      "tests": 13
+      "tests": 2
     }
   },
   "BKT-07": {
@@ -1448,6 +1462,13 @@
       "datum": "2026-11-05",
       "status": "passed",
       "tests": 6
+    }
+  },
+  "SYS-11": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "failed",
+      "tests": 24
     }
   },
   "SYS-12": {

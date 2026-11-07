@@ -117,7 +117,7 @@ export const RUNNING_METRICS: Partial<LiveData> = {
   remote_paused: false,
 };
 
-/** Eintrag der Mock-CSV-Importe (Form wie csv_import._public, plus `account_id`/`text`). */
+/** Eintrag der Mock-CSV-Importe (Form wie csv_import._public, plus `account_id`/`text`; Importe gehören dem Server, 1107-A6.2). */
 export interface CsvImportRow {
   import_id: string;
   account_id: string;
@@ -136,6 +136,8 @@ export interface CsvImportRow {
   offset_mode?: 'fixed' | 'row';
   created_at: number;
   committed_at: number | null;
+  /** MT5-Server des Imports (wie csv_imports.server); `null` = Konto gibt es nicht mehr, nur der Admin sieht ihn */
+  server: string | null;
   text: string;
 }
 
@@ -201,6 +203,8 @@ export function defaultState() {
     ratesLive: null as Record<string, number> | null,
     /** Kerzen auch für Samstag und Sonntag liefern: für Tests, die unabhängig vom Wochentag eine laufende Kerze brauchen. */
     ratesAllDays: false,
+    /** Beginn der MT5-Historie (Sekunden): davor keine Kerzen, die Antwort nennt den Bereich als `unavailable` (wie market_sync); null = unbegrenzt */
+    ratesSince: null as number | null,
     ratesMissing: [] as { from: number; to: number; reason: string; checked_at: number | null }[],
     /** Antwort von /rates erzwingt einen Fehler (z. B. 503 Datenbank nicht bereit); null = normal */
     ratesError: null as { status: number; detail: string } | null,

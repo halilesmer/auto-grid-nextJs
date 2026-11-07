@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useMarketRates, type RatesRequest } from '@/hooks/useMarketRates';
-import { ratesWindow, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
+import { ratesWindow, TIMEFRAME_SEC, type ChartTimeframe } from '@/lib/analysis/candles';
 import { CONTEXT_TIMEFRAMES, HISTORY_DAYS, type ContextTimeframe, type TrendSettings } from '@/lib/formation/params';
 import { buildTrendPath, closedBars, usableTrendSettings, type TrendSegment } from '@/lib/formation/trdPath';
 import { DAY_SEC } from '@/lib/serverTime';
@@ -18,7 +18,7 @@ export interface TrendPath {
 const NONE = { segments: [] as TrendSegment[], axis: [] as number[] };
 
 /** Der Trendzug gilt nur auf den Zeiteinheiten der Formationen (D1, H4, H1, M15) */
-export function contextTimeframe(timeframe: Timeframe): ContextTimeframe | null {
+export function contextTimeframe(timeframe: ChartTimeframe): ContextTimeframe | null {
   return CONTEXT_TIMEFRAMES.find((tf) => tf === timeframe) ?? null;
 }
 
@@ -29,7 +29,7 @@ export function contextTimeframe(timeframe: Timeframe): ContextTimeframe | null 
  */
 export function useTrendPath(
   input: {
-    accountId: string; symbol: string | null; timeframe: Timeframe; range: { from: number | null; to: number };
+    accountId: string; symbol: string | null; timeframe: ChartTimeframe; range: { from: number | null; to: number };
     offsetSec: number | null; clockReady: boolean;
   },
   enabled: boolean,

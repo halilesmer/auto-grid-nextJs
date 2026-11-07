@@ -31,7 +31,7 @@ function csvRow(over: Partial<CsvImportRow>): CsvImportRow {
   return {
     import_id: '0'.repeat(32), account_id: DEMO_ID, symbol: 'USOUSD', timeframe: 'M1', filename: 'uso.csv', status: 'committed',
     size_bytes: 100, received_bytes: 100, next_chunk: 1, bars: 4320, first_t: day - 3 * 86400, last_t: day - 60, gaps: 0,
-    offset_sec: 0, created_at: day, committed_at: day, text: '', ...over,
+    offset_sec: 0, created_at: day, committed_at: day, server: 'Broker-Demo', text: '', ...over,
   };
 }
 
@@ -304,9 +304,12 @@ test.describe('BKT Backtest-Seite', () => {
     await page.getByTestId('bt-data-source').selectOption('a'.repeat(32));
     await expect(page.getByTestId('bt-timeframe')).toBeDisabled();
 
+    // Admin löscht die Datei der Serie nach Bestätigung (die Serie klappt dafür auf)
+    await page.getByTestId('csv-series-toggle').click();
     await page.getByTestId('csv-item').getByTestId('csv-delete').click();
+    await page.getByRole('dialog').getByRole('button', { name: msg('csv.delete.confirm'), exact: true }).click();
 
-    await expect(page.getByTestId('csv-item')).toHaveCount(0);
+    await expect(page.getByTestId('csv-series')).toHaveCount(0);
     await expect(page.getByTestId('bt-data-source')).toHaveValue('');
     await expect(page.getByTestId('bt-timeframe')).toBeEnabled();
     await runTest(page);
