@@ -183,7 +183,7 @@ kategorien:
 
       - id: ACC-05
         titel: Konto löschen
-        beschreibung: "DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft. Es verschwindet nur der Kontoeintrag: Deal-Archiv, Berichte, CSV-Importe und Favoriten bleiben (1107-A6.3) und sind nach dem erneuten Anlegen derselben Kennung wieder da."
+        beschreibung: "DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft. Es verschwindet nur der Kontoeintrag: Deal-Archiv, Berichte, CSV-Importe und Favoriten bleiben (1107-A6.3) und sind nach dem erneuten Anlegen derselben Kennung wieder da, aber nur für denselben Besitzer: legt ein anderer Benutzer die Kennung an (oder benennt sein Konto darauf um), wird das Deal-Archiv verworfen."
         code: [worker_python/src/api/accounts.py, frontend_nextjs/src/components/account/components/AccountActions.tsx]
         tiers: [api, e2e]
         pruefung:

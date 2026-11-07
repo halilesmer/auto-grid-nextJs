@@ -22,7 +22,7 @@ The project owner decided on 2026-11-07: imported data must never be deleted aga
 | `worker_python/src/utils/market_db.py` | Migration 10: column `csv_imports.server` and index `csv_imports_server`. `_csv_imports_add_server` fills the server from `configs/accounts.json`. `delete_account` is removed. New `read_rates_union` and `rate_coverage_union`. |
 | `worker_python/src/utils/csv_import.py` | `commit` never deletes an import. The commit flag `replace` is now `extend` (confirmation only). `get_rates` reads the series. `list_imports` returns files and series. `delete` needs the admin for a finished import. |
 | `worker_python/src/api/market.py` | The endpoints build a `Viewer` (account, server of the account, role). A server mismatch gives 404. |
-| `worker_python/src/api/accounts.py` | An account delete removes only the account record. The favorites file stays. |
+| `worker_python/src/api/accounts.py` | An account delete removes only the account record. The favorites file stays. A delete notes the owner. A create or a rename to an old id calls `claim_account`. |
 | `frontend_nextjs/src/components/backtest/CsvImportPanel.tsx` | One row per series. The files list opens on request. A confirm dialog for the delete. No delete button for users. |
 | `frontend_nextjs/src/components/backtest/CsvImportDialog.tsx` | The overlap warning is an info message. The button is "Extend and import". |
 | `frontend_nextjs/src/components/backtest/RunSettings.tsx`, `BacktestView.tsx` | The data source list has one option per series. A saved file id of any file in the series stays valid. |
@@ -46,6 +46,7 @@ The project owner decided on 2026-11-07: imported data must never be deleted aga
 
 ## Risks
 - **One disk (1107-A5.3).** All imported data lives on the disk of the one VPS. The daily backups (`BACKUP_KEEP` = 7) are on the same disk. A disk failure loses data and backups. The size of the database now only grows: no delete cleans up. The limit of `MARKET_DB_MAX_MB` stops new candles only.
+- **Archive and a reused account id.** The deal archive hangs on the account id. After a delete, a new account with the same id could read the old archive. The security review found this. The worker now stores the old owner in `deleted_accounts`. A create, or a rename to that id, calls `claim_account`. A different owner gets an empty archive (deals, account information, SL/TP lookups, zone register). The same owner gets the archive back. Tests: `test_anderer_besitzer_erbt_das_deal_archiv_einer_geloeschten_kennung_nicht` and `test_umbenennen_auf_eine_verwaiste_kennung_erbt_das_archiv_nicht`.
 - **Access.** Users on the same server share the imports. A user can add overlapping files for all of them. Only the admin removes a file.
 
 ## Verification

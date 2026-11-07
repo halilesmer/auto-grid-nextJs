@@ -120,6 +120,58 @@ def test_loeschen_laesst_archiv_berichte_importe_und_favoriten_stehen(client, se
     assert [(i["status"], i["bars"], i["server"]) for i in listed] == [("committed", 1, "Fake-Demo")]
 
 
+@pytest.mark.feature("ACC-05")
+def test_anderer_besitzer_erbt_das_deal_archiv_einer_geloeschten_kennung_nicht(client, seed_accounts, monkeypatch):
+    """Security: der Archiv-Erhalt (1107-A6.3) darf kein Fremdleck sein. Nur derselbe Besitzer bekommt es zurück."""
+    from src.api import accounts as accounts_api
+    from src.api import auth, users_store
+    from src.utils import market_db
+
+    monkeypatch.setattr(auth, "WORKER_API_KEY", "admin-" + "key-for-tests")
+    monkeypatch.setattr(accounts_api, "find_mt5_terminals", lambda: ["C:/MT5/terminal64.exe"])
+    anna, anna_key = users_store.create_user("Anna")
+    ben, ben_key = users_store.create_user("Ben")
+    seed_accounts(account("1001", owner=anna["id"]))
+    market_db.store_deals("1001", [{"ticket": 7, "time": 1_760_000_000, "type": 0, "entry": 0, "symbol": "XAUUSD"}],
+                          [(1_760_000_000 - 60, 1_760_000_000 + 60)], account={"currency": "USD", "balance": 1.0})
+    stored = account("1001", owner=anna["id"])
+    anna_h, ben_h = {"X-API-Key": anna_key}, {"X-API-Key": ben_key}
+
+    assert client.delete("/api/accounts/1001", headers=anna_h).status_code == 200
+    # Ben legt dieselbe Kennung an: er bekommt Annas Archiv nicht
+    assert client.post("/api/accounts", headers=ben_h, json=stored).status_code == 201
+    assert market_db.read_deals("1001", 0, 2_000_000_000) == []
+    assert market_db.account_meta("1001") is None
+
+    # Derselbe Besitzer bekommt sein Archiv zurück (die Löschnotiz bleibt nur bis zur nächsten Neuanlage)
+    market_db.store_deals("1001", [{"ticket": 8, "time": 1_760_000_000, "type": 0, "entry": 0, "symbol": "XAUUSD"}],
+                          [(1_760_000_000 - 60, 1_760_000_000 + 60)])
+    assert client.delete("/api/accounts/1001", headers=ben_h).status_code == 200
+    assert client.post("/api/accounts", headers=ben_h, json=stored).status_code == 201
+    assert [d["ticket"] for d in market_db.read_deals("1001", 0, 2_000_000_000)] == [8]
+
+
+@pytest.mark.feature("ACC-05")
+def test_umbenennen_auf_eine_verwaiste_kennung_erbt_das_archiv_nicht(client, seed_accounts, monkeypatch):
+    from src.api import accounts as accounts_api
+    from src.api import auth, users_store
+    from src.utils import market_db
+
+    monkeypatch.setattr(auth, "WORKER_API_KEY", "admin-" + "key-for-tests")
+    monkeypatch.setattr(accounts_api, "find_mt5_terminals", lambda: ["C:/MT5/terminal64.exe"])
+    anna, anna_key = users_store.create_user("Anna")
+    ben, ben_key = users_store.create_user("Ben")
+    seed_accounts(account("1001", owner=anna["id"]), account("2002", owner=ben["id"]))
+    market_db.store_deals("1001", [{"ticket": 7, "time": 1_760_000_000, "type": 0, "entry": 0, "symbol": "XAUUSD"}],
+                          [(1_760_000_000 - 60, 1_760_000_000 + 60)])
+    assert client.delete("/api/accounts/1001", headers={"X-API-Key": anna_key}).status_code == 200
+
+    renamed = account("1001", owner=ben["id"], password="")
+    res = client.put("/api/accounts/2002", headers={"X-API-Key": ben_key}, json=renamed)
+    assert res.status_code == 200, res.text
+    assert market_db.read_deals("1001", 0, 2_000_000_000) == []
+
+
 # --------------------------------------------------------------------------- ACC-09
 @pytest.mark.feature("ACC-09")
 def test_passwort_steht_in_keiner_antwort(client, seed_accounts):

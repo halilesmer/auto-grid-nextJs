@@ -206,6 +206,9 @@ MIGRATIONS: list[list] = [
     [
         # 1107-A6.2: CSV-Importe gehören dem MT5-Server; Konten desselben Servers teilen sie.
         _csv_imports_add_server,
+        # 1107-A6.3: Ein Konto-Löschen lässt das Archiv stehen. Diese Notiz merkt sich den Besitzer, damit ein anderer
+        # Benutzer, der dieselbe Kennung neu anlegt, das Archiv nicht erbt (claim_account).
+        "CREATE TABLE IF NOT EXISTS deleted_accounts (account_id TEXT PRIMARY KEY, owner TEXT NOT NULL, deleted_at INTEGER NOT NULL)",
     ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
@@ -869,3 +872,29 @@ def reclaim_space():
         conn.execute("PRAGMA incremental_vacuum")
     finally:
         conn.close()
+
+
+# --------------------------------------------------------------------------- Konto gelöscht / neu angelegt
+# Archiv, das an einer Konto-Kennung hängt (nicht an einem Server): Deals, Kontoinfo, SL/TP-Nachschlagen, Zonenregister.
+_ACCOUNT_ARCHIVE_TABLES = ("deals", "deal_coverage", "account_meta", "position_orders", "zone_registry", "zone_config_versions")
+
+
+def note_account_deleted(account_id: str, owner: str | None):
+    """Der Kontoeintrag wurde gelöscht; das Archiv bleibt (1107-A6.3). Merkt sich, wem es gehörte ('' = Administrator)."""
+    with writing() as conn:
+        conn.execute("INSERT OR REPLACE INTO deleted_accounts VALUES (?,?,?)", (account_id, owner or "", int(time.time())))
+
+
+def claim_account(account_id: str, owner: str | None) -> bool:
+    """Ein Konto mit dieser Kennung wurde angelegt. Gehörte das gelöschte Konto einem anderen Besitzer, wird das
+    Archiv verworfen (sonst läse der neue Besitzer fremde Trades). Gleicher Besitzer: alles bleibt. True = verworfen."""
+    with writing() as conn:
+        row = conn.execute("SELECT owner FROM deleted_accounts WHERE account_id=?", (account_id,)).fetchone()
+        if row is None:
+            return False
+        conn.execute("DELETE FROM deleted_accounts WHERE account_id=?", (account_id,))
+        if row["owner"] == (owner or ""):
+            return False
+        for table in _ACCOUNT_ARCHIVE_TABLES:
+            conn.execute(f"DELETE FROM {table} WHERE account_id=?", (account_id,))
+    return True

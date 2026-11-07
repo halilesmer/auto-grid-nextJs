@@ -8,6 +8,7 @@ from src.api.models import AccountModel
 from src.api.errors import DuplicateAccountProblem
 from src.api.helpers import _load_accounts, _public_account, _save_accounts
 from src.api.system import find_mt5_terminals
+from src.utils import market_db
 from src.utils.bot_manager import is_bot_running
 
 router = APIRouter(tags=["Accounts"])
@@ -58,6 +59,23 @@ def _check_mt5_path(
         other_path = (other.get("mt5_path") or "").strip()
         if other_path and other.get("owner") != principal.user_id and _terminal_dir(other_path) == _terminal_dir(wanted):
             raise HTTPException(status_code=422, detail="This MT5 terminal is already used by another account")
+
+
+def _note_archive_owner(account_id: str, owner: Optional[str]) -> None:
+    """Archiv bleibt nach dem Löschen (1107-A6.3); der alte Besitzer wird gemerkt. Fehler macht das Löschen nicht ungeschehen."""
+    try:
+        market_db.note_account_deleted(account_id, owner)
+    except Exception as exc:  # noqa: BLE001
+        print(f"⚠️ [MARKET-DB] Besitzer des Archivs nicht gemerkt: {exc}")
+
+
+def _claim_archive(account_id: str, owner: Optional[str]) -> None:
+    """Neues Konto mit alter Kennung: ein anderer Besitzer erbt das Archiv nicht. Schlägt das fehl, scheitert das Anlegen
+    nicht, aber die Datenbank antwortet dann ohnehin nicht (503)."""
+    try:
+        market_db.claim_account(account_id, owner)
+    except Exception as exc:  # noqa: BLE001
+        print(f"⚠️ [MARKET-DB] Archiv der Kennung nicht geprüft: {exc}")
 
 
 def _ensure_bot_stopped(account_id: str) -> None:
@@ -128,6 +146,7 @@ async def create_account(account: AccountModel, principal: Principal = Depends(g
         record["owner"] = _admin_owner(account.owner) if principal.is_admin else principal.user_id
         accounts.append(record)
         _save_accounts(accounts)
+        _claim_archive(str(record["id"]), record["owner"])
         return {"status": "created", "account": _public_account(accounts[-1])}
     except HTTPException:
         raise
@@ -173,6 +192,8 @@ async def update_account(
             updated["password"] = stored
         accounts[idx] = updated
         _save_accounts(accounts)
+        if str(updated.get("id")) != str(account_id):  # Umbenennen auf eine verwaiste Kennung: Archiv nicht erben
+            _claim_archive(str(updated["id"]), updated.get("owner"))
         return {"status": "updated", "account": _public_account(accounts[idx])}
     except HTTPException:
         raise
@@ -190,7 +211,9 @@ async def delete_account(account_id: str):
             raise HTTPException(
                 status_code=404, detail=f"Account '{account_id}' not found"
             )
+        owner = next((a.get("owner") for a in accounts if str(a.get("id")) == str(account_id)), None)
         _save_accounts(filtered)
+        _note_archive_owner(str(account_id), owner)
         # 1107-A6.3: Nur der Kontoeintrag verschwindet. Deal-Archiv, Berichte, CSV-Importe und Favoriten
         # bleiben; wird dieselbe Kennung wieder angelegt, ist alles wieder da.
         return {"status": "deleted", "account_id": account_id}
