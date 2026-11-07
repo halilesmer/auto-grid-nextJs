@@ -320,7 +320,7 @@
     "e2e": {
       "datum": "2026-11-07",
       "status": "failed",
-      "tests": 7
+      "tests": 9
     }
   },
   "BKT-01": {
@@ -1471,6 +1471,13 @@
       "tests": 24
     }
   },
+  "SYS-12": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "passed",
+      "tests": 7
+    }
+  },
   "UI-01": {
     "e2e": {
       "datum": "2026-11-05",
@@ -1720,88 +1727,88 @@
   },
   "VPS-01": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 3
     }
   },
   "VPS-02": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 1
     },
     "unit": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-03": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 2
     },
     "unit": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-04": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
-      "tests": 2
+      "tests": 8
     }
   },
   "VPS-05": {
     "unit": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 14
     }
   },
   "VPS-07": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 2
     },
     "unit": {
-      "datum": "2026-11-04",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 12
     }
   },
   "VPS-08": {
     "unit": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 5
     }
   },
   "VPS-09": {
     "api": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 5
     },
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 1
     }
   },
   "VPS-10": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 2
     },
     "unit": {
-      "datum": "2026-11-03",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 3
     }

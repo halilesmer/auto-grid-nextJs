@@ -5,46 +5,24 @@
  * POST update | restart | restart-ngrok | reboot | fix-elevated[?stopBots=1]
  *   (fix-elevated beendet Bots/MT5 nur mit stopBots=1; sonst 409 botsElevated, wenn welche laufen)
  *
- * Schutz (diese Route startet SSH-Befehle auf dem VPS):
- *   - nur über localhost/127.0.0.1 erreichbar (Host-Header)
+ * Schutz (diese Route startet SSH-Befehle auf dem VPS), Details in src/lib/server/vpsGuard.ts:
+ *   - nur Anfragen, deren TCP-Gegenstelle Loopback ist (vom Server gesetzt, nicht vom Client; VPS-04)
+ *   - zusätzlich Host/x-forwarded-* = localhost, und kein Proxy davor
  *   - POST nur von derselben Origin (keine fremde Webseite kann über den Browser auslösen)
  *   - ohne VPS_SSH_HOST (z. B. Vercel) → 404
  */
 import type { NextRequest } from 'next/server';
 import { getVpsConfig, runVps, VpsSshError } from '@/lib/server/vpsSsh';
+import { checkVpsRequest } from '@/lib/server/vpsGuard';
 import { VPS_ACTIONS, isVpsAction, isVpsLog } from '@/lib/vps';
-
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
-
-function hostname(hostHeader: string | null): string {
-  if (!hostHeader) return '';
-  // [::1]:3000 → [::1], localhost:3000 → localhost
-  return hostHeader.startsWith('[') ? hostHeader.slice(0, hostHeader.indexOf(']') + 1) : hostHeader.split(':')[0];
-}
 
 function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
 function guard(request: NextRequest): Response | null {
-  const host = request.headers.get('host');
-  const forwardedHost = request.headers.get('x-forwarded-host');
-  if (!LOCAL_HOSTS.has(hostname(host)) || (forwardedHost && !LOCAL_HOSTS.has(hostname(forwardedHost)))) {
-    return json({ ok: false, error: 'VPS-Steuerung nur lokal (localhost) erlaubt', code: 'localOnly' }, 403);
-  }
-  if (request.method !== 'GET') {
-    const origin = request.headers.get('origin');
-    let originHost = '';
-    try {
-      originHost = origin ? new URL(origin).host : '';
-    } catch {
-      originHost = '';
-    }
-    if (!originHost || originHost !== host) {
-      return json({ ok: false, error: 'Ungültige Origin', code: 'badOrigin' }, 403);
-    }
-  }
-  return null;
+  const denial = checkVpsRequest(request.method, request.headers);
+  return denial ? json(denial.body, denial.status) : null;
 }
 
 async function handle(request: NextRequest, ctx: { params: Promise<{ action: string }> }) {
