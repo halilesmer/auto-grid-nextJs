@@ -320,7 +320,7 @@
     "e2e": {
       "datum": "2026-11-07",
       "status": "failed",
-      "tests": 13
+      "tests": 9
     }
   },
   "BKT-01": {

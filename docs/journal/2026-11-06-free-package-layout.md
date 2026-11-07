@@ -3,7 +3,7 @@ date: 2026-11-06
 author: Claude
 type: plan
 status: open
-pr: [397, 401, 413, 421]
+pr: [397, 401, 413, 421, 428, 429, 431, 432]
 features: [UI-17, UI-16]
 areas: [frontend]
 ---
@@ -191,9 +191,9 @@ S6 changes no behavior. It closes the catalog, the journal and the browser check
 
 ### Open points
 
-- Touch test on a real phone (owner). The Vercel preview was closed for about 24 hours on 2026-11-06 because of the quota.
+- Done 2026-11-07: the owner tested on a real phone. Result: passed.
 - The owner may still object to the compact date range (no dates below 75 rem).
-- UI-17 is not signed. The owner signs it after the visual check.
+- Done 2026-11-07: UI-17 is signed as passed (`manual_results.yaml`).
 
 ### Dead code removed
 
@@ -245,4 +245,4 @@ At 375 x 812 on `/chart` (Free mode) the header showed the package layout while 
 ## Open points
 
 - [x] S6 (this section).
-- [ ] Touch drag on a real phone (owner, S5 preview).
+- [x] Touch drag on a real phone (owner, 2026-11-07, passed). UI-17 signed.
