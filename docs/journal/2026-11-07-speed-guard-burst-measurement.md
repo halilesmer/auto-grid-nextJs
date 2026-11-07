@@ -3,7 +3,7 @@ date: 2026-11-07
 author: Claude
 type: plan
 status: open
-pr: []
+pr: [443]
 features: [ENG-31]
 areas: [worker, frontend, docs]
 ---
