@@ -5,7 +5,7 @@ import { ChartCore, type ChartCoreProps, type ChartScene } from '@/components/an
 import { useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import type { WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
 import { wave } from '@/lib/formation/indicators';
-import type { Bar, Timeframe } from '@/lib/analysis/candles';
+import type { Bar, ChartTimeframe } from '@/lib/analysis/candles';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { LayersMenu } from './LayersMenu';
 
@@ -17,7 +17,7 @@ export interface ChartViewProps extends Omit<ChartCoreProps, OwnProps> {
   /** Geschlossene Kerzen, aus denen Wave 5/35 rechnet; ohne laufende Kerze */
   signalBars: readonly Bar[];
   /** Zeitrahmen des Charts: der Schalter Trendzug im Menü „Ebenen“ gilt nur, wo es einen Trendzug gibt */
-  timeframe: Timeframe;
+  timeframe: ChartTimeframe;
   /** Schalter des Modus im Menü „Ebenen“, unter den gemeinsamen Ebenen; `modeTitle` ist ihre Überschrift */
   modeLayers?: ReactNode;
   modeTitle?: string;

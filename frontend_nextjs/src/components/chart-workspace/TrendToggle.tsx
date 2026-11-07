@@ -4,7 +4,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu } from '@/components/ui/dropdown-menu';
 import { useT } from '@/i18n';
-import type { Timeframe } from '@/lib/analysis/candles';
+import type { ChartTimeframe } from '@/lib/analysis/candles';
 import { contextTimeframe } from '@/hooks/useTrendPath';
 import { cn } from '@/lib/utils';
 import { trendFingerprint } from '@/lib/formation/trdPath';
@@ -16,7 +16,7 @@ import { TrendSettingsPanel } from './TrendSettingsPanel';
  * `Trend`-Button und Zahnrad in der Kopfleiste des Charts (ANA-21): Trendzug an/aus und seine Einstellungen.
  * `size="xs"` im Modus Formation von /chart, wo alle Chart-Werkzeuge so groß sind wie die Zeitrahmen-Knöpfe der Kopfleiste.
  */
-export function TrendToggle({ timeframe, size = 'sm' }: { timeframe: Timeframe; size?: 'sm' | 'xs' }) {
+export function TrendToggle({ timeframe, size = 'sm' }: { timeframe: ChartTimeframe; size?: 'sm' | 'xs' }) {
   const t = useT();
   const on = useAnalysisPrefsStore((s) => s.showTrend);
   const setShowTrend = useAnalysisPrefsStore((s) => s.setShowTrend);

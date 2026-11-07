@@ -676,3 +676,44 @@ test('Bereichseinstellungen und Alarme bleiben im Chart-Kontext; alte Dokumente 
   await expect.poll(async () => (await storedDocument(page, context)).indicators[0]).toMatchObject({ id: 'legacy-macd', paneId: 'legacy-macd', paneCollapsed: true, scaleSide: 'auto' });
   expect((await storedDocument(page, context)).alarms).toEqual([]);
 });
+
+test.describe('ANA-26 W1 und MN im freien Chart', () => {
+  const DAY = 86400;
+  const FIRST = Date.UTC(2024, 0, 3) / 1000; // Mittwoch
+  /** Mo–Fr von 2024-01-03 bis 2024-02-09 als feste D1-Reihe */
+  function dailySeries() {
+    const rows: number[][] = [];
+    for (let t = FIRST; t < Date.UTC(2024, 1, 10) / 1000; t += DAY) {
+      const wd = new Date(t * 1000).getUTCDay();
+      if (wd === 0 || wd === 6) continue;
+      rows.push([t, 100, 110, 90, 105]);
+    }
+    return rows;
+  }
+
+  for (const c of [
+    { tf: 'W1', bars: 6, from: Date.UTC(2023, 11, 31) / 1000 },
+    { tf: 'MN', bars: 2, from: Date.UTC(2024, 0, 1) / 1000 },
+  ]) {
+    test(`${c.tf} fragt D1 ab, beginnt am Periodenbeginn und hat ${c.bars} Kerzen`, { tag: '@ANA-26' }, async ({ page, worker }) => {
+      worker.state.ratesSeries = { D1: dailySeries() };
+      await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=${c.tf}&from=2024-01-03&to=2024-02-10`);
+      await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', String(c.bars));
+      expect(worker.ratesQueries.length).toBeGreaterThan(0);
+      for (const q of worker.ratesQueries) {
+        const p = new URLSearchParams(q);
+        expect(p.get('timeframe')).toBe('D1');
+        expect(Number(p.get('from'))).toBe(c.from);
+      }
+      await expect(page.getByTestId(`timeframe-${c.tf}`)).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByTestId('trend-toggle')).toBeDisabled();
+    });
+  }
+
+  test('Setup-Modus kennt W1 nicht', { tag: '@ANA-26' }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/chart?mode=setup&account=${DEMO_ID}&zone=${ZONE_ID}&tf=W1`);
+    await expect(page.getByTestId('timeframe-M15')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('timeframe-W1')).toHaveCount(0);
+  });
+});

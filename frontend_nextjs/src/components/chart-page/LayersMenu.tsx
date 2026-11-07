@@ -6,7 +6,7 @@ import { DropdownMenu } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { useT } from '@/i18n';
 import { contextTimeframe } from '@/hooks/useTrendPath';
-import type { Timeframe } from '@/lib/analysis/candles';
+import type { ChartTimeframe } from '@/lib/analysis/candles';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { setSystemLayer } from '@/components/chart-workspace/systemLayers';
 
@@ -18,7 +18,7 @@ import { setSystemLayer } from '@/components/chart-workspace/systemLayers';
  */
 export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, children }: {
   contextKey: string;
-  timeframe: Timeframe;
+  timeframe: ChartTimeframe;
   rsi: boolean;
   wave: boolean;
   modeTitle?: string;
