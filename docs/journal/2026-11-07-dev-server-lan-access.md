@@ -3,7 +3,7 @@ date: 2026-11-07
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [438]
 features: [SYS-12]
 areas: [frontend, tests, ops]
 ---
