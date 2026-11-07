@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-07 · **222/243** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-08 · **222/244** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -15,7 +15,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | # | Kategorie | Stand |
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 10/12 |
-| 2 | **ACC** – Konten | 11/11 |
+| 2 | **ACC** – Konten | 11/12 |
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
@@ -137,6 +137,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur DEMO. Zwei Konten mit je eigenem Terminal, Bot von Konto 1 läuft. → Bei Konto 2 im Bearbeiten-Dialog einen nicht existierenden MT5-Pfad eintragen, speichern und für Konto 2 eine Zone öffnen (Symbolliste) bzw. „Bot starten“ klicken. → Danach den richtigen Pfad wieder eintragen.
   - **Erwartet:** Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
   - 📝 v0.7.229, VPS mit 4 Terminals, DEMO: Konto 2 mit nicht vorhandenem mt5_path → /start sofort [CONFIG] MT5 terminal yolu bulunamadı; Journal von Terminal 1 ohne fremden Login; Bot von Konto 1 lief weiter (BAĞLANTISI KOPTU: 0). Symbolliste kein Prüfweg (Cache 1 h).
+- [ ] **ACC-12** Medien im Konto (max. 3, PDF/Bild/Notiz) — 🔌 api ⏳ · 🌐 live ⏳
+  - Je Konto höchstens 3 Dateien (PDF, PNG/JPEG/WebP, Notiz .txt/.md). API unter /accounts/{id}/media: Liste (ohne Dateiinhalt), Hochladen als roher Body (?name=), Herunterladen, Löschen. Der Typ kommt aus den ersten Bytes, nicht aus Endung oder Client-MIME; alles andere (SVG, HTML, GIF, HEIC) ergibt 415. Grenzen: Bild und PDF 10 MB, Notiz 1 MB (413), vierte Datei 409. Download mit nosniff, CSP sandbox und unveränderlichem Cache. Fremde Konten sind 404 (Administrator darf alles). Beim Löschen des Kontos bleiben die Medien; legt ein anderer Besitzer dieselbe Kennung an, werden sie verworfen (1107-A20.4, wie 1107-A6.3).
+  - **Prüfung:** Nur DEMO-Konto. Mit dem Admin-Schlüssel per curl eine kleine PNG-Datei an POST /api/accounts/<Konto>/media?name=test.png senden, dann GET /api/accounts/<Konto>/media und GET .../media/<id> aufrufen. → Eine vierte Datei senden; die Testdatei danach mit DELETE entfernen.
+  - **Erwartet:** Upload antwortet 201, die Liste zeigt die Datei ohne Inhalt, der Download liefert dieselben Bytes mit den Sicherheitsheadern; die vierte Datei ergibt 409; nach DELETE ist die Liste leer.
 
 ## 3. USR – Benutzer & Zugriff
 

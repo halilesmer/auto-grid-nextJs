@@ -9,7 +9,7 @@ from src.api.models import AccountModel
 from src.api.errors import DuplicateAccountProblem
 from src.api.helpers import _load_accounts, _public_account, _save_accounts
 from src.api.system import find_mt5_terminals
-from src.utils import market_db
+from src.utils import account_media, market_db
 from src.utils.bot_manager import is_bot_running
 
 router = APIRouter(tags=["Accounts"])
@@ -73,6 +73,11 @@ async def _claim_archive(account_id: str, owner: Optional[str]) -> None:
     """Konto mit alter Kennung: ein anderer Besitzer erbt das Archiv nicht, es wird verworfen (auch wenn der Administrator
     ohne Besitzer neu anlegt). Fail-closed wie oben: scheitert der Aufruf, wird das Konto nicht angelegt."""
     await asyncio.to_thread(market_db.claim_account, account_id, owner)
+
+
+async def _claim_media(account_id: str, owner: Optional[str]) -> None:
+    """Hesap medyası (1107-A20.4): aynı kural, başka sahip eski medyayı miras almaz. Fail-closed."""
+    await asyncio.to_thread(account_media.claim_account, account_id, owner)
 
 
 def _ensure_bot_stopped(account_id: str) -> None:
@@ -143,6 +148,7 @@ async def create_account(account: AccountModel, principal: Principal = Depends(g
         record["owner"] = _admin_owner(account.owner) if principal.is_admin else principal.user_id
         accounts.append(record)
         await _claim_archive(str(record["id"]), record["owner"])
+        await _claim_media(str(record["id"]), record["owner"])
         _save_accounts(accounts)
         return {"status": "created", "account": _public_account(accounts[-1])}
     except HTTPException:
@@ -191,6 +197,9 @@ async def update_account(
             # Umbenennen: das Archiv der alten Kennung bleibt dem alten Besitzer, die neue Kennung erbt kein fremdes
             await _note_archive_owner(str(account_id), accounts[idx].get("owner"))
             await _claim_archive(str(updated["id"]), updated.get("owner"))
+            await _claim_media(str(updated["id"]), updated.get("owner"))
+        elif updated.get("owner") != accounts[idx].get("owner"):
+            await _claim_media(str(updated["id"]), updated.get("owner"))  # Besitzerwechsel: Medien des alten Besitzers weg
         accounts[idx] = updated
         _save_accounts(accounts)
         return {"status": "updated", "account": _public_account(accounts[idx])}

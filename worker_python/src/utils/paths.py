@@ -158,3 +158,9 @@ def get_pid_path(account_id: str) -> str:
 def get_mt5_backup_dir(account_id: str) -> str:
     """MT5 terminal loglarının kopyalanacağı hesap içi alt klasör"""
     return _ensure_dir(os.path.join(get_account_log_dir(account_id), "mt5_terminal"))
+
+
+def get_media_dir(account_id: str) -> str:
+    """Örn: data/media/<account_id>/ (hesap medyası, 1107-A20; index.json + <mediaId>.<uzantı>).
+    Klasör burada oluşturulmaz: yalnız yükleme açar, okuma/silme açmaz."""
+    return os.path.join(DATA_DIR, "media", safe_account_id(account_id))
