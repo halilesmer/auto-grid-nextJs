@@ -3,7 +3,7 @@ date: 2026-11-07
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [430]
 features: [UI-21]
 areas: [frontend, tests]
 ---
@@ -33,7 +33,9 @@ One CSS variable, `--overlay`, now sets the layer behind every dialog. The value
 - The blur on the navigation bar, cards, toasts and the save bar is a glass surface, not a dialog backdrop. This change does not touch it.
 
 ## Verification
-See the PR: lint, `tsc --noEmit`, `@UI-21` (light and dark theme), `scripts/features/precheck.sh`, and a check in the browser pane.
+- `scripts/features/precheck.sh` passed: catalog, worker pytest, lint, tsc, e2e 3145 of 3145 (0 flaky).
+- The `@UI-21` screenshots (mocked worker) show the chart clearly behind the RSI dialog in the light and dark theme.
+- A check with a local dev server was not done. The port 3000 was in use, and the local dev server uses the live worker.
 
 ## Lessons
 - The native `<dialog>` draws its own `::backdrop`. The browser default is a light grey layer, so it needs an explicit transparent value.
