@@ -20,7 +20,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { useFormat, useT } from '@/i18n';
-import { isBar, liveBar, type Bar, type ChartData, type ChartPoint } from '@/lib/analysis/candles';
+import { isBar, liveBar, type Bar, type ChartData, type ChartPoint, type OlderEdge } from '@/lib/analysis/candles';
 import type { Appearance } from '@/lib/chart-workspace/settings';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
@@ -41,6 +41,7 @@ import {
   type FractalMark,
 } from './primitives';
 import { TrendLineMenuHost } from './TrendLineMenu';
+import { OlderEdgeMark } from './OlderEdgeMark';
 
 /** Höchstzahl der Schenkel in `data-trend-segments` */
 const MAX_TEST_SEGMENTS = 40;
@@ -152,6 +153,10 @@ export interface ChartCoreProps {
   surfaceProps?: HTMLAttributes<HTMLDivElement> & Record<`data-${string}`, string>;
   /** Zeichenfläche über dem Chart; nur mit overlayLayout */
   renderOverlay?: (scene: ChartScene) => ReactNode;
+  /** Ältere Kerzen laden (Serbest kip): kommt der Chart bis OLDER_TRIGGER_BARS an die erste Kerze, wird das aufgerufen */
+  onNeedOlder?: () => void;
+  /** Stand links: `loading` = Seite wird geladen, sonst der Grund, warum links Schluss ist; null = nichts anzeigen */
+  olderEdge?: 'loading' | OlderEdge | null;
 }
 
 const EMPTY_MARKERS: TradeMarker[] = [];
@@ -168,6 +173,10 @@ const FOCUS_BARS = 60;
 /** Bis zu so vielen Punkten passt der Backtest den ganzen Zeitraum ein, sonst die letzten VISIBLE_BARS */
 const FIT_MAX_POINTS = 2000;
 const VISIBLE_BARS = 300;
+/** Bleiben links so wenige Kerzen übrig, werden ältere nachgeladen (Serbest kip, 1107-A4) */
+const OLDER_TRIGGER_BARS = 50;
+/** Ältere Kerzen laden nur, wenn der Nutzer den Chart gerade bedient hat (Rad, Ziehen, Tippen); eine Ansicht, die schon am Rand steht (alles passt, gespeicherter Zoom), lädt nichts von selbst */
+const USER_INPUT_WINDOW_MS = 1500;
 
 function previousColor(up: boolean, body: boolean, positive: string, negative: string) { if (!body) return 'transparent'; return up ? positive : negative; }
 /** Farben einer Kerze, wenn sie sich nach dem Schluss der vorigen Kerze richten (Einstellung „previous“) */
@@ -228,6 +237,8 @@ export function ChartCore({
   fullscreenOfPage = false,
   surfaceProps,
   renderOverlay,
+  onNeedOlder,
+  olderEdge = null,
 }: ChartCoreProps) {
   const t = useT();
   const fmt = useFormat();
@@ -265,6 +276,17 @@ export function ChartCore({
   const priceLines = useRef<IPriceLine[]>([]);
   const lastBar = useRef<Bar | null>(null);
   const fittedKey = useRef<string | null>(null);
+  const checkOlder = useRef<(() => void) | null>(null);
+  const lastInput = useRef(-Infinity);
+  const keepViewFrame = useRef(0);
+  // Bis zur Korrektur der Ansicht nach einer Seite älterer Kerzen sieht check() noch die verschobene Ansicht und holte sonst unnötig eine weitere Seite
+  const viewFixPending = useRef(false);
+  const needOlder = useRef(onNeedOlder);
+  const currentViewKey = useRef(viewKey);
+  useEffect(() => {
+    needOlder.current = onNeedOlder;
+    currentViewKey.current = viewKey;
+  });
   const workspaceKey = workspace?.key;
   const workspaceView = workspace?.view;
   const forgetView = useRef<(() => void) | null>(null);
@@ -352,6 +374,8 @@ export function ChartCore({
       forgetView.current?.();
       forgetView.current = null;
       cancelAnimationFrame(readyFrame);
+      cancelAnimationFrame(keepViewFrame.current);
+      viewFixPending.current = false;
       attached.dispose?.();
       chart.unsubscribeCrosshairMove(onMove);
       chart.remove();
@@ -454,9 +478,29 @@ export function ChartCore({
     const candles = candlesRef.current;
     const el = containerRef.current;
     if (!chart || !candles || !el) return;
+    // Ältere Kerzen davor: der Chart ordnet die Kerzen neu und lässt die Ansicht je nach Lage der Reihen (die Indikator-Reihen teilen
+    // die Zeitachse) an der Zeit oder am Index stehen; bei Index springt sie um die neuen Kerzen. Darum die sichtbare Zeit
+    // merken und im nächsten Bild, wenn der Chart den Bereich übernommen hat, nur bei Abweichung zurückschieben
+    const previousFirst = pointsRef.current[0]?.time;
+    const previousTimes = fittedKey.current === viewKey ? chart.timeScale().getVisibleRange() : null;
     // Vor setData, damit rememberChartView die neue Punktzahl kennt, wenn der Chart den Bereich meldet
     pointsRef.current = data.points;
     candles.setData(seriesPoints(data.points, appearance));
+    if (previousTimes && previousFirst !== undefined && data.points.length > 0 && data.points[0].time < previousFirst) {
+      const points = data.points;
+      cancelAnimationFrame(keepViewFrame.current);
+      viewFixPending.current = true;
+      keepViewFrame.current = requestAnimationFrame(() => {
+        viewFixPending.current = false;
+        const scale = chart.timeScale();
+        const times = scale.getVisibleRange(), logical = scale.getVisibleLogicalRange();
+        if (!times || !logical) return;
+        const wanted = points.findIndex((p) => p.time >= Number(previousTimes.from));
+        const shown = points.findIndex((p) => p.time >= Number(times.from));
+        if (wanted < 0 || shown < 0 || wanted === shown) return;
+        scale.setVisibleLogicalRange({ from: logical.from + (wanted - shown), to: logical.to + (wanted - shown) });
+      });
+    }
     lastBar.current = data.bars.length > 0 ? data.bars[data.bars.length - 1] : null;
     if (lastBar.current) containerRef.current?.setAttribute('data-last-bar', `${lastBar.current.time}:${lastBar.current.close}`);
     if (followTail) {
@@ -501,6 +545,40 @@ export function ChartCore({
     frame = requestAnimationFrame(align);
     return () => cancelAnimationFrame(frame);
   }, [data, appearance, viewKey, followTail, workspaceKey, workspaceView]);
+
+  // Ältere Kerzen: nahe an der ersten Kerze nachladen (nur Serbest kip, nur nach der Ausrichtung der Ansicht)
+  useEffect(() => {
+    if (!binding) return;
+    const { chart, candles } = binding;
+    // Die Zeichenfläche und die Bedienung liegen über dem Chart, darum an der Fläche lauschen, nicht am Chart-Element
+    const host = surfaceRef.current ?? binding.host;
+    const mark = () => { lastInput.current = performance.now(); };
+    const drag = (event: PointerEvent) => { if (event.buttons) mark(); };
+    const inputs = ['wheel', 'pointerdown', 'touchstart', 'touchmove', 'keydown'] as const;
+    inputs.forEach((name) => host.addEventListener(name, mark, { passive: true }));
+    host.addEventListener('pointermove', drag, { passive: true });
+    const check = () => {
+      if (!needOlder.current || viewFixPending.current || fittedKey.current !== currentViewKey.current) return;
+      if (performance.now() - lastInput.current > USER_INPUT_WINDOW_MS) return;
+      const range = chart.timeScale().getVisibleLogicalRange();
+      const info = range ? candles.barsInLogicalRange(range) : null;
+      if (info && info.barsBefore < OLDER_TRIGGER_BARS) needOlder.current();
+    };
+    checkOlder.current = check;
+    chart.timeScale().subscribeVisibleLogicalRangeChange(check);
+    return () => {
+      checkOlder.current = null;
+      inputs.forEach((name) => host.removeEventListener(name, mark));
+      host.removeEventListener('pointermove', drag);
+      try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(check); } catch { /* Chart schon entfernt */ }
+    };
+  }, [binding]);
+  // Eine Seite ist angekommen: reicht die Ansicht noch an den linken Rand, gleich die nächste holen
+  useEffect(() => {
+    if (olderEdge !== null) return;
+    const frame = requestAnimationFrame(() => checkOlder.current?.());
+    return () => cancelAnimationFrame(frame);
+  }, [olderEdge, data.points]);
 
   // Fehlende Bereiche und Marktpausen (beide abschaltbar)
   useEffect(() => {
@@ -728,6 +806,7 @@ export function ChartCore({
           </div>
         )}
         {scene && !scene.binding.isDisposed() && renderOverlay?.(scene)}
+        {olderEdge && <OlderEdgeMark binding={binding} state={olderEdge} firstTime={data.bars[0]?.time ?? null} />}
         {trendMenu}
       </div>
     ) : (
