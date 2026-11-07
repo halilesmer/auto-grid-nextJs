@@ -20,7 +20,7 @@ import { TrendToggle } from './TrendToggle';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useT } from '@/i18n';
 import { buildChartData, CHART_TIMEFRAME_SEC, CHART_TIMEFRAMES, dataTimeframeOf, type Bar, type ChartTimeframe } from '@/lib/analysis/candles';
-import { calendarFromDaily, isCalendarTimeframe, liveCalendarBar, periodStart } from '@/lib/analysis/calendarBars';
+import { barEnd, calendarFromDaily, isCalendarTimeframe, liveCalendarBar, periodStart } from '@/lib/analysis/calendarBars';
 import { DAY_SEC } from '@/lib/serverTime';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
 import { brokerNow } from '@/lib/serverTime';
@@ -98,7 +98,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     {symbol && ready && !isLoading && !accepted && <ChartNotice><Alert tone="warning" title={t('cw.invalidSymbol')} /></ChartNotice>}
     {rates.error && <ChartNotice><Alert tone="danger" title={rates.error} /></ChartNotice>}
     {trend.error && <ChartNotice><Alert tone="danger" title={trend.error} /></ChartNotice>}
-    {rates.data && data && <ChartNotice><DataQualityBanner missing={dailyMissing ?? data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} /></ChartNotice>}
+    {rates.data && data && <ChartNotice><DataQualityBanner missing={dailyMissing ?? data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} calendar={calendar !== null} /></ChartNotice>}
     {rates.loading && <p className="rounded-lg bg-background/95 p-2 text-sm text-muted-foreground">{t('analysis.chart.loading')}</p>}
   </>;
   return <ChartPage
@@ -119,7 +119,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     surface={<div className="absolute inset-0" data-testid="free-chart-panel">
       {shown && accepted && <ChartView key={accepted} workspace={{ key: workspaceKey({ source, view: 'analysis', mode: 'free', account: accountId, symbol: accepted }), symbol: accepted, view: 'free', syncIdentity: { source, account: accountId, symbol: accepted } }}
         signalBars={signalBars} timeframe={timeframe}
-        data={shown ?? data!} timeframeSec={tfSec} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
+        data={shown ?? data!} timeframeSec={tfSec} until={calendar ? barEnd(calendar, (shown ?? data!).bars.at(-1)?.time ?? 0) : undefined} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
         band={null} lines={[]} markers={[]} live={calendar ? null : live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={calendar || offsetSec === null || rates.data?.liveFrom == null ? null : now()}
         fullscreenOfPage />}
     </div>}

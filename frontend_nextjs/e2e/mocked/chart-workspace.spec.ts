@@ -717,3 +717,18 @@ test.describe('ANA-26 W1 und MN im freien Chart', () => {
     await expect(page.getByTestId('timeframe-W1')).toHaveCount(0);
   });
 });
+
+test('ANA-26 D1-Lücke: Hinweis nennt D1, W1 zeichnet keinen Lückenplatz', { tag: '@ANA-26' }, async ({ page, worker }) => {
+  const rows: number[][] = [];
+  for (let t = Date.UTC(2024, 0, 3) / 1000; t < Date.UTC(2024, 1, 10) / 1000; t += 86400) {
+    const wd = new Date(t * 1000).getUTCDay();
+    // 17. and 18. January have no candle: that is the gap
+    if (wd !== 0 && wd !== 6 && t !== Date.UTC(2024, 0, 17) / 1000 && t !== Date.UTC(2024, 0, 18) / 1000) rows.push([t, 100, 110, 90, 105]);
+  }
+  worker.state.ratesSeries = { D1: rows };
+  worker.state.ratesMissing = [{ from: Date.UTC(2024, 0, 17) / 1000, to: Date.UTC(2024, 0, 19) / 1000, reason: 'unavailable', checked_at: Date.UTC(2024, 1, 1) / 1000 }];
+  await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=W1&from=2024-01-03&to=2024-02-10`);
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', '6');
+  await expect(page.getByTestId('missing-ranges').locator('li')).toHaveCount(1);
+  await expect(page.getByTestId('data-quality')).toContainText(msg('analysis.data.missing.textCalendar'));
+});
