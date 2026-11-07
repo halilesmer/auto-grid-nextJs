@@ -3,7 +3,7 @@ date: 2026-11-07
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [434]
 features: [BKT-05, ACC-05, ANA-07, USR-04, ANA-04]
 areas: [worker, frontend, tests, docs]
 ---

@@ -3,7 +3,7 @@ date: 2026-11-07
 author: Claude
 type: plan
 status: open
-pr: []
+pr: [434]
 features: [BKT-05, ANA-04, ANA-07, ACC-05, USR-04, ANA-26, ANA-27]
 areas: [worker, frontend, docs]
 ---
