@@ -1494,6 +1494,17 @@ kategorien:
           - "Reiter Göstergeler: das Auge einer Zeile klicken; der Indikator verschwindet im Chart, ein zweiter Klick zeigt ihn wieder."
         erwartet: "Ein Knopf verwaltet Indikatoren und Zeichnungen; alle Einstellungen der früheren Objektliste sind im Reiter Çizimler erreichbar, Ein-/Ausblenden im Reiter Göstergeler."
 
+      - id: UI-21
+        titel: "Dialoge ohne Unschärfe und ohne Abdunkeln"
+        beschreibung: "Hinter jedem Dialog bleibt die Seite scharf und unverändert sichtbar (Plan 1107-A1, Entwurf „Modal Arka Planı“, Variante C). Die Hintergrundschicht nimmt ihre Farbe nur aus der CSS-Variablen --overlay (globals.css, Tailwind-Klasse bg-overlay), in beiden Themes transparent und ohne backdrop-filter. Das gilt für alle Dialoge mit Modal (Indikator- und Zeichnungseinstellungen, Chart-Einstellungen, Trendlinie, Alarm, Bestätigungen, Verbindung, Symbol hinzufügen, Backtest, Benutzer, Update), für das Kontoformular (natives <dialog>, ::backdrop) und für das Datums-Panel der Formasyon-Seite auf dem Telefon. Ein Klick neben den Dialog und Escape schließen ihn wie bisher. Keine Worker-Änderung."
+        code: [frontend_nextjs/src/app/globals.css, frontend_nextjs/src/components/ui/modal.tsx, frontend_nextjs/src/components/account/components/AccountFormDialog.tsx, frontend_nextjs/src/components/formation/FormationAsOf.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/modal-backdrop.spec.ts (@UI-21) ausführen."
+          - "/chart öffnen, Indikatoren → RSI → Ayarlar, in hellem und dunklem Theme: der Chart hinter dem Dialog ist scharf und nicht abgedunkelt; ein Klick neben den Dialog schließt ihn."
+          - "Dashboard → Kontomenü → Konto hinzufügen: auch hinter dem Kontoformular ist die Seite scharf und nicht abgedunkelt."
+        erwartet: "Kein Dialog macht die Seite dahinter unscharf oder dunkler; Schließen durch Klick daneben und Escape funktioniert weiter."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)

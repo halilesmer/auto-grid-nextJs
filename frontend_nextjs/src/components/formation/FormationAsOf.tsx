@@ -187,7 +187,7 @@ export function FormationAsOf({ pastAt, now, onChange, float = false }: Props) {
       )}
       {open && createPortal(
         <>
-          <div className="fixed inset-0 z-[70] bg-black/40 sm:hidden" aria-hidden="true" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-[70] bg-overlay sm:hidden" aria-hidden="true" onClick={() => setOpen(false)} />
           <div
             ref={panel}
             style={{ '--asof-top': place.top, '--asof-bottom': place.bottom, '--asof-right': `${place.right}px` } as CSSProperties}
