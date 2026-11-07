@@ -316,6 +316,13 @@
       "tests": 13
     }
   },
+  "ANA-27": {
+    "e2e": {
+      "datum": "2026-11-07",
+      "status": "passed",
+      "tests": 6
+    }
+  },
   "BKT-01": {
     "unit": {
       "datum": "2026-11-05",

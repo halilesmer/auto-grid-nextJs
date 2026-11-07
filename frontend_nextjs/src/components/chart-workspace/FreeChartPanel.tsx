@@ -57,6 +57,9 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     return { ...d1.data, bars, liveFrom };
   }, [d1.data, calendar]);
   const rates = { data: ratesData, loading: d1.loading, error: d1.error };
+  // Left edge of the chart (1107-A4.3): a pill shows while a page loads and where loading ends. Not shown while more pages wait.
+  const endOfData = d1.data?.older === 'range' || d1.data?.older === 'history' || d1.data?.older === 'limit' ? d1.data.older : null;
+  const olderEdge = d1.loadingOlder ? 'loading' as const : endOfData;
   const tfSec = CHART_TIMEFRAME_SEC[timeframe];
   const data = useMemo(() => {
     if (!rates.data) return null;
@@ -98,7 +101,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
     {symbol && ready && !isLoading && !accepted && <ChartNotice><Alert tone="warning" title={t('cw.invalidSymbol')} /></ChartNotice>}
     {rates.error && <ChartNotice><Alert tone="danger" title={rates.error} /></ChartNotice>}
     {trend.error && <ChartNotice><Alert tone="danger" title={trend.error} /></ChartNotice>}
-    {rates.data && data && <ChartNotice><DataQualityBanner missing={dailyMissing ?? data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} calendar={calendar !== null} /></ChartNotice>}
+    {rates.data && data && <ChartNotice><DataQualityBanner missing={dailyMissing ?? data.missing} clipped={rates.data.clipped} dbFull={rates.data.dbFull} loadedFrom={rates.data.from} calendar={calendar !== null} scroll allHistory={range.from === null} limit={rates.data.older === 'limit'} /></ChartNotice>}
     {rates.loading && <p className="rounded-lg bg-background/95 p-2 text-sm text-muted-foreground">{t('analysis.chart.loading')}</p>}
   </>;
   return <ChartPage
@@ -121,6 +124,7 @@ export function FreeChartPanel({ accountId, symbol, onSymbol, timeframe, onTimef
         signalBars={signalBars} timeframe={timeframe}
         data={shown ?? data!} timeframeSec={tfSec} until={calendar ? barEnd(calendar, (shown ?? data!).bars.at(-1)?.time ?? 0) : undefined} digits={rates.data?.digits ?? null} viewKey={`${accountId}|${accepted}|${timeframe}|${range.from}|${range.to}`}
         band={null} lines={[]} markers={[]} live={calendar ? null : live} trendPath={trend} toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />} clockNow={calendar || offsetSec === null || rates.data?.liveFrom == null ? null : now()}
+        onNeedOlder={d1.loadOlder} olderEdge={olderEdge}
         fullscreenOfPage />}
     </div>}
     floating={<ChartOverlays notices={notices} />}

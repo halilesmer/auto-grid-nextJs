@@ -11,7 +11,11 @@ import {
   liveBar,
   MAX_GAP_SLOTS,
   MAX_CHART_BARS,
+  mergeHead,
   mergeTail,
+  MAX_TOTAL_BARS,
+  OLDER_PAGE_BARS,
+  olderPage,
   OPEN_RANGE_BARS,
   ratesWindow,
   wilderRsi,
@@ -91,6 +95,36 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
       { from: MON, to: MON + 3600, reason: 'busy', checked_at: null },
       { from: MON + 3600, to: MON + 9000, reason: 'unavailable', checked_at: 1 },
     ]);
+  });
+
+  test('Ältere Kerzen: der Anfang ersetzt nur bis zum Schnittpunkt, nichts geht verloren', { tag: '@ANA-27' }, () => {
+    const at = MON + 3600;
+    const old = { bars: bars(at, at + 3600), missing: [{ from: at - M15, to: at + M15, reason: 'busy', checked_at: 1 }] };
+    const head = { bars: bars(MON, at + M15), missing: [{ from: MON - 7200, to: MON, reason: 'unavailable', checked_at: 2 }] };
+    const merged = mergeHead(old, head, at);
+    // Die Kerzen sind streng steigend und lückenlos; die Kerze am Schnittpunkt gilt aus der alten Antwort
+    expect(merged.bars.map((b) => b.time)).toEqual(bars(MON, at + 3600).map((b) => b.time));
+    // Ein alter Bereich über den Schnittpunkt hinaus bleibt ab dem Schnittpunkt; der neue endet dort
+    expect(merged.missing).toEqual([
+      { from: MON - 7200, to: MON, reason: 'unavailable', checked_at: 2 },
+      { from: at, to: at + M15, reason: 'busy', checked_at: 1 },
+    ]);
+    expect(mergeHead({ bars: bars(at, at + 3600), missing: [] }, { bars: [], missing: [] }, at).bars).toHaveLength(4);
+  });
+
+  test('Seite für ältere Kerzen: höchstens eine Seite, nie vor dem Zeitraumbeginn, Gesamtgrenze', { tag: '@ANA-27' }, () => {
+    const loaded = MON + 400 * 86400;
+    // „Alles“ (ohne Beginn): eine volle Seite davor
+    expect(olderPage(loaded, null, 60, 100_000)).toEqual({ from: loaded - OLDER_PAGE_BARS * 60, to: loaded });
+    // Beginn nah: die Seite endet genau dort, danach ist der Beginn erreicht
+    const start = loaded - 1000 * 60;
+    expect(olderPage(loaded, start, 60, 100_000)).toEqual({ from: start, to: loaded });
+    expect(olderPage(start, start, 60, 101_000)).toEqual({ edge: 'range' });
+    // Unter der Gesamtgrenze kommt immer eine volle Seite (die letzte darf darüber hinausgehen), ab der Grenze keine mehr
+    expect(olderPage(loaded, null, 60, MAX_TOTAL_BARS - 10)).toEqual({ from: loaded - OLDER_PAGE_BARS * 60, to: loaded });
+    expect(olderPage(loaded, null, 60, MAX_TOTAL_BARS)).toEqual({ edge: 'limit' });
+    // Der Beginn gewinnt, wenn beides zugleich gilt
+    expect(olderPage(start, start, 60, MAX_TOTAL_BARS)).toEqual({ edge: 'range' });
   });
 
   test('Abfragefenster: ausgerichtet, zu lange Zeiträume und „alles“ nur mit dem Ende', { tag: '@ANA-11' }, () => {
