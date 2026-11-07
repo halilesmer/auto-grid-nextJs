@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, ZONE_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { nowMs } from '../fixtures/mock-worker';
+import { OPEN_RANGE_BARS } from '../../src/lib/analysis/candles';
 import { dialogTab, openDrawings } from '../fixtures/chart-dialog';
 
 /** Zoom in per Mausrad auf der Mitte des Charts: das Overlay-Layout (UI-10) hat keine +/−-Knöpfe */
@@ -836,11 +838,19 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (M1)', () =>
   test('„Tümü“: erst eine Seite ohne Kerzen entscheidet über den Beginn der MT5-Historie, der Bereich davor zählt nicht als fehlend', { tag: '@ANA-27' }, async ({ page, worker }) => {
     test.setTimeout(120_000);
     worker.state.ratesAllDays = true;
-    const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 60) * 60;
+    const latest = Math.floor((nowMs() / 1000 + worker.state.brokerOffset) / 60) * 60;
     worker.state.ratesSince = latest - 30_000 * 60;
+    // Das Fenster „alles“ endet am Ende des Brokertags und reicht OPEN_RANGE_BARS Minuten zurück (ratesWindow);
+    // Kerzen gibt es nur bis jetzt. Erste Ladung also OPEN_RANGE_BARS minus die Minuten bis Tagesende, nicht
+    // immer 4000–5999 (nachts, kurz nach dem Wechsel der Uhrzeit, wären es weniger).
+    const dayEnd = Math.floor(latest / 86_400) * 86_400 + 86_400;
+    const expectedFirst = (latest - (dayEnd - OPEN_RANGE_BARS * 60)) / 60 + 1;
     await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=M1&range=all`);
     const chart = page.getByTestId('analysis-chart');
-    await expect(chart).toHaveAttribute('data-bars', /^[45]\d{3}$/);
+    // ±1: zwischen dieser Rechnung und der Antwort des Mocks kann die Minute wechseln
+    await expect
+      .poll(async () => Math.abs(Number(await chart.getAttribute('data-bars')) - expectedFirst))
+      .toBeLessThanOrEqual(1);
     await expect(page.getByTestId('data-quality')).toContainText(msg('analysis.data.scroll.title'));
     const edge = () => page.evaluate(() => document.querySelector('[data-testid="older-edge"]')?.getAttribute('data-state') ?? null);
     // Bis zur ersten Kerze schieben, bis die Anzeige „Beginn der Historie“ meldet (zwei Seiten mit Kerzen, dann eine leere)
