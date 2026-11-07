@@ -119,7 +119,7 @@ export function barsOf(
 
 /** Höchstens so viele Kerzen im Chart (zwei Antworten des Workers); mehr: größeren Zeitrahmen wählen */
 export const MAX_CHART_BARS = 100_000;
-/** „Alles“ ohne Anfang: die letzten so vielen Kerzen */
+/** „Alles“ ohne Anfang: das Fenster reicht so viele Zeitrahmen vom Zeitraumende (heutiges Brokertag-Ende) zurück; am Tagesanfang gibt es daher weniger echte Kerzen */
 export const OPEN_RANGE_BARS = 5_000;
 
 /**
