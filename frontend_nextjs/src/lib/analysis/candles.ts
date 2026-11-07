@@ -228,12 +228,14 @@ export function olderPage(
   rangeFrom: number | null,
   tfSec: number,
   have: number,
-): { from: number; to: number } | { edge: 'range' | 'limit' } {
+): { from: number; to: number } | { edge: OlderEdge } {
   if (rangeFrom !== null && loadedFrom <= rangeFrom) return { edge: 'range' };
+  // Der Worker nimmt nur from >= 0 (api/market.py); vor 1970 gibt es keine Kerzen
+  if (loadedFrom <= 0) return { edge: 'history' };
   if (have >= MAX_TOTAL_BARS) return { edge: 'limit' };
   // Immer eine volle Seite: ein kleines Restfenster könnte ganz in ein Wochenende fallen und leer zurückkommen.
   // Darum liegt der Chart am Ende bis zu einer Seite über MAX_TOTAL_BARS
-  const from = loadedFrom - OLDER_PAGE_BARS * tfSec;
+  const from = Math.max(0, loadedFrom - OLDER_PAGE_BARS * tfSec);
   return { from: rangeFrom === null ? from : Math.max(from, rangeFrom), to: loadedFrom };
 }
 

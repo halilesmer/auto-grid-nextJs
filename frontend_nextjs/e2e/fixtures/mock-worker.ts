@@ -984,6 +984,9 @@ export class MockWorker {
         return this.csvRates(seg[1], source.slice('csv:'.length), url.searchParams, principal);
       }
       if (s.ratesError) return { status: s.ratesError.status, body: { detail: s.ratesError.detail } };
+      // Wie der Worker (api/market.py): from >= 0, to > 0, from < to; sonst 422
+      const fromQ = Number(url.searchParams.get('from')), toQ = Number(url.searchParams.get('to'));
+      if (!(fromQ >= 0) || !(toQ > 0)) return { status: 422, body: { detail: 'from >= 0 und to > 0 nötig' } };
       if (s.ratesErrorSymbols.includes(url.searchParams.get('symbol') ?? '')) return { status: 500, body: { detail: 'MT5 error' } };
       if (url.searchParams.get('tick_spread') === '1' && (url.searchParams.get('timeframe') ?? 'M1') !== 'M1') {
         return { status: 400, body: { detail: 'tick_spread yalnız M1 için' } };

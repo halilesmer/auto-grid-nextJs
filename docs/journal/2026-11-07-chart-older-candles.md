@@ -58,3 +58,23 @@ Method: `e2e/mocked/chart-older-performance.spec.ts`, mocked worker, headless Ch
 
 ## Open
 - Live check on the DEMO account (step S3): USOUSD, M1. "Last 12 months" ends at the limit message (about 7 months). Use "Last 3 months" to reach the range start and "All" on D1 or W1 to reach the start of the history.
+
+## Fix: older pages on D1 "All" (live check S3, 2026-11-07)
+- Symptom: D1 with "All" (about 3 500 candles, from 2013). Dragging to the left edge sent no usable request. Nothing loaded and no display appeared.
+- Cause: `olderPage` asked for a page of 20 000 candles before the loaded start. On D1 that is 20 000 days (55 years). The start of the first page, 2013 minus 55 years, is before 1970 and negative. The worker accepts only `from >= 0` (`api/market.py`, `ge=0`) and answers 422. The hook treats every failure as a pause of 15 s and shows nothing, so the error stayed invisible. W1 and MN use D1 pages and had the same fault. M1 to H4 never reach 1970 with one page.
+- Fix: `olderPage` limits `from` to 0 and returns the end `history` when the loaded start is 0 or less. The `unavailable` ranges before the first candle then leave the missing list. The mock worker now answers 422 for `from < 0` as the real worker does. Tests: `olderPage` logic test and a page test with D1 "All" and a history that starts in 1970 (red before the fix).
+- Not done: a failed page still shows no message. A visible error needs a design decision.
+
+## How far can a user drag on M1? (measurement, no code change)
+Method: temporary `minBarSpacing` option, 100 000 M1 candles, chart 1 228 px wide, maximum zoom out, 8 drags of half the chart width, headless Chromium on the MacBook.
+
+| `minBarSpacing` (px) | Candles in view | Candles per drag | Drags for 100 000 candles | Frame time median / p95 |
+|---|---|---|---|---|
+| 0.5 (default) | 2 327 | 820 | 122 | 16.7 / 24 ms |
+| 0.2 | 5 829 | 2 050 | 49 | 16.7 / 27 ms |
+| 0.1 | 11 659 | 4 100 | 25 | 16.7 / 49 ms |
+| 0.05 | 23 319 | 8 200 | 13 | 17.0 / 95 ms |
+
+- With the default, the left edge of 100 000 M1 candles is about 120 drags away. That is not practical for a person. The live check confirmed it.
+- A lower `minBarSpacing` helps only in part. At 0.1 px a candle is much narrower than a pixel and unreadable, and the p95 frame time grows to 49 ms (95 ms at 0.05).
+- Options (none is built): (1) a "go to start" control that jumps to the first loaded candle and loads the next page. It is a visible UI element and needs design approval. (2) The key `Home` for the same action. (3) `minBarSpacing` 0.2 as a cheap step: it halves the drags and keeps the frame time. (4) For long history, use H1 or a larger timeframe and zoom into M1 only for a small range.
