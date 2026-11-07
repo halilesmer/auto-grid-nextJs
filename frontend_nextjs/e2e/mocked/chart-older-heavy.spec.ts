@@ -87,6 +87,8 @@ test.describe('ANA-27 Zeitraum über 100.000 Kerzen (M1)', () => {
   // 78 Tage M1 = 112.320 Kerzen: mehr als die 100.000 der ersten Ladung, der Rest kommt nach
 
   test('Sola kaydırınca bir sayfa eklenir, görünen zaman aralığı aynı kalır, aralık başında yükleme durur', { tag: '@ANA-27' }, async ({ page, worker }) => {
+    // Wie vor dem Umzug dieses Tests aus chart-workspace.spec.ts (90 s); der Umzug hatte die Angabe verloren
+    test.setTimeout(90_000);
     worker.state.ratesAllDays = true;
     const { chart, rangeOf, before, loadedFrom, release } = await openNearLeftEdge(page, worker, { url: M1_URL, initialBars: '100000' });
     release();
