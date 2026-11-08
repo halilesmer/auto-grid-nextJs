@@ -46,7 +46,7 @@ test.describe('UI Sprache', () => {
 
     await page.goto('/vps');
     await expect(page.getByRole('heading', { name: msg('vps.title', undefined, 'en') })).toBeVisible();
-    await page.goto('/chart?mode=setup');
+    await page.goto('/chart');
     await expect(page.getByRole('heading', { name: msg('nav.chart', undefined, 'en') })).toBeVisible();
   });
 

@@ -160,7 +160,7 @@ export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol
       align="left"
       className="max-lg:mr-1"
       panelClassName="w-80 max-w-[calc(100vw-1rem)]"
-      triggerProps={{ 'data-testid': 'formation-alarm', 'data-enabled': String(active), disabled: pastView }}
+      triggerProps={{ 'data-testid': 'formation-alarm', 'data-enabled': String(active), 'data-keep': '', disabled: pastView }}
     >
       <div className="flex flex-col gap-3 p-3" data-testid="formation-alarm-panel">
         <div className="flex flex-col gap-0.5">

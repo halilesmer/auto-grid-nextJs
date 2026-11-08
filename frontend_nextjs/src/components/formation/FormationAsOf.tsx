@@ -167,6 +167,7 @@ export function FormationAsOf({ pastAt, now, onChange, float = false, disabledHi
         aria-expanded={open}
         aria-haspopup="dialog"
         data-testid={id}
+        data-keep=""
         data-state={past ? 'past' : 'live'}
         onClick={toggle}
       >

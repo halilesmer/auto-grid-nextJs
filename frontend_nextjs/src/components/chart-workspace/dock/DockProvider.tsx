@@ -100,7 +100,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const rows = useRef<Partial<Record<DockRowZone, HTMLElement>>>({}), chart = useRef<HTMLElement | null>(null), wraps = useRef(new Map<PackageId, Wrap>()), accountEl = useRef<HTMLElement | null>(null);
   const layoutRef = useRef(layout), presentRef = useRef(present), fallbackRef = useRef(fallback), phoneRef = useRef(phone), reduceRef = useRef(reduce);
   const dragRef = useRef<Drag | null>(null), ghostRef = useRef<HTMLElement | null>(null), slotRef = useRef<HTMLElement | null>(null), raf = useRef(0);
-  const suppress = useRef(false), focusAfter = useRef<PackageId | null>(null), pendingFlip = useRef<{ before: Map<string, DOMRect>; from: Record<string, DOMRect> } | null>(null), fitQueued = useRef(false);
+  const flips = useRef({ n: 0, at: 0 }), suppress = useRef(false), focusAfter = useRef<PackageId | null>(null), pendingFlip = useRef<{ before: Map<string, DOMRect>; from: Record<string, DOMRect> } | null>(null), fitQueued = useRef(false);
   useLayoutEffect(() => { layoutRef.current = layout; presentRef.current = present; fallbackRef.current = fallback; phoneRef.current = phone; reduceRef.current = reduce; });
 
   const placeOf = useCallback((id: PackageId): DockPlace => {
@@ -202,7 +202,13 @@ export function DockProvider({ children }: { children: ReactNode }) {
       });
     }
     // Hiçbir satırda ve grafikte yeri olmayan paket (satır henüz kayıtlı değil): kutu bağsız kalır, satır gelince yerleşir
-    setFallback(prev => sameList(prev, fb) ? prev : fb);
+    // The free area depends on the bottom row that a fallback fills, so near the limit the two states can alternate. After a few quick
+    // switches the last state stays (no endless render loop, 1107-A21: the side bar strip makes the free area narrower)
+    if (!sameList(fallbackRef.current, fb)) {
+      const at = performance.now();
+      flips.current = at - flips.current.at < 250 ? { n: flips.current.n + 1, at } : { n: 0, at };
+      if (flips.current.n <= 4) setFallback(fb);
+    }
     fitAll();
   };
   const refit = useCallback(() => {

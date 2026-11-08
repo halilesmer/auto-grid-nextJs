@@ -1,6 +1,16 @@
 /** BOT-04 Statusanzeige + Alarme · MET · Kennzahlenleiste und Chart. */
+import type { Page } from '@playwright/test';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 import { fmt, msg } from '../fixtures/i18n';
+
+/** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen, dann stehen die Live-Werte da */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const card = page.getByTestId('chart-floating-card');
+  const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(card.getByTestId('chart-card-overview')).toBeVisible();
+}
 
 test.describe('BOT Status und Alarme', () => {
   test('Start: Connecting → Running, Stop mit Rückfrage', { tag: '@BOT-04' }, async ({ page, worker, dashboard }) => {
@@ -122,7 +132,8 @@ test.describe('MET Live-Daten', () => {
   });
 
   test('Chart zeigt Preis, RSI, P/L und Positionen aus dem Stream', { tag: '@MET-02' }, async ({ page, worker }) => {
-    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`);
+    await openCard(page);
     await expect.poll(() => worker.openSockets).toBe(1);
     await expect(page.getByTestId('chart-stat-rsi')).toContainText('--');
 

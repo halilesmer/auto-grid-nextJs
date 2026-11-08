@@ -4,7 +4,7 @@ import { msg } from '../fixtures/i18n';
 
 // Taşınabilir araç grupları (UI-16, 1105-A5.8, journal 2026-11-05-toolbar-groups). UI-17 (1106-A1, S2) ile paketler yuvalara taşındı:
 // bu dosya UI-16'nın davranışını (tutamaç, menü, sürükle-bırak, serbest alan, 375 px) yeni modelde doğrular; yuva ve ok menüsü testleri chart-dock.spec.ts'te.
-const URL = `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -40,8 +40,8 @@ test('Varsayılan yerleşim: bütün gruplar alt çubukta, tutamaçlı ve adlı'
   }
   await expect(group(page, 'edit')).toHaveAttribute('aria-label', msg('cw.tbGroup.edit'));
   await expect(handle(page, 'edit')).toHaveAccessibleName(msg('cw.tbHandle'));
-  // Satır 1'de araç grubu yok; yalnız mod, ürün, hesap (çapa) ve aksiyonlar durur (S4)
-  expect(await row(page, 'row1').locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.dockWrap))).toEqual(['mode', 'symbol', 'account', 'actions']);
+  // Satır 1'de araç grubu yok; yalnız ürün, hesap (çapa) ve aksiyonlar durur (S4; mod paketi tek grafikle kalktı, 1107-A21)
+  expect(await row(page, 'row1').locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.dockWrap))).toEqual(['symbol', 'account', 'actions']);
 });
 
 test('Grubu Satır 1\'e sürükle: yenilemeden sonra yerinde', { tag: '@UI-16' }, async ({ page, worker }) => {
@@ -94,7 +94,8 @@ test('Tutamaç menüsüyle yalnız klavye: grafiğe bırak, ok tuşuyla kaydır,
   expect((await stored(page)).bottom).toContain('indicators');
   // Alttaki grupta Katmanlar menüsü yukarı açılır ve ekranda kalır
   await page.getByTestId('layers-button').click();
-  const panel = (await page.getByTestId('layers-menu').boundingBox())!;
+  // `layers-menu` ist der scrollbare Inhalt (zwei Gruppen, höher als das Fenster); gemessen wird das sichtbare Feld darum herum
+  const panel = (await page.getByTestId('layers-menu').locator('xpath=ancestor::*[contains(@class,"overflow-y-auto")][1]').boundingBox())!;
   expect(panel.y).toBeGreaterThanOrEqual(0);
   expect(panel.y + panel.height).toBeLessThanOrEqual(900);
 });

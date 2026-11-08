@@ -7,7 +7,7 @@ import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
-const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
+const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`;
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 /** Wave 5/35 braucht 35 Kerzen, bis der erste Wert steht (Wert ab Kerze 35) */
 const WAVE_WARMUP = 34;
@@ -125,6 +125,8 @@ test.describe('UI-11 schmale Breite', () => {
   for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
     test(`${name}: unter 71 rem enden die Fenster über der Werkzeugkarte, darüber stehen sie neben der Kopfleiste`, { tag: '@UI-11' }, async ({ page, worker }) => {
       void worker;
+      // The rule is about the chart width: the side bar of the one chart starts open from 1024 px and takes 288 px, so it is closed here
+      await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' })));
       for (const [width, narrow] of [[375, true], [1440, false]] as const) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(url);
@@ -138,8 +140,8 @@ test.describe('UI-11 schmale Breite', () => {
           // Die zugeklappte Setup-Karte hat einen eigenen Streifen über den Werkzeugen (--floating-card, UI-12)
           const card = await page.getByTestId('formation-main').evaluate(el => parseFloat(el.style.getPropertyValue('--floating-card')) || 0);
           // Obergrenze: höchstens die Höhe der Karte plus 4 px Abstand und 4 px Toleranz
-          if (name === 'Setup') expect(card).toBeLessThanOrEqual((await box('chart-floating-card')).height + 8);
-          else expect(card).toBe(0);
+          // Auch ein Symbol ohne Setup hat die Karte (mit dem Hinweis „kein Setup“, UI-22), also gilt die Grenze für beide
+          expect(card).toBeLessThanOrEqual((await box('chart-floating-card')).height + 8);
           expect((await box('workspace-toolbar')).y - (await bottomOf('analysis-chart'))).toBeLessThanOrEqual(24 + card);
           expect((await box('analysis-chart')).height).toBeGreaterThan(300);
         } else await expect.poll(async () => workspaceBottom - (await bottomOf('analysis-chart'))).toBeLessThanOrEqual(1);
@@ -152,7 +154,7 @@ test.describe('UI-11 schmale Breite', () => {
  * React meldet doppelte Schlüssel nur auf der Konsole, und nur im Dev-Build: im Produktions-Build dieses Laufs bleibt der Test grün.
  * Er greift gegen `next dev` (E2E_REUSE=1 E2E_PORT=<Port>, Server mit NEXT_PUBLIC_API_URL=http://mock-worker.test).
  */
-for (const [name, url] of [['frei', FREE], ['Setup', SETUP], ['Formation', `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`]] as const) {
+for (const [name, url] of [['frei', FREE], ['Setup', SETUP], ['Formation', `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`]] as const) {
   test(`UI-11 ${name}: Legende meldet keine doppelten React-Schlüssel`, { tag: '@UI-11' }, async ({ page, worker }) => {
     void worker;
     const errors: string[] = [];

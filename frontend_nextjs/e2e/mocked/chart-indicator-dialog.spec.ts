@@ -104,9 +104,10 @@ test('UI-19: Görünürlük – Saat-Bereich blendet auf H4 aus; Varsayılanlar:
   await expect(dialog(page).getByRole('checkbox')).toHaveCount(3);
   await field(page, 'ind.vis.hour.to').fill('1');
   await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
-  await page.getByRole('radio', { name: 'H4', exact: true }).click();
+  // The timeframe buttons carry a hit badge since the one chart: take them by test id, not by name
+  await page.getByTestId('timeframe-H4').click();
   await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'false');
-  await page.getByRole('radio', { name: 'H1', exact: true }).click();
+  await page.getByTestId('timeframe-H1').click();
   await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'true');
   // Reset restores the factory look of the system RSI
   await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();

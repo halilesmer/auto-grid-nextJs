@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { DEMO_ID, LIVE_ID, ZONE_ID, makeZone, test, expect } from '../fixtures/test';
+import { DEMO_ID, LIVE_ID, makeZone, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { openDrawings } from '../fixtures/chart-dialog';
 
@@ -29,6 +29,8 @@ async function storedDrawings(page: Page, shared = false) {
 test('Gruppen merken das Werkzeug, Favoriten zeigen echte Symbole und bleiben gespeichert', { tag: '@ANA-17' }, async ({ page, worker }) => {
   void worker;
   await page.goto(URL);
+  // The favorites button sits in the bottom left corner of the rail, under the Next dev indicator (nextjs-portal; only in the dev server, not in the production build)
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   await page.getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
   await page.getByRole('button', { name: `${msg('cw.favorite')}: ${msg('cw.tool.ray')}`, exact: true }).click();
   await page.getByTestId('tool-ray').click();
@@ -41,6 +43,7 @@ test('Gruppen merken das Werkzeug, Favoriten zeigen echte Symbole und bleiben ge
   await expect(page.getByTestId('drawing-favorites').locator('[data-tool-icon=ray]')).toBeVisible();
   await page.keyboard.press('Escape');
   await page.reload();
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   await page.getByRole('button', { name: msg('cw.rail.favorites'), exact: true }).click();
   await expect(page.getByTestId('drawing-favorites').locator('[data-tool-icon=ray]')).toBeVisible();
   await expect(page.getByRole('combobox', { name: msg('cw.tools'), exact: true })).toHaveCount(0);
@@ -136,9 +139,9 @@ test('Verknüpfte Ansichten und Tabs teilen Zeichnungen; Trennen stellt privaten
   await page.getByRole('button', { name: msg('cw.rail.link'), exact: true }).click();
   await expect.poll(() => storedDrawings(page, true)).toHaveLength(2);
   const second = await context.newPage(); await worker.install(second);
-  await second.goto(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`);
+  // One chart per account and symbol (1107-A21): the second tab opens the same chart and already shows the link; a click there would unlink it
+  await second.goto(URL);
   await expect(second.getByTestId('drawing-toolbar')).toBeVisible();
-  await second.getByRole('button', { name: msg('cw.rail.link'), exact: true }).click();
   await expect(second.getByRole('button', { name: msg('cw.rail.link'), exact: true })).toHaveAttribute('aria-pressed', 'true');
   await drawLine(second, 60);
   await expect.poll(() => storedDrawings(page, true)).toHaveLength(3);

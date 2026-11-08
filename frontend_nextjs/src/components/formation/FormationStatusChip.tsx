@@ -41,6 +41,7 @@ export function FormationStatusChip({ hit, open, onToggle }: { hit: ScanHit | nu
       aria-controls={open ? 'formation-conditions' : undefined}
       disabled={!hit}
       data-testid="formation-status-chip"
+      data-keep=""
       onClick={onToggle}
     >
       {hit && score && VerdictIcon ? (

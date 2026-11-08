@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
   // Telefon/LAN (SYS-12): `next dev` liefert Dev-Dateien nur an localhost (sonst 403). Weitere Hosts
   // stehen in ALLOWED_DEV_ORIGINS in der Umgebung des Dev-Servers, nicht im Repository. Ohne Wert bleibt alles wie bisher.
   allowedDevOrigins: parseDevOrigins(process.env.ALLOWED_DEV_ORIGINS),
-  // Die Formationsseite ist der Modus Formation von /chart. Alte Links (gespeicherte Alarm-Meldungen, Lesezeichen) behalten ihren Query-String:
+  // Die Formationsseite ist seit dem einen Chart (1107-A21) /chart; ein alter `mode=` wird dort ignoriert. Alte Links (gespeicherte Alarm-Meldungen, Lesezeichen) behalten ihren Query-String:
   // Next reicht die Query-Werte der Anfrage an das Ziel durch.
   async redirects() {
-    return [{ source: '/formasyon', destination: '/chart?mode=formation', permanent: false }];
+    return [{ source: '/formasyon', destination: '/chart', permanent: false }];
   },
   experimental: {
     serverActions: {

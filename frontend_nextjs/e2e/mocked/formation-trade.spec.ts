@@ -15,7 +15,7 @@ import { named, seedFixtureTrend } from '../fixtures/formation-trend';
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
 test.beforeEach(({ page }) => seedFixtureTrend(page));
 
-const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
+const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const load = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')))).bars;
 
 async function openPage(page: Page, worker: MockWorker, file: string, now: number, form: string) {
@@ -26,7 +26,7 @@ async function openPage(page: Page, worker: MockWorker, file: string, now: numbe
   const last = rows[rows.length - 1];
   worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[now - 900, last[4], last[4], last[4], last[4]]] };
   await page.goto(`${URL}&form=${form}`);
-  await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
   // Unter 640 px ist die Seitenleiste zu und öffnet über dem Chart
   if (narrow) await page.getByTestId('conditions-toggle').click();
   await expect(page.getByTestId('candidate-item').first()).toBeVisible();

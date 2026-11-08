@@ -9,7 +9,7 @@ import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
-const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
+const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
 async function open(page: Page, worker: Parameters<Parameters<typeof test>[2]>[0]['worker'], active: boolean) {
@@ -19,7 +19,7 @@ async function open(page: Page, worker: Parameters<Parameters<typeof test>[2]>[0
     if (!localStorage.getItem('grid-robot-formation-alarm')) localStorage.setItem('grid-robot-formation-alarm', JSON.stringify(value));
   }, stored);
   await page.goto(URL);
-  await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+  await expect(page.getByTestId('chart-topbar')).toBeVisible();
   await page.getByTestId('formation-alarm').click();
   await page.getByTestId('formation-alarm-panel').getByRole('tab', { name: msg('formation.alarm.tab.settings') }).click();
 }
@@ -77,7 +77,7 @@ test.describe('FRM-43 Hauptschalter und Trend-Zeile', () => {
       if (!localStorage.getItem('grid-robot-formation-alarm')) localStorage.setItem('grid-robot-formation-alarm', JSON.stringify(value));
     }, stored);
     await page.clock.install();
-    await page.goto(`/chart?account=${DEMO_ID}&mode=free`);
+    await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
     await expect.poll(ratesCalls, { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
     const before = ratesCalls();
     serve(worker, Date.UTC(2025, 10, 17, 12) / 1000);

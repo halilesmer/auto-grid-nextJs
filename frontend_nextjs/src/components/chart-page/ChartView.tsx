@@ -21,6 +21,9 @@ export interface ChartViewProps extends Omit<ChartCoreProps, OwnProps> {
   /** Schalter des Modus im Menü „Ebenen“, unter den gemeinsamen Ebenen; `modeTitle` ist ihre Überschrift */
   modeLayers?: ReactNode;
   modeTitle?: string;
+  /** Groups "Formation" and "Setup" of the menu "Layers" (one chart, 1107-A21) */
+  formationLayers?: ReactNode;
+  setupLayers?: ReactNode;
   /** Zeichenfläche des Modus über dem Chart (z. B. die Formationszeichnung) */
   renderOverlay?: (scene: ChartScene) => ReactNode;
   /** Einstellungen des Modus im Abschnitt „Auto Grid katmanları“ der Chart-Einstellungen (z. B. Tabelle der Formationslinien) */
@@ -45,7 +48,7 @@ function seriesPoints(bars: readonly Bar[], values: (number | null)[]) {
  * Ebenen, die jeder Chart zeigt: System-RSI(7) und Wave 5/35 aus denselben Kerzen wie der Chart. Der Modus liefert
  * nur seine Daten, seine Schalter und seine Zeichenfläche.
  */
-export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, renderOverlay, modeSettings, workspace, toolbarActions, ...core }: ChartViewProps) {
+export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, formationLayers, setupLayers, renderOverlay, modeSettings, workspace, toolbarActions, ...core }: ChartViewProps) {
   const overlays = useChartOverlays(workspace.key, { rsi: true, wave: true });
   const showPauses = useAnalysisPrefsStore(s => s.showPauses), showGaps = useAnalysisPrefsStore(s => s.showGaps);
   const wavePoints = useMemo(() => seriesPoints(signalBars, wave(signalBars)), [signalBars]);
@@ -55,7 +58,7 @@ export function ChartView({ signalBars, timeframe, modeLayers, modeTitle, render
       workspace={{ ...workspace, systemRsi: true }}
       showPauses={showPauses}
       showGaps={showGaps}
-      toolbarActions={<>{toolbarActions}<LayersMenu contextKey={workspace.key} timeframe={timeframe} rsi={overlays.rsi} wave={overlays.wave} modeTitle={modeTitle}>{modeLayers}</LayersMenu></>}
+      toolbarActions={<>{toolbarActions}<LayersMenu contextKey={workspace.key} timeframe={timeframe} rsi={overlays.rsi} wave={overlays.wave} modeTitle={modeTitle} formationLayers={formationLayers} setupLayers={setupLayers}>{modeLayers}</LayersMenu></>}
       systemWave={{ points: wavePoints, visible: overlays.wave }}
       marginsFor={controlMargins}
       overlayLayout

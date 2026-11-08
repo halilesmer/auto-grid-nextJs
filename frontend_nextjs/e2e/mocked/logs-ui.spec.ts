@@ -1,9 +1,19 @@
 /** LOG · Logs und Worker-Status · UI · Navigation, Theme, PWA, Zonen-Test-Link. */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import type { Page } from '@playwright/test';
 import { DEMO_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { openHeaderMenu, openPageMenu } from '../fixtures/header';
+
+/** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const card = page.getByTestId('chart-floating-card');
+  const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(card.getByTestId('chart-card-overview')).toBeVisible();
+}
 
 test.describe('LOG Logs', () => {
   test('Tabs zeigen Robot- und MT5-Log', { tag: '@LOG-01' }, async ({ page, worker, dashboard }) => {
@@ -183,7 +193,7 @@ test.describe('UI Oberfläche', () => {
 
     await nav.getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(/\/chart$/);
-    await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
+    await expect(page.getByRole('heading', { name: msg('nav.chart') })).toBeVisible();
     await expect(page.getByTestId('nav-menu')).toBeHidden();
     await expect(nav.getByRole('link', { name: msg('nav.chart') })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).not.toHaveAttribute('aria-current', 'page');
@@ -292,11 +302,10 @@ test.describe('UI Oberfläche', () => {
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
-    await page.getByTestId('chart-mode-free').click();
     await expect(page.getByTestId('free-chart-panel')).toBeVisible();
-    await page.getByTestId('chart-mode-setup').click();
-    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
-    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await expect(page.getByTestId('chart-floating-card')).toBeVisible();
+    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
+    await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
 
     // Stream zeigt ein anderes Symbol → Hinweis, keine Zonenlinien
@@ -307,7 +316,7 @@ test.describe('UI Oberfläche', () => {
 
   test('Unbekannte Zone auf /chart', { tag: '@UI-04' }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${DEMO_ID}&zone=gibt-es-nicht`);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=gibt-es-nicht&tf=M15`);
     await expect(page.getByRole('alert').filter({ hasText: msg('chart.zone.notFound') })).toContainText(
       msg('chart.zone.notFound.withAccount'),
     );

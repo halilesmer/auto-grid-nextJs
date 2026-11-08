@@ -7,6 +7,8 @@ import { FormationAsOf, FormationAsOfSteps } from './FormationAsOf';
 import { FormationShotMenu } from './FormationShotMenu';
 import { FormationStatusChip } from './FormationStatusChip';
 
+export type DisabledHint = string | { asOf: string; shot: string };
+
 /**
  * Aktionen der Formation in Zeile 1: Stand in der Vergangenheit samt Schritten, Bild, Alarm und Statuschip.
  * Mit `enabled` false (Zeiteinheit ohne Formationssuche) sind Stand und Bild aus und ihr Hinweis nennt `disabledHint`; der Alarm bleibt offen.
@@ -27,7 +29,10 @@ export function FormationActions({
   hit,
   conditionsOpen,
   onToggleConditions,
-}: ({ enabled?: true; disabledHint?: string } | { enabled: false; /** Hinweis der abgeschalteten Knöpfe: nennt den Grund */ disabledHint: string }) & {
+}: {
+  enabled?: boolean;
+  /** Hinweis der abgeschalteten Knöpfe: nennt den Grund (ein Text für beide oder je einer für Stand und Bild); Pflicht mit `enabled` false */
+  disabledHint?: DisabledHint;
   /** Stand und Schritte nur mit bekanntem Konto */
   showAsOf: boolean;
   pastAt: number | null;
@@ -44,12 +49,13 @@ export function FormationActions({
   conditionsOpen: boolean;
   onToggleConditions: () => void;
 }) {
-  const off = enabled ? undefined : disabledHint;
+  let off: { asOf: string; shot: string } | undefined;
+  if (!enabled && disabledHint !== undefined) off = typeof disabledHint === 'string' ? { asOf: disabledHint, shot: disabledHint } : disabledHint;
   return (
     <>
-      {showAsOf && <FormationAsOfSteps pastAt={pastAt} tfSec={tfSec} now={now} onChange={onAsOf} />}
-      {showAsOf && <FormationAsOf pastAt={pastAt} now={now} onChange={onAsOf} disabledHint={off} />}
-      <FormationShotMenu ready={shotReady} makeImage={makeShotImage} fileName={shotFileName} disabledHint={off} />
+      {showAsOf && enabled && <FormationAsOfSteps pastAt={pastAt} tfSec={tfSec} now={now} onChange={onAsOf} />}
+      {showAsOf && <FormationAsOf pastAt={pastAt} now={now} onChange={onAsOf} disabledHint={off?.asOf} />}
+      <FormationShotMenu ready={shotReady} makeImage={makeShotImage} fileName={shotFileName} disabledHint={off?.shot} />
       <FormationAlarmMenu symbol={symbol} alarm={alarm} pastView={pastAt !== null} />
       <FormationStatusChip hit={hit} open={conditionsOpen} onToggle={onToggleConditions} />
     </>

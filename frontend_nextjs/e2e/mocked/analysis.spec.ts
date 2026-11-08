@@ -2,7 +2,7 @@
  * Analyse-Seite (/chart), Schritt 1 des Plans: Seitengerüst mit Tabs, Konto/Zone, Kalender, Menü „Ebenen“.
  * ANA-01 Seite/Tabs · ANA-02 Konto/Zone ohne fremde Daten · ANA-03 Schalter · ANA-10 Kalender/Brokerzeit
  */
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { MOCK_API } from '../fixtures/env';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
@@ -14,6 +14,26 @@ async function chooseAccount(page: Page, id: string) {
   await accountSelect(page).click();
   const listId = await accountSelect(page).getAttribute('aria-controls');
   await page.locator(`[id="${listId}"]`).getByRole('option').filter({ hasText: `(${id})` }).click();
+}
+
+/** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen, dann steht „Übersicht“ da */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const card = page.getByTestId('chart-floating-card');
+  const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(card.getByTestId('chart-card-overview')).toBeVisible();
+}
+
+/** Ein Element der Kopfleiste. Ist die Leiste zu schmal (UI-17), liegen Chart/Statistik und die Lizenz im ˅-Menü der Aksiyonlar: dann wird es dort gesucht. */
+async function inTopbar(page: Page, find: (scope: Locator) => Locator): Promise<Locator> {
+  const topbar = page.getByTestId('chart-topbar');
+  const direct = find(topbar);
+  const more = topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more');
+  await expect(direct.or(more)).toBeVisible();
+  if (await direct.isVisible()) return direct;
+  await more.click();
+  return find(page.getByTestId('dock-more-menu'));
 }
 
 /** Sichtbare Bedienelemente ohne Hinweis (wie UI-07, tooltips.spec.ts). */
@@ -41,24 +61,25 @@ test.describe('ANA Analyse-Seite', () => {
     void worker;
     await page.goto('/');
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
-    await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
+    await expect(page.getByRole('heading', { name: msg('nav.chart') })).toBeVisible();
     await expect(page.getByRole('alert').filter({ hasText: msg('analysis.noAccount.title') })).toBeVisible();
 
     await chooseAccount(page, DEMO_ID);
-    await page.getByTestId('chart-mode-free').click();
     await expect(page.getByTestId('free-chart-panel')).toBeVisible();
-    await page.getByTestId('chart-mode-setup').click();
-    // Erste Zone des Kontos wird gewählt und steht mit dem Konto in der URL
-    await expect.poll(() => { const q = new URL(page.url()).searchParams; return [q.get('account'), q.get('mode'), q.get('zone')]; }).toEqual([DEMO_ID, 'setup', ZONE_ID]);
+    // Das Produkt der ersten Zone des Kontos wird gezeigt, das Konto steht in der URL, die Karte nennt das Setup
+    await expect.poll(() => { const q = new URL(page.url()).searchParams; return [q.get('account'), q.get('mode')]; }).toEqual([DEMO_ID, null]);
+    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
+    await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
   });
 
   test('Tabs stehen in der URL und überstehen das Neuladen', { tag: '@ANA-01' }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`);
+    await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
 
-    await tab(page, 'analysis.tab.stats').click();
+    await (await inTopbar(page, (scope) => scope.getByRole('tab', { name: msg('analysis.tab.stats') }))).click();
     await expect(page).toHaveURL(/tab=stats/);
     await expect(page.getByTestId('stats-tab')).toBeVisible();
 
@@ -72,8 +93,8 @@ test.describe('ANA Analyse-Seite', () => {
 
   test('Lizenzhinweis von TradingView', { tag: '@ANA-01' }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${DEMO_ID}&mode=setup`);
-    await page.getByRole('button', { name: msg('analysis.license') }).click();
+    await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
+    await (await inTopbar(page, (scope) => scope.getByRole('button', { name: msg('analysis.license') }))).click();
     const info = page.getByTestId('license-info');
     await expect(info).toContainText('TradingView Lightweight Charts™');
     await expect(info.getByRole('link', { name: 'tradingview.com' })).toHaveAttribute('href', 'https://www.tradingview.com/');
@@ -81,8 +102,8 @@ test.describe('ANA Analyse-Seite', () => {
 
   test('Jedes Bedienelement hat einen Hinweis, auch in Kalender und Menü „Ebenen“', { tag: ['@ANA-01', '@UI-07'] }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    await expect(page.getByTestId('zone-select')).toContainText('USOUSD');
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`);
+    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
     expect(await unhinted(page)).toEqual([]);
 
     await page.getByTestId('range-trigger').click();
@@ -97,12 +118,12 @@ test.describe('ANA Analyse-Seite', () => {
 
   test('Werkzeugleiste liegt auf dem Chart, Vollbild an und aus', { tag: '@ANA-15' }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`);
     // Die Lizenz steht in der Kopfleiste (UI-10), das Zahnrad „Anzeige-Einstellungen“ gibt es nicht mehr (UI-13), das Vollbild im Werkzeug des Charts; es zeigt die ganze Chartseite samt Kopfleiste
     const topbar = page.getByTestId('chart-topbar');
     const workspace = page.getByTestId('chart-workspace');
     await expect(page.getByTestId('analysis-settings')).toHaveCount(0);
-    await expect(topbar.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
+    await expect(await inTopbar(page, (scope) => scope.getByRole('button', { name: msg('analysis.license') }))).toBeVisible();
 
     await workspace.getByRole('button', { name: msg('analysis.chart.fullscreen') }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid'))).toBe('chart-page');
@@ -114,40 +135,46 @@ test.describe('ANA Analyse-Seite', () => {
   });
 
   test('Kontowechsel zeigt nie Zonen des alten Kontos', { tag: '@ANA-02' }, async ({ page, worker }) => {
-    await page.goto(`/chart?account=${DEMO_ID}&mode=setup`);
-    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
+    await expect(page.getByTestId('chart-floating-card')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
 
-    // Dasselbe Konto erneut wählen ändert nichts (Zone bleibt)
+    // Dasselbe Konto erneut wählen ändert nichts (das Setup bleibt; die Adresse schreibt `zone` nur nach einer Wahl unter mehreren Setups, UI-22)
     await chooseAccount(page, DEMO_ID);
-    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
+    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&tf=M15`);
+    await expect(page.getByTestId('chart-floating-card')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
 
     await chooseAccount(page, LIVE_ID);
-    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&mode=setup`);
+    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&tf=M15`);
     await expect(page.getByText('90 – 110')).toBeHidden();
-    await expect(page.getByTestId('zone-select')).not.toContainText('USOUSD');
-    await expect(page.getByTestId('zone-select').getByRole('combobox')).toBeDisabled();
+    // Das neue Konto hat kein Setup: kein Symbol, keine Karte des alten Kontos
+    await expect(page.getByTestId('formation-symbol').locator('input')).not.toHaveValue(/USOUSD/);
+    await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
+    await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
     // Stream und Dashboard folgen dem Konto der Analyse-Seite
     await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.dashboard') }).click();
     await expect(accountSelect(page)).toContainText(`(${LIVE_ID})`);
   });
 
-  test('Alter Setup-Link behält seinen Chartmodus beim Kontowechsel', { tag: ['@ANA-02', '@ANA-16'] }, async ({ page, worker }) => {
+  test('Alter Setup-Link: der Kontowechsel verwirft Zone und Produkt, das neue Konto beginnt mit seinem ersten Setup', { tag: ['@ANA-02', '@ANA-16'] }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
-    await expect(page.getByTestId('chart-mode-setup')).toHaveAttribute('aria-pressed', 'true');
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`);
+    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
     await chooseAccount(page, LIVE_ID);
     await expect(page).toHaveURL(new RegExp(`account=${LIVE_ID}`));
-    await expect(page.getByTestId('chart-mode-setup')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('free-chart-panel')).toHaveCount(0);
-    await expect(page.getByTestId('zone-select').getByRole('combobox')).toBeDisabled();
+    expect(new URL(page.url()).searchParams.get('zone')).toBeNull();
+    expect(new URL(page.url()).searchParams.get('symbol')).toBeNull();
+    // Das LIVE-Konto hat kein Setup: der Chart sagt, dass ein Produkt zu wählen ist, und es gibt keine Setup-Karte
+    await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
+    await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
   });
 
   test('Direkt aufgerufenes Konto: Dashboard kennt LIVE/DEMO, unbekanntes Konto wird nicht gewählt', { tag: '@ANA-02' }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${LIVE_ID}&mode=setup`);
-    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.empty'));
+    await page.goto(`/chart?account=${LIVE_ID}&tf=M15`);
+    await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.dashboard') }).click();
     await expect(page.getByTestId('env-badge')).toHaveText(msg('dashboard.env.live'));
 
@@ -160,14 +187,14 @@ test.describe('ANA Analyse-Seite', () => {
 
   test('Zonen nicht ladbar: Meldung statt endlosem Laden', { tag: '@ANA-02' }, async ({ page, worker }) => {
     worker.overrides.set(`GET /api/settings/${DEMO_ID}`, { status: 500, body: { detail: 'settings kaputt' } });
-    await page.goto(`/chart?account=${DEMO_ID}&mode=setup`);
+    await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
     await expect(page.getByRole('alert').filter({ hasText: msg('analysis.zone.failed') })).toContainText('settings kaputt');
   });
 
   test('Verspätete Antwort eines anderen Kontos wird verworfen', { tag: '@ANA-02' }, async ({ page, worker }) => {
     worker.setZones(LIVE_ID, [makeZone({ id: 'zone-live', symbol: 'XAUUSD', min_price: 1900, max_price: 2000 })]);
-    await page.goto(`/chart?account=${DEMO_ID}&mode=setup`);
-    await expect(page.getByTestId('zone-select')).toContainText('USOUSD');
+    await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
+    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
 
     // Antwort für LIVE kommt erst, nachdem schon wieder DEMO gewählt ist
     let releaseLive: () => void = () => {};
@@ -177,20 +204,23 @@ test.describe('ANA Analyse-Seite', () => {
       await route.fallback();
     });
     await chooseAccount(page, LIVE_ID);
-    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.loading'));
+    // Solange die Setups des neuen Kontos laden, steht keine Karte des alten Kontos da
+    await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
     await chooseAccount(page, DEMO_ID);
-    await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await expect(page.getByTestId('chart-floating-card')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     releaseLive();
     await expect.poll(() => worker.callsTo('GET', `/api/settings/${LIVE_ID}`).length).toBeGreaterThan(0);
     await page.waitForTimeout(500);
-    await expect(page.getByTestId('zone-select')).toContainText('USOUSD');
-    await expect(page.getByTestId('zone-select')).not.toContainText('XAUUSD');
+    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
+    await expect(page.getByTestId('chart-floating-card')).not.toContainText('XAUUSD');
+    await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
   });
 
   test('Anzeige-Schalter bleiben nach dem Neuladen', { tag: '@ANA-03' }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`);
+    await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
 
     await page.getByTestId('layers-button').click();
@@ -200,7 +230,8 @@ test.describe('ANA Analyse-Seite', () => {
     await expect(page.getByText('90 – 110')).toBeHidden();
 
     await page.reload();
-    await expect(page.getByTestId('zone-select')).toContainText('USOUSD');
+    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
+    await openCard(page);
     await expect(page.getByText('90 – 110')).toBeHidden();
     await page.getByTestId('layers-button').click();
     await expect(page.getByTestId('layers-menu').getByRole('switch', { name: msg('analysis.settings.zoneCard') })).toHaveAttribute(
@@ -215,7 +246,7 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
     void worker;
     // Browser (Europe/Berlin): 31.12.2026 23:30 – Broker (UTC+3): schon 01.01.2027 01:30
     await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
-    await page.goto(`/chart?account=${DEMO_ID}&mode=free&range=today`);
+    await page.goto(`/chart?account=${DEMO_ID}&range=today&tf=M15`);
     await expect(page.getByTestId('broker-clock')).toHaveText(msg('analysis.clock.badge', { offset: '+3' }));
     await expect(page.getByTestId('range-trigger')).toContainText('01.01.27 – 01.01.27');
 
@@ -233,7 +264,7 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
   test('Eigener Zeitraum als TT.MM.JJ', { tag: '@ANA-10' }, async ({ page, worker }) => {
     void worker;
     await page.clock.setFixedTime(new Date('2026-10-01T12:00:00Z'));
-    await page.goto(`/chart?account=${DEMO_ID}&mode=setup`);
+    await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
     await page.getByTestId('range-trigger').click();
     const from = page.getByTestId('range-from');
     const to = page.getByTestId('range-to');
@@ -261,7 +292,7 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
   test('Ein unmöglicher Abstand (UTC−31:30 aus einem alten Tick) zählt als unsicher, kein falsches Abzeichen', { tag: '@ANA-10' }, async ({ page, worker }) => {
     worker.state.brokerOffset = -31.5 * 3600;
     await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
-    await page.goto(`/chart?account=${DEMO_ID}&mode=free&range=today`);
+    await page.goto(`/chart?account=${DEMO_ID}&range=today&tf=M15`);
     await expect(page.getByRole('alert').filter({ hasText: msg('analysis.clock.unsure.title') })).toBeVisible();
     await expect(page.getByTestId('broker-clock')).toBeHidden();
     await expect(page.getByTestId('range-trigger')).toContainText('31.12.26 – 31.12.26');
@@ -271,7 +302,7 @@ test.describe('ANA-10 Kalender und Brokerzeit', () => {
     worker.state.brokerClockReliable = false;
     // UTC: 31.12.2026 22:30 – ohne sichere Brokeruhr gilt der UTC-Tag
     await page.clock.setFixedTime(new Date('2026-12-31T22:30:00Z'));
-    await page.goto(`/chart?account=${DEMO_ID}&mode=free&range=today`);
+    await page.goto(`/chart?account=${DEMO_ID}&range=today&tf=M15`);
     await expect(page.getByRole('alert').filter({ hasText: msg('analysis.clock.unsure.title') })).toBeVisible();
     await expect(page.getByTestId('broker-clock')).toBeHidden();
     await expect(page.getByTestId('range-trigger')).toContainText('31.12.26 – 31.12.26');

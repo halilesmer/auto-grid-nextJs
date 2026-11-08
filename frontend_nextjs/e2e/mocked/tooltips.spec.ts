@@ -10,6 +10,15 @@ import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type Dashboa
 import { msg } from '../fixtures/i18n';
 import { openConnectionDialog, openHeaderMenu, openPageMenu } from '../fixtures/header';
 
+/** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const card = page.getByTestId('chart-floating-card');
+  const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(card.getByTestId('chart-card-overview')).toBeVisible();
+}
+
 const CONTROLS =
   'button, a[href], input, select, textarea, [role="switch"], [role="button"], [role="tab"], [role="radio"], [role="combobox"]';
 
@@ -241,8 +250,8 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
 
   test('Formasyon- und Chart-Seite', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     void worker;
-    await page.goto('/chart?mode=formation');
-    await expect(page.getByRole('heading', { name: msg('formation.title') })).toBeVisible();
+    await page.goto('/chart');
+    await expect(page.getByRole('heading', { name: msg('nav.chart') })).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
 
     await dashboard.open(DEMO_ID);
@@ -251,10 +260,9 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     expect(await unhinted(page)).toEqual([]);
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
-    await page.getByTestId('chart-mode-free').click();
+    await expect(page.getByTestId('chart-floating-card')).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
-    await page.getByTestId('chart-mode-setup').click();
-    await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`);
+    await openCard(page);
     await expect(page.getByText(msg('chart.zone.priceRange'), { exact: true })).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
   });

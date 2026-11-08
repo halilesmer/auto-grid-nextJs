@@ -79,7 +79,8 @@ export function rememberChartView(chart: IChartApi, hosts: HTMLElement[], contex
     }
     // fitContent() liegt bis auf einen halben Kerzenabstand an den Rändern. Passen mehr Kerzen in die Breite, als der
     // kleinste Kerzenabstand zulässt, ist die breiteste Ansicht bis zur letzten Kerze die Standardansicht.
-    const reachesEnd = logical.to >= count - 2;
+    // One bar of tolerance more than before (count - 3): the running candle of the formation search counts as a point too (1107-A21)
+    const reachesEnd = logical.to >= count - 3;
     const widest = logical.to - logical.from + 2 >= scale.width() / MIN_BAR_SPACING_PX;
     const showsAll = reachesEnd && (logical.from <= 1 || widest);
     pending = { zoom: showsAll ? undefined : { from: Number(range.from), to: Number(range.to) } };

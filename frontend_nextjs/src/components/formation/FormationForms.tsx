@@ -48,7 +48,8 @@ export function FormationForms({
   optionHint?: (params: { form: string; count: number }) => string;
 }) {
   const t = useT();
-  const shown = onlyWithHits ? SCAN_FORMATIONS.filter((x) => hitsCount(hits, { form: x, tf }) > 0) : SCAN_FORMATIONS;
+  // A hit is any candidate of the formation on `tf`, also an invalid or a forming one without badge: the conditions explain why it fails
+  const shown = onlyWithHits ? SCAN_FORMATIONS.filter((x) => hits.some((h) => h.form === x && h.tf === tf)) : SCAN_FORMATIONS;
   if (onlyWithHits && shown.length === 0) {
     return emptyNote ? <span className="px-1 text-xs text-muted-foreground" data-testid="formation-forms-empty">{emptyNote}</span> : null;
   }

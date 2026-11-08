@@ -4,11 +4,12 @@ import { msg } from '../fixtures/i18n';
 import { fixtureTrend, seedFixtureTrend } from '../fixtures/formation-trend';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
-// Serbest paket yerleşimi, S4: mod, ürün ve aksiyon paketleri, hesap çapası, Setup/Frei (UI-17, plan 1106-A1 ve karar 1106-A4.1)
-const FORMATION = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
-const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
-const FREE = `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
-const STATS = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tab=stats`;
+// Serbest paket yerleşimi, S4: ürün ve aksiyon paketleri, hesap çapası (UI-17, plan 1106-A1 ve karar 1106-A4.1). Tek grafik (1107-A21, U4-4a): mod paketi yok;
+// üç adres (form=, zone=, symbol=) aynı sayfayı açar, testler eski bağlantıların hepsinde çalışır.
+const FORMATION = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
+const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`;
+const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+const STATS = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tab=stats`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -25,7 +26,7 @@ const wrapOrder = (page: Page, zone: 'row1' | 'row2') => row(page, zone).locator
 async function go(page: Page, url: string) {
   await page.goto(url);
   await expect(row(page, 'row1')).toBeVisible();
-  await expect(pkg(page, 'mode')).toBeVisible();
+  await expect(pkg(page, 'symbol')).toBeVisible();
 }
 const noScroll = async (page: Page, width: number) => expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 /** Satır 1 tek satır: bütün paket kutularının dikey merkezi aynı çizgide (iki satıra kırılsa merkezler ayrılırdı) ve satır en çok bir yüksek kontrol kadar yüksek */
@@ -36,22 +37,23 @@ const singleLine = async (page: Page) => {
   expect(await row(page, 'row1').evaluate(e => e.getBoundingClientRect().height)).toBeLessThan(52);
 };
 
-test('(a) Mod paketini Satır 1\'de aksiyonların sağına sürükle, yeniden yükle: yer korunur', { tag: '@UI-17' }, async ({ page }) => {
+test('(a) Ürün paketini Satır 1\'de aksiyonların sağına sürükle, yeniden yükle: yer korunur', { tag: '@UI-17' }, async ({ page }) => {
   await go(page, FORMATION);
-  expect(await wrapOrder(page, 'row1')).toEqual(['mode', 'symbol', 'account', 'actions']);
-  const start = (await handle(page, 'mode').boundingBox())!;
+  expect(await wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions']);
+  const start = (await handle(page, 'symbol').boundingBox())!;
   const r1 = (await row(page, 'row1').boundingBox())!;
   await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
   await page.mouse.down();
   await page.mouse.move(start.x + 30, start.y + 4, { steps: 5 });
   await page.mouse.move(r1.x + r1.width - 6, r1.y + r1.height / 2, { steps: 10 });
   await page.mouse.up();
-  await expect.poll(async () => (await stored(page))?.row1).toEqual(['symbol', 'account', 'actions', 'mode']);
-  expect(await wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions', 'mode']);
+  // Kayıtlı listede çizilmeyen 'mode' (U4-5'e kadar) başta durur; görünen sıra ondan etkilenmez
+  await expect.poll(async () => (await stored(page))?.row1).toEqual(['mode', 'account', 'actions', 'symbol']);
+  expect(await wrapOrder(page, 'row1')).toEqual(['account', 'actions', 'symbol']);
   await page.reload();
-  await expect(pkg(page, 'mode')).toBeVisible();
+  await expect(pkg(page, 'symbol')).toBeVisible();
   // Yeniden yüklemeden sonra kutular önce eklenme sırasıyla durur; yerleştirme bir kare sonra sıralar (aynı kesin sıra, yalnız bekleyerek)
-  await expect.poll(() => wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions', 'mode']);
+  await expect.poll(() => wrapOrder(page, 'row1')).toEqual(['account', 'actions', 'symbol']);
 });
 
 for (const [name, url] of [['Formation', FORMATION], ['Setup', SETUP], ['Frei', FREE]] as const) {
@@ -94,35 +96,39 @@ test('(c) Dar pencerede aksiyonlar ok menüsünde; menüdeki düğme ipucu taş�
   await expect.poll(async () => (await menu.count()) === 0 || (await first.getAttribute('aria-expanded')) === 'true').toBe(true);
 });
 
-test('(d) Setup: zaman dilimleri Formation\'daki yerinde TimeframeSelect olarak; formasyonlar yok; Formation\'a dönünce yerleşim aynı', { tag: '@UI-17' }, async ({ page }) => {
+test('(d) Yerleşim bağlantıdan bağımsız: zaman dilimleri alt çubuğa taşınınca her bağlantıda orada, formasyonlar paketi de hep var; varsayılan Satır 2\'de', { tag: '@UI-17' }, async ({ page }) => {
   await go(page, FORMATION);
   await expect(row(page, 'row2').locator('[data-dock-pkg="timeframes"]')).toBeVisible();
-  // Zaman dilimlerini alt çubuğa taşı; Setup'ta da orada durur
+  // Zaman dilimlerini alt çubuğa taşı; Setup bağlantısında da orada durur
   await handle(page, 'timeframes').click();
   await page.getByTestId('dock-move-bottom').click();
   await expect.poll(async () => (await stored(page))?.bottom).toContain('timeframes');
   const formationStored = await stored(page);
   await go(page, SETUP);
   await expect(row(page, 'bottom').locator('[data-dock-pkg="timeframes"]').getByTestId('timeframe-select')).toBeVisible();
-  await expect(pkg(page, 'formations')).toHaveCount(0);
+  // Tek grafik: formasyon paketi (Formations) Setup bağlantısında da var
+  await expect(pkg(page, 'formations')).toHaveCount(1);
   expect(await stored(page)).toEqual(formationStored);
   await go(page, FORMATION);
   await expect(row(page, 'bottom').locator('[data-dock-pkg="timeframes"]')).toBeVisible();
   expect(await stored(page)).toEqual(formationStored);
-  // Varsayılan Setup: zaman dilimleri Satır 2'de (Formation'daki yer)
+  // Varsayılan Setup: zaman dilimleri Satır 2'de
   await page.evaluate(key => localStorage.removeItem(key), storageKey);
   await go(page, SETUP);
   await expect(row(page, 'row2').locator('[data-dock-pkg="timeframes"]').getByTestId('timeframe-select')).toBeVisible();
-  expect(await wrapOrder(page, 'row1')).toEqual(['mode', 'symbol', 'account', 'actions']);
+  expect(await wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions']);
 });
 
-test('(e) Ürün paketi: Frei\'de sembol seçimi, Setup\'ta setup seçimi', { tag: '@UI-17' }, async ({ page }) => {
+test('(e) Ürün paketi: her bağlantıda (Frei, Setup) sembol seçimi; setup seçimi (zone-select) yalnız İstatistik görünümünde', { tag: '@UI-17' }, async ({ page }) => {
   await go(page, FREE);
-  await expect(pkg(page, 'symbol').getByTestId('chart-symbol')).toBeVisible();
+  await expect(pkg(page, 'symbol').getByTestId('formation-symbol')).toBeVisible();
   await expect(pkg(page, 'symbol').getByTestId('zone-select')).toHaveCount(0);
   await go(page, SETUP);
-  await expect(pkg(page, 'symbol').getByTestId('zone-select')).toBeVisible();
-  await expect(pkg(page, 'symbol').getByTestId('chart-symbol')).toHaveCount(0);
+  await expect(pkg(page, 'symbol').getByTestId('formation-symbol')).toBeVisible();
+  await expect(pkg(page, 'symbol').getByTestId('zone-select')).toHaveCount(0);
+  // Setup seçimi İstatistik görünümünde kalır (paket düzeni yok)
+  await page.goto(STATS);
+  await expect(page.getByTestId('zone-select')).toBeVisible();
 });
 
 for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
@@ -131,7 +137,8 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     await go(page, url);
     const actions = pkg(page, 'actions');
     await expect(actions).toBeVisible();
-    await expect(actions.getByTestId('range-trigger')).toBeVisible();
+    // Since 1107-A21 the package holds the formation actions too (kept in the row). At 720 px the range may stand in the arrow menu with the tabs; it stays reachable
+    const rangeInRow = await actions.getByTestId('range-trigger').isVisible();
     await expect(row(page, 'row2')).toBeVisible();
     await singleLine(page);
     await noScroll(page, 720);
@@ -139,8 +146,19 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     await expect(actions.getByRole('tab', { name: msg('analysis.tab.stats') })).toBeHidden();
     await actions.getByTestId('dock-more').click();
     const menu = page.getByTestId('dock-more-menu');
-    expect(await menu.locator('button:visible, [role=tab]:visible').evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`)))
-      .toEqual([`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`]);
+    // Since 1107-A21 the package also holds the formation actions (past moment, image): at this width they may stand in the menu too. The tabs and the license come in this order
+    const wanted = [`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`];
+    // A range that left the row stands in this menu (the menu draws the hidden items again, A4.17.2): it is visible there and opens its picker
+    if (!rangeInRow) {
+      const inMenu = menu.getByTestId('range-trigger');
+      await expect(inMenu).toBeVisible();
+      await inMenu.click();
+      await expect(page.getByTestId('range-panel')).toBeVisible();
+      await page.keyboard.press('Escape');
+      if (!(await menu.isVisible())) await actions.getByTestId('dock-more').click();
+    }
+    const listed = await menu.locator('button:visible, [role=tab]:visible').evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`));
+    expect(listed.filter(x => wanted.includes(x))).toEqual(wanted);
     await menu.getByRole('tab', { name: msg('analysis.tab.stats') }).click();
     await expect(page).toHaveURL(/tab=stats/);
   });
@@ -154,10 +172,11 @@ test('(g) Statistik görünümünde Chart\'a dönüş düğmesi görünür kalı
   await expect(page).not.toHaveURL(/tab=stats/);
 });
 
-test('Varsayılan Satır 1 sırası: tam olarak mod, ürün, hesap, aksiyonlar', { tag: '@UI-17' }, async ({ page }) => {
+test('Varsayılan Satır 1 sırası: tam olarak ürün, hesap, aksiyonlar (mod paketi çizilmez)', { tag: '@UI-17' }, async ({ page }) => {
   for (const url of [FORMATION, SETUP, FREE]) {
     await go(page, url);
-    expect(await wrapOrder(page, 'row1')).toEqual(['mode', 'symbol', 'account', 'actions']);
+    expect(await wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions']);
+    await expect(pkg(page, 'mode')).toHaveCount(0);
   }
 });
 
@@ -185,7 +204,7 @@ for (const [name, url] of [['Formation', FORMATION], ['Setup', SETUP], ['Frei', 
     await go(page, url);
     const wide = await heights();
     await page.setViewportSize({ width: 720, height: 800 });
-    await expect(pkg(page, 'mode')).toBeVisible();
+    await expect(pkg(page, 'symbol')).toBeVisible();
     await expect.poll(async () => (await heights()).row).toBe(wide.row);
     const narrow = await heights();
     console.log(`UI17-HEIGHTS ${name} 1440=${wide.row} 720=${narrow.row} wraps1440=${JSON.stringify(wide.wraps)} wraps720=${JSON.stringify(narrow.wraps)}`);
@@ -226,8 +245,10 @@ for (const [w, h] of [[720, 800], [812, 375], [1024, 800], [1176, 800], [1440, 9
   });
 }
 
-test('Setup 1176 px: Mod paketi tam görünür (üç düğme)', { tag: '@UI-17' }, async ({ page }) => {
+test('Setup 1176 px: mod düğmeleri ve mod paketi yok; ürün ve aksiyonlar paketi tam görünür', { tag: '@UI-17' }, async ({ page }) => {
   await page.setViewportSize({ width: 1176, height: 800 });
   await go(page, SETUP);
-  for (const m of ['formation', 'setup', 'free']) await expect(page.getByTestId(`chart-mode-${m}`)).toBeVisible();
+  await expect(page.locator('[data-testid="chart-mode"], [data-testid^="chart-mode-"], [data-dock-pkg="mode"]')).toHaveCount(0);
+  await expect(pkg(page, 'symbol')).toBeVisible();
+  await expect(pkg(page, 'actions')).toBeVisible();
 });

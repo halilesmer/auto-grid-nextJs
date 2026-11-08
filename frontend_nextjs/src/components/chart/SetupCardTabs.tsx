@@ -12,7 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { FieldLabel } from '@/components/ui/tooltip';
 import type { MarketRates } from '@/hooks/useMarketRates';
 import type { LegendLayer, useSetupLayers } from '@/hooks/useSetupLayers';
-import type { Timeframe } from '@/lib/analysis/candles';
+import { ZoneSelect } from '@/components/analysis/ZoneSelect';
+import type { ChartTimeframe, Timeframe } from '@/lib/analysis/candles';
 import type { LevelsUnavailable } from '@/lib/analysis/levels';
 import { useAnalysisPrefsStore, type AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
@@ -131,7 +132,7 @@ export function SetupSwitches({ idPrefix, legendLayers, prefs }: { idPrefix: str
   const setPref = useAnalysisPrefsStore((s) => s.setPref);
   return (
     <>
-      {legendLayers.map(l => <Switch key={l.pref} id={`${idPrefix}-${l.id}`} label={t(l.label)} hint={t(l.hint)} checked={prefs[l.pref]} onChange={v => setPref(l.pref, v)} />)}
+      {legendLayers.map(l => <Switch key={l.pref} id={`${idPrefix}-${l.id}`} label={t(l.label)} hint={t(l.hint)} checked={prefs[l.pref]} disabled={l.disabled} onChange={v => setPref(l.pref, v)} />)}
       <Switch id={`${idPrefix}-zone-card`} label={t('analysis.settings.zoneCard')} hint={t('analysis.settings.zoneCard.hint')} checked={prefs.showZoneCard} onChange={v => setPref('showZoneCard', v)} />
       <p className="border-t border-border pt-2 text-[11px] leading-relaxed text-muted-foreground">{t('analysis.settings.fixed')}</p>
     </>
@@ -141,21 +142,32 @@ export function SetupSwitches({ idPrefix, legendLayers, prefs }: { idPrefix: str
 interface SetupCardTabsProps {
   accountId: string;
   zone: ZoneSettings;
-  timeframe: Timeframe;
+  timeframe: ChartTimeframe;
   onTimeframe: (tf: Timeframe) => void;
   prefs: AnalysisPrefs;
   data: MarketRates | null;
   layers: ReturnType<typeof useSetupLayers>;
+  /** All setups of the symbol: with more than one, the tab "Overview" has a select (1107-A21.2) */
+  setups?: ZoneSettings[];
+  onSetup?: (zoneId: string) => void;
+  /** Flips to true once a formation is drawn: the card closes (it would cover the drawing) */
+  collapseSignal?: boolean;
 }
 
 /** Schwebende Setup-Karte: Reiter „Genel bakış“ (Live-Werte, Zone, Hinweise) und „İşlemler“ (Trade-Archiv) */
-export function SetupCardTabs({ accountId, zone, timeframe, onTimeframe, prefs, data, layers }: SetupCardTabsProps) {
+export function SetupCardTabs({ accountId, zone, timeframe, onTimeframe, prefs, data, layers, setups, onSetup, collapseSignal }: SetupCardTabsProps) {
   const t = useT();
   const { history, dealsRequest, deals, positions, orders, levels, marketHours, botRunning, streamMatches, symbolMismatch, streamSymbol } = layers;
   const { isFractalZone, fractalTf, setupLabel, focusTrade } = layers;
 
   const overview = (
     <div className="space-y-3" data-testid="chart-card-overview">
+      {setups && setups.length > 1 && onSetup && (
+        <div className="space-y-1" data-testid="chart-card-setup-select">
+          <p className="text-[11px] font-medium text-muted-foreground">{t('chart.card.setupSelect')}</p>
+          <ZoneSelect zones={setups} value={zone.id} onChange={onSetup} />
+        </div>
+      )}
       <LiveStats digits={streamMatches ? (data?.digits ?? undefined) : undefined} />
       {symbolMismatch && (
         <Alert tone="warning" title={t('chart.zone.mismatch.title')}>
@@ -195,6 +207,7 @@ export function SetupCardTabs({ accountId, zone, timeframe, onTimeframe, prefs, 
 
   return (
     <FloatingCard
+      collapseSignal={collapseSignal}
       title={t('chart.zone.title', { n: layers.setupNo, symbol: zone.symbol || '—' })}
       tabs={[
         { id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: overview },
@@ -222,6 +235,19 @@ export function SetupCardTabs({ accountId, zone, timeframe, onTimeframe, prefs, 
           ),
         },
       ]}
+    />
+  );
+}
+
+/** The card of a symbol without a setup (1107-A21.11): the tab "Overview" says so; the tab "Trades" has nothing to show */
+export function NoSetupCard({ symbol }: { symbol: string }) {
+  const t = useT();
+  return (
+    <FloatingCard
+      // Only a note: it starts closed, so it does not cover the chart
+      defaultOpen={false}
+      title={symbol}
+      tabs={[{ id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: <p className="text-xs text-muted-foreground" data-testid="chart-card-no-setup">{t('chart.card.noSetup', { symbol })}</p> }]}
     />
   );
 }

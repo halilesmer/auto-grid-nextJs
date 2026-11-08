@@ -107,10 +107,11 @@ function SymbolSearch({ value, details, favorites, onChange, onRestore }: {
 }
 
 /** Freie Produktsuche als Pille in der Kopfleiste: Name oder Beschreibung, unabhängig von den Setups des Kontos; mit Favoriten-Fahne. */
-export function FormationSymbolSelect({ accountId, value, onChange }: {
+export function FormationSymbolSelect({ accountId, value, onChange, className }: {
   accountId: string | null;
   value: string | null;
   onChange: (symbol: string) => void;
+  className?: string;
 }) {
   const t = useT();
   const details = useSymbolDetails(accountId);
@@ -120,7 +121,7 @@ export function FormationSymbolSelect({ accountId, value, onChange }: {
   const current = details[(value ?? '').toUpperCase()]?.name ?? value ?? '';
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1 @max-[30rem]/formation-main:w-34 @max-[30rem]/formation-main:max-w-[42%] @max-[30rem]/formation-main:flex-none lg:w-44 lg:flex-none">
+    <div className={cn('flex min-w-0 flex-1 items-center gap-1 @max-[30rem]/formation-main:w-34 @max-[30rem]/formation-main:max-w-[42%] @max-[30rem]/formation-main:flex-none lg:w-44 lg:flex-none', className)}>
       {/* Der Hinweis sitzt am (i): ein Tooltip am Eingabefeld läge beim Tippen über der Liste */}
       <div
         className="relative min-w-0 flex-1 [&_[data-slot=autocomplete-content]]:right-auto [&_[data-slot=autocomplete-content]]:min-w-60"

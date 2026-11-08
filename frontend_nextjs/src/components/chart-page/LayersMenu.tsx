@@ -16,13 +16,17 @@ import { setSystemLayer } from '@/components/chart-workspace/systemLayers';
  * Die Schalter schreiben in dieselben Speicher wie die alten Orte (`useAnalysisPrefsStore`, Overlays des Chart-Arbeitsbereichs),
  * gespeicherte Einstellungen gelten also weiter.
  */
-export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, children }: {
+export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, children, formationLayers, setupLayers }: {
   contextKey: string;
   timeframe: ChartTimeframe;
   rsi: boolean;
   wave: boolean;
+  /** Old mode section (Formation, Setup and Free pages until step U4-5) */
   modeTitle?: string;
   children?: ReactNode;
+  /** Groups of the one chart (1107-A21): the formation layer and the setup layers of the symbol */
+  formationLayers?: ReactNode;
+  setupLayers?: ReactNode;
 }) {
   const t = useT();
   const showTrend = useAnalysisPrefsStore(s => s.showTrend), setShowTrend = useAnalysisPrefsStore(s => s.setShowTrend);
@@ -52,6 +56,22 @@ export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, childr
           <Switch id="layer-pauses" label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={showPauses} onChange={v => setPref('showPauses', v)} />
           <Switch id="layer-gaps" label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={showGaps} onChange={v => setPref('showGaps', v)} />
         </div>
+        {formationLayers !== undefined && <>
+          <div className="my-2 h-px bg-border" />
+          <div className="grid gap-2" data-testid="layers-group-formation">
+            <p className="text-[11px] font-medium text-foreground">{t('cw.layers.formation')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('cw.layers.formation.help')}</p>
+            {formationLayers}
+          </div>
+        </>}
+        {setupLayers !== undefined && <>
+          <div className="my-2 h-px bg-border" />
+          <div className="grid gap-2.5" data-testid="layers-group-setup">
+            <p className="text-[11px] font-medium text-foreground">{t('cw.layers.setup')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('cw.layers.setup.help')}</p>
+            {setupLayers}
+          </div>
+        </>}
         {children && <>
           <div className="my-2 h-px bg-border" />
           <p className="mb-1 text-[11px] text-muted-foreground">{modeTitle}</p>

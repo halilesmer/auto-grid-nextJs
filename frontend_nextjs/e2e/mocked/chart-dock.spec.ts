@@ -3,7 +3,7 @@ import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 // Serbest paket yerleşimi, S2: yuvalar, ok menüsü, yumuşak bırakma, klavye (UI-17, plan 1106-A1, journal 2026-11-06-free-package-layout)
-const URL = `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -21,7 +21,8 @@ const box = async (page: Page, id: string) => (await page.locator(`[data-dock-wr
 
 test('Dar pencerede ok görünür; menüdeki düğme çalışır ve ipucu taşır', { tag: '@UI-17' }, async ({ page, worker }) => {
   void worker;
-  await page.setViewportSize({ width: 520, height: 800 });
+  // 520 px'te alt çubuk dört paketin en küçük genişliğine sığmıyor (Seitenleiste şeridi 40 px yer tutuyor): 600 px
+  await page.setViewportSize({ width: 600, height: 800 });
   await open(page);
   // Görünüm paketinde tek düğme var (gizlenmez, ok yok); Göstergeler paketinde ok çıkar
   const more = group(page, 'indicators').getByTestId('dock-more');
@@ -84,13 +85,15 @@ test('Alt çubuğun ortasına bırak: boşlukta kalır, yenilemeden sonra yeri k
   void worker;
   await open(page);
   const rowBox = (await page.getByTestId('dock-row-bottom').boundingBox())!;
-  const start = (await handle(page, 'edit').boundingBox())!, w = (await box(page, 'edit')).width;
+  const start = (await handle(page, 'edit').boundingBox())!, home = await box(page, 'edit'), w = home.width;
+  // Tutamağın paketin sol kenarına uzaklığı sürükleme başlamadan ölçülür (sürüklerken kaynak kutu satırın başına kayar)
+  const grab = start.x + start.width / 2 - home.x;
   await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
   await page.mouse.down();
   await page.mouse.move(start.x + 40, start.y - 10, { steps: 5 });
   // Paketin sol kenarı satırın %60'ında olsun
   const wantLeft = rowBox.x + rowBox.width * 0.6;
-  await page.mouse.move(wantLeft + (start.x + start.width / 2 - (await box(page, 'edit')).x), start.y + start.height / 2, { steps: 10 });
+  await page.mouse.move(wantLeft + grab, start.y + start.height / 2, { steps: 10 });
   await page.mouse.up();
   await expect.poll(async () => (await stored(page)).pos.edit).toBeGreaterThan(0.5);
   const pos = (await stored(page)).pos.edit as number;
@@ -113,7 +116,7 @@ test('Klavyeyle sıra değişir: ← sola alır, ↓ ↑ satır değiştirir', {
   // Sekme sırası görünen sırayla aynı: DOM'da düzen paketi göstergelerden önce
   const order = await page.getByTestId('dock-row-bottom').locator('[data-dock-pkg]').evaluateAll(els => els.map(e => e.getAttribute('data-dock-pkg')));
   expect(order).toEqual(['view', 'edit', 'indicators', 'window']);
-  // Setup/Frei'de de Satır 2 vardır (S4): ↑ önce Satır 2'ye, sonra Satır 1'e çıkar
+  // Satır 2 her bağlantıda vardır (S4): ↑ önce Satır 2'ye, sonra Satır 1'e çıkar
   await page.keyboard.press('ArrowUp');
   await expect.poll(async () => (await stored(page)).row2).toContain('edit');
   await expect(page.getByTestId('dock-row-row2').locator('[data-dock-pkg="edit"]')).toBeVisible();
